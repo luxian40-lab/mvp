@@ -1,0 +1,94 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="text-dark">📊 Tablero de Control - Eki MVP</h1>
+            <p class="text-muted">Resumen de actividad en tiempo real</p>
+        </div>
+    </div>
+
+    <div class="row">
+        
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-info">
+                <div class="inner">
+                    <h3>{{ exitosos }}</h3>
+                    <p>Mensajes Entregados ✅</p>
+                </div>
+                <div class="icon">
+                    <i class="fas fa-paper-plane"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-danger">
+                <div class="inner">
+                    <h3>{{ fallidos }}</h3>
+                    <p>Envíos Fallidos ❌</p>
+                </div>
+                <div class="icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-success">
+                <div class="inner">
+                    <h3>{{ total_campanas }}</h3>
+                    <p>Campañas Creadas 📢</p>
+                </div>
+                <div class="icon">
+                    <i class="fas fa-bullhorn"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-warning">
+                <div class="inner">
+                    <h3>{{ estudiantes_activos }}</h3>
+                    <p>Estudiantes Activos 🎓</p>
+                </div>
+                <div class="icon">
+                    <i class="fas fa-users"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <hr>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card card-primary card-outline">
+                <div class="card-header">
+                    <h5 class="m-0">🚀 Acciones Rápidas</h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">Inicia una nueva campaña o gestiona tu base de datos.</p>
+                    <a href="/admin/core/campana/add/" class="btn btn-primary"><i class="fas fa-plus"></i> Nueva Campaña</a>
+                    <a href="/admin/core/estudiante/add/" class="btn btn-secondary"><i class="fas fa-user-plus"></i> Nuevo Estudiante</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+             <div class="card card-outline card-info">
+                <div class="card-header">
+                    <h5 class="m-0">📥 Reportes</h5>
+                </div>
+                <div class="card-body">
+                    <p>Ve al historial completo para descargar reportes en Excel.</p>
+                    <a href="/admin/core/enviolog/" class="btn btn-info"><i class="fas fa-list"></i> Ver Historial Completo</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
