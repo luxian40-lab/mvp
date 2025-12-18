@@ -63,6 +63,100 @@
 
     <hr>
 
+    <!-- Métricas de WhatsApp -->
+    <div class="row mt-4">
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-primary">
+                <div class="inner">
+                    <h3>{{ whatsapp_total }}</h3>
+                    <p>Mensajes WhatsApp 💬</p>
+                </div>
+                <div class="icon">
+                    <i class="fab fa-whatsapp"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-teal">
+                <div class="inner">
+                    <h3>{{ whatsapp_enviados }}</h3>
+                    <p>Mensajes Enviados 📤</p>
+                </div>
+                <div class="icon">
+                    <i class="fas fa-share-square"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-6">
+            <div class="small-box bg-olive">
+                <div class="inner">
+                    <h3>{{ whatsapp_entrantes }}</h3>
+                    <p>Mensajes Recibidos 📥</p>
+                </div>
+                <div class="icon">
+                    <i class="fas fa-inbox"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <hr>
+
+    <!-- Tabla de Mensajes WhatsApp Recientes -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card card-primary card-outline">
+                <div class="card-header">
+                    <h5 class="m-0">📱 Últimos Mensajes WhatsApp</h5>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Teléfono</th>
+                                <th>Mensaje</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                                <th>ID Mensaje</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in whatsapp_logs %}
+                            <tr>
+                                <td><strong>{{ log.telefono }}</strong></td>
+                                <td>{{ log.mensaje|truncatewords:10 }}</td>
+                                <td>
+                                    {% if log.estado == 'SENT' %}
+                                        <span class="badge badge-success">ENVIADO ✅</span>
+                                    {% elif log.estado == 'INCOMING' %}
+                                        <span class="badge badge-info">RECIBIDO 📥</span>
+                                    {% elif log.estado == 'PENDING' %}
+                                        <span class="badge badge-warning">PENDIENTE ⏳</span>
+                                    {% elif log.estado == 'ERROR' %}
+                                        <span class="badge badge-danger">ERROR ❌</span>
+                                    {% else %}
+                                        <span class="badge badge-secondary">{{ log.estado }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ log.fecha|date:"d/m/Y H:i" }}</td>
+                                <td><code>{{ log.mensaje_id }}</code></td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">Sin mensajes aún.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <hr>
+
     <div class="row mt-4">
         <div class="col-md-6">
             <div class="card card-primary card-outline">

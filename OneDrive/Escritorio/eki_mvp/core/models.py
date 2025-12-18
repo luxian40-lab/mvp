@@ -98,6 +98,18 @@ class EnvioLog(models.Model):
         return f"{self.estudiante.nombre} - {self.estado}"
 
 
+# Registro de mensajes enviados/recibidos por WhatsApp
+class WhatsappLog(models.Model):
+    telefono = models.CharField(max_length=30)
+    mensaje = models.TextField(blank=True, null=True)
+    mensaje_id = models.CharField(max_length=200, blank=True, null=True, db_index=True)
+    estado = models.CharField(max_length=50, default='PENDING')
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.telefono} - {self.estado} ({self.mensaje_id})"
+
+
 # Procesar Excel subido: crear Estudiantes y agregarlos a la campaña
 @receiver(post_save, sender=Campana)
 def procesar_excel_campana(sender, instance, created, **kwargs):

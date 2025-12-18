@@ -154,3 +154,10 @@ JAZZMIN_UI_TWEAKS = {
         "success": "btn-success"
     }
 }
+
+# ==========================================
+# 🔌 CREDENCIALES WHATSAPP CLOUD API
+# ==========================================
+WHATSAPP_TOKEN = os.environ.get('WHATSAPP_TOKEN', 'EAAbuvwTomK8BQKP6PSv1h5iALSRwqnjggaYilcopCFdqkDjcj3ZCh7J0bRwQW3qG7qMtGqWLwYqtXyZCTVUh8S6qlkpRHeJca6I41svLIimXeFY8agZBhupNlKW0zMHFS7BZBwpMq43So1TGgHLAbzadsNHUJBmlaoMW8ikTbaTJ1Uts59xKUdLXFqlQRXLiXrSz53Hrmn6LBXcdvLtliU9k0VciORZBJFCWdLGu3XE0t2x572ab51gSaHooCQqThGnO1sxEnxwUL08rBvamsxV3G')
+WHATSAPP_PHONE_ID = os.environ.get('WHATSAPP_PHONE_ID', '950685001456848')
+WHATSAPP_VERIFY_TOKEN = os.environ.get('WHATSAPP_VERIFY_TOKEN', 'eki_whatsapp_verify_token_2025')
