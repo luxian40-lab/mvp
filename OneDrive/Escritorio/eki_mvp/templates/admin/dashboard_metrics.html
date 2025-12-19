@@ -177,8 +177,9 @@
                     <h5 class="m-0">📥 Reportes</h5>
                 </div>
                 <div class="card-body">
-                    <p>Ve al historial completo para descargar reportes en Excel.</p>
-                    <a href="/admin/core/enviolog/" class="btn btn-info"><i class="fas fa-list"></i> Ver Historial Completo</a>
+                    <p>Descarga reportes en Excel filtrando por fecha.</p>
+                    <a href="{% url 'descargar_reportes' %}" class="btn btn-info"><i class="fas fa-download"></i> Descargar Reportes</a>
+                    <a href="/admin/core/enviolog/" class="btn btn-secondary"><i class="fas fa-list"></i> Ver Historial</a>
                 </div>
             </div>
         </div>

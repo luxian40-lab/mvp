@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.utils.html import format_html
 import openpyxl
 from django.http import HttpResponse
-from .models import Estudiante, Plantilla, Campana, EnvioLog, Linea
+from .models import Estudiante, Plantilla, Campana, EnvioLog, Linea, WhatsappLog
 from .services import ejecutar_campana_servicio
 
 # =================================================
@@ -150,3 +150,69 @@ class EnvioLogAdmin(admin.ModelAdmin):
             return format_html('<b style="color:red;">FALLIDO</b>')
         return obj.estado
     estado_color.short_description = "Estado"
+
+
+# TABLA DE LOGS DE WHATSAPP
+@admin.register(WhatsappLog)
+class WhatsappLogAdmin(admin.ModelAdmin):
+    # Columnas principales
+    list_display = ('id', 'telefono_formateado', 'tipo_mensaje', 'estado_color', 'fecha', 'mensaje_preview', 'mensaje_id')
+    
+    # Filtros laterales
+    list_filter = ('estado', 'fecha')
+    
+    # Búsqueda
+    search_fields = ('telefono', 'mensaje', 'mensaje_id')
+    
+    # Solo lectura (son logs, no se deben editar)
+    readonly_fields = ('telefono', 'mensaje', 'mensaje_id', 'estado', 'fecha')
+    
+    # Organización del formulario
+    fieldsets = (
+        ('📱 Información de Contacto', {
+            'fields': ('telefono',)
+        }),
+        ('💬 Mensaje', {
+            'fields': ('mensaje',)
+        }),
+        ('📊 Estado y Metadata', {
+            'fields': ('estado', 'mensaje_id', 'fecha')
+        }),
+    )
+    
+    def telefono_formateado(self, obj):
+        return format_html('<strong>{}</strong>', obj.telefono)
+    telefono_formateado.short_description = "Teléfono"
+    
+    def tipo_mensaje(self, obj):
+        if obj.estado == 'INCOMING':
+            return format_html('<span style="color: #007bff;">📥 Entrante</span>')
+        else:
+            return format_html('<span style="color: #28a745;">📤 Saliente</span>')
+    tipo_mensaje.short_description = "Tipo"
+    
+    def estado_color(self, obj):
+        if obj.estado == 'SENT':
+            return format_html('<span style="background: #28a745; color: white; padding: 3px 8px; border-radius: 3px;">✅ ENVIADO</span>')
+        elif obj.estado == 'INCOMING':
+            return format_html('<span style="background: #007bff; color: white; padding: 3px 8px; border-radius: 3px;">📥 RECIBIDO</span>')
+        elif obj.estado == 'PENDING':
+            return format_html('<span style="background: #ffc107; color: black; padding: 3px 8px; border-radius: 3px;">⏳ PENDIENTE</span>')
+        elif obj.estado == 'ERROR':
+            return format_html('<span style="background: #dc3545; color: white; padding: 3px 8px; border-radius: 3px;">❌ ERROR</span>')
+        else:
+            return format_html('<span style="background: #6c757d; color: white; padding: 3px 8px; border-radius: 3px;">{}</span>', obj.estado)
+    estado_color.short_description = "Estado"
+    
+    def mensaje_preview(self, obj):
+        if not obj.mensaje:
+            return "—"
+        preview = obj.mensaje[:50]
+        if len(obj.mensaje) > 50:
+            preview += "..."
+        return preview
+    mensaje_preview.short_description = "Mensaje"
+    
+    def get_ordering(self, request):
+        # Ordenar por fecha descendente por defecto
+        return ['-fecha']

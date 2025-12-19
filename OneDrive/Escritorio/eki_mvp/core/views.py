@@ -3,7 +3,10 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, JsonResponse
 from django.conf import settings
+from datetime import datetime, timedelta
 import json
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment
 
 from .models import Campana, EnvioLog, Estudiante, WhatsappLog
 from .utils import enviar_whatsapp
@@ -42,6 +45,154 @@ def dashboard_view(request):
     
     # Renderizamos la plantilla que vamos a crear en el paso 2
     return render(request, 'admin/dashboard_metrics.html', context)
+
+
+# ---------- Vista de descarga de reportes ----------
+@staff_member_required
+def descargar_reportes(request):
+    """Vista para descargar reportes en Excel filtrando por fechas."""
+    context = {}
+    
+    if request.method == 'POST':
+        fecha_inicio = request.POST.get('fecha_inicio')
+        fecha_fin = request.POST.get('fecha_fin')
+        tipo_reporte = request.POST.get('tipo_reporte', 'todos')  # todos, envios, whatsapp
+        
+        try:
+            # Parsear fechas
+            inicio = datetime.strptime(fecha_inicio, '%Y-%m-%d') if fecha_inicio else None
+            fin = datetime.strptime(fecha_fin, '%Y-%m-%d') if fecha_fin else None
+            
+            # Ajustar fin de día
+            if fin:
+                fin = fin.replace(hour=23, minute=59, second=59)
+            
+            # Crear workbook
+            wb = openpyxl.Workbook()
+            wb.remove(wb.active)  # Eliminar hoja por defecto
+            
+            # Estilos
+            header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+            header_font = Font(bold=True, color="FFFFFF")
+            
+            # ========== ENVÍOS ==========
+            if tipo_reporte in ['todos', 'envios']:
+                ws_envios = wb.create_sheet('Envíos')
+                
+                # Filtrar por fecha
+                queryset = EnvioLog.objects.all()
+                if inicio:
+                    queryset = queryset.filter(fecha_envio__gte=inicio)
+                if fin:
+                    queryset = queryset.filter(fecha_envio__lte=fin)
+                queryset = queryset.order_by('-fecha_envio')
+                
+                # Encabezados
+                headers = ['ID', 'Estudiante', 'Teléfono', 'Campaña', 'Plantilla', 'Estado', 'Fecha', 'Respuesta API']
+                ws_envios.append(headers)
+                
+                # Aplicar estilos a encabezados
+                for cell in ws_envios[1]:
+                    cell.fill = header_fill
+                    cell.font = header_font
+                    cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                
+                # Datos
+                for log in queryset:
+                    fecha_str = log.fecha_envio.strftime('%Y-%m-%d %H:%M:%S') if log.fecha_envio else ''
+                    row = [
+                        log.id,
+                        log.estudiante.nombre,
+                        log.estudiante.telefono,
+                        log.campana.nombre,
+                        log.campana.plantilla.nombre_interno,
+                        log.estado,
+                        fecha_str,
+                        log.respuesta_api or ''
+                    ]
+                    ws_envios.append(row)
+                
+                # Ajustar ancho de columnas
+                ws_envios.column_dimensions['A'].width = 8
+                ws_envios.column_dimensions['B'].width = 20
+                ws_envios.column_dimensions['C'].width = 15
+                ws_envios.column_dimensions['D'].width = 20
+                ws_envios.column_dimensions['E'].width = 20
+                ws_envios.column_dimensions['F'].width = 12
+                ws_envios.column_dimensions['G'].width = 20
+                ws_envios.column_dimensions['H'].width = 30
+            
+            # ========== WHATSAPP ==========
+            if tipo_reporte in ['todos', 'whatsapp']:
+                ws_whatsapp = wb.create_sheet('WhatsApp')
+                
+                # Filtrar por fecha
+                queryset = WhatsappLog.objects.all()
+                if inicio:
+                    queryset = queryset.filter(fecha__gte=inicio)
+                if fin:
+                    queryset = queryset.filter(fecha__lte=fin)
+                queryset = queryset.order_by('-fecha')
+                
+                # Encabezados
+                headers = ['ID', 'Teléfono', 'Tipo', 'Estado', 'Mensaje', 'Fecha', 'ID Mensaje']
+                ws_whatsapp.append(headers)
+                
+                # Aplicar estilos a encabezados
+                for cell in ws_whatsapp[1]:
+                    cell.fill = header_fill
+                    cell.font = header_font
+                    cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                
+                # Datos
+                for log in queryset:
+                    fecha_str = log.fecha.strftime('%Y-%m-%d %H:%M:%S') if log.fecha else ''
+                    tipo = '📥 Entrante' if log.estado == 'INCOMING' else '📤 Saliente'
+                    row = [
+                        log.id,
+                        log.telefono,
+                        tipo,
+                        log.estado,
+                        log.mensaje or '',
+                        fecha_str,
+                        log.mensaje_id or ''
+                    ]
+                    ws_whatsapp.append(row)
+                
+                # Ajustar ancho de columnas
+                ws_whatsapp.column_dimensions['A'].width = 8
+                ws_whatsapp.column_dimensions['B'].width = 15
+                ws_whatsapp.column_dimensions['C'].width = 15
+                ws_whatsapp.column_dimensions['D'].width = 12
+                ws_whatsapp.column_dimensions['E'].width = 50
+                ws_whatsapp.column_dimensions['F'].width = 20
+                ws_whatsapp.column_dimensions['G'].width = 25
+            
+            # Generar respuesta
+            response = HttpResponse(
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            fecha_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+            response['Content-Disposition'] = f'attachment; filename="Reporte_Eki_{fecha_str}.xlsx"'
+            wb.save(response)
+            return response
+        
+        except Exception as e:
+            context['error'] = f"Error al generar reporte: {str(e)}"
+    
+    # GET: mostrar formulario
+    # Calcular primer día del mes actual y último día
+    hoy = datetime.now()
+    primer_dia_mes = hoy.replace(day=1)
+    if hoy.month == 12:
+        ultimo_dia_mes = primer_dia_mes.replace(year=hoy.year + 1, month=1, day=1) - timedelta(days=1)
+    else:
+        ultimo_dia_mes = primer_dia_mes.replace(month=hoy.month + 1, day=1) - timedelta(days=1)
+    
+    context['fecha_inicio_default'] = primer_dia_mes.strftime('%Y-%m-%d')
+    context['fecha_fin_default'] = ultimo_dia_mes.strftime('%Y-%m-%d')
+    
+    return render(request, 'admin/descargar_reportes.html', context)
 
 
 # ---------- Webhook para WhatsApp Cloud API ----------

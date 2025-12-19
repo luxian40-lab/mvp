@@ -1,0 +1,238 @@
+{% extends "admin/base_site.html" %}
+{% load admin_urls static %}
+
+{% block title %}Descargar Reportes | Eki MVP{% endblock %}
+
+{% block extrahead %}
+<style>
+    .container-reportes {
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 30px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .titulo-seccion {
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 30px;
+        color: #333;
+        text-align: center;
+    }
+
+    .formulario-descarga {
+        display: grid;
+        gap: 20px;
+    }
+
+    .grupo-campo {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+    }
+
+    .campo {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .campo label {
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #333;
+        font-size: 14px;
+    }
+
+    .campo input[type="date"],
+    .campo select {
+        padding: 10px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        font-family: inherit;
+        transition: border-color 0.3s;
+    }
+
+    .campo input[type="date"]:focus,
+    .campo select:focus {
+        outline: none;
+        border-color: #4472C4;
+        box-shadow: 0 0 0 3px rgba(68, 114, 196, 0.1);
+    }
+
+    .selector-tipo {
+        grid-column: 1 / -1;
+    }
+
+    .opciones-tipo {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+    }
+
+    .opcion-radio {
+        display: flex;
+        align-items: center;
+    }
+
+    .opcion-radio input[type="radio"] {
+        margin-right: 8px;
+        cursor: pointer;
+        width: 18px;
+        height: 18px;
+    }
+
+    .opcion-radio label {
+        margin: 0;
+        cursor: pointer;
+        font-weight: normal;
+    }
+
+    .botones {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        grid-column: 1 / -1;
+        margin-top: 30px;
+    }
+
+    .btn {
+        padding: 12px 20px;
+        border: none;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-decoration: none;
+        display: inline-block;
+        text-align: center;
+    }
+
+    .btn-descarga {
+        background-color: #4472C4;
+        color: white;
+    }
+
+    .btn-descarga:hover {
+        background-color: #335aa8;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(68, 114, 196, 0.3);
+    }
+
+    .btn-atras {
+        background-color: #6c757d;
+        color: white;
+    }
+
+    .btn-atras:hover {
+        background-color: #5a6268;
+    }
+
+    .alerta {
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+
+    .info-descarga {
+        background-color: #d1ecf1;
+        color: #0c5460;
+        padding: 15px;
+        border-radius: 4px;
+        border: 1px solid #bee5eb;
+        margin-bottom: 20px;
+        font-size: 14px;
+    }
+
+    .info-descarga strong {
+        display: block;
+        margin-bottom: 8px;
+    }
+
+    @media (max-width: 600px) {
+        .grupo-campo {
+            grid-template-columns: 1fr;
+        }
+
+        .opciones-tipo {
+            grid-template-columns: 1fr;
+        }
+
+        .botones {
+            grid-template-columns: 1fr;
+        }
+
+        .container-reportes {
+            margin: 20px;
+            padding: 20px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-reportes">
+    <h1 class="titulo-seccion">📊 Descargar Reportes en Excel</h1>
+
+    <div class="info-descarga">
+        <strong>✓ Selecciona el período y tipo de reporte</strong>
+        Descarga tus datos de campañas y mensajes WhatsApp en formato Excel para análisis y auditoría.
+    </div>
+
+    {% if error %}
+    <div class="alerta">
+        <strong>Error:</strong> {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST" class="formulario-descarga">
+        {% csrf_token %}
+
+        <div class="grupo-campo">
+            <div class="campo">
+                <label for="fecha_inicio">Fecha Inicio:</label>
+                <input type="date" id="fecha_inicio" name="fecha_inicio" 
+                    value="{{ fecha_inicio_default }}" required>
+            </div>
+            <div class="campo">
+                <label for="fecha_fin">Fecha Fin:</label>
+                <input type="date" id="fecha_fin" name="fecha_fin" 
+                    value="{{ fecha_fin_default }}" required>
+            </div>
+        </div>
+
+        <div class="campo selector-tipo">
+            <label>Tipo de Reporte:</label>
+            <div class="opciones-tipo">
+                <div class="opcion-radio">
+                    <input type="radio" id="tipo_todos" name="tipo_reporte" value="todos" checked>
+                    <label for="tipo_todos">📋 Todos</label>
+                </div>
+                <div class="opcion-radio">
+                    <input type="radio" id="tipo_envios" name="tipo_reporte" value="envios">
+                    <label for="tipo_envios">📤 Envíos Campaña</label>
+                </div>
+                <div class="opcion-radio">
+                    <input type="radio" id="tipo_whatsapp" name="tipo_reporte" value="whatsapp">
+                    <label for="tipo_whatsapp">💬 WhatsApp</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="botones">
+            <button type="submit" class="btn btn-descarga">
+                ⬇️ Descargar Excel
+            </button>
+            <a href="{% url 'dashboard' %}" class="btn btn-atras">
+                ← Volver al Dashboard
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
