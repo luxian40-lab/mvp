@@ -56,6 +56,36 @@ class EstudianteAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'telefono', 'activo', 'fecha_registro')
     search_fields = ('nombre', 'telefono')
     list_per_page = 20
+    actions = ['exportar_estudiantes_excel']
+    
+    def exportar_estudiantes_excel(self, request, queryset):
+        """Exportar estudiantes seleccionados a Excel."""
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        response['Content-Disposition'] = 'attachment; filename="estudiantes_export.xlsx"'
+        
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'Estudiantes'
+        
+        # Encabezados
+        headers = ['Nombre', 'Teléfono', 'Activo', 'Fecha Registro']
+        ws.append(headers)
+        
+        # Datos
+        for est in queryset:
+            ws.append([
+                est.nombre,
+                est.telefono,
+                'Sí' if est.activo else 'No',
+                est.fecha_registro.strftime('%Y-%m-%d %H:%M') if est.fecha_registro else ''
+            ])
+        
+        wb.save(response)
+        return response
+    
+    exportar_estudiantes_excel.short_description = '📥 Descargar Estudiantes (Excel)'
 
 @admin.register(Plantilla)
 class PlantillaAdmin(admin.ModelAdmin):

@@ -47,6 +47,87 @@ def dashboard_view(request):
     return render(request, 'admin/dashboard_metrics.html', context)
 
 
+# ---------- Vista de importación de estudiantes ----------
+@staff_member_required
+def importar_estudiantes(request):
+    """Vista para importar estudiantes desde un archivo Excel."""
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo_excel')
+        
+        if not archivo:
+            return JsonResponse({
+                'exito': False,
+                'mensaje': 'Por favor selecciona un archivo Excel'
+            })
+        
+        try:
+            # Verificar que sea Excel
+            if not archivo.name.endswith(('.xlsx', '.xls')):
+                return JsonResponse({
+                    'exito': False,
+                    'mensaje': 'El archivo debe ser .xlsx o .xls'
+                })
+            
+            # Cargar el libro de trabajo
+            wb = openpyxl.load_workbook(archivo)
+            ws = wb.active
+            
+            estudiantes_creados = 0
+            estudiantes_actualizados = 0
+            errores = []
+            
+            # Iteramos desde la fila 2 (saltar encabezados)
+            for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+                try:
+                    # Esperamos: Nombre en columna A, Teléfono en columna B
+                    nombre = row[0]
+                    telefono = row[1]
+                    
+                    # Validar que no estén vacíos
+                    if not nombre or not telefono:
+                        continue
+                    
+                    # Limpiar teléfono
+                    telefono_str = str(telefono).strip()
+                    nombre_str = str(nombre).strip()
+                    
+                    # Crear o actualizar estudiante
+                    estudiante, creado = Estudiante.objects.update_or_create(
+                        telefono=telefono_str,
+                        defaults={
+                            'nombre': nombre_str,
+                            'activo': True
+                        }
+                    )
+                    
+                    if creado:
+                        estudiantes_creados += 1
+                    else:
+                        estudiantes_actualizados += 1
+                    
+                except Exception as e:
+                    errores.append(f"Fila {row_idx}: {str(e)}")
+                    if len(errores) >= 10:  # Limitar errores mostrados
+                        break
+            
+            return JsonResponse({
+                'exito': True,
+                'creados': estudiantes_creados,
+                'actualizados': estudiantes_actualizados,
+                'total': estudiantes_creados + estudiantes_actualizados,
+                'errores': errores
+            })
+        
+        except Exception as e:
+            return JsonResponse({
+                'exito': False,
+                'mensaje': f'Error al procesar el archivo: {str(e)}'
+            })
+    
+    # GET: Mostrar formulario
+    return render(request, 'admin/importar_estudiantes.html')
+
+
 # ---------- Vista de descarga de reportes ----------
 @staff_member_required
 def descargar_reportes(request):
@@ -193,6 +274,68 @@ def descargar_reportes(request):
     context['fecha_fin_default'] = ultimo_dia_mes.strftime('%Y-%m-%d')
     
     return render(request, 'admin/descargar_reportes.html', context)
+
+
+# ---------- Vista de importar estudiantes ----------
+@staff_member_required
+def importar_estudiantes(request):
+    """Vista para importar estudiantes desde Excel."""
+    context = {}
+    
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo_excel')
+        
+        if not archivo:
+            context['error'] = "Por favor selecciona un archivo Excel"
+            return render(request, 'admin/importar_estudiantes.html', context)
+        
+        try:
+            # Cargar el archivo Excel
+            wb = openpyxl.load_workbook(archivo)
+            ws = wb.active
+            
+            estudiantes_creados = 0
+            estudiantes_actualizados = 0
+            errores = []
+            
+            # Leer filas (columna A = nombre, columna B = teléfono)
+            for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+                try:
+                    nombre = row[0]
+                    telefono = row[1]
+                    
+                    if not nombre or not telefono:
+                        continue
+                    
+                    # Normalizar teléfono
+                    telefono_str = str(telefono).strip()
+                    
+                    # Crear o actualizar estudiante
+                    estudiante, creado = Estudiante.objects.update_or_create(
+                        telefono=telefono_str,
+                        defaults={'nombre': str(nombre).strip(), 'activo': True}
+                    )
+                    
+                    if creado:
+                        estudiantes_creados += 1
+                    else:
+                        estudiantes_actualizados += 1
+                        
+                except Exception as e:
+                    errores.append(f"Fila {row_idx}: {str(e)}")
+            
+            context['exito'] = True
+            context['creados'] = estudiantes_creados
+            context['actualizados'] = estudiantes_actualizados
+            context['total'] = estudiantes_creados + estudiantes_actualizados
+            
+            if errores:
+                context['advertencias'] = errores[:10]  # Mostrar primeras 10
+            
+        except Exception as e:
+            context['error'] = f"Error al procesar el archivo: {str(e)}"
+    
+    return render(request, 'admin/importar_estudiantes.html', context)
 
 
 # ---------- Webhook para WhatsApp Cloud API ----------

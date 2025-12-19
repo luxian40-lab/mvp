@@ -1,0 +1,360 @@
+{% extends "admin/base_site.html" %}
+{% load admin_urls static %}
+
+{% block title %}Importar Estudiantes | Eki MVP{% endblock %}
+
+{% block extrahead %}
+<style>
+    .container-importar {
+        max-width: 900px;
+        margin: 40px auto;
+        padding: 30px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .titulo-seccion {
+        font-size: 28px;
+        font-weight: bold;
+        margin-bottom: 30px;
+        color: #333;
+        text-align: center;
+    }
+
+    .info-box {
+        background: #e3f2fd;
+        border-left: 4px solid #2196F3;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+        color: #1565c0;
+    }
+
+    .info-box strong {
+        display: block;
+        margin-bottom: 8px;
+    }
+
+    .info-box ul {
+        margin: 10px 0 0 20px;
+        font-size: 14px;
+    }
+
+    .info-box li {
+        margin: 5px 0;
+    }
+
+    .upload-area {
+        border: 2px dashed #2196F3;
+        border-radius: 8px;
+        padding: 40px;
+        text-align: center;
+        background: #f5f5f5;
+        cursor: pointer;
+        transition: all 0.3s;
+        margin: 30px 0;
+    }
+
+    .upload-area:hover {
+        background: #e3f2fd;
+        border-color: #1565c0;
+    }
+
+    .upload-area.dragover {
+        background: #bbdefb;
+        border-color: #1565c0;
+    }
+
+    .upload-icon {
+        font-size: 48px;
+        margin-bottom: 15px;
+        display: block;
+    }
+
+    .upload-text {
+        font-size: 16px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 5px;
+    }
+
+    .upload-subtext {
+        font-size: 14px;
+        color: #666;
+    }
+
+    input[type="file"] {
+        display: none;
+    }
+
+    .file-input-label {
+        display: inline-block;
+        padding: 10px 20px;
+        background: #2196F3;
+        color: white;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 600;
+        margin-top: 15px;
+        transition: all 0.3s;
+    }
+
+    .file-input-label:hover {
+        background: #1565c0;
+        transform: translateY(-2px);
+    }
+
+    .selected-file {
+        margin-top: 15px;
+        padding: 10px;
+        background: #f5f5f5;
+        border-radius: 4px;
+        color: #333;
+    }
+
+    .botones {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-top: 30px;
+    }
+
+    .btn {
+        padding: 12px 20px;
+        border: none;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-decoration: none;
+        display: inline-block;
+        text-align: center;
+    }
+
+    .btn-enviar {
+        background-color: #4CAF50;
+        color: white;
+    }
+
+    .btn-enviar:hover {
+        background-color: #45a049;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+    }
+
+    .btn-atras {
+        background-color: #6c757d;
+        color: white;
+    }
+
+    .btn-atras:hover {
+        background-color: #5a6268;
+    }
+
+    .alert {
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+        border-left: 4px solid;
+    }
+
+    .alert-success {
+        background-color: #d4edda;
+        color: #155724;
+        border-color: #28a745;
+    }
+
+    .alert-error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border-color: #f5c6cb;
+    }
+
+    .alert-warning {
+        background-color: #fff3cd;
+        color: #856404;
+        border-color: #ffeaa7;
+    }
+
+    .resultado {
+        margin-top: 30px;
+        padding: 20px;
+        background: #f5f5f5;
+        border-radius: 8px;
+    }
+
+    .resultado h3 {
+        margin-top: 0;
+        color: #333;
+    }
+
+    .resultado-item {
+        padding: 10px;
+        margin: 8px 0;
+        background: white;
+        border-left: 4px solid #2196F3;
+        border-radius: 4px;
+    }
+
+    .resultado-item.success {
+        border-left-color: #4CAF50;
+    }
+
+    .resultado-item.warning {
+        border-left-color: #ff9800;
+    }
+
+    .download-template {
+        display: inline-block;
+        margin: 15px 0;
+    }
+
+    .download-template a {
+        padding: 10px 20px;
+        background: #FF9800;
+        color: white;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+
+    .download-template a:hover {
+        background: #F57C00;
+        transform: translateY(-2px);
+    }
+
+    @media (max-width: 600px) {
+        .botones {
+            grid-template-columns: 1fr;
+        }
+
+        .container-importar {
+            margin: 20px;
+            padding: 20px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-importar">
+    <h1 class="titulo-seccion">📚 Importar Estudiantes en Bulk</h1>
+
+    <div class="info-box">
+        <strong>📋 Instrucciones:</strong>
+        <ul>
+            <li><strong>Columna A:</strong> Nombre del estudiante</li>
+            <li><strong>Columna B:</strong> Teléfono (ej: 573000000000)</li>
+            <li>Máximo 1000 estudiantes por archivo</li>
+            <li>Los estudiantes duplicados se actualizarán automáticamente</li>
+        </ul>
+    </div>
+
+    {% if exito %}
+    <div class="alert alert-success">
+        <strong>✅ ¡Importación Exitosa!</strong><br>
+        Se importaron <strong>{{ creados }}</strong> estudiante(s) nuevo(s) y se actualizaron <strong>{{ actualizados }}</strong>.
+        Total procesado: <strong>{{ total }}</strong>
+    </div>
+
+    {% if advertencias %}
+    <div class="alert alert-warning">
+        <strong>⚠️ Algunas filas tuvieron problemas:</strong>
+        <ul>
+            {% for adv in advertencias %}
+                <li>{{ adv }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {% if error %}
+    <div class="alert alert-error">
+        <strong>❌ Error:</strong> {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div class="download-template">
+            <a href="/static/templates/plantilla_estudiantes.xlsx" download>
+                📥 Descargar Plantilla Excel
+            </a>
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+            <span class="upload-icon">📤</span>
+            <div class="upload-text">Arrastra tu archivo Excel aquí o haz click para seleccionar</div>
+            <div class="upload-subtext">Soporta: .xlsx, .xls</div>
+            <label class="file-input-label">
+                Seleccionar Archivo
+                <input type="file" id="fileInput" name="archivo_excel" accept=".xlsx,.xls,.csv" required>
+            </label>
+            <div class="selected-file" id="selectedFile" style="display: none;">
+                📋 <span id="fileName"></span>
+            </div>
+        </div>
+
+        <div class="botones">
+            <button type="submit" class="btn btn-enviar" id="submitBtn" disabled>
+                ⬆️ Importar Estudiantes
+            </button>
+            <a href="{% url 'dashboard' %}" class="btn btn-atras">
+                ← Volver al Dashboard
+            </a>
+        </div>
+    </form>
+</div>
+
+<script>
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const selectedFileDiv = document.getElementById('selectedFile');
+    const fileNameSpan = document.getElementById('fileName');
+    const submitBtn = document.getElementById('submitBtn');
+
+    // Click en el área de carga
+    uploadArea.addEventListener('click', () => fileInput.click());
+
+    // Drag and drop
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            updateFileDisplay();
+        }
+    });
+
+    // Cambio en el input de archivo
+    fileInput.addEventListener('change', updateFileDisplay);
+
+    function updateFileDisplay() {
+        if (fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            fileNameSpan.textContent = file.name;
+            selectedFileDiv.style.display = 'block';
+            submitBtn.disabled = false;
+        } else {
+            selectedFileDiv.style.display = 'none';
+            submitBtn.disabled = true;
+        }
+    }
+</script>
+{% endblock %}
