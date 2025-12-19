@@ -1,8 +1,10 @@
 from django.contrib import admin
 from django.contrib import messages
 from django.utils.html import format_html
+from django.shortcuts import render, redirect
+from django.urls import path
 import openpyxl
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from .models import Estudiante, Plantilla, Campana, EnvioLog, Linea, WhatsappLog
 from .services import ejecutar_campana_servicio
 
@@ -48,6 +50,80 @@ def exportar_logs_excel(modeladmin, request, queryset):
     return response
 
 # =================================================
+# 2. ACCIÓN: IMPORTAR ESTUDIANTES MASIVAMENTE
+# =================================================
+@admin.action(description='📤 Importar Estudiantes desde Excel')
+def importar_estudiantes_desde_logs(modeladmin, request, queryset):
+    """
+    Importa estudiantes desde un archivo Excel en la vista de logs.
+    """
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo_estudiantes')
+        
+        if not archivo:
+            modeladmin.message_user(request, '❌ Por favor selecciona un archivo Excel', level=messages.ERROR)
+            return redirect(request.META.get('HTTP_REFERER', '/admin/core/enviolog/'))
+        
+        try:
+            # Validar extensión
+            if not archivo.name.endswith(('.xlsx', '.xls')):
+                modeladmin.message_user(request, '❌ El archivo debe ser .xlsx o .xls', level=messages.ERROR)
+                return redirect(request.META.get('HTTP_REFERER', '/admin/core/enviolog/'))
+            
+            # Cargar Excel
+            wb = openpyxl.load_workbook(archivo)
+            ws = wb.active
+            
+            creados = 0
+            actualizados = 0
+            errores = []
+            
+            # Procesar filas (saltar encabezado en fila 1)
+            for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+                try:
+                    nombre = row[0]
+                    telefono = row[1]
+                    
+                    if not nombre or not telefono:
+                        continue
+                    
+                    telefono_str = str(telefono).strip()
+                    nombre_str = str(nombre).strip()
+                    
+                    estudiante, created = Estudiante.objects.update_or_create(
+                        telefono=telefono_str,
+                        defaults={'nombre': nombre_str, 'activo': True}
+                    )
+                    
+                    if created:
+                        creados += 1
+                    else:
+                        actualizados += 1
+                
+                except Exception as e:
+                    errores.append(f"Fila {row_idx}: {str(e)}")
+            
+            # Mensaje de éxito
+            total = creados + actualizados
+            msg = f"✅ Importación completada: {creados} nuevos, {actualizados} actualizados, {total} total"
+            
+            if errores:
+                msg += f"\n⚠️ {len(errores)} errores encontrados"
+            
+            modeladmin.message_user(request, msg, level=messages.SUCCESS)
+            
+        except Exception as e:
+            modeladmin.message_user(request, f'❌ Error al procesar: {str(e)}', level=messages.ERROR)
+        
+        return redirect(request.META.get('HTTP_REFERER', '/admin/core/enviolog/'))
+    
+    # Mostrar formulario para subir archivo
+    return render(request, 'admin/importar_en_logs.html', {
+        'action': 'importar_estudiantes_desde_logs',
+        'site_header': 'Importar Estudiantes'
+    })
+
+# =================================================
 # 2. CONFIGURACIÓN DE TABLAS
 # =================================================
 
@@ -57,6 +133,99 @@ class EstudianteAdmin(admin.ModelAdmin):
     search_fields = ('nombre', 'telefono')
     list_per_page = 20
     actions = ['exportar_estudiantes_excel']
+    
+    def get_urls(self):
+        """Agregar URL personalizada para importar masivamente"""
+        urls = super().get_urls()
+        custom_urls = [
+            path('importar-masivamente/', self.admin_site.admin_view(self.importar_masivamente), name='core_estudiante_importar'),
+        ]
+        return custom_urls + urls
+    
+    def importar_masivamente(self, request):
+        """Vista personalizada para importar estudiantes masivamente"""
+        if request.method == 'POST':
+            archivo = request.FILES.get('archivo_excel')
+            
+            if not archivo:
+                messages.error(request, '❌ Por favor selecciona un archivo Excel')
+                return render(request, 'admin/importar_estudiantes_masivamente.html', {
+                    'site_header': self.admin_site.site_header,
+                    'site_title': self.admin_site.site_title,
+                })
+            
+            try:
+                # Validar extensión
+                if not archivo.name.endswith(('.xlsx', '.xls')):
+                    messages.error(request, '❌ El archivo debe ser .xlsx o .xls')
+                    return render(request, 'admin/importar_estudiantes_masivamente.html', {
+                        'site_header': self.admin_site.site_header,
+                        'site_title': self.admin_site.site_title,
+                    })
+                
+                # Cargar Excel
+                wb = openpyxl.load_workbook(archivo)
+                ws = wb.active
+                
+                creados = 0
+                actualizados = 0
+                errores = []
+                
+                # Procesar filas (saltar encabezado en fila 1)
+                for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+                    try:
+                        nombre = row[0]
+                        telefono = row[1]
+                        
+                        if not nombre or not telefono:
+                            continue
+                        
+                        telefono_str = str(telefono).strip()
+                        nombre_str = str(nombre).strip()
+                        
+                        estudiante, created = Estudiante.objects.update_or_create(
+                            telefono=telefono_str,
+                            defaults={'nombre': nombre_str, 'activo': True}
+                        )
+                        
+                        if created:
+                            creados += 1
+                        else:
+                            actualizados += 1
+                    
+                    except Exception as e:
+                        errores.append(f"Fila {row_idx}: {str(e)}")
+                
+                # Mensaje de éxito
+                total = creados + actualizados
+                mensaje = f"✅ Importación completada: {creados} nuevos, {actualizados} actualizados, {total} total procesados"
+                
+                if errores:
+                    mensaje += f"\n⚠️ {len(errores)} errores encontrados"
+                
+                messages.success(request, mensaje)
+                
+                return render(request, 'admin/importar_estudiantes_masivamente.html', {
+                    'site_header': self.admin_site.site_header,
+                    'site_title': self.admin_site.site_title,
+                    'creados': creados,
+                    'actualizados': actualizados,
+                    'total': total,
+                    'errores': errores,
+                })
+                
+            except Exception as e:
+                messages.error(request, f'❌ Error al procesar: {str(e)}')
+                return render(request, 'admin/importar_estudiantes_masivamente.html', {
+                    'site_header': self.admin_site.site_header,
+                    'site_title': self.admin_site.site_title,
+                })
+        
+        # GET: Mostrar formulario
+        return render(request, 'admin/importar_estudiantes_masivamente.html', {
+            'site_header': self.admin_site.site_header,
+            'site_title': self.admin_site.site_title,
+        })
     
     def exportar_estudiantes_excel(self, request, queryset):
         """Exportar estudiantes seleccionados a Excel."""
@@ -86,6 +255,17 @@ class EstudianteAdmin(admin.ModelAdmin):
         return response
     
     exportar_estudiantes_excel.short_description = '📥 Descargar Estudiantes (Excel)'
+    
+    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
+        """Personalizar el formulario para agregar un botón de importar masivamente"""
+        from django.urls import reverse
+        extra_context = extra_context or {}
+        # Usar reverse para obtener la URL personalizada
+        extra_context['importar_url'] = reverse('admin:core_estudiante_importar')
+        extra_context['show_importar_btn'] = True
+        return super().changeform_view(
+            request, object_id=object_id, form_url=form_url, extra_context=extra_context
+        )
 
 @admin.register(Plantilla)
 class PlantillaAdmin(admin.ModelAdmin):
@@ -153,8 +333,8 @@ class EnvioLogAdmin(admin.ModelAdmin):
     # Buscador general
     search_fields = ('estudiante__nombre', 'estudiante__telefono', 'campana__nombre')
     
-    # Botón de exportar
-    actions = [exportar_logs_excel]
+    # Botones de exportar e importar
+    actions = [exportar_logs_excel, importar_estudiantes_desde_logs]
     
     # Solo lectura (historial no se debe editar)
     readonly_fields = ('campana', 'estudiante', 'estado', 'respuesta_api', 'fecha_envio')

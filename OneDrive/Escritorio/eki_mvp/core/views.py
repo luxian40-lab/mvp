@@ -10,6 +10,8 @@ from openpyxl.styles import Font, PatternFill, Alignment
 
 from .models import Campana, EnvioLog, Estudiante, WhatsappLog
 from .utils import enviar_whatsapp
+from .intent_detector import detect_intent
+from .response_templates import get_response_for_intent
 
 @staff_member_required
 def dashboard_view(request):
@@ -342,7 +344,7 @@ def importar_estudiantes(request):
 @csrf_exempt
 def whatsapp_webhook(request):
     """GET: Verificación del token (hub.verify_token).
-       POST: Procesa mensajes entrantes y actualizaciones de estado.
+       POST: Procesa mensajes entrantes, detecta intención y responde dinámicamente.
     """
     if request.method == 'GET':
         verify_token = request.GET.get('hub.verify_token') or request.GET.get('hub.verify_token')
@@ -373,13 +375,59 @@ def whatsapp_webhook(request):
                     text = ''
                     if 'text' in m and isinstance(m['text'], dict):
                         text = m['text'].get('body', '')
-                    # Guardamos registro entrante
+                    
+                    # 1. Guardar registro entrante
                     WhatsappLog.objects.create(
                         telefono=phone,
                         mensaje=text,
                         mensaje_id=msg_id,
                         estado='INCOMING'
                     )
+                    
+                    # 2. Detectar intención
+                    intent = detect_intent(text)
+                    
+                    # 3. Obtener datos del estudiante (por teléfono)
+                    try:
+                        estudiante = Estudiante.objects.get(telefono=phone)
+                        nombre_usuario = estudiante.nombre
+                        
+                        # 3a. Obtener progreso desde el modelo
+                        total_envios = EnvioLog.objects.filter(estudiante=estudiante).count()
+                        exitosos = EnvioLog.objects.filter(estudiante=estudiante, estado='ENVIADO').count()
+                        progreso_porcentaje = int((exitosos / total_envios * 100) if total_envios > 0 else 0)
+                        
+                        # 3b. Obtener siguiente tarea
+                        siguiente_tarea_obj = EnvioLog.objects.filter(
+                            estudiante=estudiante,
+                            estado='PENDIENTE'
+                        ).order_by('fecha_envio').first()
+                        siguiente_tarea = siguiente_tarea_obj.campana.nombre if siguiente_tarea_obj else "No hay tareas pendientes"
+                        
+                        datos_respuesta = {
+                            'progreso': f'{progreso_porcentaje}%',
+                            'modulo_actual': 'Introducción a la Plataforma',
+                            'siguiente_tarea': siguiente_tarea,
+                            'fecha_vence': 'hoy'
+                        }
+                    except Estudiante.DoesNotExist:
+                        nombre_usuario = 'Estudiante'
+                        datos_respuesta = {}
+                    
+                    # 4. Generar respuesta según intención
+                    texto_respuesta = get_response_for_intent(intent, nombre_usuario, **datos_respuesta)
+                    
+                    # 5. Enviar respuesta al usuario
+                    resultado_envio = enviar_whatsapp(phone, texto_respuesta)
+                    
+                    # Log de envío (respuesta generada)
+                    if resultado_envio.get('success'):
+                        WhatsappLog.objects.create(
+                            telefono=phone,
+                            mensaje=texto_respuesta,
+                            mensaje_id=resultado_envio.get('mensaje_id'),
+                            estado='SENT'
+                        )
 
                 # Estados (delivery receipts)
                 statuses = value.get('statuses', [])

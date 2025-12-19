@@ -15,12 +15,13 @@ def enviar_whatsapp(telefono: str, texto: str) -> dict:
     """
     token = getattr(settings, 'WHATSAPP_TOKEN', None)
     phone_id = getattr(settings, 'WHATSAPP_PHONE_ID', None)
+    api_version = getattr(settings, 'WHATSAPP_API_VERSION', 'v19.0')
 
     if not token or not phone_id:
         # No configurado
         return {'success': False, 'mensaje_id': None, 'response': 'Credentials not set'}
 
-    url = f"https://graph.facebook.com/v17.0/{phone_id}/messages"
+    url = f"https://graph.facebook.com/{api_version}/{phone_id}/messages"
     headers = {
         'Authorization': f'Bearer {token}',
         'Content-Type': 'application/json'

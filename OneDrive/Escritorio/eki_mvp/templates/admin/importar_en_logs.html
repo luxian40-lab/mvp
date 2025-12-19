@@ -1,0 +1,228 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Importar Estudiantes{% endblock %}
+
+{% block extrahead %}
+<style>
+    .import-container {
+        max-width: 600px;
+        margin: 40px auto;
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .import-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    
+    .import-header h1 {
+        color: #333;
+        font-size: 28px;
+        margin-bottom: 10px;
+    }
+    
+    .upload-zone {
+        border: 2px dashed #007bff;
+        border-radius: 8px;
+        padding: 40px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: #f8f9fa;
+        margin-bottom: 20px;
+    }
+    
+    .upload-zone:hover {
+        border-color: #0056b3;
+        background: #e7f1ff;
+    }
+    
+    .upload-zone.dragover {
+        border-color: #28a745;
+        background: #e8f5e9;
+    }
+    
+    .upload-zone i {
+        font-size: 48px;
+        color: #007bff;
+        display: block;
+        margin-bottom: 15px;
+    }
+    
+    .upload-zone p {
+        margin: 0;
+        color: #666;
+        font-size: 16px;
+    }
+    
+    #file-input {
+        display: none;
+    }
+    
+    .selected-file {
+        background: #e8f5e9;
+        border: 1px solid #4caf50;
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        display: none;
+    }
+    
+    .selected-file.show {
+        display: block;
+    }
+    
+    .file-actions {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .btn-import {
+        flex: 1;
+        padding: 12px;
+        background: #28a745;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.3s ease;
+    }
+    
+    .btn-import:hover:not(:disabled) {
+        background: #218838;
+    }
+    
+    .btn-import:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+    
+    .template-link {
+        background: #e7f3ff;
+        border: 1px solid #b3d9ff;
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+    
+    .template-link a {
+        color: #007bff;
+        text-decoration: none;
+        font-weight: 600;
+    }
+    
+    .instructions {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        font-size: 14px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="import-container">
+    <div class="import-header">
+        <h1><i class="fas fa-file-import"></i> Importar Estudiantes</h1>
+        <p>Desde la sección de logs</p>
+    </div>
+    
+    <div class="instructions">
+        <strong><i class="fas fa-info-circle"></i> Instrucciones:</strong>
+        <ol>
+            <li>Descarga la plantilla Excel (opcional)</li>
+            <li>Columna A: Nombre | Columna B: Teléfono</li>
+            <li>Sube el archivo usando el formulario</li>
+            <li>Se crearán o actualizarán los estudiantes automáticamente</li>
+        </ol>
+    </div>
+    
+    <div class="template-link">
+        <i class="fas fa-download"></i>
+        <a href="{% static 'templates/plantilla_estudiantes.xlsx' %}" download>
+            Descargar Plantilla de Ejemplo
+        </a>
+    </div>
+    
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <div id="uploadArea" class="upload-zone">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <p>Arrastra tu archivo aquí o haz clic para seleccionar</p>
+        </div>
+        
+        <div id="selectedFile" class="selected-file">
+            <i class="fas fa-file-excel"></i>
+            <strong id="fileName"></strong>
+        </div>
+        
+        <input type="file" id="file-input" name="archivo_estudiantes" accept=".xlsx,.xls">
+        
+        <div class="file-actions">
+            <button type="submit" class="btn-import" id="btn-submit" disabled>
+                <i class="fas fa-upload"></i> Importar
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+const uploadArea = document.getElementById('uploadArea');
+const fileInput = document.getElementById('file-input');
+const selectedFile = document.getElementById('selectedFile');
+const fileName = document.getElementById('fileName');
+const form = document.querySelector('form');
+const btnSubmit = document.getElementById('btn-submit');
+
+uploadArea.addEventListener('click', () => fileInput.click());
+
+uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('dragover');
+});
+
+uploadArea.addEventListener('dragleave', () => {
+    uploadArea.classList.remove('dragover');
+});
+
+uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    fileInput.files = e.dataTransfer.files;
+    handleFileSelect();
+});
+
+fileInput.addEventListener('change', handleFileSelect);
+
+function handleFileSelect() {
+    const file = fileInput.files[0];
+    if (!file) return;
+    
+    if (!file.name.endsWith(('.xlsx', '.xls'))) {
+        alert('El archivo debe ser .xlsx o .xls');
+        fileInput.value = '';
+        return;
+    }
+    
+    fileName.textContent = file.name;
+    selectedFile.classList.add('show');
+    btnSubmit.disabled = false;
+}
+
+form.addEventListener('submit', function(e) {
+    if (!fileInput.files[0]) {
+        e.preventDefault();
+        alert('Por favor selecciona un archivo');
+    }
+});
+</script>
+{% endblock %}

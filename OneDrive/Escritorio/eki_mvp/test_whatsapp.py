@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 """
 Script de prueba para enviar un mensaje WhatsApp.
-Úsalo desde la raíz del proyecto:
-  python test_whatsapp.py
+python test_whatsapp.py
 """
 import os
 import django

@@ -34,12 +34,18 @@ Sistema de gestión y administración educativa basado en **Django**. Este núcl
     pip install -r requirements.txt
     ```
 
-4.  **Ejecutar migraciones:**
+4.  **Configurar variables de entorno (.env):**
+    ```bash
+    cp .env.example .env  # en Windows puedes copiar manualmente
+    ```
+    Completa `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID` y opcionalmente `WHATSAPP_API_VERSION` (por defecto v19.0).
+
+5.  **Ejecutar migraciones:**
     ```bash
     python manage.py migrate
     ```
 
-5.  **Iniciar el servidor:**
+6.  **Iniciar el servidor:**
     ```bash
     python manage.py runserver
     ```

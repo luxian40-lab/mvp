@@ -1,13 +1,15 @@
 from pathlib import Path
 import os
+from dotenv import load_dotenv
 
 # 1. RUTAS DEL PROYECTO
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / '.env')
 
 # 2. SEGURIDAD
-SECRET_KEY = 'django-insecure-mvp-clave-secreta-cambiar-en-produccion'
-DEBUG = True
-ALLOWED_HOSTS = ['*']
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-mvp-clave-secreta-cambiar-en-produccion')
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 # 3. APLICACIONES INSTALADAS
 INSTALLED_APPS = [
@@ -78,6 +80,9 @@ USE_TZ = True
 STATIC_URL = 'static/'
 # Esto ayuda a Jazzmin a servir sus estilos correctamente
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Middlewares de seguridad para producción
+CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000').split(',')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -158,6 +163,7 @@ JAZZMIN_UI_TWEAKS = {
 # ==========================================
 # 🔌 CREDENCIALES WHATSAPP CLOUD API
 # ==========================================
-WHATSAPP_TOKEN = os.environ.get('WHATSAPP_TOKEN', 'EAAbuvwTomK8BQKP6PSv1h5iALSRwqnjggaYilcopCFdqkDjcj3ZCh7J0bRwQW3qG7qMtGqWLwYqtXyZCTVUh8S6qlkpRHeJca6I41svLIimXeFY8agZBhupNlKW0zMHFS7BZBwpMq43So1TGgHLAbzadsNHUJBmlaoMW8ikTbaTJ1Uts59xKUdLXFqlQRXLiXrSz53Hrmn6LBXcdvLtliU9k0VciORZBJFCWdLGu3XE0t2x572ab51gSaHooCQqThGnO1sxEnxwUL08rBvamsxV3G')
-WHATSAPP_PHONE_ID = os.environ.get('WHATSAPP_PHONE_ID', '950685001456848')
+WHATSAPP_API_VERSION = os.environ.get('WHATSAPP_API_VERSION', 'v19.0')
+WHATSAPP_TOKEN = os.environ.get('WHATSAPP_TOKEN', '')
+WHATSAPP_PHONE_ID = os.environ.get('WHATSAPP_PHONE_ID', '')
 WHATSAPP_VERIFY_TOKEN = os.environ.get('WHATSAPP_VERIFY_TOKEN', 'eki_whatsapp_verify_token_2025')

@@ -226,4 +226,4 @@ WhatsappLog.objects.filter(telefono='573000000000').delete()
 
 ---
 
-*¡Listo para demo! 🎉*
+
