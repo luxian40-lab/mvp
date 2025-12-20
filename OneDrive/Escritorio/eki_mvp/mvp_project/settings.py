@@ -8,8 +8,8 @@ load_dotenv(BASE_DIR / '.env')
 
 # 2. SEGURIDAD
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-mvp-clave-secreta-cambiar-en-produccion')
-DEBUG = os.environ.get('DEBUG', 'False') == 'True'
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+DEBUG = True  # Activado para desarrollo
+ALLOWED_HOSTS = ['*']  # Permitir todos en desarrollo
 
 # 3. APLICACIONES INSTALADAS
 INSTALLED_APPS = [
@@ -77,9 +77,11 @@ USE_I18N = True
 USE_TZ = True
 
 # 7. ARCHIVOS ESTÁTICOS
-STATIC_URL = 'static/'
-# Esto ayuda a Jazzmin a servir sus estilos correctamente
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
 
 # Middlewares de seguridad para producción
 CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000').split(',')

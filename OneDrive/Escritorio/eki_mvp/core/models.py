@@ -36,6 +36,11 @@ class Estudiante(models.Model):
 class Plantilla(models.Model):
     nombre_interno = models.CharField(max_length=100)
     cuerpo_mensaje = models.TextField()
+    
+    # Campos para mensajes con imágenes en WhatsApp
+    tiene_imagen = models.BooleanField(default=False, help_text="¿Esta plantilla incluye una imagen?")
+    url_imagen = models.URLField(max_length=500, blank=True, null=True, help_text="URL de la imagen a enviar")
+    
     def __str__(self): return self.nombre_interno
 
 # 3. CAMPAÑA

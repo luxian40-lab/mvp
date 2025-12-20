@@ -4,12 +4,13 @@ from django.utils import timezone
 from .models import WhatsappLog
 
 
-def enviar_whatsapp(telefono: str, texto: str) -> dict:
+def enviar_whatsapp(telefono: str, texto: str, url_imagen: str = None) -> dict:
     """Enviar mensaje por WhatsApp Cloud API usando `requests` y registrar el intento.
 
     Parámetros:
     - telefono: número en formato internacional, p.ej. '57310...'
     - texto: cuerpo del mensaje
+    - url_imagen: URL de la imagen a enviar (opcional)
 
     Retorna dict con keys: success(bool), mensaje_id (str|None), response (dict|str).
     """
@@ -26,12 +27,26 @@ def enviar_whatsapp(telefono: str, texto: str) -> dict:
         'Authorization': f'Bearer {token}',
         'Content-Type': 'application/json'
     }
-    payload = {
-        'messaging_product': 'whatsapp',
-        'to': telefono,
-        'type': 'text',
-        'text': {'body': texto}
-    }
+    
+    # Si hay imagen, enviamos un mensaje tipo 'image' con caption
+    if url_imagen:
+        payload = {
+            'messaging_product': 'whatsapp',
+            'to': telefono,
+            'type': 'image',
+            'image': {
+                'link': url_imagen,
+                'caption': texto
+            }
+        }
+    else:
+        # Mensaje de texto simple
+        payload = {
+            'messaging_product': 'whatsapp',
+            'to': telefono,
+            'type': 'text',
+            'text': {'body': texto}
+        }
 
     # Guardamos un log preliminar (estado=PENDING)
     log = WhatsappLog.objects.create(

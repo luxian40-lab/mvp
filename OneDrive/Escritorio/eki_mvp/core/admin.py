@@ -269,12 +269,32 @@ class EstudianteAdmin(admin.ModelAdmin):
 
 @admin.register(Plantilla)
 class PlantillaAdmin(admin.ModelAdmin):
-    list_display = ('nombre_interno', 'vista_previa')
+    list_display = ('nombre_interno', 'vista_previa', 'tiene_imagen', 'preview_imagen')
     search_fields = ('nombre_interno',)
+    list_filter = ('tiene_imagen',)
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('nombre_interno', 'cuerpo_mensaje')
+        }),
+        ('Configuración de Imagen', {
+            'fields': ('tiene_imagen', 'url_imagen'),
+            'description': 'Configura una imagen para enviar junto con el mensaje de WhatsApp'
+        }),
+    )
     
     def vista_previa(self, obj):
         return obj.cuerpo_mensaje[:50] + "..."
     vista_previa.short_description = "Cuerpo del Mensaje"
+    
+    def preview_imagen(self, obj):
+        if obj.tiene_imagen and obj.url_imagen:
+            return format_html(
+                '<a href="{}" target="_blank">🔗 Ver imagen</a>',
+                obj.url_imagen
+            )
+        return "-"
+    preview_imagen.short_description = "URL Imagen"
 
 @admin.register(Campana)
 class CampanaAdmin(admin.ModelAdmin):
