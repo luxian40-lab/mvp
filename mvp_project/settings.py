@@ -9,7 +9,10 @@ load_dotenv(BASE_DIR / '.env')
 # 2. SEGURIDAD
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-mvp-clave-secreta-cambiar-en-produccion')
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'  # False en producción
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')  # Configurar en producción
+
+# ALLOWED_HOSTS: acepta múltiples dominios separados por coma
+allowed_hosts_str = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,eki-mvp.onrender.com')
+ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_str.split(',')]
 
 # 3. APLICACIONES INSTALADAS
 INSTALLED_APPS = [
@@ -97,7 +100,8 @@ STATICFILES_DIRS = [
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Middlewares de seguridad para producción
-CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000').split(',')
+csrf_origins_str = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000,https://eki-mvp.onrender.com')
+CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_origins_str.split(',')]
 
 # Configuración para producción
 if not DEBUG:
