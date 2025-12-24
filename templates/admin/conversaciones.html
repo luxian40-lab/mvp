@@ -1,0 +1,398 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+<style>
+    .conversaciones-container {
+        display: flex;
+        height: calc(100vh - 150px);
+        max-width: 1400px;
+        margin: 20px auto;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .lista-contactos {
+        width: 350px;
+        border-right: 1px solid #e0e0e0;
+        overflow-y: auto;
+        background: #fafafa;
+    }
+    
+    .header-contactos {
+        padding: 20px;
+        background: #25d366;
+        color: white;
+        font-size: 1.3em;
+        font-weight: 600;
+    }
+    
+    .contacto {
+        padding: 15px 20px;
+        border-bottom: 1px solid #e0e0e0;
+        cursor: pointer;
+        transition: background 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .contacto:hover {
+        background: #f0f0f0;
+    }
+    
+    .contacto.activo {
+        background: #e8e8e8;
+    }
+    
+    .avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: 1.2em;
+        flex-shrink: 0;
+    }
+    
+    .contacto-info {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .contacto-nombre {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 3px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .contacto-ultimo {
+        font-size: 0.85em;
+        color: #666;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .contacto-fecha {
+        font-size: 0.75em;
+        color: #999;
+        white-space: nowrap;
+    }
+    
+    .zona-chat {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: #e5ddd5;
+    }
+    
+    .header-chat {
+        padding: 15px 20px;
+        background: #25d366;
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .header-chat-nombre {
+        font-weight: 600;
+        font-size: 1.1em;
+    }
+    
+    .header-chat-telefono {
+        font-size: 0.85em;
+        opacity: 0.9;
+    }
+    
+    .mensajes-area {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .mensaje {
+        max-width: 65%;
+        padding: 10px 15px;
+        border-radius: 8px;
+        word-wrap: break-word;
+        position: relative;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    
+    .mensaje-enviado {
+        background: #dcf8c6;
+        align-self: flex-end;
+        margin-left: auto;
+    }
+    
+    .mensaje-recibido {
+        background: white;
+        align-self: flex-start;
+    }
+    
+    .mensaje-texto {
+        color: #333;
+        line-height: 1.5;
+        margin-bottom: 5px;
+    }
+    
+    .mensaje-metadata {
+        font-size: 0.7em;
+        color: #999;
+        text-align: right;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 5px;
+        margin-top: 3px;
+    }
+    
+    .mensaje-estado {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+    }
+    
+    .estado-sent { color: #999; }
+    .estado-delivered { color: #4fc3f7; }
+    .estado-read { color: #25d366; }
+    .estado-failed { color: #f44336; }
+    
+    .empty-state {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #666;
+        background: #f5f5f5;
+    }
+    
+    .empty-icon {
+        font-size: 5em;
+        margin-bottom: 20px;
+        opacity: 0.5;
+    }
+    
+    .buscador {
+        padding: 10px 20px;
+        background: white;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .buscador input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #e0e0e0;
+        border-radius: 20px;
+        font-size: 0.9em;
+    }
+    
+    .badge-contador {
+        background: #25d366;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.75em;
+        font-weight: 600;
+    }
+    
+    .btn-volver {
+        background: #667eea;
+        color: white;
+        padding: 10px 20px;
+        text-decoration: none;
+        border-radius: 6px;
+        display: inline-block;
+        margin: 20px;
+        font-weight: 500;
+        transition: all 0.3s;
+    }
+    
+    .btn-volver:hover {
+        background: #5568d3;
+        color: white;
+        text-decoration: none;
+        transform: translateY(-2px);
+    }
+    
+    .paginacion {
+        text-align: center;
+        padding: 15px;
+        background: white;
+        border-top: 1px solid #e0e0e0;
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        align-items: center;
+    }
+    
+    .paginacion a, .paginacion span {
+        padding: 8px 12px;
+        background: #f0f0f0;
+        border-radius: 4px;
+        text-decoration: none;
+        color: #333;
+    }
+    
+    .paginacion a:hover {
+        background: #25d366;
+        color: white;
+    }
+    
+    .paginacion .actual {
+        background: #25d366;
+        color: white;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="{% url 'dashboard' %}" class="btn-volver">← Volver al Dashboard</a>
+
+<div class="conversaciones-container">
+    <!-- Lista de contactos -->
+    <div class="lista-contactos">
+        <div class="header-contactos">
+            💬 Conversaciones
+        </div>
+        
+        <div class="buscador">
+            <input type="text" id="buscar-contacto" placeholder="Buscar estudiante..." />
+        </div>
+        
+        {% if estudiantes %}
+            {% for est in estudiantes %}
+            <div class="contacto {% if estudiante_seleccionado.id == est.id %}activo{% endif %}" 
+                 onclick="window.location.href='{% url 'conversaciones' %}?estudiante={{ est.id }}'">
+                <div class="avatar">
+                    {{ est.nombre|slice:":1"|upper }}
+                </div>
+                <div class="contacto-info">
+                    <div class="contacto-nombre">{{ est.nombre }}</div>
+                    <div class="contacto-ultimo">
+                        {% if est.ultimo_mensaje %}
+                            {{ est.ultimo_mensaje|truncatewords:8 }}
+                        {% else %}
+                            Sin mensajes
+                        {% endif %}
+                    </div>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+                    {% if est.ultima_fecha %}
+                        <div class="contacto-fecha">
+                            {{ est.ultima_fecha|date:"d/m H:i" }}
+                        </div>
+                    {% endif %}
+                    {% if est.total_mensajes %}
+                        <span class="badge-contador">{{ est.total_mensajes }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div style="padding: 40px 20px; text-align: center; color: #999;">
+                <div style="font-size: 3em; margin-bottom: 10px;">📭</div>
+                <p>No hay conversaciones aún</p>
+            </div>
+        {% endif %}
+    </div>
+    
+    <!-- Zona de chat -->
+    <div class="zona-chat">
+        {% if estudiante_seleccionado %}
+            <div class="header-chat">
+                <div class="avatar">
+                    {{ estudiante_seleccionado.nombre|slice:":1"|upper }}
+                </div>
+                <div>
+                    <div class="header-chat-nombre">{{ estudiante_seleccionado.nombre }}</div>
+                    <div class="header-chat-telefono">{{ estudiante_seleccionado.telefono }}</div>
+                </div>
+            </div>
+            
+            <div class="mensajes-area" id="mensajes-area">
+                {% for msg in mensajes %}
+                    <div class="mensaje {% if msg.tipo == 'enviado' %}mensaje-enviado{% else %}mensaje-recibido{% endif %}">
+                        <div class="mensaje-texto">{{ msg.mensaje }}</div>
+                        <div class="mensaje-metadata">
+                            <span>{{ msg.fecha|date:"d/m/Y H:i" }}</span>
+                            {% if msg.tipo == 'enviado' %}
+                                <span class="mensaje-estado estado-{{ msg.estado|lower }}">
+                                    {% if msg.estado == 'SENT' %}✓{% elif msg.estado == 'DELIVERED' %}✓✓{% elif msg.estado == 'READ' %}✓✓{% elif msg.estado == 'FAILED' %}✗{% endif %}
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% empty %}
+                    <div style="text-align: center; color: #999; padding: 40px;">
+                        <div style="font-size: 3em; margin-bottom: 10px;">💬</div>
+                        <p>No hay mensajes en esta conversación</p>
+                    </div>
+                {% endfor %}
+            </div>
+            
+            {% if mensajes %}
+            <div class="paginacion">
+                {% if page_obj.has_previous %}
+                    <a href="?estudiante={{ estudiante_seleccionado.id }}&page=1">« Primera</a>
+                    <a href="?estudiante={{ estudiante_seleccionado.id }}&page={{ page_obj.previous_page_number }}">‹ Anterior</a>
+                {% endif %}
+                
+                <span class="actual">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                
+                {% if page_obj.has_next %}
+                    <a href="?estudiante={{ estudiante_seleccionado.id }}&page={{ page_obj.next_page_number }}">Siguiente ›</a>
+                    <a href="?estudiante={{ estudiante_seleccionado.id }}&page={{ page_obj.paginator.num_pages }}">Última »</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">💬</div>
+                <h2 style="margin-bottom: 10px;">Selecciona una conversación</h2>
+                <p style="color: #999;">Elige un estudiante para ver el historial de mensajes</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Auto-scroll al último mensaje
+const mensajesArea = document.getElementById('mensajes-area');
+if (mensajesArea) {
+    mensajesArea.scrollTop = mensajesArea.scrollHeight;
+}
+
+// Buscador de contactos
+document.getElementById('buscar-contacto')?.addEventListener('input', function(e) {
+    const busqueda = e.target.value.toLowerCase();
+    const contactos = document.querySelectorAll('.contacto');
+    
+    contactos.forEach(contacto => {
+        const nombre = contacto.querySelector('.contacto-nombre').textContent.toLowerCase();
+        if (nombre.includes(busqueda)) {
+            contacto.style.display = 'flex';
+        } else {
+            contacto.style.display = 'none';
+        }
+    });
+});
+</script>
+{% endblock %}

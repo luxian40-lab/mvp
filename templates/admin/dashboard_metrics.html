@@ -1,0 +1,581 @@
+{% extends "admin/base_site.html" %}
+
+{% block extrahead %}
+<style>
+    .dashboard-container {
+        padding: 20px;
+        background: #f4f6f9;
+    }
+    
+    .metric-card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    .metric-card.success {
+        border-left: 4px solid #28a745;
+    }
+    
+    .metric-card.danger {
+        border-left: 4px solid #dc3545;
+    }
+    
+    .metric-card.info {
+        border-left: 4px solid #17a2b8;
+    }
+    
+    .metric-card.warning {
+        border-left: 4px solid #ffc107;
+    }
+    
+    .metric-card.primary {
+        border-left: 4px solid #007bff;
+    }
+    
+    .metric-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin: 10px 0;
+        color: #333;
+    }
+    
+    .metric-label {
+        font-size: 1rem;
+        color: #666;
+        margin: 0;
+    }
+    
+    .metric-icon {
+        font-size: 3rem;
+        opacity: 0.3;
+        position: absolute;
+        right: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+    
+    .section-title {
+        margin: 30px 0 20px 0;
+        color: #333;
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+    
+    .stats-table {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .stats-table table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .stats-table th {
+        background: #f8f9fa;
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        color: #333;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .stats-table td {
+        padding: 12px;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .stats-table tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .badge-custom {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .badge-success {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .badge-danger {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .badge-info {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+    
+    .badge-warning {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .action-buttons {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        margin-top: 20px;
+    }
+    
+    .btn-custom {
+        display: inline-block;
+        padding: 15px 30px;
+        margin: 10px 5px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 16px;
+        transition: all 0.3s;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        border: none;
+        cursor: pointer;
+    }
+    
+    .btn-primary-custom {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white !important;
+    }
+    
+    .btn-primary-custom:hover {
+        background: linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(102, 126, 234, 0.4);
+        color: white !important;
+    }
+    
+    .btn-secondary-custom {
+        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        color: white !important;
+    }
+    
+    .btn-secondary-custom:hover {
+        background: linear-gradient(135deg, #5a6268 0%, #343a40 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(108, 117, 125, 0.4);
+        color: white !important;
+    }
+    
+    .btn-info-custom {
+        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        color: white !important;
+    }
+    
+    .btn-info-custom:hover {
+        background: linear-gradient(135deg, #138496 0%, #0f6674 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(23, 162, 184, 0.4);
+        color: white !important;
+    }
+    
+    .btn-success-custom {
+        background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+        color: white !important;
+    }
+    
+    .btn-success-custom:hover {
+        background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(40, 167, 69, 0.4);
+        color: white !important;
+    }
+    
+    .btn-warning-custom {
+        background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+        color: white !important;
+    }
+    
+    .btn-warning-custom:hover {
+        background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(255, 193, 7, 0.4);
+        color: white !important;
+    }
+    
+    .buttons-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+    }
+    
+    .row {
+        display: flex;
+        flex-wrap: wrap;
+        margin: 0 -10px;
+    }
+    
+    .col {
+        flex: 1;
+        padding: 0 10px;
+        min-width: 250px;
+    }
+    
+    .col-full {
+        flex: 0 0 100%;
+        padding: 0 10px;
+    }
+    
+    .chart-container {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .chart-title {
+        font-size: 1.2em;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 15px;
+    }
+    
+    .btn-calendario {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 10px 20px;
+        text-decoration: none;
+        border-radius: 6px;
+        display: inline-block;
+        margin-right: 10px;
+        margin-bottom: 20px;
+        font-weight: 500;
+        transition: all 0.3s;
+    }
+    
+    .btn-calendario:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .btn-conversaciones {
+        background: linear-gradient(135deg, #25d366 0%, #128c7e 100%);
+        color: white;
+        padding: 10px 20px;
+        text-decoration: none;
+        border-radius: 6px;
+        display: inline-block;
+        margin-bottom: 20px;
+        font-weight: 500;
+        transition: all 0.3s;
+    }
+    
+    .btn-conversaciones:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4);
+        color: white;
+        text-decoration: none;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    
+    <div class="col-full">
+        <h1 style="color: #333; margin-bottom: 10px;">📊 Tablero de Control - Eki MVP</h1>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <p style="color: #666; margin: 0;">Resumen de actividad en tiempo real</p>
+            <div style="font-size: 0.85em; color: #999;">
+                <span style="display: inline-flex; align-items: center; gap: 5px;">
+                    <span style="width: 8px; height: 8px; background: #25d366; border-radius: 50%; display: inline-block; animation: pulse 2s infinite;"></span>
+                    Última actualización: <span id="ultima-actualizacion">Cargando...</span>
+                </span>
+            </div>
+        </div>
+        <a href="{% url 'calendario_campanas' %}" class="btn-calendario">📅 Ver Calendario de Campañas</a>
+        <a href="{% url 'conversaciones' %}" class="btn-conversaciones">💬 Ver Conversaciones</a>
+    </div>
+
+    <!-- Métricas principales - DATOS REALES -->
+    <div class="row">
+        <div class="col">
+            <div class="metric-card success" style="position: relative;">
+                <p class="metric-label">Mensajes Enviados 📤</p>
+                <div class="metric-number" data-metric="enviados">{{ whatsapp_enviados }}</div>
+                <div class="metric-icon">✉️</div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="metric-card info" style="position: relative;">
+                <p class="metric-label">Mensajes Recibidos 📥</p>
+                <div class="metric-number" data-metric="recibidos">{{ whatsapp_recibidos }}</div>
+                <div class="metric-icon">💬</div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="metric-card primary" style="position: relative;">
+                <p class="metric-label">Conversaciones Activas 🗨️</p>
+                <div class="metric-number" data-metric="conversaciones">{{ conversaciones_activas }}</div>
+                <div class="metric-icon">👤</div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="metric-card warning" style="position: relative;">
+                <p class="metric-label">Estudiantes Activos 🎓</p>
+                <div class="metric-number" data-metric="estudiantes">{{ estudiantes_activos }}</div>
+                <div class="metric-icon">👥</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos de Estadísticas -->
+    <h2 class="section-title">📊 Estadísticas Visuales</h2>
+    
+    <div class="row">
+        <div class="col">
+            <div class="chart-container">
+                <h3 class="chart-title">Mensajes por Día (Últimos 7 días)</h3>
+                <canvas id="chartMensajesDia"></canvas>
+            </div>
+        </div>
+        <div class="col">
+            <div class="chart-container">
+                <h3 class="chart-title">Enviados vs Recibidos (Últimos 30 días)</h3>
+                <canvas id="chartTasaExito"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="section-title">📱 Últimos Mensajes WhatsApp</h2>
+
+    <div class="stats-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>Teléfono</th>
+                    <th>Mensaje</th>
+                    <th>Estado</th>
+                    <th>Fecha</th>
+                    <th>ID Mensaje</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in whatsapp_logs %}
+                <tr>
+                    <td><strong>{{ log.telefono }}</strong></td>
+                    <td>{{ log.mensaje|truncatewords:10 }}</td>
+                    <td>
+                        {% if log.tipo == 'SENT' %}
+                            <span class="badge-custom badge-success">ENVIADO ✅</span>
+                        {% elif log.tipo == 'INCOMING' %}
+                            <span class="badge-custom badge-info">RECIBIDO 📥</span>
+                        {% else %}
+                            <span class="badge-custom">{{ log.tipo }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ log.fecha|date:"d/m/Y H:i" }}</td>
+                    <td><code style="background: #f4f6f9; padding: 2px 6px; border-radius: 3px;">{{ log.mensaje_id|default:"-" }}</code></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: #999; padding: 30px;">
+                        Sin mensajes aún.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h2 class="section-title">🚀 Acciones Rápidas</h2>
+
+    <div class="action-buttons">
+        <p style="color: #666; margin-bottom: 20px; font-size: 15px;">Inicia una nueva campaña o gestiona tu base de datos.</p>
+        <div class="buttons-grid">
+            <a href="/admin/core/campana/add/" class="btn-custom btn-primary-custom">
+                ➕ Nueva Campaña
+            </a>
+            <a href="/admin/core/estudiante/add/" class="btn-custom btn-secondary-custom">
+                👤 Nuevo Estudiante
+            </a>
+            <a href="{% url 'importar_estudiantes' %}" class="btn-custom btn-info-custom">
+                📥 Importar Estudiantes
+            </a>
+            <a href="{% url 'descargar_reportes' %}" class="btn-custom btn-success-custom">
+                📊 Descargar Reportes
+            </a>
+            <a href="{% url 'probar_twilio' %}" class="btn-custom btn-warning-custom">
+                🧪 Probar Twilio
+            </a>
+            <a href="/admin/core/enviolog/" class="btn-custom btn-secondary-custom">
+                📋 Ver Historial
+            </a>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// Gráfico de Mensajes por Día
+const ctxDias = document.getElementById('chartMensajesDia').getContext('2d');
+new Chart(ctxDias, {
+    type: 'line',
+    data: {
+        labels: {{ chart_dias_labels|safe }},
+        datasets: [{
+            label: 'Mensajes',
+            data: {{ chart_dias_valores|safe }},
+            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+            borderColor: 'rgba(102, 126, 234, 1)',
+            borderWidth: 3,
+            tension: 0.4,
+            fill: true,
+            pointBackgroundColor: 'rgba(102, 126, 234, 1)',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointRadius: 5,
+            pointHoverRadius: 7
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1
+                }
+            }
+        }
+    }
+});
+
+// Gráfico de Mensajes Enviados vs Recibidos (Últimos 30 días)
+const ctxExito = document.getElementById('chartTasaExito').getContext('2d');
+new Chart(ctxExito, {
+    type: 'doughnut',
+    data: {
+        labels: ['Enviados', 'Recibidos'],
+        datasets: [{
+            data: [{{ chart_enviados_30d }}, {{ chart_recibidos_30d }}],
+            backgroundColor: [
+                'rgba(40, 167, 69, 0.8)',
+                'rgba(23, 162, 184, 0.8)'
+            ],
+            borderColor: [
+                'rgba(40, 167, 69, 1)',
+                'rgba(23, 162, 184, 1)'
+            ],
+            borderWidth: 2
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+// ===============================================
+// AUTO-REFRESH: Actualizar dashboard cada 10 segundos
+// ===============================================
+let chartDias = Chart.getChart('chartDias');
+let chartExito = Chart.getChart('chartTasaExito');
+
+function actualizarDashboard() {
+    fetch('/api/dashboard/')
+        .then(response => response.json())
+        .then(data => {
+            // Actualizar métricas
+            const metricExitosos = document.querySelector('.metric-number[data-metric="exitosos"]');
+            const metricFallidos = document.querySelector('.metric-number[data-metric="fallidos"]');
+            const metricCampanas = document.querySelector('.metric-number[data-metric="campanas"]');
+            const metricEnvios = document.querySelector('.metric-number[data-metric="envios"]');
+            const metricEstudiantes = document.querySelector('.metric-number[data-metric="estudiantes"]');
+            const metricWhatsappTotal = document.querySelector('.metric-number[data-metric="whatsapp-total"]');
+            const metricWhatsappEnviados = document.querySelector('.metric-number[data-metric="whatsapp-enviados"]');
+            const metricWhatsappEntrantes = document.querySelector('.metric-number[data-metric="whatsapp-entrantes"]');
+            
+            if (metricExitosos) metricExitosos.textContent = data.metricas.exitosos;
+            if (metricFallidos) metricFallidos.textContent = data.metricas.fallidos;
+            if (metricCampanas) metricCampanas.textContent = data.metricas.total_campanas;
+            if (metricEnvios) metricEnvios.textContent = data.metricas.total_envios;
+            if (metricEstudiantes) metricEstudiantes.textContent = data.metricas.estudiantes_activos;
+            if (metricWhatsappTotal) metricWhatsappTotal.textContent = data.metricas.whatsapp_total;
+            if (metricWhatsappEnviados) metricWhatsappEnviados.textContent = data.metricas.whatsapp_enviados;
+            if (metricWhatsappEntrantes) metricWhatsappEntrantes.textContent = data.metricas.whatsapp_entrantes;
+            
+            // Actualizar gráfico de días
+            if (chartDias) {
+                chartDias.data.labels = data.graficos.dias_labels;
+                chartDias.data.datasets[0].data = data.graficos.dias_valores;
+                chartDias.update();
+            }
+            
+            // Actualizar gráfico de éxito
+            if (chartExito) {
+                chartExito.data.datasets[0].data = [data.graficos.exitosos_30d, data.graficos.fallidos_30d];
+                chartExito.update();
+            }
+            
+            // Actualizar logs de WhatsApp
+            const logsTable = document.querySelector('.logs-table tbody');
+            if (logsTable && data.whatsapp_logs) {
+                logsTable.innerHTML = data.whatsapp_logs.map(log => `
+                    <tr>
+                        <td style="font-family: monospace;">${log.telefono}</td>
+                        <td>${log.mensaje}</td>
+                        <td><span class="estado-badge estado-${log.estado.toLowerCase()}">${log.estado}</span></td>
+                        <td style="color: #999;">${log.fecha}</td>
+                    </tr>
+                `).join('');
+            }
+            
+            // Actualizar timestamp
+            const timestampElement = document.getElementById('ultima-actualizacion');
+            if (timestampElement) {
+                timestampElement.textContent = data.timestamp;
+            }
+            
+            console.log('Dashboard actualizado:', data.timestamp);
+        })
+        .catch(error => {
+            console.error('Error al actualizar dashboard:', error);
+        });
+}
+
+// Actualizar cada 10 segundos
+setInterval(actualizarDashboard, 10000);
+
+console.log('✅ Auto-refresh activado: El dashboard se actualizará cada 10 segundos');
+</script>
+{% endblock %}

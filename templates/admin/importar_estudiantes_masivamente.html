@@ -1,0 +1,507 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Importar Estudiantes Masivamente{% endblock %}
+
+{% block extrahead %}
+<style>
+    .import-wrapper {
+        max-width: 800px;
+        margin: 40px auto;
+    }
+    
+    .import-card {
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+    }
+    
+    .import-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    
+    .import-header h1 {
+        color: #333;
+        font-size: 28px;
+        margin-bottom: 10px;
+    }
+    
+    .import-header p {
+        color: #666;
+        font-size: 14px;
+    }
+    
+    .two-columns {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    
+    @media (max-width: 768px) {
+        .two-columns {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .option-box {
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .option-box:hover {
+        border-color: #007bff;
+        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.2);
+    }
+    
+    .option-box.active {
+        border-color: #007bff;
+        background: #f8f9fa;
+    }
+    
+    .option-box i {
+        font-size: 32px;
+        color: #007bff;
+        display: block;
+        margin-bottom: 10px;
+    }
+    
+    .option-box h3 {
+        margin: 0 0 10px 0;
+        font-size: 18px;
+        color: #333;
+    }
+    
+    .option-box p {
+        margin: 0;
+        font-size: 13px;
+        color: #666;
+    }
+    
+    .form-section {
+        margin-top: 20px;
+    }
+    
+    .form-section h2 {
+        color: #333;
+        font-size: 20px;
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+    }
+    
+    .upload-zone {
+        border: 2px dashed #007bff;
+        border-radius: 8px;
+        padding: 40px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: #f8f9fa;
+        margin-bottom: 20px;
+    }
+    
+    .upload-zone:hover {
+        border-color: #0056b3;
+        background: #e7f1ff;
+    }
+    
+    .upload-zone.dragover {
+        border-color: #28a745;
+        background: #e8f5e9;
+    }
+    
+    .upload-zone i {
+        font-size: 48px;
+        color: #007bff;
+        display: block;
+        margin-bottom: 15px;
+    }
+    
+    .upload-zone p {
+        margin: 0;
+        color: #666;
+        font-size: 16px;
+    }
+    
+    #file-input {
+        display: none;
+    }
+    
+    .selected-file {
+        background: #e8f5e9;
+        border: 1px solid #4caf50;
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        display: none;
+    }
+    
+    .selected-file.show {
+        display: block;
+    }
+    
+    .selected-file i {
+        color: #4caf50;
+        margin-right: 10px;
+    }
+    
+    .file-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+    }
+    
+    .btn-action {
+        flex: 1;
+        padding: 12px;
+        border: none;
+        border-radius: 6px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: 600;
+    }
+    
+    .btn-import {
+        background: #28a745;
+        color: white;
+    }
+    
+    .btn-import:hover:not(:disabled) {
+        background: #218838;
+    }
+    
+    .btn-import:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+    
+    .btn-clear {
+        background: #dc3545;
+        color: white;
+    }
+    
+    .btn-clear:hover {
+        background: #c82333;
+    }
+    
+    .template-link {
+        background: #e7f3ff;
+        border: 1px solid #b3d9ff;
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+    
+    .template-link i {
+        color: #007bff;
+        margin-right: 8px;
+    }
+    
+    .template-link a {
+        color: #007bff;
+        text-decoration: none;
+        font-weight: 600;
+    }
+    
+    .template-link a:hover {
+        text-decoration: underline;
+    }
+    
+    .instructions {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        font-size: 14px;
+    }
+    
+    .instructions ol {
+        margin: 10px 0;
+        padding-left: 20px;
+    }
+    
+    .instructions li {
+        margin-bottom: 8px;
+    }
+    
+    .results-box {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        padding: 20px;
+        border-radius: 6px;
+        margin-top: 20px;
+        display: none;
+    }
+    
+    .results-box.show {
+        display: block;
+    }
+    
+    .result-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #c3e6cb;
+    }
+    
+    .result-item:last-child {
+        border-bottom: none;
+    }
+    
+    .result-label {
+        font-weight: 600;
+        color: #155724;
+    }
+    
+    .result-value {
+        font-size: 18px;
+        font-weight: bold;
+        color: #28a745;
+    }
+    
+    .loading {
+        display: none;
+        text-align: center;
+        padding: 20px;
+    }
+    
+    .loading.show {
+        display: block;
+    }
+    
+    .spinner {
+        display: inline-block;
+        width: 40px;
+        height: 40px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #007bff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .link-agregar {
+        background: #e7f3ff;
+        border: 1px solid #b3d9ff;
+        padding: 15px;
+        border-radius: 6px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    
+    .link-agregar a {
+        color: #007bff;
+        text-decoration: none;
+        font-weight: 600;
+    }
+    
+    .link-agregar a:hover {
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="import-wrapper">
+    <div class="import-card">
+        <div class="import-header">
+            <h1><i class="fas fa-users"></i> Gestionar Estudiantes</h1>
+            <p>Añadir uno a uno o importar masivamente desde Excel</p>
+        </div>
+        
+        {% if messages %}
+            {% for message in messages %}
+                <div class="messagelist">
+                    <div class="{% cycle 'success' 'warning' 'error' %}">{{ message }}</div>
+                </div>
+            {% endfor %}
+        {% endif %}
+        
+        <!-- Opciones de gestión -->
+        <div class="two-columns">
+            <div class="option-box" onclick="scrollToSection('agregar-individual')">
+                <i class="fas fa-user-plus"></i>
+                <h3>Agregar Individual</h3>
+                <p>Crear un estudiante manualmente</p>
+            </div>
+            
+            <div class="option-box active" onclick="scrollToSection('importar-masivo')">
+                <i class="fas fa-file-excel"></i>
+                <h3>Importar Masivamente</h3>
+                <p>Carga múltiples estudiantes desde Excel</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- SECCIÓN 1: Agregar Individual -->
+    <div class="import-card" id="agregar-individual">
+        <h2><i class="fas fa-user-plus"></i> Agregar Estudiante Individual</h2>
+        
+        <div class="link-agregar">
+            <a href="/admin/core/estudiante/add/">
+                <i class="fas fa-plus-circle"></i> Haz clic aquí para agregar un nuevo estudiante
+            </a>
+        </div>
+        
+        <p style="color: #666; font-size: 14px;">
+            Este formulario te permitirá crear un estudiante manualmente. Completa el nombre y teléfono, luego haz clic en guardar.
+        </p>
+    </div>
+    
+    <!-- SECCIÓN 2: Importar Masivo -->
+    <div class="import-card" id="importar-masivo">
+        <h2><i class="fas fa-file-excel"></i> Importar Estudiantes Masivamente</h2>
+        
+        <div class="instructions">
+            <strong><i class="fas fa-info-circle"></i> Instrucciones:</strong>
+            <ol>
+                <li>Descarga la plantilla Excel haciendo clic abajo (opcional)</li>
+                <li>Rellena los datos:
+                    <ul style="margin: 10px 0; padding-left: 20px;">
+                        <li><strong>Columna A:</strong> Nombre del estudiante</li>
+                        <li><strong>Columna B:</strong> Teléfono (ej: 573001234567)</li>
+                    </ul>
+                </li>
+                <li>Sube el archivo usando el área de arrastre</li>
+                <li>El sistema creará o actualizará los registros automáticamente</li>
+            </ol>
+        </div>
+        
+        <div class="template-link">
+            <i class="fas fa-download"></i>
+            <a href="{% static 'templates/plantilla_estudiantes.xlsx' %}" download>
+                📥 Descargar Plantilla de Ejemplo
+            </a>
+        </div>
+        
+        <form id="import-form" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <!-- Upload Zone -->
+            <div id="uploadArea" class="upload-zone">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>Arrastra tu archivo aquí o haz clic para seleccionar</p>
+            </div>
+            
+            <!-- Archivo seleccionado -->
+            <div id="selectedFile" class="selected-file">
+                <i class="fas fa-file-excel"></i>
+                <strong id="fileName"></strong>
+                <span id="fileSize"></span>
+            </div>
+            
+            <!-- File Input (hidden) -->
+            <input type="file" id="file-input" name="archivo_excel" accept=".xlsx,.xls">
+            
+            <!-- Botones de acción -->
+            <div class="file-actions">
+                <button type="submit" id="btn-submit" class="btn-action btn-import" disabled>
+                    <i class="fas fa-upload"></i> Importar Estudiantes
+                </button>
+                <button type="button" id="btn-clear" class="btn-action btn-clear" style="display: none;">
+                    <i class="fas fa-times"></i> Limpiar
+                </button>
+            </div>
+        </form>
+        
+        <!-- Loading -->
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Importando estudiantes...</p>
+        </div>
+    </div>
+</div>
+
+<script>
+const uploadArea = document.getElementById('uploadArea');
+const fileInput = document.getElementById('file-input');
+const selectedFile = document.getElementById('selectedFile');
+const fileName = document.getElementById('fileName');
+const fileSize = document.getElementById('fileSize');
+const importForm = document.getElementById('import-form');
+const btnSubmit = document.getElementById('btn-submit');
+const btnClear = document.getElementById('btn-clear');
+const loading = document.getElementById('loading');
+
+// Click en upload zone
+uploadArea.addEventListener('click', () => fileInput.click());
+
+// Drag and drop
+uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('dragover');
+});
+
+uploadArea.addEventListener('dragleave', () => {
+    uploadArea.classList.remove('dragover');
+});
+
+uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        fileInput.files = files;
+        handleFileSelect();
+    }
+});
+
+// File input change
+fileInput.addEventListener('change', handleFileSelect);
+
+function handleFileSelect() {
+    const file = fileInput.files[0];
+    
+    if (!file) return;
+    
+    // Validar extensión
+    const validExtensions = ['xlsx', 'xls'];
+    const fileExtension = file.name.split('.').pop().toLowerCase();
+    
+    if (!validExtensions.includes(fileExtension)) {
+        alert('El archivo debe ser .xlsx o .xls');
+        fileInput.value = '';
+        return;
+    }
+    
+    // Mostrar archivo seleccionado
+    fileName.textContent = file.name;
+    fileSize.textContent = ` (${(file.size / 1024).toFixed(2)} KB)`;
+    selectedFile.classList.add('show');
+    btnClear.style.display = 'block';
+    btnSubmit.disabled = false;
+}
+
+// Limpiar selección
+btnClear.addEventListener('click', () => {
+    fileInput.value = '';
+    selectedFile.classList.remove('show');
+    btnClear.style.display = 'none';
+    btnSubmit.disabled = true;
+});
+
+// Scroll a sección
+function scrollToSection(sectionId) {
+    const section = document.getElementById(sectionId);
+    if (section) {
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+</script>
+{% endblock %}

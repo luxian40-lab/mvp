@@ -1,0 +1,107 @@
+/* Estilos para el selector de colores en Etiquetas */
+
+.color-selector {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 15px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.color-selector li {
+    list-style: none;
+    margin: 0;
+}
+
+.color-selector label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 15px;
+    background: white;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.color-selector label:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-color: #667eea;
+}
+
+.color-selector input[type="radio"] {
+    appearance: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 0 0 2px #ddd;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.color-selector input[type="radio"]:checked {
+    box-shadow: 0 0 0 3px #667eea;
+    border-color: white;
+}
+
+/* Colores para cada opción */
+.color-selector input[value="#667eea"] {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.color-selector input[value="#f093fb"] {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.color-selector input[value="#4facfe"] {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.color-selector input[value="#43e97b"] {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+}
+
+.color-selector input[value="#fa709a"] {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+.color-selector input[value="#feca57"] {
+    background: linear-gradient(135deg, #feca57 0%, #ff9f43 100%);
+}
+
+.color-selector input[value="#ff6348"] {
+    background: linear-gradient(135deg, #ff6348 0%, #f093fb 100%);
+}
+
+.color-selector input[value="#00d2d3"] {
+    background: linear-gradient(135deg, #00d2d3 0%, #667eea 100%);
+}
+
+.color-selector input[value="#786fa6"] {
+    background: linear-gradient(135deg, #786fa6 0%, #c44569 100%);
+}
+
+.color-selector input[value="#f8b500"] {
+    background: linear-gradient(135deg, #f8b500 0%, #feca57 100%);
+}
+
+/* Animación al seleccionar */
+.color-selector input[type="radio"]:checked + span {
+    font-weight: 600;
+    color: #667eea;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .color-selector {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,0 +1,12 @@
+{% extends "admin/change_form.html" %}
+
+{% block content %}
+    {% if show_importar_btn and importar_url %}
+        <div style="margin-bottom:20px;text-align:right;">
+            <a href="{{ importar_url }}" class="btn btn-success">
+                <i class="fas fa-file-import"></i> Importar estudiantes masivamente
+            </a>
+        </div>
+    {% endif %}
+    {{ block.super }}
+{% endblock %}
