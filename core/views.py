@@ -314,9 +314,6 @@ def descargar_reportes(request):
     return render(request, 'admin/descargar_reportes.html', context)
 
 
-# ---------- Vista de importar estudiantes ----------
-@staff_member_required
-
 # ---------- Webhook para WhatsApp Cloud API ----------
 @csrf_exempt
 def whatsapp_webhook(request):
