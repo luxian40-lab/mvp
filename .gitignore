@@ -1,82 +1,14 @@
-# Byte-compiled / optimized / DLL files
+*.pyc
 __pycache__/
-*.py[cod]
-*$py.class
-
-# C extensions
-*.so
-
-# Distribution / packaging
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-*.egg
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-.tox/
-.pytest_cache/
-htmlcov/
-.coverage
-.coverage.*
-nosetests.xml
-coverage.xml
-*.cover
-
-# Virtual environments
-venv/
-env/
-.venv/
-venv*/
-
-# Django
-*.sqlite3
-db.sqlite3
-media/
-staticfiles/
-local_settings.py
 *.log
-
-# Variables de entorno (IMPORTANTE)
+db.sqlite3
+staticfiles/
 .env
 .env.local
-.env.*.local
-.env.render
-
-# ngrok
-ngrok
-ngrok.exe
-ngrok.zip
-
-# Uploaded excels / files
-excels/
-
-# Editor directories and files
+*.md
+!README.md
+*.txt
+!requirements.txt
 .vscode/
 .idea/
-*.sublime-project
-*.sublime-workspace
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Environment variables
-.env
-.env.*
-
-# PyCharm
-*.iml
