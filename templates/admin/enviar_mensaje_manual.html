@@ -1,0 +1,86 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 40px auto; padding: 20px;">
+    <h1 style="color: #2c5f2d; margin-bottom: 20px;">📤 Enviar Mensaje de Prueba</h1>
+    
+    <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-bottom: 20px;">
+        <strong>⚠️ Atención:</strong> Vas a enviar un mensaje manual a los siguientes estudiantes:
+    </div>
+    
+    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <h3 style="margin-top: 0;">👥 Destinatarios ({{ estudiantes|length }})</h3>
+        <ul style="list-style: none; padding: 0;">
+            {% for estudiante in estudiantes %}
+            <li style="padding: 8px; margin-bottom: 5px; background: white; border-radius: 4px; border-left: 3px solid #28a745;">
+                <strong>{{ estudiante.nombre }}</strong> - 
+                <span style="font-family: monospace; background: #e9ecef; padding: 2px 6px; border-radius: 3px;">{{ estudiante.telefono }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    
+    <form method="POST" style="background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        {% csrf_token %}
+        
+        <div style="margin-bottom: 20px;">
+            <label for="mensaje" style="display: block; font-weight: bold; margin-bottom: 8px; color: #2c5f2d;">
+                ✍️ Escribe el mensaje que deseas enviar:
+            </label>
+            <textarea 
+                name="mensaje" 
+                id="mensaje" 
+                rows="6" 
+                required
+                placeholder="Ejemplo: Hola! Este es un mensaje de prueba desde Eki 🌱"
+                style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px; font-family: Arial, sans-serif;"
+            ></textarea>
+            <small style="color: #6c757d;">📝 Máximo 1600 caracteres (WhatsApp)</small>
+        </div>
+        
+        <div style="margin-bottom: 15px; padding: 12px; background: #d1ecf1; border-radius: 6px; border-left: 4px solid #17a2b8;">
+            <strong>💡 Tip:</strong> Puedes usar emojis y saltos de línea. El mensaje se enviará tal como lo escribas.
+        </div>
+        
+        <input type="hidden" name="action" value="enviar_mensaje_manual">
+        {% for estudiante in estudiantes %}
+        <input type="hidden" name="{{ action_checkbox_name }}" value="{{ estudiante.pk }}">
+        {% endfor %}
+        
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
+            <a href="{% url 'admin:core_estudiante_changelist' %}" 
+               style="padding: 10px 20px; background: #6c757d; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">
+                ❌ Cancelar
+            </a>
+            <button 
+                type="submit" 
+                name="aplicar" 
+                value="yes"
+                style="padding: 10px 30px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 15px;"
+                onclick="return confirm('¿Estás seguro de enviar este mensaje a {{ estudiantes|length }} estudiante(s)?');"
+            >
+                ✅ Enviar Ahora
+            </button>
+        </div>
+    </form>
+    
+    <div style="margin-top: 30px; padding: 15px; background: #e7f3ff; border-radius: 6px;">
+        <strong>📋 Nota:</strong> Los mensajes enviados se registrarán automáticamente en el historial de WhatsappLog.
+    </div>
+</div>
+
+<style>
+    textarea:focus {
+        outline: none;
+        border-color: #28a745;
+        box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
+    }
+    
+    button:hover {
+        background: #218838 !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+    }
+</style>
+{% endblock %}

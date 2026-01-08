@@ -3,396 +3,596 @@
 
 {% block extrastyle %}
 <style>
-    .conversaciones-container {
+    /* Reset y container principal */
+    .chat-container {
         display: flex;
-        height: calc(100vh - 150px);
-        max-width: 1400px;
-        margin: 20px auto;
-        background: white;
+        height: 82vh;
+        gap: 0;
         border-radius: 8px;
         overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin: 20px 0;
     }
     
-    .lista-contactos {
+    /* LISTA DE CONTACTOS */
+    .contactos-lista {
         width: 350px;
-        border-right: 1px solid #e0e0e0;
+        border-right: 1px solid #d1d7db;
         overflow-y: auto;
-        background: #fafafa;
-    }
-    
-    .header-contactos {
-        padding: 20px;
-        background: #25d366;
-        color: white;
-        font-size: 1.3em;
-        font-weight: 600;
-    }
-    
-    .contacto {
-        padding: 15px 20px;
-        border-bottom: 1px solid #e0e0e0;
-        cursor: pointer;
-        transition: background 0.2s;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-    
-    .contacto:hover {
-        background: #f0f0f0;
-    }
-    
-    .contacto.activo {
-        background: #e8e8e8;
-    }
-    
-    .avatar {
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-weight: 600;
-        font-size: 1.2em;
+        background: white;
         flex-shrink: 0;
     }
     
-    .contacto-info {
-        flex: 1;
-        min-width: 0;
+    .contactos-header {
+        padding: 20px;
+        background: #2c5f2d;
+        color: white;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .contactos-header h3 {
+        margin: 0 0 15px 0;
+        font-size: 20px;
+        font-weight: 600;
+    }
+    
+    .search-box {
+        width: 100%;
+        padding: 10px 15px;
+        border: none;
+        border-radius: 20px;
+        font-size: 14px;
+        background: rgba(255,255,255,0.2);
+        color: white;
+    }
+    
+    .search-box::placeholder {
+        color: rgba(255,255,255,0.7);
+    }
+    
+    .contacto-item {
+        padding: 16px 20px;
+        border-bottom: 1px solid #f0f0f0;
+        cursor: pointer;
+        transition: background 0.15s;
+        position: relative;
+    }
+    
+    .contacto-item:hover {
+        background: #f5f5f5;
+    }
+    
+    .contacto-item.activo {
+        background: #e8f5e9;
+        border-left: 4px solid #2c5f2d;
     }
     
     .contacto-nombre {
         font-weight: 600;
-        color: #333;
-        margin-bottom: 3px;
+        font-size: 15px;
+        color: #111;
+        margin-bottom: 4px;
+    }
+    
+    .contacto-preview {
+        font-size: 13px;
+        color: #667781;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        margin-bottom: 4px;
     }
     
-    .contacto-ultimo {
-        font-size: 0.85em;
-        color: #666;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+    .contacto-tiempo {
+        font-size: 11px;
+        color: #8696a0;
     }
     
-    .contacto-fecha {
-        font-size: 0.75em;
-        color: #999;
-        white-space: nowrap;
+    .contacto-badge {
+        position: absolute;
+        top: 16px;
+        right: 20px;
+        background: #25d366;
+        color: white;
+        border-radius: 12px;
+        padding: 2px 8px;
+        font-size: 11px;
+        font-weight: 600;
     }
     
-    .zona-chat {
+    /* ÁREA DE CHAT */
+    .chat-area {
         flex: 1;
         display: flex;
         flex-direction: column;
-        background: #e5ddd5;
+        background: #f0f2f5;
     }
     
-    .header-chat {
+    .chat-header {
         padding: 15px 20px;
-        background: #25d366;
+        background: #f0f2f5;
+        border-bottom: 1px solid #d1d7db;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .chat-header-avatar {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background: #2c5f2d;
         color: white;
         display: flex;
         align-items: center;
-        gap: 12px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    
-    .header-chat-nombre {
+        justify-content: center;
+        font-size: 20px;
         font-weight: 600;
-        font-size: 1.1em;
     }
     
-    .header-chat-telefono {
-        font-size: 0.85em;
-        opacity: 0.9;
-    }
-    
-    .mensajes-area {
+    .chat-header-info {
         flex: 1;
-        overflow-y: auto;
+    }
+    
+    .chat-header-info h3 {
+        margin: 0;
+        font-size: 16px;
+        color: #111;
+    }
+    
+    .chat-header-info small {
+        font-size: 13px;
+        color: #667781;
+    }
+    
+    /* MENSAJES */
+    .chat-mensajes {
+        flex: 1;
         padding: 20px;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
+        overflow-y: auto;
+        background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23f0f2f5" width="100" height="100"/><path d="M0 99 L50 49 L100 99 Z" fill="%23e5ddd5" opacity="0.05"/></svg>');
+        background-size: 200px 200px;
+    }
+    
+    .mensaje-fecha-separador {
+        text-align: center;
+        margin: 20px 0;
+    }
+    
+    .fecha-badge {
+        background: #e1f3fb;
+        color: #54656f;
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-size: 12px;
+        display: inline-block;
     }
     
     .mensaje {
+        margin-bottom: 12px;
+        display: flex;
+        animation: slideIn 0.2s ease-out;
+    }
+    
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .mensaje.recibido {
+        justify-content: flex-start;
+    }
+    
+    .mensaje.enviado {
+        justify-content: flex-end;
+    }
+    
+    .burbuja {
         max-width: 65%;
-        padding: 10px 15px;
+        padding: 8px 12px;
         border-radius: 8px;
-        word-wrap: break-word;
         position: relative;
+        word-wrap: break-word;
         box-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
     
-    .mensaje-enviado {
-        background: #dcf8c6;
-        align-self: flex-end;
-        margin-left: auto;
+    .burbuja.recibido {
+        background: white;
+        border-radius: 0 8px 8px 8px;
     }
     
-    .mensaje-recibido {
-        background: white;
-        align-self: flex-start;
+    .burbuja.enviado {
+        background: #d9fdd3;
+        border-radius: 8px 0 8px 8px;
     }
     
     .mensaje-texto {
-        color: #333;
-        line-height: 1.5;
-        margin-bottom: 5px;
+        font-size: 14px;
+        line-height: 1.4;
+        color: #111;
+        white-space: pre-wrap;
     }
     
-    .mensaje-metadata {
-        font-size: 0.7em;
-        color: #999;
+    .mensaje-tiempo {
+        font-size: 11px;
+        color: #667781;
+        margin-top: 4px;
         text-align: right;
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 5px;
-        margin-top: 3px;
     }
     
-    .mensaje-estado {
-        display: inline-flex;
-        align-items: center;
-        gap: 3px;
-    }
-    
-    .estado-sent { color: #999; }
-    .estado-delivered { color: #4fc3f7; }
-    .estado-read { color: #25d366; }
-    .estado-failed { color: #f44336; }
-    
-    .empty-state {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        color: #666;
-        background: #f5f5f5;
-    }
-    
-    .empty-icon {
-        font-size: 5em;
-        margin-bottom: 20px;
-        opacity: 0.5;
-    }
-    
-    .buscador {
+    /* ÁREA DE RESPUESTA */
+    .responder-box {
         padding: 10px 20px;
-        background: white;
-        border-bottom: 1px solid #e0e0e0;
-    }
-    
-    .buscador input {
-        width: 100%;
-        padding: 10px;
-        border: 1px solid #e0e0e0;
-        border-radius: 20px;
-        font-size: 0.9em;
-    }
-    
-    .badge-contador {
-        background: #25d366;
-        color: white;
-        padding: 2px 8px;
-        border-radius: 10px;
-        font-size: 0.75em;
-        font-weight: 600;
-    }
-    
-    .btn-volver {
-        background: #667eea;
-        color: white;
-        padding: 10px 20px;
-        text-decoration: none;
-        border-radius: 6px;
-        display: inline-block;
-        margin: 20px;
-        font-weight: 500;
-        transition: all 0.3s;
-    }
-    
-    .btn-volver:hover {
-        background: #5568d3;
-        color: white;
-        text-decoration: none;
-        transform: translateY(-2px);
-    }
-    
-    .paginacion {
-        text-align: center;
-        padding: 15px;
-        background: white;
-        border-top: 1px solid #e0e0e0;
+        background: #f0f2f5;
+        border-top: 1px solid #d1d7db;
         display: flex;
-        justify-content: center;
         gap: 10px;
         align-items: center;
     }
     
-    .paginacion a, .paginacion span {
-        padding: 8px 12px;
-        background: #f0f0f0;
-        border-radius: 4px;
+    .responder-box select {
+        padding: 10px 15px;
+        border: 1px solid #d1d7db;
+        border-radius: 20px;
+        font-size: 14px;
+        background: white;
+        cursor: pointer;
+        color: #667781;
+    }
+    
+    .responder-box textarea {
+        flex: 1;
+        padding: 10px 15px;
+        border: 1px solid #d1d7db;
+        border-radius: 20px;
+        resize: none;
+        font-size: 14px;
+        font-family: Arial, sans-serif;
+        background: white;
+        max-height: 100px;
+    }
+    
+    .responder-box textarea:focus {
+        outline: none;
+        border-color: #25d366;
+    }
+    
+    .btn-enviar {
+        background: #25d366;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        transition: background 0.2s;
+    }
+    
+    .btn-enviar:hover {
+        background: #20ba5a;
+    }
+    
+    .btn-enviar:active {
+        transform: scale(0.95);
+    }
+    
+    /* ESTADO VACÍO */
+    .estado-vacio {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        text-align: center;
+        color: #8696a0;
+    }
+    
+    .estado-vacio-content {
+        max-width: 400px;
+    }
+    
+    .estado-vacio-icon {
+        font-size: 80px;
+        margin-bottom: 20px;
+        opacity: 0.3;
+    }
+    
+    .estado-vacio-texto {
+        font-size: 16px;
+        line-height: 1.5;
+    }
+    
+    /* PAGINACIÓN */
+    .paginacion {
+        padding: 15px;
+        text-align: center;
+        background: #f0f2f5;
+        border-top: 1px solid #d1d7db;
+    }
+    
+    .paginacion a {
+        display: inline-block;
+        padding: 8px 15px;
+        margin: 0 5px;
+        background: white;
+        color: #2c5f2d;
         text-decoration: none;
-        color: #333;
+        border-radius: 5px;
+        border: 1px solid #d1d7db;
     }
     
     .paginacion a:hover {
-        background: #25d366;
-        color: white;
+        background: #e8f5e9;
     }
     
-    .paginacion .actual {
-        background: #25d366;
+    .paginacion .current {
+        background: #2c5f2d;
         color: white;
-        font-weight: 600;
+        padding: 8px 15px;
+        border-radius: 5px;
+    }
+    
+    /* Scrollbar personalizado */
+    .contactos-lista::-webkit-scrollbar,
+    .chat-mensajes::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .contactos-lista::-webkit-scrollbar-thumb,
+    .chat-mensajes::-webkit-scrollbar-thumb {
+        background: #d1d7db;
+        border-radius: 3px;
+    }
+    
+    .contactos-lista::-webkit-scrollbar-thumb:hover,
+    .chat-mensajes::-webkit-scrollbar-thumb:hover {
+        background: #b1b7bb;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .contactos-lista {
+            width: 280px;
+        }
+        
+        .burbuja {
+            max-width: 85%;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<a href="{% url 'dashboard' %}" class="btn-volver">← Volver al Dashboard</a>
-
-<div class="conversaciones-container">
-    <!-- Lista de contactos -->
-    <div class="lista-contactos">
-        <div class="header-contactos">
-            💬 Conversaciones
-        </div>
-        
-        <div class="buscador">
-            <input type="text" id="buscar-contacto" placeholder="Buscar estudiante..." />
-        </div>
-        
-        {% if estudiantes %}
-            {% for est in estudiantes %}
-            <div class="contacto {% if estudiante_seleccionado.id == est.id %}activo{% endif %}" 
-                 onclick="window.location.href='{% url 'conversaciones' %}?estudiante={{ est.id }}'">
-                <div class="avatar">
-                    {{ est.nombre|slice:":1"|upper }}
-                </div>
-                <div class="contacto-info">
-                    <div class="contacto-nombre">{{ est.nombre }}</div>
-                    <div class="contacto-ultimo">
-                        {% if est.ultimo_mensaje %}
-                            {{ est.ultimo_mensaje|truncatewords:8 }}
-                        {% else %}
-                            Sin mensajes
-                        {% endif %}
-                    </div>
-                </div>
-                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
-                    {% if est.ultima_fecha %}
-                        <div class="contacto-fecha">
-                            {{ est.ultima_fecha|date:"d/m H:i" }}
-                        </div>
-                    {% endif %}
-                    {% if est.total_mensajes %}
-                        <span class="badge-contador">{{ est.total_mensajes }}</span>
-                    {% endif %}
-                </div>
-            </div>
-            {% endfor %}
-        {% else %}
-            <div style="padding: 40px 20px; text-align: center; color: #999;">
-                <div style="font-size: 3em; margin-bottom: 10px;">📭</div>
-                <p>No hay conversaciones aún</p>
-            </div>
-        {% endif %}
-    </div>
+<div style="max-width: 1400px; margin: 0 auto;">
+    <h1 style="color: #2c5f2d; margin-bottom: 10px;">💬 Conversaciones de WhatsApp</h1>
+    <p style="color: #666; margin-bottom: 20px;">Visualiza y gestiona todas las conversaciones con tus estudiantes</p>
     
-    <!-- Zona de chat -->
-    <div class="zona-chat">
-        {% if estudiante_seleccionado %}
-            <div class="header-chat">
-                <div class="avatar">
-                    {{ estudiante_seleccionado.nombre|slice:":1"|upper }}
-                </div>
-                <div>
-                    <div class="header-chat-nombre">{{ estudiante_seleccionado.nombre }}</div>
-                    <div class="header-chat-telefono">{{ estudiante_seleccionado.telefono }}</div>
-                </div>
+    <div class="chat-container">
+        <!-- LISTA DE CONTACTOS -->
+        <div class="contactos-lista">
+            <div class="contactos-header">
+                <h3>💬 Conversaciones</h3>
+                <input type="text" class="search-box" placeholder="🔍 Buscar contacto..." id="buscar-contacto">
             </div>
             
-            <div class="mensajes-area" id="mensajes-area">
-                {% for msg in mensajes %}
-                    <div class="mensaje {% if msg.tipo == 'enviado' %}mensaje-enviado{% else %}mensaje-recibido{% endif %}">
-                        <div class="mensaje-texto">{{ msg.mensaje }}</div>
-                        <div class="mensaje-metadata">
-                            <span>{{ msg.fecha|date:"d/m/Y H:i" }}</span>
-                            {% if msg.tipo == 'enviado' %}
-                                <span class="mensaje-estado estado-{{ msg.estado|lower }}">
-                                    {% if msg.estado == 'SENT' %}✓{% elif msg.estado == 'DELIVERED' %}✓✓{% elif msg.estado == 'READ' %}✓✓{% elif msg.estado == 'FAILED' %}✗{% endif %}
-                                </span>
+            <div id="lista-contactos">
+                {% if estudiantes %}
+                    {% for estudiante in estudiantes %}
+                    <div class="contacto-item {% if estudiante_seleccionado and estudiante.id == estudiante_seleccionado.id %}activo{% endif %}"
+                         onclick="location.href='?estudiante={{ estudiante.id }}'"
+                         data-nombre="{{ estudiante.nombre|lower }}">
+                        <div class="contacto-nombre">{{ estudiante.nombre }}</div>
+                        <div class="contacto-preview">
+                            {{ estudiante.ultimo_mensaje|truncatewords:8|default:"Sin mensajes" }}
+                        </div>
+                        <div class="contacto-tiempo">
+                            {% if estudiante.ultima_fecha %}
+                                {{ estudiante.ultima_fecha|timesince }} atrás
+                            {% else %}
+                                Sin actividad
                             {% endif %}
                         </div>
+                        {% if estudiante.total_mensajes %}
+                            <span class="contacto-badge">{{ estudiante.total_mensajes }}</span>
+                        {% endif %}
                     </div>
-                {% empty %}
-                    <div style="text-align: center; color: #999; padding: 40px;">
-                        <div style="font-size: 3em; margin-bottom: 10px;">💬</div>
-                        <p>No hay mensajes en esta conversación</p>
+                    {% endfor %}
+                {% else %}
+                    <div style="padding: 60px 20px; text-align: center; color: #667781;">
+                        <div style="font-size: 60px; margin-bottom: 20px;">📭</div>
+                        <h3 style="color: #111; margin-bottom: 10px;">No hay conversaciones aún</h3>
+                        <p style="font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
+                            Las conversaciones aparecerán aquí cuando:
+                        </p>
+                        <ul style="text-align: left; display: inline-block; font-size: 13px;">
+                            <li>Los estudiantes envíen mensajes por WhatsApp</li>
+                            <li>Se envíen campañas a estudiantes</li>
+                            <li>El bot responda mensajes entrantes</li>
+                        </ul>
+                        <div style="margin-top: 20px; padding: 15px; background: #e8f5e9; border-radius: 8px;">
+                            <strong>💡 Tip:</strong> Envía un mensaje de prueba al bot o crea una campaña para empezar.
+                        </div>
                     </div>
-                {% endfor %}
+                {% endif %}
             </div>
-            
-            {% if mensajes %}
-            <div class="paginacion">
-                {% if page_obj.has_previous %}
-                    <a href="?estudiante={{ estudiante_seleccionado.id }}&page=1">« Primera</a>
-                    <a href="?estudiante={{ estudiante_seleccionado.id }}&page={{ page_obj.previous_page_number }}">‹ Anterior</a>
+        </div>
+        
+        <!-- ÁREA DE CHAT -->
+        <div class="chat-area">
+            {% if estudiante_seleccionado %}
+                <!-- Header del chat -->
+                <div class="chat-header">
+                    <div class="chat-header-avatar">
+                        {{ estudiante_seleccionado.nombre|first|upper }}
+                    </div>
+                    <div class="chat-header-info">
+                        <h3>{{ estudiante_seleccionado.nombre }}</h3>
+                        <small>{{ estudiante_seleccionado.telefono }}</small>
+                    </div>
+                </div>
+                
+                <!-- Mensajes -->
+                <div class="chat-mensajes" id="chat-mensajes">
+                    {% regroup mensajes by fecha.date as mensajes_por_fecha %}
+                    
+                    {% for fecha_grupo in mensajes_por_fecha %}
+                        <div class="mensaje-fecha-separador">
+                            <span class="fecha-badge">{{ fecha_grupo.grouper|date:"d 'de' F 'de' Y" }}</span>
+                        </div>
+                        
+                        {% for msg in fecha_grupo.list %}
+                        <div class="mensaje {{ msg.tipo }}">
+                            <div class="burbuja {{ msg.tipo }}">
+                                <div class="mensaje-texto">{{ msg.mensaje }}</div>
+                                <div class="mensaje-tiempo">
+                                    {{ msg.fecha|date:"H:i" }}
+                                    {% if msg.tipo == 'enviado' %}
+                                        {% if msg.estado == 'SENT' %}
+                                            <span style="color: #53bdeb;">✓✓</span>
+                                        {% elif msg.estado == 'PENDING' %}
+                                            <span style="color: #8696a0;">✓</span>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% endfor %}
+                    
+                    {% if not mensajes %}
+                    <div class="estado-vacio">
+                        <div class="estado-vacio-content">
+                            <div class="estado-vacio-icon">💬</div>
+                            <div class="estado-vacio-texto">
+                                Aún no hay mensajes con este estudiante.<br>
+                                ¡Envía el primer mensaje para comenzar!
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Paginación -->
+                {% if page_obj and page_obj.has_other_pages %}
+                <div class="paginacion">
+                    {% if page_obj.has_previous %}
+                        <a href="?estudiante={{ estudiante_seleccionado.id }}&page=1">« Primera</a>
+                        <a href="?estudiante={{ estudiante_seleccionado.id }}&page={{ page_obj.previous_page_number }}">‹ Anterior</a>
+                    {% endif %}
+                    
+                    <span class="current">
+                        Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                    </span>
+                    
+                    {% if page_obj.has_next %}
+                        <a href="?estudiante={{ estudiante_seleccionado.id }}&page={{ page_obj.next_page_number }}">Siguiente ›</a>
+                        <a href="?estudiante={{ estudiante_seleccionado.id }}&page={{ page_obj.paginator.num_pages }}">Última »</a>
+                    {% endif %}
+                </div>
                 {% endif %}
                 
-                <span class="actual">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
-                
-                {% if page_obj.has_next %}
-                    <a href="?estudiante={{ estudiante_seleccionado.id }}&page={{ page_obj.next_page_number }}">Siguiente ›</a>
-                    <a href="?estudiante={{ estudiante_seleccionado.id }}&page={{ page_obj.paginator.num_pages }}">Última »</a>
-                {% endif %}
-            </div>
+                <!-- Área de respuesta -->
+                <div class="responder-box">
+                    <select id="plantilla-select" onchange="cargarPlantilla()">
+                        <option value="">-- Plantilla rápida --</option>
+                        <option value="bienvenida">🎉 Bienvenida</option>
+                        <option value="recordatorio">⏰ Recordatorio</option>
+                        <option value="agradecimiento">🙏 Agradecimiento</option>
+                        <option value="seguimiento">📋 Seguimiento</option>
+                    </select>
+                    <textarea id="mensaje-respuesta" rows="1" placeholder="Escribe tu mensaje..." 
+                              oninput="autoExpand(this)"></textarea>
+                    <button class="btn-enviar" onclick="enviarMensaje()">📤 Enviar</button>
+                </div>
+            {% else %}
+                <!-- Estado vacío -->
+                <div class="estado-vacio">
+                    <div class="estado-vacio-content">
+                        <div class="estado-vacio-icon">💬</div>
+                        <div class="estado-vacio-texto">
+                            <strong>Bienvenido al Centro de Conversaciones</strong><br><br>
+                            Selecciona un contacto de la lista para ver su historial completo<br>
+                            y responder sus mensajes directamente desde aquí.
+                        </div>
+                    </div>
+                </div>
             {% endif %}
-        {% else %}
-            <div class="empty-state">
-                <div class="empty-icon">💬</div>
-                <h2 style="margin-bottom: 10px;">Selecciona una conversación</h2>
-                <p style="color: #999;">Elige un estudiante para ver el historial de mensajes</p>
-            </div>
-        {% endif %}
+        </div>
     </div>
 </div>
 
 <script>
-// Auto-scroll al último mensaje
-const mensajesArea = document.getElementById('mensajes-area');
-if (mensajesArea) {
-    mensajesArea.scrollTop = mensajesArea.scrollHeight;
+// Auto-scroll al final de los mensajes
+window.addEventListener('load', function() {
+    const chatMensajes = document.getElementById('chat-mensajes');
+    if (chatMensajes && chatMensajes.children.length > 0) {
+        chatMensajes.scrollTop = chatMensajes.scrollHeight;
+    }
+});
+
+// Auto-expandir textarea
+function autoExpand(textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
 }
 
-// Buscador de contactos
+// Búsqueda de contactos
 document.getElementById('buscar-contacto')?.addEventListener('input', function(e) {
     const busqueda = e.target.value.toLowerCase();
-    const contactos = document.querySelectorAll('.contacto');
+    const contactos = document.querySelectorAll('.contacto-item');
     
     contactos.forEach(contacto => {
-        const nombre = contacto.querySelector('.contacto-nombre').textContent.toLowerCase();
+        const nombre = contacto.dataset.nombre || '';
         if (nombre.includes(busqueda)) {
-            contacto.style.display = 'flex';
+            contacto.style.display = 'block';
         } else {
             contacto.style.display = 'none';
         }
     });
+});
+
+// Cargar plantilla
+function cargarPlantilla() {
+    const select = document.getElementById('plantilla-select');
+    const textarea = document.getElementById('mensaje-respuesta');
+    const plantillas = {
+        'bienvenida': '¡Hola! 👋 Bienvenido a Eki. Estoy aquí para ayudarte con tus cultivos. ¿En qué puedo asistirte?',
+        'recordatorio': 'Hola, te recuerdo que es importante seguir las recomendaciones del curso. ¿Tienes alguna duda?',
+        'agradecimiento': '¡Gracias por tu participación! 🌱 Sigue así, estás haciendo un gran trabajo.',
+        'seguimiento': 'Hola, ¿cómo va tu progreso? ¿Necesitas ayuda con algún módulo del curso?'
+    };
+    
+    if (select.value && plantillas[select.value]) {
+        textarea.value = plantillas[select.value];
+        autoExpand(textarea);
+    }
+}
+
+// Enviar mensaje (próxima implementación)
+function enviarMensaje() {
+    const textarea = document.getElementById('mensaje-respuesta');
+    const mensaje = textarea.value.trim();
+    
+    if (!mensaje) {
+        alert('Por favor escribe un mensaje');
+        return;
+    }
+    
+    // TODO: Implementar envío real con AJAX
+    alert('Función de envío en desarrollo. Por ahora usa "Enviar plantilla directa" en el admin de Plantillas.');
+    textarea.value = '';
+    autoExpand(textarea);
+}
+
+// Atajos de teclado
+document.getElementById('mensaje-respuesta')?.addEventListener('keydown', function(e) {
+    // Ctrl/Cmd + Enter para enviar
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        enviarMensaje();
+    }
 });
 </script>
 {% endblock %}

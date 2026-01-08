@@ -1,0 +1,351 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Dashboard - Métricas del Sistema{% endblock %}
+
+{% block extrahead %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<style>
+    .dashboard-container {
+        padding: 20px;
+    }
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    .metric-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-left: 4px solid;
+    }
+    .metric-card.blue { border-left-color: #2196F3; }
+    .metric-card.green { border-left-color: #4CAF50; }
+    .metric-card.orange { border-left-color: #FF9800; }
+    .metric-card.purple { border-left-color: #9C27B0; }
+    .metric-card.red { border-left-color: #F44336; }
+    
+    .metric-value {
+        font-size: 36px;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    .metric-label {
+        color: #666;
+        font-size: 14px;
+        text-transform: uppercase;
+    }
+    .metric-sublabel {
+        color: #999;
+        font-size: 12px;
+        margin-top: 5px;
+    }
+    
+    .chart-container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+    }
+    .chart-title {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 15px;
+        color: #333;
+    }
+    
+    .two-columns {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .table-container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+    }
+    .table-title {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 15px;
+        color: #333;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    th {
+        background: #f5f5f5;
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        border-bottom: 2px solid #ddd;
+    }
+    td {
+        padding: 12px;
+        border-bottom: 1px solid #eee;
+    }
+    tr:hover {
+        background: #f9f9f9;
+    }
+    
+    .badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: bold;
+    }
+    .badge-success { background: #4CAF50; color: white; }
+    .badge-warning { background: #FF9800; color: white; }
+    .badge-danger { background: #F44336; color: white; }
+    .badge-info { background: #2196F3; color: white; }
+    
+    .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #e0e0e0;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .progress-fill {
+        height: 100%;
+        background: #4CAF50;
+        transition: width 0.3s;
+    }
+    
+    .alert-box {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <h1>📊 Dashboard - Métricas del Sistema</h1>
+    <p style="color: #666; margin-bottom: 30px;">Resumen actualizado del estado del sistema Eki MVP</p>
+    
+    <!-- Métricas Principales -->
+    <div class="metrics-grid">
+        <div class="metric-card blue">
+            <div class="metric-label">👥 Estudiantes</div>
+            <div class="metric-value">{{ total_estudiantes }}</div>
+            <div class="metric-sublabel">{{ estudiantes_activos }} activos ({{ porcentaje_activos }}%)</div>
+        </div>
+        
+        <div class="metric-card green">
+            <div class="metric-label">📝 Plantillas</div>
+            <div class="metric-value">{{ total_plantillas }}</div>
+            <div class="metric-sublabel">{{ plantillas_activas }} activas ({{ porcentaje_plantillas_activas }}%)</div>
+        </div>
+        
+        <div class="metric-card orange">
+            <div class="metric-label">💬 Mensajes Total</div>
+            <div class="metric-value">{{ total_mensajes }}</div>
+            <div class="metric-sublabel">{{ mensajes_ultima_semana }} última semana</div>
+        </div>
+        
+        <div class="metric-card purple">
+            <div class="metric-label">📚 Cursos</div>
+            <div class="metric-value">{{ total_cursos }}</div>
+            <div class="metric-sublabel">{{ estudiantes_inscritos }} inscritos, {{ cursos_completados }} completados</div>
+        </div>
+        
+        <div class="metric-card {% if tasa_completacion >= 70 %}green{% elif tasa_completacion >= 40 %}orange{% else %}red{% endif %}">
+            <div class="metric-label">✅ Tasa Completación</div>
+            <div class="metric-value">{{ tasa_completacion }}%</div>
+            <div class="metric-sublabel">{{ modulos_completados }} módulos completados</div>
+        </div>
+    </div>
+    
+    <!-- Gráfica de Mensajes por Día -->
+    <div class="chart-container">
+        <div class="chart-title">📈 Mensajes por Día (Últimos 14 días)</div>
+        <canvas id="mensajesPorDiaChart" height="80"></canvas>
+    </div>
+    
+    <!-- Dos Columnas: Plantillas + Progreso -->
+    <div class="two-columns">
+        <!-- Plantillas más Usadas -->
+        <div class="table-container">
+            <div class="table-title">🔥 Top 5 Plantillas Más Usadas</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Plantilla</th>
+                        <th>Categoría</th>
+                        <th>Usos</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for plantilla in top_plantillas %}
+                    <tr>
+                        <td><strong>{{ plantilla.nombre_interno }}</strong></td>
+                        <td><span class="badge badge-info">{{ plantilla.get_categoria_display }}</span></td>
+                        <td><strong>{{ plantilla.veces_usada }}</strong></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" style="text-align:center; color:#999;">No hay datos</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Progreso por Curso -->
+        <div class="table-container">
+            <div class="table-title">📚 Progreso por Curso</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Curso</th>
+                        <th>Inscritos</th>
+                        <th>Completación</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in progreso_por_curso %}
+                    <tr>
+                        <td>{{ item.emoji }} <strong>{{ item.nombre }}</strong></td>
+                        <td>{{ item.inscritos }}</td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div class="progress-bar" style="flex: 1;">
+                                    <div class="progress-fill" style="width: {{ item.porcentaje }}%;"></div>
+                                </div>
+                                <span><strong>{{ item.porcentaje }}%</strong></span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" style="text-align:center; color:#999;">No hay cursos</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Estudiantes Inactivos (Alerta) -->
+    {% if estudiantes_inactivos %}
+    <div class="alert-box">
+        <strong>⚠️ Estudiantes que Necesitan Seguimiento</strong>
+        <p style="margin: 10px 0 0 0;">{{ estudiantes_inactivos|length }} estudiante(s) sin actividad en 3+ días</p>
+    </div>
+    
+    <div class="table-container">
+        <div class="table-title">👤 Estudiantes Inactivos (Top 10)</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Estudiante</th>
+                    <th>Teléfono</th>
+                    <th>Días Inactivo</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in estudiantes_inactivos %}
+                <tr>
+                    <td><strong>{{ item.estudiante.nombre }}</strong></td>
+                    <td>+{{ item.estudiante.telefono }}</td>
+                    <td>
+                        <span class="badge {% if item.dias_inactivo > 7 %}badge-danger{% elif item.dias_inactivo > 3 %}badge-warning{% else %}badge-info{% endif %}">
+                            {{ item.dias_inactivo }} días
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{% url 'admin:core_estudiante_change' item.estudiante.id %}" style="color: #2196F3;">
+                            Ver perfil →
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    
+    <!-- Actividad Reciente -->
+    <div class="table-container">
+        <div class="table-title">🕒 Actividad Reciente (Últimos 10 mensajes)</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Tipo</th>
+                    <th>Teléfono</th>
+                    <th>Mensaje</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in actividad_reciente %}
+                <tr>
+                    <td>{{ log.fecha|date:"d/m/Y H:i" }}</td>
+                    <td>
+                        <span class="badge {% if log.tipo == 'SENT' %}badge-success{% else %}badge-info{% endif %}">
+                            {% if log.tipo == 'SENT' %}📤 Enviado{% else %}📥 Recibido{% endif %}
+                        </span>
+                    </td>
+                    <td>{{ log.telefono }}</td>
+                    <td>{{ log.mensaje|truncatewords:10 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+// Gráfica de Mensajes por Día
+const ctx = document.getElementById('mensajesPorDiaChart').getContext('2d');
+new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: {{ fechas_json|safe }},
+        datasets: [{
+            label: '📤 Enviados',
+            data: {{ enviados_data_json|safe }},
+            borderColor: '#4CAF50',
+            backgroundColor: 'rgba(76, 175, 80, 0.1)',
+            tension: 0.4,
+            fill: true
+        }, {
+            label: '📥 Recibidos',
+            data: {{ recibidos_data_json|safe }},
+            borderColor: '#2196F3',
+            backgroundColor: 'rgba(33, 150, 243, 0.1)',
+            tension: 0.4,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: {
+                position: 'top',
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    precision: 0
+                }
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

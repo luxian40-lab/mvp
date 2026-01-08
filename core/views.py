@@ -1,20 +1,16 @@
 from django.shortcuts import render
 from django.contrib.admin.views.decorators import staff_member_required
-from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, JsonResponse
-from django.conf import settings
-from django.core.paginator import Paginator
-from django.db.models import Q, Max, Count
+from django.db.models import Count
+from django.db.models.functions import TruncDate
+from django.views.decorators.csrf import csrf_exempt
 from datetime import datetime, timedelta
 import json
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
-from django.utils import timezone
 
-from .models import Campana, Estudiante, WhatsappLog
-from .utils import enviar_whatsapp
-from .intent_detector import detect_intent
-from .response_templates import get_response_for_intent
+from .models import Campana, Estudiante, WhatsappLog, EnvioLog  # ✅ Agregado EnvioLog
+from .message_handler import procesar_twilio_webhook, procesar_meta_webhook
 
 @staff_member_required
 def dashboard_view(request):
@@ -316,35 +312,155 @@ def descargar_reportes(request):
 
 # ---------- Webhook para WhatsApp Cloud API ----------
 @csrf_exempt
+@csrf_exempt
 def whatsapp_webhook(request):
-    """GET: Verificación del token (hub.verify_token).
-       POST: Procesa mensajes entrantes, detecta intención y responde dinámicamente.
+    """
+    Webhook universal para WhatsApp (Meta + Twilio)
+    GET: Verificación del token
+    POST: Procesa mensajes entrantes de ambos proveedores
     """
     if request.method == 'GET':
-        verify_token = request.GET.get('hub.verify_token') or request.GET.get('hub.verify_token')
+        # Verificación para Meta WhatsApp
+        verify_token = request.GET.get('hub.verify_token')
         challenge = request.GET.get('hub.challenge')
-        expected = getattr(settings, 'WHATSAPP_VERIFY_TOKEN', None)
+        expected = getattr(settings, 'WHATSAPP_VERIFY_TOKEN', 'eki_whatsapp_verify_token_2025')
         if verify_token and expected and verify_token == expected:
             return HttpResponse(challenge)
         return HttpResponse('Forbidden', status=403)
 
     if request.method == 'POST':
         print("🔵 WEBHOOK RECIBIÓ POST")
+        
         try:
+            # Intentar parsear como JSON (Meta)
             payload = json.loads(request.body.decode('utf-8'))
-            print(f"🔵 Payload: {payload}")
+            print(f"🔵 Payload (JSON): {payload}")
+            
+            # Detectar si es Meta o Twilio
+            if 'entry' in payload:
+                # ===== META WHATSAPP =====
+                print("📍 Detectado: META WhatsApp")
+                procesar_meta_webhook(payload)
+            else:
+                # Podría ser Twilio con JSON
+                print("⚠️ JSON recibido pero no es Meta")
+                return JsonResponse({'ok': True})
+                
+        except json.JSONDecodeError:
+            # Podría ser Twilio (form-data)
+            print("🔵 Payload (Form-Data) - Probablemente Twilio")
+            procesar_twilio_webhook(request.POST)
+        
         except Exception as e:
-            print(f"❌ Error parseando JSON: {e}")
-            return JsonResponse({'ok': False, 'error': 'invalid_json'}, status=400)
+            print(f"❌ Error en webhook: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({'ok': False, 'error': str(e)}, status=400)
 
-        entries = payload.get('entry', []) or payload.get('entry', [])
-        print(f"🔵 Entries: {len(entries)}")
+        return JsonResponse({'ok': True})
 
+
+def _procesar_twilio_webhook(post_data):
+    """Procesa webhooks de Twilio WhatsApp"""
+    try:
+        print("🔵 TWILIO: Procesando...")
+        
+        # Twilio envía datos en formato form-data
+        msg_body = post_data.get('Body', '')
+        msg_from = post_data.get('From', '')  # whatsapp:+573001234567
+        msg_to = post_data.get('To', '')      # whatsapp:+14155238886
+        msg_sid = post_data.get('MessageSid', f'twilio_{timezone.now().timestamp()}')
+        
+        # Limpiar número
+        if msg_from.startswith('whatsapp:'):
+            msg_from = msg_from.replace('whatsapp:', '')
+        
+        print(f"📱 De: {msg_from} | Mensaje: {msg_body}")
+        
+        # Buscar o crear estudiante
+        telefono_limpio = msg_from.replace('+', '').replace(' ', '')
+        estudiante = None
+        try:
+            estudiante = Estudiante.objects.get(telefono=telefono_limpio)
+            print(f"✅ Estudiante encontrado: {estudiante.nombre}")
+        except Estudiante.DoesNotExist:
+            print(f"⚠️ Estudiante no encontrado para {telefono_limpio}")
+        
+        # 1. Guardar mensaje entrante
+        WhatsappLog.objects.create(
+            telefono=msg_from,
+            mensaje=msg_body,
+            mensaje_id=msg_sid,
+            tipo='INCOMING',
+            estudiante=estudiante  # ✅ Asignar estudiante
+        )
+        print(f"✅ Guardado INCOMING")
+        
+        # 2. Generar respuesta con IA
+        try:
+            from .ai_assistant import responder_con_ia
+            texto_respuesta = responder_con_ia(msg_body, msg_from)
+            print(f"✅ IA generó respuesta: {texto_respuesta[:50]}...")
+        except Exception as e:
+            print(f"❌ Error IA: {e}, usando respuesta genérica")
+            texto_respuesta = "Hola! Gracias por tu mensaje. Estoy aquí para ayudarte."
+        
+        # 3. Enviar respuesta via Twilio
+        try:
+            from twilio.rest import Client
+            account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+            auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+            twilio_number = getattr(settings, 'TWILIO_WHATSAPP_NUMBER', 'whatsapp:+14155238886')
+            
+            if not account_sid or not auth_token:
+                print("❌ Credenciales Twilio faltantes")
+                return
+            
+            client = Client(account_sid, auth_token)
+            
+            # Asegurar formato whatsapp:
+            destino_formateado = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
+            
+            mensaje = client.messages.create(
+                body=texto_respuesta,
+                from_=twilio_number,
+                to=destino_formateado
+            )
+            
+            print(f"✅ Mensaje enviado via Twilio: {mensaje.sid}")
+            
+            # Guardar log de respuesta
+            WhatsappLog.objects.create(
+                telefono=msg_from,
+                mensaje=texto_respuesta,
+                mensaje_id=mensaje.sid,
+                tipo='SENT',
+                estudiante=estudiante  # ✅ Asignar estudiante
+            )
+            print(f"✅ Guardado SENT")
+            
+        except Exception as e:
+            print(f"❌ Error enviando respuesta Twilio: {str(e)}")
+            import traceback
+            traceback.print_exc()
+    
+    except Exception as e:
+        print(f"❌ Error en _procesar_twilio_webhook: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+
+def _procesar_meta_webhook(payload):
+    """Procesa webhooks de Meta WhatsApp (mantiene compatibilidad)"""
+    try:
+        print("🔵 META: Procesando...")
+        entries = payload.get('entry', [])
+        
         for entry in entries:
             changes = entry.get('changes', [])
             for change in changes:
                 value = change.get('value', {})
-
+                
                 # Mensajes entrantes
                 messages = value.get('messages', [])
                 for m in messages:
@@ -354,72 +470,49 @@ def whatsapp_webhook(request):
                     if 'text' in m and isinstance(m['text'], dict):
                         text = m['text'].get('body', '')
                     
-                    # 1. Guardar registro entrante
+                    # Buscar estudiante
+                    telefono_limpio = phone.replace('+', '').replace(' ', '')
+                    estudiante = None
+                    try:
+                        estudiante = Estudiante.objects.get(telefono=telefono_limpio)
+                        print(f"✅ Estudiante encontrado: {estudiante.nombre}")
+                    except Estudiante.DoesNotExist:
+                        print(f"⚠️ Estudiante no encontrado para {telefono_limpio}")
+                    
+                    # Guardar mensaje
                     WhatsappLog.objects.create(
                         telefono=phone,
                         mensaje=text,
                         mensaje_id=msg_id,
-                        tipo='INCOMING'
+                        tipo='INCOMING',
+                        estudiante=estudiante  # ✅ Asignar estudiante
                     )
                     
-                    # 2. Generar respuesta con IA (OpenAI)
+                    # Generar respuesta
                     try:
                         from .ai_assistant import responder_con_ia
                         texto_respuesta = responder_con_ia(text, phone)
                     except Exception as e:
-                        # Fallback al sistema básico si falla la IA
-                        print(f"Error en IA, usando sistema básico: {str(e)}")
+                        print(f"Error IA: {e}")
                         intent = detect_intent(text)
-                        
-                        try:
-                            estudiante = Estudiante.objects.get(telefono=phone)
-                            nombre_usuario = estudiante.nombre
-                            
-                            # Obtener progreso desde el modelo
-                            total_envios = EnvioLog.objects.filter(estudiante=estudiante).count()
-                            exitosos = EnvioLog.objects.filter(estudiante=estudiante, estado='ENVIADO').count()
-                            progreso_porcentaje = int((exitosos / total_envios * 100) if total_envios > 0 else 0)
-                            
-                            # Obtener siguiente tarea
-                            siguiente_tarea_obj = EnvioLog.objects.filter(
-                                estudiante=estudiante,
-                                estado='PENDIENTE'
-                            ).order_by('fecha_envio').first()
-                            siguiente_tarea = siguiente_tarea_obj.campana.nombre if siguiente_tarea_obj else "No hay tareas pendientes"
-                            
-                            datos_respuesta = {
-                                'progreso': f'{progreso_porcentaje}%',
-                                'modulo_actual': 'Introducción a la Plataforma',
-                                'siguiente_tarea': siguiente_tarea,
-                                'fecha_vence': 'hoy'
-                            }
-                        except Estudiante.DoesNotExist:
-                            nombre_usuario = 'Estudiante'
-                            datos_respuesta = {}
-                        
-                        texto_respuesta = get_response_for_intent(intent, nombre_usuario, **datos_respuesta)
+                        texto_respuesta = get_response_for_intent(intent, 'Usuario')
                     
-                    # 3. Enviar respuesta al usuario
+                    # Enviar respuesta
                     resultado_envio = enviar_whatsapp(phone, texto_respuesta)
                     
-                    # Log de envío (respuesta generada)
                     if resultado_envio.get('success'):
                         WhatsappLog.objects.create(
                             telefono=phone,
                             mensaje=texto_respuesta,
                             mensaje_id=resultado_envio.get('mensaje_id'),
-                            tipo='SENT'
+                            tipo='SENT',
+                            estudiante=estudiante  # ✅ Asignar estudiante
                         )
-
-                # Estados (delivery receipts)
-                statuses = value.get('statuses', [])
-                for s in statuses:
-                    msg_id = s.get('id')
-                    status = s.get('status')
-                    # Nota: Los estados de entrega los ignoramos por ahora
-                    # Solo registramos SENT e INCOMING
-
-        return JsonResponse({'ok': True})
+    
+    except Exception as e:
+        print(f"❌ Error en _procesar_meta_webhook: {str(e)}")
+        import traceback
+        traceback.print_exc()
 
 
 @staff_member_required
@@ -559,66 +652,91 @@ def calendario_campanas_view(request):
 @staff_member_required
 def conversaciones_view(request):
     """Vista de conversaciones estilo WhatsApp"""
+    print("🔍 DEBUG: Iniciando conversaciones_view")
+    
     # Obtener todos los estudiantes que tienen mensajes
     estudiantes_con_mensajes = []
     
-    # Obtener todos los estudiantes
-    todos_estudiantes = Estudiante.objects.all()
+    # PRIMERO: Obtener todos los WhatsappLog con estudiante asignado
+    whatsapp_con_estudiante = WhatsappLog.objects.filter(estudiante__isnull=False).select_related('estudiante')
+    estudiantes_ids_whatsapp = set(whatsapp_con_estudiante.values_list('estudiante_id', flat=True))
     
-    for est in todos_estudiantes:
+    print(f"📊 DEBUG: {whatsapp_con_estudiante.count()} mensajes WhatsApp con estudiante asignado")
+    print(f"📊 DEBUG: {len(estudiantes_ids_whatsapp)} estudiantes únicos con mensajes WhatsApp")
+    
+    # SEGUNDO: Obtener estudiantes con EnvioLog
+    envios_log = EnvioLog.objects.filter(estudiante__isnull=False).select_related('estudiante')
+    estudiantes_ids_envios = set(envios_log.values_list('estudiante_id', flat=True))
+    
+    print(f"📊 DEBUG: {envios_log.count()} mensajes de campañas enviadas")
+    print(f"📊 DEBUG: {len(estudiantes_ids_envios)} estudiantes únicos con envíos")
+    
+    # Combinar ambos sets
+    todos_ids = estudiantes_ids_whatsapp | estudiantes_ids_envios
+    
+    print(f"📊 DEBUG: {len(todos_ids)} estudiantes TOTALES con conversaciones")
+    
+    # Obtener objetos Estudiante
+    if todos_ids:
+        estudiantes = Estudiante.objects.filter(id__in=todos_ids)
+    else:
+        estudiantes = Estudiante.objects.none()
+    
+    for est in estudiantes:
         try:
-            telefono_limpio = est.telefono.replace('+', '').replace(' ', '')
+            # Obtener último mensaje de WhatsApp
+            ultimo_whatsapp = WhatsappLog.objects.filter(estudiante=est).order_by('-fecha').first()
             
-            # Contar mensajes de WhatsApp
-            total_whatsapp = WhatsappLog.objects.filter(telefono=telefono_limpio).count()
+            # Obtener último envío
+            ultimo_envio = EnvioLog.objects.filter(estudiante=est).order_by('-fecha_envio').first()
             
-            # Contar mensajes de envíos
-            total_envios = EnvioLog.objects.filter(estudiante=est).count()
+            # Determinar cuál es más reciente
+            ultima_fecha = None
+            ultimo_mensaje = None
+            total_mensajes = 0
             
-            if total_whatsapp > 0 or total_envios > 0:
-                # Obtener último mensaje
-                ultimo_whatsapp = WhatsappLog.objects.filter(telefono=telefono_limpio).order_by('-fecha').first()
-                ultimo_envio = EnvioLog.objects.filter(estudiante=est).order_by('-fecha_envio').first()
+            if ultimo_whatsapp and ultimo_envio:
+                # Convertir ambas fechas a aware si es necesario
+                fecha_whatsapp = ultimo_whatsapp.fecha
+                fecha_envio = ultimo_envio.fecha_envio
                 
-                # Determinar cuál es más reciente
-                ultima_fecha = None
-                ultimo_mensaje = None
+                # Asegurar que ambas son timezone-aware
+                if timezone.is_naive(fecha_whatsapp):
+                    fecha_whatsapp = timezone.make_aware(fecha_whatsapp)
+                if timezone.is_naive(fecha_envio):
+                    fecha_envio = timezone.make_aware(fecha_envio)
                 
-                if ultimo_whatsapp and ultimo_envio:
-                    # Convertir ambas fechas a aware si es necesario
-                    fecha_whatsapp = ultimo_whatsapp.fecha
-                    fecha_envio = ultimo_envio.fecha_envio
-                    
-                    # Asegurar que ambas son timezone-aware
-                    if timezone.is_naive(fecha_whatsapp):
-                        fecha_whatsapp = timezone.make_aware(fecha_whatsapp)
-                    if timezone.is_naive(fecha_envio):
-                        fecha_envio = timezone.make_aware(fecha_envio)
-                    
-                    if fecha_whatsapp > fecha_envio:
-                        ultima_fecha = fecha_whatsapp
-                        ultimo_mensaje = ultimo_whatsapp.mensaje
-                    else:
-                        ultima_fecha = fecha_envio
-                        ultimo_mensaje = f"Campaña: {ultimo_envio.campana.nombre}"
-                elif ultimo_whatsapp:
-                    ultima_fecha = ultimo_whatsapp.fecha
-                    if timezone.is_naive(ultima_fecha):
-                        ultima_fecha = timezone.make_aware(ultima_fecha)
-                    ultimo_mensaje = ultimo_whatsapp.mensaje
-                elif ultimo_envio:
-                    ultima_fecha = ultimo_envio.fecha_envio
-                    if timezone.is_naive(ultima_fecha):
-                        ultima_fecha = timezone.make_aware(ultima_fecha)
-                    ultimo_mensaje = f"Campaña: {ultimo_envio.campana.nombre}"
+                if fecha_whatsapp > fecha_envio:
+                    ultima_fecha = fecha_whatsapp
+                    ultimo_mensaje = ultimo_whatsapp.mensaje[:50]
+                else:
+                    ultima_fecha = fecha_envio
+                    ultimo_mensaje = f"📤 Campaña: {ultimo_envio.campana.nombre if ultimo_envio.campana else 'Sin nombre'}"
                 
+                total_mensajes = WhatsappLog.objects.filter(estudiante=est).count() + EnvioLog.objects.filter(estudiante=est).count()
+                
+            elif ultimo_whatsapp:
+                ultima_fecha = ultimo_whatsapp.fecha
+                if timezone.is_naive(ultima_fecha):
+                    ultima_fecha = timezone.make_aware(ultima_fecha)
+                ultimo_mensaje = ultimo_whatsapp.mensaje[:50]
+                total_mensajes = WhatsappLog.objects.filter(estudiante=est).count()
+                
+            elif ultimo_envio:
+                ultima_fecha = ultimo_envio.fecha_envio
+                if timezone.is_naive(ultima_fecha):
+                    ultima_fecha = timezone.make_aware(ultima_fecha)
+                ultimo_mensaje = f"📤 Campaña: {ultimo_envio.campana.nombre if ultimo_envio.campana else 'Sin nombre'}"
+                total_mensajes = EnvioLog.objects.filter(estudiante=est).count()
+            
+            if ultima_fecha:
                 est.ultima_fecha = ultima_fecha
                 est.ultimo_mensaje = ultimo_mensaje
-                est.total_mensajes = total_whatsapp + total_envios
+                est.total_mensajes = total_mensajes
                 estudiantes_con_mensajes.append(est)
+                
         except Exception as e:
-            # Si hay algún error con un estudiante, continuar con el siguiente
-            print(f"Error procesando estudiante {est.id}: {str(e)}")
+            print(f"❌ ERROR procesando estudiante {est.id}: {str(e)}")
             continue
     
     # Ordenar por fecha más reciente
@@ -626,6 +744,8 @@ def conversaciones_view(request):
         key=lambda x: x.ultima_fecha if hasattr(x, 'ultima_fecha') and x.ultima_fecha else timezone.now() - timedelta(days=365*10), 
         reverse=True
     )
+    
+    print(f"✅ DEBUG: {len(estudiantes_con_mensajes)} estudiantes procesados para mostrar")
     
     # Estudiante seleccionado
     estudiante_id = request.GET.get('estudiante')
@@ -636,13 +756,16 @@ def conversaciones_view(request):
     if estudiante_id:
         try:
             estudiante_seleccionado = Estudiante.objects.get(id=estudiante_id)
-            telefono_limpio = estudiante_seleccionado.telefono.replace('+', '').replace(' ', '')
+            print(f"👤 DEBUG: Cargando mensajes para {estudiante_seleccionado.nombre}")
             
             # Crear lista unificada de mensajes
             lista_mensajes = []
             
-            # WhatsApp logs
-            for msg in WhatsappLog.objects.filter(telefono=telefono_limpio):
+            # WhatsApp logs (usar estudiante FK en lugar de teléfono)
+            whatsapp_msgs = WhatsappLog.objects.filter(estudiante=estudiante_seleccionado).order_by('fecha')
+            print(f"💬 DEBUG: {whatsapp_msgs.count()} mensajes WhatsApp encontrados")
+            
+            for msg in whatsapp_msgs:
                 fecha = msg.fecha
                 if timezone.is_naive(fecha):
                     fecha = timezone.make_aware(fecha)
@@ -651,19 +774,25 @@ def conversaciones_view(request):
                     'mensaje': msg.mensaje,
                     'fecha': fecha,
                     'estado': msg.estado,
-                    'tipo': 'recibido' if msg.estado == 'INCOMING' else 'enviado'
+                    'tipo': 'recibido' if msg.tipo == 'INCOMING' else 'enviado'  # ✅ Usar campo 'tipo' en lugar de 'estado'
                 })
             
             # Envio logs (mensajes enviados por campañas)
-            for envio in EnvioLog.objects.filter(estudiante=estudiante_seleccionado).select_related('campana', 'campana__plantilla'):
+            envios = EnvioLog.objects.filter(estudiante=estudiante_seleccionado).select_related('campana', 'campana__plantilla').order_by('fecha_envio')
+            print(f"📤 DEBUG: {envios.count()} mensajes de campañas encontrados")
+            
+            for envio in envios:
                 fecha = envio.fecha_envio
                 if timezone.is_naive(fecha):
                     fecha = timezone.make_aware(fecha)
                 
                 # Obtener el mensaje de la plantilla
-                mensaje_campana = envio.campana.plantilla.cuerpo_mensaje
-                # Personalizar con el nombre del estudiante
-                mensaje_personalizado = mensaje_campana.replace('{nombre}', estudiante_seleccionado.nombre)
+                if envio.campana and envio.campana.plantilla:
+                    mensaje_campana = envio.campana.plantilla.cuerpo_mensaje
+                    # Personalizar con el nombre del estudiante
+                    mensaje_personalizado = mensaje_campana.replace('{nombre}', estudiante_seleccionado.nombre)
+                else:
+                    mensaje_personalizado = f"Campaña: {envio.campana.nombre if envio.campana else 'Sin nombre'}"
                     
                 lista_mensajes.append({
                     'mensaje': mensaje_personalizado,
@@ -675,6 +804,8 @@ def conversaciones_view(request):
             # Ordenar por fecha
             lista_mensajes.sort(key=lambda x: x['fecha'] if x['fecha'] else timezone.now() - timedelta(days=365*10))
             
+            print(f"✅ DEBUG: {len(lista_mensajes)} mensajes totales unificados")
+            
             # Paginación
             paginator = Paginator(lista_mensajes, 50)
             page_number = request.GET.get('page', 1)
@@ -682,16 +813,21 @@ def conversaciones_view(request):
             mensajes = page_obj.object_list
             
         except Estudiante.DoesNotExist:
-            pass
+            print(f"❌ ERROR: Estudiante {estudiante_id} no existe")
         except Exception as e:
-            print(f"Error cargando mensajes: {str(e)}")
+            print(f"❌ ERROR cargando mensajes: {str(e)}")
+            import traceback
+            traceback.print_exc()
     
     context = {
         'estudiantes': estudiantes_con_mensajes[:50],  # Limitar a 50 contactos
         'estudiante_seleccionado': estudiante_seleccionado,
         'mensajes': mensajes,
         'page_obj': page_obj,
+        'total_conversaciones': len(estudiantes_con_mensajes),
     }
+    
+    print(f"🎯 DEBUG: Renderizando template con {len(context['estudiantes'])} estudiantes")
     
     return render(request, 'admin/conversaciones.html', context)
 
@@ -755,3 +891,45 @@ def chat_prueba_api(request):
             }, status=500)
     
     return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+
+@staff_member_required
+def ranking_gamificacion_view(request):
+    """Vista del ranking de gamificación"""
+    from .models import PerfilGamificacion, Badge, BadgeEstudiante
+    from django.db.models import Count, Max, Sum
+    
+    # Obtener top 20 del ranking
+    ranking = PerfilGamificacion.objects.select_related('estudiante').prefetch_related(
+        'estudiante__badges_obtenidos__badge'
+    ).order_by('-puntos_totales')[:20]
+    
+    # Agregar emoji de nivel a cada perfil
+    emojis = ['🌱', '🌿', '🍃', '🌾', '🌳', '🌲', '🎋', '🌺', '💎', '👑']
+    for perfil in ranking:
+        perfil.emoji = emojis[perfil.nivel - 1] if perfil.nivel <= 10 else '🏆'
+        perfil.total_badges = perfil.get_badges().count()
+    
+    # Estadísticas generales
+    stats = {
+        'total_estudiantes': PerfilGamificacion.objects.count(),
+        'puntos_totales': PerfilGamificacion.objects.aggregate(Sum('puntos_totales'))['puntos_totales__sum'] or 0,
+        'badges_obtenidos': BadgeEstudiante.objects.count(),
+        'racha_maxima': PerfilGamificacion.objects.aggregate(
+            Max('racha_dias_maxima')
+        )['racha_dias_maxima__max'] or 0,
+    }
+    
+    # Todos los badges con contador de cuántos lo tienen
+    all_badges = Badge.objects.annotate(
+        total=Count('estudiantes')
+    ).order_by('-total', 'nombre')
+    
+    context = {
+        'ranking': ranking,
+        'stats': stats,
+        'all_badges': all_badges,
+    }
+    
+    return render(request, 'admin/ranking_gamificacion.html', context)
+

@@ -13,6 +13,9 @@ DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'  # False en producción
 # ALLOWED_HOSTS: acepta múltiples dominios separados por coma
 allowed_hosts_str = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,eki-mvp.onrender.com')
 ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_str.split(',')]
+# Permitir todos los dominios de ngrok
+ALLOWED_HOSTS.append('.ngrok-free.dev')
+ALLOWED_HOSTS.append('.ngrok.io')
 
 # 3. APLICACIONES INSTALADAS
 INSTALLED_APPS = [
@@ -190,17 +193,39 @@ JAZZMIN_UI_TWEAKS = {
 }
 
 # ==========================================
-# 🔌 CREDENCIALES WHATSAPP CLOUD API
+# 🔌 CREDENCIALES WHATSAPP CLOUD API (META)
 # ==========================================
 WHATSAPP_API_VERSION = os.environ.get('WHATSAPP_API_VERSION', 'v19.0')
-WHATSAPP_TOKEN = os.environ.get('WHATSAPP_TOKEN', '')
-WHATSAPP_PHONE_ID = os.environ.get('WHATSAPP_PHONE_ID', '')
+WHATSAPP_TOKEN = os.environ.get('WHATSAPP_TOKEN', '')  # Access Token de Meta
+WHATSAPP_PHONE_ID = os.environ.get('WHATSAPP_PHONE_ID', '')  # Phone Number ID
+WHATSAPP_BUSINESS_ACCOUNT_ID = os.environ.get('WHATSAPP_BUSINESS_ACCOUNT_ID', '')  # WABA ID para crear templates
 
 # ==========================================
 # 📱 CREDENCIALES TWILIO
 # ==========================================
-TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '')
-TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
-TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER', '')  # Número Twilio para SMS
-TWILIO_WHATSAPP_NUMBER = os.environ.get('TWILIO_WHATSAPP_NUMBER', '')  # Número Twilio WhatsApp (ej: whatsapp:+14155238886)
-WHATSAPP_VERIFY_TOKEN = os.environ.get('WHATSAPP_VERIFY_TOKEN', 'eki_whatsapp_verify_token_2025')
+TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
+TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
+TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER')
+TWILIO_WHATSAPP_NUMBER = os.environ.get('TWILIO_WHATSAPP_NUMBER')
+WHATSAPP_VERIFY_TOKEN = os.environ.get('WHATSAPP_VERIFY_TOKEN', 'eki_webhook_verify_token')
+
+# ==========================================
+# 🤖 OPENAI API
+# ==========================================
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+
+# ==========================================
+# 🤖 GOOGLE GEMINI API
+# ==========================================
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+
+# ==========================================
+# 🤖 COHERE AI API (100 llamadas/min gratis)
+# ==========================================
+COHERE_API_KEY = os.environ.get('COHERE_API_KEY')
+
+# ==========================================
+# 📁 ARCHIVOS MULTIMEDIA (Videos, PDFs, Imágenes)
+# ==========================================
+MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_URL = '/media/'

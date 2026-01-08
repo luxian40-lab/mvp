@@ -1,0 +1,135 @@
+{% extends "admin/index.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .eki-shortcuts {
+        background: linear-gradient(135deg, #2c5f2d 0%, #25d366 100%);
+        padding: 25px;
+        border-radius: 12px;
+        margin: 20px 0;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .eki-shortcuts h2 {
+        color: white;
+        margin: 0 0 20px 0;
+        font-size: 22px;
+        font-weight: 600;
+    }
+    
+    .shortcuts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+    }
+    
+    .shortcut-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 20px;
+        background: white;
+        color: #2c5f2d;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 15px;
+        transition: all 0.2s;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    
+    .shortcut-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        color: #25d366;
+    }
+    
+    .shortcut-icon {
+        font-size: 28px;
+    }
+    
+    .shortcut-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    
+    .shortcut-title {
+        font-size: 15px;
+        font-weight: 600;
+    }
+    
+    .shortcut-desc {
+        font-size: 12px;
+        color: #666;
+        font-weight: normal;
+    }
+    
+    @media (max-width: 768px) {
+        .shortcuts-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Accesos Rápidos Personalizados -->
+<div class="eki-shortcuts">
+    <h2>⚡ Accesos Rápidos</h2>
+    <div class="shortcuts-grid">
+        <a href="{% url 'conversaciones' %}" class="shortcut-btn">
+            <span class="shortcut-icon">💬</span>
+            <span class="shortcut-text">
+                <span class="shortcut-title">Conversaciones</span>
+                <span class="shortcut-desc">Chat estilo WhatsApp</span>
+            </span>
+        </a>
+        
+        <a href="{% url 'dashboard_metricas' %}" class="shortcut-btn">
+            <span class="shortcut-icon">📊</span>
+            <span class="shortcut-text">
+                <span class="shortcut-title">Dashboard</span>
+                <span class="shortcut-desc">Métricas y estadísticas</span>
+            </span>
+        </a>
+        
+        <a href="{% url 'admin:core_estudiante_changelist' %}" class="shortcut-btn">
+            <span class="shortcut-icon">👥</span>
+            <span class="shortcut-text">
+                <span class="shortcut-title">Estudiantes</span>
+                <span class="shortcut-desc">Gestionar campesinos</span>
+            </span>
+        </a>
+        
+        <a href="{% url 'admin:core_plantilla_changelist' %}" class="shortcut-btn">
+            <span class="shortcut-icon">📝</span>
+            <span class="shortcut-text">
+                <span class="shortcut-title">Plantillas</span>
+                <span class="shortcut-desc">Mensajes predefinidos</span>
+            </span>
+        </a>
+        
+        <a href="{% url 'descargar_reportes' %}" class="shortcut-btn">
+            <span class="shortcut-icon">📥</span>
+            <span class="shortcut-text">
+                <span class="shortcut-title">Reportes</span>
+                <span class="shortcut-desc">Descargar Excel/CSV</span>
+            </span>
+        </a>
+        
+        <a href="{% url 'admin:core_whatsapplog_changelist' %}" class="shortcut-btn">
+            <span class="shortcut-icon">📱</span>
+            <span class="shortcut-text">
+                <span class="shortcut-title">Mensajes</span>
+                <span class="shortcut-desc">Historial WhatsApp</span>
+            </span>
+        </a>
+    </div>
+</div>
+
+<!-- Contenido normal del admin -->
+{{ block.super }}
+{% endblock %}

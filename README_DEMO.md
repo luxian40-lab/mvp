@@ -11,8 +11,9 @@
    - Botones de acciones rápidas (Nueva Campaña, Nuevo Estudiante, Descargar Reportes)
 
 2. **Gestión de Campañas** (`/admin/core/campana/`)
-   - Crear campañas con canal (WhatsApp, SMS, Email, Voz)
-   - Seleccionar línea de origen
+   - Crear campañas con temas organizados (☕ Café, 🥑 Aguacate, etc.)
+   - Filtrado automático de plantillas por tema
+   - Seleccionar línea de origen (WhatsApp)
    - Fecha programada de envío
    - Importar destinatarios vía Excel
    - Visualizar estado de entrega

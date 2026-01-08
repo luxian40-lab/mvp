@@ -1,14 +1,98 @@
+# ==========================================
+# 🐍 PYTHON
+# ==========================================
 *.pyc
+*.pyo
+*.pyd
 __pycache__/
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
 .Python
 *.log
+*.pot
+
+# ==========================================
+# 🌐 ENTORNO VIRTUAL (NUNCA SUBIR)
+# ==========================================
+venv/
+.venv/
+env/
+ENV/
+virtualenv/
+
+# ==========================================
+# 🗄️ BASE DE DATOS
+# ==========================================
 db.sqlite3
-staticfiles/
+db.sqlite3-journal
+*.db
+
+# ==========================================
+# 🔒 VARIABLES DE ENTORNO (CRÍTICO)
+# ==========================================
 .env
 .env.local
+.env.production
+.env.*.local
+.env.render
+
+# ==========================================
+# 📁 DJANGO STATIC & MEDIA
+# ==========================================
+staticfiles/
+/static/
+media/
+
+# Archivos multimedia específicos
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.wmv
+*.flv
+*.pdf
+*.jpg
+*.jpeg
+*.png
+*.gif
+
+# ==========================================
+# 📝 DOCUMENTACIÓN (Excepto README)
+# ==========================================
 *.md
 !README.md
+!README_*.md
 *.txt
 !requirements.txt
+
+# ==========================================
+# 💻 IDEs
+# ==========================================
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ==========================================
+# 🚀 DEPLOYMENT & BACKUPS
+# ==========================================
+*.log
+logs/
+backups/
+audios_whatsapp/
+
+# ==========================================
+# 📦 ARCHIVOS TEMPORALES & HERRAMIENTAS
+# ==========================================
+ngrok.exe
+*.bat
+*.ps1
+!programar_backup.ps1
+*.csv
+*.xlsx
+

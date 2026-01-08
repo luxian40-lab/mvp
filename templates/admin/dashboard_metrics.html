@@ -311,7 +311,7 @@
             </div>
         </div>
         <a href="{% url 'calendario_campanas' %}" class="btn-calendario">📅 Ver Calendario de Campañas</a>
-        <a href="{% url 'conversaciones' %}" class="btn-conversaciones">💬 Ver Conversaciones</a>
+        <!-- Conversaciones removido - ver en WhatsappLog del admin -->
     </div>
 
     <!-- Métricas principales - DATOS REALES -->
@@ -425,8 +425,8 @@
             <a href="{% url 'descargar_reportes' %}" class="btn-custom btn-success-custom">
                 📊 Descargar Reportes
             </a>
-            <a href="{% url 'probar_twilio' %}" class="btn-custom btn-warning-custom">
-                🧪 Probar Twilio
+            <a href="/admin/core/modulo/" class="btn-custom btn-warning-custom">
+                🎥 Gestionar Videos
             </a>
             <a href="/admin/core/enviolog/" class="btn-custom btn-secondary-custom">
                 📋 Ver Historial

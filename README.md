@@ -2,11 +2,37 @@
 
 Sistema completo de gestión y administración educativa basado en **Django** con integración de **WhatsApp Cloud API** y **Twilio**. Plataforma centralizada para la gestión de estudiantes, campañas de mensajería multi-canal, envío de notificaciones con imágenes y monitoreo en tiempo real.
 
-## 📋 Características Principales
+## � Modelo de Negocio B2B
 
-### 🎯 Gestión de Campañas Multi-Canal
+**EKI opera como plataforma B2B de educación agrícola por WhatsApp.**
+
+### Funcionamiento
+- ✅ **Solo EKI accede al Django Admin** (sin acceso para clientes)
+- 📤 **EKI envía plantilla Excel** a organizaciones interesadas
+- 📥 **Clientes completan plantilla** con datos de sus estudiantes
+- ⚙️ **EKI importa estudiantes** y asigna al cliente correspondiente
+- 🎓 **EKI gestiona cursos y campañas** para cada cliente
+- 📊 **EKI genera reportes** periódicos para clientes
+
+### Clientes Objetivo
+- 🌾 Cooperativas agrícolas
+- 🏛️ ONGs de desarrollo rural
+- 🏢 Empresas del sector agro
+- 📚 Instituciones educativas agrícolas
+
+### Facturación
+- **Opción 1:** $0.50-$1.00 USD por estudiante activo/mes
+- **Opción 2:** $200-$500 USD tarifa plana mensual
+
+Ver documentación completa en:
+- [PROCESO_ONBOARDING_CLIENTES.md](PROCESO_ONBOARDING_CLIENTES.md)
+- [INSTRUCCIONES_PLANTILLA_CLIENTES.md](INSTRUCCIONES_PLANTILLA_CLIENTES.md)
+
+## �📋 Características Principales
+
+### 🎯 Gestión de Campañas por WhatsApp
 * **Creación de Campañas:** Sistema completo para crear y ejecutar campañas de mensajería
-* **Múltiples Proveedores:** Soporte para Meta WhatsApp, Twilio SMS y Twilio WhatsApp
+* **WhatsApp Cloud API:** Integración con Twilio WhatsApp
 * **Plantillas con Imágenes:** Soporte para mensajes con imágenes vía WhatsApp API
 * **Envío Masivo:** Importación de estudiantes desde Excel y envío automatizado
 * **Seguimiento en Tiempo Real:** Monitoreo del estado de envíos (exitosos, fallidos, pendientes)
@@ -18,14 +44,13 @@ Sistema completo de gestión y administración educativa basado en **Django** co
 * **Historial de Mensajes:** Últimos 10 mensajes con detalles completos
 * **Diseño Moderno:** Interfaz con gradientes y estilos personalizados
 
-### 📱 Integración Multi-Proveedor
-* **Meta WhatsApp Cloud API:** Integración completa con Meta Cloud API v19.0
-* **Twilio SMS:** Envío de mensajes SMS tradicionales
+### 📱 Integración WhatsApp
 * **Twilio WhatsApp:** Envío de WhatsApp vía Twilio API
-* **Mensajes con Imágenes:** Envío de mensajes tipo 'image' con caption en ambos proveedores
+* **Mensajes con Imágenes:** Envío de mensajes tipo 'image' con caption
 * **Webhook Configurado:** Recepción de mensajes entrantes y notificaciones
 * **Detección de Intenciones:** Sistema inteligente de respuestas automáticas
 * **Logs Detallados:** Registro completo de todos los mensajes
+* **Agentes IA:** Sistema multi-agente con OpenAI para tutorías personalizadas
 
 ### 👥 Gestión de Estudiantes
 * **CRUD Completo:** Alta, baja y modificación de estudiantes
@@ -40,6 +65,27 @@ Sistema completo de gestión y administración educativa basado en **Django** co
 * **Gestión de Imágenes:** Campo URL para imágenes en mensajes
 * **Vista Previa:** Previsualización de plantillas antes de enviar
 * **Reutilización:** Uso de plantillas en múltiples campañas
+
+### 🎮 Gamificación Integrada
+* **Sistema de Puntos:** 50 pts por módulo, 200 pts bonus por curso
+* **10 Niveles Progresivos:** De 🌱 Semilla a 👑 Maestro Campesino
+* **25+ Badges:** Por nivel, racha, cursos, participación y especiales
+* **Racha de Estudio:** Contador de días consecutivos activos
+* **Ranking/Leaderboard:** Top estudiantes por puntos y racha
+* **Notificaciones WhatsApp:** Avisos de nivel-up y badges obtenidos
+* **Admin Dashboard:** Gestión completa de perfiles, badges y transacciones
+
+Ver documentación completa en [GAMIFICACION_README.md](GAMIFICACION_README.md)
+
+### 🏢 Multi-Tenancy B2B
+* **Sistema de Clientes:** Modelo Cliente para organizaciones
+* **Aislamiento de Datos:** Cada cliente tiene sus propios estudiantes
+* **Cursos Específicos:** Cursos generales o personalizados por cliente
+* **Campañas Segmentadas:** Filtrado automático por cliente
+* **Reportes Individualizados:** Excel con datos solo del cliente
+* **Importación Masiva:** Plantilla Excel para registro de estudiantes
+
+Ver proceso completo en [PROCESO_ONBOARDING_CLIENTES.md](PROCESO_ONBOARDING_CLIENTES.md)
 
 ## 🛠️ Tecnologías
 
@@ -197,11 +243,11 @@ Accede a:
 
 ### Campaña
 - `nombre`: Nombre de la campaña
-- `plantilla`: Relación con Plantilla
+- `tema`: Tema para organizar campañas (café, aguacate, maíz, etc.)
+- `plantilla`: Relación con Plantilla (filtrada por tema)
 - `destinatarios`: ManyToMany con Estudiantes
 - `archivo_excel`: Carga masiva de destinatarios
-- `canal_envio`: whatsapp, sms, email, voz
-- `proveedor`: meta, twilio_sms, twilio_whatsapp
+- `canal_envio`: whatsapp (único canal soportado)
 - `linea_origen`: Línea de WhatsApp a usar
 - `fecha_programada`: Programación de envío
 - `ejecutada`: Estado de ejecución
@@ -359,16 +405,16 @@ gunicorn mvp_project.wsgi:application --bind 0.0.0.0:8000
 
 ## 📝 Notas de Desarrollo
 
-### Últimas Actualizaciones (v2.1)
-- ✅ Integración multi-proveedor (Meta y Twilio)
-- ✅ Soporte para SMS vía Twilio
-- ✅ Soporte para WhatsApp vía Twilio API
-- ✅ Selector de proveedor en campañas
-- ✅ Funciones de envío unificadas en utils.py
-- ✅ Script de pruebas para Twilio
-- ✅ Documentación actualizada con configuración Twilio
+### Últimas Actualizaciones (v3.0)
+- ✅ Sistema de temas para organizar plantillas y campañas
+- ✅ Sistema multi-agente de IA (Tutor, Frustración, Motivador, Evaluador)
+- ✅ Vista de conversaciones individuales mejorada
+- ✅ Integración WhatsApp vía Twilio API
 - ✅ Soporte completo de imágenes en plantillas WhatsApp
 - ✅ Dashboard rediseñado con gradientes modernos
+- ✅ Comando unificado `python manage.py eki`
+- ✅ Health check completo para producción
+- ✅ Documentación completa de administración
 - ✅ Reconfiguración de archivos estáticos (STATICFILES_DIRS)
 - ✅ URLs optimizadas para evitar conflictos con admin
 - ✅ PlantillaAdmin con vista previa de imágenes
@@ -379,12 +425,12 @@ gunicorn mvp_project.wsgi:application --bind 0.0.0.0:8000
 ### Próximas Funcionalidades
 - [ ] Programación automática de campañas
 - [ ] Reportes con gráficos y estadísticas avanzadas
-- [ ] Respuestas automáticas basadas en IA
-- [ ] Integración con Email
+- [ ] Mejoras en sistema de agentes IA
 - [ ] Sistema de roles y permisos
 - [ ] API REST completa con autenticación
 - [ ] Dashboard de análisis de conversaciones
 - [ ] Integración con CRM externo
+- [ ] Exportación de reportes en PDF/Excel
 
 ## 🐛 Troubleshooting
 

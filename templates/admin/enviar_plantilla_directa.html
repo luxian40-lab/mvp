@@ -1,0 +1,141 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block content %}
+<div style="max-width: 900px; margin: 40px auto; padding: 20px;">
+    <h1 style="color: #2c5f2d; margin-bottom: 20px;">📤 Enviar Plantilla: {{ plantilla.nombre_interno }}</h1>
+    
+    <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+        <h3 style="margin-top: 0;">📄 Vista Previa del Mensaje</h3>
+        <div style="background: white; padding: 15px; border-radius: 8px; font-family: Arial, sans-serif; white-space: pre-wrap;">{{ plantilla.cuerpo_mensaje }}</div>
+        <small style="color: #666; display: block; margin-top: 10px;">
+            💡 Tip: Usa <code>{nombre}</code> en tu plantilla para personalizar con el nombre del estudiante
+        </small>
+    </div>
+    
+    <form method="POST" style="background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        {% csrf_token %}
+        
+        <h3 style="color: #2c5f2d; margin-bottom: 15px;">👥 Selecciona los destinatarios</h3>
+        
+        <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin-bottom: 20px;">
+            <strong>⚠️ Importante:</strong> Selecciona uno o varios estudiantes para enviar este mensaje.
+        </div>
+        
+        <div style="max-height: 400px; overflow-y: auto; border: 2px solid #ddd; border-radius: 6px; padding: 10px; margin-bottom: 20px;">
+            {% if estudiantes %}
+                <div style="display: grid; gap: 8px;">
+                    {% for estudiante in estudiantes %}
+                    <label style="display: flex; align-items: center; padding: 12px; background: #f8f9fa; border-radius: 6px; cursor: pointer; transition: all 0.2s;">
+                        <input type="checkbox" name="estudiantes_seleccionados" value="{{ estudiante.id }}" 
+                               style="margin-right: 12px; width: 18px; height: 18px; cursor: pointer;">
+                        <div style="flex: 1;">
+                            <strong style="color: #2c5f2d;">{{ estudiante.nombre }}</strong>
+                            <span style="color: #666; font-family: monospace; margin-left: 10px;">{{ estudiante.telefono }}</span>
+                        </div>
+                        {% if estudiante.activo %}
+                        <span style="background: #4caf50; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px;">✓ Activo</span>
+                        {% else %}
+                        <span style="background: #999; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px;">Inactivo</span>
+                        {% endif %}
+                    </label>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div style="text-align: center; padding: 40px; color: #999;">
+                    <p>😔 No hay estudiantes activos registrados</p>
+                    <a href="{% url 'admin:core_estudiante_add' %}" style="color: #2196f3;">Agregar estudiante</a>
+                </div>
+            {% endif %}
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #f8f9fa; border-radius: 6px; margin-bottom: 20px;">
+            <div>
+                <strong>📊 Total seleccionados: </strong>
+                <span id="contador-seleccionados" style="color: #2196f3; font-weight: bold;">0</span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button type="button" onclick="seleccionarTodos()" 
+                        style="padding: 8px 16px; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    ✓ Seleccionar Todos
+                </button>
+                <button type="button" onclick="deseleccionarTodos()" 
+                        style="padding: 8px 16px; background: #999; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    ✗ Deseleccionar Todos
+                </button>
+            </div>
+        </div>
+        
+        <input type="hidden" name="action" value="enviar_plantilla_directa">
+        
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
+            <a href="{% url 'admin:core_plantilla_changelist' %}" 
+               style="padding: 12px 24px; background: #6c757d; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">
+                ❌ Cancelar
+            </a>
+            <button 
+                type="submit" 
+                name="aplicar" 
+                value="yes"
+                style="padding: 12px 30px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 15px;"
+                onclick="return confirmarEnvio();"
+            >
+                ✅ Enviar Plantilla
+            </button>
+        </div>
+    </form>
+    
+    <div style="margin-top: 30px; padding: 15px; background: #e7f3ff; border-radius: 6px;">
+        <strong>📋 Nota:</strong> Los mensajes enviados se registrarán en el historial de WhatsappLog.
+    </div>
+</div>
+
+<style>
+    label:has(input:checked) {
+        background: #c8e6c9 !important;
+        border-left: 4px solid #4caf50;
+    }
+    
+    button:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+    }
+</style>
+
+<script>
+    function actualizarContador() {
+        const checkboxes = document.querySelectorAll('input[name="estudiantes_seleccionados"]:checked');
+        document.getElementById('contador-seleccionados').textContent = checkboxes.length;
+    }
+    
+    function seleccionarTodos() {
+        const checkboxes = document.querySelectorAll('input[name="estudiantes_seleccionados"]');
+        checkboxes.forEach(cb => cb.checked = true);
+        actualizarContador();
+    }
+    
+    function deseleccionarTodos() {
+        const checkboxes = document.querySelectorAll('input[name="estudiantes_seleccionados"]');
+        checkboxes.forEach(cb => cb.checked = false);
+        actualizarContador();
+    }
+    
+    function confirmarEnvio() {
+        const checkboxes = document.querySelectorAll('input[name="estudiantes_seleccionados"]:checked');
+        if (checkboxes.length === 0) {
+            alert('⚠️ Debes seleccionar al menos un estudiante');
+            return false;
+        }
+        return confirm(`¿Estás seguro de enviar esta plantilla a ${checkboxes.length} estudiante(s)?`);
+    }
+    
+    // Actualizar contador al cambiar checkboxes
+    document.addEventListener('DOMContentLoaded', function() {
+        const checkboxes = document.querySelectorAll('input[name="estudiantes_seleccionados"]');
+        checkboxes.forEach(cb => {
+            cb.addEventListener('change', actualizarContador);
+        });
+        actualizarContador();
+    });
+</script>
+{% endblock %}

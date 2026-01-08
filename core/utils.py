@@ -4,13 +4,94 @@ from django.utils import timezone
 from .models import WhatsappLog
 
 
-def enviar_whatsapp(telefono: str, texto: str, url_imagen: str = None) -> dict:
+def enviar_whatsapp_twilio(telefono: str, texto: str, mensaje_id_referencia: str = None, media_url: str = None, texto_log: str = None) -> dict:
+    """Enviar mensaje por Twilio WhatsApp API.
+
+    Parámetros:
+    - telefono: número en formato internacional, p.ej. '+573001234567'
+    - texto: cuerpo del mensaje a enviar
+    - mensaje_id_referencia: ID del mensaje al que se responde (opcional)
+    - media_url: URL del video o imagen (opcional)
+    - texto_log: texto alternativo para guardar en log (para preservar marcadores internos)
+
+    Retorna dict con keys: success(bool), mensaje_id (str|None), response (str).
+    """
+    log = None  # Inicializar log como None
+    
+    try:
+        from twilio.rest import Client
+        
+        account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', None)
+        auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', None)
+        twilio_number = getattr(settings, 'TWILIO_WHATSAPP_NUMBER', 'whatsapp:+14155238886')
+        
+        print(f"[TWILIO] Account SID: {account_sid}")
+        print(f"[TWILIO] Auth Token: {auth_token[:20] if auth_token else None}...")
+        print(f"[TWILIO] WhatsApp Number: {twilio_number}")
+        
+        if not account_sid or not auth_token:
+            print("[ERROR] Credenciales de Twilio NO configuradas")
+            return {'success': False, 'mensaje_id': None, 'response': 'Twilio credentials not set'}
+        
+        # Asegurar formato whatsapp:+57...
+        if not telefono.startswith('whatsapp:'):
+            if not telefono.startswith('+'):
+                telefono = f'+{telefono}'
+            telefono = f'whatsapp:{telefono}'
+        
+        # Crear cliente Twilio
+        client = Client(account_sid, auth_token)
+        
+        # Guardar log preliminar - usar texto_log si existe, sino usar texto
+        mensaje_para_log = texto_log if texto_log else texto
+        log = WhatsappLog.objects.create(
+            telefono=telefono.replace('whatsapp:', ''),
+            mensaje=mensaje_para_log,
+            mensaje_id=mensaje_id_referencia,
+            estado='PENDING',
+            tipo='SENT',
+            fecha=timezone.now()
+        )
+        
+        # Preparar parámetros del mensaje
+        message_params = {
+            'from_': twilio_number,
+            'body': texto,
+            'to': telefono
+        }
+        
+        # Agregar media_url si hay video
+        if media_url:
+            message_params['media_url'] = [media_url]
+            print(f"[VIDEO] Enviando video: {media_url}")
+        
+        # Enviar mensaje (con o sin video)
+        message = client.messages.create(**message_params)
+        
+        # Actualizar log
+        log.mensaje_id = message.sid
+        log.estado = 'SENT'
+        log.save()
+        
+        print(f"[SUCCESS] TWILIO: Mensaje enviado a {telefono} - SID: {message.sid}")
+        
+        return {'success': True, 'mensaje_id': message.sid, 'response': 'Message sent'}
+        
+    except Exception as e:
+        print(f"[ERROR] Error enviando por Twilio: {str(e)}")
+        if log:  # Solo actualizar si el log existe
+            log.estado = 'ERROR'
+            log.save()
+        return {'success': False, 'mensaje_id': None, 'response': str(e)}
+
+
+def enviar_whatsapp(telefono: str, texto: str, mensaje_id_referencia: str = None) -> dict:
     """Enviar mensaje por WhatsApp Cloud API usando `requests` y registrar el intento.
 
     Parámetros:
     - telefono: número en formato internacional, p.ej. '57310...'
     - texto: cuerpo del mensaje
-    - url_imagen: URL de la imagen a enviar (opcional)
+    - mensaje_id_referencia: ID del mensaje al que se responde (opcional)
 
     Retorna dict con keys: success(bool), mensaje_id (str|None), response (dict|str).
     """
@@ -27,33 +108,20 @@ def enviar_whatsapp(telefono: str, texto: str, url_imagen: str = None) -> dict:
         'Authorization': f'Bearer {token}',
         'Content-Type': 'application/json'
     }
-    
-    # Si hay imagen, enviamos un mensaje tipo 'image' con caption
-    if url_imagen:
-        payload = {
-            'messaging_product': 'whatsapp',
-            'to': telefono,
-            'type': 'image',
-            'image': {
-                'link': url_imagen,
-                'caption': texto
-            }
-        }
-    else:
-        # Mensaje de texto simple
-        payload = {
-            'messaging_product': 'whatsapp',
-            'to': telefono,
-            'type': 'text',
-            'text': {'body': texto}
-        }
+    payload = {
+        'messaging_product': 'whatsapp',
+        'to': telefono,
+        'type': 'text',
+        'text': {'body': texto}
+    }
 
-    # Guardamos un log preliminar (estado=PENDING)
+    # Guardamos un log preliminar (estado=PENDING, tipo=SENT para salida)
     log = WhatsappLog.objects.create(
         telefono=telefono,
         mensaje=texto,
-        mensaje_id=None,
+        mensaje_id=mensaje_id_referencia,  # Referencia al mensaje original
         estado='PENDING',
+        tipo='SENT',
         fecha=timezone.now()
     )
 
@@ -81,123 +149,4 @@ def enviar_whatsapp(telefono: str, texto: str, url_imagen: str = None) -> dict:
         # Error de conexión u otra excepción
         log.estado = 'ERROR'
         log.save()
-        return {'success': False, 'mensaje_id': None, 'response': str(e)}
-
-
-def enviar_sms_twilio(telefono: str, texto: str) -> dict:
-    """Enviar SMS usando Twilio.
-    
-    Parámetros:
-    - telefono: número en formato internacional, p.ej. '+573001234567'
-    - texto: cuerpo del mensaje
-    
-    Retorna dict con keys: success(bool), mensaje_id (str|None), response (dict|str).
-    """
-    try:
-        from twilio.rest import Client
-        
-        account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', None)
-        auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', None)
-        from_number = getattr(settings, 'TWILIO_PHONE_NUMBER', None)
-        
-        if not all([account_sid, auth_token, from_number]):
-            return {'success': False, 'mensaje_id': None, 'response': 'Twilio credentials not set'}
-        
-        # Asegurar formato correcto del teléfono
-        if not telefono.startswith('+'):
-            telefono = f'+{telefono}'
-        
-        client = Client(account_sid, auth_token)
-        
-        message = client.messages.create(
-            body=texto,
-            from_=from_number,
-            to=telefono
-        )
-        
-        return {
-            'success': True,
-            'mensaje_id': message.sid,
-            'response': {
-                'status': message.status,
-                'sid': message.sid,
-                'date_created': str(message.date_created)
-            }
-        }
-        
-    except Exception as e:
-        return {'success': False, 'mensaje_id': None, 'response': str(e)}
-
-
-def enviar_whatsapp_twilio(telefono: str, texto: str, url_imagen: str = None) -> dict:
-    """Enviar WhatsApp usando Twilio.
-    
-    Parámetros:
-    - telefono: número en formato internacional, p.ej. '+573001234567'
-    - texto: cuerpo del mensaje
-    - url_imagen: URL de la imagen a enviar (opcional)
-    
-    Retorna dict con keys: success(bool), mensaje_id (str|None), response (dict|str).
-    """
-    try:
-        from twilio.rest import Client
-        
-        account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', None)
-        auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', None)
-        from_number = getattr(settings, 'TWILIO_WHATSAPP_NUMBER', None)
-        
-        if not all([account_sid, auth_token, from_number]):
-            return {'success': False, 'mensaje_id': None, 'response': 'Twilio WhatsApp credentials not set'}
-        
-        # Asegurar formato correcto del teléfono para WhatsApp
-        if not telefono.startswith('+'):
-            telefono = f'+{telefono}'
-        if not telefono.startswith('whatsapp:'):
-            telefono = f'whatsapp:{telefono}'
-        
-        client = Client(account_sid, auth_token)
-        
-        # Crear mensaje con o sin imagen
-        if url_imagen:
-            message = client.messages.create(
-                body=texto,
-                from_=from_number,
-                to=telefono,
-                media_url=[url_imagen]
-            )
-        else:
-            message = client.messages.create(
-                body=texto,
-                from_=from_number,
-                to=telefono
-            )
-        
-        # Guardar log
-        WhatsappLog.objects.create(
-            telefono=telefono.replace('whatsapp:', ''),
-            mensaje=texto,
-            mensaje_id=message.sid,
-            estado='SENT' if message.status != 'failed' else 'ERROR',
-            fecha=timezone.now()
-        )
-        
-        return {
-            'success': True,
-            'mensaje_id': message.sid,
-            'response': {
-                'status': message.status,
-                'sid': message.sid,
-                'date_created': str(message.date_created)
-            }
-        }
-        
-    except Exception as e:
-        # Guardar log de error
-        WhatsappLog.objects.create(
-            telefono=telefono.replace('whatsapp:', '').replace('+', ''),
-            mensaje=texto,
-            mensaje_id=None,
-            estado='ERROR',
-            fecha=timezone.now()
-        )
         return {'success': False, 'mensaje_id': None, 'response': str(e)}
