@@ -27,11 +27,14 @@ ALLOWED_HOSTS = [
     '.ngrok.io',               # Ngrok (desarrollo)
     'localhost',
     '127.0.0.1',
+    'eki-produccion-env.eba-84g5zn3s.us-east-2.elasticbeanstalk.com',  # Elastic Beanstalk
+    '.elasticbeanstalk.com',  # Cualquier dominio de EB
 ]
 
-# Agregar dominios personalizados
-if 'DOMAIN' in os.environ:
-    ALLOWED_HOSTS.append(os.environ['DOMAIN'])
+# Agregar dominios personalizados desde variable de entorno
+if 'ALLOWED_HOSTS_EXTRA' in os.environ:
+    extra_hosts = os.environ['ALLOWED_HOSTS_EXTRA'].split(',')
+    ALLOWED_HOSTS.extend(extra_hosts)
 
 # ============================================
 # SSL/HTTPS - Resolución de Warnings
