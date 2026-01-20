@@ -1,0 +1,509 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}👀 Vista Previa del Curso{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .preview-container {
+        max-width: 1200px;
+        margin: 30px auto;
+        padding: 20px;
+    }
+    
+    .preview-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 12px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    
+    .preview-header h1 {
+        margin: 0 0 10px 0;
+        font-size: 28px;
+    }
+    
+    .preview-header p {
+        margin: 0;
+        opacity: 0.9;
+        font-size: 15px;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .stat-card {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+    
+    .stat-icon {
+        font-size: 36px;
+        margin-bottom: 10px;
+    }
+    
+    .stat-number {
+        font-size: 32px;
+        font-weight: 700;
+        color: #4472C4;
+        margin-bottom: 5px;
+    }
+    
+    .stat-label {
+        font-size: 14px;
+        color: #666;
+    }
+    
+    .form-section {
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 25px;
+    }
+    
+    .form-section h2 {
+        margin: 0 0 20px 0;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #e0e0e0;
+        font-size: 22px;
+        color: #2c3e50;
+    }
+    
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+    
+    .form-group-full {
+        grid-column: 1 / -1;
+    }
+    
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+    
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 14px;
+        font-family: inherit;
+        transition: border-color 0.3s;
+    }
+    
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: #4472C4;
+    }
+    
+    .form-group textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+    
+    .modulo-preview {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        border-left: 4px solid #4472C4;
+    }
+    
+    .modulo-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    
+    .modulo-titulo {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    .modulo-meta {
+        font-size: 13px;
+        color: #666;
+    }
+    
+    .leccion-item {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        border-left: 3px solid #667eea;
+    }
+    
+    .leccion-titulo {
+        font-weight: 600;
+        margin-bottom: 5px;
+        color: #2c3e50;
+    }
+    
+    .leccion-contenido {
+        font-size: 13px;
+        color: #555;
+        margin-bottom: 8px;
+        line-height: 1.5;
+    }
+    
+    .preguntas-count {
+        font-size: 12px;
+        color: #999;
+    }
+    
+    .btn-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 15px;
+        margin-top: 30px;
+    }
+    
+    .btn {
+        padding: 15px 25px;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-align: center;
+        text-decoration: none;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-secondary {
+        background: #f8f9fa;
+        color: #495057;
+        border: 2px solid #e0e0e0;
+    }
+    
+    .btn-secondary:hover {
+        background: #e9ecef;
+        border-color: #ced4da;
+    }
+    
+    .btn-danger {
+        background: #f8f9fa;
+        color: #dc3545;
+        border: 2px solid #dc3545;
+    }
+    
+    .btn-danger:hover {
+        background: #dc3545;
+        color: white;
+    }
+    
+    .alert {
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .alert-error {
+        background: #ffebee;
+        border-left: 4px solid #f44336;
+        color: #c62828;
+    }
+    
+    .alert-warning {
+        background: #fff3e0;
+        border-left: 4px solid #ff9800;
+        color: #e65100;
+    }
+    
+    .alert-info {
+        background: #e3f2fd;
+        border-left: 4px solid #2196F3;
+        color: #1565c0;
+    }
+    
+    .expandir-toggle {
+        background: #4472C4;
+        color: white;
+        padding: 8px 15px;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+        border: none;
+        transition: background 0.3s;
+    }
+    
+    .expandir-toggle:hover {
+        background: #365a9a;
+    }
+    
+    .modulos-list {
+        max-height: 600px;
+        overflow-y: auto;
+        padding-right: 10px;
+    }
+    
+    .modulos-list::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .modulos-list::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+    
+    .modulos-list::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 10px;
+    }
+    
+    .modulos-list::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="preview-container">
+    <div class="preview-header">
+        <h1>👀 Vista Previa del Curso Generado</h1>
+        <p>Revisa el contenido y edita lo que necesites antes de guardar</p>
+        <p style="font-size: 13px; margin-top: 8px;">
+            📄 <strong>Archivo:</strong> {{ archivo_nombre }} | 
+            🤖 <strong>Modelo:</strong> {{ modelo_usado }} | 
+            🏢 <strong>Cliente:</strong> {{ cliente.nombre }}
+        </p>
+    </div>
+    
+    {% if error %}
+    <div class="alert alert-error">
+        <strong>❌ Error:</strong> {{ error }}
+    </div>
+    {% endif %}
+    
+    {% if advertencia %}
+    <div class="alert alert-warning">
+        <strong>⚠️ Advertencia:</strong> {{ advertencia }}
+    </div>
+    {% endif %}
+    
+    <div class="alert alert-info">
+        <strong>ℹ️ Nota importante:</strong> El curso se guardará como <strong>INACTIVO</strong>. 
+        Deberás revisarlo y activarlo manualmente desde el panel de administración.
+    </div>
+    
+    <!-- Estadísticas -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">📚</div>
+            <div class="stat-number">{{ total_modulos }}</div>
+            <div class="stat-label">Módulos</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">📖</div>
+            <div class="stat-number">{{ total_lecciones }}</div>
+            <div class="stat-label">Lecciones</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">❓</div>
+            <div class="stat-number">{{ total_preguntas }}</div>
+            <div class="stat-label">Preguntas</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">⏱️</div>
+            <div class="stat-number">{{ estructura.duracion_estimada }}</div>
+            <div class="stat-label">Duración</div>
+        </div>
+    </div>
+    
+    <!-- Formulario de edición -->
+    <form method="POST" id="formGuardar">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="guardar">
+        
+        <!-- Información General -->
+        <div class="form-section">
+            <h2>📝 Información General</h2>
+            <div class="form-grid">
+                <div class="form-group form-group-full">
+                    <label for="titulo">Título del Curso *</label>
+                    <input type="text" id="titulo" name="titulo" value="{{ estructura.titulo }}" required>
+                </div>
+                
+                <div class="form-group form-group-full">
+                    <label for="descripcion">Descripción *</label>
+                    <textarea id="descripcion" name="descripcion" required>{{ estructura.descripcion }}</textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="duracion_estimada">Duración Estimada</label>
+                    <input type="text" id="duracion_estimada" name="duracion_estimada" value="{{ estructura.duracion_estimada }}">
+                </div>
+                
+                <div class="form-group">
+                    <label for="nivel">Nivel</label>
+                    <select id="nivel" name="nivel">
+                        <option value="Básico" {% if estructura.nivel == 'Básico' %}selected{% endif %}>Básico</option>
+                        <option value="Intermedio" {% if estructura.nivel == 'Intermedio' %}selected{% endif %}>Intermedio</option>
+                        <option value="Avanzado" {% if estructura.nivel == 'Avanzado' %}selected{% endif %}>Avanzado</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="puntos_por_leccion">Puntos por Lección</label>
+                    <input type="number" id="puntos_por_leccion" name="puntos_por_leccion" value="{{ estructura.puntos_por_leccion }}" min="0" step="5">
+                </div>
+                
+                <div class="form-group">
+                    <label for="puntos_por_quiz">Puntos por Quiz</label>
+                    <input type="number" id="puntos_por_quiz" name="puntos_por_quiz" value="{{ estructura.puntos_por_quiz }}" min="0" step="10">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Vista previa de módulos -->
+        <div class="form-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">📚 Módulos y Lecciones</h2>
+                <button type="button" class="expandir-toggle" onclick="toggleTodos()">
+                    📂 Expandir/Colapsar Todos
+                </button>
+            </div>
+            
+            <div class="modulos-list">
+                {% for modulo in estructura.modulos %}
+                <div class="modulo-preview">
+                    <div class="modulo-header">
+                        <div class="modulo-titulo">
+                            📖 Módulo {{ modulo.orden }}: {{ modulo.nombre }}
+                        </div>
+                        <div class="modulo-meta">
+                            {{ modulo.lecciones|length }} lecciones | 
+                            {% if modulo.mini_examen %}{{ modulo.mini_examen|length }} preguntas de examen{% endif %}
+                        </div>
+                    </div>
+                    
+                    {% if modulo.descripcion %}
+                    <p style="color: #666; font-size: 14px; margin-bottom: 15px;">{{ modulo.descripcion }}</p>
+                    {% endif %}
+                    
+                    <div class="lecciones-container" style="display: none;">
+                        {% for leccion in modulo.lecciones %}
+                        <div class="leccion-item">
+                            <div class="leccion-titulo">
+                                📝 Lección {{ modulo.orden }}.{{ leccion.orden }}: {{ leccion.titulo }}
+                            </div>
+                            <div class="leccion-contenido">
+                                {{ leccion.contenido|truncatewords:30 }}
+                            </div>
+                            <div class="preguntas-count">
+                                ❓ {{ leccion.preguntas|length }} preguntas | 
+                                ⏱️ {{ leccion.duracion_minutos|default:"15" }} minutos
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <button type="button" class="expandir-toggle" style="margin-top: 10px;" onclick="toggleModulo(this)">
+                        👁️ Ver Lecciones
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Botones de acción -->
+        <div class="btn-actions">
+            <button type="button" class="btn btn-danger" onclick="confirmarCancelar()">
+                ✕ Cancelar
+            </button>
+            
+            <button type="button" class="btn btn-secondary" disabled title="Disponible en próxima versión">
+                🔄 Regenerar Parcial
+            </button>
+            
+            <button type="submit" class="btn btn-primary">
+                💾 Guardar Curso
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    function toggleModulo(btn) {
+        const container = btn.previousElementSibling;
+        const isVisible = container.style.display !== 'none';
+        
+        container.style.display = isVisible ? 'none' : 'block';
+        btn.textContent = isVisible ? '👁️ Ver Lecciones' : '🙈 Ocultar Lecciones';
+    }
+    
+    function toggleTodos() {
+        const containers = document.querySelectorAll('.lecciones-container');
+        const allVisible = Array.from(containers).every(c => c.style.display !== 'none');
+        
+        containers.forEach(container => {
+            container.style.display = allVisible ? 'none' : 'block';
+        });
+        
+        document.querySelectorAll('.modulo-preview .expandir-toggle:last-child').forEach(btn => {
+            btn.textContent = allVisible ? '👁️ Ver Lecciones' : '🙈 Ocultar Lecciones';
+        });
+    }
+    
+    function confirmarCancelar() {
+        if (confirm('¿Estás seguro de que deseas cancelar? Se perderá todo el trabajo de la IA.')) {
+            const form = document.getElementById('formGuardar');
+            form.querySelector('input[name="accion"]').value = 'cancelar';
+            form.submit();
+        }
+    }
+    
+    // Confirmar antes de salir
+    let formModificado = false;
+    document.querySelectorAll('input, textarea, select').forEach(field => {
+        field.addEventListener('change', () => {
+            formModificado = true;
+        });
+    });
+    
+    window.addEventListener('beforeunload', (e) => {
+        if (formModificado) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+    
+    document.getElementById('formGuardar').addEventListener('submit', () => {
+        formModificado = false;
+    });
+</script>
+{% endblock %}

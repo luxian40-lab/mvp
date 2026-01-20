@@ -1,41 +1,222 @@
 from django.shortcuts import render
 from django.contrib.admin.views.decorators import staff_member_required
-from django.http import HttpResponse, JsonResponse
-from django.db.models import Count
-from django.db.models.functions import TruncDate
 from django.views.decorators.csrf import csrf_exempt
+from django.http import HttpResponse, JsonResponse, FileResponse
+from django.conf import settings
+from django.core.paginator import Paginator
+from django.db.models import Q, Max, Count
+from django.shortcuts import get_object_or_404
 from datetime import datetime, timedelta
 import json
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
+from django.utils import timezone
+import requests
+import tempfile
+import os
+import logging
 
-from .models import Campana, Estudiante, WhatsappLog, EnvioLog  # ✅ Agregado EnvioLog
-from .message_handler import procesar_twilio_webhook, procesar_meta_webhook
+# Logger para debugging
+logger = logging.getLogger(__name__)
+
+from .models import Campana, Estudiante, WhatsappLog, EnvioLog
+from .models_extras import ArchivoModulo
+from .utils import enviar_whatsapp
+from .intent_detector import detect_intent
+from .response_templates import get_response_for_intent
+
+
+def _transcribir_audio_twilio(media_url):
+    """
+    Transcribe un audio de Twilio usando VOSK (GRATUITO, OFFLINE).
+    
+    VOSK: Modelo de reconocimiento de voz offline completamente gratuito.
+    - Costo: $0 (sin límites)
+    - Velocidad: Muy rápida (local)
+    - Idioma: Español colombiano
+    
+    Alternativa: OpenAI Whisper ($0.006/min) si VOSK no está disponible.
+    
+    Args:
+        media_url: URL del audio en Twilio
+    
+    Returns:
+        str: Texto transcrito
+    """
+    try:
+        # Obtener credenciales de Twilio para descargar el audio
+        account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+        auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+        
+        # Descargar el audio
+        response = requests.get(media_url, auth=(account_sid, auth_token))
+        response.raise_for_status()
+        
+        audio_size = len(response.content)
+        print(f"🎤 Transcribiendo audio ({audio_size} bytes)...")
+        
+        # Guardar temporalmente
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.ogg') as tmp_file:
+            tmp_file.write(response.content)
+            audio_path = tmp_file.name
+        
+        try:
+            # OPCIÓN 1: VOSK (GRATUITO - PRIORIDAD)
+            try:
+                texto = _transcribir_con_vosk(audio_path)
+                if texto and texto != "listo":
+                    print(f"✅ Vosk transcribió: '{texto}'")
+                    return texto
+            except Exception as vosk_error:
+                print(f"⚠️ Vosk no disponible: {vosk_error}")
+            
+            # OPCIÓN 2: WHISPER (FALLBACK PAGADO)
+            openai_api_key = getattr(settings, 'OPENAI_API_KEY', '')
+            if openai_api_key and audio_size < 500000:  # Solo audios cortos
+                print("🔄 Usando Whisper como fallback...")
+                from openai import OpenAI
+                client = OpenAI(api_key=openai_api_key)
+                
+                with open(audio_path, 'rb') as audio_file:
+                    transcription = client.audio.transcriptions.create(
+                        model="whisper-1",
+                        file=audio_file,
+                        language="es",
+                        prompt="Listo, continuar, menú, cursos, progreso, ayuda"
+                    )
+                
+                texto = transcription.text.strip()
+                print(f"✅ Whisper transcribió: '{texto}'")
+                return texto if texto else "listo"
+            
+            # OPCIÓN 3: FALLBACK INTELIGENTE
+            print("⚠️ Sin transcripción disponible - usando fallback")
+            return "listo"
+            
+        finally:
+            # Eliminar archivo temporal
+            if os.path.exists(audio_path):
+                os.remove(audio_path)
+    
+    except Exception as e:
+        print(f"❌ Error en transcripción: {e}")
+        return "listo"
+
+
+def _transcribir_con_vosk(audio_path):
+    """
+    Transcribe audio usando VOSK (gratuito, offline).
+    
+    Instalación requerida:
+    - pip install vosk
+    - Descargar modelo: https://alphacephei.com/vosk/models
+    - Colocar en: models/vosk-model-small-es-0.42/
+    """
+    try:
+        import json
+        from vosk import Model, KaldiRecognizer
+        from pydub import AudioSegment
+        import wave
+        
+        # Ruta al modelo de Vosk (configurar en settings)
+        model_path = getattr(settings, 'VOSK_MODEL_PATH', 'models/vosk-model-small-es-0.42')
+        
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"Modelo Vosk no encontrado en {model_path}")
+        
+        # Cargar modelo (se cachea automáticamente)
+        model = Model(model_path)
+        
+        # Convertir audio a formato WAV 16kHz mono (requerido por Vosk)
+        audio = AudioSegment.from_file(audio_path)
+        audio = audio.set_frame_rate(16000).set_channels(1)
+        
+        # Guardar como WAV temporal
+        wav_path = audio_path.replace('.ogg', '_vosk.wav').replace('.mp3', '_vosk.wav')
+        audio.export(wav_path, format='wav')
+        
+        # Transcribir usando wave module (más confiable)
+        recognizer = KaldiRecognizer(model, 16000)
+        
+        wf = wave.open(wav_path, "rb")
+        
+        # Procesar por chunks
+        while True:
+            data = wf.readframes(4000)
+            if len(data) == 0:
+                break
+            recognizer.AcceptWaveform(data)
+        
+        wf.close()
+        
+        # Obtener resultado final
+        result = json.loads(recognizer.FinalResult())
+        texto = result.get('text', '').strip()
+        
+        print(f"✅ Vosk transcribió: '{texto}'")
+        
+        # Limpiar archivo WAV temporal
+        if os.path.exists(wav_path):
+            os.remove(wav_path)
+        
+        return texto if texto else "listo"
+        
+    except Exception as e:
+        print(f"❌ Error Vosk: {e}")
+        raise  # Re-lanzar para que el fallback funcione
+
 
 @staff_member_required
 def dashboard_view(request):
     from django.db.models import Count
     from django.db.models.functions import TruncDate
     
+    # Filtro por cliente (opcional)
+    cliente_id = request.GET.get('cliente')
+    cliente_seleccionado = None
+    
+    if cliente_id:
+        try:
+            cliente_seleccionado = Cliente.objects.get(id=cliente_id)
+        except Cliente.DoesNotExist:
+            pass
+    
+    # Filtrar estudiantes por cliente si está seleccionado
+    estudiantes_query = Estudiante.objects.filter(activo=True)
+    if cliente_seleccionado:
+        estudiantes_query = estudiantes_query.filter(cliente=cliente_seleccionado)
+    
     # 1. Calcular Métricas REALES (solo WhatsappLog)
     total_campanas = Campana.objects.count()
-    estudiantes_activos = Estudiante.objects.filter(activo=True).count()
+    if cliente_seleccionado:
+        total_campanas = Campana.objects.filter(cliente=cliente_seleccionado).count()
     
-    # Métricas de WhatsApp (DATOS REALES)
-    whatsapp_logs = WhatsappLog.objects.all().order_by('-fecha')[:10]
-    whatsapp_total = WhatsappLog.objects.count()
-    whatsapp_enviados = WhatsappLog.objects.filter(tipo='SENT').count()
-    whatsapp_recibidos = WhatsappLog.objects.filter(tipo='INCOMING').count()
+    estudiantes_activos = estudiantes_query.count()
+    
+    # Obtener teléfonos de estudiantes del cliente
+    telefonos_cliente = []
+    if cliente_seleccionado:
+        telefonos_cliente = [est.telefono.replace('+', '').replace(' ', '') for est in estudiantes_query]
+    
+    # Métricas de WhatsApp (DATOS REALES) - filtradas por cliente
+    whatsapp_logs_query = WhatsappLog.objects.all()
+    if cliente_seleccionado and telefonos_cliente:
+        whatsapp_logs_query = whatsapp_logs_query.filter(telefono__in=telefonos_cliente)
+    
+    whatsapp_logs = whatsapp_logs_query.order_by('-fecha')[:10]
+    whatsapp_total = whatsapp_logs_query.count()
+    whatsapp_enviados = whatsapp_logs_query.filter(tipo='SENT').count()
+    whatsapp_recibidos = whatsapp_logs_query.filter(tipo='INCOMING').count()
     
     # Conversaciones únicas (estudiantes que han conversado)
-    conversaciones_activas = WhatsappLog.objects.values('telefono').distinct().count()
+    conversaciones_activas = whatsapp_logs_query.values('telefono').distinct().count()
     
     # Datos para gráficos - Últimos 7 días
     hoy = datetime.now().date()
     hace_7_dias = hoy - timedelta(days=7)
     
     # Mensajes por día (últimos 7 días)
-    mensajes_por_dia = WhatsappLog.objects.filter(
+    mensajes_por_dia = whatsapp_logs_query.filter(
         fecha__gte=hace_7_dias
     ).annotate(
         dia=TruncDate('fecha')
@@ -54,14 +235,17 @@ def dashboard_view(request):
     
     # Mensajes por tipo (últimos 30 días) - DATOS REALES
     hace_30_dias = hoy - timedelta(days=30)
-    mensajes_enviados_30d = WhatsappLog.objects.filter(
+    mensajes_enviados_30d = whatsapp_logs_query.filter(
         fecha__gte=hace_30_dias,
         tipo='SENT'
     ).count()
-    mensajes_recibidos_30d = WhatsappLog.objects.filter(
+    mensajes_recibidos_30d = whatsapp_logs_query.filter(
         fecha__gte=hace_30_dias,
         tipo='INCOMING'
     ).count()
+    
+    # Obtener todos los clientes para el selector
+    todos_clientes = Cliente.objects.all().order_by('nombre')
 
     context = {
         'total_campanas': total_campanas,
@@ -80,11 +264,22 @@ def dashboard_view(request):
         'chart_enviados_30d': mensajes_enviados_30d,
         'chart_recibidos_30d': mensajes_recibidos_30d,
         
+        # Selector de cliente
+        'todos_clientes': todos_clientes,
+        'cliente_seleccionado': cliente_seleccionado,
+        
         # Timestamp para auto-refresh
         'timestamp': datetime.now().strftime('%d/%m/%Y %H:%M:%S'),
     }
     
     return render(request, 'admin/dashboard_metrics.html', context)
+
+
+# ---------- Vista de instrucciones ----------
+@staff_member_required
+def instrucciones_view(request):
+    """Vista para mostrar el instructivo completo de Eki."""
+    return render(request, 'admin/instrucciones.html')
 
 
 # ---------- Vista de importación de estudiantes ----------
@@ -312,7 +507,6 @@ def descargar_reportes(request):
 
 # ---------- Webhook para WhatsApp Cloud API ----------
 @csrf_exempt
-@csrf_exempt
 def whatsapp_webhook(request):
     """
     Webhook universal para WhatsApp (Meta + Twilio)
@@ -340,7 +534,7 @@ def whatsapp_webhook(request):
             if 'entry' in payload:
                 # ===== META WHATSAPP =====
                 print("📍 Detectado: META WhatsApp")
-                procesar_meta_webhook(payload)
+                _procesar_meta_webhook(payload)
             else:
                 # Podría ser Twilio con JSON
                 print("⚠️ JSON recibido pero no es Meta")
@@ -349,7 +543,7 @@ def whatsapp_webhook(request):
         except json.JSONDecodeError:
             # Podría ser Twilio (form-data)
             print("🔵 Payload (Form-Data) - Probablemente Twilio")
-            procesar_twilio_webhook(request.POST)
+            _procesar_twilio_webhook(request.POST)
         
         except Exception as e:
             print(f"❌ Error en webhook: {str(e)}")
@@ -371,39 +565,214 @@ def _procesar_twilio_webhook(post_data):
         msg_to = post_data.get('To', '')      # whatsapp:+14155238886
         msg_sid = post_data.get('MessageSid', f'twilio_{timezone.now().timestamp()}')
         
-        # Limpiar número
+        # 🎤 DETECTAR AUDIO: Twilio envía audios como MediaUrl
+        num_media = int(post_data.get('NumMedia', 0))
+        if num_media > 0 and not msg_body:
+            # Usuario envió audio sin texto
+            media_url = post_data.get('MediaUrl0', '')
+            media_type = post_data.get('MediaContentType0', '')
+            
+            if 'audio' in media_type:
+                print(f"🎤 Audio recibido: {media_url}")
+                # Transcribir audio con OpenAI Whisper
+                try:
+                    msg_body = _transcribir_audio_twilio(media_url)
+                    print(f"✅ Audio transcrito: {msg_body}")
+                except Exception as e:
+                    print(f"❌ Error transcribiendo audio: {e}")
+                    msg_body = "listo"  # Fallback común para continuar lección
+        
+        # Limpiar número (quitar whatsapp: y normalizar igual que el modelo)
         if msg_from.startswith('whatsapp:'):
             msg_from = msg_from.replace('whatsapp:', '')
         
-        print(f"📱 De: {msg_from} | Mensaje: {msg_body}")
+        # Normalizar teléfono igual que el modelo (sin +, sin espacios, sin guiones)
+        import re
+        telefono_limpio = re.sub(r'\D', '', msg_from)  # Solo dígitos
+        if len(telefono_limpio) == 10:
+            telefono_limpio = f"57{telefono_limpio}"
         
-        # Buscar o crear estudiante
-        telefono_limpio = msg_from.replace('+', '').replace(' ', '')
-        estudiante = None
-        try:
-            estudiante = Estudiante.objects.get(telefono=telefono_limpio)
-            print(f"✅ Estudiante encontrado: {estudiante.nombre}")
-        except Estudiante.DoesNotExist:
-            print(f"⚠️ Estudiante no encontrado para {telefono_limpio}")
+        print(f"📱 De: {msg_from} → Limpio: {telefono_limpio} | Mensaje: {msg_body}")
         
-        # 1. Guardar mensaje entrante
+        # 1. Guardar mensaje entrante con teléfono limpio
         WhatsappLog.objects.create(
-            telefono=msg_from,
+            telefono=telefono_limpio,
             mensaje=msg_body,
             mensaje_id=msg_sid,
-            tipo='INCOMING',
-            estudiante=estudiante  # ✅ Asignar estudiante
+            tipo='INCOMING'
         )
         print(f"✅ Guardado INCOMING")
         
-        # 2. Generar respuesta con IA
+        # 2. Buscar estudiante con teléfono limpio
         try:
-            from .ai_assistant import responder_con_ia
-            texto_respuesta = responder_con_ia(msg_body, msg_from)
-            print(f"✅ IA generó respuesta: {texto_respuesta[:50]}...")
-        except Exception as e:
-            print(f"❌ Error IA: {e}, usando respuesta genérica")
-            texto_respuesta = "Hola! Gracias por tu mensaje. Estoy aquí para ayudarte."
+            estudiante = Estudiante.objects.get(telefono=telefono_limpio)
+            print(f"✅ Estudiante encontrado: {estudiante.nombre} (ID: {estudiante.id})")
+        except Estudiante.DoesNotExist:
+            # Si no existe, ir directo a habeas data (se creará en security_handler)
+            print(f"⚠️ Estudiante nuevo: {telefono_limpio} - Iniciará habeas data")
+            estudiante = None
+        
+        # 3. 🛡️ PRIORIDAD 1: Verificar seguridad (Habeas Data)
+        from .security_handler import verificar_seguridad_completa
+        bloqueado, respuesta_seguridad, estudiante = verificar_seguridad_completa(estudiante, msg_body, telefono_limpio)
+        
+        if bloqueado:
+            print(f"🛡️ Bloqueado por seguridad/habeas data")
+            texto_respuesta = respuesta_seguridad
+        else:
+            # 3.5 PRIORIDAD: Si está respondiendo pregunta de módulo
+            if estudiante.estado_onboarding == 'esperando_respuesta_modulo':
+                from .pregunta_handler import validar_respuesta
+                print(f"📝 Validando respuesta a pregunta de módulo")
+                
+                es_correcta, mensaje_respuesta, modulo_completado = validar_respuesta(estudiante, msg_body)
+                
+                # Obtener progreso para avanzar al siguiente módulo
+                if modulo_completado:
+                    from .helpers_examenes import puede_avanzar_modulo
+                    
+                    progreso = modulo_completado.progreso
+                    modulo_actual = modulo_completado.modulo
+                    
+                    # ⚠️ VERIFICAR EXAMEN OBLIGATORIO ANTES DE AVANZAR
+                    puede_avanzar, mensaje_examen, detalles = puede_avanzar_modulo(estudiante, modulo_actual)
+                    
+                    if not puede_avanzar:
+                        # NO puede avanzar - examen obligatorio no aprobado
+                        mensaje_respuesta += f"""
+
+━━━━━━━━━━━━━━━━━━━━
+
+🔒 *Examen Obligatorio*
+
+{mensaje_examen}
+
+Para continuar al siguiente módulo debes aprobar el examen de este módulo.
+
+Escribe *"examen"* cuando estés listo para intentarlo."""
+                        
+                        WhatsappLog.objects.create(
+                            telefono=from_number,
+                            mensaje=mensaje_respuesta,
+                            mensaje_id=f"response_{timezone.now().timestamp()}",
+                            tipo='SENT'
+                        )
+                        return HttpResponse(f'<?xml version="1.0" encoding="UTF-8"?><Response><Message>{mensaje_respuesta}</Message></Response>', content_type='text/xml')
+                    
+                    # Buscar siguiente módulo
+                    siguiente_modulo = progreso.curso.modulos.filter(
+                        numero__gt=modulo_actual.numero
+                    ).order_by('numero').first()
+                    
+                    if siguiente_modulo:
+                        # Actualizar progreso al siguiente módulo
+                        progreso.modulo_actual = siguiente_modulo
+                        progreso.save()
+                        
+                        porcentaje = progreso.porcentaje_avance()
+                        from .response_templates import obtener_video_url
+                        video_url = obtener_video_url(siguiente_modulo)
+                        
+                        # Verificar si tiene archivos multimedia
+                        archivos_multimedia = siguiente_modulo.archivos_multimedia.filter(activo=True)
+                        archivos_msg = ""
+                        if archivos_multimedia.exists():
+                            archivos_msg = f"\n\n📁 *{archivos_multimedia.count()} archivo(s) multimedia disponibles*"
+                            for archivo in archivos_multimedia[:3]:  # Máximo 3
+                                icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
+                                archivos_msg += f"\n{icono} {archivo.titulo}"
+                        
+                        mensaje_respuesta += f"""
+
+━━━━━━━━━━━━━━━━━━━━
+
+Progreso del curso: {porcentaje}%
+
+📖 *Módulo {siguiente_modulo.numero}: {siguiente_modulo.titulo}*
+
+{siguiente_modulo.descripcion}
+
+{siguiente_modulo.contenido}{archivos_msg}
+
+━━━━━━━━━━━━━━━━━━━━
+
+Cuando termines, escribe: *"listo"*"""
+                        
+                        if video_url:
+                            mensaje_respuesta += f"\n\n🎥 Video educativo:\n{video_url}"
+                        
+                        # Mostrar si el siguiente módulo tiene examen obligatorio
+                        if siguiente_modulo.examen_obligatorio:
+                            mensaje_respuesta += f"\n\n⚠️ *Este módulo tiene examen obligatorio ({siguiente_modulo.puntaje_minimo_aprobacion}% para aprobar)*"
+                    
+                    else:
+                        # Completó todos los módulos
+                        progreso.completado = True
+                        progreso.fecha_completado = timezone.now()
+                        progreso.save()
+                        
+                        mensaje_respuesta += f"""
+
+━━━━━━━━━━━━━━━━━━━━
+
+🎓 *¡FELICITACIONES!*
+
+Has completado el curso: *{progreso.curso.nombre}*
+
+🏆 Certificado disponible en tu perfil
+
+*¿Qué deseas hacer ahora?*
+
+1️⃣ Ver otros cursos
+2️⃣ Ver mi progreso
+3️⃣ Menú principal"""
+                
+                texto_respuesta = mensaje_respuesta
+                print(f"✅ Respuesta validada: {'Correcta' if es_correcta else 'Incorrecta'}")
+                
+                # IMPORTANTE: Enviar respuesta inmediatamente después de validar
+                # (tanto si es correcta como incorrecta)
+                WhatsappLog.objects.create(
+                    telefono=from_number,
+                    mensaje=texto_respuesta,
+                    mensaje_id=f"response_{timezone.now().timestamp()}",
+                    tipo='SENT',
+                    estudiante=estudiante
+                )
+                return HttpResponse(
+                    f'<?xml version="1.0" encoding="UTF-8"?><Response><Message>{texto_respuesta}</Message></Response>',
+                    content_type='text/xml'
+                )
+            
+            # 4. Detectar intent y usar templates primero
+            else:
+                from .intent_detector import detect_intent
+                from .response_templates import get_response_for_intent
+                
+                intent = detect_intent(msg_body)
+                print(f"🎯 Intent detectado: {intent}")
+                intent = detect_intent(msg_body)
+                print(f"🎯 Intent detectado: {intent}")
+            
+                # Si hay un intent conocido, usar template
+                if intent != 'desconocido':
+                    texto_respuesta = get_response_for_intent(
+                        intent, 
+                        estudiante.nombre,
+                        estudiante_id=estudiante.id,
+                        mensaje_original=msg_body
+                    )
+                    print(f"✅ Respuesta desde template: {texto_respuesta[:50]}...")
+                else:
+                    # Solo si no hay intent, usar IA para preguntas sobre agricultura
+                    print(f"🤖 Usando IA para pregunta sobre agricultura")
+                    try:
+                        from .ai_assistant import responder_con_ia
+                        texto_respuesta = responder_con_ia(msg_body, msg_from)
+                        print(f"✅ IA generó respuesta: {texto_respuesta[:50]}...")
+                    except Exception as e:
+                        print(f"❌ Error IA: {e}, usando respuesta genérica")
+                        texto_respuesta = "Disculpa, tengo problemas técnicos. Escribe 'menú' para ver las opciones."
         
         # 3. Enviar respuesta via Twilio
         try:
@@ -418,26 +787,56 @@ def _procesar_twilio_webhook(post_data):
             
             client = Client(account_sid, auth_token)
             
-            # Asegurar formato whatsapp:
+            # Usar el teléfono original (con +) para enviar por Twilio
             destino_formateado = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
             
-            mensaje = client.messages.create(
-                body=texto_respuesta,
-                from_=twilio_number,
-                to=destino_formateado
-            )
-            
-            print(f"✅ Mensaje enviado via Twilio: {mensaje.sid}")
-            
-            # Guardar log de respuesta
-            WhatsappLog.objects.create(
-                telefono=msg_from,
-                mensaje=texto_respuesta,
-                mensaje_id=mensaje.sid,
-                tipo='SENT',
-                estudiante=estudiante  # ✅ Asignar estudiante
-            )
-            print(f"✅ Guardado SENT")
+            # Check if response is a multi-message (marked with [MULTI_MSG])
+            if texto_respuesta.startswith('[MULTI_MSG]'):
+                # Extract and send multiple messages
+                partes = texto_respuesta.replace('[MULTI_MSG]', '', 1).split('[SEP]')
+                
+                for idx, parte in enumerate(partes):
+                    if not parte.strip():
+                        continue
+                    
+                    mensaje = client.messages.create(
+                        body=parte.strip(),
+                        from_=twilio_number,
+                        to=destino_formateado
+                    )
+                    
+                    print(f"✅ Mensaje {idx+1}/{len(partes)} enviado via Twilio: {mensaje.sid}")
+                    
+                    # Guardar log de respuesta con teléfono limpio
+                    WhatsappLog.objects.create(
+                        telefono=telefono_limpio,
+                        mensaje=parte.strip(),
+                        mensaje_id=mensaje.sid,
+                        tipo='SENT'
+                    )
+                    print(f"✅ Guardado SENT")
+                    
+                    # Small delay between messages to avoid rate limiting
+                    import time
+                    time.sleep(0.5)
+            else:
+                # Single message (original behavior)
+                mensaje = client.messages.create(
+                    body=texto_respuesta,
+                    from_=twilio_number,
+                    to=destino_formateado
+                )
+                
+                print(f"✅ Mensaje enviado via Twilio: {mensaje.sid}")
+                
+                # Guardar log de respuesta con teléfono limpio
+                WhatsappLog.objects.create(
+                    telefono=telefono_limpio,
+                    mensaje=texto_respuesta,
+                    mensaje_id=mensaje.sid,
+                    tipo='SENT'
+                )
+                print(f"✅ Guardado SENT")
             
         except Exception as e:
             print(f"❌ Error enviando respuesta Twilio: {str(e)}")
@@ -470,32 +869,46 @@ def _procesar_meta_webhook(payload):
                     if 'text' in m and isinstance(m['text'], dict):
                         text = m['text'].get('body', '')
                     
-                    # Buscar estudiante
-                    telefono_limpio = phone.replace('+', '').replace(' ', '')
-                    estudiante = None
-                    try:
-                        estudiante = Estudiante.objects.get(telefono=telefono_limpio)
-                        print(f"✅ Estudiante encontrado: {estudiante.nombre}")
-                    except Estudiante.DoesNotExist:
-                        print(f"⚠️ Estudiante no encontrado para {telefono_limpio}")
-                    
                     # Guardar mensaje
                     WhatsappLog.objects.create(
                         telefono=phone,
                         mensaje=text,
                         mensaje_id=msg_id,
-                        tipo='INCOMING',
-                        estudiante=estudiante  # ✅ Asignar estudiante
+                        tipo='INCOMING'
                     )
                     
-                    # Generar respuesta
-                    try:
-                        from .ai_assistant import responder_con_ia
-                        texto_respuesta = responder_con_ia(text, phone)
-                    except Exception as e:
-                        print(f"Error IA: {e}")
+                    # Obtener o crear estudiante
+                    estudiante, _ = Estudiante.objects.get_or_create(
+                        telefono=phone,
+                        defaults={'nombre': 'Usuario', 'activo': True}
+                    )
+                    
+                    # Verificar seguridad primero
+                    from .security_handler import verificar_seguridad_completa
+                    bloqueado, respuesta_seguridad = verificar_seguridad_completa(estudiante, text)
+                    
+                    if bloqueado:
+                        texto_respuesta = respuesta_seguridad
+                    else:
+                        # Detectar intent
                         intent = detect_intent(text)
-                        texto_respuesta = get_response_for_intent(intent, 'Usuario')
+                        
+                        if intent != 'desconocido':
+                            # Usar template
+                            texto_respuesta = get_response_for_intent(
+                                intent, 
+                                estudiante.nombre,
+                                estudiante_id=estudiante.id,
+                                mensaje_original=text
+                            )
+                        else:
+                            # Usar IA solo para preguntas
+                            try:
+                                from .ai_assistant import responder_con_ia
+                                texto_respuesta = responder_con_ia(text, phone)
+                            except Exception as e:
+                                print(f"Error IA: {e}")
+                                texto_respuesta = "Disculpa, tengo problemas técnicos. Escribe 'menú' para ver las opciones."
                     
                     # Enviar respuesta
                     resultado_envio = enviar_whatsapp(phone, texto_respuesta)
@@ -505,8 +918,7 @@ def _procesar_meta_webhook(payload):
                             telefono=phone,
                             mensaje=texto_respuesta,
                             mensaje_id=resultado_envio.get('mensaje_id'),
-                            tipo='SENT',
-                            estudiante=estudiante  # ✅ Asignar estudiante
+                            tipo='SENT'
                         )
     
     except Exception as e:
@@ -652,91 +1064,66 @@ def calendario_campanas_view(request):
 @staff_member_required
 def conversaciones_view(request):
     """Vista de conversaciones estilo WhatsApp"""
-    print("🔍 DEBUG: Iniciando conversaciones_view")
-    
     # Obtener todos los estudiantes que tienen mensajes
     estudiantes_con_mensajes = []
     
-    # PRIMERO: Obtener todos los WhatsappLog con estudiante asignado
-    whatsapp_con_estudiante = WhatsappLog.objects.filter(estudiante__isnull=False).select_related('estudiante')
-    estudiantes_ids_whatsapp = set(whatsapp_con_estudiante.values_list('estudiante_id', flat=True))
+    # Obtener todos los estudiantes
+    todos_estudiantes = Estudiante.objects.all()
     
-    print(f"📊 DEBUG: {whatsapp_con_estudiante.count()} mensajes WhatsApp con estudiante asignado")
-    print(f"📊 DEBUG: {len(estudiantes_ids_whatsapp)} estudiantes únicos con mensajes WhatsApp")
-    
-    # SEGUNDO: Obtener estudiantes con EnvioLog
-    envios_log = EnvioLog.objects.filter(estudiante__isnull=False).select_related('estudiante')
-    estudiantes_ids_envios = set(envios_log.values_list('estudiante_id', flat=True))
-    
-    print(f"📊 DEBUG: {envios_log.count()} mensajes de campañas enviadas")
-    print(f"📊 DEBUG: {len(estudiantes_ids_envios)} estudiantes únicos con envíos")
-    
-    # Combinar ambos sets
-    todos_ids = estudiantes_ids_whatsapp | estudiantes_ids_envios
-    
-    print(f"📊 DEBUG: {len(todos_ids)} estudiantes TOTALES con conversaciones")
-    
-    # Obtener objetos Estudiante
-    if todos_ids:
-        estudiantes = Estudiante.objects.filter(id__in=todos_ids)
-    else:
-        estudiantes = Estudiante.objects.none()
-    
-    for est in estudiantes:
+    for est in todos_estudiantes:
         try:
-            # Obtener último mensaje de WhatsApp
-            ultimo_whatsapp = WhatsappLog.objects.filter(estudiante=est).order_by('-fecha').first()
+            telefono_limpio = est.telefono.replace('+', '').replace(' ', '')
             
-            # Obtener último envío
-            ultimo_envio = EnvioLog.objects.filter(estudiante=est).order_by('-fecha_envio').first()
+            # Contar mensajes de WhatsApp
+            total_whatsapp = WhatsappLog.objects.filter(telefono=telefono_limpio).count()
             
-            # Determinar cuál es más reciente
-            ultima_fecha = None
-            ultimo_mensaje = None
-            total_mensajes = 0
+            # Contar mensajes de envíos
+            total_envios = EnvioLog.objects.filter(estudiante=est).count()
             
-            if ultimo_whatsapp and ultimo_envio:
-                # Convertir ambas fechas a aware si es necesario
-                fecha_whatsapp = ultimo_whatsapp.fecha
-                fecha_envio = ultimo_envio.fecha_envio
+            if total_whatsapp > 0 or total_envios > 0:
+                # Obtener último mensaje
+                ultimo_whatsapp = WhatsappLog.objects.filter(telefono=telefono_limpio).order_by('-fecha').first()
+                ultimo_envio = EnvioLog.objects.filter(estudiante=est).order_by('-fecha_envio').first()
                 
-                # Asegurar que ambas son timezone-aware
-                if timezone.is_naive(fecha_whatsapp):
-                    fecha_whatsapp = timezone.make_aware(fecha_whatsapp)
-                if timezone.is_naive(fecha_envio):
-                    fecha_envio = timezone.make_aware(fecha_envio)
+                # Determinar cuál es más reciente
+                ultima_fecha = None
+                ultimo_mensaje = None
                 
-                if fecha_whatsapp > fecha_envio:
-                    ultima_fecha = fecha_whatsapp
-                    ultimo_mensaje = ultimo_whatsapp.mensaje[:50]
-                else:
-                    ultima_fecha = fecha_envio
-                    ultimo_mensaje = f"📤 Campaña: {ultimo_envio.campana.nombre if ultimo_envio.campana else 'Sin nombre'}"
+                if ultimo_whatsapp and ultimo_envio:
+                    # Convertir ambas fechas a aware si es necesario
+                    fecha_whatsapp = ultimo_whatsapp.fecha
+                    fecha_envio = ultimo_envio.fecha_envio
+                    
+                    # Asegurar que ambas son timezone-aware
+                    if timezone.is_naive(fecha_whatsapp):
+                        fecha_whatsapp = timezone.make_aware(fecha_whatsapp)
+                    if timezone.is_naive(fecha_envio):
+                        fecha_envio = timezone.make_aware(fecha_envio)
+                    
+                    if fecha_whatsapp > fecha_envio:
+                        ultima_fecha = fecha_whatsapp
+                        ultimo_mensaje = ultimo_whatsapp.mensaje
+                    else:
+                        ultima_fecha = fecha_envio
+                        ultimo_mensaje = f"Campaña: {ultimo_envio.campana.nombre}"
+                elif ultimo_whatsapp:
+                    ultima_fecha = ultimo_whatsapp.fecha
+                    if timezone.is_naive(ultima_fecha):
+                        ultima_fecha = timezone.make_aware(ultima_fecha)
+                    ultimo_mensaje = ultimo_whatsapp.mensaje
+                elif ultimo_envio:
+                    ultima_fecha = ultimo_envio.fecha_envio
+                    if timezone.is_naive(ultima_fecha):
+                        ultima_fecha = timezone.make_aware(ultima_fecha)
+                    ultimo_mensaje = f"Campaña: {ultimo_envio.campana.nombre}"
                 
-                total_mensajes = WhatsappLog.objects.filter(estudiante=est).count() + EnvioLog.objects.filter(estudiante=est).count()
-                
-            elif ultimo_whatsapp:
-                ultima_fecha = ultimo_whatsapp.fecha
-                if timezone.is_naive(ultima_fecha):
-                    ultima_fecha = timezone.make_aware(ultima_fecha)
-                ultimo_mensaje = ultimo_whatsapp.mensaje[:50]
-                total_mensajes = WhatsappLog.objects.filter(estudiante=est).count()
-                
-            elif ultimo_envio:
-                ultima_fecha = ultimo_envio.fecha_envio
-                if timezone.is_naive(ultima_fecha):
-                    ultima_fecha = timezone.make_aware(ultima_fecha)
-                ultimo_mensaje = f"📤 Campaña: {ultimo_envio.campana.nombre if ultimo_envio.campana else 'Sin nombre'}"
-                total_mensajes = EnvioLog.objects.filter(estudiante=est).count()
-            
-            if ultima_fecha:
                 est.ultima_fecha = ultima_fecha
                 est.ultimo_mensaje = ultimo_mensaje
-                est.total_mensajes = total_mensajes
+                est.total_mensajes = total_whatsapp + total_envios
                 estudiantes_con_mensajes.append(est)
-                
         except Exception as e:
-            print(f"❌ ERROR procesando estudiante {est.id}: {str(e)}")
+            # Si hay algún error con un estudiante, continuar con el siguiente
+            print(f"Error procesando estudiante {est.id}: {str(e)}")
             continue
     
     # Ordenar por fecha más reciente
@@ -744,8 +1131,6 @@ def conversaciones_view(request):
         key=lambda x: x.ultima_fecha if hasattr(x, 'ultima_fecha') and x.ultima_fecha else timezone.now() - timedelta(days=365*10), 
         reverse=True
     )
-    
-    print(f"✅ DEBUG: {len(estudiantes_con_mensajes)} estudiantes procesados para mostrar")
     
     # Estudiante seleccionado
     estudiante_id = request.GET.get('estudiante')
@@ -756,16 +1141,13 @@ def conversaciones_view(request):
     if estudiante_id:
         try:
             estudiante_seleccionado = Estudiante.objects.get(id=estudiante_id)
-            print(f"👤 DEBUG: Cargando mensajes para {estudiante_seleccionado.nombre}")
+            telefono_limpio = estudiante_seleccionado.telefono.replace('+', '').replace(' ', '')
             
             # Crear lista unificada de mensajes
             lista_mensajes = []
             
-            # WhatsApp logs (usar estudiante FK en lugar de teléfono)
-            whatsapp_msgs = WhatsappLog.objects.filter(estudiante=estudiante_seleccionado).order_by('fecha')
-            print(f"💬 DEBUG: {whatsapp_msgs.count()} mensajes WhatsApp encontrados")
-            
-            for msg in whatsapp_msgs:
+            # WhatsApp logs
+            for msg in WhatsappLog.objects.filter(telefono=telefono_limpio):
                 fecha = msg.fecha
                 if timezone.is_naive(fecha):
                     fecha = timezone.make_aware(fecha)
@@ -774,25 +1156,19 @@ def conversaciones_view(request):
                     'mensaje': msg.mensaje,
                     'fecha': fecha,
                     'estado': msg.estado,
-                    'tipo': 'recibido' if msg.tipo == 'INCOMING' else 'enviado'  # ✅ Usar campo 'tipo' en lugar de 'estado'
+                    'tipo': 'recibido' if msg.estado == 'INCOMING' else 'enviado'
                 })
             
             # Envio logs (mensajes enviados por campañas)
-            envios = EnvioLog.objects.filter(estudiante=estudiante_seleccionado).select_related('campana', 'campana__plantilla').order_by('fecha_envio')
-            print(f"📤 DEBUG: {envios.count()} mensajes de campañas encontrados")
-            
-            for envio in envios:
+            for envio in EnvioLog.objects.filter(estudiante=estudiante_seleccionado).select_related('campana', 'campana__plantilla'):
                 fecha = envio.fecha_envio
                 if timezone.is_naive(fecha):
                     fecha = timezone.make_aware(fecha)
                 
                 # Obtener el mensaje de la plantilla
-                if envio.campana and envio.campana.plantilla:
-                    mensaje_campana = envio.campana.plantilla.cuerpo_mensaje
-                    # Personalizar con el nombre del estudiante
-                    mensaje_personalizado = mensaje_campana.replace('{nombre}', estudiante_seleccionado.nombre)
-                else:
-                    mensaje_personalizado = f"Campaña: {envio.campana.nombre if envio.campana else 'Sin nombre'}"
+                mensaje_campana = envio.campana.plantilla.cuerpo_mensaje
+                # Personalizar con el nombre del estudiante
+                mensaje_personalizado = mensaje_campana.replace('{nombre}', estudiante_seleccionado.nombre)
                     
                 lista_mensajes.append({
                     'mensaje': mensaje_personalizado,
@@ -804,8 +1180,6 @@ def conversaciones_view(request):
             # Ordenar por fecha
             lista_mensajes.sort(key=lambda x: x['fecha'] if x['fecha'] else timezone.now() - timedelta(days=365*10))
             
-            print(f"✅ DEBUG: {len(lista_mensajes)} mensajes totales unificados")
-            
             # Paginación
             paginator = Paginator(lista_mensajes, 50)
             page_number = request.GET.get('page', 1)
@@ -813,21 +1187,16 @@ def conversaciones_view(request):
             mensajes = page_obj.object_list
             
         except Estudiante.DoesNotExist:
-            print(f"❌ ERROR: Estudiante {estudiante_id} no existe")
+            pass
         except Exception as e:
-            print(f"❌ ERROR cargando mensajes: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            print(f"Error cargando mensajes: {str(e)}")
     
     context = {
         'estudiantes': estudiantes_con_mensajes[:50],  # Limitar a 50 contactos
         'estudiante_seleccionado': estudiante_seleccionado,
         'mensajes': mensajes,
         'page_obj': page_obj,
-        'total_conversaciones': len(estudiantes_con_mensajes),
     }
-    
-    print(f"🎯 DEBUG: Renderizando template con {len(context['estudiantes'])} estudiantes")
     
     return render(request, 'admin/conversaciones.html', context)
 
@@ -893,43 +1262,285 @@ def chat_prueba_api(request):
     return JsonResponse({'error': 'Método no permitido'}, status=405)
 
 
+def obtener_archivos_modulo_view(request, modulo_id):
+    """
+    API para obtener archivos multimedia de un módulo específico
+    Usado por estudiantes para ver contenido disponible
+    """
+    from .models import Modulo
+    
+    try:
+        modulo = get_object_or_404(Modulo, id=modulo_id)
+        archivos = modulo.archivos_multimedia.filter(activo=True).order_by('orden', 'id')
+        
+        archivos_data = []
+        for archivo in archivos:
+            archivos_data.append({
+                'id': archivo.id,
+                'tipo': archivo.get_tipo_display(),
+                'titulo': archivo.titulo,
+                'descripcion': archivo.descripcion,
+                'url_descarga': f'/media/descargar-archivo/{archivo.id}/' if archivo.archivo else None,
+                'url_externa': archivo.url_externa,
+                'disponible_offline': archivo.disponible_offline,
+                'tamano_mb': archivo.tamano_mb(),
+                'duracion_segundos': archivo.duracion_segundos,
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'modulo': {
+                'id': modulo.id,
+                'titulo': modulo.titulo,
+                'numero': modulo.numero,
+            },
+            'archivos': archivos_data,
+            'total': len(archivos_data)
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
+
+
+def descargar_archivo_multimedia(request, archivo_id):
+    """
+    Descarga un archivo multimedia específico
+    Permite descarga offline si está habilitada
+    """
+    try:
+        archivo = get_object_or_404(ArchivoModulo, id=archivo_id)
+        
+        if not archivo.archivo:
+            return JsonResponse({
+                'error': 'Este archivo no tiene descarga disponible. Usa la URL externa.'
+            }, status=400)
+        
+        # Verificar si la descarga offline está permitida
+        if not archivo.disponible_offline:
+            return JsonResponse({
+                'error': 'La descarga offline no está habilitada para este archivo.'
+            }, status=403)
+        
+        # Retornar el archivo para descarga
+        response = FileResponse(archivo.archivo.open('rb'))
+        response['Content-Disposition'] = f'attachment; filename="{archivo.titulo}.{archivo.archivo.name.split(".")[-1]}"'
+        
+        return response
+        
+    except Exception as e:
+        return JsonResponse({
+            'error': f'Error al descargar archivo: {str(e)}'
+        }, status=500)
+
+
 @staff_member_required
-def ranking_gamificacion_view(request):
-    """Vista del ranking de gamificación"""
-    from .models import PerfilGamificacion, Badge, BadgeEstudiante
-    from django.db.models import Count, Max, Sum
-    
-    # Obtener top 20 del ranking
-    ranking = PerfilGamificacion.objects.select_related('estudiante').prefetch_related(
-        'estudiante__badges_obtenidos__badge'
-    ).order_by('-puntos_totales')[:20]
-    
-    # Agregar emoji de nivel a cada perfil
-    emojis = ['🌱', '🌿', '🍃', '🌾', '🌳', '🌲', '🎋', '🌺', '💎', '👑']
-    for perfil in ranking:
-        perfil.emoji = emojis[perfil.nivel - 1] if perfil.nivel <= 10 else '🏆'
-        perfil.total_badges = perfil.get_badges().count()
-    
-    # Estadísticas generales
-    stats = {
-        'total_estudiantes': PerfilGamificacion.objects.count(),
-        'puntos_totales': PerfilGamificacion.objects.aggregate(Sum('puntos_totales'))['puntos_totales__sum'] or 0,
-        'badges_obtenidos': BadgeEstudiante.objects.count(),
-        'racha_maxima': PerfilGamificacion.objects.aggregate(
-            Max('racha_dias_maxima')
-        )['racha_dias_maxima__max'] or 0,
-    }
-    
-    # Todos los badges con contador de cuántos lo tienen
-    all_badges = Badge.objects.annotate(
-        total=Count('estudiantes')
-    ).order_by('-total', 'nombre')
+def test_email_gmail_view(request):
+    """Vista para probar la configuración de Gmail"""
+    from .email_test import test_gmail_connection, format_email_status_html
     
     context = {
-        'ranking': ranking,
-        'stats': stats,
-        'all_badges': all_badges,
+        'title': 'Probar Conexión Gmail',
+        'status_html': format_email_status_html(),
+        'resultado': None
     }
     
-    return render(request, 'admin/ranking_gamificacion.html', context)
+    if request.method == 'POST':
+        success, message = test_gmail_connection()
+        context['resultado'] = {
+            'success': success,
+            'message': message
+        }
+    
+    return render(request, 'admin/test_email.html', context)
 
+
+# ========================================
+# VISTAS PARA GENERACIÓN DE CURSOS CON IA
+# ========================================
+
+@staff_member_required
+def subir_documento_curso(request):
+    """
+    Vista para subir documento (PDF/Word) y generar curso con IA.
+    Paso 1: Subida del archivo.
+    """
+    from .models import Cliente
+    
+    context = {
+        'clientes': Cliente.objects.all().order_by('nombre')
+    }
+    
+    if request.method == 'POST':
+        try:
+            # Obtener datos del formulario
+            archivo = request.FILES.get('documento')
+            cliente_id = request.POST.get('cliente_id')
+            modelo_ia = request.POST.get('modelo_ia', 'gpt-3.5-turbo')
+            
+            # Validaciones
+            if not archivo:
+                context['error'] = "Debes subir un archivo"
+                return render(request, 'admin/subir_documento_curso.html', context)
+            
+            if not cliente_id:
+                context['error'] = "Debes seleccionar un cliente"
+                return render(request, 'admin/subir_documento_curso.html', context)
+            
+            try:
+                cliente = Cliente.objects.get(id=cliente_id)
+            except Cliente.DoesNotExist:
+                context['error'] = "Cliente no encontrado"
+                return render(request, 'admin/subir_documento_curso.html', context)
+            
+            # Validar tipo de archivo
+            nombre_archivo = archivo.name.lower()
+            if not (nombre_archivo.endswith('.pdf') or nombre_archivo.endswith('.docx') or nombre_archivo.endswith('.txt')):
+                context['error'] = "Solo se permiten archivos PDF, Word (.docx) o TXT"
+                return render(request, 'admin/subir_documento_curso.html', context)
+            
+            # Procesar archivo
+            from .utils_ia import extraer_texto_documento, generar_estructura_curso_con_ia, validar_estructura_curso
+            
+            # Paso 1: Extraer texto
+            context['procesando'] = True
+            texto = extraer_texto_documento(archivo)
+            
+            if len(texto) < 500:
+                context['error'] = "El documento es muy corto (mínimo 500 caracteres)"
+                return render(request, 'admin/subir_documento_curso.html', context)
+            
+            # Paso 2: Generar estructura con IA
+            estructura = generar_estructura_curso_con_ia(texto, modelo=modelo_ia)
+            
+            # Paso 3: Validar estructura
+            es_valida, errores = validar_estructura_curso(estructura)
+            
+            if not es_valida:
+                context['error'] = f"La IA generó una estructura inválida: {', '.join(errores)}"
+                context['advertencia'] = "Intenta con un documento diferente o modelo GPT-4"
+                return render(request, 'admin/subir_documento_curso.html', context)
+            
+            # Guardar estructura en sesión para el siguiente paso
+            request.session['estructura_curso'] = estructura
+            request.session['cliente_id'] = cliente_id
+            request.session['archivo_nombre'] = archivo.name
+            request.session['modelo_usado'] = modelo_ia
+            
+            # Redirigir a vista previa
+            from django.shortcuts import redirect
+            return redirect('vista_previa_curso_ia')
+            
+        except ValueError as e:
+            context['error'] = str(e)
+            return render(request, 'admin/subir_documento_curso.html', context)
+        except Exception as e:
+            context['error'] = f"Error inesperado: {str(e)}"
+            logger.error(f"Error en subir_documento_curso: {e}")
+            import traceback
+            traceback.print_exc()
+            return render(request, 'admin/subir_documento_curso.html', context)
+    
+    return render(request, 'admin/subir_documento_curso.html', context)
+
+
+@staff_member_required
+def vista_previa_curso_ia(request):
+    """
+    Vista para mostrar preview del curso generado y permitir edición.
+    Paso 2: Revisión y edición antes de guardar.
+    """
+    from .models import Cliente
+    from .utils_ia import guardar_curso_desde_estructura
+    
+    # Obtener estructura de la sesión
+    estructura = request.session.get('estructura_curso')
+    cliente_id = request.session.get('cliente_id')
+    archivo_nombre = request.session.get('archivo_nombre')
+    modelo_usado = request.session.get('modelo_usado', 'gpt-3.5-turbo')
+    
+    if not estructura or not cliente_id:
+        from django.shortcuts import redirect
+        from django.contrib import messages
+        messages.error(request, "No hay datos de curso. Debes subir un documento primero.")
+        return redirect('subir_documento_curso')
+    
+    try:
+        cliente = Cliente.objects.get(id=cliente_id)
+    except Cliente.DoesNotExist:
+        from django.contrib import messages
+        from django.shortcuts import redirect
+        messages.error(request, "Cliente no encontrado")
+        return redirect('subir_documento_curso')
+    
+    context = {
+        'estructura': estructura,
+        'cliente': cliente,
+        'archivo_nombre': archivo_nombre,
+        'modelo_usado': modelo_usado,
+        'total_modulos': len(estructura.get('modulos', [])),
+        'total_lecciones': sum(len(m.get('lecciones', [])) for m in estructura.get('modulos', [])),
+        'total_preguntas': sum(
+            sum(len(l.get('preguntas', [])) for l in m.get('lecciones', []))
+            for m in estructura.get('modulos', [])
+        ),
+    }
+    
+    if request.method == 'POST':
+        accion = request.POST.get('accion')
+        
+        if accion == 'guardar':
+            try:
+                # Actualizar estructura con datos editados del formulario
+                estructura['titulo'] = request.POST.get('titulo', estructura['titulo'])
+                estructura['descripcion'] = request.POST.get('descripcion', estructura['descripcion'])
+                estructura['duracion_estimada'] = request.POST.get('duracion_estimada', estructura.get('duracion_estimada', '4 semanas'))
+                estructura['nivel'] = request.POST.get('nivel', estructura.get('nivel', 'Intermedio'))
+                estructura['puntos_por_leccion'] = int(request.POST.get('puntos_por_leccion', estructura.get('puntos_por_leccion', 50)))
+                estructura['puntos_por_quiz'] = int(request.POST.get('puntos_por_quiz', estructura.get('puntos_por_quiz', 100)))
+                
+                # Guardar curso en la base de datos
+                curso = guardar_curso_desde_estructura(estructura, cliente, archivo_nombre)
+                
+                # Limpiar sesión
+                del request.session['estructura_curso']
+                del request.session['cliente_id']
+                del request.session['archivo_nombre']
+                if 'modelo_usado' in request.session:
+                    del request.session['modelo_usado']
+                
+                # Redirigir al admin del curso
+                from django.shortcuts import redirect
+                from django.contrib import messages
+                messages.success(
+                    request, 
+                    f'¡Curso "{curso.titulo}" creado exitosamente! Revisa y activa cuando esté listo.'
+                )
+                return redirect(f'/admin/core/curso/{curso.id}/change/')
+                
+            except Exception as e:
+                context['error'] = f"Error al guardar el curso: {str(e)}"
+                logger.error(f"Error guardando curso: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        elif accion == 'regenerar':
+            # TODO: Implementar regeneración parcial en Fase 3
+            context['advertencia'] = "Regeneración parcial disponible en la próxima versión"
+        
+        elif accion == 'cancelar':
+            # Limpiar sesión y redirigir
+            del request.session['estructura_curso']
+            del request.session['cliente_id']
+            del request.session['archivo_nombre']
+            if 'modelo_usado' in request.session:
+                del request.session['modelo_usado']
+            
+            from django.shortcuts import redirect
+            from django.contrib import messages
+            messages.info(request, "Creación de curso cancelada")
+            return redirect('subir_documento_curso')
+    
+    return render(request, 'admin/vista_previa_curso_ia.html', context)

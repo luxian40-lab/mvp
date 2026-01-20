@@ -13,4 +13,7 @@ class CoreConfig(AppConfig):
         
         # Compresión automática de videos
         import core.signals_videos
+        
+        # Certificados automáticos
+        import core.signals_certificados  # Genera certificado al completar curso
 

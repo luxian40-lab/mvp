@@ -9,16 +9,16 @@
     
     .metric-card {
         background: white;
-        border-radius: 8px;
+        border-radius: 0;
         padding: 20px;
         margin-bottom: 20px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        transition: transform 0.2s;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        transition: transform 0.2s, box-shadow 0.2s;
     }
     
     .metric-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
     }
     
     .metric-card.success {
@@ -299,8 +299,39 @@
 {% block content %}
 <div class="dashboard-container">
     
+    <!-- Selector de Cliente -->
+    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <form method="GET" style="display: flex; align-items: center; gap: 15px;">
+            <label for="cliente-selector" style="font-weight: 600; color: #333; margin: 0;">
+                🏢 Filtrar por Cliente:
+            </label>
+            <select name="cliente" id="cliente-selector" 
+                    onchange="this.form.submit()"
+                    style="padding: 8px 15px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px; min-width: 250px; cursor: pointer;">
+                <option value="">📊 Todos los clientes</option>
+                {% for cliente in todos_clientes %}
+                    <option value="{{ cliente.id }}" {% if cliente_seleccionado and cliente.id == cliente_seleccionado.id %}selected{% endif %}>
+                        {{ cliente.nombre }}
+                    </option>
+                {% endfor %}
+            </select>
+            {% if cliente_seleccionado %}
+                <a href="?", style="color: #dc3545; text-decoration: none; font-size: 14px; padding: 8px 15px; border: 1px solid #dc3545; border-radius: 6px; transition: all 0.3s;"
+                   onmouseover="this.style.background='#dc3545'; this.style.color='white';"
+                   onmouseout="this.style.background='transparent'; this.style.color='#dc3545';">
+                    ✕ Limpiar filtro
+                </a>
+            {% endif %}
+        </form>
+        {% if cliente_seleccionado %}
+            <div style="margin-top: 10px; padding: 10px; background: #e3f2fd; border-left: 4px solid #2196F3; border-radius: 4px;">
+                <strong style="color: #1976d2;">📌 Mostrando datos de:</strong> {{ cliente_seleccionado.nombre }}
+            </div>
+        {% endif %}
+    </div>
+    
     <div class="col-full">
-        <h1 style="color: #333; margin-bottom: 10px;">📊 Tablero de Control - Eki MVP</h1>
+        <h1 style="color: #2c3e50; margin-bottom: 10px; font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-weight: 300; font-size: 2.5rem; letter-spacing: 0.5px;">📊 Tablero de Control - Eki MVP</h1>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <p style="color: #666; margin: 0;">Resumen de actividad en tiempo real</p>
             <div style="font-size: 0.85em; color: #999;">
@@ -408,31 +439,7 @@
         </table>
     </div>
 
-    <h2 class="section-title">🚀 Acciones Rápidas</h2>
-
-    <div class="action-buttons">
-        <p style="color: #666; margin-bottom: 20px; font-size: 15px;">Inicia una nueva campaña o gestiona tu base de datos.</p>
-        <div class="buttons-grid">
-            <a href="/admin/core/campana/add/" class="btn-custom btn-primary-custom">
-                ➕ Nueva Campaña
-            </a>
-            <a href="/admin/core/estudiante/add/" class="btn-custom btn-secondary-custom">
-                👤 Nuevo Estudiante
-            </a>
-            <a href="{% url 'importar_estudiantes' %}" class="btn-custom btn-info-custom">
-                📥 Importar Estudiantes
-            </a>
-            <a href="{% url 'descargar_reportes' %}" class="btn-custom btn-success-custom">
-                📊 Descargar Reportes
-            </a>
-            <a href="/admin/core/modulo/" class="btn-custom btn-warning-custom">
-                🎥 Gestionar Videos
-            </a>
-            <a href="/admin/core/enviolog/" class="btn-custom btn-secondary-custom">
-                📋 Ver Historial
-            </a>
-        </div>
-    </div>
+    <!-- Acciones Rápidas removidas - Usar menú lateral -->
 
 </div>
 
@@ -560,10 +567,14 @@ function actualizarDashboard() {
                 `).join('');
             }
             
-            // Actualizar timestamp
+            // Actualizar timestamp con hora actual
             const timestampElement = document.getElementById('ultima-actualizacion');
             if (timestampElement) {
-                timestampElement.textContent = data.timestamp;
+                const now = new Date();
+                const horas = now.getHours().toString().padStart(2, '0');
+                const minutos = now.getMinutes().toString().padStart(2, '0');
+                const segundos = now.getSeconds().toString().padStart(2, '0');
+                timestampElement.textContent = `${horas}:${minutos}:${segundos}`;
             }
             
             console.log('Dashboard actualizado:', data.timestamp);
@@ -575,6 +586,18 @@ function actualizarDashboard() {
 
 // Actualizar cada 10 segundos
 setInterval(actualizarDashboard, 10000);
+
+// Mostrar hora inicial al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    const timestampElement = document.getElementById('ultima-actualizacion');
+    if (timestampElement) {
+        const now = new Date();
+        const horas = now.getHours().toString().padStart(2, '0');
+        const minutos = now.getMinutes().toString().padStart(2, '0');
+        const segundos = now.getSeconds().toString().padStart(2, '0');
+        timestampElement.textContent = `${horas}:${minutos}:${segundos}`;
+    }
+});
 
 console.log('✅ Auto-refresh activado: El dashboard se actualizará cada 10 segundos');
 </script>

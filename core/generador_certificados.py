@@ -122,7 +122,16 @@ def generar_certificado_pdf(certificado, plantilla=None):
     
     c.setFont("Helvetica", 10)
     c.drawString(2*inch, 1.2*inch, "Director EKI")
-    c.drawString(width - 5*inch, 1.2*inch, f"Fecha de Emisión: {certificado.fecha_emision.strftime('%d/%m/%Y')}")
+    
+    # Usar fecha de emisión si existe, sino fecha de completado
+    fecha_emision = certificado.fecha_emision if certificado.fecha_emision else certificado.fecha_completado
+    if hasattr(fecha_emision, 'strftime'):
+        fecha_emision_str = fecha_emision.strftime('%d/%m/%Y')
+    else:
+        from datetime import datetime
+        fecha_emision_str = datetime.now().strftime('%d/%m/%Y')
+    
+    c.drawString(width - 5*inch, 1.2*inch, f"Fecha de Emisión: {fecha_emision_str}")
     
     # 11. Código de verificación y QR
     c.setFont("Courier-Bold", 10)
@@ -140,8 +149,10 @@ def generar_certificado_pdf(certificado, plantilla=None):
     qr.make(fit=True)
     qr_img = qr.make_image(fill_color="black", back_color="white")
     
-    # Guardar QR temporalmente
-    qr_path = f"/tmp/qr_{certificado.codigo_verificacion}.png"
+    # Guardar QR temporalmente (compatible con Windows/Linux)
+    import tempfile
+    temp_dir = tempfile.gettempdir()
+    qr_path = os.path.join(temp_dir, f"qr_{certificado.codigo_verificacion}.png")
     qr_img.save(qr_path)
     
     # Insertar QR en el PDF

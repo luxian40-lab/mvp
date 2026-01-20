@@ -1,0 +1,51 @@
+"""
+Signals para Certificados
+Auto-generación al completar cursos
+"""
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from .models import ProgresoEstudiante
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+@receiver(post_save, sender=ProgresoEstudiante)
+def generar_certificado_al_completar(sender, instance, created, **kwargs):
+    """
+    Genera automáticamente el certificado cuando el estudiante completa un curso
+    """
+    # Solo procesar si completado cambió a True y hay fecha_completado
+    if instance.completado and instance.fecha_completado:
+        from .certificado_service import crear_certificado_automatico, generar_y_guardar_certificado, enviar_certificado_whatsapp
+        from .models_certificados import Certificado
+        
+        try:
+            # Verificar si ya existe certificado para evitar duplicados
+            certificado_existente = Certificado.objects.filter(
+                estudiante=instance.estudiante,
+                curso=instance.curso
+            ).first()
+            
+            if certificado_existente:
+                logger.info(f"✅ Certificado ya existe para {instance.estudiante.nombre} - {instance.curso.nombre} (código: {certificado_existente.codigo_verificacion})")
+                return
+            
+            # Crear certificado
+            logger.info(f"🎓 Generando certificado para {instance.estudiante.nombre} - {instance.curso.nombre}")
+            certificado = crear_certificado_automatico(instance.estudiante, instance.curso)
+            
+            if certificado:
+                logger.info(f"📄 Generando PDF del certificado...")
+                generar_y_guardar_certificado(certificado)
+                
+                logger.info(f"📲 Enviando certificado por WhatsApp a {instance.estudiante.telefono}")
+                enviar_certificado_whatsapp(certificado)
+                
+                logger.info(f"✅ Certificado completamente generado y enviado: {certificado.codigo_verificacion}")
+            else:
+                logger.error(f"❌ Error al crear certificado para {instance.estudiante.nombre}")
+                
+        except Exception as e:
+            logger.error(f"❌ Error en signal de certificado para {instance.estudiante.nombre}: {str(e)}", exc_info=True)

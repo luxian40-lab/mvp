@@ -67,17 +67,18 @@ def otorgar_badge_por_curso_completado(sender, instance, **kwargs):
         
         # Buscar badge específico del curso
         try:
-            badge_curso = Badge.objects.get(
+            badge_curso = Badge.objects.filter(
                 tipo='CURSO',
                 curso_requerido=instance.curso,
                 activo=True
-            )
-            BadgeEstudiante.objects.get_or_create(
-                estudiante=instance.estudiante,
-                badge=badge_curso
-            )
-            logger.info(f"🏆 {instance.estudiante.nombre} obtuvo badge: {badge_curso.nombre}")
-        except Badge.DoesNotExist:
+            ).first()
+            if badge_curso:
+                BadgeEstudiante.objects.get_or_create(
+                    estudiante=instance.estudiante,
+                    badge=badge_curso
+                )
+                logger.info(f"🏆 {instance.estudiante.nombre} obtuvo badge: {badge_curso.nombre}")
+        except Exception:
             pass
         
         # Badge por cantidad de cursos completados

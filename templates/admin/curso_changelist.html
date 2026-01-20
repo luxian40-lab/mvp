@@ -1,0 +1,40 @@
+{% extends "admin/change_list.html" %}
+{% load static %}
+
+{% block object-tools-items %}
+    {{ block.super }}
+    <li>
+        <a href="{% url 'subir_documento_curso' %}" class="btn-crear-con-ia">
+            <span style="font-size: 18px;">🤖</span> Crear con IA
+        </a>
+    </li>
+{% endblock %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <style>
+        .btn-crear-con-ia {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            color: white !important;
+            padding: 10px 20px !important;
+            border-radius: 8px !important;
+            text-decoration: none !important;
+            font-weight: 600 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+            transition: all 0.3s !important;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3) !important;
+        }
+        
+        .btn-crear-con-ia:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4) !important;
+            color: white !important;
+        }
+        
+        .btn-crear-con-ia:active {
+            transform: translateY(0) !important;
+        }
+    </style>
+{% endblock %}

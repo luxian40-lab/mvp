@@ -1,7 +1,7 @@
 """
-Sistema de Gamificación para EKI
+Sistema de Gamificación para eki
 Sistema de puntos, badges, rankings y rachas para motivar a estudiantes campesinos
-Desarrollado para Andrés Rubiano - EKI
+Desarrollado para Andrés Rubiano - eki
 """
 
 from django.db import models
@@ -78,26 +78,30 @@ class PerfilGamificacion(models.Model):
     
     def calcular_nivel(self):
         """Calcula el nivel basado en puntos totales"""
-        # Cada nivel requiere más puntos: nivel 1 = 0-100, nivel 2 = 100-250, etc.
+        # Sistema más alcanzable y motivador
+        # Nivel 1: 0-50 (primer módulo)
+        # Nivel 2: 50-150 (2 módulos)
+        # Nivel 3: 150-300 (curso completo)
+        # Y así progresivamente...
         nivel_anterior = self.nivel
         
-        if self.puntos_totales < 100:
+        if self.puntos_totales < 50:
             nuevo_nivel = 1
-        elif self.puntos_totales < 250:
+        elif self.puntos_totales < 150:
             nuevo_nivel = 2
-        elif self.puntos_totales < 500:
+        elif self.puntos_totales < 300:
             nuevo_nivel = 3
-        elif self.puntos_totales < 1000:
+        elif self.puntos_totales < 500:
             nuevo_nivel = 4
-        elif self.puntos_totales < 2000:
+        elif self.puntos_totales < 800:
             nuevo_nivel = 5
-        elif self.puntos_totales < 3500:
+        elif self.puntos_totales < 1200:
             nuevo_nivel = 6
-        elif self.puntos_totales < 5500:
+        elif self.puntos_totales < 1700:
             nuevo_nivel = 7
-        elif self.puntos_totales < 8000:
+        elif self.puntos_totales < 2300:
             nuevo_nivel = 8
-        elif self.puntos_totales < 11000:
+        elif self.puntos_totales < 3000:
             nuevo_nivel = 9
         else:
             nuevo_nivel = 10
@@ -105,7 +109,7 @@ class PerfilGamificacion(models.Model):
         self.nivel = nuevo_nivel
         
         # Calcular experiencia en el nivel actual
-        limites_nivel = [0, 100, 250, 500, 1000, 2000, 3500, 5500, 8000, 11000, 999999]
+        limites_nivel = [0, 50, 150, 300, 500, 800, 1200, 1700, 2300, 3000, 999999]
         limite_inferior = limites_nivel[nuevo_nivel - 1]
         limite_superior = limites_nivel[nuevo_nivel]
         
@@ -159,15 +163,22 @@ class PerfilGamificacion(models.Model):
             if self.racha_dias_actual > self.racha_dias_maxima:
                 self.racha_dias_maxima = self.racha_dias_actual
             
-            # Otorgar badges de racha
+            # Otorgar badges y puntos por rachas (MÁS MOTIVADOR)
             if self.racha_dias_actual == 3:
                 self._otorgar_badge_racha(3)
+                self.agregar_puntos(30, "🔥 Racha de 3 días")
             elif self.racha_dias_actual == 7:
                 self._otorgar_badge_racha(7)
-                self.agregar_puntos(200, "Racha de 7 días")
+                self.agregar_puntos(100, "🔥 Racha de 7 días")
+            elif self.racha_dias_actual == 14:
+                self._otorgar_badge_racha(14)
+                self.agregar_puntos(250, "🔥 Racha de 14 días")
+            elif self.racha_dias_actual == 21:
+                self._otorgar_badge_racha(21)
+                self.agregar_puntos(400, "🔥 Racha de 21 días")
             elif self.racha_dias_actual == 30:
                 self._otorgar_badge_racha(30)
-                self.agregar_puntos(1000, "Racha de 30 días")
+                self.agregar_puntos(700, "🔥 ¡UN MES COMPLETO!")
             
             self.ultima_actividad = ahora
             self.save()
@@ -182,43 +193,45 @@ class PerfilGamificacion(models.Model):
     def _otorgar_badge_nivel(self, nivel):
         """Otorga badge por alcanzar un nivel"""
         try:
-            badge = Badge.objects.get(tipo='NIVEL', nivel_requerido=nivel)
-            BadgeEstudiante.objects.get_or_create(
-                estudiante=self.estudiante,
-                badge=badge
-            )
-        except Badge.DoesNotExist:
+            badge = Badge.objects.filter(tipo='NIVEL', nivel_requerido=nivel).first()
+            if badge:
+                BadgeEstudiante.objects.get_or_create(
+                    estudiante=self.estudiante,
+                    badge=badge
+                )
+        except Exception:
             pass
     
     def _otorgar_badge_racha(self, dias):
         """Otorga badge por racha"""
         try:
-            badge = Badge.objects.get(tipo='RACHA', valor_requerido=dias)
-            BadgeEstudiante.objects.get_or_create(
-                estudiante=self.estudiante,
-                badge=badge
-            )
-        except Badge.DoesNotExist:
+            badge = Badge.objects.filter(tipo='RACHA', valor_requerido=dias).first()
+            if badge:
+                BadgeEstudiante.objects.get_or_create(
+                    estudiante=self.estudiante,
+                    badge=badge
+                )
+        except Exception:
             pass
     
     def porcentaje_nivel(self):
         """Retorna el porcentaje de progreso en el nivel actual"""
-        limites_nivel = [0, 100, 250, 500, 1000, 2000, 3500, 5500, 8000, 11000, 999999]
+        limites_nivel = [0, 50, 150, 300, 500, 800, 1200, 1700, 2300, 3000, 999999]
         limite_inferior = limites_nivel[self.nivel - 1]
         limite_superior = limites_nivel[self.nivel]
         
         rango = limite_superior - limite_inferior
         progreso = self.puntos_totales - limite_inferior
         
-        return int((progreso / rango) * 100)
+        return int((progreso / rango) * 100) if rango > 0 else 100
     
     def puntos_para_siguiente_nivel(self):
         """Puntos que faltan para el siguiente nivel"""
-        limites_nivel = [0, 100, 250, 500, 1000, 2000, 3500, 5500, 8000, 11000, 999999]
+        limites_nivel = [0, 50, 150, 300, 500, 800, 1200, 1700, 2300, 3000, 999999]
         if self.nivel >= 10:
             return 0
         limite_superior = limites_nivel[self.nivel]
-        return limite_superior - self.puntos_totales
+        return max(0, limite_superior - self.puntos_totales)
 
 
 class Badge(models.Model):

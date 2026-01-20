@@ -1,0 +1,190 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .form-row {
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #f9f9f9;
+        border-radius: 8px;
+    }
+    .form-row label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 8px;
+        color: #333;
+    }
+    .form-row select {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    .submit-row {
+        margin-top: 20px;
+        padding: 15px;
+        background: #e3f2fd;
+        border-radius: 8px;
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+    }
+    .button {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-block;
+    }
+    .default {
+        background: #2196F3;
+        color: white;
+    }
+    .default:hover {
+        background: #1976D2;
+    }
+    .cancel-link {
+        background: #999;
+        color: white;
+    }
+    .cancel-link:hover {
+        background: #666;
+        text-decoration: none;
+    }    textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        font-family: inherit;
+        resize: vertical;
+    }
+    input[type="text"] {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }    .estudiantes-list {
+        max-height: 300px;
+        overflow-y: auto;
+        padding: 10px;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    .estudiante-item {
+        padding: 8px;
+        border-bottom: 1px solid #eee;
+    }
+    .estudiante-item:last-child {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>👥 Asignar estudiantes a un grupo</h1>
+
+<p>Estás a punto de asignar <strong>{{ queryset.count }}</strong> estudiante(s) a un grupo.</p>
+
+<div class="estudiantes-list">
+    <h3>Estudiantes seleccionados:</h3>
+    {% for estudiante in queryset %}
+        <div class="estudiante-item">
+            📝 <strong>{{ estudiante.nombre }}</strong> - {{ estudiante.cedula }}
+        </div>
+    {% endfor %}
+</div>
+
+<form method="post">
+    {% csrf_token %}
+    
+    <div class="form-row">
+        <label for="grupo_tipo">Tipo de asignación:</label>
+        <select name="grupo_tipo" id="grupo_tipo" onchange="toggleGrupoFields()" required>
+            <option value="existente">Usar grupo existente</option>
+            <option value="nuevo">Crear nuevo grupo</option>
+        </select>
+    </div>
+
+    <div class="form-row" id="grupo_existente_row">
+        <label for="grupo">Selecciona el grupo:</label>
+        <select name="grupo" id="grupo">
+            <option value="">-- Selecciona un grupo --</option>
+            {% for grupo in grupos %}
+                <option value="{{ grupo.id }}">{{ grupo.emoji }} {{ grupo.nombre }} ({{ grupo.total_estudiantes }} estudiantes)</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div id="grupo_nuevo_fields" style="display:none;">
+        <div class="form-row">
+            <label for="nuevo_nombre">Nombre del grupo:</label>
+            <input type="text" name="nuevo_nombre" id="nuevo_nombre" placeholder="Ej: Cafeteros Zona Norte">
+        </div>
+        
+        <div class="form-row">
+            <label for="nuevo_emoji">Emoji del grupo:</label>
+            <select name="nuevo_emoji" id="nuevo_emoji">
+                <option value="👥">👥 Grupo general</option>
+                <option value="☕">☕ Cafeteros</option>
+                <option value="🥑">🥑 Aguacateros</option>
+                <option value="🍌">🍌 Plataneros</option>
+                <option value="🍫">🍫 Cacaoteros</option>
+                <option value="🌱">🌱 Productores</option>
+                <option value="👔">👔 Administradores</option>
+                <option value="📚">📚 Estudiantes</option>
+                <option value="🏢">🏢 Empresa</option>
+                <option value="🌾">🌾 Agricultores</option>
+                <option value="🌻">🌻 Floricultura</option>
+                <option value="🐄">🐄 Ganaderos</option>
+            </select>
+        </div>
+        
+        <div class="form-row">
+            <label for="nuevo_descripcion">Descripción (opcional):</label>
+            <textarea name="nuevo_descripcion" id="nuevo_descripcion" rows="3" placeholder="Describe el propósito de este grupo"></textarea>
+        </div>
+    </div>
+
+    {% for obj in queryset %}
+        <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+    {% endfor %}
+
+    <input type="hidden" name="action" value="asignar_a_grupo_accion">
+    <input type="hidden" name="apply" value="yes">
+
+    <div class="submit-row">
+        <a href="{% url 'admin:core_estudiante_changelist' %}" class="button cancel-link">Cancelar</a>
+        <button type="submit" class="button default">✅ Asignar a grupo</button>
+    </div>
+</form>
+
+<script>
+function toggleGrupoFields() {
+    var tipo = document.getElementById('grupo_tipo').value;
+    var existenteRow = document.getElementById('grupo_existente_row');
+    var nuevoFields = document.getElementById('grupo_nuevo_fields');
+    var grupoSelect = document.getElementById('grupo');
+    var nuevoNombre = document.getElementById('nuevo_nombre');
+    
+    if (tipo === 'nuevo') {
+        existenteRow.style.display = 'none';
+        nuevoFields.style.display = 'block';
+        grupoSelect.removeAttribute('required');
+        nuevoNombre.setAttribute('required', 'required');
+    } else {
+        existenteRow.style.display = 'block';
+        nuevoFields.style.display = 'none';
+        grupoSelect.setAttribute('required', 'required');
+        nuevoNombre.removeAttribute('required');
+    }
+}
+</script>
+{% endblock %}

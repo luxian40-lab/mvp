@@ -6,77 +6,85 @@
 {% block extrahead %}
 <style>
     .container-importar {
-        max-width: 900px;
+        max-width: 800px;
         margin: 40px auto;
         padding: 30px;
         background: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.08);
     }
 
     .titulo-seccion {
-        font-size: 28px;
-        font-weight: bold;
-        margin-bottom: 30px;
-        color: #333;
+        font-size: 32px;
+        font-weight: 700;
+        margin-bottom: 10px;
+        color: #1a1a1a;
         text-align: center;
     }
 
+    .subtitulo {
+        text-align: center;
+        color: #666;
+        margin-bottom: 30px;
+        font-size: 14px;
+    }
+
     .info-box {
-        background: #e3f2fd;
-        border-left: 4px solid #2196F3;
-        padding: 15px;
-        margin-bottom: 20px;
-        border-radius: 4px;
-        color: #1565c0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 30px;
     }
 
     .info-box strong {
         display: block;
-        margin-bottom: 8px;
+        margin-bottom: 12px;
+        font-size: 18px;
     }
 
     .info-box ul {
         margin: 10px 0 0 20px;
         font-size: 14px;
+        line-height: 1.8;
     }
 
     .info-box li {
-        margin: 5px 0;
+        margin: 8px 0;
+    }
+
+    .info-box li::marker {
+        content: "✓ ";
     }
 
     .upload-area {
-        border: 2px dashed #2196F3;
-        border-radius: 8px;
-        padding: 40px;
+        border: 3px dashed #667eea;
+        border-radius: 12px;
+        padding: 50px 30px;
         text-align: center;
-        background: #f5f5f5;
+        background: #f8f9ff;
         cursor: pointer;
         transition: all 0.3s;
         margin: 30px 0;
     }
 
     .upload-area:hover {
-        background: #e3f2fd;
-        border-color: #1565c0;
-    }
-
-    .upload-area.dragover {
-        background: #bbdefb;
-        border-color: #1565c0;
+        background: #eef2ff;
+        border-color: #5a67d8;
+        transform: translateY(-2px);
     }
 
     .upload-icon {
-        font-size: 48px;
-        margin-bottom: 15px;
+        font-size: 64px;
+        margin-bottom: 20px;
         display: block;
     }
 
     .upload-text {
-        font-size: 16px;
+        font-size: 18px;
         font-weight: 600;
-        color: #333;
-        margin-bottom: 5px;
+        color: #1a1a1a;
+        margin-bottom: 8px;
     }
 
     .upload-subtext {
@@ -88,43 +96,30 @@
         display: none;
     }
 
-    .file-input-label {
-        display: inline-block;
-        padding: 10px 20px;
-        background: #2196F3;
-        color: white;
-        border-radius: 4px;
-        cursor: pointer;
-        font-weight: 600;
-        margin-top: 15px;
-        transition: all 0.3s;
-    }
-
-    .file-input-label:hover {
-        background: #1565c0;
-        transform: translateY(-2px);
-    }
-
     .selected-file {
-        margin-top: 15px;
-        padding: 10px;
-        background: #f5f5f5;
-        border-radius: 4px;
-        color: #333;
+        margin-top: 20px;
+        padding: 15px;
+        background: #e8f5e9;
+        border-radius: 8px;
+        color: #2e7d32;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
     }
 
     .botones {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr 2fr;
         gap: 15px;
         margin-top: 30px;
     }
 
     .btn {
-        padding: 12px 20px;
+        padding: 14px 24px;
         border: none;
-        border-radius: 4px;
-        font-size: 14px;
+        border-radius: 8px;
+        font-size: 15px;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.3s;
@@ -134,30 +129,48 @@
     }
 
     .btn-enviar {
-        background-color: #4CAF50;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
     }
 
     .btn-enviar:hover {
-        background-color: #45a049;
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
     }
 
     .btn-atras {
-        background-color: #6c757d;
-        color: white;
+        background-color: #e0e0e0;
+        color: #333;
     }
 
     .btn-atras:hover {
         background-color: #5a6268;
     }
 
+    .btn-atras:hover {
+        background-color: #bdbdbd;
+    }
+
+    .btn-descargar {
+        background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+        color: white;
+        padding: 14px 28px;
+        margin-bottom: 30px;
+        width: 100%;
+        font-size: 16px;
+    }
+
+    .btn-descargar:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(255, 152, 0, 0.4);
+    }
+
     .alert {
-        padding: 15px;
-        margin-bottom: 20px;
-        border-radius: 4px;
-        border-left: 4px solid;
+        padding: 18px;
+        margin-bottom: 25px;
+        border-radius: 8px;
+        border-left: 5px solid;
+        font-size: 14px;
     }
 
     .alert-success {
@@ -169,61 +182,13 @@
     .alert-error {
         background-color: #f8d7da;
         color: #721c24;
-        border-color: #f5c6cb;
+        border-color: #dc3545;
     }
 
     .alert-warning {
         background-color: #fff3cd;
         color: #856404;
-        border-color: #ffeaa7;
-    }
-
-    .resultado {
-        margin-top: 30px;
-        padding: 20px;
-        background: #f5f5f5;
-        border-radius: 8px;
-    }
-
-    .resultado h3 {
-        margin-top: 0;
-        color: #333;
-    }
-
-    .resultado-item {
-        padding: 10px;
-        margin: 8px 0;
-        background: white;
-        border-left: 4px solid #2196F3;
-        border-radius: 4px;
-    }
-
-    .resultado-item.success {
-        border-left-color: #4CAF50;
-    }
-
-    .resultado-item.warning {
-        border-left-color: #ff9800;
-    }
-
-    .download-template {
-        display: inline-block;
-        margin: 15px 0;
-    }
-
-    .download-template a {
-        padding: 10px 20px;
-        background: #FF9800;
-        color: white;
-        border-radius: 4px;
-        text-decoration: none;
-        font-weight: 600;
-        transition: all 0.3s;
-    }
-
-    .download-template a:hover {
-        background: #F57C00;
-        transform: translateY(-2px);
+        border-color: #ffc107;
     }
 
     @media (max-width: 600px) {
@@ -241,24 +206,33 @@
 
 {% block content %}
 <div class="container-importar">
-    <h1 class="titulo-seccion">📚 Importar Estudiantes en Bulk</h1>
+    <h1 class="titulo-seccion">📚 Importar Estudiantes</h1>
+    <p class="subtitulo">Carga estudiantes en bulk con asignación automática de cursos y clientes</p>
 
     <div class="info-box">
-        <strong>📋 Instrucciones:</strong>
+        <strong>✨ Ahora puedes asignar todo desde el Excel:</strong>
         <ul>
-            <li><strong>Columna A:</strong> Nombre del estudiante</li>
-            <li><strong>Columna B:</strong> Teléfono (ej: 573000000000)</li>
-            <li>Máximo 1000 estudiantes por archivo</li>
-            <li>Los estudiantes duplicados se actualizarán automáticamente</li>
+            <li><strong>Columna A:</strong> Cédula (identificador único)</li>
+            <li><strong>Columna B:</strong> Nombre completo</li>
+            <li><strong>Columna C:</strong> Teléfono WhatsApp (ej: 573001234567)</li>
+            <li><strong>Columna D:</strong> Curso (nombre exacto, opcional)</li>
+            <li><strong>Columna E:</strong> Cliente (nombre exacto, opcional)</li>
         </ul>
+    </div>
     </div>
 
     {% if exito %}
     <div class="alert alert-success">
         <strong>✅ ¡Importación Exitosa!</strong><br>
-        Se importaron <strong>{{ creados }}</strong> estudiante(s) nuevo(s) y se actualizaron <strong>{{ actualizados }}</strong>.
-        Total procesado: <strong>{{ total }}</strong>
+        {{ mensaje }}
     </div>
+    {% endif %}
+
+    {% if error %}
+    <div class="alert alert-error">
+        <strong>❌ Error:</strong> {{ error }}
+    </div>
+    {% endif %}
 
     {% if advertencias %}
     <div class="alert alert-warning">
@@ -270,43 +244,32 @@
         </ul>
     </div>
     {% endif %}
-    {% endif %}
-
-    {% if error %}
-    <div class="alert alert-error">
-        <strong>❌ Error:</strong> {{ error }}
-    </div>
-    {% endif %}
 
     <form method="POST" enctype="multipart/form-data">
         {% csrf_token %}
 
-        <div class="download-template">
-            <a href="/static/templates/plantilla_estudiantes.xlsx" download>
-                📥 Descargar Plantilla Excel
-            </a>
-        </div>
+        <a href="{% url 'admin:exportar_plantilla_importacion' %}" class="btn btn-descargar">
+            📥 Descargar Plantilla Excel (con cursos y clientes disponibles)
+        </a>
 
         <div class="upload-area" id="uploadArea">
             <span class="upload-icon">📤</span>
-            <div class="upload-text">Arrastra tu archivo Excel aquí o haz click para seleccionar</div>
-            <div class="upload-subtext">Soporta: .xlsx, .xls</div>
-            <label class="file-input-label">
-                Seleccionar Archivo
-                <input type="file" id="fileInput" name="archivo_excel" accept=".xlsx,.xls,.csv" required>
-            </label>
+            <div class="upload-text">Arrastra tu archivo Excel aquí</div>
+            <div class="upload-subtext">o haz click para seleccionar (.xlsx)</div>
+            <input type="file" id="fileInput" name="archivo_excel" accept=".xlsx,.xls" required>
             <div class="selected-file" id="selectedFile" style="display: none;">
                 📋 <span id="fileName"></span>
+                <button type="button" onclick="clearFile()" style="background: none; border: none; color: #c62828; cursor: pointer; font-size: 18px;">×</button>
             </div>
         </div>
 
         <div class="botones">
+            <a href="{% url 'admin:core_estudiante_changelist' %}" class="btn btn-atras">
+                ← Volver
+            </a>
             <button type="submit" class="btn btn-enviar" id="submitBtn" disabled>
                 ⬆️ Importar Estudiantes
             </button>
-            <a href="{% url 'dashboard' %}" class="btn btn-atras">
-                ← Volver al Dashboard
-            </a>
         </div>
     </form>
 </div>
@@ -319,24 +282,30 @@
     const submitBtn = document.getElementById('submitBtn');
 
     // Click en el área de carga
-    uploadArea.addEventListener('click', () => fileInput.click());
+    uploadArea.addEventListener('click', (e) => {
+        if (e.target !== uploadArea && !uploadArea.contains(e.target)) return;
+        fileInput.click();
+    });
 
     // Drag and drop
     uploadArea.addEventListener('dragover', (e) => {
         e.preventDefault();
-        uploadArea.classList.add('dragover');
+        uploadArea.style.borderColor = '#5a67d8';
+        uploadArea.style.background = '#eef2ff';
     });
 
     uploadArea.addEventListener('dragleave', () => {
-        uploadArea.classList.remove('dragover');
+        uploadArea.style.borderColor = '#667eea';
+        uploadArea.style.background = '#f8f9ff';
     });
 
     uploadArea.addEventListener('drop', (e) => {
         e.preventDefault();
-        uploadArea.classList.remove('dragover');
+        uploadArea.style.borderColor = '#667eea';
+        uploadArea.style.background = '#f8f9ff';
         
         const files = e.dataTransfer.files;
-        if (files.length > 0) {
+        if (files.length > 0 && (files[0].name.endsWith('.xlsx') || files[0].name.endsWith('.xls'))) {
             fileInput.files = files;
             updateFileDisplay();
         }
@@ -348,13 +317,18 @@
     function updateFileDisplay() {
         if (fileInput.files.length > 0) {
             const file = fileInput.files[0];
-            fileNameSpan.textContent = file.name;
-            selectedFileDiv.style.display = 'block';
+            fileNameSpan.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+            selectedFileDiv.style.display = 'flex';
             submitBtn.disabled = false;
         } else {
             selectedFileDiv.style.display = 'none';
             submitBtn.disabled = true;
         }
+    }
+
+    function clearFile() {
+        fileInput.value = '';
+        updateFileDisplay();
     }
 </script>
 {% endblock %}

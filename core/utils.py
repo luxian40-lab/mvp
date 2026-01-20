@@ -4,6 +4,47 @@ from django.utils import timezone
 from .models import WhatsappLog
 
 
+def enviar_whatsapp_twilio_content_template(telefono: str, content_sid: str, variables: dict) -> dict:
+    """
+    Enviar mensaje usando Twilio Content Template (aprobado por WhatsApp).
+    
+    Parámetros:
+    - telefono: número en formato internacional, p.ej. '+573001234567'
+    - content_sid: Content SID del template aprobado (ej: 'HX123abc...')
+    - variables: dict con las variables del template (ej: {'1': 'Juan', '2': 'Mensaje'})
+    
+    Retorna dict con keys: success(bool), mensaje_id (str|None), response (str).
+    """
+    log = None
+    
+    try:
+        # MODO PRUEBA: Simular envío exitoso para probar el flujo del admin
+        print(f"[DEMO MODE] Simulando envío a {telefono}")
+        print(f"[DEMO MODE] Content SID: {content_sid}")
+        print(f"[DEMO MODE] Variables: {variables}")
+        
+        # Guardar log de simulación
+        log = WhatsappLog.objects.create(
+            telefono=telefono.replace('whatsapp:', '').replace('+', ''),
+            mensaje=f"🧪 DEMO - Template: {content_sid} - Mensaje: {variables.get('2', 'Sin mensaje')}",
+            estado='SENT',
+            tipo='SENT',
+            fecha=timezone.now(),
+            mensaje_id=f'demo_{telefono}_{timezone.now().timestamp()}'
+        )
+        
+        print(f"[SUCCESS] DEMO MODE: Anuncio 'enviado' a {telefono}")
+        
+        return {'success': True, 'mensaje_id': log.mensaje_id, 'response': 'Demo message sent'}
+        
+    except Exception as e:
+        print(f"[ERROR] Error en modo demo: {str(e)}")
+        if log:
+            log.estado = 'ERROR'
+            log.save()
+        return {'success': False, 'mensaje_id': None, 'response': str(e)}
+
+
 def enviar_whatsapp_twilio(telefono: str, texto: str, mensaje_id_referencia: str = None, media_url: str = None, texto_log: str = None) -> dict:
     """Enviar mensaje por Twilio WhatsApp API.
 

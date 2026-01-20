@@ -108,8 +108,14 @@ def otorgar_puntos_modulo(estudiante, modulo=None):
     """
     Otorga puntos por completar módulo
     CORE del sistema educativo
+    Verifica si el curso tiene gamificación activada
     """
     try:
+        # Verificar si el módulo tiene curso y si usa gamificación
+        if modulo and modulo.curso and not modulo.curso.usar_gamificacion:
+            logger.info(f"Gamificación desactivada para curso {modulo.curso.nombre}")
+            return {'success': True, 'puntos': 0, 'gamificacion_desactivada': True}
+        
         perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
         puntos = PUNTOS_CONFIG['modulo_completado']
         
@@ -195,13 +201,14 @@ def otorgar_puntos_primer_curso(estudiante):
     
     # Otorgar badge de "Primer Paso"
     try:
-        badge_primer_curso = Badge.objects.get(nombre="Primer Paso")
-        BadgeEstudiante.objects.get_or_create(
-            estudiante=estudiante,
-            badge=badge_primer_curso
-        )
-        resultado['badge_obtenido'] = badge_primer_curso.nombre
-    except Badge.DoesNotExist:
+        badge_primer_curso = Badge.objects.filter(nombre="Primer Paso").first()
+        if badge_primer_curso:
+            BadgeEstudiante.objects.get_or_create(
+                estudiante=estudiante,
+                badge=badge_primer_curso
+            )
+            resultado['badge_obtenido'] = badge_primer_curso.nombre
+    except Exception:
         pass
     
     return resultado
@@ -237,16 +244,17 @@ def otorgar_puntos_curso_completado(estudiante, curso, promedio_final=None):
         
         # Otorgar badge específico del curso si existe
         try:
-            badge_curso = Badge.objects.get(
+            badge_curso = Badge.objects.filter(
                 tipo='CURSO',
                 curso_requerido=curso
-            )
-            BadgeEstudiante.objects.get_or_create(
-                estudiante=estudiante,
-                badge=badge_curso
-            )
-            resultado['badge_obtenido'] = badge_curso.nombre
-        except Badge.DoesNotExist:
+            ).first()
+            if badge_curso:
+                BadgeEstudiante.objects.get_or_create(
+                    estudiante=estudiante,
+                    badge=badge_curso
+                )
+                resultado['badge_obtenido'] = badge_curso.nombre
+        except Exception:
             pass
         
         resultado['promedio'] = promedio_final
@@ -384,47 +392,50 @@ def verificar_y_otorgar_badges_automaticos(estudiante):
         
         # Badge por nivel
         try:
-            badge_nivel = Badge.objects.get(
+            badge_nivel = Badge.objects.filter(
                 tipo='NIVEL',
                 nivel_requerido=perfil.nivel
-            )
-            badge_est, created = BadgeEstudiante.objects.get_or_create(
-                estudiante=estudiante,
-                badge=badge_nivel
-            )
-            if created:
-                badges_otorgados.append(badge_nivel)
-        except Badge.DoesNotExist:
+            ).first()
+            if badge_nivel:
+                badge_est, created = BadgeEstudiante.objects.get_or_create(
+                    estudiante=estudiante,
+                    badge=badge_nivel
+                )
+                if created:
+                    badges_otorgados.append(badge_nivel)
+        except Exception:
             pass
         
         # Badge por racha
         if perfil.racha_dias_actual >= 30:
             try:
-                badge_racha = Badge.objects.get(
+                badge_racha = Badge.objects.filter(
                     tipo='RACHA',
                     valor_requerido=30
-                )
-                badge_est, created = BadgeEstudiante.objects.get_or_create(
-                    estudiante=estudiante,
-                    badge=badge_racha
-                )
-                if created:
-                    badges_otorgados.append(badge_racha)
-            except Badge.DoesNotExist:
+                ).first()
+                if badge_racha:
+                    badge_est, created = BadgeEstudiante.objects.get_or_create(
+                        estudiante=estudiante,
+                        badge=badge_racha
+                    )
+                    if created:
+                        badges_otorgados.append(badge_racha)
+            except Exception:
                 pass
         elif perfil.racha_dias_actual >= 7:
             try:
-                badge_racha = Badge.objects.get(
+                badge_racha = Badge.objects.filter(
                     tipo='RACHA',
                     valor_requerido=7
-                )
-                badge_est, created = BadgeEstudiante.objects.get_or_create(
-                    estudiante=estudiante,
-                    badge=badge_racha
-                )
-                if created:
-                    badges_otorgados.append(badge_racha)
-            except Badge.DoesNotExist:
+                ).first()
+                if badge_racha:
+                    badge_est, created = BadgeEstudiante.objects.get_or_create(
+                        estudiante=estudiante,
+                        badge=badge_racha
+                    )
+                    if created:
+                        badges_otorgados.append(badge_racha)
+            except Exception:
                 pass
         
         return badges_otorgados

@@ -67,6 +67,12 @@ SYSTEM_PROMPT = """Eres un TUTOR EDUCATIVO y GUÍA AGRÍCOLA experto de Eki, una
 - Lenguaje sencillo sin términos técnicos complejos
 - Haz preguntas guía: "¿Ya conocías esto?", "¿Qué te gustaría aprender?"
 
+🚫 RESTRICCIONES ABSOLUTAS:
+- SOLO hablas de AGRICULTURA COLOMBIANA y la plataforma Eki
+- NO respondas preguntas sobre: política, religión, economía general, noticias, entretenimiento, deportes, celebridades, temas personales no relacionados con agricultura
+- Si preguntan temas prohibidos responde: "Solo puedo ayudarte con temas de agricultura y tu curso en Eki 🌱"
+- Tu único rol es EDUCACIÓN AGRÍCOLA para campesinos colombianos
+
 🎯 OBJETIVO: No solo responder, sino ENSEÑAR y GUIAR el aprendizaje del campesino en su curso actual
 
 Contexto: Los estudiantes te escriben por WhatsApp buscando ayuda rápida sobre agricultura."""
@@ -75,7 +81,7 @@ Contexto: Los estudiantes te escriben por WhatsApp buscando ayuda rápida sobre 
 def obtener_historial_conversacion(telefono: str, limite: int = 10):
     """
     Obtiene el historial reciente de conversación con un estudiante.
-    Estilo Huaku: memoria extendida + contexto del estudiante
+    Estilo Huku: memoria extendida + contexto del estudiante
     
     Args:
         telefono: Número del estudiante
@@ -206,6 +212,10 @@ def responder_con_ia(mensaje: str, telefono: str) -> str:
     Genera una respuesta inteligente usando IA HÍBRIDA.
     Intenta OpenAI primero, si falla usa Cohere.
     
+    NOTA: Esta función solo debe llamarse para preguntas sobre agricultura
+    que no tienen un intent definido. El flujo de habeas data y menús
+    debe manejarse en el webhook antes de llamar esta función.
+    
     Args:
         mensaje: Mensaje del usuario
         telefono: Número de teléfono del usuario
@@ -220,6 +230,26 @@ def responder_con_ia(mensaje: str, telefono: str) -> str:
             estudiante = Estudiante.objects.get(telefono=telefono)
         except Estudiante.DoesNotExist:
             pass
+        
+        # DETECTAR SI HAY UN SELECTOR DE CURSO ACTIVO
+        if estudiante:
+            try:
+                # Buscar el último mensaje enviado al usuario
+                ultimo_log = WhatsappLog.objects.filter(
+                    telefono=telefono,
+                    tipo='SENT'
+                ).order_by('-fecha').first()
+                
+                # Si el último mensaje contenía el selector de curso
+                if ultimo_log and '[SELECTOR_CURSO_ACTIVO]' in ultimo_log.mensaje:
+                    # El usuario debe responder con un número
+                    if mensaje.strip().isdigit():
+                        indice_curso = int(mensaje.strip())
+                        from .selector_curso import continuar_curso_seleccionado
+                        return continuar_curso_seleccionado(estudiante.id, indice_curso, mensaje)
+            except Exception as e:
+                print(f"⚠️ Error en selector de curso: {e}")
+                # Continuar con flujo normal si hay error
         
         # Construir contexto adicional con curso actual
         contexto_estudiante = ""
@@ -312,7 +342,7 @@ NO agregues texto adicional, solo el JSON."""
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "Eres un evaluador experto de exámenes agrícolas. Respondes SOLO con JSON válido."},
+                {"role": "system", "content": "Eres un evaluador experto de exámenes agrícolas colombianos. SOLO evalúas temas de agricultura. Respondes SOLO con JSON válido."},
                 {"role": "user", "content": prompt_evaluacion}
             ],
             temperature=0.3,  # Baja temperatura para evaluación consistente

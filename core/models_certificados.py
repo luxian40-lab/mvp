@@ -82,8 +82,8 @@ class Certificado(models.Model):
     actualizado_en = models.DateTimeField(auto_now=True)
     
     class Meta:
-        verbose_name = "Certificado"
-        verbose_name_plural = "Certificados"
+        verbose_name = "📜 Certificado"
+        verbose_name_plural = "📜 Certificados"
         ordering = ['-fecha_emision', '-creado_en']
         indexes = [
             models.Index(fields=['codigo_verificacion']),
@@ -150,23 +150,49 @@ class Certificado(models.Model):
 class PlantillaCertificado(models.Model):
     """
     Plantillas personalizables para certificados
-    Permite diferentes diseños por tipo de curso
+    Permite diferentes diseños por tipo de curso o por cliente
     """
-    nombre = models.CharField(max_length=100)
-    descripcion = models.TextField(blank=True)
+    nombre = models.CharField(
+        max_length=100,
+        help_text="Nombre identificador de la plantilla (ej: 'Plantilla Cargill', 'Plantilla TechnoServe')"
+    )
+    descripcion = models.TextField(
+        blank=True,
+        help_text="Descripción opcional de cuándo usar esta plantilla"
+    )
     
+    # 🏢 CLIENTE (para plantillas específicas de empresas)
+    cliente = models.ForeignKey(
+        'Cliente',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='plantillas_certificados',
+        verbose_name='Cliente',
+        help_text='Si es para un cliente específico. Dejar vacío = plantilla general de Eki'
+    )
+    
+    # 📄 OPCIÓN 1: SUBIR PDF PERSONALIZADO (Recomendado para empresas)
+    archivo_plantilla_pdf = models.FileField(
+        upload_to='certificados/plantillas_personalizadas/',
+        null=True,
+        blank=True,
+        help_text="📤 Sube tu propia plantilla en PDF. Solo necesita tener espacio para el NOMBRE del estudiante."
+    )
+    
+    # 🎨 OPCIÓN 2: DISEÑO PERSONALIZADO CON EKI (Si no subes PDF)
     # Diseño
     imagen_fondo = models.ImageField(
         upload_to='certificados/plantillas/',
         null=True,
         blank=True,
-        help_text="Imagen de fondo del certificado"
+        help_text="Imagen de fondo del certificado (si no subes PDF)"
     )
     logo_institucion = models.ImageField(
         upload_to='certificados/logos/',
         null=True,
         blank=True,
-        help_text="Logo de EKI"
+        help_text="Logo de la institución"
     )
     
     # Colores (hex)
@@ -193,6 +219,23 @@ class PlantillaCertificado(models.Model):
         help_text="Título del certificado"
     )
     
+    # 📝 Variables para reemplazar en PDF personalizado
+    variable_nombre = models.CharField(
+        max_length=50,
+        default="{nombre}",
+        help_text="Variable a reemplazar por el nombre del estudiante (ej: {nombre}, [NOMBRE], {{nombre}})"
+    )
+    variable_curso = models.CharField(
+        max_length=50,
+        default="{curso}",
+        help_text="Variable a reemplazar por el nombre del curso"
+    )
+    variable_fecha = models.CharField(
+        max_length=50,
+        default="{fecha}",
+        help_text="Variable a reemplazar por la fecha"
+    )
+    
     # Estado
     activa = models.BooleanField(default=True)
     por_defecto = models.BooleanField(
@@ -205,15 +248,20 @@ class PlantillaCertificado(models.Model):
     actualizado_en = models.DateTimeField(auto_now=True)
     
     class Meta:
-        verbose_name = "Plantilla de Certificado"
-        verbose_name_plural = "Plantillas de Certificados"
+        verbose_name = "🎨 Plantilla de Certificado"
+        verbose_name_plural = "🎨 Plantillas de Certificados"
         ordering = ['-por_defecto', 'nombre']
     
     def __str__(self):
-        return f"{self.nombre} {'(Por defecto)' if self.por_defecto else ''}"
+        cliente_str = f" ({self.cliente.nombre})" if self.cliente else ""
+        return f"{self.nombre}{cliente_str} {'(Por defecto)' if self.por_defecto else ''}"
     
     def save(self, *args, **kwargs):
         # Si se marca como por defecto, desmarcar otras
         if self.por_defecto:
             PlantillaCertificado.objects.filter(por_defecto=True).update(por_defecto=False)
         super().save(*args, **kwargs)
+    
+    def usa_pdf_personalizado(self):
+        """Verifica si esta plantilla usa un PDF personalizado"""
+        return bool(self.archivo_plantilla_pdf)

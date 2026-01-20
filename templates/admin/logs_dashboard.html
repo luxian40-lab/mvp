@@ -1,0 +1,710 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}📊 Dashboard de Logs - EKI{% endblock %}
+
+{% block extrahead %}
+<style>
+    .logs-dashboard {
+        max-width: 1400px;
+        margin: 20px auto;
+        padding: 0 20px;
+    }
+    
+    .dashboard-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 15px;
+        text-align: center;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+    
+    .dashboard-header h1 {
+        margin: 0;
+        font-size: 2.5em;
+        font-weight: 300;
+    }
+    
+    .dashboard-header .subtitle {
+        margin-top: 10px;
+        opacity: 0.9;
+        font-size: 1.1em;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .stat-card {
+        background: white;
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        text-align: center;
+        border-top: 4px solid #4CAF50;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    }
+    
+    .stat-card.whatsapp {
+        border-top-color: #25D366;
+    }
+    
+    .stat-card.campanas {
+        border-top-color: #FF6B35;
+    }
+    
+    .stat-card.programadas {
+        border-top-color: #9C27B0;
+    }
+    
+    .stat-card.warning {
+        border-top-color: #FF9800;
+    }
+    
+    .stat-value {
+        font-size: 3em;
+        font-weight: bold;
+        color: #333;
+        margin: 0;
+    }
+    
+    .stat-label {
+        font-size: 0.9em;
+        color: #666;
+        margin-top: 5px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .filters-section {
+        background: white;
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+    }
+    
+    .filters-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        align-items: end;
+    }
+    
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .filter-group label {
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #333;
+    }
+    
+    .filter-group input,
+    .filter-group select {
+        padding: 12px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: border-color 0.3s ease;
+    }
+    
+    .filter-group input:focus,
+    .filter-group select:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .filter-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 12px 25px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .filter-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .export-btn {
+        background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+        margin-left: 10px;
+    }
+    
+    .export-btn:hover {
+        box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+    }
+    
+    .content-grid {
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        gap: 30px;
+        margin-bottom: 30px;
+    }
+    
+    @media (max-width: 768px) {
+        .content-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .logs-section {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .section-header {
+        background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);
+        padding: 20px;
+        border-bottom: 1px solid #dee2e6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .section-title {
+        font-size: 1.4em;
+        font-weight: 600;
+        color: #333;
+        margin: 0;
+    }
+    
+    .section-count {
+        background: #667eea;
+        color: white;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 0.9em;
+        font-weight: 600;
+    }
+    
+    .logs-table {
+        max-height: 600px;
+        overflow-y: auto;
+    }
+    
+    .log-entry {
+        padding: 15px 20px;
+        border-bottom: 1px solid #f0f0f0;
+        transition: background-color 0.2s ease;
+    }
+    
+    .log-entry:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .log-entry:last-child {
+        border-bottom: none;
+    }
+    
+    .log-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 8px;
+    }
+    
+    .log-time {
+        font-size: 0.85em;
+        color: #666;
+        font-weight: 500;
+    }
+    
+    .log-status {
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.8em;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .status-enviado {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .status-recibido {
+        background: #cce7ff;
+        color: #0066cc;
+    }
+    
+    .status-fallido {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .status-pendiente {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .log-content {
+        margin-top: 8px;
+    }
+    
+    .log-phone {
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .log-message {
+        color: #555;
+        margin-top: 4px;
+        font-size: 0.9em;
+        line-height: 1.4;
+    }
+    
+    .log-student {
+        color: #667eea;
+        font-weight: 500;
+        font-size: 0.85em;
+        margin-top: 4px;
+    }
+    
+    .sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    .widget {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .widget-header {
+        background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);
+        padding: 15px;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .widget-title {
+        font-size: 1.1em;
+        font-weight: 600;
+        color: #333;
+        margin: 0;
+    }
+    
+    .widget-content {
+        padding: 20px;
+    }
+    
+    .activity-chart {
+        height: 200px;
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 5px;
+    }
+    
+    .activity-bar {
+        flex: 1;
+        background: linear-gradient(0deg, #667eea 0%, #764ba2 100%);
+        border-radius: 4px 4px 0 0;
+        min-height: 10px;
+        position: relative;
+        transition: all 0.3s ease;
+    }
+    
+    .activity-bar:hover {
+        opacity: 0.8;
+        transform: scaleY(1.1);
+    }
+    
+    .activity-label {
+        position: absolute;
+        bottom: -25px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 0.7em;
+        color: #666;
+        white-space: nowrap;
+    }
+    
+    .activity-value {
+        position: absolute;
+        top: -25px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 0.7em;
+        font-weight: 600;
+        color: #333;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .activity-bar:hover .activity-value {
+        opacity: 1;
+    }
+    
+    .programadas-list {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    
+    .programada-item {
+        padding: 12px;
+        border-bottom: 1px solid #f0f0f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .programada-item:last-child {
+        border-bottom: none;
+    }
+    
+    .programada-info {
+        flex: 1;
+    }
+    
+    .programada-name {
+        font-weight: 600;
+        color: #333;
+        font-size: 0.9em;
+    }
+    
+    .programada-time {
+        color: #666;
+        font-size: 0.8em;
+        margin-top: 2px;
+    }
+    
+    .programada-badge {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.7em;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .badge-pendiente {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .badge-programada {
+        background: #cce7ff;
+        color: #0066cc;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 50px 20px;
+        color: #666;
+    }
+    
+    .empty-state .emoji {
+        font-size: 4em;
+        margin-bottom: 20px;
+        display: block;
+    }
+    
+    .refresh-indicator {
+        display: none;
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #4CAF50;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 25px;
+        font-size: 0.9em;
+        font-weight: 600;
+        box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+        z-index: 1000;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="logs-dashboard">
+    <!-- Header -->
+    <div class="dashboard-header">
+        <h1>📊 Dashboard de Logs</h1>
+        <div class="subtitle">
+            Monitoreo de actividad y fechas programadas - Sistema EKI
+        </div>
+    </div>
+    
+    <!-- Estadísticas principales -->
+    <div class="stats-grid">
+        <div class="stat-card whatsapp">
+            <div class="stat-value">{{ stats.total_whatsapp }}</div>
+            <div class="stat-label">📱 WhatsApp Total</div>
+        </div>
+        <div class="stat-card whatsapp">
+            <div class="stat-value">{{ stats.whatsapp_enviados }}</div>
+            <div class="stat-label">📤 Enviados</div>
+        </div>
+        <div class="stat-card campanas">
+            <div class="stat-value">{{ stats.total_campanas }}</div>
+            <div class="stat-label">📢 Campañas Total</div>
+        </div>
+        <div class="stat-card campanas">
+            <div class="stat-value">{{ stats.campanas_exitosas }}</div>
+            <div class="stat-label">✅ Exitosas</div>
+        </div>
+        <div class="stat-card programadas">
+            <div class="stat-value">{{ stats.programadas_pendientes }}</div>
+            <div class="stat-label">⏰ Programadas</div>
+        </div>
+        <div class="stat-card warning">
+            <div class="stat-value">{{ stats.envios_pendientes }}</div>
+            <div class="stat-label">⏳ Pendientes</div>
+        </div>
+    </div>
+    
+    <!-- Filtros -->
+    <div class="filters-section">
+        <form method="get" class="filters-form">
+            <div class="filters-grid">
+                <div class="filter-group">
+                    <label for="fecha_desde">Fecha Desde</label>
+                    <input type="date" name="fecha_desde" id="fecha_desde" 
+                           value="{{ fecha_desde|date:'Y-m-d' }}">
+                </div>
+                <div class="filter-group">
+                    <label for="fecha_hasta">Fecha Hasta</label>
+                    <input type="date" name="fecha_hasta" id="fecha_hasta" 
+                           value="{{ fecha_hasta|date:'Y-m-d' }}">
+                </div>
+                <div class="filter-group">
+                    <label for="tipo">Tipo de Log</label>
+                    <select name="tipo" id="tipo">
+                        <option value="todos" {% if tipo_log == 'todos' %}selected{% endif %}>
+                            📊 Todos los logs
+                        </option>
+                        <option value="whatsapp" {% if tipo_log == 'whatsapp' %}selected{% endif %}>
+                            📱 Solo WhatsApp
+                        </option>
+                        <option value="campanas" {% if tipo_log == 'campanas' %}selected{% endif %}>
+                            📢 Solo Campañas
+                        </option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <button type="submit" class="filter-btn">
+                        🔍 Filtrar
+                    </button>
+                    <a href="{% url 'logs_dashboard' %}?export=csv&fecha_desde={{ fecha_desde|date:'Y-m-d' }}&fecha_hasta={{ fecha_hasta|date:'Y-m-d' }}&tipo={{ tipo_log }}" 
+                       class="filter-btn export-btn">
+                        📄 Exportar CSV
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Contenido principal -->
+    <div class="content-grid">
+        <!-- Logs principales -->
+        <div class="logs-section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    {% if tipo_log == 'whatsapp' %}
+                        📱 Logs de WhatsApp
+                    {% elif tipo_log == 'campanas' %}
+                        📢 Logs de Campañas
+                    {% else %}
+                        🗂️ Todos los Logs
+                    {% endif %}
+                </h2>
+                <span class="section-count">{{ total_registros }} registros</span>
+            </div>
+            
+            <div class="logs-table">
+                {% if tipo_log != 'campanas' %}
+                    <!-- WhatsApp Logs -->
+                    {% for log in whatsapp_logs %}
+                    <div class="log-entry">
+                        <div class="log-meta">
+                            <span class="log-time">
+                                🕒 {{ log.fecha|date:"d/m/Y H:i" }}
+                            </span>
+                            <span class="log-status {% if log.tipo == 'SENT' %}status-enviado{% else %}status-recibido{% endif %}">
+                                {% if log.tipo == 'SENT' %}📤 Enviado{% else %}📥 Recibido{% endif %}
+                            </span>
+                        </div>
+                        <div class="log-content">
+                            <div class="log-phone">📞 {{ log.telefono }}</div>
+                            {% if log.estudiante %}
+                                <div class="log-student">👤 {{ log.estudiante.nombre }}</div>
+                            {% endif %}
+                            {% if log.mensaje %}
+                                <div class="log-message">💬 {{ log.mensaje|truncatewords:15 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="empty-state">
+                        <span class="emoji">📱</span>
+                        <p>No hay logs de WhatsApp en el período seleccionado</p>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+                
+                {% if tipo_log != 'whatsapp' %}
+                    <!-- Envío Logs -->
+                    {% for log in envio_logs %}
+                    <div class="log-entry">
+                        <div class="log-meta">
+                            <span class="log-time">
+                                🕒 {{ log.fecha_envio|date:"d/m/Y H:i" }}
+                            </span>
+                            <span class="log-status {% if log.estado == 'ENVIADO' %}status-enviado{% elif log.estado == 'FALLIDO' %}status-fallido{% else %}status-pendiente{% endif %}">
+                                {% if log.estado == 'ENVIADO' %}✅{% elif log.estado == 'FALLIDO' %}❌{% else %}⏳{% endif %}
+                                {{ log.estado }}
+                            </span>
+                        </div>
+                        <div class="log-content">
+                            <div class="log-phone">👤 {{ log.estudiante.nombre }}</div>
+                            {% if log.campana %}
+                                <div class="log-student">📢 {{ log.campana.nombre }}</div>
+                            {% endif %}
+                            {% if log.respuesta_api %}
+                                <div class="log-message">🔧 {{ log.respuesta_api|truncatewords:10 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="empty-state">
+                        <span class="emoji">📢</span>
+                        <p>No hay logs de campañas en el período seleccionado</p>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <!-- Actividad por día -->
+            <div class="widget">
+                <div class="widget-header">
+                    <h3 class="widget-title">📈 Actividad (7 días)</h3>
+                </div>
+                <div class="widget-content">
+                    <div class="activity-chart">
+                        {% for dia in actividad_diaria %}
+                        <div class="activity-bar" 
+                             style="height: {% if dia.total > 0 %}{{ dia.total|floatformat:0|add:'0' }}px{% else %}10px{% endif %}; max-height: 150px;">
+                            <div class="activity-label">{{ dia.fecha }}</div>
+                            <div class="activity-value">{{ dia.total }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Campañas programadas -->
+            <div class="widget">
+                <div class="widget-header">
+                    <h3 class="widget-title">⏰ Próximas Programadas</h3>
+                </div>
+                <div class="widget-content">
+                    <div class="programadas-list">
+                        {% for campana in campanas_programadas|slice:":5" %}
+                        <div class="programada-item">
+                            <div class="programada-info">
+                                <div class="programada-name">{{ campana.nombre|truncatechars:20 }}</div>
+                                <div class="programada-time">{{ campana.fecha_programada|date:"d/m H:i" }}</div>
+                            </div>
+                            <span class="programada-badge badge-programada">📅 Programada</span>
+                        </div>
+                        {% empty %}
+                        <div class="empty-state" style="padding: 20px;">
+                            <span class="emoji" style="font-size: 2em;">⏰</span>
+                            <p style="font-size: 0.9em;">No hay campañas programadas</p>
+                        </div>
+                        {% endfor %}
+                        
+                        {% for envio in envios_programados|slice:":3" %}
+                        <div class="programada-item">
+                            <div class="programada-info">
+                                <div class="programada-name">{{ envio.nombre|truncatechars:20 }}</div>
+                                <div class="programada-time">{{ envio.fecha_programada|date:"d/m H:i" }}</div>
+                            </div>
+                            <span class="programada-badge badge-pendiente">⏳ Pendiente</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    {% if campanas_programadas or envios_programados %}
+                    <div style="margin-top: 15px; text-align: center;">
+                        <a href="{% url 'calendario_programados' %}" class="filter-btn" style="font-size: 0.8em; padding: 8px 15px;">
+                            📅 Ver Calendario Completo
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Indicador de actualización -->
+<div class="refresh-indicator" id="refreshIndicator">
+    ✨ Datos actualizados
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-refresh cada 30 segundos
+    let refreshInterval = setInterval(() => {
+        const indicator = document.getElementById('refreshIndicator');
+        indicator.style.display = 'block';
+        
+        // Hacer fetch a la API para obtener datos actualizados
+        fetch(window.location.href, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        }).then(() => {
+            setTimeout(() => {
+                indicator.style.display = 'none';
+            }, 2000);
+        });
+    }, 30000);
+    
+    // Limpiar interval al salir
+    window.addEventListener('beforeunload', () => {
+        clearInterval(refreshInterval);
+    });
+    
+    // Mejorar UX de filtros
+    const filtros = document.querySelector('.filters-form');
+    filtros.addEventListener('submit', function() {
+        // Mostrar loading
+        const btn = filtros.querySelector('.filter-btn');
+        btn.innerHTML = '⏳ Cargando...';
+        btn.disabled = true;
+    });
+});
+</script>
+{% endblock %}

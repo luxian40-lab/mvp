@@ -13,7 +13,10 @@ def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_
     """
     from .models import Estudiante, ProgresoEstudiante, ModuloCompletado
     
-    estudiante = Estudiante.objects.get(id=estudiante_id)
+    try:
+        estudiante = Estudiante.objects.get(id=estudiante_id)
+    except Estudiante.DoesNotExist:
+        return "❌ Error: No se encontró tu perfil de estudiante."
     
     # Obtener cursos activos ordenados
     progresos_activos = ProgresoEstudiante.objects.filter(
@@ -33,6 +36,8 @@ def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_
     if not modulo_actual:
         # Si no hay módulo actual, tomar el primero
         modulo_actual = progreso.curso.modulos.order_by('numero').first()
+        if not modulo_actual:
+            return f"❌ El curso {progreso.curso.nombre} no tiene módulos configurados."
         progreso.modulo_actual = modulo_actual
         progreso.save()
     
@@ -42,10 +47,13 @@ def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_
     
     if any(palabra in mensaje_lower for palabra in palabras_completar):
         # Marcar módulo actual como completado
-        ModuloCompletado.objects.get_or_create(
-            progreso=progreso,
-            modulo=modulo_actual
-        )
+        try:
+            ModuloCompletado.objects.get_or_create(
+                progreso=progreso,
+                modulo=modulo_actual
+            )
+        except Exception as e:
+            print(f"⚠️ Error al completar módulo: {e}")
         
         # Buscar siguiente módulo
         siguiente_modulo = progreso.curso.modulos.filter(

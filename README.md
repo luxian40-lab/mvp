@@ -1,8 +1,77 @@
-# 🚀 Eki Platform - MVP Sistema de Gestión Educativa
+# 🌾 EKI - Plataforma de Educación Agrícola Digital
 
-Sistema completo de gestión y administración educativa basado en **Django** con integración de **WhatsApp Cloud API** y **Twilio**. Plataforma centralizada para la gestión de estudiantes, campañas de mensajería multi-canal, envío de notificaciones con imágenes y monitoreo en tiempo real.
+**v1.0.0 - PRODUCTO FINAL**
 
-## � Modelo de Negocio B2B
+[![Status](https://img.shields.io/badge/Status-Production%20Ready-green)]()
+[![Version](https://img.shields.io/badge/Version-1.0.0-blue)]()
+[![Python](https://img.shields.io/badge/Python-3.9%2B-blue)]()
+[![Django](https://img.shields.io/badge/Django-5.2.9-darkgreen)]()
+
+Sistema completo de educación agrícola para campesinos colombianos. Integra WhatsApp, cursos interactivos, certificados digitales, gamificación y un dashboard administrativo profesional.
+
+**🎯 Target:** Campesinos / Cooperativas Agrícolas  
+**🌍 Idioma:** Español  
+**📱 Plataforma:** Web + WhatsApp  
+**🔒 Seguridad:** HABEAS DATA (Ley 1581/2012 Colombia)  
+
+---
+
+## 📚 Documentación
+
+| Documento | Descripción |
+|-----------|-------------|
+| [PRODUCT_RELEASE_v1.0.md](PRODUCT_RELEASE_v1.0.md) | 📋 Documento oficial de release |
+| [README_DEPLOY.md](README_DEPLOY.md) | 🚀 Guía de deployment |
+| [GUIA_COMPLETA.md](GUIA_COMPLETA.md) | 📖 Manual completo de features |
+| [CERTIFICADOS_URLS_FUNCIONALES.md](CERTIFICADOS_URLS_FUNCIONALES.md) | 📜 Sistema de certificados |
+| [DEPLOYMENT_LUNES_CHECKLIST.md](DEPLOYMENT_LUNES_CHECKLIST.md) | ✅ Checklist pre-producción |
+
+---
+
+## ✨ Features Principales v1.0
+
+### ✨ Nuevo: Onboarding Personalizado (v4.0)
+* **Flujo de 4 Pasos:**
+  1. Aceptación de Habeas Data (Ley 1581 de 2012 - Colombia)
+  2. Selección de tipo de documento (CC/TI/CE/PP)
+  3. Registro de número de documento
+  4. **Captura de nombre real** ✨ NUEVO
+* **Experiencia Personalizada:** Cada usuario con su nombre real desde el inicio
+* **Validaciones Legales:** Cumplimiento con normativa colombiana
+* **Estados Rastreables:** Sistema de estados para seguimiento completo
+
+### 🎯 Sistema de Menú Numérico Simplificado
+* **Opciones Deterministas:**
+  - 1️⃣ Ver mi progreso → Muestra avance en cursos
+  - 2️⃣ Ver cursos disponibles → Lista de cursos activos
+  - 3️⃣ Ayuda y soporte → Asistencia inmediata
+* **Reconocimiento de Audio:** Números hablados ("uno", "dos", "tres") se normalizan automáticamente
+* **Sin Ambigüedades:** Lógica simplificada para sandbox de Twilio
+* **Context-Aware:** El sistema entiende el contexto para inscripción en cursos
+
+### 📚 Cursos Profesionales Integrados
+* **☕ Café Arábigo: Producción Sostenible** (8 semanas, 5 módulos)
+  - Establecimiento del cultivo (variedades, distancias, germinadores)
+  - Nutrición y fertilización (NPK, análisis de suelo)
+  - Manejo integrado de plagas (roya, broca, control biológico)
+  - Cosecha y beneficio (fermentación, secado, calidad)
+  - Sostenibilidad y BPA (certificaciones, conservación)
+  
+* **🥑 Aguacate Hass: Producción Comercial** (7 semanas, 5 módulos)
+  - Establecimiento del huerto (selección de sitio, polinización)
+  - Nutrición y manejo del suelo (análisis foliar, fertirrigación)
+  - Manejo integrado de plagas (Phytophthora, trips)
+  - Poda y manejo del dosel (técnicas, épocas)
+  - Cosecha y post-cosecha (índices de madurez, cadena de frío)
+
+### 📤 Importación Masiva de Estudiantes
+* **Botón Profesional en Admin:** Interfaz moderna con gradiente y animaciones
+* **Selección de Curso:** Inscripción automática al importar
+* **Formato Excel:** 4 columnas (Teléfono, Nombre, Tipo Doc, Número Doc)
+* **Validaciones Automáticas:** Teléfono único, cédula única, formatos correctos
+* **Estado Completo:** Estudiantes importados ya tienen onboarding completado
+
+## 🌐 Modelo de Negocio B2B
 
 **EKI opera como plataforma B2B de educación agrícola por WhatsApp.**
 
@@ -38,33 +107,50 @@ Ver documentación completa en:
 * **Seguimiento en Tiempo Real:** Monitoreo del estado de envíos (exitosos, fallidos, pendientes)
 
 ### 📊 Dashboard de Métricas
-* **Métricas en Tiempo Real:** Visualización actualizada de estadísticas clave
+* **Métricas en Tiempo Real:** Estadísticas actualizadas constantemente
 * **Análisis de Campañas:** Total de campañas creadas y ejecutadas
 * **Estadísticas de WhatsApp:** Mensajes enviados, recibidos y estados
-* **Historial de Mensajes:** Últimos 10 mensajes con detalles completos
-* **Diseño Moderno:** Interfaz con gradientes y estilos personalizados
+* **Gamificación:** Niveles, badges, puntos y rachas de estudiantes
+* **Cursos Activos:** Inscripciones, progreso y completados
+* **Historial de Mensajes:** Últimos mensajes con detalles completos
+* **Diseño Moderno:** Interfaz profesional con Jazzmin theme
 
 ### 📱 Integración WhatsApp
-* **Twilio WhatsApp:** Envío de WhatsApp vía Twilio API
-* **Mensajes con Imágenes:** Envío de mensajes tipo 'image' con caption
-* **Webhook Configurado:** Recepción de mensajes entrantes y notificaciones
-* **Detección de Intenciones:** Sistema inteligente de respuestas automáticas
-* **Logs Detallados:** Registro completo de todos los mensajes
-* **Agentes IA:** Sistema multi-agente con OpenAI para tutorías personalizadas
+* **Twilio WhatsApp Sandbox:** Envío de mensajes en desarrollo
+* **Twilio Production:** Migración lista para botones interactivos
+* **Webhook Configurado:** Recepción de mensajes entrantes y respuestas
+* **Sistema de Intents:** Detección inteligente de intenciones del usuario
+* **Logs Detallados:** Registro completo de conversaciones
+* **Agentes IA Especializados:** OpenAI GPT-3.5-turbo + Cohere fallback
+* **Normalización de Audio:** Transcripción y normalización de números hablados
+* **Context Detection:** Detecta automáticamente el contexto de la conversación
+
+### 🔐 Sistema de Seguridad y Cumplimiento
+* **Habeas Data Obligatorio:** Aceptación de términos antes de usar la plataforma
+* **Ley 1581 de 2012:** Cumplimiento con normativa colombiana de datos
+* **4 Tipos de Documento:** CC, TI, CE, PP
+* **Validación de Documentos:** 6-15 dígitos, solo números
+* **Nombres Personalizados:** Captura de nombre real del usuario
+* **Estados de Onboarding:** Seguimiento completo del proceso
 
 ### 👥 Gestión de Estudiantes
 * **CRUD Completo:** Alta, baja y modificación de estudiantes
-* **Importación Masiva:** Carga de estudiantes desde archivos Excel
+* **Importación Masiva con Curso:** 📤 Botón profesional para importar Excel y asignar curso
 * **Validación de Teléfonos:** Normalización automática a formato internacional
-* **Filtros y Búsqueda:** Sistema de búsqueda avanzada en el admin
-* **Exportación de Reportes:** Descarga de datos en formato Excel
+* **Validación de Documentos:** Tipos (CC/TI/CE/PP) y números únicos
+* **Onboarding Completo:** 4 pasos con nombre personalizado
+* **Filtros Avanzados:** Por cliente, curso, estado, fecha
+* **Exportación de Reportes:** Descarga de datos en formato Excel con cursos
 
-### 📧 Sistema de Plantillas
-* **Editor de Mensajes:** Creación de plantillas personalizables
-* **Soporte de Variables:** Personalización con {nombre} y otros campos
-* **Gestión de Imágenes:** Campo URL para imágenes en mensajes
+### 📧 Sistema de Plantillas con Twilio
+* **Twilio Content Templates:** Sistema de plantillas aprobadas para WhatsApp
+* **Content SIDs:** Gestión de identificadores de plantillas aprobadas
+* **Editor de Mensajes:** Creación de plantillas personalizables en Django Admin
+* **Soporte de Variables:** Personalización con {nombre}, {telefono}, {curso}
+* **Estado de Aprobación:** Badges visuales para plantillas aprobadas/pendientes
 * **Vista Previa:** Previsualización de plantillas antes de enviar
 * **Reutilización:** Uso de plantillas en múltiples campañas
+* **Guía Completa:** Ver [GUIA_TWILIO_TEMPLATES.md](GUIA_TWILIO_TEMPLATES.md)
 
 ### 🎮 Gamificación Integrada
 * **Sistema de Puntos:** 50 pts por módulo, 200 pts bonus por curso
@@ -92,41 +178,56 @@ Ver proceso completo en [PROCESO_ONBOARDING_CLIENTES.md](PROCESO_ONBOARDING_CLIE
 * **Backend:** Python 3.11+ / Django 5.2.9
 * **Base de Datos:** SQLite (desarrollo) / PostgreSQL (producción)
 * **Admin Interface:** Django Jazzmin 3.0.1
+* **IA/ML:**
+  - OpenAI GPT-3.5-turbo (agentes especializados)
+  - Cohere API (fallback)
+  - Sistema multi-agente (Tutor, Motivador, Evaluador)
 * **API Integration:** 
-  - WhatsApp Cloud API v19.0 (Meta)
-  - Twilio API v8.0+ (SMS y WhatsApp)
+  - Twilio WhatsApp Sandbox (desarrollo)
+  - Twilio WhatsApp Production (lista para migración)
+  - Twilio Content API (templates)
 * **Excel Processing:** OpenPyXL 3.1.5
 * **HTTP Client:** Requests 2.32+
-* **Frontend:** Django Templates + CSS Custom + Bootstrap
+* **Frontend:** Django Templates + CSS Custom + Jazzmin Theme
 
 ## 📁 Estructura del Proyecto
 
 ```
 eki_mvp/
 ├── core/                          # Aplicación principal
-│   ├── models.py                  # Modelos: Estudiante, Plantilla, Campaña, EnvioLog, WhatsappLog
-│   ├── admin.py                   # Configuración del admin de Django
-│   ├── views.py                   # Vistas del dashboard y reportes
-│   ├── api.py                     # Endpoints REST para progreso
+│   ├── models.py                  # Modelos: Estudiante, Curso, Módulo, ProgresoEstudiante, etc.
+│   ├── admin.py                   # Admin con botón de importar estudiantes
+│   ├── views.py                   # Vistas del dashboard, reportes y webhooks
+│   ├── api.py                     # Endpoints REST para progreso de estudiantes
 │   ├── services.py                # Lógica de negocio y envío de campañas
-│   ├── utils.py                   # Utilidades (envío WhatsApp)
-│   ├── intent_detector.py         # Detección de intenciones en mensajes
-│   ├── response_templates.py      # Templates de respuestas automáticas
+│   ├── utils.py                   # Utilidades (envío WhatsApp vía Twilio)
+│   ├── intent_detector.py         # Detección de intenciones (opcion_1/2/3)
+│   ├── response_templates.py      # Templates de respuestas con menú numérico
+│   ├── message_handler.py         # Procesamiento de mensajes + normalización audio
+│   ├── security_handler.py        # Habeas Data + onboarding de 4 pasos
+│   ├── agentes_ia.py              # Sistema multi-agente (OpenAI + Cohere)
+│   ├── gamificacion.py            # Sistema de puntos, niveles y badges
+│   ├── selector_curso.py          # Lógica de selección de cursos
 │   └── migrations/                # Migraciones de base de datos
+│       └── 0028_agregar_estado_esperando_nombre.py  # ✨ Última migración
 ├── mvp_project/                   # Configuración del proyecto
 │   ├── settings.py                # Configuración general
 │   ├── urls.py                    # Rutas principales
 │   └── wsgi.py                    # Configuración WSGI
 ├── templates/                     # Plantillas HTML
 │   └── admin/
-│       ├── dashboard_metrics.html # Dashboard principal
-│       ├── importar_estudiantes.html
-│       └── descargar_reportes.html
+│       ├── dashboard_metrics.html         # Dashboard principal
+│       ├── estudiante_changelist.html     # ✨ Lista con botón de importar
+│       └── importar_estudiantes.html      # Formulario de importación
 ├── staticfiles/                   # Archivos estáticos recopilados
 ├── db.sqlite3                     # Base de datos (desarrollo)
 ├── manage.py                      # Comando Django
 ├── requirements.txt               # Dependencias Python
-└── .env                          # Variables de entorno (no versionado)
+├── .env                          # Variables de entorno (no versionado)
+├── LOGICA_NUMEROS_SIMPLIFICADA.md        # ✨ Documentación del menú
+├── FLUJO_ONBOARDING_NOMBRE.md            # ✨ Documentación del onboarding
+├── CORRECCIONES_REALIZADAS.md            # ✨ Últimos cambios
+└── test_*.py                      # Scripts de testing
 ```
 
 ## ⚙️ Instalación y Configuración
@@ -405,32 +506,35 @@ gunicorn mvp_project.wsgi:application --bind 0.0.0.0:8000
 
 ## 📝 Notas de Desarrollo
 
-### Últimas Actualizaciones (v3.0)
-- ✅ Sistema de temas para organizar plantillas y campañas
+### ✨ Últimas Actualizaciones (v4.0 - Enero 2026)
+- ✅ **Onboarding con Nombre Personalizado** (4 pasos con captura de nombre real)
+- ✅ **Menú Numérico Simplificado** (opciones 1/2/3 deterministas)
+- ✅ **Normalización de Audio** (números hablados "uno" → "1")
+- ✅ **Botón de Importar Profesional** (gradiente, animaciones, UX mejorada)
+- ✅ **Importación con Curso** (selección de curso al importar estudiantes)
+- ✅ **Cursos Profesionales** (Café Arábigo + Aguacate Hass completos)
+- ✅ **Context Detection** (sistema entiende contexto de conversación)
+- ✅ **Sistema de Estados** (esperando_nombre, esperando_cedula, completado)
+- ✅ **Validaciones Mejoradas** (tipo documento CC/TI/CE/PP, número único)
+- ✅ **Tests de Integración** (onboarding + menú numérico validados)
+
+### Versiones Anteriores (v3.0)
 - ✅ Sistema multi-agente de IA (Tutor, Frustración, Motivador, Evaluador)
-- ✅ Vista de conversaciones individuales mejorada
+- ✅ Sistema de temas para organizar plantillas y campañas
 - ✅ Integración WhatsApp vía Twilio API
-- ✅ Soporte completo de imágenes en plantillas WhatsApp
 - ✅ Dashboard rediseñado con gradientes modernos
 - ✅ Comando unificado `python manage.py eki`
 - ✅ Health check completo para producción
-- ✅ Documentación completa de administración
-- ✅ Reconfiguración de archivos estáticos (STATICFILES_DIRS)
-- ✅ URLs optimizadas para evitar conflictos con admin
-- ✅ PlantillaAdmin con vista previa de imágenes
-- ✅ Mejoras en UX de botones de acción
-- ✅ Integración completa con WhatsApp Cloud API
-- ✅ Sistema de logs mejorado
 
-### Próximas Funcionalidades
-- [ ] Programación automática de campañas
-- [ ] Reportes con gráficos y estadísticas avanzadas
-- [ ] Mejoras en sistema de agentes IA
-- [ ] Sistema de roles y permisos
-- [ ] API REST completa con autenticación
-- [ ] Dashboard de análisis de conversaciones
+### 🚀 Próximas Funcionalidades
+- [ ] **Migración a Twilio Production** (botones interactivos en WhatsApp)
+- [ ] **Deployment AWS** (RDS + S3 + App Runner)
+- [ ] Sistema de exámenes y evaluaciones
+- [ ] Certificados digitales de finalización
+- [ ] Dashboard de analytics avanzado
 - [ ] Integración con CRM externo
-- [ ] Exportación de reportes en PDF/Excel
+- [ ] API REST completa con autenticación JWT
+- [ ] App móvil nativa (React Native)
 
 ## 🐛 Troubleshooting
 
@@ -457,7 +561,7 @@ python manage.py collectstatic --noinput --clear
 
 ## 📄 Licencia
 
-Proyecto desarrollado para **Eki Platform** © 2025. Todos los derechos reservados.
+Proyecto desarrollado para **Eki Platform** © 2026. Todos los derechos reservados.
 
 ## 👨‍💻 Autor
 
@@ -470,6 +574,7 @@ Este es un proyecto privado de Eki Platform. Para consultas o colaboraciones, co
 
 ---
 
-**Versión:** 2.1.0  
-**Última Actualización:** Diciembre 2025  
-**Estado:** ✅ En Producción
+**Versión:** 4.0.0  
+**Última Actualización:** Enero 10, 2026  
+**Estado:** ✅ Listo para Demo (Fondo Nacional de Cafeteros)  
+**Cliente Principal:** Fondo Nacional de Cafeteros - Colombia ☕

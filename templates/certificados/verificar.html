@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificado - {{ codigo }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 700px;
+            width: 100%;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2C3E50 0%, #3498DB 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .codigo-verificacion {
+            background: #f8f9fa;
+            border-left: 4px solid #3498DB;
+            padding: 15px 20px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+        }
+        
+        .codigo-verificacion strong {
+            color: #2C3E50;
+            font-size: 20px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .resultado {
+            text-align: center;
+            padding: 30px;
+        }
+        
+        .valido {
+            color: #27ae60;
+        }
+        
+        .invalido {
+            color: #e74c3c;
+        }
+        
+        .icono {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+        
+        .resultado h2 {
+            font-size: 28px;
+            margin-bottom: 15px;
+        }
+        
+        .info-certificado {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 30px;
+            text-align: left;
+        }
+        
+        .info-item {
+            padding: 12px 0;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .info-item:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            color: #666;
+            font-weight: 500;
+        }
+        
+        .info-value {
+            color: #2C3E50;
+            font-weight: 600;
+            text-align: right;
+        }
+        
+        .mencion {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            text-align: center;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .calificacion-badge {
+            display: inline-block;
+            background: #27ae60;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        
+        .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 20px;
+            transition: transform 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .error-message {
+            background: #fee;
+            border-left: 4px solid #e74c3c;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: #c0392b;
+        }
+        
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 24px;
+            }
+            
+            .content {
+                padding: 30px 20px;
+            }
+            
+            .info-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+            
+            .info-value {
+                text-align: left;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎓 EKI - Verificación de Certificado</h1>
+            <p>Sistema de Educación Agrícola para el Campo Colombiano</p>
+        </div>
+        
+        <div class="content">
+            <div class="codigo-verificacion">
+                <div style="color: #666; margin-bottom: 5px;">Código de Verificación:</div>
+                <strong>{{ codigo }}</strong>
+            </div>
+            
+            {% if info.valido %}
+                <div class="resultado valido">
+                    <div class="icono">✅</div>
+                    <h2>Certificado Válido</h2>
+                    <p>Este certificado es auténtico y ha sido emitido por EKI</p>
+                </div>
+                
+                {% if info.mencion %}
+                    <div class="mencion">
+                        🏆 {{ info.mencion }}
+                    </div>
+                {% endif %}
+                
+                <div class="info-certificado">
+                    <div class="info-item">
+                        <span class="info-label">👤 Estudiante:</span>
+                        <span class="info-value">{{ info.estudiante }}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">📚 Curso:</span>
+                        <span class="info-value">{{ info.curso }}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">📊 Calificación:</span>
+                        <span class="info-value">
+                            <span class="calificacion-badge">{{ info.calificacion }}%</span>
+                        </span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">📅 Fecha de Inicio:</span>
+                        <span class="info-value">{{ info.fecha_inicio|date:"d/m/Y" }}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">🏁 Fecha de Finalización:</span>
+                        <span class="info-value">{{ info.fecha_completado|date:"d/m/Y" }}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">⏱️ Duración:</span>
+                        <span class="info-value">{{ info.duracion_dias }} día{% if info.duracion_dias != 1 %}s{% endif %}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">📜 Fecha de Emisión:</span>
+                        <span class="info-value">{{ info.fecha_emision|date:"d/m/Y H:i" }}</span>
+                    </div>
+                </div>
+                
+                {% if info.pdf_url %}
+                    <div style="text-align: center;">
+                        <a href="{{ info.pdf_url }}" class="btn" target="_blank">
+                            📄 Descargar Certificado PDF
+                        </a>
+                    </div>
+                {% endif %}
+            {% else %}
+                <div class="resultado invalido">
+                    <div class="icono">❌</div>
+                    <h2>Certificado No Válido</h2>
+                    <p>Este código no corresponde a un certificado emitido</p>
+                </div>
+                
+                <div class="error-message">
+                    <strong>⚠️ Motivo:</strong> {{ info.error }}
+                </div>
+                
+                <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 8px;">
+                    <strong>💡 Verifica:</strong>
+                    <ul style="margin-top: 10px; margin-left: 20px;">
+                        <li>Que hayas escrito el código correctamente</li>
+                        <li>Que el código sea el formato: EKI-XXXX-YYYY-ZZZZ</li>
+                        <li>Que el certificado haya sido emitido oficialmente</li>
+                    </ul>
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="footer">
+            <p><strong>EKI</strong> - Educación Agrícola Digital</p>
+            <p style="margin-top: 5px; font-size: 12px;">
+                🌱 Transformando el campo colombiano a través de la educación
+            </p>
+        </div>
+    </div>
+</body>
+</html>

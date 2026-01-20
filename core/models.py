@@ -20,7 +20,7 @@ class TemaCampana(models.Model):
         max_length=10,
         blank=True,
         verbose_name="Emoji",
-        help_text="Emoji representativo (ej: ☕, 🥑, 🌽)"
+        help_text="Copia y pega uno: ☕ 🥑 🌽 🍌 🍊 🍇 🥔 🥕 🧅 🌶️ 🫘 🥬 🍅 🥒 🥦 🐄 🐔 🐷 🐑 🌱 🌾 🌳 🚜 💧 🌤️"
     )
     descripcion = models.TextField(
         blank=True,
@@ -35,7 +35,7 @@ class TemaCampana(models.Model):
     
     class Meta:
         verbose_name = 'Tema de Campaña'
-        verbose_name_plural = 'Temas de Campañas'
+        verbose_name_plural = '📢 Campañas → Temas'
         ordering = ['nombre']
     
     def __str__(self):
@@ -71,6 +71,28 @@ class Cliente(models.Model):
         max_length=20,
         verbose_name="Teléfono"
     )
+    numero_whatsapp_autorizado = models.CharField(
+        max_length=20,
+        blank=True,
+        verbose_name="Número WhatsApp Autorizado en Meta",
+        help_text="Número autorizado en Meta Business para envío masivo (ej: 573001234567)"
+    )
+    enviar_certificados_email = models.BooleanField(
+        default=True,
+        verbose_name="Enviar Certificados por Email",
+        help_text="Si está activado, se enviarán los certificados de sus estudiantes al email del cliente"
+    )
+    enlace_grupo_whatsapp = models.URLField(
+        max_length=500,
+        blank=True,
+        verbose_name="Enlace de Grupo de WhatsApp",
+        help_text="Enlace de invitación al grupo de WhatsApp del cliente (ej: https://chat.whatsapp.com/xxxxx)"
+    )
+    usar_gamificacion = models.BooleanField(
+        default=True,
+        verbose_name="🎮 Usar Gamificación",
+        help_text="Si está activado, los estudiantes de este cliente podrán ver puntos, badges y recompensas. Si está desactivado, solo verán el contenido educativo."
+    )
     activo = models.BooleanField(
         default=True,
         verbose_name="Activo",
@@ -88,7 +110,7 @@ class Cliente(models.Model):
     
     class Meta:
         verbose_name = 'Cliente'
-        verbose_name_plural = 'Clientes'
+        verbose_name_plural = '👥 Clientes (Organizaciones)'
         ordering = ['nombre']
     
     def __str__(self):
@@ -105,8 +127,28 @@ class Cliente(models.Model):
 
 # 1. ESTUDIANTE
 class Estudiante(models.Model):
-    nombre = models.CharField(max_length=100)
-    telefono = models.CharField(max_length=20, unique=True)
+    TIPO_DOCUMENTO_CHOICES = [
+        ('CC', 'Cédula de Ciudadanía'),
+        ('TI', 'Tarjeta de Identidad'),
+        ('CE', 'Cédula de Extranjería'),
+        ('PP', 'Pasaporte'),
+    ]
+    
+    tipo_documento = models.CharField(
+        max_length=2,
+        choices=TIPO_DOCUMENTO_CHOICES,
+        default='CC',
+        verbose_name='Tipo de Documento',
+        help_text='Tipo de documento de identificación'
+    )
+    cedula = models.CharField(
+        max_length=20,
+        unique=True,
+        verbose_name='Número de Documento',
+        help_text='Número de identificación único'
+    )
+    nombre = models.CharField(max_length=100, verbose_name='Nombre Completo')
+    telefono = models.CharField(max_length=20, unique=True, verbose_name='Teléfono WhatsApp')
     cliente = models.ForeignKey(
         Cliente,
         on_delete=models.CASCADE,
@@ -116,8 +158,36 @@ class Estudiante(models.Model):
         verbose_name='Cliente',
         help_text='Cliente/Organización a la que pertenece este estudiante'
     )
-    activo = models.BooleanField(default=True)
-    fecha_registro = models.DateTimeField(auto_now_add=True)
+    activo = models.BooleanField(default=True, verbose_name='Activo')
+    fecha_registro = models.DateTimeField(auto_now_add=True, verbose_name='Fecha de Registro')
+    
+    # 🛡️ HABEAS DATA - Protección de datos personales (Ley 1581 de 2012 - Colombia)
+    acepto_terminos = models.BooleanField(
+        default=False,
+        verbose_name='Aceptó Términos y Condiciones',
+        help_text='Indica si el estudiante aceptó la política de tratamiento de datos'
+    )
+    fecha_aceptacion_terminos = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Fecha de Aceptación',
+        help_text='Fecha y hora en que aceptó los términos'
+    )
+    
+    # 📝 ONBOARDING - Estado del proceso de registro
+    estado_onboarding = models.CharField(
+        max_length=50,
+        default='nuevo',
+        verbose_name='Estado Onboarding',
+        help_text='nuevo, esperando_tipo_doc, esperando_cedula, esperando_nombre, esperando_respuesta_modulo, completado'
+    )
+    
+    # 📝 CONTEXTO TEMPORAL - Para preguntas de módulo
+    contexto_temporal = models.JSONField(
+        null=True,
+        blank=True,
+        help_text='Guarda el módulo_id y pregunta_id actual cuando está respondiendo mini examen'
+    )
 
     def clean(self):
         # Limpieza de teléfono
@@ -134,73 +204,105 @@ class Estudiante(models.Model):
     def save(self, *args, **kwargs):
         self.clean() # Forzamos limpieza antes de guardar
         super().save(*args, **kwargs)
+    
+    class Meta:
+        verbose_name = 'Estudiante'
+        verbose_name_plural = '👥 Estudiantes'
+        ordering = ['nombre']
+        indexes = [
+            models.Index(fields=['cedula']),
+            models.Index(fields=['telefono']),
+        ]
 
-    def __str__(self): return f"{self.nombre} ({self.telefono})"
+    def __str__(self): 
+        return f"{self.nombre} (CC: {self.cedula})"
 
 # 2. PLANTILLA
 class Plantilla(models.Model):
     """Plantillas de mensajes personalizables para campañas"""
-    
+
     CATEGORIA_CHOICES = [
-        ('educativo', '📚 Educativo'),
-        ('motivacional', '💪 Motivacional'),
-        ('informativo', 'ℹ️ Informativo'),
-        ('promocional', '🎁 Promocional'),
-        ('recordatorio', '⏰ Recordatorio'),
-        ('bienvenida', '👋 Bienvenida'),
+        ('cultivos', '🌾 Cultivos'),
+        ('ganaderia', '🐄 Ganadería'),
+        ('general_agricola', '🌱 General Agrícola'),
+        ('educacion', '📚 Educación'),
+        ('gestion', '💼 Gestión'),
         ('otro', '📝 Otro'),
     ]
-    
+
     nombre_interno = models.CharField(
         max_length=100,
         verbose_name="Nombre de la plantilla",
-        help_text="Nombre interno para identificar la plantilla (ej: 'Bienvenida Estudiantes')"
+        help_text="Nombre interno para identificar la plantilla (ej: 'Recordatorio Riego Café')"
     )
-    
+
     categoria = models.CharField(
         max_length=20,
         choices=CATEGORIA_CHOICES,
-        default='informativo',
+        default='cultivos',
         verbose_name="Categoría",
-        help_text="Tipo de plantilla"
+        help_text="Categoría principal de la plantilla"
     )
-    
+
+    emoji = models.CharField(
+        max_length=10,
+        blank=True,
+        verbose_name="Emoji",
+        help_text="Emoji que representa esta plantilla (se autocompletará según la categoría)"
+    )
+
     cuerpo_mensaje = models.TextField(
         verbose_name="Mensaje",
         help_text="Contenido del mensaje. Usa {nombre} para personalizar con el nombre del estudiante."
     )
-    
+
     activa = models.BooleanField(
         default=True,
         verbose_name="Activa",
         help_text="Si está desactivada, no aparecerá en las opciones de campaña"
     )
-    
+
     fecha_creacion = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     fecha_modificacion = models.DateTimeField(auto_now=True, null=True, blank=True)
-    
+
     veces_usada = models.IntegerField(
         default=0,
         verbose_name="Veces usada",
         help_text="Contador automático de veces que se ha usado"
     )
     
-    # NUEVO: Temas asociados
-    temas = models.ManyToManyField(
-        TemaCampana,
+    # ==========================================
+    # 🔵 TWILIO CONTENT TEMPLATES
+    # ==========================================
+    twilio_template_sid = models.CharField(
+        max_length=50,
         blank=True,
-        verbose_name="Temas",
-        help_text="Selecciona uno o más temas relacionados (ej: Café, Motivación)",
-        related_name='plantillas'
+        null=True,
+        verbose_name="Twilio Content SID",
+        help_text="Content SID de Twilio (ej: HX1234...). Obtén esto desde Twilio Console después de crear tu plantilla aprobada."
+    )
+    twilio_template_nombre = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name="Nombre en Twilio",
+        help_text="Nombre de la plantilla en Twilio Console (para referencia)"
+    )
+    aprobada_twilio = models.BooleanField(
+        default=False,
+        verbose_name="Aprobada en Twilio",
+        help_text="Marca esto cuando tu plantilla esté aprobada en Twilio Console"
     )
     
-    # NUEVO: Integración con Meta WhatsApp Business
+    # ==========================================
+    # Meta WhatsApp (Deprecated - Usando solo Twilio)
+    # ==========================================
     meta_template_id = models.CharField(
         max_length=100,
         blank=True,
         null=True,
-        verbose_name="ID de Plantilla en Meta",
-        help_text="ID asignado por Meta al enviar la plantilla para revisión"
+        verbose_name="[Deprecated] ID de Plantilla en Meta",
+        help_text="No usar - Solo Twilio"
     )
     meta_template_status = models.CharField(
         max_length=50,
@@ -212,29 +314,48 @@ class Plantilla(models.Model):
             ('REJECTED', 'Rechazada'),
             ('DISABLED', 'Deshabilitada'),
         ],
-        verbose_name="Estado en Meta",
-        help_text="Estado de aprobación de la plantilla en Meta"
+        verbose_name="[Deprecated] Estado en Meta",
+        help_text="No usar - Solo Twilio"
     )
     meta_template_name = models.CharField(
         max_length=100,
         blank=True,
         null=True,
-        verbose_name="Nombre en Meta",
-        help_text="Nombre sanitizado usado en Meta (minúsculas, guiones bajos)"
+        verbose_name="[Deprecated] Nombre en Meta",
+        help_text="No usar - Solo Twilio"
     )
     enviada_a_meta = models.BooleanField(
         default=False,
-        verbose_name="Enviada a Meta",
-        help_text="Indica si la plantilla fue enviada a Meta para aprobación"
+        verbose_name="[Deprecated] Enviada a Meta",
+        help_text="No usar - Solo Twilio"
     )
     
     class Meta:
         verbose_name = 'Plantilla de Mensaje'
-        verbose_name_plural = 'Plantillas de Mensajes'
+        verbose_name_plural = '📢 Campañas → Plantillas'
         ordering = ['-fecha_modificacion']
     
     def __str__(self):
-        return f"{self.get_categoria_display()} - {self.nombre_interno}"
+        emoji = self.emoji or self.get_default_emoji()
+        return f"{emoji} {self.nombre_interno}"
+
+    def get_default_emoji(self):
+        """Retorna emoji por defecto según la categoría"""
+        defaults = {
+            'cultivos': '🌾',
+            'ganaderia': '🐄',
+            'general_agricola': '🌱',
+            'educacion': '📚',
+            'gestion': '💼',
+            'otro': '📝'
+        }
+        return defaults.get(self.categoria, '📝')
+
+    def save(self, *args, **kwargs):
+        """Autocompletar emoji si está vacío"""
+        if not self.emoji:
+            self.emoji = self.get_default_emoji()
+        super().save(*args, **kwargs)
     
     def clean(self):
         """Validaciones personalizadas"""
@@ -286,18 +407,50 @@ class Campana(models.Model):
         help_text="Sube un archivo .xlsx con columnas: 'Nombre' y 'Telefono'. Se agregarán automáticamente."
     )
     
-    # NUEVO: Tema de la campaña (para filtrar plantillas)
-    tema = models.ForeignKey(
-        TemaCampana,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        verbose_name="Tema principal",
-        help_text="Selecciona el tema (ej: Café, Aguacate). Solo se mostrarán plantillas de este tema.",
-        related_name='campanas'
+    # NUEVO: Categoría de la campaña (para filtrar plantillas)
+    CATEGORIA_CHOICES = [
+        ('cultivos', '🌾 Cultivos'),
+        ('ganaderia', '🐄 Ganadería'),
+        ('general_agricola', '🌱 General Agrícola'),
+        ('educacion', '📚 Educación'),
+        ('gestion', '💼 Gestión'),
+        ('todas', '📋 Todas las categorías'),
+    ]
+    
+    categoria = models.CharField(
+        max_length=20,
+        choices=CATEGORIA_CHOICES,
+        default='todas',
+        verbose_name="Categoría",
+        help_text="Filtrar plantillas por categoría. 'Todas' mostrará plantillas de cualquier categoría.",
     )
     
     plantilla = models.ForeignKey(Plantilla, on_delete=models.PROTECT)
+    
+    # NUEVO: Tipo de audiencia (individual o grupo)
+    TIPO_AUDIENCIA_CHOICES = [
+        ('individual', 'Estudiantes individuales'),
+        ('grupo', 'Grupo de estudiantes'),
+    ]
+    tipo_audiencia = models.CharField(
+        max_length=20,
+        choices=TIPO_AUDIENCIA_CHOICES,
+        default='individual',
+        verbose_name='Tipo de audiencia',
+        help_text='Selecciona si quieres enviar a estudiantes individuales o a un grupo'
+    )
+    
+    # NUEVO: Grupo de destinatarios (opcional, solo si tipo_audiencia='grupo')
+    grupo = models.ForeignKey(
+        'GrupoEstudiantes',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Grupo',
+        help_text='Selecciona el grupo al que se enviará la campaña',
+        related_name='campanas'
+    )
+    
     destinatarios = models.ManyToManyField(Estudiante, blank=True) # blank=True para permitir guardar sin seleccionar manual
 
     # Canal de envío (solo WhatsApp)
@@ -330,7 +483,7 @@ class Campana(models.Model):
     def __str__(self): return self.nombre
     class Meta:
         verbose_name = 'Campaña'
-        verbose_name_plural = 'Campañas'
+        verbose_name_plural = '📢 Campañas'
 
 
 # 3b. LINEAS (líneas de envío, e.g., cuentas de WhatsApp)
@@ -418,7 +571,7 @@ class WhatsappLog(models.Model):
     
     class Meta:
         verbose_name = 'Registro de WhatsApp'
-        verbose_name_plural = 'Registros de WhatsApp'
+        verbose_name_plural = '📢 Campañas → Historial WhatsApp'
         ordering = ['-fecha']
         indexes = [
             models.Index(fields=['-fecha']),
@@ -483,6 +636,22 @@ class Curso(models.Model):
     duracion_semanas = models.IntegerField(default=5, help_text="Duración estimada en semanas")
     activo = models.BooleanField(default=True)
     orden = models.IntegerField(default=0, help_text="Orden de visualización")
+    
+    # 🎮 GAMIFICACIÓN OPCIONAL
+    usar_gamificacion = models.BooleanField(
+        default=True,
+        verbose_name='Usar Gamificación',
+        help_text='Si está activado, se otorgan puntos y badges en este curso'
+    )
+    
+    # 📢 GRUPO DE WHATSAPP
+    enlace_grupo_whatsapp = models.URLField(
+        max_length=500,
+        blank=True,
+        verbose_name='Enlace de Grupo de WhatsApp',
+        help_text='Enlace de invitación al grupo de WhatsApp del curso (ej: https://chat.whatsapp.com/xxxxx)'
+    )
+    
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -541,6 +710,18 @@ class Modulo(models.Model):
         help_text="Material PDF descargable"
     )
     
+    # 📝 EXAMEN OBLIGATORIO
+    examen_obligatorio = models.BooleanField(
+        default=False,
+        verbose_name='Examen Obligatorio',
+        help_text='El estudiante DEBE aprobar el examen para avanzar al siguiente módulo'
+    )
+    puntaje_minimo_aprobacion = models.IntegerField(
+        default=70,
+        verbose_name='Puntaje Mínimo (%)',
+        help_text='Porcentaje mínimo para aprobar (0-100)'
+    )
+    
     duracion_dias = models.IntegerField(default=7, help_text="Días estimados para completar")
 
     class Meta:
@@ -564,7 +745,7 @@ class ProgresoEstudiante(models.Model):
 
     class Meta:
         verbose_name = "Progreso de Estudiante"
-        verbose_name_plural = "Progresos de Estudiantes"
+        verbose_name_plural = "📚 Cursos → Progreso"
         unique_together = ['estudiante', 'curso']
 
     def __str__(self):
@@ -579,11 +760,65 @@ class ProgresoEstudiante(models.Model):
         return int((modulos_completados / total_modulos) * 100)
 
 
+class PreguntaModulo(models.Model):
+    """Pregunta de validación al final de cada módulo (mini examen)"""
+    modulo = models.ForeignKey(Modulo, on_delete=models.CASCADE, related_name='preguntas')
+    pregunta = models.TextField(help_text="Pregunta de validación del aprendizaje")
+    
+    # Opciones de respuesta (opción múltiple)
+    opcion_a = models.CharField(max_length=500)
+    opcion_b = models.CharField(max_length=500)
+    opcion_c = models.CharField(max_length=500, blank=True, null=True)
+    opcion_d = models.CharField(max_length=500, blank=True, null=True)
+    
+    respuesta_correcta = models.CharField(
+        max_length=1,
+        choices=[('A', 'A'), ('B', 'B'), ('C', 'C'), ('D', 'D')],
+        help_text="Letra de la respuesta correcta"
+    )
+    
+    explicacion = models.TextField(
+        blank=True,
+        help_text="Explicación de la respuesta correcta (opcional)"
+    )
+    
+    activa = models.BooleanField(
+        default=True,
+        help_text="Si está desactivada, no se mostrará"
+    )
+
+    class Meta:
+        verbose_name = "Pregunta de Módulo"
+        verbose_name_plural = "📝 Cursos → Preguntas por Módulo"
+        ordering = ['modulo', 'id']
+
+    def __str__(self):
+        return f"{self.modulo.titulo} - {self.pregunta[:50]}..."
+
+
 class ModuloCompletado(models.Model):
     """Registro de módulos completados por el estudiante"""
     progreso = models.ForeignKey(ProgresoEstudiante, on_delete=models.CASCADE, related_name='modulos_completados')
     modulo = models.ForeignKey(Modulo, on_delete=models.CASCADE)
     fecha_completado = models.DateTimeField(auto_now_add=True)
+    
+    # Respuesta al mini examen
+    pregunta_respondida = models.ForeignKey(
+        PreguntaModulo, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        help_text="Pregunta que se le hizo al completar"
+    )
+    respuesta_dada = models.CharField(
+        max_length=1, 
+        blank=True,
+        help_text="A, B, C o D"
+    )
+    respuesta_correcta = models.BooleanField(
+        default=False,
+        help_text="Si respondió correctamente"
+    )
 
     class Meta:
         verbose_name = "Módulo Completado"
@@ -602,7 +837,7 @@ class Examen(models.Model):
 
     class Meta:
         verbose_name = "Examen"
-        verbose_name_plural = "Exámenes"
+        verbose_name_plural = "📚 Cursos → Exámenes"
 
     def __str__(self):
         return f"Examen de {self.curso.nombre}"
@@ -651,14 +886,125 @@ class ResultadoExamen(models.Model):
         return f"{self.estudiante.nombre} - {self.examen.curso.nombre} - {self.puntaje}% {estado}"
 
 
+# ========== SOPORTE Y ATENCIÓN AL CLIENTE ==========
+
+class SolicitudSoporte(models.Model):
+    """Solicitudes de soporte/ayuda de estudiantes (Botón de Pánico)"""
+    
+    ESTADO_CHOICES = [
+        ('pendiente', '⏳ Pendiente'),
+        ('en_atencion', '👀 En Atención'),
+        ('resuelta', '✅ Resuelta'),
+        ('cerrada', '🔒 Cerrada'),
+    ]
+    
+    PRIORIDAD_CHOICES = [
+        ('baja', '🟢 Baja'),
+        ('media', '🟡 Media'),
+        ('alta', '🔴 Alta'),
+        ('critica', '🚨 Crítica'),
+    ]
+    
+    estudiante = models.ForeignKey(
+        Estudiante,
+        on_delete=models.CASCADE,
+        related_name='solicitudes_soporte',
+        verbose_name='Estudiante'
+    )
+    mensaje_original = models.TextField(
+        verbose_name='Mensaje del Estudiante',
+        help_text='El mensaje que envió el estudiante pidiendo ayuda'
+    )
+    keyword_usada = models.CharField(
+        max_length=20,
+        blank=True,
+        verbose_name='Palabra Clave',
+        help_text='Keyword que activó el soporte (AYUDA, SOPORTE, HUMANO, etc.)'
+    )
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADO_CHOICES,
+        default='pendiente',
+        verbose_name='Estado'
+    )
+    prioridad = models.CharField(
+        max_length=10,
+        choices=PRIORIDAD_CHOICES,
+        default='media',
+        verbose_name='Prioridad'
+    )
+    respuesta = models.TextField(
+        blank=True,
+        verbose_name='Respuesta del Equipo',
+        help_text='Respuesta que se le dio al estudiante'
+    )
+    atendido_por = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='Atendido Por',
+        help_text='Nombre del miembro del equipo que atendió'
+    )
+    fecha_solicitud = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Fecha de Solicitud'
+    )
+    fecha_atencion = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Fecha de Atención'
+    )
+    fecha_resolucion = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Fecha de Resolución'
+    )
+    notas_internas = models.TextField(
+        blank=True,
+        verbose_name='Notas Internas',
+        help_text='Notas privadas del equipo (no visible para el estudiante)'
+    )
+    
+    class Meta:
+        verbose_name = 'Solicitud de Soporte'
+        verbose_name_plural = '🆘 Solicitudes de Soporte'
+        ordering = ['-fecha_solicitud']
+        indexes = [
+            models.Index(fields=['estado', 'prioridad']),
+            models.Index(fields=['estudiante', 'fecha_solicitud']),
+        ]
+    
+    def __str__(self):
+        return f"{self.estudiante.nombre} - {self.get_estado_display()} - {self.fecha_solicitud.strftime('%d/%m/%Y')}"
+
+
 # ========== GAMIFICACIÓN ==========
 # Importar modelos de gamificación desde archivo separado
 from .gamificacion import PerfilGamificacion, Badge, BadgeEstudiante, TransaccionPuntos
+
+# ========== CERTIFICADOS ==========
+# Importar modelos de certificados desde archivo separado
+from .models_certificados import Certificado, PlantillaCertificado
+
+# ========== AUDITORÍA ==========
+# Importar modelos de auditoría desde archivo separado
+from .models_audit import AuditLog
+
+# ========== NUEVAS FUNCIONALIDADES ==========
+# Importar modelos adicionales
+from .models_extras import (
+    GrupoEstudiantes, EnvioProgramado, PQRS, 
+    ArchivoModulo, GrupoWhatsApp, InvitacionGrupo
+)
 
 __all__ = [
     'TemaCampana', 'Estudiante', 'Etiqueta', 'Plantilla', 'Linea', 'Canal', 
     'Campana', 'EnvioLog', 'WhatsappLog',
     'Curso', 'Modulo', 'ProgresoEstudiante', 'ModuloCompletado',
     'Examen', 'PreguntaExamen', 'ResultadoExamen',
-    'PerfilGamificacion', 'Badge', 'BadgeEstudiante', 'TransaccionPuntos'
+    'SolicitudSoporte', 'PreguntaModulo',
+    'PerfilGamificacion', 'Badge', 'BadgeEstudiante', 'TransaccionPuntos',
+    'Certificado', 'PlantillaCertificado',
+    'AuditLog',
+    'GrupoEstudiantes', 'EnvioProgramado', 'PQRS',
+    'ArchivoModulo', 'GrupoWhatsApp', 'InvitacionGrupo'
 ]

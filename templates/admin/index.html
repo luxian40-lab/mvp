@@ -4,132 +4,348 @@
 {% block extrahead %}
 {{ block.super }}
 <style>
-    .eki-shortcuts {
-        background: linear-gradient(135deg, #2c5f2d 0%, #25d366 100%);
-        padding: 25px;
-        border-radius: 12px;
-        margin: 20px 0;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-    
-    .eki-shortcuts h2 {
-        color: white;
-        margin: 0 0 20px 0;
-        font-size: 22px;
-        font-weight: 600;
-    }
-    
-    .shortcuts-grid {
+    .eki-dashboard {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 15px;
-    }
-    
-    .shortcut-btn {
-        display: flex;
-        align-items: center;
+        grid-template-columns: repeat(6, 1fr);
         gap: 12px;
-        padding: 16px 20px;
+        margin: 20px 0;
+    }
+    
+    .dashboard-card {
         background: white;
-        color: #2c5f2d;
-        text-decoration: none;
+        padding: 15px;
         border-radius: 8px;
-        font-weight: 600;
-        font-size: 15px;
-        transition: all 0.2s;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+        border-left: 3px solid #667eea;
+        transition: transform 0.2s;
+        text-align: center;
     }
     
-    .shortcut-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        color: #25d366;
+    .dashboard-card:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.12);
     }
     
-    .shortcut-icon {
-        font-size: 28px;
+    .dashboard-card.success {
+        border-left-color: #4caf50;
     }
     
-    .shortcut-text {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
+    .dashboard-card.warning {
+        border-left-color: #ff9800;
     }
     
-    .shortcut-title {
-        font-size: 15px;
-        font-weight: 600;
+    .dashboard-card.error {
+        border-left-color: #f44336;
     }
     
-    .shortcut-desc {
+    .dashboard-number {
+        font-size: 24px;
+        font-weight: 700;
+        color: #333;
+        margin: 5px 0;
+    }
+    
+    .dashboard-label {
         font-size: 12px;
         color: #666;
-        font-weight: normal;
+        font-weight: 500;
+        line-height: 1.3;
+    }
+    
+    .dashboard-icon {
+        font-size: 24px;
+        margin-bottom: 5px;
+    }
+    
+    @media (max-width: 1400px) {
+        .eki-dashboard {
+            grid-template-columns: repeat(3, 1fr);
+        }
     }
     
     @media (max-width: 768px) {
-        .shortcuts-grid {
-            grid-template-columns: 1fr;
+        .eki-dashboard {
+            grid-template-columns: repeat(2, 1fr);
         }
+    }
+    
+    .estado-sistema {
+        background: #f5f5f5;
+        padding: 20px;
+        border-radius: 12px;
+        margin: 20px 0;
+    }
+    
+    .estado-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 0;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .estado-item:last-child {
+        border-bottom: none;
+    }
+    
+    .estado-emoji {
+        font-size: 24px;
+        min-width: 30px;
+    }
+    
+    .estado-texto {
+        flex: 1;
+    }
+    
+    .certificados-table {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-top: 20px;
+    }
+    
+    .certificados-table table {
+        width: 100%;
+    }
+    
+    .certificados-table th {
+        background: #667eea;
+        color: white;
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+    }
+    
+    .certificados-table td {
+        padding: 12px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .certificados-table tr:hover {
+        background: #f9f9f9;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Accesos Rápidos Personalizados -->
-<div class="eki-shortcuts">
-    <h2>⚡ Accesos Rápidos</h2>
-    <div class="shortcuts-grid">
-        <a href="{% url 'conversaciones' %}" class="shortcut-btn">
-            <span class="shortcut-icon">💬</span>
-            <span class="shortcut-text">
-                <span class="shortcut-title">Conversaciones</span>
-                <span class="shortcut-desc">Chat estilo WhatsApp</span>
-            </span>
-        </a>
-        
-        <a href="{% url 'dashboard_metricas' %}" class="shortcut-btn">
-            <span class="shortcut-icon">📊</span>
-            <span class="shortcut-text">
-                <span class="shortcut-title">Dashboard</span>
-                <span class="shortcut-desc">Métricas y estadísticas</span>
-            </span>
-        </a>
-        
-        <a href="{% url 'admin:core_estudiante_changelist' %}" class="shortcut-btn">
-            <span class="shortcut-icon">👥</span>
-            <span class="shortcut-text">
-                <span class="shortcut-title">Estudiantes</span>
-                <span class="shortcut-desc">Gestionar campesinos</span>
-            </span>
-        </a>
-        
-        <a href="{% url 'admin:core_plantilla_changelist' %}" class="shortcut-btn">
-            <span class="shortcut-icon">📝</span>
-            <span class="shortcut-text">
-                <span class="shortcut-title">Plantillas</span>
-                <span class="shortcut-desc">Mensajes predefinidos</span>
-            </span>
-        </a>
-        
-        <a href="{% url 'descargar_reportes' %}" class="shortcut-btn">
-            <span class="shortcut-icon">📥</span>
-            <span class="shortcut-text">
-                <span class="shortcut-title">Reportes</span>
-                <span class="shortcut-desc">Descargar Excel/CSV</span>
-            </span>
-        </a>
-        
-        <a href="{% url 'admin:core_whatsapplog_changelist' %}" class="shortcut-btn">
-            <span class="shortcut-icon">📱</span>
-            <span class="shortcut-text">
-                <span class="shortcut-title">Mensajes</span>
-                <span class="shortcut-desc">Historial WhatsApp</span>
-            </span>
+<!-- Banner de Instrucciones -->
+<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
+        <div style="color: white;">
+            <h2 style="margin: 0 0 8px 0; font-size: 24px; font-weight: 700;">📖 ¿Primera vez usando Eki?</h2>
+            <p style="margin: 0; font-size: 16px; opacity: 0.95;">Lee el manual completo con instrucciones paso a paso de todas las funciones</p>
+        </div>
+        <a href="{% url 'instrucciones' %}" style="background: white; color: #667eea; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); transition: transform 0.2s; display: inline-block;">
+            📚 Leer Instructivo
         </a>
     </div>
 </div>
 
-<!-- Contenido normal del admin -->
-{{ block.super }}
+<!-- Dashboard de Control Excepcional -->
+{% if dashboard_control_url %}
+<div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); padding: 25px; border-radius: 16px; margin-bottom: 30px; box-shadow: 0 8px 24px rgba(0,0,0,0.3); position: relative; overflow: hidden;">
+    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="rgba(255,255,255,0.03)"/><circle cx="75" cy="75" r="1" fill="rgba(255,255,255,0.03)"/><circle cx="50" cy="10" r="0.5" fill="rgba(255,255,255,0.02)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>'); opacity: 0.5;"></div>
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; position: relative; z-index: 1;">
+        <div style="color: white; flex: 1; min-width: 300px;">
+            <h2 style="margin: 0 0 10px 0; font-size: 28px; font-weight: 800; background: linear-gradient(45deg, #00d4ff, #090979); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">🚀 Dashboard de Control Excepcional</h2>
+            <p style="margin: 0; font-size: 16px; opacity: 0.9; line-height: 1.5;">Centro de control premium con métricas en tiempo real, análisis de clientes, KPIs operativos y herramientas de eficiencia avanzadas</p>
+            <div style="margin-top: 15px; display: flex; gap: 15px; flex-wrap: wrap;">
+                <span style="background: rgba(0, 212, 255, 0.2); color: #00d4ff; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; border: 1px solid rgba(0, 212, 255, 0.3);">📊 Métricas en Tiempo Real</span>
+                <span style="background: rgba(9, 9, 121, 0.2); color: #090979; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; border: 1px solid rgba(9, 9, 121, 0.3);">👥 Análisis de Clientes</span>
+                <span style="background: rgba(255, 107, 0, 0.2); color: #ff6b00; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; border: 1px solid rgba(255, 107, 0, 0.3);">⚡ KPIs Operativos</span>
+                <span style="background: rgba(0, 255, 136, 0.2); color: #00ff88; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; border: 1px solid rgba(0, 255, 136, 0.3);">🛠️ Herramientas Avanzadas</span>
+            </div>
+        </div>
+        <div style="text-align: center;">
+            <a href="{{ dashboard_control_url }}" style="background: linear-gradient(45deg, #00d4ff, #090979); color: white; padding: 18px 32px; border-radius: 12px; text-decoration: none; font-weight: 800; font-size: 18px; box-shadow: 0 4px 16px rgba(0, 212, 255, 0.4); transition: all 0.3s; display: inline-block; border: 2px solid rgba(255, 255, 255, 0.2);">
+                🎯 ACCEDER AL CENTRO DE CONTROL
+            </a>
+            <p style="margin: 10px 0 0 0; font-size: 12px; color: rgba(255, 255, 255, 0.7);">Dashboard premium con experiencia excepcional</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Dashboard de Estadísticas -->
+{% if estadisticas %}
+<div style="margin-top: 30px;">
+    <h2 style="color: #333; font-size: 20px; margin-bottom: 15px;">📊 Estadísticas Generales</h2>
+    
+    <div class="eki-dashboard">
+        <div class="dashboard-card success">
+            <div class="dashboard-icon">👥</div>
+            <div class="dashboard-label">Estudiantes Activos</div>
+            <div class="dashboard-number">{{ estadisticas.estudiantes_activos }}/{{ estadisticas.total_estudiantes }}</div>
+        </div>
+        
+        <div class="dashboard-card success">
+            <div class="dashboard-icon">🏆</div>
+            <div class="dashboard-label">Cursos Completados</div>
+            <div class="dashboard-number">{{ estadisticas.progreso_completado }}</div>
+        </div>
+        
+        <div class="dashboard-card success">
+            <div class="dashboard-icon">📜</div>
+            <div class="dashboard-label">Certificados Emitidos</div>
+            <div class="dashboard-number">{{ estadisticas.certificados_emitidos }}</div>
+        </div>
+        
+        <div class="dashboard-card">
+            <div class="dashboard-icon">📚</div>
+            <div class="dashboard-label">Total de Cursos</div>
+            <div class="dashboard-number">{{ estadisticas.total_cursos }}</div>
+        </div>
+        
+        <div class="dashboard-card success">
+            <div class="dashboard-icon">✅</div>
+            <div class="dashboard-label">Mensajes Enviados</div>
+            <div class="dashboard-number">{{ estadisticas.mensajes_recientes }}</div>
+        </div>
+        
+        <div class="dashboard-card {% if estadisticas.mensajes_error > 0 %}error{% else %}success{% endif %}">
+            <div class="dashboard-icon">⚠️</div>
+            <div class="dashboard-label">Mensajes con Error</div>
+            <div class="dashboard-number">{{ estadisticas.mensajes_error }}</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Estado del Sistema -->
+{% if estado_sistema %}
+<div class="estado-sistema">
+    <h2 style="color: #333; font-size: 20px; margin-bottom: 15px; margin-top: 0;">⚙️ Estado del Sistema</h2>
+    
+    <div class="estado-item">
+        <span class="estado-emoji">{{ estado_sistema.vosk.emoji }}</span>
+        <span class="estado-texto">
+            <strong>VOSK Audio</strong><br>
+            <span style="font-size: 12px; color: #666;">{{ estado_sistema.vosk.texto }}</span>
+        </span>
+    </div>
+    
+    <div class="estado-item">
+        <span class="estado-emoji">{{ estado_sistema.twilio.emoji }}</span>
+        <span class="estado-texto">
+            <strong>Twilio/WhatsApp</strong><br>
+            <span style="font-size: 12px; color: #666;">{{ estado_sistema.twilio.texto }}</span>
+        </span>
+    </div>
+    
+    <div class="estado-item">
+        <span class="estado-emoji">{{ estado_sistema.media.emoji }}</span>
+        <span class="estado-texto">
+            <strong>Directorio de Media</strong><br>
+            <span style="font-size: 12px; color: #666;">{{ estado_sistema.media.texto }}</span>
+        </span>
+    </div>
+</div>
+{% endif %}
+
+<!-- Certificados por Curso -->
+{% if certificados_por_curso %}
+<div style="margin-top: 30px;">
+    <h2 style="color: #333; font-size: 20px; margin-bottom: 15px;">🏆 Certificados por Curso</h2>
+    
+    <div class="certificados-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>Curso</th>
+                    <th style="text-align: right;">Certificados</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cert in certificados_por_curso %}
+                <tr>
+                    <td>📚 {{ cert.curso__nombre }}</td>
+                    <td style="text-align: right;"><strong>{{ cert.count }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Certificados Recientes -->
+{% if certs_recientes %}
+<div style="margin-top: 30px;">
+    <h2 style="color: #333; font-size: 20px; margin-bottom: 15px;">📜 Últimos Certificados Emitidos</h2>
+    
+    <div class="certificados-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Estudiante</th>
+                    <th>Curso</th>
+                    <th style="text-align: right;">Fecha</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cert in certs_recientes %}
+                <tr>
+                    <td><code style="color:#f39c12;font-weight:bold;">{{ cert.codigo_verificacion }}</code></td>
+                    <td>{{ cert.estudiante__nombre }}</td>
+                    <td>{{ cert.curso__nombre }}</td>
+                    <td style="text-align: right;font-size:12px;color:#666;">{{ cert.fecha_emision|date:"d/m/Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" style="text-align:center;color:#999;">No hay certificados recientes</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Logs de WhatsApp Recientes -->
+{% if logs_recientes %}
+<div style="margin-top: 30px;">
+    <h2 style="color: #333; font-size: 20px; margin-bottom: 15px;">📱 Últimos Mensajes WhatsApp</h2>
+    
+    <div class="certificados-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>Hora</th>
+                    <th>Teléfono</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs_recientes %}
+                <tr>
+                    <td style="font-size:12px;color:#666;">{{ log.fecha|date:"H:i:s" }}</td>
+                    <td style="font-size:12px;">...{{ log.telefono|slice:"-4:" }}</td>
+                    <td>
+                        {% if log.tipo == 'INCOMING' %}
+                        <span style="color:#4caf50;">📥 Entrada</span>
+                        {% else %}
+                        <span style="color:#2196f3;">📤 Salida</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if log.estado == 'SENT' %}
+                        <span style="color:#4caf50;">✅ Enviado</span>
+                        {% elif log.estado == 'ERROR' %}
+                        <span style="color:#f44336;">❌ Error</span>
+                        {% else %}
+                        <span style="color:#ff9800;">⏳ {{ log.estado }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" style="text-align:center;color:#999;">No hay mensajes recientes</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}
+

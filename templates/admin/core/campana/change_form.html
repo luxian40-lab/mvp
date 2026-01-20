@@ -1,0 +1,59 @@
+{% extends "admin/change_form.html" %}
+
+{% block admin_change_form_document_ready %}
+{{ block.super }}
+<script type="text/javascript">
+(function($) {
+    $(document).ready(function() {
+        // Función para mostrar/ocultar campos según tipo de audiencia
+        function toggleAudienciaFields() {
+            var tipoAudiencia = $('#id_tipo_audiencia').val();
+            var grupoRow = $('.field-grupo').closest('.form-row');
+            var destinatariosRow = $('.field-destinatarios').closest('.form-row');
+            
+            if (tipoAudiencia === 'grupo') {
+                // Mostrar grupo, ocultar destinatarios
+                grupoRow.show();
+                destinatariosRow.hide();
+                $('#id_grupo').prop('required', true);
+            } else {
+                // Mostrar destinatarios, ocultar grupo
+                grupoRow.hide();
+                destinatariosRow.show();
+                $('#id_grupo').prop('required', false);
+            }
+        }
+        
+        // Ejecutar al cargar la página
+        toggleAudienciaFields();
+        
+        // Ejecutar cuando cambie el tipo de audiencia
+        $('#id_tipo_audiencia').change(function() {
+            toggleAudienciaFields();
+        });
+    });
+})(django.jQuery);
+</script>
+
+<style>
+    /* Estilos para mejorar la visibilidad */
+    .field-tipo_audiencia select {
+        font-size: 14px;
+        padding: 8px;
+        border: 2px solid #2196F3;
+        border-radius: 4px;
+    }
+    
+    .field-grupo select {
+        font-size: 14px;
+        padding: 8px;
+    }
+    
+    .help {
+        color: #666;
+        font-size: 12px;
+        margin-top: 5px;
+        display: block;
+    }
+</style>
+{% endblock %}

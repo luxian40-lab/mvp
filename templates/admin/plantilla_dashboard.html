@@ -1,0 +1,101 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Inicio</a>
+    &rsaquo; <a href="{% url 'admin:core_plantilla_changelist' %}">Plantillas</a>
+    &rsaquo; {{ title }}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="module">
+        <h1>{{ title }}</h1>
+
+        <!-- Estadísticas -->
+        <div style="display: flex; gap: 20px; margin-bottom: 30px;">
+            <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; flex: 1; text-align: center;">
+                <h3 style="margin: 0; color: #1976d2;">📊 Total Plantillas</h3>
+                <div style="font-size: 2em; font-weight: bold; margin: 10px 0;">{{ stats.total }}</div>
+            </div>
+            <div style="background: #e8f5e9; padding: 20px; border-radius: 8px; flex: 1; text-align: center;">
+                <h3 style="margin: 0; color: #2e7d32;">✅ Con Content Template</h3>
+                <div style="font-size: 2em; font-weight: bold; margin: 10px 0;">{{ stats.twilio_configuradas }}</div>
+            </div>
+            <div style="background: #fff3e0; padding: 20px; border-radius: 8px; flex: 1; text-align: center;">
+                <h3 style="margin: 0; color: #e65100;">⏳ Pendientes</h3>
+                <div style="font-size: 2em; font-weight: bold; margin: 10px 0;">{{ stats.twilio_pendientes }}</div>
+            </div>
+            <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; flex: 1; text-align: center;">
+                <h3 style="margin: 0; color: #666;">📱 Envío Directo</h3>
+                <div style="font-size: 2em; font-weight: bold; margin: 10px 0;">{{ stats.directo }}</div>
+            </div>
+        </div>
+
+        <!-- Información importante -->
+        {% if stats.twilio_configuradas == 0 %}
+        <div style="background: #ffebee; border: 1px solid #f44336; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+            <h3 style="color: #c62828; margin-top: 0;">⚠️ No tienes Content Templates configurados</h3>
+            <p><strong>Las campañas actualmente usan envío directo (sin template).</strong></p>
+            <p>Para usar Content Templates de Twilio:</p>
+            <ol>
+                <li>Ve a <a href="https://console.twilio.com/us1/develop/sms/content-editor" target="_blank" style="color: #1976d2;">Twilio Content Editor</a></li>
+                <li>Crea plantillas de WhatsApp y obtén los Content SIDs</li>
+                <li>Configura los SIDs en las plantillas del admin</li>
+                <li>Marca las plantillas como "Aprobadas en Twilio"</li>
+            </ol>
+        </div>
+        {% endif %}
+
+        <!-- Plantillas por categoría -->
+        {% for categoria, plantillas in categorias.items %}
+        <div style="margin-bottom: 30px;">
+            <h2 style="border-bottom: 2px solid #ddd; padding-bottom: 10px;">{{ categoria }}</h2>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;">
+                {% for plantilla in plantillas %}
+                <div style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; background: white;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                        <h4 style="margin: 0; font-size: 1.1em;">{{ plantilla.emoji }} {{ plantilla.nombre_interno }}</h4>
+                        {% if plantilla.twilio_template_sid and plantilla.aprobada_twilio %}
+                            <span style="background: #4caf50; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.8em;">✅ TWILIO</span>
+                        {% elif plantilla.twilio_template_sid and not plantilla.aprobada_twilio %}
+                            <span style="background: #ff9800; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.8em;">⏳ PENDIENTE</span>
+                        {% else %}
+                            <span style="background: #2196f3; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.8em;">📱 DIRECTO</span>
+                        {% endif %}
+                    </div>
+
+                    <div style="color: #666; font-size: 0.9em; margin-bottom: 10px;">
+                        <strong>Activa:</strong> {% if plantilla.activa %}✅{% else %}❌{% endif %} |
+                        <strong>Usos:</strong> {{ plantilla.veces_usada }}
+                    </div>
+
+                    {% if plantilla.twilio_template_sid %}
+                    <div style="background: #f5f5f5; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 0.8em; margin-bottom: 10px;">
+                        SID: {{ plantilla.twilio_template_sid }}
+                    </div>
+                    {% endif %}
+
+                    <div style="color: #666; font-size: 0.85em; line-height: 1.4;">
+                        {{ plantilla.cuerpo_mensaje|truncatechars:100 }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+
+        {% if not categorias %}
+        <div style="text-align: center; padding: 50px; color: #666;">
+            <h3>No hay plantillas configuradas</h3>
+            <p>Crea plantillas desde el <a href="{% url 'admin:core_plantilla_add' %}">admin de plantillas</a></p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

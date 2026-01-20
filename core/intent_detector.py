@@ -35,21 +35,26 @@ def detect_intent(mensaje: str) -> str:
     
     texto_limpio = mensaje.lower().strip()
     
-    # Detectar números inválidos (dos dígitos, números > 9, o múltiples números)
-    if re.match(r'^\s*\d{2,}\s*$', texto_limpio) or re.match(r'^\s*[0-9]+[0-9]+\s*$', texto_limpio):
-        return 'numero_invalido'
+    # ========== PRIORIDAD ABSOLUTA: NÚMEROS ==========
+    # Cualquier número solo (1-9) siempre es una opción de menú
+    # NO importa el contexto - esto evita ambigüedades en sandbox
     
-    # Opciones numéricas del menú (prioritarias: 1, 2, 3)
     if re.match(r'^\s*1\s*$', texto_limpio):
-        return 'opcion_1'
-    if re.match(r'^\s*2\s*$', texto_limpio):
-        return 'opcion_2'
-    if re.match(r'^\s*3\s*$', texto_limpio):
-        return 'opcion_3'
+        return 'opcion_1'  # Siempre: progreso o primera opción de lista
     
-    # Números 4-9 para inscripción en cursos
+    if re.match(r'^\s*2\s*$', texto_limpio):
+        return 'opcion_2'  # Siempre: ayuda o segunda opción
+    
+    if re.match(r'^\s*3\s*$', texto_limpio):
+        return 'opcion_3'  # Siempre: menú o tercera opción
+    
+    # Números 4-9: opciones de listas (cursos, módulos, etc.)
     if re.match(r'^\s*[4-9]\s*$', texto_limpio):
-        return 'inscribir_curso'
+        return 'opcion_numerica'  # Genérico: se interpreta según contexto
+    
+    # Números de 2+ dígitos o 0: inválidos
+    if re.match(r'^\s*\d{2,}\s*$', texto_limpio) or texto_limpio == '0':
+        return 'numero_invalido'
     
     # Saludos (SOLO si es EXACTAMENTE un saludo, no parte de una frase)
     palabras_saludo = ['hola', 'buenos días', 'buenas noches', 'buenas tardes', 'qué tal', 'hi', 'hey', 'buenas']

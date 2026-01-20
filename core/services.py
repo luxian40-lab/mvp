@@ -8,9 +8,18 @@ logger = logging.getLogger(__name__)
 def ejecutar_campana_servicio(campana):
     """
     Ejecuta el envío real de mensajes WhatsApp a los destinatarios de la campaña.
+    Soporta envío individual o por grupo.
     """
-    # Filtramos destinatarios activos
-    destinatarios = campana.destinatarios.filter(activo=True)
+    # Determinar destinatarios según tipo de audiencia
+    if hasattr(campana, 'tipo_audiencia') and campana.tipo_audiencia == 'grupo' and campana.grupo:
+        # Envío por grupo
+        destinatarios = campana.grupo.estudiantes.filter(activo=True)
+        logger.info(f"📢 Campaña grupal: {campana.grupo.nombre} ({destinatarios.count()} estudiantes)")
+    else:
+        # Envío individual
+        destinatarios = campana.destinatarios.filter(activo=True)
+        logger.info(f"📤 Campaña individual: {destinatarios.count()} destinatarios")
+    
     mensaje_base = campana.plantilla.cuerpo_mensaje
     
     resultados = {
@@ -39,7 +48,7 @@ def ejecutar_campana_servicio(campana):
             
             print(f"🔍 Resultado: {resultado}")
             
-            if resultado.get('success'):  # ← Cambio: 'success' en vez de 'exito'
+            if resultado.get('success'):
                 # 3. Guardar Log de Éxito
                 EnvioLog.objects.create(
                     campana=campana,

@@ -1,0 +1,480 @@
+{% extends "admin/base_site.html" %}
+{% load admin_urls static %}
+
+{% block title %}Invitar a Grupo de WhatsApp | Eki MVP{% endblock %}
+
+{% block extrahead %}
+<style>
+    .container-invitacion {
+        max-width: 950px;
+        margin: 40px auto;
+        padding: 30px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .titulo-seccion {
+        font-size: 28px;
+        font-weight: bold;
+        margin-bottom: 10px;
+        color: #333;
+        text-align: center;
+    }
+
+    .emoji-grande {
+        font-size: 48px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    .subtitulo {
+        text-align: center;
+        color: #666;
+        margin-bottom: 30px;
+        font-size: 16px;
+    }
+
+    .info-box {
+        background: #e3f2fd;
+        border-left: 4px solid #2196F3;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+        color: #1565c0;
+    }
+
+    .warning-box {
+        background: #fff3e0;
+        border-left: 4px solid #ff9800;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+        color: #e65100;
+    }
+
+    .estudiantes-list {
+        max-height: 180px;
+        overflow-y: auto;
+        background: #f5f5f5;
+        padding: 15px;
+        border-radius: 4px;
+        margin: 20px 0;
+        border: 1px solid #e0e0e0;
+    }
+
+    .estudiante-item {
+        padding: 8px;
+        border-bottom: 1px solid #e0e0e0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .estudiante-item:last-child {
+        border-bottom: none;
+    }
+
+    .form-group {
+        margin-bottom: 25px;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #333;
+        font-size: 15px;
+    }
+
+    .form-group select,
+    .form-group input[type="url"],
+    .form-group textarea {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e0e0e0;
+        border-radius: 6px;
+        font-size: 14px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        transition: border-color 0.3s;
+    }
+
+    .form-group select:focus,
+    .form-group input:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #2196F3;
+        box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+    }
+
+    .radio-group {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        margin-top: 10px;
+    }
+
+    .radio-option {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 15px;
+        background: #f9f9f9;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .radio-option:hover {
+        background: #f0f0f0;
+        border-color: #2196F3;
+    }
+
+    .radio-option input[type="radio"] {
+        margin-top: 3px;
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+    }
+
+    .radio-option.selected {
+        background: #e3f2fd;
+        border-color: #2196F3;
+    }
+
+    .radio-label {
+        flex: 1;
+    }
+
+    .radio-label strong {
+        display: block;
+        margin-bottom: 5px;
+        color: #333;
+    }
+
+    .radio-label small {
+        color: #666;
+        font-size: 13px;
+    }
+
+    .campo-condicional {
+        display: none;
+        margin-top: 15px;
+        padding: 15px;
+        background: #fff;
+        border: 2px solid #2196F3;
+        border-radius: 6px;
+    }
+
+    .campo-condicional.activo {
+        display: block;
+    }
+
+    .preview-box {
+        background: #f9f9f9;
+        border: 1px solid #e0e0e0;
+        padding: 15px;
+        border-radius: 6px;
+        margin: 20px 0;
+        min-height: 120px;
+    }
+
+    .preview-title {
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: #666;
+        font-size: 13px;
+        text-transform: uppercase;
+    }
+
+    .preview-content {
+        color: #333;
+        white-space: pre-wrap;
+        font-size: 14px;
+        line-height: 1.6;
+        background: white;
+        padding: 12px;
+        border-radius: 4px;
+    }
+
+    .preview-link {
+        color: #2196F3;
+        text-decoration: underline;
+        word-break: break-all;
+    }
+
+    .acciones-form {
+        display: flex;
+        gap: 15px;
+        margin-top: 30px;
+        justify-content: center;
+    }
+
+    .btn-enviar {
+        background: #2196F3;
+        color: white;
+        padding: 14px 40px;
+        border: none;
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.3s;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .btn-enviar:hover {
+        background: #1976D2;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+
+    .btn-cancelar {
+        background: #f5f5f5;
+        color: #333;
+        padding: 14px 40px;
+        border: 2px solid #e0e0e0;
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-cancelar:hover {
+        background: #e0e0e0;
+        text-decoration: none;
+    }
+
+    .contador-destinatarios {
+        background: #2196F3;
+        color: white;
+        padding: 8px 20px;
+        border-radius: 20px;
+        display: inline-block;
+        margin: 0 auto;
+        font-weight: 600;
+        font-size: 18px;
+    }
+
+    .destinatarios-header {
+        text-align: center;
+        margin: 20px 0;
+    }
+
+    .no-grupos-disponibles {
+        text-align: center;
+        padding: 20px;
+        color: #999;
+        font-style: italic;
+    }
+</style>
+
+<script>
+    function actualizarCampos() {
+        const tipo = document.querySelector('input[name="enlace_tipo"]:checked')?.value;
+        
+        // Ocultar todos los campos condicionales
+        document.querySelectorAll('.campo-condicional').forEach(el => {
+            el.classList.remove('activo');
+        });
+        
+        // Mostrar el campo correspondiente
+        if (tipo) {
+            const campo = document.getElementById(`campo_${tipo}`);
+            if (campo) {
+                campo.classList.add('activo');
+            }
+        }
+        
+        // Actualizar estilos de opciones seleccionadas
+        document.querySelectorAll('.radio-option').forEach(el => {
+            el.classList.remove('selected');
+        });
+        document.querySelector('input[name="enlace_tipo"]:checked')?.closest('.radio-option')?.classList.add('selected');
+        
+        actualizarPreview();
+    }
+    
+    function actualizarPreview() {
+        const tipo = document.querySelector('input[name="enlace_tipo"]:checked')?.value;
+        const mensajeIntro = document.getElementById('id_mensaje_intro')?.value || '¡Hola! Te invitamos a unirte a nuestro grupo de WhatsApp:';
+        let enlace = 'https://chat.whatsapp.com/xxxxx';
+        
+        if (tipo === 'curso') {
+            const cursoSelect = document.getElementById('id_curso_id');
+            if (cursoSelect && cursoSelect.selectedIndex > 0) {
+                enlace = cursoSelect.options[cursoSelect.selectedIndex].dataset.enlace || enlace;
+            }
+        } else if (tipo === 'personalizado') {
+            enlace = document.getElementById('id_enlace_personalizado')?.value || enlace;
+        }
+        
+        const preview = `${mensajeIntro}\n\n👥 Únete aquí: ${enlace}\n\n¡Te esperamos! 🎓`;
+        document.getElementById('preview-content').innerHTML = preview.replace(enlace, `<span class="preview-link">${enlace}</span>`);
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('input[name="enlace_tipo"]').forEach(radio => {
+            radio.addEventListener('change', actualizarCampos);
+        });
+        
+        ['id_curso_id', 'id_enlace_personalizado', 'id_mensaje_intro'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', actualizarPreview);
+                el.addEventListener('change', actualizarPreview);
+            }
+        });
+        
+        actualizarCampos();
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container-invitacion">
+    <div class="emoji-grande">🔗</div>
+    <h1 class="titulo-seccion">{{ title }}</h1>
+    <p class="subtitulo">Envío masivo con template aprobado de Twilio</p>
+    
+    <div class="info-box">
+        <strong>✅ Template Aprobado de WhatsApp</strong><br>
+        Este envío usa un template aprobado por WhatsApp/Twilio, por lo que funciona:<br>
+        • ✅ Después de las 24 horas gratuitas<br>
+        • ✅ Para envío masivo proactivo<br>
+        • ✅ Sin que el estudiante haya escrito primero<br><br>
+        <strong>Importante:</strong> Debes crear el grupo manualmente en tu WhatsApp y obtener el enlace de invitación.
+    </div>
+    
+    <div class="destinatarios-header">
+        <span class="contador-destinatarios">{{ total_estudiantes }} destinatario{{ total_estudiantes|pluralize }}</span>
+    </div>
+    
+    <div class="estudiantes-list">
+        {% for estudiante in estudiantes %}
+        <div class="estudiante-item">
+            <span class="estudiante-nombre">{{ estudiante.nombre }}</span>
+            <span class="estudiante-telefono">+{{ estudiante.telefono }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        <!-- Campos ocultos para preservar selección -->
+        <input type="hidden" name="action" value="invitar_a_grupo_whatsapp">
+        <input type="hidden" name="aplicar" value="1">
+        {% for estudiante in estudiantes %}
+        <input type="hidden" name="{{ action_checkbox_name }}" value="{{ estudiante.pk }}">
+        {% endfor %}
+        
+        <div class="form-group">
+            <label>🔗 Selecciona el enlace del grupo</label>
+            
+            <div class="radio-group">
+                <!-- Opción 1: Curso -->
+                {% if cursos_con_enlace %}
+                <div class="radio-option">
+                    <input type="radio" name="enlace_tipo" value="curso" id="tipo_curso">
+                    <div class="radio-label">
+                        <label for="tipo_curso">
+                            <strong>📚 Usar enlace de un curso</strong>
+                            <small>Invitar al grupo del curso específico</small>
+                        </label>
+                    </div>
+                </div>
+                <div class="campo-condicional" id="campo_curso">
+                    <label for="id_curso_id">Selecciona el curso:</label>
+                    <select name="curso_id" id="id_curso_id">
+                        <option value="">-- Selecciona un curso --</option>
+                        {% for curso in cursos_con_enlace %}
+                        <option value="{{ curso.id }}" data-enlace="{{ curso.enlace_grupo_whatsapp }}">
+                            {{ curso.emoji }} {{ curso.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                
+                <!-- Opción 2: Cliente -->
+                {% if clientes_con_enlace %}
+                <div class="radio-option">
+                    <input type="radio" name="enlace_tipo" value="cliente" id="tipo_cliente">
+                    <div class="radio-label">
+                        <label for="tipo_cliente">
+                            <strong>🏢 Usar enlace del cliente</strong>
+                            <small>Invitar al grupo de la organización/cooperativa</small>
+                        </label>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Opción 3: Personalizado -->
+                <div class="radio-option">
+                    <input type="radio" name="enlace_tipo" value="personalizado" id="tipo_personalizado" 
+                           {% if not cursos_con_enlace and not clientes_con_enlace %}checked{% endif %}>
+                    <div class="radio-label">
+                        <label for="tipo_personalizado">
+                            <strong>✏️ Enlace personalizado</strong>
+                            <small>Ingresar manualmente el enlace del grupo</small>
+                        </label>
+                    </div>
+                </div>
+                <div class="campo-condicional {% if not cursos_con_enlace and not clientes_con_enlace %}activo{% endif %}" id="campo_personalizado">
+                    <label for="id_enlace_personalizado">Enlace del grupo:</label>
+                    <input 
+                        type="url" 
+                        name="enlace_personalizado" 
+                        id="id_enlace_personalizado"
+                        placeholder="https://chat.whatsapp.com/xxxxxxxxxxxxx"
+                        pattern="https://chat\.whatsapp\.com/.+"
+                    >
+                    <small style="display:block;margin-top:5px;color:#666;">
+                        💡 Cómo obtener el enlace: En WhatsApp, abre el grupo → Info del grupo → Invitar a través de un enlace
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        {% if not cursos_con_enlace and not clientes_con_enlace %}
+        <div class="warning-box">
+            <strong>⚠️ Sin enlaces configurados</strong><br>
+            No hay cursos ni clientes con enlaces de grupo. Debes ingresar un enlace personalizado o configurar enlaces en los cursos/clientes primero.
+        </div>
+        {% endif %}
+        
+        <div class="form-group">
+            <label for="id_mensaje_intro">📝 Mensaje de introducción (opcional)</label>
+            <textarea 
+                name="mensaje_intro" 
+                id="id_mensaje_intro" 
+                rows="3"
+                placeholder="Ej: ¡Hola! Te invitamos a unirte a nuestro grupo de WhatsApp donde compartiremos:"
+            ></textarea>
+            <small style="display:block;margin-top:5px;color:#666;">
+                Si lo dejas vacío, se usará un mensaje predeterminado. Puedes usar {nombre} para personalizar.
+            </small>
+        </div>
+        
+        <div class="preview-box">
+            <div class="preview-title">👁️ Vista Previa del Mensaje</div>
+            <div class="preview-content" id="preview-content">
+                Selecciona una opción para ver la vista previa...
+            </div>
+        </div>
+        
+        <div class="acciones-form">
+            <a href="{% url 'admin:core_estudiante_changelist' %}" class="btn-cancelar">
+                ❌ Cancelar
+            </a>
+            <button type="submit" class="btn-enviar">
+                🔗 Enviar Invitación ({{ total_estudiantes }})
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

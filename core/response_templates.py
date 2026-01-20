@@ -6,6 +6,62 @@ from django.conf import settings
 from django.utils import timezone
 
 
+def dividir_contenido_seguro(contenido: str, max_chars: int = 1500) -> list:
+    """
+    Divide contenido en chunks seguros para Twilio (1600 char limit).
+    Intenta mantener integridad de párrafos cuando es posible.
+    
+    Args:
+        contenido: Texto a dividir
+        max_chars: Máximo de caracteres por chunk (default 1500)
+    
+    Returns:
+        Lista de strings, cada uno <= max_chars
+    """
+    if len(contenido) <= max_chars:
+        return [contenido]
+    
+    chunks = []
+    current_chunk = ""
+    parrafos = contenido.split('\n\n')
+    
+    for parrafo in parrafos:
+        # If single paragraph is too long, split it further
+        if len(parrafo) > max_chars:
+            # Save current chunk first
+            if current_chunk:
+                chunks.append(current_chunk.rstrip())
+                current_chunk = ""
+            
+            # Split long paragraph by sentences (.)
+            oraciones = parrafo.split('. ')
+            for oracion in oraciones:
+                if len(current_chunk) + len(oracion) + 2 < max_chars:
+                    if current_chunk:
+                        current_chunk += ". "
+                    current_chunk += oracion
+                else:
+                    if current_chunk:
+                        chunks.append(current_chunk.rstrip() + ".")
+                    current_chunk = oracion
+        else:
+            # Normal paragraph
+            if len(current_chunk) + len(parrafo) + 4 < max_chars:
+                if current_chunk:
+                    current_chunk += "\n\n"
+                current_chunk += parrafo
+            else:
+                if current_chunk:
+                    chunks.append(current_chunk.rstrip())
+                current_chunk = parrafo
+    
+    # Add remaining content
+    if current_chunk:
+        chunks.append(current_chunk.rstrip())
+    
+    return [c for c in chunks if c]  # Remove empty chunks
+
+
 def obtener_video_url(leccion_o_modulo):
     """
     Genera URL pública del video si existe.
@@ -39,6 +95,12 @@ def obtener_video_url(leccion_o_modulo):
 
 def get_response_for_intent(intent: str, nombre_usuario: str = "Estudiante", **kwargs) -> str:
     """
+    LÓGICA SIMPLIFICADA PARA SANDBOX:
+    - opcion_1: siempre = progreso
+    - opcion_2: siempre = ayuda 
+    - opcion_3: siempre = menú principal
+    - opcion_numerica (4-9): inscribir curso (sin ambigüedad)
+    
     Retorna una respuesta templada según el intent.
     
     Args:
@@ -52,19 +114,21 @@ def get_response_for_intent(intent: str, nombre_usuario: str = "Estudiante", **k
     
     # Saludos
     if intent == 'saludo':
-        return f"""Hola {nombre_usuario} 👋
+        return f"""🌱 Hola {nombre_usuario}, bienvenido a Eki
 
-Soy tu tutor agrícola de Eki.
+🚜 *Tu plataforma de educación agrícola*
 
-Estoy aquí para enseñarte con cursos de agricultura colombiana.
+Aprende técnicas de cultivo y mejora tu producción.
 
-¿Qué quieres hacer?
+━━━━━━━━━━━━━━━━━━━
+
+*¿Qué deseas hacer?*
 
 1️⃣ Ver mi progreso
-2️⃣ Ver cursos disponibles
-3️⃣ Continuar con mi curso
+2️⃣ Explorar cursos
+3️⃣ Ayuda y soporte
 
-Escribe el número."""
+📝 Escribe el número (1, 2 o 3)"""
     
     # Cambiar nombre
     if intent == 'cambiar_nombre':
@@ -84,9 +148,10 @@ Ejemplo:
 ¿Quieres continuar?
 Escribe "continuar", "ver cursos" o "mi progreso"."""
     
-    # Opción 1: Ver mi progreso en cursos
+    # ========== OPCIONES NUMÉRICAS (SIMPLIFICADAS) ==========
+    
+    # Opción 1: SIEMPRE = Ver mi progreso
     if intent == 'opcion_1':
-        # Delegar a la función de mi_progreso_cursos que ya maneja esto
         from .models import ProgresoEstudiante
         
         estudiante_id = kwargs.get('estudiante_id')
@@ -103,20 +168,23 @@ Escribe "continuar", "ver cursos" o "mi progreso"."""
         progresos = ProgresoEstudiante.objects.filter(estudiante=estudiante)
         
         if not progresos.exists():
-            return """📚 Tu Progreso de Aprendizaje
+            return f"""📊 TU PROGRESO
 
-Aún no tienes cursos.
+👋 Hola {estudiante.nombre}, aún no tienes cursos activos.
 
-Escribe "ver cursos" para empezar tu educación agrícola.
+*¿Qué deseas hacer?*
 
-Cursos disponibles:
-🥑 Aguacate Hass
-☕ Café Arábigo"""
+1️⃣ Ver cursos disponibles
+2️⃣ Hablar con soporte
+3️⃣ Volver al menú
+
+📝 Escribe el número o dime qué necesitas."""
         
         respuesta = "📊 TU PROGRESO DE APRENDIZAJE\n\n"
         
         # Mostrar gamificación
-        nivel_emoji = ["🌱", "🌿", "🍃", "🌾", "🌳", "🌲", "🎋", "🌺", "💎", "👑"][perfil.nivel - 1]
+        nivel_index = min(perfil.nivel - 1, 9)  # Proteger índice
+        nivel_emoji = ["🌱", "🌿", "🍃", "🌾", "🌳", "🌲", "🎋", "🌺", "💎", "👑"][nivel_index]
         respuesta += f"🎮 {nivel_emoji} Nivel {perfil.nivel} | ⭐ {perfil.puntos_totales} puntos"
         
         # Mostrar racha si está activa
@@ -153,10 +221,12 @@ Cursos disponibles:
             
             respuesta += "\n"
         
-        respuesta += "Escribe \"continuar\" para seguir con tu lección."
+        respuesta += "━━━━━━━━━━━━━━━━━━━\n\n"
+        respuesta += "Escribe *CONTINUAR* para seguir tu lección\n"
+        respuesta += "O escribe *MENÚ* para volver al inicio"
         return respuesta
     
-    # Opción 2: Ver cursos disponibles
+    # Opción 2: SIEMPRE = Ver cursos disponibles
     if intent == 'opcion_2':
         from .models import Curso
         cursos_activos = Curso.objects.filter(activo=True).order_by('orden')
@@ -164,69 +234,48 @@ Cursos disponibles:
         if not cursos_activos.exists():
             return "No hay cursos disponibles en este momento. ⚠️"
         
-        respuesta = "📚 CURSOS DISPONIBLES EN EKI\n\n"
-        respuesta += "Selecciona el número del curso:\n\n"
+        respuesta = "📚 *CURSOS DISPONIBLES EN EKI*\n\n"
         
         for idx, curso in enumerate(cursos_activos, 1):
-            respuesta += f"{idx}. {curso.emoji} {curso.nombre}\n"
-            respuesta += f"   📅 Duración: {curso.duracion_semanas} semanas\n"
-            respuesta += f"   📖 Módulos: {curso.modulos.count()}\n"
-            respuesta += f"   {curso.descripcion[:60]}...\n\n"
+            respuesta += f"{idx}. {curso.emoji} *{curso.nombre}*\n"
+            respuesta += f"   📅 {curso.duracion_semanas} semanas | 📖 {curso.modulos.count()} módulos\n\n"
         
-        respuesta += "✏️ Para inscribirte, escribe:\n"
-        respuesta += "\"tomar 1\", \"tomar 2\", \"tomar 3\", etc."
+        respuesta += "━━━━━━━━━━━━━━━━━━━\n\n"
+        respuesta += "Para inscribirte en un curso:\n"
+        respuesta += "👉 Escribe *TOMAR 1* o *TOMAR 2*\n\n"
+        respuesta += "También puedes escribir *MENÚ* para volver"
         return respuesta
     
-    # Opción 3: Continuar con curso actual
+    # Opción 3: SIEMPRE = Ayuda/Soporte
     if intent == 'opcion_3':
-        from .models import ProgresoEstudiante
-        
-        estudiante_id = kwargs.get('estudiante_id')
-        if not estudiante_id:
-            return "Error al identificar estudiante. ⚠️"
-        
-        from .models import Estudiante
-        estudiante = Estudiante.objects.get(id=estudiante_id)
-        
-        # Buscar progreso activo (el más reciente por fecha_inicio)
-        progreso = ProgresoEstudiante.objects.filter(
-            estudiante=estudiante,
-            completado=False
-        ).order_by('-fecha_inicio').first()
-        
-        if not progreso:
-            return """❌ No tienes cursos activos.
+        return f"""🆘 ¿NECESITAS AYUDA, {nombre_usuario}?
 
-Escribe "ver cursos" para inscribirte en uno.
+Estoy aquí para apoyarte con tu aprendizaje.
 
-Cursos disponibles:
-🥑 Aguacate Hass (5 módulos)
-☕ Café Arábigo (5 módulos)"""
-        
-        # Obtener módulo actual
-        modulo = progreso.modulo_actual
-        if not modulo:
-            modulo = progreso.curso.modulos.order_by('numero').first()
-            progreso.modulo_actual = modulo
-            progreso.save()
-        
-        # Mostrar contenido del módulo
-        respuesta = f"📖 {progreso.curso.emoji} {progreso.curso.nombre}\n\n"
-        respuesta += f"Módulo {modulo.numero}: {modulo.titulo}\n\n"
-        respuesta += f"{modulo.contenido}\n\n"
-        
-        # Agregar video si existe
-        video_url = obtener_video_url(modulo)
-        if video_url:
-            respuesta += "🎥 Video educativo:\n"
-            respuesta += f"{video_url}\n\n"
-        
-        respuesta += "---\n\n"
-        respuesta += f"Cuando termines esta lección, escribe:\n"
-        respuesta += f"   \"completar módulo {modulo.numero}\"\n\n"
-        respuesta += "O pregúntame dudas sobre este tema."
-        
-        return respuesta
+Puedes preguntarme:
+💬 Dudas sobre cultivo de café
+📚 Información de los cursos
+📖 Cómo usar la plataforma
+
+Ejemplos:
+• "¿Cómo combato la roya del café?"
+• "¿Qué sistema de riego es mejor?"
+• "Ver mis cursos"
+• "Continuar con mi lección"
+
+También puedes:
+• Escribir "menú" para volver al inicio
+• Escribir "continuar" para seguir tu curso
+• Escribir "progreso" para ver tu avance
+
+✍️ ¿En qué te puedo ayudar?"""
+    
+    # Opción numérica genérica (4-9): Por defecto = Inscribir curso
+    # El contexto en message_handler determina si es curso, módulo, etc.
+    if intent == 'opcion_numerica':
+        # El mensaje_handler ya determinó el contexto
+        # Aquí solo manejamos el caso por defecto: inscribir curso
+        return _manejar_inscribir_curso(kwargs.get('estudiante_id'), kwargs.get('mensaje_original', ''))
     
     # Progreso (sin pasar por menú) - Redirigir a opcion_1
     if intent == 'progreso':
@@ -265,7 +314,8 @@ Cursos disponibles:
         respuesta += "📊 TOP 5 POR PUNTOS:\n"
         
         for idx, perfil in enumerate(top_puntos, 1):
-            nivel_emoji = ["🌱", "🌿", "🍃", "🌾", "🌳", "🌲", "🎋", "🌺", "💎", "👑"][perfil.nivel - 1]
+            nivel_index = min(perfil.nivel - 1, 9)  # Proteger índice
+            nivel_emoji = ["🌱", "🌿", "🍃", "🌾", "🌳", "🌲", "🎋", "🌺", "💎", "👑"][nivel_index]
             medalla = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"][idx - 1]
             respuesta += f"{medalla} {perfil.estudiante.nombre}\n"
             respuesta += f"   {nivel_emoji} Nivel {perfil.nivel} | ⭐ {perfil.puntos_totales} pts\n"
@@ -292,44 +342,46 @@ Cursos disponibles:
     
     # Ayuda (sin pasar por menú)
     if intent == 'ayuda':
-        return """AYUDA - SISTEMA DE CURSOS EKI
+        return """☕ AYUDA - CURSOS DE CAFÉ EKI
 
-COMANDOS PRINCIPALES:
+📋 COMANDOS PRINCIPALES:
 
-- Ver cursos: "ver cursos"
-- Inscribirme: "inscribir 1" o "tomar 2"
-- Continuar curso: "continuar"
-- Mi progreso: "mi progreso"
-- Ranking: "ranking" o "top"
-- Terminar lección: "listo" o "siguiente"
-- Cambiar nombre: "cambiar nombre"
-- Volver al menú: "menú" o "inicio"
+• "ver cursos" - Ver cursos disponibles
+• "2" - Inscribirte en un curso
+• "continuar" - Seguir tu curso actual
+• "progreso" o "1" - Ver tu avance
+• "listo" - Completar módulo actual
+• "menú" - Volver al inicio
 
-GAMIFICACIÓN:
-🎮 Ganas puntos al completar módulos
+🎮 GAMIFICACIÓN:
+⭐ Ganas puntos al completar módulos
 🏆 Desbloqueas badges por logros
-📈 Subes de nivel con experiencia
+📈 Subes de nivel
 🔥 Mantén tu racha de estudio
 
-También puedes:
-   • Preguntar sobre temas: "¿cómo regar aguacate?"
-   • Pedir ayuda en cualquier momento
+💬 PREGUNTAS:
+También puedes preguntarme sobre café:
+• "¿Cómo hacer análisis de suelos?"
+• "¿Qué sistema de riego usar?"
+• "¿Cómo controlar la roya?"
 
-Estoy aquí para enseñarte agricultura colombiana paso a paso."""
+✍️ Escribe "menú" para volver al inicio."""
     
     # ========== SISTEMA DE CURSOS ==========
     
     # Número inválido (detectado por usuario)
     if intent == 'numero_invalido':
-        return """❌ Ese número no es válido.
+        return """❌ Número inválido.
 
-Las opciones son:
+Las opciones del menú son:
 
-1️⃣  Ver mi progreso
-2️⃣  Ver cursos disponibles
-3️⃣  Continuar mi curso actual
+1️⃣ Ver mi progreso
+2️⃣ Ver cursos de café
+3️⃣ Ayuda y soporte
 
-Escribe solo UN número (1, 2 o 3)"""
+Escribe solo el número: 1, 2 o 3
+
+O escribe "menú" para ver todas las opciones."""
     
     # Ver cursos disponibles
     if intent == 'ver_cursos':
@@ -339,56 +391,49 @@ Escribe solo UN número (1, 2 o 3)"""
         if not cursos_activos.exists():
             return "No hay cursos disponibles en este momento. ⚠️"
         
-        respuesta = "CURSOS DISPONIBLES EN EKI\n\n"
-        respuesta += "Selecciona el número del curso:\n\n"
+        respuesta = "📚 CURSOS DISPONIBLES EN EKI\n\n"
         
         for idx, curso in enumerate(cursos_activos, 1):
-            respuesta += f"{idx}. {curso.emoji} {curso.nombre}\n"
-            respuesta += f"   📅 {curso.duracion_semanas} semanas\n"
-            respuesta += f"   📖 {curso.modulos.count()} módulos\n\n"
+            respuesta += f"{idx}️⃣ {curso.emoji} *{curso.nombre}*\n"
+            respuesta += f"   📅 {curso.duracion_semanas} semanas | 📖 {curso.modulos.count()} módulos\n\n"
         
-        respuesta += "Para inscribirte, escribe:\n"
-        respuesta += "   Solo el número: \"1\""
+        respuesta += "👉 *Escribe el número* del curso que quieres tomar"
         return respuesta
     
     # Inscribirse en curso
     if intent == 'inscribir_curso':
-        mensaje_original = kwargs.get('mensaje_original', '').lower().strip()
         from .models import Curso, ProgresoEstudiante, Estudiante
         import re
         
-        curso = None
-        
-        # Detectar "tomar 1", "inscribir 1", "inscribir 2", etc
-        match = re.search(r'(tomar|inscribir|inscribirme)\s*(\d+)', mensaje_original)
-        if match:
-            numero_curso = int(match.group(2))
-            cursos_activos = Curso.objects.filter(activo=True).order_by('orden')
-            if 1 <= numero_curso <= cursos_activos.count():
-                curso = list(cursos_activos)[numero_curso - 1]
-        # Detectar si es solo un número (como fallback)
-        elif re.match(r'^(\d+)$', mensaje_original):
-            numero_curso = int(mensaje_original)
-            cursos_activos = Curso.objects.filter(activo=True).order_by('orden')
-            if 1 <= numero_curso <= cursos_activos.count():
-                curso = list(cursos_activos)[numero_curso - 1]
-        else:
-            # Fallback: detectar por nombre (por si escriben el nombre)
-            if 'aguacate' in mensaje_original or 'hass' in mensaje_original:
-                curso = Curso.objects.filter(nombre__icontains='aguacate', activo=True).first()
-            elif 'cafe' in mensaje_original or 'café' in mensaje_original:
-                curso = Curso.objects.filter(nombre__icontains='cafe', activo=True).first()
-        
-        if not curso:
-            return """No encontré ese curso. 🤔
-            
-Escribe "2" para ver cursos disponibles."""
-        
+        mensaje_original = kwargs.get('mensaje_original', '').strip()
         estudiante_id = kwargs.get('estudiante_id')
+        
         if not estudiante_id:
             return "Error al identificar estudiante. ⚠️"
         
-        estudiante = Estudiante.objects.get(id=estudiante_id)
+        try:
+            estudiante = Estudiante.objects.get(id=estudiante_id)
+        except Estudiante.DoesNotExist:
+            return "❌ Error: No se encontró tu perfil de estudiante."
+        
+        curso = None
+        
+        # Detectar número del curso
+        match = re.search(r'\d+', mensaje_original)
+        if match:
+            numero_curso = int(match.group())
+            cursos_activos = list(Curso.objects.filter(activo=True).order_by('orden'))
+            
+            if not cursos_activos:
+                return "❌ No hay cursos disponibles en este momento."
+            
+            if 1 <= numero_curso <= len(cursos_activos):
+                curso = cursos_activos[numero_curso - 1]
+            else:
+                return f"❌ Número inválido. Tenemos {len(cursos_activos)} cursos disponibles.\n\nEscribe \"ver cursos\" para verlos."
+        
+        if not curso:
+            return """❌ No encontré ese curso.\n\nEscribe "ver cursos" para ver las opciones disponibles."""
         
         # Verificar si ya está inscrito
         progreso_existente = ProgresoEstudiante.objects.filter(
@@ -398,54 +443,80 @@ Escribe "2" para ver cursos disponibles."""
         
         if progreso_existente:
             porcentaje = progreso_existente.porcentaje_avance()
-            modulo_actual = progreso_existente.modulo_actual
             
             if progreso_existente.completado:
-                return f"""Ya completaste {curso.emoji} {curso.nombre}
-                
-¡Felicidades! Terminaste el curso al 100%
-
-Puedes:
-   • Escribir "examen" para volver a tomar el examen
-   • Escribir "ver cursos" para tomar otro curso"""
+                return f"""✅ Ya completaste *{curso.emoji} {curso.nombre}*\n\n¡Felicidades! 🎉\n\nEscribe "ver cursos" para tomar otro curso."""
             
-            # Actualizar fecha para que sea el curso más reciente
+            # Curso ya iniciado - reactivar
             from django.utils import timezone
             progreso_existente.fecha_inicio = timezone.now()
             progreso_existente.save()
             
-            return f"""✅ Retomando {curso.emoji} {curso.nombre}
-            
-Módulo actual: {modulo_actual.numero}. {modulo_actual.titulo}
-📈 Tu avance: {porcentaje}%
-
-Escribe "continuar" para seguir con tu lección."""
+            modulo_actual = progreso_existente.modulo_actual
+            return f"""✅ Retomando *{curso.emoji} {curso.nombre}*\n\n📍 Módulo actual: {modulo_actual.numero}. {modulo_actual.titulo}\n📈 Avance: {porcentaje}%\n\nEscribe "continuar" para seguir."""
         
-        # Inscribir al estudiante
+        # Inscribir al estudiante (nuevo)
         primer_modulo = curso.modulos.order_by('numero').first()
+        
+        if not primer_modulo:
+            return f"❌ El curso {curso.nombre} no tiene módulos configurados aún."
+        
         progreso = ProgresoEstudiante.objects.create(
             estudiante=estudiante,
             curso=curso,
             modulo_actual=primer_modulo
         )
         
-        return f"""✅ {curso.emoji} ¡Inscripción exitosa!
+        # Split into multiple messages to avoid Twilio 1600 char limit
+        # Message 1: Enrollment confirmation (short)
+        mensaje_1 = f"""✅ {curso.emoji} ¡Inscripción exitosa!
+
+Te inscribiste en: *{curso.nombre}*
+
+📚 Módulos: {curso.modulos.count()}
+⏱️ Duración: {curso.duracion_semanas} semanas
+
+Comenzamos con el Módulo 1... 👇"""
+
+        # Divide module content into safe chunks
+        contenido = primer_modulo.contenido
+        chunks = dividir_contenido_seguro(contenido, max_chars=1500)
+        
+        # Build header for module
+        modulo_header = f"📖 *{primer_modulo.numero}. {primer_modulo.titulo}*\n\n"
+        
+        # Combine header with first chunk
+        if chunks:
+            mensaje_2 = modulo_header + chunks[0]
+            
+            # If there are more chunks, combine them
+            if len(chunks) > 1:
+                remaining_chunks = chunks[1:]
+                if len(remaining_chunks) == 1:
+                    # Only 2 messages total (header+chunk1, chunk2)
+                    mensaje_3 = remaining_chunks[0] + "\n\n---\nCuando termines, escribe: *\"listo\"*"
+                else:
+                    # 3+ messages total
+                    mensaje_3 = remaining_chunks[0]
+                    if len(remaining_chunks) > 1:
+                        # Additional chunks joined together
+                        for chunk in remaining_chunks[1:]:
+                            if len(mensaje_3) + len(chunk) + 4 < 1500:
+                                mensaje_3 += "\n\n" + chunk
+                        mensaje_3 += "\n\n---\nCuando termines, escribe: *\"listo\"*"
+                
+                return f"[MULTI_MSG]{mensaje_1}[SEP]{mensaje_2}[SEP]{mensaje_3}"
+            else:
+                # Single message with header + content
+                mensaje_2 += "\n\n---\nCuando termines, escribe: *\"listo\"*"
+                return f"[MULTI_MSG]{mensaje_1}[SEP]{mensaje_2}"
+        else:
+            # Fallback (shouldn't happen)
+            return f"""✅ {curso.emoji} ¡Inscripción exitosa!
 
 Te inscribiste en: {curso.nombre}
 
-📚 Total: {curso.modulos.count()} módulos
-⏱️ Duración: {curso.duracion_semanas} semanas
-
----
-
-Módulo 1: {primer_modulo.titulo}
-
-{primer_modulo.contenido}
-
----
-
-Cuando termines, escribe: *"listo"*
-O pregúntame dudas sobre este tema."""
+Escribe "continuar" para empezar el primer módulo."""
     
     # Continuar con lección
     if intent == 'continuar_leccion':
@@ -460,6 +531,10 @@ O pregúntame dudas sobre este tema."""
         
         mensaje_original = kwargs.get('mensaje_original', '').lower()
         
+        # Validar que el estudiante existe
+        if not estudiante:
+            return "❌ Error al identificar tu perfil. Por favor contacta soporte."
+        
         # Buscar todos los progresos activos (no completados)
         progresos_activos = ProgresoEstudiante.objects.filter(
             estudiante=estudiante,
@@ -471,8 +546,22 @@ O pregúntame dudas sobre este tema."""
 
 Escribe "ver cursos" para inscribirte en uno."""
         
-        # Siempre continuar con el curso MÁS RECIENTE (primer progreso ordenado por -fecha_inicio)
-        # Ya no preguntar, continuar directo
+        # Si tiene MÚLTIPLES cursos activos, preguntar cuál continuar
+        if progresos_activos.count() > 1:
+            respuesta = "📚 Tienes varios cursos activos:\n\n"
+            for idx, prog in enumerate(progresos_activos, 1):
+                porcentaje = prog.porcentaje_avance()
+                respuesta += f"{idx}️⃣ {prog.curso.emoji} {prog.curso.nombre}\n"
+                respuesta += f"   📊 Avance: {porcentaje}%\n"
+                if prog.modulo_actual:
+                    respuesta += f"   📖 Módulo actual: {prog.modulo_actual.numero} - {prog.modulo_actual.titulo}\n"
+                respuesta += "\n"
+            
+            respuesta += "Escribe el número del curso al que quieres continuar.\n"
+            respuesta += "Ejemplo: \"1\" o \"2\" o \"3\"\n\n[SELECTOR_CURSO_ACTIVO]"
+            return respuesta
+        
+        # Si solo tiene UN curso activo, continuar directamente
         progreso = progresos_activos.first()
         
         if not progreso:
@@ -485,6 +574,8 @@ Escribe "ver cursos" para inscribirte en uno."""
         if not modulo_actual:
             # Si no hay módulo actual, tomar el primero
             modulo_actual = progreso.curso.modulos.order_by('numero').first()
+            if not modulo_actual:
+                return f"❌ El curso {progreso.curso.nombre} no tiene módulos configurados. Contacta a soporte."
             progreso.modulo_actual = modulo_actual
             progreso.save()
         
@@ -492,24 +583,45 @@ Escribe "ver cursos" para inscribirte en uno."""
         # Completarlo y avanzar al siguiente
         palabras_completar = ['listo', 'siguiente', 'ok', 'dale', 'avanzar', 'sigue']
         if any(palabra in mensaje_original for palabra in palabras_completar):
+            # PRIORIDAD: Verificar si el módulo tiene pregunta de validación
+            from .pregunta_handler import tiene_pregunta_modulo, obtener_pregunta_modulo, formatear_pregunta, guardar_contexto_pregunta
+            
+            if tiene_pregunta_modulo(modulo_actual):
+                # Verificar si ya respondió esta pregunta
+                ya_respondio = ModuloCompletado.objects.filter(
+                    progreso=progreso,
+                    modulo=modulo_actual
+                ).exists()
+                
+                if not ya_respondio:
+                    # Mostrar pregunta
+                    pregunta = obtener_pregunta_modulo(modulo_actual)
+                    if pregunta:
+                        guardar_contexto_pregunta(estudiante, modulo_actual, pregunta, progreso)
+                        return formatear_pregunta(pregunta)
+            
+            # Si no tiene pregunta o ya la respondió, continuar con el flujo normal
             # Obtener perfil ANTES de completar módulo
             from .gamificacion import PerfilGamificacion
             perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
             nivel_antes = perfil.nivel
             
-            # Marcar módulo actual como completado
-            # Esto dispara la señal que otorga 50 puntos automáticamente
-            ModuloCompletado.objects.get_or_create(
-                progreso=progreso,
-                modulo=modulo_actual
-            )
+            # Marcar módulo actual como completado (solo si no tiene pregunta)
+            # Si tiene pregunta, ya se marcó en pregunta_handler.py
+            if not tiene_pregunta_modulo(modulo_actual):
+                ModuloCompletado.objects.get_or_create(
+                    progreso=progreso,
+                    modulo=modulo_actual
+                )
             
             # Refrescar perfil para ver si subió de nivel
             perfil.refresh_from_db()
             subio_nivel = perfil.nivel > nivel_antes
             
-            # Buscar siguiente módulo
-            siguiente_modulo = progreso.curso.modulos.filter(numero=modulo_actual.numero + 1).first()
+            # Buscar siguiente módulo (buscar el siguiente número mayor)
+            siguiente_modulo = progreso.curso.modulos.filter(
+                numero__gt=modulo_actual.numero
+            ).order_by('numero').first()
             
             if siguiente_modulo:
                 # Actualizar progreso al siguiente módulo
@@ -525,7 +637,8 @@ Escribe "ver cursos" para inscribirte en uno."""
                 
                 # Si subió de nivel, celebrar!
                 if subio_nivel:
-                    nivel_emoji = ["🌱", "🌿", "🍃", "🌾", "🌳", "🌲", "🎋", "🌺", "💎", "👑"][perfil.nivel - 1]
+                    nivel_index = min(perfil.nivel - 1, 9)  # Proteger índice
+                    nivel_emoji = ["🌱", "🌿", "🍃", "🌾", "🌳", "🌲", "🎋", "🌺", "💎", "👑"][nivel_index]
                     mensaje += f"\n\n🎉 ¡SUBISTE DE NIVEL! {nivel_emoji} Nivel {perfil.nivel}"
                 
                 mensaje += f"""
@@ -583,7 +696,8 @@ Total: {perfil.puntos_totales} pts | Nivel {perfil.nivel}"""
                 
                 # Si subió de nivel, celebrar!
                 if subio_nivel:
-                    nivel_emoji = ["🌱", "🌿", "🍃", "🌾", "🌳", "🌲", "🎋", "🌺", "💎", "👑"][perfil.nivel - 1]
+                    nivel_index = min(perfil.nivel - 1, 9)  # Proteger índice
+                    nivel_emoji = ["🌱", "🌿", "🍃", "🌾", "🌳", "🌲", "🎋", "🌺", "💎", "👑"][nivel_index]
                     mensaje += f"\n\n✨ ¡SUBISTE A {nivel_emoji} NIVEL {perfil.nivel}!"
                 
                 mensaje += f"""

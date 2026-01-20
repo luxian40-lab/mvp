@@ -1,0 +1,49 @@
+{% extends "admin/change_list.html" %}
+{% load static %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <style>
+        .import-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #FF9800 0%, #FB8C00 100%);
+            color: white !important;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            box-shadow: 0 4px 6px rgba(255, 152, 0, 0.3);
+            transition: all 0.3s ease;
+            border: none;
+            margin-left: 10px;
+        }
+        
+        .import-button:hover {
+            background: linear-gradient(135deg, #FB8C00 0%, #F57C00 100%);
+            box-shadow: 0 6px 12px rgba(255, 152, 0, 0.4);
+            transform: translateY(-2px);
+            color: white !important;
+        }
+        
+        .import-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(255, 152, 0, 0.3);
+        }
+        
+        .import-button::before {
+            content: "📤";
+            margin-right: 8px;
+            font-size: 16px;
+        }
+    </style>
+{% endblock %}
+
+{% block object-tools-items %}
+    {{ block.super }}
+    <li>
+        <a href="{% url 'admin:importar_estudiantes' %}" class="import-button">
+            Importar Estudiantes (Excel)
+        </a>
+    </li>
+{% endblock %}

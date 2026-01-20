@@ -4,32 +4,91 @@ CON función de envío directo desde Plantillas Y gestión de cursos/módulos/ex
 """
 from django.contrib import admin
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.admin import helpers
-from django.urls import path
+from django.urls import path, reverse
 from django.db import models  # ✅ Para usar Q() en queries
+from django.db.models import Count  # ✅ Para agregaciones
+from django.conf import settings  # ✅ Para acceder a settings
 import openpyxl
 from django.http import HttpResponse
 from .models import (
     Estudiante, WhatsappLog, Plantilla, Campana, EnvioLog, Linea,
     Curso, Modulo, ProgresoEstudiante, ModuloCompletado,
-    Examen, PreguntaExamen, ResultadoExamen, TemaCampana, Cliente,
-    PerfilGamificacion, Badge, BadgeEstudiante, TransaccionPuntos
+    Examen, PreguntaExamen, ResultadoExamen, Cliente,
+    PerfilGamificacion, Badge, BadgeEstudiante, TransaccionPuntos,
+    SolicitudSoporte, PreguntaModulo,  # 🆘 NUEVO + 📝 PREGUNTA MODULO
+    Certificado, PlantillaCertificado  # 📜 CERTIFICADOS
 )
+from .models_extras import (
+    GrupoEstudiantes, EnvioProgramado, PQRS, ArchivoModulo,
+    GrupoWhatsApp, InvitacionGrupo  # 📦 NUEVOS MODELOS
+)
+from .models_audit import AuditLog  # 🔐 Auditoría
 from .recompensas import Recompensa, CanjeRecompensa
-from .utils import enviar_whatsapp_twilio
+from .utils import enviar_whatsapp_twilio, enviar_whatsapp  # Asegurar que tenemos la función
+from .widgets import ColorPickerWidget  # 🎨 Color picker para certificados
+from django.utils import timezone  # Para timestamps
 import logging
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+
+# ================================================
+# 🔍 FILTRO PERSONALIZADO PARA CURSOS
+# ================================================
+
+class CursosEstudianteFilter(admin.SimpleListFilter):
+    """Filtro para ver estudiantes por curso inscrito"""
+    title = 'Curso inscrito'
+    parameter_name = 'curso'
+
+    def lookups(self, request, model_admin):
+        """Obtiene todos los cursos disponibles"""
+        cursos = Curso.objects.all().order_by('nombre')
+        return [(curso.id, curso.nombre) for curso in cursos] + [('sin_curso', '❌ Sin curso')]
+
+    def queryset(self, request, queryset):
+        """Filtra los estudiantes según el curso seleccionado"""
+        if self.value() == 'sin_curso':
+            # Estudiantes sin ningún curso
+            return queryset.exclude(progresos__isnull=False)
+        elif self.value():
+            # Estudiantes inscritos en el curso específico
+            return queryset.filter(progresos__curso_id=self.value()).distinct()
+        return queryset
+
+
+class GruposEstudianteFilter(admin.SimpleListFilter):
+    """Filtro para ver estudiantes por grupo"""
+    title = '👥 Grupo asignado'
+    parameter_name = 'grupo'
+
+    def lookups(self, request, model_admin):
+        """Obtiene todos los grupos disponibles"""
+        grupos = GrupoEstudiantes.objects.all().order_by('nombre')
+        return [(grupo.id, f"{grupo.emoji} {grupo.nombre}") for grupo in grupos] + [('sin_grupo', '❌ Sin grupo')]
+
+    def queryset(self, request, queryset):
+        """Filtra los estudiantes según el grupo seleccionado"""
+        if self.value() == 'sin_grupo':
+            # Estudiantes sin ningún grupo
+            return queryset.filter(grupos__isnull=True)
+        elif self.value():
+            # Estudiantes en el grupo específico
+            return queryset.filter(grupos__id=self.value()).distinct()
+        return queryset
 
 
 # ========== CLIENTE (NUEVO) ==========
 @admin.register(Cliente)
 class ClienteAdmin(admin.ModelAdmin):
     """Gestión de clientes/organizaciones"""
-    list_display = ('nombre', 'contacto_principal', 'email', 'telefono', 'estudiantes_activos', 'cursos_asignados', 'activo', 'fecha_registro')
-    list_filter = ('activo', 'fecha_registro')
+    list_display = ('nombre', 'contacto_principal', 'email', 'numero_meta_badge', 'estudiantes_activos', 'cursos_asignados', 'activo', 'fecha_registro')
+    list_filter = ('activo', 'enviar_certificados_email', 'fecha_registro')
     search_fields = ('nombre', 'nit', 'contacto_principal', 'email')
     list_per_page = 50
     ordering = ('-fecha_registro',)
@@ -37,6 +96,22 @@ class ClienteAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Información del Cliente', {
             'fields': ('nombre', 'nit', 'contacto_principal', 'email', 'telefono')
+        }),
+        ('📱 WhatsApp Business (Meta)', {
+            'fields': ('numero_whatsapp_autorizado',),
+            'description': '🔑 Número autorizado en Meta Business para envío masivo. Debe coincidir con tu cuenta de WhatsApp Business API.'
+        }),
+        ('� Grupo de WhatsApp', {
+            'fields': ('enlace_grupo_whatsapp',),
+            'description': '🔗 Enlace de invitación al grupo de WhatsApp del cliente. Se usará para invitar automáticamente a los estudiantes. Ejemplo: https://chat.whatsapp.com/xxxxx'
+        }),
+        ('📬 Certificados', {
+            'fields': ('enviar_certificados_email',),
+            'description': '✉️ Si está activado, los certificados de los estudiantes de este cliente se enviarán automáticamente al email del cliente'
+        }),
+        ('🎮 Gamificación', {
+            'fields': ('usar_gamificacion',),
+            'description': '🎮 Si está activado, los estudiantes verán puntos, badges y recompensas. Si está desactivado, solo verán el contenido educativo sin elementos de juego.'
         }),
         ('Estado', {
             'fields': ('activo', 'notas_internas')
@@ -50,6 +125,16 @@ class ClienteAdmin(admin.ModelAdmin):
         return format_html('<span style="color:#999;">0</span>')
     estudiantes_activos.short_description = "👥 Estudiantes"
     
+    def numero_meta_badge(self, obj):
+        if obj.numero_whatsapp_autorizado:
+            return format_html(
+                '<span style="background:#25d366;color:white;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;">✅ Meta OK</span><br>'
+                '<span style="font-size:10px;color:#666;">{}</span>',
+                obj.numero_whatsapp_autorizado
+            )
+        return format_html('<span style="background:#ff9800;color:white;padding:4px 10px;border-radius:12px;font-size:11px;">⚠️ Sin Meta</span>')
+    numero_meta_badge.short_description = "📱 WhatsApp Meta"
+    
     def cursos_asignados(self, obj):
         count = obj.total_cursos()
         if count > 0:
@@ -58,33 +143,66 @@ class ClienteAdmin(admin.ModelAdmin):
     cursos_asignados.short_description = "📚 Cursos"
 
 
-# ========== TEMA DE CAMPAÑA ==========
-@admin.register(TemaCampana)
-class TemaCampanaAdmin(admin.ModelAdmin):
-    """Gestión de temas para organizar plantillas y campañas"""
-    list_display = ('nombre_con_emoji', 'descripcion_corta', 'total_plantillas', 'total_campanas', 'activo')
-    list_filter = ('activo',)
-    search_fields = ('nombre', 'descripcion')
+# ========== PLANTILLA ==========
+@admin.register(Plantilla)
+class PlantillaDashboardAdmin(admin.ModelAdmin):
+    """Gestión de plantillas de mensajes"""
+    list_display = ('nombre_con_emoji', 'categoria_display', 'estado_template', 'activa', 'veces_usada', 'fecha_modificacion')
+    list_filter = ('activa', 'categoria', 'aprobada_twilio', 'fecha_modificacion')
+    search_fields = ('nombre_interno', 'cuerpo_mensaje', 'twilio_template_sid')
     list_per_page = 50
-    
+
     fieldsets = (
-        ('Información Básica', {
-            'fields': ('nombre', 'emoji', 'activo')
+        ('📝 Información Básica', {
+            'fields': ('nombre_interno', 'categoria', 'activa'),
+            'description': 'Configura el nombre y categoría de la plantilla'
         }),
-        ('Detalles', {
-            'fields': ('descripcion',)
+        ('🎨 Personalización Visual', {
+            'fields': ('emoji',),
+            'description': mark_safe('''<div style="background:#f5f5f5;padding:15px;border-radius:8px;margin-top:10px;">
+                <strong>💡 El emoji se autocompletará según la categoría seleccionada arriba</strong><br><br>
+                <strong>Categorías disponibles:</strong><br>
+                🌾 Cultivos • 🐄 Ganadería • 🌱 General Agrícola • 📚 Educación • 💼 Gestión<br><br>
+                <em>Puedes cambiar el emoji manualmente si lo deseas</em>
+            </div>''')
+        }),
+        ('📄 Contenido del Mensaje', {
+            'fields': ('cuerpo_mensaje',),
+            'description': 'Escribe el mensaje. Usa {nombre} para personalizar con el nombre del estudiante.'
+        }),
+        ('� Twilio (Opcional - Para Casos Avanzados)', {
+            'fields': ('twilio_template_sid', 'twilio_template_nombre', 'aprobada_twilio'),
+            'description': mark_safe('''<div style="background:#fff3e0;padding:15px;border-radius:8px;border-left:4px solid #ff9800;">
+                <strong>⚠️ IMPORTANTE: Para campañas con Content Templates</strong><br><br>
+                <strong>Flujo correcto:</strong>
+                <ol style="margin:10px 0;">
+                    <li>🔵 Ve a <a href="https://console.twilio.com/us1/develop/sms/content-editor" target="_blank" style="color:#2196F3;">Twilio Content Editor</a></li>
+                    <li>📝 Crea tu plantilla de WhatsApp y obtén el <strong>Content SID</strong> (ej: HX1234...)</li>
+                    <li>⚙️ Configura el SID arriba y marca como "Aprobada en Twilio"</li>
+                    <li>✅ Las campañas usarán este template automáticamente</li>
+                </ol>
+                <em>💡 Si no configuras esto, las campañas usarán envío directo (sin template).</em>
+            </div>'''),
+            'classes': ('collapse',)
         }),
     )
-    
+
     def nombre_con_emoji(self, obj):
         return str(obj)
-    nombre_con_emoji.short_description = "Tema"
+    nombre_con_emoji.short_description = "Plantilla"
+
+    def categoria_display(self, obj):
+        return obj.get_categoria_display()
+    categoria_display.short_description = "Categoría"
     
-    def descripcion_corta(self, obj):
-        if obj.descripcion:
-            return obj.descripcion[:50] + '...' if len(obj.descripcion) > 50 else obj.descripcion
-        return '-'
-    descripcion_corta.short_description = "Descripción"
+    def estado_template(self, obj):
+        if obj.twilio_template_sid and obj.aprobada_twilio:
+            return format_html('<span style="background:#4caf50;color:white;padding:4px 8px;border-radius:12px;font-size:11px;">✅ TWILIO</span>')
+        elif obj.twilio_template_sid and not obj.aprobada_twilio:
+            return format_html('<span style="background:#ff9800;color:white;padding:4px 8px;border-radius:12px;font-size:11px;">⏳ PENDIENTE</span>')
+        else:
+            return format_html('<span style="background:#2196f3;color:white;padding:4px 8px;border-radius:12px;font-size:11px;">📱 DIRECTO</span>')
+    estado_template.short_description = "Estado"
     
     def total_plantillas(self, obj):
         count = obj.plantillas.count()
@@ -104,18 +222,73 @@ class TemaCampanaAdmin(admin.ModelAdmin):
 @admin.register(Estudiante)
 class EstudianteAdmin(admin.ModelAdmin):
     """Gestión de estudiantes/campesinos"""
-    list_display = ('nombre', 'telefono_formateado', 'cliente_nombre', 'ver_chat_boton', 'activo', 'fecha_registro', 'total_mensajes')
-    list_filter = ('activo', 'cliente', 'fecha_registro')
-    search_fields = ('nombre', 'telefono', 'cliente__nombre')
+    list_display = ('cedula_formateada', 'nombre', 'telefono_formateado', 'cliente_nombre', 'grupos_display', 'cursos_inscritos', 'activo', 'fecha_registro')
+    list_filter = ('activo', 'cliente', 'fecha_registro', CursosEstudianteFilter, GruposEstudianteFilter)
+    search_fields = ('nombre', 'cedula', 'telefono', 'cliente__nombre')
     list_per_page = 50
     ordering = ('-fecha_registro',)
-    actions = ['enviar_mensaje_manual', 'exportar_estudiantes_excel', 'exportar_estudiantes_csv']  # ✅ Nuevas acciones
+    actions = ['enviar_mensaje_masivo', 'enviar_anuncio_grupal', 'invitar_a_grupo_whatsapp', 'exportar_estudiantes_por_curso', 'exportar_plantilla_importacion', 'asignar_a_grupo_accion']
+    
+    # ✨ AGREGAR BOTÓN DE IMPORTAR EN LA PARTE SUPERIOR
+    change_list_template = 'admin/estudiante_changelist.html'
     
     fieldsets = (
-        ('Información Básica', {
-            'fields': ('nombre', 'telefono', 'cliente', 'activo')
+        ('🔐 Identificación y Seguridad', {
+            'fields': ('tipo_documento', 'cedula', 'nombre'),
+            'description': 'El documento es el identificador único y autenticador de seguridad'
+        }),
+        ('📱 Contacto y Organización', {
+            'fields': ('telefono', 'cliente', 'activo')
+        }),
+        ('�📚 Cursos Inscritos', {
+            'fields': ('mostrar_cursos_inscritos',),
+            'classes': ('collapse',),
         }),
     )
+    readonly_fields = ('mostrar_cursos_inscritos',)
+    
+    def cedula_formateada(self, obj):
+        """Muestra cédula con formato y tipo"""
+        return format_html(
+            '<strong style="color:#2196F3;">🪪 {} {}</strong>',
+            obj.tipo_documento,
+            obj.cedula
+        )
+    cedula_formateada.short_description = "Documento"
+    
+    def mostrar_cursos_inscritos(self, obj):
+        """Muestra los cursos en los que está inscrito el estudiante"""
+        progresos = ProgresoEstudiante.objects.filter(estudiante=obj).select_related('curso')
+        if not progresos:
+            return format_html('<p style="color:#999;">No está inscrito en ningún curso</p>')
+        
+        html = '<div style="margin-top:10px;">'
+        for progreso in progresos:
+            porcentaje = progreso.porcentaje_avance()
+            color = '#4CAF50' if porcentaje == 100 else '#FF9800' if porcentaje > 0 else '#999'
+            html += f'''
+                <div style="margin-bottom:15px;padding:10px;background:#f5f5f5;border-radius:5px;">
+                    <strong style="color:{color};">📚 {progreso.curso.nombre}</strong><br>
+                    <small>Progreso: {porcentaje}%</small>
+                    <div style="background:#e0e0e0;height:8px;border-radius:4px;margin-top:5px;">
+                        <div style="background:{color};width:{porcentaje}%;height:100%;border-radius:4px;"></div>
+                    </div>
+                </div>
+            '''
+        html += '</div>'
+        return format_html(html)
+    mostrar_cursos_inscritos.short_description = "Cursos"
+    
+    def cursos_inscritos(self, obj):
+        """Muestra cantidad de cursos inscritos"""
+        count = ProgresoEstudiante.objects.filter(estudiante=obj).count()
+        if count == 0:
+            return format_html('<span style="color:#999;">Sin cursos</span>')
+        return format_html(
+            '<span style="background:#e3f2fd;padding:4px 10px;border-radius:12px;font-size:11px;">{} curso{}</span>',
+            count, 's' if count != 1 else ''
+        )
+    cursos_inscritos.short_description = "📚 Cursos"
     
     def telefono_formateado(self, obj):
         """Muestra teléfono con formato WhatsApp"""
@@ -129,20 +302,175 @@ class EstudianteAdmin(admin.ModelAdmin):
         return format_html('<span style="color:#999;">Sin cliente</span>')
     cliente_nombre.short_description = "🏢 Cliente"
     
-    def ver_chat_boton(self, obj):
-        """Botón para ver conversación completa del estudiante"""
-        count = WhatsappLog.objects.filter(
-            models.Q(telefono=obj.telefono) | 
-            models.Q(estudiante=obj)
-        ).count()
-        if count > 0:
-            url = f'/admin/conversaciones/?estudiante={obj.id}'
-            return format_html(
-                '<a href="{}" class="button" style="background:#25d366;color:white;padding:5px 12px;border-radius:4px;text-decoration:none;">💬 Ver Chat ({})</a>',
-                url, count
-            )
-        return format_html('<span style="color:#999;">Sin mensajes</span>')
-    ver_chat_boton.short_description = "Conversación"
+    def grupos_display(self, obj):
+        """Muestra los grupos a los que pertenece el estudiante"""
+        grupos = obj.grupos.all()
+        if not grupos:
+            return format_html('<span style="color:#999;">Sin grupos</span>')
+        
+        badges = []
+        for grupo in grupos[:3]:  # Mostrar máximo 3
+            badges.append(f'<span style="background:#e8f5e9;color:#2e7d32;padding:3px 8px;border-radius:8px;font-size:10px;margin-right:3px;">{grupo.emoji} {grupo.nombre}</span>')
+        
+        html = ''.join(badges)
+        if grupos.count() > 3:
+            html += f' <span style="color:#999;font-size:10px;">+{grupos.count() - 3} más</span>'
+        
+        return format_html(html)
+    grupos_display.short_description = "👥 Grupos"
+    
+    # Ver conversaciones removido por solicitud del usuario
+    
+    def get_urls(self):
+        """Agregar URL personalizada para importar estudiantes"""
+        from django.urls import path
+        urls = super().get_urls()
+        custom_urls = [
+            path('importar/', self.admin_site.admin_view(self.importar_estudiantes_view), name='importar_estudiantes'),
+            path('exportar-plantilla/', self.admin_site.admin_view(self.exportar_plantilla_importacion), name='exportar_plantilla_importacion'),
+        ]
+        return custom_urls + urls
+    
+    def importar_estudiantes_view(self, request):
+        """Vista para importar estudiantes desde Excel con selección de curso"""
+        from django.shortcuts import render, redirect
+        from django.contrib import messages
+        from django.db import IntegrityError
+        
+        if request.method == 'POST':
+            archivo = request.FILES.get('archivo_excel')
+            curso_id = request.POST.get('curso_id')
+            
+            if not archivo:
+                messages.error(request, "⚠️ Debes seleccionar un archivo Excel")
+                return redirect('admin:core_estudiante_changelist')
+            
+            try:
+                wb = openpyxl.load_workbook(archivo)
+                ws = wb.active
+                
+                creados = 0
+                actualizados = 0
+                inscritos = 0
+                errores = []
+                
+                # Leer filas (saltar encabezado)
+                for idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+                    # Verificar que la fila no esté completamente vacía
+                    if all(cell is None or str(cell).strip() == '' for cell in row[:3]):
+                        continue
+                    
+                    # Extraer datos con validación de columnas
+                    try:
+                        cedula = str(row[0]).strip() if row[0] is not None else ''
+                        nombre = str(row[1]).strip() if row[1] is not None else ''
+                        telefono = str(row[2]).strip() if row[2] is not None else ''
+                        curso_nombre = str(row[3]).strip() if len(row) > 3 and row[3] is not None else None
+                        cliente_nombre = str(row[4]).strip() if len(row) > 4 and row[4] is not None else None
+                    except IndexError:
+                        errores.append(f"Fila {idx}: La fila no tiene suficientes columnas")
+                        continue
+                    
+                    # Validar campos obligatorios
+                    if not cedula or not nombre or not telefono:
+                        errores.append(f"Fila {idx}: Faltan campos obligatorios (Cédula: '{cedula}', Nombre: '{nombre}', Teléfono: '{telefono}')")
+                        continue
+                    
+                    # Normalizar teléfono - remover caracteres no numéricos
+                    import re
+                    telefono = re.sub(r'\D', '', telefono)  # Solo dígitos
+                    
+                    # Validar y normalizar formato colombiano
+                    if telefono.startswith('57') and len(telefono) == 12:
+                        # Ya está en formato correcto: 573001234567
+                        pass
+                    elif len(telefono) == 10 and telefono.startswith(('3', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39')):
+                        # Número colombiano sin prefijo internacional
+                        telefono = '57' + telefono
+                    elif len(telefono) == 12 and telefono.startswith('57'):
+                        # Ya correcto
+                        pass
+                    else:
+                        errores.append(f"Fila {idx}: Teléfono '{telefono}' no tiene formato válido (debe ser 10 dígitos colombianos o 12 con 57)")
+                        continue
+                    
+                    try:
+                        # Buscar cliente si se especificó
+                        cliente = None
+                        if cliente_nombre:
+                            try:
+                                cliente = Cliente.objects.get(nombre__iexact=cliente_nombre)
+                            except Cliente.DoesNotExist:
+                                errores.append(f"Fila {idx}: Cliente '{cliente_nombre}' no encontrado")
+                        
+                        # Crear o actualizar estudiante
+                        try:
+                            estudiante, created = Estudiante.objects.update_or_create(
+                                cedula=cedula,
+                                defaults={
+                                    'nombre': nombre,
+                                    'telefono': telefono,
+                                    'cliente': cliente,
+                                    'tipo_documento': 'CC',
+                                    'estado_onboarding': 'completado',
+                                    'acepto_terminos': True,
+                                    'activo': True
+                                }
+                            )
+                            
+                            if created:
+                                creados += 1
+                            else:
+                                actualizados += 1
+                        except IntegrityError as e:
+                            if 'telefono' in str(e).lower():
+                                errores.append(f"Fila {idx}: Teléfono '{telefono}' ya existe para otro estudiante")
+                            else:
+                                errores.append(f"Fila {idx}: Error de integridad - {str(e)}")
+                            continue
+                        
+                        # Inscribir en curso si se especificó
+                        if curso_nombre:
+                            try:
+                                curso = Curso.objects.get(nombre__iexact=curso_nombre)
+                                progreso, creado = ProgresoEstudiante.objects.get_or_create(
+                                    estudiante=estudiante,
+                                    curso=curso,
+                                    defaults={'progreso': 0, 'completado': False}
+                                )
+                                if creado:
+                                    inscritos += 1
+                            except Curso.DoesNotExist:
+                                errores.append(f"Fila {idx}: Curso '{curso_nombre}' no encontrado")
+                            except IntegrityError as e:
+                                errores.append(f"Fila {idx}: Error al inscribir en curso '{curso_nombre}' - {str(e)}")
+                    
+                    except Exception as e:
+                        errores.append(f"Fila {idx}: {str(e)}")
+                
+                # Mensajes de resultado
+                if creados > 0:
+                    messages.success(request, f"✅ {creados} estudiante(s) creado(s)")
+                if actualizados > 0:
+                    messages.info(request, f"ℹ️ {actualizados} estudiante(s) actualizado(s)")
+                if inscritos > 0:
+                    messages.success(request, f"🎓 {inscritos} inscripción(es) en cursos")
+                if errores:
+                    messages.warning(request, f"⚠️ {len(errores)} error(es). Revisa el archivo.")
+                    for error in errores[:5]:  # Mostrar solo primeros 5
+                        messages.warning(request, error)
+                
+                return redirect('admin:core_estudiante_changelist')
+            
+            except Exception as e:
+                messages.error(request, f"❌ Error procesando archivo: {str(e)}")
+                return redirect('admin:core_estudiante_changelist')
+        
+        # GET - Mostrar formulario simplificado
+        return render(request, 'admin/importar_estudiantes.html', {
+            'title': 'Importar Estudiantes desde Excel',
+            'site_header': 'Importar Estudiantes',
+        })
     
     def total_mensajes(self, obj):
         """Cuenta cuántos mensajes ha enviado el estudiante"""
@@ -152,6 +480,406 @@ class EstudianteAdmin(admin.ModelAdmin):
             count
         )
     total_mensajes.short_description = "💬 Total"
+    
+    # ========================================
+    # 📢 MEGÁFONO: ENVÍO MASIVO DE MENSAJES
+    # ========================================
+    
+    @admin.action(description='📢 Megáfono: Enviar mensaje a seleccionados')
+    def enviar_mensaje_masivo(self, request, queryset):
+        """
+        Permite enviar un mensaje personalizado a múltiples estudiantes seleccionados.
+        Útil para avisos de mantenimiento, anuncios importantes, etc.
+        
+        IMPORTANTE: Valida la ventana de 24 horas de WhatsApp para evitar bloqueos.
+        """
+        from datetime import timedelta
+        
+        if 'aplicar' in request.POST:
+            # El usuario confirmó el envío
+            mensaje = request.POST.get('mensaje')
+            if not mensaje:
+                self.message_user(request, "⚠️ Debes escribir un mensaje", level=messages.ERROR)
+                return
+            
+            # Verificar que no esté vacío
+            if not mensaje.strip():
+                self.message_user(request, "⚠️ El mensaje no puede estar vacío", level=messages.ERROR)
+                return
+            
+            enviados = 0
+            errores = 0
+            errores_detalle = []
+            
+            for estudiante in queryset:
+                try:
+                    # Personalizar mensaje con nombre del estudiante
+                    mensaje_personalizado = mensaje.replace('{nombre}', estudiante.nombre)
+                    mensaje_personalizado = mensaje_personalizado.replace('{cedula}', estudiante.cedula)
+                    
+                    # Enviar mensaje
+                    resultado = enviar_whatsapp(estudiante.telefono, mensaje_personalizado)
+                    
+                    if resultado:
+                        enviados += 1
+                        logger.info(f"📢 Megáfono: Mensaje enviado a {estudiante.nombre}")
+                        
+                        # Registrar en WhatsappLog
+                        WhatsappLog.objects.create(
+                            telefono=estudiante.telefono,
+                            mensaje=mensaje_personalizado,
+                            tipo='SENT',
+                            estado='ENVIADO',
+                            estudiante=estudiante,
+                            mensaje_id=f'megafono_{timezone.now().timestamp()}'
+                        )
+                    else:
+                        errores += 1
+                        errores_detalle.append(f"{estudiante.nombre} ({estudiante.telefono})")
+                        logger.error(f"❌ Megáfono: Error enviando a {estudiante.nombre}")
+                        
+                except Exception as e:
+                    errores += 1
+                    errores_detalle.append(f"{estudiante.nombre}: {str(e)}")
+                    logger.error(f"❌ Megáfono: Error con {estudiante.nombre}: {e}")
+            
+            # Mostrar resultados
+            if enviados > 0:
+                self.message_user(
+                    request,
+                    f"✅ Mensaje enviado exitosamente a {enviados} estudiante(s)",
+                    level=messages.SUCCESS
+                )
+            
+            if errores > 0:
+                mensaje_error = f"⚠️ Hubo {errores} error(es) al enviar"
+                if errores_detalle:
+                    mensaje_error += f": {', '.join(errores_detalle[:5])}"
+                    if len(errores_detalle) > 5:
+                        mensaje_error += f" y {len(errores_detalle) - 5} más..."
+                self.message_user(request, mensaje_error, level=messages.WARNING)
+            
+            # Redirigir a la lista de estudiantes
+            return redirect('admin:core_estudiante_changelist')
+        
+        # Validar ventana de 24 horas ANTES de mostrar formulario
+        hace_24h = timezone.now() - timedelta(hours=24)
+        activos = []
+        inactivos = []
+        sin_interaccion = []
+        
+        for estudiante in queryset:
+            # Obtener último mensaje RECIBIDO del estudiante (no enviado por nosotros)
+            ultimo_msg = WhatsappLog.objects.filter(
+                estudiante=estudiante,
+                tipo_mensaje='recibido'  # Solo mensajes que EL estudiante nos envió
+            ).order_by('-timestamp').first()
+            
+            if ultimo_msg:
+                if ultimo_msg.timestamp >= hace_24h:
+                    activos.append({
+                        'estudiante': estudiante,
+                        'ultima_interaccion': ultimo_msg.timestamp,
+                        'hace': timezone.now() - ultimo_msg.timestamp
+                    })
+                else:
+                    inactivos.append({
+                        'estudiante': estudiante,
+                        'ultima_interaccion': ultimo_msg.timestamp,
+                        'hace': timezone.now() - ultimo_msg.timestamp
+                    })
+            else:
+                # Nunca ha escrito
+                sin_interaccion.append(estudiante)
+        
+        # Mostrar formulario de confirmación con advertencias
+        return render(request, 'admin/enviar_mensaje_masivo.html', {
+            'estudiantes': queryset,
+            'total_estudiantes': queryset.count(),
+            'activos': activos,
+            'inactivos': inactivos,
+            'sin_interaccion': sin_interaccion,
+            'total_activos': len(activos),
+            'total_inactivos': len(inactivos),
+            'total_sin_interaccion': len(sin_interaccion),
+            'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
+            'title': 'Enviar Mensaje Masivo (Megáfono)',
+        })
+    
+    # ========================================
+    # 📢 ANUNCIO GRUPAL (Difusión Simulada)
+    # ========================================
+    
+    @admin.action(description='📣 Enviar anuncio grupal (difusión)')
+    def enviar_anuncio_grupal(self, request, queryset):
+        """
+        Envía el mismo mensaje a múltiples estudiantes usando template aprobado de Twilio.
+        Ideal para: PQRS, anuncios de clases, notificaciones importantes.
+        """
+        from .utils import enviar_whatsapp_twilio_content_template
+        
+        if 'aplicar' in request.POST:
+            mensaje = request.POST.get('mensaje', '').strip()
+            
+            # Debug: Ver qué datos llegan
+            logger.info(f"📋 POST data: {dict(request.POST)}")
+            
+            if not mensaje:
+                self.message_user(request, "⚠️ Debes escribir un mensaje", level=messages.ERROR)
+                # Regresar al formulario con los estudiantes seleccionados
+                return render(request, 'admin/enviar_anuncio_grupal.html', {
+                    'estudiantes': queryset,
+                    'total_estudiantes': queryset.count(),
+                    'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
+                    'title': 'Enviar Anuncio Grupal (Difusión)',
+                    'mensaje': mensaje,  # Preservar mensaje ingresado
+                })
+            
+            # Reconstruir queryset desde los IDs en POST
+            estudiante_ids = request.POST.getlist(helpers.ACTION_CHECKBOX_NAME)
+            if estudiante_ids:
+                queryset = Estudiante.objects.filter(id__in=estudiante_ids)
+            
+            if not queryset.exists():
+                self.message_user(request, "⚠️ No se encontraron estudiantes seleccionados", level=messages.ERROR)
+                return redirect('admin:core_estudiante_changelist')
+            
+            # Verificar que el template esté configurado
+            content_sid = getattr(settings, 'TWILIO_TEMPLATE_ANUNCIO_GRUPAL', None)
+            logger.info(f"🔧 Content SID: {content_sid}")
+            
+            if not content_sid:
+                self.message_user(
+                    request, 
+                    "⚠️ Template de Twilio no configurado. Configura TWILIO_TEMPLATE_ANUNCIO_GRUPAL en .env",
+                    level=messages.ERROR
+                )
+                # Regresar al formulario con el mensaje preservado
+                return render(request, 'admin/enviar_anuncio_grupal.html', {
+                    'estudiantes': queryset,
+                    'total_estudiantes': queryset.count(),
+                    'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
+                    'title': 'Enviar Anuncio Grupal (Difusión)',
+                    'mensaje': mensaje,
+                })
+            
+            enviados = 0
+            errores = 0
+            errores_detalle = []
+            
+            for estudiante in queryset:
+                try:
+                    # Variables del template:
+                    # {{1}} = Nombre del estudiante
+                    # {{2}} = Contenido del mensaje
+                    variables = {
+                        '1': estudiante.nombre,
+                        '2': mensaje
+                    }
+                    
+                    # Enviar con template de Twilio
+                    resultado = enviar_whatsapp_twilio_content_template(
+                        telefono=estudiante.telefono,
+                        content_sid=content_sid,
+                        variables=variables
+                    )
+                    
+                    if resultado.get('success'):
+                        enviados += 1
+                        logger.info(f"📣 Anuncio grupal enviado a {estudiante.nombre}")
+                    else:
+                        errores += 1
+                        errores_detalle.append(f"{estudiante.nombre}")
+                        logger.error(f"❌ Error enviando anuncio a {estudiante.nombre}: {resultado.get('response')}")
+                        
+                except Exception as e:
+                    errores += 1
+                    errores_detalle.append(f"{estudiante.nombre}: {str(e)}")
+                    logger.error(f"❌ Error con {estudiante.nombre}: {e}")
+            
+            # Mostrar resultados
+            if enviados > 0:
+                self.message_user(
+                    request,
+                    f"✅ Anuncio enviado exitosamente a {enviados} estudiante(s)",
+                    level=messages.SUCCESS
+                )
+            
+            if errores > 0:
+                mensaje_error = f"⚠️ Hubo {errores} error(es)"
+                if errores_detalle:
+                    mensaje_error += f": {', '.join(errores_detalle[:3])}"
+                    if len(errores_detalle) > 3:
+                        mensaje_error += f" y {len(errores_detalle) - 3} más"
+                self.message_user(request, mensaje_error, level=messages.WARNING)
+            
+            # Redirigir a la lista de estudiantes
+            return redirect('admin:core_estudiante_changelist')
+        
+        # Mostrar formulario
+        return render(request, 'admin/enviar_anuncio_grupal.html', {
+            'estudiantes': queryset,
+            'total_estudiantes': queryset.count(),
+            'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
+            'title': 'Enviar Anuncio Grupal (Difusión)',
+        })
+    
+    # ========================================
+    # 👥 INVITACIÓN A GRUPO DE WHATSAPP
+    # ========================================
+    
+    @admin.action(description='🔗 Invitar a grupo de WhatsApp')
+    def invitar_a_grupo_whatsapp(self, request, queryset):
+        """
+        Envía invitación con enlace al grupo de WhatsApp.
+        Puede usar el enlace del curso o del cliente, o uno personalizado.
+        """
+        if 'aplicar' in request.POST:
+            enlace_tipo = request.POST.get('enlace_tipo')  # 'curso', 'cliente', 'personalizado'
+            curso_id = request.POST.get('curso_id')
+            enlace_personalizado = request.POST.get('enlace_personalizado')
+            mensaje_intro = request.POST.get('mensaje_intro', '')
+            
+            # Determinar el enlace a usar
+            enlace_grupo = None
+            
+            if enlace_tipo == 'curso' and curso_id:
+                try:
+                    curso = Curso.objects.get(id=curso_id)
+                    enlace_grupo = curso.enlace_grupo_whatsapp
+                    if not enlace_grupo:
+                        self.message_user(
+                            request,
+                            f"⚠️ El curso '{curso.nombre}' no tiene un enlace de grupo configurado",
+                            level=messages.ERROR
+                        )
+                        return
+                except Curso.DoesNotExist:
+                    self.message_user(request, "⚠️ Curso no encontrado", level=messages.ERROR)
+                    return
+            
+            elif enlace_tipo == 'cliente':
+                # Usar el enlace del cliente del primer estudiante
+                primer_estudiante = queryset.first()
+                if primer_estudiante and primer_estudiante.cliente:
+                    enlace_grupo = primer_estudiante.cliente.enlace_grupo_whatsapp
+                    if not enlace_grupo:
+                        self.message_user(
+                            request,
+                            f"⚠️ El cliente '{primer_estudiante.cliente.nombre}' no tiene un enlace de grupo configurado",
+                            level=messages.ERROR
+                        )
+                        return
+                else:
+                    self.message_user(
+                        request,
+                        "⚠️ Los estudiantes no tienen cliente asignado o el cliente no tiene enlace de grupo",
+                        level=messages.ERROR
+                    )
+                    return
+            
+            elif enlace_tipo == 'personalizado':
+                enlace_grupo = enlace_personalizado
+                if not enlace_grupo or not enlace_grupo.startswith('https://chat.whatsapp.com/'):
+                    self.message_user(
+                        request,
+                        "⚠️ Enlace personalizado inválido. Debe ser: https://chat.whatsapp.com/xxxxx",
+                        level=messages.ERROR
+                    )
+                    return
+            
+            if not enlace_grupo:
+                self.message_user(request, "⚠️ No se pudo determinar el enlace del grupo", level=messages.ERROR)
+                return
+            
+            # Construir mensaje
+            mensaje_base = mensaje_intro if mensaje_intro else "¡Hola! Te invitamos a unirte a nuestro grupo de WhatsApp:"
+            
+            enviados = 0
+            errores = 0
+            errores_detalle = []
+            
+            for estudiante in queryset:
+                try:
+                    from .utils import enviar_whatsapp_twilio_content_template
+                    
+                    # Verificar que el template esté configurado
+                    content_sid = settings.TWILIO_TEMPLATE_INVITACION_GRUPO
+                    if not content_sid:
+                        self.message_user(
+                            request,
+                            "⚠️ Template de invitación no configurado. Configura TWILIO_TEMPLATE_INVITACION_GRUPO en .env",
+                            level=messages.ERROR
+                        )
+                        return
+                    
+                    # Variables del template:
+                    # {{1}} = Nombre del estudiante
+                    # {{2}} = Mensaje de introducción (opcional)
+                    # {{3}} = Enlace del grupo
+                    mensaje_intro_final = mensaje_intro if mensaje_intro else "¡Hola! Te invitamos a unirte a nuestro grupo de WhatsApp."
+                    
+                    variables = {
+                        '1': estudiante.nombre,
+                        '2': mensaje_intro_final,
+                        '3': enlace_grupo
+                    }
+                    
+                    # Enviar con template de Twilio
+                    resultado = enviar_whatsapp_twilio_content_template(
+                        telefono=estudiante.telefono,
+                        content_sid=content_sid,
+                        variables=variables
+                    )
+                    
+                    if resultado.get('success'):
+                        enviados += 1
+                        logger.info(f"🔗 Invitación a grupo enviada a {estudiante.nombre}")
+                    else:
+                        errores += 1
+                        errores_detalle.append(estudiante.nombre)
+                        logger.error(f"❌ Error enviando invitación a {estudiante.nombre}: {resultado.get('response')}")
+                        
+                except Exception as e:
+                    errores += 1
+                    errores_detalle.append(f"{estudiante.nombre}: {str(e)}")
+                    logger.error(f"❌ Error con {estudiante.nombre}: {e}")
+            
+            # Mostrar resultados
+            if enviados > 0:
+                self.message_user(
+                    request,
+                    f"✅ Invitación enviada exitosamente a {enviados} estudiante(s)",
+                    level=messages.SUCCESS
+                )
+            
+            if errores > 0:
+                mensaje_error = f"⚠️ {errores} error(es)"
+                if errores_detalle:
+                    mensaje_error += f": {', '.join(errores_detalle[:3])}"
+                self.message_user(request, mensaje_error, level=messages.WARNING)
+            
+            # Redirigir a la lista de estudiantes
+            return redirect('admin:core_estudiante_changelist')
+        
+        # GET - Mostrar formulario
+        # Obtener cursos y clientes con enlaces configurados
+        cursos_con_enlace = Curso.objects.exclude(enlace_grupo_whatsapp='').values('id', 'nombre', 'emoji')
+        
+        # Verificar si los estudiantes tienen cliente
+        clientes_ids = queryset.values_list('cliente_id', flat=True).distinct()
+        clientes_con_enlace = Cliente.objects.filter(
+            id__in=clientes_ids
+        ).exclude(enlace_grupo_whatsapp='').values('id', 'nombre')
+        
+        return render(request, 'admin/invitar_grupo_whatsapp.html', {
+            'estudiantes': queryset,
+            'total_estudiantes': queryset.count(),
+            'cursos_con_enlace': cursos_con_enlace,
+            'clientes_con_enlace': clientes_con_enlace,
+            'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
+            'title': 'Invitar a Grupo de WhatsApp',
+        })
     
     # ✅ Acción para enviar mensaje manual de prueba
     def enviar_mensaje_manual(self, request, queryset):
@@ -202,7 +930,8 @@ class EstudianteAdmin(admin.ModelAdmin):
             if errores > 0:
                 self.message_user(request, f"⚠️ Hubo {errores} error(es) al enviar", level=messages.WARNING)
             
-            return redirect(request.get_full_path())
+            # Redirigir a la lista de estudiantes
+            return redirect('admin:core_estudiante_changelist')
         
         # Mostrar formulario de confirmación
         return render(request, 'admin/enviar_mensaje_manual.html', {
@@ -212,25 +941,28 @@ class EstudianteAdmin(admin.ModelAdmin):
     
     enviar_mensaje_manual.short_description = "📤 Enviar mensaje de prueba"
     
-    @admin.action(description='📊 Exportar estudiantes a Excel')
-    def exportar_estudiantes_excel(self, request, queryset):
-        """Exporta estudiantes seleccionados a archivo Excel"""
-        import openpyxl
+    @admin.action(description='📊 Exportar estudiantes con cursos a Excel')
+    def exportar_estudiantes_por_curso(self, request, queryset):
+        """Exporta estudiantes con información detallada de cursos"""
+        from openpyxl import Workbook
         from openpyxl.styles import Font, PatternFill, Alignment
-        from datetime import datetime
         
         # Crear workbook
-        wb = openpyxl.Workbook()
+        wb = Workbook()
         ws = wb.active
-        ws.title = "Estudiantes"
+        ws.title = "Estudiantes por Curso"
         
         # Encabezados
-        headers = ['ID', 'Nombre', 'Teléfono', 'Activo', 'Fecha Registro', 'Total Mensajes', 'Cursos Inscritos']
+        headers = [
+            'Cédula', 'Nombre', 'Teléfono', 'Cliente', 'Activo',
+            'Cursos Inscritos', 'Cursos Completados', 'Progreso Promedio',
+            'Total Mensajes', 'Fecha Registro'
+        ]
         ws.append(headers)
         
         # Estilo de encabezados
         header_fill = PatternFill(start_color="4CAF50", end_color="4CAF50", fill_type="solid")
-        header_font = Font(bold=True, color="FFFFFF")
+        header_font = Font(bold=True, color="FFFFFF", size=12)
         for cell in ws[1]:
             cell.fill = header_fill
             cell.font = header_font
@@ -238,80 +970,319 @@ class EstudianteAdmin(admin.ModelAdmin):
         
         # Datos
         for estudiante in queryset:
-            mensajes_count = WhatsappLog.objects.filter(telefono=estudiante.telefono).count()
-            cursos_count = ProgresoEstudiante.objects.filter(estudiante=estudiante).count()
+            # Calcular estadísticas de cursos
+            progresos = ProgresoEstudiante.objects.filter(estudiante=estudiante)
+            total_cursos = progresos.count()
+            cursos_completados = progresos.filter(completado=True).count()
+            
+            # Calcular promedio de progreso
+            if total_cursos > 0:
+                progreso_promedio = sum([p.porcentaje_avance() for p in progresos]) / total_cursos
+            else:
+                progreso_promedio = 0
+            
+            # Total mensajes
+            total_mensajes = WhatsappLog.objects.filter(telefono=estudiante.telefono).count()
             
             ws.append([
-                estudiante.id,
+                estudiante.cedula,
                 estudiante.nombre,
                 f"+{estudiante.telefono}",
+                estudiante.cliente.nombre if estudiante.cliente else "Sin cliente",
                 "Sí" if estudiante.activo else "No",
+                total_cursos,
+                cursos_completados,
+                f"{progreso_promedio:.1f}%",
+                total_mensajes,
                 estudiante.fecha_registro.strftime('%Y-%m-%d %H:%M'),
-                mensajes_count,
-                cursos_count
             ])
         
-        # Ajustar anchos
-        for column in ws.columns:
-            max_length = 0
-            column_letter = column[0].column_letter
-            for cell in column:
-                try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-                except:
-                    pass
-            adjusted_width = min(max_length + 2, 50)
-            ws.column_dimensions[column_letter].width = adjusted_width
+        # Crear segunda hoja con detalle de cursos
+        ws2 = wb.create_sheet("Detalle por Curso")
+        headers2 = ['Cédula', 'Estudiante', 'Teléfono', 'Curso', 'Progreso', 'Estado', 'Fecha Inicio']
+        ws2.append(headers2)
         
-        # Crear respuesta HTTP
+        # Estilo
+        for cell in ws2[1]:
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+        
+        # Detalle de cada curso
+        for estudiante in queryset:
+            progresos = ProgresoEstudiante.objects.filter(estudiante=estudiante).select_related('curso')
+            for progreso in progresos:
+                ws2.append([
+                    estudiante.cedula,
+                    estudiante.nombre,
+                    f"+{estudiante.telefono}",
+                    progreso.curso.nombre,
+                    f"{progreso.porcentaje_avance()}%",
+                    "Completado" if progreso.completado else "En progreso",
+                    progreso.fecha_inicio.strftime('%Y-%m-%d'),
+                ])
+        
+        # Ajustar ancho de columnas
+        for ws in [wb.active, ws2]:
+            for column in ws.columns:
+                max_length = 0
+                column_letter = column[0].column_letter
+                for cell in column:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(cell.value)
+                    except:
+                        pass
+                ws.column_dimensions[column_letter].width = min(max_length + 2, 50)
+        
+        # Preparar respuesta HTTP
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
-        filename = f'estudiantes_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        
+        response['Content-Disposition'] = f'attachment; filename=estudiantes_cursos_{datetime.now().strftime("%Y%m%d_%H%M")}.xlsx'
         wb.save(response)
+        
+        self.message_user(request, f"✅ Exportados {queryset.count()} estudiantes con detalle de cursos", level=messages.SUCCESS)
         return response
     
-    @admin.action(description='📄 Exportar estudiantes a CSV')
-    def exportar_estudiantes_csv(self, request, queryset):
-        """Exporta estudiantes seleccionados a archivo CSV"""
-        import csv
-        from datetime import datetime
+    def exportar_plantilla_importacion(self, request):
+        """Genera plantilla Excel mejorada con curso y cliente"""
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.comments import Comment
+        from openpyxl.data_validation import DataValidation
         
-        response = HttpResponse(content_type='text/csv')
-        filename = f'estudiantes_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Plantilla Estudiantes"
         
-        writer = csv.writer(response)
-        writer.writerow(['ID', 'Nombre', 'Teléfono', 'Activo', 'Fecha Registro', 'Total Mensajes', 'Cursos Inscritos'])
+        # Encabezados mejorados
+        headers = ['Cédula', 'Nombre Completo', 'Teléfono', 'Curso', 'Cliente']
+        ws.append(headers)
         
-        for estudiante in queryset:
-            mensajes_count = WhatsappLog.objects.filter(telefono=estudiante.telefono).count()
-            cursos_count = ProgresoEstudiante.objects.filter(estudiante=estudiante).count()
-            
-            writer.writerow([
-                estudiante.id,
-                estudiante.nombre,
-                f"+{estudiante.telefono}",
-                "Sí" if estudiante.activo else "No",
-                estudiante.fecha_registro.strftime('%Y-%m-%d %H:%M'),
-                mensajes_count,
-                cursos_count
-            ])
+        # Estilo de encabezados
+        header_fill = PatternFill(start_color="2196F3", end_color="2196F3", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=12)
+        border = Border(
+            left=Side(style='thin', color='FFFFFF'),
+            right=Side(style='thin', color='FFFFFF'),
+            top=Side(style='thin', color='FFFFFF'),
+            bottom=Side(style='thin', color='FFFFFF')
+        )
+        
+        for cell in ws[1]:
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = border
+        
+        # Comentarios con instrucciones
+        ws['A1'].comment = Comment("📝 Cédula sin puntos ni espacios\nEjemplo: 1234567890", "EKI")
+        ws['B1'].comment = Comment("👤 Nombre completo del estudiante\nEjemplo: Juan Pérez García", "EKI")
+        ws['C1'].comment = Comment("📱 WhatsApp con código de país\nEjemplo: 573001234567 o 3001234567", "EKI")
+        ws['D1'].comment = Comment("📚 Nombre del curso (opcional)\nEjemplo: Curso de Café\nDeja vacío si no aplica", "EKI")
+        ws['E1'].comment = Comment("🏢 Nombre del cliente (opcional)\nEjemplo: FNC\nDeja vacío si no aplica", "EKI")
+        
+        # Obtener cursos y clientes para validación
+        cursos = Curso.objects.filter(activo=True).order_by('nombre')
+        clientes = Cliente.objects.filter(activo=True).order_by('nombre')
+        
+        # Agregar ejemplos con datos reales
+        if cursos.exists() and clientes.exists():
+            curso_ejemplo = cursos.first().nombre
+            cliente_ejemplo = clientes.first().nombre
+            ws.append(['1234567890', 'Juan Pérez García', '573001234567', curso_ejemplo, cliente_ejemplo])
+            ws.append(['9876543210', 'María López Rodríguez', '3109876543', curso_ejemplo, cliente_ejemplo])
+        else:
+            ws.append(['1234567890', 'Juan Pérez García', '573001234567', 'Curso de Café', 'FNC'])
+            ws.append(['9876543210', 'María López Rodríguez', '3109876543', 'Curso de Aguacate', 'Fedecacao'])
+        
+        # Fila vacía para empezar
+        ws.append(['', '', '', '', ''])
+        
+        # Estilo para ejemplos
+        example_fill = PatternFill(start_color="FFF9E6", end_color="FFF9E6", fill_type="solid")
+        for row in [2, 3]:
+            for cell in ws[row]:
+                cell.fill = example_fill
+                cell.font = Font(italic=True, color="666666", size=10)
+        
+        # Ajustar anchos
+        ws.column_dimensions['A'].width = 18
+        ws.column_dimensions['B'].width = 35
+        ws.column_dimensions['C'].width = 18
+        ws.column_dimensions['D'].width = 30
+        ws.column_dimensions['E'].width = 25
+        
+        # Crear hoja con listas de valores disponibles
+        ws_ref = wb.create_sheet("Valores Disponibles")
+        ws_ref.append(["CURSOS DISPONIBLES", "CLIENTES DISPONIBLES"])
+        ws_ref['A1'].font = Font(bold=True, size=12, color="2196F3")
+        ws_ref['B1'].font = Font(bold=True, size=12, color="2196F3")
+        
+        max_rows = max(cursos.count(), clientes.count())
+        for i in range(max_rows):
+            curso_nombre = cursos[i].nombre if i < cursos.count() else ""
+            cliente_nombre = clientes[i].nombre if i < clientes.count() else ""
+            ws_ref.append([curso_nombre, cliente_nombre])
+        
+        ws_ref.column_dimensions['A'].width = 35
+        ws_ref.column_dimensions['B'].width = 35
+        
+        # Agregar hoja de instrucciones
+        ws_inst = wb.create_sheet("Instrucciones")
+        instrucciones = [
+            ["📋 GUÍA RÁPIDA - IMPORTAR ESTUDIANTES A EKI"],
+            [""],
+            ["✅ CAMPOS OBLIGATORIOS:"],
+            ["   • Cédula: Sin puntos ni espacios (Ej: 1234567890)"],
+            ["   • Nombre: Nombre completo del estudiante"],
+            ["   • Teléfono: Con código 57 o sin él (Ej: 573001234567 o 3001234567)"],
+            [""],
+            ["📝 CAMPOS OPCIONALES:"],
+            ["   • Curso: Nombre del curso a inscribir (ver hoja 'Valores Disponibles')"],
+            ["   • Cliente: Organización del estudiante (ver hoja 'Valores Disponibles')"],
+            [""],
+            ["💡 TIPS:"],
+            ["   1. Si dejas vacío 'Curso', el estudiante NO se inscribirá automáticamente"],
+            ["   2. Si dejas vacío 'Cliente', el estudiante quedará sin organización"],
+            ["   3. Los nombres de Curso y Cliente deben coincidir EXACTAMENTE con los disponibles"],
+            ["   4. Copia y pega desde la hoja 'Valores Disponibles' para evitar errores"],
+            [""],
+            ["📊 PROCESO:"],
+            ["   1. Completa la hoja 'Plantilla Estudiantes' con tus datos"],
+            ["   2. Guarda el archivo Excel"],
+            ["   3. Ve a EKI Admin → Estudiantes → Botón 'Importar desde Excel'"],
+            ["   4. Sube el archivo y confirma"],
+            ["   5. ¡Listo! El sistema procesará automáticamente"],
+            [""],
+            ["✨ EJEMPLOS:"],
+            [""],
+            ["   Cédula      | Nombre                | Teléfono      | Curso              | Cliente"],
+            ["   1234567890  | Juan Pérez García    | 573001234567  | Curso de Café      | FNC"],
+            ["   9876543210  | María López          | 3109876543    | Curso de Aguacate  | Fedecacao"],
+            ["   5555555555  | Pedro Gómez          | 3201234567    |                    |"],
+            [""],
+            ["⚠️ ERRORES COMUNES:"],
+            ["   • Cédula duplicada: Cada cédula debe ser única"],
+            ["   • Teléfono duplicado: Cada teléfono debe ser único"],
+            ["   • Curso inexistente: Verifica en 'Valores Disponibles'"],
+            ["   • Filas vacías: No dejes filas vacías entre estudiantes"],
+            [""],
+            ["📞 Soporte: contacto@eki.com | WhatsApp: +57 300 123 4567"],
+        ]
+        
+        for row_data in instrucciones:
+            ws_inst.append(row_data)
+        
+        # Estilo del título
+        ws_inst['A1'].font = Font(bold=True, size=16, color="2196F3")
+        ws_inst['A1'].alignment = Alignment(horizontal='left', vertical='center')
+        
+        # Ajustar ancho
+        ws_inst.column_dimensions['A'].width = 80
+        
+        # Preparar respuesta
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename=PLANTILLA_IMPORTACION_ESTUDIANTES_EKI.xlsx'
+        wb.save(response)
+        
+        # Solo mostrar mensaje si es una acción de admin (tiene queryset)
+        if queryset is not None:
+            self.message_user(request, "📋 Plantilla de importación descargada. Comparte este archivo con tus clientes.", level=messages.SUCCESS)
         
         return response
+    
+    @admin.action(description='👥 Asignar estudiantes a un grupo')
+    def asignar_a_grupo_accion(self, request, queryset):
+        """Asigna múltiples estudiantes a un grupo (existente o nuevo)"""
+        if 'apply' in request.POST:
+            # Verificar si es grupo existente o nuevo
+            grupo_tipo = request.POST.get('grupo_tipo', 'existente')
+            
+            if grupo_tipo == 'nuevo':
+                # Crear nuevo grupo
+                nuevo_nombre = request.POST.get('nuevo_nombre', '').strip()
+                nuevo_emoji = request.POST.get('nuevo_emoji', '👥')
+                nuevo_descripcion = request.POST.get('nuevo_descripcion', '').strip()
+                
+                if not nuevo_nombre:
+                    self.message_user(request, "⚠️ Debes ingresar un nombre para el grupo", level=messages.WARNING)
+                    return
+                
+                # Obtener el cliente del primer estudiante o None
+                primer_estudiante = queryset.first()
+                cliente = primer_estudiante.cliente if primer_estudiante else None
+                
+                # Crear el grupo
+                grupo = GrupoEstudiantes.objects.create(
+                    nombre=nuevo_nombre,
+                    emoji=nuevo_emoji,
+                    descripcion=nuevo_descripcion,
+                    cliente=cliente,
+                    creado_por=request.user,
+                    activo=True
+                )
+                
+                # Asignar estudiantes al nuevo grupo
+                contador = 0
+                for estudiante in queryset:
+                    grupo.estudiantes.add(estudiante)
+                    contador += 1
+                
+                self.message_user(
+                    request,
+                    f"✅ Grupo '{grupo.emoji} {grupo.nombre}' creado y {contador} estudiante(s) asignado(s)",
+                    level=messages.SUCCESS
+                )
+                return redirect('admin:core_estudiante_changelist')
+            
+            else:
+                # Usar grupo existente
+                grupo_id = request.POST.get('grupo')
+                if not grupo_id:
+                    self.message_user(request, "⚠️ Debes seleccionar un grupo", level=messages.WARNING)
+                    return
+                
+                try:
+                    grupo = GrupoEstudiantes.objects.get(id=grupo_id)
+                    contador = 0
+                    for estudiante in queryset:
+                        grupo.estudiantes.add(estudiante)
+                        contador += 1
+                    
+                    self.message_user(
+                        request,
+                        f"✅ {contador} estudiante(s) asignado(s) al grupo '{grupo.nombre}'",
+                        level=messages.SUCCESS
+                    )
+                    return redirect('admin:core_estudiante_changelist')
+                except GrupoEstudiantes.DoesNotExist:
+                    self.message_user(request, "❌ El grupo seleccionado no existe", level=messages.ERROR)
+                    return redirect('admin:core_estudiante_changelist')
+        
+        # Mostrar formulario de selección de grupo
+        grupos = GrupoEstudiantes.objects.all().order_by('nombre')
+        context = {
+            'title': f'Asignar {queryset.count()} estudiantes a un grupo',
+            'queryset': queryset,
+            'grupos': grupos,
+            'opts': self.model._meta,
+            'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
+        }
+        return render(request, 'admin/asignar_grupo.html', context)
 
 
-@admin.register(Plantilla)
-class PlantillaAdmin(admin.ModelAdmin):
-    """Gestión de plantillas de mensajes mejorada con vista previa y estadísticas"""
-    list_display = ('nombre_interno', 'categoria_emoji', 'temas_badge', 'meta_status_badge', 'vista_previa', 'activa', 'veces_usada', 'fecha_modificacion')
-    list_filter = ('categoria', 'temas', 'activa', 'meta_template_status', 'fecha_creacion')
-    search_fields = ('nombre_interno', 'cuerpo_mensaje', 'meta_template_name')
-    actions = ['enviar_plantilla_directa', 'duplicar_plantilla', 'activar_plantillas', 'desactivar_plantillas', 'enviar_a_meta_accion']
-    readonly_fields = ('veces_usada', 'fecha_creacion', 'fecha_modificacion', 'preview_personalizado', 'meta_template_id', 'meta_template_status', 'meta_template_name')
+# @admin.register(Plantilla)  # Registro duplicado - movido arriba
+class PlantillaAdminDuplicado(admin.ModelAdmin):
+    """Gestión de plantillas de mensajes con Twilio Content Templates"""
+    list_display = ('nombre_interno', 'categoria_emoji', 'temas_badge', 'twilio_status_badge', 'vista_previa', 'activa', 'veces_usada', 'fecha_modificacion')
+    list_filter = ('categoria', 'temas', 'activa', 'aprobada_twilio', 'fecha_creacion')
+    search_fields = ('nombre_interno', 'cuerpo_mensaje', 'twilio_template_sid', 'twilio_template_nombre')
+    actions = ['enviar_plantilla_directa', 'duplicar_plantilla', 'activar_plantillas', 'desactivar_plantillas']
+    readonly_fields = ('veces_usada', 'fecha_creacion', 'fecha_modificacion', 'preview_personalizado')
     filter_horizontal = ('temas',)
     
     fieldsets = (
@@ -321,15 +1292,22 @@ class PlantillaAdmin(admin.ModelAdmin):
         }),
         ('📝 Contenido del Mensaje', {
             'fields': ('cuerpo_mensaje',),
-            'description': '<strong>Variables disponibles:</strong> {nombre} {telefono} {curso}<br>'
-                          '<strong>Ejemplo:</strong> "Hola {nombre}, te damos la bienvenida al curso {curso}"'
+            'description': mark_safe('<strong>Variables disponibles:</strong> {nombre} {telefono} {curso}<br>'
+                          '<strong>Ejemplo:</strong> "Hola {nombre}, te damos la bienvenida al curso {curso}"')
         }),
-        ('� Estado en Meta WhatsApp', {
-            'fields': ('enviada_a_meta', 'meta_template_id', 'meta_template_status', 'meta_template_name'),
-            'classes': ('collapse',),
-            'description': 'Información sobre el estado de la plantilla en Meta WhatsApp Business'
+        ('🔵 Configuración Twilio Content Templates', {
+            'fields': ('twilio_template_sid', 'twilio_template_nombre', 'aprobada_twilio'),
+            'description': mark_safe('<div style="background:#e3f2fd;padding:15px;border-radius:4px;margin-bottom:15px;">'
+                          '<strong>📋 INSTRUCCIONES PARA USAR TWILIO:</strong><br><br>'
+                          '1. Ve a <a href="https://console.twilio.com/us1/develop/sms/content-editor" target="_blank">Twilio Content Editor</a><br>'
+                          '2. Crea una nueva plantilla con este mensaje<br>'
+                          '3. Espera la aprobación de Twilio (1-2 días hábiles)<br>'
+                          '4. Copia el <strong>Content SID</strong> (ej: HX1234...)<br>'
+                          '5. Pégalo en el campo "Twilio Content SID" arriba<br>'
+                          '6. Marca "Aprobada en Twilio" cuando esté lista<br><br>'
+                          '<strong>✅ Una vez aprobada, podrás usarla en campañas</strong></div>')
         }),
-        ('�📊 Estadísticas y Vista Previa', {
+        ('📊 Estadísticas y Vista Previa', {
             'fields': ('preview_personalizado', 'veces_usada', 'fecha_creacion', 'fecha_modificacion'),
             'classes': ('collapse',),
         }),
@@ -347,26 +1325,20 @@ class PlantillaAdmin(admin.ModelAdmin):
         return format_html(''.join(badges))
     temas_badge.short_description = "🏷️ Temas"
     
-    def meta_status_badge(self, obj):
-        """Muestra estado de aprobación en Meta"""
-        if not obj.enviada_a_meta:
-            return format_html('<span style="background:#f5f5f5;color:#666;padding:4px 10px;border-radius:12px;font-size:11px;">📝 No enviada</span>')
+    def twilio_status_badge(self, obj):
+        """Muestra estado de aprobación en Twilio"""
+        if not obj.twilio_template_sid:
+            return format_html('<span style="background:#f5f5f5;color:#666;padding:4px 10px;border-radius:12px;font-size:11px;">📝 Sin SID</span>')
         
-        status_colors = {
-            'PENDING': ('#fff3e0', '#f57c00', '⏳'),
-            'APPROVED': ('#e8f5e9', '#2e7d32', '✅'),
-            'REJECTED': ('#ffebee', '#c62828', '❌'),
-            'DISABLED': ('#f5f5f5', '#666', '🚫'),
-        }
-        
-        bg, color, emoji = status_colors.get(obj.meta_template_status, ('#f5f5f5', '#666', '❓'))
-        status_text = obj.get_meta_template_status_display() if obj.meta_template_status else 'Desconocido'
-        
-        return format_html(
-            '<span style="background:{};color:{};padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500;">{} {}</span>',
-            bg, color, emoji, status_text
-        )
-    meta_status_badge.short_description = "📱 Estado Meta"
+        if obj.aprobada_twilio:
+            return format_html(
+                '<span style="background:#e8f5e9;color:#2e7d32;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500;">✅ Aprobada</span>'
+            )
+        else:
+            return format_html(
+                '<span style="background:#fff3e0;color:#f57c00;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500;">⏳ Pendiente</span>'
+            )
+    twilio_status_badge.short_description = "🔵 Estado Twilio"
     
     def categoria_emoji(self, obj):
         """Muestra categoría con emoji"""
@@ -566,23 +1538,44 @@ class PlantillaAdmin(admin.ModelAdmin):
 @admin.register(Campana)
 class CampanaAdmin(admin.ModelAdmin):
     """Gestión de campañas masivas"""
-    list_display = ('nombre', 'cliente_nombre', 'tema_badge', 'estado_visual', 'conteo_destinatarios', 'fecha_creacion')
-    list_filter = ('ejecutada', 'cliente', 'tema', 'fecha_creacion')
+    list_display = ('nombre', 'cliente_nombre', 'tipo_audiencia_display', 'categoria_badge', 'plantilla_estado', 'estado_visual', 'conteo_destinatarios', 'programada_display', 'fecha_creacion')
+    list_filter = ('ejecutada', 'cliente', 'categoria', 'tipo_audiencia', 'fecha_creacion', 'plantilla__aprobada_twilio')
     search_fields = ('nombre', 'cliente__nombre')
     filter_horizontal = ('destinatarios',)
     actions = ['enviar_campana_accion']
     
     fieldsets = (
-        ('📝 Datos Básicos', {
-            'fields': ('nombre', 'cliente', 'tema', 'plantilla', 'linea_origen'),
-            'description': '💡 <strong>Tip:</strong> Selecciona el tema primero para filtrar plantillas relacionadas. Los mensajes se envían por WhatsApp.'
+        ('📝 Información Básica', {
+            'fields': ('nombre', 'cliente'),
+            'description': 'Configura el nombre y cliente de la campaña'
         }),
-        ('📂 Importar (Opcional)', {
-            'fields': ('archivo_excel',),
-            'description': 'Sube un Excel con columnas A (Nombre) y B (Teléfono).'
+        ('🎯 Plantilla de WhatsApp (Content Template)', {
+            'fields': ('plantilla',),
+            'description': mark_safe('''<div style="background:#fff3e0;padding:15px;border-radius:8px;border-left:4px solid #ff9800;">
+                <strong>⚠️ IMPORTANTE: Content Template Requerido</strong><br><br>
+                <strong>Flujo correcto:</strong>
+                <ol style="margin:10px 0;">
+                    <li>🔵 Ve a <a href="https://console.twilio.com/us1/develop/sms/content-editor" target="_blank" style="color:#2196F3;">Twilio Content Editor</a></li>
+                    <li>📝 Crea tu plantilla de WhatsApp y obtén el <strong>Content SID</strong> (ej: HX1234...)</li>
+                    <li>⚙️ Configura el SID en el campo <code>twilio_template_sid</code> de la plantilla</li>
+                    <li>✅ Marca la plantilla como "Aprobada en Twilio"</li>
+                </ol>
+                <em>💡 Las plantillas deben estar aprobadas por Twilio antes de usarlas en campañas.</em>
+            </div>''')
         }),
         ('👥 Audiencia', {
-            'fields': ('destinatarios',)
+            'fields': ('tipo_audiencia', 'grupo', 'destinatarios'),
+            'description': mark_safe('✨ <strong>Individual:</strong> Selecciona estudiantes específicos | <strong>Grupo:</strong> Envía a todo un grupo')
+        }),
+        ('⏰ Programación (Opcional)', {
+            'fields': ('fecha_programada',),
+            'description': '📅 Si seleccionas una fecha, el envío se realizará automáticamente en ese momento',
+            'classes': ('collapse',)
+        }),
+        ('📂 Importar desde Excel (Opcional)', {
+            'fields': ('archivo_excel',),
+            'description': 'Sube un Excel con columnas A (Nombre) y B (Teléfono)',
+            'classes': ('collapse',)
         }),
     )
     
@@ -594,32 +1587,38 @@ class CampanaAdmin(admin.ModelAdmin):
     cliente_nombre.short_description = "🏢 Cliente"
     
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        """Filtrar plantillas según el tema seleccionado en la campaña"""
+        """Filtrar plantillas según la categoría seleccionada en la campaña"""
         if db_field.name == "plantilla":
-            # Intentar obtener el tema desde POST (cuando está guardando)
-            tema_id = request.POST.get('tema') or request.GET.get('tema')
+            # Intentar obtener la categoría desde POST (cuando está guardando)
+            categoria = request.POST.get('categoria') or request.GET.get('categoria')
             
-            if tema_id:
-                try:
-                    tema = TemaCampana.objects.get(id=tema_id)
-                    kwargs["queryset"] = Plantilla.objects.filter(temas=tema, activa=True)
-                except TemaCampana.DoesNotExist:
-                    kwargs["queryset"] = Plantilla.objects.filter(activa=True)
+            if categoria and categoria != 'todas':
+                kwargs["queryset"] = Plantilla.objects.filter(categoria=categoria, activa=True)
             else:
-                # Si no hay tema, mostrar todas las plantillas activas
+                # Si no hay categoría o es 'todas', mostrar todas las plantillas activas
                 kwargs["queryset"] = Plantilla.objects.filter(activa=True)
         
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
     
-    def tema_badge(self, obj):
-        """Muestra el tema con badge"""
-        if obj.tema:
+    def categoria_badge(self, obj):
+        """Muestra la categoría con badge"""
+        if obj.categoria and obj.categoria != 'todas':
             return format_html(
                 '<span style="background:#e3f2fd;color:#1976d2;padding:6px 12px;border-radius:12px;font-weight:bold;">{}</span>',
-                str(obj.tema)
+                obj.get_categoria_display()
             )
-        return format_html('<span style="color:#999;">Sin tema</span>')
-    tema_badge.short_description = "🏷️ Tema"
+        return format_html('<span style="color:#999;">Todas las categorías</span>')
+    categoria_badge.short_description = "🏷️ Categoría"
+    
+    def tipo_audiencia_display(self, obj):
+        """Muestra si es por grupo o individual"""
+        if hasattr(obj, 'tipo_audiencia') and obj.tipo_audiencia == 'grupo' and obj.grupo:
+            return format_html(
+                '<span style="background:#fff3e0;color:#e65100;padding:4px 10px;border-radius:12px;font-size:11px;">👥 Grupo: {}</span>',
+                obj.grupo.nombre
+            )
+        return format_html('<span style="color:#666;">👤 Individual</span>')
+    tipo_audiencia_display.short_description = "Tipo"
     
     @admin.action(description='🚀 Ejecutar Campaña (Enviar Mensajes)')
     def enviar_campana_accion(self, request, queryset):
@@ -635,8 +1634,31 @@ class CampanaAdmin(admin.ModelAdmin):
                 )
                 continue
             
-            # Validar que tenga destinatarios
-            if campana.destinatarios.count() == 0:
+            # VALIDACIÓN DE POLÍTICAS DE WHATSAPP
+            plantilla = campana.plantilla
+            if plantilla and not (plantilla.content_sid and plantilla.aprobada_twilio):
+                self.message_user(
+                    request,
+                    f"🚨 ADVERTENCIA '{campana.nombre}': La plantilla NO tiene Content Template aprobado. "
+                    f"Enviar campañas masivas sin template puede resultar en BLOQUEO de tu número WhatsApp. "
+                    f"Configura un Content Template en Twilio primero.",
+                    level=messages.ERROR
+                )
+                continue
+            
+            # Validar que tenga destinatarios (o grupo)
+            destinatarios_count = campana.destinatarios.count()
+            if hasattr(campana, 'tipo_audiencia') and campana.tipo_audiencia == 'grupo':
+                if not campana.grupo:
+                    self.message_user(
+                        request,
+                        f"⚠️ '{campana.nombre}' no tiene un grupo seleccionado.",
+                        level=messages.WARNING
+                    )
+                    continue
+                destinatarios_count = campana.grupo.estudiantes.count()
+            
+            if destinatarios_count == 0:
                 self.message_user(
                     request,
                     f"⚠️ '{campana.nombre}' no tiene destinatarios seleccionados.",
@@ -667,46 +1689,103 @@ class CampanaAdmin(admin.ModelAdmin):
     estado_visual.short_description = "Estado"
     
     def conteo_destinatarios(self, obj):
-        return obj.destinatarios.count()
-    conteo_destinatarios.short_description = "# Destinatarios"
+        """Muestra cantidad de destinatarios según tipo de audiencia"""
+        if hasattr(obj, 'tipo_audiencia') and obj.tipo_audiencia == 'grupo' and obj.grupo:
+            count = obj.grupo.estudiantes.count()
+            return format_html(
+                '<span style="background:#fff3e0;padding:3px 8px;border-radius:8px;font-size:11px;">👥 {} estudiantes</span>',
+                count
+            )
+        count = obj.destinatarios.count()
+        return format_html(
+            '<span style="background:#e3f2fd;padding:3px 8px;border-radius:8px;font-size:11px;">👤 {} individual{}</span>',
+            count, 'es' if count != 1 else ''
+        )
+    conteo_destinatarios.short_description = "Destinatarios"
+    
+    def programada_display(self, obj):
+        """Muestra si está programada"""
+        if obj.fecha_programada:
+            return format_html(
+                '<span style="background:#e8f5e9;color:#2e7d32;padding:3px 8px;border-radius:8px;font-size:11px;">📅 {}</span>',
+                obj.fecha_programada.strftime('%d/%m %H:%M')
+            )
+        return format_html('<span style="color:#999;">-</span>')
+    programada_display.short_description = "Programada"
+
+    def plantilla_estado(self, obj):
+        """Muestra el estado del Content Template de la plantilla"""
+        if obj.plantilla:
+            if obj.plantilla.twilio_template_sid and obj.plantilla.aprobada_twilio:
+                return format_html('<span style="background:#4caf50;color:white;padding:2px 6px;border-radius:8px;font-size:10px;">✅ TWILIO</span>')
+            elif obj.plantilla.twilio_template_sid and not obj.plantilla.aprobada_twilio:
+                return format_html('<span style="background:#ff9800;color:white;padding:2px 6px;border-radius:8px;font-size:10px;">⏳ PENDIENTE</span>')
+            else:
+                return format_html('<span style="background:#2196f3;color:white;padding:2px 6px;border-radius:8px;font-size:10px;">📱 DIRECTO</span>')
+        return format_html('<span style="color:#999;font-size:10px;">Sin plantilla</span>')
+    plantilla_estado.short_description = "Template"
 
 
 @admin.register(EnvioLog)
 class EnvioLogAdmin(admin.ModelAdmin):
     """Historial de envíos de campañas"""
-    list_display = ('id', 'estudiante_nombre', 'estado_color', 'fecha_envio', 'nombre_plantilla')
-    list_filter = ('estado', 'fecha_envio', 'campana__nombre')
-    search_fields = ('estudiante__nombre', 'estudiante__telefono', 'campana__nombre')
+    list_display = ('campana_nombre', 'estudiante_info', 'estado_badge', 'fecha_envio')
+    list_filter = ('estado', 'campana', 'fecha_envio')
+    search_fields = ('estudiante__nombre', 'estudiante__cedula', 'estudiante__telefono', 'campana__nombre')
     readonly_fields = ('campana', 'estudiante', 'estado', 'respuesta_api', 'fecha_envio')
+    date_hierarchy = 'fecha_envio'
+    list_per_page = 50
     
-    def estudiante_nombre(self, obj):
-        return f"{obj.estudiante.nombre} ({obj.estudiante.telefono})"
-    estudiante_nombre.short_description = "Receptor"
+    fieldsets = (
+        ('📤 Información del Envío', {
+            'fields': ('campana', 'estudiante', 'fecha_envio')
+        }),
+        ('📊 Estado', {
+            'fields': ('estado', 'respuesta_api')
+        }),
+    )
     
-    def nombre_plantilla(self, obj):
-        return obj.campana.plantilla.nombre_interno
-    nombre_plantilla.short_description = "Plantilla"
+    def campana_nombre(self, obj):
+        return format_html(
+            '<strong>{}</strong><br><small style="color:#666;">{}</small>',
+            obj.campana.nombre,
+            obj.campana.plantilla.nombre_interno if obj.campana.plantilla else ''
+        )
+    campana_nombre.short_description = "Campaña"
     
-    def estado_color(self, obj):
-        if obj.estado == 'ENVIADO':
-            return format_html('<b style="color:green;">ENVIADO</b>')
-        elif obj.estado == 'FALLIDO':
-            return format_html('<b style="color:red;">FALLIDO</b>')
-        return obj.estado
-    estado_color.short_description = "Estado"
+    def estudiante_info(self, obj):
+        return format_html(
+            '<strong>{}</strong><br><small style="color:#666;">📱 +{}</small>',
+            obj.estudiante.nombre,
+            obj.estudiante.telefono
+        )
+    estudiante_info.short_description = "Estudiante"
+    
+    def estado_badge(self, obj):
+        colores = {
+            'ENVIADO': ('#e8f5e9', '#2e7d32'),
+            'FALLIDO': ('#ffebee', '#c62828'),
+            'PENDIENTE': ('#fff3e0', '#e65100'),
+        }
+        bg, color = colores.get(obj.estado, ('#f5f5f5', '#666'))
+        return format_html(
+            '<span style="background:{};color:{};padding:4px 10px;border-radius:12px;font-size:11px;font-weight:bold;">{}</span>',
+            bg, color, obj.estado
+        )
+    estado_badge.short_description = "Estado"
 
 
 @admin.register(WhatsappLog)
 class WhatsappLogAdmin(admin.ModelAdmin):
     """Registro de todas las conversaciones del chatbot"""
-    list_display = ('fecha', 'estudiante_nombre', 'telefono_corto', 'tipo_badge', 'mensaje_preview', 'estado_badge', 'actividad_badge')
+    list_display = ('fecha', 'estudiante_nombre', 'telefono_corto', 'tipo_badge', 'mensaje_preview', 'estado_badge', 'estado_visual', 'actividad_badge')
     list_filter = ('tipo', 'estado', 'fecha', 'estudiante__activo')
     search_fields = ('telefono', 'mensaje', 'mensaje_id', 'estudiante__nombre')  # ✅ Búsqueda por nombre
     date_hierarchy = 'fecha'
     list_per_page = 100
     ordering = ('-fecha',)
     readonly_fields = ('fecha', 'mensaje_id', 'estudiante')
-    actions = ['exportar_conversaciones_excel', 'exportar_conversaciones_csv', 'ver_conversacion_completa']  # ✅ Nueva acción
+    actions = ['exportar_conversaciones_excel', 'exportar_conversaciones_csv', 'marcar_como_procesado']
     autocomplete_fields = ['estudiante']  # ✅ Autocompletar estudiante
     
     fieldsets = (
@@ -763,6 +1842,16 @@ class WhatsappLogAdmin(admin.ModelAdmin):
             color, obj.estado
         )
     estado_badge.short_description = "Estado"
+    
+    def estado_visual(self, obj):
+        """Indicador visual de éxito/error"""
+        if obj.estado == 'SENT' or obj.estado == 'RECIBIDO':
+            return format_html('<span style="font-size:18px;color:#4caf50;">✅</span>')
+        elif obj.estado == 'ERROR':
+            return format_html('<span style="font-size:18px;color:#f44336;">❌</span>')
+        else:
+            return format_html('<span style="font-size:18px;color:#ff9800;">⏳</span>')
+    estado_visual.short_description = "✓"
     
     def actividad_badge(self, obj):
         """Badge de actividad del mensaje"""
@@ -863,59 +1952,12 @@ class WhatsappLogAdmin(admin.ModelAdmin):
         
         return response
     
-    @admin.action(description='💬 Ver conversación completa')
-    def ver_conversacion_completa(self, request, queryset):
-        """Redirige a la vista de conversaciones para el estudiante del primer mensaje seleccionado"""
-        from django.shortcuts import redirect
-        
-        if queryset.count() == 0:
-            self.message_user(request, "No hay mensajes seleccionados", level=messages.WARNING)
-            return
-        
-        # Obtener el primer mensaje
-        primer_mensaje = queryset.first()
-        
-        # Intentar obtener el estudiante
-        if primer_mensaje.estudiante:
-            estudiante_id = primer_mensaje.estudiante.id
-        else:
-            # Buscar estudiante por teléfono
-            from .models import Estudiante
-            telefono_limpio = primer_mensaje.telefono.replace('+', '').replace(' ', '').replace('whatsapp:', '')
-            try:
-                estudiante = Estudiante.objects.get(telefono=telefono_limpio)
-                estudiante_id = estudiante.id
-            except Estudiante.DoesNotExist:
-                self.message_user(
-                    request, 
-                    f"No se encontró estudiante con el teléfono {primer_mensaje.telefono}",
-                    level=messages.ERROR
-                )
-                return
-        
-        # Redirigir a la vista de conversaciones
-        return redirect(f'/admin/conversaciones/?estudiante={estudiante_id}')
-        import csv
-        from datetime import datetime
-        
-        response = HttpResponse(content_type='text/csv; charset=utf-8')
-        filename = f'conversaciones_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        
-        writer = csv.writer(response)
-        writer.writerow(['Fecha', 'Teléfono', 'Tipo', 'Mensaje', 'Estado', 'ID Mensaje'])
-        
-        for log in queryset.order_by('fecha'):
-            writer.writerow([
-                log.fecha.strftime('%Y-%m-%d %H:%M:%S'),
-                log.telefono,
-                log.tipo,
-                log.mensaje[:500],
-                log.estado,
-                log.mensaje_id or 'N/A'
-            ])
-        
-        return response
+    @admin.action(description='✅ Marcar como procesado')
+    def marcar_como_procesado(self, request, queryset):
+        """Marca mensajes como procesados"""
+        actualizado = queryset.filter(estado__in=['RECIBIDO', 'PENDING']).update(estado='SENT')
+        self.message_user(request, f'✅ {actualizado} mensaje(s) marcado(s) como procesado', messages.SUCCESS)
+
 
 
 # Personalizar el admin site
@@ -937,15 +1979,22 @@ class ModuloInline(admin.TabularInline):
 @admin.register(Curso)
 class CursoAdmin(admin.ModelAdmin):
     """Administración de cursos"""
-    list_display = ('emoji_nombre', 'cliente_nombre', 'total_modulos_display', 'duracion_semanas', 'activo', 'orden')
+    list_display = ('emoji_nombre', 'cliente_nombre', 'total_modulos_display', 'duracion_semanas', 'ver_modulos_link', 'activo', 'orden')
     list_filter = ('activo', 'cliente')
     search_fields = ('nombre', 'descripcion', 'cliente__nombre')
     list_editable = ('activo', 'orden')
     inlines = [ModuloInline]
+    actions = ['ver_todos_modulos']
+    change_list_template = 'admin/curso_changelist.html'  # 🤖 Template personalizado con botón IA
     
     fieldsets = (
         ('📚 Información del Curso', {
             'fields': ('nombre', 'emoji', 'descripcion', 'cliente', 'duracion_semanas')
+        }),
+        ('👥 Grupo de WhatsApp', {
+            'fields': ('enlace_grupo_whatsapp',),
+            'description': '🔗 Enlace de invitación al grupo de WhatsApp del curso. Los estudiantes pueden unirse para recibir clases grupales o actualizaciones. Ejemplo: https://chat.whatsapp.com/xxxxx',
+            'classes': ('collapse',)
         }),
         ('⚙️ Configuración', {
             'fields': ('activo', 'orden')
@@ -970,16 +2019,92 @@ class CursoAdmin(admin.ModelAdmin):
             count
         )
     total_modulos_display.short_description = "Módulos"
+    
+    def ver_modulos_link(self, obj):
+        """Link para ver todos los módulos del curso"""
+        url = f"/admin/core/modulo/?curso__id__exact={obj.id}"
+        count = obj.modulos.count()
+        
+        # Contar archivos multimedia totales
+        from django.db.models import Count
+        total_archivos = ArchivoModulo.objects.filter(modulo__curso=obj, activo=True).count()
+        
+        html = f'<a href="{url}" style="color:#2196F3;">📋 {count} módulo(s)</a>'
+        if total_archivos > 0:
+            html += f' <span style="color:#999;font-size:11px;">• {total_archivos} archivos</span>'
+        return format_html(html)
+    ver_modulos_link.short_description = "Gestión"
+    
+    @admin.action(description='📋 Ver módulos de cursos seleccionados')
+    def ver_todos_modulos(self, request, queryset):
+        """Redirige a la vista de módulos filtrando por los cursos seleccionados"""
+        from django.shortcuts import redirect
+        curso_ids = ','.join(str(c.id) for c in queryset)
+        return redirect(f'/admin/core/modulo/?curso__id__in={curso_ids}')
+
+
+class PreguntaModuloInline(admin.StackedInline):
+    """Preguntas de validación del módulo (Mini examen)"""
+    model = PreguntaModulo
+    extra = 0
+    can_delete = True
+    show_change_link = True
+    verbose_name = 'Pregunta de Mini Examen'
+    verbose_name_plural = '❓ Preguntas de Mini Examen'
+    
+    fieldsets = (
+        ('Pregunta', {
+            'fields': ('pregunta',)
+        }),
+        ('Opciones de Respuesta', {
+            'fields': ('opcion_a', 'opcion_b', 'opcion_c', 'opcion_d', 'respuesta_correcta')
+        }),
+        ('Estado', {
+            'fields': ('activa',)
+        }),
+    )
+
+
+class ArchivoModuloInline(admin.StackedInline):
+    """Archivos multimedia del módulo (imágenes, videos, infografías, PDFs)"""
+    model = ArchivoModulo
+    extra = 0
+    can_delete = True
+    show_change_link = True
+    verbose_name = 'Archivo Multimedia'
+    verbose_name_plural = '📁 Archivos Multimedia (Imágenes, Videos, Infografías, PDFs)'
+    
+    fieldsets = (
+        ('Tipo y Título', {
+            'fields': ('tipo', 'titulo', 'descripcion')
+        }),
+        ('Archivo o URL', {
+            'fields': ('archivo', 'url_externa'),
+            'description': 'Puedes subir un archivo O proporcionar una URL externa (YouTube, etc.)'
+        }),
+        ('Configuración', {
+            'fields': ('disponible_offline', 'orden', 'activo'),
+            'classes': ('collapse',)
+        }),
+    )
 
 
 @admin.register(Modulo)
 class ModuloAdmin(admin.ModelAdmin):
     """Administración de módulos"""
-    list_display = ('numero_titulo', 'curso', 'duracion_dias', 'contenido_preview')
-    list_filter = ('curso',)
+    list_display = ('numero_titulo', 'curso', 'duracion_dias', 'examen_badge', 'archivos_link', 'tiene_pregunta', 'contenido_preview', 'ver_curso_link')
+    list_filter = ('curso', 'examen_obligatorio')
     search_fields = ('titulo', 'descripcion', 'contenido')
     list_per_page = 50
     ordering = ['curso', 'numero']
+    inlines = [ArchivoModuloInline, PreguntaModuloInline]
+    actions = ['enviar_archivos_multimedia', 'ver_archivos_multimedia']
+    
+    def ver_curso_link(self, obj):
+        """Link directo al curso padre"""
+        url = reverse('admin:core_curso_change', args=[obj.curso.id])
+        return format_html('<a href="{}" style="color:#2196F3;">📚 Ver Curso</a>', url)
+    ver_curso_link.short_description = "Curso"
     
     fieldsets = (
         ('📖 Información del Módulo', {
@@ -989,9 +2114,14 @@ class ModuloAdmin(admin.ModelAdmin):
             'fields': ('contenido',),
             'description': 'Escribe el contenido completo de la lección (se enviará por WhatsApp)'
         }),
-        ('🎥 Multimedia', {
+        ('🎥 Multimedia Básico', {
             'fields': ('video_archivo', 'video_resolucion', 'video_url', 'imagen_portada_url', 'archivo_pdf_url'),
             'description': 'Video: Sube MP4 360p para campo. URLs: YouTube/Vimeo o PDFs complementarios',
+            'classes': ('collapse',)
+        }),
+        ('✅ Examen Obligatorio', {
+            'fields': ('examen_obligatorio', 'puntaje_minimo_aprobacion'),
+            'description': 'Si activas "Examen Obligatorio", el estudiante NO podrá avanzar al siguiente módulo hasta aprobar',
             'classes': ('collapse',)
         }),
         ('⏱️ Configuración', {
@@ -1003,10 +2133,105 @@ class ModuloAdmin(admin.ModelAdmin):
         return f"Módulo {obj.numero}: {obj.titulo}"
     numero_titulo.short_description = "Módulo"
     
+    def examen_badge(self, obj):
+        if obj.examen_obligatorio:
+            return format_html(
+                '<span style="background:#ffebee;color:#c62828;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;">🔒 OBLIGATORIO ({0}%)</span>',
+                obj.puntaje_minimo_aprobacion
+            )
+        return format_html('<span style="color:#999;">Sin examen</span>')
+    examen_badge.short_description = "Examen"
+    
+    def archivos_link(self, obj):
+        count = obj.archivos_multimedia.filter(activo=True).count()
+        if count > 0:
+            url = f"/admin/core/archivomodulo/?modulo__id__exact={obj.id}"
+            return format_html(
+                '<a href="{}" style="background:#e3f2fd;color:#1976d2;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;text-decoration:none;">📁 {} archivo(s)</a>',
+                url, count
+            )
+        return format_html('<span style="color:#999;">Sin archivos</span>')
+    archivos_link.short_description = "Multimedia"
+    
+    def tiene_pregunta(self, obj):
+        count = obj.preguntas.filter(activa=True).count()
+        if count > 0:
+            return format_html('<span style="color:green;">✅ {} pregunta(s)</span>', count)
+        return format_html('<span style="color:red;">❌ Sin pregunta</span>')
+    tiene_pregunta.short_description = "Mini Examen"
+    
     def contenido_preview(self, obj):
         preview = obj.contenido[:60] + "..." if len(obj.contenido) > 60 else obj.contenido
         return format_html('<span style="color:#666;font-style:italic;">{}</span>', preview)
     contenido_preview.short_description = "Vista Previa"
+    
+    def enviar_archivos_multimedia(self, request, queryset):
+        """Envía los archivos multimedia de los módulos seleccionados a estudiantes inscritos"""
+        from .utils_twilio import enviar_whatsapp_twilio
+        import json
+        
+        enviados = 0
+        errores = 0
+        
+        for modulo in queryset:
+            archivos = modulo.archivos_multimedia.filter(activo=True)
+            if not archivos.exists():
+                continue
+            
+            # Obtener estudiantes inscritos en el curso
+            estudiantes = Estudiante.objects.filter(
+                progreso__curso=modulo.curso,
+                activo=True
+            ).distinct()
+            
+            for estudiante in estudiantes:
+                try:
+                    # Mensaje con lista de archivos
+                    mensaje = f"📚 *{modulo.titulo}*\n\n"
+                    mensaje += f"Tienes {archivos.count()} archivo(s) multimedia disponible(s):\n\n"
+                    
+                    for i, archivo in enumerate(archivos, 1):
+                        icono = {
+                            'video': '🎥',
+                            'imagen': '🖼️',
+                            'infografia': '📊',
+                            'pdf': '📄',
+                            'audio': '🎵'
+                        }.get(archivo.tipo, '📁')
+                        
+                        mensaje += f"{icono} *{i}. {archivo.titulo}*\n"
+                        if archivo.descripcion:
+                            mensaje += f"   {archivo.descripcion}\n"
+                        
+                        if archivo.disponible_offline:
+                            url_descarga = f"{request.build_absolute_uri('/media/descargar-archivo/')}{archivo.id}/"
+                            mensaje += f"   🔗 Descarga: {url_descarga}\n"
+                        
+                        if archivo.url_externa:
+                            mensaje += f"   🌐 Ver online: {archivo.url_externa}\n"
+                        
+                        mensaje += "\n"
+                    
+                    # Enviar por WhatsApp
+                    enviar_whatsapp_twilio(estudiante.telefono, mensaje)
+                    enviados += 1
+                    
+                except Exception as e:
+                    print(f"Error enviando archivos a {estudiante.telefono}: {e}")
+                    errores += 1
+        
+        self.message_user(
+            request,
+            f'✅ {enviados} mensaje(s) enviado(s) con archivos multimedia. ❌ {errores} error(es).'
+        )
+    enviar_archivos_multimedia.short_description = "📤 Enviar archivos multimedia a estudiantes"
+    
+    @admin.action(description='📁 Ver archivos multimedia de módulos')
+    def ver_archivos_multimedia(self, request, queryset):
+        """Redirige a ver los archivos multimedia de los módulos seleccionados"""
+        from django.shortcuts import redirect
+        modulo_ids = ','.join(str(m.id) for m in queryset)
+        return redirect(f'/admin/core/archivomodulo/?modulo__id__in={modulo_ids}')
 
 
 class PreguntaExamenInline(admin.TabularInline):
@@ -1075,13 +2300,13 @@ class PreguntaExamenAdmin(admin.ModelAdmin):
 @admin.register(ProgresoEstudiante)
 class ProgresoEstudianteAdmin(admin.ModelAdmin):
     """Seguimiento del progreso de estudiantes"""
-    list_display = ('estudiante', 'curso', 'porcentaje_badge', 'modulo_actual', 'completado_badge', 'fecha_inicio')
+    list_display = ('estudiante', 'curso', 'barra_progreso', 'modulo_actual', 'completado_badge', 'certificado_status', 'fecha_inicio')
     list_filter = ('completado', 'curso', 'fecha_inicio')
     search_fields = ('estudiante__nombre', 'estudiante__telefono', 'curso__nombre')
-    readonly_fields = ('fecha_inicio', 'porcentaje_avance')
+    readonly_fields = ('fecha_inicio', 'porcentaje_avance', 'info_certificado')
     list_per_page = 50
     ordering = ('-fecha_inicio',)
-    actions = ['exportar_progreso_excel', 'exportar_progreso_csv']  # ✅ Nuevas acciones
+    actions = ['exportar_progreso_excel', 'exportar_progreso_csv', 'generar_certificados_pendientes']  # ✅ Nuevas acciones
     
     fieldsets = (
         ('👤 Estudiante y Curso', {
@@ -1094,6 +2319,72 @@ class ProgresoEstudianteAdmin(admin.ModelAdmin):
             'fields': ('fecha_inicio', 'fecha_completado')
         }),
     )
+    
+    def barra_progreso(self, obj):
+        """Muestra una barra de progreso visual"""
+        porcentaje = obj.porcentaje_avance()
+        
+        # Colores según progreso
+        if porcentaje >= 80:
+            color = '#4caf50'
+        elif porcentaje >= 50:
+            color = '#ff9800'
+        else:
+            color = '#f44336'
+        
+        return format_html(
+            '<div style="width:100px;height:20px;background:#f0f0f0;border-radius:10px;overflow:hidden;border:1px solid #ddd;">'
+            '<div style="width:{}%;height:100%;background:{};transition:width 0.3s;display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:bold;">'
+            '{}%'
+            '</div></div>',
+            porcentaje, color, porcentaje
+        )
+    barra_progreso.short_description = "Progreso"
+    
+    def certificado_status(self, obj):
+        """Muestra si hay certificado generado"""
+        if obj.completado:
+            certificado = Certificado.objects.filter(estudiante=obj.estudiante, curso=obj.curso, emitido=True).first()
+            if certificado:
+                return format_html(
+                    '<span style="color:#4caf50;font-weight:bold;">🏆 Emitido</span>'
+                )
+            else:
+                return format_html(
+                    '<span style="color:#ff9800;font-weight:bold;">⏳ Pendiente</span>'
+                )
+        return format_html('<span style="color:#999;">-</span>')
+    certificado_status.short_description = "Certificado"
+    
+    def info_certificado(self, obj):
+        """Información del certificado en los detalles"""
+        if obj.completado:
+            certificado = Certificado.objects.filter(estudiante=obj.estudiante, curso=obj.curso).first()
+            if certificado:
+                return format_html(
+                    '<div style="background:#f5f5f5;padding:10px;border-radius:4px;border-left:4px solid #4caf50;">'
+                    '<strong>✅ Certificado Generado</strong><br>'
+                    'Código: <code>{}</code><br>'
+                    'Calificación: <strong>{}</strong>%<br>'
+                    'Emitido: {}'
+                    '</div>',
+                    certificado.codigo_verificacion,
+                    int(certificado.calificacion_final),
+                    certificado.fecha_emision.strftime('%d/%m/%Y') if certificado.fecha_emision else 'N/A'
+                )
+            else:
+                return format_html(
+                    '<div style="background:#fff3cd;padding:10px;border-radius:4px;border-left:4px solid #ff9800;">'
+                    '<strong>⏳ Certificado Pendiente</strong><br>'
+                    'El curso está completo pero el certificado aún no se ha generado'
+                    '</div>'
+                )
+        return format_html(
+            '<div style="background:#f5f5f5;padding:10px;border-radius:4px;border-left:4px solid #999;">'
+            '<span style="color:#999;">El curso aún no está completo</span>'
+            '</div>'
+        )
+    info_certificado.short_description = "Estado del Certificado"
     
     def porcentaje_badge(self, obj):
         porcentaje = obj.porcentaje_avance()
@@ -1114,6 +2405,31 @@ class ProgresoEstudianteAdmin(admin.ModelAdmin):
             return format_html('<span style="color:green;">✅ Completo</span>')
         return format_html('<span style="color:orange;">⏳ En progreso</span>')
     completado_badge.short_description = "Estado"
+    
+    @admin.action(description='🏆 Generar certificados pendientes')
+    def generar_certificados_pendientes(self, request, queryset):
+        """Genera certificados para cursos completados que no los tienen"""
+        from .certificado_service import generar_y_guardar_certificado, crear_certificado_automatico, enviar_certificado_whatsapp
+        
+        generados = 0
+        errores = 0
+        
+        for progreso in queryset.filter(completado=True):
+            certificado = Certificado.objects.filter(estudiante=progreso.estudiante, curso=progreso.curso).first()
+            if not certificado:
+                try:
+                    crear_certificado_automatico(progreso.estudiante, progreso.curso)
+                    generar_y_guardar_certificado(progreso.estudiante, progreso.curso)
+                    enviar_certificado_whatsapp(progreso.estudiante, progreso.curso)
+                    generados += 1
+                except Exception as e:
+                    logger.error(f"Error al generar certificado para {progreso.estudiante.nombre}: {str(e)}")
+                    errores += 1
+        
+        if generados > 0:
+            self.message_user(request, f'✅ {generados} certificado(s) generado(s) y enviado(s)', messages.SUCCESS)
+        if errores > 0:
+            self.message_user(request, f'❌ {errores} error(es) al generar', messages.ERROR)
     
     @admin.action(description='📊 Exportar progreso a Excel')
     def exportar_progreso_excel(self, request, queryset):
@@ -1296,16 +2612,26 @@ admin.site.index = index_view.__get__(admin.site, AdminSite)
 # ========================================
 # 🎮 GAMIFICACIÓN
 # ========================================
+# 🏆 ADMIN UNIFICADO DE GAMIFICACIÓN (TODO EN UNO)
+# ========================================
 
 @admin.register(PerfilGamificacion)
 class PerfilGamificacionAdmin(admin.ModelAdmin):
-    """Administración de perfiles de gamificación"""
-    list_display = ('estudiante_info', 'nivel_display', 'puntos_totales', 'racha_display', 'badges_count', 'posicion_ranking')
+    """
+    🏆 GESTIÓN UNIFICADA DE GAMIFICACIÓN
+    Desde aquí puedes gestionar:
+    - Perfiles de Gamificación
+    - Ver Badges (insignias)
+    - Ver Recompensas
+    - Ver Canjes de Recompensas
+    """
+    list_display = ('estudiante_info', 'nivel_display', 'puntos_totales', 'racha_display', 'badges_link', 'recompensas_link', 'posicion_ranking')
     list_filter = ('nivel', 'racha_dias_actual')
     search_fields = ('estudiante__nombre', 'estudiante__telefono')
     readonly_fields = ('puntos_totales', 'nivel', 'experiencia_nivel_actual', 'fecha_creacion', 'fecha_actualizacion', 'posicion_ranking')
     list_per_page = 50
     ordering = ['-puntos_totales']
+    actions = ['ver_badges', 'ver_recompensas', 'resetear_racha']
     
     fieldsets = (
         ('👤 Estudiante', {
@@ -1362,6 +2688,45 @@ class PerfilGamificacionAdmin(admin.ModelAdmin):
         )
     racha_display.short_description = "Racha Actual"
     
+    def badges_link(self, obj):
+        """Link directo para ver badges del estudiante"""
+        count = obj.get_badges().count()
+        
+        return format_html(
+            '<a href="/admin/core/badge/" style="background:#ffc107;color:#000;padding:6px 12px;border-radius:12px;text-decoration:none;font-size:11px;font-weight:600;">🏅 {} Badges</a>',
+            count
+        )
+    badges_link.short_description = "Insignias"
+    
+    def recompensas_link(self, obj):
+        """Link directo para ver canjes de recompensas"""
+        count = CanjeRecompensa.objects.filter(estudiante=obj.estudiante).count()
+        
+        return format_html(
+            '<a href="/admin/core/canjerecompensa/?estudiante__id__exact={}" style="background:#9c27b0;color:white;padding:6px 12px;border-radius:12px;text-decoration:none;font-size:11px;font-weight:600;">🎁 {} Canjes</a>',
+            obj.estudiante.id,
+            count
+        )
+    recompensas_link.short_description = "Recompensas"
+    
+    def ver_badges(self, request, queryset):
+        """Ver todos los badges disponibles"""
+        from django.shortcuts import redirect
+        return redirect('/admin/core/badge/')
+    ver_badges.short_description = "🏅 Ver catálogo de badges"
+    
+    def ver_recompensas(self, request, queryset):
+        """Ver todas las recompensas disponibles"""
+        from django.shortcuts import redirect
+        return redirect('/admin/core/recompensa/')
+    ver_recompensas.short_description = "🎁 Ver catálogo de recompensas"
+    
+    def resetear_racha(self, request, queryset):
+        """Resetear racha de estudiantes seleccionados"""
+        queryset.update(racha_dias_actual=0)
+        self.message_user(request, f"✅ Racha reseteada para {queryset.count()} estudiante(s)")
+    resetear_racha.short_description = "🔄 Resetear racha"
+    
     def badges_count(self, obj):
         count = obj.get_badges().count()
         if count > 0:
@@ -1376,7 +2741,7 @@ class PerfilGamificacionAdmin(admin.ModelAdmin):
 
 @admin.register(Badge)
 class BadgeAdmin(admin.ModelAdmin):
-    """Administración de badges/insignias"""
+    """Administración de badges/insignias (Ver también desde Perfil Gamificación)"""
     list_display = ('icono_nombre', 'tipo', 'descripcion_corta', 'criterios', 'puntos_bonus', 'total_obtenidos_display', 'activo')
     list_filter = ('tipo', 'activo', 'es_secreto')
     search_fields = ('nombre', 'descripcion')
@@ -1508,7 +2873,7 @@ class TransaccionPuntosAdmin(admin.ModelAdmin):
 # ========== RECOMPENSAS ==========
 @admin.register(Recompensa)
 class RecompensaAdmin(admin.ModelAdmin):
-    """Gestión de recompensas canjeables"""
+    """Gestión de recompensas canjeables (Ver también desde Perfil Gamificación)"""
     list_display = ('icono_nombre', 'puntos_requeridos', 'tipo', 'estado', 'cantidad_info', 'nivel_minimo', 'destacado', 'canjes_totales')
     list_filter = ('tipo', 'estado', 'destacado', 'activo')
     search_fields = ('nombre', 'descripcion')
@@ -1585,7 +2950,7 @@ class RecompensaAdmin(admin.ModelAdmin):
 
 @admin.register(CanjeRecompensa)
 class CanjeRecompensaAdmin(admin.ModelAdmin):
-    """Gestión de canjes de recompensas"""
+    """Gestión de canjes de recompensas (Ver también desde Perfil Gamificación)"""
     list_display = ('estudiante_nombre', 'recompensa_info', 'puntos_gastados', 'estado_display', 'fecha_canje', 'fecha_entrega', 'atendido_por')
     list_filter = ('estado', 'fecha_canje', 'recompensa__tipo')
     search_fields = ('estudiante__nombre', 'recompensa__nombre')
@@ -1641,4 +3006,1622 @@ class CanjeRecompensaAdmin(admin.ModelAdmin):
 
 
 # ========================================
-# FIN DEL ADMIN - Gamificación Completamente Desactivada
+# 🆘 ADMIN UNIFICADO DE SOPORTE (TODO EN UNO)
+# ========================================
+
+@admin.register(SolicitudSoporte)
+class SolicitudSoporteAdmin(admin.ModelAdmin):
+    """
+    🆘 GESTIÓN UNIFICADA DE SOPORTE Y PQRS
+    Desde aquí puedes gestionar:
+    - Solicitudes de Soporte (Botón de Pánico)
+    - PQRS (Peticiones, Quejas, Reclamos, Sugerencias)
+    """
+    list_display = ('estudiante_info', 'keyword_badge', 'estado_badge', 'prioridad_badge', 'fecha_solicitud', 'tiempo_espera', 'pqrs_link', 'atendido_por_info')
+    list_filter = ('estado', 'prioridad', 'keyword_usada', 'fecha_solicitud')
+    search_fields = ('estudiante__nombre', 'estudiante__telefono', 'mensaje_original', 'respuesta')
+    readonly_fields = ('estudiante', 'mensaje_original', 'keyword_usada', 'fecha_solicitud')
+    list_per_page = 50
+    ordering = ('-fecha_solicitud',)
+    actions = ['ver_pqrs_estudiante', 'marcar_alta_prioridad']
+    
+    fieldsets = (
+        ('📞 Información del Estudiante', {
+            'fields': ('estudiante', 'keyword_usada', 'fecha_solicitud')
+        }),
+        ('💬 Mensaje Original', {
+            'fields': ('mensaje_original',)
+        }),
+        ('🎯 Gestión', {
+            'fields': ('estado', 'prioridad', 'atendido_por')
+        }),
+        ('📝 Respuesta', {
+            'fields': ('respuesta', 'fecha_atencion', 'fecha_resolucion'),
+            'classes': ('collapse',)
+        }),
+        ('📋 Notas Internas', {
+            'fields': ('notas_internas',),
+            'classes': ('collapse',),
+            'description': 'Estas notas son privadas y no se muestran al estudiante'
+        }),
+    )
+    
+    def estudiante_info(self, obj):
+        return format_html(
+            '<strong>{}</strong><br>'
+            '<small style="color:#666;">📱 +{}</small>',
+            obj.estudiante.nombre,
+            obj.estudiante.telefono
+        )
+    estudiante_info.short_description = "Estudiante"
+    
+    def keyword_badge(self, obj):
+        if obj.keyword_usada:
+            return format_html(
+                '<span style="background:#e3f2fd;color:#1565c0;padding:4px 10px;border-radius:12px;font-size:11px;">'
+                '🔑 {}'
+                '</span>',
+                obj.keyword_usada.upper()
+            )
+        return format_html('<span style="color:#999;">-</span>')
+    keyword_badge.short_description = "Keyword"
+    
+    def estado_badge(self, obj):
+        colores = {
+            'pendiente': '#ff9800',
+            'en_atencion': '#2196f3',
+            'resuelta': '#4caf50',
+            'cerrada': '#999'
+        }
+        iconos = {
+            'pendiente': '⏳',
+            'en_atencion': '👀',
+            'resuelta': '✅',
+            'cerrada': '🔒'
+        }
+        return format_html(
+            '<span style="background:{};color:white;padding:6px 12px;border-radius:12px;font-weight:600;">'
+            '{} {}'
+            '</span>',
+            colores.get(obj.estado, '#999'),
+            iconos.get(obj.estado, ''),
+            obj.get_estado_display()
+        )
+    estado_badge.short_description = "Estado"
+    
+    def prioridad_badge(self, obj):
+        colores = {
+            'baja': '#4caf50',
+            'media': '#ff9800',
+            'alta': '#f44336',
+            'critica': '#d32f2f'
+        }
+        return format_html(
+            '<span style="background:{};color:white;padding:6px 12px;border-radius:12px;font-weight:600;">'
+            '{}'
+            '</span>',
+            colores.get(obj.prioridad, '#999'),
+            obj.get_prioridad_display()
+        )
+    prioridad_badge.short_description = "Prioridad"
+    
+    def tiempo_espera(self, obj):
+        """Muestra cuánto tiempo lleva esperando si no ha sido resuelta"""
+        if obj.estado in ['resuelta', 'cerrada']:
+            return format_html('<span style="color:#4caf50;">✅ Resuelta</span>')
+        
+        from django.utils import timezone
+        tiempo = timezone.now() - obj.fecha_solicitud
+        horas = int(tiempo.total_seconds() / 3600)
+        
+        if horas < 1:
+            minutos = int(tiempo.total_seconds() / 60)
+            color = '#4caf50'
+            texto = f'{minutos} min'
+        elif horas < 24:
+            color = '#ff9800' if horas > 4 else '#4caf50'
+            texto = f'{horas} horas'
+        else:
+            dias = int(horas / 24)
+            color = '#f44336'
+            texto = f'{dias} días'
+        
+        return format_html(
+            '<span style="color:{};">⏰ {}</span>',
+            color, texto
+        )
+    tiempo_espera.short_description = "⏰ Tiempo"
+    
+    def atendido_por_info(self, obj):
+        if obj.atendido_por:
+            return format_html(
+                '<span style="background:#e8f5e9;color:#2e7d32;padding:4px 10px;border-radius:12px;font-size:11px;">'
+                '👤 {}'
+                '</span>',
+                obj.atendido_por
+            )
+        return format_html('<span style="color:#999;">Sin asignar</span>')
+    atendido_por_info.short_description = "Atendido por"
+    
+    def pqrs_link(self, obj):
+        """Link directo para ver PQRS del estudiante"""
+        count = PQRS.objects.filter(estudiante=obj.estudiante).count()
+        
+        return format_html(
+            '<a href="/admin/core/pqrs/?estudiante__id__exact={}" style="background:#9c27b0;color:white;padding:6px 12px;border-radius:12px;text-decoration:none;font-size:11px;font-weight:600;">📝 {} PQRS</a>',
+            obj.estudiante.id,
+            count
+        )
+    pqrs_link.short_description = "PQRS"
+    
+    def ver_pqrs_estudiante(self, request, queryset):
+        """Ver todas las PQRS de los estudiantes seleccionados"""
+        from django.shortcuts import redirect
+        if queryset.count() == 1:
+            estudiante = queryset.first().estudiante
+            return redirect(f'/admin/core/pqrs/?estudiante__id__exact={estudiante.id}')
+        else:
+            self.message_user(request, "Selecciona solo una solicitud para ver sus PQRS", level='warning')
+    ver_pqrs_estudiante.short_description = "📝 Ver PQRS de este estudiante"
+    
+    def marcar_alta_prioridad(self, request, queryset):
+        """Marcar como alta prioridad"""
+        queryset.update(prioridad='alta')
+        self.message_user(request, f"✅ {queryset.count()} solicitud(es) marcada(s) como prioridad ALTA")
+    marcar_alta_prioridad.short_description = "🔴 Marcar prioridad ALTA"
+    
+    actions = ['marcar_en_atencion', 'marcar_resuelta', 'marcar_prioridad_alta', 'ver_pqrs_estudiante']
+    
+    @admin.action(description='👀 Marcar como "En Atención"')
+    def marcar_en_atencion(self, request, queryset):
+        from django.utils import timezone
+        queryset.update(
+            estado='en_atencion',
+            fecha_atencion=timezone.now()
+        )
+        self.message_user(request, f"✅ {queryset.count()} solicitud(es) marcada(s) como 'En Atención'")
+    
+    @admin.action(description='✅ Marcar como "Resuelta"')
+    def marcar_resuelta(self, request, queryset):
+        from django.utils import timezone
+        queryset.update(
+            estado='resuelta',
+            fecha_resolucion=timezone.now()
+        )
+        self.message_user(request, f"✅ {queryset.count()} solicitud(es) marcada(s) como 'Resuelta'")
+    
+    @admin.action(description='🚨 Marcar como "Prioridad Alta"')
+    def marcar_prioridad_alta(self, request, queryset):
+        queryset.update(prioridad='alta')
+        self.message_user(request, f"🚨 {queryset.count()} solicitud(es) marcada(s) como 'Prioridad Alta'")
+
+
+# ========================================
+# 📜 CERTIFICADOS DIGITALES
+# ========================================
+
+@admin.register(PlantillaCertificado)
+class PlantillaCertificadoAdmin(admin.ModelAdmin):
+    """Plantillas de Certificados (Ver también desde Certificados)"""
+    list_display = ('nombre', 'cliente_info', 'tipo_plantilla', 'vista_colores', 'por_defecto', 'activa', 'total_certificados')
+    list_filter = ('activa', 'por_defecto', 'cliente')
+    search_fields = ('nombre', 'descripcion', 'cliente__nombre')
+    list_per_page = 50
+    actions = ['previsualizar_certificado_accion']
+    
+    fieldsets = (
+        ('📝 Información', {
+            'fields': ('nombre', 'descripcion', 'cliente', 'activa', 'por_defecto'),
+            'description': mark_safe('''<div style="background:#e3f2fd;padding:15px;border-radius:8px;margin:10px 0;">
+                <strong>💡 Plantillas por Cliente:</strong><br>
+                • Puedes crear plantillas específicas para cada cliente/organización<br>
+                • Si dejas "Cliente" vacío, será una plantilla general de Eki
+            </div>''')
+        }),
+        ('📄 OPCIÓN 1: Subir PDF Personalizado (Recomendado)', {
+            'fields': ('archivo_plantilla_pdf',),
+            'description': mark_safe('''<div style="background:#e8f5e9;padding:15px;border-radius:8px;border-left:4px solid #4CAF50;margin:10px 0;">
+                <strong>✅ Método más simple para empresas:</strong><br><br>
+                1️⃣ <strong>Crea tu certificado en Word, Canva, o cualquier programa</strong><br>
+                2️⃣ <strong>En el lugar del nombre, escribe:</strong> {nombre}<br>
+                3️⃣ <strong>En el lugar del curso, escribe:</strong> {curso}<br>
+                4️⃣ <strong>En el lugar de la fecha, escribe:</strong> {fecha}<br>
+                5️⃣ <strong>Exporta a PDF y súbelo aquí</strong><br><br>
+                El sistema reemplazará automáticamente:<br>
+                • {nombre} → Juan Pérez Gómez<br>
+                • {curso} → Adopción de prácticas de Avícolas<br>
+                • {fecha} → 13 de Enero de 2026<br><br>
+                <strong>💡 Ejemplo:</strong> Ver imagen arriba ☝️
+            </div>''')
+        }),
+        ('🔤 Variables para PDF Personalizado', {
+            'fields': ('variable_nombre', 'variable_curso', 'variable_fecha'),
+            'classes': ('collapse',),
+            'description': '⚙️ Solo modifica si tu PDF usa otras variables (ej: [NOMBRE], {{nombre}}, etc.)'
+        }),
+        ('🎨 OPCIÓN 2: Diseño Personalizado con Eki (Si NO subes PDF)', {
+            'fields': ('imagen_fondo', 'logo_institucion'),
+            'classes': ('collapse',),
+            'description': '🖼️ Usa el generador de Eki con tus propias imágenes'
+        }),
+        ('🌈 Colores (Solo si no subes PDF)', {
+            'fields': ('color_primario', 'color_secundario'),
+            'classes': ('collapse',),
+            'description': 'Haz click en el cuadro para seleccionar colores'
+        }),
+        ('📄 Textos (Solo si no subes PDF)', {
+            'fields': ('texto_superior', 'texto_certificado'),
+            'classes': ('collapse',),
+            'description': '📝 Personaliza los textos del certificado generado por Eki'
+        }),
+    )
+    
+    def get_form(self, request, obj=None, **kwargs):
+        """Personaliza el formulario para usar color picker"""
+        form = super().get_form(request, obj, **kwargs)
+        form.base_fields['color_primario'].widget = ColorPickerWidget()
+        form.base_fields['color_secundario'].widget = ColorPickerWidget()
+        return form
+    
+    def cliente_info(self, obj):
+        """Muestra el cliente asociado"""
+        if obj.cliente:
+            return format_html(
+                '<span style="background:#e3f2fd;padding:4px 10px;border-radius:12px;font-size:11px;">🏢 {}</span>',
+                obj.cliente.nombre
+            )
+        return format_html('<span style="color:#999;font-style:italic;">General (Eki)</span>')
+    cliente_info.short_description = "Cliente"
+    
+    def tipo_plantilla(self, obj):
+        """Muestra si usa PDF personalizado o diseño Eki"""
+        if obj.archivo_plantilla_pdf:
+            return format_html(
+                '<span style="background:#4CAF50;color:white;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;">📄 PDF Personalizado</span>'
+            )
+        return format_html(
+            '<span style="background:#2196F3;color:white;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;">🎨 Diseño Eki</span>'
+        )
+    tipo_plantilla.short_description = "Tipo"
+    
+    def vista_colores(self, obj):
+        """Muestra preview de los colores (solo si no usa PDF)"""
+        if obj.archivo_plantilla_pdf:
+            return format_html('<span style="color:#999;">-</span>')
+        
+        return format_html(
+            '<div style="display:flex;gap:8px;align-items:center;">'
+            '<div style="background:{};width:40px;height:40px;border-radius:6px;border:2px solid #ddd;box-shadow:0 2px 4px rgba(0,0,0,0.1);"></div>'
+            '<div style="background:{};width:40px;height:40px;border-radius:6px;border:2px solid #ddd;box-shadow:0 2px 4px rgba(0,0,0,0.1);"></div>'
+            '</div>',
+            obj.color_primario,
+            obj.color_secundario
+        )
+    vista_colores.short_description = "🎨 Colores"
+    
+    def total_certificados(self, obj):
+        """Cuenta certificados generados con esta plantilla"""
+        # Por ahora retorna placeholder, puedes implementar el conteo real si agregas FK en Certificado
+        return format_html('<span style="color:#999;">-</span>')
+    total_certificados.short_description = "Certificados"
+    
+    @admin.action(description='👁️ Previsualizar con nombre de prueba')
+    def previsualizar_certificado_accion(self, request, queryset):
+        """Genera un certificado de prueba para ver cómo se verá"""
+        if queryset.count() > 1:
+            self.message_user(request, "⚠️ Selecciona solo una plantilla para previsualizar", level=messages.WARNING)
+            return
+        
+        plantilla = queryset.first()
+        
+        if not plantilla.archivo_plantilla_pdf:
+            self.message_user(
+                request,
+                "⚠️ Esta plantilla no tiene PDF personalizado. Previsualización solo disponible para PDFs personalizados.",
+                level=messages.WARNING
+            )
+            return
+        
+        # TODO: Implementar generación de certificado de prueba
+        # Por ahora solo muestra el PDF
+        self.message_user(
+            request,
+            f"✅ Plantilla: {plantilla.nombre} - Archivo: {plantilla.archivo_plantilla_pdf.name}",
+            level=messages.SUCCESS
+        )
+
+
+@admin.register(Certificado)
+class CertificadoAdmin(admin.ModelAdmin):
+    """
+    📜 GESTIÓN UNIFICADA DE CERTIFICADOS
+    Desde aquí puedes gestionar certificados y ver plantillas
+    """
+    list_display = (
+        'codigo_verificacion',
+        'estudiante_info',
+        'curso_info',
+        'calificacion_badge',
+        'mencion_badge',
+        'estado_emision',
+        'enviado_whatsapp_badge',
+        'plantilla_link',
+        'fecha_completado'
+    )
+    list_filter = ('emitido', 'enviado_whatsapp', 'fecha_completado', 'curso')
+    search_fields = ('codigo_verificacion', 'estudiante__nombre', 'estudiante__telefono', 'curso__nombre')
+    readonly_fields = (
+        'codigo_verificacion',
+        'creado_en',
+        'actualizado_en',
+        'vista_previa_certificado',
+        'url_verificacion',
+        'duracion_dias'
+    )
+    list_per_page = 50
+    ordering = ('-fecha_emision', '-creado_en')
+    
+    fieldsets = (
+        ('📋 Información', {
+            'fields': ('codigo_verificacion', 'estudiante', 'curso', 'url_verificacion')
+        }),
+        ('🎓 Datos Académicos', {
+            'fields': ('calificacion_final', 'fecha_inicio', 'fecha_completado', 'duracion_dias')
+        }),
+        ('📄 Certificado', {
+            'fields': ('emitido', 'fecha_emision', 'archivo_pdf', 'vista_previa_certificado')
+        }),
+        ('📲 Envío', {
+            'fields': ('enviado_whatsapp', 'fecha_envio')
+        }),
+        ('🕐 Timestamps', {
+            'fields': ('creado_en', 'actualizado_en'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    actions = [
+        'generar_certificados', 
+        'enviar_por_whatsapp', 
+        'regenerar_certificados', 
+        'descargar_todos_pdf',
+        'descargar_por_cliente',
+        'descargar_por_curso',
+        'descargar_por_grupo',
+        'generar_pdf_consolidado',
+        'enviar_email_a_clientes'
+    ]
+    
+    def estudiante_info(self, obj):
+        nombre = obj.estudiante.nombre
+        telefono = obj.estudiante.telefono
+        return format_html(
+            '<div style="line-height:1.4;">'
+            '<strong>{}</strong><br>'
+            '<span style="color:#666;font-size:11px;">📱 {}</span>'
+            '</div>',
+            nombre, telefono
+        )
+    estudiante_info.short_description = "👤 Estudiante"
+    
+    def curso_info(self, obj):
+        return format_html(
+            '<span style="background:#e3f2fd;color:#1976d2;padding:4px 10px;border-radius:12px;font-size:11px;">'
+            '📚 {}'
+            '</span>',
+            obj.curso.nombre
+        )
+    curso_info.short_description = "Curso"
+    
+    def calificacion_badge(self, obj):
+        calificacion = float(obj.calificacion_final)
+        if calificacion >= 90:
+            color = '#4caf50'
+            emoji = '🌟'
+        elif calificacion >= 80:
+            color = '#2196f3'
+            emoji = '⭐'
+        elif calificacion >= 70:
+            color = '#ff9800'
+            emoji = '📊'
+        else:
+            color = '#f44336'
+            emoji = '📉'
+        
+        return format_html(
+            '<span style="background:{};color:white;padding:4px 12px;border-radius:12px;font-weight:bold;font-size:12px;">'
+            '{} {}%'
+            '</span>',
+            color, emoji, calificacion
+        )
+    calificacion_badge.short_description = "📊 Calificación"
+    
+    def mencion_badge(self, obj):
+        mencion = obj.obtener_mencion()
+        if mencion:
+            return format_html(
+                '<span style="background:#ffd700;color:#804000;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:bold;">'
+                '🏆 {}'
+                '</span>',
+                mencion
+            )
+        return format_html('<span style="color:#999;">-</span>')
+    mencion_badge.short_description = "🏆 Mención"
+    
+    def estado_emision(self, obj):
+        if obj.emitido and obj.fecha_emision:
+            fecha = obj.fecha_emision.strftime('%d/%m/%Y %H:%M')
+            return format_html(
+                '<span style="background:#4caf50;color:white;padding:4px 10px;border-radius:12px;font-size:11px;">'
+                '✅ Emitido<br>'
+                '<span style="font-size:10px;">{}</span>'
+                '</span>',
+                fecha
+            )
+        return format_html(
+            '<span style="background:#ff9800;color:white;padding:4px 10px;border-radius:12px;font-size:11px;">'
+            '⏳ Pendiente'
+            '</span>'
+        )
+    estado_emision.short_description = "Estado"
+    
+    def enviado_whatsapp_badge(self, obj):
+        if obj.enviado_whatsapp and obj.fecha_envio:
+            return format_html(
+                '<span style="background:#25d366;color:white;padding:4px 10px;border-radius:12px;font-size:11px;">'
+                '✅ Enviado'
+                '</span>'
+            )
+        return format_html(
+            '<span style="background:#e0e0e0;color:#666;padding:4px 10px;border-radius:12px;font-size:11px;">'
+            '📤 No enviado'
+            '</span>'
+        )
+    enviado_whatsapp_badge.short_description = "📲 WhatsApp"
+    
+    def plantilla_link(self, obj):
+        """Link directo para ver plantillas de certificados"""
+        count = PlantillaCertificado.objects.filter(cliente=obj.estudiante.cliente).count()
+        if count == 0:
+            count = PlantillaCertificado.objects.filter(cliente__isnull=True).count()
+        
+        return format_html(
+            '<a href="/admin/core/plantillacertificado/" style="background:#673ab7;color:white;padding:6px 12px;border-radius:12px;text-decoration:none;font-size:11px;font-weight:600;">🎨 {} Plantillas</a>',
+            count
+        )
+    plantilla_link.short_description = "Plantillas"
+    
+    def url_verificacion(self, obj):
+        if obj.codigo_verificacion:
+            url = obj.obtener_url_verificacion()
+            return format_html(
+                '<a href="{}" target="_blank" style="color:#2196f3;">'
+                '🔗 Ver certificado público'
+                '</a><br>'
+                '<code style="font-size:10px;background:#f5f5f5;padding:4px;display:block;margin-top:4px;">{}</code>',
+                url, url
+            )
+        return '-'
+    url_verificacion.short_description = "🔗 URL Verificación"
+    
+    def duracion_dias(self, obj):
+        dias = obj.duracion_curso()
+        if dias > 0:
+            return format_html(
+                '<span style="color:#666;">📅 {} día{}</span>',
+                dias,
+                's' if dias != 1 else ''
+            )
+        return '-'
+    duracion_dias.short_description = "Duración"
+    
+    def vista_previa_certificado(self, obj):
+        if obj.archivo_pdf:
+            return format_html(
+                '<a href="{}" target="_blank" style="color:#f44336;">'
+                '📄 Descargar PDF'
+                '</a>',
+                obj.archivo_pdf.url
+            )
+        return format_html('<span style="color:#999;">No generado aún</span>')
+    vista_previa_certificado.short_description = "Vista Previa"
+    
+    @admin.action(description='📄 Generar certificados PDF')
+    def generar_certificados(self, request, queryset):
+        """Genera los PDFs de los certificados seleccionados"""
+        from .certificado_service import generar_y_guardar_certificado
+        from django.utils import timezone
+        
+        generados = 0
+        errores = 0
+        
+        for certificado in queryset:
+            try:
+                success = generar_y_guardar_certificado(certificado)
+                if success:
+                    certificado.emitido = True
+                    certificado.fecha_emision = timezone.now()
+                    certificado.save()
+                    generados += 1
+                else:
+                    errores += 1
+            except Exception as e:
+                logger.error(f"Error generando certificado {certificado.codigo_verificacion}: {e}")
+                errores += 1
+        
+        if generados > 0:
+            self.message_user(
+                request,
+                f"✅ {generados} certificado(s) generado(s) exitosamente",
+                messages.SUCCESS
+            )
+        if errores > 0:
+            self.message_user(
+                request,
+                f"❌ {errores} error(es) al generar certificados",
+                messages.ERROR
+            )
+    
+    @admin.action(description='📲 Enviar certificados por WhatsApp')
+    def enviar_por_whatsapp(self, request, queryset):
+        """Envía los certificados por WhatsApp"""
+        from .certificado_service import enviar_certificado_whatsapp
+        
+        # Filtrar solo los emitidos
+        queryset = queryset.filter(emitido=True, archivo_pdf__isnull=False)
+        
+        if not queryset.exists():
+            self.message_user(
+                request,
+                "⚠️ Primero debes generar los certificados PDF",
+                messages.WARNING
+            )
+            return
+        
+        enviados = 0
+        errores = 0
+        
+        for certificado in queryset:
+            try:
+                success = enviar_certificado_whatsapp(certificado)
+                if success:
+                    enviados += 1
+                else:
+                    errores += 1
+            except Exception as e:
+                logger.error(f"Error enviando certificado {certificado.codigo_verificacion}: {e}")
+                errores += 1
+        
+        if enviados > 0:
+            self.message_user(
+                request,
+                f"✅ {enviados} certificado(s) enviado(s) por WhatsApp",
+                messages.SUCCESS
+            )
+        if errores > 0:
+            self.message_user(
+                request,
+                f"❌ {errores} error(es) al enviar certificados",
+                messages.ERROR
+            )
+    
+    @admin.action(description='🔄 Regenerar certificados PDF')
+    def regenerar_certificados(self, request, queryset):
+        """Regenera los PDFs (útil si cambió el diseño)"""
+        from .certificado_service import generar_y_guardar_certificado
+        
+        regenerados = 0
+        errores = 0
+        
+        for certificado in queryset:
+            try:
+                success = generar_y_guardar_certificado(certificado, force=True)
+                if success:
+                    regenerados += 1
+                else:
+                    errores += 1
+            except Exception as e:
+                logger.error(f"Error regenerando certificado {certificado.codigo_verificacion}: {e}")
+                errores += 1
+        
+        if regenerados > 0:
+            self.message_user(
+                request,
+                f"✅ {regenerados} certificado(s) regenerado(s)",
+                messages.SUCCESS
+            )
+        if errores > 0:
+            self.message_user(
+                request,
+                f"❌ {errores} error(es) al regenerar",
+                messages.ERROR
+            )
+    
+    @admin.action(description='📥 Descargar todos los certificados en ZIP')
+    def descargar_todos_pdf(self, request, queryset):
+        """Descarga todos los certificados seleccionados en un archivo ZIP"""
+        import zipfile
+        from django.http import HttpResponse
+        import io
+        from django.utils import timezone
+        
+        # Filtrar solo certificados con PDF
+        queryset = queryset.filter(emitido=True, archivo_pdf__isnull=False)
+        
+        if not queryset.exists():
+            self.message_user(
+                request,
+                "⚠️ No hay certificados con PDF generado",
+                messages.WARNING
+            )
+            return
+        
+        # Crear archivo ZIP en memoria
+        zip_buffer = io.BytesIO()
+        
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for certificado in queryset:
+                try:
+                    # Leer el archivo PDF
+                    pdf_file = certificado.archivo_pdf.open('rb')
+                    pdf_content = pdf_file.read()
+                    pdf_file.close()
+                    
+                    # Nombre del archivo en el ZIP
+                    filename = f"{certificado.estudiante.nombre.replace(' ', '_')}_{certificado.curso.nombre.replace(' ', '_')}_{certificado.codigo_verificacion}.pdf"
+                    
+                    # Agregar al ZIP
+                    zip_file.writestr(filename, pdf_content)
+                    
+                except Exception as e:
+                    logger.error(f"Error agregando certificado {certificado.codigo_verificacion} al ZIP: {e}")
+        
+        # Preparar respuesta HTTP
+        zip_buffer.seek(0)
+        response = HttpResponse(zip_buffer.read(), content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="certificados_{timezone.now().strftime("%Y%m%d_%H%M%S")}.zip"'
+        
+        return response
+    
+    @admin.action(description='� Descargar por Cliente (ZIP)')
+    def descargar_por_cliente(self, request, queryset):
+        """Descarga certificados agrupados por cliente en ZIPs separados"""
+        import zipfile
+        from django.http import HttpResponse
+        import io
+        from django.utils import timezone
+        
+        # Filtrar certificados con PDF
+        queryset = queryset.filter(emitido=True, archivo_pdf__isnull=False)
+        
+        if not queryset.exists():
+            self.message_user(request, "⚠️ No hay certificados con PDF", messages.WARNING)
+            return
+        
+        # Agrupar por cliente
+        certificados_por_cliente = {}
+        for cert in queryset:
+            cliente = cert.estudiante.cliente
+            cliente_nombre = cliente.nombre if cliente else "Sin_Cliente"
+            if cliente_nombre not in certificados_por_cliente:
+                certificados_por_cliente[cliente_nombre] = []
+            certificados_por_cliente[cliente_nombre].append(cert)
+        
+        # Si es un solo cliente, descargar ZIP directo
+        if len(certificados_por_cliente) == 1:
+            cliente_nombre = list(certificados_por_cliente.keys())[0]
+            certs = certificados_por_cliente[cliente_nombre]
+            
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                for cert in certs:
+                    try:
+                        pdf_content = cert.archivo_pdf.read()
+                        filename = f"{cert.estudiante.nombre.replace(' ', '_')}_{cert.curso.nombre.replace(' ', '_')}.pdf"
+                        zip_file.writestr(filename, pdf_content)
+                    except Exception as e:
+                        logger.error(f"Error: {e}")
+            
+            zip_buffer.seek(0)
+            response = HttpResponse(zip_buffer.read(), content_type='application/zip')
+            response['Content-Disposition'] = f'attachment; filename="Certificados_{cliente_nombre}_{timezone.now().strftime("%Y%m%d")}.zip"'
+            return response
+        
+        # Múltiples clientes: crear ZIP maestro con subdirectorios
+        master_zip = io.BytesIO()
+        with zipfile.ZipFile(master_zip, 'w', zipfile.ZIP_DEFLATED) as zip_master:
+            for cliente_nombre, certs in certificados_por_cliente.items():
+                for cert in certs:
+                    try:
+                        pdf_content = cert.archivo_pdf.read()
+                        filename = f"{cliente_nombre}/{cert.estudiante.nombre.replace(' ', '_')}_{cert.curso.nombre.replace(' ', '_')}.pdf"
+                        zip_master.writestr(filename, pdf_content)
+                    except Exception as e:
+                        logger.error(f"Error: {e}")
+        
+        master_zip.seek(0)
+        response = HttpResponse(master_zip.read(), content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="Certificados_Por_Cliente_{timezone.now().strftime("%Y%m%d")}.zip"'
+        
+        self.message_user(request, f"✅ Descargados {queryset.count()} certificados de {len(certificados_por_cliente)} cliente(s)", messages.SUCCESS)
+        return response
+    
+    @admin.action(description='📚 Descargar por Curso (ZIP)')
+    def descargar_por_curso(self, request, queryset):
+        """Descarga certificados agrupados por curso"""
+        import zipfile
+        from django.http import HttpResponse
+        import io
+        from django.utils import timezone
+        
+        queryset = queryset.filter(emitido=True, archivo_pdf__isnull=False)
+        
+        if not queryset.exists():
+            self.message_user(request, "⚠️ No hay certificados con PDF", messages.WARNING)
+            return
+        
+        # Agrupar por curso
+        certificados_por_curso = {}
+        for cert in queryset:
+            curso_nombre = cert.curso.nombre
+            if curso_nombre not in certificados_por_curso:
+                certificados_por_curso[curso_nombre] = []
+            certificados_por_curso[curso_nombre].append(cert)
+        
+        # Si es un solo curso
+        if len(certificados_por_curso) == 1:
+            curso_nombre = list(certificados_por_curso.keys())[0]
+            certs = certificados_por_curso[curso_nombre]
+            
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                for cert in certs:
+                    try:
+                        pdf_content = cert.archivo_pdf.read()
+                        filename = f"{cert.estudiante.nombre.replace(' ', '_')}_{cert.codigo_verificacion}.pdf"
+                        zip_file.writestr(filename, pdf_content)
+                    except Exception as e:
+                        logger.error(f"Error: {e}")
+            
+            zip_buffer.seek(0)
+            response = HttpResponse(zip_buffer.read(), content_type='application/zip')
+            response['Content-Disposition'] = f'attachment; filename="Certificados_{curso_nombre.replace(" ", "_")}_{timezone.now().strftime("%Y%m%d")}.zip"'
+            return response
+        
+        # Múltiples cursos
+        master_zip = io.BytesIO()
+        with zipfile.ZipFile(master_zip, 'w', zipfile.ZIP_DEFLATED) as zip_master:
+            for curso_nombre, certs in certificados_por_curso.items():
+                for cert in certs:
+                    try:
+                        pdf_content = cert.archivo_pdf.read()
+                        filename = f"{curso_nombre.replace(' ', '_')}/{cert.estudiante.nombre.replace(' ', '_')}.pdf"
+                        zip_master.writestr(filename, pdf_content)
+                    except Exception as e:
+                        logger.error(f"Error: {e}")
+        
+        master_zip.seek(0)
+        response = HttpResponse(master_zip.read(), content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="Certificados_Por_Curso_{timezone.now().strftime("%Y%m%d")}.zip"'
+        
+        self.message_user(request, f"✅ Descargados {queryset.count()} certificados de {len(certificados_por_curso)} curso(s)", messages.SUCCESS)
+        return response
+    
+    @admin.action(description='👥 Descargar por Grupo (ZIP)')
+    def descargar_por_grupo(self, request, queryset):
+        """Descarga certificados agrupados por grupo de estudiantes"""
+        import zipfile
+        from django.http import HttpResponse
+        import io
+        from django.utils import timezone
+        from .models_extras import GrupoEstudiantes
+        
+        queryset = queryset.filter(emitido=True, archivo_pdf__isnull=False)
+        
+        if not queryset.exists():
+            self.message_user(request, "⚠️ No hay certificados con PDF", messages.WARNING)
+            return
+        
+        # Agrupar por grupo
+        certificados_por_grupo = {}
+        sin_grupo = []
+        
+        for cert in queryset:
+            estudiante = cert.estudiante
+            # Buscar grupos del estudiante
+            grupos = GrupoEstudiantes.objects.filter(estudiantes=estudiante)
+            
+            if grupos.exists():
+                for grupo in grupos:
+                    grupo_nombre = grupo.nombre
+                    if grupo_nombre not in certificados_por_grupo:
+                        certificados_por_grupo[grupo_nombre] = []
+                    certificados_por_grupo[grupo_nombre].append(cert)
+            else:
+                sin_grupo.append(cert)
+        
+        if not certificados_por_grupo:
+            self.message_user(request, "⚠️ Los estudiantes seleccionados no pertenecen a ningún grupo", messages.WARNING)
+            return
+        
+        # Crear ZIP
+        master_zip = io.BytesIO()
+        with zipfile.ZipFile(master_zip, 'w', zipfile.ZIP_DEFLATED) as zip_master:
+            # Certificados por grupo
+            for grupo_nombre, certs in certificados_por_grupo.items():
+                for cert in certs:
+                    try:
+                        pdf_content = cert.archivo_pdf.read()
+                        filename = f"{grupo_nombre.replace(' ', '_')}/{cert.estudiante.nombre.replace(' ', '_')}_{cert.curso.nombre.replace(' ', '_')}.pdf"
+                        zip_master.writestr(filename, pdf_content)
+                    except Exception as e:
+                        logger.error(f"Error: {e}")
+            
+            # Certificados sin grupo
+            if sin_grupo:
+                for cert in sin_grupo:
+                    try:
+                        pdf_content = cert.archivo_pdf.read()
+                        filename = f"Sin_Grupo/{cert.estudiante.nombre.replace(' ', '_')}_{cert.curso.nombre.replace(' ', '_')}.pdf"
+                        zip_master.writestr(filename, pdf_content)
+                    except Exception as e:
+                        logger.error(f"Error: {e}")
+        
+        master_zip.seek(0)
+        response = HttpResponse(master_zip.read(), content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="Certificados_Por_Grupo_{timezone.now().strftime("%Y%m%d")}.zip"'
+        
+        self.message_user(request, f"✅ Descargados {queryset.count()} certificados de {len(certificados_por_grupo)} grupo(s)", messages.SUCCESS)
+        return response
+    
+    @admin.action(description='📄 Generar PDF Consolidado (Un archivo)')
+    def generar_pdf_consolidado(self, request, queryset):
+        """Genera un único PDF con todos los certificados seleccionados"""
+        from PyPDF2 import PdfMerger
+        from django.http import HttpResponse
+        import io
+        from django.utils import timezone
+        
+        queryset = queryset.filter(emitido=True, archivo_pdf__isnull=False)
+        
+        if not queryset.exists():
+            self.message_user(request, "⚠️ No hay certificados con PDF", messages.WARNING)
+            return
+        
+        # Crear merger
+        merger = PdfMerger()
+        
+        # Agregar cada certificado
+        for cert in queryset:
+            try:
+                pdf_file = cert.archivo_pdf.open('rb')
+                merger.append(pdf_file)
+                pdf_file.close()
+            except Exception as e:
+                logger.error(f"Error agregando certificado {cert.codigo_verificacion}: {e}")
+        
+        # Guardar PDF consolidado
+        output = io.BytesIO()
+        merger.write(output)
+        merger.close()
+        output.seek(0)
+        
+        # Preparar respuesta
+        response = HttpResponse(output.read(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="Certificados_Consolidados_{timezone.now().strftime("%Y%m%d_%H%M%S")}.pdf"'
+        
+        self.message_user(request, f"✅ Generado PDF consolidado con {queryset.count()} certificado(s)", messages.SUCCESS)
+        return response
+    
+    @admin.action(description='�📧 Enviar certificados por email a clientes')
+    def enviar_email_a_clientes(self, request, queryset):
+        """Envía los certificados por email al cliente (no al estudiante) usando API"""
+        from .email_service import enviar_certificados_a_cliente
+        
+        # Filtrar solo certificados con PDF
+        queryset = queryset.filter(emitido=True, archivo_pdf__isnull=False)
+        
+        if not queryset.exists():
+            self.message_user(
+                request,
+                "⚠️ No hay certificados con PDF generado",
+                messages.WARNING
+            )
+            return
+        
+        # Agrupar certificados por cliente
+        certificados_por_cliente = {}
+        sin_cliente = []
+        
+        for certificado in queryset:
+            estudiante = certificado.estudiante
+            cliente = estudiante.cliente
+            
+            if cliente and cliente.enviar_certificados_email:
+                if cliente.id not in certificados_por_cliente:
+                    certificados_por_cliente[cliente.id] = {
+                        'cliente': cliente,
+                        'certificados': []
+                    }
+                certificados_por_cliente[cliente.id]['certificados'].append(certificado)
+            else:
+                sin_cliente.append(certificado)
+        
+        enviados = 0
+        errores = 0
+        
+        # Enviar emails agrupados por cliente usando el servicio
+        for cliente_id, data in certificados_por_cliente.items():
+            cliente = data['cliente']
+            certificados = data['certificados']
+            
+            try:
+                success = enviar_certificados_a_cliente(cliente, certificados)
+                if success:
+                    enviados += len(certificados)
+                else:
+                    errores += len(certificados)
+                    
+            except Exception as e:
+                logger.error(f"❌ Error enviando certificados a {cliente.email}: {e}")
+                errores += len(certificados)
+        
+        # Mensaje de resultado
+        if enviados > 0:
+            self.message_user(
+                request,
+                f"✅ {enviados} certificado(s) enviado(s) por email a {len(certificados_por_cliente)} cliente(s)",
+                messages.SUCCESS
+            )
+        
+        if sin_cliente:
+            self.message_user(
+                request,
+                f"⚠️ {len(sin_cliente)} certificado(s) sin cliente o con envío deshabilitado",
+                messages.WARNING
+            )
+        
+        if errores > 0:
+            self.message_user(
+                request,
+                f"❌ {errores} error(es) al enviar emails",
+                messages.ERROR
+            )
+
+
+# ========================================
+# 🔐 AUDITORÍA - AUDIT LOG
+# ========================================
+
+@admin.register(AuditLog)
+class AuditLogAdmin(admin.ModelAdmin):
+    """Admin para registro de auditoría de certificados"""
+    
+    list_display = ('get_resumen_corto', 'accion_badge', 'get_exitoso_display', 'fecha_accion', 'usuario')
+    list_filter = ('accion', 'exitoso', 'fecha_accion')
+    search_fields = ('certificado_codigo', 'estudiante_nombre', 'curso_nombre', 'ip_address')
+    readonly_fields = ('fecha_accion', 'ip_address')
+    date_hierarchy = 'fecha_accion'
+    ordering = ('-fecha_accion',)
+    
+    fieldsets = (
+        ('📋 Información General', {
+            'fields': ('accion', 'exitoso', 'usuario', 'fecha_accion')
+        }),
+        ('📜 Certificado & Estudiante', {
+            'fields': ('certificado_codigo', 'estudiante_nombre', 'curso_nombre')
+        }),
+        ('📝 Detalles', {
+            'fields': ('descripcion', 'mensaje_error'),
+            'classes': ('collapse',)
+        }),
+        ('🔍 Auditoría Técnica', {
+            'fields': ('ip_address',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_resumen_corto(self, obj):
+        """Muestra resumen en lista"""
+        return f"{obj.get_accion_display()}: {obj.estudiante_nombre or 'Sistema'}"
+    get_resumen_corto.short_description = 'Acción'
+    
+    def accion_badge(self, obj):
+        """Muestra acción con badge de color"""
+        from django.utils.html import format_html
+        
+        color_map = {
+            'GENERAR': '#28a745',  # Verde
+            'ENVIAR': '#17a2b8',   # Azul
+            'DESCARGAR': '#007bff', # Azul claro
+            'VERIFICAR': '#6c757d',  # Gris
+            'MODIFICAR': '#ffc107',  # Amarillo
+            'ELIMINAR': '#dc3545',   # Rojo
+            'REGENERAR': '#fd7e14',  # Naranja
+            'AUTO_GENERAR': '#20c997', # Verde agua
+            'ERROR': '#dc3545',      # Rojo
+        }
+        
+        color = color_map.get(obj.accion, '#6c757d')
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 8px; border-radius: 3px; font-weight: bold; font-size: 11px;">{}</span>',
+            color,
+            obj.get_accion_display()
+        )
+    accion_badge.short_description = 'Acción'
+    
+    def get_exitoso_display(self, obj):
+        """Muestra estado de éxito con icono"""
+        from django.utils.html import format_html
+        return format_html(
+            '<span style="font-size: 18px;">{}</span>',
+            '✅' if obj.exitoso else '❌'
+        )
+    get_exitoso_display.short_description = 'Estado'
+
+
+# ========================================
+# 🎯 CARGAR PERSONALIZACIÓN DEL DASHBOARD
+# ========================================
+
+# Importar y ejecutar la personalización del admin
+try:
+    from .admin_dashboard import setup_custom_admin_dashboard
+    setup_custom_admin_dashboard()
+except Exception as e:
+    logger.warning(f"No se pudo cargar la personalización del dashboard: {str(e)}")
+
+
+# ========================================
+# 👥 ADMIN UNIFICADO DE GRUPOS (TODO EN UNO)
+# ========================================
+
+@admin.register(GrupoEstudiantes)
+class GrupoEstudiantesAdmin(admin.ModelAdmin):
+    """
+    📦 GESTIÓN UNIFICADA DE GRUPOS
+    Desde aquí puedes gestionar:
+    - Grupos de Estudiantes
+    - Ver Grupos de WhatsApp (botón de acción)
+    - Ver Invitaciones (botón de acción)
+    """
+    list_display = ('nombre_completo', 'cliente_nombre', 'cantidad_estudiantes', 'cursos_asociados_display', 'whatsapp_grupos_link', 'invitaciones_link', 'fecha_creacion')
+    list_filter = ('cliente', 'activo', 'fecha_creacion')
+    search_fields = ('nombre', 'descripcion', 'cliente__nombre')
+    filter_horizontal = ('estudiantes', 'cursos')
+    actions = ['crear_grupo_whatsapp', 'enviar_invitaciones']
+    
+    fieldsets = (
+        ('📋 Información del Grupo', {
+            'fields': ('nombre', 'emoji', 'descripcion', 'cliente')
+        }),
+        ('👥 Estudiantes', {
+            'fields': ('estudiantes',),
+            'description': '✅ Selecciona los estudiantes que pertenecen a este grupo'
+        }),
+        ('📚 Cursos Asociados', {
+            'fields': ('cursos',),
+            'description': '📖 Asocia cursos específicos con este grupo',
+            'classes': ('collapse',)
+        }),
+        ('⚙️ Configuración', {
+            'fields': ('activo',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def nombre_completo(self, obj):
+        """Muestra el nombre con emoji"""
+        return format_html(
+            '<span style="font-size:14px;">{} <strong>{}</strong></span>',
+            obj.emoji, obj.nombre
+        )
+    nombre_completo.short_description = "Grupo"
+    
+    fieldsets = (
+        ('📋 Información del Grupo', {
+            'fields': ('nombre', 'descripcion', 'cliente')
+        }),
+        ('👥 Estudiantes', {
+            'fields': ('estudiantes',),
+            'description': 'Selecciona los estudiantes que pertenecen a este grupo'
+        }),
+        ('📚 Cursos Asociados (Opcional)', {
+            'fields': ('cursos',),
+            'description': 'Opcionalmente, asocia cursos específicos con este grupo',
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def cliente_nombre(self, obj):
+        if obj.cliente:
+            return obj.cliente.nombre
+        return format_html('<span style="color:#999;">Sin cliente</span>')
+    cliente_nombre.short_description = "🏢 Cliente"
+    
+    def cantidad_estudiantes(self, obj):
+        count = obj.estudiantes.count()
+        return format_html(
+            '<span style="background:#e3f2fd;padding:4px 10px;border-radius:12px;font-size:11px;">{} estudiante{}</span>',
+            count, 's' if count != 1 else ''
+        )
+    cantidad_estudiantes.short_description = "👥 Estudiantes"
+    
+    def cursos_asociados_display(self, obj):
+        cursos = obj.cursos.all()
+        if not cursos:
+            return format_html('<span style="color:#999;">Sin cursos</span>')
+        
+        badges = []
+        for curso in cursos[:2]:
+            badges.append(f'<span style="background:#fff3e0;color:#e65100;padding:3px 8px;border-radius:8px;font-size:10px;margin-right:3px;">{curso.nombre}</span>')
+        
+        html = ''.join(badges)
+        if cursos.count() > 2:
+            html += f' <span style="color:#999;font-size:10px;">+{cursos.count() - 2} más</span>'
+        
+        return format_html(html)
+    cursos_asociados_display.short_description = "📚 Cursos"
+    
+    def whatsapp_grupos_link(self, obj):
+        """Link directo para gestionar grupos de WhatsApp"""
+        cursos_ids = obj.cursos.values_list('id', flat=True)
+        count = GrupoWhatsApp.objects.filter(curso_id__in=cursos_ids).count()
+        
+        return format_html(
+            '<a href="/admin/core/grupowhatsapp/?curso__id__in={}" style="background:#25d366;color:white;padding:6px 12px;border-radius:12px;text-decoration:none;font-size:11px;font-weight:600;">💬 {} WhatsApp</a>',
+            ','.join(map(str, cursos_ids)) if cursos_ids else '0',
+            count
+        )
+    whatsapp_grupos_link.short_description = "Grupos WhatsApp"
+    
+    def invitaciones_link(self, obj):
+        """Link directo para gestionar invitaciones"""
+        estudiantes_ids = obj.estudiantes.values_list('id', flat=True)
+        count = InvitacionGrupo.objects.filter(estudiante_id__in=estudiantes_ids).count()
+        
+        return format_html(
+            '<a href="/admin/core/invitaciongrupo/?estudiante__id__in={}" style="background:#2196f3;color:white;padding:6px 12px;border-radius:12px;text-decoration:none;font-size:11px;font-weight:600;">✉️ {} Invitaciones</a>',
+            ','.join(map(str, estudiantes_ids)) if estudiantes_ids else '0',
+            count
+        )
+    invitaciones_link.short_description = "Invitaciones"
+    
+    def crear_grupo_whatsapp(self, request, queryset):
+        """Acción rápida: Crear grupo de WhatsApp"""
+        from django.shortcuts import redirect
+        if queryset.count() == 1:
+            grupo = queryset.first()
+            # Redirigir a crear grupo WhatsApp con el curso preseleccionado
+            return redirect(f'/admin/core/grupowhatsapp/add/')
+        else:
+            self.message_user(request, "Selecciona solo un grupo para crear el grupo de WhatsApp", level='warning')
+    crear_grupo_whatsapp.short_description = "➕ Crear grupo de WhatsApp para este grupo"
+    
+    def enviar_invitaciones(self, request, queryset):
+        """Acción rápida: Enviar invitaciones"""
+        from django.shortcuts import redirect
+        return redirect('/admin/core/invitaciongrupo/add/')
+    enviar_invitaciones.short_description = "✉️ Enviar invitaciones a estudiantes"
+    enviar_invitaciones.short_description = "✉️ Enviar invitaciones a estudiantes"
+
+
+@admin.register(EnvioProgramado)
+class EnvioProgramadoAdmin(admin.ModelAdmin):
+    """Gestión de envíos programados"""
+    list_display = ('nombre', 'tipo', 'fecha_programada', 'estado_badge', 'fecha_envio_real')
+    list_filter = ('estado', 'tipo', 'fecha_programada')
+    search_fields = ('nombre', 'mensaje')
+    readonly_fields = ('fecha_envio_real', 'total_destinatarios', 'total_enviados', 'total_fallidos')
+    
+    fieldsets = (
+        ('📋 Información Básica', {
+            'fields': ('nombre', 'tipo', 'campana', 'grupo', 'estudiante', 'mensaje')
+        }),
+        ('📎 Multimedia (Opcional)', {
+            'fields': ('incluir_media', 'media_url'),
+            'classes': ('collapse',)
+        }),
+        ('📅 Programación', {
+            'fields': ('fecha_programada', 'estado')
+        }),
+        ('📊 Resultados', {
+            'fields': ('fecha_envio_real', 'total_destinatarios', 'total_enviados', 'total_fallidos'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def estado_badge(self, obj):
+        colores = {
+            'pendiente': ('#fff3e0', '#e65100'),
+            'enviando': ('#e3f2fd', '#1976d2'),
+            'enviado': ('#e8f5e9', '#2e7d32'),
+            'fallido': ('#ffebee', '#c62828'),
+            'cancelado': ('#f5f5f5', '#666'),
+        }
+        bg, color = colores.get(obj.estado, ('#f5f5f5', '#666'))
+        return format_html(
+            '<span style="background:{};color:{};padding:4px 10px;border-radius:12px;font-size:11px;">{}</span>',
+            bg, color, obj.get_estado_display()
+        )
+    estado_badge.short_description = "Estado"
+
+
+@admin.register(PQRS)
+class PQRSAdmin(admin.ModelAdmin):
+    """Gestión auxiliar de PQRS (Ver principalmente desde Solicitudes de Soporte)"""
+    list_display = ('tipo_badge', 'estudiante', 'asunto', 'prioridad_badge', 'estado_badge', 'soporte_link', 'fecha_creacion')
+    list_filter = ('tipo', 'estado', 'prioridad', 'fecha_creacion')
+    search_fields = ('asunto', 'descripcion', 'estudiante__nombre')
+    readonly_fields = ('fecha_creacion', 'fecha_respuesta', 'fecha_cierre')
+    actions = ['crear_solicitud_soporte']
+    
+    fieldsets = (
+        ('📝 Información', {
+            'fields': ('tipo', 'estudiante', 'asunto', 'descripcion', 'curso_relacionado', 'prioridad')
+        }),
+        ('📊 Estado y Respuesta', {
+            'fields': ('estado', 'respuesta', 'notas_internas', 'atendido_por')
+        }),
+        ('📅 Fechas', {
+            'fields': ('fecha_creacion', 'fecha_respuesta', 'fecha_cierre'),
+            'classes': ('collapse',)
+        }),
+        ('⭐ Calificación', {
+            'fields': ('calificacion', 'comentario_calificacion'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def tipo_badge(self, obj):
+        colores = {
+            'peticion': ('#e3f2fd', '#1976d2'),
+            'queja': ('#fff3e0', '#e65100'),
+            'reclamo': ('#ffebee', '#c62828'),
+            'sugerencia': ('#f3e5f5', '#7b1fa2'),
+            'felicitacion': ('#e8f5e9', '#2e7d32'),
+        }
+        bg, color = colores.get(obj.tipo, ('#f5f5f5', '#666'))
+        return format_html(
+            '<span style="background:{};color:{};padding:4px 10px;border-radius:12px;font-size:11px;">{}</span>',
+            bg, color, obj.get_tipo_display()
+        )
+    tipo_badge.short_description = "Tipo"
+    
+    def prioridad_badge(self, obj):
+        colores = {
+            'baja': ('#f5f5f5', '#666'),
+            'media': ('#fff3e0', '#e65100'),
+            'alta': ('#ffebee', '#c62828'),
+            'urgente': ('#b71c1c', '#ffffff'),
+        }
+        bg, color = colores.get(obj.prioridad, ('#f5f5f5', '#666'))
+        return format_html(
+            '<span style="background:{};color:{};padding:4px 10px;border-radius:12px;font-size:11px;">{}</span>',
+            bg, color, obj.get_prioridad_display()
+        )
+    prioridad_badge.short_description = "Prioridad"
+    
+    def estado_badge(self, obj):
+        colores = {
+            'pendiente': ('#fff3e0', '#e65100'),
+            'en_proceso': ('#e3f2fd', '#1976d2'),
+            'resuelto': ('#e8f5e9', '#2e7d32'),
+            'cerrado': ('#f5f5f5', '#666'),
+            'rechazado': ('#ffebee', '#c62828'),
+        }
+        bg, color = colores.get(obj.estado, ('#f5f5f5', '#666'))
+        return format_html(
+            '<span style="background:{};color:{};padding:4px 10px;border-radius:12px;font-size:11px;">{}</span>',
+            bg, color, obj.get_estado_display()
+        )
+    estado_badge.short_description = "Estado"
+    
+    def soporte_link(self, obj):
+        """Link para ver solicitudes de soporte del estudiante"""
+        count = SolicitudSoporte.objects.filter(estudiante=obj.estudiante).count()
+        
+        return format_html(
+            '<a href="/admin/core/solicitudsoporte/?estudiante__id__exact={}" style="background:#f44336;color:white;padding:6px 12px;border-radius:12px;text-decoration:none;font-size:11px;font-weight:600;">🆘 {} Soporte</a>',
+            obj.estudiante.id,
+            count
+        )
+    soporte_link.short_description = "Solicitudes"
+    
+    def crear_solicitud_soporte(self, request, queryset):
+        """Crear solicitud de soporte desde PQRS urgente"""
+        from django.shortcuts import redirect
+        if queryset.count() == 1:
+            pqrs = queryset.first()
+            # Redirigir para crear solicitud de soporte
+            return redirect(f'/admin/core/solicitudsoporte/add/?estudiante={pqrs.estudiante.id}')
+        else:
+            self.message_user(request, "Selecciona solo una PQRS para crear solicitud", level='warning')
+    crear_solicitud_soporte.short_description = "🆘 Crear solicitud de soporte urgente"
+
+
+@admin.register(ArchivoModulo)
+class ArchivoModuloAdmin(admin.ModelAdmin):
+    """Gestión de archivos multimedia de módulos"""
+    list_display = ('modulo', 'tipo_badge', 'titulo', 'tamanio_display', 'disponible_offline', 'descargar_btn', 'activo')
+    list_filter = ('tipo', 'disponible_offline', 'activo', 'modulo__curso')
+    search_fields = ('titulo', 'descripcion', 'modulo__titulo')
+    readonly_fields = ('preview_archivo', 'fecha_creacion')
+    
+    fieldsets = (
+        ('📁 Información del Archivo', {
+            'fields': ('modulo', 'tipo', 'titulo', 'descripcion', 'orden')
+        }),
+        ('📎 Archivo', {
+            'fields': ('archivo', 'preview_archivo', 'url_externa', 'tamano_bytes', 'duracion_segundos')
+        }),
+        ('⚙️ Configuración', {
+            'fields': ('disponible_offline', 'activo', 'fecha_creacion')
+        }),
+    )
+    
+    actions = ['marcar_disponible_offline', 'marcar_no_disponible_offline']
+    
+    def tipo_badge(self, obj):
+        colores = {
+            'video': ('#f3e5f5', '#7b1fa2'),
+            'imagen': ('#e3f2fd', '#1976d2'),
+            'infografia': ('#e8f5e9', '#2e7d32'),
+            'pdf': ('#ffebee', '#c62828'),
+            'audio': ('#fff3e0', '#e65100'),
+        }
+        bg, color = colores.get(obj.tipo, ('#f5f5f5', '#666'))
+        return format_html(
+            '<span style="background:{};color:{};padding:4px 10px;border-radius:12px;font-size:11px;">{}</span>',
+            bg, color, obj.get_tipo_display()
+        )
+    tipo_badge.short_description = "Tipo"
+    
+    def tamanio_display(self, obj):
+        if obj.tamano_bytes:
+            mb = obj.tamano_bytes / (1024 * 1024)
+            return f"{mb:.2f} MB"
+        return "N/A"
+    tamanio_display.short_description = "Tamaño"
+    
+    def preview_archivo(self, obj):
+        if not obj.archivo:
+            return format_html('<span style="color:#999;">Sin archivo</span>')
+        
+        if obj.tipo == 'imagen':
+            return format_html(
+                '<img src="{}" style="max-width:400px;max-height:300px;border-radius:8px;border:2px solid #ddd;" />',
+                obj.archivo.url
+            )
+        elif obj.tipo == 'video':
+            return format_html(
+                '<video controls style="max-width:500px;border-radius:8px;"><source src="{}" type="video/mp4"></video>',
+                obj.archivo.url
+            )
+        elif obj.tipo == 'pdf':
+            return format_html(
+                '<a href="{}" target="_blank" class="button" style="background:#dc2626;color:white;padding:10px 20px;text-decoration:none;border-radius:6px;">📄 Abrir PDF</a>',
+                obj.archivo.url
+            )
+        else:
+            return format_html(
+                '<a href="{}" target="_blank">Ver archivo</a>',
+                obj.archivo.url
+            )
+    preview_archivo.short_description = "Vista Previa"
+    
+    def descargar_btn(self, obj):
+        if obj.archivo:
+            return format_html(
+                '<a href="{}" download class="button" style="background:#2563eb;color:white;padding:6px 14px;text-decoration:none;border-radius:6px;font-size:12px;">⬇️ Descargar</a>',
+                obj.archivo.url
+            )
+        return '-'
+    descargar_btn.short_description = "Descarga"
+    
+    def marcar_disponible_offline(self, request, queryset):
+        updated = queryset.update(disponible_offline=True)
+        self.message_user(request, f'{updated} archivo(s) marcado(s) como disponibles offline')
+    marcar_disponible_offline.short_description = "✅ Marcar disponible offline"
+    
+    def marcar_no_disponible_offline(self, request, queryset):
+        updated = queryset.update(disponible_offline=False)
+        self.message_user(request, f'{updated} archivo(s) marcado(s) como NO disponibles offline')
+    marcar_no_disponible_offline.short_description = "❌ Desactivar descarga offline"
+
+
+# ⚠️ MODELOS AUXILIARES - NO APARECEN EN EL MENÚ PRINCIPAL
+# Estos modelos se gestionan desde "Grupos de Estudiantes"
+# Pero los registramos para que estén disponibles via acciones/links
+
+@admin.register(GrupoWhatsApp)
+class GrupoWhatsAppAdmin(admin.ModelAdmin):
+    """Gestión auxiliar de grupos de WhatsApp (acceso desde Grupos de Estudiantes)"""
+    list_display = ('nombre', 'curso', 'link_invitacion_corto', 'ocupacion_badge', 'activo', 'fecha_creacion')
+    list_filter = ('activo', 'curso', 'fecha_creacion')
+    search_fields = ('nombre', 'descripcion')
+    
+    def link_invitacion_corto(self, obj):
+        if obj.link_invitacion:
+            return format_html(
+                '<a href="{}" target="_blank" style="color:#25d366;">🔗 Abrir</a>',
+                obj.link_invitacion
+            )
+        return '-'
+    link_invitacion_corto.short_description = "Link"
+    
+    def ocupacion_badge(self, obj):
+        porcentaje = obj.porcentaje_ocupacion()
+        color = '#4caf50' if porcentaje < 70 else '#ff9800' if porcentaje < 90 else '#f44336'
+        return format_html(
+            '<span style="background:{};color:white;padding:4px 10px;border-radius:12px;font-size:11px;">{}/{} ({}%)</span>',
+            color, obj.miembros_actuales, obj.capacidad_maxima, porcentaje
+        )
+    ocupacion_badge.short_description = "Ocupación"
+    
+    class Meta:
+        verbose_name = 'Grupo de WhatsApp'
+        verbose_name_plural = '💬 Grupos de WhatsApp (Ver desde Grupos)'
+
+@admin.register(InvitacionGrupo)
+class InvitacionGrupoAdmin(admin.ModelAdmin):
+    """Gestión auxiliar de invitaciones (acceso desde Grupos de Estudiantes)"""
+    list_display = ('estudiante', 'grupo', 'estado_badge', 'fecha_envio', 'fecha_respuesta')
+    list_filter = ('estado', 'fecha_envio', 'grupo')
+    search_fields = ('estudiante__nombre', 'grupo__nombre')
+    readonly_fields = ('fecha_envio', 'fecha_respuesta', 'fecha_creacion')
+    
+    def estado_badge(self, obj):
+        colores = {
+            'pendiente': '#ff9800',
+            'enviada': '#2196f3',
+            'aceptada': '#4caf50',
+            'rechazada': '#f44336',
+            'expirada': '#999'
+        }
+        return format_html(
+            '<span style="background:{};color:white;padding:6px 12px;border-radius:12px;font-weight:600;">{}</span>',
+            colores.get(obj.estado, '#999'),
+            obj.get_estado_display()
+        )
+    estado_badge.short_description = "Estado"
+    
+    class Meta:
+        verbose_name = 'Invitación a Grupo'
+        verbose_name_plural = '✉️ Invitaciones (Ver desde Grupos)'
+    
+    def estado_badge(self, obj):
+        colores = {
+            'pendiente': ('#fff3e0', '#e65100'),
+            'enviada': ('#e3f2fd', '#1976d2'),
+            'aceptada': ('#e8f5e9', '#2e7d32'),
+            'rechazada': ('#ffebee', '#c62828'),
+            'expirada': ('#f5f5f5', '#666'),
+        }
+        bg, color = colores.get(obj.estado, ('#f5f5f5', '#666'))
+        return format_html(
+            '<span style="background:{};color:{};padding:4px 10px;border-radius:12px;font-size:11px;">{}</span>',
+            bg, color, obj.get_estado_display()
+        )
+    estado_badge.short_description = "Estado"
+
+
+# ================================================
+# 📊 DASHBOARD DE PLANTILLAS Y TEMPLATES
+# ================================================
+
+class PlantillaDashboardAdmin(admin.ModelAdmin):
+    """Dashboard para ver el estado de plantillas y Content Templates"""
+    list_display = ('nombre_con_emoji', 'categoria_display', 'estado_template', 'activa', 'veces_usada', 'fecha_modificacion')
+    list_filter = ('activa', 'categoria', 'aprobada_twilio', 'fecha_modificacion')
+    search_fields = ('nombre_interno', 'cuerpo_mensaje', 'twilio_template_sid')
+    list_per_page = 50
+
+    fieldsets = (
+        ('📝 Información Básica', {
+            'fields': ('nombre_interno', 'categoria', 'activa'),
+            'description': 'Configura el nombre y categoría de la plantilla'
+        }),
+        ('🎨 Personalización Visual', {
+            'fields': ('emoji',),
+            'description': mark_safe('''<div style="background:#f5f5f5;padding:15px;border-radius:8px;margin-top:10px;">
+                <strong>💡 El emoji se autocompletará según la categoría seleccionada arriba</strong><br><br>
+                <strong>Categorías disponibles:</strong><br>
+                🌾 Cultivos • 🐄 Ganadería • 🌱 General Agrícola • 📚 Educación • 💼 Gestión<br><br>
+                <em>Puedes cambiar el emoji manualmente si lo deseas</em>
+            </div>''')
+        }),
+        ('📄 Contenido del Mensaje', {
+            'fields': ('cuerpo_mensaje',),
+            'description': 'Escribe el mensaje. Usa {nombre} para personalizar con el nombre del estudiante.'
+        }),
+        ('🔗 Twilio Content Template (Opcional)', {
+            'fields': ('twilio_template_sid', 'twilio_template_nombre', 'aprobada_twilio'),
+            'description': mark_safe('''<div style="background:#fff3e0;padding:15px;border-radius:8px;border-left:4px solid #ff9800;">
+                <strong>⚠️ IMPORTANTE: Para campañas con Content Templates</strong><br><br>
+                <strong>Flujo correcto:</strong>
+                <ol style="margin:10px 0;">
+                    <li>🔵 Ve a <a href="https://console.twilio.com/us1/develop/sms/content-editor" target="_blank" style="color:#2196F3;">Twilio Content Editor</a></li>
+                    <li>📝 Crea tu plantilla de WhatsApp y obtén el <strong>Content SID</strong> (ej: HX1234...)</li>
+                    <li>⚙️ Configura el SID arriba y marca como "Aprobada en Twilio"</li>
+                    <li>✅ Las campañas usarán este template automáticamente</li>
+                </ol>
+                <em>💡 Si no configuras esto, las campañas usarán envío directo (sin template).</em>
+            </div>'''),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def nombre_con_emoji(self, obj):
+        return str(obj)
+    nombre_con_emoji.short_description = "Plantilla"
+
+    def categoria_display(self, obj):
+        return obj.get_categoria_display()
+    categoria_display.short_description = "Categoría"
+    
+    def estado_template(self, obj):
+        if obj.twilio_template_sid and obj.aprobada_twilio:
+            return format_html('<span style="background:#4caf50;color:white;padding:4px 8px;border-radius:12px;font-size:11px;">✅ TWILIO</span>')
+        elif obj.twilio_template_sid and not obj.aprobada_twilio:
+            return format_html('<span style="background:#ff9800;color:white;padding:4px 8px;border-radius:12px;font-size:11px;">⏳ PENDIENTE</span>')
+        else:
+            return format_html('<span style="background:#2196f3;color:white;padding:4px 8px;border-radius:12px;font-size:11px;">📱 DIRECTO</span>')
+    estado_template.short_description = "Estado"
+    
+    def total_plantillas(self, obj):
+        count = obj.plantillas.count()
+        if count > 0:
+            return format_html('<span style="background:#4caf50;color:white;padding:4px 12px;border-radius:12px;font-weight:bold;">{}</span>', count)
+        return format_html('<span style="color:#999;">0</span>')
+    total_plantillas.short_description = "📄 Plantillas"
+    
+    def total_campanas(self, obj):
+        count = obj.campanas.count()
+        if count > 0:
+            return format_html('<span style="background:#2196f3;color:white;padding:4px 12px;border-radius:12px;font-weight:bold;">{}</span>', count)
+        return format_html('<span style="color:#999;">0</span>')
+    total_campanas.short_description = "📢 Campañas"
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('plantilla-dashboard/', self.admin_site.admin_view(self.plantilla_dashboard_view), name='plantilla_dashboard'),
+        ]
+        return custom_urls + urls
+
+    def plantilla_dashboard_view(self, request):
+        """Vista del dashboard de plantillas"""
+        plantillas = Plantilla.objects.all().order_by('categoria', 'nombre_interno')
+
+        # Agrupar por categoría
+        categorias = {}
+        for plantilla in plantillas:
+            cat = plantilla.get_categoria_display()
+            if cat not in categorias:
+                categorias[cat] = []
+            categorias[cat].append(plantilla)
+
+        # Estadísticas
+        stats = {
+            'total': plantillas.count(),
+            'twilio_configuradas': plantillas.filter(twilio_template_sid__isnull=False, aprobada_twilio=True).count(),
+            'twilio_pendientes': plantillas.filter(twilio_template_sid__isnull=False, aprobada_twilio=False).count(),
+            'directo': plantillas.filter(twilio_template_sid__isnull=True).count(),
+        }
+
+        context = {
+            'categorias': categorias,
+            'stats': stats,
+            'title': '📊 Dashboard de Plantillas y Content Templates',
+        }
+
+        return render(request, 'admin/plantilla_dashboard.html', context)
+
+    def changelist_view(self, request, extra_context=None):
+        """Agregar enlace al dashboard en la lista de plantillas"""
+        extra_context = extra_context or {}
+        extra_context['dashboard_url'] = 'plantilla-dashboard/'
+        return super().changelist_view(request, extra_context)
+
+

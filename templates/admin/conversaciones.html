@@ -439,7 +439,7 @@
                     
                     {% for fecha_grupo in mensajes_por_fecha %}
                         <div class="mensaje-fecha-separador">
-                            <span class="fecha-badge">{{ fecha_grupo.grouper|date:"d 'de' F 'de' Y" }}</span>
+                            <span class="fecha-badge">{{ fecha_grupo.grouper|date:"d" }} de {{ fecha_grupo.grouper|date:"F" }} de {{ fecha_grupo.grouper|date:"Y" }}</span>
                         </div>
                         
                         {% for msg in fecha_grupo.list %}

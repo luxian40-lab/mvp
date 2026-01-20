@@ -1,0 +1,11 @@
+{% extends "admin/change_list.html" %}
+{% load static %}
+
+{% block object-tools-items %}
+    <li>
+        <a href="plantilla-dashboard/" class="btn btn-primary" style="background: #2196f3; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; display: inline-block;">
+            📊 Dashboard de Plantillas
+        </a>
+    </li>
+    {{ block.super }}
+{% endblock %}

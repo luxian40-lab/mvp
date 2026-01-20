@@ -1,0 +1,176 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Probar Conexión Gmail{% endblock %}
+
+{% block extrahead %}
+<style>
+    .container-test-email {
+        max-width: 900px;
+        margin: 40px auto;
+        padding: 30px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    }
+
+    .titulo-seccion {
+        font-size: 32px;
+        font-weight: 700;
+        margin-bottom: 10px;
+        color: #1a1a1a;
+        text-align: center;
+    }
+
+    .subtitulo {
+        text-align: center;
+        color: #666;
+        margin-bottom: 30px;
+        font-size: 14px;
+    }
+
+    .resultado {
+        padding: 20px;
+        border-radius: 8px;
+        margin: 20px 0;
+        font-size: 14px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+    }
+
+    .resultado.success {
+        background: #d4edda;
+        border: 2px solid #28a745;
+        color: #155724;
+    }
+
+    .resultado.error {
+        background: #f8d7da;
+        border: 2px solid #dc3545;
+        color: #721c24;
+    }
+
+    .btn {
+        padding: 14px 28px;
+        border: none;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-decoration: none;
+        display: inline-block;
+        text-align: center;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+        background: #e0e0e0;
+        color: #333;
+    }
+
+    .btn-secondary:hover {
+        background: #bdbdbd;
+    }
+
+    .botones {
+        display: flex;
+        gap: 15px;
+        margin-top: 30px;
+        justify-content: center;
+    }
+
+    .instrucciones-box {
+        background: #e3f2fd;
+        border-left: 4px solid #2196f3;
+        padding: 20px;
+        border-radius: 8px;
+        margin: 20px 0;
+    }
+
+    .instrucciones-box h3 {
+        margin-top: 0;
+        color: #1565c0;
+    }
+
+    .instrucciones-box ol {
+        margin: 10px 0;
+        padding-left: 20px;
+    }
+
+    .instrucciones-box li {
+        margin: 8px 0;
+    }
+
+    .instrucciones-box code {
+        background: #f5f5f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: 'Courier New', monospace;
+    }
+
+    .status-container {
+        margin: 20px 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-test-email">
+    <h1 class="titulo-seccion">📧 Probar Conexión Gmail</h1>
+    <p class="subtitulo">Verifica que la configuración de Gmail esté funcionando correctamente</p>
+
+    <div class="status-container">
+        {{ status_html|safe }}
+    </div>
+
+    {% if resultado %}
+        <div class="resultado {% if resultado.success %}success{% else %}error{% endif %}">
+            {{ resultado.message }}
+        </div>
+    {% endif %}
+
+    <div class="instrucciones-box">
+        <h3>📝 Cómo configurar Gmail:</h3>
+        <ol>
+            <li>Ve a <a href="https://myaccount.google.com/security" target="_blank" style="color:#2196f3;"><strong>Seguridad de Google</strong></a></li>
+            <li>Activa <strong>"Verificación en 2 pasos"</strong> si no está activa</li>
+            <li>Busca <strong>"Contraseñas de aplicaciones"</strong></li>
+            <li>Selecciona <code>Correo</code> y <code>Otro (Django)</code></li>
+            <li>Google te dará una contraseña de 16 caracteres (ej: <code>xxxx xxxx xxxx xxxx</code>)</li>
+            <li>Agrega estas variables de entorno (o archivo <code>.env</code>):
+                <pre style="background:#f5f5f5;padding:10px;border-radius:4px;margin:10px 0;">EMAIL_HOST_USER=tu_email@gmail.com
+EMAIL_HOST_PASSWORD=xxxx xxxx xxxx xxxx
+DEFAULT_FROM_EMAIL=tu_email@gmail.com</pre>
+            </li>
+            <li><strong>Reinicia el servidor Django</strong></li>
+        </ol>
+    </div>
+
+    <form method="POST">
+        {% csrf_token %}
+        <div class="botones">
+            <a href="{% url 'admin:index' %}" class="btn btn-secondary">
+                ← Volver al Admin
+            </a>
+            <button type="submit" class="btn btn-primary">
+                🧪 Probar Conexión (enviar email de prueba)
+            </button>
+        </div>
+    </form>
+
+    <div style="margin-top:30px;padding:15px;background:#fff3e0;border-left:4px solid #ff9800;border-radius:8px;">
+        <strong>💡 Nota:</strong> El email de prueba se envía a tu propio email ({{ status_html|safe }}). 
+        Revisa tu bandeja de entrada y spam.
+    </div>
+</div>
+{% endblock %}

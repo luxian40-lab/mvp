@@ -1,0 +1,35 @@
+{% load static %}
+<div style="display:flex;align-items:center;gap:10px;">
+    <input 
+        type="color" 
+        name="{{ widget.name }}" 
+        value="{{ widget.value|default:'#000000' }}"
+        id="{{ widget.attrs.id }}"
+        style="width:60px;height:40px;border:2px solid #ddd;border-radius:6px;cursor:pointer;"
+        onchange="document.getElementById('{{ widget.attrs.id }}_text').value = this.value;"
+    >
+    <input 
+        type="text" 
+        id="{{ widget.attrs.id }}_text"
+        value="{{ widget.value|default:'#000000' }}"
+        readonly
+        style="width:100px;padding:8px;border:2px solid #ddd;border-radius:4px;font-family:monospace;background:#f5f5f5;"
+    >
+    <div 
+        style="width:40px;height:40px;background:{{ widget.value|default:'#000000' }};border:2px solid #ddd;border-radius:6px;box-shadow:0 2px 4px rgba(0,0,0,0.1);"
+        id="{{ widget.attrs.id }}_preview"
+    ></div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const colorInput = document.getElementById('{{ widget.attrs.id }}');
+    const textInput = document.getElementById('{{ widget.attrs.id }}_text');
+    const preview = document.getElementById('{{ widget.attrs.id }}_preview');
+    
+    colorInput.addEventListener('change', function() {
+        textInput.value = this.value;
+        preview.style.background = this.value;
+    });
+});
+</script>
