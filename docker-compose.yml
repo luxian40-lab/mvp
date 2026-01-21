@@ -1,0 +1,24 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=False
+      - DJANGO_SETTINGS_MODULE=mvp_project.settings_production
+      - DATABASE_URL=postgres://ekiadmin:ekisoluciones123@eki-database.c5awuis82zet.us-east-2.rds.amazonaws.com:5432/ekidb
+      - SECRET_KEY=vxu6c$882!(ehx%*xsu@npu0d6c@w0)m_@c2&ppd%5(c4kx3a$
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

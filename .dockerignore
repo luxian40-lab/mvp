@@ -1,0 +1,11 @@
+.venv
+.env
+.env.local
+.git
+.gitignore
+.elasticbeanstalk
+*.pyc
+__pycache__
+db.sqlite3
+node_modules
+.DS_Store
