@@ -8,6 +8,13 @@ https://docs.djangoproject.com/en/5.2/howto/deployment/wsgi/
 """
 
 import os
+import sys
+from pathlib import Path
+
+# Ensure `logs` directory exists so file-based logging handlers won't fail on startup
+BASE_DIR = Path(__file__).resolve().parent.parent
+logs_dir = BASE_DIR / "logs"
+logs_dir.mkdir(parents=True, exist_ok=True)
 
 from django.core.wsgi import get_wsgi_application
 
