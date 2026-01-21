@@ -21,15 +21,7 @@ DEBUG = False
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-CAMBIAR-EN-PRODUCCION')
 
 # Hosts permitidos
-ALLOWED_HOSTS = [
-    'eki-mvp.up.railway.app',  # Railway
-    'eki-mvp.herokuapp.com',   # Heroku
-    '.ngrok.io',               # Ngrok (desarrollo)
-    'localhost',
-    '127.0.0.1',
-    'eki-produccion-env.eba-84g5zn3s.us-east-2.elasticbeanstalk.com',  # Elastic Beanstalk
-    '.elasticbeanstalk.com',  # Cualquier dominio de EB
-]
+ALLOWED_HOSTS = ['*']  # Temporalmente permitir todo para desplegar; restringir en producción
 
 # Agregar dominios personalizados desde variable de entorno
 if 'ALLOWED_HOSTS_EXTRA' in os.environ:
