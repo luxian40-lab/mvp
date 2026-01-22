@@ -1,7 +1,19 @@
 {
   "AWSEBDockerrunVersion": "1",
   "Image": {
-    "Name": "<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/eki_mvp:latest",
+    "Name": "178773630934.dkr.ecr.us-east-2.amazonaws.com/eki_mvp-web:latest",
+    "Update": "true"
+  },
+  "Ports": [
+    {
+      "ContainerPort": "8000"
+    }
+  ]
+}
+{
+  "AWSEBDockerrunVersion": "1",
+  "Image": {
+    "Name": "178773630934.dkr.ecr.us-east-2.amazonaws.com/eki_mvp-web:latest",
     "Update": "true"
   },
   "Ports": [
