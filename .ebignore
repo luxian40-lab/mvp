@@ -1,0 +1,7 @@
+Dockerfile
+docker-compose.yml
+ebi_temp/
+.dockerignore
+\.env
+*.pyc
+__pycache__/
