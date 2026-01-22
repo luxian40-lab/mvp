@@ -7,18 +7,15 @@
   "Ports": [
     {
       "ContainerPort": "8000"
-    }
-  ]
-}
-{
-  "AWSEBDockerrunVersion": "1",
-  "Image": {
-    "Name": "178773630934.dkr.ecr.us-east-2.amazonaws.com/eki_mvp-web:latest",
-    "Update": "true"
-  },
-  "Ports": [
     {
-      "ContainerPort": "8000"
+      "AWSEBDockerrunVersion": "1",
+      "Image": {
+        "Name": "178773630934.dkr.ecr.us-east-2.amazonaws.com/eki_mvp-web:eb-20260121-1",
+        "Update": "true"
+      },
+      "Ports": [
+        {
+          "ContainerPort": "8000"
+        }
+      ]
     }
-  ]
-}
