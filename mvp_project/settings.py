@@ -11,7 +11,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-mvp-clave-secreta-cam
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'  # False en producción
 
 # ALLOWED_HOSTS: acepta múltiples dominios separados por coma
-allowed_hosts_str = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,eki-mvp.onrender.com')
+allowed_hosts_str = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,eki-mvp.onrender.com,eki-prod-docker.eba-84g5zn3s.us-east-2.elasticbeanstalk.com')
 ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_str.split(',')]
 # Permitir todos los dominios de ngrok
 ALLOWED_HOSTS.append('.ngrok-free.dev')

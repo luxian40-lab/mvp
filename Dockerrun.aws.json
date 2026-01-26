@@ -1,21 +1,12 @@
 {
   "AWSEBDockerrunVersion": "1",
   "Image": {
-    "Name": "178773630934.dkr.ecr.us-east-2.amazonaws.com/eki_mvp-web:latest",
+    "Name": "178773630934.dkr.ecr.us-east-2.amazonaws.com/eki@sha256:c9dd237d2c07b21ab4815a8a4458d152a4e69aa21e0e323f848ed0e9d3689a31",
     "Update": "true"
   },
   "Ports": [
     {
       "ContainerPort": "8000"
-    {
-      "AWSEBDockerrunVersion": "1",
-      "Image": {
-        "Name": "178773630934.dkr.ecr.us-east-2.amazonaws.com/eki_mvp-web@sha256:03b0b65825a353282a54d55e675818ef4270ab0e9a469d62ba70bae2f70615c4",
-        "Update": "true"
-      },
-      "Ports": [
-        {
-          "ContainerPort": "8000"
-        }
-      ]
     }
+  ]
+}

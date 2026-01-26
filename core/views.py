@@ -652,7 +652,7 @@ Para continuar al siguiente módulo debes aprobar el examen de este módulo.
 Escribe *"examen"* cuando estés listo para intentarlo."""
                         
                         WhatsappLog.objects.create(
-                            telefono=from_number,
+                            telefono=telefono_limpio,
                             mensaje=mensaje_respuesta,
                             mensaje_id=f"response_{timezone.now().timestamp()}",
                             tipo='SENT'
@@ -733,7 +733,7 @@ Has completado el curso: *{progreso.curso.nombre}*
                 # IMPORTANTE: Enviar respuesta inmediatamente después de validar
                 # (tanto si es correcta como incorrecta)
                 WhatsappLog.objects.create(
-                    telefono=from_number,
+                    telefono=telefono_limpio,
                     mensaje=texto_respuesta,
                     mensaje_id=f"response_{timezone.now().timestamp()}",
                     tipo='SENT',
