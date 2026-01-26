@@ -10,7 +10,7 @@
     {
       "AWSEBDockerrunVersion": "1",
       "Image": {
-        "Name": "178773630934.dkr.ecr.us-east-2.amazonaws.com/eki_mvp-web:eb-20260121-1",
+        "Name": "178773630934.dkr.ecr.us-east-2.amazonaws.com/eki_mvp-web@sha256:03b0b65825a353282a54d55e675818ef4270ab0e9a469d62ba70bae2f70615c4",
         "Update": "true"
       },
       "Ports": [
