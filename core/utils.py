@@ -136,6 +136,26 @@ def enviar_whatsapp(telefono: str, texto: str, mensaje_id_referencia: str = None
 
     Retorna dict con keys: success(bool), mensaje_id (str|None), response (dict|str).
     """
+    # Provider override: prefer explicit WHATSAPP_PROVIDER if set in settings.
+    provider = getattr(settings, 'WHATSAPP_PROVIDER', None)
+    if provider:
+        provider = str(provider).lower()
+        if provider == 'twilio':
+            try:
+                return enviar_whatsapp_twilio(telefono, texto, mensaje_id_referencia)
+            except Exception as e:
+                return {'success': False, 'mensaje_id': None, 'response': f'Twilio delegation error: {e}'}
+        # if provider explicitly set to meta/cloud, fall through to WhatsApp Cloud API
+
+    # If WHATSAPP_PROVIDER not set, but Twilio credentials exist, prefer Twilio.
+    twilio_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', None)
+    if not provider and twilio_sid:
+        try:
+            return enviar_whatsapp_twilio(telefono, texto, mensaje_id_referencia)
+        except Exception as e:
+            return {'success': False, 'mensaje_id': None, 'response': f'Twilio delegation error: {e}'}
+
+    # Fallback: use WhatsApp Cloud API
     token = getattr(settings, 'WHATSAPP_TOKEN', None)
     phone_id = getattr(settings, 'WHATSAPP_PHONE_ID', None)
     api_version = getattr(settings, 'WHATSAPP_API_VERSION', 'v19.0')
