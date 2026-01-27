@@ -4,6 +4,7 @@ Crea badges, niveles y datos de ejemplo
 """
 import os
 import django
+import logging
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mvp_project.settings')
 django.setup()
@@ -11,9 +12,13 @@ django.setup()
 from core.gamificacion import Badge, PerfilGamificacion, BadgeEstudiante, TransaccionPuntos
 from core.models import Estudiante, Curso
 
-print("\n" + "="*70)
-print("🎮 RECREANDO SISTEMA DE GAMIFICACIÓN - EKI")
-print("="*70 + "\n")
+logger = logging.getLogger("crear_datos_gamificacion")
+
+def main():
+    try:
+        print("\n" + "="*70)
+        print("🎮 RECREANDO SISTEMA DE GAMIFICACIÓN - EKI")
+        print("="*70 + "\n")
 
 # ==================== LIMPIAR DATOS ANTERIORES ====================
 print("🧹 Limpiando datos anteriores de gamificación...")
@@ -398,9 +403,21 @@ print("   21 días: +400 puntos + Badge Volcán Activo")
 print("   30 días: +700 puntos + Badge Sol Eterno")
 
 print("\n" + "="*70)
-print("✅ SISTEMA DE GAMIFICACIÓN CONFIGURADO EXITOSAMENTE")
-print("="*70 + "\n")
+        print("✅ SISTEMA DE GAMIFICACIÓN CONFIGURADO EXITOSAMENTE")
+        print("="*70 + "\n")
 
+        print("📝 PRÓXIMOS PASOS:")
+        print("   1. Los estudiantes automáticamente tendrán perfiles de gamificación")
+        print("   2. Los badges se otorgan automáticamente según sus logros")
+        print("   3. Ver ranking: Admin → Gamificación → Ranking")
+        print("   4. Gestionar badges: Admin → Gamificación → Badges")
+        print("\n")
+    except Exception as e:
+        logger.exception(f"Error al crear datos de gamificación: {e}")
+        print(f"\n[ERROR] Ocurrió un error inesperado: {e}")
+
+if __name__ == "__main__":
+    main()
 print("📝 PRÓXIMOS PASOS:")
 print("   1. Los estudiantes automáticamente tendrán perfiles de gamificación")
 print("   2. Los badges se otorgan automáticamente según sus logros")

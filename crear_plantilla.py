@@ -43,15 +43,24 @@ instructions = [
     ['Columna B - Nombre:', 'Nombre completo del estudiante'],
     ['Columna C - Cédula:', 'Número de cédula SIN puntos ni espacios (ej: 1234567890)'],
     [''],
+    import logging
+    import sys
     ['⚠️ IMPORTANTE:'],
     ['• La cédula es el identificador único de cada estudiante'],
     ['• No puede haber dos estudiantes con la misma cédula'],
     ['• Si la cédula ya existe, se actualizarán los datos'],
     ['• El teléfono debe incluir código de país (57 para Colombia)'],
+        try:
     ['• Todos los campos son obligatorios'],
     [''],
+            logging.info("Plantilla creada correctamente.")
+        except Exception as e:
+            logging.exception("Error al crear plantilla")
+            print(f"\n[ERROR] {e}\n")
+            sys.exit(1)
     ['Ejemplo de datos válidos:'],
     ['Teléfono: 573001234567'],
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
     ['Nombre: María García'],
     ['Cédula: 1234567890']
 ]

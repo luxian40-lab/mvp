@@ -96,6 +96,8 @@ for tema_data in temas_crear:
         existentes += 1
 
 print("\n" + "="*60)
+    import logging
+    import sys
 print("📊 RESUMEN")
 print("="*60)
 print(f"✅ Temas creados: {creados}")
@@ -103,10 +105,17 @@ print(f"ℹ️  Temas existentes: {existentes}")
 print(f"📁 Total en base de datos: {TemaCampana.objects.count()}")
 
 print("\n" + "="*60)
+        try:
 print("💡 PRÓXIMOS PASOS")
 print("="*60)
+            logging.info("Temas de campaña creados correctamente.")
+        except Exception as e:
+            logging.exception("Error al crear temas de campaña")
+            print(f"\n[ERROR] {e}\n")
+            sys.exit(1)
 print("\n1. Accede al admin de Django: http://127.0.0.1:8000/admin/")
 print("2. Ve a 'Temas de Campañas' para ver todos los temas")
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 print("3. Edita tus plantillas y asócialas con temas")
 print("4. Crea campañas y selecciona un tema")
 print("5. Las plantillas se filtrarán automáticamente!\n")

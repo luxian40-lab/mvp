@@ -5,6 +5,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Copia los archivos del proyecto
+
 COPY . /app
 
 # Instala dependencias del sistema necesarias para compilar paquetes
@@ -21,9 +22,13 @@ RUN apt-get update \
        zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Instala dependencias Python
+# Copia el script de instalación y dale permiso de ejecución
+COPY scripts/install-requirements.sh /usr/local/bin/install-requirements.sh
+RUN chmod +x /usr/local/bin/install-requirements.sh
+
+# Instala dependencias Python: intenta la versión strict y si falla reintenta con loose
 RUN pip install --upgrade pip --no-cache-dir \
-    && pip install --no-cache-dir -r requirements.docker.txt
+    && /usr/local/bin/install-requirements.sh
 
 # Expone el puerto 8000
 EXPOSE 8000

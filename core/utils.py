@@ -1,7 +1,11 @@
+
+import logging
 import requests
 from django.conf import settings
 from django.utils import timezone
 from .models import WhatsappLog
+
+logger = logging.getLogger(__name__)
 
 
 def enviar_whatsapp_twilio_content_template(telefono: str, content_sid: str, variables: dict) -> dict:
@@ -19,9 +23,9 @@ def enviar_whatsapp_twilio_content_template(telefono: str, content_sid: str, var
     
     try:
         # MODO PRUEBA: Simular envío exitoso para probar el flujo del admin
-        print(f"[DEMO MODE] Simulando envío a {telefono}")
-        print(f"[DEMO MODE] Content SID: {content_sid}")
-        print(f"[DEMO MODE] Variables: {variables}")
+        logger.info(f"[DEMO MODE] Simulando envío a {telefono}")
+        logger.info(f"[DEMO MODE] Content SID: {content_sid}")
+        logger.info(f"[DEMO MODE] Variables: {variables}")
         
         # Guardar log de simulación
         log = WhatsappLog.objects.create(
@@ -33,12 +37,12 @@ def enviar_whatsapp_twilio_content_template(telefono: str, content_sid: str, var
             mensaje_id=f'demo_{telefono}_{timezone.now().timestamp()}'
         )
         
-        print(f"[SUCCESS] DEMO MODE: Anuncio 'enviado' a {telefono}")
+        logger.info(f"[SUCCESS] DEMO MODE: Anuncio 'enviado' a {telefono}")
         
         return {'success': True, 'mensaje_id': log.mensaje_id, 'response': 'Demo message sent'}
         
     except Exception as e:
-        print(f"[ERROR] Error en modo demo: {str(e)}")
+        logger.error(f"[ERROR] Error en modo demo: {str(e)}")
         if log:
             log.estado = 'ERROR'
             log.save()
@@ -66,12 +70,12 @@ def enviar_whatsapp_twilio(telefono: str, texto: str, mensaje_id_referencia: str
         auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', None)
         twilio_number = getattr(settings, 'TWILIO_WHATSAPP_NUMBER', 'whatsapp:+14155238886')
         
-        print(f"[TWILIO] Account SID: {account_sid}")
-        print(f"[TWILIO] Auth Token: {auth_token[:20] if auth_token else None}...")
-        print(f"[TWILIO] WhatsApp Number: {twilio_number}")
+        logger.debug(f"[TWILIO] Account SID: {account_sid}")
+        logger.debug(f"[TWILIO] Auth Token: {auth_token[:20] if auth_token else None}...")
+        logger.debug(f"[TWILIO] WhatsApp Number: {twilio_number}")
         
         if not account_sid or not auth_token:
-            print("[ERROR] Credenciales de Twilio NO configuradas")
+            logger.error("[ERROR] Credenciales de Twilio NO configuradas")
             return {'success': False, 'mensaje_id': None, 'response': 'Twilio credentials not set'}
         
         # Asegurar formato whatsapp:+57...
@@ -104,7 +108,7 @@ def enviar_whatsapp_twilio(telefono: str, texto: str, mensaje_id_referencia: str
         # Agregar media_url si hay video
         if media_url:
             message_params['media_url'] = [media_url]
-            print(f"[VIDEO] Enviando video: {media_url}")
+            logger.info(f"[VIDEO] Enviando video: {media_url}")
         
         # Enviar mensaje (con o sin video)
         message = client.messages.create(**message_params)
@@ -114,12 +118,12 @@ def enviar_whatsapp_twilio(telefono: str, texto: str, mensaje_id_referencia: str
         log.estado = 'SENT'
         log.save()
         
-        print(f"[SUCCESS] TWILIO: Mensaje enviado a {telefono} - SID: {message.sid}")
+        logger.info(f"[SUCCESS] TWILIO: Mensaje enviado a {telefono} - SID: {message.sid}")
         
         return {'success': True, 'mensaje_id': message.sid, 'response': 'Message sent'}
         
     except Exception as e:
-        print(f"[ERROR] Error enviando por Twilio: {str(e)}")
+        logger.error(f"[ERROR] Error enviando por Twilio: {str(e)}")
         if log:  # Solo actualizar si el log existe
             log.estado = 'ERROR'
             log.save()

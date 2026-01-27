@@ -543,7 +543,9 @@ def whatsapp_webhook(request):
         except json.JSONDecodeError:
             # Podría ser Twilio (form-data)
             print("🔵 Payload (Form-Data) - Probablemente Twilio")
-            _procesar_twilio_webhook(request.POST)
+            resp = _procesar_twilio_webhook(request.POST)
+            if resp is not None:
+                return resp
         
         except Exception as e:
             print(f"❌ Error en webhook: {str(e)}")
@@ -847,6 +849,10 @@ Has completado el curso: *{progreso.curso.nombre}*
         print(f"❌ Error en _procesar_twilio_webhook: {str(e)}")
         import traceback
         traceback.print_exc()
+        # Return empty TwiML to Twilio to avoid retries
+        return HttpResponse('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', content_type='text/xml')
+    # If everything processed without explicit HttpResponse, return empty TwiML
+    return HttpResponse('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', content_type='text/xml')
 
 
 def _procesar_meta_webhook(payload):

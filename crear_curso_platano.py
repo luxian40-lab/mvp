@@ -4,6 +4,7 @@ Script para crear curso de Plátano Hartón
 import os
 import sys
 import django
+import logging
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mvp_project.settings')
@@ -11,114 +12,58 @@ django.setup()
 
 from core.models import Curso, Modulo
 
-# Crear curso
-curso, created = Curso.objects.get_or_create(
-    nombre="Cultivo de Plátano Hartón",
-    defaults={
-        'descripcion': "Aprende técnicas modernas para cultivar plátano hartón de alta calidad en Colombia",
-        'duracion_semanas': 5,
-        'emoji': '🍌',
-        'orden': 3
-    }
-)
+logger = logging.getLogger("crear_curso_platano")
 
-if created:
-    print(f"✅ Curso creado: {curso.nombre}")
-else:
-    print(f"ℹ️ Curso ya existía: {curso.nombre}")
+def main():
+    try:
+        # Crear curso
+        curso, created = Curso.objects.get_or_create(
+            nombre="Cultivo de Plátano Hartón",
+            defaults={
+                'descripcion': "Aprende técnicas modernas para cultivar plátano hartón de alta calidad en Colombia",
+                'duracion_semanas': 5,
+                'emoji': '🍌',
+                'orden': 3
+            }
+        )
+        if created:
+            print(f"✅ Curso creado: {curso.nombre}")
+        else:
+            print(f"ℹ️ Curso ya existía: {curso.nombre}")
 
-# Módulos del curso
-modulos = [
-    {
-        'numero': 1,
-        'titulo': 'Selección de Material de Siembra',
-        'descripcion': 'Cómo elegir los mejores colinos para sembrar',
-        'contenido': """🍌 **SELECCIÓN DE MATERIAL DE SIEMBRA**
+        # Módulos del curso
+        modulos = [
+            ...existing code...
+        ]
 
-📋 **¿Qué es un colino?**
-Es la planta hija que nace del plátano madre. Usamos colinos para sembrar nuevas plantas.
+        for mod_data in modulos:
+            modulo, created = Modulo.objects.get_or_create(
+                curso=curso,
+                numero=mod_data['numero'],
+                defaults={
+                    'titulo': mod_data['titulo'],
+                    'descripcion': mod_data['descripcion'],
+                    'contenido': mod_data['contenido'],
+                    'duracion_dias': mod_data['duracion_dias']
+                }
+            )
+            if created:
+                print(f"  ✅ Módulo {modulo.numero}: {modulo.titulo}")
+            else:
+                print(f"  ℹ️ Módulo {modulo.numero} ya existía")
 
-✅ **Características de un buen colino:**
-• Altura: 40-60 cm
-• Hojas: 4-6 hojas verdes y sanas
-• Raíces: Blancas y abundantes
-• Sin daños: Libre de plagas y enfermedades
-• Edad: 2-3 meses desde que brotó
+        print(f"\n🎉 ¡Curso completo!")
+        print(f"📖 Curso: {curso.nombre}")
+        print(f"📚 Módulos: {curso.modulos.count()}")
+        print(f"⏱️ Duración: {curso.duracion_semanas} semanas")
+        print(f"\n💡 Ahora puedes agregar videos a cada módulo desde el admin")
+        print(f"🌐 http://localhost:8000/admin/core/modulo/")
+    except Exception as e:
+        logger.exception(f"Error al crear curso de plátano: {e}")
+        print(f"\n[ERROR] Ocurrió un error inesperado: {e}")
 
-❌ **NO uses colinos que:**
-• Tengan hojas amarillas o secas
-• Presenten picaduras de insectos
-• Tengan raíces negras o podridas
-• Sean muy pequeños (menos de 30 cm)
-
-💡 **Consejo:**
-Saca los colinos en horas de la mañana cuando hay menos sol. Así la planta sufre menos estrés.
-
-🔍 **Preparación antes de sembrar:**
-1. Limpiar el colino (quitar tierra suelta)
-2. Cortar hojas dejando solo 2-3
-3. Desinfectar con agua + cal (1 kg cal x 20 litros agua)
-4. Dejar secar 2-3 horas a la sombra
-
-⏱️ **Tiempo:** Sembrar máximo 24 horas después de sacar el colino""",
-        'duracion_dias': 3
-    },
-    {
-        'numero': 2,
-        'titulo': 'Preparación del Terreno',
-        'descripcion': 'Cómo preparar la tierra para sembrar plátano',
-        'contenido': """🍌 **PREPARACIÓN DEL TERRENO**
-
-📍 **1. Elección del lote:**
-• Suelo profundo (más de 1 metro)
-• Buen drenaje (no se encharque)
-• pH entre 5.5 y 7.0
-• Acceso a agua
-• Evitar zonas muy ventosas
-
-🔧 **2. Limpieza del terreno:**
-• Quitar malezas, piedras y raíces viejas
-• Si hay cultivo anterior, dejar descansar 2-3 meses
-• No quemar - mejor incorporar materia orgánica
-
-📐 **3. Trazado:**
-Distancia de siembra recomendada:
-• Sistema cuadrado: 3m x 3m (1,111 plantas/ha)
-• Sistema triangular: 3m x 3m (1,280 plantas/ha)
-• Alta densidad: 2.5m x 2.5m (1,600 plantas/ha)
-
-⛏️ **4. Ahoyado (hacer huecos):**
-• Tamaño: 40cm x 40cm x 40cm
-• Hacer con 15-30 días de anticipación
-• Separar tierra superficial (negra) de la profunda
-
-🌱 **5. Preparación del hoyo:**
-Mezclar en cada hoyo:
-• Tierra superficial
-• 5-10 kg de abono orgánico (gallinaza o compost)
-• 100g de cal dolomita (si suelo ácido)
-• 50g de fertilizante completo (10-30-10)
-
-⏱️ **Tiempo:** Dejar reposar 7 días antes de sembrar""",
-        'duracion_dias': 5
-    },
-    {
-        'numero': 3,
-        'titulo': 'Siembra y Establecimiento',
-        'descripcion': 'Técnica correcta para sembrar plátano',
-        'contenido': """🍌 **SIEMBRA Y ESTABLECIMIENTO**
-
-📅 **Mejor época para sembrar:**
-• Inicio de lluvias (abril-mayo o septiembre-octubre)
-• Evitar época seca o muy lluviosa
-• Si tienes riego, puedes sembrar todo el año
-
-🌱 **Proceso de siembra:**
-
-1️⃣ **Colocación del colino:**
-   • Ponerlo vertical en el centro del hoyo
-   • Enterrar hasta el nacimiento de las raíces (10-15 cm)
-   • NO enterrar muy profundo
+if __name__ == "__main__":
+    main()
 
 2️⃣ **Llenado del hoyo:**
    • Rellenar con la mezcla preparada

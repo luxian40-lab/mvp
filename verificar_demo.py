@@ -2,8 +2,11 @@
 """
 Script de verificación rápida antes de la demo
 """
+
 import os
 import django
+import logging
+import sys
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mvp_project.settings')
 django.setup()
@@ -12,51 +15,55 @@ from core.models import Estudiante, Curso, Modulo, ProgresoEstudiante
 from django.conf import settings
 
 def verificar_sistema():
-    print("=" * 60)
-    print("✅ VERIFICACIÓN DEL SISTEMA EKI MVP")
-    print("=" * 60)
-    
-    # 1. Base de datos
-    print("\n📊 BASE DE DATOS:")
-    estudiantes = Estudiante.objects.count()
-    cursos = Curso.objects.count()
-    modulos = Modulo.objects.count()
-    progresos = ProgresoEstudiante.objects.count()
-    
-    print(f"   Estudiantes: {estudiantes}")
-    print(f"   Cursos: {cursos}")
-    print(f"   Módulos: {modulos}")
-    print(f"   Progresos activos: {progresos}")
-    
-    if estudiantes == 0:
-        print("   ⚠️  WARNING: No hay estudiantes de prueba")
-    if cursos == 0:
-        print("   ❌ ERROR: No hay cursos creados")
-    else:
-        print("   ✅ Datos OK")
-    
-    # 2. Cursos
-    print("\n📚 CURSOS DISPONIBLES:")
-    for curso in Curso.objects.all():
-        modulos_curso = curso.modulos.count()
-        print(f"   - {curso.nombre} ({modulos_curso} módulos)")
-    
-    # 3. Videos
-    print("\n🎥 VIDEOS:")
-    modulos_con_video = Modulo.objects.filter(video_url__isnull=False).exclude(video_url='')
-    if modulos_con_video.exists():
-        for modulo in modulos_con_video:
-            size_mb = modulo.video_size / (1024 * 1024) if modulo.video_size else 0
-            print(f"   ✅ {modulo.curso.nombre} - {modulo.titulo}")
-            print(f"      Tamaño: {size_mb:.2f} MB")
-            print(f"      URL: {modulo.video_url}")
-    else:
-        print("   ⚠️  No hay videos cargados")
-    
-    # 4. Configuración Twilio
-    print("\n📱 CONFIGURACIÓN TWILIO:")
-    print(f"   Account SID: {settings.TWILIO_ACCOUNT_SID[:10]}...")
-    print(f"   Número WhatsApp: {settings.TWILIO_WHATSAPP_NUMBER}")
+    try:
+        print("=" * 60)
+        print("✅ VERIFICACIÓN DEL SISTEMA EKI MVP")
+        print("=" * 60)
+        # 1. Base de datos
+        print("\n📊 BASE DE DATOS:")
+        estudiantes = Estudiante.objects.count()
+        cursos = Curso.objects.count()
+        modulos = Modulo.objects.count()
+        progresos = ProgresoEstudiante.objects.count()
+        print(f"   Estudiantes: {estudiantes}")
+        print(f"   Cursos: {cursos}")
+        print(f"   Módulos: {modulos}")
+        print(f"   Progresos activos: {progresos}")
+        if estudiantes == 0:
+            print("   ⚠️  WARNING: No hay estudiantes de prueba")
+        if cursos == 0:
+            print("   ❌ ERROR: No hay cursos creados")
+        else:
+            print("   ✅ Datos OK")
+        # 2. Cursos
+        print("\n📚 CURSOS DISPONIBLES:")
+        for curso in Curso.objects.all():
+            modulos_curso = curso.modulos.count()
+            print(f"   - {curso.nombre} ({modulos_curso} módulos)")
+        # 3. Videos
+        print("\n🎥 VIDEOS:")
+        modulos_con_video = Modulo.objects.filter(video_url__isnull=False).exclude(video_url='')
+        if modulos_con_video.exists():
+            for modulo in modulos_con_video:
+                size_mb = modulo.video_size / (1024 * 1024) if modulo.video_size else 0
+                print(f"   ✅ {modulo.curso.nombre} - {modulo.titulo}")
+                print(f"      Tamaño: {size_mb:.2f} MB")
+                print(f"      URL: {modulo.video_url}")
+        else:
+            print("   ⚠️  No hay videos cargados")
+        # 4. Configuración Twilio
+        print("\n📱 CONFIGURACIÓN TWILIO:")
+        print(f"   Account SID: {settings.TWILIO_ACCOUNT_SID[:10]}...")
+        print(f"   Número WhatsApp: {settings.TWILIO_WHATSAPP_NUMBER}")
+        logging.info("Verificación del sistema ejecutada correctamente.")
+    except Exception as e:
+        logging.exception("Error en la verificación del sistema")
+        print(f"\n[ERROR] {e}\n")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+    verificar_sistema()
     
     # 5. OpenAI
     print("\n🤖 CONFIGURACIÓN IA:")

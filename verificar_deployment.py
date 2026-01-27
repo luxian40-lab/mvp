@@ -5,6 +5,7 @@ Verifica que tu proyecto esté listo para deployment
 
 import os
 import sys
+import logging
 from pathlib import Path
 
 # Colores para terminal
@@ -14,11 +15,14 @@ YELLOW = '\033[93m'
 BLUE = '\033[94m'
 RESET = '\033[0m'
 
+logger = logging.getLogger("verificar_deployment")
+
 def check_file_exists(filepath, required=True):
     """Verifica que un archivo existe"""
     exists = Path(filepath).exists()
     status = f"{GREEN}✓{RESET}" if exists else f"{RED}✗{RESET}"
     required_text = "(REQUERIDO)" if required else "(OPCIONAL)"
+    logger.debug(f"Check file: {filepath} exists={exists}")
     print(f"{status} {filepath} {required_text}")
     return exists
 
@@ -34,6 +38,7 @@ def check_env_var(var_name, required=True):
     
     # Ocultar valores sensibles
     display_value = "***" if has_value and len(value) > 10 else value
+    logger.debug(f"Check env var: {var_name} value={'set' if has_value else 'unset'}")
     print(f"{status} {var_name} = {display_value} {required_text}")
     return has_value
 
@@ -41,9 +46,11 @@ def check_installed_package(package_name):
     """Verifica que un paquete esté instalado"""
     try:
         __import__(package_name)
+        logger.debug(f"Package installed: {package_name}")
         print(f"{GREEN}✓{RESET} {package_name}")
         return True
     except ImportError:
+        logger.warning(f"Package missing: {package_name}")
         print(f"{RED}✗{RESET} {package_name}")
         return False
 
@@ -55,6 +62,7 @@ def main():
     issues = []
     
     # 1. Archivos críticos
+    logger.info("Verificando archivos críticos...")
     print(f"\n{YELLOW}📁 Verificando archivos críticos...{RESET}")
     if not check_file_exists('requirements.txt'):
         issues.append("Falta requirements.txt")
@@ -70,6 +78,7 @@ def main():
         issues.append("Falta .gitignore")
     
     # 2. Paquetes críticos
+    logger.info("Verificando dependencias instaladas...")
     print(f"\n{YELLOW}📦 Verificando dependencias instaladas...{RESET}")
     critical_packages = [
         ('django', 'django'),
@@ -84,12 +93,15 @@ def main():
     for import_name, package_name in critical_packages:
         try:
             __import__(import_name)
+            logger.debug(f"Package installed: {package_name}")
             print(f"{GREEN}✓{RESET} {package_name}")
         except ImportError:
+            logger.warning(f"Package missing: {package_name}")
             print(f"{RED}✗{RESET} {package_name}")
             issues.append(f"Falta paquete: {package_name}")
     
     # 3. Variables de entorno - Django Core
+    logger.info("Verificando variables Django Core...")
     print(f"\n{YELLOW}🔒 Verificando variables Django Core...{RESET}")
     if not check_env_var('SECRET_KEY'):
         issues.append("Falta SECRET_KEY")
@@ -98,6 +110,7 @@ def main():
     check_env_var('ALLOWED_HOSTS', required=False)
     
     # 4. Variables de entorno - Database
+    logger.info("Verificando configuración de base de datos...")
     print(f"\n{YELLOW}🗄️ Verificando configuración de base de datos...{RESET}")
     has_db_url = check_env_var('DATABASE_URL', required=False)
     if not has_db_url:
@@ -105,8 +118,10 @@ def main():
         print(f"  {YELLOW}⚠{RESET} REQUERIDO para producción")
     
     # 5. Variables de entorno - AWS S3
+    logger.info("Verificando configuración AWS S3...")
     print(f"\n{YELLOW}☁️ Verificando configuración AWS S3...{RESET}")
     use_s3 = os.getenv('USE_S3', 'False') == 'True'
+    logger.debug(f"USE_S3 = {use_s3}")
     print(f"  USE_S3 = {use_s3}")
     
     if use_s3:
@@ -118,16 +133,19 @@ def main():
             issues.append("USE_S3=True pero falta AWS_STORAGE_BUCKET_NAME")
         check_env_var('AWS_S3_REGION_NAME', required=False)
     else:
+        logger.info("S3 deshabilitado (archivos en carpeta local)")
         print(f"  {YELLOW}ℹ{RESET} S3 deshabilitado (archivos en carpeta local)")
         print(f"  {YELLOW}⚠{RESET} Recuerda habilitar S3 en producción (USE_S3=True)")
     
     # 6. Variables de entorno - WhatsApp
+    logger.info("Verificando configuración WhatsApp...")
     print(f"\n{YELLOW}📱 Verificando configuración WhatsApp...{RESET}")
     check_env_var('WHATSAPP_API_TOKEN', required=False)
     check_env_var('WHATSAPP_PHONE_ID', required=False)
     check_env_var('WHATSAPP_WEBHOOK_TOKEN', required=False)
     
     # 7. Settings.py configuration
+    logger.info("Verificando settings.py...")
     print(f"\n{YELLOW}⚙️ Verificando settings.py...{RESET}")
     try:
         sys.path.insert(0, str(Path(__file__).parent))
@@ -139,24 +157,31 @@ def main():
         
         # Verificar storages en INSTALLED_APPS
         if 'storages' in settings.INSTALLED_APPS:
+            logger.info("'storages' en INSTALLED_APPS")
             print(f"{GREEN}✓{RESET} 'storages' en INSTALLED_APPS")
         else:
+            logger.warning("'storages' NO está en INSTALLED_APPS")
             print(f"{RED}✗{RESET} 'storages' NO está en INSTALLED_APPS")
             issues.append("Falta 'storages' en INSTALLED_APPS")
         
         # Verificar WhiteNoise
         if 'whitenoise.middleware.WhiteNoiseMiddleware' in settings.MIDDLEWARE:
+            logger.info("WhiteNoise configurado")
             print(f"{GREEN}✓{RESET} WhiteNoise configurado")
         else:
+            logger.warning("WhiteNoise no está en MIDDLEWARE")
             print(f"{YELLOW}⚠{RESET} WhiteNoise no está en MIDDLEWARE")
         
     except Exception as e:
+        logger.error(f"Error al cargar settings: {e}")
         print(f"{RED}✗{RESET} Error al cargar settings: {e}")
         issues.append(f"Error en settings.py: {e}")
     
     # 8. Resumen final
+    logger.info("Resumen final de verificación")
     print(f"\n{BLUE}{'='*60}{RESET}")
     if not issues:
+        logger.info("¡TODO LISTO PARA DEPLOYMENT!")
         print(f"{GREEN}✅ ¡TODO LISTO PARA DEPLOYMENT!{RESET}")
         print(f"\n{GREEN}Próximos pasos:{RESET}")
         print(f"  1. Crear RDS PostgreSQL en AWS")
@@ -165,6 +190,7 @@ def main():
         print(f"  4. Deploy desde GitHub")
         print(f"  5. Ejecutar migraciones en producción")
     else:
+        logger.warning(f"PROBLEMAS ENCONTRADOS ({len(issues)})")
         print(f"{RED}⚠️ PROBLEMAS ENCONTRADOS ({len(issues)}):{RESET}")
         for issue in issues:
             print(f"  {RED}•{RESET} {issue}")

@@ -69,6 +69,8 @@ print(f"\n📊 Total de estudiantes: {len(estudiantes_demo)}")
 
 # Simular progreso para cada estudiante
 print("\n🎯 Simulando progreso de estudiantes...\n")
+        import logging
+        import sys
 
 for estudiante in estudiantes_demo:
     print(f"\n👤 {estudiante.nombre}:")
@@ -83,10 +85,17 @@ for estudiante in estudiantes_demo:
         # Simular completar módulos
         if i < num_actividades - 2:
             resultado = otorgar_puntos_modulo(estudiante)
+            try:
             perfil.modulos_completados += 1
             perfil.save()
+                logging.info("Datos de ejemplo de gamificación creados correctamente.")
+            except Exception as e:
+                logging.exception("Error al crear datos de ejemplo de gamificación")
+                print(f"\n[ERROR] {e}\n")
+                sys.exit(1)
     
     # Simular algunos exámenes
+            logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
     num_examenes = randint(1, 3)
     for i in range(num_examenes):
         puntaje = choice([70, 80, 85, 90, 95, 100])

@@ -30,14 +30,23 @@ try:
     user = User.objects.filter(is_superuser=True).first()
 except:
     user = None
+import logging
+import sys
 
 # Crear grupos de ejemplo
 grupos_data = [
     {
+    try:
         'nombre': 'Cafeteros Zona Norte',
         'emoji': '☕',
+        logging.info("Grupos de ejemplo creados correctamente.")
+    except Exception as e:
+        logging.exception("Error al crear grupos de ejemplo")
+        print(f"\n[ERROR] {e}\n")
+        sys.exit(1)
         'descripcion': 'Productores de café de la región norte del país. Especializados en café de altura.',
     },
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
     {
         'nombre': 'Cafeteros Zona Sur',
         'emoji': '☕',

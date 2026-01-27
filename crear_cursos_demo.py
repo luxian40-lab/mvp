@@ -2,13 +2,17 @@
 """
 Crear 4 cursos adicionales para la demo
 """
+
 import os
 import django
+import logging
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mvp_project.settings')
 django.setup()
 
 from core.models import Curso, Modulo
+
+logger = logging.getLogger("crear_cursos_demo")
 
 def crear_curso_yuca():
     """Curso de Cultivo de Yuca"""
@@ -22,42 +26,9 @@ def crear_curso_yuca():
         }
     )
     
-    if created:
-        modulos = [
-            {
-                'numero': 1,
-                'titulo': 'Introducción al Cultivo de Yuca',
-                'descripcion': 'Conoce las variedades y condiciones ideales',
-                'contenido': '''🌱 **Bienvenido al Cultivo de Yuca**
-
-La yuca es un cultivo resistente y rentable, perfecto para el clima colombiano.
-
-**¿Por qué cultivar yuca?**
-• Alta resistencia a sequías
-• Bajo costo de producción
-• Múltiples usos (consumo, industrial)
-• Buena demanda en el mercado
-
-**Variedades principales:**
-• Yuca dulce (mesa)
-• Yuca amarga (industrial)
-
-**Condiciones ideales:**
-• Temperatura: 25-30°C
-• Altitud: 0-1,800 msnm
-• Lluvia: 1,000-1,500 mm/año
-• Suelo bien drenado
-
-📱 Escribe "listo" cuando termines de leer''',
-                'duracion_dias': 1
-            },
-            {
-                'numero': 2,
-                'titulo': 'Preparación del Terreno',
-                'descripcion': 'Prepara el suelo correctamente',
-                'contenido': '''🌍 **Preparación del Terreno para Yuca**
-
-Un buen terreno = buena cosecha
+   if created:
+      modulos = [
+         ...existing code...
 
 **Pasos de preparación:**
 
@@ -958,30 +929,34 @@ Día 21: Gumboro refuerzo
     else:
         print(f"⚠️  Ya existe: {curso.nombre}")
 
+
+def main():
+   try:
+      print("=" * 60)
+      print("🚀 CREANDO CURSOS PARA DEMO")
+      print("=" * 60)
+      print()
+      crear_curso_yuca()
+      crear_curso_ganaderia()
+      crear_curso_maiz()
+      crear_curso_pollos()
+      print()
+      print("=" * 60)
+      print("✅ PROCESO COMPLETADO")
+      print("=" * 60)
+      # Resumen
+      total_cursos = Curso.objects.count()
+      total_modulos = Modulo.objects.count()
+      print(f"\n📊 RESUMEN:")
+      print(f"   Total de cursos: {total_cursos}")
+      print(f"   Total de módulos: {total_modulos}")
+      print()
+      print("📚 Cursos disponibles para la demo:")
+      for curso in Curso.objects.all():
+         print(f"   {curso.id}. {curso.nombre} ({curso.modulos.count()} módulos)")
+   except Exception as e:
+      logger.exception(f"Error al crear cursos demo: {e}")
+      print(f"\n[ERROR] Ocurrió un error inesperado: {e}")
+
 if __name__ == '__main__':
-    print("=" * 60)
-    print("🚀 CREANDO CURSOS PARA DEMO")
-    print("=" * 60)
-    print()
-    
-    crear_curso_yuca()
-    crear_curso_ganaderia()
-    crear_curso_maiz()
-    crear_curso_pollos()
-    
-    print()
-    print("=" * 60)
-    print("✅ PROCESO COMPLETADO")
-    print("=" * 60)
-    
-    # Resumen
-    total_cursos = Curso.objects.count()
-    total_modulos = Modulo.objects.count()
-    
-    print(f"\n📊 RESUMEN:")
-    print(f"   Total de cursos: {total_cursos}")
-    print(f"   Total de módulos: {total_modulos}")
-    print()
-    print("📚 Cursos disponibles para la demo:")
-    for curso in Curso.objects.all():
-        print(f"   {curso.id}. {curso.nombre} ({curso.modulos.count()} módulos)")
+   main()
