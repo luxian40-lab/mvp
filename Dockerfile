@@ -22,13 +22,10 @@ RUN apt-get update \
        zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copia el script de instalación y dale permiso de ejecución
-COPY scripts/install-requirements.sh /usr/local/bin/install-requirements.sh
-RUN chmod +x /usr/local/bin/install-requirements.sh
 
-# Instala dependencias Python: intenta la versión strict y si falla reintenta con loose
+# Instala dependencias Python directamente desde requirements.txt
 RUN pip install --upgrade pip --no-cache-dir \
-    && /usr/local/bin/install-requirements.sh
+    && pip install --no-cache-dir -r requirements.txt
 
 # Expone el puerto 8000
 EXPOSE 8000
