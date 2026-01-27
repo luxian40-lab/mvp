@@ -1,3 +1,4 @@
+
 #!/bin/bash
 set -e
 # Activate virtualenv if exists
