@@ -33,5 +33,5 @@ RUN pip install --upgrade pip --no-cache-dir \
 # Expone el puerto 8000
 EXPOSE 8000
 
-# Comando para ejecutar migraciones, collectstatic y arrancar Gunicorn con 2 workers
-CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn mvp_project.wsgi:application --bind 0.0.0.0:8000 --workers=2"]
+# Comando para ejecutar migraciones, collectstatic, crear superusuario y arrancar Gunicorn con 2 workers
+CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && echo \"from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.filter(username='admin').exists() or User.objects.create_superuser('admin', 'admin@example.com', 'admin123')\" | python manage.py shell && gunicorn mvp_project.wsgi:application --bind 0.0.0.0:8000 --workers=2"]
