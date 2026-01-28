@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import path
 from django.shortcuts import redirect
+from django.http import JsonResponse
 from django.conf import settings
 from django.conf.urls.static import static
 from core.views import (
@@ -22,9 +23,10 @@ from core.dashboard_avanzado import dashboard_metricas
 from core.views_certificados import verificar_certificado_view, descargar_certificado_view
 
 
-def root_redirect(request):
-    """Redirige a la página de administración principal"""
-    return redirect('/admin/')
+
+# Health check view for AWS Elastic Beanstalk
+def health_check(request):
+    return JsonResponse({"status": "ok"})
 
 
 urlpatterns = [
@@ -61,8 +63,8 @@ urlpatterns = [
     path('media/modulo/<int:modulo_id>/archivos/', obtener_archivos_modulo_view, name='obtener_archivos_modulo'),
     path('media/descargar-archivo/<int:archivo_id>/', descargar_archivo_multimedia, name='descargar_archivo_multimedia'),
     
-    # Raíz
-    path('', root_redirect),
+    # Raíz (Health check para AWS EB)
+    path('', health_check),
 ]
 
 # Servir archivos estáticos Y multimedia en desarrollo

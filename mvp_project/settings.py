@@ -1,21 +1,26 @@
 from pathlib import Path
 import os
-from dotenv import load_dotenv
 
+
+from dotenv import load_dotenv
 # 1. RUTAS DEL PROYECTO
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR / '.env')
+# Solo cargar .env.production si la variable NO está ya en el entorno
+if 'ALLOWED_HOSTS' not in os.environ or 'SECRET_KEY' not in os.environ:
+    env_prod = BASE_DIR / '.env.production'
+    if env_prod.exists():
+        load_dotenv(env_prod)
+    else:
+        load_dotenv(BASE_DIR / '.env')
 
 # 2. SEGURIDAD
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-mvp-clave-secreta-cambiar-en-produccion')
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'  # False en producción
 
 # ALLOWED_HOSTS: acepta múltiples dominios separados por coma
-allowed_hosts_str = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,eki-mvp.onrender.com,eki-prod-docker.eba-84g5zn3s.us-east-2.elasticbeanstalk.com')
-ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_str.split(',')]
-# Permitir todos los dominios de ngrok
-ALLOWED_HOSTS.append('.ngrok-free.dev')
-ALLOWED_HOSTS.append('.ngrok.io')
+# FORZAR: Permitir todos los hosts (solo para prueba, no producción)
+ALLOWED_HOSTS = ['*']
+print("ALLOWED_HOSTS (forzado *):", ALLOWED_HOSTS)
 
 # 🔒 CONFIGURACIÓN DE SEGURIDAD PARA PRODUCCIÓN
 if not DEBUG:
