@@ -24,9 +24,10 @@ from core.views_certificados import verificar_certificado_view, descargar_certif
 
 
 
-# Health check view for AWS Elastic Beanstalk
-def health_check(request):
-    return JsonResponse({"status": "ok"})
+
+# Redirigir la raíz al login del admin
+def root_redirect(request):
+    return redirect('/admin/login/?next=/admin/')
 
 
 urlpatterns = [
@@ -63,8 +64,8 @@ urlpatterns = [
     path('media/modulo/<int:modulo_id>/archivos/', obtener_archivos_modulo_view, name='obtener_archivos_modulo'),
     path('media/descargar-archivo/<int:archivo_id>/', descargar_archivo_multimedia, name='descargar_archivo_multimedia'),
     
-    # Raíz (Health check para AWS EB)
-    path('', health_check),
+    # Raíz: redirige al login del admin
+    path('', root_redirect),
 ]
 
 # Servir archivos estáticos Y multimedia en desarrollo
