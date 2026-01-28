@@ -82,6 +82,7 @@ media/
 !README.md
 !README_*.md
 *.txt
+!runtime.txt
 !requirements.txt
 
 # ==========================================
