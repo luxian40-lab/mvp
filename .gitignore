@@ -113,3 +113,4 @@ ngrok.exe
 *.csv
 *.xlsx
 
+.venv-build/
