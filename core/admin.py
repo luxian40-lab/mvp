@@ -1286,7 +1286,6 @@ class EstudianteAdmin(admin.ModelAdmin):
         
         return response
     
-    @admin.action(description='👥 Asignar estudiantes a un grupo')
     def delete_model(self, request, obj):
         """Eliminar un estudiante individual con manejo seguro de relaciones CASCADE"""
         try:
@@ -1298,16 +1297,32 @@ class EstudianteAdmin(admin.ModelAdmin):
                 SolicitudSoporte, Certificado
             )
             from .gamificacion import PerfilGamificacion, BadgeEstudiante, TransaccionPuntos
+            from .models_extras import EnvioProgramado, PQRS, InvitacionGrupo, GrupoEstudiantes
+            from .recompensas import CanjeRecompensa
             
             # Limpiar relaciones vinculadas al teléfono
             if obj.telefono:
                 WhatsappLog.objects.filter(telefono=obj.telefono).delete()
             
-            # Limpiar relaciones por FK
+            # Limpiar WhatsappLog por FK (SET_NULL)
+            WhatsappLog.objects.filter(estudiante=obj).update(estudiante=None)
+            
+            # Limpiar relaciones por FK directas
             EnvioLog.objects.filter(estudiante=obj).delete()
             InteraccionLog.objects.filter(estudiante=obj).delete()
             SolicitudSoporte.objects.filter(estudiante=obj).delete()
             RespuestaEjercicio.objects.filter(estudiante=obj).delete()
+            ResultadoExamen.objects.filter(estudiante=obj).delete()
+            
+            # Modelos extras
+            EnvioProgramado.objects.filter(estudiante=obj).delete()
+            PQRS.objects.filter(estudiante=obj).delete()
+            InvitacionGrupo.objects.filter(estudiante=obj).delete()
+            CanjeRecompensa.objects.filter(estudiante=obj).delete()
+            
+            # M2M relations
+            for grupo in GrupoEstudiantes.objects.filter(estudiantes=obj):
+                grupo.estudiantes.remove(obj)
             
             # Progresos y sus dependencias
             progresos = ProgresoEstudiante.objects.filter(estudiante=obj)
@@ -1430,6 +1445,7 @@ class EstudianteAdmin(admin.ModelAdmin):
             'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
         }
         return render(request, 'admin/asignar_grupo.html', context)
+    asignar_a_grupo_accion.short_description = "👥 Asignar estudiantes a un grupo"
 
 
 # @admin.register(Plantilla)  # Registro duplicado - movido arriba
