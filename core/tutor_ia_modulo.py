@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 # =====================================================
 # PROMPT TUTOR — Método Sandwich, máx 60 palabras
 # =====================================================
-PROMPT_TUTOR_MODULO = """Eres un coach educativo de Eki. REGLAS OBLIGATORIAS:
+PROMPT_TUTOR_MODULO = """Eres el Profesor Gerónimo, coach educativo de Eki. REGLAS OBLIGATORIAS:
 
 1. MÁXIMO 60 PALABRAS por mensaje. Sin cátedras.
 2. MÉTODO SANDWICH en cada mensaje:
@@ -32,7 +32,7 @@ PROMPT_TUTOR_MODULO = """Eres un coach educativo de Eki. REGLAS OBLIGATORIAS:
 # =====================================================
 # PROMPT EVALUADOR — Evalúa comprensión del módulo
 # =====================================================
-PROMPT_EVALUADOR_MODULO = """Eres un evaluador educativo de Eki. El tutor acaba de explicar un concepto del curso.
+PROMPT_EVALUADOR_MODULO = """Eres el Profesor Gerónimo, evaluador educativo de Eki. El tutor acaba de explicar un concepto del curso.
 El estudiante respondió. Tu tarea: evaluar si demuestra comprensión del módulo.
 
 ESCENARIOS:
@@ -170,6 +170,132 @@ Evalúa si demuestra comprensión. Sigue los escenarios del prompt."""
     except Exception as e:
         logger.error(f"❌ Error EvaluadorIA: {e}")
         return True, _fallback_evaluacion()
+
+
+# =====================================================
+# PROMPT REVISOR DE PROGRESO — Cada 2 módulos (pares)
+# =====================================================
+PROMPT_REVISOR_PROGRESO = """Eres el Profesor Gerónimo, revisor de progreso educativo de Eki.
+Tu rol es hacer un check-in rápido con el estudiante para verificar que todo va bien.
+
+REGLAS:
+1. MÁXIMO 60 PALABRAS.
+2. Pregunta si tiene dudas sobre lo aprendido hasta ahora.
+3. Muestra un breve resumen de lo que ha avanzado.
+4. Sé empático y motivador.
+5. Máximo 2 emojis.
+6. SIEMPRE termina con una pregunta abierta sobre dudas.
+7. Si no tiene dudas, anímale a seguir adelante."""
+
+
+def generar_revision_progreso(modulo_actual, modulos_completados, curso_nombre,
+                               estudiante_nombre: str = "Estudiante") -> str:
+    """
+    Genera una revisión de progreso del estudiante cada 2 módulos (pares).
+    Pregunta si tiene dudas sobre lo aprendido.
+
+    Args:
+        modulo_actual: instancia de Modulo actual
+        modulos_completados: QuerySet o lista de módulos completados
+        curso_nombre: nombre del curso
+        estudiante_nombre: nombre del estudiante
+
+    Returns:
+        str: mensaje de revisión de progreso
+    """
+    client = _get_client()
+
+    # Resumir módulos completados
+    modulos_info = ""
+    if modulos_completados:
+        for m in modulos_completados:
+            titulo = m.titulo if hasattr(m, 'titulo') else str(m)
+            modulos_info += f"- {titulo}\n"
+
+    if not client:
+        return _fallback_revision_progreso(modulos_info, estudiante_nombre)
+
+    prompt_usuario = f"""CONTEXTO:
+Estudiante: {estudiante_nombre}
+Curso: {curso_nombre}
+Módulo actual completado: {modulo_actual.numero} - {modulo_actual.titulo}
+
+Módulos completados hasta ahora:
+{modulos_info}
+
+Haz un check-in rápido. Pregunta si tiene dudas sobre lo aprendido."""
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": PROMPT_REVISOR_PROGRESO},
+                {"role": "user", "content": prompt_usuario}
+            ],
+            temperature=0.7,
+            max_tokens=120
+        )
+        respuesta = response.choices[0].message.content.strip()
+        logger.info(f"✅ Revisión progreso módulo {modulo_actual.numero}: {respuesta[:50]}...")
+        return respuesta
+    except Exception as e:
+        logger.error(f"❌ Error Revisión progreso: {e}")
+        return _fallback_revision_progreso(modulos_info, estudiante_nombre)
+
+
+def evaluar_respuesta_progreso(modulos_completados_info, respuesta_estudiante,
+                                 pregunta_original, estudiante_nombre="Estudiante") -> tuple:
+    """
+    Evalúa la respuesta del estudiante a la revisión de progreso.
+    Si tiene dudas, intenta resolverlas. Si no, lo anima a seguir.
+
+    Returns:
+        tuple: (resuelta: bool, feedback: str)
+    """
+    client = _get_client()
+    if not client:
+        return True, "✅ ¡Gracias por compartir! Sigue adelante con confianza 💪\n\nEscribe *\"listo\"* para continuar."
+
+    prompt_usuario = f"""CONTEXTO:
+Módulos completados: {modulos_completados_info}
+
+PREGUNTA DEL PROFESOR: {pregunta_original}
+RESPUESTA DEL ESTUDIANTE ({estudiante_nombre}): {respuesta_estudiante}
+
+Si el estudiante tiene dudas, responde brevemente (máx 60 palabras) y resuélvelas.
+Si dice que no tiene dudas o que todo está bien, felicítalo y anímalo a seguir.
+SIEMPRE termina invitándolo a continuar."""
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": PROMPT_REVISOR_PROGRESO},
+                {"role": "user", "content": prompt_usuario}
+            ],
+            temperature=0.5,
+            max_tokens=150
+        )
+        feedback = response.choices[0].message.content.strip()
+
+        # Si no tiene dudas o responde positivamente → resuelta
+        palabras_ok = ['no tengo', 'todo bien', 'entendido', 'claro', 'sin dudas',
+                       'continuar', 'listo', 'bien', 'ok', 'sí', 'si', 'gracias']
+        resuelta = any(p in respuesta_estudiante.lower() for p in palabras_ok)
+
+        return resuelta, feedback
+    except Exception as e:
+        logger.error(f"❌ Error eval progreso: {e}")
+        return True, "✅ ¡Gracias! Sigue adelante con confianza 💪\n\nEscribe *\"listo\"* para continuar."
+
+
+def _fallback_revision_progreso(modulos_info, estudiante_nombre):
+    """Revisión de progreso sin IA."""
+    return (
+        f"📊 *¡Buen avance, {estudiante_nombre}!*\n\n"
+        f"Has completado varios módulos hasta ahora.\n\n"
+        f"💬 ¿Tienes alguna duda sobre lo que hemos visto? Estoy aquí para ayudarte."
+    )
 
 
 # =====================================================

@@ -841,7 +841,7 @@ def _procesar_twilio_webhook(post_data):
             # 3.5a PRIORIDAD: Si está respondiendo al TUTOR IA
             if estudiante.estado_onboarding == 'esperando_respuesta_tutor_ia':
                 from .gamificacion import PerfilGamificacion
-                print(f"🎓 Evaluando respuesta del Tutor IA")
+                print(f"🎓 Evaluando respuesta del Profesor Gerónimo")
                 ctx = estudiante.contexto_temporal or {}
                 modulo_id = ctx.get('modulo_id')
                 pregunta_tutor = ctx.get('pregunta_tutor', '')
@@ -856,7 +856,7 @@ def _procesar_twilio_webhook(post_data):
                     estudiante.contexto_temporal = None
                     estudiante.estado_onboarding = 'completado'
                     estudiante.save()
-                    print(f"⏭️ Tutor IA omitido por usuario")
+                    print(f"⏭️ Profesor Gerónimo omitido por usuario")
                     
                     # Si dijo "menu", mostrar el menú principal
                     if msg_lower in ['menu', 'menú']:
@@ -882,7 +882,7 @@ def _procesar_twilio_webhook(post_data):
                         if aprobado:
                             # Dar bonus por respuesta correcta
                             perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
-                            perfil.agregar_puntos(10, "Respuesta correcta - Tutor IA")
+                            perfil.agregar_puntos(10, "Respuesta correcta - Profesor Gerónimo")
                             estudiante.contexto_temporal = None
                             estudiante.estado_onboarding = 'completado'
                             estudiante.save()
@@ -907,6 +907,58 @@ def _procesar_twilio_webhook(post_data):
                         estudiante.save()
                         texto_respuesta = "✅ ¡Gracias por tu respuesta! Escribe *\"listo\"* para continuar."
             
+            # 3.5a2 PRIORIDAD: Si está respondiendo a la REVISIÓN DE PROGRESO
+            elif estudiante.estado_onboarding == 'esperando_respuesta_progreso':
+                from .gamificacion import PerfilGamificacion
+                print(f"📊 Evaluando respuesta de Revisión de Progreso")
+                ctx = estudiante.contexto_temporal or {}
+                pregunta_tutor = ctx.get('pregunta_tutor', '')
+                modulos_info = ctx.get('modulos_info', '')
+                intentos = ctx.get('intentos_tutor', 0)
+                
+                # Detectar si el usuario quiere omitir
+                msg_lower = msg_body.strip().lower()
+                palabras_skip = ['listo', 'continuar', 'saltar', 'omitir', 'siguiente', 'pasar', 'menu', 'menú']
+                
+                if any(p in msg_lower for p in palabras_skip):
+                    estudiante.contexto_temporal = None
+                    estudiante.estado_onboarding = 'completado'
+                    estudiante.save()
+                    print(f"⏭️ Revisión de progreso omitida por usuario")
+                    
+                    if msg_lower in ['menu', 'menú']:
+                        from .response_templates import get_response_for_intent
+                        texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
+                    else:
+                        texto_respuesta = "👍 *¡Entendido!* Sigue estudiando el módulo.\n\nCuando termines, escribe: *\"listo\"*"
+                else:
+                    from .tutor_ia_modulo import evaluar_respuesta_progreso
+                    
+                    resuelta, feedback = evaluar_respuesta_progreso(
+                        modulos_info, msg_body, pregunta_tutor,
+                        estudiante_nombre=estudiante.nombre or "Estudiante"
+                    )
+                    
+                    if resuelta:
+                        perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
+                        perfil.agregar_puntos(5, "Revisión de progreso - Profesor Gerónimo")
+                        estudiante.contexto_temporal = None
+                        estudiante.estado_onboarding = 'completado'
+                        estudiante.save()
+                        texto_respuesta = f"{feedback}\n\n💰 *+5 puntos* por tu reflexión 💪\n\nCuando termines el módulo, escribe: *\"listo\"*"
+                    else:
+                        intentos += 1
+                        if intentos >= 2:
+                            estudiante.contexto_temporal = None
+                            estudiante.estado_onboarding = 'completado'
+                            estudiante.save()
+                            texto_respuesta = f"{feedback}\n\n✅ *¡Buena reflexión!* Sigue con el módulo.\n\nCuando termines, escribe: *\"listo\"*"
+                        else:
+                            ctx['intentos_tutor'] = intentos
+                            estudiante.contexto_temporal = ctx
+                            estudiante.save()
+                            texto_respuesta = f"{feedback}\n\n💬 _Cuéntame más o escribe *\"continuar\"* para seguir._"
+
             # 3.5b PRIORIDAD: Si está respondiendo pregunta de módulo (examen clásico)
             elif estudiante.estado_onboarding == 'esperando_respuesta_modulo':
                 # Si el usuario dice "menu", salir del examen y mostrar menú

@@ -206,6 +206,14 @@ class PlantillaCertificado(models.Model):
         help_text="🖼️ Sube una plantilla en formato imagen (PNG/JPG). Se personalizará con el nombre del estudiante."
     )
     
+    # 🔗 OPCIÓN 1C: URL DE IMAGEN EXTERNA (Alternativa a subir archivo)
+    url_plantilla_imagen = models.URLField(
+        max_length=500,
+        null=True,
+        blank=True,
+        help_text="🔗 URL directa a una imagen de plantilla (PNG/JPG). Usa esto si prefieres alojar la imagen externamente."
+    )
+    
     # 🎨 OPCIÓN 2: DISEÑO PERSONALIZADO CON EKI (Si no subes PDF)
     # Diseño
     imagen_fondo = models.ImageField(
@@ -293,12 +301,12 @@ class PlantillaCertificado(models.Model):
         return bool(self.archivo_plantilla_pdf)
     
     def usa_imagen_personalizada(self):
-        """Verifica si esta plantilla usa una imagen personalizada"""
-        return bool(self.archivo_plantilla_imagen)
+        """Verifica si esta plantilla usa una imagen personalizada (archivo o URL)"""
+        return bool(self.archivo_plantilla_imagen) or bool(self.url_plantilla_imagen)
     
     def get_tipo_formato(self):
         """Retorna el formato de certificado efectivo"""
-        if self.archivo_plantilla_imagen:
+        if self.archivo_plantilla_imagen or self.url_plantilla_imagen:
             return 'imagen'
         if self.archivo_plantilla_pdf:
             return 'pdf'

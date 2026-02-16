@@ -3498,10 +3498,11 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
             </div>''')
         }),
         ('🖼️ OPCIÓN 1B: Subir Imagen/Multimedia (Alternativa al PDF)', {
-            'fields': ('formato_certificado', 'archivo_plantilla_imagen'),
+            'fields': ('formato_certificado', 'archivo_plantilla_imagen', 'url_plantilla_imagen'),
             'description': mark_safe('''<div style="background:#fff3bf;padding:15px;border-radius:8px;border-left:4px solid #f59f00;margin:10px 0;">
                 <strong>🖼️ ¿Prefieres certificados en imagen?</strong><br><br>
                 • Sube una plantilla en <strong>PNG o JPG</strong><br>
+                • O pega una <strong>URL directa</strong> a la imagen de la plantilla<br>
                 • Ideal para compartir por WhatsApp como imagen<br>
                 • El sistema agregará el nombre del estudiante sobre la imagen<br>
                 • Selecciona "Imagen" en formato de certificado<br><br>
@@ -3549,9 +3550,11 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
     
     def tipo_plantilla(self, obj):
         """Muestra si usa PDF personalizado, imagen o diseño Eki"""
-        if obj.archivo_plantilla_imagen:
+        if obj.archivo_plantilla_imagen or obj.url_plantilla_imagen:
+            label = '🖼️ Imagen' + (' (URL)' if obj.url_plantilla_imagen and not obj.archivo_plantilla_imagen else '')
             return format_html(
-                '<span style="background:#f59f00;color:white;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;">🖼️ Imagen</span>'
+                '<span style="background:#f59f00;color:white;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;">{}</span>',
+                label
             )
         if obj.archivo_plantilla_pdf:
             return format_html(

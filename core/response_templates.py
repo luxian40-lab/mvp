@@ -751,7 +751,7 @@ Cuando termines, escribe: *"listo"*"""
                 if video_url:
                     msg_modulo += f"\n\n[MEDIA:{video_url}]"
                 
-                # Tutor IA: cada 2 módulos (después de módulos impares: 1, 3, 5, 7, 9)
+                # Tutor IA (Profesor Gerónimo): cada 2 módulos (después de módulos impares: 1, 3, 5, 7, 9)
                 tutor_msg = None
                 if modulo_actual.numero >= 1 and modulo_actual.numero % 2 == 1:
                     try:
@@ -770,10 +770,39 @@ Cuando termines, escribe: *"listo"*"""
                             }
                             estudiante.estado_onboarding = 'esperando_respuesta_tutor_ia'
                             estudiante.save()
-                            tutor_msg = f"🎓 *TUTOR IA — Módulo {modulo_actual.numero}*\n\n{enseñanza}\n\n💬 _Responde o escribe *\"continuar\"* para seguir_"
+                            tutor_msg = f"🎓 *Profesor Gerónimo*\n\n{enseñanza}\n\n💬 _Responde o escribe *\"continuar\"* para seguir_"
                     except Exception as e:
                         import logging
-                        logging.getLogger(__name__).warning(f"⚠️ Tutor IA falló: {e}")
+                        logging.getLogger(__name__).warning(f"⚠️ Profesor Gerónimo falló: {e}")
+                
+                # Revisión de progreso (Profesor Gerónimo): cada 2 módulos (después de módulos pares: 2, 4, 6, 8, 10)
+                if not tutor_msg and modulo_actual.numero >= 2 and modulo_actual.numero % 2 == 0:
+                    try:
+                        from .tutor_ia_modulo import generar_revision_progreso
+                        from .models import Modulo
+                        modulos_completados = progreso.modulos_completados.all().order_by('numero')
+                        revision = generar_revision_progreso(
+                            modulo_actual,
+                            modulos_completados,
+                            progreso.curso.nombre,
+                            estudiante_nombre=estudiante.nombre or "Estudiante"
+                        )
+                        if revision:
+                            modulos_info = ", ".join([m.titulo for m in modulos_completados])
+                            estudiante.contexto_temporal = {
+                                'tipo': 'revision_progreso',
+                                'modulo_id': modulo_actual.id,
+                                'pregunta_tutor': revision,
+                                'progreso_id': progreso.id,
+                                'modulos_info': modulos_info,
+                                'intentos_tutor': 0,
+                            }
+                            estudiante.estado_onboarding = 'esperando_respuesta_progreso'
+                            estudiante.save()
+                            tutor_msg = f"📊 *Profesor Gerónimo — Revisión de Progreso*\n\n{revision}\n\n💬 _Responde o escribe *\"continuar\"* para seguir_"
+                    except Exception as e:
+                        import logging
+                        logging.getLogger(__name__).warning(f"⚠️ Revisión de progreso falló: {e}")
                 
                 # Construir multi-mensaje: completado [SEP] módulo [SEP] tutor (si aplica)
                 if tutor_msg:
