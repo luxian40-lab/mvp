@@ -1109,7 +1109,71 @@ Cuando termines, escribe: *"listo"*"""
                                 if siguiente_modulo.examen_obligatorio:
                                     msg_modulo += f"\n\n⚠️ *Este módulo tiene examen obligatorio ({siguiente_modulo.puntaje_minimo_aprobacion}% para aprobar)*"
                                 
-                                texto_respuesta = f"[MULTI_MSG]{msg_completado}[SEP]{msg_modulo}"
+                                # === AGENTES: Gerónimo (impares) / María (pares) ===
+                                tutor_msg = None
+                                # Profesor Gerónimo: después de módulos impares (1, 3, 5, 7, 9)
+                                if modulo_actual.numero >= 1 and modulo_actual.numero % 2 == 1:
+                                    try:
+                                        from .tutor_ia_modulo import generar_enseñanza_modulo
+                                        enseñanza = generar_enseñanza_modulo(
+                                            modulo_actual,
+                                            estudiante_nombre=estudiante.nombre or "Estudiante"
+                                        )
+                                        if enseñanza:
+                                            estudiante.contexto_temporal = {
+                                                'tipo': 'tutor_ia_modulo',
+                                                'modulo_id': modulo_actual.id,
+                                                'pregunta_tutor': enseñanza,
+                                                'progreso_id': progreso.id,
+                                                'intentos_tutor': 0,
+                                            }
+                                            estudiante.estado_onboarding = 'esperando_respuesta_tutor_ia'
+                                            estudiante.save()
+                                            tutor_msg = f"🎓 *Profesor Gerónimo*\n\n{enseñanza}\n\n💬 _Responde o escribe *\"continuar\"* para seguir_"
+                                            print(f"🎓 Profesor Gerónimo activado después de módulo {modulo_actual.numero}", flush=True)
+                                    except Exception as e:
+                                        import logging
+                                        logging.getLogger(__name__).warning(f"⚠️ Profesor Gerónimo falló: {e}")
+                                
+                                # María (Mentora): después de módulos pares (2, 4, 6, 8, 10)
+                                if not tutor_msg and modulo_actual.numero >= 2 and modulo_actual.numero % 2 == 0:
+                                    try:
+                                        from .tutor_ia_modulo import generar_revision_progreso
+                                        modulos_completados = progreso.modulos_completados.all().order_by('numero')
+                                        revision = generar_revision_progreso(
+                                            modulo_actual,
+                                            modulos_completados,
+                                            progreso.curso.nombre,
+                                            estudiante_nombre=estudiante.nombre or "Estudiante"
+                                        )
+                                        if revision:
+                                            modulos_info = ", ".join([m.titulo for m in modulos_completados])
+                                            estudiante.contexto_temporal = {
+                                                'tipo': 'revision_progreso',
+                                                'modulo_id': modulo_actual.id,
+                                                'pregunta_tutor': revision,
+                                                'progreso_id': progreso.id,
+                                                'modulos_info': modulos_info,
+                                                'intentos_tutor': 0,
+                                            }
+                                            estudiante.estado_onboarding = 'esperando_respuesta_progreso'
+                                            estudiante.save()
+                                            tutor_msg = f"👩‍🏫 *María — Tu Asistente*\n\n{revision}\n\n💬 _Responde o escribe *\"continuar\"* para seguir_"
+                                            print(f"👩‍🏫 María activada después de módulo {modulo_actual.numero}", flush=True)
+                                    except Exception as e:
+                                        import logging
+                                        logging.getLogger(__name__).warning(f"⚠️ María falló: {e}")
+                                
+                                # Si ningún agente se activó, resetear estado
+                                if not tutor_msg:
+                                    estudiante.estado_onboarding = 'completado'
+                                    estudiante.save()
+                                
+                                # Construir respuesta multi-mensaje
+                                partes = [msg_completado, msg_modulo]
+                                if tutor_msg:
+                                    partes.append(tutor_msg)
+                                texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
                             
                             else:
                                 # Completó todos los módulos
@@ -1117,7 +1181,10 @@ Cuando termines, escribe: *"listo"*"""
                                 progreso.fecha_completado = timezone.now()
                                 progreso.save()
                                 
-                                mensaje_respuesta += f"""
+                                estudiante.estado_onboarding = 'completado'
+                                estudiante.save()
+                                
+                                msg_final = mensaje_respuesta + f"""
 
 ━━━━━━━━━━━━━━━━━━━━
 
@@ -1132,8 +1199,29 @@ Has completado el curso: *{progreso.curso.nombre}*
 1️⃣ Ver otros cursos
 2️⃣ Ver mi progreso
 3️⃣ Menú principal"""
+                                
+                                # María: Resumen completo del curso
+                                try:
+                                    from .tutor_ia_modulo import generar_resumen_curso_completo
+                                    modulos_completados = progreso.modulos_completados.all().order_by('numero')
+                                    resumen_maria = generar_resumen_curso_completo(
+                                        progreso.curso.nombre,
+                                        modulos_completados,
+                                        estudiante_nombre=estudiante.nombre or "Estudiante"
+                                    )
+                                    if resumen_maria:
+                                        msg_resumen = f"👩‍🏫 *María — Resumen del Curso*\n\n{resumen_maria}"
+                                        texto_respuesta = f"[MULTI_MSG]{msg_resumen}[SEP]{msg_final}"
+                                        print(f"👩‍🏫 María resumen del curso activada", flush=True)
+                                    else:
+                                        texto_respuesta = msg_final
+                                except Exception as e:
+                                    import logging
+                                    logging.getLogger(__name__).warning(f"⚠️ María resumen falló: {e}")
+                                    texto_respuesta = msg_final
                     
-                    texto_respuesta = mensaje_respuesta
+                    if not texto_respuesta:
+                        texto_respuesta = mensaje_respuesta
                     print(f"✅ Respuesta validada: {'Correcta' if es_correcta else 'Incorrecta'}")
             
             # 3.5c PRIORIDAD: Si está seleccionando un curso de la lista
