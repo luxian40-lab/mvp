@@ -718,13 +718,14 @@ def whatsapp_webhook(request):
         return HttpResponse('Forbidden', status=403)
 
     if request.method == 'POST':
-        print("🔵 WEBHOOK RECIBIÓ POST")
+        import sys
+        print("🔵 WEBHOOK RECIBIÓ POST", flush=True)
         logger.info("🔵 WEBHOOK RECIBIÓ POST")
         
         try:
             # Intentar parsear como JSON (Meta)
             payload = json.loads(request.body.decode('utf-8'))
-            print(f"🔵 Payload (JSON): {payload}")
+            print(f"🔵 Payload (JSON): {payload}", flush=True)
             logger.info(f"🔵 Payload (JSON): {payload}")
             
             # Detectar si es Meta o Twilio
@@ -733,22 +734,29 @@ def whatsapp_webhook(request):
                 logger.info("📍 Detectado: META WhatsApp")
                 _procesar_meta_webhook(payload)
             else:
-                # Podría ser Twilio con JSON
-                logger.info("⚠️ JSON recibido pero no es Meta")
+                # Podría ser Twilio con JSON — intentar procesarlo como Twilio también
+                print("⚠️ JSON recibido pero no es Meta — intentando como Twilio", flush=True)
+                logger.info("⚠️ JSON recibido pero no es Meta, verificando si tiene datos Twilio")
+                # Algunos webhooks de Twilio pueden llegar como JSON
+                if 'Body' in payload or 'From' in payload or 'MessageStatus' in payload:
+                    print("🔵 JSON con datos Twilio detectado — procesando", flush=True)
+                    _procesar_twilio_webhook(payload)
+                else:
+                    print("⚠️ JSON desconocido — ignorando", flush=True)
                 return HttpResponse('OK')
                 
         except json.JSONDecodeError:
             # Podría ser Twilio (form-data)
-            print("🔵 Payload (Form-Data) - Probablemente Twilio")
-            print(f"POST data: {dict(request.POST)}")
+            print("🔵 Payload (Form-Data) - Probablemente Twilio", flush=True)
+            print(f"POST keys: {list(request.POST.keys())}", flush=True)
             logger.info("🔵 Payload (Form-Data) - Probablemente Twilio")
-            logger.info(f"POST data: {dict(request.POST)}")
             twilio_result = _procesar_twilio_webhook(request.POST)
             # Si _procesar_twilio_webhook devuelve TwiML HttpResponse, retornarlo
             if isinstance(twilio_result, HttpResponse):
                 return twilio_result
         
         except Exception as e:
+            print(f"❌ Error en webhook: {str(e)}", flush=True)
             logger.error(f"❌ Error en webhook: {str(e)}")
             import traceback
             traceback.print_exc()
@@ -769,6 +777,22 @@ def _escape_twiml(text):
 
 def _procesar_twilio_webhook(post_data):
     """Procesa webhooks de Twilio WhatsApp"""
+    # ============================================================
+    # FILTRO 1: Ignorar status callbacks de Twilio (queued/sent/delivered)
+    # Twilio envía callbacks de estado al mismo webhook, NO son mensajes
+    # ============================================================
+    message_status = post_data.get('MessageStatus', post_data.get('SmsStatus', ''))
+    if message_status and message_status.lower() in ['queued', 'sending', 'sent', 'delivered', 'undelivered', 'failed', 'read']:
+        print(f"📊 Status callback ignorado: {message_status}")
+        return
+    
+    # FILTRO 2: Ignorar si no hay Body ni Media (status callback sin MessageStatus)
+    raw_body = post_data.get('Body', '')
+    raw_media = int(post_data.get('NumMedia', 0))
+    if not raw_body and raw_media == 0 and not post_data.get('From', ''):
+        print(f"📊 Webhook vacío ignorado (sin Body ni Media)")
+        return
+    
     try:
         logger.info("🔵 TWILIO: Procesando...")
         
@@ -808,6 +832,7 @@ def _procesar_twilio_webhook(post_data):
             telefono_limpio = f"57{telefono_limpio}"
         
         logger.info(f"📱 De: {msg_from} → Limpio: {telefono_limpio} | Mensaje: {msg_body}")
+        print(f"📱 TWILIO MSG: From={telefono_limpio} Body='{msg_body[:50]}'", flush=True)
         
         # 1. Guardar mensaje entrante con teléfono limpio
         WhatsappLog.objects.create(
@@ -830,12 +855,13 @@ def _procesar_twilio_webhook(post_data):
         # 3. 🛡️ PRIORIDAD 1: Verificar seguridad (Habeas Data)
         from .security_handler import verificar_seguridad_completa
         bloqueado, respuesta_seguridad, estudiante = verificar_seguridad_completa(estudiante, msg_body, telefono_limpio)
+        print(f"🛡️ Seguridad: bloqueado={bloqueado} | estudiante={estudiante} | estado={getattr(estudiante, 'estado_onboarding', 'N/A')}", flush=True)
         
         # Default safety - will be overwritten by any branch below
         texto_respuesta = "Escribe *menú* para ver las opciones disponibles."
         
         if bloqueado:
-            print(f"🛡️ Bloqueado por seguridad/habeas data")
+            print(f"🛡️ Bloqueado por seguridad/habeas data", flush=True)
             texto_respuesta = respuesta_seguridad
         else:
             # 3.5a PRIORIDAD: Si está respondiendo al TUTOR IA
@@ -1169,6 +1195,7 @@ Has completado el curso: *{progreso.curso.nombre}*
                         texto_respuesta = "Disculpa, tengo problemas técnicos. Escribe 'menú' para ver las opciones."
         
         # 3. Enviar respuesta via Twilio
+        print(f"📤 ENVIANDO RESPUESTA: '{texto_respuesta[:80]}...' (len={len(texto_respuesta)})", flush=True)
         # Detectar si hay media_url en la respuesta (marcado con [MEDIA:url])
         media_url_to_send = None
         if '[MEDIA:' in texto_respuesta:
@@ -1299,6 +1326,31 @@ Has completado el curso: *{progreso.curso.nombre}*
         print(f"❌ Error en _procesar_twilio_webhook: {str(e)}")
         import traceback
         traceback.print_exc()
+        
+        # ============================================================
+        # SAFETY NET: Siempre enviar ALGO al usuario, nunca quedar mudo
+        # ============================================================
+        try:
+            msg_from_fallback = post_data.get('From', '')
+            if msg_from_fallback:
+                from twilio.rest import Client
+                account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
+                twilio_number = str(twilio_number).strip()
+                
+                if account_sid and auth_token:
+                    client = Client(account_sid, auth_token)
+                    destino = f'whatsapp:{msg_from_fallback}' if not msg_from_fallback.startswith('whatsapp:') else msg_from_fallback
+                    destino = str(destino).strip()
+                    client.messages.create(
+                        body="⚠️ Tuvimos un problema técnico momentáneo. Por favor escribe *menú* para continuar.",
+                        from_=twilio_number,
+                        to=destino
+                    )
+                    print(f"✅ Safety net: mensaje de error enviado a {destino}")
+        except Exception as fallback_err:
+            print(f"❌ Safety net también falló: {fallback_err}")
 
 
 def _procesar_meta_webhook(payload):
