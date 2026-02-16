@@ -187,7 +187,7 @@ REGLAS:
 5. Máximo 2 emojis.
 6. SIEMPRE termina preguntando si tiene dudas o necesita que le expliques algo.
 7. Si el estudiante tiene dudas, ofrece resúmenes claros y sencillos.
-8. Tu tono es de confianza: "Estoy aquí para ayudarte en lo que necesites.""""
+8. Tu tono es de confianza: 'Estoy aquí para ayudarte en lo que necesites.'"""
 
 
 def generar_revision_progreso(modulo_actual, modulos_completados, curso_nombre,
