@@ -554,9 +554,14 @@ O escribe "menú" para ver todas las opciones."""
 Te inscribiste en: *{curso.nombre}*
 
 📚 Módulos: {curso.modulos.count()}
-⏱️ Duración: {curso.duracion_semanas} semanas
+⏱️ Duración: {curso.duracion_semanas} semanas"""
 
-Comenzamos con el Módulo 1... 👇"""
+        # Message 2 & 3: Agent introductions (Gerónimo + María)
+        from .tutor_ia_modulo import generar_presentacion_agentes
+        msg_geronimo, msg_maria = generar_presentacion_agentes(
+            curso.nombre,
+            estudiante_nombre=estudiante.nombre or "Estudiante"
+        )
 
         # Obtener video del primer módulo si existe
         video_url_modulo = obtener_video_url(primer_modulo)
@@ -570,32 +575,27 @@ Comenzamos con el Módulo 1... 👇"""
         
         # Combine header with first chunk
         if chunks:
-            mensaje_2 = modulo_header + chunks[0]
+            mensaje_modulo = modulo_header + chunks[0]
             
             # If there are more chunks, combine them
             if len(chunks) > 1:
                 remaining_chunks = chunks[1:]
-                if len(remaining_chunks) == 1:
-                    # Only 2 messages total (header+chunk1, chunk2)
-                    mensaje_3 = remaining_chunks[0] + "\n\n---\nCuando termines, escribe: *\"listo\"*"
-                else:
-                    # 3+ messages total
-                    mensaje_3 = remaining_chunks[0]
-                    if len(remaining_chunks) > 1:
-                        # Additional chunks joined together
-                        for chunk in remaining_chunks[1:]:
-                            if len(mensaje_3) + len(chunk) + 4 < 1500:
-                                mensaje_3 += "\n\n" + chunk
-                        mensaje_3 += "\n\n---\nCuando termines, escribe: *\"listo\"*"
-                
-                # Agregar video al último mensaje si existe
-                media_tag = f"\n\n[MEDIA:{video_url_modulo}]" if video_url_modulo else ""
-                return f"[MULTI_MSG]{mensaje_1}[SEP]{mensaje_2}[SEP]{mensaje_3}{media_tag}"
-            else:
-                # Single message with header + content
-                mensaje_2 += "\n\n---\nCuando termines, escribe: *\"listo\"*"
-                media_tag = f"\n\n[MEDIA:{video_url_modulo}]" if video_url_modulo else ""
-                return f"[MULTI_MSG]{mensaje_1}[SEP]{mensaje_2}{media_tag}"
+                for chunk in remaining_chunks:
+                    if len(mensaje_modulo) + len(chunk) + 4 < 1500:
+                        mensaje_modulo += "\n\n" + chunk
+                    else:
+                        break
+            
+            mensaje_modulo += "\n\n---\nCuando termines, escribe: *\"listo\"*"
+            
+            # Build multi-message: inscription [SEP] Gerónimo [SEP] María [SEP] módulo content [SEP] video (separado)
+            resultado = f"[MULTI_MSG]{mensaje_1}[SEP]{msg_geronimo}[SEP]{msg_maria}[SEP]{mensaje_modulo}"
+            
+            # Video como mensaje separado (no al mismo tiempo que el contenido)
+            if video_url_modulo:
+                resultado += f"[SEP]🎬 *Video del Módulo {primer_modulo.numero}:*\n\n[MEDIA:{video_url_modulo}]"
+            
+            return resultado
         else:
             # Fallback (shouldn't happen)
             return f"""✅ {curso.emoji} ¡Inscripción exitosa!
@@ -748,10 +748,12 @@ Escribe "ver cursos" para inscribirte en uno."""
 
 Cuando termines, escribe: *"listo"*"""
                 
+                # Video como mensaje separado para evitar que se lancen juntos
+                video_msg = None
                 if video_url:
-                    msg_modulo += f"\n\n[MEDIA:{video_url}]"
+                    video_msg = f"🎬 *Video del Módulo {siguiente_modulo.numero}:*\n\n[MEDIA:{video_url}]"
                 
-                # Tutor IA (Profesor Gerónimo): cada 2 módulos (después de módulos impares: 1, 3, 5, 7, 9)
+                # Profesor Gerónimo: cada 2 módulos (después de módulos impares: 1, 3, 5, 7, 9)
                 tutor_msg = None
                 if modulo_actual.numero >= 1 and modulo_actual.numero % 2 == 1:
                     try:
@@ -775,7 +777,7 @@ Cuando termines, escribe: *"listo"*"""
                         import logging
                         logging.getLogger(__name__).warning(f"⚠️ Profesor Gerónimo falló: {e}")
                 
-                # Revisión de progreso (Profesor Gerónimo): cada 2 módulos (después de módulos pares: 2, 4, 6, 8, 10)
+                # María (Mentora): cada 2 módulos (después de módulos pares: 2, 4, 6, 8, 10)
                 if not tutor_msg and modulo_actual.numero >= 2 and modulo_actual.numero % 2 == 0:
                     try:
                         from .tutor_ia_modulo import generar_revision_progreso
@@ -799,16 +801,18 @@ Cuando termines, escribe: *"listo"*"""
                             }
                             estudiante.estado_onboarding = 'esperando_respuesta_progreso'
                             estudiante.save()
-                            tutor_msg = f"📊 *Profesor Gerónimo — Revisión de Progreso*\n\n{revision}\n\n💬 _Responde o escribe *\"continuar\"* para seguir_"
+                            tutor_msg = f"👩‍🏫 *María — Tu Asistente*\n\n{revision}\n\n💬 _Responde o escribe *\"continuar\"* para seguir_"
                     except Exception as e:
                         import logging
-                        logging.getLogger(__name__).warning(f"⚠️ Revisión de progreso falló: {e}")
+                        logging.getLogger(__name__).warning(f"⚠️ María falló: {e}")
                 
-                # Construir multi-mensaje: completado [SEP] módulo [SEP] tutor (si aplica)
+                # Construir multi-mensaje: completado [SEP] módulo [SEP] video (si hay) [SEP] tutor/maría (si aplica)
+                partes = [msg_completado, msg_modulo]
+                if video_msg:
+                    partes.append(video_msg)
                 if tutor_msg:
-                    return f"[MULTI_MSG]{msg_completado}[SEP]{msg_modulo}[SEP]{tutor_msg}"
-                else:
-                    return f"[MULTI_MSG]{msg_completado}[SEP]{msg_modulo}"
+                    partes.append(tutor_msg)
+                return "[MULTI_MSG]" + "[SEP]".join(partes)
             
             else:
                 # Completó todos los módulos
@@ -862,6 +866,22 @@ Cuando termines, escribe: *"listo"*"""
 Escribe *"examen"* para hacer el examen final
 Escribe *"ver cursos"* para tomar otro curso
 Escribe *"mi progreso"* para ver tu avance"""
+                
+                # María: Resumen completo del curso antes de certificado
+                try:
+                    from .tutor_ia_modulo import generar_resumen_curso_completo
+                    modulos_completados = progreso.modulos_completados.all().order_by('numero')
+                    resumen_maria = generar_resumen_curso_completo(
+                        progreso.curso.nombre,
+                        modulos_completados,
+                        estudiante_nombre=estudiante.nombre or "Estudiante"
+                    )
+                    if resumen_maria:
+                        msg_resumen = f"👩‍🏫 *María — Resumen del Curso*\n\n{resumen_maria}"
+                        return f"[MULTI_MSG]{msg_resumen}[SEP]{mensaje}"
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(f"⚠️ María resumen falló: {e}")
                 
                 return mensaje
         

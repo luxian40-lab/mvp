@@ -910,7 +910,7 @@ def _procesar_twilio_webhook(post_data):
             # 3.5a2 PRIORIDAD: Si está respondiendo a la REVISIÓN DE PROGRESO
             elif estudiante.estado_onboarding == 'esperando_respuesta_progreso':
                 from .gamificacion import PerfilGamificacion
-                print(f"📊 Evaluando respuesta de Revisión de Progreso")
+                print(f"�‍🏫 Evaluando respuesta de María (Revisión de Progreso)")
                 ctx = estudiante.contexto_temporal or {}
                 pregunta_tutor = ctx.get('pregunta_tutor', '')
                 modulos_info = ctx.get('modulos_info', '')
@@ -924,7 +924,7 @@ def _procesar_twilio_webhook(post_data):
                     estudiante.contexto_temporal = None
                     estudiante.estado_onboarding = 'completado'
                     estudiante.save()
-                    print(f"⏭️ Revisión de progreso omitida por usuario")
+                    print(f"⏭️ María (revisión progreso) omitida por usuario")
                     
                     if msg_lower in ['menu', 'menú']:
                         from .response_templates import get_response_for_intent
@@ -941,7 +941,7 @@ def _procesar_twilio_webhook(post_data):
                     
                     if resuelta:
                         perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
-                        perfil.agregar_puntos(5, "Revisión de progreso - Profesor Gerónimo")
+                        perfil.agregar_puntos(5, "Revisión de progreso - María")
                         estudiante.contexto_temporal = None
                         estudiante.estado_onboarding = 'completado'
                         estudiante.save()

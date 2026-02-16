@@ -51,7 +51,7 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 <li><a href="#modelos">Modelos de datos</a></li>
 <li><a href="#flujo-whatsapp">Flujo WhatsApp (webhook)</a></li>
 <li><a href="#agentes-ia">Agentes de Inteligencia Artificial</a></li>
-<li><a href="#tutor-evaluador">Tutor IA y Evaluador por modulo</a></li>
+<li><a href="#tutor-evaluador">Profesor Geronimo y Maria (Agentes por modulo)</a></li>
 <li><a href="#gamificacion">Sistema de Gamificacion</a></li>
 <li><a href="#certificados">Certificados digitales</a></li>
 <li><a href="#multimedia">Archivos multimedia y S3</a></li>
@@ -67,7 +67,7 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 
 <!-- 1. Visión general -->
 <h2 id="vision">1. Vision general del sistema</h2>
-<p>Eki es una plataforma educativa que ensena a estudiantes (agricultores, campesinos, comunidades rurales colombianas) a traves de <b>WhatsApp</b>. El estudiante recibe los modulos del curso por WhatsApp, un tutor IA le explica el contenido con el metodo sandwich, y un evaluador IA verifica su comprension.</p>
+<p>Eki es una plataforma educativa que ensena a estudiantes (agricultores, campesinos, comunidades rurales colombianas) a traves de <b>WhatsApp</b>. El estudiante recibe los modulos del curso por WhatsApp, el <b>Profesor Geronimo</b> le explica el contenido con el metodo sandwich, y <b>Maria</b> (su asistente/mentora) verifica que todo quede claro y resuelve dudas.</p>
 
 <div class="card-grid">
 <div class="info-card">
@@ -76,7 +76,12 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 </div>
 <div class="info-card">
     <div class="ic-title">🤖 Inteligencia Artificial</div>
-    <div class="ic-body">4 agentes IA (Tutor, Frustacion, Motivador, Evaluador) + Tutor IA por modulo con GPT-4o-mini. Fallback a Cohere si OpenAI falla.</div>
+    <div class="ic-body">
+        <b>2 agentes principales:</b><br>
+        🎓 <b>Profesor Geronimo</b>: Ensena con metodo sandwich cada 2 modulos (impares: 1,3,5,7,9)<br>
+        👩‍🏫 <b>Maria</b>: Mentora/asistente que revisa progreso cada 2 modulos (pares: 2,4,6,8,10) y da resumen al final del curso<br><br>
+        <b>4 agentes de soporte:</b> Tutor, Frustracion, Motivador, Evaluador + Fallback a Cohere si OpenAI falla.
+    </div>
 </div>
 <div class="info-card">
     <div class="ic-title">🏆 Gamificacion</div>
@@ -84,7 +89,7 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 </div>
 <div class="info-card">
     <div class="ic-title">📜 Certificados</div>
-    <div class="ic-body">Certificados digitales con QR verificable al completar un curso. Se generan automaticamente.</div>
+    <div class="ic-body">Certificados digitales con QR verificable al completar un curso. Soporta subir imagen, PDF o URL de plantilla. Se generan automaticamente.</div>
 </div>
 </div>
 
@@ -179,13 +184,14 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 <b>3. Seguridad</b>: Verificar habeas data (Ley 1581). Si no acepto terminos, mostrar politica y esperar "acepto"<br>
 <span class="arrow">&darr;</span><br>
 <b>4. Estado del estudiante</b>:<br>
-&nbsp;&nbsp;- <b>esperando_respuesta_tutor_ia</b> <span class="arrow">&rarr;</span> El Evaluador IA valida la respuesta con empatia<br>
+&nbsp;&nbsp;- <b>esperando_respuesta_tutor_ia</b> <span class="arrow">&rarr;</span> El Profesor Geronimo valida la respuesta con empatia (modulos impares)<br>
+&nbsp;&nbsp;- <b>esperando_respuesta_progreso</b> <span class="arrow">&rarr;</span> Maria revisa progreso y resuelve dudas (modulos pares)<br>
 &nbsp;&nbsp;- <b>esperando_respuesta_modulo</b> <span class="arrow">&rarr;</span> Validar respuesta A/B/C/D o abierta<br>
 &nbsp;&nbsp;- <b>completado / normal</b> <span class="arrow">&rarr;</span> Continuar al paso 5<br>
 <span class="arrow">&darr;</span><br>
 <b>5. Detectar intencion</b>: "listo", "menu", "cursos", "examen", "ayuda", etc.<br>
 <span class="arrow">&darr;</span><br>
-<b>6. Si dice "listo"</b>: avanzar al siguiente modulo <span class="arrow">&rarr;</span> Enviar contenido + Tutor IA (metodo sandwich) + pregunta<br>
+<b>6. Si dice "listo"</b>: avanzar al siguiente modulo <span class="arrow">&rarr;</span> Enviar contenido + Profesor Geronimo (modulos impares) o Maria (modulos pares) + pregunta<br>
 <span class="arrow">&darr;</span><br>
 <b>7. Si no tiene intencion clara</b>: pasar a la IA tutora (GPT-3.5-turbo + Cohere fallback)<br>
 <span class="arrow">&darr;</span><br>
@@ -199,6 +205,14 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 <p>El sistema tiene 4 agentes especializados en <span class="code-ref">core/agentes_ia.py</span>. Se seleccionan automaticamente segun el mensaje del estudiante:</p>
 
 <div class="card-grid">
+<div class="info-card">
+    <div class="ic-title">🎓 Profesor Geronimo</div>
+    <div class="ic-body">Agente principal. Ensena con metodo sandwich (modulos impares). Coach cercano, respetuoso. GPT-4o-mini. Max 60 palabras.</div>
+</div>
+<div class="info-card">
+    <div class="ic-title">👩‍🏫 Maria (Mentora)</div>
+    <div class="ic-body">Asistente/mentora. Revisa progreso (modulos pares), resuelve dudas con resumenes, da resumen final del curso. GPT-4o-mini.</div>
+</div>
 <div class="info-card">
     <div class="ic-title">📚 AgenteTutor</div>
     <div class="ic-body">Explica conceptos, responde preguntas educativas, guia el aprendizaje. Usa GPT-4o. Temperatura 0.7, max 200 tokens.</div>
@@ -219,30 +233,42 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 
 <p>La funcion <span class="code-ref">seleccionar_agente()</span> elige automaticamente: si el mensaje contiene keywords de frustracion, usa AgenteFrustracion. Si contiene motivacion, usa AgenteMotivador. Si es examen, usa AgenteEvaluador. Por defecto, AgenteTutor.</p>
 
-<!-- 6. Tutor IA y Evaluador -->
-<h2 id="tutor-evaluador">6. Tutor IA y Evaluador por modulo</h2>
+<!-- 6. Profesor Geronimo y Maria -->
+<h2 id="tutor-evaluador">6. Profesor Geronimo y Maria (Agentes IA por modulo)</h2>
 <div class="callout info">
-<b>NUEVO:</b> Este sistema se integro en el flujo de avance de modulos. Cada vez que un estudiante avanza, recibe una micro-ensenanza y una pregunta de comprension evaluada por IA.
+<b>SISTEMA DE 2 AGENTES:</b> Al iniciar un curso, ambos agentes se presentan al estudiante. Luego, se alternan cada 2 modulos para acompanar al estudiante durante todo el proceso.
 </div>
 
-<h3>Metodo Sandwich</h3>
-<p>El Tutor IA usa el metodo sandwich pedagogico en cada mensaje:</p>
+<h3>🎓 Profesor Geronimo (Modulos impares: 1, 3, 5, 7, 9)</h3>
+<p>El Profesor Geronimo es el <b>docente principal</b>. Usa el metodo sandwich pedagogico en cada mensaje:</p>
 <ol class="step-list">
 <li><b>1 frase clara con el concepto</b> del modulo actual</li>
 <li><b>1 ejemplo practico de la vida cotidiana</b> (adaptado al contexto rural)</li>
 <li><b>1 pregunta directa para validar comprension</b></li>
 </ol>
 
-<h3>Reglas del Tutor</h3>
+<h3>Reglas del Profesor Geronimo</h3>
 <ul>
 <li>Maximo <b>60 palabras</b> por mensaje</li>
 <li>Maximo <b>2 emojis</b></li>
 <li>Modelo: <b>GPT-4o-mini</b> (bajo costo)</li>
 <li>Personalidad: coach cercano, respetuoso, motivador</li>
 <li>SIEMPRE termina con una pregunta</li>
+<li>Se presenta al inicio: <i>"Soy Geronimo, tu profesor a cargo"</i></li>
 </ul>
 
-<h3>Evaluador de respuestas</h3>
+<h3>👩‍🏫 Maria — Mentora/Asistente (Modulos pares: 2, 4, 6, 8, 10)</h3>
+<p>Maria es la <b>mentora y asistente</b> que acompana al estudiante. Su rol:</p>
+<ul>
+<li>Hace un <b>resumen</b> de los modulos completados hasta ahora</li>
+<li>Pregunta: <i>"¿Estas entendiendo lo que hemos visto? ¿Tienes alguna duda?"</i></li>
+<li>Si el estudiante tiene dudas, <b>da resumenes claros y sencillos</b> para resolverlas</li>
+<li>Si no tiene dudas, lo anima a seguir adelante</li>
+<li>Al <b>finalizar el curso completo</b>, da un resumen total antes de lanzar el certificado</li>
+<li>Se presenta al inicio: <i>"Soy Maria, tu asistente que estara pendiente"</i></li>
+</ul>
+
+<h3>Evaluador de respuestas (Profesor Geronimo)</h3>
 <table class="ref-table">
 <thead><tr><th>Escenario</th><th>Que hace</th></tr></thead>
 <tbody>
@@ -253,6 +279,25 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 </tbody>
 </table>
 
+<h3>Flujo completo del estudiante con los agentes</h3>
+<div class="flow-diagram">
+<b>Estudiante se inscribe</b> <span class="arrow">&rarr;</span> Mensaje de inscripcion<br>
+<span class="arrow">&darr;</span><br>
+<b>🎓 Profesor Geronimo se presenta</b>: "Soy Geronimo, tu profesor..."<br>
+<span class="arrow">&darr;</span><br>
+<b>👩‍🏫 Maria se presenta</b>: "Soy Maria, tu asistente..."<br>
+<span class="arrow">&darr;</span><br>
+<b>📖 Modulo 1</b> (contenido) <span class="arrow">&rarr;</span> 🎬 Video del modulo (separado) <span class="arrow">&rarr;</span> 🎓 <b>Geronimo pregunta</b> (modulo impar)<br>
+<span class="arrow">&darr;</span> "listo"<br>
+<b>📖 Modulo 2</b> (contenido) <span class="arrow">&rarr;</span> 👩‍🏫 <b>Maria revisa progreso</b> (modulo par)<br>
+<span class="arrow">&darr;</span> "listo"<br>
+<b>📖 Modulo 3</b> <span class="arrow">&rarr;</span> 🎓 <b>Geronimo pregunta</b> (modulo impar)<br>
+<span class="arrow">&darr;</span> continua...<br>
+<b>📖 Ultimo modulo</b> <span class="arrow">&rarr;</span> 👩‍🏫 <b>Maria da resumen completo del curso</b><br>
+<span class="arrow">&darr;</span><br>
+<b>🎉 CURSO COMPLETADO</b> <span class="arrow">&rarr;</span> Examen / Certificado
+</div>
+
 <p>Archivo: <span class="code-ref">core/tutor_ia_modulo.py</span></p>
 
 <!-- 7. Gamificacion -->
@@ -262,7 +307,9 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 <span class="arrow">&darr;</span> (signal post_save)<br>
 <b>+50 puntos automaticos</b> <span class="arrow">&rarr;</span> Actualizar racha <span class="arrow">&rarr;</span> Verificar subida de nivel<br>
 <span class="arrow">&darr;</span><br>
-<b>Si respondio correctamente</b> <span class="arrow">&rarr;</span> +10 puntos bonus<br>
+<b>Si respondio correctamente a Geronimo</b> <span class="arrow">&rarr;</span> +10 puntos bonus<br>
+<span class="arrow">&darr;</span><br>
+<b>Si respondio a Maria (revision progreso)</b> <span class="arrow">&rarr;</span> +5 puntos bonus<br>
 <span class="arrow">&darr;</span><br>
 <b>Enviar archivos multimedia del modulo automaticamente por WhatsApp</b>
 </div>
@@ -426,8 +473,8 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 <tr><td>core/views.py</td><td>Webhook WhatsApp, dashboards, vistas admin</td></tr>
 <tr><td>core/admin.py</td><td>Configuracion del panel admin y acciones masivas</td></tr>
 <tr><td>core/utils.py</td><td>Envio de WhatsApp via Twilio, URLs de S3</td></tr>
-<tr><td>core/agentes_ia.py</td><td>4 agentes IA especializados</td></tr>
-<tr><td>core/tutor_ia_modulo.py</td><td>Tutor IA (metodo sandwich) y Evaluador por modulo</td></tr>
+<tr><td>core/agentes_ia.py</td><td>4 agentes IA especializados + Geronimo y Maria en tutor_ia_modulo.py</td></tr>
+<tr><td>core/tutor_ia_modulo.py</td><td>Profesor Geronimo (metodo sandwich) y Maria (mentora) por modulo</td></tr>
 <tr><td>core/ai_assistant.py</td><td>Motor de IA hibrido (OpenAI + Cohere fallback)</td></tr>
 <tr><td>core/pregunta_handler.py</td><td>Validacion de respuestas y examenes</td></tr>
 <tr><td>core/gamificacion.py</td><td>Sistema de puntos, niveles, badges</td></tr>
@@ -474,10 +521,11 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 <li>Verificar en /health/ que el servidor responda "OK"</li>
 </ol>
 
-<h3>El Tutor IA no responde</h3>
+<h3>Geronimo o Maria no responden</h3>
 <ol>
 <li>Verificar que OPENAI_API_KEY este configurada en variables de entorno</li>
 <li>Si OpenAI falla, el sistema usa un fallback sin IA que muestra el contenido del modulo</li>
+<li>Geronimo usa <span class="code-ref">generar_enseñanza_modulo()</span> y Maria usa <span class="code-ref">generar_revision_progreso()</span></li>
 <li>Revisar logs del servidor en AWS EB: <span class="code-ref">eb logs</span></li>
 </ol>
 

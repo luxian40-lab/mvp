@@ -1,6 +1,8 @@
 branch-defaults:
   clean-main:
     environment: eki-prod-final
+  fresh-push-3:
+    environment: eki-prod-final
   main:
     environment: eki-prod-final
     group_suffix: null
