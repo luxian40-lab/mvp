@@ -777,24 +777,25 @@ Cuando termines, escribe: *"listo"*"""
                         import logging
                         logging.getLogger(__name__).warning(f"⚠️ Profesor Gerónimo falló: {e}")
                 
-                # María (Mentora): revisión de progreso en cada módulo
+                # María (Mentora): revisión de progreso SOLO en módulo 4
                 maria_msg = None
-                try:
-                    from .tutor_ia_modulo import generar_revision_progreso
-                    from .models import Modulo
-                    modulos_completados_qs = progreso.modulos_completados.all().order_by('modulo__numero')
-                    modulos_obj = [mc.modulo for mc in modulos_completados_qs]
-                    revision = generar_revision_progreso(
-                        modulo_actual,
-                        modulos_obj,
-                        progreso.curso.nombre,
-                        estudiante_nombre=estudiante.nombre or "Estudiante"
-                    )
-                    if revision:
-                        maria_msg = f"👩‍🏫 *María — Tu Asistente*\n\n{revision}\n\n💬 _Responde o escribe *\"continuar\"* para seguir_"
-                except Exception as e:
-                    import logging
-                    logging.getLogger(__name__).warning(f"⚠️ María falló: {e}")
+                if modulo_actual.numero == 4:
+                    try:
+                        from .tutor_ia_modulo import generar_revision_progreso
+                        from .models import Modulo
+                        modulos_completados_qs = progreso.modulos_completados.all().order_by('modulo__numero')
+                        modulos_obj = [mc.modulo for mc in modulos_completados_qs]
+                        revision = generar_revision_progreso(
+                            modulo_actual,
+                            modulos_obj,
+                            progreso.curso.nombre,
+                            estudiante_nombre=estudiante.nombre or "Estudiante"
+                        )
+                        if revision:
+                            maria_msg = f"👩‍🏫 *María — Tu Asistente*\n\n{revision}\n\n💬 _Responde o escribe *\"continuar\"* para seguir_"
+                    except Exception as e:
+                        import logging
+                        logging.getLogger(__name__).warning(f"⚠️ María falló: {e}")
                 
                 # Estado: Gerónimo tiene prioridad para interacción
                 if tutor_msg:

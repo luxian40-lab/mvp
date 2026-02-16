@@ -1109,41 +1109,43 @@ Cuando termines, escribe: *"listo"*"""
                                 if siguiente_modulo.examen_obligatorio:
                                     msg_modulo += f"\n\n⚠️ *Este módulo tiene examen obligatorio ({siguiente_modulo.puntaje_minimo_aprobacion}% para aprobar)*"
                                 
-                                # === AGENTES: Gerónimo + María (AMBOS en cada módulo) ===
+                                # === AGENTES: Gerónimo (impares) / María (módulo 4 solamente) ===
                                 tutor_msg = None
                                 maria_msg = None
                                 
-                                # Profesor Gerónimo: enseñanza complementaria
-                                try:
-                                    from .tutor_ia_modulo import generar_enseñanza_modulo
-                                    enseñanza = generar_enseñanza_modulo(
-                                        modulo_actual,
-                                        estudiante_nombre=estudiante.nombre or "Estudiante"
-                                    )
-                                    if enseñanza:
-                                        tutor_msg = f"🎓 *Profesor Gerónimo*\n\n{enseñanza}\n\n💬 _Responde o escribe *\"continuar\"* para seguir_"
-                                        print(f"🎓 Profesor Gerónimo activado después de módulo {modulo_actual.numero}", flush=True)
-                                except Exception as e:
-                                    import logging
-                                    logging.getLogger(__name__).warning(f"⚠️ Profesor Gerónimo falló: {e}")
+                                # Profesor Gerónimo: enseñanza complementaria (módulos impares: 1,3,5,7,9)
+                                if modulo_actual.numero % 2 == 1:
+                                    try:
+                                        from .tutor_ia_modulo import generar_enseñanza_modulo
+                                        enseñanza = generar_enseñanza_modulo(
+                                            modulo_actual,
+                                            estudiante_nombre=estudiante.nombre or "Estudiante"
+                                        )
+                                        if enseñanza:
+                                            tutor_msg = f"🎓 *Profesor Gerónimo*\n\n{enseñanza}\n\n💬 _Responde o escribe *\"continuar\"* para seguir_"
+                                            print(f"🎓 Profesor Gerónimo activado después de módulo {modulo_actual.numero}", flush=True)
+                                    except Exception as e:
+                                        import logging
+                                        logging.getLogger(__name__).warning(f"⚠️ Profesor Gerónimo falló: {e}")
                                 
-                                # María (Mentora): revisión de progreso
-                                try:
-                                    from .tutor_ia_modulo import generar_revision_progreso
-                                    modulos_completados_qs = progreso.modulos_completados.all().order_by('modulo__numero')
-                                    modulos_obj = [mc.modulo for mc in modulos_completados_qs]
-                                    revision = generar_revision_progreso(
-                                        modulo_actual,
-                                        modulos_obj,
-                                        progreso.curso.nombre,
-                                        estudiante_nombre=estudiante.nombre or "Estudiante"
-                                    )
-                                    if revision:
-                                        maria_msg = f"👩‍🏫 *María — Tu Asistente*\n\n{revision}\n\n💬 _Responde o escribe *\"continuar\"* para seguir_"
-                                        print(f"👩‍🏫 María activada después de módulo {modulo_actual.numero}", flush=True)
-                                except Exception as e:
-                                    import logging
-                                    logging.getLogger(__name__).warning(f"⚠️ María falló: {e}")
+                                # María (Mentora): revisión de progreso SOLO en módulo 4
+                                if modulo_actual.numero == 4:
+                                    try:
+                                        from .tutor_ia_modulo import generar_revision_progreso
+                                        modulos_completados_qs = progreso.modulos_completados.all().order_by('modulo__numero')
+                                        modulos_obj = [mc.modulo for mc in modulos_completados_qs]
+                                        revision = generar_revision_progreso(
+                                            modulo_actual,
+                                            modulos_obj,
+                                            progreso.curso.nombre,
+                                            estudiante_nombre=estudiante.nombre or "Estudiante"
+                                        )
+                                        if revision:
+                                            maria_msg = f"👩‍🏫 *María — Tu Asistente*\n\n{revision}\n\n💬 _Responde o escribe *\"continuar\"* para seguir_"
+                                            print(f"👩‍🏫 María activada después de módulo {modulo_actual.numero}", flush=True)
+                                    except Exception as e:
+                                        import logging
+                                        logging.getLogger(__name__).warning(f"⚠️ María falló: {e}")
                                 
                                 # Establecer estado para el PRIMER agente que responda (Gerónimo tiene prioridad)
                                 if tutor_msg:
