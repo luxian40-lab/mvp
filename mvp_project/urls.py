@@ -70,6 +70,9 @@ urlpatterns = [
     path('admin/crear-curso-ia/', subir_documento_curso, name='subir_documento_curso'),
     path('admin/vista-previa-curso-ia/', vista_previa_curso_ia, name='vista_previa_curso_ia'),
     
+    # Dashboard gerencial
+    path('admin/dashboard-gerencial/', dashboard_gerencial, name='dashboard_gerencial'),
+    
     # Admin de Django
     path('admin/', admin.site.urls),
     
@@ -92,9 +95,6 @@ urlpatterns = [
     
     # Proxy para archivos multimedia
     path('media-proxy/<str:filename>', serve_media_proxy, name='media_proxy'),
-    
-    # Dashboard gerencial
-    path('admin/dashboard-gerencial/', dashboard_gerencial, name='dashboard_gerencial'),
     
     # Raíz
     path('', root_redirect),

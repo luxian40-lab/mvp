@@ -24,7 +24,7 @@ def generar_url_firmada_s3_v4(bucket_name, object_name, expiration=3600):
             Params={
                 'Bucket': bucket_name,
                 'Key': object_name,
-                'ResponseContentType': 'video/mp4'
+                'ResponseContentDisposition': 'inline'
             },
             ExpiresIn=expiration
         )
@@ -102,8 +102,10 @@ def enviar_whatsapp_twilio_content_template(telefono: str, content_sid: str, var
             return {'success': False, 'mensaje_id': None, 'response': 'Twilio credentials not set'}
         
         # Asegurar formato whatsapp:+57... para todos los destinatarios
-        if not str(telefono).startswith('whatsapp:'):
-            telefono = f'whatsapp:{str(telefono).replace("whatsapp:", "").replace("+", "")}'
+        telefono_limpio = str(telefono).replace('whatsapp:', '').strip()
+        if not telefono_limpio.startswith('+'):
+            telefono_limpio = f'+{telefono_limpio}'
+        telefono = f'whatsapp:{telefono_limpio}'
         
         print(f"[TEMPLATE] Enviando a '{telefono}' con Content SID: {content_sid}")
         print(f"[VARIABLES] {variables}")
@@ -171,8 +173,8 @@ def enviar_whatsapp_twilio(telefono: str, texto: str, mensaje_id_referencia: str
         account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', None)
         auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', None)
         twilio_number = str(formatear_numero_whatsapp('573202948806')).strip()
-        print(f"[TWILIO] Account SID: {account_sid}")
-        print(f"[TWILIO] Auth Token: {auth_token[:20] if auth_token else None}...")
+        print(f"[TWILIO] Account SID: {'...' + account_sid[-4:] if account_sid else None}")
+        print(f"[TWILIO] Auth Token: {'configured' if auth_token else 'MISSING'}")
         print(f"[TWILIO] WhatsApp Number: '{twilio_number}'")
 
         if not account_sid or not auth_token:

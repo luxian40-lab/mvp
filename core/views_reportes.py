@@ -54,12 +54,12 @@ def dashboard_reportes_avanzados(request):
         municipios = estudiantes_query.values('municipio').annotate(
             total=Count('id'),
             activos=Count('id', filter=Q(activo=True)),
-            completados=Count('id', filter=Q(progresos__porcentaje_avance__gte=100))
+            completados=Count('id', filter=Q(progresos__completado=True))
         ).order_by('-total')[:20] if hasattr(estudiantes_query, 'values') else []
 
         logs_query = WhatsappLog.objects.filter(
-            timestamp__range=[fecha_inicio, fecha_fin],
-            tipo_mensaje='recibido'
+            fecha__range=[fecha_inicio, fecha_fin],
+            tipo='INCOMING'
         ) if WhatsappLog else []
         if municipio_filtro and hasattr(logs_query, 'filter'):
             logs_query = logs_query.filter(estudiante__municipio__icontains=municipio_filtro)
@@ -77,8 +77,8 @@ def dashboard_reportes_avanzados(request):
             for estudiante in estudiantes_query.select_related().prefetch_related('progresos')[:100]:
                 mensajes = WhatsappLog.objects.filter(
                     estudiante=estudiante,
-                    timestamp__range=[fecha_inicio, fecha_fin],
-                    tipo_mensaje='recibido'
+                    fecha__range=[fecha_inicio, fecha_fin],
+                    tipo='INCOMING'
                 ) if WhatsappLog else []
                 total_msgs = mensajes.count() if hasattr(mensajes, 'count') else 0
                 audio_msgs = mensajes.filter(
@@ -92,7 +92,9 @@ def dashboard_reportes_avanzados(request):
                 else:
                     preferencia_audio = 0
                     canal_preferido = 'Sin interacción'
-                progreso_promedio = estudiante.progresos.aggregate(Avg('porcentaje_avance'))['porcentaje_avance__avg'] if hasattr(estudiante, 'progresos') else 0
+                # porcentaje_avance is a method, not a DB field — calculate manually
+                _progresos = list(estudiante.progresos.all())
+                progreso_promedio = (sum(p.porcentaje_avance() for p in _progresos) / len(_progresos)) if _progresos else 0
                 analisis_estudiantes.append({
                     'estudiante': estudiante,
                     'total_mensajes': total_msgs,
@@ -183,7 +185,7 @@ def descargar_reporte_xlsx(request):
     municipios = estudiantes_query.values('municipio').annotate(
         total=Count('id'),
         activos=Count('id', filter=Q(activo=True)),
-        completados=Count('id', filter=Q(progresos__porcentaje_avance__gte=100))
+        completados=Count('id', filter=Q(progresos__completado=True))
     ).order_by('-total')
     
     for m in municipios:
@@ -218,8 +220,8 @@ def descargar_reporte_xlsx(request):
     for estudiante in estudiantes_query:
         mensajes = WhatsappLog.objects.filter(
             estudiante=estudiante,
-            timestamp__range=[fecha_inicio, fecha_fin],
-            tipo_mensaje='recibido'
+            fecha__range=[fecha_inicio, fecha_fin],
+            tipo='INCOMING'
         )
         
         total_msgs = mensajes.count()
@@ -236,7 +238,8 @@ def descargar_reporte_xlsx(request):
             pref_audio = 0
             canal_pref = 'Sin interacción'
         
-        progreso = estudiante.progresos.aggregate(Avg('porcentaje_avance'))['porcentaje_avance__avg'] or 0
+        _progs = list(estudiante.progresos.all())
+        progreso = (sum(p.porcentaje_avance() for p in _progs) / len(_progs)) if _progs else 0
         
         ws2.append([
             estudiante.nombre,
@@ -260,8 +263,8 @@ def descargar_reporte_xlsx(request):
     total_estudiantes = estudiantes_query.count()
     total_activos = estudiantes_query.filter(activo=True).count()
     total_mensajes = WhatsappLog.objects.filter(
-        timestamp__range=[fecha_inicio, fecha_fin],
-        tipo_mensaje='recibido'
+        fecha__range=[fecha_inicio, fecha_fin],
+        tipo='INCOMING'
     ).count()
     
     ws3.append(['REPORTE DE ANÁLISIS EKI'])
@@ -277,8 +280,8 @@ def descargar_reporte_xlsx(request):
     ws3.append(['CANALES DE COMUNICACIÓN'])
     
     mensajes_audio_total = WhatsappLog.objects.filter(
-        timestamp__range=[fecha_inicio, fecha_fin],
-        tipo_mensaje='recibido'
+        fecha__range=[fecha_inicio, fecha_fin],
+        tipo='INCOMING'
     ).filter(Q(mensaje__icontains='audio') | Q(mensaje__icontains='🎤')).count()
     mensajes_texto_total = total_mensajes - mensajes_audio_total
     

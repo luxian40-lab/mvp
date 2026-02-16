@@ -36,8 +36,8 @@ def dashboard_unificado(request):
     total_mensajes_whatsapp = WhatsappLog.objects.count()
     mensajes_enviados = WhatsappLog.objects.filter(tipo='SENT').count()
     mensajes_recibidos = WhatsappLog.objects.filter(tipo='INCOMING').count()
-    total_audios = WhatsappLog.objects.filter(tipo='AUDIO').count()
-    total_agentes_ia = WhatsappLog.objects.filter(tipo='IA').count()
+    total_audios = WhatsappLog.objects.filter(es_audio=True).count()
+    total_agentes_ia = WhatsappLog.objects.filter(agente_usado__isnull=False).exclude(agente_usado='').count()
 
     # Progreso educativo
     total_progreso = ProgresoEstudiante.objects.count()
@@ -108,8 +108,8 @@ def dashboard_unificado(request):
         n_est = est_cliente.count()
         tels = [e.telefono for e in est_cliente if e.telefono]
         n_cursos = Curso.objects.filter(progresoestudiante__estudiante__cliente=c).distinct().count()
-        n_audio = WhatsappLog.objects.filter(telefono__in=tels, tipo='AUDIO').count() if tels else 0
-        n_ia = WhatsappLog.objects.filter(telefono__in=tels, tipo='IA').count() if tels else 0
+        n_audio = WhatsappLog.objects.filter(telefono__in=tels, es_audio=True).count() if tels else 0
+        n_ia = WhatsappLog.objects.filter(telefono__in=tels, agente_usado__isnull=False).exclude(agente_usado='').count() if tels else 0
         n_comp = ProgresoEstudiante.objects.filter(estudiante__cliente=c, completado=True).count()
         clientes_detalle.append({
             'nombre': c.nombre,
@@ -519,8 +519,7 @@ def importar_estudiantes(request):
                         defaults['cedula'] = str(cedula).strip()
                     if municipio:
                         defaults['municipio'] = municipio.strip()
-                    if departamento:
-                        defaults['departamento'] = departamento.strip()
+                    # departamento field was removed from Estudiante model
                     if ubicacion_detalle:
                         defaults['ubicacion_detalle'] = ubicacion_detalle.strip()
 
@@ -653,7 +652,7 @@ def descargar_reportes(request):
                 # Datos
                 for log in queryset:
                     fecha_str = log.fecha.strftime('%Y-%m-%d %H:%M:%S') if log.fecha else ''
-                    tipo = '📥 Entrante' if log.estado == 'INCOMING' else '📤 Saliente'
+                    tipo = '📥 Entrante' if log.tipo == 'INCOMING' else '📤 Saliente'
                     row = [
                         log.id,
                         log.telefono,
@@ -831,6 +830,9 @@ def _procesar_twilio_webhook(post_data):
         # 3. 🛡️ PRIORIDAD 1: Verificar seguridad (Habeas Data)
         from .security_handler import verificar_seguridad_completa
         bloqueado, respuesta_seguridad, estudiante = verificar_seguridad_completa(estudiante, msg_body, telefono_limpio)
+        
+        # Default safety - will be overwritten by any branch below
+        texto_respuesta = "Escribe *menú* para ver las opciones disponibles."
         
         if bloqueado:
             print(f"🛡️ Bloqueado por seguridad/habeas data")
@@ -1278,12 +1280,12 @@ def _procesar_meta_webhook(payload):
                     # Obtener o crear estudiante
                     estudiante, _ = Estudiante.objects.get_or_create(
                         telefono=phone,
-                        defaults={'nombre': 'Usuario', 'activo': True}
+                        defaults={'nombre': 'Usuario', 'activo': True, 'cedula': f'META_{phone[-10:]}'}
                     )
                     
                     # Verificar seguridad primero
                     from .security_handler import verificar_seguridad_completa
-                    bloqueado, respuesta_seguridad = verificar_seguridad_completa(estudiante, text)
+                    bloqueado, respuesta_seguridad, estudiante = verificar_seguridad_completa(estudiante, text, telefono=phone)
                     
                     if bloqueado:
                         texto_respuesta = respuesta_seguridad
@@ -1565,7 +1567,7 @@ def conversaciones_view(request):
                     'mensaje': msg.mensaje,
                     'fecha': fecha,
                     'estado': msg.estado,
-                    'tipo': 'recibido' if msg.estado == 'INCOMING' else 'enviado'
+                    'tipo': 'recibido' if msg.tipo == 'INCOMING' else 'enviado'
                 })
             
             # Envio logs (mensajes enviados por campañas)

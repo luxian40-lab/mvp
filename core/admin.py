@@ -1327,7 +1327,6 @@ class EstudianteAdmin(admin.ModelAdmin):
             # Progresos y sus dependencias
             progresos = ProgresoEstudiante.objects.filter(estudiante=obj)
             for prog in progresos:
-                ResultadoExamen.objects.filter(progreso=prog).delete()
                 ModuloCompletado.objects.filter(progreso=prog).delete()
             progresos.delete()
             

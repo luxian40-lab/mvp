@@ -90,7 +90,7 @@ def enviar_campana_con_plantilla(campana_id: int) -> dict:
     Returns:
         dict: Estadísticas del envío
     """
-    from .models import Campana, Linea
+    from .models import Campana, EnvioLog
     
     try:
         campana = Campana.objects.get(id=campana_id)
@@ -127,12 +127,11 @@ def enviar_campana_con_plantilla(campana_id: int) -> dict:
                 variables=variables
             )
             
-            # Crear línea de envío
-            Linea.objects.create(
+            # Crear registro de envío
+            EnvioLog.objects.create(
                 campana=campana,
-                destinatario=estudiante,
+                estudiante=estudiante,
                 estado='ENVIADO' if resultado['success'] else 'ERROR',
-                mensaje_id=resultado.get('mensaje_id'),
                 respuesta_api=resultado.get('response', '')[:500]
             )
             
