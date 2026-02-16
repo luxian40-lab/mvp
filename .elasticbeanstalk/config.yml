@@ -1,0 +1,30 @@
+branch-defaults:
+  clean-main:
+    environment: eki-prod-final
+  main:
+    environment: eki-prod-final
+    group_suffix: null
+environment-defaults:
+  eki-prod-final:
+    branch: null
+    repository: null
+  eki-produccion-env:
+    branch: null
+    repository: null
+  eki-produccion-v2:
+    branch: null
+    repository: null
+global:
+  application_name: eki-mvp-python
+  branch: null
+  default_ec2_keyname: aws-eb
+  default_platform: Python 3.11
+  default_region: us-east-2
+  include_git_submodules: true
+  instance_profile: null
+  platform_name: null
+  platform_version: null
+  profile: eb-cli
+  repository: null
+  sc: git
+  workspace_type: Application

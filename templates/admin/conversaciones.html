@@ -1,0 +1,364 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}💬 Conversaciones WhatsApp{% endblock %}
+
+{% block content %}
+<style>
+    .conv-container {
+        display: flex;
+        height: calc(100vh - 160px);
+        background: #f0f2f5;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.12);
+    }
+    /* === PANEL IZQUIERDO: Lista de contactos === */
+    .conv-sidebar {
+        width: 360px;
+        min-width: 300px;
+        background: #fff;
+        border-right: 1px solid #e0e0e0;
+        display: flex;
+        flex-direction: column;
+    }
+    .conv-sidebar-header {
+        padding: 16px;
+        background: #075e54;
+        color: #fff;
+        font-weight: 700;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .conv-search {
+        padding: 8px 12px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    .conv-search input {
+        width: 100%;
+        padding: 8px 12px;
+        border: none;
+        border-radius: 20px;
+        background: #f0f2f5;
+        font-size: 14px;
+        outline: none;
+    }
+    .conv-contacts {
+        flex: 1;
+        overflow-y: auto;
+    }
+    .conv-contact {
+        display: flex;
+        align-items: center;
+        padding: 12px 16px;
+        cursor: pointer;
+        border-bottom: 1px solid #f0f2f5;
+        transition: background 0.15s;
+        text-decoration: none;
+        color: inherit;
+    }
+    .conv-contact:hover {
+        background: #f5f6f6;
+    }
+    .conv-contact.active {
+        background: #ebebeb;
+    }
+    .conv-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #dfe5e7;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        color: #fff;
+        font-weight: 700;
+        flex-shrink: 0;
+        margin-right: 12px;
+    }
+    .conv-avatar.green { background: #25d366; }
+    .conv-avatar.blue { background: #34b7f1; }
+    .conv-avatar.purple { background: #7c4dff; }
+    .conv-avatar.orange { background: #ff6f00; }
+    .conv-avatar.red { background: #ef5350; }
+    .conv-contact-info {
+        flex: 1;
+        min-width: 0;
+    }
+    .conv-contact-name {
+        font-weight: 600;
+        font-size: 15px;
+        color: #111;
+        margin-bottom: 2px;
+    }
+    .conv-contact-last {
+        font-size: 13px;
+        color: #667781;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 200px;
+    }
+    .conv-contact-meta {
+        text-align: right;
+        flex-shrink: 0;
+    }
+    .conv-contact-date {
+        font-size: 11px;
+        color: #667781;
+    }
+    .conv-contact-badge {
+        background: #25d366;
+        color: #fff;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        font-size: 11px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 4px;
+    }
+    /* === PANEL DERECHO: Chat === */
+    .conv-chat {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: #efeae2;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cg fill='%23d4cfc6' fill-opacity='0.12'%3E%3Cpath d='M20 20h20v20H20zM60 60h20v20H60zM100 20h20v20h-20zM140 60h20v20h-20zM20 100h20v20H20zM60 140h20v20H60zM180 20h20v20h-20zM220 60h20v20h-20zM260 20h20v20h-20zM300 60h20v20h-20z'/%3E%3C/g%3E%3C/svg%3E");
+    }
+    .conv-chat-header {
+        padding: 12px 16px;
+        background: #075e54;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .conv-chat-header-name {
+        font-weight: 600;
+        font-size: 16px;
+    }
+    .conv-chat-header-info {
+        font-size: 12px;
+        opacity: 0.8;
+    }
+    .conv-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px 60px;
+        display: flex;
+        flex-direction: column;
+    }
+    .conv-msg {
+        max-width: 65%;
+        padding: 8px 12px;
+        margin-bottom: 4px;
+        border-radius: 8px;
+        font-size: 14px;
+        line-height: 1.4;
+        position: relative;
+        word-wrap: break-word;
+        white-space: pre-wrap;
+    }
+    .conv-msg-received {
+        background: #fff;
+        align-self: flex-start;
+        border-top-left-radius: 0;
+        box-shadow: 0 1px 1px rgba(0,0,0,0.08);
+    }
+    .conv-msg-sent {
+        background: #d9fdd3;
+        align-self: flex-end;
+        border-top-right-radius: 0;
+        box-shadow: 0 1px 1px rgba(0,0,0,0.08);
+    }
+    .conv-msg-time {
+        font-size: 11px;
+        color: #667781;
+        text-align: right;
+        margin-top: 4px;
+    }
+    .conv-msg-date-divider {
+        text-align: center;
+        margin: 12px 0;
+    }
+    .conv-msg-date-divider span {
+        background: #e1f3fb;
+        color: #54656f;
+        padding: 4px 12px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+    .conv-empty {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        color: #667781;
+    }
+    .conv-empty-icon {
+        font-size: 64px;
+        margin-bottom: 16px;
+    }
+    .conv-empty-text {
+        font-size: 16px;
+    }
+    .conv-pagination {
+        padding: 8px 16px;
+        background: rgba(255,255,255,0.9);
+        text-align: center;
+        border-top: 1px solid #e0e0e0;
+    }
+    .conv-pagination a {
+        display: inline-block;
+        padding: 4px 12px;
+        margin: 0 4px;
+        background: #075e54;
+        color: #fff;
+        border-radius: 4px;
+        text-decoration: none;
+        font-size: 13px;
+    }
+    .conv-pagination a:hover {
+        background: #128c7e;
+    }
+    .conv-stats {
+        padding: 8px 16px;
+        background: #fff;
+        border-bottom: 1px solid #e0e0e0;
+        font-size: 12px;
+        color: #667781;
+        text-align: center;
+    }
+</style>
+
+<div class="conv-container">
+    <!-- Sidebar: Lista de contactos -->
+    <div class="conv-sidebar">
+        <div class="conv-sidebar-header">
+            💬 Conversaciones
+        </div>
+        <div class="conv-search">
+            <input type="text" id="searchContacts" placeholder="🔍 Buscar estudiante..." onkeyup="filterContacts()">
+        </div>
+        <div class="conv-stats">
+            {{ estudiantes|length }} contacto{{ estudiantes|length|pluralize:"s" }} con mensajes
+        </div>
+        <div class="conv-contacts" id="contactsList">
+            {% for est in estudiantes %}
+            <a href="?estudiante={{ est.id }}" 
+               class="conv-contact {% if estudiante_seleccionado and estudiante_seleccionado.id == est.id %}active{% endif %}"
+               data-name="{{ est.nombre|lower }}">
+                {% with colors="green blue purple orange red" %}
+                <div class="conv-avatar {% cycle 'green' 'blue' 'purple' 'orange' 'red' %}">
+                    {{ est.nombre|first|upper }}
+                </div>
+                {% endwith %}
+                <div class="conv-contact-info">
+                    <div class="conv-contact-name">{{ est.nombre }}</div>
+                    <div class="conv-contact-last">
+                        {% if est.ultimo_mensaje %}
+                            {{ est.ultimo_mensaje|truncatechars:40 }}
+                        {% else %}
+                            Sin mensajes
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="conv-contact-meta">
+                    {% if est.ultima_fecha %}
+                    <div class="conv-contact-date">{{ est.ultima_fecha|date:"d/m H:i" }}</div>
+                    {% endif %}
+                    {% if est.total_mensajes %}
+                    <div class="conv-contact-badge">{{ est.total_mensajes }}</div>
+                    {% endif %}
+                </div>
+            </a>
+            {% empty %}
+            <div style="padding: 32px; text-align: center; color: #667781;">
+                No hay conversaciones aún.<br>Los mensajes aparecerán aquí automáticamente.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Chat: Mensajes -->
+    <div class="conv-chat">
+        {% if estudiante_seleccionado %}
+        <div class="conv-chat-header">
+            <div class="conv-avatar green" style="width:40px;height:40px;font-size:16px;">
+                {{ estudiante_seleccionado.nombre|first|upper }}
+            </div>
+            <div>
+                <div class="conv-chat-header-name">{{ estudiante_seleccionado.nombre }}</div>
+                <div class="conv-chat-header-info">📱 {{ estudiante_seleccionado.telefono }}</div>
+            </div>
+        </div>
+        <div class="conv-messages" id="chatMessages">
+            {% load tz %}
+            {% for msg in mensajes %}
+                {% ifchanged msg.fecha|date:"d/m/Y" %}
+                <div class="conv-msg-date-divider">
+                    <span>{{ msg.fecha|date:"d \d\e F, Y" }}</span>
+                </div>
+                {% endifchanged %}
+                
+                <div class="conv-msg {% if msg.tipo == 'recibido' %}conv-msg-received{% else %}conv-msg-sent{% endif %}">
+                    {{ msg.mensaje|truncatechars:800 }}
+                    <div class="conv-msg-time">
+                        {{ msg.fecha|date:"H:i" }}
+                        {% if msg.tipo == 'enviado' %}
+                            {% if msg.estado == 'DELIVERED' %}✓✓{% elif msg.estado == 'READ' %}✓✓{% elif msg.estado == 'SENT' %}✓{% else %}🕐{% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            {% empty %}
+                <div class="conv-empty">
+                    <div class="conv-empty-icon">📭</div>
+                    <div class="conv-empty-text">No hay mensajes con este estudiante</div>
+                </div>
+            {% endfor %}
+        </div>
+        {% if page_obj and page_obj.has_other_pages %}
+        <div class="conv-pagination">
+            {% if page_obj.has_previous %}
+            <a href="?estudiante={{ estudiante_seleccionado.id }}&page={{ page_obj.previous_page_number }}">← Anteriores</a>
+            {% endif %}
+            <span style="color:#667781;font-size:13px;">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}
+            <a href="?estudiante={{ estudiante_seleccionado.id }}&page={{ page_obj.next_page_number }}">Siguientes →</a>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="conv-empty">
+            <div class="conv-empty-icon">💬</div>
+            <div class="conv-empty-text">Selecciona un contacto para ver la conversación</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function filterContacts() {
+    const q = document.getElementById('searchContacts').value.toLowerCase();
+    document.querySelectorAll('.conv-contact').forEach(c => {
+        const name = c.getAttribute('data-name') || '';
+        c.style.display = name.includes(q) ? '' : 'none';
+    });
+}
+
+// Auto-scroll al último mensaje
+document.addEventListener('DOMContentLoaded', function() {
+    const chat = document.getElementById('chatMessages');
+    if (chat) {
+        chat.scrollTop = chat.scrollHeight;
+    }
+});
+</script>
+{% endblock %}

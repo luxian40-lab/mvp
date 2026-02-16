@@ -1,0 +1,123 @@
+﻿{% extends "admin/index.html" %}
+{% load static %}
+
+{% block extrahead %}
+<!-- Eliminar todo el contenido adicional del admin, solo dejar el banner instructivo -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Montserrat:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+<style>
+    .eki-instructivo-banner {
+        background: #f5f6fa;
+        border: 1.5px solid #d1d5db;
+        padding: 28px 32px;
+        border-radius: 6px;
+        margin-bottom: 32px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        font-family: 'Inter', 'Montserrat', 'Roboto', Arial, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-width: 0;
+    }
+    .eki-instructivo-banner h2 {
+        margin: 0 0 6px 0;
+        font-size: 2rem;
+        font-weight: 700;
+        color: #2d2d2d;
+        letter-spacing: -1px;
+        font-family: 'Montserrat', 'Inter', 'Roboto', Arial, sans-serif;
+    }
+    .eki-instructivo-banner p {
+        margin: 0;
+        font-size: 1.08rem;
+        color: #444;
+        opacity: 0.92;
+        font-family: 'Inter', 'Roboto', Arial, sans-serif;
+    }
+    .eki-instructivo-banner .eki-btn {
+        background: #fff;
+        color: #3b5bdb;
+        border: 1.5px solid #3b5bdb;
+        padding: 12px 28px;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 1.08rem;
+        box-shadow: 0 1px 4px rgba(59,91,219,0.08);
+        transition: background 0.18s, color 0.18s, border 0.18s;
+        font-family: 'Inter', 'Montserrat', 'Roboto', Arial, sans-serif;
+        margin-left: 32px;
+        display: inline-block;
+    }
+    .eki-instructivo-banner .eki-btn:hover {
+        background: #3b5bdb;
+        color: #fff;
+        border-color: #3b5bdb;
+    }
+    .eki-dashboards-nav {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 28px;
+    }
+    .eki-dashboards-nav a {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #fff;
+        border: 1.5px solid #e0e0e0;
+        padding: 14px 22px;
+        border-radius: 6px;
+        text-decoration: none;
+        color: #333;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.2s;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        font-family: 'Inter', 'Roboto', Arial, sans-serif;
+    }
+    .eki-dashboards-nav a:hover {
+        border-color: #3b5bdb;
+        background: #f0f4ff;
+        color: #3b5bdb;
+        box-shadow: 0 2px 8px rgba(59,91,219,0.12);
+    }
+    .eki-dashboards-nav .dash-icon {
+        font-size: 1.4rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="eki-dashboards-nav">
+    <a href="{% url 'dashboard_unificado' %}">
+        <span class="dash-icon">📊</span> Dashboard Principal
+    </a>
+    <a href="{% url 'dashboard_metrics' %}">
+        <span class="dash-icon">📈</span> Métricas
+    </a>
+    <a href="{% url 'dashboard_gerencial' %}">
+        <span class="dash-icon">🏢</span> Gerencial
+    </a>
+    <a href="{% url 'dashboard_analytics' %}">
+        <span class="dash-icon">🔬</span> Analytics
+    </a>
+    <a href="{% url 'dashboard_reportes_avanzados' %}">
+        <span class="dash-icon">📋</span> Reportes
+    </a>
+    <a href="{% url 'conversaciones' %}">
+        <span class="dash-icon">💬</span> Conversaciones
+    </a>
+</div>
+
+<div class="eki-instructivo-banner">
+    <div>
+        <h2>¿Primera vez usando Eki?</h2>
+        <p>Lee el manual completo con instrucciones paso a paso de todas las funciones</p>
+    </div>
+    <a href="{% url 'instrucciones' %}" class="eki-btn">Leer Instructivo</a>
+</div>
+
+{{ block.super }}
+{% endblock %}
+

@@ -1,0 +1,59 @@
+# Ignorar archivos de versiones de app de Elastic Beanstalk
+.elasticbeanstalk/app_versions/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Entornos virtuales
+.venv/
+venv/
+
+# Archivos temporales
+*.log
+*.tmp
+*.swp
+
+# Archivos de configuración locales
+.env
+.env.*
+.env.local
+.env.production
+.env.render
+
+# Archivos de prueba
+prueba_*.py
+test_onboarding_natural.py
+
+# Carpetas temporales de deploy
+temp_deploy*/
+
+# Archivos de diagnóstico
+*.sqlite3
+db.sqlite3
+
+# Otros archivos y carpetas que no deben subirse
+.DS_Store
+Thumbs.db
+
+# EB logs downloaded locally
+.elasticbeanstalk/logs/
+
+# Log files from EB
+eb_*.txt
+eb-logs.txt
+
+# SSH keys
+*.pem
+
+# Binarios
+ngrok.exe
+
+# Media y backups
+media/
+backups/
+audios_whatsapp/
+logs/
+staticfiles/

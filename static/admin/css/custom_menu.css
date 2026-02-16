@@ -1,0 +1,141 @@
+/* ================================================
+   ESTILOS SIDEBAR EKI - UX MEJORADO
+   ================================================ */
+
+/* Scroll suave */
+.main-sidebar,
+.sidebar-wrapper,
+.sidebar-nav {
+    overflow-y: auto !important;
+    max-height: calc(100vh - 60px) !important;
+}
+
+.main-sidebar::-webkit-scrollbar {
+    width: 8px;
+}
+
+.main-sidebar::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 10px;
+}
+
+.main-sidebar::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+}
+
+/* Items del menu con diseño mejorado */
+.nav-sidebar > .nav-item {
+    margin-bottom: 3px;
+}
+
+.nav-sidebar .nav-link {
+    padding: 12px 15px !important;
+    border-radius: 8px !important;
+    margin: 0 8px !important;
+    transition: all 0.3s ease !important;
+    border-left: 3px solid transparent !important;
+}
+
+/* Hover con color */
+.nav-sidebar .nav-link:hover {
+    background: rgba(52, 152, 219, 0.1) !important;
+    border-left-color: #3498db !important;
+    transform: translateX(2px);
+}
+
+/* Item activo */
+.nav-sidebar .nav-link.active {
+    background: linear-gradient(90deg, rgba(52, 152, 219, 0.15) 0%, rgba(52, 152, 219, 0.05) 100%) !important;
+    border-left-color: #3498db !important;
+    font-weight: 600 !important;
+}
+
+/* Colores por categoria - Mensajería (Azul) */
+.nav-link[href*="campana"],
+.nav-link[href*="plantilla"],
+.nav-link[href*="whatsapplog"],
+.nav-link[href*="conversaciones"],
+.nav-link[href*="tema"] {
+    border-left-color: rgba(52, 152, 219, 0.3) !important;
+}
+
+.nav-link[href*="campana"]:hover,
+.nav-link[href*="plantilla"]:hover,
+.nav-link[href*="whatsapplog"]:hover {
+    background: rgba(52, 152, 219, 0.1) !important;
+    border-left-color: #3498db !important;
+}
+
+/* Personas (Verde) */
+.nav-link[href*="estudiante"],
+.nav-link[href*="cliente"],
+.nav-link[href*="linea"] {
+    border-left-color: rgba(46, 204, 113, 0.3) !important;
+}
+
+.nav-link[href*="estudiante"]:hover,
+.nav-link[href*="cliente"]:hover {
+    background: rgba(46, 204, 113, 0.1) !important;
+    border-left-color: #2ecc71 !important;
+}
+
+/* Educación (Naranja) */
+.nav-link[href*="curso"],
+.nav-link[href*="modulo"],
+.nav-link[href*="examen"],
+.nav-link[href*="progreso"] {
+    border-left-color: rgba(230, 126, 34, 0.3) !important;
+}
+
+.nav-link[href*="curso"]:hover,
+.nav-link[href*="modulo"]:hover,
+.nav-link[href*="examen"]:hover {
+    background: rgba(230, 126, 34, 0.1) !important;
+    border-left-color: #e67e22 !important;
+}
+
+/* Gamificación (Dorado) */
+.nav-link[href*="perfil"],
+.nav-link[href*="badge"],
+.nav-link[href*="recompensa"],
+.nav-link[href*="canje"] {
+    border-left-color: rgba(241, 196, 15, 0.3) !important;
+}
+
+.nav-link[href*="badge"]:hover,
+.nav-link[href*="recompensa"]:hover {
+    background: rgba(241, 196, 15, 0.1) !important;
+    border-left-color: #f1c40f !important;
+}
+
+/* Iconos */
+.nav-icon {
+    font-size: 16px !important;
+    margin-right: 10px !important;
+    width: 25px !important;
+    text-align: center !important;
+    opacity: 0.8;
+}
+
+.nav-link:hover .nav-icon {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+/* Texto */
+.nav-link p {
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    margin: 0 !important;
+}
+
+.nav-link.active p {
+    font-weight: 600 !important;
+}
+
+/* Animaciones */
+.nav-link,
+.nav-icon {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}

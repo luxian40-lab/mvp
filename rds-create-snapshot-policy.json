@@ -1,0 +1,14 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "rds:CreateDBSnapshot",
+        "rds:DescribeDBSnapshots",
+        "rds:DescribeDBInstances"
+      ],
+      "Resource": "arn:aws:rds:us-east-2:178773630934:db:eki-database"
+    }
+  ]
+}

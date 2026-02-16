@@ -1,0 +1,71 @@
+# Archivos grandes y temporales
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.sqlite3
+*.db
+
+# Entornos virtuales
+.venv/
+.venv-py314/
+venv/
+env/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# Logs
+*.log
+logs/
+eb-logs.txt
+
+# Archivos ZIP y versiones antiguas
+*.zip
+.elasticbeanstalk/app_versions/
+deploy*.ps1
+
+# Media y backups (ya están en S3)
+media/
+backups/
+audios_whatsapp/
+temp_deploy_v4/
+ngrok.exe
+*.exe
+
+# Documentación
+*.md
+docs/
+
+# Scripts locales
+*.bat
+*.ps1
+
+# NO excluir .sh — las plataform hooks son .sh y necesitan desplegarse
+
+# Archivos de testing
+test/
+tests/
+
+# Otros
+.env
+.env.local
+.env.production
+ngrok.exe
+estudiantes_ejemplo.xlsx
+plantilla_valle.csv

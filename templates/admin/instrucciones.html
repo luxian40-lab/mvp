@@ -1,0 +1,488 @@
+{% extends "admin/base.html" %}
+{% block title %}Primera vez usando Eki - Manual Completo{% endblock %}
+
+{% block extrahead %}
+<style>
+:root { --eki-blue: #3b5bdb; --eki-green: #2f9e44; --eki-bg: #f8f9fa; --eki-card: #fff; --eki-text: #212529; --eki-muted: #868e96; --eki-border: #dee2e6; }
+.manual-wrap { max-width: 1100px; margin: 0 auto; padding: 30px 24px; font-family: 'Inter','Segoe UI',sans-serif; color: var(--eki-text); }
+.manual-wrap h1 { font-size: 2rem; font-weight: 700; margin: 0 0 8px 0; }
+.manual-wrap .subtitle { color: var(--eki-muted); margin-bottom: 30px; font-size: 1rem; }
+.manual-wrap h2 { font-size: 1.35rem; font-weight: 700; color: var(--eki-blue); margin: 36px 0 14px 0; padding-bottom: 8px; border-bottom: 2px solid var(--eki-border); }
+.manual-wrap h3 { font-size: 1.05rem; font-weight: 600; margin: 20px 0 10px 0; color: var(--eki-text); }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap: 16px; margin: 16px 0; }
+.info-card { background: var(--eki-card); border: 1px solid var(--eki-border); border-radius: 8px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+.info-card .ic-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+.info-card .ic-body { font-size: 0.88rem; color: #555; line-height: 1.5; }
+.info-card .ic-body ul { margin: 4px 0; padding-left: 18px; }
+.toc { background: #edf2ff; border-radius: 8px; padding: 18px 24px; margin-bottom: 30px; }
+.toc h3 { margin: 0 0 10px 0; font-size: 1rem; }
+.toc ol { margin: 0; padding-left: 20px; }
+.toc li { margin-bottom: 4px; }
+.toc a { color: var(--eki-blue); text-decoration: none; font-weight: 500; }
+.toc a:hover { text-decoration: underline; }
+table.ref-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.88rem; }
+table.ref-table th { background: #f1f3f5; padding: 8px 12px; text-align: left; font-weight: 600; color: var(--eki-muted); font-size: 0.8rem; text-transform: uppercase; }
+table.ref-table td { padding: 8px 12px; border-top: 1px solid var(--eki-border); }
+table.ref-table tr:hover td { background: #f8f9fa; }
+.code-ref { background: #e9ecef; padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 0.85rem; }
+.step-list { counter-reset: step-counter; list-style: none; padding: 0; }
+.step-list li { counter-increment: step-counter; padding: 12px 16px; margin-bottom: 10px; background: var(--eki-card); border: 1px solid var(--eki-border); border-radius: 8px; position: relative; padding-left: 50px; }
+.step-list li::before { content: counter(step-counter); position: absolute; left: 14px; top: 12px; width: 26px; height: 26px; background: var(--eki-blue); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; }
+.callout { background: #fff3bf; border-left: 4px solid #f59f00; padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 16px 0; font-size: 0.9rem; }
+.callout.danger { background: #ffe3e3; border-left-color: #e03131; }
+.callout.info { background: #d0ebff; border-left-color: #1c7ed6; }
+.flow-diagram { background: var(--eki-card); border: 1px solid var(--eki-border); border-radius: 8px; padding: 20px; margin: 16px 0; font-size: 0.88rem; line-height: 1.7; }
+.flow-diagram .arrow { color: var(--eki-blue); font-weight: 700; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="manual-wrap">
+
+<h1>Primera vez usando Eki</h1>
+<p class="subtitle">Manual completo para el equipo. Explica como funciona el sistema, que hace cada parte y como administrarlo.</p>
+
+<!-- Tabla de contenidos -->
+<div class="toc">
+<h3>Contenido</h3>
+<ol>
+<li><a href="#vision">Vision general del sistema</a></li>
+<li><a href="#arquitectura">Arquitectura y tecnologias</a></li>
+<li><a href="#modelos">Modelos de datos</a></li>
+<li><a href="#flujo-whatsapp">Flujo WhatsApp (webhook)</a></li>
+<li><a href="#agentes-ia">Agentes de Inteligencia Artificial</a></li>
+<li><a href="#tutor-evaluador">Tutor IA y Evaluador por modulo</a></li>
+<li><a href="#gamificacion">Sistema de Gamificacion</a></li>
+<li><a href="#certificados">Certificados digitales</a></li>
+<li><a href="#multimedia">Archivos multimedia y S3</a></li>
+<li><a href="#seguridad">Seguridad y Habeas Data</a></li>
+<li><a href="#admin-acciones">Acciones del Admin</a></li>
+<li><a href="#dashboards">Dashboards y Reportes</a></li>
+<li><a href="#urls">URLs y vistas disponibles</a></li>
+<li><a href="#paso-a-paso">Paso a paso comun</a></li>
+<li><a href="#archivos-clave">Archivos clave del codigo</a></li>
+<li><a href="#faq">Preguntas frecuentes</a></li>
+</ol>
+</div>
+
+<!-- 1. Visión general -->
+<h2 id="vision">1. Vision general del sistema</h2>
+<p>Eki es una plataforma educativa que ensena a estudiantes (agricultores, campesinos, comunidades rurales colombianas) a traves de <b>WhatsApp</b>. El estudiante recibe los modulos del curso por WhatsApp, un tutor IA le explica el contenido con el metodo sandwich, y un evaluador IA verifica su comprension.</p>
+
+<div class="card-grid">
+<div class="info-card">
+    <div class="ic-title">📱 Canal principal</div>
+    <div class="ic-body">WhatsApp via Twilio. Los estudiantes no necesitan instalar ninguna app extra. Todo funciona por chat.</div>
+</div>
+<div class="info-card">
+    <div class="ic-title">🤖 Inteligencia Artificial</div>
+    <div class="ic-body">4 agentes IA (Tutor, Frustacion, Motivador, Evaluador) + Tutor IA por modulo con GPT-4o-mini. Fallback a Cohere si OpenAI falla.</div>
+</div>
+<div class="info-card">
+    <div class="ic-title">🏆 Gamificacion</div>
+    <div class="ic-body">Puntos, niveles, rachas, badges e insignias. Los estudiantes compiten en un ranking y pueden canjear recompensas.</div>
+</div>
+<div class="info-card">
+    <div class="ic-title">📜 Certificados</div>
+    <div class="ic-body">Certificados digitales con QR verificable al completar un curso. Se generan automaticamente.</div>
+</div>
+</div>
+
+<!-- 2. Arquitectura -->
+<h2 id="arquitectura">2. Arquitectura y tecnologias</h2>
+<div class="card-grid">
+<div class="info-card">
+    <div class="ic-title">🐍 Backend</div>
+    <div class="ic-body">
+        <ul>
+            <li>Python + Django</li>
+            <li>Base de datos SQLite / PostgreSQL (RDS en produccion)</li>
+            <li>Admin con tema Jazzmin</li>
+        </ul>
+    </div>
+</div>
+<div class="info-card">
+    <div class="ic-title">☁️ Infraestructura</div>
+    <div class="ic-body">
+        <ul>
+            <li>AWS Elastic Beanstalk (us-east-2)</li>
+            <li>AWS S3 bucket: <span class="code-ref">eki-produccion</span></li>
+            <li>Dominio EB: <span class="code-ref">eki-prod-final.eba-32krwxas.us-east-2.elasticbeanstalk.com</span></li>
+        </ul>
+    </div>
+</div>
+<div class="info-card">
+    <div class="ic-title">📞 Integraciones</div>
+    <div class="ic-body">
+        <ul>
+            <li><b>Twilio</b>: WhatsApp Business API</li>
+            <li><b>OpenAI</b>: GPT-4o-mini (tutor), GPT-3.5-turbo (chat)</li>
+            <li><b>Cohere</b>: IA de respaldo</li>
+            <li><b>Vosk</b>: Transcripcion de audio offline</li>
+        </ul>
+    </div>
+</div>
+</div>
+
+<!-- 3. Modelos -->
+<h2 id="modelos">3. Modelos de datos</h2>
+<h3>Modelos principales</h3>
+<table class="ref-table">
+<thead><tr><th>Modelo</th><th>Que guarda</th><th>Archivo</th></tr></thead>
+<tbody>
+<tr><td><b>Cliente</b></td><td>Organizacion que contrata Eki (cooperativa, ONG). Controla gamificacion, WhatsApp, certificados.</td><td>core/models.py</td></tr>
+<tr><td><b>Estudiante</b></td><td>Usuario final (agricultor). Cedula, telefono, municipio, habeas data, estado de onboarding.</td><td>core/models.py</td></tr>
+<tr><td><b>Curso</b></td><td>Curso completo con modulos. Tiene enlace a grupo WhatsApp y toggle de gamificacion.</td><td>core/models.py</td></tr>
+<tr><td><b>Modulo</b></td><td>Unidad del curso con contenido, video, PDF, imagen. Soporta examen obligatorio.</td><td>core/models.py</td></tr>
+<tr><td><b>ProgresoEstudiante</b></td><td>Avance del estudiante en un curso (modulo actual, % completado).</td><td>core/models.py</td></tr>
+<tr><td><b>ModuloCompletado</b></td><td>Registro de cada modulo terminado (respuesta a mini examen).</td><td>core/models.py</td></tr>
+<tr><td><b>WhatsappLog</b></td><td>Cada mensaje WhatsApp enviado/recibido. Incluye tipo (SENT, INCOMING, AUDIO, IA).</td><td>core/models.py</td></tr>
+<tr><td><b>Campana</b></td><td>Campana masiva de WhatsApp. Soporta Excel, tipo audiencia, fecha programada.</td><td>core/models.py</td></tr>
+<tr><td><b>Plantilla</b></td><td>Template de mensaje WhatsApp aprobado por Twilio.</td><td>core/models.py</td></tr>
+</tbody>
+</table>
+
+<h3>Modelos de gamificacion</h3>
+<table class="ref-table">
+<thead><tr><th>Modelo</th><th>Que guarda</th></tr></thead>
+<tbody>
+<tr><td><b>PerfilGamificacion</b></td><td>Puntos, nivel, racha, stats del estudiante.</td></tr>
+<tr><td><b>Badge / BadgeEstudiante</b></td><td>Insignias y quienes las tienen.</td></tr>
+<tr><td><b>TransaccionPuntos</b></td><td>Historial de cada suma/resta de puntos.</td></tr>
+<tr><td><b>Recompensa / CanjeRecompensa</b></td><td>Premios canjeables y registro de canjes.</td></tr>
+</tbody>
+</table>
+
+<h3>Otros modelos</h3>
+<table class="ref-table">
+<thead><tr><th>Modelo</th><th>Que guarda</th></tr></thead>
+<tbody>
+<tr><td><b>Certificado</b></td><td>Certificado digital con QR y PDF.</td></tr>
+<tr><td><b>ArchivoModulo</b></td><td>Videos, PDFs, imagenes adjuntas a modulos (almacenados en S3).</td></tr>
+<tr><td><b>SolicitudSoporte</b></td><td>Boton de panico: cuando un estudiante pide ayuda urgente.</td></tr>
+<tr><td><b>PQRS</b></td><td>Peticiones, Quejas, Reclamos y Sugerencias.</td></tr>
+<tr><td><b>Examen / PreguntaExamen / ResultadoExamen</b></td><td>Examenes finales evaluados por IA.</td></tr>
+</tbody>
+</table>
+
+<!-- 4. Flujo WhatsApp -->
+<h2 id="flujo-whatsapp">4. Flujo WhatsApp (webhook)</h2>
+<p>Cuando un estudiante envia un mensaje por WhatsApp, Twilio llama el webhook de Eki. Este es el flujo completo:</p>
+
+<div class="flow-diagram">
+<b>Estudiante envia mensaje</b> <span class="arrow">&rarr;</span> Twilio webhook <span class="code-ref">/webhook/whatsapp/</span><br>
+<span class="arrow">&darr;</span><br>
+<b>1. Detectar tipo</b>: Twilio (StatusCallback?) o mensaje real<br>
+<span class="arrow">&darr;</span><br>
+<b>2. Buscar estudiante</b>: por telefono en la BD<br>
+<span class="arrow">&darr;</span><br>
+<b>3. Seguridad</b>: Verificar habeas data (Ley 1581). Si no acepto terminos, mostrar politica y esperar "acepto"<br>
+<span class="arrow">&darr;</span><br>
+<b>4. Estado del estudiante</b>:<br>
+&nbsp;&nbsp;- <b>esperando_respuesta_tutor_ia</b> <span class="arrow">&rarr;</span> El Evaluador IA valida la respuesta con empatia<br>
+&nbsp;&nbsp;- <b>esperando_respuesta_modulo</b> <span class="arrow">&rarr;</span> Validar respuesta A/B/C/D o abierta<br>
+&nbsp;&nbsp;- <b>completado / normal</b> <span class="arrow">&rarr;</span> Continuar al paso 5<br>
+<span class="arrow">&darr;</span><br>
+<b>5. Detectar intencion</b>: "listo", "menu", "cursos", "examen", "ayuda", etc.<br>
+<span class="arrow">&darr;</span><br>
+<b>6. Si dice "listo"</b>: avanzar al siguiente modulo <span class="arrow">&rarr;</span> Enviar contenido + Tutor IA (metodo sandwich) + pregunta<br>
+<span class="arrow">&darr;</span><br>
+<b>7. Si no tiene intencion clara</b>: pasar a la IA tutora (GPT-3.5-turbo + Cohere fallback)<br>
+<span class="arrow">&darr;</span><br>
+<b>8. Seleccionar agente IA</b>: Tutor / Frustracion / Motivador / Evaluador segun contexto<br>
+<span class="arrow">&darr;</span><br>
+<b>9. Responder y guardar en WhatsappLog</b>
+</div>
+
+<!-- 5. Agentes IA -->
+<h2 id="agentes-ia">5. Agentes de Inteligencia Artificial</h2>
+<p>El sistema tiene 4 agentes especializados en <span class="code-ref">core/agentes_ia.py</span>. Se seleccionan automaticamente segun el mensaje del estudiante:</p>
+
+<div class="card-grid">
+<div class="info-card">
+    <div class="ic-title">📚 AgenteTutor</div>
+    <div class="ic-body">Explica conceptos, responde preguntas educativas, guia el aprendizaje. Usa GPT-4o. Temperatura 0.7, max 200 tokens.</div>
+</div>
+<div class="info-card">
+    <div class="ic-title">😤 AgenteFrustracion</div>
+    <div class="ic-body">Se activa si detecta frustacion ("no entiendo", "estoy perdido"). Adapta la comunicacion con empatia. Temperatura 0.6.</div>
+</div>
+<div class="info-card">
+    <div class="ic-title">💪 AgenteMotivador</div>
+    <div class="ic-body">Refuerzo positivo y celebracion de logros. Se activa con "logre", "termine", "subi de nivel". Temperatura 0.9, max 100 tokens.</div>
+</div>
+<div class="info-card">
+    <div class="ic-title">📝 AgenteEvaluador</div>
+    <div class="ic-body">Evalua respuestas de examenes y genera feedback con IA. Temperatura 0.3 (evaluacion rigurosa). Parsea PUNTAJE/CORRECTA/FEEDBACK.</div>
+</div>
+</div>
+
+<p>La funcion <span class="code-ref">seleccionar_agente()</span> elige automaticamente: si el mensaje contiene keywords de frustracion, usa AgenteFrustracion. Si contiene motivacion, usa AgenteMotivador. Si es examen, usa AgenteEvaluador. Por defecto, AgenteTutor.</p>
+
+<!-- 6. Tutor IA y Evaluador -->
+<h2 id="tutor-evaluador">6. Tutor IA y Evaluador por modulo</h2>
+<div class="callout info">
+<b>NUEVO:</b> Este sistema se integro en el flujo de avance de modulos. Cada vez que un estudiante avanza, recibe una micro-ensenanza y una pregunta de comprension evaluada por IA.
+</div>
+
+<h3>Metodo Sandwich</h3>
+<p>El Tutor IA usa el metodo sandwich pedagogico en cada mensaje:</p>
+<ol class="step-list">
+<li><b>1 frase clara con el concepto</b> del modulo actual</li>
+<li><b>1 ejemplo practico de la vida cotidiana</b> (adaptado al contexto rural)</li>
+<li><b>1 pregunta directa para validar comprension</b></li>
+</ol>
+
+<h3>Reglas del Tutor</h3>
+<ul>
+<li>Maximo <b>60 palabras</b> por mensaje</li>
+<li>Maximo <b>2 emojis</b></li>
+<li>Modelo: <b>GPT-4o-mini</b> (bajo costo)</li>
+<li>Personalidad: coach cercano, respetuoso, motivador</li>
+<li>SIEMPRE termina con una pregunta</li>
+</ul>
+
+<h3>Evaluador de respuestas</h3>
+<table class="ref-table">
+<thead><tr><th>Escenario</th><th>Que hace</th></tr></thead>
+<tbody>
+<tr><td>Respuesta correcta</td><td>Felicita brevemente, refuerza por que esta bien, invita a continuar.</td></tr>
+<tr><td>Respuesta incorrecta</td><td><b>NUNCA dice "estas mal"</b>. Dice "Vas bien, pero mira esto..." Da pista nueva, reformula mas simple.</td></tr>
+<tr><td>"No se" o "Me rindo"</td><td>Explica la respuesta y pide que la diga con sus propias palabras.</td></tr>
+<tr><td>Fuera de tema</td><td>Redirige amablemente al tema actual del modulo.</td></tr>
+</tbody>
+</table>
+
+<p>Archivo: <span class="code-ref">core/tutor_ia_modulo.py</span></p>
+
+<!-- 7. Gamificacion -->
+<h2 id="gamificacion">7. Sistema de Gamificacion</h2>
+<div class="flow-diagram">
+<b>Estudiante completa modulo</b> <span class="arrow">&rarr;</span> Se crea <span class="code-ref">ModuloCompletado</span><br>
+<span class="arrow">&darr;</span> (signal post_save)<br>
+<b>+50 puntos automaticos</b> <span class="arrow">&rarr;</span> Actualizar racha <span class="arrow">&rarr;</span> Verificar subida de nivel<br>
+<span class="arrow">&darr;</span><br>
+<b>Si respondio correctamente</b> <span class="arrow">&rarr;</span> +10 puntos bonus<br>
+<span class="arrow">&darr;</span><br>
+<b>Enviar archivos multimedia del modulo automaticamente por WhatsApp</b>
+</div>
+
+<div class="flow-diagram">
+<b>Estudiante completa CURSO</b> <span class="arrow">&rarr;</span> <span class="code-ref">ProgresoEstudiante.completado = True</span><br>
+<span class="arrow">&darr;</span> (signal post_save)<br>
+<b>+200 puntos</b> <span class="arrow">&rarr;</span> Badge de curso <span class="arrow">&rarr;</span> Badge por cantidad de cursos
+</div>
+
+<h3>Niveles</h3>
+<p>Los niveles se calculan por puntos acumulados. Cada nivel requiere mas puntos que el anterior. Emojis de nivel: 🌱🌿🍃🌾🌳🌲🎋🌺💎👑</p>
+
+<!-- 8. Certificados -->
+<h2 id="certificados">8. Certificados digitales</h2>
+<p>Al completar un curso, se genera automaticamente un certificado digital con:</p>
+<ul>
+<li>Codigo de verificacion unico</li>
+<li>QR escaneable que lleva a <span class="code-ref">/verificar-certificado/&lt;codigo&gt;/</span></li>
+<li>PDF descargable</li>
+<li>Nombre del estudiante, curso, calificacion, fechas</li>
+</ul>
+<p>Archivos: <span class="code-ref">core/models_certificados.py</span> y <span class="code-ref">core/views_certificados.py</span></p>
+
+<!-- 9. Multimedia -->
+<h2 id="multimedia">9. Archivos multimedia y S3</h2>
+<p>Los archivos (videos, PDFs, imagenes, audios) se almacenan en AWS S3 bucket <span class="code-ref">eki-produccion</span>.</p>
+<table class="ref-table">
+<thead><tr><th>Tipo</th><th>Como se envia por WhatsApp</th></tr></thead>
+<tbody>
+<tr><td>Video (.mp4)</td><td>URL firmada S3 (presigned URL) con Content-Type correcto</td></tr>
+<tr><td>PDF</td><td>URL firmada S3 como documento adjunto</td></tr>
+<tr><td>Imagen</td><td>URL firmada S3 como media</td></tr>
+<tr><td>Audio (.ogg)</td><td>Se transcribe con Vosk (offline gratuito) o Whisper (OpenAI)</td></tr>
+</tbody>
+</table>
+
+<div class="callout">
+<b>Importante:</b> Los archivos se suben desde el admin en <b>ArchivoModulo</b>. Se asocian a un modulo y se envian automaticamente cuando el estudiante completa ese modulo (via signal de gamificacion).
+</div>
+
+<!-- 10. Seguridad -->
+<h2 id="seguridad">10. Seguridad y Habeas Data</h2>
+<p>El sistema cumple con la <b>Ley 1581 de 2012</b> (proteccion de datos personales de Colombia).</p>
+<ol class="step-list">
+<li>Cuando un estudiante nuevo escribe, se le muestra la <b>politica de tratamiento de datos</b></li>
+<li>El estudiante debe responder "acepto", "si", "ok" o similar para continuar</li>
+<li>Si no acepta, no puede usar la plataforma</li>
+<li>Se registra la aceptacion con fecha y hora</li>
+</ol>
+
+<h3>Boton de panico</h3>
+<p>Si el estudiante escribe "necesito ayuda", "urgente", "emergencia", "hablar con humano", se crea una <span class="code-ref">SolicitudSoporte</span> y se notifica al equipo.</p>
+<p>Archivo: <span class="code-ref">core/security_handler.py</span></p>
+
+<!-- 11. Admin -->
+<h2 id="admin-acciones">11. Acciones del Admin</h2>
+<h3>Estudiantes</h3>
+<ul>
+<li><b>Enviar mensaje masivo</b>: seleccionar estudiantes y enviar mensaje por WhatsApp</li>
+<li><b>Enviar anuncio grupal</b>: mensaje a grupo seleccionado</li>
+<li><b>Invitar a grupo WhatsApp</b>: enviar invitacion automatica</li>
+<li><b>Importar desde Excel</b>: cargar archivo .xlsx con nombre, telefono, cedula, municipio</li>
+<li><b>Exportar por curso / plantilla</b>: descargar en Excel</li>
+</ul>
+
+<h3>Plantillas</h3>
+<ul>
+<li><b>Crear template en Twilio</b>: sube la plantilla a Twilio para aprobacion</li>
+<li><b>Sincronizar templates Twilio</b>: traer templates aprobados</li>
+<li><b>Enviar plantilla directa</b>: enviar a estudiante seleccionado</li>
+</ul>
+
+<h3>Cursos y Modulos</h3>
+<ul>
+<li><b>Ver todos modulos</b>: listado completo del curso</li>
+<li><b>Enviar archivos multimedia</b>: enviar los archivos del modulo por WhatsApp</li>
+<li><b>Renumerar modulos</b>: reordenar automaticamente</li>
+<li><b>Generar certificados pendientes</b>: crear certificados para progreso completado</li>
+</ul>
+
+<h3>Crear curso con IA</h3>
+<p>En <span class="code-ref">/admin/crear-curso-ia/</span> puedes subir un documento (PDF, Word, texto) y la IA genera automaticamente el curso completo con modulos, preguntas y contenido.</p>
+
+<!-- 12. Dashboards -->
+<h2 id="dashboards">12. Dashboards y Reportes</h2>
+<table class="ref-table">
+<thead><tr><th>Dashboard</th><th>URL</th><th>Que muestra</th></tr></thead>
+<tbody>
+<tr><td><b>Dashboard Principal</b></td><td>/admin/dashboard/</td><td>Metricas generales, graficos WhatsApp, ranking gamificacion, progreso por curso, detalle por cliente.</td></tr>
+<tr><td><b>Analytics</b></td><td>/admin/analytics/</td><td>Analiticas educativas avanzadas con filtros.</td></tr>
+<tr><td><b>Metricas Ejecutivas</b></td><td>/admin/dashboard-metrics/</td><td>Dashboard ejecutivo con KPIs.</td></tr>
+<tr><td><b>Gerencial</b></td><td>/admin/dashboard-gerencial/</td><td>Vision gerencial para directivos.</td></tr>
+<tr><td><b>Reportes Avanzados</b></td><td>/admin/reportes-avanzados/</td><td>Reportes por municipio y canal, descarga XLSX.</td></tr>
+<tr><td><b>Conversaciones</b></td><td>/admin/conversaciones/</td><td>Visor de conversaciones WhatsApp en tiempo real.</td></tr>
+<tr><td><b>Calendario</b></td><td>/admin/calendario/</td><td>Calendario visual de campanas programadas.</td></tr>
+</tbody>
+</table>
+
+<!-- 13. URLs -->
+<h2 id="urls">13. URLs y vistas disponibles</h2>
+<table class="ref-table">
+<thead><tr><th>URL</th><th>Funcion</th></tr></thead>
+<tbody>
+<tr><td>/admin/</td><td>Panel de administracion Django</td></tr>
+<tr><td>/admin/dashboard/</td><td>Dashboard principal unificado</td></tr>
+<tr><td>/admin/instrucciones/</td><td>Esta pagina de documentacion</td></tr>
+<tr><td>/admin/importar-estudiantes/</td><td>Importacion masiva Excel</td></tr>
+<tr><td>/admin/crear-curso-ia/</td><td>Crear curso desde documento con IA</td></tr>
+<tr><td>/admin/conversaciones/</td><td>Visor de conversaciones</td></tr>
+<tr><td>/admin/calendario/</td><td>Calendario de campanas</td></tr>
+<tr><td>/admin/descargar-reportes/</td><td>Descargar reportes Excel</td></tr>
+<tr><td>/webhook/whatsapp/</td><td>Webhook Twilio (no abrir manualmente)</td></tr>
+<tr><td>/verificar-certificado/&lt;codigo&gt;/</td><td>Verificacion publica de certificado QR</td></tr>
+<tr><td>/api/estudiante/&lt;telefono&gt;/</td><td>API REST datos del estudiante</td></tr>
+<tr><td>/health/</td><td>Health check para AWS</td></tr>
+</tbody>
+</table>
+
+<!-- 14. Paso a paso -->
+<h2 id="paso-a-paso">14. Paso a paso comun</h2>
+
+<h3>Inscribir un nuevo cliente</h3>
+<ol class="step-list">
+<li>Ir a Admin &gt; Clientes &gt; Agregar cliente</li>
+<li>Llenar nombre, contacto, WhatsApp del cliente</li>
+<li>Activar gamificacion si lo desea</li>
+<li>Guardar</li>
+</ol>
+
+<h3>Crear un curso</h3>
+<ol class="step-list">
+<li>Ir a Admin &gt; Cursos &gt; Agregar curso</li>
+<li>Asignar al cliente, poner nombre y descripcion</li>
+<li>Crear los modulos dentro del curso (titulo, contenido, archivos)</li>
+<li>Subir archivos multimedia en ArchivoModulo (video, PDF, imagen)</li>
+<li>Opcionalmente agregar preguntas de examen en PreguntaModulo</li>
+</ol>
+
+<h3>Inscribir estudiantes</h3>
+<ol class="step-list">
+<li>Opcion A: Admin &gt; Estudiantes &gt; Agregar (uno por uno)</li>
+<li>Opcion B: Admin &gt; Importar Estudiantes &gt; cargar archivo Excel (.xlsx)</li>
+<li>El Excel debe tener columnas: Nombre, Telefono, Tipo Doc, Cedula, Municipio, Departamento</li>
+</ol>
+
+<h3>Enviar campana masiva</h3>
+<ol class="step-list">
+<li>Verificar que la plantilla este aprobada en Twilio</li>
+<li>Ir a Admin &gt; Campanas &gt; Agregar campana</li>
+<li>Seleccionar plantilla, audiencia (grupo o individual), fecha</li>
+<li>Seleccionar la campana y ejecutar accion "Enviar campana"</li>
+</ol>
+
+<!-- 15. Archivos clave -->
+<h2 id="archivos-clave">15. Archivos clave del codigo</h2>
+<table class="ref-table">
+<thead><tr><th>Archivo</th><th>Que hace</th></tr></thead>
+<tbody>
+<tr><td>core/models.py</td><td>Modelos principales (Estudiante, Curso, Modulo, Progreso, WhatsappLog)</td></tr>
+<tr><td>core/views.py</td><td>Webhook WhatsApp, dashboards, vistas admin</td></tr>
+<tr><td>core/admin.py</td><td>Configuracion del panel admin y acciones masivas</td></tr>
+<tr><td>core/utils.py</td><td>Envio de WhatsApp via Twilio, URLs de S3</td></tr>
+<tr><td>core/agentes_ia.py</td><td>4 agentes IA especializados</td></tr>
+<tr><td>core/tutor_ia_modulo.py</td><td>Tutor IA (metodo sandwich) y Evaluador por modulo</td></tr>
+<tr><td>core/ai_assistant.py</td><td>Motor de IA hibrido (OpenAI + Cohere fallback)</td></tr>
+<tr><td>core/pregunta_handler.py</td><td>Validacion de respuestas y examenes</td></tr>
+<tr><td>core/gamificacion.py</td><td>Sistema de puntos, niveles, badges</td></tr>
+<tr><td>core/signals_gamificacion.py</td><td>Triggers automaticos al completar modulos/cursos</td></tr>
+<tr><td>core/security_handler.py</td><td>Habeas data, boton de panico, seguridad</td></tr>
+<tr><td>core/models_certificados.py</td><td>Certificados digitales con QR</td></tr>
+<tr><td>core/models_extras.py</td><td>Archivos multimedia, grupos, PQRS</td></tr>
+<tr><td>core/whatsapp_service.py</td><td>Servicio de envio de archivos por WhatsApp</td></tr>
+<tr><td>mvp_project/urls.py</td><td>Todas las URLs del sistema</td></tr>
+<tr><td>requirements.txt</td><td>Dependencias Python</td></tr>
+<tr><td>Procfile</td><td>Configuracion de despliegue EB</td></tr>
+</tbody>
+</table>
+
+<!-- 16. FAQ -->
+<h2 id="faq">16. Preguntas frecuentes</h2>
+
+<h3>Como veo el avance de los estudiantes?</h3>
+<p>Ir al <a href="/admin/dashboard/">Dashboard principal</a>. Alli veras metricas de cursos, modulos completados, certificados y ranking de gamificacion.</p>
+
+<h3>Un estudiante dice que no recibe mensajes</h3>
+<ol>
+<li>Verificar que el telefono este correcto en Admin &gt; Estudiantes (formato: 573XXXXXXXXX)</li>
+<li>Verificar logs en Admin &gt; WhatsappLog</li>
+<li>Verificar que Twilio tenga saldo y el numero este activo</li>
+</ol>
+
+<h3>Como agrego videos a un modulo?</h3>
+<ol>
+<li>Ir a Admin &gt; ArchivoModulo &gt; Agregar</li>
+<li>Seleccionar el modulo, tipo "video", subir archivo</li>
+<li>El video se sube automaticamente a S3 y se envia cuando el estudiante complete el modulo</li>
+</ol>
+
+<h3>Donde estan las credenciales?</h3>
+<div class="callout danger">
+<b>NUNCA compartas credenciales por chat o email.</b> Las credenciales se configuran como variables de entorno en AWS Elastic Beanstalk. Claves necesarias: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, OPENAI_API_KEY, COHERE_API_KEY, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY.
+</div>
+
+<h3>Como despliego cambios?</h3>
+<ol>
+<li>Verificar que todo funcione localmente</li>
+<li>Ejecutar <span class="code-ref">eb deploy</span> desde la terminal</li>
+<li>Verificar en /health/ que el servidor responda "OK"</li>
+</ol>
+
+<h3>El Tutor IA no responde</h3>
+<ol>
+<li>Verificar que OPENAI_API_KEY este configurada en variables de entorno</li>
+<li>Si OpenAI falla, el sistema usa un fallback sin IA que muestra el contenido del modulo</li>
+<li>Revisar logs del servidor en AWS EB: <span class="code-ref">eb logs</span></li>
+</ol>
+
+<hr>
+<p style="font-size:0.85rem;color:#888;margin-top:30px;">Documentacion Eki - Generada a partir del codigo fuente real. Para dudas, contactar al equipo de desarrollo.</p>
+
+</div>
+{% endblock %}

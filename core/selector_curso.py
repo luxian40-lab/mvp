@@ -1,0 +1,136 @@
+"""
+Función para continuar con un curso específico seleccionado
+"""
+
+def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_original: str):
+    """
+    Continúa con un curso específico seleccionado por el usuario
+    
+    Args:
+        estudiante_id: ID del estudiante
+        indice_curso: Índice del curso (1, 2, 3, etc)
+        mensaje_original: Mensaje original del usuario
+    """
+    from .models import Estudiante, ProgresoEstudiante, ModuloCompletado
+    
+    try:
+        estudiante = Estudiante.objects.get(id=estudiante_id)
+    except Estudiante.DoesNotExist:
+        return "❌ Error: No se encontró tu perfil de estudiante."
+    
+    # Obtener cursos activos ordenados
+    progresos_activos = ProgresoEstudiante.objects.filter(
+        estudiante=estudiante,
+        completado=False
+    ).order_by('-fecha_inicio')
+    
+    # Validar índice
+    if indice_curso < 1 or indice_curso > progresos_activos.count():
+        return f"❌ Número inválido. Tienes {progresos_activos.count()} cursos activos. Escribe un número del 1 al {progresos_activos.count()}."
+    
+    # Obtener el progreso seleccionado
+    progreso = list(progresos_activos)[indice_curso - 1]
+    
+    # Obtener módulo actual
+    modulo_actual = progreso.modulo_actual
+    if not modulo_actual:
+        # Si no hay módulo actual, tomar el primero
+        modulo_actual = progreso.curso.modulos.order_by('numero').first()
+        if not modulo_actual:
+            return f"❌ El curso {progreso.curso.nombre} no tiene módulos configurados."
+        progreso.modulo_actual = modulo_actual
+        progreso.save()
+    
+    # 🔴 IMPORTANTE: Si el usuario SOLO escribió un número (1, 2, 3...)
+    # significa que está SELECCIONANDO el curso, NO avanzando el módulo
+    # En este caso, mostrar el módulo actual SIN avanzar
+    mensaje_lower = mensaje_original.strip().lower()
+    
+    # Si el mensaje es SOLO un número, mostrar el módulo actual sin avanzar
+    if mensaje_original.strip().isdigit():
+        print(f"📍 Usuario seleccionó curso {indice_curso}: {progreso.curso.nombre}")
+        print(f"📖 Mostrando módulo actual: {modulo_actual.numero} - {modulo_actual.titulo}")
+        
+        # Mostrar módulo actual
+        from .response_templates import obtener_video_url
+        video_url_absoluta = obtener_video_url(modulo_actual)
+        
+        respuesta = f"""✅ Retomando *{progreso.curso.emoji} {progreso.curso.nombre}*
+
+📍 Módulo actual: {modulo_actual.numero}. {modulo_actual.titulo}
+📈 Avance: {progreso.porcentaje_avance()}%
+
+Escribe "continuar" para seguir."""
+        
+        return respuesta
+    
+    # Si escribieron "listo" o "siguiente", avanzar al siguiente módulo
+    # IMPORTANTE: "continuar" está aquí Y en intent_detector.py
+    # Funciona porque ai_assistant.py detecta el selector primero
+    palabras_completar = ['listo', 'siguiente', 'ok', 'dale', 'avanzar', 'sigue', 'continuar']
+    
+    if any(palabra in mensaje_lower for palabra in palabras_completar):
+        # Marcar módulo actual como completado
+        try:
+            ModuloCompletado.objects.get_or_create(
+                progreso=progreso,
+                modulo=modulo_actual
+            )
+        except Exception as e:
+            print(f"⚠️ Error al completar módulo: {e}")
+        
+        # Buscar siguiente módulo
+        siguiente_modulo = progreso.curso.modulos.filter(
+            numero__gt=modulo_actual.numero
+        ).order_by('numero').first()
+        
+        if siguiente_modulo:
+            # Avanzar al siguiente módulo
+            progreso.modulo_actual = siguiente_modulo
+            progreso.save()
+            
+            # Obtener video URL si existe
+            from .response_templates import obtener_video_url
+            video_url_absoluta = obtener_video_url(siguiente_modulo)
+            
+            respuesta = f"""✅ ¡Completaste {modulo_actual.titulo}!
+
+📚 Siguiente: Módulo {siguiente_modulo.numero} - {siguiente_modulo.titulo}
+
+{siguiente_modulo.contenido}"""
+            
+            if video_url_absoluta:
+                respuesta += f"\n\n🎥 Video educativo:\n{video_url_absoluta}"
+            
+            respuesta += "\n\n---\nCuando termines, escribe: *\"listo\"*\nO pregúntame dudas sobre este tema."
+            
+            return respuesta
+        else:
+            # Completó el último módulo
+            progreso.completado = True
+            progreso.save()
+            
+            return f"""🎉 ¡FELICIDADES!
+
+Has completado el curso: {progreso.curso.nombre}
+
+🏆 Certificado disponible
+📊 Escribe \"mi progreso\" para ver tus logros
+📚 Escribe \"ver cursos\" para un nuevo curso"""
+    
+    # Mostrar módulo actual
+    from .response_templates import obtener_video_url
+    video_url_absoluta = obtener_video_url(modulo_actual)
+    
+    respuesta = f"""📖 Continuando: {progreso.curso.emoji} {progreso.curso.nombre}
+
+Módulo {modulo_actual.numero}: {modulo_actual.titulo}
+
+{modulo_actual.contenido}"""
+    
+    if video_url_absoluta:
+        respuesta += f"\n\n🎥 Video educativo:\n{video_url_absoluta}"
+    
+    respuesta += "\n\n---\nCuando termines, escribe: *\"listo\"*\nO pregúntame dudas sobre este tema."
+    
+    return respuesta

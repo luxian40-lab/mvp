@@ -1,0 +1,16 @@
+{% extends "admin/base_site.html" %}
+
+{% block title %}Error - Eki{% endblock %}
+
+{% block content %}
+<div style="padding:40px 24px;max-width:600px;margin:0 auto;text-align:center;">
+    <div style="font-size:4rem;margin-bottom:16px;">⚠️</div>
+    <h2 style="color:#212529;margin-bottom:12px;">{{ error_message|default:"Ha ocurrido un error" }}</h2>
+    {% if error_detail %}
+    <p style="color:#868e96;font-size:0.9rem;background:#f8f9fa;padding:12px;border-radius:8px;text-align:left;word-break:break-all;">{{ error_detail }}</p>
+    {% endif %}
+    <p style="margin-top:24px;">
+        <a href="{% url 'dashboard_unificado' %}" style="background:#3b5bdb;color:#fff;padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Volver al Dashboard</a>
+    </p>
+</div>
+{% endblock %}

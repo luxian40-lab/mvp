@@ -1,0 +1,172 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Dashboard - Eki{% endblock %}
+
+{% block extrastyle %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<style>
+    :root {
+        --eki-primary: #3b5bdb;
+        --eki-success: #2f9e44;
+        --eki-warning: #f59f00;
+        --eki-danger: #e03131;
+        --eki-info: #1c7ed6;
+        --eki-bg: #f1f3f5;
+        --eki-card: #ffffff;
+        --eki-text: #212529;
+        --eki-muted: #868e96;
+        --eki-border: #dee2e6;
+        --eki-radius: 10px;
+    }
+    .dash-wrap { padding: 24px; max-width: 1420px; margin: 0 auto; background: var(--eki-bg); min-height: 100vh; }
+    .dash-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
+    .dash-header h1 { font-size: 1.75rem; font-weight: 700; color: var(--eki-text); margin: 0; }
+    .dash-header .dash-ts { font-size: 0.85rem; color: var(--eki-muted); }
+    .filters-bar { display: flex; gap: 14px; margin-bottom: 24px; flex-wrap: wrap; align-items: flex-end; }
+    .filters-bar label { font-size: 0.82rem; font-weight: 600; color: var(--eki-muted); display: block; margin-bottom: 4px; }
+    .filters-bar select, .filters-bar input[type="date"] { padding: 7px 12px; border: 1px solid var(--eki-border); border-radius: 6px; font-size: 0.9rem; background: #fff; }
+    .filters-bar button { background: var(--eki-primary); color: #fff; border: none; padding: 8px 22px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.9rem; }
+    .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px; }
+    .m-card { background: var(--eki-card); padding: 20px; border-radius: var(--eki-radius); box-shadow: 0 1px 4px rgba(0,0,0,0.06); border-left: 4px solid var(--eki-primary); display: flex; flex-direction: column; gap: 4px; }
+    .m-card.green { border-left-color: var(--eki-success); }
+    .m-card.orange { border-left-color: var(--eki-warning); }
+    .m-card.red { border-left-color: var(--eki-danger); }
+    .m-card.blue { border-left-color: var(--eki-info); }
+    .m-card .m-label { font-size: 0.78rem; font-weight: 600; color: var(--eki-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .m-card .m-value { font-size: 1.85rem; font-weight: 700; color: var(--eki-text); }
+    .m-card .m-sub { font-size: 0.78rem; color: var(--eki-muted); }
+    .section { margin-bottom: 28px; }
+    .section-title { font-size: 1.15rem; font-weight: 700; color: var(--eki-text); margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--eki-border); }
+    .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
+    @media (max-width: 900px) { .charts-row { grid-template-columns: 1fr; } }
+    .chart-card { background: var(--eki-card); padding: 20px; border-radius: var(--eki-radius); box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .chart-card h3 { font-size: 0.95rem; font-weight: 600; color: var(--eki-text); margin: 0 0 14px 0; }
+    .eki-table { width: 100%; border-collapse: collapse; background: var(--eki-card); border-radius: var(--eki-radius); overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .eki-table th { background: #f8f9fa; font-size: 0.8rem; font-weight: 600; color: var(--eki-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: left; }
+    .eki-table td { padding: 10px 14px; border-top: 1px solid var(--eki-border); font-size: 0.9rem; color: var(--eki-text); }
+    .eki-table tr:hover td { background: #f8f9fa; }
+    .ranking-list { list-style: none; padding: 0; margin: 0; }
+    .ranking-list li { display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--eki-border); }
+    .ranking-list li:last-child { border-bottom: none; }
+    .ranking-pos { width: 28px; height: 28px; border-radius: 50%; background: var(--eki-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; }
+    .ranking-pos.gold { background: #f59f00; }
+    .ranking-pos.silver { background: #868e96; }
+    .ranking-pos.bronze { background: #d9480f; }
+    .ranking-name { flex: 1; font-weight: 500; }
+    .ranking-pts { font-weight: 700; color: var(--eki-primary); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dash-wrap">
+    <div class="dash-header">
+        <h1>Dashboard Eki</h1>
+        <span class="dash-ts">Datos en tiempo real</span>
+    </div>
+
+    <form method="get" class="filters-bar">
+        <div><label>Cliente</label><select name="cliente"><option value="">Todos</option>{% for c in clientes %}<option value="{{ c.id }}" {% if c.id == cliente_filtro %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
+        <div><label>Curso</label><select name="curso"><option value="">Todos</option>{% for curso in cursos %}<option value="{{ curso.id }}" {% if curso.id == curso_filtro %}selected{% endif %}>{{ curso.nombre }}</option>{% endfor %}</select></div>
+        <div><label>Desde</label><input type="date" name="fecha_inicio" value="{{ fecha_inicio }}"></div>
+        <div><label>Hasta</label><input type="date" name="fecha_fin" value="{{ fecha_fin }}"></div>
+        <button type="submit">Filtrar</button>
+    </form>
+
+    <div class="section">
+        <div class="section-title">Resumen General</div>
+        <div class="metrics-grid">
+            <div class="m-card"><span class="m-label">Cursos</span><span class="m-value">{{ total_cursos }}</span></div>
+            <div class="m-card blue"><span class="m-label">Clientes</span><span class="m-value">{{ total_clientes }}</span></div>
+            <div class="m-card green"><span class="m-label">Estudiantes</span><span class="m-value">{{ total_estudiantes }}</span></div>
+            <div class="m-card green"><span class="m-label">Certificados</span><span class="m-value">{{ total_certificados }}</span></div>
+            <div class="m-card orange"><span class="m-label">Cursos Completados</span><span class="m-value">{{ cursos_completados }}</span></div>
+            <div class="m-card orange"><span class="m-label">Modulos Completados</span><span class="m-value">{{ total_modulos_completados }}</span></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">WhatsApp e Inteligencia Artificial</div>
+        <div class="metrics-grid">
+            <div class="m-card blue"><span class="m-label">Mensajes WhatsApp</span><span class="m-value">{{ total_mensajes_whatsapp }}</span><span class="m-sub">Enviados: {{ mensajes_enviados }} | Recibidos: {{ mensajes_recibidos }}</span></div>
+            <div class="m-card"><span class="m-label">Audios Transcritos</span><span class="m-value">{{ total_audios }}</span><span class="m-sub">Vosk / Whisper</span></div>
+            <div class="m-card green"><span class="m-label">Agente IA usado</span><span class="m-value">{{ total_agentes_ia }}</span><span class="m-sub">Interacciones con tutor IA</span></div>
+            <div class="m-card orange"><span class="m-label">Puntos Promedio</span><span class="m-value">{{ puntos_promedio }}</span><span class="m-sub">{{ total_perfiles_gam }} perfiles gamificados</span></div>
+        </div>
+    </div>
+
+    <div class="charts-row">
+        <div class="chart-card"><h3>Mensajes WhatsApp (ultimos 7 dias)</h3><canvas id="chartMensajes" height="220"></canvas></div>
+        <div class="chart-card"><h3>Tipos de Mensaje</h3><canvas id="chartTipos" height="220"></canvas></div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Progreso por Curso</div>
+        <table class="eki-table">
+            <thead><tr><th>Curso</th><th>Estudiantes</th><th>Modulos Completados</th><th>Cursos Completados</th></tr></thead>
+            <tbody>
+                {% for curso in progreso_por_curso %}
+                <tr><td>{{ curso.nombre }}</td><td>{{ curso.total_estudiantes }}</td><td>{{ curso.total_modulos_completados }}</td><td>{{ curso.completados }}</td></tr>
+                {% empty %}
+                <tr><td colspan="4" style="text-align:center;color:#aaa;">Sin datos</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if top_estudiantes %}
+    <div class="charts-row">
+        <div class="chart-card">
+            <h3>Top 10 Estudiantes (Gamificacion)</h3>
+            <ol class="ranking-list">
+                {% for perfil in top_estudiantes %}
+                <li>
+                    <span class="ranking-pos {% if forloop.counter == 1 %}gold{% elif forloop.counter == 2 %}silver{% elif forloop.counter == 3 %}bronze{% endif %}">{{ forloop.counter }}</span>
+                    <span class="ranking-name">{{ perfil.estudiante.nombre }}</span>
+                    <span class="ranking-pts">{{ perfil.puntos_totales }} pts</span>
+                </li>
+                {% endfor %}
+            </ol>
+        </div>
+        <div class="chart-card">
+            <h3>Estudiantes por Municipio</h3>
+            <canvas id="chartUbicaciones" height="220"></canvas>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="section">
+        <div class="section-title">Detalle por Cliente</div>
+        <table class="eki-table">
+            <thead><tr><th>Cliente</th><th>Cursos</th><th>Estudiantes</th><th>Audios</th><th>Uso IA</th><th>Completados</th></tr></thead>
+            <tbody>
+                {% for cl in clientes_detalle %}
+                <tr><td>{{ cl.nombre }}</td><td>{{ cl.cursos }}</td><td>{{ cl.estudiantes }}</td><td>{{ cl.uso_audio }}</td><td>{{ cl.uso_ia }}</td><td>{{ cl.cursos_completados }}</td></tr>
+                {% empty %}
+                <tr><td colspan="6" style="text-align:center;color:#aaa;">Sin clientes</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+new Chart(document.getElementById('chartMensajes'), {
+    type: 'bar',
+    data: { labels: {{ chart_labels|safe }}, datasets: [{ label: 'Mensajes', data: {{ chart_values|safe }}, backgroundColor: 'rgba(59,91,219,0.7)', borderRadius: 6, barThickness: 28 }] },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+});
+new Chart(document.getElementById('chartTipos'), {
+    type: 'doughnut',
+    data: { labels: {{ chart_tipos_labels|safe }}, datasets: [{ data: {{ chart_tipos_values|safe }}, backgroundColor: ['#3b5bdb','#2f9e44','#f59f00','#e03131','#1c7ed6','#ae3ec9','#868e96'], borderWidth: 0 }] },
+    options: { responsive: true, plugins: { legend: { position: 'right', labels: { boxWidth: 14, font: { size: 12 } } } } }
+});
+{% if ubicaciones_municipio %}
+new Chart(document.getElementById('chartUbicaciones'), {
+    type: 'bar',
+    data: { labels: [{% for u in ubicaciones_municipio %}'{{ u.municipio }}'{% if not forloop.last %},{% endif %}{% endfor %}], datasets: [{ label: 'Estudiantes', data: [{% for u in ubicaciones_municipio %}{{ u.total }}{% if not forloop.last %},{% endif %}{% endfor %}], backgroundColor: 'rgba(47,158,68,0.7)', borderRadius: 4, barThickness: 20 }] },
+    options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+});
+{% endif %}
+</script>
+{% endblock %}

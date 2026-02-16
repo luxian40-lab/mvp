@@ -1,0 +1,76 @@
+/* ==========================================
+   SCROLL PARA SIDEBAR - EKI MVP
+   ========================================== */
+
+/* Hacer que el sidebar tenga scroll cuando hay muchos elementos */
+.main-sidebar,
+.sidebar-wrapper {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    max-height: 100vh !important;
+    height: 100vh !important;
+}
+
+/* Contenedor del menú con scroll */
+.sidebar-nav,
+nav.mt-2 {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    max-height: calc(100vh - 120px) !important;
+}
+
+/* Asegurar que el sidebar principal permita scroll */
+.sidebar {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* Estilo mejorado de la barra de scroll */
+.main-sidebar::-webkit-scrollbar,
+.sidebar-wrapper::-webkit-scrollbar,
+.sidebar-nav::-webkit-scrollbar,
+nav.mt-2::-webkit-scrollbar,
+.sidebar::-webkit-scrollbar {
+    width: 8px;
+    background: transparent;
+}
+
+.main-sidebar::-webkit-scrollbar-track,
+.sidebar-wrapper::-webkit-scrollbar-track,
+.sidebar-nav::-webkit-scrollbar-track,
+nav.mt-2::-webkit-scrollbar-track,
+.sidebar::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+}
+
+.main-sidebar::-webkit-scrollbar-thumb,
+.sidebar-wrapper::-webkit-scrollbar-thumb,
+.sidebar-nav::-webkit-scrollbar-thumb,
+nav.mt-2::-webkit-scrollbar-thumb,
+.sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+}
+
+.main-sidebar::-webkit-scrollbar-thumb:hover,
+.sidebar-wrapper::-webkit-scrollbar-thumb:hover,
+.sidebar-nav::-webkit-scrollbar-thumb:hover,
+nav.mt-2::-webkit-scrollbar-thumb:hover,
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* Para Firefox */
+.main-sidebar,
+.sidebar-wrapper,
+.sidebar-nav,
+nav.mt-2,
+.sidebar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) rgba(0, 0, 0, 0.1);
+}
+

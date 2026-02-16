@@ -1,0 +1,150 @@
+﻿{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Dashboard Metricas - Eki{% endblock %}
+
+{% block extrastyle %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<style>
+    :root { --eki-primary:#3b5bdb; --eki-success:#2f9e44; --eki-warning:#f59f00; --eki-danger:#e03131; --eki-info:#1c7ed6; --eki-bg:#f1f3f5; --eki-card:#fff; --eki-text:#212529; --eki-muted:#868e96; --eki-border:#dee2e6; --eki-radius:10px; }
+    .dash-wrap{padding:24px;max-width:1420px;margin:0 auto;background:var(--eki-bg);min-height:100vh;}
+    .dash-nav{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;}
+    .dash-nav a{padding:8px 18px;border-radius:6px;text-decoration:none;font-weight:600;font-size:0.9rem;border:1px solid var(--eki-border);color:var(--eki-text);background:#fff;transition:all 0.2s;}
+    .dash-nav a:hover,.dash-nav a.active{background:var(--eki-primary);color:#fff;border-color:var(--eki-primary);}
+    .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:28px;}
+    .kpi-card{background:var(--eki-card);padding:22px;border-radius:var(--eki-radius);text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.08);}
+    .kpi-card .kv{font-size:2rem;font-weight:800;}
+    .kpi-card .kl{font-size:0.8rem;color:var(--eki-muted);font-weight:600;text-transform:uppercase;letter-spacing:1px;}
+    .kpi-card .kd{font-size:0.78rem;color:var(--eki-muted);margin-top:4px;}
+    .section-title{font-size:1.15rem;font-weight:700;color:var(--eki-text);margin:24px 0 16px;padding-bottom:8px;border-bottom:2px solid var(--eki-border);}
+    .charts-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px;}
+    .chart-card{background:var(--eki-card);padding:20px;border-radius:var(--eki-radius);box-shadow:0 1px 4px rgba(0,0,0,0.06);}
+    .chart-card h3{font-size:0.95rem;font-weight:600;margin:0 0 14px 0;}
+    .eki-table{width:100%;border-collapse:collapse;background:var(--eki-card);border-radius:var(--eki-radius);overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.06);}
+    .eki-table th{background:#f8f9fa;font-size:0.8rem;font-weight:600;color:var(--eki-muted);text-transform:uppercase;padding:10px 14px;text-align:left;}
+    .eki-table td{padding:10px 14px;border-top:1px solid var(--eki-border);font-size:0.9rem;}
+    .eki-table tr:hover{background:#f8f9fa;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dash-wrap">
+    <div class="dash-nav">
+        <a href="{% url 'dashboard_unificado' %}">Dashboard Principal</a>
+        <a href="{% url 'dashboard_metrics' %}" class="active">Metricas</a>
+        <a href="{% url 'dashboard_gerencial' %}">Gerencial</a>
+        <a href="{% url 'dashboard_analytics' %}">Analytics</a>
+        <a href="{% url 'dashboard_reportes_avanzados' %}">Reportes</a>
+        <a href="{% url 'conversaciones' %}">Conversaciones</a>
+        <a href="{% url 'calendario_campanas' %}">Calendario</a>
+    </div>
+
+    <h1 style="font-size:1.75rem;font-weight:700;margin-bottom:28px;">Metricas del Sistema</h1>
+
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kv" style="color:var(--eki-primary);">{{ total_estudiantes }}</div>
+            <div class="kl">Estudiantes</div>
+            <div class="kd">{{ estudiantes_activos }} activos | +{{ estudiantes_nuevos_30d }} este mes</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kv" style="color:var(--eki-info);">{{ total_mensajes }}</div>
+            <div class="kl">Mensajes</div>
+            <div class="kd">{{ mensajes_24h }} hoy | {{ mensajes_30d }} mes</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kv" style="color:var(--eki-success);">{{ total_cursos }}</div>
+            <div class="kl">Cursos</div>
+            <div class="kd">{{ total_inscripciones }} inscripciones</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kv" style="color:var(--eki-warning);">{{ tasa_completacion }}%</div>
+            <div class="kl">Tasa Completacion</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kv" style="color:#9c36b5;">{{ total_certificados }}</div>
+            <div class="kl">Certificados</div>
+            <div class="kd">{{ certificados_generados_30d }} este mes</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kv" style="color:var(--eki-danger);">{{ solicitudes_pendientes }}</div>
+            <div class="kl">Soporte Pendiente</div>
+        </div>
+    </div>
+
+    <div class="charts-row">
+        <div class="chart-card">
+            <h3>Mensajes Diarios (ultimos 30 dias)</h3>
+            <canvas id="chartMensajes" height="220"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Estudiantes Nuevos por Dia</h3>
+            <canvas id="chartEstudiantes" height="220"></canvas>
+        </div>
+    </div>
+
+    <div class="section-title">Gamificacion</div>
+    <div class="kpi-grid">
+        <div class="kpi-card" style="border-left:4px solid var(--eki-warning);">
+            <div class="kv" style="color:var(--eki-warning);">{{ total_puntos_otorgados }}</div>
+            <div class="kl">Puntos Otorgados</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid var(--eki-success);">
+            <div class="kv" style="color:var(--eki-success);">{{ total_badges }}</div>
+            <div class="kl">Badges Creados</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid var(--eki-info);">
+            <div class="kv" style="color:var(--eki-info);">{{ badges_otorgados }}</div>
+            <div class="kl">Badges Asignados</div>
+        </div>
+    </div>
+
+    <div class="section-title">Estado de Soporte</div>
+    <div class="kpi-grid">
+        <div class="kpi-card" style="border-left:4px solid var(--eki-danger);">
+            <div class="kv" style="color:var(--eki-danger);">{{ solicitudes_pendientes }}</div>
+            <div class="kl">Pendientes</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid var(--eki-warning);">
+            <div class="kv" style="color:var(--eki-warning);">{{ solicitudes_atendiendo }}</div>
+            <div class="kl">En Atencion</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid var(--eki-success);">
+            <div class="kv" style="color:var(--eki-success);">{{ solicitudes_resueltas }}</div>
+            <div class="kl">Resueltas</div>
+        </div>
+    </div>
+
+    {% if clientes_detalle %}
+    <div class="section-title">Detalle por Cliente</div>
+    <table class="eki-table">
+        <thead><tr><th>Cliente</th><th>Estudiantes</th><th>Activos</th><th>Mensajes</th></tr></thead>
+        <tbody>
+        {% for c in clientes_detalle %}
+            <tr><td><strong>{{ c.nombre }}</strong></td><td>{{ c.total_estudiantes }}</td><td>{{ c.estudiantes_activos }}</td><td>{{ c.mensajes }}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+
+<script>
+const fechas = {{ fechas_json|safe }};
+const mensajesDiarios = {{ mensajes_diarios_json|safe }};
+const estudiantesNuevos = {{ estudiantes_nuevos_json|safe|default:"[]" }};
+
+new Chart(document.getElementById('chartMensajes'), {
+    type:'line',
+    data:{labels:fechas,datasets:[{label:'Mensajes',data:mensajesDiarios,borderColor:'#3b5bdb',backgroundColor:'rgba(59,91,219,0.1)',fill:true,tension:0.3}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+});
+
+if (estudiantesNuevos.length > 0) {
+    new Chart(document.getElementById('chartEstudiantes'), {
+        type:'bar',
+        data:{labels:fechas,datasets:[{label:'Nuevos',data:estudiantesNuevos,backgroundColor:'#2f9e44'}]},
+        options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,240 @@
+"""
+Settings de Producción para EKI  
+Resuelve todos los warnings de seguridad de Django
+
+IMPORTANTE: 
+- Usar SOLO en producción (Railway, Heroku, VPS)
+- NO usar en desarrollo local
+"""
+
+import os
+import sys
+
+# ============================================
+# 🔥 FORZAR S3 **ANTES** DE CUALQUIER IMPORT
+# ============================================
+## sys.stderr.write("\n" + "="*70 + "\n")
+## sys.stderr.write("SETTINGS_PRODUCTION.PY - FORZANDO S3\n")
+## sys.stderr.write("="*70 + "\n")
+
+# Establecer variables de entorno ANTES de que settings.py las lea
+os.environ.setdefault('USE_S3', 'True')
+os.environ['AWS_ACCESS_KEY_ID'] = os.environ.get('AWS_ACCESS_KEY_ID', '')
+os.environ['AWS_SECRET_ACCESS_KEY'] = os.environ.get('AWS_SECRET_ACCESS_KEY', '')
+os.environ['AWS_STORAGE_BUCKET_NAME'] = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'eki-produccion')
+os.environ['AWS_S3_REGION_NAME'] = os.environ.get('AWS_S3_REGION_NAME', 'us-east-2')
+
+## sys.stderr.write(f"ENV VARS configuradas:\n")
+## sys.stderr.write(f"  USE_S3 = {os.environ.get('USE_S3')}\n")
+## sys.stderr.write(f"  BUCKET = {os.environ.get('AWS_STORAGE_BUCKET_NAME')}\n")
+## sys.stderr.write(f"  KEY = {os.environ.get('AWS_ACCESS_KEY_ID')[:15]}...\n")
+
+# AHORA sí importar settings base (que leerá las env vars)
+from .settings import *
+
+## sys.stderr.write(f"\nDESPUES DE IMPORTAR SETTINGS:\n")
+## sys.stderr.write(f"  DEFAULT_FILE_STORAGE = {DEFAULT_FILE_STORAGE}\n")
+## sys.stderr.write(f"  MEDIA_URL = {MEDIA_URL}\n")
+## sys.stderr.write(f"  USE_S3 final = {USE_S3}\n")
+## sys.stderr.write("="*70 + "\n\n")
+
+# ============================================
+# SEGURIDAD - Resolución de Warnings
+# ============================================
+
+# ?: (security.W018) DEBUG debe ser False en producción
+DEBUG = False
+
+# ?: (security.W009) SECRET_KEY debe ser largo y aleatorio
+# Generar nueva clave con: python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-CAMBIAR-EN-PRODUCCION')
+
+# Hosts permitidos
+ALLOWED_HOSTS = ['*']  # Permitir todos los hosts en producción
+
+# Agregar dominios personalizados desde variable de entorno
+if 'ALLOWED_HOSTS_EXTRA' in os.environ:
+    extra_hosts = os.environ['ALLOWED_HOSTS_EXTRA'].split(',')
+    ALLOWED_HOSTS.extend(extra_hosts)
+
+# ============================================
+# SSL/HTTPS - Resolución de Warnings
+# ============================================
+
+# ?: (security.W008) Redirigir todo a HTTPS
+# DESACTIVADO: No hay certificado SSL en SingleInstance EB
+SECURE_SSL_REDIRECT = False
+
+# ?: (security.W004) HTTP Strict Transport Security
+# DESACTIVADO hasta configurar SSL
+SECURE_HSTS_SECONDS = 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+SECURE_HSTS_PRELOAD = False
+
+# ?: (security.W012) Cookies seguras de sesión
+# DESACTIVADO hasta configurar SSL
+SESSION_COOKIE_SECURE = False
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+
+# ?: (security.W016) CSRF cookies seguras
+# DESACTIVADO hasta configurar SSL
+CSRF_COOKIE_SECURE = False
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = 'Lax'
+
+# Otros headers de seguridad
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_BROWSER_XSS_FILTER = True
+X_FRAME_OPTIONS = 'DENY'
+
+
+# ============================================
+# BASE DE DATOS - Producción (FORZAR POSTGRES, SOLO ESTE BLOQUE)
+# ============================================
+import os
+
+# Configuración de Base de Datos Robusta
+DB_NAME = os.environ.get('DB_NAME')
+DB_USER = os.environ.get('DB_USER')
+DB_PASSWORD = os.environ.get('DB_PASSWORD')
+DB_HOST = os.environ.get('DB_HOST')
+DB_PORT = os.environ.get('DB_PORT', '5432')
+
+missing_vars = []
+for var in ['DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_HOST']:
+    if not os.environ.get(var):
+        missing_vars.append(var)
+
+if missing_vars:
+    raise Exception(f"❌ [SETTINGS] Faltan variables de entorno para PostgreSQL: {', '.join(missing_vars)}. No se permite SQLite en producción.")
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': DB_NAME,
+        'USER': DB_USER,
+        'PASSWORD': DB_PASSWORD,
+        'HOST': DB_HOST,
+        'PORT': DB_PORT,
+    }
+}
+print("✅ [SETTINGS] Usando Base de Datos PostgreSQL (Producción)")
+
+# ============================================
+# ARCHIVOS ESTÁTICOS - Producción
+# ============================================
+
+# Directorio donde collectstatic guarda los archivos
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_URL = '/static/'
+
+# WhiteNoise para servir archivos estáticos con compresión
+MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# Configuración de WhiteNoise optimizada
+WHITENOISE_MAX_AGE = 31536000  # 1 año de cache
+WHITENOISE_ALLOW_ALL_ORIGINS = False
+WHITENOISE_SKIP_COMPRESS_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'zip', 'gz', 'tgz', 'bz2', 'tbz', 'xz', 'br', 'swf', 'flv', 'woff', 'woff2']
+
+# ============================================
+# LOGGING - Producción
+# ============================================
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '[{levelname}] {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'WARNING',  # Reducir verbosidad
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'core': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'models_extras': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+    },
+}
+
+# ============================================
+# EMAIL - Producción (SendGrid recomendado)
+# ============================================
+
+if 'SENDGRID_API_KEY' in os.environ:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = 'smtp.sendgrid.net'
+    EMAIL_PORT = 587
+    EMAIL_USE_TLS = True
+    EMAIL_HOST_USER = 'apikey'
+    EMAIL_HOST_PASSWORD = os.environ['SENDGRID_API_KEY']
+    DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@eki.com')
+
+# ============================================
+# PERFORMANCE - Producción
+# ============================================
+
+# Cache en memoria local (sin Redis)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000,
+        }
+    }
+}
+
+# Templates en caché
+for template_engine in TEMPLATES:
+    if template_engine['BACKEND'] == 'django.template.backends.django.DjangoTemplates':
+        # Desactivar APP_DIRS cuando se usan loaders personalizados
+        template_engine['APP_DIRS'] = False
+        template_engine['OPTIONS']['loaders'] = [
+            ('django.template.loaders.cached.Loader', [
+                'django.template.loaders.filesystem.Loader',
+                'django.template.loaders.app_directories.Loader',
+            ]),
+        ]
+
+# Optimizaciones adicionales
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
+
+# Sesiones en base de datos (más estable que cache para login)
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_COOKIE_AGE = 1209600  # 2 semanas
+SESSION_SAVE_EVERY_REQUEST = False
+
+# Compresión GZip
+MIDDLEWARE.append('django.middleware.gzip.GZipMiddleware')
+
+# Deployment note: ensure SESSION_ENGINE is not indented in deployed copy
+# This comment forces a clean commit to push the validated local file to EB
+# ============================================
+# FORZAR BACKEND DE ARCHIVOS S3 EN PRODUCCIÓN
+# ============================================
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'

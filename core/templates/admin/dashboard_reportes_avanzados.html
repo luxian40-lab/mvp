@@ -1,0 +1,190 @@
+﻿{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Reportes Avanzados - Eki{% endblock %}
+
+{% block extrastyle %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<style>
+    :root { --eki-primary:#3b5bdb; --eki-success:#2f9e44; --eki-warning:#f59f00; --eki-danger:#e03131; --eki-info:#1c7ed6; --eki-bg:#f1f3f5; --eki-card:#fff; --eki-text:#212529; --eki-muted:#868e96; --eki-border:#dee2e6; --eki-radius:10px; }
+    .dash-wrap{padding:24px;max-width:1420px;margin:0 auto;background:var(--eki-bg);min-height:100vh;}
+    .dash-nav{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;}
+    .dash-nav a{padding:8px 18px;border-radius:6px;text-decoration:none;font-weight:600;font-size:0.9rem;border:1px solid var(--eki-border);color:var(--eki-text);background:#fff;transition:all 0.2s;}
+    .dash-nav a:hover,.dash-nav a.active{background:var(--eki-primary);color:#fff;border-color:var(--eki-primary);}
+    .filter-bar{background:var(--eki-card);padding:20px;border-radius:var(--eki-radius);margin-bottom:24px;box-shadow:0 1px 4px rgba(0,0,0,0.06);display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;}
+    .filter-bar label{font-size:0.8rem;font-weight:600;color:var(--eki-muted);display:block;margin-bottom:4px;}
+    .filter-bar input,.filter-bar select{padding:8px 12px;border:1px solid var(--eki-border);border-radius:6px;font-size:0.9rem;}
+    .filter-bar button{padding:8px 20px;background:var(--eki-primary);color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;}
+    .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:28px;}
+    .kpi-card{background:var(--eki-card);padding:22px;border-radius:var(--eki-radius);text-align:center;box-shadow:0 1px 4px rgba(0,0,0,0.06);}
+    .kpi-card .kv{font-size:2rem;font-weight:800;}
+    .kpi-card .kl{font-size:0.8rem;color:var(--eki-muted);font-weight:600;text-transform:uppercase;}
+    .section-title{font-size:1.15rem;font-weight:700;color:var(--eki-text);margin:24px 0 16px;padding-bottom:8px;border-bottom:2px solid var(--eki-border);}
+    .charts-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px;}
+    .chart-card{background:var(--eki-card);padding:20px;border-radius:var(--eki-radius);box-shadow:0 1px 4px rgba(0,0,0,0.06);}
+    .chart-card h3{font-size:0.95rem;font-weight:600;margin:0 0 14px 0;}
+    .eki-table{width:100%;border-collapse:collapse;background:var(--eki-card);border-radius:var(--eki-radius);overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.06);}
+    .eki-table th{background:#f8f9fa;font-size:0.8rem;font-weight:600;color:var(--eki-muted);text-transform:uppercase;padding:10px 14px;text-align:left;}
+    .eki-table td{padding:10px 14px;border-top:1px solid var(--eki-border);font-size:0.9rem;}
+    .eki-table tr:hover{background:#f8f9fa;}
+    .badge{padding:3px 10px;border-radius:12px;font-size:0.75rem;font-weight:600;}
+    .badge-audio{background:#fff3bf;color:#e67700;}
+    .badge-texto{background:#d0ebff;color:#1864ab;}
+    .badge-sin{background:#f1f3f5;color:#868e96;}
+    .download-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;background:var(--eki-success);color:#fff;border:none;border-radius:6px;font-weight:600;text-decoration:none;font-size:0.9rem;cursor:pointer;}
+    .download-btn:hover{opacity:0.9;color:#fff;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dash-wrap">
+    <div class="dash-nav">
+        <a href="{% url 'dashboard_unificado' %}">Dashboard Principal</a>
+        <a href="{% url 'dashboard_metrics' %}">Metricas</a>
+        <a href="{% url 'dashboard_gerencial' %}">Gerencial</a>
+        <a href="{% url 'dashboard_analytics' %}">Analytics</a>
+        <a href="{% url 'dashboard_reportes_avanzados' %}" class="active">Reportes</a>
+        <a href="{% url 'conversaciones' %}">Conversaciones</a>
+        <a href="{% url 'calendario_campanas' %}">Calendario</a>
+    </div>
+
+    <h1 style="font-size:1.75rem;font-weight:700;margin-bottom:20px;">Reportes Avanzados</h1>
+
+    <form method="get" class="filter-bar">
+        <div>
+            <label>Fecha Inicio</label>
+            <input type="date" name="fecha_inicio" value="{{ fecha_inicio }}">
+        </div>
+        <div>
+            <label>Fecha Fin</label>
+            <input type="date" name="fecha_fin" value="{{ fecha_fin }}">
+        </div>
+        <div>
+            <label>Municipio</label>
+            <select name="municipio">
+                <option value="">Todos</option>
+                {% for m in todos_municipios %}
+                    <option value="{{ m }}" {% if m == municipio_filtro %}selected{% endif %}>{{ m }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit">Filtrar</button>
+        <a href="{% url 'descargar_reporte_xlsx' %}?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}&municipio={{ municipio_filtro }}" class="download-btn">Descargar Excel</a>
+    </form>
+
+    <div class="kpi-row">
+        <div class="kpi-card">
+            <div class="kv" style="color:var(--eki-primary);">{{ total_estudiantes }}</div>
+            <div class="kl">Estudiantes</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kv" style="color:var(--eki-success);">{{ estudiantes_activos }}</div>
+            <div class="kl">Activos</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kv" style="color:var(--eki-info);">{{ total_mensajes }}</div>
+            <div class="kl">Mensajes Totales</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kv" style="color:var(--eki-warning);">{{ porcentaje_audio }}%</div>
+            <div class="kl">% Audio</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kv" style="color:var(--eki-primary);">{{ porcentaje_texto }}%</div>
+            <div class="kl">% Texto</div>
+        </div>
+    </div>
+
+    <div class="charts-row">
+        <div class="chart-card">
+            <h3>Canal de Comunicacion: Audio vs Texto</h3>
+            <canvas id="chartCanal" height="200"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Distribucion por Municipio</h3>
+            <canvas id="chartMunicipios" height="200"></canvas>
+        </div>
+    </div>
+
+    {% if municipios %}
+    <div class="section-title">Analisis por Municipio</div>
+    <table class="eki-table">
+        <thead>
+            <tr><th>Municipio</th><th>Total</th><th>Activos</th><th>Completados</th><th>Tasa</th></tr>
+        </thead>
+        <tbody>
+        {% for m in municipios %}
+            <tr>
+                <td><strong>{{ m.municipio|default:"Sin municipio" }}</strong></td>
+                <td>{{ m.total }}</td>
+                <td>{{ m.activos }}</td>
+                <td>{{ m.completados }}</td>
+                <td>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <div style="background:#e9ecef;border-radius:4px;width:80px;height:8px;overflow:hidden;">
+                            <div style="background:var(--eki-success);height:100%;width:{% widthratio m.completados m.total 100 %}%;"></div>
+                        </div>
+                        <span style="font-size:0.85rem;font-weight:600;">{% widthratio m.completados m.total 100 %}%</span>
+                    </div>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    {% if analisis_estudiantes %}
+    <div class="section-title">Analisis por Estudiante</div>
+    <table class="eki-table">
+        <thead>
+            <tr><th>Estudiante</th><th>Mensajes</th><th>Audio</th><th>Texto</th><th>Canal</th><th>Progreso</th></tr>
+        </thead>
+        <tbody>
+        {% for a in analisis_estudiantes %}
+            <tr>
+                <td><strong>{{ a.estudiante.nombre }}</strong></td>
+                <td>{{ a.total_mensajes }}</td>
+                <td>{{ a.mensajes_audio }}</td>
+                <td>{{ a.mensajes_texto }}</td>
+                <td>
+                    {% if "Audio" in a.canal_preferido %}
+                        <span class="badge badge-audio">Audio ({{ a.preferencia_audio }}%)</span>
+                    {% elif "Texto" in a.canal_preferido %}
+                        <span class="badge badge-texto">Texto</span>
+                    {% else %}
+                        <span class="badge badge-sin">Sin interaccion</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <div style="background:#e9ecef;border-radius:4px;width:60px;height:8px;overflow:hidden;">
+                            <div style="background:var(--eki-primary);height:100%;width:{{ a.progreso_promedio }}%;"></div>
+                        </div>
+                        <span style="font-size:0.85rem;">{{ a.progreso_promedio }}%</span>
+                    </div>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+
+<script>
+new Chart(document.getElementById('chartCanal'), {
+    type:'doughnut',
+    data:{labels:['Audio','Texto'],datasets:[{data:[{{ mensajes_audio }},{{ mensajes_texto }}],backgroundColor:['#f59f00','#3b5bdb']}]},
+    options:{responsive:true,plugins:{legend:{position:'bottom'}}}
+});
+
+{% if municipios %}
+var mLabels = [{% for m in municipios %}'{{ m.municipio|default:"N/A" }}'{% if not forloop.last %},{% endif %}{% endfor %}];
+var mData = [{% for m in municipios %}{{ m.total }}{% if not forloop.last %},{% endif %}{% endfor %}];
+new Chart(document.getElementById('chartMunicipios'), {
+    type:'bar',
+    data:{labels:mLabels,datasets:[{label:'Estudiantes',data:mData,backgroundColor:'#3b5bdb'}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+});
+{% endif %}
+</script>
+{% endblock %}

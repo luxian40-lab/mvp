@@ -1,0 +1,120 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Calendario de Campañas - Eki{% endblock %}
+
+{% block extrastyle %}
+<style>
+    :root {
+        --eki-primary: #3b5bdb;
+        --eki-success: #2f9e44;
+        --eki-warning: #f59f00;
+        --eki-danger: #e03131;
+        --eki-info: #1c7ed6;
+        --eki-bg: #f1f3f5;
+        --eki-card: #ffffff;
+        --eki-text: #212529;
+        --eki-muted: #868e96;
+        --eki-border: #dee2e6;
+        --eki-radius: 10px;
+    }
+    .dash-wrap { padding: 24px; max-width: 1420px; margin: 0 auto; background: var(--eki-bg); min-height: 100vh; }
+    .dash-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
+    .dash-header h1 { font-size: 1.75rem; font-weight: 700; color: var(--eki-text); margin: 0; }
+    .nav-tabs { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+    .nav-tabs a { padding: 8px 18px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.85rem; color: var(--eki-muted); background: #fff; border: 1px solid var(--eki-border); transition: all 0.2s; }
+    .nav-tabs a:hover, .nav-tabs a.active { background: var(--eki-primary); color: #fff; border-color: var(--eki-primary); }
+    .section { margin-bottom: 28px; }
+    .section-title { font-size: 1.15rem; font-weight: 700; color: var(--eki-text); margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--eki-border); }
+    .eki-table { width: 100%; border-collapse: collapse; background: var(--eki-card); border-radius: var(--eki-radius); overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .eki-table th { background: #f8f9fa; font-size: 0.8rem; font-weight: 600; color: var(--eki-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 14px; text-align: left; }
+    .eki-table td { padding: 12px 14px; border-top: 1px solid var(--eki-border); font-size: 0.9rem; color: var(--eki-text); }
+    .eki-table tr:hover td { background: #f8f9fa; }
+    .badge-pending { background: #fff9db; color: #e67700; padding: 3px 12px; border-radius: 12px; font-size: 0.78rem; font-weight: 600; }
+    .badge-done { background: #ebfbee; color: var(--eki-success); padding: 3px 12px; border-radius: 12px; font-size: 0.78rem; font-weight: 600; }
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--eki-muted); }
+    .empty-state .emoji { font-size: 3rem; margin-bottom: 12px; }
+    .empty-state p { font-size: 1rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dash-wrap">
+    <div class="dash-header">
+        <h1>📅 Calendario de Campañas</h1>
+    </div>
+
+    <div class="nav-tabs">
+        <a href="{% url 'dashboard_unificado' %}">Dashboard Principal</a>
+        <a href="{% url 'dashboard_metrics' %}">Métricas</a>
+        <a href="{% url 'dashboard_analytics' %}">Analytics</a>
+        <a href="{% url 'dashboard_reportes_avanzados' %}">Reportes</a>
+        <a href="{% url 'conversaciones' %}">Conversaciones</a>
+        <a href="{% url 'calendario_campanas' %}" class="active">Calendario</a>
+    </div>
+
+    <!-- Campañas pendientes -->
+    <div class="section">
+        <div class="section-title">⏳ Campañas Programadas (Pendientes)</div>
+        {% if campanas_pendientes %}
+        <table class="eki-table">
+            <thead>
+                <tr>
+                    <th>Campaña</th>
+                    <th>Fecha Programada</th>
+                    <th>Plantilla</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in campanas_pendientes %}
+                <tr>
+                    <td><strong>{{ c.nombre }}</strong></td>
+                    <td>{{ c.fecha_programada|date:"d/m/Y H:i" }}</td>
+                    <td>{{ c.plantilla.nombre|default:"—" }}</td>
+                    <td><span class="badge-pending">⏳ Pendiente</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <div class="emoji">📭</div>
+            <p>No hay campañas programadas pendientes</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Campañas ejecutadas -->
+    <div class="section">
+        <div class="section-title">✅ Últimas Campañas Ejecutadas</div>
+        {% if campanas_ejecutadas %}
+        <table class="eki-table">
+            <thead>
+                <tr>
+                    <th>Campaña</th>
+                    <th>Fecha Programada</th>
+                    <th>Plantilla</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in campanas_ejecutadas %}
+                <tr>
+                    <td><strong>{{ c.nombre }}</strong></td>
+                    <td>{{ c.fecha_programada|date:"d/m/Y H:i" }}</td>
+                    <td>{{ c.plantilla.nombre|default:"—" }}</td>
+                    <td><span class="badge-done">✅ Ejecutada</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <div class="emoji">📊</div>
+            <p>No se encontraron campañas ejecutadas recientes</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
