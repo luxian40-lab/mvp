@@ -174,12 +174,16 @@ def enviar_certificado_whatsapp(certificado):
         curso = certificado.curso
         
         # Construir URL del PDF
-        if settings.DEBUG:
-            base_url = "http://localhost:8000"
+        raw_url = certificado.archivo_pdf.url
+        # Si ya es URL completa (S3), usarla directamente
+        if raw_url.startswith('http'):
+            pdf_url = raw_url
         else:
-            base_url = getattr(settings, 'BASE_URL', 'https://eki.com')
-        
-        pdf_url = f"{base_url}{certificado.archivo_pdf.url}"
+            if settings.DEBUG:
+                base_url = "http://localhost:8000"
+            else:
+                base_url = getattr(settings, 'BASE_URL', 'https://eki.com')
+            pdf_url = f"{base_url}{raw_url}"
         verificacion_url = certificado.obtener_url_verificacion()
         
         # Construir mensaje

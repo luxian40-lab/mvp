@@ -777,41 +777,50 @@ Cuando termines, escribe: *"listo"*"""
                         import logging
                         logging.getLogger(__name__).warning(f"⚠️ Profesor Gerónimo falló: {e}")
                 
-                # María (Mentora): cada 2 módulos (después de módulos pares: 2, 4, 6, 8, 10)
-                if not tutor_msg and modulo_actual.numero >= 2 and modulo_actual.numero % 2 == 0:
-                    try:
-                        from .tutor_ia_modulo import generar_revision_progreso
-                        from .models import Modulo
-                        modulos_completados = progreso.modulos_completados.all().order_by('numero')
-                        revision = generar_revision_progreso(
-                            modulo_actual,
-                            modulos_completados,
-                            progreso.curso.nombre,
-                            estudiante_nombre=estudiante.nombre or "Estudiante"
-                        )
-                        if revision:
-                            modulos_info = ", ".join([m.titulo for m in modulos_completados])
-                            estudiante.contexto_temporal = {
-                                'tipo': 'revision_progreso',
-                                'modulo_id': modulo_actual.id,
-                                'pregunta_tutor': revision,
-                                'progreso_id': progreso.id,
-                                'modulos_info': modulos_info,
-                                'intentos_tutor': 0,
-                            }
-                            estudiante.estado_onboarding = 'esperando_respuesta_progreso'
-                            estudiante.save()
-                            tutor_msg = f"👩‍🏫 *María — Tu Asistente*\n\n{revision}\n\n💬 _Responde o escribe *\"continuar\"* para seguir_"
-                    except Exception as e:
-                        import logging
-                        logging.getLogger(__name__).warning(f"⚠️ María falló: {e}")
+                # María (Mentora): revisión de progreso en cada módulo
+                maria_msg = None
+                try:
+                    from .tutor_ia_modulo import generar_revision_progreso
+                    from .models import Modulo
+                    modulos_completados_qs = progreso.modulos_completados.all().order_by('modulo__numero')
+                    modulos_obj = [mc.modulo for mc in modulos_completados_qs]
+                    revision = generar_revision_progreso(
+                        modulo_actual,
+                        modulos_obj,
+                        progreso.curso.nombre,
+                        estudiante_nombre=estudiante.nombre or "Estudiante"
+                    )
+                    if revision:
+                        maria_msg = f"👩‍🏫 *María — Tu Asistente*\n\n{revision}\n\n💬 _Responde o escribe *\"continuar\"* para seguir_"
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(f"⚠️ María falló: {e}")
                 
-                # Construir multi-mensaje: completado [SEP] módulo [SEP] video (si hay) [SEP] tutor/maría (si aplica)
+                # Estado: Gerónimo tiene prioridad para interacción
+                if tutor_msg:
+                    # Ya configurado arriba
+                    pass
+                elif maria_msg:
+                    modulos_info = ", ".join([m.titulo for m in modulos_obj])
+                    estudiante.contexto_temporal = {
+                        'tipo': 'revision_progreso',
+                        'modulo_id': modulo_actual.id,
+                        'pregunta_tutor': revision,
+                        'progreso_id': progreso.id,
+                        'modulos_info': modulos_info,
+                        'intentos_tutor': 0,
+                    }
+                    estudiante.estado_onboarding = 'esperando_respuesta_progreso'
+                    estudiante.save()
+                
+                # Construir multi-mensaje: completado [SEP] módulo [SEP] video (si hay) [SEP] Gerónimo [SEP] María
                 partes = [msg_completado, msg_modulo]
                 if video_msg:
                     partes.append(video_msg)
                 if tutor_msg:
                     partes.append(tutor_msg)
+                if maria_msg:
+                    partes.append(maria_msg)
                 return "[MULTI_MSG]" + "[SEP]".join(partes)
             
             else:
@@ -868,22 +877,32 @@ Escribe *"ver cursos"* para tomar otro curso
 Escribe *"mi progreso"* para ver tu avance"""
                 
                 # María: Resumen completo del curso antes de certificado
+                msg_resumen = None
                 try:
                     from .tutor_ia_modulo import generar_resumen_curso_completo
-                    modulos_completados = progreso.modulos_completados.all().order_by('numero')
+                    modulos_completados_qs = progreso.modulos_completados.all().order_by('modulo__numero')
+                    modulos_obj = [mc.modulo for mc in modulos_completados_qs]
                     resumen_maria = generar_resumen_curso_completo(
                         progreso.curso.nombre,
-                        modulos_completados,
+                        modulos_obj,
                         estudiante_nombre=estudiante.nombre or "Estudiante"
                     )
                     if resumen_maria:
                         msg_resumen = f"👩‍🏫 *María — Resumen del Curso*\n\n{resumen_maria}"
-                        return f"[MULTI_MSG]{msg_resumen}[SEP]{mensaje}"
                 except Exception as e:
                     import logging
                     logging.getLogger(__name__).warning(f"⚠️ María resumen falló: {e}")
                 
-                return mensaje
+                # Imagen de certificado
+                CERT_IMAGE_URL = 'https://eki-produccion.s3.us-east-2.amazonaws.com/pruebas/certidicado.jpeg'
+                msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{CERT_IMAGE_URL}]"
+                
+                partes = []
+                if msg_resumen:
+                    partes.append(msg_resumen)
+                partes.append(mensaje)
+                partes.append(msg_cert_img)
+                return "[MULTI_MSG]" + "[SEP]".join(partes)
         
         # Si escribieron solo "continuar" (primera vez o retomando), mostrar el módulo actual
         else:
