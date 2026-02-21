@@ -7,22 +7,29 @@ from django.shortcuts import redirect
 from django.contrib import messages
 from .exportar_respuestas_xlsx import exportar_respuestas_xlsx
 
+
 @admin.register(CampanaUnica)
 class CampanaUnicaAdmin(admin.ModelAdmin):
-    list_display = ['nombre', 'estado', 'total_enviados', 'respuestas_si', 'respuestas_no', 'fecha_envio', 'descargar_xlsx_link']
+    list_display = ['nombre', 'cliente', 'estado', 'total_enviados', 'respuestas_si', 'respuestas_no', 'fecha_envio', 'descargar_xlsx_link']
     list_filter = ['estado', 'fecha_envio', 'cliente']
     search_fields = ['nombre']
     readonly_fields = ['respuestas_si', 'respuestas_no', 'total_enviados', 'fecha_envio']
+    filter_horizontal = ['estudiantes']  # Widget de selección doble para estudiantes
     fieldsets = (
         ('Información General', {
             'fields': ('cliente', 'nombre', 'contenido', 'estado')
         }),
         ('Twilio', {
             'fields': ('template_twilio_id',),
-            'description': 'El Content SID del template aprobado en Twilio (ej: HX123abc...). Las variables del template se llenan automáticamente.'
+            'description': 'El Content SID del template aprobado en Twilio (ej: HX54ce1b4c564fe15aa4e4941b203e076d).'
         }),
-        ('Estadísticas', {
-            'fields': ('total_enviados', 'respuestas_si', 'respuestas_no', 'fecha_envio')
+        ('Destinatarios', {
+            'fields': ('estudiantes',),
+            'description': '⚠️ Si dejas vacío, se enviará a TODOS los estudiantes activos del cliente. Si seleccionas estudiantes específicos, solo se les enviará a ellos.'
+        }),
+        ('Estadísticas (solo lectura)', {
+            'fields': ('total_enviados', 'respuestas_si', 'respuestas_no', 'fecha_envio'),
+            'classes': ('collapse',)
         }),
     )
     actions = ['enviar_campana_unica']
@@ -38,67 +45,88 @@ class CampanaUnicaAdmin(admin.ModelAdmin):
         return exportar_respuestas_xlsx(request, campana_id)
 
     def descargar_xlsx_link(self, obj):
-        if obj.estado == 'enviada' or obj.respuestas_si > 0 or obj.respuestas_no > 0:
+        if obj.respuestas_si > 0 or obj.respuestas_no > 0:
             url = f"/admin/core/campanaunica/{obj.id}/descargar-xlsx/"
-            return format_html('<a class="button" href="{}">⬇️ Descargar XLSX</a>', url)
+            return format_html('<a class="button" href="{}">⬇️ XLSX</a>', url)
         return "-"
-    descargar_xlsx_link.short_description = "Descargar XLSX"
+    descargar_xlsx_link.short_description = "Exportar"
 
     def enviar_campana_unica(self, request, queryset):
-        """Enviar campaña única a todos los estudiantes del cliente usando Twilio Content Template"""
+        """Enviar campaña única usando Twilio Content Template"""
         from .utils import enviar_whatsapp_twilio_content_template
+        import json
         
         total_ok = 0
         total_err = 0
+        errores_detalle = []
         
         for campana in queryset:
-            if campana.estado != 'borrador':
-                self.message_user(request, f"⚠️ '{campana.nombre}' ya fue enviada. Solo se envían campañas en estado Borrador.", messages.WARNING)
+            # Validar Content SID
+            if not campana.template_twilio_id or not campana.template_twilio_id.strip():
+                self.message_user(request, f"❌ '{campana.nombre}' no tiene Content SID de Twilio. Edita la campaña y agrega el SID.", messages.ERROR)
                 continue
             
-            if not campana.template_twilio_id:
-                self.message_user(request, f"❌ '{campana.nombre}' no tiene Content SID de Twilio configurado.", messages.ERROR)
+            content_sid = campana.template_twilio_id.strip()
+            
+            # Determinar destinatarios: seleccionados o todos del cliente
+            if campana.estudiantes.exists():
+                destinatarios = campana.estudiantes.filter(activo=True)
+                origen = "seleccionados"
+            else:
+                destinatarios = Estudiante.objects.filter(cliente=campana.cliente, activo=True)
+                origen = f"todos del cliente '{campana.cliente}'"
+            
+            if not destinatarios.exists():
+                self.message_user(request, f"⚠️ No hay estudiantes activos ({origen}) para '{campana.nombre}'.", messages.WARNING)
                 continue
             
-            estudiantes = Estudiante.objects.filter(cliente=campana.cliente, activo=True)
+            print(f"📤 CAMPAÑA ÚNICA: Enviando '{campana.nombre}' a {destinatarios.count()} estudiantes ({origen})", flush=True)
+            print(f"📤 Content SID: {content_sid}", flush=True)
             
-            if not estudiantes.exists():
-                self.message_user(request, f"⚠️ No hay estudiantes activos para el cliente '{campana.cliente}'.", messages.WARNING)
-                continue
-            
-            for est in estudiantes:
+            for est in destinatarios:
                 try:
-                    # Variables del template: 1=nombre, 2=contenido
+                    # Variables del template - se adaptan al template del usuario
                     variables = {
                         '1': est.nombre or 'Estimado/a',
-                        '2': campana.contenido,
                     }
+                    
+                    print(f"📤 Enviando a {est.nombre} ({est.telefono}) con SID {content_sid} vars={json.dumps(variables)}", flush=True)
+                    
                     resultado = enviar_whatsapp_twilio_content_template(
                         est.telefono,
-                        campana.template_twilio_id,
+                        content_sid,
                         variables
                     )
+                    
                     if resultado.get('success'):
                         total_ok += 1
+                        print(f"✅ Enviado OK a {est.nombre}: {resultado.get('mensaje_id')}", flush=True)
                     else:
                         total_err += 1
-                        print(f"⚠️ Campaña envío falló a {est.telefono}: {resultado.get('response')}", flush=True)
+                        error_msg = resultado.get('response', 'Error desconocido')
+                        errores_detalle.append(f"{est.nombre}: {error_msg}")
+                        print(f"❌ FALLÓ envío a {est.nombre} ({est.telefono}): {error_msg}", flush=True)
                 except Exception as e:
                     total_err += 1
-                    print(f"❌ Error enviando campaña a {est.telefono}: {e}", flush=True)
-                
-                campana.total_enviados += 1
+                    errores_detalle.append(f"{est.nombre}: {str(e)}")
+                    print(f"❌ EXCEPCIÓN enviando a {est.nombre}: {e}", flush=True)
             
+            # Actualizar campaña
+            campana.total_enviados = total_ok + total_err
             campana.estado = 'enviada'
             campana.fecha_envio = timezone.now()
             campana.save()
         
-        self.message_user(
-            request,
-            f"✅ Campaña enviada: {total_ok} enviados correctamente, {total_err} errores.",
-            messages.SUCCESS if total_err == 0 else messages.WARNING
-        )
+        # Mensaje de resultado al admin
+        if total_ok > 0 and total_err == 0:
+            self.message_user(request, f"✅ Campaña enviada exitosamente a {total_ok} estudiantes.", messages.SUCCESS)
+        elif total_ok > 0:
+            self.message_user(request, f"⚠️ Enviados: {total_ok} OK, {total_err} errores. Errores: {'; '.join(errores_detalle[:3])}", messages.WARNING)
+        else:
+            self.message_user(request, f"❌ Todos los envíos fallaron ({total_err} errores). Detalle: {'; '.join(errores_detalle[:3])}", messages.ERROR)
+    
     enviar_campana_unica.short_description = "📤 Enviar campaña única (Twilio)"
+
 
 @admin.register(RespuestaCampanaUnica)
 class RespuestaCampanaUnicaAdmin(admin.ModelAdmin):

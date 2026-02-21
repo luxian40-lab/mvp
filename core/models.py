@@ -1374,6 +1374,13 @@ class CampanaUnica(models.Model):
         help_text="El SID del template aprobado en Twilio (ej: HX123abc...)"
     )
     
+    # Selección de estudiantes (si vacío = todos los del cliente)
+    estudiantes = models.ManyToManyField(
+        'Estudiante', blank=True,
+        verbose_name="Estudiantes destinatarios",
+        help_text="Selecciona estudiantes específicos. Si dejas vacío, se enviará a TODOS los estudiantes activos del cliente."
+    )
+    
     fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de creación")
     fecha_envio = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de envío")
     

@@ -126,11 +126,12 @@ def enviar_whatsapp_twilio_content_template(telefono: str, content_sid: str, var
             fecha=timezone.now()
         )
         
-        # Enviar con Content Template
+        # Enviar con Content Template (content_variables DEBE ser JSON string)
+        import json
         message = client.messages.create(
             from_=twilio_number,
             content_sid=content_sid,
-            content_variables=variables,
+            content_variables=json.dumps(variables),
             to=telefono
         )
         print(f"[DEPURACION] Enviado con FROM: '{twilio_number}' TO: '{telefono}'")
