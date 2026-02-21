@@ -20,8 +20,10 @@ from .models import (
     Examen, PreguntaExamen, ResultadoExamen, Cliente,
     PerfilGamificacion, Badge, BadgeEstudiante, TransaccionPuntos,
     SolicitudSoporte, PreguntaModulo,  # 🆘 NUEVO + 📝 PREGUNTA MODULO
-    Certificado, PlantillaCertificado  # 📜 CERTIFICADOS
+    Certificado, PlantillaCertificado, # 📜 CERTIFICADOS
+    CampanaUnica, RespuestaCampanaUnica
 )
+from .admin_campana_actualizado import CampanaUnicaAdmin, RespuestaCampanaUnicaAdmin
 from .models_extras import (
     GrupoEstudiantes, EnvioProgramado, PQRS, ArchivoModulo,
     GrupoWhatsApp, InvitacionGrupo  # 📦 NUEVOS MODELOS

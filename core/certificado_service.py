@@ -163,47 +163,72 @@ def enviar_certificado_whatsapp(certificado):
     Returns:
         bool: True si se envió exitosamente
     """
-    if not certificado.emitido or not certificado.archivo_pdf:
+    if not certificado.emitido or (not certificado.archivo_pdf and not certificado.archivo_imagen):
         logger.error(f"Certificado {certificado.codigo_verificacion} no está generado")
         return False
-    
+
     try:
         from .utils import enviar_whatsapp_twilio
-        
+        from .models_certificados import PlantillaCertificado
+
         estudiante = certificado.estudiante
         curso = certificado.curso
-        
-        # Construir URL del PDF
-        raw_url = certificado.archivo_pdf.url
-        # Si ya es URL completa (S3), usarla directamente
-        if raw_url.startswith('http'):
-            pdf_url = raw_url
+
+        # Determinar si el certificado fue generado desde plantilla imagen
+        plantilla = None
+        if hasattr(certificado, 'plantilla_certificado'):
+            plantilla = certificado.plantilla_certificado
         else:
-            if settings.DEBUG:
-                base_url = "http://localhost:8000"
+            # Si no hay relación directa, intentar buscar por curso o lógica de tu sistema
+            from .models_certificados import PlantillaCertificado as PC
+            plantilla = PC.objects.filter(por_defecto=True, activa=True).first()
+
+        usar_imagen = False
+        media_url = None
+        if plantilla and (getattr(plantilla, 'archivo_plantilla_imagen', None) or getattr(plantilla, 'url_plantilla_imagen', None)):
+            # Si el certificado tiene imagen generada
+            if certificado.archivo_imagen:
+                raw_url = certificado.archivo_imagen.url
+                usar_imagen = True
+                # Si ya es URL completa (S3), usarla directamente
+                if raw_url.startswith('http'):
+                    media_url = raw_url
+                else:
+                    if settings.DEBUG:
+                        base_url = "http://localhost:8000"
+                    else:
+                        base_url = getattr(settings, 'BASE_URL', 'https://eki.com')
+                    media_url = f"{base_url}{raw_url}"
+
+        # Si no es plantilla imagen o no hay imagen generada, usar PDF como antes
+        if not usar_imagen:
+            raw_url = certificado.archivo_pdf.url
+            if raw_url.startswith('http'):
+                media_url = raw_url
             else:
-                base_url = getattr(settings, 'BASE_URL', 'https://eki.com')
-            pdf_url = f"{base_url}{raw_url}"
+                if settings.DEBUG:
+                    base_url = "http://localhost:8000"
+                else:
+                    base_url = getattr(settings, 'BASE_URL', 'https://eki.com')
+                media_url = f"{base_url}{raw_url}"
+
         verificacion_url = certificado.obtener_url_verificacion()
-        
-        # Construir mensaje
         mencion = certificado.obtener_mencion()
         calificacion = float(certificado.calificacion_final)
-        
+
         mensaje = f"""🎓 *¡FELICITACIONES {estudiante.nombre.upper()}!* 🎉
 
 Has completado exitosamente el curso:
 📚 *{curso.nombre}*
 
 📊 *Calificación Final:* {calificacion}%"""
-        
         if mencion:
             mensaje += f"\n🏆 *{mencion}*"
-        
+
         mensaje += f"""
 
 📜 Tu certificado digital está listo:
-🔗 {pdf_url}
+🔗 {media_url}
 
 ✅ Puedes verificar su autenticidad aquí:
 {verificacion_url}
@@ -212,25 +237,24 @@ Has completado exitosamente el curso:
 `{certificado.codigo_verificacion}`
 
 ¡Comparte tu logro con orgullo! 🌟"""
-        
-        # Enviar
+
+        # Enviar con media_url (imagen o PDF)
         resultado = enviar_whatsapp_twilio(
             telefono=estudiante.telefono,
-            texto=mensaje
+            texto=mensaje,
+            media_url=media_url
         )
-        
+
         if resultado['success']:
-            # Marcar como enviado
             certificado.enviado_whatsapp = True
             certificado.fecha_envio = timezone.now()
             certificado.save()
-            
             logger.info(f"✅ Certificado {certificado.codigo_verificacion} enviado a {estudiante.telefono}")
             return True
         else:
             logger.error(f"❌ Error enviando certificado: {resultado.get('error')}")
             return False
-            
+
     except Exception as e:
         logger.error(f"❌ Error enviando certificado {certificado.codigo_verificacion}: {e}", exc_info=True)
         return False

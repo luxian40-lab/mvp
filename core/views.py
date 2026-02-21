@@ -843,6 +843,56 @@ def _procesar_twilio_webhook(post_data):
         )
         logger.info(f"✅ Guardado INCOMING")
         
+        # 1.5 🔘 DETECTAR RESPUESTA DE BOTÓN (Campañas Únicas SÍ/NO)
+        button_payload = post_data.get('ButtonPayload', '').strip().lower()
+        if button_payload in ('si', 'sí', 'no', 'yes'):
+            try:
+                from .models import CampanaUnica, RespuestaCampanaUnica
+                respuesta_btn = 'si' if button_payload in ('si', 'sí', 'yes') else 'no'
+                
+                # Buscar la última campaña enviada
+                campana = CampanaUnica.objects.filter(estado='enviada').order_by('-fecha_envio').first()
+                
+                if campana:
+                    # Buscar estudiante
+                    est_btn = None
+                    try:
+                        est_btn = Estudiante.objects.get(telefono=telefono_limpio)
+                    except Estudiante.DoesNotExist:
+                        pass
+                    
+                    # Guardar respuesta (update_or_create para evitar duplicados)
+                    _, created = RespuestaCampanaUnica.objects.update_or_create(
+                        campana=campana,
+                        numero_telefono=telefono_limpio,
+                        defaults={
+                            'estudiante': est_btn,
+                            'respuesta': respuesta_btn,
+                            'mensaje_sid': msg_sid,
+                        }
+                    )
+                    
+                    # Actualizar contadores
+                    if created:
+                        if respuesta_btn == 'si':
+                            campana.respuestas_si += 1
+                        else:
+                            campana.respuestas_no += 1
+                        campana.save()
+                    
+                    print(f"🔘 Campaña Única: {telefono_limpio} respondió {respuesta_btn.upper()} a '{campana.nombre}'", flush=True)
+                    
+                    # Enviar confirmación
+                    from .utils import enviar_whatsapp
+                    enviar_whatsapp(
+                        telefono_limpio,
+                        f"✅ Gracias por tu respuesta: *{respuesta_btn.upper()}*\n\nTu respuesta ha sido registrada."
+                    )
+                    return  # Terminar aquí, no seguir flujo normal
+                    
+            except Exception as e:
+                print(f"⚠️ Error procesando botón campaña: {e}", flush=True)
+        
         # 2. Buscar estudiante con teléfono limpio
         try:
             estudiante = Estudiante.objects.get(telefono=telefono_limpio)

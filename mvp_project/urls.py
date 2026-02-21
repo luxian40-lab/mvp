@@ -27,6 +27,8 @@ from core.views_certificados import verificar_certificado_view, descargar_certif
 from core.views_analytics import dashboard_analytics, exportar_metricas_csv, api_metricas_json, detalle_estudiante
 from core.views_reportes import dashboard_reportes_avanzados, descargar_reporte_xlsx
 
+from core.exportar_respuestas_xlsx import exportar_respuestas_xlsx
+
 
 def root_redirect(request):
     """Redirige a la página de administración principal"""
@@ -44,6 +46,9 @@ urlpatterns = [
     
     # Vistas personalizadas ANTES del admin para que no sean capturadas por catch-all
     path('admin/dashboard/', dashboard_unificado, name='dashboard_unificado'),  # Dashboard único
+
+    # Exportar respuestas de campañas únicas a XLSX
+    path('admin/exportar-respuestas-xlsx/<int:campana_id>/', exportar_respuestas_xlsx, name='exportar_respuestas_xlsx'),
     path('admin/dashboard-antiguo/', dashboard_view, name='dashboard_antiguo'),  # Dashboard antiguo
     path('admin/descargar-reportes/', descargar_reportes, name='descargar_reportes'),
     path('admin/importar-estudiantes/', importar_estudiantes, name='importar_estudiantes'),
