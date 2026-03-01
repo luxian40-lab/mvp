@@ -22,7 +22,12 @@ logger = logging.getLogger(__name__)
 TWILIO_CONTENT_SIDS = {
     'habeas_data': 'HXc7923656da2cbd43e04373e6404eb872',
     'confirmar_datos': 'HXbb0358bcb33c46a521e392f8e7dcca7a',
+    'confirmar_datos_v2': 'HX34fd358719d973cf70ed66e22139c883',
     'menu_principal': 'HXc9027f1ab8cdf781fafa1096c9010d5d',
+    'no_registrado': 'HX763a7744eada20b939d5e01e8911428b',
+    'listadocursos1': 'HX6a31cb9924af620e3dc914b71e95fd20',
+    'listadocursos2': 'HXcb7abe9df97c2e3085b862523a5a1d8b',
+    'listadocursos3': 'HX09b9105e5698450aeec07965832b183c',
 }
 
 
@@ -92,10 +97,10 @@ def enviar_habeas_data(telefono):
 
 
 def enviar_confirmacion_datos(telefono, nombre, cedula, organizacion):
-    """Paso 2: Confirmar datos con botones [Sí, todo bien] [Hay un error]"""
+    """Paso 2: Confirmar datos con botones [Sí, todo bien] [Modificar]"""
     return enviar_template_twilio(
         telefono,
-        TWILIO_CONTENT_SIDS['confirmar_datos'],
+        TWILIO_CONTENT_SIDS['confirmar_datos_v2'],
         variables={'1': nombre, '2': cedula, '3': organizacion}
     )
 
@@ -111,8 +116,11 @@ def enviar_menu_principal(telefono, nombre):
 
 def enviar_lista_cursos(telefono, estudiante):
     """
-    Envía lista dinámica de cursos de la organización del estudiante.
-    Usa un menú numerado cuando no hay template de lista aprobado.
+    Envía lista dinámica de cursos usando Content Templates de Twilio.
+    Selecciona el template correcto según la cantidad de cursos:
+    - 1 curso → listadocursos1 (1 botón)
+    - 2 cursos → listadocursos2 (2 botones)
+    - 3+ cursos → listadocursos3 (3 botones)
     """
     from .models import Curso
     
@@ -120,26 +128,49 @@ def enviar_lista_cursos(telefono, estudiante):
     if org:
         cursos = Curso.objects.filter(
             cliente=org, activo=True
-        ).order_by('orden', 'nombre')
+        ).order_by('orden', 'nombre')[:3]
     else:
-        cursos = Curso.objects.filter(activo=True).order_by('orden', 'nombre')
+        cursos = Curso.objects.filter(activo=True).order_by('orden', 'nombre')[:3]
     
-    if not cursos.exists():
+    cantidad = cursos.count() if hasattr(cursos, 'count') else len(cursos)
+    
+    if cantidad == 0:
         from .utils import enviar_whatsapp_twilio
         return enviar_whatsapp_twilio(
             telefono,
             "📚 No hay cursos disponibles en este momento. Escribe *menú* para volver."
         )
     
+    # Seleccionar template según cantidad de cursos
+    if cantidad == 1:
+        template_key = 'listadocursos1'
+    elif cantidad == 2:
+        template_key = 'listadocursos2'
+    else:
+        template_key = 'listadocursos3'
+    
+    # Construir variables: nombre del estudiante + nombres de cursos
+    variables = {'1': estudiante.nombre or 'Estudiante'}
+    cursos_list = list(cursos)
+    for idx, curso in enumerate(cursos_list, 2):
+        variables[str(idx)] = curso.nombre
+    
+    resultado = enviar_template_twilio(
+        telefono,
+        TWILIO_CONTENT_SIDS[template_key],
+        variables=variables
+    )
+    
+    if resultado.get('success'):
+        return resultado
+    
+    # Fallback: enviar texto plano si template falla
+    logger.warning(f"⚠️ Template {template_key} falló, usando texto plano")
     msg = f"📚 *Cursos disponibles para {org.nombre if org else 'ti'}:*\n"
     msg += "━━━━━━━━━━━━━━━━━━━\n\n"
-    
-    for idx, curso in enumerate(cursos, 1):
+    for idx, curso in enumerate(cursos_list, 1):
         emoji = curso.emoji or "📖"
-        total_modulos = curso.total_modulos()
-        msg += f"{idx}. {emoji} *{curso.nombre}*\n"
-        msg += f"   📖 {total_modulos} módulos | ⏱️ {curso.duracion_semanas} semanas\n\n"
-    
+        msg += f"{idx}. {emoji} *{curso.nombre}*\n\n"
     msg += "━━━━━━━━━━━━━━━━━━━\n"
     msg += "👉 Escribe el *número* del curso para entrar\n"
     msg += "👉 Escribe *menú* para volver"
@@ -150,9 +181,19 @@ def enviar_lista_cursos(telefono, estudiante):
 
 def enviar_mensaje_ventas(telefono):
     """
-    Fase 0: Mensaje de ventas para usuarios no registrados (Lead Generation).
-    Envía presentación de Eki con opciones interactivas.
+    Fase 0: Mensaje para usuarios no registrados usando Content Template.
+    Template con 3 botones: [Eki para mi empresa] [Visitar web] [Soy estudiante]
     """
+    resultado = enviar_template_twilio(
+        telefono,
+        TWILIO_CONTENT_SIDS['no_registrado']
+    )
+    
+    if resultado.get('success'):
+        return resultado
+    
+    # Fallback: texto plano si template falla
+    logger.warning("⚠️ Template no_registrado falló, usando texto plano")
     msg = (
         "🚜 *¡Hola! Soy Eki*, la plataforma educativa por WhatsApp "
         "para el sector agrícola.\n\n"

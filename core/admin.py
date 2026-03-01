@@ -312,8 +312,8 @@ class PlantillaDashboardAdmin(admin.ModelAdmin):
 @admin.register(Estudiante)
 class EstudianteAdmin(admin.ModelAdmin):
     """Gestión de estudiantes/campesinos"""
-    list_display = ('cedula_formateada', 'nombre', 'telefono_formateado', 'municipio', 'cliente_nombre', 'grupos_display', 'cursos_inscritos', 'activo', 'fecha_registro')
-    list_filter = ('activo', 'cliente', 'fecha_registro', CursosEstudianteFilter, GruposEstudianteFilter)
+    list_display = ('cedula_formateada', 'nombre', 'telefono_formateado', 'municipio', 'departamento', 'genero', 'cliente_nombre', 'grupos_display', 'cursos_inscritos', 'activo', 'fecha_registro')
+    list_filter = ('activo', 'cliente', 'genero', 'departamento', 'fecha_registro', CursosEstudianteFilter, GruposEstudianteFilter)
     search_fields = ('nombre', 'cedula', 'telefono', 'cliente__nombre')
     list_per_page = 50
     ordering = ('-fecha_registro',)
@@ -328,13 +328,16 @@ class EstudianteAdmin(admin.ModelAdmin):
             'description': 'El documento es el identificador único y autenticador de seguridad'
         }),
         ('📍 Ubicación', {
-            'fields': ('municipio', 'ubicacion_detalle'),
-            'description': 'Municipio/ciudad y detalles de ubicación del estudiante'
+            'fields': ('municipio', 'departamento', 'ubicacion_detalle'),
+            'description': 'Municipio, departamento y detalles de ubicación del estudiante'
+        }),
+        ('👤 Datos Demográficos', {
+            'fields': ('genero',),
         }),
         ('📱 Contacto y Organización', {
             'fields': ('telefono', 'cliente', 'activo')
         }),
-        ('�📚 Cursos Inscritos', {
+        ('📚 Cursos Inscritos', {
             'fields': ('mostrar_cursos_inscritos',),
             'classes': ('collapse',),
         }),
@@ -426,14 +429,16 @@ class EstudianteAdmin(admin.ModelAdmin):
         return custom_urls + urls
     
     def importar_estudiantes_view(self, request):
-        """Vista para importar estudiantes desde Excel con selección de curso"""
+        """Vista para importar estudiantes desde Excel.
+        Formato: Cédula | Nombre | Teléfono | Municipio | Departamento | Género | Curso | Cliente
+        """
         from django.shortcuts import render, redirect
         from django.contrib import messages
         from django.db import IntegrityError
+        import re
         
         if request.method == 'POST':
             archivo = request.FILES.get('archivo_excel')
-            curso_id = request.POST.get('curso_id')
             
             if not archivo:
                 messages.error(request, "⚠️ Debes seleccionar un archivo Excel")
@@ -449,7 +454,6 @@ class EstudianteAdmin(admin.ModelAdmin):
                 errores = []
                 
                 def _normalizar_celda(val):
-                    """Convierte celdas Excel a string limpio (float→int→str)."""
                     if val is None:
                         return ''
                     if isinstance(val, float):
@@ -460,70 +464,92 @@ class EstudianteAdmin(admin.ModelAdmin):
                         return str(val)
                     return str(val).strip()
                 
-                # Leer filas (saltar encabezado)
+                def _limpiar_texto(val):
+                    if not val:
+                        return ''
+                    return re.sub(r'\s+', ' ', val.strip().lower())
+                
+                def _normalizar_telefono(raw):
+                    tel = re.sub(r'\D', '', raw)
+                    if tel.startswith('57') and len(tel) == 12:
+                        return tel
+                    if len(tel) == 10 and tel.startswith('3'):
+                        return '57' + tel
+                    if len(tel) == 7 or len(tel) == 10:
+                        return '57' + tel
+                    return tel
+                
+                GENEROS_VALIDOS = {'m': 'M', 'f': 'F', 'o': 'O', 'masculino': 'M', 'femenino': 'F',
+                                   'otro': 'O', 'hombre': 'M', 'mujer': 'F', 'nr': 'NR', 'no reporta': 'NR'}
+                
                 for idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
-                    # Verificar que la fila no esté completamente vacía
                     if not row or all(cell is None or str(cell).strip() == '' for cell in row[:3]):
                         continue
                     
-                    # Extraer datos con validación de columnas
                     try:
                         cedula = _normalizar_celda(row[0]) if len(row) > 0 else ''
                         nombre = _normalizar_celda(row[1]) if len(row) > 1 else ''
-                        telefono = _normalizar_celda(row[2]) if len(row) > 2 else ''
-                        curso_nombre = _normalizar_celda(row[3]) if len(row) > 3 else ''
-                        cliente_nombre = _normalizar_celda(row[4]) if len(row) > 4 else ''
+                        telefono_raw = _normalizar_celda(row[2]) if len(row) > 2 else ''
+                        municipio = _limpiar_texto(_normalizar_celda(row[3])) if len(row) > 3 else ''
+                        departamento = _limpiar_texto(_normalizar_celda(row[4])) if len(row) > 4 else ''
+                        genero_raw = _limpiar_texto(_normalizar_celda(row[5])) if len(row) > 5 else ''
+                        curso_nombre = _normalizar_celda(row[6]) if len(row) > 6 else ''
+                        cliente_nombre = _normalizar_celda(row[7]) if len(row) > 7 else ''
                     except IndexError:
-                        errores.append(f"Fila {idx}: La fila no tiene suficientes columnas")
+                        errores.append(f"Fila {idx}: Columnas insuficientes")
                         continue
                     
-                    # Validar campos obligatorios
-                    if not cedula or not nombre or not telefono:
-                        errores.append(f"Fila {idx}: Faltan campos obligatorios (Cédula: '{cedula}', Nombre: '{nombre}', Teléfono: '{telefono}')")
+                    # Validar obligatorios
+                    campos_faltantes = []
+                    if not cedula: campos_faltantes.append('Cédula')
+                    if not nombre: campos_faltantes.append('Nombre')
+                    if not telefono_raw: campos_faltantes.append('Teléfono')
+                    if not municipio: campos_faltantes.append('Municipio')
+                    if not departamento: campos_faltantes.append('Departamento')
+                    if not genero_raw: campos_faltantes.append('Género')
+                    
+                    if campos_faltantes:
+                        errores.append(f"Fila {idx}: Faltan: {', '.join(campos_faltantes)}")
                         continue
                     
-                    # Normalizar teléfono - remover caracteres no numéricos
-                    import re
-                    telefono = re.sub(r'\D', '', telefono)  # Solo dígitos
+                    telefono = _normalizar_telefono(telefono_raw)
+                    if not telefono or len(telefono) < 10:
+                        errores.append(f"Fila {idx}: Teléfono inválido '{telefono_raw}'")
+                        continue
                     
-                    # Validar y normalizar formato colombiano
-                    if telefono.startswith('57') and len(telefono) == 12:
-                        # Ya está en formato correcto: 573001234567
-                        pass
-                    elif len(telefono) == 10 and telefono.startswith(('3', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39')):
-                        # Número colombiano sin prefijo internacional
-                        telefono = '57' + telefono
-                    elif len(telefono) == 12 and telefono.startswith('57'):
-                        # Ya correcto
-                        pass
-                    else:
-                        errores.append(f"Fila {idx}: Teléfono '{telefono}' no tiene formato válido (debe ser 10 dígitos colombianos o 12 con 57)")
+                    genero = GENEROS_VALIDOS.get(genero_raw, '')
+                    if not genero:
+                        errores.append(f"Fila {idx}: Género '{genero_raw}' no válido (use: M, F, O, NR)")
                         continue
                     
                     try:
-                        # Buscar cliente si se especificó
                         cliente = None
                         if cliente_nombre:
                             try:
-                                cliente = Cliente.objects.get(nombre__iexact=cliente_nombre)
+                                cliente = Cliente.objects.get(nombre__iexact=cliente_nombre.strip())
                             except Cliente.DoesNotExist:
                                 errores.append(f"Fila {idx}: Cliente '{cliente_nombre}' no encontrado")
                         
-                        # Crear o actualizar estudiante
                         try:
+                            defaults = {
+                                'nombre': nombre.strip().title(),
+                                'telefono': telefono,
+                                'municipio': municipio,
+                                'departamento': departamento,
+                                'genero': genero,
+                                'tipo_documento': 'CC',
+                                'estado_onboarding': 'completado',
+                                'estado_chat': 'ACTIVO',
+                                'acepto_terminos': True,
+                                'activo': True,
+                            }
+                            if cliente:
+                                defaults['cliente'] = cliente
+                            
                             estudiante, created = Estudiante.objects.update_or_create(
                                 cedula=cedula,
-                                defaults={
-                                    'nombre': nombre,
-                                    'telefono': telefono,
-                                    'cliente': cliente,
-                                    'tipo_documento': 'CC',
-                                    'estado_onboarding': 'completado',
-                                    'acepto_terminos': True,
-                                    'activo': True
-                                }
+                                defaults=defaults
                             )
-                            
                             if created:
                                 creados += 1
                             else:
@@ -535,26 +561,22 @@ class EstudianteAdmin(admin.ModelAdmin):
                                 errores.append(f"Fila {idx}: Error de integridad - {str(e)}")
                             continue
                         
-                        # Inscribir en curso si se especificó
                         if curso_nombre:
                             try:
-                                curso = Curso.objects.get(nombre__iexact=curso_nombre)
-                                progreso, creado = ProgresoEstudiante.objects.get_or_create(
+                                curso = Curso.objects.get(nombre__iexact=curso_nombre.strip())
+                                progreso, creado_prog = ProgresoEstudiante.objects.get_or_create(
                                     estudiante=estudiante,
                                     curso=curso,
                                     defaults={'progreso': 0, 'completado': False}
                                 )
-                                if creado:
+                                if creado_prog:
                                     inscritos += 1
                             except Curso.DoesNotExist:
                                 errores.append(f"Fila {idx}: Curso '{curso_nombre}' no encontrado")
-                            except IntegrityError as e:
-                                errores.append(f"Fila {idx}: Error al inscribir en curso '{curso_nombre}' - {str(e)}")
                     
                     except Exception as e:
                         errores.append(f"Fila {idx}: {str(e)}")
                 
-                # Mensajes de resultado
                 if creados > 0:
                     messages.success(request, f"✅ {creados} estudiante(s) creado(s)")
                 if actualizados > 0:
@@ -562,8 +584,8 @@ class EstudianteAdmin(admin.ModelAdmin):
                 if inscritos > 0:
                     messages.success(request, f"🎓 {inscritos} inscripción(es) en cursos")
                 if errores:
-                    messages.warning(request, f"⚠️ {len(errores)} error(es). Revisa el archivo.")
-                    for error in errores[:5]:  # Mostrar solo primeros 5
+                    messages.warning(request, f"⚠️ {len(errores)} error(es)")
+                    for error in errores[:5]:
                         messages.warning(request, error)
                 
                 return redirect('admin:core_estudiante_changelist')
@@ -572,7 +594,6 @@ class EstudianteAdmin(admin.ModelAdmin):
                 messages.error(request, f"❌ Error procesando archivo: {str(e)}")
                 return redirect('admin:core_estudiante_changelist')
         
-        # GET - Mostrar formulario simplificado
         return render(request, 'admin/importar_estudiantes.html', {
             'title': 'Importar Estudiantes desde Excel',
             'site_header': 'Importar Estudiantes',
@@ -1163,8 +1184,8 @@ class EstudianteAdmin(admin.ModelAdmin):
         ws = wb.active
         ws.title = "Plantilla Estudiantes"
         
-        # Encabezados mejorados
-        headers = ['Cédula', 'Nombre Completo', 'Teléfono', 'Curso', 'Cliente']
+        # Encabezados mejorados (8 columnas, 6 obligatorias)
+        headers = ['Cédula', 'Nombre Completo', 'Teléfono', 'Municipio', 'Departamento', 'Género', 'Curso', 'Cliente']
         ws.append(headers)
         
         # Estilo de encabezados
@@ -1187,8 +1208,11 @@ class EstudianteAdmin(admin.ModelAdmin):
         ws['A1'].comment = Comment("📝 Cédula sin puntos ni espacios\nEjemplo: 1234567890", "EKI")
         ws['B1'].comment = Comment("👤 Nombre completo del estudiante\nEjemplo: Juan Pérez García", "EKI")
         ws['C1'].comment = Comment("📱 WhatsApp con código de país\nEjemplo: 573001234567 o 3001234567", "EKI")
-        ws['D1'].comment = Comment("📚 Nombre del curso (opcional)\nEjemplo: Curso de Café\nDeja vacío si no aplica", "EKI")
-        ws['E1'].comment = Comment("🏢 Nombre del cliente (opcional)\nEjemplo: FNC\nDeja vacío si no aplica", "EKI")
+        ws['D1'].comment = Comment("🏙️ Municipio del estudiante (obligatorio)\nEjemplo: Manizales", "EKI")
+        ws['E1'].comment = Comment("🗺️ Departamento del estudiante (obligatorio)\nEjemplo: Caldas", "EKI")
+        ws['F1'].comment = Comment("👫 Género del estudiante (obligatorio)\nValores: masculino, femenino, otro, no reporta", "EKI")
+        ws['G1'].comment = Comment("📚 Nombre del curso (opcional)\nEjemplo: Curso de Café\nDeja vacío si no aplica", "EKI")
+        ws['H1'].comment = Comment("🏢 Nombre del cliente (opcional)\nEjemplo: FNC\nDeja vacío si no aplica", "EKI")
         
         # Obtener cursos y clientes para validación
         cursos = Curso.objects.filter(activo=True).order_by('nombre')
@@ -1198,14 +1222,14 @@ class EstudianteAdmin(admin.ModelAdmin):
         if cursos.exists() and clientes.exists():
             curso_ejemplo = cursos.first().nombre
             cliente_ejemplo = clientes.first().nombre
-            ws.append(['1234567890', 'Juan Pérez García', '573001234567', curso_ejemplo, cliente_ejemplo])
-            ws.append(['9876543210', 'María López Rodríguez', '3109876543', curso_ejemplo, cliente_ejemplo])
+            ws.append(['1234567890', 'Juan Pérez García', '573001234567', 'Manizales', 'Caldas', 'masculino', curso_ejemplo, cliente_ejemplo])
+            ws.append(['9876543210', 'María López Rodríguez', '3109876543', 'Bogotá', 'Cundinamarca', 'femenino', curso_ejemplo, cliente_ejemplo])
         else:
-            ws.append(['1234567890', 'Juan Pérez García', '573001234567', 'Curso de Café', 'FNC'])
-            ws.append(['9876543210', 'María López Rodríguez', '3109876543', 'Curso de Aguacate', 'Fedecacao'])
+            ws.append(['1234567890', 'Juan Pérez García', '573001234567', 'Manizales', 'Caldas', 'masculino', 'Curso de Café', 'FNC'])
+            ws.append(['9876543210', 'María López Rodríguez', '3109876543', 'Bogotá', 'Cundinamarca', 'femenino', 'Curso de Aguacate', 'Fedecacao'])
         
         # Fila vacía para empezar
-        ws.append(['', '', '', '', ''])
+        ws.append(['', '', '', '', '', '', '', ''])
         
         # Estilo para ejemplos
         example_fill = PatternFill(start_color="FFF9E6", end_color="FFF9E6", fill_type="solid")
@@ -1218,8 +1242,11 @@ class EstudianteAdmin(admin.ModelAdmin):
         ws.column_dimensions['A'].width = 18
         ws.column_dimensions['B'].width = 35
         ws.column_dimensions['C'].width = 18
-        ws.column_dimensions['D'].width = 30
-        ws.column_dimensions['E'].width = 25
+        ws.column_dimensions['D'].width = 20
+        ws.column_dimensions['E'].width = 20
+        ws.column_dimensions['F'].width = 16
+        ws.column_dimensions['G'].width = 30
+        ws.column_dimensions['H'].width = 25
         
         # Crear hoja con listas de valores disponibles
         ws_ref = wb.create_sheet("Valores Disponibles")
@@ -1241,12 +1268,15 @@ class EstudianteAdmin(admin.ModelAdmin):
         instrucciones = [
             ["📋 GUÍA RÁPIDA - IMPORTAR ESTUDIANTES A EKI"],
             [""],
-            ["✅ CAMPOS OBLIGATORIOS:"],
+            ["✅ CAMPOS OBLIGATORIOS (6):"],
             ["   • Cédula: Sin puntos ni espacios (Ej: 1234567890)"],
             ["   • Nombre: Nombre completo del estudiante"],
             ["   • Teléfono: Con código 57 o sin él (Ej: 573001234567 o 3001234567)"],
+            ["   • Municipio: Ciudad o municipio (Ej: Manizales)"],
+            ["   • Departamento: Departamento (Ej: Caldas)"],
+            ["   • Género: masculino, femenino, otro o no reporta"],
             [""],
-            ["📝 CAMPOS OPCIONALES:"],
+            ["📝 CAMPOS OPCIONALES (2):"],
             ["   • Curso: Nombre del curso a inscribir (ver hoja 'Valores Disponibles')"],
             ["   • Cliente: Organización del estudiante (ver hoja 'Valores Disponibles')"],
             [""],
@@ -1255,6 +1285,8 @@ class EstudianteAdmin(admin.ModelAdmin):
             ["   2. Si dejas vacío 'Cliente', el estudiante quedará sin organización"],
             ["   3. Los nombres de Curso y Cliente deben coincidir EXACTAMENTE con los disponibles"],
             ["   4. Copia y pega desde la hoja 'Valores Disponibles' para evitar errores"],
+            ["   5. Los 6 primeros campos son OBLIGATORIOS — filas incompletas serán rechazadas"],
+            ["   6. Los textos se normalizan automáticamente a minúsculas"],
             [""],
             ["📊 PROCESO:"],
             ["   1. Completa la hoja 'Plantilla Estudiantes' con tus datos"],
@@ -1265,15 +1297,16 @@ class EstudianteAdmin(admin.ModelAdmin):
             [""],
             ["✨ EJEMPLOS:"],
             [""],
-            ["   Cédula      | Nombre                | Teléfono      | Curso              | Cliente"],
-            ["   1234567890  | Juan Pérez García    | 573001234567  | Curso de Café      | FNC"],
-            ["   9876543210  | María López          | 3109876543    | Curso de Aguacate  | Fedecacao"],
-            ["   5555555555  | Pedro Gómez          | 3201234567    |                    |"],
+            ["   Cédula      | Nombre              | Teléfono      | Municipio   | Departamento  | Género    | Curso             | Cliente"],
+            ["   1234567890  | Juan Pérez García   | 573001234567  | Manizales   | Caldas        | masculino | Curso de Café     | FNC"],
+            ["   9876543210  | María López         | 3109876543    | Bogotá      | Cundinamarca  | femenino  | Curso de Aguacate | Fedecacao"],
+            ["   5555555555  | Pedro Gómez         | 3201234567    | Medellín    | Antioquia     | otro      |                   |"],
             [""],
             ["⚠️ ERRORES COMUNES:"],
             ["   • Cédula duplicada: Cada cédula debe ser única"],
             ["   • Teléfono duplicado: Cada teléfono debe ser único"],
             ["   • Curso inexistente: Verifica en 'Valores Disponibles'"],
+            ["   • Campos obligatorios vacíos: Los 6 primeros campos son requeridos"],
             ["   • Filas vacías: No dejes filas vacías entre estudiantes"],
             [""],
             ["📞 Soporte: contacto@eki.com | WhatsApp: +57 300 123 4567"],
@@ -1736,19 +1769,17 @@ class CampanaAdmin(admin.ModelAdmin):
             'fields': ('nombre', 'cliente'),
             'description': 'Configura el nombre y cliente de la campaña'
         }),
-        ('Plantilla de WhatsApp (Content Template)', {
-            'fields': ('plantilla',),
-            'description': mark_safe('''<div style="background:#fff3e0;padding:15px;border-radius:8px;border-left:4px solid #ff9800;">
-                <strong>IMPORTANTE: Content Template Requerido</strong><br><br>
-                <strong>Flujo correcto:</strong>
-                <ol style="margin:10px 0;">
-                    <li>Ve a <a href="https://console.twilio.com/us1/develop/sms/content-editor" target="_blank" style="color:#2196F3;">Twilio Content Editor</a></li>
-                    <li>Crea tu plantilla de WhatsApp y obtén el <strong>Content SID</strong> (ej: HX1234...)</li>
-                    <li>Configura el SID en el campo <code>twilio_template_sid</code> de la plantilla</li>
-                    <li>Marca la plantilla como "Aprobada en Twilio"</li>
-                </ol>
-                <em>Las plantillas deben estar aprobadas por Twilio antes de usarlas en campañas.</em>
+        ('📨 Template de Twilio (Content SID)', {
+            'fields': ('template_twilio_id',),
+            'description': mark_safe('''<div style="background:#e8f5e9;padding:15px;border-radius:8px;border-left:4px solid #4CAF50;">
+                <strong>✅ Método recomendado:</strong> Pega el Content SID de Twilio directamente (ej: HX1234...).<br>
+                Crea tu template en <a href="https://console.twilio.com/us1/develop/sms/content-editor" target="_blank" style="color:#2196F3;">Twilio Content Editor</a>.
             </div>''')
+        }),
+        ('📄 Plantilla Django (Alternativa)', {
+            'fields': ('plantilla',),
+            'classes': ('collapse',),
+            'description': 'Solo si NO usas Content SID directo. Requiere plantilla creada en Eki.'
         }),
         ('👥 Audiencia', {
             'fields': ('tipo_audiencia', 'grupo', 'destinatarios'),
@@ -1763,6 +1794,11 @@ class CampanaAdmin(admin.ModelAdmin):
             'fields': ('archivo_excel',),
             'description': 'Sube un Excel con columnas A (Nombre) y B (Teléfono)',
             'classes': ('collapse',)
+        }),
+        ('📊 Estadísticas', {
+            'fields': ('total_enviados', 'respuestas_si', 'respuestas_no'),
+            'classes': ('collapse',),
+            'description': 'Estadísticas de envío y respuestas'
         }),
     )
     
@@ -1821,13 +1857,17 @@ class CampanaAdmin(admin.ModelAdmin):
                 )
                 continue
             
-            # VALIDACIÓN DE POLÍTICAS DE WHATSAPP
-            plantilla = campana.plantilla
-            if plantilla and not (plantilla.content_sid and plantilla.aprobada_twilio):
+            # VALIDACIÓN: necesita template_twilio_id O plantilla aprobada
+            if campana.template_twilio_id:
+                # Envío directo con Content SID
+                pass  # Válido
+            elif campana.plantilla and campana.plantilla.content_sid and campana.plantilla.aprobada_twilio:
+                # Envío con plantilla Django aprobada
+                pass  # Válido
+            else:
                 self.message_user(
                     request,
-                    f"🚨 ADVERTENCIA '{campana.nombre}': La plantilla NO tiene Content Template aprobado. "
-                    f"Enviar campañas masivas sin template puede resultar en BLOQUEO de tu número WhatsApp. "
+                    f"🚨 '{campana.nombre}': Necesita Content SID de Twilio o una plantilla aprobada. "
                     f"Configura un Content Template en Twilio primero.",
                     level=messages.ERROR
                 )
@@ -3480,69 +3520,38 @@ class SolicitudSoporteAdmin(admin.ModelAdmin):
 
 @admin.register(PlantillaCertificado)
 class PlantillaCertificadoAdmin(admin.ModelAdmin):
-    """Plantillas de Certificados (Ver también desde Certificados)"""
-    list_display = ('nombre', 'cliente_info', 'tipo_plantilla', 'vista_colores', 'por_defecto', 'activa', 'total_certificados')
+    """Plantillas de Certificados — Simplificado: sube imagen a S3"""
+    list_display = ('nombre', 'cliente_info', 'tipo_plantilla', 'por_defecto', 'activa')
     list_filter = ('activa', 'por_defecto', 'cliente')
     search_fields = ('nombre', 'descripcion', 'cliente__nombre')
     list_per_page = 50
-    actions = ['previsualizar_certificado_accion']
     
     fieldsets = (
-        ('📝 Información', {
+        ('📝 Información Básica', {
             'fields': ('nombre', 'descripcion', 'cliente', 'activa', 'por_defecto'),
-            'description': mark_safe('''<div style="background:#e3f2fd;padding:15px;border-radius:8px;margin:10px 0;">
-                <strong>💡 Plantillas por Cliente:</strong><br>
-                • Puedes crear plantillas específicas para cada cliente/organización<br>
-                • Si dejas "Cliente" vacío, será una plantilla general de Eki
-            </div>''')
         }),
-        ('📄 OPCIÓN 1: Subir PDF Personalizado', {
-            'fields': ('archivo_plantilla_pdf',),
-            'description': mark_safe('''<div style="background:#e8f5e9;padding:15px;border-radius:8px;border-left:4px solid #4CAF50;margin:10px 0;">
-                <strong>✅ Método más simple para empresas:</strong><br><br>
-                1️⃣ <strong>Crea tu certificado en Word, Canva, o cualquier programa</strong><br>
-                2️⃣ <strong>En el lugar del nombre, escribe:</strong> {nombre}<br>
-                3️⃣ <strong>En el lugar del curso, escribe:</strong> {curso}<br>
-                4️⃣ <strong>En el lugar de la fecha, escribe:</strong> {fecha}<br>
-                5️⃣ <strong>Exporta a PDF y súbelo aquí</strong><br><br>
-                El sistema reemplazará automáticamente:<br>
-                • {nombre} → Juan Pérez Gómez<br>
-                • {curso} → Adopción de prácticas de Avícolas<br>
-                • {fecha} → 13 de Enero de 2026<br><br>
-                <strong>💡 Ejemplo:</strong> Ver imagen arriba ☝️
-            </div>''')
-        }),
-        ('🖼️ OPCIÓN 1B: Subir Imagen/Multimedia (Alternativa al PDF)', {
+        ('🖼️ Imagen del Certificado (S3)', {
             'fields': ('formato_certificado', 'archivo_plantilla_imagen', 'url_plantilla_imagen'),
-            'description': mark_safe('''<div style="background:#fff3bf;padding:15px;border-radius:8px;border-left:4px solid #f59f00;margin:10px 0;">
-                <strong>🖼️ ¿Prefieres certificados en imagen?</strong><br><br>
-                • Sube una plantilla en <strong>PNG o JPG</strong><br>
-                • O pega una <strong>URL directa</strong> a la imagen de la plantilla<br>
-                • Ideal para compartir por WhatsApp como imagen<br>
-                • El sistema agregará el nombre del estudiante sobre la imagen<br>
-                • Selecciona "Imagen" en formato de certificado<br><br>
-                <strong>💡 Tip:</strong> Las imágenes se envían más rápido por WhatsApp que los PDFs
+            'description': mark_safe('''<div style="background:#e8f5e9;padding:15px;border-radius:8px;border-left:4px solid #4CAF50;margin:10px 0;">
+                <strong>✅ Sube la imagen de tu certificado</strong><br><br>
+                1️⃣ Diseña tu certificado en Canva, Word, etc.<br>
+                2️⃣ Exporta como <strong>PNG o JPG</strong><br>
+                3️⃣ Sube aquí o pega la URL de S3<br><br>
+                El sistema agregará el nombre del estudiante sobre la imagen.<br>
+                <strong>💡 Ideal para WhatsApp:</strong> las imágenes se envían rápido y se ven en miniatura.
             </div>''')
         }),
-        ('🔤 Variables para PDF Personalizado', {
-            'fields': ('variable_nombre', 'variable_curso', 'variable_fecha'),
+        ('📄 PDF Personalizado (Avanzado)', {
+            'fields': ('archivo_plantilla_pdf', 'variable_nombre', 'variable_curso', 'variable_fecha'),
             'classes': ('collapse',),
-            'description': '⚙️ Solo modifica si tu PDF usa otras variables (ej: [NOMBRE], {{nombre}}, etc.)'
+            'description': mark_safe('''<div style="background:#f5f5f5;padding:10px;border-radius:8px;margin:10px 0;">
+                <em>Opcional: sube un PDF con variables {nombre}, {curso}, {fecha}</em>
+            </div>''')
         }),
-        ('🎨 OPCIÓN 2: Diseño Personalizado con Eki (Si NO subes PDF)', {
-            'fields': ('imagen_fondo', 'logo_institucion'),
+        ('🎨 Diseño Eki (Avanzado)', {
+            'fields': ('imagen_fondo', 'logo_institucion', 'color_primario', 'color_secundario', 'texto_superior', 'texto_certificado'),
             'classes': ('collapse',),
-            'description': '🖼️ Usa el generador de Eki con tus propias imágenes'
-        }),
-        ('🌈 Colores (Solo si no subes PDF)', {
-            'fields': ('color_primario', 'color_secundario'),
-            'classes': ('collapse',),
-            'description': 'Haz click en el cuadro para seleccionar colores'
-        }),
-        ('📄 Textos (Solo si no subes PDF)', {
-            'fields': ('texto_superior', 'texto_certificado'),
-            'classes': ('collapse',),
-            'description': '📝 Personaliza los textos del certificado generado por Eki'
+            'description': 'Solo si no subes imagen ni PDF'
         }),
     )
     

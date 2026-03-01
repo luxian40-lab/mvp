@@ -109,14 +109,59 @@
     border-left-color: #f1c40f !important;
 }
 
-/* Iconos */
+/* Iconos — estilo "app icon" con fondos de color */
 .nav-icon {
-    font-size: 16px !important;
+    font-size: 14px !important;
     margin-right: 10px !important;
-    width: 25px !important;
+    width: 28px !important;
+    height: 28px !important;
+    line-height: 28px !important;
     text-align: center !important;
-    opacity: 0.8;
+    border-radius: 6px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    opacity: 0.9;
+    color: #fff !important;
+    background: #6c757d;
 }
+
+/* Personas (Verde) */
+.nav-link[href*="estudiante"] .nav-icon,
+.nav-link[href*="cliente"] .nav-icon,
+.nav-link[href*="grupo"] .nav-icon { background: #2ecc71 !important; }
+
+.nav-link[href*="prospecto"] .nav-icon { background: #1abc9c !important; }
+.nav-link[href*="linea"] .nav-icon { background: #27ae60 !important; }
+
+/* Educación (Naranja/Rojo) */
+.nav-link[href*="curso"] .nav-icon { background: #e67e22 !important; }
+.nav-link[href*="modulo"] .nav-icon { background: #d35400 !important; }
+.nav-link[href*="examen"] .nav-icon,
+.nav-link[href*="pregunta"] .nav-icon { background: #c0392b !important; }
+.nav-link[href*="progreso"] .nav-icon { background: #e74c3c !important; }
+.nav-link[href*="certificado"] .nav-icon { background: #f39c12 !important; }
+.nav-link[href*="plantillacertificado"] .nav-icon { background: #f1c40f !important; }
+
+/* Comunicaciones (Azul) */
+.nav-link[href*="campana"] .nav-icon { background: #3498db !important; }
+.nav-link[href*="plantilla"] .nav-icon { background: #2980b9 !important; }
+.nav-link[href*="tema"] .nav-icon { background: #2c3e50 !important; }
+.nav-link[href*="whatsapplog"] .nav-icon { background: #25D366 !important; }
+.nav-link[href*="conversaciones"] .nav-icon { background: #128C7E !important; }
+
+/* Gamificación (Dorado/Morado) */
+.nav-link[href*="perfilgamificacion"] .nav-icon { background: #f1c40f !important; }
+.nav-link[href*="badge"] .nav-icon { background: #9b59b6 !important; }
+.nav-link[href*="recompensa"] .nav-icon { background: #8e44ad !important; }
+.nav-link[href*="canje"] .nav-icon { background: #e91e63 !important; }
+
+/* Sistema (Gris/Azul oscuro) */
+.nav-link[href*="soporte"] .nav-icon,
+.nav-link[href*="solicitud"] .nav-icon { background: #34495e !important; }
+.nav-link[href*="audit"] .nav-icon { background: #7f8c8d !important; }
+.nav-link[href*="pqrs"] .nav-icon { background: #16a085 !important; }
+.nav-link[href*="user"] .nav-icon { background: #2c3e50 !important; }
 
 .nav-link:hover .nav-icon {
     opacity: 1;

@@ -227,6 +227,8 @@ JAZZMIN_SETTINGS = {
         "core.GrupoWhatsApp",
         "core.InvitacionGrupo",
         "core.PreguntaModulo",
+        "core.CampanaUnica",
+        "core.RespuestaCampanaUnica",
     ],
 
     # Orden visual: 5 bloques colapsables

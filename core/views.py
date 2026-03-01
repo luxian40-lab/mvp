@@ -562,7 +562,7 @@ def instrucciones_view(request):
 @staff_member_required
 def importar_estudiantes(request):
     """Vista para importar estudiantes desde un archivo Excel.
-    Formato: Cédula | Nombre | Teléfono | Curso (opc) | Cliente (opc) | Municipio (opc)
+    Formato obligatorio: Cédula | Nombre | Teléfono | Municipio | Departamento | Género | Curso | Cliente
     """
     context = {}
     
@@ -601,6 +601,12 @@ def importar_estudiantes(request):
                     return str(val)
                 return str(val).strip()
             
+            def _limpiar_texto(val):
+                """Limpia texto: strip, lower, elimina espacios dobles."""
+                if not val:
+                    return ''
+                return re.sub(r'\s+', ' ', val.strip().lower())
+            
             def _normalizar_telefono(raw):
                 """Normaliza teléfono colombiano: solo dígitos, prefijo 57."""
                 tel = re.sub(r'\D', '', raw)
@@ -610,11 +616,13 @@ def importar_estudiantes(request):
                     return '57' + tel
                 if len(tel) == 7 or len(tel) == 10:
                     return '57' + tel
-                return tel  # devolver como está, validar después
+                return tel
             
-            # Columnas: A=Cédula | B=Nombre | C=Teléfono | D=Curso | E=Cliente | F=Municipio
+            GENEROS_VALIDOS = {'m': 'M', 'f': 'F', 'o': 'O', 'masculino': 'M', 'femenino': 'F', 
+                               'otro': 'O', 'hombre': 'M', 'mujer': 'F', 'nr': 'NR', 'no reporta': 'NR'}
+            
+            # Columnas: A=Cédula | B=Nombre | C=Teléfono | D=Municipio | E=Departamento | F=Género | G=Curso | H=Cliente
             for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
-                # Fila completamente vacía → saltar
                 if not row or all(cell is None or str(cell).strip() == '' for cell in row[:3]):
                     continue
                 
@@ -622,25 +630,42 @@ def importar_estudiantes(request):
                     cedula = _normalizar_celda(row[0]) if len(row) > 0 else ''
                     nombre = _normalizar_celda(row[1]) if len(row) > 1 else ''
                     telefono_raw = _normalizar_celda(row[2]) if len(row) > 2 else ''
-                    curso_nombre = _normalizar_celda(row[3]) if len(row) > 3 else ''
-                    cliente_nombre = _normalizar_celda(row[4]) if len(row) > 4 else ''
-                    municipio = _normalizar_celda(row[5]) if len(row) > 5 else ''
+                    municipio = _limpiar_texto(_normalizar_celda(row[3])) if len(row) > 3 else ''
+                    departamento = _limpiar_texto(_normalizar_celda(row[4])) if len(row) > 4 else ''
+                    genero_raw = _limpiar_texto(_normalizar_celda(row[5])) if len(row) > 5 else ''
+                    curso_nombre = _normalizar_celda(row[6]) if len(row) > 6 else ''
+                    cliente_nombre = _normalizar_celda(row[7]) if len(row) > 7 else ''
                     
-                    if not cedula or not nombre:
-                        errores.append(f"Fila {row_idx}: Faltan campos obligatorios (Cédula='{cedula}', Nombre='{nombre}')")
+                    # Validar campos obligatorios
+                    campos_faltantes = []
+                    if not cedula: campos_faltantes.append('Cédula')
+                    if not nombre: campos_faltantes.append('Nombre')
+                    if not telefono_raw: campos_faltantes.append('Teléfono')
+                    if not municipio: campos_faltantes.append('Municipio')
+                    if not departamento: campos_faltantes.append('Departamento')
+                    if not genero_raw: campos_faltantes.append('Género')
+                    
+                    if campos_faltantes:
+                        errores.append(f"Fila {row_idx}: Faltan campos obligatorios: {', '.join(campos_faltantes)}")
                         continue
                     
                     # Normalizar teléfono
-                    telefono = _normalizar_telefono(telefono_raw) if telefono_raw else ''
-                    if not telefono:
-                        errores.append(f"Fila {row_idx}: Teléfono vacío para '{nombre}'")
+                    telefono = _normalizar_telefono(telefono_raw)
+                    if not telefono or len(telefono) < 10:
+                        errores.append(f"Fila {row_idx}: Teléfono inválido '{telefono_raw}'")
+                        continue
+                    
+                    # Normalizar género
+                    genero = GENEROS_VALIDOS.get(genero_raw, '')
+                    if not genero:
+                        errores.append(f"Fila {row_idx}: Género '{genero_raw}' no válido (use: M, F, O, NR)")
                         continue
                     
                     # Buscar cliente
                     cliente = None
                     if cliente_nombre:
                         try:
-                            cliente = Cliente.objects.get(nombre__iexact=cliente_nombre)
+                            cliente = Cliente.objects.get(nombre__iexact=cliente_nombre.strip())
                         except Cliente.DoesNotExist:
                             errores.append(f"Fila {row_idx}: Cliente '{cliente_nombre}' no encontrado")
                     
@@ -648,15 +673,17 @@ def importar_estudiantes(request):
                     defaults = {
                         'nombre': nombre.strip().title(),
                         'telefono': telefono,
+                        'municipio': municipio,
+                        'departamento': departamento,
+                        'genero': genero,
                         'tipo_documento': 'CC',
                         'estado_onboarding': 'completado',
+                        'estado_chat': 'ACTIVO',
                         'acepto_terminos': True,
                         'activo': True,
                     }
                     if cliente:
                         defaults['cliente'] = cliente
-                    if municipio:
-                        defaults['municipio'] = municipio
                     
                     try:
                         estudiante, creado = Estudiante.objects.update_or_create(
@@ -677,7 +704,7 @@ def importar_estudiantes(request):
                     # Inscribir en curso si se especificó
                     if curso_nombre:
                         try:
-                            curso = Curso.objects.get(nombre__iexact=curso_nombre)
+                            curso = Curso.objects.get(nombre__iexact=curso_nombre.strip())
                             progreso, prog_creado = ProgresoEstudiante.objects.get_or_create(
                                 estudiante=estudiante,
                                 curso=curso,
@@ -1235,7 +1262,7 @@ def _procesar_twilio_webhook(post_data):
         if estado_chat == 'CONFIRMANDO_DATOS':
             msg_lower = msg_body.strip().lower()
             keywords_si = ['sí', 'si', 'todo bien', 'correcto', 'bien', 'ok', 'yes', 'confirmo']
-            keywords_no = ['no', 'error', 'mal', 'incorrecto', 'hay un error']
+            keywords_modificar = ['modificar', 'no', 'error', 'mal', 'incorrecto', 'hay un error', 'cambiar']
             
             if any(k in msg_lower for k in keywords_si):
                 estudiante.estado_chat = 'ACTIVO'
@@ -1259,18 +1286,27 @@ def _procesar_twilio_webhook(post_data):
                     "2️⃣ 🏆 *Mis puntos*\n"
                     "3️⃣ 🙋‍♂️ *Necesito ayuda*"
                 )
-            elif any(k in msg_lower for k in keywords_no):
+            elif any(k in msg_lower for k in keywords_modificar):
+                # Botón "Modificar" presionado → mostrar centro de ayuda
                 texto_respuesta = (
-                    "📝 *Entendido, hay un error en tus datos.*\n\n"
-                    "Por favor contacta a tu coordinador o escribe a:\n"
-                    "📧 soporte@eki.com\n\n"
-                    "Incluye tu nombre y número de cédula correctos."
+                    "📝 *Centro de Ayuda — Modificación de Datos*\n\n"
+                    "Para corregir tus datos, elige una opción:\n\n"
+                    "1️⃣ 📧 *Escribir a soporte*\n"
+                    "   soporte@eki.com\n\n"
+                    "2️⃣ 📞 *Contactar coordinador*\n"
+                    "   Pide a tu coordinador que actualice tus datos\n\n"
+                    "3️⃣ 🔄 *Reintentar verificación*\n"
+                    "   Escribe tu cédula de nuevo\n\n"
+                    "👉 Escribe el *número* de tu opción"
                 )
+                # Guardar estado para manejar la respuesta
+                estudiante.estado_chat = 'ESPERANDO_AYUDA_MODIFICAR'
+                estudiante.save()
             else:
                 texto_respuesta = (
                     "Por favor confirma tus datos:\n\n"
-                    "👉 Escribe *Sí* si todo está bien\n"
-                    "👉 Escribe *No* si hay un error"
+                    "👉 Toca *Sí, todo bien* si están correctos\n"
+                    "👉 Toca *Modificar* si hay un error"
                 )
             
             try:
@@ -1285,6 +1321,61 @@ def _procesar_twilio_webhook(post_data):
             except Exception as e:
                 print(f"❌ Error enviando confirmación: {e}")
             return  # CORTAR EJECUCIÓN
+        
+        # --- BARRERA 3B: AYUDA MODIFICACIÓN DE DATOS ---
+        if estado_chat == 'ESPERANDO_AYUDA_MODIFICAR':
+            msg_lower = msg_body.strip().lower()
+            
+            if msg_lower in ['3', 'reintentar', 'verificación', 'verificacion', 'cédula', 'cedula']:
+                # Reintentar verificación de cédula
+                estudiante.estado_chat = 'ESPERANDO_CEDULA'
+                estudiante.save()
+                texto_respuesta = (
+                    "🔄 *Reintentando verificación*\n\n"
+                    "Por favor escribe tu *número de cédula* "
+                    "(solo números, sin puntos ni espacios).\n\n"
+                    "👉 Ejemplo: 1234567890"
+                )
+            elif msg_lower in ['1', 'soporte', 'correo', 'email']:
+                texto_respuesta = (
+                    "📧 *Escríbenos a:* soporte@eki.com\n\n"
+                    "Incluye:\n"
+                    "• Tu nombre completo\n"
+                    "• Tu número de cédula\n"
+                    "• Qué dato necesitas corregir\n\n"
+                    "Te responderemos lo antes posible. 🌱"
+                )
+                estudiante.estado_chat = 'CONFIRMANDO_DATOS'
+                estudiante.save()
+            elif msg_lower in ['2', 'coordinador', 'contactar']:
+                texto_respuesta = (
+                    "📞 *Contacta a tu coordinador*\n\n"
+                    "Pídele que actualice tus datos en la plataforma.\n"
+                    "Una vez corregidos, escríbenos de nuevo para continuar.\n\n"
+                    "Escribe *menú* cuando estés listo."
+                )
+                estudiante.estado_chat = 'CONFIRMANDO_DATOS'
+                estudiante.save()
+            else:
+                texto_respuesta = (
+                    "Por favor elige una opción:\n\n"
+                    "1️⃣ Escribir a soporte\n"
+                    "2️⃣ Contactar coordinador\n"
+                    "3️⃣ Reintentar verificación"
+                )
+            
+            try:
+                from twilio.rest import Client as TwilioClient
+                account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
+                client_tw = TwilioClient(account_sid, auth_token)
+                destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
+                client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
+                WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
+            except Exception as e:
+                print(f"❌ Error enviando ayuda modificar: {e}")
+            return
         
         # ============================================================
         # ESTUDIANTE ACTIVO - Procesar acciones del menú y flujo normal

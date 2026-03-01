@@ -145,6 +145,7 @@ class Estudiante(models.Model):
         ('ESPERANDO_HABEAS_DATA', 'Esperando Habeas Data'),
         ('ESPERANDO_CEDULA', 'Esperando Cédula (2FA)'),
         ('CONFIRMANDO_DATOS', 'Confirmando Datos'),
+        ('ESPERANDO_AYUDA_MODIFICAR', 'Esperando Ayuda Modificar Datos'),
         ('ACTIVO', 'Activo'),
         # Estados legacy del onboarding anterior
         ('nuevo', 'Nuevo (legacy)'),
@@ -181,6 +182,12 @@ class Estudiante(models.Model):
         verbose_name='Municipio',
         help_text='Municipio donde reside el estudiante'
     )
+    departamento = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='Departamento',
+        help_text='Departamento de Colombia (Ej: Antioquia, Cundinamarca)'
+    )
     region = models.CharField(
         max_length=100,
         blank=True,
@@ -194,6 +201,20 @@ class Estudiante(models.Model):
     )
     
     # DATOS DEMOGRÁFICOS
+    GENERO_CHOICES = [
+        ('M', 'Masculino'),
+        ('F', 'Femenino'),
+        ('O', 'Otro'),
+        ('NR', 'No Reporta'),
+    ]
+    genero = models.CharField(
+        max_length=2,
+        choices=GENERO_CHOICES,
+        blank=True,
+        default='',
+        verbose_name='Género',
+        help_text='Género del estudiante'
+    )
     rango_edad = models.CharField(
         max_length=10,
         choices=RANGO_EDAD_CHOICES,
@@ -510,7 +531,14 @@ class Campana(models.Model):
         help_text="Filtrar plantillas por categoría. 'Todas' mostrará plantillas de cualquier categoría.",
     )
     
-    plantilla = models.ForeignKey(Plantilla, on_delete=models.PROTECT)
+    plantilla = models.ForeignKey(Plantilla, on_delete=models.PROTECT, null=True, blank=True)
+    
+    # Envío directo con Content Template de Twilio (sin Django Plantilla)
+    template_twilio_id = models.CharField(
+        max_length=255, null=True, blank=True,
+        verbose_name="Content SID de Twilio",
+        help_text="SID del template aprobado en Twilio (ej: HX123abc...). Si se llena, se usa en vez de la plantilla Django."
+    )
     
     # NUEVO: Tipo de audiencia (individual o grupo)
     TIPO_AUDIENCIA_CHOICES = [
@@ -558,6 +586,11 @@ class Campana(models.Model):
 
     ejecutada = models.BooleanField(default=False)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
+    
+    # Estadísticas de envío
+    total_enviados = models.IntegerField(default=0, verbose_name="Total enviados")
+    respuestas_si = models.IntegerField(default=0, verbose_name="Respuestas SÍ")
+    respuestas_no = models.IntegerField(default=0, verbose_name="Respuestas NO")
     
     def get_plantillas_disponibles(self):
         """Retorna plantillas filtradas por el tema de la campaña"""
