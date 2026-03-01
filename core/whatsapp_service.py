@@ -2,12 +2,238 @@
 def enviar_video_whatsapp(to, video_url):
     pass
 
-# Función general para enviar cualquier tipo de archivo de ArchivoModulo por WhatsApp
+
+# ====================================================
+# 🚀 FUNCIÓN MAESTRA: Enviar Content Templates de Twilio
+# ====================================================
+import json
+import logging
 from twilio.rest import Client
 from django.conf import settings
 from .models_extras import ArchivoModulo
 from .models import WhatsappLog
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
+
+# ====================================================
+# Content SIDs de Twilio (Plantillas Aprobadas)
+# ====================================================
+TWILIO_CONTENT_SIDS = {
+    'habeas_data': 'HXc7923656da2cbd43e04373e6404eb872',
+    'confirmar_datos': 'HXbb0358bcb33c46a521e392f8e7dcca7a',
+    'menu_principal': 'HXc9027f1ab8cdf781fafa1096c9010d5d',
+}
+
+
+def enviar_template_twilio(telefono, content_sid, variables=None):
+    """
+    Función maestra para enviar mensajes con Content Templates de Twilio.
+    
+    Args:
+        telefono (str): Número destino (ej: +573001234567)
+        content_sid (str): El Content SID del template (HX...)
+        variables (dict): Variables del template (ej: {'1': 'Juan', '2': 'CC 12345'})
+    
+    Returns:
+        dict: {'success': bool, 'mensaje_id': str|None, 'response': str}
+    """
+    try:
+        account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', None)
+        auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', None)
+        twilio_number = 'whatsapp:+573202948806'
+        
+        if not account_sid or not auth_token:
+            return {'success': False, 'mensaje_id': None, 'response': 'Twilio credentials missing'}
+        
+        # Formatear teléfono
+        telefono_limpio = str(telefono).replace('whatsapp:', '').strip()
+        if not telefono_limpio.startswith('+'):
+            telefono_limpio = f'+{telefono_limpio}'
+        destino = f'whatsapp:{telefono_limpio}'
+        
+        client = Client(account_sid, auth_token)
+        
+        msg_params = {
+            'from_': twilio_number,
+            'content_sid': content_sid,
+            'to': destino,
+        }
+        
+        if variables:
+            msg_params['content_variables'] = json.dumps(variables)
+        
+        message = client.messages.create(**msg_params)
+        
+        # Log
+        WhatsappLog.objects.create(
+            telefono=telefono_limpio.replace('+', ''),
+            mensaje=f"[TEMPLATE:{content_sid}] vars={variables}",
+            mensaje_id=message.sid,
+            estado='SENT',
+            tipo='SENT',
+            fecha=timezone.now()
+        )
+        
+        logger.info(f"✅ Template {content_sid} enviado a {destino}: {message.sid}")
+        return {'success': True, 'mensaje_id': message.sid, 'response': f'Sent: {message.status}'}
+        
+    except Exception as e:
+        logger.error(f"❌ Error enviando template: {e}")
+        return {'success': False, 'mensaje_id': None, 'response': str(e)}
+
+
+def enviar_habeas_data(telefono):
+    """Paso 1: Enviar mensaje de Habeas Data con botones [Acepto] [No acepto]"""
+    return enviar_template_twilio(
+        telefono,
+        TWILIO_CONTENT_SIDS['habeas_data']
+    )
+
+
+def enviar_confirmacion_datos(telefono, nombre, cedula, organizacion):
+    """Paso 2: Confirmar datos con botones [Sí, todo bien] [Hay un error]"""
+    return enviar_template_twilio(
+        telefono,
+        TWILIO_CONTENT_SIDS['confirmar_datos'],
+        variables={'1': nombre, '2': cedula, '3': organizacion}
+    )
+
+
+def enviar_menu_principal(telefono, nombre):
+    """Paso 3: Menú principal con botones [Mis cursos] [Mis puntos] [Ayuda]"""
+    return enviar_template_twilio(
+        telefono,
+        TWILIO_CONTENT_SIDS['menu_principal'],
+        variables={'1': nombre}
+    )
+
+
+def enviar_lista_cursos(telefono, estudiante):
+    """
+    Envía lista dinámica de cursos de la organización del estudiante.
+    Usa un menú numerado cuando no hay template de lista aprobado.
+    """
+    from .models import Curso
+    
+    org = estudiante.cliente
+    if org:
+        cursos = Curso.objects.filter(
+            cliente=org, activo=True
+        ).order_by('orden', 'nombre')
+    else:
+        cursos = Curso.objects.filter(activo=True).order_by('orden', 'nombre')
+    
+    if not cursos.exists():
+        from .utils import enviar_whatsapp_twilio
+        return enviar_whatsapp_twilio(
+            telefono,
+            "📚 No hay cursos disponibles en este momento. Escribe *menú* para volver."
+        )
+    
+    msg = f"📚 *Cursos disponibles para {org.nombre if org else 'ti'}:*\n"
+    msg += "━━━━━━━━━━━━━━━━━━━\n\n"
+    
+    for idx, curso in enumerate(cursos, 1):
+        emoji = curso.emoji or "📖"
+        total_modulos = curso.total_modulos()
+        msg += f"{idx}. {emoji} *{curso.nombre}*\n"
+        msg += f"   📖 {total_modulos} módulos | ⏱️ {curso.duracion_semanas} semanas\n\n"
+    
+    msg += "━━━━━━━━━━━━━━━━━━━\n"
+    msg += "👉 Escribe el *número* del curso para entrar\n"
+    msg += "👉 Escribe *menú* para volver"
+    
+    from .utils import enviar_whatsapp_twilio
+    return enviar_whatsapp_twilio(telefono, msg)
+
+
+def enviar_mensaje_ventas(telefono):
+    """
+    Fase 0: Mensaje de ventas para usuarios no registrados (Lead Generation).
+    Envía presentación de Eki con opciones interactivas.
+    """
+    msg = (
+        "🚜 *¡Hola! Soy Eki*, la plataforma educativa por WhatsApp "
+        "para el sector agrícola.\n\n"
+        "Veo que tu número no está registrado en ninguna de nuestras "
+        "capacitaciones actuales.\n\n"
+        "━━━━━━━━━━━━━━━━━━━\n\n"
+        "¿En qué te podemos ayudar?\n\n"
+        "1️⃣ 🏢 *Eki para mi empresa*\n"
+        "   Capacitar trabajadores con nosotros\n\n"
+        "2️⃣ 🌐 *Visitar sitio web*\n"
+        "   www.eki.com.co\n\n"
+        "3️⃣ 🙋‍♂️ *Soy estudiante (Ayuda)*\n"
+        "   Si cambiaste de número o necesitas ayuda\n\n"
+        "👉 Escribe el *número* de tu opción"
+    )
+    
+    from .utils import enviar_whatsapp_twilio
+    return enviar_whatsapp_twilio(telefono, msg)
+
+
+def enviar_gamificacion_visual(telefono, estudiante):
+    """
+    Envía estado visual de gamificación al estudiante.
+    Barra de progreso emoji + nivel + puntos.
+    """
+    from .gamificacion import PerfilGamificacion
+    
+    try:
+        perfil = PerfilGamificacion.objects.get(estudiante=estudiante)
+    except PerfilGamificacion.DoesNotExist:
+        perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
+    
+    # Generar barra de progreso
+    barra = generar_barra_progreso_emoji(perfil.porcentaje_nivel())
+    
+    # Nombres de nivel temáticos del campo
+    NOMBRES_NIVEL = {
+        1: '🌱 Semilla', 2: '🌿 Brote', 3: '🌾 Sembrador',
+        4: '🌻 Cultivador', 5: '🌳 Agricultor',
+        6: '🚜 Tractorista', 7: '🏅 Capataz',
+        8: '⭐ Mayordomo', 9: '👑 Hacendado',
+        10: '🏆 Leyenda del Campo'
+    }
+    
+    nombre_nivel = NOMBRES_NIVEL.get(perfil.nivel, f'Nivel {perfil.nivel}')
+    
+    msg = (
+        f"¡Vas volando, *{estudiante.nombre}*! 🚀\n\n"
+        f"━━━━━━━━━━━━━━━━━━━\n\n"
+        f"🏆 *Nivel:* {nombre_nivel}\n"
+        f"⭐ *Puntos:* {perfil.puntos_totales} pts\n"
+        f"🎯 *Avance:* {barra} {perfil.porcentaje_nivel()}%\n"
+        f"🔥 *Racha:* {perfil.racha_dias_actual} días seguidos\n\n"
+    )
+    
+    if perfil.puntos_para_siguiente_nivel() > 0:
+        msg += f"📈 Faltan *{perfil.puntos_para_siguiente_nivel()} pts* para el siguiente nivel\n\n"
+    
+    msg += "━━━━━━━━━━━━━━━━━━━\n"
+    msg += "¡Sigue así! 💪\n\n"
+    msg += "Escribe *menú* para volver"
+    
+    from .utils import enviar_whatsapp_twilio
+    return enviar_whatsapp_twilio(telefono, msg)
+
+
+def generar_barra_progreso_emoji(porcentaje, longitud=10):
+    """
+    Genera una barra de progreso con emojis.
+    
+    Args:
+        porcentaje (int): 0-100
+        longitud (int): Cantidad total de bloques
+    
+    Returns:
+        str: Ej. '🟩🟩🟩🟩⬜⬜⬜⬜⬜⬜'
+    """
+    porcentaje = max(0, min(100, porcentaje))
+    llenos = round((porcentaje / 100) * longitud)
+    vacios = longitud - llenos
+    return '🟩' * llenos + '⬜' * vacios
 
 def enviar_archivo_modulo_whatsapp(telefono, archivo_modulo, texto_extra=None):
     """

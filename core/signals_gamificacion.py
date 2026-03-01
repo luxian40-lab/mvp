@@ -1,6 +1,7 @@
 """
 Señales para integrar Gamificación con el sistema de cursos
 Otorga puntos automáticamente cuando el estudiante completa módulos/cursos
++ Anti-abuse IA reset + Email notificación a org admin
 """
 
 from django.db.models.signals import post_save
@@ -12,6 +13,27 @@ from .whatsapp_service import enviar_archivo_modulo_whatsapp
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _notificar_org_admin(estudiante, asunto, mensaje_html):
+    """Enviar email al admin de la organización del estudiante."""
+    try:
+        from django.core.mail import send_mail
+        from django.conf import settings
+        cliente = estudiante.cliente
+        if not cliente or not getattr(cliente, 'email', None):
+            return
+        send_mail(
+            subject=f"[Eki] {asunto}",
+            message='',
+            html_message=mensaje_html,
+            from_email=settings.DEFAULT_FROM_EMAIL if hasattr(settings, 'DEFAULT_FROM_EMAIL') else 'noreply@eki.com',
+            recipient_list=[cliente.email],
+            fail_silently=True,
+        )
+        logger.info(f"📧 Email enviado a {cliente.email}: {asunto}")
+    except Exception as e:
+        logger.warning(f"📧 No se pudo enviar email al admin: {e}")
 
 
 @receiver(post_save, sender=ModuloCompletado)
@@ -38,7 +60,25 @@ def otorgar_puntos_por_modulo(sender, instance, created, **kwargs):
         # Si subió de nivel, enviar notificación (opcional)
         if subio_nivel:
             logger.info(f"🎉 {perfil.estudiante.nombre} subió a nivel {perfil.nivel}!")
+            # Auto-assign level badge
+            _asignar_badge_nivel(perfil)
+            # Si nivel máximo (10) → notificar org admin
+            if perfil.nivel >= 10:
+                _notificar_org_admin(
+                    perfil.estudiante,
+                    f"🏆 {perfil.estudiante.nombre} alcanzó nivel máximo",
+                    f"<p>El estudiante <strong>{perfil.estudiante.nombre}</strong> "
+                    f"ha alcanzado el <strong>nivel {perfil.nivel} (Leyenda del Campo)</strong> "
+                    f"con {perfil.puntos_totales} puntos.</p>"
+                )
         logger.info(f"✅ {perfil.estudiante.nombre} ganó 50 puntos por completar módulo")
+
+        # === RESET ANTI-ABUSE IA (preguntas_ia_restantes) ===
+        estudiante = instance.progreso.estudiante
+        if hasattr(estudiante, 'preguntas_ia_restantes'):
+            estudiante.preguntas_ia_restantes = 3
+            estudiante.save(update_fields=['preguntas_ia_restantes'])
+            logger.info(f"🔄 Reset preguntas_ia_restantes=3 para {estudiante.nombre}")
 
         # === ENVÍO AUTOMÁTICO DE ARCHIVOS MULTIMEDIA POR WHATSAPP ===
         estudiante = instance.progreso.estudiante
@@ -108,6 +148,35 @@ def otorgar_badge_por_curso_completado(sender, instance, **kwargs):
                 )
         
         logger.info(f"🎉 {instance.estudiante.nombre} completó {instance.curso.nombre} - {cursos_completados} cursos totales")
-        
+
+        # Notificar org admin del logro
+        _notificar_org_admin(
+            instance.estudiante,
+            f"📜 {instance.estudiante.nombre} completó {instance.curso.nombre}",
+            f"<p>El estudiante <strong>{instance.estudiante.nombre}</strong> "
+            f"(cédula: {instance.estudiante.cedula}) ha completado exitosamente "
+            f"el curso <strong>{instance.curso.nombre}</strong>.</p>"
+            f"<p>Cursos completados en total: <strong>{cursos_completados}</strong></p>"
+        )
+
     except Exception as e:
         logger.error(f"❌ Error al otorgar badge por curso: {e}")
+
+
+def _asignar_badge_nivel(perfil):
+    """Auto-assign badge por nivel alcanzado."""
+    try:
+        badge_nivel = Badge.objects.filter(
+            tipo='NIVEL',
+            valor_requerido__lte=perfil.nivel,
+            activo=True
+        ).order_by('-valor_requerido').first()
+        if badge_nivel:
+            _, created = BadgeEstudiante.objects.get_or_create(
+                estudiante=perfil.estudiante,
+                badge=badge_nivel
+            )
+            if created:
+                logger.info(f"🏅 {perfil.estudiante.nombre} obtuvo badge de nivel: {badge_nivel.nombre}")
+    except Exception as e:
+        logger.warning(f"No se pudo asignar badge de nivel: {e}")

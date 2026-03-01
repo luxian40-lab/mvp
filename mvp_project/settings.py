@@ -161,7 +161,7 @@ JAZZMIN_SETTINGS = {
     "site_brand": "Eki",
     "welcome_sign": "Bienvenido a Eki",
     "copyright": "Eki Solutions",
-    "search_model": ["core.Estudiante", "core.Campana"],
+    "search_model": ["core.Estudiante", "core.Campana", "core.ProspectoB2B"],
 
     # Menú Superior - Acceso rápido
     "topmenu_links": [
@@ -171,100 +171,98 @@ JAZZMIN_SETTINGS = {
 
     # Menú Lateral
     "show_sidebar": True,
-    "navigation_expanded": False,  # Colapsado por defecto para mejor UX
-    
+    "navigation_expanded": False,  # Colapsado por defecto
+
     # CSS Personalizado
     "custom_css": "admin/css/custom_menu.css",
-    
-    # Iconos con colores
+
+    # Iconos — 5 bloques lógicos
     "icons": {
         "auth": "fas fa-users-cog",
         "auth.user": "fas fa-user-shield",
         "auth.Group": "fas fa-users-cog",
-        
-        # 📢 Campañas (Azul)
-        "core.Campana": "fas fa-bullhorn",
-        "core.Plantilla": "fas fa-envelope-open-text",
-        "core.WhatsappLog": "fab fa-whatsapp",
-        "core.TemaCampana": "fas fa-tags",
-        "core.EnvioLog": "fas fa-paper-plane",
-        
-        # 👥 Personas (Verde)
-        "core.Estudiante": "fas fa-user-graduate",
+
+        # 🏢 Organización
         "core.Cliente": "fas fa-building",
-        "core.Linea": "fas fa-phone-alt",
+        "core.Estudiante": "fas fa-user-graduate",
         "core.GrupoEstudiantes": "fas fa-users",
-        "core.PQRS": "fas fa-comment-dots",
-        
-        # 📚 Cursos (Naranja)
+        "core.ProspectoB2B": "fas fa-handshake",
+        "core.Linea": "fas fa-phone-alt",
+
+        # 📚 Academia
         "core.Curso": "fas fa-book-open",
         "core.Modulo": "fas fa-book-reader",
         "core.Examen": "fas fa-clipboard-check",
         "core.PreguntaExamen": "fas fa-question-circle",
         "core.ProgresoEstudiante": "fas fa-chart-line",
-        
-        # 🏆 Gamificación (Dorado)
+        "core.Certificado": "fas fa-certificate",
+        "core.PlantillaCertificado": "fas fa-file-pdf",
+
+        # 💬 Comunicaciones
+        "core.Campana": "fas fa-bullhorn",
+        "core.Plantilla": "fas fa-envelope-open-text",
+        "core.WhatsappLog": "fab fa-whatsapp",
+        "core.TemaCampana": "fas fa-tags",
+        "core.EnvioLog": "fas fa-paper-plane",
+
+        # 🏆 Gamificación
         "core.PerfilGamificacion": "fas fa-trophy",
         "core.Badge": "fas fa-medal",
         "core.Recompensa": "fas fa-gift",
         "core.CanjeRecompensa": "fas fa-shopping-cart",
-        
-        # 📜 Certificados (Azul)
-        "core.Certificado": "fas fa-certificate",
-        "core.PlantillaCertificado": "fas fa-file-pdf",
-        
-        # 🔐 Sistema
+
+        # ⚙️ Sistema
         "core.SolicitudSoporte": "fas fa-headset",
         "core.AuditLog": "fas fa-lock",
+        "core.PQRS": "fas fa-comment-dots",
     },
-    
-    # Ocultar modelos automáticos
+
+    # Ocultar modelos automáticos / de sólo-código
     "hide_models": [
         "core.ModuloCompletado",
         "core.BadgeEstudiante",
         "core.TransaccionPuntos",
-        "core.EnvioLog",  # Solo para debug avanzado
-        "core.ResultadoExamen",  # Se ve desde el estudiante
-        "core.GrupoWhatsApp",  # Se gestiona desde Grupos de Estudiantes
-        "core.InvitacionGrupo",  # Se gestiona desde Grupos de Estudiantes
-        "core.PQRS",  # Se gestiona desde Solicitudes de Soporte
-        "core.PreguntaModulo",  # Se gestiona desde Módulos inline
-        # ArchivoModulo visible para gestión masiva, pero accesible desde Módulos
+        "core.EnvioLog",
+        "core.ResultadoExamen",
+        "core.GrupoWhatsApp",
+        "core.InvitacionGrupo",
+        "core.PreguntaModulo",
     ],
-    
-    # Orden visual: agrupar por jerarquía
+
+    # Orden visual: 5 bloques colapsables
     "order_with_respect_to": [
-        # 📢 Mensajería
-        "core.Campana",
-        "core.Plantilla", 
-        "core.TemaCampana",
-        "core.WhatsappLog",
-        # 👥 Personas
-        "core.Estudiante",
+        # 🏢 Organización
         "core.Cliente",
+        "core.Estudiante",
+        "core.GrupoEstudiantes",
+        "core.ProspectoB2B",
         "core.Linea",
-        # 📚 Educación
+        # 📚 Academia
         "core.Curso",
         "core.Modulo",
         "core.ProgresoEstudiante",
         "core.Examen",
         "core.PreguntaExamen",
+        "core.Certificado",
+        "core.PlantillaCertificado",
+        # 💬 Comunicaciones
+        "core.Campana",
+        "core.Plantilla",
+        "core.TemaCampana",
+        "core.WhatsappLog",
         # 🏆 Gamificación
         "core.PerfilGamificacion",
         "core.Badge",
         "core.Recompensa",
         "core.CanjeRecompensa",
-        # 📜 Certificados
-        "core.Certificado",
-        "core.PlantillaCertificado",
-        # 🔐 Sistema
+        # ⚙️ Sistema
         "core.SolicitudSoporte",
         "core.AuditLog",
     ],
-    
+
     # Usar verbose names en español
     "show_ui_builder": False,
-    
+
     # Desactivar related_modal para mejor rendimiento
     "related_modal_active": False,
 }

@@ -101,7 +101,59 @@ def dashboard_unificado(request):
     chart_tipos_labels = [t['tipo'] or 'Otro' for t in tipos_msg]
     chart_tipos_values = [t['total'] for t in tipos_msg]
 
-    # --- Detalle por cliente ---
+    # --- Prospectos B2B ---
+    try:
+        from .models import ProspectoB2B
+        total_prospectos = ProspectoB2B.objects.count()
+    except Exception:
+        total_prospectos = 0
+
+    # --- Tasa de completación ---
+    total_inscripciones = ProgresoEstudiante.objects.count()
+    tasa_completacion = round((cursos_completados / total_inscripciones * 100), 1) if total_inscripciones > 0 else 0
+
+    # --- Filtro municipio (para Tab Reportes) ---
+    municipio_filtro = request.GET.get('municipio', '')
+    municipios = list(
+        Estudiante.objects.filter(activo=True)
+        .exclude(municipio__isnull=True).exclude(municipio='')
+        .values_list('municipio', flat=True).distinct().order_by('municipio')
+    )
+
+    # --- Detalle por estudiante (Tab Reportes B2B) ---
+    est_q = Estudiante.objects.filter(activo=True).select_related('cliente')
+    if cliente_id:
+        est_q = est_q.filter(cliente_id=cliente_id)
+    if municipio_filtro:
+        est_q = est_q.filter(municipio=municipio_filtro)
+
+    estudiantes_detalle = []
+    from .gamificacion import PerfilGamificacion as PG_detail
+    for est in est_q[:200]:
+        progreso = ProgresoEstudiante.objects.filter(estudiante=est).first()
+        puntos_est = 0
+        try:
+            puntos_est = PG_detail.objects.get(estudiante=est).puntos_totales
+        except PG_detail.DoesNotExist:
+            pass
+        avance = 0
+        curso_nombre = '-'
+        if progreso:
+            curso_nombre = progreso.curso.nombre if progreso.curso else '-'
+            total_mods = progreso.curso.modulos.count() if progreso.curso else 0
+            mods_comp = progreso.modulos_completados.count() if hasattr(progreso, 'modulos_completados') else 0
+            avance = round(mods_comp / total_mods * 100) if total_mods > 0 else 0
+        estudiantes_detalle.append({
+            'nombre': est.nombre,
+            'cedula': est.cedula,
+            'organizacion': est.cliente.nombre if est.cliente else '-',
+            'municipio': est.municipio or '-',
+            'curso': curso_nombre,
+            'avance': avance,
+            'puntos': puntos_est,
+        })
+
+    # --- Detalle por cliente (organización) ---
     clientes_detalle = []
     for c in clientes_all:
         est_cliente = Estudiante.objects.filter(cliente=c, activo=True)
@@ -120,6 +172,43 @@ def dashboard_unificado(request):
             'cursos_completados': n_comp,
         })
 
+    # --- Tickets de soporte (Tab Auditoría) ---
+    try:
+        from .models import SolicitudSoporte
+        tickets_soporte = SolicitudSoporte.objects.select_related('estudiante').order_by('-fecha_solicitud')[:50]
+    except Exception:
+        tickets_soporte = []
+
+    # --- Excel export ---
+    if request.GET.get('exportar') == 'excel':
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'Estudiantes'
+        headers = ['Nombre', 'Cédula', 'Organización', 'Municipio', 'Curso', 'Avance %', 'Puntos']
+        header_fill = PatternFill(start_color='3b5bdb', end_color='3b5bdb', fill_type='solid')
+        header_font = Font(color='FFFFFF', bold=True)
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=h)
+            cell.fill = header_fill
+            cell.font = header_font
+        for row_idx, est in enumerate(estudiantes_detalle, 2):
+            ws.cell(row=row_idx, column=1, value=est['nombre'])
+            ws.cell(row=row_idx, column=2, value=est['cedula'])
+            ws.cell(row=row_idx, column=3, value=est['organizacion'])
+            ws.cell(row=row_idx, column=4, value=est['municipio'])
+            ws.cell(row=row_idx, column=5, value=est['curso'])
+            ws.cell(row=row_idx, column=6, value=est['avance'])
+            ws.cell(row=row_idx, column=7, value=est['puntos'])
+        for col in range(1, 8):
+            ws.column_dimensions[chr(64 + col)].width = 20
+        from django.http import HttpResponse as ExcelResponse
+        response = ExcelResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename=reporte_eki_b2b.xlsx'
+        wb.save(response)
+        return response
+
     context = {
         # Métricas principales
         'total_cursos': total_cursos,
@@ -137,6 +226,8 @@ def dashboard_unificado(request):
         'total_perfiles_gam': total_perfiles_gam,
         'puntos_promedio': round(puntos_promedio, 1),
         'top_estudiantes': top_estudiantes,
+        'total_prospectos': total_prospectos,
+        'tasa_completacion': tasa_completacion,
         # Ubicaciones
         'ubicaciones_municipio': ubicaciones_municipio,
         # Progreso por curso
@@ -153,8 +244,13 @@ def dashboard_unificado(request):
         'curso_filtro': int(curso_id) if curso_id else None,
         'fecha_inicio': fecha_inicio,
         'fecha_fin': fecha_fin,
+        'municipios': municipios,
+        'municipio_filtro': municipio_filtro,
         # Detalle
         'clientes_detalle': clientes_detalle,
+        'estudiantes_detalle': estudiantes_detalle,
+        # Tickets
+        'tickets_soporte': tickets_soporte,
     }
     return render(request, 'admin/dashboard.html', context)
 from django.http import HttpResponse, JsonResponse, FileResponse, HttpResponseBadRequest
@@ -843,66 +939,368 @@ def _procesar_twilio_webhook(post_data):
         )
         logger.info(f"✅ Guardado INCOMING")
         
-        # 1.5 🔘 DETECTAR RESPUESTA DE BOTÓN (Campañas Únicas SÍ/NO)
-        button_payload = post_data.get('ButtonPayload', '').strip().lower()
-        if button_payload in ('si', 'sí', 'no', 'yes'):
-            try:
-                from .models import CampanaUnica, RespuestaCampanaUnica
-                respuesta_btn = 'si' if button_payload in ('si', 'sí', 'yes') else 'no'
-                
-                # Buscar la última campaña enviada
-                campana = CampanaUnica.objects.filter(estado='enviada').order_by('-fecha_envio').first()
-                
-                if campana:
-                    # Buscar estudiante
-                    est_btn = None
-                    try:
-                        est_btn = Estudiante.objects.get(telefono=telefono_limpio)
-                    except Estudiante.DoesNotExist:
-                        pass
-                    
-                    # Guardar respuesta (update_or_create para evitar duplicados)
-                    _, created = RespuestaCampanaUnica.objects.update_or_create(
-                        campana=campana,
-                        numero_telefono=telefono_limpio,
-                        defaults={
-                            'estudiante': est_btn,
-                            'respuesta': respuesta_btn,
-                            'mensaje_sid': msg_sid,
-                        }
-                    )
-                    
-                    # Actualizar contadores
-                    if created:
-                        if respuesta_btn == 'si':
-                            campana.respuestas_si += 1
-                        else:
-                            campana.respuestas_no += 1
-                        campana.save()
-                    
-                    print(f"🔘 Campaña Única: {telefono_limpio} respondió {respuesta_btn.upper()} a '{campana.nombre}'", flush=True)
-                    
-                    # Enviar confirmación
-                    from .utils import enviar_whatsapp
-                    enviar_whatsapp(
-                        telefono_limpio,
-                        f"✅ Gracias por tu respuesta: *{respuesta_btn.upper()}*\n\nTu respuesta ha sido registrada."
-                    )
-                    return  # Terminar aquí, no seguir flujo normal
-                    
-            except Exception as e:
-                print(f"⚠️ Error procesando botón campaña: {e}", flush=True)
-        
-        # 2. Buscar estudiante con teléfono limpio
+        # ============================================================
+        # FASE 0: INTERCEPCIÓN DE NO REGISTRADOS (Lead Generation)
+        # Si el número no existe en Estudiante, activar "Modo Ventas"
+        # ============================================================
         try:
             estudiante = Estudiante.objects.get(telefono=telefono_limpio)
             logger.info(f"✅ Estudiante encontrado: {estudiante.nombre} (ID: {estudiante.id})")
         except Estudiante.DoesNotExist:
-            # Si no existe, ir directo a habeas data (se creará en security_handler)
-            logger.info(f"⚠️ Estudiante nuevo: {telefono_limpio} - Iniciará habeas data")
-            estudiante = None
+            # Verificar si ya es un prospecto B2B existente
+            from .models import ProspectoB2B
+            prospecto = None
+            try:
+                prospecto = ProspectoB2B.objects.get(telefono=telefono_limpio)
+            except ProspectoB2B.DoesNotExist:
+                pass
+            
+            msg_lower = msg_body.strip().lower()
+            
+            if prospecto:
+                # Prospecto existente - procesar su respuesta
+                if prospecto.esperando_email:
+                    # Validar si parece un email
+                    import re as re_email
+                    email_match = re_email.search(r'[\w.+-]+@[\w-]+\.[\w.]+', msg_body)
+                    if email_match:
+                        prospecto.email = email_match.group(0)
+                        prospecto.esperando_email = False
+                        prospecto.fecha_ultimo_contacto = timezone.now()
+                        prospecto.save()
+                        
+                        # Notificar al equipo de ventas por email
+                        try:
+                            from django.core.mail import send_mail
+                            send_mail(
+                                subject=f"🏢 Nuevo Lead B2B - {prospecto.empresa or prospecto.telefono}",
+                                message=f"Nuevo prospecto capturado por el bot:\n\nTeléfono: {prospecto.telefono}\nEmpresa: {prospecto.empresa}\nEmail: {prospecto.email}\nMensaje: {prospecto.mensaje_original}",
+                                from_email=settings.DEFAULT_FROM_EMAIL,
+                                recipient_list=[getattr(settings, 'EMAIL_SOPORTE', 'soporte@eki.com')],
+                                fail_silently=True
+                            )
+                        except Exception:
+                            pass
+                        
+                        texto_respuesta = (
+                            "✅ *¡Perfecto!*\n\n"
+                            f"Hemos registrado tu correo: *{prospecto.email}*\n\n"
+                            "Nuestro equipo de ventas te contactará muy pronto "
+                            "para contarte todo sobre las capacitaciones de Eki. 🚜\n\n"
+                            "¡Gracias por tu interés! 🌱"
+                        )
+                    else:
+                        texto_respuesta = "📧 Por favor envía un correo electrónico válido (ej: nombre@empresa.com)"
+                elif msg_lower in ['1', 'empresa', 'eki para mi empresa']:
+                    prospecto.esperando_email = True
+                    prospecto.fecha_ultimo_contacto = timezone.now()
+                    prospecto.save()
+                    texto_respuesta = (
+                        "🏢 *¡Excelente!*\n\n"
+                        "Nos encantaría ayudar a capacitar a tu equipo.\n\n"
+                        "📧 Por favor envíanos tu *correo electrónico* "
+                        "y un asesor de ventas te contactará:\n\n"
+                        "👉 Ejemplo: juan@miempresa.com"
+                    )
+                elif msg_lower in ['3', 'ayuda', 'soy estudiante', 'estudiante']:
+                    texto_respuesta = (
+                        "🙋‍♂️ *¡Entendido!*\n\n"
+                        "Si eres estudiante y cambiaste de número, "
+                        "por favor contacta a tu coordinador o escribe a:\n\n"
+                        "📧 soporte@eki.com\n\n"
+                        "Incluye tu nombre completo y número de cédula para que podamos ayudarte."
+                    )
+                else:
+                    from .whatsapp_service import enviar_mensaje_ventas
+                    enviar_mensaje_ventas(msg_from)
+                    return
+                
+                # Enviar respuesta al prospecto
+                try:
+                    from twilio.rest import Client as TwilioClient
+                    account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                    auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                    twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
+                    client_tw = TwilioClient(account_sid, auth_token)
+                    destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
+                    client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
+                except Exception as e:
+                    print(f"❌ Error enviando a prospecto: {e}")
+                return
+            
+            else:
+                # Nuevo prospecto - crear y enviar mensaje de ventas
+                ProspectoB2B.objects.create(
+                    telefono=telefono_limpio,
+                    mensaje_original=msg_body,
+                    origen='whatsapp_bot'
+                )
+                from .whatsapp_service import enviar_mensaje_ventas
+                enviar_mensaje_ventas(msg_from)
+                logger.info(f"🏢 Nuevo prospecto B2B capturado: {telefono_limpio}")
+                return
         
-        # 3. 🛡️ PRIORIDAD 1: Verificar seguridad (Habeas Data)
+        # ============================================================
+        # MÁQUINA DE ESTADOS B2B (Onboarding con Botones Twilio)
+        # ============================================================
+        estado_chat = getattr(estudiante, 'estado_chat', None)
+        
+        # Migrar estudiantes legacy al nuevo sistema
+        if not estado_chat or estado_chat in ('', None):
+            if estudiante.acepto_terminos and estudiante.estado_onboarding == 'completado':
+                estudiante.estado_chat = 'ACTIVO'
+            elif estudiante.acepto_terminos:
+                estudiante.estado_chat = 'ESPERANDO_CEDULA'
+            else:
+                estudiante.estado_chat = 'ESPERANDO_HABEAS_DATA'
+            estudiante.save()
+            estado_chat = estudiante.estado_chat
+        
+        # --- BARRERA 1: HABEAS DATA ---
+        if estado_chat == 'ESPERANDO_HABEAS_DATA':
+            msg_lower = msg_body.strip().lower()
+            keywords_acepto = ['acepto', 'sí', 'si', 'aceptar', 'ok', 'yes', 'acepto', 'de acuerdo']
+            keywords_no = ['no acepto', 'no', 'rechazo', 'rechazar']
+            
+            if any(k in msg_lower for k in keywords_acepto):
+                estudiante.acepto_terminos = True
+                estudiante.fecha_aceptacion_terminos = timezone.now()
+                estudiante.estado_chat = 'ESPERANDO_CEDULA'
+                estudiante.save()
+                
+                texto_respuesta = (
+                    "✅ *¡Gracias por aceptar!*\n\n"
+                    "Para verificar tu identidad, por favor escribe "
+                    "tu *número de cédula* (solo los números, sin puntos ni espacios).\n\n"
+                    "👉 Ejemplo: 1234567890"
+                )
+            elif any(k in msg_lower for k in keywords_no):
+                texto_respuesta = (
+                    "😔 Entendemos tu decisión.\n\n"
+                    "Sin la aceptación de la política de datos no podemos "
+                    "activar tu cuenta en la plataforma.\n\n"
+                    "Si cambias de opinión, escríbenos en cualquier momento. 🌱"
+                )
+            else:
+                # Enviar habeas data con botones (intentar template, sino texto)
+                from .whatsapp_service import enviar_habeas_data
+                resultado = enviar_habeas_data(msg_from)
+                if resultado.get('success'):
+                    return  # Template enviado exitosamente
+                
+                # Fallback: texto plano
+                texto_respuesta = (
+                    "👋 *¡Bienvenido a Eki!*\n\n"
+                    "🚜 Tu plataforma de educación agrícola por WhatsApp\n\n"
+                    "━━━━━━━━━━━━━━━━━━━\n\n"
+                    "📜 *Protección de Datos Personales*\n"
+                    "Antes de comenzar, necesitamos tu autorización para usar "
+                    "tus datos de acuerdo con la Ley 1581 de 2012.\n\n"
+                    "*¿Aceptas el tratamiento de tus datos?*\n\n"
+                    "👉 Escribe *Acepto* o *No acepto*"
+                )
+            
+            # Enviar y cortar
+            try:
+                from twilio.rest import Client as TwilioClient
+                account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
+                client_tw = TwilioClient(account_sid, auth_token)
+                destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
+                client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
+                WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
+            except Exception as e:
+                print(f"❌ Error enviando habeas data: {e}")
+            return  # CORTAR EJECUCIÓN
+        
+        # --- BARRERA 2: VALIDACIÓN 2FA (Cédula) ---
+        if estado_chat == 'ESPERANDO_CEDULA':
+            # Limpiar input del usuario
+            cedula_input = re.sub(r'[\s\.\-]', '', msg_body.strip())
+            
+            # Comparar con la cédula sanitizada en BD
+            if cedula_input == estudiante.cedula:
+                estudiante.estado_chat = 'CONFIRMANDO_DATOS'
+                estudiante.save()
+                
+                # Enviar confirmación con datos + botones
+                org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'Eki'
+                from .whatsapp_service import enviar_confirmacion_datos
+                resultado = enviar_confirmacion_datos(
+                    msg_from,
+                    estudiante.nombre,
+                    f"{estudiante.tipo_documento} {estudiante.cedula}",
+                    org_nombre
+                )
+                if resultado.get('success'):
+                    return  # Template enviado
+                
+                # Fallback texto plano
+                texto_respuesta = (
+                    "✅ *¡Cédula verificada!*\n\n"
+                    "Tus datos registrados:\n\n"
+                    f"👤 *Nombre:* {estudiante.nombre}\n"
+                    f"🆔 *Documento:* {estudiante.tipo_documento} {estudiante.cedula}\n"
+                    f"📍 *Municipio:* {estudiante.municipio or 'No registrado'}\n"
+                    f"🏢 *Organización:* {org_nombre}\n\n"
+                    "━━━━━━━━━━━━━━━━━━━\n\n"
+                    "*¿Tus datos están correctos?*\n\n"
+                    "👉 Escribe *Sí* si todo está bien\n"
+                    "👉 Escribe *No* si hay un error"
+                )
+            else:
+                texto_respuesta = (
+                    "❌ *Cédula no coincide*\n\n"
+                    "El número que ingresaste no coincide con "
+                    "nuestros registros.\n\n"
+                    "Por favor verifica y escribe tu cédula nuevamente "
+                    "(solo números, sin puntos ni espacios).\n\n"
+                    "👉 Ejemplo: 1234567890\n\n"
+                    "Si crees que hay un error, escribe *ayuda*"
+                )
+            
+            try:
+                from twilio.rest import Client as TwilioClient
+                account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
+                client_tw = TwilioClient(account_sid, auth_token)
+                destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
+                client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
+                WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
+            except Exception as e:
+                print(f"❌ Error enviando validación 2FA: {e}")
+            return  # CORTAR EJECUCIÓN
+        
+        # --- BARRERA 3: CONFIRMACIÓN DE DATOS ---
+        if estado_chat == 'CONFIRMANDO_DATOS':
+            msg_lower = msg_body.strip().lower()
+            keywords_si = ['sí', 'si', 'todo bien', 'correcto', 'bien', 'ok', 'yes', 'confirmo']
+            keywords_no = ['no', 'error', 'mal', 'incorrecto', 'hay un error']
+            
+            if any(k in msg_lower for k in keywords_si):
+                estudiante.estado_chat = 'ACTIVO'
+                estudiante.estado_onboarding = 'completado'  # Legacy compat
+                estudiante.save()
+                
+                # Enviar menú principal con botones
+                from .whatsapp_service import enviar_menu_principal
+                org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'Eki'
+                resultado = enviar_menu_principal(msg_from, estudiante.nombre)
+                if resultado.get('success'):
+                    return  # Template enviado
+                
+                # Fallback: menú en texto
+                texto_respuesta = (
+                    f"🚜 *¡Hola {estudiante.nombre}!*\n"
+                    f"Qué bueno tenerte en el programa de *{org_nombre}*.\n\n"
+                    "━━━━━━━━━━━━━━━━━━━\n\n"
+                    "¿Qué hacemos hoy? Toca una opción:\n\n"
+                    "1️⃣ 📚 *Mis cursos*\n"
+                    "2️⃣ 🏆 *Mis puntos*\n"
+                    "3️⃣ 🙋‍♂️ *Necesito ayuda*"
+                )
+            elif any(k in msg_lower for k in keywords_no):
+                texto_respuesta = (
+                    "📝 *Entendido, hay un error en tus datos.*\n\n"
+                    "Por favor contacta a tu coordinador o escribe a:\n"
+                    "📧 soporte@eki.com\n\n"
+                    "Incluye tu nombre y número de cédula correctos."
+                )
+            else:
+                texto_respuesta = (
+                    "Por favor confirma tus datos:\n\n"
+                    "👉 Escribe *Sí* si todo está bien\n"
+                    "👉 Escribe *No* si hay un error"
+                )
+            
+            try:
+                from twilio.rest import Client as TwilioClient
+                account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
+                client_tw = TwilioClient(account_sid, auth_token)
+                destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
+                client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
+                WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
+            except Exception as e:
+                print(f"❌ Error enviando confirmación: {e}")
+            return  # CORTAR EJECUCIÓN
+        
+        # ============================================================
+        # ESTUDIANTE ACTIVO - Procesar acciones del menú y flujo normal
+        # ============================================================
+        # Detectar acciones del menú principal (tanto ACTIVO como completado)
+        if estado_chat == 'ACTIVO' or estudiante.estado_onboarding == 'completado':
+            msg_lower = msg_body.strip().lower()
+            
+            # Detectar "Mis cursos" (botón o texto)
+            if msg_lower in ['1', 'mis cursos', 'cursos', '📚 mis cursos', 'mis cursos']:
+                estudiante.estado_onboarding = 'esperando_seleccion_curso'
+                estudiante.save()
+                from .whatsapp_service import enviar_lista_cursos
+                enviar_lista_cursos(msg_from, estudiante)
+                return
+            
+            # Detectar "Mis puntos" (botón o texto)
+            if msg_lower in ['2', 'mis puntos', 'puntos', '🏆 mis puntos', 'mis puntos']:
+                from .whatsapp_service import enviar_gamificacion_visual
+                enviar_gamificacion_visual(msg_from, estudiante)
+                return
+            
+            # Detectar "Necesito ayuda" (botón o texto)
+            if msg_lower in ['3', 'necesito ayuda', 'ayuda', '🙋‍♂️ necesito ayuda', 'necesito ayuda']:
+                from .security_handler import procesar_solicitud_soporte
+                respuesta = procesar_solicitud_soporte(estudiante, msg_body, 'menu_ayuda')
+                try:
+                    from twilio.rest import Client as TwilioClient
+                    account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                    auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                    twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
+                    client_tw = TwilioClient(account_sid, auth_token)
+                    destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
+                    client_tw.messages.create(body=respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
+                    WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=respuesta, tipo='SENT')
+                except Exception:
+                    pass
+                return
+            
+            # Detectar "menú" - enviar menú principal
+            if msg_lower in ['menu', 'menú', 'inicio', 'hola']:
+                org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'Eki'
+                from .whatsapp_service import enviar_menu_principal
+                resultado = enviar_menu_principal(msg_from, estudiante.nombre)
+                if resultado.get('success'):
+                    return
+                # Fallback
+                texto_menu = (
+                    f"🚜 *¡Hola {estudiante.nombre}!*\n"
+                    f"Qué bueno tenerte en el programa de *{org_nombre}*.\n\n"
+                    "━━━━━━━━━━━━━━━━━━━\n\n"
+                    "¿Qué hacemos hoy?\n\n"
+                    "1️⃣ 📚 *Mis cursos*\n"
+                    "2️⃣ 🏆 *Mis puntos*\n"
+                    "3️⃣ 🙋‍♂️ *Necesito ayuda*"
+                )
+                try:
+                    from twilio.rest import Client as TwilioClient
+                    account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                    auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                    twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
+                    client_tw = TwilioClient(account_sid, auth_token)
+                    destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
+                    client_tw.messages.create(body=texto_menu, from_=str(twilio_number).strip(), to=str(destino).strip())
+                    WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_menu, tipo='SENT')
+                except Exception:
+                    pass
+                return
+        
+        # ============================================================
+        # FLUJO EXISTENTE: Procesamiento normal (IA tutors, módulos, etc.)
+        # ============================================================
+        
+        # 3. 🛡️ PRIORIDAD 1: Verificar seguridad (Habeas Data) - Legacy
         from .security_handler import verificar_seguridad_completa
         bloqueado, respuesta_seguridad, estudiante = verificar_seguridad_completa(estudiante, msg_body, telefono_limpio)
         print(f"🛡️ Seguridad: bloqueado={bloqueado} | estudiante={estudiante} | estado={getattr(estudiante, 'estado_onboarding', 'N/A')}", flush=True)
@@ -1099,6 +1497,10 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                 # Actualizar progreso al siguiente módulo
                                 progreso.modulo_actual = siguiente_modulo
                                 progreso.save()
+                                
+                                # Resetear preguntas IA para nuevo módulo
+                                estudiante.preguntas_ia_restantes = 3
+                                estudiante.save()
                                 
                                 porcentaje = progreso.porcentaje_avance()
                                 from .response_templates import obtener_video_url
@@ -1340,14 +1742,33 @@ Has completado el curso: *{progreso.curso.nombre}*
                     print(f"✅ Respuesta desde template: {texto_respuesta[:50]}...")
                 else:
                     # Solo si no hay intent, usar IA para preguntas sobre agricultura
+                    # 🛑 ANTI-ABUSO IA: Verificar preguntas restantes
                     print(f"🤖 Usando IA para pregunta sobre agricultura")
-                    try:
-                        from .ai_assistant import responder_con_ia
-                        texto_respuesta = responder_con_ia(msg_body, telefono_limpio)
-                        print(f"✅ IA generó respuesta: {texto_respuesta[:50]}...")
-                    except Exception as e:
-                        print(f"❌ Error IA: {e}, usando respuesta genérica")
-                        texto_respuesta = "Disculpa, tengo problemas técnicos. Escribe 'menú' para ver las opciones."
+                    if estudiante.preguntas_ia_restantes <= 0:
+                        # Freno de mano: IA pausada
+                        texto_respuesta = (
+                            "⚠️ *Has agotado tus preguntas libres a la IA para este módulo.*\n\n"
+                            "Para desbloquear más preguntas, necesitas responder "
+                            "la pregunta de evaluación del módulo actual.\n\n"
+                            "📝 Escribe *\"listo\"* para continuar con tu módulo\n"
+                            "📚 Escribe *\"mis cursos\"* para ver los cursos disponibles"
+                        )
+                    else:
+                        try:
+                            from .ai_assistant import responder_con_ia
+                            texto_respuesta = responder_con_ia(msg_body, telefono_limpio)
+                            # Restar pregunta usada
+                            estudiante.preguntas_ia_restantes = max(0, estudiante.preguntas_ia_restantes - 1)
+                            estudiante.save()
+                            restantes = estudiante.preguntas_ia_restantes
+                            if restantes > 0:
+                                texto_respuesta += f"\n\n💡 _Te quedan {restantes} preguntas libres a la IA en este módulo._"
+                            else:
+                                texto_respuesta += "\n\n⚠️ _Esta fue tu última pregunta libre. Responde la evaluación del módulo para desbloquear más._"
+                            print(f"✅ IA generó respuesta: {texto_respuesta[:50]}...")
+                        except Exception as e:
+                            print(f"❌ Error IA: {e}, usando respuesta genérica")
+                            texto_respuesta = "Disculpa, tengo problemas técnicos. Escribe 'menú' para ver las opciones."
         
         # 3. Enviar respuesta via Twilio
         print(f"📤 ENVIANDO RESPUESTA: '{texto_respuesta[:80]}...' (len={len(texto_respuesta)})", flush=True)

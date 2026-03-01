@@ -27,8 +27,6 @@ from core.views_certificados import verificar_certificado_view, descargar_certif
 from core.views_analytics import dashboard_analytics, exportar_metricas_csv, api_metricas_json, detalle_estudiante
 from core.views_reportes import dashboard_reportes_avanzados, descargar_reporte_xlsx
 
-from core.exportar_respuestas_xlsx import exportar_respuestas_xlsx
-
 
 def root_redirect(request):
     """Redirige a la página de administración principal"""
@@ -46,9 +44,6 @@ urlpatterns = [
     
     # Vistas personalizadas ANTES del admin para que no sean capturadas por catch-all
     path('admin/dashboard/', dashboard_unificado, name='dashboard_unificado'),  # Dashboard único
-
-    # Exportar respuestas de campañas únicas a XLSX
-    path('admin/exportar-respuestas-xlsx/<int:campana_id>/', exportar_respuestas_xlsx, name='exportar_respuestas_xlsx'),
     path('admin/dashboard-antiguo/', dashboard_view, name='dashboard_antiguo'),  # Dashboard antiguo
     path('admin/descargar-reportes/', descargar_reportes, name='descargar_reportes'),
     path('admin/importar-estudiantes/', importar_estudiantes, name='importar_estudiantes'),
@@ -75,9 +70,6 @@ urlpatterns = [
     path('admin/crear-curso-ia/', subir_documento_curso, name='subir_documento_curso'),
     path('admin/vista-previa-curso-ia/', vista_previa_curso_ia, name='vista_previa_curso_ia'),
     
-    # Dashboard gerencial
-    path('admin/dashboard-gerencial/', dashboard_gerencial, name='dashboard_gerencial'),
-    
     # Admin de Django
     path('admin/', admin.site.urls),
     
@@ -100,6 +92,9 @@ urlpatterns = [
     
     # Proxy para archivos multimedia
     path('media-proxy/<str:filename>', serve_media_proxy, name='media_proxy'),
+    
+    # Dashboard gerencial
+    path('admin/dashboard-gerencial/', dashboard_gerencial, name='dashboard_gerencial'),
     
     # Raíz
     path('', root_redirect),

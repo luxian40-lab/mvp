@@ -21,7 +21,8 @@ from .models import (
     PerfilGamificacion, Badge, BadgeEstudiante, TransaccionPuntos,
     SolicitudSoporte, PreguntaModulo,  # 🆘 NUEVO + 📝 PREGUNTA MODULO
     Certificado, PlantillaCertificado, # 📜 CERTIFICADOS
-    CampanaUnica, RespuestaCampanaUnica
+    CampanaUnica, RespuestaCampanaUnica,
+    ProspectoB2B,  # 🤝 LEADS B2B
 )
 from .admin_campana_actualizado import CampanaUnicaAdmin, RespuestaCampanaUnicaAdmin
 from .models_extras import (
@@ -4939,5 +4940,47 @@ class PlantillaDashboardAdmin(admin.ModelAdmin):
         extra_context = extra_context or {}
         extra_context['dashboard_url'] = 'plantilla-dashboard/'
         return super().changelist_view(request, extra_context)
+
+
+# ========================================
+# 🤝 ADMIN DE PROSPECTOS B2B (LEADS)
+# ========================================
+
+@admin.register(ProspectoB2B)
+class ProspectoB2BAdmin(admin.ModelAdmin):
+    """
+    🤝 GESTIÓN DE LEADS B2B
+    Prospectos capturados desde WhatsApp (Phase 0 del webhook).
+    """
+    list_display = ('telefono', 'empresa', 'email', 'estado_badge', 'origen', 'fecha_captura')
+    list_filter = ('estado', 'origen', 'fecha_captura')
+    search_fields = ('telefono', 'email', 'empresa')
+    list_per_page = 50
+    ordering = ('-fecha_captura',)
+    readonly_fields = ('fecha_captura',)
+
+    fieldsets = (
+        ('📱 Contacto', {
+            'fields': ('telefono', 'nombre_contacto', 'email', 'empresa')
+        }),
+        ('📊 Estado', {
+            'fields': ('estado', 'origen', 'fecha_captura', 'notas')
+        }),
+    )
+
+    def estado_badge(self, obj):
+        colores = {
+            'nuevo': '#2196f3',
+            'contactado': '#ff9800',
+            'convertido': '#4caf50',
+            'descartado': '#999',
+        }
+        color = colores.get(obj.estado, '#999')
+        return format_html(
+            '<span style="background:{};color:#fff;padding:3px 10px;border-radius:12px;font-size:11px;">{}</span>',
+            color, obj.get_estado_display()
+        )
+    estado_badge.short_description = "Estado"
+
 
 

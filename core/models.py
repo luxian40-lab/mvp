@@ -134,6 +134,30 @@ class Estudiante(models.Model):
         ('PP', 'Pasaporte'),
     ]
     
+    RANGO_EDAD_CHOICES = [
+        ('18-30', '18 a 30 años'),
+        ('31-50', '31 a 50 años'),
+        ('50+', 'Mayor de 50 años'),
+    ]
+    
+    # === ESTADOS DEL CHAT (Máquina de Estados B2B) ===
+    ESTADO_CHAT_CHOICES = [
+        ('ESPERANDO_HABEAS_DATA', 'Esperando Habeas Data'),
+        ('ESPERANDO_CEDULA', 'Esperando Cédula (2FA)'),
+        ('CONFIRMANDO_DATOS', 'Confirmando Datos'),
+        ('ACTIVO', 'Activo'),
+        # Estados legacy del onboarding anterior
+        ('nuevo', 'Nuevo (legacy)'),
+        ('esperando_tipo_doc', 'Esperando tipo doc (legacy)'),
+        ('esperando_cedula_legacy', 'Esperando cédula (legacy)'),
+        ('esperando_nombre', 'Esperando nombre (legacy)'),
+        ('esperando_respuesta_modulo', 'Esperando respuesta módulo'),
+        ('esperando_respuesta_tutor_ia', 'Esperando respuesta tutor IA'),
+        ('esperando_respuesta_progreso', 'Esperando respuesta progreso'),
+        ('esperando_seleccion_curso', 'Esperando selección curso'),
+        ('completado', 'Completado (legacy)'),
+    ]
+    
     tipo_documento = models.CharField(
         max_length=2,
         choices=TIPO_DOCUMENTO_CHOICES,
@@ -145,7 +169,7 @@ class Estudiante(models.Model):
         max_length=20,
         unique=True,
         verbose_name='Número de Documento',
-        help_text='Número de identificación único'
+        help_text='Número de identificación único (limpio, sin puntos ni espacios)'
     )
     nombre = models.CharField(max_length=100, verbose_name='Nombre Completo')
     telefono = models.CharField(max_length=20, unique=True, verbose_name='Teléfono WhatsApp')
@@ -157,20 +181,36 @@ class Estudiante(models.Model):
         verbose_name='Municipio',
         help_text='Municipio donde reside el estudiante'
     )
+    region = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='Región',
+        help_text='Región geográfica (Ej: Zona Norte, Magdalena Medio)'
+    )
     ubicacion_detalle = models.TextField(
         blank=True,
         verbose_name='Ubicación Detalle',
         help_text='Vereda, barrio o información adicional de ubicación'
     )
     
+    # DATOS DEMOGRÁFICOS
+    rango_edad = models.CharField(
+        max_length=10,
+        choices=RANGO_EDAD_CHOICES,
+        blank=True,
+        verbose_name='Rango de Edad',
+        help_text='Rango de edad del estudiante'
+    )
+    
+    # ORGANIZACIÓN (Multi-tenant B2B)
     cliente = models.ForeignKey(
         Cliente,
         on_delete=models.CASCADE,
         null=True,
         blank=True,
         related_name='estudiantes',
-        verbose_name='Cliente',
-        help_text='Cliente/Organización a la que pertenece este estudiante'
+        verbose_name='Organización',
+        help_text='Organización/Empresa B2B a la que pertenece este estudiante'
     )
     activo = models.BooleanField(default=True, verbose_name='Activo')
     fecha_registro = models.DateTimeField(auto_now_add=True, verbose_name='Fecha de Registro')
@@ -188,12 +228,28 @@ class Estudiante(models.Model):
         help_text='Fecha y hora en que aceptó los términos'
     )
     
-    # ONBOARDING - Estado del proceso de registro
+    # MÁQUINA DE ESTADOS B2B (estado_chat reemplaza estado_onboarding)
+    estado_chat = models.CharField(
+        max_length=50,
+        choices=ESTADO_CHAT_CHOICES,
+        default='ESPERANDO_HABEAS_DATA',
+        verbose_name='Estado del Chat',
+        help_text='Estado actual en la máquina de estados B2B del onboarding'
+    )
+    
+    # ONBOARDING LEGACY - mantener para retrocompatibilidad
     estado_onboarding = models.CharField(
         max_length=50,
         default='nuevo',
-        verbose_name='Estado Onboarding',
+        verbose_name='Estado Onboarding (Legacy)',
         help_text='nuevo, esperando_tipo_doc, esperando_cedula, esperando_nombre, esperando_respuesta_modulo, completado'
+    )
+    
+    # ANTI-ABUSO IA
+    preguntas_ia_restantes = models.IntegerField(
+        default=3,
+        verbose_name='Preguntas IA Restantes',
+        help_text='Máximo de preguntas libres a la IA por módulo (se resetea al completar módulo)'
     )
     
     # CONTEXTO TEMPORAL - Para preguntas de modulo
@@ -203,6 +259,15 @@ class Estudiante(models.Model):
         help_text='Guarda el módulo_id y pregunta_id actual cuando está respondiendo mini examen'
     )
 
+    @property
+    def organizacion(self):
+        """Alias para acceder al cliente como 'organizacion' (B2B)"""
+        return self.cliente
+    
+    @organizacion.setter
+    def organizacion(self, value):
+        self.cliente = value
+
     def clean(self):
         # Limpieza de teléfono
         numero = re.sub(r'\D', '', str(self.telefono))
@@ -210,10 +275,16 @@ class Estudiante(models.Model):
         
         # Validación
         if not (10 <= len(numero) <= 15):
-            # Si viene de un Excel, a veces es mejor no romper todo, 
-            # pero aquí mantendremos la regla estricta.
             pass 
         self.telefono = numero
+        
+        # Limpieza de cédula (sanitización B2B)
+        if self.cedula and not self.cedula.startswith('TEMP_'):
+            self.cedula = re.sub(r'[\s\.\-]', '', str(self.cedula))
+        
+        # Capitalizar nombre
+        if self.nombre and self.nombre != 'Usuario':
+            self.nombre = self.nombre.strip().title()
 
     def save(self, *args, **kwargs):
         self.clean() # Forzamos limpieza antes de guardar
@@ -1426,6 +1497,94 @@ class RespuestaCampanaUnica(models.Model):
         return f"{self.numero_telefono} - {self.get_respuesta_display()}"
 
 
+# ========== PROSPECTOS B2B (Lead Generation) ==========
+class ProspectoB2B(models.Model):
+    """Prospectos B2B capturados por el bot cuando un número no registrado escribe."""
+    ESTADO_CHOICES = [
+        ('nuevo', 'Nuevo'),
+        ('contactado', 'Contactado'),
+        ('en_negociacion', 'En Negociación'),
+        ('convertido', 'Convertido a Cliente'),
+        ('descartado', 'Descartado'),
+    ]
+    
+    ORIGEN_CHOICES = [
+        ('whatsapp_bot', 'Bot WhatsApp'),
+        ('web', 'Sitio Web'),
+        ('referido', 'Referido'),
+        ('otro', 'Otro'),
+    ]
+    
+    telefono = models.CharField(
+        max_length=20,
+        unique=True,
+        verbose_name='Teléfono WhatsApp',
+        help_text='Número de teléfono del prospecto'
+    )
+    nombre_contacto = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name='Nombre del Contacto'
+    )
+    email = models.EmailField(
+        blank=True,
+        verbose_name='Email',
+        help_text='Correo electrónico del prospecto'
+    )
+    empresa = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name='Empresa',
+        help_text='Nombre de la empresa del prospecto'
+    )
+    mensaje_original = models.TextField(
+        blank=True,
+        verbose_name='Mensaje Original',
+        help_text='Primer mensaje que envió el prospecto'
+    )
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADO_CHOICES,
+        default='nuevo',
+        verbose_name='Estado del Lead'
+    )
+    origen = models.CharField(
+        max_length=20,
+        choices=ORIGEN_CHOICES,
+        default='whatsapp_bot',
+        verbose_name='Origen'
+    )
+    notas = models.TextField(
+        blank=True,
+        verbose_name='Notas de Seguimiento'
+    )
+    
+    # Estado del chat con el prospecto
+    esperando_email = models.BooleanField(
+        default=False,
+        verbose_name='Esperando Email',
+        help_text='Si el bot está esperando que el prospecto envíe su email'
+    )
+    
+    fecha_captura = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Fecha de Captura'
+    )
+    fecha_ultimo_contacto = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Último Contacto'
+    )
+    
+    class Meta:
+        verbose_name = 'Prospecto B2B'
+        verbose_name_plural = '🏢 Prospectos B2B (Leads)'
+        ordering = ['-fecha_captura']
+    
+    def __str__(self):
+        return f"{self.telefono} - {self.empresa or 'Sin empresa'} ({self.get_estado_display()})"
+
+
 __all__ = [
     'TemaCampana', 'Estudiante', 'Etiqueta', 'Plantilla', 'Linea', 'Canal', 
     'Campana', 'EnvioLog', 'WhatsappLog',
@@ -1438,4 +1597,5 @@ __all__ = [
     'GrupoEstudiantes', 'EnvioProgramado', 'PQRS',
     'ArchivoModulo', 'GrupoWhatsApp', 'InvitacionGrupo',
     'CampanaUnica', 'RespuestaCampanaUnica',
+    'ProspectoB2B',
 ]
