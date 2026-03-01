@@ -121,7 +121,7 @@ table.ref-table tr:hover td { background: #f8f9fa; }
     <div class="ic-body">
         <ul>
             <li><b>Twilio</b>: WhatsApp Business API</li>
-            <li><b>OpenAI</b>: GPT-4o-mini (tutor), GPT-3.5-turbo (chat)</li>
+            <li><b>OpenAI</b>: GPT-4o-mini (todos los agentes y chat)</li>
             <li><b>Cohere</b>: IA de respaldo</li>
             <li><b>Vosk</b>: Transcripcion de audio offline</li>
         </ul>
@@ -193,7 +193,7 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 <span class="arrow">&darr;</span><br>
 <b>6. Si dice "listo"</b>: avanzar al siguiente modulo <span class="arrow">&rarr;</span> Enviar contenido + Profesor Geronimo (modulos impares) o Maria (modulos pares) + pregunta<br>
 <span class="arrow">&darr;</span><br>
-<b>7. Si no tiene intencion clara</b>: pasar a la IA tutora (GPT-3.5-turbo + Cohere fallback)<br>
+<b>7. Si no tiene intencion clara</b>: pasar a la IA tutora (GPT-4o-mini + Cohere fallback)<br>
 <span class="arrow">&darr;</span><br>
 <b>8. Seleccionar agente IA</b>: Tutor / Frustracion / Motivador / Evaluador segun contexto<br>
 <span class="arrow">&darr;</span><br>
@@ -453,7 +453,9 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 <ol class="step-list">
 <li>Opcion A: Admin &gt; Estudiantes &gt; Agregar (uno por uno)</li>
 <li>Opcion B: Admin &gt; Importar Estudiantes &gt; cargar archivo Excel (.xlsx)</li>
-<li>El Excel debe tener columnas: Nombre, Telefono, Tipo Doc, Cedula, Municipio, Departamento</li>
+<li>El Excel debe tener columnas: A=Cedula, B=Nombre, C=Telefono, D=Curso (opc), E=Cliente (opc), F=Municipio (opc)</li>
+<li>El telefono se normaliza automaticamente a formato colombiano (57...)</li>
+<li>Puede descargar la plantilla de ejemplo desde la lista de estudiantes</li>
 </ol>
 
 <h3>Enviar campana masiva</h3>
@@ -481,6 +483,8 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 <tr><td>core/signals_gamificacion.py</td><td>Triggers automaticos al completar modulos/cursos</td></tr>
 <tr><td>core/security_handler.py</td><td>Habeas data, boton de panico, seguridad</td></tr>
 <tr><td>core/models_certificados.py</td><td>Certificados digitales con QR</td></tr>
+<tr><td>core/certificado_service.py</td><td>Servicio de generacion de certificados (marcadores RGB, S3)</td></tr>
+<tr><td>core/utils_certificados.py</td><td>Generador de certificados con deteccion de marcadores de color</td></tr>
 <tr><td>core/models_extras.py</td><td>Archivos multimedia, grupos, PQRS</td></tr>
 <tr><td>core/whatsapp_service.py</td><td>Servicio de envio de archivos por WhatsApp</td></tr>
 <tr><td>mvp_project/urls.py</td><td>Todas las URLs del sistema</td></tr>
@@ -489,8 +493,103 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 </tbody>
 </table>
 
-<!-- 16. FAQ -->
-<h2 id="faq">16. Preguntas frecuentes</h2>
+<!-- 16. Multi-Tenant B2B -->
+<h2 id="b2b">16. Sistema Multi-Tenant B2B</h2>
+<p>Eki soporta multiples clientes (empresas) desde un solo panel admin.</p>
+
+<h3>Modelo de datos B2B</h3>
+<ul>
+<li><b>Cliente</b>: Empresa que contrata el servicio (nombre, NIT, contacto, WhatsApp)</li>
+<li><b>ProspectoB2B</b>: Lead comercial con estados (nuevo &rarr; contactado &rarr; demo &rarr; negociacion &rarr; cerrado/perdido)</li>
+<li>Cada Estudiante se asocia a un Cliente. Los cursos tambien pertenecen a un cliente.</li>
+<li>El dashboard filtra automaticamente por cliente del usuario logueado.</li>
+</ul>
+
+<h3>Dashboard 3 Pestanas</h3>
+<ol>
+<li><b>Operativo</b>: Metricas de estudiantes, cursos activos, modulos completados hoy.</li>
+<li><b>Comercial</b>: Prospectos B2B, pipeline de ventas, tasas de conversion.</li>
+<li><b>Gamificacion</b>: Ranking de estudiantes, badges otorgados, puntos totales.</li>
+</ol>
+
+<h3>Onboarding de Estudiantes</h3>
+<p>Los nuevos estudiantes pasan por una maquina de estados automatica via WhatsApp:</p>
+<ol>
+<li><b>nuevo</b>: Recien registrado, se le pide que acepte terminos</li>
+<li><b>terminos_aceptados</b>: Acepto terminos, se le pide nombre</li>
+<li><b>nombre_recibido</b>: Se le pide cedula</li>
+<li><b>cedula_recibida</b>: Se le pide municipio</li>
+<li><b>completado</b>: Listo para recibir cursos</li>
+</ol>
+
+<!-- 17. Certificados S3 -->
+<h2 id="certificados-s3">17. Certificados con Marcadores RGB y S3</h2>
+<p>El sistema genera certificados personalizados usando deteccion de marcadores de color en la plantilla.</p>
+
+<h3>Como funciona</h3>
+<ol>
+<li>Subir una plantilla de certificado como imagen (.png) a AWS S3</li>
+<li>La plantilla debe tener 3 marcadores de color:
+  <ul>
+    <li><b>Gris (128,128,128)</b>: Donde se colocara el <b>nombre</b> del estudiante</li>
+    <li><b>Rojo (255,0,0)</b>: Donde se colocara la <b>cedula</b></li>
+    <li><b>Azul (0,0,255)</b>: Donde se colocara el <b>codigo QR</b> de verificacion</li>
+  </ul>
+</li>
+<li>En Admin &gt; Plantilla Certificado, pegar la URL S3 de la plantilla en el campo <b>URL Plantilla Imagen</b></li>
+<li>Al generar el certificado, el sistema:
+  <ul>
+    <li>Descarga la plantilla desde S3</li>
+    <li>Detecta los marcadores de color automaticamente</li>
+    <li>Estampa el nombre, cedula y QR en las posiciones correctas</li>
+    <li>Guarda el certificado final como imagen en S3</li>
+    <li>Muestra el certificado en el admin como imagen</li>
+  </ul>
+</li>
+</ol>
+
+<h3>Prioridades de generacion</h3>
+<table class="ref-table">
+<thead><tr><th>Prioridad</th><th>Metodo</th><th>Resultado</th></tr></thead>
+<tbody>
+<tr><td>0</td><td>Marcadores RGB + URL S3</td><td>Imagen PNG en S3</td></tr>
+<tr><td>1</td><td>Plantilla imagen subida</td><td>Imagen en S3</td></tr>
+<tr><td>2</td><td>Plantilla PDF subida</td><td>PDF en S3</td></tr>
+<tr><td>3</td><td>Imagen de fondo</td><td>Imagen en S3</td></tr>
+<tr><td>4</td><td>Generacion desde cero</td><td>PDF basico</td></tr>
+</tbody>
+</table>
+
+<!-- 18. IA y Agentes -->
+<h2 id="ia-agentes">18. Agentes de IA</h2>
+<p>Todos los agentes usan <b>GPT-4o-mini</b> (el mas economico). Modelo centralizado en <span class="code-ref">core/utils_ia.py</span>.</p>
+<table class="ref-table">
+<thead><tr><th>Agente</th><th>Archivo</th><th>Funcion</th></tr></thead>
+<tbody>
+<tr><td>Profesor Geronimo</td><td>tutor_ia_modulo.py</td><td>Ensenanza con metodo sandwich</td></tr>
+<tr><td>Mentora Maria</td><td>tutor_ia_modulo.py</td><td>Revision de progreso y motivacion</td></tr>
+<tr><td>Agente Diagnostico</td><td>agentes_ia.py</td><td>Evalua nivel del estudiante</td></tr>
+<tr><td>Agente Emocional</td><td>ia_empatica.py</td><td>Deteccion de sentimientos + soporte</td></tr>
+<tr><td>Evaluador</td><td>evaluacion_ia.py</td><td>Califica respuestas abiertas con rubrica</td></tr>
+<tr><td>Creador de Cursos</td><td>utils_ia.py</td><td>Genera estructura de curso desde PDF</td></tr>
+<tr><td>Generador Ejercicios</td><td>generador_ejercicios_ia.py</td><td>Crea ejercicios automaticos por modulo</td></tr>
+<tr><td>Anti-abuso</td><td>ai_assistant.py</td><td>Detecta mensajes ofensivos</td></tr>
+</tbody>
+</table>
+
+<!-- 19. Gamificacion Visual -->
+<h2 id="gamificacion">19. Gamificacion</h2>
+<p>Los estudiantes ganan puntos y badges al completar actividades.</p>
+<ul>
+<li><b>Puntos</b>: Se otorgan al completar modulos (10 pts), cursos (50 pts), responder preguntas (5 pts)</li>
+<li><b>Niveles</b>: Basados en puntos acumulados (Bronce, Plata, Oro, Diamante)</li>
+<li><b>Badges</b>: Iconos de logro (primer modulo, curso completo, racha de 7 dias, etc.)</li>
+<li><b>Dashboard</b>: Ranking visible en la pestana Gamificacion del dashboard</li>
+<li><b>Activar/Desactivar</b>: Por cliente en Admin &gt; Clientes &gt; checkbox "Gamificacion activa"</li>
+</ul>
+
+<!-- 20. FAQ -->
+<h2 id="faq">20. Preguntas frecuentes</h2>
 
 <h3>Como veo el avance de los estudiantes?</h3>
 <p>Ir al <a href="/admin/dashboard/">Dashboard principal</a>. Alli veras metricas de cursos, modulos completados, certificados y ranking de gamificacion.</p>
@@ -530,7 +629,7 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 </ol>
 
 <hr>
-<p style="font-size:0.85rem;color:#888;margin-top:30px;">Documentacion Eki - Generada a partir del codigo fuente real. Para dudas, contactar al equipo de desarrollo.</p>
+<p style="font-size:0.85rem;color:#888;margin-top:30px;">Documentacion Eki v1.3 - Actualizada Marzo 2026. Multi-tenant B2B, certificados S3, GPT-4o-mini unificado, importacion Excel corregida. Para dudas, contactar al equipo de desarrollo.</p>
 
 </div>
 {% endblock %}

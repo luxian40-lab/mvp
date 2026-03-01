@@ -13,7 +13,15 @@ logger = logging.getLogger(__name__)
 
 def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
     """
-    Genera el PDF del certificado y lo guarda en el modelo
+    Genera el certificado y lo guarda en el modelo.
+    
+    Prioridades:
+      0) Marcadores RGB + url_plantilla_imagen (S3→S3) → archivo_imagen
+      1) archivo_plantilla_imagen (subido local) → archivo_pdf
+      1B) url_plantilla_imagen sin marcadores → archivo_pdf  
+      2) archivo_plantilla_pdf → archivo_pdf
+      3) imagen_fondo → archivo_pdf
+      4) Generación PDF desde cero
     
     Args:
         certificado: Instancia de Certificado
@@ -23,9 +31,9 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
     Returns:
         bool: True si se generó exitosamente
     """
-    # Si ya tiene PDF y no es force, no regenerar
-    if certificado.archivo_pdf and not force:
-        logger.info(f"Certificado {certificado.codigo_verificacion} ya tiene PDF")
+    # Si ya tiene archivo y no es force, no regenerar
+    if (certificado.archivo_pdf or certificado.archivo_imagen) and not force:
+        logger.info(f"Certificado {certificado.codigo_verificacion} ya generado")
         return True
     
     try:
@@ -46,62 +54,54 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
         
         generado = False
         
+        # =====================================================
+        # PRIORIDAD 0: MARCADORES RGB desde URL S3 → archivo_imagen
+        # Lee plantilla de S3, detecta marcadores, genera PNG, guarda en archivo_imagen (→ S3)
+        # =====================================================
+        if not generado and plantilla and hasattr(plantilla, 'url_plantilla_imagen') and plantilla.url_plantilla_imagen:
+            try:
+                from .utils_certificados import generar_certificado_marcadores
+                
+                url_verificacion = certificado.obtener_url_verificacion()
+                org_nombre = None
+                if certificado.estudiante and hasattr(certificado.estudiante, 'cliente') and certificado.estudiante.cliente:
+                    org_nombre = certificado.estudiante.cliente.nombre
+                
+                img_buffer = generar_certificado_marcadores(
+                    plantilla_url_o_path=plantilla.url_plantilla_imagen,
+                    nombre_estudiante=certificado.estudiante.nombre,
+                    cedula_estudiante=certificado.estudiante.cedula or '',
+                    url_verificacion=url_verificacion,
+                    organizacion_nombre=org_nombre,
+                )
+                
+                if img_buffer:
+                    filename = f"certificado_{certificado.codigo_verificacion}.png"
+                    certificado.archivo_imagen.save(
+                        filename,
+                        ContentFile(img_buffer.read()),
+                        save=True
+                    )
+                    generado = True
+                    logger.info(f"✅ Certificado generado con MARCADORES RGB desde S3: {plantilla.url_plantilla_imagen}")
+            except ValueError as ve:
+                # Marcadores no encontrados → caer a siguiente prioridad
+                logger.info(f"ℹ️ Marcadores no detectados ({ve}), usando siguiente prioridad")
+            except Exception as e:
+                logger.warning(f"⚠️ Error con marcadores RGB: {e}, usando siguiente prioridad")
+        
         # PRIORIDAD 1: Plantilla imagen subida (archivo_plantilla_imagen)
         if not generado and plantilla and hasattr(plantilla, 'archivo_plantilla_imagen') and plantilla.archivo_plantilla_imagen:
             img_buffer = generar_certificado_desde_plantilla_imagen(certificado, plantilla)
             if img_buffer:
                 filename = f"certificado_{certificado.codigo_verificacion}.jpg"
-                certificado.archivo_pdf.save(
+                certificado.archivo_imagen.save(
                     filename,
                     ContentFile(img_buffer.read()),
                     save=True
                 )
                 generado = True
                 logger.info(f"✅ Certificado generado desde plantilla IMAGEN subida: {plantilla.nombre}")
-        
-        # PRIORIDAD 1B: URL de imagen externa (url_plantilla_imagen)
-        if not generado and plantilla and hasattr(plantilla, 'url_plantilla_imagen') and plantilla.url_plantilla_imagen:
-            try:
-                import requests
-                from io import BytesIO
-                from PIL import Image as PILImage
-                
-                response = requests.get(plantilla.url_plantilla_imagen, timeout=15)
-                response.raise_for_status()
-                
-                # Guardar imagen descargada temporalmente como archivo en la plantilla
-                img_data = BytesIO(response.content)
-                # Verificar que sea imagen válida
-                PILImage.open(img_data).verify()
-                img_data.seek(0)
-                
-                # Usar directamente con generar_certificado_desde_plantilla_imagen
-                # Necesitamos pasar el buffer, así que guardamos temporalmente
-                from django.core.files.uploadedfile import SimpleUploadedFile
-                temp_img = SimpleUploadedFile(
-                    name="plantilla_url_temp.jpg",
-                    content=img_data.read(),
-                    content_type='image/jpeg'
-                )
-                # Guardar temporalmente en la plantilla para que el generador lo use
-                plantilla.archivo_plantilla_imagen.save(
-                    f"plantilla_url_{plantilla.id}.jpg",
-                    temp_img,
-                    save=True
-                )
-                
-                img_buffer = generar_certificado_desde_plantilla_imagen(certificado, plantilla)
-                if img_buffer:
-                    filename = f"certificado_{certificado.codigo_verificacion}.jpg"
-                    certificado.archivo_pdf.save(
-                        filename,
-                        ContentFile(img_buffer.read()),
-                        save=True
-                    )
-                    generado = True
-                    logger.info(f"✅ Certificado generado desde URL de imagen: {plantilla.url_plantilla_imagen}")
-            except Exception as e:
-                logger.warning(f"⚠️ Error descargando imagen desde URL: {e}")
         
         # PRIORIDAD 2: Plantilla PDF subida (archivo_plantilla_pdf)
         if not generado and plantilla and plantilla.archivo_plantilla_pdf:
@@ -121,7 +121,7 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
             img_buffer = generar_certificado_imagen(certificado, plantilla)
             if img_buffer:
                 filename = f"certificado_{certificado.codigo_verificacion}.jpg"
-                certificado.archivo_pdf.save(
+                certificado.archivo_imagen.save(
                     filename,
                     ContentFile(img_buffer.read()),
                     save=True
@@ -392,7 +392,8 @@ def verificar_certificado_publico(codigo_verificacion):
             'fecha_completado': certificado.fecha_completado,
             'fecha_emision': certificado.fecha_emision,
             'duracion_dias': certificado.duracion_curso(),
-            'pdf_url': certificado.archivo_pdf.url if certificado.archivo_pdf else None
+            'pdf_url': certificado.archivo_pdf.url if certificado.archivo_pdf else None,
+            'imagen_url': certificado.archivo_imagen.url if certificado.archivo_imagen else None
         }
         
     except Certificado.DoesNotExist:

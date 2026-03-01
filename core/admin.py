@@ -440,7 +440,7 @@ class EstudianteAdmin(admin.ModelAdmin):
                 return redirect('admin:core_estudiante_changelist')
             
             try:
-                wb = openpyxl.load_workbook(archivo)
+                wb = openpyxl.load_workbook(archivo, data_only=True)
                 ws = wb.active
                 
                 creados = 0
@@ -448,19 +448,31 @@ class EstudianteAdmin(admin.ModelAdmin):
                 inscritos = 0
                 errores = []
                 
+                def _normalizar_celda(val):
+                    """Convierte celdas Excel a string limpio (float→int→str)."""
+                    if val is None:
+                        return ''
+                    if isinstance(val, float):
+                        if val == int(val):
+                            return str(int(val))
+                        return str(val)
+                    if isinstance(val, int):
+                        return str(val)
+                    return str(val).strip()
+                
                 # Leer filas (saltar encabezado)
                 for idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
                     # Verificar que la fila no esté completamente vacía
-                    if all(cell is None or str(cell).strip() == '' for cell in row[:3]):
+                    if not row or all(cell is None or str(cell).strip() == '' for cell in row[:3]):
                         continue
                     
                     # Extraer datos con validación de columnas
                     try:
-                        cedula = str(row[0]).strip() if row[0] is not None else ''
-                        nombre = str(row[1]).strip() if row[1] is not None else ''
-                        telefono = str(row[2]).strip() if row[2] is not None else ''
-                        curso_nombre = str(row[3]).strip() if len(row) > 3 and row[3] is not None else None
-                        cliente_nombre = str(row[4]).strip() if len(row) > 4 and row[4] is not None else None
+                        cedula = _normalizar_celda(row[0]) if len(row) > 0 else ''
+                        nombre = _normalizar_celda(row[1]) if len(row) > 1 else ''
+                        telefono = _normalizar_celda(row[2]) if len(row) > 2 else ''
+                        curso_nombre = _normalizar_celda(row[3]) if len(row) > 3 else ''
+                        cliente_nombre = _normalizar_celda(row[4]) if len(row) > 4 else ''
                     except IndexError:
                         errores.append(f"Fila {idx}: La fila no tiene suficientes columnas")
                         continue

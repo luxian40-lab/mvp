@@ -17,7 +17,11 @@ from .models import Curso, Modulo, PreguntaModulo, Examen, PreguntaExamen, Clien
 logger = logging.getLogger(__name__)
 
 # Mapeo de modelos disponibles
+# Modelo por defecto para todas las operaciones de IA
+MODELO_IA_DEFAULT = 'gpt-4o-mini'
+
 MODELOS_IA = {
+    'gpt-4o-mini': {'proveedor': 'openai', 'nombre': 'GPT-4o Mini', 'costo': 0.005},
     'gpt-3.5-turbo': {'proveedor': 'openai', 'nombre': 'GPT-3.5 Turbo', 'costo': 0.01},
     'gpt-4': {'proveedor': 'openai', 'nombre': 'GPT-4', 'costo': 0.30},
     'claude-3-sonnet': {'proveedor': 'anthropic', 'nombre': 'Claude 3 Sonnet', 'costo': 0.015},

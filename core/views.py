@@ -561,7 +561,9 @@ def instrucciones_view(request):
 # ---------- Vista de importación de estudiantes ----------
 @staff_member_required
 def importar_estudiantes(request):
-    """Vista para importar estudiantes desde un archivo Excel."""
+    """Vista para importar estudiantes desde un archivo Excel.
+    Formato: Cédula | Nombre | Teléfono | Curso (opc) | Cliente (opc) | Municipio (opc)
+    """
     context = {}
     
     if request.method == 'POST':
@@ -572,79 +574,135 @@ def importar_estudiantes(request):
             return render(request, 'admin/importar_estudiantes.html', context)
         
         try:
-            # Verificar que sea Excel
             if not archivo.name.endswith(('.xlsx', '.xls')):
                 context['error'] = 'El archivo debe ser .xlsx o .xls'
                 return render(request, 'admin/importar_estudiantes.html', context)
             
-            # Cargar el libro de trabajo
-            wb = openpyxl.load_workbook(archivo)
+            wb = openpyxl.load_workbook(archivo, data_only=True)
             ws = wb.active
             
             estudiantes_creados = 0
             estudiantes_actualizados = 0
+            inscritos = 0
             errores = []
             
-            # Esperamos columnas: Nombre, Teléfono, Tipo Doc, Cedula, Municipio, Departamento, Ubicación Detalle
+            import re
+            from django.db import IntegrityError
+            
+            def _normalizar_celda(val):
+                """Convierte celdas Excel a string limpio (int/float → str sin decimales)."""
+                if val is None:
+                    return ''
+                if isinstance(val, float):
+                    if val == int(val):
+                        return str(int(val))
+                    return str(val)
+                if isinstance(val, int):
+                    return str(val)
+                return str(val).strip()
+            
+            def _normalizar_telefono(raw):
+                """Normaliza teléfono colombiano: solo dígitos, prefijo 57."""
+                tel = re.sub(r'\D', '', raw)
+                if tel.startswith('57') and len(tel) == 12:
+                    return tel
+                if len(tel) == 10 and tel.startswith('3'):
+                    return '57' + tel
+                if len(tel) == 7 or len(tel) == 10:
+                    return '57' + tel
+                return tel  # devolver como está, validar después
+            
+            # Columnas: A=Cédula | B=Nombre | C=Teléfono | D=Curso | E=Cliente | F=Municipio
             for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+                # Fila completamente vacía → saltar
+                if not row or all(cell is None or str(cell).strip() == '' for cell in row[:3]):
+                    continue
+                
                 try:
-                    nombre = row[0]
-                    telefono = row[1]
-                    tipo_documento = row[2] if len(row) > 2 else None
-                    cedula = row[3] if len(row) > 3 else None
-                    municipio = row[4] if len(row) > 4 else None
-                    departamento = row[5] if len(row) > 5 else None
-                    ubicacion_detalle = row[6] if len(row) > 6 else None
-
-                    # Validar que no estén vacíos nombre y teléfono
-                    if not nombre or not telefono:
+                    cedula = _normalizar_celda(row[0]) if len(row) > 0 else ''
+                    nombre = _normalizar_celda(row[1]) if len(row) > 1 else ''
+                    telefono_raw = _normalizar_celda(row[2]) if len(row) > 2 else ''
+                    curso_nombre = _normalizar_celda(row[3]) if len(row) > 3 else ''
+                    cliente_nombre = _normalizar_celda(row[4]) if len(row) > 4 else ''
+                    municipio = _normalizar_celda(row[5]) if len(row) > 5 else ''
+                    
+                    if not cedula or not nombre:
+                        errores.append(f"Fila {row_idx}: Faltan campos obligatorios (Cédula='{cedula}', Nombre='{nombre}')")
                         continue
-
-                    # Limpiar teléfono y nombre
-                    telefono_str = str(telefono).strip()
-                    nombre_str = str(nombre).strip()
-
-                    # Defaults para update_or_create
+                    
+                    # Normalizar teléfono
+                    telefono = _normalizar_telefono(telefono_raw) if telefono_raw else ''
+                    if not telefono:
+                        errores.append(f"Fila {row_idx}: Teléfono vacío para '{nombre}'")
+                        continue
+                    
+                    # Buscar cliente
+                    cliente = None
+                    if cliente_nombre:
+                        try:
+                            cliente = Cliente.objects.get(nombre__iexact=cliente_nombre)
+                        except Cliente.DoesNotExist:
+                            errores.append(f"Fila {row_idx}: Cliente '{cliente_nombre}' no encontrado")
+                    
+                    # Crear o actualizar por CÉDULA (clave única)
                     defaults = {
-                        'nombre': nombre_str,
-                        'activo': True
+                        'nombre': nombre.strip().title(),
+                        'telefono': telefono,
+                        'tipo_documento': 'CC',
+                        'estado_onboarding': 'completado',
+                        'acepto_terminos': True,
+                        'activo': True,
                     }
-                    if tipo_documento:
-                        defaults['tipo_documento'] = tipo_documento.strip()
-                    if cedula:
-                        defaults['cedula'] = str(cedula).strip()
+                    if cliente:
+                        defaults['cliente'] = cliente
                     if municipio:
-                        defaults['municipio'] = municipio.strip()
-                    # departamento field was removed from Estudiante model
-                    if ubicacion_detalle:
-                        defaults['ubicacion_detalle'] = ubicacion_detalle.strip()
-
-                    estudiante, creado = Estudiante.objects.update_or_create(
-                        telefono=telefono_str,
-                        defaults=defaults
-                    )
-
-                    if creado:
-                        estudiantes_creados += 1
-                    else:
-                        estudiantes_actualizados += 1
-
+                        defaults['municipio'] = municipio
+                    
+                    try:
+                        estudiante, creado = Estudiante.objects.update_or_create(
+                            cedula=cedula,
+                            defaults=defaults
+                        )
+                        if creado:
+                            estudiantes_creados += 1
+                        else:
+                            estudiantes_actualizados += 1
+                    except IntegrityError as e:
+                        if 'telefono' in str(e).lower():
+                            errores.append(f"Fila {row_idx}: Teléfono '{telefono}' ya registrado para otro estudiante")
+                        else:
+                            errores.append(f"Fila {row_idx}: Error de integridad - {str(e)}")
+                        continue
+                    
+                    # Inscribir en curso si se especificó
+                    if curso_nombre:
+                        try:
+                            curso = Curso.objects.get(nombre__iexact=curso_nombre)
+                            progreso, prog_creado = ProgresoEstudiante.objects.get_or_create(
+                                estudiante=estudiante,
+                                curso=curso,
+                                defaults={'progreso': 0, 'completado': False}
+                            )
+                            if prog_creado:
+                                inscritos += 1
+                        except Curso.DoesNotExist:
+                            errores.append(f"Fila {row_idx}: Curso '{curso_nombre}' no encontrado")
+                
                 except Exception as e:
                     errores.append(f"Fila {row_idx}: {str(e)}")
             
-            # Configurar contexto de éxito
             context['exito'] = True
             context['creados'] = estudiantes_creados
             context['actualizados'] = estudiantes_actualizados
+            context['inscritos'] = inscritos
             context['total'] = estudiantes_creados + estudiantes_actualizados
             
             if errores:
-                context['advertencias'] = errores[:10]  # Mostrar primeras 10
+                context['advertencias'] = errores[:20]
         
         except Exception as e:
             context['error'] = f'Error al procesar el archivo: {str(e)}'
     
-    # GET: Mostrar formulario
     return render(request, 'admin/importar_estudiantes.html', context)
 
 
