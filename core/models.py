@@ -1431,7 +1431,7 @@ class SolicitudSoporte(models.Model):
     
     class Meta:
         verbose_name = 'Solicitud de Soporte'
-        verbose_name_plural = '🆘 Solicitudes de Soporte'
+        verbose_name_plural = '🆘 Soporte y PQRS'
         ordering = ['-fecha_solicitud']
         indexes = [
             models.Index(fields=['estado', 'prioridad']),

@@ -3347,6 +3347,7 @@ class SolicitudSoporteAdmin(admin.ModelAdmin):
     - Solicitudes de Soporte (Botón de Pánico)
     - PQRS (Peticiones, Quejas, Reclamos, Sugerencias)
     """
+    change_list_template = 'admin/core/solicitudsoporte/change_list.html'
     list_display = ('estudiante_info', 'keyword_badge', 'estado_badge', 'prioridad_badge', 'fecha_solicitud', 'tiempo_espera', 'pqrs_link', 'atendido_por_info')
     list_filter = ('estado', 'prioridad', 'keyword_usada', 'fecha_solicitud')
     search_fields = ('estudiante__nombre', 'estudiante__telefono', 'mensaje_original', 'respuesta')
@@ -3524,6 +3525,116 @@ class SolicitudSoporteAdmin(admin.ModelAdmin):
     def marcar_prioridad_alta(self, request, queryset):
         queryset.update(prioridad='alta')
         self.message_user(request, f"🚨 {queryset.count()} solicitud(es) marcada(s) como 'Prioridad Alta'")
+
+    def changelist_view(self, request, extra_context=None):
+        """Vista combinada: muestra panel de PQRS arriba de la lista de Soporte"""
+        extra_context = extra_context or {}
+        
+        # Estadísticas de PQRS
+        pqrs_total = PQRS.objects.count()
+        pqrs_pendientes = PQRS.objects.filter(estado='pendiente').count()
+        pqrs_en_proceso = PQRS.objects.filter(estado='en_proceso').count()
+        pqrs_resueltos = PQRS.objects.filter(estado='resuelto').count()
+        
+        # Estadísticas de Soporte
+        soporte_total = SolicitudSoporte.objects.count()
+        soporte_pendientes = SolicitudSoporte.objects.filter(estado='pendiente').count()
+        soporte_en_atencion = SolicitudSoporte.objects.filter(estado='en_atencion').count()
+        
+        # Últimas 5 PQRS para mostrar en el panel
+        ultimas_pqrs = PQRS.objects.select_related('estudiante').order_by('-fecha_creacion')[:5]
+        
+        extra_context.update({
+            'pqrs_total': pqrs_total,
+            'pqrs_pendientes': pqrs_pendientes,
+            'pqrs_en_proceso': pqrs_en_proceso,
+            'pqrs_resueltos': pqrs_resueltos,
+            'soporte_total': soporte_total,
+            'soporte_pendientes': soporte_pendientes,
+            'soporte_en_atencion': soporte_en_atencion,
+            'ultimas_pqrs': ultimas_pqrs,
+            'pqrs_panel_html': self._generar_panel_pqrs(
+                pqrs_total, pqrs_pendientes, pqrs_en_proceso, pqrs_resueltos,
+                soporte_total, soporte_pendientes, soporte_en_atencion, ultimas_pqrs
+            ),
+        })
+        
+        return super().changelist_view(request, extra_context=extra_context)
+    
+    def _generar_panel_pqrs(self, pqrs_total, pqrs_pendientes, pqrs_en_proceso, pqrs_resueltos,
+                             soporte_total, soporte_pendientes, soporte_en_atencion, ultimas_pqrs):
+        """Genera HTML del panel de PQRS para mostrar arriba de la lista"""
+        pqrs_rows = ''
+        for p in ultimas_pqrs:
+            tipo_color = {
+                'peticion': '#1976d2', 'queja': '#e65100', 'reclamo': '#c62828',
+                'sugerencia': '#7b1fa2', 'felicitacion': '#2e7d32'
+            }.get(p.tipo, '#666')
+            estado_color = {
+                'pendiente': '#e65100', 'en_proceso': '#1976d2', 'resuelto': '#2e7d32',
+                'cerrado': '#666', 'rechazado': '#c62828'
+            }.get(p.estado, '#666')
+            pqrs_rows += f'''
+                <tr>
+                    <td><span style="color:{tipo_color};font-weight:bold;">{p.get_tipo_display()}</span></td>
+                    <td>{p.estudiante.nombre}</td>
+                    <td>{p.asunto[:40]}</td>
+                    <td><span style="color:{estado_color};font-weight:bold;">{p.get_estado_display()}</span></td>
+                    <td><a href="/admin/core/pqrs/{p.id}/change/" style="color:#1976d2;">Editar</a></td>
+                </tr>'''
+        
+        return format_html('''
+            <div style="background:linear-gradient(135deg,#f5f5f5,#e8eaf6);padding:20px;border-radius:12px;margin-bottom:20px;border:1px solid #c5cae9;">
+                <h3 style="margin:0 0 15px 0;color:#283593;">🆘 Panel Unificado: Soporte y PQRS</h3>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px;">
+                    <div style="background:#fff;padding:12px 20px;border-radius:8px;border-left:4px solid #ff9800;flex:1;min-width:120px;">
+                        <div style="font-size:24px;font-weight:bold;color:#ff9800;">{}</div>
+                        <div style="color:#666;font-size:12px;">Soporte Pendiente</div>
+                    </div>
+                    <div style="background:#fff;padding:12px 20px;border-radius:8px;border-left:4px solid #2196f3;flex:1;min-width:120px;">
+                        <div style="font-size:24px;font-weight:bold;color:#2196f3;">{}</div>
+                        <div style="color:#666;font-size:12px;">Soporte En Atención</div>
+                    </div>
+                    <div style="background:#fff;padding:12px 20px;border-radius:8px;border-left:4px solid #e65100;flex:1;min-width:120px;">
+                        <div style="font-size:24px;font-weight:bold;color:#e65100;">{}</div>
+                        <div style="color:#666;font-size:12px;">PQRS Pendientes</div>
+                    </div>
+                    <div style="background:#fff;padding:12px 20px;border-radius:8px;border-left:4px solid #1976d2;flex:1;min-width:120px;">
+                        <div style="font-size:24px;font-weight:bold;color:#1976d2;">{}</div>
+                        <div style="color:#666;font-size:12px;">PQRS En Proceso</div>
+                    </div>
+                    <div style="background:#fff;padding:12px 20px;border-radius:8px;border-left:4px solid #2e7d32;flex:1;min-width:120px;">
+                        <div style="font-size:24px;font-weight:bold;color:#2e7d32;">{}</div>
+                        <div style="color:#666;font-size:12px;">PQRS Resueltos</div>
+                    </div>
+                </div>
+                <div style="background:#fff;padding:15px;border-radius:8px;margin-bottom:10px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                        <h4 style="margin:0;color:#333;">📮 Últimas PQRS</h4>
+                        <a href="/admin/core/pqrs/" style="background:#7b1fa2;color:white;padding:8px 16px;border-radius:8px;text-decoration:none;font-size:12px;font-weight:bold;">📮 Ver todas las PQRS →</a>
+                    </div>
+                    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                        <thead><tr style="background:#f5f5f5;">
+                            <th style="padding:8px;text-align:left;">Tipo</th>
+                            <th style="padding:8px;text-align:left;">Estudiante</th>
+                            <th style="padding:8px;text-align:left;">Asunto</th>
+                            <th style="padding:8px;text-align:left;">Estado</th>
+                            <th style="padding:8px;text-align:left;">Acción</th>
+                        </tr></thead>
+                        <tbody>{}</tbody>
+                    </table>
+                </div>
+                <div style="display:flex;gap:10px;">
+                    <a href="/admin/core/pqrs/add/" style="background:#7b1fa2;color:white;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold;">+ Nueva PQRS</a>
+                    <a href="/admin/core/pqrs/" style="background:#283593;color:white;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold;">📋 Gestionar PQRS</a>
+                </div>
+            </div>
+            <h3>📋 Solicitudes de Soporte (abajo)</h3>
+        ''',
+            soporte_pendientes, soporte_en_atencion,
+            pqrs_pendientes, pqrs_en_proceso, pqrs_resueltos,
+            format_html(pqrs_rows)
+        )
 
 
 # ========================================
@@ -4568,6 +4679,7 @@ class EnvioProgramadoAdmin(admin.ModelAdmin):
 @admin.register(PQRS)
 class PQRSAdmin(admin.ModelAdmin):
     """Gestión auxiliar de PQRS (Ver principalmente desde Solicitudes de Soporte)"""
+    change_list_template = 'admin/core/pqrs/change_list.html'
     list_display = ('tipo_badge', 'estudiante', 'asunto', 'prioridad_badge', 'estado_badge', 'soporte_link', 'fecha_creacion')
     list_filter = ('tipo', 'estado', 'prioridad', 'fecha_creacion')
     search_fields = ('asunto', 'descripcion', 'estudiante__nombre')
@@ -4656,6 +4768,12 @@ class PQRSAdmin(admin.ModelAdmin):
         else:
             self.message_user(request, "Selecciona solo una PQRS para crear solicitud", level='warning')
     crear_solicitud_soporte.short_description = "🆘 Crear solicitud de soporte urgente"
+
+    def changelist_view(self, request, extra_context=None):
+        """Agrega link de vuelta al panel unificado de Soporte y PQRS"""
+        extra_context = extra_context or {}
+        extra_context['title'] = '📮 PQRS — Parte del panel Soporte y PQRS'
+        return super().changelist_view(request, extra_context=extra_context)
 
 
 @admin.register(ArchivoModulo)

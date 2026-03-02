@@ -1,0 +1,9 @@
+{% extends "admin/change_list.html" %}
+
+{% block content %}
+<div style="background:#e8eaf6;padding:15px;border-radius:8px;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;">
+    <span style="color:#283593;font-weight:bold;">📮 Esta sección es parte del panel unificado de Soporte y PQRS</span>
+    <a href="/admin/core/solicitudsoporte/" style="background:#283593;color:white;padding:8px 16px;border-radius:8px;text-decoration:none;font-weight:bold;">← Volver al Panel Soporte y PQRS</a>
+</div>
+{{ block.super }}
+{% endblock %}

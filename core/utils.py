@@ -1,8 +1,11 @@
 # --- Generador de presigned URL con Content-Type correcto para S3 ---
 
 import boto3
+import logging
 from botocore.config import Config
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 def generar_url_firmada_s3_v4(bucket_name, object_name, expiration=3600):
@@ -28,10 +31,10 @@ def generar_url_firmada_s3_v4(bucket_name, object_name, expiration=3600):
             },
             ExpiresIn=expiration
         )
-        print(f"[DEBUG Presigned URL] {response}")
+        logger.debug(f"[Presigned URL] {response}")
         return response
     except Exception as e:
-        print(f"Error: {e}")
+        logger.error(f"Error generando presigned URL: {e}")
         return None
 import boto3
 from botocore.exceptions import NoCredentialsError
@@ -98,7 +101,7 @@ def enviar_whatsapp_twilio_content_template(telefono: str, content_sid: str, var
         twilio_number = 'whatsapp:+573202948806'
         
         if not account_sid or not auth_token:
-            print("[ERROR] Credenciales de Twilio NO configuradas")
+            logger.error("Credenciales de Twilio NO configuradas")
             return {'success': False, 'mensaje_id': None, 'response': 'Twilio credentials not set'}
         
         # Asegurar formato whatsapp:+57... para todos los destinatarios
@@ -107,9 +110,9 @@ def enviar_whatsapp_twilio_content_template(telefono: str, content_sid: str, var
             telefono_limpio = f'+{telefono_limpio}'
         telefono = f'whatsapp:{telefono_limpio}'
         
-        print(f"[TEMPLATE] Enviando a '{telefono}' con Content SID: {content_sid}")
-        print(f"[VARIABLES] {variables}")
-        print(f"[DEPURACION] FROM: '{twilio_number}' TO: '{telefono}' (verifica espacios invisibles)")
+        logger.info(f"[TEMPLATE] Enviando a '{telefono}' con Content SID: {content_sid}")
+        logger.debug(f"[VARIABLES] {variables}")
+        logger.debug(f"FROM: '{twilio_number}' TO: '{telefono}'")
         
         # Crear cliente Twilio
         client = Client(account_sid, auth_token)
@@ -134,19 +137,19 @@ def enviar_whatsapp_twilio_content_template(telefono: str, content_sid: str, var
             content_variables=json.dumps(variables),
             to=telefono
         )
-        print(f"[DEPURACION] Enviado con FROM: '{twilio_number}' TO: '{telefono}'")
+        logger.info(f"Template enviado FROM: '{twilio_number}' TO: '{telefono}'")
         
         # Actualizar log con éxito
         log.mensaje_id = message.sid
         log.estado = 'SENT'
         log.save()
         
-        print(f"[SUCCESS] Mensaje enviado con SID: {message.sid}")
+        logger.info(f"Template enviado OK SID: {message.sid}")
         
         return {'success': True, 'mensaje_id': message.sid, 'response': f'Sent: {message.status}'}
         
     except Exception as e:
-        print(f"[ERROR] Error al enviar template: {str(e)}")
+        logger.error(f"Error al enviar template: {str(e)}")
         if log:
             log.estado = 'ERROR'
             log.save()
@@ -174,12 +177,12 @@ def enviar_whatsapp_twilio(telefono: str, texto: str, mensaje_id_referencia: str
         account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', None)
         auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', None)
         twilio_number = str(formatear_numero_whatsapp('573202948806')).strip()
-        print(f"[TWILIO] Account SID: {'...' + account_sid[-4:] if account_sid else None}")
-        print(f"[TWILIO] Auth Token: {'configured' if auth_token else 'MISSING'}")
-        print(f"[TWILIO] WhatsApp Number: '{twilio_number}'")
+        logger.info(f"[TWILIO] Account SID: {'...' + account_sid[-4:] if account_sid else None}")
+        logger.info(f"[TWILIO] Auth Token: {'configured' if auth_token else 'MISSING'}")
+        logger.info(f"[TWILIO] WhatsApp Number: '{twilio_number}'")
 
         if not account_sid or not auth_token:
-            print("[ERROR] Credenciales de Twilio NO configuradas")
+            logger.error("Credenciales de Twilio NO configuradas")
             return {'success': False, 'mensaje_id': None, 'response': 'Twilio credentials not set'}
 
         # Blindar el número destinatario contra error 21212
@@ -220,9 +223,9 @@ def enviar_whatsapp_twilio(telefono: str, texto: str, mensaje_id_referencia: str
                     presigned_params['ResponseContentType'] = response_content_type
                 
                 media_url = generar_url_firmada_s3_v4(bucket, key)
-                print(f"[S3] Presigned URL generada para {ext}: {media_url[:100]}...")
+                logger.info(f"[S3] Presigned URL generada para {ext}: {media_url[:100]}...")
             except Exception as e:
-                print(f"[S3] Error generando presigned URL, usando URL original: {e}")
+                logger.warning(f"[S3] Error generando presigned URL, usando URL original: {e}")
 
         # Crear cliente Twilio
         client = Client(account_sid, auth_token)
@@ -239,7 +242,7 @@ def enviar_whatsapp_twilio(telefono: str, texto: str, mensaje_id_referencia: str
                 fecha=timezone.now()
             )
         except Exception as log_err:
-            print(f"[WARNING] No se pudo crear log preliminar: {log_err}")
+            logger.warning(f"No se pudo crear log preliminar: {log_err}")
             log = None
 
         # Preparar parámetros del mensaje
@@ -253,11 +256,11 @@ def enviar_whatsapp_twilio(telefono: str, texto: str, mensaje_id_referencia: str
         if media_url:
             clean_url = str(media_url).strip()
             message_params['media_url'] = [clean_url]
-            print(f"[MEDIA] Enviando con multimedia: {clean_url}")
+            logger.info(f"[MEDIA] Enviando con multimedia: {clean_url}")
 
         # Enviar mensaje (con o sin media)
         message = client.messages.create(**message_params)
-        print(f"[DEPURACION] Enviado con FROM: '{twilio_number}' TO: '{telefono}'")
+        logger.info(f"Enviado FROM: '{twilio_number}' TO: '{telefono}'")
 
         if log:
             try:
@@ -265,14 +268,14 @@ def enviar_whatsapp_twilio(telefono: str, texto: str, mensaje_id_referencia: str
                 log.estado = 'SENT'
                 log.save()
             except Exception as log_err:
-                print(f"[WARNING] No se pudo actualizar log: {log_err}")
+                logger.warning(f"No se pudo actualizar log: {log_err}")
 
-        print(f"[SUCCESS] TWILIO: Mensaje enviado a {telefono} - SID: {message.sid}")
+        logger.info(f"TWILIO: Mensaje enviado a {telefono} - SID: {message.sid}")
 
         return {'success': True, 'mensaje_id': message.sid, 'response': 'Message sent'}
         
     except Exception as e:
-        print(f"[ERROR] Error enviando por Twilio: {str(e)}")
+        logger.error(f"Error enviando por Twilio: {str(e)}")
         if log:  # Solo actualizar si el log existe
             log.estado = 'ERROR'
             log.save()

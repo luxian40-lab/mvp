@@ -1,0 +1,8 @@
+{% extends "admin/change_list.html" %}
+
+{% block content %}
+{% if cl.result_list or pqrs_panel_html %}
+    {{ pqrs_panel_html }}
+{% endif %}
+{{ block.super }}
+{% endblock %}
