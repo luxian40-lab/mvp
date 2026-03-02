@@ -1129,6 +1129,7 @@ def _procesar_twilio_webhook(post_data):
         # MÁQUINA DE ESTADOS B2B (Onboarding con Botones Twilio)
         # ============================================================
         estado_chat = getattr(estudiante, 'estado_chat', None)
+        logger.info(f"📍 Estado estudiante {estudiante.nombre}: estado_chat={estado_chat}, onboarding={estudiante.estado_onboarding}, acepto={estudiante.acepto_terminos}")
         
         # Migrar estudiantes legacy al nuevo sistema
         if not estado_chat or estado_chat in ('', None):
@@ -1140,6 +1141,17 @@ def _procesar_twilio_webhook(post_data):
                 estudiante.estado_chat = 'ESPERANDO_HABEAS_DATA'
             estudiante.save()
             estado_chat = estudiante.estado_chat
+            logger.info(f"📍 Legacy migration: estado_chat → {estado_chat}")
+        
+        # Auto-corregir: admin creó estudiante con acepto_terminos=True pero estado_chat quedó en ESPERANDO_HABEAS_DATA
+        if estado_chat == 'ESPERANDO_HABEAS_DATA' and estudiante.acepto_terminos:
+            if estudiante.estado_onboarding == 'completado':
+                estudiante.estado_chat = 'ACTIVO'
+            else:
+                estudiante.estado_chat = 'ESPERANDO_CEDULA'
+            estudiante.save()
+            estado_chat = estudiante.estado_chat
+            logger.info(f"📍 Auto-corrección admin: estado_chat → {estado_chat}")
         
         # --- BARRERA 1: HABEAS DATA ---
         if estado_chat == 'ESPERANDO_HABEAS_DATA':
@@ -1196,7 +1208,8 @@ def _procesar_twilio_webhook(post_data):
                 client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
                 WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
             except Exception as e:
-                print(f"❌ Error enviando habeas data: {e}")
+                logger.error(f"❌ Error enviando habeas data: {e}")
+                import traceback; traceback.print_exc()
             return  # CORTAR EJECUCIÓN
         
         # --- BARRERA 2: VALIDACIÓN 2FA (Cédula) ---
@@ -1255,7 +1268,8 @@ def _procesar_twilio_webhook(post_data):
                 client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
                 WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
             except Exception as e:
-                print(f"❌ Error enviando validación 2FA: {e}")
+                logger.error(f"❌ Error enviando validación 2FA: {e}")
+                import traceback; traceback.print_exc()
             return  # CORTAR EJECUCIÓN
         
         # --- BARRERA 3: CONFIRMACIÓN DE DATOS ---
@@ -1327,7 +1341,8 @@ def _procesar_twilio_webhook(post_data):
                 client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
                 WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
             except Exception as e:
-                print(f"❌ Error enviando confirmación: {e}")
+                logger.error(f"❌ Error enviando confirmación: {e}")
+                import traceback; traceback.print_exc()
             return  # CORTAR EJECUCIÓN
         
         # --- BARRERA 3B: AUTO-CORRECCIÓN DE DATOS ---
@@ -1423,7 +1438,8 @@ def _procesar_twilio_webhook(post_data):
                 client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
                 WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
             except Exception as e:
-                print(f"❌ Error enviando ayuda modificar: {e}")
+                logger.error(f"❌ Error enviando ayuda modificar: {e}")
+                import traceback; traceback.print_exc()
             return
         
         # ============================================================
@@ -1432,9 +1448,88 @@ def _procesar_twilio_webhook(post_data):
         # Detectar acciones del menú principal (tanto ACTIVO como completado)
         if estado_chat == 'ACTIVO' or estudiante.estado_onboarding == 'completado':
             msg_lower = msg_body.strip().lower()
+            logger.info(f"📍 ACTIVO handler: msg='{msg_lower}', onboarding={estudiante.estado_onboarding}")
+            
+            # PRIORIDAD: Si está seleccionando curso, NO interceptar números
+            if estudiante.estado_onboarding == 'esperando_seleccion_curso':
+                if msg_lower in ['menu', 'menú']:
+                    estudiante.estado_onboarding = 'completado'
+                    estudiante.contexto_temporal = None
+                    estudiante.save()
+                    from .response_templates import get_response_for_intent
+                    texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
+                elif msg_body.strip().isdigit():
+                    indice = int(msg_body.strip())
+                    from .selector_curso import continuar_curso_seleccionado
+                    estudiante.estado_onboarding = 'completado'
+                    estudiante.contexto_temporal = None
+                    estudiante.save()
+                    texto_respuesta = continuar_curso_seleccionado(estudiante.id, indice, msg_body)
+                    logger.info(f"✅ Curso seleccionado: {indice}")
+                else:
+                    # No es número ni menú → resetear y procesar normalmente
+                    estudiante.estado_onboarding = 'completado'
+                    estudiante.contexto_temporal = None
+                    estudiante.save()
+                    from .intent_detector import detect_intent
+                    from .response_templates import get_response_for_intent
+                    intent = detect_intent(msg_body)
+                    if intent != 'desconocido':
+                        texto_respuesta = get_response_for_intent(intent, estudiante.nombre, estudiante_id=estudiante.id, mensaje_original=msg_body)
+                    else:
+                        texto_respuesta = "No entendí tu selección. Escribe *menú* para ver las opciones."
+                # — Enviar respuesta de selección de curso y CORTAR —
+                try:
+                    from twilio.rest import Client as TwilioClient
+                    account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                    auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                    twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
+                    client_tw = TwilioClient(account_sid, auth_token)
+                    destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
+                    # Check for multi-message or media markers
+                    if texto_respuesta.startswith('[MULTI_MSG]'):
+                        partes = texto_respuesta.replace('[MULTI_MSG]', '', 1).split('[SEP]')
+                        for parte in partes:
+                            if not parte.strip():
+                                continue
+                            import re as re_multi
+                            parte_texto = parte.strip()
+                            parte_media = None
+                            media_m = re_multi.search(r'\[MEDIA:(.*?)\]', parte_texto)
+                            if media_m:
+                                parte_media = media_m.group(1).strip()
+                                parte_texto = parte_texto.replace(media_m.group(0), '').strip()
+                            mp = {'body': parte_texto, 'from_': str(twilio_number).strip(), 'to': str(destino).strip()}
+                            if parte_media:
+                                mp['media_url'] = [parte_media]
+                            try:
+                                client_tw.messages.create(**mp)
+                            except Exception:
+                                mp.pop('media_url', None)
+                                client_tw.messages.create(**mp)
+                            import time; time.sleep(0.5)
+                    else:
+                        media_url_sel = None
+                        import re as re_sel
+                        media_m = re_sel.search(r'\[MEDIA:(.*?)\]', texto_respuesta)
+                        if media_m:
+                            media_url_sel = media_m.group(1).strip()
+                            texto_respuesta = texto_respuesta.replace(media_m.group(0), '').strip()
+                        mp = {'body': texto_respuesta, 'from_': str(twilio_number).strip(), 'to': str(destino).strip()}
+                        if media_url_sel:
+                            mp['media_url'] = [media_url_sel]
+                        try:
+                            client_tw.messages.create(**mp)
+                        except Exception:
+                            mp.pop('media_url', None)
+                            client_tw.messages.create(**mp)
+                    WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta[:500], tipo='SENT')
+                except Exception as e:
+                    logger.error(f"❌ Error enviando selección curso: {e}")
+                return  # CORTAR EJECUCIÓN
             
             # Detectar "Mis cursos" (botón o texto)
-            if msg_lower in ['1', 'mis cursos', 'cursos', '📚 mis cursos', 'mis cursos']:
+            elif msg_lower in ['1', 'mis cursos', 'cursos', '📚 mis cursos']:
                 estudiante.estado_onboarding = 'esperando_seleccion_curso'
                 estudiante.save()
                 from .whatsapp_service import enviar_lista_cursos
@@ -1442,13 +1537,13 @@ def _procesar_twilio_webhook(post_data):
                 return
             
             # Detectar "Mis puntos" (botón o texto)
-            if msg_lower in ['2', 'mis puntos', 'puntos', '🏆 mis puntos', 'mis puntos']:
+            elif msg_lower in ['2', 'mis puntos', 'puntos', '🏆 mis puntos']:
                 from .whatsapp_service import enviar_gamificacion_visual
                 enviar_gamificacion_visual(msg_from, estudiante)
                 return
             
-            # Detectar "Necesito ayuda" (botón o texto)
-            if msg_lower in ['3', 'necesito ayuda', 'ayuda', '🙋‍♂️ necesito ayuda', 'necesito ayuda']:
+            # Detectar "Necesito ayuda" / PQRS / Soporte (todo unificado)
+            elif msg_lower in ['3', 'necesito ayuda', 'ayuda', '🙋‍♂️ necesito ayuda', 'pqrs', 'soporte', 'queja', 'reclamo', 'solicitud']:
                 from .security_handler import procesar_solicitud_soporte
                 respuesta = procesar_solicitud_soporte(estudiante, msg_body, 'menu_ayuda')
                 try:
@@ -1465,7 +1560,7 @@ def _procesar_twilio_webhook(post_data):
                 return
             
             # Detectar "menú" - enviar menú principal
-            if msg_lower in ['menu', 'menú', 'inicio', 'hola']:
+            elif msg_lower in ['menu', 'menú', 'inicio', 'hola']:
                 org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
                 from .whatsapp_service import enviar_menu_principal
                 resultado = enviar_menu_principal(msg_from, estudiante.nombre)

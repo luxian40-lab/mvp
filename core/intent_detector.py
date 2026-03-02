@@ -74,9 +74,11 @@ def detect_intent(mensaje: str) -> str:
     if texto_limpio in ['tareas', 'cursos', 'curso', 'lecciones', 'lección', 'actividades', 'qué hacer', 'que hacer', 'clases', 'clase', 'modulos', 'módulos', 'ver tareas', 'mis tareas']:
         return 'tareas'
     
-    # Ayuda (solo comandos directos)
-    if texto_limpio in ['ayuda', 'help', 'ayudame', 'ayúdame', 'no sé', 'no se', 'apoyo']:
-        return 'ayuda'
+    # Ayuda / PQRS / Soporte (todo unificado)
+    if texto_limpio in ['ayuda', 'help', 'ayudame', 'ayúdame', 'no sé', 'no se', 'apoyo',
+                         'pqrs', 'soporte', 'queja', 'reclamo', 'solicitud', 'petición', 'peticion',
+                         'necesito ayuda', 'necesito soporte']:
+        return 'opcion_3'
     
     # NOTA: Removidos intents de café, cacao, aguacate individuales
     # Ahora solo se usan cursos a través de "ver cursos" e inscripción
