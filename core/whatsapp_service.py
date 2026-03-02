@@ -116,21 +116,15 @@ def enviar_menu_principal(telefono, nombre):
 
 def enviar_lista_cursos(telefono, estudiante):
     """
-    Envía lista dinámica de cursos usando Content Templates de Twilio.
-    Selecciona el template correcto según la cantidad de cursos:
-    - 1 curso → listadocursos1 (1 botón)
-    - 2 cursos → listadocursos2 (2 botones)
-    - 3 cursos → listadocursos3 (3 botones)
-    - 4+ cursos → listadocursos4 (variable {{4}} = lista de cursos adicionales)
-    
-    Para usuarios con muchos cursos, listadocursos4 usa {{4}} como texto
-    con la lista completa formateada.
+    Envía lista dinámica de cursos como texto plano (más confiable).
+    Muestra progreso del estudiante en cada curso.
+    El estudiante solo necesita escribir el número para seleccionar.
     """
     from .models import Curso, ProgresoEstudiante
     
     org = estudiante.cliente
     
-    # Obtener TODOS los cursos activos del estudiante (no limitar a 3)
+    # Obtener TODOS los cursos activos del estudiante
     if org:
         cursos = Curso.objects.filter(
             cliente=org, activo=True
@@ -154,72 +148,34 @@ def enviar_lista_cursos(telefono, estudiante):
     ).select_related('curso')
     progreso_map = {p.curso_id: p for p in progresos}
     
-    # Seleccionar template según cantidad de cursos
-    if cantidad == 1:
-        template_key = 'listadocursos1'
-        variables = {
-            '1': estudiante.nombre or 'Estudiante',
-            '2': cursos_list[0].nombre,
-        }
-    elif cantidad == 2:
-        template_key = 'listadocursos2'
-        variables = {
-            '1': estudiante.nombre or 'Estudiante',
-            '2': cursos_list[0].nombre,
-            '3': cursos_list[1].nombre,
-        }
-    elif cantidad == 3:
-        template_key = 'listadocursos3'
-        variables = {
-            '1': estudiante.nombre or 'Estudiante',
-            '2': cursos_list[0].nombre,
-            '3': cursos_list[1].nombre,
-            '4': cursos_list[2].nombre,
-        }
-    else:
-        # 4+ cursos: usar listadocursos4
-        # {{1}}=nombre, {{2}}=curso1, {{3}}=curso2, {{4}}=lista restante
-        template_key = 'listadocursos4'
-        
-        # Construir lista de cursos restantes (3+)
-        cursos_extra = []
-        for idx, curso in enumerate(cursos_list[2:], 3):
-            prog = progreso_map.get(curso.id)
-            estado = ""
-            if prog:
-                if prog.completado:
-                    estado = " ✅"
-                else:
-                    estado = f" ({prog.porcentaje_avance()}%)"
-            cursos_extra.append(f"{idx}. {curso.nombre}{estado}")
-        
-        lista_restante = "\n".join(cursos_extra)
-        
-        variables = {
-            '1': estudiante.nombre or 'Estudiante',
-            '2': cursos_list[0].nombre,
-            '3': cursos_list[1].nombre,
-            '4': lista_restante,
-        }
+    nombre = estudiante.nombre or 'Estudiante'
+    org_nombre = org.nombre if org else 'eki'
     
-    resultado = enviar_template_twilio(
-        telefono,
-        TWILIO_CONTENT_SIDS[template_key],
-        variables=variables
-    )
-    
-    if resultado.get('success'):
-        return resultado
-    
-    # Fallback: enviar texto plano si template falla
-    logger.warning(f"Template {template_key} fallo, usando texto plano")
-    msg = f"📚 *Cursos disponibles para {org.nombre if org else 'ti'}:*\n"
+    msg = f"📚 *Cursos disponibles — {org_nombre}*\n"
+    msg += f"Hola *{nombre}*, estos son tus cursos:\n\n"
     msg += "━━━━━━━━━━━━━━━━━━━\n\n"
+    
     for idx, curso in enumerate(cursos_list, 1):
         emoji = curso.emoji or "📖"
-        msg += f"{idx}. {emoji} *{curso.nombre}*\n\n"
-    msg += "━━━━━━━━━━━━━━━━━━━\n"
-    msg += "👉 Escribe el *número* del curso para entrar\n"
+        prog = progreso_map.get(curso.id)
+        estado = ""
+        if prog:
+            if prog.completado:
+                estado = " ✅ Completado"
+            else:
+                porcentaje = prog.porcentaje_avance()
+                if porcentaje > 0:
+                    estado = f" ⏳ {porcentaje}%"
+                else:
+                    estado = " 🆕"
+        else:
+            estado = " 🆕"
+        
+        msg += f"*{idx}.* {emoji} {curso.nombre}{estado}\n"
+    
+    msg += "\n━━━━━━━━━━━━━━━━━━━\n\n"
+    msg += "👉 Escribe el *número* del curso\n"
+    msg += "     Ejemplo: *1*\n\n"
     msg += "👉 Escribe *menú* para volver"
     
     from .utils import enviar_whatsapp_twilio

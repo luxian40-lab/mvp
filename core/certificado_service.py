@@ -188,29 +188,21 @@ def enviar_certificado_whatsapp(certificado):
         if plantilla and (getattr(plantilla, 'archivo_plantilla_imagen', None) or getattr(plantilla, 'url_plantilla_imagen', None)):
             # Si el certificado tiene imagen generada
             if certificado.archivo_imagen:
-                raw_url = certificado.archivo_imagen.url
                 usar_imagen = True
-                # Si ya es URL completa (S3), usarla directamente
-                if raw_url.startswith('http'):
-                    media_url = raw_url
-                else:
-                    if settings.DEBUG:
-                        base_url = "http://localhost:8000"
-                    else:
-                        base_url = getattr(settings, 'BASE_URL', 'https://eki.com')
-                    media_url = f"{base_url}{raw_url}"
+                # Siempre usar presigned URL para que Twilio pueda descargar
+                from .response_templates import _generar_presigned_url_s3
+                key = certificado.archivo_imagen.name.lstrip('/')
+                media_url = _generar_presigned_url_s3(key, expires_in=3600)
 
         # Si no es plantilla imagen o no hay imagen generada, usar PDF como antes
         if not usar_imagen:
-            raw_url = certificado.archivo_pdf.url
-            if raw_url.startswith('http'):
-                media_url = raw_url
+            if certificado.archivo_pdf:
+                from .response_templates import _generar_presigned_url_s3
+                key = certificado.archivo_pdf.name.lstrip('/')
+                media_url = _generar_presigned_url_s3(key, expires_in=3600)
             else:
-                if settings.DEBUG:
-                    base_url = "http://localhost:8000"
-                else:
-                    base_url = getattr(settings, 'BASE_URL', 'https://eki.com')
-                media_url = f"{base_url}{raw_url}"
+                logger.error(f"Certificado {certificado.codigo_verificacion} no tiene archivo")
+                return False
 
         verificacion_url = certificado.obtener_url_verificacion()
         mencion = certificado.obtener_mencion()

@@ -659,7 +659,7 @@ Get-Content logs/eki.log -Wait  # Windows
 
 ### Contacto Desarrollo
 
-- **Email**: soporte@eki.com (ajustar)
+- **Email**: comunidad.educativa@eki.com.co
 - **Repositorio**: github.com/tu-usuario/eki_mvp (ajustar)
 - **Documentación**: Este archivo
 

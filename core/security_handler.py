@@ -256,7 +256,7 @@ KEYWORDS_ACEPTACION = [
 
 # Link a política de datos (actualizar con tu URL real)
 URL_POLITICA_DATOS = getattr(settings, 'URL_POLITICA_DATOS', 'https://www.eki.com.co/home/')
-EMAIL_SOPORTE = getattr(settings, 'EMAIL_SOPORTE', 'soporte@eki.com')
+EMAIL_SOPORTE = getattr(settings, 'EMAIL_SOPORTE', 'comunidad.educativa@eki.com.co')
 
 
 # ========== HABEAS DATA ==========

@@ -146,6 +146,7 @@ class Estudiante(models.Model):
         ('ESPERANDO_CEDULA', 'Esperando Cédula (2FA)'),
         ('CONFIRMANDO_DATOS', 'Confirmando Datos'),
         ('ESPERANDO_AYUDA_MODIFICAR', 'Esperando Ayuda Modificar Datos'),
+        ('ESPERANDO_CORRECCION_DATOS', 'Esperando Corrección Datos'),
         ('ACTIVO', 'Activo'),
         # Estados legacy del onboarding anterior
         ('nuevo', 'Nuevo (legacy)'),

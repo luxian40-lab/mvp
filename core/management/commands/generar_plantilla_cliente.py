@@ -106,7 +106,7 @@ class Command(BaseCommand):
             self.stdout.write('  • Verificar que los números estén activos en WhatsApp')
             self.stdout.write('  • No duplicar números de teléfono')
             
-            self.stdout.write('\n📤 Enviar plantilla completada a: soporte@eki.com')
+            self.stdout.write('\n📤 Enviar plantilla completada a: comunidad.educativa@eki.com.co')
             
             # Generar archivo de instrucciones
             instrucciones_file = output_file.replace('.csv', '_INSTRUCCIONES.txt')
@@ -143,7 +143,7 @@ class Command(BaseCommand):
                 f.write('  Incorrecto: 300 123 4567\n\n')
                 
                 f.write('📤 ENVÍO:\n')
-                f.write('  Email: soporte@eki.com\n')
+                f.write('  Email: comunidad.educativa@eki.com.co\n')
                 f.write('  Asunto: "Inscripción Estudiantes - ')
                 if cliente_nombre:
                     f.write(cliente_nombre)
@@ -158,7 +158,7 @@ class Command(BaseCommand):
                 f.write('  • Total: 24-48 horas\n\n')
                 
                 f.write('📞 SOPORTE:\n')
-                f.write('  Email: soporte@eki.com\n')
+                f.write('  Email: comunidad.educativa@eki.com.co\n')
                 f.write('  Horario: Lunes a Viernes, 8am - 6pm\n\n')
                 
                 f.write('✅ CHECKLIST ANTES DE ENVIAR:\n')
@@ -171,7 +171,7 @@ class Command(BaseCommand):
                 
                 f.write('═' * 70 + '\n')
                 f.write('¡Gracias por elegir EKI! 🌱\n')
-                f.write('www.eki.com | soporte@eki.com\n')
+                f.write('www.eki.com.co | comunidad.educativa@eki.com.co\n')
                 f.write('═' * 70 + '\n')
             
             self.stdout.write(self.style.SUCCESS(f'\n📄 Instrucciones generadas: {instrucciones_file}'))

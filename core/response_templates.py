@@ -267,7 +267,7 @@ Escribe "continuar", "ver cursos" o "mi progreso"."""
     
     # Opción 2: SIEMPRE = Ver cursos disponibles
     if intent == 'opcion_2':
-        from .models import Curso
+        from .models import Curso, Estudiante
         cursos_activos = Curso.objects.filter(activo=True).order_by('orden')
         
         if not cursos_activos.exists():
@@ -281,8 +281,19 @@ Escribe "continuar", "ver cursos" o "mi progreso"."""
         
         respuesta += "━━━━━━━━━━━━━━━━━━━\n\n"
         respuesta += "Para inscribirte en un curso:\n"
-        respuesta += "👉 Escribe *TOMAR 1* o *TOMAR 2*\n\n"
+        respuesta += "👉 Escribe el *número* (ej: *1* o *2*)\n\n"
         respuesta += "También puedes escribir *MENÚ* para volver"
+        
+        # Configurar estado para interceptar la selección numérica
+        estudiante_id = kwargs.get('estudiante_id')
+        if estudiante_id:
+            try:
+                est = Estudiante.objects.get(id=estudiante_id)
+                est.estado_onboarding = 'esperando_seleccion_curso'
+                est.save()
+            except Estudiante.DoesNotExist:
+                pass
+        
         return respuesta
     
     # Opción 3: SIEMPRE = Ayuda/Soporte
@@ -894,9 +905,25 @@ Escribe *"mi progreso"* para ver tu avance"""
                     import logging
                     logging.getLogger(__name__).warning(f"⚠️ María resumen falló: {e}")
                 
-                # Imagen de certificado
-                CERT_IMAGE_URL = 'https://eki-produccion.s3.us-east-2.amazonaws.com/pruebas/certidicado.jpeg'
-                msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{CERT_IMAGE_URL}]"
+                # Imagen de certificado — usar presigned URL
+                msg_cert_img = ""
+                try:
+                    from .certificado_service import crear_certificado_automatico
+                    cert = crear_certificado_automatico(estudiante, progreso.curso)
+                    if cert and cert.archivo_imagen:
+                        key = cert.archivo_imagen.name.lstrip('/')
+                        cert_url = _generar_presigned_url_s3(key, expires_in=3600)
+                        msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                    elif cert and cert.archivo_pdf:
+                        key = cert.archivo_pdf.name.lstrip('/')
+                        cert_url = _generar_presigned_url_s3(key, expires_in=3600)
+                        msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert_url}"
+                    else:
+                        msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(f"⚠️ Certificado falló: {e}")
+                    msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
                 
                 partes = []
                 if msg_resumen:

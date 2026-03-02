@@ -1061,7 +1061,7 @@ def _procesar_twilio_webhook(post_data):
                                 subject=f"🏢 Nuevo Lead B2B - {prospecto.empresa or prospecto.telefono}",
                                 message=f"Nuevo prospecto capturado por el bot:\n\nTeléfono: {prospecto.telefono}\nEmpresa: {prospecto.empresa}\nEmail: {prospecto.email}\nMensaje: {prospecto.mensaje_original}",
                                 from_email=settings.DEFAULT_FROM_EMAIL,
-                                recipient_list=[getattr(settings, 'EMAIL_SOPORTE', 'soporte@eki.com')],
+                                recipient_list=[getattr(settings, 'EMAIL_SOPORTE', 'comunidad.educativa@eki.com.co')],
                                 fail_silently=True
                             )
                         except Exception:
@@ -1092,7 +1092,7 @@ def _procesar_twilio_webhook(post_data):
                         "🙋‍♂️ *¡Entendido!*\n\n"
                         "Si eres estudiante y cambiaste de número, "
                         "por favor contacta a tu coordinador o escribe a:\n\n"
-                        "📧 soporte@eki.com\n\n"
+                        "📧 comunidad.educativa@eki.com.co\n\n"
                         "Incluye tu nombre completo y número de cédula para que podamos ayudarte."
                     )
                 else:
@@ -1287,20 +1287,28 @@ def _procesar_twilio_webhook(post_data):
                     "3️⃣ 🙋‍♂️ *Necesito ayuda*"
                 )
             elif any(k in msg_lower for k in keywords_modificar):
-                # Botón "Modificar" presionado → mostrar centro de ayuda
+                # Botón "Modificar" presionado → permitir auto-corrección
                 texto_respuesta = (
-                    "📝 *Centro de Ayuda — Modificación de Datos*\n\n"
-                    "Para corregir tus datos, elige una opción:\n\n"
-                    "1️⃣ 📧 *Escribir a soporte*\n"
-                    "   soporte@eki.com\n\n"
-                    "2️⃣ 📞 *Contactar coordinador*\n"
-                    "   Pide a tu coordinador que actualice tus datos\n\n"
-                    "3️⃣ 🔄 *Reintentar verificación*\n"
-                    "   Escribe tu cédula de nuevo\n\n"
-                    "👉 Escribe el *número* de tu opción"
+                    "📝 *Corrección de Datos*\n\n"
+                    "Puedes corregir tus datos tú mismo.\n\n"
+                    "Escribe tus datos correctos en este formato:\n\n"
+                    "1️⃣ Nombre completo\n"
+                    "2️⃣ Municipio\n"
+                    "3️⃣ Tipo documento (CC, TI, CE o PP)\n"
+                    "4️⃣ Número de documento\n\n"
+                    "📝 _Ejemplo:_\n"
+                    "_María García_\n"
+                    "_Bogotá_\n"
+                    "_CC_\n"
+                    "_52456789_\n\n"
+                    "📝 _O todo en una línea:_\n"
+                    "_María García, Bogotá, CC, 52456789_\n\n"
+                    "━━━━━━━━━━━━━━━━━━━\n"
+                    "👉 Escribe *3* para reintentar cédula\n"
+                    "👉 Escribe *menú* si todo ya está bien"
                 )
                 # Guardar estado para manejar la respuesta
-                estudiante.estado_chat = 'ESPERANDO_AYUDA_MODIFICAR'
+                estudiante.estado_chat = 'ESPERANDO_CORRECCION_DATOS'
                 estudiante.save()
             else:
                 texto_respuesta = (
@@ -1322,8 +1330,8 @@ def _procesar_twilio_webhook(post_data):
                 print(f"❌ Error enviando confirmación: {e}")
             return  # CORTAR EJECUCIÓN
         
-        # --- BARRERA 3B: AYUDA MODIFICACIÓN DE DATOS ---
-        if estado_chat == 'ESPERANDO_AYUDA_MODIFICAR':
+        # --- BARRERA 3B: AUTO-CORRECCIÓN DE DATOS ---
+        if estado_chat in ('ESPERANDO_AYUDA_MODIFICAR', 'ESPERANDO_CORRECCION_DATOS'):
             msg_lower = msg_body.strip().lower()
             
             if msg_lower in ['3', 'reintentar', 'verificación', 'verificacion', 'cédula', 'cedula']:
@@ -1336,33 +1344,74 @@ def _procesar_twilio_webhook(post_data):
                     "(solo números, sin puntos ni espacios).\n\n"
                     "👉 Ejemplo: 1234567890"
                 )
-            elif msg_lower in ['1', 'soporte', 'correo', 'email']:
-                texto_respuesta = (
-                    "📧 *Escríbenos a:* soporte@eki.com\n\n"
-                    "Incluye:\n"
-                    "• Tu nombre completo\n"
-                    "• Tu número de cédula\n"
-                    "• Qué dato necesitas corregir\n\n"
-                    "Te responderemos lo antes posible. 🌱"
-                )
-                estudiante.estado_chat = 'CONFIRMANDO_DATOS'
+            elif msg_lower in ['menu', 'menú']:
+                estudiante.estado_chat = 'ACTIVO'
+                estudiante.estado_onboarding = 'completado'
                 estudiante.save()
-            elif msg_lower in ['2', 'coordinador', 'contactar']:
+                from .whatsapp_service import enviar_menu_principal
+                resultado = enviar_menu_principal(msg_from, estudiante.nombre)
+                if resultado.get('success'):
+                    return
                 texto_respuesta = (
-                    "📞 *Contacta a tu coordinador*\n\n"
-                    "Pídele que actualice tus datos en la plataforma.\n"
-                    "Una vez corregidos, escríbenos de nuevo para continuar.\n\n"
-                    "Escribe *menú* cuando estés listo."
+                    f"🚜 *¡Hola {estudiante.nombre}!*\n\n"
+                    "¿Qué hacemos hoy?\n\n"
+                    "1️⃣ 📚 *Mis cursos*\n"
+                    "2️⃣ 🏆 *Mis puntos*\n"
+                    "3️⃣ 🙋‍♂️ *Necesito ayuda*"
                 )
-                estudiante.estado_chat = 'CONFIRMANDO_DATOS'
-                estudiante.save()
             else:
-                texto_respuesta = (
-                    "Por favor elige una opción:\n\n"
-                    "1️⃣ Escribir a soporte\n"
-                    "2️⃣ Contactar coordinador\n"
-                    "3️⃣ Reintentar verificación"
-                )
+                # Intentar parsear los datos corregidos
+                from .security_handler import _parsear_datos_registro
+                resultado = _parsear_datos_registro(msg_body, estudiante)
+                if resultado:
+                    nombre, municipio, tipo_doc, cedula = resultado
+                    estudiante.nombre = nombre
+                    estudiante.municipio = municipio
+                    estudiante.tipo_documento = tipo_doc
+                    estudiante.cedula = cedula
+                    estudiante.estado_chat = 'CONFIRMANDO_DATOS'
+                    estudiante.save()
+                    
+                    logger.info(f"✅ Datos auto-corregidos: {nombre}, {municipio}, {tipo_doc} {cedula}")
+                    
+                    # Enviar confirmación con datos actualizados
+                    org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
+                    from .whatsapp_service import enviar_confirmacion_datos
+                    resultado_envio = enviar_confirmacion_datos(
+                        msg_from,
+                        nombre,
+                        f"{tipo_doc} {cedula}",
+                        org_nombre
+                    )
+                    if resultado_envio.get('success'):
+                        return
+                    
+                    # Fallback texto
+                    texto_respuesta = (
+                        "✅ *¡Datos actualizados!*\n\n"
+                        f"👤 *Nombre:* {nombre}\n"
+                        f"📍 *Municipio:* {municipio}\n"
+                        f"🆔 *Documento:* {tipo_doc} {cedula}\n"
+                        f"🏢 *Organización:* {org_nombre}\n\n"
+                        "*¿Tus datos están correctos?*\n\n"
+                        "👉 Escribe *Sí* si todo está bien\n"
+                        "👉 Escribe *No* si hay un error"
+                    )
+                else:
+                    texto_respuesta = (
+                        "❌ No pude entender tus datos.\n\n"
+                        "Por favor escríbelos en este formato:\n\n"
+                        "📝 _Ejemplo:_\n"
+                        "_María García_\n"
+                        "_Bogotá_\n"
+                        "_CC_\n"
+                        "_52456789_\n\n"
+                        "📝 _O todo en una línea:_\n"
+                        "_María García, Bogotá, CC, 52456789_\n\n"
+                        "━━━━━━━━━━━━━━━━━━━\n"
+                        "👉 Escribe *3* para reintentar cédula\n"
+                        "👉 Escribe *menú* si ya está bien"
+                    )
             
             try:
                 from twilio.rest import Client as TwilioClient
@@ -1832,17 +1881,18 @@ Has completado el curso: *{progreso.curso.nombre}*
                                     from .certificado_service import crear_certificado_automatico
                                     cert = crear_certificado_automatico(estudiante, progreso.curso)
                                     if cert and cert.archivo_imagen:
-                                        cert_url = cert.archivo_imagen.url
-                                        if not cert_url.startswith('http'):
-                                            cert_url = f"https://eki-produccion.s3.us-east-2.amazonaws.com{cert_url}"
+                                        # Usar presigned URL para que Twilio pueda descargar
+                                        from .response_templates import _generar_presigned_url_s3
+                                        key = cert.archivo_imagen.name.lstrip('/')
+                                        cert_url = _generar_presigned_url_s3(key, expires_in=3600)
                                         msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
-                                        logger.info(f"Certificado imagen generado: {cert_url}")
+                                        logger.info(f"Certificado imagen generado (presigned): {cert_url[:80]}...")
                                     elif cert and cert.archivo_pdf:
-                                        cert_url = cert.archivo_pdf.url
-                                        if not cert_url.startswith('http'):
-                                            cert_url = f"https://eki-produccion.s3.us-east-2.amazonaws.com{cert_url}"
+                                        from .response_templates import _generar_presigned_url_s3
+                                        key = cert.archivo_pdf.name.lstrip('/')
+                                        cert_url = _generar_presigned_url_s3(key, expires_in=3600)
                                         msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert_url}"
-                                        logger.info(f"Certificado PDF generado: {cert_url}")
+                                        logger.info(f"Certificado PDF generado (presigned): {cert_url[:80]}...")
                                     else:
                                         msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
                                         logger.warning(f"Certificado creado pero sin archivo para {estudiante.nombre}")

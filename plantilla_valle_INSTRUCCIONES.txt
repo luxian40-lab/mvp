@@ -29,7 +29,7 @@ Fecha: 2026-01-08
   Incorrecto: 300 123 4567
 
 📤 ENVÍO:
-  Email: soporte@eki.com
+  Email: comunidad.educativa@eki.com.co
   Asunto: "Inscripción Estudiantes - Cooperativa Caficultores del Valle"
 
 ⏱️  TIEMPO DE ACTIVACIÓN:
@@ -39,7 +39,7 @@ Fecha: 2026-01-08
   • Total: 24-48 horas
 
 📞 SOPORTE:
-  Email: soporte@eki.com
+  Email: comunidad.educativa@eki.com.co
   Horario: Lunes a Viernes, 8am - 6pm
 
 ✅ CHECKLIST ANTES DE ENVIAR:
@@ -52,5 +52,5 @@ Fecha: 2026-01-08
 
 ══════════════════════════════════════════════════════════════════════
 ¡Gracias por elegir EKI! 🌱
-www.eki.com | soporte@eki.com
+www.eki.com.co | comunidad.educativa@eki.com.co
 ══════════════════════════════════════════════════════════════════════
