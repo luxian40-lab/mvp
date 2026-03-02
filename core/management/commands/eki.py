@@ -1,5 +1,5 @@
 """
-Comando Django para administrar el sistema Eki
+Comando Django para administrar el sistema eki
 python manage.py eki [acción]
 
 Compatible con entornos de producción (Heroku, Render, Railway, etc.)
@@ -13,7 +13,7 @@ import os
 
 
 class Command(BaseCommand):
-    help = 'Administración del sistema Eki MVP - Compatible con Heroku/Render'
+    help = 'Administración del sistema eki MVP - Compatible con Heroku/Render'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -80,7 +80,7 @@ class Command(BaseCommand):
     def mostrar_menu(self):
         """Muestra el menú interactivo"""
         self.stdout.write("\n" + "="*60)
-        self.stdout.write(self.style.SUCCESS("🌱 EKI MVP - ADMINISTRACIÓN"))
+        self.stdout.write(self.style.SUCCESS("🌱 eki MVP - ADMINISTRACIÓN"))
         self.stdout.write("="*60 + "\n")
         
         # Mostrar información del entorno

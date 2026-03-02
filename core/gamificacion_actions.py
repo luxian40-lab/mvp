@@ -1,5 +1,5 @@
 """
-Sistema de Acciones Gamificadas para EKI
+Sistema de Acciones Gamificadas para eki
 Funciones para otorgar puntos por diferentes actividades
 """
 

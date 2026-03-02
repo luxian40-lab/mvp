@@ -173,7 +173,7 @@ class BaseConocimientos:
         if not resultados:
             return "No se encontró información específica sobre ese tema en los cursos."
         
-        contexto = "📚 **Información de los cursos de Eki:**\n\n"
+        contexto = "📚 **Información de los cursos de eki:**\n\n"
         
         for modulo in resultados:
             contexto += f"**{modulo['curso_nombre']} - Módulo {modulo['numero']}: {modulo['titulo']}**\n"

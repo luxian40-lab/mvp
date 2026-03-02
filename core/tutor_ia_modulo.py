@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 # =====================================================
 # PROMPT TUTOR — Método Sandwich, máx 60 palabras
 # =====================================================
-PROMPT_TUTOR_MODULO = """Eres el Profesor Gerónimo, coach educativo de Eki. REGLAS OBLIGATORIAS:
+PROMPT_TUTOR_MODULO = """Eres el Profesor Gerónimo, coach educativo de eki. REGLAS OBLIGATORIAS:
 
 1. MÁXIMO 60 PALABRAS por mensaje. Sin cátedras.
 2. MÉTODO SANDWICH en cada mensaje:
@@ -32,7 +32,7 @@ PROMPT_TUTOR_MODULO = """Eres el Profesor Gerónimo, coach educativo de Eki. REG
 # =====================================================
 # PROMPT EVALUADOR — Evalúa comprensión del módulo
 # =====================================================
-PROMPT_EVALUADOR_MODULO = """Eres el Profesor Gerónimo, evaluador educativo de Eki. El tutor acaba de explicar un concepto del curso.
+PROMPT_EVALUADOR_MODULO = """Eres el Profesor Gerónimo, evaluador educativo de eki. El tutor acaba de explicar un concepto del curso.
 El estudiante respondió. Tu tarea: evaluar si demuestra comprensión del módulo.
 
 ESCENARIOS:
@@ -108,7 +108,8 @@ Genera UNA micro-enseñanza con método sandwich sobre el concepto principal de 
                 {"role": "user", "content": prompt_usuario}
             ],
             temperature=0.7,
-            max_tokens=120  # ~60 palabras
+            max_tokens=120,  # ~60 palabras
+            timeout=10
         )
         respuesta = response.choices[0].message.content.strip()
         logger.info(f"✅ TutorIA módulo {modulo.numero}: {respuesta[:50]}...")
@@ -156,7 +157,8 @@ Evalúa si demuestra comprensión. Sigue los escenarios del prompt."""
                 {"role": "user", "content": prompt_usuario}
             ],
             temperature=0.5,
-            max_tokens=120
+            max_tokens=120,
+            timeout=10
         )
         feedback = response.choices[0].message.content.strip()
 
@@ -175,7 +177,7 @@ Evalúa si demuestra comprensión. Sigue los escenarios del prompt."""
 # =====================================================
 # PROMPT MARÍA — Asistente/Mentora, cada 2 módulos (pares)
 # =====================================================
-PROMPT_MARIA_MENTORA = """Eres María, la asistente y mentora educativa de Eki.
+PROMPT_MARIA_MENTORA = """Eres María, la asistente y mentora educativa de eki.
 Tu rol es acompañar al estudiante como su apoyo constante durante todo el curso.
 Trabajas junto al Profesor Gerónimo: él enseña, tú te aseguras de que todo quede claro.
 
@@ -236,7 +238,8 @@ Pregunta: ¿Estás entendiendo lo que hemos visto? ¿Tienes alguna duda o consul
                 {"role": "user", "content": prompt_usuario}
             ],
             temperature=0.7,
-            max_tokens=160
+            max_tokens=160,
+            timeout=10
         )
         respuesta = response.choices[0].message.content.strip()
         logger.info(f"✅ María revisión módulo {modulo_actual.numero}: {respuesta[:50]}...")
@@ -284,7 +287,8 @@ SIEMPRE termina invitándolo a continuar."""
                 {"role": "user", "content": prompt_usuario}
             ],
             temperature=0.5,
-            max_tokens=200
+            max_tokens=200,
+            timeout=10
         )
         feedback = response.choices[0].message.content.strip()
 
@@ -338,7 +342,7 @@ def _fallback_evaluacion():
 # =====================================================
 # RESUMEN DE CURSO COMPLETO — María al finalizar curso
 # =====================================================
-PROMPT_MARIA_RESUMEN_CURSO = """Eres María, la asistente educativa de Eki.
+PROMPT_MARIA_RESUMEN_CURSO = """Eres María, la asistente educativa de eki.
 El estudiante acaba de completar TODOS los módulos de un curso.
 Tu tarea es darle un resumen completo de todo lo aprendido antes de continuar al certificado.
 
@@ -400,7 +404,8 @@ Genera un resumen completo de todo lo aprendido. Felicita y celebra el logro."""
                 {"role": "user", "content": prompt_usuario}
             ],
             temperature=0.7,
-            max_tokens=300
+            max_tokens=300,
+            timeout=10
         )
         respuesta = response.choices[0].message.content.strip()
         logger.info(f"✅ María resumen curso: {respuesta[:50]}...")

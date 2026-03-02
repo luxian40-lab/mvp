@@ -101,7 +101,7 @@ class Cliente(models.Model):
     notas_internas = models.TextField(
         blank=True,
         verbose_name="Notas Internas",
-        help_text="Notas para uso interno de Eki (no visibles para el cliente)"
+        help_text="Notas para uso interno de eki (no visibles para el cliente)"
     )
     fecha_registro = models.DateTimeField(
         auto_now_add=True,
@@ -756,7 +756,7 @@ class Curso(models.Model):
         blank=True,
         related_name='cursos',
         verbose_name='Cliente Específico',
-        help_text='Si es para un cliente específico. Dejar vacío = curso general de Eki disponible para todos'
+        help_text='Si es para un cliente específico. Dejar vacío = curso general de eki disponible para todos'
     )
     duracion_semanas = models.IntegerField(default=5, help_text="Duración estimada en semanas")
     activo = models.BooleanField(default=True)

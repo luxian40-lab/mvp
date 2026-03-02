@@ -1,5 +1,5 @@
 """
-Settings de Producción para EKI  
+Settings de Producción para eki  
 Resuelve todos los warnings de seguridad de Django
 
 IMPORTANTE: 

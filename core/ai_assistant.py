@@ -29,7 +29,7 @@ def get_cohere_client():
         raise ValueError("COHERE_API_KEY no está configurada en settings.py")
     return cohere.Client(api_key)
 
-SYSTEM_PROMPT = """Eres el Profesor Gerónimo, TUTOR EDUCATIVO y MENTOR experto de Eki, una plataforma de educación para comunidades rurales colombianas.
+SYSTEM_PROMPT = """Eres el Profesor Gerónimo, TUTOR EDUCATIVO y MENTOR experto de eki, una plataforma de educación para comunidades rurales colombianas.
 
 🎓 TU ROL COMO TUTOR:
 - Enseñar y explicar conceptos paso a paso
@@ -175,7 +175,8 @@ def responder_con_openai(mensaje: str, telefono: str, contexto_estudiante: str =
             model="gpt-4o-mini",
             messages=mensajes,
             temperature=0.7,
-            max_tokens=200
+            max_tokens=200,
+            timeout=10  # 10 seconds max to avoid blocking webhook
         )
         
         respuesta = response.choices[0].message.content.strip()

@@ -24,10 +24,10 @@ TWILIO_CONTENT_SIDS = {
     'confirmar_datos': 'HXbb0358bcb33c46a521e392f8e7dcca7a',
     'confirmar_datos_v2': 'HX34fd358719d973cf70ed66e22139c883',
     'menu_principal': 'HXc9027f1ab8cdf781fafa1096c9010d5d',
-    'no_registrado': 'HX763a7744eada20b939d5e01e8911428b',
     'listadocursos1': 'HX6a31cb9924af620e3dc914b71e95fd20',
     'listadocursos2': 'HXcb7abe9df97c2e3085b862523a5a1d8b',
     'listadocursos3': 'HX09b9105e5698450aeec07965832b183c',
+    'listadocursos4': 'HX9484a11d743ed99add4b6039286ff763',
 }
 
 
@@ -120,19 +120,26 @@ def enviar_lista_cursos(telefono, estudiante):
     Selecciona el template correcto según la cantidad de cursos:
     - 1 curso → listadocursos1 (1 botón)
     - 2 cursos → listadocursos2 (2 botones)
-    - 3+ cursos → listadocursos3 (3 botones)
+    - 3 cursos → listadocursos3 (3 botones)
+    - 4+ cursos → listadocursos4 (variable {{4}} = lista de cursos adicionales)
+    
+    Para usuarios con muchos cursos, listadocursos4 usa {{4}} como texto
+    con la lista completa formateada.
     """
-    from .models import Curso
+    from .models import Curso, ProgresoEstudiante
     
     org = estudiante.cliente
+    
+    # Obtener TODOS los cursos activos del estudiante (no limitar a 3)
     if org:
         cursos = Curso.objects.filter(
             cliente=org, activo=True
-        ).order_by('orden', 'nombre')[:3]
+        ).order_by('orden', 'nombre')
     else:
-        cursos = Curso.objects.filter(activo=True).order_by('orden', 'nombre')[:3]
+        cursos = Curso.objects.filter(activo=True).order_by('orden', 'nombre')
     
-    cantidad = cursos.count() if hasattr(cursos, 'count') else len(cursos)
+    cursos_list = list(cursos)
+    cantidad = len(cursos_list)
     
     if cantidad == 0:
         from .utils import enviar_whatsapp_twilio
@@ -141,19 +148,59 @@ def enviar_lista_cursos(telefono, estudiante):
             "📚 No hay cursos disponibles en este momento. Escribe *menú* para volver."
         )
     
+    # Agregar info de progreso a cada curso
+    progresos = ProgresoEstudiante.objects.filter(
+        estudiante=estudiante
+    ).select_related('curso')
+    progreso_map = {p.curso_id: p for p in progresos}
+    
     # Seleccionar template según cantidad de cursos
     if cantidad == 1:
         template_key = 'listadocursos1'
+        variables = {
+            '1': estudiante.nombre or 'Estudiante',
+            '2': cursos_list[0].nombre,
+        }
     elif cantidad == 2:
         template_key = 'listadocursos2'
-    else:
+        variables = {
+            '1': estudiante.nombre or 'Estudiante',
+            '2': cursos_list[0].nombre,
+            '3': cursos_list[1].nombre,
+        }
+    elif cantidad == 3:
         template_key = 'listadocursos3'
-    
-    # Construir variables: nombre del estudiante + nombres de cursos
-    variables = {'1': estudiante.nombre or 'Estudiante'}
-    cursos_list = list(cursos)
-    for idx, curso in enumerate(cursos_list, 2):
-        variables[str(idx)] = curso.nombre
+        variables = {
+            '1': estudiante.nombre or 'Estudiante',
+            '2': cursos_list[0].nombre,
+            '3': cursos_list[1].nombre,
+            '4': cursos_list[2].nombre,
+        }
+    else:
+        # 4+ cursos: usar listadocursos4
+        # {{1}}=nombre, {{2}}=curso1, {{3}}=curso2, {{4}}=lista restante
+        template_key = 'listadocursos4'
+        
+        # Construir lista de cursos restantes (3+)
+        cursos_extra = []
+        for idx, curso in enumerate(cursos_list[2:], 3):
+            prog = progreso_map.get(curso.id)
+            estado = ""
+            if prog:
+                if prog.completado:
+                    estado = " ✅"
+                else:
+                    estado = f" ({prog.porcentaje_avance()}%)"
+            cursos_extra.append(f"{idx}. {curso.nombre}{estado}")
+        
+        lista_restante = "\n".join(cursos_extra)
+        
+        variables = {
+            '1': estudiante.nombre or 'Estudiante',
+            '2': cursos_list[0].nombre,
+            '3': cursos_list[1].nombre,
+            '4': lista_restante,
+        }
     
     resultado = enviar_template_twilio(
         telefono,
@@ -165,7 +212,7 @@ def enviar_lista_cursos(telefono, estudiante):
         return resultado
     
     # Fallback: enviar texto plano si template falla
-    logger.warning(f"⚠️ Template {template_key} falló, usando texto plano")
+    logger.warning(f"Template {template_key} fallo, usando texto plano")
     msg = f"📚 *Cursos disponibles para {org.nombre if org else 'ti'}:*\n"
     msg += "━━━━━━━━━━━━━━━━━━━\n\n"
     for idx, curso in enumerate(cursos_list, 1):
@@ -181,33 +228,23 @@ def enviar_lista_cursos(telefono, estudiante):
 
 def enviar_mensaje_ventas(telefono):
     """
-    Fase 0: Mensaje para usuarios no registrados usando Content Template.
-    Template con 3 botones: [Eki para mi empresa] [Visitar web] [Soy estudiante]
+    Fase 0: Mensaje para usuarios no registrados.
+    Envía texto plano con 3 opciones de menú.
     """
-    resultado = enviar_template_twilio(
-        telefono,
-        TWILIO_CONTENT_SIDS['no_registrado']
-    )
-    
-    if resultado.get('success'):
-        return resultado
-    
-    # Fallback: texto plano si template falla
-    logger.warning("⚠️ Template no_registrado falló, usando texto plano")
     msg = (
-        "🚜 *¡Hola! Soy Eki*, la plataforma educativa por WhatsApp "
+        "🚜 ¡Hola! Soy eki, la plataforma educativa por WhatsApp "
         "para el sector agrícola.\n\n"
         "Veo que tu número no está registrado en ninguna de nuestras "
         "capacitaciones actuales.\n\n"
         "━━━━━━━━━━━━━━━━━━━\n\n"
         "¿En qué te podemos ayudar?\n\n"
-        "1️⃣ 🏢 *Eki para mi empresa*\n"
+        "1️⃣ 🏢 *eki para mi empresa*\n"
         "   Capacitar trabajadores con nosotros\n\n"
         "2️⃣ 🌐 *Visitar sitio web*\n"
         "   www.eki.com.co\n\n"
         "3️⃣ 🙋‍♂️ *Soy estudiante (Ayuda)*\n"
         "   Si cambiaste de número o necesitas ayuda\n\n"
-        "👉 Escribe el *número* de tu opción"
+        "👉 Escribe el número de tu opción"
     )
     
     from .utils import enviar_whatsapp_twilio

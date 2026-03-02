@@ -1,5 +1,5 @@
 """
-Generador de Certificados PDF para EKI
+Generador de Certificados PDF para eki
 Usa ReportLab para crear certificados profesionales
 """
 
@@ -47,7 +47,7 @@ def generar_certificado_pdf(certificado, plantilla=None):
     else:
         color_primario = '#2C3E50'
         color_secundario = '#3498DB'
-        texto_superior = "EKI - Educación Agrícola para el Campo Colombiano"
+        texto_superior = "eki - Educación Agrícola para el Campo Colombiano"
         texto_certificado = "CERTIFICADO DE FINALIZACIÓN"
     
     # === IMAGEN DE FONDO ===
@@ -192,7 +192,7 @@ def generar_certificado_pdf(certificado, plantilla=None):
     c.drawString(width - 5*inch, 1.5*inch, "_" * 30)
     
     c.setFont("Helvetica", 10)
-    c.drawString(2*inch, 1.2*inch, "Director EKI")
+    c.drawString(2*inch, 1.2*inch, "Director eki")
     
     # Usar fecha de emisión si existe, sino fecha de completado
     fecha_emision = certificado.fecha_emision if certificado.fecha_emision else certificado.fecha_completado

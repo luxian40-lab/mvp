@@ -1,5 +1,5 @@
 """
-Comando para poblar cursos profesionales de Eki
+Comando para poblar cursos profesionales de eki
 Incluye:
 1. Café Arábigo (Fondo Nacional de Cafeteros)
 2. Aguacate Hass (Producción comercial)
@@ -104,6 +104,7 @@ Antes de sembrar:
 • Corrección de pH (cal dolomita)
 • Ahoyado: 30x30x30 cm
 • Fertilización de fondo (150g/planta)
+
 • Siembra al inicio de lluvias
 
 ✅ Actividad: Calcula cuántas plantas necesitas para 1 hectárea con distancia 1.5m x 1.0m''',
@@ -1348,7 +1349,7 @@ Ahora estás listo para:
 ✅ Realizar cosecha y post-cosecha de calidad
 ✅ Acceder a mercados Premium y exportación
 
-Recuerda tomar el examen final para obtener tu certificado de Eki.''',
+Recuerda tomar el examen final para obtener tu certificado de eki.''',
                     'duracion_dias': 10
                 }
             ]

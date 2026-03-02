@@ -303,7 +303,7 @@ def verificar_terminos(estudiante, mensaje_texto):
             
             mensaje_terminos = (
                 f"¡Hola {estudiante.nombre}! 👋\n\n"
-                "Bienvenido a *Eki* 🌱\n"
+                "Bienvenido a *eki* 🌱\n"
                 "Tu compañero de aprendizaje agrícola por WhatsApp\n\n"
                 "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
                 "Antes de comenzar, necesito tu autorización para usar tus datos personales "
@@ -337,7 +337,7 @@ def verificar_terminos(estudiante, mensaje_texto):
             logger.info(f"✅ Onboarding completado: {nombre} de {municipio} - {tipo_doc}: {cedula}")
             
             mensaje_bienvenida = (
-                f"🌱 ¡Bienvenido a Eki, {nombre}!\n\n"
+                f"🌱 ¡Bienvenido a eki, {nombre}!\n\n"
                 "🚜 *Educación agrícola a tu alcance*\n\n"
                 "Aprende técnicas de cultivo, mejora tu producción y conecta con expertos del campo.\n\n"
                 "━━━━━━━━━━━━━━━━━━━\n\n"
@@ -408,7 +408,7 @@ def verificar_terminos(estudiante, mensaje_texto):
             logger.info(f"✅ Onboarding completado (flujo antiguo): {nombre_limpio}")
             
             mensaje_bienvenida = (
-                f"🌱 ¡Bienvenido a Eki, {nombre_limpio}!\n\n"
+                f"🌱 ¡Bienvenido a eki, {nombre_limpio}!\n\n"
                 "🚜 *Educación agrícola a tu alcance*\n\n"
                 "Aprende técnicas de cultivo, mejora tu producción y conecta con expertos del campo.\n\n"
                 "━━━━━━━━━━━━━━━━━━━\n\n"
@@ -687,7 +687,7 @@ def verificar_seguridad_completa(estudiante, mensaje_texto, telefono=None):
         else:
             # Mostrar mensaje de bienvenida y pedir aceptación
             mensaje_inicial = (
-                "👋 *¡Bienvenido a Eki!*\n\n"
+                "👋 *¡Bienvenido a eki!*\n\n"
                 "🚜 Tu plataforma de educación agrícola por WhatsApp\n\n"
                 "━━━━━━━━━━━━━━━━━━━\n\n"
                 "📜 *Protección de Datos Personales*\n\n"

@@ -1205,14 +1205,14 @@ class EstudianteAdmin(admin.ModelAdmin):
             cell.border = border
         
         # Comentarios con instrucciones
-        ws['A1'].comment = Comment("📝 Cédula sin puntos ni espacios\nEjemplo: 1234567890", "EKI")
-        ws['B1'].comment = Comment("👤 Nombre completo del estudiante\nEjemplo: Juan Pérez García", "EKI")
-        ws['C1'].comment = Comment("📱 WhatsApp con código de país\nEjemplo: 573001234567 o 3001234567", "EKI")
-        ws['D1'].comment = Comment("🏙️ Municipio del estudiante (obligatorio)\nEjemplo: Manizales", "EKI")
-        ws['E1'].comment = Comment("🗺️ Departamento del estudiante (obligatorio)\nEjemplo: Caldas", "EKI")
-        ws['F1'].comment = Comment("👫 Género del estudiante (obligatorio)\nValores: masculino, femenino, otro, no reporta", "EKI")
-        ws['G1'].comment = Comment("📚 Nombre del curso (opcional)\nEjemplo: Curso de Café\nDeja vacío si no aplica", "EKI")
-        ws['H1'].comment = Comment("🏢 Nombre del cliente (opcional)\nEjemplo: FNC\nDeja vacío si no aplica", "EKI")
+        ws['A1'].comment = Comment("📝 Cédula sin puntos ni espacios\nEjemplo: 1234567890", "eki")
+        ws['B1'].comment = Comment("👤 Nombre completo del estudiante\nEjemplo: Juan Pérez García", "eki")
+        ws['C1'].comment = Comment("📱 WhatsApp con código de país\nEjemplo: 573001234567 o 3001234567", "eki")
+        ws['D1'].comment = Comment("🏙️ Municipio del estudiante (obligatorio)\nEjemplo: Manizales", "eki")
+        ws['E1'].comment = Comment("🗺️ Departamento del estudiante (obligatorio)\nEjemplo: Caldas", "eki")
+        ws['F1'].comment = Comment("👫 Género del estudiante (obligatorio)\nValores: masculino, femenino, otro, no reporta", "eki")
+        ws['G1'].comment = Comment("📚 Nombre del curso (opcional)\nEjemplo: Curso de Café\nDeja vacío si no aplica", "eki")
+        ws['H1'].comment = Comment("🏢 Nombre del cliente (opcional)\nEjemplo: FNC\nDeja vacío si no aplica", "eki")
         
         # Obtener cursos y clientes para validación
         cursos = Curso.objects.filter(activo=True).order_by('nombre')
@@ -1224,16 +1224,18 @@ class EstudianteAdmin(admin.ModelAdmin):
             cliente_ejemplo = clientes.first().nombre
             ws.append(['1234567890', 'Juan Pérez García', '573001234567', 'Manizales', 'Caldas', 'masculino', curso_ejemplo, cliente_ejemplo])
             ws.append(['9876543210', 'María López Rodríguez', '3109876543', 'Bogotá', 'Cundinamarca', 'femenino', curso_ejemplo, cliente_ejemplo])
+            ws.append(['5555555555', 'Pedro Gómez Hernández', '3201234567', 'Medellín', 'Antioquia', 'otro', '', ''])
         else:
             ws.append(['1234567890', 'Juan Pérez García', '573001234567', 'Manizales', 'Caldas', 'masculino', 'Curso de Café', 'FNC'])
             ws.append(['9876543210', 'María López Rodríguez', '3109876543', 'Bogotá', 'Cundinamarca', 'femenino', 'Curso de Aguacate', 'Fedecacao'])
+            ws.append(['5555555555', 'Pedro Gómez Hernández', '3201234567', 'Medellín', 'Antioquia', 'otro', '', ''])
         
         # Fila vacía para empezar
         ws.append(['', '', '', '', '', '', '', ''])
         
         # Estilo para ejemplos
         example_fill = PatternFill(start_color="FFF9E6", end_color="FFF9E6", fill_type="solid")
-        for row in [2, 3]:
+        for row in [2, 3, 4]:
             for cell in ws[row]:
                 cell.fill = example_fill
                 cell.font = Font(italic=True, color="666666", size=10)
@@ -1266,7 +1268,7 @@ class EstudianteAdmin(admin.ModelAdmin):
         # Agregar hoja de instrucciones
         ws_inst = wb.create_sheet("Instrucciones")
         instrucciones = [
-            ["📋 GUÍA RÁPIDA - IMPORTAR ESTUDIANTES A EKI"],
+            ["📋 GUÍA RÁPIDA - IMPORTAR ESTUDIANTES A eki"],
             [""],
             ["✅ CAMPOS OBLIGATORIOS (6):"],
             ["   • Cédula: Sin puntos ni espacios (Ej: 1234567890)"],
@@ -1291,7 +1293,7 @@ class EstudianteAdmin(admin.ModelAdmin):
             ["📊 PROCESO:"],
             ["   1. Completa la hoja 'Plantilla Estudiantes' con tus datos"],
             ["   2. Guarda el archivo Excel"],
-            ["   3. Ve a EKI Admin → Estudiantes → Botón 'Importar desde Excel'"],
+            ["   3. Ve a eki Admin → Estudiantes → Botón 'Importar desde Excel'"],
             ["   4. Sube el archivo y confirma"],
             ["   5. ¡Listo! El sistema procesará automáticamente"],
             [""],
@@ -1326,7 +1328,7 @@ class EstudianteAdmin(admin.ModelAdmin):
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
-        response['Content-Disposition'] = f'attachment; filename=PLANTILLA_IMPORTACION_ESTUDIANTES_EKI.xlsx'
+        response['Content-Disposition'] = f'attachment; filename=PLANTILLA_IMPORTACION_ESTUDIANTES_eki.xlsx'
         wb.save(response)
         
         # Solo mostrar mensaje si es una acción de admin
@@ -1755,6 +1757,15 @@ class PlantillaAdminDuplicado(admin.ModelAdmin):
         })
 
 
+class EnvioProgramadoInline(admin.TabularInline):
+    """Envíos programados dentro de una campaña"""
+    model = EnvioProgramado
+    extra = 0
+    fields = ('nombre', 'tipo', 'fecha_programada', 'estado', 'mensaje', 'fecha_envio_real')
+    readonly_fields = ('fecha_envio_real',)
+    show_change_link = True
+
+
 @admin.register(Campana)
 class CampanaAdmin(admin.ModelAdmin):
     """Gestión de campañas masivas"""
@@ -1763,6 +1774,7 @@ class CampanaAdmin(admin.ModelAdmin):
     search_fields = ('nombre', 'cliente__nombre')
     filter_horizontal = ('destinatarios',)
     actions = ['enviar_campana_accion']
+    inlines = [EnvioProgramadoInline]
     
     fieldsets = (
         ('📝 Información Básica', {
@@ -1779,7 +1791,7 @@ class CampanaAdmin(admin.ModelAdmin):
         ('📄 Plantilla Django (Alternativa)', {
             'fields': ('plantilla',),
             'classes': ('collapse',),
-            'description': 'Solo si NO usas Content SID directo. Requiere plantilla creada en Eki.'
+            'description': 'Solo si NO usas Content SID directo. Requiere plantilla creada en eki.'
         }),
         ('👥 Audiencia', {
             'fields': ('tipo_audiencia', 'grupo', 'destinatarios'),
@@ -2188,7 +2200,7 @@ class WhatsappLogAdmin(admin.ModelAdmin):
 
 
 # Personalizar el admin site
-admin.site.site_header = "Eki - Chatbot Agro 🌱"
+admin.site.site_header = "eki - Chatbot Agro 🌱"
 
 
 # ==========================================
@@ -2232,7 +2244,7 @@ class CursoAdmin(admin.ModelAdmin):
         """Muestra si es curso específico de un cliente"""
         if obj.cliente:
             return obj.cliente.nombre
-        return format_html('<span style="color:#999;font-style:italic;">General (Eki)</span>')
+        return format_html('<span style="color:#999;font-style:italic;">General (eki)</span>')
     cliente_nombre.short_description = "🏢 Cliente"
     
     def total_modulos_display(self, obj):
@@ -2898,8 +2910,8 @@ class ResultadoExamenAdmin(admin.ModelAdmin):
 
 
 # Personalizar el admin site
-admin.site.site_header = "Eki - Chatbot Agro 🌱"
-admin.site.site_title = "Administración Eki"
+admin.site.site_header = "eki - Chatbot Agro 🌱"
+admin.site.site_title = "Administración eki"
 admin.site.index_title = "Panel de Control - Chatbot Educativo"
 
 
@@ -3548,7 +3560,7 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
                 <em>Opcional: sube un PDF con variables {nombre}, {curso}, {fecha}</em>
             </div>''')
         }),
-        ('🎨 Diseño Eki (Avanzado)', {
+        ('🎨 Diseño eki (Avanzado)', {
             'fields': ('imagen_fondo', 'logo_institucion', 'color_primario', 'color_secundario', 'texto_superior', 'texto_certificado'),
             'classes': ('collapse',),
             'description': 'Solo si no subes imagen ni PDF'
@@ -3569,11 +3581,11 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
                 '<span style="background:#e3f2fd;padding:4px 10px;border-radius:12px;font-size:11px;">🏢 {}</span>',
                 obj.cliente.nombre
             )
-        return format_html('<span style="color:#999;font-style:italic;">General (Eki)</span>')
+        return format_html('<span style="color:#999;font-style:italic;">General (eki)</span>')
     cliente_info.short_description = "Cliente"
     
     def tipo_plantilla(self, obj):
-        """Muestra si usa PDF personalizado, imagen o diseño Eki"""
+        """Muestra si usa PDF personalizado, imagen o diseño eki"""
         if obj.archivo_plantilla_imagen or obj.url_plantilla_imagen:
             label = '🖼️ Imagen' + (' (URL)' if obj.url_plantilla_imagen and not obj.archivo_plantilla_imagen else '')
             return format_html(
@@ -3585,7 +3597,7 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
                 '<span style="background:#4CAF50;color:white;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;">📄 PDF Personalizado</span>'
             )
         return format_html(
-            '<span style="background:#2196F3;color:white;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;">🎨 Diseño Eki</span>'
+            '<span style="background:#2196F3;color:white;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;">🎨 Diseño eki</span>'
         )
     tipo_plantilla.short_description = "Tipo"
     

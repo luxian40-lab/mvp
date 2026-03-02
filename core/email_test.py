@@ -25,7 +25,7 @@ def test_gmail_connection():
     try:
         # Intentar enviar email de prueba
         send_mail(
-            subject='🧪 Prueba de Conexión - Eki',
+            subject='🧪 Prueba de Conexión - eki',
             message='Este es un email de prueba para verificar que la configuración de Gmail está funcionando correctamente.',
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[settings.EMAIL_HOST_USER],  # Se envía a sí mismo

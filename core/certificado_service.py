@@ -365,7 +365,7 @@ def verificar_certificado_publico(codigo_verificacion):
     Verifica un certificado por su código
     
     Args:
-        codigo_verificacion: Código del certificado (EKI-XXXX-YYYY-ZZZZ)
+        codigo_verificacion: Código del certificado (eki-XXXX-YYYY-ZZZZ)
     
     Returns:
         dict con información del certificado o None si no existe

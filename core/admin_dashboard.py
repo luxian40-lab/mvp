@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 def setup_custom_admin_dashboard():
     """Configura un dashboard personalizado en el admin"""
     # Cambiar los atributos del sitio default de Django
-    admin.site.site_header = "🌾 EKI - Administración"
-    admin.site.site_title = "EKI Admin"
+    admin.site.site_header = "🌾 eki - Administración"
+    admin.site.site_title = "eki Admin"
     admin.site.index_title = "Panel de Control"
 
     # Guardar el método original

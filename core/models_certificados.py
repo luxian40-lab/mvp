@@ -1,5 +1,5 @@
 """
-Sistema de Certificados Digitales para EKI
+Sistema de Certificados Digitales para eki
 Generación automática de certificados al completar cursos
 """
 
@@ -110,15 +110,15 @@ class Certificado(models.Model):
     def generar_codigo_verificacion(self):
         """
         Genera código único de verificación
-        Formato: EKI-XXXX-YYYY-ZZZZ
+        Formato: eki-XXXX-YYYY-ZZZZ
         """
         # Crear hash único basado en datos
         datos = f"{self.estudiante.id}{self.curso.id}{timezone.now().isoformat()}{uuid.uuid4()}"
         hash_obj = hashlib.sha256(datos.encode())
         hash_hex = hash_obj.hexdigest()[:12].upper()
         
-        # Formatear como EKI-XXXX-YYYY-ZZZZ
-        codigo = f"EKI-{hash_hex[0:4]}-{hash_hex[4:8]}-{hash_hex[8:12]}"
+        # Formatear como eki-XXXX-YYYY-ZZZZ
+        codigo = f"eki-{hash_hex[0:4]}-{hash_hex[4:8]}-{hash_hex[8:12]}"
         
         # Verificar que no exista (muy improbable)
         if Certificado.objects.filter(codigo_verificacion=codigo).exists():
@@ -177,7 +177,7 @@ class PlantillaCertificado(models.Model):
         blank=True,
         related_name='plantillas_certificados',
         verbose_name='Cliente',
-        help_text='Si es para un cliente específico. Dejar vacío = plantilla general de Eki'
+        help_text='Si es para un cliente específico. Dejar vacío = plantilla general de eki'
     )
     
     # 📄 OPCIÓN 1: SUBIR PDF PERSONALIZADO (Recomendado para empresas)
@@ -214,7 +214,7 @@ class PlantillaCertificado(models.Model):
         help_text="🔗 URL directa a una imagen de plantilla (PNG/JPG). Usa esto si prefieres alojar la imagen externamente."
     )
     
-    # 🎨 OPCIÓN 2: DISEÑO PERSONALIZADO CON EKI (Si no subes PDF)
+    # 🎨 OPCIÓN 2: DISEÑO PERSONALIZADO CON eki (Si no subes PDF)
     # Diseño
     imagen_fondo = models.ImageField(
         upload_to='certificados/plantillas/',
@@ -244,7 +244,7 @@ class PlantillaCertificado(models.Model):
     # Textos personalizables
     texto_superior = models.CharField(
         max_length=200,
-        default="EKI - Educación Agrícola",
+        default="eki - Educación Agrícola",
         help_text="Texto en la parte superior"
     )
     texto_certificado = models.CharField(

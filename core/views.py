@@ -5,7 +5,7 @@ from django.views.decorators.csrf import csrf_exempt
 @staff_member_required
 def dashboard_unificado(request):
     """
-    Dashboard profesional unificado de Eki.
+    Dashboard profesional unificado de eki.
     Métricas reales: cursos, clientes, estudiantes, certificados, gamificación,
     WhatsApp, IA, y progreso educativo.
     """
@@ -554,7 +554,7 @@ def dashboard_view(request):
 # ---------- Vista de instrucciones ----------
 @staff_member_required
 def instrucciones_view(request):
-    """Vista para mostrar el instructivo completo de Eki."""
+    """Vista para mostrar el instructivo completo de eki."""
     return render(request, 'admin/instrucciones.html')
 
 
@@ -859,7 +859,7 @@ def descargar_reportes(request):
                 content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             )
             fecha_str = datetime.now().strftime('%Y%m%d_%H%M%S')
-            response['Content-Disposition'] = f'attachment; filename="Reporte_Eki_{fecha_str}.xlsx"'
+            response['Content-Disposition'] = f'attachment; filename="Reporte_eki_{fecha_str}.xlsx"'
             wb.save(response)
             return response
         
@@ -964,14 +964,14 @@ def _procesar_twilio_webhook(post_data):
     # ============================================================
     message_status = post_data.get('MessageStatus', post_data.get('SmsStatus', ''))
     if message_status and message_status.lower() in ['queued', 'sending', 'sent', 'delivered', 'undelivered', 'failed', 'read']:
-        print(f"📊 Status callback ignorado: {message_status}")
+        logger.debug(f"Status callback ignorado: {message_status}")
         return
     
     # FILTRO 2: Ignorar si no hay Body ni Media (status callback sin MessageStatus)
     raw_body = post_data.get('Body', '')
     raw_media = int(post_data.get('NumMedia', 0))
     if not raw_body and raw_media == 0 and not post_data.get('From', ''):
-        print(f"📊 Webhook vacío ignorado (sin Body ni Media)")
+        logger.debug("Webhook vacio ignorado (sin Body ni Media)")
         return
     
     try:
@@ -1013,7 +1013,7 @@ def _procesar_twilio_webhook(post_data):
             telefono_limpio = f"57{telefono_limpio}"
         
         logger.info(f"📱 De: {msg_from} → Limpio: {telefono_limpio} | Mensaje: {msg_body}")
-        print(f"📱 TWILIO MSG: From={telefono_limpio} Body='{msg_body[:50]}'", flush=True)
+        logger.info(f"TWILIO MSG: From={telefono_limpio} Body='{msg_body[:50]}'")
         
         # 1. Guardar mensaje entrante con teléfono limpio
         WhatsappLog.objects.create(
@@ -1029,8 +1029,8 @@ def _procesar_twilio_webhook(post_data):
         # Si el número no existe en Estudiante, activar "Modo Ventas"
         # ============================================================
         try:
-            estudiante = Estudiante.objects.get(telefono=telefono_limpio)
-            logger.info(f"✅ Estudiante encontrado: {estudiante.nombre} (ID: {estudiante.id})")
+            estudiante = Estudiante.objects.select_related('cliente').get(telefono=telefono_limpio)
+            logger.info(f"Estudiante encontrado: {estudiante.nombre} (ID: {estudiante.id})")
         except Estudiante.DoesNotExist:
             # Verificar si ya es un prospecto B2B existente
             from .models import ProspectoB2B
@@ -1071,7 +1071,7 @@ def _procesar_twilio_webhook(post_data):
                             "✅ *¡Perfecto!*\n\n"
                             f"Hemos registrado tu correo: *{prospecto.email}*\n\n"
                             "Nuestro equipo de ventas te contactará muy pronto "
-                            "para contarte todo sobre las capacitaciones de Eki. 🚜\n\n"
+                            "para contarte todo sobre las capacitaciones de eki. 🚜\n\n"
                             "¡Gracias por tu interés! 🌱"
                         )
                     else:
@@ -1175,7 +1175,7 @@ def _procesar_twilio_webhook(post_data):
                 
                 # Fallback: texto plano
                 texto_respuesta = (
-                    "👋 *¡Bienvenido a Eki!*\n\n"
+                    "👋 *¡Bienvenido a eki!*\n\n"
                     "🚜 Tu plataforma de educación agrícola por WhatsApp\n\n"
                     "━━━━━━━━━━━━━━━━━━━\n\n"
                     "📜 *Protección de Datos Personales*\n"
@@ -1210,7 +1210,7 @@ def _procesar_twilio_webhook(post_data):
                 estudiante.save()
                 
                 # Enviar confirmación con datos + botones
-                org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'Eki'
+                org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
                 from .whatsapp_service import enviar_confirmacion_datos
                 resultado = enviar_confirmacion_datos(
                     msg_from,
@@ -1271,7 +1271,7 @@ def _procesar_twilio_webhook(post_data):
                 
                 # Enviar menú principal con botones
                 from .whatsapp_service import enviar_menu_principal
-                org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'Eki'
+                org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
                 resultado = enviar_menu_principal(msg_from, estudiante.nombre)
                 if resultado.get('success'):
                     return  # Template enviado
@@ -1417,7 +1417,7 @@ def _procesar_twilio_webhook(post_data):
             
             # Detectar "menú" - enviar menú principal
             if msg_lower in ['menu', 'menú', 'inicio', 'hola']:
-                org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'Eki'
+                org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
                 from .whatsapp_service import enviar_menu_principal
                 resultado = enviar_menu_principal(msg_from, estudiante.nombre)
                 if resultado.get('success'):
@@ -1826,9 +1826,29 @@ Has completado el curso: *{progreso.curso.nombre}*
                                     import logging
                                     logging.getLogger(__name__).warning(f"⚠️ María resumen falló: {e}")
                                 
-                                # Imagen de certificado
-                                CERT_IMAGE_URL = 'https://eki-produccion.s3.us-east-2.amazonaws.com/pruebas/certidicado.jpeg'
-                                msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{CERT_IMAGE_URL}]"
+                                # Imagen de certificado — generar con nombre del estudiante
+                                msg_cert_img = ""
+                                try:
+                                    from .certificado_service import crear_certificado_automatico
+                                    cert = crear_certificado_automatico(estudiante, progreso.curso)
+                                    if cert and cert.archivo_imagen:
+                                        cert_url = cert.archivo_imagen.url
+                                        if not cert_url.startswith('http'):
+                                            cert_url = f"https://eki-produccion.s3.us-east-2.amazonaws.com{cert_url}"
+                                        msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                                        logger.info(f"Certificado imagen generado: {cert_url}")
+                                    elif cert and cert.archivo_pdf:
+                                        cert_url = cert.archivo_pdf.url
+                                        if not cert_url.startswith('http'):
+                                            cert_url = f"https://eki-produccion.s3.us-east-2.amazonaws.com{cert_url}"
+                                        msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert_url}"
+                                        logger.info(f"Certificado PDF generado: {cert_url}")
+                                    else:
+                                        msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+                                        logger.warning(f"Certificado creado pero sin archivo para {estudiante.nombre}")
+                                except Exception as e:
+                                    logger.error(f"Error generando certificado: {e}")
+                                    msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
                                 
                                 # Construir multi-mensaje
                                 partes = []

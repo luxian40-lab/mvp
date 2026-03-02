@@ -156,11 +156,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 JAZZMIN_SETTINGS = {
     # Títulos y Marca
-    "site_title": "Eki",
-    "site_header": "Eki",
-    "site_brand": "Eki",
-    "welcome_sign": "Bienvenido a Eki",
-    "copyright": "Eki Solutions",
+    "site_title": "eki",
+    "site_header": "eki",
+    "site_brand": "eki",
+    "welcome_sign": "Bienvenido a eki",
+    "copyright": "eki solutions",
     "search_model": ["core.Estudiante", "core.Campana", "core.ProspectoB2B"],
 
     # Menú Superior - Acceso rápido
@@ -229,6 +229,7 @@ JAZZMIN_SETTINGS = {
         "core.PreguntaModulo",
         "core.CampanaUnica",
         "core.RespuestaCampanaUnica",
+        "core.EnvioProgramado",
     ],
 
     # Orden visual: 5 bloques colapsables

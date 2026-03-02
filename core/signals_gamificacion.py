@@ -24,7 +24,7 @@ def _notificar_org_admin(estudiante, asunto, mensaje_html):
         if not cliente or not getattr(cliente, 'email', None):
             return
         send_mail(
-            subject=f"[Eki] {asunto}",
+            subject=f"[eki] {asunto}",
             message='',
             html_message=mensaje_html,
             from_email=settings.DEFAULT_FROM_EMAIL if hasattr(settings, 'DEFAULT_FROM_EMAIL') else 'noreply@eki.com',

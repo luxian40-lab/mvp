@@ -245,7 +245,7 @@ def generar_y_subir_certificado(estudiante, curso, plantilla_url=None, url_verif
         except Exception:
             url_verificacion = "https://www.eki.com.co/"
     
-    org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'Eki'
+    org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
     
     # Generar imagen del certificado
     buffer = generar_certificado_marcadores(

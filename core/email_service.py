@@ -292,7 +292,7 @@ def enviar_certificados_a_cliente(cliente, certificados_list):
     email_service = EmailService()
     
     # Construir cuerpo del email
-    subject = f'Certificados de {len(certificados_list)} estudiante(s) - Eki'
+    subject = f'Certificados de {len(certificados_list)} estudiante(s) - eki'
     
     body = f"""Estimado/a {cliente.contacto_principal},
 
@@ -314,7 +314,7 @@ Códigos de verificación:
 Estos certificados pueden ser verificados en cualquier momento usando los códigos de verificación.
 
 Saludos cordiales,
-Equipo Eki
+Equipo eki
 """
     
     # Preparar adjuntos

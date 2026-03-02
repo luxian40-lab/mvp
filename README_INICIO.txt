@@ -1,5 +1,5 @@
 ═══════════════════════════════════════════════════════════
-  EKI - SISTEMA EDUCATIVO AGRÍCOLA - GUÍA RÁPIDA
+  eki - SISTEMA EDUCATIVO AGRÍCOLA - GUÍA RÁPIDA
 ═══════════════════════════════════════════════════════════
 
 🚀 INICIO RÁPIDO (TODOS LOS DÍAS)

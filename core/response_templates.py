@@ -153,7 +153,7 @@ def get_response_for_intent(intent: str, nombre_usuario: str = "Estudiante", **k
     
     # Saludos
     if intent == 'saludo':
-        return f"""🌱 Hola {nombre_usuario}, bienvenido a Eki
+        return f"""🌱 Hola {nombre_usuario}, bienvenido a eki
 
 🚜 *Tu plataforma de educación agrícola*
 
@@ -273,7 +273,7 @@ Escribe "continuar", "ver cursos" o "mi progreso"."""
         if not cursos_activos.exists():
             return "No hay cursos disponibles en este momento. ⚠️"
         
-        respuesta = "📚 *CURSOS DISPONIBLES EN EKI*\n\n"
+        respuesta = "📚 *CURSOS DISPONIBLES EN eki*\n\n"
         
         for idx, curso in enumerate(cursos_activos, 1):
             respuesta += f"{idx}. {curso.emoji} *{curso.nombre}*\n"
@@ -349,7 +349,7 @@ También puedes:
             mejores = PerfilGamificacion.objects.filter(puntos_totales__gt=mi_perfil.puntos_totales).count()
             mi_posicion = mejores + 1
         
-        respuesta = "🏆 RANKING DE ESTUDIANTES EKI\n\n"
+        respuesta = "🏆 RANKING DE ESTUDIANTES eki\n\n"
         respuesta += "📊 TOP 5 POR PUNTOS:\n"
         
         for idx, perfil in enumerate(top_puntos, 1):
@@ -422,7 +422,7 @@ Escribe *"menú"* para volver al inicio."""
             except Exception:
                 pass
         
-        return """☕ AYUDA - CURSOS DE CAFÉ EKI
+        return """☕ AYUDA - CURSOS DE CAFÉ eki
 
 📋 COMANDOS PRINCIPALES:
 
@@ -472,7 +472,7 @@ O escribe "menú" para ver todas las opciones."""
         if not cursos_activos.exists():
             return "No hay cursos disponibles en este momento. ⚠️"
         
-        respuesta = "📚 CURSOS DISPONIBLES EN EKI\n\n"
+        respuesta = "📚 CURSOS DISPONIBLES EN eki\n\n"
         
         for idx, curso in enumerate(cursos_activos, 1):
             respuesta += f"{idx}️⃣ {curso.emoji} *{curso.nombre}*\n"

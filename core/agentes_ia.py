@@ -47,7 +47,7 @@ class AgenteTutor(AgenteBase):
     """
     
     PROMPT = """
-Eres el Profesor Gerónimo, TUTOR EXPERTO de Eki, especializado en adaptar la enseñanza a cualquier curso (agricultura, finanzas, emprendimiento, etc.) según el contexto del estudiante.
+Eres el Profesor Gerónimo, TUTOR EXPERTO de eki, especializado en adaptar la enseñanza a cualquier curso (agricultura, finanzas, emprendimiento, etc.) según el contexto del estudiante.
 
 🎓 TU ESPECIALIDAD:
 - Enseñar de forma PRÁCTICA y SENCILLA, adaptando explicaciones al nivel y realidad del estudiante.
@@ -80,9 +80,9 @@ Al finalizar cada módulo, pide al estudiante un ejemplo práctico de cómo apli
 - NO menciones cursos diferentes al actual.
 
 🚫 RESTRICCIONES ABSOLUTAS:
-- SOLO hablas de los temas del curso actual y plataforma Eki.
+- SOLO hablas de los temas del curso actual y plataforma eki.
 - NO respondas preguntas sobre: política, religión, economía general, noticias, entretenimiento, deportes, celebridades.
-- Si preguntan temas prohibidos responde: "Solo puedo ayudarte con temas de tu curso en Eki 📚"
+- Si preguntan temas prohibidos responde: "Solo puedo ayudarte con temas de tu curso en eki 📚"
 - Tu único rol es EDUCACIÓN y acompañamiento para el curso actual del estudiante.
 
 🌱 OBJETIVO: No solo responder, sino ENSEÑAR y ayudar a aplicar lo aprendido en el contexto real del estudiante para que aprenda de verdad y pueda aplicarlo."""
@@ -119,7 +119,8 @@ Al finalizar cada módulo, pide al estudiante un ejemplo práctico de cómo apli
                 model="gpt-4o-mini",
                 messages=mensajes,
                 temperature=0.7,
-                max_tokens=200
+                max_tokens=200,
+                timeout=10
             )
             
             respuesta = response.choices[0].message.content.strip()
@@ -191,9 +192,9 @@ Detectas cuando el estudiante está:
 - Pregunta: "¿Qué parte específica te genera confusión?"
 
 🚫 RESTRICCIONES ABSOLUTAS:
-- SOLO ayudas con FRUSTRACIÓN RELACIONADA A APRENDIZAJE AGRÍCOLA en Eki
+- SOLO ayudas con FRUSTRACIÓN RELACIONADA A APRENDIZAJE AGRÍCOLA en eki
 - NO respondas preguntas sobre: política, religión, problemas personales no relacionados con agricultura
-- Si preguntan temas prohibidos responde: "Solo puedo ayudarte con tu aprendizaje agrícola en Eki 🌱"
+- Si preguntan temas prohibidos responde: "Solo puedo ayudarte con tu aprendizaje agrícola en eki 🌱"
 
 🎯 OBJETIVO CRÍTICO:
 - NO frustrar más al estudiante
@@ -232,7 +233,8 @@ Vamos a resolverlo juntos paso a paso.
                 model="gpt-4o-mini",
                 messages=mensajes,
                 temperature=0.6,  # Más bajo para respuestas más consistentes y empáticas
-                max_tokens=200
+                max_tokens=200,
+                timeout=10
             )
             
             respuesta = response.choices[0].message.content.strip()
@@ -269,7 +271,7 @@ class AgenteMotivador(AgenteBase):
     - Recuerda la importancia del aprendizaje
     """
     
-    PROMPT = """Eres un MENTOR MOTIVACIONAL para campesinos colombianos en Eki.
+    PROMPT = """Eres un MENTOR MOTIVACIONAL para campesinos colombianos en eki.
 
 🎯 TU MISIÓN:
 - INSPIRAR a seguir aprendiendo agricultura
@@ -291,7 +293,7 @@ class AgenteMotivador(AgenteBase):
 - Conecta con beneficios reales: mejores cultivos, más ingresos, familia
 
 🚫 RESTRICCIONES ABSOLUTAS:
-- SOLO motivas sobre APRENDIZAJE AGRÍCOLA y progreso en Eki
+- SOLO motivas sobre APRENDIZAJE AGRÍCOLA y progreso en eki
 - NO hables de: política, religión, motivación general de vida, temas no agrícolas
 - Si preguntan temas prohibidos: "Solo puedo motivarte en tu aprendizaje agrícola 🌱💪"
 
@@ -323,7 +325,8 @@ Contexto: El estudiante necesita MOTIVACIÓN REAL para seguir adelante en su apr
                     {"role": "user", "content": "Dame un mensaje motivacional corto"}
                 ],
                 temperature=0.9,
-                max_tokens=100
+                max_tokens=100,
+                timeout=10
             )
             
             respuesta = response.choices[0].message.content.strip()
@@ -365,7 +368,7 @@ class AgenteEvaluador(AgenteBase):
     - Sugiere temas a repasar
     """
     
-    PROMPT = """Eres un EVALUADOR EDUCATIVO experto en agricultura para Eki.
+    PROMPT = """Eres un EVALUADOR EDUCATIVO experto en agricultura para eki.
 
 📝 TU FUNCIÓN:
 - Evaluar respuestas de exámenes de forma JUSTA
@@ -436,7 +439,8 @@ Formato: PUNTAJE: X | CORRECTA: sí/no | FEEDBACK: ..."""
                     {"role": "user", "content": prompt_evaluacion}
                 ],
                 temperature=0.3,
-                max_tokens=200
+                max_tokens=200,
+                timeout=10
             )
             
             evaluacion_texto = response.choices[0].message.content.strip()

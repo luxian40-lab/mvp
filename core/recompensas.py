@@ -1,6 +1,6 @@
 """
 Sistema de Recompensas Configurables
-Permite al equipo de EKI crear recompensas desde Django Admin sin programar
+Permite al equipo de eki crear recompensas desde Django Admin sin programar
 """
 
 from django.db import models
@@ -189,7 +189,7 @@ class CanjeRecompensa(models.Model):
     atendido_por = models.CharField(
         max_length=100,
         blank=True,
-        help_text="Miembro del equipo EKI que procesó el canje"
+        help_text="Miembro del equipo eki que procesó el canje"
     )
     
     class Meta:
