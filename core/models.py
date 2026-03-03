@@ -809,6 +809,147 @@ class Curso(models.Model):
         return self.modulos.count()
 
 
+class DocumentoRAG(models.Model):
+    """
+    Documento subido para el sistema RAG Multi-Tenant.
+    Cada documento se asocia a un Curso (y por extensión a su Cliente).
+    Los agentes IA usan estos documentos para responder preguntas.
+    
+    Aislamiento: Solo el curso al que pertenece puede acceder a este documento.
+    """
+    TIPO_CHOICES = [
+        ('contenido', 'Contenido del Curso'),
+        ('manual', 'Manual / Documentación'),
+        ('faq', 'Preguntas Frecuentes'),
+        ('guia', 'Guía Práctica'),
+        ('normativa', 'Normativa / Regulación'),
+    ]
+    ESTADO_CHOICES = [
+        ('pendiente', 'Pendiente de indexar'),
+        ('indexado', 'Indexado en RAG'),
+        ('error', 'Error al indexar'),
+    ]
+
+    curso = models.ForeignKey(
+        Curso,
+        on_delete=models.CASCADE,
+        related_name='documentos_rag',
+        verbose_name='Curso',
+        help_text='Curso al que pertenece este documento. Los agentes IA SOLO verán documentos de su curso.'
+    )
+    nombre = models.CharField(
+        max_length=200,
+        verbose_name='Nombre del documento',
+        help_text='Identificador único (ej: Manual_Tomates_v1, FAQ_Café)'
+    )
+    archivo = models.FileField(
+        upload_to='documentos_rag/%Y/%m/',
+        verbose_name='Archivo (PDF, DOCX, TXT)',
+        help_text='Formatos soportados: .pdf, .docx, .txt'
+    )
+    tipo = models.CharField(
+        max_length=20,
+        choices=TIPO_CHOICES,
+        default='contenido',
+        verbose_name='Tipo de documento'
+    )
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADO_CHOICES,
+        default='pendiente',
+        verbose_name='Estado RAG'
+    )
+    chunks_indexados = models.IntegerField(
+        default=0,
+        verbose_name='Chunks indexados',
+        help_text='Cantidad de fragmentos indexados en la BD vectorial'
+    )
+    descripcion = models.TextField(
+        blank=True,
+        verbose_name='Descripción',
+        help_text='Descripción opcional del contenido del documento'
+    )
+    fecha_subida = models.DateTimeField(auto_now_add=True)
+    fecha_indexado = models.DateTimeField(null=True, blank=True)
+    subido_por = models.ForeignKey(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Subido por'
+    )
+
+    class Meta:
+        ordering = ['-fecha_subida']
+        verbose_name = 'Documento RAG'
+        verbose_name_plural = '📚 Documentos RAG (Base de Conocimiento IA)'
+        unique_together = ['curso', 'nombre']
+        indexes = [
+            models.Index(fields=['curso', 'estado']),
+        ]
+
+    def __str__(self):
+        return f"{self.nombre} ({self.curso.nombre})"
+
+    @property
+    def cliente_id(self):
+        return self.curso.cliente_id if self.curso.cliente_id else 0
+
+    def indexar(self):
+        """Indexa este documento en ChromaDB para el cliente+curso."""
+        from core.rag_manager import rag_manager
+        from django.utils import timezone
+        import os
+
+        if not self.archivo:
+            self.estado = 'error'
+            self.save(update_fields=['estado'])
+            return 0
+
+        try:
+            ruta = self.archivo.path
+            if not os.path.exists(ruta):
+                # Intentar descargar desde S3 a temp
+                ruta = self._descargar_temp()
+                if not ruta:
+                    self.estado = 'error'
+                    self.save(update_fields=['estado'])
+                    return 0
+
+            n_chunks = rag_manager.procesar_documento(
+                cliente_id=self.cliente_id,
+                curso_id=self.curso_id,
+                ruta_archivo=ruta,
+                nombre_documento=self.nombre,
+                tipo=self.tipo
+            )
+            self.chunks_indexados = n_chunks
+            self.estado = 'indexado' if n_chunks > 0 else 'error'
+            self.fecha_indexado = timezone.now()
+            self.save(update_fields=['chunks_indexados', 'estado', 'fecha_indexado'])
+            return n_chunks
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"[DocumentoRAG] Error indexando {self.nombre}: {e}")
+            self.estado = 'error'
+            self.save(update_fields=['estado'])
+            return 0
+
+    def _descargar_temp(self):
+        """Descarga archivo desde storage (S3) a /tmp para procesamiento."""
+        import tempfile
+        try:
+            ext = os.path.splitext(self.archivo.name)[1]
+            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+                for chunk in self.archivo.chunks():
+                    tmp.write(chunk)
+                return tmp.name
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"[DocumentoRAG] Error descargando {self.nombre}: {e}")
+            return None
+
+
 class Modulo(models.Model):
     """Módulo dentro de un curso (ej: Módulo 1: Siembra)"""
     curso = models.ForeignKey(Curso, on_delete=models.CASCADE, related_name='modulos')

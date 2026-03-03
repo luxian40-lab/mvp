@@ -312,6 +312,22 @@ def responder_con_ia(mensaje: str, telefono: str) -> str:
                 if progreso.modulo_actual:
                     contexto_estudiante += f"\nMódulo actual: {progreso.modulo_actual.titulo}"
                 contexto_estudiante += f"\n\n⚠️ IMPORTANTE: El estudiante está aprendiendo sobre {progreso.curso.nombre}. Todas tus respuestas deben estar contextualizadas a este cultivo/tema específico. NO menciones otros cursos a menos que el estudiante pregunte explícitamente."
+
+                # 🤖 RAG Multi-Tenant: Inyectar contexto de documentos del curso
+                try:
+                    from .rag_manager import rag_manager
+                    cliente_id = progreso.curso.cliente_id if progreso.curso.cliente_id else 0
+                    contexto_rag = rag_manager.obtener_contexto_para_ia(
+                        cliente_id=cliente_id,
+                        curso_id=progreso.curso.id,
+                        pregunta=mensaje,
+                        max_chars=1500
+                    )
+                    if contexto_rag:
+                        contexto_estudiante += contexto_rag
+                        logger.info(f"[RAG] Contexto inyectado para {estudiante.nombre} (Cliente {cliente_id}, Curso {progreso.curso.id})")
+                except Exception as e:
+                    logger.warning(f"[RAG] Error obteniendo contexto: {e}")
         
         # ESTRATEGIA HÍBRIDA: OpenAI → Cohere
         try:

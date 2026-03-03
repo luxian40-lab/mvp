@@ -57,3 +57,6 @@ backups/
 audios_whatsapp/
 logs/
 staticfiles/
+
+# ChromaDB (bases vectoriales RAG - se generan en producción)
+chroma_db/

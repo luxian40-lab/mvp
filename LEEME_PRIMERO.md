@@ -226,3 +226,60 @@ Agregar a `.env`:
 CELERY_TASK_ALWAYS_EAGER=True
 ```
 Las tareas se ejecutaran sincronamente sin necesidad de Redis.
+
+### 4. RAG Multi-Tenant — Base de Conocimiento para Agentes IA
+
+**ARQUITECTURA:**
+```
+Compañia 1 (Eki)                    Compañia 2 (Cooperativa)
+├─ Curso: Tomates                   ├─ Curso: Maiz
+│  ├─ manual_tomates.pdf   ← AISLADO│  ├─ manual_maiz.pdf     ← AISLADO
+│  └─ ChromaDB propio              │  └─ ChromaDB propio
+└─ Curso: Café                     └─ Curso: Ganadería
+   ├─ manual_cafe.pdf      ← AISLADO   ├─ manual_ganaderia.pdf ← AISLADO
+   └─ ChromaDB propio                  └─ ChromaDB propio
+```
+
+**REGLA DE ORO:** Compañia A NO puede ver documentos de Compañia B. Curso 1 NO puede ver documentos de Curso 2. Aislamiento total.
+
+**Archivos creados:**
+- `core/rag_eki_multitenant.py` — Motor RAG con ChromaDB (procesamiento, busqueda, respuestas)
+- `core/rag_manager.py` — Singleton manager con cache de instancias RAG
+- Modelo `DocumentoRAG` en `core/models.py` — Trackea documentos subidos (curso, tipo, estado, chunks)
+- Admin integrado en `CursoAdmin` como inline + `DocumentoRAGAdmin` standalone
+
+**Como funciona:**
+1. Admin sube PDF/DOCX/TXT en el admin de Curso (inline "Documentos RAG")
+2. El sistema extrae texto, lo divide en chunks y lo indexa en ChromaDB
+3. Cuando un estudiante pregunta algo, los agentes (Geronimo, Maria, IA Assistant):
+   - Detectan el cliente_id y curso_id del estudiante
+   - Buscan documentos relevantes SOLO en ese cliente+curso
+   - Inyectan el contexto en el prompt de OpenAI
+   - Responden con información del material del curso
+
+**Acciones admin disponibles:**
+- "Indexar documentos RAG" — Indexa documentos pendientes
+- "Indexar contenido de modulos en RAG" — Indexa el texto de los modulos como documentos
+- "Re-indexar" — Fuerza re-procesamiento
+- "Eliminar del RAG" — Quita del indice sin borrar archivo
+
+**Integracion con agentes IA:**
+- `ai_assistant.py` (responder_con_ia) — Inyecta contexto RAG automaticamente
+- `tutor_ia_modulo.py` (generar_enseñanza_modulo) — Geronimo usa docs del curso
+- `tutor_ia_modulo.py` (evaluar_respuesta_modulo) — Evaluacion con contexto RAG
+
+**Estructura de archivos ChromaDB:**
+```
+chroma_db/
+├── cliente_1/
+│   ├── curso_1/chroma.sqlite3   ← Aislado
+│   └── curso_2/chroma.sqlite3   ← Aislado
+├── cliente_2/
+│   └── curso_1/chroma.sqlite3   ← Aislado
+└── (auto-creado al subir docs)
+```
+
+**Requisitos produccion:**
+- `chromadb>=1.0.0` en requirements.txt (ya incluido)
+- Python 3.11+ (EB usa 3.11, compatible)
+- Sin dependencias externas adicionales (ChromaDB usa SQLite internamente)

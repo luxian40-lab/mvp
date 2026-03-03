@@ -91,11 +91,25 @@ def generar_enseñanza_modulo(modulo, estudiante_nombre: str = "Estudiante") -> 
     # Tomar solo los primeros 1500 chars del contenido para ahorrar tokens
     contenido_corto = modulo.contenido[:1500] if modulo.contenido else modulo.descripcion
 
+    # 🤖 RAG: Obtener contexto adicional de documentos del curso
+    contexto_rag = ""
+    try:
+        from .rag_manager import rag_manager
+        cliente_id = modulo.curso.cliente_id if modulo.curso.cliente_id else 0
+        contexto_rag = rag_manager.obtener_contexto_para_ia(
+            cliente_id=cliente_id,
+            curso_id=modulo.curso_id,
+            pregunta=modulo.titulo,
+            max_chars=1000
+        )
+    except Exception as e:
+        logger.warning(f"[RAG] Error en tutor IA: {e}")
+
     prompt_usuario = f"""CONTEXTO DEL MÓDULO:
 Curso: {modulo.curso.nombre}
 Módulo {modulo.numero}: {modulo.titulo}
 Contenido: {contenido_corto}
-
+{contexto_rag}
 Estudiante: {estudiante_nombre}
 
 Genera UNA micro-enseñanza con método sandwich sobre el concepto principal de este módulo."""
@@ -139,11 +153,25 @@ def evaluar_respuesta_modulo(modulo, respuesta_estudiante: str, pregunta_origina
 
     contenido_corto = modulo.contenido[:1000] if modulo.contenido else modulo.descripcion
 
+    # 🤖 RAG: Contexto adicional de documentos del curso
+    contexto_rag = ""
+    try:
+        from .rag_manager import rag_manager
+        cliente_id = modulo.curso.cliente_id if modulo.curso.cliente_id else 0
+        contexto_rag = rag_manager.obtener_contexto_para_ia(
+            cliente_id=cliente_id,
+            curso_id=modulo.curso_id,
+            pregunta=respuesta_estudiante,
+            max_chars=800
+        )
+    except Exception as e:
+        logger.warning(f"[RAG] Error en evaluador IA: {e}")
+
     prompt_usuario = f"""CONTEXTO:
 Curso: {modulo.curso.nombre}
 Módulo: {modulo.titulo}
 Contenido clave: {contenido_corto}
-
+{contexto_rag}
 PREGUNTA DEL TUTOR: {pregunta_original}
 RESPUESTA DEL ESTUDIANTE ({estudiante_nombre}): {respuesta_estudiante}
 

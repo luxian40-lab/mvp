@@ -23,6 +23,7 @@ from .models import (
     Certificado, PlantillaCertificado, # 📜 CERTIFICADOS
     CampanaUnica, RespuestaCampanaUnica,
     ProspectoB2B,  # 🤝 LEADS B2B
+    DocumentoRAG,  # 📚 RAG Multi-Tenant
 )
 from .admin_campana_actualizado import CampanaUnicaAdmin, RespuestaCampanaUnicaAdmin
 from .models_extras import (
@@ -2233,15 +2234,36 @@ class ModuloInline(admin.TabularInline):
     ordering = ['numero']
 
 
+class DocumentoRAGInline(admin.StackedInline):
+    """Documentos RAG para la base de conocimiento IA del curso"""
+    model = DocumentoRAG
+    extra = 0
+    verbose_name = '📄 Documento RAG'
+    verbose_name_plural = '📚 DOCUMENTOS RAG — Base de Conocimiento para Agentes IA'
+    readonly_fields = ('estado_badge', 'chunks_indexados', 'fecha_subida', 'fecha_indexado')
+    fields = ('nombre', 'archivo', 'tipo', 'descripcion', 'estado_badge', 'chunks_indexados', 'fecha_subida', 'fecha_indexado')
+
+    def estado_badge(self, obj):
+        if not obj.pk:
+            return '-'
+        colors = {'pendiente': '#ffc107', 'indexado': '#28a745', 'error': '#dc3545'}
+        color = colors.get(obj.estado, '#6c757d')
+        return format_html(
+            '<span style="background:{};color:white;padding:3px 10px;border-radius:12px;font-size:11px;">{}</span>',
+            color, obj.get_estado_display()
+        )
+    estado_badge.short_description = 'Estado RAG'
+
+
 @admin.register(Curso)
 class CursoAdmin(admin.ModelAdmin):
     """Administración de cursos"""
-    list_display = ('nombre', 'cliente_nombre', 'total_modulos_display', 'duracion_semanas', 'ver_modulos_link', 'activo', 'orden')
+    list_display = ('nombre', 'cliente_nombre', 'total_modulos_display', 'docs_rag_count', 'duracion_semanas', 'ver_modulos_link', 'activo', 'orden')
     list_filter = ('activo', 'cliente')
     search_fields = ('nombre', 'descripcion', 'cliente__nombre')
     list_editable = ('activo', 'orden')
-    inlines = [ModuloInline]
-    actions = ['ver_todos_modulos']
+    inlines = [ModuloInline, DocumentoRAGInline]
+    actions = ['ver_todos_modulos', 'indexar_documentos_rag', 'indexar_contenido_modulos']
     # change_list_template = 'admin/curso_changelist.html'  # Eliminado para usar el template estándar de Django
     
     fieldsets = (
@@ -2287,7 +2309,69 @@ class CursoAdmin(admin.ModelAdmin):
             html += f' <span style="color:#999;font-size:11px;">• {total_archivos} archivos</span>'
         return format_html(html)
     ver_modulos_link.short_description = "Gestión"
-    
+
+    def docs_rag_count(self, obj):
+        """Muestra cantidad de documentos RAG indexados"""
+        total = obj.documentos_rag.count()
+        indexados = obj.documentos_rag.filter(estado='indexado').count()
+        if total == 0:
+            return format_html('<span style="color:#999;font-size:11px;">Sin docs</span>')
+        color = '#28a745' if indexados == total else '#ffc107'
+        return format_html(
+            '<span style="background:{};color:white;padding:3px 8px;border-radius:4px;font-size:11px;">'
+            '📚 {}/{}</span>',
+            color, indexados, total
+        )
+    docs_rag_count.short_description = "RAG"
+
+    @admin.action(description='🤖 Indexar documentos RAG de cursos seleccionados')
+    def indexar_documentos_rag(self, request, queryset):
+        """Indexa todos los documentos RAG pendientes de los cursos seleccionados."""
+        total_indexados = 0
+        errores = 0
+        for curso in queryset:
+            for doc in curso.documentos_rag.filter(estado__in=['pendiente', 'error']):
+                n = doc.indexar()
+                if n > 0:
+                    total_indexados += 1
+                else:
+                    errores += 1
+        msg = f"✅ {total_indexados} documentos indexados correctamente."
+        if errores:
+            msg += f" ⚠️ {errores} con errores."
+        self.message_user(request, msg)
+
+    @admin.action(description='📝 Indexar contenido de módulos en RAG')
+    def indexar_contenido_modulos(self, request, queryset):
+        """Indexa el contenido educativo de los módulos en la BD vectorial."""
+        from core.rag_manager import rag_manager
+        total = 0
+        for curso in queryset:
+            n = rag_manager.indexar_modulos_curso(curso.id)
+            total += n
+        self.message_user(request, f"✅ {total} chunks indexados desde contenido de módulos.")
+
+    def save_formset(self, request, form, formset, change):
+        """Al guardar DocumentoRAG inline, auto-indexar."""
+        instances = formset.save(commit=False)
+        for instance in instances:
+            if isinstance(instance, DocumentoRAG):
+                if not instance.subido_por_id:
+                    instance.subido_por = request.user
+                instance.save()
+                # Auto-indexar documentos nuevos
+                if instance.estado == 'pendiente' and instance.archivo:
+                    instance.indexar()
+            else:
+                instance.save()
+        formset.save_m2m()
+        # Manejar eliminaciones
+        for obj in formset.deleted_objects:
+            if isinstance(obj, DocumentoRAG):
+                from core.rag_manager import rag_manager
+                rag_manager.eliminar_documento(obj.cliente_id, obj.curso_id, obj.nombre)
+            obj.delete()
+
     @admin.action(description='📋 Ver módulos de cursos seleccionados')
     def ver_todos_modulos(self, request, queryset):
         """Redirige a la vista de módulos filtrando por los cursos seleccionados"""
@@ -5088,6 +5172,110 @@ class ProspectoB2BAdmin(admin.ModelAdmin):
             color, obj.get_estado_display()
         )
     estado_badge.short_description = "Estado"
+
+
+# ========================================
+# 📚 ADMIN DE DOCUMENTOS RAG
+# ========================================
+
+@admin.register(DocumentoRAG)
+class DocumentoRAGAdmin(admin.ModelAdmin):
+    """
+    📚 GESTIÓN DE DOCUMENTOS RAG — Base de Conocimiento para Agentes IA
+    Multi-Tenant: cada documento está aislado por Cliente + Curso.
+    """
+    list_display = ('nombre', 'curso_link', 'cliente_display', 'tipo_badge', 'estado_rag_badge', 'chunks_indexados', 'fecha_subida')
+    list_filter = ('estado', 'tipo', 'curso__cliente', 'curso')
+    search_fields = ('nombre', 'descripcion', 'curso__nombre', 'curso__cliente__nombre')
+    list_per_page = 50
+    ordering = ('-fecha_subida',)
+    readonly_fields = ('estado', 'chunks_indexados', 'fecha_subida', 'fecha_indexado', 'subido_por')
+    actions = ['indexar_seleccionados', 'reindexar_seleccionados', 'eliminar_del_rag']
+
+    fieldsets = (
+        ('📄 Documento', {
+            'fields': ('curso', 'nombre', 'archivo', 'tipo', 'descripcion')
+        }),
+        ('🤖 Estado RAG', {
+            'fields': ('estado', 'chunks_indexados', 'fecha_subida', 'fecha_indexado', 'subido_por'),
+            'description': 'Estado de indexación en la base de datos vectorial. Los documentos indexados son usados por los agentes IA.'
+        }),
+    )
+
+    def curso_link(self, obj):
+        url = reverse('admin:core_curso_change', args=[obj.curso_id])
+        return format_html('<a href="{}">{}</a>', url, obj.curso.nombre)
+    curso_link.short_description = "Curso"
+
+    def cliente_display(self, obj):
+        if obj.curso.cliente:
+            return obj.curso.cliente.nombre
+        return format_html('<span style="color:#999;">General (eki)</span>')
+    cliente_display.short_description = "🏢 Cliente"
+
+    def tipo_badge(self, obj):
+        colores = {'contenido': '#2196F3', 'manual': '#9C27B0', 'faq': '#FF9800', 'guia': '#4CAF50', 'normativa': '#607D8B'}
+        color = colores.get(obj.tipo, '#999')
+        return format_html(
+            '<span style="background:{};color:white;padding:3px 8px;border-radius:12px;font-size:11px;">{}</span>',
+            color, obj.get_tipo_display()
+        )
+    tipo_badge.short_description = "Tipo"
+
+    def estado_rag_badge(self, obj):
+        colores = {'pendiente': '#ffc107', 'indexado': '#28a745', 'error': '#dc3545'}
+        color = colores.get(obj.estado, '#6c757d')
+        label = obj.get_estado_display()
+        return format_html(
+            '<span style="background:{};color:white;padding:3px 10px;border-radius:12px;font-size:11px;">{}</span>',
+            color, label
+        )
+    estado_rag_badge.short_description = "Estado RAG"
+
+    def save_model(self, request, obj, form, change):
+        if not obj.subido_por_id:
+            obj.subido_por = request.user
+        super().save_model(request, obj, form, change)
+        # Auto-indexar al guardar
+        if obj.estado == 'pendiente' and obj.archivo:
+            obj.indexar()
+
+    @admin.action(description='🤖 Indexar documentos seleccionados en RAG')
+    def indexar_seleccionados(self, request, queryset):
+        ok, err = 0, 0
+        for doc in queryset.filter(estado='pendiente'):
+            n = doc.indexar()
+            if n > 0:
+                ok += 1
+            else:
+                err += 1
+        self.message_user(request, f"✅ {ok} indexados. {'⚠️ ' + str(err) + ' con errores.' if err else ''}")
+
+    @admin.action(description='🔄 Re-indexar documentos seleccionados')
+    def reindexar_seleccionados(self, request, queryset):
+        ok = 0
+        for doc in queryset:
+            doc.estado = 'pendiente'
+            doc.save(update_fields=['estado'])
+            n = doc.indexar()
+            if n > 0:
+                ok += 1
+        self.message_user(request, f"✅ {ok} documentos re-indexados.")
+
+    @admin.action(description='🗑️ Eliminar del RAG (sin borrar archivo)')
+    def eliminar_del_rag(self, request, queryset):
+        from core.rag_manager import rag_manager
+        for doc in queryset:
+            rag_manager.eliminar_documento(doc.cliente_id, doc.curso_id, doc.nombre)
+            doc.estado = 'pendiente'
+            doc.chunks_indexados = 0
+            doc.save(update_fields=['estado', 'chunks_indexados'])
+        self.message_user(request, f"✅ {queryset.count()} documentos eliminados del índice RAG.")
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['title'] = '📚 Documentos RAG — Base de Conocimiento para Agentes IA'
+        return super().changelist_view(request, extra_context)
 
 
 
