@@ -2,6 +2,7 @@
 Señales para integrar Gamificación con el sistema de cursos
 Otorga puntos automáticamente cuando el estudiante completa módulos/cursos
 + Anti-abuse IA reset + Email notificación a org admin
++ Integración con Celery para envíos asíncronos
 """
 
 from django.db.models.signals import post_save
@@ -15,9 +16,25 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def _notificar_org_admin(estudiante, asunto, mensaje_html):
-    """Enviar email al admin de la organización del estudiante."""
+def _celery_disponible():
+    """Verifica si Celery está disponible y configurado."""
     try:
+        from django.conf import settings
+        return not getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False)
+    except Exception:
+        return False
+
+
+def _notificar_org_admin(estudiante, asunto, mensaje_html):
+    """Enviar email al admin de la organización del estudiante (async si Celery disponible)."""
+    try:
+        if _celery_disponible():
+            from core.tasks import enviar_email_org_admin_async
+            enviar_email_org_admin_async.delay(estudiante.id, asunto, mensaje_html)
+            logger.info(f"📧 Email encolado en Celery para {estudiante.cliente.email if estudiante.cliente else 'N/A'}: {asunto}")
+            return
+
+        # Fallback síncrono
         from django.core.mail import send_mail
         from django.conf import settings
         cliente = estudiante.cliente
@@ -31,7 +48,7 @@ def _notificar_org_admin(estudiante, asunto, mensaje_html):
             recipient_list=[cliente.email],
             fail_silently=True,
         )
-        logger.info(f"📧 Email enviado a {cliente.email}: {asunto}")
+        logger.info(f"📧 Email enviado (sync) a {cliente.email}: {asunto}")
     except Exception as e:
         logger.warning(f"📧 No se pudo enviar email al admin: {e}")
 
@@ -85,15 +102,24 @@ def otorgar_puntos_por_modulo(sender, instance, created, **kwargs):
         modulo = instance.modulo
         telefono = estudiante.telefono
         archivos = ArchivoModulo.objects.filter(modulo=modulo, activo=True).order_by('orden', 'id')
-        for archivo in archivos:
-            try:
-                resultado = enviar_archivo_modulo_whatsapp(telefono, archivo)
-                if resultado.get('success'):
-                    logger.info(f"[WhatsApp] Archivo '{archivo.titulo}' enviado a {telefono}")
-                else:
-                    logger.error(f"[WhatsApp] Error enviando '{archivo.titulo}' a {telefono}: {resultado.get('response')}")
-            except Exception as e:
-                logger.error(f"[WhatsApp] Excepción enviando '{archivo.titulo}' a {telefono}: {e}")
+
+        if _celery_disponible():
+            # Envío asíncrono con Celery
+            from core.tasks import enviar_archivo_modulo_async
+            for archivo in archivos:
+                enviar_archivo_modulo_async.delay(telefono, archivo.id)
+            logger.info(f"[Celery] {archivos.count()} archivos encolados para {telefono}")
+        else:
+            # Envío síncrono (fallback)
+            for archivo in archivos:
+                try:
+                    resultado = enviar_archivo_modulo_whatsapp(telefono, archivo)
+                    if resultado.get('success'):
+                        logger.info(f"[WhatsApp] Archivo '{archivo.titulo}' enviado a {telefono}")
+                    else:
+                        logger.error(f"[WhatsApp] Error enviando '{archivo.titulo}' a {telefono}: {resultado.get('response')}")
+                except Exception as e:
+                    logger.error(f"[WhatsApp] Excepción enviando '{archivo.titulo}' a {telefono}: {e}")
 
     except Exception as e:
         logger.error(f"❌ Error al otorgar puntos por módulo: {e}")

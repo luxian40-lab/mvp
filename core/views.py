@@ -562,7 +562,7 @@ def instrucciones_view(request):
 @staff_member_required
 def importar_estudiantes(request):
     """Vista para importar estudiantes desde un archivo Excel.
-    Formato obligatorio: Cédula | Nombre | Teléfono | Municipio | Departamento | Género | Curso | Cliente
+    Formato obligatorio: Cédula | Nombre | Teléfono | Municipio | Departamento | Género | Edad | Curso | Cliente
     """
     context = {}
     
@@ -621,7 +621,7 @@ def importar_estudiantes(request):
             GENEROS_VALIDOS = {'m': 'M', 'f': 'F', 'o': 'O', 'masculino': 'M', 'femenino': 'F', 
                                'otro': 'O', 'hombre': 'M', 'mujer': 'F', 'nr': 'NR', 'no reporta': 'NR'}
             
-            # Columnas: A=Cédula | B=Nombre | C=Teléfono | D=Municipio | E=Departamento | F=Género | G=Curso | H=Cliente
+            # Columnas: A=Cédula | B=Nombre | C=Teléfono | D=Municipio | E=Departamento | F=Género | G=Edad | H=Curso | I=Cliente
             for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
                 if not row or all(cell is None or str(cell).strip() == '' for cell in row[:3]):
                     continue
@@ -633,8 +633,9 @@ def importar_estudiantes(request):
                     municipio = _limpiar_texto(_normalizar_celda(row[3])) if len(row) > 3 else ''
                     departamento = _limpiar_texto(_normalizar_celda(row[4])) if len(row) > 4 else ''
                     genero_raw = _limpiar_texto(_normalizar_celda(row[5])) if len(row) > 5 else ''
-                    curso_nombre = _normalizar_celda(row[6]) if len(row) > 6 else ''
-                    cliente_nombre = _normalizar_celda(row[7]) if len(row) > 7 else ''
+                    edad_raw = _normalizar_celda(row[6]) if len(row) > 6 else ''
+                    curso_nombre = _normalizar_celda(row[7]) if len(row) > 7 else ''
+                    cliente_nombre = _normalizar_celda(row[8]) if len(row) > 8 else ''
                     
                     # Validar campos obligatorios
                     campos_faltantes = []
@@ -644,6 +645,7 @@ def importar_estudiantes(request):
                     if not municipio: campos_faltantes.append('Municipio')
                     if not departamento: campos_faltantes.append('Departamento')
                     if not genero_raw: campos_faltantes.append('Género')
+                    if not edad_raw: campos_faltantes.append('Edad')
                     
                     if campos_faltantes:
                         errores.append(f"Fila {row_idx}: Faltan campos obligatorios: {', '.join(campos_faltantes)}")
@@ -661,6 +663,18 @@ def importar_estudiantes(request):
                         errores.append(f"Fila {row_idx}: Género '{genero_raw}' no válido (use: M, F, O, NR)")
                         continue
                     
+                    # Validar edad
+                    edad = None
+                    if edad_raw:
+                        try:
+                            edad = int(re.sub(r'\D', '', edad_raw))
+                            if edad < 1 or edad > 120:
+                                errores.append(f"Fila {row_idx}: Edad '{edad_raw}' fuera de rango (1-120)")
+                                continue
+                        except (ValueError, TypeError):
+                            errores.append(f"Fila {row_idx}: Edad '{edad_raw}' no es un número válido")
+                            continue
+                    
                     # Buscar cliente
                     cliente = None
                     if cliente_nombre:
@@ -676,6 +690,7 @@ def importar_estudiantes(request):
                         'municipio': municipio,
                         'departamento': departamento,
                         'genero': genero,
+                        'edad': edad,
                         'tipo_documento': 'CC',
                         'estado_onboarding': 'completado',
                         'estado_chat': 'ACTIVO',
@@ -1241,7 +1256,9 @@ def _procesar_twilio_webhook(post_data):
                     f"👤 *Nombre:* {estudiante.nombre}\n"
                     f"🆔 *Documento:* {estudiante.tipo_documento} {estudiante.cedula}\n"
                     f"📍 *Municipio:* {estudiante.municipio or 'No registrado'}\n"
-                    f"🏢 *Organización:* {org_nombre}\n\n"
+                    f"🏢 *Organización:* {org_nombre}\n"
+                    f"🎂 *Edad:* {estudiante.edad or 'No registrada'}\n"
+                    f"👫 *Género:* {estudiante.get_genero_display() if estudiante.genero else 'No registrado'}\n\n"
                     "━━━━━━━━━━━━━━━━━━━\n\n"
                     "*¿Tus datos están correctos?*\n\n"
                     "👉 Escribe *Sí* si todo está bien\n"
@@ -1304,19 +1321,24 @@ def _procesar_twilio_webhook(post_data):
                 # Botón "Modificar" presionado → permitir auto-corrección
                 texto_respuesta = (
                     "📝 *Corrección de Datos*\n\n"
-                    "Puedes corregir tus datos tú mismo.\n\n"
-                    "Escribe tus datos correctos en este formato:\n\n"
-                    "1️⃣ Nombre completo\n"
-                    "2️⃣ Municipio\n"
-                    "3️⃣ Tipo documento (CC, TI, CE o PP)\n"
-                    "4️⃣ Número de documento\n\n"
-                    "📝 _Ejemplo:_\n"
-                    "_María García_\n"
-                    "_Bogotá_\n"
-                    "_CC_\n"
-                    "_52456789_\n\n"
-                    "📝 _O todo en una línea:_\n"
-                    "_María García, Bogotá, CC, 52456789_\n\n"
+                    "Puedes corregir cualquiera de tus datos.\n\n"
+                    "Escribe el campo que deseas cambiar seguido del nuevo valor:\n\n"
+                    "1️⃣ *nombre:* Tu nombre completo\n"
+                    "2️⃣ *municipio:* Tu municipio\n"
+                    "3️⃣ *departamento:* Tu departamento\n"
+                    "4️⃣ *documento:* Tipo y número (CC, TI, CE, PP)\n"
+                    "5️⃣ *edad:* Tu edad\n"
+                    "6️⃣ *genero:* M, F, Otro, NR\n\n"
+                    "📝 _Ejemplos:_\n"
+                    "_nombre: María García López_\n"
+                    "_municipio: Bogotá_\n"
+                    "_edad: 35_\n"
+                    "_documento: CC 52456789_\n"
+                    "_genero: F_\n\n"
+                    "📝 _O todo junto (una por línea):_\n"
+                    "_nombre: María García_\n"
+                    "_municipio: Bogotá_\n"
+                    "_edad: 35_\n\n"
                     "━━━━━━━━━━━━━━━━━━━\n"
                     "👉 Escribe *3* para reintentar cédula\n"
                     "👉 Escribe *menú* si todo ya está bien"
@@ -1376,57 +1398,154 @@ def _procesar_twilio_webhook(post_data):
                 )
             else:
                 # Intentar parsear los datos corregidos
-                from .security_handler import _parsear_datos_registro
-                resultado = _parsear_datos_registro(msg_body, estudiante)
-                if resultado:
-                    nombre, municipio, tipo_doc, cedula = resultado
-                    estudiante.nombre = nombre
-                    estudiante.municipio = municipio
-                    estudiante.tipo_documento = tipo_doc
-                    estudiante.cedula = cedula
+                # NUEVO: Soporte para corrección campo por campo (campo: valor)
+                cambios_realizados = []
+                lineas = [l.strip() for l in msg_body.split('\n') if l.strip()]
+                campo_valor_detectado = False
+                
+                GENEROS_MAP = {
+                    'm': 'M', 'f': 'F', 'o': 'O', 'nr': 'NR',
+                    'masculino': 'M', 'femenino': 'F', 'otro': 'O', 'no reporta': 'NR',
+                    'hombre': 'M', 'mujer': 'F',
+                }
+                TIPOS_DOC = {'cc': 'CC', 'ti': 'TI', 'ce': 'CE', 'pp': 'PP'}
+                
+                for linea in lineas:
+                    if ':' in linea:
+                        campo, _, valor = linea.partition(':')
+                        campo = campo.strip().lower()
+                        valor = valor.strip()
+                        
+                        if not valor:
+                            continue
+                        
+                        if campo == 'nombre':
+                            estudiante.nombre = valor.title()
+                            cambios_realizados.append(f"👤 Nombre → {estudiante.nombre}")
+                            campo_valor_detectado = True
+                        elif campo == 'municipio':
+                            estudiante.municipio = valor.title()
+                            cambios_realizados.append(f"📍 Municipio → {estudiante.municipio}")
+                            campo_valor_detectado = True
+                        elif campo == 'departamento':
+                            estudiante.departamento = valor.title()
+                            cambios_realizados.append(f"🗺️ Departamento → {estudiante.departamento}")
+                            campo_valor_detectado = True
+                        elif campo in ('edad', 'años', 'anos'):
+                            try:
+                                edad_val = int(re.sub(r'\D', '', valor))
+                                if 1 <= edad_val <= 120:
+                                    estudiante.edad = edad_val
+                                    cambios_realizados.append(f"🎂 Edad → {edad_val}")
+                                    campo_valor_detectado = True
+                            except (ValueError, TypeError):
+                                pass
+                        elif campo in ('genero', 'género', 'sexo'):
+                            genero = GENEROS_MAP.get(valor.lower(), '')
+                            if genero:
+                                estudiante.genero = genero
+                                cambios_realizados.append(f"👫 Género → {estudiante.get_genero_display()}")
+                                campo_valor_detectado = True
+                        elif campo in ('documento', 'doc', 'cedula', 'cédula'):
+                            partes = valor.split()
+                            if len(partes) >= 2:
+                                tipo_raw = partes[0].lower()
+                                num = re.sub(r'\D', '', ' '.join(partes[1:]))
+                                tipo = TIPOS_DOC.get(tipo_raw, '')
+                                if tipo and len(num) >= 6:
+                                    estudiante.tipo_documento = tipo
+                                    estudiante.cedula = num
+                                    cambios_realizados.append(f"🆔 Documento → {tipo} {num}")
+                                    campo_valor_detectado = True
+                            elif len(partes) == 1:
+                                num = re.sub(r'\D', '', valor)
+                                if len(num) >= 6:
+                                    estudiante.cedula = num
+                                    cambios_realizados.append(f"🆔 Cédula → {num}")
+                                    campo_valor_detectado = True
+                
+                if campo_valor_detectado and cambios_realizados:
                     estudiante.estado_chat = 'CONFIRMANDO_DATOS'
                     estudiante.save()
                     
-                    logger.info(f"✅ Datos auto-corregidos: {nombre}, {municipio}, {tipo_doc} {cedula}")
+                    logger.info(f"✅ Datos corregidos campo por campo: {', '.join(cambios_realizados)}")
                     
-                    # Enviar confirmación con datos actualizados
                     org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
                     from .whatsapp_service import enviar_confirmacion_datos
                     resultado_envio = enviar_confirmacion_datos(
                         msg_from,
-                        nombre,
-                        f"{tipo_doc} {cedula}",
+                        estudiante.nombre,
+                        f"{estudiante.tipo_documento} {estudiante.cedula}",
                         org_nombre
                     )
                     if resultado_envio.get('success'):
                         return
                     
-                    # Fallback texto
                     texto_respuesta = (
                         "✅ *¡Datos actualizados!*\n\n"
-                        f"👤 *Nombre:* {nombre}\n"
-                        f"📍 *Municipio:* {municipio}\n"
-                        f"🆔 *Documento:* {tipo_doc} {cedula}\n"
+                        "Cambios realizados:\n"
+                        + '\n'.join(cambios_realizados) + "\n\n"
+                        f"👤 *Nombre:* {estudiante.nombre}\n"
+                        f"🆔 *Documento:* {estudiante.tipo_documento} {estudiante.cedula}\n"
+                        f"📍 *Municipio:* {estudiante.municipio or 'No registrado'}\n"
+                        f"🗺️ *Departamento:* {estudiante.departamento or 'No registrado'}\n"
+                        f"🎂 *Edad:* {estudiante.edad or 'No registrada'}\n"
+                        f"👫 *Género:* {estudiante.get_genero_display() if estudiante.genero else 'No registrado'}\n"
                         f"🏢 *Organización:* {org_nombre}\n\n"
                         "*¿Tus datos están correctos?*\n\n"
                         "👉 Escribe *Sí* si todo está bien\n"
                         "👉 Escribe *No* si hay un error"
                     )
                 else:
-                    texto_respuesta = (
-                        "❌ No pude entender tus datos.\n\n"
-                        "Por favor escríbelos en este formato:\n\n"
-                        "📝 _Ejemplo:_\n"
-                        "_María García_\n"
-                        "_Bogotá_\n"
-                        "_CC_\n"
-                        "_52456789_\n\n"
-                        "📝 _O todo en una línea:_\n"
-                        "_María García, Bogotá, CC, 52456789_\n\n"
-                        "━━━━━━━━━━━━━━━━━━━\n"
-                        "👉 Escribe *3* para reintentar cédula\n"
-                        "👉 Escribe *menú* si ya está bien"
-                    )
+                    # Fallback: intentar parseo legacy (4 líneas: nombre, municipio, tipo_doc, cedula)
+                    from .security_handler import _parsear_datos_registro
+                    resultado = _parsear_datos_registro(msg_body, estudiante)
+                    if resultado:
+                        nombre, municipio, tipo_doc, cedula = resultado
+                        estudiante.nombre = nombre
+                        estudiante.municipio = municipio
+                        estudiante.tipo_documento = tipo_doc
+                        estudiante.cedula = cedula
+                        estudiante.estado_chat = 'CONFIRMANDO_DATOS'
+                        estudiante.save()
+                        
+                        logger.info(f"✅ Datos auto-corregidos (legacy): {nombre}, {municipio}, {tipo_doc} {cedula}")
+                        
+                        org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
+                        from .whatsapp_service import enviar_confirmacion_datos
+                        resultado_envio = enviar_confirmacion_datos(
+                            msg_from,
+                            nombre,
+                            f"{tipo_doc} {cedula}",
+                            org_nombre
+                        )
+                        if resultado_envio.get('success'):
+                            return
+                        
+                        texto_respuesta = (
+                            "✅ *¡Datos actualizados!*\n\n"
+                            f"👤 *Nombre:* {nombre}\n"
+                            f"📍 *Municipio:* {municipio}\n"
+                            f"🆔 *Documento:* {tipo_doc} {cedula}\n"
+                            f"🏢 *Organización:* {org_nombre}\n\n"
+                            "*¿Tus datos están correctos?*\n\n"
+                            "👉 Escribe *Sí* si todo está bien\n"
+                            "👉 Escribe *No* si hay un error"
+                        )
+                    else:
+                        texto_respuesta = (
+                            "❌ No pude entender tus datos.\n\n"
+                            "Escribe el campo seguido del valor:\n\n"
+                            "📝 _Ejemplos:_\n"
+                            "_nombre: María García_\n"
+                            "_municipio: Bogotá_\n"
+                            "_edad: 35_\n"
+                            "_genero: F_\n"
+                            "_documento: CC 52456789_\n\n"
+                            "━━━━━━━━━━━━━━━━━━━\n"
+                            "👉 Escribe *3* para reintentar cédula\n"
+                            "👉 Escribe *menú* si ya está bien"
+                        )
             
             try:
                 from twilio.rest import Client as TwilioClient

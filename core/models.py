@@ -216,12 +216,18 @@ class Estudiante(models.Model):
         verbose_name='Género',
         help_text='Género del estudiante'
     )
+    edad = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name='Edad',
+        help_text='Edad del estudiante en años'
+    )
     rango_edad = models.CharField(
         max_length=10,
         choices=RANGO_EDAD_CHOICES,
         blank=True,
         verbose_name='Rango de Edad',
-        help_text='Rango de edad del estudiante'
+        help_text='Rango de edad del estudiante (se calcula automáticamente si se proporciona edad)'
     )
     
     # ORGANIZACIÓN (Multi-tenant B2B)
@@ -307,6 +313,17 @@ class Estudiante(models.Model):
         # Capitalizar nombre
         if self.nombre and self.nombre != 'Usuario':
             self.nombre = self.nombre.strip().title()
+        
+        # Auto-calcular rango_edad si se proporciona edad
+        if self.edad:
+            if self.edad < 18:
+                self.rango_edad = '18-30'  # Menores se agrupan en el primer rango
+            elif 18 <= self.edad <= 30:
+                self.rango_edad = '18-30'
+            elif 31 <= self.edad <= 50:
+                self.rango_edad = '31-50'
+            else:
+                self.rango_edad = '50+'
 
     def save(self, *args, **kwargs):
         self.clean() # Forzamos limpieza antes de guardar
@@ -1354,7 +1371,7 @@ class InteraccionLog(models.Model):
 # ========== SOPORTE Y ATENCIÓN AL CLIENTE ==========
 
 class SolicitudSoporte(models.Model):
-    """Solicitudes de soporte/ayuda de estudiantes (Botón de Pánico)"""
+    """Solicitudes de soporte/ayuda de estudiantes y PQRS unificado"""
     
     ESTADO_CHOICES = [
         ('pendiente', 'Pendiente'),
@@ -1370,6 +1387,46 @@ class SolicitudSoporte(models.Model):
         ('critica', '🚨 Crítica'),
     ]
     
+    TIPO_SOLICITUD_CHOICES = [
+        ('soporte', '🆘 Soporte (Botón de Pánico)'),
+        ('peticion', '📋 Petición'),
+        ('queja', '😤 Queja'),
+        ('reclamo', '📢 Reclamo'),
+        ('sugerencia', '💡 Sugerencia'),
+        ('felicitacion', '🌟 Felicitación'),
+    ]
+    
+    tipo_solicitud = models.CharField(
+        max_length=20,
+        choices=TIPO_SOLICITUD_CHOICES,
+        default='soporte',
+        verbose_name='Tipo de Solicitud',
+        help_text='Tipo: soporte técnico o PQRS'
+    )
+    asunto = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name='Asunto',
+        help_text='Asunto de la solicitud (opcional para soporte, recomendado para PQRS)'
+    )
+    curso_relacionado = models.ForeignKey(
+        'Curso',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Curso Relacionado',
+        help_text='Curso relacionado con la solicitud (opcional)'
+    )
+    calificacion = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name='Calificación',
+        help_text='Del 1 al 5, otorgada por el estudiante'
+    )
+    comentario_calificacion = models.TextField(
+        blank=True,
+        verbose_name='Comentario de Calificación'
+    )
     estudiante = models.ForeignKey(
         Estudiante,
         on_delete=models.CASCADE,
@@ -1430,12 +1487,13 @@ class SolicitudSoporte(models.Model):
     )
     
     class Meta:
-        verbose_name = 'Solicitud de Soporte'
+        verbose_name = 'Solicitud de Soporte y PQRS'
         verbose_name_plural = '🆘 Soporte y PQRS'
         ordering = ['-fecha_solicitud']
         indexes = [
             models.Index(fields=['estado', 'prioridad']),
             models.Index(fields=['estudiante', 'fecha_solicitud']),
+            models.Index(fields=['tipo_solicitud', 'estado']),
         ]
     
     def __str__(self):

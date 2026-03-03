@@ -165,3 +165,64 @@ Solo necesitas:
 **Todo el deployment esta automatizado.**
 
 **Un solo comando y tu app esta en produccion!**
+
+---
+
+## CAMBIOS RECIENTES (Fecha actual)
+
+### 1. Campo Edad en Estudiantes
+- Se agrego campo `edad` (numerico) al modelo Estudiante
+- `rango_edad` se calcula automaticamente desde la edad (18-30, 31-50, 50+)
+- Visible en admin (listado y formulario de edicion)
+- Incluido en plantilla de importacion Excel (columna G)
+- El flujo de onboarding por WhatsApp ahora muestra edad y genero en la confirmacion
+- Los estudiantes pueden corregir campo por campo (nombre, municipio, departamento, documento, edad, genero) escribiendo `campo: valor`
+
+### 2. PQRS y Soporte Unificados
+- Las solicitudes de soporte ahora incluyen tipos PQRS (Peticion, Queja, Reclamo, Sugerencia, Felicitacion)
+- Una sola vista en admin: "Solicitudes de Soporte y PQRS"
+- Panel de estadisticas unificado con conteos por tipo
+- PQRS antiguo oculto del sidebar (datos preservados)
+
+### 3. Celery + Redis (Procesamiento Asincrono)
+- **Instalado**: celery 5.4.0, redis 5.2.1
+- **Archivo de configuracion**: `mvp_project/celery.py`
+- **Tareas definidas** en `core/tasks.py`:
+  - `procesar_respuesta_estudiante` - Procesa mensajes de WhatsApp async
+  - `generar_certificado_async` - Genera certificados PDF en background
+  - `actualizar_gamificacion_async` - Actualiza puntos/niveles
+  - `enviar_notificacion_async` - Envia mensajes WhatsApp
+  - `enviar_archivo_modulo_async` - Envia archivos multimedia
+  - `enviar_campanas_programadas` - Cada 5 min busca campanas pendientes
+  - `ejecutar_campana_async` - Ejecuta una campana individual
+  - `generar_reporte_actividad` - Reporte cada hora
+  - `limpiar_logs_antiguos` - Limpia mensajes > 90 dias (2 AM)
+  - `enviar_email_org_admin_async` - Emails a admins de organizacion
+- **Procfile**: Incluye lineas para `worker` y `beat`
+- **Fallback**: Si Redis no esta disponible, todo funciona sincronamente
+- **Variables de entorno requeridas**:
+  - `CELERY_BROKER_URL` (default: redis://localhost:6379/0)
+  - `CELERY_RESULT_BACKEND` (default: redis://localhost:6379/0)
+  - `CELERY_TASK_ALWAYS_EAGER=True` para ejecutar sync sin Redis
+
+### Como ejecutar Celery en local:
+```bash
+# Terminal 1: Redis (o usar Docker)
+docker run -p 6379:6379 redis
+
+# Terminal 2: Worker
+celery -A mvp_project worker --loglevel=info
+
+# Terminal 3: Beat (tareas programadas)
+celery -A mvp_project beat --loglevel=info
+
+# Terminal 4: Django
+python manage.py runserver
+```
+
+### Sin Redis (desarrollo rapido):
+Agregar a `.env`:
+```
+CELERY_TASK_ALWAYS_EAGER=True
+```
+Las tareas se ejecutaran sincronamente sin necesidad de Redis.

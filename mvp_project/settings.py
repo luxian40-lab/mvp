@@ -230,6 +230,7 @@ JAZZMIN_SETTINGS = {
         "core.CampanaUnica",
         "core.RespuestaCampanaUnica",
         "core.EnvioProgramado",
+        "core.PQRS",
     ],
 
     # Orden visual: 5 bloques colapsables
@@ -501,3 +502,22 @@ EMAIL_TIMEOUT = 30  # Timeout de 30 segundos
 # En desarrollo sin configurar, usar consola
 if DEBUG and not EMAIL_HOST_USER:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# ==========================================
+# CELERY - Procesamiento asíncrono
+# ==========================================
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE  # Usa la misma zona horaria de Django
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 300  # 5 minutos máximo por tarea
+CELERY_TASK_SOFT_TIME_LIMIT = 240  # 4 minutos soft limit
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # Para distribución justa de tareas
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# En desarrollo sin Redis, deshabilitar Celery (las tareas se ejecutan síncronamente)
+CELERY_TASK_ALWAYS_EAGER = os.environ.get('CELERY_TASK_ALWAYS_EAGER', 'False') == 'True'
+CELERY_TASK_EAGER_PROPAGATES = True

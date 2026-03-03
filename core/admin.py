@@ -312,7 +312,7 @@ class PlantillaDashboardAdmin(admin.ModelAdmin):
 @admin.register(Estudiante)
 class EstudianteAdmin(admin.ModelAdmin):
     """Gestión de estudiantes/campesinos"""
-    list_display = ('cedula_formateada', 'nombre', 'telefono_formateado', 'municipio', 'departamento', 'genero', 'cliente_nombre', 'grupos_display', 'cursos_inscritos', 'activo', 'fecha_registro')
+    list_display = ('cedula_formateada', 'nombre', 'telefono_formateado', 'municipio', 'departamento', 'genero', 'edad', 'cliente_nombre', 'grupos_display', 'cursos_inscritos', 'activo', 'fecha_registro')
     list_filter = ('activo', 'cliente', 'genero', 'departamento', 'fecha_registro', CursosEstudianteFilter, GruposEstudianteFilter)
     search_fields = ('nombre', 'cedula', 'telefono', 'cliente__nombre')
     list_per_page = 50
@@ -332,7 +332,7 @@ class EstudianteAdmin(admin.ModelAdmin):
             'description': 'Municipio, departamento y detalles de ubicación del estudiante'
         }),
         ('👤 Datos Demográficos', {
-            'fields': ('genero',),
+            'fields': ('genero', 'edad', 'rango_edad'),
         }),
         ('📱 Contacto y Organización', {
             'fields': ('telefono', 'cliente', 'activo')
@@ -430,7 +430,7 @@ class EstudianteAdmin(admin.ModelAdmin):
     
     def importar_estudiantes_view(self, request):
         """Vista para importar estudiantes desde Excel.
-        Formato: Cédula | Nombre | Teléfono | Municipio | Departamento | Género | Curso | Cliente
+        Formato: Cédula | Nombre | Teléfono | Municipio | Departamento | Género | Edad | Curso | Cliente
         """
         from django.shortcuts import render, redirect
         from django.contrib import messages
@@ -493,8 +493,9 @@ class EstudianteAdmin(admin.ModelAdmin):
                         municipio = _limpiar_texto(_normalizar_celda(row[3])) if len(row) > 3 else ''
                         departamento = _limpiar_texto(_normalizar_celda(row[4])) if len(row) > 4 else ''
                         genero_raw = _limpiar_texto(_normalizar_celda(row[5])) if len(row) > 5 else ''
-                        curso_nombre = _normalizar_celda(row[6]) if len(row) > 6 else ''
-                        cliente_nombre = _normalizar_celda(row[7]) if len(row) > 7 else ''
+                        edad_raw = _normalizar_celda(row[6]) if len(row) > 6 else ''
+                        curso_nombre = _normalizar_celda(row[7]) if len(row) > 7 else ''
+                        cliente_nombre = _normalizar_celda(row[8]) if len(row) > 8 else ''
                     except IndexError:
                         errores.append(f"Fila {idx}: Columnas insuficientes")
                         continue
@@ -507,6 +508,7 @@ class EstudianteAdmin(admin.ModelAdmin):
                     if not municipio: campos_faltantes.append('Municipio')
                     if not departamento: campos_faltantes.append('Departamento')
                     if not genero_raw: campos_faltantes.append('Género')
+                    if not edad_raw: campos_faltantes.append('Edad')
                     
                     if campos_faltantes:
                         errores.append(f"Fila {idx}: Faltan: {', '.join(campos_faltantes)}")
@@ -521,6 +523,18 @@ class EstudianteAdmin(admin.ModelAdmin):
                     if not genero:
                         errores.append(f"Fila {idx}: Género '{genero_raw}' no válido (use: M, F, O, NR)")
                         continue
+                    
+                    # Validar edad
+                    edad = None
+                    if edad_raw:
+                        try:
+                            edad = int(re.sub(r'\D', '', edad_raw))
+                            if edad < 1 or edad > 120:
+                                errores.append(f"Fila {idx}: Edad '{edad_raw}' fuera de rango (1-120)")
+                                continue
+                        except (ValueError, TypeError):
+                            errores.append(f"Fila {idx}: Edad '{edad_raw}' no es un número válido")
+                            continue
                     
                     try:
                         cliente = None
@@ -537,6 +551,7 @@ class EstudianteAdmin(admin.ModelAdmin):
                                 'municipio': municipio,
                                 'departamento': departamento,
                                 'genero': genero,
+                                'edad': edad,
                                 'tipo_documento': 'CC',
                                 'estado_onboarding': 'completado',
                                 'estado_chat': 'ACTIVO',
@@ -1184,8 +1199,8 @@ class EstudianteAdmin(admin.ModelAdmin):
         ws = wb.active
         ws.title = "Plantilla Estudiantes"
         
-        # Encabezados mejorados (8 columnas, 6 obligatorias)
-        headers = ['Cédula', 'Nombre Completo', 'Teléfono', 'Municipio', 'Departamento', 'Género', 'Curso', 'Cliente']
+        # Encabezados mejorados (9 columnas, 7 obligatorias)
+        headers = ['Cédula', 'Nombre Completo', 'Teléfono', 'Municipio', 'Departamento', 'Género', 'Edad', 'Curso', 'Cliente']
         ws.append(headers)
         
         # Estilo de encabezados
@@ -1211,8 +1226,9 @@ class EstudianteAdmin(admin.ModelAdmin):
         ws['D1'].comment = Comment("🏙️ Municipio del estudiante (obligatorio)\nEjemplo: Manizales", "eki")
         ws['E1'].comment = Comment("🗺️ Departamento del estudiante (obligatorio)\nEjemplo: Caldas", "eki")
         ws['F1'].comment = Comment("👫 Género del estudiante (obligatorio)\nValores: masculino, femenino, otro, no reporta", "eki")
-        ws['G1'].comment = Comment("📚 Nombre del curso (opcional)\nEjemplo: Curso de Café\nDeja vacío si no aplica", "eki")
-        ws['H1'].comment = Comment("🏢 Nombre del cliente (opcional)\nEjemplo: FNC\nDeja vacío si no aplica", "eki")
+        ws['G1'].comment = Comment("🎂 Edad del estudiante (obligatorio)\nEjemplo: 35", "eki")
+        ws['H1'].comment = Comment("📚 Nombre del curso (opcional)\nEjemplo: Curso de Café\nDeja vacío si no aplica", "eki")
+        ws['I1'].comment = Comment("🏢 Nombre del cliente (opcional)\nEjemplo: FNC\nDeja vacío si no aplica", "eki")
         
         # Obtener cursos y clientes para validación
         cursos = Curso.objects.filter(activo=True).order_by('nombre')
@@ -1222,16 +1238,16 @@ class EstudianteAdmin(admin.ModelAdmin):
         if cursos.exists() and clientes.exists():
             curso_ejemplo = cursos.first().nombre
             cliente_ejemplo = clientes.first().nombre
-            ws.append(['1234567890', 'Juan Pérez García', '573001234567', 'Manizales', 'Caldas', 'masculino', curso_ejemplo, cliente_ejemplo])
-            ws.append(['9876543210', 'María López Rodríguez', '3109876543', 'Bogotá', 'Cundinamarca', 'femenino', curso_ejemplo, cliente_ejemplo])
-            ws.append(['5555555555', 'Pedro Gómez Hernández', '3201234567', 'Medellín', 'Antioquia', 'otro', '', ''])
+            ws.append(['1234567890', 'Juan Pérez García', '573001234567', 'Manizales', 'Caldas', 'masculino', 35, curso_ejemplo, cliente_ejemplo])
+            ws.append(['9876543210', 'María López Rodríguez', '3109876543', 'Bogotá', 'Cundinamarca', 'femenino', 28, curso_ejemplo, cliente_ejemplo])
+            ws.append(['5555555555', 'Pedro Gómez Hernández', '3201234567', 'Medellín', 'Antioquia', 'otro', 52, '', ''])
         else:
-            ws.append(['1234567890', 'Juan Pérez García', '573001234567', 'Manizales', 'Caldas', 'masculino', 'Curso de Café', 'FNC'])
-            ws.append(['9876543210', 'María López Rodríguez', '3109876543', 'Bogotá', 'Cundinamarca', 'femenino', 'Curso de Aguacate', 'Fedecacao'])
-            ws.append(['5555555555', 'Pedro Gómez Hernández', '3201234567', 'Medellín', 'Antioquia', 'otro', '', ''])
+            ws.append(['1234567890', 'Juan Pérez García', '573001234567', 'Manizales', 'Caldas', 'masculino', 35, 'Curso de Café', 'FNC'])
+            ws.append(['9876543210', 'María López Rodríguez', '3109876543', 'Bogotá', 'Cundinamarca', 'femenino', 28, 'Curso de Aguacate', 'Fedecacao'])
+            ws.append(['5555555555', 'Pedro Gómez Hernández', '3201234567', 'Medellín', 'Antioquia', 'otro', 52, '', ''])
         
         # Fila vacía para empezar
-        ws.append(['', '', '', '', '', '', '', ''])
+        ws.append(['', '', '', '', '', '', '', '', ''])
         
         # Estilo para ejemplos
         example_fill = PatternFill(start_color="FFF9E6", end_color="FFF9E6", fill_type="solid")
@@ -1247,8 +1263,9 @@ class EstudianteAdmin(admin.ModelAdmin):
         ws.column_dimensions['D'].width = 20
         ws.column_dimensions['E'].width = 20
         ws.column_dimensions['F'].width = 16
-        ws.column_dimensions['G'].width = 30
-        ws.column_dimensions['H'].width = 25
+        ws.column_dimensions['G'].width = 10
+        ws.column_dimensions['H'].width = 30
+        ws.column_dimensions['I'].width = 25
         
         # Crear hoja con listas de valores disponibles
         ws_ref = wb.create_sheet("Valores Disponibles")
@@ -1270,13 +1287,14 @@ class EstudianteAdmin(admin.ModelAdmin):
         instrucciones = [
             ["📋 GUÍA RÁPIDA - IMPORTAR ESTUDIANTES A eki"],
             [""],
-            ["✅ CAMPOS OBLIGATORIOS (6):"],
+            ["✅ CAMPOS OBLIGATORIOS (7):"],
             ["   • Cédula: Sin puntos ni espacios (Ej: 1234567890)"],
             ["   • Nombre: Nombre completo del estudiante"],
             ["   • Teléfono: Con código 57 o sin él (Ej: 573001234567 o 3001234567)"],
             ["   • Municipio: Ciudad o municipio (Ej: Manizales)"],
             ["   • Departamento: Departamento (Ej: Caldas)"],
             ["   • Género: masculino, femenino, otro o no reporta"],
+            ["   • Edad: Edad en años (Ej: 35)"],
             [""],
             ["📝 CAMPOS OPCIONALES (2):"],
             ["   • Curso: Nombre del curso a inscribir (ver hoja 'Valores Disponibles')"],
@@ -1287,7 +1305,7 @@ class EstudianteAdmin(admin.ModelAdmin):
             ["   2. Si dejas vacío 'Cliente', el estudiante quedará sin organización"],
             ["   3. Los nombres de Curso y Cliente deben coincidir EXACTAMENTE con los disponibles"],
             ["   4. Copia y pega desde la hoja 'Valores Disponibles' para evitar errores"],
-            ["   5. Los 6 primeros campos son OBLIGATORIOS — filas incompletas serán rechazadas"],
+            ["   5. Los 7 primeros campos son OBLIGATORIOS — filas incompletas serán rechazadas"],
             ["   6. Los textos se normalizan automáticamente a minúsculas"],
             [""],
             ["📊 PROCESO:"],
@@ -1299,16 +1317,16 @@ class EstudianteAdmin(admin.ModelAdmin):
             [""],
             ["✨ EJEMPLOS:"],
             [""],
-            ["   Cédula      | Nombre              | Teléfono      | Municipio   | Departamento  | Género    | Curso             | Cliente"],
-            ["   1234567890  | Juan Pérez García   | 573001234567  | Manizales   | Caldas        | masculino | Curso de Café     | FNC"],
-            ["   9876543210  | María López         | 3109876543    | Bogotá      | Cundinamarca  | femenino  | Curso de Aguacate | Fedecacao"],
-            ["   5555555555  | Pedro Gómez         | 3201234567    | Medellín    | Antioquia     | otro      |                   |"],
+            ["   Cédula      | Nombre              | Teléfono      | Municipio   | Departamento  | Género    | Edad | Curso             | Cliente"],
+            ["   1234567890  | Juan Pérez García   | 573001234567  | Manizales   | Caldas        | masculino | 35   | Curso de Café     | FNC"],
+            ["   9876543210  | María López         | 3109876543    | Bogotá      | Cundinamarca  | femenino  | 28   | Curso de Aguacate | Fedecacao"],
+            ["   5555555555  | Pedro Gómez         | 3201234567    | Medellín    | Antioquia     | otro      | 52   |                   |"],
             [""],
             ["⚠️ ERRORES COMUNES:"],
             ["   • Cédula duplicada: Cada cédula debe ser única"],
             ["   • Teléfono duplicado: Cada teléfono debe ser único"],
             ["   • Curso inexistente: Verifica en 'Valores Disponibles'"],
-            ["   • Campos obligatorios vacíos: Los 6 primeros campos son requeridos"],
+            ["   • Campos obligatorios vacíos: Los 7 primeros campos son requeridos"],
             ["   • Filas vacías: No dejes filas vacías entre estudiantes"],
             [""],
             ["📞 Soporte: contacto@eki.com | WhatsApp: +57 300 123 4567"],
@@ -3343,20 +3361,21 @@ class CanjeRecompensaAdmin(admin.ModelAdmin):
 class SolicitudSoporteAdmin(admin.ModelAdmin):
     """
     🆘 GESTIÓN UNIFICADA DE SOPORTE Y PQRS
-    Desde aquí puedes gestionar:
-    - Solicitudes de Soporte (Botón de Pánico)
-    - PQRS (Peticiones, Quejas, Reclamos, Sugerencias)
+    Todo en un solo lugar: soporte técnico + peticiones, quejas, reclamos, sugerencias
     """
     change_list_template = 'admin/core/solicitudsoporte/change_list.html'
-    list_display = ('estudiante_info', 'keyword_badge', 'estado_badge', 'prioridad_badge', 'fecha_solicitud', 'tiempo_espera', 'pqrs_link', 'atendido_por_info')
-    list_filter = ('estado', 'prioridad', 'keyword_usada', 'fecha_solicitud')
-    search_fields = ('estudiante__nombre', 'estudiante__telefono', 'mensaje_original', 'respuesta')
-    readonly_fields = ('estudiante', 'mensaje_original', 'keyword_usada', 'fecha_solicitud')
+    list_display = ('tipo_badge', 'estudiante_info', 'asunto_o_keyword', 'estado_badge', 'prioridad_badge', 'fecha_solicitud', 'tiempo_espera', 'atendido_por_info')
+    list_filter = ('tipo_solicitud', 'estado', 'prioridad', 'keyword_usada', 'fecha_solicitud')
+    search_fields = ('estudiante__nombre', 'estudiante__telefono', 'mensaje_original', 'asunto', 'respuesta')
+    readonly_fields = ('fecha_solicitud',)
     list_per_page = 50
     ordering = ('-fecha_solicitud',)
-    actions = ['ver_pqrs_estudiante', 'marcar_alta_prioridad']
+    actions = ['marcar_en_atencion', 'marcar_resuelta', 'marcar_prioridad_alta']
     
     fieldsets = (
+        ('📋 Tipo y Clasificación', {
+            'fields': ('tipo_solicitud', 'asunto', 'curso_relacionado', 'prioridad')
+        }),
         ('📞 Información del Estudiante', {
             'fields': ('estudiante', 'keyword_usada', 'fecha_solicitud')
         }),
@@ -3364,18 +3383,58 @@ class SolicitudSoporteAdmin(admin.ModelAdmin):
             'fields': ('mensaje_original',)
         }),
         ('🎯 Gestión', {
-            'fields': ('estado', 'prioridad', 'atendido_por')
+            'fields': ('estado', 'atendido_por')
         }),
         ('📝 Respuesta', {
             'fields': ('respuesta', 'fecha_atencion', 'fecha_resolucion'),
-            'classes': ('collapse',)
         }),
         ('📋 Notas Internas', {
             'fields': ('notas_internas',),
             'classes': ('collapse',),
             'description': 'Estas notas son privadas y no se muestran al estudiante'
         }),
+        ('⭐ Calificación del Estudiante', {
+            'fields': ('calificacion', 'comentario_calificacion'),
+            'classes': ('collapse',),
+        }),
     )
+    
+    def tipo_badge(self, obj):
+        colores = {
+            'soporte': ('#f44336', '#ffffff'),
+            'peticion': ('#e3f2fd', '#1976d2'),
+            'queja': ('#fff3e0', '#e65100'),
+            'reclamo': ('#ffebee', '#c62828'),
+            'sugerencia': ('#f3e5f5', '#7b1fa2'),
+            'felicitacion': ('#e8f5e9', '#2e7d32'),
+        }
+        iconos = {
+            'soporte': '🆘', 'peticion': '📋', 'queja': '😤',
+            'reclamo': '📢', 'sugerencia': '💡', 'felicitacion': '🌟',
+        }
+        bg, color = colores.get(obj.tipo_solicitud, ('#f5f5f5', '#666'))
+        icono = iconos.get(obj.tipo_solicitud, '')
+        return format_html(
+            '<span style="background:{};color:{};padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;">'
+            '{} {}'
+            '</span>',
+            bg, color, icono, obj.get_tipo_solicitud_display()
+        )
+    tipo_badge.short_description = "Tipo"
+    
+    def asunto_o_keyword(self, obj):
+        """Muestra asunto si es PQRS o keyword si es soporte"""
+        if obj.asunto:
+            return obj.asunto[:50]
+        if obj.keyword_usada:
+            return format_html(
+                '<span style="background:#e3f2fd;color:#1565c0;padding:4px 10px;border-radius:12px;font-size:11px;">'
+                '🔑 {}'
+                '</span>',
+                obj.keyword_usada.upper()
+            )
+        return format_html('<span style="color:#999;">-</span>')
+    asunto_o_keyword.short_description = "Asunto / Keyword"
     
     def estudiante_info(self, obj):
         return format_html(
@@ -3385,17 +3444,6 @@ class SolicitudSoporteAdmin(admin.ModelAdmin):
             obj.estudiante.telefono
         )
     estudiante_info.short_description = "Estudiante"
-    
-    def keyword_badge(self, obj):
-        if obj.keyword_usada:
-            return format_html(
-                '<span style="background:#e3f2fd;color:#1565c0;padding:4px 10px;border-radius:12px;font-size:11px;">'
-                '🔑 {}'
-                '</span>',
-                obj.keyword_usada.upper()
-            )
-        return format_html('<span style="color:#999;">-</span>')
-    keyword_badge.short_description = "Keyword"
     
     def estado_badge(self, obj):
         colores = {
@@ -3474,35 +3522,6 @@ class SolicitudSoporteAdmin(admin.ModelAdmin):
         return format_html('<span style="color:#999;">Sin asignar</span>')
     atendido_por_info.short_description = "Atendido por"
     
-    def pqrs_link(self, obj):
-        """Link directo para ver PQRS del estudiante"""
-        count = PQRS.objects.filter(estudiante=obj.estudiante).count()
-        
-        return format_html(
-            '<a href="/admin/core/pqrs/?estudiante__id__exact={}" style="background:#9c27b0;color:white;padding:6px 12px;border-radius:12px;text-decoration:none;font-size:11px;font-weight:600;">📝 {} PQRS</a>',
-            obj.estudiante.id,
-            count
-        )
-    pqrs_link.short_description = "PQRS"
-    
-    def ver_pqrs_estudiante(self, request, queryset):
-        """Ver todas las PQRS de los estudiantes seleccionados"""
-        from django.shortcuts import redirect
-        if queryset.count() == 1:
-            estudiante = queryset.first().estudiante
-            return redirect(f'/admin/core/pqrs/?estudiante__id__exact={estudiante.id}')
-        else:
-            self.message_user(request, "Selecciona solo una solicitud para ver sus PQRS", level='warning')
-    ver_pqrs_estudiante.short_description = "📝 Ver PQRS de este estudiante"
-    
-    def marcar_alta_prioridad(self, request, queryset):
-        """Marcar como alta prioridad"""
-        queryset.update(prioridad='alta')
-        self.message_user(request, f"✅ {queryset.count()} solicitud(es) marcada(s) como prioridad ALTA")
-    marcar_alta_prioridad.short_description = "🔴 Marcar prioridad ALTA"
-    
-    actions = ['marcar_en_atencion', 'marcar_resuelta', 'marcar_prioridad_alta', 'ver_pqrs_estudiante']
-    
     @admin.action(description='👀 Marcar como "En Atención"')
     def marcar_en_atencion(self, request, queryset):
         from django.utils import timezone
@@ -3527,114 +3546,51 @@ class SolicitudSoporteAdmin(admin.ModelAdmin):
         self.message_user(request, f"🚨 {queryset.count()} solicitud(es) marcada(s) como 'Prioridad Alta'")
 
     def changelist_view(self, request, extra_context=None):
-        """Vista combinada: muestra panel de PQRS arriba de la lista de Soporte"""
+        """Vista unificada de Soporte y PQRS con estadísticas"""
         extra_context = extra_context or {}
         
-        # Estadísticas de PQRS
-        pqrs_total = PQRS.objects.count()
-        pqrs_pendientes = PQRS.objects.filter(estado='pendiente').count()
-        pqrs_en_proceso = PQRS.objects.filter(estado='en_proceso').count()
-        pqrs_resueltos = PQRS.objects.filter(estado='resuelto').count()
+        # Estadísticas unificadas
+        total = SolicitudSoporte.objects.count()
+        pendientes = SolicitudSoporte.objects.filter(estado='pendiente').count()
+        en_atencion = SolicitudSoporte.objects.filter(estado='en_atencion').count()
+        resueltas = SolicitudSoporte.objects.filter(estado='resuelta').count()
         
-        # Estadísticas de Soporte
-        soporte_total = SolicitudSoporte.objects.count()
-        soporte_pendientes = SolicitudSoporte.objects.filter(estado='pendiente').count()
-        soporte_en_atencion = SolicitudSoporte.objects.filter(estado='en_atencion').count()
-        
-        # Últimas 5 PQRS para mostrar en el panel
-        ultimas_pqrs = PQRS.objects.select_related('estudiante').order_by('-fecha_creacion')[:5]
+        # Por tipo
+        soporte_count = SolicitudSoporte.objects.filter(tipo_solicitud='soporte').count()
+        pqrs_count = SolicitudSoporte.objects.exclude(tipo_solicitud='soporte').count()
         
         extra_context.update({
-            'pqrs_total': pqrs_total,
-            'pqrs_pendientes': pqrs_pendientes,
-            'pqrs_en_proceso': pqrs_en_proceso,
-            'pqrs_resueltos': pqrs_resueltos,
-            'soporte_total': soporte_total,
-            'soporte_pendientes': soporte_pendientes,
-            'soporte_en_atencion': soporte_en_atencion,
-            'ultimas_pqrs': ultimas_pqrs,
-            'pqrs_panel_html': self._generar_panel_pqrs(
-                pqrs_total, pqrs_pendientes, pqrs_en_proceso, pqrs_resueltos,
-                soporte_total, soporte_pendientes, soporte_en_atencion, ultimas_pqrs
-            ),
+            'pqrs_panel_html': format_html('''
+                <div style="background:linear-gradient(135deg,#f5f5f5,#e8eaf6);padding:20px;border-radius:12px;margin-bottom:20px;border:1px solid #c5cae9;">
+                    <h3 style="margin:0 0 15px 0;color:#283593;">🆘 Panel Unificado: Soporte y PQRS</h3>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px;">
+                        <div style="background:#fff;padding:12px 20px;border-radius:8px;border-left:4px solid #ff9800;flex:1;min-width:120px;">
+                            <div style="font-size:24px;font-weight:bold;color:#ff9800;">{}</div>
+                            <div style="color:#666;font-size:12px;">Pendientes</div>
+                        </div>
+                        <div style="background:#fff;padding:12px 20px;border-radius:8px;border-left:4px solid #2196f3;flex:1;min-width:120px;">
+                            <div style="font-size:24px;font-weight:bold;color:#2196f3;">{}</div>
+                            <div style="color:#666;font-size:12px;">En Atención</div>
+                        </div>
+                        <div style="background:#fff;padding:12px 20px;border-radius:8px;border-left:4px solid #4caf50;flex:1;min-width:120px;">
+                            <div style="font-size:24px;font-weight:bold;color:#4caf50;">{}</div>
+                            <div style="color:#666;font-size:12px;">Resueltas</div>
+                        </div>
+                        <div style="background:#fff;padding:12px 20px;border-radius:8px;border-left:4px solid #f44336;flex:1;min-width:120px;">
+                            <div style="font-size:24px;font-weight:bold;color:#f44336;">{}</div>
+                            <div style="color:#666;font-size:12px;">Soporte Técnico</div>
+                        </div>
+                        <div style="background:#fff;padding:12px 20px;border-radius:8px;border-left:4px solid #7b1fa2;flex:1;min-width:120px;">
+                            <div style="font-size:24px;font-weight:bold;color:#7b1fa2;">{}</div>
+                            <div style="color:#666;font-size:12px;">PQRS</div>
+                        </div>
+                    </div>
+                    <p style="color:#666;font-size:12px;margin:0;">Usa los filtros de la derecha para filtrar por tipo (Soporte, Petición, Queja, etc.)</p>
+                </div>
+            ''', pendientes, en_atencion, resueltas, soporte_count, pqrs_count),
         })
         
         return super().changelist_view(request, extra_context=extra_context)
-    
-    def _generar_panel_pqrs(self, pqrs_total, pqrs_pendientes, pqrs_en_proceso, pqrs_resueltos,
-                             soporte_total, soporte_pendientes, soporte_en_atencion, ultimas_pqrs):
-        """Genera HTML del panel de PQRS para mostrar arriba de la lista"""
-        pqrs_rows = ''
-        for p in ultimas_pqrs:
-            tipo_color = {
-                'peticion': '#1976d2', 'queja': '#e65100', 'reclamo': '#c62828',
-                'sugerencia': '#7b1fa2', 'felicitacion': '#2e7d32'
-            }.get(p.tipo, '#666')
-            estado_color = {
-                'pendiente': '#e65100', 'en_proceso': '#1976d2', 'resuelto': '#2e7d32',
-                'cerrado': '#666', 'rechazado': '#c62828'
-            }.get(p.estado, '#666')
-            pqrs_rows += f'''
-                <tr>
-                    <td><span style="color:{tipo_color};font-weight:bold;">{p.get_tipo_display()}</span></td>
-                    <td>{p.estudiante.nombre}</td>
-                    <td>{p.asunto[:40]}</td>
-                    <td><span style="color:{estado_color};font-weight:bold;">{p.get_estado_display()}</span></td>
-                    <td><a href="/admin/core/pqrs/{p.id}/change/" style="color:#1976d2;">Editar</a></td>
-                </tr>'''
-        
-        return format_html('''
-            <div style="background:linear-gradient(135deg,#f5f5f5,#e8eaf6);padding:20px;border-radius:12px;margin-bottom:20px;border:1px solid #c5cae9;">
-                <h3 style="margin:0 0 15px 0;color:#283593;">🆘 Panel Unificado: Soporte y PQRS</h3>
-                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px;">
-                    <div style="background:#fff;padding:12px 20px;border-radius:8px;border-left:4px solid #ff9800;flex:1;min-width:120px;">
-                        <div style="font-size:24px;font-weight:bold;color:#ff9800;">{}</div>
-                        <div style="color:#666;font-size:12px;">Soporte Pendiente</div>
-                    </div>
-                    <div style="background:#fff;padding:12px 20px;border-radius:8px;border-left:4px solid #2196f3;flex:1;min-width:120px;">
-                        <div style="font-size:24px;font-weight:bold;color:#2196f3;">{}</div>
-                        <div style="color:#666;font-size:12px;">Soporte En Atención</div>
-                    </div>
-                    <div style="background:#fff;padding:12px 20px;border-radius:8px;border-left:4px solid #e65100;flex:1;min-width:120px;">
-                        <div style="font-size:24px;font-weight:bold;color:#e65100;">{}</div>
-                        <div style="color:#666;font-size:12px;">PQRS Pendientes</div>
-                    </div>
-                    <div style="background:#fff;padding:12px 20px;border-radius:8px;border-left:4px solid #1976d2;flex:1;min-width:120px;">
-                        <div style="font-size:24px;font-weight:bold;color:#1976d2;">{}</div>
-                        <div style="color:#666;font-size:12px;">PQRS En Proceso</div>
-                    </div>
-                    <div style="background:#fff;padding:12px 20px;border-radius:8px;border-left:4px solid #2e7d32;flex:1;min-width:120px;">
-                        <div style="font-size:24px;font-weight:bold;color:#2e7d32;">{}</div>
-                        <div style="color:#666;font-size:12px;">PQRS Resueltos</div>
-                    </div>
-                </div>
-                <div style="background:#fff;padding:15px;border-radius:8px;margin-bottom:10px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                        <h4 style="margin:0;color:#333;">📮 Últimas PQRS</h4>
-                        <a href="/admin/core/pqrs/" style="background:#7b1fa2;color:white;padding:8px 16px;border-radius:8px;text-decoration:none;font-size:12px;font-weight:bold;">📮 Ver todas las PQRS →</a>
-                    </div>
-                    <table style="width:100%;border-collapse:collapse;font-size:13px;">
-                        <thead><tr style="background:#f5f5f5;">
-                            <th style="padding:8px;text-align:left;">Tipo</th>
-                            <th style="padding:8px;text-align:left;">Estudiante</th>
-                            <th style="padding:8px;text-align:left;">Asunto</th>
-                            <th style="padding:8px;text-align:left;">Estado</th>
-                            <th style="padding:8px;text-align:left;">Acción</th>
-                        </tr></thead>
-                        <tbody>{}</tbody>
-                    </table>
-                </div>
-                <div style="display:flex;gap:10px;">
-                    <a href="/admin/core/pqrs/add/" style="background:#7b1fa2;color:white;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold;">+ Nueva PQRS</a>
-                    <a href="/admin/core/pqrs/" style="background:#283593;color:white;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold;">📋 Gestionar PQRS</a>
-                </div>
-            </div>
-            <h3>📋 Solicitudes de Soporte (abajo)</h3>
-        ''',
-            soporte_pendientes, soporte_en_atencion,
-            pqrs_pendientes, pqrs_en_proceso, pqrs_resueltos,
-            format_html(pqrs_rows)
-        )
 
 
 # ========================================
