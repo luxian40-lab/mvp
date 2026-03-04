@@ -168,7 +168,64 @@ Solo necesitas:
 
 ---
 
-## CAMBIOS RECIENTES (Fecha actual)
+## CAMBIOS RECIENTES (Sesion Marzo 4, 2026)
+
+### 1. Plantillas Twilio Actualizadas
+- **Habeas Data**: SID actualizado a `HX579c4e36ab20209afa55742f6e3c0c55`
+- **Verificacion datos**: SID actualizado a `HX180afd8c7cf5266799921abf523c80f6`
+  - Ahora envía 5 variables: Nombre, Cédula, Organización, Edad, Municipio
+  - Función `enviar_confirmacion_datos()` actualizada con params `edad` y `municipio`
+
+### 2. Selección de Cursos
+- Estudiantes ahora escriben "tomar 1" (o "tomar 2", etc.) para seleccionar curso
+- También acepta solo el número como antes
+- Regex: `r'^tomar\s*(\d+)$'`
+
+### 3. Certificados con Marcadores RGB (PNG)
+- **Plantilla**: `certificadoeki.png` en S3 (PNG lossless, no JPEG)
+- **5 marcadores de color** en la plantilla:
+  - Magenta (255,0,255) → Nombre del estudiante
+  - Rojo (255,0,0) → Cédula
+  - Azul (0,0,255) → Código QR
+  - Verde (0,255,0) → Nombre de la empresa
+  - Naranja (255,128,0) → Logo/texto Eki
+- **Tolerancia 0** (solo coincidencia exacta de color)
+- **BytesIO**: Certificados se generan en memoria, nunca tocan disco
+- **S3**: Se suben directamente a `s3://eki-produccion/certificados/{org}/{cedula}_{curso_id}.png`
+- **URL en S3**: `https://eki-produccion.s3.us-east-2.amazonaws.com/pruebas/certificadoeki.png`
+
+### 4. PostgreSQL RDS
+- **settings.py**: Parsea `DATABASE_URL` como fallback cuando `DB_*` vars no existen
+- **settings_production.py**: Mismo fallback de `DATABASE_URL`
+- **Fallback local**: Si RDS no accesible (timeout 3s), usa SQLite automáticamente
+- **En EB**: Variables `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_PORT` ya configuradas
+- **psycopg**: Requiere `psycopg2-binary` en EB (Python 3.11). Local con Python 3.14 usa `psycopg[binary]` v3
+
+### 5. Celery Sincrónico
+- `CELERY_TASK_ALWAYS_EAGER=True` configurado en EB
+- Tareas se ejecutan síncronamente sin necesidad de Redis
+- Cuando se agregue Redis, cambiar a `False` para procesamiento async real
+
+### 6. Optimizacion select_related (N+1 eliminado)
+- **Dashboard estudiantes**: Pre-carga progresos y gamificación con `prefetch` (antes: ~1000 queries por 200 estudiantes, ahora: ~4 queries)
+- **Conversaciones**: Usa `annotate(Count, Max)` para conteos y fechas (antes: ~4N queries, ahora: 1 query principal + 2N para últimos mensajes)
+- **Webhook**: `Estudiante.objects.select_related('cliente')` ya estaba implementado
+
+### 7. Fix Encoding Windows
+- Emojis en `settings.py` reemplazados por ASCII (`[OK]`/`[WARN]`) para evitar `UnicodeEncodeError: 'charmap'` en Windows cp1252
+
+### 8. Twilio Auth Token
+- Actualizado a `7f09068820cfd46eed5c7355aece8e40` en `.env` y `.env.production`
+- **NUNCA** va en git (`.gitignore` protege `.env*`)
+
+### 9. Deploy Exitoso
+- Branch: `fresh-push-3` pusheado y desplegado a `eki-prod-final`
+- Health: `Ok` (Green), 0 errores
+- Variables EB actualizadas: `CELERY_TASK_ALWAYS_EAGER=True`, `ELASTIC_BEANSTALK=true`
+
+---
+
+## CAMBIOS ANTERIORES
 
 ### 1. Campo Edad en Estudiantes
 - Se agrego campo `edad` (numerico) al modelo Estudiante
