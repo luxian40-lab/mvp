@@ -121,27 +121,45 @@ def dashboard_unificado(request):
     )
 
     # --- Detalle por estudiante (Tab Reportes B2B) ---
+    # Optimizado: prefetch para evitar N+1
+    from django.db.models import Count, Subquery, OuterRef, IntegerField
+    from django.db.models.functions import Coalesce
+    from .gamificacion import PerfilGamificacion as PG_detail
+
     est_q = Estudiante.objects.filter(activo=True).select_related('cliente')
     if cliente_id:
         est_q = est_q.filter(cliente_id=cliente_id)
     if municipio_filtro:
         est_q = est_q.filter(municipio=municipio_filtro)
 
+    est_ids = list(est_q[:200].values_list('id', flat=True))
+
+    # Pre-cargar progresos con select_related('curso') y annotaciones
+    progresos_map = {}
+    for p in ProgresoEstudiante.objects.filter(
+        estudiante_id__in=est_ids
+    ).select_related('curso').annotate(
+        total_mods=Count('curso__modulos'),
+        mods_comp=Count('modulos_completados'),
+    ):
+        progresos_map.setdefault(p.estudiante_id, p)
+
+    # Pre-cargar gamificación
+    puntos_map = dict(
+        PG_detail.objects.filter(estudiante_id__in=est_ids)
+        .values_list('estudiante_id', 'puntos_totales')
+    )
+
     estudiantes_detalle = []
-    from .gamificacion import PerfilGamificacion as PG_detail
-    for est in est_q[:200]:
-        progreso = ProgresoEstudiante.objects.filter(estudiante=est).first()
-        puntos_est = 0
-        try:
-            puntos_est = PG_detail.objects.get(estudiante=est).puntos_totales
-        except PG_detail.DoesNotExist:
-            pass
+    for est in est_q.filter(id__in=est_ids):
+        progreso = progresos_map.get(est.id)
+        puntos_est = puntos_map.get(est.id, 0)
         avance = 0
         curso_nombre = '-'
         if progreso:
             curso_nombre = progreso.curso.nombre if progreso.curso else '-'
-            total_mods = progreso.curso.modulos.count() if progreso.curso else 0
-            mods_comp = progreso.modulos_completados.count() if hasattr(progreso, 'modulos_completados') else 0
+            total_mods = progreso.total_mods or 0
+            mods_comp = progreso.mods_comp or 0
             avance = round(mods_comp / total_mods * 100) if total_mods > 0 else 0
         estudiantes_detalle.append({
             'nombre': est.nombre,
@@ -1237,14 +1255,16 @@ def _procesar_twilio_webhook(post_data):
                 estudiante.estado_chat = 'CONFIRMANDO_DATOS'
                 estudiante.save()
                 
-                # Enviar confirmación con datos + botones
+                # Enviar confirmación con datos + botones (5 variables)
                 org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
                 from .whatsapp_service import enviar_confirmacion_datos
                 resultado = enviar_confirmacion_datos(
                     msg_from,
                     estudiante.nombre,
                     f"{estudiante.tipo_documento} {estudiante.cedula}",
-                    org_nombre
+                    org_nombre,
+                    edad=estudiante.edad,
+                    municipio=estudiante.municipio,
                 )
                 if resultado.get('success'):
                     return  # Template enviado
@@ -1579,26 +1599,35 @@ def _procesar_twilio_webhook(post_data):
                     estudiante.save()
                     from .response_templates import get_response_for_intent
                     texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
-                elif msg_body.strip().isdigit():
-                    indice = int(msg_body.strip())
-                    from .selector_curso import continuar_curso_seleccionado
-                    estudiante.estado_onboarding = 'completado'
-                    estudiante.contexto_temporal = None
-                    estudiante.save()
-                    texto_respuesta = continuar_curso_seleccionado(estudiante.id, indice, msg_body)
-                    logger.info(f"✅ Curso seleccionado: {indice}")
                 else:
-                    # No es número ni menú → resetear y procesar normalmente
-                    estudiante.estado_onboarding = 'completado'
-                    estudiante.contexto_temporal = None
-                    estudiante.save()
-                    from .intent_detector import detect_intent
-                    from .response_templates import get_response_for_intent
-                    intent = detect_intent(msg_body)
-                    if intent != 'desconocido':
-                        texto_respuesta = get_response_for_intent(intent, estudiante.nombre, estudiante_id=estudiante.id, mensaje_original=msg_body)
+                    # Extraer número del curso: soporta "tomar 1", "1", "tomar1"
+                    import re as re_curso
+                    indice = None
+                    match_tomar = re_curso.match(r'^tomar\s*(\d+)$', msg_lower)
+                    if match_tomar:
+                        indice = int(match_tomar.group(1))
+                    elif msg_body.strip().isdigit():
+                        indice = int(msg_body.strip())
+                    
+                    if indice is not None:
+                        from .selector_curso import continuar_curso_seleccionado
+                        estudiante.estado_onboarding = 'completado'
+                        estudiante.contexto_temporal = None
+                        estudiante.save()
+                        texto_respuesta = continuar_curso_seleccionado(estudiante.id, indice, msg_body)
+                        logger.info(f"✅ Curso seleccionado: {indice}")
                     else:
-                        texto_respuesta = "No entendí tu selección. Escribe *menú* para ver las opciones."
+                        # No es número ni menú → resetear y procesar normalmente
+                        estudiante.estado_onboarding = 'completado'
+                        estudiante.contexto_temporal = None
+                        estudiante.save()
+                        from .intent_detector import detect_intent
+                        from .response_templates import get_response_for_intent
+                        intent = detect_intent(msg_body)
+                        if intent != 'desconocido':
+                            texto_respuesta = get_response_for_intent(intent, estudiante.nombre, estudiante_id=estudiante.id, mensaje_original=msg_body)
+                        else:
+                            texto_respuesta = "No entendí tu selección. Escribe *tomar 1* para escoger un curso o *menú* para volver."
                 # — Enviar respuesta de selección de curso y CORTAR —
                 try:
                     from twilio.rest import Client as TwilioClient
@@ -2653,65 +2682,80 @@ def calendario_campanas_view(request):
 @staff_member_required
 def conversaciones_view(request):
     """Vista de conversaciones estilo WhatsApp"""
-    # Obtener todos los estudiantes que tienen mensajes
+    from django.db.models import Max, Count, Q
+    # Obtener estudiantes con mensajes usando anotaciones (evita N+1)
     estudiantes_con_mensajes = []
-    
-    # Obtener todos los estudiantes
-    todos_estudiantes = Estudiante.objects.all()
-    
+
+    # Pre-calcular conteos y últimas fechas con anotaciones
+    todos_estudiantes = (
+        Estudiante.objects.all()
+        .annotate(
+            total_whatsapp=Count(
+                'mensajes_whatsapp',
+                distinct=True,
+            ),
+            total_envios=Count(
+                'enviolog',
+                distinct=True,
+            ),
+            last_whatsapp_fecha=Max('mensajes_whatsapp__fecha'),
+            last_envio_fecha=Max('enviolog__fecha_envio'),
+        )
+        .filter(Q(total_whatsapp__gt=0) | Q(total_envios__gt=0))
+    )
+
     for est in todos_estudiantes:
         try:
             telefono_limpio = est.telefono.replace('+', '').replace(' ', '')
-            
-            # Contar mensajes de WhatsApp
-            total_whatsapp = WhatsappLog.objects.filter(telefono=telefono_limpio).count()
-            
-            # Contar mensajes de envíos
-            total_envios = EnvioLog.objects.filter(estudiante=est).count()
-            
-            if total_whatsapp > 0 or total_envios > 0:
-                # Obtener último mensaje
-                ultimo_whatsapp = WhatsappLog.objects.filter(telefono=telefono_limpio).order_by('-fecha').first()
-                ultimo_envio = EnvioLog.objects.filter(estudiante=est).order_by('-fecha_envio').first()
-                
-                # Determinar cuál es más reciente
-                ultima_fecha = None
-                ultimo_mensaje = None
-                
-                if ultimo_whatsapp and ultimo_envio:
-                    # Convertir ambas fechas a aware si es necesario
-                    fecha_whatsapp = ultimo_whatsapp.fecha
-                    fecha_envio = ultimo_envio.fecha_envio
-                    
-                    # Asegurar que ambas son timezone-aware
-                    if timezone.is_naive(fecha_whatsapp):
-                        fecha_whatsapp = timezone.make_aware(fecha_whatsapp)
-                    if timezone.is_naive(fecha_envio):
-                        fecha_envio = timezone.make_aware(fecha_envio)
-                    
-                    if fecha_whatsapp > fecha_envio:
-                        ultima_fecha = fecha_whatsapp
-                        ultimo_mensaje = ultimo_whatsapp.mensaje
-                    else:
-                        ultima_fecha = fecha_envio
-                        ultimo_mensaje = f"Campaña: {ultimo_envio.campana.nombre}"
-                elif ultimo_whatsapp:
-                    ultima_fecha = ultimo_whatsapp.fecha
-                    if timezone.is_naive(ultima_fecha):
-                        ultima_fecha = timezone.make_aware(ultima_fecha)
+            total_msgs = est.total_whatsapp + est.total_envios
+
+            # Obtener último mensaje (solo 2 queries, no N por estudiante)
+            ultimo_whatsapp = None
+            ultimo_envio = None
+            if est.last_whatsapp_fecha:
+                ultimo_whatsapp = WhatsappLog.objects.filter(
+                    telefono=telefono_limpio,
+                    fecha=est.last_whatsapp_fecha
+                ).first()
+            if est.last_envio_fecha:
+                ultimo_envio = EnvioLog.objects.filter(
+                    estudiante=est,
+                    fecha_envio=est.last_envio_fecha
+                ).select_related('campana').first()
+
+            # Determinar cuál es más reciente
+            ultima_fecha = None
+            ultimo_mensaje = None
+
+            if ultimo_whatsapp and ultimo_envio:
+                fecha_whatsapp = ultimo_whatsapp.fecha
+                fecha_envio = ultimo_envio.fecha_envio
+                if timezone.is_naive(fecha_whatsapp):
+                    fecha_whatsapp = timezone.make_aware(fecha_whatsapp)
+                if timezone.is_naive(fecha_envio):
+                    fecha_envio = timezone.make_aware(fecha_envio)
+                if fecha_whatsapp > fecha_envio:
+                    ultima_fecha = fecha_whatsapp
                     ultimo_mensaje = ultimo_whatsapp.mensaje
-                elif ultimo_envio:
-                    ultima_fecha = ultimo_envio.fecha_envio
-                    if timezone.is_naive(ultima_fecha):
-                        ultima_fecha = timezone.make_aware(ultima_fecha)
+                else:
+                    ultima_fecha = fecha_envio
                     ultimo_mensaje = f"Campaña: {ultimo_envio.campana.nombre}"
-                
-                est.ultima_fecha = ultima_fecha
-                est.ultimo_mensaje = ultimo_mensaje
-                est.total_mensajes = total_whatsapp + total_envios
-                estudiantes_con_mensajes.append(est)
+            elif ultimo_whatsapp:
+                ultima_fecha = ultimo_whatsapp.fecha
+                if timezone.is_naive(ultima_fecha):
+                    ultima_fecha = timezone.make_aware(ultima_fecha)
+                ultimo_mensaje = ultimo_whatsapp.mensaje
+            elif ultimo_envio:
+                ultima_fecha = ultimo_envio.fecha_envio
+                if timezone.is_naive(ultima_fecha):
+                    ultima_fecha = timezone.make_aware(ultima_fecha)
+                ultimo_mensaje = f"Campaña: {ultimo_envio.campana.nombre}"
+
+            est.ultima_fecha = ultima_fecha
+            est.ultimo_mensaje = ultimo_mensaje
+            est.total_mensajes = total_msgs
+            estudiantes_con_mensajes.append(est)
         except Exception as e:
-            # Si hay algún error con un estudiante, continuar con el siguiente
             print(f"Error procesando estudiante {est.id}: {str(e)}")
             continue
     

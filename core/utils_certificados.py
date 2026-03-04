@@ -17,11 +17,13 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-# --- CONFIGURACIÓN DE MARCADORES RGB ---
-MARCADOR_NOMBRE = (128, 128, 128)   # Gris para nombre
-MARCADOR_CEDULA = (255, 0, 0)       # Rojo puro para cédula
-MARCADOR_QR = (0, 0, 255)           # Azul puro para QR
-TOLERANCIA_COLOR = 8                # Tolerancia para detección de marcadores
+# --- CONFIGURACIÓN DE MARCADORES RGB (coincidencia exacta) ---
+MARCADOR_NOMBRE  = (255, 0, 255)   # Magenta puro para nombre
+MARCADOR_CEDULA  = (255, 0, 0)     # Rojo puro para cédula
+MARCADOR_QR      = (0, 0, 255)     # Azul puro para QR
+MARCADOR_EMPRESA = (0, 255, 0)     # Verde puro para empresa
+MARCADOR_EKI     = (255, 128, 0)   # Naranja puro para Eki
+TOLERANCIA_COLOR = 0               # Solo coincidencia exacta
 
 # --- RUTA DE FUENTES ---
 FONTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
@@ -109,22 +111,26 @@ def generar_certificado_marcadores(
     pos_nombre = encontrar_marcador(np_img, MARCADOR_NOMBRE)
     pos_cedula = encontrar_marcador(np_img, MARCADOR_CEDULA)
     pos_qr = encontrar_marcador(np_img, MARCADOR_QR)
+    pos_empresa = encontrar_marcador(np_img, MARCADOR_EMPRESA)
+    pos_eki = encontrar_marcador(np_img, MARCADOR_EKI)
     
     if pos_nombre is None:
-        raise ValueError("No se encontró el marcador de NOMBRE (gris RGB 128,128,128) en la plantilla.")
+        raise ValueError("No se encontró el marcador de NOMBRE (Magenta RGB 255,0,255) en la plantilla.")
     if pos_cedula is None:
-        raise ValueError("No se encontró el marcador de CÉDULA (rojo RGB 255,0,0) en la plantilla.")
+        raise ValueError("No se encontró el marcador de CÉDULA (Rojo RGB 255,0,0) en la plantilla.")
     if pos_qr is None:
-        raise ValueError("No se encontró el marcador de QR (azul RGB 0,0,255) en la plantilla.")
+        raise ValueError("No se encontró el marcador de QR (Azul RGB 0,0,255) en la plantilla.")
     
-    logger.info(f"📍 Marcadores detectados - Nombre: {pos_nombre}, Cédula: {pos_cedula}, QR: {pos_qr}")
+    logger.info(f"📍 Marcadores detectados - Nombre: {pos_nombre}, Cédula: {pos_cedula}, QR: {pos_qr}, Empresa: {pos_empresa}, Eki: {pos_eki}")
     
     # 4. Borrar marcadores (reemplazar con color local del fondo)
-    for pos in [pos_nombre, pos_cedula, pos_qr]:
-        x, y = pos
-        # Tomar el color del pixel cercano como fondo
-        color_fondo = plantilla.getpixel((x, min(y + 20, alto_img - 1)))
-        draw.ellipse([x - 10, y - 10, x + 10, y + 10], fill=color_fondo)
+    todos_marcadores = [pos_nombre, pos_cedula, pos_qr, pos_empresa, pos_eki]
+    for pos in todos_marcadores:
+        if pos is not None:
+            x, y = pos
+            # Tomar el color del pixel cercano como fondo
+            color_fondo = plantilla.getpixel((x, min(y + 20, alto_img - 1)))
+            draw.ellipse([x - 12, y - 12, x + 12, y + 12], fill=color_fondo)
     
     # 5. Estampar NOMBRE (centrado en el marcador)
     nombre_capitalizado = nombre_estudiante.strip().title()
@@ -157,7 +163,34 @@ def generar_certificado_marcadores(
     y_qr = pos_qr[1] - tamaño_qr // 2 + ajuste_qr_y
     plantilla.paste(qr_img, (int(x_qr), int(y_qr)))
     
-    # 8. Guardar en buffer (RAM, no disco)
+    # 8. Estampar EMPRESA (si marcador encontrado)
+    if pos_empresa and organizacion_nombre:
+        caja_emp = draw.textbbox((0, 0), organizacion_nombre, font=fuente_cedula)
+        ancho_emp = caja_emp[2] - caja_emp[0]
+        alto_emp = caja_emp[3] - caja_emp[1]
+        draw.text(
+            (pos_empresa[0] - ancho_emp // 2, pos_empresa[1] - alto_emp // 2),
+            organizacion_nombre,
+            font=fuente_cedula,
+            fill="black"
+        )
+        logger.info(f"📍 Empresa '{organizacion_nombre}' estampada en {pos_empresa}")
+    
+    # 9. Estampar EKI (si marcador encontrado)
+    if pos_eki:
+        eki_texto = "EKI"
+        caja_eki = draw.textbbox((0, 0), eki_texto, font=fuente_cedula)
+        ancho_eki = caja_eki[2] - caja_eki[0]
+        alto_eki = caja_eki[3] - caja_eki[1]
+        draw.text(
+            (pos_eki[0] - ancho_eki // 2, pos_eki[1] - alto_eki // 2),
+            eki_texto,
+            font=fuente_cedula,
+            fill="black"
+        )
+        logger.info(f"📍 Eki estampado en {pos_eki}")
+    
+    # 10. Guardar en buffer (RAM, no disco)
     buffer = BytesIO()
     plantilla.save(buffer, format="PNG")
     buffer.seek(0)
@@ -229,7 +262,7 @@ def generar_y_subir_certificado(estudiante, curso, plantilla_url=None, url_verif
     
     # URL de plantilla por defecto
     if not plantilla_url:
-        plantilla_url = "https://eki-produccion.s3.us-east-2.amazonaws.com/pruebas/prueba_certificado.png"
+        plantilla_url = "https://eki-produccion.s3.us-east-2.amazonaws.com/pruebas/certificadoeki.png"
     
     # Generar URL de verificación
     if not url_verificacion:

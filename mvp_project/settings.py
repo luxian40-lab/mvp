@@ -4,9 +4,10 @@ from dotenv import load_dotenv
 
 # 1. RUTAS DEL PROYECTO
 BASE_DIR = Path(__file__).resolve().parent.parent
-# Solo cargar .env si NO es producción
-if not os.environ.get('DJANGO_SETTINGS_MODULE', '').endswith('settings_production'):
-    load_dotenv(BASE_DIR / '.env')
+# Cargar .env si existe (tanto local como produccion)
+env_file = BASE_DIR / '.env'
+if env_file.exists():
+    load_dotenv(env_file)
 
 # 2. SEGURIDAD
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-mvp-clave-secreta-cambiar-en-produccion')
@@ -85,13 +86,14 @@ WSGI_APPLICATION = 'mvp_project.wsgi.application'
 # 4. BASE DE DATOS
 import os
 
+# Prioridad: variables individuales DB_* → DATABASE_URL → SQLite
 if (
     os.environ.get('DB_NAME')
     and os.environ.get('DB_USER')
     and os.environ.get('DB_PASSWORD')
     and os.environ.get('DB_HOST')
 ):
-    print('✅ MODO PRODUCCIÓN DETECTADO: Conectando a PostgreSQL...')
+    print('[OK] MODO PRODUCCION DETECTADO: Conectando a PostgreSQL (DB_* vars)...')
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -102,8 +104,59 @@ if (
             'PORT': os.environ.get('DB_PORT', '5432'),
         }
     }
+elif os.environ.get('DATABASE_URL'):
+    # Parsear DATABASE_URL (formato: postgresql://user:pass@host:port/dbname)
+    import urllib.parse
+    db_url = os.environ['DATABASE_URL']
+    try:
+        parsed = urllib.parse.urlparse(db_url)
+        print(f'[OK] PostgreSQL via DATABASE_URL: {parsed.hostname}/{parsed.path.lstrip("/")}')
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': parsed.path.lstrip('/'),
+                'USER': parsed.username or '',
+                'PASSWORD': parsed.password or '',
+                'HOST': parsed.hostname or 'localhost',
+                'PORT': str(parsed.port or 5432),
+                'OPTIONS': {
+                    'connect_timeout': 5,
+                },
+            }
+        }
+        # Verificar conexion real; si falla (ej. local sin acceso a RDS), usar SQLite
+        # Solo verificar si NO estamos en EB (variable ELASTIC_BEANSTALK indica EB)
+        if not os.environ.get('ELASTIC_BEANSTALK'):
+            try:
+                import psycopg
+                conn = psycopg.connect(
+                    host=parsed.hostname,
+                    port=parsed.port or 5432,
+                    user=parsed.username,
+                    password=parsed.password,
+                    dbname=parsed.path.lstrip('/'),
+                    connect_timeout=3,
+                )
+                conn.close()
+                print('[OK] Conexion PostgreSQL verificada.')
+            except Exception as conn_err:
+                print(f'[WARN] PostgreSQL no accesible localmente ({conn_err}). Usando SQLite.')
+                DATABASES = {
+                    'default': {
+                        'ENGINE': 'django.db.backends.sqlite3',
+                        'NAME': BASE_DIR / 'db.sqlite3',
+                    }
+                }
+    except Exception as e:
+        print(f'[WARN] Error parseando DATABASE_URL: {e}. Usando SQLite.')
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': BASE_DIR / 'db.sqlite3',
+            }
+        }
 else:
-    print('⚠️ MODO LOCAL DETECTADO: Usando SQLite.')
+    print('[WARN] MODO LOCAL DETECTADO: Usando SQLite.')
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',

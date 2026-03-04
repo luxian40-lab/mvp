@@ -90,7 +90,7 @@ X_FRAME_OPTIONS = 'DENY'
 
 
 # ============================================
-# BASE DE DATOS - Producción (FORZAR POSTGRES, SOLO ESTE BLOQUE)
+# BASE DE DATOS - Producción (FORZAR POSTGRES)
 # ============================================
 import os
 
@@ -100,26 +100,37 @@ DB_USER = os.environ.get('DB_USER')
 DB_PASSWORD = os.environ.get('DB_PASSWORD')
 DB_HOST = os.environ.get('DB_HOST')
 DB_PORT = os.environ.get('DB_PORT', '5432')
+DATABASE_URL = os.environ.get('DATABASE_URL')
 
-missing_vars = []
-for var in ['DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_HOST']:
-    if not os.environ.get(var):
-        missing_vars.append(var)
-
-if missing_vars:
-    raise Exception(f"❌ [SETTINGS] Faltan variables de entorno para PostgreSQL: {', '.join(missing_vars)}. No se permite SQLite en producción.")
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': DB_NAME,
-        'USER': DB_USER,
-        'PASSWORD': DB_PASSWORD,
-        'HOST': DB_HOST,
-        'PORT': DB_PORT,
+if DB_NAME and DB_USER and DB_PASSWORD and DB_HOST:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': DB_NAME,
+            'USER': DB_USER,
+            'PASSWORD': DB_PASSWORD,
+            'HOST': DB_HOST,
+            'PORT': DB_PORT,
+        }
     }
-}
-print("✅ [SETTINGS] Usando Base de Datos PostgreSQL (Producción)")
+    print("[OK] [SETTINGS] PostgreSQL configurado via DB_* vars")
+elif DATABASE_URL:
+    import urllib.parse
+    parsed = urllib.parse.urlparse(DATABASE_URL)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': parsed.path.lstrip('/'),
+            'USER': parsed.username or '',
+            'PASSWORD': parsed.password or '',
+            'HOST': parsed.hostname or 'localhost',
+            'PORT': str(parsed.port or 5432),
+        }
+    }
+    print(f"[OK] [SETTINGS] PostgreSQL via DATABASE_URL: {parsed.hostname}/{parsed.path.lstrip('/')}")
+else:
+    missing_vars = [v for v in ['DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_HOST'] if not os.environ.get(v)]
+    raise Exception(f"[ERROR] Faltan variables de entorno para PostgreSQL: {', '.join(missing_vars)}. Configura DB_* o DATABASE_URL.")
 
 # ============================================
 # ARCHIVOS ESTÁTICOS - Producción

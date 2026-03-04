@@ -20,9 +20,9 @@ logger = logging.getLogger(__name__)
 # Content SIDs de Twilio (Plantillas Aprobadas)
 # ====================================================
 TWILIO_CONTENT_SIDS = {
-    'habeas_data': 'HXc7923656da2cbd43e04373e6404eb872',
+    'habeas_data': 'HX579c4e36ab20209afa55742f6e3c0c55',
     'confirmar_datos': 'HXbb0358bcb33c46a521e392f8e7dcca7a',
-    'confirmar_datos_v2': 'HX34fd358719d973cf70ed66e22139c883',
+    'confirmar_datos_v2': 'HX180afd8c7cf5266799921abf523c80f6',
     'menu_principal': 'HXc9027f1ab8cdf781fafa1096c9010d5d',
     'listadocursos1': 'HX6a31cb9924af620e3dc914b71e95fd20',
     'listadocursos2': 'HXcb7abe9df97c2e3085b862523a5a1d8b',
@@ -96,12 +96,21 @@ def enviar_habeas_data(telefono):
     )
 
 
-def enviar_confirmacion_datos(telefono, nombre, cedula, organizacion):
-    """Paso 2: Confirmar datos con botones [Sí, todo bien] [Modificar]"""
+def enviar_confirmacion_datos(telefono, nombre, cedula, organizacion, edad=None, municipio=None):
+    """Paso 2: Verificación exitosa — confirmar datos con 5 variables
+    Template: 👤 Verificación Exitosa
+    {{1}} = Nombre, {{2}} = Cédula, {{3}} = Empresa, {{4}} = Edad, {{5}} = Municipio
+    """
     return enviar_template_twilio(
         telefono,
         TWILIO_CONTENT_SIDS['confirmar_datos_v2'],
-        variables={'1': nombre, '2': cedula, '3': organizacion}
+        variables={
+            '1': nombre or 'No registrado',
+            '2': cedula or 'No registrada',
+            '3': organizacion or 'eki',
+            '4': str(edad) if edad else 'No registrada',
+            '5': municipio or 'No registrado',
+        }
     )
 
 
@@ -174,8 +183,8 @@ def enviar_lista_cursos(telefono, estudiante):
         msg += f"*{idx}.* {emoji} {curso.nombre}{estado}\n"
     
     msg += "\n━━━━━━━━━━━━━━━━━━━\n\n"
-    msg += "👉 Escribe el *número* del curso\n"
-    msg += "     Ejemplo: *1*\n\n"
+    msg += "👉 Escribe *tomar 1* para el primer curso\n"
+    msg += "     Ejemplo: *tomar 1* o simplemente *1*\n\n"
     msg += "👉 Escribe *menú* para volver"
     
     from .utils import enviar_whatsapp_twilio
