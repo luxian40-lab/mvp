@@ -1315,7 +1315,8 @@ def _procesar_twilio_webhook(post_data):
                     "¿Qué hacemos hoy? Toca una opción:\n\n"
                     "1️⃣ 📚 *Mis cursos*\n"
                     "2️⃣ 🏆 *Mis puntos*\n"
-                    "3️⃣ 🙋‍♂️ *Necesito ayuda*"
+                    "3️⃣ 🙋‍♂️ *Necesito ayuda*\n"
+                    "4️⃣ ✏️ *Corregir mis datos*"
                 )
             elif any(k in msg_lower for k in keywords_modificar):
                 # Botón "Modificar" presionado → permitir auto-corrección
@@ -1394,7 +1395,8 @@ def _procesar_twilio_webhook(post_data):
                     "¿Qué hacemos hoy?\n\n"
                     "1️⃣ 📚 *Mis cursos*\n"
                     "2️⃣ 🏆 *Mis puntos*\n"
-                    "3️⃣ 🙋‍♂️ *Necesito ayuda*"
+                    "3️⃣ 🙋‍♂️ *Necesito ayuda*\n"
+                    "4️⃣ ✏️ *Corregir mis datos*"
                 )
             else:
                 # Intentar parsear los datos corregidos
@@ -1678,6 +1680,47 @@ def _procesar_twilio_webhook(post_data):
                     pass
                 return
             
+            # Detectar "corregir datos" / "me equivoqué" → permitir auto-corrección incluso ya activo
+            elif msg_lower in ['4', 'corregir datos', 'corregir mis datos', 'cambiar datos', 'cambiar mis datos',
+                               'me equivoqué', 'me equivoque', 'editar datos', 'modificar datos',
+                               'datos incorrectos', 'mis datos', 'actualizar datos']:
+                texto_respuesta = (
+                    "📝 *Corrección de Datos*\n\n"
+                    "Puedes corregir cualquiera de tus datos.\n\n"
+                    "Escribe el campo que deseas cambiar seguido del nuevo valor:\n\n"
+                    "1️⃣ *nombre:* Tu nombre completo\n"
+                    "2️⃣ *municipio:* Tu municipio\n"
+                    "3️⃣ *departamento:* Tu departamento\n"
+                    "4️⃣ *documento:* Tipo y número (CC, TI, CE, PP)\n"
+                    "5️⃣ *edad:* Tu edad\n"
+                    "6️⃣ *genero:* M, F, Otro, NR\n\n"
+                    "📝 _Ejemplos:_\n"
+                    "_nombre: María García López_\n"
+                    "_municipio: Bogotá_\n"
+                    "_edad: 35_\n"
+                    "_documento: CC 52456789_\n"
+                    "_genero: F_\n\n"
+                    "📝 _O todo junto (una por línea):_\n"
+                    "_nombre: María García_\n"
+                    "_municipio: Bogotá_\n\n"
+                    "━━━━━━━━━━━━━━━━━━━\n"
+                    "👉 Escribe *menú* cuando termines"
+                )
+                estudiante.estado_chat = 'ESPERANDO_CORRECCION_DATOS'
+                estudiante.save()
+                try:
+                    from twilio.rest import Client as TwilioClient
+                    account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                    auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                    twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
+                    client_tw = TwilioClient(account_sid, auth_token)
+                    destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
+                    client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
+                    WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
+                except Exception as e:
+                    logger.error(f"❌ Error enviando corrección datos: {e}")
+                return
+            
             # Detectar "menú" - enviar menú principal
             elif msg_lower in ['menu', 'menú', 'inicio', 'hola']:
                 org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
@@ -1693,7 +1736,8 @@ def _procesar_twilio_webhook(post_data):
                     "¿Qué hacemos hoy?\n\n"
                     "1️⃣ 📚 *Mis cursos*\n"
                     "2️⃣ 🏆 *Mis puntos*\n"
-                    "3️⃣ 🙋‍♂️ *Necesito ayuda*"
+                    "3️⃣ 🙋‍♂️ *Necesito ayuda*\n"
+                    "4️⃣ ✏️ *Corregir mis datos*"
                 )
                 try:
                     from twilio.rest import Client as TwilioClient
@@ -2164,8 +2208,29 @@ Has completado el curso: *{progreso.curso.nombre}*
                 intent = detect_intent(msg_body)
                 print(f"🎯 Intent detectado: {intent}")
             
+                # Intent especial: corregir datos → redirigir al flujo de corrección
+                if intent == 'corregir_datos':
+                    estudiante.estado_chat = 'ESPERANDO_CORRECCION_DATOS'
+                    estudiante.save()
+                    texto_respuesta = (
+                        "📝 *Corrección de Datos*\n\n"
+                        "Puedes corregir cualquiera de tus datos.\n\n"
+                        "Escribe el campo que deseas cambiar seguido del nuevo valor:\n\n"
+                        "1️⃣ *nombre:* Tu nombre completo\n"
+                        "2️⃣ *municipio:* Tu municipio\n"
+                        "3️⃣ *departamento:* Tu departamento\n"
+                        "4️⃣ *documento:* Tipo y número (CC, TI, CE, PP)\n"
+                        "5️⃣ *edad:* Tu edad\n"
+                        "6️⃣ *genero:* M, F, Otro, NR\n\n"
+                        "📝 _Ejemplos:_\n"
+                        "_nombre: María García López_\n"
+                        "_municipio: Bogotá_\n"
+                        "_edad: 35_\n\n"
+                        "━━━━━━━━━━━━━━━━━━━\n"
+                        "👉 Escribe *menú* cuando termines"
+                    )
                 # Si hay un intent conocido, usar template
-                if intent != 'desconocido':
+                elif intent != 'desconocido':
                     texto_respuesta = get_response_for_intent(
                         intent, 
                         estudiante.nombre,

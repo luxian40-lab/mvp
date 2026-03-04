@@ -134,4 +134,16 @@ def detect_intent(mensaje: str) -> str:
     if any(p in texto_limpio for p in palabras_cambiar_nombre):
         return 'cambiar_nombre'
     
+    # Corregir datos personales
+    palabras_corregir_datos = [
+        'corregir datos', 'corregir mis datos', 'cambiar datos', 'cambiar mis datos',
+        'actualizar datos', 'actualizar mis datos', 'editar datos', 'editar mis datos',
+        'me equivoqué', 'me equivoque', 'datos incorrectos', 'datos mal',
+        'error en mis datos', 'mis datos están mal', 'mis datos estan mal',
+        'modificar datos', 'modificar mis datos', 'corregir información',
+        'corregir informacion', 'dato equivocado', 'equivoqué',
+    ]
+    if any(p in texto_limpio for p in palabras_corregir_datos):
+        return 'corregir_datos'
+    
     return 'desconocido'

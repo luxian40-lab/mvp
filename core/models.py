@@ -1819,11 +1819,12 @@ class ProspectoB2B(models.Model):
 
 
 __all__ = [
-    'TemaCampana', 'Estudiante', 'Etiqueta', 'Plantilla', 'Linea', 'Canal', 
+    'TemaCampana', 'Cliente', 'Estudiante', 'Plantilla', 'Linea',
     'Campana', 'EnvioLog', 'WhatsappLog',
-    'Curso', 'Modulo', 'ProgresoEstudiante', 'ModuloCompletado',
+    'Curso', 'DocumentoRAG', 'Modulo', 'ProgresoEstudiante', 'ModuloCompletado',
     'Examen', 'PreguntaExamen', 'ResultadoExamen',
-    'SolicitudSoporte', 'PreguntaModulo',
+    'ObjetivoCurso', 'RubricaEvaluacion', 'EjercicioPractico', 'RespuestaEjercicio',
+    'InteraccionLog', 'SolicitudSoporte', 'PreguntaModulo',
     'PerfilGamificacion', 'Badge', 'BadgeEstudiante', 'TransaccionPuntos',
     'Certificado', 'PlantillaCertificado',
     'AuditLog',

@@ -52,14 +52,17 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 <li><a href="#flujo-whatsapp">Flujo WhatsApp (webhook)</a></li>
 <li><a href="#agentes-ia">Agentes de Inteligencia Artificial</a></li>
 <li><a href="#tutor-evaluador">Profesor Geronimo y Maria (Agentes por modulo)</a></li>
+<li><a href="#rag">RAG Multi-Tenant (documentos por curso)</a></li>
 <li><a href="#gamificacion">Sistema de Gamificacion</a></li>
 <li><a href="#certificados">Certificados digitales</a></li>
 <li><a href="#multimedia">Archivos multimedia y S3</a></li>
 <li><a href="#seguridad">Seguridad y Habeas Data</a></li>
 <li><a href="#admin-acciones">Acciones del Admin</a></li>
 <li><a href="#dashboards">Dashboards y Reportes</a></li>
+<li><a href="#metricas-export">Exportacion de metricas</a></li>
 <li><a href="#urls">URLs y vistas disponibles</a></li>
 <li><a href="#paso-a-paso">Paso a paso comun</a></li>
+<li><a href="#celery">Procesamiento asincrono (Celery)</a></li>
 <li><a href="#archivos-clave">Archivos clave del codigo</a></li>
 <li><a href="#faq">Preguntas frecuentes</a></li>
 </ol>
@@ -124,6 +127,8 @@ table.ref-table tr:hover td { background: #f8f9fa; }
             <li><b>OpenAI</b>: GPT-4o-mini (todos los agentes y chat)</li>
             <li><b>Cohere</b>: IA de respaldo</li>
             <li><b>Vosk</b>: Transcripcion de audio offline</li>
+            <li><b>ChromaDB</b>: Base de datos vectorial para RAG</li>
+            <li><b>Celery + Redis</b>: Procesamiento asincrono de tareas</li>
         </ul>
     </div>
 </div>
@@ -136,7 +141,7 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 <thead><tr><th>Modelo</th><th>Que guarda</th><th>Archivo</th></tr></thead>
 <tbody>
 <tr><td><b>Cliente</b></td><td>Organizacion que contrata Eki (cooperativa, ONG). Controla gamificacion, WhatsApp, certificados.</td><td>core/models.py</td></tr>
-<tr><td><b>Estudiante</b></td><td>Usuario final (agricultor). Cedula, telefono, municipio, habeas data, estado de onboarding.</td><td>core/models.py</td></tr>
+<tr><td><b>Estudiante</b></td><td>Usuario final (agricultor). Cedula, telefono, municipio, departamento, edad, genero, habeas data, estado de onboarding.</td><td>core/models.py</td></tr>
 <tr><td><b>Curso</b></td><td>Curso completo con modulos. Tiene enlace a grupo WhatsApp y toggle de gamificacion.</td><td>core/models.py</td></tr>
 <tr><td><b>Modulo</b></td><td>Unidad del curso con contenido, video, PDF, imagen. Soporta examen obligatorio.</td><td>core/models.py</td></tr>
 <tr><td><b>ProgresoEstudiante</b></td><td>Avance del estudiante en un curso (modulo actual, % completado).</td><td>core/models.py</td></tr>
@@ -164,8 +169,8 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 <tbody>
 <tr><td><b>Certificado</b></td><td>Certificado digital con QR y PDF.</td></tr>
 <tr><td><b>ArchivoModulo</b></td><td>Videos, PDFs, imagenes adjuntas a modulos (almacenados en S3).</td></tr>
-<tr><td><b>SolicitudSoporte</b></td><td>Boton de panico: cuando un estudiante pide ayuda urgente.</td></tr>
-<tr><td><b>PQRS</b></td><td>Peticiones, Quejas, Reclamos y Sugerencias.</td></tr>
+<tr><td><b>SolicitudSoporte</b></td><td>Sistema unificado de PQRS y soporte. Incluye: boton de panico, peticiones, quejas, reclamos, sugerencias y solicitudes de ayuda. Tipos: soporte_tecnico, panico, peticion, queja, reclamo, sugerencia, felicitacion.</td></tr>
+<tr><td><b>DocumentoRAG</b></td><td>Documentos subidos por curso para alimentar la IA con conocimiento especifico. Soporta PDF, Word, texto. Se indexan automaticamente en ChromaDB.</td></tr>
 <tr><td><b>Examen / PreguntaExamen / ResultadoExamen</b></td><td>Examenes finales evaluados por IA.</td></tr>
 </tbody>
 </table>
@@ -300,6 +305,63 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 
 <p>Archivo: <span class="code-ref">core/tutor_ia_modulo.py</span></p>
 
+<!-- 6b. RAG Multi-Tenant -->
+<h2 id="rag">6b. RAG Multi-Tenant (Documentos por Curso)</h2>
+<div class="callout info">
+<b>NUEVO:</b> Cada curso puede tener documentos propios que alimentan a la IA. Geronimo y Maria usan este conocimiento al responder.
+</div>
+
+<h3>¿Que es RAG?</h3>
+<p>RAG (Retrieval-Augmented Generation) permite que la IA consulte documentos especificos del curso antes de responder. Asi, Geronimo y Maria dan respuestas basadas en el material real del curso, no solo en conocimiento general.</p>
+
+<h3>Como funciona</h3>
+<div class="flow-diagram">
+<b>Admin sube documento</b> (PDF, Word, texto) <span class="arrow">&rarr;</span> Se asocia a un Curso<br>
+<span class="arrow">&darr;</span><br>
+<b>Indexacion automatica</b> <span class="arrow">&rarr;</span> El documento se divide en fragmentos y se almacena en ChromaDB<br>
+<span class="arrow">&darr;</span><br>
+<b>Estudiante hace pregunta</b> <span class="arrow">&rarr;</span> ChromaDB busca fragmentos relevantes<br>
+<span class="arrow">&darr;</span><br>
+<b>Contexto inyectado a Geronimo/Maria</b> <span class="arrow">&rarr;</span> Respuesta informada con el contenido del curso
+</div>
+
+<h3>Aislamiento Multi-Tenant</h3>
+<ul>
+<li>Cada combinacion <b>Cliente + Curso</b> tiene su propia base vectorial aislada</li>
+<li>Los documentos de un cliente nunca se mezclan con los de otro</li>
+<li>Cada curso indexa solo sus propios documentos</li>
+</ul>
+
+<h3>Tipos de documentos soportados</h3>
+<table class="ref-table">
+<thead><tr><th>Tipo</th><th>Descripcion</th></tr></thead>
+<tbody>
+<tr><td><b>Contenido</b></td><td>Material educativo del curso</td></tr>
+<tr><td><b>Manual</b></td><td>Manuales operativos o guias técnicas</td></tr>
+<tr><td><b>FAQ</b></td><td>Preguntas frecuentes del tema</td></tr>
+<tr><td><b>Guia</b></td><td>Guias paso a paso</td></tr>
+<tr><td><b>Normativa</b></td><td>Documentos legales o normativos</td></tr>
+</tbody>
+</table>
+
+<h3>Como subir documentos RAG</h3>
+<ol class="step-list">
+<li>Ir a Admin &gt; Cursos &gt; seleccionar un curso</li>
+<li>En la seccion <b>Documentos RAG</b> (inline), agregar documento</li>
+<li>Seleccionar tipo, subir archivo (PDF, DOCX, TXT) y guardar</li>
+<li>El documento se indexa automaticamente al guardar</li>
+<li>Verificar el estado: ✅ indexado, ⏳ pendiente, ❌ error</li>
+</ol>
+
+<h3>Acciones masivas</h3>
+<ul>
+<li><b>Indexar documentos RAG</b>: Accion en Cursos para indexar todos los documentos pendientes</li>
+<li><b>Indexar contenido de modulos</b>: Indexa automaticamente el texto de todos los modulos del curso</li>
+<li><b>Reindexar documentos</b>: Fuerza la re-indexacion desde Admin &gt; Documentos RAG</li>
+</ul>
+
+<p>Archivos: <span class="code-ref">core/rag_eki_multitenant.py</span>, <span class="code-ref">core/rag_manager.py</span></p>
+
 <!-- 7. Gamificacion -->
 <h2 id="gamificacion">7. Sistema de Gamificacion</h2>
 <div class="flow-diagram">
@@ -361,8 +423,14 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 <li>Se registra la aceptacion con fecha y hora</li>
 </ol>
 
-<h3>Boton de panico</h3>
-<p>Si el estudiante escribe "necesito ayuda", "urgente", "emergencia", "hablar con humano", se crea una <span class="code-ref">SolicitudSoporte</span> y se notifica al equipo.</p>
+<h3>Boton de panico y PQRS</h3>
+<p>Si el estudiante escribe "necesito ayuda", "urgente", "emergencia", "hablar con humano", se crea una <span class="code-ref">SolicitudSoporte</span> y se notifica al equipo. El sistema unificado maneja:</p>
+<ul>
+<li><b>Soporte tecnico</b>: Problemas con la plataforma</li>
+<li><b>Boton de panico</b>: Ayuda urgente</li>
+<li><b>PQRS</b>: Peticiones, Quejas, Reclamos, Sugerencias y Felicitaciones</li>
+</ul>
+<p>Todo se gestiona desde Admin &gt; Solicitudes de Soporte (vista unificada).</p>
 <p>Archivo: <span class="code-ref">core/security_handler.py</span></p>
 
 <!-- 11. Admin -->
@@ -409,6 +477,51 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 </tbody>
 </table>
 
+<!-- 12b. Exportacion de metricas -->
+<h2 id="metricas-export">12b. Exportacion de metricas a sistemas externos</h2>
+<p>EKI permite exportar datos y metricas sin necesidad de cambios en el codigo. Hay 4 estrategias:</p>
+
+<div class="card-grid">
+<div class="info-card">
+    <div class="ic-title">📊 API REST publica</div>
+    <div class="ic-body">
+        3 endpoints sin autenticacion:<br>
+        <span class="code-ref">/api/estudiante/&lt;tel&gt;/</span> → datos del estudiante<br>
+        <span class="code-ref">/api/estudiante/&lt;tel&gt;/progreso/</span> → avance (%, modulos, estado)<br>
+        <span class="code-ref">/api/estudiante/&lt;tel&gt;/siguiente-tarea/</span> → proxima tarea pendiente<br>
+        Ideal para consultar progreso individual desde otro sistema.
+    </div>
+</div>
+<div class="info-card">
+    <div class="ic-title">📥 Descarga CSV/XLSX</div>
+    <div class="ic-body">
+        3 endpoints de descarga con sesion admin:<br>
+        <span class="code-ref">/admin/dashboard/?exportar=excel</span> → detalle estudiantes XLSX<br>
+        <span class="code-ref">/admin/analytics/export/</span> → interacciones CSV (filtros de fecha/municipio/curso)<br>
+        <span class="code-ref">/admin/reportes-avanzados/descargar/</span> → XLSX 3 hojas (municipio, canal, resumen)<br>
+        Se puede automatizar con script Python + requests.
+    </div>
+</div>
+<div class="info-card">
+    <div class="ic-title">📈 API JSON graficos</div>
+    <div class="ic-body">
+        <span class="code-ref">/admin/analytics/api/?tipo=modalidad</span> → audio vs texto<br>
+        <span class="code-ref">/admin/analytics/api/?tipo=municipios</span> → top 10 municipios<br>
+        <span class="code-ref">/admin/analytics/api/?tipo=temporal</span> → actividad ultimos 30 dias<br>
+        Compatible con Grafana, Metabase o dashboards personalizados.
+    </div>
+</div>
+<div class="info-card">
+    <div class="ic-title">🗄️ Lectura directa BD</div>
+    <div class="ic-body">
+        En produccion (RDS PostgreSQL), crear un <b>read-replica</b> o usuario de solo lectura.<br>
+        Conectar Power BI, Tableau, Metabase directamente a las tablas:<br>
+        core_estudiante, core_progresoestudiante, core_whatsapplog, core_interaccionlog<br>
+        <b>Maximo poder, cero cambios en EKI.</b>
+    </div>
+</div>
+</div>
+
 <!-- 13. URLs -->
 <h2 id="urls">13. URLs y vistas disponibles</h2>
 <table class="ref-table">
@@ -453,7 +566,7 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 <ol class="step-list">
 <li>Opcion A: Admin &gt; Estudiantes &gt; Agregar (uno por uno)</li>
 <li>Opcion B: Admin &gt; Importar Estudiantes &gt; cargar archivo Excel (.xlsx)</li>
-<li>El Excel debe tener columnas: A=Cedula, B=Nombre, C=Telefono, D=Curso (opc), E=Cliente (opc), F=Municipio (opc)</li>
+<li>El Excel debe tener columnas: A=Cedula, B=Nombre, C=Telefono, D=Municipio (opc), E=Departamento (opc), F=Genero (opc), G=Edad (opc), H=Curso (opc), I=Cliente (opc)</li>
 <li>El telefono se normaliza automaticamente a formato colombiano (57...)</li>
 <li>Puede descargar la plantilla de ejemplo desde la lista de estudiantes</li>
 </ol>
@@ -465,6 +578,29 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 <li>Seleccionar plantilla, audiencia (grupo o individual), fecha</li>
 <li>Seleccionar la campana y ejecutar accion "Enviar campana"</li>
 </ol>
+
+<!-- 14b. Celery -->
+<h2 id="celery">14b. Procesamiento asincrono (Celery + Redis)</h2>
+<p>EKI usa <b>Celery</b> con <b>Redis</b> como broker para procesar tareas pesadas en segundo plano sin bloquear el servidor web.</p>
+
+<h3>Tareas asincronas disponibles</h3>
+<table class="ref-table">
+<thead><tr><th>Tarea</th><th>Que hace</th><th>Periodicidad</th></tr></thead>
+<tbody>
+<tr><td><b>procesar_envio_masivo</b></td><td>Envia campanas masivas de WhatsApp</td><td>Bajo demanda</td></tr>
+<tr><td><b>generar_certificados_pendientes</b></td><td>Genera certificados para cursos completados</td><td>Bajo demanda</td></tr>
+<tr><td><b>indexar_documentos_rag</b></td><td>Indexa documentos RAG pendientes en ChromaDB</td><td>Bajo demanda</td></tr>
+<tr><td><b>enviar_recordatorios_inactivos</b></td><td>Recuerda a estudiantes inactivos</td><td>Diario (8am)</td></tr>
+<tr><td><b>limpiar_logs_antiguos</b></td><td>Elimina logs de WhatsApp de mas de 90 dias</td><td>Semanal (dom 3am)</td></tr>
+<tr><td><b>calcular_metricas_diarias</b></td><td>Pre-calcula metricas del dashboard</td><td>Diario (medianoche)</td></tr>
+</tbody>
+</table>
+
+<div class="callout info">
+<b>Nota:</b> Si Redis no esta disponible, el sistema continua funcionando normalmente — las tareas se ejecutan de forma sincrona como fallback. El worker de Celery se inicia automaticamente en el despliegue de produccion (ver Procfile).
+</div>
+
+<p>Archivos: <span class="code-ref">core/tasks.py</span>, <span class="code-ref">mvp_project/celery.py</span></p>
 
 <!-- 15. Archivos clave -->
 <h2 id="archivos-clave">15. Archivos clave del codigo</h2>
@@ -487,9 +623,14 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 <tr><td>core/utils_certificados.py</td><td>Generador de certificados con deteccion de marcadores de color</td></tr>
 <tr><td>core/models_extras.py</td><td>Archivos multimedia, grupos, PQRS</td></tr>
 <tr><td>core/whatsapp_service.py</td><td>Servicio de envio de archivos por WhatsApp</td></tr>
+<tr><td>core/rag_eki_multitenant.py</td><td>Motor RAG con ChromaDB: procesamiento de documentos, busqueda vectorial</td></tr>
+<tr><td>core/rag_manager.py</td><td>Gestor de instancias RAG por cliente/curso (singleton)</td></tr>
+<tr><td>core/tasks.py</td><td>Tareas asincronas de Celery (envios masivos, certificados, RAG, limpieza)</td></tr>
+<tr><td>core/intent_detector.py</td><td>Detector de intenciones del estudiante (continuar, ayuda, corregir datos, etc.)</td></tr>
+<tr><td>mvp_project/celery.py</td><td>Configuracion de Celery con beat schedule</td></tr>
 <tr><td>mvp_project/urls.py</td><td>Todas las URLs del sistema</td></tr>
 <tr><td>requirements.txt</td><td>Dependencias Python</td></tr>
-<tr><td>Procfile</td><td>Configuracion de despliegue EB</td></tr>
+<tr><td>Procfile</td><td>Configuracion de despliegue EB (web + worker + beat)</td></tr>
 </tbody>
 </table>
 
@@ -519,8 +660,15 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 <li><b>terminos_aceptados</b>: Acepto terminos, se le pide nombre</li>
 <li><b>nombre_recibido</b>: Se le pide cedula</li>
 <li><b>cedula_recibida</b>: Se le pide municipio</li>
+<li><b>municipio_recibido</b>: Se le pide departamento</li>
+<li><b>departamento_recibido</b>: Se le pide genero</li>
+<li><b>genero_recibido</b>: Se le pide edad</li>
+<li><b>confirmando_datos</b>: Se muestran todos los datos y el estudiante puede confirmar o corregir</li>
 <li><b>completado</b>: Listo para recibir cursos</li>
 </ol>
+
+<h3>Correccion de datos (cualquier momento)</h3>
+<p>El estudiante puede corregir sus datos en cualquier momento escribiendo <b>"corregir datos"</b>, <b>"me equivoqué"</b>, <b>"cambiar datos"</b> o tocando la opcion <b>4</b> del menu. El sistema entra en modo correccion donde el estudiante escribe <span class="code-ref">campo: valor</span> (ejemplo: <i>nombre: Maria Garcia</i>). Campos disponibles: nombre, municipio, departamento, documento, edad, genero.</p>
 
 <!-- 17. Certificados S3 -->
 <h2 id="certificados-s3">17. Certificados con Marcadores RGB y S3</h2>
@@ -629,7 +777,7 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 </ol>
 
 <hr>
-<p style="font-size:0.85rem;color:#888;margin-top:30px;">Documentacion Eki v1.3 - Actualizada Marzo 2026. Multi-tenant B2B, certificados S3, GPT-4o-mini unificado, importacion Excel corregida. Para dudas, contactar al equipo de desarrollo.</p>
+<p style="font-size:0.85rem;color:#888;margin-top:30px;">Documentacion Eki v2.0 - Actualizada Junio 2025. RAG multi-tenant, Celery async, correccion de datos, PQRS unificado, edad/genero en onboarding, exportacion de metricas. Para dudas, contactar al equipo de desarrollo.</p>
 
 </div>
 {% endblock %}
