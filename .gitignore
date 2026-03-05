@@ -63,5 +63,5 @@ chroma_db/
 
 # Certificados generados localmente
 certificados/
-GreatVibes-Regular.ttf
+/GreatVibes-Regular.ttf
 generar_certificado_local.py

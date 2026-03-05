@@ -704,19 +704,6 @@ Escribe "ver cursos" para inscribirte en uno."""
                     if pregunta:
                         guardar_contexto_pregunta(estudiante, modulo_actual, pregunta, progreso)
                         return formatear_pregunta(pregunta)
-            else:
-                # Sin PreguntaModulo manual → generar pregunta desde RAG/contenido del curso
-                ya_respondio = ModuloCompletado.objects.filter(
-                    progreso=progreso,
-                    modulo=modulo_actual
-                ).exists()
-                
-                if not ya_respondio:
-                    from .pregunta_handler import generar_pregunta_rag, guardar_contexto_pregunta_rag, formatear_pregunta_rag
-                    pregunta_rag = generar_pregunta_rag(modulo_actual, estudiante)
-                    if pregunta_rag:
-                        guardar_contexto_pregunta_rag(estudiante, modulo_actual, pregunta_rag, progreso)
-                        return formatear_pregunta_rag(pregunta_rag, modulo_actual)
             
             # Completar módulo y avanzar (el tutor IA se envía como mensaje separado después)
             from .gamificacion import PerfilGamificacion

@@ -1312,7 +1312,7 @@ def _procesar_twilio_webhook(post_data):
         # --- BARRERA 3: CONFIRMACIÓN DE DATOS ---
         if estado_chat == 'CONFIRMANDO_DATOS':
             msg_lower = msg_body.strip().lower()
-            keywords_si = ['sí', 'si', 'todo bien', 'correcto', 'bien', 'ok', 'yes', 'confirmo']
+            keywords_si = ['sí', 'si', 'todo bien', 'correcto', 'bien', 'ok', 'yes', 'confirmo', 'confirmar']
             keywords_modificar = ['modificar', 'no', 'error', 'mal', 'incorrecto', 'hay un error', 'cambiar']
             
             if any(k in msg_lower for k in keywords_si):
@@ -1939,12 +1939,13 @@ def _procesar_twilio_webhook(post_data):
                     from .response_templates import get_response_for_intent
                     texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
                 else:
-                    # Detectar si la última pregunta fue generada por IA/RAG (sin opciones)
+                    # Validar respuesta a pregunta de módulo
                     from .pregunta_handler import validar_respuesta, procesar_respuesta_abierta_ia
-                    print(f"📝 Validando respuesta a pregunta de módulo o IA")
+                    print(f"📝 Validando respuesta a pregunta de módulo")
                     
+                    # Verificar si la pregunta es abierta (IA) o de opciones
                     ctx = estudiante.contexto_temporal or {}
-                    es_pregunta_ia = ctx.get('tipo') in ('pregunta_rag_ia', 'pregunta_tutor_ia')
+                    es_pregunta_ia = ctx.get('tipo') == 'pregunta_tutor_ia'
                     
                     # Fallback: verificar ultima_pregunta_data si contexto no tiene tipo IA
                     if not es_pregunta_ia:
@@ -1959,7 +1960,7 @@ def _procesar_twilio_webhook(post_data):
                             es_pregunta_ia = True
                     
                     if es_pregunta_ia:
-                        # Pregunta IA/RAG abierta — evaluar con IA
+                        # Pregunta IA abierta — evaluar con IA
                         es_correcta, mensaje_respuesta = procesar_respuesta_abierta_ia(estudiante, msg_body)
                         modulo_completado = None
                     else:
@@ -1973,7 +1974,7 @@ def _procesar_twilio_webhook(post_data):
                             progreso = modulo_completado.progreso
                             modulo_actual = modulo_completado.modulo
                         else:
-                            # Para preguntas IA/RAG, obtener progreso desde contexto
+                            # Para preguntas IA abierta, obtener progreso desde contexto
                             from .models import ProgresoEstudiante, Modulo
                             modulo_id = ctx.get('modulo_id')
                             progreso_id = ctx.get('progreso_id')
@@ -1985,13 +1986,11 @@ def _procesar_twilio_webhook(post_data):
                                 progreso = None
                             
                             if progreso and modulo_actual:
-                                # Crear ModuloCompletado para la pregunta RAG
+                                # Crear ModuloCompletado para la pregunta IA abierta
                                 ModuloCompletado.objects.get_or_create(
                                     progreso=progreso,
                                     modulo=modulo_actual
                                 )
-                            else:
-                                texto_respuesta = mensaje_respuesta
                         
                         _skip_avance = False
                         if not (progreso and modulo_actual):

@@ -188,44 +188,13 @@ def enviar_whatsapp_twilio(telefono: str, texto: str, mensaje_id_referencia: str
         # Blindar el número destinatario contra error 21212
         telefono = str(formatear_numero_whatsapp(telefono)).strip()
 
-        # Si la media_url es de S3, generar presigned URL con Content-Type correcto
+        # S3 URLs: usar URL pública directa (bucket tiene ACL public-read)
+        # NO generar presigned URL — causa 63019 por redirect de región
         if media_url and 'amazonaws.com' in media_url:
-            try:
-                from urllib.parse import urlparse
-                parsed = urlparse(media_url)
-                # Soportar formato: bucket.s3.region.amazonaws.com/key
-                # y formato: s3.region.amazonaws.com/bucket/key
-                host_parts = parsed.netloc.split('.')
-                if host_parts[0] == 's3':
-                    # s3.region.amazonaws.com/bucket/key
-                    path_parts = parsed.path.lstrip('/').split('/', 1)
-                    bucket = path_parts[0]
-                    key = path_parts[1] if len(path_parts) > 1 else ''
-                else:
-                    # bucket.s3.region.amazonaws.com/key
-                    bucket = host_parts[0]
-                    key = parsed.path.lstrip('/')
-                
-                # Detectar Content-Type según extensión
-                ext = key.rsplit('.', 1)[-1].lower() if '.' in key else ''
-                content_types = {
-                    'mp4': 'video/mp4', 'mov': 'video/quicktime', 'avi': 'video/x-msvideo',
-                    'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
-                    'gif': 'image/gif', 'webp': 'image/webp',
-                    'pdf': 'application/pdf',
-                    'mp3': 'audio/mpeg', 'ogg': 'audio/ogg', 'wav': 'audio/wav',
-                }
-                response_content_type = content_types.get(ext, None)
-                
-                # Generar presigned URL con Content-Type
-                presigned_params = {'Bucket': bucket, 'Key': key}
-                if response_content_type:
-                    presigned_params['ResponseContentType'] = response_content_type
-                
-                media_url = generar_url_firmada_s3_v4(bucket, key)
-                logger.info(f"[S3] Presigned URL generada para {ext}: {media_url[:100]}...")
-            except Exception as e:
-                logger.warning(f"[S3] Error generando presigned URL, usando URL original: {e}")
+            # Asegurar que la URL use el endpoint regional correcto (sin redirects)
+            if '.s3.amazonaws.com/' in media_url and '.s3.us-east-2.amazonaws.com/' not in media_url:
+                media_url = media_url.replace('.s3.amazonaws.com/', '.s3.us-east-2.amazonaws.com/')
+            logger.info(f"[S3] URL pública directa: {media_url[:100]}...")
 
         # Crear cliente Twilio
         client = Client(account_sid, auth_token)
