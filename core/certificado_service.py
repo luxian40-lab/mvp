@@ -129,7 +129,39 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
                 generado = True
                 logger.info(f"✅ Certificado imagen generado con imagen_fondo: {plantilla.nombre}")
         
-        # PRIORIDAD 4: Generación PDF desde cero (sin plantilla o plantilla sin archivos)
+        # PRIORIDAD 4: Marcadores RGB con plantilla por defecto de S3
+        # Cuando no hay PlantillaCertificado configurada, usar plantilla eki por defecto
+        if not generado:
+            try:
+                from .utils_certificados import generar_certificado_marcadores
+                
+                default_template_url = "https://eki-produccion.s3.us-east-2.amazonaws.com/pruebas/certificadoeki.png"
+                url_verificacion = certificado.obtener_url_verificacion()
+                org_nombre = None
+                if certificado.estudiante and hasattr(certificado.estudiante, 'cliente') and certificado.estudiante.cliente:
+                    org_nombre = certificado.estudiante.cliente.nombre
+                
+                img_buffer = generar_certificado_marcadores(
+                    plantilla_url_o_path=default_template_url,
+                    nombre_estudiante=certificado.estudiante.nombre,
+                    cedula_estudiante=certificado.estudiante.cedula or '',
+                    url_verificacion=url_verificacion,
+                    organizacion_nombre=org_nombre,
+                )
+                
+                if img_buffer:
+                    filename = f"certificado_{certificado.codigo_verificacion}.png"
+                    certificado.archivo_imagen.save(
+                        filename,
+                        ContentFile(img_buffer.read()),
+                        save=True
+                    )
+                    generado = True
+                    logger.info(f"✅ Certificado generado con plantilla eki por defecto (marcadores RGB)")
+            except Exception as e:
+                logger.warning(f"⚠️ Error con marcadores RGB por defecto: {e}")
+        
+        # PRIORIDAD 5: Generación PDF desde cero (último recurso)
         if not generado:
             pdf_buffer = generar_certificado_pdf(certificado, plantilla)
             filename = f"certificado_{certificado.codigo_verificacion}.pdf"
@@ -185,14 +217,13 @@ def enviar_certificado_whatsapp(certificado):
 
         usar_imagen = False
         media_url = None
-        if plantilla and (getattr(plantilla, 'archivo_plantilla_imagen', None) or getattr(plantilla, 'url_plantilla_imagen', None)):
-            # Si el certificado tiene imagen generada
-            if certificado.archivo_imagen:
-                usar_imagen = True
-                # Siempre usar presigned URL para que Twilio pueda descargar
-                from .response_templates import _generar_presigned_url_s3
-                key = certificado.archivo_imagen.name.lstrip('/')
-                media_url = _generar_presigned_url_s3(key, expires_in=3600)
+        
+        # Preferir imagen sobre PDF (el certificado puede tener imagen sin plantilla)
+        if certificado.archivo_imagen:
+            usar_imagen = True
+            from .response_templates import _generar_presigned_url_s3
+            key = certificado.archivo_imagen.name.lstrip('/')
+            media_url = _generar_presigned_url_s3(key, expires_in=3600)
 
         # Si no es plantilla imagen o no hay imagen generada, usar PDF como antes
         if not usar_imagen:

@@ -1369,9 +1369,9 @@ def _procesar_twilio_webhook(post_data):
                 estudiante.save()
             else:
                 texto_respuesta = (
-                    "Por favor confirma tus datos:\n\n"
-                    "👉 Toca *Sí, todo bien* si están correctos\n"
-                    "👉 Toca *Modificar* si hay un error"
+                    "Por favor usa los botones de la plantilla anterior:\n\n"
+                    "✅ *Confirmar* si tus datos están correctos\n"
+                    "✏️ *Modificar* si hay un error"
                 )
             
             try:

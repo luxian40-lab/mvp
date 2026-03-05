@@ -127,10 +127,8 @@ class Certificado(models.Model):
         return codigo
     
     def obtener_url_verificacion(self):
-        """Retorna URL pública para verificar certificado"""
-        from django.conf import settings
-        base_url = getattr(settings, 'BASE_URL', 'https://eki.com')
-        return f"{base_url}/verificar-certificado/{self.codigo_verificacion}"
+        """Retorna URL pública para verificar certificado en landing page"""
+        return f"https://landingcertificados.netlify.app/?code={self.codigo_verificacion}"
     
     def obtener_mencion(self):
         """

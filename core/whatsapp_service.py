@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 TWILIO_CONTENT_SIDS = {
     'habeas_data': 'HX579c4e36ab20209afa55742f6e3c0c55',
     'confirmar_datos': 'HXbb0358bcb33c46a521e392f8e7dcca7a',
-    'confirmar_datos_v2': 'HX180afd8c7cf5266799921abf523c80f6',
+    'confirmar_datos_v2': 'HXa252d102417aefd5ff15e11694e9fb1e',
     'menu_principal': 'HXc9027f1ab8cdf781fafa1096c9010d5d',
     'listadocursos1': 'HX6a31cb9924af620e3dc914b71e95fd20',
     'listadocursos2': 'HXcb7abe9df97c2e3085b862523a5a1d8b',

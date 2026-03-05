@@ -2261,9 +2261,9 @@ class CursoAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'cliente_nombre', 'total_modulos_display', 'docs_rag_count', 'duracion_semanas', 'ver_modulos_link', 'activo', 'orden')
     list_filter = ('activo', 'cliente')
     search_fields = ('nombre', 'descripcion', 'cliente__nombre')
-    list_editable = ('activo', 'orden')
+    list_editable = ('orden',)
     inlines = [ModuloInline, DocumentoRAGInline]
-    actions = ['ver_todos_modulos', 'indexar_documentos_rag', 'indexar_contenido_modulos']
+    actions = ['ver_todos_modulos', 'indexar_documentos_rag', 'indexar_contenido_modulos', 'activar_cursos', 'desactivar_cursos']
     # change_list_template = 'admin/curso_changelist.html'  # Eliminado para usar el template estándar de Django
     
     fieldsets = (
@@ -2378,6 +2378,16 @@ class CursoAdmin(admin.ModelAdmin):
         from django.shortcuts import redirect
         curso_ids = ','.join(str(c.id) for c in queryset)
         return redirect(f'/admin/core/modulo/?curso__id__in={curso_ids}')
+
+    @admin.action(description='✅ Activar cursos seleccionados')
+    def activar_cursos(self, request, queryset):
+        count = queryset.update(activo=True)
+        self.message_user(request, f"✅ {count} curso(s) activado(s)")
+
+    @admin.action(description='❌ Desactivar cursos seleccionados')
+    def desactivar_cursos(self, request, queryset):
+        count = queryset.update(activo=False)
+        self.message_user(request, f"❌ {count} curso(s) desactivado(s)")
 
 
 class PreguntaModuloInline(admin.StackedInline):

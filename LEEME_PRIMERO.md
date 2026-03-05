@@ -168,7 +168,37 @@ Solo necesitas:
 
 ---
 
-## CAMBIOS RECIENTES (Sesion Marzo 4, 2026)
+## CAMBIOS RECIENTES (Sesion Marzo 5, 2026)
+
+### 1. Mensaje de Ventas — Opcion "Necesito ayuda"
+- Opcion 3 cambiada de "Soy estudiante (Ayuda)" a "Necesito ayuda"
+- Cuando prospecto elige opcion 3, recibe mensaje tipo soporte con instrucciones de contacto
+- Texto: "Hemos recibido tu solicitud de ayuda..."
+
+### 2. Confirmacion de Datos — Botones de plantilla
+- Mensaje CONFIRMANDO_DATOS actualizado para indicar "usa los botones de la plantilla anterior: Confirmar / Modificar"
+- Ya no dice "Toca Si, todo bien / Toca Modificar" (evita confusion con texto vs botones)
+
+### 3. Certificados — Correccion Entrega e Imagen
+- **QR de verificacion** ahora apunta a `https://landingcertificados.netlify.app/?code={codigo}`
+- **Generacion de imagen**: Si no hay PlantillaCertificado, usa marcadores RGB con plantilla eki por defecto de S3
+- **Prioridad 4 nueva**: `generar_certificado_marcadores()` con URL defecto antes de PDF desde cero
+- **enviar_certificado_whatsapp**: Siempre prefiere `archivo_imagen` sobre PDF (sin exigir planilla)
+- **Corrige NoSuchKey**: El error ocurria porque generaba PDF sin subirlo correctamente a S3
+
+### 4. URL de verificacion en utils_certificados
+- `generar_y_subir_certificado()` ahora usa `cert.obtener_url_verificacion()` (landing page)
+- Ya no apunta a `eki.com.co/verificar-certificado/`
+
+### 5. Cursos RAG — Prevencion de desactivacion accidental
+- **`activo` removido de `list_editable`** en CursoAdmin (ya no se puede cambiar con checkbox en listado)
+- **Acciones admin nuevas**: "Activar cursos seleccionados" y "Desactivar cursos seleccionados"
+- **Causa raiz**: El curso con 271 fragmentos RAG se desactivo accidentalmente desde el listado
+- **Para activar**: Admin > Cursos > seleccionar curso > accion "Activar cursos seleccionados"
+
+---
+
+## CAMBIOS ANTERIORES (Sesion Marzo 4, 2026)
 
 ### 1. Plantillas Twilio Actualizadas
 - **Habeas Data**: SID actualizado a `HX579c4e36ab20209afa55742f6e3c0c55`

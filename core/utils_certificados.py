@@ -272,11 +272,11 @@ def generar_y_subir_certificado(estudiante, curso, plantilla_url=None, url_verif
                 curso=curso
             ).first()
             if cert:
-                url_verificacion = f"https://www.eki.com.co/verificar-certificado/{cert.codigo_verificacion}/"
+                url_verificacion = cert.obtener_url_verificacion()
             else:
-                url_verificacion = "https://www.eki.com.co/"
+                url_verificacion = "https://landingcertificados.netlify.app/"
         except Exception:
-            url_verificacion = "https://www.eki.com.co/"
+            url_verificacion = "https://landingcertificados.netlify.app/"
     
     org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
     
