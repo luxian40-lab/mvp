@@ -46,11 +46,127 @@ Sistema de mini exámenes por módulo
 from .models import PreguntaModulo, ModuloCompletado, Estudiante
 from django.utils import timezone
 import random
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def tiene_pregunta_modulo(modulo):
     """Verifica si el módulo tiene pregunta activa"""
     return PreguntaModulo.objects.filter(modulo=modulo, activa=True).exists()
+
+
+def generar_pregunta_rag(modulo, estudiante):
+    """
+    Genera una pregunta basada en el contenido RAG del curso.
+    Usa el contenido del módulo + documentos RAG para crear una pregunta relevante.
+    
+    Args:
+        modulo: Instancia de Modulo
+        estudiante: Instancia de Estudiante
+    
+    Returns:
+        str: Pregunta generada, o None si falla
+    """
+    try:
+        import os
+        from openai import OpenAI
+        
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            logger.warning("No hay OPENAI_API_KEY para generar pregunta RAG")
+            return None
+        
+        # 1. Obtener contenido del módulo
+        contenido_modulo = (modulo.contenido or '')[:2000]
+        
+        # 2. Obtener contexto RAG del curso
+        contexto_rag = ""
+        try:
+            from .rag_manager import rag_manager
+            curso = modulo.curso
+            cliente_id = curso.cliente_id if curso.cliente_id else 0
+            contexto_rag = rag_manager.obtener_contexto_para_ia(
+                cliente_id=cliente_id,
+                curso_id=curso.id,
+                pregunta=f"contenido importante del módulo {modulo.titulo}",
+                max_chars=1500
+            )
+        except Exception as e:
+            logger.info(f"RAG no disponible para preguntas: {e}")
+        
+        # 3. Combinar contenido
+        contenido_total = ""
+        if contenido_modulo:
+            contenido_total += f"CONTENIDO DEL MÓDULO:\n{contenido_modulo}\n\n"
+        if contexto_rag:
+            contenido_total += f"DOCUMENTOS DEL CURSO:\n{contexto_rag}\n\n"
+        
+        if not contenido_total.strip():
+            return None
+        
+        # 4. Generar pregunta con OpenAI
+        client = OpenAI(api_key=api_key)
+        response = client.chat.completions.create(
+            model='gpt-4o-mini',
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Eres un tutor educativo en español para agricultores colombianos. "
+                        "Genera UNA sola pregunta de comprensión basada en el contenido proporcionado. "
+                        "La pregunta debe ser práctica, clara y verificar que el estudiante entendió lo esencial. "
+                        "No uses jerga técnica complicada. Sé breve y directo. "
+                        "Responde SOLO con la pregunta, sin introducción ni opciones."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": f"Genera una pregunta de comprensión sobre este contenido:\n\n{contenido_total}"
+                }
+            ],
+            max_tokens=150,
+            temperature=0.7
+        )
+        
+        pregunta = response.choices[0].message.content.strip()
+        logger.info(f"✅ Pregunta RAG generada para módulo '{modulo.titulo}': {pregunta[:60]}...")
+        return pregunta
+        
+    except Exception as e:
+        logger.warning(f"⚠️ Error generando pregunta RAG: {e}")
+        return None
+
+
+def guardar_contexto_pregunta_rag(estudiante, modulo, pregunta_texto, progreso):
+    """
+    Guarda el contexto para una pregunta generada por IA/RAG (abierta, sin opciones).
+    
+    Args:
+        estudiante: Instancia de Estudiante
+        modulo: Instancia de Modulo
+        pregunta_texto: Texto de la pregunta
+        progreso: Instancia de ProgresoEstudiante
+    """
+    estudiante.contexto_temporal = {
+        'modulo_id': modulo.id,
+        'progreso_id': progreso.id,
+        'pregunta_tutor': pregunta_texto,
+        'tipo': 'pregunta_rag_ia'
+    }
+    estudiante.estado_onboarding = 'esperando_respuesta_modulo'
+    estudiante.save()
+
+
+def formatear_pregunta_rag(pregunta_texto, modulo):
+    """
+    Formatea una pregunta RAG para WhatsApp.
+    """
+    return f"""📝 *PREGUNTA — {modulo.titulo}*
+
+{pregunta_texto}
+
+💡 _Responde con tus propias palabras. No hay respuesta incorrecta, lo importante es que demuestres comprensión._"""
 
 
 def obtener_pregunta_modulo(modulo):

@@ -218,19 +218,15 @@ def enviar_certificado_whatsapp(certificado):
         usar_imagen = False
         media_url = None
         
-        # Preferir imagen sobre PDF (el certificado puede tener imagen sin plantilla)
+        # Preferir imagen sobre PDF — usar URL pública directa (AWS_DEFAULT_ACL=public-read)
         if certificado.archivo_imagen:
             usar_imagen = True
-            from .response_templates import _generar_presigned_url_s3
-            key = certificado.archivo_imagen.name.lstrip('/')
-            media_url = _generar_presigned_url_s3(key, expires_in=3600)
+            media_url = certificado.archivo_imagen.url
 
-        # Si no es plantilla imagen o no hay imagen generada, usar PDF como antes
+        # Si no hay imagen, usar PDF
         if not usar_imagen:
             if certificado.archivo_pdf:
-                from .response_templates import _generar_presigned_url_s3
-                key = certificado.archivo_pdf.name.lstrip('/')
-                media_url = _generar_presigned_url_s3(key, expires_in=3600)
+                media_url = certificado.archivo_pdf.url
             else:
                 logger.error(f"Certificado {certificado.codigo_verificacion} no tiene archivo")
                 return False

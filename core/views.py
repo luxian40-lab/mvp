@@ -1368,10 +1368,21 @@ def _procesar_twilio_webhook(post_data):
                 estudiante.estado_chat = 'ESPERANDO_CORRECCION_DATOS'
                 estudiante.save()
             else:
+                # Re-enviar la plantilla de confirmación (tiene botones Confirmar/Modificar)
+                from .whatsapp_service import enviar_confirmacion_datos
+                org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
+                resultado_reenvio = enviar_confirmacion_datos(
+                    msg_from,
+                    estudiante.nombre,
+                    f"{estudiante.tipo_documento} {estudiante.cedula}",
+                    org_nombre,
+                    edad=estudiante.edad,
+                    municipio=estudiante.municipio,
+                )
+                if resultado_reenvio.get('success'):
+                    return  # Template reenviado, no necesita texto
                 texto_respuesta = (
-                    "Por favor usa los botones de la plantilla anterior:\n\n"
-                    "✅ *Confirmar* si tus datos están correctos\n"
-                    "✏️ *Modificar* si hay un error"
+                    "Por favor revisa tus datos y toca *Confirmar* o *Modificar* en la plantilla."
                 )
             
             try:
@@ -1928,36 +1939,72 @@ def _procesar_twilio_webhook(post_data):
                     from .response_templates import get_response_for_intent
                     texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
                 else:
-                    # Detectar si la última pregunta fue generada por IA (sin opciones)
+                    # Detectar si la última pregunta fue generada por IA/RAG (sin opciones)
                     from .pregunta_handler import validar_respuesta, procesar_respuesta_abierta_ia
                     print(f"📝 Validando respuesta a pregunta de módulo o IA")
-                    pregunta_data = None
-                    if hasattr(estudiante, 'ultima_pregunta_data') and estudiante.ultima_pregunta_data:
-                        import ast
-                        try:
-                            pregunta_data = ast.literal_eval(estudiante.ultima_pregunta_data)
-                        except Exception:
-                            pregunta_data = None
-                    if pregunta_data and (not pregunta_data.get('opciones')):
-                        # Pregunta IA abierta
+                    
+                    ctx = estudiante.contexto_temporal or {}
+                    es_pregunta_ia = ctx.get('tipo') in ('pregunta_rag_ia', 'pregunta_tutor_ia')
+                    
+                    # Fallback: verificar ultima_pregunta_data si contexto no tiene tipo IA
+                    if not es_pregunta_ia:
+                        pregunta_data = None
+                        if hasattr(estudiante, 'ultima_pregunta_data') and estudiante.ultima_pregunta_data:
+                            import ast
+                            try:
+                                pregunta_data = ast.literal_eval(estudiante.ultima_pregunta_data)
+                            except Exception:
+                                pregunta_data = None
+                        if pregunta_data and (not pregunta_data.get('opciones')):
+                            es_pregunta_ia = True
+                    
+                    if es_pregunta_ia:
+                        # Pregunta IA/RAG abierta — evaluar con IA
                         es_correcta, mensaje_respuesta = procesar_respuesta_abierta_ia(estudiante, msg_body)
                         modulo_completado = None
                     else:
                         es_correcta, mensaje_respuesta, modulo_completado = validar_respuesta(estudiante, msg_body)
 
                     # Obtener progreso para avanzar al siguiente módulo
-                    if modulo_completado or (pregunta_data and (not pregunta_data.get('opciones'))):
+                    if modulo_completado or es_pregunta_ia:
                         from .helpers_examenes import puede_avanzar_modulo
                         
-                        progreso = modulo_completado.progreso
-                        modulo_actual = modulo_completado.modulo
+                        if modulo_completado:
+                            progreso = modulo_completado.progreso
+                            modulo_actual = modulo_completado.modulo
+                        else:
+                            # Para preguntas IA/RAG, obtener progreso desde contexto
+                            from .models import ProgresoEstudiante, Modulo
+                            modulo_id = ctx.get('modulo_id')
+                            progreso_id = ctx.get('progreso_id')
+                            try:
+                                modulo_actual = Modulo.objects.get(id=modulo_id) if modulo_id else None
+                                progreso = ProgresoEstudiante.objects.get(id=progreso_id) if progreso_id else None
+                            except Exception:
+                                modulo_actual = None
+                                progreso = None
+                            
+                            if progreso and modulo_actual:
+                                # Crear ModuloCompletado para la pregunta RAG
+                                ModuloCompletado.objects.get_or_create(
+                                    progreso=progreso,
+                                    modulo=modulo_actual
+                                )
+                            else:
+                                texto_respuesta = mensaje_respuesta
                         
-                        # ⚠️ VERIFICAR EXAMEN OBLIGATORIO ANTES DE AVANZAR
-                        puede_avanzar, mensaje_examen, detalles = puede_avanzar_modulo(estudiante, modulo_actual)
+                        _skip_avance = False
+                        if not (progreso and modulo_actual):
+                            texto_respuesta = mensaje_respuesta
+                            _skip_avance = True
                         
-                        if not puede_avanzar:
-                            # NO puede avanzar - examen obligatorio no aprobado
-                            mensaje_respuesta += f"""
+                        if not _skip_avance:
+                            # VERIFICAR EXAMEN OBLIGATORIO ANTES DE AVANZAR
+                            puede_avanzar, mensaje_examen, detalles = puede_avanzar_modulo(estudiante, modulo_actual)
+                        
+                            if not puede_avanzar:
+                                # NO puede avanzar - examen obligatorio no aprobado
+                                mensaje_respuesta += f"""
 
 ━━━━━━━━━━━━━━━━━━━━
 
@@ -1969,63 +2016,63 @@ Para continuar al siguiente módulo debes aprobar el examen de este módulo.
 
 Escribe *"examen"* cuando estés listo para intentarlo."""
                             
-                            texto_respuesta = mensaje_respuesta
-                            # Fall through to Twilio API send
+                                texto_respuesta = mensaje_respuesta
+                                # Fall through to Twilio API send
                         
-                        else:
-                            # Buscar siguiente módulo
-                            siguiente_modulo = progreso.curso.modulos.filter(
-                                numero__gt=modulo_actual.numero
-                            ).order_by('numero').first()
+                            else:
+                                # Buscar siguiente módulo
+                                siguiente_modulo = progreso.curso.modulos.filter(
+                                    numero__gt=modulo_actual.numero
+                                ).order_by('numero').first()
                             
-                            if siguiente_modulo:
-                                # Actualizar progreso al siguiente módulo
-                                progreso.modulo_actual = siguiente_modulo
-                                progreso.save()
+                                if siguiente_modulo:
+                                    # Actualizar progreso al siguiente módulo
+                                    progreso.modulo_actual = siguiente_modulo
+                                    progreso.save()
                                 
-                                # Resetear preguntas IA para nuevo módulo
-                                estudiante.preguntas_ia_restantes = 3
-                                estudiante.save()
+                                    # Resetear preguntas IA para nuevo módulo
+                                    estudiante.preguntas_ia_restantes = 3
+                                    estudiante.save()
                                 
-                                porcentaje = progreso.porcentaje_avance()
-                                from .response_templates import obtener_video_url
-                                video_url = obtener_video_url(siguiente_modulo)
+                                    porcentaje = progreso.porcentaje_avance()
+                                    from .response_templates import obtener_video_url
+                                    video_url = obtener_video_url(siguiente_modulo)
                                 
-                                # Verificar si tiene archivos multimedia
-                                archivos_multimedia = siguiente_modulo.archivos_multimedia.filter(activo=True)
-                                print(f"🔍 Archivos multimedia para módulo {siguiente_modulo.titulo}: {archivos_multimedia.count()}")
-                                archivos_msg = ""
-                                primera_media_url = None
+                                    # Verificar si tiene archivos multimedia
+                                    archivos_multimedia = siguiente_modulo.archivos_multimedia.filter(activo=True)
+                                    print(f"🔍 Archivos multimedia para módulo {siguiente_modulo.titulo}: {archivos_multimedia.count()}")
+                                    archivos_msg = ""
+                                    primera_media_url = None
                                 
-                                if archivos_multimedia.exists():
-                                    print(f"✅ Encontrados {archivos_multimedia.count()} archivos multimedia")
-                                    archivos_msg = f"\n\n📁 *{archivos_multimedia.count()} archivo(s) multimedia*"
-                                    for idx, archivo in enumerate(archivos_multimedia[:3]):
-                                        icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
-                                        url = archivo.get_url_para_envio()
-                                        if url:
-                                            print(f"📎 URL para envío: {url}")
-                                        else:
-                                            print(f"⚠️ Archivo sin URL disponible para envío")
-                                        if idx == 0 and url and archivo.tipo in ['imagen', 'video'] and not primera_media_url:
-                                            primera_media_url = url
-                                            print(f"🖼️ Primera media detectada: {archivo.tipo} - {url}")
-                                            archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
-                                        elif url:
-                                            archivos_msg += f"\n{icono} {archivo.titulo}"
-                                        else:
-                                            archivos_msg += f"\n{icono} {archivo.titulo}"
+                                    if archivos_multimedia.exists():
+                                        print(f"✅ Encontrados {archivos_multimedia.count()} archivos multimedia")
+                                        archivos_msg = f"\n\n📁 *{archivos_multimedia.count()} archivo(s) multimedia*"
+                                        for idx, archivo in enumerate(archivos_multimedia[:3]):
+                                            icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
+                                            url = archivo.get_url_para_envio()
+                                            if url:
+                                                print(f"📎 URL para envío: {url}")
+                                            else:
+                                                print(f"⚠️ Archivo sin URL disponible para envío")
+                                            if idx == 0 and url and archivo.tipo in ['imagen', 'video'] and not primera_media_url:
+                                                primera_media_url = url
+                                                print(f"🖼️ Primera media detectada: {archivo.tipo} - {url}")
+                                                archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
+                                            elif url:
+                                                archivos_msg += f"\n{icono} {archivo.titulo}"
+                                            else:
+                                                archivos_msg += f"\n{icono} {archivo.titulo}"
 
-                                # Refuerzo: si NO hay archivos multimedia pero hay video_url, igual agregarlo como media
-                                if not archivos_multimedia.exists() and video_url:
-                                    print(f"🎥 Refuerzo: agregando video_url como media: {video_url}")
-                                    primera_media_url = video_url
+                                    # Refuerzo: si NO hay archivos multimedia pero hay video_url, igual agregarlo como media
+                                    if not archivos_multimedia.exists() and video_url:
+                                        print(f"🎥 Refuerzo: agregando video_url como media: {video_url}")
+                                        primera_media_url = video_url
                                 
-                                # Mensaje 1: Resultado del examen (mensaje_respuesta ya tiene la info)
-                                msg_completado = mensaje_respuesta
+                                    # Mensaje 1: Resultado del examen (mensaje_respuesta ya tiene la info)
+                                    msg_completado = mensaje_respuesta
                                 
-                                # Mensaje 2: Siguiente módulo (separado)
-                                msg_modulo = f"""━━━━━━━━━━━━━━━━━━━━
+                                    # Mensaje 2: Siguiente módulo (separado)
+                                    msg_modulo = f"""━━━━━━━━━━━━━━━━━━━━
 
 Progreso del curso: {porcentaje}%
 
@@ -2039,96 +2086,96 @@ Progreso del curso: {porcentaje}%
 
 Cuando termines, escribe: *"listo"*"""
                                 
-                                if primera_media_url:
-                                    msg_modulo += f"\n\n[MEDIA:{primera_media_url}]"
-                                    print(f"🖼️ Multimedia agregada al mensaje: {primera_media_url}")
+                                    if primera_media_url:
+                                        msg_modulo += f"\n\n[MEDIA:{primera_media_url}]"
+                                        print(f"🖼️ Multimedia agregada al mensaje: {primera_media_url}")
                                 
-                                if siguiente_modulo.examen_obligatorio:
-                                    msg_modulo += f"\n\n⚠️ *Este módulo tiene examen obligatorio ({siguiente_modulo.puntaje_minimo_aprobacion}% para aprobar)*"
+                                    if siguiente_modulo.examen_obligatorio:
+                                        msg_modulo += f"\n\n⚠️ *Este módulo tiene examen obligatorio ({siguiente_modulo.puntaje_minimo_aprobacion}% para aprobar)*"
                                 
-                                # === AGENTES: Gerónimo (impares) / María (módulo 4 solamente) ===
-                                tutor_msg = None
-                                maria_msg = None
+                                    # === AGENTES: Gerónimo (impares) / María (módulo 4 solamente) ===
+                                    tutor_msg = None
+                                    maria_msg = None
                                 
-                                # Profesor Gerónimo: enseñanza complementaria (módulos impares: 1,3,5,7,9)
-                                if modulo_actual.numero % 2 == 1:
-                                    try:
-                                        from .tutor_ia_modulo import generar_enseñanza_modulo
-                                        enseñanza = generar_enseñanza_modulo(
-                                            modulo_actual,
-                                            estudiante_nombre=estudiante.nombre or "Estudiante"
-                                        )
-                                        if enseñanza:
-                                            tutor_msg = f"🎓 *Profesor Gerónimo*\n\n{enseñanza}\n\n💬 _Responde o escribe *\"continuar\"* para seguir_"
-                                            print(f"🎓 Profesor Gerónimo activado después de módulo {modulo_actual.numero}", flush=True)
-                                    except Exception as e:
-                                        import logging
-                                        logging.getLogger(__name__).warning(f"⚠️ Profesor Gerónimo falló: {e}")
+                                    # Profesor Gerónimo: enseñanza complementaria (módulos impares: 1,3,5,7,9)
+                                    if modulo_actual.numero % 2 == 1:
+                                        try:
+                                            from .tutor_ia_modulo import generar_enseñanza_modulo
+                                            enseñanza = generar_enseñanza_modulo(
+                                                modulo_actual,
+                                                estudiante_nombre=estudiante.nombre or "Estudiante"
+                                            )
+                                            if enseñanza:
+                                                tutor_msg = f"🎓 *Profesor Gerónimo*\n\n{enseñanza}\n\n💬 _Responde o escribe *\"continuar\"* para seguir_"
+                                                print(f"🎓 Profesor Gerónimo activado después de módulo {modulo_actual.numero}", flush=True)
+                                        except Exception as e:
+                                            import logging
+                                            logging.getLogger(__name__).warning(f"⚠️ Profesor Gerónimo falló: {e}")
                                 
-                                # María (Mentora): revisión de progreso SOLO en módulo 4
-                                if modulo_actual.numero == 4:
-                                    try:
-                                        from .tutor_ia_modulo import generar_revision_progreso
-                                        modulos_completados_qs = progreso.modulos_completados.all().order_by('modulo__numero')
-                                        modulos_obj = [mc.modulo for mc in modulos_completados_qs]
-                                        revision = generar_revision_progreso(
-                                            modulo_actual,
-                                            modulos_obj,
-                                            progreso.curso.nombre,
-                                            estudiante_nombre=estudiante.nombre or "Estudiante"
-                                        )
-                                        if revision:
-                                            maria_msg = f"👩‍🏫 *María — Tu Asistente*\n\n{revision}\n\n💬 _Responde o escribe *\"continuar\"* para seguir_"
-                                            print(f"👩‍🏫 María activada después de módulo {modulo_actual.numero}", flush=True)
-                                    except Exception as e:
-                                        import logging
-                                        logging.getLogger(__name__).warning(f"⚠️ María falló: {e}")
+                                    # María (Mentora): revisión de progreso SOLO en módulo 4
+                                    if modulo_actual.numero == 4:
+                                        try:
+                                            from .tutor_ia_modulo import generar_revision_progreso
+                                            modulos_completados_qs = progreso.modulos_completados.all().order_by('modulo__numero')
+                                            modulos_obj = [mc.modulo for mc in modulos_completados_qs]
+                                            revision = generar_revision_progreso(
+                                                modulo_actual,
+                                                modulos_obj,
+                                                progreso.curso.nombre,
+                                                estudiante_nombre=estudiante.nombre or "Estudiante"
+                                            )
+                                            if revision:
+                                                maria_msg = f"👩‍🏫 *María — Tu Asistente*\n\n{revision}\n\n💬 _Responde o escribe *\"continuar\"* para seguir_"
+                                                print(f"👩‍🏫 María activada después de módulo {modulo_actual.numero}", flush=True)
+                                        except Exception as e:
+                                            import logging
+                                            logging.getLogger(__name__).warning(f"⚠️ María falló: {e}")
                                 
-                                # Establecer estado para el PRIMER agente que responda (Gerónimo tiene prioridad)
-                                if tutor_msg:
-                                    estudiante.contexto_temporal = {
-                                        'tipo': 'tutor_ia_modulo',
-                                        'modulo_id': modulo_actual.id,
-                                        'pregunta_tutor': enseñanza,
-                                        'progreso_id': progreso.id,
-                                        'intentos_tutor': 0,
-                                    }
-                                    estudiante.estado_onboarding = 'esperando_respuesta_tutor_ia'
-                                    estudiante.save()
-                                elif maria_msg:
-                                    modulos_info_str = ", ".join([m.titulo for m in modulos_obj])
-                                    estudiante.contexto_temporal = {
-                                        'tipo': 'revision_progreso',
-                                        'modulo_id': modulo_actual.id,
-                                        'pregunta_tutor': revision,
-                                        'progreso_id': progreso.id,
-                                        'modulos_info': modulos_info_str,
-                                        'intentos_tutor': 0,
-                                    }
-                                    estudiante.estado_onboarding = 'esperando_respuesta_progreso'
-                                    estudiante.save()
+                                    # Establecer estado para el PRIMER agente que responda (Gerónimo tiene prioridad)
+                                    if tutor_msg:
+                                        estudiante.contexto_temporal = {
+                                            'tipo': 'tutor_ia_modulo',
+                                            'modulo_id': modulo_actual.id,
+                                            'pregunta_tutor': enseñanza,
+                                            'progreso_id': progreso.id,
+                                            'intentos_tutor': 0,
+                                        }
+                                        estudiante.estado_onboarding = 'esperando_respuesta_tutor_ia'
+                                        estudiante.save()
+                                    elif maria_msg:
+                                        modulos_info_str = ", ".join([m.titulo for m in modulos_obj])
+                                        estudiante.contexto_temporal = {
+                                            'tipo': 'revision_progreso',
+                                            'modulo_id': modulo_actual.id,
+                                            'pregunta_tutor': revision,
+                                            'progreso_id': progreso.id,
+                                            'modulos_info': modulos_info_str,
+                                            'intentos_tutor': 0,
+                                        }
+                                        estudiante.estado_onboarding = 'esperando_respuesta_progreso'
+                                        estudiante.save()
+                                    else:
+                                        estudiante.estado_onboarding = 'completado'
+                                        estudiante.save()
+                                
+                                    # Construir respuesta multi-mensaje
+                                    partes = [msg_completado, msg_modulo]
+                                    if tutor_msg:
+                                        partes.append(tutor_msg)
+                                    if maria_msg:
+                                        partes.append(maria_msg)
+                                    texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
+                            
                                 else:
+                                    # Completó todos los módulos
+                                    progreso.completado = True
+                                    progreso.fecha_completado = timezone.now()
+                                    progreso.save()
+                                
                                     estudiante.estado_onboarding = 'completado'
                                     estudiante.save()
                                 
-                                # Construir respuesta multi-mensaje
-                                partes = [msg_completado, msg_modulo]
-                                if tutor_msg:
-                                    partes.append(tutor_msg)
-                                if maria_msg:
-                                    partes.append(maria_msg)
-                                texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
-                            
-                            else:
-                                # Completó todos los módulos
-                                progreso.completado = True
-                                progreso.fecha_completado = timezone.now()
-                                progreso.save()
-                                
-                                estudiante.estado_onboarding = 'completado'
-                                estudiante.save()
-                                
-                                msg_final = mensaje_respuesta + f"""
+                                    msg_final = mensaje_respuesta + f"""
 
 ━━━━━━━━━━━━━━━━━━━━
 
@@ -2144,56 +2191,52 @@ Has completado el curso: *{progreso.curso.nombre}*
 2️⃣ Ver mi progreso
 3️⃣ Menú principal"""
                                 
-                                # María: Resumen completo del curso
-                                msg_resumen = None
-                                try:
-                                    from .tutor_ia_modulo import generar_resumen_curso_completo
-                                    modulos_completados_qs = progreso.modulos_completados.all().order_by('modulo__numero')
-                                    modulos_obj = [mc.modulo for mc in modulos_completados_qs]
-                                    resumen_maria = generar_resumen_curso_completo(
-                                        progreso.curso.nombre,
-                                        modulos_obj,
-                                        estudiante_nombre=estudiante.nombre or "Estudiante"
-                                    )
-                                    if resumen_maria:
-                                        msg_resumen = f"👩‍🏫 *María — Resumen del Curso*\n\n{resumen_maria}"
-                                        print(f"👩‍🏫 María resumen del curso activada", flush=True)
-                                except Exception as e:
-                                    import logging
-                                    logging.getLogger(__name__).warning(f"⚠️ María resumen falló: {e}")
+                                    # María: Resumen completo del curso
+                                    msg_resumen = None
+                                    try:
+                                        from .tutor_ia_modulo import generar_resumen_curso_completo
+                                        modulos_completados_qs = progreso.modulos_completados.all().order_by('modulo__numero')
+                                        modulos_obj = [mc.modulo for mc in modulos_completados_qs]
+                                        resumen_maria = generar_resumen_curso_completo(
+                                            progreso.curso.nombre,
+                                            modulos_obj,
+                                            estudiante_nombre=estudiante.nombre or "Estudiante"
+                                        )
+                                        if resumen_maria:
+                                            msg_resumen = f"👩‍🏫 *María — Resumen del Curso*\n\n{resumen_maria}"
+                                            print(f"👩‍🏫 María resumen del curso activada", flush=True)
+                                    except Exception as e:
+                                        import logging
+                                        logging.getLogger(__name__).warning(f"⚠️ María resumen falló: {e}")
                                 
-                                # Imagen de certificado — generar con nombre del estudiante
-                                msg_cert_img = ""
-                                try:
-                                    from .certificado_service import crear_certificado_automatico
-                                    cert = crear_certificado_automatico(estudiante, progreso.curso)
-                                    if cert and cert.archivo_imagen:
-                                        # Usar presigned URL para que Twilio pueda descargar
-                                        from .response_templates import _generar_presigned_url_s3
-                                        key = cert.archivo_imagen.name.lstrip('/')
-                                        cert_url = _generar_presigned_url_s3(key, expires_in=3600)
-                                        msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
-                                        logger.info(f"Certificado imagen generado (presigned): {cert_url[:80]}...")
-                                    elif cert and cert.archivo_pdf:
-                                        from .response_templates import _generar_presigned_url_s3
-                                        key = cert.archivo_pdf.name.lstrip('/')
-                                        cert_url = _generar_presigned_url_s3(key, expires_in=3600)
-                                        msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert_url}"
-                                        logger.info(f"Certificado PDF generado (presigned): {cert_url[:80]}...")
-                                    else:
+                                    # Imagen de certificado — generar con nombre del estudiante
+                                    msg_cert_img = ""
+                                    try:
+                                        from .certificado_service import crear_certificado_automatico
+                                        cert = crear_certificado_automatico(estudiante, progreso.curso)
+                                        if cert and cert.archivo_imagen:
+                                            # Usar URL pública directa (AWS_DEFAULT_ACL=public-read)
+                                            cert_url = cert.archivo_imagen.url
+                                            msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                                            logger.info(f"Certificado imagen URL pública: {cert_url[:80]}...")
+                                        elif cert and cert.archivo_pdf:
+                                            cert_url = cert.archivo_pdf.url
+                                            msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert_url}"
+                                            logger.info(f"Certificado PDF URL pública: {cert_url[:80]}...")
+                                        else:
+                                            msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+                                            logger.warning(f"Certificado creado pero sin archivo para {estudiante.nombre}")
+                                    except Exception as e:
+                                        logger.error(f"Error generando certificado: {e}")
                                         msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
-                                        logger.warning(f"Certificado creado pero sin archivo para {estudiante.nombre}")
-                                except Exception as e:
-                                    logger.error(f"Error generando certificado: {e}")
-                                    msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
                                 
-                                # Construir multi-mensaje
-                                partes = []
-                                if msg_resumen:
-                                    partes.append(msg_resumen)
-                                partes.append(msg_final)
-                                partes.append(msg_cert_img)
-                                texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
+                                    # Construir multi-mensaje
+                                    partes = []
+                                    if msg_resumen:
+                                        partes.append(msg_resumen)
+                                    partes.append(msg_final)
+                                    partes.append(msg_cert_img)
+                                    texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
                     
                     if not texto_respuesta:
                         texto_respuesta = mensaje_respuesta

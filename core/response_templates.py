@@ -704,6 +704,19 @@ Escribe "ver cursos" para inscribirte en uno."""
                     if pregunta:
                         guardar_contexto_pregunta(estudiante, modulo_actual, pregunta, progreso)
                         return formatear_pregunta(pregunta)
+            else:
+                # Sin PreguntaModulo manual → generar pregunta desde RAG/contenido del curso
+                ya_respondio = ModuloCompletado.objects.filter(
+                    progreso=progreso,
+                    modulo=modulo_actual
+                ).exists()
+                
+                if not ya_respondio:
+                    from .pregunta_handler import generar_pregunta_rag, guardar_contexto_pregunta_rag, formatear_pregunta_rag
+                    pregunta_rag = generar_pregunta_rag(modulo_actual, estudiante)
+                    if pregunta_rag:
+                        guardar_contexto_pregunta_rag(estudiante, modulo_actual, pregunta_rag, progreso)
+                        return formatear_pregunta_rag(pregunta_rag, modulo_actual)
             
             # Completar módulo y avanzar (el tutor IA se envía como mensaje separado después)
             from .gamificacion import PerfilGamificacion
@@ -905,18 +918,16 @@ Escribe *"mi progreso"* para ver tu avance"""
                     import logging
                     logging.getLogger(__name__).warning(f"⚠️ María resumen falló: {e}")
                 
-                # Imagen de certificado — usar presigned URL
+                # Imagen de certificado — usar URL pública directa
                 msg_cert_img = ""
                 try:
                     from .certificado_service import crear_certificado_automatico
                     cert = crear_certificado_automatico(estudiante, progreso.curso)
                     if cert and cert.archivo_imagen:
-                        key = cert.archivo_imagen.name.lstrip('/')
-                        cert_url = _generar_presigned_url_s3(key, expires_in=3600)
+                        cert_url = cert.archivo_imagen.url
                         msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
                     elif cert and cert.archivo_pdf:
-                        key = cert.archivo_pdf.name.lstrip('/')
-                        cert_url = _generar_presigned_url_s3(key, expires_in=3600)
+                        cert_url = cert.archivo_pdf.url
                         msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert_url}"
                     else:
                         msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
