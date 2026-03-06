@@ -2323,16 +2323,16 @@ Has completado el curso: *{progreso.curso.nombre}*
                                         logger.info(f"🎓 Certificado resultado: cert={cert}, imagen={cert.archivo_imagen if cert else 'N/A'}, pdf={cert.archivo_pdf if cert else 'N/A'}")
                                         
                                         if cert and cert.archivo_imagen:
-                                            # Usar presigned URL (garantiza acceso por Twilio)
+                                            # Usar URL pública directa (ACL public-read)
                                             cert_url = obtener_url_certificado_twilio(cert)
                                             if cert_url:
                                                 msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
-                                                logger.info(f"✅ Certificado PRESIGNED URL: {cert_url[:100]}...")
+                                                logger.info(f"✅ Certificado URL para Twilio: {cert_url}")
                                             else:
                                                 # Fallback URL directa
                                                 cert_url = cert.archivo_imagen.url
                                                 msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
-                                                logger.info(f"✅ Certificado URL directa: {cert_url}")
+                                                logger.info(f"✅ Certificado URL fallback: {cert_url}")
                                         elif cert and cert.archivo_pdf:
                                             cert_url = cert.archivo_pdf.url
                                             msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert_url}"
@@ -2471,8 +2471,10 @@ Has completado el curso: *{progreso.curso.nombre}*
         # 3. Enviar respuesta via Twilio
         print(f"📤 ENVIANDO RESPUESTA: '{texto_respuesta[:80]}...' (len={len(texto_respuesta)})", flush=True)
         # Detectar si hay media_url en la respuesta (marcado con [MEDIA:url])
+        # NOTA: Solo extraer [MEDIA:] para mensajes simples (no MULTI_MSG)
+        # MULTI_MSG maneja su propio [MEDIA:] por cada parte del split
         media_url_to_send = None
-        if '[MEDIA:' in texto_respuesta:
+        if not texto_respuesta.startswith('[MULTI_MSG]') and '[MEDIA:' in texto_respuesta:
             import re
             media_match = re.search(r'\[MEDIA:(.*?)\]', texto_respuesta)
             if media_match:

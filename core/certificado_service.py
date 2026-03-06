@@ -58,6 +58,7 @@ def _subir_imagen_s3_directo(buffer, filename):
             ExtraArgs={
                 'ContentType': 'image/png',
                 'ContentDisposition': 'inline',
+                'ACL': 'public-read',
             }
         )
         
@@ -75,15 +76,18 @@ def _subir_imagen_s3_directo(buffer, filename):
 
 def obtener_url_certificado_twilio(certificado):
     """
-    Genera una URL presigned para enviar el certificado via Twilio.
+    Obtiene URL pública del certificado para enviar via Twilio.
     Twilio NECESITA poder hacer GET a la URL.
     
+    Usa URL pública directa (ACL public-read) en lugar de presigned URLs
+    para evitar URLs largas que podrían causar problemas con [MEDIA:] parsing.
+    
     Prioridad:
-    1. Presigned URL desde S3 key (archivo_imagen.name)
-    2. URL pública directa
-    3. None
+    1. URL pública directa desde S3 key (verificado con HEAD)
+    2. None
     """
     if not certificado.archivo_imagen:
+        logger.warning(f"⚠️ obtener_url: Certificado sin archivo_imagen")
         return None
     
     try:
@@ -92,14 +96,12 @@ def obtener_url_certificado_twilio(certificado):
         
         s3_client = _get_s3_client()
         
-        # Verificar que existe
+        # Verificar que existe en S3
         try:
             s3_client.head_object(Bucket=bucket, Key=s3_key)
         except Exception:
             logger.warning(f"⚠️ S3 key no existe: {s3_key}, intentando variantes...")
-            # Intentar sin prefijo 'media/' o con él
             variantes = [
-                s3_key,
                 f"media/{s3_key}" if not s3_key.startswith("media/") else s3_key.replace("media/", "", 1),
                 f"{S3_CERT_PREFIX}/{s3_key.split('/')[-1]}",
             ]
@@ -114,27 +116,16 @@ def obtener_url_certificado_twilio(certificado):
                 except Exception:
                     continue
             if not found:
-                logger.error(f"❌ Certificado no encontrado en S3: {s3_key}")
+                logger.error(f"❌ Certificado no encontrado en S3 en ninguna variante: {s3_key}")
                 return None
         
-        # Generar presigned URL (válida 24 horas)
-        presigned_url = s3_client.generate_presigned_url(
-            'get_object',
-            Params={
-                'Bucket': bucket,
-                'Key': s3_key,
-                'ResponseContentDisposition': 'inline',
-                'ResponseContentType': 'image/png',
-            },
-            ExpiresIn=86400
-        )
-        
-        logger.info(f"✅ Presigned URL cert: {presigned_url[:100]}...")
-        return presigned_url
+        # URL pública directa (ACL public-read asegurado en upload)
+        public_url = f"https://{bucket}.s3.{S3_REGION}.amazonaws.com/{s3_key}"
+        logger.info(f"✅ URL pública cert: {public_url}")
+        return public_url
         
     except Exception as e:
         logger.error(f"❌ Error generando URL certificado: {e}")
-        # Fallback: URL pública directa
         try:
             s3_key = str(certificado.archivo_imagen.name)
             bucket = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'eki-produccion')
