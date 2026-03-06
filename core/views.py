@@ -1399,25 +1399,32 @@ def _procesar_twilio_webhook(post_data):
                             archivos_multimedia = modulo.archivos_multimedia.filter(activo=True)
                             archivos_msg = ""
                             primera_media_url = None
+                            extra_media_urls = []
                             if archivos_multimedia.exists():
                                 archivos_msg = f"\n\n📁 *{archivos_multimedia.count()} archivo(s) multimedia*"
-                                for idx, archivo in enumerate(archivos_multimedia[:3]):
+                                for idx, archivo in enumerate(archivos_multimedia):
                                     icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
                                     url = archivo.get_url_para_envio()
-                                    if idx == 0 and url and archivo.tipo in ['imagen', 'video'] and not primera_media_url:
-                                        primera_media_url = url
-                                        archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
+                                    if url and archivo.tipo in ['imagen', 'video']:
+                                        if not primera_media_url:
+                                            primera_media_url = url
+                                            archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
+                                        else:
+                                            extra_media_urls.append((url, archivo.titulo, icono))
+                                            archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
                                     elif url:
                                         archivos_msg += f"\n{icono} {archivo.titulo}"
                             if not archivos_multimedia.exists() and video_url:
                                 primera_media_url = video_url
                             
-                            # --- Mensaje 1: Bienvenida + Gamificación (SIN agentes) ---
+                            # --- Mensaje 1: Bienvenida + Gamificación + Agentes (TODO EN UNO) ---
                             partes_intro = [
                                 f"✅ *¡Datos confirmados, {estudiante.nombre}!*\n\nBienvenido al programa de *{org_nombre}*"
                             ]
                             if msg_gamificacion:
                                 partes_intro.append(msg_gamificacion)
+                            partes_intro.append(msg_tutor)
+                            partes_intro.append(msg_asistente)
                             partes_intro.append("📚 *Comenzamos con el primer módulo de tu curso...* 👇")
                             msg_intro = "\n\n".join(partes_intro)
                             
@@ -1440,8 +1447,10 @@ def _procesar_twilio_webhook(post_data):
                             if primera_media_url:
                                 msg_modulo += f"\n\n[MEDIA:{primera_media_url}]"
                             
-                            # Orden: intro → módulo → agentes (ÚLTIMOS)
-                            texto_respuesta = "[MULTI_MSG]" + msg_intro + "[SEP]" + msg_modulo + "[SEP]" + msg_tutor + "[SEP]" + msg_asistente
+                            # Orden: intro (con agentes) → módulo (con media) → extras media
+                            texto_respuesta = "[MULTI_MSG]" + msg_intro + "[SEP]" + msg_modulo
+                            for extra_url, extra_titulo, extra_icono in extra_media_urls:
+                                texto_respuesta += f"[SEP]{extra_icono} {extra_titulo}\n\n[MEDIA:{extra_url}]"
                         else:
                             texto_respuesta = f"✅ *¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nEl curso aún no tiene módulos configurados. Te notificaremos cuando estén listos."
                     else:

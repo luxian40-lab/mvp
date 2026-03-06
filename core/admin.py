@@ -1894,13 +1894,13 @@ class CampanaAdmin(admin.ModelAdmin):
         from .services import ejecutar_campana_servicio
         
         for campana in queryset:
+            # Permitir re-envío de campañas ya ejecutadas
             if campana.ejecutada:
                 self.message_user(
                     request, 
-                    f"⚠️ '{campana.nombre}' ya fue enviada antes.", 
-                    level=messages.WARNING
+                    f"ℹ️ '{campana.nombre}' ya fue enviada antes. Re-enviando...", 
+                    level=messages.INFO
                 )
-                continue
             
             # VALIDACIÓN: necesita template_twilio_id O plantilla aprobada
             if campana.template_twilio_id:

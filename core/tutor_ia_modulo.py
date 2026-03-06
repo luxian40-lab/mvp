@@ -467,18 +467,17 @@ def generar_presentacion_agentes(curso_nombre, estudiante_nombre="Estudiante", n
         tuple: (msg_tutor: str, msg_asistente: str)
     """
     msg_tutor = (
-        f"🎓 *¡Hola {estudiante_nombre}! Soy {nombre_tutor}* 👨‍🏫\n\n"
+        f"🎓 *¡Hola {estudiante_nombre}! Soy {nombre_tutor}*\n\n"
         f"Seré tu profesor a cargo en el curso *{curso_nombre}*. "
         f"Yo te enseñaré cada módulo y te haré preguntas para asegurarme de que "
         f"todo quede claro. ¡Vamos a aprender juntos! 💪"
     )
     
     msg_asistente = (
-        f"👩‍🏫 *¡Y yo soy {nombre_asistente}, tu asistente!* 📋\n\n"
+        f"👩‍🏫 *¡Y yo soy {nombre_asistente}, tu asistente!*\n\n"
         f"Estaré pendiente de ti en todo este proceso. "
         f"Si tienes dudas, si algo no te queda claro o necesitas que te explique algo de nuevo, "
-        f"yo estaré aquí para ayudarte. ¡Cuenta conmigo! 🤝\n\n"
-        f"Comenzamos con el primer módulo... 👇"
+        f"yo estaré aquí para ayudarte. ¡Cuenta conmigo! 🤝"
     )
     
     return msg_tutor, msg_asistente

@@ -750,16 +750,20 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 archivos_multimedia = siguiente_modulo.archivos_multimedia.filter(activo=True)
                 archivos_msg = ""
                 primera_media_url = None
-                extras_msg = None
+                extra_media_urls = []
 
                 if archivos_multimedia.exists():
                     archivos_msg = f"\n\n📁 *{archivos_multimedia.count()} archivo(s) multimedia*"
-                    for idx, archivo in enumerate(archivos_multimedia[:3]):
+                    for idx, archivo in enumerate(archivos_multimedia):
                         icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
                         url = archivo.get_url_para_envio()
-                        if idx == 0 and url and archivo.tipo in ['imagen', 'video'] and not primera_media_url:
-                            primera_media_url = url
-                            archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
+                        if url and archivo.tipo in ['imagen', 'video']:
+                            if not primera_media_url:
+                                primera_media_url = url
+                                archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
+                            else:
+                                extra_media_urls.append((url, archivo.titulo, icono))
+                                archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
                         elif url:
                             archivos_msg += f"\n{icono} {archivo.titulo}"
                         else:
@@ -878,8 +882,10 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     estudiante.estado_onboarding = 'esperando_respuesta_progreso'
                     estudiante.save()
                 
-                # Construir multi-mensaje: gamificación [SEP] módulo (con media) [SEP] agente (ÚLTIMO)
+                # Construir multi-mensaje: gamificación [SEP] módulo (con media) [SEP] extras media [SEP] agente (ÚLTIMO)
                 partes = [msg_completado, msg_modulo]
+                for extra_url, extra_titulo, extra_icono in extra_media_urls:
+                    partes.append(f"{extra_icono} {extra_titulo}\n\n[MEDIA:{extra_url}]")
                 if tutor_msg:
                     partes.append(tutor_msg)
                 if maria_msg:
@@ -930,11 +936,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     nivel_emoji = ["🌱", "🌿", "🍃", "🌾", "🌳", "🌲", "🎋", "🌺", "💎", "👑"][nivel_index]
                     mensaje += f"\n\n✨ *¡SUBISTE A {nivel_emoji} NIVEL {perfil.nivel}!*"
                 
-                mensaje += """
-
-
-Escribe *"examen"* para hacer el examen final
-Escribe *"mi progreso"* para ver tu avance"""
+                mensaje += "\n\n🎓 *¡Felicitaciones! Has completado todo el curso.*"
                 
                 # Asistente: Resumen completo del curso antes de certificado
                 _cliente_fin = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
@@ -1000,15 +1002,20 @@ Escribe *"mi progreso"* para ver tu avance"""
             archivos_multimedia_c = modulo_actual.archivos_multimedia.filter(activo=True)
             archivos_msg_c = ""
             primera_media_url_c = None
+            extra_media_urls_c = []
 
             if archivos_multimedia_c.exists():
                 archivos_msg_c = f"\n\n📁 *{archivos_multimedia_c.count()} archivo(s) multimedia*"
-                for idx, archivo in enumerate(archivos_multimedia_c[:3]):
+                for idx, archivo in enumerate(archivos_multimedia_c):
                     icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
                     url = archivo.get_url_para_envio()
-                    if idx == 0 and url and archivo.tipo in ['imagen', 'video'] and not primera_media_url_c:
-                        primera_media_url_c = url
-                        archivos_msg_c += f"\n{icono} {archivo.titulo} (adjunto)"
+                    if url and archivo.tipo in ['imagen', 'video']:
+                        if not primera_media_url_c:
+                            primera_media_url_c = url
+                            archivos_msg_c += f"\n{icono} {archivo.titulo} (adjunto)"
+                        else:
+                            extra_media_urls_c.append((url, archivo.titulo, icono))
+                            archivos_msg_c += f"\n{icono} {archivo.titulo} (adjunto)"
                     elif url:
                         archivos_msg_c += f"\n{icono} {archivo.titulo}"
                     else:
@@ -1017,21 +1024,31 @@ Escribe *"mi progreso"* para ver tu avance"""
             if not archivos_multimedia_c.exists() and video_url:
                 primera_media_url_c = video_url
 
-            respuesta = f"""{progreso.curso.emoji} {progreso.curso.nombre}
-
-Módulo {modulo_actual.numero}: {modulo_actual.titulo}
-
-{modulo_actual.contenido}{archivos_msg_c}
-
----
-
-Cuando termines esta lección, escribe:
-   *"listo"* o *"siguiente"*
-
-O pregúntame dudas sobre este tema."""
+            # Usar dividir_contenido_seguro para evitar exceder 1600 chars
+            contenido_c = modulo_actual.contenido or ''
+            chunks_c = dividir_contenido_seguro(contenido_c, max_chars=1300)
+            modulo_header_c = f"{progreso.curso.emoji} {progreso.curso.nombre}\n\nMódulo {modulo_actual.numero}: {modulo_actual.titulo}\n\n"
+            if chunks_c:
+                respuesta = modulo_header_c + chunks_c[0]
+                for chunk_c in chunks_c[1:]:
+                    if len(respuesta) + len(chunk_c) + 4 < 1400:
+                        respuesta += "\n\n" + chunk_c
+                    else:
+                        break
+            else:
+                respuesta = modulo_header_c + (modulo_actual.descripcion or '')
+            respuesta += archivos_msg_c
+            respuesta += "\n\n---\nCuando termines, escribe: *\"listo\"*"
             
             if primera_media_url_c:
                 respuesta += f"\n\n[MEDIA:{primera_media_url_c}]"
+            
+            # Si hay más media, enviar como multi-mensaje
+            if extra_media_urls_c:
+                partes_c = [respuesta]
+                for extra_url_c, extra_titulo_c, extra_icono_c in extra_media_urls_c:
+                    partes_c.append(f"{extra_icono_c} {extra_titulo_c}\n\n[MEDIA:{extra_url_c}]")
+                return "[MULTI_MSG]" + "[SEP]".join(partes_c)
             
             return respuesta
     
