@@ -71,7 +71,6 @@ def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_
 
 {modulo_actual.contenido}
 
-━━━━━━━━━━━━━━━━━━━━
 
 Cuando termines, escribe: *"listo"*"""
         
@@ -117,7 +116,7 @@ Cuando termines, escribe: *"listo"*"""
             if video_url:
                 respuesta += f"\n\n🎥 Video educativo:\n{video_url}"
             
-            respuesta += "\n\n━━━━━━━━━━━━━━━━━━━━\nCuando termines, escribe: *\"listo\"*"
+            respuesta += "\n\n\nCuando termines, escribe: *\"listo\"*"
             
             return respuesta
         else:

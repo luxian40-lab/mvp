@@ -47,7 +47,7 @@ def generar_certificado_pdf(certificado, plantilla=None):
     else:
         color_primario = '#2C3E50'
         color_secundario = '#3498DB'
-        texto_superior = "eki - Educación Agrícola para el Campo Colombiano"
+        texto_superior = "eki - Soluciones Educativas"
         texto_certificado = "CERTIFICADO DE FINALIZACIÓN"
     
     # === IMAGEN DE FONDO ===

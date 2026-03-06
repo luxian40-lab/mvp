@@ -2270,9 +2270,13 @@ class CursoAdmin(admin.ModelAdmin):
         ('📚 Información del Curso', {
             'fields': ('nombre', 'descripcion', 'cliente', 'duracion_semanas')
         }),
+        ('🤖 Nombres de Agentes IA', {
+            'fields': ('nombre_agente_tutor', 'nombre_agente_asistente'),
+            'description': '🎓 Personaliza los nombres de los agentes de IA para este curso. Si se dejan vacíos, se usarán los nombres por defecto (Gerónimo y María).',
+        }),
         ('👥 Grupo de WhatsApp', {
             'fields': ('enlace_grupo_whatsapp',),
-            'description': '🔗 Enlace de invitación al grupo de WhatsApp del curso. Los estudiantes pueden unirse para recibir clases grupales o actualizaciones. Ejemplo: https://chat.whatsapp.com/xxxxx',
+            'description': '🔗 Enlace de invitación al grupo de WhatsApp del curso.',
             'classes': ('collapse',)
         }),
         ('⚙️ Configuración', {

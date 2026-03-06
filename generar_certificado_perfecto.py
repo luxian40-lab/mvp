@@ -56,7 +56,7 @@ def generar_certificado_en_memoria(
     nombre_estudiante,
     cedula_estudiante,
     url_verificacion,
-    organizacion_nombre="Fedepanela",
+    organizacion_nombre="eki",
     eki_texto="EKI",
     plantilla_url=None,
     fuente_nombre_size=80,
@@ -259,7 +259,7 @@ if __name__ == "__main__":
                 nombre_estudiante=persona["nombre"],
                 cedula_estudiante=persona["cedula"],
                 url_verificacion=persona["qr"],
-                organizacion_nombre="Fedepanela",
+                organizacion_nombre="eki",
                 eki_texto="EKI",
             )
             

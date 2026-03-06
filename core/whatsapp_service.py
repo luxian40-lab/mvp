@@ -162,7 +162,6 @@ def enviar_lista_cursos(telefono, estudiante):
     
     msg = f"📚 *Cursos disponibles — {org_nombre}*\n"
     msg += f"Hola *{nombre}*, estos son tus cursos:\n\n"
-    msg += "━━━━━━━━━━━━━━━━━━━\n\n"
     
     for idx, curso in enumerate(cursos_list, 1):
         emoji = curso.emoji or "📖"
@@ -182,7 +181,6 @@ def enviar_lista_cursos(telefono, estudiante):
         
         msg += f"*{idx}.* {emoji} {curso.nombre}{estado}\n"
     
-    msg += "\n━━━━━━━━━━━━━━━━━━━\n\n"
     msg += "👉 Escribe *tomar 1* para el primer curso\n"
     msg += "     Ejemplo: *tomar 1* o simplemente *1*\n\n"
     msg += "👉 Escribe *menú* para volver"
@@ -201,7 +199,6 @@ def enviar_mensaje_ventas(telefono):
         "para el sector agrícola.\n\n"
         "Veo que tu número no está registrado en ninguna de nuestras "
         "capacitaciones actuales.\n\n"
-        "━━━━━━━━━━━━━━━━━━━\n\n"
         "¿En qué te podemos ayudar?\n\n"
         "1️⃣ 🏢 *eki para mi empresa*\n"
         "   Capacitar trabajadores con nosotros\n\n"
@@ -244,17 +241,16 @@ def enviar_gamificacion_visual(telefono, estudiante):
     
     msg = (
         f"¡Vas volando, *{estudiante.nombre}*! 🚀\n\n"
-        f"━━━━━━━━━━━━━━━━━━━\n\n"
+        f"\n\n"
         f"🏆 *Nivel:* {nombre_nivel}\n"
         f"⭐ *Puntos:* {perfil.puntos_totales} pts\n"
         f"🎯 *Avance:* {barra} {perfil.porcentaje_nivel()}%\n"
-        f"🔥 *Racha:* {perfil.racha_dias_actual} días seguidos\n\n"
+        f"🔥 *Racha:* módulo {perfil.racha_dias_actual}\n\n"
     )
     
     if perfil.puntos_para_siguiente_nivel() > 0:
         msg += f"📈 Faltan *{perfil.puntos_para_siguiente_nivel()} pts* para el siguiente nivel\n\n"
     
-    msg += "━━━━━━━━━━━━━━━━━━━\n"
     msg += "¡Sigue así! 💪\n\n"
     msg += "Escribe *menú* para volver"
     

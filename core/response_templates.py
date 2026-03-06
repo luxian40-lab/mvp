@@ -155,11 +155,10 @@ def get_response_for_intent(intent: str, nombre_usuario: str = "Estudiante", **k
     if intent == 'saludo':
         return f"""🌱 Hola {nombre_usuario}, bienvenido a eki
 
-🚜 *Tu plataforma de educación agrícola*
+🚜 *Tu plataforma de soluciones educativas*
 
-Aprende técnicas de cultivo y mejora tu producción.
+Aprende y mejora tus conocimientos con nosotros.
 
-━━━━━━━━━━━━━━━━━━━
 
 *¿Qué deseas hacer?*
 
@@ -229,7 +228,7 @@ Escribe "continuar", "ver cursos" o "mi progreso"."""
         # Mostrar racha si está activa
         if perfil.racha_dias_actual > 0:
             fuego = "🔥" * min(perfil.racha_dias_actual, 5)
-            respuesta += f" | {fuego} {perfil.racha_dias_actual} días seguidos"
+            respuesta += f" | {fuego} Racha: módulo {perfil.racha_dias_actual}"
         
         respuesta += "\n"
         
@@ -260,7 +259,6 @@ Escribe "continuar", "ver cursos" o "mi progreso"."""
             
             respuesta += "\n"
         
-        respuesta += "━━━━━━━━━━━━━━━━━━━\n\n"
         respuesta += "Escribe *CONTINUAR* para seguir tu lección\n"
         respuesta += "O escribe *MENÚ* para volver al inicio"
         return respuesta
@@ -279,7 +277,6 @@ Escribe "continuar", "ver cursos" o "mi progreso"."""
             respuesta += f"{idx}. {curso.emoji} *{curso.nombre}*\n"
             respuesta += f"   📅 {curso.duracion_semanas} semanas | 📖 {curso.modulos.count()} módulos\n\n"
         
-        respuesta += "━━━━━━━━━━━━━━━━━━━\n\n"
         respuesta += "Para inscribirte en un curso:\n"
         respuesta += "👉 Escribe el *número* (ej: *1* o *2*)\n\n"
         respuesta += "También puedes escribir *MENÚ* para volver"
@@ -375,16 +372,15 @@ También puedes:
             for idx, perfil in enumerate(top_racha, 1):
                 fuego = "🔥" * min(perfil.racha_dias_actual, 3)
                 respuesta += f"{idx}. {perfil.estudiante.nombre}\n"
-                respuesta += f"   {fuego} {perfil.racha_dias_actual} días seguidos\n"
+                respuesta += f"   {fuego} Racha: módulo {perfil.racha_dias_actual}\n"
         
         if mi_perfil:
-            respuesta += f"\n━━━━━━━━━━━━━━━━━━━━\n"
             respuesta += f"📍 TU POSICIÓN: #{mi_posicion}\n"
             respuesta += f"⭐ {mi_perfil.puntos_totales} puntos | Nivel {mi_perfil.nivel}\n"
             
             if mi_perfil.racha_dias_actual > 0:
                 fuego = "🔥" * min(mi_perfil.racha_dias_actual, 3)
-                respuesta += f"{fuego} {mi_perfil.racha_dias_actual} días de racha\n"
+                respuesta += f"{fuego} Racha: módulo {mi_perfil.racha_dias_actual}\n"
         
         respuesta += "\n✨ Completa cursos y módulos para subir en el ranking!"
         
@@ -448,7 +444,7 @@ Escribe *"menú"* para volver al inicio."""
 ⭐ Ganas puntos al completar módulos
 🏆 Desbloqueas badges por logros
 📈 Subes de nivel
-🔥 Mantén tu racha de estudio
+🔥 Mantén tu racha por módulos
 
 💬 PREGUNTAS:
 También puedes preguntarme sobre café:
@@ -567,11 +563,15 @@ Te inscribiste en: *{curso.nombre}*
 📚 Módulos: {curso.modulos.count()}
 ⏱️ Duración: {curso.duracion_semanas} semanas"""
 
-        # Message 2 & 3: Agent introductions (Gerónimo + María)
+        # Message 2 & 3: Agent introductions (custom names from curso)
         from .tutor_ia_modulo import generar_presentacion_agentes
+        nombre_tutor = curso.nombre_agente_tutor or 'Gerónimo'
+        nombre_asistente = curso.nombre_agente_asistente or 'María'
         msg_geronimo, msg_maria = generar_presentacion_agentes(
             curso.nombre,
-            estudiante_nombre=estudiante.nombre or "Estudiante"
+            estudiante_nombre=estudiante.nombre or "Estudiante",
+            nombre_tutor=nombre_tutor,
+            nombre_asistente=nombre_asistente,
         )
 
         # Obtener video del primer módulo si existe
@@ -734,12 +734,11 @@ Escribe "ver cursos" para inscribirte en uno."""
                 nivel_emoji = ["🌱","🌿","🍃","🌾","🌳","🌲","🎋","🌺","💎","👑"][min(perfil.nivel-1,9)]
                 racha_txt = ""
                 if hasattr(perfil, 'racha_dias_actual') and perfil.racha_dias_actual > 0:
-                    racha_txt = f"\n🔥 Racha: {perfil.racha_dias_actual} día{'s' if perfil.racha_dias_actual > 1 else ''}"
+                    racha_txt = f"\n🔥 Racha: módulo {perfil.racha_dias_actual}"
                 
                 # Mensaje 1: Completado + gamificación
-                msg_completado = f"""━━━━━━━━━━━━━━━━━━━━
+                msg_completado = f"""
 ✅ *Módulo {modulo_actual.numero} completado*
-━━━━━━━━━━━━━━━━━━━━
 
 💰 *+50 puntos*  →  Total: *{perfil.puntos_totales} pts*
 {nivel_emoji} Nivel {perfil.nivel}{racha_txt}
@@ -749,13 +748,12 @@ Escribe "ver cursos" para inscribirte en uno."""
                     msg_completado += f"\n\n🎉 *¡SUBISTE DE NIVEL!* {nivel_emoji} Nivel {perfil.nivel}"
                 
                 # Mensaje 2: Siguiente módulo (separado)
-                msg_modulo = f"""━━━━━━━━━━━━━━━━━━━━
+                msg_modulo = f"""
 
 📖 *Módulo {siguiente_modulo.numero}: {siguiente_modulo.titulo}*
 
 {siguiente_modulo.contenido}
 
-━━━━━━━━━━━━━━━━━━━━
 
 Cuando termines, escribe: *"listo"*"""
                 
@@ -764,7 +762,9 @@ Cuando termines, escribe: *"listo"*"""
                 if video_url:
                     video_msg = f"🎬 *Video del Módulo {siguiente_modulo.numero}:*\n\n[MEDIA:{video_url}]"
                 
-                # Profesor Gerónimo: cada 2 módulos (después de módulos impares: 1, 3, 5, 7, 9)
+                # Agentes: Tutor (impares) / Asistente (módulo 4)
+                nombre_tutor = progreso.curso.nombre_agente_tutor or 'Gerónimo'
+                nombre_asistente = progreso.curso.nombre_agente_asistente or 'María'
                 tutor_msg = None
                 if modulo_actual.numero >= 1 and modulo_actual.numero % 2 == 1:
                     try:
@@ -783,12 +783,12 @@ Cuando termines, escribe: *"listo"*"""
                             }
                             estudiante.estado_onboarding = 'esperando_respuesta_tutor_ia'
                             estudiante.save()
-                            tutor_msg = f"🎓 *Profesor Gerónimo*\n\n{enseñanza}\n\n💬 _Responde o escribe *\"continuar\"* para seguir_"
+                            tutor_msg = f"🎓 *{nombre_tutor}*\n\n{enseñanza}\n\n💬 _Escríbeme o envía un audio con tu respuesta. Si decides seguir con el módulo, en el audio o texto di *continuar*_"
                     except Exception as e:
                         import logging
-                        logging.getLogger(__name__).warning(f"⚠️ Profesor Gerónimo falló: {e}")
+                        logging.getLogger(__name__).warning(f"⚠️ {nombre_tutor} falló: {e}")
                 
-                # María (Mentora): revisión de progreso SOLO en módulo 4
+                # Asistente: revisión de progreso SOLO en módulo 4
                 maria_msg = None
                 if modulo_actual.numero == 4:
                     try:
@@ -803,12 +803,12 @@ Cuando termines, escribe: *"listo"*"""
                             estudiante_nombre=estudiante.nombre or "Estudiante"
                         )
                         if revision:
-                            maria_msg = f"👩‍🏫 *María — Tu Asistente*\n\n{revision}\n\n💬 _Responde o escribe *\"continuar\"* para seguir_"
+                            maria_msg = f"👩‍🏫 *{nombre_asistente} — Tu Asistente*\n\n{revision}\n\n💬 _Escríbeme o envía un audio con tu respuesta. Si decides seguir con el módulo, en el audio o texto di *continuar*_"
                     except Exception as e:
                         import logging
-                        logging.getLogger(__name__).warning(f"⚠️ María falló: {e}")
+                        logging.getLogger(__name__).warning(f"⚠️ {nombre_asistente} falló: {e}")
                 
-                # Estado: Gerónimo tiene prioridad para interacción
+                # Estado: Tutor tiene prioridad para interacción
                 if tutor_msg:
                     # Ya configurado arriba
                     pass
@@ -857,9 +857,8 @@ Cuando termines, escribe: *"listo"*"""
                 barra = _barra_progreso(porcentaje)
                 nivel_emoji = ["🌱","🌿","🍃","🌾","🌳","🌲","🎋","🌺","💎","👑"][min(perfil.nivel-1,9)]
                 
-                mensaje = f"""━━━━━━━━━━━━━━━━━━━━
+                mensaje = f"""
 🎉 *¡CURSO COMPLETADO!*
-━━━━━━━━━━━━━━━━━━━━
 
 ✅ *Módulo {modulo_actual.numero} completado*
 
@@ -882,13 +881,13 @@ Cuando termines, escribe: *"listo"*"""
                 
                 mensaje += """
 
-━━━━━━━━━━━━━━━━━━━━
 
 Escribe *"examen"* para hacer el examen final
 Escribe *"ver cursos"* para tomar otro curso
 Escribe *"mi progreso"* para ver tu avance"""
                 
-                # María: Resumen completo del curso antes de certificado
+                # Asistente: Resumen completo del curso antes de certificado
+                nombre_asistente_fin = progreso.curso.nombre_agente_asistente or 'María'
                 msg_resumen = None
                 try:
                     from .tutor_ia_modulo import generar_resumen_curso_completo
@@ -900,10 +899,10 @@ Escribe *"mi progreso"* para ver tu avance"""
                         estudiante_nombre=estudiante.nombre or "Estudiante"
                     )
                     if resumen_maria:
-                        msg_resumen = f"👩‍🏫 *María — Resumen del Curso*\n\n{resumen_maria}"
+                        msg_resumen = f"👩‍🏫 *{nombre_asistente_fin} — Resumen del Curso*\n\n{resumen_maria}"
                 except Exception as e:
                     import logging
-                    logging.getLogger(__name__).warning(f"⚠️ María resumen falló: {e}")
+                    logging.getLogger(__name__).warning(f"⚠️ {nombre_asistente_fin} resumen falló: {e}")
                 
                 # Imagen de certificado — usar URL pública directa
                 msg_cert_img = ""

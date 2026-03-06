@@ -305,7 +305,6 @@ def verificar_terminos(estudiante, mensaje_texto):
                 f"¡Hola {estudiante.nombre}! 👋\n\n"
                 "Bienvenido a *eki* 🌱\n"
                 "Tu compañero de aprendizaje agrícola por WhatsApp\n\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
                 "Antes de comenzar, necesito tu autorización para usar tus datos personales "
                 "(como tu nombre, teléfono y progreso de estudio). "
                 "Esto es requerido por la Ley 1581 de 2012 de Colombia.\n\n"
@@ -316,7 +315,6 @@ def verificar_terminos(estudiante, mensaje_texto):
                 "• Darte seguimiento a tu progreso\n"
                 "• Enviarte tu certificado al finalizar\n"
                 "• Mejorar nuestros cursos\n\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
                 "¿Aceptas? Responde *Sí* para comenzar"
             )
             
@@ -338,9 +336,8 @@ def verificar_terminos(estudiante, mensaje_texto):
             
             mensaje_bienvenida = (
                 f"🌱 ¡Bienvenido a eki, {nombre}!\n\n"
-                "🚜 *Educación agrícola a tu alcance*\n\n"
-                "Aprende técnicas de cultivo, mejora tu producción y conecta con expertos del campo.\n\n"
-                "━━━━━━━━━━━━━━━━━━━\n\n"
+                "🚜 *Soluciones educativas a tu alcance*\n\n"
+                "Aprende, mejora tu conocimiento y conecta con expertos.\n\n"
                 "*¿Qué deseas hacer?*\n\n"
                 "1️⃣ Ver mi progreso\n"
                 "2️⃣ Explorar cursos\n"
@@ -409,9 +406,8 @@ def verificar_terminos(estudiante, mensaje_texto):
             
             mensaje_bienvenida = (
                 f"🌱 ¡Bienvenido a eki, {nombre_limpio}!\n\n"
-                "🚜 *Educación agrícola a tu alcance*\n\n"
-                "Aprende técnicas de cultivo, mejora tu producción y conecta con expertos del campo.\n\n"
-                "━━━━━━━━━━━━━━━━━━━\n\n"
+                "🚜 *Soluciones educativas a tu alcance*\n\n"
+                "Aprende, mejora tu conocimiento y conecta con expertos.\n\n"
                 "*¿Qué deseas hacer?*\n\n"
                 "1️⃣ Ver mi progreso\n"
                 "2️⃣ Explorar cursos\n"
@@ -588,7 +584,7 @@ def interceptar_mensaje(estudiante, mensaje_texto):
             respuesta_ia = generar_respuesta_empatica_fallback(mensaje_texto, estudiante.nombre)
         
         # Agregar opción de escalar al final
-        respuesta_ia += "\n\n━━━━━━━━━━━━━━━━━━━━\n\n"
+        respuesta_ia += "\n\n\n\n"
         respuesta_ia += "🆘 *Si aún necesitas soporte humano*, escribe:\n"
         respuesta_ia += "• \"Quiero soporte\"\n"
         respuesta_ia += "• \"Necesito hablar con alguien\"\n"
@@ -688,13 +684,11 @@ def verificar_seguridad_completa(estudiante, mensaje_texto, telefono=None):
             # Mostrar mensaje de bienvenida y pedir aceptación
             mensaje_inicial = (
                 "👋 *¡Bienvenido a eki!*\n\n"
-                "🚜 Tu plataforma de educación agrícola por WhatsApp\n\n"
-                "━━━━━━━━━━━━━━━━━━━\n\n"
+                "🚜 Tu plataforma de soluciones educativas por WhatsApp\n\n"
                 "📜 *Protección de Datos Personales*\n\n"
                 "Antes de comenzar, necesitamos que aceptes nuestra política de tratamiento de datos personales "
                 "de acuerdo con la Ley 1581 de 2012.\n\n"
                 f"🔗 Lee nuestra política completa aquí:\n{URL_POLITICA_DATOS}\n\n"
-                "━━━━━━━━━━━━━━━━━━━\n\n"
                 "*¿Aceptas el tratamiento de tus datos?*\n\n"
                 "👉 Escribe *SÍ* para aceptar y continuar\n"
                 "👉 Escribe *NO* si no deseas continuar"

@@ -61,7 +61,7 @@ class Certificado(models.Model):
     
     # Archivo PDF
     archivo_pdf = models.FileField(
-        upload_to='certificados/%Y/%m/',
+        upload_to='Certificadosestudiantes/',
         null=True,
         blank=True,
         help_text="Certificado en PDF"
@@ -69,7 +69,7 @@ class Certificado(models.Model):
     
     # Archivo Imagen (alternativa al PDF)
     archivo_imagen = models.ImageField(
-        upload_to='certificados/imagenes/%Y/%m/',
+        upload_to='Certificadosestudiantes/',
         null=True,
         blank=True,
         help_text="Certificado en imagen (PNG/JPG)"
@@ -242,7 +242,7 @@ class PlantillaCertificado(models.Model):
     # Textos personalizables
     texto_superior = models.CharField(
         max_length=200,
-        default="eki - Educación Agrícola",
+        default="eki - Soluciones Educativas",
         help_text="Texto en la parte superior"
     )
     texto_certificado = models.CharField(

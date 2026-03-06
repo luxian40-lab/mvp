@@ -795,6 +795,22 @@ class Curso(models.Model):
         help_text='Enlace de invitación al grupo de WhatsApp del curso (ej: https://chat.whatsapp.com/xxxxx)'
     )
     
+    # NOMBRES PERSONALIZADOS DE AGENTES IA
+    nombre_agente_tutor = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        verbose_name='Nombre del Profesor (Tutor IA)',
+        help_text='Nombre personalizado para el agente tutor/profesor (por defecto: Gerónimo). Ej: Carlos, Sofía'
+    )
+    nombre_agente_asistente = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        verbose_name='Nombre de la Asistente (IA)',
+        help_text='Nombre personalizado para la agente asistente (por defecto: María). Ej: Laura, Andrea'
+    )
+    
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:

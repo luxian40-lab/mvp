@@ -458,26 +458,27 @@ def _fallback_resumen_curso(modulos_info, curso_nombre, estudiante_nombre):
 # =====================================================
 # PRESENTACIÓN DE AGENTES — Inicio de curso
 # =====================================================
-def generar_presentacion_agentes(curso_nombre, estudiante_nombre="Estudiante") -> tuple:
+def generar_presentacion_agentes(curso_nombre, estudiante_nombre="Estudiante", nombre_tutor="Gerónimo", nombre_asistente="María") -> tuple:
     """
-    Genera las presentaciones de Gerónimo y María al inicio de un curso.
+    Genera las presentaciones de los agentes al inicio de un curso.
+    Usa nombres personalizados del curso si están configurados.
 
     Returns:
-        tuple: (msg_geronimo: str, msg_maria: str)
+        tuple: (msg_tutor: str, msg_asistente: str)
     """
-    msg_geronimo = (
-        f"🎓 *¡Hola {estudiante_nombre}! Soy el Profesor Gerónimo* 👨‍🏫\n\n"
+    msg_tutor = (
+        f"🎓 *¡Hola {estudiante_nombre}! Soy {nombre_tutor}* 👨‍🏫\n\n"
         f"Seré tu profesor a cargo en el curso *{curso_nombre}*. "
         f"Yo te enseñaré cada módulo y te haré preguntas para asegurarme de que "
         f"todo quede claro. ¡Vamos a aprender juntos! 💪"
     )
     
-    msg_maria = (
-        f"👩‍🏫 *¡Y yo soy María, tu asistente!* 📋\n\n"
+    msg_asistente = (
+        f"👩‍🏫 *¡Y yo soy {nombre_asistente}, tu asistente!* 📋\n\n"
         f"Estaré pendiente de ti en todo este proceso. "
         f"Si tienes dudas, si algo no te queda claro o necesitas que te explique algo de nuevo, "
         f"yo estaré aquí para ayudarte. ¡Cuenta conmigo! 🤝\n\n"
         f"Comenzamos con el primer módulo... 👇"
     )
     
-    return msg_geronimo, msg_maria
+    return msg_tutor, msg_asistente

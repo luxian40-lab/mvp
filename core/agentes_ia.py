@@ -478,8 +478,9 @@ Formato: PUNTAJE: X | CORRECTA: sí/no | FEEDBACK: ..."""
 
 def seleccionar_agente(estudiante: Estudiante, mensaje: str, contexto: str = ""):
     """
-    Selecciona el agente apropiado según el contexto
-    Estilo Huaku: router inteligente de agentes
+    Selecciona el agente apropiado según el contexto.
+    Solo 2 agentes principales: Tutor (Gerónimo) y María (asistente/emocional).
+    Evaluador solo se usa en contexto de examen explícito.
     
     Args:
         estudiante: Objeto Estudiante
@@ -495,8 +496,7 @@ def seleccionar_agente(estudiante: Estudiante, mensaje: str, contexto: str = "")
     if contexto == "examen" or "evalua" in mensaje_lower:
         return AgenteEvaluador(estudiante)
     
-    # ========== DETECTOR DE FRUSTRACIÓN (PRIORIDAD ALTA) ==========
-    # Palabras clave de FRUSTRACIÓN directa (negación, queja, enojo)
+    # ========== DETECTOR DE FRUSTRACIÓN / EMOCIONES → María ==========
     palabras_frustracion = [
         'no entiendo', 'no comprendo', 'no sé', 'no se', 
         'no me sirve', 'no sirve', 'no funciona', 'no ayuda',
@@ -506,28 +506,19 @@ def seleccionar_agente(estudiante: Estudiante, mensaje: str, contexto: str = "")
         'rendirme', 'me rindo', 'frustrado', 'frustrante',
         'enojado', 'molesto', 'hartado', 'cansado de',
         'no funciona', 'mal', 'error', 'problema',
-        'ya intenté', 'sigo sin', 'todavía no'
+        'ya intenté', 'sigo sin', 'todavía no',
+        'cansado', 'duro', 'largo', 'mucho tiempo'
     ]
     
-    # Verificar si hay frustración evidente
     tiene_frustracion = any(palabra in mensaje_lower for palabra in palabras_frustracion)
-    
-    # Detectar tono negativo (palabras negativas sin solución constructiva)
     palabras_negativas = ['no', 'nada', 'nunca', 'nadie', 'ningún', 'mal', 'peor']
     cuenta_negativas = sum(1 for palabra in palabras_negativas if palabra in mensaje_lower.split())
     
-    # Si hay 2 o más palabras negativas O frustración explícita → AgenteFrustracion
+    # Si hay frustración o emociones → María (asistente emocional)
     if tiene_frustracion or cuenta_negativas >= 2:
-        logger.info(f"🔴 Frustración detectada: '{mensaje[:50]}...' → AgenteFrustracion")
+        logger.info(f"👩‍🏫 Emociones detectadas: '{mensaje[:50]}...' → María (AgenteFrustracion)")
         return AgenteFrustracion(estudiante)
     
-    # ========== DETECTOR DE NECESIDAD DE MOTIVACIÓN ==========
-    # Palabras que indican necesidad de ánimo (pero no frustración directa)
-    palabras_motivacion = ['cansado', 'difícil', 'duro', 'largo', 'mucho tiempo']
-    if any(palabra in mensaje_lower for palabra in palabras_motivacion) and not tiene_frustracion:
-        logger.info(f"💪 Motivación necesaria: '{mensaje[:50]}...' → AgenteMotivador")
-        return AgenteMotivador(estudiante)
-    
-    # Por defecto, usar Tutor (educativo)
-    logger.info(f"📚 Consulta educativa: '{mensaje[:50]}...' → AgenteTutor")
+    # Por defecto, usar Tutor (Gerónimo - educativo)
+    logger.info(f"📚 Consulta educativa: '{mensaje[:50]}...' → Gerónimo (AgenteTutor)")
     return AgenteTutor(estudiante)

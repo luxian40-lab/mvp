@@ -1221,8 +1221,7 @@ def _procesar_twilio_webhook(post_data):
                 # Fallback: texto plano
                 texto_respuesta = (
                     "👋 *¡Bienvenido a eki!*\n\n"
-                    "🚜 Tu plataforma de educación agrícola por WhatsApp\n\n"
-                    "━━━━━━━━━━━━━━━━━━━\n\n"
+                    "🚜 Tu plataforma de soluciones educativas por WhatsApp\n\n"
                     "📜 *Protección de Datos Personales*\n"
                     "Antes de comenzar, necesitamos tu autorización para usar "
                     "tus datos de acuerdo con la Ley 1581 de 2012.\n\n"
@@ -1249,9 +1248,27 @@ def _procesar_twilio_webhook(post_data):
         if estado_chat == 'ESPERANDO_CEDULA':
             # Limpiar input del usuario
             cedula_input = re.sub(r'[\s\.\-]', '', msg_body.strip())
+            msg_lower_cedula = msg_body.strip().lower()
             
+            # Detectar "ayuda" → crear ticket de soporte
+            if msg_lower_cedula in ['ayuda', 'help', 'soporte']:
+                from .models import SolicitudSoporte
+                solicitud = SolicitudSoporte.objects.create(
+                    estudiante=estudiante,
+                    mensaje_original=f"Ayuda en verificación de cédula - no coincide con registros",
+                    keyword_usada='ayuda_cedula',
+                    asunto='Problema con verificación de cédula',
+                    prioridad='media'
+                )
+                texto_respuesta = (
+                    f"🆘 *Ticket de Soporte #{solicitud.id}*\n\n"
+                    f"Hola {estudiante.nombre}, hemos registrado tu solicitud.\n\n"
+                    "📝 Un asesor revisará tu caso y te contactará pronto.\n"
+                    "🕐 *Tiempo de respuesta:* menos de 24 horas.\n\n"
+                    "Si recuerdas tu cédula, puedes intentar de nuevo escribiéndola aquí."
+                )
             # Comparar con la cédula sanitizada en BD
-            if cedula_input == estudiante.cedula:
+            elif cedula_input == estudiante.cedula:
                 estudiante.estado_chat = 'CONFIRMANDO_DATOS'
                 estudiante.save()
                 
@@ -1279,7 +1296,6 @@ def _procesar_twilio_webhook(post_data):
                     f"🏢 *Organización:* {org_nombre}\n"
                     f"🎂 *Edad:* {estudiante.edad or 'No registrada'}\n"
                     f"👫 *Género:* {estudiante.get_genero_display() if estudiante.genero else 'No registrado'}\n\n"
-                    "━━━━━━━━━━━━━━━━━━━\n\n"
                     "*¿Tus datos están correctos?*\n\n"
                     "👉 Escribe *Sí* si todo está bien\n"
                     "👉 Escribe *No* si hay un error"
@@ -1320,26 +1336,79 @@ def _procesar_twilio_webhook(post_data):
                 estudiante.estado_onboarding = 'completado'  # Legacy compat
                 estudiante.save()
                 
-                # Enviar menú principal con botones
-                from .whatsapp_service import enviar_menu_principal
+                # Enviar curso directamente (sin menú)
                 org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
-                resultado = enviar_menu_principal(msg_from, estudiante.nombre)
-                if resultado.get('success'):
-                    return  # Template enviado
+                try:
+                    from .models import Curso, ProgresoEstudiante
+                    from .response_templates import obtener_video_url
+                    org = estudiante.cliente
+                    cursos = Curso.objects.filter(cliente=org, activo=True).order_by('orden', 'nombre') if org else Curso.objects.filter(activo=True).order_by('orden', 'nombre')
+                    curso = cursos.first()
+                    if curso:
+                        progreso, creado = ProgresoEstudiante.objects.get_or_create(
+                            estudiante=estudiante,
+                            curso=curso,
+                            defaults={'completado': False}
+                        )
+                        modulo = progreso.modulo_actual
+                        if not modulo:
+                            modulo = curso.modulos.order_by('numero').first()
+                            if modulo:
+                                progreso.modulo_actual = modulo
+                                progreso.save()
+                        if modulo:
+                            # Presentación de agentes
+                            from .tutor_ia_modulo import generar_presentacion_agentes
+                            nombre_tutor = curso.nombre_agente_tutor or 'Gerónimo'
+                            nombre_asistente = curso.nombre_agente_asistente or 'María'
+                            presentacion = generar_presentacion_agentes(nombre_tutor=nombre_tutor, nombre_asistente=nombre_asistente)
+                            
+                            video_url = obtener_video_url(modulo)
+                            archivos_multimedia = modulo.archivos_multimedia.filter(activo=True)
+                            archivos_msg = ""
+                            primera_media_url = None
+                            if archivos_multimedia.exists():
+                                archivos_msg = f"\n\n📁 *{archivos_multimedia.count()} archivo(s) multimedia*"
+                                for idx, archivo in enumerate(archivos_multimedia[:3]):
+                                    icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
+                                    url = archivo.get_url_para_envio()
+                                    if idx == 0 and url and archivo.tipo in ['imagen', 'video'] and not primera_media_url:
+                                        primera_media_url = url
+                                        archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
+                                    elif url:
+                                        archivos_msg += f"\n{icono} {archivo.titulo}"
+                            if not archivos_multimedia.exists() and video_url:
+                                primera_media_url = video_url
+                            
+                            msg_bienvenida = (
+                                f"✅ *¡Datos confirmados, {estudiante.nombre}!*\n\n"
+                                f"Bienvenido al programa de *{org_nombre}*\n\n"
+                                f"{presentacion}\n\n"
+                                f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
+                                f"{modulo.descripcion}\n\n"
+                                f"{modulo.contenido}{archivos_msg}\n\n\n"
+                                f"Cuando termines, escribe: *\"listo\"*"
+                            )
+                            if primera_media_url:
+                                msg_bienvenida += f"\n\n[MEDIA:{primera_media_url}]"
+                            texto_respuesta = msg_bienvenida
+                        else:
+                            texto_respuesta = f"✅ *¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nEl curso aún no tiene módulos configurados. Te notificaremos cuando estén listos."
+                    else:
+                        texto_respuesta = f"✅ *¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nAún no hay cursos disponibles. Te notificaremos cuando estén listos."
+                except Exception as e:
+                    logger.error(f"❌ Error enviando curso directo: {e}")
+                    import traceback; traceback.print_exc()
+                    texto_respuesta = f"✅ *¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nEscribe *menú* para ver las opciones disponibles."
                 
-                # Fallback: menú en texto
-                texto_respuesta = (
-                    f"🚜 *¡Hola {estudiante.nombre}!*\n"
-                    f"Qué bueno tenerte en el programa de *{org_nombre}*.\n\n"
-                    "━━━━━━━━━━━━━━━━━━━\n\n"
-                    "¿Qué hacemos hoy? Toca una opción:\n\n"
-                    "1️⃣ 📚 *Mis cursos*\n"
-                    "2️⃣ 🏆 *Mis puntos*\n"
-                    "3️⃣ 🙋‍♂️ *Necesito ayuda*\n"
-                    "4️⃣ ✏️ *Corregir mis datos*"
-                )
+                # MENÚ OCULTO (no eliminado del código):
+                # from .whatsapp_service import enviar_menu_principal
+                # resultado = enviar_menu_principal(msg_from, estudiante.nombre)
+                # if resultado.get('success'):
+                #     return
             elif any(k in msg_lower for k in keywords_modificar):
                 # Botón "Modificar" presionado → permitir auto-corrección
+                # NOTA: Cédula/documento NO se puede cambiar aquí → genera ticket de soporte
                 texto_respuesta = (
                     "📝 *Corrección de Datos*\n\n"
                     "Puedes corregir cualquiera de tus datos.\n\n"
@@ -1347,20 +1416,18 @@ def _procesar_twilio_webhook(post_data):
                     "1️⃣ *nombre:* Tu nombre completo\n"
                     "2️⃣ *municipio:* Tu municipio\n"
                     "3️⃣ *departamento:* Tu departamento\n"
-                    "4️⃣ *documento:* Tipo y número (CC, TI, CE, PP)\n"
+                    "4️⃣ *documento:* Envía ticket de soporte\n"
                     "5️⃣ *edad:* Tu edad\n"
                     "6️⃣ *genero:* M, F, Otro, NR\n\n"
                     "📝 _Ejemplos:_\n"
                     "_nombre: María García López_\n"
                     "_municipio: Bogotá_\n"
                     "_edad: 35_\n"
-                    "_documento: CC 52456789_\n"
                     "_genero: F_\n\n"
                     "📝 _O todo junto (una por línea):_\n"
                     "_nombre: María García_\n"
                     "_municipio: Bogotá_\n"
                     "_edad: 35_\n\n"
-                    "━━━━━━━━━━━━━━━━━━━\n"
                     "👉 Escribe *3* para reintentar cédula\n"
                     "👉 Escribe *menú* si todo ya está bien"
                 )
@@ -1417,17 +1484,14 @@ def _procesar_twilio_webhook(post_data):
                 estudiante.estado_chat = 'ACTIVO'
                 estudiante.estado_onboarding = 'completado'
                 estudiante.save()
-                from .whatsapp_service import enviar_menu_principal
-                resultado = enviar_menu_principal(msg_from, estudiante.nombre)
-                if resultado.get('success'):
-                    return
+                # Menú oculto — enviar curso directamente
+                # from .whatsapp_service import enviar_menu_principal
+                # resultado = enviar_menu_principal(msg_from, estudiante.nombre)
+                # if resultado.get('success'):
+                #     return
                 texto_respuesta = (
-                    f"🚜 *¡Hola {estudiante.nombre}!*\n\n"
-                    "¿Qué hacemos hoy?\n\n"
-                    "1️⃣ 📚 *Mis cursos*\n"
-                    "2️⃣ 🏆 *Mis puntos*\n"
-                    "3️⃣ 🙋‍♂️ *Necesito ayuda*\n"
-                    "4️⃣ ✏️ *Corregir mis datos*"
+                    f"✅ *¡Datos actualizados, {estudiante.nombre}!*\n\n"
+                    "Escribe *mis cursos* para continuar con tu curso."
                 )
             else:
                 # Intentar parsear los datos corregidos
@@ -1480,22 +1544,21 @@ def _procesar_twilio_webhook(post_data):
                                 cambios_realizados.append(f"👫 Género → {estudiante.get_genero_display()}")
                                 campo_valor_detectado = True
                         elif campo in ('documento', 'doc', 'cedula', 'cédula'):
-                            partes = valor.split()
-                            if len(partes) >= 2:
-                                tipo_raw = partes[0].lower()
-                                num = re.sub(r'\D', '', ' '.join(partes[1:]))
-                                tipo = TIPOS_DOC.get(tipo_raw, '')
-                                if tipo and len(num) >= 6:
-                                    estudiante.tipo_documento = tipo
-                                    estudiante.cedula = num
-                                    cambios_realizados.append(f"🆔 Documento → {tipo} {num}")
-                                    campo_valor_detectado = True
-                            elif len(partes) == 1:
-                                num = re.sub(r'\D', '', valor)
-                                if len(num) >= 6:
-                                    estudiante.cedula = num
-                                    cambios_realizados.append(f"🆔 Cédula → {num}")
-                                    campo_valor_detectado = True
+                            # Crear ticket de soporte para cambio de cédula
+                            from .models import SolicitudSoporte
+                            SolicitudSoporte.objects.create(
+                                estudiante=estudiante,
+                                mensaje_original=f"Solicitud de cambio de documento: {valor}",
+                                keyword_usada='modificar_documento',
+                                asunto='Cambio de cédula/documento',
+                                prioridad='media'
+                            )
+                            cambios_realizados.append(
+                                "🆔 *Documento:* Se creó un ticket de soporte.\n"
+                                "Un asesor revisará tu solicitud y te contactará pronto.\n"
+                                "📧 *Ticket registrado correctamente.*"
+                            )
+                            campo_valor_detectado = True
                 
                 if campo_valor_detectado and cambios_realizados:
                     estudiante.estado_chat = 'CONFIRMANDO_DATOS'
@@ -1575,7 +1638,6 @@ def _procesar_twilio_webhook(post_data):
                             "_edad: 35_\n"
                             "_genero: F_\n"
                             "_documento: CC 52456789_\n\n"
-                            "━━━━━━━━━━━━━━━━━━━\n"
                             "👉 Escribe *3* para reintentar cédula\n"
                             "👉 Escribe *menú* si ya está bien"
                         )
@@ -1743,7 +1805,6 @@ def _procesar_twilio_webhook(post_data):
                     "📝 _O todo junto (una por línea):_\n"
                     "_nombre: María García_\n"
                     "_municipio: Bogotá_\n\n"
-                    "━━━━━━━━━━━━━━━━━━━\n"
                     "👉 Escribe *menú* cuando termines"
                 )
                 estudiante.estado_chat = 'ESPERANDO_CORRECCION_DATOS'
@@ -1761,35 +1822,18 @@ def _procesar_twilio_webhook(post_data):
                     logger.error(f"❌ Error enviando corrección datos: {e}")
                 return
             
-            # Detectar "menú" - enviar menú principal
+            # Detectar "menú" - enviar lista de cursos directamente (menú oculto)
             elif msg_lower in ['menu', 'menú', 'inicio', 'hola']:
                 org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
-                from .whatsapp_service import enviar_menu_principal
-                resultado = enviar_menu_principal(msg_from, estudiante.nombre)
-                if resultado.get('success'):
-                    return
-                # Fallback
-                texto_menu = (
-                    f"🚜 *¡Hola {estudiante.nombre}!*\n"
-                    f"Qué bueno tenerte en el programa de *{org_nombre}*.\n\n"
-                    "━━━━━━━━━━━━━━━━━━━\n\n"
-                    "¿Qué hacemos hoy?\n\n"
-                    "1️⃣ 📚 *Mis cursos*\n"
-                    "2️⃣ 🏆 *Mis puntos*\n"
-                    "3️⃣ 🙋‍♂️ *Necesito ayuda*\n"
-                    "4️⃣ ✏️ *Corregir mis datos*"
-                )
-                try:
-                    from twilio.rest import Client as TwilioClient
-                    account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-                    auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-                    twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
-                    client_tw = TwilioClient(account_sid, auth_token)
-                    destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
-                    client_tw.messages.create(body=texto_menu, from_=str(twilio_number).strip(), to=str(destino).strip())
-                    WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_menu, tipo='SENT')
-                except Exception:
-                    pass
+                # Menú oculto — redirigir a lista de cursos
+                # from .whatsapp_service import enviar_menu_principal
+                # resultado = enviar_menu_principal(msg_from, estudiante.nombre)
+                # if resultado.get('success'):
+                #     return
+                estudiante.estado_onboarding = 'esperando_seleccion_curso'
+                estudiante.save()
+                from .whatsapp_service import enviar_lista_cursos
+                enviar_lista_cursos(msg_from, estudiante)
                 return
         
         # ============================================================
@@ -1832,8 +1876,42 @@ def _procesar_twilio_webhook(post_data):
                     if msg_lower in ['menu', 'menú']:
                         from .response_templates import get_response_for_intent
                         texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
+                    elif msg_lower in ['continuar', 'listo', 'siguiente', 'avanzar', 'pasar']:
+                        # Enviar siguiente módulo directamente sin ack
+                        from .models import ProgresoEstudiante, Modulo
+                        try:
+                            progreso_id = ctx.get('progreso_id')
+                            progreso = ProgresoEstudiante.objects.get(id=progreso_id) if progreso_id else None
+                            if progreso and progreso.modulo_actual:
+                                from .response_templates import obtener_video_url
+                                mod = progreso.modulo_actual
+                                video_url = obtener_video_url(mod)
+                                archivos_multimedia = mod.archivos_multimedia.filter(activo=True)
+                                archivos_msg = ""
+                                primera_media_url = None
+                                if archivos_multimedia.exists():
+                                    archivos_msg = f"\n\n📁 *{archivos_multimedia.count()} archivo(s) multimedia*"
+                                    for idx, archivo in enumerate(archivos_multimedia[:3]):
+                                        icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
+                                        url = archivo.get_url_para_envio()
+                                        if idx == 0 and url and archivo.tipo in ['imagen', 'video'] and not primera_media_url:
+                                            primera_media_url = url
+                                if not archivos_multimedia.exists() and video_url:
+                                    primera_media_url = video_url
+                                texto_respuesta = (
+                                    f"📖 *Módulo {mod.numero}: {mod.titulo}*\n\n"
+                                    f"{mod.descripcion}\n\n"
+                                    f"{mod.contenido}{archivos_msg}\n\n\n"
+                                    f"Cuando termines, escribe: *\"listo\"*"
+                                )
+                                if primera_media_url:
+                                    texto_respuesta += f"\n\n[MEDIA:{primera_media_url}]"
+                            else:
+                                texto_respuesta = "Escribe *\"listo\"* cuando termines el módulo."
+                        except Exception:
+                            texto_respuesta = "Escribe *\"listo\"* cuando termines el módulo."
                     else:
-                        texto_respuesta = "👍 *¡Entendido!* Sigue estudiando el módulo.\n\nCuando termines, escribe: *\"listo\"*"
+                        texto_respuesta = "Escribe *\"listo\"* cuando termines el módulo."
                 else:
                     from .tutor_ia_modulo import evaluar_respuesta_modulo
                     from .models import Modulo
@@ -1899,8 +1977,42 @@ def _procesar_twilio_webhook(post_data):
                     if msg_lower in ['menu', 'menú']:
                         from .response_templates import get_response_for_intent
                         texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
+                    elif msg_lower in ['continuar', 'listo', 'siguiente', 'avanzar', 'pasar']:
+                        # Enviar siguiente módulo directamente sin ack
+                        from .models import ProgresoEstudiante
+                        try:
+                            progreso_id = ctx.get('progreso_id')
+                            progreso = ProgresoEstudiante.objects.get(id=progreso_id) if progreso_id else None
+                            if progreso and progreso.modulo_actual:
+                                from .response_templates import obtener_video_url
+                                mod = progreso.modulo_actual
+                                video_url = obtener_video_url(mod)
+                                archivos_multimedia = mod.archivos_multimedia.filter(activo=True)
+                                archivos_msg = ""
+                                primera_media_url = None
+                                if archivos_multimedia.exists():
+                                    archivos_msg = f"\n\n📁 *{archivos_multimedia.count()} archivo(s) multimedia*"
+                                    for idx, archivo in enumerate(archivos_multimedia[:3]):
+                                        icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
+                                        url = archivo.get_url_para_envio()
+                                        if idx == 0 and url and archivo.tipo in ['imagen', 'video'] and not primera_media_url:
+                                            primera_media_url = url
+                                if not archivos_multimedia.exists() and video_url:
+                                    primera_media_url = video_url
+                                texto_respuesta = (
+                                    f"📖 *Módulo {mod.numero}: {mod.titulo}*\n\n"
+                                    f"{mod.descripcion}\n\n"
+                                    f"{mod.contenido}{archivos_msg}\n\n\n"
+                                    f"Cuando termines, escribe: *\"listo\"*"
+                                )
+                                if primera_media_url:
+                                    texto_respuesta += f"\n\n[MEDIA:{primera_media_url}]"
+                            else:
+                                texto_respuesta = "Escribe *\"listo\"* cuando termines el módulo."
+                        except Exception:
+                            texto_respuesta = "Escribe *\"listo\"* cuando termines el módulo."
                     else:
-                        texto_respuesta = "👍 *¡Entendido!* Sigue estudiando el módulo.\n\nCuando termines, escribe: *\"listo\"*"
+                        texto_respuesta = "Escribe *\"listo\"* cuando termines el módulo."
                 else:
                     from .tutor_ia_modulo import evaluar_respuesta_progreso
                     
@@ -2005,7 +2117,6 @@ def _procesar_twilio_webhook(post_data):
                                 # NO puede avanzar - examen obligatorio no aprobado
                                 mensaje_respuesta += f"""
 
-━━━━━━━━━━━━━━━━━━━━
 
 🔒 *Examen Obligatorio*
 
@@ -2071,7 +2182,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                     msg_completado = mensaje_respuesta
                                 
                                     # Mensaje 2: Siguiente módulo (separado)
-                                    msg_modulo = f"""━━━━━━━━━━━━━━━━━━━━
+                                    msg_modulo = f"""
 
 Progreso del curso: {porcentaje}%
 
@@ -2081,7 +2192,6 @@ Progreso del curso: {porcentaje}%
 
 {siguiente_modulo.contenido}{archivos_msg}
 
-━━━━━━━━━━━━━━━━━━━━
 
 Cuando termines, escribe: *"listo"*"""
                                 
@@ -2092,11 +2202,13 @@ Cuando termines, escribe: *"listo"*"""
                                     if siguiente_modulo.examen_obligatorio:
                                         msg_modulo += f"\n\n⚠️ *Este módulo tiene examen obligatorio ({siguiente_modulo.puntaje_minimo_aprobacion}% para aprobar)*"
                                 
-                                    # === AGENTES: Gerónimo (impares) / María (módulo 4 solamente) ===
+                                    # === AGENTES: Tutor (impares) / Asistente (módulo 4 solamente) ===
                                     tutor_msg = None
                                     maria_msg = None
+                                    nombre_tutor = progreso.curso.nombre_agente_tutor or 'Gerónimo'
+                                    nombre_asistente = progreso.curso.nombre_agente_asistente or 'María'
                                 
-                                    # Profesor Gerónimo: enseñanza complementaria (módulos impares: 1,3,5,7,9)
+                                    # Profesor (Tutor): enseñanza complementaria (módulos impares: 1,3,5,7,9)
                                     if modulo_actual.numero % 2 == 1:
                                         try:
                                             from .tutor_ia_modulo import generar_enseñanza_modulo
@@ -2105,13 +2217,13 @@ Cuando termines, escribe: *"listo"*"""
                                                 estudiante_nombre=estudiante.nombre or "Estudiante"
                                             )
                                             if enseñanza:
-                                                tutor_msg = f"🎓 *Profesor Gerónimo*\n\n{enseñanza}\n\n💬 _Responde o escribe *\"continuar\"* para seguir_"
-                                                print(f"🎓 Profesor Gerónimo activado después de módulo {modulo_actual.numero}", flush=True)
+                                                tutor_msg = f"🎓 *{nombre_tutor}*\n\n{enseñanza}\n\n💬 _Escríbeme o envía un audio con tu respuesta. Si decides seguir con el módulo, en el audio o texto di *continuar*_"
+                                                print(f"🎓 {nombre_tutor} activado después de módulo {modulo_actual.numero}", flush=True)
                                         except Exception as e:
                                             import logging
-                                            logging.getLogger(__name__).warning(f"⚠️ Profesor Gerónimo falló: {e}")
+                                            logging.getLogger(__name__).warning(f"⚠️ {nombre_tutor} falló: {e}")
                                 
-                                    # María (Mentora): revisión de progreso SOLO en módulo 4
+                                    # Asistente: revisión de progreso SOLO en módulo 4
                                     if modulo_actual.numero == 4:
                                         try:
                                             from .tutor_ia_modulo import generar_revision_progreso
@@ -2124,11 +2236,11 @@ Cuando termines, escribe: *"listo"*"""
                                                 estudiante_nombre=estudiante.nombre or "Estudiante"
                                             )
                                             if revision:
-                                                maria_msg = f"👩‍🏫 *María — Tu Asistente*\n\n{revision}\n\n💬 _Responde o escribe *\"continuar\"* para seguir_"
-                                                print(f"👩‍🏫 María activada después de módulo {modulo_actual.numero}", flush=True)
+                                                maria_msg = f"👩‍🏫 *{nombre_asistente} — Tu Asistente*\n\n{revision}\n\n💬 _Escríbeme o envía un audio con tu respuesta. Si decides seguir con el módulo, en el audio o texto di *continuar*_"
+                                                print(f"👩‍🏫 {nombre_asistente} activada después de módulo {modulo_actual.numero}", flush=True)
                                         except Exception as e:
                                             import logging
-                                            logging.getLogger(__name__).warning(f"⚠️ María falló: {e}")
+                                            logging.getLogger(__name__).warning(f"⚠️ {nombre_asistente} falló: {e}")
                                 
                                     # Establecer estado para el PRIMER agente que responda (Gerónimo tiene prioridad)
                                     if tutor_msg:
@@ -2176,7 +2288,6 @@ Cuando termines, escribe: *"listo"*"""
                                 
                                     msg_final = mensaje_respuesta + f"""
 
-━━━━━━━━━━━━━━━━━━━━
 
 🎓 *¡FELICITACIONES!*
 
@@ -2190,7 +2301,8 @@ Has completado el curso: *{progreso.curso.nombre}*
 2️⃣ Ver mi progreso
 3️⃣ Menú principal"""
                                 
-                                    # María: Resumen completo del curso
+                                    # Asistente: Resumen completo del curso
+                                    nombre_asistente_fin = progreso.curso.nombre_agente_asistente or 'María'
                                     msg_resumen = None
                                     try:
                                         from .tutor_ia_modulo import generar_resumen_curso_completo
@@ -2202,8 +2314,8 @@ Has completado el curso: *{progreso.curso.nombre}*
                                             estudiante_nombre=estudiante.nombre or "Estudiante"
                                         )
                                         if resumen_maria:
-                                            msg_resumen = f"👩‍🏫 *María — Resumen del Curso*\n\n{resumen_maria}"
-                                            print(f"👩‍🏫 María resumen del curso activada", flush=True)
+                                            msg_resumen = f"👩‍🏫 *{nombre_asistente_fin} — Resumen del Curso*\n\n{resumen_maria}"
+                                            print(f"👩‍🏫 {nombre_asistente_fin} resumen del curso activada", flush=True)
                                     except Exception as e:
                                         import logging
                                         logging.getLogger(__name__).warning(f"⚠️ María resumen falló: {e}")
@@ -2297,7 +2409,6 @@ Has completado el curso: *{progreso.curso.nombre}*
                         "_nombre: María García López_\n"
                         "_municipio: Bogotá_\n"
                         "_edad: 35_\n\n"
-                        "━━━━━━━━━━━━━━━━━━━\n"
                         "👉 Escribe *menú* cuando termines"
                     )
                 # Si hay un intent conocido, usar template
