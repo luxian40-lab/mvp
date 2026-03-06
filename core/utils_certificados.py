@@ -21,8 +21,8 @@ logger = logging.getLogger(__name__)
 MARCADOR_NOMBRE  = (255, 0, 255)   # Magenta puro para nombre
 MARCADOR_CEDULA  = (255, 0, 0)     # Rojo puro para cédula
 MARCADOR_QR      = (0, 0, 255)     # Azul puro para QR
-MARCADOR_EMPRESA = (0, 255, 0)     # Verde puro para empresa
-MARCADOR_EKI     = (255, 128, 0)   # Naranja puro para Eki
+MARCADOR_EMPRESA = (0, 255, 0)     # Verde puro → Representante empresa (contacto_principal)
+MARCADOR_EKI     = (255, 128, 0)   # Naranja puro → Andrés Rubiano (eki)
 TOLERANCIA_COLOR = 30              # Tolerancia para JPEG (artefactos de compresión)
 
 # --- RUTA DE FUENTES ---
@@ -176,9 +176,9 @@ def generar_certificado_marcadores(
         )
         logger.info(f"📍 Empresa '{organizacion_nombre}' estampada en {pos_empresa}")
     
-    # 9. Estampar EKI (si marcador encontrado)
+    # 9. Estampar nombre eki (Andrés Rubiano) en marcador naranja
     if pos_eki:
-        eki_texto = "EKI"
+        eki_texto = "Andrés Rubiano"
         caja_eki = draw.textbbox((0, 0), eki_texto, font=fuente_cedula)
         ancho_eki = caja_eki[2] - caja_eki[0]
         alto_eki = caja_eki[3] - caja_eki[1]
@@ -188,7 +188,7 @@ def generar_certificado_marcadores(
             font=fuente_cedula,
             fill="black"
         )
-        logger.info(f"📍 Eki estampado en {pos_eki}")
+        logger.info(f"📍 Eki (Andrés Rubiano) estampado en {pos_eki}")
     
     # 10. Guardar en buffer (RAM, no disco)
     buffer = BytesIO()

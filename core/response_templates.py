@@ -208,15 +208,9 @@ Escribe "continuar", "ver cursos" o "mi progreso"."""
         if not progresos.exists():
             return f"""📊 TU PROGRESO
 
-👋 Hola {estudiante.nombre}, aún no tienes cursos activos.
+👋 Hola {estudiante.nombre}, aún no tienes un curso asignado.
 
-*¿Qué deseas hacer?*
-
-1️⃣ Ver cursos disponibles
-2️⃣ Hablar con soporte
-3️⃣ Volver al menú
-
-📝 Escribe el número o dime qué necesitas."""
+Tu organización te asignará un curso pronto. Si crees que es un error, escribe *ayuda* para contactar soporte."""
         
         respuesta = "📊 TU PROGRESO DE APRENDIZAJE\n\n"
         
@@ -626,8 +620,8 @@ Te inscribiste en: *{curso.nombre}*
             if primera_media_url_1:
                 mensaje_modulo += f"\n\n[MEDIA:{primera_media_url_1}]"
             
-            # Build multi-message: inscription [SEP] Gerónimo [SEP] María [SEP] módulo content (con media embebida)
-            resultado = f"[MULTI_MSG]{mensaje_1}[SEP]{msg_geronimo}[SEP]{msg_maria}[SEP]{mensaje_modulo}"
+            # Build multi-message: inscripción [SEP] módulo (con media) [SEP] agentes (ÚLTIMOS)
+            resultado = f"[MULTI_MSG]{mensaje_1}[SEP]{mensaje_modulo}[SEP]{msg_geronimo}[SEP]{msg_maria}"
             
             return resultado
         else:
@@ -662,9 +656,9 @@ Escribe "continuar" para empezar el primer módulo."""
         ).order_by('-fecha_inicio')
         
         if not progresos_activos.exists():
-            return """No tienes cursos activos. 📚
+            return """Aún no tienes un curso asignado. 📚
 
-Escribe "ver cursos" para inscribirte en uno."""
+Tu organización te asignará un curso pronto. Si crees que es un error, escribe *ayuda* para contactar soporte."""
         
         # Si tiene MÚLTIPLES cursos activos, preguntar cuál continuar
         if progresos_activos.count() > 1:
@@ -693,9 +687,9 @@ Escribe "ver cursos" para inscribirte en uno."""
         # NOTA: Esta validación es redundante pero se mantiene por seguridad
         # first() retorna None si no hay resultados, no genera excepción
         if not progreso:
-            return """No tienes cursos activos. 📚
+            return """Aún no tienes un curso asignado. 📚
 
-Escribe "ver cursos" para inscribirte en uno."""
+Tu organización te asignará un curso pronto. Si crees que es un error, escribe *ayuda* para contactar soporte."""
         
         # Obtener módulo actual
         modulo_actual = progreso.modulo_actual
@@ -793,15 +787,21 @@ Escribe "ver cursos" para inscribirte en uno."""
                 if subio_nivel:
                     msg_completado += f"\n\n🎉 *¡SUBISTE DE NIVEL!* {nivel_emoji} Nivel {perfil.nivel}"
                 
-                # Mensaje 2: Siguiente módulo CON multimedia embebida (un solo mensaje = menos costo Twilio)
-                msg_modulo = f"""
-
-📖 *Módulo {siguiente_modulo.numero}: {siguiente_modulo.titulo}*
-
-{siguiente_modulo.contenido}{archivos_msg}
-
-
-Cuando termines, escribe: *"listo"*"""
+                # Mensaje 2: Siguiente módulo CON multimedia embebida
+                contenido_mod = siguiente_modulo.contenido or ''
+                chunks_mod = dividir_contenido_seguro(contenido_mod, max_chars=1300)
+                modulo_header = f"📖 *Módulo {siguiente_modulo.numero}: {siguiente_modulo.titulo}*\n\n"
+                if chunks_mod:
+                    msg_modulo = modulo_header + chunks_mod[0]
+                    for chunk_m in chunks_mod[1:]:
+                        if len(msg_modulo) + len(chunk_m) + 4 < 1400:
+                            msg_modulo += "\n\n" + chunk_m
+                        else:
+                            break
+                else:
+                    msg_modulo = modulo_header + (siguiente_modulo.descripcion or '')
+                msg_modulo += archivos_msg
+                msg_modulo += "\n\n---\nCuando termines, escribe: *\"listo\"*"
                 
                 # Embeber primera multimedia directamente en msg_modulo
                 if primera_media_url:
@@ -878,7 +878,7 @@ Cuando termines, escribe: *"listo"*"""
                     estudiante.estado_onboarding = 'esperando_respuesta_progreso'
                     estudiante.save()
                 
-                # Construir multi-mensaje: completado [SEP] módulo (con media embebida) [SEP] Gerónimo [SEP] María
+                # Construir multi-mensaje: gamificación [SEP] módulo (con media) [SEP] agente (ÚLTIMO)
                 partes = [msg_completado, msg_modulo]
                 if tutor_msg:
                     partes.append(tutor_msg)
@@ -1090,9 +1090,9 @@ Escribe "ver cursos" para empezar."""
         ).first()
         
         if not progreso:
-            return """No tienes cursos activos para tomar examen. 📚
+            return """Aún no tienes un curso asignado para tomar examen. 📚
 
-Escribe "ver cursos" para inscribirte."""
+Tu organización te asignará un curso pronto. Si crees que es un error, escribe *ayuda* para contactar soporte."""
         
         # Verificar que haya completado todos los módulos
         total_modulos = progreso.curso.modulos.count()

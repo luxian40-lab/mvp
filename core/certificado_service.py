@@ -275,7 +275,9 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
             logger.info(f"📋 Plantilla encontrada: {plantilla.nombre if plantilla else 'NINGUNA - usará default eki'}")
         
         url_verificacion = certificado.obtener_url_verificacion()
-        org_nombre = certificado.estudiante.cliente.nombre if (certificado.estudiante and certificado.estudiante.cliente) else 'eki'
+        # EMPRESA marker = contacto_principal (representante), no nombre de empresa
+        _cliente = certificado.estudiante.cliente if (certificado.estudiante and certificado.estudiante.cliente) else None
+        org_nombre = getattr(_cliente, 'contacto_principal', '') or (getattr(_cliente, 'nombre', '') if _cliente else 'eki')
         nombre_est = certificado.estudiante.nombre
         cedula_est = certificado.estudiante.cedula or ''
         
