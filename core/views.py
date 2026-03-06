@@ -1412,30 +1412,38 @@ def _procesar_twilio_webhook(post_data):
                             if not archivos_multimedia.exists() and video_url:
                                 primera_media_url = video_url
                             
-                            msg_bienvenida = (
-                                f"✅ *¡Datos confirmados, {estudiante.nombre}!*\n\n"
-                                f"Bienvenido al programa de *{org_nombre}*"
-                            )
+                            # --- Mensaje 1: Bienvenida + Gamificación + Agentes (TODO en un solo texto) ---
+                            partes_intro = [
+                                f"✅ *¡Datos confirmados, {estudiante.nombre}!*\n\nBienvenido al programa de *{org_nombre}*"
+                            ]
+                            if msg_gamificacion:
+                                partes_intro.append(msg_gamificacion)
+                            partes_intro.append(msg_tutor)
+                            partes_intro.append(msg_asistente)
+                            partes_intro.append("📚 *Comenzamos con el primer módulo de tu curso...* 👇")
+                            msg_intro = "\n\n".join(partes_intro)
                             
-                            msg_modulo = (
-                                f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
-                                f"{modulo.descripcion}\n\n"
-                                f"{modulo.contenido}{archivos_msg}\n\n\n"
-                                f"Cuando termines, escribe: *\"listo\"*"
-                            )
+                            # --- Mensaje 2: Contenido del módulo (con multimedia) ---
+                            from .response_templates import dividir_contenido_seguro
+                            contenido_modulo = modulo.contenido or ''
+                            chunks = dividir_contenido_seguro(contenido_modulo, max_chars=1300)
+                            modulo_header = f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
+                            if chunks:
+                                msg_modulo = modulo_header + chunks[0]
+                                for chunk in chunks[1:]:
+                                    if len(msg_modulo) + len(chunk) + 4 < 1400:
+                                        msg_modulo += "\n\n" + chunk
+                                    else:
+                                        break
+                            else:
+                                msg_modulo = modulo_header + (modulo.descripcion or '')
+                            msg_modulo += archivos_msg
+                            msg_modulo += "\n\n---\nCuando termines, escribe: *\"listo\"*"
                             if primera_media_url:
                                 msg_modulo += f"\n\n[MEDIA:{primera_media_url}]"
                             
-                            # Build multi-message welcome: each part as separate WhatsApp message
-                            partes_bienvenida = [msg_bienvenida]
-                            if msg_gamificacion:
-                                partes_bienvenida.append(msg_gamificacion)
-                            partes_bienvenida.append(msg_tutor)
-                            partes_bienvenida.append(msg_asistente)
-                            partes_bienvenida.append("📚 *Comenzamos con el primer módulo de tu curso...* 👇")
-                            partes_bienvenida.append(msg_modulo)
-                            
-                            texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_bienvenida)
+                            # 2 mensajes: intro (un solo texto) + módulo (con media)
+                            texto_respuesta = "[MULTI_MSG]" + msg_intro + "[SEP]" + msg_modulo
                         else:
                             texto_respuesta = f"✅ *¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nEl curso aún no tiene módulos configurados. Te notificaremos cuando estén listos."
                     else:
