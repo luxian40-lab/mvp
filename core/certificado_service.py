@@ -10,203 +10,260 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# URL de plantilla por defecto en S3 (PNG con marcadores RGB)
+DEFAULT_TEMPLATE_URL = "https://eki-produccion.s3.us-east-2.amazonaws.com/pruebas/certificadoeki.png"
+# Fallback JPG si PNG no existe
+DEFAULT_TEMPLATE_URL_JPG = "https://eki-produccion.s3.us-east-2.amazonaws.com/pruebas/certificadoeki.jpg"
+
+
+def _generar_certificado_simple(plantilla_url, nombre_estudiante, cedula, org_nombre, url_verificacion):
+    """
+    FALLBACK BULLETPROOF: Descarga la plantilla de S3, escribe nombre/cédula/org
+    en posiciones fijas (centro de la imagen), sin depender de marcadores RGB.
+    Siempre devuelve un BytesIO con PNG.
+    """
+    import requests
+    from io import BytesIO
+    from PIL import Image, ImageDraw, ImageFont
+    import os
+    
+    logger.info(f"🔧 Generando certificado SIMPLE (sin marcadores) desde: {plantilla_url}")
+    
+    # Descargar plantilla
+    resp = requests.get(plantilla_url, timeout=20)
+    resp.raise_for_status()
+    plantilla = Image.open(BytesIO(resp.content)).convert("RGB")
+    ancho, alto = plantilla.size
+    draw = ImageDraw.Draw(plantilla)
+    
+    # Cargar fuentes
+    fonts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
+    try:
+        fuente_nombre = ImageFont.truetype(os.path.join(fonts_dir, 'GreatVibes-Regular.ttf'), 80)
+        fuente_detalle = ImageFont.truetype(os.path.join(fonts_dir, 'GreatVibes-Regular.ttf'), 40)
+    except (IOError, OSError):
+        logger.warning("⚠️ Fuente GreatVibes no encontrada, usando default")
+        fuente_nombre = ImageFont.load_default()
+        fuente_detalle = ImageFont.load_default()
+    
+    # Escribir NOMBRE centrado al 45% de la altura
+    nombre_cap = nombre_estudiante.strip().title()
+    bbox_n = draw.textbbox((0, 0), nombre_cap, font=fuente_nombre)
+    w_n = bbox_n[2] - bbox_n[0]
+    h_n = bbox_n[3] - bbox_n[1]
+    draw.text(
+        ((ancho - w_n) // 2, int(alto * 0.45) - h_n // 2),
+        nombre_cap, font=fuente_nombre, fill="black"
+    )
+    
+    # Escribir CÉDULA centrada al 55%
+    if cedula:
+        bbox_c = draw.textbbox((0, 0), str(cedula), font=fuente_detalle)
+        w_c = bbox_c[2] - bbox_c[0]
+        draw.text(
+            ((ancho - w_c) // 2, int(alto * 0.55)),
+            str(cedula), font=fuente_detalle, fill="black"
+        )
+    
+    # Escribir ORGANIZACIÓN centrada al 62%
+    if org_nombre:
+        bbox_o = draw.textbbox((0, 0), org_nombre, font=fuente_detalle)
+        w_o = bbox_o[2] - bbox_o[0]
+        draw.text(
+            ((ancho - w_o) // 2, int(alto * 0.62)),
+            org_nombre, font=fuente_detalle, fill="black"
+        )
+    
+    # QR en esquina inferior derecha
+    try:
+        import qrcode
+        qr_img = qrcode.make(url_verificacion).resize((180, 180))
+        plantilla.paste(qr_img, (ancho - 220, alto - 220))
+    except Exception as qr_e:
+        logger.warning(f"⚠️ No se pudo generar QR: {qr_e}")
+    
+    buf = BytesIO()
+    plantilla.save(buf, format="PNG")
+    buf.seek(0)
+    logger.info(f"✅ Certificado SIMPLE generado para: {nombre_cap}")
+    return buf
+
 
 def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
     """
-    Genera el certificado y lo guarda en el modelo.
+    Genera el certificado y lo guarda como IMAGEN (siempre).
     
     Prioridades:
-      0) Marcadores RGB + url_plantilla_imagen (S3→S3) → archivo_imagen
-      1) archivo_plantilla_imagen (subido local) → archivo_pdf
-      1B) url_plantilla_imagen sin marcadores → archivo_pdf  
-      2) archivo_plantilla_pdf → archivo_pdf
-      3) imagen_fondo → archivo_pdf
-      4) Generación PDF desde cero
+      0) Marcadores RGB + url_plantilla_imagen (PlantillaCertificado en DB)
+      1) Marcadores RGB + plantilla eki por defecto (S3)
+      2) FALLBACK SIMPLE: texto sobre imagen sin marcadores (SIEMPRE funciona)
     
-    Args:
-        certificado: Instancia de Certificado
-        plantilla: PlantillaCertificado (opcional, usa la por defecto)
-        force: Si es True, regenera aunque ya exista
-    
-    Returns:
-        bool: True si se generó exitosamente
+    GARANTÍA: Siempre genera archivo_imagen (PNG). Nunca cae a PDF.
     """
-    # Si ya tiene archivo y no es force, no regenerar
-    if (certificado.archivo_pdf or certificado.archivo_imagen) and not force:
-        logger.info(f"Certificado {certificado.codigo_verificacion} ya generado")
+    # Si ya tiene imagen y no es force, no regenerar
+    if certificado.archivo_imagen and not force:
+        logger.info(f"Certificado {certificado.codigo_verificacion} ya tiene imagen")
         return True
     
     try:
-        from .generador_certificados import (
-            generar_certificado_pdf, 
-            generar_certificado_imagen,
-            generar_certificado_desde_plantilla_pdf,
-            generar_certificado_desde_plantilla_imagen,
-        )
         from .models_certificados import PlantillaCertificado
         
-        # Obtener plantilla: 1) por curso+cliente, 2) por curso, 3) por cliente, 4) por_defecto
+        # === Buscar plantilla en DB: curso+cliente > curso > cliente > default ===
         if not plantilla:
-            # Intentar por curso específico + cliente
             if hasattr(certificado, 'curso') and certificado.curso:
-                if hasattr(certificado, 'estudiante') and certificado.estudiante and certificado.estudiante.cliente:
+                if certificado.estudiante and certificado.estudiante.cliente:
                     plantilla = PlantillaCertificado.objects.filter(
-                        curso=certificado.curso,
-                        cliente=certificado.estudiante.cliente,
-                        activa=True
+                        curso=certificado.curso, cliente=certificado.estudiante.cliente, activa=True
                     ).first()
-                # Intentar por curso solamente
                 if not plantilla:
                     plantilla = PlantillaCertificado.objects.filter(
-                        curso=certificado.curso,
-                        activa=True
+                        curso=certificado.curso, activa=True
                     ).first()
-            # Intentar por cliente solamente
-            if not plantilla and hasattr(certificado, 'estudiante') and certificado.estudiante and certificado.estudiante.cliente:
+            if not plantilla and certificado.estudiante and certificado.estudiante.cliente:
                 plantilla = PlantillaCertificado.objects.filter(
-                    cliente=certificado.estudiante.cliente,
-                    curso__isnull=True,
-                    activa=True
+                    cliente=certificado.estudiante.cliente, curso__isnull=True, activa=True
                 ).first()
-            # Fallback: por defecto global
             if not plantilla:
-                plantilla = PlantillaCertificado.objects.filter(
-                    por_defecto=True, 
-                    activa=True
-                ).first()
+                plantilla = PlantillaCertificado.objects.filter(por_defecto=True, activa=True).first()
             
-            if plantilla:
-                logger.info(f"📋 Plantilla seleccionada: {plantilla.nombre} (curso={plantilla.curso}, cliente={plantilla.cliente})")
-            else:
-                logger.warning(f"⚠️ No se encontró plantilla de certificado para curso={getattr(certificado, 'curso', '?')}")
+            logger.info(f"📋 Plantilla encontrada: {plantilla.nombre if plantilla else 'NINGUNA - usará default eki'}")
+        
+        url_verificacion = certificado.obtener_url_verificacion()
+        org_nombre = certificado.estudiante.cliente.nombre if (certificado.estudiante and certificado.estudiante.cliente) else 'eki'
+        nombre_est = certificado.estudiante.nombre
+        cedula_est = certificado.estudiante.cedula or ''
         
         generado = False
         
         # =====================================================
-        # PRIORIDAD 0: MARCADORES RGB desde URL S3 → archivo_imagen
-        # Lee plantilla de S3, detecta marcadores, genera PNG, guarda en archivo_imagen (→ S3)
+        # PRIORIDAD 0: Marcadores RGB con plantilla de DB
         # =====================================================
-        if not generado and plantilla and hasattr(plantilla, 'url_plantilla_imagen') and plantilla.url_plantilla_imagen:
+        if not generado and plantilla and plantilla.url_plantilla_imagen:
             try:
                 from .utils_certificados import generar_certificado_marcadores
-                
-                url_verificacion = certificado.obtener_url_verificacion()
-                org_nombre = None
-                if certificado.estudiante and hasattr(certificado.estudiante, 'cliente') and certificado.estudiante.cliente:
-                    org_nombre = certificado.estudiante.cliente.nombre
-                
                 img_buffer = generar_certificado_marcadores(
                     plantilla_url_o_path=plantilla.url_plantilla_imagen,
-                    nombre_estudiante=certificado.estudiante.nombre,
-                    cedula_estudiante=certificado.estudiante.cedula or '',
+                    nombre_estudiante=nombre_est,
+                    cedula_estudiante=cedula_est,
                     url_verificacion=url_verificacion,
                     organizacion_nombre=org_nombre,
                 )
-                
                 if img_buffer:
                     filename = f"certificado_{certificado.codigo_verificacion}.png"
-                    certificado.archivo_imagen.save(
-                        filename,
-                        ContentFile(img_buffer.read()),
-                        save=True
-                    )
+                    certificado.archivo_imagen.save(filename, ContentFile(img_buffer.read()), save=True)
                     generado = True
-                    logger.info(f"✅ Certificado generado con MARCADORES RGB desde S3: {plantilla.url_plantilla_imagen}")
-            except ValueError as ve:
-                # Marcadores no encontrados → caer a siguiente prioridad
-                logger.info(f"ℹ️ Marcadores no detectados ({ve}), usando siguiente prioridad")
+                    logger.info(f"✅ P0: Certificado con marcadores RGB desde plantilla DB: {plantilla.url_plantilla_imagen}")
             except Exception as e:
-                logger.warning(f"⚠️ Error con marcadores RGB: {e}, usando siguiente prioridad")
+                logger.warning(f"⚠️ P0 falló ({e}), continuando...")
         
-        # PRIORIDAD 1: Plantilla imagen subida (archivo_plantilla_imagen)
-        if not generado and plantilla and hasattr(plantilla, 'archivo_plantilla_imagen') and plantilla.archivo_plantilla_imagen:
-            img_buffer = generar_certificado_desde_plantilla_imagen(certificado, plantilla)
-            if img_buffer:
-                filename = f"certificado_{certificado.codigo_verificacion}.jpg"
-                certificado.archivo_imagen.save(
-                    filename,
-                    ContentFile(img_buffer.read()),
-                    save=True
-                )
-                generado = True
-                logger.info(f"✅ Certificado generado desde plantilla IMAGEN subida: {plantilla.nombre}")
+        # =====================================================
+        # PRIORIDAD 1: Marcadores RGB con plantilla eki default (S3)
+        # =====================================================
+        if not generado:
+            for url_template in [DEFAULT_TEMPLATE_URL, DEFAULT_TEMPLATE_URL_JPG]:
+                try:
+                    from .utils_certificados import generar_certificado_marcadores
+                    img_buffer = generar_certificado_marcadores(
+                        plantilla_url_o_path=url_template,
+                        nombre_estudiante=nombre_est,
+                        cedula_estudiante=cedula_est,
+                        url_verificacion=url_verificacion,
+                        organizacion_nombre=org_nombre,
+                    )
+                    if img_buffer:
+                        filename = f"certificado_{certificado.codigo_verificacion}.png"
+                        certificado.archivo_imagen.save(filename, ContentFile(img_buffer.read()), save=True)
+                        generado = True
+                        logger.info(f"✅ P1: Certificado con marcadores RGB desde default: {url_template}")
+                        break
+                except Exception as e:
+                    logger.warning(f"⚠️ P1 falló con {url_template}: {e}")
         
-        # PRIORIDAD 2: Plantilla PDF subida (archivo_plantilla_pdf)
-        if not generado and plantilla and plantilla.archivo_plantilla_pdf:
-            pdf_buffer = generar_certificado_desde_plantilla_pdf(certificado, plantilla)
-            if pdf_buffer:
-                filename = f"certificado_{certificado.codigo_verificacion}.pdf"
-                certificado.archivo_pdf.save(
-                    filename,
-                    ContentFile(pdf_buffer.read()),
-                    save=True
-                )
-                generado = True
-                logger.info(f"✅ Certificado generado desde plantilla PDF subida: {plantilla.nombre}")
+        # =====================================================
+        # PRIORIDAD 2: FALLBACK SIMPLE (texto sobre imagen, sin marcadores)
+        # Esto SIEMPRE funciona si la imagen existe en S3
+        # =====================================================
+        if not generado:
+            template_url = (plantilla.url_plantilla_imagen if plantilla and plantilla.url_plantilla_imagen else None)
+            for url_try in [u for u in [template_url, DEFAULT_TEMPLATE_URL, DEFAULT_TEMPLATE_URL_JPG] if u]:
+                try:
+                    img_buffer = _generar_certificado_simple(
+                        plantilla_url=url_try,
+                        nombre_estudiante=nombre_est,
+                        cedula=cedula_est,
+                        org_nombre=org_nombre,
+                        url_verificacion=url_verificacion,
+                    )
+                    if img_buffer:
+                        filename = f"certificado_{certificado.codigo_verificacion}.png"
+                        certificado.archivo_imagen.save(filename, ContentFile(img_buffer.read()), save=True)
+                        generado = True
+                        logger.info(f"✅ P2: Certificado SIMPLE (sin marcadores) desde: {url_try}")
+                        break
+                except Exception as e:
+                    logger.warning(f"⚠️ P2 falló con {url_try}: {e}")
         
-        # PRIORIDAD 3: Imagen de fondo (imagen_fondo) → certificado imagen
-        if not generado and plantilla and plantilla.imagen_fondo:
-            img_buffer = generar_certificado_imagen(certificado, plantilla)
-            if img_buffer:
-                filename = f"certificado_{certificado.codigo_verificacion}.jpg"
-                certificado.archivo_imagen.save(
-                    filename,
-                    ContentFile(img_buffer.read()),
-                    save=True
-                )
-                generado = True
-                logger.info(f"✅ Certificado imagen generado con imagen_fondo: {plantilla.nombre}")
-        
-        # PRIORIDAD 4: Marcadores RGB con plantilla por defecto de S3
-        # Cuando no hay PlantillaCertificado configurada, usar plantilla eki por defecto
+        # =====================================================
+        # PRIORIDAD 3: Generar imagen desde cero con Pillow (sin plantilla de S3)
+        # Último recurso absoluto — crea una imagen blanca con texto
+        # =====================================================
         if not generado:
             try:
-                from .utils_certificados import generar_certificado_marcadores
+                from PIL import Image, ImageDraw, ImageFont
+                from io import BytesIO
+                import os
                 
-                default_template_url = "https://eki-produccion.s3.us-east-2.amazonaws.com/pruebas/certificadoeki.png"
-                url_verificacion = certificado.obtener_url_verificacion()
-                org_nombre = None
-                if certificado.estudiante and hasattr(certificado.estudiante, 'cliente') and certificado.estudiante.cliente:
-                    org_nombre = certificado.estudiante.cliente.nombre
+                logger.info("🔧 P3: Generando certificado desde CERO (imagen blanca)")
+                img = Image.new('RGB', (1200, 800), color='white')
+                draw = ImageDraw.Draw(img)
                 
-                img_buffer = generar_certificado_marcadores(
-                    plantilla_url_o_path=default_template_url,
-                    nombre_estudiante=certificado.estudiante.nombre,
-                    cedula_estudiante=certificado.estudiante.cedula or '',
-                    url_verificacion=url_verificacion,
-                    organizacion_nombre=org_nombre,
-                )
+                fonts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
+                try:
+                    font_big = ImageFont.truetype(os.path.join(fonts_dir, 'GreatVibes-Regular.ttf'), 60)
+                    font_sm = ImageFont.truetype(os.path.join(fonts_dir, 'GreatVibes-Regular.ttf'), 30)
+                except (IOError, OSError):
+                    font_big = ImageFont.load_default()
+                    font_sm = ImageFont.load_default()
                 
-                if img_buffer:
-                    filename = f"certificado_{certificado.codigo_verificacion}.png"
-                    certificado.archivo_imagen.save(
-                        filename,
-                        ContentFile(img_buffer.read()),
-                        save=True
-                    )
-                    generado = True
-                    logger.info(f"✅ Certificado generado con plantilla eki por defecto (marcadores RGB)")
+                # Título
+                draw.text((200, 80), "CERTIFICADO DE FINALIZACIÓN", font=font_sm, fill="black")
+                draw.text((200, 180), "Se otorga a:", font=font_sm, fill="gray")
+                # Nombre
+                bbox = draw.textbbox((0, 0), nombre_est.title(), font=font_big)
+                w = bbox[2] - bbox[0]
+                draw.text(((1200 - w) // 2, 250), nombre_est.title(), font=font_big, fill="black")
+                # Cédula
+                draw.text((200, 400), f"Cédula: {cedula_est}", font=font_sm, fill="gray")
+                # Org
+                draw.text((200, 460), f"Organización: {org_nombre}", font=font_sm, fill="gray")
+                # Curso
+                curso_nombre = certificado.curso.nombre if certificado.curso else ''
+                draw.text((200, 520), f"Curso: {curso_nombre}", font=font_sm, fill="gray")
+                # Fecha
+                draw.text((200, 600), f"Fecha: {timezone.now().strftime('%d/%m/%Y')}", font=font_sm, fill="gray")
+                # Código
+                draw.text((200, 660), f"Código: {certificado.codigo_verificacion}", font=font_sm, fill="gray")
+                
+                buf = BytesIO()
+                img.save(buf, format="PNG")
+                buf.seek(0)
+                
+                filename = f"certificado_{certificado.codigo_verificacion}.png"
+                certificado.archivo_imagen.save(filename, ContentFile(buf.read()), save=True)
+                generado = True
+                logger.info(f"✅ P3: Certificado generado DESDE CERO (imagen blanca)")
             except Exception as e:
-                logger.warning(f"⚠️ Error con marcadores RGB por defecto: {e}")
+                logger.error(f"❌ P3 falló: {e}")
         
-        # PRIORIDAD 5: Generación PDF desde cero (último recurso)
-        if not generado:
-            pdf_buffer = generar_certificado_pdf(certificado, plantilla)
-            filename = f"certificado_{certificado.codigo_verificacion}.pdf"
-            certificado.archivo_pdf.save(
-                filename,
-                ContentFile(pdf_buffer.read()),
-                save=True
-            )
-            generado = True
+        if generado:
+            certificado.emitido = True
+            certificado.fecha_emision = timezone.now()
+            certificado.save()
+            logger.info(f"✅ Certificado {certificado.codigo_verificacion} GUARDADO - archivo_imagen={bool(certificado.archivo_imagen)}")
+        else:
+            logger.error(f"❌ TODAS las prioridades fallaron para certificado {certificado.codigo_verificacion}")
         
-        # Marcar como emitido
-        certificado.emitido = True
-        certificado.fecha_emision = timezone.now()
-        certificado.save()
-        
-        logger.info(f"✅ Certificado {certificado.codigo_verificacion} generado exitosamente")
-        return True
+        return generado
         
     except Exception as e:
         logger.error(f"❌ Error generando certificado {certificado.codigo_verificacion}: {e}", exc_info=True)

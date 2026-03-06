@@ -2314,25 +2314,40 @@ Has completado el curso: *{progreso.curso.nombre}*
                                         import logging
                                         logging.getLogger(__name__).warning(f"⚠️ María resumen falló: {e}")
                                 
-                                    # Imagen de certificado — generar con nombre del estudiante
+                                    # Imagen de certificado — generar con Pillow y enviar como imagen
                                     msg_cert_img = ""
                                     try:
                                         from .certificado_service import crear_certificado_automatico
+                                        logger.info(f"🎓 Iniciando generación de certificado para {estudiante.nombre} - {progreso.curso.nombre}")
                                         cert = crear_certificado_automatico(estudiante, progreso.curso)
+                                        logger.info(f"🎓 Certificado resultado: cert={cert}, imagen={cert.archivo_imagen if cert else 'N/A'}, pdf={cert.archivo_pdf if cert else 'N/A'}")
+                                        
                                         if cert and cert.archivo_imagen:
-                                            # Usar URL pública directa (AWS_DEFAULT_ACL=public-read)
                                             cert_url = cert.archivo_imagen.url
                                             msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
-                                            logger.info(f"Certificado imagen URL pública: {cert_url[:80]}...")
+                                            logger.info(f"✅ Certificado IMAGEN URL: {cert_url}")
                                         elif cert and cert.archivo_pdf:
                                             cert_url = cert.archivo_pdf.url
                                             msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert_url}"
-                                            logger.info(f"Certificado PDF URL pública: {cert_url[:80]}...")
+                                            logger.info(f"📄 Certificado PDF URL: {cert_url}")
+                                        elif cert:
+                                            # Certificado creado pero sin archivo — forzar regeneración
+                                            logger.warning(f"⚠️ Cert creado sin archivo, forzando regeneración...")
+                                            from .certificado_service import generar_y_guardar_certificado
+                                            generar_y_guardar_certificado(cert, force=True)
+                                            cert.refresh_from_db()
+                                            if cert.archivo_imagen:
+                                                cert_url = cert.archivo_imagen.url
+                                                msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                                                logger.info(f"✅ Certificado IMAGEN URL (retry): {cert_url}")
+                                            else:
+                                                msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
                                         else:
                                             msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
-                                            logger.warning(f"Certificado creado pero sin archivo para {estudiante.nombre}")
+                                            logger.warning(f"❌ crear_certificado_automatico retornó None para {estudiante.nombre}")
                                     except Exception as e:
-                                        logger.error(f"Error generando certificado: {e}")
+                                        logger.error(f"❌ Error generando certificado: {e}", exc_info=True)
+                                        import traceback; traceback.print_exc()
                                         msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
                                 
                                     # Construir multi-mensaje

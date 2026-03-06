@@ -23,7 +23,7 @@ MARCADOR_CEDULA  = (255, 0, 0)     # Rojo puro para cédula
 MARCADOR_QR      = (0, 0, 255)     # Azul puro para QR
 MARCADOR_EMPRESA = (0, 255, 0)     # Verde puro para empresa
 MARCADOR_EKI     = (255, 128, 0)   # Naranja puro para Eki
-TOLERANCIA_COLOR = 0               # Solo coincidencia exacta
+TOLERANCIA_COLOR = 30              # Tolerancia para JPEG (artefactos de compresión)
 
 # --- RUTA DE FUENTES ---
 FONTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
