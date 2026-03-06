@@ -178,7 +178,18 @@ class PlantillaCertificado(models.Model):
         help_text='Si es para un cliente específico. Dejar vacío = plantilla general de eki'
     )
     
-    # 📄 OPCIÓN 1: SUBIR PDF PERSONALIZADO (Recomendado para empresas)
+    # � CURSO (para plantillas específicas de un curso)
+    curso = models.ForeignKey(
+        'Curso',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='plantillas_certificados',
+        verbose_name='Curso',
+        help_text='Curso específico para esta plantilla. Si se asigna, se usará automáticamente al completar este curso.'
+    )
+    
+    # �📄 OPCIÓN 1: SUBIR PDF PERSONALIZADO (Recomendado para empresas)
     archivo_plantilla_pdf = models.FileField(
         upload_to='certificados/plantillas_personalizadas/',
         null=True,

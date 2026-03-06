@@ -3712,14 +3712,18 @@ class SolicitudSoporteAdmin(admin.ModelAdmin):
 @admin.register(PlantillaCertificado)
 class PlantillaCertificadoAdmin(admin.ModelAdmin):
     """Plantillas de Certificados — Simplificado: sube imagen a S3"""
-    list_display = ('nombre', 'cliente_info', 'tipo_plantilla', 'por_defecto', 'activa')
-    list_filter = ('activa', 'por_defecto', 'cliente')
-    search_fields = ('nombre', 'descripcion', 'cliente__nombre')
+    list_display = ('nombre', 'curso_info', 'cliente_info', 'tipo_plantilla', 'por_defecto', 'activa')
+    list_filter = ('activa', 'por_defecto', 'cliente', 'curso')
+    search_fields = ('nombre', 'descripcion', 'cliente__nombre', 'curso__nombre')
     list_per_page = 50
     
     fieldsets = (
         ('📝 Información Básica', {
-            'fields': ('nombre', 'descripcion', 'cliente', 'activa', 'por_defecto'),
+            'fields': ('nombre', 'descripcion', 'curso', 'cliente', 'activa', 'por_defecto'),
+            'description': mark_safe('''<div style="background:#e3f2fd;padding:12px;border-radius:8px;border-left:4px solid #2196F3;margin:10px 0;">
+                <strong>📌 IMPORTANTE:</strong> Selecciona el <strong>Curso</strong> para que el certificado se genere automáticamente al completar ese curso.<br>
+                Si no seleccionas curso, se usará solo si está marcada como "Por defecto".
+            </div>''')
         }),
         ('🖼️ Imagen del Certificado (S3)', {
             'fields': ('formato_certificado', 'archivo_plantilla_imagen', 'url_plantilla_imagen'),
@@ -3752,6 +3756,16 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
         form.base_fields['color_primario'].widget = ColorPickerWidget()
         form.base_fields['color_secundario'].widget = ColorPickerWidget()
         return form
+    
+    def curso_info(self, obj):
+        """Muestra el curso asignado"""
+        if obj.curso:
+            return format_html(
+                '<span style="background:#c8e6c9;padding:4px 10px;border-radius:12px;font-size:11px;">📚 {}</span>',
+                obj.curso.nombre
+            )
+        return format_html('<span style="color:#999;font-style:italic;">Sin curso (general)</span>')
+    curso_info.short_description = "Curso"
     
     def cliente_info(self, obj):
         """Muestra el cliente asociado"""

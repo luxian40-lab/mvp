@@ -45,12 +45,40 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
         )
         from .models_certificados import PlantillaCertificado
         
-        # Obtener plantilla
+        # Obtener plantilla: 1) por curso+cliente, 2) por curso, 3) por cliente, 4) por_defecto
         if not plantilla:
-            plantilla = PlantillaCertificado.objects.filter(
-                por_defecto=True, 
-                activa=True
-            ).first()
+            # Intentar por curso específico + cliente
+            if hasattr(certificado, 'curso') and certificado.curso:
+                if hasattr(certificado, 'estudiante') and certificado.estudiante and certificado.estudiante.cliente:
+                    plantilla = PlantillaCertificado.objects.filter(
+                        curso=certificado.curso,
+                        cliente=certificado.estudiante.cliente,
+                        activa=True
+                    ).first()
+                # Intentar por curso solamente
+                if not plantilla:
+                    plantilla = PlantillaCertificado.objects.filter(
+                        curso=certificado.curso,
+                        activa=True
+                    ).first()
+            # Intentar por cliente solamente
+            if not plantilla and hasattr(certificado, 'estudiante') and certificado.estudiante and certificado.estudiante.cliente:
+                plantilla = PlantillaCertificado.objects.filter(
+                    cliente=certificado.estudiante.cliente,
+                    curso__isnull=True,
+                    activa=True
+                ).first()
+            # Fallback: por defecto global
+            if not plantilla:
+                plantilla = PlantillaCertificado.objects.filter(
+                    por_defecto=True, 
+                    activa=True
+                ).first()
+            
+            if plantilla:
+                logger.info(f"📋 Plantilla seleccionada: {plantilla.nombre} (curso={plantilla.curso}, cliente={plantilla.cliente})")
+            else:
+                logger.warning(f"⚠️ No se encontró plantilla de certificado para curso={getattr(certificado, 'curso', '?')}")
         
         generado = False
         

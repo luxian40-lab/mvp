@@ -1486,8 +1486,36 @@ def _procesar_twilio_webhook(post_data):
                 twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
                 client_tw = TwilioClient(account_sid, auth_token)
                 destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
-                client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
-                WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
+                
+                # Handle multi-message (process [MULTI_MSG]/[SEP]/[MEDIA:] markers)
+                if texto_respuesta.startswith('[MULTI_MSG]'):
+                    import re as re_conf
+                    partes_conf = texto_respuesta.replace('[MULTI_MSG]', '', 1).split('[SEP]')
+                    for parte_c in partes_conf:
+                        if not parte_c.strip():
+                            continue
+                        parte_texto_c = parte_c.strip()
+                        parte_media_c = None
+                        media_m_c = re_conf.search(r'\[MEDIA:(.*?)\]', parte_texto_c)
+                        if media_m_c:
+                            parte_media_c = media_m_c.group(1).strip()
+                            parte_texto_c = parte_texto_c.replace(media_m_c.group(0), '').strip()
+                        mp_c = {'body': parte_texto_c, 'from_': str(twilio_number).strip(), 'to': str(destino).strip()}
+                        if parte_media_c:
+                            mp_c['media_url'] = [parte_media_c]
+                        try:
+                            msg_sent = client_tw.messages.create(**mp_c)
+                        except Exception as media_err_c:
+                            if '63019' in str(media_err_c) and parte_media_c:
+                                mp_c.pop('media_url', None)
+                                mp_c['body'] += f"\n\n📎 Archivo: {parte_media_c}"
+                                msg_sent = client_tw.messages.create(**mp_c)
+                            else:
+                                raise
+                        WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=parte_texto_c, tipo='SENT')
+                else:
+                    client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
+                    WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
             except Exception as e:
                 logger.error(f"❌ Error enviando confirmación: {e}")
                 import traceback; traceback.print_exc()
