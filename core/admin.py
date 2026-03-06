@@ -514,6 +514,7 @@ class EstudianteAdmin(admin.ModelAdmin):
                     if not departamento: campos_faltantes.append('Departamento')
                     if not genero_raw: campos_faltantes.append('Género')
                     if not edad_raw: campos_faltantes.append('Edad')
+                    if not curso_nombre: campos_faltantes.append('Curso')
                     
                     if campos_faltantes:
                         errores.append(f"Fila {idx}: Faltan: {', '.join(campos_faltantes)}")

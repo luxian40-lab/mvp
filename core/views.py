@@ -655,11 +655,12 @@ def importar_estudiantes(request):
                     curso_nombre = _normalizar_celda(row[7]) if len(row) > 7 else ''
                     cliente_nombre = _normalizar_celda(row[8]) if len(row) > 8 else ''
                     
-                    # Validar campos obligatorios (solo Cédula, Nombre, Teléfono)
+                    # Validar campos obligatorios (Cédula, Nombre, Teléfono, Curso)
                     campos_faltantes = []
                     if not cedula: campos_faltantes.append('Cédula')
                     if not nombre: campos_faltantes.append('Nombre')
                     if not telefono_raw: campos_faltantes.append('Teléfono')
+                    if not curso_nombre: campos_faltantes.append('Curso')
                     
                     if campos_faltantes:
                         errores.append(f"Fila {row_idx}: Faltan campos obligatorios: {', '.join(campos_faltantes)}")
@@ -1339,8 +1340,15 @@ def _procesar_twilio_webhook(post_data):
                     from .models import Curso, ProgresoEstudiante
                     from .response_templates import obtener_video_url
                     org = estudiante.cliente
-                    cursos = Curso.objects.filter(cliente=org, activo=True).order_by('orden', 'nombre') if org else Curso.objects.filter(activo=True).order_by('orden', 'nombre')
-                    curso = cursos.first()
+                    # Priorizar curso ya asignado (ej. por campaña) sobre primer curso genérico
+                    progreso_existente = ProgresoEstudiante.objects.filter(
+                        estudiante=estudiante, completado=False
+                    ).select_related('curso').first()
+                    if progreso_existente and progreso_existente.curso and progreso_existente.curso.activo:
+                        curso = progreso_existente.curso
+                    else:
+                        cursos = Curso.objects.filter(cliente=org, activo=True).order_by('orden', 'nombre') if org else Curso.objects.filter(activo=True).order_by('orden', 'nombre')
+                        curso = cursos.first()
                     if curso:
                         progreso, creado = ProgresoEstudiante.objects.get_or_create(
                             estudiante=estudiante,
@@ -1418,15 +1426,16 @@ def _procesar_twilio_webhook(post_data):
                             if primera_media_url:
                                 msg_modulo += f"\n\n[MEDIA:{primera_media_url}]"
                             
-                            # Build single welcome message: bienvenida → gamificación → tutor → asistente → módulo
+                            # Build multi-message welcome: each part as separate WhatsApp message
                             partes_bienvenida = [msg_bienvenida]
                             if msg_gamificacion:
                                 partes_bienvenida.append(msg_gamificacion)
                             partes_bienvenida.append(msg_tutor)
                             partes_bienvenida.append(msg_asistente)
+                            partes_bienvenida.append("📚 *Comenzamos con el primer módulo de tu curso...* 👇")
                             partes_bienvenida.append(msg_modulo)
                             
-                            texto_respuesta = "\n\n".join(partes_bienvenida)
+                            texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_bienvenida)
                         else:
                             texto_respuesta = f"✅ *¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nEl curso aún no tiene módulos configurados. Te notificaremos cuando estén listos."
                     else:
