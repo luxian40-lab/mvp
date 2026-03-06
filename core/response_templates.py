@@ -577,6 +577,28 @@ Te inscribiste en: *{curso.nombre}*
         # Obtener video del primer módulo si existe
         video_url_modulo = obtener_video_url(primer_modulo)
 
+        # Verificar archivos multimedia del primer módulo
+        archivos_multimedia_1 = primer_modulo.archivos_multimedia.filter(activo=True)
+        primera_media_url_1 = None
+        archivos_msg_1 = ""
+
+        if archivos_multimedia_1.exists():
+            archivos_msg_1 = f"\n\n📁 *{archivos_multimedia_1.count()} archivo(s) multimedia*"
+            for idx, archivo in enumerate(archivos_multimedia_1[:3]):
+                icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
+                url = archivo.get_url_para_envio()
+                if idx == 0 and url and archivo.tipo in ['imagen', 'video'] and not primera_media_url_1:
+                    primera_media_url_1 = url
+                    archivos_msg_1 += f"\n{icono} {archivo.titulo} (adjunto)"
+                elif url:
+                    archivos_msg_1 += f"\n{icono} {archivo.titulo}"
+                else:
+                    archivos_msg_1 += f"\n{icono} {archivo.titulo}"
+
+        # Si no hay archivos multimedia pero sí video_url, usarlo como primera media
+        if not archivos_multimedia_1.exists() and video_url_modulo:
+            primera_media_url_1 = video_url_modulo
+
         # Divide module content into safe chunks
         contenido = primer_modulo.contenido
         chunks = dividir_contenido_seguro(contenido, max_chars=1500)
@@ -597,14 +619,15 @@ Te inscribiste en: *{curso.nombre}*
                     else:
                         break
             
+            mensaje_modulo += archivos_msg_1
             mensaje_modulo += "\n\n---\nCuando termines, escribe: *\"listo\"*"
             
-            # Build multi-message: inscription [SEP] Gerónimo [SEP] María [SEP] módulo content [SEP] video (separado)
-            resultado = f"[MULTI_MSG]{mensaje_1}[SEP]{msg_geronimo}[SEP]{msg_maria}[SEP]{mensaje_modulo}"
+            # Embeber primera multimedia en el mensaje del módulo (un solo mensaje = menos costo)
+            if primera_media_url_1:
+                mensaje_modulo += f"\n\n[MEDIA:{primera_media_url_1}]"
             
-            # Video como mensaje separado (no al mismo tiempo que el contenido)
-            if video_url_modulo:
-                resultado += f"[SEP]🎬 *Video del Módulo {primer_modulo.numero}:*\n\n[MEDIA:{video_url_modulo}]"
+            # Build multi-message: inscription [SEP] Gerónimo [SEP] María [SEP] módulo content (con media embebida)
+            resultado = f"[MULTI_MSG]{mensaje_1}[SEP]{msg_geronimo}[SEP]{msg_maria}[SEP]{mensaje_modulo}"
             
             return resultado
         else:
@@ -729,6 +752,29 @@ Escribe "ver cursos" para inscribirte en uno."""
                 porcentaje = progreso.porcentaje_avance()
                 video_url = obtener_video_url(siguiente_modulo)
                 
+                # Verificar archivos multimedia del módulo
+                archivos_multimedia = siguiente_modulo.archivos_multimedia.filter(activo=True)
+                archivos_msg = ""
+                primera_media_url = None
+                extras_msg = None
+
+                if archivos_multimedia.exists():
+                    archivos_msg = f"\n\n📁 *{archivos_multimedia.count()} archivo(s) multimedia*"
+                    for idx, archivo in enumerate(archivos_multimedia[:3]):
+                        icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
+                        url = archivo.get_url_para_envio()
+                        if idx == 0 and url and archivo.tipo in ['imagen', 'video'] and not primera_media_url:
+                            primera_media_url = url
+                            archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
+                        elif url:
+                            archivos_msg += f"\n{icono} {archivo.titulo}"
+                        else:
+                            archivos_msg += f"\n{icono} {archivo.titulo}"
+
+                # Si no hay archivos multimedia pero sí video_url, usarlo como primera media
+                if not archivos_multimedia.exists() and video_url:
+                    primera_media_url = video_url
+
                 # Mensaje de gamificación profesional
                 barra = _barra_progreso(porcentaje)
                 nivel_emoji = ["🌱","🌿","🍃","🌾","🌳","🌲","🎋","🌺","💎","👑"][min(perfil.nivel-1,9)]
@@ -747,20 +793,19 @@ Escribe "ver cursos" para inscribirte en uno."""
                 if subio_nivel:
                     msg_completado += f"\n\n🎉 *¡SUBISTE DE NIVEL!* {nivel_emoji} Nivel {perfil.nivel}"
                 
-                # Mensaje 2: Siguiente módulo (separado)
+                # Mensaje 2: Siguiente módulo CON multimedia embebida (un solo mensaje = menos costo Twilio)
                 msg_modulo = f"""
 
 📖 *Módulo {siguiente_modulo.numero}: {siguiente_modulo.titulo}*
 
-{siguiente_modulo.contenido}
+{siguiente_modulo.contenido}{archivos_msg}
 
 
 Cuando termines, escribe: *"listo"*"""
                 
-                # Video como mensaje separado para evitar que se lancen juntos
-                video_msg = None
-                if video_url:
-                    video_msg = f"🎬 *Video del Módulo {siguiente_modulo.numero}:*\n\n[MEDIA:{video_url}]"
+                # Embeber primera multimedia directamente en msg_modulo
+                if primera_media_url:
+                    msg_modulo += f"\n\n[MEDIA:{primera_media_url}]"
                 
                 # Agentes: Tutor (impares) / Asistente (módulo 4)
                 # Get agent names: Cliente > Curso > defaults
@@ -833,10 +878,8 @@ Cuando termines, escribe: *"listo"*"""
                     estudiante.estado_onboarding = 'esperando_respuesta_progreso'
                     estudiante.save()
                 
-                # Construir multi-mensaje: completado [SEP] módulo [SEP] video (si hay) [SEP] Gerónimo [SEP] María
+                # Construir multi-mensaje: completado [SEP] módulo (con media embebida) [SEP] Gerónimo [SEP] María
                 partes = [msg_completado, msg_modulo]
-                if video_msg:
-                    partes.append(video_msg)
                 if tutor_msg:
                     partes.append(tutor_msg)
                 if maria_msg:
@@ -952,11 +995,33 @@ Escribe *"mi progreso"* para ver tu avance"""
         # Si escribieron solo "continuar" (primera vez o retomando), mostrar el módulo actual
         else:
             video_url = obtener_video_url(modulo_actual)
+
+            # Verificar archivos multimedia
+            archivos_multimedia_c = modulo_actual.archivos_multimedia.filter(activo=True)
+            archivos_msg_c = ""
+            primera_media_url_c = None
+
+            if archivos_multimedia_c.exists():
+                archivos_msg_c = f"\n\n📁 *{archivos_multimedia_c.count()} archivo(s) multimedia*"
+                for idx, archivo in enumerate(archivos_multimedia_c[:3]):
+                    icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
+                    url = archivo.get_url_para_envio()
+                    if idx == 0 and url and archivo.tipo in ['imagen', 'video'] and not primera_media_url_c:
+                        primera_media_url_c = url
+                        archivos_msg_c += f"\n{icono} {archivo.titulo} (adjunto)"
+                    elif url:
+                        archivos_msg_c += f"\n{icono} {archivo.titulo}"
+                    else:
+                        archivos_msg_c += f"\n{icono} {archivo.titulo}"
+
+            if not archivos_multimedia_c.exists() and video_url:
+                primera_media_url_c = video_url
+
             respuesta = f"""{progreso.curso.emoji} {progreso.curso.nombre}
 
 Módulo {modulo_actual.numero}: {modulo_actual.titulo}
 
-{modulo_actual.contenido}
+{modulo_actual.contenido}{archivos_msg_c}
 
 ---
 
@@ -965,8 +1030,8 @@ Cuando termines esta lección, escribe:
 
 O pregúntame dudas sobre este tema."""
             
-            if video_url:
-                respuesta += f"\n\n[MEDIA:{video_url}]"
+            if primera_media_url_c:
+                respuesta += f"\n\n[MEDIA:{primera_media_url_c}]"
             
             return respuesta
     

@@ -1684,12 +1684,30 @@ def _procesar_twilio_webhook(post_data):
                             progreso.save()
                     if modulo:
                         video_url = obtener_video_url(modulo)
-                        media_tag = f"\n\n[MEDIA:{video_url}]" if video_url else ""
+                        archivos_multimedia = modulo.archivos_multimedia.filter(activo=True)
+                        archivos_msg = ""
+                        primera_media_url = None
+                        if archivos_multimedia.exists():
+                            archivos_msg = f"\n\n📁 *{archivos_multimedia.count()} archivo(s) multimedia*"
+                            for idx, archivo in enumerate(archivos_multimedia[:3]):
+                                icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
+                                url = archivo.get_url_para_envio()
+                                if idx == 0 and url and archivo.tipo in ['imagen', 'video'] and not primera_media_url:
+                                    primera_media_url = url
+                                    archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
+                                elif url:
+                                    archivos_msg += f"\n{icono} {archivo.titulo}"
+                                else:
+                                    archivos_msg += f"\n{icono} {archivo.titulo}"
+                        if not archivos_multimedia.exists() and video_url:
+                            primera_media_url = video_url
                         texto_respuesta = (
                             f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
-                            f"{modulo.contenido}\n\n\n"
-                            f"Cuando termines, escribe: *\"listo\"*{media_tag}"
+                            f"{modulo.contenido}{archivos_msg}\n\n\n"
+                            f"Cuando termines, escribe: *\"listo\"*"
                         )
+                        if primera_media_url:
+                            texto_respuesta += f"\n\n[MEDIA:{primera_media_url}]"
                     else:
                         texto_respuesta = f"📚 Tu curso *{curso.nombre}* aún no tiene módulos configurados."
                 else:
@@ -1794,12 +1812,30 @@ def _procesar_twilio_webhook(post_data):
                             progreso.save()
                     if modulo:
                         video_url = obtener_video_url(modulo)
-                        media_tag = f"\n\n[MEDIA:{video_url}]" if video_url else ""
+                        archivos_multimedia = modulo.archivos_multimedia.filter(activo=True)
+                        archivos_msg = ""
+                        primera_media_url = None
+                        if archivos_multimedia.exists():
+                            archivos_msg = f"\n\n📁 *{archivos_multimedia.count()} archivo(s) multimedia*"
+                            for idx, archivo in enumerate(archivos_multimedia[:3]):
+                                icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
+                                url = archivo.get_url_para_envio()
+                                if idx == 0 and url and archivo.tipo in ['imagen', 'video'] and not primera_media_url:
+                                    primera_media_url = url
+                                    archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
+                                elif url:
+                                    archivos_msg += f"\n{icono} {archivo.titulo}"
+                                else:
+                                    archivos_msg += f"\n{icono} {archivo.titulo}"
+                        if not archivos_multimedia.exists() and video_url:
+                            primera_media_url = video_url
                         texto_respuesta = (
                             f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
-                            f"{modulo.contenido}\n\n\n"
-                            f"Cuando termines, escribe: *\"listo\"*{media_tag}"
+                            f"{modulo.contenido}{archivos_msg}\n\n\n"
+                            f"Cuando termines, escribe: *\"listo\"*"
                         )
+                        if primera_media_url:
+                            texto_respuesta += f"\n\n[MEDIA:{primera_media_url}]"
                     else:
                         texto_respuesta = f"📚 Tu curso *{curso.nombre}* aún no tiene módulos configurados."
                 else:
