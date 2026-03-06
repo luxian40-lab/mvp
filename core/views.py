@@ -1418,7 +1418,7 @@ def _procesar_twilio_webhook(post_data):
                             if primera_media_url:
                                 msg_modulo += f"\n\n[MEDIA:{primera_media_url}]"
                             
-                            # Build multi-message: gamificación → tutor → asistente → módulo
+                            # Build single welcome message: bienvenida → gamificación → tutor → asistente → módulo
                             partes_bienvenida = [msg_bienvenida]
                             if msg_gamificacion:
                                 partes_bienvenida.append(msg_gamificacion)
@@ -1426,7 +1426,7 @@ def _procesar_twilio_webhook(post_data):
                             partes_bienvenida.append(msg_asistente)
                             partes_bienvenida.append(msg_modulo)
                             
-                            texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_bienvenida)
+                            texto_respuesta = "\n\n".join(partes_bienvenida)
                         else:
                             texto_respuesta = f"✅ *¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nEl curso aún no tiene módulos configurados. Te notificaremos cuando estén listos."
                     else:
