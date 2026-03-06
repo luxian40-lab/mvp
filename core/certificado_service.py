@@ -1,12 +1,18 @@
 """
 Servicio de Certificados
 Maneja generación, envío y verificación de certificados digitales
+
+NOTA CRÍTICA (Marzo 2026): El upload via Django S3Boto3Storage NO funcionaba 
+correctamente — los archivos aparecían como guardados pero NO existían en S3 
+(404). Se reemplazó por upload DIRECTO via boto3+presigned URLs.
 """
 
 from django.core.files.base import ContentFile
 from django.utils import timezone
 from django.conf import settings
 import logging
+import boto3
+from botocore.config import Config as BotoConfig
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +20,127 @@ logger = logging.getLogger(__name__)
 DEFAULT_TEMPLATE_URL = "https://eki-produccion.s3.us-east-2.amazonaws.com/pruebas/certificadoeki.png"
 # Fallback JPG si PNG no existe
 DEFAULT_TEMPLATE_URL_JPG = "https://eki-produccion.s3.us-east-2.amazonaws.com/pruebas/certificadoeki.jpg"
+
+# S3 constants
+S3_CERT_PREFIX = "certificados/generados"
+S3_REGION = "us-east-2"
+
+
+def _get_s3_client():
+    """Obtiene cliente boto3 S3 con signature v4"""
+    return boto3.client(
+        's3',
+        aws_access_key_id=getattr(settings, 'AWS_ACCESS_KEY_ID', None),
+        aws_secret_access_key=getattr(settings, 'AWS_SECRET_ACCESS_KEY', None),
+        config=BotoConfig(signature_version='s3v4', region_name=S3_REGION)
+    )
+
+
+def _subir_imagen_s3_directo(buffer, filename):
+    """
+    Sube imagen de certificado a S3 usando boto3 DIRECTAMENTE.
+    NO usa Django S3Boto3Storage (que no guardaba bien).
+    
+    Returns:
+        (s3_key, public_url) o (None, None) si falla
+    """
+    bucket = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'eki-produccion')
+    s3_key = f"{S3_CERT_PREFIX}/{filename}"
+    
+    try:
+        s3_client = _get_s3_client()
+        buffer.seek(0)
+        
+        s3_client.upload_fileobj(
+            buffer,
+            bucket,
+            s3_key,
+            ExtraArgs={
+                'ContentType': 'image/png',
+                'ContentDisposition': 'inline',
+            }
+        )
+        
+        # Verificar que el archivo existe (HEAD)
+        s3_client.head_object(Bucket=bucket, Key=s3_key)
+        
+        public_url = f"https://{bucket}.s3.{S3_REGION}.amazonaws.com/{s3_key}"
+        logger.info(f"✅ Certificado SUBIDO DIRECTO a S3: {s3_key} -> {public_url}")
+        return s3_key, public_url
+        
+    except Exception as e:
+        logger.error(f"❌ Error subiendo certificado a S3: {e}", exc_info=True)
+        return None, None
+
+
+def obtener_url_certificado_twilio(certificado):
+    """
+    Genera una URL presigned para enviar el certificado via Twilio.
+    Twilio NECESITA poder hacer GET a la URL.
+    
+    Prioridad:
+    1. Presigned URL desde S3 key (archivo_imagen.name)
+    2. URL pública directa
+    3. None
+    """
+    if not certificado.archivo_imagen:
+        return None
+    
+    try:
+        s3_key = str(certificado.archivo_imagen.name)
+        bucket = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'eki-produccion')
+        
+        s3_client = _get_s3_client()
+        
+        # Verificar que existe
+        try:
+            s3_client.head_object(Bucket=bucket, Key=s3_key)
+        except Exception:
+            logger.warning(f"⚠️ S3 key no existe: {s3_key}, intentando variantes...")
+            # Intentar sin prefijo 'media/' o con él
+            variantes = [
+                s3_key,
+                f"media/{s3_key}" if not s3_key.startswith("media/") else s3_key.replace("media/", "", 1),
+                f"{S3_CERT_PREFIX}/{s3_key.split('/')[-1]}",
+            ]
+            found = False
+            for v in variantes:
+                try:
+                    s3_client.head_object(Bucket=bucket, Key=v)
+                    s3_key = v
+                    found = True
+                    logger.info(f"✅ Encontrado en variante: {v}")
+                    break
+                except Exception:
+                    continue
+            if not found:
+                logger.error(f"❌ Certificado no encontrado en S3: {s3_key}")
+                return None
+        
+        # Generar presigned URL (válida 24 horas)
+        presigned_url = s3_client.generate_presigned_url(
+            'get_object',
+            Params={
+                'Bucket': bucket,
+                'Key': s3_key,
+                'ResponseContentDisposition': 'inline',
+                'ResponseContentType': 'image/png',
+            },
+            ExpiresIn=86400
+        )
+        
+        logger.info(f"✅ Presigned URL cert: {presigned_url[:100]}...")
+        return presigned_url
+        
+    except Exception as e:
+        logger.error(f"❌ Error generando URL certificado: {e}")
+        # Fallback: URL pública directa
+        try:
+            s3_key = str(certificado.archivo_imagen.name)
+            bucket = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'eki-produccion')
+            return f"https://{bucket}.s3.{S3_REGION}.amazonaws.com/{s3_key}"
+        except Exception:
+            return None
 
 
 def _generar_certificado_simple(plantilla_url, nombre_estudiante, cedula, org_nombre, url_verificacion):
@@ -89,21 +216,49 @@ def _generar_certificado_simple(plantilla_url, nombre_estudiante, cedula, org_no
     return buf
 
 
+def _guardar_cert_s3(certificado, img_buffer, label=""):
+    """
+    Sube el buffer de imagen a S3 via boto3 DIRECTO y actualiza el modelo.
+    Retorna True si éxito.
+    """
+    filename = f"certificado_{certificado.codigo_verificacion}.png"
+    img_buffer.seek(0)
+    s3_key, public_url = _subir_imagen_s3_directo(img_buffer, filename)
+    if s3_key:
+        # Guardar el S3 key en el campo archivo_imagen (para referencia)
+        certificado.archivo_imagen.name = s3_key
+        logger.info(f"✅ {label}: S3 key={s3_key}, URL={public_url}")
+        return True
+    return False
+
+
 def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
     """
-    Genera el certificado y lo guarda como IMAGEN (siempre).
+    Genera el certificado y lo sube a S3 via boto3 DIRECTO.
+    
+    NOTA: NO usa Django S3Boto3Storage.save() porque NO guardaba realmente
+    los archivos (S3 devolvía 404). Usa boto3.upload_fileobj directamente.
     
     Prioridades:
       0) Marcadores RGB + url_plantilla_imagen (PlantillaCertificado en DB)
       1) Marcadores RGB + plantilla eki por defecto (S3)
       2) FALLBACK SIMPLE: texto sobre imagen sin marcadores (SIEMPRE funciona)
+      3) Imagen blanca desde cero con Pillow
     
     GARANTÍA: Siempre genera archivo_imagen (PNG). Nunca cae a PDF.
     """
-    # Si ya tiene imagen y no es force, no regenerar
+    # Si ya tiene imagen verificable en S3 y no es force, no regenerar
     if certificado.archivo_imagen and not force:
-        logger.info(f"Certificado {certificado.codigo_verificacion} ya tiene imagen")
-        return True
+        # Verificar que realmente existe en S3
+        try:
+            s3_key = str(certificado.archivo_imagen.name)
+            bucket = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'eki-produccion')
+            s3_client = _get_s3_client()
+            s3_client.head_object(Bucket=bucket, Key=s3_key)
+            logger.info(f"Certificado {certificado.codigo_verificacion} ya tiene imagen VERIFICADA en S3")
+            return True
+        except Exception:
+            logger.warning(f"⚠️ Certificado {certificado.codigo_verificacion} tenía imagen pero NO EXISTE en S3, regenerando...")
     
     try:
         from .models_certificados import PlantillaCertificado
@@ -149,10 +304,7 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
                     organizacion_nombre=org_nombre,
                 )
                 if img_buffer:
-                    filename = f"certificado_{certificado.codigo_verificacion}.png"
-                    certificado.archivo_imagen.save(filename, ContentFile(img_buffer.read()), save=True)
-                    generado = True
-                    logger.info(f"✅ P0: Certificado con marcadores RGB desde plantilla DB: {plantilla.url_plantilla_imagen}")
+                    generado = _guardar_cert_s3(certificado, img_buffer, "P0 Marcadores+DB")
             except Exception as e:
                 logger.warning(f"⚠️ P0 falló ({e}), continuando...")
         
@@ -171,17 +323,14 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
                         organizacion_nombre=org_nombre,
                     )
                     if img_buffer:
-                        filename = f"certificado_{certificado.codigo_verificacion}.png"
-                        certificado.archivo_imagen.save(filename, ContentFile(img_buffer.read()), save=True)
-                        generado = True
-                        logger.info(f"✅ P1: Certificado con marcadores RGB desde default: {url_template}")
-                        break
+                        generado = _guardar_cert_s3(certificado, img_buffer, f"P1 Marcadores+Default({url_template[-20:]})")
+                        if generado:
+                            break
                 except Exception as e:
                     logger.warning(f"⚠️ P1 falló con {url_template}: {e}")
         
         # =====================================================
         # PRIORIDAD 2: FALLBACK SIMPLE (texto sobre imagen, sin marcadores)
-        # Esto SIEMPRE funciona si la imagen existe en S3
         # =====================================================
         if not generado:
             template_url = (plantilla.url_plantilla_imagen if plantilla and plantilla.url_plantilla_imagen else None)
@@ -195,17 +344,14 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
                         url_verificacion=url_verificacion,
                     )
                     if img_buffer:
-                        filename = f"certificado_{certificado.codigo_verificacion}.png"
-                        certificado.archivo_imagen.save(filename, ContentFile(img_buffer.read()), save=True)
-                        generado = True
-                        logger.info(f"✅ P2: Certificado SIMPLE (sin marcadores) desde: {url_try}")
-                        break
+                        generado = _guardar_cert_s3(certificado, img_buffer, f"P2 Simple({url_try[-20:]})")
+                        if generado:
+                            break
                 except Exception as e:
                     logger.warning(f"⚠️ P2 falló con {url_try}: {e}")
         
         # =====================================================
-        # PRIORIDAD 3: Generar imagen desde cero con Pillow (sin plantilla de S3)
-        # Último recurso absoluto — crea una imagen blanca con texto
+        # PRIORIDAD 3: Generar imagen desde cero con Pillow
         # =====================================================
         if not generado:
             try:
@@ -225,33 +371,23 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
                     font_big = ImageFont.load_default()
                     font_sm = ImageFont.load_default()
                 
-                # Título
                 draw.text((200, 80), "CERTIFICADO DE FINALIZACIÓN", font=font_sm, fill="black")
                 draw.text((200, 180), "Se otorga a:", font=font_sm, fill="gray")
-                # Nombre
                 bbox = draw.textbbox((0, 0), nombre_est.title(), font=font_big)
                 w = bbox[2] - bbox[0]
                 draw.text(((1200 - w) // 2, 250), nombre_est.title(), font=font_big, fill="black")
-                # Cédula
                 draw.text((200, 400), f"Cédula: {cedula_est}", font=font_sm, fill="gray")
-                # Org
                 draw.text((200, 460), f"Organización: {org_nombre}", font=font_sm, fill="gray")
-                # Curso
                 curso_nombre = certificado.curso.nombre if certificado.curso else ''
                 draw.text((200, 520), f"Curso: {curso_nombre}", font=font_sm, fill="gray")
-                # Fecha
                 draw.text((200, 600), f"Fecha: {timezone.now().strftime('%d/%m/%Y')}", font=font_sm, fill="gray")
-                # Código
                 draw.text((200, 660), f"Código: {certificado.codigo_verificacion}", font=font_sm, fill="gray")
                 
                 buf = BytesIO()
                 img.save(buf, format="PNG")
                 buf.seek(0)
                 
-                filename = f"certificado_{certificado.codigo_verificacion}.png"
-                certificado.archivo_imagen.save(filename, ContentFile(buf.read()), save=True)
-                generado = True
-                logger.info(f"✅ P3: Certificado generado DESDE CERO (imagen blanca)")
+                generado = _guardar_cert_s3(certificado, buf, "P3 Desde-Cero")
             except Exception as e:
                 logger.error(f"❌ P3 falló: {e}")
         
@@ -259,7 +395,7 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
             certificado.emitido = True
             certificado.fecha_emision = timezone.now()
             certificado.save()
-            logger.info(f"✅ Certificado {certificado.codigo_verificacion} GUARDADO - archivo_imagen={bool(certificado.archivo_imagen)}")
+            logger.info(f"✅ Certificado {certificado.codigo_verificacion} GUARDADO EN S3 - archivo_imagen.name={certificado.archivo_imagen.name}")
         else:
             logger.error(f"❌ TODAS las prioridades fallaron para certificado {certificado.codigo_verificacion}")
         
@@ -303,10 +439,13 @@ def enviar_certificado_whatsapp(certificado):
         usar_imagen = False
         media_url = None
         
-        # Preferir imagen sobre PDF — usar URL pública directa (AWS_DEFAULT_ACL=public-read)
+        # Preferir imagen sobre PDF — usar presigned URL (garantiza acceso por Twilio)
         if certificado.archivo_imagen:
             usar_imagen = True
-            media_url = certificado.archivo_imagen.url
+            media_url = obtener_url_certificado_twilio(certificado)
+            if not media_url:
+                # Fallback a URL pública directa
+                media_url = certificado.archivo_imagen.url
 
         # Si no hay imagen, usar PDF
         if not usar_imagen:
@@ -497,7 +636,7 @@ def verificar_certificado_publico(codigo_verificacion):
             'fecha_emision': certificado.fecha_emision,
             'duracion_dias': certificado.duracion_curso(),
             'pdf_url': certificado.archivo_pdf.url if certificado.archivo_pdf else None,
-            'imagen_url': certificado.archivo_imagen.url if certificado.archivo_imagen else None
+            'imagen_url': obtener_url_certificado_twilio(certificado) if certificado.archivo_imagen else None
         }
         
     except Certificado.DoesNotExist:

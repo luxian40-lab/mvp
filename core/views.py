@@ -2317,15 +2317,22 @@ Has completado el curso: *{progreso.curso.nombre}*
                                     # Imagen de certificado — generar con Pillow y enviar como imagen
                                     msg_cert_img = ""
                                     try:
-                                        from .certificado_service import crear_certificado_automatico
+                                        from .certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
                                         logger.info(f"🎓 Iniciando generación de certificado para {estudiante.nombre} - {progreso.curso.nombre}")
                                         cert = crear_certificado_automatico(estudiante, progreso.curso)
                                         logger.info(f"🎓 Certificado resultado: cert={cert}, imagen={cert.archivo_imagen if cert else 'N/A'}, pdf={cert.archivo_pdf if cert else 'N/A'}")
                                         
                                         if cert and cert.archivo_imagen:
-                                            cert_url = cert.archivo_imagen.url
-                                            msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
-                                            logger.info(f"✅ Certificado IMAGEN URL: {cert_url}")
+                                            # Usar presigned URL (garantiza acceso por Twilio)
+                                            cert_url = obtener_url_certificado_twilio(cert)
+                                            if cert_url:
+                                                msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                                                logger.info(f"✅ Certificado PRESIGNED URL: {cert_url[:100]}...")
+                                            else:
+                                                # Fallback URL directa
+                                                cert_url = cert.archivo_imagen.url
+                                                msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                                                logger.info(f"✅ Certificado URL directa: {cert_url}")
                                         elif cert and cert.archivo_pdf:
                                             cert_url = cert.archivo_pdf.url
                                             msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert_url}"
@@ -2337,9 +2344,12 @@ Has completado el curso: *{progreso.curso.nombre}*
                                             generar_y_guardar_certificado(cert, force=True)
                                             cert.refresh_from_db()
                                             if cert.archivo_imagen:
-                                                cert_url = cert.archivo_imagen.url
-                                                msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
-                                                logger.info(f"✅ Certificado IMAGEN URL (retry): {cert_url}")
+                                                cert_url = obtener_url_certificado_twilio(cert)
+                                                if cert_url:
+                                                    msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                                                    logger.info(f"✅ Certificado PRESIGNED URL (retry): {cert_url[:100]}...")
+                                                else:
+                                                    msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
                                             else:
                                                 msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
                                         else:
