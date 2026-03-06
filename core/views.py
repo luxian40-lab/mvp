@@ -2329,8 +2329,9 @@ Has completado el curso: *{progreso.curso.nombre}*
                                                 msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
                                                 logger.info(f"✅ Certificado URL para Twilio: {cert_url}")
                                             else:
-                                                # Fallback URL directa
-                                                cert_url = cert.archivo_imagen.url
+                                                # Fallback URL directa sin /media/ prefix
+                                                s3_key = str(cert.archivo_imagen.name)
+                                                cert_url = f"https://eki-produccion.s3.us-east-2.amazonaws.com/{s3_key}"
                                                 msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
                                                 logger.info(f"✅ Certificado URL fallback: {cert_url}")
                                         elif cert and cert.archivo_pdf:

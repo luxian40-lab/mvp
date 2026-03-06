@@ -915,14 +915,23 @@ Escribe *"mi progreso"* para ver tu avance"""
                     import logging
                     logging.getLogger(__name__).warning(f"⚠️ {nombre_asistente_fin} resumen falló: {e}")
                 
-                # Imagen de certificado — usar URL pública directa
+                # Imagen de certificado — usar URL pública directa (sin /media/ de Django)
                 msg_cert_img = ""
                 try:
-                    from .certificado_service import crear_certificado_automatico
+                    from .certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
                     cert = crear_certificado_automatico(estudiante, progreso.curso)
                     if cert and cert.archivo_imagen:
-                        cert_url = cert.archivo_imagen.url
-                        msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                        cert_url = obtener_url_certificado_twilio(cert)
+                        if cert_url:
+                            msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                        else:
+                            # Fallback: construir URL directa sin /media/
+                            import os
+                            from django.conf import settings as _s
+                            bucket = getattr(_s, 'AWS_STORAGE_BUCKET_NAME', 'eki-produccion')
+                            s3_key = str(cert.archivo_imagen.name)
+                            cert_url = f"https://{bucket}.s3.us-east-2.amazonaws.com/{s3_key}"
+                            msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
                     elif cert and cert.archivo_pdf:
                         cert_url = cert.archivo_pdf.url
                         msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert_url}"

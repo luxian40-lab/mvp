@@ -430,13 +430,15 @@ def enviar_certificado_whatsapp(certificado):
         usar_imagen = False
         media_url = None
         
-        # Preferir imagen sobre PDF — usar presigned URL (garantiza acceso por Twilio)
+        # Preferir imagen sobre PDF — usar URL pública directa (ACL public-read)
         if certificado.archivo_imagen:
             usar_imagen = True
             media_url = obtener_url_certificado_twilio(certificado)
             if not media_url:
-                # Fallback a URL pública directa
-                media_url = certificado.archivo_imagen.url
+                # Fallback a URL pública directa sin /media/ prefix
+                s3_key = str(certificado.archivo_imagen.name)
+                bucket = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'eki-produccion')
+                media_url = f"https://{bucket}.s3.{S3_REGION}.amazonaws.com/{s3_key}"
 
         # Si no hay imagen, usar PDF
         if not usar_imagen:
