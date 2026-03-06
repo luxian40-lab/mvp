@@ -763,8 +763,16 @@ Cuando termines, escribe: *"listo"*"""
                     video_msg = f"🎬 *Video del Módulo {siguiente_modulo.numero}:*\n\n[MEDIA:{video_url}]"
                 
                 # Agentes: Tutor (impares) / Asistente (módulo 4)
-                nombre_tutor = progreso.curso.nombre_agente_tutor or 'Gerónimo'
-                nombre_asistente = progreso.curso.nombre_agente_asistente or 'María'
+                # Get agent names: Cliente > Curso > defaults
+                _cliente = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
+                nombre_tutor = (
+                    (_cliente.nombre_agente_tutor if _cliente and hasattr(_cliente, 'nombre_agente_tutor') and _cliente.nombre_agente_tutor else '') or
+                    progreso.curso.nombre_agente_tutor or 'Gerónimo'
+                )
+                nombre_asistente = (
+                    (_cliente.nombre_agente_asistente if _cliente and hasattr(_cliente, 'nombre_agente_asistente') and _cliente.nombre_agente_asistente else '') or
+                    progreso.curso.nombre_agente_asistente or 'María'
+                )
                 tutor_msg = None
                 if modulo_actual.numero >= 1 and modulo_actual.numero % 2 == 1:
                     try:
@@ -883,11 +891,14 @@ Cuando termines, escribe: *"listo"*"""
 
 
 Escribe *"examen"* para hacer el examen final
-Escribe *"ver cursos"* para tomar otro curso
 Escribe *"mi progreso"* para ver tu avance"""
                 
                 # Asistente: Resumen completo del curso antes de certificado
-                nombre_asistente_fin = progreso.curso.nombre_agente_asistente or 'María'
+                _cliente_fin = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
+                nombre_asistente_fin = (
+                    (_cliente_fin.nombre_agente_asistente if _cliente_fin and hasattr(_cliente_fin, 'nombre_agente_asistente') and _cliente_fin.nombre_agente_asistente else '') or
+                    progreso.curso.nombre_agente_asistente or 'María'
+                )
                 msg_resumen = None
                 try:
                     from .tutor_ia_modulo import generar_resumen_curso_completo

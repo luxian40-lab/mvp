@@ -93,6 +93,21 @@ class Cliente(models.Model):
         verbose_name="Usar Gamificación",
         help_text="Si está activado, los estudiantes de este cliente podrán ver puntos, badges y recompensas. Si está desactivado, solo verán el contenido educativo."
     )
+    # NOMBRES PERSONALIZADOS DE AGENTES IA (por Cliente)
+    nombre_agente_tutor = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        verbose_name='Nombre del Profesor (Tutor IA)',
+        help_text='Nombre personalizado para el agente tutor/profesor (por defecto: Gerónimo). Ej: Carlos, Sofía'
+    )
+    nombre_agente_asistente = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        verbose_name='Nombre de la Asistente (IA)',
+        help_text='Nombre personalizado para la agente asistente (por defecto: María). Ej: Laura, Andrea'
+    )
     activo = models.BooleanField(
         default=True,
         verbose_name="Activo",
@@ -556,6 +571,22 @@ class Campana(models.Model):
         max_length=255, null=True, blank=True,
         verbose_name="Content SID de Twilio",
         help_text="SID del template aprobado en Twilio (ej: HX123abc...). Si se llena, se usa en vez de la plantilla Django."
+    )
+    
+    # CAMPAÑA DE CURSO: Al ejecutar, pone estudiantes en flujo habeas data → curso
+    es_campana_curso = models.BooleanField(
+        default=False,
+        verbose_name="¿Es campaña de inicio de curso?",
+        help_text="Si está activado, al enviar la campaña los estudiantes entrarán al flujo de habeas data → verificación → curso."
+    )
+    curso_destino = models.ForeignKey(
+        'Curso',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='campanas_curso',
+        verbose_name='Curso destino',
+        help_text='Curso al que se inscribirán los estudiantes al completar el onboarding de esta campaña.'
     )
     
     # NUEVO: Tipo de audiencia (individual o grupo)

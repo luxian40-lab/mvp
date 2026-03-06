@@ -117,6 +117,10 @@ class ClienteAdmin(admin.ModelAdmin):
             'fields': ('usar_gamificacion',),
             'description': '🎮 Si está activado, los estudiantes verán puntos, badges y recompensas. Si está desactivado, solo verán el contenido educativo sin elementos de juego.'
         }),
+        ('🤖 Nombres de Agentes IA', {
+            'fields': ('nombre_agente_tutor', 'nombre_agente_asistente'),
+            'description': '🎓 Personaliza los nombres de los agentes de IA para este cliente. Si se dejan vacíos, se usarán los nombres por defecto (Gerónimo y María). Roles: Tutor = Profesor que enseña módulos, Asistente = Ayuda y revisa progreso.',
+        }),
         ('Estado', {
             'fields': ('activo', 'notas_internas')
         }),
@@ -1807,6 +1811,15 @@ class CampanaAdmin(admin.ModelAdmin):
                 Crea tu template en <a href="https://console.twilio.com/us1/develop/sms/content-editor" target="_blank" style="color:#2196F3;">Twilio Content Editor</a>.
             </div>''')
         }),
+        ('🚀 Campaña de Inicio de Curso', {
+            'fields': ('es_campana_curso', 'curso_destino'),
+            'description': mark_safe('''<div style="background:#fff3e0;padding:15px;border-radius:8px;border-left:4px solid #ff9800;">
+                <strong>📚 Si esta es una campaña para iniciar un curso:</strong><br>
+                1. Marca "Es campaña de inicio de curso"<br>
+                2. Selecciona el curso destino<br>
+                3. Al enviar, los estudiantes entrarán al flujo: Habeas Data → Verificación → Curso
+            </div>''')
+        }),
         ('📄 Plantilla Django (Alternativa)', {
             'fields': ('plantilla',),
             'classes': ('collapse',),
@@ -2270,9 +2283,10 @@ class CursoAdmin(admin.ModelAdmin):
         ('📚 Información del Curso', {
             'fields': ('nombre', 'descripcion', 'cliente', 'duracion_semanas')
         }),
-        ('🤖 Nombres de Agentes IA', {
+        ('🤖 Nombres de Agentes IA (Override)', {
             'fields': ('nombre_agente_tutor', 'nombre_agente_asistente'),
-            'description': '🎓 Personaliza los nombres de los agentes de IA para este curso. Si se dejan vacíos, se usarán los nombres por defecto (Gerónimo y María).',
+            'description': '🎓 Override por curso. Si se dejan vacíos, se usarán los nombres configurados en el Cliente. Si el Cliente tampoco tiene, se usan los por defecto (Gerónimo y María).',
+            'classes': ('collapse',),
         }),
         ('👥 Grupo de WhatsApp', {
             'fields': ('enlace_grupo_whatsapp',),

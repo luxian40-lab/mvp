@@ -57,6 +57,21 @@ def ejecutar_campana_servicio(campana):
     
     for estudiante in destinatarios:
         try:
+            # Si es campaña de curso, poner al estudiante en flujo de onboarding
+            if getattr(campana, 'es_campana_curso', False):
+                estudiante.estado_chat = 'ESPERANDO_HABEAS_DATA'
+                estudiante.acepto_terminos = False
+                estudiante.estado_onboarding = 'nuevo'
+                estudiante.save()
+                # Si hay curso destino, crear progreso
+                if getattr(campana, 'curso_destino', None):
+                    from .models import ProgresoEstudiante
+                    ProgresoEstudiante.objects.get_or_create(
+                        estudiante=estudiante,
+                        curso=campana.curso_destino,
+                        defaults={'completado': False}
+                    )
+            
             if content_sid:
                 # Envío con Content Template de Twilio
                 from .whatsapp_service import enviar_template_twilio

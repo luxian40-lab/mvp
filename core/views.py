@@ -655,15 +655,11 @@ def importar_estudiantes(request):
                     curso_nombre = _normalizar_celda(row[7]) if len(row) > 7 else ''
                     cliente_nombre = _normalizar_celda(row[8]) if len(row) > 8 else ''
                     
-                    # Validar campos obligatorios
+                    # Validar campos obligatorios (solo Cédula, Nombre, Teléfono)
                     campos_faltantes = []
                     if not cedula: campos_faltantes.append('Cédula')
                     if not nombre: campos_faltantes.append('Nombre')
                     if not telefono_raw: campos_faltantes.append('Teléfono')
-                    if not municipio: campos_faltantes.append('Municipio')
-                    if not departamento: campos_faltantes.append('Departamento')
-                    if not genero_raw: campos_faltantes.append('Género')
-                    if not edad_raw: campos_faltantes.append('Edad')
                     
                     if campos_faltantes:
                         errores.append(f"Fila {row_idx}: Faltan campos obligatorios: {', '.join(campos_faltantes)}")
@@ -675,20 +671,21 @@ def importar_estudiantes(request):
                         errores.append(f"Fila {row_idx}: Teléfono inválido '{telefono_raw}'")
                         continue
                     
-                    # Normalizar género
-                    genero = GENEROS_VALIDOS.get(genero_raw, '')
+                    # Normalizar género (opcional, default NR)
+                    genero = GENEROS_VALIDOS.get(genero_raw, '') if genero_raw else ''
                     if not genero:
-                        errores.append(f"Fila {row_idx}: Género '{genero_raw}' no válido (use: M, F, O, NR)")
-                        continue
+                        genero = 'NR'
                     
-                    # Validar edad
+                    # Validar edad (opcional)
                     edad = None
                     if edad_raw:
                         try:
-                            edad = int(re.sub(r'\D', '', edad_raw))
-                            if edad < 1 or edad > 120:
-                                errores.append(f"Fila {row_idx}: Edad '{edad_raw}' fuera de rango (1-120)")
-                                continue
+                            edad_str = re.sub(r'\D', '', str(edad_raw))
+                            if edad_str:
+                                edad = int(edad_str)
+                                if edad < 1 or edad > 120:
+                                    errores.append(f"Fila {row_idx}: Edad '{edad_raw}' fuera de rango (1-120)")
+                                    continue
                         except (ValueError, TypeError):
                             errores.append(f"Fila {row_idx}: Edad '{edad_raw}' no es un número válido")
                             continue
@@ -1357,11 +1354,38 @@ def _procesar_twilio_webhook(post_data):
                                 progreso.modulo_actual = modulo
                                 progreso.save()
                         if modulo:
+                            # Get agent names: Cliente > Curso > defaults
+                            cliente_obj = estudiante.cliente
+                            nombre_tutor = (
+                                (cliente_obj.nombre_agente_tutor if cliente_obj and hasattr(cliente_obj, 'nombre_agente_tutor') and cliente_obj.nombre_agente_tutor else '') or
+                                curso.nombre_agente_tutor or 'Gerónimo'
+                            )
+                            nombre_asistente = (
+                                (cliente_obj.nombre_agente_asistente if cliente_obj and hasattr(cliente_obj, 'nombre_agente_asistente') and cliente_obj.nombre_agente_asistente else '') or
+                                curso.nombre_agente_asistente or 'María'
+                            )
+                            
                             # Presentación de agentes
                             from .tutor_ia_modulo import generar_presentacion_agentes
-                            nombre_tutor = curso.nombre_agente_tutor or 'Gerónimo'
-                            nombre_asistente = curso.nombre_agente_asistente or 'María'
-                            presentacion = generar_presentacion_agentes(nombre_tutor=nombre_tutor, nombre_asistente=nombre_asistente)
+                            msg_tutor, msg_asistente = generar_presentacion_agentes(
+                                curso_nombre=curso.nombre,
+                                estudiante_nombre=estudiante.nombre or 'Estudiante',
+                                nombre_tutor=nombre_tutor,
+                                nombre_asistente=nombre_asistente
+                            )
+                            
+                            # Gamification explanation message
+                            msg_gamificacion = ""
+                            usar_gamificacion = (cliente_obj.usar_gamificacion if cliente_obj else True)
+                            if usar_gamificacion:
+                                msg_gamificacion = (
+                                    "🎮 *¡Gamificación Activa!*\n\n"
+                                    "A medida que completes los módulos, ganarás:\n"
+                                    "💰 *Puntos* por cada módulo completado\n"
+                                    "🏅 *Niveles* que subirás automáticamente\n"
+                                    "🔥 *Rachas* por módulos consecutivos\n\n"
+                                    "¡Vamos a aprender y avanzar juntos! 💪"
+                                )
                             
                             video_url = obtener_video_url(modulo)
                             archivos_multimedia = modulo.archivos_multimedia.filter(activo=True)
@@ -1382,16 +1406,27 @@ def _procesar_twilio_webhook(post_data):
                             
                             msg_bienvenida = (
                                 f"✅ *¡Datos confirmados, {estudiante.nombre}!*\n\n"
-                                f"Bienvenido al programa de *{org_nombre}*\n\n"
-                                f"{presentacion}\n\n"
+                                f"Bienvenido al programa de *{org_nombre}*"
+                            )
+                            
+                            msg_modulo = (
                                 f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
                                 f"{modulo.descripcion}\n\n"
                                 f"{modulo.contenido}{archivos_msg}\n\n\n"
                                 f"Cuando termines, escribe: *\"listo\"*"
                             )
                             if primera_media_url:
-                                msg_bienvenida += f"\n\n[MEDIA:{primera_media_url}]"
-                            texto_respuesta = msg_bienvenida
+                                msg_modulo += f"\n\n[MEDIA:{primera_media_url}]"
+                            
+                            # Build multi-message: gamificación → tutor → asistente → módulo
+                            partes_bienvenida = [msg_bienvenida]
+                            if msg_gamificacion:
+                                partes_bienvenida.append(msg_gamificacion)
+                            partes_bienvenida.append(msg_tutor)
+                            partes_bienvenida.append(msg_asistente)
+                            partes_bienvenida.append(msg_modulo)
+                            
+                            texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_bienvenida)
                         else:
                             texto_respuesta = f"✅ *¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nEl curso aún no tiene módulos configurados. Te notificaremos cuando estén listos."
                     else:
@@ -1407,32 +1442,24 @@ def _procesar_twilio_webhook(post_data):
                 # if resultado.get('success'):
                 #     return
             elif any(k in msg_lower for k in keywords_modificar):
-                # Botón "Modificar" presionado → permitir auto-corrección
-                # NOTA: Cédula/documento NO se puede cambiar aquí → genera ticket de soporte
-                texto_respuesta = (
-                    "📝 *Corrección de Datos*\n\n"
-                    "Puedes corregir cualquiera de tus datos.\n\n"
-                    "Escribe el campo que deseas cambiar seguido del nuevo valor:\n\n"
-                    "1️⃣ *nombre:* Tu nombre completo\n"
-                    "2️⃣ *municipio:* Tu municipio\n"
-                    "3️⃣ *departamento:* Tu departamento\n"
-                    "4️⃣ *documento:* Envía ticket de soporte\n"
-                    "5️⃣ *edad:* Tu edad\n"
-                    "6️⃣ *genero:* M, F, Otro, NR\n\n"
-                    "📝 _Ejemplos:_\n"
-                    "_nombre: María García López_\n"
-                    "_municipio: Bogotá_\n"
-                    "_edad: 35_\n"
-                    "_genero: F_\n\n"
-                    "📝 _O todo junto (una por línea):_\n"
-                    "_nombre: María García_\n"
-                    "_municipio: Bogotá_\n"
-                    "_edad: 35_\n\n"
-                    "👉 Escribe *3* para reintentar cédula\n"
-                    "👉 Escribe *menú* si todo ya está bien"
+                # Botón "Modificar" presionado → crear ticket de soporte directamente
+                from .models import SolicitudSoporte
+                SolicitudSoporte.objects.create(
+                    estudiante=estudiante,
+                    tipo='correccion_datos',
+                    mensaje=f"Solicitud de corrección de datos desde verificación. Datos actuales: Nombre={estudiante.nombre}, Cédula={estudiante.cedula}, Municipio={estudiante.municipio}",
+                    estado='pendiente'
                 )
-                # Guardar estado para manejar la respuesta
-                estudiante.estado_chat = 'ESPERANDO_CORRECCION_DATOS'
+                texto_respuesta = (
+                    "📝 *Solicitud de Corrección Recibida*\n\n"
+                    f"Hola {estudiante.nombre}, hemos creado un ticket de soporte "
+                    "para la corrección de tus datos.\n\n"
+                    "📧 *Nuestro equipo te contactará pronto.*\n\n"
+                    "👉 Escribe *continuar* para seguir con tu curso\n"
+                    "👉 Escribe *ayuda* si necesitas asistencia adicional"
+                )
+                estudiante.estado_chat = 'ACTIVO'
+                estudiante.estado_onboarding = 'completado'
                 estudiante.save()
             else:
                 # Re-enviar la plantilla de confirmación (tiene botones Confirmar/Modificar)
@@ -1466,181 +1493,38 @@ def _procesar_twilio_webhook(post_data):
                 import traceback; traceback.print_exc()
             return  # CORTAR EJECUCIÓN
         
-        # --- BARRERA 3B: AUTO-CORRECCIÓN DE DATOS ---
+        # --- BARRERA 3B: LEGACY AUTO-CORRECCIÓN → Redirigir a ACTIVO ---
         if estado_chat in ('ESPERANDO_AYUDA_MODIFICAR', 'ESPERANDO_CORRECCION_DATOS'):
+            # Ya no hay menú de corrección — redirigir al flujo normal
+            estudiante.estado_chat = 'ACTIVO'
+            estudiante.estado_onboarding = 'completado'
+            estudiante.save()
+            
             msg_lower = msg_body.strip().lower()
             
-            if msg_lower in ['3', 'reintentar', 'verificación', 'verificacion', 'cédula', 'cedula']:
-                # Reintentar verificación de cédula
-                estudiante.estado_chat = 'ESPERANDO_CEDULA'
-                estudiante.save()
-                texto_respuesta = (
-                    "🔄 *Reintentando verificación*\n\n"
-                    "Por favor escribe tu *número de cédula* "
-                    "(solo números, sin puntos ni espacios).\n\n"
-                    "👉 Ejemplo: 1234567890"
+            # Si dice "continuar", "sí" o similar → enviar al curso
+            keywords_continuar = ['continuar', 'sí', 'si', 'ok', 'listo', 'seguir', 'menu', 'menú']
+            keywords_ayuda = ['ayuda', 'soporte', 'ticket', 'problema']
+            
+            if any(k in msg_lower for k in keywords_ayuda):
+                from .models import SolicitudSoporte
+                SolicitudSoporte.objects.create(
+                    estudiante=estudiante,
+                    tipo='correccion_datos',
+                    mensaje=f"Solicitud de soporte: {msg_body}",
+                    estado='pendiente'
                 )
-            elif msg_lower in ['menu', 'menú']:
-                estudiante.estado_chat = 'ACTIVO'
-                estudiante.estado_onboarding = 'completado'
-                estudiante.save()
-                # Menú oculto — enviar curso directamente
-                # from .whatsapp_service import enviar_menu_principal
-                # resultado = enviar_menu_principal(msg_from, estudiante.nombre)
-                # if resultado.get('success'):
-                #     return
                 texto_respuesta = (
-                    f"✅ *¡Datos actualizados, {estudiante.nombre}!*\n\n"
-                    "Escribe *mis cursos* para continuar con tu curso."
+                    "🆘 *Solicitud Recibida*\n\n"
+                    f"Hola {estudiante.nombre}, hemos registrado tu solicitud.\n"
+                    "Nuestro equipo te contactará pronto.\n\n"
+                    "👉 Escribe *continuar* para seguir con tu curso"
                 )
             else:
-                # Intentar parsear los datos corregidos
-                # NUEVO: Soporte para corrección campo por campo (campo: valor)
-                cambios_realizados = []
-                lineas = [l.strip() for l in msg_body.split('\n') if l.strip()]
-                campo_valor_detectado = False
-                
-                GENEROS_MAP = {
-                    'm': 'M', 'f': 'F', 'o': 'O', 'nr': 'NR',
-                    'masculino': 'M', 'femenino': 'F', 'otro': 'O', 'no reporta': 'NR',
-                    'hombre': 'M', 'mujer': 'F',
-                }
-                TIPOS_DOC = {'cc': 'CC', 'ti': 'TI', 'ce': 'CE', 'pp': 'PP'}
-                
-                for linea in lineas:
-                    if ':' in linea:
-                        campo, _, valor = linea.partition(':')
-                        campo = campo.strip().lower()
-                        valor = valor.strip()
-                        
-                        if not valor:
-                            continue
-                        
-                        if campo == 'nombre':
-                            estudiante.nombre = valor.title()
-                            cambios_realizados.append(f"👤 Nombre → {estudiante.nombre}")
-                            campo_valor_detectado = True
-                        elif campo == 'municipio':
-                            estudiante.municipio = valor.title()
-                            cambios_realizados.append(f"📍 Municipio → {estudiante.municipio}")
-                            campo_valor_detectado = True
-                        elif campo == 'departamento':
-                            estudiante.departamento = valor.title()
-                            cambios_realizados.append(f"🗺️ Departamento → {estudiante.departamento}")
-                            campo_valor_detectado = True
-                        elif campo in ('edad', 'años', 'anos'):
-                            try:
-                                edad_val = int(re.sub(r'\D', '', valor))
-                                if 1 <= edad_val <= 120:
-                                    estudiante.edad = edad_val
-                                    cambios_realizados.append(f"🎂 Edad → {edad_val}")
-                                    campo_valor_detectado = True
-                            except (ValueError, TypeError):
-                                pass
-                        elif campo in ('genero', 'género', 'sexo'):
-                            genero = GENEROS_MAP.get(valor.lower(), '')
-                            if genero:
-                                estudiante.genero = genero
-                                cambios_realizados.append(f"👫 Género → {estudiante.get_genero_display()}")
-                                campo_valor_detectado = True
-                        elif campo in ('documento', 'doc', 'cedula', 'cédula'):
-                            # Crear ticket de soporte para cambio de cédula
-                            from .models import SolicitudSoporte
-                            SolicitudSoporte.objects.create(
-                                estudiante=estudiante,
-                                mensaje_original=f"Solicitud de cambio de documento: {valor}",
-                                keyword_usada='modificar_documento',
-                                asunto='Cambio de cédula/documento',
-                                prioridad='media'
-                            )
-                            cambios_realizados.append(
-                                "🆔 *Documento:* Se creó un ticket de soporte.\n"
-                                "Un asesor revisará tu solicitud y te contactará pronto.\n"
-                                "📧 *Ticket registrado correctamente.*"
-                            )
-                            campo_valor_detectado = True
-                
-                if campo_valor_detectado and cambios_realizados:
-                    estudiante.estado_chat = 'CONFIRMANDO_DATOS'
-                    estudiante.save()
-                    
-                    logger.info(f"✅ Datos corregidos campo por campo: {', '.join(cambios_realizados)}")
-                    
-                    org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
-                    from .whatsapp_service import enviar_confirmacion_datos
-                    resultado_envio = enviar_confirmacion_datos(
-                        msg_from,
-                        estudiante.nombre,
-                        f"{estudiante.tipo_documento} {estudiante.cedula}",
-                        org_nombre
-                    )
-                    if resultado_envio.get('success'):
-                        return
-                    
-                    texto_respuesta = (
-                        "✅ *¡Datos actualizados!*\n\n"
-                        "Cambios realizados:\n"
-                        + '\n'.join(cambios_realizados) + "\n\n"
-                        f"👤 *Nombre:* {estudiante.nombre}\n"
-                        f"🆔 *Documento:* {estudiante.tipo_documento} {estudiante.cedula}\n"
-                        f"📍 *Municipio:* {estudiante.municipio or 'No registrado'}\n"
-                        f"🗺️ *Departamento:* {estudiante.departamento or 'No registrado'}\n"
-                        f"🎂 *Edad:* {estudiante.edad or 'No registrada'}\n"
-                        f"👫 *Género:* {estudiante.get_genero_display() if estudiante.genero else 'No registrado'}\n"
-                        f"🏢 *Organización:* {org_nombre}\n\n"
-                        "*¿Tus datos están correctos?*\n\n"
-                        "👉 Escribe *Sí* si todo está bien\n"
-                        "👉 Escribe *No* si hay un error"
-                    )
-                else:
-                    # Fallback: intentar parseo legacy (4 líneas: nombre, municipio, tipo_doc, cedula)
-                    from .security_handler import _parsear_datos_registro
-                    resultado = _parsear_datos_registro(msg_body, estudiante)
-                    if resultado:
-                        nombre, municipio, tipo_doc, cedula = resultado
-                        estudiante.nombre = nombre
-                        estudiante.municipio = municipio
-                        estudiante.tipo_documento = tipo_doc
-                        estudiante.cedula = cedula
-                        estudiante.estado_chat = 'CONFIRMANDO_DATOS'
-                        estudiante.save()
-                        
-                        logger.info(f"✅ Datos auto-corregidos (legacy): {nombre}, {municipio}, {tipo_doc} {cedula}")
-                        
-                        org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
-                        from .whatsapp_service import enviar_confirmacion_datos
-                        resultado_envio = enviar_confirmacion_datos(
-                            msg_from,
-                            nombre,
-                            f"{tipo_doc} {cedula}",
-                            org_nombre
-                        )
-                        if resultado_envio.get('success'):
-                            return
-                        
-                        texto_respuesta = (
-                            "✅ *¡Datos actualizados!*\n\n"
-                            f"👤 *Nombre:* {nombre}\n"
-                            f"📍 *Municipio:* {municipio}\n"
-                            f"🆔 *Documento:* {tipo_doc} {cedula}\n"
-                            f"🏢 *Organización:* {org_nombre}\n\n"
-                            "*¿Tus datos están correctos?*\n\n"
-                            "👉 Escribe *Sí* si todo está bien\n"
-                            "👉 Escribe *No* si hay un error"
-                        )
-                    else:
-                        texto_respuesta = (
-                            "❌ No pude entender tus datos.\n\n"
-                            "Escribe el campo seguido del valor:\n\n"
-                            "📝 _Ejemplos:_\n"
-                            "_nombre: María García_\n"
-                            "_municipio: Bogotá_\n"
-                            "_edad: 35_\n"
-                            "_genero: F_\n"
-                            "_documento: CC 52456789_\n\n"
-                            "👉 Escribe *3* para reintentar cédula\n"
-                            "👉 Escribe *menú* si ya está bien"
-                        )
+                texto_respuesta = (
+                    f"✅ *¡Listo, {estudiante.nombre}!*\n\n"
+                    "Continuemos con tu curso."
+                )
             
             try:
                 from twilio.rest import Client as TwilioClient
@@ -1751,12 +1635,61 @@ def _procesar_twilio_webhook(post_data):
                     logger.error(f"❌ Error enviando selección curso: {e}")
                 return  # CORTAR EJECUCIÓN
             
-            # Detectar "Mis cursos" (botón o texto)
+            # Detectar "Mis cursos" → enviar directamente al curso asignado (sin lista)
             elif msg_lower in ['1', 'mis cursos', 'cursos', '📚 mis cursos']:
-                estudiante.estado_onboarding = 'esperando_seleccion_curso'
-                estudiante.save()
-                from .whatsapp_service import enviar_lista_cursos
-                enviar_lista_cursos(msg_from, estudiante)
+                from .models import Curso, ProgresoEstudiante
+                from .response_templates import obtener_video_url
+                org = estudiante.cliente
+                cursos = Curso.objects.filter(cliente=org, activo=True).order_by('orden', 'nombre') if org else Curso.objects.filter(activo=True).order_by('orden', 'nombre')
+                # Buscar progreso existente primero
+                progreso_existente = ProgresoEstudiante.objects.filter(estudiante=estudiante, curso__activo=True).first()
+                curso = progreso_existente.curso if progreso_existente else cursos.first()
+                if curso:
+                    progreso, _ = ProgresoEstudiante.objects.get_or_create(
+                        estudiante=estudiante, curso=curso, defaults={'completado': False}
+                    )
+                    modulo = progreso.modulo_actual
+                    if not modulo:
+                        modulo = curso.modulos.order_by('numero').first()
+                        if modulo:
+                            progreso.modulo_actual = modulo
+                            progreso.save()
+                    if modulo:
+                        video_url = obtener_video_url(modulo)
+                        media_tag = f"\n\n[MEDIA:{video_url}]" if video_url else ""
+                        texto_respuesta = (
+                            f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
+                            f"{modulo.contenido}\n\n\n"
+                            f"Cuando termines, escribe: *\"listo\"*{media_tag}"
+                        )
+                    else:
+                        texto_respuesta = f"📚 Tu curso *{curso.nombre}* aún no tiene módulos configurados."
+                else:
+                    texto_respuesta = "📚 Aún no tienes un curso asignado. Tu coordinador te lo asignará pronto."
+                try:
+                    from twilio.rest import Client as TwilioClient
+                    account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                    auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                    twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
+                    client_tw = TwilioClient(account_sid, auth_token)
+                    destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
+                    media_url_curso = None
+                    import re as re_mc
+                    media_m = re_mc.search(r'\[MEDIA:(.*?)\]', texto_respuesta)
+                    if media_m:
+                        media_url_curso = media_m.group(1).strip()
+                        texto_respuesta = texto_respuesta.replace(media_m.group(0), '').strip()
+                    mp = {'body': texto_respuesta, 'from_': str(twilio_number).strip(), 'to': str(destino).strip()}
+                    if media_url_curso:
+                        mp['media_url'] = [media_url_curso]
+                    try:
+                        client_tw.messages.create(**mp)
+                    except Exception:
+                        mp.pop('media_url', None)
+                        client_tw.messages.create(**mp)
+                    WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta[:500], tipo='SENT')
+                except Exception as e:
+                    logger.error(f"❌ Error enviando curso: {e}")
                 return
             
             # Detectar "Mis puntos" (botón o texto)
@@ -1782,33 +1715,24 @@ def _procesar_twilio_webhook(post_data):
                     pass
                 return
             
-            # Detectar "corregir datos" / "me equivoqué" → permitir auto-corrección incluso ya activo
+            # Detectar "corregir datos" / "me equivoqué" → crear ticket de soporte directamente
             elif msg_lower in ['4', 'corregir datos', 'corregir mis datos', 'cambiar datos', 'cambiar mis datos',
                                'me equivoqué', 'me equivoque', 'editar datos', 'modificar datos',
                                'datos incorrectos', 'mis datos', 'actualizar datos']:
-                texto_respuesta = (
-                    "📝 *Corrección de Datos*\n\n"
-                    "Puedes corregir cualquiera de tus datos.\n\n"
-                    "Escribe el campo que deseas cambiar seguido del nuevo valor:\n\n"
-                    "1️⃣ *nombre:* Tu nombre completo\n"
-                    "2️⃣ *municipio:* Tu municipio\n"
-                    "3️⃣ *departamento:* Tu departamento\n"
-                    "4️⃣ *documento:* Tipo y número (CC, TI, CE, PP)\n"
-                    "5️⃣ *edad:* Tu edad\n"
-                    "6️⃣ *genero:* M, F, Otro, NR\n\n"
-                    "📝 _Ejemplos:_\n"
-                    "_nombre: María García López_\n"
-                    "_municipio: Bogotá_\n"
-                    "_edad: 35_\n"
-                    "_documento: CC 52456789_\n"
-                    "_genero: F_\n\n"
-                    "📝 _O todo junto (una por línea):_\n"
-                    "_nombre: María García_\n"
-                    "_municipio: Bogotá_\n\n"
-                    "👉 Escribe *menú* cuando termines"
+                from .models import SolicitudSoporte
+                SolicitudSoporte.objects.create(
+                    estudiante=estudiante,
+                    tipo='correccion_datos',
+                    mensaje=f"Solicitud de corrección de datos. Datos actuales: Nombre={estudiante.nombre}, Cédula={estudiante.cedula}",
+                    estado='pendiente'
                 )
-                estudiante.estado_chat = 'ESPERANDO_CORRECCION_DATOS'
-                estudiante.save()
+                texto_respuesta = (
+                    "📝 *Solicitud de Corrección Recibida*\n\n"
+                    f"Hola {estudiante.nombre}, hemos creado un ticket de soporte "
+                    "para la corrección de tus datos.\n\n"
+                    "📧 *Nuestro equipo te contactará pronto.*\n\n"
+                    "👉 Escribe *continuar* para seguir con tu curso"
+                )
                 try:
                     from twilio.rest import Client as TwilioClient
                     account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
@@ -1822,18 +1746,60 @@ def _procesar_twilio_webhook(post_data):
                     logger.error(f"❌ Error enviando corrección datos: {e}")
                 return
             
-            # Detectar "menú" - enviar lista de cursos directamente (menú oculto)
+            # Detectar "menú" → enviar directamente al curso asignado (sin lista)
             elif msg_lower in ['menu', 'menú', 'inicio', 'hola']:
-                org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
-                # Menú oculto — redirigir a lista de cursos
-                # from .whatsapp_service import enviar_menu_principal
-                # resultado = enviar_menu_principal(msg_from, estudiante.nombre)
-                # if resultado.get('success'):
-                #     return
-                estudiante.estado_onboarding = 'esperando_seleccion_curso'
-                estudiante.save()
-                from .whatsapp_service import enviar_lista_cursos
-                enviar_lista_cursos(msg_from, estudiante)
+                from .models import Curso, ProgresoEstudiante
+                from .response_templates import obtener_video_url
+                org = estudiante.cliente
+                cursos = Curso.objects.filter(cliente=org, activo=True).order_by('orden', 'nombre') if org else Curso.objects.filter(activo=True).order_by('orden', 'nombre')
+                progreso_existente = ProgresoEstudiante.objects.filter(estudiante=estudiante, curso__activo=True).first()
+                curso = progreso_existente.curso if progreso_existente else cursos.first()
+                if curso:
+                    progreso, _ = ProgresoEstudiante.objects.get_or_create(
+                        estudiante=estudiante, curso=curso, defaults={'completado': False}
+                    )
+                    modulo = progreso.modulo_actual
+                    if not modulo:
+                        modulo = curso.modulos.order_by('numero').first()
+                        if modulo:
+                            progreso.modulo_actual = modulo
+                            progreso.save()
+                    if modulo:
+                        video_url = obtener_video_url(modulo)
+                        media_tag = f"\n\n[MEDIA:{video_url}]" if video_url else ""
+                        texto_respuesta = (
+                            f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
+                            f"{modulo.contenido}\n\n\n"
+                            f"Cuando termines, escribe: *\"listo\"*{media_tag}"
+                        )
+                    else:
+                        texto_respuesta = f"📚 Tu curso *{curso.nombre}* aún no tiene módulos configurados."
+                else:
+                    texto_respuesta = "📚 Aún no tienes un curso asignado. Tu coordinador te lo asignará pronto."
+                try:
+                    from twilio.rest import Client as TwilioClient
+                    account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                    auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                    twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
+                    client_tw = TwilioClient(account_sid, auth_token)
+                    destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
+                    media_url_menu = None
+                    import re as re_menu
+                    media_m = re_menu.search(r'\[MEDIA:(.*?)\]', texto_respuesta)
+                    if media_m:
+                        media_url_menu = media_m.group(1).strip()
+                        texto_respuesta = texto_respuesta.replace(media_m.group(0), '').strip()
+                    mp = {'body': texto_respuesta, 'from_': str(twilio_number).strip(), 'to': str(destino).strip()}
+                    if media_url_menu:
+                        mp['media_url'] = [media_url_menu]
+                    try:
+                        client_tw.messages.create(**mp)
+                    except Exception:
+                        mp.pop('media_url', None)
+                        client_tw.messages.create(**mp)
+                    WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta[:500], tipo='SENT')
+                except Exception as e:
+                    logger.error(f"❌ Error enviando curso: {e}")
                 return
         
         # ============================================================
@@ -2430,8 +2396,7 @@ Has completado el curso: *{progreso.curso.nombre}*
                             "⚠️ *Has agotado tus preguntas libres a la IA para este módulo.*\n\n"
                             "Para desbloquear más preguntas, necesitas responder "
                             "la pregunta de evaluación del módulo actual.\n\n"
-                            "📝 Escribe *\"listo\"* para continuar con tu módulo\n"
-                            "📚 Escribe *\"mis cursos\"* para ver los cursos disponibles"
+                            "📝 Escribe *\"listo\"* para continuar con tu módulo"
                         )
                     else:
                         try:
