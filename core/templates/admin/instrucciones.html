@@ -4658,11 +4658,11 @@ Escribe "ver cursos" para tomar otro curso
 
                 <ul>
 
-                    <li><strong>Rojo puro (255,0,0):</strong> Posición del nombre del estudiante</li>
+                    <li><strong>⚪ Gris (128,128,128):</strong> Posición del nombre del estudiante</li>
 
-                    <li><strong>Verde puro (0,255,0):</strong> Posición de la cédula</li>
+                    <li><strong>🔴 Rojo puro (255,0,0):</strong> Posición de la cédula</li>
 
-                    <li><strong>Azul puro (0,0,255):</strong> Posición del código QR</li>
+                    <li><strong>🔵 Azul puro (0,0,255):</strong> Posición del código QR</li>
 
                 </ul>
 
@@ -5320,12 +5320,10 @@ https://tu-dominio.com/verificar-certificado/EKI-XXXX-YYYY-ZZZZ/
                 <tr><td>📚 Módulos</td><td>Contenido educativo ahora SÍ se muestra</td><td>Se aplica <code>dividir_contenido_seguro(max=1300)</code> al contenido del módulo para que nunca exceda el límite de 1600 chars de Twilio. Antes, contenidos largos se perdían.</td></tr>
                 <tr><td>🔄 Orden de mensajes</td><td>Agentes van AL FINAL</td><td>Nuevo orden: Gamificación → Módulo (con video) → Tutor → Asistente. Los agentes siempre son los ÚLTIMOS mensajes.</td></tr>
                 <tr><td>🤖 Agentes IA</td><td>Máximo 2 interacciones</td><td>Tanto el Tutor como la Asistente permiten máximo 2 intentos de respuesta. Después auto-avanzan para ahorrar tokens.</td></tr>
-                <tr><td>🎓 Certificados</td><td>Marcadores RGB actualizados</td><td><ul>
-                    <li><strong style="color:orange;">Naranja (255,128,0)</strong> → Escribe "Andrés Rubiano" (nombre eki)</li>
-                    <li><strong style="color:green;">Verde (0,255,0)</strong> → Escribe el <code>contacto_principal</code> del Cliente (representante empresa)</li>
-                    <li><strong style="color:magenta;">Magenta (255,0,255)</strong> → Nombre del estudiante</li>
-                    <li><strong style="color:red;">Rojo (255,0,0)</strong> → Cédula del estudiante</li>
-                    <li><strong style="color:blue;">Azul (0,0,255)</strong> → Código QR de verificación</li>
+                <tr><td>🎓 Certificados</td><td>Marcadores RGB actualizados v1.8</td><td><ul>
+                    <li><strong style="color:gray;">⚪ Gris (128,128,128)</strong> → Nombre del estudiante</li>
+                    <li><strong style="color:red;">🔴 Rojo (255,0,0)</strong> → Cédula del estudiante</li>
+                    <li><strong style="color:blue;">🔵 Azul (0,0,255)</strong> → Código QR de verificación</li>
                 </ul></td></tr>
                 <tr><td>📥 Importación</td><td>Sin referencia a menú</td><td>Cuando no hay cursos asignados, ya NO muestra "Escribe ver cursos". El mensaje indica que la organización asignará el curso.</td></tr>
             </table>
@@ -5337,11 +5335,9 @@ https://tu-dominio.com/verificar-certificado/EKI-XXXX-YYYY-ZZZZ/
                 <strong>¿Cómo funciona?</strong> Coloca un punto/pixel del color indicado en tu imagen de plantilla:
                 <table style="margin-top:8px;">
                     <tr><th>Color</th><th>RGB</th><th>¿Qué escribe Pillow ahí?</th><th>¿De dónde lo lee?</th></tr>
-                    <tr><td style="background:#ff00ff;color:white;">Magenta</td><td>(255, 0, 255)</td><td>Nombre del estudiante</td><td><code>estudiante.nombre</code></td></tr>
-                    <tr><td style="background:#ff0000;color:white;">Rojo</td><td>(255, 0, 0)</td><td>Cédula</td><td><code>estudiante.cedula</code></td></tr>
-                    <tr><td style="background:#0000ff;color:white;">Azul</td><td>(0, 0, 255)</td><td>Código QR</td><td>URL de verificación</td></tr>
-                    <tr><td style="background:#00ff00;">Verde</td><td>(0, 255, 0)</td><td>Representante empresa</td><td><code>cliente.contacto_principal</code></td></tr>
-                    <tr><td style="background:#ff8000;color:white;">Naranja</td><td>(255, 128, 0)</td><td>Andrés Rubiano</td><td>Fijo: nombre eki</td></tr>
+                    <tr><td style="background:#808080;color:white;">⚪ Gris</td><td>(128, 128, 128)</td><td>Nombre del estudiante</td><td><code>estudiante.nombre</code></td></tr>
+                    <tr><td style="background:#ff0000;color:white;">🔴 Rojo</td><td>(255, 0, 0)</td><td>Cédula</td><td><code>estudiante.cedula</code></td></tr>
+                    <tr><td style="background:#0000ff;color:white;">🔵 Azul</td><td>(0, 0, 255)</td><td>Código QR</td><td>URL de verificación</td></tr>
                 </table>
                 <p style="margin-top:8px;"><strong>Tolerancia:</strong> 30 (para JPG con artefactos de compresión)</p>
             </div>

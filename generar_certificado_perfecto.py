@@ -19,13 +19,16 @@ import requests
 import io
 import os
 
-# --- CONFIGURACIÓN DE MARCADORES RGB (coincidencia exacta) ---
-MARCADOR_NOMBRE  = (255, 0, 255)   # Magenta puro para nombre
-MARCADOR_CEDULA  = (255, 0, 0)     # Rojo puro para cédula
-MARCADOR_QR      = (0, 0, 255)     # Azul puro para QR
-MARCADOR_EMPRESA = (0, 255, 0)     # Verde puro para empresa
-MARCADOR_EKI     = (255, 128, 0)   # Naranja puro para Eki
-TOLERANCIA       = 0               # Solo coincidencia exacta
+# --- CONFIGURACIÓN DE MARCADORES RGB ---
+# ⚪ Gris (128,128,128) → Nombre del estudiante
+# 🔴 Rojo (255,0,0) → Cédula (documento)
+# 🔵 Azul (0,0,255) → Código QR de verificación
+MARCADOR_NOMBRE  = (128, 128, 128)  # Gris puro para nombre
+MARCADOR_CEDULA  = (255, 0, 0)      # Rojo puro para cédula
+MARCADOR_QR      = (0, 0, 255)      # Azul puro para QR
+MARCADOR_EMPRESA = (0, 255, 0)      # Verde puro para empresa (legacy)
+MARCADOR_EKI     = (255, 128, 0)    # Naranja puro para Eki (legacy)
+TOLERANCIA       = 30               # Tolerancia para JPEG (artefactos de compresión)
 
 
 # --- PLANTILLA EN S3 ---

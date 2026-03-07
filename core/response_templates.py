@@ -884,20 +884,21 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     estudiante.estado_onboarding = 'esperando_respuesta_progreso'
                     estudiante.save()
                 
-                # Construir multi-mensaje: gamificación [SEP] módulo (con media) [SEP] extras media [SEP] agente (ÚLTIMO) [SEP] botón continuar
+                # Construir multi-mensaje: módulo (con media) [SEP] extras media [SEP] botón continuar [SEP] agente [SEP] resumen gamificación
                 TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
-                partes = [msg_completado, msg_modulo]
+                partes = [msg_modulo]
                 for extra_url, extra_titulo, extra_icono in extra_media_urls:
                     partes.append(f"{extra_icono} {extra_titulo}\n\n[MEDIA:{extra_url}]")
+                # Botón "Continuar" SOLO si NO hay agentes activos y NO es el último módulo
+                es_ultimo_modulo = not progreso.curso.modulos.filter(numero__gt=siguiente_modulo.numero).exists()
+                if not tutor_msg and not maria_msg and not es_ultimo_modulo:
+                    partes.append(f"[SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]")
                 if tutor_msg:
                     partes.append(tutor_msg)
                 if maria_msg:
                     partes.append(maria_msg)
-                # Botón "Continuar" SOLO si NO hay agentes activos (el botón se envía después de responder al agente)
-                # Y solo si siguiente_modulo NO es el último módulo del curso
-                es_ultimo_modulo = not progreso.curso.modulos.filter(numero__gt=siguiente_modulo.numero).exists()
-                if not tutor_msg and not maria_msg and not es_ultimo_modulo:
-                    partes.append(f"[SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]")
+                # Resumen de gamificación al final
+                partes.append(msg_completado)
                 return "[MULTI_MSG]" + "[SEP]".join(partes)
             
             else:
@@ -996,10 +997,10 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
                 
                 partes = []
-                if msg_resumen:
-                    partes.append(msg_resumen)
                 partes.append(mensaje)
                 partes.append(msg_cert_img)
+                if msg_resumen:
+                    partes.append(msg_resumen)
                 return "[MULTI_MSG]" + "[SEP]".join(partes)
         
         # Si escribieron solo "continuar" (primera vez o retomando), mostrar el módulo actual

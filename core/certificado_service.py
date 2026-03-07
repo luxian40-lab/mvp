@@ -286,11 +286,24 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
         # =====================================================
         # PRIORIDAD 0: Marcadores RGB con plantilla de DB
         # =====================================================
-        if not generado and plantilla and plantilla.url_plantilla_imagen:
+        # Determinar URL de la plantilla: url_plantilla_imagen > archivo_plantilla_imagen.url
+        plantilla_url_db = None
+        if plantilla:
+            if plantilla.url_plantilla_imagen:
+                plantilla_url_db = plantilla.url_plantilla_imagen
+                logger.info(f"📋 Usando url_plantilla_imagen: {plantilla_url_db}")
+            elif plantilla.archivo_plantilla_imagen:
+                try:
+                    plantilla_url_db = plantilla.archivo_plantilla_imagen.url
+                    logger.info(f"📋 Usando archivo_plantilla_imagen.url: {plantilla_url_db}")
+                except Exception:
+                    pass
+        
+        if not generado and plantilla_url_db:
             try:
                 from .utils_certificados import generar_certificado_marcadores
                 img_buffer = generar_certificado_marcadores(
-                    plantilla_url_o_path=plantilla.url_plantilla_imagen,
+                    plantilla_url_o_path=plantilla_url_db,
                     nombre_estudiante=nombre_est,
                     cedula_estudiante=cedula_est,
                     url_verificacion=url_verificacion,
@@ -326,7 +339,7 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
         # PRIORIDAD 2: FALLBACK SIMPLE (texto sobre imagen, sin marcadores)
         # =====================================================
         if not generado:
-            template_url = (plantilla.url_plantilla_imagen if plantilla and plantilla.url_plantilla_imagen else None)
+            template_url = plantilla_url_db or None
             for url_try in [u for u in [template_url, DEFAULT_TEMPLATE_URL, DEFAULT_TEMPLATE_URL_JPG] if u]:
                 try:
                     img_buffer = _generar_certificado_simple(

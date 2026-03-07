@@ -3,6 +3,11 @@
 Usa numpy + Pillow para detectar marcadores de color en la plantilla
 y posicionar dinámicamente: Nombre, Cédula y QR.
 
+Marcadores de color:
+  - ⚪ Gris (128, 128, 128) → Nombre del estudiante
+  - 🔴 Rojo (255, 0, 0) → Cédula (documento)
+  - 🔵 Azul (0, 0, 255) → Código QR de verificación
+
 Adaptado para Django + AWS S3 (sin guardar en disco local).
 """
 
@@ -17,12 +22,14 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-# --- CONFIGURACIÓN DE MARCADORES RGB (coincidencia exacta) ---
-MARCADOR_NOMBRE  = (255, 0, 255)   # Magenta puro para nombre
-MARCADOR_CEDULA  = (255, 0, 0)     # Rojo puro para cédula
-MARCADOR_QR      = (0, 0, 255)     # Azul puro para QR
-# Naranja y Verde REMOVIDOS — solo quedan Magenta, Rojo, Azul
-TOLERANCIA_COLOR = 30              # Tolerancia para JPEG (artefactos de compresión)
+# --- CONFIGURACIÓN DE MARCADORES RGB ---
+# ⚪ Gris (128,128,128) → Nombre del estudiante
+# 🔴 Rojo (255,0,0) → Cédula (documento)
+# 🔵 Azul (0,0,255) → Código QR de verificación
+MARCADOR_NOMBRE  = (128, 128, 128)  # Gris puro para nombre
+MARCADOR_CEDULA  = (255, 0, 0)      # Rojo puro para cédula
+MARCADOR_QR      = (0, 0, 255)      # Azul puro para QR
+TOLERANCIA_COLOR = 30               # Tolerancia para JPEG (artefactos de compresión)
 
 # --- RUTA DE FUENTES ---
 FONTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
@@ -112,7 +119,7 @@ def generar_certificado_marcadores(
     pos_qr = encontrar_marcador(np_img, MARCADOR_QR)
     
     if pos_nombre is None:
-        raise ValueError("No se encontró el marcador de NOMBRE (Magenta RGB 255,0,255) en la plantilla.")
+        raise ValueError("No se encontró el marcador de NOMBRE (Gris RGB 128,128,128) en la plantilla.")
     if pos_cedula is None:
         raise ValueError("No se encontró el marcador de CÉDULA (Rojo RGB 255,0,0) en la plantilla.")
     if pos_qr is None:
