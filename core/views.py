@@ -1443,15 +1443,17 @@ def _procesar_twilio_webhook(post_data):
                             else:
                                 msg_modulo = modulo_header + (modulo.descripcion or '')
                             msg_modulo += archivos_msg
-                            if primera_media_url:
-                                msg_modulo += f"\n\n[MEDIA:{primera_media_url}]"
+                            # NO embeber video en msg_modulo — enviar como mensaje separado después del texto
                             
-                            # Orden: intro (con agentes) → módulo (con media) → extras media → botón continuar
+                            # Orden: intro (con agentes) → módulo TEXTO → video(s) → extras media → botón continuar (ÚLTIMO)
                             TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
                             texto_respuesta = "[MULTI_MSG]" + msg_intro + "[SEP]" + msg_modulo
+                            # Video principal como mensaje separado después del texto
+                            if primera_media_url:
+                                texto_respuesta += f"[SEP]📹 Video del módulo\n\n[MEDIA:{primera_media_url}]"
                             for extra_url, extra_titulo, extra_icono in extra_media_urls:
                                 texto_respuesta += f"[SEP]{extra_icono} {extra_titulo}\n\n[MEDIA:{extra_url}]"
-                            # Botón "Continuar" solo si NO es el único módulo (hay más después del primero)
+                            # Botón "Continuar" SIEMPRE AL FINAL — solo si hay más módulos
                             hay_mas_modulos = curso.modulos.filter(numero__gt=modulo.numero).exists()
                             if hay_mas_modulos:
                                 texto_respuesta += f"[SEP][SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]"
@@ -1523,6 +1525,15 @@ def _procesar_twilio_webhook(post_data):
                         if not parte_c.strip():
                             continue
                         parte_texto_c = parte_c.strip()
+                        # Detectar Content Template → enviar como template, NO como texto
+                        if parte_texto_c.startswith('[SEND_TEMPLATE:'):
+                            tmpl_m_c = re_conf.match(r'\[SEND_TEMPLATE:(HX[a-f0-9]+)\]', parte_texto_c)
+                            if tmpl_m_c:
+                                from .whatsapp_service import enviar_template_twilio
+                                tel_limpio_t = msg_from.replace('whatsapp:', '').replace('+', '')
+                                enviar_template_twilio(tel_limpio_t, tmpl_m_c.group(1))
+                            import time; time.sleep(0.5)
+                            continue
                         parte_media_c = None
                         media_m_c = re_conf.search(r'\[MEDIA:(.*?)\]', parte_texto_c)
                         if media_m_c:
@@ -1540,7 +1551,8 @@ def _procesar_twilio_webhook(post_data):
                                 msg_sent = client_tw.messages.create(**mp_c)
                             else:
                                 raise
-                        WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=parte_texto_c, tipo='SENT')
+                        import time; time.sleep(0.5)
+                        WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=parte_texto_c[:500], tipo='SENT')
                 else:
                     client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
                     WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')

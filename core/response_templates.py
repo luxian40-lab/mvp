@@ -809,9 +809,8 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     msg_modulo = modulo_header + (siguiente_modulo.descripcion or '')
                 msg_modulo += archivos_msg
                 
-                # Embeber primera multimedia directamente en msg_modulo
-                if primera_media_url:
-                    msg_modulo += f"\n\n[MEDIA:{primera_media_url}]"
+                # NO embeber media en msg_modulo — enviar video como mensaje separado después del texto
+                # primera_media_url y extra_media_urls se agregan como partes separadas más abajo
                 
                 # Agentes: Tutor (impares) / Asistente (módulo 4)
                 # Get agent names: Cliente > Curso > defaults
@@ -884,21 +883,23 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     estudiante.estado_onboarding = 'esperando_respuesta_progreso'
                     estudiante.save()
                 
-                # Construir multi-mensaje: módulo (con media) [SEP] extras media [SEP] botón continuar [SEP] agente [SEP] resumen gamificación
+                # Construir multi-mensaje: gamificación [SEP] módulo texto [SEP] video(s) [SEP] agente [SEP] botón continuar (SIEMPRE ÚTIMO)
                 TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
-                partes = [msg_modulo]
+                partes = [msg_completado, msg_modulo]
+                # Videos/media como mensajes separados DESPUÉS del texto
+                if primera_media_url:
+                    partes.append(f"\U0001f4f9 Video del módulo\n\n[MEDIA:{primera_media_url}]")
                 for extra_url, extra_titulo, extra_icono in extra_media_urls:
                     partes.append(f"{extra_icono} {extra_titulo}\n\n[MEDIA:{extra_url}]")
-                # Botón "Continuar" SOLO si NO hay agentes activos y NO es el último módulo
-                es_ultimo_modulo = not progreso.curso.modulos.filter(numero__gt=siguiente_modulo.numero).exists()
-                if not tutor_msg and not maria_msg and not es_ultimo_modulo:
-                    partes.append(f"[SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]")
+                # Agentes van DESPUÉS de los videos
                 if tutor_msg:
                     partes.append(tutor_msg)
                 if maria_msg:
                     partes.append(maria_msg)
-                # Resumen de gamificación al final
-                partes.append(msg_completado)
+                # Botón "Continuar" SIEMPRE AL FINAL — solo si NO hay agentes y NO es último módulo
+                es_ultimo_modulo = not progreso.curso.modulos.filter(numero__gt=siguiente_modulo.numero).exists()
+                if not tutor_msg and not maria_msg and not es_ultimo_modulo:
+                    partes.append(f"[SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]")
                 return "[MULTI_MSG]" + "[SEP]".join(partes)
             
             else:
