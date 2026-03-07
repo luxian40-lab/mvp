@@ -2020,15 +2020,36 @@ def _procesar_twilio_webhook(post_data):
                             estudiante.contexto_temporal = None
                             estudiante.estado_onboarding = 'completado'
                             estudiante.save()
-                            texto_respuesta = f"[MULTI_MSG]{feedback}\n\n💰 *+10 puntos bonus* por tu respuesta 💪[SEP]Escribe *listo* para continuar con el siguiente modulo"
+                            # v1.9.5: Auto-continuar al siguiente módulo (sin "Escribe listo")
+                            from .response_templates import get_response_for_intent
+                            respuesta_avance = get_response_for_intent(
+                                'continuar_leccion', estudiante.nombre,
+                                estudiante_id=estudiante.id, mensaje_original='listo'
+                            )
+                            feedback_msg = f"{feedback}\n\n💰 *+10 puntos bonus* por tu respuesta 💪"
+                            if respuesta_avance.startswith('[MULTI_MSG]'):
+                                texto_respuesta = f"[MULTI_MSG]{feedback_msg}[SEP]" + respuesta_avance[len('[MULTI_MSG]'):]
+                            else:
+                                texto_respuesta = f"[MULTI_MSG]{feedback_msg}[SEP]{respuesta_avance}"
+                            print(f"✅ v1.9.5: Auto-avance después de Gerónimo aprobado", flush=True)
                         else:
                             intentos += 1
                             if intentos >= 2:
-                                # Auto-avanzar después de 2 intentos fallidos
+                                # v1.9.5: Auto-avanzar después de 2 intentos fallidos
                                 estudiante.contexto_temporal = None
                                 estudiante.estado_onboarding = 'completado'
                                 estudiante.save()
-                                texto_respuesta = f"[MULTI_MSG]{feedback}\n\n✅ *¡Buen esfuerzo!* Sigue estudiando el modulo.[SEP]Escribe *listo* para continuar con el siguiente modulo"
+                                from .response_templates import get_response_for_intent
+                                respuesta_avance = get_response_for_intent(
+                                    'continuar_leccion', estudiante.nombre,
+                                    estudiante_id=estudiante.id, mensaje_original='listo'
+                                )
+                                feedback_msg = f"{feedback}\n\n✅ *¡Buen esfuerzo!* Sigue estudiando el modulo."
+                                if respuesta_avance.startswith('[MULTI_MSG]'):
+                                    texto_respuesta = f"[MULTI_MSG]{feedback_msg}[SEP]" + respuesta_avance[len('[MULTI_MSG]'):]
+                                else:
+                                    texto_respuesta = f"[MULTI_MSG]{feedback_msg}[SEP]{respuesta_avance}"
+                                print(f"✅ v1.9.5: Auto-avance después de 2 intentos con Gerónimo", flush=True)
                             else:
                                 # Permitir reintento (máx 2)
                                 ctx['intentos_tutor'] = intentos
@@ -2039,7 +2060,17 @@ def _procesar_twilio_webhook(post_data):
                         estudiante.contexto_temporal = None
                         estudiante.estado_onboarding = 'completado'
                         estudiante.save()
-                        texto_respuesta = f"[MULTI_MSG]✅ Gracias por tu respuesta![SEP]Escribe *listo* para continuar con el siguiente modulo"
+                        # v1.9.5: Auto-continuar
+                        from .response_templates import get_response_for_intent
+                        respuesta_avance = get_response_for_intent(
+                            'continuar_leccion', estudiante.nombre,
+                            estudiante_id=estudiante.id, mensaje_original='listo'
+                        )
+                        if respuesta_avance.startswith('[MULTI_MSG]'):
+                            texto_respuesta = f"[MULTI_MSG]✅ Gracias por tu respuesta![SEP]" + respuesta_avance[len('[MULTI_MSG]'):]
+                        else:
+                            texto_respuesta = f"[MULTI_MSG]✅ Gracias por tu respuesta![SEP]{respuesta_avance}"
+                        print(f"✅ v1.9.5: Auto-avance (sin módulo) después de Gerónimo", flush=True)
             
             # 3.5a2 PRIORIDAD: Si está respondiendo a la REVISIÓN DE PROGRESO
             elif estudiante.estado_onboarding == 'esperando_respuesta_progreso':
@@ -2088,14 +2119,36 @@ def _procesar_twilio_webhook(post_data):
                         estudiante.contexto_temporal = None
                         estudiante.estado_onboarding = 'completado'
                         estudiante.save()
-                        texto_respuesta = f"[MULTI_MSG]{feedback}\n\n💰 *+5 puntos* por tu reflexión 💪[SEP]Escribe *listo* para continuar con el siguiente modulo"
+                        # v1.9.5: Auto-continuar al siguiente módulo
+                        from .response_templates import get_response_for_intent
+                        respuesta_avance = get_response_for_intent(
+                            'continuar_leccion', estudiante.nombre,
+                            estudiante_id=estudiante.id, mensaje_original='listo'
+                        )
+                        feedback_msg = f"{feedback}\n\n💰 *+5 puntos* por tu reflexión 💪"
+                        if respuesta_avance.startswith('[MULTI_MSG]'):
+                            texto_respuesta = f"[MULTI_MSG]{feedback_msg}[SEP]" + respuesta_avance[len('[MULTI_MSG]'):]
+                        else:
+                            texto_respuesta = f"[MULTI_MSG]{feedback_msg}[SEP]{respuesta_avance}"
+                        print(f"✅ v1.9.5: Auto-avance después de María aprobado", flush=True)
                     else:
                         intentos += 1
                         if intentos >= 2:
                             estudiante.contexto_temporal = None
                             estudiante.estado_onboarding = 'completado'
                             estudiante.save()
-                            texto_respuesta = f"[MULTI_MSG]{feedback}\n\n✅ *Buena reflexión!* Sigue con el modulo.[SEP]Escribe *listo* para continuar con el siguiente modulo"
+                            # v1.9.5: Auto-continuar
+                            from .response_templates import get_response_for_intent
+                            respuesta_avance = get_response_for_intent(
+                                'continuar_leccion', estudiante.nombre,
+                                estudiante_id=estudiante.id, mensaje_original='listo'
+                            )
+                            feedback_msg = f"{feedback}\n\n✅ *Buena reflexión!* Sigue con el modulo."
+                            if respuesta_avance.startswith('[MULTI_MSG]'):
+                                texto_respuesta = f"[MULTI_MSG]{feedback_msg}[SEP]" + respuesta_avance[len('[MULTI_MSG]'):]
+                            else:
+                                texto_respuesta = f"[MULTI_MSG]{feedback_msg}[SEP]{respuesta_avance}"
+                            print(f"✅ v1.9.5: Auto-avance después de 2 intentos con María", flush=True)
                         else:
                             ctx['intentos_tutor'] = intentos
                             estudiante.contexto_temporal = ctx

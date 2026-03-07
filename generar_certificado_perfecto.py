@@ -19,6 +19,8 @@ import requests
 import io
 import os
 
+Read eb_v19_logs.txt, lines 215 to 250
+
 # --- CONFIGURACIÓN DE MARCADORES RGB ---
 # ⚪ Gris (128,128,128) → Nombre del estudiante
 # 🔴 Rojo (255,0,0) → Cédula (documento)
