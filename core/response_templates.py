@@ -617,9 +617,37 @@ Te inscribiste en: *{curso.nombre}*
             
             mensaje_modulo += archivos_msg_1
             
-            # NO embeber video en mensaje_modulo — enviar como parte separada DESPUÉS del texto
-            # Build multi-message: inscripción → módulo texto → video(s) → agentes → "escribe listo"
-            partes_insc = [mensaje_1, mensaje_modulo]
+            # v1.9.6: Orden correcto: inscripción → gamificación → agentes → "Comenzamos..." → módulo texto → video(s) → "escribe listo"
+            # Explicación de gamificación
+            from .models import Cliente
+            cliente_obj = None
+            try:
+                if estudiante and hasattr(estudiante, 'telefono'):
+                    cliente_obj = Cliente.objects.filter(estudiantes=estudiante).first()
+            except Exception:
+                pass
+            usar_gamificacion = (cliente_obj.usar_gamificacion if cliente_obj else True) if cliente_obj else True
+            msg_gamificacion = ""
+            if usar_gamificacion:
+                msg_gamificacion = (
+                    "🎮 *¡Gamificación Activa!*\n\n"
+                    "A medida que completes los módulos, ganarás:\n"
+                    "💰 *Puntos* por cada módulo completado\n"
+                    "🏅 *Niveles* que subirás automáticamente\n"
+                    "🔥 *Rachas* por módulos consecutivos\n\n"
+                    "¡Vamos a aprender y avanzar juntos! 💪"
+                )
+            
+            # Construir intro: inscripción + gamificación + agentes + "Comenzamos..."
+            partes_intro = [mensaje_1]
+            if msg_gamificacion:
+                partes_intro.append(msg_gamificacion)
+            partes_intro.append(msg_geronimo)
+            partes_intro.append(msg_maria)
+            partes_intro.append("📚 *Comenzamos con el primer módulo de tu curso...* 👇")
+            msg_intro = "\n\n".join(partes_intro)
+            
+            partes_insc = [msg_intro, mensaje_modulo]
             hay_media_insc = False
             if primera_media_url_1:
                 partes_insc.append(f"\U0001f4f9 Video del módulo\n\n[MEDIA:{primera_media_url_1}]")
@@ -628,10 +656,8 @@ Te inscribiste en: *{curso.nombre}*
                 partes_insc.append(f"{extra_icono_1} {extra_titulo_1}\n\n[MEDIA:{extra_url_1}]")
                 hay_media_insc = True
             if hay_media_insc:
-                # [DELAY:8] para que WhatsApp entregue videos antes de texto de agentes
+                # [DELAY:8] para que WhatsApp entregue videos antes de texto
                 partes_insc.append("[DELAY:8]")
-            partes_insc.append(msg_geronimo)
-            partes_insc.append(msg_maria)
             # Mensaje "listo" solo si hay más módulos después del primero
             hay_mas_modulos = curso.modulos.filter(numero__gt=primer_modulo.numero).exists()
             if hay_mas_modulos:
