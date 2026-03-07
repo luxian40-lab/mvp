@@ -9,8 +9,8 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from .models import ModuloCompletado, ProgresoEstudiante
 from .gamificacion import PerfilGamificacion, Badge, BadgeEstudiante
-from .models_extras import ArchivoModulo
-from .whatsapp_service import enviar_archivo_modulo_whatsapp
+# ArchivoModulo y enviar_archivo_modulo_whatsapp ya NO se usan aquí (v1.9.3)
+# Los videos se envían via MULTI_MSG en response_templates.py / views.py
 import logging
 
 logger = logging.getLogger(__name__)
@@ -98,28 +98,13 @@ def otorgar_puntos_por_modulo(sender, instance, created, **kwargs):
             logger.info(f"🔄 Reset preguntas_ia_restantes=3 para {estudiante.nombre}")
 
         # === ENVÍO AUTOMÁTICO DE ARCHIVOS MULTIMEDIA POR WHATSAPP ===
-        estudiante = instance.progreso.estudiante
-        modulo = instance.modulo
-        telefono = estudiante.telefono
-        archivos = ArchivoModulo.objects.filter(modulo=modulo, activo=True).order_by('orden', 'id')
-
-        if _celery_disponible():
-            # Envío asíncrono con Celery
-            from core.tasks import enviar_archivo_modulo_async
-            for archivo in archivos:
-                enviar_archivo_modulo_async.delay(telefono, archivo.id)
-            logger.info(f"[Celery] {archivos.count()} archivos encolados para {telefono}")
-        else:
-            # Envío síncrono (fallback)
-            for archivo in archivos:
-                try:
-                    resultado = enviar_archivo_modulo_whatsapp(telefono, archivo)
-                    if resultado.get('success'):
-                        logger.info(f"[WhatsApp] Archivo '{archivo.titulo}' enviado a {telefono}")
-                    else:
-                        logger.error(f"[WhatsApp] Error enviando '{archivo.titulo}' a {telefono}: {resultado.get('response')}")
-                except Exception as e:
-                    logger.error(f"[WhatsApp] Excepción enviando '{archivo.titulo}' a {telefono}: {e}")
+        # ⛔ DESACTIVADO v1.9.3: Los videos ya se envían dentro del [MULTI_MSG]
+        # en response_templates.py y views.py. Este envío DUPLICABA los videos
+        # porque el signal enviaba archivos del módulo completado (ya vistos)
+        # ANTES de que el MULTI_MSG enviara el contenido del siguiente módulo.
+        # Resultado: el estudiante veía videos duplicados y "escribe listo"
+        # aparecía entre los videos del signal y los del MULTI_MSG.
+        logger.info(f"📋 Signal: módulo completado por {instance.progreso.estudiante.nombre} - videos se envían via MULTI_MSG (no signal)")
 
     except Exception as e:
         logger.error(f"❌ Error al otorgar puntos por módulo: {e}")

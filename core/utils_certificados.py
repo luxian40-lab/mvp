@@ -38,8 +38,19 @@ FONTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
 def encontrar_marcador(np_img, color_objetivo, tolerancia=TOLERANCIA_COLOR):
     """
     Busca un marcador de color en la imagen y devuelve su centro.
-    Usa la MEDIANA (no el promedio) para evitar que pixeles dispersos
-    desvíen la posición. Filtra clusters menores a 5px de radio.
+    Usa subdivisión en bloques + densidad local para aislar el marcador
+    real del ruido JPEG disperso, SIN depender de scipy.
+    
+    Algoritmo:
+    1. Detecta todos los pixeles que coinciden con el color ± tolerancia
+    2. Divide la imagen en bloques de 30×30 px
+    3. Cuenta pixeles coincidentes por bloque
+    4. El bloque con más pixeles = zona del marcador real
+    5. Toma todos los pixeles en un radio de 30px del centro de ese bloque
+    6. Devuelve la mediana de esos pixeles como centro del marcador
+    
+    Esto resiste ruido JPEG disperso (1-2 px por bloque) y encuentra
+    el marcador concentrado (decenas de px en un bloque).
     
     Args:
         np_img: Array numpy de la imagen (H, W, 3)
@@ -53,10 +64,55 @@ def encontrar_marcador(np_img, color_objetivo, tolerancia=TOLERANCIA_COLOR):
     coords = np.argwhere(mask)
     if coords.size == 0:
         return None
-    # Usar MEDIANA en vez de promedio para resistir píxeles dispersos
-    y_med = int(np.median(coords[:, 0]))
-    x_med = int(np.median(coords[:, 1]))
-    logger.info(f"🔍 Marcador {color_objetivo}: {len(coords)} px encontrados, mediana=({x_med},{y_med})")
+    
+    total_px = len(coords)
+    
+    # Si hay pocos pixeles (< 50), es un marcador puro sin ruido → mediana simple
+    if total_px < 50:
+        y_med = int(np.median(coords[:, 0]))
+        x_med = int(np.median(coords[:, 1]))
+        logger.info(f"🔍 Marcador {color_objetivo}: {total_px} px, directo mediana=({x_med},{y_med})")
+        return x_med, y_med
+    
+    # Muchos pixeles → hay ruido JPEG. Usar subdivisión en bloques para encontrar
+    # la zona de mayor densidad (= el marcador real)
+    BLOCK_SIZE = 30
+    h, w = np_img.shape[:2]
+    rows_blocks = (h + BLOCK_SIZE - 1) // BLOCK_SIZE
+    cols_blocks = (w + BLOCK_SIZE - 1) // BLOCK_SIZE
+    
+    # Contar pixeles por bloque usando vectorización
+    block_y = coords[:, 0] // BLOCK_SIZE
+    block_x = coords[:, 1] // BLOCK_SIZE
+    block_ids = block_y * cols_blocks + block_x
+    
+    # Encontrar el bloque con más pixeles
+    unique_blocks, counts = np.unique(block_ids, return_counts=True)
+    best_idx = np.argmax(counts)
+    best_block_id = unique_blocks[best_idx]
+    best_count = counts[best_idx]
+    
+    # Centro del bloque ganador
+    best_by = (best_block_id // cols_blocks) * BLOCK_SIZE + BLOCK_SIZE // 2
+    best_bx = (best_block_id % cols_blocks) * BLOCK_SIZE + BLOCK_SIZE // 2
+    
+    # Tomar pixeles en un radio de 30px alrededor del centro del bloque ganador
+    RADIO = 30
+    dist_y = np.abs(coords[:, 0] - best_by)
+    dist_x = np.abs(coords[:, 1] - best_bx)
+    nearby = (dist_y <= RADIO) & (dist_x <= RADIO)
+    cluster_coords = coords[nearby]
+    
+    if len(cluster_coords) < 3:
+        # Fallback: mediana global
+        y_med = int(np.median(coords[:, 0]))
+        x_med = int(np.median(coords[:, 1]))
+        logger.info(f"🔍 Marcador {color_objetivo}: {total_px} px, fallback mediana=({x_med},{y_med})")
+        return x_med, y_med
+    
+    y_med = int(np.median(cluster_coords[:, 0]))
+    x_med = int(np.median(cluster_coords[:, 1]))
+    logger.info(f"🔍 Marcador {color_objetivo}: {total_px} px total, cluster={len(cluster_coords)} px en bloque, centro=({x_med},{y_med})")
     return x_med, y_med
 
 
