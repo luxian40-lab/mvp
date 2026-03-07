@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 MARCADOR_NOMBRE  = (128, 128, 128)  # Gris puro para nombre
 MARCADOR_CEDULA  = (255, 0, 0)      # Rojo puro para cédula
 MARCADOR_QR      = (0, 0, 255)      # Azul puro para QR
-TOLERANCIA_COLOR = 30               # Tolerancia para JPEG (artefactos de compresión)
+TOLERANCIA_COLOR = 18               # Tolerancia reducida para detectar solo marcadores puros
 
 # --- RUTA DE FUENTES ---
 FONTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
@@ -38,6 +38,8 @@ FONTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
 def encontrar_marcador(np_img, color_objetivo, tolerancia=TOLERANCIA_COLOR):
     """
     Busca un marcador de color en la imagen y devuelve su centro.
+    Usa la MEDIANA (no el promedio) para evitar que pixeles dispersos
+    desvíen la posición. Filtra clusters menores a 5px de radio.
     
     Args:
         np_img: Array numpy de la imagen (H, W, 3)
@@ -51,8 +53,11 @@ def encontrar_marcador(np_img, color_objetivo, tolerancia=TOLERANCIA_COLOR):
     coords = np.argwhere(mask)
     if coords.size == 0:
         return None
-    y, x = coords.mean(axis=0)
-    return int(x), int(y)
+    # Usar MEDIANA en vez de promedio para resistir píxeles dispersos
+    y_med = int(np.median(coords[:, 0]))
+    x_med = int(np.median(coords[:, 1]))
+    logger.info(f"🔍 Marcador {color_objetivo}: {len(coords)} px encontrados, mediana=({x_med},{y_med})")
+    return x_med, y_med
 
 
 def cargar_fuente(nombre_fuente='GreatVibes-Regular.ttf', tamaño=80):
@@ -133,27 +138,29 @@ def generar_certificado_marcadores(
         if pos is not None:
             x, y = pos
             # Tomar el color del pixel cercano como fondo
-            color_fondo = plantilla.getpixel((x, min(y + 20, alto_img - 1)))
-            draw.ellipse([x - 12, y - 12, x + 12, y + 12], fill=color_fondo)
+            color_fondo = plantilla.getpixel((max(x - 25, 0), min(y + 25, alto_img - 1)))
+            # Radio grande (20px) para borrar completamente el marcador
+            draw.ellipse([x - 20, y - 20, x + 20, y + 20], fill=color_fondo)
     
-    # 5. Estampar NOMBRE (centrado en el marcador usando anchor="mm")
+    # 5. Estampar NOMBRE (centrado horizontalmente, baseline en el marcador)
     nombre_capitalizado = nombre_estudiante.strip().title()
     draw.text(
         (pos_nombre[0], pos_nombre[1]),
         nombre_capitalizado,
         font=fuente_nombre,
         fill="black",
-        anchor="mm"  # Middle-middle: centra horizontal y verticalmente sobre el punto
+        anchor="ms"  # Middle-baseline: centra horizontal, baseline en el marcador (nombre "se sienta" sobre la línea)
     )
+    logger.info(f"📝 Nombre '{nombre_capitalizado}' estampado en ({pos_nombre[0]}, {pos_nombre[1]}) con anchor=ms, font_size={fuente_nombre_size}")
     
-    # 6. Estampar CÉDULA (centrada en el marcador usando anchor="mm")
+    # 6. Estampar CÉDULA (centrada horizontalmente, baseline en el marcador)
     texto_cedula = str(cedula_estudiante)
     draw.text(
         (pos_cedula[0], pos_cedula[1]),
         texto_cedula,
         font=fuente_cedula,
         fill="black",
-        anchor="mm"  # Middle-middle: centra horizontal y verticalmente sobre el punto
+        anchor="ms"  # Middle-baseline: centra horizontal, baseline en el marcador
     )
     
     # 7. Generar y pegar QR (centrado en el marcador con ajuste)

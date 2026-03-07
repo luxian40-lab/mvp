@@ -660,7 +660,7 @@ Escribe "continuar" para empezar el primer módulo."""
                 last_leccion = ctx_lock.get('_ts_leccion', 0)
                 now_ts = _time.time()
                 
-                if now_ts - last_leccion < 12:
+                if now_ts - last_leccion < 45:
                     print(f"⏳ [ANTI-DUPLICADO] continuar_leccion bloqueado: última entrega hace {now_ts - last_leccion:.1f}s", flush=True)
                 else:
                     ctx_lock['_ts_leccion'] = now_ts

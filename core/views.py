@@ -1973,11 +1973,12 @@ def _procesar_twilio_webhook(post_data):
                         from .response_templates import get_response_for_intent
                         texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
                     elif msg_lower in ['continuar', 'listo', 'siguiente', 'avanzar', 'pasar']:
-                        # Enviar siguiente módulo directamente
+                        # CORREGIDO v1.9.2: pasar 'listo' para que palabras_completar matchee
+                        # y avance correctamente (examen o siguiente módulo) SIN re-entregar contenido
                         from .response_templates import get_response_for_intent
                         texto_respuesta = get_response_for_intent(
                             'continuar_leccion', estudiante.nombre,
-                            estudiante_id=estudiante.id, mensaje_original='continuar'
+                            estudiante_id=estudiante.id, mensaje_original='listo'
                         )
                     else:
                         # Indicar al usuario que escriba listo para continuar
@@ -2048,11 +2049,12 @@ def _procesar_twilio_webhook(post_data):
                         from .response_templates import get_response_for_intent
                         texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
                     elif msg_lower in ['continuar', 'listo', 'siguiente', 'avanzar', 'pasar']:
-                        # Enviar siguiente módulo directamente
+                        # CORREGIDO v1.9.2: pasar 'listo' para que palabras_completar matchee
+                        # y avance correctamente (examen o siguiente módulo) SIN re-entregar contenido
                         from .response_templates import get_response_for_intent
                         texto_respuesta = get_response_for_intent(
                             'continuar_leccion', estudiante.nombre,
-                            estudiante_id=estudiante.id, mensaje_original='continuar'
+                            estudiante_id=estudiante.id, mensaje_original='listo'
                         )
                     else:
                         # Indicar al usuario que escriba listo para continuar
@@ -2352,13 +2354,7 @@ Progreso del curso: {porcentaje}%
 
 Has completado el curso: *{progreso.curso.nombre}*
 
-🏆 Certificado disponible en tu perfil
-
-*¿Qué deseas hacer ahora?*
-
-1️⃣ Ver otros cursos
-2️⃣ Ver mi progreso
-3️⃣ Menú principal"""
+🏆 Tu certificado se está generando..."""
                                 
                                     # Asistente: Resumen completo del curso
                                     nombre_asistente_fin = progreso.curso.nombre_agente_asistente or 'María'
