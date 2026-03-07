@@ -3894,7 +3894,7 @@ Qué bueno tenerte en el programa de Cooperativa Valle.
 
                 <tr><td><code>menú</code>, <code>menu</code>, <code>hola</code>, <code>inicio</code></td><td>Vuelve al menú principal</td></tr>
 
-                <tr><td><code>continuar</code>, <code>listo</code>, <code>siguiente</code></td><td>Continúa con la lección actual</td></tr>
+                <tr><td><code>continuar</code>, <code>siguiente</code>, botón <strong>Continuar</strong></td><td>Continúa con la lección actual</td></tr>
 
                 <tr><td><code>ver cursos</code></td><td>Lista todos los cursos disponibles</td></tr>
 
@@ -3978,11 +3978,11 @@ Hola María, estos son tus cursos:
 
 
 
-Cuando termines, escribe: "listo"
+Al terminar, el estudiante recibe un botón "Continuar" (Content Template de Twilio).
 
             </div>
 
-            <p><strong>Al escribir "listo":</strong></p>
+            <p><strong>Al presionar "Continuar":</strong></p>
 
             <ol class="step-list">
 
@@ -4226,7 +4226,7 @@ Escribe "ver cursos" para tomar otro curso
 
                 <tr><th>Comando</th><th>Aliases</th><th>Qué hace</th></tr>
 
-                <tr><td><strong>listo</strong></td><td>siguiente, ok, dale, avanzar, sigue</td><td>Marca módulo como completado y avanza</td></tr>
+                <tr><td><strong>Botón Continuar</strong></td><td>continuar, siguiente, ok, dale, avanzar, sigue</td><td>Marca módulo como completado y avanza</td></tr>
 
                 <tr><td><strong>continuar</strong></td><td>retomar, seguir, mi curso</td><td>Muestra el módulo actual sin avanzar</td></tr>
 
@@ -4544,7 +4544,7 @@ Escribe "ver cursos" para tomar otro curso
 
             <div class="alert-box alert-info">
 
-                <strong>💡 Tip:</strong> Si un módulo no tiene preguntas configuradas, el estudiante avanza directamente al siguiente módulo al escribir "listo".
+                <strong>💡 Tip:</strong> Si un módulo no tiene preguntas configuradas, el estudiante avanza directamente al siguiente módulo al presionar el botón "Continuar".
 
             </div>
 
@@ -5357,11 +5357,12 @@ https://tu-dominio.com/verificar-certificado/EKI-XXXX-YYYY-ZZZZ/
                     <li>🎓 Tutor (presentación)</li>
                     <li>👩‍🏫 Asistente (presentación)</li>
                 </ol>
-                <strong>Módulos siguientes (al escribir "listo"):</strong>
+                <strong>Módulos siguientes (al presionar botón "Continuar"):</strong>
                 <ol>
                     <li>✅ Gamificación (puntos, nivel, racha)</li>
                     <li>📖 Siguiente módulo (contenido + video)</li>
                     <li>🎓 Tutor / 👩‍🏫 Asistente (si aplica, max 2 interacciones)</li>
+                    <li>🔘 Botón "Continuar" (solo si NO es el último módulo)</li>
                 </ol>
             </div>
         </div>
