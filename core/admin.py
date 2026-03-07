@@ -2877,9 +2877,11 @@ class ProgresoEstudianteAdmin(admin.ModelAdmin):
             certificado = Certificado.objects.filter(estudiante=progreso.estudiante, curso=progreso.curso).first()
             if not certificado:
                 try:
-                    crear_certificado_automatico(progreso.estudiante, progreso.curso)
-                    generar_y_guardar_certificado(progreso.estudiante, progreso.curso)
-                    enviar_certificado_whatsapp(progreso.estudiante, progreso.curso)
+                    certificado = crear_certificado_automatico(progreso.estudiante, progreso.curso)
+                    if certificado and not certificado.emitido:
+                        generar_y_guardar_certificado(certificado)
+                    if certificado and certificado.emitido:
+                        enviar_certificado_whatsapp(certificado)
                     generados += 1
                 except Exception as e:
                     logger.error(f"Error al generar certificado para {progreso.estudiante.nombre}: {str(e)}")
@@ -3729,12 +3731,16 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
         ('🖼️ Imagen del Certificado (S3)', {
             'fields': ('formato_certificado', 'archivo_plantilla_imagen', 'url_plantilla_imagen'),
             'description': mark_safe('''<div style="background:#e8f5e9;padding:15px;border-radius:8px;border-left:4px solid #4CAF50;margin:10px 0;">
-                <strong>✅ Sube la imagen de tu certificado</strong><br><br>
-                1️⃣ Diseña tu certificado en Canva, Word, etc.<br>
-                2️⃣ Exporta como <strong>PNG o JPG</strong><br>
-                3️⃣ Sube aquí o pega la URL de S3<br><br>
-                El sistema agregará el nombre del estudiante sobre la imagen.<br>
-                <strong>💡 Ideal para WhatsApp:</strong> las imágenes se envían rápido y se ven en miniatura.
+                <strong>✅ COMO PREPARAR TU PLANTILLA DE CERTIFICADO</strong><br><br>
+                1. Diseña tu certificado en Canva, Word, Photoshop, etc.<br>
+                2. Coloca <strong>3 marcadores de color</strong> donde quieras la informacion:<br>
+                &nbsp;&nbsp;&nbsp;⬜ <strong>GRIS</strong> (128,128,128) = Donde ira el <strong>NOMBRE</strong> del estudiante<br>
+                &nbsp;&nbsp;&nbsp;🟥 <strong>ROJO</strong> (255,0,0) = Donde ira la <strong>CEDULA</strong><br>
+                &nbsp;&nbsp;&nbsp;🟦 <strong>AZUL</strong> (0,0,255) = Donde ira el <strong>CODIGO QR</strong><br>
+                3. Exporta como <strong>PNG o JPG</strong><br>
+                4. Sube la imagen aqui o pega la URL de S3<br><br>
+                <strong>💡 Cada curso puede tener su propia plantilla.</strong> Al actualizar la plantilla, los certificados existentes se regeneran automaticamente.<br>
+                <strong>⚠️ Al pegar URL:</strong> Asegurate de pegar solo UNA vez la URL completa (https://...).
             </div>''')
         }),
         ('📄 PDF Personalizado (Avanzado)', {
@@ -3816,6 +3822,55 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
         return format_html('<span style="color:#999;">-</span>')
     total_certificados.short_description = "Certificados"
     
+    def save_model(self, request, obj, form, change):
+        """Al guardar plantilla: auto-regenerar certificados existentes que usen esta plantilla"""
+        super().save_model(request, obj, form, change)
+        if change:  # Solo al editar (no al crear)
+            # Buscar certificados que usen esta plantilla y regenerarlos
+            from .models_certificados import Certificado
+            from .certificado_service import generar_y_guardar_certificado
+            import logging
+            logger = logging.getLogger(__name__)
+            
+            # Certificados del curso de esta plantilla
+            cert_qs = Certificado.objects.filter(emitido=True)
+            if obj.curso:
+                cert_qs = cert_qs.filter(curso=obj.curso)
+            elif obj.cliente:
+                cert_qs = cert_qs.filter(estudiante__cliente=obj.cliente)
+            else:
+                # Plantilla por defecto — regenerar solo los que NO tienen plantilla especifica
+                if obj.por_defecto:
+                    from .models_certificados import PlantillaCertificado
+                    cursos_con_plantilla = PlantillaCertificado.objects.filter(
+                        activa=True, curso__isnull=False
+                    ).exclude(pk=obj.pk).values_list('curso_id', flat=True)
+                    cert_qs = cert_qs.exclude(curso_id__in=cursos_con_plantilla)
+                else:
+                    cert_qs = cert_qs.none()
+            
+            count = cert_qs.count()
+            if count > 0 and count <= 50:  # Limite de seguridad
+                regenerados = 0
+                for cert in cert_qs:
+                    try:
+                        if generar_y_guardar_certificado(cert, plantilla=obj, force=True):
+                            regenerados += 1
+                    except Exception as e:
+                        logger.error(f"Error regenerando cert {cert.codigo_verificacion}: {e}")
+                if regenerados > 0:
+                    self.message_user(
+                        request,
+                        f"🔄 {regenerados} certificado(s) regenerado(s) automaticamente con la nueva plantilla",
+                        messages.SUCCESS
+                    )
+            elif count > 50:
+                self.message_user(
+                    request,
+                    f"⚠️ Hay {count} certificados que usan esta plantilla. Usa la accion 'Regenerar' en Certificados para actualizarlos.",
+                    messages.WARNING
+                )
+
     @admin.action(description='👁️ Previsualizar con nombre de prueba')
     def previsualizar_certificado_accion(self, request, queryset):
         """Genera un certificado de prueba para ver cómo se verá"""
@@ -4079,13 +4134,15 @@ class CertificadoAdmin(admin.ModelAdmin):
         """Envía los certificados por WhatsApp"""
         from .certificado_service import enviar_certificado_whatsapp
         
-        # Filtrar solo los emitidos
-        queryset = queryset.filter(emitido=True, archivo_pdf__isnull=False)
+        # Filtrar emitidos con PDF o imagen
+        queryset = queryset.filter(emitido=True).filter(
+            models.Q(archivo_pdf__isnull=False) | models.Q(archivo_imagen__isnull=False)
+        ).exclude(archivo_pdf='', archivo_imagen='')
         
         if not queryset.exists():
             self.message_user(
                 request,
-                "⚠️ Primero debes generar los certificados PDF",
+                "⚠️ Primero debes generar los certificados (PDF o imagen)",
                 messages.WARNING
             )
             return

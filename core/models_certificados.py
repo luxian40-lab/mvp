@@ -4,6 +4,7 @@ Generación automática de certificados al completar cursos
 """
 
 from django.db import models
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 import hashlib
 import uuid
@@ -299,10 +300,47 @@ class PlantillaCertificado(models.Model):
         cliente_str = f" ({self.cliente.nombre})" if self.cliente else ""
         return f"{self.nombre}{cliente_str} {'(Por defecto)' if self.por_defecto else ''}"
     
+    def clean(self):
+        """Validar y limpiar URL de plantilla para evitar duplicaciones y errores"""
+        super().clean()
+        if self.url_plantilla_imagen:
+            url = self.url_plantilla_imagen.strip()
+            # Detectar URLs duplicadas pegadas (ej: "archivo.jpghttps://...archivo.jpg")
+            # Patron: buscar 'https://' dentro del string despues del inicio
+            partes_https = url.split('https://')
+            if len(partes_https) > 2:
+                # Hay multiples https:// — tomar la ultima URL completa
+                url = 'https://' + partes_https[-1]
+            elif len(partes_https) == 2 and not url.startswith('https://'):
+                # Empieza con basura y luego tiene https://
+                url = 'https://' + partes_https[1]
+            # Asegurar que termina en extension de imagen valida
+            url_lower = url.lower().split('?')[0]  # ignorar query params
+            if not any(url_lower.endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.webp']):
+                raise ValidationError({
+                    'url_plantilla_imagen': 'La URL debe terminar en .png, .jpg, .jpeg o .webp'
+                })
+            # Validar que es una URL completa
+            if not url.startswith('http://') and not url.startswith('https://'):
+                raise ValidationError({
+                    'url_plantilla_imagen': 'La URL debe comenzar con https://'
+                })
+            self.url_plantilla_imagen = url
+        
+        # Si se sube archivo Y hay URL, preferir archivo (limpiar URL para evitar conflicto)
+        if self.archivo_plantilla_imagen and self.url_plantilla_imagen:
+            # Ambos presentes: archivo tiene prioridad, pero dejar URL como backup
+            pass
+
     def save(self, *args, **kwargs):
+        # Ejecutar validacion de URL
+        try:
+            self.clean()
+        except ValidationError:
+            pass  # En save() no bloqueamos, solo en admin form
         # Si se marca como por defecto, desmarcar otras
         if self.por_defecto:
-            PlantillaCertificado.objects.filter(por_defecto=True).update(por_defecto=False)
+            PlantillaCertificado.objects.filter(por_defecto=True).exclude(pk=self.pk).update(por_defecto=False)
         super().save(*args, **kwargs)
     
     def usa_pdf_personalizado(self):
