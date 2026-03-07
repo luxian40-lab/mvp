@@ -619,6 +619,8 @@ Te inscribiste en: *{curso.nombre}*
             partes_insc = [mensaje_1, mensaje_modulo]
             if primera_media_url_1:
                 partes_insc.append(f"\U0001f4f9 Video del módulo\n\n[MEDIA:{primera_media_url_1}]")
+                # [DELAY:8] para que WhatsApp entregue video antes de texto de agentes
+                partes_insc.append("[DELAY:8]")
             partes_insc.append(msg_geronimo)
             partes_insc.append(msg_maria)
             # Mensaje "listo" solo si hay más módulos después del primero
@@ -918,20 +920,29 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     estudiante.estado_onboarding = 'esperando_respuesta_progreso'
                     estudiante.save()
                 
-                # Construir multi-mensaje: gamificación → módulo texto → video(s) → agente → "escribe listo"
+                # Construir multi-mensaje: gamificación → módulo texto → video(s) → [DELAY] → agente → "escribe listo"
                 partes = [msg_completado, msg_modulo]
                 # Videos/media como mensajes separados DESPUÉS del texto
+                hay_media = False
                 if primera_media_url:
                     partes.append(f"\U0001f4f9 Video del módulo\n\n[MEDIA:{primera_media_url}]")
+                    hay_media = True
                 for extra_url, extra_titulo, extra_icono in extra_media_urls:
                     partes.append(f"{extra_icono} {extra_titulo}\n\n[MEDIA:{extra_url}]")
+                    hay_media = True
+                # [DELAY:8] después de videos para que WhatsApp los entregue antes del texto siguiente
+                hay_texto_post = tutor_msg or maria_msg
+                es_ultimo_modulo = not progreso.curso.modulos.filter(numero__gt=siguiente_modulo.numero).exists()
+                if not hay_texto_post and not es_ultimo_modulo:
+                    hay_texto_post = True  # habrá "escribe listo"
+                if hay_media and hay_texto_post:
+                    partes.append("[DELAY:8]")
                 # Agentes van DESPUÉS de los videos
                 if tutor_msg:
                     partes.append(tutor_msg)
                 if maria_msg:
                     partes.append(maria_msg)
                 # "Escribe listo" AL FINAL — solo si NO hay agentes (agentes ya dicen "continuar") y NO es último módulo
-                es_ultimo_modulo = not progreso.curso.modulos.filter(numero__gt=siguiente_modulo.numero).exists()
                 if not tutor_msg and not maria_msg and not es_ultimo_modulo:
                     partes.append("Cuando termines de revisar el contenido, escribe *listo* para continuar con el siguiente modulo")
                 return "[MULTI_MSG]" + "[SEP]".join(partes)
@@ -1090,11 +1101,16 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             
             # Siempre usar multi-mensaje para garantizar orden: texto → video(s) → "escribe listo"
             partes_c = [respuesta]
+            hay_media_c = False
             if primera_media_url_c:
                 partes_c.append(f"\U0001f4f9 Video del módulo\n\n[MEDIA:{primera_media_url_c}]")
+                hay_media_c = True
             for extra_url_c, extra_titulo_c, extra_icono_c in extra_media_urls_c:
                 partes_c.append(f"{extra_icono_c} {extra_titulo_c}\n\n[MEDIA:{extra_url_c}]")
+                hay_media_c = True
             if not es_ultimo_modulo_c:
+                if hay_media_c:
+                    partes_c.append("[DELAY:8]")
                 partes_c.append("Cuando termines de revisar el contenido, escribe *listo* para continuar con el siguiente modulo")
             
             if len(partes_c) > 1:
