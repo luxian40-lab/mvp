@@ -1405,14 +1405,14 @@ def _procesar_twilio_webhook(post_data):
                                 for idx, archivo in enumerate(archivos_multimedia):
                                     icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
                                     url = archivo.get_url_para_envio()
-                                    if url and archivo.tipo in ['imagen', 'video']:
+                                    if url:
                                         if not primera_media_url:
                                             primera_media_url = url
                                             archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
                                         else:
                                             extra_media_urls.append((url, archivo.titulo, icono))
                                             archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
-                                    elif url:
+                                    else:
                                         archivos_msg += f"\n{icono} {archivo.titulo}"
                             if not archivos_multimedia.exists() and video_url:
                                 primera_media_url = video_url
@@ -1751,26 +1751,37 @@ def _procesar_twilio_webhook(post_data):
                         archivos_multimedia = modulo.archivos_multimedia.filter(activo=True)
                         archivos_msg = ""
                         primera_media_url = None
+                        extra_media_urls = []
                         if archivos_multimedia.exists():
                             archivos_msg = f"\n\n📁 *{archivos_multimedia.count()} archivo(s) multimedia*"
-                            for idx, archivo in enumerate(archivos_multimedia[:3]):
+                            for idx, archivo in enumerate(archivos_multimedia):
                                 icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
                                 url = archivo.get_url_para_envio()
-                                if idx == 0 and url and archivo.tipo in ['imagen', 'video'] and not primera_media_url:
-                                    primera_media_url = url
-                                    archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
-                                elif url:
-                                    archivos_msg += f"\n{icono} {archivo.titulo}"
+                                if url:
+                                    if not primera_media_url:
+                                        primera_media_url = url
+                                        archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
+                                    else:
+                                        extra_media_urls.append((url, archivo.titulo, icono))
+                                        archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
                                 else:
                                     archivos_msg += f"\n{icono} {archivo.titulo}"
                         if not archivos_multimedia.exists() and video_url:
                             primera_media_url = video_url
-                        texto_respuesta = (
+                        # Construir MULTI_MSG con texto + todos los medias separados
+                        msg_texto = (
                             f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
                             f"{modulo.contenido}{archivos_msg}"
                         )
+                        partes_cursos = [msg_texto]
                         if primera_media_url:
-                            texto_respuesta += f"\n\n[MEDIA:{primera_media_url}]"
+                            partes_cursos.append(f"📹 Video del módulo\n\n[MEDIA:{primera_media_url}]")
+                        for extra_url, extra_titulo, extra_icono in extra_media_urls:
+                            partes_cursos.append(f"{extra_icono} {extra_titulo}\n\n[MEDIA:{extra_url}]")
+                        if len(partes_cursos) > 1:
+                            texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_cursos)
+                        else:
+                            texto_respuesta = msg_texto
                         # Enviar botón continuar si no es el último módulo
                         if curso.modulos.filter(numero__gt=modulo.numero).exists():
                             _enviar_btn_continuar = True
@@ -1888,26 +1899,37 @@ def _procesar_twilio_webhook(post_data):
                         archivos_multimedia = modulo.archivos_multimedia.filter(activo=True)
                         archivos_msg = ""
                         primera_media_url = None
+                        extra_media_urls = []
                         if archivos_multimedia.exists():
                             archivos_msg = f"\n\n📁 *{archivos_multimedia.count()} archivo(s) multimedia*"
-                            for idx, archivo in enumerate(archivos_multimedia[:3]):
+                            for idx, archivo in enumerate(archivos_multimedia):
                                 icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
                                 url = archivo.get_url_para_envio()
-                                if idx == 0 and url and archivo.tipo in ['imagen', 'video'] and not primera_media_url:
-                                    primera_media_url = url
-                                    archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
-                                elif url:
-                                    archivos_msg += f"\n{icono} {archivo.titulo}"
+                                if url:
+                                    if not primera_media_url:
+                                        primera_media_url = url
+                                        archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
+                                    else:
+                                        extra_media_urls.append((url, archivo.titulo, icono))
+                                        archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
                                 else:
                                     archivos_msg += f"\n{icono} {archivo.titulo}"
                         if not archivos_multimedia.exists() and video_url:
                             primera_media_url = video_url
-                        texto_respuesta = (
+                        # Construir MULTI_MSG con texto + todos los medias separados
+                        msg_texto_menu = (
                             f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
                             f"{modulo.contenido}{archivos_msg}"
                         )
+                        partes_menu = [msg_texto_menu]
                         if primera_media_url:
-                            texto_respuesta += f"\n\n[MEDIA:{primera_media_url}]"
+                            partes_menu.append(f"📹 Video del módulo\n\n[MEDIA:{primera_media_url}]")
+                        for extra_url, extra_titulo, extra_icono in extra_media_urls:
+                            partes_menu.append(f"{extra_icono} {extra_titulo}\n\n[MEDIA:{extra_url}]")
+                        if len(partes_menu) > 1:
+                            texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_menu)
+                        else:
+                            texto_respuesta = msg_texto_menu
                         # Enviar botón continuar si no es el último módulo
                         if curso.modulos.filter(numero__gt=modulo.numero).exists():
                             _enviar_btn_continuar_menu = True
@@ -2272,14 +2294,11 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                     if archivos_multimedia.exists():
                                         print(f"✅ Encontrados {archivos_multimedia.count()} archivos multimedia")
                                         archivos_msg = f"\n\n📁 *{archivos_multimedia.count()} archivo(s) multimedia*"
-                                        for idx, archivo in enumerate(archivos_multimedia[:3]):
+                                        for idx, archivo in enumerate(archivos_multimedia):
                                             icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
                                             url = archivo.get_url_para_envio()
                                             if url:
                                                 print(f"📎 URL para envío: {url}")
-                                            else:
-                                                print(f"⚠️ Archivo sin URL disponible para envío")
-                                            if url and archivo.tipo in ['imagen', 'video']:
                                                 if not primera_media_url:
                                                     primera_media_url = url
                                                     print(f"🖼️ Primera media detectada: {archivo.tipo} - {url}")
@@ -2287,9 +2306,8 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                                 else:
                                                     extra_media_urls.append((url, archivo.titulo, icono))
                                                     archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
-                                            elif url:
-                                                archivos_msg += f"\n{icono} {archivo.titulo}"
                                             else:
+                                                print(f"⚠️ Archivo sin URL disponible para envío")
                                                 archivos_msg += f"\n{icono} {archivo.titulo}"
 
                                     # Refuerzo: si NO hay archivos multimedia pero hay video_url, igual agregarlo como media

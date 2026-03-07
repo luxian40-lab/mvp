@@ -573,18 +573,21 @@ Te inscribiste en: *{curso.nombre}*
         # Verificar archivos multimedia del primer módulo
         archivos_multimedia_1 = primer_modulo.archivos_multimedia.filter(activo=True)
         primera_media_url_1 = None
+        extra_media_urls_1 = []
         archivos_msg_1 = ""
 
         if archivos_multimedia_1.exists():
             archivos_msg_1 = f"\n\n📁 *{archivos_multimedia_1.count()} archivo(s) multimedia*"
-            for idx, archivo in enumerate(archivos_multimedia_1[:3]):
+            for idx, archivo in enumerate(archivos_multimedia_1):
                 icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
                 url = archivo.get_url_para_envio()
-                if idx == 0 and url and archivo.tipo in ['imagen', 'video'] and not primera_media_url_1:
-                    primera_media_url_1 = url
-                    archivos_msg_1 += f"\n{icono} {archivo.titulo} (adjunto)"
-                elif url:
-                    archivos_msg_1 += f"\n{icono} {archivo.titulo}"
+                if url:
+                    if not primera_media_url_1:
+                        primera_media_url_1 = url
+                        archivos_msg_1 += f"\n{icono} {archivo.titulo} (adjunto)"
+                    else:
+                        extra_media_urls_1.append((url, archivo.titulo, icono))
+                        archivos_msg_1 += f"\n{icono} {archivo.titulo} (adjunto)"
                 else:
                     archivos_msg_1 += f"\n{icono} {archivo.titulo}"
 
@@ -617,9 +620,15 @@ Te inscribiste en: *{curso.nombre}*
             # NO embeber video en mensaje_modulo — enviar como parte separada DESPUÉS del texto
             # Build multi-message: inscripción → módulo texto → video(s) → agentes → "escribe listo"
             partes_insc = [mensaje_1, mensaje_modulo]
+            hay_media_insc = False
             if primera_media_url_1:
                 partes_insc.append(f"\U0001f4f9 Video del módulo\n\n[MEDIA:{primera_media_url_1}]")
-                # [DELAY:8] para que WhatsApp entregue video antes de texto de agentes
+                hay_media_insc = True
+            for extra_url_1, extra_titulo_1, extra_icono_1 in extra_media_urls_1:
+                partes_insc.append(f"{extra_icono_1} {extra_titulo_1}\n\n[MEDIA:{extra_url_1}]")
+                hay_media_insc = True
+            if hay_media_insc:
+                # [DELAY:8] para que WhatsApp entregue videos antes de texto de agentes
                 partes_insc.append("[DELAY:8]")
             partes_insc.append(msg_geronimo)
             partes_insc.append(msg_maria)
@@ -793,17 +802,16 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     for idx, archivo in enumerate(archivos_multimedia):
                         icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
                         url = archivo.get_url_para_envio()
-                        if url and archivo.tipo in ['imagen', 'video']:
+                        if url:
                             if not primera_media_url:
                                 primera_media_url = url
                                 archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
                             else:
                                 extra_media_urls.append((url, archivo.titulo, icono))
                                 archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
-                        elif url:
-                            archivos_msg += f"\n{icono} {archivo.titulo}"
                         else:
                             archivos_msg += f"\n{icono} {archivo.titulo}"
+                    print(f"📎 Multimedia módulo: {archivos_multimedia.count()} archivos, primera_media={'Sí' if primera_media_url else 'No'}, extras={len(extra_media_urls)}", flush=True)
 
                 # Si no hay archivos multimedia pero sí video_url, usarlo como primera media
                 if not archivos_multimedia.exists() and video_url:
@@ -1064,15 +1072,13 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 for idx, archivo in enumerate(archivos_multimedia_c):
                     icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
                     url = archivo.get_url_para_envio()
-                    if url and archivo.tipo in ['imagen', 'video']:
+                    if url:
                         if not primera_media_url_c:
                             primera_media_url_c = url
                             archivos_msg_c += f"\n{icono} {archivo.titulo} (adjunto)"
                         else:
                             extra_media_urls_c.append((url, archivo.titulo, icono))
                             archivos_msg_c += f"\n{icono} {archivo.titulo} (adjunto)"
-                    elif url:
-                        archivos_msg_c += f"\n{icono} {archivo.titulo}"
                     else:
                         archivos_msg_c += f"\n{icono} {archivo.titulo}"
 

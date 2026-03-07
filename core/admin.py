@@ -2438,13 +2438,18 @@ class ArchivoModuloInline(admin.StackedInline):
     can_delete = True
     show_change_link = True
     verbose_name = '📎 Multimedia'
-    verbose_name_plural = '📁 MULTIMEDIA (Videos, Imágenes, PDFs) - AQUÍ SE AGREGAN LOS ARCHIVOS'
+    verbose_name_plural = '📁 MULTIMEDIA (Videos, Imágenes, PDFs, Infografías, Audio) - AQUÍ SE AGREGAN LOS ARCHIVOS'
     readonly_fields = ('preview_multimedia',)
     
     fieldsets = (
         (None, {
             'fields': ('tipo', 'titulo', 'descripcion'),
-            'description': '👉 Paso 1: Selecciona el TIPO de archivo (video, imagen, pdf, etc.)'
+            'description': (
+                '👉 Paso 1: Selecciona el TIPO de archivo (video, imagen, infografía, pdf, audio).<br>'
+                '💡 <b>TODOS los tipos se envían como adjunto por WhatsApp</b> — videos, imágenes, '
+                'infografías, PDFs y audios se entregan automáticamente al estudiante.<br>'
+                '📎 Puedes agregar MÚLTIPLES archivos por módulo — todos se enviarán en orden.'
+            )
         }),
         ('📤 Subir Archivo o URL', {
             'fields': ('archivo', 'preview_multimedia', 'url_externa'),
@@ -2452,6 +2457,7 @@ class ArchivoModuloInline(admin.StackedInline):
             👉 Paso 2: Elige UNA opción:
             • SUBIR ARCHIVO: Sube desde tu PC (se guardará en S3 automáticamente)
             • URL EXTERNA: Pega link de YouTube, Vimeo, Google Drive, etc.
+            ⚠️ IMPORTANTE: Verifica que la URL sea pública y accesible. URLs privadas no se podrán enviar.
             '''
         }),
         ('Configuración', {
@@ -2559,7 +2565,7 @@ class ModuloAdmin(admin.ModelAdmin):
         }),
         ('⏱️ Configuración', {
             'fields': ('duracion_dias',),
-            'description': '👇 Para agregar VIDEOS, IMÁGENES, PDFs → Usa la sección "ARCHIVOS MULTIMEDIA" abajo 👇'
+            'description': '👇 Para agregar VIDEOS, IMÁGENES, INFOGRAFÍAS, PDFs, AUDIO → Usa la sección "ARCHIVOS MULTIMEDIA" abajo 👇<br>💡 Puedes agregar múltiples archivos por módulo — TODOS se envían automáticamente por WhatsApp'
         }),
     )
     
