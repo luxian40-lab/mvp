@@ -2197,6 +2197,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                     print(f"🔍 Archivos multimedia para módulo {siguiente_modulo.titulo}: {archivos_multimedia.count()}")
                                     archivos_msg = ""
                                     primera_media_url = None
+                                    extra_media_urls = []
                                 
                                     if archivos_multimedia.exists():
                                         print(f"✅ Encontrados {archivos_multimedia.count()} archivos multimedia")
@@ -2208,10 +2209,14 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                                 print(f"📎 URL para envío: {url}")
                                             else:
                                                 print(f"⚠️ Archivo sin URL disponible para envío")
-                                            if idx == 0 and url and archivo.tipo in ['imagen', 'video'] and not primera_media_url:
-                                                primera_media_url = url
-                                                print(f"🖼️ Primera media detectada: {archivo.tipo} - {url}")
-                                                archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
+                                            if url and archivo.tipo in ['imagen', 'video']:
+                                                if not primera_media_url:
+                                                    primera_media_url = url
+                                                    print(f"🖼️ Primera media detectada: {archivo.tipo} - {url}")
+                                                    archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
+                                                else:
+                                                    extra_media_urls.append((url, archivo.titulo, icono))
+                                                    archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
                                             elif url:
                                                 archivos_msg += f"\n{icono} {archivo.titulo}"
                                             else:
@@ -2285,17 +2290,20 @@ Progreso del curso: {porcentaje}%
                                 
                                     # Establecer estado para el PRIMER agente que responda (Gerónimo tiene prioridad)
                                     if tutor_msg:
+                                        _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
                                         estudiante.contexto_temporal = {
                                             'tipo': 'tutor_ia_modulo',
                                             'modulo_id': modulo_actual.id,
                                             'pregunta_tutor': enseñanza,
                                             'progreso_id': progreso.id,
                                             'intentos_tutor': 0,
+                                            '_ts_leccion': _prev_ts,
                                         }
                                         estudiante.estado_onboarding = 'esperando_respuesta_tutor_ia'
                                         estudiante.save()
                                     elif maria_msg:
                                         modulos_info_str = ", ".join([m.titulo for m in modulos_obj])
+                                        _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
                                         estudiante.contexto_temporal = {
                                             'tipo': 'revision_progreso',
                                             'modulo_id': modulo_actual.id,
@@ -2303,6 +2311,7 @@ Progreso del curso: {porcentaje}%
                                             'progreso_id': progreso.id,
                                             'modulos_info': modulos_info_str,
                                             'intentos_tutor': 0,
+                                            '_ts_leccion': _prev_ts,
                                         }
                                         estudiante.estado_onboarding = 'esperando_respuesta_progreso'
                                         estudiante.save()
@@ -2310,11 +2319,13 @@ Progreso del curso: {porcentaje}%
                                         estudiante.estado_onboarding = 'completado'
                                         estudiante.save()
                                 
-                                    # Construir respuesta multi-mensaje: gamificación → texto → video → agente → "escribe listo"
+                                    # Construir respuesta multi-mensaje: gamificación → texto → video(s) → agente → "escribe listo"
                                     partes = [msg_completado, msg_modulo]
-                                    # Video como mensaje separado DESPUÉS del texto
+                                    # Videos como mensajes separados DESPUÉS del texto
                                     if primera_media_url:
                                         partes.append(f"\U0001f4f9 Video del módulo\n\n[MEDIA:{primera_media_url}]")
+                                    for extra_url, extra_titulo, extra_icono in extra_media_urls:
+                                        partes.append(f"{extra_icono} {extra_titulo}\n\n[MEDIA:{extra_url}]")
                                     if tutor_msg:
                                         partes.append(tutor_msg)
                                     if maria_msg:

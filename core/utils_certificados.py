@@ -77,7 +77,7 @@ def generar_certificado_marcadores(
     fuente_nombre_size=80,
     fuente_cedula_size=40,
     tamaño_qr=200,
-    ajuste_qr_y=-40,
+    ajuste_qr_y=20,
 ):
     """
     Genera un certificado usando detección de marcadores de color.
@@ -136,28 +136,24 @@ def generar_certificado_marcadores(
             color_fondo = plantilla.getpixel((x, min(y + 20, alto_img - 1)))
             draw.ellipse([x - 12, y - 12, x + 12, y + 12], fill=color_fondo)
     
-    # 5. Estampar NOMBRE (centrado en el marcador)
+    # 5. Estampar NOMBRE (centrado en el marcador usando anchor="mm")
     nombre_capitalizado = nombre_estudiante.strip().title()
-    caja_nombre = draw.textbbox((0, 0), nombre_capitalizado, font=fuente_nombre)
-    ancho_nombre = caja_nombre[2] - caja_nombre[0]
-    alto_nombre = caja_nombre[3] - caja_nombre[1]
     draw.text(
-        (pos_nombre[0] - ancho_nombre // 2, pos_nombre[1] - alto_nombre // 2),
+        (pos_nombre[0], pos_nombre[1]),
         nombre_capitalizado,
         font=fuente_nombre,
-        fill="black"
+        fill="black",
+        anchor="mm"  # Middle-middle: centra horizontal y verticalmente sobre el punto
     )
     
-    # 6. Estampar CÉDULA (centrada en el marcador)
+    # 6. Estampar CÉDULA (centrada en el marcador usando anchor="mm")
     texto_cedula = str(cedula_estudiante)
-    caja_cedula = draw.textbbox((0, 0), texto_cedula, font=fuente_cedula)
-    ancho_cedula = caja_cedula[2] - caja_cedula[0]
-    alto_cedula = caja_cedula[3] - caja_cedula[1]
     draw.text(
-        (pos_cedula[0] - ancho_cedula // 2, pos_cedula[1] - alto_cedula // 2),
+        (pos_cedula[0], pos_cedula[1]),
         texto_cedula,
         font=fuente_cedula,
-        fill="black"
+        fill="black",
+        anchor="mm"  # Middle-middle: centra horizontal y verticalmente sobre el punto
     )
     
     # 7. Generar y pegar QR (centrado en el marcador con ajuste)

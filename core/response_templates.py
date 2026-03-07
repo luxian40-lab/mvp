@@ -614,18 +614,19 @@ Te inscribiste en: *{curso.nombre}*
             
             mensaje_modulo += archivos_msg_1
             
-            # Embeber primera multimedia en el mensaje del módulo (un solo mensaje = menos costo)
+            # NO embeber video en mensaje_modulo — enviar como parte separada DESPUÉS del texto
+            # Build multi-message: inscripción → módulo texto → video(s) → agentes → "escribe listo"
+            partes_insc = [mensaje_1, mensaje_modulo]
             if primera_media_url_1:
-                mensaje_modulo += f"\n\n[MEDIA:{primera_media_url_1}]"
-            
-            # Build multi-message: inscripción [SEP] módulo (con media) [SEP] agentes (ÚLTIMOS)
-            resultado = f"[MULTI_MSG]{mensaje_1}[SEP]{mensaje_modulo}[SEP]{msg_geronimo}[SEP]{msg_maria}"
+                partes_insc.append(f"\U0001f4f9 Video del módulo\n\n[MEDIA:{primera_media_url_1}]")
+            partes_insc.append(msg_geronimo)
+            partes_insc.append(msg_maria)
             # Mensaje "listo" solo si hay más módulos después del primero
             hay_mas_modulos = curso.modulos.filter(numero__gt=primer_modulo.numero).exists()
             if hay_mas_modulos:
-                resultado += "[SEP]Cuando termines de revisar el contenido, escribe *listo* para continuar con el siguiente modulo"
+                partes_insc.append("Cuando termines de revisar el contenido, escribe *listo* para continuar con el siguiente modulo")
             
-            return resultado
+            return "[MULTI_MSG]" + "[SEP]".join(partes_insc)
         else:
             # Fallback (shouldn't happen)
             return f"""✅ {curso.emoji} ¡Inscripción exitosa!
@@ -643,6 +644,37 @@ Escribe "continuar" para empezar el primer módulo."""
             return "Error al identificar estudiante. ⚠️"
         
         from .models import Estudiante
+        
+        # ═══════════════════════════════════════════════════════════════
+        # ANTI-DUPLICADO v1.9.1: Prevenir que dos workers entreguen
+        # el mismo módulo simultáneamente (race condition con Gunicorn)
+        # ═══════════════════════════════════════════════════════════════
+        import time as _time
+        from django.db import transaction
+        
+        _dedup_ok = False
+        try:
+            with transaction.atomic():
+                est_lock = Estudiante.objects.select_for_update().get(id=estudiante_id)
+                ctx_lock = est_lock.contexto_temporal or {}
+                last_leccion = ctx_lock.get('_ts_leccion', 0)
+                now_ts = _time.time()
+                
+                if now_ts - last_leccion < 12:
+                    print(f"⏳ [ANTI-DUPLICADO] continuar_leccion bloqueado: última entrega hace {now_ts - last_leccion:.1f}s", flush=True)
+                else:
+                    ctx_lock['_ts_leccion'] = now_ts
+                    est_lock.contexto_temporal = ctx_lock
+                    est_lock.save(update_fields=['contexto_temporal'])
+                    _dedup_ok = True
+        except Exception as e:
+            print(f"⚠️ [ANTI-DUPLICADO] Error en lock: {e}", flush=True)
+            _dedup_ok = True  # En caso de error, permitir (fail-open)
+        
+        if not _dedup_ok:
+            return "⏳ Tu módulo se está cargando, espera unos segundos..."
+        # ═══════════════════════════════════════════════════════════════
+        
         estudiante = Estudiante.objects.get(id=estudiante_id)
         
         mensaje_original = kwargs.get('mensaje_original', '').lower()
@@ -831,12 +863,14 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                             estudiante_nombre=estudiante.nombre or "Estudiante"
                         )
                         if enseñanza:
+                            _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
                             estudiante.contexto_temporal = {
                                 'tipo': 'tutor_ia_modulo',
                                 'modulo_id': modulo_actual.id,
                                 'pregunta_tutor': enseñanza,
                                 'progreso_id': progreso.id,
                                 'intentos_tutor': 0,
+                                '_ts_leccion': _prev_ts,
                             }
                             estudiante.estado_onboarding = 'esperando_respuesta_tutor_ia'
                             estudiante.save()
@@ -871,6 +905,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     pass
                 elif maria_msg:
                     modulos_info = ", ".join([m.titulo for m in modulos_obj])
+                    _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
                     estudiante.contexto_temporal = {
                         'tipo': 'revision_progreso',
                         'modulo_id': modulo_actual.id,
@@ -878,6 +913,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                         'progreso_id': progreso.id,
                         'modulos_info': modulos_info,
                         'intentos_tutor': 0,
+                        '_ts_leccion': _prev_ts,
                     }
                     estudiante.estado_onboarding = 'esperando_respuesta_progreso'
                     estudiante.save()
@@ -1047,19 +1083,21 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 respuesta = modulo_header_c + (modulo_actual.descripcion or '')
             respuesta += archivos_msg_c
             
-            if primera_media_url_c:
-                respuesta += f"\n\n[MEDIA:{primera_media_url_c}]"
+            # NO embeber video en respuesta — enviar como parte separada DESPUÉS del texto
             
             # "Escribe listo" solo si NO es el último módulo
             es_ultimo_modulo_c = not progreso.curso.modulos.filter(numero__gt=modulo_actual.numero).exists()
             
-            # Si hay más media o no es último, enviar como multi-mensaje
-            if extra_media_urls_c or not es_ultimo_modulo_c:
-                partes_c = [respuesta]
-                for extra_url_c, extra_titulo_c, extra_icono_c in extra_media_urls_c:
-                    partes_c.append(f"{extra_icono_c} {extra_titulo_c}\n\n[MEDIA:{extra_url_c}]")
-                if not es_ultimo_modulo_c:
-                    partes_c.append("Cuando termines de revisar el contenido, escribe *listo* para continuar con el siguiente modulo")
+            # Siempre usar multi-mensaje para garantizar orden: texto → video(s) → "escribe listo"
+            partes_c = [respuesta]
+            if primera_media_url_c:
+                partes_c.append(f"\U0001f4f9 Video del módulo\n\n[MEDIA:{primera_media_url_c}]")
+            for extra_url_c, extra_titulo_c, extra_icono_c in extra_media_urls_c:
+                partes_c.append(f"{extra_icono_c} {extra_titulo_c}\n\n[MEDIA:{extra_url_c}]")
+            if not es_ultimo_modulo_c:
+                partes_c.append("Cuando termines de revisar el contenido, escribe *listo* para continuar con el siguiente modulo")
+            
+            if len(partes_c) > 1:
                 return "[MULTI_MSG]" + "[SEP]".join(partes_c)
             
             return respuesta
