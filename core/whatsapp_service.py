@@ -28,6 +28,7 @@ TWILIO_CONTENT_SIDS = {
     'listadocursos2': 'HXcb7abe9df97c2e3085b862523a5a1d8b',
     'listadocursos3': 'HX09b9105e5698450aeec07965832b183c',
     'listadocursos4': 'HX9484a11d743ed99add4b6039286ff763',
+    'continuar_modulo': 'HX33af3a0f2bb63715e03965c2bd642285',
 }
 
 

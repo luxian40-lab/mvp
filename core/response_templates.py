@@ -431,7 +431,6 @@ Escribe *"menú"* para volver al inicio."""
 • "2" - Inscribirte en un curso
 • "continuar" - Seguir tu curso actual
 • "progreso" o "1" - Ver tu avance
-• "listo" - Completar módulo actual
 • "menú" - Volver al inicio
 
 🎮 GAMIFICACIÓN:
@@ -614,14 +613,18 @@ Te inscribiste en: *{curso.nombre}*
                         break
             
             mensaje_modulo += archivos_msg_1
-            mensaje_modulo += "\n\n---\nCuando termines, escribe: *\"listo\"*"
             
             # Embeber primera multimedia en el mensaje del módulo (un solo mensaje = menos costo)
             if primera_media_url_1:
                 mensaje_modulo += f"\n\n[MEDIA:{primera_media_url_1}]"
             
-            # Build multi-message: inscripción [SEP] módulo (con media) [SEP] agentes (ÚLTIMOS)
+            # Build multi-message: inscripción [SEP] módulo (con media) [SEP] agentes (ÚLTIMOS) [SEP] botón continuar
+            TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
             resultado = f"[MULTI_MSG]{mensaje_1}[SEP]{mensaje_modulo}[SEP]{msg_geronimo}[SEP]{msg_maria}"
+            # Botón "Continuar" solo si hay más módulos después del primero
+            hay_mas_modulos = curso.modulos.filter(numero__gt=primer_modulo.numero).exists()
+            if hay_mas_modulos:
+                resultado += f"[SEP][SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]"
             
             return resultado
         else:
@@ -805,7 +808,6 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 else:
                     msg_modulo = modulo_header + (siguiente_modulo.descripcion or '')
                 msg_modulo += archivos_msg
-                msg_modulo += "\n\n---\nCuando termines, escribe: *\"listo\"*"
                 
                 # Embeber primera multimedia directamente en msg_modulo
                 if primera_media_url:
@@ -882,7 +884,8 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     estudiante.estado_onboarding = 'esperando_respuesta_progreso'
                     estudiante.save()
                 
-                # Construir multi-mensaje: gamificación [SEP] módulo (con media) [SEP] extras media [SEP] agente (ÚLTIMO)
+                # Construir multi-mensaje: gamificación [SEP] módulo (con media) [SEP] extras media [SEP] agente (ÚLTIMO) [SEP] botón continuar
+                TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
                 partes = [msg_completado, msg_modulo]
                 for extra_url, extra_titulo, extra_icono in extra_media_urls:
                     partes.append(f"{extra_icono} {extra_titulo}\n\n[MEDIA:{extra_url}]")
@@ -890,6 +893,11 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     partes.append(tutor_msg)
                 if maria_msg:
                     partes.append(maria_msg)
+                # Botón "Continuar" SOLO si NO hay agentes activos (el botón se envía después de responder al agente)
+                # Y solo si siguiente_modulo NO es el último módulo del curso
+                es_ultimo_modulo = not progreso.curso.modulos.filter(numero__gt=siguiente_modulo.numero).exists()
+                if not tutor_msg and not maria_msg and not es_ultimo_modulo:
+                    partes.append(f"[SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]")
                 return "[MULTI_MSG]" + "[SEP]".join(partes)
             
             else:
@@ -1038,16 +1046,21 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             else:
                 respuesta = modulo_header_c + (modulo_actual.descripcion or '')
             respuesta += archivos_msg_c
-            respuesta += "\n\n---\nCuando termines, escribe: *\"listo\"*"
             
             if primera_media_url_c:
                 respuesta += f"\n\n[MEDIA:{primera_media_url_c}]"
             
+            # Botón "Continuar" solo si NO es el último módulo
+            TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
+            es_ultimo_modulo_c = not progreso.curso.modulos.filter(numero__gt=modulo_actual.numero).exists()
+            
             # Si hay más media, enviar como multi-mensaje
-            if extra_media_urls_c:
+            if extra_media_urls_c or not es_ultimo_modulo_c:
                 partes_c = [respuesta]
                 for extra_url_c, extra_titulo_c, extra_icono_c in extra_media_urls_c:
                     partes_c.append(f"{extra_icono_c} {extra_titulo_c}\n\n[MEDIA:{extra_url_c}]")
+                if not es_ultimo_modulo_c:
+                    partes_c.append(f"[SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]")
                 return "[MULTI_MSG]" + "[SEP]".join(partes_c)
             
             return respuesta

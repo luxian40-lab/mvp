@@ -1443,14 +1443,18 @@ def _procesar_twilio_webhook(post_data):
                             else:
                                 msg_modulo = modulo_header + (modulo.descripcion or '')
                             msg_modulo += archivos_msg
-                            msg_modulo += "\n\n---\nCuando termines, escribe: *\"listo\"*"
                             if primera_media_url:
                                 msg_modulo += f"\n\n[MEDIA:{primera_media_url}]"
                             
-                            # Orden: intro (con agentes) → módulo (con media) → extras media
+                            # Orden: intro (con agentes) → módulo (con media) → extras media → botón continuar
+                            TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
                             texto_respuesta = "[MULTI_MSG]" + msg_intro + "[SEP]" + msg_modulo
                             for extra_url, extra_titulo, extra_icono in extra_media_urls:
                                 texto_respuesta += f"[SEP]{extra_icono} {extra_titulo}\n\n[MEDIA:{extra_url}]"
+                            # Botón "Continuar" solo si NO es el único módulo (hay más después del primero)
+                            hay_mas_modulos = curso.modulos.filter(numero__gt=modulo.numero).exists()
+                            if hay_mas_modulos:
+                                texto_respuesta += f"[SEP][SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]"
                         else:
                             texto_respuesta = f"✅ *¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nEl curso aún no tiene módulos configurados. Te notificaremos cuando estén listos."
                     else:
@@ -1653,6 +1657,15 @@ def _procesar_twilio_webhook(post_data):
                                 continue
                             import re as re_multi
                             parte_texto = parte.strip()
+                            # Detectar Content Template
+                            if parte_texto.startswith('[SEND_TEMPLATE:'):
+                                tmpl_m = re_multi.match(r'\[SEND_TEMPLATE:(HX[a-f0-9]+)\]', parte_texto)
+                                if tmpl_m:
+                                    from .whatsapp_service import enviar_template_twilio
+                                    tel_limpio_t = msg_from.replace('whatsapp:', '').replace('+', '')
+                                    enviar_template_twilio(tel_limpio_t, tmpl_m.group(1))
+                                import time; time.sleep(0.5)
+                                continue
                             parte_media = None
                             media_m = re_multi.search(r'\[MEDIA:(.*?)\]', parte_texto)
                             if media_m:
@@ -1696,6 +1709,7 @@ def _procesar_twilio_webhook(post_data):
                 # Buscar progreso existente primero
                 progreso_existente = ProgresoEstudiante.objects.filter(estudiante=estudiante, curso__activo=True).first()
                 curso = progreso_existente.curso if progreso_existente else cursos.first()
+                _enviar_btn_continuar = False
                 if curso:
                     progreso, _ = ProgresoEstudiante.objects.get_or_create(
                         estudiante=estudiante, curso=curso, defaults={'completado': False}
@@ -1727,11 +1741,13 @@ def _procesar_twilio_webhook(post_data):
                             primera_media_url = video_url
                         texto_respuesta = (
                             f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
-                            f"{modulo.contenido}{archivos_msg}\n\n\n"
-                            f"Cuando termines, escribe: *\"listo\"*"
+                            f"{modulo.contenido}{archivos_msg}"
                         )
                         if primera_media_url:
                             texto_respuesta += f"\n\n[MEDIA:{primera_media_url}]"
+                        # Enviar botón continuar si no es el último módulo
+                        if curso.modulos.filter(numero__gt=modulo.numero).exists():
+                            _enviar_btn_continuar = True
                     else:
                         texto_respuesta = f"📚 Tu curso *{curso.nombre}* aún no tiene módulos configurados."
                 else:
@@ -1757,6 +1773,12 @@ def _procesar_twilio_webhook(post_data):
                     except Exception:
                         mp.pop('media_url', None)
                         client_tw.messages.create(**mp)
+                    # Enviar botón Continuar como Content Template separado
+                    if _enviar_btn_continuar:
+                        import time; time.sleep(0.5)
+                        from .whatsapp_service import enviar_template_twilio
+                        tel_limpio_t = msg_from.replace('whatsapp:', '').replace('+', '')
+                        enviar_template_twilio(tel_limpio_t, 'HX33af3a0f2bb63715e03965c2bd642285')
                     WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta[:500], tipo='SENT')
                 except Exception as e:
                     logger.error(f"❌ Error enviando curso: {e}")
@@ -1824,6 +1846,7 @@ def _procesar_twilio_webhook(post_data):
                 cursos = Curso.objects.filter(cliente=org, activo=True).order_by('orden', 'nombre') if org else Curso.objects.filter(activo=True).order_by('orden', 'nombre')
                 progreso_existente = ProgresoEstudiante.objects.filter(estudiante=estudiante, curso__activo=True).first()
                 curso = progreso_existente.curso if progreso_existente else cursos.first()
+                _enviar_btn_continuar_menu = False
                 if curso:
                     progreso, _ = ProgresoEstudiante.objects.get_or_create(
                         estudiante=estudiante, curso=curso, defaults={'completado': False}
@@ -1855,11 +1878,13 @@ def _procesar_twilio_webhook(post_data):
                             primera_media_url = video_url
                         texto_respuesta = (
                             f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
-                            f"{modulo.contenido}{archivos_msg}\n\n\n"
-                            f"Cuando termines, escribe: *\"listo\"*"
+                            f"{modulo.contenido}{archivos_msg}"
                         )
                         if primera_media_url:
                             texto_respuesta += f"\n\n[MEDIA:{primera_media_url}]"
+                        # Enviar botón continuar si no es el último módulo
+                        if curso.modulos.filter(numero__gt=modulo.numero).exists():
+                            _enviar_btn_continuar_menu = True
                     else:
                         texto_respuesta = f"📚 Tu curso *{curso.nombre}* aún no tiene módulos configurados."
                 else:
@@ -1885,6 +1910,12 @@ def _procesar_twilio_webhook(post_data):
                     except Exception:
                         mp.pop('media_url', None)
                         client_tw.messages.create(**mp)
+                    # Enviar botón Continuar como Content Template separado
+                    if _enviar_btn_continuar_menu:
+                        import time; time.sleep(0.5)
+                        from .whatsapp_service import enviar_template_twilio
+                        tel_limpio_t = msg_from.replace('whatsapp:', '').replace('+', '')
+                        enviar_template_twilio(tel_limpio_t, 'HX33af3a0f2bb63715e03965c2bd642285')
                     WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta[:500], tipo='SENT')
                 except Exception as e:
                     logger.error(f"❌ Error enviando curso: {e}")
@@ -1931,41 +1962,16 @@ def _procesar_twilio_webhook(post_data):
                         from .response_templates import get_response_for_intent
                         texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
                     elif msg_lower in ['continuar', 'listo', 'siguiente', 'avanzar', 'pasar']:
-                        # Enviar siguiente módulo directamente sin ack
-                        from .models import ProgresoEstudiante, Modulo
-                        try:
-                            progreso_id = ctx.get('progreso_id')
-                            progreso = ProgresoEstudiante.objects.get(id=progreso_id) if progreso_id else None
-                            if progreso and progreso.modulo_actual:
-                                from .response_templates import obtener_video_url
-                                mod = progreso.modulo_actual
-                                video_url = obtener_video_url(mod)
-                                archivos_multimedia = mod.archivos_multimedia.filter(activo=True)
-                                archivos_msg = ""
-                                primera_media_url = None
-                                if archivos_multimedia.exists():
-                                    archivos_msg = f"\n\n📁 *{archivos_multimedia.count()} archivo(s) multimedia*"
-                                    for idx, archivo in enumerate(archivos_multimedia[:3]):
-                                        icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
-                                        url = archivo.get_url_para_envio()
-                                        if idx == 0 and url and archivo.tipo in ['imagen', 'video'] and not primera_media_url:
-                                            primera_media_url = url
-                                if not archivos_multimedia.exists() and video_url:
-                                    primera_media_url = video_url
-                                texto_respuesta = (
-                                    f"📖 *Módulo {mod.numero}: {mod.titulo}*\n\n"
-                                    f"{mod.descripcion}\n\n"
-                                    f"{mod.contenido}{archivos_msg}\n\n\n"
-                                    f"Cuando termines, escribe: *\"listo\"*"
-                                )
-                                if primera_media_url:
-                                    texto_respuesta += f"\n\n[MEDIA:{primera_media_url}]"
-                            else:
-                                texto_respuesta = "Escribe *\"listo\"* cuando termines el módulo."
-                        except Exception:
-                            texto_respuesta = "Escribe *\"listo\"* cuando termines el módulo."
+                        # Enviar siguiente módulo directamente
+                        from .response_templates import get_response_for_intent
+                        texto_respuesta = get_response_for_intent(
+                            'continuar_leccion', estudiante.nombre,
+                            estudiante_id=estudiante.id, mensaje_original='continuar'
+                        )
                     else:
-                        texto_respuesta = "Escribe *\"listo\"* cuando termines el módulo."
+                        # Enviar template "Continuar" para que el usuario presione el botón
+                        TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
+                        texto_respuesta = f"[SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]"
                 else:
                     from .tutor_ia_modulo import evaluar_respuesta_modulo
                     from .models import Modulo
@@ -1988,7 +1994,8 @@ def _procesar_twilio_webhook(post_data):
                             estudiante.contexto_temporal = None
                             estudiante.estado_onboarding = 'completado'
                             estudiante.save()
-                            texto_respuesta = f"{feedback}\n\n💰 *+10 puntos bonus* por tu respuesta 💪\n\nCuando termines el módulo, escribe: *\"listo\"*"
+                            TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
+                            texto_respuesta = f"[MULTI_MSG]{feedback}\n\n💰 *+10 puntos bonus* por tu respuesta 💪[SEP][SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]"
                         else:
                             intentos += 1
                             if intentos >= 2:
@@ -1996,7 +2003,8 @@ def _procesar_twilio_webhook(post_data):
                                 estudiante.contexto_temporal = None
                                 estudiante.estado_onboarding = 'completado'
                                 estudiante.save()
-                                texto_respuesta = f"{feedback}\n\n✅ *¡Buen esfuerzo!* Sigue estudiando el módulo.\n\nCuando termines, escribe: *\"listo\"*"
+                                TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
+                                texto_respuesta = f"[MULTI_MSG]{feedback}\n\n✅ *¡Buen esfuerzo!* Sigue estudiando el módulo.[SEP][SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]"
                             else:
                                 # Permitir reintento (máx 2)
                                 ctx['intentos_tutor'] = intentos
@@ -2007,7 +2015,8 @@ def _procesar_twilio_webhook(post_data):
                         estudiante.contexto_temporal = None
                         estudiante.estado_onboarding = 'completado'
                         estudiante.save()
-                        texto_respuesta = "✅ ¡Gracias por tu respuesta! Escribe *\"listo\"* para continuar."
+                        TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
+                        texto_respuesta = f"[MULTI_MSG]✅ ¡Gracias por tu respuesta![SEP][SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]"
             
             # 3.5a2 PRIORIDAD: Si está respondiendo a la REVISIÓN DE PROGRESO
             elif estudiante.estado_onboarding == 'esperando_respuesta_progreso':
@@ -2032,41 +2041,16 @@ def _procesar_twilio_webhook(post_data):
                         from .response_templates import get_response_for_intent
                         texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
                     elif msg_lower in ['continuar', 'listo', 'siguiente', 'avanzar', 'pasar']:
-                        # Enviar siguiente módulo directamente sin ack
-                        from .models import ProgresoEstudiante
-                        try:
-                            progreso_id = ctx.get('progreso_id')
-                            progreso = ProgresoEstudiante.objects.get(id=progreso_id) if progreso_id else None
-                            if progreso and progreso.modulo_actual:
-                                from .response_templates import obtener_video_url
-                                mod = progreso.modulo_actual
-                                video_url = obtener_video_url(mod)
-                                archivos_multimedia = mod.archivos_multimedia.filter(activo=True)
-                                archivos_msg = ""
-                                primera_media_url = None
-                                if archivos_multimedia.exists():
-                                    archivos_msg = f"\n\n📁 *{archivos_multimedia.count()} archivo(s) multimedia*"
-                                    for idx, archivo in enumerate(archivos_multimedia[:3]):
-                                        icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
-                                        url = archivo.get_url_para_envio()
-                                        if idx == 0 and url and archivo.tipo in ['imagen', 'video'] and not primera_media_url:
-                                            primera_media_url = url
-                                if not archivos_multimedia.exists() and video_url:
-                                    primera_media_url = video_url
-                                texto_respuesta = (
-                                    f"📖 *Módulo {mod.numero}: {mod.titulo}*\n\n"
-                                    f"{mod.descripcion}\n\n"
-                                    f"{mod.contenido}{archivos_msg}\n\n\n"
-                                    f"Cuando termines, escribe: *\"listo\"*"
-                                )
-                                if primera_media_url:
-                                    texto_respuesta += f"\n\n[MEDIA:{primera_media_url}]"
-                            else:
-                                texto_respuesta = "Escribe *\"listo\"* cuando termines el módulo."
-                        except Exception:
-                            texto_respuesta = "Escribe *\"listo\"* cuando termines el módulo."
+                        # Enviar siguiente módulo directamente
+                        from .response_templates import get_response_for_intent
+                        texto_respuesta = get_response_for_intent(
+                            'continuar_leccion', estudiante.nombre,
+                            estudiante_id=estudiante.id, mensaje_original='continuar'
+                        )
                     else:
-                        texto_respuesta = "Escribe *\"listo\"* cuando termines el módulo."
+                        # Enviar template "Continuar" para que el usuario presione el botón
+                        TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
+                        texto_respuesta = f"[SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]"
                 else:
                     from .tutor_ia_modulo import evaluar_respuesta_progreso
                     
@@ -2081,14 +2065,16 @@ def _procesar_twilio_webhook(post_data):
                         estudiante.contexto_temporal = None
                         estudiante.estado_onboarding = 'completado'
                         estudiante.save()
-                        texto_respuesta = f"{feedback}\n\n💰 *+5 puntos* por tu reflexión 💪\n\nCuando termines el módulo, escribe: *\"listo\"*"
+                        TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
+                        texto_respuesta = f"[MULTI_MSG]{feedback}\n\n💰 *+5 puntos* por tu reflexión 💪[SEP][SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]"
                     else:
                         intentos += 1
                         if intentos >= 2:
                             estudiante.contexto_temporal = None
                             estudiante.estado_onboarding = 'completado'
                             estudiante.save()
-                            texto_respuesta = f"{feedback}\n\n✅ *¡Buena reflexión!* Sigue con el módulo.\n\nCuando termines, escribe: *\"listo\"*"
+                            TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
+                            texto_respuesta = f"[MULTI_MSG]{feedback}\n\n✅ *¡Buena reflexión!* Sigue con el módulo.[SEP][SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]"
                         else:
                             ctx['intentos_tutor'] = intentos
                             estudiante.contexto_temporal = ctx
@@ -2244,10 +2230,7 @@ Progreso del curso: {porcentaje}%
 
 {siguiente_modulo.descripcion}
 
-{siguiente_modulo.contenido}{archivos_msg}
-
-
-Cuando termines, escribe: *"listo"*"""
+{siguiente_modulo.contenido}{archivos_msg}"""
                                 
                                     if primera_media_url:
                                         msg_modulo += f"\n\n[MEDIA:{primera_media_url}]"
@@ -2324,11 +2307,16 @@ Cuando termines, escribe: *"listo"*"""
                                         estudiante.save()
                                 
                                     # Construir respuesta multi-mensaje
+                                    TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
                                     partes = [msg_completado, msg_modulo]
                                     if tutor_msg:
                                         partes.append(tutor_msg)
                                     if maria_msg:
                                         partes.append(maria_msg)
+                                    # Botón "Continuar" SOLO si NO hay agentes activos y NO es último módulo
+                                    es_ultimo_modulo = not progreso.curso.modulos.filter(numero__gt=siguiente_modulo.numero).exists()
+                                    if not tutor_msg and not maria_msg and not es_ultimo_modulo:
+                                        partes.append(f"[SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]")
                                     texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
                             
                                 else:
@@ -2506,11 +2494,12 @@ Has completado el curso: *{progreso.curso.nombre}*
                     print(f"🤖 Usando IA para pregunta sobre agricultura")
                     if estudiante.preguntas_ia_restantes <= 0:
                         # Freno de mano: IA pausada
+                        TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
                         texto_respuesta = (
-                            "⚠️ *Has agotado tus preguntas libres a la IA para este módulo.*\n\n"
+                            f"[MULTI_MSG]⚠️ *Has agotado tus preguntas libres a la IA para este módulo.*\n\n"
                             "Para desbloquear más preguntas, necesitas responder "
-                            "la pregunta de evaluación del módulo actual.\n\n"
-                            "📝 Escribe *\"listo\"* para continuar con tu módulo"
+                            "la pregunta de evaluación del módulo actual."
+                            f"[SEP][SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]"
                         )
                     else:
                         try:
@@ -2561,6 +2550,22 @@ Has completado el curso: *{progreso.curso.nombre}*
             destino_formateado = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
             destino_formateado = str(destino_formateado).strip()
             
+            # Check if response is a standalone template send
+            if texto_respuesta.strip().startswith('[SEND_TEMPLATE:'):
+                import re
+                tmpl_match = re.match(r'\[SEND_TEMPLATE:(HX[a-f0-9]+)\]', texto_respuesta.strip())
+                if tmpl_match:
+                    template_sid = tmpl_match.group(1)
+                    print(f"📋 Enviando Content Template standalone: {template_sid}")
+                    try:
+                        from .whatsapp_service import enviar_template_twilio
+                        tel_limpio = msg_from.replace('whatsapp:', '').replace('+', '')
+                        enviar_template_twilio(tel_limpio, template_sid)
+                        print(f"✅ Template {template_sid} enviado OK")
+                    except Exception as tmpl_err:
+                        print(f"⚠️ Error enviando template standalone: {tmpl_err}")
+                    return
+            
             # Check if response is a multi-message (marked with [MULTI_MSG])
             if texto_respuesta.startswith('[MULTI_MSG]'):
                 # Extract and send multiple messages
@@ -2572,6 +2577,24 @@ Has completado el curso: *{progreso.curso.nombre}*
                     
                     parte_texto = parte.strip()
                     parte_media = None
+                    
+                    # Detectar si esta parte es un Content Template de Twilio
+                    if parte_texto.startswith('[SEND_TEMPLATE:'):
+                        import re
+                        tmpl_match = re.match(r'\[SEND_TEMPLATE:(HX[a-f0-9]+)\]', parte_texto)
+                        if tmpl_match:
+                            template_sid = tmpl_match.group(1)
+                            print(f"📋 Enviando Content Template {template_sid} como parte {idx+1}")
+                            try:
+                                from .whatsapp_service import enviar_template_twilio
+                                tel_limpio = msg_from.replace('whatsapp:', '').replace('+', '')
+                                enviar_template_twilio(tel_limpio, template_sid)
+                                print(f"✅ Template {template_sid} enviado OK")
+                            except Exception as tmpl_err:
+                                print(f"⚠️ Error enviando template: {tmpl_err}")
+                            import time
+                            time.sleep(0.5)
+                            continue
                     
                     # Extraer [MEDIA:url] de esta parte
                     if '[MEDIA:' in parte_texto:
