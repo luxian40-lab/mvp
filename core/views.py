@@ -1445,18 +1445,17 @@ def _procesar_twilio_webhook(post_data):
                             msg_modulo += archivos_msg
                             # NO embeber video en msg_modulo — enviar como mensaje separado después del texto
                             
-                            # Orden: intro (con agentes) → módulo TEXTO → video(s) → extras media → botón continuar (ÚLTIMO)
-                            TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
+                            # Orden: intro (con agentes) → módulo TEXTO → video(s) → extras media → "escribe listo"
                             texto_respuesta = "[MULTI_MSG]" + msg_intro + "[SEP]" + msg_modulo
                             # Video principal como mensaje separado después del texto
                             if primera_media_url:
                                 texto_respuesta += f"[SEP]📹 Video del módulo\n\n[MEDIA:{primera_media_url}]"
                             for extra_url, extra_titulo, extra_icono in extra_media_urls:
                                 texto_respuesta += f"[SEP]{extra_icono} {extra_titulo}\n\n[MEDIA:{extra_url}]"
-                            # Botón "Continuar" SIEMPRE AL FINAL — solo si hay más módulos
+                            # "Escribe listo" AL FINAL — solo si hay más módulos
                             hay_mas_modulos = curso.modulos.filter(numero__gt=modulo.numero).exists()
                             if hay_mas_modulos:
-                                texto_respuesta += f"[SEP][SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]"
+                                texto_respuesta += "[SEP]Cuando termines de revisar el contenido, escribe *listo* para continuar con el siguiente modulo"
                         else:
                             texto_respuesta = f"✅ *¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nEl curso aún no tiene módulos configurados. Te notificaremos cuando estén listos."
                     else:
@@ -1981,9 +1980,8 @@ def _procesar_twilio_webhook(post_data):
                             estudiante_id=estudiante.id, mensaje_original='continuar'
                         )
                     else:
-                        # Enviar template "Continuar" para que el usuario presione el botón
-                        TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
-                        texto_respuesta = f"[SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]"
+                        # Indicar al usuario que escriba listo para continuar
+                        texto_respuesta = "Escribe *listo* para continuar con el siguiente modulo"
                 else:
                     from .tutor_ia_modulo import evaluar_respuesta_modulo
                     from .models import Modulo
@@ -2006,8 +2004,7 @@ def _procesar_twilio_webhook(post_data):
                             estudiante.contexto_temporal = None
                             estudiante.estado_onboarding = 'completado'
                             estudiante.save()
-                            TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
-                            texto_respuesta = f"[MULTI_MSG]{feedback}\n\n💰 *+10 puntos bonus* por tu respuesta 💪[SEP][SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]"
+                            texto_respuesta = f"[MULTI_MSG]{feedback}\n\n💰 *+10 puntos bonus* por tu respuesta 💪[SEP]Escribe *listo* para continuar con el siguiente modulo"
                         else:
                             intentos += 1
                             if intentos >= 2:
@@ -2015,8 +2012,7 @@ def _procesar_twilio_webhook(post_data):
                                 estudiante.contexto_temporal = None
                                 estudiante.estado_onboarding = 'completado'
                                 estudiante.save()
-                                TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
-                                texto_respuesta = f"[MULTI_MSG]{feedback}\n\n✅ *¡Buen esfuerzo!* Sigue estudiando el módulo.[SEP][SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]"
+                                texto_respuesta = f"[MULTI_MSG]{feedback}\n\n✅ *¡Buen esfuerzo!* Sigue estudiando el modulo.[SEP]Escribe *listo* para continuar con el siguiente modulo"
                             else:
                                 # Permitir reintento (máx 2)
                                 ctx['intentos_tutor'] = intentos
@@ -2027,8 +2023,7 @@ def _procesar_twilio_webhook(post_data):
                         estudiante.contexto_temporal = None
                         estudiante.estado_onboarding = 'completado'
                         estudiante.save()
-                        TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
-                        texto_respuesta = f"[MULTI_MSG]✅ ¡Gracias por tu respuesta![SEP][SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]"
+                        texto_respuesta = f"[MULTI_MSG]✅ Gracias por tu respuesta![SEP]Escribe *listo* para continuar con el siguiente modulo"
             
             # 3.5a2 PRIORIDAD: Si está respondiendo a la REVISIÓN DE PROGRESO
             elif estudiante.estado_onboarding == 'esperando_respuesta_progreso':
@@ -2060,9 +2055,8 @@ def _procesar_twilio_webhook(post_data):
                             estudiante_id=estudiante.id, mensaje_original='continuar'
                         )
                     else:
-                        # Enviar template "Continuar" para que el usuario presione el botón
-                        TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
-                        texto_respuesta = f"[SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]"
+                        # Indicar al usuario que escriba listo para continuar
+                        texto_respuesta = "Escribe *listo* para continuar con el siguiente modulo"
                 else:
                     from .tutor_ia_modulo import evaluar_respuesta_progreso
                     
@@ -2077,16 +2071,14 @@ def _procesar_twilio_webhook(post_data):
                         estudiante.contexto_temporal = None
                         estudiante.estado_onboarding = 'completado'
                         estudiante.save()
-                        TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
-                        texto_respuesta = f"[MULTI_MSG]{feedback}\n\n💰 *+5 puntos* por tu reflexión 💪[SEP][SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]"
+                        texto_respuesta = f"[MULTI_MSG]{feedback}\n\n💰 *+5 puntos* por tu reflexión 💪[SEP]Escribe *listo* para continuar con el siguiente modulo"
                     else:
                         intentos += 1
                         if intentos >= 2:
                             estudiante.contexto_temporal = None
                             estudiante.estado_onboarding = 'completado'
                             estudiante.save()
-                            TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
-                            texto_respuesta = f"[MULTI_MSG]{feedback}\n\n✅ *¡Buena reflexión!* Sigue con el módulo.[SEP][SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]"
+                            texto_respuesta = f"[MULTI_MSG]{feedback}\n\n✅ *Buena reflexión!* Sigue con el modulo.[SEP]Escribe *listo* para continuar con el siguiente modulo"
                         else:
                             ctx['intentos_tutor'] = intentos
                             estudiante.contexto_temporal = ctx
@@ -2245,8 +2237,8 @@ Progreso del curso: {porcentaje}%
 {siguiente_modulo.contenido}{archivos_msg}"""
                                 
                                     if primera_media_url:
-                                        msg_modulo += f"\n\n[MEDIA:{primera_media_url}]"
-                                        print(f"🖼️ Multimedia agregada al mensaje: {primera_media_url}")
+                                        print(f"🖼️ Multimedia separada del texto: {primera_media_url}")
+                                        # NO embeber en msg_modulo — se envía como parte separada
                                 
                                     if siguiente_modulo.examen_obligatorio:
                                         msg_modulo += f"\n\n⚠️ *Este módulo tiene examen obligatorio ({siguiente_modulo.puntaje_minimo_aprobacion}% para aprobar)*"
@@ -2318,17 +2310,19 @@ Progreso del curso: {porcentaje}%
                                         estudiante.estado_onboarding = 'completado'
                                         estudiante.save()
                                 
-                                    # Construir respuesta multi-mensaje
-                                    TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
+                                    # Construir respuesta multi-mensaje: gamificación → texto → video → agente → "escribe listo"
                                     partes = [msg_completado, msg_modulo]
+                                    # Video como mensaje separado DESPUÉS del texto
+                                    if primera_media_url:
+                                        partes.append(f"\U0001f4f9 Video del módulo\n\n[MEDIA:{primera_media_url}]")
                                     if tutor_msg:
                                         partes.append(tutor_msg)
                                     if maria_msg:
                                         partes.append(maria_msg)
-                                    # Botón "Continuar" SOLO si NO hay agentes activos y NO es último módulo
+                                    # "Escribe listo" SOLO si NO hay agentes activos y NO es último módulo
                                     es_ultimo_modulo = not progreso.curso.modulos.filter(numero__gt=siguiente_modulo.numero).exists()
                                     if not tutor_msg and not maria_msg and not es_ultimo_modulo:
-                                        partes.append(f"[SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]")
+                                        partes.append("Cuando termines de revisar el contenido, escribe *listo* para continuar con el siguiente modulo")
                                     texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
                             
                                 else:
@@ -2506,12 +2500,11 @@ Has completado el curso: *{progreso.curso.nombre}*
                     print(f"🤖 Usando IA para pregunta sobre agricultura")
                     if estudiante.preguntas_ia_restantes <= 0:
                         # Freno de mano: IA pausada
-                        TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
                         texto_respuesta = (
-                            f"[MULTI_MSG]⚠️ *Has agotado tus preguntas libres a la IA para este módulo.*\n\n"
-                            "Para desbloquear más preguntas, necesitas responder "
-                            "la pregunta de evaluación del módulo actual."
-                            f"[SEP][SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]"
+                            "[MULTI_MSG]⚠️ *Has agotado tus preguntas libres a la IA para este modulo.*\n\n"
+                            "Para desbloquear mas preguntas, necesitas responder "
+                            "la pregunta de evaluacion del modulo actual."
+                            "[SEP]Escribe *listo* para continuar con el siguiente modulo"
                         )
                     else:
                         try:

@@ -4226,7 +4226,7 @@ Escribe "ver cursos" para tomar otro curso
 
                 <tr><th>Comando</th><th>Aliases</th><th>Qué hace</th></tr>
 
-                <tr><td><strong>Botón Continuar</strong></td><td>continuar, siguiente, ok, dale, avanzar, sigue</td><td>Marca módulo como completado y avanza</td></tr>
+                <tr><td><strong>Continuar/Listo</strong></td><td>continuar, listo, siguiente, ok, dale, avanzar, sigue</td><td>Marca modulo como completado y avanza al siguiente</td></tr>
 
                 <tr><td><strong>continuar</strong></td><td>retomar, seguir, mi curso</td><td>Muestra el módulo actual sin avanzar</td></tr>
 
@@ -5310,6 +5310,26 @@ https://tu-dominio.com/verificar-certificado/EKI-XXXX-YYYY-ZZZZ/
 
 
 
+        <div id="changelog-v19" class="section" style="margin-top:30px;">
+        <h2 class="section-title">🆕 Actualizaciones - v1.9 (Marzo 2026)</h2>
+        <div class="subsection">
+            <h3>Cambios v1.9</h3>
+            <table>
+                <tr><th>Area</th><th>Cambio</th><th>Detalle</th></tr>
+                <tr><td>❌ Boton Continuar (Template)</td><td>ELIMINADO</td><td>El boton de Twilio Content Template generaba un bucle infinito (el boton reenviaba "Continuar" al webhook, que volvia a enviar el template). Reemplazado por mensaje de texto "Escribe *listo*".</td></tr>
+                <tr><td>📹 Videos separados</td><td>Video ya NO va dentro del texto</td><td>Antes el video se embeddia en el mismo mensaje que el texto educativo. Ahora se envia como mensaje aparte DESPUES del texto. Esto asegura que el estudiante vea el contenido y luego el video.</td></tr>
+                <tr><td>🔢 Orden de envio</td><td>Gamificacion -> Texto -> Video(s) -> Agente -> Listo</td><td><ol>
+                    <li>Gamificacion (puntos, nivel, racha)</li>
+                    <li>Contenido educativo del modulo (texto)</li>
+                    <li>Video(s) del modulo (1, 2 o 3 - cada uno como mensaje separado)</li>
+                    <li>Agente tutor/asistente (si aplica en ese modulo)</li>
+                    <li>"Escribe *listo*" (ULTIMO - solo si NO hay agente y NO es ultimo modulo)</li>
+                </ol></td></tr>
+                <tr><td>🎓 Certificados</td><td>Auto-regeneracion</td><td>Al actualizar la plantilla de certificado en el admin, los certificados existentes se regeneran automaticamente con la nueva plantilla. Validacion de URL para evitar pegados duplicados.</td></tr>
+            </table>
+        </div>
+        </div>
+
         <div id="changelog-v16" class="section" style="margin-top:30px;">
         <h2 class="section-title">🆕 Actualizaciones — Marzo 2026 (v1.6)</h2>
 
@@ -5318,7 +5338,7 @@ https://tu-dominio.com/verificar-certificado/EKI-XXXX-YYYY-ZZZZ/
             <table>
                 <tr><th>Área</th><th>Cambio</th><th>Detalle</th></tr>
                 <tr><td>📚 Módulos</td><td>Contenido educativo ahora SÍ se muestra</td><td>Se aplica <code>dividir_contenido_seguro(max=1300)</code> al contenido del módulo para que nunca exceda el límite de 1600 chars de Twilio. Antes, contenidos largos se perdían.</td></tr>
-                <tr><td>🔄 Orden de mensajes</td><td>Agentes van AL FINAL</td><td>Nuevo orden: Gamificación → Módulo (con video) → Tutor → Asistente. Los agentes siempre son los ÚLTIMOS mensajes.</td></tr>
+                <tr><td>🔄 Orden de mensajes</td><td>Agentes van AL FINAL</td><td>Nuevo orden: Gamificacion -> Modulo (texto) -> Video(s) separados -> Agente (si aplica) -> "Escribe *listo*" (ULTIMO, solo si no hay agente). Videos se envian como mensajes individuales despues del texto.</td></tr>
                 <tr><td>🤖 Agentes IA</td><td>Máximo 2 interacciones</td><td>Tanto el Tutor como la Asistente permiten máximo 2 intentos de respuesta. Después auto-avanzan para ahorrar tokens.</td></tr>
                 <tr><td>🎓 Certificados</td><td>Marcadores RGB actualizados v1.8</td><td><ul>
                     <li><strong style="color:gray;">⚪ Gris (128,128,128)</strong> → Nombre del estudiante</li>

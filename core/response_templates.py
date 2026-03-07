@@ -618,13 +618,12 @@ Te inscribiste en: *{curso.nombre}*
             if primera_media_url_1:
                 mensaje_modulo += f"\n\n[MEDIA:{primera_media_url_1}]"
             
-            # Build multi-message: inscripción [SEP] módulo (con media) [SEP] agentes (ÚLTIMOS) [SEP] botón continuar
-            TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
+            # Build multi-message: inscripción [SEP] módulo (con media) [SEP] agentes (ÚLTIMOS)
             resultado = f"[MULTI_MSG]{mensaje_1}[SEP]{mensaje_modulo}[SEP]{msg_geronimo}[SEP]{msg_maria}"
-            # Botón "Continuar" solo si hay más módulos después del primero
+            # Mensaje "listo" solo si hay más módulos después del primero
             hay_mas_modulos = curso.modulos.filter(numero__gt=primer_modulo.numero).exists()
             if hay_mas_modulos:
-                resultado += f"[SEP][SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]"
+                resultado += "[SEP]Cuando termines de revisar el contenido, escribe *listo* para continuar con el siguiente modulo"
             
             return resultado
         else:
@@ -883,8 +882,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     estudiante.estado_onboarding = 'esperando_respuesta_progreso'
                     estudiante.save()
                 
-                # Construir multi-mensaje: gamificación [SEP] módulo texto [SEP] video(s) [SEP] agente [SEP] botón continuar (SIEMPRE ÚTIMO)
-                TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
+                # Construir multi-mensaje: gamificación → módulo texto → video(s) → agente → "escribe listo"
                 partes = [msg_completado, msg_modulo]
                 # Videos/media como mensajes separados DESPUÉS del texto
                 if primera_media_url:
@@ -896,10 +894,10 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     partes.append(tutor_msg)
                 if maria_msg:
                     partes.append(maria_msg)
-                # Botón "Continuar" SIEMPRE AL FINAL — solo si NO hay agentes y NO es último módulo
+                # "Escribe listo" AL FINAL — solo si NO hay agentes (agentes ya dicen "continuar") y NO es último módulo
                 es_ultimo_modulo = not progreso.curso.modulos.filter(numero__gt=siguiente_modulo.numero).exists()
                 if not tutor_msg and not maria_msg and not es_ultimo_modulo:
-                    partes.append(f"[SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]")
+                    partes.append("Cuando termines de revisar el contenido, escribe *listo* para continuar con el siguiente modulo")
                 return "[MULTI_MSG]" + "[SEP]".join(partes)
             
             else:
@@ -1052,17 +1050,16 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             if primera_media_url_c:
                 respuesta += f"\n\n[MEDIA:{primera_media_url_c}]"
             
-            # Botón "Continuar" solo si NO es el último módulo
-            TEMPLATE_CONTINUAR = 'HX33af3a0f2bb63715e03965c2bd642285'
+            # "Escribe listo" solo si NO es el último módulo
             es_ultimo_modulo_c = not progreso.curso.modulos.filter(numero__gt=modulo_actual.numero).exists()
             
-            # Si hay más media, enviar como multi-mensaje
+            # Si hay más media o no es último, enviar como multi-mensaje
             if extra_media_urls_c or not es_ultimo_modulo_c:
                 partes_c = [respuesta]
                 for extra_url_c, extra_titulo_c, extra_icono_c in extra_media_urls_c:
                     partes_c.append(f"{extra_icono_c} {extra_titulo_c}\n\n[MEDIA:{extra_url_c}]")
                 if not es_ultimo_modulo_c:
-                    partes_c.append(f"[SEND_TEMPLATE:{TEMPLATE_CONTINUAR}]")
+                    partes_c.append("Cuando termines de revisar el contenido, escribe *listo* para continuar con el siguiente modulo")
                 return "[MULTI_MSG]" + "[SEP]".join(partes_c)
             
             return respuesta
