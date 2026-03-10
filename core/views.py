@@ -1536,8 +1536,7 @@ def _procesar_twilio_webhook(post_data):
                                         break
                             else:
                                 msg_modulo = modulo_header + (modulo.descripcion or '')
-                            msg_modulo += archivos_msg
-                            # NO embeber video en msg_modulo — enviar como mensaje separado después del texto
+                            # v1.9.8: No mostrar labels de archivos en texto (se envían como mensajes separados)
                             
                             # Orden: intro (con agentes) → módulo TEXTO → video(s) → [DELAY] → "escribe listo"
                             texto_respuesta = "[MULTI_MSG]" + msg_intro + "[SEP]" + msg_modulo
@@ -1547,7 +1546,7 @@ def _procesar_twilio_webhook(post_data):
                                 texto_respuesta += f"[SEP]📹 Video del módulo\n\n[MEDIA:{primera_media_url}]"
                                 hay_media_conf = True
                             for extra_url, extra_titulo, extra_icono in extra_media_urls:
-                                texto_respuesta += f"[SEP]{extra_icono} {extra_titulo}\n\n[MEDIA:{extra_url}]"
+                                texto_respuesta += f"[SEP]\U0001f4f9 Video del m\u00f3dulo\n\n[MEDIA:{extra_url}]"
                                 hay_media_conf = True
                             # "Escribe listo" AL FINAL — solo si hay más módulos
                             hay_mas_modulos = curso.modulos.filter(numero__gt=modulo.numero).exists()
@@ -1865,13 +1864,13 @@ def _procesar_twilio_webhook(post_data):
                         # Construir MULTI_MSG con texto + todos los medias separados
                         msg_texto = (
                             f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
-                            f"{modulo.contenido}{archivos_msg}"
+                            f"{modulo.contenido}"
                         )
                         partes_cursos = [msg_texto]
                         if primera_media_url:
                             partes_cursos.append(f"📹 Video del módulo\n\n[MEDIA:{primera_media_url}]")
                         for extra_url, extra_titulo, extra_icono in extra_media_urls:
-                            partes_cursos.append(f"{extra_icono} {extra_titulo}\n\n[MEDIA:{extra_url}]")
+                            partes_cursos.append(f"\U0001f4f9 Video del m\u00f3dulo\n\n[MEDIA:{extra_url}]")
                         if len(partes_cursos) > 1:
                             texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_cursos)
                         else:
@@ -2013,13 +2012,13 @@ def _procesar_twilio_webhook(post_data):
                         # Construir MULTI_MSG con texto + todos los medias separados
                         msg_texto_menu = (
                             f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
-                            f"{modulo.contenido}{archivos_msg}"
+                            f"{modulo.contenido}"
                         )
                         partes_menu = [msg_texto_menu]
                         if primera_media_url:
                             partes_menu.append(f"📹 Video del módulo\n\n[MEDIA:{primera_media_url}]")
                         for extra_url, extra_titulo, extra_icono in extra_media_urls:
-                            partes_menu.append(f"{extra_icono} {extra_titulo}\n\n[MEDIA:{extra_url}]")
+                            partes_menu.append(f"\U0001f4f9 Video del m\u00f3dulo\n\n[MEDIA:{extra_url}]")
                         if len(partes_menu) > 1:
                             texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_menu)
                         else:
@@ -2130,8 +2129,8 @@ def _procesar_twilio_webhook(post_data):
                         estudiante.save()
                         if aprobado:
                             perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
-                            perfil.agregar_puntos(10, "Respuesta correcta - Profesor Gerónimo")
-                            texto_respuesta = f"{feedback}\n\n💰 *+10 puntos bonus* por tu respuesta 💪\n\nContinúa revisando el módulo 👆\nCuando termines, escribe *listo* para avanzar."
+                            perfil.agregar_puntos(5, "Respuesta correcta - Profesor Gerónimo")
+                            texto_respuesta = f"{feedback}\n\n💰 *+5 puntos bonus* por tu respuesta 💪\n\nContinúa revisando el módulo 👆\nCuando termines, escribe *listo* para avanzar."
                             print(f"✅ v1.9.8: Gerónimo aprobado — 1 interacción", flush=True)
                         else:
                             texto_respuesta = f"{feedback}\n\n✅ *¡Buen esfuerzo!* Sigue estudiando el módulo 👆\n\nCuando termines, escribe *listo* para avanzar."
@@ -2186,8 +2185,8 @@ def _procesar_twilio_webhook(post_data):
                     estudiante.save()
                     if resuelta:
                         perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
-                        perfil.agregar_puntos(5, "Revisión de progreso - María")
-                        texto_respuesta = f"{feedback}\n\n💰 *+5 puntos* por tu reflexión 💪\n\nContinúa revisando el módulo 👆\nCuando termines, escribe *listo* para avanzar."
+                        perfil.agregar_puntos(3, "Revisión de progreso - María")
+                        texto_respuesta = f"{feedback}\n\n💰 *+3 puntos* por tu reflexión 💪\n\nContinúa revisando el módulo 👆\nCuando termines, escribe *listo* para avanzar."
                         print(f"✅ v1.9.8: María resuelta — 1 interacción", flush=True)
                     else:
                         texto_respuesta = f"{feedback}\n\n✅ *Buena reflexión!* Sigue con el módulo 👆\n\nCuando termines, escribe *listo* para avanzar."
@@ -2208,7 +2207,7 @@ def _procesar_twilio_webhook(post_data):
                     try:
                         from .gamificacion import PerfilGamificacion
                         perfil_rec = PerfilGamificacion.objects.get(estudiante=estudiante)
-                        perfil_rec.agregar_puntos(50, "🏆 Pregunta de recuperación correcta")
+                        perfil_rec.agregar_puntos(15, "🏆 Pregunta de recuperación correcta")
                     except Exception:
                         pass
                 
@@ -2374,7 +2373,7 @@ Progreso del curso: {porcentaje}%
 
 {siguiente_modulo.descripcion}
 
-{siguiente_modulo.contenido}{archivos_msg}"""
+{siguiente_modulo.contenido}"""
                                 
                                     if primera_media_url:
                                         print(f"🖼️ Multimedia separada del texto: {primera_media_url}")
@@ -2463,7 +2462,7 @@ Progreso del curso: {porcentaje}%
                                         partes.append(f"\U0001f4f9 Video del módulo\n\n[MEDIA:{primera_media_url}]")
                                         hay_media_exam = True
                                     for extra_url, extra_titulo, extra_icono in extra_media_urls:
-                                        partes.append(f"{extra_icono} {extra_titulo}\n\n[MEDIA:{extra_url}]")
+                                        partes.append(f"\U0001f4f9 Video del m\u00f3dulo\n\n[MEDIA:{extra_url}]")
                                         hay_media_exam = True
                                     # [DELAY:8] después de videos para que WhatsApp los entregue antes del texto
                                     hay_texto_post_exam = tutor_msg or maria_msg

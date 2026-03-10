@@ -85,23 +85,25 @@ class PerfilGamificacion(models.Model):
         # Y así progresivamente...
         nivel_anterior = self.nivel
         
-        if self.puntos_totales < 50:
+        # v1.9.8: Niveles rebalanceados para puntos reducidos
+        # Curso 5 módulos base = ~65 pts, con bonus ~80+ pts
+        if self.puntos_totales < 10:
             nuevo_nivel = 1
-        elif self.puntos_totales < 150:
+        elif self.puntos_totales < 25:
             nuevo_nivel = 2
-        elif self.puntos_totales < 300:
+        elif self.puntos_totales < 45:
             nuevo_nivel = 3
-        elif self.puntos_totales < 500:
+        elif self.puntos_totales < 70:
             nuevo_nivel = 4
-        elif self.puntos_totales < 800:
+        elif self.puntos_totales < 100:
             nuevo_nivel = 5
-        elif self.puntos_totales < 1200:
+        elif self.puntos_totales < 140:
             nuevo_nivel = 6
-        elif self.puntos_totales < 1700:
+        elif self.puntos_totales < 190:
             nuevo_nivel = 7
-        elif self.puntos_totales < 2300:
+        elif self.puntos_totales < 250:
             nuevo_nivel = 8
-        elif self.puntos_totales < 3000:
+        elif self.puntos_totales < 320:
             nuevo_nivel = 9
         else:
             nuevo_nivel = 10
@@ -163,22 +165,22 @@ class PerfilGamificacion(models.Model):
             if self.racha_dias_actual > self.racha_dias_maxima:
                 self.racha_dias_maxima = self.racha_dias_actual
             
-            # Otorgar badges y puntos por rachas (MÁS MOTIVADOR)
+            # v1.9.8: Rachas rebalanceadas
             if self.racha_dias_actual == 3:
                 self._otorgar_badge_racha(3)
-                self.agregar_puntos(30, "🔥 Racha de 3 días")
+                self.agregar_puntos(5, "🔥 Racha de 3 días")
             elif self.racha_dias_actual == 7:
                 self._otorgar_badge_racha(7)
-                self.agregar_puntos(100, "🔥 Racha de 7 días")
+                self.agregar_puntos(10, "🔥 Racha de 7 días")
             elif self.racha_dias_actual == 14:
                 self._otorgar_badge_racha(14)
-                self.agregar_puntos(250, "🔥 Racha de 14 días")
+                self.agregar_puntos(15, "🔥 Racha de 14 días")
             elif self.racha_dias_actual == 21:
                 self._otorgar_badge_racha(21)
-                self.agregar_puntos(400, "🔥 Racha de 21 días")
+                self.agregar_puntos(20, "🔥 Racha de 21 días")
             elif self.racha_dias_actual == 30:
                 self._otorgar_badge_racha(30)
-                self.agregar_puntos(700, "🔥 ¡UN MES COMPLETO!")
+                self.agregar_puntos(25, "🔥 ¡UN MES COMPLETO!")
             
             self.ultima_actividad = ahora
             self.save()

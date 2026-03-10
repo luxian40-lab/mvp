@@ -721,7 +721,7 @@ Te inscribiste en: *{curso.nombre}*
                     else:
                         break
             
-            mensaje_modulo += archivos_msg_1
+            # v1.9.8: No mostrar labels de archivos en el texto del módulo (se envían como mensajes separados)
             
             # v1.9.6: Orden correcto: inscripción → gamificación → agentes → "Comenzamos..." → módulo texto → video(s) → "escribe listo"
             # Explicación de gamificación
@@ -759,7 +759,7 @@ Te inscribiste en: *{curso.nombre}*
                 partes_insc.append(f"\U0001f4f9 Video del módulo\n\n[MEDIA:{primera_media_url_1}]")
                 hay_media_insc = True
             for extra_url_1, extra_titulo_1, extra_icono_1 in extra_media_urls_1:
-                partes_insc.append(f"{extra_icono_1} {extra_titulo_1}\n\n[MEDIA:{extra_url_1}]")
+                partes_insc.append(f"\U0001f4f9 Video del m\u00f3dulo\n\n[MEDIA:{extra_url_1}]")
                 hay_media_insc = True
             if hay_media_insc:
                 # [DELAY:8] para que WhatsApp entregue videos antes de texto
@@ -980,7 +980,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                             break
                 else:
                     msg_modulo = modulo_header + (siguiente_modulo.descripcion or '')
-                msg_modulo += archivos_msg
+                # v1.9.8: No mostrar labels de archivos en texto (se envían como mensajes separados)
                 
                 # NO embeber media en msg_modulo — enviar video como mensaje separado después del texto
                 # primera_media_url y extra_media_urls se agregan como partes separadas más abajo
@@ -1069,7 +1069,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     partes.append(f"\U0001f4f9 Video del módulo\n\n[MEDIA:{primera_media_url}]")
                     hay_media = True
                 for extra_url, extra_titulo, extra_icono in extra_media_urls:
-                    partes.append(f"{extra_icono} {extra_titulo}\n\n[MEDIA:{extra_url}]")
+                    partes.append(f"\U0001f4f9 Video del m\u00f3dulo\n\n[MEDIA:{extra_url}]")
                     hay_media = True
                 # [DELAY:8] después de videos para que WhatsApp los entregue antes del texto siguiente
                 hay_texto_post = tutor_msg or maria_msg
@@ -1275,7 +1275,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                         break
             else:
                 respuesta = modulo_header_c + (modulo_actual.descripcion or '')
-            respuesta += archivos_msg_c
+            # v1.9.8: No mostrar labels de archivos en texto (se envían como mensajes separados)
             
             # NO embeber video en respuesta — enviar como parte separada DESPUÉS del texto
             
@@ -1289,7 +1289,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 partes_c.append(f"\U0001f4f9 Video del módulo\n\n[MEDIA:{primera_media_url_c}]")
                 hay_media_c = True
             for extra_url_c, extra_titulo_c, extra_icono_c in extra_media_urls_c:
-                partes_c.append(f"{extra_icono_c} {extra_titulo_c}\n\n[MEDIA:{extra_url_c}]")
+                partes_c.append(f"\U0001f4f9 Video del m\u00f3dulo\n\n[MEDIA:{extra_url_c}]")
                 hay_media_c = True
             if not es_ultimo_modulo_c:
                 if hay_media_c:

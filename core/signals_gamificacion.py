@@ -64,9 +64,9 @@ def otorgar_puntos_por_modulo(sender, instance, created, **kwargs):
         perfil, _ = PerfilGamificacion.objects.get_or_create(
             estudiante=instance.progreso.estudiante
         )
-        # Otorgar puntos (50 puntos por módulo)
+        # v1.9.8: Puntos reducidos (10 por módulo) para balance real
         subio_nivel = perfil.agregar_puntos(
-            puntos=50,
+            puntos=10,
             razon=f"Completó {instance.modulo.titulo}"
         )
         # Actualizar estadísticas
@@ -88,7 +88,7 @@ def otorgar_puntos_por_modulo(sender, instance, created, **kwargs):
                     f"ha alcanzado el <strong>nivel {perfil.nivel} (Leyenda del Campo)</strong> "
                     f"con {perfil.puntos_totales} puntos.</p>"
                 )
-        logger.info(f"✅ {perfil.estudiante.nombre} ganó 50 puntos por completar módulo")
+        logger.info(f"✅ {perfil.estudiante.nombre} ganó 10 puntos por completar módulo")
 
         # === RESET ANTI-ABUSE IA (preguntas_ia_restantes) ===
         estudiante = instance.progreso.estudiante
@@ -122,9 +122,9 @@ def otorgar_badge_por_curso_completado(sender, instance, **kwargs):
             estudiante=instance.estudiante
         )
         
-        # Otorgar puntos bonus por completar curso (200 puntos)
+        # v1.9.8: Puntos reducidos (15 por curso) para balance real
         perfil.agregar_puntos(
-            puntos=200,
+            puntos=15,
             razon=f"Completó curso {instance.curso.nombre}"
         )
         

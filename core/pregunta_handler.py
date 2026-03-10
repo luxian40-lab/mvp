@@ -276,12 +276,12 @@ def validar_respuesta(estudiante, respuesta_letra):
         modulo_completado.respuesta_correcta = es_correcta
         modulo_completado.save()
     
-    # REFRESCAR perfil después del signal (que ya otorgó +50 pts)
+    # REFRESCAR perfil después del signal (que ya otorgó +10 pts)
     perfil.refresh_from_db()
     
     # Ahora agregar el bonus si respondió correctamente
     if es_correcta:
-        perfil.agregar_puntos(10, f"📝 Respuesta correcta: {modulo.titulo}")
+        perfil.agregar_puntos(5, f"📝 Respuesta correcta: {modulo.titulo}")
         perfil.refresh_from_db()
     
     # Verificar si subió de nivel DESPUÉS de todos los puntos

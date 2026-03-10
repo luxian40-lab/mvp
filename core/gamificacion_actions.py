@@ -10,38 +10,40 @@ logger = logging.getLogger(__name__)
 
 
 # Configuración de puntos por actividad
-# ENFOQUE: PROGRESO EDUCATIVO REAL (no mensajería)
+# v1.9.8: REBALANCEADO — puntos reducidos para que 70 sea un logro real
+# Un curso de 5 módulos sin bonus da ~65 pts (debajo de 70)
+# Responder correctamente a agentes sube a ~80+ pts
 PUNTOS_CONFIG = {
     # Mensajería (mínimo - solo para engagement)
-    'mensaje_enviado': 1,  # Reducido: solo interacción básica
-    'audio_enviado': 2,    # Reducido: preferencia de comunicación
+    'mensaje_enviado': 1,
+    'audio_enviado': 2,
     
-    # CORE: Progreso Académico (alto valor)
-    'modulo_iniciado': 10,          # Empezó un módulo
-    'modulo_completado': 100,       # ⭐ Completó módulo
-    'lectura_completa': 20,         # Leyó todo el contenido
+    # CORE: Progreso Académico
+    'modulo_iniciado': 2,           # Empezó un módulo
+    'modulo_completado': 10,        # ⭐ Completó módulo (signal: 10 pts)
+    'lectura_completa': 5,          # Leyó todo el contenido
     
     # CORE: Evaluaciones (basado en desempeño)
-    'examen_aprobado_60': 80,       # 60-69%
-    'examen_aprobado_70': 120,      # 70-79%
-    'examen_aprobado_80': 180,      # 80-89%
-    'examen_aprobado_90': 250,      # 90-99%
-    'examen_perfecto': 400,         # ⭐⭐⭐ 100%
-    'examen_reprobado': -20,        # Penalización (motivar a reintentar)
+    'examen_aprobado_60': 10,       # 60-69%
+    'examen_aprobado_70': 15,       # 70-79%
+    'examen_aprobado_80': 20,       # 80-89%
+    'examen_aprobado_90': 25,       # 90-99%
+    'examen_perfecto': 35,          # ⭐⭐⭐ 100%
+    'examen_reprobado': -5,         # Penalización
     
-    # CORE: Cursos (máximo valor)
-    'curso_completado': 500,        # ⭐⭐⭐ Completó curso entero
-    'curso_excelencia': 800,        # Curso con promedio 90+
-    'primer_curso': 100,
+    # CORE: Cursos
+    'curso_completado': 15,         # ⭐ Completó curso (signal: 15 pts)
+    'curso_excelencia': 25,         # Curso con promedio 90+
+    'primer_curso': 5,
     
     # Rachas de Estudio (consistencia)
-    'racha_3_dias': 30,
-    'racha_7_dias': 100,
-    'racha_30_dias': 500,
+    'racha_3_dias': 5,
+    'racha_7_dias': 10,
+    'racha_30_dias': 25,
     
     # Colaboración
-    'ayudar_otro_estudiante': 25,
-    'pregunta_respondida': 15,
+    'ayudar_otro_estudiante': 5,
+    'pregunta_respondida': 3,
 }
 
 
