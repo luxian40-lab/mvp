@@ -842,6 +842,14 @@ class Curso(models.Model):
         help_text='Nombre personalizado para la agente asistente (por defecto: María). Ej: Laura, Andrea'
     )
     
+    # PREGUNTAS EJEMPLO PARA IA — alimentadas por admin
+    preguntas_ejemplo_ia = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Preguntas ejemplo para IA',
+        help_text='Preguntas ejemplo que la IA usará como referencia para generar la pregunta final de recuperación. Una pregunta por línea.'
+    )
+    
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -1865,6 +1873,55 @@ class ProspectoB2B(models.Model):
         return f"{self.telefono} - {self.empresa or 'Sin empresa'} ({self.get_estado_display()})"
 
 
+class CampanaB2B(models.Model):
+    """Campañas de envío masivo para prospectos B2B — solo envío, sin registro."""
+    ESTADO_CHOICES = [
+        ('borrador', 'Borrador'),
+        ('enviada', 'Enviada'),
+    ]
+    
+    nombre = models.CharField(
+        max_length=200,
+        verbose_name='Nombre de la Campaña',
+        help_text='Ej: Propuesta Café Huila 2026'
+    )
+    mensaje = models.TextField(
+        verbose_name='Mensaje de texto',
+        help_text='Texto del mensaje a enviar. Usa {nombre} para personalizar con el nombre del prospecto.',
+        blank=True,
+        default=''
+    )
+    twilio_template_sid = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name='Content SID de Twilio (opcional)',
+        help_text='Si se especifica, se envía este template en lugar del mensaje de texto.'
+    )
+    url_media = models.URLField(
+        max_length=500,
+        blank=True,
+        verbose_name='URL del PDF/Media (opcional)',
+        help_text='URL pública del PDF o archivo a adjuntar. Debe ser accesible públicamente.'
+    )
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADO_CHOICES,
+        default='borrador'
+    )
+    total_enviados = models.IntegerField(default=0)
+    total_errores = models.IntegerField(default=0)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_envio = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        verbose_name = 'Campaña B2B'
+        verbose_name_plural = '📤 Campañas B2B'
+        ordering = ['-fecha_creacion']
+    
+    def __str__(self):
+        return f"{self.nombre} ({self.get_estado_display()})"
+
+
 __all__ = [
     'TemaCampana', 'Cliente', 'Estudiante', 'Plantilla', 'Linea',
     'Campana', 'EnvioLog', 'WhatsappLog',
@@ -1878,5 +1935,5 @@ __all__ = [
     'GrupoEstudiantes', 'EnvioProgramado', 'PQRS',
     'ArchivoModulo', 'GrupoWhatsApp', 'InvitacionGrupo',
     'CampanaUnica', 'RespuestaCampanaUnica',
-    'ProspectoB2B',
+    'ProspectoB2B', 'CampanaB2B',
 ]

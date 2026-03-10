@@ -469,16 +469,32 @@ class ArchivoModulo(models.Model):
 
     @staticmethod
     def _generar_presigned_url_desde_key(key, expires_in=3600):
-        """Genera presigned URL de S3 desde una key."""
+        """Genera presigned URL de S3 desde una key.
+        Incluye ResponseContentType para que Twilio pueda descargar correctamente (evita 63019)."""
         try:
             import boto3
             from botocore.config import Config
             region = 'us-east-2'
             bucket = 'eki-produccion'
             s3_client = boto3.client('s3', config=Config(signature_version='s3v4', region_name=region))
+            
+            # Determinar ContentType según extensión para evitar error 63019
+            params = {'Bucket': bucket, 'Key': key}
+            ext = key.rsplit('.', 1)[-1].lower() if '.' in key else ''
+            content_types = {
+                'mp4': 'video/mp4', 'mov': 'video/quicktime', 'avi': 'video/x-msvideo',
+                'mp3': 'audio/mpeg', 'ogg': 'audio/ogg', 'wav': 'audio/wav',
+                'm4a': 'audio/mp4', 'aac': 'audio/aac', 'opus': 'audio/opus',
+                'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
+                'gif': 'image/gif', 'webp': 'image/webp',
+                'pdf': 'application/pdf',
+            }
+            if ext in content_types:
+                params['ResponseContentType'] = content_types[ext]
+            
             url = s3_client.generate_presigned_url(
                 'get_object',
-                Params={'Bucket': bucket, 'Key': key},
+                Params=params,
                 ExpiresIn=expires_in
             )
             return url

@@ -467,17 +467,206 @@ def generar_presentacion_agentes(curso_nombre, estudiante_nombre="Estudiante", n
         tuple: (msg_tutor: str, msg_asistente: str)
     """
     msg_tutor = (
-        f"🎓 *¡Hola {estudiante_nombre}! Soy {nombre_tutor}*\n\n"
+        f"🤓 *¡Hola {estudiante_nombre}! Soy {nombre_tutor}*\n\n"
         f"Seré tu profesor a cargo en el curso *{curso_nombre}*. "
         f"Yo te enseñaré cada módulo y te haré preguntas para asegurarme de que "
         f"todo quede claro. ¡Vamos a aprender juntos! 💪"
     )
     
     msg_asistente = (
-        f"👩‍🏫 *¡Y yo soy {nombre_asistente}, tu asistente!*\n\n"
+        f"�️ *¡Y yo soy {nombre_asistente}, tu asistente!*\n\n"
         f"Estaré pendiente de ti en todo este proceso. "
         f"Si tienes dudas, si algo no te queda claro o necesitas que te explique algo de nuevo, "
         f"yo estaré aquí para ayudarte. ¡Cuenta conmigo! 🤝"
     )
     
     return msg_tutor, msg_asistente
+
+
+# =====================================================
+# PREGUNTA DE RECUPERACIÓN — Curso completado con <70 pts
+# =====================================================
+PROMPT_PREGUNTA_RECUPERACION = """Eres el Profesor Gerónimo de eki. El estudiante completó todo el curso pero obtuvo menos de 70 puntos.
+Tu tarea: generar UNA pregunta de recuperación que integre lo aprendido en todos los módulos del curso.
+
+REGLAS:
+1. La pregunta debe ser práctica, con un ejemplo de la vida real.
+2. Debe integrar conceptos de AL MENOS 2 módulos diferentes.
+3. MÁXIMO 80 PALABRAS en la pregunta.
+4. Lenguaje sencillo, pensando en campesinos y emprendedores rurales.
+5. Debe tener 4 opciones (A, B, C, D) de las cuales SOLO UNA es correcta.
+6. Máximo 2 emojis.
+7. FORMATO OBLIGATORIO de respuesta:
+PREGUNTA: [texto de la pregunta]
+A) [opción a]
+B) [opción b]
+C) [opción c]
+D) [opción d]
+CORRECTA: [letra]
+EXPLICACION: [explicación breve de por qué es correcta, máx 30 palabras]"""
+
+
+def generar_pregunta_recuperacion(curso, modulos_completados, estudiante_nombre="Estudiante",
+                                    preguntas_ejemplo="") -> dict:
+    """
+    Genera una pregunta de recuperación cuando el estudiante termina con <70 puntos.
+    Usa RAG + contenido de módulos + preguntas ejemplo del admin.
+
+    Returns:
+        dict: {pregunta, opciones: {A, B, C, D}, correcta, explicacion} o None si falla
+    """
+    client = _get_client()
+
+    # Construir contexto de módulos
+    modulos_info = ""
+    for m in modulos_completados:
+        titulo = m.titulo if hasattr(m, 'titulo') else str(m)
+        contenido_corto = ""
+        if hasattr(m, 'contenido') and m.contenido:
+            contenido_corto = m.contenido[:200].replace('\n', ' ')
+        modulos_info += f"- Módulo {getattr(m, 'numero', '?')}: {titulo} — {contenido_corto}\n"
+
+    # RAG context
+    contexto_rag = ""
+    try:
+        from .rag_manager import rag_manager
+        cliente_id = curso.cliente_id if curso.cliente_id else 0
+        contexto_rag = rag_manager.obtener_contexto_para_ia(
+            cliente_id=cliente_id,
+            curso_id=curso.id,
+            pregunta="resumen general del curso para pregunta de recuperación",
+            max_chars=1000
+        )
+    except Exception as e:
+        logger.warning(f"[RAG] Error en pregunta recuperación: {e}")
+
+    # Preguntas ejemplo del admin
+    ejemplo_txt = ""
+    if preguntas_ejemplo:
+        ejemplo_txt = f"\nPREGUNTAS EJEMPLO DEL INSTRUCTOR (úsalas como referencia de estilo y dificultad):\n{preguntas_ejemplo}\n"
+
+    if not client:
+        return _fallback_pregunta_recuperacion(modulos_completados)
+
+    prompt_usuario = f"""CURSO: {curso.nombre}
+ESTUDIANTE: {estudiante_nombre}
+
+MÓDULOS COMPLETADOS:
+{modulos_info}
+{contexto_rag}
+{ejemplo_txt}
+Genera UNA pregunta de recuperación que integre varios módulos. Usa el FORMATO OBLIGATORIO."""
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": PROMPT_PREGUNTA_RECUPERACION},
+                {"role": "user", "content": prompt_usuario}
+            ],
+            temperature=0.7,
+            max_tokens=300,
+            timeout=12
+        )
+        texto = response.choices[0].message.content.strip()
+        logger.info(f"✅ Pregunta recuperación generada: {texto[:80]}...")
+        return _parsear_pregunta_ia(texto)
+    except Exception as e:
+        logger.error(f"❌ Error pregunta recuperación: {e}")
+        return _fallback_pregunta_recuperacion(modulos_completados)
+
+
+def _parsear_pregunta_ia(texto: str) -> dict:
+    """Parsea la respuesta de la IA al formato estructurado."""
+    import re
+    
+    resultado = {'pregunta': '', 'opciones': {}, 'correcta': 'A', 'explicacion': ''}
+    
+    # Extraer pregunta
+    match_p = re.search(r'PREGUNTA:\s*(.+?)(?=\nA\))', texto, re.DOTALL)
+    if match_p:
+        resultado['pregunta'] = match_p.group(1).strip()
+    else:
+        # Fallback: tomar todo antes de A)
+        parts = texto.split('A)')
+        if len(parts) > 1:
+            resultado['pregunta'] = parts[0].replace('PREGUNTA:', '').strip()
+    
+    # Extraer opciones
+    for letra in ['A', 'B', 'C', 'D']:
+        pattern = rf'{letra}\)\s*(.+?)(?=(?:[B-D]\)|CORRECTA:|$))'
+        match = re.search(pattern, texto, re.DOTALL)
+        if match:
+            resultado['opciones'][letra] = match.group(1).strip()
+    
+    # Extraer respuesta correcta
+    match_c = re.search(r'CORRECTA:\s*([A-D])', texto)
+    if match_c:
+        resultado['correcta'] = match_c.group(1)
+    
+    # Extraer explicación
+    match_e = re.search(r'EXPLICACION:\s*(.+)', texto, re.DOTALL)
+    if match_e:
+        resultado['explicacion'] = match_e.group(1).strip()
+    
+    # Validar que tenemos lo mínimo
+    if not resultado['pregunta'] or len(resultado['opciones']) < 2:
+        return None
+    
+    return resultado
+
+
+def _fallback_pregunta_recuperacion(modulos_completados) -> dict:
+    """Pregunta de recuperación sin IA."""
+    if modulos_completados:
+        primer_modulo = modulos_completados[0]
+        titulo = getattr(primer_modulo, 'titulo', 'el curso')
+    else:
+        titulo = 'el curso'
+    
+    return {
+        'pregunta': f'De todo lo aprendido sobre {titulo}, ¿cuál consideras que es el concepto más importante para aplicar en tu vida diaria?',
+        'opciones': {
+            'A': 'Lo que aprendí en los primeros módulos',
+            'B': 'Los conceptos prácticos que puedo usar cada día',
+            'C': 'Las técnicas avanzadas del final del curso',
+            'D': 'Todo es igual de importante'
+        },
+        'correcta': 'B',
+        'explicacion': 'Los conceptos prácticos del día a día son los que más impacto generan.'
+    }
+
+
+def evaluar_respuesta_recuperacion(respuesta_dada: str, correcta: str, explicacion: str) -> tuple:
+    """
+    Evalúa la respuesta a la pregunta de recuperación.
+    
+    Returns:
+        tuple: (es_correcta: bool, mensaje: str)
+    """
+    respuesta_upper = respuesta_dada.strip().upper()
+    # Aceptar "A", "A)", "opción A", etc.
+    letra = ''
+    for c in respuesta_upper:
+        if c in 'ABCD':
+            letra = c
+            break
+    
+    es_correcta = (letra == correcta.strip().upper())
+    
+    if es_correcta:
+        msg = (
+            f"🎉 *¡CORRECTO!* La respuesta es *{correcta}*\n\n"
+            f"💡 {explicacion}\n\n"
+            f"🏆 *+50 puntos de recuperación*\n"
+            f"¡Excelente! Demostraste que sí aprendiste 💪"
+        )
+    else:
+        msg = (
+            f"La respuesta correcta era *{correcta}*\n\n"
+            f"💡 {explicacion}\n\n"
+            f"No te preocupes, lo importante es que completaste el curso. "
+            f"¡Sigue adelante! 💪"
+        )
+    
+    return es_correcta, msg

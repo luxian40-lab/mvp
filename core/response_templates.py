@@ -14,6 +14,96 @@ def _barra_progreso(porcentaje: int) -> str:
     return "▓" * llenas + "░" * vacias
 
 
+def _generar_completado_final(estudiante, curso_id):
+    """
+    Genera el mensaje final de completado con certificado y resumen.
+    Se usa tanto en el flujo normal como después de la pregunta de recuperación.
+    """
+    from .models import Curso, ProgresoEstudiante
+    from .gamificacion import PerfilGamificacion, BadgeEstudiante
+    
+    try:
+        curso = Curso.objects.get(id=curso_id)
+        progreso = ProgresoEstudiante.objects.get(estudiante=estudiante, curso=curso)
+        perfil = PerfilGamificacion.objects.get(estudiante=estudiante)
+    except Exception:
+        return "🎓 *¡Felicitaciones! Has completado todo el curso.*\n\n🎓 Tu certificado se está generando."
+    
+    porcentaje = progreso.porcentaje_avance()
+    
+    badges_nuevos = BadgeEstudiante.objects.filter(
+        estudiante=estudiante,
+        badge__tipo='CURSO'
+    ).order_by('-fecha_obtenido')[:2]
+    
+    barra = _barra_progreso(porcentaje)
+    nivel_emoji = ["🌱","🌿","🍃","🌾","🌳","🌲","🎋","🌺","💎","👑"][min(perfil.nivel-1,9)]
+    
+    mensaje = f"""🎉 *¡CURSO COMPLETADO!*
+
+💰 Total: *{perfil.puntos_totales} pts*
+{nivel_emoji} Nivel {perfil.nivel}
+{barra} {porcentaje}%"""
+    
+    if badges_nuevos.exists():
+        mensaje += "\n\n🏅 *LOGROS DESBLOQUEADOS:*"
+        for badge_est in badges_nuevos:
+            mensaje += f"\n  {badge_est.badge.icono} {badge_est.badge.nombre}"
+    
+    mensaje += "\n\n🎓 *¡Felicitaciones! Has completado todo el curso.*"
+    
+    # Asistente: Resumen
+    _cliente_fin = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
+    nombre_asistente_fin = (
+        (_cliente_fin.nombre_agente_asistente if _cliente_fin and hasattr(_cliente_fin, 'nombre_agente_asistente') and _cliente_fin.nombre_agente_asistente else '') or
+        curso.nombre_agente_asistente or 'María'
+    )
+    msg_resumen = None
+    try:
+        from .tutor_ia_modulo import generar_resumen_curso_completo
+        modulos_completados_qs = progreso.modulos_completados.all().order_by('modulo__numero')
+        modulos_obj = [mc.modulo for mc in modulos_completados_qs]
+        resumen_maria = generar_resumen_curso_completo(
+            curso.nombre,
+            modulos_obj,
+            estudiante_nombre=estudiante.nombre or "Estudiante"
+        )
+        if resumen_maria:
+            msg_resumen = f"🕶️ *{nombre_asistente_fin} — Resumen del Curso*\n\n{resumen_maria}"
+    except Exception:
+        pass
+    
+    # Certificado
+    msg_cert_img = ""
+    try:
+        from .certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
+        cert = crear_certificado_automatico(estudiante, curso)
+        if cert and cert.archivo_imagen:
+            cert_url = obtener_url_certificado_twilio(cert)
+            if cert_url:
+                msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+            else:
+                from django.conf import settings as _s
+                bucket = getattr(_s, 'AWS_STORAGE_BUCKET_NAME', 'eki-produccion')
+                s3_key = str(cert.archivo_imagen.name)
+                cert_url = f"https://{bucket}.s3.us-east-2.amazonaws.com/{s3_key}"
+                msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+        elif cert and cert.archivo_pdf:
+            cert_url = cert.archivo_pdf.url
+            msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert_url}"
+        else:
+            msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+    except Exception:
+        msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+    
+    partes = [mensaje]
+    if msg_cert_img:
+        partes.append(msg_cert_img)
+    if msg_resumen:
+        partes.append(msg_resumen)
+    return "[MULTI_MSG]" + "[SEP]".join(partes)
+
+
 def dividir_contenido_seguro(contenido: str, max_chars: int = 1500) -> list:
     """
     Divide contenido en chunks seguros para Twilio (1600 char limit).
@@ -74,6 +164,7 @@ def _generar_presigned_url_s3(key, expires_in=3600):
     """
     Genera una URL prefirmada de S3 para que Twilio pueda descargar el archivo.
     Resuelve error 63019 (Media download failed) cuando el bucket es privado.
+    Incluye ResponseContentType según extensión del archivo.
     """
     try:
         import boto3
@@ -81,9 +172,24 @@ def _generar_presigned_url_s3(key, expires_in=3600):
         region = 'us-east-2'
         bucket = 'eki-produccion'
         s3_client = boto3.client('s3', config=Config(signature_version='s3v4', region_name=region))
+        
+        # Determinar ContentType según extensión para evitar error 63019
+        params = {'Bucket': bucket, 'Key': key}
+        ext = key.rsplit('.', 1)[-1].lower() if '.' in key else ''
+        content_types = {
+            'mp4': 'video/mp4', 'mov': 'video/quicktime', 'avi': 'video/x-msvideo',
+            'mp3': 'audio/mpeg', 'ogg': 'audio/ogg', 'wav': 'audio/wav',
+            'm4a': 'audio/mp4', 'aac': 'audio/aac', 'opus': 'audio/opus',
+            'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
+            'gif': 'image/gif', 'webp': 'image/webp',
+            'pdf': 'application/pdf',
+        }
+        if ext in content_types:
+            params['ResponseContentType'] = content_types[ext]
+        
         url = s3_client.generate_presigned_url(
             'get_object',
-            Params={'Bucket': bucket, 'Key': key},
+            Params=params,
             ExpiresIn=expires_in
         )
         return url
@@ -577,7 +683,7 @@ Te inscribiste en: *{curso.nombre}*
         archivos_msg_1 = ""
 
         if archivos_multimedia_1.exists():
-            archivos_msg_1 = f"\n\n📁 *{archivos_multimedia_1.count()} archivo(s) multimedia*"
+            archivos_msg_1 = ""
             for idx, archivo in enumerate(archivos_multimedia_1):
                 icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
                 url = archivo.get_url_para_envio()
@@ -630,7 +736,7 @@ Te inscribiste en: *{curso.nombre}*
             msg_gamificacion = ""
             if usar_gamificacion:
                 msg_gamificacion = (
-                    "🎮 *¡Gamificación Activa!*\n\n"
+                    "🎮 *Nuestro sistema funciona como un video juego*\n\n"
                     "A medida que completes los módulos, ganarás:\n"
                     "💰 *Puntos* por cada módulo completado\n"
                     "🏅 *Niveles* que subirás automáticamente\n"
@@ -824,7 +930,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 extra_media_urls = []
 
                 if archivos_multimedia.exists():
-                    archivos_msg = f"\n\n📁 *{archivos_multimedia.count()} archivo(s) multimedia*"
+                    archivos_msg = ""
                     for idx, archivo in enumerate(archivos_multimedia):
                         icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
                         url = archivo.get_url_para_envio()
@@ -910,7 +1016,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                             }
                             estudiante.estado_onboarding = 'esperando_respuesta_tutor_ia'
                             estudiante.save()
-                            tutor_msg = f"🎓 *{nombre_tutor}*\n\n{enseñanza}\n\n💬 _Escríbeme o envía un audio con tu respuesta. Si decides seguir con el módulo, en el audio o texto di *continuar*_"
+                            tutor_msg = f"🤓 *{nombre_tutor}*\n\n{enseñanza}\n\n💬 _Escríbeme o envía un audio con tu respuesta. Si decides seguir con el módulo, en el audio o texto di *continuar*_"
                     except Exception as e:
                         import logging
                         logging.getLogger(__name__).warning(f"⚠️ {nombre_tutor} falló: {e}")
@@ -930,7 +1036,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                             estudiante_nombre=estudiante.nombre or "Estudiante"
                         )
                         if revision:
-                            maria_msg = f"👩‍🏫 *{nombre_asistente} — Tu Asistente*\n\n{revision}\n\n💬 _Escríbeme o envía un audio con tu respuesta. Si decides seguir con el módulo, en el audio o texto di *continuar*_"
+                            maria_msg = f"�️ *{nombre_asistente} — Tu Asistente*\n\n{revision}\n\n💬 _Escríbeme o envía un audio con tu respuesta. Si decides seguir con el módulo, en el audio o texto di *continuar*_"
                     except Exception as e:
                         import logging
                         logging.getLogger(__name__).warning(f"⚠️ {nombre_asistente} falló: {e}")
@@ -993,6 +1099,50 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 
                 porcentaje = progreso.porcentaje_avance()
                 
+                # === PREGUNTA DE RECUPERACIÓN si <70 puntos y gamificación activa ===
+                if progreso.curso.usar_gamificacion and perfil.puntos_totales < 70:
+                    try:
+                        from .tutor_ia_modulo import generar_pregunta_recuperacion
+                        modulos_completados_qs = progreso.modulos_completados.all().order_by('modulo__numero')
+                        modulos_obj = [mc.modulo for mc in modulos_completados_qs]
+                        pregunta_data = generar_pregunta_recuperacion(
+                            progreso.curso,
+                            modulos_obj,
+                            estudiante_nombre=estudiante.nombre or "Estudiante",
+                            preguntas_ejemplo=progreso.curso.preguntas_ejemplo_ia or ""
+                        )
+                        if pregunta_data:
+                            # Guardar estado para esperar respuesta
+                            _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
+                            estudiante.contexto_temporal = {
+                                'tipo': 'pregunta_recuperacion',
+                                'curso_id': progreso.curso.id,
+                                'progreso_id': progreso.id,
+                                'pregunta_data': pregunta_data,
+                                '_ts_leccion': _prev_ts,
+                            }
+                            estudiante.estado_onboarding = 'esperando_respuesta_recuperacion'
+                            estudiante.save()
+                            
+                            # Construir mensaje de pregunta
+                            opciones_txt = ""
+                            for letra, opcion in pregunta_data['opciones'].items():
+                                opciones_txt += f"\n*{letra})* {opcion}"
+                            
+                            msg_recuperacion = (
+                                f"🎉 *¡Completaste todos los módulos del curso!*\n\n"
+                                f"Pero antes de tu certificado, tienes una oportunidad de ganar *+50 puntos extra* 🏆\n\n"
+                                f"🤓 *Pregunta de recuperación:*\n\n"
+                                f"{pregunta_data['pregunta']}\n"
+                                f"{opciones_txt}\n\n"
+                                f"📝 Responde con la letra (A, B, C o D)"
+                            )
+                            return msg_recuperacion
+                    except Exception as e:
+                        import logging
+                        logging.getLogger(__name__).warning(f"⚠️ Pregunta recuperación falló: {e}")
+                        # Si falla, continuar con flujo normal de completado
+                
                 # Buscar badges obtenidos por este curso
                 from .gamificacion import BadgeEstudiante
                 badges_nuevos = BadgeEstudiante.objects.filter(
@@ -1044,7 +1194,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                         estudiante_nombre=estudiante.nombre or "Estudiante"
                     )
                     if resumen_maria:
-                        msg_resumen = f"👩‍🏫 *{nombre_asistente_fin} — Resumen del Curso*\n\n{resumen_maria}"
+                        msg_resumen = f"�️ *{nombre_asistente_fin} — Resumen del Curso*\n\n{resumen_maria}"
                 except Exception as e:
                     import logging
                     logging.getLogger(__name__).warning(f"⚠️ {nombre_asistente_fin} resumen falló: {e}")
@@ -1094,7 +1244,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             extra_media_urls_c = []
 
             if archivos_multimedia_c.exists():
-                archivos_msg_c = f"\n\n📁 *{archivos_multimedia_c.count()} archivo(s) multimedia*"
+                archivos_msg_c = ""
                 for idx, archivo in enumerate(archivos_multimedia_c):
                     icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
                     url = archivo.get_url_para_envio()

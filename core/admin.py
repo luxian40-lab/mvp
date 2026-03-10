@@ -22,7 +22,7 @@ from .models import (
     SolicitudSoporte, PreguntaModulo,  # 🆘 NUEVO + 📝 PREGUNTA MODULO
     Certificado, PlantillaCertificado, # 📜 CERTIFICADOS
     CampanaUnica, RespuestaCampanaUnica,
-    ProspectoB2B,  # 🤝 LEADS B2B
+    ProspectoB2B, CampanaB2B,  # 🤝 LEADS B2B
     DocumentoRAG,  # 📚 RAG Multi-Tenant
 )
 from .admin_campana_actualizado import CampanaUnicaAdmin, RespuestaCampanaUnicaAdmin
@@ -2287,6 +2287,11 @@ class CursoAdmin(admin.ModelAdmin):
         ('🤖 Nombres de Agentes IA (Override)', {
             'fields': ('nombre_agente_tutor', 'nombre_agente_asistente'),
             'description': '🎓 Override por curso. Si se dejan vacíos, se usarán los nombres configurados en el Cliente. Si el Cliente tampoco tiene, se usan los por defecto (Gerónimo y María).',
+            'classes': ('collapse',),
+        }),
+        ('🧠 Preguntas IA (Recuperación)', {
+            'fields': ('preguntas_ejemplo_ia',),
+            'description': '📝 Preguntas ejemplo que la IA usará para generar la pregunta final de recuperación si el estudiante termina con menos de 70 puntos. Una pregunta por línea.',
             'classes': ('collapse',),
         }),
         ('👥 Grupo de WhatsApp', {
@@ -5249,12 +5254,13 @@ class ProspectoB2BAdmin(admin.ModelAdmin):
     🤝 GESTIÓN DE LEADS B2B
     Prospectos capturados desde WhatsApp (Phase 0 del webhook).
     """
-    list_display = ('telefono', 'empresa', 'email', 'estado_badge', 'origen', 'fecha_captura')
+    list_display = ('telefono', 'nombre_contacto', 'empresa', 'email', 'estado_badge', 'origen', 'fecha_captura')
     list_filter = ('estado', 'origen', 'fecha_captura')
-    search_fields = ('telefono', 'email', 'empresa')
+    search_fields = ('telefono', 'email', 'empresa', 'nombre_contacto')
     list_per_page = 50
     ordering = ('-fecha_captura',)
     readonly_fields = ('fecha_captura',)
+    actions = ['enviar_campana_b2b']
 
     fieldsets = (
         ('📱 Contacto', {
@@ -5279,9 +5285,136 @@ class ProspectoB2BAdmin(admin.ModelAdmin):
         )
     estado_badge.short_description = "Estado"
 
+    @admin.action(description='📤 Enviar última campaña B2B a seleccionados')
+    def enviar_campana_b2b(self, request, queryset):
+        """Envía la última campaña B2B (borrador) a los prospectos seleccionados."""
+        from .models import CampanaB2B
+        from .utils import enviar_whatsapp_twilio
+        from .whatsapp_service import enviar_template_twilio
+        
+        campana = CampanaB2B.objects.filter(estado='borrador').order_by('-fecha_creacion').first()
+        if not campana:
+            self.message_user(request, "❌ No hay campañas B2B en estado 'borrador'. Crea una primero.", level='error')
+            return
+        
+        enviados = 0
+        errores = 0
+        
+        for prospecto in queryset:
+            try:
+                if campana.twilio_template_sid:
+                    # Enviar template de Twilio
+                    variables = {}
+                    if prospecto.nombre_contacto:
+                        variables['1'] = prospecto.nombre_contacto
+                    resultado = enviar_template_twilio(
+                        prospecto.telefono,
+                        campana.twilio_template_sid,
+                        variables=variables if variables else None
+                    )
+                    if resultado.get('success'):
+                        enviados += 1
+                    else:
+                        errores += 1
+                    
+                    # Si también hay media, enviar como mensaje separado
+                    if campana.url_media and resultado.get('success'):
+                        import time
+                        time.sleep(1)  # Pausa para no saturar
+                        enviar_whatsapp_twilio(
+                            prospecto.telefono,
+                            "📄 Adjunto:",
+                            media_url=campana.url_media
+                        )
+                else:
+                    # Enviar mensaje de texto (personalizado)
+                    texto = campana.mensaje.replace('{nombre}', prospecto.nombre_contacto or 'Estimado/a')
+                    media = campana.url_media or None
+                    resultado = enviar_whatsapp_twilio(
+                        prospecto.telefono,
+                        texto,
+                        media_url=media
+                    )
+                    if resultado.get('success'):
+                        enviados += 1
+                    else:
+                        errores += 1
+                
+                # Actualizar estado del prospecto
+                prospecto.estado = 'contactado'
+                prospecto.fecha_ultimo_contacto = timezone.now()
+                prospecto.save()
+                
+            except Exception as e:
+                errores += 1
+                import logging
+                logging.getLogger(__name__).error(f"Error enviando a {prospecto.telefono}: {e}")
+        
+        # Actualizar campaña
+        campana.total_enviados += enviados
+        campana.total_errores += errores
+        campana.estado = 'enviada'
+        campana.fecha_envio = timezone.now()
+        campana.save()
+        
+        self.message_user(
+            request,
+            f"📤 Campaña '{campana.nombre}' enviada: {enviados} exitosos, {errores} errores"
+        )
+
 
 # ========================================
-# 📚 ADMIN DE DOCUMENTOS RAG
+# � ADMIN DE CAMPAÑAS B2B
+# ========================================
+
+@admin.register(CampanaB2B)
+class CampanaB2BAdmin(admin.ModelAdmin):
+    """
+    📤 CAMPAÑAS B2B — Envío de plantillas/PDF a prospectos sin registrarlos.
+    """
+    list_display = ('nombre', 'estado_badge', 'tiene_template', 'tiene_media', 'total_enviados', 'total_errores', 'fecha_creacion')
+    list_filter = ('estado',)
+    search_fields = ('nombre',)
+    readonly_fields = ('total_enviados', 'total_errores', 'fecha_envio')
+    ordering = ('-fecha_creacion',)
+
+    fieldsets = (
+        ('📤 Campaña', {
+            'fields': ('nombre', 'estado')
+        }),
+        ('💬 Contenido del Mensaje', {
+            'fields': ('mensaje', 'twilio_template_sid', 'url_media'),
+            'description': '📝 Si especificas un Content SID de Twilio, se usará ese template. Si no, se envía el mensaje de texto. El PDF/media se adjunta en ambos casos.'
+        }),
+        ('📊 Resultados', {
+            'fields': ('total_enviados', 'total_errores', 'fecha_envio'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def estado_badge(self, obj):
+        color = '#ffc107' if obj.estado == 'borrador' else '#28a745'
+        return format_html(
+            '<span style="background:{};color:#fff;padding:3px 10px;border-radius:12px;font-size:11px;">{}</span>',
+            color, obj.get_estado_display()
+        )
+    estado_badge.short_description = "Estado"
+
+    def tiene_template(self, obj):
+        if obj.twilio_template_sid:
+            return format_html('<span style="color:green;">✅ {}</span>', obj.twilio_template_sid[:15] + '...')
+        return format_html('<span style="color:#999;">—</span>')
+    tiene_template.short_description = "Template"
+
+    def tiene_media(self, obj):
+        if obj.url_media:
+            return format_html('<span style="color:green;">📎 Sí</span>')
+        return format_html('<span style="color:#999;">—</span>')
+    tiene_media.short_description = "Media"
+
+
+# ========================================
+# �📚 ADMIN DE DOCUMENTOS RAG
 # ========================================
 
 @admin.register(DocumentoRAG)

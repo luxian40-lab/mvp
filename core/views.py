@@ -1387,7 +1387,7 @@ def _procesar_twilio_webhook(post_data):
                             usar_gamificacion = (cliente_obj.usar_gamificacion if cliente_obj else True)
                             if usar_gamificacion:
                                 msg_gamificacion = (
-                                    "🎮 *¡Gamificación Activa!*\n\n"
+                                    "🎮 *Nuestro sistema funciona como un video juego*\n\n"
                                     "A medida que completes los módulos, ganarás:\n"
                                     "💰 *Puntos* por cada módulo completado\n"
                                     "🏅 *Niveles* que subirás automáticamente\n"
@@ -1401,7 +1401,7 @@ def _procesar_twilio_webhook(post_data):
                             primera_media_url = None
                             extra_media_urls = []
                             if archivos_multimedia.exists():
-                                archivos_msg = f"\n\n📁 *{archivos_multimedia.count()} archivo(s) multimedia*"
+                                archivos_msg = ""
                                 for idx, archivo in enumerate(archivos_multimedia):
                                     icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
                                     url = archivo.get_url_para_envio()
@@ -1753,7 +1753,7 @@ def _procesar_twilio_webhook(post_data):
                         primera_media_url = None
                         extra_media_urls = []
                         if archivos_multimedia.exists():
-                            archivos_msg = f"\n\n📁 *{archivos_multimedia.count()} archivo(s) multimedia*"
+                            archivos_msg = ""
                             for idx, archivo in enumerate(archivos_multimedia):
                                 icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
                                 url = archivo.get_url_para_envio()
@@ -1901,7 +1901,7 @@ def _procesar_twilio_webhook(post_data):
                         primera_media_url = None
                         extra_media_urls = []
                         if archivos_multimedia.exists():
-                            archivos_msg = f"\n\n📁 *{archivos_multimedia.count()} archivo(s) multimedia*"
+                            archivos_msg = ""
                             for idx, archivo in enumerate(archivos_multimedia):
                                 icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
                                 url = archivo.get_url_para_envio()
@@ -2124,6 +2124,37 @@ def _procesar_twilio_webhook(post_data):
                             estudiante.save()
                             texto_respuesta = f"{feedback}\n\n💬 _Cuéntame más o escribe *\"continuar\"* para seguir._"
 
+            # 3.5a2 PRIORIDAD: Si está respondiendo pregunta de RECUPERACIÓN (<70 pts)
+            elif estudiante.estado_onboarding == 'esperando_respuesta_recuperacion':
+                ctx = estudiante.contexto_temporal or {}
+                pregunta_data = ctx.get('pregunta_data', {})
+                correcta = pregunta_data.get('correcta', 'A')
+                explicacion = pregunta_data.get('explicacion', '')
+                
+                from .tutor_ia_modulo import evaluar_respuesta_recuperacion
+                es_correcta, msg_evaluacion = evaluar_respuesta_recuperacion(msg_body, correcta, explicacion)
+                
+                # Si acertó, dar puntos bonus
+                if es_correcta:
+                    try:
+                        from .gamificacion import PerfilGamificacion
+                        perfil_rec = PerfilGamificacion.objects.get(estudiante=estudiante)
+                        perfil_rec.agregar_puntos(50, "🏆 Pregunta de recuperación correcta")
+                    except Exception:
+                        pass
+                
+                # Limpiar estado y continuar al certificado
+                curso_id = ctx.get('curso_id')
+                estudiante.estado_onboarding = 'completado'
+                estudiante.contexto_temporal = None
+                estudiante.save()
+                
+                # Generar certificado y resumen
+                from .response_templates import _generar_completado_final
+                msg_final = _generar_completado_final(estudiante, curso_id)
+                
+                texto_respuesta = f"[MULTI_MSG]{msg_evaluacion}[SEP]{msg_final}"
+
             # 3.5b PRIORIDAD: Si está respondiendo pregunta de módulo (examen clásico)
             elif estudiante.estado_onboarding == 'esperando_respuesta_modulo':
                 # Si el usuario dice "menu", salir del examen y mostrar menú
@@ -2240,7 +2271,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                 
                                     if archivos_multimedia.exists():
                                         print(f"✅ Encontrados {archivos_multimedia.count()} archivos multimedia")
-                                        archivos_msg = f"\n\n📁 *{archivos_multimedia.count()} archivo(s) multimedia*"
+                                        archivos_msg = ""
                                         for idx, archivo in enumerate(archivos_multimedia):
                                             icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
                                             url = archivo.get_url_para_envio()
@@ -2298,7 +2329,7 @@ Progreso del curso: {porcentaje}%
                                                 estudiante_nombre=estudiante.nombre or "Estudiante"
                                             )
                                             if enseñanza:
-                                                tutor_msg = f"🎓 *{nombre_tutor}*\n\n{enseñanza}\n\n💬 _Escríbeme o envía un audio con tu respuesta. Si decides seguir con el módulo, en el audio o texto di *continuar*_"
+                                                tutor_msg = f"🤓 *{nombre_tutor}*\n\n{enseñanza}\n\n💬 _Escríbeme o envía un audio con tu respuesta. Si decides seguir con el módulo, en el audio o texto di *continuar*_"
                                                 print(f"🎓 {nombre_tutor} activado después de módulo {modulo_actual.numero}", flush=True)
                                         except Exception as e:
                                             import logging
@@ -2317,7 +2348,7 @@ Progreso del curso: {porcentaje}%
                                                 estudiante_nombre=estudiante.nombre or "Estudiante"
                                             )
                                             if revision:
-                                                maria_msg = f"👩‍🏫 *{nombre_asistente} — Tu Asistente*\n\n{revision}\n\n💬 _Escríbeme o envía un audio con tu respuesta. Si decides seguir con el módulo, en el audio o texto di *continuar*_"
+                                                maria_msg = f"🕶️ *{nombre_asistente} — Tu Asistente*\n\n{revision}\n\n💬 _Escríbeme o envía un audio con tu respuesta. Si decides seguir con el módulo, en el audio o texto di *continuar*_"
                                                 print(f"👩‍🏫 {nombre_asistente} activada después de módulo {modulo_actual.numero}", flush=True)
                                         except Exception as e:
                                             import logging
@@ -2386,10 +2417,56 @@ Progreso del curso: {porcentaje}%
                                     progreso.fecha_completado = timezone.now()
                                     progreso.save()
                                 
-                                    estudiante.estado_onboarding = 'completado'
-                                    estudiante.save()
+                                    # === PREGUNTA DE RECUPERACIÓN si <70 pts y gamificación activa ===
+                                    _skip_cert = False
+                                    if progreso.curso.usar_gamificacion:
+                                        try:
+                                            from .gamificacion import PerfilGamificacion as PG_rec
+                                            perfil_rec = PG_rec.objects.get(estudiante=estudiante)
+                                            if perfil_rec.puntos_totales < 70:
+                                                from .tutor_ia_modulo import generar_pregunta_recuperacion
+                                                modulos_rec_qs = progreso.modulos_completados.all().order_by('modulo__numero')
+                                                modulos_rec_obj = [mc.modulo for mc in modulos_rec_qs]
+                                                pregunta_data = generar_pregunta_recuperacion(
+                                                    progreso.curso,
+                                                    modulos_rec_obj,
+                                                    estudiante_nombre=estudiante.nombre or "Estudiante",
+                                                    preguntas_ejemplo=progreso.curso.preguntas_ejemplo_ia or ""
+                                                )
+                                                if pregunta_data:
+                                                    _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
+                                                    estudiante.contexto_temporal = {
+                                                        'tipo': 'pregunta_recuperacion',
+                                                        'curso_id': progreso.curso.id,
+                                                        'progreso_id': progreso.id,
+                                                        'pregunta_data': pregunta_data,
+                                                        '_ts_leccion': _prev_ts,
+                                                    }
+                                                    estudiante.estado_onboarding = 'esperando_respuesta_recuperacion'
+                                                    estudiante.save()
+                                                    
+                                                    opciones_txt = ""
+                                                    for letra, opcion in pregunta_data['opciones'].items():
+                                                        opciones_txt += f"\n*{letra})* {opcion}"
+                                                    
+                                                    texto_respuesta = (
+                                                        f"{mensaje_respuesta}\n\n"
+                                                        f"🎉 *¡Completaste todos los módulos del curso!*\n\n"
+                                                        f"Pero antes de tu certificado, tienes una oportunidad de ganar *+50 puntos extra* 🏆\n\n"
+                                                        f"🤓 *Pregunta de recuperación:*\n\n"
+                                                        f"{pregunta_data['pregunta']}\n"
+                                                        f"{opciones_txt}\n\n"
+                                                        f"📝 Responde con la letra (A, B, C o D)"
+                                                    )
+                                                    _skip_cert = True
+                                        except Exception as e:
+                                            logger.warning(f"⚠️ Pregunta recuperación exam: {e}")
+                                    
+                                    if not _skip_cert:
+                                        estudiante.estado_onboarding = 'completado'
+                                        estudiante.save()
                                 
-                                    msg_final = mensaje_respuesta + f"""
+                                        msg_final = mensaje_respuesta + f"""
 
 
 🎓 *¡FELICITACIONES!*
@@ -2398,79 +2475,79 @@ Has completado el curso: *{progreso.curso.nombre}*
 
 🏆 Tu certificado se está generando..."""
                                 
-                                    # Asistente: Resumen completo del curso
-                                    nombre_asistente_fin = progreso.curso.nombre_agente_asistente or 'María'
-                                    msg_resumen = None
-                                    try:
-                                        from .tutor_ia_modulo import generar_resumen_curso_completo
-                                        modulos_completados_qs = progreso.modulos_completados.all().order_by('modulo__numero')
-                                        modulos_obj = [mc.modulo for mc in modulos_completados_qs]
-                                        resumen_maria = generar_resumen_curso_completo(
-                                            progreso.curso.nombre,
-                                            modulos_obj,
-                                            estudiante_nombre=estudiante.nombre or "Estudiante"
-                                        )
-                                        if resumen_maria:
-                                            msg_resumen = f"👩‍🏫 *{nombre_asistente_fin} — Resumen del Curso*\n\n{resumen_maria}"
-                                            print(f"👩‍🏫 {nombre_asistente_fin} resumen del curso activada", flush=True)
-                                    except Exception as e:
-                                        import logging
-                                        logging.getLogger(__name__).warning(f"⚠️ María resumen falló: {e}")
+                                        # Asistente: Resumen completo del curso
+                                        nombre_asistente_fin = progreso.curso.nombre_agente_asistente or 'María'
+                                        msg_resumen = None
+                                        try:
+                                            from .tutor_ia_modulo import generar_resumen_curso_completo
+                                            modulos_completados_qs = progreso.modulos_completados.all().order_by('modulo__numero')
+                                            modulos_obj = [mc.modulo for mc in modulos_completados_qs]
+                                            resumen_maria = generar_resumen_curso_completo(
+                                                progreso.curso.nombre,
+                                                modulos_obj,
+                                                estudiante_nombre=estudiante.nombre or "Estudiante"
+                                            )
+                                            if resumen_maria:
+                                                msg_resumen = f"🕶️ *{nombre_asistente_fin} — Resumen del Curso*\n\n{resumen_maria}"
+                                                print(f"👩‍🏫 {nombre_asistente_fin} resumen del curso activada", flush=True)
+                                        except Exception as e:
+                                            import logging
+                                            logging.getLogger(__name__).warning(f"⚠️ María resumen falló: {e}")
                                 
-                                    # Imagen de certificado — generar con Pillow y enviar como imagen
-                                    msg_cert_img = ""
-                                    try:
-                                        from .certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
-                                        logger.info(f"🎓 Iniciando generación de certificado para {estudiante.nombre} - {progreso.curso.nombre}")
-                                        cert = crear_certificado_automatico(estudiante, progreso.curso)
-                                        logger.info(f"🎓 Certificado resultado: cert={cert}, imagen={cert.archivo_imagen if cert else 'N/A'}, pdf={cert.archivo_pdf if cert else 'N/A'}")
+                                        # Imagen de certificado — generar con Pillow y enviar como imagen
+                                        msg_cert_img = ""
+                                        try:
+                                            from .certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
+                                            logger.info(f"🎓 Iniciando generación de certificado para {estudiante.nombre} - {progreso.curso.nombre}")
+                                            cert = crear_certificado_automatico(estudiante, progreso.curso)
+                                            logger.info(f"🎓 Certificado resultado: cert={cert}, imagen={cert.archivo_imagen if cert else 'N/A'}, pdf={cert.archivo_pdf if cert else 'N/A'}")
                                         
-                                        if cert and cert.archivo_imagen:
-                                            # Usar URL pública directa (ACL public-read)
-                                            cert_url = obtener_url_certificado_twilio(cert)
-                                            if cert_url:
-                                                msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
-                                                logger.info(f"✅ Certificado URL para Twilio: {cert_url}")
-                                            else:
-                                                # Fallback URL directa sin /media/ prefix
-                                                s3_key = str(cert.archivo_imagen.name)
-                                                cert_url = f"https://eki-produccion.s3.us-east-2.amazonaws.com/{s3_key}"
-                                                msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
-                                                logger.info(f"✅ Certificado URL fallback: {cert_url}")
-                                        elif cert and cert.archivo_pdf:
-                                            cert_url = cert.archivo_pdf.url
-                                            msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert_url}"
-                                            logger.info(f"📄 Certificado PDF URL: {cert_url}")
-                                        elif cert:
-                                            # Certificado creado pero sin archivo — forzar regeneración
-                                            logger.warning(f"⚠️ Cert creado sin archivo, forzando regeneración...")
-                                            from .certificado_service import generar_y_guardar_certificado
-                                            generar_y_guardar_certificado(cert, force=True)
-                                            cert.refresh_from_db()
-                                            if cert.archivo_imagen:
+                                            if cert and cert.archivo_imagen:
+                                                # Usar URL pública directa (ACL public-read)
                                                 cert_url = obtener_url_certificado_twilio(cert)
                                                 if cert_url:
                                                     msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
-                                                    logger.info(f"✅ Certificado PRESIGNED URL (retry): {cert_url[:100]}...")
+                                                    logger.info(f"✅ Certificado URL para Twilio: {cert_url}")
+                                                else:
+                                                    # Fallback URL directa sin /media/ prefix
+                                                    s3_key = str(cert.archivo_imagen.name)
+                                                    cert_url = f"https://eki-produccion.s3.us-east-2.amazonaws.com/{s3_key}"
+                                                    msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                                                    logger.info(f"✅ Certificado URL fallback: {cert_url}")
+                                            elif cert and cert.archivo_pdf:
+                                                cert_url = cert.archivo_pdf.url
+                                                msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert_url}"
+                                                logger.info(f"📄 Certificado PDF URL: {cert_url}")
+                                            elif cert:
+                                                # Certificado creado pero sin archivo — forzar regeneración
+                                                logger.warning(f"⚠️ Cert creado sin archivo, forzando regeneración...")
+                                                from .certificado_service import generar_y_guardar_certificado
+                                                generar_y_guardar_certificado(cert, force=True)
+                                                cert.refresh_from_db()
+                                                if cert.archivo_imagen:
+                                                    cert_url = obtener_url_certificado_twilio(cert)
+                                                    if cert_url:
+                                                        msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                                                        logger.info(f"✅ Certificado PRESIGNED URL (retry): {cert_url[:100]}...")
+                                                    else:
+                                                        msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
                                                 else:
                                                     msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
                                             else:
                                                 msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
-                                        else:
+                                                logger.warning(f"❌ crear_certificado_automatico retornó None para {estudiante.nombre}")
+                                        except Exception as e:
+                                            logger.error(f"❌ Error generando certificado: {e}", exc_info=True)
+                                            import traceback; traceback.print_exc()
                                             msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
-                                            logger.warning(f"❌ crear_certificado_automatico retornó None para {estudiante.nombre}")
-                                    except Exception as e:
-                                        logger.error(f"❌ Error generando certificado: {e}", exc_info=True)
-                                        import traceback; traceback.print_exc()
-                                        msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
                                 
-                                    # Construir multi-mensaje
-                                    partes = []
-                                    if msg_resumen:
-                                        partes.append(msg_resumen)
-                                    partes.append(msg_final)
-                                    partes.append(msg_cert_img)
-                                    texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
+                                        # Construir multi-mensaje
+                                        partes = []
+                                        if msg_resumen:
+                                            partes.append(msg_resumen)
+                                        partes.append(msg_final)
+                                        partes.append(msg_cert_img)
+                                        texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
                     
                     if not texto_respuesta:
                         texto_respuesta = mensaje_respuesta
