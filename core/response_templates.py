@@ -1002,7 +1002,8 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                         from .tutor_ia_modulo import generar_enseñanza_modulo
                         enseñanza = generar_enseñanza_modulo(
                             modulo_actual,
-                            estudiante_nombre=estudiante.nombre or "Estudiante"
+                            estudiante_nombre=estudiante.nombre or "Estudiante",
+                            preguntas_ejemplo=progreso.curso.preguntas_ejemplo_ia or ""
                         )
                         if enseñanza:
                             _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)

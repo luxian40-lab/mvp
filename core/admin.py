@@ -2289,9 +2289,9 @@ class CursoAdmin(admin.ModelAdmin):
             'description': '🎓 Override por curso. Si se dejan vacíos, se usarán los nombres configurados en el Cliente. Si el Cliente tampoco tiene, se usan los por defecto (Gerónimo y María).',
             'classes': ('collapse',),
         }),
-        ('🧠 Preguntas IA (Recuperación)', {
+        ('🧠 Preguntas IA (Tutor + Recuperación)', {
             'fields': ('preguntas_ejemplo_ia',),
-            'description': '📝 Preguntas ejemplo que la IA usará para generar la pregunta final de recuperación si el estudiante termina con menos de 70 puntos. Una pregunta por línea.',
+            'description': '📝 Preguntas ejemplo que la IA usará como referencia de estilo y dificultad para: 1) Las preguntas del Profesor/Tutor durante el curso, y 2) La pregunta final de recuperación si el estudiante termina con menos de 70 puntos. Una pregunta por línea.',
             'classes': ('collapse',),
         }),
         ('👥 Grupo de WhatsApp', {
@@ -5261,6 +5261,7 @@ class ProspectoB2BAdmin(admin.ModelAdmin):
     ordering = ('-fecha_captura',)
     readonly_fields = ('fecha_captura',)
     actions = ['enviar_campana_b2b']
+    change_list_template = 'admin/prospectob2b_changelist.html'
 
     fieldsets = (
         ('📱 Contacto', {
@@ -5285,82 +5286,97 @@ class ProspectoB2BAdmin(admin.ModelAdmin):
         )
     estado_badge.short_description = "Estado"
 
-    @admin.action(description='📤 Enviar última campaña B2B a seleccionados')
+    @admin.action(description='📤 Enviar campaña B2B a seleccionados')
     def enviar_campana_b2b(self, request, queryset):
-        """Envía la última campaña B2B (borrador) a los prospectos seleccionados."""
+        """Envía una campaña B2B elegida por el admin a los prospectos seleccionados."""
         from .models import CampanaB2B
         from .utils import enviar_whatsapp_twilio
         from .whatsapp_service import enviar_template_twilio
-        
-        campana = CampanaB2B.objects.filter(estado='borrador').order_by('-fecha_creacion').first()
-        if not campana:
-            self.message_user(request, "❌ No hay campañas B2B en estado 'borrador'. Crea una primero.", level='error')
+
+        campanas = CampanaB2B.objects.all().order_by('-fecha_creacion')
+        if not campanas.exists():
+            self.message_user(request, "❌ No hay campañas B2B creadas. Crea una primero.", level='error')
             return
-        
-        enviados = 0
-        errores = 0
-        
-        for prospecto in queryset:
+
+        # Paso 2: Si el admin ya eligió la campaña, enviar
+        if 'campana_id' in request.POST:
             try:
-                if campana.twilio_template_sid:
-                    # Enviar template de Twilio
-                    variables = {}
-                    if prospecto.nombre_contacto:
-                        variables['1'] = prospecto.nombre_contacto
-                    resultado = enviar_template_twilio(
-                        prospecto.telefono,
-                        campana.twilio_template_sid,
-                        variables=variables if variables else None
-                    )
-                    if resultado.get('success'):
-                        enviados += 1
-                    else:
-                        errores += 1
-                    
-                    # Si también hay media, enviar como mensaje separado
-                    if campana.url_media and resultado.get('success'):
-                        import time
-                        time.sleep(1)  # Pausa para no saturar
-                        enviar_whatsapp_twilio(
+                campana = CampanaB2B.objects.get(id=request.POST['campana_id'])
+            except CampanaB2B.DoesNotExist:
+                self.message_user(request, "❌ Campaña no encontrada.", level='error')
+                return
+
+            enviados = 0
+            errores = 0
+
+            for prospecto in queryset:
+                try:
+                    if campana.twilio_template_sid:
+                        variables = {}
+                        if prospecto.nombre_contacto:
+                            variables['1'] = prospecto.nombre_contacto
+                        resultado = enviar_template_twilio(
                             prospecto.telefono,
-                            "📄 Adjunto:",
-                            media_url=campana.url_media
+                            campana.twilio_template_sid,
+                            variables=variables if variables else None
                         )
-                else:
-                    # Enviar mensaje de texto (personalizado)
-                    texto = campana.mensaje.replace('{nombre}', prospecto.nombre_contacto or 'Estimado/a')
-                    media = campana.url_media or None
-                    resultado = enviar_whatsapp_twilio(
-                        prospecto.telefono,
-                        texto,
-                        media_url=media
-                    )
-                    if resultado.get('success'):
-                        enviados += 1
+                        if resultado.get('success'):
+                            enviados += 1
+                        else:
+                            errores += 1
+
+                        if campana.url_media and resultado.get('success'):
+                            import time
+                            time.sleep(1)
+                            enviar_whatsapp_twilio(
+                                prospecto.telefono,
+                                "📄 Adjunto:",
+                                media_url=campana.url_media
+                            )
                     else:
-                        errores += 1
-                
-                # Actualizar estado del prospecto
-                prospecto.estado = 'contactado'
-                prospecto.fecha_ultimo_contacto = timezone.now()
-                prospecto.save()
-                
-            except Exception as e:
-                errores += 1
-                import logging
-                logging.getLogger(__name__).error(f"Error enviando a {prospecto.telefono}: {e}")
-        
-        # Actualizar campaña
-        campana.total_enviados += enviados
-        campana.total_errores += errores
-        campana.estado = 'enviada'
-        campana.fecha_envio = timezone.now()
-        campana.save()
-        
-        self.message_user(
-            request,
-            f"📤 Campaña '{campana.nombre}' enviada: {enviados} exitosos, {errores} errores"
-        )
+                        texto = campana.mensaje.replace('{nombre}', prospecto.nombre_contacto or 'Estimado/a')
+                        media = campana.url_media or None
+                        resultado = enviar_whatsapp_twilio(
+                            prospecto.telefono,
+                            texto,
+                            media_url=media
+                        )
+                        if resultado.get('success'):
+                            enviados += 1
+                        else:
+                            errores += 1
+
+                    prospecto.estado = 'contactado'
+                    prospecto.fecha_ultimo_contacto = timezone.now()
+                    prospecto.save()
+
+                except Exception as e:
+                    errores += 1
+                    import logging
+                    logging.getLogger(__name__).error(f"Error enviando a {prospecto.telefono}: {e}")
+
+            campana.total_enviados += enviados
+            campana.total_errores += errores
+            campana.estado = 'enviada'
+            campana.fecha_envio = timezone.now()
+            campana.save()
+
+            self.message_user(
+                request,
+                f"📤 Campaña '{campana.nombre}' enviada: {enviados} exitosos, {errores} errores"
+            )
+            return
+
+        # Paso 1: Mostrar formulario para elegir campaña
+        from django.template.response import TemplateResponse
+        return TemplateResponse(request, 'admin/elegir_campana_b2b.html', {
+            'title': 'Elegir campaña B2B',
+            'campanas': campanas,
+            'prospectos': queryset,
+            'prospectos_ids': ','.join(str(p.pk) for p in queryset),
+            'action': 'enviar_campana_b2b',
+            'opts': self.model._meta,
+        })
 
 
 # ========================================

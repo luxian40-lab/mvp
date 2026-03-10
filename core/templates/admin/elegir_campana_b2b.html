@@ -1,0 +1,54 @@
+{% extends "admin/base_site.html" %}
+
+{% block title %}Elegir Campaña B2B{% endblock %}
+
+{% block content %}
+<div style="max-width:800px;margin:40px auto;padding:20px;">
+    <h1>📤 Elegir Campaña B2B para Enviar</h1>
+
+    <div style="background:#e3f2fd;padding:15px;border-radius:8px;margin:20px 0;">
+        <strong>📋 Prospectos seleccionados:</strong> {{ prospectos.count }} contacto(s)
+    </div>
+
+    <form method="post" action="{% url 'admin:core_prospectob2b_changelist' %}">
+        {% csrf_token %}
+        <!-- Re-send the selected prospect IDs -->
+        {% for p in prospectos %}
+            <input type="hidden" name="_selected_action" value="{{ p.pk }}">
+        {% endfor %}
+        <input type="hidden" name="action" value="{{ action }}">
+
+        <h3 style="margin-top:20px;">Selecciona la campaña a enviar:</h3>
+
+        <div style="margin:15px 0;">
+            {% for campana in campanas %}
+                <label style="display:block;padding:15px;margin:8px 0;border:2px solid #ddd;border-radius:8px;cursor:pointer;transition:all 0.2s;"
+                       onmouseover="this.style.borderColor='#1976d2';this.style.background='#f5f9ff'"
+                       onmouseout="this.style.borderColor='#ddd';this.style.background='white'">
+                    <input type="radio" name="campana_id" value="{{ campana.id }}" style="margin-right:10px;" required>
+                    <strong>{{ campana.nombre }}</strong>
+                    {% if campana.twilio_template_sid %}
+                        <span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:10px;font-size:11px;margin-left:8px;">Template Twilio</span>
+                    {% endif %}
+                    {% if campana.url_media %}
+                        <span style="background:#fff3e0;color:#e65100;padding:2px 8px;border-radius:10px;font-size:11px;margin-left:4px;">📎 Media</span>
+                    {% endif %}
+                    <span style="background:{% if campana.estado == 'borrador' %}#ffc107{% else %}#28a745{% endif %};color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;margin-left:4px;">{{ campana.get_estado_display }}</span>
+                    {% if campana.mensaje %}
+                        <div style="color:#666;font-size:12px;margin-top:5px;margin-left:24px;">{{ campana.mensaje|truncatechars:100 }}</div>
+                    {% endif %}
+                </label>
+            {% endfor %}
+        </div>
+
+        <div style="margin-top:25px;">
+            <button type="submit" style="background:#1976d2;color:white;padding:12px 30px;border:none;border-radius:8px;font-size:16px;cursor:pointer;">
+                📤 Enviar Campaña a {{ prospectos.count }} prospecto(s)
+            </button>
+            <a href="{% url 'admin:core_prospectob2b_changelist' %}" style="margin-left:15px;color:#666;text-decoration:none;">
+                Cancelar
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

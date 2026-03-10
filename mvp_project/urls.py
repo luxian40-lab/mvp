@@ -9,6 +9,7 @@ from core.views import (
     whatsapp_webhook, 
     descargar_reportes, 
     importar_estudiantes,
+    importar_prospectos,
     calendario_campanas_view,
     conversaciones_view,
     instrucciones_view,
@@ -47,6 +48,7 @@ urlpatterns = [
     path('admin/dashboard-antiguo/', dashboard_view, name='dashboard_antiguo'),  # Dashboard antiguo
     path('admin/descargar-reportes/', descargar_reportes, name='descargar_reportes'),
     path('admin/importar-estudiantes/', importar_estudiantes, name='importar_estudiantes'),
+    path('admin/importar-prospectos/', importar_prospectos, name='importar_prospectos'),
     path('admin/calendario/', calendario_campanas_view, name='calendario_campanas'),
     path('admin/conversaciones/', conversaciones_view, name='conversaciones'),
     path('admin/instrucciones/', instrucciones_view, name='instrucciones'),

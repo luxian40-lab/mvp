@@ -5310,6 +5310,112 @@ https://tu-dominio.com/verificar-certificado/EKI-XXXX-YYYY-ZZZZ/
 
 
 
+        <div id="changelog-v198" class="section" style="margin-top:30px;">
+        <h2 class="section-title">🆕 Actualizaciones — v1.9.8 (Marzo 2026)</h2>
+        <div class="subsection">
+            <h3>v1.9.7 → v1.9.8 — Cambios Principales</h3>
+            <table>
+                <tr><th>Área</th><th>Cambio</th><th>Detalle</th></tr>
+
+                <tr>
+                    <td>🤓 Agentes Tutor/Asistente</td>
+                    <td>Máximo 1 interacción</td>
+                    <td>
+                        Antes el estudiante podía ir y venir con el tutor (hasta 2 intentos). <strong>Ahora:</strong>
+                        <ul>
+                            <li><strong>Respuesta correcta →</strong> Felicitación + bonus de puntos + "continúa revisando el módulo"</li>
+                            <li><strong>Respuesta incorrecta →</strong> Feedback empático + "continúa revisando el módulo"</li>
+                        </ul>
+                        Sin ida y vuelta. 1 sola pregunta, 1 sola respuesta, y se avanza.
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>🧠 Preguntas IA del Admin</td>
+                    <td>Alimentan Tutor + Recuperación</td>
+                    <td>
+                        El campo <strong>"Preguntas IA"</strong> en la ficha del Curso ahora se usa como referencia de estilo y dificultad para:
+                        <ol>
+                            <li><strong>Las preguntas del Profesor/Tutor</strong> durante cada módulo impar</li>
+                            <li><strong>La pregunta final de recuperación</strong> si el estudiante termina con menos de 70 puntos</li>
+                        </ol>
+                        <em>Ruta: Cursos → (editar curso) → sección "🧠 Preguntas IA (Tutor + Recuperación)"</em>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>📤 Importar Prospectos Excel</td>
+                    <td>Carga masiva de prospectos B2B</td>
+                    <td>
+                        Nuevo botón <strong>"📤 Importar desde Excel"</strong> en la lista de Prospectos B2B.<br>
+                        Formato del Excel (columnas en orden):
+                        <ol>
+                            <li><strong>A — Teléfono</strong> (obligatorio, ej: 3001234567)</li>
+                            <li><strong>B — Nombre Contacto</strong> (opcional)</li>
+                            <li><strong>C — Email</strong> (opcional)</li>
+                            <li><strong>D — Empresa</strong> (opcional)</li>
+                        </ol>
+                        Si el teléfono ya existe, se actualizan los datos.
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>📤 Envío de Campañas B2B</td>
+                    <td>Elegir campaña manualmente</td>
+                    <td>
+                        Antes se enviaba automáticamente la "última campaña borrador". <strong>Ahora:</strong>
+                        <ol>
+                            <li>Selecciona prospectos en la lista</li>
+                            <li>Acción: "📤 Enviar campaña B2B a seleccionados"</li>
+                            <li>Aparece pantalla intermedia para <strong>elegir cuál campaña</strong> enviar</li>
+                            <li>Se muestra nombre, tipo (Template Twilio / Texto), estado y preview</li>
+                        </ol>
+                    </td>
+                </tr>
+            </table>
+
+            <h3>v1.9.7 — Cambios anteriores incluidos</h3>
+            <table>
+                <tr><th>Área</th><th>Cambio</th><th>Detalle</th></tr>
+                <tr>
+                    <td>📱 Habeas Data</td>
+                    <td>SID actualizado</td>
+                    <td>Template de habeas data actualizado a <code>HXb95419fe0adc8d97a75558b7edf01184</code>.</td>
+                </tr>
+                <tr>
+                    <td>🎮 Gamificación</td>
+                    <td>Texto introductorio</td>
+                    <td>Al activar gamificación aparece: "Nuestro sistema funciona como un video juego…"</td>
+                </tr>
+                <tr>
+                    <td>📎 Multimedia</td>
+                    <td>URLs firmadas con Content-Type</td>
+                    <td>Audio/video de S3 ahora incluyen <code>ResponseContentType</code> para que Twilio los reproduzca correctamente sin pedir descarga.</td>
+                </tr>
+                <tr>
+                    <td>📁 Archivos multimedia</td>
+                    <td>Contador eliminado</td>
+                    <td>Se removió el texto "📁 X archivo(s) multimedia" de todos los mensajes del curso.</td>
+                </tr>
+                <tr>
+                    <td>🤓🕶️ Emojis de agentes</td>
+                    <td>Tutor = 🤓, Asistente = 🕶️</td>
+                    <td>Los emojis del Profesor y la Asistente se cambiaron en todos los archivos del sistema.</td>
+                </tr>
+                <tr>
+                    <td>🧠 Pregunta Recuperación</td>
+                    <td>Pregunta IA al finalizar curso</td>
+                    <td>Si el estudiante termina con <strong>&lt;70 puntos</strong>, se le hace una pregunta de opción múltiple generada por IA basada en el contenido del curso. Si acierta: +15 puntos bonus.</td>
+                </tr>
+                <tr>
+                    <td>🤝 Campañas B2B</td>
+                    <td>Nuevo modelo CampanaB2B</td>
+                    <td>Sistema de campañas para enviar templates/PDF a prospectos sin registrarlos como estudiantes. Soporta Content SID de Twilio y media adjunta.</td>
+                </tr>
+            </table>
+        </div>
+        </div>
+
         <div id="changelog-v19" class="section" style="margin-top:30px;">
         <h2 class="section-title">🆕 Actualizaciones - v1.9 (Marzo 2026)</h2>
         <div class="subsection">
@@ -5472,7 +5578,7 @@ https://tu-dominio.com/verificar-certificado/EKI-XXXX-YYYY-ZZZZ/
 
         <p style="margin-top: 20px;">
 
-            <strong>Versi├│n:</strong> 1.6 Ô£¿ | 
+            <strong>Versi├│n:</strong> 1.9.8 Ô£¿ | 
 
             <strong>Fecha:</strong> Marzo 2026 | 
 

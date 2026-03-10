@@ -1,0 +1,100 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Importar Prospectos B2B{% endblock %}
+
+{% block content %}
+<div style="max-width:800px;margin:40px auto;padding:20px;">
+    <h1>📤 Importar Prospectos B2B desde Excel</h1>
+    
+    {% if error %}
+        <div style="background:#ffebee;color:#c62828;padding:15px;border-radius:8px;margin:20px 0;">
+            <strong>❌ Error:</strong> {{ error }}
+        </div>
+    {% endif %}
+    
+    {% if exito %}
+        <div style="background:#e8f5e9;color:#2e7d32;padding:20px;border-radius:8px;margin:20px 0;">
+            <h3>✅ Importación Exitosa</h3>
+            <ul style="margin:10px 0;padding-left:20px;">
+                <li><strong>Prospectos creados:</strong> {{ creados }}</li>
+                <li><strong>Prospectos actualizados:</strong> {{ actualizados }}</li>
+                <li><strong>Total procesados:</strong> {{ total }}</li>
+            </ul>
+            {% if advertencias %}
+                <p><strong>⚠️ Advertencias:</strong></p>
+                <ul style="font-size:13px;">
+                    {% for adv in advertencias %}
+                        <li>{{ adv }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+        <a href="{% url 'admin:core_prospectob2b_changelist' %}" class="button" style="background:#4CAF50;color:white;padding:10px 20px;text-decoration:none;border-radius:4px;display:inline-block;">
+            Ver Prospectos
+        </a>
+    {% else %}
+        <form method="post" enctype="multipart/form-data" style="margin-top:30px;">
+            {% csrf_token %}
+            
+            <div style="background:#e3f2fd;padding:20px;border-radius:8px;margin-bottom:20px;">
+                <h3>📋 Formato del Archivo Excel</h3>
+                <p>El archivo debe tener las siguientes columnas (en este orden):</p>
+                <table style="width:100%;border-collapse:collapse;margin-top:10px;">
+                    <thead>
+                        <tr style="background:#1976d2;color:white;">
+                            <th style="padding:10px;text-align:left;">Columna</th>
+                            <th style="padding:10px;text-align:left;">Descripción</th>
+                            <th style="padding:10px;text-align:left;">Obligatorio</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom:1px solid #ddd;">
+                            <td style="padding:10px;"><strong>A</strong></td>
+                            <td style="padding:10px;">Teléfono (ej: 3001234567 o 573001234567)</td>
+                            <td style="padding:10px;">✅ Obligatorio</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #ddd;">
+                            <td style="padding:10px;"><strong>B</strong></td>
+                            <td style="padding:10px;">Nombre del contacto</td>
+                            <td style="padding:10px;">Opcional</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #ddd;">
+                            <td style="padding:10px;"><strong>C</strong></td>
+                            <td style="padding:10px;">Email / Correo</td>
+                            <td style="padding:10px;">Opcional</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #ddd;">
+                            <td style="padding:10px;"><strong>D</strong></td>
+                            <td style="padding:10px;">Empresa</td>
+                            <td style="padding:10px;">Opcional</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p style="margin-top:15px;font-size:13px;color:#555;">
+                    💡 <strong>Nota:</strong> La primera fila se usa como encabezado y se omite. 
+                    Si el teléfono ya existe, se actualizarán los datos del prospecto.
+                </p>
+            </div>
+            
+            <div style="margin:20px 0;">
+                <label style="font-size:16px;font-weight:bold;display:block;margin-bottom:10px;">
+                    📁 Seleccionar archivo Excel (.xlsx):
+                </label>
+                <input type="file" name="archivo_excel" accept=".xlsx,.xls" 
+                       style="font-size:14px;padding:10px;border:2px dashed #1976d2;border-radius:8px;width:100%;box-sizing:border-box;">
+            </div>
+            
+            <button type="submit" style="background:#1976d2;color:white;padding:12px 30px;border:none;border-radius:8px;font-size:16px;cursor:pointer;margin-top:10px;">
+                📤 Importar Prospectos
+            </button>
+        </form>
+    {% endif %}
+    
+    <div style="margin-top:30px;">
+        <a href="{% url 'admin:core_prospectob2b_changelist' %}" style="color:#1976d2;text-decoration:none;">
+            ← Volver a Prospectos B2B
+        </a>
+    </div>
+</div>
+{% endblock %}

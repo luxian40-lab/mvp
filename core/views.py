@@ -576,6 +576,100 @@ def instrucciones_view(request):
     return render(request, 'admin/instrucciones.html')
 
 
+# ---------- Vista de importación de prospectos B2B ----------
+@staff_member_required
+def importar_prospectos(request):
+    """Importar prospectos B2B desde archivo Excel.
+    Formato: Teléfono | Nombre Contacto | Email | Empresa
+    """
+    import re
+    context = {}
+
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo_excel')
+        if not archivo:
+            context['error'] = "Por favor selecciona un archivo Excel"
+            return render(request, 'admin/importar_prospectos.html', context)
+
+        try:
+            if not archivo.name.endswith(('.xlsx', '.xls')):
+                context['error'] = 'El archivo debe ser .xlsx o .xls'
+                return render(request, 'admin/importar_prospectos.html', context)
+
+            wb = openpyxl.load_workbook(archivo, data_only=True)
+            ws = wb.active
+
+            creados = 0
+            actualizados = 0
+            errores = []
+
+            def _normalizar_celda(val):
+                if val is None:
+                    return ''
+                if isinstance(val, (int, float)):
+                    return str(int(val)) if isinstance(val, float) and val == int(val) else str(val) if isinstance(val, float) else str(val)
+                return str(val).strip()
+
+            def _normalizar_telefono(raw):
+                tel = re.sub(r'\D', '', raw)
+                if tel.startswith('57') and len(tel) == 12:
+                    return tel
+                if len(tel) == 10 and tel.startswith('3'):
+                    return '57' + tel
+                if len(tel) == 7 or len(tel) == 10:
+                    return '57' + tel
+                return tel
+
+            for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+                if not row or all(cell is None or str(cell).strip() == '' for cell in row[:2]):
+                    continue
+
+                try:
+                    telefono_raw = _normalizar_celda(row[0]) if len(row) > 0 else ''
+                    nombre = _normalizar_celda(row[1]) if len(row) > 1 else ''
+                    email = _normalizar_celda(row[2]) if len(row) > 2 else ''
+                    empresa = _normalizar_celda(row[3]) if len(row) > 3 else ''
+
+                    if not telefono_raw:
+                        errores.append(f"Fila {row_idx}: Teléfono vacío")
+                        continue
+
+                    telefono = _normalizar_telefono(telefono_raw)
+                    if not telefono or len(telefono) < 10:
+                        errores.append(f"Fila {row_idx}: Teléfono inválido '{telefono_raw}'")
+                        continue
+
+                    from .models import ProspectoB2B
+                    prospecto, created = ProspectoB2B.objects.update_or_create(
+                        telefono=telefono,
+                        defaults={
+                            'nombre_contacto': nombre or '',
+                            'email': email or '',
+                            'empresa': empresa or '',
+                            'origen': 'excel',
+                        }
+                    )
+                    if created:
+                        creados += 1
+                    else:
+                        actualizados += 1
+
+                except Exception as e:
+                    errores.append(f"Fila {row_idx}: {str(e)}")
+
+            context.update({
+                'exito': True,
+                'creados': creados,
+                'actualizados': actualizados,
+                'total': creados + actualizados,
+                'advertencias': errores[:20] if errores else [],
+            })
+        except Exception as e:
+            context['error'] = f"Error procesando archivo: {str(e)}"
+
+    return render(request, 'admin/importar_prospectos.html', context)
+
+
 # ---------- Vista de importación de estudiantes ----------
 @staff_member_required
 def importar_estudiantes(request):
@@ -2030,32 +2124,18 @@ def _procesar_twilio_webhook(post_data):
                             estudiante_nombre=estudiante.nombre or "Estudiante"
                         )
                         
+                        # v1.9.8: Siempre 1 sola interacción — feedback y continúa
+                        estudiante.contexto_temporal = None
+                        estudiante.estado_onboarding = 'completado'
+                        estudiante.save()
                         if aprobado:
-                            # Dar bonus por respuesta correcta
                             perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
                             perfil.agregar_puntos(10, "Respuesta correcta - Profesor Gerónimo")
-                            estudiante.contexto_temporal = None
-                            estudiante.estado_onboarding = 'completado'
-                            estudiante.save()
-                            # v1.9.6: Solo enviar feedback, NO auto-avanzar.
-                            # El estudiante ya tiene el contenido del módulo.
                             texto_respuesta = f"{feedback}\n\n💰 *+10 puntos bonus* por tu respuesta 💪\n\nContinúa revisando el módulo 👆\nCuando termines, escribe *listo* para avanzar."
-                            print(f"✅ v1.9.6: Gerónimo aprobado — feedback sin auto-avance", flush=True)
+                            print(f"✅ v1.9.8: Gerónimo aprobado — 1 interacción", flush=True)
                         else:
-                            intentos += 1
-                            if intentos >= 2:
-                                # v1.9.6: Solo enviar feedback, NO auto-avanzar
-                                estudiante.contexto_temporal = None
-                                estudiante.estado_onboarding = 'completado'
-                                estudiante.save()
-                                texto_respuesta = f"{feedback}\n\n✅ *¡Buen esfuerzo!* Sigue estudiando el módulo 👆\n\nCuando termines, escribe *listo* para avanzar."
-                                print(f"✅ v1.9.6: Gerónimo 2 intentos — feedback sin auto-avance", flush=True)
-                            else:
-                                # Permitir reintento (máx 2)
-                                ctx['intentos_tutor'] = intentos
-                                estudiante.contexto_temporal = ctx
-                                estudiante.save()
-                                texto_respuesta = f"{feedback}\n\n💬 _Intenta de nuevo o escribe *\"continuar\"* para seguir._"
+                            texto_respuesta = f"{feedback}\n\n✅ *¡Buen esfuerzo!* Sigue estudiando el módulo 👆\n\nCuando termines, escribe *listo* para avanzar."
+                            print(f"✅ v1.9.8: Gerónimo incorrecto — feedback y continúa", flush=True)
                     else:
                         estudiante.contexto_temporal = None
                         estudiante.estado_onboarding = 'completado'
@@ -2100,29 +2180,18 @@ def _procesar_twilio_webhook(post_data):
                         estudiante_nombre=estudiante.nombre or "Estudiante"
                     )
                     
+                    # v1.9.8: Siempre 1 sola interacción — feedback y continúa
+                    estudiante.contexto_temporal = None
+                    estudiante.estado_onboarding = 'completado'
+                    estudiante.save()
                     if resuelta:
                         perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
                         perfil.agregar_puntos(5, "Revisión de progreso - María")
-                        estudiante.contexto_temporal = None
-                        estudiante.estado_onboarding = 'completado'
-                        estudiante.save()
-                        # v1.9.6: Solo enviar feedback, NO auto-avanzar
                         texto_respuesta = f"{feedback}\n\n💰 *+5 puntos* por tu reflexión 💪\n\nContinúa revisando el módulo 👆\nCuando termines, escribe *listo* para avanzar."
-                        print(f"✅ v1.9.6: María aprobado — feedback sin auto-avance", flush=True)
+                        print(f"✅ v1.9.8: María resuelta — 1 interacción", flush=True)
                     else:
-                        intentos += 1
-                        if intentos >= 2:
-                            estudiante.contexto_temporal = None
-                            estudiante.estado_onboarding = 'completado'
-                            estudiante.save()
-                            # v1.9.6: Solo enviar feedback, NO auto-avanzar
-                            texto_respuesta = f"{feedback}\n\n✅ *Buena reflexión!* Sigue con el módulo 👆\n\nCuando termines, escribe *listo* para avanzar."
-                            print(f"✅ v1.9.6: María 2 intentos — feedback sin auto-avance", flush=True)
-                        else:
-                            ctx['intentos_tutor'] = intentos
-                            estudiante.contexto_temporal = ctx
-                            estudiante.save()
-                            texto_respuesta = f"{feedback}\n\n💬 _Cuéntame más o escribe *\"continuar\"* para seguir._"
+                        texto_respuesta = f"{feedback}\n\n✅ *Buena reflexión!* Sigue con el módulo 👆\n\nCuando termines, escribe *listo* para avanzar."
+                        print(f"✅ v1.9.8: María incorrecto — feedback y continúa", flush=True)
 
             # 3.5a2 PRIORIDAD: Si está respondiendo pregunta de RECUPERACIÓN (<70 pts)
             elif estudiante.estado_onboarding == 'esperando_respuesta_recuperacion':
@@ -2326,7 +2395,8 @@ Progreso del curso: {porcentaje}%
                                             from .tutor_ia_modulo import generar_enseñanza_modulo
                                             enseñanza = generar_enseñanza_modulo(
                                                 modulo_actual,
-                                                estudiante_nombre=estudiante.nombre or "Estudiante"
+                                                estudiante_nombre=estudiante.nombre or "Estudiante",
+                                                preguntas_ejemplo=progreso.curso.preguntas_ejemplo_ia or ""
                                             )
                                             if enseñanza:
                                                 tutor_msg = f"🤓 *{nombre_tutor}*\n\n{enseñanza}\n\n💬 _Escríbeme o envía un audio con tu respuesta. Si decides seguir con el módulo, en el audio o texto di *continuar*_"

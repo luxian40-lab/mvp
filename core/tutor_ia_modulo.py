@@ -71,7 +71,8 @@ def _get_client():
         return None
 
 
-def generar_enseñanza_modulo(modulo, estudiante_nombre: str = "Estudiante") -> str:
+def generar_enseñanza_modulo(modulo, estudiante_nombre: str = "Estudiante",
+                              preguntas_ejemplo: str = "") -> str:
     """
     Genera una micro-enseñanza del módulo con método sandwich.
     Se llama al avanzar de módulo para que el tutor IA explique el contenido.
@@ -79,6 +80,7 @@ def generar_enseñanza_modulo(modulo, estudiante_nombre: str = "Estudiante") -> 
     Args:
         modulo: instancia de Modulo (tiene .titulo, .contenido, .curso.nombre)
         estudiante_nombre: nombre del estudiante
+        preguntas_ejemplo: preguntas de ejemplo del admin para guiar estilo/dificultad
 
     Returns:
         str: mensaje del tutor (máx 60 palabras) con concepto + ejemplo + pregunta
@@ -105,11 +107,17 @@ def generar_enseñanza_modulo(modulo, estudiante_nombre: str = "Estudiante") -> 
     except Exception as e:
         logger.warning(f"[RAG] Error en tutor IA: {e}")
 
+    # Preguntas ejemplo del admin
+    ejemplo_txt = ""
+    if preguntas_ejemplo:
+        ejemplo_txt = f"\nPREGUNTAS EJEMPLO DEL INSTRUCTOR (úsalas como referencia de estilo y dificultad para formular tu pregunta):\n{preguntas_ejemplo}\n"
+
     prompt_usuario = f"""CONTEXTO DEL MÓDULO:
 Curso: {modulo.curso.nombre}
 Módulo {modulo.numero}: {modulo.titulo}
 Contenido: {contenido_corto}
 {contexto_rag}
+{ejemplo_txt}
 Estudiante: {estudiante_nombre}
 
 Genera UNA micro-enseñanza con método sandwich sobre el concepto principal de este módulo."""
