@@ -1460,11 +1460,11 @@ def _procesar_twilio_webhook(post_data):
                             cliente_obj = estudiante.cliente
                             nombre_tutor = (
                                 (cliente_obj.nombre_agente_tutor if cliente_obj and hasattr(cliente_obj, 'nombre_agente_tutor') and cliente_obj.nombre_agente_tutor else '') or
-                                curso.nombre_agente_tutor or 'Gerónimo'
+                                curso.nombre_agente_tutor or 'Claudia'
                             )
                             nombre_asistente = (
                                 (cliente_obj.nombre_agente_asistente if cliente_obj and hasattr(cliente_obj, 'nombre_agente_asistente') and cliente_obj.nombre_agente_asistente else '') or
-                                curso.nombre_agente_asistente or 'María'
+                                curso.nombre_agente_asistente or 'Darío'
                             )
                             
                             # Presentación de agentes
@@ -1481,11 +1481,10 @@ def _procesar_twilio_webhook(post_data):
                             usar_gamificacion = (cliente_obj.usar_gamificacion if cliente_obj else True)
                             if usar_gamificacion:
                                 msg_gamificacion = (
-                                    "🎮 *Nuestro sistema funciona como un video juego*\n\n"
-                                    "A medida que completes los módulos, ganarás:\n"
-                                    "💰 *Puntos* por cada módulo completado\n"
-                                    "🏅 *Niveles* que subirás automáticamente\n"
-                                    "🔥 *Rachas* por módulos consecutivos\n\n"
+                                    "🎮 *Nuestra experiencia de formación funciona a través de puntos*\n\n"
+                                    "A medida que avances en el curso, tendrás retos que evaluar.\n"
+                                    "💰 *Puntos* que obtendrás al superar cada reto\n"
+                                    "🔥 *Rachas* por avanzar de forma consecutiva\n\n"
                                     "¡Vamos a aprender y avanzar juntos! 💪"
                                 )
                             
@@ -2078,10 +2077,196 @@ def _procesar_twilio_webhook(post_data):
             print(f"🛡️ Bloqueado por seguridad/habeas data", flush=True)
             texto_respuesta = respuesta_seguridad
         else:
-            # 3.5a PRIORIDAD: Si está respondiendo al TUTOR IA
-            if estudiante.estado_onboarding == 'esperando_respuesta_tutor_ia':
+            # v1.9.8g: Post-certificate cutoff — no more interaction
+            if estudiante.estado_onboarding == 'curso_finalizado':
+                print(f"🚫 Curso finalizado — sin interacción post-certificado")
+                # Check if student has a new active course
+                from .models import ProgresoEstudiante
+                nuevo_progreso = ProgresoEstudiante.objects.filter(
+                    estudiante=estudiante, completado=False
+                ).first()
+                if nuevo_progreso:
+                    # New course assigned — reset state
+                    estudiante.estado_onboarding = 'completado'
+                    estudiante.save()
+                    texto_respuesta = (
+                        f"🎉 *¡Tienes un nuevo curso asignado!*\n\n"
+                        f"📚 *{nuevo_progreso.curso.nombre}*\n\n"
+                        f"Escribe *listo* para comenzar."
+                    )
+                else:
+                    texto_respuesta = (
+                        "✅ *Ya completaste tu curso y recibiste tu certificado.*\n\n"
+                        "Cuando tu organización te inscriba en un nuevo curso, te notificaremos. "
+                        "¡Gracias por tu participación! 🎓"
+                    )
+            
+            # v1.9.8g: Darío — Asistente (hasta 2 preguntas antes del reto)
+            elif estudiante.estado_onboarding == 'esperando_respuesta_asistente':
+                print(f"💬 Darío: Esperando respuesta del asistente")
+                ctx = estudiante.contexto_temporal or {}
+                preguntas_hechas = ctx.get('preguntas_hechas', 0)
+                modulos_reto_ids = ctx.get('modulos_reto_ids', [])
+                progreso_id = ctx.get('progreso_id')
+                
+                msg_lower = msg_body.strip().lower()
+                palabras_listo = ['listo', 'continuar', 'no', 'nada', 'siguiente', 'pasar', 'menu', 'menú']
+                
+                if msg_lower in ['menu', 'menú']:
+                    estudiante.estado_onboarding = 'completado'
+                    estudiante.contexto_temporal = None
+                    estudiante.save()
+                    from .response_templates import get_response_for_intent
+                    texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
+                elif any(p in msg_lower for p in palabras_listo) or preguntas_hechas >= 2:
+                    # Student says listo or exhausted 2 questions — activate Facilitator reto
+                    print(f"🎯 Darío terminó → Activando Facilitadora con reto")
+                    from .models import Modulo, ProgresoEstudiante
+                    modulos_reto = list(Modulo.objects.filter(id__in=modulos_reto_ids).order_by('numero'))
+                    
+                    try:
+                        progreso = ProgresoEstudiante.objects.get(id=progreso_id)
+                    except ProgresoEstudiante.DoesNotExist:
+                        progreso = None
+                    
+                    if modulos_reto and progreso:
+                        from .tutor_ia_modulo import generar_reto_facilitador
+                        _cliente = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
+                        nombre_tutor = (
+                            (_cliente.nombre_agente_tutor if _cliente and hasattr(_cliente, 'nombre_agente_tutor') and _cliente.nombre_agente_tutor else '') or
+                            progreso.curso.nombre_agente_tutor or 'Claudia'
+                        )
+                        
+                        reto = generar_reto_facilitador(
+                            modulos_reto,
+                            progreso.curso.nombre,
+                            estudiante_nombre=estudiante.nombre or "Estudiante",
+                            preguntas_ejemplo=progreso.curso.preguntas_ejemplo_ia or ""
+                        )
+                        
+                        _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
+                        estudiante.contexto_temporal = {
+                            'tipo': 'reto_facilitador',
+                            'modulos_reto_ids': modulos_reto_ids,
+                            'reto_texto': reto,
+                            'progreso_id': progreso_id,
+                            '_ts_leccion': _prev_ts,
+                        }
+                        estudiante.estado_onboarding = 'esperando_respuesta_reto'
+                        estudiante.save()
+                        
+                        texto_respuesta = (
+                            f"📋 *Facilitadora {nombre_tutor} — Reto*\n\n"
+                            f"{reto}\n\n"
+                            f"✍️ _Escriba su respuesta al reto._"
+                        )
+                    else:
+                        estudiante.estado_onboarding = 'completado'
+                        estudiante.contexto_temporal = None
+                        estudiante.save()
+                        texto_respuesta = "👍 ¡Continuemos!\n\nEscribe *listo* para avanzar."
+                else:
+                    # Student asked a question to Darío — answer from RAG (max 2)
+                    preguntas_hechas += 1
+                    from .models import Modulo
+                    modulos_reto = list(Modulo.objects.filter(id__in=modulos_reto_ids).order_by('numero'))
+                    
+                    from .tutor_ia_modulo import generar_respuesta_asistente
+                    respuesta_dario = generar_respuesta_asistente(
+                        modulos_reto,
+                        msg_body,
+                        estudiante_nombre=estudiante.nombre or "Estudiante"
+                    )
+                    
+                    ctx['preguntas_hechas'] = preguntas_hechas
+                    estudiante.contexto_temporal = ctx
+                    estudiante.save()
+                    
+                    if preguntas_hechas >= 2:
+                        texto_respuesta = (
+                            f"💬 *Darío*\n\n{respuesta_dario}\n\n"
+                            f"Ya respondí tus 2 preguntas. Ahora la Facilitadora te tiene un reto. "
+                            f"Escribe *listo* cuando estés preparado."
+                        )
+                    else:
+                        texto_respuesta = (
+                            f"💬 *Darío*\n\n{respuesta_dario}\n\n"
+                            f"¿Tienes otra pregunta? Te queda {2 - preguntas_hechas} pregunta más. "
+                            f"Si no, escribe *listo*."
+                        )
+            
+            # v1.9.8g: Facilitadora — evaluando respuesta al reto
+            elif estudiante.estado_onboarding == 'esperando_respuesta_reto':
+                print(f"📋 Facilitadora: Evaluando respuesta al reto")
+                ctx = estudiante.contexto_temporal or {}
+                modulos_reto_ids = ctx.get('modulos_reto_ids', [])
+                reto_texto = ctx.get('reto_texto', '')
+                progreso_id = ctx.get('progreso_id')
+                
+                msg_lower = msg_body.strip().lower()
+                if msg_lower in ['menu', 'menú']:
+                    estudiante.estado_onboarding = 'completado'
+                    estudiante.contexto_temporal = None
+                    estudiante.save()
+                    from .response_templates import get_response_for_intent
+                    texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
+                else:
+                    from .models import Modulo, ProgresoEstudiante
+                    modulos_reto = list(Modulo.objects.filter(id__in=modulos_reto_ids).order_by('numero'))
+                    
+                    from .tutor_ia_modulo import evaluar_reto_facilitador
+                    puntaje, feedback = evaluar_reto_facilitador(
+                        modulos_reto, msg_body, reto_texto,
+                        estudiante_nombre=estudiante.nombre or "Estudiante"
+                    )
+                    
+                    # Award points based on reto score (v1.9.8g: points ONLY here)
+                    from .gamificacion import PerfilGamificacion
+                    perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
+                    
+                    # Points: puntaje * 5 (so max 50 pts per reto)
+                    puntos_reto = puntaje * 5
+                    perfil.agregar_puntos(puntos_reto, f"Reto evaluado: {puntaje}/10")
+                    perfil.refresh_from_db()
+                    
+                    _cliente = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
+                    nombre_tutor = (
+                        (_cliente.nombre_agente_tutor if _cliente and hasattr(_cliente, 'nombre_agente_tutor') and _cliente.nombre_agente_tutor else '') or
+                        'Claudia'
+                    )
+                    try:
+                        progreso = ProgresoEstudiante.objects.get(id=progreso_id)
+                        nombre_tutor = progreso.curso.nombre_agente_tutor or nombre_tutor
+                    except ProgresoEstudiante.DoesNotExist:
+                        progreso = None
+                    
+                    # Gamification bar shown ONLY after reto evaluation
+                    porcentaje = progreso.porcentaje_avance() if progreso else 0
+                    from .response_templates import _barra_progreso
+                    barra = _barra_progreso(porcentaje)
+                    racha_txt = ""
+                    if hasattr(perfil, 'racha_dias_actual') and perfil.racha_dias_actual > 0:
+                        racha_txt = f"\n🔥 Racha: {perfil.racha_dias_actual}"
+                    
+                    msg_eval = (
+                        f"📋 *Facilitadora {nombre_tutor} — Evaluación*\n\n"
+                        f"{feedback}\n\n"
+                        f"💰 *+{puntos_reto} puntos* → Total: *{perfil.puntos_totales} pts*{racha_txt}\n"
+                        f"{barra} {porcentaje}%"
+                    )
+                    
+                    # Clean state and continue
+                    estudiante.contexto_temporal = None
+                    estudiante.estado_onboarding = 'completado'
+                    estudiante.save()
+                    
+                    texto_respuesta = f"{msg_eval}\n\n✅ Escribe *listo* para continuar con el siguiente módulo."
+                    print(f"✅ Facilitadora reto evaluado: {puntaje}/10, +{puntos_reto} pts", flush=True)
+            
+            # 3.5a PRIORIDAD: Si está respondiendo al TUTOR IA (legacy)
+            elif estudiante.estado_onboarding == 'esperando_respuesta_tutor_ia':
                 from .gamificacion import PerfilGamificacion
-                print(f"🎓 Evaluando respuesta del Profesor Gerónimo")
+                print(f"🎓 Evaluando respuesta del Facilitador (legacy tutor IA)")
                 ctx = estudiante.contexto_temporal or {}
                 modulo_id = ctx.get('modulo_id')
                 pregunta_tutor = ctx.get('pregunta_tutor', '')
@@ -2382,81 +2567,52 @@ Progreso del curso: {porcentaje}%
                                     if siguiente_modulo.examen_obligatorio:
                                         msg_modulo += f"\n\n⚠️ *Este módulo tiene examen obligatorio ({siguiente_modulo.puntaje_minimo_aprobacion}% para aprobar)*"
                                 
-                                    # === AGENTES: Tutor (impares) / Asistente (módulo 4 solamente) ===
-                                    tutor_msg = None
-                                    maria_msg = None
-                                    nombre_tutor = progreso.curso.nombre_agente_tutor or 'Gerónimo'
-                                    nombre_asistente = progreso.curso.nombre_agente_asistente or 'María'
+                                    # === v1.9.8g: AGENTES: Darío (módulo 3 y 5) + Facilitadora reto ===
+                                    dario_msg = None
+                                    nombre_tutor = progreso.curso.nombre_agente_tutor or 'Claudia'
+                                    nombre_asistente = progreso.curso.nombre_agente_asistente or 'Darío'
                                 
-                                    # Profesor (Tutor): enseñanza complementaria (módulos impares: 1,3,5,7,9)
-                                    if modulo_actual.numero % 2 == 1:
-                                        try:
-                                            from .tutor_ia_modulo import generar_enseñanza_modulo
-                                            enseñanza = generar_enseñanza_modulo(
-                                                modulo_actual,
-                                                estudiante_nombre=estudiante.nombre or "Estudiante",
-                                                preguntas_ejemplo=progreso.curso.preguntas_ejemplo_ia or ""
-                                            )
-                                            if enseñanza:
-                                                tutor_msg = f"🤓 *{nombre_tutor}*\n\n{enseñanza}\n\n💬 _Escríbeme o envía un audio con tu respuesta. Si decides seguir con el módulo, en el audio o texto di *continuar*_"
-                                                print(f"🎓 {nombre_tutor} activado después de módulo {modulo_actual.numero}", flush=True)
-                                        except Exception as e:
-                                            import logging
-                                            logging.getLogger(__name__).warning(f"⚠️ {nombre_tutor} falló: {e}")
-                                
-                                    # Asistente: revisión de progreso SOLO en módulo 4
-                                    if modulo_actual.numero == 4:
-                                        try:
-                                            from .tutor_ia_modulo import generar_revision_progreso
-                                            modulos_completados_qs = progreso.modulos_completados.all().order_by('modulo__numero')
-                                            modulos_obj = [mc.modulo for mc in modulos_completados_qs]
-                                            revision = generar_revision_progreso(
-                                                modulo_actual,
-                                                modulos_obj,
-                                                progreso.curso.nombre,
-                                                estudiante_nombre=estudiante.nombre or "Estudiante"
-                                            )
-                                            if revision:
-                                                maria_msg = f"� *{nombre_asistente} — Tu Asistente*\n\n{revision}\n\n💬 _Escríbeme o envía un audio con tu respuesta. Si decides seguir con el módulo, en el audio o texto di *continuar*_"
-                                                print(f"👩‍🏫 {nombre_asistente} activada después de módulo {modulo_actual.numero}", flush=True)
-                                        except Exception as e:
-                                            import logging
-                                            logging.getLogger(__name__).warning(f"⚠️ {nombre_asistente} falló: {e}")
-                                
-                                    # Establecer estado para el PRIMER agente que responda (Gerónimo tiene prioridad)
-                                    if tutor_msg:
+                                    # Darío enters ONLY after completing module 3 or last module (5+)
+                                    total_modulos = progreso.curso.modulos.count()
+                                    es_modulo_reto = (modulo_actual.numero == 3) or (modulo_actual.numero == total_modulos and total_modulos >= 5)
+                                    
+                                    if es_modulo_reto:
+                                        if modulo_actual.numero == 3:
+                                            modulos_reto_range = "los 3 primeros módulos"
+                                        else:
+                                            modulos_reto_range = f"los módulos 4 a {modulo_actual.numero}"
+                                        
+                                        dario_msg = (
+                                            f"💬 *{nombre_asistente} — Tu compañero de estudio*\n\n"
+                                            f"¡Hola! Es hora de una pausa para repasar conceptos. "
+                                            f"La Facilitadora {nombre_tutor} te va a recibir con un reto sobre {modulos_reto_range}.\n\n"
+                                            f"Te puedo ayudar a resolver un par de preguntas antes. "
+                                            f"¿Tienes alguna pregunta sobre lo que hemos visto? Si no, escribe *listo*."
+                                        )
+                                        
+                                        from .models import Modulo as ModuloReto
+                                        if modulo_actual.numero == 3:
+                                            modulos_reto = list(progreso.curso.modulos.filter(numero__lte=3).order_by('numero'))
+                                        else:
+                                            modulos_reto = list(progreso.curso.modulos.filter(numero__gte=4, numero__lte=modulo_actual.numero).order_by('numero'))
+                                        
                                         _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
                                         estudiante.contexto_temporal = {
-                                            'tipo': 'tutor_ia_modulo',
+                                            'tipo': 'asistente_dario',
                                             'modulo_id': modulo_actual.id,
-                                            'pregunta_tutor': enseñanza,
                                             'progreso_id': progreso.id,
-                                            'intentos_tutor': 0,
+                                            'modulos_reto_ids': [m.id for m in modulos_reto],
+                                            'preguntas_hechas': 0,
                                             '_ts_leccion': _prev_ts,
                                         }
-                                        estudiante.estado_onboarding = 'esperando_respuesta_tutor_ia'
-                                        estudiante.save()
-                                    elif maria_msg:
-                                        modulos_info_str = ", ".join([m.titulo for m in modulos_obj])
-                                        _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
-                                        estudiante.contexto_temporal = {
-                                            'tipo': 'revision_progreso',
-                                            'modulo_id': modulo_actual.id,
-                                            'pregunta_tutor': revision,
-                                            'progreso_id': progreso.id,
-                                            'modulos_info': modulos_info_str,
-                                            'intentos_tutor': 0,
-                                            '_ts_leccion': _prev_ts,
-                                        }
-                                        estudiante.estado_onboarding = 'esperando_respuesta_progreso'
+                                        estudiante.estado_onboarding = 'esperando_respuesta_asistente'
                                         estudiante.save()
                                     else:
                                         estudiante.estado_onboarding = 'completado'
                                         estudiante.save()
                                 
-                                    # Construir respuesta multi-mensaje: gamificación → texto → video(s) → [DELAY] → agente → "escribe listo"
+                                    # Construir respuesta multi-mensaje
                                     partes = [msg_completado, msg_modulo]
-                                    # Videos como mensajes separados DESPUÉS del texto
                                     hay_media_exam = False
                                     if primera_media_url:
                                         partes.append(f"[MEDIA:{primera_media_url}]")
@@ -2464,19 +2620,15 @@ Progreso del curso: {porcentaje}%
                                     for extra_url, extra_titulo, extra_icono in extra_media_urls:
                                         partes.append(f"[MEDIA:{extra_url}]")
                                         hay_media_exam = True
-                                    # [DELAY:5] después de videos para que WhatsApp los entregue antes del texto
-                                    hay_texto_post_exam = tutor_msg or maria_msg
+                                    hay_texto_post_exam = dario_msg
                                     es_ultimo_modulo = not progreso.curso.modulos.filter(numero__gt=siguiente_modulo.numero).exists()
                                     if not hay_texto_post_exam and not es_ultimo_modulo:
                                         hay_texto_post_exam = True
                                     if hay_media_exam and hay_texto_post_exam:
                                         partes.append("[DELAY:5]")
-                                    if tutor_msg:
-                                        partes.append(tutor_msg)
-                                    if maria_msg:
-                                        partes.append(maria_msg)
-                                    # "Escribe listo" SOLO si NO hay agentes activos y NO es último módulo
-                                    if not tutor_msg and not maria_msg and not es_ultimo_modulo:
+                                    if dario_msg:
+                                        partes.append(dario_msg)
+                                    if not dario_msg and not es_ultimo_modulo:
                                         partes.append("Cuando termines de revisar el contenido, escribe *listo* para continuar con el siguiente modulo")
                                     texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
                             
@@ -2532,7 +2684,7 @@ Progreso del curso: {porcentaje}%
                                             logger.warning(f"⚠️ Pregunta recuperación exam: {e}")
                                     
                                     if not _skip_cert:
-                                        estudiante.estado_onboarding = 'completado'
+                                        estudiante.estado_onboarding = 'curso_finalizado'
                                         estudiante.save()
                                 
                                         msg_final = mensaje_respuesta + f"""
@@ -2540,28 +2692,11 @@ Progreso del curso: {porcentaje}%
 
 🎓 *¡FELICITACIONES!*
 
-Has completado el curso: *{progreso.curso.nombre}*
+Ha completado el curso: *{progreso.curso.nombre}*
 
-🏆 Tu certificado se está generando..."""
+🏆 Su certificado se está generando..."""
                                 
-                                        # Asistente: Resumen completo del curso
-                                        nombre_asistente_fin = progreso.curso.nombre_agente_asistente or 'María'
-                                        msg_resumen = None
-                                        try:
-                                            from .tutor_ia_modulo import generar_resumen_curso_completo
-                                            modulos_completados_qs = progreso.modulos_completados.all().order_by('modulo__numero')
-                                            modulos_obj = [mc.modulo for mc in modulos_completados_qs]
-                                            resumen_maria = generar_resumen_curso_completo(
-                                                progreso.curso.nombre,
-                                                modulos_obj,
-                                                estudiante_nombre=estudiante.nombre or "Estudiante"
-                                            )
-                                            if resumen_maria:
-                                                msg_resumen = f"� *{nombre_asistente_fin} — Resumen del Curso*\n\n{resumen_maria}"
-                                                print(f"👩‍🏫 {nombre_asistente_fin} resumen del curso activada", flush=True)
-                                        except Exception as e:
-                                            import logging
-                                            logging.getLogger(__name__).warning(f"⚠️ María resumen falló: {e}")
+                                        # v1.9.8g: María resumen removed
                                 
                                         # Imagen de certificado — generar con Pillow y enviar como imagen
                                         msg_cert_img = ""
@@ -2612,8 +2747,6 @@ Has completado el curso: *{progreso.curso.nombre}*
                                 
                                         # Construir multi-mensaje
                                         partes = []
-                                        if msg_resumen:
-                                            partes.append(msg_resumen)
                                         partes.append(msg_final)
                                         partes.append(msg_cert_img)
                                         texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)

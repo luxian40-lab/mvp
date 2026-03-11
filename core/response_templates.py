@@ -16,62 +16,28 @@ def _barra_progreso(porcentaje: int) -> str:
 
 def _generar_completado_final(estudiante, curso_id):
     """
-    Genera el mensaje final de completado con certificado y resumen.
-    Se usa tanto en el flujo normal como después de la pregunta de recuperación.
+    Genera el mensaje final de completado con certificado.
+    v1.9.8g: Removed levels, badges, María resumen. Added post-cert cutoff.
     """
     from .models import Curso, ProgresoEstudiante
-    from .gamificacion import PerfilGamificacion, BadgeEstudiante
+    from .gamificacion import PerfilGamificacion
     
     try:
         curso = Curso.objects.get(id=curso_id)
         progreso = ProgresoEstudiante.objects.get(estudiante=estudiante, curso=curso)
         perfil = PerfilGamificacion.objects.get(estudiante=estudiante)
     except Exception:
-        return "🎓 *¡Felicitaciones! Has completado todo el curso.*\n\n🎓 Tu certificado se está generando."
+        return "🎓 *¡Felicitaciones! Ha completado todo el curso.*\n\n🎓 Su certificado se está generando."
     
     porcentaje = progreso.porcentaje_avance()
-    
-    badges_nuevos = BadgeEstudiante.objects.filter(
-        estudiante=estudiante,
-        badge__tipo='CURSO'
-    ).order_by('-fecha_obtenido')[:2]
-    
     barra = _barra_progreso(porcentaje)
-    nivel_emoji = ["🌱","🌿","🍃","🌾","🌳","🌲","🎋","🌺","💎","👑"][min(perfil.nivel-1,9)]
     
     mensaje = f"""🎉 *¡CURSO COMPLETADO!*
 
 💰 Total: *{perfil.puntos_totales} pts*
-{nivel_emoji} Nivel {perfil.nivel}
-{barra} {porcentaje}%"""
-    
-    if badges_nuevos.exists():
-        mensaje += "\n\n🏅 *LOGROS DESBLOQUEADOS:*"
-        for badge_est in badges_nuevos:
-            mensaje += f"\n  {badge_est.badge.icono} {badge_est.badge.nombre}"
-    
-    mensaje += "\n\n🎓 *¡Felicitaciones! Has completado todo el curso.*"
-    
-    # Asistente: Resumen
-    _cliente_fin = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
-    nombre_asistente_fin = (
-        (_cliente_fin.nombre_agente_asistente if _cliente_fin and hasattr(_cliente_fin, 'nombre_agente_asistente') and _cliente_fin.nombre_agente_asistente else '') or
-        curso.nombre_agente_asistente or 'María'
-    )
-    msg_resumen = None
-    try:
-        from .tutor_ia_modulo import generar_resumen_curso_completo
-        modulos_completados_qs = progreso.modulos_completados.all().order_by('modulo__numero')
-        modulos_obj = [mc.modulo for mc in modulos_completados_qs]
-        resumen_maria = generar_resumen_curso_completo(
-            curso.nombre,
-            modulos_obj,
-            estudiante_nombre=estudiante.nombre or "Estudiante"
-        )
-        if resumen_maria:
-            msg_resumen = f"� *{nombre_asistente_fin} — Resumen del Curso*\n\n{resumen_maria}"
-    except Exception:
-        pass
+{barra} {porcentaje}%
+
+🎓 *¡Felicitaciones! Ha completado todo el curso.*"""
     
     # Certificado
     msg_cert_img = ""
@@ -81,26 +47,28 @@ def _generar_completado_final(estudiante, curso_id):
         if cert and cert.archivo_imagen:
             cert_url = obtener_url_certificado_twilio(cert)
             if cert_url:
-                msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                msg_cert_img = f"🎓 *¡Su certificado!*\n\n[MEDIA:{cert_url}]"
             else:
                 from django.conf import settings as _s
                 bucket = getattr(_s, 'AWS_STORAGE_BUCKET_NAME', 'eki-produccion')
                 s3_key = str(cert.archivo_imagen.name)
                 cert_url = f"https://{bucket}.s3.us-east-2.amazonaws.com/{s3_key}"
-                msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                msg_cert_img = f"🎓 *¡Su certificado!*\n\n[MEDIA:{cert_url}]"
         elif cert and cert.archivo_pdf:
             cert_url = cert.archivo_pdf.url
-            msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert_url}"
+            msg_cert_img = f"🎓 *¡Su certificado!*\n📄 Descárgalo aquí: {cert_url}"
         else:
-            msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+            msg_cert_img = "🎓 Su certificado se está generando. Se lo enviaremos pronto."
     except Exception:
-        msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+        msg_cert_img = "🎓 Su certificado se está generando. Se lo enviaremos pronto."
+    
+    # Post-certificate cutoff
+    estudiante.estado_onboarding = 'curso_finalizado'
+    estudiante.save()
     
     partes = [mensaje]
     if msg_cert_img:
         partes.append(msg_cert_img)
-    if msg_resumen:
-        partes.append(msg_resumen)
     return "[MULTI_MSG]" + "[SEP]".join(partes)
 
 
@@ -951,25 +919,17 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 if not archivos_multimedia.exists() and video_url:
                     primera_media_url = video_url
 
-                # Mensaje de gamificación profesional
+                # Mensaje de avance (v1.9.8g: sin puntos por módulo, sin niveles)
                 barra = _barra_progreso(porcentaje)
-                nivel_emoji = ["🌱","🌿","🍃","🌾","🌳","🌲","🎋","🌺","💎","👑"][min(perfil.nivel-1,9)]
                 racha_txt = ""
                 if hasattr(perfil, 'racha_dias_actual') and perfil.racha_dias_actual > 0:
                     racha_txt = f"\n🔥 Racha: módulo {perfil.racha_dias_actual}"
                 
-                # Mensaje 1: Completado + gamificación
-                from .gamificacion_actions import PUNTOS_CONFIG
-                _pts_modulo = PUNTOS_CONFIG.get('modulo_completado', 10)
+                # Mensaje 1: Completado (sin puntos — puntos solo post-reto)
                 msg_completado = f"""
 ✅ *Módulo {modulo_actual.numero} completado*
-
-💰 *+{_pts_modulo} puntos*  →  Total: *{perfil.puntos_totales} pts*
-{nivel_emoji} Nivel {perfil.nivel}{racha_txt}
+{racha_txt}
 {barra} {porcentaje}%"""
-                
-                if subio_nivel:
-                    msg_completado += f"\n\n🎉 *¡SUBISTE DE NIVEL!* {nivel_emoji} Nivel {perfil.nivel}"
                 
                 # Mensaje 2: Siguiente módulo CON multimedia embebida
                 contenido_mod = siguiente_modulo.contenido or ''
@@ -989,83 +949,57 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 # NO embeber media en msg_modulo — enviar video como mensaje separado después del texto
                 # primera_media_url y extra_media_urls se agregan como partes separadas más abajo
                 
-                # Agentes: Tutor (impares) / Asistente (módulo 4)
-                # Get agent names: Cliente > Curso > defaults
+                # v1.9.8g: Agentes — Darío (módulo 3 y 5 final) + Facilitadora después
                 _cliente = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
                 nombre_tutor = (
                     (_cliente.nombre_agente_tutor if _cliente and hasattr(_cliente, 'nombre_agente_tutor') and _cliente.nombre_agente_tutor else '') or
-                    progreso.curso.nombre_agente_tutor or 'Gerónimo'
+                    progreso.curso.nombre_agente_tutor or 'Claudia'
                 )
                 nombre_asistente = (
                     (_cliente.nombre_agente_asistente if _cliente and hasattr(_cliente, 'nombre_agente_asistente') and _cliente.nombre_agente_asistente else '') or
-                    progreso.curso.nombre_agente_asistente or 'María'
+                    progreso.curso.nombre_agente_asistente or 'Darío'
                 )
-                tutor_msg = None
-                if modulo_actual.numero >= 1 and modulo_actual.numero % 2 == 1:
-                    try:
-                        from .tutor_ia_modulo import generar_enseñanza_modulo
-                        enseñanza = generar_enseñanza_modulo(
-                            modulo_actual,
-                            estudiante_nombre=estudiante.nombre or "Estudiante",
-                            preguntas_ejemplo=progreso.curso.preguntas_ejemplo_ia or ""
-                        )
-                        if enseñanza:
-                            _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
-                            estudiante.contexto_temporal = {
-                                'tipo': 'tutor_ia_modulo',
-                                'modulo_id': modulo_actual.id,
-                                'pregunta_tutor': enseñanza,
-                                'progreso_id': progreso.id,
-                                'intentos_tutor': 0,
-                                '_ts_leccion': _prev_ts,
-                            }
-                            estudiante.estado_onboarding = 'esperando_respuesta_tutor_ia'
-                            estudiante.save()
-                            tutor_msg = f"🤓 *{nombre_tutor}*\n\n{enseñanza}\n\n💬 _Escríbeme o envía un audio con tu respuesta. Si decides seguir con el módulo, en el audio o texto di *continuar*_"
-                    except Exception as e:
-                        import logging
-                        logging.getLogger(__name__).warning(f"⚠️ {nombre_tutor} falló: {e}")
                 
-                # Asistente: revisión de progreso SOLO en módulo 4
-                maria_msg = None
-                if modulo_actual.numero == 4:
-                    try:
-                        from .tutor_ia_modulo import generar_revision_progreso
-                        from .models import Modulo
-                        modulos_completados_qs = progreso.modulos_completados.all().order_by('modulo__numero')
-                        modulos_obj = [mc.modulo for mc in modulos_completados_qs]
-                        revision = generar_revision_progreso(
-                            modulo_actual,
-                            modulos_obj,
-                            progreso.curso.nombre,
-                            estudiante_nombre=estudiante.nombre or "Estudiante"
-                        )
-                        if revision:
-                            maria_msg = f"📚 *{nombre_asistente} — Tu Asistente*\n\n{revision}\n\n💬 _Escríbeme o envía un audio con tu respuesta. Si decides seguir con el módulo, en el audio o texto di *continuar*_"
-                    except Exception as e:
-                        import logging
-                        logging.getLogger(__name__).warning(f"⚠️ {nombre_asistente} falló: {e}")
+                # Darío enters ONLY after completing module 3 or 5 (last)
+                dario_msg = None
+                total_modulos = progreso.curso.modulos.count()
+                es_modulo_reto = (modulo_actual.numero == 3) or (modulo_actual.numero == total_modulos and total_modulos >= 5)
                 
-                # Estado: Tutor tiene prioridad para interacción
-                if tutor_msg:
-                    # Ya configurado arriba
-                    pass
-                elif maria_msg:
-                    modulos_info = ", ".join([m.titulo for m in modulos_obj])
+                if es_modulo_reto:
+                    # Determine which modules are covered by this reto
+                    if modulo_actual.numero == 3:
+                        modulos_reto_range = "los 3 primeros módulos"
+                    else:
+                        modulos_reto_range = f"los módulos 4 a {modulo_actual.numero}"
+                    
+                    dario_msg = (
+                        f"💬 *{nombre_asistente} — Tu compañero de estudio*\n\n"
+                        f"¡Hola! Es hora de una pausa para repasar conceptos. "
+                        f"La Facilitadora {nombre_tutor} te va a recibir con un reto sobre {modulos_reto_range}.\n\n"
+                        f"Te puedo ayudar a resolver un par de preguntas antes. "
+                        f"¿Tienes alguna pregunta sobre lo que hemos visto? Si no, escribe *listo*."
+                    )
+                    
+                    # Get modules covered for this reto
+                    from .models import Modulo
+                    if modulo_actual.numero == 3:
+                        modulos_reto = list(progreso.curso.modulos.filter(numero__lte=3).order_by('numero'))
+                    else:
+                        modulos_reto = list(progreso.curso.modulos.filter(numero__gte=4, numero__lte=modulo_actual.numero).order_by('numero'))
+                    
                     _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
                     estudiante.contexto_temporal = {
-                        'tipo': 'revision_progreso',
+                        'tipo': 'asistente_dario',
                         'modulo_id': modulo_actual.id,
-                        'pregunta_tutor': revision,
                         'progreso_id': progreso.id,
-                        'modulos_info': modulos_info,
-                        'intentos_tutor': 0,
+                        'modulos_reto_ids': [m.id for m in modulos_reto],
+                        'preguntas_hechas': 0,
                         '_ts_leccion': _prev_ts,
                     }
-                    estudiante.estado_onboarding = 'esperando_respuesta_progreso'
+                    estudiante.estado_onboarding = 'esperando_respuesta_asistente'
                     estudiante.save()
                 
-                # Construir multi-mensaje: gamificación → módulo texto → video(s) → [DELAY] → agente → "escribe listo"
+                # Construir multi-mensaje: avance → módulo texto → video(s) → [DELAY] → agente → "escribe listo"
                 partes = [msg_completado, msg_modulo]
                 # Videos/media como mensajes separados DESPUÉS del texto
                 hay_media = False
@@ -1076,19 +1010,17 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     partes.append(f"[MEDIA:{extra_url}]")
                     hay_media = True
                 # [DELAY:5] después de videos para que WhatsApp los entregue antes del texto siguiente
-                hay_texto_post = tutor_msg or maria_msg
+                hay_texto_post = dario_msg
                 es_ultimo_modulo = not progreso.curso.modulos.filter(numero__gt=siguiente_modulo.numero).exists()
                 if not hay_texto_post and not es_ultimo_modulo:
                     hay_texto_post = True  # habrá "escribe listo"
                 if hay_media and hay_texto_post:
                     partes.append("[DELAY:5]")
-                # Agentes van DESPUÉS de los videos
-                if tutor_msg:
-                    partes.append(tutor_msg)
-                if maria_msg:
-                    partes.append(maria_msg)
-                # "Escribe listo" AL FINAL — solo si NO hay agentes (agentes ya dicen "continuar") y NO es último módulo
-                if not tutor_msg and not maria_msg and not es_ultimo_modulo:
+                # Darío va DESPUÉS de los videos (solo módulos 3 y 5)
+                if dario_msg:
+                    partes.append(dario_msg)
+                # "Escribe listo" AL FINAL — solo si NO hay Darío y NO es último módulo
+                if not dario_msg and not es_ultimo_modulo:
                     partes.append("Cuando termines de revisar el contenido, escribe *listo* para continuar con el siguiente modulo")
                 return "[MULTI_MSG]" + "[SEP]".join(partes)
             
@@ -1150,65 +1082,19 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                         logging.getLogger(__name__).warning(f"⚠️ Pregunta recuperación falló: {e}")
                         # Si falla, continuar con flujo normal de completado
                 
-                # Buscar badges obtenidos por este curso
-                from .gamificacion import BadgeEstudiante
-                badges_nuevos = BadgeEstudiante.objects.filter(
-                    estudiante=estudiante,
-                    badge__tipo='CURSO'
-                ).order_by('-fecha_obtenido')[:2]
+                # Buscar badges obtenidos por este curso (legacy — hidden in v1.9.8g)
                 
                 barra = _barra_progreso(porcentaje)
-                nivel_emoji = ["🌱","🌿","🍃","🌾","🌳","🌲","🎋","🌺","💎","👑"][min(perfil.nivel-1,9)]
                 
-                from .gamificacion_actions import PUNTOS_CONFIG
-                _pts_mod_c = PUNTOS_CONFIG.get('modulo_completado', 10)
-                _pts_curso_c = PUNTOS_CONFIG.get('curso_completado', 15)
-                _pts_total_c = _pts_mod_c + _pts_curso_c
                 mensaje = f"""
 🎉 *¡CURSO COMPLETADO!*
 
 ✅ *Módulo {modulo_actual.numero} completado*
 
-💰 *+{_pts_total_c} puntos* ({_pts_mod_c} módulo + {_pts_curso_c} curso)
-→ Total: *{perfil.puntos_totales} pts*
-{nivel_emoji} Nivel {perfil.nivel}
-{barra} {porcentaje}%"""
-                
-                # Mostrar badges obtenidos
-                if badges_nuevos.exists():
-                    mensaje += "\n\n🏅 *LOGROS DESBLOQUEADOS:*"
-                    for badge_est in badges_nuevos:
-                        mensaje += f"\n  {badge_est.badge.icono} {badge_est.badge.nombre}"
-                
-                # Si subió de nivel, celebrar!
-                if subio_nivel:
-                    nivel_index = min(perfil.nivel - 1, 9)
-                    nivel_emoji = ["🌱", "🌿", "🍃", "🌾", "🌳", "🌲", "🎋", "🌺", "💎", "👑"][nivel_index]
-                    mensaje += f"\n\n✨ *¡SUBISTE A {nivel_emoji} NIVEL {perfil.nivel}!*"
-                
-                mensaje += "\n\n🎓 *¡Felicitaciones! Has completado todo el curso.*"
-                
-                # Asistente: Resumen completo del curso antes de certificado
-                _cliente_fin = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
-                nombre_asistente_fin = (
-                    (_cliente_fin.nombre_agente_asistente if _cliente_fin and hasattr(_cliente_fin, 'nombre_agente_asistente') and _cliente_fin.nombre_agente_asistente else '') or
-                    progreso.curso.nombre_agente_asistente or 'María'
-                )
-                msg_resumen = None
-                try:
-                    from .tutor_ia_modulo import generar_resumen_curso_completo
-                    modulos_completados_qs = progreso.modulos_completados.all().order_by('modulo__numero')
-                    modulos_obj = [mc.modulo for mc in modulos_completados_qs]
-                    resumen_maria = generar_resumen_curso_completo(
-                        progreso.curso.nombre,
-                        modulos_obj,
-                        estudiante_nombre=estudiante.nombre or "Estudiante"
-                    )
-                    if resumen_maria:
-                        msg_resumen = f"📚 *{nombre_asistente_fin} — Resumen del Curso*\n\n{resumen_maria}"
-                except Exception as e:
-                    import logging
-                    logging.getLogger(__name__).warning(f"⚠️ {nombre_asistente_fin} resumen falló: {e}")
+💰 Total: *{perfil.puntos_totales} pts*
+{barra} {porcentaje}%
+
+🎓 *¡Felicitaciones! Ha completado todo el curso.*"""
                 
                 # Imagen de certificado — usar URL pública directa (sin /media/ de Django)
                 msg_cert_img = ""
@@ -1240,8 +1126,11 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 partes = []
                 partes.append(mensaje)
                 partes.append(msg_cert_img)
-                if msg_resumen:
-                    partes.append(msg_resumen)
+                
+                # v1.9.8g: Post-certificate cutoff — no more interaction
+                estudiante.estado_onboarding = 'curso_finalizado'
+                estudiante.save()
+                
                 return "[MULTI_MSG]" + "[SEP]".join(partes)
         
         # Si escribieron solo "continuar" (primera vez o retomando), mostrar el módulo actual

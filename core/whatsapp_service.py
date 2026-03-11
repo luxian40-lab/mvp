@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 # Content SIDs de Twilio (Plantillas Aprobadas)
 # ====================================================
 TWILIO_CONTENT_SIDS = {
-    'habeas_data': 'HXb95419fe0adc8d97a75558b7edf01184',
+    'habeas_data': 'HXbdf37bd29482273b9dfc374367990c18',
     'confirmar_datos': 'HXbb0358bcb33c46a521e392f8e7dcca7a',
     'confirmar_datos_v2': 'HXa252d102417aefd5ff15e11694e9fb1e',
     'menu_principal': 'HXc9027f1ab8cdf781fafa1096c9010d5d',

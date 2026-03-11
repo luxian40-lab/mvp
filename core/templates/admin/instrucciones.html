@@ -1958,7 +1958,7 @@ Te responderemos en menos de 24 horas.
 
         <div class="subsection">
 
-            <h3>🎓 Agentes Pedagógicos: Gerónimo y María</h3>
+            <h3>🎓 Agentes Pedagógicos: Facilitador(a) Claudia y Asistente Darío (v1.9.8g)</h3>
 
             <p>Dos agentes de IA especializados acompañan al estudiante durante el curso:</p>
 
@@ -1970,19 +1970,19 @@ Te responderemos en menos de 24 horas.
 
                     <span class="emoji">🎓</span>
 
-                    <h4>Profesor Gerónimo</h4>
+                    <h4>Facilitador(a) Claudia</h4>
 
-                    <p>Enseñanza complementaria del módulo. Se activa en <strong>módulos impares (1, 3, 5, 7, 9)</strong>. Genera preguntas y reflexiones sobre el contenido recién visto.</p>
+                    <p>Agente principal. Trata de <strong>usted</strong> al estudiante. Usa metodología ABR (Aprendizaje Basado en Retos). Evalúa retos con rúbrica de 1 a 10 (Enfoque 3pts, Fundamentación 4pts, Claridad 3pts). Se activa <strong>después de que Darío termina</strong> (módulo 3 y último módulo ≥5).</p>
 
                 </div>
 
                 <div class="feature-card">
 
-                    <span class="emoji">👩‍🏫</span>
+                    <span class="emoji">👋</span>
 
-                    <h4>María — Mentora</h4>
+                    <h4>Asistente Darío</h4>
 
-                    <p>Revisión de progreso y motivación. Se activa <strong>una sola vez en el módulo 4</strong> y luego al <strong>final del curso</strong> con un resumen completo + imagen de certificado.</p>
+                    <p>Compañero de estudio. Es el <strong>único agente que tutea</strong> al estudiante. Se activa en <strong>módulo 3 y último módulo (si ≥5)</strong>. El estudiante puede hacerle hasta 2 preguntas. Responde basándose en el material del curso (RAG).</p>
 
                 </div>
 
@@ -1990,31 +1990,41 @@ Te responderemos en menos de 24 horas.
 
 
 
-            <h4>Reglas de Activación:</h4>
+            <h4>Reglas de Activación (v1.9.8g):</h4>
 
             <div class="code-block">
 
-Módulo 1 → Gerónimo (enseñanza)
+Módulo 1 → Ningún agente
 
 Módulo 2 → Ningún agente
 
-Módulo 3 → Gerónimo (enseñanza)
+Módulo 3 → Darío (2 preguntas) → Claudia (reto ABR sobre módulos 1-3)
 
-Módulo 4 → María (revisión de progreso)
+Módulo 4 → Ningún agente
 
-Módulo 5 → Gerónimo (enseñanza)
+Módulo 5+ (último) → Darío (2 preguntas) → Claudia (reto ABR sobre módulos 4-N)
 
-Módulo 6 → Ningún agente
+Otros módulos → Ningún agente
 
-Módulo 7 → Gerónimo (enseñanza)
+            </div>
 
-Módulo 8 → Ningún agente
+            <h4>Flujo de interacción con agentes:</h4>
 
-Módulo 9 → Gerónimo (enseñanza)
+            <div class="code-block">
 
-Módulo 10 → Ningún agente
+1. Darío se presenta: "¡Hola! Soy Darío, tu compañero de estudio..."
 
-Final del curso → María (resumen completo + certificado)
+2. Estudiante hace hasta 2 preguntas (o escribe "listo")
+
+3. Darío se despide → Claudia se activa automáticamente
+
+4. Claudia plantea un RETO práctico (metodología ABR, máx 120 palabras)
+
+5. Estudiante responde el reto
+
+6. Claudia evalúa con rúbrica (1-10) → puntaje × 5 = puntos de gamificación
+
+7. Se muestra barra de progreso con puntos obtenidos
 
             </div>
 
@@ -2022,7 +2032,7 @@ Final del curso → María (resumen completo + certificado)
 
             <div class="alert-box alert-info">
 
-                <strong>ℹ️ Importante:</strong> Los agentes <strong>nunca se activan al mismo tiempo</strong>. El estudiante interactúa con uno a la vez. El estudiante puede responderle al agente o escribir <strong>"continuar"</strong> para avanzar.
+                <strong>ℹ️ Importante:</strong> Los agentes <strong>nunca se activan al mismo tiempo</strong>. El estudiante interactúa con uno a la vez. Darío siempre aparece <strong>antes</strong> que Claudia. Los puntos <strong>solo</strong> se otorgan después de la evaluación del reto por Claudia.
 
             </div>
 
@@ -2116,9 +2126,9 @@ COHERE_API_KEY=...
 
         <div class="subsection">
 
-            <h3>Sistema de Puntos y Niveles</h3>
+            <h3>Sistema de Puntos (v1.9.8g — Solo post-reto)</h3>
 
-            <p>Cada estudiante tiene un <strong>Perfil de Gamificaci├│n</strong> autom├ítico con:</p>
+            <p>Cada estudiante tiene un <strong>Perfil de Gamificaci├│n</strong> autom├ítico. Los puntos se otorgan <strong>únicamente</strong> después de que la Facilitadora Claudia evalúa un reto:</p>
 
             
 
@@ -2138,41 +2148,21 @@ COHERE_API_KEY=...
 
                     <tr>
 
+                        <td>Reto evaluado por Claudia</td>
+
+                        <td>Puntaje × 5</td>
+
+                        <td>Rúbrica 1-10 → 5 a 50 puntos. Ej: 8/10 = 40 pts</td>
+
+                    </tr>
+
+                    <tr>
+
                         <td>Completar m├│dulo</td>
 
-                        <td>+100</td>
+                        <td>0 (solo avance)</td>
 
-                        <td>Al terminar un m├│dulo completo</td>
-
-                    </tr>
-
-                    <tr>
-
-                        <td>Aprobar examen</td>
-
-                        <td>+50</td>
-
-                        <td>Con puntaje m├¡nimo</td>
-
-                    </tr>
-
-                    <tr>
-
-                        <td>Racha de 7 d├¡as</td>
-
-                        <td>+200</td>
-
-                        <td>Actividad consecutiva</td>
-
-                    </tr>
-
-                    <tr>
-
-                        <td>Completar curso</td>
-
-                        <td>+500</td>
-
-                        <td>Todos los m├│dulos completados</td>
+                        <td>Se registra avance y racha, pero NO se dan puntos automáticos</td>
 
                     </tr>
 
@@ -2182,21 +2172,11 @@ COHERE_API_KEY=...
 
 
 
-            <h4>Niveles (autom├íticos):</h4>
+            <div class="alert-box alert-warning">
 
-            <ul>
+                <strong>⚠️ Cambio v1.9.8g:</strong> Los niveles y badges están <strong>temporalmente desactivados</strong>. Solo se muestra la barra de progreso y puntos acumulados. El sistema de rachas sigue activo.
 
-                <li>­ƒî▒ <strong>Semilla:</strong> 0-99 puntos</li>
-
-                <li>­ƒî┐ <strong>Brote:</strong> 100-299 puntos</li>
-
-                <li>­ƒî¥ <strong>Planta:</strong> 300-599 puntos</li>
-
-                <li>­ƒî│ <strong>├ürbol:</strong> 600-999 puntos</li>
-
-                <li>­ƒÅå <strong>Maestro:</strong> 1000+ puntos</li>
-
-            </ul>
+            </div>
 
         </div>
 
@@ -3996,9 +3976,9 @@ Al terminar, el estudiante recibe un botón "Continuar" (Content Template de Twi
 
                 <li>Se muestra el siguiente módulo automáticamente</li>
 
-                <li>Si es módulo impar (1,3,5,7,9): aparece <strong>Profesor Gerónimo</strong> (tutor IA)</li>
+                <li>Si es módulo 3 o último módulo (≥5): aparece <strong>Darío</strong> (compañero) → luego <strong>Claudia</strong> (reto ABR)</li>
 
-                <li>Si es módulo 4: aparece <strong>María</strong> (mentora IA de revisión de progreso)</li>
+                <li>Otros módulos: ningún agente se activa</li>
 
             </ol>
 
@@ -4014,35 +3994,17 @@ Al terminar, el estudiante recibe un botón "Continuar" (Content Template de Twi
 
             <div class="code-block">
 
-🎉 ¡CURSO COMPLETADO!
-
-
+🎉 ¡Ha completado el curso!
 
 ✅ Módulo 8 completado
-
-💰 +250 puntos (50 módulo + 200 curso)
-
-→ Total: 1,250 pts
-
-🌳 Nivel 5
-
-▓▓▓▓▓▓▓▓░░ 85%
-
-
-
-🏅 LOGROS DESBLOQUEADOS:
-
-  ☕ Maestro del Café
-
-  🏆 Primer Curso
-
-
-
-
+📊 Puntos acumulados: 75 pts
+▓▓▓▓▓▓▓░░░ 75%
 
 Escribe "examen" para hacer el examen final
-
 Escribe "ver cursos" para tomar otro curso
+
+(Después del certificado, la interacción se corta.
+Si escribe algo más, se le indica que ya completó el curso.)
 
             </div>
 
@@ -4884,23 +4846,21 @@ https://tu-dominio.com/verificar-certificado/EKI-XXXX-YYYY-ZZZZ/
 
         <div class="subsection">
 
-            <h3>Sistema de Puntos</h3>
+            <h3>Sistema de Puntos (v1.9.8g)</h3>
 
             <table>
 
                 <tr><th>Acción</th><th>Puntos</th></tr>
 
-                <tr><td>Completar un módulo</td><td>+50 pts</td></tr>
+                <tr><td>Reto evaluado por Facilitadora Claudia</td><td>Puntaje × 5 (5-50 pts)</td></tr>
 
-                <tr><td>Completar un curso</td><td>+200 pts (bonus)</td></tr>
+                <tr><td>Completar módulo</td><td>0 pts (solo avance + racha)</td></tr>
 
-                <tr><td>Respuesta correcta a Gerónimo</td><td>+10 pts</td></tr>
-
-                <tr><td>Buena reflexión con María</td><td>+5 pts</td></tr>
-
-                <tr><td>Login diario (racha)</td><td>Variable</td></tr>
+                <tr><td>Completar curso</td><td>0 pts (solo certificado)</td></tr>
 
             </table>
+
+            <p><em>Los puntos automáticos por módulo/curso fueron desactivados en v1.9.8g. Solo se otorgan puntos tras la evaluación del reto por Claudia.</em></p>
 
         </div>
 
@@ -4908,7 +4868,7 @@ https://tu-dominio.com/verificar-certificado/EKI-XXXX-YYYY-ZZZZ/
 
         <div class="subsection">
 
-            <h3>Niveles Temáticos del Campo</h3>
+            <h3>Niveles Temáticos del Campo (temporalmente desactivados v1.9.8g)</h3>
 
             <table>
 
@@ -5310,6 +5270,51 @@ https://tu-dominio.com/verificar-certificado/EKI-XXXX-YYYY-ZZZZ/
 
 
 
+        <div id="changelog-v198g" class="section" style="margin-top:30px;">
+        <h2 class="section-title">🆕 Actualizaciones — v1.9.8g (Marzo 2026)</h2>
+        <div class="subsection">
+            <h3>v1.9.8g — Refactor Completo de Agentes y Gamificación</h3>
+            <table>
+                <tr><th>Área</th><th>Cambio</th><th>Detalle</th></tr>
+                <tr>
+                    <td>🎓 Agentes IA</td>
+                    <td>Facilitadora Claudia + Asistente Darío</td>
+                    <td>Profesor Gerónimo → <strong>Facilitador(a) Claudia</strong> (trata de usted, metodología ABR, evalúa retos con rúbrica 1-10).<br>María → <strong>Asistente Darío</strong> (tutea, compañero de estudio, hasta 2 preguntas RAG).</td>
+                </tr>
+                <tr>
+                    <td>🔄 Flujo de Agentes</td>
+                    <td>Darío → Claudia (módulos 3 y último)</td>
+                    <td>Darío se activa en módulo 3 y último módulo (≥5). Después de Darío, Claudia plantea un reto práctico ABR. El estudiante responde y Claudia evalúa.</td>
+                </tr>
+                <tr>
+                    <td>🎮 Gamificación</td>
+                    <td>Puntos solo post-reto</td>
+                    <td>Se desactivan puntos automáticos por completar módulo/curso. Puntos = puntaje_reto × 5 (ej: 8/10 → 40 pts). Niveles y badges temporalmente desactivados. Barra de progreso y racha siguen activos.</td>
+                </tr>
+                <tr>
+                    <td>🚫 Post-certificado</td>
+                    <td>Corte de interacción</td>
+                    <td>Después de recibir el certificado, el estado cambia a <code>curso_finalizado</code>. Si escribe algo más, se le informa que ya completó el curso. Puede iniciar otro curso si existe.</td>
+                </tr>
+                <tr>
+                    <td>📝 Intro Gamificación</td>
+                    <td>Sin "video juego"</td>
+                    <td>Se eliminó la referencia a "funciona como un video juego". Nuevo texto: "Ganarás puntos completando retos que te planteará tu Facilitadora."</td>
+                </tr>
+                <tr>
+                    <td>👩‍🏫 María</td>
+                    <td>ELIMINADA</td>
+                    <td>Resumen final de María eliminado. No se genera resumen del curso. Darío toma el rol de acompañamiento.</td>
+                </tr>
+                <tr>
+                    <td>📱 Habeas Data</td>
+                    <td>SID actualizado</td>
+                    <td>Template SID actualizado a <code>HXbdf37bd29482273b9dfc374367990c18</code>.</td>
+                </tr>
+            </table>
+        </div>
+        </div>
+
         <div id="changelog-v198" class="section" style="margin-top:30px;">
         <h2 class="section-title">🆕 Actualizaciones — v1.9.8 (Marzo 2026)</h2>
         <div class="subsection">
@@ -5497,21 +5502,21 @@ https://tu-dominio.com/verificar-certificado/EKI-XXXX-YYYY-ZZZZ/
         </div>
 
         <div class="subsection">
-            <h3>Flujo de Mensajes en Curso (orden correcto)</h3>
+            <h3>Flujo de Mensajes en Curso (orden correcto — actualizado v1.9.8g)</h3>
             <div class="alert-box alert-warning">
                 <strong>Primer módulo (al confirmar datos):</strong>
                 <ol>
                     <li>✅ Bienvenida + 🎮 Gamificación</li>
                     <li>📖 Módulo 1 (contenido educativo + video adjunto)</li>
-                    <li>🎓 Tutor (presentación)</li>
-                    <li>👩‍🏫 Asistente (presentación)</li>
+                    <li>🎓 Facilitadora Claudia (presentación)</li>
+                    <li>👋 Asistente Darío (presentación)</li>
                 </ol>
-                <strong>Módulos siguientes (al presionar botón "Continuar"):</strong>
+                <strong>Módulos siguientes (al escribir "listo"):</strong>
                 <ol>
-                    <li>✅ Gamificación (puntos, nivel, racha)</li>
+                    <li>✅ Gamificación (racha + progreso)</li>
                     <li>📖 Siguiente módulo (contenido + video)</li>
-                    <li>🎓 Tutor / 👩‍🏫 Asistente (si aplica, max 2 interacciones)</li>
-                    <li>🔘 Botón "Continuar" (solo si NO es el último módulo)</li>
+                    <li>👋 Darío + 🎓 Claudia (si módulo 3 o último módulo ≥5)</li>
+                    <li>"Escribe *listo*" (solo si NO hay agente y NO es último módulo)</li>
                 </ol>
             </div>
         </div>

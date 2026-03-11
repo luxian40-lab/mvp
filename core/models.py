@@ -172,6 +172,9 @@ class Estudiante(models.Model):
         ('esperando_respuesta_tutor_ia', 'Esperando respuesta tutor IA'),
         ('esperando_respuesta_progreso', 'Esperando respuesta progreso'),
         ('esperando_seleccion_curso', 'Esperando selección curso'),
+        ('esperando_respuesta_asistente', 'Esperando respuesta asistente Darío'),
+        ('esperando_respuesta_reto', 'Esperando respuesta reto facilitador'),
+        ('curso_finalizado', 'Curso finalizado (sin interacción)'),
         ('completado', 'Completado (legacy)'),
     ]
     

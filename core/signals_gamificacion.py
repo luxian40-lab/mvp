@@ -55,40 +55,22 @@ def _notificar_org_admin(estudiante, asunto, mensaje_html):
 
 @receiver(post_save, sender=ModuloCompletado)
 def otorgar_puntos_por_modulo(sender, instance, created, **kwargs):
-    """Otorga puntos cuando un estudiante completa un módulo"""
+    """v1.9.8g: Points NO longer awarded per module — only after reto evaluation.
+    Signal kept to update statistics (modulos_completados count, racha)."""
     if not created:
         return
     
     try:
-        # Obtener o crear perfil de gamificación
         perfil, _ = PerfilGamificacion.objects.get_or_create(
             estudiante=instance.progreso.estudiante
         )
-        # v1.9.8: Puntos reducidos (10 por módulo) para balance real
-        subio_nivel = perfil.agregar_puntos(
-            puntos=10,
-            razon=f"Completó {instance.modulo.titulo}"
-        )
-        # Actualizar estadísticas
+        # v1.9.8g: NO points per module (removed perfil.agregar_puntos)
+        # Only update stats
         perfil.modulos_completados += 1
         perfil.save()
-        # Actualizar racha
         perfil.actualizar_racha()
-        # Si subió de nivel, enviar notificación (opcional)
-        if subio_nivel:
-            logger.info(f"🎉 {perfil.estudiante.nombre} subió a nivel {perfil.nivel}!")
-            # Auto-assign level badge
-            _asignar_badge_nivel(perfil)
-            # Si nivel máximo (10) → notificar org admin
-            if perfil.nivel >= 10:
-                _notificar_org_admin(
-                    perfil.estudiante,
-                    f"🏆 {perfil.estudiante.nombre} alcanzó nivel máximo",
-                    f"<p>El estudiante <strong>{perfil.estudiante.nombre}</strong> "
-                    f"ha alcanzado el <strong>nivel {perfil.nivel} (Leyenda del Campo)</strong> "
-                    f"con {perfil.puntos_totales} puntos.</p>"
-                )
-        logger.info(f"✅ {perfil.estudiante.nombre} ganó 10 puntos por completar módulo")
+        
+        logger.info(f"✅ {perfil.estudiante.nombre} completó módulo (stats actualizadas, sin puntos)")
 
         # === RESET ANTI-ABUSE IA (preguntas_ia_restantes) ===
         estudiante = instance.progreso.estudiante
@@ -97,13 +79,6 @@ def otorgar_puntos_por_modulo(sender, instance, created, **kwargs):
             estudiante.save(update_fields=['preguntas_ia_restantes'])
             logger.info(f"🔄 Reset preguntas_ia_restantes=3 para {estudiante.nombre}")
 
-        # === ENVÍO AUTOMÁTICO DE ARCHIVOS MULTIMEDIA POR WHATSAPP ===
-        # ⛔ DESACTIVADO v1.9.3: Los videos ya se envían dentro del [MULTI_MSG]
-        # en response_templates.py y views.py. Este envío DUPLICABA los videos
-        # porque el signal enviaba archivos del módulo completado (ya vistos)
-        # ANTES de que el MULTI_MSG enviara el contenido del siguiente módulo.
-        # Resultado: el estudiante veía videos duplicados y "escribe listo"
-        # aparecía entre los videos del signal y los del MULTI_MSG.
         logger.info(f"📋 Signal: módulo completado por {instance.progreso.estudiante.nombre} - videos se envían via MULTI_MSG (no signal)")
 
     except Exception as e:

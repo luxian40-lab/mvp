@@ -1,7 +1,6 @@
 """
 Tutor IA por Módulo — Motor ligero con gpt-4o-mini
-Usa método sandwich: concepto → ejemplo → pregunta.
-Máximo 60 palabras, cero cátedras.
+v1.9.8g: Facilitador(a) con ABR + Asistente Darío
 """
 
 import logging
@@ -11,53 +10,64 @@ logger = logging.getLogger(__name__)
 
 
 # =====================================================
-# PROMPT TUTOR — Método Sandwich, máx 60 palabras
+# PROMPT FACILITADOR(A) — ABR (Aprendizaje Basado en Retos)
+# Se activa DESPUÉS de que Darío termina (módulos 3 y 5)
 # =====================================================
-PROMPT_TUTOR_MODULO = """Eres el Profesor Gerónimo, coach educativo de eki. REGLAS OBLIGATORIAS:
+PROMPT_FACILITADOR_RETO = """Eres la Facilitadora Claudia, experta en Aprendizaje Basado en Retos (ABR) de eki.
+Tu rol es plantear un RETO práctico al participante para evaluar lo aprendido.
 
-1. MÁXIMO 60 PALABRAS por mensaje. Sin cátedras.
-2. MÉTODO SANDWICH en cada mensaje:
-   - 1 frase clara con el concepto.
-   - 1 ejemplo práctico de la vida cotidiana.
-   - 1 pregunta directa para validar comprensión.
-3. PERSONALIDAD: Coach cercano, respetuoso, motivador.
-4. Máximo 2 emojis por mensaje.
-5. Lenguaje sencillo, cero tecnicismos complejos.
-6. NO saludes si la conversación ya inició.
-7. Termina con UNA sola pregunta de comprensión sobre el tema.
-8. No inventes información fuera del CONTEXTO del módulo.
-9. Si el usuario dice "No sé" o "Me rindo", explícale la respuesta y pídele que la diga con sus palabras.
-10. PROHIBIDO preguntar si quiere más ejemplos, si tiene dudas, o si quiere continuar. Solo la pregunta de comprensión."""
+REGLAS OBLIGATORIAS:
+1. TRATO DE USTED siempre. NUNCA tutear.
+2. El reto es una situación que simula la realidad. El participante debe aplicar conocimientos para resolver una problemática.
+3. MÁXIMO 120 PALABRAS para el reto.
+4. El reto puede evaluar competencias técnicas Y blandas (pensamiento crítico, toma de decisiones, liderazgo, empatía, negociación, trabajo en equipo, pensamiento analítico).
+5. Lenguaje sencillo, pensando en emprendedores y trabajadores rurales.
+6. Máximo 2 emojis.
+7. No inventes información fuera del CONTEXTO de los módulos.
+8. Termina con una instrucción clara: "Escriba su respuesta al reto."
+9. PROHIBIDO preguntar si tiene dudas o si quiere continuar."""
 
 
-# =====================================================
-# PROMPT EVALUADOR — Evalúa comprensión del módulo
-# =====================================================
-PROMPT_EVALUADOR_MODULO = """Eres el Profesor Gerónimo, evaluador educativo de eki. El tutor acaba de explicar un concepto del curso.
-El estudiante respondió. Tu tarea: evaluar si demuestra comprensión del módulo.
+PROMPT_FACILITADOR_EVALUACION = """Eres la Facilitadora Claudia, evaluadora de eki con metodología ABR.
+El participante respondió a un reto. Evalúa su respuesta con esta RÚBRICA (1-10):
 
-ESCENARIOS:
+DIMENSIONES DE EVALUACIÓN:
+- Enfoque y Comprensión (máx 3 pts): ¿Entendió el reto y enfocó bien su respuesta?
+- Fundamentación y Viabilidad (máx 4 pts): ¿Usó conceptos del curso? ¿Es viable su propuesta?
+- Estructura y Claridad (máx 3 pts): ¿Se expresa de forma clara y organizada?
 
-1. RESPUESTA CORRECTA:
-- Felicita brevemente (ej: "¡Muy bien! 💪").
-- Refuerza en 1 frase por qué está correcta.
-- Cierra con una frase motivadora breve.
-
-2. RESPUESTA INCORRECTA O INCOMPLETA:
-- NUNCA digas "estás mal".
-- Sé empático: "Vas bien, pero mira esto…"
-- Da una pista nueva o ejemplo distinto.
-- Cierra con una frase de ánimo.
-
-3. RESPUESTA FUERA DE TEMA:
-- Redirige amablemente al tema actual.
+FORMATO DE RESPUESTA OBLIGATORIO:
+1. Retroalimentación positiva primero (qué hizo bien).
+2. Qué le faltó o puede mejorar.
+3. Puntaje total: X/10
+4. Desglose: Enfoque X/3 | Fundamentación X/4 | Claridad X/3
 
 REGLAS:
-- Máximo 60 palabras.
+- TRATO DE USTED siempre.
+- Máximo 100 palabras de retroalimentación.
 - Máximo 2 emojis.
-- Lenguaje sencillo.
-- NO hagas preguntas de seguimiento. NO preguntes si quiere continuar, si tiene dudas, o si quiere más ejemplos.
-- Termina con una frase de cierre motivadora, NUNCA con una pregunta."""
+- Sé empático pero honesto.
+- PROHIBIDO hacer preguntas de seguimiento. Cierre motivador breve.
+- NO preguntar si quiere continuar o si tiene dudas."""
+
+
+# =====================================================
+# PROMPT ASISTENTE (DARÍO) — Companion, tutea
+# Se activa SOLO al final de módulo 3 y módulo 5
+# =====================================================
+PROMPT_ASISTENTE_DARIO = """Eres Darío, el asistente y compañero de estudio de eki.
+Eres el ÚNICO que tutea al estudiante (trato informal, "tú").
+Tu rol: ayudar a repasar conceptos antes de que la Facilitadora Claudia plantee un reto.
+
+REGLAS:
+1. TUTEA siempre ("tú", "te", "tu").
+2. MÁXIMO 60 PALABRAS por mensaje.
+3. Responde basándote SOLO en el contenido RAG/módulos. No inventes nada.
+4. Si no tienes información suficiente, dilo honestamente.
+5. Sé cercano, amigable, como un compañero de estudio.
+6. Máximo 2 emojis.
+7. NO hagas preguntas de seguimiento. Responde directamente.
+8. PROHIBIDO invitar a seguir conversando o preguntar si tiene más dudas."""
 
 
 def _get_client():
@@ -73,161 +83,260 @@ def _get_client():
         return None
 
 
-def generar_enseñanza_modulo(modulo, estudiante_nombre: str = "Estudiante",
-                              preguntas_ejemplo: str = "") -> str:
+def generar_reto_facilitador(modulos_cubiertos, curso_nombre, estudiante_nombre="Estudiante",
+                              preguntas_ejemplo="") -> str:
     """
-    Genera una micro-enseñanza del módulo con método sandwich.
-    Se llama al avanzar de módulo para que el tutor IA explique el contenido.
+    Facilitadora Claudia genera un RETO ABR que cubre los módulos indicados.
+    Se llama después de que Darío termina (módulos 3 y 5).
 
     Args:
-        modulo: instancia de Modulo (tiene .titulo, .contenido, .curso.nombre)
+        modulos_cubiertos: lista de instancias Modulo que cubre el reto
+        curso_nombre: nombre del curso
         estudiante_nombre: nombre del estudiante
-        preguntas_ejemplo: preguntas de ejemplo del admin para guiar estilo/dificultad
+        preguntas_ejemplo: preguntas de ejemplo del admin
 
     Returns:
-        str: mensaje del tutor (máx 60 palabras) con concepto + ejemplo + pregunta
+        str: mensaje con el reto
     """
     client = _get_client()
     if not client:
-        # Fallback sin IA
-        return _fallback_enseñanza(modulo)
+        return _fallback_reto(modulos_cubiertos, curso_nombre)
 
-    # Tomar solo los primeros 1500 chars del contenido para ahorrar tokens
-    contenido_corto = modulo.contenido[:1500] if modulo.contenido else modulo.descripcion
+    # Build module content summary
+    modulos_info = ""
+    for m in modulos_cubiertos:
+        contenido_corto = (m.contenido[:300] if m.contenido else m.descripcion or '')
+        modulos_info += f"- Módulo {m.numero}: {m.titulo}\n  Contenido: {contenido_corto}\n"
 
-    # 🤖 RAG: Obtener contexto adicional de documentos del curso
+    # RAG context
     contexto_rag = ""
     try:
         from .rag_manager import rag_manager
-        cliente_id = modulo.curso.cliente_id if modulo.curso.cliente_id else 0
-        contexto_rag = rag_manager.obtener_contexto_para_ia(
-            cliente_id=cliente_id,
-            curso_id=modulo.curso_id,
-            pregunta=modulo.titulo,
-            max_chars=1000
-        )
+        curso = modulos_cubiertos[0].curso if modulos_cubiertos else None
+        if curso:
+            cliente_id = curso.cliente_id if curso.cliente_id else 0
+            contexto_rag = rag_manager.obtener_contexto_para_ia(
+                cliente_id=cliente_id,
+                curso_id=curso.id,
+                pregunta="reto práctico basado en los módulos",
+                max_chars=1000
+            )
     except Exception as e:
-        logger.warning(f"[RAG] Error en tutor IA: {e}")
+        logger.warning(f"[RAG] Error en reto facilitador: {e}")
 
-    # Preguntas ejemplo del admin
     ejemplo_txt = ""
     if preguntas_ejemplo:
-        ejemplo_txt = f"\nPREGUNTAS EJEMPLO DEL INSTRUCTOR (OBLIGATORIO: Basa tu pregunta DIRECTAMENTE en estos ejemplos. Usa el mismo tipo de escenario práctico, el mismo nivel de especificidad y contexto. Tu pregunta debe ser muy similar en estilo y contenido a estos ejemplos):\n{preguntas_ejemplo}\n"
+        ejemplo_txt = f"\nPREGUNTAS/RETOS EJEMPLO DEL INSTRUCTOR (OBLIGATORIO: Basa tu reto DIRECTAMENTE en estos ejemplos):\n{preguntas_ejemplo}\n"
 
-    prompt_usuario = f"""CONTEXTO DEL MÓDULO:
-Curso: {modulo.curso.nombre}
-Módulo {modulo.numero}: {modulo.titulo}
-Contenido: {contenido_corto}
+    prompt_usuario = f"""CONTEXTO:
+Curso: {curso_nombre}
+Participante: {estudiante_nombre}
+
+MÓDULOS QUE CUBRE ESTE RETO:
+{modulos_info}
 {contexto_rag}
 {ejemplo_txt}
-Estudiante: {estudiante_nombre}
-
-Genera UNA micro-enseñanza con método sandwich sobre el concepto principal de este módulo."""
+Genere UN reto práctico ABR que integre los conceptos de estos módulos."""
 
     try:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": PROMPT_TUTOR_MODULO},
+                {"role": "system", "content": PROMPT_FACILITADOR_RETO},
                 {"role": "user", "content": prompt_usuario}
             ],
             temperature=0.7,
-            max_tokens=120,  # ~60 palabras
+            max_tokens=250,
+            timeout=12
+        )
+        respuesta = response.choices[0].message.content.strip()
+        logger.info(f"✅ Facilitadora reto: {respuesta[:50]}...")
+        return respuesta
+    except Exception as e:
+        logger.error(f"❌ Error Facilitadora reto: {e}")
+        return _fallback_reto(modulos_cubiertos, curso_nombre)
+
+
+def evaluar_reto_facilitador(modulos_cubiertos, respuesta_estudiante, reto_original,
+                              estudiante_nombre="Estudiante") -> tuple:
+    """
+    Facilitadora evalúa la respuesta al reto con rúbrica ABR.
+
+    Returns:
+        tuple: (puntaje: int 1-10, feedback: str)
+    """
+    client = _get_client()
+    if not client:
+        return 7, _fallback_evaluacion_reto()
+
+    modulos_info = ""
+    for m in modulos_cubiertos:
+        contenido_corto = (m.contenido[:200] if m.contenido else '')
+        modulos_info += f"- Módulo {m.numero}: {m.titulo} ({contenido_corto})\n"
+
+    # RAG context
+    contexto_rag = ""
+    try:
+        from .rag_manager import rag_manager
+        curso = modulos_cubiertos[0].curso if modulos_cubiertos else None
+        if curso:
+            cliente_id = curso.cliente_id if curso.cliente_id else 0
+            contexto_rag = rag_manager.obtener_contexto_para_ia(
+                cliente_id=cliente_id,
+                curso_id=curso.id,
+                pregunta=respuesta_estudiante,
+                max_chars=800
+            )
+    except Exception as e:
+        logger.warning(f"[RAG] Error en evaluación reto: {e}")
+
+    prompt_usuario = f"""CONTEXTO:
+Módulos cubiertos:
+{modulos_info}
+{contexto_rag}
+
+RETO PLANTEADO: {reto_original}
+RESPUESTA DEL PARTICIPANTE ({estudiante_nombre}): {respuesta_estudiante}
+
+Evalúe según la rúbrica. Dé retroalimentación y puntaje."""
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": PROMPT_FACILITADOR_EVALUACION},
+                {"role": "user", "content": prompt_usuario}
+            ],
+            temperature=0.5,
+            max_tokens=250,
+            timeout=12
+        )
+        feedback = response.choices[0].message.content.strip()
+
+        # Extract score from feedback
+        import re
+        puntaje = 7  # default
+        match = re.search(r'(\d+)\s*/\s*10', feedback)
+        if match:
+            puntaje = min(10, max(1, int(match.group(1))))
+
+        logger.info(f"✅ Facilitadora evaluación reto: {puntaje}/10")
+        return puntaje, feedback
+    except Exception as e:
+        logger.error(f"❌ Error evaluación reto: {e}")
+        return 7, _fallback_evaluacion_reto()
+
+
+def generar_respuesta_asistente(modulos_cubiertos, pregunta_estudiante,
+                                 estudiante_nombre="Estudiante") -> str:
+    """
+    Darío responde una pregunta del estudiante basada en RAG/contenido de módulos.
+    Máximo 2 preguntas antes de pasar a la Facilitadora.
+
+    Returns:
+        str: respuesta de Darío
+    """
+    client = _get_client()
+    if not client:
+        return _fallback_respuesta_asistente()
+
+    modulos_info = ""
+    for m in modulos_cubiertos:
+        contenido = (m.contenido[:400] if m.contenido else m.descripcion or '')
+        modulos_info += f"- Módulo {m.numero}: {m.titulo}\n  {contenido}\n"
+
+    # RAG context
+    contexto_rag = ""
+    try:
+        from .rag_manager import rag_manager
+        curso = modulos_cubiertos[0].curso if modulos_cubiertos else None
+        if curso:
+            cliente_id = curso.cliente_id if curso.cliente_id else 0
+            contexto_rag = rag_manager.obtener_contexto_para_ia(
+                cliente_id=cliente_id,
+                curso_id=curso.id,
+                pregunta=pregunta_estudiante,
+                max_chars=1000
+            )
+    except Exception as e:
+        logger.warning(f"[RAG] Error en asistente Darío: {e}")
+
+    prompt_usuario = f"""CONTEXTO:
+Estudiante: {estudiante_nombre}
+Módulos cubiertos:
+{modulos_info}
+{contexto_rag}
+
+PREGUNTA DEL ESTUDIANTE: {pregunta_estudiante}
+
+Responde basándote SOLO en el contenido de los módulos y documentos RAG."""
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": PROMPT_ASISTENTE_DARIO},
+                {"role": "user", "content": prompt_usuario}
+            ],
+            temperature=0.7,
+            max_tokens=120,
             timeout=10
         )
         respuesta = response.choices[0].message.content.strip()
-        logger.info(f"✅ TutorIA módulo {modulo.numero}: {respuesta[:50]}...")
+        logger.info(f"✅ Darío respuesta: {respuesta[:50]}...")
         return respuesta
     except Exception as e:
-        logger.error(f"❌ Error TutorIA: {e}")
-        return _fallback_enseñanza(modulo)
+        logger.error(f"❌ Error Darío respuesta: {e}")
+        return _fallback_respuesta_asistente()
+
+
+def _fallback_reto(modulos_cubiertos, curso_nombre):
+    """Reto de fallback sin IA."""
+    temas = ", ".join([m.titulo for m in modulos_cubiertos]) if modulos_cubiertos else curso_nombre
+    return (
+        f"📋 *Reto práctico*\n\n"
+        f"Imagine que debe explicarle a un compañero cómo aplicar lo aprendido sobre {temas} "
+        f"en una situación real de su comunidad.\n\n"
+        f"¿Qué haría y por qué? Escriba su respuesta al reto."
+    )
+
+
+def _fallback_evaluacion_reto():
+    """Evaluación de reto sin IA."""
+    return (
+        "✅ Gracias por su respuesta al reto.\n\n"
+        "Su reflexión muestra compromiso con el aprendizaje.\n"
+        "Puntaje: 7/10\n"
+        "Enfoque 2/3 | Fundamentación 3/4 | Claridad 2/3\n\n"
+        "¡Buen trabajo! 💪"
+    )
+
+
+def _fallback_respuesta_asistente():
+    """Respuesta de Darío sin IA."""
+    return (
+        "¡Buena pregunta! Lamentablemente no tengo suficiente información para responderte con certeza. "
+        "Pero no te preocupes, la Facilitadora Claudia te va a ayudar con el reto 💪"
+    )
+
+
+# Keep legacy function name as alias for backward compatibility
+def generar_enseñanza_modulo(modulo, estudiante_nombre="Estudiante", preguntas_ejemplo=""):
+    """Legacy: Now returns a brief module summary instead of tutor question."""
+    return _fallback_enseñanza(modulo)
 
 
 def evaluar_respuesta_modulo(modulo, respuesta_estudiante: str, pregunta_original: str = "",
                               estudiante_nombre: str = "Estudiante") -> tuple:
-    """
-    Evalúa la respuesta del estudiante al tutor IA con empatía.
-
-    Args:
-        modulo: instancia de Modulo
-        respuesta_estudiante: texto libre del estudiante
-        pregunta_original: la pregunta que hizo el tutor
-        estudiante_nombre: nombre del estudiante
-
-    Returns:
-        tuple: (aprobado: bool, feedback: str)
-    """
-    client = _get_client()
-    if not client:
-        return True, _fallback_evaluacion()
-
-    contenido_corto = modulo.contenido[:1000] if modulo.contenido else modulo.descripcion
-
-    # 🤖 RAG: Contexto adicional de documentos del curso
-    contexto_rag = ""
-    try:
-        from .rag_manager import rag_manager
-        cliente_id = modulo.curso.cliente_id if modulo.curso.cliente_id else 0
-        contexto_rag = rag_manager.obtener_contexto_para_ia(
-            cliente_id=cliente_id,
-            curso_id=modulo.curso_id,
-            pregunta=respuesta_estudiante,
-            max_chars=800
-        )
-    except Exception as e:
-        logger.warning(f"[RAG] Error en evaluador IA: {e}")
-
-    prompt_usuario = f"""CONTEXTO:
-Curso: {modulo.curso.nombre}
-Módulo: {modulo.titulo}
-Contenido clave: {contenido_corto}
-{contexto_rag}
-PREGUNTA DEL TUTOR: {pregunta_original}
-RESPUESTA DEL ESTUDIANTE ({estudiante_nombre}): {respuesta_estudiante}
-
-Evalúa si demuestra comprensión. Sigue los escenarios del prompt."""
-
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": PROMPT_EVALUADOR_MODULO},
-                {"role": "user", "content": prompt_usuario}
-            ],
-            temperature=0.5,
-            max_tokens=120,
-            timeout=10
-        )
-        feedback = response.choices[0].message.content.strip()
-
-        # Heurística simple: si tiene felicitación → aprobado
-        palabras_aprobacion = ['muy bien', 'correcto', 'excelente', 'perfecto',
-                               'bien hecho', '💪', '👏', '✅', 'exacto']
-        aprobado = any(p in feedback.lower() for p in palabras_aprobacion)
-
-        logger.info(f"✅ EvaluadorIA: {'aprobado' if aprobado else 'necesita refuerzo'}")
-        return aprobado, feedback
-    except Exception as e:
-        logger.error(f"❌ Error EvaluadorIA: {e}")
-        return True, _fallback_evaluacion()
+    """Legacy: kept for backward compat. Returns (True, generic feedback)."""
+    return True, "✅ ¡Gracias por tu respuesta! Continúa con el módulo 💪"
 
 
 # =====================================================
-# PROMPT MARÍA — Asistente/Mentora, cada 2 módulos (pares)
+# PROMPT MARÍA — REMOVED in v1.9.8g (replaced by Darío)
+# Functions kept as stubs for backward compatibility
 # =====================================================
-PROMPT_MARIA_MENTORA = """Eres María, la asistente y mentora educativa de eki.
-Tu rol es acompañar al estudiante como su apoyo constante durante todo el curso.
-Trabajas junto al Profesor Gerónimo: él enseña, tú te aseguras de que todo quede claro.
-
-REGLAS:
-1. MÁXIMO 80 PALABRAS.
-2. Haz un breve resumen de los módulos completados hasta ahora.
-3. Hazle UNA pregunta concreta de comprensión sobre lo que ha visto en los módulos recientes.
-4. Sé cálida, empática y cercana, como una compañera de estudio.
-5. Máximo 2 emojis.
-6. NO preguntes si tiene dudas, si necesita ayuda, o si quiere que le expliques algo.
-7. Termina SOLO con la pregunta de comprensión, nada más.
-8. PROHIBIDO invitar a seguir conversando o hacer preguntas abiertas tipo "¿necesitas algo más?"."""
+PROMPT_MARIA_MENTORA = """Eres Darío, asistente de estudio de eki. Trato informal (tú). Máximo 60 palabras. Sé amigable y cercano."""
 
 
 def generar_revision_progreso(modulo_actual, modulos_completados, curso_nombre,
@@ -381,127 +490,58 @@ def _fallback_evaluacion():
 # =====================================================
 # RESUMEN DE CURSO COMPLETO — María al finalizar curso
 # =====================================================
-PROMPT_MARIA_RESUMEN_CURSO = """Eres María, la asistente educativa de eki.
-El estudiante acaba de completar TODOS los módulos de un curso.
-Tu tarea es darle un resumen completo de todo lo aprendido antes de continuar al certificado.
-
-REGLAS:
-1. MÁXIMO 150 PALABRAS.
-2. Haz un resumen organizado de los temas principales vistos en cada módulo.
-3. Destaca los conceptos más importantes.
-4. Felicita al estudiante por completar todo el curso.
-5. Sé cálida y celebra el logro.
-6. Máximo 3 emojis.
-7. NO hagas preguntas. NO invites a seguir conversando. Cierra con una felicitación."""
+# v1.9.8g: María resumen removed
+PROMPT_MARIA_RESUMEN_CURSO = ""
 
 
 def generar_resumen_curso_completo(curso_nombre, modulos_completados,
                                      estudiante_nombre="Estudiante") -> str:
-    """
-    María genera un resumen completo de todo el curso al finalizarlo.
-    Se muestra justo antes del flujo de certificado.
-
-    Args:
-        curso_nombre: nombre del curso
-        modulos_completados: lista/QuerySet de módulos completados
-        estudiante_nombre: nombre del estudiante
-
-    Returns:
-        str: resumen completo del curso por María
-    """
-    client = _get_client()
-
-    modulos_info = ""
-    if modulos_completados:
-        for m in modulos_completados:
-            titulo = m.titulo if hasattr(m, 'titulo') else str(m)
-            contenido_corto = ""
-            if hasattr(m, 'contenido') and m.contenido:
-                contenido_corto = m.contenido[:100].replace('\n', ' ')
-            modulos_info += f"- Módulo {m.numero if hasattr(m, 'numero') else '?'}: {titulo}"
-            if contenido_corto:
-                modulos_info += f" ({contenido_corto}...)"
-            modulos_info += "\n"
-
-    if not client:
-        return _fallback_resumen_curso(modulos_info, curso_nombre, estudiante_nombre)
-
-    prompt_usuario = f"""CONTEXTO:
-Estudiante: {estudiante_nombre}
-Curso completado: {curso_nombre}
-
-Módulos del curso:
-{modulos_info}
-
-Genera un resumen completo de todo lo aprendido. Felicita y celebra el logro."""
-
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": PROMPT_MARIA_RESUMEN_CURSO},
-                {"role": "user", "content": prompt_usuario}
-            ],
-            temperature=0.7,
-            max_tokens=300,
-            timeout=10
-        )
-        respuesta = response.choices[0].message.content.strip()
-        logger.info(f"✅ María resumen curso: {respuesta[:50]}...")
-        return respuesta
-    except Exception as e:
-        logger.error(f"❌ Error María resumen curso: {e}")
-        return _fallback_resumen_curso(modulos_info, curso_nombre, estudiante_nombre)
+    """Legacy stub — María resumen removed in v1.9.8g."""
+    return ""
 
 
 def _fallback_resumen_curso(modulos_info, curso_nombre, estudiante_nombre):
-    """Resumen de curso sin IA (María)."""
-    return (
-        f"👩‍🏫 *¡Felicidades {estudiante_nombre}!*\n\n"
-        f"Has completado todo el curso *{curso_nombre}*. "
-        f"Repasamos muchos temas importantes a lo largo de los módulos.\n\n"
-        f"📋 *Módulos completados:*\n{modulos_info}\n"
-        f"¡Excelente trabajo! Estoy muy orgullosa de tu esfuerzo 💪\n\n"
-        f"Ahora puedes continuar con el examen final o tu certificado."
-    )
+    """Legacy stub."""
+    return ""
 
 
 # =====================================================
 # PRESENTACIÓN DE AGENTES — Inicio de curso
 # =====================================================
-def generar_presentacion_agentes(curso_nombre, estudiante_nombre="Estudiante", nombre_tutor="Gerónimo", nombre_asistente="María") -> tuple:
+def generar_presentacion_agentes(curso_nombre, estudiante_nombre="Estudiante", nombre_tutor="Claudia", nombre_asistente="Darío") -> tuple:
     """
     Genera las presentaciones de los agentes al inicio de un curso.
-    Usa nombres personalizados del curso si están configurados.
+    v1.9.8g: Facilitador(a) + Asistente Darío.
 
     Returns:
-        tuple: (msg_tutor: str, msg_asistente: str)
+        tuple: (msg_facilitador: str, msg_asistente: str)
     """
-    msg_tutor = (
-        f"🤓 *¡Hola {estudiante_nombre}! Soy {nombre_tutor}*\n\n"
-        f"Seré tu profesor a cargo en el curso *{curso_nombre}*. "
-        f"Yo te enseñaré cada módulo y te haré preguntas para asegurarme de que "
-        f"todo quede claro. ¡Vamos a aprender juntos! 💪"
+    msg_facilitador = (
+        f"🤓 *¡Hola {estudiante_nombre}! Soy la Facilitadora {nombre_tutor}*\n\n"
+        f"Seré su facilitadora a cargo en el curso *{curso_nombre}*. "
+        f"Le plantearé retos prácticos para que aplique lo aprendido. "
+        f"¡Vamos a aprender juntos! 💪"
     )
     
     msg_asistente = (
-        f"📚 *¡Y yo soy {nombre_asistente}, tu asistente!*\n\n"
-        f"Estaré pendiente de ti en todo este proceso. "
-        f"Si tienes dudas, si algo no te queda claro o necesitas que te explique algo de nuevo, "
-        f"yo estaré aquí para ayudarte. ¡Cuenta conmigo! 🤝"
+        f"📚 *¡Y yo soy {nombre_asistente}, tu compañero de estudio!*\n\n"
+        f"Estaré pendiente de ti en este proceso. "
+        f"Si tienes dudas antes de los retos, yo te ayudo a repasar. "
+        f"¡Cuenta conmigo! 🤝"
     )
     
-    return msg_tutor, msg_asistente
+    return msg_facilitador, msg_asistente
 
 
 # =====================================================
 # PREGUNTA DE RECUPERACIÓN — Curso completado con <70 pts
 # =====================================================
-PROMPT_PREGUNTA_RECUPERACION = """Eres el Profesor Gerónimo de eki. El estudiante completó todo el curso pero obtuvo menos de 70 puntos.
+PROMPT_PREGUNTA_RECUPERACION = """Eres la Facilitadora Claudia de eki. El participante completó todo el curso pero obtuvo menos de 70 puntos.
 Tu tarea: generar UNA pregunta de recuperación que integre lo aprendido en todos los módulos del curso.
 
 REGLAS:
-1. La pregunta debe ser práctica, con un ejemplo de la vida real.
+1. TRATO DE USTED siempre.
+2. La pregunta debe ser práctica, con un ejemplo de la vida real.
 2. Debe integrar conceptos de AL MENOS 2 módulos diferentes.
 3. MÁXIMO 80 PALABRAS en la pregunta.
 4. Lenguaje sencillo, pensando en campesinos y emprendedores rurales.
