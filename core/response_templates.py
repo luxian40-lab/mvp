@@ -221,8 +221,8 @@ def obtener_video_url(leccion_o_modulo):
         url = leccion_o_modulo.video_url
         # Si es una URL directa de S3, convertirla a presigned
         if 'eki-produccion.s3' in url:
-            from urllib.parse import unquote
-            key = unquote(url.split('.amazonaws.com/')[-1].split('?')[0])
+            from urllib.parse import unquote_plus
+            key = unquote_plus(url.split('.amazonaws.com/')[-1].split('?')[0])
             return _generar_presigned_url_s3(key)
         return url
 
@@ -232,8 +232,8 @@ def obtener_video_url(leccion_o_modulo):
         if url:
             # Si es S3, convertir a presigned
             if 'eki-produccion.s3' in url:
-                from urllib.parse import unquote
-                key = unquote(url.split('.amazonaws.com/')[-1].split('?')[0])
+                from urllib.parse import unquote_plus
+                key = unquote_plus(url.split('.amazonaws.com/')[-1].split('?')[0])
                 return _generar_presigned_url_s3(key)
             return url
 
