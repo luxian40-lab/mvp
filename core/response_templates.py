@@ -758,10 +758,10 @@ Te inscribiste en: *{curso.nombre}*
             partes_insc = [msg_intro, mensaje_modulo]
             hay_media_insc = False
             if primera_media_url_1:
-                partes_insc.append(f"\U0001f4f9 Video del módulo\n\n[MEDIA:{primera_media_url_1}]")
+                partes_insc.append(f"[MEDIA:{primera_media_url_1}]")
                 hay_media_insc = True
             for extra_url_1, extra_titulo_1, extra_icono_1 in extra_media_urls_1:
-                partes_insc.append(f"\U0001f4f9 Video del m\u00f3dulo\n\n[MEDIA:{extra_url_1}]")
+                partes_insc.append(f"[MEDIA:{extra_url_1}]")
                 hay_media_insc = True
             if hay_media_insc:
                 # [DELAY:5] para que WhatsApp entregue videos antes de texto
@@ -1070,10 +1070,10 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 # Videos/media como mensajes separados DESPUÉS del texto
                 hay_media = False
                 if primera_media_url:
-                    partes.append(f"\U0001f4f9 Video del módulo\n\n[MEDIA:{primera_media_url}]")
+                    partes.append(f"[MEDIA:{primera_media_url}]")
                     hay_media = True
                 for extra_url, extra_titulo, extra_icono in extra_media_urls:
-                    partes.append(f"\U0001f4f9 Video del m\u00f3dulo\n\n[MEDIA:{extra_url}]")
+                    partes.append(f"[MEDIA:{extra_url}]")
                     hay_media = True
                 # [DELAY:5] después de videos para que WhatsApp los entregue antes del texto siguiente
                 hay_texto_post = tutor_msg or maria_msg
@@ -1296,10 +1296,10 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             partes_c = [respuesta]
             hay_media_c = False
             if primera_media_url_c:
-                partes_c.append(f"\U0001f4f9 Video del módulo\n\n[MEDIA:{primera_media_url_c}]")
+                partes_c.append(f"[MEDIA:{primera_media_url_c}]")
                 hay_media_c = True
             for extra_url_c, extra_titulo_c, extra_icono_c in extra_media_urls_c:
-                partes_c.append(f"\U0001f4f9 Video del m\u00f3dulo\n\n[MEDIA:{extra_url_c}]")
+                partes_c.append(f"[MEDIA:{extra_url_c}]")
                 hay_media_c = True
             if not es_ultimo_modulo_c:
                 if hay_media_c:

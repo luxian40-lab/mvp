@@ -1543,10 +1543,10 @@ def _procesar_twilio_webhook(post_data):
                             # Video principal como mensaje separado después del texto
                             hay_media_conf = False
                             if primera_media_url:
-                                texto_respuesta += f"[SEP]📹 Video del módulo\n\n[MEDIA:{primera_media_url}]"
+                                texto_respuesta += f"[SEP][MEDIA:{primera_media_url}]"
                                 hay_media_conf = True
                             for extra_url, extra_titulo, extra_icono in extra_media_urls:
-                                texto_respuesta += f"[SEP]\U0001f4f9 Video del m\u00f3dulo\n\n[MEDIA:{extra_url}]"
+                                texto_respuesta += f"[SEP][MEDIA:{extra_url}]"
                                 hay_media_conf = True
                             # "Escribe listo" AL FINAL — solo si hay más módulos
                             hay_mas_modulos = curso.modulos.filter(numero__gt=modulo.numero).exists()
@@ -1868,9 +1868,9 @@ def _procesar_twilio_webhook(post_data):
                         )
                         partes_cursos = [msg_texto]
                         if primera_media_url:
-                            partes_cursos.append(f"📹 Video del módulo\n\n[MEDIA:{primera_media_url}]")
+                            partes_cursos.append(f"[MEDIA:{primera_media_url}]")
                         for extra_url, extra_titulo, extra_icono in extra_media_urls:
-                            partes_cursos.append(f"\U0001f4f9 Video del m\u00f3dulo\n\n[MEDIA:{extra_url}]")
+                            partes_cursos.append(f"[MEDIA:{extra_url}]")
                         if len(partes_cursos) > 1:
                             texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_cursos)
                         else:
@@ -2016,9 +2016,9 @@ def _procesar_twilio_webhook(post_data):
                         )
                         partes_menu = [msg_texto_menu]
                         if primera_media_url:
-                            partes_menu.append(f"📹 Video del módulo\n\n[MEDIA:{primera_media_url}]")
+                            partes_menu.append(f"[MEDIA:{primera_media_url}]")
                         for extra_url, extra_titulo, extra_icono in extra_media_urls:
-                            partes_menu.append(f"\U0001f4f9 Video del m\u00f3dulo\n\n[MEDIA:{extra_url}]")
+                            partes_menu.append(f"[MEDIA:{extra_url}]")
                         if len(partes_menu) > 1:
                             texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_menu)
                         else:
@@ -2459,10 +2459,10 @@ Progreso del curso: {porcentaje}%
                                     # Videos como mensajes separados DESPUÉS del texto
                                     hay_media_exam = False
                                     if primera_media_url:
-                                        partes.append(f"\U0001f4f9 Video del módulo\n\n[MEDIA:{primera_media_url}]")
+                                        partes.append(f"[MEDIA:{primera_media_url}]")
                                         hay_media_exam = True
                                     for extra_url, extra_titulo, extra_icono in extra_media_urls:
-                                        partes.append(f"\U0001f4f9 Video del m\u00f3dulo\n\n[MEDIA:{extra_url}]")
+                                        partes.append(f"[MEDIA:{extra_url}]")
                                         hay_media_exam = True
                                     # [DELAY:5] después de videos para que WhatsApp los entregue antes del texto
                                     hay_texto_post_exam = tutor_msg or maria_msg

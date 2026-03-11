@@ -65,6 +65,7 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 <li><a href="#celery">Procesamiento asincrono (Celery)</a></li>
 <li><a href="#archivos-clave">Archivos clave del codigo</a></li>
 <li><a href="#faq">Preguntas frecuentes</a></li>
+<li><a href="#costos">💰 Costos operativos del programa</a></li>
 </ol>
 </div>
 
@@ -776,8 +777,76 @@ table.ref-table tr:hover td { background: #f8f9fa; }
 <li>Revisar logs del servidor en AWS EB: <span class="code-ref">eb logs</span></li>
 </ol>
 
+<!-- 20. Costos del Programa -->
+<h2 id="costos">20. Costos Operativos del Programa</h2>
+<p>Desglose de costos por servicio utilizado en la plataforma eki. Precios en USD, actualizados a marzo 2026.</p>
+
+<h3>💬 Twilio (WhatsApp Business API)</h3>
+<table class="ref-table">
+<thead><tr><th>Concepto</th><th>Costo por unidad</th><th>Notas</th></tr></thead>
+<tbody>
+<tr><td>Mensaje de template (HSM) saliente</td><td>~$0.0042 USD</td><td>Campanas, seguimientos, notificaciones. Precio para Colombia.</td></tr>
+<tr><td>Mensaje de sesion (24h) saliente</td><td>~$0.0042 USD</td><td>Respuestas dentro de la ventana de 24h tras mensaje del estudiante.</td></tr>
+<tr><td>Mensaje entrante (del estudiante)</td><td>$0.00 USD</td><td>Twilio no cobra por mensajes entrantes de WhatsApp.</td></tr>
+<tr><td>Numero de WhatsApp</td><td>$1.00 USD/mes</td><td>Numero dedicado de Twilio para WhatsApp.</td></tr>
+<tr><td>Envio de media (imagen/video/PDF)</td><td>Incluido en mensaje</td><td>No hay cargo extra por adjuntar archivos al mensaje.</td></tr>
+</tbody>
+</table>
+<div class="callout info">
+<b>Ejemplo:</b> Un curso con 10 modulos, 2 interacciones IA, 1 certificado = ~25 mensajes por estudiante = ~$0.105 USD por estudiante completo (~$420 COP).
+</div>
+
+<h3>🤖 OpenAI (Inteligencia Artificial)</h3>
+<table class="ref-table">
+<thead><tr><th>Modelo</th><th>Input (por 1M tokens)</th><th>Output (por 1M tokens)</th><th>Uso en eki</th></tr></thead>
+<tbody>
+<tr><td>gpt-4o-mini</td><td>$0.15 USD</td><td>$0.60 USD</td><td>Tutor Geronimo, Maria, evaluador, recuperacion</td></tr>
+<tr><td>gpt-4o (fallback)</td><td>$2.50 USD</td><td>$10.00 USD</td><td>Solo si se configura manualmente. No recomendado.</td></tr>
+</tbody>
+</table>
+<div class="callout info">
+<b>Ejemplo:</b> Cada interaccion IA (pregunta+respuesta) usa ~500 tokens input + ~120 tokens output = ~$0.000147 USD por interaccion. Un curso completo con 5 interacciones IA = ~$0.00074 USD por estudiante (~$3 COP).
+</div>
+
+<h3>☁️ AWS (Infraestructura)</h3>
+<table class="ref-table">
+<thead><tr><th>Servicio</th><th>Costo mensual estimado</th><th>Detalle</th></tr></thead>
+<tbody>
+<tr><td>Elastic Beanstalk (t3.small)</td><td>~$15-20 USD</td><td>Servidor de la aplicacion. Incluye EC2 + load balancer.</td></tr>
+<tr><td>RDS PostgreSQL (db.t3.micro)</td><td>~$15-18 USD</td><td>Base de datos. Free tier el primer ano.</td></tr>
+<tr><td>S3 (almacenamiento)</td><td>~$1-5 USD</td><td>Videos, imagenes, PDFs, certificados. Depende del volumen.</td></tr>
+<tr><td>Transferencia de datos</td><td>~$1-3 USD</td><td>Descarga de archivos S3 (presigned URLs para Twilio).</td></tr>
+</tbody>
+</table>
+
+<h3>📊 Resumen de Costos por Estudiante</h3>
+<table class="ref-table">
+<thead><tr><th>Concepto</th><th>Costo estimado</th><th>En COP (~$4,000/USD)</th></tr></thead>
+<tbody>
+<tr><td>Mensajes Twilio (curso completo)</td><td>~$0.105 USD</td><td>~$420 COP</td></tr>
+<tr><td>IA (interacciones tutor+Maria)</td><td>~$0.001 USD</td><td>~$4 COP</td></tr>
+<tr><td>Almacenamiento S3 (prorrateado)</td><td>~$0.001 USD</td><td>~$4 COP</td></tr>
+<tr><td><b>TOTAL por estudiante</b></td><td><b>~$0.107 USD</b></td><td><b>~$428 COP</b></td></tr>
+</tbody>
+</table>
+
+<h3>💰 Costos Fijos Mensuales (infraestructura)</h3>
+<table class="ref-table">
+<thead><tr><th>Servicio</th><th>Costo mensual</th></tr></thead>
+<tbody>
+<tr><td>AWS (servidor + BD + S3)</td><td>~$35-45 USD</td></tr>
+<tr><td>Twilio (numero WhatsApp)</td><td>~$1 USD</td></tr>
+<tr><td>Dominio (opcional)</td><td>~$1 USD</td></tr>
+<tr><td><b>TOTAL fijo mensual</b></td><td><b>~$37-47 USD</b></td></tr>
+</tbody>
+</table>
+
+<div class="callout">
+<b>Conclusion:</b> El costo variable por estudiante es extremadamente bajo (~$0.10 USD). El grueso del gasto es la infraestructura fija (~$40 USD/mes) que se diluye con mas estudiantes. Con 100 estudiantes/mes el costo total es ~$50 USD = $0.50 USD por estudiante.
+</div>
+
 <hr>
-<p style="font-size:0.85rem;color:#888;margin-top:30px;">Documentacion Eki v2.1 - Actualizada Junio 2025. Multimedia embebida en mensaje de modulo (video/imagen anclada al contenido = 1 solo mensaje Twilio, reduccion de costos). Correccion error 63019 certificados (URL S3 sin /media/). RAG multi-tenant, Celery async, correccion de datos, PQRS unificado, edad/genero en onboarding, exportacion de metricas. Para dudas, contactar al equipo de desarrollo.</p>
+<p style="font-size:0.85rem;color:#888;margin-top:30px;">Documentacion Eki v2.2 - Actualizada Marzo 2026. Desglose de costos operativos. Multimedia sin caption en WhatsApp. Emojis en sidebar admin. Fix agentes IA sin preguntas de seguimiento. Fix 63019 caracteres especiales S3. Para dudas, contactar al equipo de desarrollo.</p>
 
 </div>
-{% endblock %}
+{% endblock %}

@@ -590,7 +590,7 @@ class ArchivoModulo(models.Model):
     
     class Meta:
         verbose_name = 'Archivo Multimedia'
-        verbose_name_plural = 'Archivos Multimedia'
+        verbose_name_plural = '📁 Archivos Multimedia'
         ordering = ['modulo', 'orden', 'id']
     
     def save(self, *args, **kwargs):
