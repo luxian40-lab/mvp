@@ -69,7 +69,7 @@ def _generar_completado_final(estudiante, curso_id):
             estudiante_nombre=estudiante.nombre or "Estudiante"
         )
         if resumen_maria:
-            msg_resumen = f"🕶️ *{nombre_asistente_fin} — Resumen del Curso*\n\n{resumen_maria}"
+            msg_resumen = f"� *{nombre_asistente_fin} — Resumen del Curso*\n\n{resumen_maria}"
     except Exception:
         pass
     
@@ -221,7 +221,8 @@ def obtener_video_url(leccion_o_modulo):
         url = leccion_o_modulo.video_url
         # Si es una URL directa de S3, convertirla a presigned
         if 'eki-produccion.s3' in url:
-            key = url.split('.amazonaws.com/')[-1].split('?')[0]
+            from urllib.parse import unquote
+            key = unquote(url.split('.amazonaws.com/')[-1].split('?')[0])
             return _generar_presigned_url_s3(key)
         return url
 
@@ -231,7 +232,8 @@ def obtener_video_url(leccion_o_modulo):
         if url:
             # Si es S3, convertir a presigned
             if 'eki-produccion.s3' in url:
-                key = url.split('.amazonaws.com/')[-1].split('?')[0]
+                from urllib.parse import unquote
+                key = unquote(url.split('.amazonaws.com/')[-1].split('?')[0])
                 return _generar_presigned_url_s3(key)
             return url
 
@@ -1039,7 +1041,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                             estudiante_nombre=estudiante.nombre or "Estudiante"
                         )
                         if revision:
-                            maria_msg = f"�️ *{nombre_asistente} — Tu Asistente*\n\n{revision}\n\n💬 _Escríbeme o envía un audio con tu respuesta. Si decides seguir con el módulo, en el audio o texto di *continuar*_"
+                            maria_msg = f"📚 *{nombre_asistente} — Tu Asistente*\n\n{revision}\n\n💬 _Escríbeme o envía un audio con tu respuesta. Si decides seguir con el módulo, en el audio o texto di *continuar*_"
                     except Exception as e:
                         import logging
                         logging.getLogger(__name__).warning(f"⚠️ {nombre_asistente} falló: {e}")
@@ -1203,7 +1205,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                         estudiante_nombre=estudiante.nombre or "Estudiante"
                     )
                     if resumen_maria:
-                        msg_resumen = f"�️ *{nombre_asistente_fin} — Resumen del Curso*\n\n{resumen_maria}"
+                        msg_resumen = f"📚 *{nombre_asistente_fin} — Resumen del Curso*\n\n{resumen_maria}"
                 except Exception as e:
                     import logging
                     logging.getLogger(__name__).warning(f"⚠️ {nombre_asistente_fin} resumen falló: {e}")

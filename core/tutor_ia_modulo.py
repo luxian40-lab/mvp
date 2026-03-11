@@ -482,7 +482,7 @@ def generar_presentacion_agentes(curso_nombre, estudiante_nombre="Estudiante", n
     )
     
     msg_asistente = (
-        f"�️ *¡Y yo soy {nombre_asistente}, tu asistente!*\n\n"
+        f"📚 *¡Y yo soy {nombre_asistente}, tu asistente!*\n\n"
         f"Estaré pendiente de ti en todo este proceso. "
         f"Si tienes dudas, si algo no te queda claro o necesitas que te explique algo de nuevo, "
         f"yo estaré aquí para ayudarte. ¡Cuenta conmigo! 🤝"

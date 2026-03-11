@@ -2417,7 +2417,7 @@ Progreso del curso: {porcentaje}%
                                                 estudiante_nombre=estudiante.nombre or "Estudiante"
                                             )
                                             if revision:
-                                                maria_msg = f"🕶️ *{nombre_asistente} — Tu Asistente*\n\n{revision}\n\n💬 _Escríbeme o envía un audio con tu respuesta. Si decides seguir con el módulo, en el audio o texto di *continuar*_"
+                                                maria_msg = f"� *{nombre_asistente} — Tu Asistente*\n\n{revision}\n\n💬 _Escríbeme o envía un audio con tu respuesta. Si decides seguir con el módulo, en el audio o texto di *continuar*_"
                                                 print(f"👩‍🏫 {nombre_asistente} activada después de módulo {modulo_actual.numero}", flush=True)
                                         except Exception as e:
                                             import logging
@@ -2557,7 +2557,7 @@ Has completado el curso: *{progreso.curso.nombre}*
                                                 estudiante_nombre=estudiante.nombre or "Estudiante"
                                             )
                                             if resumen_maria:
-                                                msg_resumen = f"🕶️ *{nombre_asistente_fin} — Resumen del Curso*\n\n{resumen_maria}"
+                                                msg_resumen = f"� *{nombre_asistente_fin} — Resumen del Curso*\n\n{resumen_maria}"
                                                 print(f"👩‍🏫 {nombre_asistente_fin} resumen del curso activada", flush=True)
                                         except Exception as e:
                                             import logging

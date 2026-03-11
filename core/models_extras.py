@@ -507,7 +507,8 @@ class ArchivoModulo(models.Model):
     def _generar_presigned_url(url, expires_in=3600):
         """Extrae la key de una URL de S3 y genera presigned URL."""
         try:
-            key = url.split('.amazonaws.com/')[-1].split('?')[0]
+            from urllib.parse import unquote
+            key = unquote(url.split('.amazonaws.com/')[-1].split('?')[0])
             return ArchivoModulo._generar_presigned_url_desde_key(key, expires_in)
         except Exception:
             return None
