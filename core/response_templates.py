@@ -762,8 +762,8 @@ Te inscribiste en: *{curso.nombre}*
                 partes_insc.append(f"\U0001f4f9 Video del m\u00f3dulo\n\n[MEDIA:{extra_url_1}]")
                 hay_media_insc = True
             if hay_media_insc:
-                # [DELAY:8] para que WhatsApp entregue videos antes de texto
-                partes_insc.append("[DELAY:8]")
+                # [DELAY:5] para que WhatsApp entregue videos antes de texto
+                partes_insc.append("[DELAY:5]")
             # Mensaje "listo" solo si hay más módulos después del primero
             hay_mas_modulos = curso.modulos.filter(numero__gt=primer_modulo.numero).exists()
             if hay_mas_modulos:
@@ -957,10 +957,12 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     racha_txt = f"\n🔥 Racha: módulo {perfil.racha_dias_actual}"
                 
                 # Mensaje 1: Completado + gamificación
+                from .gamificacion_actions import PUNTOS_CONFIG
+                _pts_modulo = PUNTOS_CONFIG.get('modulo_completado', 10)
                 msg_completado = f"""
 ✅ *Módulo {modulo_actual.numero} completado*
 
-💰 *+50 puntos*  →  Total: *{perfil.puntos_totales} pts*
+💰 *+{_pts_modulo} puntos*  →  Total: *{perfil.puntos_totales} pts*
 {nivel_emoji} Nivel {perfil.nivel}{racha_txt}
 {barra} {porcentaje}%"""
                 
@@ -1071,13 +1073,13 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 for extra_url, extra_titulo, extra_icono in extra_media_urls:
                     partes.append(f"\U0001f4f9 Video del m\u00f3dulo\n\n[MEDIA:{extra_url}]")
                     hay_media = True
-                # [DELAY:8] después de videos para que WhatsApp los entregue antes del texto siguiente
+                # [DELAY:5] después de videos para que WhatsApp los entregue antes del texto siguiente
                 hay_texto_post = tutor_msg or maria_msg
                 es_ultimo_modulo = not progreso.curso.modulos.filter(numero__gt=siguiente_modulo.numero).exists()
                 if not hay_texto_post and not es_ultimo_modulo:
                     hay_texto_post = True  # habrá "escribe listo"
                 if hay_media and hay_texto_post:
-                    partes.append("[DELAY:8]")
+                    partes.append("[DELAY:5]")
                 # Agentes van DESPUÉS de los videos
                 if tutor_msg:
                     partes.append(tutor_msg)
@@ -1130,9 +1132,11 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                             for letra, opcion in pregunta_data['opciones'].items():
                                 opciones_txt += f"\n*{letra})* {opcion}"
                             
+                            from .gamificacion_actions import PUNTOS_CONFIG
+                            _pts_recup = PUNTOS_CONFIG.get('pregunta_recuperacion', 15)
                             msg_recuperacion = (
                                 f"🎉 *¡Completaste todos los módulos del curso!*\n\n"
-                                f"Pero antes de tu certificado, tienes una oportunidad de ganar *+50 puntos extra* 🏆\n\n"
+                                f"Pero antes de tu certificado, tienes una oportunidad de ganar *+{_pts_recup} puntos extra* 🏆\n\n"
                                 f"🤓 *Pregunta de recuperación:*\n\n"
                                 f"{pregunta_data['pregunta']}\n"
                                 f"{opciones_txt}\n\n"
@@ -1154,12 +1158,16 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 barra = _barra_progreso(porcentaje)
                 nivel_emoji = ["🌱","🌿","🍃","🌾","🌳","🌲","🎋","🌺","💎","👑"][min(perfil.nivel-1,9)]
                 
+                from .gamificacion_actions import PUNTOS_CONFIG
+                _pts_mod_c = PUNTOS_CONFIG.get('modulo_completado', 10)
+                _pts_curso_c = PUNTOS_CONFIG.get('curso_completado', 15)
+                _pts_total_c = _pts_mod_c + _pts_curso_c
                 mensaje = f"""
 🎉 *¡CURSO COMPLETADO!*
 
 ✅ *Módulo {modulo_actual.numero} completado*
 
-💰 *+250 puntos* (50 módulo + 200 curso)
+💰 *+{_pts_total_c} puntos* ({_pts_mod_c} módulo + {_pts_curso_c} curso)
 → Total: *{perfil.puntos_totales} pts*
 {nivel_emoji} Nivel {perfil.nivel}
 {barra} {porcentaje}%"""
@@ -1293,7 +1301,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 hay_media_c = True
             if not es_ultimo_modulo_c:
                 if hay_media_c:
-                    partes_c.append("[DELAY:8]")
+                    partes_c.append("[DELAY:5]")
                 partes_c.append("Cuando termines de revisar el contenido, escribe *listo* para continuar con el siguiente modulo")
             
             if len(partes_c) > 1:

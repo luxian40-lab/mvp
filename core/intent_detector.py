@@ -97,12 +97,13 @@ def detect_intent(mensaje: str) -> str:
         return 'inscribir_curso'
     
     # Continuar con lección actual
-    # También incluye "listo" y "siguiente" para simplificar
+    # También incluye "listo", "si", "confirmar" y variantes para simplificar
     palabras_continuar = [
         'continuar', 'siguiente', 'proximo', 'próximo', 'seguir', 'listo', 'ok', 'dale', 'sigue', 'avanzar',
         'continuar curso', 'seguir curso', 'sigamos', 'seguimos', 'continuar con', 'seguir con',
         'volver al curso', 'retomar curso', 'retomar', 'donde quede', 'donde quedé', 'donde iba',
-        'mi curso', 'al curso', 'con el curso', 'mi lección', 'mi leccion'
+        'mi curso', 'al curso', 'con el curso', 'mi lección', 'mi leccion',
+        'si', 'sí', 'confirmar', 'confirmo', 'ya', 'claro', 'bueno', 'adelante', 'vamos', 'va',
     ]
     if any(palabra in texto_limpio for palabra in palabras_continuar):
         return 'continuar_leccion'

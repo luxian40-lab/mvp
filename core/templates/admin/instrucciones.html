@@ -5603,9 +5603,47 @@ https://tu-dominio.com/verificar-certificado/EKI-XXXX-YYYY-ZZZZ/
 
     
 
+    <div id="changelog-v198c" class="section" style="margin-top:30px;">
+        <h2 class="section-title">🔧 Correcciones — v1.9.8c (Marzo 2026)</h2>
+        <div class="subsection">
+            <h3>v1.9.8b → v1.9.8c — Correcciones Críticas de Producción</h3>
+            <table>
+                <tr><th>Área</th><th>Cambio</th><th>Detalle</th></tr>
+                <tr>
+                    <td>🎯 Detector de Intent</td>
+                    <td>Reconoce "sí", "confirmar", "ya", etc.</td>
+                    <td>
+                        Antes, mensajes como "sí", "confirmar", "ya", "claro", "bueno" no eran reconocidos como <strong>continuar_leccion</strong> y caían al asistente IA, generando respuestas fuera del flujo del módulo. <strong>Ahora:</strong> todos estos sinónimos avanzan correctamente el módulo.
+                    </td>
+                </tr>
+                <tr>
+                    <td>💬 Respuesta IA</td>
+                    <td>Sin texto "Opciones" ni "preguntas libres"</td>
+                    <td>
+                        Se eliminó el bloque "💬 Opciones: menú/continuar/ayuda" de las respuestas de IA y la línea "💡 Te quedan X preguntas libres". El sistema anti-abuso sigue activo pero de forma silenciosa.
+                    </td>
+                </tr>
+                <tr>
+                    <td>💰 Puntos</td>
+                    <td>Valores dinámicos en mensajes</td>
+                    <td>
+                        Los mensajes de gamificación ahora muestran los puntos reales de PUNTOS_CONFIG (10 módulo, 15 curso, 15 recuperación) en vez de valores hardcodeados de 50/250.
+                    </td>
+                </tr>
+                <tr>
+                    <td>⏱️ Tiempos de espera</td>
+                    <td>DELAY reducido de 8s a 5s</td>
+                    <td>
+                        La pausa entre envío de videos y el texto siguiente se redujo de 8 a 5 segundos, eliminando "tiempos muertos" percibidos.
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
         <p style="margin-top: 20px;">
 
-            <strong>Versi├│n:</strong> 1.9.8 Ô£¿ | 
+            <strong>Versión:</strong> 1.9.8c ✿ | 
 
             <strong>Fecha:</strong> Marzo 2026 | 
 

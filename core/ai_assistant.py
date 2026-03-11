@@ -182,10 +182,7 @@ def responder_con_openai(mensaje: str, telefono: str, contexto_estudiante: str =
         respuesta = response.choices[0].message.content.strip()
         logger.info(f"✅ OpenAI respondió con contexto: {respuesta[:50]}...")
         
-        # Agregar opciones de navegación
-        respuesta_con_opciones = f"{respuesta}\n\n---\n💬 *Opciones:*\n• Escribe *menú* para ver el menú principal\n• Escribe *continuar* para seguir con tu curso\n• Escribe *ayuda* para ver todos los comandos"
-        
-        return respuesta_con_opciones
+        return respuesta
         
     except Exception as e:
         logger.warning(f"⚠️ OpenAI falló: {str(e)}")
@@ -225,10 +222,7 @@ def responder_con_cohere(mensaje: str, telefono: str, contexto_estudiante: str =
         respuesta = response.text.strip()
         logger.info(f"✅ Cohere respondió con contexto: {respuesta[:50]}...")
         
-        # Agregar opciones de navegación
-        respuesta_con_opciones = f"{respuesta}\n\n---\n💬 *Opciones:*\n• Escribe *menú* para ver el menú principal\n• Escribe *continuar* para seguir con tu curso\n• Escribe *ayuda* para ver todos los comandos"
-        
-        return respuesta_con_opciones
+        return respuesta
         
     except Exception as e:
         logger.error(f"❌ Error en Cohere: {str(e)}", exc_info=True)

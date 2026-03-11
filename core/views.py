@@ -1552,7 +1552,7 @@ def _procesar_twilio_webhook(post_data):
                             hay_mas_modulos = curso.modulos.filter(numero__gt=modulo.numero).exists()
                             if hay_mas_modulos:
                                 if hay_media_conf:
-                                    texto_respuesta += "[SEP][DELAY:8]"
+                                    texto_respuesta += "[SEP][DELAY:5]"
                                 texto_respuesta += "[SEP]Cuando termines de revisar el contenido, escribe *listo* para continuar con el siguiente modulo"
                         else:
                             texto_respuesta = f"✅ *¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nEl curso aún no tiene módulos configurados. Te notificaremos cuando estén listos."
@@ -2464,13 +2464,13 @@ Progreso del curso: {porcentaje}%
                                     for extra_url, extra_titulo, extra_icono in extra_media_urls:
                                         partes.append(f"\U0001f4f9 Video del m\u00f3dulo\n\n[MEDIA:{extra_url}]")
                                         hay_media_exam = True
-                                    # [DELAY:8] después de videos para que WhatsApp los entregue antes del texto
+                                    # [DELAY:5] después de videos para que WhatsApp los entregue antes del texto
                                     hay_texto_post_exam = tutor_msg or maria_msg
                                     es_ultimo_modulo = not progreso.curso.modulos.filter(numero__gt=siguiente_modulo.numero).exists()
                                     if not hay_texto_post_exam and not es_ultimo_modulo:
                                         hay_texto_post_exam = True
                                     if hay_media_exam and hay_texto_post_exam:
-                                        partes.append("[DELAY:8]")
+                                        partes.append("[DELAY:5]")
                                     if tutor_msg:
                                         partes.append(tutor_msg)
                                     if maria_msg:
@@ -2705,14 +2705,9 @@ Has completado el curso: *{progreso.curso.nombre}*
                         try:
                             from .ai_assistant import responder_con_ia
                             texto_respuesta = responder_con_ia(msg_body, telefono_limpio)
-                            # Restar pregunta usada
+                            # Restar pregunta usada (anti-abuso silencioso)
                             estudiante.preguntas_ia_restantes = max(0, estudiante.preguntas_ia_restantes - 1)
                             estudiante.save()
-                            restantes = estudiante.preguntas_ia_restantes
-                            if restantes > 0:
-                                texto_respuesta += f"\n\n💡 _Te quedan {restantes} preguntas libres a la IA en este módulo._"
-                            else:
-                                texto_respuesta += "\n\n⚠️ _Esta fue tu última pregunta libre. Responde la evaluación del módulo para desbloquear más._"
                             print(f"✅ IA generó respuesta: {texto_respuesta[:50]}...")
                         except Exception as e:
                             print(f"❌ Error IA: {e}, usando respuesta genérica")
