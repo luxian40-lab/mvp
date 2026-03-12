@@ -1484,7 +1484,7 @@ def _procesar_twilio_webhook(post_data):
                                     "🎮 *Nuestra experiencia de formación funciona a través de puntos*\n\n"
                                     "A medida que avances en el curso, tendrás retos que evaluar.\n"
                                     "💰 *Puntos* que obtendrás al superar cada reto\n"
-                                    "🔥 *Rachas* por avanzar de forma consecutiva\n\n"
+                                    "\n"
                                     "¡Vamos a aprender y avanzar juntos! 💪"
                                 )
                             
@@ -1514,10 +1514,10 @@ def _procesar_twilio_webhook(post_data):
                             partes_intro = [
                                 f"✅ *¡Datos confirmados, {estudiante.nombre}!*\n\nBienvenido al programa de *{org_nombre}*"
                             ]
-                            if msg_gamificacion:
-                                partes_intro.append(msg_gamificacion)
                             partes_intro.append(msg_tutor)
                             partes_intro.append(msg_asistente)
+                            if msg_gamificacion:
+                                partes_intro.append(msg_gamificacion)
                             partes_intro.append("📚 *Comenzamos con el primer módulo de tu curso...* 👇")
                             msg_intro = "\n\n".join(partes_intro)
                             
@@ -1552,7 +1552,7 @@ def _procesar_twilio_webhook(post_data):
                             if hay_mas_modulos:
                                 if hay_media_conf:
                                     texto_respuesta += "[SEP][DELAY:5]"
-                                texto_respuesta += "[SEP]Cuando termines de revisar el contenido, escribe *listo* para continuar con el siguiente modulo"
+                                texto_respuesta += "[SEP]Cuando termines de revisar el contenido, escribe *listo*. Dame unos segundos después de tu mensaje para preparar el siguiente módulo y enviártelo."
                         else:
                             texto_respuesta = f"✅ *¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nEl curso aún no tiene módulos configurados. Te notificaremos cuando estén listos."
                     else:
@@ -2158,7 +2158,7 @@ def _procesar_twilio_webhook(post_data):
                         estudiante.save()
                         
                         texto_respuesta = (
-                            f"📋 *Facilitadora {nombre_tutor} — Reto*\n\n"
+                            f"📋 *{nombre_tutor}*\n\n"
                             f"{reto}\n\n"
                             f"✍️ _Escriba o envíe un audio con su respuesta al reto._"
                         )
@@ -2187,7 +2187,7 @@ def _procesar_twilio_webhook(post_data):
                     if preguntas_hechas >= 2:
                         texto_respuesta = (
                             f"💬 *Darío*\n\n{respuesta_dario}\n\n"
-                            f"Ya respondí tus 2 preguntas. Ahora la Facilitadora te tiene un reto. "
+                            f"Ya respondí tus 2 preguntas. Ahora Claudia te tiene un reto. "
                             f"Escribe *listo* cuando estés preparado."
                         )
                     else:
@@ -2246,14 +2246,10 @@ def _procesar_twilio_webhook(post_data):
                     porcentaje = progreso.porcentaje_avance() if progreso else 0
                     from .response_templates import _barra_progreso
                     barra = _barra_progreso(porcentaje)
-                    racha_txt = ""
-                    if hasattr(perfil, 'racha_dias_actual') and perfil.racha_dias_actual > 0:
-                        racha_txt = f"\n🔥 Racha: {perfil.racha_dias_actual}"
-                    
                     msg_eval = (
-                        f"📋 *Facilitadora {nombre_tutor} — Evaluación*\n\n"
+                        f"📋 *{nombre_tutor}*\n\n"
                         f"{feedback}\n\n"
-                        f"💰 *+{puntos_reto} puntos* → Total: *{perfil.puntos_totales} pts*{racha_txt}\n"
+                        f"💰 *+{puntos_reto} puntos* → Total: *{perfil.puntos_totales} pts*\n"
                         f"{barra} {porcentaje}%"
                     )
                     
@@ -2593,11 +2589,11 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                             modulos_reto_range = f"los módulos 4 a {modulo_actual.numero}"
                                         
                                         dario_msg = (
-                                            f"💬 *{nombre_asistente} — Tu compañero de estudio*\n\n"
+                                            f"💬 *{nombre_asistente}*\n\n"
                                             f"¡Hola! Es hora de una pausa para repasar conceptos. "
-                                            f"La Facilitadora {nombre_tutor} te va a recibir con un reto sobre {modulos_reto_range}.\n\n"
+                                            f"{nombre_tutor} te va a recibir con un reto sobre {modulos_reto_range}.\n\n"
                                             f"Te puedo ayudar a resolver un par de preguntas antes. "
-                                            f"¿Tienes alguna pregunta sobre lo que hemos visto? Dímela en un audio o escríbela. Si no, escribe *listo*."
+                                            f"¿Tienes alguna pregunta sobre lo que hemos visto? Envíame un audio o escríbeme; si no tienes preguntas, escribe *listo*."
                                         )
                                         
                                         from .models import Modulo as ModuloReto
@@ -2637,11 +2633,9 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                         for extra_url, extra_titulo, extra_icono in extra_media_urls:
                                             partes.append(f"[MEDIA:{extra_url}]")
                                             hay_media_exam = True
-                                        es_ultimo_modulo = not progreso.curso.modulos.filter(numero__gt=siguiente_modulo.numero).exists()
-                                        if hay_media_exam and not es_ultimo_modulo:
+                                        if hay_media_exam:
                                             partes.append("[DELAY:5]")
-                                        if not es_ultimo_modulo:
-                                            partes.append("Cuando termines de revisar el contenido, escribe *listo* para continuar con el siguiente modulo")
+                                        partes.append("Cuando termines de revisar el contenido, escribe *listo*. Dame unos segundos después de tu mensaje para preparar el siguiente módulo y enviártelo.")
                                         texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
                             
                                 else:
@@ -2657,7 +2651,9 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                             from .tutor_ia_modulo import generar_reto_facilitador
                                             nombre_tutor_final = progreso.curso.nombre_agente_tutor or 'Claudia'
                                             nombre_asist_final = progreso.curso.nombre_agente_asistente or 'Darío'
-                                            modulos_all = list(progreso.curso.modulos.all().order_by('numero'))
+                                            modulos_all = list(progreso.curso.modulos.filter(numero__gte=4).order_by('numero'))
+                                            if not modulos_all:
+                                                modulos_all = list(progreso.curso.modulos.all().order_by('numero'))
                                             
                                             reto_texto = generar_reto_facilitador(
                                                 modulos_all,
@@ -2837,7 +2833,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                             "[MULTI_MSG]⚠️ *Has agotado tus preguntas libres a la IA para este modulo.*\n\n"
                             "Para desbloquear mas preguntas, necesitas responder "
                             "la pregunta de evaluacion del modulo actual."
-                            "[SEP]Escribe *listo* para continuar con el siguiente modulo"
+                            "[SEP]Cuando termines de revisar el contenido, escribe *listo*. Dame unos segundos después de tu mensaje para preparar el siguiente módulo y enviártelo."
                         )
                     else:
                         try:

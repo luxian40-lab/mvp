@@ -131,12 +131,28 @@ def enviar_whatsapp_twilio_content_template(telefono: str, content_sid: str, var
         
         # Enviar con Content Template (content_variables DEBE ser JSON string)
         import json
-        message = client.messages.create(
-            from_=twilio_number,
-            content_sid=content_sid,
-            content_variables=json.dumps(variables),
-            to=telefono
-        )
+        msg_params = {
+            'from_': twilio_number,
+            'content_sid': content_sid,
+            'to': telefono,
+        }
+        if variables:
+            msg_params['content_variables'] = json.dumps(variables)
+
+        try:
+            message = client.messages.create(**msg_params)
+        except Exception as send_err:
+            err_txt = str(send_err)
+            # Fallback para templates sin placeholders.
+            if variables and 'Content Variables parameter is invalid' in err_txt:
+                logger.warning(
+                    f"Template {content_sid} rechazó variables; reintentando sin content_variables. "
+                    f"Destino: {telefono}"
+                )
+                msg_params.pop('content_variables', None)
+                message = client.messages.create(**msg_params)
+            else:
+                raise
         logger.info(f"Template enviado FROM: '{twilio_number}' TO: '{telefono}'")
         
         # Actualizar log con éxito

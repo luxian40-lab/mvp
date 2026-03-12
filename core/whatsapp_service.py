@@ -68,8 +68,21 @@ def enviar_template_twilio(telefono, content_sid, variables=None):
         
         if variables:
             msg_params['content_variables'] = json.dumps(variables)
-        
-        message = client.messages.create(**msg_params)
+
+        try:
+            message = client.messages.create(**msg_params)
+        except Exception as send_err:
+            err_txt = str(send_err)
+            # Algunos templates no esperan variables y Twilio rechaza content_variables.
+            if variables and 'Content Variables parameter is invalid' in err_txt:
+                logger.warning(
+                    f"Template {content_sid} rechazó variables; reintentando sin content_variables. "
+                    f"Destino: {destino}"
+                )
+                msg_params.pop('content_variables', None)
+                message = client.messages.create(**msg_params)
+            else:
+                raise
         
         # Log
         WhatsappLog.objects.create(
@@ -245,8 +258,7 @@ def enviar_gamificacion_visual(telefono, estudiante):
         f"\n\n"
         f"🏆 *Nivel:* {nombre_nivel}\n"
         f"⭐ *Puntos:* {perfil.puntos_totales} pts\n"
-        f"🎯 *Avance:* {barra} {perfil.porcentaje_nivel()}%\n"
-        f"🔥 *Racha:* módulo {perfil.racha_dias_actual}\n\n"
+        f"🎯 *Avance:* {barra} {perfil.porcentaje_nivel()}%\n\n"
     )
     
     if perfil.puntos_para_siguiente_nivel() > 0:

@@ -295,11 +295,6 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
         nivel_emoji = ["🌱", "🌿", "🍃", "🌾", "🌳", "🌲", "🎋", "🌺", "💎", "👑"][nivel_index]
         respuesta += f"🎮 {nivel_emoji} Nivel {perfil.nivel} | ⭐ {perfil.puntos_totales} puntos"
         
-        # Mostrar racha si está activa
-        if perfil.racha_dias_actual > 0:
-            fuego = "🔥" * min(perfil.racha_dias_actual, 5)
-            respuesta += f" | {fuego} Racha: módulo {perfil.racha_dias_actual}"
-        
         respuesta += "\n"
         
         # Barra de progreso del nivel
@@ -410,9 +405,6 @@ También puedes:
         # Top 5 por puntos
         top_puntos = PerfilGamificacion.objects.select_related('estudiante').order_by('-puntos_totales')[:5]
         
-        # Top 5 por racha actual
-        top_racha = PerfilGamificacion.objects.select_related('estudiante').filter(racha_dias_actual__gt=0).order_by('-racha_dias_actual')[:5]
-        
         # Estadísticas del estudiante actual
         estudiante_id = kwargs.get('estudiante_id')
         mi_perfil = None
@@ -437,20 +429,9 @@ También puedes:
             respuesta += f"{medalla} {perfil.estudiante.nombre}\n"
             respuesta += f"   {nivel_emoji} Nivel {perfil.nivel} | ⭐ {perfil.puntos_totales} pts\n"
         
-        if top_racha.exists():
-            respuesta += "\n🔥 TOP 5 POR RACHA:\n"
-            for idx, perfil in enumerate(top_racha, 1):
-                fuego = "🔥" * min(perfil.racha_dias_actual, 3)
-                respuesta += f"{idx}. {perfil.estudiante.nombre}\n"
-                respuesta += f"   {fuego} Racha: módulo {perfil.racha_dias_actual}\n"
-        
         if mi_perfil:
             respuesta += f"📍 TU POSICIÓN: #{mi_posicion}\n"
             respuesta += f"⭐ {mi_perfil.puntos_totales} puntos | Nivel {mi_perfil.nivel}\n"
-            
-            if mi_perfil.racha_dias_actual > 0:
-                fuego = "🔥" * min(mi_perfil.racha_dias_actual, 3)
-                respuesta += f"{fuego} Racha: módulo {mi_perfil.racha_dias_actual}\n"
         
         respuesta += "\n✨ Completa cursos y módulos para subir en el ranking!"
         
@@ -513,7 +494,6 @@ Escribe *"menú"* para volver al inicio."""
 ⭐ Ganas puntos al completar módulos
 🏆 Desbloqueas badges por logros
 📈 Subes de nivel
-🔥 Mantén tu racha por módulos
 
 💬 PREGUNTAS:
 También puedes preguntarme sobre café:
@@ -706,20 +686,18 @@ Te inscribiste en: *{curso.nombre}*
             msg_gamificacion = ""
             if usar_gamificacion:
                 msg_gamificacion = (
-                    "🎮 *Nuestro sistema funciona como un video juego*\n\n"
-                    "A medida que completes los módulos, ganarás:\n"
-                    "💰 *Puntos* por cada módulo completado\n"
-                    "🏅 *Niveles* que subirás automáticamente\n"
-                    "🔥 *Rachas* por módulos consecutivos\n\n"
+                    "🎮 *Nuestra experiencia de formación funciona a través de puntos*\n\n"
+                    "A medida que avances en el curso, tendrás retos que evaluar.\n"
+                    "💰 *Puntos* que obtendrás al superar cada reto\n\n"
                     "¡Vamos a aprender y avanzar juntos! 💪"
                 )
             
             # Construir intro: inscripción + gamificación + agentes + "Comenzamos..."
             partes_intro = [mensaje_1]
-            if msg_gamificacion:
-                partes_intro.append(msg_gamificacion)
             partes_intro.append(msg_geronimo)
             partes_intro.append(msg_maria)
+            if msg_gamificacion:
+                partes_intro.append(msg_gamificacion)
             partes_intro.append("📚 *Comenzamos con el primer módulo de tu curso...* 👇")
             msg_intro = "\n\n".join(partes_intro)
             
@@ -737,7 +715,7 @@ Te inscribiste en: *{curso.nombre}*
             # Mensaje "listo" solo si hay más módulos después del primero
             hay_mas_modulos = curso.modulos.filter(numero__gt=primer_modulo.numero).exists()
             if hay_mas_modulos:
-                partes_insc.append("Cuando termines de revisar el contenido, escribe *listo* para continuar con el siguiente modulo")
+                partes_insc.append("Cuando termines de revisar el contenido, escribe *listo*. Dame unos segundos después de tu mensaje para preparar el siguiente módulo y enviártelo.")
             
             return "[MULTI_MSG]" + "[SEP]".join(partes_insc)
         else:
@@ -974,11 +952,11 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                         modulos_reto_range = f"los módulos 4 a {modulo_actual.numero}"
                     
                     dario_msg = (
-                        f"💬 *{nombre_asistente} — Tu compañero de estudio*\n\n"
+                        f"💬 *{nombre_asistente}*\n\n"
                         f"¡Hola! Es hora de una pausa para repasar conceptos. "
-                        f"La Facilitadora {nombre_tutor} te va a recibir con un reto sobre {modulos_reto_range}.\n\n"
+                        f"{nombre_tutor} te va a recibir con un reto sobre {modulos_reto_range}.\n\n"
                         f"Te puedo ayudar a resolver un par de preguntas antes. "
-                        f"¿Tienes alguna pregunta sobre lo que hemos visto? Dímela en un audio o escríbela. Si no, escribe *listo*."
+                        f"¿Tienes alguna pregunta sobre lo que hemos visto? Envíame un audio o escríbeme; si no tienes preguntas, escribe *listo*."
                     )
                     
                     from .models import Modulo
@@ -1011,10 +989,9 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 for extra_url, extra_titulo, extra_icono in extra_media_urls:
                     partes.append(f"[MEDIA:{extra_url}]")
                     hay_media = True
-                es_ultimo_modulo = not progreso.curso.modulos.filter(numero__gt=siguiente_modulo.numero).exists()
                 if hay_media:
                     partes.append("[DELAY:5]")
-                partes.append("Cuando termines de revisar el contenido, escribe *listo* para continuar con el siguiente modulo")
+                partes.append("Cuando termines de revisar el contenido, escribe *listo*. Dame unos segundos después de tu mensaje para preparar el siguiente módulo y enviártelo.")
                 return "[MULTI_MSG]" + "[SEP]".join(partes)
             
             else:
@@ -1041,34 +1018,40 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                             progreso.curso.nombre_agente_asistente or 'Darío'
                         )
                         
-                        modulos_all = list(progreso.curso.modulos.all().order_by('numero'))
+                        modulos_final = list(progreso.curso.modulos.filter(numero__gte=4).order_by('numero'))
+                        if not modulos_final:
+                            modulos_final = list(progreso.curso.modulos.all().order_by('numero'))
+                        if modulos_final:
+                            modulo_inicio = modulos_final[0].numero
+                            modulo_fin = modulos_final[-1].numero
+                            if modulo_inicio == modulo_fin:
+                                modulos_final_range = f"el módulo {modulo_inicio}"
+                            else:
+                                modulos_final_range = f"los módulos {modulo_inicio} a {modulo_fin}"
+                        else:
+                            modulos_final_range = "los módulos finales"
                         
                         dario_final = (
-                            f"💬 *{nombre_asistente} — Tu compañero de estudio*\n\n"
+                            f"💬 *{nombre_asistente}*\n\n"
                             f"¡Felicitaciones! Terminaste todos los módulos. "
-                            f"Antes de recibir tu certificado, la Facilitadora {nombre_tutor} tiene un reto final para ti.\n\n"
-                            f"¿Tienes alguna pregunta sobre lo que vimos en el curso? Dímela en un audio o escríbela. Si no, escribe *listo*."
+                            f"Antes de recibir tu certificado, {nombre_tutor} tiene un reto final para ti sobre {modulos_final_range}.\n\n"
+                            f"¿Tienes alguna pregunta sobre lo que vimos en esta parte del curso? Envíame un audio o escríbeme; si no tienes preguntas, escribe *listo*."
                         )
                         
                         _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
                         estudiante.contexto_temporal = {
                             'tipo': 'asistente_dario',
-                            'modulo_id': modulos_all[-1].id if modulos_all else None,
+                            'modulo_id': modulos_final[-1].id if modulos_final else None,
                             'progreso_id': progreso.id,
-                            'modulos_reto_ids': [m.id for m in modulos_all],
+                            'modulos_reto_ids': [m.id for m in modulos_final],
                             'preguntas_hechas': 0,
                             'es_reto_final': True,
                             '_ts_leccion': _prev_ts,
                         }
                         estudiante.estado_onboarding = 'esperando_respuesta_asistente'
                         estudiante.save()
-                        
-                        msg_completado_final = (
-                            f"🎉 *¡Ha completado todos los módulos del curso!*\n\n"
-                            f"📊 Puntos acumulados: *{perfil.puntos_totales} pts*"
-                        )
-                        
-                        return "[MULTI_MSG]" + "[SEP]".join([msg_completado_final, dario_final])
+
+                        return dario_final
                     except Exception as e:
                         import logging
                         logging.getLogger(__name__).warning(f"⚠️ Reto final falló: {e}, generando certificado directo")
@@ -1161,8 +1144,6 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             # NO embeber video en respuesta — enviar como parte separada DESPUÉS del texto
             
             # "Escribe listo" solo si NO es el último módulo
-            es_ultimo_modulo_c = not progreso.curso.modulos.filter(numero__gt=modulo_actual.numero).exists()
-            
             # Siempre usar multi-mensaje para garantizar orden: texto → video(s) → "escribe listo"
             partes_c = [respuesta]
             hay_media_c = False
@@ -1172,10 +1153,9 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             for extra_url_c, extra_titulo_c, extra_icono_c in extra_media_urls_c:
                 partes_c.append(f"[MEDIA:{extra_url_c}]")
                 hay_media_c = True
-            if not es_ultimo_modulo_c:
-                if hay_media_c:
-                    partes_c.append("[DELAY:5]")
-                partes_c.append("Cuando termines de revisar el contenido, escribe *listo* para continuar con el siguiente modulo")
+            if hay_media_c:
+                partes_c.append("[DELAY:5]")
+            partes_c.append("Cuando termines de revisar el contenido, escribe *listo*. Dame unos segundos después de tu mensaje para preparar el siguiente módulo y enviártelo.")
             
             if len(partes_c) > 1:
                 return "[MULTI_MSG]" + "[SEP]".join(partes_c)

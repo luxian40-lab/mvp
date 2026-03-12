@@ -18,7 +18,15 @@ def ejecutar_campana_servicio(campana):
         logger.info(f"Campana grupal: {campana.grupo.nombre} ({destinatarios.count()} estudiantes)")
     else:
         destinatarios = campana.destinatarios.filter(activo=True)
-        logger.info(f"Campana individual: {destinatarios.count()} destinatarios")
+        # Si no hay destinatarios manuales, usar todos los estudiantes activos del cliente.
+        if not destinatarios.exists() and getattr(campana, 'cliente', None):
+            destinatarios = campana.cliente.estudiantes.filter(activo=True)
+            logger.info(
+                f"Campana individual sin selección manual: usando cliente {campana.cliente} "
+                f"({destinatarios.count()} estudiantes activos)"
+            )
+        else:
+            logger.info(f"Campana individual: {destinatarios.count()} destinatarios")
     
     # Determinar modo de envío
     usa_template_twilio = bool(campana.template_twilio_id)

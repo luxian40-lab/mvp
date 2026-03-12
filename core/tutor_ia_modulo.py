@@ -21,11 +21,13 @@ REGLAS OBLIGATORIAS:
 2. El reto es una situación que simula la realidad. El participante debe aplicar conocimientos para resolver una problemática.
 3. MÁXIMO 120 PALABRAS para el reto.
 4. El reto puede evaluar competencias técnicas Y blandas (pensamiento crítico, toma de decisiones, liderazgo, empatía, negociación, trabajo en equipo, pensamiento analítico).
-5. Lenguaje sencillo, pensando en emprendedores y trabajadores rurales.
+5. Lenguaje sencillo, pensando en emprendedores y trabajadores rurales de Colombia.
 6. Máximo 2 emojis.
 7. No inventes información fuera del CONTEXTO de los módulos.
 8. Termina con una instrucción clara: "Escriba su respuesta al reto."
-9. PROHIBIDO preguntar si tiene dudas o si quiere continuar."""
+9. Prioriza ejemplos de ruralidad colombiana (vereda, finca familiar, plaza de mercado, asociación local, acopio, transporte veredal).
+10. Dificultad media-baja: pregunta clara, concreta y accionable sin tecnicismos innecesarios.
+11. PROHIBIDO preguntar si tiene dudas o si quiere continuar."""
 
 
 PROMPT_FACILITADOR_EVALUACION = """Eres la Facilitadora Claudia, evaluadora de eki con metodología ABR.
@@ -537,14 +539,14 @@ def generar_presentacion_agentes(curso_nombre, estudiante_nombre="Estudiante", n
 # PREGUNTA DE RECUPERACIÓN — Curso completado con <70 pts
 # =====================================================
 PROMPT_PREGUNTA_RECUPERACION = """Eres la Facilitadora Claudia de eki. El participante completó todo el curso pero obtuvo menos de 70 puntos.
-Tu tarea: generar UNA pregunta de recuperación que integre lo aprendido en todos los módulos del curso.
+Tu tarea: generar UNA pregunta de recuperación enfocada SOLO en los módulos finales (módulos 4 y 5, o 4 en adelante si existen más).
 
 REGLAS:
 1. TRATO DE USTED siempre.
 2. La pregunta debe ser práctica, con un ejemplo de la vida real.
-2. Debe integrar conceptos de AL MENOS 2 módulos diferentes.
+2. Debe integrar conceptos de AL MENOS 2 módulos del bloque final (4 y 5 / 4 en adelante).
 3. MÁXIMO 80 PALABRAS en la pregunta.
-4. Lenguaje sencillo, pensando en campesinos y emprendedores rurales.
+4. Lenguaje sencillo, pensando en campesinos y emprendedores rurales de Colombia.
 5. Debe tener 4 opciones (A, B, C, D) de las cuales SOLO UNA es correcta.
 6. Máximo 2 emojis.
 7. FORMATO OBLIGATORIO de respuesta:
@@ -568,9 +570,18 @@ def generar_pregunta_recuperacion(curso, modulos_completados, estudiante_nombre=
     """
     client = _get_client()
 
+    # En recuperación, enfocarse en bloque final (modulos 4+).
+    modulos_objetivo = []
+    for m in modulos_completados:
+        numero = getattr(m, 'numero', 0) or 0
+        if numero >= 4:
+            modulos_objetivo.append(m)
+    if not modulos_objetivo:
+        modulos_objetivo = list(modulos_completados)
+
     # Construir contexto de módulos
     modulos_info = ""
-    for m in modulos_completados:
+    for m in modulos_objetivo:
         titulo = m.titulo if hasattr(m, 'titulo') else str(m)
         contenido_corto = ""
         if hasattr(m, 'contenido') and m.contenido:
@@ -602,11 +613,11 @@ def generar_pregunta_recuperacion(curso, modulos_completados, estudiante_nombre=
     prompt_usuario = f"""CURSO: {curso.nombre}
 ESTUDIANTE: {estudiante_nombre}
 
-MÓDULOS COMPLETADOS:
+MÓDULOS OBJETIVO (SOLO BLOQUE FINAL):
 {modulos_info}
 {contexto_rag}
 {ejemplo_txt}
-Genera UNA pregunta de recuperación que integre varios módulos. Usa el FORMATO OBLIGATORIO."""
+Genera UNA pregunta de recuperación de dificultad media-baja para ruralidad colombiana, enfocada solo en esos módulos. Usa el FORMATO OBLIGATORIO."""
 
     try:
         response = client.chat.completions.create(
@@ -624,7 +635,7 @@ Genera UNA pregunta de recuperación que integre varios módulos. Usa el FORMATO
         return _parsear_pregunta_ia(texto)
     except Exception as e:
         logger.error(f"❌ Error pregunta recuperación: {e}")
-        return _fallback_pregunta_recuperacion(modulos_completados)
+        return _fallback_pregunta_recuperacion(modulos_objetivo)
 
 
 def _parsear_pregunta_ia(texto: str) -> dict:
@@ -669,11 +680,19 @@ def _parsear_pregunta_ia(texto: str) -> dict:
 
 def _fallback_pregunta_recuperacion(modulos_completados) -> dict:
     """Pregunta de recuperación sin IA."""
-    if modulos_completados:
-        primer_modulo = modulos_completados[0]
-        titulo = getattr(primer_modulo, 'titulo', 'el curso')
+    modulos_objetivo = []
+    for m in modulos_completados:
+        numero = getattr(m, 'numero', 0) or 0
+        if numero >= 4:
+            modulos_objetivo.append(m)
+    if not modulos_objetivo:
+        modulos_objetivo = list(modulos_completados)
+
+    if modulos_objetivo:
+        primer_modulo = modulos_objetivo[0]
+        titulo = getattr(primer_modulo, 'titulo', 'la parte final del curso')
     else:
-        titulo = 'el curso'
+        titulo = 'la parte final del curso'
     
     return {
         'pregunta': f'De todo lo aprendido sobre {titulo}, ¿cuál consideras que es el concepto más importante para aplicar en tu vida diaria?',

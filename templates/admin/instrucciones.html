@@ -5315,6 +5315,51 @@ https://tu-dominio.com/verificar-certificado/EKI-XXXX-YYYY-ZZZZ/
         </div>
         </div>
 
+        <div id="changelog-v198l" class="section" style="margin-top:30px;">
+        <h2 class="section-title">🔧 Correcciones — v1.9.8l (Marzo 2026)</h2>
+        <div class="subsection">
+            <h3>v1.9.8l — Mensajería Final, Activación Limpia y Reto Final Acotado</h3>
+            <table>
+                <tr><th>Bug/Mejora</th><th>Antes (v1.9.8k)</th><th>Ahora (v1.9.8l)</th></tr>
+                <tr>
+                    <td>🎉 Mensaje final de módulos</td>
+                    <td>Se enviaba: "¡Ha completado todos los módulos del curso!" + puntos acumulados</td>
+                    <td><strong>Eliminado.</strong> Se envía directamente la activación del agente para el reto final.</td>
+                </tr>
+                <tr>
+                    <td>💬 Encabezados de agentes</td>
+                    <td>Incluía rol: "Darío — Tu compañero de estudio" y "Facilitadora Claudia — Reto"</td>
+                    <td>Encabezado con <strong>solo nombre</strong>: "Darío" y "Claudia".</td>
+                </tr>
+                <tr>
+                    <td>📝 Mensaje de continuar</td>
+                    <td>"Cuando termines de revisar el contenido, escribe listo para continuar con el siguiente modulo"</td>
+                    <td>Nuevo texto: "Cuando termines de revisar el contenido, escribe listo. Dame unos segundos después de tu mensaje para preparar el siguiente módulo y enviártelo."</td>
+                </tr>
+                <tr>
+                    <td>🧠 Alcance reto final</td>
+                    <td>Reto final podía tomar todos los módulos del curso</td>
+                    <td>Reto final acotado a <strong>módulos 4 y 5</strong> (o 4 en adelante si aplica).</td>
+                </tr>
+                <tr>
+                    <td>🌾 Dificultad y contexto</td>
+                    <td>Reto podía salir más abstracto o exigente</td>
+                    <td>Prompts ajustados a <strong>ruralidad colombiana</strong> y dificultad <strong>media-baja</strong>.</td>
+                </tr>
+                <tr>
+                    <td>🔥 Rachas en mensajes</td>
+                    <td>Se mostraban menciones de racha en mensajes al estudiante</td>
+                    <td><strong>Eliminadas</strong> las menciones de racha en mensajes de WhatsApp.</td>
+                </tr>
+                <tr>
+                    <td>📣 Campañas solo a 1 número</td>
+                    <td>Si una campaña individual no tenía destinatarios manuales, podía quedar en 0 o 1 envío</td>
+                    <td>Ahora, sin selección manual, la campaña usa automáticamente <strong>todos los estudiantes activos del cliente</strong>.</td>
+                </tr>
+            </table>
+        </div>
+        </div>
+
         <div id="changelog-v198j" class="section" style="margin-top:30px;">
         <h2 class="section-title">🔧 Correcciones — v1.9.8j (Marzo 2026)</h2>
         <div class="subsection">

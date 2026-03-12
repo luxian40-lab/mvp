@@ -1931,12 +1931,27 @@ class CampanaAdmin(admin.ModelAdmin):
                 destinatarios_count = campana.grupo.estudiantes.count()
             
             if destinatarios_count == 0:
-                self.message_user(
-                    request,
-                    f"⚠️ '{campana.nombre}' no tiene destinatarios seleccionados.",
-                    level=messages.WARNING
-                )
-                continue
+                if getattr(campana, 'cliente', None) and (not hasattr(campana, 'tipo_audiencia') or campana.tipo_audiencia != 'grupo'):
+                    destinatarios_count = campana.cliente.estudiantes.filter(activo=True).count()
+                    if destinatarios_count == 0:
+                        self.message_user(
+                            request,
+                            f"⚠️ '{campana.nombre}' no tiene estudiantes activos en el cliente '{campana.cliente}'.",
+                            level=messages.WARNING
+                        )
+                        continue
+                    self.message_user(
+                        request,
+                        f"ℹ️ '{campana.nombre}': no había destinatarios manuales, se enviará a {destinatarios_count} estudiantes activos del cliente '{campana.cliente}'.",
+                        level=messages.INFO
+                    )
+                else:
+                    self.message_user(
+                        request,
+                        f"⚠️ '{campana.nombre}' no tiene destinatarios seleccionados.",
+                        level=messages.WARNING
+                    )
+                    continue
             
             try:
                 res = ejecutar_campana_servicio(campana)
