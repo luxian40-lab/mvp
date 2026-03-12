@@ -5315,6 +5315,41 @@ https://tu-dominio.com/verificar-certificado/EKI-XXXX-YYYY-ZZZZ/
         </div>
         </div>
 
+        <div id="changelog-v198i" class="section" style="margin-top:30px;">
+        <h2 class="section-title">🔧 Correcciones — v1.9.8i (Marzo 2026)</h2>
+        <div class="subsection">
+            <h3>v1.9.8i — Loop Bug, Mensajes de Audio, Limpieza de Flujo</h3>
+            <table>
+                <tr><th>Bug/Mejora</th><th>Antes (v1.9.8h)</th><th>Ahora (v1.9.8i)</th></tr>
+                <tr>
+                    <td>🔁 Loop infinito</td>
+                    <td>Después del reto, al escribir "listo" se volvía a activar Darío (el puntero de módulo no avanzaba tras el reto)</td>
+                    <td>Tras la evaluación del reto, el puntero <strong>avanza automáticamente</strong> al siguiente módulo. "Listo" entrega el siguiente contenido normalmente.</td>
+                </tr>
+                <tr>
+                    <td>✅ "Módulo X completado"</td>
+                    <td>Se mostraba "✅ Módulo X completado" en cada módulo</td>
+                    <td><strong>Eliminado.</strong> Al completar un módulo se avanza directamente al siguiente sin mensaje de confirmación.</td>
+                </tr>
+                <tr>
+                    <td>🎙️ Opción de audio</td>
+                    <td>Darío solo decía "escríbela". Claudia solo decía "Escriba su respuesta"</td>
+                    <td>Darío: "Dímela en un audio o escríbela". Claudia: "Escriba o envíe un audio con su respuesta al reto".</td>
+                </tr>
+            </table>
+            
+            <h4>Flujo Corregido (v1.9.8i):</h4>
+            <ol>
+                <li>Módulo 3 completado → Darío aparece directamente (sin mensaje "completado")</li>
+                <li>Darío: "¿Pregunta? Dímela en audio o escríbela. Si no, escribe listo"</li>
+                <li>Claudia plantea reto → "Escriba o envíe un audio con su respuesta"</li>
+                <li>Evaluación + barra de gamificación + puntos</li>
+                <li>"Listo" → Módulo 4 se entrega normalmente (sin loop)</li>
+                <li>Curso completo → Darío final + Claudia reto final → Certificado</li>
+            </ol>
+        </div>
+        </div>
+
         <div id="changelog-v198h" class="section" style="margin-top:30px;">
         <h2 class="section-title">🔧 Correcciones — v1.9.8h (Marzo 2026)</h2>
         <div class="subsection">
@@ -5324,39 +5359,19 @@ https://tu-dominio.com/verificar-certificado/EKI-XXXX-YYYY-ZZZZ/
                 <tr>
                     <td>🎮 Barra de gamificación</td>
                     <td>Se mostraba en CADA módulo completado (racha + barra + %)</td>
-                    <td>Solo se muestra <strong>después de la evaluación del reto</strong> por Claudia. Al completar módulo solo dice "✅ Módulo X completado".</td>
+                    <td>Solo se muestra <strong>después de la evaluación del reto</strong> por Claudia.</td>
                 </tr>
                 <tr>
                     <td>🤖 Timing de agentes</td>
-                    <td>Darío aparecía junto con el contenido del módulo 4 (se avanzaba al siguiente módulo antes de mostrar Darío)</td>
-                    <td>Darío aparece <strong>después del módulo 3</strong> sin mostrar contenido del módulo 4. El módulo 4 se entrega después del reto cuando el estudiante escribe "listo".</td>
-                </tr>
-                <tr>
-                    <td>🎉 Mensaje curso completado</td>
-                    <td>Formato con salto de línea inicial y [MULTI_MSG] visible en logs</td>
-                    <td>Formato limpio sin saltos de línea innecesarios.</td>
+                    <td>Darío aparecía junto con el contenido del módulo 4</td>
+                    <td>Darío aparece <strong>después del módulo 3</strong> sin mostrar contenido del módulo 4.</td>
                 </tr>
                 <tr>
                     <td>📝 Reto final</td>
                     <td>Pregunta de recuperación múltiple opción (A/B/C/D) para &lt;70 pts</td>
-                    <td>Reto final de Claudia cubriendo <strong>todos los módulos</strong>. Se activa Darío → Claudia al completar el curso. Puntos = puntaje × 5. Después del reto se genera el certificado.</td>
-                </tr>
-                <tr>
-                    <td>🔄 Flujo post-reto</td>
-                    <td>El puntero de módulo avanzaba durante el reto, causando que se saltara contenido</td>
-                    <td>El puntero de módulo <strong>NO avanza</strong> cuando es módulo de reto. Avanza después del reto cuando el estudiante escribe "listo".</td>
+                    <td>Reto final de Claudia cubriendo <strong>todos los módulos</strong>. Darío → Claudia → Certificado.</td>
                 </tr>
             </table>
-            
-            <h4>Flujo Corregido de Agentes:</h4>
-            <ol>
-                <li>Módulo 3 completado → ✅ "Módulo 3 completado" + Darío aparece</li>
-                <li>Darío responde hasta 2 preguntas → Claudia plantea reto (módulos 1-3)</li>
-                <li>Estudiante responde → Evaluación + barra de gamificación + puntos</li>
-                <li>Estudiante escribe "listo" → Módulo 4 se entrega normalmente</li>
-                <li>Último módulo completado → Si ≥5 módulos, Darío + Claudia reto (módulos 4+)</li>
-                <li>Curso completo → Darío + Claudia reto final (todos los módulos) → Certificado</li>
-            </ol>
         </div>
         </div>
 
@@ -5547,7 +5562,7 @@ https://tu-dominio.com/verificar-certificado/EKI-XXXX-YYYY-ZZZZ/
         </div>
 
         <div class="subsection">
-            <h3>Flujo de Mensajes en Curso (orden correcto — actualizado v1.9.8h)</h3>
+            <h3>Flujo de Mensajes en Curso (orden correcto — actualizado v1.9.8i)</h3>
             <div class="alert-box alert-warning">
                 <strong>Primer módulo (al confirmar datos):</strong>
                 <ol>
@@ -5558,22 +5573,20 @@ https://tu-dominio.com/verificar-certificado/EKI-XXXX-YYYY-ZZZZ/
                 </ol>
                 <strong>Módulos siguientes (al escribir "listo"):</strong>
                 <ol>
-                    <li>✅ "Módulo X completado" (sin barra de gamificación)</li>
-                    <li>📖 Siguiente módulo (contenido + video)</li>
+                    <li>📖 Siguiente módulo directamente (contenido + video, sin mensaje de completado)</li>
                     <li>"Escribe *listo*" (solo si NO es módulo de reto y NO es último módulo)</li>
                 </ol>
                 <strong>Módulo de reto (módulo 3 y último ≥5):</strong>
                 <ol>
-                    <li>✅ "Módulo X completado" (NO avanza al siguiente módulo)</li>
-                    <li>👋 Darío: preguntas (máx 2) + escribe "listo"</li>
-                    <li>🎓 Claudia: plantea reto ABR → estudiante responde</li>
+                    <li>👋 Darío: "¿Pregunta? Dímela en audio o escríbela. Si no, escribe listo"</li>
+                    <li>🎓 Claudia: reto ABR → "Escriba o envíe un audio con su respuesta"</li>
                     <li>📊 Evaluación + barra de gamificación + puntos</li>
-                    <li>✅ "Escribe listo" → se entrega el siguiente módulo normalmente</li>
+                    <li>"Listo" → siguiente módulo directamente</li>
                 </ol>
                 <strong>Curso completado:</strong>
                 <ol>
                     <li>🎉 "¡Ha completado todos los módulos!"</li>
-                    <li>👋 Darío final: preguntas sobre todo el curso</li>
+                    <li>👋 Darío final: preguntas sobre todo el curso (audio o texto)</li>
                     <li>🎓 Claudia: reto final (todos los módulos)</li>
                     <li>📊 Evaluación + puntos → 🎓 Certificado</li>
                 </ol>

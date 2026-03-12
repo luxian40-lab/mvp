@@ -928,10 +928,9 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 if not archivos_multimedia.exists() and video_url:
                     primera_media_url = video_url
 
-                # v1.9.8h: Gamification bar ONLY after reto evaluation, not every module
-                msg_completado = f"✅ *Módulo {modulo_actual.numero} completado*"
+                # v1.9.8i: No "completado" message — just flow to next content
                 
-                # Mensaje 2: Siguiente módulo CON multimedia embebida
+                # Mensaje: Siguiente módulo CON multimedia embebida
                 contenido_mod = siguiente_modulo.contenido or ''
                 chunks_mod = dividir_contenido_seguro(contenido_mod, max_chars=1300)
                 modulo_header = f"📖 *Módulo {siguiente_modulo.numero}: {siguiente_modulo.titulo}*\n\n"
@@ -963,7 +962,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 dario_msg = None
                 
                 if es_modulo_reto:
-                    # v1.9.8h: When reto, show ONLY completado + Darío (no next module)
+                    # v1.9.8i: Reto module — show ONLY Darío (no completado msg, no next module)
                     if modulo_actual.numero == 3:
                         modulos_reto_range = "los 3 primeros módulos"
                     else:
@@ -974,7 +973,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                         f"¡Hola! Es hora de una pausa para repasar conceptos. "
                         f"La Facilitadora {nombre_tutor} te va a recibir con un reto sobre {modulos_reto_range}.\n\n"
                         f"Te puedo ayudar a resolver un par de preguntas antes. "
-                        f"¿Tienes alguna pregunta sobre lo que hemos visto? Si no, escribe *listo*."
+                        f"¿Tienes alguna pregunta sobre lo que hemos visto? Dímela en un audio o escríbela. Si no, escribe *listo*."
                     )
                     
                     from .models import Modulo
@@ -995,11 +994,11 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     estudiante.estado_onboarding = 'esperando_respuesta_asistente'
                     estudiante.save()
                     
-                    # v1.9.8h: Reto modules — only completado + Darío (NO next module content)
-                    return "[MULTI_MSG]" + "[SEP]".join([msg_completado, dario_msg])
+                    # v1.9.8i: Reto modules — only Darío (NO completado msg, NO next module)
+                    return dario_msg
                 
-                # Normal (non-reto) module: show completado + next module + videos + "escribe listo"
-                partes = [msg_completado, msg_modulo]
+                # v1.9.8i: Normal module — just show next module (no completado msg)
+                partes = [msg_modulo]
                 hay_media = False
                 if primera_media_url:
                     partes.append(f"[MEDIA:{primera_media_url}]")
@@ -1044,7 +1043,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                             f"💬 *{nombre_asistente} — Tu compañero de estudio*\n\n"
                             f"¡Felicitaciones! Terminaste todos los módulos. "
                             f"Antes de recibir tu certificado, la Facilitadora {nombre_tutor} tiene un reto final para ti.\n\n"
-                            f"¿Tienes alguna pregunta sobre lo que vimos en el curso? Si no, escribe *listo*."
+                            f"¿Tienes alguna pregunta sobre lo que vimos en el curso? Dímela en un audio o escríbela. Si no, escribe *listo*."
                         )
                         
                         _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)

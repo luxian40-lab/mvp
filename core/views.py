@@ -2160,7 +2160,7 @@ def _procesar_twilio_webhook(post_data):
                         texto_respuesta = (
                             f"📋 *Facilitadora {nombre_tutor} — Reto*\n\n"
                             f"{reto}\n\n"
-                            f"✍️ _Escriba su respuesta al reto._"
+                            f"✍️ _Escriba o envíe un audio con su respuesta al reto._"
                         )
                     else:
                         estudiante.estado_onboarding = 'completado'
@@ -2257,8 +2257,16 @@ def _procesar_twilio_webhook(post_data):
                         f"{barra} {porcentaje}%"
                     )
                     
-                    # Clean state and continue
+                    # v1.9.8i: After non-final reto, advance modulo_actual so next "listo" doesn't loop
                     es_final = ctx.get('es_final', False)
+                    
+                    if not es_final and progreso:
+                        siguiente_mod = progreso.curso.modulos.filter(
+                            numero__gt=progreso.modulo_actual.numero
+                        ).order_by('numero').first()
+                        if siguiente_mod:
+                            progreso.modulo_actual = siguiente_mod
+                            progreso.save()
                     
                     if es_final and progreso:
                         # v1.9.8h: Final reto — issue certificate
@@ -2587,7 +2595,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                     nombre_asistente = progreso.curso.nombre_agente_asistente or 'Darío'
                                     
                                     if es_modulo_reto:
-                                        # v1.9.8h: Reto module — only exam result + Darío (no next module)
+                                        # v1.9.8i: Reto module — only Darío (no exam result msg, no next module)
                                         if modulo_actual.numero == 3:
                                             modulos_reto_range = "los 3 primeros módulos"
                                         else:
@@ -2598,7 +2606,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                             f"¡Hola! Es hora de una pausa para repasar conceptos. "
                                             f"La Facilitadora {nombre_tutor} te va a recibir con un reto sobre {modulos_reto_range}.\n\n"
                                             f"Te puedo ayudar a resolver un par de preguntas antes. "
-                                            f"¿Tienes alguna pregunta sobre lo que hemos visto? Si no, escribe *listo*."
+                                            f"¿Tienes alguna pregunta sobre lo que hemos visto? Dímela en un audio o escríbela. Si no, escribe *listo*."
                                         )
                                         
                                         from .models import Modulo as ModuloReto
@@ -2621,7 +2629,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                         
                                         texto_respuesta = "[MULTI_MSG]" + "[SEP]".join([msg_completado, dario_msg])
                                     else:
-                                        # Normal module: show exam result + next module + videos
+                                        # v1.9.8i: Normal module — exam result + next module (no completado msg)
                                         estudiante.estado_onboarding = 'completado'
                                         estudiante.save()
                                         
