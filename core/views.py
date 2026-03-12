@@ -2145,11 +2145,13 @@ def _procesar_twilio_webhook(post_data):
                         )
                         
                         _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
+                        es_reto_final = ctx.get('es_reto_final', False)
                         estudiante.contexto_temporal = {
                             'tipo': 'reto_facilitador',
                             'modulos_reto_ids': modulos_reto_ids,
                             'reto_texto': reto,
                             'progreso_id': progreso_id,
+                            'es_final': es_reto_final,
                             '_ts_leccion': _prev_ts,
                         }
                         estudiante.estado_onboarding = 'esperando_respuesta_reto'
@@ -2256,11 +2258,46 @@ def _procesar_twilio_webhook(post_data):
                     )
                     
                     # Clean state and continue
-                    estudiante.contexto_temporal = None
-                    estudiante.estado_onboarding = 'completado'
-                    estudiante.save()
+                    es_final = ctx.get('es_final', False)
                     
-                    texto_respuesta = f"{msg_eval}\n\n✅ Escribe *listo* para continuar con el siguiente módulo."
+                    if es_final and progreso:
+                        # v1.9.8h: Final reto — issue certificate
+                        estudiante.estado_onboarding = 'curso_finalizado'
+                        estudiante.contexto_temporal = None
+                        estudiante.save()
+                        
+                        msg_cert_img = ""
+                        try:
+                            from .certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
+                            cert = crear_certificado_automatico(estudiante, progreso.curso)
+                            if cert and cert.archivo_imagen:
+                                cert_url = obtener_url_certificado_twilio(cert)
+                                if cert_url:
+                                    msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                                else:
+                                    s3_key = str(cert.archivo_imagen.name)
+                                    cert_url = f"https://eki-produccion.s3.us-east-2.amazonaws.com/{s3_key}"
+                                    msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                            elif cert and cert.archivo_pdf:
+                                msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert.archivo_pdf.url}"
+                            else:
+                                msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+                        except Exception as e:
+                            logger.error(f"❌ Error certificado post-reto final: {e}", exc_info=True)
+                            msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+                        
+                        msg_final = (
+                            f"{msg_eval}\n\n"
+                            f"🎓 *¡FELICITACIONES!*\n\n"
+                            f"Ha completado el curso: *{progreso.curso.nombre}*"
+                        )
+                        texto_respuesta = "[MULTI_MSG]" + "[SEP]".join([msg_final, msg_cert_img])
+                    else:
+                        estudiante.contexto_temporal = None
+                        estudiante.estado_onboarding = 'completado'
+                        estudiante.save()
+                        
+                        texto_respuesta = f"{msg_eval}\n\n✅ Escribe *listo* para continuar con el siguiente módulo."
                     print(f"✅ Facilitadora reto evaluado: {puntaje}/10, +{puntos_reto} pts", flush=True)
             
             # 3.5a PRIORIDAD: Si está respondiendo al TUTOR IA (legacy)
@@ -2503,11 +2540,16 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                 ).order_by('numero').first()
                             
                                 if siguiente_modulo:
-                                    # Actualizar progreso al siguiente módulo
-                                    progreso.modulo_actual = siguiente_modulo
-                                    progreso.save()
+                                    # v1.9.8h: Check reto BEFORE advancing module
+                                    total_modulos = progreso.curso.modulos.count()
+                                    es_modulo_reto = (modulo_actual.numero == 3) or (modulo_actual.numero == total_modulos and total_modulos >= 5)
+                                    
+                                    if not es_modulo_reto:
+                                        # Normal: advance pointer
+                                        progreso.modulo_actual = siguiente_modulo
+                                        progreso.save()
+                                    # else: pointer stays — will advance after reto
                                 
-                                    # Resetear preguntas IA para nuevo módulo
                                     estudiante.preguntas_ia_restantes = 3
                                     estudiante.save()
                                 
@@ -2515,68 +2557,37 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                     from .response_templates import obtener_video_url
                                     video_url = obtener_video_url(siguiente_modulo)
                                 
-                                    # Verificar si tiene archivos multimedia
                                     archivos_multimedia = siguiente_modulo.archivos_multimedia.filter(activo=True)
-                                    print(f"🔍 Archivos multimedia para módulo {siguiente_modulo.titulo}: {archivos_multimedia.count()}")
                                     archivos_msg = ""
                                     primera_media_url = None
                                     extra_media_urls = []
                                 
                                     if archivos_multimedia.exists():
-                                        print(f"✅ Encontrados {archivos_multimedia.count()} archivos multimedia")
                                         archivos_msg = ""
                                         for idx, archivo in enumerate(archivos_multimedia):
                                             icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
                                             url = archivo.get_url_para_envio()
                                             if url:
-                                                print(f"📎 URL para envío: {url}")
                                                 if not primera_media_url:
                                                     primera_media_url = url
-                                                    print(f"🖼️ Primera media detectada: {archivo.tipo} - {url}")
                                                     archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
                                                 else:
                                                     extra_media_urls.append((url, archivo.titulo, icono))
                                                     archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
                                             else:
-                                                print(f"⚠️ Archivo sin URL disponible para envío")
                                                 archivos_msg += f"\n{icono} {archivo.titulo}"
 
-                                    # Refuerzo: si NO hay archivos multimedia pero hay video_url, igual agregarlo como media
                                     if not archivos_multimedia.exists() and video_url:
-                                        print(f"🎥 Refuerzo: agregando video_url como media: {video_url}")
                                         primera_media_url = video_url
                                 
-                                    # Mensaje 1: Resultado del examen (mensaje_respuesta ya tiene la info)
                                     msg_completado = mensaje_respuesta
                                 
-                                    # Mensaje 2: Siguiente módulo (separado)
-                                    msg_modulo = f"""
-
-Progreso del curso: {porcentaje}%
-
-📖 *Módulo {siguiente_modulo.numero}: {siguiente_modulo.titulo}*
-
-{siguiente_modulo.descripcion}
-
-{siguiente_modulo.contenido}"""
-                                
-                                    if primera_media_url:
-                                        print(f"🖼️ Multimedia separada del texto: {primera_media_url}")
-                                        # NO embeber en msg_modulo — se envía como parte separada
-                                
-                                    if siguiente_modulo.examen_obligatorio:
-                                        msg_modulo += f"\n\n⚠️ *Este módulo tiene examen obligatorio ({siguiente_modulo.puntaje_minimo_aprobacion}% para aprobar)*"
-                                
-                                    # === v1.9.8g: AGENTES: Darío (módulo 3 y 5) + Facilitadora reto ===
-                                    dario_msg = None
+                                    # v1.9.8h: Agentes — check reto
                                     nombre_tutor = progreso.curso.nombre_agente_tutor or 'Claudia'
                                     nombre_asistente = progreso.curso.nombre_agente_asistente or 'Darío'
-                                
-                                    # Darío enters ONLY after completing module 3 or last module (5+)
-                                    total_modulos = progreso.curso.modulos.count()
-                                    es_modulo_reto = (modulo_actual.numero == 3) or (modulo_actual.numero == total_modulos and total_modulos >= 5)
                                     
                                     if es_modulo_reto:
+                                        # v1.9.8h: Reto module — only exam result + Darío (no next module)
                                         if modulo_actual.numero == 3:
                                             modulos_reto_range = "los 3 primeros módulos"
                                         else:
@@ -2607,30 +2618,32 @@ Progreso del curso: {porcentaje}%
                                         }
                                         estudiante.estado_onboarding = 'esperando_respuesta_asistente'
                                         estudiante.save()
+                                        
+                                        texto_respuesta = "[MULTI_MSG]" + "[SEP]".join([msg_completado, dario_msg])
                                     else:
+                                        # Normal module: show exam result + next module + videos
                                         estudiante.estado_onboarding = 'completado'
                                         estudiante.save()
-                                
-                                    # Construir respuesta multi-mensaje
-                                    partes = [msg_completado, msg_modulo]
-                                    hay_media_exam = False
-                                    if primera_media_url:
-                                        partes.append(f"[MEDIA:{primera_media_url}]")
-                                        hay_media_exam = True
-                                    for extra_url, extra_titulo, extra_icono in extra_media_urls:
-                                        partes.append(f"[MEDIA:{extra_url}]")
-                                        hay_media_exam = True
-                                    hay_texto_post_exam = dario_msg
-                                    es_ultimo_modulo = not progreso.curso.modulos.filter(numero__gt=siguiente_modulo.numero).exists()
-                                    if not hay_texto_post_exam and not es_ultimo_modulo:
-                                        hay_texto_post_exam = True
-                                    if hay_media_exam and hay_texto_post_exam:
-                                        partes.append("[DELAY:5]")
-                                    if dario_msg:
-                                        partes.append(dario_msg)
-                                    if not dario_msg and not es_ultimo_modulo:
-                                        partes.append("Cuando termines de revisar el contenido, escribe *listo* para continuar con el siguiente modulo")
-                                    texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
+                                        
+                                        msg_modulo = f"📖 *Módulo {siguiente_modulo.numero}: {siguiente_modulo.titulo}*\n\n{siguiente_modulo.descripcion}\n\n{siguiente_modulo.contenido}"
+                                    
+                                        if siguiente_modulo.examen_obligatorio:
+                                            msg_modulo += f"\n\n⚠️ *Este módulo tiene examen obligatorio ({siguiente_modulo.puntaje_minimo_aprobacion}% para aprobar)*"
+                                    
+                                        partes = [msg_completado, msg_modulo]
+                                        hay_media_exam = False
+                                        if primera_media_url:
+                                            partes.append(f"[MEDIA:{primera_media_url}]")
+                                            hay_media_exam = True
+                                        for extra_url, extra_titulo, extra_icono in extra_media_urls:
+                                            partes.append(f"[MEDIA:{extra_url}]")
+                                            hay_media_exam = True
+                                        es_ultimo_modulo = not progreso.curso.modulos.filter(numero__gt=siguiente_modulo.numero).exists()
+                                        if hay_media_exam and not es_ultimo_modulo:
+                                            partes.append("[DELAY:5]")
+                                        if not es_ultimo_modulo:
+                                            partes.append("Cuando termines de revisar el contenido, escribe *listo* para continuar con el siguiente modulo")
+                                        texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
                             
                                 else:
                                     # Completó todos los módulos
@@ -2638,63 +2651,56 @@ Progreso del curso: {porcentaje}%
                                     progreso.fecha_completado = timezone.now()
                                     progreso.save()
                                 
-                                    # === PREGUNTA DE RECUPERACIÓN si <70 pts y gamificación activa ===
+                                    # === v1.9.8h: RETO FINAL en lugar de pregunta de recuperación ===
                                     _skip_cert = False
                                     if progreso.curso.usar_gamificacion:
                                         try:
-                                            from .gamificacion import PerfilGamificacion as PG_rec
-                                            perfil_rec = PG_rec.objects.get(estudiante=estudiante)
-                                            if perfil_rec.puntos_totales < 70:
-                                                from .tutor_ia_modulo import generar_pregunta_recuperacion
-                                                modulos_rec_qs = progreso.modulos_completados.all().order_by('modulo__numero')
-                                                modulos_rec_obj = [mc.modulo for mc in modulos_rec_qs]
-                                                pregunta_data = generar_pregunta_recuperacion(
-                                                    progreso.curso,
-                                                    modulos_rec_obj,
-                                                    estudiante_nombre=estudiante.nombre or "Estudiante",
-                                                    preguntas_ejemplo=progreso.curso.preguntas_ejemplo_ia or ""
+                                            from .tutor_ia_modulo import generar_reto_facilitador
+                                            nombre_tutor_final = progreso.curso.nombre_agente_tutor or 'Claudia'
+                                            nombre_asist_final = progreso.curso.nombre_agente_asistente or 'Darío'
+                                            modulos_all = list(progreso.curso.modulos.all().order_by('numero'))
+                                            
+                                            reto_texto = generar_reto_facilitador(
+                                                modulos_all,
+                                                progreso.curso.nombre,
+                                                estudiante_nombre=estudiante.nombre or "Estudiante",
+                                                preguntas_ejemplo=progreso.curso.preguntas_ejemplo_ia or "",
+                                            )
+                                            if reto_texto:
+                                                _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
+                                                estudiante.contexto_temporal = {
+                                                    'tipo': 'reto_facilitador',
+                                                    'curso_id': progreso.curso.id,
+                                                    'progreso_id': progreso.id,
+                                                    'modulos_reto_ids': [m.id for m in modulos_all],
+                                                    'es_final': True,
+                                                    '_ts_leccion': _prev_ts,
+                                                }
+                                                estudiante.estado_onboarding = 'esperando_respuesta_reto'
+                                                estudiante.save()
+                                                
+                                                texto_respuesta = (
+                                                    f"{mensaje_respuesta}\n\n"
+                                                    f"🎉 *¡Completaste todos los módulos del curso!*\n\n"
+                                                    f"Antes de tu certificado, {nombre_tutor_final} tiene un reto final para ti 🏆\n\n"
+                                                    f"📝 *Reto final de {nombre_tutor_final}:*\n\n"
+                                                    f"{reto_texto}\n\n"
+                                                    f"✍️ Escribe tu respuesta"
                                                 )
-                                                if pregunta_data:
-                                                    _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
-                                                    estudiante.contexto_temporal = {
-                                                        'tipo': 'pregunta_recuperacion',
-                                                        'curso_id': progreso.curso.id,
-                                                        'progreso_id': progreso.id,
-                                                        'pregunta_data': pregunta_data,
-                                                        '_ts_leccion': _prev_ts,
-                                                    }
-                                                    estudiante.estado_onboarding = 'esperando_respuesta_recuperacion'
-                                                    estudiante.save()
-                                                    
-                                                    opciones_txt = ""
-                                                    for letra, opcion in pregunta_data['opciones'].items():
-                                                        opciones_txt += f"\n*{letra})* {opcion}"
-                                                    
-                                                    texto_respuesta = (
-                                                        f"{mensaje_respuesta}\n\n"
-                                                        f"🎉 *¡Completaste todos los módulos del curso!*\n\n"
-                                                        f"Pero antes de tu certificado, tienes una oportunidad de ganar *+50 puntos extra* 🏆\n\n"
-                                                        f"🤓 *Pregunta de recuperación:*\n\n"
-                                                        f"{pregunta_data['pregunta']}\n"
-                                                        f"{opciones_txt}\n\n"
-                                                        f"📝 Responde con la letra (A, B, C o D)"
-                                                    )
-                                                    _skip_cert = True
+                                                _skip_cert = True
                                         except Exception as e:
-                                            logger.warning(f"⚠️ Pregunta recuperación exam: {e}")
+                                            logger.warning(f"⚠️ Reto final exam: {e}")
                                     
                                     if not _skip_cert:
                                         estudiante.estado_onboarding = 'curso_finalizado'
                                         estudiante.save()
                                 
-                                        msg_final = mensaje_respuesta + f"""
-
-
-🎓 *¡FELICITACIONES!*
-
-Ha completado el curso: *{progreso.curso.nombre}*
-
-🏆 Su certificado se está generando..."""
+                                        msg_final = (
+                                            f"{mensaje_respuesta}\n\n"
+                                            f"🎓 *¡FELICITACIONES!*\n\n"
+                                            f"Ha completado el curso: *{progreso.curso.nombre}*\n\n"
+                                            f"🏆 Su certificado se está generando..."
+                                        )
                                 
                                         # v1.9.8g: María resumen removed
                                 
