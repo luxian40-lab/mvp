@@ -1012,10 +1012,9 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     partes.append(f"[MEDIA:{extra_url}]")
                     hay_media = True
                 es_ultimo_modulo = not progreso.curso.modulos.filter(numero__gt=siguiente_modulo.numero).exists()
-                if hay_media and not es_ultimo_modulo:
+                if hay_media:
                     partes.append("[DELAY:5]")
-                if not es_ultimo_modulo:
-                    partes.append("Cuando termines de revisar el contenido, escribe *listo* para continuar con el siguiente modulo")
+                partes.append("Cuando termines de revisar el contenido, escribe *listo* para continuar con el siguiente modulo")
                 return "[MULTI_MSG]" + "[SEP]".join(partes)
             
             else:
