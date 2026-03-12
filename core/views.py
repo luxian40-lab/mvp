@@ -2257,16 +2257,7 @@ def _procesar_twilio_webhook(post_data):
                         f"{barra} {porcentaje}%"
                     )
                     
-                    # v1.9.8i: After non-final reto, advance modulo_actual so next "listo" doesn't loop
                     es_final = ctx.get('es_final', False)
-                    
-                    if not es_final and progreso:
-                        siguiente_mod = progreso.curso.modulos.filter(
-                            numero__gt=progreso.modulo_actual.numero
-                        ).order_by('numero').first()
-                        if siguiente_mod:
-                            progreso.modulo_actual = siguiente_mod
-                            progreso.save()
                     
                     if es_final and progreso:
                         # v1.9.8h: Final reto — issue certificate

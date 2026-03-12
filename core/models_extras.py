@@ -71,7 +71,7 @@ class GrupoEstudiantes(models.Model):
     
     class Meta:
         verbose_name = 'Grupo de Estudiantes'
-        verbose_name_plural = '👥 Grupos de Estudiantes'
+        verbose_name_plural = 'Grupos de Estudiantes'
         ordering = ['-fecha_creacion']
     
     def __str__(self):
@@ -207,7 +207,7 @@ class EnvioProgramado(models.Model):
     
     class Meta:
         verbose_name = 'Envío Programado'
-        verbose_name_plural = '📅 Envíos Programados'
+        verbose_name_plural = 'Envíos Programados'
         ordering = ['-fecha_programada']
         indexes = [
             models.Index(fields=['estado', 'fecha_programada']),
@@ -347,7 +347,7 @@ class PQRS(models.Model):
     
     class Meta:
         verbose_name = 'PQRS'
-        verbose_name_plural = '📮 PQRS (Peticiones/Quejas/Reclamos/Sugerencias)'
+        verbose_name_plural = 'PQRS (Peticiones/Quejas/Reclamos/Sugerencias)'
         ordering = ['-fecha_creacion']
         indexes = [
             models.Index(fields=['estado', 'fecha_creacion']),
@@ -590,7 +590,7 @@ class ArchivoModulo(models.Model):
     
     class Meta:
         verbose_name = 'Archivo Multimedia'
-        verbose_name_plural = '📁 Archivos Multimedia'
+        verbose_name_plural = 'Archivos Multimedia'
         ordering = ['modulo', 'orden', 'id']
     
     def save(self, *args, **kwargs):
@@ -689,7 +689,7 @@ class GrupoWhatsApp(models.Model):
     
     class Meta:
         verbose_name = 'Grupo de WhatsApp'
-        verbose_name_plural = '💬 Grupos de WhatsApp'
+        verbose_name_plural = 'Grupos de WhatsApp'
         ordering = ['-fecha_creacion']
     
     def __str__(self):
@@ -753,7 +753,7 @@ class InvitacionGrupo(models.Model):
     
     class Meta:
         verbose_name = 'Invitación a Grupo'
-        verbose_name_plural = '✉️ Invitaciones a Grupos'
+        verbose_name_plural = 'Invitaciones a Grupos'
         ordering = ['-fecha_creacion']
         unique_together = ['grupo', 'estudiante']
     

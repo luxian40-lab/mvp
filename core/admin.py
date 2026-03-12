@@ -2253,7 +2253,7 @@ class DocumentoRAGInline(admin.StackedInline):
     model = DocumentoRAG
     extra = 0
     verbose_name = '📄 Documento RAG'
-    verbose_name_plural = '📚 DOCUMENTOS RAG — Base de Conocimiento para Agentes IA'
+    verbose_name_plural = 'DOCUMENTOS RAG — Base de Conocimiento para Agentes IA'
     readonly_fields = ('estado_badge', 'chunks_indexados', 'fecha_subida', 'fecha_indexado')
     fields = ('nombre', 'archivo', 'tipo', 'descripcion', 'estado_badge', 'chunks_indexados', 'fecha_subida', 'fecha_indexado')
 
@@ -2421,7 +2421,7 @@ class PreguntaModuloInline(admin.StackedInline):
     can_delete = True
     show_change_link = True
     verbose_name = 'Pregunta de Mini Examen'
-    verbose_name_plural = '❓ Preguntas de Mini Examen'
+    verbose_name_plural = 'Preguntas de Mini Examen'
     
     fieldsets = (
         ('Pregunta', {
@@ -2443,7 +2443,7 @@ class ArchivoModuloInline(admin.StackedInline):
     can_delete = True
     show_change_link = True
     verbose_name = '📎 Multimedia'
-    verbose_name_plural = '📁 MULTIMEDIA (Videos, Imágenes, PDFs, Infografías, Audio) - AQUÍ SE AGREGAN LOS ARCHIVOS'
+    verbose_name_plural = 'MULTIMEDIA (Videos, Imágenes, PDFs, Infografías, Audio) - AQUÍ SE AGREGAN LOS ARCHIVOS'
     readonly_fields = ('preview_multimedia',)
     
     fieldsets = (
@@ -5076,7 +5076,7 @@ class GrupoWhatsAppAdmin(admin.ModelAdmin):
     
     class Meta:
         verbose_name = 'Grupo de WhatsApp'
-        verbose_name_plural = '💬 Grupos de WhatsApp (Ver desde Grupos)'
+        verbose_name_plural = 'Grupos de WhatsApp (Ver desde Grupos)'
 
 @admin.register(InvitacionGrupo)
 class InvitacionGrupoAdmin(admin.ModelAdmin):
@@ -5103,7 +5103,7 @@ class InvitacionGrupoAdmin(admin.ModelAdmin):
     
     class Meta:
         verbose_name = 'Invitación a Grupo'
-        verbose_name_plural = '✉️ Invitaciones (Ver desde Grupos)'
+        verbose_name_plural = 'Invitaciones (Ver desde Grupos)'
     
     def estado_badge(self, obj):
         colores = {

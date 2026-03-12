@@ -35,7 +35,7 @@ class TemaCampana(models.Model):
     
     class Meta:
         verbose_name = 'Tema de Campaña'
-        verbose_name_plural = '🏷️ Temas de Campaña'
+        verbose_name_plural = 'Temas de Campaña'
         ordering = ['nombre']
     
     def __str__(self):
@@ -125,7 +125,7 @@ class Cliente(models.Model):
     
     class Meta:
         verbose_name = 'Cliente'
-        verbose_name_plural = '🏢 Clientes (Organizaciones)'
+        verbose_name_plural = 'Clientes (Organizaciones)'
         ordering = ['nombre']
     
     def __str__(self):
@@ -349,7 +349,7 @@ class Estudiante(models.Model):
     
     class Meta:
         verbose_name = 'Estudiante'
-        verbose_name_plural = '🎓 Estudiantes'
+        verbose_name_plural = 'Estudiantes'
         ordering = ['nombre']
         indexes = [
             models.Index(fields=['cedula']),
@@ -474,7 +474,7 @@ class Plantilla(models.Model):
     
     class Meta:
         verbose_name = 'Plantilla de Mensaje'
-        verbose_name_plural = '📝 Plantillas de Mensaje'
+        verbose_name_plural = 'Plantillas de Mensaje'
         ordering = ['-fecha_modificacion']
     
     def __str__(self):
@@ -653,7 +653,7 @@ class Campana(models.Model):
     def __str__(self): return self.nombre
     class Meta:
         verbose_name = 'Campaña'
-        verbose_name_plural = '📣 Campañas'
+        verbose_name_plural = 'Campañas'
 
 
 # 3b. LINEAS (líneas de envío, e.g., cuentas de WhatsApp)
@@ -748,7 +748,7 @@ class WhatsappLog(models.Model):
     
     class Meta:
         verbose_name = 'Registro de WhatsApp'
-        verbose_name_plural = '💬 Historial WhatsApp'
+        verbose_name_plural = 'Historial WhatsApp'
         ordering = ['-fecha']
         indexes = [
             models.Index(fields=['-fecha']),
@@ -858,7 +858,7 @@ class Curso(models.Model):
     class Meta:
         ordering = ['orden', 'nombre']
         verbose_name = "Curso"
-        verbose_name_plural = "📖 Cursos"
+        verbose_name_plural = "Cursos"
 
     def __str__(self):
         return f"{self.emoji} {self.nombre}"
@@ -940,7 +940,7 @@ class DocumentoRAG(models.Model):
     class Meta:
         ordering = ['-fecha_subida']
         verbose_name = 'Documento RAG'
-        verbose_name_plural = '📚 Documentos RAG (Base de Conocimiento IA)'
+        verbose_name_plural = 'Documentos RAG (Base de Conocimiento IA)'
         unique_together = ['curso', 'nombre']
         indexes = [
             models.Index(fields=['curso', 'estado']),
@@ -1108,7 +1108,7 @@ class Modulo(models.Model):
     class Meta:
         ordering = ['curso', 'numero']
         verbose_name = "Módulo"
-        verbose_name_plural = "📦 Módulos"
+        verbose_name_plural = "Módulos"
         unique_together = ['curso', 'numero']
 
     def __str__(self):
@@ -1126,7 +1126,7 @@ class ProgresoEstudiante(models.Model):
 
     class Meta:
         verbose_name = "Progreso de Estudiante"
-        verbose_name_plural = "📊 Progreso de Estudiantes"
+        verbose_name_plural = "Progreso de Estudiantes"
         unique_together = ['estudiante', 'curso']
 
     def __str__(self):
@@ -1170,7 +1170,7 @@ class PreguntaModulo(models.Model):
 
     class Meta:
         verbose_name = "Pregunta de Módulo"
-        verbose_name_plural = "❓ Preguntas de Módulos"
+        verbose_name_plural = "Preguntas de Módulos"
         ordering = ['modulo', 'id']
 
     def __str__(self):
@@ -1203,7 +1203,7 @@ class ModuloCompletado(models.Model):
 
     class Meta:
         verbose_name = "Módulo Completado"
-        verbose_name_plural = "✅ Módulos Completados"
+        verbose_name_plural = "Módulos Completados"
         unique_together = ['progreso', 'modulo']
 
     def __str__(self):
@@ -1218,7 +1218,7 @@ class Examen(models.Model):
 
     class Meta:
         verbose_name = "Examen"
-        verbose_name_plural = "📋 Exámenes"
+        verbose_name_plural = "Exámenes"
 
     def __str__(self):
         return f"Examen de {self.curso.nombre}"
@@ -1240,7 +1240,7 @@ class PreguntaExamen(models.Model):
     class Meta:
         ordering = ['examen', 'numero']
         verbose_name = "Pregunta de Examen"
-        verbose_name_plural = "❔ Preguntas de Examen"
+        verbose_name_plural = "Preguntas de Examen"
         unique_together = ['examen', 'numero']
 
     def __str__(self):
@@ -1259,7 +1259,7 @@ class ResultadoExamen(models.Model):
 
     class Meta:
         verbose_name = "Resultado de Examen"
-        verbose_name_plural = "🏅 Resultados de Exámenes"
+        verbose_name_plural = "Resultados de Exámenes"
         unique_together = ['estudiante', 'examen']
 
     def __str__(self):
@@ -1287,7 +1287,7 @@ class ObjetivoCurso(models.Model):
     
     class Meta:
         verbose_name = 'Objetivo de Curso'
-        verbose_name_plural = '🎯 Objetivos de Cursos'
+        verbose_name_plural = 'Objetivos de Cursos'
         ordering = ['curso', 'orden']
     
     def __str__(self):
@@ -1318,7 +1318,7 @@ class RubricaEvaluacion(models.Model):
     
     class Meta:
         verbose_name = 'Rúbrica de Evaluación'
-        verbose_name_plural = '📏 Rúbricas de Evaluación'
+        verbose_name_plural = 'Rúbricas de Evaluación'
     
     def __str__(self):
         return self.nombre
@@ -1391,7 +1391,7 @@ class EjercicioPractico(models.Model):
     
     class Meta:
         verbose_name = 'Ejercicio Práctico'
-        verbose_name_plural = '📝 Ejercicios Prácticos'
+        verbose_name_plural = 'Ejercicios Prácticos'
         ordering = ['modulo', 'orden']
     
     def __str__(self):
@@ -1453,7 +1453,7 @@ class RespuestaEjercicio(models.Model):
     
     class Meta:
         verbose_name = 'Respuesta a Ejercicio'
-        verbose_name_plural = '✍️ Respuestas a Ejercicios'
+        verbose_name_plural = 'Respuestas a Ejercicios'
         ordering = ['-fecha_respuesta']
         unique_together = ['ejercicio', 'estudiante', 'intento']
     
@@ -1554,7 +1554,7 @@ class InteraccionLog(models.Model):
     
     class Meta:
         verbose_name = 'Interacción Log'
-        verbose_name_plural = '📝 Logs de Interacciones'
+        verbose_name_plural = 'Logs de Interacciones'
         ordering = ['-fecha']
         indexes = [
             models.Index(fields=['estudiante', 'fecha']),
@@ -1687,7 +1687,7 @@ class SolicitudSoporte(models.Model):
     
     class Meta:
         verbose_name = 'Solicitud de Soporte y PQRS'
-        verbose_name_plural = '🆘 Soporte y PQRS'
+        verbose_name_plural = 'Soporte y PQRS'
         ordering = ['-fecha_solicitud']
         indexes = [
             models.Index(fields=['estado', 'prioridad']),
@@ -1755,7 +1755,7 @@ class CampanaUnica(models.Model):
     
     class Meta:
         verbose_name = "Campaña Única"
-        verbose_name_plural = "📩 Campañas Únicas"
+        verbose_name_plural = "Campañas Únicas"
         ordering = ['-fecha_creacion']
     
     def __str__(self):
@@ -1780,7 +1780,7 @@ class RespuestaCampanaUnica(models.Model):
     
     class Meta:
         verbose_name = "Respuesta Campaña Única"
-        verbose_name_plural = "📬 Respuestas Campañas Únicas"
+        verbose_name_plural = "Respuestas Campañas Únicas"
         ordering = ['-fecha_respuesta']
         unique_together = ['campana', 'numero_telefono']  # Un estudiante solo responde una vez
     
@@ -1869,7 +1869,7 @@ class ProspectoB2B(models.Model):
     
     class Meta:
         verbose_name = 'Prospecto B2B'
-        verbose_name_plural = '🏢 Prospectos B2B (Leads)'
+        verbose_name_plural = 'Prospectos B2B (Leads)'
         ordering = ['-fecha_captura']
     
     def __str__(self):
@@ -1918,7 +1918,7 @@ class CampanaB2B(models.Model):
     
     class Meta:
         verbose_name = 'Campaña B2B'
-        verbose_name_plural = '📤 Campañas B2B'
+        verbose_name_plural = 'Campañas B2B'
         ordering = ['-fecha_creacion']
     
     def __str__(self):

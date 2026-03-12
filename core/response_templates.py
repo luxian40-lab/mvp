@@ -874,6 +874,11 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
             nivel_antes = perfil.nivel
             
+            # v1.9.8j: Check if module was already completed BEFORE creating it
+            modulo_ya_completado = ModuloCompletado.objects.filter(
+                progreso=progreso, modulo=modulo_actual
+            ).exists()
+            
             if not tiene_pregunta_modulo(modulo_actual):
                 ModuloCompletado.objects.get_or_create(
                     progreso=progreso,
@@ -888,16 +893,16 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             ).order_by('numero').first()
             
             if siguiente_modulo:
-                # v1.9.8h: When reto activates, DON'T advance to next module yet
-                # Check reto FIRST before advancing
                 total_modulos = progreso.curso.modulos.count()
                 es_modulo_reto = (modulo_actual.numero == 3) or (modulo_actual.numero == total_modulos and total_modulos >= 5)
                 
+                # v1.9.8j: If reto module but already completed (post-reto "listo"), skip reto
+                if es_modulo_reto and modulo_ya_completado:
+                    es_modulo_reto = False
+                
                 if not es_modulo_reto:
-                    # Normal module: advance pointer now
                     progreso.modulo_actual = siguiente_modulo
                     progreso.save()
-                # else: pointer stays at modulo_actual — will advance after reto
                 
                 porcentaje = progreso.porcentaje_avance()
                 video_url = obtener_video_url(siguiente_modulo)

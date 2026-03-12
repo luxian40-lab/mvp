@@ -5315,6 +5315,34 @@ https://tu-dominio.com/verificar-certificado/EKI-XXXX-YYYY-ZZZZ/
         </div>
         </div>
 
+        <div id="changelog-v198j" class="section" style="margin-top:30px;">
+        <h2 class="section-title">🔧 Correcciones — v1.9.8j (Marzo 2026)</h2>
+        <div class="subsection">
+            <h3>v1.9.8j — Módulo 4 No Se Saltaba, Sidebar Limpio</h3>
+            <table>
+                <tr><th>Bug/Mejora</th><th>Antes (v1.9.8i)</th><th>Ahora (v1.9.8j)</th></tr>
+                <tr>
+                    <td>⏭️ Módulo 4 se saltaba</td>
+                    <td>Después del reto de módulo 3, al escribir "listo" el sistema saltaba módulo 4 y mostraba módulo 5 o completaba el curso</td>
+                    <td>Tras el reto, "listo" detecta que el módulo ya fue completado → salta el reto (ya hecho) y <strong>muestra el contenido del módulo 4</strong> normalmente</td>
+                </tr>
+                <tr>
+                    <td>🎨 Sidebar Admin</td>
+                    <td>Emojis coloridos en los nombres del sidebar (🎓 Estudiantes, 📣 Campañas, etc.)</td>
+                    <td>Emojis <strong>eliminados</strong> de verbose_name_plural. Sidebar usa solo iconos nativos de Jazzmin (FontAwesome gris)</td>
+                </tr>
+            </table>
+            
+            <h4>Lógica de detección post-reto:</h4>
+            <ol>
+                <li>Estudiante escribe "listo" después del reto</li>
+                <li>Sistema detecta: módulo_actual=3, ModuloCompletado ya existe → <code>modulo_ya_completado=True</code></li>
+                <li>es_modulo_reto=True PERO modulo_ya_completado=True → se trata como módulo normal</li>
+                <li>Avanza puntero a módulo 4 y muestra su contenido</li>
+            </ol>
+        </div>
+        </div>
+
         <div id="changelog-v198i" class="section" style="margin-top:30px;">
         <h2 class="section-title">🔧 Correcciones — v1.9.8i (Marzo 2026)</h2>
         <div class="subsection">
