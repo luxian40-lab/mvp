@@ -1,14 +1,16 @@
 import subprocess
 import os
+import sys
 
 os.chdir(r'c:\Users\luxia\OneDrive\Escritorio\eki_mvp')
 
 print('=== Step 1: Check Python syntax ===')
-result = subprocess.run(['python', '-m', 'py_compile', r'core\views.py'], capture_output=True, text=True)
+result = subprocess.run([sys.executable, '-m', 'py_compile', r'core\views.py'], capture_output=True, text=True)
 if result.returncode == 0:
     print('OK: Python syntax check passed')
 else:
     print('ERROR:', result.stderr)
+    sys.exit(1)
 
 print('\n=== Step 2: Git status ===')
 result = subprocess.run(['git', 'status', '--short'], capture_output=True, text=True)
@@ -21,13 +23,16 @@ print(result.stdout)
 print('=== Step 4: Stage and commit ===')
 subprocess.run(['git', 'add', r'core\views.py'], capture_output=True, text=True)
 
-commit_msg = """fix: audio messages not transcribed in Dario/reto agent states
+commit_msg = """fix: audio transcription broken - Whisper first, remove listo bias
 
-- _transcribir_audio_twilio now returns None on failure instead of 'listo'
-- Allow valid 'listo' audio transcription through (was being blocked)
-- Add [AUDIO_NO_TRANSCRITO] handling in all agent states (Dario, reto, tutor, progreso, modulo)
-- Mark WhatsappLog with es_audio=True for incoming audio messages
-- Show user-friendly retry message when audio cannot be transcribed
+Root causes fixed:
+- _transcribir_con_vosk returned 'listo' on empty text, causing Dario to skip
+- Whisper prompt biased transcription toward 'listo'
+- Vosk model not deployed to EB, always failing silently
+- Prioritize Whisper (works on EB) over Vosk (needs local model)
+- _transcribir_audio_twilio returns None on failure (not 'listo')
+- Handle [AUDIO_NO_TRANSCRITO] in all agent states with retry message
+- Mark WhatsappLog with es_audio=True for audio messages
 
 Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"""
 

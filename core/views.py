@@ -321,20 +321,16 @@ def serve_media_proxy(request, filename):
 
 def _transcribir_audio_twilio(media_url, media_type='audio/ogg'):
     """
-    Transcribe un audio de Twilio usando VOSK (GRATUITO, OFFLINE).
+    Transcribe un audio de Twilio.
     
-    VOSK: Modelo de reconocimiento de voz offline completamente gratuito.
-    - Costo: $0 (sin límites)
-    - Velocidad: Muy rápida (local)
-    - Idioma: Español colombiano
-    
-    Alternativa: OpenAI Whisper ($0.006/min) si VOSK no está disponible.
+    Prioridad: OpenAI Whisper (confiable en producción), luego VOSK (offline).
     
     Args:
         media_url: URL del audio en Twilio
+        media_type: MIME type del audio
     
     Returns:
-        str: Texto transcrito
+        str: Texto transcrito o None si falla
     """
     try:
         # Obtener credenciales de Twilio para descargar el audio
@@ -369,28 +365,12 @@ def _transcribir_audio_twilio(media_url, media_type='audio/ogg'):
             audio_path = tmp_file.name
         
         try:
-            # OPCIÓN 1: VOSK (GRATUITO - PRIORIDAD)
-            try:
-                texto = _transcribir_con_vosk(audio_path)
-                if texto:
-                    print(f"✅ Vosk transcribió: '{texto}'")
-                    return texto
-                print(f"⚠️ Vosk retornó vacío — probando Whisper...")
-            except Exception as vosk_error:
-                print(f"⚠️ Vosk no disponible: {vosk_error}")
-
-            # Verificar que el archivo original sigue intacto para Whisper
-            if not os.path.exists(audio_path):
-                print(f"❌ Archivo original perdido tras Vosk — no se puede transcribir")
-                return None
-            
-            # OPCIÓN 2: WHISPER (FALLBACK PAGADO)
+            # OPCIÓN 1: WHISPER (OpenAI — confiable en producción)
             openai_api_key = getattr(settings, 'OPENAI_API_KEY', '')
             if openai_api_key:
-                # Whisper soporta audios más grandes; evitamos limitar a solo mensajes cortos.
                 max_whisper_size = 20 * 1024 * 1024  # 20MB
                 if audio_size <= max_whisper_size:
-                    print(f"🔄 Usando Whisper como fallback (archivo: {suffix}, {audio_size} bytes)...")
+                    print(f"🎤 Transcribiendo con Whisper (archivo: {suffix}, {audio_size} bytes)...")
                     try:
                         from openai import OpenAI
                         client = OpenAI(api_key=openai_api_key)
@@ -400,7 +380,6 @@ def _transcribir_audio_twilio(media_url, media_type='audio/ogg'):
                                 model="whisper-1",
                                 file=audio_file,
                                 language="es",
-                                prompt="Listo, continuar, ayuda, soporte, sí, no"
                             )
 
                         texto = (transcription.text or '').strip()
@@ -413,6 +392,16 @@ def _transcribir_audio_twilio(media_url, media_type='audio/ogg'):
                     print(f"⚠️ Audio demasiado grande para Whisper ({audio_size} bytes)")
             else:
                 print(f"⚠️ OPENAI_API_KEY no configurada — Whisper no disponible")
+
+            # OPCIÓN 2: VOSK (gratuito, offline — si modelo disponible)
+            try:
+                texto = _transcribir_con_vosk(audio_path)
+                if texto:
+                    print(f"✅ Vosk transcribió: '{texto}'")
+                    return texto
+                print(f"⚠️ Vosk retornó vacío")
+            except Exception as vosk_error:
+                print(f"⚠️ Vosk no disponible: {vosk_error}")
             
             # OPCIÓN 3: FALLBACK — no se pudo transcribir
             print("⚠️ Sin transcripción disponible - retornando None")
@@ -481,7 +470,7 @@ def _transcribir_con_vosk(audio_path):
             texto = result.get('text', '').strip()
 
             print(f"✅ Vosk transcribió: '{texto}'")
-            return texto if texto else "listo"
+            return texto if texto else None
         finally:
             # Limpiar archivo WAV temporal (siempre, incluso en error)
             if os.path.exists(wav_path):
