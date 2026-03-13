@@ -319,7 +319,7 @@ def serve_media_proxy(request, filename):
     else:
         return HttpResponseBadRequest("Archivo no encontrado o error en S3")
 
-def _transcribir_audio_twilio(media_url):
+def _transcribir_audio_twilio(media_url, media_type='audio/ogg'):
     """
     Transcribe un audio de Twilio usando VOSK (GRATUITO, OFFLINE).
     
@@ -348,8 +348,21 @@ def _transcribir_audio_twilio(media_url):
         audio_size = len(response.content)
         print(f"🎤 Transcribiendo audio ({audio_size} bytes)...")
         
-        # Guardar temporalmente
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.ogg') as tmp_file:
+        # Guardar temporalmente con extensión acorde al MIME enviado por Twilio
+        suffix_map = {
+            'audio/ogg': '.ogg',
+            'audio/opus': '.ogg',
+            'audio/mpeg': '.mp3',
+            'audio/mp3': '.mp3',
+            'audio/mp4': '.m4a',
+            'audio/aac': '.aac',
+            'audio/amr': '.amr',
+            'audio/webm': '.webm',
+            'audio/wav': '.wav',
+        }
+        suffix = suffix_map.get((media_type or '').lower(), '.ogg')
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
             tmp_file.write(response.content)
             audio_path = tmp_file.name
         
@@ -365,22 +378,30 @@ def _transcribir_audio_twilio(media_url):
             
             # OPCIÓN 2: WHISPER (FALLBACK PAGADO)
             openai_api_key = getattr(settings, 'OPENAI_API_KEY', '')
-            if openai_api_key and audio_size < 500000:  # Solo audios cortos
-                print("🔄 Usando Whisper como fallback...")
-                from openai import OpenAI
-                client = OpenAI(api_key=openai_api_key)
-                
-                with open(audio_path, 'rb') as audio_file:
-                    transcription = client.audio.transcriptions.create(
-                        model="whisper-1",
-                        file=audio_file,
-                        language="es",
-                        prompt="Listo, continuar, menú, cursos, progreso, ayuda"
-                    )
-                
-                texto = transcription.text.strip()
-                print(f"✅ Whisper transcribió: '{texto}'")
-                return texto if texto else "listo"
+            if openai_api_key:
+                # Whisper soporta audios más grandes; evitamos limitar a solo mensajes cortos.
+                max_whisper_size = 20 * 1024 * 1024  # 20MB
+                if audio_size <= max_whisper_size:
+                    print("🔄 Usando Whisper como fallback...")
+                    try:
+                        from openai import OpenAI
+                        client = OpenAI(api_key=openai_api_key)
+
+                        with open(audio_path, 'rb') as audio_file:
+                            transcription = client.audio.transcriptions.create(
+                                model="whisper-1",
+                                file=audio_file,
+                                language="es",
+                                prompt="Listo, continuar, ayuda, soporte, sí, no"
+                            )
+
+                        texto = (transcription.text or '').strip()
+                        print(f"✅ Whisper transcribió: '{texto}'")
+                        return texto if texto else "listo"
+                    except Exception as whisper_error:
+                        print(f"❌ Error Whisper: {whisper_error}")
+                else:
+                    print(f"⚠️ Audio demasiado grande para Whisper ({audio_size} bytes)")
             
             # OPCIÓN 3: FALLBACK INTELIGENTE
             print("⚠️ Sin transcripción disponible - usando fallback")
@@ -1121,7 +1142,7 @@ def _procesar_twilio_webhook(post_data):
                 print(f"🎤 Audio recibido: {media_url}")
                 # Transcribir audio con OpenAI Whisper
                 try:
-                    msg_body = _transcribir_audio_twilio(media_url)
+                    msg_body = _transcribir_audio_twilio(media_url, media_type=media_type)
                     print(f"✅ Audio transcrito: {msg_body}")
                 except Exception as e:
                     print(f"❌ Error transcribiendo audio: {e}")
