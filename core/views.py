@@ -1142,23 +1142,33 @@ def _procesar_twilio_webhook(post_data):
         msg_sid = post_data.get('MessageSid', f'twilio_{timezone.now().timestamp()}')
         
         logger.info(f"📱 Body: {msg_body} | From: {msg_from} | To: {msg_to}")
-        
+
         # 🎤 DETECTAR AUDIO: Twilio envía audios como MediaUrl
         num_media = int(post_data.get('NumMedia', 0))
-        if num_media > 0 and not msg_body:
-            # Usuario envió audio sin texto
-            media_url = post_data.get('MediaUrl0', '')
-            media_type = post_data.get('MediaContentType0', '')
-            
-            if 'audio' in media_type:
-                print(f"🎤 Audio recibido: {media_url}")
-                # Transcribir audio con OpenAI Whisper
+        media_type = post_data.get('MediaContentType0', '')
+        media_url = post_data.get('MediaUrl0', '')
+        print(f"🎤 DEBUG AUDIO: NumMedia={num_media}, MediaType='{media_type}', MediaUrl={bool(media_url)}, Body='{msg_body[:30] if msg_body else ''}'", flush=True)
+
+        if num_media > 0:
+            if 'audio' in media_type or 'ogg' in media_type:
+                print(f"🎤 Audio detectado: {media_url} (type={media_type})")
                 try:
-                    msg_body = _transcribir_audio_twilio(media_url, media_type=media_type)
-                    print(f"✅ Audio transcrito: {msg_body}")
+                    transcripcion = _transcribir_audio_twilio(media_url, media_type=media_type)
+                    print(f"✅ Audio transcrito: '{transcripcion}'")
+                    # Si hay Body además del audio, priorizar la transcripción
+                    if transcripcion and transcripcion != "listo":
+                        msg_body = transcripcion
+                    elif not msg_body:
+                        msg_body = transcripcion or "listo"
                 except Exception as e:
                     print(f"❌ Error transcribiendo audio: {e}")
-                    msg_body = "listo"  # Fallback común para continuar lección
+                    import traceback; traceback.print_exc()
+                    if not msg_body:
+                        msg_body = "listo"
+            elif not msg_body:
+                # Imagen u otro media sin texto — ignorar media, no es audio
+                print(f"📎 Media no-audio recibido: type={media_type}")
+                msg_body = "listo"
         
         # Limpiar número (quitar whatsapp: y normalizar igual que el modelo)
         if msg_from.startswith('whatsapp:'):
@@ -1852,77 +1862,95 @@ def _procesar_twilio_webhook(post_data):
                 except Exception as e:
                     logger.error(f"❌ Error enviando selección curso: {e}")
                 return  # CORTAR EJECUCIÓN
-            
+
+            # ============================================================
+            # PRIORIDAD: Si el estudiante está interactuando con un AGENTE
+            # (Darío, Facilitadora, Tutor IA, etc.), NO interceptar con
+            # el gate de "solo listo" — dejar que el flujo caiga al handler
+            # del agente más abajo en el código.
+            # ============================================================
+            estados_agente = [
+                'esperando_respuesta_asistente',     # Darío
+                'esperando_respuesta_reto',          # Facilitadora
+                'esperando_respuesta_tutor_ia',      # Tutor legacy
+                'esperando_respuesta_progreso',      # María
+                'esperando_respuesta_modulo',         # Evaluación módulo
+            ]
+            if estudiante.estado_onboarding in estados_agente:
+                logger.info(f"🤖 Agente activo ({estudiante.estado_onboarding}) — bypassing gate listo")
+                # No interceptar — caerá al flujo EXISTENTE más abajo (handlers de agente)
+
             # Detectar "Mis cursos" → rama legacy deshabilitada (curso sin menú)
             elif False and msg_lower in ['1', 'mis cursos', 'cursos', '📚 mis cursos']:
                 pass
-            
-            # En flujo de curso no existe menú: solo "listo" avanza y "ayuda" crea ticket.
-            keywords_ayuda_curso = ['ayuda', 'soporte', 'ticket', 'problema']
-            keywords_corregir_curso = [
-                '4', 'corregir datos', 'corregir mis datos', 'cambiar datos', 'cambiar mis datos',
-                'me equivoqué', 'me equivoque', 'editar datos', 'modificar datos', 'modificar',
-                'datos incorrectos', 'mis datos', 'actualizar datos'
-            ]
 
-            if msg_lower in keywords_ayuda_curso:
-                from .security_handler import procesar_solicitud_soporte
-                respuesta = procesar_solicitud_soporte(estudiante, msg_body, 'curso_ayuda')
-                try:
-                    from twilio.rest import Client as TwilioClient
-                    account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-                    auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-                    twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
-                    client_tw = TwilioClient(account_sid, auth_token)
-                    destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
-                    client_tw.messages.create(body=respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
-                    WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=respuesta, tipo='SENT')
-                except Exception:
-                    pass
-                return
+            else:
+                # En flujo de curso normal: solo "listo" avanza y "ayuda" crea ticket.
+                keywords_ayuda_curso = ['ayuda', 'soporte', 'ticket', 'problema']
+                keywords_corregir_curso = [
+                    '4', 'corregir datos', 'corregir mis datos', 'cambiar datos', 'cambiar mis datos',
+                    'me equivoqué', 'me equivoque', 'editar datos', 'modificar datos', 'modificar',
+                    'datos incorrectos', 'mis datos', 'actualizar datos'
+                ]
 
-            if msg_lower in keywords_corregir_curso:
-                from .models import SolicitudSoporte
-                SolicitudSoporte.objects.create(
-                    estudiante=estudiante,
-                    mensaje_original=f"Solicitud de corrección de datos. Datos actuales: Nombre={estudiante.nombre}, Cédula={estudiante.cedula}",
-                    keyword_usada='correccion_datos',
-                    asunto='Corrección de datos desde curso',
-                    estado='pendiente'
-                )
-                texto_respuesta = (
-                    "📝 *Solicitud de Corrección Recibida*\n\n"
-                    f"Hola {estudiante.nombre}, hemos creado un ticket de soporte para la corrección de tus datos.\n\n"
-                    "📧 *Nuestro equipo te contactará pronto.*\n\n"
-                    "Si quieres avanzar en tu curso, escribe *listo*."
-                )
-                try:
-                    from twilio.rest import Client as TwilioClient
-                    account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-                    auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-                    twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
-                    client_tw = TwilioClient(account_sid, auth_token)
-                    destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
-                    client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
-                    WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
-                except Exception as e:
-                    logger.error(f"❌ Error enviando corrección datos: {e}")
-                return
+                if msg_lower in keywords_ayuda_curso:
+                    from .security_handler import procesar_solicitud_soporte
+                    respuesta = procesar_solicitud_soporte(estudiante, msg_body, 'curso_ayuda')
+                    try:
+                        from twilio.rest import Client as TwilioClient
+                        account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                        auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                        twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
+                        client_tw = TwilioClient(account_sid, auth_token)
+                        destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
+                        client_tw.messages.create(body=respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
+                        WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=respuesta, tipo='SENT')
+                    except Exception:
+                        pass
+                    return
 
-            if msg_lower != 'listo':
-                texto_respuesta = "No entendí. Si quieres avanzar de módulo escribe *listo*. Si necesitas ayuda, escribe *ayuda*."
-                try:
-                    from twilio.rest import Client as TwilioClient
-                    account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-                    auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-                    twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
-                    client_tw = TwilioClient(account_sid, auth_token)
-                    destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
-                    client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
-                    WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
-                except Exception as e:
-                    logger.error(f"❌ Error enviando respuesta no entendida: {e}")
-                return
+                if msg_lower in keywords_corregir_curso:
+                    from .models import SolicitudSoporte
+                    SolicitudSoporte.objects.create(
+                        estudiante=estudiante,
+                        mensaje_original=f"Solicitud de corrección de datos. Datos actuales: Nombre={estudiante.nombre}, Cédula={estudiante.cedula}",
+                        keyword_usada='correccion_datos',
+                        asunto='Corrección de datos desde curso',
+                        estado='pendiente'
+                    )
+                    texto_respuesta = (
+                        "📝 *Solicitud de Corrección Recibida*\n\n"
+                        f"Hola {estudiante.nombre}, hemos creado un ticket de soporte para la corrección de tus datos.\n\n"
+                        "📧 *Nuestro equipo te contactará pronto.*\n\n"
+                        "Si quieres avanzar en tu curso, escribe *listo*."
+                    )
+                    try:
+                        from twilio.rest import Client as TwilioClient
+                        account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                        auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                        twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
+                        client_tw = TwilioClient(account_sid, auth_token)
+                        destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
+                        client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
+                        WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
+                    except Exception as e:
+                        logger.error(f"❌ Error enviando corrección datos: {e}")
+                    return
+
+                if msg_lower != 'listo':
+                    texto_respuesta = "No entendí. Si quieres avanzar de módulo escribe *listo*. Si necesitas ayuda, escribe *ayuda*."
+                    try:
+                        from twilio.rest import Client as TwilioClient
+                        account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                        auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                        twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
+                        client_tw = TwilioClient(account_sid, auth_token)
+                        destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
+                        client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
+                        WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
+                    except Exception as e:
+                        logger.error(f"❌ Error enviando respuesta no entendida: {e}")
+                    return
 
             # Detectar "Mis puntos" (botón o texto) - rama legacy
             if msg_lower in ['2', 'mis puntos', 'puntos', '🏆 mis puntos']:

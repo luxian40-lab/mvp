@@ -173,8 +173,8 @@ def evaluar_reto_facilitador(modulos_cubiertos, respuesta_estudiante, reto_origi
 
     modulos_info = ""
     for m in modulos_cubiertos:
-        contenido_corto = (m.contenido[:200] if m.contenido else '')
-        modulos_info += f"- Módulo {m.numero}: {m.titulo} ({contenido_corto})\n"
+        contenido_corto = (m.contenido[:600] if m.contenido else '')
+        modulos_info += f"- Módulo {m.numero}: {m.titulo}\n  {contenido_corto}\n"
 
     # RAG context
     contexto_rag = ""
@@ -187,7 +187,7 @@ def evaluar_reto_facilitador(modulos_cubiertos, respuesta_estudiante, reto_origi
                 cliente_id=cliente_id,
                 curso_id=curso.id,
                 pregunta=respuesta_estudiante,
-                max_chars=800
+                max_chars=1200
             )
     except Exception as e:
         logger.warning(f"[RAG] Error en evaluación reto: {e}")
