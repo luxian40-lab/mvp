@@ -372,17 +372,17 @@ def _transcribir_audio_twilio(media_url, media_type='audio/ogg'):
             # OPCIÓN 1: VOSK (GRATUITO - PRIORIDAD)
             try:
                 texto = _transcribir_con_vosk(audio_path)
-                if texto and texto != "listo":
+                if texto:
                     print(f"✅ Vosk transcribió: '{texto}'")
                     return texto
-                print(f"⚠️ Vosk retornó '{texto}' — probando Whisper...")
+                print(f"⚠️ Vosk retornó vacío — probando Whisper...")
             except Exception as vosk_error:
                 print(f"⚠️ Vosk no disponible: {vosk_error}")
 
             # Verificar que el archivo original sigue intacto para Whisper
             if not os.path.exists(audio_path):
-                print(f"❌ Archivo original perdido tras Vosk — usando fallback")
-                return "listo"
+                print(f"❌ Archivo original perdido tras Vosk — no se puede transcribir")
+                return None
             
             # OPCIÓN 2: WHISPER (FALLBACK PAGADO)
             openai_api_key = getattr(settings, 'OPENAI_API_KEY', '')
@@ -405,7 +405,7 @@ def _transcribir_audio_twilio(media_url, media_type='audio/ogg'):
 
                         texto = (transcription.text or '').strip()
                         print(f"✅ Whisper transcribió: '{texto}'")
-                        return texto if texto else "listo"
+                        return texto if texto else None
                     except Exception as whisper_error:
                         print(f"❌ Error Whisper: {whisper_error}")
                         import traceback; traceback.print_exc()
@@ -414,9 +414,9 @@ def _transcribir_audio_twilio(media_url, media_type='audio/ogg'):
             else:
                 print(f"⚠️ OPENAI_API_KEY no configurada — Whisper no disponible")
             
-            # OPCIÓN 3: FALLBACK INTELIGENTE
-            print("⚠️ Sin transcripción disponible - usando fallback")
-            return "listo"
+            # OPCIÓN 3: FALLBACK — no se pudo transcribir
+            print("⚠️ Sin transcripción disponible - retornando None")
+            return None
             
         finally:
             # Eliminar archivo temporal
@@ -425,7 +425,7 @@ def _transcribir_audio_twilio(media_url, media_type='audio/ogg'):
     
     except Exception as e:
         print(f"❌ Error en transcripción: {e}")
-        return "listo"
+        return None
 
 
 def _transcribir_con_vosk(audio_path):
@@ -1149,22 +1149,22 @@ def _procesar_twilio_webhook(post_data):
         media_url = post_data.get('MediaUrl0', '')
         print(f"🎤 DEBUG AUDIO: NumMedia={num_media}, MediaType='{media_type}', MediaUrl={bool(media_url)}, Body='{msg_body[:30] if msg_body else ''}'", flush=True)
 
+        es_audio = num_media > 0 and ('audio' in media_type or 'ogg' in media_type)
         if num_media > 0:
-            if 'audio' in media_type or 'ogg' in media_type:
+            if es_audio:
                 print(f"🎤 Audio detectado: {media_url} (type={media_type})")
                 try:
                     transcripcion = _transcribir_audio_twilio(media_url, media_type=media_type)
                     print(f"✅ Audio transcrito: '{transcripcion}'")
-                    # Si hay Body además del audio, priorizar la transcripción
-                    if transcripcion and transcripcion != "listo":
+                    if transcripcion:
                         msg_body = transcripcion
                     elif not msg_body:
-                        msg_body = transcripcion or "listo"
+                        msg_body = "[AUDIO_NO_TRANSCRITO]"
                 except Exception as e:
                     print(f"❌ Error transcribiendo audio: {e}")
                     import traceback; traceback.print_exc()
                     if not msg_body:
-                        msg_body = "listo"
+                        msg_body = "[AUDIO_NO_TRANSCRITO]"
             elif not msg_body:
                 # Imagen u otro media sin texto — ignorar media, no es audio
                 print(f"📎 Media no-audio recibido: type={media_type}")
@@ -1188,7 +1188,8 @@ def _procesar_twilio_webhook(post_data):
             telefono=telefono_limpio,
             mensaje=msg_body,
             mensaje_id=msg_sid,
-            tipo='INCOMING'
+            tipo='INCOMING',
+            es_audio=es_audio,
         )
         logger.info(f"✅ Guardado INCOMING")
         
@@ -1935,7 +1936,10 @@ def _procesar_twilio_webhook(post_data):
                     return
 
                 if msg_lower != 'listo':
-                    texto_respuesta = "No entendí. Si quieres avanzar de módulo escribe *listo*. Si necesitas ayuda, escribe *ayuda*."
+                    if msg_body.strip() == '[AUDIO_NO_TRANSCRITO]':
+                        texto_respuesta = "⚠️ No pude escuchar tu audio. Por favor intenta de nuevo o escríbeme. Para avanzar escribe *listo*."
+                    else:
+                        texto_respuesta = "No entendí. Si quieres avanzar de módulo escribe *listo*. Si necesitas ayuda, escribe *ayuda*."
                     try:
                         from twilio.rest import Client as TwilioClient
                         account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
@@ -2149,6 +2153,17 @@ def _procesar_twilio_webhook(post_data):
                 if msg_lower in ['ayuda', 'soporte', 'ticket']:
                     from .security_handler import procesar_solicitud_soporte
                     texto_respuesta = procesar_solicitud_soporte(estudiante, msg_body, 'asistente_ayuda')
+                elif msg_body.strip() == '[AUDIO_NO_TRANSCRITO]':
+                    # Audio no pudo ser transcrito — NO contar como pregunta
+                    print(f"🎤 Audio no transcrito en Darío — pidiendo reintento")
+                    preguntas_restantes = 2 - preguntas_hechas
+                    texto_respuesta = (
+                        f"💬 *Darío*\n\n"
+                        f"⚠️ No pude escuchar tu audio. Por favor intenta de nuevo "
+                        f"o escríbeme tu pregunta.\n\n"
+                        f"Te quedan {preguntas_restantes} pregunta(s). "
+                        f"Si no tienes preguntas, escribe *listo*."
+                    )
                 elif msg_lower == 'listo' or preguntas_hechas >= 2:
                     # Student says listo or exhausted 2 questions — activate Facilitator reto
                     print(f"🎯 Darío terminó → Activando Facilitadora con reto")
@@ -2240,6 +2255,14 @@ def _procesar_twilio_webhook(post_data):
                 if msg_lower in ['ayuda', 'soporte', 'ticket']:
                     from .security_handler import procesar_solicitud_soporte
                     texto_respuesta = procesar_solicitud_soporte(estudiante, msg_body, 'reto_ayuda')
+                elif msg_body.strip() == '[AUDIO_NO_TRANSCRITO]':
+                    # Audio no pudo ser transcrito — pedir reintento sin evaluar
+                    print(f"🎤 Audio no transcrito en reto — pidiendo reintento")
+                    texto_respuesta = (
+                        "⚠️ No pude escuchar tu audio. Por favor intenta de nuevo "
+                        "o escríbeme tu respuesta al reto.\n\n"
+                        "✍️ _Escriba o envíe un audio con su respuesta._"
+                    )
                 else:
                     from .models import Modulo, ProgresoEstudiante
                     modulos_reto = list(Modulo.objects.filter(id__in=modulos_reto_ids).order_by('numero'))
@@ -2336,7 +2359,14 @@ def _procesar_twilio_webhook(post_data):
                 msg_lower = msg_body.strip().lower()
                 palabras_skip = ['listo', 'continuar', 'saltar', 'omitir', 'siguiente', 'pasar', 'menu', 'menú']
                 
-                if any(p in msg_lower for p in palabras_skip):
+                if msg_body.strip() == '[AUDIO_NO_TRANSCRITO]':
+                    # Audio no pudo ser transcrito — pedir reintento
+                    texto_respuesta = (
+                        "⚠️ No pude escuchar tu audio. Por favor intenta de nuevo "
+                        "o escríbeme tu respuesta.\n\n"
+                        "Si prefieres continuar sin responder, escribe *listo*."
+                    )
+                elif any(p in msg_lower for p in palabras_skip):
                     # Usuario quiere seguir sin responder al tutor
                     estudiante.contexto_temporal = None
                     estudiante.estado_onboarding = 'completado'
@@ -2401,7 +2431,13 @@ def _procesar_twilio_webhook(post_data):
                 msg_lower = msg_body.strip().lower()
                 palabras_skip = ['listo', 'continuar', 'saltar', 'omitir', 'siguiente', 'pasar', 'menu', 'menú']
                 
-                if any(p in msg_lower for p in palabras_skip):
+                if msg_body.strip() == '[AUDIO_NO_TRANSCRITO]':
+                    texto_respuesta = (
+                        "⚠️ No pude escuchar tu audio. Por favor intenta de nuevo "
+                        "o escríbeme tu respuesta.\n\n"
+                        "Si prefieres continuar sin responder, escribe *listo*."
+                    )
+                elif any(p in msg_lower for p in palabras_skip):
                     estudiante.contexto_temporal = None
                     estudiante.estado_onboarding = 'completado'
                     estudiante.save()
@@ -2472,7 +2508,12 @@ def _procesar_twilio_webhook(post_data):
             elif estudiante.estado_onboarding == 'esperando_respuesta_modulo':
                 # Si el usuario dice "menu", salir del examen y mostrar menú
                 msg_lower_exam = msg_body.strip().lower()
-                if msg_lower_exam in ['menu', 'menú']:
+                if msg_body.strip() == '[AUDIO_NO_TRANSCRITO]':
+                    texto_respuesta = (
+                        "⚠️ No pude escuchar tu audio. Por favor intenta de nuevo "
+                        "o escríbeme tu respuesta."
+                    )
+                elif msg_lower_exam in ['menu', 'menú']:
                     estudiante.estado_onboarding = 'completado'
                     estudiante.save()
                     from .response_templates import get_response_for_intent
