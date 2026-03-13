@@ -1624,9 +1624,7 @@ def _procesar_twilio_webhook(post_data):
                     "📝 *Solicitud de Corrección Recibida*\n\n"
                     f"Hola {estudiante.nombre}, hemos creado un ticket de soporte "
                     "para la corrección de tus datos.\n\n"
-                    "📧 *Nuestro equipo te contactará pronto.*\n\n"
-                    "👉 Escribe *continuar* para seguir con tu curso\n"
-                    "👉 Escribe *ayuda* si necesitas asistencia adicional"
+                    "📧 *Nuestro equipo te contactará pronto.*"
                 )
                 estudiante.estado_chat = 'ACTIVO'
                 estudiante.estado_onboarding = 'completado'
@@ -1921,8 +1919,7 @@ def _procesar_twilio_webhook(post_data):
                     texto_respuesta = (
                         "📝 *Solicitud de Corrección Recibida*\n\n"
                         f"Hola {estudiante.nombre}, hemos creado un ticket de soporte para la corrección de tus datos.\n\n"
-                        "📧 *Nuestro equipo te contactará pronto.*\n\n"
-                        "Si quieres avanzar en tu curso, escribe *listo*."
+                        "📧 *Nuestro equipo te contactará pronto.*"
                     )
                     try:
                         from twilio.rest import Client as TwilioClient
@@ -1991,8 +1988,7 @@ def _procesar_twilio_webhook(post_data):
                     "📝 *Solicitud de Corrección Recibida*\n\n"
                     f"Hola {estudiante.nombre}, hemos creado un ticket de soporte "
                     "para la corrección de tus datos.\n\n"
-                    "📧 *Nuestro equipo te contactará pronto.*\n\n"
-                    "👉 Escribe *continuar* para seguir con tu curso"
+                    "📧 *Nuestro equipo te contactará pronto.*"
                 )
                 try:
                     from twilio.rest import Client as TwilioClient
@@ -2195,7 +2191,7 @@ def _procesar_twilio_webhook(post_data):
                         texto_respuesta = (
                             f"📋 *{nombre_tutor}*\n\n"
                             f"{reto}\n\n"
-                            f"✍️ _Escriba o envíe un audio con su respuesta al reto._"
+                            f"✍️ _Escriba o envíe un audio con su respuesta._"
                         )
                     else:
                         estudiante.estado_onboarding = 'completado'
