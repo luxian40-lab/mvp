@@ -380,11 +380,11 @@ def _transcribir_audio_twilio(media_url):
                 
                 texto = transcription.text.strip()
                 print(f"✅ Whisper transcribió: '{texto}'")
-                return texto if texto else ""
+                return texto if texto else "listo"
             
             # OPCIÓN 3: FALLBACK INTELIGENTE
             print("⚠️ Sin transcripción disponible - usando fallback")
-            return ""
+            return "listo"
             
         finally:
             # Eliminar archivo temporal
@@ -393,7 +393,7 @@ def _transcribir_audio_twilio(media_url):
     
     except Exception as e:
         print(f"❌ Error en transcripción: {e}")
-        return ""
+        return "listo"
 
 
 def _transcribir_con_vosk(audio_path):
@@ -452,7 +452,7 @@ def _transcribir_con_vosk(audio_path):
         if os.path.exists(wav_path):
             os.remove(wav_path)
         
-        return texto if texto else ""
+        return texto if texto else "listo"
         
     except Exception as e:
         print(f"❌ Error Vosk: {e}")
@@ -1125,7 +1125,7 @@ def _procesar_twilio_webhook(post_data):
                     print(f"✅ Audio transcrito: {msg_body}")
                 except Exception as e:
                     print(f"❌ Error transcribiendo audio: {e}")
-                    msg_body = ""
+                    msg_body = "listo"  # Fallback común para continuar lección
         
         # Limpiar número (quitar whatsapp: y normalizar igual que el modelo)
         if msg_from.startswith('whatsapp:'):
@@ -1552,7 +1552,7 @@ def _procesar_twilio_webhook(post_data):
                             if hay_mas_modulos:
                                 if hay_media_conf:
                                     texto_respuesta += "[SEP][DELAY:5]"
-                                texto_respuesta += "[SEP]Cuando termines de revisar el contenido, escribe *listo*."
+                                texto_respuesta += "[SEP]Tómese su tiempo para ver el material. Mientras usted aprende, aquí iremos organizando los recursos del siguiente nivel. En cuanto termine, solo responda *listo* para continuar."
                         else:
                             texto_respuesta = f"✅ *¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nEl curso aún no tiene módulos configurados. Te notificaremos cuando estén listos."
                     else:
@@ -2602,7 +2602,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                             hay_media_exam = True
                                         if hay_media_exam:
                                             partes.append("[DELAY:5]")
-                                        partes.append("Cuando termines de revisar el contenido, escribe *listo*.")
+                                        partes.append("Tómese su tiempo para ver el material. Mientras usted aprende, aquí iremos organizando los recursos del siguiente nivel. En cuanto termine, solo responda *listo* para continuar.")
                                         texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
                             
                                 else:
@@ -2800,7 +2800,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                             "[MULTI_MSG]⚠️ *Has agotado tus preguntas libres a la IA para este modulo.*\n\n"
                             "Para desbloquear mas preguntas, necesitas responder "
                             "la pregunta de evaluacion del modulo actual."
-                            "[SEP]Cuando termines de revisar el contenido, escribe *listo*."
+                            "[SEP]Tómese su tiempo para ver el material. Mientras usted aprende, aquí iremos organizando los recursos del siguiente nivel. En cuanto termine, solo responda *listo* para continuar."
                         )
                     else:
                         try:

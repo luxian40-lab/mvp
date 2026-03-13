@@ -715,7 +715,7 @@ Te inscribiste en: *{curso.nombre}*
             # Mensaje "listo" solo si hay más módulos después del primero
             hay_mas_modulos = curso.modulos.filter(numero__gt=primer_modulo.numero).exists()
             if hay_mas_modulos:
-                partes_insc.append("Cuando termines de revisar el contenido, escribe *listo*.")
+                partes_insc.append("Tómese su tiempo para ver el material. Mientras usted aprende, aquí iremos organizando los recursos del siguiente nivel. En cuanto termine, solo responda *listo* para continuar.")
             
             return "[MULTI_MSG]" + "[SEP]".join(partes_insc)
         else:
@@ -989,7 +989,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     hay_media = True
                 if hay_media:
                     partes.append("[DELAY:5]")
-                partes.append("Cuando termines de revisar el contenido, escribe *listo*.")
+                partes.append("Tómese su tiempo para ver el material. Mientras usted aprende, aquí iremos organizando los recursos del siguiente nivel. En cuanto termine, solo responda *listo* para continuar.")
                 return "[MULTI_MSG]" + "[SEP]".join(partes)
             
             else:
@@ -1153,7 +1153,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 hay_media_c = True
             if hay_media_c:
                 partes_c.append("[DELAY:5]")
-            partes_c.append("Cuando termines de revisar el contenido, escribe *listo*.")
+            partes_c.append("Tómese su tiempo para ver el material. Mientras usted aprende, aquí iremos organizando los recursos del siguiente nivel. En cuanto termine, solo responda *listo* para continuar.")
             
             if len(partes_c) > 1:
                 return "[MULTI_MSG]" + "[SEP]".join(partes_c)
