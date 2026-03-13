@@ -380,11 +380,11 @@ def _transcribir_audio_twilio(media_url):
                 
                 texto = transcription.text.strip()
                 print(f"✅ Whisper transcribió: '{texto}'")
-                return texto if texto else "listo"
+                return texto if texto else ""
             
             # OPCIÓN 3: FALLBACK INTELIGENTE
             print("⚠️ Sin transcripción disponible - usando fallback")
-            return "listo"
+            return ""
             
         finally:
             # Eliminar archivo temporal
@@ -393,7 +393,7 @@ def _transcribir_audio_twilio(media_url):
     
     except Exception as e:
         print(f"❌ Error en transcripción: {e}")
-        return "listo"
+        return ""
 
 
 def _transcribir_con_vosk(audio_path):
@@ -452,7 +452,7 @@ def _transcribir_con_vosk(audio_path):
         if os.path.exists(wav_path):
             os.remove(wav_path)
         
-        return texto if texto else "listo"
+        return texto if texto else ""
         
     except Exception as e:
         print(f"❌ Error Vosk: {e}")
@@ -1125,7 +1125,7 @@ def _procesar_twilio_webhook(post_data):
                     print(f"✅ Audio transcrito: {msg_body}")
                 except Exception as e:
                     print(f"❌ Error transcribiendo audio: {e}")
-                    msg_body = "listo"  # Fallback común para continuar lección
+                    msg_body = ""
         
         # Limpiar número (quitar whatsapp: y normalizar igual que el modelo)
         if msg_from.startswith('whatsapp:'):
@@ -1552,7 +1552,7 @@ def _procesar_twilio_webhook(post_data):
                             if hay_mas_modulos:
                                 if hay_media_conf:
                                     texto_respuesta += "[SEP][DELAY:5]"
-                                texto_respuesta += "[SEP]Cuando termines de revisar el contenido, escribe *listo*. Dame unos segundos después de tu mensaje para preparar el siguiente módulo y enviártelo."
+                                texto_respuesta += "[SEP]Cuando termines de revisar el contenido, escribe *listo*."
                         else:
                             texto_respuesta = f"✅ *¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nEl curso aún no tiene módulos configurados. Te notificaremos cuando estén listos."
                     else:
@@ -1818,69 +1818,21 @@ def _procesar_twilio_webhook(post_data):
                     logger.error(f"❌ Error enviando selección curso: {e}")
                 return  # CORTAR EJECUCIÓN
             
-            # Detectar "Mis cursos" → enviar directamente al curso asignado (sin lista)
-            elif msg_lower in ['1', 'mis cursos', 'cursos', '📚 mis cursos']:
-                from .models import Curso, ProgresoEstudiante
-                from .response_templates import obtener_video_url
-                org = estudiante.cliente
-                cursos = Curso.objects.filter(cliente=org, activo=True).order_by('orden', 'nombre') if org else Curso.objects.filter(activo=True).order_by('orden', 'nombre')
-                # Buscar progreso existente primero
-                progreso_existente = ProgresoEstudiante.objects.filter(estudiante=estudiante, curso__activo=True).first()
-                curso = progreso_existente.curso if progreso_existente else cursos.first()
-                _enviar_btn_continuar = False
-                if curso:
-                    progreso, _ = ProgresoEstudiante.objects.get_or_create(
-                        estudiante=estudiante, curso=curso, defaults={'completado': False}
-                    )
-                    modulo = progreso.modulo_actual
-                    if not modulo:
-                        modulo = curso.modulos.order_by('numero').first()
-                        if modulo:
-                            progreso.modulo_actual = modulo
-                            progreso.save()
-                    if modulo:
-                        video_url = obtener_video_url(modulo)
-                        archivos_multimedia = modulo.archivos_multimedia.filter(activo=True)
-                        archivos_msg = ""
-                        primera_media_url = None
-                        extra_media_urls = []
-                        if archivos_multimedia.exists():
-                            archivos_msg = ""
-                            for idx, archivo in enumerate(archivos_multimedia):
-                                icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
-                                url = archivo.get_url_para_envio()
-                                if url:
-                                    if not primera_media_url:
-                                        primera_media_url = url
-                                        archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
-                                    else:
-                                        extra_media_urls.append((url, archivo.titulo, icono))
-                                        archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
-                                else:
-                                    archivos_msg += f"\n{icono} {archivo.titulo}"
-                        if not archivos_multimedia.exists() and video_url:
-                            primera_media_url = video_url
-                        # Construir MULTI_MSG con texto + todos los medias separados
-                        msg_texto = (
-                            f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
-                            f"{modulo.contenido}"
-                        )
-                        partes_cursos = [msg_texto]
-                        if primera_media_url:
-                            partes_cursos.append(f"[MEDIA:{primera_media_url}]")
-                        for extra_url, extra_titulo, extra_icono in extra_media_urls:
-                            partes_cursos.append(f"[MEDIA:{extra_url}]")
-                        if len(partes_cursos) > 1:
-                            texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_cursos)
-                        else:
-                            texto_respuesta = msg_texto
-                        # Enviar botón continuar si no es el último módulo
-                        if curso.modulos.filter(numero__gt=modulo.numero).exists():
-                            _enviar_btn_continuar = True
-                    else:
-                        texto_respuesta = f"📚 Tu curso *{curso.nombre}* aún no tiene módulos configurados."
-                else:
-                    texto_respuesta = "📚 Aún no tienes un curso asignado. Tu coordinador te lo asignará pronto."
+            # Detectar "Mis cursos" → rama legacy deshabilitada (curso sin menú)
+            elif False and msg_lower in ['1', 'mis cursos', 'cursos', '📚 mis cursos']:
+                pass
+            
+            # En flujo de curso no existe menú: solo "listo" avanza y "ayuda" crea ticket.
+            keywords_ayuda_curso = ['ayuda', 'soporte', 'ticket', 'problema']
+            keywords_corregir_curso = [
+                '4', 'corregir datos', 'corregir mis datos', 'cambiar datos', 'cambiar mis datos',
+                'me equivoqué', 'me equivoque', 'editar datos', 'modificar datos', 'modificar',
+                'datos incorrectos', 'mis datos', 'actualizar datos'
+            ]
+
+            if msg_lower in keywords_ayuda_curso:
+                from .security_handler import procesar_solicitud_soporte
+                respuesta = procesar_solicitud_soporte(estudiante, msg_body, 'curso_ayuda')
                 try:
                     from twilio.rest import Client as TwilioClient
                     account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
@@ -1888,33 +1840,56 @@ def _procesar_twilio_webhook(post_data):
                     twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
                     client_tw = TwilioClient(account_sid, auth_token)
                     destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
-                    media_url_curso = None
-                    import re as re_mc
-                    media_m = re_mc.search(r'\[MEDIA:(.*?)\]', texto_respuesta)
-                    if media_m:
-                        media_url_curso = media_m.group(1).strip()
-                        texto_respuesta = texto_respuesta.replace(media_m.group(0), '').strip()
-                    mp = {'body': texto_respuesta, 'from_': str(twilio_number).strip(), 'to': str(destino).strip()}
-                    if media_url_curso:
-                        mp['media_url'] = [media_url_curso]
-                    try:
-                        client_tw.messages.create(**mp)
-                    except Exception:
-                        mp.pop('media_url', None)
-                        client_tw.messages.create(**mp)
-                    # Enviar botón Continuar como Content Template separado
-                    if _enviar_btn_continuar:
-                        import time; time.sleep(0.5)
-                        from .whatsapp_service import enviar_template_twilio
-                        tel_limpio_t = msg_from.replace('whatsapp:', '').replace('+', '')
-                        enviar_template_twilio(tel_limpio_t, 'HX33af3a0f2bb63715e03965c2bd642285')
-                    WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta[:500], tipo='SENT')
-                except Exception as e:
-                    logger.error(f"❌ Error enviando curso: {e}")
+                    client_tw.messages.create(body=respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
+                    WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=respuesta, tipo='SENT')
+                except Exception:
+                    pass
                 return
-            
-            # Detectar "Mis puntos" (botón o texto)
-            elif msg_lower in ['2', 'mis puntos', 'puntos', '🏆 mis puntos']:
+
+            if msg_lower in keywords_corregir_curso:
+                from .models import SolicitudSoporte
+                SolicitudSoporte.objects.create(
+                    estudiante=estudiante,
+                    tipo='correccion_datos',
+                    mensaje=f"Solicitud de corrección de datos. Datos actuales: Nombre={estudiante.nombre}, Cédula={estudiante.cedula}",
+                    estado='pendiente'
+                )
+                texto_respuesta = (
+                    "📝 *Solicitud de Corrección Recibida*\n\n"
+                    f"Hola {estudiante.nombre}, hemos creado un ticket de soporte para la corrección de tus datos.\n\n"
+                    "📧 *Nuestro equipo te contactará pronto.*\n\n"
+                    "Si quieres avanzar en tu curso, escribe *listo*."
+                )
+                try:
+                    from twilio.rest import Client as TwilioClient
+                    account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                    auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                    twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
+                    client_tw = TwilioClient(account_sid, auth_token)
+                    destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
+                    client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
+                    WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
+                except Exception as e:
+                    logger.error(f"❌ Error enviando corrección datos: {e}")
+                return
+
+            if msg_lower != 'listo':
+                texto_respuesta = "No entendí. Si quieres avanzar de módulo escribe *listo*. Si necesitas ayuda, escribe *ayuda*."
+                try:
+                    from twilio.rest import Client as TwilioClient
+                    account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                    auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                    twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
+                    client_tw = TwilioClient(account_sid, auth_token)
+                    destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
+                    client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
+                    WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
+                except Exception as e:
+                    logger.error(f"❌ Error enviando respuesta no entendida: {e}")
+                return
+
+            # Detectar "Mis puntos" (botón o texto) - rama legacy
+            if msg_lower in ['2', 'mis puntos', 'puntos', '🏆 mis puntos']:
                 from .whatsapp_service import enviar_gamificacion_visual
                 enviar_gamificacion_visual(msg_from, estudiante)
                 return
@@ -2071,7 +2046,7 @@ def _procesar_twilio_webhook(post_data):
         print(f"🛡️ Seguridad: bloqueado={bloqueado} | estudiante={estudiante} | estado={getattr(estudiante, 'estado_onboarding', 'N/A')}", flush=True)
         
         # Default safety - will be overwritten by any branch below
-        texto_respuesta = "Escribe *menú* para ver las opciones disponibles."
+        texto_respuesta = "No entendí. Si quieres avanzar de módulo escribe *listo*. Si necesitas ayuda, escribe *ayuda*."
         
         if bloqueado:
             print(f"🛡️ Bloqueado por seguridad/habeas data", flush=True)
@@ -2110,15 +2085,10 @@ def _procesar_twilio_webhook(post_data):
                 progreso_id = ctx.get('progreso_id')
                 
                 msg_lower = msg_body.strip().lower()
-                palabras_listo = ['listo', 'continuar', 'no', 'nada', 'siguiente', 'pasar', 'menu', 'menú']
-                
-                if msg_lower in ['menu', 'menú']:
-                    estudiante.estado_onboarding = 'completado'
-                    estudiante.contexto_temporal = None
-                    estudiante.save()
-                    from .response_templates import get_response_for_intent
-                    texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
-                elif any(p in msg_lower for p in palabras_listo) or preguntas_hechas >= 2:
+                if msg_lower in ['ayuda', 'soporte', 'ticket']:
+                    from .security_handler import procesar_solicitud_soporte
+                    texto_respuesta = procesar_solicitud_soporte(estudiante, msg_body, 'asistente_ayuda')
+                elif msg_lower == 'listo' or preguntas_hechas >= 2:
                     # Student says listo or exhausted 2 questions — activate Facilitator reto
                     print(f"🎯 Darío terminó → Activando Facilitadora con reto")
                     from .models import Modulo, ProgresoEstudiante
@@ -2206,12 +2176,9 @@ def _procesar_twilio_webhook(post_data):
                 progreso_id = ctx.get('progreso_id')
                 
                 msg_lower = msg_body.strip().lower()
-                if msg_lower in ['menu', 'menú']:
-                    estudiante.estado_onboarding = 'completado'
-                    estudiante.contexto_temporal = None
-                    estudiante.save()
-                    from .response_templates import get_response_for_intent
-                    texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
+                if msg_lower in ['ayuda', 'soporte', 'ticket']:
+                    from .security_handler import procesar_solicitud_soporte
+                    texto_respuesta = procesar_solicitud_soporte(estudiante, msg_body, 'reto_ayuda')
                 else:
                     from .models import Modulo, ProgresoEstudiante
                     modulos_reto = list(Modulo.objects.filter(id__in=modulos_reto_ids).order_by('numero'))
@@ -2635,7 +2602,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                             hay_media_exam = True
                                         if hay_media_exam:
                                             partes.append("[DELAY:5]")
-                                        partes.append("Cuando termines de revisar el contenido, escribe *listo*. Dame unos segundos después de tu mensaje para preparar el siguiente módulo y enviártelo.")
+                                        partes.append("Cuando termines de revisar el contenido, escribe *listo*.")
                                         texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
                             
                                 else:
@@ -2833,7 +2800,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                             "[MULTI_MSG]⚠️ *Has agotado tus preguntas libres a la IA para este modulo.*\n\n"
                             "Para desbloquear mas preguntas, necesitas responder "
                             "la pregunta de evaluacion del modulo actual."
-                            "[SEP]Cuando termines de revisar el contenido, escribe *listo*. Dame unos segundos después de tu mensaje para preparar el siguiente módulo y enviártelo."
+                            "[SEP]Cuando termines de revisar el contenido, escribe *listo*."
                         )
                     else:
                         try:

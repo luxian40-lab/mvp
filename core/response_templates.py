@@ -715,7 +715,7 @@ Te inscribiste en: *{curso.nombre}*
             # Mensaje "listo" solo si hay más módulos después del primero
             hay_mas_modulos = curso.modulos.filter(numero__gt=primer_modulo.numero).exists()
             if hay_mas_modulos:
-                partes_insc.append("Cuando termines de revisar el contenido, escribe *listo*. Dame unos segundos después de tu mensaje para preparar el siguiente módulo y enviártelo.")
+                partes_insc.append("Cuando termines de revisar el contenido, escribe *listo*.")
             
             return "[MULTI_MSG]" + "[SEP]".join(partes_insc)
         else:
@@ -826,10 +826,8 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             progreso.modulo_actual = modulo_actual
             progreso.save()
         
-        # Si escribieron "listo" o "siguiente", significa que terminaron el módulo actual
-        # Completarlo y avanzar al siguiente
-        palabras_completar = ['listo', 'siguiente', 'ok', 'dale', 'avanzar', 'sigue']
-        if any(palabra in mensaje_original for palabra in palabras_completar):
+        # Regla estricta del curso: solo "listo" avanza.
+        if (mensaje_original or '').strip() == 'listo':
             # PRIORIDAD: Verificar si el módulo tiene pregunta de validación
             from .pregunta_handler import tiene_pregunta_modulo, obtener_pregunta_modulo, formatear_pregunta, guardar_contexto_pregunta
             
@@ -991,7 +989,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     hay_media = True
                 if hay_media:
                     partes.append("[DELAY:5]")
-                partes.append("Cuando termines de revisar el contenido, escribe *listo*. Dame unos segundos después de tu mensaje para preparar el siguiente módulo y enviártelo.")
+                partes.append("Cuando termines de revisar el contenido, escribe *listo*.")
                 return "[MULTI_MSG]" + "[SEP]".join(partes)
             
             else:
@@ -1155,7 +1153,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 hay_media_c = True
             if hay_media_c:
                 partes_c.append("[DELAY:5]")
-            partes_c.append("Cuando termines de revisar el contenido, escribe *listo*. Dame unos segundos después de tu mensaje para preparar el siguiente módulo y enviártelo.")
+            partes_c.append("Cuando termines de revisar el contenido, escribe *listo*.")
             
             if len(partes_c) > 1:
                 return "[MULTI_MSG]" + "[SEP]".join(partes_c)
