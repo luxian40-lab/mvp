@@ -349,18 +349,20 @@ def _transcribir_audio_twilio(media_url, media_type='audio/ogg'):
         print(f"🎤 Transcribiendo audio ({audio_size} bytes)...")
         
         # Guardar temporalmente con extensión acorde al MIME enviado por Twilio
+        # Normalizar: quitar parámetros MIME (e.g. "audio/ogg; codecs=opus" → "audio/ogg")
+        mime_base = (media_type or '').split(';')[0].strip().lower()
         suffix_map = {
             'audio/ogg': '.ogg',
             'audio/opus': '.ogg',
             'audio/mpeg': '.mp3',
             'audio/mp3': '.mp3',
             'audio/mp4': '.m4a',
-            'audio/aac': '.aac',
-            'audio/amr': '.amr',
+            'audio/aac': '.ogg',   # Whisper no soporta .aac, guardar como .ogg
+            'audio/amr': '.ogg',   # Whisper no soporta .amr, guardar como .ogg
             'audio/webm': '.webm',
             'audio/wav': '.wav',
         }
-        suffix = suffix_map.get((media_type or '').lower(), '.ogg')
+        suffix = suffix_map.get(mime_base, '.ogg')
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
             tmp_file.write(response.content)
@@ -373,8 +375,14 @@ def _transcribir_audio_twilio(media_url, media_type='audio/ogg'):
                 if texto and texto != "listo":
                     print(f"✅ Vosk transcribió: '{texto}'")
                     return texto
+                print(f"⚠️ Vosk retornó '{texto}' — probando Whisper...")
             except Exception as vosk_error:
                 print(f"⚠️ Vosk no disponible: {vosk_error}")
+
+            # Verificar que el archivo original sigue intacto para Whisper
+            if not os.path.exists(audio_path):
+                print(f"❌ Archivo original perdido tras Vosk — usando fallback")
+                return "listo"
             
             # OPCIÓN 2: WHISPER (FALLBACK PAGADO)
             openai_api_key = getattr(settings, 'OPENAI_API_KEY', '')
@@ -382,7 +390,7 @@ def _transcribir_audio_twilio(media_url, media_type='audio/ogg'):
                 # Whisper soporta audios más grandes; evitamos limitar a solo mensajes cortos.
                 max_whisper_size = 20 * 1024 * 1024  # 20MB
                 if audio_size <= max_whisper_size:
-                    print("🔄 Usando Whisper como fallback...")
+                    print(f"🔄 Usando Whisper como fallback (archivo: {suffix}, {audio_size} bytes)...")
                     try:
                         from openai import OpenAI
                         client = OpenAI(api_key=openai_api_key)
@@ -400,8 +408,11 @@ def _transcribir_audio_twilio(media_url, media_type='audio/ogg'):
                         return texto if texto else "listo"
                     except Exception as whisper_error:
                         print(f"❌ Error Whisper: {whisper_error}")
+                        import traceback; traceback.print_exc()
                 else:
                     print(f"⚠️ Audio demasiado grande para Whisper ({audio_size} bytes)")
+            else:
+                print(f"⚠️ OPENAI_API_KEY no configurada — Whisper no disponible")
             
             # OPCIÓN 3: FALLBACK INTELIGENTE
             print("⚠️ Sin transcripción disponible - usando fallback")
@@ -444,37 +455,38 @@ def _transcribir_con_vosk(audio_path):
         # Convertir audio a formato WAV 16kHz mono (requerido por Vosk)
         audio = AudioSegment.from_file(audio_path)
         audio = audio.set_frame_rate(16000).set_channels(1)
-        
-        # Guardar como WAV temporal
-        wav_path = audio_path.replace('.ogg', '_vosk.wav').replace('.mp3', '_vosk.wav')
+
+        # Guardar como WAV temporal — SIEMPRE en ruta distinta al original
+        base, _ = os.path.splitext(audio_path)
+        wav_path = base + '_vosk.wav'
         audio.export(wav_path, format='wav')
-        
-        # Transcribir usando wave module (más confiable)
-        recognizer = KaldiRecognizer(model, 16000)
-        
-        wf = wave.open(wav_path, "rb")
-        
-        # Procesar por chunks
-        while True:
-            data = wf.readframes(4000)
-            if len(data) == 0:
-                break
-            recognizer.AcceptWaveform(data)
-        
-        wf.close()
-        
-        # Obtener resultado final
-        result = json.loads(recognizer.FinalResult())
-        texto = result.get('text', '').strip()
-        
-        print(f"✅ Vosk transcribió: '{texto}'")
-        
-        # Limpiar archivo WAV temporal
-        if os.path.exists(wav_path):
-            os.remove(wav_path)
-        
-        return texto if texto else "listo"
-        
+
+        try:
+            # Transcribir usando wave module (más confiable)
+            recognizer = KaldiRecognizer(model, 16000)
+
+            wf = wave.open(wav_path, "rb")
+
+            # Procesar por chunks
+            while True:
+                data = wf.readframes(4000)
+                if len(data) == 0:
+                    break
+                recognizer.AcceptWaveform(data)
+
+            wf.close()
+
+            # Obtener resultado final
+            result = json.loads(recognizer.FinalResult())
+            texto = result.get('text', '').strip()
+
+            print(f"✅ Vosk transcribió: '{texto}'")
+            return texto if texto else "listo"
+        finally:
+            # Limpiar archivo WAV temporal (siempre, incluso en error)
+            if os.path.exists(wav_path):
+                os.remove(wav_path)
+
     except Exception as e:
         print(f"❌ Error Vosk: {e}")
         raise  # Re-lanzar para que el fallback funcione
@@ -1593,8 +1605,9 @@ def _procesar_twilio_webhook(post_data):
                 from .models import SolicitudSoporte
                 SolicitudSoporte.objects.create(
                     estudiante=estudiante,
-                    tipo='correccion_datos',
-                    mensaje=f"Solicitud de corrección de datos desde verificación. Datos actuales: Nombre={estudiante.nombre}, Cédula={estudiante.cedula}, Municipio={estudiante.municipio}",
+                    mensaje_original=f"Solicitud de corrección de datos desde verificación. Datos actuales: Nombre={estudiante.nombre}, Cédula={estudiante.cedula}, Municipio={estudiante.municipio}",
+                    keyword_usada='correccion_datos',
+                    asunto='Corrección de datos desde verificación',
                     estado='pendiente'
                 )
                 texto_respuesta = (
@@ -1700,8 +1713,9 @@ def _procesar_twilio_webhook(post_data):
                 from .models import SolicitudSoporte
                 SolicitudSoporte.objects.create(
                     estudiante=estudiante,
-                    tipo='correccion_datos',
-                    mensaje=f"Solicitud de soporte: {msg_body}",
+                    mensaje_original=f"Solicitud de soporte: {msg_body}",
+                    keyword_usada='soporte_legacy',
+                    asunto='Soporte desde flujo legacy',
                     estado='pendiente'
                 )
                 texto_respuesta = (
@@ -1871,8 +1885,9 @@ def _procesar_twilio_webhook(post_data):
                 from .models import SolicitudSoporte
                 SolicitudSoporte.objects.create(
                     estudiante=estudiante,
-                    tipo='correccion_datos',
-                    mensaje=f"Solicitud de corrección de datos. Datos actuales: Nombre={estudiante.nombre}, Cédula={estudiante.cedula}",
+                    mensaje_original=f"Solicitud de corrección de datos. Datos actuales: Nombre={estudiante.nombre}, Cédula={estudiante.cedula}",
+                    keyword_usada='correccion_datos',
+                    asunto='Corrección de datos desde curso',
                     estado='pendiente'
                 )
                 texto_respuesta = (
@@ -1939,8 +1954,9 @@ def _procesar_twilio_webhook(post_data):
                 from .models import SolicitudSoporte
                 SolicitudSoporte.objects.create(
                     estudiante=estudiante,
-                    tipo='correccion_datos',
-                    mensaje=f"Solicitud de corrección de datos. Datos actuales: Nombre={estudiante.nombre}, Cédula={estudiante.cedula}",
+                    mensaje_original=f"Solicitud de corrección de datos. Datos actuales: Nombre={estudiante.nombre}, Cédula={estudiante.cedula}",
+                    keyword_usada='correccion_datos',
+                    asunto='Corrección de datos',
                     estado='pendiente'
                 )
                 texto_respuesta = (
@@ -2833,7 +2849,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                             print(f"✅ IA generó respuesta: {texto_respuesta[:50]}...")
                         except Exception as e:
                             print(f"❌ Error IA: {e}, usando respuesta genérica")
-                            texto_respuesta = "Disculpa, tengo problemas técnicos. Escribe 'menú' para ver las opciones."
+                            texto_respuesta = "Disculpa, tengo problemas técnicos. Vuelve a escribir tu mensaje para continuar."
         
         # 3. Enviar respuesta via Twilio
         print(f"📤 ENVIANDO RESPUESTA: '{texto_respuesta[:80]}...' (len={len(texto_respuesta)})", flush=True)
@@ -3031,7 +3047,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                     destino = f'whatsapp:{msg_from_fallback}' if not msg_from_fallback.startswith('whatsapp:') else msg_from_fallback
                     destino = str(destino).strip()
                     client.messages.create(
-                        body="⚠️ Tuvimos un problema técnico momentáneo. Por favor escribe *menú* para continuar.",
+                        body="⚠️ Tuvimos un problema técnico momentáneo. Por favor vuelve a escribir tu mensaje para continuar.",
                         from_=twilio_number,
                         to=destino
                     )
@@ -3099,7 +3115,7 @@ def _procesar_meta_webhook(payload):
                                 texto_respuesta = responder_con_ia(text, phone)
                             except Exception as e:
                                 print(f"Error IA: {e}")
-                                texto_respuesta = "Disculpa, tengo problemas técnicos. Escribe 'menú' para ver las opciones."
+                                texto_respuesta = "Disculpa, tengo problemas técnicos. Vuelve a escribir tu mensaje para continuar."
                     
                     # Enviar respuesta
                     resultado_envio = enviar_whatsapp(phone, texto_respuesta)

@@ -763,7 +763,7 @@ Escribe "continuar" para empezar el primer módulo."""
             _dedup_ok = True  # En caso de error, permitir (fail-open)
         
         if not _dedup_ok:
-            return "⏳ Tu módulo se está cargando, espera unos segundos..."
+            return "⏳ Tu módulo se está cargando, espera unos segundos...\n\nCuando estés listo, vuelve a escribir *listo* y avanzaremos juntos. 💪"
         # ═══════════════════════════════════════════════════════════════
         
         estudiante = Estudiante.objects.get(id=estudiante_id)
