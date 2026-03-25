@@ -3,13 +3,18 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, JsonResponse
 from django.conf import settings
+from django.utils import timezone
 from datetime import datetime, timedelta
 import json
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 
-from .models import Campana, EnvioLog, Estudiante, WhatsappLog
-from .utils import enviar_whatsapp
+from .models import (
+    Campana, EnvioLog, Estudiante, WhatsappLog,
+    ProgresoEstudiante, AliadoEmpleabilidad, LogroEstudiante,
+    PreguntaAbierta, RespuestaAbierta,
+)
+from .utils import enviar_whatsapp, haversine_distance
 from .intent_detector import detect_intent
 from .response_templates import get_response_for_intent
 
@@ -345,9 +350,10 @@ def importar_estudiantes(request):
 def whatsapp_webhook(request):
     """GET: Verificación del token (hub.verify_token).
        POST: Procesa mensajes entrantes, detecta intención y responde dinámicamente.
+       Soporta: Drip Content, Geolocalización, Preguntas Abiertas.
     """
     if request.method == 'GET':
-        verify_token = request.GET.get('hub.verify_token') or request.GET.get('hub.verify_token')
+        verify_token = request.GET.get('hub.verify_token')
         challenge = request.GET.get('hub.challenge')
         expected = getattr(settings, 'WHATSAPP_VERIFY_TOKEN', None)
         if verify_token and expected and verify_token == expected:
@@ -360,7 +366,7 @@ def whatsapp_webhook(request):
         except Exception:
             return JsonResponse({'ok': False, 'error': 'invalid_json'}, status=400)
 
-        entries = payload.get('entry', []) or payload.get('entry', [])
+        entries = payload.get('entry', [])
 
         for entry in entries:
             changes = entry.get('changes', [])
@@ -372,62 +378,53 @@ def whatsapp_webhook(request):
                 for m in messages:
                     phone = m.get('from')
                     msg_id = m.get('id')
+                    msg_type = m.get('type', 'text')
+
+                    # ── Extraer texto o coordenadas según tipo de mensaje ──
                     text = ''
-                    if 'text' in m and isinstance(m['text'], dict):
+                    latitude = None
+                    longitude = None
+
+                    if msg_type == 'text' and isinstance(m.get('text'), dict):
                         text = m['text'].get('body', '')
-                    
+                    elif msg_type == 'location' and isinstance(m.get('location'), dict):
+                        latitude = m['location'].get('latitude')
+                        longitude = m['location'].get('longitude')
+
                     # 1. Guardar registro entrante
                     WhatsappLog.objects.create(
                         telefono=phone,
-                        mensaje=text,
+                        mensaje=text if text else f'[{msg_type}]',
                         mensaje_id=msg_id,
                         estado='INCOMING'
                     )
-                    
-                    # 2. Detectar intención
-                    intent = detect_intent(text)
-                    
-                    # 3. Obtener datos del estudiante (por teléfono)
+
+                    # 2. Obtener datos del estudiante
                     try:
                         estudiante = Estudiante.objects.get(telefono=phone)
                         nombre_usuario = estudiante.nombre
-                        
-                        # 3a. Obtener progreso desde el modelo
-                        total_envios = EnvioLog.objects.filter(estudiante=estudiante).count()
-                        exitosos = EnvioLog.objects.filter(estudiante=estudiante, estado='ENVIADO').count()
-                        progreso_porcentaje = int((exitosos / total_envios * 100) if total_envios > 0 else 0)
-                        
-                        # 3b. Obtener siguiente tarea
-                        siguiente_tarea_obj = EnvioLog.objects.filter(
-                            estudiante=estudiante,
-                            estado='PENDIENTE'
-                        ).order_by('fecha_envio').first()
-                        siguiente_tarea = siguiente_tarea_obj.campana.nombre if siguiente_tarea_obj else "No hay tareas pendientes"
-                        
-                        datos_respuesta = {
-                            'progreso': f'{progreso_porcentaje}%',
-                            'modulo_actual': 'Introducción a la Plataforma',
-                            'siguiente_tarea': siguiente_tarea,
-                            'fecha_vence': 'hoy'
-                        }
                     except Estudiante.DoesNotExist:
+                        estudiante = None
                         nombre_usuario = 'Estudiante'
-                        datos_respuesta = {}
-                    
-                    # 4. Generar respuesta según intención
-                    texto_respuesta = get_response_for_intent(intent, nombre_usuario, **datos_respuesta)
-                    
-                    # 5. Enviar respuesta al usuario
-                    resultado_envio = enviar_whatsapp(phone, texto_respuesta)
-                    
-                    # Log de envío (respuesta generada)
-                    if resultado_envio.get('success'):
-                        WhatsappLog.objects.create(
-                            telefono=phone,
-                            mensaje=texto_respuesta,
-                            mensaje_id=resultado_envio.get('mensaje_id'),
-                            estado='SENT'
+
+                    # 3. Procesar mensaje de ubicación (Modo Pokémon GO)
+                    if msg_type == 'location' and latitude is not None and longitude is not None:
+                        texto_respuesta = _procesar_ubicacion(
+                            estudiante, nombre_usuario, latitude, longitude
                         )
+                        _enviar_y_loguear(phone, texto_respuesta)
+                        continue
+
+                    # 4. Detectar intención del texto
+                    intent = detect_intent(text)
+
+                    # 5. Lógica según intent
+                    texto_respuesta = _procesar_intent(
+                        intent, text, estudiante, nombre_usuario
+                    )
+
+                    # 6. Enviar respuesta
+                    _enviar_y_loguear(phone, texto_respuesta)
 
                 # Estados (delivery receipts)
                 statuses = value.get('statuses', [])
@@ -438,3 +435,203 @@ def whatsapp_webhook(request):
                         WhatsappLog.objects.filter(mensaje_id=msg_id).update(estado=status)
 
         return JsonResponse({'ok': True})
+
+
+# ── Helpers del webhook ──────────────────────────────────────────────────────
+
+def _enviar_y_loguear(phone: str, texto: str):
+    """Envía un mensaje WhatsApp y registra el resultado."""
+    resultado = enviar_whatsapp(phone, texto)
+    if resultado.get('success'):
+        WhatsappLog.objects.create(
+            telefono=phone,
+            mensaje=texto,
+            mensaje_id=resultado.get('mensaje_id'),
+            estado='SENT'
+        )
+
+
+def _procesar_ubicacion(estudiante, nombre_usuario: str, lat: float, lon: float) -> str:
+    """
+    Procesa un mensaje de ubicación enviado por WhatsApp.
+    Busca el aliado de empleabilidad más cercano (con vacantes activas)
+    y retorna el mensaje apropiado según la distancia.
+    """
+    aliados = AliadoEmpleabilidad.objects.filter(vacantes_activas=True)
+    if not aliados.exists():
+        return get_response_for_intent('ubicacion_lejos', nombre_usuario, sector='el área central')
+
+    # Calcular distancia a cada aliado
+    aliado_cercano = None
+    distancia_min = float('inf')
+    for aliado in aliados:
+        dist = haversine_distance(lat, lon, aliado.latitud, aliado.longitud)
+        if dist < distancia_min:
+            distancia_min = dist
+            aliado_cercano = aliado
+
+    if distancia_min <= 100:
+        return get_response_for_intent(
+            'ubicacion_cerca', nombre_usuario,
+            metros=int(distancia_min),
+            empresa=aliado_cercano.nombre_empresa
+        )
+    else:
+        return get_response_for_intent('ubicacion_lejos', nombre_usuario, sector='el área central')
+
+
+def _procesar_intent(intent: str, text: str, estudiante, nombre_usuario: str) -> str:
+    """
+    Genera la respuesta según el intent detectado.
+    Maneja: drip content, preguntas abiertas, códigos secretos y flujo estándar.
+    """
+    # ── Continuar Lección (Drip Content) ──
+    if intent == 'continuar_leccion' and estudiante:
+        return _procesar_continuar_leccion(estudiante, nombre_usuario)
+
+    # ── Código secreto (Gamificación) ──
+    if estudiante and text.strip():
+        respuesta_codigo = _verificar_codigo_secreto(estudiante, nombre_usuario, text.strip())
+        if respuesta_codigo:
+            return respuesta_codigo
+
+    # ── Pregunta Abierta pendiente ──
+    if estudiante:
+        respuesta_pregunta = _procesar_pregunta_abierta(estudiante, nombre_usuario, text)
+        if respuesta_pregunta:
+            return respuesta_pregunta
+
+    # ── Flujo estándar ──
+    if estudiante:
+        total_envios = EnvioLog.objects.filter(estudiante=estudiante).count()
+        exitosos = EnvioLog.objects.filter(estudiante=estudiante, estado='ENVIADO').count()
+        progreso_porcentaje = int((exitosos / total_envios * 100) if total_envios > 0 else 0)
+
+        siguiente_tarea_obj = EnvioLog.objects.filter(
+            estudiante=estudiante, estado='PENDIENTE'
+        ).order_by('fecha_envio').first()
+        siguiente_tarea = (
+            siguiente_tarea_obj.campana.nombre if siguiente_tarea_obj else "No hay tareas pendientes"
+        )
+
+        datos_respuesta = {
+            'progreso': f'{progreso_porcentaje}%',
+            'modulo_actual': 'Introducción a la Plataforma',
+            'siguiente_tarea': siguiente_tarea,
+            'fecha_vence': 'hoy',
+        }
+    else:
+        datos_respuesta = {}
+
+    return get_response_for_intent(intent, nombre_usuario, **datos_respuesta)
+
+
+def _procesar_continuar_leccion(estudiante, nombre_usuario: str) -> str:
+    """
+    Evalúa el Drip Content: si el estudiante puede avanzar, envía el siguiente módulo
+    y actualiza fecha_ultimo_avance; si no, retorna mensaje de bloqueo.
+    """
+    progreso = ProgresoEstudiante.objects.filter(
+        estudiante=estudiante, estado='en_curso'
+    ).select_related('curso', 'modulo_actual').first()
+
+    if not progreso:
+        return get_response_for_intent('desconocido', nombre_usuario)
+
+    puede, fecha_desbloqueo = progreso.puede_avanzar()
+
+    if not puede:
+        fecha_str = fecha_desbloqueo.strftime('%d/%m/%Y') if fecha_desbloqueo else '?'
+        return get_response_for_intent(
+            'continuar_leccion_bloqueado', nombre_usuario, fecha_desbloqueo=fecha_str
+        )
+
+    # Avanzar al siguiente módulo
+    modulos = list(progreso.curso.modulos.order_by('orden'))
+    modulo_actual = progreso.modulo_actual
+    idx_actual = next((i for i, m in enumerate(modulos) if m == modulo_actual), -1)
+    idx_siguiente = idx_actual + 1
+
+    if idx_siguiente < len(modulos):
+        modulo_siguiente = modulos[idx_siguiente]
+        progreso.modulo_actual = modulo_siguiente
+        progreso.fecha_ultimo_avance = timezone.now()
+        progreso.save(update_fields=['modulo_actual', 'fecha_ultimo_avance'])
+
+        # Verificar si el nuevo módulo es el último y tiene preguntas abiertas
+        es_ultimo_modulo = (idx_siguiente == len(modulos) - 1)
+        if es_ultimo_modulo:
+            pregunta = modulo_siguiente.preguntas_abiertas.filter(activa=True).order_by('orden').first()
+            if pregunta:
+                return get_response_for_intent(
+                    'pregunta_abierta', nombre_usuario, pregunta=pregunta.pregunta
+                )
+
+        return get_response_for_intent(
+            'continuar_leccion_libre', nombre_usuario, modulo_siguiente=modulo_siguiente.nombre
+        )
+    else:
+        # Curso completado
+        progreso.estado = 'completado'
+        progreso.fecha_ultimo_avance = timezone.now()
+        progreso.save(update_fields=['estado', 'fecha_ultimo_avance'])
+
+        LogroEstudiante.objects.get_or_create(
+            estudiante=estudiante,
+            tipo='curso',
+            defaults={'descripcion': f'Completó el curso: {progreso.curso.nombre}'}
+        )
+
+        return get_response_for_intent(
+            'continuar_leccion_completado', nombre_usuario, curso=progreso.curso.nombre
+        )
+
+
+def _verificar_codigo_secreto(estudiante, nombre_usuario: str, text: str):
+    """
+    Verifica si el texto enviado corresponde a un código secreto de algún aliado.
+    Retorna el mensaje de éxito/error si coincide, o None si no es un código.
+    """
+    try:
+        aliado = AliadoEmpleabilidad.objects.get(codigo_secreto__iexact=text, vacantes_activas=True)
+    except AliadoEmpleabilidad.DoesNotExist:
+        return None
+
+    # Registrar logro
+    LogroEstudiante.objects.get_or_create(
+        estudiante=estudiante,
+        tipo='empleabilidad',
+        aliado=aliado,
+        defaults={'descripcion': f'Conexión laboral con {aliado.nombre_empresa}'}
+    )
+
+    return get_response_for_intent('codigo_correcto', nombre_usuario, empresa=aliado.nombre_empresa)
+
+
+def _procesar_pregunta_abierta(estudiante, nombre_usuario: str, text: str):
+    """
+    Si hay una pregunta abierta pendiente de respuesta para el estudiante,
+    registra la respuesta y retorna el mensaje de confirmación.
+    Retorna None si no hay preguntas abiertas pendientes.
+    """
+    progreso = ProgresoEstudiante.objects.filter(
+        estudiante=estudiante, estado__in=['en_curso', 'completado']
+    ).select_related('modulo_actual').first()
+
+    if not progreso or not progreso.modulo_actual:
+        return None
+
+    preguntas = progreso.modulo_actual.preguntas_abiertas.filter(activa=True).order_by('orden')
+    for pregunta in preguntas:
+        ya_respondio = RespuestaAbierta.objects.filter(
+            pregunta=pregunta, estudiante=estudiante
+        ).exists()
+        if not ya_respondio:
+            RespuestaAbierta.objects.create(
+                pregunta=pregunta,
+                estudiante=estudiante,
+                respuesta=text
+            )
+            return get_response_for_intent('respuesta_registrada', nombre_usuario)
+
+    return None

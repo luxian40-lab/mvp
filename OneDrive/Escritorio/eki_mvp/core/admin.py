@@ -3,9 +3,15 @@ from django.contrib import messages
 from django.utils.html import format_html
 from django.shortcuts import render, redirect
 from django.urls import path
+from django.utils import timezone
 import openpyxl
 from django.http import HttpResponse, JsonResponse
-from .models import Estudiante, Plantilla, Campana, EnvioLog, Linea, WhatsappLog
+from .models import (
+    Estudiante, Plantilla, Campana, EnvioLog, Linea, WhatsappLog,
+    Curso, Modulo, ProgresoEstudiante,
+    AliadoEmpleabilidad, LogroEstudiante,
+    PreguntaAbierta, RespuestaAbierta,
+)
 from .services import ejecutar_campana_servicio
 
 # =================================================
@@ -446,3 +452,147 @@ class WhatsappLogAdmin(admin.ModelAdmin):
     def get_ordering(self, request):
         # Ordenar por fecha descendente por defecto
         return ['-fecha']
+
+
+# ============================================================
+# MÓDULO: ENTREGAS DIFERIDAS (DRIP CONTENT)
+# ============================================================
+
+class ModuloInline(admin.TabularInline):
+    model = Modulo
+    extra = 1
+    fields = ('orden', 'nombre', 'contenido')
+    ordering = ('orden',)
+
+
+class PreguntaAbiertaInline(admin.TabularInline):
+    model = PreguntaAbierta
+    extra = 1
+    fields = ('orden', 'pregunta', 'activa')
+    ordering = ('orden',)
+
+
+@admin.register(Curso)
+class CursoAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'dias_espera_entre_modulos', 'activo', 'total_modulos')
+    list_filter = ('activo',)
+    search_fields = ('nombre',)
+    inlines = [ModuloInline]
+
+    def total_modulos(self, obj):
+        return obj.modulos.count()
+    total_modulos.short_description = '# Módulos'
+
+
+@admin.register(Modulo)
+class ModuloAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'curso', 'orden')
+    list_filter = ('curso',)
+    search_fields = ('nombre', 'curso__nombre')
+    ordering = ('curso', 'orden')
+    inlines = [PreguntaAbiertaInline]
+
+
+@admin.register(ProgresoEstudiante)
+class ProgresoEstudianteAdmin(admin.ModelAdmin):
+    list_display = ('estudiante', 'curso', 'modulo_actual', 'estado', 'fecha_ultimo_avance', 'puede_avanzar_display')
+    list_filter = ('estado', 'curso')
+    search_fields = ('estudiante__nombre', 'estudiante__telefono', 'curso__nombre')
+    readonly_fields = ('fecha_inicio',)
+
+    def puede_avanzar_display(self, obj):
+        puede, fecha = obj.puede_avanzar()
+        if puede:
+            return format_html('<span style="color:green;">✅ Sí</span>')
+        fecha_str = fecha.strftime('%d/%m/%Y') if fecha else '?'
+        return format_html('<span style="color:orange;">🔒 No ({})</span>', fecha_str)
+    puede_avanzar_display.short_description = '¿Puede avanzar?'
+
+
+# ============================================================
+# MÓDULO: GAMIFICACIÓN GEOLOCALIZADA
+# ============================================================
+
+@admin.register(AliadoEmpleabilidad)
+class AliadoEmpleabilidadAdmin(admin.ModelAdmin):
+    list_display = ('nombre_empresa', 'latitud', 'longitud', 'vacantes_activas', 'codigo_secreto')
+    list_filter = ('vacantes_activas',)
+    search_fields = ('nombre_empresa',)
+
+
+@admin.register(LogroEstudiante)
+class LogroEstudianteAdmin(admin.ModelAdmin):
+    list_display = ('estudiante', 'tipo', 'descripcion', 'aliado', 'fecha')
+    list_filter = ('tipo', 'fecha')
+    search_fields = ('estudiante__nombre', 'descripcion')
+    readonly_fields = ('fecha',)
+
+
+# ============================================================
+# MÓDULO: PREGUNTAS ABIERTAS (EVALUACIÓN POR FACILITADORA)
+# ============================================================
+
+class RespuestaAbiertaInline(admin.TabularInline):
+    model = RespuestaAbierta
+    extra = 0
+    fields = ('estudiante', 'respuesta', 'calificacion', 'comentario_facilitador', 'fecha_respuesta')
+    readonly_fields = ('estudiante', 'respuesta', 'fecha_respuesta')
+    can_delete = False
+
+
+@admin.register(PreguntaAbierta)
+class PreguntaAbiertaAdmin(admin.ModelAdmin):
+    list_display = ('modulo', 'orden', 'pregunta_preview', 'activa', 'total_respuestas')
+    list_filter = ('activa', 'modulo__curso')
+    search_fields = ('pregunta', 'modulo__nombre')
+    inlines = [RespuestaAbiertaInline]
+
+    def pregunta_preview(self, obj):
+        return obj.pregunta[:60] + ('...' if len(obj.pregunta) > 60 else '')
+    pregunta_preview.short_description = 'Pregunta'
+
+    def total_respuestas(self, obj):
+        return obj.respuestas.count()
+    total_respuestas.short_description = '# Respuestas'
+
+
+@admin.register(RespuestaAbierta)
+class RespuestaAbiertaAdmin(admin.ModelAdmin):
+    list_display = (
+        'estudiante', 'pregunta_preview', 'respuesta_preview',
+        'calificacion', 'fecha_respuesta', 'calificado_display'
+    )
+    list_filter = ('pregunta__modulo__curso', 'fecha_respuesta')
+    search_fields = ('estudiante__nombre', 'respuesta', 'pregunta__pregunta')
+    readonly_fields = ('estudiante', 'pregunta', 'respuesta', 'fecha_respuesta', 'fecha_calificacion', 'calificado_por')
+
+    fieldsets = (
+        ('📋 Respuesta del Estudiante', {
+            'fields': ('estudiante', 'pregunta', 'respuesta', 'fecha_respuesta')
+        }),
+        ('✏️ Calificación de la Facilitadora', {
+            'fields': ('calificacion', 'comentario_facilitador', 'calificado_por', 'fecha_calificacion')
+        }),
+    )
+
+    def pregunta_preview(self, obj):
+        return obj.pregunta.pregunta[:50] + ('...' if len(obj.pregunta.pregunta) > 50 else '')
+    pregunta_preview.short_description = 'Pregunta'
+
+    def respuesta_preview(self, obj):
+        return obj.respuesta[:60] + ('...' if len(obj.respuesta) > 60 else '')
+    respuesta_preview.short_description = 'Respuesta'
+
+    def calificado_display(self, obj):
+        if obj.calificacion is not None:
+            return format_html('<span style="color:green;">✅ {}</span>', obj.calificacion)
+        return format_html('<span style="color:orange;">⏳ Pendiente</span>')
+    calificado_display.short_description = 'Estado Calificación'
+
+    def save_model(self, request, obj, form, change):
+        """Al guardar una calificación, registra quién calificó y cuándo."""
+        if obj.calificacion is not None and 'calificacion' in form.changed_data:
+            obj.calificado_por = request.user
+            obj.fecha_calificacion = timezone.now()
+        super().save_model(request, obj, form, change)
+

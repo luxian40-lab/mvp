@@ -14,6 +14,7 @@ def detect_intent(mensaje: str) -> str:
     - 'progreso': progreso, avance, cómo voy, etc.
     - 'tareas': tareas, actividades, qué hacer, siguiente, etc.
     - 'ayuda': ayuda, help, no entiendo, etc.
+    - 'continuar_leccion': continuar, listo, siguiente módulo, etc.
     - 'opcion_1': "1" → progreso
     - 'opcion_2': "2" → tareas
     - 'opcion_3': "3" → ayuda
@@ -39,6 +40,15 @@ def detect_intent(mensaje: str) -> str:
     if re.match(r'^\s*3\s*$', texto_limpio):
         return 'opcion_3'
     
+    # Continuar lección / Drip Content
+    palabras_continuar = [
+        'continuar', 'continúa', 'listo', 'siguiente módulo', 'siguiente modulo',
+        'continuar lección', 'continuar leccion', 'quiero continuar', 'siguiente lección',
+        'siguiente leccion', 'avanzar', 'ya estoy listo', 'continuar curso'
+    ]
+    if any(p in texto_limpio for p in palabras_continuar):
+        return 'continuar_leccion'
+
     # Saludos
     palabras_saludo = ['hola', 'buenos días', 'buenas noches', 'buenas tardes', 'qué tal', 'holap', 'hi', 'hey', 'hey!']
     if any(p in texto_limpio for p in palabras_saludo):

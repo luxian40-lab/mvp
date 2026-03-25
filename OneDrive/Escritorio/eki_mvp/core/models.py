@@ -2,6 +2,8 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils import timezone
+from datetime import timedelta
 import re
 import openpyxl # <--- Nueva librería
 import os
@@ -113,6 +115,191 @@ class WhatsappLog(models.Model):
 
     def __str__(self):
         return f"{self.telefono} - {self.estado} ({self.mensaje_id})"
+
+
+# ============================================================
+# MÓDULO: ENTREGAS DIFERIDAS (DRIP CONTENT)
+# ============================================================
+
+class Curso(models.Model):
+    """Curso educativo con soporte para entrega diferida de módulos."""
+    nombre = models.CharField(max_length=200)
+    descripcion = models.TextField(blank=True)
+    dias_espera_entre_modulos = models.IntegerField(
+        default=0,
+        help_text="Días de espera entre módulos (0 = sin espera, 7 = semanal)."
+    )
+    activo = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.nombre
+
+    class Meta:
+        verbose_name = 'Curso'
+        verbose_name_plural = 'Cursos'
+
+
+class Modulo(models.Model):
+    """Módulo perteneciente a un curso."""
+    curso = models.ForeignKey(Curso, on_delete=models.CASCADE, related_name='modulos')
+    nombre = models.CharField(max_length=200)
+    contenido = models.TextField(blank=True)
+    orden = models.IntegerField(default=1)
+
+    def __str__(self):
+        return f"{self.curso.nombre} - {self.nombre}"
+
+    class Meta:
+        verbose_name = 'Módulo'
+        verbose_name_plural = 'Módulos'
+        ordering = ['curso', 'orden']
+
+
+class ProgresoEstudiante(models.Model):
+    """Progreso de un estudiante en un curso (soporta Drip Content)."""
+
+    ESTADO_CHOICES = [
+        ('en_curso', 'En Curso'),
+        ('completado', 'Completado'),
+        ('bloqueado', 'Bloqueado'),
+    ]
+
+    estudiante = models.ForeignKey(Estudiante, on_delete=models.CASCADE, related_name='progresos')
+    curso = models.ForeignKey(Curso, on_delete=models.CASCADE)
+    modulo_actual = models.ForeignKey(
+        Modulo, on_delete=models.SET_NULL, null=True, blank=True,
+        help_text="Módulo en el que se encuentra actualmente el estudiante."
+    )
+    fecha_ultimo_avance = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Fecha en que el estudiante completó el último módulo."
+    )
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='en_curso')
+    fecha_inicio = models.DateTimeField(auto_now_add=True)
+
+    def puede_avanzar(self):
+        """
+        Verifica si el estudiante puede avanzar al siguiente módulo.
+        Retorna (bool, fecha_desbloqueo_o_None).
+        """
+        if self.curso.dias_espera_entre_modulos == 0:
+            return True, None
+        if not self.fecha_ultimo_avance:
+            return True, None
+        fecha_desbloqueo = self.fecha_ultimo_avance + timedelta(days=self.curso.dias_espera_entre_modulos)
+        if timezone.now() >= fecha_desbloqueo:
+            return True, None
+        return False, fecha_desbloqueo
+
+    def __str__(self):
+        return f"{self.estudiante.nombre} - {self.curso.nombre} ({self.estado})"
+
+    class Meta:
+        unique_together = ('estudiante', 'curso')
+        verbose_name = 'Progreso del Estudiante'
+        verbose_name_plural = 'Progresos de Estudiantes'
+
+
+# ============================================================
+# MÓDULO: GAMIFICACIÓN GEOLOCALIZADA (MODO POKÉMON GO)
+# ============================================================
+
+class AliadoEmpleabilidad(models.Model):
+    """Empresa aliada para el radar de empleabilidad geolocalizado."""
+    nombre_empresa = models.CharField(max_length=200)
+    latitud = models.FloatField()
+    longitud = models.FloatField()
+    vacantes_activas = models.BooleanField(default=True)
+    codigo_secreto = models.CharField(
+        max_length=50,
+        help_text="Código que el estudiante debe enviar al encontrar la empresa."
+    )
+    descripcion = models.TextField(blank=True)
+
+    def __str__(self):
+        return self.nombre_empresa
+
+    class Meta:
+        verbose_name = 'Aliado de Empleabilidad'
+        verbose_name_plural = 'Aliados de Empleabilidad'
+
+
+class LogroEstudiante(models.Model):
+    """Logro / insignia ganada por un estudiante (gamificación)."""
+
+    TIPO_CHOICES = [
+        ('graduacion', 'Graduación'),
+        ('empleabilidad', 'Empleabilidad'),
+        ('modulo', 'Módulo Completado'),
+        ('curso', 'Curso Completado'),
+    ]
+
+    estudiante = models.ForeignKey(Estudiante, on_delete=models.CASCADE, related_name='logros')
+    tipo = models.CharField(max_length=50, choices=TIPO_CHOICES)
+    descripcion = models.CharField(max_length=200)
+    fecha = models.DateTimeField(auto_now_add=True)
+    aliado = models.ForeignKey(
+        AliadoEmpleabilidad, on_delete=models.SET_NULL,
+        null=True, blank=True,
+        help_text="Empresa aliada vinculada al logro (si aplica)."
+    )
+
+    def __str__(self):
+        return f"{self.estudiante.nombre} - {self.tipo}"
+
+    class Meta:
+        verbose_name = 'Logro del Estudiante'
+        verbose_name_plural = 'Logros de Estudiantes'
+
+
+# ============================================================
+# MÓDULO: PREGUNTAS ABIERTAS (EVALUACIÓN POR FACILITADORA)
+# ============================================================
+
+class PreguntaAbierta(models.Model):
+    """Pregunta de respuesta libre al final de un módulo."""
+    modulo = models.ForeignKey(Modulo, on_delete=models.CASCADE, related_name='preguntas_abiertas')
+    pregunta = models.TextField()
+    orden = models.IntegerField(default=1)
+    activa = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.modulo.nombre} - Pregunta {self.orden}"
+
+    class Meta:
+        verbose_name = 'Pregunta Abierta'
+        verbose_name_plural = 'Preguntas Abiertas'
+        ordering = ['modulo', 'orden']
+
+
+class RespuestaAbierta(models.Model):
+    """Respuesta de un estudiante a una pregunta abierta, calificable por la facilitadora."""
+    pregunta = models.ForeignKey(PreguntaAbierta, on_delete=models.CASCADE, related_name='respuestas')
+    estudiante = models.ForeignKey(Estudiante, on_delete=models.CASCADE, related_name='respuestas_abiertas')
+    respuesta = models.TextField()
+    calificacion = models.DecimalField(
+        max_digits=5, decimal_places=2,
+        null=True, blank=True,
+        help_text="Calificación asignada por la facilitadora (ej. 0.00 – 5.00)."
+    )
+    comentario_facilitador = models.TextField(
+        blank=True,
+        help_text="Retroalimentación de la facilitadora."
+    )
+    fecha_respuesta = models.DateTimeField(auto_now_add=True)
+    fecha_calificacion = models.DateTimeField(null=True, blank=True)
+    calificado_por = models.ForeignKey(
+        'auth.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='calificaciones_abiertas'
+    )
+
+    def __str__(self):
+        return f"{self.estudiante.nombre} → {self.pregunta}"
+
+    class Meta:
+        unique_together = ('pregunta', 'estudiante')
+        verbose_name = 'Respuesta Abierta'
+        verbose_name_plural = 'Respuestas Abiertas'
 
 
 # Procesar Excel subido: crear Estudiantes y agregarlos a la campaña
