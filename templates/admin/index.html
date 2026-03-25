@@ -108,6 +108,12 @@
     <a href="{% url 'conversaciones' %}">
         <span class="dash-icon">💬</span> Conversaciones
     </a>
+    <a href="{% url 'bot_comercial_admin_view' %}">
+        <span class="dash-icon">🛒</span> Bot Comercial IA
+    </a>
+    <a href="{% url 'instrucciones' %}">
+        <span class="dash-icon">📚</span> Instrucciones
+    </a>
 </div>
 
 <div class="eki-instructivo-banner">
@@ -116,6 +122,28 @@
         <p>Lee el manual completo con instrucciones paso a paso de todas las funciones</p>
     </div>
     <a href="{% url 'instrucciones' %}" class="eki-btn">Leer Instructivo</a>
+</div>
+
+<div class="module" style="margin-bottom: 24px;">
+    <table>
+        <caption>
+            <span class="section">Accesos Operativos</span>
+        </caption>
+        <tbody>
+            <tr class="model-conversaciones">
+                <th scope="row"><a href="{% url 'bot_comercial_admin_view' %}">Bot Comercial IA</a></th>
+                <td><a href="{% url 'bot_comercial_admin_view' %}" class="viewlink">Abrir</a></td>
+            </tr>
+            <tr class="model-conversaciones">
+                <th scope="row"><a href="{% url 'conversaciones' %}">Conversaciones</a></th>
+                <td><a href="{% url 'conversaciones' %}" class="viewlink">Abrir</a></td>
+            </tr>
+            <tr class="model-instrucciones">
+                <th scope="row"><a href="{% url 'instrucciones' %}">Manual de Instrucciones</a></th>
+                <td><a href="{% url 'instrucciones' %}" class="viewlink">Abrir</a></td>
+            </tr>
+        </tbody>
+    </table>
 </div>
 
 {{ block.super }}
