@@ -4,9 +4,62 @@ Procesa: certificados, campañas, gamificación, reportes, notificaciones
 """
 from celery import shared_task
 from django.utils import timezone
+from django.conf import settings
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+@shared_task
+def reenganche_drip_content_diario():
+    """
+    Reenganche diario: notifica a estudiantes cuyo próximo módulo ya se desbloqueó.
+    """
+    try:
+        from datetime import timedelta
+        from core.models import ProgresoEstudiante
+        from core.utils import enviar_whatsapp_twilio
+        from core.whatsapp_service import enviar_template_twilio
+
+        ahora = timezone.now()
+        template_sid = (getattr(settings, 'TWILIO_TEMPLATE_DRIP_REENGANCHE', '') or '').strip()
+        queryset = ProgresoEstudiante.objects.select_related('estudiante', 'curso', 'modulo_actual').filter(
+            completado=False,
+            curso__dias_espera_entre_modulos__gt=0,
+            fecha_ultimo_avance__isnull=False,
+            modulo_actual__isnull=False,
+        )
+
+        enviados = 0
+        for progreso in queryset:
+            siguiente = progreso.curso.modulos.filter(numero__gt=progreso.modulo_actual.numero).order_by('numero').first()
+            if not siguiente:
+                continue
+
+            fecha_desbloqueo = progreso.fecha_ultimo_avance + timedelta(days=progreso.curso.dias_espera_entre_modulos)
+            if fecha_desbloqueo.date() == ahora.date():
+                if template_sid:
+                    # Soporta plantilla HSM aprobada en Twilio para ventanas fuera de sesión.
+                    resultado = enviar_template_twilio(
+                        progreso.estudiante.telefono,
+                        template_sid,
+                        variables={'1': progreso.estudiante.nombre or 'estudiante', '2': progreso.curso.nombre}
+                    )
+                else:
+                    msg = (
+                        "👋 ¡Hola! Tu nuevo módulo ya está disponible.\n\n"
+                        f"Curso: *{progreso.curso.nombre}*\n"
+                        "Responde *LISTO* para continuar."
+                    )
+                    resultado = enviar_whatsapp_twilio(progreso.estudiante.telefono, msg)
+                if resultado.get('success'):
+                    enviados += 1
+
+        logger.info(f"[Celery] Reenganche drip completado. Notificaciones enviadas: {enviados}")
+        return {'enviados': enviados}
+    except Exception as e:
+        logger.error(f"[Celery] Error en reenganche drip: {e}")
+        return {'error': str(e)}
 
 
 # ==========================================

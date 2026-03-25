@@ -23,6 +23,7 @@ from .models import (
     Certificado, PlantillaCertificado, # 📜 CERTIFICADOS
     CampanaUnica, RespuestaCampanaUnica,
     ProspectoB2B, CampanaB2B,  # 🤝 LEADS B2B
+    AliadoEmpleabilidad, PreguntaAbiertaFinalCurso, RespuestaAbiertaFinal,
     DocumentoRAG,  # 📚 RAG Multi-Tenant
 )
 from .admin_campana_actualizado import CampanaUnicaAdmin, RespuestaCampanaUnicaAdmin
@@ -2297,7 +2298,7 @@ class CursoAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('📚 Información del Curso', {
-            'fields': ('nombre', 'descripcion', 'cliente', 'duracion_semanas')
+            'fields': ('nombre', 'descripcion', 'cliente', 'duracion_semanas', 'dias_espera_entre_modulos')
         }),
         ('🤖 Nombres de Agentes IA (Override)', {
             'fields': ('nombre_agente_tutor', 'nombre_agente_asistente'),
@@ -2785,7 +2786,7 @@ class PreguntaExamenAdmin(admin.ModelAdmin):
 @admin.register(ProgresoEstudiante)
 class ProgresoEstudianteAdmin(admin.ModelAdmin):
     """Seguimiento del progreso de estudiantes"""
-    list_display = ('estudiante', 'curso', 'barra_progreso', 'modulo_actual', 'completado_badge', 'certificado_status', 'fecha_inicio')
+    list_display = ('estudiante', 'curso', 'barra_progreso', 'modulo_actual', 'completado_badge', 'certificado_status', 'fecha_ultimo_avance', 'fecha_inicio')
     list_filter = ('completado', 'curso', 'fecha_inicio')
     search_fields = ('estudiante__nombre', 'estudiante__telefono', 'curso__nombre')
     readonly_fields = ('fecha_inicio', 'porcentaje_avance', 'info_certificado')
@@ -2801,7 +2802,7 @@ class ProgresoEstudianteAdmin(admin.ModelAdmin):
             'fields': ('modulo_actual', 'completado', 'porcentaje_avance')
         }),
         ('📅 Fechas', {
-            'fields': ('fecha_inicio', 'fecha_completado')
+            'fields': ('fecha_inicio', 'fecha_ultimo_avance', 'fecha_completado')
         }),
     )
     
@@ -3323,11 +3324,52 @@ class BadgeEstudianteAdmin(admin.ModelAdmin):
     search_fields = ('estudiante__nombre', 'badge__nombre')
     readonly_fields = ('fecha_obtenido',)
     list_per_page = 50
-    ordering = ['-fecha_obtenido']
-    
+
     def badge_display(self, obj):
         return f"{obj.badge.icono} {obj.badge.nombre}"
     badge_display.short_description = "Badge"
+
+
+@admin.register(AliadoEmpleabilidad)
+class AliadoEmpleabilidadAdmin(admin.ModelAdmin):
+    list_display = ('nombre_empresa', 'cliente', 'vacantes_activas', 'latitud', 'longitud', 'codigo_secreto')
+    list_filter = ('vacantes_activas', 'cliente')
+    search_fields = ('nombre_empresa', 'codigo_secreto')
+    list_editable = ('vacantes_activas',)
+
+
+@admin.register(PreguntaAbiertaFinalCurso)
+class PreguntaAbiertaFinalCursoAdmin(admin.ModelAdmin):
+    list_display = ('curso', 'activa', 'fecha_creacion')
+    list_filter = ('activa', 'curso')
+    search_fields = ('curso__nombre', 'pregunta')
+
+
+@admin.register(RespuestaAbiertaFinal)
+class RespuestaAbiertaFinalAdmin(admin.ModelAdmin):
+    list_display = ('estudiante', 'curso', 'estado', 'calificacion', 'fecha_respuesta', 'fecha_calificacion')
+    list_filter = ('estado', 'curso', 'fecha_respuesta')
+    search_fields = ('estudiante__nombre', 'estudiante__telefono', 'respuesta_texto')
+    readonly_fields = ('estudiante', 'curso', 'pregunta', 'progreso', 'respuesta_texto', 'fecha_respuesta')
+
+    fieldsets = (
+        ('Respuesta del estudiante', {
+            'fields': ('estudiante', 'curso', 'pregunta', 'progreso', 'respuesta_texto', 'fecha_respuesta')
+        }),
+        ('Calificación facilitadora', {
+            'fields': ('estado', 'calificacion', 'retroalimentacion', 'calificada_por', 'fecha_calificacion')
+        }),
+    )
+
+    def save_model(self, request, obj, form, change):
+        if obj.calificacion is not None:
+            obj.estado = 'calificada'
+            obj.calificada_por = request.user
+            if not obj.fecha_calificacion:
+                obj.fecha_calificacion = timezone.now()
+        super().save_model(request, obj, form, change)
+
+    ordering = ['-fecha_respuesta']
 
 
 @admin.register(TransaccionPuntos)

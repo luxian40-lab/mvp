@@ -378,6 +378,7 @@ WHATSAPP_VERIFY_TOKEN = os.environ.get('WHATSAPP_VERIFY_TOKEN', 'eki_webhook_ver
 # 📢 Templates de Twilio para envío masivo (deben estar aprobados)
 TWILIO_TEMPLATE_ANUNCIO_GRUPAL = os.environ.get('TWILIO_TEMPLATE_ANUNCIO_GRUPAL', '')  # Content SID del template de anuncios
 TWILIO_TEMPLATE_INVITACION_GRUPO = os.environ.get('TWILIO_TEMPLATE_INVITACION_GRUPO', '')  # Content SID del template de invitación
+TWILIO_TEMPLATE_DRIP_REENGANCHE = os.environ.get('TWILIO_TEMPLATE_DRIP_REENGANCHE', '')  # Content SID para recordatorio diario de desbloqueo drip
 
 # ==========================================
 # 🤖 OPENAI API
