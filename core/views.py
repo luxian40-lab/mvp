@@ -3295,41 +3295,38 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                     _skip_cert = False
                                     if progreso.curso.usar_gamificacion:
                                         try:
-                                            from .tutor_ia_modulo import generar_reto_facilitador
                                             nombre_tutor_final = progreso.curso.nombre_agente_tutor or 'Claudia'
                                             nombre_asist_final = progreso.curso.nombre_agente_asistente or 'Darío'
                                             modulos_all = list(progreso.curso.modulos.filter(numero__gte=4).order_by('numero'))
                                             if not modulos_all:
                                                 modulos_all = list(progreso.curso.modulos.all().order_by('numero'))
-                                            
-                                            reto_texto = generar_reto_facilitador(
-                                                modulos_all,
-                                                progreso.curso.nombre,
-                                                estudiante_nombre=estudiante.nombre or "Estudiante",
-                                                preguntas_ejemplo=progreso.curso.preguntas_ejemplo_ia or "",
+                                            modulos_final_range = "los módulos finales del curso"
+                                            if len(modulos_all) >= 2:
+                                                modulos_final_range = f"los módulos {modulos_all[0].numero} a {modulos_all[-1].numero}"
+
+                                            _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
+                                            estudiante.contexto_temporal = {
+                                                'tipo': 'asistente_dario',
+                                                'curso_id': progreso.curso.id,
+                                                'modulo_id': modulo_actual.id,
+                                                'progreso_id': progreso.id,
+                                                'modulos_reto_ids': [m.id for m in modulos_all],
+                                                'preguntas_hechas': 0,
+                                                'es_reto_final': True,
+                                                '_ts_leccion': _prev_ts,
+                                            }
+                                            estudiante.estado_onboarding = 'esperando_respuesta_asistente'
+                                            estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
+
+                                            texto_respuesta = (
+                                                f"{mensaje_respuesta}\n\n"
+                                                f"🎉 *¡Completaste todos los módulos del curso!*\n\n"
+                                                f"💬 *{nombre_asist_final}*\n\n"
+                                                f"Antes de tu certificado, {nombre_tutor_final} te planteará un reto final sobre {modulos_final_range}.\n\n"
+                                                "¿Tienes dudas antes del reto? Envíame tu pregunta (texto o audio).\n"
+                                                "Si no tienes dudas, escribe *listo* para pasar con la facilitadora."
                                             )
-                                            if reto_texto:
-                                                _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
-                                                estudiante.contexto_temporal = {
-                                                    'tipo': 'reto_facilitador',
-                                                    'curso_id': progreso.curso.id,
-                                                    'progreso_id': progreso.id,
-                                                    'modulos_reto_ids': [m.id for m in modulos_all],
-                                                    'es_final': True,
-                                                    '_ts_leccion': _prev_ts,
-                                                }
-                                                estudiante.estado_onboarding = 'esperando_respuesta_reto'
-                                                estudiante.save()
-                                                
-                                                texto_respuesta = (
-                                                    f"{mensaje_respuesta}\n\n"
-                                                    f"🎉 *¡Completaste todos los módulos del curso!*\n\n"
-                                                    f"Antes de tu certificado, {nombre_tutor_final} tiene un reto final para ti 🏆\n\n"
-                                                    f"📝 *Reto final de {nombre_tutor_final}:*\n\n"
-                                                    f"{reto_texto}\n\n"
-                                                    f"✍️ Escribe tu respuesta"
-                                                )
-                                                _skip_cert = True
+                                            _skip_cert = True
                                         except Exception as e:
                                             logger.warning(f"⚠️ Reto final exam: {e}")
                                     
