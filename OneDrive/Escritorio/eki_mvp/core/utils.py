@@ -1,7 +1,28 @@
+import math
 import requests
 from django.conf import settings
 from django.utils import timezone
 from .models import WhatsappLog
+
+
+def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calcula la distancia en metros entre dos coordenadas usando la fórmula de Haversine.
+
+    Parámetros:
+    - lat1, lon1: coordenadas del punto de origen (ej. estudiante)
+    - lat2, lon2: coordenadas del punto destino (ej. empresa aliada)
+
+    Retorna la distancia en metros (float).
+    """
+    R = 6_371_000  # Radio de la Tierra en metros
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
 
 
 def enviar_whatsapp(telefono: str, texto: str, url_imagen: str = None) -> dict:
