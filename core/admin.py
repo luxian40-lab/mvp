@@ -118,6 +118,17 @@ class ClienteAdmin(admin.ModelAdmin):
             'fields': ('usar_gamificacion',),
             'description': '🎮 Si está activado, los estudiantes verán puntos, badges y recompensas. Si está desactivado, solo verán el contenido educativo sin elementos de juego.'
         }),
+        ('📅 Reglas por Cliente (Fechas)', {
+            'fields': (
+                'habilitar_pregunta_abierta_final',
+                'fecha_inicio_pregunta_abierta_final',
+                'fecha_fin_pregunta_abierta_final',
+                'habilitar_gamificacion_proximidad',
+                'fecha_inicio_gamificacion_proximidad',
+                'fecha_fin_gamificacion_proximidad',
+            ),
+            'description': 'Controla por cliente y por ventana de fechas cuándo se activa la pregunta abierta final y el radar de empleabilidad por proximidad.'
+        }),
         ('🤖 Nombres de Agentes IA', {
             'fields': ('nombre_agente_tutor', 'nombre_agente_asistente'),
             'description': '🎓 Personaliza los nombres de los agentes de IA para este cliente. Si se dejan vacíos, se usarán los nombres por defecto (Gerónimo y María). Roles: Tutor = Profesor que enseña módulos, Asistente = Ayuda y revisa progreso.',
@@ -3370,6 +3381,12 @@ class RespuestaAbiertaFinalAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
     ordering = ['-fecha_respuesta']
+
+
+try:
+    admin.site.unregister(RespuestaAbiertaFinal)
+except admin.sites.NotRegistered:
+    pass
 
 
 @admin.register(TransaccionPuntos)

@@ -271,6 +271,25 @@ def dashboard_unificado(request):
         'tickets_soporte': tickets_soporte,
     }
     return render(request, 'admin/dashboard.html', context)
+
+
+@staff_member_required
+def bot_comercial_admin_view(request):
+    """Vista administrativa para operación del Bot Comercial IA."""
+    endpoint_path = '/webhook/ia-bot-comercial/'
+    endpoint_url = request.build_absolute_uri(endpoint_path)
+
+    context = {
+        'endpoint_path': endpoint_path,
+        'endpoint_url': endpoint_url,
+        'bot_comercial_whatsapp_number': getattr(settings, 'BOT_COMERCIAL_WHATSAPP_NUMBER', ''),
+        'bot_comercial_cliente_id': getattr(settings, 'BOT_COMERCIAL_CLIENTE_ID', ''),
+        'bot_comercial_curso_id': getattr(settings, 'BOT_COMERCIAL_CURSO_ID', ''),
+        'bot_comercial_openai_model': getattr(settings, 'BOT_COMERCIAL_OPENAI_MODEL', ''),
+        'bot_comercial_vision_model': getattr(settings, 'BOT_COMERCIAL_VISION_MODEL', ''),
+    }
+    return render(request, 'admin/bot_comercial.html', context)
+
 from django.http import HttpResponse, JsonResponse, FileResponse, HttpResponseBadRequest
 from django.core.files.storage import default_storage
 import mimetypes
@@ -283,6 +302,7 @@ import json
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from django.utils import timezone
+import math
 import requests
 import tempfile
 import os
@@ -293,7 +313,7 @@ logger = logging.getLogger(__name__)
 
 from .models import Campana, Estudiante, WhatsappLog, EnvioLog, Cliente, Curso, ProgresoEstudiante, ModuloCompletado
 from .models_extras import ArchivoModulo
-from .utils import enviar_whatsapp
+from .utils import enviar_whatsapp, enviar_whatsapp_twilio
 from .intent_detector import detect_intent
 from .response_templates import get_response_for_intent
 
@@ -1093,6 +1113,257 @@ def whatsapp_webhook(request):
         return HttpResponse('OK')
 
 
+def _cliente_en_ventana(cliente, campo_habilitar, campo_inicio, campo_fin):
+    """Evalúa si una funcionalidad está habilitada para un cliente según ventana de fechas."""
+    if not cliente:
+        return True
+    if not getattr(cliente, campo_habilitar, False):
+        return False
+
+    hoy = timezone.localdate()
+    inicio = getattr(cliente, campo_inicio, None)
+    fin = getattr(cliente, campo_fin, None)
+
+    if inicio and hoy < inicio:
+        return False
+    if fin and hoy > fin:
+        return False
+    return True
+
+
+def _cliente_habilita_pregunta_abierta_final(cliente):
+    return _cliente_en_ventana(
+        cliente,
+        'habilitar_pregunta_abierta_final',
+        'fecha_inicio_pregunta_abierta_final',
+        'fecha_fin_pregunta_abierta_final',
+    )
+
+
+def _cliente_habilita_proximidad(cliente):
+    return _cliente_en_ventana(
+        cliente,
+        'habilitar_gamificacion_proximidad',
+        'fecha_inicio_gamificacion_proximidad',
+        'fecha_fin_gamificacion_proximidad',
+    )
+
+
+def _bot_comercial_respuesta_catalogo(pregunta: str, contexto_rag: str, diagnostico_vision: str = '') -> str:
+    """Genera respuesta comercial estricta basada en contexto RAG (sin alucinaciones)."""
+    api_key = getattr(settings, 'OPENAI_API_KEY', '')
+    if not api_key:
+        if not contexto_rag:
+            return (
+                "No tengo datos de catálogo cargados para responder con precisión ahora. "
+                "Comparte nombre del producto o contacto comercial para cotización asistida."
+            )
+        return (
+                "Con base en catálogo comercial:\n\n"
+            f"{contexto_rag[:1000]}\n\n"
+            "Si deseas cotización, compárteme cantidad, municipio y cultivo."
+        )
+
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key)
+        system_prompt = (
+            "Eres Asistente IA Comercial (ventas y soporte agronómico). "
+            "Regla crítica: SOLO puedes responder usando el CONTEXTO DE CATÁLOGO provisto. "
+            "Si falta información en contexto, di explícitamente que no está disponible. "
+            "No inventes productos, dosis ni precios. "
+            "Responde en español claro para agricultores y cierra con CTA de cotización."
+        )
+        user_prompt = (
+            f"CONSULTA DEL CLIENTE:\n{pregunta}\n\n"
+            f"DIAGNOSTICO VISION (si aplica):\n{diagnostico_vision or 'N/A'}\n\n"
+            f"CONTEXTO DE CATALOGO (fuente única):\n{contexto_rag or '[VACIO]'}"
+        )
+        completion = client.chat.completions.create(
+            model=getattr(settings, 'BOT_COMERCIAL_OPENAI_MODEL', 'gpt-4o-mini'),
+            temperature=0.2,
+            messages=[
+                {'role': 'system', 'content': system_prompt},
+                {'role': 'user', 'content': user_prompt},
+            ],
+        )
+        texto = (completion.choices[0].message.content or '').strip()
+        return texto or "No logré construir una respuesta válida. Intenta con otra consulta."
+    except Exception as e:
+        logger.warning(f"⚠️ Bot Comercial LLM fallback: {e}")
+        if contexto_rag:
+            return (
+                "Te comparto lo que encontré en catálogo comercial:\n\n"
+                f"{contexto_rag[:1000]}\n\n"
+                "Para cotizar, envíame cantidad y municipio."
+            )
+        return "No encuentro información confiable en catálogo para esa consulta en este momento."
+
+
+def _bot_comercial_diagnosticar_imagen(media_url: str, media_type: str) -> str:
+    """Diagnóstico preliminar de imagen de cultivo usando visión (si está disponible)."""
+    if not media_url or not media_type.startswith('image'):
+        return ''
+
+    api_key = getattr(settings, 'OPENAI_API_KEY', '')
+    if not api_key:
+        return "Imagen recibida. Diagnóstico visual no disponible en este entorno."
+
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key)
+        resp = client.chat.completions.create(
+            model=getattr(settings, 'BOT_COMERCIAL_VISION_MODEL', 'gpt-4o-mini'),
+            temperature=0.2,
+            messages=[
+                {
+                    'role': 'system',
+                    'content': (
+                        "Eres agrónomo asistente. Entrega diagnóstico preliminar breve y prudente. "
+                        "No afirmes certeza absoluta. Enlista posible plaga/estrés y síntomas clave."
+                    ),
+                },
+                {
+                    'role': 'user',
+                    'content': [
+                        {'type': 'text', 'text': 'Analiza esta imagen de cultivo y da un diagnóstico preliminar.'},
+                        {'type': 'image_url', 'image_url': {'url': media_url}},
+                    ],
+                },
+            ],
+        )
+        return (resp.choices[0].message.content or '').strip()
+    except Exception as e:
+        logger.warning(f"⚠️ Bot Comercial visión no disponible: {e}")
+        return "Recibí tu imagen, pero no pude completar el diagnóstico visual ahora."
+
+
+def _procesar_bot_comercial_twilio_webhook(post_data):
+    """Webhook Twilio dedicado para bot comercial (texto libre, voz e imagen)."""
+    from .rag_manager import rag_manager
+
+    status = post_data.get('MessageStatus', post_data.get('SmsStatus', ''))
+    if status and status.lower() in ['queued', 'sending', 'sent', 'delivered', 'undelivered', 'failed', 'read']:
+        return
+
+    msg_body = (post_data.get('Body', '') or '').strip()
+    msg_from = post_data.get('From', '')
+    msg_to = post_data.get('To', '')
+    msg_sid = post_data.get('MessageSid', f'botcom_{timezone.now().timestamp()}')
+    num_media = int(post_data.get('NumMedia', 0) or 0)
+    media_type = post_data.get('MediaContentType0', '') or ''
+    media_url = post_data.get('MediaUrl0', '') or ''
+
+    if msg_from.startswith('whatsapp:'):
+        msg_from = msg_from.replace('whatsapp:', '')
+    if msg_to.startswith('whatsapp:'):
+        msg_to = msg_to.replace('whatsapp:', '')
+    import re
+    telefono_limpio = re.sub(r'\D', '', msg_from)
+    to_limpio = re.sub(r'\D', '', msg_to)
+    if len(telefono_limpio) == 10:
+        telefono_limpio = f"57{telefono_limpio}"
+
+    numero_bot_comercial = re.sub(
+        r'\D',
+        '',
+        str(
+            getattr(settings, 'BOT_COMERCIAL_WHATSAPP_NUMBER', '')
+            or getattr(settings, 'AGRONEXO_WHATSAPP_NUMBER', '')
+            or ''
+        ),
+    )
+    if numero_bot_comercial and to_limpio and to_limpio != numero_bot_comercial:
+        logger.info(f"Webhook bot comercial ignorado por número destino distinto: to={to_limpio}")
+        return
+
+    if num_media > 0 and ('audio' in media_type or 'ogg' in media_type):
+        transcripcion = _transcribir_audio_twilio(media_url, media_type=media_type)
+        if transcripcion:
+            msg_body = transcripcion
+        elif not msg_body:
+            msg_body = '[AUDIO_NO_TRANSCRITO]'
+
+    WhatsappLog.objects.create(
+        telefono=telefono_limpio,
+        mensaje=msg_body or f'[MEDIA:{media_type}]',
+        mensaje_id=msg_sid,
+        tipo='INCOMING',
+        es_audio=('audio' in media_type),
+        agente_usado='BOT_COMERCIAL',
+    )
+
+    if (msg_body or '').lower() in ['listo', 'continuar', 'menu', 'menú']:
+        texto_respuesta = (
+            "👨‍🌾 *Asistente Comercial IA*\n\n"
+            "Este canal es de consultoría y cotización libre.\n"
+            "Cuéntame tu cultivo, problema o producto a cotizar."
+        )
+    else:
+        cliente_id = int(
+            getattr(settings, 'BOT_COMERCIAL_CLIENTE_ID', None)
+            or getattr(settings, 'AGRONEXO_CLIENTE_ID', 0)
+            or 0
+        )
+        curso_id = int(
+            getattr(settings, 'BOT_COMERCIAL_CURSO_ID', None)
+            or getattr(settings, 'AGRONEXO_CURSO_ID', 0)
+            or 0
+        )
+
+        diagnostico_vision = ''
+        if num_media > 0 and media_type.startswith('image') and media_url:
+            diagnostico_vision = _bot_comercial_diagnosticar_imagen(media_url, media_type)
+
+        consulta = msg_body or 'Necesito asesoría agrícola'
+        if diagnostico_vision:
+            consulta = f"{consulta}\n\nDiagnóstico preliminar imagen: {diagnostico_vision}"
+
+        contexto_rag = ''
+        if cliente_id >= 0 and curso_id > 0 and rag_manager.disponible:
+            contexto_rag = rag_manager.obtener_contexto_para_ia(
+                cliente_id=cliente_id,
+                curso_id=curso_id,
+                pregunta=consulta,
+                max_chars=2200,
+            )
+
+        texto_respuesta = _bot_comercial_respuesta_catalogo(
+            pregunta=consulta,
+            contexto_rag=contexto_rag,
+            diagnostico_vision=diagnostico_vision,
+        )
+
+    try:
+        enviar_whatsapp_twilio(telefono_limpio, texto_respuesta)
+        WhatsappLog.objects.create(
+            telefono=telefono_limpio,
+            mensaje=texto_respuesta[:1500],
+            tipo='SENT',
+            agente_usado='BOT_COMERCIAL',
+        )
+    except Exception as e:
+        logger.error(f"❌ Error respondiendo bot comercial: {e}")
+
+
+@csrf_exempt
+def bot_comercial_webhook(request):
+    """Webhook dedicado para el número de WhatsApp del bot comercial."""
+    if request.method != 'POST':
+        return HttpResponse('Method Not Allowed', status=405)
+
+    try:
+        try:
+            payload = json.loads(request.body.decode('utf-8'))
+            _procesar_bot_comercial_twilio_webhook(payload)
+        except json.JSONDecodeError:
+            _procesar_bot_comercial_twilio_webhook(request.POST)
+        return HttpResponse('OK')
+    except Exception as e:
+        logger.error(f"❌ Error webhook bot comercial: {e}")
+        return HttpResponse('Error', status=500)
+
+
 def _escape_twiml(text):
     """Escapa caracteres especiales para TwiML XML."""
     if not text:
@@ -1101,6 +1372,126 @@ def _escape_twiml(text):
     text = text.replace('<', '&lt;')
     text = text.replace('>', '&gt;')
     return text
+
+
+def _haversine_metros(lat1, lon1, lat2, lon2):
+    """Distancia Haversine en metros."""
+    radio_tierra = 6371000.0
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+    a = math.sin(delta_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return radio_tierra * c
+
+
+def _mensaje_bloqueo_drip_view(fecha_desbloqueo):
+    fecha_txt = timezone.localtime(fecha_desbloqueo).strftime('%d/%m/%Y')
+    return (
+        "🌱 *¡Excelente energía!*\n\n"
+        f"Tu próxima lección se desbloquea el *{fecha_txt}*.\n"
+        "Mientras tanto, repasa lo aprendido en el módulo actual.\n\n"
+        "Cuando llegue la fecha, responde *listo* para continuar."
+    )
+
+
+def _activar_radar_empleabilidad_si_aplica(estudiante):
+    from django.db.models import Q
+    from .models import AliadoEmpleabilidad
+
+    if not _cliente_habilita_proximidad(estudiante.cliente):
+        return False
+
+    if estudiante.cliente_id:
+        hay_aliados = AliadoEmpleabilidad.objects.filter(vacantes_activas=True).filter(
+            Q(cliente__isnull=True) | Q(cliente=estudiante.cliente)
+        ).exists()
+    else:
+        hay_aliados = AliadoEmpleabilidad.objects.filter(vacantes_activas=True).exists()
+
+    if not hay_aliados:
+        return False
+
+    ctx = estudiante.contexto_temporal or {}
+    ctx['radar_empleabilidad_activo'] = True
+    ctx['empleabilidad_habilitado_en'] = timezone.now().isoformat()
+    estudiante.contexto_temporal = ctx
+    estudiante.save(update_fields=['contexto_temporal'])
+    return True
+
+
+def _pregunta_abierta_final_pendiente(estudiante, progreso):
+    from .models import PreguntaAbiertaFinalCurso, RespuestaAbiertaFinal
+
+    if not _cliente_habilita_pregunta_abierta_final(estudiante.cliente):
+        return None
+
+    pregunta = PreguntaAbiertaFinalCurso.objects.filter(curso=progreso.curso, activa=True).first()
+    if not pregunta:
+        return None
+    existe = RespuestaAbiertaFinal.objects.filter(pregunta=pregunta, estudiante=estudiante).exists()
+    if existe:
+        return None
+    return pregunta
+
+
+def _procesar_ubicacion_empleabilidad(estudiante, latitud, longitud):
+    """
+    Evalúa proximidad del estudiante a aliados activos y construye respuesta.
+    Guarda aliado objetivo en contexto para validación de código secreto.
+    """
+    from django.db.models import Q
+    from .models import AliadoEmpleabilidad
+
+    if not _cliente_habilita_proximidad(estudiante.cliente):
+        return (
+            "📍 El radar de empleabilidad por ubicación no está activo para tu organización en esta fecha. "
+            "Si lo esperabas, escribe *ayuda* para que el equipo valide tu acceso."
+        )
+
+    if estudiante.cliente_id:
+        aliados = AliadoEmpleabilidad.objects.filter(vacantes_activas=True).filter(
+            Q(cliente__isnull=True) | Q(cliente=estudiante.cliente)
+        )
+    else:
+        aliados = AliadoEmpleabilidad.objects.filter(vacantes_activas=True)
+
+    aliados = list(aliados)
+    if not aliados:
+        return "📍 En este momento no hay vacantes activas de aliados en tu zona. Te avisaremos cuando se habiliten."
+
+    mejor = None
+    mejor_dist = None
+    for aliado in aliados:
+        dist = _haversine_metros(latitud, longitud, aliado.latitud, aliado.longitud)
+        if mejor_dist is None or dist < mejor_dist:
+            mejor_dist = dist
+            mejor = aliado
+
+    if not mejor:
+        return "No pude procesar tu ubicación en este momento. Inténtalo nuevamente."
+
+    ctx = estudiante.contexto_temporal or {}
+    ctx['radar_empleabilidad_activo'] = True
+    ctx['aliado_empleabilidad_objetivo_id'] = mejor.id
+    ctx['distancia_aliado_m'] = round(mejor_dist, 1)
+    estudiante.contexto_temporal = ctx
+    estudiante.estado_onboarding = 'esperando_codigo_empleabilidad'
+    estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
+
+    if mejor_dist <= 100:
+        return (
+            f"🎯 *¡Estás a {int(round(mejor_dist))} metros de {mejor.nombre_empresa}!*\n\n"
+            "Acércate a la entrada y envía el *código secreto* que verás en la puerta."
+        )
+
+    sector = mejor.indicacion_sector or "del parque principal"
+    return (
+        "📍 Aún estás lejos de nuestras empresas aliadas.\n\n"
+        f"Vas por buen camino. Acércate al sector *{sector}* y vuelve a enviarme tu ubicación.\n"
+        f"Distancia aproximada actual a {mejor.nombre_empresa}: *{int(round(mejor_dist))} m*."
+    )
 
 
 def _procesar_twilio_webhook(post_data):
@@ -1136,6 +1527,8 @@ def _procesar_twilio_webhook(post_data):
         num_media = int(post_data.get('NumMedia', 0))
         media_type = post_data.get('MediaContentType0', '')
         media_url = post_data.get('MediaUrl0', '')
+        latitud_raw = post_data.get('Latitude')
+        longitud_raw = post_data.get('Longitude')
         print(f"🎤 DEBUG AUDIO: NumMedia={num_media}, MediaType='{media_type}', MediaUrl={bool(media_url)}, Body='{msg_body[:30] if msg_body else ''}'", flush=True)
 
         es_audio = num_media > 0 and ('audio' in media_type or 'ogg' in media_type)
@@ -1189,6 +1582,27 @@ def _procesar_twilio_webhook(post_data):
         try:
             estudiante = Estudiante.objects.select_related('cliente').get(telefono=telefono_limpio)
             logger.info(f"Estudiante encontrado: {estudiante.nombre} (ID: {estudiante.id})")
+
+            # Ubicación de WhatsApp (Twilio): Latitude/Longitude
+            if latitud_raw is not None and longitud_raw is not None:
+                try:
+                    latitud = float(latitud_raw)
+                    longitud = float(longitud_raw)
+                    texto_geo = _procesar_ubicacion_empleabilidad(estudiante, latitud, longitud)
+                    try:
+                        from twilio.rest import Client as TwilioClient
+                        account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                        auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                        twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
+                        client_tw = TwilioClient(account_sid, auth_token)
+                        destino = f'whatsapp:{msg_from}' if not str(msg_from).startswith('whatsapp:') else msg_from
+                        client_tw.messages.create(body=texto_geo, from_=str(twilio_number).strip(), to=str(destino).strip())
+                        WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_geo, tipo='SENT')
+                    except Exception as e:
+                        logger.error(f"❌ Error enviando respuesta de ubicación: {e}")
+                    return
+                except ValueError:
+                    logger.warning(f"⚠️ Coordenadas inválidas recibidas: lat={latitud_raw}, lon={longitud_raw}")
         except Estudiante.DoesNotExist:
             # Verificar si ya es un prospecto B2B existente
             from .models import ProspectoB2B
@@ -1863,6 +2277,7 @@ def _procesar_twilio_webhook(post_data):
                 'esperando_respuesta_tutor_ia',      # Tutor legacy
                 'esperando_respuesta_progreso',      # María
                 'esperando_respuesta_modulo',         # Evaluación módulo
+                'esperando_respuesta_pregunta_abierta_final',  # Respuesta final calificada por facilitadora
             ]
             if estudiante.estado_onboarding in estados_agente:
                 logger.info(f"🤖 Agente activo ({estudiante.estado_onboarding}) — bypassing gate listo")
@@ -2106,8 +2521,96 @@ def _procesar_twilio_webhook(post_data):
             print(f"🛡️ Bloqueado por seguridad/habeas data", flush=True)
             texto_respuesta = respuesta_seguridad
         else:
+            if estudiante.estado_onboarding == 'esperando_codigo_empleabilidad':
+                from .models import AliadoEmpleabilidad
+                from .gamificacion import PerfilGamificacion, Badge, BadgeEstudiante
+                ctx_emp = estudiante.contexto_temporal or {}
+                aliado_id = ctx_emp.get('aliado_empleabilidad_objetivo_id')
+                aliado = None
+                if aliado_id:
+                    aliado = AliadoEmpleabilidad.objects.filter(id=aliado_id, vacantes_activas=True).first()
+
+                if aliado and msg_body.strip().lower() == str(aliado.codigo_secreto).strip().lower():
+                    perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
+                    perfil.agregar_puntos(30, f"Radar Empleabilidad: {aliado.nombre_empresa}")
+                    badge = Badge.objects.filter(tipo='ESPECIAL', activo=True, nombre__icontains='emple').first()
+                    if badge:
+                        BadgeEstudiante.objects.get_or_create(estudiante=estudiante, badge=badge)
+
+                    from .tasks import enviar_email_org_admin_async
+                    try:
+                        asunto = f"Match empleabilidad: {estudiante.nombre} - {aliado.nombre_empresa}"
+                        mensaje_html = (
+                            f"<p>El estudiante <strong>{estudiante.nombre}</strong> "
+                            f"(tel: {estudiante.telefono}) validó el código secreto de "
+                            f"<strong>{aliado.nombre_empresa}</strong>.</p>"
+                            f"<p>Iniciar contacto para proceso de contratación.</p>"
+                        )
+                        enviar_email_org_admin_async.delay(estudiante.id, asunto, mensaje_html)
+                    except Exception as e:
+                        logger.warning(f"⚠️ No se pudo encolar notificación de empleabilidad: {e}")
+
+                    ctx_emp['ultimo_match_empleabilidad_aliado_id'] = aliado.id
+                    ctx_emp['ultimo_match_empleabilidad_fecha'] = timezone.now().isoformat()
+                    estudiante.contexto_temporal = ctx_emp
+                    estudiante.estado_onboarding = 'curso_finalizado'
+                    estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
+                    texto_respuesta = (
+                        f"🏆 *¡Logro desbloqueado!*\n\n"
+                        f"Validaste el código de *{aliado.nombre_empresa}*.\n"
+                        "✅ Ya notificamos al equipo para iniciar el proceso de empleabilidad."
+                    )
+                    estudiante.estado_onboarding = 'curso_finalizado'
+                else:
+                    texto_respuesta = (
+                        "🔐 El código no coincide.\n\n"
+                        "Verifica el código secreto en la entrada de la empresa y vuelve a enviarlo."
+                    )
+                    estudiante.estado_onboarding = 'esperando_codigo_empleabilidad'
+                estudiante.save(update_fields=['estado_onboarding'])
+
+            elif estudiante.estado_onboarding == 'esperando_respuesta_pregunta_abierta_final':
+                from .models import PreguntaAbiertaFinalCurso, RespuestaAbiertaFinal, ProgresoEstudiante
+                if msg_body.strip() == '[AUDIO_NO_TRANSCRITO]':
+                    texto_respuesta = (
+                        "⚠️ No pude escuchar tu audio. Por favor intenta de nuevo "
+                        "o escríbeme tu respuesta abierta final."
+                    )
+                else:
+                    ctx_open = estudiante.contexto_temporal or {}
+                    pregunta_id = ctx_open.get('pregunta_abierta_final_id')
+                    progreso_id = ctx_open.get('progreso_id')
+                    pregunta = PreguntaAbiertaFinalCurso.objects.filter(id=pregunta_id, activa=True).first()
+                    progreso = ProgresoEstudiante.objects.filter(id=progreso_id).first() if progreso_id else None
+
+                    if pregunta:
+                        RespuestaAbiertaFinal.objects.update_or_create(
+                            pregunta=pregunta,
+                            estudiante=estudiante,
+                            defaults={
+                                'curso': pregunta.curso,
+                                'progreso': progreso,
+                                'respuesta_texto': msg_body,
+                                'fecha_respuesta': timezone.now(),
+                                'estado': 'pendiente',
+                            }
+                        )
+                        estudiante.estado_onboarding = 'curso_finalizado'
+                        estudiante.contexto_temporal = None
+                        estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])
+                        texto_respuesta = (
+                            "✅ *¡Respuesta recibida!*\n\n"
+                            "Tu facilitadora revisará y calificará tu respuesta abierta final.\n"
+                            "Te notificaremos cuando esté evaluada."
+                        )
+                    else:
+                        texto_respuesta = (
+                            "No encuentro una pregunta abierta final activa para tu curso en este momento. "
+                            "Escribe *ayuda* para soporte."
+                        )
+
             # v1.9.8g: Post-certificate cutoff — no more interaction
-            if estudiante.estado_onboarding == 'curso_finalizado':
+            elif estudiante.estado_onboarding == 'curso_finalizado':
                 print(f"🚫 Curso finalizado — sin interacción post-certificado")
                 # Check if student has a new active course
                 from .models import ProgresoEstudiante
@@ -2296,37 +2799,66 @@ def _procesar_twilio_webhook(post_data):
                     es_final = ctx.get('es_final', False)
                     
                     if es_final and progreso:
-                        # v1.9.8h: Final reto — issue certificate
-                        estudiante.estado_onboarding = 'curso_finalizado'
-                        estudiante.contexto_temporal = None
-                        estudiante.save()
-                        
-                        msg_cert_img = ""
-                        try:
-                            from .certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
-                            cert = crear_certificado_automatico(estudiante, progreso.curso)
-                            if cert and cert.archivo_imagen:
-                                cert_url = obtener_url_certificado_twilio(cert)
-                                if cert_url:
-                                    msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                        pregunta_abierta = _pregunta_abierta_final_pendiente(estudiante, progreso)
+                        if pregunta_abierta:
+                            estudiante.contexto_temporal = {
+                                'tipo': 'pregunta_abierta_final',
+                                'curso_id': progreso.curso.id,
+                                'progreso_id': progreso.id,
+                                'pregunta_abierta_final_id': pregunta_abierta.id,
+                            }
+                            estudiante.estado_onboarding = 'esperando_respuesta_pregunta_abierta_final'
+                            estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
+                            texto_respuesta = (
+                                f"{msg_eval}\n\n"
+                                "📝 *Antes del cierre final*, responde esta pregunta abierta:\n\n"
+                                f"{pregunta_abierta.pregunta}\n\n"
+                                "✍️ Tu facilitadora revisará y calificará tu respuesta."
+                            )
+                        else:
+                            # v1.9.8h: Final reto — issue certificate
+                            estudiante.estado_onboarding = 'curso_finalizado'
+                            estudiante.contexto_temporal = None
+                            estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])
+                            
+                            msg_cert_img = ""
+                            try:
+                                from .certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
+                                cert = crear_certificado_automatico(estudiante, progreso.curso)
+                                if cert and cert.archivo_imagen:
+                                    cert_url = obtener_url_certificado_twilio(cert)
+                                    if cert_url:
+                                        msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                                    else:
+                                        s3_key = str(cert.archivo_imagen.name)
+                                        cert_url = f"https://eki-produccion.s3.us-east-2.amazonaws.com/{s3_key}"
+                                        msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                                elif cert and cert.archivo_pdf:
+                                    msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert.archivo_pdf.url}"
                                 else:
-                                    s3_key = str(cert.archivo_imagen.name)
-                                    cert_url = f"https://eki-produccion.s3.us-east-2.amazonaws.com/{s3_key}"
-                                    msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
-                            elif cert and cert.archivo_pdf:
-                                msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert.archivo_pdf.url}"
-                            else:
+                                    msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+                            except Exception as e:
+                                logger.error(f"❌ Error certificado post-reto final: {e}", exc_info=True)
                                 msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
-                        except Exception as e:
-                            logger.error(f"❌ Error certificado post-reto final: {e}", exc_info=True)
-                            msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
-                        
-                        msg_final = (
-                            f"{msg_eval}\n\n"
-                            f"🎓 *¡FELICITACIONES!*\n\n"
-                            f"Ha completado el curso: *{progreso.curso.nombre}*"
-                        )
-                        texto_respuesta = "[MULTI_MSG]" + "[SEP]".join([msg_final, msg_cert_img])
+
+                            radar_msg = ""
+                            if _activar_radar_empleabilidad_si_aplica(estudiante):
+                                radar_msg = (
+                                    "📍 *¡Radar de Empleos desbloqueado!*\n\n"
+                                    "Ve al parque principal de Subachoque y envíame tu *Ubicación* "
+                                    "usando el clip de WhatsApp (📎)."
+                                )
+                            
+                            msg_final = (
+                                f"{msg_eval}\n\n"
+                                f"🎓 *¡FELICITACIONES!*\n\n"
+                                f"Ha completado el curso: *{progreso.curso.nombre}*"
+                            )
+                            partes_finales = [msg_final]
+                            if radar_msg:
+                                partes_finales.append(radar_msg)
+                            partes_finales.append(msg_cert_img)
+                            texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_finales)
                     else:
                         estudiante.contexto_temporal = None
                         estudiante.estado_onboarding = 'completado'
@@ -2556,10 +3088,13 @@ def _procesar_twilio_webhook(post_data):
                             
                             if progreso and modulo_actual:
                                 # Crear ModuloCompletado para la pregunta IA abierta
-                                ModuloCompletado.objects.get_or_create(
+                                modulo_abierto, created_abierto = ModuloCompletado.objects.get_or_create(
                                     progreso=progreso,
                                     modulo=modulo_actual
                                 )
+                                if created_abierto:
+                                    progreso.fecha_ultimo_avance = timezone.now()
+                                    progreso.save(update_fields=['fecha_ultimo_avance'])
                         
                         _skip_avance = False
                         if not (progreso and modulo_actual):
@@ -2591,7 +3126,17 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                 siguiente_modulo = progreso.curso.modulos.filter(
                                     numero__gt=modulo_actual.numero
                                 ).order_by('numero').first()
-                            
+                                drip_bloqueado = False
+
+                                if siguiente_modulo:
+                                    # Drip Content: si el curso tiene espera, no avanzar todavía
+                                    if progreso.curso.dias_espera_entre_modulos > 0 and progreso.fecha_ultimo_avance:
+                                        fecha_desbloqueo = progreso.fecha_ultimo_avance + timedelta(days=progreso.curso.dias_espera_entre_modulos)
+                                        if timezone.now() < fecha_desbloqueo:
+                                            texto_respuesta = f"{mensaje_respuesta}\n\n{_mensaje_bloqueo_drip_view(fecha_desbloqueo)}"
+                                            drip_bloqueado = True
+                                            siguiente_modulo = None
+
                                 if siguiente_modulo:
                                     # v1.9.8h: Check reto BEFORE advancing module
                                     total_modulos = progreso.curso.modulos.count()
@@ -2695,8 +3240,8 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                             partes.append("[DELAY:5]")
                                         partes.append("Tómese su tiempo para ver el material. Mientras usted aprende, aquí iremos organizando los recursos del siguiente nivel. En cuanto termine, solo responda *listo* para continuar.")
                                         texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
-                            
-                                else:
+
+                                elif not drip_bloqueado:
                                     # Completó todos los módulos
                                     progreso.completado = True
                                     progreso.fecha_completado = timezone.now()
@@ -2745,70 +3290,89 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                             logger.warning(f"⚠️ Reto final exam: {e}")
                                     
                                     if not _skip_cert:
-                                        estudiante.estado_onboarding = 'curso_finalizado'
-                                        estudiante.save()
-                                
-                                        msg_final = (
-                                            f"{mensaje_respuesta}\n\n"
-                                            f"🎓 *¡FELICITACIONES!*\n\n"
-                                            f"Ha completado el curso: *{progreso.curso.nombre}*\n\n"
-                                            f"🏆 Su certificado se está generando..."
-                                        )
-                                
-                                        # v1.9.8g: María resumen removed
-                                
-                                        # Imagen de certificado — generar con Pillow y enviar como imagen
-                                        msg_cert_img = ""
-                                        try:
-                                            from .certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
-                                            logger.info(f"🎓 Iniciando generación de certificado para {estudiante.nombre} - {progreso.curso.nombre}")
-                                            cert = crear_certificado_automatico(estudiante, progreso.curso)
-                                            logger.info(f"🎓 Certificado resultado: cert={cert}, imagen={cert.archivo_imagen if cert else 'N/A'}, pdf={cert.archivo_pdf if cert else 'N/A'}")
-                                        
-                                            if cert and cert.archivo_imagen:
-                                                # Usar URL pública directa (ACL public-read)
-                                                cert_url = obtener_url_certificado_twilio(cert)
-                                                if cert_url:
-                                                    msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
-                                                    logger.info(f"✅ Certificado URL para Twilio: {cert_url}")
-                                                else:
-                                                    # Fallback URL directa sin /media/ prefix
-                                                    s3_key = str(cert.archivo_imagen.name)
-                                                    cert_url = f"https://eki-produccion.s3.us-east-2.amazonaws.com/{s3_key}"
-                                                    msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
-                                                    logger.info(f"✅ Certificado URL fallback: {cert_url}")
-                                            elif cert and cert.archivo_pdf:
-                                                cert_url = cert.archivo_pdf.url
-                                                msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert_url}"
-                                                logger.info(f"📄 Certificado PDF URL: {cert_url}")
-                                            elif cert:
-                                                # Certificado creado pero sin archivo — forzar regeneración
-                                                logger.warning(f"⚠️ Cert creado sin archivo, forzando regeneración...")
-                                                from .certificado_service import generar_y_guardar_certificado
-                                                generar_y_guardar_certificado(cert, force=True)
-                                                cert.refresh_from_db()
-                                                if cert.archivo_imagen:
+                                        pregunta_abierta = _pregunta_abierta_final_pendiente(estudiante, progreso)
+                                        if pregunta_abierta:
+                                            estudiante.contexto_temporal = {
+                                                'tipo': 'pregunta_abierta_final',
+                                                'curso_id': progreso.curso.id,
+                                                'progreso_id': progreso.id,
+                                                'pregunta_abierta_final_id': pregunta_abierta.id,
+                                            }
+                                            estudiante.estado_onboarding = 'esperando_respuesta_pregunta_abierta_final'
+                                            estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
+                                            texto_respuesta = (
+                                                f"{mensaje_respuesta}\n\n"
+                                                "📝 *Antes del cierre final*, responde esta pregunta abierta:\n\n"
+                                                f"{pregunta_abierta.pregunta}\n\n"
+                                                "✍️ Tu facilitadora revisará y calificará tu respuesta."
+                                            )
+                                        else:
+                                            estudiante.estado_onboarding = 'curso_finalizado'
+                                            estudiante.save(update_fields=['estado_onboarding'])
+
+                                            msg_final = (
+                                                f"{mensaje_respuesta}\n\n"
+                                                f"🎓 *¡FELICITACIONES!*\n\n"
+                                                f"Ha completado el curso: *{progreso.curso.nombre}*\n\n"
+                                                f"🏆 Su certificado se está generando..."
+                                            )
+
+                                            msg_cert_img = ""
+                                            try:
+                                                from .certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
+                                                logger.info(f"🎓 Iniciando generación de certificado para {estudiante.nombre} - {progreso.curso.nombre}")
+                                                cert = crear_certificado_automatico(estudiante, progreso.curso)
+                                                logger.info(f"🎓 Certificado resultado: cert={cert}, imagen={cert.archivo_imagen if cert else 'N/A'}, pdf={cert.archivo_pdf if cert else 'N/A'}")
+                                            
+                                                if cert and cert.archivo_imagen:
                                                     cert_url = obtener_url_certificado_twilio(cert)
                                                     if cert_url:
                                                         msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
-                                                        logger.info(f"✅ Certificado PRESIGNED URL (retry): {cert_url[:100]}...")
+                                                        logger.info(f"✅ Certificado URL para Twilio: {cert_url}")
+                                                    else:
+                                                        s3_key = str(cert.archivo_imagen.name)
+                                                        cert_url = f"https://eki-produccion.s3.us-east-2.amazonaws.com/{s3_key}"
+                                                        msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                                                        logger.info(f"✅ Certificado URL fallback: {cert_url}")
+                                                elif cert and cert.archivo_pdf:
+                                                    cert_url = cert.archivo_pdf.url
+                                                    msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert_url}"
+                                                    logger.info(f"📄 Certificado PDF URL: {cert_url}")
+                                                elif cert:
+                                                    logger.warning(f"⚠️ Cert creado sin archivo, forzando regeneración...")
+                                                    from .certificado_service import generar_y_guardar_certificado
+                                                    generar_y_guardar_certificado(cert, force=True)
+                                                    cert.refresh_from_db()
+                                                    if cert.archivo_imagen:
+                                                        cert_url = obtener_url_certificado_twilio(cert)
+                                                        if cert_url:
+                                                            msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                                                            logger.info(f"✅ Certificado PRESIGNED URL (retry): {cert_url[:100]}...")
+                                                        else:
+                                                            msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
                                                     else:
                                                         msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
                                                 else:
                                                     msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
-                                            else:
+                                                    logger.warning(f"❌ crear_certificado_automatico retornó None para {estudiante.nombre}")
+                                            except Exception as e:
+                                                logger.error(f"❌ Error generando certificado: {e}", exc_info=True)
+                                                import traceback; traceback.print_exc()
                                                 msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
-                                                logger.warning(f"❌ crear_certificado_automatico retornó None para {estudiante.nombre}")
-                                        except Exception as e:
-                                            logger.error(f"❌ Error generando certificado: {e}", exc_info=True)
-                                            import traceback; traceback.print_exc()
-                                            msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
-                                
-                                        # Construir multi-mensaje
-                                        partes = []
-                                        partes.append(msg_final)
-                                        partes.append(msg_cert_img)
-                                        texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
+
+                                            radar_msg = ""
+                                            if _activar_radar_empleabilidad_si_aplica(estudiante):
+                                                radar_msg = (
+                                                    "📍 *¡Radar de Empleos desbloqueado!*\n\n"
+                                                    "Ve al parque principal de Subachoque y envíame tu *Ubicación* "
+                                                    "usando el clip de WhatsApp (📎)."
+                                                )
+
+                                            partes = [msg_final]
+                                            if radar_msg:
+                                                partes.append(radar_msg)
+                                            partes.append(msg_cert_img)
+                                            texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
                     
                     if not texto_respuesta:
                         texto_respuesta = mensaje_respuesta

@@ -7,6 +7,8 @@ from django.http import HttpResponse
 from core.views import (
     dashboard_view, 
     whatsapp_webhook, 
+    bot_comercial_webhook,
+    bot_comercial_admin_view,
     descargar_reportes, 
     importar_estudiantes,
     importar_prospectos,
@@ -52,6 +54,7 @@ urlpatterns = [
     path('admin/calendario/', calendario_campanas_view, name='calendario_campanas'),
     path('admin/conversaciones/', conversaciones_view, name='conversaciones'),
     path('admin/instrucciones/', instrucciones_view, name='instrucciones'),
+    path('admin/bot-comercial/', bot_comercial_admin_view, name='bot_comercial_admin_view'),
     path('admin/test-email/', test_email_gmail_view, name='test_email_gmail'),
     
         # Dashboard ejecutivo (metrics)
@@ -77,6 +80,7 @@ urlpatterns = [
     
     # Webhook y APIs
     path('webhook/whatsapp/', whatsapp_webhook, name='whatsapp_webhook'),
+    path('webhook/ia-bot-comercial/', bot_comercial_webhook, name='bot_comercial_webhook'),
     
     # API REST para progreso
     path('api/estudiante/<str:telefono>/', api_estudiante, name='api_estudiante'),
