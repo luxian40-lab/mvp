@@ -2595,14 +2595,58 @@ def _procesar_twilio_webhook(post_data):
                                 'estado': 'pendiente',
                             }
                         )
+                        logger.info(
+                            "📝 Respuesta abierta final registrada | estudiante_id=%s | curso_id=%s | progreso_id=%s",
+                            estudiante.id,
+                            getattr(pregunta.curso, 'id', None),
+                            getattr(progreso, 'id', None),
+                        )
+
+                        # Mantener el flujo general: después de responder la pregunta final,
+                        # se entrega certificado y se cierra el curso.
+                        msg_cert_img = ""
+                        curso_obj = pregunta.curso if pregunta and pregunta.curso_id else (progreso.curso if progreso else None)
+                        if curso_obj:
+                            try:
+                                from .certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
+                                cert = crear_certificado_automatico(estudiante, curso_obj)
+                                if cert and cert.archivo_imagen:
+                                    cert_url = obtener_url_certificado_twilio(cert)
+                                    if cert_url:
+                                        msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                                    else:
+                                        s3_key = str(cert.archivo_imagen.name)
+                                        cert_url = f"https://eki-produccion.s3.us-east-2.amazonaws.com/{s3_key}"
+                                        msg_cert_img = f"🎓 *¡Tu certificado!*\n\n[MEDIA:{cert_url}]"
+                                elif cert and cert.archivo_pdf:
+                                    msg_cert_img = f"🎓 *¡Tu certificado!*\n📄 Descárgalo aquí: {cert.archivo_pdf.url}"
+                                else:
+                                    msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+                            except Exception as e:
+                                logger.error(f"❌ Error certificado tras pregunta abierta final: {e}", exc_info=True)
+                                msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
+
+                        radar_msg = ""
+                        if _activar_radar_empleabilidad_si_aplica(estudiante):
+                            radar_msg = (
+                                "📍 *¡Radar de Empleos desbloqueado!*\n\n"
+                                "Ve al parque principal de Subachoque y envíame tu *Ubicación* "
+                                "usando el clip de WhatsApp (📎)."
+                            )
+
                         estudiante.estado_onboarding = 'curso_finalizado'
                         estudiante.contexto_temporal = None
                         estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])
-                        texto_respuesta = (
+
+                        partes_finales = [
                             "✅ *¡Respuesta recibida!*\n\n"
-                            "Tu facilitadora revisará y calificará tu respuesta abierta final.\n"
-                            "Te notificaremos cuando esté evaluada."
-                        )
+                            "Tu facilitadora revisará y calificará tu respuesta abierta final."
+                        ]
+                        if radar_msg:
+                            partes_finales.append(radar_msg)
+                        if msg_cert_img:
+                            partes_finales.append(msg_cert_img)
+                        texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_finales)
                     else:
                         texto_respuesta = (
                             "No encuentro una pregunta abierta final activa para tu curso en este momento. "
@@ -2628,7 +2672,7 @@ def _procesar_twilio_webhook(post_data):
                     )
                 else:
                     texto_respuesta = (
-                        "✅ *Ya completaste tu curso y recibiste tu certificado.*\n\n"
+                        "✅ *Tu proceso del curso ya finalizó y tu certificado fue enviado.*\n\n"
                         "Cuando tu organización te inscriba en un nuevo curso, te notificaremos. "
                         "¡Gracias por tu participación! 🎓"
                     )
