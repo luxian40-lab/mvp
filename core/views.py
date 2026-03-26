@@ -2584,7 +2584,7 @@ def _procesar_twilio_webhook(post_data):
                     progreso = ProgresoEstudiante.objects.filter(id=progreso_id).first() if progreso_id else None
 
                     if pregunta:
-                        RespuestaAbiertaFinal.objects.update_or_create(
+                        respuesta_final, _ = RespuestaAbiertaFinal.objects.update_or_create(
                             pregunta=pregunta,
                             estudiante=estudiante,
                             defaults={
@@ -2602,10 +2602,63 @@ def _procesar_twilio_webhook(post_data):
                             getattr(progreso, 'id', None),
                         )
 
+                        # Evaluar con la misma rúbrica de facilitadora para dar feedback
+                        # inmediato y mantener coherencia de gamificación.
+                        curso_obj = pregunta.curso if pregunta and pregunta.curso_id else (progreso.curso if progreso else None)
+                        modulos_eval = list(curso_obj.modulos.all().order_by('numero')) if curso_obj else []
+                        puntaje_final_10 = 7
+                        feedback_final = (
+                            "1. Aprecio su esfuerzo al compartir su respuesta.\n\n"
+                            "2. Para mejorar, profundice en acciones concretas según el nivel de infestación, "
+                            "las etapas de Diatraea y medidas preventivas aplicables a su cultivo.\n\n"
+                            "3. Puntaje total: 7/10\n"
+                            "4. Desglose: Enfoque 2/3 | Fundamentación 3/4 | Claridad 2/3\n\n"
+                            "Siga adelante, cada esfuerzo cuenta en su aprendizaje."
+                        )
+                        try:
+                            from .tutor_ia_modulo import evaluar_reto_facilitador
+                            puntaje_final_10, feedback_final = evaluar_reto_facilitador(
+                                modulos_eval,
+                                msg_body,
+                                pregunta.pregunta,
+                                estudiante_nombre=estudiante.nombre or "Estudiante"
+                            )
+                        except Exception as e:
+                            logger.warning(f"⚠️ No se pudo evaluar pregunta abierta final con IA: {e}")
+
+                        respuesta_final.estado = 'calificada'
+                        respuesta_final.calificacion = int(max(1, min(10, puntaje_final_10)) * 10)
+                        respuesta_final.retroalimentacion = feedback_final
+                        respuesta_final.fecha_calificacion = timezone.now()
+                        respuesta_final.save(update_fields=['estado', 'calificacion', 'retroalimentacion', 'fecha_calificacion'])
+
+                        puntos_msg = ""
+                        try:
+                            usar_gamificacion_final = bool(
+                                (curso_obj.usar_gamificacion if curso_obj else False) or
+                                (estudiante.cliente.usar_gamificacion if getattr(estudiante, 'cliente', None) else False)
+                            )
+                            if usar_gamificacion_final:
+                                from .gamificacion import PerfilGamificacion
+                                from .response_templates import _barra_progreso
+
+                                perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
+                                puntos_abierta = int(max(1, min(10, puntaje_final_10)) * 5)
+                                perfil.agregar_puntos(puntos_abierta, f"Pregunta abierta final: {puntaje_final_10}/10")
+                                perfil.refresh_from_db()
+
+                                porcentaje = progreso.porcentaje_avance() if progreso else 100
+                                barra = _barra_progreso(porcentaje)
+                                puntos_msg = (
+                                    f"\n\n💰 *+{puntos_abierta} puntos* → Total: *{perfil.puntos_totales} pts*\n"
+                                    f"{barra} {porcentaje}%"
+                                )
+                        except Exception as e:
+                            logger.warning(f"⚠️ No se pudieron aplicar puntos por pregunta abierta final: {e}")
+
                         # Mantener el flujo general: después de responder la pregunta final,
                         # se entrega certificado y se cierra el curso.
                         msg_cert_img = ""
-                        curso_obj = pregunta.curso if pregunta and pregunta.curso_id else (progreso.curso if progreso else None)
                         if curso_obj:
                             try:
                                 from .certificado_service import crear_certificado_automatico, obtener_url_certificado_twilio
@@ -2638,10 +2691,7 @@ def _procesar_twilio_webhook(post_data):
                         estudiante.contexto_temporal = None
                         estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])
 
-                        partes_finales = [
-                            "✅ *¡Respuesta recibida!*\n\n"
-                            "Tu facilitadora revisará y calificará tu respuesta abierta final."
-                        ]
+                        partes_finales = [f"📋 *Facilitadora*\n\n{feedback_final}{puntos_msg}"]
                         if radar_msg:
                             partes_finales.append(radar_msg)
                         if msg_cert_img:
@@ -3293,11 +3343,10 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                 
                                     # === v1.9.8h: RETO FINAL en lugar de pregunta de recuperación ===
                                     _skip_cert = False
-                                    usar_gamificacion_final = bool(
-                                        progreso.curso.usar_gamificacion or
-                                        (estudiante.cliente.usar_gamificacion if getattr(estudiante, 'cliente', None) else False)
-                                    )
-                                    if usar_gamificacion_final:
+                                    pregunta_abierta = _pregunta_abierta_final_pendiente(estudiante, progreso)
+                                    activar_reto_final = bool(pregunta_abierta)
+
+                                    if activar_reto_final:
                                         try:
                                             nombre_tutor_final = progreso.curso.nombre_agente_tutor or 'Claudia'
                                             nombre_asist_final = progreso.curso.nombre_agente_asistente or 'Darío'
@@ -3317,6 +3366,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                                 'modulos_reto_ids': [m.id for m in modulos_all],
                                                 'preguntas_hechas': 0,
                                                 'es_reto_final': True,
+                                                'pregunta_abierta_final_id': pregunta_abierta.id,
                                                 '_ts_leccion': _prev_ts,
                                             }
                                             estudiante.estado_onboarding = 'esperando_respuesta_asistente'
@@ -3332,15 +3382,13 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                             )
                                             logger.info(
                                                 f"🎯 Reto final activado | estudiante_id={estudiante.id} | curso_id={progreso.curso.id} | "
-                                                f"curso_usar_gamificacion={bool(progreso.curso.usar_gamificacion)} | "
-                                                f"cliente_usar_gamificacion={bool(estudiante.cliente.usar_gamificacion) if getattr(estudiante, 'cliente', None) else False}"
+                                                f"pregunta_abierta_id={pregunta_abierta.id}"
                                             )
                                             _skip_cert = True
                                         except Exception as e:
                                             logger.warning(f"⚠️ Reto final exam: {e}")
                                     
                                     if not _skip_cert:
-                                        pregunta_abierta = _pregunta_abierta_final_pendiente(estudiante, progreso)
                                         if pregunta_abierta:
                                             estudiante.contexto_temporal = {
                                                 'tipo': 'pregunta_abierta_final',
