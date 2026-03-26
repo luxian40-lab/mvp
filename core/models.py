@@ -2,6 +2,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils import timezone
 import re
 import openpyxl # <--- Nueva librería
 import os
@@ -93,6 +94,40 @@ class Cliente(models.Model):
         verbose_name="Usar Gamificación",
         help_text="Si está activado, los estudiantes de este cliente podrán ver puntos, badges y recompensas. Si está desactivado, solo verán el contenido educativo."
     )
+    habilitar_pregunta_abierta_final = models.BooleanField(
+        default=False,
+        verbose_name='Habilitar Pregunta Abierta Final',
+        help_text='Activa la pregunta abierta final para este cliente según la ventana de fechas.'
+    )
+    fecha_inicio_pregunta_abierta_final = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Inicio Pregunta Abierta Final',
+        help_text='Fecha desde la cual se activa la pregunta abierta final para este cliente.'
+    )
+    fecha_fin_pregunta_abierta_final = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Fin Pregunta Abierta Final',
+        help_text='Fecha límite de activación de la pregunta abierta final para este cliente.'
+    )
+    habilitar_gamificacion_proximidad = models.BooleanField(
+        default=False,
+        verbose_name='Habilitar Gamificación por Proximidad',
+        help_text='Activa radar de empleabilidad por proximidad para este cliente según la ventana de fechas.'
+    )
+    fecha_inicio_gamificacion_proximidad = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Inicio Gamificación Proximidad',
+        help_text='Fecha desde la cual se activa el radar de proximidad para este cliente.'
+    )
+    fecha_fin_gamificacion_proximidad = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Fin Gamificación Proximidad',
+        help_text='Fecha límite de activación del radar de proximidad para este cliente.'
+    )
     # NOMBRES PERSONALIZADOS DE AGENTES IA (por Cliente)
     nombre_agente_tutor = models.CharField(
         max_length=100,
@@ -174,6 +209,8 @@ class Estudiante(models.Model):
         ('esperando_seleccion_curso', 'Esperando selección curso'),
         ('esperando_respuesta_asistente', 'Esperando respuesta asistente Darío'),
         ('esperando_respuesta_reto', 'Esperando respuesta reto facilitador'),
+        ('esperando_codigo_empleabilidad', 'Esperando código de empleabilidad'),
+        ('esperando_respuesta_pregunta_abierta_final', 'Esperando respuesta pregunta abierta final'),
         ('curso_finalizado', 'Curso finalizado (sin interacción)'),
         ('completado', 'Completado (legacy)'),
     ]
@@ -820,6 +857,11 @@ class Curso(models.Model):
         verbose_name='Usar Gamificación',
         help_text='Si está activado, se otorgan puntos y badges en este curso'
     )
+    habilitar_pregunta_abierta_final = models.BooleanField(
+        default=False,
+        verbose_name='Habilitar Pregunta Abierta Final',
+        help_text='Si está activado, este curso puede mostrar preguntas abiertas finales (hasta 3).'
+    )
     
     # GRUPO DE WHATSAPP
     enlace_grupo_whatsapp = models.URLField(
@@ -851,6 +893,11 @@ class Curso(models.Model):
         default='',
         verbose_name='Preguntas ejemplo para IA',
         help_text='Preguntas ejemplo que la IA usará como referencia para generar la pregunta final de recuperación. Una pregunta por línea.'
+    )
+    dias_espera_entre_modulos = models.IntegerField(
+        default=0,
+        verbose_name='Días de espera entre módulos',
+        help_text='0 = flujo libre. >0 bloquea avance hasta cumplir días entre módulos.'
     )
     
     fecha_creacion = models.DateTimeField(auto_now_add=True)
@@ -1123,6 +1170,12 @@ class ProgresoEstudiante(models.Model):
     completado = models.BooleanField(default=False)
     fecha_inicio = models.DateTimeField(auto_now_add=True)
     fecha_completado = models.DateTimeField(null=True, blank=True)
+    fecha_ultimo_avance = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Fecha último avance',
+        help_text='Se actualiza cuando el estudiante completa/avanza de módulo.'
+    )
 
     class Meta:
         verbose_name = "Progreso de Estudiante"
@@ -1925,6 +1978,135 @@ class CampanaB2B(models.Model):
         return f"{self.nombre} ({self.get_estado_display()})"
 
 
+class AliadoEmpleabilidad(models.Model):
+    """Empresas aliadas para gamificación geolocalizada de empleabilidad."""
+    nombre_empresa = models.CharField(max_length=200, verbose_name='Nombre de la empresa')
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='aliados_empleabilidad',
+        verbose_name='Cliente asociado',
+        help_text='Opcional. Si se define, solo aplica para estudiantes de ese cliente.'
+    )
+    latitud = models.FloatField(verbose_name='Latitud')
+    longitud = models.FloatField(verbose_name='Longitud')
+    vacantes_activas = models.BooleanField(default=True, verbose_name='Vacantes activas')
+    codigo_secreto = models.CharField(max_length=120, verbose_name='Código secreto')
+    indicacion_sector = models.CharField(
+        max_length=200,
+        blank=True,
+        default='',
+        verbose_name='Indicación de sector',
+        help_text='Ej: costado oriental del parque principal'
+    )
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Aliado de Empleabilidad'
+        verbose_name_plural = 'Aliados de Empleabilidad'
+        ordering = ['nombre_empresa']
+
+    def __str__(self):
+        return self.nombre_empresa
+
+
+class PreguntaAbiertaFinalCurso(models.Model):
+    """Pregunta abierta opcional al final del curso, evaluada por facilitadora."""
+    curso = models.ForeignKey(
+        Curso,
+        on_delete=models.CASCADE,
+        related_name='preguntas_abiertas_finales'
+    )
+    orden = models.PositiveSmallIntegerField(
+        default=1,
+        verbose_name='Orden',
+        help_text='Orden de la pregunta en el cierre (1 a 3).'
+    )
+    pregunta = models.TextField(verbose_name='Pregunta abierta final')
+    activa = models.BooleanField(default=True, verbose_name='Activa')
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Pregunta Abierta Final'
+        verbose_name_plural = 'Preguntas Abiertas Finales'
+        ordering = ['curso', 'orden', 'id']
+        unique_together = ['curso', 'orden']
+
+    def __str__(self):
+        return f"Pregunta final #{self.orden} - {self.curso.nombre}"
+
+    def clean(self):
+        super().clean()
+        if self.orden < 1 or self.orden > 3:
+            raise ValidationError({'orden': 'El orden debe estar entre 1 y 3.'})
+
+        existentes = PreguntaAbiertaFinalCurso.objects.filter(curso=self.curso)
+        if self.pk:
+            existentes = existentes.exclude(pk=self.pk)
+        if existentes.count() >= 3:
+            raise ValidationError('Cada curso permite máximo 3 preguntas abiertas finales.')
+
+
+class RespuestaAbiertaFinal(models.Model):
+    """Respuesta del estudiante a la pregunta abierta final (calificada por facilitadora)."""
+    ESTADO_CHOICES = [
+        ('pendiente', 'Pendiente de calificar'),
+        ('calificada', 'Calificada'),
+    ]
+
+    pregunta = models.ForeignKey(
+        PreguntaAbiertaFinalCurso,
+        on_delete=models.CASCADE,
+        related_name='respuestas'
+    )
+    estudiante = models.ForeignKey(
+        Estudiante,
+        on_delete=models.CASCADE,
+        related_name='respuestas_abiertas_finales'
+    )
+    curso = models.ForeignKey(
+        Curso,
+        on_delete=models.CASCADE,
+        related_name='respuestas_abiertas_finales'
+    )
+    progreso = models.ForeignKey(
+        ProgresoEstudiante,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='respuestas_abiertas_finales'
+    )
+    respuesta_texto = models.TextField(verbose_name='Respuesta del estudiante')
+    fecha_respuesta = models.DateTimeField(default=timezone.now)
+
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
+    calificacion = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name='Calificación (0-100)'
+    )
+    retroalimentacion = models.TextField(blank=True, default='', verbose_name='Retroalimentación facilitadora')
+    calificada_por = models.ForeignKey(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='calificaciones_preguntas_abiertas'
+    )
+    fecha_calificacion = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Respuesta Abierta Final'
+        verbose_name_plural = 'Respuestas Abiertas Finales'
+        ordering = ['-fecha_respuesta']
+        unique_together = ['pregunta', 'estudiante']
+
+    def __str__(self):
+        return f"{self.estudiante.nombre} - {self.curso.nombre}"
+
+
 __all__ = [
     'TemaCampana', 'Cliente', 'Estudiante', 'Plantilla', 'Linea',
     'Campana', 'EnvioLog', 'WhatsappLog',
@@ -1939,4 +2121,5 @@ __all__ = [
     'ArchivoModulo', 'GrupoWhatsApp', 'InvitacionGrupo',
     'CampanaUnica', 'RespuestaCampanaUnica',
     'ProspectoB2B', 'CampanaB2B',
+    'AliadoEmpleabilidad', 'PreguntaAbiertaFinalCurso', 'RespuestaAbiertaFinal',
 ]

@@ -4,6 +4,7 @@ Permite personalizar respuestas sin cambiar la lógica del webhook.
 """
 from django.conf import settings
 from django.utils import timezone
+from datetime import timedelta
 from urllib.parse import quote
 
 
@@ -14,12 +15,70 @@ def _barra_progreso(porcentaje: int) -> str:
     return "▓" * llenas + "░" * vacias
 
 
+def _formatear_fecha_desbloqueo(fecha):
+    """Formatea fecha de desbloqueo para WhatsApp."""
+    return timezone.localtime(fecha).strftime('%d/%m/%Y')
+
+
+def _mensaje_bloqueo_drip(fecha_desbloqueo):
+    return (
+        "🌱 *¡Excelente energía!*\n\n"
+        f"Tu próxima lección se desbloquea el *{_formatear_fecha_desbloqueo(fecha_desbloqueo)}*.\n"
+        "Mientras tanto, repasa lo aprendido en el módulo actual.\n\n"
+        "Cuando llegue la fecha, responde *listo* para continuar."
+    )
+
+
+def _mensaje_pregunta_abierta_final(pregunta_texto):
+    return (
+        "📝 *Pregunta abierta final de la Facilitadora*\n\n"
+        f"{pregunta_texto}\n\n"
+        "✍️ Responde con tus propias palabras (texto o audio).\n"
+        "Tu facilitadora calificará esta respuesta."
+    )
+
+
+def _cliente_en_ventana(cliente, campo_habilitar, campo_inicio, campo_fin):
+    if not cliente:
+        return True
+    if not getattr(cliente, campo_habilitar, False):
+        return False
+
+    hoy = timezone.localdate()
+    inicio = getattr(cliente, campo_inicio, None)
+    fin = getattr(cliente, campo_fin, None)
+    if inicio and hoy < inicio:
+        return False
+    if fin and hoy > fin:
+        return False
+    return True
+
+
+def _cliente_habilita_pregunta_abierta_final(cliente):
+    return _cliente_en_ventana(
+        cliente,
+        'habilitar_pregunta_abierta_final',
+        'fecha_inicio_pregunta_abierta_final',
+        'fecha_fin_pregunta_abierta_final',
+    )
+
+
+def _cliente_habilita_proximidad(cliente):
+    return _cliente_en_ventana(
+        cliente,
+        'habilitar_gamificacion_proximidad',
+        'fecha_inicio_gamificacion_proximidad',
+        'fecha_fin_gamificacion_proximidad',
+    )
+
+
 def _generar_completado_final(estudiante, curso_id):
     """
     Genera el mensaje final de completado con certificado.
     v1.9.8g: Removed levels, badges, María resumen. Added post-cert cutoff.
     """
-    from .models import Curso, ProgresoEstudiante
+    from django.db.models import Q
+    from .models import Curso, ProgresoEstudiante, AliadoEmpleabilidad, PreguntaAbiertaFinalCurso, RespuestaAbiertaFinal
     from .gamificacion import PerfilGamificacion
     
     try:
@@ -31,6 +90,81 @@ def _generar_completado_final(estudiante, curso_id):
     
     porcentaje = progreso.porcentaje_avance()
     barra = _barra_progreso(porcentaje)
+
+    # Pregunta abierta final configurable antes del cierre completo
+    pregunta_abierta = None
+    if _cliente_habilita_pregunta_abierta_final(estudiante.cliente) and getattr(curso, 'habilitar_pregunta_abierta_final', False):
+        preguntas_abiertas = PreguntaAbiertaFinalCurso.objects.filter(
+            curso=curso,
+            activa=True
+        ).order_by('orden', 'id')[:3]
+        for p in preguntas_abiertas:
+            ya_respondio = RespuestaAbiertaFinal.objects.filter(
+                pregunta=p,
+                estudiante=estudiante
+            ).exists()
+            if not ya_respondio:
+                pregunta_abierta = p
+                break
+    if pregunta_abierta:
+            usar_gamificacion_final = bool(
+                getattr(curso, 'usar_gamificacion', False) or
+                (estudiante.cliente.usar_gamificacion if getattr(estudiante, 'cliente', None) else False)
+            )
+
+            if usar_gamificacion_final:
+                nombre_tutor_final = curso.nombre_agente_tutor or 'Claudia'
+                nombre_asist_final = curso.nombre_agente_asistente or 'Dario'
+                modulos_all = list(curso.modulos.filter(numero__gte=4).order_by('numero'))
+                if not modulos_all:
+                    modulos_all = list(curso.modulos.all().order_by('numero'))
+                modulos_final_range = "los módulos finales del curso"
+                if len(modulos_all) >= 2:
+                    modulos_final_range = f"los módulos {modulos_all[0].numero} a {modulos_all[-1].numero}"
+
+                progreso.completado = True
+                progreso.fecha_completado = timezone.now()
+                progreso.fecha_ultimo_avance = timezone.now()
+                progreso.save(update_fields=['completado', 'fecha_completado', 'fecha_ultimo_avance'])
+
+                _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
+                estudiante.contexto_temporal = {
+                    'tipo': 'asistente_dario',
+                    'curso_id': curso.id,
+                    'modulo_id': getattr(progreso.modulo_actual, 'id', None),
+                    'progreso_id': progreso.id,
+                    'modulos_reto_ids': [m.id for m in modulos_all],
+                    'preguntas_hechas': 0,
+                    'es_reto_final': True,
+                    'pregunta_abierta_final_id': pregunta_abierta.id,
+                    '_ts_leccion': _prev_ts,
+                }
+                estudiante.estado_onboarding = 'esperando_respuesta_asistente'
+                estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
+
+                return (
+                    "[MULTI_MSG]"
+                    "🎉 *¡Completaste todos los módulos del curso!*"
+                    "[SEP]"
+                    f"💬 *{nombre_asist_final}*\n\n"
+                    f"Antes de tu certificado, {nombre_tutor_final} te planteará un reto final sobre {modulos_final_range}.\n\n"
+                    "¿Tienes dudas antes del reto? Envíame tu pregunta (texto o audio).\n"
+                    "Si no tienes dudas, escribe *listo* para pasar con la facilitadora."
+                )
+
+            progreso.completado = True
+            progreso.fecha_completado = timezone.now()
+            progreso.fecha_ultimo_avance = timezone.now()
+            progreso.save(update_fields=['completado', 'fecha_completado', 'fecha_ultimo_avance'])
+            estudiante.contexto_temporal = {
+                'tipo': 'pregunta_abierta_final',
+                'curso_id': curso.id,
+                'progreso_id': progreso.id,
+                'pregunta_abierta_final_id': pregunta_abierta.id,
+            }
+            estudiante.estado_onboarding = 'esperando_respuesta_pregunta_abierta_final'
+            estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
+            return _mensaje_pregunta_abierta_final(pregunta_abierta.pregunta)
     
     mensaje = f"""🎉 *¡CURSO COMPLETADO!*
 
@@ -64,9 +198,24 @@ def _generar_completado_final(estudiante, curso_id):
     
     # Post-certificate cutoff
     estudiante.estado_onboarding = 'curso_finalizado'
-    estudiante.save()
+    ctx = estudiante.contexto_temporal or {}
+    if not ctx.get('radar_empleabilidad_activo') and _cliente_habilita_proximidad(estudiante.cliente):
+        hay_aliados = AliadoEmpleabilidad.objects.filter(vacantes_activas=True).filter(
+            Q(cliente__isnull=True) | Q(cliente=estudiante.cliente)
+        ).exists() if estudiante.cliente_id else AliadoEmpleabilidad.objects.filter(vacantes_activas=True).exists()
+        if hay_aliados:
+            ctx['radar_empleabilidad_activo'] = True
+            ctx['empleabilidad_habilitado_en'] = timezone.now().isoformat()
+    estudiante.contexto_temporal = ctx if ctx else None
+    estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])
     
     partes = [mensaje]
+    if (estudiante.contexto_temporal or {}).get('radar_empleabilidad_activo'):
+        partes.append(
+            "📍 *¡Radar de Empleos desbloqueado!*\n\n"
+            "Ve al parque principal de Subachoque y envíame tu *Ubicación* "
+            "usando el clip de WhatsApp (📎)."
+        )
     if msg_cert_img:
         partes.append(msg_cert_img)
     return "[MULTI_MSG]" + "[SEP]".join(partes)
@@ -828,6 +977,17 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
         
         # Regla estricta del curso: solo "listo" avanza.
         if (mensaje_original or '').strip() == 'listo':
+            # Drip Content: bloquear avance según configuración del curso
+            if progreso.curso.dias_espera_entre_modulos > 0:
+                ya_completo_modulo = ModuloCompletado.objects.filter(
+                    progreso=progreso,
+                    modulo=modulo_actual
+                ).exists()
+                if ya_completo_modulo and progreso.fecha_ultimo_avance:
+                    fecha_desbloqueo = progreso.fecha_ultimo_avance + timedelta(days=progreso.curso.dias_espera_entre_modulos)
+                    if timezone.now() < fecha_desbloqueo:
+                        return _mensaje_bloqueo_drip(fecha_desbloqueo)
+
             # PRIORIDAD: Verificar si el módulo tiene pregunta de validación
             from .pregunta_handler import tiene_pregunta_modulo, obtener_pregunta_modulo, formatear_pregunta, guardar_contexto_pregunta
             
@@ -856,10 +1016,13 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             ).exists()
             
             if not tiene_pregunta_modulo(modulo_actual):
-                ModuloCompletado.objects.get_or_create(
+                modulo_creado, created = ModuloCompletado.objects.get_or_create(
                     progreso=progreso,
                     modulo=modulo_actual
                 )
+                if created:
+                    progreso.fecha_ultimo_avance = timezone.now()
+                    progreso.save(update_fields=['fecha_ultimo_avance'])
             
             perfil.refresh_from_db()
             subio_nivel = perfil.nivel > nivel_antes
@@ -994,17 +1157,58 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             
             else:
                 # Completó todos los módulos
+                from .models import PreguntaAbiertaFinalCurso, RespuestaAbiertaFinal
+
+                pregunta_abierta = None
+                if _cliente_habilita_pregunta_abierta_final(estudiante.cliente) and getattr(progreso.curso, 'habilitar_pregunta_abierta_final', False):
+                    preguntas_abiertas = PreguntaAbiertaFinalCurso.objects.filter(
+                        curso=progreso.curso,
+                        activa=True
+                    ).order_by('orden', 'id')[:3]
+                    for p in preguntas_abiertas:
+                        ya_respondio_abierta = RespuestaAbiertaFinal.objects.filter(
+                            pregunta=p,
+                            estudiante=estudiante
+                        ).exists()
+                        if not ya_respondio_abierta:
+                            pregunta_abierta = p
+                            break
+
+                usar_gamificacion_final = bool(
+                    progreso.curso.usar_gamificacion or
+                    (estudiante.cliente.usar_gamificacion if getattr(estudiante, 'cliente', None) else False)
+                )
+
+                if pregunta_abierta and not usar_gamificacion_final:
+                    progreso.completado = True
+                    progreso.fecha_completado = timezone.now()
+                    progreso.fecha_ultimo_avance = timezone.now()
+                    progreso.save(update_fields=['completado', 'fecha_completado', 'fecha_ultimo_avance'])
+
+                    ctx = estudiante.contexto_temporal or {}
+                    ctx.update({
+                        'tipo': 'pregunta_abierta_final',
+                        'curso_id': progreso.curso.id,
+                        'progreso_id': progreso.id,
+                        'pregunta_abierta_final_id': pregunta_abierta.id,
+                    })
+                    estudiante.contexto_temporal = ctx
+                    estudiante.estado_onboarding = 'esperando_respuesta_pregunta_abierta_final'
+                    estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
+                    return _mensaje_pregunta_abierta_final(pregunta_abierta.pregunta)
+
                 # Marcar curso como completado
                 progreso.completado = True
                 progreso.fecha_completado = timezone.now()
-                progreso.save()
+                progreso.fecha_ultimo_avance = timezone.now()
+                progreso.save(update_fields=['completado', 'fecha_completado', 'fecha_ultimo_avance'])
                 
                 perfil.refresh_from_db()
                 porcentaje = progreso.porcentaje_avance()
                 
                 # === v1.9.8h: RETO FINAL en lugar de pregunta de recuperación ===
                 # Activar Darío + Claudia con reto que cubre TODOS los módulos
-                if progreso.curso.usar_gamificacion:
+                if usar_gamificacion_final:
                     try:
                         _cliente = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
                         nombre_tutor = (

@@ -2296,14 +2296,25 @@ class DocumentoRAGInline(admin.StackedInline):
     estado_badge.short_description = 'Estado RAG'
 
 
+class PreguntaAbiertaFinalInline(admin.TabularInline):
+    """Preguntas abiertas finales dentro del curso (máximo 3)."""
+    model = PreguntaAbiertaFinalCurso
+    extra = 1
+    max_num = 3
+    fields = ('orden', 'pregunta', 'activa')
+    ordering = ('orden', 'id')
+    verbose_name = '📝 Pregunta Abierta Final'
+    verbose_name_plural = 'PREGUNTAS ABIERTAS FINALES (MAX 3)'
+
+
 @admin.register(Curso)
 class CursoAdmin(admin.ModelAdmin):
     """Administración de cursos"""
     list_display = ('nombre', 'cliente_nombre', 'total_modulos_display', 'docs_rag_count', 'duracion_semanas', 'ver_modulos_link', 'activo', 'orden')
-    list_filter = ('activo', 'cliente')
+    list_filter = ('activo', 'cliente', 'usar_gamificacion', 'habilitar_pregunta_abierta_final')
     search_fields = ('nombre', 'descripcion', 'cliente__nombre')
     list_editable = ('orden',)
-    inlines = [ModuloInline, DocumentoRAGInline]
+    inlines = [ModuloInline, DocumentoRAGInline, PreguntaAbiertaFinalInline]
     actions = ['ver_todos_modulos', 'indexar_documentos_rag', 'indexar_contenido_modulos', 'activar_cursos', 'desactivar_cursos']
     # change_list_template = 'admin/curso_changelist.html'  # Eliminado para usar el template estándar de Django
     
@@ -2327,7 +2338,7 @@ class CursoAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
         ('⚙️ Configuración', {
-            'fields': ('activo', 'orden')
+            'fields': ('activo', 'orden', 'usar_gamificacion', 'habilitar_pregunta_abierta_final')
         }),
     )
     
@@ -3351,9 +3362,10 @@ class AliadoEmpleabilidadAdmin(admin.ModelAdmin):
 
 @admin.register(PreguntaAbiertaFinalCurso)
 class PreguntaAbiertaFinalCursoAdmin(admin.ModelAdmin):
-    list_display = ('curso', 'activa', 'fecha_creacion')
+    list_display = ('curso', 'orden', 'activa', 'fecha_creacion')
     list_filter = ('activa', 'curso')
     search_fields = ('curso__nombre', 'pregunta')
+    ordering = ('curso', 'orden', 'id')
 
 
 @admin.register(RespuestaAbiertaFinal)
