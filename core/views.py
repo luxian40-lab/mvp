@@ -3293,7 +3293,11 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                 
                                     # === v1.9.8h: RETO FINAL en lugar de pregunta de recuperación ===
                                     _skip_cert = False
-                                    if progreso.curso.usar_gamificacion:
+                                    usar_gamificacion_final = bool(
+                                        progreso.curso.usar_gamificacion or
+                                        (estudiante.cliente.usar_gamificacion if getattr(estudiante, 'cliente', None) else False)
+                                    )
+                                    if usar_gamificacion_final:
                                         try:
                                             nombre_tutor_final = progreso.curso.nombre_agente_tutor or 'Claudia'
                                             nombre_asist_final = progreso.curso.nombre_agente_asistente or 'Darío'
@@ -3325,6 +3329,11 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                                 f"Antes de tu certificado, {nombre_tutor_final} te planteará un reto final sobre {modulos_final_range}.\n\n"
                                                 "¿Tienes dudas antes del reto? Envíame tu pregunta (texto o audio).\n"
                                                 "Si no tienes dudas, escribe *listo* para pasar con la facilitadora."
+                                            )
+                                            logger.info(
+                                                f"🎯 Reto final activado | estudiante_id={estudiante.id} | curso_id={progreso.curso.id} | "
+                                                f"curso_usar_gamificacion={bool(progreso.curso.usar_gamificacion)} | "
+                                                f"cliente_usar_gamificacion={bool(estudiante.cliente.usar_gamificacion) if getattr(estudiante, 'cliente', None) else False}"
                                             )
                                             _skip_cert = True
                                         except Exception as e:
