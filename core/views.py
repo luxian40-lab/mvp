@@ -3344,7 +3344,11 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                     # === v1.9.8h: RETO FINAL en lugar de pregunta de recuperación ===
                                     _skip_cert = False
                                     pregunta_abierta = _pregunta_abierta_final_pendiente(estudiante, progreso)
-                                    activar_reto_final = bool(pregunta_abierta)
+                                    usar_gamificacion_final = bool(
+                                        progreso.curso.usar_gamificacion or
+                                        (estudiante.cliente.usar_gamificacion if getattr(estudiante, 'cliente', None) else False)
+                                    )
+                                    activar_reto_final = usar_gamificacion_final
 
                                     if activar_reto_final:
                                         try:
@@ -3366,9 +3370,10 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                                 'modulos_reto_ids': [m.id for m in modulos_all],
                                                 'preguntas_hechas': 0,
                                                 'es_reto_final': True,
-                                                'pregunta_abierta_final_id': pregunta_abierta.id,
                                                 '_ts_leccion': _prev_ts,
                                             }
+                                            if pregunta_abierta:
+                                                estudiante.contexto_temporal['pregunta_abierta_final_id'] = pregunta_abierta.id
                                             estudiante.estado_onboarding = 'esperando_respuesta_asistente'
                                             estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
 
@@ -3382,7 +3387,9 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                             )
                                             logger.info(
                                                 f"🎯 Reto final activado | estudiante_id={estudiante.id} | curso_id={progreso.curso.id} | "
-                                                f"pregunta_abierta_id={pregunta_abierta.id}"
+                                                f"curso_usar_gamificacion={bool(progreso.curso.usar_gamificacion)} | "
+                                                f"cliente_usar_gamificacion={bool(estudiante.cliente.usar_gamificacion) if getattr(estudiante, 'cliente', None) else False} | "
+                                                f"pregunta_abierta_id={getattr(pregunta_abierta, 'id', None)}"
                                             )
                                             _skip_cert = True
                                         except Exception as e:
