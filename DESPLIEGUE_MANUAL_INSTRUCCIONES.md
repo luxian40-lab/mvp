@@ -24,6 +24,21 @@ No usar el webhook general (`/webhook/whatsapp/`) para este bot.
 
 Nota: Sandbox permite un solo webhook de entrada activo a la vez.
 
+### 2.1) Hallazgo de debug (9 de Abril 2026)
+
+Durante pruebas se observó en logs Nginx que Twilio seguía llamando `POST /webhook/whatsapp/`.
+Para evitar mezcla de flujos, el backend ahora aplica un router defensivo:
+
+- Si `To` corresponde al número Sandbox (`14155238886` por defecto), enruta SIEMPRE al bot comercial/agro.
+- Si `To` corresponde a `BOT_COMERCIAL_WHATSAPP_NUMBER` o `AGRONEXO_WHATSAPP_NUMBER`, enruta al bot comercial/agro.
+- En otros casos, enruta al flujo educativo.
+
+Variable opcional para cambiar número Sandbox:
+
+`BOT_COMERCIAL_SANDBOX_NUMBER=14155238886`
+
+Con esto, incluso si Twilio queda mal apuntado al webhook general, el Sandbox queda aislado para pruebas del bot comercial.
+
 ### 3) Alimentacion IA comercial (RAG separado)
 
 Ya esta implementado el flujo para alimentar el bot comercial/agro con documentos:
@@ -58,6 +73,20 @@ Recomendacion MVP: que Angular consuma estas APIs (modelo pull) y pinte dashboar
 - Migraciones aplicadas hasta `0072`.
 - Tests `core` en runtime settings: OK.
 - Entorno productivo con webhook comercial dedicado listo para Sandbox.
+
+### 6) Capacidad piloto educativo (100 estudiantes)
+
+Estado revisado en AWS EB:
+
+- 1 instancia `t3.medium` activa
+- Salud `Green`
+- Carga baja en medición reciente
+
+Conclusión operativa:
+
+- Para un piloto de 100 estudiantes (sin simultaneidad alta), la capacidad actual es viable.
+- Recomendación: monitorear `5xx`, latencia p95/p99 y CPU durante la prueba.
+- Si sube concurrencia, escalar temporalmente a 2 instancias o ajustar tipo de instancia.
 
 ## ✅ Estado Actual
 

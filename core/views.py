@@ -1099,11 +1099,15 @@ def whatsapp_webhook(request):
             to_limpio = _numero_limpio(data.get('To', ''))
             if not to_limpio:
                 return False
+            sandbox_number = _numero_limpio(getattr(settings, 'BOT_COMERCIAL_SANDBOX_NUMBER', '14155238886'))
             candidatos = {
                 _numero_limpio(getattr(settings, 'BOT_COMERCIAL_WHATSAPP_NUMBER', '')),
                 _numero_limpio(getattr(settings, 'AGRONEXO_WHATSAPP_NUMBER', '')),
             }
             candidatos.discard('')
+            # En Sandbox de Twilio, forzar siempre canal comercial para no mezclar con bot educativo.
+            if sandbox_number and to_limpio == sandbox_number:
+                return True
             return bool(candidatos and to_limpio in candidatos)
         
         try:
@@ -1124,10 +1128,18 @@ def whatsapp_webhook(request):
                 # Algunos webhooks de Twilio pueden llegar como JSON
                 if 'Body' in payload or 'From' in payload or 'MessageStatus' in payload:
                     print("🔵 JSON con datos Twilio detectado — procesando", flush=True)
+                    logger.info(
+                        "🧪 Twilio JSON inbound | path=%s | from=%s | to=%s | sid=%s",
+                        request.path,
+                        payload.get('From', ''),
+                        payload.get('To', ''),
+                        payload.get('MessageSid', ''),
+                    )
                     if _es_destino_bot_comercial(payload):
                         logger.info("🧭 Router webhook: Twilio destino comercial/agro detectado (JSON)")
                         _procesar_bot_comercial_twilio_webhook(payload)
                     else:
+                        logger.info("🧭 Router webhook: Twilio destino educativo detectado (JSON)")
                         _procesar_twilio_webhook(payload)
                 else:
                     print("⚠️ JSON desconocido — ignorando", flush=True)
@@ -1138,11 +1150,19 @@ def whatsapp_webhook(request):
             print("🔵 Payload (Form-Data) - Probablemente Twilio", flush=True)
             print(f"POST keys: {list(request.POST.keys())}", flush=True)
             logger.info("🔵 Payload (Form-Data) - Probablemente Twilio")
+            logger.info(
+                "🧪 Twilio Form inbound | path=%s | from=%s | to=%s | sid=%s",
+                request.path,
+                request.POST.get('From', ''),
+                request.POST.get('To', ''),
+                request.POST.get('MessageSid', ''),
+            )
             if _es_destino_bot_comercial(request.POST):
                 logger.info("🧭 Router webhook: Twilio destino comercial/agro detectado (Form-Data)")
                 _procesar_bot_comercial_twilio_webhook(request.POST)
                 twilio_result = None
             else:
+                logger.info("🧭 Router webhook: Twilio destino educativo detectado (Form-Data)")
                 twilio_result = _procesar_twilio_webhook(request.POST)
             # Si _procesar_twilio_webhook devuelve TwiML HttpResponse, retornarlo
             if isinstance(twilio_result, HttpResponse):
