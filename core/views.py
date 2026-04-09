@@ -1295,6 +1295,7 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
     msg_body = (post_data.get('Body', '') or '').strip()
     msg_from = post_data.get('From', '')
     msg_to = post_data.get('To', '')
+    from_number_respuesta = msg_to
     msg_sid = post_data.get('MessageSid', f'botcom_{timezone.now().timestamp()}')
     num_media = int(post_data.get('NumMedia', 0) or 0)
     media_type = post_data.get('MediaContentType0', '') or ''
@@ -1381,7 +1382,11 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
         )
 
     try:
-        enviar_whatsapp_twilio(telefono_limpio, texto_respuesta)
+        enviar_whatsapp_twilio(
+            telefono_limpio,
+            texto_respuesta,
+            from_number=from_number_respuesta,
+        )
         WhatsappLog.objects.create(
             telefono=telefono_limpio,
             mensaje=texto_respuesta[:1500],

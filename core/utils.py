@@ -172,7 +172,14 @@ def enviar_whatsapp_twilio_content_template(telefono: str, content_sid: str, var
         return {'success': False, 'mensaje_id': None, 'response': str(e)}
 
 
-def enviar_whatsapp_twilio(telefono: str, texto: str, mensaje_id_referencia: str = None, media_url: str = None, texto_log: str = None) -> dict:
+def enviar_whatsapp_twilio(
+    telefono: str,
+    texto: str,
+    mensaje_id_referencia: str = None,
+    media_url: str = None,
+    texto_log: str = None,
+    from_number: str = None,
+) -> dict:
     """Enviar mensaje por Twilio WhatsApp API.
 
     Parámetros:
@@ -192,7 +199,9 @@ def enviar_whatsapp_twilio(telefono: str, texto: str, mensaje_id_referencia: str
 
         account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', None)
         auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', None)
-        twilio_number = str(formatear_numero_whatsapp('573202948806')).strip()
+        default_from = getattr(settings, 'TWILIO_PHONE_NUMBER', '573202948806')
+        from_candidate = from_number if from_number else default_from
+        twilio_number = str(formatear_numero_whatsapp(from_candidate)).strip()
         logger.info(f"[TWILIO] Account SID: {'...' + account_sid[-4:] if account_sid else None}")
         logger.info(f"[TWILIO] Auth Token: {'configured' if auth_token else 'MISSING'}")
         logger.info(f"[TWILIO] WhatsApp Number: '{twilio_number}'")
