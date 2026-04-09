@@ -1215,15 +1215,40 @@ def _cliente_habilita_proximidad(cliente):
     return bool(habilitado_legacy or (cliente and getattr(cliente, 'empleabilidad_exploracion_activa', False)))
 
 
+def _bot_comercial_sin_contexto_natural(pregunta: str) -> str:
+    """Respuestas naturales cuando aún no hay contexto RAG suficiente."""
+    q = (pregunta or '').strip().lower()
+
+    saludos = {'hola', 'buenas', 'buenos dias', 'buen día', 'buenas tardes', 'buenas noches', 'hey'}
+    if q in saludos or any(s in q for s in ['hola', 'buenas', 'buen dia', 'buen día']):
+        return (
+            "Hola, soy tu asesor agrocomercial.\n\n"
+            "Te puedo orientar con manejo de cultivo y recomendaciones de producto "
+            "basadas en la información técnica cargada.\n\n"
+            "Cuéntame tu cultivo y objetivo (por ejemplo: nutrición, enfermedad, plaga o productividad)."
+        )
+
+    if 'gulupa' in q:
+        return (
+            "Gracias. En este momento aún no tengo suficiente información técnica de *gulupa* "
+            "cargada en mi base para responderte con precisión sin inventar datos.\n\n"
+            "Si quieres, te ayudo apenas subamos la ficha técnica. Puedes empezar diciéndome "
+            "si necesitas: tipo de suelo, pH recomendado, altitud, nutrición o manejo sanitario."
+        )
+
+    return (
+        "Te entiendo. Ahora mismo no tengo contexto técnico suficiente en la base para esa consulta.\n\n"
+        "Si me indicas cultivo + problema puntual, te digo exactamente qué dato falta y "
+        "qué documento conviene cargar para responderte bien."
+    )
+
+
 def _bot_comercial_respuesta_catalogo(pregunta: str, contexto_rag: str, diagnostico_vision: str = '') -> str:
     """Genera respuesta comercial estricta basada en contexto RAG (sin alucinaciones)."""
     api_key = getattr(settings, 'OPENAI_API_KEY', '')
     if not api_key:
         if not contexto_rag:
-            return (
-                "No tengo datos de catálogo cargados para responder con precisión ahora. "
-                "Comparte nombre del producto o contacto comercial para cotización asistida."
-            )
+            return _bot_comercial_sin_contexto_natural(pregunta)
         return (
                 "Con base en catálogo comercial:\n\n"
             f"{contexto_rag[:1000]}\n\n"
@@ -1234,11 +1259,13 @@ def _bot_comercial_respuesta_catalogo(pregunta: str, contexto_rag: str, diagnost
         from openai import OpenAI
         client = OpenAI(api_key=api_key)
         system_prompt = (
-            "Eres Asistente IA Comercial (ventas y soporte agronómico). "
+            "Eres un asesor agrocomercial cercano, claro y práctico (estilo humano de campo). "
             "Regla crítica: SOLO puedes responder usando el CONTEXTO DE CATÁLOGO provisto. "
-            "Si falta información en contexto, di explícitamente que no está disponible. "
+            "Si falta información en contexto, dilo con naturalidad y sin repetir disculpas. "
             "No inventes productos, dosis ni precios. "
-            "Responde en español claro para agricultores y cierra con CTA de cotización."
+            "Cuando no haya contexto suficiente: 1) reconoce la intención, 2) explica qué falta, "
+            "3) haz una sola pregunta útil para continuar, 4) cierra con CTA suave de cotización. "
+            "Responde en español claro para agricultores, en tono breve y conversacional."
         )
         user_prompt = (
             f"CONSULTA DEL CLIENTE:\n{pregunta}\n\n"
@@ -1263,7 +1290,7 @@ def _bot_comercial_respuesta_catalogo(pregunta: str, contexto_rag: str, diagnost
                 f"{contexto_rag[:1000]}\n\n"
                 "Para cotizar, envíame cantidad y municipio."
             )
-        return "No encuentro información confiable en catálogo para esa consulta en este momento."
+        return _bot_comercial_sin_contexto_natural(pregunta)
 
 
 def _bot_comercial_diagnosticar_imagen(media_url: str, media_type: str) -> str:
