@@ -1090,6 +1090,21 @@ def whatsapp_webhook(request):
         import sys
         print("🔵 WEBHOOK RECIBIÓ POST", flush=True)
         logger.info("🔵 WEBHOOK RECIBIÓ POST")
+
+        def _numero_limpio(valor):
+            import re
+            return re.sub(r'\D', '', str(valor or ''))
+
+        def _es_destino_bot_comercial(data):
+            to_limpio = _numero_limpio(data.get('To', ''))
+            if not to_limpio:
+                return False
+            candidatos = {
+                _numero_limpio(getattr(settings, 'BOT_COMERCIAL_WHATSAPP_NUMBER', '')),
+                _numero_limpio(getattr(settings, 'AGRONEXO_WHATSAPP_NUMBER', '')),
+            }
+            candidatos.discard('')
+            return bool(candidatos and to_limpio in candidatos)
         
         try:
             # Intentar parsear como JSON (Meta)
@@ -1109,7 +1124,11 @@ def whatsapp_webhook(request):
                 # Algunos webhooks de Twilio pueden llegar como JSON
                 if 'Body' in payload or 'From' in payload or 'MessageStatus' in payload:
                     print("🔵 JSON con datos Twilio detectado — procesando", flush=True)
-                    _procesar_twilio_webhook(payload)
+                    if _es_destino_bot_comercial(payload):
+                        logger.info("🧭 Router webhook: Twilio destino comercial/agro detectado (JSON)")
+                        _procesar_bot_comercial_twilio_webhook(payload)
+                    else:
+                        _procesar_twilio_webhook(payload)
                 else:
                     print("⚠️ JSON desconocido — ignorando", flush=True)
                 return HttpResponse('OK')
@@ -1119,7 +1138,12 @@ def whatsapp_webhook(request):
             print("🔵 Payload (Form-Data) - Probablemente Twilio", flush=True)
             print(f"POST keys: {list(request.POST.keys())}", flush=True)
             logger.info("🔵 Payload (Form-Data) - Probablemente Twilio")
-            twilio_result = _procesar_twilio_webhook(request.POST)
+            if _es_destino_bot_comercial(request.POST):
+                logger.info("🧭 Router webhook: Twilio destino comercial/agro detectado (Form-Data)")
+                _procesar_bot_comercial_twilio_webhook(request.POST)
+                twilio_result = None
+            else:
+                twilio_result = _procesar_twilio_webhook(request.POST)
             # Si _procesar_twilio_webhook devuelve TwiML HttpResponse, retornarlo
             if isinstance(twilio_result, HttpResponse):
                 return twilio_result
