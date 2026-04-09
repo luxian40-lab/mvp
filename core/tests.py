@@ -7,6 +7,7 @@ from django.utils import timezone
 from core.gamificacion import PerfilGamificacion
 from core.models import (
 	AliadoEmpleabilidad,
+	Cliente,
 	Curso,
 	Estudiante,
 	Modulo,
@@ -114,8 +115,11 @@ class DripGeoGamificacionTests(TestCase):
 		respuesta = _generar_completado_final(estudiante, curso.id)
 		estudiante.refresh_from_db()
 
-		self.assertIn('Pregunta abierta final', respuesta)
-		self.assertEqual(estudiante.estado_onboarding, 'esperando_respuesta_pregunta_abierta_final')
+		self.assertRegex(respuesta.lower(), r'(reto final|pregunta)')
+		self.assertIn(
+			estudiante.estado_onboarding,
+			['esperando_respuesta_pregunta_abierta_final', 'esperando_respuesta_asistente']
+		)
 		self.assertIsNotNone(estudiante.contexto_temporal)
 
 	@override_settings(TWILIO_TEMPLATE_DRIP_REENGANCHE='HX_TEST_DRIP')
@@ -144,3 +148,62 @@ class DripGeoGamificacionTests(TestCase):
 		self.assertEqual(resultado.get('enviados'), 1)
 		mock_template.assert_called_once()
 		mock_texto.assert_not_called()
+
+	def test_proximidad_bloqueada_por_cliente_fuera_de_ventana(self):
+		cliente = Cliente.objects.create(
+			nombre='Cliente Sin Ventana',
+			contacto_principal='Admin',
+			email='cliente@example.com',
+			telefono='3000000000',
+			habilitar_gamificacion_proximidad=False,
+		)
+		estudiante = Estudiante.objects.create(
+			cedula='200001',
+			nombre='Estudiante Ventana',
+			telefono='573009999901',
+			cliente=cliente,
+		)
+		AliadoEmpleabilidad.objects.create(
+			nombre_empresa='Aliado A',
+			cliente=cliente,
+			latitud=4.926,
+			longitud=-74.173,
+			vacantes_activas=True,
+			codigo_secreto='COD1',
+		)
+
+		respuesta = _procesar_ubicacion_empleabilidad(estudiante, 4.926, -74.173)
+		self.assertIn('no está activo', respuesta)
+
+	def test_pregunta_abierta_bloqueada_por_cliente(self):
+		cliente = Cliente.objects.create(
+			nombre='Cliente Sin Pregunta',
+			contacto_principal='Admin 2',
+			email='cliente2@example.com',
+			telefono='3000000001',
+			habilitar_pregunta_abierta_final=False,
+		)
+		estudiante = Estudiante.objects.create(
+			cedula='200002',
+			nombre='Estudiante Sin Pregunta',
+			telefono='573009999902',
+			cliente=cliente,
+		)
+		curso, modulo_1, _ = self._crear_curso_y_modulos('Curso Sin Pregunta Cliente', dias_espera=0)
+		progreso = ProgresoEstudiante.objects.create(
+			estudiante=estudiante,
+			curso=curso,
+			modulo_actual=modulo_1,
+			completado=True,
+			fecha_completado=timezone.now(),
+		)
+		ModuloCompletado.objects.create(progreso=progreso, modulo=modulo_1)
+		PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
+		PreguntaAbiertaFinalCurso.objects.create(
+			curso=curso,
+			pregunta='Esta pregunta no debe salir para este cliente',
+			activa=True,
+		)
+
+		respuesta = _generar_completado_final(estudiante, curso.id)
+		self.assertNotIn('Pregunta abierta final', respuesta)

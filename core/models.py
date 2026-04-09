@@ -128,6 +128,31 @@ class Cliente(models.Model):
         verbose_name='Fin Gamificación Proximidad',
         help_text='Fecha límite de activación del radar de proximidad para este cliente.'
     )
+    empleabilidad_exploracion_activa = models.BooleanField(
+        default=False,
+        verbose_name='Empleabilidad Exploración Activa',
+        help_text='Activa la experiencia tipo exploración para oportunidades cercanas (por cliente).'
+    )
+    empleabilidad_radio_metros = models.PositiveIntegerField(
+        default=800,
+        verbose_name='Radio de búsqueda (metros)',
+        help_text='Distancia máxima para detectar oportunidades cercanas.'
+    )
+    empleabilidad_cooldown_horas = models.PositiveIntegerField(
+        default=24,
+        verbose_name='Cooldown entre validaciones (horas)',
+        help_text='Horas mínimas entre validaciones exitosas de empleabilidad por estudiante.'
+    )
+    empleabilidad_max_misiones_dia = models.PositiveIntegerField(
+        default=3,
+        verbose_name='Máximo misiones por día',
+        help_text='Límite diario de misiones de exploración por estudiante.'
+    )
+    empleabilidad_puntos_validacion = models.PositiveIntegerField(
+        default=30,
+        verbose_name='Puntos por validación',
+        help_text='Puntos de gamificación otorgados al validar un código de oportunidad.'
+    )
     # NOMBRES PERSONALIZADOS DE AGENTES IA (por Cliente)
     nombre_agente_tutor = models.CharField(
         max_length=100,
@@ -1052,6 +1077,157 @@ class DocumentoRAG(models.Model):
         except Exception as e:
             import logging
             logging.getLogger(__name__).error(f"[DocumentoRAG] Error descargando {self.nombre}: {e}")
+            return None
+
+
+class DocumentoRAGComercial(models.Model):
+    """
+    Documento para el RAG comercial.
+    Aislado del RAG de cursos para evitar mezclar conocimiento educativo y comercial.
+    """
+    CANAL_CHOICES = [
+        ('bot_comercial', 'Bot Comercial WhatsApp'),
+        ('agro_nexo', 'Agro Nexo WhatsApp'),
+    ]
+    TIPO_CHOICES = [
+        ('producto', 'Producto / Catálogo'),
+        ('precio', 'Precio / Lista comercial'),
+        ('faq', 'Preguntas frecuentes comerciales'),
+        ('politica', 'Políticas comerciales'),
+        ('promo', 'Promociones'),
+        ('general', 'Información general comercial'),
+    ]
+    ESTADO_CHOICES = [
+        ('pendiente', 'Pendiente de indexar'),
+        ('indexado', 'Indexado en RAG comercial'),
+        ('error', 'Error al indexar'),
+    ]
+
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='documentos_rag_comercial',
+        verbose_name='Cliente',
+        help_text='Cliente comercial del documento. Vacío = comercial general.'
+    )
+    canal = models.CharField(
+        max_length=40,
+        choices=CANAL_CHOICES,
+        default='bot_comercial',
+        verbose_name='Canal comercial'
+    )
+    nombre = models.CharField(
+        max_length=200,
+        verbose_name='Nombre del documento',
+        help_text='Identificador único por cliente/canal (ej: catalogo_abril_2026).'
+    )
+    archivo = models.FileField(
+        upload_to='documentos_rag_comercial/%Y/%m/',
+        verbose_name='Archivo (PDF, DOCX, TXT)',
+        help_text='Formatos soportados: .pdf, .docx, .txt'
+    )
+    tipo = models.CharField(
+        max_length=20,
+        choices=TIPO_CHOICES,
+        default='producto',
+        verbose_name='Tipo de documento'
+    )
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADO_CHOICES,
+        default='pendiente',
+        verbose_name='Estado RAG'
+    )
+    chunks_indexados = models.IntegerField(
+        default=0,
+        verbose_name='Chunks indexados',
+        help_text='Cantidad de fragmentos indexados en la BD vectorial comercial.'
+    )
+    descripcion = models.TextField(
+        blank=True,
+        verbose_name='Descripción',
+        help_text='Descripción opcional del contenido comercial.'
+    )
+    fecha_subida = models.DateTimeField(auto_now_add=True)
+    fecha_indexado = models.DateTimeField(null=True, blank=True)
+    subido_por = models.ForeignKey(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Subido por'
+    )
+
+    class Meta:
+        ordering = ['-fecha_subida']
+        verbose_name = 'Documento RAG Comercial'
+        verbose_name_plural = 'Documentos RAG Comercial'
+        unique_together = ['cliente', 'canal', 'nombre']
+        indexes = [
+            models.Index(fields=['cliente', 'canal', 'estado']),
+        ]
+
+    def __str__(self):
+        cliente_txt = self.cliente.nombre if self.cliente else 'General'
+        return f"{self.nombre} ({cliente_txt} - {self.canal})"
+
+    @property
+    def cliente_scope_id(self):
+        return self.cliente_id if self.cliente_id else 0
+
+    def indexar(self):
+        """Indexa este documento en el RAG comercial (aislado de cursos)."""
+        from core.rag_comercial_manager import rag_comercial_manager
+        from django.utils import timezone
+
+        if not self.archivo:
+            self.estado = 'error'
+            self.save(update_fields=['estado'])
+            return 0
+
+        try:
+            ruta = self.archivo.path
+            if not os.path.exists(ruta):
+                ruta = self._descargar_temp()
+                if not ruta:
+                    self.estado = 'error'
+                    self.save(update_fields=['estado'])
+                    return 0
+
+            n_chunks = rag_comercial_manager.procesar_documento(
+                cliente_id=self.cliente_scope_id,
+                canal=self.canal,
+                ruta_archivo=ruta,
+                nombre_documento=self.nombre,
+                tipo=self.tipo,
+            )
+            self.chunks_indexados = n_chunks
+            self.estado = 'indexado' if n_chunks > 0 else 'error'
+            self.fecha_indexado = timezone.now()
+            self.save(update_fields=['chunks_indexados', 'estado', 'fecha_indexado'])
+            return n_chunks
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"[DocumentoRAGComercial] Error indexando {self.nombre}: {e}")
+            self.estado = 'error'
+            self.save(update_fields=['estado'])
+            return 0
+
+    def _descargar_temp(self):
+        """Descarga archivo desde storage a un temporal local para indexación."""
+        import tempfile
+
+        try:
+            ext = os.path.splitext(self.archivo.name)[1]
+            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+                for chunk in self.archivo.chunks():
+                    tmp.write(chunk)
+                return tmp.name
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"[DocumentoRAGComercial] Error descargando {self.nombre}: {e}")
             return None
 
 
@@ -1992,6 +2168,28 @@ class AliadoEmpleabilidad(models.Model):
     )
     latitud = models.FloatField(verbose_name='Latitud')
     longitud = models.FloatField(verbose_name='Longitud')
+    cupos_disponibles = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Cupos disponibles',
+        help_text='Vacantes disponibles para priorización del radar de empleabilidad.'
+    )
+    prioridad = models.PositiveSmallIntegerField(
+        default=3,
+        verbose_name='Prioridad (1-5)',
+        help_text='5 = máxima prioridad para aparecer en el radar de oportunidades.'
+    )
+    vigencia_desde = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Vigencia desde',
+        help_text='Fecha de inicio de vigencia de la oportunidad.'
+    )
+    vigencia_hasta = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Vigencia hasta',
+        help_text='Fecha de fin de vigencia de la oportunidad.'
+    )
     vacantes_activas = models.BooleanField(default=True, verbose_name='Vacantes activas')
     codigo_secreto = models.CharField(max_length=120, verbose_name='Código secreto')
     indicacion_sector = models.CharField(
@@ -2010,6 +2208,91 @@ class AliadoEmpleabilidad(models.Model):
 
     def __str__(self):
         return self.nombre_empresa
+
+
+class MisionEmpleabilidad(models.Model):
+    """Misiones de exploración/validación de oportunidades por proximidad."""
+
+    ESTADO_CHOICES = [
+        ('descubierta', 'Descubierta'),
+        ('reclamada', 'Reclamada'),
+        ('completada', 'Completada'),
+        ('cancelada', 'Cancelada'),
+    ]
+    FLUJO_CHOICES = [
+        ('descubierto', 'Descubierto'),
+        ('interesado', 'Interesado'),
+        ('postulado', 'Postulado'),
+        ('entrevista', 'Entrevista'),
+        ('vinculado', 'Vinculado'),
+        ('descartado', 'Descartado'),
+    ]
+
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='misiones_empleabilidad',
+        verbose_name='Cliente'
+    )
+    estudiante = models.ForeignKey(
+        Estudiante,
+        on_delete=models.CASCADE,
+        related_name='misiones_empleabilidad',
+        verbose_name='Estudiante'
+    )
+    aliado = models.ForeignKey(
+        AliadoEmpleabilidad,
+        on_delete=models.CASCADE,
+        related_name='misiones_empleabilidad',
+        verbose_name='Aliado'
+    )
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='descubierta', verbose_name='Estado')
+    latitud = models.FloatField(null=True, blank=True, verbose_name='Latitud referencia')
+    longitud = models.FloatField(null=True, blank=True, verbose_name='Longitud referencia')
+    distancia_metros = models.FloatField(null=True, blank=True, verbose_name='Distancia en metros')
+    codigo_validado = models.BooleanField(default=False, verbose_name='Código validado')
+    puntos_otorgados = models.IntegerField(default=0, verbose_name='Puntos otorgados')
+    estado_flujo = models.CharField(
+        max_length=20,
+        choices=FLUJO_CHOICES,
+        default='descubierto',
+        verbose_name='Estado del embudo'
+    )
+    puntaje_prioridad = models.FloatField(
+        default=0,
+        verbose_name='Puntaje de priorización',
+        help_text='Score calculado para priorizar oportunidades en el radar.'
+    )
+    canal_origen = models.CharField(
+        max_length=40,
+        default='whatsapp',
+        verbose_name='Canal origen'
+    )
+    metadata = models.JSONField(null=True, blank=True, help_text='Datos adicionales de misión (debug/contexto).')
+
+    fecha_descubierta = models.DateTimeField(auto_now_add=True)
+    fecha_reclamada = models.DateTimeField(null=True, blank=True)
+    fecha_completada = models.DateTimeField(null=True, blank=True)
+    fecha_interes = models.DateTimeField(null=True, blank=True)
+    fecha_postulacion = models.DateTimeField(null=True, blank=True)
+    fecha_entrevista = models.DateTimeField(null=True, blank=True)
+    fecha_vinculacion = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Misión de Empleabilidad'
+        verbose_name_plural = 'Misiones de Empleabilidad'
+        ordering = ['-fecha_descubierta']
+        indexes = [
+            models.Index(fields=['estudiante', 'estado', 'fecha_descubierta']),
+            models.Index(fields=['cliente', 'estado', 'fecha_descubierta']),
+            models.Index(fields=['aliado', 'estado']),
+            models.Index(fields=['cliente', 'estado_flujo', 'fecha_descubierta']),
+        ]
+
+    def __str__(self):
+        return f"{self.estudiante.nombre} -> {self.aliado.nombre_empresa} ({self.get_estado_display()})"
 
 
 class PreguntaAbiertaFinalCurso(models.Model):
@@ -2110,7 +2393,7 @@ class RespuestaAbiertaFinal(models.Model):
 __all__ = [
     'TemaCampana', 'Cliente', 'Estudiante', 'Plantilla', 'Linea',
     'Campana', 'EnvioLog', 'WhatsappLog',
-    'Curso', 'DocumentoRAG', 'Modulo', 'ProgresoEstudiante', 'ModuloCompletado',
+    'Curso', 'DocumentoRAG', 'DocumentoRAGComercial', 'Modulo', 'ProgresoEstudiante', 'ModuloCompletado',
     'Examen', 'PreguntaExamen', 'ResultadoExamen',
     'ObjetivoCurso', 'RubricaEvaluacion', 'EjercicioPractico', 'RespuestaEjercicio',
     'InteraccionLog', 'SolicitudSoporte', 'PreguntaModulo',
@@ -2121,5 +2404,5 @@ __all__ = [
     'ArchivoModulo', 'GrupoWhatsApp', 'InvitacionGrupo',
     'CampanaUnica', 'RespuestaCampanaUnica',
     'ProspectoB2B', 'CampanaB2B',
-    'AliadoEmpleabilidad', 'PreguntaAbiertaFinalCurso', 'RespuestaAbiertaFinal',
+    'AliadoEmpleabilidad', 'MisionEmpleabilidad', 'PreguntaAbiertaFinalCurso', 'RespuestaAbiertaFinal',
 ]

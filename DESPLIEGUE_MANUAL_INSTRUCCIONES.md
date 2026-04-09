@@ -1,6 +1,64 @@
 # 🚀 Despliegue Manual - EKI MVP
 ## Fecha: 6 de Febrero, 2026
 
+## ACTUALIZACION OPERATIVA - 9 de Abril, 2026
+
+### 1) Webhooks separados (obligatorio para Agro Nexo)
+
+- Webhook EKI conversacional general:
+   - `https://eki-prod-final.eba-32krwxas.us-east-2.elasticbeanstalk.com/webhook/whatsapp/`
+- Webhook Bot Comercial / Agro Nexo:
+   - `https://eki-prod-final.eba-32krwxas.us-east-2.elasticbeanstalk.com/webhook/ia-bot-comercial/`
+
+Para pruebas de Agro Nexo en Twilio Sandbox, usar **solo** el webhook de bot comercial.
+No usar el webhook general (`/webhook/whatsapp/`) para este bot.
+
+### 2) Configuracion recomendada Twilio Sandbox
+
+- `When a message comes in`:
+   - URL: `https://eki-prod-final.eba-32krwxas.us-east-2.elasticbeanstalk.com/webhook/ia-bot-comercial/`
+   - Method: `POST`
+- `Status callback URL`:
+   - Opcional (se puede dejar vacio en Sandbox).
+   - Si se usa, apuntar al mismo endpoint dedicado para logging de estado.
+
+Nota: Sandbox permite un solo webhook de entrada activo a la vez.
+
+### 3) Alimentacion IA comercial (RAG separado)
+
+Ya esta implementado el flujo para alimentar el bot comercial/agro con documentos:
+
+- Modelo/admin dedicado: `DocumentoRAGComercial`
+- Canal por variable: `BOT_COMERCIAL_RAG_CANAL` (ej. `bot_comercial` o `agro_nexo`)
+- Vista admin operativa: `admin/bot-comercial/`
+
+Carga recomendada inicial:
+- Fichas de producto
+- Lista de precios
+- FAQ comercial
+- Politicas comerciales
+- Promociones
+
+Volumen actual (55 a 100 archivos por tema) soportado para MVP.
+Para escalar, mantener separacion por canal y cliente desde ahora.
+
+### 4) Integracion de metricas hacia LXP Angular (EKI)
+
+Endpoints listos para consumo desde Angular:
+
+- Resumen embudo:
+   - `GET /api/empleabilidad/resumen/?cliente_id={id}`
+- Metricas de integracion:
+   - `GET /api/integracion/empleabilidad/metricas/?cliente_id={id}&fecha=YYYY-MM-DD`
+
+Recomendacion MVP: que Angular consuma estas APIs (modelo pull) y pinte dashboard.
+
+### 5) Estado tecnico actual
+
+- Migraciones aplicadas hasta `0072`.
+- Tests `core` en runtime settings: OK.
+- Entorno productivo con webhook comercial dedicado listo para Sandbox.
+
 ## ✅ Estado Actual
 
 **TODO LISTO para desplegar:**

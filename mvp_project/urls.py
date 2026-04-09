@@ -24,9 +24,23 @@ from core.views import (
     serve_media_proxy,
     dashboard_unificado
 )
-from core.api import api_estudiante, api_estudiante_progreso, api_estudiante_siguiente_tarea
+from core.api import (
+    api_estudiante,
+    api_estudiante_progreso,
+    api_estudiante_siguiente_tarea,
+    api_empleabilidad_oportunidades,
+    api_empleabilidad_claim,
+    api_empleabilidad_completar,
+    api_empleabilidad_flujo,
+    api_empleabilidad_resumen,
+    api_integracion_empleabilidad_metricas,
+)
 from core.dashboard_avanzado import dashboard_metricas, dashboard_gerencial
-from core.views_certificados import verificar_certificado_view, descargar_certificado_view
+from core.views_certificados import (
+    verificar_certificado_view,
+    descargar_certificado_view,
+    verificar_certificado_json_view,
+)
 from core.views_analytics import dashboard_analytics, exportar_metricas_csv, api_metricas_json, detalle_estudiante
 from core.views_reportes import dashboard_reportes_avanzados, descargar_reporte_xlsx
 
@@ -86,10 +100,17 @@ urlpatterns = [
     path('api/estudiante/<str:telefono>/', api_estudiante, name='api_estudiante'),
     path('api/estudiante/<str:telefono>/progreso/', api_estudiante_progreso, name='api_estudiante_progreso'),
     path('api/estudiante/<str:telefono>/siguiente-tarea/', api_estudiante_siguiente_tarea, name='api_estudiante_siguiente_tarea'),
+    path('api/empleabilidad/oportunidades/', api_empleabilidad_oportunidades, name='api_empleabilidad_oportunidades'),
+    path('api/empleabilidad/claim/', api_empleabilidad_claim, name='api_empleabilidad_claim'),
+    path('api/empleabilidad/completar/', api_empleabilidad_completar, name='api_empleabilidad_completar'),
+    path('api/empleabilidad/flujo/', api_empleabilidad_flujo, name='api_empleabilidad_flujo'),
+    path('api/empleabilidad/resumen/', api_empleabilidad_resumen, name='api_empleabilidad_resumen'),
+    path('api/integracion/empleabilidad/metricas/', api_integracion_empleabilidad_metricas, name='api_integracion_empleabilidad_metricas'),
     
     # Certificados públicos (sin autenticación)
     path('verificar-certificado/<str:codigo_verificacion>/', verificar_certificado_view, name='verificar_certificado'),
     path('descargar-certificado/<str:codigo_verificacion>/', descargar_certificado_view, name='descargar_certificado'),
+    path('api/certificados/verificar/', verificar_certificado_json_view, name='verificar_certificado_json'),
     
     # Archivos multimedia de módulos
     path('media/modulo/<int:modulo_id>/archivos/', obtener_archivos_modulo_view, name='obtener_archivos_modulo'),

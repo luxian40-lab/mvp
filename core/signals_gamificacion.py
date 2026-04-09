@@ -7,6 +7,7 @@ Otorga puntos automáticamente cuando el estudiante completa módulos/cursos
 
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils import timezone
 from .models import ModuloCompletado, ProgresoEstudiante
 from .gamificacion import PerfilGamificacion, Badge, BadgeEstudiante
 # ArchivoModulo y enviar_archivo_modulo_whatsapp ya NO se usan aquí (v1.9.3)
@@ -66,6 +67,8 @@ def otorgar_puntos_por_modulo(sender, instance, created, **kwargs):
         )
         # v1.9.8g: NO points per module (removed perfil.agregar_puntos)
         # Only update stats
+        instance.progreso.fecha_ultimo_avance = timezone.now()
+        instance.progreso.save(update_fields=['fecha_ultimo_avance'])
         perfil.modulos_completados += 1
         perfil.save()
         perfil.actualizar_racha()

@@ -276,17 +276,38 @@ def dashboard_unificado(request):
 @staff_member_required
 def bot_comercial_admin_view(request):
     """Vista administrativa para operación del Bot Comercial IA."""
+    from .models import DocumentoRAGComercial
+    from .rag_comercial_manager import rag_comercial_manager
+
     endpoint_path = '/webhook/ia-bot-comercial/'
     endpoint_url = request.build_absolute_uri(endpoint_path)
+    cliente_id = int(
+        getattr(settings, 'BOT_COMERCIAL_CLIENTE_ID', None)
+        or getattr(settings, 'AGRONEXO_CLIENTE_ID', 0)
+        or 0
+    )
+    canal_rag = str(getattr(settings, 'BOT_COMERCIAL_RAG_CANAL', 'bot_comercial') or 'bot_comercial')
+
+    docs_qs = DocumentoRAGComercial.objects.filter(cliente_id=cliente_id if cliente_id > 0 else None, canal=canal_rag)
+    total_docs = docs_qs.count()
+    total_docs_indexados = docs_qs.filter(estado='indexado').count()
+
+    chunks_total = 0
+    if rag_comercial_manager.disponible:
+        chunks_total = rag_comercial_manager.contar_chunks(cliente_id=cliente_id, canal=canal_rag)
 
     context = {
         'endpoint_path': endpoint_path,
         'endpoint_url': endpoint_url,
         'bot_comercial_whatsapp_number': getattr(settings, 'BOT_COMERCIAL_WHATSAPP_NUMBER', ''),
         'bot_comercial_cliente_id': getattr(settings, 'BOT_COMERCIAL_CLIENTE_ID', ''),
-        'bot_comercial_curso_id': getattr(settings, 'BOT_COMERCIAL_CURSO_ID', ''),
+        'bot_comercial_rag_canal': canal_rag,
         'bot_comercial_openai_model': getattr(settings, 'BOT_COMERCIAL_OPENAI_MODEL', ''),
         'bot_comercial_vision_model': getattr(settings, 'BOT_COMERCIAL_VISION_MODEL', ''),
+        'rag_comercial_disponible': rag_comercial_manager.disponible,
+        'rag_comercial_total_docs': total_docs,
+        'rag_comercial_docs_indexados': total_docs_indexados,
+        'rag_comercial_chunks_total': chunks_total,
     }
     return render(request, 'admin/bot_comercial.html', context)
 
@@ -1141,12 +1162,13 @@ def _cliente_habilita_pregunta_abierta_final(cliente):
 
 
 def _cliente_habilita_proximidad(cliente):
-    return _cliente_en_ventana(
+    habilitado_legacy = _cliente_en_ventana(
         cliente,
         'habilitar_gamificacion_proximidad',
         'fecha_inicio_gamificacion_proximidad',
         'fecha_fin_gamificacion_proximidad',
     )
+    return bool(habilitado_legacy or (cliente and getattr(cliente, 'empleabilidad_exploracion_activa', False)))
 
 
 def _bot_comercial_respuesta_catalogo(pregunta: str, contexto_rag: str, diagnostico_vision: str = '') -> str:
@@ -1240,7 +1262,7 @@ def _bot_comercial_diagnosticar_imagen(media_url: str, media_type: str) -> str:
 
 def _procesar_bot_comercial_twilio_webhook(post_data):
     """Webhook Twilio dedicado para bot comercial (texto libre, voz e imagen)."""
-    from .rag_manager import rag_manager
+    from .rag_comercial_manager import rag_comercial_manager
 
     status = post_data.get('MessageStatus', post_data.get('SmsStatus', ''))
     if status and status.lower() in ['queued', 'sending', 'sent', 'delivered', 'undelivered', 'failed', 'read']:
@@ -1305,11 +1327,7 @@ def _procesar_bot_comercial_twilio_webhook(post_data):
             or getattr(settings, 'AGRONEXO_CLIENTE_ID', 0)
             or 0
         )
-        curso_id = int(
-            getattr(settings, 'BOT_COMERCIAL_CURSO_ID', None)
-            or getattr(settings, 'AGRONEXO_CURSO_ID', 0)
-            or 0
-        )
+        canal_rag = str(getattr(settings, 'BOT_COMERCIAL_RAG_CANAL', 'bot_comercial') or 'bot_comercial')
 
         diagnostico_vision = ''
         if num_media > 0 and media_type.startswith('image') and media_url:
@@ -1320,10 +1338,10 @@ def _procesar_bot_comercial_twilio_webhook(post_data):
             consulta = f"{consulta}\n\nDiagnóstico preliminar imagen: {diagnostico_vision}"
 
         contexto_rag = ''
-        if cliente_id >= 0 and curso_id > 0 and rag_manager.disponible:
-            contexto_rag = rag_manager.obtener_contexto_para_ia(
+        if cliente_id >= 0 and rag_comercial_manager.disponible:
+            contexto_rag = rag_comercial_manager.obtener_contexto_para_bot(
                 cliente_id=cliente_id,
-                curso_id=curso_id,
+                canal=canal_rag,
                 pregunta=consulta,
                 max_chars=2200,
             )
@@ -1424,16 +1442,26 @@ def _activar_radar_empleabilidad_si_aplica(estudiante):
 def _pregunta_abierta_final_pendiente(estudiante, progreso):
     from .models import PreguntaAbiertaFinalCurso, RespuestaAbiertaFinal
 
-    if not _cliente_habilita_pregunta_abierta_final(estudiante.cliente):
-        return None
-
-    if not getattr(progreso.curso, 'habilitar_pregunta_abierta_final', False):
-        return None
-
-    preguntas = PreguntaAbiertaFinalCurso.objects.filter(
+    preguntas_qs = PreguntaAbiertaFinalCurso.objects.filter(
         curso=progreso.curso,
         activa=True
-    ).order_by('orden', 'id')[:3]
+    ).order_by('orden', 'id')
+
+    if not preguntas_qs.exists():
+        return None
+
+    cliente_habilita = _cliente_habilita_pregunta_abierta_final(estudiante.cliente)
+    curso_habilita = bool(getattr(progreso.curso, 'habilitar_pregunta_abierta_final', False))
+    if not (cliente_habilita and curso_habilita):
+        logger.info(
+            "⚠️ Fallback pregunta abierta final por configuración | estudiante_id=%s | curso_id=%s | cliente_habilita=%s | curso_habilita=%s",
+            estudiante.id,
+            progreso.curso.id,
+            cliente_habilita,
+            curso_habilita,
+        )
+
+    preguntas = list(preguntas_qs[:3])
 
     for pregunta in preguntas:
         existe = RespuestaAbiertaFinal.objects.filter(
@@ -1452,7 +1480,7 @@ def _procesar_ubicacion_empleabilidad(estudiante, latitud, longitud):
     Guarda aliado objetivo en contexto para validación de código secreto.
     """
     from django.db.models import Q
-    from .models import AliadoEmpleabilidad
+    from .models import AliadoEmpleabilidad, MisionEmpleabilidad
 
     if not _cliente_habilita_proximidad(estudiante.cliente):
         return (
@@ -1471,6 +1499,20 @@ def _procesar_ubicacion_empleabilidad(estudiante, latitud, longitud):
     if not aliados:
         return "📍 En este momento no hay vacantes activas de aliados en tu zona. Te avisaremos cuando se habiliten."
 
+    cliente_cfg = estudiante.cliente
+    radio_metros = int(getattr(cliente_cfg, 'empleabilidad_radio_metros', 800) or 800)
+    max_misiones_dia = int(getattr(cliente_cfg, 'empleabilidad_max_misiones_dia', 3) or 3)
+    hoy = timezone.localdate()
+    misiones_hoy = MisionEmpleabilidad.objects.filter(
+        estudiante=estudiante,
+        fecha_descubierta__date=hoy,
+    ).exclude(estado='cancelada').count()
+    if misiones_hoy >= max_misiones_dia:
+        return (
+            f"📌 Ya completaste tu límite diario de exploración ({max_misiones_dia} misiones).\n"
+            "Vuelve mañana para descubrir nuevas oportunidades."
+        )
+
     mejor = None
     mejor_dist = None
     for aliado in aliados:
@@ -1482,9 +1524,28 @@ def _procesar_ubicacion_empleabilidad(estudiante, latitud, longitud):
     if not mejor:
         return "No pude procesar tu ubicación en este momento. Inténtalo nuevamente."
 
+    if mejor_dist > radio_metros:
+        return (
+            "📍 Aún no hay oportunidades dentro de tu radio de exploración actual.\n\n"
+            f"Distancia más cercana a {mejor.nombre_empresa}: *{int(round(mejor_dist))} m*.\n"
+            f"Radio activo de tu organización: *{int(radio_metros)} m*."
+        )
+
+    mision = MisionEmpleabilidad.objects.create(
+        cliente=estudiante.cliente,
+        estudiante=estudiante,
+        aliado=mejor,
+        estado='descubierta',
+        latitud=latitud,
+        longitud=longitud,
+        distancia_metros=round(mejor_dist, 1),
+        metadata={'fuente': 'whatsapp_location'},
+    )
+
     ctx = estudiante.contexto_temporal or {}
     ctx['radar_empleabilidad_activo'] = True
     ctx['aliado_empleabilidad_objetivo_id'] = mejor.id
+    ctx['mision_empleabilidad_id'] = mision.id
     ctx['distancia_aliado_m'] = round(mejor_dist, 1)
     estudiante.contexto_temporal = ctx
     estudiante.estado_onboarding = 'esperando_codigo_empleabilidad'
@@ -2532,20 +2593,32 @@ def _procesar_twilio_webhook(post_data):
             texto_respuesta = respuesta_seguridad
         else:
             if estudiante.estado_onboarding == 'esperando_codigo_empleabilidad':
-                from .models import AliadoEmpleabilidad
+                from .models import AliadoEmpleabilidad, MisionEmpleabilidad
                 from .gamificacion import PerfilGamificacion, Badge, BadgeEstudiante
                 ctx_emp = estudiante.contexto_temporal or {}
                 aliado_id = ctx_emp.get('aliado_empleabilidad_objetivo_id')
+                mision_id = ctx_emp.get('mision_empleabilidad_id')
                 aliado = None
                 if aliado_id:
                     aliado = AliadoEmpleabilidad.objects.filter(id=aliado_id, vacantes_activas=True).first()
+                mision = None
+                if mision_id:
+                    mision = MisionEmpleabilidad.objects.filter(id=mision_id, estudiante=estudiante).first()
 
                 if aliado and msg_body.strip().lower() == str(aliado.codigo_secreto).strip().lower():
                     perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
-                    perfil.agregar_puntos(30, f"Radar Empleabilidad: {aliado.nombre_empresa}")
+                    puntos_cfg = int(getattr(estudiante.cliente, 'empleabilidad_puntos_validacion', 30) or 30)
+                    perfil.agregar_puntos(puntos_cfg, f"Radar Empleabilidad: {aliado.nombre_empresa}")
                     badge = Badge.objects.filter(tipo='ESPECIAL', activo=True, nombre__icontains='emple').first()
                     if badge:
                         BadgeEstudiante.objects.get_or_create(estudiante=estudiante, badge=badge)
+
+                    if mision and mision.estado != 'completada':
+                        mision.estado = 'completada'
+                        mision.codigo_validado = True
+                        mision.puntos_otorgados = puntos_cfg
+                        mision.fecha_completada = timezone.now()
+                        mision.save(update_fields=['estado', 'codigo_validado', 'puntos_otorgados', 'fecha_completada'])
 
                     from .tasks import enviar_email_org_admin_async
                     try:
@@ -2572,6 +2645,10 @@ def _procesar_twilio_webhook(post_data):
                     )
                     estudiante.estado_onboarding = 'curso_finalizado'
                 else:
+                    if mision and mision.estado == 'descubierta':
+                        mision.estado = 'reclamada'
+                        mision.fecha_reclamada = timezone.now()
+                        mision.save(update_fields=['estado', 'fecha_reclamada'])
                     texto_respuesta = (
                         "🔐 El código no coincide.\n\n"
                         "Verifica el código secreto en la entrada de la empresa y vuelve a enviarlo."
@@ -2594,6 +2671,14 @@ def _procesar_twilio_webhook(post_data):
                     progreso = ProgresoEstudiante.objects.filter(id=progreso_id).first() if progreso_id else None
 
                     if pregunta:
+                        logger.info(
+                            "🧾 Pregunta abierta final en contexto | estudiante_id=%s | curso_id=%s | pregunta_id=%s | orden=%s | texto=%s",
+                            estudiante.id,
+                            getattr(pregunta.curso, 'id', None),
+                            pregunta.id,
+                            getattr(pregunta, 'orden', None),
+                            (pregunta.pregunta or '')[:180],
+                        )
                         respuesta_final, _ = RespuestaAbiertaFinal.objects.update_or_create(
                             pregunta=pregunta,
                             estudiante=estudiante,
@@ -2670,6 +2755,14 @@ def _procesar_twilio_webhook(post_data):
                         # continuar en secuencia antes de emitir certificado.
                         siguiente_pregunta = _pregunta_abierta_final_pendiente(estudiante, progreso) if progreso else None
                         if siguiente_pregunta:
+                            logger.info(
+                                "🔁 Siguiente pregunta abierta final | estudiante_id=%s | curso_id=%s | pregunta_id=%s | orden=%s | texto=%s",
+                                estudiante.id,
+                                progreso.curso.id,
+                                siguiente_pregunta.id,
+                                getattr(siguiente_pregunta, 'orden', None),
+                                (siguiente_pregunta.pregunta or '')[:180],
+                            )
                             estudiante.contexto_temporal = {
                                 'tipo': 'pregunta_abierta_final',
                                 'curso_id': progreso.curso.id,
@@ -2925,8 +3018,35 @@ def _procesar_twilio_webhook(post_data):
                     es_final = ctx.get('es_final', False)
                     
                     if es_final and progreso:
-                        pregunta_abierta = _pregunta_abierta_final_pendiente(estudiante, progreso)
+                        pregunta_abierta = None
+                        pregunta_abierta_ctx_id = ctx.get('pregunta_abierta_final_id')
+                        if pregunta_abierta_ctx_id:
+                            from .models import PreguntaAbiertaFinalCurso, RespuestaAbiertaFinal
+                            pregunta_ctx = PreguntaAbiertaFinalCurso.objects.filter(
+                                id=pregunta_abierta_ctx_id,
+                                curso=progreso.curso,
+                                activa=True,
+                            ).first()
+                            if pregunta_ctx:
+                                ya_respondio_ctx = RespuestaAbiertaFinal.objects.filter(
+                                    pregunta=pregunta_ctx,
+                                    estudiante=estudiante,
+                                ).exists()
+                                if not ya_respondio_ctx:
+                                    pregunta_abierta = pregunta_ctx
+
+                        if not pregunta_abierta:
+                            pregunta_abierta = _pregunta_abierta_final_pendiente(estudiante, progreso)
+
                         if pregunta_abierta:
+                            logger.info(
+                                "🧭 Pregunta abierta final seleccionada post-reto | estudiante_id=%s | curso_id=%s | pregunta_id=%s | orden=%s | texto=%s",
+                                estudiante.id,
+                                progreso.curso.id,
+                                pregunta_abierta.id,
+                                getattr(pregunta_abierta, 'orden', None),
+                                (pregunta_abierta.pregunta or '')[:180],
+                            )
                             estudiante.contexto_temporal = {
                                 'tipo': 'pregunta_abierta_final',
                                 'curso_id': progreso.curso.id,
@@ -2942,6 +3062,12 @@ def _procesar_twilio_webhook(post_data):
                                 "✍️ Tu facilitadora revisará y calificará tu respuesta."
                             )
                         else:
+                            logger.info(
+                                "⚠️ Post-reto final sin pregunta abierta final | estudiante_id=%s | curso_id=%s | ctx_pregunta_id=%s",
+                                estudiante.id,
+                                progreso.curso.id,
+                                pregunta_abierta_ctx_id,
+                            )
                             # v1.9.8h: Final reto — issue certificate
                             estudiante.estado_onboarding = 'curso_finalizado'
                             estudiante.contexto_temporal = None
@@ -3608,6 +3734,15 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
         
         # 3. Enviar respuesta via Twilio
         print(f"📤 ENVIANDO RESPUESTA: '{texto_respuesta[:80]}...' (len={len(texto_respuesta)})", flush=True)
+        if (
+            'Pregunta abierta final de la Facilitadora' in texto_respuesta
+            or 'Siguiente pregunta abierta final' in texto_respuesta
+        ):
+            logger.info(
+                "📨 Respuesta de pregunta abierta final enviada | estudiante_id=%s | preview=%s",
+                estudiante.id,
+                texto_respuesta[:500],
+            )
         # Detectar si hay media_url en la respuesta (marcado con [MEDIA:url])
         # NOTA: Solo extraer [MEDIA:] para mensajes simples (no MULTI_MSG)
         # MULTI_MSG maneja su propio [MEDIA:] por cada parte del split

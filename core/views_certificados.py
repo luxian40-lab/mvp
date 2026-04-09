@@ -4,14 +4,30 @@ Verificación pública y descarga
 """
 
 from django.shortcuts import render, get_object_or_404
-from django.http import HttpResponse, Http404, FileResponse
+from django.http import HttpResponse, Http404, FileResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.conf import settings
 from .models_certificados import Certificado
 from .certificado_service import verificar_certificado_publico
 import logging
 import os
 
 logger = logging.getLogger(__name__)
+
+
+def _aplicar_cors_certificados(response, request):
+    """Aplica CORS para la landing de verificación de certificados."""
+    allowed_origin = getattr(settings, 'CERT_VERIFICATION_ALLOWED_ORIGIN', 'https://landingcertificados.netlify.app')
+    origin = request.headers.get('Origin', '')
+    if origin and origin == allowed_origin:
+        response['Access-Control-Allow-Origin'] = origin
+    elif not origin:
+        # Peticiones sin Origin (curl/postman/navegador directo)
+        response['Access-Control-Allow-Origin'] = allowed_origin
+    response['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+    response['Access-Control-Allow-Headers'] = 'Content-Type'
+    response['Vary'] = 'Origin'
+    return response
 
 
 def verificar_certificado_view(request, codigo_verificacion):
@@ -103,3 +119,61 @@ def descargar_certificado_view(request, codigo_verificacion):
             'mensaje': 'Error al descargar el certificado',
             'codigo': codigo_verificacion.upper()
         }, status=500)
+
+
+@csrf_exempt
+def verificar_certificado_json_view(request):
+    """
+    Endpoint JSON para landing externa (Netlify).
+    Recibe: ?code=eki-XXXX-YYYY-ZZZZ
+    Devuelve:
+      - valido
+      - nombre_estudiante
+      - curso
+      - fecha_emision
+      - codigo
+      - mensaje_error (si no existe)
+    """
+    if request.method == 'OPTIONS':
+        return _aplicar_cors_certificados(HttpResponse(status=204), request)
+
+    if request.method != 'GET':
+        resp = JsonResponse({'valido': False, 'mensaje_error': 'Método no permitido'}, status=405)
+        return _aplicar_cors_certificados(resp, request)
+
+    code = (request.GET.get('code', '') or '').strip().upper()
+    if not code:
+        resp = JsonResponse({
+            'valido': False,
+            'codigo': '',
+            'nombre_estudiante': '',
+            'curso': '',
+            'fecha_emision': None,
+            'mensaje_error': 'Parámetro code es obligatorio',
+        }, status=400)
+        return _aplicar_cors_certificados(resp, request)
+
+    data = verificar_certificado_publico(code)
+    if not data.get('valido'):
+        resp = JsonResponse({
+            'valido': False,
+            'codigo': code,
+            'nombre_estudiante': '',
+            'curso': '',
+            'fecha_emision': None,
+            'mensaje_error': data.get('error', 'Certificado no encontrado'),
+        }, status=404)
+        return _aplicar_cors_certificados(resp, request)
+
+    fecha_emision = data.get('fecha_emision')
+    fecha_emision_iso = fecha_emision.isoformat() if fecha_emision else None
+
+    resp = JsonResponse({
+        'valido': True,
+        'codigo': data.get('codigo', code),
+        'nombre_estudiante': data.get('estudiante', ''),
+        'curso': data.get('curso', ''),
+        'fecha_emision': fecha_emision_iso,
+        'mensaje_error': '',
+    })
+    return _aplicar_cors_certificados(resp, request)

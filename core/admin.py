@@ -23,8 +23,9 @@ from .models import (
     Certificado, PlantillaCertificado, # 📜 CERTIFICADOS
     CampanaUnica, RespuestaCampanaUnica,
     ProspectoB2B, CampanaB2B,  # 🤝 LEADS B2B
-    AliadoEmpleabilidad, PreguntaAbiertaFinalCurso, RespuestaAbiertaFinal,
+    AliadoEmpleabilidad, MisionEmpleabilidad, PreguntaAbiertaFinalCurso, RespuestaAbiertaFinal,
     DocumentoRAG,  # 📚 RAG Multi-Tenant
+    DocumentoRAGComercial,  # 🛒 RAG Comercial
 )
 from .admin_campana_actualizado import CampanaUnicaAdmin, RespuestaCampanaUnicaAdmin
 from .models_extras import (
@@ -128,6 +129,16 @@ class ClienteAdmin(admin.ModelAdmin):
                 'fecha_fin_gamificacion_proximidad',
             ),
             'description': 'Controla por cliente y por ventana de fechas cuándo se activa la pregunta abierta final y el radar de empleabilidad por proximidad.'
+        }),
+        ('🧭 Empleabilidad por Exploración', {
+            'fields': (
+                'empleabilidad_exploracion_activa',
+                'empleabilidad_radio_metros',
+                'empleabilidad_cooldown_horas',
+                'empleabilidad_max_misiones_dia',
+                'empleabilidad_puntos_validacion',
+            ),
+            'description': 'Configuración Fase 0/1 para clientes que activen la experiencia tipo exploración de empleabilidad.'
         }),
         ('🤖 Nombres de Agentes IA', {
             'fields': ('nombre_agente_tutor', 'nombre_agente_asistente'),
@@ -3354,10 +3365,50 @@ class BadgeEstudianteAdmin(admin.ModelAdmin):
 
 @admin.register(AliadoEmpleabilidad)
 class AliadoEmpleabilidadAdmin(admin.ModelAdmin):
-    list_display = ('nombre_empresa', 'cliente', 'vacantes_activas', 'latitud', 'longitud', 'codigo_secreto')
-    list_filter = ('vacantes_activas', 'cliente')
+    list_display = (
+        'nombre_empresa',
+        'cliente',
+        'vacantes_activas',
+        'cupos_disponibles',
+        'prioridad',
+        'vigencia_desde',
+        'vigencia_hasta',
+        'latitud',
+        'longitud',
+        'codigo_secreto',
+    )
+    list_filter = ('vacantes_activas', 'cliente', 'prioridad', 'vigencia_desde', 'vigencia_hasta')
     search_fields = ('nombre_empresa', 'codigo_secreto')
-    list_editable = ('vacantes_activas',)
+    list_editable = ('vacantes_activas', 'cupos_disponibles', 'prioridad')
+
+
+@admin.register(MisionEmpleabilidad)
+class MisionEmpleabilidadAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'estudiante',
+        'aliado',
+        'cliente',
+        'estado',
+        'estado_flujo',
+        'puntaje_prioridad',
+        'distancia_metros',
+        'codigo_validado',
+        'puntos_otorgados',
+        'fecha_descubierta',
+    )
+    list_filter = ('estado', 'estado_flujo', 'cliente', 'codigo_validado', 'fecha_descubierta')
+    search_fields = ('estudiante__nombre', 'estudiante__telefono', 'aliado__nombre_empresa')
+    readonly_fields = (
+        'fecha_descubierta',
+        'fecha_reclamada',
+        'fecha_completada',
+        'fecha_interes',
+        'fecha_postulacion',
+        'fecha_entrevista',
+        'fecha_vinculacion',
+    )
+    list_per_page = 100
 
 
 @admin.register(PreguntaAbiertaFinalCurso)
@@ -5617,6 +5668,110 @@ class DocumentoRAGAdmin(admin.ModelAdmin):
         extra_context = extra_context or {}
         extra_context['title'] = '📚 Documentos RAG — Base de Conocimiento para Agentes IA'
         return super().changelist_view(request, extra_context)
+
+
+@admin.register(DocumentoRAGComercial)
+class DocumentoRAGComercialAdmin(admin.ModelAdmin):
+    """🛒 Documentos del RAG comercial (aislado del educativo)."""
+
+    list_display = (
+        'nombre',
+        'cliente_display',
+        'canal',
+        'tipo_badge',
+        'estado_rag_badge',
+        'chunks_indexados',
+        'fecha_subida',
+    )
+    list_filter = ('estado', 'tipo', 'canal', 'cliente')
+    search_fields = ('nombre', 'descripcion', 'cliente__nombre')
+    list_per_page = 50
+    ordering = ('-fecha_subida',)
+    readonly_fields = ('estado', 'chunks_indexados', 'fecha_subida', 'fecha_indexado', 'subido_por')
+    actions = ['indexar_seleccionados', 'reindexar_seleccionados', 'eliminar_del_rag']
+
+    fieldsets = (
+        ('📄 Documento Comercial', {
+            'fields': ('cliente', 'canal', 'nombre', 'archivo', 'tipo', 'descripcion')
+        }),
+        ('🤖 Estado RAG Comercial', {
+            'fields': ('estado', 'chunks_indexados', 'fecha_subida', 'fecha_indexado', 'subido_por'),
+            'description': 'Estos documentos alimentan el bot comercial y NO el bot educativo de cursos.'
+        }),
+    )
+
+    def cliente_display(self, obj):
+        if obj.cliente:
+            return obj.cliente.nombre
+        return format_html('<span style="color:#999;">General</span>')
+    cliente_display.short_description = '🏢 Cliente'
+
+    def tipo_badge(self, obj):
+        colores = {
+            'producto': '#0ea5e9',
+            'precio': '#ef4444',
+            'faq': '#f59e0b',
+            'politica': '#64748b',
+            'promo': '#10b981',
+            'general': '#3b82f6',
+        }
+        color = colores.get(obj.tipo, '#999')
+        return format_html(
+            '<span style="background:{};color:white;padding:3px 8px;border-radius:12px;font-size:11px;">{}</span>',
+            color,
+            obj.get_tipo_display(),
+        )
+    tipo_badge.short_description = 'Tipo'
+
+    def estado_rag_badge(self, obj):
+        colores = {'pendiente': '#ffc107', 'indexado': '#28a745', 'error': '#dc3545'}
+        color = colores.get(obj.estado, '#6c757d')
+        return format_html(
+            '<span style="background:{};color:white;padding:3px 10px;border-radius:12px;font-size:11px;">{}</span>',
+            color,
+            obj.get_estado_display(),
+        )
+    estado_rag_badge.short_description = 'Estado RAG'
+
+    def save_model(self, request, obj, form, change):
+        if not obj.subido_por_id:
+            obj.subido_por = request.user
+        super().save_model(request, obj, form, change)
+        if obj.estado == 'pendiente' and obj.archivo:
+            obj.indexar()
+
+    @admin.action(description='🤖 Indexar documentos comerciales seleccionados')
+    def indexar_seleccionados(self, request, queryset):
+        ok, err = 0, 0
+        for doc in queryset.filter(estado='pendiente'):
+            n = doc.indexar()
+            if n > 0:
+                ok += 1
+            else:
+                err += 1
+        self.message_user(request, f"✅ {ok} indexados. {'⚠️ ' + str(err) + ' con errores.' if err else ''}")
+
+    @admin.action(description='🔄 Re-indexar documentos comerciales seleccionados')
+    def reindexar_seleccionados(self, request, queryset):
+        ok = 0
+        for doc in queryset:
+            doc.estado = 'pendiente'
+            doc.save(update_fields=['estado'])
+            n = doc.indexar()
+            if n > 0:
+                ok += 1
+        self.message_user(request, f"✅ {ok} documentos re-indexados.")
+
+    @admin.action(description='🗑️ Eliminar del RAG comercial (sin borrar archivo)')
+    def eliminar_del_rag(self, request, queryset):
+        from core.rag_comercial_manager import rag_comercial_manager
+
+        for doc in queryset:
+            rag_comercial_manager.eliminar_documento(doc.cliente_scope_id, doc.canal, doc.nombre)
+            doc.estado = 'pendiente'
+            doc.chunks_indexados = 0
+            doc.save(update_fields=['estado', 'chunks_indexados'])
+        self.message_user(request, f"✅ {queryset.count()} documentos eliminados del índice comercial.")
 
 
 

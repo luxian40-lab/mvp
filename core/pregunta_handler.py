@@ -275,6 +275,9 @@ def validar_respuesta(estudiante, respuesta_letra):
         modulo_completado.respuesta_dada = respuesta_letra
         modulo_completado.respuesta_correcta = es_correcta
         modulo_completado.save()
+    else:
+        progreso.fecha_ultimo_avance = timezone.now()
+        progreso.save(update_fields=['fecha_ultimo_avance'])
     
     # REFRESCAR perfil después del signal (que ya otorgó +10 pts)
     perfil.refresh_from_db()

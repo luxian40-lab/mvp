@@ -386,6 +386,26 @@ TWILIO_TEMPLATE_DRIP_REENGANCHE = os.environ.get('TWILIO_TEMPLATE_DRIP_REENGANCH
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 
 # ==========================================
+# 🌾 BOT COMERCIAL IA (Nodo Comercial)
+# ==========================================
+BOT_COMERCIAL_CLIENTE_ID = os.environ.get('BOT_COMERCIAL_CLIENTE_ID', '0')
+BOT_COMERCIAL_CURSO_ID = os.environ.get('BOT_COMERCIAL_CURSO_ID', '0')
+BOT_COMERCIAL_WHATSAPP_NUMBER = os.environ.get('BOT_COMERCIAL_WHATSAPP_NUMBER', '')
+BOT_COMERCIAL_RAG_CANAL = os.environ.get('BOT_COMERCIAL_RAG_CANAL', 'bot_comercial')
+BOT_COMERCIAL_OPENAI_MODEL = os.environ.get('BOT_COMERCIAL_OPENAI_MODEL', 'gpt-4o-mini')
+BOT_COMERCIAL_VISION_MODEL = os.environ.get('BOT_COMERCIAL_VISION_MODEL', 'gpt-4o-mini')
+
+# ==========================================
+# 🌱 AGRO NEXO IA (Segundo número / webhook)
+# ==========================================
+AGRONEXO_CLIENTE_ID = os.environ.get('AGRONEXO_CLIENTE_ID', BOT_COMERCIAL_CLIENTE_ID)
+AGRONEXO_CURSO_ID = os.environ.get('AGRONEXO_CURSO_ID', BOT_COMERCIAL_CURSO_ID)
+AGRONEXO_WHATSAPP_NUMBER = os.environ.get('AGRONEXO_WHATSAPP_NUMBER', BOT_COMERCIAL_WHATSAPP_NUMBER)
+AGRONEXO_RAG_CANAL = os.environ.get('AGRONEXO_RAG_CANAL', 'agro_nexo')
+AGRONEXO_OPENAI_MODEL = os.environ.get('AGRONEXO_OPENAI_MODEL', BOT_COMERCIAL_OPENAI_MODEL)
+AGRONEXO_VISION_MODEL = os.environ.get('AGRONEXO_VISION_MODEL', BOT_COMERCIAL_VISION_MODEL)
+
+# ==========================================
 # 🤖 GOOGLE GEMINI API
 # ==========================================
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')

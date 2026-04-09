@@ -2,10 +2,14 @@
 Plantillas de respuesta para cada intent - Agro Colombiano.
 Permite personalizar respuestas sin cambiar la lógica del webhook.
 """
+import logging
 from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
 from urllib.parse import quote
+
+
+logger = logging.getLogger(__name__)
 
 
 def _barra_progreso(porcentaje: int) -> str:
@@ -93,11 +97,21 @@ def _generar_completado_final(estudiante, curso_id):
 
     # Pregunta abierta final configurable antes del cierre completo
     pregunta_abierta = None
-    if _cliente_habilita_pregunta_abierta_final(estudiante.cliente) and getattr(curso, 'habilitar_pregunta_abierta_final', False):
-        preguntas_abiertas = PreguntaAbiertaFinalCurso.objects.filter(
-            curso=curso,
-            activa=True
-        ).order_by('orden', 'id')[:3]
+    preguntas_abiertas = PreguntaAbiertaFinalCurso.objects.filter(
+        curso=curso,
+        activa=True
+    ).order_by('orden', 'id')[:3]
+    if preguntas_abiertas.exists():
+        cliente_habilita = _cliente_habilita_pregunta_abierta_final(estudiante.cliente)
+        curso_habilita = bool(getattr(curso, 'habilitar_pregunta_abierta_final', False))
+        if not (cliente_habilita and curso_habilita):
+            logger.info(
+                "⚠️ [templates] Fallback pregunta abierta final por configuración | estudiante_id=%s | curso_id=%s | cliente_habilita=%s | curso_habilita=%s",
+                estudiante.id,
+                curso.id,
+                cliente_habilita,
+                curso_habilita,
+            )
         for p in preguntas_abiertas:
             ya_respondio = RespuestaAbiertaFinal.objects.filter(
                 pregunta=p,
@@ -107,6 +121,14 @@ def _generar_completado_final(estudiante, curso_id):
                 pregunta_abierta = p
                 break
     if pregunta_abierta:
+            logger.info(
+                "🧭 [templates] Pregunta abierta final seleccionada | estudiante_id=%s | curso_id=%s | pregunta_id=%s | orden=%s | texto=%s",
+                estudiante.id,
+                curso.id,
+                pregunta_abierta.id,
+                getattr(pregunta_abierta, 'orden', None),
+                (pregunta_abierta.pregunta or '')[:180],
+            )
             usar_gamificacion_final = bool(
                 getattr(curso, 'usar_gamificacion', False) or
                 (estudiante.cliente.usar_gamificacion if getattr(estudiante, 'cliente', None) else False)
@@ -1160,11 +1182,21 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 from .models import PreguntaAbiertaFinalCurso, RespuestaAbiertaFinal
 
                 pregunta_abierta = None
-                if _cliente_habilita_pregunta_abierta_final(estudiante.cliente) and getattr(progreso.curso, 'habilitar_pregunta_abierta_final', False):
-                    preguntas_abiertas = PreguntaAbiertaFinalCurso.objects.filter(
-                        curso=progreso.curso,
-                        activa=True
-                    ).order_by('orden', 'id')[:3]
+                preguntas_abiertas = PreguntaAbiertaFinalCurso.objects.filter(
+                    curso=progreso.curso,
+                    activa=True
+                ).order_by('orden', 'id')[:3]
+                if preguntas_abiertas.exists():
+                    cliente_habilita = _cliente_habilita_pregunta_abierta_final(estudiante.cliente)
+                    curso_habilita = bool(getattr(progreso.curso, 'habilitar_pregunta_abierta_final', False))
+                    if not (cliente_habilita and curso_habilita):
+                        logger.info(
+                            "⚠️ [templates] Fallback pregunta abierta final al completar curso | estudiante_id=%s | curso_id=%s | cliente_habilita=%s | curso_habilita=%s",
+                            estudiante.id,
+                            progreso.curso.id,
+                            cliente_habilita,
+                            curso_habilita,
+                        )
                     for p in preguntas_abiertas:
                         ya_respondio_abierta = RespuestaAbiertaFinal.objects.filter(
                             pregunta=p,
@@ -1173,6 +1205,16 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                         if not ya_respondio_abierta:
                             pregunta_abierta = p
                             break
+
+                if pregunta_abierta:
+                    logger.info(
+                        "🧭 [templates] Pregunta abierta final seleccionada al completar curso | estudiante_id=%s | curso_id=%s | pregunta_id=%s | orden=%s | texto=%s",
+                        estudiante.id,
+                        progreso.curso.id,
+                        pregunta_abierta.id,
+                        getattr(pregunta_abierta, 'orden', None),
+                        (pregunta_abierta.pregunta or '')[:180],
+                    )
 
                 usar_gamificacion_final = bool(
                     progreso.curso.usar_gamificacion or
@@ -1250,6 +1292,8 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                             'es_reto_final': True,
                             '_ts_leccion': _prev_ts,
                         }
+                        if pregunta_abierta:
+                            estudiante.contexto_temporal['pregunta_abierta_final_id'] = pregunta_abierta.id
                         estudiante.estado_onboarding = 'esperando_respuesta_asistente'
                         estudiante.save()
 
