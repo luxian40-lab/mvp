@@ -1284,7 +1284,7 @@ def _bot_comercial_diagnosticar_imagen(media_url: str, media_type: str) -> str:
         return "Recibí tu imagen, pero no pude completar el diagnóstico visual ahora."
 
 
-def _procesar_bot_comercial_twilio_webhook(post_data):
+def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
     """Webhook Twilio dedicado para bot comercial (texto libre, voz e imagen)."""
     from .rag_comercial_manager import rag_comercial_manager
 
@@ -1319,8 +1319,12 @@ def _procesar_bot_comercial_twilio_webhook(post_data):
             or ''
         ),
     )
-    if numero_bot_comercial and to_limpio and to_limpio != numero_bot_comercial:
-        logger.info(f"Webhook bot comercial ignorado por número destino distinto: to={to_limpio}")
+    if (not forzar_canal) and numero_bot_comercial and to_limpio and to_limpio != numero_bot_comercial:
+        logger.info(
+            "Webhook bot comercial ignorado por número destino distinto: to=%s esperado=%s",
+            to_limpio,
+            numero_bot_comercial,
+        )
         return
 
     if num_media > 0 and ('audio' in media_type or 'ogg' in media_type):
@@ -1397,9 +1401,11 @@ def bot_comercial_webhook(request):
     try:
         try:
             payload = json.loads(request.body.decode('utf-8'))
-            _procesar_bot_comercial_twilio_webhook(payload)
+            # Endpoint dedicado: siempre procesa como bot comercial/agro
+            _procesar_bot_comercial_twilio_webhook(payload, forzar_canal=True)
         except json.JSONDecodeError:
-            _procesar_bot_comercial_twilio_webhook(request.POST)
+            # Endpoint dedicado: siempre procesa como bot comercial/agro
+            _procesar_bot_comercial_twilio_webhook(request.POST, forzar_canal=True)
         return HttpResponse('OK')
     except Exception as e:
         logger.error(f"❌ Error webhook bot comercial: {e}")
