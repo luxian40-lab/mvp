@@ -1222,18 +1222,18 @@ def _bot_comercial_sin_contexto_natural(pregunta: str) -> str:
     saludos = {'hola', 'buenas', 'buenos dias', 'buen día', 'buenas tardes', 'buenas noches', 'hey'}
     if q in saludos or any(s in q for s in ['hola', 'buenas', 'buen dia', 'buen día']):
         return (
-            "Hola, soy tu asesor agrocomercial.\n\n"
-            "Te puedo orientar con manejo de cultivo y recomendaciones de producto "
-            "basadas en la información técnica cargada.\n\n"
-            "Cuéntame tu cultivo y objetivo (por ejemplo: nutrición, enfermedad, plaga o productividad)."
+            "Hola, soy tu asesor técnico agrícola.\n\n"
+            "Primero te ayudo con manejo del cultivo y luego, si aplica, te recomiendo "
+            "opciones de catálogo con base en la información indexada.\n\n"
+            "Cuéntame cultivo + objetivo (suelo, nutrición, enfermedad, plaga o productividad)."
         )
 
     if 'gulupa' in q:
         return (
             "Gracias. En este momento aún no tengo suficiente información técnica de *gulupa* "
             "cargada en mi base para responderte con precisión sin inventar datos.\n\n"
-            "Si quieres, te ayudo apenas subamos la ficha técnica. Puedes empezar diciéndome "
-            "si necesitas: tipo de suelo, pH recomendado, altitud, nutrición o manejo sanitario."
+            "Si quieres, te ayudo apenas subamos más fichas/informes. Puedes empezar diciéndome "
+            "qué necesitas: tipo de suelo, pH recomendado, altitud, nutrición o manejo sanitario."
         )
 
     return (
@@ -1244,23 +1244,24 @@ def _bot_comercial_sin_contexto_natural(pregunta: str) -> str:
 
 
 def _bot_comercial_respuesta_catalogo(pregunta: str, contexto_rag: str, diagnostico_vision: str = '') -> str:
-    """Genera respuesta comercial estricta basada en contexto RAG (sin alucinaciones)."""
+    """Genera respuesta técnica/comercial estricta basada en contexto RAG (sin alucinaciones)."""
     api_key = getattr(settings, 'OPENAI_API_KEY', '')
     if not api_key:
         if not contexto_rag:
             return _bot_comercial_sin_contexto_natural(pregunta)
         return (
-                "Con base en catálogo comercial:\n\n"
+                "Con base en la información técnica/comercial indexada:\n\n"
             f"{contexto_rag[:1000]}\n\n"
-            "Si deseas cotización, compárteme cantidad, municipio y cultivo."
+            "Si aplica cotización, compárteme cantidad, municipio y cultivo."
         )
 
     try:
         from openai import OpenAI
         client = OpenAI(api_key=api_key)
         system_prompt = (
-            "Eres un asesor agrocomercial cercano, claro y práctico (estilo humano de campo). "
-            "Regla crítica: SOLO puedes responder usando el CONTEXTO DE CATÁLOGO provisto. "
+            "Eres un asesor técnico agrícola cercano, claro y práctico (estilo humano de campo). "
+            "Primero prioriza orientación técnica y, cuando corresponda, recomendación de producto/catálogo. "
+            "Regla crítica: SOLO puedes responder usando el CONTEXTO INDEXADO provisto. "
             "Si falta información en contexto, dilo con naturalidad y sin repetir disculpas. "
             "No inventes productos, dosis ni precios. "
             "Cuando no haya contexto suficiente: 1) reconoce la intención, 2) explica qué falta, "
@@ -1270,7 +1271,7 @@ def _bot_comercial_respuesta_catalogo(pregunta: str, contexto_rag: str, diagnost
         user_prompt = (
             f"CONSULTA DEL CLIENTE:\n{pregunta}\n\n"
             f"DIAGNOSTICO VISION (si aplica):\n{diagnostico_vision or 'N/A'}\n\n"
-            f"CONTEXTO DE CATALOGO (fuente única):\n{contexto_rag or '[VACIO]'}"
+            f"CONTEXTO INDEXADO (fuente única: informes técnicos, fichas, catálogos, FAQ):\n{contexto_rag or '[VACIO]'}"
         )
         completion = client.chat.completions.create(
             model=getattr(settings, 'BOT_COMERCIAL_OPENAI_MODEL', 'gpt-4o-mini'),
@@ -1286,7 +1287,7 @@ def _bot_comercial_respuesta_catalogo(pregunta: str, contexto_rag: str, diagnost
         logger.warning(f"⚠️ Bot Comercial LLM fallback: {e}")
         if contexto_rag:
             return (
-                "Te comparto lo que encontré en catálogo comercial:\n\n"
+                "Te comparto lo que encontré en la base técnica/comercial indexada:\n\n"
                 f"{contexto_rag[:1000]}\n\n"
                 "Para cotizar, envíame cantidad y municipio."
             )
@@ -1393,9 +1394,10 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
 
     if (msg_body or '').lower() in ['listo', 'continuar', 'menu', 'menú']:
         texto_respuesta = (
-            "👨‍🌾 *Asistente Comercial IA*\n\n"
-            "Este canal es de consultoría y cotización libre.\n"
-            "Cuéntame tu cultivo, problema o producto a cotizar."
+            "👨‍🌾 *Asesor Técnico Agro IA*\n\n"
+            "Este canal te orienta primero en lo técnico del cultivo "
+            "y luego, si aplica, en opciones de catálogo.\n"
+            "Cuéntame tu cultivo y qué necesitas resolver."
         )
     else:
         cliente_id = int(
