@@ -1087,7 +1087,6 @@ class DocumentoRAGComercial(models.Model):
     """
     CANAL_CHOICES = [
         ('bot_comercial', 'Bot Comercial WhatsApp'),
-        ('agro_nexo', 'Agro Nexo WhatsApp'),
     ]
     TIPO_CHOICES = [
         ('producto', 'Producto / Catálogo'),

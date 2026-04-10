@@ -63,10 +63,9 @@ Actualizacion 9 de Abril (noche):
 Actualizacion 10 de Abril (madrugada):
 
 - El bot quedó unificado en comportamiento (asesoría técnica primero, comercial después).
-- La recuperación RAG busca en:
-   - canales `bot_comercial` y `agro_nexo`
-   - cliente configurado y scope general (`cliente_id=0`)
-- Objetivo: evitar respuestas vacías cuando los documentos fueron cargados en distintos canales/scopes.
+- Se estandarizó el canal comercial a uno solo: `bot_comercial`.
+- La recuperación RAG busca en cliente configurado y scope general (`cliente_id=0`).
+- Objetivo: evitar respuestas vacías y simplificar operación de un solo bot.
 
 ### 3.1) Archivos grandes y timeout Nginx
 

@@ -282,9 +282,7 @@ def bot_comercial_admin_view(request):
     endpoint_path = '/webhook/ia-bot-comercial/'
     endpoint_url = request.build_absolute_uri(endpoint_path)
     cliente_id = int(
-        getattr(settings, 'BOT_COMERCIAL_CLIENTE_ID', None)
-        or getattr(settings, 'AGRONEXO_CLIENTE_ID', 0)
-        or 0
+        getattr(settings, 'BOT_COMERCIAL_CLIENTE_ID', 0) or 0
     )
     canal_rag = str(getattr(settings, 'BOT_COMERCIAL_RAG_CANAL', 'bot_comercial') or 'bot_comercial')
 
@@ -1102,7 +1100,6 @@ def whatsapp_webhook(request):
             sandbox_number = _numero_limpio(getattr(settings, 'BOT_COMERCIAL_SANDBOX_NUMBER', '14155238886'))
             candidatos = {
                 _numero_limpio(getattr(settings, 'BOT_COMERCIAL_WHATSAPP_NUMBER', '')),
-                _numero_limpio(getattr(settings, 'AGRONEXO_WHATSAPP_NUMBER', '')),
             }
             candidatos.discard('')
             # En Sandbox de Twilio, forzar siempre canal comercial para no mezclar con bot educativo.
@@ -1362,11 +1359,7 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
     numero_bot_comercial = re.sub(
         r'\D',
         '',
-        str(
-            getattr(settings, 'BOT_COMERCIAL_WHATSAPP_NUMBER', '')
-            or getattr(settings, 'AGRONEXO_WHATSAPP_NUMBER', '')
-            or ''
-        ),
+        str(getattr(settings, 'BOT_COMERCIAL_WHATSAPP_NUMBER', '') or ''),
     )
     if (not forzar_canal) and numero_bot_comercial and to_limpio and to_limpio != numero_bot_comercial:
         logger.info(
@@ -1401,12 +1394,9 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
         )
     else:
         cliente_id_cfg = int(
-            getattr(settings, 'BOT_COMERCIAL_CLIENTE_ID', None)
-            or getattr(settings, 'AGRONEXO_CLIENTE_ID', 0)
-            or 0
+            getattr(settings, 'BOT_COMERCIAL_CLIENTE_ID', 0) or 0
         )
         canal_rag = str(getattr(settings, 'BOT_COMERCIAL_RAG_CANAL', 'bot_comercial') or 'bot_comercial')
-        canal_rag_alt = str(getattr(settings, 'AGRONEXO_RAG_CANAL', 'agro_nexo') or 'agro_nexo')
 
         diagnostico_vision = ''
         if num_media > 0 and media_type.startswith('image') and media_url:
@@ -1424,7 +1414,7 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                     cliente_ids_consulta.append(cid)
 
             canales_consulta = []
-            for c in [canal_rag, canal_rag_alt, 'bot_comercial', 'agro_nexo']:
+            for c in [canal_rag, 'bot_comercial']:
                 if c and c not in canales_consulta:
                     canales_consulta.append(c)
 

@@ -11,7 +11,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--ruta", required=True, help="Carpeta con archivos (.pdf, .docx, .txt)")
-        parser.add_argument("--canal", default="bot_comercial", help="Canal RAG (bot_comercial o agro_nexo)")
+        parser.add_argument("--canal", default="bot_comercial", help="Canal RAG (bot_comercial)")
         parser.add_argument("--cliente-id", type=int, default=0, help="ID cliente (0 = general)")
         parser.add_argument("--tipo", default="general", help="Tipo de documento (producto, precio, informe_tecnico, faq, politica, promo, general)")
         parser.add_argument("--indexar", action="store_true", help="Indexar inmediatamente al cargar")
