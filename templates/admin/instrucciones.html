@@ -528,6 +528,26 @@
 
             </div>
 
+            <div class="alert-box alert-success" style="margin-top: 12px;">
+                <strong>Actualizado 10 abril 2026:</strong> operación unificada en un solo canal comercial (<code>bot_comercial</code>)
+                con prioridad técnica y recuperación RAG reforzada (vectorial + fallback documental cuando el contexto no aparece).
+            </div>
+
+            <h3 style="margin-top: 20px;">Checklist rápido para calidad de respuestas</h3>
+            <ol>
+                <li>Verificar que los documentos estén en estado <strong>Indexado</strong> y con <strong>chunks &gt; 0</strong>.</li>
+                <li>Cargar documentos con tipo correcto (especialmente <strong>informe_tecnico</strong> para tesis/ICA).</li>
+                <li>Probar preguntas concretas: cultivo + variable (suelo, pH, altitud, nutrición, sanidad).</li>
+                <li>Si un PDF escaneado no extrae texto, convertir a PDF con OCR o DOCX/TXT para mejorar recuperación.</li>
+            </ol>
+
+            <h3 style="margin-top: 20px;">Escalamiento recomendado (guía práctica)</h3>
+            <ul>
+                <li><strong>Hasta 50-100 documentos:</strong> normalmente no requiere crecer PostgreSQL solo por tamaño.</li>
+                <li><strong>Preocuparse al crecer:</strong> cuando suba latencia de consulta, indexación lenta sostenida o aumente mucho concurrencia.</li>
+                <li><strong>Piloto educativo 100 usuarios:</strong> viable con baja simultaneidad; monitorear 5xx, p95/p99 y CPU.</li>
+            </ul>
+
         </div>
 
     </div>

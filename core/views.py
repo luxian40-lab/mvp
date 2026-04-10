@@ -1240,6 +1240,90 @@ def _bot_comercial_sin_contexto_natural(pregunta: str) -> str:
     )
 
 
+def _extraer_texto_archivo_simple(ruta_archivo: str) -> str:
+    """Extracción liviana de texto para fallback cuando RAG vectorial no retorna contexto."""
+    import os
+
+    ext = os.path.splitext(ruta_archivo)[1].lower()
+    try:
+        if ext == '.txt':
+            with open(ruta_archivo, 'r', encoding='utf-8', errors='ignore') as f:
+                return f.read()
+        if ext == '.pdf':
+            from PyPDF2 import PdfReader
+
+            reader = PdfReader(ruta_archivo)
+            return "\n".join((p.extract_text() or "") for p in reader.pages)
+        if ext == '.docx':
+            from docx import Document
+
+            doc = Document(ruta_archivo)
+            return "\n".join(p.text for p in doc.paragraphs)
+    except Exception:
+        return ""
+    return ""
+
+
+def _contexto_fallback_desde_documentos(cliente_ids: list, pregunta: str, max_chars: int = 1800) -> str:
+    """Fallback semántico simple sobre documentos indexados para evitar respuestas vacías."""
+    from django.db.models import Q
+    from .models import DocumentoRAGComercial
+    import re
+
+    tokens = [t for t in re.findall(r"[a-zA-ZáéíóúñÁÉÍÓÚÑ0-9]{4,}", (pregunta or '').lower())][:10]
+
+    qs = DocumentoRAGComercial.objects.filter(estado='indexado').filter(
+        Q(cliente_id__in=cliente_ids) | Q(cliente__isnull=True)
+    ).order_by('-fecha_indexado', '-fecha_subida')[:20]
+
+    fragmentos = []
+    chars_total = 0
+    for doc in qs:
+        try:
+            ruta = doc.archivo.path
+        except Exception:
+            ruta = doc._descargar_temp()
+        if not ruta:
+            continue
+
+        texto = _extraer_texto_archivo_simple(ruta)
+        if not texto:
+            continue
+
+        texto_norm = texto.lower()
+        score = sum(1 for tk in tokens if tk in texto_norm)
+        if score <= 0 and tokens:
+            continue
+
+        pos = 0
+        for tk in tokens:
+            p = texto_norm.find(tk)
+            if p >= 0:
+                pos = p
+                break
+
+        ini = max(0, pos - 260)
+        fin = min(len(texto), pos + 640)
+        snippet = texto[ini:fin].strip().replace('\x00', ' ')
+        if not snippet:
+            continue
+
+        bloque = f"[Fuente: {doc.nombre}]\n{snippet}"
+        if chars_total + len(bloque) > max_chars:
+            break
+        fragmentos.append(bloque)
+        chars_total += len(bloque)
+
+    if not fragmentos:
+        return ""
+
+    return (
+        "\n\n📚 CONTEXTO DOCUMENTAL (fallback por archivo indexado):\n"
+        + "\n---\n".join(fragmentos)
+        + "\n\n⚠️ Usa esta información como base técnica prioritaria."
+    )
+
+
 def _bot_comercial_respuesta_catalogo(pregunta: str, contexto_rag: str, diagnostico_vision: str = '') -> str:
     """Genera respuesta técnica/comercial estricta basada en contexto RAG (sin alucinaciones)."""
     api_key = getattr(settings, 'OPENAI_API_KEY', '')
@@ -1270,8 +1354,9 @@ def _bot_comercial_respuesta_catalogo(pregunta: str, contexto_rag: str, diagnost
             f"DIAGNOSTICO VISION (si aplica):\n{diagnostico_vision or 'N/A'}\n\n"
             f"CONTEXTO INDEXADO (fuente única: informes técnicos, fichas, catálogos, FAQ):\n{contexto_rag or '[VACIO]'}"
         )
+        modelo = str(getattr(settings, 'BOT_COMERCIAL_OPENAI_MODEL', '') or 'gpt-4o-mini')
         completion = client.chat.completions.create(
-            model=getattr(settings, 'BOT_COMERCIAL_OPENAI_MODEL', 'gpt-4o-mini'),
+            model=modelo,
             temperature=0.2,
             messages=[
                 {'role': 'system', 'content': system_prompt},
@@ -1450,6 +1535,15 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                         break
                 if contexto_rag:
                     break
+
+            if not contexto_rag:
+                contexto_rag = _contexto_fallback_desde_documentos(
+                    cliente_ids=cliente_ids_consulta,
+                    pregunta=consulta,
+                    max_chars=1800,
+                )
+                if contexto_rag:
+                    logger.info("🧠 RAG fallback documental usado | contexto_chars=%s", len(contexto_rag))
 
         texto_respuesta = _bot_comercial_respuesta_catalogo(
             pregunta=consulta,
