@@ -5710,6 +5710,7 @@ class DocumentoRAGComercialAdmin(admin.ModelAdmin):
         colores = {
             'producto': '#0ea5e9',
             'precio': '#ef4444',
+            'informe_tecnico': '#475569',
             'faq': '#f59e0b',
             'politica': '#64748b',
             'promo': '#10b981',

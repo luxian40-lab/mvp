@@ -1404,6 +1404,7 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
             or 0
         )
         canal_rag = str(getattr(settings, 'BOT_COMERCIAL_RAG_CANAL', 'bot_comercial') or 'bot_comercial')
+        canal_rag_alt = str(getattr(settings, 'AGRONEXO_RAG_CANAL', 'agro_nexo') or 'agro_nexo')
 
         diagnostico_vision = ''
         if num_media > 0 and media_type.startswith('image') and media_url:
@@ -1415,12 +1416,21 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
 
         contexto_rag = ''
         if cliente_id >= 0 and rag_comercial_manager.disponible:
-            contexto_rag = rag_comercial_manager.obtener_contexto_para_bot(
-                cliente_id=cliente_id,
-                canal=canal_rag,
-                pregunta=consulta,
-                max_chars=2200,
-            )
+            canales_consulta = []
+            for c in [canal_rag, canal_rag_alt, 'bot_comercial', 'agro_nexo']:
+                if c and c not in canales_consulta:
+                    canales_consulta.append(c)
+
+            for canal in canales_consulta:
+                contexto_rag = rag_comercial_manager.obtener_contexto_para_bot(
+                    cliente_id=cliente_id,
+                    canal=canal,
+                    pregunta=consulta,
+                    max_chars=2200,
+                )
+                if contexto_rag:
+                    logger.info("🧠 RAG comercial usado | cliente_id=%s | canal=%s", cliente_id, canal)
+                    break
 
         texto_respuesta = _bot_comercial_respuesta_catalogo(
             pregunta=consulta,

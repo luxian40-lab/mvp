@@ -50,9 +50,26 @@ Ya esta implementado el flujo para alimentar el bot comercial/agro con documento
 Carga recomendada inicial:
 - Fichas de producto
 - Lista de precios
+- Informes tecnicos (ICA / ensayos / validaciones)
 - FAQ comercial
 - Politicas comerciales
 - Promociones
+
+Actualizacion 9 de Abril (noche):
+
+- Se agregó tipo documental `informe_tecnico` en `DocumentoRAGComercial`.
+- El bot comercial ahora consulta contexto en ambos canales (`bot_comercial` y `agro_nexo`) para operar como un solo bot comercial desde la perspectiva del usuario.
+
+### 3.1) Archivos grandes y timeout Nginx
+
+Si al subir documentos grandes por admin aparece timeout, el archivo puede quedar guardado igualmente y luego indexarse.
+
+Recomendación operativa para lotes grandes:
+
+- Usar carga masiva por comando en servidor:
+   - `python manage.py cargar_rag_comercial_lote --ruta /ruta/docs --canal agro_nexo --cliente-id 0 --tipo informe_tecnico --indexar`
+
+Esto evita depender del timeout del navegador/admin para cargas grandes.
 
 Volumen actual (55 a 100 archivos por tema) soportado para MVP.
 Para escalar, mantener separacion por canal y cliente desde ahora.

@@ -1092,6 +1092,7 @@ class DocumentoRAGComercial(models.Model):
     TIPO_CHOICES = [
         ('producto', 'Producto / Catálogo'),
         ('precio', 'Precio / Lista comercial'),
+        ('informe_tecnico', 'Informe técnico (ICA / ensayos)'),
         ('faq', 'Preguntas frecuentes comerciales'),
         ('politica', 'Políticas comerciales'),
         ('promo', 'Promociones'),

@@ -13,7 +13,7 @@ class Command(BaseCommand):
         parser.add_argument("--ruta", required=True, help="Carpeta con archivos (.pdf, .docx, .txt)")
         parser.add_argument("--canal", default="bot_comercial", help="Canal RAG (bot_comercial o agro_nexo)")
         parser.add_argument("--cliente-id", type=int, default=0, help="ID cliente (0 = general)")
-        parser.add_argument("--tipo", default="general", help="Tipo de documento (producto, precio, faq, politica, promo, general)")
+        parser.add_argument("--tipo", default="general", help="Tipo de documento (producto, precio, informe_tecnico, faq, politica, promo, general)")
         parser.add_argument("--indexar", action="store_true", help="Indexar inmediatamente al cargar")
 
     def handle(self, *args, **options):
@@ -22,6 +22,10 @@ class Command(BaseCommand):
         cliente_id = int(options.get("cliente_id") or 0)
         tipo = (options["tipo"] or "general").strip()
         indexar = bool(options.get("indexar"))
+
+        tipos_validos = {k for k, _ in DocumentoRAGComercial.TIPO_CHOICES}
+        if tipo not in tipos_validos:
+            raise CommandError(f"Tipo inválido: {tipo}. Usa uno de: {', '.join(sorted(tipos_validos))}")
 
         if not base.exists() or not base.is_dir():
             raise CommandError(f"Ruta no válida: {base}")
