@@ -1230,16 +1230,16 @@ def _bot_comercial_sin_contexto_natural(pregunta: str) -> str:
 
     if 'gulupa' in q:
         return (
-            "Gracias. En este momento aún no tengo suficiente información técnica de *gulupa* "
-            "cargada en mi base para responderte con precisión sin inventar datos.\n\n"
-            "Si quieres, te ayudo apenas subamos más fichas/informes. Puedes empezar diciéndome "
-            "qué necesitas: tipo de suelo, pH recomendado, altitud, nutrición o manejo sanitario."
+            "Perfecto, trabajemos *gulupa*.\n\n"
+            "Puedo orientarte en suelo, pH, altitud, nutrición y manejo sanitario "
+            "usando lo que ya está indexado en la base técnica.\n\n"
+            "Para darte una respuesta precisa, dime el punto puntual que quieres resolver primero."
         )
 
     return (
-        "Te entiendo. Ahora mismo no tengo contexto técnico suficiente en la base para esa consulta.\n\n"
-        "Si me indicas cultivo + problema puntual, te digo exactamente qué dato falta y "
-        "qué documento conviene cargar para responderte bien."
+        "Entendido. Vamos a resolverlo de forma técnica y práctica.\n\n"
+        "Indícame cultivo + objetivo puntual (suelo, nutrición, plaga o enfermedad) "
+        "y te respondo con base en la información indexada disponible."
     )
 
 
@@ -1400,7 +1400,7 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
             "Cuéntame tu cultivo y qué necesitas resolver."
         )
     else:
-        cliente_id = int(
+        cliente_id_cfg = int(
             getattr(settings, 'BOT_COMERCIAL_CLIENTE_ID', None)
             or getattr(settings, 'AGRONEXO_CLIENTE_ID', 0)
             or 0
@@ -1417,21 +1417,29 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
             consulta = f"{consulta}\n\nDiagnóstico preliminar imagen: {diagnostico_vision}"
 
         contexto_rag = ''
-        if cliente_id >= 0 and rag_comercial_manager.disponible:
+        if rag_comercial_manager.disponible:
+            cliente_ids_consulta = []
+            for cid in [cliente_id_cfg, 0]:
+                if cid not in cliente_ids_consulta:
+                    cliente_ids_consulta.append(cid)
+
             canales_consulta = []
             for c in [canal_rag, canal_rag_alt, 'bot_comercial', 'agro_nexo']:
                 if c and c not in canales_consulta:
                     canales_consulta.append(c)
 
-            for canal in canales_consulta:
-                contexto_rag = rag_comercial_manager.obtener_contexto_para_bot(
-                    cliente_id=cliente_id,
-                    canal=canal,
-                    pregunta=consulta,
-                    max_chars=2200,
-                )
+            for cid in cliente_ids_consulta:
+                for canal in canales_consulta:
+                    contexto_rag = rag_comercial_manager.obtener_contexto_para_bot(
+                        cliente_id=cid,
+                        canal=canal,
+                        pregunta=consulta,
+                        max_chars=2200,
+                    )
+                    if contexto_rag:
+                        logger.info("🧠 RAG comercial usado | cliente_id=%s | canal=%s", cid, canal)
+                        break
                 if contexto_rag:
-                    logger.info("🧠 RAG comercial usado | cliente_id=%s | canal=%s", cliente_id, canal)
                     break
 
         texto_respuesta = _bot_comercial_respuesta_catalogo(

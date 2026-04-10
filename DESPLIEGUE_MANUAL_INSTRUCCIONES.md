@@ -60,6 +60,14 @@ Actualizacion 9 de Abril (noche):
 - Se agregó tipo documental `informe_tecnico` en `DocumentoRAGComercial`.
 - El bot comercial ahora consulta contexto en ambos canales (`bot_comercial` y `agro_nexo`) para operar como un solo bot comercial desde la perspectiva del usuario.
 
+Actualizacion 10 de Abril (madrugada):
+
+- El bot quedó unificado en comportamiento (asesoría técnica primero, comercial después).
+- La recuperación RAG busca en:
+   - canales `bot_comercial` y `agro_nexo`
+   - cliente configurado y scope general (`cliente_id=0`)
+- Objetivo: evitar respuestas vacías cuando los documentos fueron cargados en distintos canales/scopes.
+
 ### 3.1) Archivos grandes y timeout Nginx
 
 Si al subir documentos grandes por admin aparece timeout, el archivo puede quedar guardado igualmente y luego indexarse.
