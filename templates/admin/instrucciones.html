@@ -541,6 +541,14 @@
                 <li>Si un PDF escaneado no extrae texto, convertir a PDF con OCR o DOCX/TXT para mejorar recuperación.</li>
             </ol>
 
+            <h3 style="margin-top: 20px;">Debug rápido cuando responde "verde"</h3>
+            <ul>
+                <li>Revisar logs de entrada Twilio y confirmar el <strong>To</strong> del mensaje.</li>
+                <li>Si ves en logs "destino educativo detectado", el mensaje no está entrando al flujo comercial.</li>
+                <li>Para pruebas controladas de bot comercial, activar variable de entorno: <strong>BOT_COMERCIAL_FORCE_ROUTING=true</strong>.</li>
+                <li>Con esa variable activa, todo ingreso Twilio se enruta al bot comercial durante la sesión de pruebas.</li>
+            </ul>
+
             <h3 style="margin-top: 20px;">Escalamiento recomendado (guía práctica)</h3>
             <ul>
                 <li><strong>Hasta 50-100 documentos:</strong> normalmente no requiere crecer PostgreSQL solo por tamaño.</li>

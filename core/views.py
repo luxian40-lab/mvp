@@ -300,6 +300,7 @@ def bot_comercial_admin_view(request):
         'bot_comercial_whatsapp_number': getattr(settings, 'BOT_COMERCIAL_WHATSAPP_NUMBER', ''),
         'bot_comercial_cliente_id': getattr(settings, 'BOT_COMERCIAL_CLIENTE_ID', ''),
         'bot_comercial_rag_canal': canal_rag,
+        'bot_comercial_force_routing': bool(getattr(settings, 'BOT_COMERCIAL_FORCE_ROUTING', False)),
         'bot_comercial_openai_model': getattr(settings, 'BOT_COMERCIAL_OPENAI_MODEL', ''),
         'bot_comercial_vision_model': getattr(settings, 'BOT_COMERCIAL_VISION_MODEL', ''),
         'rag_comercial_disponible': rag_comercial_manager.disponible,
@@ -1094,6 +1095,8 @@ def whatsapp_webhook(request):
             return re.sub(r'\D', '', str(valor or ''))
 
         def _es_destino_bot_comercial(data):
+            if bool(getattr(settings, 'BOT_COMERCIAL_FORCE_ROUTING', False)):
+                return True
             to_limpio = _numero_limpio(data.get('To', ''))
             if not to_limpio:
                 return False
