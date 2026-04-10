@@ -1408,8 +1408,22 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
 
         contexto_rag = ''
         if rag_comercial_manager.disponible:
+            from .models import DocumentoRAGComercial
+
             cliente_ids_consulta = []
             for cid in [cliente_id_cfg, 0]:
+                if cid not in cliente_ids_consulta:
+                    cliente_ids_consulta.append(cid)
+
+            # Robustez: si el cliente configurado no coincide con donde se indexaron docs,
+            # buscar también en clientes con documentos comerciales indexados.
+            clientes_indexados = list(
+                DocumentoRAGComercial.objects.filter(estado='indexado')
+                .exclude(cliente_id__isnull=True)
+                .values_list('cliente_id', flat=True)
+                .distinct()[:20]
+            )
+            for cid in clientes_indexados:
                 if cid not in cliente_ids_consulta:
                     cliente_ids_consulta.append(cid)
 
@@ -1427,7 +1441,12 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                         max_chars=2200,
                     )
                     if contexto_rag:
-                        logger.info("🧠 RAG comercial usado | cliente_id=%s | canal=%s", cid, canal)
+                        logger.info(
+                            "🧠 RAG comercial usado | cliente_id=%s | canal=%s | contexto_chars=%s",
+                            cid,
+                            canal,
+                            len(contexto_rag),
+                        )
                         break
                 if contexto_rag:
                     break
