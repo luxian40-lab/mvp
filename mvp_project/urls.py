@@ -67,6 +67,7 @@ urlpatterns = [
     path('admin/importar-prospectos/', importar_prospectos, name='importar_prospectos'),
     path('admin/calendario/', calendario_campanas_view, name='calendario_campanas'),
     path('admin/conversaciones/', conversaciones_view, name='conversaciones'),
+    path('admin/instruccion/', instrucciones_view, name='instruccion_alias'),
     path('admin/instrucciones/', instrucciones_view, name='instrucciones'),
     path('admin/bot-comercial/', bot_comercial_admin_view, name='bot_comercial_admin_view'),
     path('admin/test-email/', test_email_gmail_view, name='test_email_gmail'),

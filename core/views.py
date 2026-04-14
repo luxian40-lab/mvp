@@ -1718,7 +1718,23 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
         agente_usado='BOT_COMERCIAL',
     )
 
-    if (msg_body or '').lower() in ['listo', 'continuar', 'menu', 'menú']:
+    msg_normalizado = re.sub(r'\s+', ' ', (msg_body or '').strip().lower())
+    es_saludo = bool(
+        re.match(
+            r'^(hola|buenas|buenos dias|buen día|buenas tardes|buenas noches|hey|que tal|qué tal)\b',
+            msg_normalizado,
+        )
+    )
+
+    if es_saludo:
+        texto_respuesta = (
+            "Hola, soy tu bot de EKI.\n\n"
+            "Te ayudo primero con la parte técnica de tus consultas agrícolas "
+            "(suelo, nutrición, plagas, enfermedades y productividad) "
+            "y luego, si aplica, con recomendación comercial.\n\n"
+            "Cuéntame cultivo + objetivo puntual y empezamos."
+        )
+    elif msg_normalizado in ['listo', 'continuar', 'menu', 'menú']:
         texto_respuesta = (
             "👨‍🌾 *Asesor Técnico Agro IA*\n\n"
             "Este canal te orienta primero en lo técnico del cultivo "
