@@ -395,6 +395,15 @@ BOT_COMERCIAL_RAG_CANAL = os.environ.get('BOT_COMERCIAL_RAG_CANAL', 'bot_comerci
 BOT_COMERCIAL_OPENAI_MODEL = os.environ.get('BOT_COMERCIAL_OPENAI_MODEL', 'gpt-4o-mini')
 BOT_COMERCIAL_VISION_MODEL = os.environ.get('BOT_COMERCIAL_VISION_MODEL', 'gpt-4o-mini')
 BOT_COMERCIAL_FORCE_ROUTING = os.environ.get('BOT_COMERCIAL_FORCE_ROUTING', 'false').strip().lower() in ['1', 'true', 'yes', 'on']
+BOT_COMERCIAL_WEB_FALLBACK_ENABLED = os.environ.get('BOT_COMERCIAL_WEB_FALLBACK_ENABLED', 'true').strip().lower() in ['1', 'true', 'yes', 'on']
+try:
+    BOT_COMERCIAL_WEB_FALLBACK_TIMEOUT = float(os.environ.get('BOT_COMERCIAL_WEB_FALLBACK_TIMEOUT', '6'))
+except (TypeError, ValueError):
+    BOT_COMERCIAL_WEB_FALLBACK_TIMEOUT = 6.0
+try:
+    BOT_COMERCIAL_WEB_FALLBACK_MAX_FUENTES = int(os.environ.get('BOT_COMERCIAL_WEB_FALLBACK_MAX_FUENTES', '4'))
+except (TypeError, ValueError):
+    BOT_COMERCIAL_WEB_FALLBACK_MAX_FUENTES = 4
 
 # ==========================================
 # 🌱 AGRO NEXO IA (Segundo número / webhook)
@@ -405,6 +414,16 @@ AGRONEXO_WHATSAPP_NUMBER = os.environ.get('AGRONEXO_WHATSAPP_NUMBER', BOT_COMERC
 AGRONEXO_RAG_CANAL = os.environ.get('AGRONEXO_RAG_CANAL', 'agro_nexo')
 AGRONEXO_OPENAI_MODEL = os.environ.get('AGRONEXO_OPENAI_MODEL', BOT_COMERCIAL_OPENAI_MODEL)
 AGRONEXO_VISION_MODEL = os.environ.get('AGRONEXO_VISION_MODEL', BOT_COMERCIAL_VISION_MODEL)
+
+# ==========================================
+# 🔐 API INTEGRACION (ANGULAR / LXP)
+# ==========================================
+INTEGRACION_API_KEY = os.environ.get('INTEGRACION_API_KEY', '')
+INTEGRACION_API_ALLOWED_ORIGINS = os.environ.get('INTEGRACION_API_ALLOWED_ORIGINS', '*')
+try:
+    INTEGRACION_API_MAX_DIAS = int(os.environ.get('INTEGRACION_API_MAX_DIAS', '31'))
+except (TypeError, ValueError):
+    INTEGRACION_API_MAX_DIAS = 31
 
 # ==========================================
 # 🤖 GOOGLE GEMINI API

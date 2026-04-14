@@ -5,14 +5,18 @@ Endpoints:
 - GET /api/estudiante/{telefono}/progreso/ → progreso detallado
 - GET /api/estudiante/{telefono}/siguiente-tarea/ → siguiente tarea
 """
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
+from django.conf import settings
 from django.db.models import Q
 from django.db.models import Count
+from django.db.models.functions import TruncDate
+from datetime import datetime, timedelta
 import json
 import math
+import hmac
 from .models import Estudiante, Campana, EnvioLog, AliadoEmpleabilidad, MisionEmpleabilidad
 
 
@@ -425,32 +429,145 @@ def api_empleabilidad_resumen(request):
 
 
 @csrf_exempt
-@require_http_methods(["GET"])
+@require_http_methods(["GET", "OPTIONS"])
 def api_integracion_empleabilidad_metricas(request):
     """GET /api/integracion/empleabilidad/metricas/?cliente_id=...&fecha=YYYY-MM-DD"""
-    cliente_id = request.GET.get('cliente_id')
-    fecha = request.GET.get('fecha') or str(timezone.localdate())
+    def _cors(resp):
+        allowed_raw = str(getattr(settings, 'INTEGRACION_API_ALLOWED_ORIGINS', '*') or '*').strip()
+        origin = (request.headers.get('Origin', '') or '').strip()
 
-    qs = MisionEmpleabilidad.objects.filter(fecha_descubierta__date=fecha)
-    if cliente_id:
+        allow_origin = '*'
+        if allowed_raw != '*':
+            allowed = [o.strip() for o in allowed_raw.split(',') if o.strip()]
+            if origin and origin in allowed:
+                allow_origin = origin
+            elif allowed:
+                allow_origin = allowed[0]
+
+        resp['Access-Control-Allow-Origin'] = allow_origin
+        resp['Vary'] = 'Origin'
+        resp['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+        resp['Access-Control-Allow-Headers'] = 'Authorization, Content-Type, X-API-Key'
+        resp['Access-Control-Max-Age'] = '86400'
+        return resp
+
+    if request.method == 'OPTIONS':
+        return _cors(HttpResponse(status=204))
+
+    expected_key = str(getattr(settings, 'INTEGRACION_API_KEY', '') or '').strip()
+    if expected_key:
+        auth_header = (request.headers.get('Authorization', '') or '').strip()
+        provided = ''
+        if auth_header.lower().startswith('bearer '):
+            provided = auth_header.split(' ', 1)[1].strip()
+        if not provided:
+            provided = (request.headers.get('X-API-Key', '') or request.GET.get('api_key', '') or '').strip()
+
+        if not provided or not hmac.compare_digest(provided, expected_key):
+            return _cors(JsonResponse({'success': False, 'error': 'No autorizado'}, status=401))
+
+    cliente_id_raw = (request.GET.get('cliente_id') or '').strip()
+    cliente_id = None
+    if cliente_id_raw:
+        try:
+            cliente_id = int(cliente_id_raw)
+        except ValueError:
+            return _cors(JsonResponse({'success': False, 'error': 'cliente_id debe ser numérico'}, status=400))
+
+    fecha_raw = (request.GET.get('fecha') or '').strip()
+    desde_raw = (request.GET.get('desde') or '').strip()
+    hasta_raw = (request.GET.get('hasta') or '').strip()
+
+    def _parse_iso(value: str):
+        try:
+            return datetime.strptime(value, '%Y-%m-%d').date()
+        except Exception:
+            return None
+
+    if desde_raw or hasta_raw:
+        fecha_desde = _parse_iso(desde_raw)
+        fecha_hasta = _parse_iso(hasta_raw)
+        if not fecha_desde or not fecha_hasta:
+            return _cors(JsonResponse({'success': False, 'error': 'desde y hasta deben usar formato YYYY-MM-DD'}, status=400))
+    else:
+        fecha_unica = _parse_iso(fecha_raw) if fecha_raw else timezone.localdate()
+        if not fecha_unica:
+            return _cors(JsonResponse({'success': False, 'error': 'fecha debe usar formato YYYY-MM-DD'}, status=400))
+        fecha_desde = fecha_unica
+        fecha_hasta = fecha_unica
+
+    if fecha_hasta < fecha_desde:
+        return _cors(JsonResponse({'success': False, 'error': 'hasta no puede ser menor que desde'}, status=400))
+
+    max_dias = int(getattr(settings, 'INTEGRACION_API_MAX_DIAS', 31) or 31)
+    rango_dias = (fecha_hasta - fecha_desde).days + 1
+    if rango_dias > max_dias:
+        return _cors(JsonResponse({
+            'success': False,
+            'error': f'Rango máximo permitido: {max_dias} días',
+        }, status=400))
+
+    qs = MisionEmpleabilidad.objects.filter(
+        fecha_descubierta__date__gte=fecha_desde,
+        fecha_descubierta__date__lte=fecha_hasta,
+    )
+    if cliente_id is not None:
         qs = qs.filter(cliente_id=cliente_id)
 
+    agregados = list(
+        qs.annotate(metric_day=TruncDate('fecha_descubierta'))
+        .values('metric_day', 'estado_flujo')
+        .annotate(c=Count('id'))
+        .order_by('metric_day', 'estado_flujo')
+    )
+
     metrics = []
-    for estado, count in qs.values_list('estado_flujo').annotate(c=Count('id')):
+    resumen_por_estado = {}
+    resumen_por_dia = {}
+
+    for row in agregados:
+        day = row.get('metric_day')
+        estado = row.get('estado_flujo') or 'sin_estado'
+        count = int(row.get('c') or 0)
+        day_txt = str(day or fecha_desde)
+
+        resumen_por_estado[estado] = resumen_por_estado.get(estado, 0) + count
+        resumen_por_dia[day_txt] = resumen_por_dia.get(day_txt, 0) + count
+
         metrics.append({
             'schema_version': 1,
-            'metric_date': fecha,
-            'tenant_id': int(cliente_id) if cliente_id else None,
+            'metric_date': day_txt,
+            'tenant_id': cliente_id,
             'metric_name': f'embudo_{estado}',
             'metric_value': count,
         })
 
-    metrics.append({
-        'schema_version': 1,
-        'metric_date': fecha,
-        'tenant_id': int(cliente_id) if cliente_id else None,
-        'metric_name': 'misiones_total',
-        'metric_value': qs.count(),
-    })
+    # Garantizar serie completa por día para consumo en frontend.
+    d = fecha_desde
+    while d <= fecha_hasta:
+        day_txt = d.isoformat()
+        metrics.append({
+            'schema_version': 1,
+            'metric_date': day_txt,
+            'tenant_id': cliente_id,
+            'metric_name': 'misiones_total',
+            'metric_value': int(resumen_por_dia.get(day_txt, 0)),
+        })
+        d += timedelta(days=1)
 
-    return JsonResponse({'success': True, 'metrics': metrics})
+    response = JsonResponse({
+        'success': True,
+        'meta': {
+            'schema_version': 1,
+            'tenant_id': cliente_id,
+            'desde': fecha_desde.isoformat(),
+            'hasta': fecha_hasta.isoformat(),
+            'dias': rango_dias,
+        },
+        'resumen': {
+            'misiones_total': int(qs.count()),
+            'por_estado': resumen_por_estado,
+        },
+        'metrics': metrics,
+    })
+    return _cors(response)

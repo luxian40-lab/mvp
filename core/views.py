@@ -1327,16 +1327,250 @@ def _contexto_fallback_desde_documentos(cliente_ids: list, pregunta: str, max_ch
     )
 
 
-def _bot_comercial_respuesta_catalogo(pregunta: str, contexto_rag: str, diagnostico_vision: str = '') -> str:
+def _normalizar_consulta_web(pregunta: str) -> str:
+    """Normaliza consulta para búsquedas web/académicas de respaldo."""
+    import re
+
+    tokens = re.findall(r"[a-zA-ZáéíóúñÁÉÍÓÚÑ0-9]{3,}", (pregunta or '').lower())
+    stop = {
+        'para', 'como', 'donde', 'cuando', 'cuanto', 'cuantos', 'cual', 'cuales',
+        'tengo', 'necesito', 'quiero', 'sobre', 'desde', 'hasta', 'entre', 'esta',
+        'este', 'estos', 'estas', 'porque', 'favor', 'hola', 'buenas', 'dias',
+        'tarde', 'noche', 'gracias', 'cultivo', 'agricola', 'agricultura',
+    }
+    claves = [t for t in tokens if t not in stop]
+    if not claves:
+        return (pregunta or '').strip()[:120]
+    return ' '.join(claves[:10]).strip()
+
+
+def _contexto_fallback_web_agro(pregunta: str, max_chars: int = 1800) -> str:
+    """Busca referencias externas cuando aún no hay contexto RAG suficiente."""
+    if not bool(getattr(settings, 'BOT_COMERCIAL_WEB_FALLBACK_ENABLED', True)):
+        return ""
+
+    try:
+        timeout = float(getattr(settings, 'BOT_COMERCIAL_WEB_FALLBACK_TIMEOUT', 6.0) or 6.0)
+    except Exception:
+        timeout = 6.0
+    try:
+        max_fuentes = int(getattr(settings, 'BOT_COMERCIAL_WEB_FALLBACK_MAX_FUENTES', 4) or 4)
+    except Exception:
+        max_fuentes = 4
+
+    query_base = _normalizar_consulta_web(pregunta)
+    if not query_base:
+        return ""
+
+    import re
+    from html import unescape
+    from urllib.parse import quote_plus
+
+    fuentes = []
+    vistos = set()
+
+    # 1) Base académica abierta (Crossref) como aproximación a literatura técnica.
+    try:
+        r = requests.get(
+            'https://api.crossref.org/works',
+            params={
+                'query': query_base,
+                'rows': max_fuentes,
+                'sort': 'relevance',
+                'order': 'desc',
+                'select': 'title,container-title,published-print,published-online,created,DOI,URL,abstract',
+            },
+            timeout=timeout,
+            headers={'User-Agent': 'eki-bot-comercial/1.0'},
+        )
+        r.raise_for_status()
+        payload = r.json() or {}
+        for item in (payload.get('message') or {}).get('items', [])[:max_fuentes]:
+            titulo = ((item.get('title') or [''])[0] or '').strip()
+            if not titulo:
+                continue
+
+            anio = ''
+            for k in ['published-print', 'published-online', 'created']:
+                dp = ((item.get(k) or {}).get('date-parts') or [])
+                if dp and dp[0]:
+                    anio = str(dp[0][0])
+                    break
+
+            revista = ((item.get('container-title') or [''])[0] or '').strip()
+            doi = (item.get('DOI') or '').strip()
+            url = (item.get('URL') or '').strip()
+            resumen = re.sub(r'<[^>]+>', ' ', unescape((item.get('abstract') or '').strip()))
+            resumen = re.sub(r'\s+', ' ', resumen).strip()[:280]
+
+            clave = (titulo.lower(), url.lower())
+            if clave in vistos:
+                continue
+            vistos.add(clave)
+
+            fuentes.append({
+                'origen': 'Academico/Crossref',
+                'titulo': titulo,
+                'resumen': resumen or f"Referencia técnica {anio or ''} {revista}".strip(),
+                'url': url or (f"https://doi.org/{doi}" if doi else ''),
+            })
+    except Exception as e:
+        logger.info("🌐 Fallback académico no disponible: %s", e)
+
+    # 2) Internet general: DuckDuckGo Instant Answer.
+    try:
+        r = requests.get(
+            'https://api.duckduckgo.com/',
+            params={
+                'q': f"{query_base} manejo agronomico",
+                'format': 'json',
+                'no_html': 1,
+                'skip_disambig': 1,
+            },
+            timeout=timeout,
+            headers={'User-Agent': 'eki-bot-comercial/1.0'},
+        )
+        r.raise_for_status()
+        data = r.json() or {}
+
+        if data.get('AbstractText') and data.get('AbstractURL'):
+            titulo_abs = (data.get('Heading') or 'Resumen web técnico').strip()
+            clave = (titulo_abs.lower(), (data.get('AbstractURL') or '').lower())
+            if clave not in vistos:
+                vistos.add(clave)
+                fuentes.append({
+                    'origen': 'Internet/DuckDuckGo',
+                    'titulo': titulo_abs,
+                    'resumen': str(data.get('AbstractText') or '').strip()[:280],
+                    'url': str(data.get('AbstractURL') or '').strip(),
+                })
+
+        def _iter_topics(items):
+            for it in items or []:
+                if isinstance(it, dict) and 'Text' in it and 'FirstURL' in it:
+                    yield it
+                for sub in (it.get('Topics') if isinstance(it, dict) else []) or []:
+                    if isinstance(sub, dict) and 'Text' in sub and 'FirstURL' in sub:
+                        yield sub
+
+        for it in _iter_topics(data.get('RelatedTopics')):
+            titulo = str(it.get('Text') or '').strip()
+            url = str(it.get('FirstURL') or '').strip()
+            if not titulo or not url:
+                continue
+            clave = (titulo.lower(), url.lower())
+            if clave in vistos:
+                continue
+            vistos.add(clave)
+            fuentes.append({
+                'origen': 'Internet/DuckDuckGo',
+                'titulo': titulo[:160],
+                'resumen': titulo[:280],
+                'url': url,
+            })
+            if len(fuentes) >= max_fuentes * 2:
+                break
+    except Exception as e:
+        logger.info("🌐 Fallback internet no disponible: %s", e)
+
+    # 3) Respaldo Wikipedia ES cuando no hay suficiente info externa.
+    if len(fuentes) < max_fuentes:
+        try:
+            r = requests.get(
+                'https://es.wikipedia.org/w/api.php',
+                params={
+                    'action': 'query',
+                    'list': 'search',
+                    'srsearch': f"{query_base} agricultura",
+                    'srlimit': max_fuentes,
+                    'format': 'json',
+                    'utf8': 1,
+                },
+                timeout=timeout,
+                headers={'User-Agent': 'eki-bot-comercial/1.0'},
+            )
+            r.raise_for_status()
+            data = r.json() or {}
+            for item in ((data.get('query') or {}).get('search') or []):
+                titulo = str(item.get('title') or '').strip()
+                snippet = re.sub(r'<[^>]+>', ' ', unescape(str(item.get('snippet') or '')))
+                snippet = re.sub(r'\s+', ' ', snippet).strip()[:280]
+                if not titulo:
+                    continue
+                url = f"https://es.wikipedia.org/wiki/{quote_plus(titulo.replace(' ', '_'))}"
+                clave = (titulo.lower(), url.lower())
+                if clave in vistos:
+                    continue
+                vistos.add(clave)
+                fuentes.append({
+                    'origen': 'Internet/Wikipedia',
+                    'titulo': titulo,
+                    'resumen': snippet or 'Referencia general de agricultura.',
+                    'url': url,
+                })
+                if len(fuentes) >= max_fuentes * 2:
+                    break
+        except Exception as e:
+            logger.info("🌐 Fallback Wikipedia no disponible: %s", e)
+
+    if not fuentes:
+        return ""
+
+    bloques = []
+    chars_total = 0
+    for idx, f in enumerate(fuentes[: max_fuentes * 2], start=1):
+        bloque = (
+            f"[Fuente externa {idx} | {f['origen']}]\n"
+            f"{f['titulo']}\n"
+            f"{f['resumen']}\n"
+            f"URL: {f['url'] or 'N/D'}"
+        )
+        if chars_total + len(bloque) > max_chars:
+            break
+        bloques.append(bloque)
+        chars_total += len(bloque)
+
+    if not bloques:
+        return ""
+
+    return (
+        "\n\n🌐 CONTEXTO EXTERNO (fallback temporal mientras crece el RAG):\n"
+        + "\n---\n".join(bloques)
+        + "\n\n⚠️ Si existe contexto RAG, ese siempre tiene prioridad sobre estas fuentes externas."
+    )
+
+
+def _bot_comercial_respuesta_catalogo(
+    pregunta: str,
+    contexto_rag: str,
+    diagnostico_vision: str = '',
+    contexto_web: str = '',
+) -> str:
     """Genera respuesta técnica/comercial estricta basada en contexto RAG (sin alucinaciones)."""
     api_key = getattr(settings, 'OPENAI_API_KEY', '')
+    contexto_base = contexto_rag or contexto_web
+    tiene_rag = bool(contexto_rag)
     if not api_key:
-        if not contexto_rag:
+        if not contexto_base:
             return _bot_comercial_sin_contexto_natural(pregunta)
+
+        if tiene_rag:
+            encabezado = "Con base en la información técnica/comercial indexada:"
+            cierre = "Si aplica cotización, compárteme cantidad, municipio y cultivo."
+        else:
+            encabezado = (
+                "Aún no encontré suficiente información indexada en tu RAG. "
+                "Mientras cargas más documentos, te comparto respaldo técnico externo:"
+            )
+            cierre = (
+                "Si ya tienes ficha técnica/precios del producto, súbela al RAG y te doy "
+                "recomendación exacta por cultivo y necesidad."
+            )
+
         return (
-                "Con base en la información técnica/comercial indexada:\n\n"
-            f"{contexto_rag[:1000]}\n\n"
-            "Si aplica cotización, compárteme cantidad, municipio y cultivo."
+            f"{encabezado}\n\n"
+            f"{contexto_base[:1200]}\n\n"
+            f"{cierre}"
         )
 
     try:
@@ -1345,9 +1579,12 @@ def _bot_comercial_respuesta_catalogo(pregunta: str, contexto_rag: str, diagnost
         system_prompt = (
             "Eres un asesor técnico agrícola cercano, claro y práctico (estilo humano de campo). "
             "Primero prioriza orientación técnica y, cuando corresponda, recomendación de producto/catálogo. "
-            "Regla crítica: SOLO puedes responder usando el CONTEXTO INDEXADO provisto. "
+            "Regla crítica: PRIORIZA SIEMPRE el CONTEXTO RAG INDEXADO; solo usa CONTEXTO WEB "
+            "si el RAG está vacío o insuficiente. "
             "Si falta información en contexto, dilo con naturalidad y sin repetir disculpas. "
             "No inventes productos, dosis ni precios. "
+            "Si el contexto RAG incluye precio/disponibilidad, puedes recomendar de forma directa "
+            "el producto más adecuado para ese cultivo y objetivo, explicando por qué. "
             "Cuando no haya contexto suficiente: 1) reconoce la intención, 2) explica qué falta, "
             "3) haz una sola pregunta útil para continuar, 4) cierra con CTA suave de cotización. "
             "Responde en español claro para agricultores, en tono breve y conversacional."
@@ -1355,7 +1592,8 @@ def _bot_comercial_respuesta_catalogo(pregunta: str, contexto_rag: str, diagnost
         user_prompt = (
             f"CONSULTA DEL CLIENTE:\n{pregunta}\n\n"
             f"DIAGNOSTICO VISION (si aplica):\n{diagnostico_vision or 'N/A'}\n\n"
-            f"CONTEXTO INDEXADO (fuente única: informes técnicos, fichas, catálogos, FAQ):\n{contexto_rag or '[VACIO]'}"
+            f"CONTEXTO RAG INDEXADO (fuente principal):\n{contexto_rag or '[VACIO]'}\n\n"
+            f"CONTEXTO WEB EXTERNO (usar solo si RAG está vacío):\n{contexto_web or '[VACIO]'}"
         )
         modelo = str(getattr(settings, 'BOT_COMERCIAL_OPENAI_MODEL', '') or 'gpt-4o-mini')
         completion = client.chat.completions.create(
@@ -1375,6 +1613,13 @@ def _bot_comercial_respuesta_catalogo(pregunta: str, contexto_rag: str, diagnost
                 "Te comparto lo que encontré en la base técnica/comercial indexada:\n\n"
                 f"{contexto_rag[:1000]}\n\n"
                 "Para cotizar, envíame cantidad y municipio."
+            )
+        if contexto_web:
+            return (
+                "Aún no tengo suficiente contenido indexado en RAG para responder con exactitud. "
+                "Encontré estas referencias externas de apoyo:\n\n"
+                f"{contexto_web[:1000]}\n\n"
+                "Si subes fichas técnicas o precios al RAG, te doy recomendación directa de producto."
             )
         return _bot_comercial_sin_contexto_natural(pregunta)
 
@@ -1494,14 +1739,15 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
         if diagnostico_vision:
             consulta = f"{consulta}\n\nDiagnóstico preliminar imagen: {diagnostico_vision}"
 
+        cliente_ids_consulta = []
+        for cid in [cliente_id_cfg, 0]:
+            if cid not in cliente_ids_consulta:
+                cliente_ids_consulta.append(cid)
+
         contexto_rag = ''
+        contexto_web = ''
         if rag_comercial_manager.disponible:
             from .models import DocumentoRAGComercial
-
-            cliente_ids_consulta = []
-            for cid in [cliente_id_cfg, 0]:
-                if cid not in cliente_ids_consulta:
-                    cliente_ids_consulta.append(cid)
 
             # Robustez: si el cliente configurado no coincide con donde se indexaron docs,
             # buscar también en clientes con documentos comerciales indexados.
@@ -1539,19 +1785,28 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                 if contexto_rag:
                     break
 
-            if not contexto_rag:
-                contexto_rag = _contexto_fallback_desde_documentos(
-                    cliente_ids=cliente_ids_consulta,
-                    pregunta=consulta,
-                    max_chars=1800,
-                )
-                if contexto_rag:
-                    logger.info("🧠 RAG fallback documental usado | contexto_chars=%s", len(contexto_rag))
+        if not contexto_rag:
+            contexto_rag = _contexto_fallback_desde_documentos(
+                cliente_ids=cliente_ids_consulta,
+                pregunta=consulta,
+                max_chars=1800,
+            )
+            if contexto_rag:
+                logger.info("🧠 RAG fallback documental usado | contexto_chars=%s", len(contexto_rag))
+
+        if not contexto_rag:
+            contexto_web = _contexto_fallback_web_agro(
+                pregunta=consulta,
+                max_chars=1800,
+            )
+            if contexto_web:
+                logger.info("🌐 Fallback web/académico usado | contexto_chars=%s", len(contexto_web))
 
         texto_respuesta = _bot_comercial_respuesta_catalogo(
             pregunta=consulta,
             contexto_rag=contexto_rag,
             diagnostico_vision=diagnostico_vision,
+            contexto_web=contexto_web,
         )
 
     try:

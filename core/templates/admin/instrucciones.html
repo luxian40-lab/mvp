@@ -528,6 +528,46 @@
 
             </div>
 
+            <div class="alert-box alert-success" style="margin-top: 12px;">
+                <strong>Actualizado 14 abril 2026:</strong> el bot comercial ahora opera en modo <strong>RAG-first</strong>.
+                Primero responde con contexto indexado (vectorial + fallback documental) y, solo si no hay suficiente contexto,
+                activa respaldo externo académico/internet de forma temporal mientras se cargan más documentos.
+            </div>
+
+            <h3 style="margin-top: 20px;">Checklist rápido para calidad de respuestas</h3>
+            <ol>
+                <li>Verificar que los documentos estén en estado <strong>Indexado</strong> y con <strong>chunks &gt; 0</strong>.</li>
+                <li>Cargar documentos con tipo correcto (especialmente <strong>informe_tecnico</strong> para tesis/ICA).</li>
+                <li>Probar preguntas concretas: cultivo + variable (suelo, pH, altitud, nutrición, sanidad).</li>
+                <li>Si un PDF escaneado no extrae texto, convertir a PDF con OCR o DOCX/TXT para mejorar recuperación.</li>
+                <li>Si quieres desactivar la búsqueda externa temporal, usar <strong>BOT_COMERCIAL_WEB_FALLBACK_ENABLED=false</strong>.</li>
+            </ol>
+
+            <h3 style="margin-top: 20px;">Debug rápido cuando responde "verde"</h3>
+            <ul>
+                <li>Revisar logs de entrada Twilio y confirmar el <strong>To</strong> del mensaje.</li>
+                <li>Si ves en logs "destino educativo detectado", el mensaje no está entrando al flujo comercial.</li>
+                <li>Para pruebas controladas de bot comercial, activar variable de entorno: <strong>BOT_COMERCIAL_FORCE_ROUTING=true</strong>.</li>
+                <li>Con esa variable activa, todo ingreso Twilio se enruta al bot comercial durante la sesión de pruebas.</li>
+                <li>Si ves log <strong>"Fallback web/académico usado"</strong>, significa que no hubo contexto RAG suficiente para esa consulta.</li>
+            </ul>
+
+            <h3 style="margin-top: 20px;">Integración de métricas para Angular (abril 2026)</h3>
+            <ul>
+                <li><strong>Endpoint:</strong> <code>GET /api/integracion/empleabilidad/metricas/</code></li>
+                <li><strong>Parámetros:</strong> <code>cliente_id</code> opcional, <code>fecha=YYYY-MM-DD</code> o rango <code>desde</code> + <code>hasta</code>.</li>
+                <li><strong>Seguridad:</strong> si se configura <code>INTEGRACION_API_KEY</code>, enviar <code>Authorization: Bearer TU_API_KEY</code>.</li>
+                <li><strong>CORS:</strong> controlado por <code>INTEGRACION_API_ALLOWED_ORIGINS</code> (lista separada por comas o <code>*</code>).</li>
+                <li><strong>Respuesta:</strong> incluye <code>meta</code>, <code>resumen</code> y <code>metrics</code> (series <code>embudo_*</code> + <code>misiones_total</code> por día).</li>
+            </ul>
+
+            <h3 style="margin-top: 20px;">Escalamiento recomendado (guía práctica)</h3>
+            <ul>
+                <li><strong>Hasta 50-100 documentos:</strong> normalmente no requiere crecer PostgreSQL solo por tamaño.</li>
+                <li><strong>Preocuparse al crecer:</strong> cuando suba latencia de consulta, indexación lenta sostenida o aumente mucho concurrencia.</li>
+                <li><strong>Piloto educativo 100 usuarios:</strong> viable con baja simultaneidad; monitorear 5xx, p95/p99 y CPU.</li>
+            </ul>
+
         </div>
 
     </div>
