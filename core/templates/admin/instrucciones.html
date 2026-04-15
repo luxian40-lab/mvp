@@ -554,11 +554,12 @@
 
             <h3 style="margin-top: 20px;">Integración de métricas para Angular (abril 2026)</h3>
             <ul>
-                <li><strong>Endpoint:</strong> <code>GET /api/integracion/empleabilidad/metricas/</code></li>
-                <li><strong>Parámetros:</strong> <code>cliente_id</code> opcional, <code>fecha=YYYY-MM-DD</code> o rango <code>desde</code> + <code>hasta</code>.</li>
+                <li><strong>Endpoint principal:</strong> <code>GET /api/integracion/educativa/metricas/</code></li>
+                <li><strong>Parámetros:</strong> <code>cliente_id</code> opcional, <code>curso_id</code> opcional, <code>fecha=YYYY-MM-DD</code> o rango <code>desde</code> + <code>hasta</code>.</li>
                 <li><strong>Seguridad:</strong> si se configura <code>INTEGRACION_API_KEY</code>, enviar <code>Authorization: Bearer TU_API_KEY</code>.</li>
                 <li><strong>CORS:</strong> controlado por <code>INTEGRACION_API_ALLOWED_ORIGINS</code> (lista separada por comas o <code>*</code>).</li>
-                <li><strong>Respuesta:</strong> incluye <code>meta</code>, <code>resumen</code> y <code>metrics</code> (series <code>embudo_*</code> + <code>misiones_total</code> por día).</li>
+                <li><strong>Respuesta:</strong> incluye <code>meta</code>, <code>resumen</code>, <code>cursos</code> y <code>metrics</code> con series de uso educativo: <code>estudiantes_registrados</code>, <code>inscripciones_curso</code>, <code>cursos_completados</code>, <code>modulos_completados</code> y <code>mensajes_whatsapp_*</code>.</li>
+                <li><strong>Compatibilidad:</strong> el endpoint <code>/api/integracion/empleabilidad/metricas/</code> sigue disponible para integraciones antiguas.</li>
             </ul>
 
             <h3 style="margin-top: 20px;">Escalamiento recomendado (guía práctica)</h3>
@@ -808,7 +809,9 @@
 
                 <li>Descargar plantilla Excel: <strong>plantilla_estudiantes.xlsx</strong></li>
 
-                <li>Llenar columnas: A=Teléfono, B=Nombre, C=Cédula</li>
+                <li>Llenar columnas obligatorias: A=Cédula, B=Nombre, C=Teléfono</li>
+
+                <li>Columnas opcionales: D=Municipio, E=Departamento, F=Género, G=Edad, H=Curso, I=Cliente</li>
 
                 <li>Subir archivo</li>
 
@@ -820,7 +823,7 @@
 
             <div class="alert-box alert-warning">
 
-                <strong>⚠️ Importante:</strong> La cédula debe ser única. Si intentas importar una cédula que ya existe, se saltará esa fila.
+                <strong>⚠️ Importante:</strong> La cédula debe ser única. El curso es opcional: si no se envía, el estudiante se crea sin inscripción automática.
 
             </div>
 

@@ -93,20 +93,25 @@
     <div id="tab-resumen" class="tab-content active">
 
         <form method="get" class="filters-bar">
+            <input type="hidden" name="tab" value="resumen">
             <div><label>Organización</label><select name="cliente"><option value="">Todos</option>{% for c in clientes %}<option value="{{ c.id }}" {% if c.id == cliente_filtro %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
+            <div><label>Curso</label><select name="curso"><option value="">Todos</option>{% for c in cursos %}<option value="{{ c.id }}" {% if c.id == curso_filtro %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
+            <div><label>Desde</label><input type="date" name="fecha_inicio" value="{{ fecha_inicio }}"></div>
+            <div><label>Hasta</label><input type="date" name="fecha_fin" value="{{ fecha_fin }}"></div>
             <button type="submit">Filtrar</button>
+            <a href="?tab=resumen" class="btn-excel" style="background:#495057;">Limpiar</a>
         </form>
 
         <!-- KPIs Principales -->
         <div class="section">
             <div class="section-title">KPIs Principales</div>
             <div class="metrics-grid">
-                <div class="m-card green"><span class="m-label">Estudiantes Activos</span><span class="m-value">{{ total_estudiantes }}</span></div>
-                <div class="m-card orange"><span class="m-label">Tasa Completación</span><span class="m-value">{{ tasa_completacion }}%</span><span class="m-sub">{{ cursos_completados }} cursos terminados</span></div>
-                <div class="m-card blue"><span class="m-label">Certificados Emitidos</span><span class="m-value">{{ total_certificados }}</span></div>
-                <div class="m-card"><span class="m-label">Cursos Activos</span><span class="m-value">{{ total_cursos }}</span></div>
-                <div class="m-card green"><span class="m-label">Organizaciones</span><span class="m-value">{{ total_clientes }}</span></div>
-                <div class="m-card red"><span class="m-label">Leads B2B</span><span class="m-value">{{ total_prospectos }}</span></div>
+                <div class="m-card green"><span class="m-label">Estudiantes Activos</span><span id="kpi-total-estudiantes" class="m-value">{{ total_estudiantes }}</span></div>
+                <div class="m-card orange"><span class="m-label">Tasa Completación</span><span id="kpi-tasa-completacion" class="m-value">{{ tasa_completacion }}%</span><span id="kpi-cursos-completados-sub" class="m-sub">{{ cursos_completados }} cursos terminados</span></div>
+                <div class="m-card blue"><span class="m-label">Certificados Emitidos</span><span id="kpi-total-certificados" class="m-value">{{ total_certificados }}</span></div>
+                <div class="m-card"><span class="m-label">Cursos Activos</span><span id="kpi-total-cursos" class="m-value">{{ total_cursos }}</span></div>
+                <div class="m-card green"><span class="m-label">Organizaciones</span><span id="kpi-total-clientes" class="m-value">{{ total_clientes }}</span></div>
+                <div class="m-card red"><span class="m-label">Leads B2B</span><span id="kpi-total-prospectos" class="m-value">{{ total_prospectos }}</span></div>
             </div>
         </div>
 
@@ -161,11 +166,12 @@
         <form method="get" class="filters-bar">
             <input type="hidden" name="tab" value="reportes">
             <div><label>Organización</label><select name="cliente"><option value="">Todos</option>{% for c in clientes %}<option value="{{ c.id }}" {% if c.id == cliente_filtro %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
+            <div><label>Curso</label><select name="curso"><option value="">Todos</option>{% for c in cursos %}<option value="{{ c.id }}" {% if c.id == curso_filtro %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
             <div><label>Municipio</label><select name="municipio"><option value="">Todos</option>{% for m in municipios %}<option value="{{ m }}" {% if m == municipio_filtro %}selected{% endif %}>{{ m }}</option>{% endfor %}</select></div>
             <div><label>Desde</label><input type="date" name="fecha_inicio" value="{{ fecha_inicio }}"></div>
             <div><label>Hasta</label><input type="date" name="fecha_fin" value="{{ fecha_fin }}"></div>
             <button type="submit">Filtrar</button>
-            <a href="?exportar=excel{% if cliente_filtro %}&cliente={{ cliente_filtro }}{% endif %}" class="btn-excel">📥 Descargar Excel</a>
+            <a href="?exportar=excel&tab=reportes{% if cliente_filtro %}&cliente={{ cliente_filtro }}{% endif %}{% if curso_filtro %}&curso={{ curso_filtro }}{% endif %}{% if municipio_filtro %}&municipio={{ municipio_filtro|urlencode }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}" class="btn-excel">📥 Descargar Excel</a>
         </form>
 
         <div class="section">
@@ -211,10 +217,10 @@
         <div class="section">
             <div class="section-title">Métricas del Bot</div>
             <div class="metrics-grid">
-                <div class="m-card blue"><span class="m-label">Total Mensajes</span><span class="m-value">{{ total_mensajes_whatsapp }}</span><span class="m-sub">Enviados: {{ mensajes_enviados }} | Recibidos: {{ mensajes_recibidos }}</span></div>
-                <div class="m-card"><span class="m-label">Audios Transcritos</span><span class="m-value">{{ total_audios }}</span><span class="m-sub">Vosk / Whisper</span></div>
-                <div class="m-card green"><span class="m-label">Agente IA</span><span class="m-value">{{ total_agentes_ia }}</span><span class="m-sub">Interacciones con tutor IA</span></div>
-                <div class="m-card orange"><span class="m-label">Puntos Promedio</span><span class="m-value">{{ puntos_promedio }}</span></div>
+                <div class="m-card blue"><span class="m-label">Total Mensajes</span><span id="kpi-total-mensajes" class="m-value">{{ total_mensajes_whatsapp }}</span><span id="kpi-total-mensajes-sub" class="m-sub">Enviados: {{ mensajes_enviados }} | Recibidos: {{ mensajes_recibidos }}</span></div>
+                <div class="m-card"><span class="m-label">Audios Transcritos</span><span id="kpi-total-audios" class="m-value">{{ total_audios }}</span><span class="m-sub">Vosk / Whisper</span></div>
+                <div class="m-card green"><span class="m-label">Agente IA</span><span id="kpi-total-agentes" class="m-value">{{ total_agentes_ia }}</span><span class="m-sub">Interacciones con tutor IA</span></div>
+                <div class="m-card orange"><span class="m-label">Puntos Promedio</span><span id="kpi-puntos-promedio" class="m-value">{{ puntos_promedio }}</span></div>
             </div>
         </div>
 
@@ -245,7 +251,199 @@
     </div>
 </div>
 
+<div id="dashboard-config" data-resumen-endpoint="{% url 'dashboard_unificado_resumen_data' %}" data-tab-actual="{{ tab_actual }}"></div>
+<script id="dashboard-resumen-payload" type="application/json">{{ resumen_payload_json|safe }}</script>
+
 <script>
+let resumenMensajesChart = null;
+let resumenUbicacionesChart = null;
+let auditoriaMensajesChart = null;
+let auditoriaTiposChart = null;
+let resumenRefreshTimer = null;
+
+const dashboardConfig = document.getElementById('dashboard-config');
+const resumenPayloadNode = document.getElementById('dashboard-resumen-payload');
+const resumenDataEndpoint = (dashboardConfig && dashboardConfig.dataset.resumenEndpoint) || '/admin/dashboard/resumen-data/';
+const tabActual = (dashboardConfig && dashboardConfig.dataset.tabActual) || 'resumen';
+const resumenRefreshMs = 30000;
+let ultimoResumenPayload = {};
+try {
+    ultimoResumenPayload = JSON.parse((resumenPayloadNode && resumenPayloadNode.textContent) || '{}');
+} catch (e) {
+    ultimoResumenPayload = { success: false };
+}
+
+function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.textContent = value;
+    }
+}
+
+function ensureResumenMensajesChart(data) {
+    const canvas = document.getElementById('chartMensajes');
+    if (!canvas) return;
+
+    if (!resumenMensajesChart) {
+        resumenMensajesChart = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: data.labels || [],
+                datasets: [{
+                    label: 'Mensajes',
+                    data: data.values || [],
+                    backgroundColor: 'rgba(59,91,219,0.7)',
+                    borderRadius: 6,
+                    barThickness: 28,
+                }],
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+            },
+        });
+        return;
+    }
+
+    resumenMensajesChart.data.labels = data.labels || [];
+    resumenMensajesChart.data.datasets[0].data = data.values || [];
+    resumenMensajesChart.update();
+}
+
+function ensureResumenUbicacionesChart(data) {
+    const canvas = document.getElementById('chartUbicaciones');
+    if (!canvas) return;
+
+    if (!resumenUbicacionesChart) {
+        resumenUbicacionesChart = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: data.labels || [],
+                datasets: [{
+                    label: 'Estudiantes',
+                    data: data.values || [],
+                    backgroundColor: 'rgba(47,158,68,0.7)',
+                    borderRadius: 4,
+                    barThickness: 20,
+                }],
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } },
+            },
+        });
+        return;
+    }
+
+    resumenUbicacionesChart.data.labels = data.labels || [];
+    resumenUbicacionesChart.data.datasets[0].data = data.values || [];
+    resumenUbicacionesChart.update();
+}
+
+function ensureAuditoriaCharts(payload) {
+    const mensajesData = payload.chart_mensajes || { labels: [], values: [] };
+    const tiposData = payload.chart_tipos || { labels: [], values: [] };
+
+    const auditCanvas = document.getElementById('chartMensajesAudit');
+    if (auditCanvas) {
+        if (!auditoriaMensajesChart) {
+            auditoriaMensajesChart = new Chart(auditCanvas, {
+                type: 'bar',
+                data: {
+                    labels: mensajesData.labels || [],
+                    datasets: [{
+                        label: 'Mensajes',
+                        data: mensajesData.values || [],
+                        backgroundColor: 'rgba(59,91,219,0.7)',
+                        borderRadius: 6,
+                        barThickness: 28,
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+                },
+            });
+        } else {
+            auditoriaMensajesChart.data.labels = mensajesData.labels || [];
+            auditoriaMensajesChart.data.datasets[0].data = mensajesData.values || [];
+            auditoriaMensajesChart.update();
+        }
+    }
+
+    const tiposCanvas = document.getElementById('chartTipos');
+    if (tiposCanvas) {
+        if (!auditoriaTiposChart) {
+            auditoriaTiposChart = new Chart(tiposCanvas, {
+                type: 'doughnut',
+                data: {
+                    labels: tiposData.labels || [],
+                    datasets: [{
+                        data: tiposData.values || [],
+                        backgroundColor: ['#3b5bdb','#2f9e44','#f59f00','#e03131','#1c7ed6','#ae3ec9','#868e96'],
+                        borderWidth: 0,
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { boxWidth: 14, font: { size: 12 } },
+                        },
+                    },
+                },
+            });
+        } else {
+            auditoriaTiposChart.data.labels = tiposData.labels || [];
+            auditoriaTiposChart.data.datasets[0].data = tiposData.values || [];
+            auditoriaTiposChart.update();
+        }
+    }
+}
+
+function applyResumenPayload(payload) {
+    if (!payload || !payload.success || !payload.kpis) {
+        return;
+    }
+
+    ultimoResumenPayload = payload;
+    const k = payload.kpis;
+
+    setText('kpi-total-estudiantes', k.total_estudiantes ?? 0);
+    setText('kpi-tasa-completacion', (k.tasa_completacion ?? 0) + '%');
+    setText('kpi-cursos-completados-sub', (k.cursos_completados ?? 0) + ' cursos terminados');
+    setText('kpi-total-certificados', k.total_certificados ?? 0);
+    setText('kpi-total-cursos', k.total_cursos ?? 0);
+    setText('kpi-total-clientes', k.total_clientes ?? 0);
+    setText('kpi-total-prospectos', k.total_prospectos ?? 0);
+
+    setText('kpi-total-mensajes', k.total_mensajes_whatsapp ?? 0);
+    setText('kpi-total-mensajes-sub', 'Enviados: ' + (k.mensajes_enviados ?? 0) + ' | Recibidos: ' + (k.mensajes_recibidos ?? 0));
+    setText('kpi-total-audios', k.total_audios ?? 0);
+    setText('kpi-total-agentes', k.total_agentes_ia ?? 0);
+    setText('kpi-puntos-promedio', k.puntos_promedio ?? 0);
+
+    ensureResumenMensajesChart(payload.chart_mensajes || { labels: [], values: [] });
+    ensureResumenUbicacionesChart(payload.chart_ubicaciones || { labels: [], values: [] });
+
+    if (document.getElementById('tab-auditoria').classList.contains('active')) {
+        ensureAuditoriaCharts(payload);
+    }
+}
+
+function initResumenCharts() {
+    applyResumenPayload(ultimoResumenPayload);
+}
+
+function initAuditoriaCharts() {
+    ensureAuditoriaCharts(ultimoResumenPayload);
+}
+
 function switchTab(tabName, btn) {
     document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
     document.querySelectorAll('.tab-btn').forEach(function(t) { t.classList.remove('active'); });
@@ -255,48 +453,49 @@ function switchTab(tabName, btn) {
     if (tabName === 'auditoria') initAuditoriaCharts();
 }
 
-function initResumenCharts() {
-    if (window._msgChartInit) return;
-    window._msgChartInit = true;
-    new Chart(document.getElementById('chartMensajes'), {
-        type: 'bar',
-        data: { labels: {{ chart_labels|safe }}, datasets: [{ label: 'Mensajes', data: {{ chart_values|safe }}, backgroundColor: 'rgba(59,91,219,0.7)', borderRadius: 6, barThickness: 28 }] },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
-    });
-    {% if ubicaciones_municipio %}
-    new Chart(document.getElementById('chartUbicaciones'), {
-        type: 'bar',
-        data: { labels: [{% for u in ubicaciones_municipio %}'{{ u.municipio }}'{% if not forloop.last %},{% endif %}{% endfor %}], datasets: [{ label: 'Estudiantes', data: [{% for u in ubicaciones_municipio %}{{ u.total }}{% if not forloop.last %},{% endif %}{% endfor %}], backgroundColor: 'rgba(47,158,68,0.7)', borderRadius: 4, barThickness: 20 }] },
-        options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } } }
-    });
-    {% endif %}
+async function refrescarResumen() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const url = params.toString()
+            ? resumenDataEndpoint + '?' + params.toString()
+            : resumenDataEndpoint;
+        const response = await fetch(url, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin',
+        });
+        if (!response.ok) {
+            return;
+        }
+
+        const payload = await response.json();
+        applyResumenPayload(payload);
+    } catch (error) {
+        console.error('No fue posible refrescar métricas del resumen:', error);
+    }
 }
 
-function initAuditoriaCharts() {
-    if (window._auditChartInit) return;
-    window._auditChartInit = true;
-    new Chart(document.getElementById('chartMensajesAudit'), {
-        type: 'bar',
-        data: { labels: {{ chart_labels|safe }}, datasets: [{ label: 'Mensajes', data: {{ chart_values|safe }}, backgroundColor: 'rgba(59,91,219,0.7)', borderRadius: 6, barThickness: 28 }] },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
-    });
-    new Chart(document.getElementById('chartTipos'), {
-        type: 'doughnut',
-        data: { labels: {{ chart_tipos_labels|safe }}, datasets: [{ data: {{ chart_tipos_values|safe }}, backgroundColor: ['#3b5bdb','#2f9e44','#f59f00','#e03131','#1c7ed6','#ae3ec9','#868e96'], borderWidth: 0 }] },
-        options: { responsive: true, plugins: { legend: { position: 'right', labels: { boxWidth: 14, font: { size: 12 } } } } }
-    });
+function iniciarAutoRefreshResumen() {
+    if (resumenRefreshTimer) {
+        clearInterval(resumenRefreshTimer);
+    }
+    resumenRefreshTimer = setInterval(function() {
+        if (!document.hidden) {
+            refrescarResumen();
+        }
+    }, resumenRefreshMs);
 }
 
-// Init resumen charts on page load
-initResumenCharts();
-
-// Auto-open correct tab from URL param
 (function() {
-    var params = new URLSearchParams(window.location.search);
-    var tab = params.get('tab');
-    if (tab) {
-        var btn = document.querySelector('.tab-btn[onclick*="' + tab + '"]');
-        if (btn) switchTab(tab, btn);
+    applyResumenPayload(ultimoResumenPayload);
+    iniciarAutoRefreshResumen();
+
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab') || tabActual;
+    if (tab && tab !== 'resumen') {
+        const btn = document.querySelector('.tab-btn[onclick*="' + tab + '"]');
+        if (btn) {
+            switchTab(tab, btn);
+        }
     }
 })();
 </script>

@@ -22,7 +22,8 @@ from core.views import (
     subir_documento_curso,
     vista_previa_curso_ia,
     serve_media_proxy,
-    dashboard_unificado
+    dashboard_unificado,
+    dashboard_unificado_resumen_data,
 )
 from core.api import (
     api_estudiante,
@@ -33,6 +34,7 @@ from core.api import (
     api_empleabilidad_completar,
     api_empleabilidad_flujo,
     api_empleabilidad_resumen,
+    api_integracion_educativa_metricas,
     api_integracion_empleabilidad_metricas,
 )
 from core.dashboard_avanzado import dashboard_metricas, dashboard_gerencial
@@ -61,6 +63,7 @@ urlpatterns = [
     
     # Vistas personalizadas ANTES del admin para que no sean capturadas por catch-all
     path('admin/dashboard/', dashboard_unificado, name='dashboard_unificado'),  # Dashboard único
+    path('admin/dashboard/resumen-data/', dashboard_unificado_resumen_data, name='dashboard_unificado_resumen_data'),
     path('admin/dashboard-antiguo/', dashboard_view, name='dashboard_antiguo'),  # Dashboard antiguo
     path('admin/descargar-reportes/', descargar_reportes, name='descargar_reportes'),
     path('admin/importar-estudiantes/', importar_estudiantes, name='importar_estudiantes'),
@@ -106,6 +109,7 @@ urlpatterns = [
     path('api/empleabilidad/completar/', api_empleabilidad_completar, name='api_empleabilidad_completar'),
     path('api/empleabilidad/flujo/', api_empleabilidad_flujo, name='api_empleabilidad_flujo'),
     path('api/empleabilidad/resumen/', api_empleabilidad_resumen, name='api_empleabilidad_resumen'),
+    path('api/integracion/educativa/metricas/', api_integracion_educativa_metricas, name='api_integracion_educativa_metricas'),
     path('api/integracion/empleabilidad/metricas/', api_integracion_empleabilidad_metricas, name='api_integracion_empleabilidad_metricas'),
     
     # Certificados públicos (sin autenticación)

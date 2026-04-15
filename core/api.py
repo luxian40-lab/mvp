@@ -17,7 +17,17 @@ from datetime import datetime, timedelta
 import json
 import math
 import hmac
-from .models import Estudiante, Campana, EnvioLog, AliadoEmpleabilidad, MisionEmpleabilidad
+from .models import (
+    Estudiante,
+    Campana,
+    EnvioLog,
+    AliadoEmpleabilidad,
+    MisionEmpleabilidad,
+    Curso,
+    ProgresoEstudiante,
+    ModuloCompletado,
+    WhatsappLog,
+)
 
 
 def _haversine_metros(lat1, lon1, lat2, lon2):
@@ -428,55 +438,63 @@ def api_empleabilidad_resumen(request):
     })
 
 
-@csrf_exempt
-@require_http_methods(["GET", "OPTIONS"])
-def api_integracion_empleabilidad_metricas(request):
-    """GET /api/integracion/empleabilidad/metricas/?cliente_id=...&fecha=YYYY-MM-DD"""
-    def _cors(resp):
-        allowed_raw = str(getattr(settings, 'INTEGRACION_API_ALLOWED_ORIGINS', '*') or '*').strip()
-        origin = (request.headers.get('Origin', '') or '').strip()
+def _integracion_apply_cors(request, resp):
+    allowed_raw = str(getattr(settings, 'INTEGRACION_API_ALLOWED_ORIGINS', '*') or '*').strip()
+    origin = (request.headers.get('Origin', '') or '').strip()
 
-        allow_origin = '*'
-        if allowed_raw != '*':
-            allowed = [o.strip() for o in allowed_raw.split(',') if o.strip()]
-            if origin and origin in allowed:
-                allow_origin = origin
-            elif allowed:
-                allow_origin = allowed[0]
+    allow_origin = '*'
+    if allowed_raw != '*':
+        allowed = [o.strip() for o in allowed_raw.split(',') if o.strip()]
+        if origin and origin in allowed:
+            allow_origin = origin
+        elif allowed:
+            allow_origin = allowed[0]
 
-        resp['Access-Control-Allow-Origin'] = allow_origin
-        resp['Vary'] = 'Origin'
-        resp['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
-        resp['Access-Control-Allow-Headers'] = 'Authorization, Content-Type, X-API-Key'
-        resp['Access-Control-Max-Age'] = '86400'
-        return resp
+    resp['Access-Control-Allow-Origin'] = allow_origin
+    resp['Vary'] = 'Origin'
+    resp['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+    resp['Access-Control-Allow-Headers'] = 'Authorization, Content-Type, X-API-Key'
+    resp['Access-Control-Max-Age'] = '86400'
+    return resp
 
-    if request.method == 'OPTIONS':
-        return _cors(HttpResponse(status=204))
 
+def _integracion_auth_error(request):
     expected_key = str(getattr(settings, 'INTEGRACION_API_KEY', '') or '').strip()
-    if expected_key:
-        auth_header = (request.headers.get('Authorization', '') or '').strip()
-        provided = ''
-        if auth_header.lower().startswith('bearer '):
-            provided = auth_header.split(' ', 1)[1].strip()
-        if not provided:
-            provided = (request.headers.get('X-API-Key', '') or request.GET.get('api_key', '') or '').strip()
+    if not expected_key:
+        return None
 
-        if not provided or not hmac.compare_digest(provided, expected_key):
-            return _cors(JsonResponse({'success': False, 'error': 'No autorizado'}, status=401))
+    auth_header = (request.headers.get('Authorization', '') or '').strip()
+    provided = ''
+    if auth_header.lower().startswith('bearer '):
+        provided = auth_header.split(' ', 1)[1].strip()
+    if not provided:
+        provided = (request.headers.get('X-API-Key', '') or request.GET.get('api_key', '') or '').strip()
 
+    if not provided or not hmac.compare_digest(provided, expected_key):
+        return JsonResponse({'success': False, 'error': 'No autorizado'}, status=401)
+    return None
+
+
+def _integracion_parse_filtros(request, permitir_curso=False):
     cliente_id_raw = (request.GET.get('cliente_id') or '').strip()
+    curso_id_raw = (request.GET.get('curso_id') or '').strip()
+    fecha_raw = (request.GET.get('fecha') or '').strip()
+    desde_raw = (request.GET.get('desde') or '').strip()
+    hasta_raw = (request.GET.get('hasta') or '').strip()
+
     cliente_id = None
     if cliente_id_raw:
         try:
             cliente_id = int(cliente_id_raw)
         except ValueError:
-            return _cors(JsonResponse({'success': False, 'error': 'cliente_id debe ser numérico'}, status=400))
+            return None, JsonResponse({'success': False, 'error': 'cliente_id debe ser numérico'}, status=400)
 
-    fecha_raw = (request.GET.get('fecha') or '').strip()
-    desde_raw = (request.GET.get('desde') or '').strip()
-    hasta_raw = (request.GET.get('hasta') or '').strip()
+    curso_id = None
+    if permitir_curso and curso_id_raw:
+        try:
+            curso_id = int(curso_id_raw)
+        except ValueError:
+            return None, JsonResponse({'success': False, 'error': 'curso_id debe ser numérico'}, status=400)
 
     def _parse_iso(value: str):
         try:
@@ -488,24 +506,293 @@ def api_integracion_empleabilidad_metricas(request):
         fecha_desde = _parse_iso(desde_raw)
         fecha_hasta = _parse_iso(hasta_raw)
         if not fecha_desde or not fecha_hasta:
-            return _cors(JsonResponse({'success': False, 'error': 'desde y hasta deben usar formato YYYY-MM-DD'}, status=400))
+            return None, JsonResponse({'success': False, 'error': 'desde y hasta deben usar formato YYYY-MM-DD'}, status=400)
     else:
         fecha_unica = _parse_iso(fecha_raw) if fecha_raw else timezone.localdate()
         if not fecha_unica:
-            return _cors(JsonResponse({'success': False, 'error': 'fecha debe usar formato YYYY-MM-DD'}, status=400))
+            return None, JsonResponse({'success': False, 'error': 'fecha debe usar formato YYYY-MM-DD'}, status=400)
         fecha_desde = fecha_unica
         fecha_hasta = fecha_unica
 
     if fecha_hasta < fecha_desde:
-        return _cors(JsonResponse({'success': False, 'error': 'hasta no puede ser menor que desde'}, status=400))
+        return None, JsonResponse({'success': False, 'error': 'hasta no puede ser menor que desde'}, status=400)
 
     max_dias = int(getattr(settings, 'INTEGRACION_API_MAX_DIAS', 31) or 31)
     rango_dias = (fecha_hasta - fecha_desde).days + 1
     if rango_dias > max_dias:
-        return _cors(JsonResponse({
+        return None, JsonResponse({
             'success': False,
             'error': f'Rango máximo permitido: {max_dias} días',
-        }, status=400))
+        }, status=400)
+
+    return {
+        'cliente_id': cliente_id,
+        'curso_id': curso_id,
+        'fecha_desde': fecha_desde,
+        'fecha_hasta': fecha_hasta,
+        'rango_dias': rango_dias,
+    }, None
+
+
+@csrf_exempt
+@require_http_methods(["GET", "OPTIONS"])
+def api_integracion_educativa_metricas(request):
+    """GET /api/integracion/educativa/metricas/?cliente_id=...&curso_id=...&fecha=YYYY-MM-DD"""
+    if request.method == 'OPTIONS':
+        return _integracion_apply_cors(request, HttpResponse(status=204))
+
+    auth_error = _integracion_auth_error(request)
+    if auth_error:
+        return _integracion_apply_cors(request, auth_error)
+
+    filtros, parse_error = _integracion_parse_filtros(request, permitir_curso=True)
+    if parse_error:
+        return _integracion_apply_cors(request, parse_error)
+
+    cliente_id = filtros['cliente_id']
+    curso_id = filtros['curso_id']
+    fecha_desde = filtros['fecha_desde']
+    fecha_hasta = filtros['fecha_hasta']
+    rango_dias = filtros['rango_dias']
+
+    estudiantes_base = Estudiante.objects.filter(activo=True)
+    if cliente_id is not None:
+        estudiantes_base = estudiantes_base.filter(cliente_id=cliente_id)
+    if curso_id is not None:
+        estudiantes_base = estudiantes_base.filter(progresos__curso_id=curso_id).distinct()
+
+    progreso_base = ProgresoEstudiante.objects.filter(estudiante__in=estudiantes_base)
+    if curso_id is not None:
+        progreso_base = progreso_base.filter(curso_id=curso_id)
+
+    estudiantes_registrados_q = estudiantes_base.filter(
+        fecha_registro__date__gte=fecha_desde,
+        fecha_registro__date__lte=fecha_hasta,
+    )
+    inscripciones_q = progreso_base.filter(
+        fecha_inicio__date__gte=fecha_desde,
+        fecha_inicio__date__lte=fecha_hasta,
+    )
+    cursos_completados_q = progreso_base.filter(
+        completado=True,
+        fecha_completado__date__gte=fecha_desde,
+        fecha_completado__date__lte=fecha_hasta,
+    )
+    modulos_completados_q = ModuloCompletado.objects.filter(
+        progreso__in=progreso_base,
+        fecha_completado__date__gte=fecha_desde,
+        fecha_completado__date__lte=fecha_hasta,
+    )
+
+    telefonos_scope = estudiantes_base.exclude(telefono='').values_list('telefono', flat=True)
+    mensajes_q = WhatsappLog.objects.filter(
+        fecha__date__gte=fecha_desde,
+        fecha__date__lte=fecha_hasta,
+    )
+    if cliente_id is not None or curso_id is not None:
+        mensajes_q = mensajes_q.filter(
+            Q(estudiante__in=estudiantes_base) | Q(telefono__in=telefonos_scope)
+        ).distinct()
+
+    estudiantes_activos_total = estudiantes_base.count()
+    estudiantes_registrados_total = estudiantes_registrados_q.count()
+    inscripciones_total = inscripciones_q.count()
+    cursos_completados_total = cursos_completados_q.count()
+    modulos_completados_total = modulos_completados_q.count()
+    mensajes_total = mensajes_q.count()
+    mensajes_enviados_total = mensajes_q.filter(tipo='SENT').count()
+    mensajes_recibidos_total = mensajes_q.filter(tipo='INCOMING').count()
+
+    tasa_completacion = round((cursos_completados_total / inscripciones_total * 100), 2) if inscripciones_total else 0
+
+    cursos_scope = Curso.objects.filter(progresoestudiante__in=progreso_base).distinct()
+    if curso_id is not None:
+        cursos_scope = cursos_scope.filter(id=curso_id)
+
+    filtro_progreso_base = Q(progresoestudiante__id__in=progreso_base.values('id'))
+    filtro_inscritos = (
+        filtro_progreso_base
+        & Q(progresoestudiante__fecha_inicio__date__gte=fecha_desde)
+        & Q(progresoestudiante__fecha_inicio__date__lte=fecha_hasta)
+    )
+    filtro_completados = (
+        filtro_progreso_base
+        & Q(progresoestudiante__completado=True)
+        & Q(progresoestudiante__fecha_completado__date__gte=fecha_desde)
+        & Q(progresoestudiante__fecha_completado__date__lte=fecha_hasta)
+    )
+
+    cursos_resumen_raw = list(
+        cursos_scope.annotate(
+            inscritos=Count('progresoestudiante', filter=filtro_inscritos, distinct=True),
+            completados=Count('progresoestudiante', filter=filtro_completados, distinct=True),
+        )
+        .values('id', 'nombre', 'inscritos', 'completados')
+        .order_by('-inscritos', 'nombre')[:20]
+    )
+    cursos_resumen = []
+    for item in cursos_resumen_raw:
+        inscritos = int(item.get('inscritos') or 0)
+        completados = int(item.get('completados') or 0)
+        cursos_resumen.append({
+            'curso_id': int(item.get('id')),
+            'curso_nombre': item.get('nombre') or '',
+            'inscritos': inscritos,
+            'completados': completados,
+            'tasa_completacion': round((completados / inscritos * 100), 2) if inscritos else 0,
+        })
+
+    registros_por_dia = {
+        str(row['metric_day']): int(row['c'])
+        for row in estudiantes_registrados_q.annotate(metric_day=TruncDate('fecha_registro'))
+        .values('metric_day')
+        .annotate(c=Count('id'))
+    }
+    inscripciones_por_dia = {
+        str(row['metric_day']): int(row['c'])
+        for row in inscripciones_q.annotate(metric_day=TruncDate('fecha_inicio'))
+        .values('metric_day')
+        .annotate(c=Count('id'))
+    }
+    completados_por_dia = {
+        str(row['metric_day']): int(row['c'])
+        for row in cursos_completados_q.annotate(metric_day=TruncDate('fecha_completado'))
+        .values('metric_day')
+        .annotate(c=Count('id'))
+    }
+    modulos_por_dia = {
+        str(row['metric_day']): int(row['c'])
+        for row in modulos_completados_q.annotate(metric_day=TruncDate('fecha_completado'))
+        .values('metric_day')
+        .annotate(c=Count('id'))
+    }
+    mensajes_por_dia = {
+        str(row['metric_day']): int(row['c'])
+        for row in mensajes_q.annotate(metric_day=TruncDate('fecha'))
+        .values('metric_day')
+        .annotate(c=Count('id'))
+    }
+    enviados_por_dia = {
+        str(row['metric_day']): int(row['c'])
+        for row in mensajes_q.filter(tipo='SENT').annotate(metric_day=TruncDate('fecha'))
+        .values('metric_day')
+        .annotate(c=Count('id'))
+    }
+    recibidos_por_dia = {
+        str(row['metric_day']): int(row['c'])
+        for row in mensajes_q.filter(tipo='INCOMING').annotate(metric_day=TruncDate('fecha'))
+        .values('metric_day')
+        .annotate(c=Count('id'))
+    }
+
+    metrics = []
+    day_cursor = fecha_desde
+    while day_cursor <= fecha_hasta:
+        metric_date = day_cursor.isoformat()
+        metrics.append({
+            'schema_version': 2,
+            'metric_date': metric_date,
+            'tenant_id': cliente_id,
+            'course_id': curso_id,
+            'metric_name': 'estudiantes_registrados',
+            'metric_value': int(registros_por_dia.get(metric_date, 0)),
+        })
+        metrics.append({
+            'schema_version': 2,
+            'metric_date': metric_date,
+            'tenant_id': cliente_id,
+            'course_id': curso_id,
+            'metric_name': 'inscripciones_curso',
+            'metric_value': int(inscripciones_por_dia.get(metric_date, 0)),
+        })
+        metrics.append({
+            'schema_version': 2,
+            'metric_date': metric_date,
+            'tenant_id': cliente_id,
+            'course_id': curso_id,
+            'metric_name': 'cursos_completados',
+            'metric_value': int(completados_por_dia.get(metric_date, 0)),
+        })
+        metrics.append({
+            'schema_version': 2,
+            'metric_date': metric_date,
+            'tenant_id': cliente_id,
+            'course_id': curso_id,
+            'metric_name': 'modulos_completados',
+            'metric_value': int(modulos_por_dia.get(metric_date, 0)),
+        })
+        metrics.append({
+            'schema_version': 2,
+            'metric_date': metric_date,
+            'tenant_id': cliente_id,
+            'course_id': curso_id,
+            'metric_name': 'mensajes_whatsapp_total',
+            'metric_value': int(mensajes_por_dia.get(metric_date, 0)),
+        })
+        metrics.append({
+            'schema_version': 2,
+            'metric_date': metric_date,
+            'tenant_id': cliente_id,
+            'course_id': curso_id,
+            'metric_name': 'mensajes_whatsapp_sent',
+            'metric_value': int(enviados_por_dia.get(metric_date, 0)),
+        })
+        metrics.append({
+            'schema_version': 2,
+            'metric_date': metric_date,
+            'tenant_id': cliente_id,
+            'course_id': curso_id,
+            'metric_name': 'mensajes_whatsapp_incoming',
+            'metric_value': int(recibidos_por_dia.get(metric_date, 0)),
+        })
+        day_cursor += timedelta(days=1)
+
+    response = JsonResponse({
+        'success': True,
+        'meta': {
+            'schema_version': 2,
+            'tenant_id': cliente_id,
+            'course_id': curso_id,
+            'desde': fecha_desde.isoformat(),
+            'hasta': fecha_hasta.isoformat(),
+            'dias': rango_dias,
+        },
+        'resumen': {
+            'estudiantes_activos_total': int(estudiantes_activos_total),
+            'estudiantes_registrados_total': int(estudiantes_registrados_total),
+            'inscripciones_total': int(inscripciones_total),
+            'cursos_completados_total': int(cursos_completados_total),
+            'modulos_completados_total': int(modulos_completados_total),
+            'tasa_completacion_cursos': tasa_completacion,
+            'mensajes_total': int(mensajes_total),
+            'mensajes_enviados_total': int(mensajes_enviados_total),
+            'mensajes_recibidos_total': int(mensajes_recibidos_total),
+        },
+        'cursos': cursos_resumen,
+        'metrics': metrics,
+    })
+    return _integracion_apply_cors(request, response)
+
+
+@csrf_exempt
+@require_http_methods(["GET", "OPTIONS"])
+def api_integracion_empleabilidad_metricas(request):
+    """GET /api/integracion/empleabilidad/metricas/?cliente_id=...&fecha=YYYY-MM-DD"""
+    if request.method == 'OPTIONS':
+        return _integracion_apply_cors(request, HttpResponse(status=204))
+
+    auth_error = _integracion_auth_error(request)
+    if auth_error:
+        return _integracion_apply_cors(request, auth_error)
+
+    filtros, parse_error = _integracion_parse_filtros(request, permitir_curso=False)
+    if parse_error:
+        return _integracion_apply_cors(request, parse_error)
+
+    cliente_id = filtros['cliente_id']
+    fecha_desde = filtros['fecha_desde']
+    fecha_hasta = filtros['fecha_hasta']
+    rango_dias = filtros['rango_dias']
 
     qs = MisionEmpleabilidad.objects.filter(
         fecha_descubierta__date__gte=fecha_desde,
@@ -542,7 +829,6 @@ def api_integracion_empleabilidad_metricas(request):
             'metric_value': count,
         })
 
-    # Garantizar serie completa por día para consumo en frontend.
     d = fecha_desde
     while d <= fecha_hasta:
         day_txt = d.isoformat()
@@ -570,4 +856,4 @@ def api_integracion_empleabilidad_metricas(request):
         },
         'metrics': metrics,
     })
-    return _cors(response)
+    return _integracion_apply_cors(request, response)

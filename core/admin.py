@@ -458,7 +458,8 @@ class EstudianteAdmin(admin.ModelAdmin):
     
     def importar_estudiantes_view(self, request):
         """Vista para importar estudiantes desde Excel.
-        Formato: Cédula | Nombre | Teléfono | Municipio | Departamento | Género | Edad | Curso | Cliente
+        Campos obligatorios: Cédula | Nombre | Teléfono.
+        Campos opcionales: Municipio | Departamento | Género | Edad | Curso | Cliente.
         """
         from django.shortcuts import render, redirect
         from django.contrib import messages
@@ -528,16 +529,11 @@ class EstudianteAdmin(admin.ModelAdmin):
                         errores.append(f"Fila {idx}: Columnas insuficientes")
                         continue
                     
-                    # Validar obligatorios
+                    # Validar obligatorios mínimos
                     campos_faltantes = []
                     if not cedula: campos_faltantes.append('Cédula')
                     if not nombre: campos_faltantes.append('Nombre')
                     if not telefono_raw: campos_faltantes.append('Teléfono')
-                    if not municipio: campos_faltantes.append('Municipio')
-                    if not departamento: campos_faltantes.append('Departamento')
-                    if not genero_raw: campos_faltantes.append('Género')
-                    if not edad_raw: campos_faltantes.append('Edad')
-                    if not curso_nombre: campos_faltantes.append('Curso')
                     
                     if campos_faltantes:
                         errores.append(f"Fila {idx}: Faltan: {', '.join(campos_faltantes)}")
@@ -548,10 +544,9 @@ class EstudianteAdmin(admin.ModelAdmin):
                         errores.append(f"Fila {idx}: Teléfono inválido '{telefono_raw}'")
                         continue
                     
-                    genero = GENEROS_VALIDOS.get(genero_raw, '')
+                    genero = GENEROS_VALIDOS.get(genero_raw, '') if genero_raw else ''
                     if not genero:
-                        errores.append(f"Fila {idx}: Género '{genero_raw}' no válido (use: M, F, O, NR)")
-                        continue
+                        genero = 'NR'
                     
                     # Validar edad
                     edad = None

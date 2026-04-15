@@ -1,24 +1,43 @@
 from django.shortcuts import render
 from django.contrib.admin.views.decorators import staff_member_required
 from django.views.decorators.csrf import csrf_exempt
-# Vista unificada del dashboard admin
-@staff_member_required
-def dashboard_unificado(request):
-    """
-    Dashboard profesional unificado de eki.
-    Métricas reales: cursos, clientes, estudiantes, certificados, gamificación,
-    WhatsApp, IA, y progreso educativo.
-    """
-    from django.db.models import Count, Avg, Sum, Q, F
-    from django.db.models.functions import TruncDate
+
+def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
+    """Construye contexto y payload JSON del dashboard unificado usando filtros consistentes."""
     from datetime import datetime, timedelta
+    from django.db.models import Avg, Count, Q
+    from django.db.models.functions import TruncDate
+    from django.utils import timezone
     import json
 
-    # --- Filtros opcionales ---
-    cliente_id = request.GET.get('cliente')
-    curso_id = request.GET.get('curso')
-    fecha_inicio = request.GET.get('fecha_inicio', '')
-    fecha_fin = request.GET.get('fecha_fin', '')
+    def _to_int(value):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    def _to_date(value):
+        if not value:
+            return None
+        try:
+            return datetime.strptime(value, '%Y-%m-%d').date()
+        except (TypeError, ValueError):
+            return None
+
+    cliente_id = _to_int((request.GET.get('cliente') or '').strip())
+    curso_id = _to_int((request.GET.get('curso') or '').strip())
+    fecha_inicio_raw = (request.GET.get('fecha_inicio') or '').strip()
+    fecha_fin_raw = (request.GET.get('fecha_fin') or '').strip()
+    municipio_filtro = (request.GET.get('municipio') or '').strip()
+    tab_actual = (request.GET.get('tab') or 'resumen').strip().lower()
+
+    fecha_inicio_dt = _to_date(fecha_inicio_raw)
+    fecha_fin_dt = _to_date(fecha_fin_raw)
+    if fecha_inicio_dt and fecha_fin_dt and fecha_inicio_dt > fecha_fin_dt:
+        fecha_inicio_dt, fecha_fin_dt = fecha_fin_dt, fecha_inicio_dt
+
+    fecha_inicio = fecha_inicio_dt.isoformat() if fecha_inicio_dt else ''
+    fecha_fin = fecha_fin_dt.isoformat() if fecha_fin_dt else ''
 
     clientes_all = Cliente.objects.all().order_by('nombre')
     cursos_all = Curso.objects.all().order_by('nombre')
@@ -26,209 +45,286 @@ def dashboard_unificado(request):
     estudiantes_q = Estudiante.objects.filter(activo=True)
     if cliente_id:
         estudiantes_q = estudiantes_q.filter(cliente_id=cliente_id)
+    if curso_id:
+        estudiantes_q = estudiantes_q.filter(progresos__curso_id=curso_id).distinct()
+    if fecha_inicio_dt:
+        estudiantes_q = estudiantes_q.filter(fecha_registro__date__gte=fecha_inicio_dt)
+    if fecha_fin_dt:
+        estudiantes_q = estudiantes_q.filter(fecha_registro__date__lte=fecha_fin_dt)
 
-    # --- Métricas principales ---
-    total_cursos = Curso.objects.count()
-    total_clientes = Cliente.objects.count()
+    progreso_q = ProgresoEstudiante.objects.select_related('estudiante', 'curso')
+    if cliente_id:
+        progreso_q = progreso_q.filter(estudiante__cliente_id=cliente_id)
+    if curso_id:
+        progreso_q = progreso_q.filter(curso_id=curso_id)
+    if fecha_inicio_dt:
+        progreso_q = progreso_q.filter(fecha_inicio__date__gte=fecha_inicio_dt)
+    if fecha_fin_dt:
+        progreso_q = progreso_q.filter(fecha_inicio__date__lte=fecha_fin_dt)
+
+    modulos_completados_q = ModuloCompletado.objects.select_related('progreso', 'modulo')
+    if cliente_id:
+        modulos_completados_q = modulos_completados_q.filter(progreso__estudiante__cliente_id=cliente_id)
+    if curso_id:
+        modulos_completados_q = modulos_completados_q.filter(progreso__curso_id=curso_id)
+    if fecha_inicio_dt:
+        modulos_completados_q = modulos_completados_q.filter(fecha_completado__date__gte=fecha_inicio_dt)
+    if fecha_fin_dt:
+        modulos_completados_q = modulos_completados_q.filter(fecha_completado__date__lte=fecha_fin_dt)
+
+    whatsapp_q = WhatsappLog.objects.all()
+    if fecha_inicio_dt:
+        whatsapp_q = whatsapp_q.filter(fecha__date__gte=fecha_inicio_dt)
+    if fecha_fin_dt:
+        whatsapp_q = whatsapp_q.filter(fecha__date__lte=fecha_fin_dt)
+
+    if cliente_id or curso_id:
+        estudiantes_scope = Estudiante.objects.filter(activo=True)
+        if cliente_id:
+            estudiantes_scope = estudiantes_scope.filter(cliente_id=cliente_id)
+        if curso_id:
+            estudiantes_scope = estudiantes_scope.filter(progresos__curso_id=curso_id).distinct()
+
+        telefonos_scope = estudiantes_scope.exclude(telefono='').values_list('telefono', flat=True)
+        whatsapp_q = whatsapp_q.filter(
+            Q(estudiante__in=estudiantes_scope) | Q(telefono__in=telefonos_scope)
+        ).distinct()
+
     total_estudiantes = estudiantes_q.count()
 
-    # WhatsApp
-    total_mensajes_whatsapp = WhatsappLog.objects.count()
-    mensajes_enviados = WhatsappLog.objects.filter(tipo='SENT').count()
-    mensajes_recibidos = WhatsappLog.objects.filter(tipo='INCOMING').count()
-    total_audios = WhatsappLog.objects.filter(es_audio=True).count()
-    total_agentes_ia = WhatsappLog.objects.filter(agente_usado__isnull=False).exclude(agente_usado='').count()
+    if cliente_id:
+        total_clientes = Cliente.objects.filter(id=cliente_id).count()
+    elif curso_id or fecha_inicio_dt or fecha_fin_dt:
+        total_clientes = Cliente.objects.filter(estudiantes__in=estudiantes_q).distinct().count()
+    else:
+        total_clientes = Cliente.objects.count()
 
-    # Progreso educativo
-    total_progreso = ProgresoEstudiante.objects.count()
-    total_modulos_completados = ModuloCompletado.objects.count()
-    cursos_completados = ProgresoEstudiante.objects.filter(completado=True).count()
+    progreso_filter_q = Q(progresoestudiante__id__in=progreso_q.values('id'))
+    progreso_por_curso_qs = Curso.objects.all()
+    if cliente_id or curso_id or fecha_inicio_dt or fecha_fin_dt:
+        progreso_por_curso_qs = progreso_por_curso_qs.filter(progreso_filter_q)
 
-    # Certificados
+    progreso_por_curso = progreso_por_curso_qs.annotate(
+        total_estudiantes=Count('progresoestudiante', filter=progreso_filter_q, distinct=True),
+        total_modulos_completados=Count('progresoestudiante__modulos_completados', filter=progreso_filter_q, distinct=True),
+        completados=Count(
+            'progresoestudiante',
+            filter=progreso_filter_q & Q(progresoestudiante__completado=True),
+            distinct=True,
+        ),
+    ).order_by('nombre')
+
+    total_cursos = Curso.objects.count() if not (cliente_id or curso_id or fecha_inicio_dt or fecha_fin_dt) else progreso_por_curso.count()
+
+    total_mensajes_whatsapp = whatsapp_q.count()
+    mensajes_enviados = whatsapp_q.filter(tipo='SENT').count()
+    mensajes_recibidos = whatsapp_q.filter(tipo='INCOMING').count()
+    total_audios = whatsapp_q.filter(es_audio=True).count()
+    total_agentes_ia = whatsapp_q.filter(agente_usado__isnull=False).exclude(agente_usado='').count()
+
+    total_progreso = progreso_q.count()
+    total_modulos_completados = modulos_completados_q.count()
+    cursos_completados = progreso_q.filter(completado=True).count()
+
     try:
         from .models_certificados import Certificado
-        total_certificados = Certificado.objects.count()
+        certificados_q = Certificado.objects.all()
+        if cliente_id:
+            certificados_q = certificados_q.filter(estudiante__cliente_id=cliente_id)
+        if curso_id:
+            certificados_q = certificados_q.filter(curso_id=curso_id)
+        if fecha_inicio_dt:
+            certificados_q = certificados_q.filter(fecha_emision__date__gte=fecha_inicio_dt)
+        if fecha_fin_dt:
+            certificados_q = certificados_q.filter(fecha_emision__date__lte=fecha_fin_dt)
+        total_certificados = certificados_q.count()
     except Exception:
         total_certificados = 0
 
-    # Gamificación
+    total_perfiles_gam = 0
+    puntos_promedio = 0
+    top_estudiantes = []
     try:
         from .gamificacion import PerfilGamificacion
-        total_perfiles_gam = PerfilGamificacion.objects.count()
-        puntos_promedio = PerfilGamificacion.objects.aggregate(avg=Avg('puntos_totales'))['avg'] or 0
-        top_estudiantes = PerfilGamificacion.objects.select_related('estudiante').order_by('-puntos_totales')[:10]
+        perfiles_q = PerfilGamificacion.objects.filter(estudiante_id__in=estudiantes_q.values('id'))
+        total_perfiles_gam = perfiles_q.count()
+        puntos_promedio = perfiles_q.aggregate(avg=Avg('puntos_totales'))['avg'] or 0
+        if incluir_detalle:
+            top_estudiantes = perfiles_q.select_related('estudiante').order_by('-puntos_totales')[:10]
     except Exception:
-        total_perfiles_gam = 0
-        puntos_promedio = 0
-        top_estudiantes = []
+        pass
 
-    # Ubicaciones (municipio)
     ubicaciones_municipio = (
-        Estudiante.objects.filter(activo=True)
-        .exclude(municipio__isnull=True).exclude(municipio='')
+        estudiantes_q.exclude(municipio__isnull=True)
+        .exclude(municipio='')
         .values('municipio')
         .annotate(total=Count('id'))
         .order_by('-total')[:10]
     )
+    chart_ubicaciones_labels = [u['municipio'] for u in ubicaciones_municipio]
+    chart_ubicaciones_values = [u['total'] for u in ubicaciones_municipio]
 
-    # Progreso por curso
-    progreso_por_curso = Curso.objects.annotate(
-        total_estudiantes=Count('progresoestudiante', distinct=True),
-        total_modulos_completados=Count('progresoestudiante__modulos_completados', distinct=True),
-        completados=Count('progresoestudiante', filter=Q(progresoestudiante__completado=True), distinct=True)
-    )
-
-    # --- Datos para gráficos (últimos 7 días) ---
-    hoy = datetime.now().date()
-    hace_7_dias = hoy - timedelta(days=7)
+    hoy = fecha_fin_dt or timezone.localdate()
+    hace_7_dias = hoy - timedelta(days=6)
     mensajes_por_dia = (
-        WhatsappLog.objects.filter(fecha__gte=hace_7_dias)
+        whatsapp_q.filter(fecha__date__gte=hace_7_dias, fecha__date__lte=hoy)
         .annotate(dia=TruncDate('fecha'))
         .values('dia')
         .annotate(total=Count('id'))
         .order_by('dia')
     )
+    mensajes_por_dia_map = {m['dia']: int(m['total']) for m in mensajes_por_dia}
+
     chart_labels = []
     chart_values = []
     for i in range(7):
         dia = hoy - timedelta(days=6 - i)
         chart_labels.append(dia.strftime('%d/%m'))
-        count = next((m['total'] for m in mensajes_por_dia if m['dia'] == dia), 0)
-        chart_values.append(count)
+        chart_values.append(int(mensajes_por_dia_map.get(dia, 0)))
 
-    # Distribución de tipos de mensaje (for pie chart)
-    tipos_msg = WhatsappLog.objects.values('tipo').annotate(total=Count('id')).order_by('-total')
+    tipos_msg = whatsapp_q.values('tipo').annotate(total=Count('id')).order_by('-total')
     chart_tipos_labels = [t['tipo'] or 'Otro' for t in tipos_msg]
-    chart_tipos_values = [t['total'] for t in tipos_msg]
+    chart_tipos_values = [int(t['total']) for t in tipos_msg]
 
-    # --- Prospectos B2B ---
     try:
         from .models import ProspectoB2B
-        total_prospectos = ProspectoB2B.objects.count()
+        prospectos_q = ProspectoB2B.objects.all()
+        if fecha_inicio_dt:
+            prospectos_q = prospectos_q.filter(fecha_captura__date__gte=fecha_inicio_dt)
+        if fecha_fin_dt:
+            prospectos_q = prospectos_q.filter(fecha_captura__date__lte=fecha_fin_dt)
+        total_prospectos = prospectos_q.count()
     except Exception:
         total_prospectos = 0
 
-    # --- Tasa de completación ---
-    total_inscripciones = ProgresoEstudiante.objects.count()
+    total_inscripciones = total_progreso
     tasa_completacion = round((cursos_completados / total_inscripciones * 100), 1) if total_inscripciones > 0 else 0
 
-    # --- Filtro municipio (para Tab Reportes) ---
-    municipio_filtro = request.GET.get('municipio', '')
     municipios = list(
-        Estudiante.objects.filter(activo=True)
-        .exclude(municipio__isnull=True).exclude(municipio='')
-        .values_list('municipio', flat=True).distinct().order_by('municipio')
-    )
-
-    # --- Detalle por estudiante (Tab Reportes B2B) ---
-    # Optimizado: prefetch para evitar N+1
-    from django.db.models import Count, Subquery, OuterRef, IntegerField
-    from django.db.models.functions import Coalesce
-    from .gamificacion import PerfilGamificacion as PG_detail
-
-    est_q = Estudiante.objects.filter(activo=True).select_related('cliente')
-    if cliente_id:
-        est_q = est_q.filter(cliente_id=cliente_id)
-    if municipio_filtro:
-        est_q = est_q.filter(municipio=municipio_filtro)
-
-    est_ids = list(est_q[:200].values_list('id', flat=True))
-
-    # Pre-cargar progresos con select_related('curso') y annotaciones
-    progresos_map = {}
-    for p in ProgresoEstudiante.objects.filter(
-        estudiante_id__in=est_ids
-    ).select_related('curso').annotate(
-        total_mods=Count('curso__modulos'),
-        mods_comp=Count('modulos_completados'),
-    ):
-        progresos_map.setdefault(p.estudiante_id, p)
-
-    # Pre-cargar gamificación
-    puntos_map = dict(
-        PG_detail.objects.filter(estudiante_id__in=est_ids)
-        .values_list('estudiante_id', 'puntos_totales')
+        estudiantes_q.exclude(municipio__isnull=True)
+        .exclude(municipio='')
+        .values_list('municipio', flat=True)
+        .distinct()
+        .order_by('municipio')
     )
 
     estudiantes_detalle = []
-    for est in est_q.filter(id__in=est_ids):
-        progreso = progresos_map.get(est.id)
-        puntos_est = puntos_map.get(est.id, 0)
-        avance = 0
-        curso_nombre = '-'
-        if progreso:
-            curso_nombre = progreso.curso.nombre if progreso.curso else '-'
-            total_mods = progreso.total_mods or 0
-            mods_comp = progreso.mods_comp or 0
-            avance = round(mods_comp / total_mods * 100) if total_mods > 0 else 0
-        estudiantes_detalle.append({
-            'nombre': est.nombre,
-            'cedula': est.cedula,
-            'organizacion': est.cliente.nombre if est.cliente else '-',
-            'municipio': est.municipio or '-',
-            'curso': curso_nombre,
-            'avance': avance,
-            'puntos': puntos_est,
-        })
-
-    # --- Detalle por cliente (organización) ---
     clientes_detalle = []
-    for c in clientes_all:
-        est_cliente = Estudiante.objects.filter(cliente=c, activo=True)
-        n_est = est_cliente.count()
-        tels = [e.telefono for e in est_cliente if e.telefono]
-        n_cursos = Curso.objects.filter(progresoestudiante__estudiante__cliente=c).distinct().count()
-        n_audio = WhatsappLog.objects.filter(telefono__in=tels, es_audio=True).count() if tels else 0
-        n_ia = WhatsappLog.objects.filter(telefono__in=tels, agente_usado__isnull=False).exclude(agente_usado='').count() if tels else 0
-        n_comp = ProgresoEstudiante.objects.filter(estudiante__cliente=c, completado=True).count()
-        clientes_detalle.append({
-            'nombre': c.nombre,
-            'cursos': n_cursos,
-            'estudiantes': n_est,
-            'uso_audio': n_audio,
-            'uso_ia': n_ia,
-            'cursos_completados': n_comp,
-        })
+    tickets_soporte = []
+    if incluir_detalle:
+        est_q = estudiantes_q.select_related('cliente')
+        if municipio_filtro:
+            est_q = est_q.filter(municipio=municipio_filtro)
 
-    # --- Tickets de soporte (Tab Auditoría) ---
-    try:
-        from .models import SolicitudSoporte
-        tickets_soporte = SolicitudSoporte.objects.select_related('estudiante').order_by('-fecha_solicitud')[:50]
-    except Exception:
-        tickets_soporte = []
+        est_ids = list(est_q[:200].values_list('id', flat=True))
 
-    # --- Excel export ---
-    if request.GET.get('exportar') == 'excel':
-        import openpyxl
-        from openpyxl.styles import Font, PatternFill, Alignment
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = 'Estudiantes'
-        headers = ['Nombre', 'Cédula', 'Organización', 'Municipio', 'Curso', 'Avance %', 'Puntos']
-        header_fill = PatternFill(start_color='3b5bdb', end_color='3b5bdb', fill_type='solid')
-        header_font = Font(color='FFFFFF', bold=True)
-        for col, h in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col, value=h)
-            cell.fill = header_fill
-            cell.font = header_font
-        for row_idx, est in enumerate(estudiantes_detalle, 2):
-            ws.cell(row=row_idx, column=1, value=est['nombre'])
-            ws.cell(row=row_idx, column=2, value=est['cedula'])
-            ws.cell(row=row_idx, column=3, value=est['organizacion'])
-            ws.cell(row=row_idx, column=4, value=est['municipio'])
-            ws.cell(row=row_idx, column=5, value=est['curso'])
-            ws.cell(row=row_idx, column=6, value=est['avance'])
-            ws.cell(row=row_idx, column=7, value=est['puntos'])
-        for col in range(1, 8):
-            ws.column_dimensions[chr(64 + col)].width = 20
-        from django.http import HttpResponse as ExcelResponse
-        response = ExcelResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = 'attachment; filename=reporte_eki_b2b.xlsx'
-        wb.save(response)
-        return response
+        progresos_map = {}
+        for p in progreso_q.filter(estudiante_id__in=est_ids).select_related('curso').annotate(
+            total_mods=Count('curso__modulos', distinct=True),
+            mods_comp=Count('modulos_completados', distinct=True),
+        ):
+            progresos_map.setdefault(p.estudiante_id, p)
+
+        puntos_map = {}
+        try:
+            from .gamificacion import PerfilGamificacion as PG_detail
+            puntos_map = dict(
+                PG_detail.objects.filter(estudiante_id__in=est_ids).values_list('estudiante_id', 'puntos_totales')
+            )
+        except Exception:
+            puntos_map = {}
+
+        for est in est_q.filter(id__in=est_ids):
+            progreso = progresos_map.get(est.id)
+            puntos_est = puntos_map.get(est.id, 0)
+            avance = 0
+            curso_nombre = '-'
+            if progreso:
+                curso_nombre = progreso.curso.nombre if progreso.curso else '-'
+                total_mods = progreso.total_mods or 0
+                mods_comp = progreso.mods_comp or 0
+                avance = round(mods_comp / total_mods * 100) if total_mods > 0 else 0
+            estudiantes_detalle.append({
+                'nombre': est.nombre,
+                'cedula': est.cedula,
+                'organizacion': est.cliente.nombre if est.cliente else '-',
+                'municipio': est.municipio or '-',
+                'curso': curso_nombre,
+                'avance': avance,
+                'puntos': puntos_est,
+            })
+
+        clientes_iter = clientes_all if not cliente_id else clientes_all.filter(id=cliente_id)
+        for c in clientes_iter:
+            est_cliente = estudiantes_q.filter(cliente=c)
+            n_est = est_cliente.count()
+            tels = est_cliente.exclude(telefono='').values_list('telefono', flat=True)
+            progreso_cliente = progreso_q.filter(estudiante__cliente=c)
+
+            whatsapp_cliente = whatsapp_q.filter(
+                Q(estudiante__cliente=c) | Q(telefono__in=tels)
+            ).distinct()
+
+            clientes_detalle.append({
+                'nombre': c.nombre,
+                'cursos': progreso_cliente.values('curso_id').distinct().count(),
+                'estudiantes': n_est,
+                'uso_audio': whatsapp_cliente.filter(es_audio=True).count(),
+                'uso_ia': whatsapp_cliente.filter(agente_usado__isnull=False).exclude(agente_usado='').count(),
+                'cursos_completados': progreso_cliente.filter(completado=True).count(),
+            })
+
+        try:
+            from .models import SolicitudSoporte
+            tickets_soporte_q = SolicitudSoporte.objects.select_related('estudiante')
+            if cliente_id:
+                tickets_soporte_q = tickets_soporte_q.filter(estudiante__cliente_id=cliente_id)
+            if curso_id:
+                tickets_soporte_q = tickets_soporte_q.filter(estudiante__progresos__curso_id=curso_id).distinct()
+            if fecha_inicio_dt:
+                tickets_soporte_q = tickets_soporte_q.filter(fecha_solicitud__date__gte=fecha_inicio_dt)
+            if fecha_fin_dt:
+                tickets_soporte_q = tickets_soporte_q.filter(fecha_solicitud__date__lte=fecha_fin_dt)
+            tickets_soporte = tickets_soporte_q.order_by('-fecha_solicitud')[:50]
+        except Exception:
+            tickets_soporte = []
+
+    resumen_payload = {
+        'success': True,
+        'generated_at': timezone.now().isoformat(),
+        'kpis': {
+            'total_cursos': int(total_cursos),
+            'total_clientes': int(total_clientes),
+            'total_estudiantes': int(total_estudiantes),
+            'total_mensajes_whatsapp': int(total_mensajes_whatsapp),
+            'mensajes_enviados': int(mensajes_enviados),
+            'mensajes_recibidos': int(mensajes_recibidos),
+            'total_audios': int(total_audios),
+            'total_agentes_ia': int(total_agentes_ia),
+            'total_progreso': int(total_progreso),
+            'total_modulos_completados': int(total_modulos_completados),
+            'cursos_completados': int(cursos_completados),
+            'total_certificados': int(total_certificados),
+            'total_perfiles_gam': int(total_perfiles_gam),
+            'puntos_promedio': round(float(puntos_promedio), 1),
+            'total_prospectos': int(total_prospectos),
+            'tasa_completacion': float(tasa_completacion),
+        },
+        'chart_mensajes': {
+            'labels': chart_labels,
+            'values': chart_values,
+        },
+        'chart_ubicaciones': {
+            'labels': chart_ubicaciones_labels,
+            'values': chart_ubicaciones_values,
+        },
+        'chart_tipos': {
+            'labels': chart_tipos_labels,
+            'values': chart_tipos_values,
+        },
+    }
 
     context = {
-        # Métricas principales
         'total_cursos': total_cursos,
         'total_clientes': total_clientes,
         'total_estudiantes': total_estudiantes,
@@ -246,31 +342,85 @@ def dashboard_unificado(request):
         'top_estudiantes': top_estudiantes,
         'total_prospectos': total_prospectos,
         'tasa_completacion': tasa_completacion,
-        # Ubicaciones
         'ubicaciones_municipio': ubicaciones_municipio,
-        # Progreso por curso
         'progreso_por_curso': progreso_por_curso,
-        # Gráficos
         'chart_labels': json.dumps(chart_labels),
         'chart_values': json.dumps(chart_values),
+        'chart_ubicaciones_labels': json.dumps(chart_ubicaciones_labels),
+        'chart_ubicaciones_values': json.dumps(chart_ubicaciones_values),
         'chart_tipos_labels': json.dumps(chart_tipos_labels),
         'chart_tipos_values': json.dumps(chart_tipos_values),
-        # Filtros
+        'resumen_payload_json': json.dumps(resumen_payload),
         'clientes': clientes_all,
         'cursos': cursos_all,
-        'cliente_filtro': int(cliente_id) if cliente_id else None,
-        'curso_filtro': int(curso_id) if curso_id else None,
+        'cliente_filtro': cliente_id,
+        'curso_filtro': curso_id,
         'fecha_inicio': fecha_inicio,
         'fecha_fin': fecha_fin,
         'municipios': municipios,
         'municipio_filtro': municipio_filtro,
-        # Detalle
+        'tab_actual': tab_actual,
         'clientes_detalle': clientes_detalle,
         'estudiantes_detalle': estudiantes_detalle,
-        # Tickets
         'tickets_soporte': tickets_soporte,
     }
+    return context, resumen_payload
+
+
+# Vista unificada del dashboard admin
+@staff_member_required
+def dashboard_unificado(request):
+    """
+    Dashboard profesional unificado de eki.
+    Métricas reales: cursos, clientes, estudiantes, certificados, gamificación,
+    WhatsApp, IA, y progreso educativo.
+    """
+    context, _ = _construir_dashboard_unificado_contexto(request, incluir_detalle=True)
+
+    # --- Excel export ---
+    if request.GET.get('exportar') == 'excel':
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = 'Estudiantes'
+
+        headers = ['Nombre', 'Cédula', 'Organización', 'Municipio', 'Curso', 'Avance %', 'Puntos']
+        header_fill = PatternFill(start_color='3b5bdb', end_color='3b5bdb', fill_type='solid')
+        header_font = Font(color='FFFFFF', bold=True)
+
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=h)
+            cell.fill = header_fill
+            cell.font = header_font
+
+        for row_idx, est in enumerate(context['estudiantes_detalle'], 2):
+            ws.cell(row=row_idx, column=1, value=est['nombre'])
+            ws.cell(row=row_idx, column=2, value=est['cedula'])
+            ws.cell(row=row_idx, column=3, value=est['organizacion'])
+            ws.cell(row=row_idx, column=4, value=est['municipio'])
+            ws.cell(row=row_idx, column=5, value=est['curso'])
+            ws.cell(row=row_idx, column=6, value=est['avance'])
+            ws.cell(row=row_idx, column=7, value=est['puntos'])
+
+        for col in range(1, 8):
+            ws.column_dimensions[chr(64 + col)].width = 20
+
+        from django.http import HttpResponse as ExcelResponse
+        response = ExcelResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename=reporte_eki_b2b.xlsx'
+        wb.save(response)
+        return response
+
     return render(request, 'admin/dashboard.html', context)
+
+
+@staff_member_required
+def dashboard_unificado_resumen_data(request):
+    """Endpoint JSON para refresco en tiempo real del Resumen Ejecutivo."""
+    _, payload = _construir_dashboard_unificado_contexto(request, incluir_detalle=False)
+    return JsonResponse(payload)
 
 
 @staff_member_required
@@ -736,7 +886,8 @@ def importar_prospectos(request):
 @staff_member_required
 def importar_estudiantes(request):
     """Vista para importar estudiantes desde un archivo Excel.
-    Formato obligatorio: Cédula | Nombre | Teléfono | Municipio | Departamento | Género | Edad | Curso | Cliente
+    Campos obligatorios: Cédula | Nombre | Teléfono.
+    Campos opcionales: Municipio | Departamento | Género | Edad | Curso | Cliente.
     """
     context = {}
     
@@ -795,7 +946,7 @@ def importar_estudiantes(request):
             GENEROS_VALIDOS = {'m': 'M', 'f': 'F', 'o': 'O', 'masculino': 'M', 'femenino': 'F', 
                                'otro': 'O', 'hombre': 'M', 'mujer': 'F', 'nr': 'NR', 'no reporta': 'NR'}
             
-            # Columnas: A=Cédula | B=Nombre | C=Teléfono | D=Municipio | E=Departamento | F=Género | G=Edad | H=Curso | I=Cliente
+            # Columnas esperadas: A=Cédula | B=Nombre | C=Teléfono | D=Municipio | E=Departamento | F=Género | G=Edad | H=Curso | I=Cliente
             for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
                 if not row or all(cell is None or str(cell).strip() == '' for cell in row[:3]):
                     continue
@@ -811,12 +962,11 @@ def importar_estudiantes(request):
                     curso_nombre = _normalizar_celda(row[7]) if len(row) > 7 else ''
                     cliente_nombre = _normalizar_celda(row[8]) if len(row) > 8 else ''
                     
-                    # Validar campos obligatorios (Cédula, Nombre, Teléfono, Curso)
+                    # Validar campos obligatorios mínimos (Cédula, Nombre, Teléfono)
                     campos_faltantes = []
                     if not cedula: campos_faltantes.append('Cédula')
                     if not nombre: campos_faltantes.append('Nombre')
                     if not telefono_raw: campos_faltantes.append('Teléfono')
-                    if not curso_nombre: campos_faltantes.append('Curso')
                     
                     if campos_faltantes:
                         errores.append(f"Fila {row_idx}: Faltan campos obligatorios: {', '.join(campos_faltantes)}")
