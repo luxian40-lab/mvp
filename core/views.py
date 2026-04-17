@@ -1695,6 +1695,7 @@ def _bot_comercial_respuesta_catalogo(
     contexto_rag: str,
     diagnostico_vision: str = '',
     contexto_web: str = '',
+    historial_chat: str = '',
 ) -> str:
     """Genera respuesta técnica/comercial estricta basada en contexto RAG (sin alucinaciones)."""
     api_key = getattr(settings, 'OPENAI_API_KEY', '')
@@ -1731,6 +1732,10 @@ def _bot_comercial_respuesta_catalogo(
             "Primero prioriza orientación técnica y, cuando corresponda, recomendación de producto/catálogo. "
             "Regla crítica: PRIORIZA SIEMPRE el CONTEXTO RAG INDEXADO; solo usa CONTEXTO WEB "
             "si el RAG está vacío o insuficiente. "
+            "Usa HISTORIAL RECIENTE para mantener continuidad de la conversación. "
+            "Si el cliente dice 'eso', 'lo mismo', 'lo anterior' o similares, "
+            "interpreta esa referencia con base en el historial. "
+            "Si hay conflicto entre historial y último mensaje, prioriza el último mensaje del cliente. "
             "Si falta información en contexto, dilo con naturalidad y sin repetir disculpas. "
             "No inventes productos, dosis ni precios. "
             "Si el contexto RAG incluye precio/disponibilidad, puedes recomendar de forma directa "
@@ -1741,6 +1746,7 @@ def _bot_comercial_respuesta_catalogo(
         )
         user_prompt = (
             f"CONSULTA DEL CLIENTE:\n{pregunta}\n\n"
+            f"HISTORIAL RECIENTE:\n{historial_chat or '[VACIO]'}\n\n"
             f"DIAGNOSTICO VISION (si aplica):\n{diagnostico_vision or 'N/A'}\n\n"
             f"CONTEXTO RAG INDEXADO (fuente principal):\n{contexto_rag or '[VACIO]'}\n\n"
             f"CONTEXTO WEB EXTERNO (usar solo si RAG está vacío):\n{contexto_web or '[VACIO]'}"
@@ -1772,6 +1778,70 @@ def _bot_comercial_respuesta_catalogo(
                 "Si subes fichas técnicas o precios al RAG, te doy recomendación directa de producto."
             )
         return _bot_comercial_sin_contexto_natural(pregunta)
+
+
+def _bot_comercial_historial_reciente(telefono: str, max_turnos: int = 6, max_chars: int = 1200) -> str:
+    """Construye memoria corta de conversación comercial desde WhatsappLog."""
+    if not telefono:
+        return ''
+
+    try:
+        max_turnos = int(max_turnos or 6)
+    except (TypeError, ValueError):
+        max_turnos = 6
+    max_turnos = max(2, min(max_turnos, 12))
+
+    try:
+        max_chars = int(max_chars or 1200)
+    except (TypeError, ValueError):
+        max_chars = 1200
+    max_chars = max(300, min(max_chars, 2500))
+
+    logs = list(
+        WhatsappLog.objects.filter(
+            telefono=telefono,
+            agente_usado='BOT_COMERCIAL',
+        )
+        .exclude(mensaje__isnull=True)
+        .exclude(mensaje='')
+        .order_by('-fecha')[: (max_turnos * 3)]
+    )
+
+    if not logs:
+        return ''
+
+    import re
+
+    lineas = []
+    for log in reversed(logs):
+        texto = re.sub(r'\s+', ' ', str(log.mensaje or '').strip())
+        if not texto:
+            continue
+        if texto.startswith('[MEDIA:'):
+            continue
+
+        if len(texto) > 260:
+            texto = f"{texto[:257]}..."
+
+        tipo = str(log.tipo or '').upper()
+        rol = 'Cliente' if tipo == 'INCOMING' else 'Bot'
+        lineas.append(f"{rol}: {texto}")
+
+    if not lineas:
+        return ''
+
+    # Recorta por caracteres conservando las líneas más recientes.
+    salida = []
+    total = 0
+    for linea in reversed(lineas):
+        costo = len(linea) + 1
+        if total + costo > max_chars:
+            break
+        salida.append(linea)
+        total += costo
+
+    salida.reverse()
+    return '\n'.join(salida)
 
 
 def _bot_comercial_diagnosticar_imagen(media_url: str, media_type: str) -> str:
@@ -1829,6 +1899,15 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
     media_type = post_data.get('MediaContentType0', '') or ''
     media_url = post_data.get('MediaUrl0', '') or ''
 
+    # Evita doble respuesta si Twilio reintenta el mismo webhook.
+    if msg_sid and WhatsappLog.objects.filter(
+        mensaje_id=msg_sid,
+        tipo='INCOMING',
+        agente_usado='BOT_COMERCIAL',
+    ).exists():
+        logger.info("♻️ Bot comercial: webhook duplicado ignorado | sid=%s", msg_sid)
+        return
+
     if msg_from.startswith('whatsapp:'):
         msg_from = msg_from.replace('whatsapp:', '')
     if msg_to.startswith('whatsapp:'):
@@ -1859,6 +1938,10 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
         elif not msg_body:
             msg_body = '[AUDIO_NO_TRANSCRITO]'
 
+    if not msg_body and num_media == 0:
+        logger.info("ℹ️ Bot comercial: webhook sin contenido ignorado | sid=%s", msg_sid)
+        return
+
     WhatsappLog.objects.create(
         telefono=telefono_limpio,
         mensaje=msg_body or f'[MEDIA:{media_type}]',
@@ -1869,6 +1952,26 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
     )
 
     msg_normalizado = re.sub(r'\s+', ' ', (msg_body or '').strip().lower())
+    try:
+        memoria_turnos = int(getattr(settings, 'BOT_COMERCIAL_MEMORY_TURNOS', 6) or 6)
+    except (TypeError, ValueError):
+        memoria_turnos = 6
+    try:
+        memoria_chars = int(getattr(settings, 'BOT_COMERCIAL_MEMORY_MAX_CHARS', 1200) or 1200)
+    except (TypeError, ValueError):
+        memoria_chars = 1200
+    historial_chat = _bot_comercial_historial_reciente(
+        telefono=telefono_limpio,
+        max_turnos=memoria_turnos,
+        max_chars=memoria_chars,
+    )
+    if historial_chat:
+        logger.info(
+            "🧠 Memoria chat comercial aplicada | telefono=%s | chars=%s",
+            telefono_limpio,
+            len(historial_chat),
+        )
+
     es_saludo = bool(
         re.match(
             r'^(hola|buenas|buenos dias|buen día|buenas tardes|buenas noches|hey|que tal|qué tal)\b',
@@ -1973,17 +2076,22 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
             contexto_rag=contexto_rag,
             diagnostico_vision=diagnostico_vision,
             contexto_web=contexto_web,
+            historial_chat=historial_chat,
         )
 
     try:
-        enviar_whatsapp_twilio(
+        resultado_envio = enviar_whatsapp_twilio(
             telefono_limpio,
             texto_respuesta,
             from_number=from_number_respuesta,
         )
+        if not resultado_envio.get('success'):
+            raise RuntimeError(str(resultado_envio.get('response') or 'Error enviando por Twilio'))
+
         WhatsappLog.objects.create(
             telefono=telefono_limpio,
             mensaje=texto_respuesta[:1500],
+            mensaje_id=resultado_envio.get('mensaje_id'),
             tipo='SENT',
             agente_usado='BOT_COMERCIAL',
         )
@@ -2019,6 +2127,75 @@ def _escape_twiml(text):
     text = text.replace('<', '&lt;')
     text = text.replace('>', '&gt;')
     return text
+
+
+def _twilio_max_body_chars() -> int:
+    """Retorna límite seguro para cuerpo de mensajes Twilio WhatsApp."""
+    try:
+        valor = int(getattr(settings, 'TWILIO_MAX_BODY_CHARS', 1500) or 1500)
+    except (TypeError, ValueError):
+        valor = 1500
+
+    if valor < 200 or valor > 1590:
+        return 1500
+    return valor
+
+
+def _segmentar_texto_twilio(texto: str, max_chars: int = None) -> list:
+    """Divide texto en segmentos compatibles con límite de Twilio."""
+    texto = str(texto or '').strip()
+    if not texto:
+        return ['']
+
+    limite = max_chars or _twilio_max_body_chars()
+
+    try:
+        from .response_templates import dividir_contenido_seguro
+        chunks = dividir_contenido_seguro(texto, max_chars=limite)
+        if chunks:
+            return chunks
+    except Exception:
+        pass
+
+    # Fallback simple por longitud si la utilidad no está disponible.
+    return [texto[i:i + limite] for i in range(0, len(texto), limite)]
+
+
+def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, body: str, media_url: str = None) -> list:
+    """Envía mensaje Twilio en segmentos seguros y devuelve [(sid, texto_enviado), ...]."""
+    segmentos = _segmentar_texto_twilio(body)
+    enviados = []
+
+    from_limpio = str(from_number or '').strip()
+    to_limpio = str(to_number or '').strip()
+    media_limpia = str(media_url or '').strip() or None
+
+    for idx, segmento in enumerate(segmentos):
+        params = {
+            'body': segmento if segmento else (' ' if media_limpia else ''),
+            'from_': from_limpio,
+            'to': to_limpio,
+        }
+
+        # Adjuntar media solo en el primer segmento.
+        if media_limpia and idx == 0:
+            params['media_url'] = [media_limpia]
+
+        try:
+            mensaje = client.messages.create(**params)
+        except Exception as media_err:
+            err_str = str(media_err)
+            if '63019' in err_str and media_limpia and idx == 0:
+                params.pop('media_url', None)
+                body_base = (params.get('body') or '').strip()
+                params['body'] = f"{body_base}\n\n📎 Archivo: {media_limpia}".strip()
+                mensaje = client.messages.create(**params)
+            else:
+                raise
+
+        enviados.append((mensaje, params.get('body', '')))
+
+    return enviados
 
 
 def _haversine_metros(lat1, lon1, lat2, lon2):
@@ -2220,6 +2397,11 @@ def _procesar_twilio_webhook(post_data):
         msg_from = post_data.get('From', '')  # whatsapp:+573001234567
         msg_to = post_data.get('To', '')      # whatsapp:+14155238886
         msg_sid = post_data.get('MessageSid', f'twilio_{timezone.now().timestamp()}')
+
+        # Evita procesar dos veces el mismo mensaje entrante si Twilio reintenta.
+        if msg_sid and WhatsappLog.objects.filter(mensaje_id=msg_sid, tipo='INCOMING').exists():
+            logger.info("♻️ Twilio inbound duplicado ignorado | sid=%s", msg_sid)
+            return
         
         logger.info(f"📱 Body: {msg_body} | From: {msg_from} | To: {msg_to}")
 
@@ -4467,77 +4649,52 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                             parte_texto = parte_texto.replace(media_match_p.group(0), '').strip()
                             print(f"🖼️ Media en parte {idx+1}: {parte_media}")
                     
-                    msg_params = {
-                        'body': parte_texto,
-                        'from_': twilio_number,
-                        'to': destino_formateado
-                    }
-                    if parte_media:
-                        msg_params['media_url'] = [parte_media]
-                    
-                    try:
-                        mensaje = client.messages.create(**msg_params)
-                    except Exception as media_err:
-                        # Error 63019 = Media download failed — retry without media
-                        err_str = str(media_err)
-                        if '63019' in err_str and parte_media:
-                            print(f"⚠️ Error 63019 en parte {idx+1}, reenviando sin media...")
-                            msg_params.pop('media_url', None)
-                            msg_params['body'] += f"\n\n📎 Video: {parte_media}"
-                            mensaje = client.messages.create(**msg_params)
-                        else:
-                            raise
-                    
-                    print(f"✅ Mensaje {idx+1}/{len(partes)} enviado via Twilio: {mensaje.sid}")
-                    
-                    # Guardar log de respuesta con teléfono limpio
-                    WhatsappLog.objects.create(
-                        telefono=telefono_limpio,
-                        mensaje=parte_texto,
-                        mensaje_id=mensaje.sid,
-                        tipo='SENT'
+                    mensajes_enviados = _enviar_mensaje_twilio_segmentado(
+                        client=client,
+                        from_number=twilio_number,
+                        to_number=destino_formateado,
+                        body=parte_texto,
+                        media_url=parte_media,
                     )
-                    print(f"✅ Guardado SENT")
+
+                    for seg_idx, (mensaje, texto_enviado) in enumerate(mensajes_enviados, start=1):
+                        print(f"✅ Mensaje {idx+1}.{seg_idx} enviado via Twilio: {mensaje.sid}")
+                        texto_log = texto_enviado or parte_texto or (f"[MEDIA:{parte_media}]" if parte_media else '')
+                        WhatsappLog.objects.create(
+                            telefono=telefono_limpio,
+                            mensaje=texto_log[:1500],
+                            mensaje_id=mensaje.sid,
+                            tipo='SENT'
+                        )
+                        print(f"✅ Guardado SENT")
                     
                     # Small delay between messages to avoid rate limiting
                     import time
                     time.sleep(0.5)
             else:
                 # Single message (original behavior)
-                message_params = {
-                    'body': texto_respuesta,
-                    'from_': twilio_number,
-                    'to': destino_formateado
-                }
-                
-                # Agregar media_url si existe
-                if media_url_to_send:
-                    clean_media_url = str(media_url_to_send).strip()
-                    message_params['media_url'] = [clean_media_url]
-                    print(f"🖼️ Enviando mensaje con multimedia: {clean_media_url}")
-                
-                try:
-                    mensaje = client.messages.create(**message_params)
-                except Exception as media_err:
-                    err_str = str(media_err)
-                    if '63019' in err_str and media_url_to_send:
-                        print(f"⚠️ Error 63019, reenviando sin media...")
-                        message_params.pop('media_url', None)
-                        message_params['body'] += f"\n\n📎 Video: {clean_media_url}"
-                        mensaje = client.messages.create(**message_params)
-                    else:
-                        raise
-                
-                print(f"✅ Mensaje enviado via Twilio: {mensaje.sid}")
-                
-                # Guardar log de respuesta con teléfono limpio
-                WhatsappLog.objects.create(
-                    telefono=telefono_limpio,
-                    mensaje=texto_respuesta,
-                    mensaje_id=mensaje.sid,
-                    tipo='SENT'
+                mensajes_enviados = _enviar_mensaje_twilio_segmentado(
+                    client=client,
+                    from_number=twilio_number,
+                    to_number=destino_formateado,
+                    body=texto_respuesta,
+                    media_url=media_url_to_send,
                 )
-                print(f"✅ Guardado SENT")
+
+                for seg_idx, (mensaje, texto_enviado) in enumerate(mensajes_enviados, start=1):
+                    if len(mensajes_enviados) == 1:
+                        print(f"✅ Mensaje enviado via Twilio: {mensaje.sid}")
+                    else:
+                        print(f"✅ Mensaje segmento {seg_idx}/{len(mensajes_enviados)} enviado via Twilio: {mensaje.sid}")
+
+                    texto_log = texto_enviado or texto_respuesta or (f"[MEDIA:{media_url_to_send}]" if media_url_to_send else '')
+                    WhatsappLog.objects.create(
+                        telefono=telefono_limpio,
+                        mensaje=texto_log[:1500],
+                        mensaje_id=mensaje.sid,
+                        tipo='SENT'
+                    )
+                    print(f"✅ Guardado SENT")
             
         except Exception as e:
             print(f"❌ Error enviando respuesta Twilio: {str(e)}")

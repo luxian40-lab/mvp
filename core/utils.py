@@ -195,7 +195,7 @@ def enviar_whatsapp_twilio(
     
     try:
         from twilio.rest import Client
-        from .utils import formatear_numero_whatsapp, generar_url_video_accesible
+        from .response_templates import dividir_contenido_seguro
 
         account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', None)
         auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', None)
@@ -240,21 +240,51 @@ def enviar_whatsapp_twilio(
             log = None
 
         # Preparar parámetros del mensaje
-        message_params = {
-            'from_': twilio_number,
-            'body': texto,
-            'to': telefono
-        }
+        max_chars = int(getattr(settings, 'TWILIO_MAX_BODY_CHARS', 1500) or 1500)
+        # Límite operativo seguro de Twilio WhatsApp: 1600 chars.
+        if max_chars < 200 or max_chars > 1590:
+            max_chars = 1500
 
-        # Agregar media_url si se proporcionó (video, imagen, PDF, etc.)
-        if media_url:
-            clean_url = str(media_url).strip()
-            message_params['media_url'] = [clean_url]
+        texto = str(texto or '').strip()
+        chunks = dividir_contenido_seguro(texto, max_chars=max_chars) if texto else ['']
+
+        if not chunks and not media_url:
+            return {'success': False, 'mensaje_id': None, 'response': 'Empty body and no media'}
+
+        sent_messages = []
+        clean_url = str(media_url).strip() if media_url else None
+        if clean_url:
             logger.info(f"[MEDIA] Enviando con multimedia: {clean_url}")
 
-        # Enviar mensaje (con o sin media)
-        message = client.messages.create(**message_params)
-        logger.info(f"Enviado FROM: '{twilio_number}' TO: '{telefono}'")
+        for idx, chunk in enumerate(chunks):
+            message_params = {
+                'from_': twilio_number,
+                'body': chunk if chunk else (' ' if clean_url else ''),
+                'to': telefono,
+            }
+
+            # Si hay multimedia, enviarla solo en el primer fragmento.
+            if clean_url and idx == 0:
+                message_params['media_url'] = [clean_url]
+
+            try:
+                message = client.messages.create(**message_params)
+            except Exception as media_err:
+                err_str = str(media_err)
+                # Error 63019 = Twilio no pudo descargar el media.
+                if '63019' in err_str and clean_url and idx == 0:
+                    message_params.pop('media_url', None)
+                    extra = f"\n\n📎 Archivo: {clean_url}"
+                    body_with_fallback = (message_params.get('body') or '').strip()
+                    message_params['body'] = f"{body_with_fallback}{extra}".strip()
+                    message = client.messages.create(**message_params)
+                else:
+                    raise
+
+            sent_messages.append(message)
+
+        message = sent_messages[-1]
+        logger.info(f"Enviado FROM: '{twilio_number}' TO: '{telefono}' ({len(sent_messages)} segmento(s))")
 
         if log:
             try:
