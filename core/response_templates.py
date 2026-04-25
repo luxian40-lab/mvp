@@ -27,9 +27,10 @@ def _formatear_fecha_desbloqueo(fecha):
 def _mensaje_bloqueo_drip(fecha_desbloqueo):
     return (
         "🌱 *¡Excelente energía!*\n\n"
+        "Estamos preparando tu siguiente sesión; aún no enviamos el siguiente módulo para que puedas asimilar lo aprendido.\n\n"
         f"Tu próxima lección se desbloquea el *{_formatear_fecha_desbloqueo(fecha_desbloqueo)}*.\n"
-        "Mientras tanto, repasa lo aprendido en el módulo actual.\n\n"
-        "Cuando llegue la fecha, responde *listo* para continuar."
+        "Mientras tanto, repasa el material del módulo que acabas de completar.\n\n"
+        "Cuando llegue esa fecha, responde *listo* y seguimos automáticamente."
     )
 
 
@@ -400,6 +401,17 @@ def get_response_for_intent(intent: str, nombre_usuario: str = "Estudiante", **k
     
     # Saludos
     if intent == 'saludo':
+        estudiante_id_menu = kwargs.get('estudiante_id')
+        if estudiante_id_menu:
+            try:
+                from .models import Estudiante as _EstMenu
+                _est = _EstMenu.objects.get(id=estudiante_id_menu)
+                _ctxm = dict(_est.contexto_temporal or {})
+                _ctxm.pop('curso_activo_id', None)
+                _est.contexto_temporal = _ctxm or None
+                _est.save(update_fields=['contexto_temporal'])
+            except Exception:
+                pass
         return f"""🌱 Hola {nombre_usuario}, bienvenido a eki
 
 🚜 *Tu plataforma de soluciones educativas*
@@ -956,6 +968,40 @@ Escribe "continuar" para empezar el primer módulo."""
 
 Tu organización te asignará un curso pronto. Si crees que es un error, escribe *ayuda* para contactar soporte."""
         
+        # Curso en foco: tras elegir de la lista multi-curso (selector_curso), seguir ese curso hasta *menú* u otro cambio explícito
+        _ctx_foco = estudiante.contexto_temporal or {}
+        _curso_foco_id = _ctx_foco.get('curso_activo_id')
+        if _curso_foco_id:
+            _foco_qs = progresos_activos.filter(curso_id=_curso_foco_id)
+            if _foco_qs.exists():
+                progresos_activos = _foco_qs
+            else:
+                _ctx_foco = dict(_ctx_foco)
+                _ctx_foco.pop('curso_activo_id', None)
+                estudiante.contexto_temporal = _ctx_foco or None
+                estudiante.save(update_fields=['contexto_temporal'])
+
+        # Varios cursos activos pero en pausa drip en alguno: no pedir "elige curso"; seguir solo ese curso
+        if progresos_activos.count() > 1:
+            from .drip_schedule import drip_bloquea_siguiente_modulo
+
+            _bloqueados_drip = []
+            for _p in progresos_activos:
+                _m = _p.modulo_actual
+                if _m and drip_bloquea_siguiente_modulo(_p, _m):
+                    _bloqueados_drip.append(_p)
+            if _bloqueados_drip:
+                _bloqueados_drip.sort(
+                    key=lambda p: p.fecha_ultimo_avance.timestamp() if p.fecha_ultimo_avance else 0.0,
+                    reverse=True,
+                )
+                _chosen = _bloqueados_drip[0]
+                progresos_activos = ProgresoEstudiante.objects.filter(id=_chosen.id)
+                _ctx_drip = dict(estudiante.contexto_temporal or {})
+                _ctx_drip['curso_activo_id'] = _chosen.curso_id
+                estudiante.contexto_temporal = _ctx_drip
+                estudiante.save(update_fields=['contexto_temporal'])
+        
         # Si tiene MÚLTIPLES cursos activos, preguntar cuál continuar
         if progresos_activos.count() > 1:
             respuesta = "📚 Tienes varios cursos activos:\n\n"
@@ -967,12 +1013,15 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     respuesta += f"   📖 Módulo actual: {prog.modulo_actual.numero} - {prog.modulo_actual.titulo}\n"
                 respuesta += "\n"
             
-            respuesta += "Escribe el número del curso al que quieres continuar.\n"
-            respuesta += "Ejemplo: \"1\" o \"2\" o \"3\""
+            respuesta += "Escribe el número del curso o *tomar* y el número (ej.: *tomar 2*).\n"
+            respuesta += "Ejemplo: \"1\" o \"2\" — así evitamos confundirlo con las opciones del menú (1, 2, 3)."
             
             # Guardar estado para que views.py intercepte la respuesta numérica
             estudiante.estado_onboarding = 'esperando_seleccion_curso'
-            estudiante.contexto_temporal = {'tipo': 'seleccion_curso'}
+            _ctx_sel = dict(estudiante.contexto_temporal or {})
+            _ctx_sel['tipo'] = 'seleccion_curso'
+            _ctx_sel.pop('curso_activo_id', None)
+            estudiante.contexto_temporal = _ctx_sel
             estudiante.save()
             
             return respuesta
@@ -999,14 +1048,17 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
         
         # Regla estricta del curso: solo "listo" avanza.
         if (mensaje_original or '').strip() == 'listo':
-            # Drip Content: bloquear avance según configuración del curso
-            if progreso.curso.dias_espera_entre_modulos > 0:
+            # Drip Content: bloquear avance según curso y override por cliente
+            from .drip_schedule import dias_espera_efectivos
+
+            dias_drip = dias_espera_efectivos(estudiante, progreso.curso)
+            if dias_drip > 0:
                 ya_completo_modulo = ModuloCompletado.objects.filter(
                     progreso=progreso,
                     modulo=modulo_actual
                 ).exists()
                 if ya_completo_modulo and progreso.fecha_ultimo_avance:
-                    fecha_desbloqueo = progreso.fecha_ultimo_avance + timedelta(days=progreso.curso.dias_espera_entre_modulos)
+                    fecha_desbloqueo = progreso.fecha_ultimo_avance + timedelta(days=dias_drip)
                     if timezone.now() < fecha_desbloqueo:
                         return _mensaje_bloqueo_drip(fecha_desbloqueo)
 

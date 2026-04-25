@@ -8,6 +8,7 @@ from core.gamificacion import PerfilGamificacion
 from core.models import (
 	AliadoEmpleabilidad,
 	Cliente,
+	ConfiguracionDripCliente,
 	Curso,
 	Estudiante,
 	Modulo,
@@ -15,7 +16,9 @@ from core.models import (
 	PreguntaAbiertaFinalCurso,
 	ProgresoEstudiante,
 )
+from core.drip_schedule import dias_espera_efectivos
 from core.response_templates import get_response_for_intent, _generar_completado_final
+from core.selector_curso import continuar_curso_seleccionado
 from core.views import _haversine_metros, _procesar_ubicacion_empleabilidad
 
 
@@ -71,6 +74,84 @@ class DripGeoGamificacionTests(TestCase):
 
 		self.assertIn('se desbloquea el', respuesta)
 		self.assertIn('Excelente energía', respuesta)
+
+	def test_drip_override_por_cliente(self):
+		cliente = Cliente.objects.create(
+			nombre='Coop Test',
+			contacto_principal='A',
+			email='a@test.com',
+			telefono='57',
+		)
+		estudiante = Estudiante.objects.create(
+			cedula='100099',
+			nombre='Estudiante Override',
+			telefono='573001234599',
+			cliente=cliente,
+		)
+		curso, modulo_1, _ = self._crear_curso_y_modulos('Curso Global', dias_espera=0)
+		ConfiguracionDripCliente.objects.create(
+			cliente=cliente,
+			curso=curso,
+			dias_espera_entre_modulos=7,
+			activo=True,
+		)
+		self.assertEqual(dias_espera_efectivos(estudiante, curso), 7)
+
+		progreso = ProgresoEstudiante.objects.create(
+			estudiante=estudiante,
+			curso=curso,
+			modulo_actual=modulo_1,
+			fecha_ultimo_avance=timezone.now() - timedelta(days=1),
+		)
+		ModuloCompletado.objects.create(progreso=progreso, modulo=modulo_1)
+
+		respuesta = get_response_for_intent(
+			'continuar_leccion',
+			estudiante.nombre,
+			estudiante_id=estudiante.id,
+			mensaje_original='listo',
+		)
+		self.assertIn('se desbloquea el', respuesta)
+
+	def test_continuar_leccion_no_lista_cursos_si_drip_en_uno(self):
+		estudiante = self._crear_estudiante('22')
+		curso_a, mod_a1, _ = self._crear_curso_y_modulos('Curso A Drip', dias_espera=7)
+		curso_b, mod_b1, _ = self._crear_curso_y_modulos('Curso B Libre', dias_espera=0)
+		pa = ProgresoEstudiante.objects.create(
+			estudiante=estudiante,
+			curso=curso_a,
+			modulo_actual=mod_a1,
+			fecha_ultimo_avance=timezone.now() - timedelta(days=1),
+		)
+		ModuloCompletado.objects.create(progreso=pa, modulo=mod_a1)
+		ProgresoEstudiante.objects.create(
+			estudiante=estudiante,
+			curso=curso_b,
+			modulo_actual=mod_b1,
+		)
+		respuesta = get_response_for_intent(
+			'continuar_leccion',
+			estudiante.nombre,
+			estudiante_id=estudiante.id,
+			mensaje_original='continuar',
+		)
+		self.assertNotIn('Tienes varios cursos activos', respuesta)
+
+	def test_selector_curso_drip_al_elegir_por_numero(self):
+		estudiante = self._crear_estudiante('21')
+		curso, modulo_1, _ = self._crear_curso_y_modulos('Curso Selector Drip', dias_espera=7)
+		progreso = ProgresoEstudiante.objects.create(
+			estudiante=estudiante,
+			curso=curso,
+			modulo_actual=modulo_1,
+			fecha_ultimo_avance=timezone.now() - timedelta(days=1),
+		)
+		ModuloCompletado.objects.create(progreso=progreso, modulo=modulo_1)
+		cursos_list = list(Curso.objects.filter(activo=True).order_by('orden', 'nombre'))
+		indice = next(i for i, c in enumerate(cursos_list, 1) if c.id == curso.id)
+		respuesta = continuar_curso_seleccionado(estudiante.id, indice, str(indice))
+		self.assertIn('preparando tu siguiente sesión', respuesta)
+		self.assertIn('se desbloquea el', respuesta)
 
 	def test_geogamificacion_respuesta_cercana(self):
 		estudiante = self._crear_estudiante('12')
