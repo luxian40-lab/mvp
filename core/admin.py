@@ -2336,8 +2336,8 @@ class PreguntaAbiertaFinalInline(admin.TabularInline):
 @admin.register(Curso)
 class CursoAdmin(admin.ModelAdmin):
     """Administración de cursos"""
-    list_display = ('nombre', 'cliente_nombre', 'total_modulos_display', 'docs_rag_count', 'duracion_semanas', 'ver_modulos_link', 'activo', 'orden')
-    list_filter = ('activo', 'cliente', 'usar_gamificacion', 'habilitar_pregunta_abierta_final')
+    list_display = ('nombre', 'cliente_nombre', 'total_modulos_display', 'docs_rag_count', 'duracion_semanas', 'ver_modulos_link', 'activo', 'tiene_formulario_gei', 'orden')
+    list_filter = ('activo', 'cliente', 'usar_gamificacion', 'habilitar_pregunta_abierta_final', 'tiene_formulario_gei')
     search_fields = ('nombre', 'descripcion', 'cliente__nombre')
     list_editable = ('orden',)
     inlines = [ModuloInline, DocumentoRAGInline, PreguntaAbiertaFinalInline]
@@ -2374,6 +2374,18 @@ class CursoAdmin(admin.ModelAdmin):
             'fields': ('enlace_grupo_whatsapp',),
             'description': '🔗 Enlace de invitación al grupo de WhatsApp del curso.',
             'classes': ('collapse',)
+        }),
+        ('🌱 Recolección GEI (Ficha de Carbono)', {
+            'fields': ('tiene_formulario_gei',),
+            'description': mark_safe(
+                '<p>Cuando está activo, al completar el módulo disparador configurado en '
+                '<strong>Formulario → Tipos de formulario</strong> se inicia automáticamente '
+                'la recolección de datos GEI por WhatsApp (las 7 preguntas del cuestionario).</p>'
+                '<p>Si lo dejás <strong>inactivo</strong>, aunque exista un TipoFormulario para '
+                'este curso, no se disparará el flujo. Útil para pausar la recolección sin '
+                'borrar la configuración.</p>'
+                '<p><a href="/admin/gei/panel/" target="_blank">📊 Ver Panel GEI</a></p>'
+            ),
         }),
         ('⚙️ Configuración', {
             'fields': ('activo', 'orden', 'usar_gamificacion', 'habilitar_pregunta_abierta_final')

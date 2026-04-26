@@ -1924,27 +1924,28 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
         )
     )
 
-    if es_saludo:
-        texto_respuesta = (
-            "Hola, soy tu bot de EKI.\n\n"
-            "Te ayudo primero con la parte técnica de tus consultas agrícolas "
-            "(suelo, nutrición, plagas, enfermedades y productividad) "
-            "y luego, si aplica, con recomendación comercial.\n\n"
-            "Cuéntame cultivo + objetivo puntual y empezamos."
-        )
-    elif msg_normalizado in ['listo', 'continuar', 'menu', 'menú']:
-        texto_respuesta = (
-            "👨‍🌾 *Asesor Técnico Agro IA*\n\n"
-            "Este canal te orienta primero en lo técnico del cultivo "
-            "y luego, si aplica, en opciones de catálogo.\n"
-            "Cuéntame tu cultivo y qué necesitas resolver."
-        )
-    else:
-        cliente_id_cfg = int(
-            getattr(settings, 'BOT_COMERCIAL_CLIENTE_ID', 0) or 0
-        )
-        canal_rag = str(getattr(settings, 'BOT_COMERCIAL_RAG_CANAL', 'bot_comercial') or 'bot_comercial')
+    cliente_id_cfg = int(
+        getattr(settings, 'BOT_COMERCIAL_CLIENTE_ID', 0) or 0
+    )
+    canal_rag = str(getattr(settings, 'BOT_COMERCIAL_RAG_CANAL', 'bot_comercial') or 'bot_comercial')
 
+    cliente_nati = None
+    if cliente_id_cfg:
+        try:
+            cliente_nati = Cliente.objects.filter(id=cliente_id_cfg).first()
+        except Exception as e:
+            logger.warning(
+                "Bot comercial: no se pudo cargar Cliente id=%s para Nati: %s",
+                cliente_id_cfg, e,
+            )
+
+    if es_saludo:
+        from core.nati import armar_saludo_inicial
+        texto_respuesta = armar_saludo_inicial(cliente_nati)
+    elif msg_normalizado in ['listo', 'continuar', 'menu', 'menú']:
+        from core.nati import armar_saludo_menu
+        texto_respuesta = armar_saludo_menu(cliente_nati)
+    else:
         diagnostico_vision = ''
         if num_media > 0 and media_type.startswith('image') and media_url:
             diagnostico_vision = _bot_comercial_diagnosticar_imagen(media_url, media_type)
@@ -2015,14 +2016,6 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
             )
             if contexto_web:
                 logger.info("🌐 Fallback web/académico usado | contexto_chars=%s", len(contexto_web))
-
-        cliente_nati = None
-        if cliente_id_cfg:
-            try:
-                cliente_nati = Cliente.objects.filter(id=cliente_id_cfg).first()
-            except Exception as e:
-                logger.warning("Bot comercial: no se pudo cargar Cliente id=%s para Nati: %s", cliente_id_cfg, e)
-                cliente_nati = None
 
         texto_respuesta = _bot_comercial_respuesta_catalogo(
             pregunta=consulta,

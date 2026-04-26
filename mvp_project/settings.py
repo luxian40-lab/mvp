@@ -232,45 +232,79 @@ JAZZMIN_SETTINGS = {
     # CSS Personalizado
     "custom_css": "admin/css/custom_menu.css",
 
-    # Iconos — 5 bloques lógicos
+    # Iconos — agrupados por sección visual
     "icons": {
         "auth": "fas fa-users-cog",
         "auth.user": "fas fa-user-shield",
         "auth.Group": "fas fa-users-cog",
 
-        # 🏢 Organización
+        # 🎓 Estudiantes y Cursos
         "core.Cliente": "fas fa-building",
-        "core.Estudiante": "fas fa-user-graduate",
+        "core.Estudiante": "fas fa-user-circle",
         "core.GrupoEstudiantes": "fas fa-users",
-        "core.ProspectoB2B": "fas fa-handshake",
-        "core.Linea": "fas fa-phone-alt",
-
-        # 📚 Academia
         "core.Curso": "fas fa-book-open",
-        "core.Modulo": "fas fa-book-reader",
+        "core.Modulo": "fas fa-layer-group",
+        "core.ProgresoEstudiante": "fas fa-chart-line",
         "core.Examen": "fas fa-clipboard-check",
         "core.PreguntaExamen": "fas fa-question-circle",
-        "core.ProgresoEstudiante": "fas fa-chart-line",
-        "core.Certificado": "fas fa-certificate",
-        "core.PlantillaCertificado": "fas fa-file-pdf",
+        "core.ConfiguracionDripCliente": "fas fa-clock",
 
-        # 💬 Comunicaciones
+        # 💬 Comunicación
         "core.Campana": "fas fa-bullhorn",
         "core.Plantilla": "fas fa-envelope-open-text",
-        "core.WhatsappLog": "fab fa-whatsapp",
+        "core.WhatsappLog": "fas fa-comments",
         "core.TemaCampana": "fas fa-tags",
         "core.EnvioLog": "fas fa-paper-plane",
+        "core.SolicitudSoporte": "fas fa-hands-helping",
+        "core.Linea": "fas fa-phone-alt",
 
-        # 🏆 Gamificación
+        # 🤖 Bot Comercial (Nati)
+        "core.ProspectoB2B": "fas fa-handshake",
+        "core.DocumentoRAGComercial": "fas fa-robot",
+        "core.DocumentoRAG": "fas fa-file-alt",
+
+        # 🌱 Formulario GEI
+        "formulario.FichaGEI": "fas fa-seedling",
+        "formulario.TipoFormulario": "fas fa-wpforms",
+        "formulario.SesionFormulario": "fas fa-tasks",
+
+        # 🏆 Gamificación y Certificados
         "core.PerfilGamificacion": "fas fa-trophy",
         "core.Badge": "fas fa-medal",
         "core.Recompensa": "fas fa-gift",
         "core.CanjeRecompensa": "fas fa-shopping-cart",
+        "core.Certificado": "fas fa-certificate",
+        "core.PlantillaCertificado": "fas fa-file-pdf",
 
         # ⚙️ Sistema
-        "core.SolicitudSoporte": "fas fa-headset",
         "core.AuditLog": "fas fa-lock",
         "core.PQRS": "fas fa-comment-dots",
+    },
+
+    # Links custom (acceso rápido a vistas no-modelo)
+    "custom_links": {
+        "formulario": [
+            {
+                "name": "📊 Panel GEI",
+                "url": "/admin/gei/panel/",
+                "icon": "fas fa-leaf",
+                "permissions": ["formulario.view_fichagei"],
+            },
+        ],
+        "core": [
+            {
+                "name": "📈 Dashboard",
+                "url": "/admin/dashboard/",
+                "icon": "fas fa-tachometer-alt",
+                "permissions": ["core.view_estudiante"],
+            },
+            {
+                "name": "📋 Manual / Instrucciones",
+                "url": "/admin/instrucciones/",
+                "icon": "fas fa-book",
+                "permissions": ["core.view_estudiante"],
+            },
+        ],
     },
 
     # Ocultar modelos automáticos / de sólo-código
@@ -289,34 +323,43 @@ JAZZMIN_SETTINGS = {
         "core.PQRS",
     ],
 
-    # Orden visual: 5 bloques colapsables
+    # Orden visual del sidebar — agrupado en 6 secciones lógicas
     "order_with_respect_to": [
-        # 🏢 Organización
+        "auth",
+        # 🎓 Estudiantes y Cursos
         "core.Cliente",
         "core.Estudiante",
         "core.GrupoEstudiantes",
-        "core.ProspectoB2B",
-        "core.Linea",
-        # 📚 Academia
         "core.Curso",
         "core.Modulo",
         "core.ProgresoEstudiante",
         "core.Examen",
         "core.PreguntaExamen",
-        "core.Certificado",
-        "core.PlantillaCertificado",
-        # 💬 Comunicaciones
+        "core.ConfiguracionDripCliente",
+        # 💬 Comunicación
         "core.Campana",
         "core.Plantilla",
         "core.TemaCampana",
         "core.WhatsappLog",
-        # 🏆 Gamificación
+        "core.SolicitudSoporte",
+        "core.Linea",
+        # 🤖 Bot Comercial (Nati)
+        "core.ProspectoB2B",
+        "core.DocumentoRAGComercial",
+        "core.DocumentoRAG",
+        # 🌱 Formulario GEI (app separada)
+        "formulario",
+        "formulario.TipoFormulario",
+        "formulario.FichaGEI",
+        "formulario.SesionFormulario",
+        # 🏆 Gamificación y Certificados
         "core.PerfilGamificacion",
         "core.Badge",
         "core.Recompensa",
         "core.CanjeRecompensa",
+        "core.Certificado",
+        "core.PlantillaCertificado",
         # ⚙️ Sistema
-        "core.SolicitudSoporte",
         "core.AuditLog",
     ],
 

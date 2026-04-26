@@ -35,6 +35,7 @@ class CursoFactory(DjangoModelFactory):
     descripcion = "Curso de prueba"
     activo = True
     emoji = "🌱"
+    tiene_formulario_gei = True  # default True en tests para que los hooks GEI se disparen
 
 
 class ModuloFactory(DjangoModelFactory):

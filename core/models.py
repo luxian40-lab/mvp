@@ -944,7 +944,19 @@ class Curso(models.Model):
         verbose_name='Días de espera entre módulos',
         help_text='0 = flujo libre. >0 bloquea avance hasta cumplir días entre módulos. Para el mismo curso en varias empresas con ritmos distintos, usar Configuración drip en el admin del Cliente.'
     )
-    
+
+    # Activador del formulario GEI sin tocar TipoFormulario.
+    tiene_formulario_gei = models.BooleanField(
+        default=False,
+        verbose_name='¿Activa formulario GEI al completar el último módulo?',
+        help_text=(
+            'Si está activo, al completar el módulo disparador configurado en '
+            'Formulario → Tipos de formulario se inicia la recolección de datos '
+            'GEI por WhatsApp. Si está inactivo, ningún flujo se dispara aunque '
+            'exista el TipoFormulario.'
+        ),
+    )
+
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:

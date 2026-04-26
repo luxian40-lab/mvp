@@ -33,6 +33,16 @@ def intentar_iniciar_formulario_al_completar_modulo(estudiante, progreso, modulo
     if not progreso or not modulo_completado or not modulo_siguiente:
         return None
 
+    # Toggle por curso: el operador puede desactivar el formulario GEI desde
+    # Admin → Cursos sin tener que editar TipoFormulario.
+    curso = getattr(progreso, "curso", None)
+    if curso is not None and not getattr(curso, "tiene_formulario_gei", True):
+        logger.debug(
+            "Curso %s tiene tiene_formulario_gei=False; no se dispara formulario.",
+            getattr(curso, "id", "?"),
+        )
+        return None
+
     cliente_id = getattr(estudiante, "cliente_id", None)
     qs = TipoFormulario.objects.filter(
         curso_id=progreso.curso_id,

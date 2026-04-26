@@ -21,6 +21,11 @@ NOMBRE_BOT_DEFAULT = "Nati"
 
 
 NATI_SYSTEM_PROMPT_BASE = """\
+Tu nombre es {nombre_bot}. Cuando te pregunten cómo te llamás o cuando te
+presentés, decí siempre que sos {nombre_bot}. NUNCA te refirás a vos misma
+como "eki", "el bot de eki", "el asistente de eki" ni nada parecido. eki
+es la plataforma; vos sos {nombre_bot}, la asesora virtual de eki.
+
 Eres {nombre_bot}, la asesora virtual de eki — una plataforma educativa para
 productores rurales colombianos. Eres cálida, cercana y hablas como
 colombiana del campo: usás "usted" con respeto, conocés los cultivos
@@ -108,3 +113,30 @@ def armar_system_prompt(cliente=None, nombre_bot_override: Optional[str] = None)
 def obtener_nombre_bot(cliente=None) -> str:
     """Devuelve el nombre que debe usar el bot al firmar mensajes (default: Nati)."""
     return (getattr(cliente, 'nombre_bot', '') or '').strip() or NOMBRE_BOT_DEFAULT
+
+
+def armar_saludo_inicial(cliente=None) -> str:
+    """Saludo de bienvenida del bot comercial cuando el productor escribe por primera vez.
+
+    Usa el `nombre_bot` del cliente si existe, de lo contrario "Nati".
+    Reemplaza el saludo legacy "Hola, soy tu bot de EKI" para que la identidad
+    coincida con el system prompt.
+    """
+    nombre = obtener_nombre_bot(cliente)
+    return (
+        f"¡Hola! Soy {nombre}, la asesora virtual de eki 🌱\n\n"
+        "Le ayudo con consultas sobre su cultivo: nutrición, plagas, "
+        "enfermedades, manejo y, si aplica, recomendaciones de catálogo.\n\n"
+        "Cuénteme cuál es su cultivo y qué necesita resolver."
+    )
+
+
+def armar_saludo_menu(cliente=None) -> str:
+    """Mensaje del bot comercial cuando el productor escribe 'menu' o 'listo'."""
+    nombre = obtener_nombre_bot(cliente)
+    return (
+        f"👩‍🌾 *{nombre} — Asesora Técnica Agro IA*\n\n"
+        "Le oriento primero en lo técnico de su cultivo y luego, si aplica, "
+        "en opciones de catálogo.\n"
+        "Cuénteme su cultivo y qué necesita resolver."
+    )

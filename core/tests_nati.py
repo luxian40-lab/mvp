@@ -9,6 +9,8 @@ from core.models import Cliente
 from core.nati import (
     NATI_SYSTEM_PROMPT_BASE,
     NOMBRE_BOT_DEFAULT,
+    armar_saludo_inicial,
+    armar_saludo_menu,
     armar_system_prompt,
     obtener_nombre_bot,
 )
@@ -107,6 +109,43 @@ def test_nati_prompt_se_inyecta_en_bot_comercial(settings):
     assert system_msg["role"] == "system"
     assert "Nati" in system_msg["content"]
     assert "Prioridad al producto demo." in system_msg["content"]
+
+
+def test_saludo_inicial_default_usa_nati_y_no_dice_eki_bot():
+    """Saludo de bienvenida default debe identificarse como Nati y NO como 'bot de eki'."""
+    saludo = armar_saludo_inicial(None)
+    assert "Nati" in saludo
+    saludo_lower = saludo.lower()
+    assert "soy tu bot de eki" not in saludo_lower
+    assert "soy eki" not in saludo_lower
+    assert "bot de eki" not in saludo_lower
+
+
+def test_saludo_inicial_respeta_nombre_bot_cliente():
+    cliente = Cliente.objects.create(
+        nombre="ACME GREET",
+        contacto_principal="C",
+        email="greet@example.com",
+        telefono="573001110000",
+        nombre_bot="Aliada",
+    )
+    saludo = armar_saludo_inicial(cliente)
+    assert "Aliada" in saludo
+    assert "Nati" not in saludo
+
+
+def test_saludo_menu_default_usa_nati():
+    msg = armar_saludo_menu(None)
+    assert "Nati" in msg
+    assert "soy tu bot de eki" not in msg.lower()
+
+
+def test_prompt_base_tiene_regla_anti_eki():
+    """El system prompt debe tener instrucción explícita de no autodenominarse 'eki'."""
+    prompt = armar_system_prompt(None)
+    assert "NUNCA" in prompt
+    assert "eki" in prompt
+    assert "plataforma" in prompt.lower()
 
 
 def test_bot_comercial_sin_cliente_usa_default_nati(settings):

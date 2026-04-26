@@ -431,6 +431,49 @@ def test_filtro_cliente_global_aplica_si_no_hay_especifico():
     assert sesion.formulario.cliente_id is None
 
 
+def test_toggle_curso_off_no_dispara_formulario():
+    """Aunque exista un TipoFormulario activo, si Curso.tiene_formulario_gei=False no se dispara."""
+    cliente = ClienteFactory()
+    cur, m4, m5 = _bootstrap_curso_modulos()
+    cur.tiene_formulario_gei = False
+    cur.save(update_fields=["tiene_formulario_gei"])
+    _crear_tf_con_paso(
+        nombre="GEI Global", curso=cur, modulo=m4, cliente=None,
+        pregunta="Pregunta global única.",
+    )
+
+    estudiante = EstudianteFactory(cliente=cliente)
+    progreso = ProgresoEstudiante.objects.create(
+        estudiante=estudiante, curso=cur, modulo_actual=m4, completado=False
+    )
+
+    msg = intentar_iniciar_formulario_al_completar_modulo(estudiante, progreso, m4, m5)
+
+    assert msg is None
+    assert not SesionFormulario.objects.filter(estudiante=estudiante).exists()
+
+
+def test_toggle_curso_on_dispara_formulario():
+    """Curso.tiene_formulario_gei=True con TipoFormulario activo → SesionFormulario creada."""
+    cliente = ClienteFactory()
+    cur, m4, m5 = _bootstrap_curso_modulos()
+    assert cur.tiene_formulario_gei is True  # default del factory
+    _crear_tf_con_paso(
+        nombre="GEI Global", curso=cur, modulo=m4, cliente=None,
+        pregunta="Pregunta global única.",
+    )
+
+    estudiante = EstudianteFactory(cliente=cliente)
+    progreso = ProgresoEstudiante.objects.create(
+        estudiante=estudiante, curso=cur, modulo_actual=m4, completado=False
+    )
+
+    msg = intentar_iniciar_formulario_al_completar_modulo(estudiante, progreso, m4, m5)
+
+    assert msg is not None
+    assert SesionFormulario.objects.filter(estudiante=estudiante, completado=False).exists()
+
+
 def test_cliente_diferente_no_dispara():
     """Si solo existe un TF para Cliente A, un estudiante de Cliente B NO debe disparar formulario."""
     cliente_a = ClienteFactory(nombre="Nitrofert")
