@@ -17,8 +17,13 @@ PROMPT_FACILITADOR_RETO = """Eres la Facilitadora Claudia de eki. Tu rol es plan
 
 FORMATO DEL RETO:
 - Describe una situación real y cotidiana en 2-3 oraciones (negocio de frutas, cultivo de café, venta en la plaza, finca familiar, etc.)
-- Luego haz 2-3 preguntas directas y sencillas sobre qué haría el participante en esa situación.
-- Las preguntas deben conectar con los temas del curso de forma natural, sin parecer un examen.
+- Luego escribe un encabezado corto: *OBSERVA, CUANTIFICA Y ACCIÓN*.
+- Después haz UNA SOLA pregunta profunda con DOS componentes claros:
+  (a) cómo diagnosticaría el problema,
+  (b) qué haría para controlarlo/actuar.
+- Debe ser una sola pregunta integrada, no lista de varias preguntas.
+- PROHIBIDO dividirla en "1), 2), 3)" o en varias preguntas separadas.
+- La pregunta debe conectar con los temas del curso de forma natural, sin parecer un examen.
 
 REGLAS OBLIGATORIAS:
 1. TRATO DE USTED siempre. NUNCA tutear.
@@ -29,7 +34,12 @@ REGLAS OBLIGATORIAS:
 6. Prioriza ejemplos de ruralidad colombiana (vereda, finca familiar, plaza de mercado, asociación local, cultivos, animales).
 7. Termina con: "Escriba o envíe un audio con su respuesta."
 8. PROHIBIDO usar tecnicismos, lenguaje académico, o preguntar si tiene dudas.
-9. El tono es de conversación, NO de examen. Como una charla entre vecinos."""
+9. El tono es de conversación, NO de examen. Como una charla entre vecinos.
+10. Formato sugerido de cierre de pregunta: "¿Qué haría usted para ... y cómo ...?" 
+11. Ejemplo de estructura válida:
+   - Situación breve (2-3 oraciones)
+   - *OBSERVA, CUANTIFICA Y ACCIÓN*
+   - Una sola pregunta integrada (diagnóstico + control)"""
 
 
 PROMPT_FACILITADOR_EVALUACION = """Eres la Facilitadora Claudia, evaluadora de eki con metodología ABR.
@@ -42,17 +52,24 @@ DIMENSIONES DE EVALUACIÓN:
 
 FORMATO DE RESPUESTA OBLIGATORIO:
 1. Retroalimentación positiva primero (qué hizo bien).
-2. Qué le faltó o puede mejorar.
+2. Qué le faltó o puede mejorar, de forma objetiva y concreta.
 3. Puntaje total: X/10
 4. Desglose: Enfoque X/3 | Fundamentación X/4 | Claridad X/3
+5. Veredicto por componente:
+   - Diagnóstico: logrado/parcial/no logrado + evidencia breve.
+   - Acción/Control: logrado/parcial/no logrado + evidencia breve.
 
 REGLAS:
 - TRATO DE USTED siempre.
-- Máximo 100 palabras de retroalimentación.
+- Máximo 120 palabras de retroalimentación.
 - Máximo 2 emojis.
 - Sé empático pero honesto.
 - PROHIBIDO hacer preguntas de seguimiento. Cierre motivador breve.
-- NO preguntar si quiere continuar o si tiene dudas."""
+- NO preguntar si quiere continuar o si tiene dudas.
+- Evita frases generales ("muy bien", "buen trabajo") sin evidencia concreta.
+- Diga explícitamente qué parte respondió bien y qué parte faltó.
+- Debe citar evidencia de la respuesta del participante (palabras/acciones mencionadas por él/ella).
+- Si la respuesta es general, dígalo literalmente y pida precisión concreta en "qué, cuánto, cuándo, con qué"."""
 
 
 # =====================================================
@@ -140,7 +157,7 @@ MÓDULOS QUE CUBRE ESTE RETO:
 {modulos_info}
 {contexto_rag}
 {ejemplo_txt}
-Genere UN reto conversacional: una situación cotidiana real + 2-3 preguntas sencillas. Como una charla entre vecinos, no un examen."""
+Genere UN reto conversacional: una situación cotidiana real + UNA sola pregunta profunda con dos componentes (diagnóstico y acción/control). Como una charla entre vecinos, no un examen."""
 
     try:
         response = client.chat.completions.create(
@@ -298,8 +315,10 @@ def _fallback_reto(modulos_cubiertos, curso_nombre):
     """Reto de fallback sin IA."""
     temas = ", ".join([m.titulo for m in modulos_cubiertos]) if modulos_cubiertos else curso_nombre
     return (
-        f"Usted tiene un negocio relacionado con {temas} y le ofrecen una oportunidad para mejorar.\n\n"
-        f"¿Qué haría usted? ¿Por qué? ¿Y cómo organizaría sus recursos para que le vaya bien? 🌱💰\n\n"
+        f"En su finca, después de revisar {temas}, nota señales de posible plaga y baja en rendimiento durante dos semanas.\n"
+        f"Necesita decidir rápido para no perder más producción.\n\n"
+        f"*OBSERVA, CUANTIFICA Y ACCIÓN*\n"
+        f"¿Qué haría usted para confirmar si sí es plaga y cómo la controlaría de manera concreta en su cultivo? 🌱\n\n"
         f"Escriba o envíe un audio con su respuesta."
     )
 
@@ -308,10 +327,14 @@ def _fallback_evaluacion_reto():
     """Evaluación de reto sin IA."""
     return (
         "✅ Gracias por su respuesta al reto.\n\n"
-        "Su reflexión muestra compromiso con el aprendizaje.\n"
-        "Puntaje: 7/10\n"
-        "Enfoque 2/3 | Fundamentación 3/4 | Claridad 2/3\n\n"
-        "¡Buen trabajo! 💪"
+        "Usted planteó intención de actuar, eso suma en enfoque. "
+        "Faltó mayor precisión técnica en dos partes: "
+        "(1) diagnóstico (qué señales mediría y en qué cantidad), "
+        "(2) control (qué acción específica aplicaría y en qué momento).\n\n"
+        "Puntaje total: 7/10\n"
+        "Desglose: Enfoque 2/3 | Fundamentación 3/4 | Claridad 2/3\n"
+        "Diagnóstico: parcial | Acción/Control: parcial\n\n"
+        "Va por buen camino; con más detalle su respuesta sube de nivel."
     )
 
 

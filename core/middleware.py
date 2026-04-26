@@ -4,12 +4,45 @@ Previene spam y abuso de API
 """
 
 import time
+import uuid
 from django.core.cache import cache
 from django.http import HttpResponse
 from django.utils.deprecation import MiddlewareMixin
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+class RequestContextMiddleware(MiddlewareMixin):
+    """
+    Agrega request_id para trazabilidad básica en logs y respuestas.
+    """
+
+    def process_request(self, request):
+        request.request_id = request.META.get('HTTP_X_REQUEST_ID') or str(uuid.uuid4())
+        request._request_start_ts = time.time()
+        return None
+
+    def process_response(self, request, response):
+        request_id = getattr(request, 'request_id', None)
+        if request_id:
+            response['X-Request-ID'] = request_id
+
+        start_ts = getattr(request, '_request_start_ts', None)
+        if start_ts is not None:
+            duration_ms = int((time.time() - start_ts) * 1000)
+            # Log de acceso mínimo para operar webhooks/APIs en producción.
+            logger.info(
+                "request_done",
+                extra={
+                    "request_id": request_id,
+                    "method": getattr(request, "method", ""),
+                    "path": getattr(request, "path", ""),
+                    "status_code": getattr(response, "status_code", 0),
+                    "duration_ms": duration_ms,
+                },
+            )
+        return response
 
 class RateLimitMiddleware(MiddlewareMixin):
     """

@@ -23,20 +23,24 @@ def reenganche_drip_content_diario():
 
         ahora = timezone.now()
         template_sid = (getattr(settings, 'TWILIO_TEMPLATE_DRIP_REENGANCHE', '') or '').strip()
+        from .drip_schedule import dias_espera_efectivos
+
         queryset = ProgresoEstudiante.objects.select_related('estudiante', 'curso', 'modulo_actual').filter(
             completado=False,
-            curso__dias_espera_entre_modulos__gt=0,
             fecha_ultimo_avance__isnull=False,
             modulo_actual__isnull=False,
         )
 
         enviados = 0
         for progreso in queryset:
+            dias_drip = dias_espera_efectivos(progreso.estudiante, progreso.curso)
+            if dias_drip <= 0:
+                continue
             siguiente = progreso.curso.modulos.filter(numero__gt=progreso.modulo_actual.numero).order_by('numero').first()
             if not siguiente:
                 continue
 
-            fecha_desbloqueo = progreso.fecha_ultimo_avance + timedelta(days=progreso.curso.dias_espera_entre_modulos)
+            fecha_desbloqueo = progreso.fecha_ultimo_avance + timedelta(days=dias_drip)
             if fecha_desbloqueo.date() == ahora.date():
                 if template_sid:
                     # Soporta plantilla HSM aprobada en Twilio para ventanas fuera de sesión.
@@ -195,12 +199,13 @@ def enviar_campanas_programadas():
     Se ejecuta cada 5 minutos vía Celery Beat.
     """
     try:
-        from core.models import Campana
+        from .models import Campana
 
         ahora = timezone.now()
         campanas_pendientes = Campana.objects.filter(
-            estado='programada',
-            fecha_programada__lte=ahora
+            ejecutada=False,
+            fecha_programada__isnull=False,
+            fecha_programada__lte=ahora,
         )
 
         count = campanas_pendientes.count()
@@ -221,13 +226,15 @@ def enviar_campanas_programadas():
 @shared_task(bind=True, max_retries=2, default_retry_delay=60)
 def ejecutar_campana_async(self, campana_id):
     """
-    Ejecuta una campaña específica de forma asíncrona.
+    Ejecuta una campaña específica de forma asíncrona (misma lógica que el admin).
     """
     try:
-        from core.enviar_plantillas import enviar_campana_con_plantilla
+        from .models import Campana
+        from .services import ejecutar_campana_servicio
 
+        campana = Campana.objects.get(pk=campana_id)
         logger.info(f"[Celery] Ejecutando campaña {campana_id}")
-        resultado = enviar_campana_con_plantilla(campana_id)
+        resultado = ejecutar_campana_servicio(campana)
         logger.info(f"[Celery] Campaña {campana_id} completada: {resultado}")
         return resultado
 

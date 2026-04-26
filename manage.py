@@ -2,6 +2,21 @@
 """Django's command-line utility for administrative tasks."""
 import os
 import sys
+from pathlib import Path
+
+
+def _load_local_env():
+    """Carga .env / .env.local en la raíz del repo (no versionados)."""
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    root = Path(__file__).resolve().parent
+    load_dotenv(root / '.env')
+    load_dotenv(root / '.env.local', override=False)
+
+
+_load_local_env()
 
 
 def main():

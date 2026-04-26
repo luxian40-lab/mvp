@@ -14,7 +14,8 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-mvp-clave-secreta-cam
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'  # False en producción
 
 # ALLOWED_HOSTS: acepta múltiples dominios separados por coma
-allowed_hosts_str = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,eki-mvp.onrender.com,eki-prod-docker.eba-84g5zn3s.us-east-2.elasticbeanstalk.com')
+# testserver: httpx de pytest-django / django.test Client
+allowed_hosts_str = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver,eki-mvp.onrender.com,eki-prod-docker.eba-84g5zn3s.us-east-2.elasticbeanstalk.com')
 ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_str.split(',')]
 # Permitir todos los dominios de ngrok
 ALLOWED_HOSTS.append('.ngrok-free.dev')
@@ -47,11 +48,13 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'storages',                 # <--- AWS S3 para almacenar audios
     'core',                     # <--- TU APP
+    'formulario',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Para servir archivos estáticos en producción
+    'core.middleware.RequestContextMiddleware',  # request_id y latencia básica
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -374,11 +377,15 @@ TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
 TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER')
 TWILIO_WHATSAPP_NUMBER = os.environ.get('TWILIO_WHATSAPP_NUMBER')
 WHATSAPP_VERIFY_TOKEN = os.environ.get('WHATSAPP_VERIFY_TOKEN', 'eki_webhook_verify_token')
+# URL completa POST para callbacks de estado (delivered/read/failed). Ej: https://tudominio.com/webhook/whatsapp/
+TWILIO_STATUS_CALLBACK_URL = os.environ.get('TWILIO_STATUS_CALLBACK_URL', '').strip()
 
 # 📢 Templates de Twilio para envío masivo (deben estar aprobados)
 TWILIO_TEMPLATE_ANUNCIO_GRUPAL = os.environ.get('TWILIO_TEMPLATE_ANUNCIO_GRUPAL', '')  # Content SID del template de anuncios
 TWILIO_TEMPLATE_INVITACION_GRUPO = os.environ.get('TWILIO_TEMPLATE_INVITACION_GRUPO', '')  # Content SID del template de invitación
-TWILIO_TEMPLATE_DRIP_REENGANCHE = os.environ.get('TWILIO_TEMPLATE_DRIP_REENGANCHE', '')  # Content SID para recordatorio diario de desbloqueo drip
+# Content SID (HSM) para recordatorio cuando se desbloquea un módulo con drip. Vacío = mensaje de texto en sesión.
+# Requiere Celery Beat con la tarea reenganche_drip_content_diario (ver mvp_project/celery.py, 8:00).
+TWILIO_TEMPLATE_DRIP_REENGANCHE = os.environ.get('TWILIO_TEMPLATE_DRIP_REENGANCHE', '')
 
 # ==========================================
 # 🤖 OPENAI API
@@ -404,6 +411,18 @@ try:
     BOT_COMERCIAL_WEB_FALLBACK_MAX_FUENTES = int(os.environ.get('BOT_COMERCIAL_WEB_FALLBACK_MAX_FUENTES', '4'))
 except (TypeError, ValueError):
     BOT_COMERCIAL_WEB_FALLBACK_MAX_FUENTES = 4
+
+# Memoria conversacional (WhatsappLog BOT_COMERCIAL): más turnos/chars = menos “amnesia”.
+try:
+    BOT_COMERCIAL_MEMORY_TURNOS = int(os.environ.get('BOT_COMERCIAL_MEMORY_TURNOS', '12'))
+except (TypeError, ValueError):
+    BOT_COMERCIAL_MEMORY_TURNOS = 12
+try:
+    BOT_COMERCIAL_MEMORY_MAX_CHARS = int(os.environ.get('BOT_COMERCIAL_MEMORY_MAX_CHARS', '3600'))
+except (TypeError, ValueError):
+    BOT_COMERCIAL_MEMORY_MAX_CHARS = 3600
+# Texto extra para el system prompt (sin romper RAG-first); multilínea vía env.
+BOT_COMERCIAL_SYSTEM_PROMPT_EXTRA = os.environ.get('BOT_COMERCIAL_SYSTEM_PROMPT_EXTRA', '').strip()
 
 # ==========================================
 # 🌱 AGRO NEXO IA (Segundo número / webhook)

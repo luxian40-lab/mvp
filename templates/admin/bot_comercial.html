@@ -43,6 +43,26 @@
             <p><strong>Indexados:</strong> {{ rag_comercial_docs_indexados }}</p>
             <p><strong>Chunks activos:</strong> {{ rag_comercial_chunks_total }}</p>
         </div>
+
+        <div style="padding: 14px; border: 1px solid #e5e7eb; border-radius: 8px; grid-column: 1 / -1;">
+            <h3 style="margin-top: 0;">Memoria y retroalimentación (mismo usuario)</h3>
+            <p><strong>Turnos en historial:</strong> {{ memory_turnos }} &nbsp;|&nbsp; <strong>Máx. caracteres:</strong> {{ memory_chars }}</p>
+            <p style="font-size: 0.9rem; color: #444;">Ajustá con <code>BOT_COMERCIAL_MEMORY_TURNOS</code> y <code>BOT_COMERCIAL_MEMORY_MAX_CHARS</code>. El modelo prioriza RAG y usa el historial para correcciones (“me equivoqué”, “no es eso”). Prompt extra: <code>BOT_COMERCIAL_SYSTEM_PROMPT_EXTRA</code>.</p>
+        </div>
+
+        <div style="padding: 14px; border: 1px solid #e5e7eb; border-radius: 8px; grid-column: 1 / -1;">
+            <h3 style="margin-top: 0;">Métricas recientes (WhatsappLog)</h3>
+            <p><strong>Últimos 7 días — mensajes entrantes:</strong> {{ bot_comercial_incoming_7d }} &nbsp;|&nbsp; <strong>salientes:</strong> {{ bot_comercial_sent_7d }}</p>
+            <p><strong>Total entregados (DELIVERED):</strong> {{ bot_comercial_delivered_total }} &nbsp;|&nbsp; <strong>abiertos (READ):</strong> {{ bot_comercial_read_total }}</p>
+            <p><a href="{{ whatsapp_log_admin_url }}?agente_usado__exact=BOT_COMERCIAL">Ver historial filtrado (admin)</a></p>
+        </div>
+
+        <div style="padding: 14px; border: 1px solid #e5e7eb; border-radius: 8px; grid-column: 1 / -1;">
+            <h3 style="margin-top: 0;">Twilio: saber si recibieron / leyeron</h3>
+            <p style="font-size: 0.9rem;">Configurá en el entorno <code>TWILIO_STATUS_CALLBACK_URL</code> con la URL pública del webhook general, por ejemplo:</p>
+            <p style="word-break: break-all; background: #f8f9fa; padding: 8px; border-radius: 4px;"><code>{{ twilio_status_callback_example }}</code></p>
+            <p><strong>Callback configurado:</strong> {% if twilio_status_callback_configured %}Sí{% else %}<span style="color:#c92a2a;">No — los estados READ/DELIVERED no se actualizarán solos</span>{% endif %}</p>
+        </div>
     </div>
 
     <div style="margin-top: 22px; padding: 14px; border-left: 4px solid #2563eb; background: #eff6ff; border-radius: 6px;">
@@ -53,7 +73,13 @@
             <li>Definir BOT_COMERCIAL_CLIENTE_ID y BOT_COMERCIAL_RAG_CANAL.</li>
             <li>Cargar documentos en “Documentos RAG Comercial” y verificar indexación.</li>
             <li>Validar en conversación real: texto, audio e imagen.</li>
+            <li>Definir <code>TWILIO_STATUS_CALLBACK_URL</code> para métricas de entrega y READ.</li>
         </ol>
+    </div>
+
+    <div style="margin-top: 18px; padding: 14px; border: 1px dashed #ced4da; border-radius: 8px; font-size: 0.88rem; color: #495057;">
+        <strong>Roadmap (Farmer-style, sin reemplazar stack):</strong> capa de “hechos” de campo en tablas aparte del chat,
+        colas Celery para multimedia pesada, y este panel como centro operativo — evolución incremental sobre Django + Postgres + Twilio.
     </div>
 </div>
 {% endblock %}

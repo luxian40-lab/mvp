@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 import json
 import math
 import hmac
+import logging
 from .models import (
     Estudiante,
     Campana,
@@ -28,6 +29,13 @@ from .models import (
     ModuloCompletado,
     WhatsappLog,
 )
+from .services_estudiante import (
+    get_estudiante_payload,
+    get_estudiante_progreso_payload,
+    get_estudiante_siguiente_tarea_payload,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def _haversine_metros(lat1, lon1, lat2, lon2):
@@ -61,15 +69,13 @@ def api_estudiante(request, telefono):
     Devuelve información del estudiante.
     """
     try:
-        estudiante = Estudiante.objects.get(telefono=telefono)
+        logger.info(
+            "api_estudiante_requested",
+            extra={"request_id": getattr(request, "request_id", ""), "telefono": telefono},
+        )
         return JsonResponse({
             'success': True,
-            'estudiante': {
-                'id': estudiante.id,
-                'nombre': estudiante.nombre,
-                'telefono': estudiante.telefono,
-                'activo': estudiante.activo,
-            }
+            'estudiante': get_estudiante_payload(telefono),
         })
     except Estudiante.DoesNotExist:
         return JsonResponse({
@@ -91,34 +97,15 @@ def api_estudiante_progreso(request, telefono):
     Devuelve progreso del estudiante en cursos/módulos.
     """
     try:
-        estudiante = Estudiante.objects.get(telefono=telefono)
-        
-        # Contar envíos y determinar progreso
-        total_envios = EnvioLog.objects.filter(estudiante=estudiante).count()
-        exitosos = EnvioLog.objects.filter(estudiante=estudiante, estado='ENVIADO').count()
-        fallidos = EnvioLog.objects.filter(estudiante=estudiante, estado='FALLIDO').count()
-        
-        # Calcular porcentaje de progreso
-        progreso_porcentaje = int((exitosos / total_envios * 100) if total_envios > 0 else 0)
-        
-        # Módulo actual (simplificado: basado en campañas)
-        ultimo_envio = EnvioLog.objects.filter(estudiante=estudiante).order_by('-fecha_envio').first()
-        modulo_actual = ultimo_envio.campana.plantilla.nombre_interno if ultimo_envio else 'Introducción'
-        
+        logger.info(
+            "api_estudiante_progreso_requested",
+            extra={"request_id": getattr(request, "request_id", ""), "telefono": telefono},
+        )
+        payload = get_estudiante_progreso_payload(telefono)
         return JsonResponse({
             'success': True,
-            'estudiante': {
-                'nombre': estudiante.nombre,
-                'telefono': telefono
-            },
-            'progreso': {
-                'porcentaje': progreso_porcentaje,
-                'total_tareas': total_envios,
-                'tareas_completadas': exitosos,
-                'tareas_fallidas': fallidos,
-                'modulo_actual': modulo_actual,
-                'estado': 'En progreso' if progreso_porcentaje < 100 else 'Completado'
-            }
+            'estudiante': payload['estudiante'],
+            'progreso': payload['progreso'],
         })
     except Estudiante.DoesNotExist:
         return JsonResponse({
@@ -140,47 +127,16 @@ def api_estudiante_siguiente_tarea(request, telefono):
     Devuelve la siguiente tarea del estudiante.
     """
     try:
-        estudiante = Estudiante.objects.get(telefono=telefono)
-        
-        # Buscar siguiente tarea (primera pendiente)
-        siguiente = EnvioLog.objects.filter(
-            estudiante=estudiante,
-            estado='PENDIENTE'
-        ).order_by('fecha_envio').first()
-        
-        if siguiente:
-            return JsonResponse({
-                'success': True,
-                'estudiante': {
-                    'nombre': estudiante.nombre,
-                    'telefono': telefono
-                },
-                'siguiente_tarea': {
-                    'id': siguiente.id,
-                    'campana': siguiente.campana.nombre,
-                    'plantilla': siguiente.campana.plantilla.nombre_interno,
-                    'descripcion': siguiente.campana.plantilla.cuerpo_mensaje[:100],
-                    'fecha_vence': siguiente.fecha_envio.isoformat() if siguiente.fecha_envio else None,
-                    'estado': siguiente.estado
-                }
-            })
-        else:
-            # Si no hay tareas pendientes, devolver un mensaje
-            return JsonResponse({
-                'success': True,
-                'estudiante': {
-                    'nombre': estudiante.nombre,
-                    'telefono': telefono
-                },
-                'siguiente_tarea': {
-                    'id': None,
-                    'campana': None,
-                    'plantilla': None,
-                    'descripcion': '¡Felicidades! No tienes tareas pendientes',
-                    'fecha_vence': None,
-                    'estado': 'COMPLETADO'
-                }
-            })
+        logger.info(
+            "api_estudiante_siguiente_tarea_requested",
+            extra={"request_id": getattr(request, "request_id", ""), "telefono": telefono},
+        )
+        payload = get_estudiante_siguiente_tarea_payload(telefono)
+        return JsonResponse({
+            'success': True,
+            'estudiante': payload['estudiante'],
+            'siguiente_tarea': payload['siguiente_tarea'],
+        })
     except Estudiante.DoesNotExist:
         return JsonResponse({
             'success': False,
@@ -747,6 +703,13 @@ def api_integracion_educativa_metricas(request):
         })
         day_cursor += timedelta(days=1)
 
+    formularios_gei = _integracion_resumen_gei(
+        cliente_id=cliente_id,
+        curso_id=curso_id,
+        fecha_desde=fecha_desde,
+        fecha_hasta=fecha_hasta,
+    )
+
     response = JsonResponse({
         'success': True,
         'meta': {
@@ -769,8 +732,309 @@ def api_integracion_educativa_metricas(request):
             'mensajes_recibidos_total': int(mensajes_recibidos_total),
         },
         'cursos': cursos_resumen,
+        'formularios_gei': formularios_gei,
         'metrics': metrics,
     })
+    return _integracion_apply_cors(request, response)
+
+
+def _integracion_resumen_gei(cliente_id=None, curso_id=None, fecha_desde=None, fecha_hasta=None):
+    """Resumen agregado de FichaGEI para el endpoint LXP.
+
+    Si la app `formulario` no está disponible o no hay tablas, devuelve un
+    dict vacío con disponible=False (no rompe el endpoint principal).
+    """
+    try:
+        from formulario.models import CAMPOS_GEI_7, FichaGEI, SesionFormulario
+    except Exception:
+        return {'disponible': False}
+
+    try:
+        f_q = FichaGEI.objects.all()
+        s_q = SesionFormulario.objects.all()
+        if cliente_id is not None:
+            f_q = f_q.filter(cliente_id=cliente_id)
+            s_q = s_q.filter(estudiante__cliente_id=cliente_id)
+        if curso_id is not None:
+            f_q = f_q.filter(curso_id=curso_id)
+            s_q = s_q.filter(formulario__curso_id=curso_id)
+
+        if fecha_desde is not None:
+            f_q_periodo = f_q.filter(fecha_inicio__date__gte=fecha_desde)
+        else:
+            f_q_periodo = f_q
+        if fecha_hasta is not None:
+            f_q_periodo = f_q_periodo.filter(fecha_inicio__date__lte=fecha_hasta)
+
+        fichas_totales = f_q.count()
+        muestra = list(f_q.order_by('-fecha_update')[:500])
+
+        fichas_completas = 0
+        fichas_parciales = 0
+        fichas_pendientes = 0
+        suma_pct = 0
+        nulos_por_campo = {c: 0 for c in CAMPOS_GEI_7}
+        for ficha in muestra:
+            pct = int(ficha.completitud_pct or 0)
+            suma_pct += pct
+            if pct == 100:
+                fichas_completas += 1
+            elif pct == 0:
+                fichas_pendientes += 1
+            else:
+                fichas_parciales += 1
+            for c in CAMPOS_GEI_7:
+                v = getattr(ficha, c, None)
+                if v is None or v == '':
+                    nulos_por_campo[c] += 1
+
+        muestra_n = len(muestra)
+        completitud_promedio_pct = round(suma_pct / muestra_n, 1) if muestra_n else 0.0
+
+        campo_menor = None
+        if muestra_n:
+            campo_menor_item = max(nulos_por_campo.items(), key=lambda kv: kv[1])
+            if campo_menor_item[1] > 0:
+                campo_menor = {
+                    'campo': campo_menor_item[0],
+                    'fichas_sin_dato': campo_menor_item[1],
+                    'porcentaje_sin_dato': round(campo_menor_item[1] * 100 / muestra_n, 1),
+                }
+
+        sesiones_activas = s_q.filter(completado=False).count()
+        sesiones_completadas_periodo = s_q.filter(completado=True)
+        if fecha_desde is not None:
+            sesiones_completadas_periodo = sesiones_completadas_periodo.filter(
+                fecha_update__date__gte=fecha_desde
+            )
+        if fecha_hasta is not None:
+            sesiones_completadas_periodo = sesiones_completadas_periodo.filter(
+                fecha_update__date__lte=fecha_hasta
+            )
+
+        tiempo_promedio_min = None
+        completadas_muestra = list(sesiones_completadas_periodo[:500])
+        if completadas_muestra:
+            total_seg = 0
+            n = 0
+            for s in completadas_muestra:
+                if s.fecha_inicio and s.fecha_update:
+                    total_seg += (s.fecha_update - s.fecha_inicio).total_seconds()
+                    n += 1
+            if n:
+                tiempo_promedio_min = round((total_seg / n) / 60, 1)
+
+        return {
+            'disponible': True,
+            'fichas_totales': int(fichas_totales),
+            'fichas_periodo': int(f_q_periodo.count()),
+            'fichas_completas': int(fichas_completas),
+            'fichas_parciales': int(fichas_parciales),
+            'fichas_pendientes': int(fichas_pendientes),
+            'completitud_promedio_pct': float(completitud_promedio_pct),
+            'completitud_muestra': int(muestra_n),
+            'campo_con_menor_completitud': campo_menor,
+            'sesiones_activas': int(sesiones_activas),
+            'sesiones_completadas_periodo': int(sesiones_completadas_periodo.count()),
+            'tiempo_promedio_completar_min': tiempo_promedio_min,
+        }
+    except Exception as exc:
+        logger.warning("api_integracion_resumen_gei_error", extra={'error': str(exc)})
+        return {'disponible': False, 'error': 'no se pudo calcular el resumen GEI'}
+
+
+@csrf_exempt
+@require_http_methods(["GET", "OPTIONS"])
+def api_integracion_gei_detalle(request):
+    """GET /api/integracion/gei/detalle/?cliente_id=...&curso_id=...&desde=...&hasta=...&page=1&page_size=50
+
+    Devuelve fichas GEI individuales paginadas para consumo del LXP.
+    """
+    if request.method == 'OPTIONS':
+        return _integracion_apply_cors(request, HttpResponse(status=204))
+
+    auth_error = _integracion_auth_error(request)
+    if auth_error:
+        return _integracion_apply_cors(request, auth_error)
+
+    filtros, parse_error = _integracion_parse_filtros(request, permitir_curso=True)
+    if parse_error:
+        return _integracion_apply_cors(request, parse_error)
+
+    try:
+        from formulario.models import CAMPOS_GEI_7, FichaGEI
+    except Exception:
+        return _integracion_apply_cors(
+            request,
+            JsonResponse({'success': False, 'error': 'app formulario no disponible'}, status=400),
+        )
+
+    try:
+        page = max(1, int(request.GET.get('page', '1')))
+    except ValueError:
+        page = 1
+    try:
+        page_size = int(request.GET.get('page_size', '50'))
+    except ValueError:
+        page_size = 50
+    page_size = max(1, min(page_size, 200))
+
+    qs = FichaGEI.objects.select_related('estudiante', 'cliente', 'curso')
+    if filtros['cliente_id'] is not None:
+        qs = qs.filter(cliente_id=filtros['cliente_id'])
+    if filtros['curso_id'] is not None:
+        qs = qs.filter(curso_id=filtros['curso_id'])
+    qs = qs.filter(
+        fecha_inicio__date__gte=filtros['fecha_desde'],
+        fecha_inicio__date__lte=filtros['fecha_hasta'],
+    ).order_by('-fecha_update')
+
+    total = qs.count()
+    inicio = (page - 1) * page_size
+    fin = inicio + page_size
+    fichas = list(qs[inicio:fin])
+
+    items = []
+    for f in fichas:
+        items.append({
+            'id': f.id,
+            'estudiante_id': f.estudiante_id,
+            'estudiante_nombre': getattr(f.estudiante, 'nombre', '') or '',
+            'cliente_id': f.cliente_id,
+            'cliente_nombre': f.cliente.nombre if f.cliente_id else None,
+            'curso_id': f.curso_id,
+            'curso_nombre': f.curso.nombre if f.curso_id else None,
+            'nombre_finca': f.nombre_finca or '',
+            'area_ha': f.area_ha,
+            'num_plantas': f.num_plantas,
+            'fertilizante_kg': f.fertilizante_kg,
+            'concentracion_n_pct': f.concentracion_n_pct,
+            'tipo_combustible': f.tipo_combustible or '',
+            'combustible_gal': f.combustible_gal,
+            'energia_kwh': f.energia_kwh,
+            'residuos_ton': f.residuos_ton,
+            'manejo_residuos': f.manejo_residuos or '',
+            'produccion_kg': f.produccion_kg,
+            'tiene_bosque': f.tiene_bosque,
+            'area_bosque_ha': f.area_bosque_ha,
+            'completitud_pct': f.completitud_pct,
+            'fecha_inicio': f.fecha_inicio.isoformat() if f.fecha_inicio else None,
+            'fecha_update': f.fecha_update.isoformat() if f.fecha_update else None,
+        })
+
+    response = JsonResponse({
+        'success': True,
+        'meta': {
+            'schema_version': 1,
+            'tenant_id': filtros['cliente_id'],
+            'course_id': filtros['curso_id'],
+            'desde': filtros['fecha_desde'].isoformat(),
+            'hasta': filtros['fecha_hasta'].isoformat(),
+            'page': page,
+            'page_size': page_size,
+            'total': total,
+            'campos_gei': list(CAMPOS_GEI_7),
+        },
+        'fichas': items,
+    })
+    return _integracion_apply_cors(request, response)
+
+
+@csrf_exempt
+@require_http_methods(["GET", "OPTIONS"])
+def api_integracion_gei_exportar(request):
+    """GET /api/integracion/gei/exportar/?cliente_id=...&curso_id=...&desde=...&hasta=...
+
+    Exporta las fichas GEI del periodo a XLSX (mismas columnas que el admin).
+    """
+    if request.method == 'OPTIONS':
+        return _integracion_apply_cors(request, HttpResponse(status=204))
+
+    auth_error = _integracion_auth_error(request)
+    if auth_error:
+        return _integracion_apply_cors(request, auth_error)
+
+    filtros, parse_error = _integracion_parse_filtros(request, permitir_curso=True)
+    if parse_error:
+        return _integracion_apply_cors(request, parse_error)
+
+    try:
+        from formulario.models import FichaGEI
+    except Exception:
+        return _integracion_apply_cors(
+            request,
+            JsonResponse({'success': False, 'error': 'app formulario no disponible'}, status=400),
+        )
+
+    try:
+        import io
+        import openpyxl
+    except Exception:
+        return _integracion_apply_cors(
+            request,
+            JsonResponse({'success': False, 'error': 'openpyxl no disponible en el servidor'}, status=500),
+        )
+
+    qs = FichaGEI.objects.select_related('estudiante', 'cliente', 'curso')
+    if filtros['cliente_id'] is not None:
+        qs = qs.filter(cliente_id=filtros['cliente_id'])
+    if filtros['curso_id'] is not None:
+        qs = qs.filter(curso_id=filtros['curso_id'])
+    qs = qs.filter(
+        fecha_inicio__date__gte=filtros['fecha_desde'],
+        fecha_inicio__date__lte=filtros['fecha_hasta'],
+    ).order_by('-fecha_update')
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'FichasGEI'
+    encabezado = [
+        'id', 'id_estudiante', 'nombre_estudiante', 'id_cliente', 'nombre_cliente',
+        'id_curso', 'nombre_curso', 'nombre_finca', 'area_ha', 'num_plantas',
+        'fertilizante_kg', 'concentracion_n_pct', 'tipo_combustible', 'combustible_gal',
+        'energia_kwh', 'residuos_ton', 'manejo_residuos', 'produccion_kg',
+        'tiene_bosque', 'area_bosque_ha', 'completitud_pct', 'fecha_inicio', 'fecha_update',
+    ]
+    for c, t in enumerate(encabezado, start=1):
+        ws.cell(1, c, t)
+    for r, f in enumerate(qs, start=2):
+        fila = [
+            f.id,
+            f.estudiante_id,
+            getattr(f.estudiante, 'nombre', '') or '',
+            f.cliente_id or '',
+            f.cliente.nombre if f.cliente_id else '',
+            f.curso_id or '',
+            f.curso.nombre if f.curso_id else '',
+            f.nombre_finca or '',
+            f.area_ha,
+            f.num_plantas,
+            f.fertilizante_kg,
+            f.concentracion_n_pct,
+            f.tipo_combustible or '',
+            f.combustible_gal,
+            f.energia_kwh,
+            f.residuos_ton,
+            f.manejo_residuos or '',
+            f.produccion_kg,
+            f.tiene_bosque,
+            f.area_bosque_ha,
+            f.completitud_pct,
+            timezone.localtime(f.fecha_inicio).replace(tzinfo=None) if f.fecha_inicio else '',
+            timezone.localtime(f.fecha_update).replace(tzinfo=None) if f.fecha_update else '',
+        ]
+        for c, v in enumerate(fila, start=1):
+            ws.cell(r, c, v)
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    filename = f"fichas_gei_{filtros['fecha_desde'].isoformat()}_{filtros['fecha_hasta'].isoformat()}.xlsx"
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return _integracion_apply_cors(request, response)
 
 

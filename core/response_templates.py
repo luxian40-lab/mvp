@@ -21,7 +21,9 @@ def _barra_progreso(porcentaje: int) -> str:
 
 def _formatear_fecha_desbloqueo(fecha):
     """Formatea fecha de desbloqueo para WhatsApp."""
-    return timezone.localtime(fecha).strftime('%d/%m/%Y')
+    if hasattr(fecha, 'hour'):
+        return timezone.localtime(fecha).strftime('%d/%m/%Y')
+    return fecha.strftime('%d/%m/%Y')
 
 
 def _mensaje_bloqueo_drip(fecha_desbloqueo):
@@ -1049,17 +1051,27 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
         # Regla estricta del curso: solo "listo" avanza.
         if (mensaje_original or '').strip() == 'listo':
             # Drip Content: bloquear avance según curso y override por cliente
-            from .drip_schedule import dias_espera_efectivos
+            from .drip_schedule import dias_espera_efectivos, fecha_desbloqueo_drip
 
             dias_drip = dias_espera_efectivos(estudiante, progreso.curso)
+            logger.info(
+                "🧪 [drip-check] estudiante_id=%s curso_id=%s curso=%s dias_curso=%s dias_efectivos=%s modulo_actual=%s fecha_ultimo_avance=%s",
+                estudiante.id,
+                progreso.curso_id,
+                progreso.curso.nombre,
+                getattr(progreso.curso, 'dias_espera_entre_modulos', None),
+                dias_drip,
+                getattr(modulo_actual, 'numero', None),
+                progreso.fecha_ultimo_avance,
+            )
             if dias_drip > 0:
                 ya_completo_modulo = ModuloCompletado.objects.filter(
                     progreso=progreso,
                     modulo=modulo_actual
                 ).exists()
                 if ya_completo_modulo and progreso.fecha_ultimo_avance:
-                    fecha_desbloqueo = progreso.fecha_ultimo_avance + timedelta(days=dias_drip)
-                    if timezone.now() < fecha_desbloqueo:
+                    fecha_desbloqueo = fecha_desbloqueo_drip(progreso.fecha_ultimo_avance, dias_drip)
+                    if fecha_desbloqueo and timezone.localdate() < fecha_desbloqueo:
                         return _mensaje_bloqueo_drip(fecha_desbloqueo)
 
             # PRIORIDAD: Verificar si el módulo tiene pregunta de validación
@@ -1106,6 +1118,21 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             ).order_by('numero').first()
             
             if siguiente_modulo:
+                # Regla de negocio drip: al completar un módulo, puede quedar en pausa antes de liberar el siguiente.
+                # Esta validación evita que el primer "listo" entregue de inmediato el siguiente módulo.
+                if dias_drip > 0 and progreso.fecha_ultimo_avance:
+                    fecha_desbloqueo = fecha_desbloqueo_drip(progreso.fecha_ultimo_avance, dias_drip)
+                    if fecha_desbloqueo and timezone.localdate() < fecha_desbloqueo:
+                        logger.info(
+                            "⏳ [drip-block] estudiante_id=%s curso_id=%s modulo_actual=%s siguiente_modulo=%s desbloqueo=%s",
+                            estudiante.id,
+                            progreso.curso_id,
+                            getattr(modulo_actual, 'numero', None),
+                            getattr(siguiente_modulo, 'numero', None),
+                            fecha_desbloqueo,
+                        )
+                        return _mensaje_bloqueo_drip(fecha_desbloqueo)
+
                 total_modulos = progreso.curso.modulos.count()
                 es_modulo_reto = (modulo_actual.numero == 3) or (modulo_actual.numero == total_modulos and total_modulos >= 5)
                 
@@ -1114,6 +1141,16 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     es_modulo_reto = False
                 
                 if not es_modulo_reto:
+                    try:
+                        from formulario.hooks import intentar_iniciar_formulario_al_completar_modulo
+                        _msg_ficha = intentar_iniciar_formulario_al_completar_modulo(
+                            estudiante, progreso, modulo_actual, siguiente_modulo
+                        )
+                    except Exception as _e:
+                        _msg_ficha = None
+                        logger.warning("Formulario GEI: no se pudo iniciar sesión: %s", _e, exc_info=True)
+                    if _msg_ficha:
+                        return _msg_ficha
                     progreso.modulo_actual = siguiente_modulo
                     progreso.save()
                 

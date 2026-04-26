@@ -254,9 +254,23 @@ KEYWORDS_ACEPTACION = [
     'de acuerdo', 'adelante', 'continuar', 'yes'
 ]
 
-# Link a política de datos (actualizar con tu URL real)
-URL_POLITICA_DATOS = getattr(settings, 'URL_POLITICA_DATOS', 'https://www.eki.com.co/home/')
+# Link a política de datos (URL general fallback)
+URL_POLITICA_DATOS = getattr(settings, 'URL_POLITICA_DATOS', 'https://eki.com.co/#page-home')
 EMAIL_SOPORTE = getattr(settings, 'EMAIL_SOPORTE', 'comunidad.educativa@eki.com.co')
+
+
+def _url_politica_datos_cliente(estudiante=None, cliente=None):
+    """
+    URL de Habeas Data efectiva:
+    1) Override por cliente (enlace_habeas_data)
+    2) URL general de eki (settings o fallback)
+    """
+    c = cliente
+    if c is None and estudiante is not None:
+        c = getattr(estudiante, 'cliente', None)
+    if c and getattr(c, 'enlace_habeas_data', None):
+        return c.enlace_habeas_data
+    return URL_POLITICA_DATOS
 
 
 # ========== HABEAS DATA ==========
@@ -301,6 +315,7 @@ def verificar_terminos(estudiante, mensaje_texto):
             # ❌ NO HA ACEPTADO - Solicitar aceptación
             logger.warning(f"⚠️ Habeas Data: {estudiante.nombre} no ha aceptado términos")
             
+            url_politica = _url_politica_datos_cliente(estudiante=estudiante)
             mensaje_terminos = (
                 f"¡Hola {estudiante.nombre}! 👋\n\n"
                 "Bienvenido a *eki* 🌱\n"
@@ -308,7 +323,7 @@ def verificar_terminos(estudiante, mensaje_texto):
                 "Antes de comenzar, necesito tu autorización para usar tus datos personales "
                 "(como tu nombre, teléfono y progreso de estudio). "
                 "Esto es requerido por la Ley 1581 de 2012 de Colombia.\n\n"
-                f"📄 Puedes leer todos los detalles aquí: {URL_POLITICA_DATOS}\n\n"
+                f"📄 Puedes leer todos los detalles aquí: {url_politica}\n\n"
                 "🔒 Tu información está segura con nosotros\n"
                 "Solo la usamos para:\n"
                 "• Personalizar tu aprendizaje\n"
@@ -511,6 +526,10 @@ Ver en admin: {settings.ALLOWED_HOSTS[0]}/admin/core/solicitudsoporte/{solicitud
         "📝 *Tu mensaje:*\n"
         f'"{mensaje_texto}"\n\n'
         "Si tienes más información, envíala ahora y la añadiremos a tu caso.\n\n"
+        "✏️ *Si solo falló un dato tuyo* (nombre, municipio, documento, etc.), puedes corregirlo "
+        "tú mismo sin esperar: escribe *menú* y luego la opción *corregir datos*, "
+        "o envía directamente *corregir datos* y sigue las instrucciones. "
+        "Tu curso sigue ahí: cuando termines, escribe *continuar* o *menú*.\n\n"
         "Gracias por tu paciencia 🙏"
     )
     
@@ -605,7 +624,7 @@ def interceptar_mensaje(estudiante, mensaje_texto):
     return True, None
 
 
-def verificar_seguridad_completa(estudiante, mensaje_texto, telefono=None):
+def verificar_seguridad_completa(estudiante, mensaje_texto, telefono=None, numero_destino=None):
     """
     Función principal para webhooks: maneja estudiante None y habeas data.
     
@@ -682,13 +701,33 @@ def verificar_seguridad_completa(estudiante, mensaje_texto, telefono=None):
                 return True, "Error del sistema. Por favor intenta de nuevo.", None
         else:
             # Mostrar mensaje de bienvenida y pedir aceptación
+            url_politica = URL_POLITICA_DATOS
+            try:
+                if numero_destino:
+                    from .models import Cliente
+                    import re as _re
+                    nd = _re.sub(r'\D', '', numero_destino or '')
+                    if nd:
+                        cliente_match = None
+                        # Búsqueda simple por terminación de dígitos (tolerante a +57 / sin +)
+                        if cliente_match is None:
+                            for c in Cliente.objects.exclude(numero_whatsapp_autorizado='').only('id', 'numero_whatsapp_autorizado', 'enlace_habeas_data'):
+                                cnum = _re.sub(r'\D', '', c.numero_whatsapp_autorizado or '')
+                                if cnum and (nd.endswith(cnum) or cnum.endswith(nd)):
+                                    cliente_match = c
+                                    break
+                        if cliente_match and getattr(cliente_match, 'enlace_habeas_data', None):
+                            url_politica = cliente_match.enlace_habeas_data
+            except Exception:
+                url_politica = URL_POLITICA_DATOS
+
             mensaje_inicial = (
                 "👋 *¡Bienvenido a eki!*\n\n"
                 "🚜 Tu plataforma de soluciones educativas por WhatsApp\n\n"
                 "📜 *Protección de Datos Personales*\n\n"
                 "Antes de comenzar, necesitamos que aceptes nuestra política de tratamiento de datos personales "
                 "de acuerdo con la Ley 1581 de 2012.\n\n"
-                f"🔗 Lee nuestra política completa aquí:\n{URL_POLITICA_DATOS}\n\n"
+                f"🔗 Lee nuestra política completa aquí:\n{url_politica}\n\n"
                 "*¿Aceptas el tratamiento de tus datos?*\n\n"
                 "👉 Escribe *SÍ* para aceptar y continuar\n"
                 "👉 Escribe *NO* si no deseas continuar"

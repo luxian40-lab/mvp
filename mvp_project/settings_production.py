@@ -94,6 +94,16 @@ X_FRAME_OPTIONS = 'DENY'
 # ============================================
 import os
 
+# Opciones comunes para RDS (timeout TCP; sslmode vía env si hace falta)
+_POSTGRES_CONNECT_TIMEOUT = int(os.environ.get('POSTGRES_CONNECT_TIMEOUT', '20'))
+
+def _postgres_options():
+    opts = {'connect_timeout': _POSTGRES_CONNECT_TIMEOUT}
+    sslmode = os.environ.get('PGSSLMODE', '').strip()
+    if sslmode:
+        opts['sslmode'] = sslmode
+    return opts
+
 # Configuración de Base de Datos Robusta
 DB_NAME = os.environ.get('DB_NAME')
 DB_USER = os.environ.get('DB_USER')
@@ -101,6 +111,7 @@ DB_PASSWORD = os.environ.get('DB_PASSWORD')
 DB_HOST = os.environ.get('DB_HOST')
 DB_PORT = os.environ.get('DB_PORT', '5432')
 DATABASE_URL = os.environ.get('DATABASE_URL')
+_ON_ELASTIC_BEANSTALK = bool(os.environ.get('ELASTIC_BEANSTALK'))
 
 if DB_NAME and DB_USER and DB_PASSWORD and DB_HOST:
     DATABASES = {
@@ -111,23 +122,53 @@ if DB_NAME and DB_USER and DB_PASSWORD and DB_HOST:
             'PASSWORD': DB_PASSWORD,
             'HOST': DB_HOST,
             'PORT': DB_PORT,
+            'OPTIONS': _postgres_options(),
         }
     }
     print("[OK] [SETTINGS] PostgreSQL configurado via DB_* vars")
 elif DATABASE_URL:
     import urllib.parse
+
     parsed = urllib.parse.urlparse(DATABASE_URL)
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': parsed.path.lstrip('/'),
-            'USER': parsed.username or '',
-            'PASSWORD': parsed.password or '',
-            'HOST': parsed.hostname or 'localhost',
-            'PORT': str(parsed.port or 5432),
+
+    def _database_url_to_django():
+        return {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': parsed.path.lstrip('/'),
+                'USER': parsed.username or '',
+                'PASSWORD': parsed.password or '',
+                'HOST': parsed.hostname or 'localhost',
+                'PORT': str(parsed.port or 5432),
+                'OPTIONS': _postgres_options(),
+            }
         }
-    }
-    print(f"[OK] [SETTINGS] PostgreSQL via DATABASE_URL: {parsed.hostname}/{parsed.path.lstrip('/')}")
+
+    # En EB siempre usar la URL de la app. En laptop: no pisar el fallback a SQLite
+    # que ya aplicó mvp_project.settings si el RDS no respondió al ping inicial.
+    if _ON_ELASTIC_BEANSTALK:
+        DATABASES = _database_url_to_django()
+        print(f"[OK] [SETTINGS] PostgreSQL via DATABASE_URL: {parsed.hostname}/{parsed.path.lstrip('/')}")
+    else:
+        try:
+            import psycopg
+
+            conn = psycopg.connect(
+                host=parsed.hostname,
+                port=parsed.port or 5432,
+                user=parsed.username,
+                password=parsed.password,
+                dbname=parsed.path.lstrip('/'),
+                connect_timeout=_POSTGRES_CONNECT_TIMEOUT,
+            )
+            conn.close()
+            DATABASES = _database_url_to_django()
+            print(f"[OK] [SETTINGS] PostgreSQL via DATABASE_URL: {parsed.hostname}/{parsed.path.lstrip('/')}")
+        except Exception as conn_err:
+            print(
+                f"[WARN] [SETTINGS] DATABASE_URL no alcanzable desde esta máquina ({conn_err}). "
+                f"Se mantiene la base definida en settings base (ENGINE={DATABASES.get('default', {}).get('ENGINE', '?')})."
+            )
 else:
     missing_vars = [v for v in ['DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_HOST'] if not os.environ.get(v)]
     raise Exception(f"[ERROR] Faltan variables de entorno para PostgreSQL: {', '.join(missing_vars)}. Configura DB_* o DATABASE_URL.")

@@ -256,12 +256,16 @@ def enviar_whatsapp_twilio(
         if clean_url:
             logger.info(f"[MEDIA] Enviando con multimedia: {clean_url}")
 
+        status_cb = str(getattr(settings, 'TWILIO_STATUS_CALLBACK_URL', '') or '').strip()
+
         for idx, chunk in enumerate(chunks):
             message_params = {
                 'from_': twilio_number,
                 'body': chunk if chunk else (' ' if clean_url else ''),
                 'to': telefono,
             }
+            if status_cb:
+                message_params['status_callback'] = status_cb
 
             # Si hay multimedia, enviarla solo en el primer fragmento.
             if clean_url and idx == 0:

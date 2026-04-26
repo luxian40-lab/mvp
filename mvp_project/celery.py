@@ -37,7 +37,7 @@ app.conf.beat_schedule = {
         'task': 'core.tasks.limpiar_logs_antiguos',
         'schedule': crontab(hour=2, minute=0),
     },
-    # Reenganche de módulos drip (diario 8:00 AM)
+    # Reenganche de módulos drip (diario 8:00 AM). Plantilla HSM opcional: TWILIO_TEMPLATE_DRIP_REENGANCHE en settings.
     'reenganche-drip-diario': {
         'task': 'core.tasks.reenganche_drip_content_diario',
         'schedule': crontab(hour=8, minute=0),

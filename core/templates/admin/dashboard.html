@@ -79,7 +79,10 @@
 <div class="dash-wrap">
     <div class="dash-header">
         <h1>Dashboard Eki</h1>
-        <span class="dash-ts">Datos en tiempo real</span>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+            <span class="dash-ts">Datos en tiempo real</span>
+            <a href="{% url 'dashboard_metrics' %}" style="font-size:0.88rem;font-weight:600;color:var(--eki-primary);">Métricas detalladas (entregas, lecturas, bot comercial) →</a>
+        </div>
     </div>
 
     <!-- ===== PESTAÑAS (Regla de 3) ===== -->
@@ -218,6 +221,11 @@
             <div class="section-title">Métricas del Bot</div>
             <div class="metrics-grid">
                 <div class="m-card blue"><span class="m-label">Total Mensajes</span><span id="kpi-total-mensajes" class="m-value">{{ total_mensajes_whatsapp }}</span><span id="kpi-total-mensajes-sub" class="m-sub">Enviados: {{ mensajes_enviados }} | Recibidos: {{ mensajes_recibidos }}</span></div>
+                <div class="m-card"><span class="m-label">En tránsito (Twilio)</span><span id="kpi-wa-transito" class="m-value">{{ wa_en_transito }}</span><span class="m-sub">PENDING / cola</span></div>
+                <div class="m-card green"><span class="m-label">Entregados (DELIVERED)</span><span id="kpi-wa-entregados" class="m-value">{{ wa_entregados }}</span><span class="m-sub">Terminal del usuario</span></div>
+                <div class="m-card orange"><span class="m-label">Leídos (READ)</span><span id="kpi-wa-leidos" class="m-value">{{ wa_leidos }}</span><span class="m-sub">Requiere status callback</span></div>
+                <div class="m-card"><span class="m-label">Bot comercial enviados</span><span id="kpi-bot-com-sent" class="m-value">{{ wa_bot_comercial_sent }}</span></div>
+                <div class="m-card green"><span class="m-label">Bot comercial leídos</span><span id="kpi-bot-com-read" class="m-value">{{ wa_bot_comercial_read }}</span></div>
                 <div class="m-card"><span class="m-label">Audios Transcritos</span><span id="kpi-total-audios" class="m-value">{{ total_audios }}</span><span class="m-sub">Vosk / Whisper</span></div>
                 <div class="m-card green"><span class="m-label">Agente IA</span><span id="kpi-total-agentes" class="m-value">{{ total_agentes_ia }}</span><span class="m-sub">Interacciones con tutor IA</span></div>
                 <div class="m-card orange"><span class="m-label">Puntos Promedio</span><span id="kpi-puntos-promedio" class="m-value">{{ puntos_promedio }}</span></div>
@@ -424,6 +432,11 @@ function applyResumenPayload(payload) {
 
     setText('kpi-total-mensajes', k.total_mensajes_whatsapp ?? 0);
     setText('kpi-total-mensajes-sub', 'Enviados: ' + (k.mensajes_enviados ?? 0) + ' | Recibidos: ' + (k.mensajes_recibidos ?? 0));
+    setText('kpi-wa-transito', k.wa_en_transito ?? 0);
+    setText('kpi-wa-entregados', k.wa_entregados ?? 0);
+    setText('kpi-wa-leidos', k.wa_leidos ?? 0);
+    setText('kpi-bot-com-sent', k.wa_bot_comercial_sent ?? 0);
+    setText('kpi-bot-com-read', k.wa_bot_comercial_read ?? 0);
     setText('kpi-total-audios', k.total_audios ?? 0);
     setText('kpi-total-agentes', k.total_agentes_ia ?? 0);
     setText('kpi-puntos-promedio', k.puntos_promedio ?? 0);

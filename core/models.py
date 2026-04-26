@@ -89,6 +89,12 @@ class Cliente(models.Model):
         verbose_name="Enlace de Grupo de WhatsApp",
         help_text="Enlace de invitación al grupo de WhatsApp del cliente (ej: https://chat.whatsapp.com/xxxxx)"
     )
+    enlace_habeas_data = models.URLField(
+        max_length=700,
+        blank=True,
+        verbose_name="Enlace Habeas Data (override)",
+        help_text="Opcional: URL de política de datos propia del cliente. Si se deja vacío, se usa la URL general de eki."
+    )
     usar_gamificacion = models.BooleanField(
         default=True,
         verbose_name="Usar Gamificación",
@@ -167,6 +173,20 @@ class Cliente(models.Model):
         default='',
         verbose_name='Nombre de la Asistente (IA)',
         help_text='Nombre personalizado para la agente asistente (por defecto: María). Ej: Laura, Andrea'
+    )
+    # BOT COMERCIAL (Nati) — identidad y prompt extra editable desde admin
+    nombre_bot = models.CharField(
+        max_length=40,
+        blank=True,
+        default='Nati',
+        verbose_name='Nombre del Bot Comercial',
+        help_text='Nombre con el que se presenta el bot comercial al productor (default: Nati). Ej: Nati, Aliada, Sofi.'
+    )
+    system_prompt_extra = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Instrucciones extra para el Bot Comercial',
+        help_text='Instrucciones específicas de este cliente que se concatenan al system prompt de Nati. Útil para tono, productos prioritarios o restricciones por marca.'
     )
     activo = models.BooleanField(
         default=True,
@@ -922,7 +942,7 @@ class Curso(models.Model):
     dias_espera_entre_modulos = models.IntegerField(
         default=0,
         verbose_name='Días de espera entre módulos',
-        help_text='0 = flujo libre. >0 bloquea avance hasta cumplir días entre módulos.'
+        help_text='0 = flujo libre. >0 bloquea avance hasta cumplir días entre módulos. Para el mismo curso en varias empresas con ritmos distintos, usar Configuración drip en el admin del Cliente.'
     )
     
     fecha_creacion = models.DateTimeField(auto_now_add=True)
@@ -937,6 +957,47 @@ class Curso(models.Model):
 
     def total_modulos(self):
         return self.modulos.count()
+
+
+class ConfiguracionDripCliente(models.Model):
+    """
+    Override del ritmo drip (días entre módulos) por cliente y curso.
+    Permite que un curso global tenga 7 días de espera para la cooperativa A
+    y flujo libre para la empresa B, sin duplicar el curso.
+    """
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.CASCADE,
+        related_name='configuraciones_drip_curso',
+        verbose_name='Cliente',
+    )
+    curso = models.ForeignKey(
+        'Curso',
+        on_delete=models.CASCADE,
+        related_name='configuraciones_drip_cliente',
+        verbose_name='Curso',
+    )
+    dias_espera_entre_modulos = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name='Días de espera (override)',
+        help_text='Vacío = usar el valor configurado en el curso. 0 = sin espera para este cliente. N = N días entre módulos.',
+    )
+    activo = models.BooleanField(
+        default=True,
+        verbose_name='Activo',
+        help_text='Si está desactivado, se ignora esta fila y se usa solo el curso.',
+    )
+
+    class Meta:
+        verbose_name = 'Configuración drip (cliente × curso)'
+        verbose_name_plural = 'Configuraciones drip (cliente × curso)'
+        constraints = [
+            models.UniqueConstraint(fields=['cliente', 'curso'], name='uniq_drip_cliente_curso'),
+        ]
+
+    def __str__(self):
+        return f'{self.cliente} → {self.curso}'
 
 
 class DocumentoRAG(models.Model):
@@ -2393,7 +2454,7 @@ class RespuestaAbiertaFinal(models.Model):
 __all__ = [
     'TemaCampana', 'Cliente', 'Estudiante', 'Plantilla', 'Linea',
     'Campana', 'EnvioLog', 'WhatsappLog',
-    'Curso', 'DocumentoRAG', 'DocumentoRAGComercial', 'Modulo', 'ProgresoEstudiante', 'ModuloCompletado',
+    'Curso', 'ConfiguracionDripCliente', 'DocumentoRAG', 'DocumentoRAGComercial', 'Modulo', 'ProgresoEstudiante', 'ModuloCompletado',
     'Examen', 'PreguntaExamen', 'ResultadoExamen',
     'ObjetivoCurso', 'RubricaEvaluacion', 'EjercicioPractico', 'RespuestaEjercicio',
     'InteraccionLog', 'SolicitudSoporte', 'PreguntaModulo',

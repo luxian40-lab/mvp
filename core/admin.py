@@ -16,7 +16,7 @@ import openpyxl
 from django.http import HttpResponse
 from .models import (
     Estudiante, WhatsappLog, Plantilla, Campana, EnvioLog, Linea,
-    Curso, Modulo, ProgresoEstudiante, ModuloCompletado,
+    Curso, ConfiguracionDripCliente, Modulo, ProgresoEstudiante, ModuloCompletado,
     Examen, PreguntaExamen, ResultadoExamen, Cliente,
     PerfilGamificacion, Badge, BadgeEstudiante, TransaccionPuntos,
     SolicitudSoporte, PreguntaModulo,  # 🆘 NUEVO + 📝 PREGUNTA MODULO
@@ -90,9 +90,20 @@ class GruposEstudianteFilter(admin.SimpleListFilter):
 
 
 # ========== CLIENTE (NUEVO) ==========
+class ConfiguracionDripClienteInline(admin.TabularInline):
+    """Override de días entre módulos por curso (misma fila = un curso por cliente)."""
+    model = ConfiguracionDripCliente
+    extra = 0
+    fields = ('curso', 'dias_espera_entre_modulos', 'activo')
+    autocomplete_fields = ('curso',)
+    verbose_name = 'Drip curso'
+    verbose_name_plural = '⏱️ Ritmo drip por curso (override)'
+
+
 @admin.register(Cliente)
 class ClienteAdmin(admin.ModelAdmin):
     """Gestión de clientes/organizaciones"""
+    inlines = [ConfiguracionDripClienteInline]
     list_display = ('nombre', 'contacto_principal', 'email', 'numero_meta_badge', 'estudiantes_activos', 'cursos_asignados', 'activo', 'fecha_registro')
     list_filter = ('activo', 'enviar_certificados_email', 'fecha_registro')
     search_fields = ('nombre', 'nit', 'contacto_principal', 'email')
@@ -106,6 +117,10 @@ class ClienteAdmin(admin.ModelAdmin):
         ('📱 WhatsApp Business (Meta)', {
             'fields': ('numero_whatsapp_autorizado',),
             'description': '🔑 Número autorizado en Meta Business para envío masivo. Debe coincidir con tu cuenta de WhatsApp Business API.'
+        }),
+        ('🛡️ Habeas Data', {
+            'fields': ('enlace_habeas_data',),
+            'description': '🔗 URL de política de tratamiento de datos para este cliente. Si está vacía, el sistema usa la URL general de eki.'
         }),
         ('� Grupo de WhatsApp', {
             'fields': ('enlace_grupo_whatsapp',),
@@ -143,6 +158,11 @@ class ClienteAdmin(admin.ModelAdmin):
         ('🤖 Nombres de Agentes IA', {
             'fields': ('nombre_agente_tutor', 'nombre_agente_asistente'),
             'description': '🎓 Personaliza los nombres de los agentes de IA para este cliente. Si se dejan vacíos, se usarán los nombres por defecto (Gerónimo y María). Roles: Tutor = Profesor que enseña módulos, Asistente = Ayuda y revisa progreso.',
+        }),
+        ('🌾 Bot Comercial / Nati', {
+            'fields': ('nombre_bot', 'system_prompt_extra'),
+            'classes': ('collapse',),
+            'description': 'Identidad del bot comercial WhatsApp. Default: Nati. Si necesitas un tono o productos prioritarios para este cliente, agrégalo en "Instrucciones extra"; se concatena al system prompt base sin tocar código.',
         }),
         ('Estado', {
             'fields': ('activo', 'notas_internas')
@@ -2084,7 +2104,7 @@ class EnvioLogAdmin(admin.ModelAdmin):
 class WhatsappLogAdmin(admin.ModelAdmin):
     """Registro de todas las conversaciones del chatbot"""
     list_display = ('fecha', 'estudiante_nombre', 'telefono_corto', 'tipo_badge', 'mensaje_preview', 'estado_badge', 'estado_visual', 'actividad_badge')
-    list_filter = ('tipo', 'estado', 'fecha', 'estudiante__activo')
+    list_filter = ('tipo', 'estado', 'fecha', 'estudiante__activo', 'agente_usado')
     search_fields = ('telefono', 'mensaje', 'mensaje_id', 'estudiante__nombre')  # ✅ Búsqueda por nombre
     date_hierarchy = 'fecha'
     list_per_page = 100
@@ -2326,7 +2346,19 @@ class CursoAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('📚 Información del Curso', {
-            'fields': ('nombre', 'descripcion', 'cliente', 'duracion_semanas', 'dias_espera_entre_modulos')
+            'fields': ('nombre', 'descripcion', 'cliente', 'duracion_semanas'),
+        }),
+        ('⏱️ Ritmo entre módulos (drip)', {
+            'fields': ('dias_espera_entre_modulos',),
+            'description': mark_safe(
+                '<p><strong>0</strong> = el estudiante puede avanzar al siguiente módulo de inmediato con <em>listo</em>. '
+                '<strong>Mayor que 0</strong> = días obligatorios de espera entre módulos; el bot bloquea el avance hasta la fecha. '
+                'Celery envía un recordatorio diario a las 8:00 cuando corresponde (<code>reenganche_drip_content_diario</code>).</p>'
+                '<p><strong>Un curso por empresa (recomendado sin overrides):</strong> creá un curso por cliente y definí aquí los días; '
+                'afecta a todos los estudiantes de ese curso.</p>'
+                '<p><strong>Curso global compartido:</strong> dejá aquí el valor por defecto y en el admin del <strong>Cliente</strong> '
+                'usá la tabla <em>Ritmo drip por curso (override)</em> para que cada organización tenga su propio ritmo sobre el mismo curso.</p>'
+            ),
         }),
         ('🤖 Nombres de Agentes IA (Override)', {
             'fields': ('nombre_agente_tutor', 'nombre_agente_asistente'),

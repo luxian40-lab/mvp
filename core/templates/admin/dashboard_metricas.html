@@ -41,6 +41,20 @@
 
     <h1 style="font-size:1.75rem;font-weight:700;margin-bottom:28px;">Metricas del Sistema</h1>
 
+    <form method="get" style="margin:-8px 0 22px;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+        <div>
+            <label style="display:block;font-size:0.8rem;color:var(--eki-muted);font-weight:600;margin-bottom:4px;">Empresa</label>
+            <select name="cliente" style="padding:8px 12px;border:1px solid var(--eki-border);border-radius:6px;background:#fff;min-width:280px;">
+                <option value="">Todas</option>
+                {% for c in clientes %}
+                    <option value="{{ c.id }}" {% if cliente_filtro == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" style="padding:8px 16px;border:0;border-radius:6px;background:var(--eki-primary);color:#fff;font-weight:600;cursor:pointer;">Filtrar</button>
+        <a href="{% url 'dashboard_metrics' %}" style="padding:8px 16px;border:1px solid var(--eki-border);border-radius:6px;background:#fff;color:var(--eki-text);text-decoration:none;font-weight:600;">Limpiar</a>
+    </form>
+
     <div class="kpi-grid">
         <div class="kpi-card">
             <div class="kv" style="color:var(--eki-primary);">{{ total_estudiantes }}</div>
@@ -71,6 +85,119 @@
             <div class="kl">Soporte Pendiente</div>
         </div>
     </div>
+
+    <div class="section-title">Metricas de Entrega y Apertura WhatsApp</div>
+    <p style="color:var(--eki-muted);font-size:0.88rem;max-width:900px;margin:-8px 0 16px;">
+        Entregas y lecturas requieren <strong>status callback</strong> de Twilio apuntando a <code>/webhook/whatsapp/</code>
+        y variable <code>TWILIO_STATUS_CALLBACK_URL</code> en el servidor. Sin eso, muchos envíos quedan en SENT/PENDING.
+    </p>
+    <div class="kpi-grid">
+        <div class="kpi-card" style="border-left:4px solid var(--eki-primary);">
+            <div class="kv" style="color:var(--eki-primary);">{{ mensajes_enviados }}</div>
+            <div class="kl">Yo He Enviado</div>
+            <div class="kd">Salientes registrados (SENT)</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid #868e96;">
+            <div class="kv" style="color:#495057;">{{ mensajes_en_transito }}</div>
+            <div class="kl">En transito</div>
+            <div class="kd">PENDING / cola Twilio</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid var(--eki-info);">
+            <div class="kv" style="color:var(--eki-info);">{{ mensajes_recibidos_confirmados }}</div>
+            <div class="kl">Recibidos (Indicador)</div>
+            <div class="kd">SENT + DELIVERED + READ</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid var(--eki-warning);">
+            <div class="kv" style="color:var(--eki-warning);">{{ mensajes_entregados }}</div>
+            <div class="kl">Entregados</div>
+            <div class="kd">DELIVERED en terminal</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid #9c36b5;">
+            <div class="kv" style="color:#9c36b5;">{{ mensajes_abiertos }}</div>
+            <div class="kl">Abiertos</div>
+            <div class="kd">READ (WhatsApp)</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid var(--eki-success);">
+            <div class="kv" style="color:var(--eki-success);">{{ cursos_completados }}</div>
+            <div class="kl">Completados</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid var(--eki-danger);">
+            <div class="kv" style="color:var(--eki-danger);">{{ cursos_en_proceso }}</div>
+            <div class="kl">En Proceso</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid #0ca678;">
+            <div class="kv" style="color:#0ca678;">{{ bot_comercial_sent }}</div>
+            <div class="kl">Bot comercial (enviados)</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid #7048e8;">
+            <div class="kv" style="color:#7048e8;">{{ bot_comercial_delivered }}</div>
+            <div class="kl">Bot com. entregados</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid #15aabf;">
+            <div class="kv" style="color:#15aabf;">{{ bot_comercial_read }}</div>
+            <div class="kl">Bot com. abiertos</div>
+        </div>
+    </div>
+
+    {% if gei_disponible %}
+    <div class="section-title">Recolección de datos — Ficha GEI</div>
+    <p style="color:var(--eki-muted);font-size:0.88rem;max-width:900px;margin:-8px 0 16px;">
+        Fichas creadas en el flujo de 7 preguntas por WhatsApp (Nati). El detalle por variable está en
+        <em>Admin → Formulario → Fichas GEI</em> (exportar a Excel). Respetan el filtro de <strong>Empresa</strong> arriba.
+    </p>
+    <div class="kpi-grid">
+        <div class="kpi-card" style="border-left:4px solid #2b8a3e;">
+            <div class="kv" style="color:#2b8a3e;">{{ gei_fichas_total }}</div>
+            <div class="kl">Fichas GEI (total)</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid #5c940d;">
+            <div class="kv" style="color:#5c940d;">{{ gei_fichas_30d }}</div>
+            <div class="kl">Fichas nuevas (30 días)</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid #2f9e44;">
+            <div class="kv" style="color:#2f9e44;">{{ gei_fichas_completas }}</div>
+            <div class="kl">Fichas completas (100%)</div>
+            <div class="kd">7 de 7 campos llenos</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid #f08c00;">
+            <div class="kv" style="color:#f08c00;">{{ gei_fichas_parciales }}</div>
+            <div class="kl">Fichas parciales</div>
+            <div class="kd">Algunos campos llenos</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid #c92a2a;">
+            <div class="kv" style="color:#c92a2a;">{{ gei_fichas_pendientes }}</div>
+            <div class="kl">Fichas pendientes</div>
+            <div class="kd">Aún sin datos llenos</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid #5f3dc4;">
+            <div class="kv" style="color:#5f3dc4;">{{ gei_promedio_completitud }}%</div>
+            <div class="kl">Completitud promedio (7 campos)</div>
+            <div class="kd">Últimas 300 fichas con el filtro actual</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid #e67700;">
+            <div class="kv" style="color:#e67700;">{{ gei_sesiones_activas }}</div>
+            <div class="kl">Formularios en curso</div>
+        </div>
+        <div class="kpi-card" style="border-left:4px solid #0b7285;">
+            <div class="kv" style="color:#0b7285;">{{ gei_sesiones_completadas_30d }}</div>
+            <div class="kl">Formularios cerrados (30 días)</div>
+        </div>
+        {% if gei_tiempo_promedio_min is not None %}
+        <div class="kpi-card" style="border-left:4px solid #364fc7;">
+            <div class="kv" style="color:#364fc7;">{{ gei_tiempo_promedio_min }} min</div>
+            <div class="kl">Tiempo promedio en completar</div>
+            <div class="kd">Sesiones cerradas últimos 30 días</div>
+        </div>
+        {% endif %}
+        {% if gei_campo_menor %}
+        <div class="kpi-card" style="border-left:4px solid #ae3ec9;">
+            <div class="kv" style="color:#ae3ec9;font-size:1.1rem;">{{ gei_campo_menor.campo }}</div>
+            <div class="kl">Campo con menos datos</div>
+            <div class="kd">{{ gei_campo_menor.fichas_sin_dato }} fichas sin este dato ({{ gei_campo_menor.porcentaje_sin_dato }}%)</div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
 
     <div class="charts-row">
         <div class="chart-card">
@@ -125,6 +252,52 @@
         {% endfor %}
         </tbody>
     </table>
+    {% endif %}
+
+    <div class="section-title">Cuales lo abrieron (READ)</div>
+    {% if aperturas_whatsapp %}
+    <table class="eki-table">
+        <thead><tr><th>Telefono</th><th>Nombre (si hay estudiante)</th><th>Ultima lectura</th></tr></thead>
+        <tbody>
+        {% for row in aperturas_whatsapp %}
+            <tr>
+                <td>{{ row.telefono }}</td>
+                <td>{{ row.nombre }}</td>
+                <td>{{ row.fecha|date:"Y-m-d H:i" }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% elif estudiantes_abrieron %}
+    <table class="eki-table">
+        <thead><tr><th>Estudiante</th><th>Telefono</th></tr></thead>
+        <tbody>
+        {% for e in estudiantes_abrieron %}
+            <tr><td>{{ e.nombre }}</td><td>{{ e.telefono }}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="kpi-card"><div class="kd">Aun no hay aperturas READ en log (configura callback Twilio).</div></div>
+    {% endif %}
+
+    <div class="section-title">Arranco y Dejo Modulo a Medias</div>
+    {% if estudiantes_iniciaron_y_abandonaron %}
+    <table class="eki-table">
+        <thead><tr><th>Estudiante</th><th>Curso</th><th>Modulo Actual</th><th>Ultimo Avance</th></tr></thead>
+        <tbody>
+        {% for p in estudiantes_iniciaron_y_abandonaron %}
+            <tr>
+                <td>{{ p.estudiante.nombre }}</td>
+                <td>{{ p.curso.nombre }}</td>
+                <td>{% if p.modulo_actual %}{{ p.modulo_actual.titulo }}{% else %}Sin modulo actual{% endif %}</td>
+                <td>{% if p.fecha_ultimo_avance %}{{ p.fecha_ultimo_avance|date:"Y-m-d H:i" }}{% else %}Sin avance{% endif %}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="kpi-card"><div class="kd">No hay estudiantes detectados en esta condicion.</div></div>
     {% endif %}
 </div>
 

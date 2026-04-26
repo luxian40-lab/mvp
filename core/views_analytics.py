@@ -25,6 +25,12 @@ except ImportError:
     Estudiante = Curso = Modulo = ProgresoEstudiante = ModuloCompletado = WhatsappLog = Cliente = None
     InteraccionLog = RespuestaEjercicio = None
 
+try:
+    from formulario.models import FichaGEI, SesionFormulario
+except ImportError:
+    FichaGEI = None
+    SesionFormulario = None
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -269,6 +275,85 @@ def api_metricas_json(request):
         return JsonResponse({
             'labels': [item['dia'].strftime('%d/%m') for item in data],
             'data': [item['total'] for item in data]
+        })
+    
+    elif tipo_metrica == 'formulario_gei':
+        # Métricas agregadas de Ficha GEI / sesiones (para dashboard admin; staff autenticado)
+        if not (FichaGEI and SesionFormulario):
+            return JsonResponse({'error': 'app formulario no disponible'}, status=400)
+        from django.utils import timezone as tz_util
+        try:
+            from formulario.models import CAMPOS_GEI_7
+        except Exception:
+            CAMPOS_GEI_7 = ()
+        hace_30 = tz_util.now() - timedelta(days=30)
+        cliente_id = request.GET.get("cliente_id")
+        f_q = FichaGEI.objects.all()
+        s_q = SesionFormulario.objects.all()
+        if cliente_id and str(cliente_id).isdigit():
+            cid = int(cliente_id)
+            f_q = f_q.filter(cliente_id=cid)
+            s_q = s_q.filter(estudiante__cliente_id=cid)
+
+        muestra = list(f_q.order_by("-fecha_update")[:300])
+        n = len(muestra)
+        suma_pct = 0
+        fichas_completas = 0
+        fichas_parciales = 0
+        fichas_pendientes = 0
+        nulos_por_campo = {c: 0 for c in CAMPOS_GEI_7}
+        for ficha in muestra:
+            pct = int(ficha.completitud_pct or 0)
+            suma_pct += pct
+            if pct == 100:
+                fichas_completas += 1
+            elif pct == 0:
+                fichas_pendientes += 1
+            else:
+                fichas_parciales += 1
+            for c in CAMPOS_GEI_7:
+                v = getattr(ficha, c, None)
+                if v is None or v == "":
+                    nulos_por_campo[c] += 1
+        prom = round(suma_pct / n, 1) if n else 0.0
+
+        campo_menor = None
+        if n and nulos_por_campo:
+            cm = max(nulos_por_campo.items(), key=lambda kv: kv[1])
+            if cm[1] > 0:
+                campo_menor = {
+                    "campo": cm[0],
+                    "fichas_sin_dato": cm[1],
+                    "porcentaje_sin_dato": round(cm[1] * 100 / n, 1),
+                }
+
+        completadas_30d = list(
+            s_q.filter(completado=True, fecha_update__gte=hace_30)[:300]
+        )
+        tiempo_promedio_min = None
+        if completadas_30d:
+            total_seg = 0
+            cnt = 0
+            for s in completadas_30d:
+                if s.fecha_inicio and s.fecha_update:
+                    total_seg += (s.fecha_update - s.fecha_inicio).total_seconds()
+                    cnt += 1
+            if cnt:
+                tiempo_promedio_min = round((total_seg / cnt) / 60, 1)
+
+        return JsonResponse({
+            "schema": "formulario_gei_v2",
+            "fichas_total": f_q.count(),
+            "fichas_ultimos_30d": f_q.filter(fecha_inicio__gte=hace_30).count(),
+            "fichas_completas": fichas_completas,
+            "fichas_parciales": fichas_parciales,
+            "fichas_pendientes": fichas_pendientes,
+            "completitud_promedio_pct": prom,
+            "completitud_muestra": n,
+            "campo_con_menor_completitud": campo_menor,
+            "sesiones_activas": s_q.filter(completado=False).count(),
+            "sesiones_completadas_30d": len(completadas_30d),
+            "tiempo_promedio_completar_min": tiempo_promedio_min,
         })
     
     return JsonResponse({'error': 'Tipo de métrica no válido'}, status=400)

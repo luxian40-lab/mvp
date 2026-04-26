@@ -1,0 +1,136 @@
+"""Tests de la identidad Nati y de cómo se inyecta el system prompt en el bot comercial."""
+from __future__ import annotations
+
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from core.models import Cliente
+from core.nati import (
+    NATI_SYSTEM_PROMPT_BASE,
+    NOMBRE_BOT_DEFAULT,
+    armar_system_prompt,
+    obtener_nombre_bot,
+)
+
+
+pytestmark = pytest.mark.django_db
+
+
+def test_armar_system_prompt_default_usa_nati():
+    """Sin cliente, el prompt usa el nombre default 'Nati' y describe la personalidad colombiana."""
+    prompt = armar_system_prompt()
+    assert NOMBRE_BOT_DEFAULT in prompt
+    assert "{nombre_bot}" not in prompt  # placeholder fue interpolado
+    # señales de identidad colombiana / agro
+    assert "Colombia" in prompt or "colombian" in prompt.lower()
+
+
+def test_armar_system_prompt_usa_nombre_bot_cliente():
+    cliente = Cliente.objects.create(
+        nombre="ACME NATI",
+        contacto_principal="C",
+        email="nati@example.com",
+        telefono="573001110000",
+        nombre_bot="Aliada",
+    )
+    prompt = armar_system_prompt(cliente=cliente)
+    assert "Aliada" in prompt
+    assert "Nati" not in prompt or prompt.count("Nati") < prompt.count("Aliada")
+
+
+def test_system_prompt_extra_se_concatena():
+    cliente = Cliente.objects.create(
+        nombre="ACME EXTRA",
+        contacto_principal="C",
+        email="extra@example.com",
+        telefono="573001110000",
+        nombre_bot="Nati",
+        system_prompt_extra="Solo recomienda fertilizantes Nitrofert.",
+    )
+    prompt = armar_system_prompt(cliente=cliente)
+    assert "Solo recomienda fertilizantes Nitrofert." in prompt
+    assert "Instrucciones específicas del cliente" in prompt
+
+
+def test_obtener_nombre_bot_default_cuando_no_hay_cliente():
+    assert obtener_nombre_bot(None) == "Nati"
+
+
+def test_obtener_nombre_bot_usa_cliente():
+    cliente = Cliente.objects.create(
+        nombre="ACME ONOM",
+        contacto_principal="C",
+        email="onom@example.com",
+        telefono="573001110000",
+        nombre_bot="Sofi",
+    )
+    assert obtener_nombre_bot(cliente) == "Sofi"
+
+
+def test_nati_prompt_se_inyecta_en_bot_comercial(settings):
+    """Mock OpenAI: verifica que el messages[0] del bot comercial contiene 'Nati' y respeta el extra del cliente."""
+    pytest.importorskip("openai")
+
+    cliente = Cliente.objects.create(
+        nombre="ACME INJECT",
+        contacto_principal="C",
+        email="inject@example.com",
+        telefono="573001110000",
+        nombre_bot="Nati",
+        system_prompt_extra="Prioridad al producto demo.",
+    )
+    settings.OPENAI_API_KEY = "fake-key-no-network"
+    settings.BOT_COMERCIAL_OPENAI_MODEL = "gpt-4o-mini"
+
+    fake_choice = MagicMock()
+    fake_choice.message.content = "Respuesta simulada"
+    fake_completion = MagicMock()
+    fake_completion.choices = [fake_choice]
+    fake_client = MagicMock()
+    fake_client.chat.completions.create.return_value = fake_completion
+
+    with patch("openai.OpenAI", return_value=fake_client):
+        from core.views import _bot_comercial_respuesta_catalogo
+        respuesta = _bot_comercial_respuesta_catalogo(
+            pregunta="¿Qué fertilizante me recomiendan?",
+            contexto_rag="Catálogo demo: producto X.",
+            historial_chat="",
+            cliente=cliente,
+        )
+
+    assert respuesta == "Respuesta simulada"
+    fake_client.chat.completions.create.assert_called_once()
+    kwargs = fake_client.chat.completions.create.call_args.kwargs
+    messages = kwargs["messages"]
+    system_msg = messages[0]
+    assert system_msg["role"] == "system"
+    assert "Nati" in system_msg["content"]
+    assert "Prioridad al producto demo." in system_msg["content"]
+
+
+def test_bot_comercial_sin_cliente_usa_default_nati(settings):
+    """Sin cliente, el bot comercial sigue inyectando el prompt base de Nati."""
+    pytest.importorskip("openai")
+
+    settings.OPENAI_API_KEY = "fake-key"
+    settings.BOT_COMERCIAL_OPENAI_MODEL = "gpt-4o-mini"
+
+    fake_client = MagicMock()
+    fake_choice = MagicMock()
+    fake_choice.message.content = "ok"
+    fake_completion = MagicMock()
+    fake_completion.choices = [fake_choice]
+    fake_client.chat.completions.create.return_value = fake_completion
+
+    with patch("openai.OpenAI", return_value=fake_client):
+        from core.views import _bot_comercial_respuesta_catalogo
+        _bot_comercial_respuesta_catalogo(
+            pregunta="hola",
+            contexto_rag="info",
+            cliente=None,
+        )
+
+    kwargs = fake_client.chat.completions.create.call_args.kwargs
+    system_content = kwargs["messages"][0]["content"]
+    assert "Nati" in system_content

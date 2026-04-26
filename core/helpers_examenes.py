@@ -91,7 +91,13 @@ def obtener_siguiente_modulo(estudiante, curso):
         activo=True,
         numero__gt=modulo_actual.numero
     ).order_by('numero').first()
-    
+
+    if siguiente_modulo:
+        from .drip_schedule import drip_bloquea_siguiente_modulo
+
+        if drip_bloquea_siguiente_modulo(progreso, modulo_actual):
+            return modulo_actual
+
     return siguiente_modulo
 
 

@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import date, datetime, time, timedelta
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
@@ -17,7 +17,9 @@ from core.models import (
 	ProgresoEstudiante,
 )
 from core.drip_schedule import dias_espera_efectivos
+from core.drip_schedule import drip_bloquea_siguiente_modulo
 from core.response_templates import get_response_for_intent, _generar_completado_final
+from core.security_handler import _url_politica_datos_cliente
 from core.selector_curso import continuar_curso_seleccionado
 from core.views import _haversine_metros, _procesar_ubicacion_empleabilidad
 
@@ -75,6 +77,24 @@ class DripGeoGamificacionTests(TestCase):
 		self.assertIn('se desbloquea el', respuesta)
 		self.assertIn('Excelente energía', respuesta)
 
+	def test_drip_bloquea_primer_listo_tras_completar_modulo(self):
+		estudiante = self._crear_estudiante('111')
+		curso, modulo_1, _ = self._crear_curso_y_modulos('Curso Drip Primer Listo', dias_espera=1)
+		ProgresoEstudiante.objects.create(
+			estudiante=estudiante,
+			curso=curso,
+			modulo_actual=modulo_1,
+		)
+
+		respuesta = get_response_for_intent(
+			'continuar_leccion',
+			estudiante.nombre,
+			estudiante_id=estudiante.id,
+			mensaje_original='listo',
+		)
+		self.assertIn('se desbloquea el', respuesta)
+		self.assertIn('preparando tu siguiente sesión', respuesta)
+
 	def test_drip_override_por_cliente(self):
 		cliente = Cliente.objects.create(
 			nombre='Coop Test',
@@ -112,6 +132,21 @@ class DripGeoGamificacionTests(TestCase):
 			mensaje_original='listo',
 		)
 		self.assertIn('se desbloquea el', respuesta)
+
+	def test_drip_desbloquea_por_fecha_no_por_hora(self):
+		estudiante = self._crear_estudiante('901')
+		curso, modulo_1, _ = self._crear_curso_y_modulos('Curso Drip Fecha', dias_espera=1)
+		progreso = ProgresoEstudiante.objects.create(
+			estudiante=estudiante,
+			curso=curso,
+			modulo_actual=modulo_1,
+			fecha_ultimo_avance=timezone.now(),
+		)
+		ModuloCompletado.objects.create(progreso=progreso, modulo=modulo_1)
+		base = date(2026, 4, 25)
+		with patch('core.drip_schedule.timezone.localdate') as mock_localdate:
+			mock_localdate.side_effect = lambda dt=None: (base if dt is not None else base + timedelta(days=1))
+			self.assertFalse(drip_bloquea_siguiente_modulo(progreso, modulo_1))
 
 	def test_continuar_leccion_no_lista_cursos_si_drip_en_uno(self):
 		estudiante = self._crear_estudiante('22')
@@ -288,3 +323,23 @@ class DripGeoGamificacionTests(TestCase):
 
 		respuesta = _generar_completado_final(estudiante, curso.id)
 		self.assertNotIn('Pregunta abierta final', respuesta)
+
+	@override_settings(URL_POLITICA_DATOS='https://eki.com.co/politica-general')
+	def test_url_habeas_data_prefiere_override_de_cliente(self):
+		cliente = Cliente.objects.create(
+			nombre='Cliente Habeas',
+			contacto_principal='Legal',
+			email='legal@cliente.com',
+			telefono='3001230000',
+			enlace_habeas_data='https://cliente.com/politica-datos',
+		)
+		estudiante = Estudiante.objects.create(
+			cedula='300001',
+			nombre='Estudiante Habeas',
+			telefono='573001110001',
+			cliente=cliente,
+		)
+		self.assertEqual(
+			_url_politica_datos_cliente(estudiante=estudiante),
+			'https://cliente.com/politica-datos'
+		)

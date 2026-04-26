@@ -122,6 +122,17 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
     total_audios = whatsapp_q.filter(es_audio=True).count()
     total_agentes_ia = whatsapp_q.filter(agente_usado__isnull=False).exclude(agente_usado='').count()
 
+    wa_entregados = whatsapp_q.filter(tipo='SENT', estado__iexact='DELIVERED').count()
+    wa_leidos = whatsapp_q.filter(tipo='SENT', estado__iexact='READ').count()
+    wa_en_transito = whatsapp_q.filter(
+        tipo='SENT',
+        estado__in=['PENDING', 'QUEUED', 'SENDING', 'pending', 'queued', 'sending'],
+    ).count()
+    wa_bot_comercial_sent = whatsapp_q.filter(tipo='SENT', agente_usado='BOT_COMERCIAL').count()
+    wa_bot_comercial_read = whatsapp_q.filter(
+        tipo='SENT', agente_usado='BOT_COMERCIAL', estado__iexact='READ'
+    ).count()
+
     total_progreso = progreso_q.count()
     total_modulos_completados = modulos_completados_q.count()
     cursos_completados = progreso_q.filter(completado=True).count()
@@ -299,6 +310,11 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
             'total_mensajes_whatsapp': int(total_mensajes_whatsapp),
             'mensajes_enviados': int(mensajes_enviados),
             'mensajes_recibidos': int(mensajes_recibidos),
+            'wa_entregados': int(wa_entregados),
+            'wa_leidos': int(wa_leidos),
+            'wa_en_transito': int(wa_en_transito),
+            'wa_bot_comercial_sent': int(wa_bot_comercial_sent),
+            'wa_bot_comercial_read': int(wa_bot_comercial_read),
             'total_audios': int(total_audios),
             'total_agentes_ia': int(total_agentes_ia),
             'total_progreso': int(total_progreso),
@@ -331,6 +347,11 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
         'total_mensajes_whatsapp': total_mensajes_whatsapp,
         'mensajes_enviados': mensajes_enviados,
         'mensajes_recibidos': mensajes_recibidos,
+        'wa_entregados': wa_entregados,
+        'wa_leidos': wa_leidos,
+        'wa_en_transito': wa_en_transito,
+        'wa_bot_comercial_sent': wa_bot_comercial_sent,
+        'wa_bot_comercial_read': wa_bot_comercial_read,
         'total_audios': total_audios,
         'total_agentes_ia': total_agentes_ia,
         'total_progreso': total_progreso,
@@ -426,7 +447,11 @@ def dashboard_unificado_resumen_data(request):
 @staff_member_required
 def bot_comercial_admin_view(request):
     """Vista administrativa para operación del Bot Comercial IA."""
-    from .models import DocumentoRAGComercial
+    from datetime import timedelta
+    from django.urls import reverse
+    from django.utils import timezone as dj_tz
+
+    from .models import DocumentoRAGComercial, WhatsappLog
     from .rag_comercial_manager import rag_comercial_manager
 
     endpoint_path = '/webhook/ia-bot-comercial/'
@@ -444,6 +469,21 @@ def bot_comercial_admin_view(request):
     if rag_comercial_manager.disponible:
         chunks_total = rag_comercial_manager.contar_chunks(cliente_id=cliente_id, canal=canal_rag)
 
+    hace_7 = dj_tz.now() - timedelta(days=7)
+    bc_in = WhatsappLog.objects.filter(
+        tipo='INCOMING', agente_usado='BOT_COMERCIAL', fecha__gte=hace_7
+    ).count()
+    bc_out = WhatsappLog.objects.filter(
+        tipo='SENT', agente_usado='BOT_COMERCIAL', fecha__gte=hace_7
+    ).count()
+    bc_read = WhatsappLog.objects.filter(
+        tipo='SENT', agente_usado='BOT_COMERCIAL', estado__iexact='READ'
+    ).count()
+    bc_delivered = WhatsappLog.objects.filter(
+        tipo='SENT', agente_usado='BOT_COMERCIAL', estado__iexact='DELIVERED'
+    ).count()
+    callback_general = request.build_absolute_uri('/webhook/whatsapp/')
+
     context = {
         'endpoint_path': endpoint_path,
         'endpoint_url': endpoint_url,
@@ -457,6 +497,17 @@ def bot_comercial_admin_view(request):
         'rag_comercial_total_docs': total_docs,
         'rag_comercial_docs_indexados': total_docs_indexados,
         'rag_comercial_chunks_total': chunks_total,
+        'bot_comercial_incoming_7d': bc_in,
+        'bot_comercial_sent_7d': bc_out,
+        'bot_comercial_read_total': bc_read,
+        'bot_comercial_delivered_total': bc_delivered,
+        'memory_turnos': int(getattr(settings, 'BOT_COMERCIAL_MEMORY_TURNOS', 12) or 12),
+        'memory_chars': int(getattr(settings, 'BOT_COMERCIAL_MEMORY_MAX_CHARS', 3600) or 3600),
+        'twilio_status_callback_configured': bool(
+            str(getattr(settings, 'TWILIO_STATUS_CALLBACK_URL', '') or '').strip()
+        ),
+        'twilio_status_callback_example': callback_general,
+        'whatsapp_log_admin_url': reverse('admin:core_whatsapplog_changelist'),
     }
     return render(request, 'admin/bot_comercial.html', context)
 
@@ -673,112 +724,15 @@ def _transcribir_con_vosk(audio_path):
 
 @staff_member_required
 def dashboard_view(request):
-    from django.db.models import Count
-    from django.db.models.functions import TruncDate
-    
-    # Filtro por cliente (opcional)
-    cliente_id = request.GET.get('cliente')
-    cliente_seleccionado = None
-    
-    if cliente_id:
-        try:
-            cliente_seleccionado = Cliente.objects.get(id=cliente_id)
-        except Cliente.DoesNotExist:
-            pass
-    
-    # Filtrar estudiantes por cliente si está seleccionado
-    estudiantes_query = Estudiante.objects.filter(activo=True)
-    if cliente_seleccionado:
-        estudiantes_query = estudiantes_query.filter(cliente=cliente_seleccionado)
-    
-    # 1. Calcular Métricas REALES (solo WhatsappLog)
-    total_campanas = Campana.objects.count()
-    if cliente_seleccionado:
-        total_campanas = Campana.objects.filter(cliente=cliente_seleccionado).count()
-    
-    estudiantes_activos = estudiantes_query.count()
-    
-    # Obtener teléfonos de estudiantes del cliente
-    telefonos_cliente = []
-    if cliente_seleccionado:
-        telefonos_cliente = [est.telefono.replace('+', '').replace(' ', '') for est in estudiantes_query]
-    
-    # Métricas de WhatsApp (DATOS REALES) - filtradas por cliente
-    whatsapp_logs_query = WhatsappLog.objects.all()
-    if cliente_seleccionado and telefonos_cliente:
-        whatsapp_logs_query = whatsapp_logs_query.filter(telefono__in=telefonos_cliente)
-    
-    whatsapp_logs = whatsapp_logs_query.order_by('-fecha')[:10]
-    whatsapp_total = whatsapp_logs_query.count()
-    whatsapp_enviados = whatsapp_logs_query.filter(tipo='SENT').count()
-    whatsapp_recibidos = whatsapp_logs_query.filter(tipo='INCOMING').count()
-    
-    # Conversaciones únicas (estudiantes que han conversado)
-    conversaciones_activas = whatsapp_logs_query.values('telefono').distinct().count()
-    
-    # Datos para gráficos - Últimos 7 días
-    hoy = datetime.now().date()
-    hace_7_dias = hoy - timedelta(days=7)
-    
-    # Mensajes por día (últimos 7 días)
-    mensajes_por_dia = whatsapp_logs_query.filter(
-        fecha__gte=hace_7_dias
-    ).annotate(
-        dia=TruncDate('fecha')
-    ).values('dia').annotate(
-        total=Count('id')
-    ).order_by('dia')
-    
-    # Preparar datos para Chart.js
-    dias_labels = []
-    dias_valores = []
-    for i in range(7):
-        dia = hoy - timedelta(days=6-i)
-        dias_labels.append(dia.strftime('%d/%m'))
-        count = next((m['total'] for m in mensajes_por_dia if m['dia'] == dia), 0)
-        dias_valores.append(count)
-    
-    # Mensajes por tipo (últimos 30 días) - DATOS REALES
-    hace_30_dias = hoy - timedelta(days=30)
-    mensajes_enviados_30d = whatsapp_logs_query.filter(
-        fecha__gte=hace_30_dias,
-        tipo='SENT'
-    ).count()
-    mensajes_recibidos_30d = whatsapp_logs_query.filter(
-        fecha__gte=hace_30_dias,
-        tipo='INCOMING'
-    ).count()
-    
-    # Obtener todos los clientes para el selector
-    todos_clientes = Cliente.objects.all().order_by('nombre')
+    """Redirige al dashboard de métricas completo (contexto histórico incompleto aquí rompía la plantilla)."""
+    from django.shortcuts import redirect
+    from django.urls import reverse
 
-    context = {
-        'total_campanas': total_campanas,
-        'estudiantes_activos': estudiantes_activos,
-        'conversaciones_activas': conversaciones_activas,
-        
-        # WhatsApp Logs (DATOS REALES)
-        'whatsapp_logs': whatsapp_logs,
-        'whatsapp_total': whatsapp_total,
-        'whatsapp_enviados': whatsapp_enviados,
-        'whatsapp_recibidos': whatsapp_recibidos,
-        
-        # Datos para gráficos
-        'chart_dias_labels': json.dumps(dias_labels),
-        'chart_dias_valores': json.dumps(dias_valores),
-        'chart_enviados_30d': mensajes_enviados_30d,
-        'chart_recibidos_30d': mensajes_recibidos_30d,
-        
-        # Selector de cliente
-        'todos_clientes': todos_clientes,
-        'cliente_seleccionado': cliente_seleccionado,
-        
-        # Timestamp para auto-refresh
-        'timestamp': datetime.now().strftime('%d/%m/%Y %H:%M:%S'),
-    }
-    
-    # Usar solo plantillas existentes. Si no existe dashboard_metrics.html, usar dashboard_metricas.html
-    return render(request, 'admin/dashboard_metricas.html', context)
+    target = reverse('dashboard_metrics')
+    qs = request.META.get('QUERY_STRING', '')
+    if qs:
+        return redirect(f'{target}?{qs}')
+    return redirect(target)
 
 
 # ---------- Vista de instrucciones ----------
@@ -1696,8 +1650,13 @@ def _bot_comercial_respuesta_catalogo(
     diagnostico_vision: str = '',
     contexto_web: str = '',
     historial_chat: str = '',
+    cliente=None,
 ) -> str:
-    """Genera respuesta técnica/comercial estricta basada en contexto RAG (sin alucinaciones)."""
+    """Genera respuesta técnica/comercial estricta basada en contexto RAG (sin alucinaciones).
+
+    Si se pasa `cliente` (instancia de `core.Cliente`), se usa su `system_prompt_extra`
+    y `nombre_bot` para personalizar la identidad de Nati.
+    """
     api_key = getattr(settings, 'OPENAI_API_KEY', '')
     contexto_base = contexto_rag or contexto_web
     tiene_rag = bool(contexto_rag)
@@ -1726,24 +1685,9 @@ def _bot_comercial_respuesta_catalogo(
 
     try:
         from openai import OpenAI
+        from core.nati import armar_system_prompt
         client = OpenAI(api_key=api_key)
-        system_prompt = (
-            "Eres un asesor técnico agrícola cercano, claro y práctico (estilo humano de campo). "
-            "Primero prioriza orientación técnica y, cuando corresponda, recomendación de producto/catálogo. "
-            "Regla crítica: PRIORIZA SIEMPRE el CONTEXTO RAG INDEXADO; solo usa CONTEXTO WEB "
-            "si el RAG está vacío o insuficiente. "
-            "Usa HISTORIAL RECIENTE para mantener continuidad de la conversación. "
-            "Si el cliente dice 'eso', 'lo mismo', 'lo anterior' o similares, "
-            "interpreta esa referencia con base en el historial. "
-            "Si hay conflicto entre historial y último mensaje, prioriza el último mensaje del cliente. "
-            "Si falta información en contexto, dilo con naturalidad y sin repetir disculpas. "
-            "No inventes productos, dosis ni precios. "
-            "Si el contexto RAG incluye precio/disponibilidad, puedes recomendar de forma directa "
-            "el producto más adecuado para ese cultivo y objetivo, explicando por qué. "
-            "Cuando no haya contexto suficiente: 1) reconoce la intención, 2) explica qué falta, "
-            "3) haz una sola pregunta útil para continuar, 4) cierra con CTA suave de cotización. "
-            "Responde en español claro para agricultores, en tono breve y conversacional."
-        )
+        system_prompt = armar_system_prompt(cliente=cliente)
         user_prompt = (
             f"CONSULTA DEL CLIENTE:\n{pregunta}\n\n"
             f"HISTORIAL RECIENTE:\n{historial_chat or '[VACIO]'}\n\n"
@@ -1754,7 +1698,7 @@ def _bot_comercial_respuesta_catalogo(
         modelo = str(getattr(settings, 'BOT_COMERCIAL_OPENAI_MODEL', '') or 'gpt-4o-mini')
         completion = client.chat.completions.create(
             model=modelo,
-            temperature=0.2,
+            temperature=0.15,
             messages=[
                 {'role': 'system', 'content': system_prompt},
                 {'role': 'user', 'content': user_prompt},
@@ -1888,6 +1832,7 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
 
     status = post_data.get('MessageStatus', post_data.get('SmsStatus', ''))
     if status and status.lower() in ['queued', 'sending', 'sent', 'delivered', 'undelivered', 'failed', 'read']:
+        _registrar_estado_twilio_callback(post_data)
         return
 
     msg_body = (post_data.get('Body', '') or '').strip()
@@ -2071,12 +2016,21 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
             if contexto_web:
                 logger.info("🌐 Fallback web/académico usado | contexto_chars=%s", len(contexto_web))
 
+        cliente_nati = None
+        if cliente_id_cfg:
+            try:
+                cliente_nati = Cliente.objects.filter(id=cliente_id_cfg).first()
+            except Exception as e:
+                logger.warning("Bot comercial: no se pudo cargar Cliente id=%s para Nati: %s", cliente_id_cfg, e)
+                cliente_nati = None
+
         texto_respuesta = _bot_comercial_respuesta_catalogo(
             pregunta=consulta,
             contexto_rag=contexto_rag,
             diagnostico_vision=diagnostico_vision,
             contexto_web=contexto_web,
             historial_chat=historial_chat,
+            cliente=cliente_nati,
         )
 
     try:
@@ -2127,6 +2081,54 @@ def _escape_twiml(text):
     text = text.replace('<', '&lt;')
     text = text.replace('>', '&gt;')
     return text
+
+
+def _registrar_estado_twilio_callback(post_data):
+    """
+    Actualiza estado de WhatsappLog (SENT) con callbacks de Twilio.
+    Permite métricas de entregado/abierto/fallido por mensaje.
+    """
+    try:
+        sid = (
+            post_data.get('MessageSid')
+            or post_data.get('SmsSid')
+            or post_data.get('message_sid')
+            or ''
+        )
+        status_raw = (
+            post_data.get('MessageStatus')
+            or post_data.get('SmsStatus')
+            or post_data.get('status')
+            or ''
+        )
+        status = str(status_raw).strip().upper()
+
+        if not sid or not status:
+            return
+
+        # Tomar el último envío con este SID para no tocar INCOMING.
+        log = (
+            WhatsappLog.objects.filter(mensaje_id=sid, tipo='SENT')
+            .order_by('-fecha')
+            .first()
+        )
+        if log:
+            if log.estado != status:
+                log.estado = status
+                log.save(update_fields=['estado'])
+            return
+
+        # Fallback para no perder trazabilidad de callbacks huérfanos.
+        WhatsappLog.objects.create(
+            telefono='desconocido',
+            mensaje=f'[STATUS_CALLBACK:{status}]',
+            mensaje_id=sid,
+            tipo='SENT',
+            estado=status,
+            error_detalle='Callback Twilio sin log SENT previo.',
+        )
+    except Exception as e:
+        logger.warning(f"⚠️ No se pudo registrar callback Twilio: {e}")
 
 
 def _twilio_max_body_chars() -> int:
@@ -2211,13 +2213,8 @@ def _haversine_metros(lat1, lon1, lat2, lon2):
 
 
 def _mensaje_bloqueo_drip_view(fecha_desbloqueo):
-    fecha_txt = timezone.localtime(fecha_desbloqueo).strftime('%d/%m/%Y')
-    return (
-        "🌱 *¡Excelente energía!*\n\n"
-        f"Tu próxima lección se desbloquea el *{fecha_txt}*.\n"
-        "Mientras tanto, repasa lo aprendido en el módulo actual.\n\n"
-        "Cuando llegue la fecha, responde *listo* para continuar."
-    )
+    from .response_templates import _mensaje_bloqueo_drip
+    return _mensaje_bloqueo_drip(fecha_desbloqueo)
 
 
 def _activar_radar_empleabilidad_si_aplica(estudiante):
@@ -2379,7 +2376,8 @@ def _procesar_twilio_webhook(post_data):
     # ============================================================
     message_status = post_data.get('MessageStatus', post_data.get('SmsStatus', ''))
     if message_status and message_status.lower() in ['queued', 'sending', 'sent', 'delivered', 'undelivered', 'failed', 'read']:
-        logger.debug(f"Status callback ignorado: {message_status}")
+        _registrar_estado_twilio_callback(post_data)
+        logger.debug(f"Status callback procesado: {message_status}")
         return
     
     # FILTRO 2: Ignorar si no hay Body ni Media (status callback sin MessageStatus)
@@ -2633,19 +2631,17 @@ def _procesar_twilio_webhook(post_data):
                     "Si cambias de opinión, escríbenos en cualquier momento. 🌱"
                 )
             else:
-                # Enviar habeas data con botones (intentar template, sino texto)
-                from .whatsapp_service import enviar_habeas_data
-                resultado = enviar_habeas_data(msg_from)
-                if resultado.get('success'):
-                    return  # Template enviado exitosamente
-                
-                # Fallback: texto plano
+                # Mostrar siempre la URL efectiva del cliente para evitar desalineación
+                # entre el enlace configurado en admin y una plantilla estática.
+                from .security_handler import _url_politica_datos_cliente
+                url_politica = _url_politica_datos_cliente(estudiante=estudiante)
                 texto_respuesta = (
                     "👋 *¡Bienvenido a eki!*\n\n"
                     "🚜 Tu plataforma de soluciones educativas por WhatsApp\n\n"
                     "📜 *Protección de Datos Personales*\n"
                     "Antes de comenzar, necesitamos tu autorización para usar "
                     "tus datos de acuerdo con la Ley 1581 de 2012.\n\n"
+                    f"🔗 Lee nuestra política completa aquí:\n{url_politica}\n\n"
                     "*¿Aceptas el tratamiento de tus datos?*\n\n"
                     "👉 Escribe *Acepto* o *No acepto*"
                 )
@@ -3045,6 +3041,31 @@ def _procesar_twilio_webhook(post_data):
         if estado_chat == 'ACTIVO' or estudiante.estado_onboarding == 'completado':
             msg_lower = msg_body.strip().lower()
             logger.info(f"📍 ACTIVO handler: msg='{msg_lower}', onboarding={estudiante.estado_onboarding}")
+
+            if estado_chat == 'ACTIVO':
+                try:
+                    from formulario.routing import debe_usar_agente_formulario
+                    if debe_usar_agente_formulario(estudiante):
+                        from formulario.agent import manejar_mensaje_formulario
+                        texto_respuesta = manejar_mensaje_formulario(estudiante, msg_body)
+                        try:
+                            from twilio.rest import Client as TwilioClient
+                            account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                            auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                            twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
+                            client_tw = TwilioClient(account_sid, auth_token)
+                            destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
+                            client_tw.messages.create(
+                                body=texto_respuesta,
+                                from_=str(twilio_number).strip(),
+                                to=str(destino).strip()
+                            )
+                            WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
+                        except Exception as e:
+                            logger.error(f"❌ Error enviando respuesta formulario GEI: {e}")
+                        return
+                except Exception as e:
+                    logger.error(f"❌ Agente formulario: {e}", exc_info=True)
             
             # PRIORIDAD: Si está seleccionando curso, NO interceptar números
             if estudiante.estado_onboarding == 'esperando_seleccion_curso':
@@ -3067,8 +3088,7 @@ def _procesar_twilio_webhook(post_data):
                     if indice is not None:
                         from .selector_curso import continuar_curso_seleccionado
                         estudiante.estado_onboarding = 'completado'
-                        estudiante.contexto_temporal = None
-                        estudiante.save()
+                        estudiante.save(update_fields=['estado_onboarding'])
                         texto_respuesta = continuar_curso_seleccionado(estudiante.id, indice, msg_body)
                         logger.info(f"✅ Curso seleccionado: {indice}")
                     else:
@@ -3393,7 +3413,12 @@ def _procesar_twilio_webhook(post_data):
         
         # 3. 🛡️ PRIORIDAD 1: Verificar seguridad (Habeas Data) - Legacy
         from .security_handler import verificar_seguridad_completa
-        bloqueado, respuesta_seguridad, estudiante = verificar_seguridad_completa(estudiante, msg_body, telefono_limpio)
+        bloqueado, respuesta_seguridad, estudiante = verificar_seguridad_completa(
+            estudiante,
+            msg_body,
+            telefono_limpio,
+            numero_destino=msg_to,
+        )
         print(f"🛡️ Seguridad: bloqueado={bloqueado} | estudiante={estudiante} | estado={getattr(estudiante, 'estado_onboarding', 'N/A')}", flush=True)
         
         # Default safety - will be overwritten by any branch below
@@ -3514,12 +3539,13 @@ def _procesar_twilio_webhook(post_data):
                         modulos_eval = list(curso_obj.modulos.all().order_by('numero')) if curso_obj else []
                         puntaje_final_10 = 7
                         feedback_final = (
-                            "1. Aprecio su esfuerzo al compartir su respuesta.\n\n"
-                            "2. Para mejorar, profundice en acciones concretas según el nivel de infestación, "
-                            "las etapas de Diatraea y medidas preventivas aplicables a su cultivo.\n\n"
+                            "1. Gracias por su respuesta; usted sí propone una línea de acción.\n\n"
+                            "2. Para subir nivel, faltó precisión objetiva en dos partes: "
+                            "(a) diagnóstico: qué señales mediría, cuánto y en qué tiempo; "
+                            "(b) control: qué acción exacta aplicaría, con qué frecuencia y criterio de verificación.\n\n"
                             "3. Puntaje total: 7/10\n"
                             "4. Desglose: Enfoque 2/3 | Fundamentación 3/4 | Claridad 2/3\n\n"
-                            "Siga adelante, cada esfuerzo cuenta en su aprendizaje."
+                            "Diagnóstico: parcial | Acción/Control: parcial."
                         )
                         try:
                             from .tutor_ia_modulo import evaluar_reto_facilitador
@@ -4192,10 +4218,13 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                 drip_bloqueado = False
 
                                 if siguiente_modulo:
-                                    # Drip Content: si el curso tiene espera, no avanzar todavía
-                                    if progreso.curso.dias_espera_entre_modulos > 0 and progreso.fecha_ultimo_avance:
-                                        fecha_desbloqueo = progreso.fecha_ultimo_avance + timedelta(days=progreso.curso.dias_espera_entre_modulos)
-                                        if timezone.now() < fecha_desbloqueo:
+                                    # Drip Content: espera entre módulos (curso + override por cliente)
+                                    from .drip_schedule import dias_espera_efectivos, fecha_desbloqueo_drip
+
+                                    dias_drip = dias_espera_efectivos(estudiante, progreso.curso)
+                                    if dias_drip > 0 and progreso.fecha_ultimo_avance:
+                                        fecha_desbloqueo = fecha_desbloqueo_drip(progreso.fecha_ultimo_avance, dias_drip)
+                                        if fecha_desbloqueo and timezone.localdate() < fecha_desbloqueo:
                                             texto_respuesta = f"{mensaje_respuesta}\n\n{_mensaje_bloqueo_drip_view(fecha_desbloqueo)}"
                                             drip_bloqueado = True
                                             siguiente_modulo = None
@@ -4461,26 +4490,32 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                     estudiante.save()
                     from .response_templates import get_response_for_intent
                     texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
-                elif msg_body.strip().isdigit():
-                    indice = int(msg_body.strip())
-                    from .selector_curso import continuar_curso_seleccionado
-                    estudiante.estado_onboarding = 'completado'
-                    estudiante.contexto_temporal = None
-                    estudiante.save()
-                    texto_respuesta = continuar_curso_seleccionado(estudiante.id, indice, msg_body)
-                    print(f"✅ Curso seleccionado: {indice}")
                 else:
-                    # Si no es número ni menu, resetear estado y procesar normalmente
-                    estudiante.estado_onboarding = 'completado'
-                    estudiante.contexto_temporal = None
-                    estudiante.save()
-                    from .intent_detector import detect_intent
-                    from .response_templates import get_response_for_intent
-                    intent = detect_intent(msg_body)
-                    if intent != 'desconocido':
-                        texto_respuesta = get_response_for_intent(intent, estudiante.nombre, estudiante_id=estudiante.id, mensaje_original=msg_body)
+                    import re as re_curso_sel
+                    indice_sel = None
+                    match_tomar_sel = re_curso_sel.match(r'^tomar\s*(\d+)$', msg_sel)
+                    if match_tomar_sel:
+                        indice_sel = int(match_tomar_sel.group(1))
+                    elif msg_body.strip().isdigit():
+                        indice_sel = int(msg_body.strip())
+                    if indice_sel is not None:
+                        from .selector_curso import continuar_curso_seleccionado
+                        estudiante.estado_onboarding = 'completado'
+                        estudiante.save(update_fields=['estado_onboarding'])
+                        texto_respuesta = continuar_curso_seleccionado(estudiante.id, indice_sel, msg_body)
+                        print(f"✅ Curso seleccionado: {indice_sel}")
                     else:
-                        texto_respuesta = "No entendí tu selección. Escribe *menú* para ver las opciones."
+                        # Si no es número/tomar ni menú, resetear estado y procesar normalmente
+                        estudiante.estado_onboarding = 'completado'
+                        estudiante.contexto_temporal = None
+                        estudiante.save()
+                        from .intent_detector import detect_intent
+                        from .response_templates import get_response_for_intent
+                        intent = detect_intent(msg_body)
+                        if intent != 'desconocido':
+                            texto_respuesta = get_response_for_intent(intent, estudiante.nombre, estudiante_id=estudiante.id, mensaje_original=msg_body)
+                        else:
+                            texto_respuesta = "No entendí tu selección. Escribe *menú* para ver las opciones."
             
             # 4. Detectar intent y usar templates primero
             else:
@@ -4742,6 +4777,11 @@ def _procesar_meta_webhook(payload):
             changes = entry.get('changes', [])
             for change in changes:
                 value = change.get('value', {})
+                meta_to = (
+                    (value.get('metadata') or {}).get('display_phone_number')
+                    or (value.get('metadata') or {}).get('phone_number_id')
+                    or ''
+                )
                 
                 # Mensajes entrantes
                 messages = value.get('messages', [])
@@ -4768,7 +4808,12 @@ def _procesar_meta_webhook(payload):
                     
                     # Verificar seguridad primero
                     from .security_handler import verificar_seguridad_completa
-                    bloqueado, respuesta_seguridad, estudiante = verificar_seguridad_completa(estudiante, text, telefono=phone)
+                    bloqueado, respuesta_seguridad, estudiante = verificar_seguridad_completa(
+                        estudiante,
+                        text,
+                        telefono=phone,
+                        numero_destino=meta_to,
+                    )
                     
                     if bloqueado:
                         texto_respuesta = respuesta_seguridad

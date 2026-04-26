@@ -5,9 +5,11 @@ Muestra estadísticas clave del sistema en tiempo real
 from django.shortcuts import render
 from django.template.response import TemplateResponse
 from django.contrib.admin.views.decorators import staff_member_required
-from django.db.models import Count, Q, Avg, Sum
+from django.db.models import Count, Q, Avg, Sum, F, Max
 from django.db.models.functions import TruncDate, TruncWeek, TruncMonth
+from django.utils import timezone as dj_tz
 from datetime import datetime, timedelta
+import re
 from collections import Counter, defaultdict
 import json
 
@@ -19,21 +21,52 @@ from .models import (
 )
 from .gamificacion import BadgeEstudiante
 
+try:
+    from formulario.models import FichaGEI, SesionFormulario
+except ImportError:
+    FichaGEI = None
+    SesionFormulario = None
+
 
 @staff_member_required
 def dashboard_metricas(request):
     """Dashboard excepcional con métricas completas de control"""
 
     # ========== PARÁMETROS DE TIEMPO ==========
+    cliente_filtro_raw = (request.GET.get('cliente') or '').strip()
+    cliente_filtro = int(cliente_filtro_raw) if cliente_filtro_raw.isdigit() else None
     ahora = datetime.now()
+    ahora_tz = dj_tz.now()
     hace_1_dia = ahora - timedelta(days=1)
     hace_7_dias = ahora - timedelta(days=7)
     hace_30_dias = ahora - timedelta(days=30)
     hace_90_dias = ahora - timedelta(days=90)
 
+    # ========== SCOPES (filtro por empresa) ==========
+    clientes_q = Cliente.objects.all()
+    if cliente_filtro:
+        clientes_q = clientes_q.filter(id=cliente_filtro)
+
+    estudiantes_q = Estudiante.objects.all()
+    if cliente_filtro:
+        estudiantes_q = estudiantes_q.filter(cliente_id=cliente_filtro)
+
+    progresos_q = ProgresoEstudiante.objects.all()
+    if cliente_filtro:
+        progresos_q = progresos_q.filter(estudiante__cliente_id=cliente_filtro)
+
+    telefonos_estudiantes = list(
+        estudiantes_q.exclude(telefono__isnull=True).exclude(telefono='').values_list('telefono', flat=True)
+    )
+    whatsapp_q = WhatsappLog.objects.all()
+    if cliente_filtro:
+        whatsapp_q = whatsapp_q.filter(
+            Q(telefono__in=telefonos_estudiantes) | Q(estudiante__cliente_id=cliente_filtro)
+        ).distinct()
+
     # ========== 1. MÉTRICAS DE CLIENTES ==========
-    total_clientes = Cliente.objects.count()
-    clientes_activos = Cliente.objects.filter(activo=True).count() if hasattr(Cliente, 'activo') else total_clientes
+    total_clientes = clientes_q.count()
+    clientes_activos = clientes_q.filter(activo=True).count() if hasattr(Cliente, 'activo') else total_clientes
 
     # Métricas detalladas por cliente
     clientes_detalle = []
@@ -41,10 +74,10 @@ def dashboard_metricas(request):
     clientes_estudiantes_data = []
     clientes_mensajes_data = []
     
-    for cliente in Cliente.objects.all():
-        estudiantes_cliente = Estudiante.objects.filter(cliente=cliente)
+    for cliente in clientes_q:
+        estudiantes_cliente = estudiantes_q.filter(cliente=cliente)
         estudiantes_activos_cliente = estudiantes_cliente.filter(activo=True).count()
-        mensajes_cliente = WhatsappLog.objects.filter(
+        mensajes_cliente = whatsapp_q.filter(
             telefono__in=estudiantes_cliente.values_list('telefono', flat=True)
         ).count()
         
@@ -61,35 +94,158 @@ def dashboard_metricas(request):
         clientes_mensajes_data.append(mensajes_cliente)
 
     # ========== 2. MÉTRICAS DE ESTUDIANTES ==========
-    total_estudiantes = Estudiante.objects.count()
-    estudiantes_activos = Estudiante.objects.filter(activo=True).count()
-    estudiantes_nuevos_30d = Estudiante.objects.filter(fecha_registro__gte=hace_30_dias).count()
-    estudiantes_nuevos_7d = Estudiante.objects.filter(fecha_registro__gte=hace_7_dias).count()
+    total_estudiantes = estudiantes_q.count()
+    estudiantes_activos = estudiantes_q.filter(activo=True).count()
+    estudiantes_nuevos_30d = estudiantes_q.filter(fecha_registro__gte=hace_30_dias).count()
+    estudiantes_nuevos_7d = estudiantes_q.filter(fecha_registro__gte=hace_7_dias).count()
 
     # Distribución por cliente
-    estudiantes_por_cliente = Estudiante.objects.values('cliente__nombre').annotate(
+    estudiantes_por_cliente = estudiantes_q.values('cliente__nombre').annotate(
         total=Count('id'),
         activos=Count('id', filter=Q(activo=True))
     ).order_by('-total')
 
     # ========== 3. MÉTRICAS DE MENSAJERÍA ==========
-    total_mensajes = WhatsappLog.objects.count()
-    mensajes_24h = WhatsappLog.objects.filter(fecha__gte=hace_1_dia).count()
-    mensajes_7d = WhatsappLog.objects.filter(fecha__gte=hace_7_dias).count()
-    mensajes_30d = WhatsappLog.objects.filter(fecha__gte=hace_30_dias).count()
+    total_mensajes = whatsapp_q.count()
+    mensajes_24h = whatsapp_q.filter(fecha__gte=hace_1_dia).count()
+    mensajes_7d = whatsapp_q.filter(fecha__gte=hace_7_dias).count()
+    mensajes_30d = whatsapp_q.filter(fecha__gte=hace_30_dias).count()
 
     # Tipos de mensajes
-    mensajes_enviados = WhatsappLog.objects.filter(tipo='SENT').count()
-    mensajes_recibidos = WhatsappLog.objects.filter(tipo='INCOMING').count()
-    mensajes_error = WhatsappLog.objects.filter(estado='error').count()
+    mensajes_enviados = whatsapp_q.filter(tipo='SENT').count()
+    mensajes_recibidos = whatsapp_q.filter(tipo='INCOMING').count()
+    mensajes_error = whatsapp_q.filter(
+        tipo='SENT',
+    ).filter(
+        Q(estado__iexact='error') | Q(estado__iexact='failed') | Q(estado__iexact='undelivered')
+    ).count()
+    mensajes_recibidos_confirmados = whatsapp_q.filter(
+        tipo='SENT',
+        estado__in=['SENT', 'DELIVERED', 'READ', 'sent', 'delivered', 'read'],
+    ).count()
+    mensajes_abiertos = whatsapp_q.filter(
+        tipo='SENT', estado__iexact='READ'
+    ).count()
+    mensajes_entregados = whatsapp_q.filter(
+        tipo='SENT', estado__iexact='DELIVERED'
+    ).count()
+    mensajes_en_transito = whatsapp_q.filter(
+        tipo='SENT',
+        estado__in=['PENDING', 'QUEUED', 'SENDING', 'pending', 'queued', 'sending'],
+    ).count()
+
+    estudiantes_abrieron = Estudiante.objects.filter(
+        telefono__in=whatsapp_q.filter(tipo='SENT', estado__iexact='READ').values_list('telefono', flat=True)
+    ).values('id', 'nombre', 'telefono').order_by('nombre')[:50]
+
+    # Aperturas (READ) con última fecha — incluye números sin estudiante (ej. bot comercial / prospectos)
+    aperturas_rows = (
+        whatsapp_q.filter(tipo='SENT', estado__iexact='READ')
+        .values('telefono')
+        .annotate(ultima=Max('fecha'))
+        .order_by('-ultima')[:50]
+    )
+    tel_a_nombre = {}
+    for est in estudiantes_q.filter(activo=True).only('nombre', 'telefono'):
+        digits = re.sub(r'\D', '', est.telefono or '')
+        if len(digits) >= 8:
+            tel_a_nombre[digits] = est.nombre
+            tel_a_nombre[digits[-10:]] = est.nombre
+    aperturas_whatsapp = []
+    for row in aperturas_rows:
+        tel = row['telefono'] or ''
+        d = re.sub(r'\D', '', tel)
+        nombre = ''
+        if len(d) >= 8:
+            nombre = tel_a_nombre.get(d) or tel_a_nombre.get(d[-10:]) or ''
+        aperturas_whatsapp.append(
+            {'telefono': tel, 'nombre': nombre or '—', 'fecha': row['ultima']}
+        )
+
+    bot_comercial_sent = whatsapp_q.filter(
+        tipo='SENT', agente_usado='BOT_COMERCIAL'
+    ).count()
+    bot_comercial_read = whatsapp_q.filter(
+        tipo='SENT', agente_usado='BOT_COMERCIAL', estado__iexact='READ'
+    ).count()
+    bot_comercial_delivered = whatsapp_q.filter(
+        tipo='SENT', agente_usado='BOT_COMERCIAL', estado__iexact='DELIVERED'
+    ).count()
 
     # Tasa de éxito
     tasa_exito_mensajes = ((mensajes_enviados - mensajes_error) / mensajes_enviados * 100) if mensajes_enviados > 0 else 0
 
+    # ========== 3B. MÉTRICAS FICHA GEI (recolección por WhatsApp) ==========
+    gei_disponible = FichaGEI is not None and SesionFormulario is not None
+    gei_fichas_total = gei_fichas_30d = 0
+    gei_sesiones_activas = gei_sesiones_completadas_30d = 0
+    gei_promedio_completitud = 0.0
+    gei_fichas_completas = gei_fichas_parciales = gei_fichas_pendientes = 0
+    gei_campo_menor = None
+    gei_tiempo_promedio_min = None
+    if gei_disponible:
+        try:
+            from formulario.models import CAMPOS_GEI_7
+        except Exception:
+            CAMPOS_GEI_7 = ()
+        fichas_gei_q = FichaGEI.objects.all()
+        ses_gei_q = SesionFormulario.objects.all()
+        if cliente_filtro:
+            fichas_gei_q = fichas_gei_q.filter(cliente_id=cliente_filtro)
+            ses_gei_q = ses_gei_q.filter(estudiante__cliente_id=cliente_filtro)
+        gei_fichas_total = fichas_gei_q.count()
+        gei_fichas_30d = fichas_gei_q.filter(fecha_inicio__gte=ahora_tz - timedelta(days=30)).count()
+        gei_sesiones_activas = ses_gei_q.filter(completado=False).count()
+        gei_sesiones_completadas_30d = ses_gei_q.filter(
+            completado=True, fecha_update__gte=ahora_tz - timedelta(days=30)
+        ).count()
+        _muestra = list(fichas_gei_q.order_by("-fecha_update")[:300])
+        nulos_por_campo = {c: 0 for c in CAMPOS_GEI_7}
+        if _muestra:
+            suma_pct = 0
+            for ficha in _muestra:
+                pct = int(ficha.completitud_pct or 0)
+                suma_pct += pct
+                if pct == 100:
+                    gei_fichas_completas += 1
+                elif pct == 0:
+                    gei_fichas_pendientes += 1
+                else:
+                    gei_fichas_parciales += 1
+                for c in CAMPOS_GEI_7:
+                    v = getattr(ficha, c, None)
+                    if v is None or v == "":
+                        nulos_por_campo[c] += 1
+            gei_promedio_completitud = suma_pct / len(_muestra)
+            if nulos_por_campo:
+                cm = max(nulos_por_campo.items(), key=lambda kv: kv[1])
+                if cm[1] > 0:
+                    gei_campo_menor = {
+                        "campo": cm[0],
+                        "fichas_sin_dato": cm[1],
+                        "porcentaje_sin_dato": round(cm[1] * 100 / len(_muestra), 1),
+                    }
+
+        completadas_30d_qs = list(
+            ses_gei_q.filter(
+                completado=True, fecha_update__gte=ahora_tz - timedelta(days=30)
+            )[:300]
+        )
+        if completadas_30d_qs:
+            total_seg = 0
+            n_sesiones = 0
+            for s in completadas_30d_qs:
+                if s.fecha_inicio and s.fecha_update:
+                    total_seg += (s.fecha_update - s.fecha_inicio).total_seconds()
+                    n_sesiones += 1
+            if n_sesiones:
+                gei_tiempo_promedio_min = round((total_seg / n_sesiones) / 60, 1)
+
     # ========== 4. MÉTRICAS DE CAMPAÑAS ==========
-    total_campanas = Campana.objects.count()
-    campanas_ejecutadas = Campana.objects.filter(ejecutada=True).count()
-    campanas_programadas = Campana.objects.filter(fecha_programada__gte=ahora).count()
+    campanas_q = Campana.objects.filter(cliente_id=cliente_filtro) if cliente_filtro else Campana.objects.all()
+    total_campanas = campanas_q.count()
+    campanas_ejecutadas = campanas_q.filter(ejecutada=True).count()
+    campanas_programadas = campanas_q.filter(fecha_programada__gte=ahora).count()
 
     # Envíos de campañas
     total_envios_campanas = EnvioLog.objects.count()
@@ -99,20 +255,34 @@ def dashboard_metricas(request):
     tasa_exito_campanas = (envios_exitosos / total_envios_campanas * 100) if total_envios_campanas > 0 else 0
 
     # ========== 5. MÉTRICAS EDUCATIVAS ==========
-    total_cursos = Curso.objects.count()
-    cursos_activos = Curso.objects.filter(activo=True).count()
+    cursos_q = Curso.objects.filter(cliente_id=cliente_filtro) if cliente_filtro else Curso.objects.all()
+    total_cursos = cursos_q.count()
+    cursos_activos = cursos_q.filter(activo=True).count()
 
-    estudiantes_inscritos = ProgresoEstudiante.objects.count()
-    cursos_completados = ProgresoEstudiante.objects.filter(completado=True).count()
-    modulos_completados = ModuloCompletado.objects.count()
+    estudiantes_inscritos = progresos_q.count()
+    cursos_completados = progresos_q.filter(completado=True).count()
+    cursos_en_proceso = progresos_q.filter(completado=False).count()
+    modulos_completados = ModuloCompletado.objects.filter(progreso__in=progresos_q).count()
+    corte_stale = ahora_tz - timedelta(days=14)
+    estudiantes_iniciaron_y_abandonaron = (
+        progresos_q.filter(completado=False)
+        .annotate(_mc=Count('modulos_completados'))
+        .filter(_mc__gte=1)
+        .filter(
+            Q(fecha_ultimo_avance__lt=ahora_tz - timedelta(days=7))
+            | Q(fecha_ultimo_avance__isnull=True, fecha_inicio__lt=corte_stale)
+        )
+        .select_related('estudiante', 'curso', 'modulo_actual')
+        .order_by(F('fecha_ultimo_avance').asc(nulls_first=True))[:60]
+    )
 
     tasa_completacion = (cursos_completados / estudiantes_inscritos * 100) if estudiantes_inscritos > 0 else 0
 
     # Progreso por curso
     progreso_cursos = []
-    for curso in Curso.objects.all()[:10]:  # Top 10 cursos
-        inscritos = ProgresoEstudiante.objects.filter(curso=curso).count()
-        completados = ProgresoEstudiante.objects.filter(curso=curso, completado=True).count()
+    for curso in cursos_q[:10]:  # Top 10 cursos
+        inscritos = progresos_q.filter(curso=curso).count()
+        completados = progresos_q.filter(curso=curso, completado=True).count()
         porcentaje = (completados / inscritos * 100) if inscritos > 0 else 0
 
         progreso_cursos.append({
@@ -140,18 +310,20 @@ def dashboard_metricas(request):
     perfiles_gamificacion = PerfilGamificacion.objects.count()
 
     # ========== 8. MÉTRICAS DE SOPORTE ==========
-    total_solicitudes = SolicitudSoporte.objects.count()
-    solicitudes_pendientes = SolicitudSoporte.objects.filter(estado='pendiente').count()
-    solicitudes_atendiendo = SolicitudSoporte.objects.filter(estado='atendiendo').count()
-    solicitudes_resueltas = SolicitudSoporte.objects.filter(estado='resuelta').count()
+    solicitudes_q = SolicitudSoporte.objects.filter(estudiante__cliente_id=cliente_filtro) if cliente_filtro else SolicitudSoporte.objects.all()
+    total_solicitudes = solicitudes_q.count()
+    solicitudes_pendientes = solicitudes_q.filter(estado='pendiente').count()
+    solicitudes_atendiendo = solicitudes_q.filter(estado='en_atencion').count()
+    solicitudes_resueltas = solicitudes_q.filter(estado='resuelta').count()
 
     # ========== 9. MÉTRICAS DE CERTIFICADOS ==========
-    total_certificados = Certificado.objects.count()
-    certificados_generados_30d = Certificado.objects.filter(fecha_emision__gte=hace_30_dias).count()
+    certs_q = Certificado.objects.filter(estudiante__cliente_id=cliente_filtro) if cliente_filtro else Certificado.objects.all()
+    total_certificados = certs_q.count()
+    certificados_generados_30d = certs_q.filter(fecha_emision__gte=hace_30_dias).count()
 
     # ========== 10. ANÁLISIS TEMPORAL ==========
     # Mensajes por día (últimos 14 días)
-    mensajes_por_dia = WhatsappLog.objects.filter(fecha__gte=hace_30_dias).annotate(
+    mensajes_por_dia = whatsapp_q.filter(fecha__gte=hace_30_dias).annotate(
         dia=TruncDate('fecha')
     ).values('dia').annotate(
         total=Count('id'),
@@ -242,6 +414,8 @@ def dashboard_metricas(request):
         # Clientes
         'total_clientes': total_clientes,
         'clientes_activos': clientes_activos,
+        'clientes': Cliente.objects.all().order_by('nombre'),
+        'cliente_filtro': cliente_filtro,
         'clientes_detalle': clientes_detalle,
         'clientes_labels_json': json.dumps(clientes_labels),
         'clientes_estudiantes_json': json.dumps(clientes_estudiantes_data),
@@ -262,7 +436,29 @@ def dashboard_metricas(request):
         'mensajes_enviados': mensajes_enviados,
         'mensajes_recibidos': mensajes_recibidos,
         'mensajes_error': mensajes_error,
+        'mensajes_recibidos_confirmados': mensajes_recibidos_confirmados,
+        'mensajes_entregados': mensajes_entregados,
+        'mensajes_abiertos': mensajes_abiertos,
+        'mensajes_en_transito': mensajes_en_transito,
+        'estudiantes_abrieron': list(estudiantes_abrieron),
+        'aperturas_whatsapp': aperturas_whatsapp,
+        'bot_comercial_sent': bot_comercial_sent,
+        'bot_comercial_read': bot_comercial_read,
+        'bot_comercial_delivered': bot_comercial_delivered,
         'tasa_exito_mensajes': round(tasa_exito_mensajes, 1),
+
+        # Ficha GEI (recolección de datos vía formulario en WhatsApp)
+        'gei_disponible': gei_disponible,
+        'gei_fichas_total': gei_fichas_total,
+        'gei_fichas_30d': gei_fichas_30d,
+        'gei_sesiones_activas': gei_sesiones_activas,
+        'gei_sesiones_completadas_30d': gei_sesiones_completadas_30d,
+        'gei_promedio_completitud': round(gei_promedio_completitud, 1),
+        'gei_fichas_completas': gei_fichas_completas,
+        'gei_fichas_parciales': gei_fichas_parciales,
+        'gei_fichas_pendientes': gei_fichas_pendientes,
+        'gei_campo_menor': gei_campo_menor,
+        'gei_tiempo_promedio_min': gei_tiempo_promedio_min,
 
         # Campañas
         'total_campanas': total_campanas,
@@ -278,7 +474,9 @@ def dashboard_metricas(request):
         'cursos_activos': cursos_activos,
         'estudiantes_inscritos': estudiantes_inscritos,
         'cursos_completados': cursos_completados,
+        'cursos_en_proceso': cursos_en_proceso,
         'modulos_completados': modulos_completados,
+        'estudiantes_iniciaron_y_abandonaron': estudiantes_iniciaron_y_abandonaron,
         'tasa_completacion': round(tasa_completacion, 1),
         'progreso_cursos': progreso_cursos,
 

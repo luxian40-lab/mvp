@@ -432,9 +432,9 @@
 
         <p>Plataforma de Educación Agrícola para Campesinos Colombianos por WhatsApp</p>
 
-        <p style="font-size: 0.9em; margin-top: 10px;">✅ Versión 1.3 | Abril 2026</p>
+        <p style="font-size: 0.9em; margin-top: 10px;">✅ Versión 1.4 | Abril 2026</p>
 
-        <p style="font-size: 0.85em; opacity: 0.9;">Actualizado con: Producción AWS ✅ • Multimedia WhatsApp • Twilio Configurado • Sistema Estabilizado</p>
+        <p style="font-size: 0.85em; opacity: 0.9;">Incluye: Ficha GEI (recolección en WhatsApp) • Métricas de fichas en dashboard • API `formulario_gei` • Producción AWS • Multimedia • Twilio</p>
 
     </div>
 
@@ -450,7 +450,25 @@
 
             <li><strong>Soporte / PQRS:</strong> tras registrar un caso, el estudiante puede usar <strong>corregir datos</strong> (menú o texto) para ajustar nombre, municipio o documento sin esperar cierre del ticket.</li>
 
-            <li><strong>Métricas:</strong> el <a href="/admin/dashboard/">dashboard unificado</a> (pestaña Auditoría) muestra tránsito Twilio, DELIVERED, READ y bot comercial según filtros; el detalle ampliado sigue en <a href="/admin/dashboard-metrics/">Métricas del sistema</a>.</li>
+            <li><strong>Métricas:</strong> el <a href="/admin/dashboard/">dashboard unificado</a> (pestaña Auditoría) muestra tránsito Twilio, DELIVERED, READ y bot comercial según filtros; el detalle ampliado sigue en <a href="/admin/dashboard-metrics/">Métricas del sistema</a> (incluye bloque <strong>Recolección de datos Ficha GEI</strong> y filtro por empresa desde abril 2026).</li>
+
+        </ul>
+
+    </div>
+
+    <div class="subsection" style="border-left-color:#15aabf;margin-top:16px;">
+
+        <h3>🧾 Novedades: Ficha GEI y formulario en WhatsApp (26 abr 2026)</h3>
+
+        <ul style="line-height:1.65;">
+
+            <li><strong>Qué es:</strong> flujo de <strong>preguntas secuenciales</strong> (sin RAG) que captura datos de finca/GEI; el bot educativo (tutor) queda <strong>en pausa</strong> mientras haya una <strong>sesión de formulario activa</strong>.</li>
+
+            <li><strong>Dónde se guarda:</strong> modelo <strong>Ficha GEI</strong> (variables para emisiones / uso pedagógico, p. ej. módulo 5). Cada pregunta escribe en un <em>campo destino</em> (nombre del atributo en la ficha).</li>
+
+            <li><strong>Configuración:</strong> <em>Admin → Formulario → Tipos de formulario</em> (curso + módulo disparador + activo) e <strong>inline de pasos</strong> (orden, texto, validación, opcional, reintento, parseo con IA para números en lenguaje colombiano). Documentación técnica: <code>docs/INSTRUCTIVO_EKI_RECOLECCION_GEI.md</code> en el repositorio.</li>
+
+            <li><strong>Métricas en panel:</strong> en <a href="/admin/dashboard-metrics/"><code>/admin/dashboard-metrics/</code></a> sección <em>Recolección de datos (Ficha GEI — WhatsApp)</em>; API JSON (requiere staff): <code>GET /admin/analytics/api/?tipo=formulario_gei</code> y opcional <code>&amp;cliente_id=…</code>. Export detallado: acción <strong>exportar a Excel</strong> en Fichas GEI.</li>
 
         </ul>
 
@@ -473,6 +491,8 @@
             <li><a href="#estudiantes">👥 Gestión de Estudiantes</a></li>
 
             <li><a href="#cursos">📖 Cursos y Contenido Educativo</a></li>
+
+            <li><a href="#ficha-gei">🧾 Ficha GEI: recolección de datos (WhatsApp) <span style="background:#15aabf;color:white;padding:2px 8px;border-radius:3px;font-size:0.8em;">Nuevo abr 2026</span></a></li>
 
             <li><a href="#multimedia">🖼️ Multimedia en WhatsApp <span style="background:#4caf50;color:white;padding:2px 8px;border-radius:3px;font-size:0.8em;margin-left:5px;">V1.2</span></a></li>
 
@@ -525,6 +545,72 @@
             <li><a href="#contacto">📞 Contacto y Soporte <span style="background:#ff9800;color:white;padding:2px 8px;border-radius:3px;font-size:0.8em;margin-left:5px;">V1.3</span></a></li>
 
         </ul>
+
+    </div>
+
+    <div id="ficha-gei" class="section">
+
+        <h2 class="section-title">🧾 Ficha GEI: recolección de datos por WhatsApp</h2>
+
+        <div class="subsection">
+
+            <h3>Resumen para el equipo de operación</h3>
+
+            <p>En cursos <strong>seleccionados</strong> (recolección de datos), además del <strong>bot educativo con RAG</strong>, el sistema puede activar un <strong>agente de formulario</strong>: hace <strong>una pregunta tras otra</strong>, guarda las respuestas en la <strong>Ficha GEI</strong> y solo usa <strong>IA para interpretar</strong> números o cantidades que el productor escriba en lenguaje natural (por ejemplo, “tres arrobas de fertilizante”), cuando ustedes así lo indiquen en el paso.</p>
+
+            <div class="alert-box alert-info">
+
+                <strong>Orden de prioridad en el webhook de WhatsApp (canal educativo):</strong> si el estudiante tiene una <strong>sesión de formulario sin completar</strong>, <em>siempre</em> se atiende con el <strong>agente de formulario</strong> y no con el flujo de lecciones, hasta que termine, omita lo permita el paso o cierre el formulario. Así se evita mezclar el tutor y la encuesta en el mismo turno.
+
+            </div>
+
+        </div>
+
+        <div class="subsection">
+
+            <h3>Componentes técnicos (cómo se conecta)</h3>
+
+            <ol style="line-height:1.7;">
+
+                <li><strong>Entrada:</strong> <code>POST /webhook/whatsapp/</code> (Twilio) → localiza al <strong>estudiante</strong> por número de teléfono.</li>
+
+                <li><strong>Flujo de seguridad:</strong> primero aplica <strong>habeas</strong> / términos, <strong>cédula / verificación</strong> (según estados) igual que hoy. Cuando el estudiante está <strong>ACTIVO</strong> en el curso educativo, se evalúa si aplica el formulario.</li>
+
+                <li><strong>Detección del agente de formulario:</strong> la función de enrutamiento consulta en base de datos si existe <code>SesionFormulario</code> con <em>completado = falso</em> para ese estudiante. Si <strong>sí</strong> → <code>manejar_mensaje_formulario</code> (procesa la respuesta del paso actual, valida, reintenta u omite) y <strong>retorna</strong> sin seguir con el RAG del módulo.</li>
+
+                <li><strong>Definición del formulario (tablas):</strong> <em>Tipo de formulario</em> = curso + <strong>módulo disparador</strong> (por ejemplo, al <strong>completar el módulo 4</strong> se puede disparar el formulario antes de seguir hacia el módulo 5). Los <em>pasos</em> (<code>FlujoPregunta</code>) definen: orden, <strong>campo destino en FichaGEI</strong> (ej. <code>fertilizante_kg</code>), tipo de dato, rangos, opcionalidad, texto de reintento, y si se usa <strong>parseo con IA</strong> en números.</li>
+
+                <li><strong>Inicio de sesión:</strong> al completar el módulo disparador, el sistema (hook de avance) puede <strong>crear</strong> una <code>FichaGEI</code> y una <code>SesionFormulario</code> y enviar el <strong>primer mensaje de bienvenida + pregunta 1</strong> sin avanzar todavía el módulo siguiente del progreso (el avance se retoma al terminar o cerrar el formulario según la lógica configurada).</li>
+
+                <li><strong>Almacenamiento:</strong> cada respuesta aceptada hace <code>setattr</code> en el objeto Ficha y <code>save()</code>. <strong>Completitud</strong> agregada: porcentaje de <strong>7 campos clave</strong> no nulos (visible en el admin y en métricas como promedio en muestra).</li>
+
+            </ol>
+
+        </div>
+
+        <div class="subsection">
+
+            <h3>Dónde ver y exportar datos</h3>
+
+            <ul style="line-height:1.65;">
+
+                <li><strong>Admin → Formulario → Fichas GEI</strong> — listado, búsqueda, filtros; acción <strong>exportar a Excel</strong> (openpyxl) para análisis.</li>
+
+                <li><strong><a href="/admin/dashboard-metrics/">Métricas del sistema</a>:</strong> sección con totales, fichas últimos 30 días, formularios en curso, cerrados en 30 días y promedio de completitud; respeta el filtro de <strong>Empresa</strong> del formulario de arriba.</li>
+
+                <li><strong>API (usuario staff autenticado):</strong> <code>/admin/analytics/api/?tipo=formulario_gei</code> — JSON resumido para integraciones; opcional <code>cliente_id</code> para un solo cliente.</li>
+
+            </ul>
+
+        </div>
+
+        <div class="subsection">
+
+            <h3>Comunicación a facilitadores (texto sugerido)</h3>
+
+            <p>“Cuando un curso tiene formulario de finca, el participante no recibe mientras tanto la lección del tutor por el mismo hilo: lo primero es terminar o dejar claro el paso del formulario. Los datos quedan en Ficha GEI y se pueden bajar en Excel desde el admin.”</p>
+
+        </div>
 
     </div>
 
