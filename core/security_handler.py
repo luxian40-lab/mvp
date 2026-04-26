@@ -484,7 +484,21 @@ def procesar_solicitud_soporte(estudiante, mensaje_texto, keyword_usada):
         keyword_usada=keyword_usada,
         prioridad='media'
     )
-    
+
+    # 1.b Disparar agente PQRS automático (best-effort, async)
+    try:
+        from .pqrs_agent import disparar_agente_pqrs_async
+
+        def _enviar_pqrs_whatsapp(est, texto):
+            try:
+                enviar_whatsapp(est.telefono, texto)
+            except Exception:
+                logger.exception("[PQRS Agent] No se pudo enviar respuesta por WhatsApp")
+
+        disparar_agente_pqrs_async(solicitud, callback_envio_whatsapp=_enviar_pqrs_whatsapp)
+    except Exception:
+        logger.exception("[PQRS Agent] No se pudo disparar el agente; continuando flujo manual")
+
     # 2. Notificar al equipo por email
     try:
         asunto = f"🆘 Nueva Solicitud de Soporte - {estudiante.nombre}"

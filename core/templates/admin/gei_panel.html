@@ -1,0 +1,253 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{{ titulo }} | {{ site_title }}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+:root {
+    --eki-primary: #2b8a3e;
+    --eki-accent: #1971c2;
+    --eki-bg: #f8f9fa;
+    --eki-card: #ffffff;
+    --eki-border: #dee2e6;
+    --eki-muted: #6c757d;
+    --eki-warn: #f08c00;
+    --eki-danger: #c92a2a;
+    --eki-ok: #2f9e44;
+}
+.gei-panel { padding: 18px 24px; background: var(--eki-bg); min-height: 100vh; }
+.gei-panel h1 { font-size: 1.5rem; margin: 0 0 4px; color: #212529; }
+.gei-panel .subtitulo { color: var(--eki-muted); font-size: 0.92rem; margin-bottom: 18px; }
+
+.filtros {
+    background: var(--eki-card);
+    padding: 14px 18px;
+    border-radius: 8px;
+    border: 1px solid var(--eki-border);
+    margin-bottom: 22px;
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.filtros label { font-weight: 600; font-size: 0.88rem; }
+.filtros select, .filtros button {
+    padding: 6px 10px; border: 1px solid var(--eki-border); border-radius: 6px;
+    background: #fff; font-size: 0.9rem;
+}
+.filtros .btn-export {
+    background: var(--eki-primary); color: #fff; border-color: var(--eki-primary);
+    text-decoration: none; padding: 8px 14px; cursor: pointer;
+}
+.filtros .btn-export:hover { opacity: 0.9; }
+
+.section-title {
+    font-size: 1.05rem; font-weight: 700; color: #212529;
+    margin: 26px 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--eki-primary);
+}
+
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+.kpi-card {
+    background: var(--eki-card); border: 1px solid var(--eki-border); border-radius: 8px;
+    padding: 14px 16px; border-left: 4px solid var(--eki-primary);
+}
+.kpi-card .kv { font-size: 1.7rem; font-weight: 700; color: var(--eki-primary); line-height: 1; }
+.kpi-card .kl { font-size: 0.85rem; color: #495057; margin-top: 4px; font-weight: 600; }
+.kpi-card .kd { font-size: 0.78rem; color: var(--eki-muted); margin-top: 2px; }
+
+.var-list { display: flex; flex-direction: column; gap: 8px; }
+.var-row {
+    background: var(--eki-card); padding: 10px 14px; border-radius: 6px; border: 1px solid var(--eki-border);
+}
+.var-row .var-head { display: flex; justify-content: space-between; align-items: center; font-size: 0.92rem; margin-bottom: 6px; }
+.var-row .var-name { font-weight: 600; color: #212529; }
+.var-row .var-value { color: var(--eki-muted); font-size: 0.85rem; }
+.var-row .bar-track { background: #e9ecef; border-radius: 4px; overflow: hidden; height: 14px; }
+.var-row .bar-fill { height: 100%; background: var(--eki-primary); transition: width 0.3s; }
+.var-row.warn .bar-fill { background: var(--eki-warn); }
+.var-row.danger .bar-fill { background: var(--eki-danger); }
+
+.dist-list { display: flex; flex-direction: column; gap: 6px; }
+.dist-row {
+    display: grid; grid-template-columns: 100px 1fr 60px;
+    gap: 10px; align-items: center; font-size: 0.88rem;
+}
+.dist-row .dist-label { color: var(--eki-muted); font-weight: 600; }
+.dist-row .dist-track { background: #e9ecef; border-radius: 4px; height: 18px; overflow: hidden; }
+.dist-row .dist-fill { height: 100%; background: var(--eki-accent); }
+.dist-row .dist-count { text-align: right; font-weight: 700; color: #212529; }
+
+.prod-table {
+    width: 100%; border-collapse: collapse; background: var(--eki-card);
+    border: 1px solid var(--eki-border); border-radius: 8px; overflow: hidden;
+    font-size: 0.85rem;
+}
+.prod-table thead { background: #f1f3f5; }
+.prod-table th, .prod-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--eki-border); }
+.prod-table tr:last-child td { border-bottom: none; }
+.prod-table .badge {
+    display: inline-block; padding: 3px 8px; border-radius: 12px;
+    color: #fff; font-size: 0.75rem; font-weight: 700;
+}
+.paginador { margin-top: 14px; display: flex; gap: 6px; align-items: center; }
+.paginador a, .paginador span {
+    padding: 4px 10px; border: 1px solid var(--eki-border); border-radius: 4px;
+    background: #fff; color: var(--eki-accent); text-decoration: none; font-size: 0.85rem;
+}
+.paginador .activo { background: var(--eki-accent); color: #fff; }
+.empty-state {
+    background: var(--eki-card); border: 1px dashed var(--eki-border); border-radius: 8px;
+    padding: 30px; text-align: center; color: var(--eki-muted);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="gei-panel">
+    <h1>{{ titulo }}</h1>
+    <div class="subtitulo">
+        Métricas en tiempo real de la recolección de datos GEI vía WhatsApp (Nati).
+        Las fichas se generan al completar el módulo disparador del curso.
+    </div>
+
+    {% if not gei_disponible %}
+        <div class="empty-state">
+            <p>El módulo de Formulario GEI no está disponible en este entorno (app no instalada o migraciones pendientes).</p>
+        </div>
+    {% else %}
+
+    <form method="get" class="filtros">
+        <label for="cliente_id">🏢 Empresa:</label>
+        <select name="cliente_id" id="cliente_id" onchange="this.form.submit()">
+            <option value="">— Todas —</option>
+            {% for c in clientes_disponibles %}
+            <option value="{{ c.id }}" {% if cliente_id_actual == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+            {% endfor %}
+        </select>
+
+        <a href="{{ export_url }}" class="btn-export" target="_blank">📤 Descargar Excel</a>
+        <a href="/admin/" class="btn-export" style="background:#6c757d;border-color:#6c757d;">⬅ Volver al admin</a>
+    </form>
+
+    <!-- SECCIÓN 1 — Resumen ejecutivo -->
+    <div class="section-title">📊 Resumen ejecutivo</div>
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kv">{{ fichas_total }}</div>
+            <div class="kl">Productores con ficha</div>
+            <div class="kd">Total filtrado</div>
+        </div>
+        <div class="kpi-card" style="border-left-color:var(--eki-ok);">
+            <div class="kv" style="color:var(--eki-ok);">{{ fichas_completas }}</div>
+            <div class="kl">Fichas 100% completas</div>
+            <div class="kd">{{ pct_completas }}% del total</div>
+        </div>
+        <div class="kpi-card" style="border-left-color:var(--eki-warn);">
+            <div class="kv" style="color:var(--eki-warn);">{{ fichas_parciales }}</div>
+            <div class="kl">Fichas parciales</div>
+            <div class="kd">Algunos campos llenos</div>
+        </div>
+        <div class="kpi-card" style="border-left-color:var(--eki-danger);">
+            <div class="kv" style="color:var(--eki-danger);">{{ fichas_pendientes }}</div>
+            <div class="kl">Sin datos</div>
+            <div class="kd">No iniciaron / 0%</div>
+        </div>
+        <div class="kpi-card" style="border-left-color:var(--eki-accent);">
+            <div class="kv" style="color:var(--eki-accent);">{{ completitud_promedio }}%</div>
+            <div class="kl">Completitud promedio</div>
+        </div>
+        {% if tiempo_promedio_min is not None %}
+        <div class="kpi-card" style="border-left-color:#364fc7;">
+            <div class="kv" style="color:#364fc7;">{{ tiempo_promedio_min }} min</div>
+            <div class="kl">Tiempo promedio</div>
+            <div class="kd">Sesiones cerradas 30d</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- SECCIÓN 2 — Completitud por variable -->
+    <div class="section-title">📋 Completitud por variable</div>
+    {% if completitud_variables %}
+    <div class="var-list">
+        {% for v in completitud_variables %}
+        <div class="var-row {% if v.pct < 40 %}danger{% elif v.pct < 80 %}warn{% endif %}">
+            <div class="var-head">
+                <span class="var-name">{{ v.label }}</span>
+                <span class="var-value">{{ v.con_dato }} de {{ v.total }} fichas ({{ v.pct }}%)</span>
+            </div>
+            <div class="bar-track"><div class="bar-fill" style="width: {{ v.pct }}%;"></div></div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">No hay fichas aún. Cuando los productores empiecen a llenar datos, este listado se va a poblar.</div>
+    {% endif %}
+
+    <!-- SECCIÓN 4 — Distribución de completitud -->
+    <div class="section-title">📈 Distribución de completitud</div>
+    <div class="dist-list">
+        {% for d in distribucion_view %}
+        <div class="dist-row">
+            <div class="dist-label">{{ d.rango }}</div>
+            <div class="dist-track"><div class="dist-fill" style="width: {{ d.pct_bar }}%;"></div></div>
+            <div class="dist-count">{{ d.count }}</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- SECCIÓN 3 — Tabla de productores -->
+    <div class="section-title">👨‍🌾 Productores</div>
+    {% if productores %}
+    <table class="prod-table">
+        <thead>
+            <tr>
+                <th>Productor</th>
+                <th>Empresa</th>
+                <th>Finca</th>
+                <th>Fertilizante</th>
+                <th>% N</th>
+                <th>Energía</th>
+                <th>Producción</th>
+                <th>Bosque</th>
+                <th>Completitud</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in productores %}
+            <tr>
+                <td>{{ p.estudiante_nombre }}<br><span style="color:var(--eki-muted);font-size:0.78rem;">{{ p.estudiante_telefono }}</span></td>
+                <td>{{ p.cliente_nombre }}</td>
+                <td>{{ p.nombre_finca }}</td>
+                <td>{{ p.fertilizante }}</td>
+                <td>{{ p.n_pct }}</td>
+                <td>{{ p.energia }}</td>
+                <td>{{ p.produccion }}</td>
+                <td>{{ p.bosque }}</td>
+                <td>{{ p.completitud_pct }}%</td>
+                <td><span class="badge" style="background:{{ p.estado_color }};">{{ p.estado_label }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if total_paginas > 1 %}
+    <div class="paginador">
+        {% if page_anterior %}
+        <a href="?{% if cliente_id_actual %}cliente_id={{ cliente_id_actual }}&{% endif %}page={{ page_anterior }}">← Anterior</a>
+        {% endif %}
+        <span class="activo">Página {{ page }} de {{ total_paginas }}</span>
+        {% if page_siguiente %}
+        <a href="?{% if cliente_id_actual %}cliente_id={{ cliente_id_actual }}&{% endif %}page={{ page_siguiente }}">Siguiente →</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="empty-state">Sin productores en este filtro.</div>
+    {% endif %}
+
+    {% endif %}
+</div>
+{% endblock %}

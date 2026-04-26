@@ -1896,7 +1896,29 @@ class SolicitudSoporte(models.Model):
         ('sugerencia', '💡 Sugerencia'),
         ('felicitacion', '🌟 Felicitación'),
     ]
-    
+
+    CATEGORIA_PQRS_CHOICES = [
+        ('', '— Sin clasificar'),
+        ('acceso', '🔑 Acceso (login, cédula, número)'),
+        ('contenido', '📚 Contenido (módulo, video, examen)'),
+        ('tecnico', '🛠️ Técnico (errores del sistema)'),
+        ('otro', '❓ Otro'),
+    ]
+
+    categoria = models.CharField(
+        max_length=20,
+        choices=CATEGORIA_PQRS_CHOICES,
+        blank=True,
+        default='',
+        verbose_name='Categoría PQRS',
+        help_text='Clasificación automática del agente PQRS (acceso, contenido, técnico, otro).',
+    )
+    resuelto_por_agente = models.BooleanField(
+        default=False,
+        verbose_name='Resuelto por agente IA',
+        help_text='True si el agente PQRS resolvió en primer nivel; False si quedó escalado.',
+    )
+
     tipo_solicitud = models.CharField(
         max_length=20,
         choices=TIPO_SOLICITUD_CHOICES,

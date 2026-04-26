@@ -3666,10 +3666,10 @@ class SolicitudSoporteAdmin(admin.ModelAdmin):
     Todo en un solo lugar: soporte técnico + peticiones, quejas, reclamos, sugerencias
     """
     change_list_template = 'admin/core/solicitudsoporte/change_list.html'
-    list_display = ('tipo_badge', 'estudiante_info', 'asunto_o_keyword', 'estado_badge', 'prioridad_badge', 'fecha_solicitud', 'tiempo_espera', 'atendido_por_info')
-    list_filter = ('tipo_solicitud', 'estado', 'prioridad', 'keyword_usada', 'fecha_solicitud')
+    list_display = ('tipo_badge', 'estudiante_info', 'asunto_o_keyword', 'categoria_badge', 'estado_badge', 'prioridad_badge', 'fecha_solicitud', 'tiempo_espera', 'atendido_por_info')
+    list_filter = ('tipo_solicitud', 'categoria', 'resuelto_por_agente', 'estado', 'prioridad', 'keyword_usada', 'fecha_solicitud')
     search_fields = ('estudiante__nombre', 'estudiante__telefono', 'mensaje_original', 'asunto', 'respuesta')
-    readonly_fields = ('fecha_solicitud',)
+    readonly_fields = ('fecha_solicitud', 'categoria', 'resuelto_por_agente', 'notas_internas')
     list_per_page = 50
     ordering = ('-fecha_solicitud',)
     actions = ['marcar_en_atencion', 'marcar_resuelta', 'marcar_prioridad_alta']
@@ -3685,7 +3685,8 @@ class SolicitudSoporteAdmin(admin.ModelAdmin):
             'fields': ('mensaje_original',)
         }),
         ('🎯 Gestión', {
-            'fields': ('estado', 'atendido_por')
+            'fields': ('estado', 'atendido_por', 'categoria', 'resuelto_por_agente'),
+            'description': 'Categoría y resuelto_por_agente los completa el agente PQRS automático.',
         }),
         ('📝 Respuesta', {
             'fields': ('respuesta', 'fecha_atencion', 'fecha_resolucion'),
@@ -3747,6 +3748,24 @@ class SolicitudSoporteAdmin(admin.ModelAdmin):
         )
     estudiante_info.short_description = "Estudiante"
     
+    def categoria_badge(self, obj):
+        if not obj.categoria:
+            return format_html('<span style="color:#bbb;">—</span>')
+        colores = {
+            'acceso': ('#fff8e1', '#f9a825'),
+            'contenido': ('#e3f2fd', '#1565c0'),
+            'tecnico': ('#fbe9e7', '#bf360c'),
+            'otro': ('#f5f5f5', '#666'),
+        }
+        bg, color = colores.get(obj.categoria, ('#f5f5f5', '#666'))
+        marca = '🤖✓' if obj.resuelto_por_agente else '🆘'
+        return format_html(
+            '<span title="{}" style="background:{};color:{};padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;">{} {}</span>',
+            'Resuelto por agente IA' if obj.resuelto_por_agente else 'Escalado',
+            bg, color, marca, obj.get_categoria_display(),
+        )
+    categoria_badge.short_description = 'Categoría PQRS'
+
     def estado_badge(self, obj):
         colores = {
             'pendiente': '#ff9800',

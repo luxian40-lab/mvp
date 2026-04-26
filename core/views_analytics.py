@@ -409,3 +409,212 @@ def detalle_estudiante(request, estudiante_id):
             'error_message': 'Ocurrió un error al cargar el detalle del estudiante.',
             'error_detail': str(e) if hasattr(request, 'user') and getattr(request.user, 'is_superuser', False) else None
         }, status=500)
+
+
+# ============================================================
+# 🌱 Panel GEI independiente — /admin/gei/panel/
+# ============================================================
+
+GEI_CAMPOS_LEGIBLES = (
+    ("nombre_finca", "🌾 Nombre de la finca"),
+    ("area_ha", "📐 Área productiva (ha)"),
+    ("num_plantas", "🌱 Número de plantas"),
+    ("fertilizante_kg", "🧪 Fertilizante (kg)"),
+    ("concentracion_n_pct", "⚗️ Concentración de N (%)"),
+    ("produccion_kg", "☕ Producción anual (kg)"),
+    ("energia_kwh", "💡 Energía (kWh)"),
+)
+
+
+def _es_dato_lleno(valor) -> bool:
+    return valor is not None and valor != ""
+
+
+def _ficha_estado(pct: int) -> tuple[str, str]:
+    """Devuelve (etiqueta, color) según el % de completitud."""
+    if pct >= 80:
+        return ("Completa", "#2f9e44")
+    if pct >= 40:
+        return ("Parcial", "#f08c00")
+    return ("Pendiente", "#c92a2a")
+
+
+@staff_member_required
+def gei_panel_view(request):
+    """Panel dedicado de métricas de recolección GEI.
+
+    Soporta filtro `?cliente_id=X` y paginación `?page=N`.
+    Requiere staff. Si FichaGEI no está disponible (app no instalada o migraciones
+    pendientes), renderiza un placeholder.
+    """
+    if FichaGEI is None:
+        return render(request, 'admin/gei_panel.html', {
+            'gei_disponible': False,
+            'titulo': 'Panel GEI',
+        })
+
+    cliente_id_param = request.GET.get('cliente_id') or request.GET.get('cliente') or ''
+    cliente_id = None
+    if cliente_id_param:
+        try:
+            cliente_id = int(cliente_id_param)
+        except (TypeError, ValueError):
+            cliente_id = None
+
+    fichas_qs = FichaGEI.objects.all().select_related('estudiante', 'cliente', 'curso')
+    if cliente_id:
+        fichas_qs = fichas_qs.filter(cliente_id=cliente_id)
+
+    fichas_list = list(fichas_qs.order_by('-fecha_update')[:1000])
+    total_fichas = fichas_qs.count()
+
+    # SECCIÓN 1 — Resumen ejecutivo
+    fichas_completas = 0
+    fichas_parciales = 0
+    fichas_pendientes = 0
+    suma_pct = 0
+    for f in fichas_list:
+        pct = f.completitud_pct
+        suma_pct += pct
+        if pct >= 100:
+            fichas_completas += 1
+        elif pct > 0:
+            fichas_parciales += 1
+        else:
+            fichas_pendientes += 1
+    completitud_promedio = round(suma_pct / len(fichas_list), 1) if fichas_list else 0.0
+
+    # Tiempo promedio para completar (sesiones cerradas últimos 30 días)
+    tiempo_promedio_min = None
+    if SesionFormulario is not None:
+        from django.utils import timezone
+        hace_30 = timezone.now() - timedelta(days=30)
+        ses_qs = SesionFormulario.objects.filter(
+            completado=True,
+            fecha_update__gte=hace_30,
+        )
+        if cliente_id:
+            ses_qs = ses_qs.filter(estudiante__cliente_id=cliente_id)
+        total_seg = 0
+        cnt = 0
+        for s in ses_qs:
+            try:
+                delta = (s.fecha_update - s.fecha_inicio).total_seconds()
+                if delta > 0:
+                    total_seg += delta
+                    cnt += 1
+            except Exception:
+                continue
+        if cnt:
+            tiempo_promedio_min = round((total_seg / cnt) / 60, 1)
+
+    # SECCIÓN 2 — Completitud por variable
+    completitud_variables = []
+    if fichas_list:
+        for campo, label in GEI_CAMPOS_LEGIBLES:
+            con_dato = sum(1 for f in fichas_list if _es_dato_lleno(getattr(f, campo, None)))
+            pct = round((con_dato / len(fichas_list)) * 100, 1)
+            completitud_variables.append({
+                'campo': campo,
+                'label': label,
+                'pct': pct,
+                'con_dato': con_dato,
+                'total': len(fichas_list),
+                'sin_dato': len(fichas_list) - con_dato,
+            })
+        completitud_variables.sort(key=lambda x: x['pct'])
+
+    # SECCIÓN 4 — Distribución de completitud
+    distribucion = {'0%': 0, '1-25%': 0, '26-50%': 0, '51-75%': 0, '76-99%': 0, '100%': 0}
+    for f in fichas_list:
+        pct = f.completitud_pct
+        if pct == 0:
+            distribucion['0%'] += 1
+        elif pct <= 25:
+            distribucion['1-25%'] += 1
+        elif pct <= 50:
+            distribucion['26-50%'] += 1
+        elif pct <= 75:
+            distribucion['51-75%'] += 1
+        elif pct < 100:
+            distribucion['76-99%'] += 1
+        else:
+            distribucion['100%'] += 1
+    max_dist = max(distribucion.values()) if distribucion.values() else 1
+    distribucion_view = [
+        {
+            'rango': k,
+            'count': v,
+            'pct_bar': round((v / max_dist) * 100, 1) if max_dist else 0,
+        }
+        for k, v in distribucion.items()
+    ]
+
+    # SECCIÓN 3 — Tabla de productores (paginada, 20 por página)
+    page_size = 20
+    try:
+        page = max(1, int(request.GET.get('page', 1)))
+    except (TypeError, ValueError):
+        page = 1
+    inicio = (page - 1) * page_size
+    fin = inicio + page_size
+
+    productores = []
+    for f in fichas_list[inicio:fin]:
+        pct = f.completitud_pct
+        estado_label, estado_color = _ficha_estado(pct)
+        productores.append({
+            'ficha_id': f.id,
+            'estudiante': f.estudiante,
+            'estudiante_nombre': getattr(f.estudiante, 'nombre', '—'),
+            'estudiante_telefono': getattr(f.estudiante, 'telefono', '—'),
+            'cliente_nombre': f.cliente.nombre if f.cliente_id else '—',
+            'nombre_finca': f.nombre_finca or '—',
+            'fertilizante': f.fertilizante_kg if f.fertilizante_kg is not None else '—',
+            'n_pct': f.concentracion_n_pct if f.concentracion_n_pct is not None else '—',
+            'combustible': f.combustible_gal if f.combustible_gal is not None else '—',
+            'energia': f.energia_kwh if f.energia_kwh is not None else '—',
+            'residuos': f.residuos_ton if f.residuos_ton is not None else '—',
+            'produccion': f.produccion_kg if f.produccion_kg is not None else '—',
+            'bosque': f.area_bosque_ha if f.area_bosque_ha is not None else '—',
+            'completitud_pct': pct,
+            'estado_label': estado_label,
+            'estado_color': estado_color,
+        })
+
+    total_paginas = max(1, (len(fichas_list) + page_size - 1) // page_size)
+
+    # Lista de clientes para el filtro
+    clientes_disponibles = []
+    if Cliente is not None:
+        clientes_disponibles = list(
+            Cliente.objects.filter(activo=True).order_by('nombre').values('id', 'nombre')
+        )
+
+    context = {
+        'gei_disponible': True,
+        'titulo': '🌱 Panel GEI — Recolección de datos',
+        'cliente_id_actual': cliente_id,
+        'clientes_disponibles': clientes_disponibles,
+        # Resumen
+        'fichas_total': total_fichas,
+        'fichas_completas': fichas_completas,
+        'fichas_parciales': fichas_parciales,
+        'fichas_pendientes': fichas_pendientes,
+        'completitud_promedio': completitud_promedio,
+        'tiempo_promedio_min': tiempo_promedio_min,
+        'pct_completas': round((fichas_completas / total_fichas) * 100, 1) if total_fichas else 0,
+        # Variables
+        'completitud_variables': completitud_variables,
+        # Distribución
+        'distribucion_view': distribucion_view,
+        # Productores
+        'productores': productores,
+        'page': page,
+        'total_paginas': total_paginas,
+        'page_anterior': page - 1 if page > 1 else None,
+        'page_siguiente': page + 1 if page < total_paginas else None,
+        # Export URL
+        'export_url': '/api/integracion/gei/exportar/',
+    }
+    return render(request, 'admin/gei_panel.html', context)

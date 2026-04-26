@@ -494,6 +494,14 @@
 
             <li><a href="#ficha-gei">🧾 Ficha GEI: recolección de datos (WhatsApp) <span style="background:#15aabf;color:white;padding:2px 8px;border-radius:3px;font-size:0.8em;">Nuevo abr 2026</span></a></li>
 
+            <li><a href="#nati-bot">🤖 Nati — Bot Comercial con Identidad <span style="background:#15aabf;color:white;padding:2px 8px;border-radius:3px;font-size:0.8em;">Nuevo abr 2026</span></a></li>
+
+            <li><a href="#panel-gei">📊 Panel GEI — Métricas de Recolección <span style="background:#15aabf;color:white;padding:2px 8px;border-radius:3px;font-size:0.8em;">Nuevo abr 2026</span></a></li>
+
+            <li><a href="#entorno-preserva">🏗️ Entorno de Pruebas Preserva <span style="background:#15aabf;color:white;padding:2px 8px;border-radius:3px;font-size:0.8em;">Nuevo abr 2026</span></a></li>
+
+            <li><a href="#pqrs-agente">🤝 PQRS y Soporte Automático <span style="background:#15aabf;color:white;padding:2px 8px;border-radius:3px;font-size:0.8em;">Nuevo abr 2026</span></a></li>
+
             <li><a href="#multimedia">🖼️ Multimedia en WhatsApp <span style="background:#4caf50;color:white;padding:2px 8px;border-radius:3px;font-size:0.8em;margin-left:5px;">V1.2</span></a></li>
 
             <li><a href="#plantillas">📄 Plantillas y Temas</a></li>
@@ -609,6 +617,297 @@
             <h3>Comunicación a facilitadores (texto sugerido)</h3>
 
             <p>“Cuando un curso tiene formulario de finca, el participante no recibe mientras tanto la lección del tutor por el mismo hilo: lo primero es terminar o dejar claro el paso del formulario. Los datos quedan en Ficha GEI y se pueden bajar en Excel desde el admin.”</p>
+
+        </div>
+
+        <div class="subsection">
+
+            <h3>🆕 Activar / desactivar el formulario GEI desde el curso</h3>
+
+            <p>Antes había que ir a <em>Formulario → Tipos de formulario</em> para encender o apagar la recolección. Ahora cada <strong>Curso</strong> tiene un toggle propio:</p>
+
+            <ol style="line-height:1.7;">
+
+                <li><strong>Admin → Cursos</strong> → editar el curso.</li>
+
+                <li>Marcar <em>“¿Activa formulario GEI al completar el módulo disparador?”</em> y guardar.</li>
+
+                <li>Si el toggle queda apagado, ningún flujo se dispara aunque exista el <code>TipoFormulario</code>; si queda encendido, al completar el módulo disparador se inicia la recolección por WhatsApp.</li>
+
+            </ol>
+
+            <div class="alert-box alert-info">
+
+                <strong>Tip:</strong> el <em>TipoFormulario</em> sigue siendo donde se editan los <strong>pasos</strong> (las 7 preguntas). El toggle en Curso es solo para activar/desactivar sin tener que editar los pasos cada vez. Para ver completitud por productor, use el <strong><a href="/admin/gei/panel/">Panel GEI</a></strong>.
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div id="nati-bot" class="section">
+
+        <h2 class="section-title">🤖 Nati — Bot Comercial con Identidad</h2>
+
+        <div class="subsection">
+
+            <h3>¿Qué es Nati?</h3>
+
+            <p>Nati es la <strong>asesora virtual de eki</strong> en el canal comercial (líneas no asociadas a un estudiante en un curso). Responde con tono colombiano, de “usted”, y se presenta como “Nati”, no como “eki”. eki es la plataforma; Nati es la persona que la representa por WhatsApp.</p>
+
+            <p>El motor está en <code>core/nati.py</code> (función <code>armar_system_prompt()</code>) y los saludos se generan vía <code>armar_saludo_inicial(cliente)</code> y <code>armar_saludo_menu(cliente)</code>. <strong>No</strong> deben quedar saludos hardcodeados tipo “Hola, soy eki” en las vistas: si aparece uno, abrirlo a <em>views.py</em> y reemplazarlo por las funciones del módulo Nati.</p>
+
+        </div>
+
+        <div class="subsection">
+
+            <h3>Configurar Nati por cliente</h3>
+
+            <p>Desde <strong>Admin → Clientes (Organizaciones)</strong>, en cada cliente se pueden ajustar:</p>
+
+            <ul style="line-height:1.7;">
+
+                <li><strong>Nombre del bot:</strong> campo <code>nombre_bot</code>. Permite que un cliente A use “Nati” y otro use “Aliada” sin tocar código.</li>
+
+                <li><strong>Instrucciones extra:</strong> campo <code>system_prompt_extra</code>. Se concatenan al prompt base de Nati (tono, productos prioritarios, restricciones por marca, dialecto regional, etc.).</li>
+
+            </ul>
+
+            <p>Ejemplos de prompts adicionales útiles:</p>
+
+            <ul style="line-height:1.7;">
+
+                <li><em>“Para Cooperativa del Cauca: priorizá temas de café especial y socialización con líderes veredales.”</em></li>
+
+                <li><em>“Para Preserva: explicá siempre por qué medir GEI les da acceso a primas de sostenibilidad.”</em></li>
+
+                <li><em>“No menciones precios concretos; remití siempre al asesor humano por costos.”</em></li>
+
+            </ul>
+
+        </div>
+
+        <div class="subsection">
+
+            <h3>Cómo probar que Nati responde correctamente</h3>
+
+            <ol style="line-height:1.7;">
+
+                <li>Mandar un primer mensaje desde un número que <strong>no</strong> tenga estudiante asociado (canal comercial puro).</li>
+
+                <li>Verificar que el saludo dice <em>“Soy Nati, la asesora virtual de eki”</em> y nunca <em>“Soy eki”</em>.</li>
+
+                <li>Preguntar “¿cómo te llamas?” y confirmar que responde con su nombre, no con “eki”.</li>
+
+                <li>Si el cliente cambió <code>nombre_bot</code>, validar que la respuesta refleja el nuevo nombre.</li>
+
+            </ol>
+
+            <div class="alert-box alert-warning">
+
+                <strong>Debug rápido:</strong> si Nati sigue saludando como “eki”, casi siempre es un saludo hardcodeado en <code>core/views.py</code> (busque “soy eki” / “bot eki”). Reemplácelo por <code>armar_saludo_inicial(cliente)</code>.
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div id="panel-gei" class="section">
+
+        <h2 class="section-title">📊 Panel GEI — Métricas de Recolección</h2>
+
+        <div class="subsection">
+
+            <h3>Cómo acceder</h3>
+
+            <p><strong>Admin → Formulario GEI → 📊 Panel GEI</strong> (o directo: <a href="/admin/gei/panel/">/admin/gei/panel/</a>). Es una vista propia, separada del dashboard general; pensada para mostrarle a un cliente (Preserva, Nitrofert, etc.) cómo van sus productores en la recolección de datos.</p>
+
+        </div>
+
+        <div class="subsection">
+
+            <h3>Qué muestra el panel</h3>
+
+            <ol style="line-height:1.7;">
+
+                <li><strong>Resumen ejecutivo:</strong> total de productores con ficha, fichas 100% completas, parciales, sin datos, completitud promedio.</li>
+
+                <li><strong>Completitud por variable:</strong> barra horizontal por cada uno de los 7 campos clave; ordenado de menor a mayor (lo más urgente arriba).</li>
+
+                <li><strong>Tabla de productores:</strong> 20 por página, con columnas por campo y semáforo (verde ≥ 80%, amarillo 40–79%, rojo &lt; 40%).</li>
+
+                <li><strong>Distribución de completitud:</strong> histograma en rangos (0%, 1–25%, 26–50%, 51–75%, 76–99%, 100%).</li>
+
+                <li><strong>Exportar a Excel:</strong> botón “Descargar Excel” → <code>/api/integracion/gei/exportar/</code>.</li>
+
+            </ol>
+
+        </div>
+
+        <div class="subsection">
+
+            <h3>Cómo filtrar por cliente</h3>
+
+            <p>Use el selector arriba del panel: recarga con <code>?cliente_id=X</code>. Si el usuario staff pertenece a un solo cliente, queda pre-filtrado automáticamente.</p>
+
+        </div>
+
+        <div class="subsection">
+
+            <h3>Interpretación de completitud</h3>
+
+            <ul style="line-height:1.7;">
+
+                <li><strong>Campo &lt; 50%:</strong> revise la pregunta del flujo (puede estar mal formulada o ser muy técnica). Considere <em>texto_reintento</em> más empático.</li>
+
+                <li><strong>Productores en rojo:</strong> reenvío manual desde la tabla del panel o usar la acción “Reenviar pregunta actual”.</li>
+
+                <li><strong>Cliente con 0 fichas:</strong> verificar que el curso tiene <em>tiene_formulario_gei = True</em> y que el módulo disparador está bien configurado.</li>
+
+            </ul>
+
+        </div>
+
+    </div>
+
+    <div id="entorno-preserva" class="section">
+
+        <h2 class="section-title">🏗️ Entorno de Pruebas Preserva</h2>
+
+        <div class="subsection">
+
+            <h3>Cómo crear el entorno</h3>
+
+            <pre><code>python manage.py crear_cliente_preserva           # idempotente
+python manage.py crear_cliente_preserva --reset   # borra y recrea</code></pre>
+
+            <p>El comando es <strong>idempotente</strong>: si ya existe, lo deja consistente sin duplicar. Con <code>--reset</code> borra cliente, curso, fichas, sesiones y estudiantes test antes de recrear.</p>
+
+        </div>
+
+        <div class="subsection">
+
+            <h3>Qué crea el comando</h3>
+
+            <ul style="line-height:1.7;">
+
+                <li><strong>Cliente:</strong> “Preserva (Test)”, NIT 900000001-0.</li>
+
+                <li><strong>Curso:</strong> “[TEST] Balance GEI — Preserva” con 6 módulos reales (clima, balance, fuentes, datos, cálculo, mercado) y <code>tiene_formulario_gei=True</code>.</li>
+
+                <li><strong>Módulo 3:</strong> 3 preguntas de opción múltiple cargadas.</li>
+
+                <li><strong>Módulo 4:</strong> es el <em>disparador</em> del formulario GEI.</li>
+
+                <li><strong>Módulo 6:</strong> activa el reto IA (5 preguntas abiertas en <code>preguntas_ejemplo_ia</code>).</li>
+
+                <li><strong>TipoFormulario Preserva:</strong> específico (cliente=Preserva), copia los 7 pasos del flujo GEI ya en producción.</li>
+
+                <li><strong>3 estudiantes test:</strong> cédulas 1000000001-3, teléfonos 573000000001-3, todos con <code>acepto_terminos=True</code> y estado ACTIVO.</li>
+
+                <li><strong>Inscripciones:</strong> los 3 estudiantes inscritos (<code>ProgresoEstudiante</code>) en el módulo 1.</li>
+
+            </ul>
+
+        </div>
+
+        <div class="subsection">
+
+            <h3>Cómo probar el flujo completo</h3>
+
+            <ol style="line-height:1.7;">
+
+                <li>Ejecutar el comando en producción (RDS) vía <code>eb ssh</code>.</li>
+
+                <li>Filtrar el Panel GEI por <em>cliente_id</em> de Preserva (Test) y verificar que aparecen los 3 productores.</li>
+
+                <li>Desde Twilio Console o un sandbox, enviar “listo” en el módulo 4 con uno de los teléfonos test → se dispara el formulario GEI.</li>
+
+                <li>Responder los 7 pasos y verificar que la <code>FichaGEI</code> queda 100% completa.</li>
+
+            </ol>
+
+            <div class="alert-box alert-warning">
+
+                <strong>Importante:</strong> los teléfonos 573000000001-3 son ficticios y no existen en producción. No envían mensajes reales, sirven para pruebas de webhook desde Twilio.
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div id="pqrs-agente" class="section">
+
+        <h2 class="section-title">🤝 PQRS y Soporte Automático</h2>
+
+        <div class="subsection">
+
+            <h3>¿Cómo funciona el agente PQRS?</h3>
+
+            <p>Cuando un estudiante escribe “ayuda”, “no entiendo”, “error” u otra keyword de soporte, el sistema crea automáticamente una <code>SolicitudSoporte</code> y dispara — en un hilo aparte — el <strong>agente PQRS</strong> (módulo <code>core/pqrs_agent.py</code>). El agente responde por WhatsApp en primer nivel sin esperar al equipo humano.</p>
+
+        </div>
+
+        <div class="subsection">
+
+            <h3>Categorías de clasificación</h3>
+
+            <ul style="line-height:1.7;">
+
+                <li><strong>🔑 acceso:</strong> no puede entrar, cédula incorrecta, cambió de número. <em>Suele resolverse</em>.</li>
+
+                <li><strong>📚 contenido:</strong> no entiende un módulo, video no carga. <em>Suele resolverse</em> con instrucción concreta.</li>
+
+                <li><strong>🛠️ tecnico:</strong> error del sistema, no recibe mensajes. <em>Siempre escala</em>.</li>
+
+                <li><strong>❓ otro:</strong> cualquier otra cosa. <em>Siempre escala</em>.</li>
+
+            </ul>
+
+            <p>El agente <strong>nunca promete tiempos</strong> que no pueda cumplir y cierra siempre con <em>“Si necesita más ayuda escríbame de nuevo.”</em>.</p>
+
+        </div>
+
+        <div class="subsection">
+
+            <h3>Cuándo escala vs resuelve solo</h3>
+
+            <ul style="line-height:1.7;">
+
+                <li>Si <code>categoria ∈ {acceso, contenido}</code> y el modelo da una respuesta concreta → la solicitud queda <em>en_atencion</em>, marcada <code>resuelto_por_agente=True</code>, y se envía la respuesta por WhatsApp.</li>
+
+                <li>Si <code>categoria ∈ {tecnico, otro}</code> o si el modelo falla → queda <em>pendiente</em>, se envía un mensaje cálido al estudiante y el equipo humano la atiende.</li>
+
+                <li>El correo al equipo se envía siempre (auditable). Si <code>OPENAI_API_KEY</code> no está seteada, el agente cae en <em>fallback escalar</em> sin romper el flujo.</li>
+
+            </ul>
+
+        </div>
+
+        <div class="subsection">
+
+            <h3>Cómo ver el historial en el admin</h3>
+
+            <p><strong>Admin → Soporte y PQRS</strong>: la lista incluye una columna <em>Categoría PQRS</em> con badge (🤖✓ resuelto por IA, 🆘 escalado), filtros por <em>categoria</em> y <em>resuelto_por_agente</em>, y un campo <em>Notas Internas</em> con el resumen que dejó el agente.</p>
+
+        </div>
+
+        <div class="subsection">
+
+            <h3>Cómo mejorar las respuestas automáticas</h3>
+
+            <ol style="line-height:1.7;">
+
+                <li>Editar <code>PQRS_SYSTEM_PROMPT</code> en <code>core/pqrs_agent.py</code> para refinar tono, ejemplos o reglas duras.</li>
+
+                <li>Para cambiar el modelo, definir variable de entorno <code>PQRS_MODEL</code> (default <code>gpt-4o-mini</code>).</li>
+
+                <li>Revisar periódicamente las solicitudes con <code>resuelto_por_agente=True</code>: si una categoría escala demasiado o resuelve mal, ajustar el prompt o pasar la categoría a “siempre escala”.</li>
+
+            </ol>
 
         </div>
 

@@ -22,6 +22,7 @@ from core.views_admin_analytics import (
     detalle_estudiante,
     exportar_metricas_csv,
 )
+from core.views_analytics import gei_panel_view
 from core.views_reportes import dashboard_reportes_avanzados, descargar_reporte_xlsx
 
 urlpatterns = [
@@ -52,4 +53,5 @@ urlpatterns = [
     path('admin/crear-curso-ia/', subir_documento_curso, name='subir_documento_curso'),
     path('admin/vista-previa-curso-ia/', vista_previa_curso_ia, name='vista_previa_curso_ia'),
     path('admin/dashboard-gerencial/', dashboard_gerencial, name='dashboard_gerencial'),
+    path('admin/gei/panel/', gei_panel_view, name='gei_panel'),
 ]
