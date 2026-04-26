@@ -913,6 +913,27 @@ python manage.py crear_cliente_preserva --reset   # borra y recrea</code></pre>
 
     </div>
 
+    <div id="config-global" class="section">
+        <h2 class="section-title">🛡️ Habeas Data — Plantilla Twilio (general y por cliente)</h2>
+        <div class="subsection">
+            <h3>Cómo funciona</h3>
+            <p>El Habeas Data se envía con plantilla aprobada de Twilio. Hay dos niveles:</p>
+            <ul style="line-height:1.7;">
+                <li><strong>Plantilla general (eki):</strong> <code>Admin → Configuración Global → Habeas Data — Plantilla Twilio general</code>.</li>
+                <li><strong>Plantilla por cliente:</strong> <code>Admin → Clientes → editar cliente → Habeas Data → Plantilla Twilio (Content SID del cliente)</code>.</li>
+            </ul>
+            <p>Resolución: cliente &gt; global &gt; fallback histórico.</p>
+        </div>
+    </div>
+
+    <div id="parser-unidades" class="section">
+        <h2 class="section-title">🌾 Recolección GEI — Cómo entiende unidades coloquiales</h2>
+        <div class="subsection">
+            <p>El parser LLM convierte unidades automáticamente: 1 fanegada ≈ 0.64 ha, 1 cuadra ≈ 0.625 ha, 1 bulto/saco/costal/quintal = 50 kg, 1 carga café = 125 kg, 1 arroba = 12.5 kg, 1 galón = 3.785 L, 1 caneca = 200 L.</p>
+            <p>Frases imprecisas como "más o menos 5", "media", "y medio", "un par" se interpretan correctamente. Tabla completa: <code>TABLA_CONVERSIONES_AGROCOL_PROMPT</code> en <code>formulario/agent.py</code>.</p>
+        </div>
+    </div>
+
     <div id="bot-comercial" class="section">
 
         <h2 class="section-title">🛒 Bot Comercial IA</h2>
@@ -2503,6 +2524,12 @@ Otros módulos → Ningún agente
             <div class="alert-box alert-info">
 
                 <strong>ℹ️ Importante:</strong> Los agentes <strong>nunca se activan al mismo tiempo</strong>. El estudiante interactúa con uno a la vez. Darío siempre aparece <strong>antes</strong> que Claudia. Los puntos <strong>solo</strong> se otorgan después de la evaluación del reto por Claudia.
+
+            </div>
+
+            <div class="alert-box alert-warning" style="margin-top:1em;">
+
+                <strong>🎚️ Toggle por curso:</strong> en <code>Admin → Cursos → editar curso → Retos con Agentes IA</code> hay una casilla <strong>"¿Usar retos con agentes IA?"</strong>. Si está desactivada, ese curso NO dispara a Darío ni a Claudia: el flujo es lineal.
 
             </div>
 

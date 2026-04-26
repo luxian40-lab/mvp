@@ -57,6 +57,10 @@ CURSO_PRESERVA = {
     "orden": 100,  # último para que no aparezca antes que cursos reales
     "activo": True,
     "tiene_formulario_gei": True,
+    # Por defecto Preserva (test) trae los retos IA encendidos para que el operador
+    # pueda probar el flujo completo (Darío + Claudia). Si quiere flujo lineal puro,
+    # puede desactivar `usar_agentes_ia` en el admin del curso.
+    "usar_agentes_ia": True,
 }
 
 
@@ -390,7 +394,11 @@ class Command(BaseCommand):
         curso.preguntas_ejemplo_ia = "\n".join(PREGUNTAS_IA_CURSO)
         curso.cliente = cliente
         curso.save()
-        self.stdout.write(f"   {'+' if created else '~'} Curso {curso.nombre} (id={curso.id}, gei={curso.tiene_formulario_gei})")
+        self.stdout.write(
+            f"   {'+' if created else '~'} Curso {curso.nombre} "
+            f"(id={curso.id}, gei={curso.tiene_formulario_gei}, "
+            f"agentes_ia={getattr(curso, 'usar_agentes_ia', '?')})"
+        )
         return curso
 
     def _upsert_modulos(self, curso: Curso) -> dict[int, Modulo]:

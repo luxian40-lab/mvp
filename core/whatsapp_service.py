@@ -102,12 +102,37 @@ def enviar_template_twilio(telefono, content_sid, variables=None):
         return {'success': False, 'mensaje_id': None, 'response': str(e)}
 
 
-def enviar_habeas_data(telefono):
-    """Paso 1: Enviar mensaje de Habeas Data con botones [Acepto] [No acepto]"""
-    return enviar_template_twilio(
-        telefono,
-        TWILIO_CONTENT_SIDS['habeas_data']
-    )
+def _resolver_content_sid_habeas_data(cliente=None):
+    """Resuelve el Content SID de Habeas Data con esta jerarquía:
+
+    1. Plantilla Twilio del Cliente (`Cliente.content_sid_habeas_data_twilio`).
+    2. Plantilla global editable desde admin (`ConfiguracionGlobal.content_sid_habeas_data_global`).
+    3. Fallback histórico hardcoded (`TWILIO_CONTENT_SIDS['habeas_data']`).
+    """
+    sid_cliente = (getattr(cliente, 'content_sid_habeas_data_twilio', '') or '').strip()
+    if sid_cliente:
+        return sid_cliente
+    try:
+        from .models import ConfiguracionGlobal
+        cfg = ConfiguracionGlobal.get_solo()
+        sid_global = (cfg.content_sid_habeas_data_global or '').strip()
+        if sid_global:
+            return sid_global
+    except Exception as e:
+        logger.warning(f"⚠️ No se pudo leer ConfiguracionGlobal habeas data: {e}")
+    return TWILIO_CONTENT_SIDS['habeas_data']
+
+
+def enviar_habeas_data(telefono, cliente=None):
+    """Paso 1: Enviar mensaje de Habeas Data con botones [Acepto] [No acepto].
+
+    Args:
+        telefono: número destino.
+        cliente: instancia opcional de `core.Cliente`. Si tiene
+            `content_sid_habeas_data_twilio` se prioriza sobre la plantilla global.
+    """
+    content_sid = _resolver_content_sid_habeas_data(cliente=cliente)
+    return enviar_template_twilio(telefono, content_sid)
 
 
 def enviar_confirmacion_datos(telefono, nombre, cedula, organizacion, edad=None, municipio=None):

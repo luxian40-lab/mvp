@@ -1638,9 +1638,9 @@ def _contexto_fallback_web_agro(pregunta: str, max_chars: int = 1800) -> str:
         return ""
 
     return (
-        "\n\n🌐 CONTEXTO EXTERNO (fallback temporal mientras crece el RAG):\n"
+        "\n\n🌐 INFORMACION COMPLEMENTARIA DE WEB (solo si la oficial de eki no alcanza):\n"
         + "\n---\n".join(bloques)
-        + "\n\n⚠️ Si existe contexto RAG, ese siempre tiene prioridad sobre estas fuentes externas."
+        + "\n\n⚠️ Si hay información oficial de eki, esa SIEMPRE tiene prioridad sobre estas fuentes externas."
     )
 
 
@@ -1665,16 +1665,16 @@ def _bot_comercial_respuesta_catalogo(
             return _bot_comercial_sin_contexto_natural(pregunta)
 
         if tiene_rag:
-            encabezado = "Con base en la información técnica/comercial indexada:"
+            encabezado = "Con base en la información oficial de eki:"
             cierre = "Si aplica cotización, compárteme cantidad, municipio y cultivo."
         else:
             encabezado = (
-                "Aún no encontré suficiente información indexada en tu RAG. "
-                "Mientras cargas más documentos, te comparto respaldo técnico externo:"
+                "Aún no tengo información oficial de eki suficiente para resolver eso. "
+                "Le comparto un respaldo técnico general:"
             )
             cierre = (
-                "Si ya tienes ficha técnica/precios del producto, súbela al RAG y te doy "
-                "recomendación exacta por cultivo y necesidad."
+                "Si ya tiene ficha técnica o precios del producto, le pido que los hagamos "
+                "llegar al equipo de eki para darle una recomendación exacta por cultivo y necesidad."
             )
 
         return (
@@ -1692,8 +1692,11 @@ def _bot_comercial_respuesta_catalogo(
             f"CONSULTA DEL CLIENTE:\n{pregunta}\n\n"
             f"HISTORIAL RECIENTE:\n{historial_chat or '[VACIO]'}\n\n"
             f"DIAGNOSTICO VISION (si aplica):\n{diagnostico_vision or 'N/A'}\n\n"
-            f"CONTEXTO RAG INDEXADO (fuente principal):\n{contexto_rag or '[VACIO]'}\n\n"
-            f"CONTEXTO WEB EXTERNO (usar solo si RAG está vacío):\n{contexto_web or '[VACIO]'}"
+            f"INFORMACION OFICIAL DE EKI (fuente principal — usá esto):\n{contexto_rag or '[VACIO]'}\n\n"
+            f"INFORMACION COMPLEMENTARIA DE WEB (apoyo solo si la oficial está vacía):\n{contexto_web or '[VACIO]'}\n\n"
+            "Recordá: nunca menciones al usuario palabras como 'RAG', 'base de "
+            "conocimiento', 'fragmento', 'documento indexado', 'contexto interno'. "
+            "Hablá natural, como una asesora de eki."
         )
         modelo = str(getattr(settings, 'BOT_COMERCIAL_OPENAI_MODEL', '') or 'gpt-4o-mini')
         completion = client.chat.completions.create(
@@ -4225,7 +4228,12 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                 if siguiente_modulo:
                                     # v1.9.8h: Check reto BEFORE advancing module
                                     total_modulos = progreso.curso.modulos.count()
-                                    es_modulo_reto = (modulo_actual.numero == 3) or (modulo_actual.numero == total_modulos and total_modulos >= 5)
+                                    # Solo activar retos IA si el curso tiene la bandera encendida.
+                                    usar_agentes_ia_curso = bool(getattr(progreso.curso, 'usar_agentes_ia', True))
+                                    es_modulo_reto = usar_agentes_ia_curso and (
+                                        (modulo_actual.numero == 3)
+                                        or (modulo_actual.numero == total_modulos and total_modulos >= 5)
+                                    )
                                     
                                     if not es_modulo_reto:
                                         # Normal: advance pointer
@@ -4339,7 +4347,9 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                         progreso.curso.usar_gamificacion or
                                         (estudiante.cliente.usar_gamificacion if getattr(estudiante, 'cliente', None) else False)
                                     )
-                                    activar_reto_final = usar_gamificacion_final
+                                    usar_agentes_ia_final = bool(getattr(progreso.curso, 'usar_agentes_ia', True))
+                                    # Reto final solo si el curso usa gamificación Y agentes IA.
+                                    activar_reto_final = usar_gamificacion_final and usar_agentes_ia_final
 
                                     if activar_reto_final:
                                         try:

@@ -46,7 +46,69 @@ def _parseo_float_directo(texto: str) -> float | None:
         return None
 
 
-def _llm_extrae_numero(texto: str, unidad: str) -> float | None:
+# ============================================================================
+# Conversiones para el extractor LLM de cantidades agrícolas colombianas.
+# Se inyectan como tabla de referencia en el system prompt para que el modelo
+# aprenda a traducir frases como "5 fanegadas", "tres bultos de 50",
+# "media cuadra", "8 arrobas", etc., a la unidad pedida en cada paso.
+# Fuentes: equivalencias usadas en extensión rural colombiana (DANE, ICA, FNC).
+# ============================================================================
+TABLA_CONVERSIONES_AGROCOL_PROMPT = """\
+TABLA DE EQUIVALENCIAS COLOMBIANAS (úsala SIEMPRE para convertir):
+
+ÁREA (a hectáreas, ha):
+- 1 fanegada = 0.64 ha (Cundinamarca/Boyacá; en otras regiones puede ser ~0.6 ha)
+- 1 cuadra (Antioquia/Llanos) = 0.625 ha
+- 1 plaza (Tolima, Huila) = 0.64 ha
+- 1 manzana (Centroamérica/Costa) = 0.7 ha
+- 1 hectárea (ha) = 10 000 m²
+- 1 acre = 0.4047 ha
+- 1 m² = 0.0001 ha
+
+PESO (a kilogramos, kg):
+- 1 bulto = 50 kg (default agrícola: urea, dap, kcl, abonos, café pergamino seco)
+- 1 saco = 50 kg (igual a bulto si no se especifica)
+- 1 costal = 50 kg
+- 1 carga café = 125 kg (2 bultos, café pergamino seco)
+- 1 arroba (@) = 12.5 kg
+- 1 quintal = 50 kg (Colombia, equivale al bulto/saco; en otros países 46 kg)
+- 1 tonelada (t, tn) = 1000 kg
+- 1 libra (lb) = 0.45 kg
+- 1 gramo (g) = 0.001 kg
+
+VOLUMEN/LÍQUIDO (a litros, L):
+- 1 galón (US) = 3.785 L
+- 1 caneca = 200 L (default; si dicen caneca chiquita, 20 L)
+- 1 botella = 0.75 L (default)
+
+CANTIDAD (a unidades sueltas):
+- 1 docena = 12
+- 1 ciento = 100
+- 1 millar = 1000
+
+ENERGÍA (a kWh):
+- 1 kWh = 1 kWh
+- 1 MWh = 1000 kWh
+
+INTERPRETACIÓN DE FRASES IMPRECISAS:
+- "más o menos 5", "como 5", "unos 5", "casi 5", "cerca de 5" → 5
+- "media" o "1/2" → 0.5
+- "un cuarto", "1/4" → 0.25
+- "tres cuartos", "3/4" → 0.75
+- "y medio", "y media" → +0.5 al número anterior (ej: "dos y medio" = 2.5)
+- "un par" → 2
+- "varios", "muchos", "poquito" → null (no es cuantificable)
+
+OPERACIONES MATEMÁTICAS:
+- Si el usuario dice "5 bultos por planta a 1000 plantas" → calcula 5 × 1000 = 5000
+  bultos. Convierte a la unidad pedida si aplica (5000 bultos = 250 000 kg).
+- Si dice "3 veces al año por 200 g por planta a 1000 plantas" → 3 × 200 × 1000 = 600 000 g = 600 kg.
+- Si menciona porcentajes (ej. "urea 46%"), considéralo si la unidad pedida es "kg de N";
+  si no es relevante, ignóralo.
+"""
+
+
+def _llm_extrae_numero(texto: str, unidad: str, pregunta_texto: str = "") -> float | None:
     api_key = (getattr(settings, "OPENAI_API_KEY", None) or os.environ.get("OPENAI_API_KEY", "") or "").strip()
     if not api_key:
         return _parseo_float_directo(texto)
@@ -57,20 +119,37 @@ def _llm_extrae_numero(texto: str, unidad: str) -> float | None:
 
     client = OpenAI(api_key=api_key)
     model = getattr(settings, "FORMULARIO_GEI_LLM_MODELO", "gpt-4o-mini")
-    u = (unidad or "la indicada en la pregunta").strip() or "unidad acordada"
+    u = (unidad or "la unidad indicada en la pregunta").strip() or "unidad acordada"
+    contexto_pregunta = (pregunta_texto or "").strip()[:600]
     sysm = (
-        "Eres un extractor de datos numéricos. El usuario "
-        f"describe una cantidad agrícola en español colombiano. Devuelve ÚNICAMENTE el número en la unidad {u}. "
-        "Si no puede extraer un número, devuelve null."
+        "Eres un extractor de datos numéricos para un formulario de huella de carbono "
+        "(GEI) dirigido a productores agropecuarios colombianos. Tu único trabajo es "
+        f"devolver el número equivalente en la unidad: {u}. "
+        "Aplicas la TABLA DE EQUIVALENCIAS para convertir cuando el usuario use otra unidad. "
+        "Si el usuario describe una operación (ej. '5 bultos × 200 plantas'), "
+        "haces la cuenta y devuelves el resultado en la unidad pedida.\n\n"
+        + TABLA_CONVERSIONES_AGROCOL_PROMPT
+        + "\n\nFORMATO DE SALIDA (estricto):\n"
+        "- Devuelve ÚNICAMENTE el número (puede tener decimales con punto: 2.5).\n"
+        "- NO escribas la unidad, NO expliques, NO uses comas como separador decimal.\n"
+        "- Si no se puede extraer un número claro o el usuario dice 'no sé' / 'no aplica', "
+        "  devuelve exactamente: null"
     )
-    r = client.chat.completions.create(
-        model=model,
-        temperature=0,
-        messages=[
-            {"role": "system", "content": sysm},
-            {"role": "user", "content": (texto or "")[:2000]},
-        ],
+    contenido_user = (
+        f"Pregunta del formulario: {contexto_pregunta}\n\n"
+        f"Respuesta del productor: {(texto or '')[:1800]}"
     )
+    try:
+        r = client.chat.completions.create(
+            model=model,
+            temperature=0,
+            messages=[
+                {"role": "system", "content": sysm},
+                {"role": "user", "content": contenido_user},
+            ],
+        )
+    except Exception:
+        return _parseo_float_directo(texto)
     raw = (r.choices[0].message.content or "").strip()
     if raw.lower() in ("null", "none", "nan", "n/a", ""):
         return None
@@ -82,7 +161,7 @@ def parsear_respuesta(texto: str, pregunta: FlujoPregunta) -> Any | None:
     if pregunta.tipo_dato == "float":
         if pregunta.usar_llm_parseo:
             u = (pregunta.unidad_parseo or "").strip() or "1"
-            return _llm_extrae_numero(t, u)
+            return _llm_extrae_numero(t, u, pregunta_texto=(pregunta.pregunta_texto or ""))
         return _parseo_float_directo(t)
     if pregunta.tipo_dato == "text":
         return t[:500] if t else None

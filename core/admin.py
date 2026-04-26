@@ -119,8 +119,13 @@ class ClienteAdmin(admin.ModelAdmin):
             'description': '🔑 Número autorizado en Meta Business para envío masivo. Debe coincidir con tu cuenta de WhatsApp Business API.'
         }),
         ('🛡️ Habeas Data', {
-            'fields': ('enlace_habeas_data',),
-            'description': '🔗 URL de política de tratamiento de datos para este cliente. Si está vacía, el sistema usa la URL general de eki.'
+            'fields': ('enlace_habeas_data', 'content_sid_habeas_data_twilio'),
+            'description': (
+                '🔗 URL de política de tratamiento de datos para este cliente. Si está vacía, '
+                'se usa la URL general de eki.<br>'
+                '📨 Plantilla Twilio (Content SID HX...) propia del cliente para Habeas Data. '
+                'Si está vacío, se usa la plantilla global definida en "Configuración Global".'
+            ),
         }),
         ('� Grupo de WhatsApp', {
             'fields': ('enlace_grupo_whatsapp',),
@@ -2336,8 +2341,8 @@ class PreguntaAbiertaFinalInline(admin.TabularInline):
 @admin.register(Curso)
 class CursoAdmin(admin.ModelAdmin):
     """Administración de cursos"""
-    list_display = ('nombre', 'cliente_nombre', 'total_modulos_display', 'docs_rag_count', 'duracion_semanas', 'ver_modulos_link', 'activo', 'tiene_formulario_gei', 'orden')
-    list_filter = ('activo', 'cliente', 'usar_gamificacion', 'habilitar_pregunta_abierta_final', 'tiene_formulario_gei')
+    list_display = ('nombre', 'cliente_nombre', 'total_modulos_display', 'docs_rag_count', 'duracion_semanas', 'ver_modulos_link', 'activo', 'tiene_formulario_gei', 'usar_agentes_ia', 'orden')
+    list_filter = ('activo', 'cliente', 'usar_gamificacion', 'usar_agentes_ia', 'habilitar_pregunta_abierta_final', 'tiene_formulario_gei')
     search_fields = ('nombre', 'descripcion', 'cliente__nombre')
     list_editable = ('orden',)
     inlines = [ModuloInline, DocumentoRAGInline, PreguntaAbiertaFinalInline]
@@ -2385,6 +2390,18 @@ class CursoAdmin(admin.ModelAdmin):
                 'este curso, no se disparará el flujo. Útil para pausar la recolección sin '
                 'borrar la configuración.</p>'
                 '<p><a href="/admin/gei/panel/" target="_blank">📊 Ver Panel GEI</a></p>'
+            ),
+        }),
+        ('🎯 Retos con Agentes IA (Darío + Claudia)', {
+            'fields': ('usar_agentes_ia',),
+            'description': mark_safe(
+                '<p>Si está <strong>activo</strong>, al completar el módulo 3 y el último módulo del curso '
+                '(con 5+ módulos) se dispara una pausa con el asistente <strong>Darío</strong> (resuelve '
+                'dudas vía RAG) y luego un reto evaluado por la facilitadora <strong>Claudia</strong>, '
+                'que otorga puntos al estudiante.</p>'
+                '<p>Si está <strong>inactivo</strong>, el curso es lineal: cada módulo pasa al siguiente '
+                'sin pausa de IA. Recomendado para cursos cortos, formularios o pilotos donde no se '
+                'requiere la capa de retos IA.</p>'
             ),
         }),
         ('⚙️ Configuración', {
@@ -5833,4 +5850,38 @@ class DocumentoRAGComercialAdmin(admin.ModelAdmin):
         self.message_user(request, f"✅ {queryset.count()} documentos eliminados del índice comercial.")
 
 
+from .models import ConfiguracionGlobal as _ConfiguracionGlobal
+
+
+@admin.register(_ConfiguracionGlobal)
+class ConfiguracionGlobalAdmin(admin.ModelAdmin):
+    """Singleton: solo permite editar la fila id=1, no agregar ni borrar."""
+    list_display = ('__str__', 'content_sid_habeas_data_global', 'fecha_actualizacion')
+    readonly_fields = ('fecha_actualizacion',)
+    fieldsets = (
+        ('🛡️ Habeas Data — Plantilla Twilio general', {
+            'fields': ('content_sid_habeas_data_global',),
+            'description': (
+                'Content SID (HX...) de la plantilla Twilio aprobada que se usa por defecto '
+                'para enviar el Habeas Data cuando un cliente no tiene la suya propia. '
+                'Cada Cliente puede sobrescribir este valor desde su ficha en '
+                '"Habeas Data → Plantilla Twilio (Content SID del cliente)".'
+            ),
+        }),
+        ('Auditoría', {
+            'fields': ('fecha_actualizacion',),
+        }),
+    )
+
+    def has_add_permission(self, request):
+        return not _ConfiguracionGlobal.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        from django.shortcuts import redirect
+        from django.urls import reverse
+        obj = _ConfiguracionGlobal.get_solo()
+        return redirect(reverse('admin:core_configuracionglobal_change', args=[obj.pk]))
 

@@ -95,6 +95,17 @@ class Cliente(models.Model):
         verbose_name="Enlace Habeas Data (override)",
         help_text="Opcional: URL de política de datos propia del cliente. Si se deja vacío, se usa la URL general de eki."
     )
+    content_sid_habeas_data_twilio = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        verbose_name='Habeas Data — Plantilla Twilio (Content SID del cliente)',
+        help_text=(
+            'Opcional: Content SID (HX...) de la plantilla Twilio aprobada para el Habeas Data '
+            'de ESTE cliente. Si se deja vacío, se usa la plantilla global configurada en '
+            '"Configuración Global > Habeas Data — Plantilla Twilio general".'
+        ),
+    )
     usar_gamificacion = models.BooleanField(
         default=True,
         verbose_name="Usar Gamificación",
@@ -954,6 +965,19 @@ class Curso(models.Model):
             'Formulario → Tipos de formulario se inicia la recolección de datos '
             'GEI por WhatsApp. Si está inactivo, ningún flujo se dispara aunque '
             'exista el TipoFormulario.'
+        ),
+    )
+
+    # Toggle de retos IA (Darío + Claudia) al terminar módulo 3 y módulo final.
+    usar_agentes_ia = models.BooleanField(
+        default=True,
+        verbose_name='¿Usar retos con agentes IA (Darío + Claudia)?',
+        help_text=(
+            'Si está activo, al completar el módulo 3 y el último módulo del curso se '
+            'dispara una pausa con el asistente Darío (resuelve dudas) y luego un reto '
+            'evaluado por la facilitadora Claudia (otorga puntos). '
+            'Si está inactivo, el curso es lineal: examen → siguiente módulo, sin retos. '
+            'Útil para cursos cortos, formularios o pilotos donde no se quiere la capa de IA.'
         ),
     )
 
@@ -2485,6 +2509,40 @@ class RespuestaAbiertaFinal(models.Model):
         return f"{self.estudiante.nombre} - {self.curso.nombre}"
 
 
+class ConfiguracionGlobal(models.Model):
+    """Singleton de configuración general de eki, editable desde el admin.
+
+    Solo debe existir una fila (id=1). El método `get_solo()` la crea si falta.
+    """
+    content_sid_habeas_data_global = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        verbose_name='Habeas Data — Plantilla Twilio general (Content SID)',
+        help_text=(
+            'Content SID (HX...) de la plantilla Twilio aprobada para el Habeas Data por defecto. '
+            'Se usa cuando el cliente no tiene su propio Content SID configurado.'
+        ),
+    )
+    fecha_actualizacion = models.DateTimeField(auto_now=True, verbose_name='Última actualización')
+
+    class Meta:
+        verbose_name = 'Configuración Global'
+        verbose_name_plural = 'Configuración Global'
+
+    def __str__(self):
+        return 'Configuración Global eki'
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_solo(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
 __all__ = [
     'TemaCampana', 'Cliente', 'Estudiante', 'Plantilla', 'Linea',
     'Campana', 'EnvioLog', 'WhatsappLog',
@@ -2500,4 +2558,5 @@ __all__ = [
     'CampanaUnica', 'RespuestaCampanaUnica',
     'ProspectoB2B', 'CampanaB2B',
     'AliadoEmpleabilidad', 'MisionEmpleabilidad', 'PreguntaAbiertaFinalCurso', 'RespuestaAbiertaFinal',
+    'ConfiguracionGlobal',
 ]

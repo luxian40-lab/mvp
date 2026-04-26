@@ -502,6 +502,10 @@
 
             <li><a href="#pqrs-agente">🤝 PQRS y Soporte Automático <span style="background:#15aabf;color:white;padding:2px 8px;border-radius:3px;font-size:0.8em;">Nuevo abr 2026</span></a></li>
 
+            <li><a href="#config-global">🛡️ Habeas Data — Plantilla Twilio (general y por cliente) <span style="background:#15aabf;color:white;padding:2px 8px;border-radius:3px;font-size:0.8em;">Nuevo abr 2026</span></a></li>
+
+            <li><a href="#parser-unidades">🌾 Recolección GEI — Cómo entiende unidades coloquiales <span style="background:#15aabf;color:white;padding:2px 8px;border-radius:3px;font-size:0.8em;">Nuevo abr 2026</span></a></li>
+
             <li><a href="#multimedia">🖼️ Multimedia en WhatsApp <span style="background:#4caf50;color:white;padding:2px 8px;border-radius:3px;font-size:0.8em;margin-left:5px;">V1.2</span></a></li>
 
             <li><a href="#plantillas">📄 Plantillas y Temas</a></li>
@@ -906,6 +910,89 @@ python manage.py crear_cliente_preserva --reset   # borra y recrea</code></pre>
                 <li>Para cambiar el modelo, definir variable de entorno <code>PQRS_MODEL</code> (default <code>gpt-4o-mini</code>).</li>
 
                 <li>Revisar periódicamente las solicitudes con <code>resuelto_por_agente=True</code>: si una categoría escala demasiado o resuelve mal, ajustar el prompt o pasar la categoría a “siempre escala”.</li>
+
+            </ol>
+
+        </div>
+
+    </div>
+
+    <div id="config-global" class="section">
+
+        <h2 class="section-title">🛡️ Habeas Data — Plantilla Twilio (general y por cliente)</h2>
+
+        <div class="subsection">
+
+            <h3>Cómo funciona</h3>
+
+            <p>El Habeas Data se envía por WhatsApp con una plantilla aprobada de Twilio (<em>Content Template</em>). Hay <strong>dos niveles</strong>:</p>
+
+            <ul style="line-height:1.7;">
+
+                <li><strong>Plantilla general (eki):</strong> se configura en <code>Admin → Configuración Global → Habeas Data — Plantilla Twilio general</code>. Es la que se usa por defecto cuando un cliente no tiene la suya propia.</li>
+
+                <li><strong>Plantilla por cliente:</strong> en <code>Admin → Clientes → editar cliente → Habeas Data → Plantilla Twilio (Content SID del cliente)</code>. Si está cargada, se usa esa en lugar de la general para los estudiantes de ese cliente.</li>
+
+            </ul>
+
+            <p><strong>Resolución:</strong> <code>cliente.content_sid_habeas_data_twilio</code> &gt; <code>ConfiguracionGlobal.content_sid_habeas_data_global</code> &gt; fallback histórico hardcoded.</p>
+
+        </div>
+
+        <div class="subsection">
+
+            <h3>Cómo cargar un nuevo Content SID</h3>
+
+            <ol style="line-height:1.7;">
+
+                <li>En <strong>Twilio Console → Messaging → Content Templates</strong>, crear/aprobar una plantilla con los botones <em>Acepto</em> / <em>No acepto</em>.</li>
+
+                <li>Copiar el Content SID (formato <code>HX...</code>).</li>
+
+                <li>Pegarlo en <strong>Configuración Global</strong> (uso general) o en la ficha del cliente (uso solo para ese cliente).</li>
+
+                <li>Probar enviando una solicitud con un número de prueba para validar que aparece la plantilla correcta.</li>
+
+            </ol>
+
+        </div>
+
+    </div>
+
+    <div id="parser-unidades" class="section">
+
+        <h2 class="section-title">🌾 Recolección GEI — Cómo entiende unidades coloquiales</h2>
+
+        <div class="subsection">
+
+            <h3>Tabla de equivalencias incorporada</h3>
+
+            <p>El parser LLM del formulario GEI (<code>formulario/agent.py</code>) trae una tabla de conversiones colombianas integrada en su system prompt. El productor puede contestar en lenguaje natural y el modelo convierte a la unidad pedida en cada paso.</p>
+
+            <p style="line-height:1.7;">
+                <strong>Área:</strong> 1 fanegada ≈ 0.64 ha · 1 cuadra ≈ 0.625 ha · 1 plaza ≈ 0.64 ha · 1 manzana ≈ 0.7 ha · 1 acre ≈ 0.4047 ha.<br>
+                <strong>Peso:</strong> 1 bulto/saco/costal/quintal = 50 kg · 1 carga café = 125 kg · 1 arroba (@) = 12.5 kg · 1 libra = 0.45 kg.<br>
+                <strong>Volumen:</strong> 1 galón = 3.785 L · 1 caneca = 200 L (default).<br>
+                <strong>Cantidad:</strong> 1 docena = 12 · 1 ciento = 100 · 1 millar = 1000.
+            </p>
+
+            <p><strong>Frases imprecisas:</strong> "más o menos 5", "como tres", "media", "y medio", "un par" se interpretan correctamente. Si el productor dice "no sé", "varios" o "poquito", el extractor devuelve <code>null</code> y el bot pide reintento.</p>
+
+            <p><strong>Operaciones:</strong> el modelo también puede multiplicar. Ejemplo: "5 bultos por planta a 1000 plantas" → 5 × 1000 = 5000 bultos = 250 000 kg.</p>
+
+        </div>
+
+        <div class="subsection">
+
+            <h3>Si el bot no entiende una unidad</h3>
+
+            <ol style="line-height:1.7;">
+
+                <li>Verificar que la pregunta tenga <code>usar_llm_parseo=True</code> en <code>FlujoPregunta</code>.</li>
+
+                <li>Verificar que <code>OPENAI_API_KEY</code> esté seteada en EB (sin ella, cae al parser regex que solo lee dígitos).</li>
+
+                <li>Si la unidad es regional/exótica, agregarla a <code>TABLA_CONVERSIONES_AGROCOL_PROMPT</code> en <code>formulario/agent.py</code> y desplegar.</li>
 
             </ol>
 
@@ -2503,6 +2590,13 @@ Otros módulos → Ningún agente
             <div class="alert-box alert-info">
 
                 <strong>ℹ️ Importante:</strong> Los agentes <strong>nunca se activan al mismo tiempo</strong>. El estudiante interactúa con uno a la vez. Darío siempre aparece <strong>antes</strong> que Claudia. Los puntos <strong>solo</strong> se otorgan después de la evaluación del reto por Claudia.
+
+            </div>
+
+            <div class="alert-box alert-warning" style="margin-top:1em;">
+
+                <strong>🎚️ Toggle por curso:</strong> en <code>Admin → Cursos → editar curso → Retos con Agentes IA</code> hay una casilla <strong>"¿Usar retos con agentes IA?"</strong>. Si está <strong>desactivada</strong>, ese curso NO dispara a Darío ni a Claudia: el flujo es lineal (examen → siguiente módulo) sin pausa de IA.<br>
+                Recomendado para cursos cortos, formularios o pilotos donde solo se quiere el contenido educativo. Por defecto está activado para cursos nuevos.
 
             </div>
 
