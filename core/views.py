@@ -2627,8 +2627,14 @@ def _procesar_twilio_webhook(post_data):
                     "Si cambias de opinión, escríbenos en cualquier momento. 🌱"
                 )
             else:
-                # Mostrar siempre la URL efectiva del cliente para evitar desalineación
-                # entre el enlace configurado en admin y una plantilla estática.
+                # Enviar primero template Twilio (cliente > global > fallback eki).
+                # Si falla, degradar a texto plano con URL para no bloquear onboarding.
+                from .whatsapp_service import enviar_habeas_data
+                resultado_tpl = enviar_habeas_data(msg_from, cliente=estudiante.cliente)
+                if resultado_tpl.get('success'):
+                    return
+
+                # Fallback texto: mostrar URL efectiva del cliente.
                 from .security_handler import _url_politica_datos_cliente
                 url_politica = _url_politica_datos_cliente(estudiante=estudiante)
                 texto_respuesta = (
