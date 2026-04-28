@@ -265,6 +265,7 @@ JAZZMIN_SETTINGS = {
 
         # 🌱 Formulario GEI
         "formulario.FichaGEI": "fas fa-seedling",
+        "formulario.ResultadoGEI": "fas fa-calculator",
         "formulario.TipoFormulario": "fas fa-wpforms",
         "formulario.SesionFormulario": "fas fa-tasks",
 
@@ -351,6 +352,7 @@ JAZZMIN_SETTINGS = {
         "formulario",
         "formulario.TipoFormulario",
         "formulario.FichaGEI",
+        "formulario.ResultadoGEI",
         "formulario.SesionFormulario",
         # 🏆 Gamificación y Certificados
         "core.PerfilGamificacion",
@@ -677,3 +679,9 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 # En desarrollo sin Redis, deshabilitar Celery (las tareas se ejecutan síncronamente)
 CELERY_TASK_ALWAYS_EAGER = os.environ.get('CELERY_TASK_ALWAYS_EAGER', 'False') == 'True'
 CELERY_TASK_EAGER_PROPAGATES = True
+
+# Formulario GEI — envío automático del balance por WhatsApp al completar un módulo del curso
+GEI_MODULO_NUMERO_WHATSAPP_RESULTADO = int(os.environ.get('GEI_MODULO_NUMERO_WHATSAPP_RESULTADO', '5') or '5')
+GEI_RESULTADO_WHATSAPP_ENABLED = os.environ.get('GEI_RESULTADO_WHATSAPP_ENABLED', 'true').lower() in (
+    '1', 'true', 'yes', 'on',
+)

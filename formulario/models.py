@@ -189,6 +189,50 @@ class FichaGEI(models.Model):
         return f"Ficha GEI {self.estudiante_id} — {self.nombre_finca or 'sin finca'}"
 
 
+class ResultadoGEI(models.Model):
+    """Resultado persistido del balance GEI calculado a partir de una FichaGEI."""
+
+    ficha = models.OneToOneField(
+        FichaGEI,
+        on_delete=models.CASCADE,
+        related_name="resultado",
+        verbose_name="Ficha GEI",
+    )
+    em_fertilizante_kg = models.FloatField(null=True, blank=True, verbose_name="Em. fertilizante (kg CO₂e)")
+    em_combustible_kg = models.FloatField(null=True, blank=True, verbose_name="Em. combustible (kg CO₂e)")
+    em_energia_kg = models.FloatField(null=True, blank=True, verbose_name="Em. energía (kg CO₂e)")
+    em_residuos_kg = models.FloatField(null=True, blank=True, verbose_name="Em. residuos (kg CO₂e)")
+    em_total_kg = models.FloatField(null=True, blank=True, verbose_name="Emisiones totales (kg CO₂e)")
+    rem_bosque_kg = models.FloatField(null=True, blank=True, verbose_name="Remoción bosque (kg CO₂e)")
+    balance_neto_tco2e = models.FloatField(null=True, blank=True, verbose_name="Balance neto (t CO₂e/año)")
+
+    intensidad_kg_co2e_por_kg = models.FloatField(
+        null=True, blank=True, verbose_name="Intensidad (kg CO₂e / kg producto)"
+    )
+    evaluacion = models.CharField(
+        max_length=20,
+        choices=[
+            ("excelente", "Excelente"),
+            ("bueno", "Bueno"),
+            ("mejorable", "Mejorable"),
+        ],
+        null=True,
+        blank=True,
+        verbose_name="Evaluación (benchmark café)",
+    )
+
+    completitud_calculo_pct = models.IntegerField(default=0, verbose_name="Completitud del cálculo (%)")
+    campos_faltantes = models.JSONField(default=list, blank=True, verbose_name="Campos faltantes")
+    fecha_calculo = models.DateTimeField(auto_now=True, verbose_name="Último cálculo")
+
+    class Meta:
+        verbose_name = "Resultado GEI"
+        verbose_name_plural = "Resultados GEI"
+
+    def __str__(self) -> str:
+        return f"Resultado GEI ficha={self.ficha_id}"
+
+
 class SesionFormulario(models.Model):
     """
     Sesión con estado. `ficha_destino_id` referencia al PK de FichaGEI; se mantiene el nombre

@@ -6,7 +6,28 @@ from django.contrib import admin, messages
 from django.http import HttpResponse
 from django.utils import timezone
 
-from .models import FichaGEI, FlujoPregunta, SesionFormulario, TipoFormulario
+from .models import FichaGEI, FlujoPregunta, ResultadoGEI, SesionFormulario, TipoFormulario
+
+
+class ResultadoGEIInline(admin.StackedInline):
+    model = ResultadoGEI
+    extra = 0
+    max_num = 1
+    can_delete = False
+    readonly_fields = (
+        "em_fertilizante_kg",
+        "em_combustible_kg",
+        "em_energia_kg",
+        "em_residuos_kg",
+        "em_total_kg",
+        "rem_bosque_kg",
+        "balance_neto_tco2e",
+        "intensidad_kg_co2e_por_kg",
+        "evaluacion",
+        "completitud_calculo_pct",
+        "campos_faltantes",
+        "fecha_calculo",
+    )
 
 
 class FlujoPreguntaInline(admin.TabularInline):
@@ -46,6 +67,46 @@ class FlujoPreguntaAdmin(admin.ModelAdmin):
     list_display = ("id", "formulario", "orden", "campo_destino", "tipo_dato", "es_opcional")
     list_filter = ("tipo_dato", "es_opcional")
     search_fields = ("pregunta_texto", "campo_destino")
+
+
+@admin.register(ResultadoGEI)
+class ResultadoGEIAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "ficha",
+        "em_total_kg",
+        "balance_neto_tco2e",
+        "intensidad_kg_co2e_por_kg",
+        "evaluacion",
+        "completitud_calculo_pct",
+        "fecha_calculo",
+    )
+    list_filter = ("evaluacion",)
+    search_fields = ("ficha__estudiante__nombre", "ficha__estudiante__telefono", "ficha__nombre_finca")
+    readonly_fields = (
+        "ficha",
+        "em_fertilizante_kg",
+        "em_combustible_kg",
+        "em_energia_kg",
+        "em_residuos_kg",
+        "em_total_kg",
+        "rem_bosque_kg",
+        "balance_neto_tco2e",
+        "intensidad_kg_co2e_por_kg",
+        "evaluacion",
+        "completitud_calculo_pct",
+        "campos_faltantes",
+        "fecha_calculo",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return True
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
 
 
 @admin.register(SesionFormulario)
@@ -100,6 +161,7 @@ def _fila_ficha(f: FichaGEI) -> list:
 
 @admin.register(FichaGEI)
 class FichaGEIAdmin(admin.ModelAdmin):
+    inlines = (ResultadoGEIInline,)
     list_display = (
         "id",
         "estudiante",

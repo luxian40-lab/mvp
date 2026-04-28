@@ -4,11 +4,12 @@ from unittest import mock
 import pytest
 from django.test import Client, override_settings
 
-from core.models import ProgresoEstudiante
+from core.models import ModuloCompletado, ProgresoEstudiante
 from formulario.agent import manejar_mensaje_formulario, parsear_respuesta, iniciar_sesion_formulario
+from formulario.calculadora import calcular_balance_gei, generar_mensaje_resultado_whatsapp, persistir_resultado_gei
 from formulario.factories import ClienteFactory, CursoFactory, EstudianteFactory, ModuloFactory
 from formulario.hooks import intentar_iniciar_formulario_al_completar_modulo
-from formulario.models import CAMPOS_GEI_7, FichaGEI, FlujoPregunta, SesionFormulario, TipoFormulario
+from formulario.models import CAMPOS_GEI_7, FichaGEI, FlujoPregunta, ResultadoGEI, SesionFormulario, TipoFormulario
 from formulario.routing import debe_usar_agente_formulario
 
 
@@ -493,3 +494,112 @@ def test_cliente_diferente_no_dispara():
 
     assert msg is None
     assert not SesionFormulario.objects.filter(estudiante=estudiante_b).exists()
+
+
+def test_calcular_balance_gei_emisiones_basicas():
+    e = EstudianteFactory()
+    c = CursoFactory()
+    f = FichaGEI.objects.create(
+        estudiante=e,
+        curso=c,
+        fertilizante_kg=100.0,
+        concentracion_n_pct=46.0,
+        tipo_combustible="diesel",
+        combustible_gal=10.0,
+        energia_kwh=500.0,
+        residuos_ton=2.0,
+        manejo_residuos="compost",
+        produccion_kg=1000.0,
+        tiene_bosque=False,
+    )
+    r = calcular_balance_gei(f)
+    assert r["emisiones"]["total_kg_co2e"] > 0
+    assert r["balance_neto_tco2e"] is not None
+    assert r["intensidad_kg_co2e_por_kg"] is not None
+    assert r["comparacion_benchmark"]["evaluacion"] in ("excelente", "bueno", "mejorable")
+
+
+def test_persistir_resultado_gei_crea_registro():
+    e = EstudianteFactory()
+    c = CursoFactory()
+    f = FichaGEI.objects.create(
+        estudiante=e,
+        curso=c,
+        fertilizante_kg=50.0,
+        concentracion_n_pct=20.0,
+        combustible_gal=5.0,
+        tipo_combustible="gasolina",
+        energia_kwh=100.0,
+        residuos_ton=1.0,
+        manejo_residuos="externo",
+        produccion_kg=500.0,
+        tiene_bosque=False,
+    )
+    persistir_resultado_gei(f)
+    obj = ResultadoGEI.objects.get(ficha=f)
+    assert obj.em_total_kg is not None
+    assert obj.completitud_calculo_pct == 100
+
+
+def test_generar_mensaje_whatsapp_incluye_balance():
+    e = EstudianteFactory()
+    c = CursoFactory()
+    f = FichaGEI.objects.create(
+        estudiante=e,
+        curso=c,
+        fertilizante_kg=10.0,
+        concentracion_n_pct=15.0,
+        combustible_gal=2.0,
+        tipo_combustible="diesel",
+        energia_kwh=50.0,
+        residuos_ton=0.5,
+        manejo_residuos="compost",
+        produccion_kg=200.0,
+        tiene_bosque=False,
+    )
+    persistir_resultado_gei(f)
+    msg = generar_mensaje_resultado_whatsapp(f)
+    assert "Balance GEI" in msg
+    assert "tCO" in msg
+    assert "módulo 6" in msg.lower() or "modulo 6" in msg.lower()
+
+
+@mock.patch("core.utils.enviar_whatsapp_twilio")
+def test_modulo5_dispara_whatsapp_si_gei_activo(mock_send):
+    cliente = ClienteFactory()
+    cur, _m4, m5 = _bootstrap_curso_modulos()
+    cur.tiene_formulario_gei = True
+    cur.save(update_fields=["tiene_formulario_gei"])
+    est = EstudianteFactory(cliente=cliente, telefono="573001112233")
+    FichaGEI.objects.create(
+        estudiante=est,
+        curso=cur,
+        cliente=cliente,
+        fertilizante_kg=20.0,
+        concentracion_n_pct=30.0,
+        combustible_gal=1.0,
+        tipo_combustible="diesel",
+        energia_kwh=80.0,
+        residuos_ton=0.2,
+        manejo_residuos="compost",
+        produccion_kg=300.0,
+        tiene_bosque=False,
+    )
+    progreso = ProgresoEstudiante.objects.create(estudiante=est, curso=cur, modulo_actual=m5, completado=False)
+    ModuloCompletado.objects.create(progreso=progreso, modulo=m5)
+    mock_send.assert_called_once()
+    body = mock_send.call_args[0][1]
+    assert "Balance GEI" in body
+
+
+@mock.patch("core.utils.enviar_whatsapp_twilio")
+def test_modulo5_no_whatsapp_si_curso_sin_gei(mock_send):
+    cliente = ClienteFactory()
+    cur, _m4, m5 = _bootstrap_curso_modulos()
+    cur.tiene_formulario_gei = False
+    cur.save(update_fields=["tiene_formulario_gei"])
+    est = EstudianteFactory(cliente=cliente)
+    FichaGEI.objects.create(estudiante=est, curso=cur, cliente=cliente, fertilizante_kg=1.0, concentracion_n_pct=10.0)
+    progreso = ProgresoEstudiante.objects.create(estudiante=est, curso=cur, modulo_actual=m5, completado=False)
+    ModuloCompletado.objects.create(progreso=progreso, modulo=m5)
+    mock_send.assert_not_called()
