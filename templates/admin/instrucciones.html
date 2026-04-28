@@ -931,11 +931,12 @@ python manage.py crear_cliente_preserva --reset   # borra y recrea</code></pre>
 
                 <li><strong>Plantilla general (eki):</strong> se configura en <code>Admin → Configuración Global → Habeas Data — Plantilla Twilio general</code>. Es la que se usa por defecto cuando un cliente no tiene la suya propia.</li>
 
-                <li><strong>Plantilla por cliente:</strong> en <code>Admin → Clientes → editar cliente → Habeas Data → Plantilla Twilio (Content SID del cliente)</code>. Si está cargada, se usa esa en lugar de la general para los estudiantes de ese cliente.</li>
+                <li><strong>Plantilla por cliente:</strong> en <code>Admin → Clientes → editar cliente → Habeas Data → Habeas Data Template (Twilio Content SID por cliente)</code>. Si está cargada, se usa esa en lugar de la general para los estudiantes de ese cliente.</li>
 
             </ul>
 
             <p><strong>Resolución:</strong> <code>cliente.content_sid_habeas_data_twilio</code> &gt; <code>ConfiguracionGlobal.content_sid_habeas_data_global</code> &gt; fallback histórico hardcoded.</p>
+            <p><strong>Tip:</strong> este campo por cliente está pensado para campañas con botones personalizados de consentimiento; si no hay valor por cliente, automáticamente se usa el genérico de eki.</p>
 
         </div>
 

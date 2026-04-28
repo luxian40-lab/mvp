@@ -186,6 +186,11 @@ def evaluar_reto_facilitador(modulos_cubiertos, respuesta_estudiante, reto_origi
     Returns:
         tuple: (puntaje: int 1-10, feedback: str)
     """
+    respuesta_limpia = (respuesta_estudiante or "").strip()
+    if _es_respuesta_sin_contenido_reto(respuesta_limpia):
+        # Regla anti-alucinación: si la persona dice "no sé"/"no se", nunca inventar evidencia.
+        return 1, _feedback_respuesta_sin_contenido(estudiante_nombre)
+
     client = _get_client()
     if not client:
         return 7, _fallback_evaluacion_reto()
@@ -217,7 +222,7 @@ Módulos cubiertos:
 {contexto_rag}
 
 RETO PLANTEADO: {reto_original}
-RESPUESTA DEL PARTICIPANTE ({estudiante_nombre}): {respuesta_estudiante}
+RESPUESTA DEL PARTICIPANTE ({estudiante_nombre}): {respuesta_limpia}
 
 Evalúe según la rúbrica. Dé retroalimentación y puntaje."""
 
@@ -335,6 +340,48 @@ def _fallback_evaluacion_reto():
         "Desglose: Enfoque 2/3 | Fundamentación 3/4 | Claridad 2/3\n"
         "Diagnóstico: parcial | Acción/Control: parcial\n\n"
         "Va por buen camino; con más detalle su respuesta sube de nivel."
+    )
+
+
+def _es_respuesta_sin_contenido_reto(respuesta: str) -> bool:
+    """Detecta respuestas vacías o explícitamente sin contenido (ej. 'no sé')."""
+    r = (respuesta or "").strip().lower()
+    if not r:
+        return True
+    expresiones_directas = {
+        "no se",
+        "no sé",
+        "nose",
+        "ni idea",
+        "no tengo idea",
+        "no lo se",
+        "no lo sé",
+        "no sabria",
+        "no sabría",
+        "n/a",
+        "na",
+    }
+    if r in expresiones_directas:
+        return True
+    # Variantes cortas tipo "pues no sé profe"
+    if ("no se" in r or "no sé" in r) and len(r) <= 40:
+        return True
+    return False
+
+
+def _feedback_respuesta_sin_contenido(estudiante_nombre: str) -> str:
+    """Feedback duro, pero justo, sin inventar evidencia cuando la respuesta fue 'no sé'."""
+    return (
+        f"1. {estudiante_nombre}, gracias por responder. En este intento usted indicó que no sabía la respuesta, "
+        "así que no hay evidencia técnica para evaluar diagnóstico ni acción.\n\n"
+        "2. Para subir su puntaje, responda con al menos: (a) cómo diagnosticaría, (b) qué acción concreta aplicaría, "
+        "indicando qué, cuánto, cuándo y con qué.\n\n"
+        "3. Puntaje total: 1/10\n"
+        "4. Desglose: Enfoque 0/3 | Fundamentación 0/4 | Claridad 1/3\n\n"
+        "5. Veredicto por componente:\n"
+        "   - Diagnóstico: no logrado + no presentó método de diagnóstico.\n"
+        "   - Acción/Control: no logrado + no propuso acción de control concreta.\n\n"
+        "Siga adelante: con una respuesta específica su resultado mejora de inmediato. 🌱"
     )
 
 

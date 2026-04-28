@@ -99,11 +99,11 @@ class Cliente(models.Model):
         max_length=64,
         blank=True,
         default='',
-        verbose_name='Habeas Data — Plantilla Twilio (Content SID del cliente)',
+        verbose_name='Habeas Data Template (Twilio Content SID por cliente)',
         help_text=(
-            'Opcional: Content SID (HX...) de la plantilla Twilio aprobada para el Habeas Data '
-            'de ESTE cliente. Si se deja vacío, se usa la plantilla global configurada en '
-            '"Configuración Global > Habeas Data — Plantilla Twilio general".'
+            'Opcional: Content SID (HX...) del template de Habeas Data para ESTE cliente. '
+            'Si se deja vacío, el sistema usa el template global de eki configurado en '
+            '"Configuración Global".'
         ),
     )
     usar_gamificacion = models.BooleanField(

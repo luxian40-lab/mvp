@@ -920,9 +920,10 @@ python manage.py crear_cliente_preserva --reset   # borra y recrea</code></pre>
             <p>El Habeas Data se envía con plantilla aprobada de Twilio. Hay dos niveles:</p>
             <ul style="line-height:1.7;">
                 <li><strong>Plantilla general (eki):</strong> <code>Admin → Configuración Global → Habeas Data — Plantilla Twilio general</code>.</li>
-                <li><strong>Plantilla por cliente:</strong> <code>Admin → Clientes → editar cliente → Habeas Data → Plantilla Twilio (Content SID del cliente)</code>.</li>
+                <li><strong>Plantilla por cliente:</strong> <code>Admin → Clientes → editar cliente → Habeas Data → Habeas Data Template (Twilio Content SID por cliente)</code>.</li>
             </ul>
             <p>Resolución: cliente &gt; global &gt; fallback histórico.</p>
+            <p><strong>Tip:</strong> este campo por cliente está pensado para campañas con botones personalizados de consentimiento; si no hay valor por cliente, automáticamente se usa el genérico de eki.</p>
         </div>
     </div>
 

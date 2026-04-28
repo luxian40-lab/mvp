@@ -123,7 +123,7 @@ class ClienteAdmin(admin.ModelAdmin):
             'description': (
                 '🔗 URL de política de tratamiento de datos para este cliente. Si está vacía, '
                 'se usa la URL general de eki.<br>'
-                '📨 Plantilla Twilio (Content SID HX...) propia del cliente para Habeas Data. '
+                '📨 <strong>Habeas Data Template</strong> (Twilio Content SID HX...) propio del cliente. '
                 'Si está vacío, se usa la plantilla global definida en "Configuración Global".'
             ),
         }),
