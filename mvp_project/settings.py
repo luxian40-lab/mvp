@@ -167,6 +167,10 @@ else:
         }
     }
 
+# Reusar conexiones DB para reducir overhead en webhooks concurrentes.
+if DATABASES.get('default', {}).get('ENGINE') == 'django.db.backends.postgresql':
+    DATABASES['default']['CONN_MAX_AGE'] = int(os.environ.get('DB_CONN_MAX_AGE', '60') or '60')
+
 # 5. VALIDACIÓN DE CONTRASEÑAS
 AUTH_PASSWORD_VALIDATORS = [
     { 'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator', },

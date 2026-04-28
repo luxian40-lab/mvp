@@ -1651,6 +1651,7 @@ def _bot_comercial_respuesta_catalogo(
     contexto_web: str = '',
     historial_chat: str = '',
     cliente=None,
+    sesion_comercial=None,
 ) -> str:
     """Genera respuesta técnica/comercial estricta basada en contexto RAG (sin alucinaciones).
 
@@ -1685,7 +1686,7 @@ def _bot_comercial_respuesta_catalogo(
 
     try:
         from openai import OpenAI
-        from core.nati import armar_system_prompt
+        from core.nati import armar_messages_para_openai, armar_system_prompt
         client = OpenAI(api_key=api_key)
         system_prompt = armar_system_prompt(cliente=cliente)
         user_prompt = (
@@ -1699,13 +1700,21 @@ def _bot_comercial_respuesta_catalogo(
             "Hablá natural, como una asesora de eki."
         )
         modelo = str(getattr(settings, 'BOT_COMERCIAL_OPENAI_MODEL', '') or 'gpt-4o-mini')
+        if sesion_comercial is not None:
+            messages = armar_messages_para_openai(
+                sesion=sesion_comercial,
+                nuevo_mensaje=user_prompt,
+                cliente=cliente,
+            )
+        else:
+            messages = [
+                {'role': 'system', 'content': system_prompt},
+                {'role': 'user', 'content': user_prompt},
+            ]
         completion = client.chat.completions.create(
             model=modelo,
             temperature=0.15,
-            messages=[
-                {'role': 'system', 'content': system_prompt},
-                {'role': 'user', 'content': user_prompt},
-            ],
+            messages=messages,
         )
         texto = (completion.choices[0].message.content or '').strip()
         return texto or "No logré construir una respuesta válida. Intenta con otra consulta."
@@ -1791,6 +1800,45 @@ def _bot_comercial_historial_reciente(telefono: str, max_turnos: int = 6, max_ch
     return '\n'.join(salida)
 
 
+def _obtener_o_crear_sesion_comercial(telefono: str, cliente=None, horas_expira: int = 4):
+    from django.utils import timezone as _tz
+    from .models import SesionComercial
+
+    telefono = (telefono or '').strip()
+    if not telefono:
+        return None
+    ahora = _tz.now()
+    delta = timedelta(hours=max(1, int(horas_expira or 4)))
+    sesion = (
+        SesionComercial.objects.filter(telefono=telefono)
+        .order_by('-fecha_ultimo_mensaje')
+        .first()
+    )
+    if not sesion:
+        return SesionComercial.objects.create(telefono=telefono, cliente=cliente)
+
+    if sesion.fecha_ultimo_mensaje and sesion.fecha_ultimo_mensaje < (ahora - delta):
+        sesion.historial_mensajes = []
+        sesion.cliente = cliente
+        sesion.save(update_fields=['historial_mensajes', 'cliente', 'fecha_ultimo_mensaje'])
+    elif cliente and sesion.cliente_id != getattr(cliente, 'id', None):
+        sesion.cliente = cliente
+        sesion.save(update_fields=['cliente', 'fecha_ultimo_mensaje'])
+    return sesion
+
+
+def _actualizar_sesion_comercial(sesion, mensaje_usuario: str, respuesta_bot: str):
+    if sesion is None:
+        return
+    historial = list(sesion.historial_mensajes or [])
+    historial.append({'role': 'user', 'content': (mensaje_usuario or '')[:3000]})
+    historial.append({'role': 'assistant', 'content': (respuesta_bot or '')[:3000]})
+    if len(historial) > 20:
+        historial = historial[-20:]
+    sesion.historial_mensajes = historial
+    sesion.save(update_fields=['historial_mensajes', 'fecha_ultimo_mensaje'])
+
+
 def _bot_comercial_diagnosticar_imagen(media_url: str, media_type: str) -> str:
     """Diagnóstico preliminar de imagen de cultivo usando visión (si está disponible)."""
     if not media_url or not media_type.startswith('image'):
@@ -1827,6 +1875,24 @@ def _bot_comercial_diagnosticar_imagen(media_url: str, media_type: str) -> str:
     except Exception as e:
         logger.warning(f"⚠️ Bot Comercial visión no disponible: {e}")
         return "Recibí tu imagen, pero no pude completar el diagnóstico visual ahora."
+
+
+def _debe_activar_agentes_reto(numero_modulo: int, total_modulos: int, usar_agentes_ia_curso: bool) -> bool:
+    """Regla de activación de Darío+Claudia sin afectar lógica legacy."""
+    if not usar_agentes_ia_curso:
+        return False
+    es_ultimo_modulo = numero_modulo == total_modulos and total_modulos >= 1
+    es_modulo_intermedio_post5 = (
+        total_modulos > 5
+        and numero_modulo > 5
+        and numero_modulo % 3 == 0
+        and not es_ultimo_modulo
+    )
+    return (
+        numero_modulo == 3
+        or (numero_modulo == total_modulos and total_modulos >= 5)
+        or es_modulo_intermedio_post5
+    )
 
 
 def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
@@ -1941,6 +2007,11 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                 "Bot comercial: no se pudo cargar Cliente id=%s para Nati: %s",
                 cliente_id_cfg, e,
             )
+    sesion_comercial = _obtener_o_crear_sesion_comercial(
+        telefono=telefono_limpio,
+        cliente=cliente_nati,
+        horas_expira=int(getattr(settings, 'BOT_COMERCIAL_SESSION_HOURS', 4) or 4),
+    )
 
     if es_saludo:
         from core.nati import armar_saludo_inicial
@@ -2013,7 +2084,8 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                 logger.info("🧠 RAG fallback documental usado | contexto_chars=%s", len(contexto_rag))
 
         if not contexto_rag:
-            contexto_web = _contexto_fallback_web_agro(
+            from core.nati import buscar_en_web_colombia
+            contexto_web = buscar_en_web_colombia(consulta) or _contexto_fallback_web_agro(
                 pregunta=consulta,
                 max_chars=1800,
             )
@@ -2027,6 +2099,7 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
             contexto_web=contexto_web,
             historial_chat=historial_chat,
             cliente=cliente_nati,
+            sesion_comercial=sesion_comercial,
         )
 
     try:
@@ -2044,6 +2117,11 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
             mensaje_id=resultado_envio.get('mensaje_id'),
             tipo='SENT',
             agente_usado='BOT_COMERCIAL',
+        )
+        _actualizar_sesion_comercial(
+            sesion=sesion_comercial,
+            mensaje_usuario=msg_body or consulta,
+            respuesta_bot=texto_respuesta,
         )
     except Exception as e:
         logger.error(f"❌ Error respondiendo bot comercial: {e}")
@@ -4236,9 +4314,10 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                     total_modulos = progreso.curso.modulos.count()
                                     # Solo activar retos IA si el curso tiene la bandera encendida.
                                     usar_agentes_ia_curso = bool(getattr(progreso.curso, 'usar_agentes_ia', True))
-                                    es_modulo_reto = usar_agentes_ia_curso and (
-                                        (modulo_actual.numero == 3)
-                                        or (modulo_actual.numero == total_modulos and total_modulos >= 5)
+                                    es_modulo_reto = _debe_activar_agentes_reto(
+                                        numero_modulo=modulo_actual.numero,
+                                        total_modulos=total_modulos,
+                                        usar_agentes_ia_curso=usar_agentes_ia_curso,
                                     )
                                     
                                     if not es_modulo_reto:

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from core.dashboard_avanzado import dashboard_metricas, dashboard_gerencial
+from core.dashboard_avanzado import dashboard_metricas, dashboard_gerencial, exportar_metricas_excel
 from core.views import (
     bot_comercial_admin_view,
     calendario_campanas_view,
@@ -43,6 +43,7 @@ urlpatterns = [
     path('admin/bot-comercial/', bot_comercial_admin_view, name='bot_comercial_admin_view'),
     path('admin/test-email/', test_email_gmail_view, name='test_email_gmail'),
     path('admin/dashboard-metrics/', dashboard_metricas, name='dashboard_metrics'),
+    path('admin/dashboard-metrics/exportar/', exportar_metricas_excel, name='exportar_metricas_excel'),
     path('admin/dashboard-analytics/', dashboard_analytics, name='dashboard_analytics_view'),
     path('admin/analytics/', dashboard_analytics, name='dashboard_analytics'),
     path('admin/analytics/export/', exportar_metricas_csv, name='exportar_metricas_csv'),

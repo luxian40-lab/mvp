@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.test import Client
 from django.test.utils import override_settings
 from django.utils import timezone
@@ -158,3 +159,41 @@ def test_gei_exportar_xlsx_content_type():
     assert "attachment" in cd
     assert ".xlsx" in cd
     assert resp.content[:2] == b"PK"
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+def test_exportar_metricas_excel_sin_auth():
+    client = Client()
+    resp = _client_get(client, "/admin/dashboard-metrics/exportar/")
+    assert resp.status_code == 302
+    assert "/admin/login/" in resp.headers.get("Location", "")
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+def test_exportar_metricas_excel_staff():
+    pytest.importorskip("openpyxl")
+    User = get_user_model()
+    staff = User.objects.create_user("staff_excel", "staff@example.com", "123", is_staff=True, is_superuser=True)
+    client = Client()
+    assert client.login(username="staff_excel", password="123")
+    resp = _client_get(client, "/admin/dashboard-metrics/exportar/")
+    assert resp.status_code == 200
+    assert "spreadsheetml" in resp.headers.get("Content-Type", "")
+    assert resp.content[:2] == b"PK"
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+def test_exportar_metricas_excel_por_cliente():
+    pytest.importorskip("openpyxl")
+    User = get_user_model()
+    User.objects.create_user("staff_excel_2", "staff2@example.com", "123", is_staff=True, is_superuser=True)
+    c1 = Cliente.objects.create(nombre="Cliente Uno", contacto_principal="A", email="a@x.co", telefono="573001110001")
+    c2 = Cliente.objects.create(nombre="Cliente Dos", contacto_principal="B", email="b@x.co", telefono="573001110002")
+    _crear_estudiante(cliente=c1, idx=31)
+    _crear_estudiante(cliente=c2, idx=32)
+    client = Client()
+    assert client.login(username="staff_excel_2", password="123")
+    resp = _client_get(client, f"/admin/dashboard-metrics/exportar/?cliente={c1.id}")
+    assert resp.status_code == 200
+    cd = resp.headers.get("Content-Disposition", "").lower()
+    assert "cliente_uno" in cd

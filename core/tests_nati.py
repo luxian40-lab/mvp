@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.models import Cliente
+from core.models import Cliente, SesionComercial
 from core.nati import (
     NATI_SYSTEM_PROMPT_BASE,
     NOMBRE_BOT_DEFAULT,
@@ -173,3 +173,81 @@ def test_bot_comercial_sin_cliente_usa_default_nati(settings):
     kwargs = fake_client.chat.completions.create.call_args.kwargs
     system_content = kwargs["messages"][0]["content"]
     assert "Nati" in system_content
+
+
+def test_nati_recuerda_conversacion():
+    from core.nati import armar_messages_para_openai
+
+    cliente = Cliente.objects.create(
+        nombre="ACME MEM",
+        contacto_principal="C",
+        email="mem@example.com",
+        telefono="573001111010",
+    )
+    sesion = SesionComercial.objects.create(
+        cliente=cliente,
+        telefono="573001111010",
+        historial_mensajes=[
+            {"role": "user", "content": "Tengo café en ladera"},
+            {"role": "assistant", "content": "Perfecto, ¿qué está observando en hojas?"},
+        ],
+    )
+    messages = armar_messages_para_openai(sesion, "Ahora veo manchas marrones", cliente=cliente)
+    joined = " ".join(m["content"] for m in messages if m["role"] != "system")
+    assert "Tengo café en ladera" in joined
+    assert "Ahora veo manchas marrones" in joined
+
+
+def test_nati_no_menciona_cursos_sin_pregunta():
+    from core.views import _bot_comercial_sin_contexto_natural
+
+    resp = _bot_comercial_sin_contexto_natural("¿Qué fertilizante uso en maíz?")
+    lower = resp.lower()
+    assert "curso" not in lower
+    assert "inscrib" not in lower
+    assert "precio de eki" not in lower
+
+
+def test_nati_usa_web_si_no_hay_rag(settings):
+    settings.OPENAI_API_KEY = ""
+    with patch("core.views._contexto_fallback_web_agro", return_value="FUENTE WEB"), patch(
+        "core.nati.buscar_en_web_colombia", return_value="FUENTE WEB COLOMBIA"
+    ):
+        from core.views import _bot_comercial_respuesta_catalogo
+
+        out = _bot_comercial_respuesta_catalogo(
+            pregunta="precio urea",
+            contexto_rag="",
+            contexto_web="FUENTE WEB COLOMBIA",
+            historial_chat="",
+            cliente=None,
+        )
+        assert "FUENTE WEB COLOMBIA" in out or "respaldo técnico" in out.lower()
+
+
+def test_nati_usa_rag_primero():
+    from core.views import _bot_comercial_respuesta_catalogo
+
+    with patch("core.views._contexto_fallback_web_agro", return_value="WEB"):
+        out = _bot_comercial_respuesta_catalogo(
+            pregunta="dosis de calcio",
+            contexto_rag="FICHA TECNICA INTERNA",
+            contexto_web="",
+            historial_chat="",
+            cliente=None,
+        )
+    assert "FICHA TECNICA INTERNA" in out or "información oficial de eki" in out.lower()
+
+
+def test_docx_subida_extrae_texto(tmp_path):
+    pytest.importorskip("docx")
+    from docx import Document
+    from core.views import _extraer_texto_archivo_simple
+
+    ruta = tmp_path / "ficha.docx"
+    doc = Document()
+    doc.add_paragraph("Plan de fertilización para cacao")
+    doc.save(str(ruta))
+
+    texto = _extraer_texto_archivo_simple(str(ruta))
+    assert "fertilización" in texto.lower()

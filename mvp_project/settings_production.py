@@ -173,6 +173,10 @@ else:
     missing_vars = [v for v in ['DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_HOST'] if not os.environ.get(v)]
     raise Exception(f"[ERROR] Faltan variables de entorno para PostgreSQL: {', '.join(missing_vars)}. Configura DB_* o DATABASE_URL.")
 
+# Reusar conexiones en producción para menor latencia y menor churn de conexiones.
+if DATABASES.get('default', {}).get('ENGINE') == 'django.db.backends.postgresql':
+    DATABASES['default']['CONN_MAX_AGE'] = int(os.environ.get('DB_CONN_MAX_AGE', '60') or '60')
+
 # ============================================
 # ARCHIVOS ESTÁTICOS - Producción
 # ============================================

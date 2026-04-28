@@ -849,6 +849,40 @@ class WhatsappLog(models.Model):
         ]
 
 
+class SesionComercial(models.Model):
+    """Memoria de conversación del bot comercial por cliente + teléfono."""
+
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sesiones_comerciales',
+        verbose_name='Cliente',
+    )
+    telefono = models.CharField(max_length=30, db_index=True)
+    historial_mensajes = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='Lista de mensajes [{"role": "...", "content": "..."}]. Máximo 10 turnos (20 mensajes).',
+    )
+    fecha_inicio = models.DateTimeField(auto_now_add=True)
+    fecha_ultimo_mensaje = models.DateTimeField(auto_now=True, db_index=True)
+
+    class Meta:
+        verbose_name = 'Sesión comercial'
+        verbose_name_plural = 'Sesiones comerciales'
+        ordering = ['-fecha_ultimo_mensaje']
+        indexes = [
+            models.Index(fields=['telefono', '-fecha_ultimo_mensaje']),
+            models.Index(fields=['cliente', '-fecha_ultimo_mensaje']),
+        ]
+
+    def __str__(self):
+        cliente_txt = self.cliente.nombre if self.cliente_id else 'General'
+        return f"{self.telefono} ({cliente_txt})"
+
+
 # Procesar Excel subido: crear Estudiantes y agregarlos a la campaña
 @receiver(post_save, sender=Campana)
 def procesar_excel_campana(sender, instance, created, **kwargs):
@@ -2546,6 +2580,7 @@ class ConfiguracionGlobal(models.Model):
 __all__ = [
     'TemaCampana', 'Cliente', 'Estudiante', 'Plantilla', 'Linea',
     'Campana', 'EnvioLog', 'WhatsappLog',
+    'SesionComercial',
     'Curso', 'ConfiguracionDripCliente', 'DocumentoRAG', 'DocumentoRAGComercial', 'Modulo', 'ProgresoEstudiante', 'ModuloCompletado',
     'Examen', 'PreguntaExamen', 'ResultadoExamen',
     'ObjetivoCurso', 'RubricaEvaluacion', 'EjercicioPractico', 'RespuestaEjercicio',

@@ -7,11 +7,14 @@ from django.template.response import TemplateResponse
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import Count, Q, Avg, Sum, F, Max
 from django.db.models.functions import TruncDate, TruncWeek, TruncMonth
+from django.http import HttpResponse
 from django.utils import timezone as dj_tz
 from datetime import datetime, timedelta
 import re
 from collections import Counter, defaultdict
 import json
+import io
+import openpyxl
 
 from .models import (
     Estudiante, WhatsappLog, Plantilla, Campana, EnvioLog,
@@ -26,6 +29,16 @@ try:
 except ImportError:
     FichaGEI = None
     SesionFormulario = None
+
+
+def _excel_safe(value):
+    """openpyxl no soporta datetime con timezone."""
+    if hasattr(value, "tzinfo") and getattr(value, "tzinfo", None) is not None:
+        try:
+            return dj_tz.localtime(value).replace(tzinfo=None)
+        except Exception:
+            return value.replace(tzinfo=None)
+    return value
 
 
 @staff_member_required
@@ -520,4 +533,120 @@ def dashboard_gerencial(request):
     """Dashboard gerencial con vista ejecutiva — mismas métricas, template diferente"""
     response = dashboard_metricas(request)
     response.template_name = 'admin/dashboard_gerencial.html'
+    return response
+
+
+@staff_member_required
+def exportar_metricas_excel(request):
+    cliente_raw = (request.GET.get('cliente') or '').strip()
+    cliente_id = int(cliente_raw) if cliente_raw.isdigit() else None
+    ahora = dj_tz.now()
+    hace_30 = ahora - timedelta(days=30)
+
+    estudiantes_q = Estudiante.objects.all().select_related('cliente')
+    if cliente_id:
+        estudiantes_q = estudiantes_q.filter(cliente_id=cliente_id)
+    telefonos = list(estudiantes_q.exclude(telefono__isnull=True).exclude(telefono='').values_list('telefono', flat=True))
+
+    whatsapp_q = WhatsappLog.objects.all()
+    if cliente_id:
+        whatsapp_q = whatsapp_q.filter(Q(telefono__in=telefonos) | Q(estudiante__cliente_id=cliente_id)).distinct()
+
+    progresos_q = ProgresoEstudiante.objects.all().select_related('estudiante', 'curso', 'modulo_actual')
+    if cliente_id:
+        progresos_q = progresos_q.filter(estudiante__cliente_id=cliente_id)
+
+    wb = openpyxl.Workbook()
+    ws_resumen = wb.active
+    ws_resumen.title = "Resumen"
+    ws_resumen.append(["Métrica", "Valor", "Periodo"])
+    ws_resumen.append(["Estudiantes activos", estudiantes_q.filter(activo=True).count(), "Actual"])
+    ws_resumen.append(["Mensajes enviados", whatsapp_q.filter(tipo='SENT').count(), "Actual"])
+    ws_resumen.append(["Mensajes recibidos", whatsapp_q.filter(tipo='INCOMING').count(), "Actual"])
+    ws_resumen.append(["Cursos completados", progresos_q.filter(completado=True).count(), "Actual"])
+    ws_resumen.append(["Módulos completados", ModuloCompletado.objects.filter(progreso__in=progresos_q).count(), "Actual"])
+    ws_resumen.append(["Tránsito DELIVERED", whatsapp_q.filter(tipo='SENT', estado__iexact='DELIVERED').count(), "Actual"])
+    ws_resumen.append(["Tránsito READ", whatsapp_q.filter(tipo='SENT', estado__iexact='READ').count(), "Actual"])
+    ws_resumen.append(["Sesiones bot comercial", whatsapp_q.filter(agente_usado='BOT_COMERCIAL').count(), "Actual"])
+
+    ws_est = wb.create_sheet("Estudiantes")
+    ws_est.append(["Nombre", "Cédula", "Teléfono", "Cliente", "Estado", "Último mensaje", "Curso actual", "Módulo actual", "% Progreso", "Fecha inscripción"])
+    ultimo_msg_por_tel = {
+        row['telefono']: row['ultima']
+        for row in whatsapp_q.values('telefono').annotate(ultima=Max('fecha'))
+    }
+    progreso_por_est = {p.estudiante_id: p for p in progresos_q.order_by('-fecha_ultimo_avance')}
+    for est in estudiantes_q:
+        prog = progreso_por_est.get(est.id)
+        ws_est.append([
+            est.nombre,
+            est.cedula,
+            est.telefono,
+            est.cliente.nombre if est.cliente_id else '',
+            est.estado_chat,
+            _excel_safe(ultimo_msg_por_tel.get(est.telefono)),
+            prog.curso.nombre if prog else '',
+            f"M{prog.modulo_actual.numero}" if prog and prog.modulo_actual_id else '',
+            prog.porcentaje_avance() if prog else 0,
+            _excel_safe(est.fecha_registro),
+        ])
+
+    ws_prog = wb.create_sheet("Progreso por Curso")
+    ws_prog.append(["Estudiante", "Curso", "Módulo actual", "Completado", "Fecha completado", "Puntos acumulados"])
+    puntos_por_est = {
+        p.estudiante_id: p.puntos_totales for p in PerfilGamificacion.objects.filter(estudiante_id__in=progresos_q.values_list('estudiante_id', flat=True))
+    }
+    for p in progresos_q:
+        ws_prog.append([
+            p.estudiante.nombre if p.estudiante_id else '',
+            p.curso.nombre if p.curso_id else '',
+            p.modulo_actual.numero if p.modulo_actual_id else '',
+            "Sí" if p.completado else "No",
+            _excel_safe(p.fecha_completado),
+            puntos_por_est.get(p.estudiante_id, 0),
+        ])
+
+    ws_wa = wb.create_sheet("WhatsApp Logs (ultimos 30 dias)")
+    ws_wa.append(["Fecha", "Teléfono", "Tipo", "Estado", "Mensaje (truncado 100 chars)", "Error detalle"])
+    for log in whatsapp_q.filter(fecha__gte=hace_30).order_by('-fecha')[:5000]:
+        ws_wa.append([_excel_safe(log.fecha), log.telefono, log.tipo, log.estado, (log.mensaje or '')[:100], (log.error_detalle or '')[:200]])
+
+    ws_bot = wb.create_sheet("Bot Comercial")
+    ws_bot.append(["Fecha", "Teléfono", "Pregunta", "Respuesta (truncado)", "Fuente RAG"])
+    incomings = list(
+        whatsapp_q.filter(agente_usado='BOT_COMERCIAL', tipo='INCOMING').order_by('-fecha')[:2000]
+    )
+    sents = list(
+        whatsapp_q.filter(agente_usado='BOT_COMERCIAL', tipo='SENT').order_by('-fecha')[:2000]
+    )
+    # Emparejamiento simple por teléfono + cercanía temporal
+    sents_por_tel = defaultdict(list)
+    for s in sents:
+        sents_por_tel[s.telefono].append(s)
+    for inc in incomings:
+        resp = next((s for s in sents_por_tel.get(inc.telefono, []) if s.fecha >= inc.fecha), None)
+        fuente = 'RAG' if resp and ('información oficial' in (resp.mensaje or '').lower() or 'base técnica' in (resp.mensaje or '').lower()) else ''
+        ws_bot.append([
+            _excel_safe(inc.fecha),
+            inc.telefono,
+            (inc.mensaje or '')[:200],
+            (resp.mensaje or '')[:240] if resp else '',
+            fuente,
+        ])
+
+    cliente_nombre = "todos"
+    if cliente_id:
+        c = Cliente.objects.filter(id=cliente_id).first()
+        if c:
+            cliente_nombre = re.sub(r'[^a-zA-Z0-9_-]+', '_', c.nombre.strip())[:40] or "cliente"
+    fecha_str = ahora.strftime("%Y%m%d_%H%M")
+    filename = f"eki_metricas_{cliente_nombre}_{fecha_str}.xlsx"
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    response = HttpResponse(
+        output.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
