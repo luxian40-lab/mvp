@@ -2678,6 +2678,56 @@ def _procesar_twilio_webhook(post_data):
             estudiante.save()
             estado_chat = estudiante.estado_chat
             logger.info(f"📍 Auto-corrección admin: estado_chat → {estado_chat}")
+
+        # ============================================================
+        # PRIORIDAD GLOBAL: menu + corregir datos (post-habeas)
+        # Debe funcionar en cualquier estado del bot una vez el usuario
+        # aceptó términos.
+        # ============================================================
+        from .correccion_datos import (
+            construir_menu_principal_texto,
+            es_keyword_correccion,
+            es_keyword_menu,
+            estudiante_en_flujo_correccion,
+            iniciar_flujo_correccion,
+            normalizar_texto,
+            procesar_flujo_correccion,
+        )
+        texto_norm = normalizar_texto(msg_body)
+
+        # Si el usuario quedó en estado legacy por PQRS/corrección, normalizar
+        # para que "listo" retome el curso sin falso "sin curso".
+        if texto_norm in {"listo", "continuar"}:
+            from .models import ProgresoEstudiante
+            if ProgresoEstudiante.objects.filter(
+                estudiante=estudiante, completado=False, curso__activo=True
+            ).exists():
+                cambios = []
+                if estudiante.estado_chat != "ACTIVO":
+                    estudiante.estado_chat = "ACTIVO"
+                    cambios.append("estado_chat")
+                if estudiante.estado_onboarding not in ("completado",):
+                    estudiante.estado_onboarding = "completado"
+                    cambios.append("estado_onboarding")
+                if cambios:
+                    estudiante.save(update_fields=cambios)
+
+        if estudiante.acepto_terminos:
+            from .utils import enviar_whatsapp_twilio
+            if estudiante_en_flujo_correccion(estudiante):
+                texto_respuesta = procesar_flujo_correccion(estudiante, msg_body)
+                enviar_whatsapp_twilio(msg_from, texto_respuesta)
+                return
+
+            if es_keyword_correccion(texto_norm):
+                texto_respuesta = iniciar_flujo_correccion(estudiante)
+                enviar_whatsapp_twilio(msg_from, texto_respuesta)
+                return
+
+            if es_keyword_menu(texto_norm):
+                texto_respuesta = construir_menu_principal_texto(estudiante)
+                enviar_whatsapp_twilio(msg_from, texto_respuesta)
+                return
         
         # --- BARRERA 1: HABEAS DATA ---
         if estado_chat == 'ESPERANDO_HABEAS_DATA':
@@ -3295,19 +3345,8 @@ def _procesar_twilio_webhook(post_data):
                     return
 
                 if msg_lower in keywords_corregir_curso:
-                    from .models import SolicitudSoporte
-                    SolicitudSoporte.objects.create(
-                        estudiante=estudiante,
-                        mensaje_original=f"Solicitud de corrección de datos. Datos actuales: Nombre={estudiante.nombre}, Cédula={estudiante.cedula}",
-                        keyword_usada='correccion_datos',
-                        asunto='Corrección de datos desde curso',
-                        estado='pendiente'
-                    )
-                    texto_respuesta = (
-                        "📝 *Solicitud de Corrección Recibida*\n\n"
-                        f"Hola {estudiante.nombre}, hemos creado un ticket de soporte para la corrección de tus datos.\n\n"
-                        "📧 *Nuestro equipo te contactará pronto.*"
-                    )
+                    from .correccion_datos import iniciar_flujo_correccion
+                    texto_respuesta = iniciar_flujo_correccion(estudiante)
                     try:
                         from twilio.rest import Client as TwilioClient
                         account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
@@ -3362,24 +3401,12 @@ def _procesar_twilio_webhook(post_data):
                     pass
                 return
             
-            # Detectar "corregir datos" / "me equivoqué" → crear ticket de soporte directamente
+            # Detectar "corregir datos" / "me equivoqué" -> iniciar autocorreccion guiada
             elif msg_lower in ['4', 'corregir datos', 'corregir mis datos', 'cambiar datos', 'cambiar mis datos',
                                'me equivoqué', 'me equivoque', 'editar datos', 'modificar datos',
                                'datos incorrectos', 'mis datos', 'actualizar datos']:
-                from .models import SolicitudSoporte
-                SolicitudSoporte.objects.create(
-                    estudiante=estudiante,
-                    mensaje_original=f"Solicitud de corrección de datos. Datos actuales: Nombre={estudiante.nombre}, Cédula={estudiante.cedula}",
-                    keyword_usada='correccion_datos',
-                    asunto='Corrección de datos',
-                    estado='pendiente'
-                )
-                texto_respuesta = (
-                    "📝 *Solicitud de Corrección Recibida*\n\n"
-                    f"Hola {estudiante.nombre}, hemos creado un ticket de soporte "
-                    "para la corrección de tus datos.\n\n"
-                    "📧 *Nuestro equipo te contactará pronto.*"
-                )
+                from .correccion_datos import iniciar_flujo_correccion
+                texto_respuesta = iniciar_flujo_correccion(estudiante)
                 try:
                     from twilio.rest import Client as TwilioClient
                     account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
@@ -3399,7 +3426,9 @@ def _procesar_twilio_webhook(post_data):
                 from .response_templates import obtener_video_url
                 org = estudiante.cliente
                 cursos = Curso.objects.filter(cliente=org, activo=True).order_by('orden', 'nombre') if org else Curso.objects.filter(activo=True).order_by('orden', 'nombre')
-                progreso_existente = ProgresoEstudiante.objects.filter(estudiante=estudiante, curso__activo=True).first()
+                progreso_existente = ProgresoEstudiante.objects.filter(
+                    estudiante=estudiante, completado=False, curso__activo=True
+                ).first()
                 curso = progreso_existente.curso if progreso_existente else cursos.first()
                 _enviar_btn_continuar_menu = False
                 if curso:
@@ -3454,7 +3483,11 @@ def _procesar_twilio_webhook(post_data):
                     else:
                         texto_respuesta = f"📚 Tu curso *{curso.nombre}* aún no tiene módulos configurados."
                 else:
-                    texto_respuesta = "📚 Aún no tienes un curso asignado. Tu coordinador te lo asignará pronto."
+                    texto_respuesta = (
+                        "📚 Aún no tienes un curso asignado. "
+                        "Tu coordinador te lo asignará pronto.\n\n"
+                        "Si acabas de reportar un problema, cuando quieras retomar escribe *listo* o *menú*."
+                    )
                 try:
                     from twilio.rest import Client as TwilioClient
                     account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')

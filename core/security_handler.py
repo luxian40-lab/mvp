@@ -543,7 +543,7 @@ Ver en admin: {settings.ALLOWED_HOSTS[0]}/admin/core/solicitudsoporte/{solicitud
         "✏️ *Si solo falló un dato tuyo* (nombre, municipio, documento, etc.), puedes corregirlo "
         "tú mismo sin esperar: escribe *menú* y luego la opción *corregir datos*, "
         "o envía directamente *corregir datos* y sigue las instrucciones. "
-        "Tu curso sigue ahí: cuando termines, escribe *continuar* o *menú*.\n\n"
+        "Tu curso sigue ahí: cuando quieras retomarlo escribe *listo* o *menú*.\n\n"
         "Gracias por tu paciencia 🙏"
     )
     

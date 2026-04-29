@@ -897,6 +897,24 @@ python manage.py crear_cliente_preserva --reset   # borra y recrea</code></pre>
 
         <div class="subsection">
 
+            <h3>Novedad: menú global + autocorrección guiada</h3>
+
+            <ul style="line-height:1.7;">
+
+                <li><strong>Menú global:</strong> escribir <code>menú</code> o <code>menu</code> funciona en cualquier estado activo del bot.</li>
+
+                <li><strong>Retomar tras PQRS:</strong> después de reportar soporte, el estudiante puede retomar con <code>listo</code> sin caer en falso “sin curso asignado” cuando sí tiene progreso activo.</li>
+
+                <li><strong>Autocorrección por WhatsApp:</strong> al escribir <code>corregir datos</code>, el bot guía la edición de <em>nombre</em>, <em>municipio</em> o <em>cédula</em>. Se guarda auditoría en <code>SolicitudSoporte</code> y se notifica al equipo.</li>
+
+                <li><strong>No permitido por seguridad:</strong> cambiar teléfono, organización, estado de curso o progreso.</li>
+
+            </ul>
+
+        </div>
+
+        <div class="subsection">
+
             <h3>Cómo mejorar las respuestas automáticas</h3>
 
             <ol style="line-height:1.7;">
