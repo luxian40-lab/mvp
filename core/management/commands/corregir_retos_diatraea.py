@@ -19,6 +19,12 @@ def _corregir_texto_preguntas(texto: str) -> tuple[str, int]:
 
     # Corrección A1: typo fijo en encabezado/preguntas.
     texto = re.sub(r"\bACCI[ÓO]N\b", "ACCIONA", texto, flags=re.IGNORECASE)
+    texto = re.sub(
+        r"OBSERVA\s*,\s*CUANTIFICA\s*Y\s*ACCIONA",
+        "ACCIONA",
+        texto,
+        flags=re.IGNORECASE,
+    )
 
     # Corrección A2: recorte de pregunta para que se alinee con módulos 1-3.
     patrones = [

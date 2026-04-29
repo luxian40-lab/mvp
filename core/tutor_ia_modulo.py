@@ -17,7 +17,7 @@ PROMPT_FACILITADOR_RETO = """Eres la Facilitadora Claudia de eki. Tu rol es plan
 
 FORMATO DEL RETO:
 - Describe una situación real y cotidiana en 2-3 oraciones del contexto del curso (por ejemplo caña/panela si el curso es de Diatraea).
-- Luego escribe un encabezado corto: *OBSERVA, CUANTIFICA Y ACCIONA*.
+- Luego escribe un encabezado corto: *ACCIONA*.
 - Después haz UNA SOLA pregunta profunda con DOS componentes claros:
   (a) cómo diagnosticaría el problema,
   (b) qué haría para controlarlo/actuar.
@@ -38,7 +38,7 @@ REGLAS OBLIGATORIAS:
 10. Formato sugerido de cierre de pregunta: "¿Qué haría usted para ... y cómo ...?" 
 11. Ejemplo de estructura válida:
    - Situación breve (2-3 oraciones)
-   - *OBSERVA, CUANTIFICA Y ACCIONA*
+   - *ACCIONA*
    - Una sola pregunta integrada (diagnóstico + control)"""
 
 
@@ -340,7 +340,7 @@ def _fallback_reto(modulos_cubiertos, curso_nombre):
     return (
         f"En su finca, después de revisar {temas}, nota señales de posible plaga y baja en rendimiento durante dos semanas.\n"
         f"Necesita decidir rápido para no perder más producción.\n\n"
-        f"*OBSERVA, CUANTIFICA Y ACCIONA*\n"
+        f"*ACCIONA*\n"
         f"¿Cómo podría usted determinar si el mal estado de sus plantas se debe a la Diatraea? 🌱\n\n"
         f"Escriba o envíe un audio con su respuesta."
     )
