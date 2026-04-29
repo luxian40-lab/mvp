@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 PROMPT_FACILITADOR_RETO = """Eres la Facilitadora Claudia de eki. Tu rol es plantear un reto conversacional al participante.
 
 FORMATO DEL RETO:
-- Describe una situación real y cotidiana en 2-3 oraciones (negocio de frutas, cultivo de café, venta en la plaza, finca familiar, etc.)
-- Luego escribe un encabezado corto: *OBSERVA, CUANTIFICA Y ACCIÓN*.
+- Describe una situación real y cotidiana en 2-3 oraciones del contexto del curso (por ejemplo caña/panela si el curso es de Diatraea).
+- Luego escribe un encabezado corto: *OBSERVA, CUANTIFICA Y ACCIONA*.
 - Después haz UNA SOLA pregunta profunda con DOS componentes claros:
   (a) cómo diagnosticaría el problema,
   (b) qué haría para controlarlo/actuar.
@@ -38,7 +38,7 @@ REGLAS OBLIGATORIAS:
 10. Formato sugerido de cierre de pregunta: "¿Qué haría usted para ... y cómo ...?" 
 11. Ejemplo de estructura válida:
    - Situación breve (2-3 oraciones)
-   - *OBSERVA, CUANTIFICA Y ACCIÓN*
+   - *OBSERVA, CUANTIFICA Y ACCIONA*
    - Una sola pregunta integrada (diagnóstico + control)"""
 
 
@@ -69,7 +69,11 @@ REGLAS:
 - Evita frases generales ("muy bien", "buen trabajo") sin evidencia concreta.
 - Diga explícitamente qué parte respondió bien y qué parte faltó.
 - Debe citar evidencia de la respuesta del participante (palabras/acciones mencionadas por él/ella).
-- Si la respuesta es general, dígalo literalmente y pida precisión concreta en "qué, cuánto, cuándo, con qué"."""
+- Si la respuesta es general, dígalo literalmente y pida precisión concreta en "qué, cuánto, cuándo, con qué".
+- Si el ítem evaluado es de decisión de actuar o esperar ante posible daño de Diatraea:
+  * menciona explícitamente el umbral de daño económico (referencia práctica: 10-15% tallos con galería),
+  * agrega un ejemplo práctico breve en lenguaje campesino (ej: "si revisa 10 tallos y 2 o 3 tienen daño interno..."),
+  * diferencia claramente entre monitoreo (síntoma temprano) y acción inmediata (infestación alta)."""
 
 
 # =====================================================
@@ -149,6 +153,19 @@ def generar_reto_facilitador(modulos_cubiertos, curso_nombre, estudiante_nombre=
     if preguntas_ejemplo:
         ejemplo_txt = f"\nPREGUNTAS/RETOS EJEMPLO DEL INSTRUCTOR (OBLIGATORIO: Basa tu reto DIRECTAMENTE en estos ejemplos):\n{preguntas_ejemplo}\n"
 
+    max_modulo = max((getattr(m, "numero", 0) or 0) for m in modulos_cubiertos) if modulos_cubiertos else 0
+    if max_modulo <= 3:
+        instruccion_pregunta = (
+            "Genere UN reto conversacional con UNA sola pregunta enfocada SOLO en diagnostico "
+            "(como identificar/confirmar si el dano corresponde a Diatraea). "
+            "NO pida medidas de control en este punto."
+        )
+    else:
+        instruccion_pregunta = (
+            "Genere UN reto conversacional: una situacion cotidiana real + UNA sola pregunta "
+            "profunda con dos componentes (diagnostico y accion/control)."
+        )
+
     prompt_usuario = f"""CONTEXTO:
 Curso: {curso_nombre}
 Participante: {estudiante_nombre}
@@ -157,7 +174,8 @@ MÓDULOS QUE CUBRE ESTE RETO:
 {modulos_info}
 {contexto_rag}
 {ejemplo_txt}
-Genere UN reto conversacional: una situación cotidiana real + UNA sola pregunta profunda con dos componentes (diagnóstico y acción/control). Como una charla entre vecinos, no un examen."""
+{instruccion_pregunta}
+Use exclusivamente el contexto del curso actual (si es cana/panela, no mencione cafe ni otros cultivos). Como una charla entre vecinos, no un examen."""
 
     try:
         response = client.chat.completions.create(
@@ -322,8 +340,8 @@ def _fallback_reto(modulos_cubiertos, curso_nombre):
     return (
         f"En su finca, después de revisar {temas}, nota señales de posible plaga y baja en rendimiento durante dos semanas.\n"
         f"Necesita decidir rápido para no perder más producción.\n\n"
-        f"*OBSERVA, CUANTIFICA Y ACCIÓN*\n"
-        f"¿Qué haría usted para confirmar si sí es plaga y cómo la controlaría de manera concreta en su cultivo? 🌱\n\n"
+        f"*OBSERVA, CUANTIFICA Y ACCIONA*\n"
+        f"¿Cómo podría usted determinar si el mal estado de sus plantas se debe a la Diatraea? 🌱\n\n"
         f"Escriba o envíe un audio con su respuesta."
     )
 
