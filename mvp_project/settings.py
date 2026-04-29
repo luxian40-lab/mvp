@@ -450,6 +450,18 @@ BOT_COMERCIAL_WHATSAPP_NUMBER = os.environ.get('BOT_COMERCIAL_WHATSAPP_NUMBER', 
 BOT_COMERCIAL_RAG_CANAL = os.environ.get('BOT_COMERCIAL_RAG_CANAL', 'bot_comercial')
 BOT_COMERCIAL_OPENAI_MODEL = os.environ.get('BOT_COMERCIAL_OPENAI_MODEL', 'gpt-4o-mini')
 BOT_COMERCIAL_VISION_MODEL = os.environ.get('BOT_COMERCIAL_VISION_MODEL', 'gpt-4o-mini')
+# Límite de tokens de salida del chat (menor = respuesta más rápida y barata).
+try:
+    BOT_COMERCIAL_OPENAI_MAX_TOKENS = int(os.environ.get('BOT_COMERCIAL_OPENAI_MAX_TOKENS', '420'))
+except (TypeError, ValueError):
+    BOT_COMERCIAL_OPENAI_MAX_TOKENS = 420
+# Cuánto texto RAG inyectar al prompt del bot comercial (menor = menos latencia).
+try:
+    BOT_COMERCIAL_RAG_MAX_CHARS = int(os.environ.get('BOT_COMERCIAL_RAG_MAX_CHARS', '1600'))
+except (TypeError, ValueError):
+    BOT_COMERCIAL_RAG_MAX_CHARS = 1600
+# Modelo para búsqueda web (Responses API); gpt-4o-mini suele ser más rápido que gpt-4.1-mini.
+BOT_COMERCIAL_WEB_SEARCH_MODEL = os.environ.get('BOT_COMERCIAL_WEB_SEARCH_MODEL', 'gpt-4o-mini').strip()
 BOT_COMERCIAL_FORCE_ROUTING = os.environ.get('BOT_COMERCIAL_FORCE_ROUTING', 'false').strip().lower() in ['1', 'true', 'yes', 'on']
 BOT_COMERCIAL_WEB_FALLBACK_ENABLED = os.environ.get('BOT_COMERCIAL_WEB_FALLBACK_ENABLED', 'true').strip().lower() in ['1', 'true', 'yes', 'on']
 try:
@@ -472,6 +484,19 @@ except (TypeError, ValueError):
     BOT_COMERCIAL_MEMORY_MAX_CHARS = 3600
 # Texto extra para el system prompt (sin romper RAG-first); multilínea vía env.
 BOT_COMERCIAL_SYSTEM_PROMPT_EXTRA = os.environ.get('BOT_COMERCIAL_SYSTEM_PROMPT_EXTRA', '').strip()
+
+# ==========================================
+# 📜 Certificados — URL pública del QR (landing Netlify)
+# ==========================================
+CERTIFICADO_VERIFICACION_BASE_URL = os.environ.get(
+    'CERTIFICADO_VERIFICACION_BASE_URL',
+    'https://certificadosseki.netlify.app',
+).strip().rstrip('/')
+# CORS: origen permitido para llamadas desde la landing al API de verificación.
+CERT_VERIFICATION_ALLOWED_ORIGIN = os.environ.get(
+    'CERT_VERIFICATION_ALLOWED_ORIGIN',
+    CERTIFICADO_VERIFICACION_BASE_URL,
+).strip().rstrip('/')
 
 # ==========================================
 # 🌱 AGRO NEXO IA (Segundo número / webhook)

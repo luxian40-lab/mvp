@@ -1697,9 +1697,17 @@ def _bot_comercial_respuesta_catalogo(
             f"INFORMACION COMPLEMENTARIA DE WEB (apoyo solo si la oficial está vacía):\n{contexto_web or '[VACIO]'}\n\n"
             "Recordá: nunca menciones al usuario palabras como 'RAG', 'base de "
             "conocimiento', 'fragmento', 'documento indexado', 'contexto interno'. "
-            "Hablá natural, como una asesora de eki."
+            "Hablá natural, como una asesora de eki.\n"
+            "Si la consulta parece error de tipeo o no tiene sentido agronómico, "
+            "ofrecé 1–2 interpretaciones plausibles con '¿Quiso decir ...?' y pedí confirmación "
+            "antes de dar conclusiones fuertes."
         )
         modelo = str(getattr(settings, 'BOT_COMERCIAL_OPENAI_MODEL', '') or 'gpt-4o-mini')
+        try:
+            max_out = int(getattr(settings, 'BOT_COMERCIAL_OPENAI_MAX_TOKENS', 420) or 420)
+        except (TypeError, ValueError):
+            max_out = 420
+        max_out = max(120, min(max_out, 900))
         if sesion_comercial is not None:
             messages = armar_messages_para_openai(
                 sesion=sesion_comercial,
@@ -1715,6 +1723,7 @@ def _bot_comercial_respuesta_catalogo(
             model=modelo,
             temperature=0.15,
             messages=messages,
+            max_tokens=max_out,
         )
         texto = (completion.choices[0].message.content or '').strip()
         return texto or "No logré construir una respuesta válida. Intenta con otra consulta."
@@ -1854,6 +1863,7 @@ def _bot_comercial_diagnosticar_imagen(media_url: str, media_type: str) -> str:
         resp = client.chat.completions.create(
             model=getattr(settings, 'BOT_COMERCIAL_VISION_MODEL', 'gpt-4o-mini'),
             temperature=0.2,
+            max_tokens=280,
             messages=[
                 {
                     'role': 'system',
@@ -2057,11 +2067,13 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
 
             for cid in cliente_ids_consulta:
                 for canal in canales_consulta:
+                    rag_max = int(getattr(settings, 'BOT_COMERCIAL_RAG_MAX_CHARS', 1600) or 1600)
+                    rag_max = max(400, min(rag_max, 4000))
                     contexto_rag = rag_comercial_manager.obtener_contexto_para_bot(
                         cliente_id=cid,
                         canal=canal,
                         pregunta=consulta,
-                        max_chars=2200,
+                        max_chars=rag_max,
                     )
                     if contexto_rag:
                         logger.info(
@@ -2075,10 +2087,12 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                     break
 
         if not contexto_rag:
+            rag_fb = int(getattr(settings, 'BOT_COMERCIAL_RAG_MAX_CHARS', 1600) or 1600)
+            rag_fb = max(400, min(rag_fb + 200, 4000))
             contexto_rag = _contexto_fallback_desde_documentos(
                 cliente_ids=cliente_ids_consulta,
                 pregunta=consulta,
-                max_chars=1800,
+                max_chars=rag_fb,
             )
             if contexto_rag:
                 logger.info("🧠 RAG fallback documental usado | contexto_chars=%s", len(contexto_rag))

@@ -17,7 +17,11 @@ logger = logging.getLogger(__name__)
 
 def _aplicar_cors_certificados(response, request):
     """Aplica CORS para la landing de verificación de certificados."""
-    allowed_origin = getattr(settings, 'CERT_VERIFICATION_ALLOWED_ORIGIN', 'https://landingcertificados.netlify.app')
+    allowed_origin = getattr(
+        settings,
+        'CERT_VERIFICATION_ALLOWED_ORIGIN',
+        'https://certificadosseki.netlify.app',
+    )
     origin = request.headers.get('Origin', '')
     if origin and origin == allowed_origin:
         response['Access-Control-Allow-Origin'] = origin

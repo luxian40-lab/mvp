@@ -370,7 +370,16 @@ class EstudianteAdmin(admin.ModelAdmin):
     search_fields = ('nombre', 'cedula', 'telefono', 'cliente__nombre')
     list_per_page = 50
     ordering = ('-fecha_registro',)
-    actions = ['enviar_mensaje_masivo', 'enviar_anuncio_grupal', 'invitar_a_grupo_whatsapp', 'exportar_estudiantes_por_curso', 'exportar_plantilla_importacion', 'asignar_a_grupo_accion', 'eliminar_estudiantes_seguro']
+    actions = [
+        'enviar_mensaje_masivo',
+        'enviar_anuncio_grupal',
+        'invitar_a_grupo_whatsapp',
+        'exportar_estudiantes_por_curso',
+        'exportar_plantilla_importacion',
+        'asignar_a_grupo_accion',
+        'asignar_cliente_masivo',
+        'eliminar_estudiantes_seguro',
+    ]
     
     # ✨ AGREGAR BOTÓN DE IMPORTAR EN LA PARTE SUPERIOR
     change_list_template = 'admin/estudiante_changelist.html'
@@ -1483,6 +1492,47 @@ class EstudianteAdmin(admin.ModelAdmin):
         else:
             self.message_user(request, f"⚠️ {total - errores} eliminados, {errores} con error", level=messages.WARNING)
     eliminar_estudiantes_seguro.short_description = "🗑️ Eliminar estudiantes (seguro)"
+
+    @admin.action(description='🏢 Escoger cliente (asignación masiva)')
+    def asignar_cliente_masivo(self, request, queryset):
+        """Asigna el mismo Cliente (organización) a todos los estudiantes seleccionados."""
+        if 'aplicar' in request.POST:
+            cliente_id = (request.POST.get('cliente_id') or '').strip()
+            if not cliente_id:
+                self.message_user(request, "Seleccione un cliente.", level=messages.ERROR)
+                return redirect('admin:core_estudiante_changelist')
+
+            cliente = Cliente.objects.filter(id=cliente_id, activo=True).first()
+            if not cliente:
+                self.message_user(request, "Cliente no válido o inactivo.", level=messages.ERROR)
+                return redirect('admin:core_estudiante_changelist')
+
+            ids = request.POST.getlist(helpers.ACTION_CHECKBOX_NAME)
+            if not ids:
+                self.message_user(request, "No se recibieron estudiantes seleccionados.", level=messages.ERROR)
+                return redirect('admin:core_estudiante_changelist')
+
+            qs = Estudiante.objects.filter(id__in=ids)
+            n = qs.update(cliente=cliente)
+            self.message_user(
+                request,
+                f"Se asignó el cliente «{cliente.nombre}» a {n} estudiante(s).",
+                level=messages.SUCCESS,
+            )
+            return redirect('admin:core_estudiante_changelist')
+
+        clientes = Cliente.objects.filter(activo=True).order_by('nombre')
+        return render(
+            request,
+            'admin/asignar_cliente_estudiantes.html',
+            {
+                'estudiantes': queryset,
+                'total_estudiantes': queryset.count(),
+                'clientes': clientes,
+                'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
+                'title': 'Escoger cliente — asignación masiva',
+            },
+        )
 
     def asignar_a_grupo_accion(self, request, queryset):
         """Asigna múltiples estudiantes a un grupo (existente o nuevo)"""

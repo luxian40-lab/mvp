@@ -55,6 +55,11 @@ REGLAS DE RESPUESTA:
 8. NUNCA menciones cursos, precios de eki o ventas salvo que el productor lo pida explícitamente.
 9. Si el productor usa expresiones coloquiales, responde natural.
 10. Recuerda lo conversado en esta sesión.
+11. Si el mensaje del productor parece un error de tipeo o no tiene sentido técnico
+    en agro (ej. palabras sueltas, frases absurdas), NO lo tomes como dato literal.
+    Responde con respeto y ofrece una aclaración breve del tipo: "¿Quiso decir ...?"
+    con 1 o 2 interpretaciones plausibles relacionadas con cultivo/plaga/suelo, y
+    pida que confirme antes de dar recomendaciones fuertes o cifras.
 
 CONFIDENCIALIDAD TÉCNICA:
 - NUNCA menciones al usuario términos internos como RAG, embeddings, vector,
@@ -182,18 +187,21 @@ def buscar_en_web_colombia(query: str, max_fuentes: int = 3) -> str:
     consulta = f"{consulta} Colombia agricultura ICA Agrosavia Cenicafe Cenicana MADR"
 
     client = OpenAI(api_key=api_key)
+    modelo_web = str(
+        getattr(settings, "BOT_COMERCIAL_WEB_SEARCH_MODEL", "") or "gpt-4o-mini"
+    ).strip()
     try:
         resp = client.responses.create(
-            model="gpt-4.1-mini",
+            model=modelo_web,
             tools=[{"type": "web_search_preview"}],
             input=(
                 "Busque fuentes técnicas para productores colombianos y resuma máximo "
-                f"{max_fuentes} referencias útiles. Priorice Colombia. "
+                f"{max_fuentes} referencias útiles. Priorice Colombia. Sea breve. "
                 f"Consulta: {consulta}"
             ),
             temperature=0,
         )
         texto = (getattr(resp, "output_text", "") or "").strip()
-        return texto[:1800]
+        return texto[:1200]
     except Exception:
         return ""

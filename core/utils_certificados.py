@@ -310,9 +310,19 @@ def generar_y_subir_certificado(estudiante, curso, plantilla_url=None, url_verif
             if cert:
                 url_verificacion = cert.obtener_url_verificacion()
             else:
-                url_verificacion = "https://landingcertificados.netlify.app/"
+                base = getattr(
+                    settings,
+                    'CERTIFICADO_VERIFICACION_BASE_URL',
+                    'https://certificadosseki.netlify.app',
+                ).rstrip('/')
+                url_verificacion = f"{base}/"
         except Exception:
-            url_verificacion = "https://landingcertificados.netlify.app/"
+            base = getattr(
+                settings,
+                'CERTIFICADO_VERIFICACION_BASE_URL',
+                'https://certificadosseki.netlify.app',
+            ).rstrip('/')
+            url_verificacion = f"{base}/"
     
     org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
     

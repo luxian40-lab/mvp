@@ -247,11 +247,11 @@ def subir_a_s3(buffer, cedula, bucket='eki-produccion', region='us-east-2'):
 # ============================================================
 if __name__ == "__main__":
     personas = [
-        {"nombre": "Julian Ramirez", "cedula": "1014310196", "qr": "https://landingcertificados.netlify.app/"},
-        {"nombre": "Andres Rubiano", "cedula": "1231231", "qr": "https://landingcertificados.netlify.app/"},
-        {"nombre": "Luisa Salazar", "cedula": "1283182381", "qr": "https://landingcertificados.netlify.app/"},
-        {"nombre": "Andrea Ramos", "cedula": "73288123", "qr": "https://landingcertificados.netlify.app/"},
-        {"nombre": "Juliana Rodriguez", "cedula": "21838123", "qr": "https://landingcertificados.netlify.app/"},
+        {"nombre": "Julian Ramirez", "cedula": "1014310196", "qr": "https://certificadosseki.netlify.app/"},
+        {"nombre": "Andres Rubiano", "cedula": "1231231", "qr": "https://certificadosseki.netlify.app/"},
+        {"nombre": "Luisa Salazar", "cedula": "1283182381", "qr": "https://certificadosseki.netlify.app/"},
+        {"nombre": "Andrea Ramos", "cedula": "73288123", "qr": "https://certificadosseki.netlify.app/"},
+        {"nombre": "Juliana Rodriguez", "cedula": "21838123", "qr": "https://certificadosseki.netlify.app/"},
     ]
     
     local_dir = r"C:\Users\luxia\OneDrive\Escritorio\PY"

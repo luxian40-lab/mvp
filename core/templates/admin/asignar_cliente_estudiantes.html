@@ -1,0 +1,47 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div style="max-width:720px;margin:32px auto;padding:20px;">
+    <h1>{{ title }}</h1>
+    <p>Seleccione la <strong>organización (cliente)</strong> que se asignará a los
+        <strong>{{ total_estudiantes }}</strong> estudiante(s) marcados en la lista.</p>
+
+    {% if not clientes %}
+        <p style="color:#c62828;">No hay clientes activos. Cree o active un cliente en Admin primero.</p>
+        <a href="{% url 'admin:core_estudiante_changelist' %}">Volver</a>
+    {% else %}
+    <form method="post" action="">
+        {% csrf_token %}
+        {% for est in estudiantes %}
+        <input type="hidden" name="{{ action_checkbox_name }}" value="{{ est.pk }}">
+        {% endfor %}
+        <input type="hidden" name="action" value="asignar_cliente_masivo">
+        <input type="hidden" name="post" value="yes">
+
+        <div style="margin:20px 0;">
+            <label for="cliente_id"><strong>Cliente</strong></label><br>
+            <select name="cliente_id" id="cliente_id" required style="min-width:100%;max-width:100%;padding:8px;margin-top:8px;">
+                <option value="">— Elija —</option>
+                {% for c in clientes %}
+                <option value="{{ c.id }}">{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="background:#fff8e1;padding:12px;border-radius:6px;margin-bottom:16px;font-size:14px;">
+            <strong>Nota:</strong> esto solo cambia el campo <code>cliente</code> del estudiante.
+            No modifica cursos ni progreso.
+        </div>
+
+        <button type="submit" name="aplicar" value="1" class="default"
+            style="background:#1976d2;color:#fff;padding:10px 18px;border:none;border-radius:4px;cursor:pointer;">
+            Asignar cliente
+        </button>
+        <a href="{% url 'admin:core_estudiante_changelist' %}" style="margin-left:12px;">Cancelar</a>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

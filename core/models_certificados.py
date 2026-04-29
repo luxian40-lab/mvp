@@ -6,6 +6,7 @@ Generación automática de certificados al completar cursos
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from django.conf import settings
 import hashlib
 import uuid
 
@@ -129,7 +130,11 @@ class Certificado(models.Model):
     
     def obtener_url_verificacion(self):
         """Retorna URL pública para verificar certificado en landing page"""
-        return f"https://landingcertificados.netlify.app/?code={self.codigo_verificacion}"
+        base = (
+            getattr(settings, "CERTIFICADO_VERIFICACION_BASE_URL", "")
+            or "https://certificadosseki.netlify.app"
+        ).rstrip("/")
+        return f"{base}/?code={self.codigo_verificacion}"
     
     def obtener_mencion(self):
         """
