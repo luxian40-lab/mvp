@@ -22,6 +22,7 @@ from .models import (
     PerfilGamificacion, Badge, TransaccionPuntos, SolicitudSoporte,
     Certificado, Linea
 )
+from .models_extras import GrupoEstudiantes
 from .gamificacion import BadgeEstudiante
 
 try:
@@ -48,6 +49,8 @@ def dashboard_metricas(request):
     # ========== PARÁMETROS DE TIEMPO ==========
     cliente_filtro_raw = (request.GET.get('cliente') or '').strip()
     cliente_filtro = int(cliente_filtro_raw) if cliente_filtro_raw.isdigit() else None
+    grupo_filtro_raw = (request.GET.get('grupo') or '').strip()
+    grupo_filtro = int(grupo_filtro_raw) if grupo_filtro_raw.isdigit() else None
     ahora = datetime.now()
     ahora_tz = dj_tz.now()
     hace_1_dia = ahora - timedelta(days=1)
@@ -63,10 +66,14 @@ def dashboard_metricas(request):
     estudiantes_q = Estudiante.objects.all()
     if cliente_filtro:
         estudiantes_q = estudiantes_q.filter(cliente_id=cliente_filtro)
+    if grupo_filtro:
+        estudiantes_q = estudiantes_q.filter(grupos__id=grupo_filtro).distinct()
 
     progresos_q = ProgresoEstudiante.objects.all()
     if cliente_filtro:
         progresos_q = progresos_q.filter(estudiante__cliente_id=cliente_filtro)
+    if grupo_filtro:
+        progresos_q = progresos_q.filter(estudiante__grupos__id=grupo_filtro).distinct()
 
     telefonos_estudiantes = list(
         estudiantes_q.exclude(telefono__isnull=True).exclude(telefono='').values_list('telefono', flat=True)
@@ -82,6 +89,24 @@ def dashboard_metricas(request):
     clientes_activos = clientes_q.filter(activo=True).count() if hasattr(Cliente, 'activo') else total_clientes
 
     # Métricas detalladas por cliente
+    grupos_disponibles = GrupoEstudiantes.objects.all().order_by('nombre')
+    if cliente_filtro:
+        grupos_disponibles = grupos_disponibles.filter(
+            Q(cliente_id=cliente_filtro) | Q(cliente__isnull=True)
+        )
+    grupos_detalle = []
+    for grupo in grupos_disponibles:
+        estudiantes_grupo = estudiantes_q.filter(grupos__id=grupo.id).distinct()
+        if grupo_filtro and grupo.id != grupo_filtro:
+            continue
+        grupos_detalle.append({
+            'id': grupo.id,
+            'nombre': grupo.nombre,
+            'emoji': grupo.emoji or '👥',
+            'total_estudiantes': estudiantes_grupo.count(),
+            'estudiantes_activos': estudiantes_grupo.filter(activo=True).count(),
+        })
+
     clientes_detalle = []
     clientes_labels = []
     clientes_estudiantes_data = []
@@ -429,6 +454,9 @@ def dashboard_metricas(request):
         'clientes_activos': clientes_activos,
         'clientes': Cliente.objects.all().order_by('nombre'),
         'cliente_filtro': cliente_filtro,
+        'grupos_disponibles': grupos_disponibles,
+        'grupo_filtro': grupo_filtro,
+        'grupos_detalle': grupos_detalle,
         'clientes_detalle': clientes_detalle,
         'clientes_labels_json': json.dumps(clientes_labels),
         'clientes_estudiantes_json': json.dumps(clientes_estudiantes_data),
@@ -540,12 +568,16 @@ def dashboard_gerencial(request):
 def exportar_metricas_excel(request):
     cliente_raw = (request.GET.get('cliente') or '').strip()
     cliente_id = int(cliente_raw) if cliente_raw.isdigit() else None
+    grupo_raw = (request.GET.get('grupo') or '').strip()
+    grupo_id = int(grupo_raw) if grupo_raw.isdigit() else None
     ahora = dj_tz.now()
     hace_30 = ahora - timedelta(days=30)
 
     estudiantes_q = Estudiante.objects.all().select_related('cliente')
     if cliente_id:
         estudiantes_q = estudiantes_q.filter(cliente_id=cliente_id)
+    if grupo_id:
+        estudiantes_q = estudiantes_q.filter(grupos__id=grupo_id).distinct()
     telefonos = list(estudiantes_q.exclude(telefono__isnull=True).exclude(telefono='').values_list('telefono', flat=True))
 
     whatsapp_q = WhatsappLog.objects.all()
@@ -555,11 +587,18 @@ def exportar_metricas_excel(request):
     progresos_q = ProgresoEstudiante.objects.all().select_related('estudiante', 'curso', 'modulo_actual')
     if cliente_id:
         progresos_q = progresos_q.filter(estudiante__cliente_id=cliente_id)
+    if grupo_id:
+        progresos_q = progresos_q.filter(estudiante__grupos__id=grupo_id).distinct()
 
     wb = openpyxl.Workbook()
     ws_resumen = wb.active
     ws_resumen.title = "Resumen"
     ws_resumen.append(["Métrica", "Valor", "Periodo"])
+    if grupo_id:
+        grupo_nombre = (
+            GrupoEstudiantes.objects.filter(id=grupo_id).values_list('nombre', flat=True).first() or f"#{grupo_id}"
+        )
+        ws_resumen.append(["Grupo filtrado", grupo_nombre, "Actual"])
     ws_resumen.append(["Estudiantes activos", estudiantes_q.filter(activo=True).count(), "Actual"])
     ws_resumen.append(["Mensajes enviados", whatsapp_q.filter(tipo='SENT').count(), "Actual"])
     ws_resumen.append(["Mensajes recibidos", whatsapp_q.filter(tipo='INCOMING').count(), "Actual"])
@@ -639,8 +678,15 @@ def exportar_metricas_excel(request):
         c = Cliente.objects.filter(id=cliente_id).first()
         if c:
             cliente_nombre = re.sub(r'[^a-zA-Z0-9_-]+', '_', c.nombre.strip())[:40] or "cliente"
+    grupo_tag = "todos_grupos"
+    if grupo_id:
+        g = GrupoEstudiantes.objects.filter(id=grupo_id).first()
+        if g:
+            grupo_tag = re.sub(r'[^a-zA-Z0-9_-]+', '_', g.nombre.strip())[:40] or f"grupo_{grupo_id}"
+        else:
+            grupo_tag = f"grupo_{grupo_id}"
     fecha_str = ahora.strftime("%Y%m%d_%H%M")
-    filename = f"eki_metricas_{cliente_nombre}_{fecha_str}.xlsx"
+    filename = f"eki_metricas_{cliente_nombre}_{grupo_tag}_{fecha_str}.xlsx"
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)

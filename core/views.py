@@ -3914,7 +3914,8 @@ def _procesar_twilio_webhook(post_data):
                     else:
                         texto_respuesta = (
                             f"💬 *Darío*\n\n{respuesta_dario}\n\n"
-                            f"¿Tienes otra pregunta? Te queda {2 - preguntas_hechas} pregunta más. "
+                            f"¿Tienes otra pregunta? Te queda {2 - preguntas_hechas} pregunta más.\n"
+                            f"Ejemplos: \"¿qué reviso primero en campo?\", \"¿cómo confirmo el diagnóstico?\". "
                             f"Si no, escribe *listo*."
                         )
             
@@ -4421,7 +4422,12 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                             f"¡Hola! Es hora de una pausa para repasar conceptos. "
                                             f"{nombre_tutor} te va a recibir con un reto sobre {modulos_reto_range}.\n\n"
                                             f"Te puedo ayudar a resolver un par de preguntas antes. "
-                                            f"¿Tienes alguna pregunta sobre lo que hemos visto? Envíame un audio o escríbeme; si no tienes preguntas, escribe *listo*."
+                                            f"¿Tienes alguna pregunta sobre lo que hemos visto?\n\n"
+                                            f"Ejemplos:\n"
+                                            f"• ¿Cómo identifico a tiempo el daño en campo?\n"
+                                            f"• ¿Qué error debo evitar al aplicar control?\n"
+                                            f"• ¿Qué reviso primero antes de decidir tratamiento?\n\n"
+                                            f"Envíame un audio o escríbeme; si no tienes preguntas, escribe *listo*."
                                         )
                                         
                                         from .models import Modulo as ModuloReto
@@ -4515,7 +4521,12 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                                 f"🎉 *¡Completaste todos los módulos del curso!*\n\n"
                                                 f"💬 *{nombre_asist_final}*\n\n"
                                                 f"Antes de tu certificado, {nombre_tutor_final} te planteará un reto final sobre {modulos_final_range}.\n\n"
-                                                "¿Tienes dudas antes del reto? Envíame tu pregunta (texto o audio).\n"
+                                                "¿Tienes dudas antes del reto?\n"
+                                                "Ejemplos:\n"
+                                                "• ¿Cómo diferencio un daño leve de uno económico?\n"
+                                                "• ¿Qué paso práctico recomienda para validar en campo?\n"
+                                                "• ¿Qué indicador debo monitorear cada semana?\n\n"
+                                                "Envíame tu pregunta (texto o audio).\n"
                                                 "Si no tienes dudas, escribe *listo* para pasar con la facilitadora."
                                             )
                                             logger.info(

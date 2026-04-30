@@ -39,6 +39,7 @@ from .widgets import ColorPickerWidget  # 🎨 Color picker para certificados
 from django.utils import timezone  # Para timestamps
 import logging
 from datetime import datetime
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -1920,7 +1921,7 @@ class CampanaAdmin(admin.ModelAdmin):
             'description': 'Solo si NO usas Content SID directo. Requiere plantilla creada en eki.'
         }),
         ('👥 Audiencia', {
-            'fields': ('tipo_audiencia', 'grupo', 'destinatarios'),
+            'fields': ('tipo_audiencia', 'grupo', 'grupo_estudiantes_preview', 'destinatarios'),
             'description': mark_safe('✨ <strong>Individual:</strong> Selecciona estudiantes específicos | <strong>Grupo:</strong> Envía a todo un grupo')
         }),
         ('⏰ Programación (Opcional)', {
@@ -1946,6 +1947,67 @@ class CampanaAdmin(admin.ModelAdmin):
             return obj.cliente.nombre
         return format_html('<span style="color:#999;font-style:italic;">Sin cliente</span>')
     cliente_nombre.short_description = "🏢 Cliente"
+
+    def get_readonly_fields(self, request, obj=None):
+        return tuple(super().get_readonly_fields(request, obj)) + ('grupo_estudiantes_preview',)
+
+    def grupo_estudiantes_preview(self, obj):
+        grupos = GrupoEstudiantes.objects.prefetch_related('estudiantes').order_by('nombre')
+        map_grupos = {}
+        for grupo in grupos:
+            estudiantes = [
+                {
+                    "nombre": (e.nombre or '').strip() or f"ID {e.id}",
+                    "telefono": e.telefono or "",
+                }
+                for e in grupo.estudiantes.all().order_by('nombre')[:300]
+            ]
+            map_grupos[str(grupo.id)] = {
+                "nombre": f"{grupo.emoji or '👥'} {grupo.nombre}",
+                "total": grupo.estudiantes.count(),
+                "estudiantes": estudiantes,
+            }
+
+        data_json = json.dumps(map_grupos, ensure_ascii=False)
+        return mark_safe(f"""
+            <div id="grupo-preview-box" style="border:1px solid #e0e0e0;background:#fafafa;border-radius:8px;padding:10px;max-width:860px;">
+                <strong>👀 Estudiantes del grupo seleccionado</strong>
+                <div id="grupo-preview-content" style="margin-top:8px;color:#666;">Seleccione un grupo para ver sus destinatarios.</div>
+            </div>
+            <script>
+            (function() {{
+                const data = {data_json};
+                const selectGrupo = document.getElementById("id_grupo");
+                const selectTipo = document.getElementById("id_tipo_audiencia");
+                const content = document.getElementById("grupo-preview-content");
+                if (!selectGrupo || !content) return;
+                function renderGrupo() {{
+                    const gid = (selectGrupo.value || "").toString();
+                    const tipo = (selectTipo && selectTipo.value) ? selectTipo.value : "";
+                    if (tipo && tipo !== "grupo") {{
+                        content.innerHTML = "<span style='color:#888;'>La campaña está en modo individual.</span>";
+                        return;
+                    }}
+                    if (!gid || !data[gid]) {{
+                        content.innerHTML = "<span style='color:#888;'>Seleccione un grupo para ver sus destinatarios.</span>";
+                        return;
+                    }}
+                    const g = data[gid];
+                    const rows = (g.estudiantes || []).slice(0, 80).map(e => `<li>${{e.nombre}} <span style="color:#999;">(${{e.telefono || "sin teléfono"}})</span></li>`).join("");
+                    const extra = g.total > 80 ? `<div style="margin-top:6px;color:#999;">... y ${{g.total - 80}} estudiante(s) más.</div>` : "";
+                    content.innerHTML = `
+                        <div><strong>${{g.nombre}}</strong> — <strong>${{g.total}}</strong> estudiante(s)</div>
+                        <ul style="margin:8px 0 0 18px;max-height:220px;overflow:auto;">${{rows || "<li>Sin estudiantes</li>"}}</ul>
+                        ${{extra}}
+                    `;
+                }}
+                selectGrupo.addEventListener("change", renderGrupo);
+                if (selectTipo) selectTipo.addEventListener("change", renderGrupo);
+                renderGrupo();
+            }})();
+            </script>
+        """)
+    grupo_estudiantes_preview.short_description = "Vista previa de destinatarios del grupo"
     
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         """Filtrar plantillas según la categoría seleccionada en la campaña"""

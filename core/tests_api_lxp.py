@@ -10,6 +10,7 @@ from django.test.utils import override_settings
 from django.utils import timezone
 
 from core.models import Cliente, Curso, Estudiante
+from core.models_extras import GrupoEstudiantes
 
 
 pytestmark = pytest.mark.django_db
@@ -197,3 +198,23 @@ def test_exportar_metricas_excel_por_cliente():
     assert resp.status_code == 200
     cd = resp.headers.get("Content-Disposition", "").lower()
     assert "cliente_uno" in cd
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+def test_exportar_metricas_excel_por_grupo():
+    pytest.importorskip("openpyxl")
+    User = get_user_model()
+    User.objects.create_user("staff_excel_3", "staff3@example.com", "123", is_staff=True, is_superuser=True)
+    cliente = Cliente.objects.create(nombre="Cliente Grupo", contacto_principal="C", email="cg@x.co", telefono="573001110003")
+    e1 = _crear_estudiante(cliente=cliente, idx=41)
+    _crear_estudiante(cliente=cliente, idx=42)
+    grupo = GrupoEstudiantes.objects.create(nombre="Grupo Piloto", emoji="👥", cliente=cliente)
+    grupo.estudiantes.add(e1)
+
+    client = Client()
+    assert client.login(username="staff_excel_3", password="123")
+    resp = _client_get(client, f"/admin/dashboard-metrics/exportar/?cliente={cliente.id}&grupo={grupo.id}")
+    assert resp.status_code == 200
+    assert "spreadsheetml" in resp.headers.get("Content-Type", "")
+    cd = resp.headers.get("Content-Disposition", "").lower()
+    assert "grupo_piloto" in cd

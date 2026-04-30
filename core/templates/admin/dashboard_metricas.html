@@ -51,9 +51,18 @@
                 {% endfor %}
             </select>
         </div>
+        <div>
+            <label style="display:block;font-size:0.8rem;color:var(--eki-muted);font-weight:600;margin-bottom:4px;">Grupo</label>
+            <select name="grupo" style="padding:8px 12px;border:1px solid var(--eki-border);border-radius:6px;background:#fff;min-width:280px;">
+                <option value="">Todos</option>
+                {% for g in grupos_disponibles %}
+                    <option value="{{ g.id }}" {% if grupo_filtro == g.id %}selected{% endif %}>{{ g.emoji|default:"👥" }} {{ g.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
         <button type="submit" style="padding:8px 16px;border:0;border-radius:6px;background:var(--eki-primary);color:#fff;font-weight:600;cursor:pointer;">Filtrar</button>
         <a href="{% url 'dashboard_metrics' %}" style="padding:8px 16px;border:1px solid var(--eki-border);border-radius:6px;background:#fff;color:var(--eki-text);text-decoration:none;font-weight:600;">Limpiar</a>
-        <a href="{% url 'exportar_metricas_excel' %}{% if cliente_filtro %}?cliente={{ cliente_filtro }}{% endif %}" style="padding:8px 16px;border:0;border-radius:6px;background:#2f9e44;color:#fff;text-decoration:none;font-weight:600;">📥 Exportar Excel</a>
+        <a href="{% url 'exportar_metricas_excel' %}{% if cliente_filtro or grupo_filtro %}?{% if cliente_filtro %}cliente={{ cliente_filtro }}{% endif %}{% if cliente_filtro and grupo_filtro %}&{% endif %}{% if grupo_filtro %}grupo={{ grupo_filtro }}{% endif %}{% endif %}" style="padding:8px 16px;border:0;border-radius:6px;background:#2f9e44;color:#fff;text-decoration:none;font-weight:600;">📥 Exportar Excel</a>
     </form>
 
     <div class="kpi-grid">
@@ -250,6 +259,18 @@
         <tbody>
         {% for c in clientes_detalle %}
             <tr><td><strong>{{ c.nombre }}</strong></td><td>{{ c.total_estudiantes }}</td><td>{{ c.estudiantes_activos }}</td><td>{{ c.mensajes }}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    {% if grupos_detalle %}
+    <div class="section-title">Detalle por Grupo</div>
+    <table class="eki-table">
+        <thead><tr><th>Grupo</th><th>Estudiantes</th><th>Activos</th></tr></thead>
+        <tbody>
+        {% for g in grupos_detalle %}
+            <tr><td><strong>{{ g.emoji }} {{ g.nombre }}</strong></td><td>{{ g.total_estudiantes }}</td><td>{{ g.estudiantes_activos }}</td></tr>
         {% endfor %}
         </tbody>
     </table>
