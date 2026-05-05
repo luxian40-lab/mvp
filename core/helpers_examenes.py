@@ -325,3 +325,24 @@ Escribe "siguiente" para avanzar.
     except Exception as e:
         print(f"Error enviando notificación: {e}")
         return False
+
+
+def debe_activar_checkpoint_reto_ia(numero_modulo: int, total_modulos: int, usar_agentes_ia_curso: bool) -> bool:
+    """
+    Punto único de verdad: tras qué módulos activar compañero + facilitadora (reto).
+    Debe coincidir con la rama de examen en views (esperando_respuesta_modulo).
+    """
+    if not usar_agentes_ia_curso:
+        return False
+    es_ultimo_modulo = numero_modulo == total_modulos and total_modulos >= 1
+    es_modulo_intermedio_post5 = (
+        total_modulos > 5
+        and numero_modulo > 5
+        and numero_modulo % 3 == 0
+        and not es_ultimo_modulo
+    )
+    return (
+        numero_modulo == 3
+        or (numero_modulo == total_modulos and total_modulos >= 5)
+        or es_modulo_intermedio_post5
+    )

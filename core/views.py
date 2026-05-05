@@ -1922,24 +1922,6 @@ def _bot_comercial_diagnosticar_imagen(media_url: str, media_type: str) -> str:
         return "Recibí tu imagen, pero no pude completar el diagnóstico visual ahora."
 
 
-def _debe_activar_agentes_reto(numero_modulo: int, total_modulos: int, usar_agentes_ia_curso: bool) -> bool:
-    """Regla de activación de Darío+Claudia sin afectar lógica legacy."""
-    if not usar_agentes_ia_curso:
-        return False
-    es_ultimo_modulo = numero_modulo == total_modulos and total_modulos >= 1
-    es_modulo_intermedio_post5 = (
-        total_modulos > 5
-        and numero_modulo > 5
-        and numero_modulo % 3 == 0
-        and not es_ultimo_modulo
-    )
-    return (
-        numero_modulo == 3
-        or (numero_modulo == total_modulos and total_modulos >= 5)
-        or es_modulo_intermedio_post5
-    )
-
-
 def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
     """Webhook Twilio dedicado para bot comercial (texto libre, voz e imagen)."""
     from .rag_comercial_manager import rag_comercial_manager
@@ -3471,103 +3453,109 @@ def _procesar_twilio_webhook(post_data):
             
             # Detectar "menú" → enviar directamente al curso asignado (sin lista)
             elif msg_lower in ['menu', 'menú', 'inicio', 'hola']:
-                from .models import Curso, ProgresoEstudiante
-                from .response_templates import obtener_video_url
-                org = estudiante.cliente
-                cursos = Curso.objects.filter(cliente=org, activo=True).order_by('orden', 'nombre') if org else Curso.objects.filter(activo=True).order_by('orden', 'nombre')
-                progreso_existente = ProgresoEstudiante.objects.filter(
-                    estudiante=estudiante, completado=False, curso__activo=True
-                ).first()
-                curso = progreso_existente.curso if progreso_existente else cursos.first()
-                _enviar_btn_continuar_menu = False
-                if curso:
-                    progreso, _ = ProgresoEstudiante.objects.get_or_create(
-                        estudiante=estudiante, curso=curso, defaults={'completado': False}
+                if estudiante.estado_onboarding in estados_agente:
+                    logger.info(
+                        "menu/inicio/hola durante agente pedagógico (%s) — omitir reenvío de módulo",
+                        estudiante.estado_onboarding,
                     )
-                    modulo = progreso.modulo_actual
-                    if not modulo:
-                        modulo = curso.modulos.order_by('numero').first()
-                        if modulo:
-                            progreso.modulo_actual = modulo
-                            progreso.save()
-                    if modulo:
-                        video_url = obtener_video_url(modulo)
-                        archivos_multimedia = modulo.archivos_multimedia.filter(activo=True)
-                        archivos_msg = ""
-                        primera_media_url = None
-                        extra_media_urls = []
-                        if archivos_multimedia.exists():
-                            archivos_msg = ""
-                            for idx, archivo in enumerate(archivos_multimedia):
-                                icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
-                                url = archivo.get_url_para_envio()
-                                if url:
-                                    if not primera_media_url:
-                                        primera_media_url = url
-                                        archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
-                                    else:
-                                        extra_media_urls.append((url, archivo.titulo, icono))
-                                        archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
-                                else:
-                                    archivos_msg += f"\n{icono} {archivo.titulo}"
-                        if not archivos_multimedia.exists() and video_url:
-                            primera_media_url = video_url
-                        # Construir MULTI_MSG con texto + todos los medias separados
-                        msg_texto_menu = (
-                            f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
-                            f"{modulo.contenido}"
-                        )
-                        partes_menu = [msg_texto_menu]
-                        if primera_media_url:
-                            partes_menu.append(f"[MEDIA:{primera_media_url}]")
-                        for extra_url, extra_titulo, extra_icono in extra_media_urls:
-                            partes_menu.append(f"[MEDIA:{extra_url}]")
-                        if len(partes_menu) > 1:
-                            texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_menu)
-                        else:
-                            texto_respuesta = msg_texto_menu
-                        # Enviar botón continuar si no es el último módulo
-                        if curso.modulos.filter(numero__gt=modulo.numero).exists():
-                            _enviar_btn_continuar_menu = True
-                    else:
-                        texto_respuesta = f"📚 Tu curso *{curso.nombre}* aún no tiene módulos configurados."
                 else:
-                    texto_respuesta = (
-                        "📚 Aún no tienes un curso asignado. "
-                        "Tu coordinador te lo asignará pronto.\n\n"
-                        "Si acabas de reportar un problema, cuando quieras retomar escribe *listo* o *menú*."
-                    )
-                try:
-                    from twilio.rest import Client as TwilioClient
-                    account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-                    auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-                    twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
-                    client_tw = TwilioClient(account_sid, auth_token)
-                    destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
-                    media_url_menu = None
-                    import re as re_menu
-                    media_m = re_menu.search(r'\[MEDIA:(.*?)\]', texto_respuesta)
-                    if media_m:
-                        media_url_menu = media_m.group(1).strip()
-                        texto_respuesta = texto_respuesta.replace(media_m.group(0), '').strip()
-                    mp = {'body': texto_respuesta, 'from_': str(twilio_number).strip(), 'to': str(destino).strip()}
-                    if media_url_menu:
-                        mp['media_url'] = [media_url_menu]
+                    from .models import Curso, ProgresoEstudiante
+                    from .response_templates import obtener_video_url
+                    org = estudiante.cliente
+                    cursos = Curso.objects.filter(cliente=org, activo=True).order_by('orden', 'nombre') if org else Curso.objects.filter(activo=True).order_by('orden', 'nombre')
+                    progreso_existente = ProgresoEstudiante.objects.filter(
+                        estudiante=estudiante, completado=False, curso__activo=True
+                    ).first()
+                    curso = progreso_existente.curso if progreso_existente else cursos.first()
+                    _enviar_btn_continuar_menu = False
+                    if curso:
+                        progreso, _ = ProgresoEstudiante.objects.get_or_create(
+                            estudiante=estudiante, curso=curso, defaults={'completado': False}
+                        )
+                        modulo = progreso.modulo_actual
+                        if not modulo:
+                            modulo = curso.modulos.order_by('numero').first()
+                            if modulo:
+                                progreso.modulo_actual = modulo
+                                progreso.save()
+                        if modulo:
+                            video_url = obtener_video_url(modulo)
+                            archivos_multimedia = modulo.archivos_multimedia.filter(activo=True)
+                            archivos_msg = ""
+                            primera_media_url = None
+                            extra_media_urls = []
+                            if archivos_multimedia.exists():
+                                archivos_msg = ""
+                                for idx, archivo in enumerate(archivos_multimedia):
+                                    icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
+                                    url = archivo.get_url_para_envio()
+                                    if url:
+                                        if not primera_media_url:
+                                            primera_media_url = url
+                                            archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
+                                        else:
+                                            extra_media_urls.append((url, archivo.titulo, icono))
+                                            archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
+                                    else:
+                                        archivos_msg += f"\n{icono} {archivo.titulo}"
+                            if not archivos_multimedia.exists() and video_url:
+                                primera_media_url = video_url
+                            # Construir MULTI_MSG con texto + todos los medias separados
+                            msg_texto_menu = (
+                                f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
+                                f"{modulo.contenido}"
+                            )
+                            partes_menu = [msg_texto_menu]
+                            if primera_media_url:
+                                partes_menu.append(f"[MEDIA:{primera_media_url}]")
+                            for extra_url, extra_titulo, extra_icono in extra_media_urls:
+                                partes_menu.append(f"[MEDIA:{extra_url}]")
+                            if len(partes_menu) > 1:
+                                texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_menu)
+                            else:
+                                texto_respuesta = msg_texto_menu
+                            # Enviar botón continuar si no es el último módulo
+                            if curso.modulos.filter(numero__gt=modulo.numero).exists():
+                                _enviar_btn_continuar_menu = True
+                        else:
+                            texto_respuesta = f"📚 Tu curso *{curso.nombre}* aún no tiene módulos configurados."
+                    else:
+                        texto_respuesta = (
+                            "📚 Aún no tienes un curso asignado. "
+                            "Tu coordinador te lo asignará pronto.\n\n"
+                            "Si acabas de reportar un problema, cuando quieras retomar escribe *listo* o *menú*."
+                        )
                     try:
-                        client_tw.messages.create(**mp)
-                    except Exception:
-                        mp.pop('media_url', None)
-                        client_tw.messages.create(**mp)
-                    # Enviar botón Continuar como Content Template separado
-                    if _enviar_btn_continuar_menu:
-                        import time; time.sleep(0.5)
-                        from .whatsapp_service import enviar_template_twilio
-                        tel_limpio_t = msg_from.replace('whatsapp:', '').replace('+', '')
-                        enviar_template_twilio(tel_limpio_t, 'HX33af3a0f2bb63715e03965c2bd642285')
-                    WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta[:500], tipo='SENT')
-                except Exception as e:
-                    logger.error(f"❌ Error enviando curso: {e}")
-                return
+                        from twilio.rest import Client as TwilioClient
+                        account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                        auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                        twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
+                        client_tw = TwilioClient(account_sid, auth_token)
+                        destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
+                        media_url_menu = None
+                        import re as re_menu
+                        media_m = re_menu.search(r'\[MEDIA:(.*?)\]', texto_respuesta)
+                        if media_m:
+                            media_url_menu = media_m.group(1).strip()
+                            texto_respuesta = texto_respuesta.replace(media_m.group(0), '').strip()
+                        mp = {'body': texto_respuesta, 'from_': str(twilio_number).strip(), 'to': str(destino).strip()}
+                        if media_url_menu:
+                            mp['media_url'] = [media_url_menu]
+                        try:
+                            client_tw.messages.create(**mp)
+                        except Exception:
+                            mp.pop('media_url', None)
+                            client_tw.messages.create(**mp)
+                        # Enviar botón Continuar como Content Template separado
+                        if _enviar_btn_continuar_menu:
+                            import time; time.sleep(0.5)
+                            from .whatsapp_service import enviar_template_twilio
+                            tel_limpio_t = msg_from.replace('whatsapp:', '').replace('+', '')
+                            enviar_template_twilio(tel_limpio_t, 'HX33af3a0f2bb63715e03965c2bd642285')
+                        WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta[:500], tipo='SENT')
+                    except Exception as e:
+                        logger.error(f"❌ Error enviando curso: {e}")
+                    return
         
         # ============================================================
         # FLUJO EXISTENTE: Procesamiento normal (IA tutors, módulos, etc.)
@@ -4406,7 +4394,7 @@ def _procesar_twilio_webhook(post_data):
 
                     # Obtener progreso para avanzar al siguiente módulo
                     if modulo_completado or es_pregunta_ia:
-                        from .helpers_examenes import puede_avanzar_modulo
+                        from .helpers_examenes import puede_avanzar_modulo, debe_activar_checkpoint_reto_ia
                         
                         if modulo_completado:
                             progreso = modulo_completado.progreso
@@ -4482,7 +4470,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                     total_modulos = progreso.curso.modulos.count()
                                     # Solo activar retos IA si el curso tiene la bandera encendida.
                                     usar_agentes_ia_curso = bool(getattr(progreso.curso, 'usar_agentes_ia', True))
-                                    es_modulo_reto = _debe_activar_agentes_reto(
+                                    es_modulo_reto = debe_activar_checkpoint_reto_ia(
                                         numero_modulo=modulo_actual.numero,
                                         total_modulos=total_modulos,
                                         usar_agentes_ia_curso=usar_agentes_ia_curso,

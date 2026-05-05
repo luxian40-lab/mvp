@@ -8,6 +8,8 @@ from django.utils import timezone
 from datetime import timedelta
 from urllib.parse import quote
 
+from .helpers_examenes import debe_activar_checkpoint_reto_ia
+
 
 logger = logging.getLogger(__name__)
 
@@ -1038,6 +1040,20 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
 
 Tu organización te asignará un curso pronto. Si crees que es un error, escribe *ayuda* para contactar soporte."""
         
+        _ctx_sesion_asistente = estudiante.contexto_temporal or {}
+        if (
+            _ctx_sesion_asistente.get('tipo') == 'asistente_dario'
+            and estudiante.estado_onboarding == 'esperando_respuesta_asistente'
+        ):
+            logger.info(
+                "continuar_leccion: ya hay sesión activa con el compañero | estudiante_id=%s",
+                estudiante.id,
+            )
+            return (
+                "💬 Sigues con tu compañero de estudio.\n\n"
+                "Escribe una pregunta de repaso o *listo* para pasar al reto con la facilitadora."
+            )
+        
         # Obtener módulo actual
         modulo_actual = progreso.modulo_actual
         if not modulo_actual:
@@ -1134,7 +1150,10 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                         return _mensaje_bloqueo_drip(fecha_desbloqueo)
 
                 total_modulos = progreso.curso.modulos.count()
-                es_modulo_reto = (modulo_actual.numero == 3) or (modulo_actual.numero == total_modulos and total_modulos >= 5)
+                usar_ia_curso = bool(getattr(progreso.curso, 'usar_agentes_ia', True))
+                es_modulo_reto = debe_activar_checkpoint_reto_ia(
+                    modulo_actual.numero, total_modulos, usar_ia_curso
+                )
                 
                 # v1.9.8j: If reto module but already completed (post-reto "listo"), skip reto
                 if es_modulo_reto and modulo_ya_completado:
