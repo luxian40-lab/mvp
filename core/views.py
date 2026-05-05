@@ -276,6 +276,7 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
             estudiantes_detalle.append({
                 'nombre': est.nombre,
                 'cedula': est.cedula,
+                'telefono': (est.telefono or '').strip() or '-',
                 'organizacion': est.cliente.nombre if est.cliente else '-',
                 'municipio': est.municipio or '-',
                 'curso': curso_nombre,
@@ -435,7 +436,7 @@ def dashboard_unificado(request):
         ws.title = 'Estudiantes'
 
         headers = [
-            'Nombre', 'Cédula', 'Organización', 'Municipio', 'Grupo(s)', 'Curso',
+            'Nombre', 'Cédula', 'Teléfono', 'Organización', 'Municipio', 'Grupo(s)', 'Curso',
             'Estado avance', 'Avance %', 'Puntos',
         ]
         header_fill = PatternFill(start_color='3b5bdb', end_color='3b5bdb', fill_type='solid')
@@ -449,13 +450,14 @@ def dashboard_unificado(request):
         for row_idx, est in enumerate(context['estudiantes_detalle'], 2):
             ws.cell(row=row_idx, column=1, value=est['nombre'])
             ws.cell(row=row_idx, column=2, value=est['cedula'])
-            ws.cell(row=row_idx, column=3, value=est['organizacion'])
-            ws.cell(row=row_idx, column=4, value=est['municipio'])
-            ws.cell(row=row_idx, column=5, value=est.get('grupos', '-'))
-            ws.cell(row=row_idx, column=6, value=est['curso'])
-            ws.cell(row=row_idx, column=7, value=est.get('estado_avance', '-'))
-            ws.cell(row=row_idx, column=8, value=est['avance'])
-            ws.cell(row=row_idx, column=9, value=est['puntos'])
+            ws.cell(row=row_idx, column=3, value=est.get('telefono', '-'))
+            ws.cell(row=row_idx, column=4, value=est['organizacion'])
+            ws.cell(row=row_idx, column=5, value=est['municipio'])
+            ws.cell(row=row_idx, column=6, value=est.get('grupos', '-'))
+            ws.cell(row=row_idx, column=7, value=est['curso'])
+            ws.cell(row=row_idx, column=8, value=est.get('estado_avance', '-'))
+            ws.cell(row=row_idx, column=9, value=est['avance'])
+            ws.cell(row=row_idx, column=10, value=est['puntos'])
 
         for col in range(1, len(headers) + 1):
             ws.column_dimensions[get_column_letter(col)].width = 22

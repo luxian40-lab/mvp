@@ -110,9 +110,10 @@ def test_dashboard_b2b_excel_incluye_grupo_y_estado():
     assert "spreadsheetml" in resp["Content-Type"]
     wb = openpyxl.load_workbook(io.BytesIO(resp.content))
     ws = wb.active
-    assert [ws.cell(1, i).value for i in range(1, 10)] == [
+    assert [ws.cell(1, i).value for i in range(1, 11)] == [
         "Nombre",
         "Cédula",
+        "Teléfono",
         "Organización",
         "Municipio",
         "Grupo(s)",
@@ -122,4 +123,5 @@ def test_dashboard_b2b_excel_incluye_grupo_y_estado():
         "Puntos",
     ]
     assert ws.cell(2, 1).value == "Fila Excel Uno"
-    assert "GX" in str(ws.cell(2, 5).value or "")
+    assert ws.cell(2, 3).value == "57300000003"
+    assert "GX" in str(ws.cell(2, 6).value or "")
