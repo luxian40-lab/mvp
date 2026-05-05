@@ -170,17 +170,18 @@
             <input type="hidden" name="tab" value="reportes">
             <div><label>Organización</label><select name="cliente"><option value="">Todos</option>{% for c in clientes %}<option value="{{ c.id }}" {% if c.id == cliente_filtro %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
             <div><label>Curso</label><select name="curso"><option value="">Todos</option>{% for c in cursos %}<option value="{{ c.id }}" {% if c.id == curso_filtro %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
+            <div><label>Grupo</label><select name="grupo"><option value="">Todos</option>{% for g in grupos %}<option value="{{ g.id }}" {% if grupo_filtro == g.id %}selected{% endif %}>{{ g.emoji }} {{ g.nombre }}</option>{% endfor %}</select></div>
             <div><label>Municipio</label><select name="municipio"><option value="">Todos</option>{% for m in municipios %}<option value="{{ m }}" {% if m == municipio_filtro %}selected{% endif %}>{{ m }}</option>{% endfor %}</select></div>
             <div><label>Desde</label><input type="date" name="fecha_inicio" value="{{ fecha_inicio }}"></div>
             <div><label>Hasta</label><input type="date" name="fecha_fin" value="{{ fecha_fin }}"></div>
             <button type="submit">Filtrar</button>
-            <a href="?exportar=excel&tab=reportes{% if cliente_filtro %}&cliente={{ cliente_filtro }}{% endif %}{% if curso_filtro %}&curso={{ curso_filtro }}{% endif %}{% if municipio_filtro %}&municipio={{ municipio_filtro|urlencode }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}" class="btn-excel">📥 Descargar Excel</a>
+            <a href="?exportar=excel&tab=reportes{% if cliente_filtro %}&cliente={{ cliente_filtro }}{% endif %}{% if curso_filtro %}&curso={{ curso_filtro }}{% endif %}{% if grupo_filtro %}&grupo={{ grupo_filtro }}{% endif %}{% if municipio_filtro %}&municipio={{ municipio_filtro|urlencode }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}" class="btn-excel">📥 Descargar Excel</a>
         </form>
 
         <div class="section">
             <div class="section-title">Detalle por Estudiante</div>
             <table class="eki-table">
-                <thead><tr><th>Nombre</th><th>Cédula</th><th>Organización</th><th>Municipio</th><th>Curso</th><th>Avance</th><th>Puntos</th></tr></thead>
+                <thead><tr><th>Nombre</th><th>Cédula</th><th>Organización</th><th>Municipio</th><th>Grupo(s)</th><th>Curso</th><th>Estado</th><th>Avance</th><th>Puntos</th></tr></thead>
                 <tbody>
                     {% for est in estudiantes_detalle %}
                     <tr>
@@ -188,12 +189,14 @@
                         <td>{{ est.cedula }}</td>
                         <td>{{ est.organizacion }}</td>
                         <td>{{ est.municipio }}</td>
+                        <td>{{ est.grupos }}</td>
                         <td>{{ est.curso }}</td>
+                        <td>{{ est.estado_avance }}</td>
                         <td>{{ est.avance }}%</td>
                         <td>{{ est.puntos }}</td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="7" style="text-align:center;color:#aaa;">Sin datos</td></tr>
+                    <tr><td colspan="9" style="text-align:center;color:#aaa;">Sin datos</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

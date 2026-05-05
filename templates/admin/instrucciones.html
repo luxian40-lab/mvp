@@ -438,6 +438,24 @@
 
     </div>
 
+    <div class="subsection" style="border-left-color:#7950f2;margin-top:20px;">
+
+        <h3>✨ Novedades operativas (5 may 2026)</h3>
+
+        <ul style="line-height:1.6;">
+
+            <li><strong>Reportes B2B por grupo:</strong> en el <a href="/admin/dashboard/">dashboard unificado</a>, pestaña <strong>Reportes B2B</strong>, puede filtrar por <strong>grupo de estudiantes</strong>, ver el <em>estado de avance</em> (sin avance, en curso, completado) y descargar el mismo detalle en <strong>Excel</strong> (columnas de grupo y estado incluidas).</li>
+
+            <li><strong>Nombre del asistente (compañero):</strong> los mensajes del compañero de estudio usan <code>nombre_agente_asistente</code> del <em>Cliente</em> o del <em>Curso</em> en el mismo orden que el resto del bot: primero organización, luego curso, y si falta ambos el nombre por defecto del sistema.</li>
+
+            <li><strong>Retos (facilitador):</strong> se refuerza la limpieza del texto generado para que no aparezca la marca <strong>ACCIONA</strong> al participante; también se sanitizan las preguntas/ejemplos del instructor si traían ese rótulo.</li>
+
+            <li><strong>Cálculo GEI (referencia rápida):</strong> el balance se calcula en <code>formulario/calculadora.py</code> a partir de la ficha capturada (N aplicado → N₂O, combustibles, kWh con factor de red, residuos según manejo, cambio de uso del suelo, e intensidad frente a referencias de café); el resultado persistido está en <strong>ResultadoGEI</strong>. Más detalle en <code>docs/INSTRUCTIVO_EKI_RECOLECCION_GEI.md</code>.</li>
+
+        </ul>
+
+    </div>
+
     <div class="subsection" style="border-left-color:#2f9e44;margin-top:20px;">
 
         <h3>✨ Novedades operativas (24 abr 2026)</h3>

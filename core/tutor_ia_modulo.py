@@ -13,33 +13,22 @@ logger = logging.getLogger(__name__)
 # PROMPT FACILITADOR(A) — ABR (Aprendizaje Basado en Retos)
 # Se activa DESPUÉS de que Darío termina (módulos 3 y 5)
 # =====================================================
-PROMPT_FACILITADOR_RETO = """Eres la Facilitadora Claudia de eki. Tu rol es plantear un reto conversacional al participante.
+PROMPT_FACILITADOR_RETO = """Eres la Facilitadora de eki. Tu rol es plantear un reto conversacional al participante.
 
 FORMATO DEL RETO:
-- Describe una situación real y cotidiana en 2-3 oraciones del contexto del curso (por ejemplo caña/panela si el curso es de Diatraea).
-- Luego escribe un encabezado corto: *ACCIONA*.
-- Después haz UNA SOLA pregunta profunda con DOS componentes claros:
-  (a) cómo diagnosticaría el problema,
-  (b) qué haría para controlarlo/actuar.
-- Debe ser una sola pregunta integrada, no lista de varias preguntas.
-- PROHIBIDO dividirla en "1), 2), 3)" o en varias preguntas separadas.
-- La pregunta debe conectar con los temas del curso de forma natural, sin parecer un examen.
+- Describe una situación real en 2-3 oraciones alineada SOLO al tema de los módulos y al nombre del curso recibidos en el mensaje (finanzas del hogar, emprendimiento rural, agricultura, otro — según ese contexto, sin inventar otro dominio).
+- En seguida, UNA SOLA pregunta integrada (puede incluir qué revisaría o priorizaría y qué haría en la práctica), coherente con ese mismo tema. Sin títulos ni líneas intermedias tipo encabezado.
+- PROHIBIDO listas numeradas tipo "1), 2), 3)" o varias preguntas sueltas.
 
 REGLAS OBLIGATORIAS:
-1. TRATO DE USTED siempre. NUNCA tutear.
-2. MÁXIMO 80 PALABRAS en total. Sé breve y directo.
-3. Lenguaje muy sencillo, como si estuviera conversando con alguien en la vereda.
-4. Máximo 2 emojis al final del reto.
-5. No inventes información fuera del CONTEXTO de los módulos.
-6. Prioriza ejemplos de ruralidad colombiana (vereda, finca familiar, plaza de mercado, asociación local, cultivos, animales).
-7. Termina con: "Escriba o envíe un audio con su respuesta."
-8. PROHIBIDO usar tecnicismos, lenguaje académico, o preguntar si tiene dudas.
-9. El tono es de conversación, NO de examen. Como una charla entre vecinos.
-10. Formato sugerido de cierre de pregunta: "¿Qué haría usted para ... y cómo ...?" 
-11. Ejemplo de estructura válida:
-   - Situación breve (2-3 oraciones)
-   - *ACCIONA*
-   - Una sola pregunta integrada (diagnóstico + control)"""
+1. TRATO DE USTED. NUNCA tutear.
+2. MÁXIMO 80 PALABRAS en total.
+3. Lenguaje sencillo, cercano al contexto rural/urbano que corresponda al curso.
+4. Máximo 2 emojis al final.
+5. CERO alucinación: solo temas que aparezcan en MÓDULOS / RAG / nombre del curso. PROHIBIDO mezclar plagas, cultivos o finanzas si los módulos no hablan de eso.
+6. Termina con: "Escriba o envíe un audio con su respuesta."
+7. Sin tecnicismos innecesarios ni tono de examen.
+8. PROHIBIDO usar la palabra "ACCIONA", "Acciona" o variaciones como encabezado o en negrita."""
 
 
 PROMPT_FACILITADOR_EVALUACION = """Eres la Facilitadora Claudia, evaluadora de eki con metodología ABR.
@@ -70,17 +59,16 @@ REGLAS:
 - Diga explícitamente qué parte respondió bien y qué parte faltó.
 - Debe citar evidencia de la respuesta del participante (palabras/acciones mencionadas por él/ella).
 - Si la respuesta es general, dígalo literalmente y pida precisión concreta en "qué, cuánto, cuándo, con qué".
-- Si el ítem evaluado es de decisión de actuar o esperar ante posible daño de Diatraea:
-  * menciona explícitamente el umbral de daño económico (referencia práctica: 10-15% tallos con galería),
-  * agrega un ejemplo práctico breve en lenguaje campesino (ej: "si revisa 10 tallos y 2 o 3 tienen daño interno..."),
-  * diferencia claramente entre monitoreo (síntoma temprano) y acción inmediata (infestación alta)."""
+- Evalúe según el dominio de los módulos (presupuesto, ahorro, metas, campo, u otro): no exija conceptos que no estén en el material."""
 
 
 # =====================================================
-# PROMPT ASISTENTE (DARÍO) — Companion, tutea
+# PROMPT ASISTENTE — Companion, tutea (nombre según cliente/curso)
 # Se activa SOLO al final de módulo 3 y módulo 5
 # =====================================================
-PROMPT_ASISTENTE_DARIO = """Eres Darío, el asistente y compañero de estudio de eki.
+def _prompt_sistema_asistente(nombre_asistente: str) -> str:
+    na = (nombre_asistente or "Darío").strip() or "Darío"
+    return f"""Eres {na}, el asistente y compañero de estudio de eki.
 Eres el ÚNICO que tutea al estudiante (trato informal, "tú").
 Tu rol: ayudar a repasar conceptos antes de que la Facilitadora Claudia plantee un reto.
 
@@ -92,7 +80,30 @@ REGLAS:
 5. Sé cercano, amigable, como un compañero de estudio.
 6. Máximo 2 emojis.
 7. NO hagas preguntas de seguimiento. Responde directamente.
-8. PROHIBIDO invitar a seguir conversando o preguntar si tiene más dudas."""
+8. PROHIBIDO invitar a seguir conversando o preguntar si tiene más dudas.
+9. Tu nombre es {na}; no uses otro nombre propio ni te presentes con otro alias."""
+
+
+def _quitar_encabezado_acciona(texto: str) -> str:
+    """Quita ACCIONA/Acciona en líneas sueltas o entre asteriscos (mensajes al usuario)."""
+    import re
+    if not (texto or "").strip():
+        return texto or ""
+    out_lines = []
+    for line in texto.splitlines():
+        s = line.strip()
+        if re.match(r"^\*{0,3}\s*acciona\s*\*{0,3}\s*:?\s*$", s, flags=re.IGNORECASE):
+            continue
+        if re.match(r"^#{1,6}\s*acciona\s*:?\s*$", s, flags=re.IGNORECASE):
+            continue
+        out_lines.append(line)
+    t = "\n".join(out_lines)
+    t = re.sub(r"(?i)\*{1,3}\s*acciona\s*\*{1,3}\s*:?", "", t)
+    t = re.sub(r"(?i)\bacciona\b\s*:?", "", t)
+    t = re.sub(r"[ \t]{2,}", " ", t)
+    t = re.sub(r" *\n *", "\n", t)
+    t = re.sub(r"\n{3,}", "\n\n", t).strip()
+    return t
 
 
 def _get_client():
@@ -106,6 +117,27 @@ def _get_client():
     except Exception as e:
         logger.warning(f"⚠️ OpenAI no disponible: {e}")
         return None
+
+
+def cargar_modulos_reto(modulos_reto_ids, curso_id=None):
+    """
+    Módulos para reto Darío/Facilitadora. Si se pasa curso_id, excluye IDs huérfanos de otro curso.
+    """
+    from .models import Modulo
+    if not modulos_reto_ids:
+        return []
+    qs = Modulo.objects.filter(id__in=modulos_reto_ids).order_by('numero')
+    if curso_id:
+        qs = qs.filter(curso_id=curso_id)
+    rows = list(qs)
+    if curso_id and modulos_reto_ids and len(rows) < len(set(modulos_reto_ids)):
+        logger.warning(
+            "[reto] Módulos del reto filtrados por curso_id=%s | pedidos=%s | cargados=%s",
+            curso_id,
+            modulos_reto_ids,
+            [m.id for m in rows],
+        )
+    return rows
 
 
 def generar_reto_facilitador(modulos_cubiertos, curso_nombre, estudiante_nombre="Estudiante",
@@ -127,13 +159,23 @@ def generar_reto_facilitador(modulos_cubiertos, curso_nombre, estudiante_nombre=
     if not client:
         return _fallback_reto(modulos_cubiertos, curso_nombre)
 
-    # Build module content summary
+    if preguntas_ejemplo:
+        preguntas_ejemplo = _quitar_encabezado_acciona(str(preguntas_ejemplo).strip())
+
+    # Resumen de módulos (más contexto = menos mezcla con otros dominios)
+    _lim = 900
     modulos_info = ""
     for m in modulos_cubiertos:
-        contenido_corto = (m.contenido[:300] if m.contenido else m.descripcion or '')
+        contenido_corto = (m.contenido[:_lim] if m.contenido else m.descripcion or '')
         modulos_info += f"- Módulo {m.numero}: {m.titulo}\n  Contenido: {contenido_corto}\n"
 
-    # RAG context
+    # RAG: pregunta anclada a títulos + nombre del curso (mejor relevancia que consulta genérica)
+    titulos_linea = ", ".join(f"{m.numero}. {m.titulo}" for m in modulos_cubiertos) if modulos_cubiertos else ""
+    pregunta_rag = (
+        f"Situación práctica y reto corto coherente con el curso «{curso_nombre}» "
+        f"según estos módulos: {titulos_linea}"
+    )
+
     contexto_rag = ""
     try:
         from .rag_manager import rag_manager
@@ -143,31 +185,44 @@ def generar_reto_facilitador(modulos_cubiertos, curso_nombre, estudiante_nombre=
             contexto_rag = rag_manager.obtener_contexto_para_ia(
                 cliente_id=cliente_id,
                 curso_id=curso.id,
-                pregunta="reto práctico basado en los módulos",
-                max_chars=1000
+                pregunta=pregunta_rag,
+                max_chars=1200
+            )
+            logger.info(
+                "[reto] RAG curso_id=%s curso=%s modulos=%s chars=%s",
+                curso.id,
+                curso_nombre[:60],
+                [m.id for m in modulos_cubiertos],
+                len(contexto_rag or ""),
             )
     except Exception as e:
         logger.warning(f"[RAG] Error en reto facilitador: {e}")
 
     ejemplo_txt = ""
     if preguntas_ejemplo:
-        ejemplo_txt = f"\nPREGUNTAS/RETOS EJEMPLO DEL INSTRUCTOR (OBLIGATORIO: Basa tu reto DIRECTAMENTE en estos ejemplos):\n{preguntas_ejemplo}\n"
+        ejemplo_txt = (
+            f"\nPREGUNTAS/RETOS EJEMPLO DEL INSTRUCTOR (prioridad absoluta; adaptar al curso "
+            f"«{curso_nombre}» y a los módulos listados, sin inventar otro tema):\n{preguntas_ejemplo}\n"
+        )
 
     max_modulo = max((getattr(m, "numero", 0) or 0) for m in modulos_cubiertos) if modulos_cubiertos else 0
     if max_modulo <= 3:
         instruccion_pregunta = (
-            "Genere UN reto conversacional con UNA sola pregunta enfocada SOLO en diagnostico "
-            "(como identificar/confirmar si el dano corresponde a Diatraea). "
-            "NO pida medidas de control en este punto."
+            "Genere UN reto conversacional breve: situación cotidiana alineada SOLO con los temas de los módulos anteriores "
+            "(ej. ingresos/gastos/ahorro/metas si es ese el contenido). "
+            "Una sola pregunta integrada que pida aplicar lo estudiado. "
+            "NO mencione plagas, Diatraea, cultivos ni agricultura si los módulos no hablan de ello."
         )
     else:
         instruccion_pregunta = (
-            "Genere UN reto conversacional: una situacion cotidiana real + UNA sola pregunta "
-            "profunda con dos componentes (diagnostico y accion/control)."
+            "Genere UN reto: situación cotidiana coherente con los módulos listados + UNA pregunta integrada "
+            "(qué revisaría o priorizaría y qué haría en la práctica), siempre en el dominio de este curso."
         )
 
-    prompt_usuario = f"""CONTEXTO:
-Curso: {curso_nombre}
+    prompt_usuario = f"""OBLIGATORIO:
+- Curso actual (no mezclar con otros): *{curso_nombre}*
+- Use únicamente los temas de «MÓDULOS QUE CUBRE ESTE RETO» y el RAG de ESTE curso.
+
 Participante: {estudiante_nombre}
 
 MÓDULOS QUE CUBRE ESTE RETO:
@@ -175,7 +230,9 @@ MÓDULOS QUE CUBRE ESTE RETO:
 {contexto_rag}
 {ejemplo_txt}
 {instruccion_pregunta}
-Use exclusivamente el contexto del curso actual (si es cana/panela, no mencione cafe ni otros cultivos). Como una charla entre vecinos, no un examen."""
+
+PROHIBIDO: Inventar otro tipo de curso o ejemplo de otro programa distinto al indicado arriba.
+PROHIBIDO: Incluir la palabra ACCIONA (o Acciona) en el mensaje."""
 
     try:
         response = client.chat.completions.create(
@@ -188,7 +245,7 @@ Use exclusivamente el contexto del curso actual (si es cana/panela, no mencione 
             max_tokens=250,
             timeout=12
         )
-        respuesta = response.choices[0].message.content.strip()
+        respuesta = _quitar_encabezado_acciona(response.choices[0].message.content.strip())
         logger.info(f"✅ Facilitadora reto: {respuesta[:50]}...")
         return respuesta
     except Exception as e:
@@ -197,7 +254,7 @@ Use exclusivamente el contexto del curso actual (si es cana/panela, no mencione 
 
 
 def evaluar_reto_facilitador(modulos_cubiertos, respuesta_estudiante, reto_original,
-                              estudiante_nombre="Estudiante") -> tuple:
+                              estudiante_nombre="Estudiante", curso_nombre=None) -> tuple:
     """
     Facilitadora evalúa la respuesta al reto con rúbrica ABR.
 
@@ -212,6 +269,11 @@ def evaluar_reto_facilitador(modulos_cubiertos, respuesta_estudiante, reto_origi
     client = _get_client()
     if not client:
         return 7, _fallback_evaluacion_reto()
+
+    nombre_curso = (curso_nombre or "").strip()
+    if not nombre_curso and modulos_cubiertos:
+        c0 = getattr(modulos_cubiertos[0], "curso", None)
+        nombre_curso = (getattr(c0, "nombre", "") or "").strip()
 
     modulos_info = ""
     for m in modulos_cubiertos:
@@ -234,7 +296,8 @@ def evaluar_reto_facilitador(modulos_cubiertos, respuesta_estudiante, reto_origi
     except Exception as e:
         logger.warning(f"[RAG] Error en evaluación reto: {e}")
 
-    prompt_usuario = f"""CONTEXTO:
+    prompt_usuario = f"""CURSO (único marco de evaluación; no exija conceptos ajenos): {nombre_curso or 'Curso actual'}
+
 Módulos cubiertos:
 {modulos_info}
 {contexto_rag}
@@ -242,7 +305,7 @@ Módulos cubiertos:
 RETO PLANTEADO: {reto_original}
 RESPUESTA DEL PARTICIPANTE ({estudiante_nombre}): {respuesta_limpia}
 
-Evalúe según la rúbrica. Dé retroalimentación y puntaje."""
+Evalúe según la rúbrica y el dominio de este curso. Dé retroalimentación y puntaje."""
 
     try:
         response = client.chat.completions.create(
@@ -272,15 +335,27 @@ Evalúe según la rúbrica. Dé retroalimentación y puntaje."""
 
 
 def generar_respuesta_asistente(modulos_cubiertos, pregunta_estudiante,
-                                 estudiante_nombre="Estudiante") -> str:
+                                 estudiante_nombre="Estudiante",
+                                 nombre_asistente=None) -> str:
     """
-    Darío responde una pregunta del estudiante basada en RAG/contenido de módulos.
+    El asistente (compañero) responde una pregunta del estudiante basada en RAG/módulos.
     Máximo 2 preguntas antes de pasar a la Facilitadora.
 
     Returns:
-        str: respuesta de Darío
+        str: respuesta del asistente
     """
     client = _get_client()
+    na = (nombre_asistente or "").strip()
+    if not na and modulos_cubiertos:
+        c = modulos_cubiertos[0].curso
+        cl = getattr(c, "cliente", None) if c else None
+        na = (
+            (getattr(cl, "nombre_agente_asistente", None) or "")
+            or (getattr(c, "nombre_agente_asistente", None) or "")
+            or "Darío"
+        )
+    na = (na or "Darío").strip() or "Darío"
+
     if not client:
         return _fallback_respuesta_asistente()
 
@@ -319,29 +394,31 @@ Responde basándote SOLO en el contenido de los módulos y documentos RAG."""
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": PROMPT_ASISTENTE_DARIO},
+                {"role": "system", "content": _prompt_sistema_asistente(na)},
                 {"role": "user", "content": prompt_usuario}
             ],
             temperature=0.7,
             max_tokens=120,
             timeout=10
         )
-        respuesta = response.choices[0].message.content.strip()
-        logger.info(f"✅ Darío respuesta: {respuesta[:50]}...")
+        respuesta = _quitar_encabezado_acciona(response.choices[0].message.content.strip())
+        logger.info(f"✅ Asistente ({na}) respuesta: {respuesta[:50]}...")
         return respuesta
     except Exception as e:
-        logger.error(f"❌ Error Darío respuesta: {e}")
+        logger.error(f"❌ Error respuesta asistente: {e}")
         return _fallback_respuesta_asistente()
 
 
 def _fallback_reto(modulos_cubiertos, curso_nombre):
-    """Reto de fallback sin IA."""
-    temas = ", ".join([m.titulo for m in modulos_cubiertos]) if modulos_cubiertos else curso_nombre
+    """Reto de fallback sin IA: anclado al nombre del curso y a los módulos (sin tema fijo de agricultura)."""
+    if modulos_cubiertos:
+        temas = ", ".join(f"{m.numero}. {m.titulo}" for m in modulos_cubiertos)
+    else:
+        temas = curso_nombre
     return (
-        f"En su finca, después de revisar {temas}, nota señales de posible plaga y baja en rendimiento durante dos semanas.\n"
-        f"Necesita decidir rápido para no perder más producción.\n\n"
-        f"*ACCIONA*\n"
-        f"¿Cómo podría usted determinar si el mal estado de sus plantas se debe a la Diatraea? 🌱\n\n"
+        f"En el marco del curso *{curso_nombre}*, después de repasar: {temas}, "
+        f"piense en una situación de su día a día donde deba aplicar lo aprendido.\n\n"
+        f"¿Qué haría usted de forma concreta (primer paso y criterio para saber si va bien)? ✍️\n\n"
         f"Escriba o envíe un audio con su respuesta."
     )
 

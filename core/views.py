@@ -30,6 +30,7 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
     fecha_fin_raw = (request.GET.get('fecha_fin') or '').strip()
     municipio_filtro = (request.GET.get('municipio') or '').strip()
     tab_actual = (request.GET.get('tab') or 'resumen').strip().lower()
+    grupo_id = _to_int((request.GET.get('grupo') or '').strip())
 
     fecha_inicio_dt = _to_date(fecha_inicio_raw)
     fecha_fin_dt = _to_date(fecha_fin_raw)
@@ -51,6 +52,8 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
         estudiantes_q = estudiantes_q.filter(fecha_registro__date__gte=fecha_inicio_dt)
     if fecha_fin_dt:
         estudiantes_q = estudiantes_q.filter(fecha_registro__date__lte=fecha_fin_dt)
+    if grupo_id:
+        estudiantes_q = estudiantes_q.filter(grupos__id=grupo_id).distinct()
 
     progreso_q = ProgresoEstudiante.objects.select_related('estudiante', 'curso')
     if cliente_id:
@@ -61,6 +64,8 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
         progreso_q = progreso_q.filter(fecha_inicio__date__gte=fecha_inicio_dt)
     if fecha_fin_dt:
         progreso_q = progreso_q.filter(fecha_inicio__date__lte=fecha_fin_dt)
+    if grupo_id:
+        progreso_q = progreso_q.filter(estudiante__grupos__id=grupo_id).distinct()
 
     modulos_completados_q = ModuloCompletado.objects.select_related('progreso', 'modulo')
     if cliente_id:
@@ -71,6 +76,10 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
         modulos_completados_q = modulos_completados_q.filter(fecha_completado__date__gte=fecha_inicio_dt)
     if fecha_fin_dt:
         modulos_completados_q = modulos_completados_q.filter(fecha_completado__date__lte=fecha_fin_dt)
+    if grupo_id:
+        modulos_completados_q = modulos_completados_q.filter(
+            progreso__estudiante__grupos__id=grupo_id
+        ).distinct()
 
     whatsapp_q = WhatsappLog.objects.all()
     if fecha_inicio_dt:
@@ -84,6 +93,8 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
             estudiantes_scope = estudiantes_scope.filter(cliente_id=cliente_id)
         if curso_id:
             estudiantes_scope = estudiantes_scope.filter(progresos__curso_id=curso_id).distinct()
+        if grupo_id:
+            estudiantes_scope = estudiantes_scope.filter(grupos__id=grupo_id).distinct()
 
         telefonos_scope = estudiantes_scope.exclude(telefono='').values_list('telefono', flat=True)
         whatsapp_q = whatsapp_q.filter(
@@ -223,7 +234,7 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
     clientes_detalle = []
     tickets_soporte = []
     if incluir_detalle:
-        est_q = estudiantes_q.select_related('cliente')
+        est_q = estudiantes_q.select_related('cliente').prefetch_related('grupos')
         if municipio_filtro:
             est_q = est_q.filter(municipio=municipio_filtro)
 
@@ -255,6 +266,13 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
                 total_mods = progreso.total_mods or 0
                 mods_comp = progreso.mods_comp or 0
                 avance = round(mods_comp / total_mods * 100) if total_mods > 0 else 0
+            grupos_txt = ', '.join(sorted(g.nombre for g in est.grupos.all())) or '-'
+            if progreso and progreso.completado:
+                estado_avance = 'Completado'
+            elif avance > 0:
+                estado_avance = 'En curso'
+            else:
+                estado_avance = 'Sin avance'
             estudiantes_detalle.append({
                 'nombre': est.nombre,
                 'cedula': est.cedula,
@@ -263,6 +281,8 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
                 'curso': curso_nombre,
                 'avance': avance,
                 'puntos': puntos_est,
+                'grupos': grupos_txt,
+                'estado_avance': estado_avance,
             })
 
         clientes_iter = clientes_all if not cliente_id else clientes_all.filter(id=cliente_id)
@@ -299,6 +319,10 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
             tickets_soporte = tickets_soporte_q.order_by('-fecha_solicitud')[:50]
         except Exception:
             tickets_soporte = []
+
+    grupos_qs = GrupoEstudiantes.objects.all().order_by('nombre')
+    if cliente_id:
+        grupos_qs = grupos_qs.filter(Q(cliente_id=cliente_id) | Q(cliente__isnull=True))
 
     resumen_payload = {
         'success': True,
@@ -381,6 +405,8 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
         'municipios': municipios,
         'municipio_filtro': municipio_filtro,
         'tab_actual': tab_actual,
+        'grupos': grupos_qs,
+        'grupo_filtro': grupo_id,
         'clientes_detalle': clientes_detalle,
         'estudiantes_detalle': estudiantes_detalle,
         'tickets_soporte': tickets_soporte,
@@ -402,12 +428,16 @@ def dashboard_unificado(request):
     if request.GET.get('exportar') == 'excel':
         import openpyxl
         from openpyxl.styles import Font, PatternFill
+        from openpyxl.utils import get_column_letter
 
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = 'Estudiantes'
 
-        headers = ['Nombre', 'Cédula', 'Organización', 'Municipio', 'Curso', 'Avance %', 'Puntos']
+        headers = [
+            'Nombre', 'Cédula', 'Organización', 'Municipio', 'Grupo(s)', 'Curso',
+            'Estado avance', 'Avance %', 'Puntos',
+        ]
         header_fill = PatternFill(start_color='3b5bdb', end_color='3b5bdb', fill_type='solid')
         header_font = Font(color='FFFFFF', bold=True)
 
@@ -421,12 +451,14 @@ def dashboard_unificado(request):
             ws.cell(row=row_idx, column=2, value=est['cedula'])
             ws.cell(row=row_idx, column=3, value=est['organizacion'])
             ws.cell(row=row_idx, column=4, value=est['municipio'])
-            ws.cell(row=row_idx, column=5, value=est['curso'])
-            ws.cell(row=row_idx, column=6, value=est['avance'])
-            ws.cell(row=row_idx, column=7, value=est['puntos'])
+            ws.cell(row=row_idx, column=5, value=est.get('grupos', '-'))
+            ws.cell(row=row_idx, column=6, value=est['curso'])
+            ws.cell(row=row_idx, column=7, value=est.get('estado_avance', '-'))
+            ws.cell(row=row_idx, column=8, value=est['avance'])
+            ws.cell(row=row_idx, column=9, value=est['puntos'])
 
-        for col in range(1, 8):
-            ws.column_dimensions[chr(64 + col)].width = 20
+        for col in range(1, len(headers) + 1):
+            ws.column_dimensions[get_column_letter(col)].width = 22
 
         from django.http import HttpResponse as ExcelResponse
         response = ExcelResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
@@ -533,9 +565,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 from .models import Campana, Estudiante, WhatsappLog, EnvioLog, Cliente, Curso, ProgresoEstudiante, ModuloCompletado
-from .models_extras import ArchivoModulo
+from .models_extras import ArchivoModulo, GrupoEstudiantes
 from .utils import enviar_whatsapp, enviar_whatsapp_twilio
-from .intent_detector import detect_intent
+from .intent_detector import detect_intent, mensaje_indica_listo as _mensaje_indica_listo
 from .response_templates import get_response_for_intent
 
 from django.views.decorators.csrf import csrf_exempt
@@ -559,6 +591,7 @@ def serve_media_proxy(request, filename):
         return response
     else:
         return HttpResponseBadRequest("Archivo no encontrado o error en S3")
+
 
 def _transcribir_audio_twilio(media_url, media_type='audio/ogg'):
     """
@@ -3374,7 +3407,7 @@ def _procesar_twilio_webhook(post_data):
                         logger.error(f"❌ Error enviando corrección datos: {e}")
                     return
 
-                if msg_lower != 'listo':
+                if not _mensaje_indica_listo(msg_body):
                     if msg_body.strip() == '[AUDIO_NO_TRANSCRITO]':
                         texto_respuesta = "⚠️ No pude escuchar tu audio. Por favor intenta de nuevo o escríbeme. Para avanzar escribe *listo*."
                     else:
@@ -3555,6 +3588,24 @@ def _procesar_twilio_webhook(post_data):
             print(f"🛡️ Bloqueado por seguridad/habeas data", flush=True)
             texto_respuesta = respuesta_seguridad
         else:
+            # Si el contexto sigue en Darío pero el estado quedó desincronizado, continuar_leccion
+            # podía ejecutarse antes que la rama del asistente y saltar la facilitadora.
+            try:
+                _ctx_dario_sync = estudiante.contexto_temporal or {}
+                if _ctx_dario_sync.get('tipo') == 'asistente_dario':
+                    if estudiante.estado_onboarding != 'esperando_respuesta_asistente':
+                        _ob_prev = estudiante.estado_onboarding
+                        estudiante.estado_onboarding = 'esperando_respuesta_asistente'
+                        estudiante.save(update_fields=['estado_onboarding'])
+                        logger.warning(
+                            "🔄 Darío: estado resincronizado %s → esperando_respuesta_asistente "
+                            "(ctx=asistente_dario) estudiante_id=%s",
+                            _ob_prev,
+                            estudiante.id,
+                        )
+            except Exception as e:
+                logger.warning("⚠️ Darío sync omitido: %s", e)
+
             if estudiante.estado_onboarding == 'esperando_codigo_empleabilidad':
                 from .models import AliadoEmpleabilidad, MisionEmpleabilidad
                 from .gamificacion import PerfilGamificacion, Badge, BadgeEstudiante
@@ -3680,7 +3731,8 @@ def _procesar_twilio_webhook(post_data):
                                 modulos_eval,
                                 msg_body,
                                 pregunta.pregunta,
-                                estudiante_nombre=estudiante.nombre or "Estudiante"
+                                estudiante_nombre=estudiante.nombre or "Estudiante",
+                                curso_nombre=(getattr(curso_obj, 'nombre', None) if curso_obj else None),
                             )
                         except Exception as e:
                             logger.warning(f"⚠️ No se pudo evaluar pregunta abierta final con IA: {e}")
@@ -3816,13 +3868,27 @@ def _procesar_twilio_webhook(post_data):
                         "¡Gracias por tu participación! 🎓"
                     )
             
-            # v1.9.8g: Darío — Asistente (hasta 2 preguntas antes del reto)
+            # v1.9.8g: Asistente (compañero) — hasta 2 preguntas antes del reto
             elif estudiante.estado_onboarding == 'esperando_respuesta_asistente':
-                print(f"💬 Darío: Esperando respuesta del asistente")
                 ctx = estudiante.contexto_temporal or {}
                 preguntas_hechas = ctx.get('preguntas_hechas', 0)
                 modulos_reto_ids = ctx.get('modulos_reto_ids', [])
                 progreso_id = ctx.get('progreso_id')
+                _cli = estudiante.cliente if getattr(estudiante, 'cliente_id', None) else None
+                _na_cli = (
+                    (_cli.nombre_agente_asistente if _cli and getattr(_cli, 'nombre_agente_asistente', None) else '')
+                    or ''
+                )
+                _na_curso = ''
+                if progreso_id:
+                    try:
+                        from .models import ProgresoEstudiante
+                        _pp = ProgresoEstudiante.objects.select_related('curso').get(id=progreso_id)
+                        _na_curso = (_pp.curso.nombre_agente_asistente if _pp.curso else '') or ''
+                    except ProgresoEstudiante.DoesNotExist:
+                        pass
+                nombre_asistente = (_na_cli or _na_curso or 'Darío').strip() or 'Darío'
+                print(f"💬 Asistente ({nombre_asistente}): Esperando respuesta del compañero IA")
                 
                 msg_lower = msg_body.strip().lower()
                 if msg_lower in ['ayuda', 'soporte', 'ticket']:
@@ -3830,75 +3896,82 @@ def _procesar_twilio_webhook(post_data):
                     texto_respuesta = procesar_solicitud_soporte(estudiante, msg_body, 'asistente_ayuda')
                 elif msg_body.strip() == '[AUDIO_NO_TRANSCRITO]':
                     # Audio no pudo ser transcrito — NO contar como pregunta
-                    print(f"🎤 Audio no transcrito en Darío — pidiendo reintento")
+                    print(f"🎤 Audio no transcrito en asistente — pidiendo reintento")
                     preguntas_restantes = 2 - preguntas_hechas
                     texto_respuesta = (
-                        f"💬 *Darío*\n\n"
+                        f"💬 *{nombre_asistente}*\n\n"
                         f"⚠️ No pude escuchar tu audio. Por favor intenta de nuevo "
                         f"o escríbeme tu pregunta.\n\n"
                         f"Te quedan {preguntas_restantes} pregunta(s). "
                         f"Si no tienes preguntas, escribe *listo*."
                     )
-                elif msg_lower == 'listo' or preguntas_hechas >= 2:
-                    # Student says listo or exhausted 2 questions — activate Facilitator reto
-                    print(f"🎯 Darío terminó → Activando Facilitadora con reto")
-                    from .models import Modulo, ProgresoEstudiante
-                    modulos_reto = list(Modulo.objects.filter(id__in=modulos_reto_ids).order_by('numero'))
-                    
+                elif _mensaje_indica_listo(msg_body) or preguntas_hechas >= 2:
+                    # Flujo exigido: Darío -> Facilitadora (reto) al escribir listo
+                    print("🎯 Asistente terminó → Activando Facilitadora con reto")
+                    from .models import ProgresoEstudiante
+                    from .tutor_ia_modulo import cargar_modulos_reto, generar_reto_facilitador
                     try:
                         progreso = ProgresoEstudiante.objects.get(id=progreso_id)
                     except ProgresoEstudiante.DoesNotExist:
                         progreso = None
+                    modulos_reto = cargar_modulos_reto(
+                        modulos_reto_ids, progreso.curso_id if progreso else None
+                    )
                     
                     if modulos_reto and progreso:
-                        from .tutor_ia_modulo import generar_reto_facilitador
                         _cliente = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
                         nombre_tutor = (
                             (_cliente.nombre_agente_tutor if _cliente and hasattr(_cliente, 'nombre_agente_tutor') and _cliente.nombre_agente_tutor else '') or
                             progreso.curso.nombre_agente_tutor or 'Claudia'
                         )
-                        
                         reto = generar_reto_facilitador(
                             modulos_reto,
                             progreso.curso.nombre,
                             estudiante_nombre=estudiante.nombre or "Estudiante",
                             preguntas_ejemplo=progreso.curso.preguntas_ejemplo_ia or ""
                         )
-                        
                         _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
-                        es_reto_final = ctx.get('es_reto_final', False)
                         estudiante.contexto_temporal = {
                             'tipo': 'reto_facilitador',
                             'modulos_reto_ids': modulos_reto_ids,
                             'reto_texto': reto,
                             'progreso_id': progreso_id,
-                            'es_final': es_reto_final,
+                            'es_final': ctx.get('es_reto_final', False),
                             '_ts_leccion': _prev_ts,
                         }
                         estudiante.estado_onboarding = 'esperando_respuesta_reto'
-                        estudiante.save()
-                        
+                        estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
                         texto_respuesta = (
                             f"📋 *{nombre_tutor}*\n\n"
                             f"{reto}\n\n"
-                            f"✍️ _Escriba o envíe un audio con su respuesta._"
+                            "✍️ _Escriba o envíe un audio con su respuesta._"
                         )
                     else:
                         estudiante.estado_onboarding = 'completado'
                         estudiante.contexto_temporal = None
-                        estudiante.save()
-                        texto_respuesta = "👍 ¡Continuemos!\n\nEscribe *listo* para avanzar."
+                        estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])
+                        texto_respuesta = (
+                            "👍 No pude armar el reto del curso (faltan módulos o progreso). "
+                            "Escribe *listo* para intentar avanzar o *ayuda* para soporte."
+                        )
                 else:
                     # Student asked a question to Darío — answer from RAG (max 2)
                     preguntas_hechas += 1
-                    from .models import Modulo
-                    modulos_reto = list(Modulo.objects.filter(id__in=modulos_reto_ids).order_by('numero'))
+                    from .models import ProgresoEstudiante
+                    from .tutor_ia_modulo import cargar_modulos_reto, generar_respuesta_asistente
+                    try:
+                        _pr_dario = ProgresoEstudiante.objects.get(id=progreso_id) if progreso_id else None
+                    except ProgresoEstudiante.DoesNotExist:
+                        _pr_dario = None
+                    modulos_reto = cargar_modulos_reto(
+                        modulos_reto_ids, _pr_dario.curso_id if _pr_dario else None
+                    )
                     
-                    from .tutor_ia_modulo import generar_respuesta_asistente
                     respuesta_dario = generar_respuesta_asistente(
                         modulos_reto,
                         msg_body,
-                        estudiante_nombre=estudiante.nombre or "Estudiante"
+                        estudiante_nombre=estudiante.nombre or "Estudiante",
+                        nombre_asistente=nombre_asistente,
                     )
                     
                     ctx['preguntas_hechas'] = preguntas_hechas
@@ -3907,13 +3980,13 @@ def _procesar_twilio_webhook(post_data):
                     
                     if preguntas_hechas >= 2:
                         texto_respuesta = (
-                            f"💬 *Darío*\n\n{respuesta_dario}\n\n"
-                            f"Ya respondí tus 2 preguntas. Ahora Claudia te tiene un reto. "
+                            f"💬 *{nombre_asistente}*\n\n{respuesta_dario}\n\n"
+                            f"Ya respondí tus 2 preguntas. Ahora la facilitadora te tiene un reto. "
                             f"Escribe *listo* cuando estés preparado."
                         )
                     else:
                         texto_respuesta = (
-                            f"💬 *Darío*\n\n{respuesta_dario}\n\n"
+                            f"💬 *{nombre_asistente}*\n\n{respuesta_dario}\n\n"
                             f"¿Tienes otra pregunta? Te queda {2 - preguntas_hechas} pregunta más.\n"
                             f"Ejemplos: \"¿qué reviso primero en campo?\", \"¿cómo confirmo el diagnóstico?\". "
                             f"Si no, escribe *listo*."
@@ -3940,13 +4013,20 @@ def _procesar_twilio_webhook(post_data):
                         "✍️ _Escriba o envíe un audio con su respuesta._"
                     )
                 else:
-                    from .models import Modulo, ProgresoEstudiante
-                    modulos_reto = list(Modulo.objects.filter(id__in=modulos_reto_ids).order_by('numero'))
+                    from .models import ProgresoEstudiante
+                    from .tutor_ia_modulo import cargar_modulos_reto, evaluar_reto_facilitador
+                    try:
+                        progreso = ProgresoEstudiante.objects.get(id=progreso_id)
+                    except ProgresoEstudiante.DoesNotExist:
+                        progreso = None
+                    modulos_reto = cargar_modulos_reto(
+                        modulos_reto_ids, progreso.curso_id if progreso else None
+                    )
                     
-                    from .tutor_ia_modulo import evaluar_reto_facilitador
                     puntaje, feedback = evaluar_reto_facilitador(
                         modulos_reto, msg_body, reto_texto,
-                        estudiante_nombre=estudiante.nombre or "Estudiante"
+                        estudiante_nombre=estudiante.nombre or "Estudiante",
+                        curso_nombre=(progreso.curso.nombre if progreso else None),
                     )
                     
                     # Award points based on reto score (v1.9.8g: points ONLY here)
@@ -4164,6 +4244,55 @@ def _procesar_twilio_webhook(post_data):
                 pregunta_tutor = ctx.get('pregunta_tutor', '')
                 modulos_info = ctx.get('modulos_info', '')
                 intentos = ctx.get('intentos_tutor', 0)
+                modulos_reto_ids = ctx.get('modulos_reto_ids', [])
+                progreso_id = ctx.get('progreso_id')
+                es_reto_final = ctx.get('es_reto_final', False)
+
+                def _activar_reto_despues_de_maria(prefijo=""):
+                    from .models import ProgresoEstudiante
+                    from .tutor_ia_modulo import cargar_modulos_reto, generar_reto_facilitador
+                    progreso_r = ProgresoEstudiante.objects.filter(id=progreso_id).select_related('curso').first() if progreso_id else None
+                    modulos_reto = (
+                        cargar_modulos_reto(modulos_reto_ids, progreso_r.curso_id if progreso_r else None)
+                        if modulos_reto_ids else []
+                    )
+                    if not (progreso_r and modulos_reto):
+                        estudiante.contexto_temporal = None
+                        estudiante.estado_onboarding = 'completado'
+                        estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
+                        return (
+                            f"{prefijo}\n\n"
+                            "👍 No pude armar el reto del curso (faltan módulos o progreso). "
+                            "Escribe *listo* para intentar avanzar o *ayuda* para soporte."
+                        ).strip()
+                    _cliente = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
+                    nombre_tutor = (
+                        (_cliente.nombre_agente_tutor if _cliente and hasattr(_cliente, 'nombre_agente_tutor') and _cliente.nombre_agente_tutor else '') or
+                        progreso_r.curso.nombre_agente_tutor or 'Claudia'
+                    )
+                    reto = generar_reto_facilitador(
+                        modulos_reto,
+                        progreso_r.curso.nombre,
+                        estudiante_nombre=estudiante.nombre or "Estudiante",
+                        preguntas_ejemplo=progreso_r.curso.preguntas_ejemplo_ia or ""
+                    )
+                    _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
+                    estudiante.contexto_temporal = {
+                        'tipo': 'reto_facilitador',
+                        'modulos_reto_ids': modulos_reto_ids,
+                        'reto_texto': reto,
+                        'progreso_id': progreso_id,
+                        'es_final': es_reto_final,
+                        '_ts_leccion': _prev_ts,
+                    }
+                    estudiante.estado_onboarding = 'esperando_respuesta_reto'
+                    estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
+                    bloque_reto = (
+                        f"📋 *{nombre_tutor}*\n\n"
+                        f"{reto}\n\n"
+                        "✍️ _Escriba o envíe un audio con su respuesta._"
+                    )
+                    return f"{prefijo}\n\n{bloque_reto}".strip()
                 
                 # Detectar si el usuario quiere omitir
                 msg_lower = msg_body.strip().lower()
@@ -4176,20 +4305,13 @@ def _procesar_twilio_webhook(post_data):
                         "Si prefieres continuar sin responder, escribe *listo*."
                     )
                 elif any(p in msg_lower for p in palabras_skip):
-                    estudiante.contexto_temporal = None
-                    estudiante.estado_onboarding = 'completado'
-                    estudiante.save()
-                    print(f"⏭️ María (revisión progreso) omitida por usuario")
+                    print(f"⏭️ María omitida por usuario → activando reto")
                     
                     if msg_lower in ['menu', 'menú']:
                         from .response_templates import get_response_for_intent
                         texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
                     else:
-                        # v1.9.6: NO llamar continuar_leccion — el skip solo cierra la revisión.
-                        # El estudiante ya tiene el contenido del módulo. Cuando lo estudie
-                        # y escriba "listo" de nuevo, avanzará por el flujo normal (estado=completado).
-                        texto_respuesta = "👍 Sin problema.\n\nContinúa revisando el contenido del módulo 👆\n\nCuando termines, escribe *listo* para avanzar al siguiente."
-                        print(f"✅ v1.9.6: Skip María sin avance automático", flush=True)
+                        texto_respuesta = _activar_reto_despues_de_maria("👍 Perfecto, pasemos al reto de la facilitadora.")
                 else:
                     from .tutor_ia_modulo import evaluar_respuesta_progreso
                     
@@ -4198,18 +4320,14 @@ def _procesar_twilio_webhook(post_data):
                         estudiante_nombre=estudiante.nombre or "Estudiante"
                     )
                     
-                    # v1.9.8: Siempre 1 sola interacción — feedback y continúa
-                    estudiante.contexto_temporal = None
-                    estudiante.estado_onboarding = 'completado'
-                    estudiante.save()
                     if resuelta:
                         perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
                         perfil.agregar_puntos(3, "Revisión de progreso - María")
-                        texto_respuesta = f"{feedback}\n\n💰 *+3 puntos* por tu reflexión 💪\n\nContinúa revisando el módulo 👆\nCuando termines, escribe *listo* para avanzar."
-                        print(f"✅ v1.9.8: María resuelta — 1 interacción", flush=True)
+                        texto_respuesta = _activar_reto_despues_de_maria(f"{feedback}\n\n💰 *+3 puntos* por tu reflexión 💪")
+                        print(f"✅ María resuelta — activando reto", flush=True)
                     else:
-                        texto_respuesta = f"{feedback}\n\n✅ *Buena reflexión!* Sigue con el módulo 👆\n\nCuando termines, escribe *listo* para avanzar."
-                        print(f"✅ v1.9.8: María incorrecto — feedback y continúa", flush=True)
+                        texto_respuesta = _activar_reto_despues_de_maria(f"{feedback}\n\n✅ *Buena reflexión!*")
+                        print(f"✅ María evaluada — activando reto", flush=True)
 
             # 3.5a2 PRIORIDAD: Si está respondiendo pregunta de RECUPERACIÓN (<70 pts)
             elif estudiante.estado_onboarding == 'esperando_respuesta_recuperacion':
