@@ -9,6 +9,7 @@ IMPORTANTE:
 
 import os
 import sys
+from pathlib import Path
 
 # ============================================
 # 🔥 FORZAR S3 **ANTES** DE CUALQUIER IMPORT
@@ -31,6 +32,10 @@ os.environ['AWS_S3_REGION_NAME'] = os.environ.get('AWS_S3_REGION_NAME', 'us-east
 
 # AHORA sí importar settings base (que leerá las env vars)
 from .settings import *
+
+# Respaldo: deploy con settings.py vacío deja BASE_DIR indefinido → 502 en Gunicorn.
+if "BASE_DIR" not in globals():
+    BASE_DIR = Path(__file__).resolve().parent.parent
 
 ## sys.stderr.write(f"\nDESPUES DE IMPORTAR SETTINGS:\n")
 ## sys.stderr.write(f"  DEFAULT_FILE_STORAGE = {DEFAULT_FILE_STORAGE}\n")
