@@ -157,6 +157,7 @@ def _generar_completado_final(estudiante, curso_id):
                 _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
                 estudiante.contexto_temporal = {
                     'tipo': 'asistente_dario',
+                    'curso_activo_id': curso.id,
                     'curso_id': curso.id,
                     'modulo_id': getattr(progreso.modulo_actual, 'id', None),
                     'progreso_id': progreso.id,
@@ -1259,6 +1260,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
                     estudiante.contexto_temporal = {
                         'tipo': 'asistente_dario',
+                        'curso_activo_id': progreso.curso_id,
                         'modulo_id': modulo_actual.id,
                         'progreso_id': progreso.id,
                         'modulos_reto_ids': [m.id for m in modulos_reto],
@@ -1393,6 +1395,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                         _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
                         estudiante.contexto_temporal = {
                             'tipo': 'asistente_dario',
+                            'curso_activo_id': progreso.curso_id,
                             'modulo_id': modulos_final[-1].id if modulos_final else None,
                             'progreso_id': progreso.id,
                             'modulos_reto_ids': [m.id for m in modulos_final],

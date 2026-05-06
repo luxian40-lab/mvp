@@ -327,6 +327,25 @@ Escribe "siguiente" para avanzar.
         return False
 
 
+def contexto_temporal_tras_cerrar_agente(progreso=None, ctx_previo=None):
+    """
+    Al cerrar reto/facilitadora, no borrar del todo el contexto: conservar curso_activo_id.
+    Si continuar_leccion pierde el foco (p. ej. varios ProgresoEstudiante activos),
+    puede elegir otro curso todavía en módulo 3 y repetir compañero + facilitadora.
+    """
+    out = {}
+    cid = None
+    if progreso is not None:
+        cid = getattr(progreso, "curso_id", None)
+    if not cid and ctx_previo:
+        cid = ctx_previo.get("curso_activo_id")
+    if cid:
+        out["curso_activo_id"] = int(cid)
+    if ctx_previo and "_ts_leccion" in ctx_previo:
+        out["_ts_leccion"] = ctx_previo["_ts_leccion"]
+    return out or None
+
+
 def debe_activar_checkpoint_reto_ia(numero_modulo: int, total_modulos: int, usar_agentes_ia_curso: bool) -> bool:
     """
     Punto único de verdad: tras qué módulos activar compañero + facilitadora (reto).

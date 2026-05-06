@@ -4147,8 +4147,19 @@ def _procesar_twilio_webhook(post_data):
                             partes_finales.append(msg_cert_img)
                             texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_finales)
                     else:
-                        estudiante.contexto_temporal = None
+                        _prev_ctx = estudiante.contexto_temporal or {}
+                        from .helpers_examenes import contexto_temporal_tras_cerrar_agente
+                        estudiante.contexto_temporal = contexto_temporal_tras_cerrar_agente(progreso, _prev_ctx)
                         estudiante.estado_onboarding = 'completado'
+                        # Avanzar puntero para que el próximo *listo* no reevalúe el mismo módulo-reto
+                        # (evita segundo ciclo compañero + facilitadora en módulo 3).
+                        if progreso:
+                            siguiente = progreso.curso.modulos.filter(
+                                numero__gt=progreso.modulo_actual.numero
+                            ).order_by('numero').first()
+                            if siguiente:
+                                progreso.modulo_actual = siguiente
+                                progreso.save(update_fields=['modulo_actual'])
                         estudiante.save()
                         
                         texto_respuesta = f"{msg_eval}\n\n✅ Escribe *listo* para continuar con el siguiente módulo."
@@ -4547,6 +4558,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                         _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
                                         estudiante.contexto_temporal = {
                                             'tipo': 'asistente_dario',
+                                            'curso_activo_id': progreso.curso_id,
                                             'modulo_id': modulo_actual.id,
                                             'progreso_id': progreso.id,
                                             'modulos_reto_ids': [m.id for m in modulos_reto],
@@ -4611,6 +4623,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                             _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
                                             estudiante.contexto_temporal = {
                                                 'tipo': 'asistente_dario',
+                                                'curso_activo_id': progreso.curso_id,
                                                 'curso_id': progreso.curso.id,
                                                 'modulo_id': modulo_actual.id,
                                                 'progreso_id': progreso.id,

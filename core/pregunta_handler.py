@@ -251,7 +251,30 @@ def validar_respuesta(estudiante, respuesta_letra):
     
     # Verificar si es correcta
     es_correcta = (respuesta_letra == pregunta.respuesta_correcta.upper())
-    
+
+    # Webhook/mensaje duplicado: no volver a puntear ni re-disparar flujo posterior al examen
+    prev_mc = ModuloCompletado.objects.filter(progreso=progreso, modulo=modulo).first()
+    if (
+        prev_mc
+        and prev_mc.respuesta_correcta
+        and es_correcta
+        and (prev_mc.respuesta_dada or '').upper().strip() == respuesta_letra
+    ):
+        from .gamificacion import PerfilGamificacion
+        perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
+        perfil.refresh_from_db()
+        estudiante.contexto_temporal = None
+        estudiante.estado_onboarding = 'completado'
+        estudiante.save()
+        mensaje = f"""✅ *¡CORRECTO!* 🎉
+
+⭐ +50 puntos por módulo
+⭐ +10 puntos bonus por respuesta correcta
+💰 Total: {perfil.puntos_totales} pts"""
+        if pregunta.explicacion:
+            mensaje += f"\n\n💡 {pregunta.explicacion}"
+        return True, mensaje, prev_mc
+
     # Obtener perfil ANTES de crear módulo completado
     from .gamificacion import PerfilGamificacion
     perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
