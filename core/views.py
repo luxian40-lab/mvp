@@ -2917,18 +2917,11 @@ def _procesar_twilio_webhook(post_data):
                 # Enviar curso directamente (sin menú)
                 org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
                 try:
-                    from .models import Curso, ProgresoEstudiante
+                    from .models import ProgresoEstudiante
                     from .response_templates import obtener_video_url
-                    org = estudiante.cliente
-                    # Priorizar curso ya asignado (ej. por campaña) sobre primer curso genérico
-                    progreso_existente = ProgresoEstudiante.objects.filter(
-                        estudiante=estudiante, completado=False
-                    ).select_related('curso').first()
-                    if progreso_existente and progreso_existente.curso and progreso_existente.curso.activo:
-                        curso = progreso_existente.curso
-                    else:
-                        cursos = Curso.objects.filter(cliente=org, activo=True).order_by('orden', 'nombre') if org else Curso.objects.filter(activo=True).order_by('orden', 'nombre')
-                        curso = cursos.first()
+                    from .selector_curso import resolver_curso_post_confirmacion
+
+                    curso = resolver_curso_post_confirmacion(estudiante)
                     if curso:
                         progreso, creado = ProgresoEstudiante.objects.get_or_create(
                             estudiante=estudiante,

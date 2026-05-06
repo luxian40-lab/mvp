@@ -5,17 +5,61 @@ Función para continuar con un curso específico seleccionado
 from django.utils import timezone
 
 
+def _curso_desde_campana_cliente(estudiante, org):
+    """
+    Curso destino declarado en campañas del cliente (envío registrado o estudiante en destinatarios).
+    Cubre cursos con Curso.cliente nulo pero asignados vía Campana.curso_destino.
+    """
+    from .models import Campana, EnvioLog
+
+    if not org:
+        return None
+
+    log = (
+        EnvioLog.objects.filter(estudiante=estudiante, campana__cliente_id=org.id)
+        .select_related('campana__curso_destino')
+        .order_by('-fecha_envio')
+        .first()
+    )
+    if log and log.campana and log.campana.curso_destino_id:
+        cd = log.campana.curso_destino
+        if cd and cd.activo:
+            return cd
+
+    camp = (
+        Campana.objects.filter(
+            cliente=org,
+            curso_destino__isnull=False,
+            curso_destino__activo=True,
+            destinatarios=estudiante,
+        )
+        .select_related('curso_destino')
+        .order_by('-id')
+        .first()
+    )
+    if camp and camp.curso_destino:
+        return camp.curso_destino
+    return None
+
+
 def cursos_visibles_para_estudiante(estudiante):
     """
     Cursos activos que el estudiante puede tomar al inscribirse o ver en el menú.
-    Si tiene cliente: solo cursos de esa organización (mismo criterio en lista y al elegir número).
-    Si no: todos los cursos activos (sandbox / legacy).
+    Si tiene cliente: cursos con ese cliente; si no hay ninguno, el curso destino de una
+    campaña del cliente hacia este estudiante (Curso.cliente puede ser nulo).
+    Si no tiene cliente: todos los cursos activos (sandbox / legacy).
     """
     from .models import Curso
 
     org = getattr(estudiante, 'cliente', None)
     if org:
-        return Curso.objects.filter(cliente=org, activo=True).order_by('orden', 'nombre')
+        directos = Curso.objects.filter(cliente=org, activo=True).order_by('orden', 'nombre')
+        if directos.exists():
+            return directos
+        promo = _curso_desde_campana_cliente(estudiante, org)
+        if promo:
+            return Curso.objects.filter(pk=promo.pk, activo=True)
+        return Curso.objects.none()
     return Curso.objects.filter(activo=True).order_by('orden', 'nombre')
 
 
@@ -40,7 +84,7 @@ def asegurar_inscripcion_catalogo_cliente(estudiante):
     )
     if progreso_existente and progreso_existente.curso and progreso_existente.curso.activo:
         c = progreso_existente.curso
-        if c.cliente_id == estudiante.cliente_id:
+        if c.cliente_id is None or c.cliente_id == estudiante.cliente_id:
             if not progreso_existente.modulo_actual:
                 primer = c.modulos.order_by('numero').first()
                 if primer:
@@ -50,6 +94,8 @@ def asegurar_inscripcion_catalogo_cliente(estudiante):
 
     cursos = cursos_visibles_para_estudiante(estudiante)
     curso = cursos.first()
+    if not curso:
+        curso = _curso_desde_campana_cliente(estudiante, estudiante.cliente)
     if not curso:
         return None
 
@@ -63,6 +109,42 @@ def asegurar_inscripcion_catalogo_cliente(estudiante):
         progreso.modulo_actual = primer_modulo
         progreso.save(update_fields=['modulo_actual'])
     return progreso
+
+
+def resolver_curso_post_confirmacion(estudiante):
+    """
+    Tras confirmar datos (B2B): qué curso iniciar.
+    Progreso incompleto coherente → catálogo cliente=org → curso de campaña → (solo sin org) primer curso activo global.
+    """
+    from .models import Curso, ProgresoEstudiante
+
+    org = getattr(estudiante, 'cliente', None)
+
+    progreso_existente = (
+        ProgresoEstudiante.objects.filter(estudiante=estudiante, completado=False)
+        .select_related('curso')
+        .order_by('-fecha_inicio')
+        .first()
+    )
+    if progreso_existente and progreso_existente.curso and progreso_existente.curso.activo:
+        c = progreso_existente.curso
+        if not org or c.cliente_id is None or c.cliente_id == org.id:
+            return c
+
+    if org:
+        curso = (
+            Curso.objects.filter(cliente=org, activo=True)
+            .order_by('orden', 'nombre')
+            .first()
+        )
+        if curso:
+            return curso
+        curso = _curso_desde_campana_cliente(estudiante, org)
+        if curso:
+            return curso
+        return None
+
+    return Curso.objects.filter(activo=True).order_by('orden', 'nombre').first()
 
 
 def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_original: str):
