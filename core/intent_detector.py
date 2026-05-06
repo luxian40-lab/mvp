@@ -148,3 +148,22 @@ def detect_intent(mensaje: str) -> str:
         return 'corregir_datos'
     
     return 'desconocido'
+
+
+def mensaje_indica_listo(mensaje: str) -> bool:
+    """
+    True si el usuario dice explícitamente listo para el gate del curso (sin detect_intent:
+    evita falsos positivos en prosa larga).
+    """
+    if not mensaje or not str(mensaje).strip():
+        return False
+    t = str(mensaje).strip().lower()
+    t = re.sub(r'[*_]+', '', t).strip()
+    tokens = re.findall(r'\w+', t, flags=re.UNICODE)
+    if not tokens:
+        return False
+    if len(tokens) == 1 and tokens[0] == 'listo':
+        return True
+    if len(tokens) <= 4 and 'listo' in tokens:
+        return True
+    return False
