@@ -5,12 +5,28 @@ Función para continuar con un curso específico seleccionado
 from django.utils import timezone
 
 
+def cursos_visibles_para_estudiante(estudiante):
+    """
+    Cursos activos que el estudiante puede tomar al inscribirse o ver en el menú.
+    Si tiene cliente: solo cursos de esa organización (mismo criterio en lista y al elegir número).
+    Si no: todos los cursos activos (sandbox / legacy).
+    """
+    from .models import Curso
+
+    org = getattr(estudiante, 'cliente', None)
+    if org:
+        return Curso.objects.filter(cliente=org, activo=True).order_by('orden', 'nombre')
+    return Curso.objects.filter(activo=True).order_by('orden', 'nombre')
+
+
 def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_original: str):
     """
-    Continúa con un curso específico seleccionado por el usuario.
-    Busca cursos activos del cliente del estudiante y crea progreso si no existe.
+    Continúa con un curso elegido por número.
+    Usa el mismo orden que la lista vista por el usuario: catálogo por cliente o,
+    si venía de *continuar* con varios progresos activos, ese subconjunto ordenado por fecha.
+    Crea ProgresoEstudiante si aún no existe.
 
-    Respeta el mismo drip (espera entre módulos) que el flujo principal en response_templates.
+    Respeta el drip (espera entre módulos) como el flujo principal en response_templates.
     """
     from .models import Estudiante, Curso, ProgresoEstudiante, ModuloCompletado
     from .drip_schedule import dias_espera_efectivos, drip_bloquea_siguiente_modulo, fecha_desbloqueo_drip
@@ -21,14 +37,17 @@ def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_
     except Estudiante.DoesNotExist:
         return "Error: No se encontró tu perfil de estudiante."
 
-    # Obtener TODOS los cursos activos del cliente (mismo orden que enviar_lista_cursos)
-    org = estudiante.cliente
-    if org:
-        cursos = Curso.objects.filter(cliente=org, activo=True).order_by('orden', 'nombre')
+    ctx = estudiante.contexto_temporal or {}
+    # Lista mostrada al elegir entre varios *progresos* activos (continuar_leccion), no el catálogo de inscripción
+    if ctx.get('tipo') == 'seleccion_curso':
+        progresos_ordenados = ProgresoEstudiante.objects.filter(
+            estudiante=estudiante,
+            completado=False,
+            curso__activo=True,
+        ).select_related('curso').order_by('-fecha_inicio')
+        cursos_list = [p.curso for p in progresos_ordenados]
     else:
-        cursos = Curso.objects.filter(activo=True).order_by('orden', 'nombre')
-
-    cursos_list = list(cursos)
+        cursos_list = list(cursos_visibles_para_estudiante(estudiante))
 
     # Validar índice
     if indice_curso < 1 or indice_curso > len(cursos_list):
@@ -64,6 +83,7 @@ def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_
 
     def _persist_curso_foco():
         ctx = dict(estudiante.contexto_temporal or {})
+        ctx.pop('tipo', None)
         ctx['curso_activo_id'] = curso_seleccionado.id
         estudiante.contexto_temporal = ctx
         estudiante.save(update_fields=['contexto_temporal'])

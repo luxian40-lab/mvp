@@ -519,7 +519,17 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
     # Opción 2: SIEMPRE = Ver cursos disponibles
     if intent == 'opcion_2':
         from .models import Curso, Estudiante
-        cursos_activos = Curso.objects.filter(activo=True).order_by('orden')
+        from .selector_curso import cursos_visibles_para_estudiante
+
+        estudiante_id_menu = kwargs.get('estudiante_id')
+        if estudiante_id_menu:
+            try:
+                _est_cur = Estudiante.objects.select_related('cliente').get(id=estudiante_id_menu)
+                cursos_activos = cursos_visibles_para_estudiante(_est_cur)
+            except Estudiante.DoesNotExist:
+                cursos_activos = Curso.objects.filter(activo=True).order_by('orden', 'nombre')
+        else:
+            cursos_activos = Curso.objects.filter(activo=True).order_by('orden', 'nombre')
         
         if not cursos_activos.exists():
             return "No hay cursos disponibles en este momento. ⚠️"
@@ -573,9 +583,14 @@ También puedes:
     # Opción numérica genérica (4-9): Por defecto = Inscribir curso
     # El contexto en message_handler determina si es curso, módulo, etc.
     if intent == 'opcion_numerica':
-        # El mensaje_handler ya determinó el contexto
-        # Aquí solo manejamos el caso por defecto: inscribir curso
-        return _manejar_inscribir_curso(kwargs.get('estudiante_id'), kwargs.get('mensaje_original', ''))
+        # Curso de lista (mismo orden que opcion_2 / selector_curso por cliente)
+        from .selector_curso import continuar_curso_seleccionado
+
+        sid = kwargs.get('estudiante_id')
+        msg = (kwargs.get('mensaje_original') or '').strip()
+        if not sid or not msg.isdigit():
+            return "Escribe el número del curso o *menú* para volver."
+        return continuar_curso_seleccionado(sid, int(msg), msg)
     
     # Progreso (sin pasar por menú) - Redirigir a opcion_1
     if intent == 'progreso':
@@ -710,8 +725,18 @@ O escribe "menú" para ver todas las opciones."""
     
     # Ver cursos disponibles
     if intent == 'ver_cursos':
-        from .models import Curso
-        cursos_activos = Curso.objects.filter(activo=True).order_by('orden')
+        from .models import Curso, Estudiante
+        from .selector_curso import cursos_visibles_para_estudiante
+
+        estudiante_id_vc = kwargs.get('estudiante_id')
+        if estudiante_id_vc:
+            try:
+                _est_vc = Estudiante.objects.select_related('cliente').get(id=estudiante_id_vc)
+                cursos_activos = cursos_visibles_para_estudiante(_est_vc)
+            except Estudiante.DoesNotExist:
+                cursos_activos = Curso.objects.filter(activo=True).order_by('orden', 'nombre')
+        else:
+            cursos_activos = Curso.objects.filter(activo=True).order_by('orden', 'nombre')
         
         if not cursos_activos.exists():
             return "No hay cursos disponibles en este momento. ⚠️"
@@ -727,7 +752,8 @@ O escribe "menú" para ver todas las opciones."""
     
     # Inscribirse en curso
     if intent == 'inscribir_curso':
-        from .models import Curso, ProgresoEstudiante, Estudiante
+        from .models import ProgresoEstudiante, Estudiante
+        from .selector_curso import cursos_visibles_para_estudiante
         import re
         
         mensaje_original = kwargs.get('mensaje_original', '').strip()
@@ -737,28 +763,38 @@ O escribe "menú" para ver todas las opciones."""
             return "Error al identificar estudiante. ⚠️"
         
         try:
-            estudiante = Estudiante.objects.get(id=estudiante_id)
+            estudiante = Estudiante.objects.select_related('cliente').get(id=estudiante_id)
         except Estudiante.DoesNotExist:
             return "❌ Error: No se encontró tu perfil de estudiante."
         
         curso = None
+        cursos_activos = list(cursos_visibles_para_estudiante(estudiante))
         
-        # Detectar número del curso
+        if not cursos_activos:
+            return (
+                "❌ No hay cursos disponibles para tu organización en este momento.\n\n"
+                "Si el curso acaba de publicarse, espera unos minutos o escribe *ayuda*."
+            )
+        
+        # Detectar número del curso (evitar tomar el dígito de "opción 1" en frases largas: solo si mensaje es corto o patrón tomar/inscribir)
         match = re.search(r'\d+', mensaje_original)
-        if match:
+        if match and (
+            len(mensaje_original) <= 12
+            or re.match(r'^(tomar|inscribir)\s*\d+', mensaje_original.lower())
+        ):
             numero_curso = int(match.group())
-            cursos_activos = list(Curso.objects.filter(activo=True).order_by('orden'))
-            
-            if not cursos_activos:
-                return "❌ No hay cursos disponibles en este momento."
-            
             if 1 <= numero_curso <= len(cursos_activos):
                 curso = cursos_activos[numero_curso - 1]
             else:
-                return f"❌ Número inválido. Tenemos {len(cursos_activos)} cursos disponibles.\n\nEscribe \"ver cursos\" para verlos."
-        
-        if not curso:
-            return """❌ No encontré ese curso.\n\nEscribe "ver cursos" para ver las opciones disponibles."""
+                return f"❌ Número inválido. Tienes {len(cursos_activos)} cursos disponibles.\n\nEscribe \"ver cursos\" para verlos."
+        elif len(cursos_activos) == 1:
+            curso = cursos_activos[0]
+        else:
+            return (
+                "📚 Para *iniciar un curso*, escribe el *número* de la lista.\n\n"
+                "Ejemplo: *1* o *2*\n\n"
+                "Escribe *ver cursos* para ver la lista."
+            )
         
         # Verificar si ya está inscrito
         progreso_existente = ProgresoEstudiante.objects.filter(
