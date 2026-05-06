@@ -19,6 +19,52 @@ def cursos_visibles_para_estudiante(estudiante):
     return Curso.objects.filter(activo=True).order_by('orden', 'nombre')
 
 
+def asegurar_inscripcion_catalogo_cliente(estudiante):
+    """
+    B2B: el estudiante ya pertenece a un cliente; asegura un ProgresoEstudiante activo
+    en el catálogo de ese cliente (progreso existente o primer curso activo), alineado
+    con el flujo post-confirmación en views (sin menú numerado).
+
+    Retorna ProgresoEstudiante o None si el cliente no tiene cursos activos.
+    """
+    from .models import ProgresoEstudiante
+
+    if not getattr(estudiante, 'cliente_id', None):
+        return None
+
+    progreso_existente = (
+        ProgresoEstudiante.objects.filter(estudiante=estudiante, completado=False)
+        .select_related('curso')
+        .order_by('-fecha_inicio')
+        .first()
+    )
+    if progreso_existente and progreso_existente.curso and progreso_existente.curso.activo:
+        c = progreso_existente.curso
+        if c.cliente_id == estudiante.cliente_id:
+            if not progreso_existente.modulo_actual:
+                primer = c.modulos.order_by('numero').first()
+                if primer:
+                    progreso_existente.modulo_actual = primer
+                    progreso_existente.save(update_fields=['modulo_actual'])
+            return progreso_existente
+
+    cursos = cursos_visibles_para_estudiante(estudiante)
+    curso = cursos.first()
+    if not curso:
+        return None
+
+    primer_modulo = curso.modulos.order_by('numero').first()
+    progreso, _ = ProgresoEstudiante.objects.get_or_create(
+        estudiante=estudiante,
+        curso=curso,
+        defaults={'completado': False, 'modulo_actual': primer_modulo},
+    )
+    if not progreso.modulo_actual and primer_modulo:
+        progreso.modulo_actual = primer_modulo
+        progreso.save(update_fields=['modulo_actual'])
+    return progreso
+
+
 def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_original: str):
     """
     Continúa con un curso elegido por número.

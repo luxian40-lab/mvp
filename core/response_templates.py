@@ -410,7 +410,27 @@ def get_response_for_intent(intent: str, nombre_usuario: str = "Estudiante", **k
         if estudiante_id_menu:
             try:
                 from .models import Estudiante as _EstMenu
-                _est = _EstMenu.objects.get(id=estudiante_id_menu)
+                from .selector_curso import asegurar_inscripcion_catalogo_cliente
+
+                _est = _EstMenu.objects.select_related('cliente').get(id=estudiante_id_menu)
+                # B2B: con organización no hay menú 1-2-3; el curso viene del cliente vinculado
+                if _est.cliente_id:
+                    prog = asegurar_inscripcion_catalogo_cliente(_est)
+                    org = _est.cliente.nombre if _est.cliente else 'tu organización'
+                    if prog and prog.curso:
+                        cur = prog.curso
+                        emoji = (cur.emoji or '📚').strip()
+                        return (
+                            f"🌱 Hola {nombre_usuario}, bienvenido al programa de *{org}*.\n\n"
+                            f"{emoji} Tu curso: *{cur.nombre}*\n\n"
+                            "Escribe *continuar* para seguir tu lección.\n"
+                            "Si tienes dudas, escribe *ayuda*."
+                        )
+                    return (
+                        f"🌱 Hola {nombre_usuario}, bienvenido a *{org}*.\n\n"
+                        "Tu organización aún no tiene cursos activos o siguen en preparación.\n"
+                        "Escribe *ayuda* si necesitas soporte."
+                    )
                 _ctxm = dict(_est.contexto_temporal or {})
                 _ctxm.pop('curso_activo_id', None)
                 _est.contexto_temporal = _ctxm or None
@@ -461,8 +481,11 @@ Escribe "continuar", "ver cursos" o "mi progreso"."""
             return "Error al identificar estudiante. ⚠️"
         
         from .models import Estudiante
+        from .selector_curso import asegurar_inscripcion_catalogo_cliente
         estudiante = Estudiante.objects.get(id=estudiante_id)
-        
+        if getattr(estudiante, 'cliente_id', None):
+            asegurar_inscripcion_catalogo_cliente(estudiante)
+
         # Obtener o crear perfil de gamificación
         from .gamificacion import PerfilGamificacion, BadgeEstudiante
         perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
@@ -516,13 +539,42 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
         respuesta += "O escribe *MENÚ* para volver al inicio"
         return respuesta
     
-    # Opción 2: SIEMPRE = Ver cursos disponibles
+    # Opción 2: cursos (sandbox: lista + números; B2B: sin menú global, curso del cliente)
     if intent == 'opcion_2':
         from .models import Curso, Estudiante
-        from .selector_curso import cursos_visibles_para_estudiante
+        from .selector_curso import cursos_visibles_para_estudiante, asegurar_inscripcion_catalogo_cliente
 
         estudiante_id_menu = kwargs.get('estudiante_id')
         if estudiante_id_menu:
+            try:
+                _est_cur = Estudiante.objects.select_related('cliente').get(id=estudiante_id_menu)
+                if _est_cur.cliente_id:
+                    prog = asegurar_inscripcion_catalogo_cliente(_est_cur)
+                    if not prog or not prog.curso:
+                        return (
+                            "Tu organización aún no tiene cursos activos en este momento. ⚠️\n\n"
+                            "Escribe *ayuda* si necesitas soporte."
+                        )
+                    cursos_list = list(cursos_visibles_para_estudiante(_est_cur))
+                    if len(cursos_list) <= 1:
+                        return (
+                            f"📚 Tu curso asignado es *{prog.curso.nombre}*.\n\n"
+                            "Escribe *continuar* para seguir."
+                        )
+                    respuesta = f"📚 *Cursos en {_est_cur.cliente.nombre}*\n\n"
+                    for idx, curso in enumerate(cursos_list, 1):
+                        respuesta += f"{idx}. {curso.emoji} *{curso.nombre}*\n"
+                        respuesta += f"   📅 {curso.duracion_semanas} semanas | 📖 {curso.modulos.count()} módulos\n\n"
+                    respuesta += (
+                        "👉 Escribe el *número* del curso que quieres (o *continuar* para seguir el actual).\n\n"
+                        "Escribe *menú* para volver al mensaje de bienvenida."
+                    )
+                    _est_cur.estado_onboarding = 'esperando_seleccion_curso'
+                    _est_cur.save(update_fields=['estado_onboarding'])
+                    return respuesta
+            except Estudiante.DoesNotExist:
+                pass
+
             try:
                 _est_cur = Estudiante.objects.select_related('cliente').get(id=estudiante_id_menu)
                 cursos_activos = cursos_visibles_para_estudiante(_est_cur)
@@ -530,21 +582,20 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 cursos_activos = Curso.objects.filter(activo=True).order_by('orden', 'nombre')
         else:
             cursos_activos = Curso.objects.filter(activo=True).order_by('orden', 'nombre')
-        
+
         if not cursos_activos.exists():
             return "No hay cursos disponibles en este momento. ⚠️"
-        
+
         respuesta = "📚 *CURSOS DISPONIBLES EN eki*\n\n"
-        
+
         for idx, curso in enumerate(cursos_activos, 1):
             respuesta += f"{idx}. {curso.emoji} *{curso.nombre}*\n"
             respuesta += f"   📅 {curso.duracion_semanas} semanas | 📖 {curso.modulos.count()} módulos\n\n"
-        
+
         respuesta += "Para inscribirte en un curso:\n"
         respuesta += "👉 Escribe el *número* (ej: *1* o *2*)\n\n"
         respuesta += "También puedes escribir *MENÚ* para volver"
-        
-        # Configurar estado para interceptar la selección numérica
+
         estudiante_id = kwargs.get('estudiante_id')
         if estudiante_id:
             try:
@@ -553,7 +604,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 est.save()
             except Estudiante.DoesNotExist:
                 pass
-        
+
         return respuesta
     
     # Opción 3: SIEMPRE = Ayuda/Soporte
@@ -726,30 +777,38 @@ O escribe "menú" para ver todas las opciones."""
     # Ver cursos disponibles
     if intent == 'ver_cursos':
         from .models import Curso, Estudiante
-        from .selector_curso import cursos_visibles_para_estudiante
+        from .selector_curso import cursos_visibles_para_estudiante, asegurar_inscripcion_catalogo_cliente
 
         estudiante_id_vc = kwargs.get('estudiante_id')
+        cursos_activos = None
         if estudiante_id_vc:
             try:
                 _est_vc = Estudiante.objects.select_related('cliente').get(id=estudiante_id_vc)
                 cursos_activos = cursos_visibles_para_estudiante(_est_vc)
+                if _est_vc.cliente_id and cursos_activos.count() == 1:
+                    prog = asegurar_inscripcion_catalogo_cliente(_est_vc)
+                    if prog and prog.curso:
+                        return (
+                            f"📚 Tu curso: *{prog.curso.nombre}*\n\n"
+                            "Escribe *continuar* para seguir."
+                        )
             except Estudiante.DoesNotExist:
-                cursos_activos = Curso.objects.filter(activo=True).order_by('orden', 'nombre')
-        else:
+                pass
+        if cursos_activos is None:
             cursos_activos = Curso.objects.filter(activo=True).order_by('orden', 'nombre')
-        
+
         if not cursos_activos.exists():
             return "No hay cursos disponibles en este momento. ⚠️"
-        
+
         respuesta = "📚 CURSOS DISPONIBLES EN eki\n\n"
-        
+
         for idx, curso in enumerate(cursos_activos, 1):
             respuesta += f"{idx}️⃣ {curso.emoji} *{curso.nombre}*\n"
             respuesta += f"   📅 {curso.duracion_semanas} semanas | 📖 {curso.modulos.count()} módulos\n\n"
-        
+
         respuesta += "👉 *Escribe el número* del curso que quieres tomar"
         return respuesta
-    
+
     # Inscribirse en curso
     if intent == 'inscribir_curso':
         from .models import ProgresoEstudiante, Estudiante
