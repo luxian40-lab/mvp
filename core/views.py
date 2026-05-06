@@ -4142,10 +4142,10 @@ def _procesar_twilio_webhook(post_data):
                     else:
                         _prev_ctx = estudiante.contexto_temporal or {}
                         from .helpers_examenes import contexto_temporal_tras_cerrar_agente
-                        estudiante.contexto_temporal = contexto_temporal_tras_cerrar_agente(progreso, _prev_ctx)
+                        _base_ctx = contexto_temporal_tras_cerrar_agente(progreso, _prev_ctx) or {}
                         estudiante.estado_onboarding = 'completado'
-                        # Avanzar puntero para que el próximo *listo* no reevalúe el mismo módulo-reto
-                        # (evita segundo ciclo compañero + facilitadora en módulo 3).
+                        # Avanzar puntero al siguiente módulo (p. ej. 4). No pedir *listo* aquí: en continuar_leccion
+                        # un "listo" con módulo aún no mostrado lo marcaba completo y saltaba al siguiente (# bug módulo 4).
                         if progreso:
                             siguiente = progreso.curso.modulos.filter(
                                 numero__gt=progreso.modulo_actual.numero
@@ -4153,9 +4153,14 @@ def _procesar_twilio_webhook(post_data):
                             if siguiente:
                                 progreso.modulo_actual = siguiente
                                 progreso.save(update_fields=['modulo_actual'])
+                                _base_ctx['post_reto_entregar_modulo_id'] = siguiente.id
+                        estudiante.contexto_temporal = _base_ctx
                         estudiante.save()
-                        
-                        texto_respuesta = f"{msg_eval}\n\n✅ Escribe *listo* para continuar con el siguiente módulo."
+                        texto_respuesta = (
+                            f"{msg_eval}\n\n"
+                            "✅ Escribe *continuar* para recibir el contenido del siguiente módulo.\n"
+                            "Cuando lo hayas revisado, responde *listo* para seguir."
+                        )
                     print(f"✅ Facilitadora reto evaluado: {puntaje}/10, +{puntos_reto} pts", flush=True)
             
             # 3.5a PRIORIDAD: Si está respondiendo al TUTOR IA (legacy)

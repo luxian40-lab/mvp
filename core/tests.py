@@ -1,4 +1,5 @@
-from datetime import date, datetime, time, timedelta
+import time
+from datetime import date, datetime, timedelta
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
@@ -187,6 +188,63 @@ class DripGeoGamificacionTests(TestCase):
 		respuesta = continuar_curso_seleccionado(estudiante.id, indice, str(indice))
 		self.assertIn('preparando tu siguiente sesión', respuesta)
 		self.assertIn('se desbloquea el', respuesta)
+
+	def test_post_reto_primer_listo_muestra_siguiente_modulo_sin_saltar(self):
+		"""Tras Darío+facilitadora el puntero pasa al módulo 4; el primer 'listo' debe mostrar el 4, no cerrarlo."""
+		estudiante = self._crear_estudiante('44')
+		curso = Curso.objects.create(nombre='Curso Reto cinco mods', dias_espera_entre_modulos=0)
+		mods = []
+		for n in range(1, 6):
+			mods.append(
+				Modulo.objects.create(
+					curso=curso,
+					numero=n,
+					titulo=f'Módulo test {n}',
+					descripcion='D',
+					contenido=f'CONTENIDO_BLOQUE_{n}',
+				)
+			)
+		m1, m2, m3, m4, m5 = mods
+		progreso = ProgresoEstudiante.objects.create(
+			estudiante=estudiante,
+			curso=curso,
+			modulo_actual=m4,
+			completado=False,
+		)
+		for m in (m1, m2, m3):
+			ModuloCompletado.objects.create(progreso=progreso, modulo=m)
+		estudiante.contexto_temporal = {
+			'post_reto_entregar_modulo_id': m4.id,
+			'curso_activo_id': curso.id,
+		}
+		estudiante.save()
+		respuesta = get_response_for_intent(
+			'continuar_leccion',
+			estudiante.nombre,
+			estudiante_id=estudiante.id,
+			mensaje_original='listo',
+		)
+		self.assertIn('CONTENIDO_BLOQUE_4', respuesta)
+		progreso.refresh_from_db()
+		self.assertEqual(progreso.modulo_actual_id, m4.id)
+		self.assertFalse(ModuloCompletado.objects.filter(progreso=progreso, modulo=m4).exists())
+
+		# El lock anti-duplicado impide otro *listo* en <45s; retrocedemos el timestamp de prueba.
+		estudiante.refresh_from_db()
+		_ctx = dict(estudiante.contexto_temporal or {})
+		_ctx['_ts_leccion'] = time.time() - 60
+		estudiante.contexto_temporal = _ctx
+		estudiante.save(update_fields=['contexto_temporal'])
+
+		respuesta2 = get_response_for_intent(
+			'continuar_leccion',
+			estudiante.nombre,
+			estudiante_id=estudiante.id,
+			mensaje_original='listo',
+		)
+		progreso.refresh_from_db()
+		self.assertEqual(progreso.modulo_actual_id, m5.id)
+		self.assertTrue(ModuloCompletado.objects.filter(progreso=progreso, modulo=m4).exists())
 
 	def test_geogamificacion_respuesta_cercana(self):
 		estudiante = self._crear_estudiante('12')

@@ -1160,8 +1160,23 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             progreso.modulo_actual = modulo_actual
             progreso.save()
         
+        # Tras cerrar reto (Darío + facilitadora), el puntero ya está en el siguiente módulo pero el estudiante
+        # aún no ha visto su contenido. Un "listo" aquí no debe cerrar ese módulo (evita saltar módulo 4).
+        msg_norm = (mensaje_original or '').strip()
+        _ctx_reto = dict(estudiante.contexto_temporal or {})
+        _post_reto_mid = _ctx_reto.get('post_reto_entregar_modulo_id')
+        primero_listo_sin_ver_modulo = (
+            msg_norm == 'listo'
+            and _post_reto_mid
+            and modulo_actual
+            and modulo_actual.id == _post_reto_mid
+            and not ModuloCompletado.objects.filter(progreso=progreso, modulo=modulo_actual).exists()
+        )
+        if primero_listo_sin_ver_modulo:
+            msg_norm = ''
+        
         # Regla estricta del curso: solo "listo" avanza.
-        if (mensaje_original or '').strip() == 'listo':
+        if msg_norm == 'listo':
             # Drip Content: bloquear avance según curso y override por cliente
             from .drip_schedule import dias_espera_efectivos, fecha_desbloqueo_drip
 
@@ -1550,8 +1565,13 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     partes.append(msg_cert_img)
                 return "[MULTI_MSG]" + "[SEP]".join(partes)
         
-        # Si escribieron solo "continuar" (primera vez o retomando), mostrar el módulo actual
+        # Si escribieron "continuar" (primera vez o retomando), mostrar el módulo actual
         else:
+            _ctx_show = dict(estudiante.contexto_temporal or {})
+            if modulo_actual and _ctx_show.get('post_reto_entregar_modulo_id') == modulo_actual.id:
+                _ctx_show.pop('post_reto_entregar_modulo_id', None)
+                estudiante.contexto_temporal = _ctx_show or None
+                estudiante.save(update_fields=['contexto_temporal'])
             video_url = obtener_video_url(modulo_actual)
 
             # Verificar archivos multimedia
