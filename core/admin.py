@@ -2665,9 +2665,8 @@ class SeccionModuloInline(admin.TabularInline):
     ordering = ('orden', 'id')
     show_change_link = True
     verbose_name = 'Bloque'
-    verbose_name_plural = (
-        '1 · Secciones (armá primero: cada fila = un bloque; el título es el encabezado opcional en WhatsApp)'
-    )
+    # Texto corto: Jazzmin usa esto en pestañas + ancla #slug-tab; títulos largos rompen el cambio de pestaña.
+    verbose_name_plural = 'Secciones'
     fields = ('orden', 'activa', 'titulo')
 
 
@@ -2679,9 +2678,7 @@ class PasoModuloInline(admin.TabularInline):
     ordering = ('orden', 'id')
     show_change_link = True
     verbose_name = 'Paso'
-    verbose_name_plural = (
-        '2 · Microcontenidos (cada paso elige su sección; varios pasos pueden usar la misma sección)'
-    )
+    verbose_name_plural = 'Microcontenidos'
     fields = (
         'orden', 'seccion', 'activo', 'tipo', 'titulo', 'contenido_corto', 'media_url',
         'respuesta_correcta', 'opciones_json',
@@ -2704,7 +2701,7 @@ class ArchivoModuloInline(admin.StackedInline):
     can_delete = True
     show_change_link = True
     verbose_name = '📎 Multimedia'
-    verbose_name_plural = 'MULTIMEDIA (Videos, Imágenes, PDFs, Infografías, Audio) - AQUÍ SE AGREGAN LOS ARCHIVOS'
+    verbose_name_plural = 'Multimedia'
     readonly_fields = ('preview_multimedia',)
     
     fieldsets = (
