@@ -2975,29 +2975,7 @@ def _procesar_twilio_webhook(post_data):
                                     "\n"
                                     "¡Vamos a aprender y avanzar juntos! 💪"
                                 )
-                            
-                            video_url = obtener_video_url(modulo)
-                            archivos_multimedia = modulo.archivos_multimedia.filter(activo=True)
-                            archivos_msg = ""
-                            primera_media_url = None
-                            extra_media_urls = []
-                            if archivos_multimedia.exists():
-                                archivos_msg = ""
-                                for idx, archivo in enumerate(archivos_multimedia):
-                                    icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
-                                    url = archivo.get_url_para_envio()
-                                    if url:
-                                        if not primera_media_url:
-                                            primera_media_url = url
-                                            archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
-                                        else:
-                                            extra_media_urls.append((url, archivo.titulo, icono))
-                                            archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
-                                    else:
-                                        archivos_msg += f"\n{icono} {archivo.titulo}"
-                            if not archivos_multimedia.exists() and video_url:
-                                primera_media_url = video_url
-                            
+
                             # --- Mensaje 1: Bienvenida + Gamificación + Agentes (TODO EN UNO) ---
                             partes_intro = [
                                 f"✅ *¡Datos confirmados, {estudiante.nombre}!*\n\nBienvenido al programa de *{org_nombre}*"
@@ -3008,39 +2986,73 @@ def _procesar_twilio_webhook(post_data):
                                 partes_intro.append(msg_gamificacion)
                             partes_intro.append("📚 *Comenzamos con el primer módulo de tu curso...* 👇")
                             msg_intro = "\n\n".join(partes_intro)
-                            
-                            # --- Mensaje 2: Contenido del módulo (con multimedia) ---
-                            from .response_templates import dividir_contenido_seguro
-                            contenido_modulo = modulo.contenido or ''
-                            chunks = dividir_contenido_seguro(contenido_modulo, max_chars=1300)
-                            modulo_header = f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
-                            if chunks:
-                                msg_modulo = modulo_header + chunks[0]
-                                for chunk in chunks[1:]:
-                                    if len(msg_modulo) + len(chunk) + 4 < 1400:
-                                        msg_modulo += "\n\n" + chunk
-                                    else:
-                                        break
+
+                            from .module_steps import (
+                                modulo_tiene_pasos_activos,
+                                reset_progreso_pasos_modulo,
+                                entregar_paso_indice,
+                            )
+
+                            if modulo_tiene_pasos_activos(modulo):
+                                reset_progreso_pasos_modulo(progreso, save=True)
+                                msg_pasos_conf = entregar_paso_indice(progreso, modulo, 1)
+                                _inner_conf = msg_pasos_conf[len('[MULTI_MSG]') :]
+                                texto_respuesta = '[MULTI_MSG]' + msg_intro + '[SEP]' + _inner_conf
                             else:
-                                msg_modulo = modulo_header + (modulo.descripcion or '')
-                            # v1.9.8: No mostrar labels de archivos en texto (se envían como mensajes separados)
-                            
-                            # Orden: intro (con agentes) → módulo TEXTO → video(s) → [DELAY] → "escribe listo"
-                            texto_respuesta = "[MULTI_MSG]" + msg_intro + "[SEP]" + msg_modulo
-                            # Video principal como mensaje separado después del texto
-                            hay_media_conf = False
-                            if primera_media_url:
-                                texto_respuesta += f"[SEP][MEDIA:{primera_media_url}]"
-                                hay_media_conf = True
-                            for extra_url, extra_titulo, extra_icono in extra_media_urls:
-                                texto_respuesta += f"[SEP][MEDIA:{extra_url}]"
-                                hay_media_conf = True
-                            # "Escribe listo" AL FINAL — solo si hay más módulos
-                            hay_mas_modulos = curso.modulos.filter(numero__gt=modulo.numero).exists()
-                            if hay_mas_modulos:
-                                if hay_media_conf:
-                                    texto_respuesta += "[SEP][DELAY:5]"
-                                texto_respuesta += "[SEP]Tómese su tiempo para ver el material. Mientras usted aprende, aquí iremos organizando los recursos del siguiente nivel. En cuanto termine, solo responda *listo* para continuar."
+                                video_url = obtener_video_url(modulo)
+                                archivos_multimedia = modulo.archivos_multimedia.filter(activo=True)
+                                archivos_msg = ""
+                                primera_media_url = None
+                                extra_media_urls = []
+                                if archivos_multimedia.exists():
+                                    archivos_msg = ""
+                                    for idx, archivo in enumerate(archivos_multimedia):
+                                        icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
+                                        url = archivo.get_url_para_envio()
+                                        if url:
+                                            if not primera_media_url:
+                                                primera_media_url = url
+                                                archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
+                                            else:
+                                                extra_media_urls.append((url, archivo.titulo, icono))
+                                                archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
+                                        else:
+                                            archivos_msg += f"\n{icono} {archivo.titulo}"
+                                if not archivos_multimedia.exists() and video_url:
+                                    primera_media_url = video_url
+
+                                # --- Mensaje 2: Contenido del módulo (con multimedia) ---
+                                from .response_templates import dividir_contenido_seguro
+                                contenido_modulo = modulo.contenido or ''
+                                chunks = dividir_contenido_seguro(contenido_modulo, max_chars=1300)
+                                modulo_header = f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
+                                if chunks:
+                                    msg_modulo = modulo_header + chunks[0]
+                                    for chunk in chunks[1:]:
+                                        if len(msg_modulo) + len(chunk) + 4 < 1400:
+                                            msg_modulo += "\n\n" + chunk
+                                        else:
+                                            break
+                                else:
+                                    msg_modulo = modulo_header + (modulo.descripcion or '')
+                                # v1.9.8: No mostrar labels de archivos en texto (se envían como mensajes separados)
+
+                                # Orden: intro (con agentes) → módulo TEXTO → video(s) → [DELAY] → "escribe listo"
+                                texto_respuesta = "[MULTI_MSG]" + msg_intro + "[SEP]" + msg_modulo
+                                # Video principal como mensaje separado después del texto
+                                hay_media_conf = False
+                                if primera_media_url:
+                                    texto_respuesta += f"[SEP][MEDIA:{primera_media_url}]"
+                                    hay_media_conf = True
+                                for extra_url, extra_titulo, extra_icono in extra_media_urls:
+                                    texto_respuesta += f"[SEP][MEDIA:{extra_url}]"
+                                    hay_media_conf = True
+                                # "Escribe listo" AL FINAL — solo si hay más módulos
+                                hay_mas_modulos = curso.modulos.filter(numero__gt=modulo.numero).exists()
+                                if hay_mas_modulos:
+                                    if hay_media_conf:
+                                        texto_respuesta += "[SEP][DELAY:5]"
+                                    texto_respuesta += "[SEP]Tómese su tiempo para ver el material. Mientras usted aprende, aquí iremos organizando los recursos del siguiente nivel. En cuanto termine, solo responda *listo* para continuar."
                         else:
                             texto_respuesta = f"✅ *¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nEl curso aún no tiene módulos configurados. Te notificaremos cuando estén listos."
                     else:
@@ -3589,44 +3601,66 @@ def _procesar_twilio_webhook(post_data):
                                     ]
                                 )
                         if modulo:
-                            video_url = obtener_video_url(modulo)
-                            archivos_multimedia = modulo.archivos_multimedia.filter(activo=True)
-                            archivos_msg = ""
-                            primera_media_url = None
-                            extra_media_urls = []
-                            if archivos_multimedia.exists():
-                                archivos_msg = ""
-                                for idx, archivo in enumerate(archivos_multimedia):
-                                    icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
-                                    url = archivo.get_url_para_envio()
-                                    if url:
-                                        if not primera_media_url:
-                                            primera_media_url = url
-                                            archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
-                                        else:
-                                            extra_media_urls.append((url, archivo.titulo, icono))
-                                            archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
-                                    else:
-                                        archivos_msg += f"\n{icono} {archivo.titulo}"
-                            if not archivos_multimedia.exists() and video_url:
-                                primera_media_url = video_url
-                            # Construir MULTI_MSG con texto + todos los medias separados
-                            msg_texto_menu = (
-                                f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
-                                f"{modulo.contenido}"
+                            from .module_steps import (
+                                modulo_tiene_pasos_activos,
+                                mensaje_recordatorio_paso_actual,
+                                pasos_activos_qs,
                             )
-                            partes_menu = [msg_texto_menu]
-                            if primera_media_url:
-                                partes_menu.append(f"[MEDIA:{primera_media_url}]")
-                            for extra_url, extra_titulo, extra_icono in extra_media_urls:
-                                partes_menu.append(f"[MEDIA:{extra_url}]")
-                            if len(partes_menu) > 1:
-                                texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_menu)
+                            if modulo_tiene_pasos_activos(modulo):
+                                _np_m = pasos_activos_qs(modulo).count()
+                                if (
+                                    progreso.paso_actual_modulo > _np_m
+                                    and not progreso.esperando_respuesta_evaluacion_paso
+                                ):
+                                    texto_respuesta = (
+                                        "✅ Ya recibiste todo el material de esta unidad.\n\n"
+                                        "Escribe *listo* para registrar tu avance y seguir 👇"
+                                    )
+                                else:
+                                    _rem_m = mensaje_recordatorio_paso_actual(progreso, modulo)
+                                    texto_respuesta = _rem_m or (
+                                        f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
+                                        "Escribe *continuar* o *listo* cuando quieras seguir."
+                                    )
+                                if curso.modulos.filter(numero__gt=modulo.numero).exists():
+                                    _enviar_btn_continuar_menu = True
                             else:
-                                texto_respuesta = msg_texto_menu
-                            # Enviar botón continuar si no es el último módulo
-                            if curso.modulos.filter(numero__gt=modulo.numero).exists():
-                                _enviar_btn_continuar_menu = True
+                                video_url = obtener_video_url(modulo)
+                                archivos_multimedia = modulo.archivos_multimedia.filter(activo=True)
+                                archivos_msg = ""
+                                primera_media_url = None
+                                extra_media_urls = []
+                                if archivos_multimedia.exists():
+                                    archivos_msg = ""
+                                    for idx, archivo in enumerate(archivos_multimedia):
+                                        icono = {'video': '🎥', 'imagen': '🖼️', 'infografia': '📊', 'pdf': '📄', 'audio': '🎵'}.get(archivo.tipo, '📁')
+                                        url = archivo.get_url_para_envio()
+                                        if url:
+                                            if not primera_media_url:
+                                                primera_media_url = url
+                                                archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
+                                            else:
+                                                extra_media_urls.append((url, archivo.titulo, icono))
+                                                archivos_msg += f"\n{icono} {archivo.titulo} (adjunto)"
+                                        else:
+                                            archivos_msg += f"\n{icono} {archivo.titulo}"
+                                if not archivos_multimedia.exists() and video_url:
+                                    primera_media_url = video_url
+                                msg_texto_menu = (
+                                    f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
+                                    f"{modulo.contenido}"
+                                )
+                                partes_menu = [msg_texto_menu]
+                                if primera_media_url:
+                                    partes_menu.append(f"[MEDIA:{primera_media_url}]")
+                                for extra_url, extra_titulo, extra_icono in extra_media_urls:
+                                    partes_menu.append(f"[MEDIA:{extra_url}]")
+                                if len(partes_menu) > 1:
+                                    texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_menu)
+                                else:
+                                    texto_respuesta = msg_texto_menu
+                                if curso.modulos.filter(numero__gt=modulo.numero).exists():
+                                    _enviar_btn_continuar_menu = True
                         else:
                             texto_respuesta = f"📚 Tu curso *{curso.nombre}* aún no tiene módulos configurados."
                     else:
@@ -3642,27 +3676,67 @@ def _procesar_twilio_webhook(post_data):
                         twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
                         client_tw = TwilioClient(account_sid, auth_token)
                         destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
-                        media_url_menu = None
-                        import re as re_menu
-                        media_m = re_menu.search(r'\[MEDIA:(.*?)\]', texto_respuesta)
-                        if media_m:
-                            media_url_menu = media_m.group(1).strip()
-                            texto_respuesta = texto_respuesta.replace(media_m.group(0), '').strip()
-                        mp = {'body': texto_respuesta, 'from_': str(twilio_number).strip(), 'to': str(destino).strip()}
-                        if media_url_menu:
-                            mp['media_url'] = [media_url_menu]
-                        try:
-                            client_tw.messages.create(**mp)
-                        except Exception:
-                            mp.pop('media_url', None)
-                            client_tw.messages.create(**mp)
-                        # Enviar botón Continuar como Content Template separado
+                        twilio_from = str(twilio_number).strip()
+
+                        if texto_respuesta.startswith('[MULTI_MSG]'):
+                            import re as re_menu_m
+                            partes_mm = texto_respuesta.replace('[MULTI_MSG]', '', 1).split('[SEP]')
+                            for parte_mm in partes_mm:
+                                if not parte_mm.strip():
+                                    continue
+                                parte_txt = parte_mm.strip()
+                                delay_mm = re_menu_m.match(r'^\[DELAY:(\d+)\]$', parte_txt)
+                                if delay_mm:
+                                    import time
+                                    time.sleep(int(delay_mm.group(1)))
+                                    continue
+                                media_mm = re_menu_m.search(r'\[MEDIA:(.*?)\]', parte_txt)
+                                parte_media_mm = None
+                                if media_mm:
+                                    parte_media_mm = media_mm.group(1).strip()
+                                    parte_txt = parte_txt.replace(media_mm.group(0), '').strip()
+                                mp_mm = {
+                                    'body': parte_txt if parte_txt else ' ',
+                                    'from_': twilio_from,
+                                    'to': str(destino).strip(),
+                                }
+                                if parte_media_mm:
+                                    mp_mm['media_url'] = [parte_media_mm]
+                                try:
+                                    client_tw.messages.create(**mp_mm)
+                                except Exception as ex_mm:
+                                    if '63019' in str(ex_mm) and parte_media_mm:
+                                        mp_mm.pop('media_url', None)
+                                        mp_mm['body'] = (mp_mm.get('body') or '').strip() + f"\n\n📎 Archivo: {parte_media_mm}"
+                                        client_tw.messages.create(**mp_mm)
+                                    else:
+                                        raise
+                                import time
+                                time.sleep(0.5)
+                                WhatsappLog.objects.create(
+                                    telefono=telefono_limpio, mensaje=parte_txt[:500], tipo='SENT'
+                                )
+                        else:
+                            media_url_menu = None
+                            import re as re_menu
+                            media_m = re_menu.search(r'\[MEDIA:(.*?)\]', texto_respuesta)
+                            if media_m:
+                                media_url_menu = media_m.group(1).strip()
+                                texto_respuesta = texto_respuesta.replace(media_m.group(0), '').strip()
+                            mp = {'body': texto_respuesta, 'from_': twilio_from, 'to': str(destino).strip()}
+                            if media_url_menu:
+                                mp['media_url'] = [media_url_menu]
+                            try:
+                                client_tw.messages.create(**mp)
+                            except Exception:
+                                mp.pop('media_url', None)
+                                client_tw.messages.create(**mp)
+                            WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta[:500], tipo='SENT')
                         if _enviar_btn_continuar_menu:
                             import time; time.sleep(0.5)
                             from .whatsapp_service import enviar_template_twilio
                             tel_limpio_t = msg_from.replace('whatsapp:', '').replace('+', '')
                             enviar_template_twilio(tel_limpio_t, 'HX33af3a0f2bb63715e03965c2bd642285')
-                        WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta[:500], tipo='SENT')
                     except Exception as e:
                         logger.error(f"❌ Error enviando curso: {e}")
                     return

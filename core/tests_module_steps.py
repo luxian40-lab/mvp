@@ -128,3 +128,49 @@ class ModuleStepsLegacyRegressionTests(TestCase):
         )
         self.assertIn('Módulo 2', r)
         self.assertIn('B', r)
+
+
+class SelectorCursoPasosTests(TestCase):
+    """selector_curso alineado a pasos (sin volcar contenido legacy)."""
+
+    def setUp(self):
+        self.curso = Curso.objects.create(
+            nombre='Curso selector pasos',
+            descripcion='d',
+            dias_espera_entre_modulos=0,
+            usar_agentes_ia=False,
+        )
+        self.m1 = Modulo.objects.create(
+            curso=self.curso,
+            numero=1,
+            titulo='Mod uno',
+            descripcion='d',
+            contenido='TEXTO_LEGACY_NO_DEBE_APARECER_EN_SELECTOR_CON_PASOS',
+            duracion_dias=7,
+        )
+        self.est = Estudiante.objects.create(
+            cedula='33445566',
+            nombre='Chooser',
+            telefono='5730011998877',
+        )
+        ProgresoEstudiante.objects.create(
+            estudiante=self.est,
+            curso=self.curso,
+            modulo_actual=self.m1,
+        )
+
+    def test_selector_solo_numero_con_pasos_entrega_paso_no_legacy(self):
+        from core.models import PasoModulo
+        from core.selector_curso import continuar_curso_seleccionado
+
+        PasoModulo.objects.create(
+            modulo=self.m1,
+            orden=1,
+            titulo='Micro paso',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='Contenido solo paso 1',
+        )
+        r = continuar_curso_seleccionado(self.est.id, 1, '1')
+        self.assertNotIn('TEXTO_LEGACY_NO_DEBE_APARECER', r)
+        self.assertIn('Micro paso', r)
+        self.assertIn('[MULTI_MSG]', r)

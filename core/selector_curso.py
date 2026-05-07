@@ -253,6 +253,35 @@ def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_
 
         avance = progreso.porcentaje_avance()
 
+        from .module_steps import (
+            modulo_tiene_pasos_activos,
+            mensaje_recordatorio_paso_actual,
+            pasos_activos_qs,
+        )
+
+        if modulo_tiene_pasos_activos(modulo_actual):
+            _np_sel = pasos_activos_qs(modulo_actual).count()
+            if (
+                progreso.paso_actual_modulo > _np_sel
+                and not progreso.esperando_respuesta_evaluacion_paso
+            ):
+                _persist_curso_foco()
+                return (
+                    "✅ Ya recibiste todo el material de esta unidad.\n\n"
+                    "Escribe *listo* para registrar tu avance y seguir 👇"
+                )
+            _rem_sel = mensaje_recordatorio_paso_actual(progreso, modulo_actual)
+            if _rem_sel:
+                _hdr_sel = (
+                    f"✅ {'Iniciando' if creado else 'Retomando'} *{curso_seleccionado.emoji or '📚'} "
+                    f"{curso_seleccionado.nombre}*\n\n"
+                    f"📍 Módulo actual: {modulo_actual.numero}. {modulo_actual.titulo}\n"
+                    f"📈 Avance: {avance}%\n\n"
+                )
+                _inner_sel = _rem_sel[len('[MULTI_MSG]') :]
+                _persist_curso_foco()
+                return '[MULTI_MSG]' + _hdr_sel + '[SEP]' + _inner_sel
+
         respuesta = f"""✅ {'Iniciando' if creado else 'Retomando'} *{curso_seleccionado.emoji or '📚'} {curso_seleccionado.nombre}*
 
 📍 Módulo actual: {modulo_actual.numero}. {modulo_actual.titulo}
@@ -286,6 +315,19 @@ Cuando termines, escribe: *"listo"*"""
                 if fecha_desbloqueo and timezone.localdate() < fecha_desbloqueo:
                     _persist_curso_foco()
                     return _mensaje_bloqueo_drip(fecha_desbloqueo)
+
+        from .module_steps import modulo_tiene_pasos_activos
+
+        if modulo_tiene_pasos_activos(modulo_actual):
+            _persist_curso_foco()
+            from .response_templates import get_response_for_intent
+
+            return get_response_for_intent(
+                'continuar_leccion',
+                estudiante.nombre or 'Estudiante',
+                estudiante_id=estudiante.id,
+                mensaje_original=mensaje_original,
+            )
 
         # Marcar módulo actual como completado
         try:
@@ -322,6 +364,18 @@ Cuando termines, escribe: *"listo"*"""
                     'paso_evaluacion_paso_id',
                 ]
             )
+
+            from .module_steps import modulo_tiene_pasos_activos, entregar_paso_indice
+
+            _persist_curso_foco()
+            if modulo_tiene_pasos_activos(siguiente_modulo):
+                _hdr_next = (
+                    f"✅ ¡Completaste {modulo_actual.titulo}!\n\n"
+                    f"📚 Siguiente: Módulo {siguiente_modulo.numero} - {siguiente_modulo.titulo}\n\n"
+                )
+                msg_p = entregar_paso_indice(progreso, siguiente_modulo, 1)
+                _inner_p = msg_p[len('[MULTI_MSG]') :]
+                return '[MULTI_MSG]' + _hdr_next + '[SEP]' + _inner_p
 
             video_url = obtener_video_url(siguiente_modulo)
 
