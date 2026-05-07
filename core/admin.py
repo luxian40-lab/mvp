@@ -16,7 +16,7 @@ import openpyxl
 from django.http import HttpResponse
 from .models import (
     Estudiante, WhatsappLog, Plantilla, Campana, EnvioLog, Linea,
-    Curso, ConfiguracionDripCliente, Modulo, PasoModulo, ProgresoEstudiante, ModuloCompletado,
+    Curso, ConfiguracionDripCliente, Modulo, SeccionModulo, PasoModulo, ProgresoEstudiante, ModuloCompletado,
     Examen, PreguntaExamen, ResultadoExamen, Cliente,
     PerfilGamificacion, Badge, BadgeEstudiante, TransaccionPuntos,
     SolicitudSoporte, PreguntaModulo,  # 🆘 NUEVO + 📝 PREGUNTA MODULO
@@ -2639,10 +2639,14 @@ class PreguntaModuloInline(admin.StackedInline):
     show_change_link = True
     verbose_name = 'Pregunta de Mini Examen'
     verbose_name_plural = 'Preguntas de Mini Examen'
-    
+
     fieldsets = (
         ('Pregunta', {
-            'fields': ('pregunta',)
+            'fields': ('pregunta',),
+            'description': (
+                'Con microcontenidos activos, se envía <strong>al terminar todos los pasos</strong> '
+                'antes de registrar el módulo como completado (misma lógica que sin pasos).'
+            ),
         }),
         ('Opciones de Respuesta', {
             'fields': ('opcion_a', 'opcion_b', 'opcion_c', 'opcion_d', 'respuesta_correcta')
@@ -2653,19 +2657,33 @@ class PreguntaModuloInline(admin.StackedInline):
     )
 
 
+class SeccionModuloInline(admin.TabularInline):
+    """Bloques con título opcional; agrupan varios pasos por *listo* según secciones_por_listo."""
+    model = SeccionModulo
+    extra = 0
+    can_delete = True
+    ordering = ('orden', 'id')
+    show_change_link = True
+    verbose_name = 'Bloque'
+    verbose_name_plural = (
+        '1 · Secciones (armá primero: cada fila = un bloque; el título es el encabezado opcional en WhatsApp)'
+    )
+    fields = ('orden', 'activa', 'titulo')
+
+
 class PasoModuloInline(admin.TabularInline):
-    """Pasos internos: entrega progresiva dentro del módulo (WhatsApp)."""
+    """Microcontenidos WhatsApp dentro del módulo (orden + listo)."""
     model = PasoModulo
     extra = 0
     can_delete = True
     ordering = ('orden', 'id')
     show_change_link = True
-    verbose_name = 'Paso interno'
+    verbose_name = 'Paso'
     verbose_name_plural = (
-        'Pasos internos del módulo (si hay pasos activos, el contenido/multimedia legacy no se envía de golpe)'
+        '2 · Microcontenidos (cada paso elige su sección; varios pasos pueden usar la misma sección)'
     )
     fields = (
-        'orden', 'activo', 'tipo', 'titulo', 'contenido_corto', 'media_url',
+        'orden', 'seccion', 'activo', 'tipo', 'titulo', 'contenido_corto', 'media_url',
         'respuesta_correcta', 'opciones_json',
     )
     readonly_fields = ('contenido_corto',)
@@ -2783,12 +2801,24 @@ class ArchivoModuloInline(admin.StackedInline):
 @admin.register(Modulo)
 class ModuloAdmin(admin.ModelAdmin):
     """Administración de módulos"""
-    list_display = ('numero_titulo', 'curso', 'duracion_dias', 'examen_badge', 'archivos_link', 'tiene_pregunta', 'contenido_preview', 'ver_curso_link')
-    list_filter = ('curso', 'examen_obligatorio')
+    list_display = (
+        'numero_titulo',
+        'curso',
+        'duracion_dias',
+        'modo_entrega_badge',
+        'pasos_activos_count',
+        'examen_badge',
+        'archivos_link',
+        'tiene_pregunta',
+        'contenido_preview',
+        'ver_curso_link',
+    )
+    list_filter = ('curso', 'examen_obligatorio', 'modo_entrega')
     search_fields = ('titulo', 'descripcion', 'contenido')
     list_per_page = 50
     ordering = ['curso', 'numero']
-    inlines = [PasoModuloInline, ArchivoModuloInline, PreguntaModuloInline]
+    readonly_fields = ('guia_microcontenidos_whatsapp',)
+    inlines = [SeccionModuloInline, PasoModuloInline, ArchivoModuloInline, PreguntaModuloInline]
     actions = ['enviar_archivos_multimedia', 'ver_archivos_multimedia', 'renumerar_modulos']
     
     def ver_curso_link(self, obj):
@@ -2796,27 +2826,113 @@ class ModuloAdmin(admin.ModelAdmin):
         url = reverse('admin:core_curso_change', args=[obj.curso.id])
         return format_html('<a href="{}" style="color:#2196F3;">📚 Ver Curso</a>', url)
     ver_curso_link.short_description = "Curso"
+
+    @admin.display(description='')
+    def guia_microcontenidos_whatsapp(self, obj):
+        """Panel de ayuda visual (no persiste en BD)."""
+        return format_html(
+            '<div style="background:linear-gradient(180deg,#ecfdf5 0%,#f8fafc 100%);'
+            'border:1px solid #6ee7b7;border-radius:10px;padding:16px 18px;margin:0 0 4px 0;'
+            'max-width:920px;">'
+            '<p style="margin:0 0 10px 0;font-size:14px;color:#065f46;font-weight:600;">'
+            'Flujo recomendado (modo <em>Pasos</em> o <em>Automático</em> con pasos activos)'
+            '</p>'
+            '<table style="width:100%;border-collapse:collapse;font-size:13px;color:#334155;">'
+            '<tr style="vertical-align:top;">'
+            '<td style="width:34%;padding:8px 10px;background:#fff;border-radius:8px;border:1px solid #e2e8f0;">'
+            '<strong style="color:#0f766e;">① Secciones</strong> (cuadro de abajo)<br>'
+            '<span style="font-size:12px;line-height:1.45;">Cada fila es un <b>bloque</b>. '
+            'El <b>orden</b> define el recorrido. El <b>título</b> es opcional: si lo completás, '
+            'WhatsApp muestra ese encabezado al entrar al bloque. Desactivá una sección para '
+            'excluir sus pasos del envío.</span>'
+            '</td>'
+            '<td style="width:34%;padding:8px 10px;background:#fff;border-radius:8px;border:1px solid #e2e8f0;">'
+            '<strong style="color:#0369a1;">② Microcontenidos</strong><br>'
+            '<span style="font-size:12px;line-height:1.45;">Cada paso debe enlazarse a una '
+            '<b>sección</b> del paso anterior. Podés poner muchos pasos dentro del mismo bloque. '
+            'El estudiante avanza con <b>*listo*</b> según el ajuste del siguiente bloque.</span>'
+            '</td>'
+            '<td style="width:32%;padding:8px 10px;background:#fff;border-radius:8px;border:1px solid #e2e8f0;">'
+            '<strong style="color:#a16207;">③ Campo «Secciones por *listo*»</strong><br>'
+            '<span style="font-size:12px;line-height:1.45;">Número entero <b>1–5</b>: cuántos '
+            'bloques (filas de secciones consecutivas) se mandan en cada <b>*listo*</b>. Con <b>1</b> '
+            'equivale a un bloque por *listo*; con <b>2</b> manda dos bloques seguidos, etc.</span>'
+            '</td>'
+            '</tr></table>'
+            '<p style="margin:12px 0 0 0;font-size:12px;color:#64748b;line-height:1.5;">'
+            'Modo <b>Legacy</b>: ignora estos pasos y envía el texto del módulo completo. '
+            'Mini examen y multimedia siguen abajo en sus propias secciones.'
+            '</p>'
+            '</div>'
+        )
     
     fieldsets = (
+        (
+            '📱 Guía: envío por WhatsApp (*listo*)',
+            {
+                'fields': ('guia_microcontenidos_whatsapp',),
+                'classes': ('wide',),
+                'description': (
+                    'Referencia visual; no se guarda. Más abajo cargás las tablas «Secciones» y «Microcontenidos». '
+                    'Primero definí los bloques, después asigná cada paso a su bloque.'
+                ),
+            },
+        ),
         ('📖 Información del Módulo', {
             'fields': ('curso', 'numero', 'titulo', 'descripcion'),
-            'description': '💡 TIP: Puedes usar decimales para sub-módulos (1, 1.1, 1.2, 2, 2.1, etc.)'
+            'description': (
+                '<strong>Número del módulo:</strong> entero <strong>≥ 0</strong> (0 = bienvenida u onboarding; '
+                'luego 1, 2, 3…). El curso ordena por este número. '
+                'Sin decimales en este campo.'
+            ),
         }),
         ('📝 Contenido Educativo', {
             'fields': ('contenido',),
-            'description': 'Escribe el contenido completo de la lección (se enviará por WhatsApp)'
+            'description': 'Texto del módulo completo (en modo <b>Legacy</b> es lo principal que ve el estudiante).',
         }),
         ('✅ Examen Obligatorio', {
             'fields': ('examen_obligatorio', 'puntaje_minimo_aprobacion'),
             'description': 'Si activas "Examen Obligatorio", el estudiante NO podrá avanzar al siguiente módulo hasta aprobar',
             'classes': ('collapse',)
         }),
-        ('⏱️ Configuración', {
+        ('📦 Entrega al estudiante y checkpoint IA', {
+            'fields': ('modo_entrega', 'secciones_por_listo', 'facilitador_checkpoint'),
+            'description': (
+                '<div style="font-size:13px;line-height:1.5;color:#334155;">'
+                '<strong>Modo de entrega:</strong> Pasos / Automático / Legacy (este último ignora la tabla de microcontenidos). '
+                '<strong>Secciones por *listo*:</strong> cuántos bloques consecutivos (según el orden de secciones) salen en cada «listo». '
+                '<strong>Checkpoint facilitadora:</strong> solo si el curso usa agentes IA; aplica al <em>cerrar</em> este módulo.'
+                '</div>'
+            ),
+        }),
+        ('⏱️ Duración y multimedia', {
             'fields': ('duracion_dias',),
-            'description': '👇 Para agregar VIDEOS, IMÁGENES, INFOGRAFÍAS, PDFs, AUDIO → Usa la sección "ARCHIVOS MULTIMEDIA" abajo 👇<br>💡 Puedes agregar múltiples archivos por módulo — TODOS se envían automáticamente por WhatsApp'
+            'description': (
+                'Multimedia del módulo: usá la tabla <strong>ARCHIVOS MULTIMEDIA</strong> más abajo '
+                '(videos, imágenes, PDFs, etc.).'
+            ),
         }),
     )
     
+    def modo_entrega_badge(self, obj):
+        from .models import Modulo
+        labels = dict(Modulo.MODOS_ENTREGA)
+        t = labels.get(obj.modo_entrega, obj.modo_entrega)
+        return format_html('<span style="font-size:11px;">{}</span>', t)
+    modo_entrega_badge.short_description = 'Entrega'
+
+    def pasos_activos_count(self, obj):
+        count = obj.pasos.filter(activo=True, seccion__activa=True).count()
+        if obj.modo_entrega == 'pasos' and count == 0:
+            return format_html(
+                '<span style="color:#c62828;font-weight:bold;">'
+                '⚠️ Modo PASOS pero sin pasos activos (count: {})'
+                '</span>',
+                count,
+            )
+        return count
+    pasos_activos_count.short_description = 'Pasos activos'
+
     def numero_titulo(self, obj):
         return f"Módulo {obj.numero}: {obj.titulo}"
     numero_titulo.short_description = "Módulo"

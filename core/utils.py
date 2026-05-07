@@ -256,12 +256,20 @@ def enviar_whatsapp_twilio(
         if clean_url:
             logger.info(f"[MEDIA] Enviando con multimedia: {clean_url}")
 
+        _caption_solo_media = (
+            '📎 Aquí tienes el material (video, audio o archivo).\n'
+            'Cuando lo revises, escribe *listo* para continuar.'
+        )
+
         status_cb = str(getattr(settings, 'TWILIO_STATUS_CALLBACK_URL', '') or '').strip()
 
         for idx, chunk in enumerate(chunks):
+            chunk_eff = (chunk or '').strip()
+            if not chunk_eff and clean_url and idx == 0:
+                chunk_eff = _caption_solo_media
             message_params = {
                 'from_': twilio_number,
-                'body': chunk if chunk else (' ' if clean_url else ''),
+                'body': chunk_eff if chunk_eff else (' ' if clean_url else ''),
                 'to': telefono,
             }
             if status_cb:

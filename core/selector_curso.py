@@ -254,12 +254,18 @@ def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_
         avance = progreso.porcentaje_avance()
 
         from .module_steps import (
-            modulo_tiene_pasos_activos,
+            modulo_usa_pasos,
             mensaje_recordatorio_paso_actual,
             pasos_activos_qs,
+            log_y_mensaje_modo_pasos_sin_pasos,
         )
 
-        if modulo_tiene_pasos_activos(modulo_actual):
+        if modulo_usa_pasos(modulo_actual):
+            if not pasos_activos_qs(modulo_actual).exists():
+                _persist_curso_foco()
+                return log_y_mensaje_modo_pasos_sin_pasos(
+                    modulo_actual, 'selector_curso_digito'
+                )
             _np_sel = pasos_activos_qs(modulo_actual).count()
             if (
                 progreso.paso_actual_modulo > _np_sel
@@ -316,9 +322,9 @@ Cuando termines, escribe: *"listo"*"""
                     _persist_curso_foco()
                     return _mensaje_bloqueo_drip(fecha_desbloqueo)
 
-        from .module_steps import modulo_tiene_pasos_activos
+        from .module_steps import modulo_usa_pasos
 
-        if modulo_tiene_pasos_activos(modulo_actual):
+        if modulo_usa_pasos(modulo_actual):
             _persist_curso_foco()
             from .response_templates import get_response_for_intent
 
@@ -365,15 +371,24 @@ Cuando termines, escribe: *"listo"*"""
                 ]
             )
 
-            from .module_steps import modulo_tiene_pasos_activos, entregar_paso_indice
+            from .module_steps import (
+                modulo_usa_pasos,
+                pasos_activos_qs,
+                entregar_bloque_secciones_desde_paso,
+                log_y_mensaje_modo_pasos_sin_pasos,
+            )
 
             _persist_curso_foco()
-            if modulo_tiene_pasos_activos(siguiente_modulo):
+            if modulo_usa_pasos(siguiente_modulo):
+                if not pasos_activos_qs(siguiente_modulo).exists():
+                    return log_y_mensaje_modo_pasos_sin_pasos(
+                        siguiente_modulo, 'selector_curso_siguiente_modulo'
+                    )
                 _hdr_next = (
                     f"✅ ¡Completaste {modulo_actual.titulo}!\n\n"
                     f"📚 Siguiente: Módulo {siguiente_modulo.numero} - {siguiente_modulo.titulo}\n\n"
                 )
-                msg_p = entregar_paso_indice(progreso, siguiente_modulo, 1)
+                msg_p = entregar_bloque_secciones_desde_paso(progreso, siguiente_modulo, 1)
                 _inner_p = msg_p[len('[MULTI_MSG]') :]
                 return '[MULTI_MSG]' + _hdr_next + '[SEP]' + _inner_p
 

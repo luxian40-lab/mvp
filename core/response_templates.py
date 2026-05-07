@@ -8,7 +8,7 @@ from django.utils import timezone
 from datetime import timedelta
 from urllib.parse import quote
 
-from .helpers_examenes import debe_activar_checkpoint_reto_ia
+from .helpers_examenes import es_modulo_checkpoint_reto_ia
 
 
 logger = logging.getLogger(__name__)
@@ -943,7 +943,13 @@ Te inscribiste en: *{curso.nombre}*
         
         # Combine header with first chunk
         if chunks:
-            from .module_steps import modulo_tiene_pasos_activos, reset_progreso_pasos_modulo, entregar_paso_indice
+            from .module_steps import (
+                modulo_usa_pasos,
+                pasos_activos_qs,
+                reset_progreso_pasos_modulo,
+                entregar_bloque_secciones_desde_paso,
+                log_y_mensaje_modo_pasos_sin_pasos,
+            )
 
             from .models import Cliente
             cliente_obj = None
@@ -969,9 +975,14 @@ Te inscribiste en: *{curso.nombre}*
             partes_intro.append("📚 *Comenzamos con el primer módulo de tu curso...* 👇")
             msg_intro = "\n\n".join(partes_intro)
 
-            if modulo_tiene_pasos_activos(primer_modulo):
+            if modulo_usa_pasos(primer_modulo):
+                if not pasos_activos_qs(primer_modulo).exists():
+                    _fb_ins = log_y_mensaje_modo_pasos_sin_pasos(
+                        primer_modulo, 'inscripcion_primer_modulo'
+                    )
+                    return '[MULTI_MSG]' + msg_intro + '[SEP]' + _fb_ins
                 reset_progreso_pasos_modulo(progreso, save=True)
-                msg_pasos = entregar_paso_indice(progreso, primer_modulo, 1)
+                msg_pasos = entregar_bloque_secciones_desde_paso(progreso, primer_modulo, 1)
                 cuerpo_p = msg_pasos[len('[MULTI_MSG]') :]
                 partes_insc = [msg_intro] + [p for p in cuerpo_p.split('[SEP]') if p]
                 hay_mas_modulos_p = curso.modulos.filter(numero__gt=primer_modulo.numero).exists()
@@ -1218,10 +1229,23 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     if fecha_desbloqueo and timezone.localdate() < fecha_desbloqueo:
                         return _mensaje_bloqueo_drip(fecha_desbloqueo)
 
-            from .module_steps import pasos_activos_qs, entregar_paso_indice
+            from .module_steps import (
+                modulo_usa_pasos,
+                pasos_activos_qs,
+                entregar_bloque_secciones_desde_paso,
+                log_y_mensaje_modo_pasos_sin_pasos,
+            )
+
+            usa_pasos = modulo_usa_pasos(modulo_actual) if modulo_actual else False
+            _n_pasos_raw = pasos_activos_qs(modulo_actual).count() if modulo_actual else 0
+            _n_pasos = _n_pasos_raw if usa_pasos else 0
+
+            if usa_pasos and _n_pasos_raw == 0:
+                return log_y_mensaje_modo_pasos_sin_pasos(
+                    modulo_actual, 'continuar_leccion_listo'
+                )
 
             _saltar_pasos = kwargs.get('_saltar_bloque_pasos_internos')
-            _n_pasos = pasos_activos_qs(modulo_actual).count() if modulo_actual else 0
 
             if _n_pasos > 0 and not _saltar_pasos:
                 idx_p = progreso.paso_actual_modulo
@@ -1233,7 +1257,9 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                             idx_p,
                             _n_pasos,
                         )
-                        return entregar_paso_indice(progreso, modulo_actual, idx_p)
+                        return entregar_bloque_secciones_desde_paso(
+                            progreso, modulo_actual, idx_p
+                        )
                     except ValueError:
                         logger.warning(
                             "⚠️ [pasos] índice inválido | est=%s idx=%s",
@@ -1242,21 +1268,36 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                             exc_info=True,
                         )
 
-            # PRIORIDAD: Verificar si el módulo tiene pregunta de validación (solo flujo legacy sin pasos)
+            # Mini examen (PreguntaModulo): legacy sin pasos, o tras completar todos los pasos activos
             from .pregunta_handler import tiene_pregunta_modulo, obtener_pregunta_modulo, formatear_pregunta, guardar_contexto_pregunta
-            
-            if _n_pasos == 0 and tiene_pregunta_modulo(modulo_actual):
-                # Verificar si ya respondió esta pregunta
+
+            pasos_internos_completos = (
+                usa_pasos
+                and _n_pasos > 0
+                and progreso.paso_actual_modulo > _n_pasos
+                and not progreso.esperando_respuesta_evaluacion_paso
+            )
+            legacy_sin_pasos = _n_pasos == 0
+
+            if (
+                (legacy_sin_pasos or pasos_internos_completos)
+                and tiene_pregunta_modulo(modulo_actual)
+            ):
                 ya_respondio = ModuloCompletado.objects.filter(
                     progreso=progreso,
                     modulo=modulo_actual
                 ).exists()
-                
+
                 if not ya_respondio:
-                    # Mostrar pregunta
                     pregunta = obtener_pregunta_modulo(modulo_actual)
                     if pregunta:
                         guardar_contexto_pregunta(estudiante, modulo_actual, pregunta, progreso)
+                        logger.info(
+                            "📝 [mini-examen] mostrar PreguntaModulo | est=%s modulo=%s tras_pasos=%s",
+                            estudiante.id,
+                            modulo_actual.id,
+                            pasos_internos_completos,
+                        )
                         return formatear_pregunta(pregunta)
             
             # Completar módulo y avanzar (el tutor IA se envía como mensaje separado después)
@@ -1303,8 +1344,8 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
 
                 total_modulos = progreso.curso.modulos.count()
                 usar_ia_curso = bool(getattr(progreso.curso, 'usar_agentes_ia', True))
-                es_modulo_reto = debe_activar_checkpoint_reto_ia(
-                    modulo_actual.numero, total_modulos, usar_ia_curso
+                es_modulo_reto = es_modulo_checkpoint_reto_ia(
+                    modulo_actual, total_modulos, usar_ia_curso
                 )
                 
                 # v1.9.8j: If reto module but already completed (post-reto "listo"), skip reto
@@ -1323,16 +1364,28 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     if _msg_ficha:
                         return _msg_ficha
                     progreso.modulo_actual = siguiente_modulo
-                    from .module_steps import reset_progreso_pasos_modulo, modulo_tiene_pasos_activos, entregar_paso_indice
+                    from .module_steps import (
+                        reset_progreso_pasos_modulo,
+                        modulo_usa_pasos,
+                        pasos_activos_qs,
+                        entregar_bloque_secciones_desde_paso,
+                        log_y_mensaje_modo_pasos_sin_pasos,
+                    )
                     reset_progreso_pasos_modulo(progreso, save=False)
                     progreso.save()
-                    if modulo_tiene_pasos_activos(siguiente_modulo):
+                    if modulo_usa_pasos(siguiente_modulo):
+                        if not pasos_activos_qs(siguiente_modulo).exists():
+                            return log_y_mensaje_modo_pasos_sin_pasos(
+                                siguiente_modulo, 'avance_siguiente_modulo'
+                            )
                         logger.info(
                             "📚 [pasos] primer paso del módulo siguiente | est=%s mod_id=%s",
                             estudiante.id,
                             siguiente_modulo.id,
                         )
-                        return entregar_paso_indice(progreso, siguiente_modulo, 1)
+                        return entregar_bloque_secciones_desde_paso(
+                            progreso, siguiente_modulo, 1
+                        )
                 
                 porcentaje = progreso.porcentaje_avance()
                 video_url = obtener_video_url(siguiente_modulo)
@@ -1624,11 +1677,16 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 estudiante.save(update_fields=['contexto_temporal'])
 
             from .module_steps import (
-                modulo_tiene_pasos_activos,
+                modulo_usa_pasos,
                 mensaje_recordatorio_paso_actual,
                 pasos_activos_qs,
+                log_y_mensaje_modo_pasos_sin_pasos,
             )
-            if modulo_actual and modulo_tiene_pasos_activos(modulo_actual):
+            if modulo_actual and modulo_usa_pasos(modulo_actual):
+                if not pasos_activos_qs(modulo_actual).exists():
+                    return log_y_mensaje_modo_pasos_sin_pasos(
+                        modulo_actual, 'continuar_leccion_mensaje_continuar'
+                    )
                 _np_cur = pasos_activos_qs(modulo_actual).count()
                 if (
                     progreso.paso_actual_modulo > _np_cur

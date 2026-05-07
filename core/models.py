@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -1366,7 +1367,7 @@ class Modulo(models.Model):
     """Módulo dentro de un curso (ej: Módulo 1: Siembra)"""
     curso = models.ForeignKey(Curso, on_delete=models.CASCADE, related_name='modulos')
     numero = models.PositiveIntegerField(
-        help_text="Número del módulo (solo enteros positivos: 1, 2, 3, ...)"
+        help_text='Número de orden del módulo en el curso (enteros ≥ 0: 0 = intro/bienvenida, luego 1, 2, 3…)'
     )
     titulo = models.CharField(max_length=200, help_text="Ej: Siembra y Establecimiento")
     descripcion = models.TextField(help_text="Breve descripción del módulo")
@@ -1456,6 +1457,54 @@ class Modulo(models.Model):
         verbose_name='Puntaje Mínimo (%)',
         help_text='Porcentaje mínimo para aprobar (0-100)'
     )
+
+    MODO_ENTREGA_AUTO = 'auto'
+    MODO_ENTREGA_LEGACY = 'legacy'
+    MODO_ENTREGA_PASOS = 'pasos'
+    MODOS_ENTREGA = [
+        (MODO_ENTREGA_AUTO, 'Automático (hereda: pasos si existen, legacy si no)'),
+        (MODO_ENTREGA_LEGACY, 'Todo de una vez (contenido + multimedia completo)'),
+        (MODO_ENTREGA_PASOS, 'Por pasos con "listo" (requiere pasos configurados)'),
+    ]
+    modo_entrega = models.CharField(
+        max_length=10,
+        choices=MODOS_ENTREGA,
+        default=MODO_ENTREGA_AUTO,
+        verbose_name='Modo de entrega',
+        help_text=(
+            'Automático: usa pasos si existen, legacy si no. '
+            'Legacy: envía todo el módulo de una vez aunque haya pasos internos cargados. '
+            'Pasos: un paso por *listo*; sin pasos activos el admin muestra aviso y el estudiante recibe un mensaje seguro.'
+        ),
+    )
+
+    FACILITADOR_CP_AUTO = 'auto'
+    FACILITADOR_CP_SI = 'si'
+    FACILITADOR_CP_NO = 'no'
+    facilitador_checkpoint = models.CharField(
+        max_length=10,
+        choices=[
+            (FACILITADOR_CP_AUTO, 'Heredar regla del curso (mód. 3, penúltimos, etc.)'),
+            (FACILITADOR_CP_SI, 'Sí: al cerrar este módulo, compañero + facilitadora'),
+            (FACILITADOR_CP_NO, 'No: nunca checkpoint IA al cerrar este módulo'),
+        ],
+        default=FACILITADOR_CP_AUTO,
+        verbose_name='Checkpoint facilitadora',
+        help_text=(
+            'Solo aplica si el curso tiene agentes IA activos. Define si al terminar este módulo '
+            'entra el flujo Darío/facilitadora o se salta, independiente del número de módulo.'
+        ),
+    )
+
+    secciones_por_listo = models.PositiveSmallIntegerField(
+        default=1,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        verbose_name='Secciones por *listo*',
+        help_text=(
+            'Cantidad de secciones (bloques con título propio) que se envían cada vez que el estudiante '
+            'escribe *listo*. Dentro de cada sección pueden haber varios pasos. Valor entre 1 y 5.'
+        ),
+    )
     
     duracion_dias = models.IntegerField(default=7, help_text="Días estimados para completar")
 
@@ -1467,6 +1516,36 @@ class Modulo(models.Model):
 
     def __str__(self):
         return f"{self.curso.nombre} - Módulo {self.numero}: {self.titulo}"
+
+
+class SeccionModulo(models.Model):
+    """Bloque dentro de un módulo: agrupa varios PasoModulo; título opcional en WhatsApp."""
+
+    modulo = models.ForeignKey(Modulo, on_delete=models.CASCADE, related_name='secciones')
+    orden = models.PositiveIntegerField(
+        help_text='Orden de la sección dentro del módulo (1, 2, 3…).',
+    )
+    titulo = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text='Encabezado opcional al comenzar esta sección en WhatsApp.',
+    )
+    activa = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['modulo', 'orden', 'id']
+        verbose_name = 'Sección'
+        verbose_name_plural = 'Secciones'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['modulo', 'orden'],
+                name='uniq_seccionmodulo_modulo_orden',
+            ),
+        ]
+
+    def __str__(self):
+        t = (self.titulo or '').strip() or '(sin título)'
+        return f'{self.modulo_id} · Sec.{self.orden} · {t}'
 
 
 class PasoModulo(models.Model):
@@ -1485,6 +1564,12 @@ class PasoModulo(models.Model):
     ]
 
     modulo = models.ForeignKey(Modulo, on_delete=models.CASCADE, related_name='pasos')
+    seccion = models.ForeignKey(
+        SeccionModulo,
+        on_delete=models.CASCADE,
+        related_name='pasos',
+        help_text='Sección (bloque) a la que pertenece este paso.',
+    )
     orden = models.PositiveIntegerField()
     titulo = models.CharField(max_length=200)
     tipo = models.CharField(max_length=32, choices=TIPOS, default=TIPO_CONTENIDO)
@@ -1496,7 +1581,13 @@ class PasoModulo(models.Model):
     opciones_json = models.JSONField(
         null=True,
         blank=True,
-        help_text='Para evaluación opciones: {"A":"...","B":"...","correcta":"A"}',
+        help_text=(
+            'Solo para tipo «Evaluación (opciones)». JSON con letras A–D y la correcta. '
+            'Ejemplo: {"A": "Opción uno", "B": "Opción dos", "C": "Opción tres", "correcta": "B"} '
+            'También acepta respuesta_correcta en vez de correcta. '
+            'Si vas a mapear filas de planilla (001, 005.1…): usá orden entero secuencial (1,2,3…); '
+            'el título puede ser «005.1 Pregunta…».'
+        ),
     )
     respuesta_correcta = models.CharField(
         max_length=10,
@@ -1510,8 +1601,8 @@ class PasoModulo(models.Model):
 
     class Meta:
         ordering = ['modulo', 'orden', 'id']
-        verbose_name = 'Paso de módulo'
-        verbose_name_plural = 'Pasos de módulo'
+        verbose_name = 'Paso'
+        verbose_name_plural = 'Pasos'
         constraints = [
             models.UniqueConstraint(
                 fields=['modulo', 'orden'],

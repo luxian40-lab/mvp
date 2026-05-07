@@ -1,6 +1,7 @@
 from django.test import SimpleTestCase
 
 from core.helpers_examenes import debe_activar_checkpoint_reto_ia as debe_activar_reto
+from core.helpers_examenes import es_modulo_checkpoint_reto_ia
 
 
 class ActivacionAgentesRetoTests(SimpleTestCase):
@@ -40,3 +41,27 @@ class ActivacionAgentesRetoTests(SimpleTestCase):
 	def test_usar_agentes_ia_curso_off(self):
 		self.assertFalse(debe_activar_reto(3, 10, False))
 		self.assertFalse(debe_activar_reto(10, 10, False))
+
+	def test_override_modulo_fuerza_si(self):
+		from types import SimpleNamespace
+		from core.models import Modulo
+
+		m = SimpleNamespace(numero=1, facilitador_checkpoint=Modulo.FACILITADOR_CP_SI)
+		self.assertTrue(es_modulo_checkpoint_reto_ia(m, 5, True))
+
+	def test_override_modulo_fuerza_no_mismo_que_seria_reto(self):
+		from types import SimpleNamespace
+		from core.models import Modulo
+
+		m = SimpleNamespace(numero=3, facilitador_checkpoint=Modulo.FACILITADOR_CP_NO)
+		self.assertFalse(es_modulo_checkpoint_reto_ia(m, 5, True))
+
+	def test_override_auto_igual_regla_numerica(self):
+		from types import SimpleNamespace
+		from core.models import Modulo
+
+		m = SimpleNamespace(numero=4, facilitador_checkpoint=Modulo.FACILITADOR_CP_AUTO)
+		self.assertEqual(
+			es_modulo_checkpoint_reto_ia(m, 10, True),
+			debe_activar_reto(4, 10, True),
+		)

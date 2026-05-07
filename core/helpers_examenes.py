@@ -365,3 +365,23 @@ def debe_activar_checkpoint_reto_ia(numero_modulo: int, total_modulos: int, usar
         or (numero_modulo == total_modulos and total_modulos >= 5)
         or es_modulo_intermedio_post5
     )
+
+
+def es_modulo_checkpoint_reto_ia(modulo, total_modulos: int, usar_agentes_ia_curso: bool) -> bool:
+    """
+    Igual que la regla numérica, pero con override por módulo (admin: checkpoint facilitadora).
+    """
+    from .models import Modulo
+
+    if not usar_agentes_ia_curso or not modulo:
+        return False
+    pref = getattr(modulo, 'facilitador_checkpoint', None) or Modulo.FACILITADOR_CP_AUTO
+    try:
+        numero = int(modulo.numero)
+    except (TypeError, ValueError):
+        return False
+    if pref == Modulo.FACILITADOR_CP_NO:
+        return False
+    if pref == Modulo.FACILITADOR_CP_SI:
+        return True
+    return debe_activar_checkpoint_reto_ia(numero, total_modulos, True)

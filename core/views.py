@@ -2268,18 +2268,32 @@ def _segmentar_texto_twilio(texto: str, max_chars: int = None) -> list:
     return [texto[i:i + limite] for i in range(0, len(texto), limite)]
 
 
+# Texto cuando un segmento MULTI_MSG es solo [MEDIA:…] (evita body en blanco / solo espacio en Twilio).
+TWILIO_CAPTION_ADJUNTO = (
+    '📎 Aquí tienes el material (video, audio o archivo) de esta parte de la lección.\n'
+    'Cuando lo revises, escribe *listo* para continuar.'
+)
+
+
 def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, body: str, media_url: str = None) -> list:
     """Envía mensaje Twilio en segmentos seguros y devuelve [(sid, texto_enviado), ...]."""
-    segmentos = _segmentar_texto_twilio(body)
+    body_limpio = str(body or '').strip()
+    media_limpia = str(media_url or '').strip() or None
+    if not body_limpio and media_limpia:
+        body_limpio = TWILIO_CAPTION_ADJUNTO
+
+    segmentos = _segmentar_texto_twilio(body_limpio)
     enviados = []
 
     from_limpio = str(from_number or '').strip()
     to_limpio = str(to_number or '').strip()
-    media_limpia = str(media_url or '').strip() or None
 
     for idx, segmento in enumerate(segmentos):
+        seg_txt = (segmento or '').strip()
+        if not seg_txt and media_limpia and idx == 0:
+            seg_txt = TWILIO_CAPTION_ADJUNTO
         params = {
-            'body': segmento if segmento else (' ' if media_limpia else ''),
+            'body': seg_txt if seg_txt else (' ' if media_limpia else ''),
             'from_': from_limpio,
             'to': to_limpio,
         }
@@ -2300,7 +2314,7 @@ def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, 
             else:
                 raise
 
-        enviados.append((mensaje, params.get('body', '')))
+        enviados.append((mensaje, params.get('body', '') or seg_txt))
 
     return enviados
 
@@ -2988,16 +3002,26 @@ def _procesar_twilio_webhook(post_data):
                             msg_intro = "\n\n".join(partes_intro)
 
                             from .module_steps import (
-                                modulo_tiene_pasos_activos,
+                                modulo_usa_pasos,
+                                pasos_activos_qs,
                                 reset_progreso_pasos_modulo,
-                                entregar_paso_indice,
+                                entregar_bloque_secciones_desde_paso,
+                                log_y_mensaje_modo_pasos_sin_pasos,
                             )
 
-                            if modulo_tiene_pasos_activos(modulo):
-                                reset_progreso_pasos_modulo(progreso, save=True)
-                                msg_pasos_conf = entregar_paso_indice(progreso, modulo, 1)
-                                _inner_conf = msg_pasos_conf[len('[MULTI_MSG]') :]
-                                texto_respuesta = '[MULTI_MSG]' + msg_intro + '[SEP]' + _inner_conf
+                            if modulo_usa_pasos(modulo):
+                                if not pasos_activos_qs(modulo).exists():
+                                    _fb_conf = log_y_mensaje_modo_pasos_sin_pasos(
+                                        modulo, 'confirmando_datos_primer_modulo'
+                                    )
+                                    texto_respuesta = '[MULTI_MSG]' + msg_intro + '[SEP]' + _fb_conf
+                                else:
+                                    reset_progreso_pasos_modulo(progreso, save=True)
+                                    msg_pasos_conf = entregar_bloque_secciones_desde_paso(
+                                        progreso, modulo, 1
+                                    )
+                                    _inner_conf = msg_pasos_conf[len('[MULTI_MSG]') :]
+                                    texto_respuesta = '[MULTI_MSG]' + msg_intro + '[SEP]' + _inner_conf
                             else:
                                 video_url = obtener_video_url(modulo)
                                 archivos_multimedia = modulo.archivos_multimedia.filter(activo=True)
@@ -3313,6 +3337,8 @@ def _procesar_twilio_webhook(post_data):
                             if media_m:
                                 parte_media = media_m.group(1).strip()
                                 parte_texto = parte_texto.replace(media_m.group(0), '').strip()
+                            if parte_media and not parte_texto:
+                                parte_texto = TWILIO_CAPTION_ADJUNTO
                             mp = {'body': parte_texto, 'from_': str(twilio_number).strip(), 'to': str(destino).strip()}
                             if parte_media:
                                 mp['media_url'] = [parte_media]
@@ -3329,6 +3355,8 @@ def _procesar_twilio_webhook(post_data):
                         if media_m:
                             media_url_sel = media_m.group(1).strip()
                             texto_respuesta = texto_respuesta.replace(media_m.group(0), '').strip()
+                        if media_url_sel and not texto_respuesta:
+                            texto_respuesta = TWILIO_CAPTION_ADJUNTO
                         mp = {'body': texto_respuesta, 'from_': str(twilio_number).strip(), 'to': str(destino).strip()}
                         if media_url_sel:
                             mp['media_url'] = [media_url_sel]
@@ -3438,7 +3466,7 @@ def _procesar_twilio_webhook(post_data):
                                         )
                                         if media_m:
                                             client_tw.messages.create(
-                                                body=' ',
+                                                body=TWILIO_CAPTION_ADJUNTO,
                                                 from_=twilio_from,
                                                 to=str(destino).strip(),
                                                 media_url=[media_m.group(1).strip()],
@@ -3602,28 +3630,34 @@ def _procesar_twilio_webhook(post_data):
                                 )
                         if modulo:
                             from .module_steps import (
-                                modulo_tiene_pasos_activos,
+                                modulo_usa_pasos,
                                 mensaje_recordatorio_paso_actual,
                                 pasos_activos_qs,
+                                log_y_mensaje_modo_pasos_sin_pasos,
                             )
-                            if modulo_tiene_pasos_activos(modulo):
-                                _np_m = pasos_activos_qs(modulo).count()
-                                if (
-                                    progreso.paso_actual_modulo > _np_m
-                                    and not progreso.esperando_respuesta_evaluacion_paso
-                                ):
-                                    texto_respuesta = (
-                                        "✅ Ya recibiste todo el material de esta unidad.\n\n"
-                                        "Escribe *listo* para registrar tu avance y seguir 👇"
+                            if modulo_usa_pasos(modulo):
+                                if not pasos_activos_qs(modulo).exists():
+                                    texto_respuesta = log_y_mensaje_modo_pasos_sin_pasos(
+                                        modulo, 'views_menu_inicio'
                                     )
                                 else:
-                                    _rem_m = mensaje_recordatorio_paso_actual(progreso, modulo)
-                                    texto_respuesta = _rem_m or (
-                                        f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
-                                        "Escribe *continuar* o *listo* cuando quieras seguir."
-                                    )
-                                if curso.modulos.filter(numero__gt=modulo.numero).exists():
-                                    _enviar_btn_continuar_menu = True
+                                    _np_m = pasos_activos_qs(modulo).count()
+                                    if (
+                                        progreso.paso_actual_modulo > _np_m
+                                        and not progreso.esperando_respuesta_evaluacion_paso
+                                    ):
+                                        texto_respuesta = (
+                                            "✅ Ya recibiste todo el material de esta unidad.\n\n"
+                                            "Escribe *listo* para registrar tu avance y seguir 👇"
+                                        )
+                                    else:
+                                        _rem_m = mensaje_recordatorio_paso_actual(progreso, modulo)
+                                        texto_respuesta = _rem_m or (
+                                            f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
+                                            "Escribe *continuar* o *listo* cuando quieras seguir."
+                                        )
+                                    if curso.modulos.filter(numero__gt=modulo.numero).exists():
+                                        _enviar_btn_continuar_menu = True
                             else:
                                 video_url = obtener_video_url(modulo)
                                 archivos_multimedia = modulo.archivos_multimedia.filter(activo=True)
@@ -3695,8 +3729,11 @@ def _procesar_twilio_webhook(post_data):
                                 if media_mm:
                                     parte_media_mm = media_mm.group(1).strip()
                                     parte_txt = parte_txt.replace(media_mm.group(0), '').strip()
+                                cuerpo_mm = parte_txt.strip() if parte_txt else ''
+                                if parte_media_mm and not cuerpo_mm:
+                                    cuerpo_mm = TWILIO_CAPTION_ADJUNTO
                                 mp_mm = {
-                                    'body': parte_txt if parte_txt else ' ',
+                                    'body': cuerpo_mm if cuerpo_mm else ' ',
                                     'from_': twilio_from,
                                     'to': str(destino).strip(),
                                 }
@@ -3714,7 +3751,7 @@ def _procesar_twilio_webhook(post_data):
                                 import time
                                 time.sleep(0.5)
                                 WhatsappLog.objects.create(
-                                    telefono=telefono_limpio, mensaje=parte_txt[:500], tipo='SENT'
+                                    telefono=telefono_limpio, mensaje=(cuerpo_mm or parte_txt)[:500], tipo='SENT'
                                 )
                         else:
                             media_url_menu = None
@@ -4603,7 +4640,7 @@ def _procesar_twilio_webhook(post_data):
 
                     # Obtener progreso para avanzar al siguiente módulo
                     if modulo_completado or es_pregunta_ia:
-                        from .helpers_examenes import puede_avanzar_modulo, debe_activar_checkpoint_reto_ia
+                        from .helpers_examenes import puede_avanzar_modulo, es_modulo_checkpoint_reto_ia
                         
                         if modulo_completado:
                             progreso = modulo_completado.progreso
@@ -4679,10 +4716,10 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                     total_modulos = progreso.curso.modulos.count()
                                     # Solo activar retos IA si el curso tiene la bandera encendida.
                                     usar_agentes_ia_curso = bool(getattr(progreso.curso, 'usar_agentes_ia', True))
-                                    es_modulo_reto = debe_activar_checkpoint_reto_ia(
-                                        numero_modulo=modulo_actual.numero,
-                                        total_modulos=total_modulos,
-                                        usar_agentes_ia_curso=usar_agentes_ia_curso,
+                                    es_modulo_reto = es_modulo_checkpoint_reto_ia(
+                                        modulo_actual,
+                                        total_modulos,
+                                        usar_agentes_ia_curso,
                                     )
                                     
                                     if not es_modulo_reto:
