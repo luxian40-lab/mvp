@@ -1469,6 +1469,64 @@ class Modulo(models.Model):
         return f"{self.curso.nombre} - Módulo {self.numero}: {self.titulo}"
 
 
+class PasoModulo(models.Model):
+    """Paso interno de entrega progresiva (drip dentro del módulo por WhatsApp)."""
+    TIPO_CONTENIDO = 'contenido'
+    TIPO_EVAL_OPC = 'evaluacion_opciones'
+    TIPO_EVAL_ABIERTA = 'evaluacion_abierta'
+    TIPO_RETO = 'reto'
+    TIPO_ENTREGA = 'entrega'
+    TIPOS = [
+        (TIPO_CONTENIDO, 'Contenido'),
+        (TIPO_EVAL_OPC, 'Evaluación (opciones)'),
+        (TIPO_EVAL_ABIERTA, 'Evaluación (abierta)'),
+        (TIPO_RETO, 'Reto'),
+        (TIPO_ENTREGA, 'Entrega'),
+    ]
+
+    modulo = models.ForeignKey(Modulo, on_delete=models.CASCADE, related_name='pasos')
+    orden = models.PositiveIntegerField()
+    titulo = models.CharField(max_length=200)
+    tipo = models.CharField(max_length=32, choices=TIPOS, default=TIPO_CONTENIDO)
+    contenido = models.TextField(
+        blank=True,
+        help_text='Texto del paso (instrucciones, contexto)',
+    )
+    media_url = models.URLField(max_length=500, blank=True)
+    opciones_json = models.JSONField(
+        null=True,
+        blank=True,
+        help_text='Para evaluación opciones: {"A":"...","B":"...","correcta":"A"}',
+    )
+    respuesta_correcta = models.CharField(
+        max_length=10,
+        blank=True,
+        help_text='Letra correcta (A-D) si no usás solo opciones_json.correcta',
+    )
+    feedback_correcto = models.TextField(blank=True)
+    feedback_incorrecto = models.TextField(blank=True)
+    activo = models.BooleanField(default=True)
+    requiere_listo_para_avanzar = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['modulo', 'orden', 'id']
+        verbose_name = 'Paso de módulo'
+        verbose_name_plural = 'Pasos de módulo'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['modulo', 'orden'],
+                name='uniq_pasomodulo_modulo_orden',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.modulo_id} · {self.orden} · {self.titulo}'
+
+    @property
+    def es_evaluacion(self):
+        return self.tipo in (self.TIPO_EVAL_OPC, self.TIPO_EVAL_ABIERTA)
+
+
 class ProgresoEstudiante(models.Model):
     """Progreso del estudiante en los cursos"""
     estudiante = models.ForeignKey(Estudiante, on_delete=models.CASCADE, related_name='progresos')
@@ -1482,6 +1540,18 @@ class ProgresoEstudiante(models.Model):
         blank=True,
         verbose_name='Fecha último avance',
         help_text='Se actualiza cuando el estudiante completa/avanza de módulo.'
+    )
+    paso_actual_modulo = models.PositiveIntegerField(
+        default=1,
+        help_text='Índice 1-based del siguiente paso a entregar con *listo* (solo si el módulo tiene pasos activos).',
+    )
+    esperando_respuesta_evaluacion_paso = models.BooleanField(default=False)
+    paso_evaluacion_paso = models.ForeignKey(
+        PasoModulo,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
     )
 
     class Meta:

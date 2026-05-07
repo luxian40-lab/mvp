@@ -2933,7 +2933,16 @@ def _procesar_twilio_webhook(post_data):
                             modulo = curso.modulos.order_by('numero').first()
                             if modulo:
                                 progreso.modulo_actual = modulo
-                                progreso.save()
+                                from .module_steps import reset_progreso_pasos_modulo
+                                reset_progreso_pasos_modulo(progreso, save=False)
+                                progreso.save(
+                                    update_fields=[
+                                        'modulo_actual',
+                                        'paso_actual_modulo',
+                                        'esperando_respuesta_evaluacion_paso',
+                                        'paso_evaluacion_paso_id',
+                                    ]
+                                )
                         if modulo:
                             # Get agent names: Cliente > Curso > defaults
                             cliente_obj = estudiante.cliente
@@ -3344,6 +3353,105 @@ def _procesar_twilio_webhook(post_data):
                 pass
 
             else:
+                # 📚 Paso módulo: evaluación / reto — antes del gate "solo listo" (A, texto libre, etc.)
+                if estado_chat == 'ACTIVO':
+                    from .module_steps import procesar_respuesta_evaluacion_paso
+                    from .models import ProgresoEstudiante
+
+                    _prog_eval = (
+                        ProgresoEstudiante.objects.filter(
+                            estudiante=estudiante,
+                            completado=False,
+                        )
+                        .order_by('-fecha_inicio')
+                        .first()
+                    )
+                    _ctx_eval = estudiante.contexto_temporal or {}
+                    _fid_eval = _ctx_eval.get('curso_activo_id')
+                    if (
+                        _fid_eval
+                        and _prog_eval
+                        and _prog_eval.curso_id != int(_fid_eval)
+                    ):
+                        _prog_eval = (
+                            ProgresoEstudiante.objects.filter(
+                                estudiante=estudiante,
+                                completado=False,
+                                curso_id=int(_fid_eval),
+                            ).first()
+                            or _prog_eval
+                        )
+                    if _prog_eval:
+                        _resp_paso = procesar_respuesta_evaluacion_paso(
+                            estudiante, _prog_eval, msg_body
+                        )
+                        if _resp_paso is not None:
+                            logger.info(
+                                "📚 [pasos] respuesta evaluación procesada en webhook | est=%s",
+                                estudiante.id,
+                            )
+                            try:
+                                from twilio.rest import Client as TwilioClient
+                                import re as _re_paso
+
+                                account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                                auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                                twilio_number = getattr(
+                                    settings,
+                                    'TWILIO_PHONE_NUMBER',
+                                    'whatsapp:+573202948806',
+                                )
+                                client_tw = TwilioClient(account_sid, auth_token)
+                                destino = (
+                                    f'whatsapp:{msg_from}'
+                                    if not msg_from.startswith('whatsapp:')
+                                    else msg_from
+                                )
+                                twilio_from = str(twilio_number).strip()
+                                if _resp_paso.startswith('[MULTI_MSG]'):
+                                    partes = _resp_paso.replace('[MULTI_MSG]', '', 1).split('[SEP]')
+                                    for parte in partes:
+                                        if not parte.strip():
+                                            continue
+                                        parte_texto = parte.strip()
+                                        delay_m = _re_paso.match(
+                                            r'^\[DELAY:(\d+)\]$', parte_texto
+                                        )
+                                        if delay_m:
+                                            import time as _time_p
+                                            _time_p.sleep(int(delay_m.group(1)))
+                                            continue
+                                        media_m = _re_paso.match(
+                                            r'^\[MEDIA:(.+)\]$', parte_texto
+                                        )
+                                        if media_m:
+                                            client_tw.messages.create(
+                                                body=' ',
+                                                from_=twilio_from,
+                                                to=str(destino).strip(),
+                                                media_url=[media_m.group(1).strip()],
+                                            )
+                                        else:
+                                            client_tw.messages.create(
+                                                body=parte_texto,
+                                                from_=twilio_from,
+                                                to=str(destino).strip(),
+                                            )
+                                else:
+                                    client_tw.messages.create(
+                                        body=_resp_paso,
+                                        from_=twilio_from,
+                                        to=str(destino).strip(),
+                                    )
+                                WhatsappLog.objects.create(
+                                    telefono=telefono_limpio,
+                                    mensaje=_resp_paso[:500],
+                                    tipo='SENT',
+                                )
+                            except Exception as e:
+                                logger.error(f"❌ Error enviando respuesta paso módulo: {e}", exc_info=True)
+                            return
+
                 # En flujo de curso normal: solo "listo" avanza y "ayuda" crea ticket.
                 keywords_ayuda_curso = ['ayuda', 'soporte', 'ticket', 'problema']
                 keywords_corregir_curso = [
@@ -3470,7 +3578,16 @@ def _procesar_twilio_webhook(post_data):
                             modulo = curso.modulos.order_by('numero').first()
                             if modulo:
                                 progreso.modulo_actual = modulo
-                                progreso.save()
+                                from .module_steps import reset_progreso_pasos_modulo
+                                reset_progreso_pasos_modulo(progreso, save=False)
+                                progreso.save(
+                                    update_fields=[
+                                        'modulo_actual',
+                                        'paso_actual_modulo',
+                                        'esperando_respuesta_evaluacion_paso',
+                                        'paso_evaluacion_paso_id',
+                                    ]
+                                )
                         if modulo:
                             video_url = obtener_video_url(modulo)
                             archivos_multimedia = modulo.archivos_multimedia.filter(activo=True)
@@ -4152,7 +4269,16 @@ def _procesar_twilio_webhook(post_data):
                             ).order_by('numero').first()
                             if siguiente:
                                 progreso.modulo_actual = siguiente
-                                progreso.save(update_fields=['modulo_actual'])
+                                from .module_steps import reset_progreso_pasos_modulo
+                                reset_progreso_pasos_modulo(progreso, save=False)
+                                progreso.save(
+                                    update_fields=[
+                                        'modulo_actual',
+                                        'paso_actual_modulo',
+                                        'esperando_respuesta_evaluacion_paso',
+                                        'paso_evaluacion_paso_id',
+                                    ]
+                                )
                                 _base_ctx['post_reto_entregar_modulo_id'] = siguiente.id
                         estudiante.contexto_temporal = _base_ctx
                         estudiante.save()
@@ -4488,7 +4614,16 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                     if not es_modulo_reto:
                                         # Normal: advance pointer
                                         progreso.modulo_actual = siguiente_modulo
-                                        progreso.save()
+                                        from .module_steps import reset_progreso_pasos_modulo
+                                        reset_progreso_pasos_modulo(progreso, save=False)
+                                        progreso.save(
+                                            update_fields=[
+                                                'modulo_actual',
+                                                'paso_actual_modulo',
+                                                'esperando_respuesta_evaluacion_paso',
+                                                'paso_evaluacion_paso_id',
+                                            ]
+                                        )
                                     # else: pointer stays — will advance after reto
                                 
                                     estudiante.preguntas_ia_restantes = 3

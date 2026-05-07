@@ -16,7 +16,7 @@ import openpyxl
 from django.http import HttpResponse
 from .models import (
     Estudiante, WhatsappLog, Plantilla, Campana, EnvioLog, Linea,
-    Curso, ConfiguracionDripCliente, Modulo, ProgresoEstudiante, ModuloCompletado,
+    Curso, ConfiguracionDripCliente, Modulo, PasoModulo, ProgresoEstudiante, ModuloCompletado,
     Examen, PreguntaExamen, ResultadoExamen, Cliente,
     PerfilGamificacion, Badge, BadgeEstudiante, TransaccionPuntos,
     SolicitudSoporte, PreguntaModulo,  # 🆘 NUEVO + 📝 PREGUNTA MODULO
@@ -2653,6 +2653,32 @@ class PreguntaModuloInline(admin.StackedInline):
     )
 
 
+class PasoModuloInline(admin.TabularInline):
+    """Pasos internos: entrega progresiva dentro del módulo (WhatsApp)."""
+    model = PasoModulo
+    extra = 0
+    can_delete = True
+    ordering = ('orden', 'id')
+    show_change_link = True
+    verbose_name = 'Paso interno'
+    verbose_name_plural = (
+        'Pasos internos del módulo (si hay pasos activos, el contenido/multimedia legacy no se envía de golpe)'
+    )
+    fields = (
+        'orden', 'activo', 'tipo', 'titulo', 'contenido_corto', 'media_url',
+        'respuesta_correcta', 'opciones_json',
+    )
+    readonly_fields = ('contenido_corto',)
+
+    def contenido_corto(self, obj):
+        if not obj or not getattr(obj, 'contenido', None):
+            return '—'
+        t = (obj.contenido or '')[:80]
+        return t + ('…' if len(obj.contenido or '') > 80 else '')
+
+    contenido_corto.short_description = 'Contenido (80)'
+
+
 class ArchivoModuloInline(admin.StackedInline):
     """Archivos multimedia del módulo (imágenes, videos, infografías, PDFs)"""
     model = ArchivoModulo
@@ -2762,7 +2788,7 @@ class ModuloAdmin(admin.ModelAdmin):
     search_fields = ('titulo', 'descripcion', 'contenido')
     list_per_page = 50
     ordering = ['curso', 'numero']
-    inlines = [ArchivoModuloInline, PreguntaModuloInline]
+    inlines = [PasoModuloInline, ArchivoModuloInline, PreguntaModuloInline]
     actions = ['enviar_archivos_multimedia', 'ver_archivos_multimedia', 'renumerar_modulos']
     
     def ver_curso_link(self, obj):

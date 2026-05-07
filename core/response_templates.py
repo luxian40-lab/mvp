@@ -943,21 +943,8 @@ Te inscribiste en: *{curso.nombre}*
         
         # Combine header with first chunk
         if chunks:
-            mensaje_modulo = modulo_header + chunks[0]
-            
-            # If there are more chunks, combine them
-            if len(chunks) > 1:
-                remaining_chunks = chunks[1:]
-                for chunk in remaining_chunks:
-                    if len(mensaje_modulo) + len(chunk) + 4 < 1500:
-                        mensaje_modulo += "\n\n" + chunk
-                    else:
-                        break
-            
-            # v1.9.8: No mostrar labels de archivos en el texto del módulo (se envían como mensajes separados)
-            
-            # v1.9.6: Orden correcto: inscripción → gamificación → agentes → "Comenzamos..." → módulo texto → video(s) → "escribe listo"
-            # Explicación de gamificación
+            from .module_steps import modulo_tiene_pasos_activos, reset_progreso_pasos_modulo, entregar_paso_indice
+
             from .models import Cliente
             cliente_obj = None
             try:
@@ -974,8 +961,6 @@ Te inscribiste en: *{curso.nombre}*
                     "💰 *Puntos* que obtendrás al superar cada reto\n\n"
                     "¡Vamos a aprender y avanzar juntos! 💪"
                 )
-            
-            # Construir intro: inscripción + gamificación + agentes + "Comenzamos..."
             partes_intro = [mensaje_1]
             partes_intro.append(msg_geronimo)
             partes_intro.append(msg_maria)
@@ -983,7 +968,37 @@ Te inscribiste en: *{curso.nombre}*
                 partes_intro.append(msg_gamificacion)
             partes_intro.append("📚 *Comenzamos con el primer módulo de tu curso...* 👇")
             msg_intro = "\n\n".join(partes_intro)
-            
+
+            if modulo_tiene_pasos_activos(primer_modulo):
+                reset_progreso_pasos_modulo(progreso, save=True)
+                msg_pasos = entregar_paso_indice(progreso, primer_modulo, 1)
+                cuerpo_p = msg_pasos[len('[MULTI_MSG]') :]
+                partes_insc = [msg_intro] + [p for p in cuerpo_p.split('[SEP]') if p]
+                hay_mas_modulos_p = curso.modulos.filter(numero__gt=primer_modulo.numero).exists()
+                if hay_mas_modulos_p and not progreso.esperando_respuesta_evaluacion_paso:
+                    partes_insc.append(
+                        "Tómese su tiempo para ver el material. En cuanto termine, solo responda *listo* para continuar."
+                    )
+                logger.info(
+                    "📚 [pasos] inscripción con pasos internos | estudiante_id=%s curso_id=%s",
+                    estudiante.id,
+                    curso.id,
+                )
+                return '[MULTI_MSG]' + '[SEP]'.join(partes_insc)
+
+            mensaje_modulo = modulo_header + chunks[0]
+
+            # If there are more chunks, combine them
+            if len(chunks) > 1:
+                remaining_chunks = chunks[1:]
+                for chunk in remaining_chunks:
+                    if len(mensaje_modulo) + len(chunk) + 4 < 1500:
+                        mensaje_modulo += "\n\n" + chunk
+                    else:
+                        break
+
+            # v1.9.8: No mostrar labels de archivos en el texto del módulo (se envían como mensajes separados)
+            # v1.9.6: inscripción → … → módulo texto → video(s) → "escribe listo"
             partes_insc = [msg_intro, mensaje_modulo]
             hay_media_insc = False
             if primera_media_url_1:
@@ -1158,6 +1173,8 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             if not modulo_actual:
                 return f"❌ El curso {progreso.curso.nombre} no tiene módulos configurados. Contacta a soporte."
             progreso.modulo_actual = modulo_actual
+            from .module_steps import reset_progreso_pasos_modulo
+            reset_progreso_pasos_modulo(progreso, save=False)
             progreso.save()
         
         # Tras cerrar reto (Darío + facilitadora), el puntero ya está en el siguiente módulo pero el estudiante
@@ -1201,10 +1218,34 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     if fecha_desbloqueo and timezone.localdate() < fecha_desbloqueo:
                         return _mensaje_bloqueo_drip(fecha_desbloqueo)
 
-            # PRIORIDAD: Verificar si el módulo tiene pregunta de validación
+            from .module_steps import pasos_activos_qs, entregar_paso_indice
+
+            _saltar_pasos = kwargs.get('_saltar_bloque_pasos_internos')
+            _n_pasos = pasos_activos_qs(modulo_actual).count() if modulo_actual else 0
+
+            if _n_pasos > 0 and not _saltar_pasos:
+                idx_p = progreso.paso_actual_modulo
+                if idx_p <= _n_pasos:
+                    try:
+                        logger.info(
+                            "📚 [pasos] listo → entregar paso | est=%s idx=%s n=%s",
+                            estudiante.id,
+                            idx_p,
+                            _n_pasos,
+                        )
+                        return entregar_paso_indice(progreso, modulo_actual, idx_p)
+                    except ValueError:
+                        logger.warning(
+                            "⚠️ [pasos] índice inválido | est=%s idx=%s",
+                            estudiante.id,
+                            idx_p,
+                            exc_info=True,
+                        )
+
+            # PRIORIDAD: Verificar si el módulo tiene pregunta de validación (solo flujo legacy sin pasos)
             from .pregunta_handler import tiene_pregunta_modulo, obtener_pregunta_modulo, formatear_pregunta, guardar_contexto_pregunta
             
-            if tiene_pregunta_modulo(modulo_actual):
+            if _n_pasos == 0 and tiene_pregunta_modulo(modulo_actual):
                 # Verificar si ya respondió esta pregunta
                 ya_respondio = ModuloCompletado.objects.filter(
                     progreso=progreso,
@@ -1228,7 +1269,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 progreso=progreso, modulo=modulo_actual
             ).exists()
             
-            if not tiene_pregunta_modulo(modulo_actual):
+            if _n_pasos > 0 or not tiene_pregunta_modulo(modulo_actual):
                 modulo_creado, created = ModuloCompletado.objects.get_or_create(
                     progreso=progreso,
                     modulo=modulo_actual
@@ -1282,7 +1323,16 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     if _msg_ficha:
                         return _msg_ficha
                     progreso.modulo_actual = siguiente_modulo
+                    from .module_steps import reset_progreso_pasos_modulo, modulo_tiene_pasos_activos, entregar_paso_indice
+                    reset_progreso_pasos_modulo(progreso, save=False)
                     progreso.save()
+                    if modulo_tiene_pasos_activos(siguiente_modulo):
+                        logger.info(
+                            "📚 [pasos] primer paso del módulo siguiente | est=%s mod_id=%s",
+                            estudiante.id,
+                            siguiente_modulo.id,
+                        )
+                        return entregar_paso_indice(progreso, siguiente_modulo, 1)
                 
                 porcentaje = progreso.porcentaje_avance()
                 video_url = obtener_video_url(siguiente_modulo)
@@ -1572,6 +1622,26 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 _ctx_show.pop('post_reto_entregar_modulo_id', None)
                 estudiante.contexto_temporal = _ctx_show or None
                 estudiante.save(update_fields=['contexto_temporal'])
+
+            from .module_steps import (
+                modulo_tiene_pasos_activos,
+                mensaje_recordatorio_paso_actual,
+                pasos_activos_qs,
+            )
+            if modulo_actual and modulo_tiene_pasos_activos(modulo_actual):
+                _np_cur = pasos_activos_qs(modulo_actual).count()
+                if (
+                    progreso.paso_actual_modulo > _np_cur
+                    and not progreso.esperando_respuesta_evaluacion_paso
+                ):
+                    return (
+                        "✅ Ya recibiste todo el material de esta unidad.\n\n"
+                        "Escribe *listo* para registrar tu avance y seguir 👇"
+                    )
+                _rem_p = mensaje_recordatorio_paso_actual(progreso, modulo_actual)
+                if _rem_p:
+                    return _rem_p
+
             video_url = obtener_video_url(modulo_actual)
 
             # Verificar archivos multimedia

@@ -261,6 +261,8 @@ def _cerrar_sesion(sesion: SesionFormulario, pasos: list[FlujoPregunta]) -> str:
     if sesion.progreso_id and sesion.modulo_siguiente_id:
         p = sesion.progreso
         p.modulo_actual = sesion.modulo_siguiente
+        from core.module_steps import reset_progreso_pasos_modulo
+        reset_progreso_pasos_modulo(p, save=False)
         p.fecha_ultimo_avance = timezone.now()
         p.save()
     r = _resumen_ficha(ficha)

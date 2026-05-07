@@ -89,7 +89,16 @@ def asegurar_inscripcion_catalogo_cliente(estudiante):
                 primer = c.modulos.order_by('numero').first()
                 if primer:
                     progreso_existente.modulo_actual = primer
-                    progreso_existente.save(update_fields=['modulo_actual'])
+                    from .module_steps import reset_progreso_pasos_modulo
+                    reset_progreso_pasos_modulo(progreso_existente, save=False)
+                    progreso_existente.save(
+                        update_fields=[
+                            'modulo_actual',
+                            'paso_actual_modulo',
+                            'esperando_respuesta_evaluacion_paso',
+                            'paso_evaluacion_paso_id',
+                        ]
+                    )
             return progreso_existente
 
     cursos = cursos_visibles_para_estudiante(estudiante)
@@ -107,7 +116,16 @@ def asegurar_inscripcion_catalogo_cliente(estudiante):
     )
     if not progreso.modulo_actual and primer_modulo:
         progreso.modulo_actual = primer_modulo
-        progreso.save(update_fields=['modulo_actual'])
+        from .module_steps import reset_progreso_pasos_modulo
+        reset_progreso_pasos_modulo(progreso, save=False)
+        progreso.save(
+            update_fields=[
+                'modulo_actual',
+                'paso_actual_modulo',
+                'esperando_respuesta_evaluacion_paso',
+                'paso_evaluacion_paso_id',
+            ]
+        )
     return progreso
 
 
@@ -205,7 +223,16 @@ def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_
         if not modulo_actual:
             return f"El curso {curso_seleccionado.nombre} no tiene módulos configurados."
         progreso.modulo_actual = modulo_actual
-        progreso.save()
+        from .module_steps import reset_progreso_pasos_modulo
+        reset_progreso_pasos_modulo(progreso, save=False)
+        progreso.save(
+            update_fields=[
+                'modulo_actual',
+                'paso_actual_modulo',
+                'esperando_respuesta_evaluacion_paso',
+                'paso_evaluacion_paso_id',
+            ]
+        )
 
     mensaje_lower = mensaje_original.strip().lower()
 
@@ -285,7 +312,16 @@ Cuando termines, escribe: *"listo"*"""
                     return _mensaje_bloqueo_drip(fecha_desbloqueo)
 
             progreso.modulo_actual = siguiente_modulo
-            progreso.save()
+            from .module_steps import reset_progreso_pasos_modulo
+            reset_progreso_pasos_modulo(progreso, save=False)
+            progreso.save(
+                update_fields=[
+                    'modulo_actual',
+                    'paso_actual_modulo',
+                    'esperando_respuesta_evaluacion_paso',
+                    'paso_evaluacion_paso_id',
+                ]
+            )
 
             video_url = obtener_video_url(siguiente_modulo)
 
