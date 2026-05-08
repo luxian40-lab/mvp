@@ -2638,14 +2638,17 @@ class PreguntaModuloInline(admin.StackedInline):
     can_delete = True
     show_change_link = True
     verbose_name = 'Pregunta de Mini Examen'
-    verbose_name_plural = 'Preguntas de Mini Examen'
+    verbose_name_plural = 'Mini examen (después de los pasos)'
 
     fieldsets = (
         ('Pregunta', {
             'fields': ('pregunta',),
             'description': (
-                'Con microcontenidos activos, se envía <strong>al terminar todos los pasos</strong> '
-                'antes de registrar el módulo como completado (misma lógica que sin pasos).'
+                'Se envía <strong>cuando el estudiante ya recorrió todos los microcontenidos activos</strong> '
+                '(no durante el flujo de *listo* intermedio). '
+                'Si la dejás <strong>activa</strong>, debe contestar bien para cerrar el módulo y seguir '
+                '(igual que el comportamiento sin pasos internos). '
+                '<br>Esto es <em>independiente</em> de las evaluaciones en JSON de cada paso (que frenan el avance dentro del drip).'
             ),
         }),
         ('Opciones de Respuesta', {
@@ -2667,7 +2670,21 @@ class SeccionModuloInline(admin.TabularInline):
     verbose_name = 'Bloque'
     # Texto corto: Jazzmin usa esto en pestañas + ancla #slug-tab; títulos largos rompen el cambio de pestaña.
     verbose_name_plural = 'Secciones'
-    fields = ('orden', 'activa', 'titulo')
+    fields = ('orden', 'activa', 'titulo', 'resumen_pasos')
+    readonly_fields = ('resumen_pasos',)
+
+    @admin.display(description='Pasos activos')
+    def resumen_pasos(self, obj):
+        if not obj or not obj.pk:
+            return format_html(
+                '<span style="color:#94a3b8;font-size:12px;">—</span>'
+            )
+        n = obj.pasos.filter(activo=True).count()
+        return format_html(
+            '<span style="font-weight:600;color:#0f766e;">{}</span>'
+            '<span style="color:#64748b;font-size:11px;"> en esta sección</span>',
+            n,
+        )
 
 
 class PasoModuloInline(admin.TabularInline):
@@ -2680,10 +2697,32 @@ class PasoModuloInline(admin.TabularInline):
     verbose_name = 'Paso'
     verbose_name_plural = 'Microcontenidos'
     fields = (
-        'orden', 'seccion', 'activo', 'tipo', 'titulo', 'contenido_corto', 'media_url',
-        'respuesta_correcta', 'opciones_json',
+        'orden',
+        'seccion',
+        'activo',
+        'requiere_listo_para_avanzar',
+        'tipo',
+        'titulo',
+        'contenido_corto',
+        'media_url',
+        'respuesta_correcta',
+        'opciones_json',
     )
     readonly_fields = ('contenido_corto',)
+
+    def get_formset(self, request, obj=None, **kwargs):
+        self._modulo_inline_parent = obj
+        return super().get_formset(request, obj, **kwargs)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'seccion':
+            mod = getattr(self, '_modulo_inline_parent', None)
+            if mod is not None and mod.pk:
+                kwargs['queryset'] = SeccionModulo.objects.filter(modulo_id=mod.pk).order_by(
+                    'orden', 'id'
+                )
+            # Módulo nuevo sin PK: no filtramos; el admin no muestra este inline (ver ModuloAdmin).
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def contenido_corto(self, obj):
         if not obj or not getattr(obj, 'contenido', None):
@@ -2798,6 +2837,11 @@ class ArchivoModuloInline(admin.StackedInline):
 @admin.register(Modulo)
 class ModuloAdmin(admin.ModelAdmin):
     """Administración de módulos"""
+    class Media:
+        css = {
+            'all': ('admin/css/modulo_whatsapp_bloques.css',),
+        }
+
     list_display = (
         'numero_titulo',
         'curso',
@@ -2817,7 +2861,16 @@ class ModuloAdmin(admin.ModelAdmin):
     readonly_fields = ('guia_microcontenidos_whatsapp',)
     inlines = [SeccionModuloInline, PasoModuloInline, ArchivoModuloInline, PreguntaModuloInline]
     actions = ['enviar_archivos_multimedia', 'ver_archivos_multimedia', 'renumerar_modulos']
-    
+
+    def get_inline_instances(self, request, obj=None):
+        """Módulo nuevo: solo secciones hasta la 1.ª guardada (luego se elige sección por módulo)."""
+        instances = []
+        for inline_class in self.inlines:
+            if inline_class is PasoModuloInline and obj is None:
+                continue
+            instances.append(inline_class(self.model, self.admin_site))
+        return instances
+
     def ver_curso_link(self, obj):
         """Link directo al curso padre"""
         url = reverse('admin:core_curso_change', args=[obj.curso.id])
@@ -2856,9 +2909,17 @@ class ModuloAdmin(admin.ModelAdmin):
             'equivale a un bloque por *listo*; con <b>2</b> manda dos bloques seguidos, etc.</span>'
             '</td>'
             '</tr></table>'
-            '<p style="margin:12px 0 0 0;font-size:12px;color:#64748b;line-height:1.5;">'
+            '<p style="margin:12px 0 0 0;font-size:12px;color:#64748b;line-height:1.55;border-top:1px solid #e2e8f0;padding-top:10px;">'
+            '<strong style="color:#334155;">Preguntas y bloqueo de avance</strong><br>'
+            '• <strong>Dentro del drip</strong>: un paso tipo «Evaluación (opciones o abierta)» usa <code>opciones_json</code> / letra correcta; '
+            'el estudiante <strong>no sigue</strong> hasta responder bien (o cumplir reto/entrega según el tipo).<br>'
+            '• <strong>Mini examen</strong> (pestaña más abajo): va <em>al final</em>, cuando ya terminó todos los pasos; si está activa, exige la respuesta correcta para '
+            'dar por cerrado el módulo (independiente del JSON de cada paso).<br>'
+            '• <strong>Módulo nuevo</strong>: guardá una vez con las filas de Secciones; al reabrir el registro cargás Microcontenidos y el desplegable «sección» solo lista bloques de este módulo.'
+            '</p>'
+            '<p style="margin:10px 0 0 0;font-size:12px;color:#64748b;line-height:1.5;">'
             'Modo <b>Legacy</b>: ignora estos pasos y envía el texto del módulo completo. '
-            'Mini examen y multimedia siguen abajo en sus propias secciones.'
+            'Mini examen y multimedia siguen en sus pestañas.'
             '</p>'
             '</div>'
         )
@@ -2870,8 +2931,9 @@ class ModuloAdmin(admin.ModelAdmin):
                 'fields': ('guia_microcontenidos_whatsapp',),
                 'classes': ('wide',),
                 'description': (
-                    'Referencia visual; no se guarda. Más abajo cargás las tablas «Secciones» y «Microcontenidos». '
-                    'Primero definí los bloques, después asigná cada paso a su bloque.'
+                    'Referencia visual; no se guarda. Orden práctico: definí <strong>Secciones</strong>, '
+                    '<strong>Guardá</strong>, luego pestaña <strong>Microcontenidos</strong> '
+                    '(asigná cada paso a un bloque). Primera vez sin guardar solo verás Secciones.'
                 ),
             },
         ),
