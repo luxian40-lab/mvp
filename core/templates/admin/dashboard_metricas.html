@@ -304,15 +304,31 @@
     {% endif %}
 
     <div class="section-title">Arranco y Dejo Modulo a Medias</div>
+    <p style="color:var(--eki-muted);font-size:0.88rem;max-width:920px;margin:-8px 0 14px;">
+        Estudiantes con al menos un módulo completado pero sin terminar el curso, sin actividad reciente.
+        La columna <strong>WhatsApp (paso)</strong> muestra el índice del siguiente microcontenido (<em>listo</em>)
+        o si está <strong>esperando evaluación</strong> de un paso; en cursos en modo Legacy sin pasos activos el número puede no tener significado operativo.
+    </p>
     {% if estudiantes_iniciaron_y_abandonaron %}
     <table class="eki-table">
-        <thead><tr><th>Estudiante</th><th>Curso</th><th>Modulo Actual</th><th>Ultimo Avance</th></tr></thead>
+        <thead><tr><th>Estudiante</th><th>Curso</th><th>Modulo Actual</th><th>WhatsApp (paso)</th><th>Ultimo Avance</th></tr></thead>
         <tbody>
         {% for p in estudiantes_iniciaron_y_abandonaron %}
             <tr>
                 <td>{{ p.estudiante.nombre }}</td>
                 <td>{{ p.curso.nombre }}</td>
                 <td>{% if p.modulo_actual %}{{ p.modulo_actual.titulo }}{% else %}Sin modulo actual{% endif %}</td>
+                <td>
+                    {% if p.modulo_actual %}
+                        {% if p.esperando_respuesta_evaluacion_paso %}
+                            <span style="color:#e03131;font-weight:600;">Evaluación pendiente</span>
+                        {% else %}
+                            Siguiente paso: <strong>{{ p.paso_actual_modulo }}</strong>
+                        {% endif %}
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
                 <td>{% if p.fecha_ultimo_avance %}{{ p.fecha_ultimo_avance|date:"Y-m-d H:i" }}{% else %}Sin avance{% endif %}</td>
             </tr>
         {% endfor %}

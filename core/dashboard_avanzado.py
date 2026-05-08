@@ -609,7 +609,7 @@ def exportar_metricas_excel(request):
     ws_resumen.append(["Sesiones bot comercial", whatsapp_q.filter(agente_usado='BOT_COMERCIAL').count(), "Actual"])
 
     ws_est = wb.create_sheet("Estudiantes")
-    ws_est.append(["Nombre", "Cédula", "Teléfono", "Cliente", "Estado", "Último mensaje", "Curso actual", "Módulo actual", "% Progreso", "Fecha inscripción"])
+    ws_est.append(["Nombre", "Cédula", "Teléfono", "Cliente", "Estado", "Último mensaje", "Curso actual", "Módulo actual", "Paso siguiente (*listo*)", "Eval. paso pendiente", "% Progreso", "Fecha inscripción"])
     ultimo_msg_por_tel = {
         row['telefono']: row['ultima']
         for row in whatsapp_q.values('telefono').annotate(ultima=Max('fecha'))
@@ -617,6 +617,13 @@ def exportar_metricas_excel(request):
     progreso_por_est = {p.estudiante_id: p for p in progresos_q.order_by('-fecha_ultimo_avance')}
     for est in estudiantes_q:
         prog = progreso_por_est.get(est.id)
+        paso_wa = ''
+        eval_pend = ''
+        if prog:
+            if getattr(prog, 'esperando_respuesta_evaluacion_paso', False):
+                eval_pend = 'Sí'
+            else:
+                paso_wa = str(getattr(prog, 'paso_actual_modulo', '') or '')
         ws_est.append([
             est.nombre,
             est.cedula,
@@ -626,6 +633,8 @@ def exportar_metricas_excel(request):
             _excel_safe(ultimo_msg_por_tel.get(est.telefono)),
             prog.curso.nombre if prog else '',
             f"M{prog.modulo_actual.numero}" if prog and prog.modulo_actual_id else '',
+            paso_wa,
+            eval_pend,
             prog.porcentaje_avance() if prog else 0,
             _excel_safe(est.fecha_registro),
         ])

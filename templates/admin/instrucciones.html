@@ -468,7 +468,7 @@
 
             <li><strong>Soporte / PQRS:</strong> tras registrar un caso, el estudiante puede usar <strong>corregir datos</strong> (menú o texto) para ajustar nombre, municipio o documento sin esperar cierre del ticket.</li>
 
-            <li><strong>Métricas:</strong> el <a href="/admin/dashboard/">dashboard unificado</a> (pestaña Auditoría) muestra tránsito Twilio, DELIVERED, READ y bot comercial según filtros; el detalle ampliado sigue en <a href="/admin/dashboard-metrics/">Métricas del sistema</a> (incluye bloque <strong>Recolección de datos Ficha GEI</strong> y filtro por empresa desde abril 2026).</li>
+            <li><strong>Métricas:</strong> el <a href="/admin/dashboard/">dashboard unificado</a> (pestaña Auditoría) muestra tránsito Twilio, DELIVERED, READ y bot comercial según filtros; el detalle ampliado sigue en <a href="/admin/dashboard-metrics/">Métricas del sistema</a> (incluye bloque <strong>Recolección de datos Ficha GEI</strong>, abandono a mitad de módulo con <strong>paso WhatsApp</strong> y filtro por empresa desde abril 2026).</li>
 
         </ul>
 
@@ -626,7 +626,7 @@
 
                 <li><strong>Admin → Formulario → Fichas GEI</strong> — listado, búsqueda, filtros; acción <strong>exportar a Excel</strong> para análisis.</li>
 
-                <li><strong><a href="/admin/dashboard-metrics/">Métricas del sistema</a>:</strong> sección con totales, fichas últimos 30 días, formularios en curso, cerrados en 30 días y promedio de completitud; respeta el filtro de <strong>Empresa</strong> del formulario de arriba.</li>
+                <li><strong><a href="/admin/dashboard-metrics/">Métricas del sistema</a>:</strong> sección con totales, fichas últimos 30 días, formularios en curso, cerrados en 30 días y promedio de completitud; tabla <em>Arranco y Dejo Módulo a Medias</em> con <strong>paso WhatsApp</strong> (microcontenido / evaluación pendiente) cuando aplica; respeta el filtro de <strong>Empresa</strong> del formulario de arriba.</li>
 
                 <li><strong>API (usuario staff autenticado):</strong> <code>/admin/analytics/api/?tipo=formulario_gei</code> — JSON resumido para integraciones; opcional <code>cliente_id</code> para un solo cliente.</li>
 
@@ -1434,6 +1434,37 @@ python manage.py crear_cliente_preserva --reset   # borra y recrea</code></pre>
 
                     <tr>
 
+                        <td><strong>📱 Secciones + microcontenidos</strong></td>
+
+                        <td>
+                            Dentro de cada <strong>módulo</strong>: cómo se envía el contenido por WhatsApp con <em>listo</em>.
+                            Las <strong>secciones</strong> agrupan bloques (orden + título opcional en chat).
+                            Los <strong>microcontenidos</strong> son las piezas (texto, evaluación con JSON, reto, etc.);
+                            cada una elige a qué sección pertenece. En el módulo definís
+                            <strong>modo de entrega</strong> y <strong>secciones por *listo*</strong> (cuántos bloques
+                            seguidos salen en cada <em>listo</em>, entre 1 y 5).
+                        </td>
+
+                        <td>Una sección "Día 1" con 3 pasos; modo Automático o Pasos; Legacy ignora la tabla y manda el texto completo del módulo.</td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td><strong>✅ Mini examen (Pregunta módulo)</strong></td>
+
+                        <td>
+                            Pregunta de cierre <em>después</em> de recorer todos los microcontenidos activos del módulo.
+                            Las evaluaciones <strong>dentro</strong> de un paso (opciones JSON, abierta) frenan el avance
+                            en el drip; el mini examen cierra la unidad antes de marcar el módulo.
+                        </td>
+
+                        <td>"¿Qué practicaste hoy?" con opciones A/B al final del módulo 2.</td>
+
+                    </tr>
+
+                    <tr>
+
                         <td><strong>📝 Exámenes</strong></td>
 
                         <td>Evaluaciones de módulo</td>
@@ -1531,6 +1562,63 @@ python manage.py crear_cliente_preserva --reset   # borra y recrea</code></pre>
                 </li>
 
             </ol>
+
+        </div>
+
+
+
+        <div class="subsection">
+
+            <h3>Detalle: microcontenidos por WhatsApp (desde el admin de Módulos)</h3>
+
+            <ol class="step-list">
+
+                <li><strong>Abrir el módulo</strong> (Admin → Módulos → editar).</li>
+
+                <li>
+                    <strong>Pestaña «Secciones»:</strong> definí los bloques (orden, activo, título opcional).
+                    El título es el encabezado que puede ver el estudiante al entrar a ese bloque.
+                </li>
+
+                <li>
+                    <strong>Guardar el módulo al menos una vez</strong> si es nuevo; así aparece la pestaña
+                    «Microcontenidos» y el campo <em>sección</em> solo lista bloques de <strong>ese</strong> módulo.
+                </li>
+
+                <li>
+                    <strong>Pestaña «Microcontenidos»:</strong> cada fila es un paso (contenido, evaluación con
+                    <code>opciones_json</code>, reto, etc.). Asigná la <strong>sección</strong> correspondiente.
+                    Podés tener varios pasos en la misma sección (se envían en el mismo bloque según
+                    <strong>secciones por *listo*</strong>).
+                </li>
+
+                <li>
+                    <strong>Campo «Secciones por *listo*»</strong> (en el módulo, sección de entrega): cuántas filas de
+                    <em>secciones consecutivas</em> se mandan cada vez que el estudiante escribe <strong>*listo*</strong>
+                    (valores 1 a 5). Con 1, en la práctica es “un bloque de secciones por *listo*”; con 2, dos bloques seguidos, etc.
+                </li>
+
+                <li>
+                    <strong>Modo de entrega:</strong> <em>Automático</em> usa pasos si hay filas activas;
+                    <em>Pasos</em> fuerza el flujo por microcontenidos; <em>Legacy</em> envía el texto largo del módulo
+                    y <strong>no</strong> usa la tabla de pasos para el envío (sigue sirviendo el mini examen y multimedia).
+                </li>
+
+                <li>
+                    <strong>Mini examen</strong> (pestaña al final del módulo): es independiente del JSON de cada paso;
+                    se muestra cuando ya terminó todos los microcontenidos visibles, antes de cerrar la unidad.
+                </li>
+
+            </ol>
+
+            <div class="alert-box alert-warning">
+
+                <strong>Métricas / dashboard:</strong> en <a href="/admin/dashboard-metrics/"><code>/admin/dashboard-metrics/</code></a>,
+                la tabla <em>Arranco y Dejo Módulo a Medias</em> incluye una columna con el
+                <strong>siguiente paso WhatsApp</strong> (índice del microcontenido y si está esperando evaluación),
+                cuando el curso usa ese flujo. Sirve para ver abandono a mitad del drip, no solo el título del módulo.
+
+            </div>
 
         </div>
 
