@@ -24,6 +24,7 @@ from .models import (
 )
 from .models_extras import GrupoEstudiantes
 from .gamificacion import BadgeEstudiante
+from .module_steps import pasos_activos_qs
 
 try:
     from formulario.models import FichaGEI, SesionFormulario
@@ -40,6 +41,42 @@ def _excel_safe(value):
         except Exception:
             return value.replace(tzinfo=None)
     return value
+
+
+def _excel_metricas_paso_actual(prog):
+    """Sección / orden / vista de texto del micro al que apunta el progreso (incl. evaluación pendiente)."""
+    if not prog or not getattr(prog, 'modulo_actual_id', None):
+        return '', '', ''
+    mod = prog.modulo_actual
+    try:
+        qs = list(pasos_activos_qs(mod))
+    except Exception:
+        return '', '', ''
+    if getattr(prog, 'esperando_respuesta_evaluacion_paso', False) and getattr(
+        prog, 'paso_evaluacion_paso_id', None
+    ):
+        paso = getattr(prog, 'paso_evaluacion_paso', None)
+        if paso and paso.modulo_id == mod.id:
+            seccion = paso.seccion
+            lbl = ''
+            if seccion:
+                lbl = f"#{seccion.orden}"
+                if (seccion.titulo or '').strip():
+                    lbl = f"{lbl} {(seccion.titulo or '').strip()[:50]}"
+            snip = (paso.contenido or '')[:100].replace('\n', ' ')
+            return lbl.strip(), str(paso.orden), snip
+    idx = getattr(prog, 'paso_actual_modulo', None) or 0
+    if not (1 <= idx <= len(qs)):
+        return '', '', ''
+    paso = qs[idx - 1]
+    seccion = paso.seccion
+    lbl = ''
+    if seccion:
+        lbl = f"#{seccion.orden}"
+        if (seccion.titulo or '').strip():
+            lbl = f"{lbl} {(seccion.titulo or '').strip()[:50]}"
+    snip = (paso.contenido or '')[:100].replace('\n', ' ')
+    return lbl.strip(), str(paso.orden), snip
 
 
 @staff_member_required
@@ -584,7 +621,9 @@ def exportar_metricas_excel(request):
     if cliente_id:
         whatsapp_q = whatsapp_q.filter(Q(telefono__in=telefonos) | Q(estudiante__cliente_id=cliente_id)).distinct()
 
-    progresos_q = ProgresoEstudiante.objects.all().select_related('estudiante', 'curso', 'modulo_actual')
+    progresos_q = ProgresoEstudiante.objects.all().select_related(
+        'estudiante', 'curso', 'modulo_actual', 'paso_evaluacion_paso', 'paso_evaluacion_paso__seccion'
+    )
     if cliente_id:
         progresos_q = progresos_q.filter(estudiante__cliente_id=cliente_id)
     if grupo_id:
@@ -609,7 +648,25 @@ def exportar_metricas_excel(request):
     ws_resumen.append(["Sesiones bot comercial", whatsapp_q.filter(agente_usado='BOT_COMERCIAL').count(), "Actual"])
 
     ws_est = wb.create_sheet("Estudiantes")
-    ws_est.append(["Nombre", "Cédula", "Teléfono", "Cliente", "Estado", "Último mensaje", "Curso actual", "Módulo actual", "Paso siguiente (*listo*)", "Eval. paso pendiente", "% Progreso", "Fecha inscripción"])
+    ws_est.append(
+        [
+            "Nombre",
+            "Cédula",
+            "Teléfono",
+            "Cliente",
+            "Estado",
+            "Último mensaje",
+            "Curso actual",
+            "Módulo actual",
+            "Paso siguiente (*listo*)",
+            "Sección (interno)",
+            "Orden micro",
+            "Contenido paso (vista)",
+            "Eval. paso pendiente",
+            "% Progreso",
+            "Fecha inscripción",
+        ]
+    )
     ultimo_msg_por_tel = {
         row['telefono']: row['ultima']
         for row in whatsapp_q.values('telefono').annotate(ultima=Max('fecha'))
@@ -619,11 +676,15 @@ def exportar_metricas_excel(request):
         prog = progreso_por_est.get(est.id)
         paso_wa = ''
         eval_pend = ''
+        sec_lbl = ''
+        ord_micro = ''
+        snip_paso = ''
         if prog:
             if getattr(prog, 'esperando_respuesta_evaluacion_paso', False):
                 eval_pend = 'Sí'
             else:
                 paso_wa = str(getattr(prog, 'paso_actual_modulo', '') or '')
+            sec_lbl, ord_micro, snip_paso = _excel_metricas_paso_actual(prog)
         ws_est.append([
             est.nombre,
             est.cedula,
@@ -634,6 +695,9 @@ def exportar_metricas_excel(request):
             prog.curso.nombre if prog else '',
             f"M{prog.modulo_actual.numero}" if prog and prog.modulo_actual_id else '',
             paso_wa,
+            sec_lbl,
+            ord_micro,
+            snip_paso,
             eval_pend,
             prog.porcentaje_avance() if prog else 0,
             _excel_safe(est.fecha_registro),

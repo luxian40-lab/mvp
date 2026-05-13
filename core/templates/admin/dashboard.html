@@ -68,6 +68,9 @@
     .ranking-pos.bronze { background: #d9480f; }
     .ranking-name { flex: 1; font-weight: 500; }
     .ranking-pts { font-weight: 700; color: var(--eki-primary); }
+    .ranking-full-wrap { max-height: 440px; overflow: auto; border: 1px solid var(--eki-border); border-radius: 8px; margin-top: 8px; }
+    .ranking-full-wrap .eki-table { font-size: 0.85rem; }
+    .ranking-full-wrap .eki-table th { position: sticky; top: 0; z-index: 1; }
     .badge-status { padding: 3px 10px; border-radius: 12px; font-size: 0.78rem; font-weight: 600; }
     .badge-pendiente { background: #fff3bf; color: #e67700; }
     .badge-resuelta { background: #d3f9d8; color: #2b8a3e; }
@@ -155,6 +158,53 @@
                 {% endif %}
             </div>
         </div>
+
+        {% if ranking_gamificacion_completo %}
+        <div class="section">
+            <div class="section-title">Ranking de gamificación (completo en el filtro actual)</div>
+            <p style="color:#666;font-size:0.88rem;margin-bottom:12px;">
+                Hasta 2000 filas según organización / curso / fechas del filtro. El recuadro de la derecha es el mismo orden con <strong>solo cédula</strong> para copiar o cruzar datos.
+            </p>
+            <div class="charts-row" style="align-items: flex-start;">
+                <div class="chart-card" style="flex:2;">
+                    <h3>Por nombre y cédula</h3>
+                    <div class="ranking-full-wrap">
+                        <table class="eki-table">
+                            <thead><tr><th>#</th><th>Nombre</th><th>Cédula</th><th>Puntos</th><th>Organización</th></tr></thead>
+                            <tbody>
+                            {% for perfil in ranking_gamificacion_completo %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>{{ perfil.estudiante.nombre|default:"—" }}</td>
+                                <td>{{ perfil.estudiante.cedula|default:"—" }}</td>
+                                <td><strong>{{ perfil.puntos_totales }}</strong></td>
+                                <td>{% if perfil.estudiante.cliente %}{{ perfil.estudiante.cliente.nombre }}{% else %}—{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="chart-card" style="flex:1;">
+                    <h3>Solo cédula y puntos</h3>
+                    <div class="ranking-full-wrap">
+                        <table class="eki-table">
+                            <thead><tr><th>#</th><th>Cédula</th><th>Puntos</th></tr></thead>
+                            <tbody>
+                            {% for perfil in ranking_gamificacion_completo %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>{{ perfil.estudiante.cedula|default:"—" }}</td>
+                                <td><strong>{{ perfil.puntos_totales }}</strong></td>
+                            </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- Gráficos -->
         <div class="charts-row">

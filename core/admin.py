@@ -3,6 +3,7 @@ Admin completo: Estudiantes, Plantillas, Campañas, EnvioLog, Sistema Educativo
 CON función de envío directo desde Plantillas Y gestión de cursos/módulos/exámenes
 """
 from django.contrib import admin
+from django import forms
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.shortcuts import render, redirect
@@ -16,7 +17,7 @@ import openpyxl
 from django.http import HttpResponse
 from .models import (
     Estudiante, WhatsappLog, Plantilla, Campana, EnvioLog, Linea,
-    Curso, ConfiguracionDripCliente, Modulo, SeccionModulo, PasoModulo, ProgresoEstudiante, ModuloCompletado,
+    Curso, ConfiguracionDripCliente, HabilitacionModuloDripCliente, Modulo, SeccionModulo, PasoModulo, ProgresoEstudiante, ModuloCompletado,
     Examen, PreguntaExamen, ResultadoExamen, Cliente,
     PerfilGamificacion, Badge, BadgeEstudiante, TransaccionPuntos,
     SolicitudSoporte, PreguntaModulo,  # 🆘 NUEVO + 📝 PREGUNTA MODULO
@@ -101,10 +102,20 @@ class ConfiguracionDripClienteInline(admin.TabularInline):
     verbose_name_plural = '⏱️ Ritmo drip por curso (override)'
 
 
+class HabilitacionModuloDripClienteInline(admin.TabularInline):
+    """Fecha/hora en que un módulo del curso se habilita para este cliente (sustituye la fecha global del módulo)."""
+    model = HabilitacionModuloDripCliente
+    extra = 0
+    fields = ('curso', 'modulo', 'habilitado_desde', 'activo')
+    autocomplete_fields = ('curso', 'modulo')
+    verbose_name = 'Calendario módulo'
+    verbose_name_plural = '📅 Habilitación de módulos por calendario'
+
+
 @admin.register(Cliente)
 class ClienteAdmin(admin.ModelAdmin):
     """Gestión de clientes/organizaciones"""
-    inlines = [ConfiguracionDripClienteInline]
+    inlines = [ConfiguracionDripClienteInline, HabilitacionModuloDripClienteInline]
     list_display = ('nombre', 'contacto_principal', 'email', 'numero_meta_badge', 'estudiantes_activos', 'cursos_asignados', 'activo', 'fecha_registro')
     list_filter = ('activo', 'enviar_certificados_email', 'fecha_registro')
     search_fields = ('nombre', 'nit', 'contacto_principal', 'email')
@@ -2073,8 +2084,8 @@ class CampanaAdmin(admin.ModelAdmin):
                 )
                 continue
             
-            # Validar que tenga destinatarios (o grupo)
-            destinatarios_count = campana.destinatarios.count()
+            # Validar que tenga destinatarios (o grupo con al menos un estudiante activo)
+            destinatarios_count = campana.destinatarios.filter(activo=True).count()
             if hasattr(campana, 'tipo_audiencia') and campana.tipo_audiencia == 'grupo':
                 if not campana.grupo:
                     self.message_user(
@@ -2083,30 +2094,15 @@ class CampanaAdmin(admin.ModelAdmin):
                         level=messages.WARNING
                     )
                     continue
-                destinatarios_count = campana.grupo.estudiantes.count()
-            
+                destinatarios_count = campana.grupo.estudiantes.filter(activo=True).count()
+
             if destinatarios_count == 0:
-                if getattr(campana, 'cliente', None) and (not hasattr(campana, 'tipo_audiencia') or campana.tipo_audiencia != 'grupo'):
-                    destinatarios_count = campana.cliente.estudiantes.filter(activo=True).count()
-                    if destinatarios_count == 0:
-                        self.message_user(
-                            request,
-                            f"⚠️ '{campana.nombre}' no tiene estudiantes activos en el cliente '{campana.cliente}'.",
-                            level=messages.WARNING
-                        )
-                        continue
-                    self.message_user(
-                        request,
-                        f"ℹ️ '{campana.nombre}': no había destinatarios manuales, se enviará a {destinatarios_count} estudiantes activos del cliente '{campana.cliente}'.",
-                        level=messages.INFO
-                    )
-                else:
-                    self.message_user(
-                        request,
-                        f"⚠️ '{campana.nombre}' no tiene destinatarios seleccionados.",
-                        level=messages.WARNING
-                    )
-                    continue
+                self.message_user(
+                    request,
+                    f"⚠️ '{campana.nombre}' no tiene destinatarios: no se envía a nadie.",
+                    level=messages.WARNING
+                )
+                continue
             
             try:
                 res = ejecutar_campana_servicio(campana)
@@ -2648,7 +2644,7 @@ class PreguntaModuloInline(admin.StackedInline):
                 '(no durante el flujo de *listo* intermedio). '
                 'Si la dejás <strong>activa</strong>, debe contestar bien para cerrar el módulo y seguir '
                 '(igual que el comportamiento sin pasos internos). '
-                '<br>Esto es <em>independiente</em> de las evaluaciones en JSON de cada paso (que frenan el avance dentro del drip).'
+                '<br>Esto es <em>independiente</em> de las evaluaciones por letras en cada microcontenido (que frenan el avance dentro del drip).'
             ),
         }),
         ('Opciones de Respuesta', {
@@ -2661,7 +2657,7 @@ class PreguntaModuloInline(admin.StackedInline):
 
 
 class SeccionModuloInline(admin.TabularInline):
-    """Bloques con título opcional; agrupan varios pasos por *listo* según secciones_por_listo."""
+    """Agrupa pasos en el admin; el título de la sección no se envía por WhatsApp."""
     model = SeccionModulo
     extra = 0
     can_delete = True
@@ -2687,28 +2683,68 @@ class SeccionModuloInline(admin.TabularInline):
         )
 
 
-class PasoModuloInline(admin.TabularInline):
+class PasoModuloForm(forms.ModelForm):
+    class Meta:
+        model = PasoModulo
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        inst = self.instance
+        if inst and inst.pk and getattr(inst, 'tipo', None) == PasoModulo.TIPO_EVAL_OPC:
+            data = inst.opciones_json
+            if isinstance(data, dict):
+                for letter in ('A', 'B', 'C', 'D'):
+                    fname = f'eval_opcion_{letter.lower()}'
+                    cur = (getattr(inst, fname, None) or '').strip()
+                    if cur:
+                        continue
+                    val = data.get(letter)
+                    if val:
+                        self.initial[fname] = str(val)
+
+
+class PasoModuloInline(admin.StackedInline):
     """Microcontenidos WhatsApp dentro del módulo (orden + listo)."""
     model = PasoModulo
+    form = PasoModuloForm
     extra = 0
     can_delete = True
     ordering = ('orden', 'id')
     show_change_link = True
     verbose_name = 'Paso'
     verbose_name_plural = 'Microcontenidos'
-    fields = (
-        'orden',
-        'seccion',
-        'activo',
-        'requiere_listo_para_avanzar',
-        'tipo',
-        'titulo',
-        'contenido_corto',
-        'media_url',
-        'respuesta_correcta',
-        'opciones_json',
+    fieldsets = (
+        (None, {
+            'fields': ('orden', 'seccion', 'activo', 'requiere_listo_para_avanzar', 'tipo'),
+        }),
+        ('Texto y multimedia (WhatsApp)', {
+            'fields': ('titulo', 'contenido', 'media_url'),
+            'description': (
+                'El título es referencia interna. Lo que recibe el estudiante va en «Contenido». '
+                'Si hay video: el primer párrafo puede ir como leyenda con el archivo; el resto se envía después.'
+            ),
+        }),
+        ('Evaluación tipo opciones', {
+            'fields': (
+                'eval_opcion_a', 'eval_opcion_b', 'eval_opcion_c', 'eval_opcion_d',
+                'respuesta_correcta',
+            ),
+        }),
+        ('Retroalimentación', {
+            'fields': ('feedback_correcto', 'feedback_incorrecto'),
+            'classes': ('collapse',),
+        }),
+        ('Avanzado / legado', {
+            'fields': ('opciones_json',),
+            'classes': ('collapse',),
+        }),
     )
-    readonly_fields = ('contenido_corto',)
+    formfield_overrides = {
+        models.TextField: {
+            'widget': forms.Textarea(attrs={'rows': 3, 'cols': 50, 'style': 'min-width:280px;'}),
+        },
+    }
 
     def get_formset(self, request, obj=None, **kwargs):
         self._modulo_inline_parent = obj
@@ -2723,14 +2759,6 @@ class PasoModuloInline(admin.TabularInline):
                 )
             # Módulo nuevo sin PK: no filtramos; el admin no muestra este inline (ver ModuloAdmin).
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
-
-    def contenido_corto(self, obj):
-        if not obj or not getattr(obj, 'contenido', None):
-            return '—'
-        t = (obj.contenido or '')[:80]
-        return t + ('…' if len(obj.contenido or '') > 80 else '')
-
-    contenido_corto.short_description = 'Contenido (80)'
 
 
 class ArchivoModuloInline(admin.StackedInline):
@@ -2892,9 +2920,8 @@ class ModuloAdmin(admin.ModelAdmin):
             '<td style="width:34%;padding:8px 10px;background:#fff;border-radius:8px;border:1px solid #e2e8f0;">'
             '<strong style="color:#0f766e;">① Secciones</strong> (cuadro de abajo)<br>'
             '<span style="font-size:12px;line-height:1.45;">Cada fila es un <b>bloque</b>. '
-            'El <b>orden</b> define el recorrido. El <b>título</b> es opcional: si lo completás, '
-            'WhatsApp muestra ese encabezado al entrar al bloque. Desactivá una sección para '
-            'excluir sus pasos del envío.</span>'
+            'El <b>orden</b> define el recorrido. El <b>título</b> es solo para el equipo (no se envía por WhatsApp); '
+            'el texto al estudiante va en cada microcontenido.</span>'
             '</td>'
             '<td style="width:34%;padding:8px 10px;background:#fff;border-radius:8px;border:1px solid #e2e8f0;">'
             '<strong style="color:#0369a1;">② Microcontenidos</strong><br>'
@@ -2911,7 +2938,7 @@ class ModuloAdmin(admin.ModelAdmin):
             '</tr></table>'
             '<p style="margin:12px 0 0 0;font-size:12px;color:#64748b;line-height:1.55;border-top:1px solid #e2e8f0;padding-top:10px;">'
             '<strong style="color:#334155;">Preguntas y bloqueo de avance</strong><br>'
-            '• <strong>Dentro del drip</strong>: un paso tipo «Evaluación (opciones o abierta)» usa <code>opciones_json</code> / letra correcta; '
+            '• <strong>Dentro del drip</strong>: en «Evaluación (opciones)», la pregunta va en «Contenido» y las alternativas en A–D + letra correcta; '
             'el estudiante <strong>no sigue</strong> hasta responder bien (o cumplir reto/entrega según el tipo).<br>'
             '• <strong>Mini examen</strong> (pestaña más abajo): va <em>al final</em>, cuando ya terminó todos los pasos; si está activa, exige la respuesta correcta para '
             'dar por cerrado el módulo (independiente del JSON de cada paso).<br>'
@@ -2964,11 +2991,13 @@ class ModuloAdmin(admin.ModelAdmin):
                 '</div>'
             ),
         }),
-        ('⏱️ Duración y multimedia', {
-            'fields': ('duracion_dias',),
+        ('⏱️ Duración, calendario y multimedia', {
+            'fields': ('duracion_dias', 'habilitado_desde'),
             'description': (
                 'Multimedia del módulo: usá la tabla <strong>ARCHIVOS MULTIMEDIA</strong> más abajo '
-                '(videos, imágenes, PDFs, etc.).'
+                '(videos, imágenes, PDFs, etc.). '
+                '<strong>Disponible desde</strong>: opcional; bloquea el envío de este módulo hasta esa fecha para todos los estudiantes, '
+                'salvo que en el <em>Cliente</em> exista una habilitación distinta para el mismo módulo.'
             ),
         }),
     )
@@ -5958,6 +5987,28 @@ class CampanaB2BAdmin(admin.ModelAdmin):
 # �📚 ADMIN DE DOCUMENTOS RAG
 # ========================================
 
+def _encolar_o_indexar_rag_doc(request, modeladmin, model_class_name: str, obj):
+    """
+    La indexación RAG puede superar el timeout de nginx/ALB; en producción
+    se delega a Celery cuando el broker está disponible.
+    """
+    if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
+        return obj.indexar()
+    try:
+        from core.tasks import indexar_documento_rag_por_id
+
+        indexar_documento_rag_por_id.delay('core', model_class_name, obj.pk)
+        modeladmin.message_user(
+            request,
+            'La indexación RAG se ejecuta en segundo plano; actualiza el listado en unos minutos para ver el estado.',
+            messages.INFO,
+        )
+        return None
+    except Exception as exc:
+        logger.warning('[RAG] No se pudo encolar indexación (%s); se indexa en línea.', exc)
+        return obj.indexar()
+
+
 @admin.register(DocumentoRAG)
 class DocumentoRAGAdmin(admin.ModelAdmin):
     """
@@ -6016,31 +6067,59 @@ class DocumentoRAGAdmin(admin.ModelAdmin):
         if not obj.subido_por_id:
             obj.subido_por = request.user
         super().save_model(request, obj, form, change)
-        # Auto-indexar al guardar
+        # Auto-indexar al guardar (en Celery si está disponible)
         if obj.estado == 'pendiente' and obj.archivo:
-            obj.indexar()
+            _encolar_o_indexar_rag_doc(request, self, 'DocumentoRAG', obj)
 
     @admin.action(description='🤖 Indexar documentos seleccionados en RAG')
     def indexar_seleccionados(self, request, queryset):
-        ok, err = 0, 0
+        ok, err, queued = 0, 0, 0
+        eager = getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False)
         for doc in queryset.filter(estado='pendiente'):
+            if not eager:
+                try:
+                    from core.tasks import indexar_documento_rag_por_id
+
+                    indexar_documento_rag_por_id.delay('core', 'DocumentoRAG', doc.pk)
+                    queued += 1
+                    continue
+                except Exception as exc:
+                    logger.warning('[RAG] Encolado falló (%s); indexando en línea.', exc)
             n = doc.indexar()
             if n > 0:
                 ok += 1
             else:
                 err += 1
-        self.message_user(request, f"✅ {ok} indexados. {'⚠️ ' + str(err) + ' con errores.' if err else ''}")
+        msg = []
+        if queued:
+            msg.append(f'{queued} en cola (segundo plano)')
+        if ok or err:
+            msg.append(f'{ok} indexados en línea' + (f', {err} con error' if err else ''))
+        self.message_user(request, '✅ ' + '. '.join(msg) if msg else 'Nada que indexar.')
 
     @admin.action(description='🔄 Re-indexar documentos seleccionados')
     def reindexar_seleccionados(self, request, queryset):
-        ok = 0
+        ok, queued = 0, 0
+        eager = getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False)
         for doc in queryset:
             doc.estado = 'pendiente'
             doc.save(update_fields=['estado'])
+            if not eager:
+                try:
+                    from core.tasks import indexar_documento_rag_por_id
+
+                    indexar_documento_rag_por_id.delay('core', 'DocumentoRAG', doc.pk)
+                    queued += 1
+                    continue
+                except Exception as exc:
+                    logger.warning('[RAG] Encolado falló (%s); reindex en línea.', exc)
             n = doc.indexar()
             if n > 0:
                 ok += 1
-        self.message_user(request, f"✅ {ok} documentos re-indexados.")
+        parts = [f'{ok} re-indexados en línea'] if ok else []
+        if queued:
+            parts.append(f'{queued} en cola')
+        self.message_user(request, '✅ ' + ', '.join(parts) if parts else 'Listo.')
 
     @admin.action(description='🗑️ Eliminar del RAG (sin borrar archivo)')
     def eliminar_del_rag(self, request, queryset):
@@ -6127,29 +6206,57 @@ class DocumentoRAGComercialAdmin(admin.ModelAdmin):
             obj.subido_por = request.user
         super().save_model(request, obj, form, change)
         if obj.estado == 'pendiente' and obj.archivo:
-            obj.indexar()
+            _encolar_o_indexar_rag_doc(request, self, 'DocumentoRAGComercial', obj)
 
     @admin.action(description='🤖 Indexar documentos comerciales seleccionados')
     def indexar_seleccionados(self, request, queryset):
-        ok, err = 0, 0
+        ok, err, queued = 0, 0, 0
+        eager = getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False)
         for doc in queryset.filter(estado='pendiente'):
+            if not eager:
+                try:
+                    from core.tasks import indexar_documento_rag_por_id
+
+                    indexar_documento_rag_por_id.delay('core', 'DocumentoRAGComercial', doc.pk)
+                    queued += 1
+                    continue
+                except Exception as exc:
+                    logger.warning('[RAG comercial] Encolado falló (%s); indexando en línea.', exc)
             n = doc.indexar()
             if n > 0:
                 ok += 1
             else:
                 err += 1
-        self.message_user(request, f"✅ {ok} indexados. {'⚠️ ' + str(err) + ' con errores.' if err else ''}")
+        msg = []
+        if queued:
+            msg.append(f'{queued} en cola (segundo plano)')
+        if ok or err:
+            msg.append(f'{ok} indexados en línea' + (f', {err} con error' if err else ''))
+        self.message_user(request, '✅ ' + '. '.join(msg) if msg else 'Nada que indexar.')
 
     @admin.action(description='🔄 Re-indexar documentos comerciales seleccionados')
     def reindexar_seleccionados(self, request, queryset):
-        ok = 0
+        ok, queued = 0, 0
+        eager = getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False)
         for doc in queryset:
             doc.estado = 'pendiente'
             doc.save(update_fields=['estado'])
+            if not eager:
+                try:
+                    from core.tasks import indexar_documento_rag_por_id
+
+                    indexar_documento_rag_por_id.delay('core', 'DocumentoRAGComercial', doc.pk)
+                    queued += 1
+                    continue
+                except Exception as exc:
+                    logger.warning('[RAG comercial] Encolado falló (%s); reindex en línea.', exc)
             n = doc.indexar()
             if n > 0:
                 ok += 1
-        self.message_user(request, f"✅ {ok} documentos re-indexados.")
+        parts = [f'{ok} re-indexados en línea'] if ok else []
+        if queued:
+            parts.append(f'{queued} en cola')
+        self.message_user(request, '✅ ' + ', '.join(parts) if parts else 'Listo.')
 
     @admin.action(description='🗑️ Eliminar del RAG comercial (sin borrar archivo)')
     def eliminar_del_rag(self, request, queryset):

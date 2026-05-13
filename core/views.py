@@ -166,13 +166,19 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
     total_perfiles_gam = 0
     puntos_promedio = 0
     top_estudiantes = []
+    ranking_gamificacion_completo = []
     try:
         from .gamificacion import PerfilGamificacion
         perfiles_q = PerfilGamificacion.objects.filter(estudiante_id__in=estudiantes_q.values('id'))
         total_perfiles_gam = perfiles_q.count()
         puntos_promedio = perfiles_q.aggregate(avg=Avg('puntos_totales'))['avg'] or 0
         if incluir_detalle:
-            top_estudiantes = perfiles_q.select_related('estudiante').order_by('-puntos_totales')[:10]
+            rank_qs = (
+                perfiles_q.select_related('estudiante', 'estudiante__cliente')
+                .order_by('-puntos_totales')
+            )
+            top_estudiantes = rank_qs[:10]
+            ranking_gamificacion_completo = list(rank_qs[:2000])
     except Exception:
         pass
 
@@ -386,6 +392,7 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
         'total_perfiles_gam': total_perfiles_gam,
         'puntos_promedio': round(puntos_promedio, 1),
         'top_estudiantes': top_estudiantes,
+        'ranking_gamificacion_completo': ranking_gamificacion_completo,
         'total_prospectos': total_prospectos,
         'tasa_completacion': tasa_completacion,
         'ubicaciones_municipio': ubicaciones_municipio,
@@ -2269,10 +2276,17 @@ def _segmentar_texto_twilio(texto: str, max_chars: int = None) -> list:
 
 
 # Texto cuando un segmento MULTI_MSG es solo [MEDIA:…] (evita body en blanco / solo espacio en Twilio).
-TWILIO_CAPTION_ADJUNTO = (
-    '📎 Aquí tienes el material (video, audio o archivo) de esta parte de la lección.\n'
-    'Cuando lo revises, escribe *listo* para continuar.'
-)
+TWILIO_CAPTION_ADJUNTO = '📹'
+
+
+def youtube_hace_solo_enlace_en_texto(url: str) -> bool:
+    """True si la URL es página/embed de YouTube, no archivo .mp4 directo (Twilio no puede adjuntarla como media)."""
+    u = (url or '').strip().lower()
+    if not u:
+        return False
+    if u.endswith('.mp4') or '/videoplayback' in u:
+        return False
+    return 'youtube.com/watch' in u or 'youtu.be/' in u or 'youtube.com/shorts/' in u
 
 
 def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, body: str, media_url: str = None) -> list:
@@ -2984,9 +2998,7 @@ def _procesar_twilio_webhook(post_data):
                             if usar_gamificacion:
                                 msg_gamificacion = (
                                     "🎮 *Nuestra experiencia de formación funciona a través de puntos*\n\n"
-                                    "A medida que avances en el curso, tendrás retos que evaluar.\n"
-                                    "💰 *Puntos* que obtendrás al superar cada reto\n"
-                                    "\n"
+                                    "A medida que avances en el curso, tendrás retos que evaluar.\n\n"
                                     "¡Vamos a aprender y avanzar juntos! 💪"
                                 )
 
@@ -3017,11 +3029,27 @@ def _procesar_twilio_webhook(post_data):
                                     texto_respuesta = '[MULTI_MSG]' + msg_intro + '[SEP]' + _fb_conf
                                 else:
                                     reset_progreso_pasos_modulo(progreso, save=True)
+                                    partes_mod0_conf: list[str] = []
+                                    if modulo.numero == 0 and (modulo.contenido or '').strip():
+                                        from .response_templates import dividir_contenido_seguro as _div0
+                                        _mh = f"📖 *{modulo.numero}. {modulo.titulo}*\n\n"
+                                        _ch0 = _div0(modulo.contenido, max_chars=1500)
+                                        if _ch0:
+                                            _mm0 = _mh + _ch0[0]
+                                            for _ck in _ch0[1:]:
+                                                if len(_mm0) + len(_ck) + 4 < 1500:
+                                                    _mm0 += "\n\n" + _ck
+                                                else:
+                                                    break
+                                            partes_mod0_conf.append(_mm0)
                                     msg_pasos_conf = entregar_bloque_secciones_desde_paso(
                                         progreso, modulo, 1
                                     )
                                     _inner_conf = msg_pasos_conf[len('[MULTI_MSG]') :]
-                                    texto_respuesta = '[MULTI_MSG]' + msg_intro + '[SEP]' + _inner_conf
+                                    _pieces = partes_mod0_conf + [
+                                        p for p in _inner_conf.split('[SEP]') if p
+                                    ]
+                                    texto_respuesta = '[MULTI_MSG]' + msg_intro + '[SEP]' + '[SEP]'.join(_pieces)
                             else:
                                 video_url = obtener_video_url(modulo)
                                 archivos_multimedia = modulo.archivos_multimedia.filter(activo=True)
@@ -3161,8 +3189,10 @@ def _procesar_twilio_webhook(post_data):
                         parte_media_c = None
                         media_m_c = re_conf.search(r'\[MEDIA:(.*?)\]', parte_texto_c)
                         if media_m_c:
-                            parte_media_c = media_m_c.group(1).strip()
+                            parte_media_c = (media_m_c.group(1) or '').strip()
                             parte_texto_c = parte_texto_c.replace(media_m_c.group(0), '').strip()
+                        if parte_media_c and not (parte_texto_c or '').strip():
+                            parte_texto_c = TWILIO_CAPTION_ADJUNTO
                         mp_c = {'body': parte_texto_c, 'from_': str(twilio_number).strip(), 'to': str(destino).strip()}
                         if parte_media_c:
                             mp_c['media_url'] = [parte_media_c]
@@ -3448,6 +3478,22 @@ def _procesar_twilio_webhook(post_data):
                                     else msg_from
                                 )
                                 twilio_from = str(twilio_number).strip()
+                                destino_st = str(destino).strip()
+
+                                def _log_twilio_segments_pasos(mensajes_enviados, parte_texto, parte_media):
+                                    for _seg_idx, (mensaje, texto_enviado) in enumerate(
+                                        mensajes_enviados, start=1
+                                    ):
+                                        texto_log = texto_enviado or parte_texto or (
+                                            f'[MEDIA:{parte_media}]' if parte_media else ''
+                                        )
+                                        WhatsappLog.objects.create(
+                                            telefono=telefono_limpio,
+                                            mensaje=texto_log[:1500],
+                                            mensaje_id=mensaje.sid,
+                                            tipo='SENT',
+                                        )
+
                                 if _resp_paso.startswith('[MULTI_MSG]'):
                                     partes = _resp_paso.replace('[MULTI_MSG]', '', 1).split('[SEP]')
                                     for parte in partes:
@@ -3459,35 +3505,57 @@ def _procesar_twilio_webhook(post_data):
                                         )
                                         if delay_m:
                                             import time as _time_p
+
                                             _time_p.sleep(int(delay_m.group(1)))
                                             continue
-                                        media_m = _re_paso.match(
-                                            r'^\[MEDIA:(.+)\]$', parte_texto
+                                        parte_media = None
+                                        if '[MEDIA:' in parte_texto:
+                                            mm = _re_paso.search(r'\[MEDIA:(.*?)\]', parte_texto)
+                                            if mm:
+                                                parte_media = (mm.group(1) or '').strip()
+                                                parte_texto = parte_texto.replace(
+                                                    mm.group(0), ''
+                                                ).strip()
+                                                if parte_media and youtube_hace_solo_enlace_en_texto(
+                                                    parte_media
+                                                ):
+                                                    logger.warning(
+                                                        '📎 [pasos] URL parece YouTube (no MP4 directo) | est=%s',
+                                                        estudiante.id,
+                                                    )
+                                                if not parte_texto.strip() and parte_media:
+                                                    parte_texto = TWILIO_CAPTION_ADJUNTO
+                                        enviados_p = _enviar_mensaje_twilio_segmentado(
+                                            client=client_tw,
+                                            from_number=twilio_from,
+                                            to_number=destino_st,
+                                            body=parte_texto,
+                                            media_url=parte_media,
                                         )
-                                        if media_m:
-                                            client_tw.messages.create(
-                                                body=TWILIO_CAPTION_ADJUNTO,
-                                                from_=twilio_from,
-                                                to=str(destino).strip(),
-                                                media_url=[media_m.group(1).strip()],
-                                            )
-                                        else:
-                                            client_tw.messages.create(
-                                                body=parte_texto,
-                                                from_=twilio_from,
-                                                to=str(destino).strip(),
-                                            )
+                                        _log_twilio_segments_pasos(enviados_p, parte_texto, parte_media)
+                                        import time as _time_p
+
+                                        _time_p.sleep(0.5)
                                 else:
-                                    client_tw.messages.create(
-                                        body=_resp_paso,
-                                        from_=twilio_from,
-                                        to=str(destino).strip(),
+                                    parte_media = None
+                                    parte_texto = (_resp_paso or '').strip()
+                                    if '[MEDIA:' in parte_texto:
+                                        mm = _re_paso.search(r'\[MEDIA:(.*?)\]', parte_texto)
+                                        if mm:
+                                            parte_media = (mm.group(1) or '').strip()
+                                            parte_texto = parte_texto.replace(
+                                                mm.group(0), ''
+                                            ).strip()
+                                            if not parte_texto.strip() and parte_media:
+                                                parte_texto = TWILIO_CAPTION_ADJUNTO
+                                    enviados_p = _enviar_mensaje_twilio_segmentado(
+                                        client=client_tw,
+                                        from_number=twilio_from,
+                                        to_number=destino_st,
+                                        body=parte_texto,
+                                        media_url=parte_media,
                                     )
-                                WhatsappLog.objects.create(
-                                    telefono=telefono_limpio,
-                                    mensaje=_resp_paso[:500],
-                                    tipo='SENT',
-                                )
+                                    _log_twilio_segments_pasos(enviados_p, parte_texto, parte_media)
                             except Exception as e:
                                 logger.error(f"❌ Error enviando respuesta paso módulo: {e}", exc_info=True)
                             return
@@ -4120,7 +4188,12 @@ def _procesar_twilio_webhook(post_data):
                     # Flujo exigido: Darío -> Facilitadora (reto) al escribir listo
                     print("🎯 Asistente terminó → Activando Facilitadora con reto")
                     from .models import ProgresoEstudiante
-                    from .tutor_ia_modulo import cargar_modulos_reto, generar_reto_facilitador
+                    from .tutor_ia_modulo import (
+                        cargar_modulos_reto,
+                        generar_reto_facilitador,
+                        listar_modulos_cobertura_reto,
+                    )
+                    from .models import Modulo as ModuloRetoCtx
                     try:
                         progreso = ProgresoEstudiante.objects.get(id=progreso_id)
                     except ProgresoEstudiante.DoesNotExist:
@@ -4128,7 +4201,14 @@ def _procesar_twilio_webhook(post_data):
                     modulos_reto = cargar_modulos_reto(
                         modulos_reto_ids, progreso.curso_id if progreso else None
                     )
-                    
+                    if not modulos_reto and progreso and ctx.get('modulo_id'):
+                        _mchk = ModuloRetoCtx.objects.filter(
+                            id=ctx['modulo_id'], curso_id=progreso.curso_id
+                        ).first()
+                        if _mchk:
+                            modulos_reto = listar_modulos_cobertura_reto(_mchk, progreso.curso)
+                            modulos_reto_ids = [m.id for m in modulos_reto]
+
                     if modulos_reto and progreso:
                         _cliente = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
                         nombre_tutor = (
@@ -4158,12 +4238,18 @@ def _procesar_twilio_webhook(post_data):
                             "✍️ _Escriba o envíe un audio con su respuesta._"
                         )
                     else:
+                        logger.warning(
+                            "reto asistente vacío | progreso_id=%s modulo_ctx=%s ids_ctx=%s",
+                            progreso_id,
+                            (ctx or {}).get('modulo_id'),
+                            modulos_reto_ids,
+                        )
                         estudiante.estado_onboarding = 'completado'
                         estudiante.contexto_temporal = None
                         estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])
                         texto_respuesta = (
-                            "👍 No pude armar el reto del curso (faltan módulos o progreso). "
-                            "Escribe *listo* para intentar avanzar o *ayuda* para soporte."
+                            "Seguimos con tu curso. Escribí *listo* para continuar "
+                            "o *ayuda* si necesitás soporte."
                         )
                 else:
                     # Student asked a question to Darío — answer from RAG (max 2)
@@ -4370,34 +4456,59 @@ def _procesar_twilio_webhook(post_data):
                     else:
                         _prev_ctx = estudiante.contexto_temporal or {}
                         from .helpers_examenes import contexto_temporal_tras_cerrar_agente
+                        from .drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
+
                         _base_ctx = contexto_temporal_tras_cerrar_agente(progreso, _prev_ctx) or {}
                         estudiante.estado_onboarding = 'completado'
-                        # Avanzar puntero al siguiente módulo (p. ej. 4). No pedir *listo* aquí: en continuar_leccion
-                        # un "listo" con módulo aún no mostrado lo marcaba completo y saltaba al siguiente (# bug módulo 4).
+                        # Tras Darío + facilitadora: el drip/calendario aplica igual que sin agentes.
+                        # No adelantar modulo_actual hasta que desbloquee el siguiente módulo.
                         if progreso:
-                            siguiente = progreso.curso.modulos.filter(
-                                numero__gt=progreso.modulo_actual.numero
-                            ).order_by('numero').first()
-                            if siguiente:
-                                progreso.modulo_actual = siguiente
-                                from .module_steps import reset_progreso_pasos_modulo
-                                reset_progreso_pasos_modulo(progreso, save=False)
-                                progreso.save(
-                                    update_fields=[
-                                        'modulo_actual',
-                                        'paso_actual_modulo',
-                                        'esperando_respuesta_evaluacion_paso',
-                                        'paso_evaluacion_paso_id',
-                                    ]
+                            modulo_cerrado = progreso.modulo_actual
+                            _blk_tras_reto = mensaje_bloqueo_avance_siguiente_modulo(
+                                estudiante, progreso, modulo_cerrado
+                            )
+                            if _blk_tras_reto:
+                                estudiante.contexto_temporal = _base_ctx
+                                estudiante.save(
+                                    update_fields=['contexto_temporal', 'estado_onboarding']
                                 )
-                                _base_ctx['post_reto_entregar_modulo_id'] = siguiente.id
-                        estudiante.contexto_temporal = _base_ctx
-                        estudiante.save()
-                        texto_respuesta = (
-                            f"{msg_eval}\n\n"
-                            "✅ Escribe *continuar* para recibir el contenido del siguiente módulo.\n"
-                            "Cuando lo hayas revisado, responde *listo* para seguir."
-                        )
+                                texto_respuesta = f"{msg_eval}\n\n{_blk_tras_reto}"
+                            else:
+                                siguiente = progreso.curso.modulos.filter(
+                                    numero__gt=progreso.modulo_actual.numero
+                                ).order_by('numero').first()
+                                if siguiente:
+                                    progreso.modulo_actual = siguiente
+                                    from .module_steps import reset_progreso_pasos_modulo
+                                    reset_progreso_pasos_modulo(progreso, save=False)
+                                    progreso.save(
+                                        update_fields=[
+                                            'modulo_actual',
+                                            'paso_actual_modulo',
+                                            'esperando_respuesta_evaluacion_paso',
+                                            'paso_evaluacion_paso_id',
+                                        ]
+                                    )
+                                    _base_ctx['post_reto_entregar_modulo_id'] = siguiente.id
+                                estudiante.contexto_temporal = _base_ctx
+                                estudiante.save(
+                                    update_fields=['contexto_temporal', 'estado_onboarding']
+                                )
+                                texto_respuesta = (
+                                    f"{msg_eval}\n\n"
+                                    "✅ Escribe *continuar* para recibir el contenido del siguiente módulo.\n"
+                                    "Cuando lo hayas revisado, responde *listo* para seguir."
+                                )
+                        else:
+                            estudiante.contexto_temporal = _base_ctx
+                            estudiante.save(
+                                update_fields=['contexto_temporal', 'estado_onboarding']
+                            )
+                            texto_respuesta = (
+                                f"{msg_eval}\n\n"
+                                "✅ Escribe *continuar* para recibir el contenido del siguiente módulo.\n"
+                                "Cuando lo hayas revisado, responde *listo* para seguir."
+                            )
                     print(f"✅ Facilitadora reto evaluado: {puntaje}/10, +{puntos_reto} pts", flush=True)
             
             # 3.5a PRIORIDAD: Si está respondiendo al TUTOR IA (legacy)
@@ -4485,21 +4596,52 @@ def _procesar_twilio_webhook(post_data):
                 es_reto_final = ctx.get('es_reto_final', False)
 
                 def _activar_reto_despues_de_maria(prefijo=""):
-                    from .models import ProgresoEstudiante
-                    from .tutor_ia_modulo import cargar_modulos_reto, generar_reto_facilitador
-                    progreso_r = ProgresoEstudiante.objects.filter(id=progreso_id).select_related('curso').first() if progreso_id else None
-                    modulos_reto = (
-                        cargar_modulos_reto(modulos_reto_ids, progreso_r.curso_id if progreso_r else None)
-                        if modulos_reto_ids else []
+                    from .models import ProgresoEstudiante, Modulo
+                    from .tutor_ia_modulo import (
+                        cargar_modulos_reto,
+                        generar_reto_facilitador,
+                        listar_modulos_cobertura_reto,
                     )
+                    progreso_r = (
+                        ProgresoEstudiante.objects.filter(id=progreso_id)
+                        .select_related('curso', 'modulo_actual')
+                        .first()
+                        if progreso_id
+                        else None
+                    )
+                    _mids = list(modulos_reto_ids) if modulos_reto_ids else []
+                    modulos_reto = (
+                        cargar_modulos_reto(_mids, progreso_r.curso_id if progreso_r else None)
+                        if _mids
+                        else []
+                    )
+                    if not modulos_reto and progreso_r:
+                        _mchk = None
+                        _outer = estudiante.contexto_temporal or {}
+                        mid = _outer.get('modulo_id')
+                        if mid:
+                            _mchk = Modulo.objects.filter(
+                                id=mid, curso_id=progreso_r.curso_id
+                            ).first()
+                        if not _mchk and getattr(progreso_r, 'modulo_actual_id', None):
+                            _mchk = progreso_r.modulo_actual
+                        if _mchk:
+                            modulos_reto = listar_modulos_cobertura_reto(_mchk, progreso_r.curso)
+                            _mids = [m.id for m in modulos_reto]
                     if not (progreso_r and modulos_reto):
+                        logger.warning(
+                            "reto post-María vacío | progreso_id=%s modulo_ctx=%s ids_ctx=%s",
+                            progreso_id,
+                            (estudiante.contexto_temporal or {}).get('modulo_id'),
+                            modulos_reto_ids,
+                        )
                         estudiante.contexto_temporal = None
                         estudiante.estado_onboarding = 'completado'
                         estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
                         return (
                             f"{prefijo}\n\n"
-                            "👍 No pude armar el reto del curso (faltan módulos o progreso). "
-                            "Escribe *listo* para intentar avanzar o *ayuda* para soporte."
+                            "Seguimos con tu curso. Escribí *listo* para continuar "
+                            "o *ayuda* si necesitás soporte."
                         ).strip()
                     _cliente = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
                     nombre_tutor = (
@@ -4515,7 +4657,7 @@ def _procesar_twilio_webhook(post_data):
                     _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
                     estudiante.contexto_temporal = {
                         'tipo': 'reto_facilitador',
-                        'modulos_reto_ids': modulos_reto_ids,
+                        'modulos_reto_ids': _mids,
                         'reto_texto': reto,
                         'progreso_id': progreso_id,
                         'es_final': es_reto_final,
@@ -4700,26 +4842,40 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                 drip_bloqueado = False
 
                                 if siguiente_modulo:
-                                    # Drip Content: espera entre módulos (curso + override por cliente)
-                                    from .drip_schedule import dias_espera_efectivos, fecha_desbloqueo_drip
+                                    from .drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
+                                    from .helpers_examenes import es_modulo_checkpoint_reto_ia
 
-                                    dias_drip = dias_espera_efectivos(estudiante, progreso.curso)
-                                    if dias_drip > 0 and progreso.fecha_ultimo_avance:
-                                        fecha_desbloqueo = fecha_desbloqueo_drip(progreso.fecha_ultimo_avance, dias_drip)
-                                        if fecha_desbloqueo and timezone.localdate() < fecha_desbloqueo:
-                                            texto_respuesta = f"{mensaje_respuesta}\n\n{_mensaje_bloqueo_drip_view(fecha_desbloqueo)}"
-                                            drip_bloqueado = True
-                                            siguiente_modulo = None
-
-                                if siguiente_modulo:
-                                    # v1.9.8h: Check reto BEFORE advancing module
                                     total_modulos = progreso.curso.modulos.count()
-                                    # Solo activar retos IA si el curso tiene la bandera encendida.
-                                    usar_agentes_ia_curso = bool(getattr(progreso.curso, 'usar_agentes_ia', True))
+                                    usar_agentes_ia_curso = bool(
+                                        getattr(progreso.curso, 'usar_agentes_ia', True)
+                                    )
                                     es_modulo_reto = es_modulo_checkpoint_reto_ia(
                                         modulo_actual,
                                         total_modulos,
                                         usar_agentes_ia_curso,
+                                    )
+
+                                    _blk_v = mensaje_bloqueo_avance_siguiente_modulo(
+                                        estudiante, progreso, modulo_actual
+                                    )
+                                    # Igual que en continuar_leccion: el drip no debe tapar el checkpoint IA.
+                                    if _blk_v and not es_modulo_reto:
+                                        texto_respuesta = f"{mensaje_respuesta}\n\n{_blk_v}"
+                                        drip_bloqueado = True
+                                        siguiente_modulo = None
+
+                                if siguiente_modulo:
+                                    _fcp = getattr(modulo_actual, 'facilitador_checkpoint', None)
+                                    logger.info(
+                                        '🎯 [checkpoint-pregunta-modulo] curso=%s mod_num=%s total_mod=%s '
+                                        'usar_ia=%s facilitador_checkpoint=%s -> es_reto=%s | est=%s',
+                                        progreso.curso_id,
+                                        getattr(modulo_actual, 'numero', None),
+                                        total_modulos,
+                                        usar_agentes_ia_curso,
+                                        _fcp,
+                                        es_modulo_reto,
+                                        estudiante.id,
                                     )
                                     
                                     if not es_modulo_reto:
@@ -4774,12 +4930,18 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                     nombre_asistente = progreso.curso.nombre_agente_asistente or 'Darío'
                                     
                                     if es_modulo_reto:
-                                        # v1.9.8i: Reto module — only Darío (no exam result msg, no next module)
-                                        if modulo_actual.numero == 3:
-                                            modulos_reto_range = "los 3 primeros módulos"
-                                        else:
-                                            modulos_reto_range = f"los módulos 4 a {modulo_actual.numero}"
-                                        
+                                        from .tutor_ia_modulo import (
+                                            descripcion_rango_modulos_reto_esp,
+                                            listar_modulos_cobertura_reto,
+                                        )
+
+                                        modulos_reto = listar_modulos_cobertura_reto(
+                                            modulo_actual, progreso.curso
+                                        )
+                                        modulos_reto_range = descripcion_rango_modulos_reto_esp(
+                                            modulos_reto
+                                        )
+
                                         dario_msg = (
                                             f"💬 *{nombre_asistente}*\n\n"
                                             f"¡Hola! Es hora de una pausa para repasar conceptos. "
@@ -4792,13 +4954,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                             f"• ¿Qué reviso primero antes de decidir tratamiento?\n\n"
                                             f"Envíame un audio o escríbeme; si no tienes preguntas, escribe *listo*."
                                         )
-                                        
-                                        from .models import Modulo as ModuloReto
-                                        if modulo_actual.numero == 3:
-                                            modulos_reto = list(progreso.curso.modulos.filter(numero__lte=3).order_by('numero'))
-                                        else:
-                                            modulos_reto = list(progreso.curso.modulos.filter(numero__gte=4, numero__lte=modulo_actual.numero).order_by('numero'))
-                                        
+
                                         _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
                                         estudiante.contexto_temporal = {
                                             'tipo': 'asistente_dario',
@@ -5191,9 +5347,21 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                         import re
                         media_match_p = re.search(r'\[MEDIA:(.*?)\]', parte_texto)
                         if media_match_p:
-                            parte_media = media_match_p.group(1).strip()
+                            parte_media = (media_match_p.group(1) or '').strip()
                             parte_texto = parte_texto.replace(media_match_p.group(0), '').strip()
-                            print(f"🖼️ Media en parte {idx+1}: {parte_media}")
+                            logger.info(
+                                '📎 [MEDIA] parte %s url=%s',
+                                idx + 1,
+                                parte_media[:500] + ('…' if len(parte_media) > 500 else ''),
+                            )
+                            if parte_media and youtube_hace_solo_enlace_en_texto(parte_media):
+                                logger.warning(
+                                    '📎 [MEDIA] URL parece página de YouTube (no MP4 directo); '
+                                    'Twilio suele necesitar enlace al archivo. parte=%s',
+                                    idx + 1,
+                                )
+                            if not parte_texto.strip() and parte_media:
+                                parte_texto = TWILIO_CAPTION_ADJUNTO
                     
                     mensajes_enviados = _enviar_mensaje_twilio_segmentado(
                         client=client,

@@ -1071,6 +1071,56 @@ class ConfiguracionDripCliente(models.Model):
         return f'{self.cliente} → {self.curso}'
 
 
+class HabilitacionModuloDripCliente(models.Model):
+    """
+    Fecha/hora en que un módulo concreto se habilita para los estudiantes de un cliente.
+    Sustituye el campo «Disponible desde» del módulo cuando existe fila activa para ese cliente × curso × módulo.
+    """
+
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.CASCADE,
+        related_name='habilitaciones_modulo_drip',
+        verbose_name='Cliente',
+    )
+    curso = models.ForeignKey(
+        'Curso',
+        on_delete=models.CASCADE,
+        related_name='habilitaciones_modulo_por_cliente',
+        verbose_name='Curso',
+    )
+    modulo = models.ForeignKey(
+        'Modulo',
+        on_delete=models.CASCADE,
+        related_name='habilitaciones_por_cliente',
+        verbose_name='Módulo',
+    )
+    habilitado_desde = models.DateTimeField(
+        verbose_name='Disponible desde',
+        help_text='Hora local del servidor según TIME_ZONE; el estudiante no recibe este módulo antes de este instante.',
+    )
+    activo = models.BooleanField(default=True, verbose_name='Activo')
+
+    class Meta:
+        verbose_name = 'Habilitación de módulo (cliente × curso × módulo)'
+        verbose_name_plural = 'Habilitaciones de módulos por cliente'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['cliente', 'curso', 'modulo'],
+                name='uniq_habilitacion_drip_cliente_curso_modulo',
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.modulo_id and self.curso_id and self.modulo.curso_id != self.curso_id:
+            raise ValidationError('El módulo debe pertenecer al curso seleccionado.')
+
+    def __str__(self):
+        return f'{self.cliente} · M{self.modulo.numero} · desde {self.habilitado_desde}'
+
+
 class DocumentoRAG(models.Model):
     """
     Documento subido para el sistema RAG Multi-Tenant.
@@ -1106,8 +1156,8 @@ class DocumentoRAG(models.Model):
     )
     archivo = models.FileField(
         upload_to='documentos_rag/%Y/%m/',
-        verbose_name='Archivo (PDF, DOCX, TXT)',
-        help_text='Formatos soportados: .pdf, .docx, .txt'
+        verbose_name='Archivo (PDF, DOCX, TXT, XLSX)',
+        help_text='Formatos soportados: .pdf, .docx, .txt, .xlsx, .xlsm (Excel; listas de precios)',
     )
     tipo = models.CharField(
         max_length=20,
@@ -1257,8 +1307,8 @@ class DocumentoRAGComercial(models.Model):
     )
     archivo = models.FileField(
         upload_to='documentos_rag_comercial/%Y/%m/',
-        verbose_name='Archivo (PDF, DOCX, TXT)',
-        help_text='Formatos soportados: .pdf, .docx, .txt'
+        verbose_name='Archivo (PDF, DOCX, TXT, XLSX)',
+        help_text='Formatos soportados: .pdf, .docx, .txt, .xlsx, .xlsm (Excel; listas de precios)',
     )
     tipo = models.CharField(
         max_length=20,
@@ -1501,11 +1551,22 @@ class Modulo(models.Model):
         validators=[MinValueValidator(1), MaxValueValidator(5)],
         verbose_name='Secciones por *listo*',
         help_text=(
-            'Cantidad de secciones (bloques con título propio) que se envían cada vez que el estudiante '
-            'escribe *listo*. Dentro de cada sección pueden haber varios pasos. Valor entre 1 y 5.'
+            'Reservado: históricamente permitía agrupar varias secciones en un solo *listo*. '
+            'Ahora siempre se pide *listo* entre secciones (un bloque a la vez) para asegurar que el '
+            'estudiante sigue el material. Dentro de una misma sección pueden enviarse varios pasos seguidos.'
         ),
     )
     
+    habilitado_desde = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Disponible desde (calendario global)',
+        help_text=(
+            'Opcional. Antes de esta fecha y hora ningún estudiante puede recibir este módulo al avanzar desde el anterior. '
+            'Para una empresa concreta, creá una fila en el cliente: «Habilitación de módulos por cliente» (sustituye esto).'
+        ),
+    )
+
     duracion_dias = models.IntegerField(default=7, help_text="Días estimados para completar")
 
     class Meta:
@@ -1519,7 +1580,7 @@ class Modulo(models.Model):
 
 
 class SeccionModulo(models.Model):
-    """Bloque dentro de un módulo: agrupa varios PasoModulo; título opcional en WhatsApp."""
+    """Bloque dentro de un módulo: agrupa varios PasoModulo (organización en admin)."""
 
     modulo = models.ForeignKey(Modulo, on_delete=models.CASCADE, related_name='secciones')
     orden = models.PositiveIntegerField(
@@ -1528,7 +1589,7 @@ class SeccionModulo(models.Model):
     titulo = models.CharField(
         max_length=200,
         blank=True,
-        help_text='Encabezado opcional al comenzar esta sección en WhatsApp.',
+        help_text='Nombre interno para el equipo; no se envía por WhatsApp.',
     )
     activa = models.BooleanField(default=True)
 
@@ -1571,28 +1632,35 @@ class PasoModulo(models.Model):
         help_text='Sección (bloque) a la que pertenece este paso.',
     )
     orden = models.PositiveIntegerField()
-    titulo = models.CharField(max_length=200)
+    titulo = models.CharField(
+        max_length=200,
+        blank=True,
+        default='',
+        help_text='Referencia interna (admin). No se envía por WhatsApp; el texto al estudiante va en «Contenido».',
+    )
     tipo = models.CharField(max_length=32, choices=TIPOS, default=TIPO_CONTENIDO)
     contenido = models.TextField(
         blank=True,
-        help_text='Texto del paso (instrucciones, contexto)',
+        help_text='Texto que ve el estudiante (enunciado, instrucciones). En evaluación opciones = la pregunta.',
     )
     media_url = models.URLField(max_length=500, blank=True)
+    eval_opcion_a = models.TextField(blank=True, default='', verbose_name='Opción A')
+    eval_opcion_b = models.TextField(blank=True, default='', verbose_name='Opción B')
+    eval_opcion_c = models.TextField(blank=True, default='', verbose_name='Opción C')
+    eval_opcion_d = models.TextField(blank=True, default='', verbose_name='Opción D')
     opciones_json = models.JSONField(
         null=True,
         blank=True,
         help_text=(
-            'Solo para tipo «Evaluación (opciones)». JSON con letras A–D y la correcta. '
-            'Ejemplo: {"A": "Opción uno", "B": "Opción dos", "C": "Opción tres", "correcta": "B"} '
-            'También acepta respuesta_correcta en vez de correcta. '
-            'Si vas a mapear filas de planilla (001, 005.1…): usá orden entero secuencial (1,2,3…); '
-            'el título puede ser «005.1 Pregunta…».'
+            'Opcional / legado. Si completás A–D y «Letra correcta» arriba, se genera solo. '
+            'Solo tocá este JSON si importás datos a mano.'
         ),
     )
     respuesta_correcta = models.CharField(
         max_length=10,
         blank=True,
-        help_text='Letra correcta (A-D) si no usás solo opciones_json.correcta',
+        verbose_name='Letra correcta (A–D)',
+        help_text='Para evaluación con opciones: A, B, C o D.',
     )
     feedback_correcto = models.TextField(blank=True)
     feedback_incorrecto = models.TextField(blank=True)
@@ -1615,7 +1683,29 @@ class PasoModulo(models.Model):
 
     @property
     def es_evaluacion(self):
-        return self.tipo in (self.TIPO_EVAL_OPC, self.TIPO_EVAL_ABIERTA)
+        if self.tipo in (self.TIPO_EVAL_OPC, self.TIPO_EVAL_ABIERTA):
+            return True
+        if self.tipo == self.TIPO_CONTENIDO:
+            from . import module_steps as _ms
+
+            return _ms.paso_contenido_con_mc_como_eval(self)
+        return False
+
+    def save(self, *args, **kwargs):
+        parts = {
+            'A': (self.eval_opcion_a or '').strip(),
+            'B': (self.eval_opcion_b or '').strip(),
+            'C': (self.eval_opcion_c or '').strip(),
+            'D': (self.eval_opcion_d or '').strip(),
+        }
+        rc = (self.respuesta_correcta or '').strip().upper()[:1]
+        if any(parts.values()) or rc in ('A', 'B', 'C', 'D'):
+            d = {k: v for k, v in parts.items() if v}
+            if rc in ('A', 'B', 'C', 'D'):
+                d['correcta'] = rc
+            if d:
+                self.opciones_json = d
+        super().save(*args, **kwargs)
 
 
 class ProgresoEstudiante(models.Model):
@@ -2742,7 +2832,7 @@ __all__ = [
     'TemaCampana', 'Cliente', 'Estudiante', 'Plantilla', 'Linea',
     'Campana', 'EnvioLog', 'WhatsappLog',
     'SesionComercial',
-    'Curso', 'ConfiguracionDripCliente', 'DocumentoRAG', 'DocumentoRAGComercial', 'Modulo', 'ProgresoEstudiante', 'ModuloCompletado',
+    'Curso', 'ConfiguracionDripCliente', 'HabilitacionModuloDripCliente', 'DocumentoRAG', 'DocumentoRAGComercial', 'Modulo', 'ProgresoEstudiante', 'ModuloCompletado',
     'Examen', 'PreguntaExamen', 'ResultadoExamen',
     'ObjetivoCurso', 'RubricaEvaluacion', 'EjercicioPractico', 'RespuestaEjercicio',
     'InteraccionLog', 'SolicitudSoporte', 'PreguntaModulo',

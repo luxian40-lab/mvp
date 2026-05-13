@@ -438,6 +438,28 @@
 
     </div>
 
+    <div class="subsection" style="border-left-color:#5c940d;margin-top:20px;">
+
+        <h3>✨ Novedades operativas (12 may 2026)</h3>
+
+        <ul style="line-height:1.6;">
+
+            <li><strong>Compañero + facilitadora al cerrar el módulo 1:</strong> además de los checkpoints ya existentes (p. ej. módulo 3 y último en cursos de 5+ módulos), al terminar el <strong>módulo 1</strong> se activa el mismo flujo de pausa con el compañero de estudio y luego la facilitadora (ABR), si el curso tiene <code>usar_agentes_ia</code>. En admin, cada <em>Módulo</em> puede forzar o anular con el campo <strong>Checkpoint facilitadora</strong> (Sí / No / heredar).</li>
+
+            <li><strong>Evaluación tipo A/B/C/D en pasos:</strong> si el estudiante falla, recibe el feedback negativo del admin (o el mensaje estándar). Después puede escribir <strong><em>listo</em></strong> (u otra palabra de avance admitida en evaluación) para <strong>seguir sin exigir la letra correcta</strong>. Si acierta, sigue el feedback positivo y el mismo criterio de avance.</li>
+
+            <li><strong>Inscripción vía número de curso:</strong> la primera vez que se crea el <em>Progreso</em> al elegir el curso con el dígito, se envían los mismos bloques de presentación de facilitadora + compañero (+ texto de gamificación si aplica) que en <em>inscribir_curso</em>.</li>
+
+            <li><strong>Acierto en pregunta de paso:</strong> el feedback positivo y la frase «Escribe <em>listo</em> para recibir el siguiente material» van en <strong>un solo mensaje</strong> para evitar que WhatsApp entregue el texto corto antes que el largo.</li>
+
+            <li><strong>Dashboard unificado:</strong> debajo del «Top 10» hay un <strong>ranking completo</strong> (hasta 2000 personas en el filtro actual) con nombre, cédula, puntos y organización; y un segundo cuadro con <strong>solo cédula y puntos</strong> para cruzar listas.</li>
+
+            <li><strong>Logs (checkpoints):</strong> al activarse el flujo Darío/facilitadora tras un módulo: <code>🎯 [checkpoint-reto] activo</code>; en cada cierre de módulo vía lección también <code>🎯 [checkpoint-leccion]</code> y, si aplica, <code>🎯 [checkpoint-pregunta-modulo]</code> (muestran <code>usar_ia</code>, <code>facilitador_checkpoint</code> del módulo y si quedó <code>es_reto=true</code>).</li>
+
+        </ul>
+
+    </div>
+
     <div class="subsection" style="border-left-color:#7950f2;margin-top:20px;">
 
         <h3>✨ Novedades operativas (5 may 2026)</h3>

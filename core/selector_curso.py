@@ -175,8 +175,8 @@ def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_
     Respeta el drip (espera entre módulos) como el flujo principal en response_templates.
     """
     from .models import Estudiante, Curso, ProgresoEstudiante, ModuloCompletado
-    from .drip_schedule import dias_espera_efectivos, drip_bloquea_siguiente_modulo, fecha_desbloqueo_drip
-    from .response_templates import _mensaje_bloqueo_drip, obtener_video_url
+    from .drip_schedule import drip_bloquea_siguiente_modulo, mensaje_bloqueo_avance_siguiente_modulo
+    from .response_templates import obtener_video_url, partes_presentacion_agentes_curso
 
     try:
         estudiante = Estudiante.objects.select_related('cliente').get(id=estudiante_id)
@@ -243,13 +243,19 @@ def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_
         estudiante.contexto_temporal = ctx
         estudiante.save(update_fields=['contexto_temporal'])
 
+    def _prefijo_agentes_primera_inscripcion_selector():
+        if not creado:
+            return []
+        return partes_presentacion_agentes_curso(estudiante, curso_seleccionado)
+
     # Si el mensaje es SOLO un número, mostrar el módulo actual sin avanzar
     if mensaje_original.strip().isdigit():
         if drip_bloquea_siguiente_modulo(progreso, modulo_actual):
-            dias_drip = dias_espera_efectivos(estudiante, curso_seleccionado)
-            fecha_desbloqueo = fecha_desbloqueo_drip(progreso.fecha_ultimo_avance, dias_drip)
+            _blk = mensaje_bloqueo_avance_siguiente_modulo(
+                estudiante, progreso, modulo_actual
+            )
             _persist_curso_foco()
-            return _mensaje_bloqueo_drip(fecha_desbloqueo)
+            return _blk or ''
 
         avance = progreso.porcentaje_avance()
 
@@ -286,6 +292,10 @@ def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_
                 )
                 _inner_sel = _rem_sel[len('[MULTI_MSG]') :]
                 _persist_curso_foco()
+                _pfx = _prefijo_agentes_primera_inscripcion_selector()
+                if _pfx:
+                    _inner_parts = [p for p in _inner_sel.split('[SEP]') if p]
+                    return '[MULTI_MSG]' + '[SEP]'.join(_pfx + [_hdr_sel] + _inner_parts)
                 return '[MULTI_MSG]' + _hdr_sel + '[SEP]' + _inner_sel
 
         respuesta = f"""✅ {'Iniciando' if creado else 'Retomando'} *{curso_seleccionado.emoji or '📚'} {curso_seleccionado.nombre}*
@@ -303,6 +313,10 @@ Cuando termines, escribe: *"listo"*"""
         if video_url:
             respuesta += f"\n\n[MEDIA:{video_url}]"
 
+        _pfx = _prefijo_agentes_primera_inscripcion_selector()
+        if _pfx:
+            respuesta = '[MULTI_MSG]' + '[SEP]'.join(_pfx + [respuesta])
+
         _persist_curso_foco()
         return respuesta
 
@@ -310,17 +324,12 @@ Cuando termines, escribe: *"listo"*"""
     palabras_completar = ['listo', 'siguiente', 'ok', 'dale', 'avanzar', 'sigue', 'continuar']
 
     if any(palabra in mensaje_lower for palabra in palabras_completar):
-        dias_drip = dias_espera_efectivos(estudiante, curso_seleccionado)
-        if dias_drip > 0:
-            ya_completo_modulo = ModuloCompletado.objects.filter(
-                progreso=progreso,
-                modulo=modulo_actual
-            ).exists()
-            if ya_completo_modulo and progreso.fecha_ultimo_avance:
-                fecha_desbloqueo = fecha_desbloqueo_drip(progreso.fecha_ultimo_avance, dias_drip)
-                if fecha_desbloqueo and timezone.localdate() < fecha_desbloqueo:
-                    _persist_curso_foco()
-                    return _mensaje_bloqueo_drip(fecha_desbloqueo)
+        _blk_listo = mensaje_bloqueo_avance_siguiente_modulo(
+            estudiante, progreso, modulo_actual
+        )
+        if _blk_listo:
+            _persist_curso_foco()
+            return _blk_listo
 
         from .module_steps import modulo_usa_pasos
 
@@ -353,11 +362,12 @@ Cuando termines, escribe: *"listo"*"""
         ).order_by('numero').first()
 
         if siguiente_modulo:
-            if dias_drip > 0 and progreso.fecha_ultimo_avance:
-                fecha_desbloqueo = fecha_desbloqueo_drip(progreso.fecha_ultimo_avance, dias_drip)
-                if fecha_desbloqueo and timezone.localdate() < fecha_desbloqueo:
-                    _persist_curso_foco()
-                    return _mensaje_bloqueo_drip(fecha_desbloqueo)
+            _blk_sig = mensaje_bloqueo_avance_siguiente_modulo(
+                estudiante, progreso, modulo_actual
+            )
+            if _blk_sig:
+                _persist_curso_foco()
+                return _blk_sig
 
             progreso.modulo_actual = siguiente_modulo
             from .module_steps import reset_progreso_pasos_modulo

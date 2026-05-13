@@ -155,7 +155,7 @@ class RAGClienteCurso:
     # ==========================================
 
     def _extraer_texto(self, ruta: str) -> str:
-        """Extrae texto de PDF, DOCX o TXT."""
+        """Extrae texto de PDF, DOCX, TXT o Excel (XLSX/XLSM; p. ej. listas de precios)."""
         ext = os.path.splitext(ruta)[1].lower()
 
         if ext == '.pdf':
@@ -164,6 +164,8 @@ class RAGClienteCurso:
             return self._extraer_docx(ruta)
         elif ext == '.txt':
             return self._extraer_txt(ruta)
+        elif ext in ('.xlsx', '.xlsm'):
+            return self._extraer_xlsx(ruta)
         else:
             logger.warning(f"[RAG] Tipo no soportado: {ext}")
             return ""
@@ -186,6 +188,31 @@ class RAGClienteCurso:
             return "\n".join(p.text for p in doc.paragraphs)
         except Exception as e:
             logger.error(f"[RAG] Error DOCX: {e}")
+            return ""
+
+    @staticmethod
+    def _extraer_xlsx(ruta: str) -> str:
+        """Excel: openpyxl en modo lectura; filas como TSV para RAG (precios, SKUs, columnas)."""
+        try:
+            from openpyxl import load_workbook
+
+            wb = load_workbook(ruta, read_only=True, data_only=True)
+            blocks: list[str] = []
+            try:
+                for sheet in wb.worksheets:
+                    blocks.append(f'## Hoja: {sheet.title}')
+                    for row in sheet.iter_rows(values_only=True):
+                        cells = [
+                            str(c).strip() if c is not None and str(c).strip() != '' else ''
+                            for c in row
+                        ]
+                        if any(x for x in cells):
+                            blocks.append('\t'.join(cells))
+            finally:
+                wb.close()
+            return '\n'.join(blocks)
+        except Exception as e:
+            logger.error(f"[RAG] Error XLSX/XLSM: {e}")
             return ""
 
     @staticmethod

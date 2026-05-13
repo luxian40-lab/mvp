@@ -81,6 +81,8 @@ class DripGeoGamificacionTests(TestCase):
 	def test_drip_bloquea_primer_listo_tras_completar_modulo(self):
 		estudiante = self._crear_estudiante('111')
 		curso, modulo_1, _ = self._crear_curso_y_modulos('Curso Drip Primer Listo', dias_espera=1)
+		modulo_1.facilitador_checkpoint = Modulo.FACILITADOR_CP_NO
+		modulo_1.save(update_fields=['facilitador_checkpoint'])
 		ProgresoEstudiante.objects.create(
 			estudiante=estudiante,
 			curso=curso,
@@ -148,6 +150,67 @@ class DripGeoGamificacionTests(TestCase):
 		with patch('core.drip_schedule.timezone.localdate') as mock_localdate:
 			mock_localdate.side_effect = lambda dt=None: (base if dt is not None else base + timedelta(days=1))
 			self.assertFalse(drip_bloquea_siguiente_modulo(progreso, modulo_1))
+
+	def test_calendario_modulo_bloquea_sin_dias_espera(self):
+		"""habilitado_desde en el siguiente módulo bloquea aunque dias_espera=0."""
+		estudiante = self._crear_estudiante('cal1')
+		curso, modulo_1, modulo_2 = self._crear_curso_y_modulos('Curso Solo Calendario', dias_espera=0)
+		modulo_2.habilitado_desde = timezone.now() + timedelta(days=5)
+		modulo_2.save(update_fields=['habilitado_desde'])
+		progreso = ProgresoEstudiante.objects.create(
+			estudiante=estudiante,
+			curso=curso,
+			modulo_actual=modulo_1,
+			fecha_ultimo_avance=timezone.now(),
+		)
+		ModuloCompletado.objects.create(progreso=progreso, modulo=modulo_1)
+		self.assertTrue(drip_bloquea_siguiente_modulo(progreso, modulo_1))
+		respuesta = get_response_for_intent(
+			'continuar_leccion',
+			estudiante.nombre,
+			estudiante_id=estudiante.id,
+			mensaje_original='listo',
+		)
+		self.assertIn('siguiente módulo', respuesta.lower())
+
+	def test_habilitacion_cliente_sustituye_global(self):
+		from core.models import HabilitacionModuloDripCliente
+
+		cliente = Cliente.objects.create(
+			nombre='Org Cal',
+			contacto_principal='X',
+			email='x@test.com',
+			telefono='57',
+		)
+		estudiante = Estudiante.objects.create(
+			cedula='200200',
+			nombre='Est Cal',
+			telefono='573009991122',
+			cliente=cliente,
+		)
+		curso, modulo_1, modulo_2 = self._crear_curso_y_modulos('Curso Override Cal', dias_espera=0)
+		modulo_2.habilitado_desde = timezone.now() + timedelta(days=10)
+		modulo_2.save(update_fields=['habilitado_desde'])
+		# Cliente: más pronto → debe bloquear hasta la fecha cliente, no la global
+		antes = timezone.now() + timedelta(days=1)
+		HabilitacionModuloDripCliente.objects.create(
+			cliente=cliente,
+			curso=curso,
+			modulo=modulo_2,
+			habilitado_desde=antes,
+			activo=True,
+		)
+		progreso = ProgresoEstudiante.objects.create(
+			estudiante=estudiante,
+			curso=curso,
+			modulo_actual=modulo_1,
+			fecha_ultimo_avance=timezone.now(),
+		)
+		ModuloCompletado.objects.create(progreso=progreso, modulo=modulo_1)
+		self.assertTrue(drip_bloquea_siguiente_modulo(progreso, modulo_1))
+		from core.drip_schedule import habilitado_desde_efectivo
+
+		self.assertEqual(habilitado_desde_efectivo(estudiante, modulo_2), antes)
 
 	def test_continuar_leccion_no_lista_cursos_si_drip_en_uno(self):
 		estudiante = self._crear_estudiante('22')

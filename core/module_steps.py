@@ -10,10 +10,104 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# CTAs tras entregar microcontenidos (WhatsApp); mismo verbo en todos los casos.
+MSG_LISTO_ABRIR_SIGUIENTE_BLOQUE = (
+    'Una vez termines de revisar el contenido, escribe *listo* '
+    'para abrir el siguiente 👇'
+)
+MSG_LISTO_CONTINUAR_EN_MODULO = (
+    'Una vez termines de revisar el contenido, escribe *listo* para continuar 👇'
+)
+MSG_LISTO_FIN_PASOS_MODULO = (
+    'Una vez termines de revisar el contenido, escribe *listo* para pasar al '
+    'siguiente módulo o paso del curso 👇'
+)
+
+# Texto mínimo junto al adjunto (Twilio exige body no vacío). El contenido del paso va después del [DELAY].
+_MEDIA_CAPTION_MINIMA = '📹'
+
+# Tras acertar evaluación de paso: un solo bubble (feedback + CTA) evita que WhatsApp
+# entregue antes el texto corto de *listo* que el feedback más largo.
+_CTA_LISTO_SIGUIENTE_MATERIAL_EVAL = (
+    'Escribe *listo* para recibir el siguiente material 👇'
+)
+
+
+def mensaje_exito_eval_opciones_con_cta_listo(feedback_correcto_crudo: Optional[str]) -> str:
+    raw = (feedback_correcto_crudo or '').strip()
+    if not raw:
+        raw = '✅ ¡Muy bien! Seguimos.'
+    partes_fb = [p.strip() for p in raw.split('[SEP]') if p.strip()]
+    cuerpo = '\n\n'.join(partes_fb) if partes_fb else raw
+    return f'{cuerpo}\n\n{_CTA_LISTO_SIGUIENTE_MATERIAL_EVAL}'
+
+
+def mensaje_neutro_avance_eval_con_cta_listo() -> str:
+    """Tras omitir evaluación opción múltiple (p. ej. *listo* sin acertar): un solo bubble con CTA."""
+    return f'📚 Seguimos con el curso.\n\n{_CTA_LISTO_SIGUIENTE_MATERIAL_EVAL}'
+
+
+def mensaje_incorrecto_eval_opciones_con_cta_listo(feedback_incorrecto: str) -> str:
+    """Tras fallar A–D: mismo bubble que el acierto (feedback + CTA *listo*)."""
+    raw = (feedback_incorrecto or '').strip()
+    if not raw:
+        raw = '❌ *Respuesta incorrecta*\n\nRevisá las opciones e intentá de nuevo, o seguí cuando quieras.'
+    return f'{raw}\n\n{_CTA_LISTO_SIGUIENTE_MATERIAL_EVAL}'
+
+
+def _respuesta_cola_tras_avanzar_eval_opc(
+    estudiante: Estudiante,
+    progreso: ProgresoEstudiante,
+    paso: PasoModulo,
+    n: int,
+    es_acierto: bool,
+) -> str:
+    """
+    Construye respuesta tras avanzar paso_actual_modulo y limpiar flags de evaluación.
+    `paso` es el PasoModulo de evaluación que se acaba de cerrar.
+    """
+    if progreso.paso_actual_modulo > n:
+        from .response_templates import get_response_for_intent
+
+        tail = get_response_for_intent(
+            'continuar_leccion',
+            estudiante.nombre or 'Estudiante',
+            estudiante_id=estudiante.id,
+            mensaje_original='listo',
+            _saltar_bloque_pasos_internos=True,
+        )
+        if es_acierto:
+            head = (paso.feedback_correcto or '').strip() or '✅ ¡Muy bien! Seguimos.'
+        else:
+            head = '📚 Seguimos con el curso.'
+        if tail and tail.startswith('[MULTI_MSG]'):
+            resto = tail[len('[MULTI_MSG]') :].split('[SEP]')
+            bloques = [p for p in resto if p]
+            # Tras intento incorrecto ya dimos el CTA *listo* junto al feedback; no repetir este head.
+            if not es_acierto and bloques:
+                return unir_multimsg(bloques)
+            return unir_multimsg([head] + bloques) if bloques else unir_multimsg([head])
+        partes = []
+        if es_acierto or not tail:
+            partes.append(head)
+        if tail:
+            partes.append(tail)
+        return unir_multimsg(partes)
+    if es_acierto:
+        return '[MULTI_MSG]' + mensaje_exito_eval_opciones_con_cta_listo(paso.feedback_correcto)
+    # El *listo* ya se pidió junto al feedback del intento incorrecto: entregar siguiente micro(s) sin repetir «Seguimos…».
+    modulo_col = progreso.modulo_actual
+    if modulo_col:
+        return entregar_bloque_secciones_desde_paso(
+            progreso, modulo_col, progreso.paso_actual_modulo
+        )
+    return '[MULTI_MSG]' + mensaje_neutro_avance_eval_con_cta_listo()
+
+
 # Mensaje al estudiante si modo "pasos" quedó mal configurado (sin filas PasoModulo activas).
 FALLBACK_MODULO_PASOS_SIN_PASOS = (
     '📚 Estamos organizando el contenido de esta unidad. '
-    'Intentá de nuevo en unos minutos o escribí *menú* para ver opciones.'
+    'Intentá de nuevo en unos minutos o escribe *menú* para ver opciones.'
 )
 
 
@@ -78,55 +172,177 @@ def reset_progreso_pasos_modulo(progreso: ProgresoEstudiante, save: bool = True)
 
 
 def _letra_correcta_eval_opciones(paso: PasoModulo) -> str:
+    """Letra correcta A–D: prioriza el campo admin, luego opciones_json; no exige dict de textos."""
+    rc = (getattr(paso, 'respuesta_correcta', None) or '').strip().upper()[:1]
+    if rc in ('A', 'B', 'C', 'D'):
+        return rc
+    data = paso.opciones_json or {}
+    if isinstance(data, dict):
+        c = data.get('correcta')
+        if c is None:
+            c = data.get('respuesta_correcta')
+        if c is not None:
+            letra = str(c).strip().upper()[:1]
+            if letra in ('A', 'B', 'C', 'D'):
+                return letra
+    return ''
+
+
+def _opciones_dict(paso: PasoModulo) -> dict[str, str]:
+    """Textos A–D: campos del admin y, si faltan letras, claves en opciones_json (cualquier tipo)."""
+    out: dict[str, str] = {}
+    for letter in ('A', 'B', 'C', 'D'):
+        raw = getattr(paso, f'eval_opcion_{letter.lower()}', None) or ''
+        v = str(raw).strip()
+        if v:
+            out[letter] = v
+    data = paso.opciones_json or {}
+    if isinstance(data, dict):
+        for letter in ('A', 'B', 'C', 'D'):
+            if letter in out:
+                continue
+            val = data.get(letter)
+            if val is None or not str(val).strip():
+                val = data.get(letter.lower())
+            if val is not None and str(val).strip():
+                out[letter] = str(val).strip()
+        for alt_key, letter in (
+            ('opcion_a', 'A'),
+            ('opcion_b', 'B'),
+            ('opcion_c', 'C'),
+            ('opcion_d', 'D'),
+        ):
+            if letter in out:
+                continue
+            val = data.get(alt_key)
+            if val is not None and str(val).strip():
+                out[letter] = str(val).strip()
+    return out
+
+
+def paso_contenido_con_mc_como_eval(paso: PasoModulo) -> bool:
+    """Contenido configurado como texto pero con A–D + correcta (tipo mal elegido en admin)."""
     from .models import PasoModulo
 
-    if paso.tipo != PasoModulo.TIPO_EVAL_OPC:
-        return ''
-    if paso.respuesta_correcta:
-        return str(paso.respuesta_correcta).strip().upper()[:1]
-    data = paso.opciones_json or {}
-    c = data.get('correcta') if isinstance(data, dict) else None
-    if c is None and isinstance(data, dict):
-        c = data.get('respuesta_correcta')
-    if c is None:
-        return ''
-    return str(c).strip().upper()[:1]
+    if paso.tipo != PasoModulo.TIPO_CONTENIDO:
+        return False
+    opts = _opciones_dict(paso)
+    letra = _letra_correcta_eval_opciones(paso)
+    return len(opts) >= 2 and letra in opts
+
+
+def _split_media_caption_y_rest(contenido: str) -> tuple[str, str]:
+    """
+    Primera línea o párrafo → caption junto al video; el resto va después del [DELAY].
+    Un solo párrafo → caption vacío: todo el texto va en el mismo bloque que [MEDIA:] (ver partes_mensaje_paso).
+    """
+    t = (contenido or '').strip()
+    if not t:
+        return '', ''
+    if '\n\n' in t:
+        first, rest = t.split('\n\n', 1)
+        return first.strip(), rest.strip()
+    if '\n' in t:
+        first, rest = t.split('\n', 1)
+        return first.strip(), rest.strip()
+    return '', t
+
+
+def _suffix_evaluacion_paso(paso: PasoModulo) -> str:
+    from .models import PasoModulo
+
+    parts: list[str] = []
+    if paso.tipo == PasoModulo.TIPO_EVAL_OPC or paso_contenido_con_mc_como_eval(paso):
+        opts = _opciones_dict(paso)
+        lines = [f"🔹 *{k}*) {opts[k]}" for k in ('A', 'B', 'C', 'D') if k in opts]
+        if lines:
+            parts.append("\n\n" + "\n".join(lines))
+        else:
+            logger.warning(
+                '📚 [pasos] paso evaluación sin opciones A–D visibles | paso_id=%s tipo=%s',
+                paso.id,
+                paso.tipo,
+            )
+        parts.append(
+            "\n\n💡 Responde con la letra correcta (*A*, *B*, *C* o *D*), como en la validación del módulo."
+        )
+    elif paso.tipo == PasoModulo.TIPO_EVAL_ABIERTA:
+        parts.append("\n\n✍️ Envía tu respuesta en un mensaje.")
+    elif paso.tipo in (PasoModulo.TIPO_RETO, PasoModulo.TIPO_ENTREGA):
+        parts.append("\n\n📎 Envía tu respuesta o escribe *listo* cuando termines.")
+    return ''.join(parts)
+
+
+def _mensaje_es_solo_avance_listo(texto_crudo: str) -> bool:
+    """True si el usuario solo pide avanzar (listo/ok…) sin enviar una letra A–D."""
+    raw = (texto_crudo or '').strip().lower().replace('*', '').strip()
+    if not raw:
+        return False
+    if re.fullmatch(r'[a-d]', raw):
+        return False
+    tokens = [t for t in re.sub(r'[^a-záéíóúüñ\s]', ' ', raw).split() if t]
+    if not tokens:
+        return False
+    gate = {'listo', 'lista', 'ok', 'dale', 'siguiente', 'continuar', 'sigue', 'si', 'sí', 'ya'}
+    return set(tokens) <= gate
+
+
+def _feedback_incorrecto_paso_estilo_mini(paso: PasoModulo, letra_usuario: str) -> str:
+    """Mensaje al fallar (estilo mini examen); respeta feedback_incorrecto del admin si existe."""
+    custom = (paso.feedback_incorrecto or '').strip()
+    if custom:
+        return custom
+    letra_ok = _letra_correcta_eval_opciones(paso)
+    opts = _opciones_dict(paso)
+    texto_ok = opts.get(letra_ok, '') if letra_ok else ''
+    if letra_ok and texto_ok:
+        correcto = f"✅ La respuesta correcta era: *{letra_ok})* {texto_ok}\n\n"
+    elif letra_ok:
+        correcto = f"✅ La respuesta correcta era la opción *{letra_ok}*.\n\n"
+    else:
+        correcto = ""
+    return (
+        f"❌ *Respuesta incorrecta*\n\n"
+        f"{correcto}"
+        f"🔄 Probá de nuevo: revisá las opciones y enviá solo una letra (*A*, *B*, *C* o *D*)."
+    )
 
 
 def formatear_texto_paso(paso: PasoModulo, curso) -> str:
-    from .models import PasoModulo
-
-    header = f"📌 *{paso.titulo}*\n\n"
+    """
+    Texto que vería el estudiante en un solo mensaje (sin media o para depuración).
+    No incluye el título del paso ni el de la sección: son referencia interna en admin.
+    """
     body = (paso.contenido or '').strip()
-    msg = header + body if body else header.rstrip()
-    if paso.tipo == PasoModulo.TIPO_EVAL_OPC:
-        data = paso.opciones_json or {}
-        opts = []
-        if isinstance(data, dict):
-            for key in ('A', 'B', 'C', 'D'):
-                val = data.get(key)
-                if val:
-                    opts.append(f"*{key}*) {val}")
-        if opts:
-            msg = msg + "\n\n" + "\n".join(opts)
-        msg += "\n\nResponde con la letra (ej: *A*)."
-    elif paso.tipo == PasoModulo.TIPO_EVAL_ABIERTA:
-        msg += "\n\n✍️ Envía tu respuesta en un mensaje."
-    elif paso.tipo in (PasoModulo.TIPO_RETO, PasoModulo.TIPO_ENTREGA):
-        msg += "\n\n📎 Envía tu respuesta o escribe *listo* cuando termines."
-    return msg.strip()
+    return (body + _suffix_evaluacion_paso(paso)).strip()
 
 
 def partes_mensaje_paso(paso: PasoModulo, curso) -> list[str]:
     """
-    Bloques para MULTI_MSG. Si hay media_url, va en el mismo bloque que el texto
-    para que Twilio envíe cuerpo + adjunto juntos (evita mensajes “vacíos” solo con media).
+    Bloques para MULTI_MSG.
+    Con media: primero adjunto con caption mínimo; el texto del paso (y la evaluación) va después del [DELAY].
+    Si el contenido tiene dos párrafos (\\n\\n o \\n), el primero puede ir como caption junto al video.
     """
-    base = formatear_texto_paso(paso, curso)
     url = (paso.media_url or '').strip()
-    if url:
-        return [f'{base}\n\n[MEDIA:{url}]', '[DELAY:5]']
-    return [base]
+    body = (paso.contenido or '').strip()
+    tail = _suffix_evaluacion_paso(paso)
+    if not url:
+        msg = (body + tail).strip()
+        return [msg if msg else '']
+    caption, rest = _split_media_caption_y_rest(body)
+    if caption:
+        bloque_media = f'{caption}\n\n[MEDIA:{url}]'
+        after = (rest + tail).strip()
+    elif body:
+        bloque_media = f'{body}\n\n[MEDIA:{url}]'
+        after = tail.strip()
+    else:
+        bloque_media = f'{_MEDIA_CAPTION_MINIMA}\n\n[MEDIA:{url}]'
+        after = tail.strip()
+    partes: list[str] = [bloque_media, '[DELAY:5]']
+    if after:
+        partes.append(after)
+    return partes
 
 
 def unir_multimsg(partes: list[str]) -> str:
@@ -145,17 +361,31 @@ def _ids_secciones_activas_ordenadas(modulo: Modulo) -> list[int]:
 
 def _batch_pasos_desde_indice(modulo: Modulo, qs: list, idx: int) -> list:
     """
-    idx en 1..len(qs). Hasta secciones_por_listo secciones consecutivas (por orden de sección),
-    en orden de paso. Corta después del primer paso de evaluación incluido en el recorrido.
+    idx en 1..len(qs). Por defecto **una sección por cada *listo*** (confirma comprensión entre bloques).
+
+    El campo ``secciones_por_listo`` en admin puede ser >1 por compatibilidad, pero en WhatsApp
+    solo tiene sentido pedir *listo* entre secciones; si está en 2..5 se registra en log y se usa 1.
+
+    Dentro de la misma sección se envían todos los pasos consecutivos hasta una evaluación (incluida)
+    o hasta el último paso de esa sección. Corta después del primer paso de evaluación incluido.
+    Si la evaluación es el **primer** paso de la sección siguiente, se incluye en el mismo lote
+    (mismo disparador de *listo*) para que el enunciado y las opciones no se separen.
     """
     if idx < 1 or idx > len(qs):
         return []
     k_raw = getattr(modulo, 'secciones_por_listo', None)
     try:
-        k = int(k_raw)
+        k_config = int(k_raw)
     except (TypeError, ValueError):
-        k = 1
-    k = max(1, min(k, 5))
+        k_config = 1
+    k_config = max(1, min(k_config, 5))
+    k = 1
+    if k_config > 1:
+        logger.info(
+            '📚 [pasos] secciones_por_listo=%s → usando 1 (un *listo* por sección/bloque) | modulo_id=%s',
+            k_config,
+            modulo.id,
+        )
     sec_order = _ids_secciones_activas_ordenadas(modulo)
     start = qs[idx - 1]
     try:
@@ -170,13 +400,24 @@ def _batch_pasos_desde_indice(modulo: Modulo, qs: list, idx: int) -> list:
         batch.append(p)
         if p.es_evaluacion:
             break
+    # Evaluación como primer paso de la siguiente sección: mismo envío que el bloque actual
+    # (si no, solo salía el enunciado y el CTA de *listo* sin opciones A–D).
+    if batch and not batch[-1].es_evaluacion:
+        try:
+            pos = qs.index(batch[-1])
+        except ValueError:
+            pos = -1
+        if 0 <= pos < len(qs) - 1:
+            nxt = qs[pos + 1]
+            if nxt.es_evaluacion:
+                batch.append(nxt)
     return batch
 
 
 def entregar_bloque_secciones_desde_paso(
     progreso: ProgresoEstudiante, modulo: Modulo, idx: int
 ) -> str:
-    """Entrega hasta N secciones (secciones_por_listo) desde el paso idx, con títulos de sección."""
+    """Entrega **una sección (bloque) por cada *listo***; dentro de la sección, todos los pasos hasta evaluación."""
     qs = list(pasos_activos_qs(modulo))
     n = len(qs)
     batch = _batch_pasos_desde_indice(modulo, qs, idx)
@@ -187,10 +428,18 @@ def entregar_bloque_secciones_desde_paso(
     last_sec_id = None
     for paso in batch:
         if paso.seccion_id != last_sec_id:
+            if last_sec_id is not None:
+                partes.append('[DELAY:2]')
             last_sec_id = paso.seccion_id
-            tit = ((paso.seccion.titulo or '') if paso.seccion_id else '').strip()
-            if tit:
-                partes.append(f'📑 *{tit}*\n')
+        n_opts = len(_opciones_dict(paso))
+        logger.info(
+            '📚 [pasos] armando micro | paso_id=%s tipo=%s n_opciones=%s tiene_media=%s contenido_len=%s',
+            paso.id,
+            paso.tipo,
+            n_opts,
+            bool((paso.media_url or '').strip()),
+            len((paso.contenido or '').strip()),
+        )
         partes.extend(partes_mensaje_paso(paso, curso))
     last_paso = batch[-1]
     last_idx = qs.index(last_paso) + 1
@@ -225,16 +474,55 @@ def entregar_bloque_secciones_desde_paso(
             ]
         )
         if progreso.paso_actual_modulo <= n:
-            partes.append(
-                'Cuando termines de revisar, escribe *listo* para continuar 👇'
-            )
+            sig_idx = progreso.paso_actual_modulo
+            siguiente_es_eval = False
+            if 1 <= sig_idx <= len(qs):
+                siguiente_es_eval = qs[sig_idx - 1].es_evaluacion
+            otro_bloque = False
+            if 1 <= sig_idx <= len(qs):
+                try:
+                    sec_cerrada = batch[-1].seccion_id
+                    next_sec_id = qs[sig_idx - 1].seccion_id
+                    otro_bloque = bool(
+                        sec_cerrada and next_sec_id and next_sec_id != sec_cerrada
+                    )
+                except (IndexError, AttributeError):
+                    otro_bloque = False
+            if siguiente_es_eval:
+                p_ev = qs[sig_idx - 1]
+                partes.extend(partes_mensaje_paso(p_ev, curso))
+                progreso.esperando_respuesta_evaluacion_paso = True
+                progreso.paso_evaluacion_paso = p_ev
+                progreso.paso_actual_modulo = sig_idx
+                progreso.save(
+                    update_fields=[
+                        'esperando_respuesta_evaluacion_paso',
+                        'paso_evaluacion_paso',
+                        'paso_actual_modulo',
+                    ]
+                )
+                logger.warning(
+                    '📚 [pasos] recuperación: evaluación incluida en el mismo envío '
+                    '(hueco entre secciones) | paso_id=%s sig_idx=%s',
+                    p_ev.id,
+                    sig_idx,
+                )
+            elif otro_bloque:
+                partes.append(MSG_LISTO_ABRIR_SIGUIENTE_BLOQUE)
+            else:
+                partes.append(MSG_LISTO_CONTINUAR_EN_MODULO)
+        else:
+            # Último microcontenido del módulo: sin esto no pedía *listo* y no había traspaso claro.
+            partes.append(MSG_LISTO_FIN_PASOS_MODULO)
         logger.info(
-            "📚 [pasos] bloque entregado | estudiante_id=%s progreso_id=%s último_paso_id=%s nuevo_idx=%s n_pasos=%s",
+            "📚 [pasos] bloque entregado (1 sección por *listo*) | estudiante_id=%s progreso_id=%s "
+            "último_paso_id=%s nuevo_idx=%s n_pasos=%s sec_cerrada_ids=%s",
             progreso.estudiante_id,
             progreso.id,
             last_paso.id,
             progreso.paso_actual_modulo,
             n,
+            sorted({p.seccion_id for p in batch if p.seccion_id}),
         )
     return unir_multimsg(partes)
 
@@ -280,7 +568,9 @@ def entregar_paso_indice(progreso: ProgresoEstudiante, modulo: Modulo, idx: int)
             ]
         )
         if progreso.paso_actual_modulo <= n:
-            partes.append("Cuando termines de revisar, escribe *listo* para continuar 👇")
+            partes.append(MSG_LISTO_CONTINUAR_EN_MODULO)
+        else:
+            partes.append(MSG_LISTO_FIN_PASOS_MODULO)
         logger.info(
             "📚 [pasos] contenido entregado | estudiante_id=%s progreso_id=%s paso_id=%s nuevo_idx=%s",
             progreso.estudiante_id,
@@ -308,9 +598,15 @@ def mensaje_recordatorio_paso_actual(progreso: ProgresoEstudiante, modulo: Modul
             idx = 1
         paso = qs[idx - 1]
     partes = partes_mensaje_paso(paso, progreso.curso)
-    partes.append(
-        "Cuando estés listo, escribe *listo* para el siguiente material o responde la actividad 👇"
-    )
+    if progreso.esperando_respuesta_evaluacion_paso and progreso.paso_evaluacion_paso_id:
+        partes.append(
+            "Cuando puedas, responde según las opciones de arriba 👆 "
+            "(letra o mensaje según el tipo de actividad)."
+        )
+    else:
+        partes.append(
+            "Cuando estés listo, escribe *listo* para el siguiente material o responde la actividad 👇"
+        )
     return unir_multimsg(partes)
 
 
@@ -346,15 +642,54 @@ def procesar_respuesta_evaluacion_paso(
     from .models import PasoModulo
 
     texto = (texto_crudo or '').strip()
+    logger.info(
+        '📚 [pasos] intento evaluación | est=%s paso_id=%s tipo=%s n_op=%s preview=%r',
+        estudiante.id,
+        paso.id,
+        paso.tipo,
+        len(_opciones_dict(paso)),
+        (texto_crudo or '')[:160],
+    )
     idx = progreso.paso_actual_modulo
     qs = list(pasos_activos_qs(modulo))
     n = len(qs)
 
     ok = False
-    if paso.tipo == PasoModulo.TIPO_EVAL_OPC:
-        letra_in = re.sub(r'[^a-dA-D]', '', texto)
-        letra_in = (letra_in[:1] or '').upper()
-        ok = bool(letra_in) and letra_in == _letra_correcta_eval_opciones(paso)
+    letra_in_eval = ''
+    if paso.tipo == PasoModulo.TIPO_EVAL_OPC or paso_contenido_con_mc_como_eval(paso):
+        letra_in_eval = re.sub(r'[^a-dA-D]', '', texto)
+        letra_in_eval = (letra_in_eval[:1] or '').upper()
+        if not letra_in_eval and _mensaje_es_solo_avance_listo(texto_crudo):
+            progreso.esperando_respuesta_evaluacion_paso = False
+            progreso.paso_evaluacion_paso = None
+            progreso.paso_actual_modulo = idx + 1
+            progreso.save(
+                update_fields=[
+                    'esperando_respuesta_evaluacion_paso',
+                    'paso_evaluacion_paso',
+                    'paso_actual_modulo',
+                ]
+            )
+            logger.info(
+                '📚 [pasos] eval opción múltiple — avance con listo sin letra | est=%s paso_id=%s nuevo_idx=%s',
+                estudiante.id,
+                paso.id,
+                progreso.paso_actual_modulo,
+            )
+            return _respuesta_cola_tras_avanzar_eval_opc(
+                estudiante, progreso, paso, n, es_acierto=False
+            )
+        letra_ok = _letra_correcta_eval_opciones(paso)
+        if not letra_ok:
+            logger.error(
+                '📚 [pasos] evaluación sin letra correcta (admin) | paso_id=%s',
+                paso.id,
+            )
+            return (
+                "⚠️ Esta pregunta no está bien configurada. "
+                "Escribí *ayuda* para contactar a soporte."
+            )
+        ok = bool(letra_in_eval) and letra_in_eval == letra_ok
     elif paso.tipo == PasoModulo.TIPO_EVAL_ABIERTA:
         ok = bool(texto)
     elif paso.tipo in (PasoModulo.TIPO_RETO, PasoModulo.TIPO_ENTREGA):
@@ -364,6 +699,14 @@ def procesar_respuesta_evaluacion_paso(
         ok = bool(texto)
 
     if not ok:
+        if paso.tipo == PasoModulo.TIPO_EVAL_OPC or paso_contenido_con_mc_como_eval(paso):
+            fb = _feedback_incorrecto_paso_estilo_mini(paso, letra_in_eval)
+            logger.info(
+                "📚 [pasos] eval incorrecta | est=%s paso_id=%s",
+                estudiante.id,
+                paso.id,
+            )
+            return '[MULTI_MSG]' + mensaje_incorrecto_eval_opciones_con_cta_listo(fb)
         fb = (paso.feedback_incorrecto or '').strip() or (
             "❌ No es correcto. Revisa el material y vuelve a intentar."
         )
@@ -374,7 +717,6 @@ def procesar_respuesta_evaluacion_paso(
         )
         return fb
 
-    fb_ok = (paso.feedback_correcto or '').strip() or "✅ ¡Muy bien! Seguimos."
     progreso.esperando_respuesta_evaluacion_paso = False
     progreso.paso_evaluacion_paso = None
     progreso.paso_actual_modulo = idx + 1
@@ -393,23 +735,6 @@ def procesar_respuesta_evaluacion_paso(
         n,
     )
 
-    if progreso.paso_actual_modulo > n:
-        from .response_templates import get_response_for_intent
-
-        tail = get_response_for_intent(
-            'continuar_leccion',
-            estudiante.nombre or 'Estudiante',
-            estudiante_id=estudiante.id,
-            mensaje_original='listo',
-            _saltar_bloque_pasos_internos=True,
-        )
-        if tail and tail.startswith('[MULTI_MSG]'):
-            resto = tail[len('[MULTI_MSG]') :].split('[SEP]')
-            return unir_multimsg([fb_ok] + [p for p in resto if p])
-        partes = [fb_ok]
-        if tail:
-            partes.append(tail)
-        return unir_multimsg(partes)
-
-    partes = [fb_ok, "Escribe *listo* para recibir el siguiente material 👇"]
-    return unir_multimsg(partes)
+    return _respuesta_cola_tras_avanzar_eval_opc(
+        estudiante, progreso, paso, n, es_acierto=True
+    )

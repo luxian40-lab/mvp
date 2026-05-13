@@ -1,10 +1,15 @@
 """Tests: pasos internos por módulo (entrega progresiva)."""
-from django.test import TestCase
+from datetime import timedelta
+from unittest.mock import patch
+
+from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from core.models import (
     Curso,
     Estudiante,
     Modulo,
+    ModuloCompletado,
     PasoModulo,
     PreguntaModulo,
     ProgresoEstudiante,
@@ -92,7 +97,8 @@ class ModuleStepsModelTests(TestCase):
         msg = entregar_paso_indice(self.prog, self.mod, 1)
         self.prog.refresh_from_db()
         self.assertEqual(self.prog.paso_actual_modulo, 2)
-        self.assertIn('Paso uno', msg)
+        self.assertIn('Solo este bloque', msg)
+        self.assertNotIn('Paso uno', msg)
         self.assertIn('[MULTI_MSG]', msg)
 
     def test_paso_con_media_incluye_texto_en_mismo_bloque_que_media(self):
@@ -111,6 +117,7 @@ class ModuleStepsModelTests(TestCase):
         msg = entregar_paso_indice(self.prog, self.mod, 1)
         self.assertIn('Mirá este material', msg)
         self.assertIn('[MEDIA:https://example.com/video.mp4]', msg)
+        self.assertNotIn('📎 Aquí tienes el material', msg)
         bloques = [p for p in msg.replace('[MULTI_MSG]', '', 1).split('[SEP]') if p.strip()]
         solos_adjuntos = [b for b in bloques if b.strip().startswith('[MEDIA:')]
         self.assertEqual(
@@ -138,10 +145,157 @@ class ModuleStepsModelTests(TestCase):
 
         out = procesar_respuesta_evaluacion_paso(self.est, self.prog, 'a')
         self.assertIsNotNone(out)
-        self.assertIn('No es correcto', out)
+        self.assertIn('incorrecta', out.lower())
+        self.assertTrue(out.startswith('[MULTI_MSG]'))
+        self.assertIn('listo', out.lower())
+        self.assertIn('siguiente material', out.lower())
 
-        out2 = procesar_respuesta_evaluacion_paso(self.est, self.prog, 'b')
-        self.assertIsNotNone(out2)
+        out_hint = procesar_respuesta_evaluacion_paso(self.est, self.prog, 'listo')
+        self.assertIsNotNone(out_hint)
+        self.assertNotIn('incorrecta', out_hint.lower())
+        self.prog.refresh_from_db()
+        self.assertFalse(self.prog.esperando_respuesta_evaluacion_paso)
+        self.assertGreater(self.prog.paso_actual_modulo, 1)
+
+    def test_eval_correcta_feedback_y_cta_listo_en_un_solo_segmento(self):
+        """Evita dos bubbles (reorden en WhatsApp): primero feedback, luego CTA *listo*."""
+        s1 = _seccion(self.mod, 1)
+        PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=s1,
+            orden=1,
+            titulo='Quiz',
+            tipo=PasoModulo.TIPO_EVAL_OPC,
+            contenido='Elige bien',
+            opciones_json={'A': 'Uno', 'B': 'Dos', 'correcta': 'B'},
+            feedback_correcto='✅ ¡Excelente! Respuesta correcta.',
+        )
+        PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=s1,
+            orden=2,
+            titulo='P2',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='Siguiente bloque',
+        )
+        reset_progreso_pasos_modulo(self.prog, save=True)
+        entregar_paso_indice(self.prog, self.mod, 1)
+        self.prog.refresh_from_db()
+        out = procesar_respuesta_evaluacion_paso(self.est, self.prog, 'b')
+        self.assertTrue(out.startswith('[MULTI_MSG]'))
+        partes = [p for p in out.replace('[MULTI_MSG]', '', 1).split('[SEP]') if p.strip()]
+        self.assertEqual(len(partes), 1, partes)
+        blob = partes[0].lower()
+        self.assertIn('excelente', blob)
+        self.assertIn('listo', blob)
+        self.assertLess(blob.index('excelente'), blob.index('listo'))
+
+    def test_eval_incorrecta_feedback_y_cta_listo_en_un_solo_segmento(self):
+        """Un bubble: feedback de error + CTA *listo* (misma UX que acierto)."""
+        s1 = _seccion(self.mod, 1)
+        PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=s1,
+            orden=1,
+            titulo='Quiz',
+            tipo=PasoModulo.TIPO_EVAL_OPC,
+            contenido='Elige bien',
+            opciones_json={'A': 'Uno', 'B': 'Dos', 'correcta': 'B'},
+            feedback_incorrecto='🔄 Casi. La buena era otra.',
+        )
+        PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=s1,
+            orden=2,
+            titulo='P2',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='Siguiente bloque',
+        )
+        reset_progreso_pasos_modulo(self.prog, save=True)
+        entregar_paso_indice(self.prog, self.mod, 1)
+        self.prog.refresh_from_db()
+        out = procesar_respuesta_evaluacion_paso(self.est, self.prog, 'a')
+        self.assertTrue(out.startswith('[MULTI_MSG]'))
+        partes = [p for p in out.replace('[MULTI_MSG]', '', 1).split('[SEP]') if p.strip()]
+        self.assertEqual(len(partes), 1, partes)
+        blob = partes[0].lower()
+        self.assertIn('casi', blob)
+        self.assertIn('listo', blob)
+        self.assertLess(blob.index('casi'), blob.index('listo'))
+
+        out_listo = procesar_respuesta_evaluacion_paso(self.est, self.prog, 'listo')
+        self.assertNotIn('seguimos con el curso', out_listo.lower())
+        self.assertIn('siguiente bloque', out_listo.lower())
+
+    def test_eval_letra_correcta_usa_campo_admin_si_no_hay_textos_de_opciones(self):
+        """Si solo hay correcta en JSON / campo admin, igual se valida la letra."""
+        from core.module_steps import _letra_correcta_eval_opciones
+
+        s1 = _seccion(self.mod, 1)
+        p = PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=s1,
+            orden=1,
+            titulo='Q',
+            tipo=PasoModulo.TIPO_EVAL_OPC,
+            contenido='?',
+            respuesta_correcta='B',
+            opciones_json={'correcta': 'B'},
+        )
+        self.assertEqual(_letra_correcta_eval_opciones(p), 'B')
+        reset_progreso_pasos_modulo(self.prog, save=True)
+        entregar_paso_indice(self.prog, self.mod, 1)
+        self.prog.refresh_from_db()
+        out = procesar_respuesta_evaluacion_paso(self.est, self.prog, 'b')
+        self.assertIsNotNone(out)
+        self.prog.refresh_from_db()
+        self.assertFalse(self.prog.esperando_respuesta_evaluacion_paso)
+
+    def test_contenido_con_opciones_en_campos_se_ve_y_bloquea_como_eval(self):
+        """Tipo «Contenido» pero A/B + correcta: debe verse la pregunta opción múltiple (admin mal usado)."""
+        s1 = _seccion(self.mod, 1)
+        PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=s1,
+            orden=1,
+            titulo='Interno',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='¿Cuál es la correcta?',
+            eval_opcion_a='Primera',
+            eval_opcion_b='Segunda',
+            respuesta_correcta='B',
+        )
+        reset_progreso_pasos_modulo(self.prog, save=True)
+        msg = entregar_paso_indice(self.prog, self.mod, 1)
+        self.assertIn('*A*)', msg)
+        self.assertIn('*B*)', msg)
+        self.assertIn('¿Cuál es la correcta?', msg)
+        self.prog.refresh_from_db()
+        self.assertTrue(self.prog.esperando_respuesta_evaluacion_paso)
+
+    def test_evaluacion_opciones_campos_admin_sin_json(self):
+        s1 = _seccion(self.mod, 1)
+        p = PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=s1,
+            orden=1,
+            titulo='Quiz',
+            tipo=PasoModulo.TIPO_EVAL_OPC,
+            contenido='Elegí una',
+            eval_opcion_a='Uno',
+            eval_opcion_b='Dos',
+            respuesta_correcta='B',
+            opciones_json=None,
+        )
+        p.refresh_from_db()
+        self.assertIsInstance(p.opciones_json, dict)
+        self.assertEqual(p.opciones_json.get('correcta'), 'B')
+        reset_progreso_pasos_modulo(self.prog, save=True)
+        entregar_paso_indice(self.prog, self.mod, 1)
+        self.prog.refresh_from_db()
+        self.assertTrue(self.prog.esperando_respuesta_evaluacion_paso)
+        out = procesar_respuesta_evaluacion_paso(self.est, self.prog, 'b')
+        self.assertIsNotNone(out)
         self.prog.refresh_from_db()
         self.assertFalse(self.prog.esperando_respuesta_evaluacion_paso)
 
@@ -238,8 +392,77 @@ class SelectorCursoPasosTests(TestCase):
         )
         r = continuar_curso_seleccionado(self.est.id, 1, '1')
         self.assertNotIn('TEXTO_LEGACY_NO_DEBE_APARECER', r)
-        self.assertIn('Micro paso', r)
+        self.assertIn('Contenido solo paso 1', r)
         self.assertIn('[MULTI_MSG]', r)
+
+
+class SelectorCursoAgentesPrimeraVezTests(TestCase):
+    """Al crear progreso vía número (selector), mostrar tutor + compañero como en inscripción."""
+
+    def setUp(self):
+        self.curso = Curso.objects.create(
+            nombre='Curso selector agentes',
+            descripcion='d',
+            dias_espera_entre_modulos=0,
+            usar_agentes_ia=True,
+            nombre_agente_tutor='Claudia',
+            nombre_agente_asistente='Darío',
+        )
+        self.m1 = Modulo.objects.create(
+            curso=self.curso,
+            numero=1,
+            titulo='Mod uno',
+            descripcion='d',
+            contenido='LEGACY_TEXTO',
+            duracion_dias=7,
+        )
+        self.est = Estudiante.objects.create(
+            cedula='44556677',
+            nombre='Julián Selector',
+            telefono='5730011223344',
+        )
+
+    def test_selector_creado_incluye_facilitadora_y_companero(self):
+        from core.models import PasoModulo
+        from core.selector_curso import continuar_curso_seleccionado
+
+        s1 = _seccion(self.m1, 1)
+        PasoModulo.objects.create(
+            modulo=self.m1,
+            seccion=s1,
+            orden=1,
+            titulo='Micro paso',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='Contenido solo paso 1',
+        )
+        r = continuar_curso_seleccionado(self.est.id, 1, '1')
+        self.assertIn('Iniciando', r)
+        self.assertIn('Facilitadora Claudia', r)
+        self.assertIn('Darío', r)
+        self.assertIn('Contenido solo paso 1', r)
+
+    def test_selector_retomar_no_repite_presentacion_agentes(self):
+        from core.models import PasoModulo
+        from core.models import ProgresoEstudiante
+        from core.selector_curso import continuar_curso_seleccionado
+
+        s1 = _seccion(self.m1, 1)
+        PasoModulo.objects.create(
+            modulo=self.m1,
+            seccion=s1,
+            orden=1,
+            titulo='Micro paso',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='Contenido solo paso 1',
+        )
+        ProgresoEstudiante.objects.create(
+            estudiante=self.est,
+            curso=self.curso,
+            modulo_actual=self.m1,
+        )
+        r = continuar_curso_seleccionado(self.est.id, 1, '1')
+        self.assertIn('Retomando', r)
+        self.assertNotIn('Facilitadora Claudia', r)
 
 
 class ModoEntregaExplicitoTests(TestCase):
@@ -324,7 +547,7 @@ class ModoEntregaExplicitoTests(TestCase):
         )
         r = continuar_curso_seleccionado(self.est.id, 1, '1')
         self.assertNotIn('TEXTO_LEGACY_SELECTOR', r)
-        self.assertIn('Solo paso auto', r)
+        self.assertIn('Bloque auto', r)
 
     def test_modo_auto_sin_pasos_usa_legacy(self):
         self.assertEqual(self.m1.modo_entrega, Modulo.MODO_ENTREGA_AUTO)
@@ -465,8 +688,10 @@ class SectionBatchTests(TestCase):
         self.assertEqual(self.prog.paso_actual_modulo, 3)
         self.assertIn('c1', msg)
         self.assertIn('c2', msg)
+        self.assertIn('siguiente módulo', msg.lower())
 
-    def test_dos_secciones_titulos_k2(self):
+    def test_dos_secciones_titulos_un_listo_por_seccion(self):
+        """Aunque secciones_por_listo sea 2, solo se entrega una sección; el segundo *listo* abre la otra."""
         sa = _seccion(self.mod, 1, titulo='Bloque Alfa')
         sb = _seccion(self.mod, 2, titulo='Bloque Beta')
         PasoModulo.objects.create(
@@ -488,11 +713,53 @@ class SectionBatchTests(TestCase):
         self.mod.secciones_por_listo = 2
         self.mod.save(update_fields=['secciones_por_listo'])
         reset_progreso_pasos_modulo(self.prog, save=True)
-        msg = entregar_bloque_secciones_desde_paso(self.prog, self.mod, 1)
-        self.assertIn('Bloque Alfa', msg)
-        self.assertIn('Bloque Beta', msg)
-        self.assertIn('uno', msg)
-        self.assertIn('dos', msg)
+        msg1 = entregar_bloque_secciones_desde_paso(self.prog, self.mod, 1)
+        self.assertNotIn('Bloque Alfa', msg1)
+        self.assertIn('uno', msg1)
+        self.assertNotIn('dos', msg1)
+        self.assertIn('revisar el contenido', msg1.lower())
+        self.assertNotIn('escribí', msg1.lower())
+        self.prog.refresh_from_db()
+        self.assertEqual(self.prog.paso_actual_modulo, 2)
+
+        msg2 = entregar_bloque_secciones_desde_paso(self.prog, self.mod, 2)
+        self.assertNotIn('Bloque Beta', msg2)
+        self.assertIn('dos', msg2)
+        self.assertIn('siguiente módulo', msg2.lower())
+        self.prog.refresh_from_db()
+        self.assertEqual(self.prog.paso_actual_modulo, 3)
+
+    def test_dos_secciones_sin_titulo_dos_listos(self):
+        sa = _seccion(self.mod, 1, titulo='')
+        sb = _seccion(self.mod, 2, titulo='')
+        PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=sa,
+            orden=1,
+            titulo='p1',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='uno',
+        )
+        PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=sb,
+            orden=2,
+            titulo='p2',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='dos',
+        )
+        self.mod.secciones_por_listo = 2
+        self.mod.save(update_fields=['secciones_por_listo'])
+        reset_progreso_pasos_modulo(self.prog, save=True)
+        msg1 = entregar_bloque_secciones_desde_paso(self.prog, self.mod, 1)
+        self.assertIn('uno', msg1)
+        self.assertNotIn('dos', msg1)
+        self.assertNotIn('📑 *Bloque 1*', msg1)
+
+        msg2 = entregar_bloque_secciones_desde_paso(self.prog, self.mod, 2)
+        self.assertIn('dos', msg2)
+        self.assertNotIn('📑 *Bloque 2*', msg2)
+        self.assertIn('siguiente módulo', msg2.lower())
         self.prog.refresh_from_db()
         self.assertEqual(self.prog.paso_actual_modulo, 3)
 
@@ -530,3 +797,430 @@ class SectionBatchTests(TestCase):
         self.prog.refresh_from_db()
         self.assertTrue(self.prog.esperando_respuesta_evaluacion_paso)
         self.assertEqual(self.prog.paso_actual_modulo, 2)
+
+    def test_eval_en_primera_fila_siguiente_seccion_va_en_mismo_batch(self):
+        """Pregunta en sección 1 y opciones en sección 2: mismo envío (regresión WhatsApp)."""
+        sa = _seccion(self.mod, 1)
+        sb = _seccion(self.mod, 2)
+        PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=sa,
+            orden=1,
+            titulo='Enunciado',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='¿Cuál es el principal objetivo?',
+        )
+        PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=sb,
+            orden=2,
+            titulo='Opciones',
+            tipo=PasoModulo.TIPO_EVAL_OPC,
+            contenido='Elige:',
+            eval_opcion_a='Informar',
+            eval_opcion_b='Vender',
+            respuesta_correcta='A',
+        )
+        self.mod.secciones_por_listo = 1
+        self.mod.save(update_fields=['secciones_por_listo'])
+        reset_progreso_pasos_modulo(self.prog, save=True)
+        msg = entregar_bloque_secciones_desde_paso(self.prog, self.mod, 1)
+        self.assertIn('¿Cuál es el principal objetivo?', msg)
+        self.assertIn('*A*)', msg)
+        self.assertIn('*B*)', msg)
+        self.prog.refresh_from_db()
+        self.assertTrue(self.prog.esperando_respuesta_evaluacion_paso)
+
+
+class InscripcionModuloCeroConPasosTests(TestCase):
+    """Módulo 0 con pasos: el contenido del módulo debe enviarse junto a la inscripción."""
+
+    def setUp(self):
+        self.curso = Curso.objects.create(
+            nombre='Curso mod0 pasos',
+            descripcion='d',
+            dias_espera_entre_modulos=0,
+            usar_agentes_ia=False,
+        )
+        self.m0 = Modulo.objects.create(
+            curso=self.curso,
+            numero=0,
+            titulo='Bienvenida',
+            descripcion='d',
+            contenido='CONTENIDO_EDUCATIVO_MODULO_CERO',
+            duracion_dias=7,
+            modo_entrega=Modulo.MODO_ENTREGA_PASOS,
+        )
+        Modulo.objects.create(
+            curso=self.curso,
+            numero=1,
+            titulo='Uno',
+            descripcion='d',
+            contenido='x',
+            duracion_dias=7,
+        )
+        s1 = _seccion(self.m0, 1)
+        PasoModulo.objects.create(
+            modulo=self.m0,
+            seccion=s1,
+            orden=1,
+            titulo='Micro',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='TEXTO_MICRO_PASO',
+        )
+        self.est = Estudiante.objects.create(
+            cedula='11223344',
+            nombre='Mod Cero',
+            telefono='5730011223344',
+        )
+
+    def test_inscripcion_incluye_contenido_modulo_cero_antes_de_pasos(self):
+        r = get_response_for_intent(
+            'inscribir_curso',
+            self.est.nombre,
+            estudiante_id=self.est.id,
+            mensaje_original='1',
+        )
+        self.assertIn('CONTENIDO_EDUCATIVO_MODULO_CERO', r)
+        self.assertIn('TEXTO_MICRO_PASO', r)
+        self.assertIn('📖 *0.', r)
+
+
+class InscripcionConPasosSinContenidoModuloMuestraAgentesTests(TestCase):
+    """Si el contenido legacy del módulo está vacío pero hay pasos, igual deben verse tutor y asistente."""
+
+    def setUp(self):
+        self.curso = Curso.objects.create(
+            nombre='Curso solo pasos vacío',
+            descripcion='d',
+            dias_espera_entre_modulos=0,
+            usar_agentes_ia=False,
+        )
+        self.m1 = Modulo.objects.create(
+            curso=self.curso,
+            numero=1,
+            titulo='Solo pasos',
+            descripcion='d',
+            contenido='',
+            duracion_dias=7,
+            modo_entrega=Modulo.MODO_ENTREGA_PASOS,
+        )
+        s1 = _seccion(self.m1, 1)
+        PasoModulo.objects.create(
+            modulo=self.m1,
+            seccion=s1,
+            orden=1,
+            titulo='Paso',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='BLOQUE_PASO_UNICO',
+        )
+        self.est = Estudiante.objects.create(
+            cedula='55664433',
+            nombre='Sin Legacy',
+            telefono='573009887766',
+        )
+
+    def test_facilitadora_y_asistente_en_multimsg(self):
+        r = get_response_for_intent(
+            'inscribir_curso',
+            self.est.nombre,
+            estudiante_id=self.est.id,
+            mensaje_original='1',
+        )
+        self.assertIn('Facilitadora', r)
+        self.assertIn('compañero de estudio', r)
+        self.assertIn('BLOQUE_PASO_UNICO', r)
+
+
+class RetoModulosCoberturaTests(TestCase):
+    """Regresión: reto Darío con checkpoint en módulo < 4 debe incluir módulos hasta ese número."""
+
+    def setUp(self):
+        self.curso = Curso.objects.create(
+            nombre='Curso reto cobertura',
+            descripcion='d',
+            dias_espera_entre_modulos=0,
+            usar_agentes_ia=True,
+        )
+        self.m1 = Modulo.objects.create(
+            curso=self.curso,
+            numero=1,
+            titulo='A',
+            descripcion='',
+            contenido='',
+            duracion_dias=7,
+        )
+        self.m2 = Modulo.objects.create(
+            curso=self.curso,
+            numero=2,
+            titulo='B',
+            descripcion='',
+            contenido='',
+            duracion_dias=7,
+        )
+
+    def test_checkpoint_modulo_2_incluye_hasta_2(self):
+        from core.tutor_ia_modulo import (
+            descripcion_rango_modulos_reto_esp,
+            listar_modulos_cobertura_reto,
+        )
+
+        rows = listar_modulos_cobertura_reto(self.m2, self.curso)
+        self.assertEqual([r.numero for r in rows], [1, 2])
+        self.assertEqual(descripcion_rango_modulos_reto_esp(rows), 'los módulos 1 a 2')
+
+    def test_checkpoint_modulo_5_ventana_desde_4(self):
+        from core.tutor_ia_modulo import listar_modulos_cobertura_reto
+
+        m3 = Modulo.objects.create(
+            curso=self.curso,
+            numero=3,
+            titulo='C',
+            descripcion='',
+            contenido='',
+            duracion_dias=7,
+        )
+        m4 = Modulo.objects.create(
+            curso=self.curso,
+            numero=4,
+            titulo='D',
+            descripcion='',
+            contenido='',
+            duracion_dias=7,
+        )
+        m5 = Modulo.objects.create(
+            curso=self.curso,
+            numero=5,
+            titulo='E',
+            descripcion='',
+            contenido='',
+            duracion_dias=7,
+        )
+        rows = listar_modulos_cobertura_reto(m5, self.curso)
+        self.assertEqual([r.numero for r in rows], [4, 5])
+        self.assertNotIn(3, [r.numero for r in rows])
+
+
+class CheckpointIgnoraDripFinModulo1Tests(TestCase):
+    """
+    Tras varios microcontenidos + última eval ABCD en módulo 1, con drip activo,
+    debe entrar el checkpoint (Darío) y no devolver solo el mensaje de pausa drip.
+    """
+
+    def setUp(self):
+        self.curso = Curso.objects.create(
+            nombre='Curso drip vs checkpoint',
+            descripcion='d',
+            dias_espera_entre_modulos=7,
+            usar_agentes_ia=True,
+        )
+        self.m1 = Modulo.objects.create(
+            curso=self.curso,
+            numero=1,
+            titulo='Módulo uno',
+            descripcion='d',
+            contenido='legacy',
+            duracion_dias=7,
+            modo_entrega=Modulo.MODO_ENTREGA_PASOS,
+        )
+        self.m2 = Modulo.objects.create(
+            curso=self.curso,
+            numero=2,
+            titulo='Módulo dos',
+            descripcion='d',
+            contenido='sig',
+            duracion_dias=7,
+        )
+        self.est = Estudiante.objects.create(
+            cedula='11223344',
+            nombre='Est DripCk',
+            telefono='5730011223344',
+        )
+        self.prog = ProgresoEstudiante.objects.create(
+            estudiante=self.est,
+            curso=self.curso,
+            modulo_actual=self.m1,
+        )
+
+    def test_fin_modulo_1_con_pasos_y_eval_abcd_drip_no_bloquea_agentes(self):
+        from core.models import PasoModulo
+        from core.module_steps import reset_progreso_pasos_modulo
+        from core.response_templates import get_response_for_intent
+
+        s1 = _seccion(self.m1, 1, 'Sección')
+        for i, txt in enumerate(['Micro 1', 'Micro 2', 'Micro 3'], start=1):
+            PasoModulo.objects.create(
+                modulo=self.m1,
+                seccion=s1,
+                orden=i,
+                titulo=f'Paso {i}',
+                tipo=PasoModulo.TIPO_CONTENIDO,
+                contenido=txt,
+            )
+        PasoModulo.objects.create(
+            modulo=self.m1,
+            seccion=s1,
+            orden=4,
+            titulo='Eval ABCD',
+            tipo=PasoModulo.TIPO_EVAL_OPC,
+            contenido='Pregunta final',
+            opciones_json={'A': 'Uno', 'B': 'Dos', 'correcta': 'B'},
+        )
+        reset_progreso_pasos_modulo(self.prog, save=True)
+        self.prog.paso_actual_modulo = 5
+        self.prog.esperando_respuesta_evaluacion_paso = False
+        self.prog.save(
+            update_fields=[
+                'paso_actual_modulo',
+                'esperando_respuesta_evaluacion_paso',
+                'paso_evaluacion_paso',
+            ]
+        )
+
+        r = get_response_for_intent(
+            'continuar_leccion',
+            self.est.nombre,
+            estudiante_id=self.est.id,
+            mensaje_original='listo',
+        )
+        self.assertNotIn('Tu próxima lección se desbloquea el', r)
+        self.assertIn('pausa para repasar', r.lower())
+        self.assertIn('Darío', r)
+
+        self.est.refresh_from_db()
+        self.assertEqual(self.est.estado_onboarding, 'esperando_respuesta_asistente')
+
+    def test_sin_checkpoint_si_ia_off_drip_sigue_apegado(self):
+        from core.models import PasoModulo
+        from core.module_steps import reset_progreso_pasos_modulo
+        from core.response_templates import get_response_for_intent
+
+        self.curso.usar_agentes_ia = False
+        self.curso.save(update_fields=['usar_agentes_ia'])
+
+        s1 = _seccion(self.m1, 1, 'S')
+        PasoModulo.objects.create(
+            modulo=self.m1,
+            seccion=s1,
+            orden=1,
+            titulo='P1',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='x',
+        )
+        reset_progreso_pasos_modulo(self.prog, save=True)
+        self.prog.paso_actual_modulo = 2
+        self.prog.save(update_fields=['paso_actual_modulo', 'paso_evaluacion_paso'])
+
+        r = get_response_for_intent(
+            'continuar_leccion',
+            self.est.nombre,
+            estudiante_id=self.est.id,
+            mensaje_original='listo',
+        )
+        self.assertIn('Tu próxima lección se desbloquea el', r)
+
+
+@override_settings(TWILIO_ACCOUNT_SID='', TWILIO_AUTH_TOKEN='')
+class RetoFacilitadoraRespetaDripTests(TestCase):
+    """Tras evaluar el reto de la facilitadora (no final), debe aplicar drip antes de puntero→módulo 2."""
+
+    def setUp(self):
+        self.curso = Curso.objects.create(
+            nombre='Curso reto + drip',
+            descripcion='d',
+            dias_espera_entre_modulos=7,
+            usar_agentes_ia=True,
+        )
+        self.m1 = Modulo.objects.create(
+            curso=self.curso,
+            numero=1,
+            titulo='M1',
+            descripcion='d',
+            contenido='c',
+            duracion_dias=7,
+        )
+        self.m2 = Modulo.objects.create(
+            curso=self.curso,
+            numero=2,
+            titulo='M2',
+            descripcion='d',
+            contenido='sig',
+            duracion_dias=7,
+        )
+        self.est = Estudiante.objects.create(
+            cedula='99887766',
+            nombre='Est Reto Drip',
+            telefono='5730099988776',
+            acepto_terminos=True,
+            estado_chat='ACTIVO',
+        )
+        self.prog = ProgresoEstudiante.objects.create(
+            estudiante=self.est,
+            curso=self.curso,
+            modulo_actual=self.m1,
+        )
+
+    def _webhook_reto(self, body='respuesta al reto de prueba', sid_suffix='a'):
+        from core.views import _procesar_twilio_webhook
+
+        _procesar_twilio_webhook(
+            {
+                'Body': body,
+                'From': 'whatsapp:+5730099988776',
+                'To': 'whatsapp:+14155238886',
+                'MessageSid': f'SM_test_reto_drip_{sid_suffix}',
+                'NumMedia': '0',
+            }
+        )
+
+    @patch('core.tutor_ia_modulo.evaluar_reto_facilitador', return_value=(8, 'Feedback reto'))
+    def test_con_drip_no_adelanta_modulo_actual(self, _mock_eval):
+        ModuloCompletado.objects.create(progreso=self.prog, modulo=self.m1)
+        self.prog.fecha_ultimo_avance = timezone.now() - timedelta(days=1)
+        self.prog.save(update_fields=['fecha_ultimo_avance'])
+
+        self.est.estado_onboarding = 'esperando_respuesta_reto'
+        self.est.contexto_temporal = {
+            'tipo': 'reto_facilitador',
+            'modulos_reto_ids': [self.m1.id],
+            'reto_texto': 'Describa X',
+            'progreso_id': self.prog.id,
+            'es_final': False,
+        }
+        self.est.save(update_fields=['estado_onboarding', 'contexto_temporal'])
+
+        self._webhook_reto(sid_suffix='drip')
+
+        self.prog.refresh_from_db()
+        self.est.refresh_from_db()
+        self.assertEqual(self.prog.modulo_actual_id, self.m1.id)
+        self.assertEqual(self.est.estado_onboarding, 'completado')
+        self.assertNotIn('post_reto_entregar_modulo_id', self.est.contexto_temporal or {})
+
+    @patch('core.tutor_ia_modulo.evaluar_reto_facilitador', return_value=(7, 'OK'))
+    def test_sin_espera_entre_modulos_sigue_avanzando_puntero(self, _mock_eval):
+        self.curso.dias_espera_entre_modulos = 0
+        self.curso.save(update_fields=['dias_espera_entre_modulos'])
+        ModuloCompletado.objects.create(progreso=self.prog, modulo=self.m1)
+        self.prog.fecha_ultimo_avance = timezone.now()
+        self.prog.save(update_fields=['fecha_ultimo_avance'])
+
+        self.est.estado_onboarding = 'esperando_respuesta_reto'
+        self.est.contexto_temporal = {
+            'tipo': 'reto_facilitador',
+            'modulos_reto_ids': [self.m1.id],
+            'reto_texto': 'Describa Y',
+            'progreso_id': self.prog.id,
+            'es_final': False,
+        }
+        self.est.save(update_fields=['estado_onboarding', 'contexto_temporal'])
+
+        self._webhook_reto(sid_suffix='nodrip')
+
+        self.prog.refresh_from_db()
+        self.est.refresh_from_db()
+        self.assertEqual(self.prog.modulo_actual_id, self.m2.id)
+        self.assertEqual(
+            (self.est.contexto_temporal or {}).get('post_reto_entregar_modulo_id'),
+            self.m2.id,
+        )

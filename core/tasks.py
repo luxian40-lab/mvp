@@ -328,3 +328,31 @@ def enviar_email_org_admin_async(self, estudiante_id, asunto, mensaje_html):
     except Exception as exc:
         logger.error(f"[Celery] Error enviando email para estudiante {estudiante_id}: {exc}")
         raise self.retry(exc=exc)
+
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=120, time_limit=3600, soft_time_limit=3300)
+def indexar_documento_rag_por_id(self, app_label: str, model_name: str, object_id: int):
+    """
+    Indexa un DocumentoRAG o DocumentoRAGComercial fuera del ciclo HTTP del admin.
+    Evita 504 cuando el embedding / Chroma tarda más que nginx/ALB/gunicorn.
+    """
+    from django.apps import apps
+
+    Model = apps.get_model(app_label, model_name)
+    try:
+        doc = Model.objects.get(pk=object_id)
+    except Model.DoesNotExist:
+        logger.warning("[Celery][RAG] Documento %s.%s id=%s no existe", app_label, model_name, object_id)
+        return {"error": "not_found"}
+
+    if not doc.archivo:
+        logger.warning("[Celery][RAG] Documento id=%s sin archivo", object_id)
+        return {"skipped": True}
+
+    try:
+        n = doc.indexar()
+        logger.info("[Celery][RAG] Indexado %s.%s id=%s -> %s chunks", app_label, model_name, object_id, n)
+        return {"chunks": n, "id": object_id}
+    except Exception as exc:
+        logger.exception("[Celery][RAG] Error indexando %s.%s id=%s", app_label, model_name, object_id)
+        raise self.retry(exc=exc)

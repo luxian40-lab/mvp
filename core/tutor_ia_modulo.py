@@ -140,6 +140,43 @@ def cargar_modulos_reto(modulos_reto_ids, curso_id=None):
     return rows
 
 
+def listar_modulos_cobertura_reto(modulo_actual, curso):
+    """
+    Lista de módulos (instancias) que abarca el reto Darío/Claudia según el módulo-checkpoint.
+
+    Antes: solo `numero == 3` usaba módulos <=3; cualquier otro checkpoint con número < 4
+    caía en `numero__gte=4`, devolviendo lista vacía (p. ej. facilitador_checkpoint=Sí en módulo 1 o 2).
+    Ahora: si el checkpoint es hasta el módulo 3 (incl.), se toman todos los del curso con
+    numero <= ese número; si es mayor, se mantiene la ventana 4..N.
+    """
+    if not modulo_actual or not curso:
+        return []
+    try:
+        n_act = int(modulo_actual.numero)
+    except (TypeError, ValueError):
+        n_act = 0
+    if n_act <= 3:
+        rows = list(curso.modulos.filter(numero__lte=n_act).order_by('numero'))
+    else:
+        rows = list(
+            curso.modulos.filter(numero__gte=4, numero__lte=n_act).order_by('numero')
+        )
+    if not rows:
+        rows = [modulo_actual]
+    return rows
+
+
+def descripcion_rango_modulos_reto_esp(modulos_reto) -> str:
+    """Frase para el mensaje de Darío (reemplaza 'los 3 primeros' / '4 a N' fijos)."""
+    if not modulos_reto:
+        return 'el contenido que venís viendo'
+    lo = modulos_reto[0].numero
+    hi = modulos_reto[-1].numero
+    if lo == hi:
+        return f'el módulo {lo}'
+    return f'los módulos {lo} a {hi}'
+
+
 def generar_reto_facilitador(modulos_cubiertos, curso_nombre, estudiante_nombre="Estudiante",
                               preguntas_ejemplo="") -> str:
     """

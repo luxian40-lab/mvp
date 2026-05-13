@@ -350,6 +350,10 @@ def debe_activar_checkpoint_reto_ia(numero_modulo: int, total_modulos: int, usar
     """
     Punto único de verdad: tras qué módulos activar compañero + facilitadora (reto).
     Debe coincidir con la rama de examen en views (esperando_respuesta_modulo).
+
+    Incluye el cierre del módulo 1 para que el primer corte pedagógico (Darío + facilitadora)
+    no quede siempre hasta el módulo 3. El admin puede desactivar por módulo con
+    Modulo.facilitador_checkpoint = «No».
     """
     if not usar_agentes_ia_curso:
         return False
@@ -361,7 +365,8 @@ def debe_activar_checkpoint_reto_ia(numero_modulo: int, total_modulos: int, usar
         and not es_ultimo_modulo
     )
     return (
-        numero_modulo == 3
+        numero_modulo == 1
+        or numero_modulo == 3
         or (numero_modulo == total_modulos and total_modulos >= 5)
         or es_modulo_intermedio_post5
     )

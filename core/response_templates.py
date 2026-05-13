@@ -14,6 +14,45 @@ from .helpers_examenes import es_modulo_checkpoint_reto_ia
 logger = logging.getLogger(__name__)
 
 
+def _es_mensaje_listo_avance_curso(texto: str) -> bool:
+    """Igual que en webhook: *listo*, Listo, LISTO cuentan como avance de lección."""
+    t = (texto or '').strip().lower().replace('*', '').strip()
+    return t == 'listo'
+
+
+def partes_presentacion_agentes_curso(estudiante, curso) -> list:
+    """
+    Bloques de texto tutor + asistente (+ gamificación según cliente), sin prefijo [MULTI_MSG].
+    Lista vacía si el curso no usa agentes IA.
+    """
+    if not getattr(curso, 'usar_agentes_ia', True):
+        return []
+    from .tutor_ia_modulo import generar_presentacion_agentes
+
+    nombre_tutor = curso.nombre_agente_tutor or 'Gerónimo'
+    nombre_asistente = curso.nombre_agente_asistente or 'María'
+    msg_facilitador, msg_asistente = generar_presentacion_agentes(
+        curso.nombre,
+        estudiante_nombre=getattr(estudiante, 'nombre', None) or 'Estudiante',
+        nombre_tutor=nombre_tutor,
+        nombre_asistente=nombre_asistente,
+    )
+    partes = [msg_facilitador, msg_asistente]
+    cliente_obj = getattr(estudiante, 'cliente', None)
+    usar_gamificacion = (
+        bool(getattr(cliente_obj, 'usar_gamificacion', True))
+        if cliente_obj is not None
+        else True
+    )
+    if usar_gamificacion:
+        partes.append(
+            '🎮 *Nuestra experiencia de formación funciona a través de puntos*\n\n'
+            'A medida que avances en el curso, tendrás retos que evaluar.\n\n'
+            '¡Vamos a aprender y avanzar juntos! 💪'
+        )
+    return partes
+
+
 def _barra_progreso(porcentaje: int) -> str:
     """Genera barra de progreso visual para WhatsApp."""
     llenas = int(porcentaje / 10)
@@ -21,21 +60,9 @@ def _barra_progreso(porcentaje: int) -> str:
     return "▓" * llenas + "░" * vacias
 
 
-def _formatear_fecha_desbloqueo(fecha):
-    """Formatea fecha de desbloqueo para WhatsApp."""
-    if hasattr(fecha, 'hour'):
-        return timezone.localtime(fecha).strftime('%d/%m/%Y')
-    return fecha.strftime('%d/%m/%Y')
-
-
 def _mensaje_bloqueo_drip(fecha_desbloqueo):
-    return (
-        "🌱 *¡Excelente energía!*\n\n"
-        "Estamos preparando tu siguiente sesión; aún no enviamos el siguiente módulo para que puedas asimilar lo aprendido.\n\n"
-        f"Tu próxima lección se desbloquea el *{_formatear_fecha_desbloqueo(fecha_desbloqueo)}*.\n"
-        "Mientras tanto, repasa el material del módulo que acabas de completar.\n\n"
-        "Cuando llegue esa fecha, responde *listo* y seguimos automáticamente."
-    )
+    from .drip_schedule import format_mensaje_bloqueo_drip
+    return format_mensaje_bloqueo_drip(fecha_desbloqueo)
 
 
 def _mensaje_pregunta_abierta_final(pregunta_texto):
@@ -934,72 +961,73 @@ Te inscribiste en: *{curso.nombre}*
         if not archivos_multimedia_1.exists() and video_url_modulo:
             primera_media_url_1 = video_url_modulo
 
-        # Divide module content into safe chunks
-        contenido = primer_modulo.contenido
+        # Texto legacy del módulo (puede estar vacío si todo va en PasoModulo)
+        contenido = primer_modulo.contenido or ''
         chunks = dividir_contenido_seguro(contenido, max_chars=1500)
-        
-        # Build header for module
+
         modulo_header = f"📖 *{primer_modulo.numero}. {primer_modulo.titulo}*\n\n"
-        
-        # Combine header with first chunk
-        if chunks:
-            from .module_steps import (
-                modulo_usa_pasos,
-                pasos_activos_qs,
-                reset_progreso_pasos_modulo,
-                entregar_bloque_secciones_desde_paso,
-                log_y_mensaje_modo_pasos_sin_pasos,
+
+        from .module_steps import (
+            modulo_usa_pasos,
+            pasos_activos_qs,
+            reset_progreso_pasos_modulo,
+            entregar_bloque_secciones_desde_paso,
+            log_y_mensaje_modo_pasos_sin_pasos,
+        )
+
+        from .models import Cliente
+        cliente_obj = None
+        try:
+            if estudiante and hasattr(estudiante, 'telefono'):
+                cliente_obj = Cliente.objects.filter(estudiantes=estudiante).first()
+        except Exception:
+            pass
+        usar_gamificacion = (cliente_obj.usar_gamificacion if cliente_obj else True) if cliente_obj else True
+        msg_gamificacion = ""
+        if usar_gamificacion:
+            msg_gamificacion = (
+                "🎮 *Nuestra experiencia de formación funciona a través de puntos*\n\n"
+                "A medida que avances en el curso, tendrás retos que evaluar.\n\n"
+                "¡Vamos a aprender y avanzar juntos! 💪"
             )
+        partes_intro = [mensaje_1]
+        partes_intro.append(msg_geronimo)
+        partes_intro.append(msg_maria)
+        if msg_gamificacion:
+            partes_intro.append(msg_gamificacion)
+        partes_intro.append("📚 *Comenzamos con el primer módulo de tu curso...* 👇")
+        msg_intro = "\n\n".join(partes_intro)
 
-            from .models import Cliente
-            cliente_obj = None
-            try:
-                if estudiante and hasattr(estudiante, 'telefono'):
-                    cliente_obj = Cliente.objects.filter(estudiantes=estudiante).first()
-            except Exception:
-                pass
-            usar_gamificacion = (cliente_obj.usar_gamificacion if cliente_obj else True) if cliente_obj else True
-            msg_gamificacion = ""
-            if usar_gamificacion:
-                msg_gamificacion = (
-                    "🎮 *Nuestra experiencia de formación funciona a través de puntos*\n\n"
-                    "A medida que avances en el curso, tendrás retos que evaluar.\n"
-                    "💰 *Puntos* que obtendrás al superar cada reto\n\n"
-                    "¡Vamos a aprender y avanzar juntos! 💪"
+        if modulo_usa_pasos(primer_modulo):
+            if not pasos_activos_qs(primer_modulo).exists():
+                _fb_ins = log_y_mensaje_modo_pasos_sin_pasos(
+                    primer_modulo, 'inscripcion_primer_modulo'
                 )
-            partes_intro = [mensaje_1]
-            partes_intro.append(msg_geronimo)
-            partes_intro.append(msg_maria)
-            if msg_gamificacion:
-                partes_intro.append(msg_gamificacion)
-            partes_intro.append("📚 *Comenzamos con el primer módulo de tu curso...* 👇")
-            msg_intro = "\n\n".join(partes_intro)
+                return '[MULTI_MSG]' + msg_intro + '[SEP]' + _fb_ins
+            partes_bloque_mod0: list[str] = []
+            if primer_modulo.numero == 0 and (primer_modulo.contenido or '').strip():
+                chunks0 = dividir_contenido_seguro(primer_modulo.contenido, max_chars=1500)
+                if chunks0:
+                    mensaje_mod0 = modulo_header + chunks0[0]
+                    for chunk in chunks0[1:]:
+                        if len(mensaje_mod0) + len(chunk) + 4 < 1500:
+                            mensaje_mod0 += "\n\n" + chunk
+                        else:
+                            break
+                    partes_bloque_mod0.append(mensaje_mod0)
+            reset_progreso_pasos_modulo(progreso, save=True)
+            msg_pasos = entregar_bloque_secciones_desde_paso(progreso, primer_modulo, 1)
+            cuerpo_p = msg_pasos[len('[MULTI_MSG]') :]
+            partes_insc = [msg_intro] + partes_bloque_mod0 + [p for p in cuerpo_p.split('[SEP]') if p]
+            logger.info(
+                "📚 [pasos] inscripción con pasos internos | estudiante_id=%s curso_id=%s",
+                estudiante.id,
+                curso.id,
+            )
+            return '[MULTI_MSG]' + '[SEP]'.join(partes_insc)
 
-            if modulo_usa_pasos(primer_modulo):
-                if not pasos_activos_qs(primer_modulo).exists():
-                    _fb_ins = log_y_mensaje_modo_pasos_sin_pasos(
-                        primer_modulo, 'inscripcion_primer_modulo'
-                    )
-                    return '[MULTI_MSG]' + msg_intro + '[SEP]' + _fb_ins
-                reset_progreso_pasos_modulo(progreso, save=True)
-                msg_pasos = entregar_bloque_secciones_desde_paso(progreso, primer_modulo, 1)
-                cuerpo_p = msg_pasos[len('[MULTI_MSG]') :]
-                partes_insc = [msg_intro] + [p for p in cuerpo_p.split('[SEP]') if p]
-                hay_mas_modulos_p = curso.modulos.filter(numero__gt=primer_modulo.numero).exists()
-                if hay_mas_modulos_p and not progreso.esperando_respuesta_evaluacion_paso:
-                    partes_insc.append(
-                        "Tómese su tiempo para ver el material. En cuanto termine, solo responda *listo* para continuar."
-                    )
-                logger.info(
-                    "📚 [pasos] inscripción con pasos internos | estudiante_id=%s curso_id=%s",
-                    estudiante.id,
-                    curso.id,
-                )
-                return '[MULTI_MSG]' + '[SEP]'.join(partes_insc)
-
+        if chunks:
             mensaje_modulo = modulo_header + chunks[0]
-
-            # If there are more chunks, combine them
             if len(chunks) > 1:
                 remaining_chunks = chunks[1:]
                 for chunk in remaining_chunks:
@@ -1007,33 +1035,31 @@ Te inscribiste en: *{curso.nombre}*
                         mensaje_modulo += "\n\n" + chunk
                     else:
                         break
-
-            # v1.9.8: No mostrar labels de archivos en el texto del módulo (se envían como mensajes separados)
-            # v1.9.6: inscripción → … → módulo texto → video(s) → "escribe listo"
-            partes_insc = [msg_intro, mensaje_modulo]
-            hay_media_insc = False
-            if primera_media_url_1:
-                partes_insc.append(f"[MEDIA:{primera_media_url_1}]")
-                hay_media_insc = True
-            for extra_url_1, extra_titulo_1, extra_icono_1 in extra_media_urls_1:
-                partes_insc.append(f"[MEDIA:{extra_url_1}]")
-                hay_media_insc = True
-            if hay_media_insc:
-                # [DELAY:5] para que WhatsApp entregue videos antes de texto
-                partes_insc.append("[DELAY:5]")
-            # Mensaje "listo" solo si hay más módulos después del primero
-            hay_mas_modulos = curso.modulos.filter(numero__gt=primer_modulo.numero).exists()
-            if hay_mas_modulos:
-                partes_insc.append("Tómese su tiempo para ver el material. Mientras usted aprende, aquí iremos organizando los recursos del siguiente nivel. En cuanto termine, solo responda *listo* para continuar.")
-            
-            return "[MULTI_MSG]" + "[SEP]".join(partes_insc)
         else:
-            # Fallback (shouldn't happen)
-            return f"""✅ {curso.emoji} ¡Inscripción exitosa!
+            desc = (primer_modulo.descripcion or '').strip()
+            mensaje_modulo = modulo_header + (
+                desc if desc else '📚 Continuamos con el material de esta unidad.'
+            )
 
-Te inscribiste en: {curso.nombre}
+        # v1.9.8: labels de archivos no van en el texto (se envían como mensajes aparte)
+        partes_insc = [msg_intro, mensaje_modulo]
+        hay_media_insc = False
+        if primera_media_url_1:
+            partes_insc.append(f"[MEDIA:{primera_media_url_1}]")
+            hay_media_insc = True
+        for extra_url_1, extra_titulo_1, extra_icono_1 in extra_media_urls_1:
+            partes_insc.append(f"[MEDIA:{extra_url_1}]")
+            hay_media_insc = True
+        if hay_media_insc:
+            partes_insc.append("[DELAY:5]")
+        hay_mas_modulos = curso.modulos.filter(numero__gt=primer_modulo.numero).exists()
+        if hay_mas_modulos:
+            partes_insc.append(
+                "Tómese su tiempo para ver el material. Mientras usted aprende, aquí iremos organizando "
+                "los recursos del siguiente nivel. En cuanto termine, solo responda *listo* para continuar."
+            )
 
-Escribe "continuar" para empezar el primer módulo."""
+        return "[MULTI_MSG]" + "[SEP]".join(partes_insc)
     
     # Continuar con lección
     if intent == 'continuar_leccion':
@@ -1194,7 +1220,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
         _ctx_reto = dict(estudiante.contexto_temporal or {})
         _post_reto_mid = _ctx_reto.get('post_reto_entregar_modulo_id')
         primero_listo_sin_ver_modulo = (
-            msg_norm == 'listo'
+            _es_mensaje_listo_avance_curso(msg_norm)
             and _post_reto_mid
             and modulo_actual
             and modulo_actual.id == _post_reto_mid
@@ -1204,30 +1230,19 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             msg_norm = ''
         
         # Regla estricta del curso: solo "listo" avanza.
-        if msg_norm == 'listo':
-            # Drip Content: bloquear avance según curso y override por cliente
-            from .drip_schedule import dias_espera_efectivos, fecha_desbloqueo_drip
+        if _es_mensaje_listo_avance_curso(msg_norm):
+            from .drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
 
-            dias_drip = dias_espera_efectivos(estudiante, progreso.curso)
-            logger.info(
-                "🧪 [drip-check] estudiante_id=%s curso_id=%s curso=%s dias_curso=%s dias_efectivos=%s modulo_actual=%s fecha_ultimo_avance=%s",
-                estudiante.id,
-                progreso.curso_id,
-                progreso.curso.nombre,
-                getattr(progreso.curso, 'dias_espera_entre_modulos', None),
-                dias_drip,
-                getattr(modulo_actual, 'numero', None),
-                progreso.fecha_ultimo_avance,
-            )
-            if dias_drip > 0:
-                ya_completo_modulo = ModuloCompletado.objects.filter(
-                    progreso=progreso,
-                    modulo=modulo_actual
-                ).exists()
-                if ya_completo_modulo and progreso.fecha_ultimo_avance:
-                    fecha_desbloqueo = fecha_desbloqueo_drip(progreso.fecha_ultimo_avance, dias_drip)
-                    if fecha_desbloqueo and timezone.localdate() < fecha_desbloqueo:
-                        return _mensaje_bloqueo_drip(fecha_desbloqueo)
+            ya_completo_modulo = ModuloCompletado.objects.filter(
+                progreso=progreso,
+                modulo=modulo_actual
+            ).exists()
+            if ya_completo_modulo and progreso.fecha_ultimo_avance:
+                _blk = mensaje_bloqueo_avance_siguiente_modulo(
+                    estudiante, progreso, modulo_actual
+                )
+                if _blk:
+                    return _blk
 
             from .module_steps import (
                 modulo_usa_pasos,
@@ -1327,30 +1342,42 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             ).order_by('numero').first()
             
             if siguiente_modulo:
-                # Regla de negocio drip: al completar un módulo, puede quedar en pausa antes de liberar el siguiente.
-                # Esta validación evita que el primer "listo" entregue de inmediato el siguiente módulo.
-                if dias_drip > 0 and progreso.fecha_ultimo_avance:
-                    fecha_desbloqueo = fecha_desbloqueo_drip(progreso.fecha_ultimo_avance, dias_drip)
-                    if fecha_desbloqueo and timezone.localdate() < fecha_desbloqueo:
-                        logger.info(
-                            "⏳ [drip-block] estudiante_id=%s curso_id=%s modulo_actual=%s siguiente_modulo=%s desbloqueo=%s",
-                            estudiante.id,
-                            progreso.curso_id,
-                            getattr(modulo_actual, 'numero', None),
-                            getattr(siguiente_modulo, 'numero', None),
-                            fecha_desbloqueo,
-                        )
-                        return _mensaje_bloqueo_drip(fecha_desbloqueo)
+                from .drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
 
                 total_modulos = progreso.curso.modulos.count()
                 usar_ia_curso = bool(getattr(progreso.curso, 'usar_agentes_ia', True))
                 es_modulo_reto = es_modulo_checkpoint_reto_ia(
                     modulo_actual, total_modulos, usar_ia_curso
                 )
-                
-                # v1.9.8j: If reto module but already completed (post-reto "listo"), skip reto
                 if es_modulo_reto and modulo_ya_completado:
                     es_modulo_reto = False
+
+                _blk_fin = mensaje_bloqueo_avance_siguiente_modulo(
+                    estudiante, progreso, modulo_actual
+                )
+                # Checkpoint: compañero + facilitadora al cerrar el módulo — no lo bloquea el drip.
+                if _blk_fin and not es_modulo_reto:
+                    logger.info(
+                        "⏳ [drip-block] estudiante_id=%s curso_id=%s modulo_actual=%s siguiente_modulo=%s",
+                        estudiante.id,
+                        progreso.curso_id,
+                        getattr(modulo_actual, 'numero', None),
+                        getattr(siguiente_modulo, 'numero', None),
+                    )
+                    return _blk_fin
+
+                _cp_pref = getattr(modulo_actual, 'facilitador_checkpoint', None)
+                logger.info(
+                    '🎯 [checkpoint-leccion] curso=%s mod_cerrado_num=%s total_mod=%s usar_ia=%s '
+                    'facilitador_checkpoint=%s -> es_reto=%s | est=%s',
+                    progreso.curso_id,
+                    getattr(modulo_actual, 'numero', None),
+                    total_modulos,
+                    usar_ia_curso,
+                    _cp_pref,
+                    es_modulo_reto,
+                    estudiante.id,
+                )
                 
                 if not es_modulo_reto:
                     try:
@@ -1436,7 +1463,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 # NO embeber media en msg_modulo — enviar video como mensaje separado después del texto
                 # primera_media_url y extra_media_urls se agregan como partes separadas más abajo
                 
-                # v1.9.8h: Agentes — Darío (módulo 3 y último) + Facilitadora después
+                # v1.9.8h: Agentes — Darío (checkpoints: ej. módulos 1, 3, último si curso largo, …) + Facilitadora después
                 _cliente = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
                 nombre_tutor = (
                     (_cliente.nombre_agente_tutor if _cliente and hasattr(_cliente, 'nombre_agente_tutor') and _cliente.nombre_agente_tutor else '') or
@@ -1450,12 +1477,21 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 dario_msg = None
                 
                 if es_modulo_reto:
-                    # v1.9.8i: Reto module — show ONLY Darío (no completado msg, no next module)
-                    if modulo_actual.numero == 3:
-                        modulos_reto_range = "los 3 primeros módulos"
-                    else:
-                        modulos_reto_range = f"los módulos 4 a {modulo_actual.numero}"
-                    
+                    logger.info(
+                        '🎯 [checkpoint-reto] activo | est=%s curso_id=%s modulo_cerrado_id=%s num=%s',
+                        estudiante.id,
+                        progreso.curso_id,
+                        modulo_actual.id,
+                        modulo_actual.numero,
+                    )
+                    from .tutor_ia_modulo import (
+                        descripcion_rango_modulos_reto_esp,
+                        listar_modulos_cobertura_reto,
+                    )
+
+                    modulos_reto = listar_modulos_cobertura_reto(modulo_actual, progreso.curso)
+                    modulos_reto_range = descripcion_rango_modulos_reto_esp(modulos_reto)
+
                     dario_msg = (
                         f"💬 *{nombre_asistente}*\n\n"
                         f"¡Hola! Es hora de una pausa para repasar conceptos. "
@@ -1463,13 +1499,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                         f"Te puedo ayudar a resolver un par de preguntas antes. "
                         f"¿Tienes alguna pregunta sobre lo que hemos visto? Envíame un audio o escríbeme; si no tienes preguntas, escribe *listo*."
                     )
-                    
-                    from .models import Modulo
-                    if modulo_actual.numero == 3:
-                        modulos_reto = list(progreso.curso.modulos.filter(numero__lte=3).order_by('numero'))
-                    else:
-                        modulos_reto = list(progreso.curso.modulos.filter(numero__gte=4, numero__lte=modulo_actual.numero).order_by('numero'))
-                    
+
                     _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
                     estudiante.contexto_temporal = {
                         'tipo': 'asistente_dario',
