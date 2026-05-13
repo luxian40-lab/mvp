@@ -192,7 +192,7 @@ class RAGClienteCurso:
 
     @staticmethod
     def _extraer_xlsx(ruta: str) -> str:
-        """Excel: openpyxl en modo lectura; filas como TSV para RAG (precios, SKUs, columnas)."""
+        """Excel: filas como texto con encabezados (mejor para embeddings y precios por producto)."""
         try:
             from openpyxl import load_workbook
 
@@ -200,17 +200,35 @@ class RAGClienteCurso:
             blocks: list[str] = []
             try:
                 for sheet in wb.worksheets:
-                    blocks.append(f'## Hoja: {sheet.title}')
+                    blocks.append(f"## Hoja: {sheet.title}")
+                    header: list[str] | None = None
                     for row in sheet.iter_rows(values_only=True):
                         cells = [
-                            str(c).strip() if c is not None and str(c).strip() != '' else ''
-                            for c in row
+                            str(c).strip() if c is not None and str(c).strip() != "" else ""
+                            for c in (row or ())
                         ]
-                        if any(x for x in cells):
-                            blocks.append('\t'.join(cells))
+                        if not any(cells):
+                            continue
+                        if header is None:
+                            header = cells
+                            blocks.append("ENCABEZADOS: " + " | ".join(header))
+                            continue
+                        n = max(len(header), len(cells))
+                        pairs: list[str] = []
+                        for i in range(n):
+                            h = header[i] if i < len(header) else ""
+                            v = cells[i] if i < len(cells) else ""
+                            if not h and not v:
+                                continue
+                            if h and v:
+                                pairs.append(f"{h}: {v}")
+                            elif v:
+                                pairs.append(v)
+                        if pairs:
+                            blocks.append("FILA | " + " ; ".join(pairs))
             finally:
                 wb.close()
-            return '\n'.join(blocks)
+            return "\n".join(blocks)
         except Exception as e:
             logger.error(f"[RAG] Error XLSX/XLSM: {e}")
             return ""

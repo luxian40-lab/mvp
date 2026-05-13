@@ -1742,7 +1742,9 @@ def _bot_comercial_respuesta_catalogo(
             "Hablá natural, como una asesora de eki.\n"
             "Si la consulta parece error de tipeo o no tiene sentido agronómico, "
             "ofrecé 1–2 interpretaciones plausibles con '¿Quiso decir ...?' y pedí confirmación "
-            "antes de dar conclusiones fuertes."
+            "antes de dar conclusiones fuertes.\n"
+            "Si INFORMACION OFICIAL incluye listas o datos tipo Excel (producto, precio, dosis), "
+            "usá solo esas cifras y nombres; si no aparecen ahí, no inventes precios ni productos."
         )
         modelo = str(getattr(settings, 'BOT_COMERCIAL_OPENAI_MODEL', '') or 'gpt-4o-mini')
         try:
@@ -2089,25 +2091,29 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                 if c and c not in canales_consulta:
                     canales_consulta.append(c)
 
-            for cid in cliente_ids_consulta:
-                for canal in canales_consulta:
-                    rag_max = int(getattr(settings, 'BOT_COMERCIAL_RAG_MAX_CHARS', 1600) or 1600)
-                    rag_max = max(400, min(rag_max, 4000))
-                    contexto_rag = rag_comercial_manager.obtener_contexto_para_bot(
-                        cliente_id=cid,
-                        canal=canal,
-                        pregunta=consulta,
-                        max_chars=rag_max,
-                    )
-                    if contexto_rag:
-                        logger.info(
-                            "🧠 RAG comercial usado | cliente_id=%s | canal=%s | contexto_chars=%s",
-                            cid,
-                            canal,
-                            len(contexto_rag),
-                        )
-                        break
+            rag_max = int(getattr(settings, 'BOT_COMERCIAL_RAG_MAX_CHARS', 1600) or 1600)
+            rag_max = max(400, min(rag_max, 4000))
+            try:
+                top_k = int(getattr(settings, 'BOT_COMERCIAL_RAG_TOP_K', 8) or 8)
+            except (TypeError, ValueError):
+                top_k = 8
+            top_k = max(3, min(top_k, 20))
+
+            for canal in canales_consulta:
+                contexto_rag = rag_comercial_manager.obtener_contexto_varios_clientes(
+                    cliente_ids_consulta,
+                    canal,
+                    consulta,
+                    max_chars=rag_max,
+                    top_k_por_scope=top_k,
+                )
                 if contexto_rag:
+                    logger.info(
+                        "🧠 RAG comercial unificado | canal=%s | contexto_chars=%s | clientes=%s",
+                        canal,
+                        len(contexto_rag),
+                        cliente_ids_consulta,
+                    )
                     break
 
         if not contexto_rag:

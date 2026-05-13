@@ -3,7 +3,7 @@ Manager para RAG comercial.
 Aísla el conocimiento de ventas/catálogo del RAG educativo de cursos.
 """
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -57,14 +57,104 @@ class RAGComercialManager:
         pregunta: str,
         max_chars: int = 2200,
     ) -> str:
-        rag = self.obtener_rag(cliente_id, canal)
-        if not rag:
+        """Un solo scope (compatibilidad). Preferir `obtener_contexto_varios_clientes` en el webhook."""
+        return self.obtener_contexto_varios_clientes(
+            [int(cliente_id or 0)],
+            canal,
+            pregunta,
+            max_chars=max_chars,
+        )
+
+    def obtener_contexto_varios_clientes(
+        self,
+        cliente_ids: Sequence[int],
+        canal: str,
+        pregunta: str,
+        max_chars: int = 2200,
+        top_k_por_scope: int = 8,
+    ) -> str:
+        """
+        Une búsquedas semánticas en varios scopes (ej. cliente configurado + catálogo general id=0).
+
+        Antes el webhook paraba en el primer cliente con *algún* hit en Chroma, aunque fuera
+        irrelevante, y nunca llegaba al Excel indexado en otro scope (típico: General vs cliente).
+        """
+        if not self.disponible or not (pregunta or "").strip():
             return ""
+
         try:
-            return rag.obtener_contexto_rag(pregunta, max_chars=max_chars)
-        except Exception as e:
-            logger.warning(f"[RAGComercial] Error obteniendo contexto: {e}")
+            top_k_por_scope = int(top_k_por_scope)
+        except (TypeError, ValueError):
+            top_k_por_scope = 8
+        top_k_por_scope = max(3, min(top_k_por_scope, 20))
+
+        orden_ids: List[int] = []
+        for raw in cliente_ids or []:
+            try:
+                cid = int(raw)
+            except (TypeError, ValueError):
+                continue
+            if cid not in orden_ids:
+                orden_ids.append(cid)
+
+        if not orden_ids:
             return ""
+
+        por_cliente: Dict[int, List[dict]] = {}
+        for cid in orden_ids:
+            rag = self.obtener_rag(cid, canal)
+            if not rag:
+                continue
+            try:
+                por_cliente[cid] = rag.buscar(pregunta, top_k=top_k_por_scope)
+            except Exception as e:
+                logger.warning("[RAGComercial] buscar falló cliente_id=%s canal=%s: %s", cid, canal, e)
+                por_cliente[cid] = []
+
+        vistos: set[str] = set()
+        fragmentos: List[str] = []
+        chars = 0
+        ronda = 0
+        salir = False
+        while chars < max_chars and ronda < top_k_por_scope + 5 and not salir:
+            avance = False
+            for cid in orden_ids:
+                hits = por_cliente.get(cid) or []
+                if ronda >= len(hits):
+                    continue
+                d = hits[ronda]
+                contenido = (d.get("contenido") or "").strip()
+                if len(contenido) < 12:
+                    continue
+                firma = contenido[:400]
+                if firma in vistos:
+                    continue
+                vistos.add(firma)
+                fuente = (d.get("fuente") or "documento").strip()
+                alcance = "catálogo general eki" if cid == 0 else f"material cliente {cid}"
+                frag = f"[Fuente: {fuente} — {alcance}]\n{contenido}"
+                if chars + len(frag) + 20 > max_chars:
+                    salir = True
+                    break
+                fragmentos.append(frag)
+                chars += len(frag)
+                avance = True
+            if salir:
+                break
+            if not avance:
+                break
+            ronda += 1
+            if chars >= int(max_chars * 0.98):
+                break
+
+        if not fragmentos:
+            return ""
+
+        return (
+            "\n\n📚 INFORMACIÓN COMERCIAL INDEXADA (prioridad para precios, catálogo, condiciones):\n"
+            + "\n---\n".join(fragmentos)
+            + "\n\n⚠️ REGLA: Priorizá estos datos sobre conocimiento general; no inventes cifras, productos ni precios.\n"
+        )
 
     def procesar_documento(
         self,

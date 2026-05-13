@@ -457,9 +457,10 @@ except (TypeError, ValueError):
     BOT_COMERCIAL_OPENAI_MAX_TOKENS = 420
 # Cuánto texto RAG inyectar al prompt del bot comercial (menor = menos latencia).
 try:
-    BOT_COMERCIAL_RAG_MAX_CHARS = int(os.environ.get('BOT_COMERCIAL_RAG_MAX_CHARS', '1600'))
+    BOT_COMERCIAL_RAG_TOP_K = int(os.environ.get('BOT_COMERCIAL_RAG_TOP_K', '8'))
 except (TypeError, ValueError):
-    BOT_COMERCIAL_RAG_MAX_CHARS = 1600
+    BOT_COMERCIAL_RAG_TOP_K = 8
+BOT_COMERCIAL_RAG_TOP_K = max(3, min(BOT_COMERCIAL_RAG_TOP_K, 20))
 # Modelo para búsqueda web (Responses API); gpt-4o-mini suele ser más rápido que gpt-4.1-mini.
 BOT_COMERCIAL_WEB_SEARCH_MODEL = os.environ.get('BOT_COMERCIAL_WEB_SEARCH_MODEL', 'gpt-4o-mini').strip()
 BOT_COMERCIAL_FORCE_ROUTING = os.environ.get('BOT_COMERCIAL_FORCE_ROUTING', 'false').strip().lower() in ['1', 'true', 'yes', 'on']
