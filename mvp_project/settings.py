@@ -700,8 +700,9 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE  # Usa la misma zona horaria de Django
 CELERY_TASK_TRACK_STARTED = True
-CELERY_TASK_TIME_LIMIT = 300  # 5 minutos máximo por tarea
-CELERY_TASK_SOFT_TIME_LIMIT = 240  # 4 minutos soft limit
+# Indexación RAG / XLSX puede superar 5 min; override por env en EB si hace falta.
+CELERY_TASK_TIME_LIMIT = int(os.environ.get('CELERY_TASK_TIME_LIMIT', '3600'))
+CELERY_TASK_SOFT_TIME_LIMIT = int(os.environ.get('CELERY_TASK_SOFT_TIME_LIMIT', '3300'))
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # Para distribución justa de tareas
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 

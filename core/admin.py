@@ -10,7 +10,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.admin import helpers
 from django.urls import path, reverse
-from django.db import models  # ✅ Para usar Q() en queries
+from django.db import models, transaction  # Q(), atomic/on_commit
 from django.db.models import Count  # ✅ Para agregaciones
 from django.conf import settings  # ✅ Para acceder a settings
 import openpyxl
@@ -2596,9 +2596,12 @@ class CursoAdmin(admin.ModelAdmin):
                 if not instance.subido_por_id:
                     instance.subido_por = request.user
                 instance.save()
-                # Auto-indexar documentos nuevos
+                # Auto-indexar documentos nuevos (Celery tras commit; evita 504 en admin)
                 if instance.estado == 'pendiente' and instance.archivo:
-                    instance.indexar()
+                    if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
+                        instance.indexar()
+                    else:
+                        _enqueue_indexar_rag_task('DocumentoRAG', instance.pk)
             else:
                 instance.save()
         formset.save_m2m()
@@ -5987,26 +5990,34 @@ class CampanaB2BAdmin(admin.ModelAdmin):
 # �📚 ADMIN DE DOCUMENTOS RAG
 # ========================================
 
+def _enqueue_indexar_rag_task(model_class_name: str, pk: int):
+    """Registra indexación en Celery después del commit (archivo/DB visibles para el worker)."""
+
+    def _run():
+        try:
+            from core.tasks import indexar_documento_rag_por_id
+
+            indexar_documento_rag_por_id.delay('core', model_class_name, pk)
+        except Exception:
+            logger.exception('[RAG] Fallo encolando %s id=%s', model_class_name, pk)
+
+    transaction.on_commit(_run)
+
+
 def _encolar_o_indexar_rag_doc(request, modeladmin, model_class_name: str, obj):
     """
     La indexación RAG puede superar el timeout de nginx/ALB; en producción
-    se delega a Celery cuando el broker está disponible.
+    se delega a Celery. No se indexa en línea si falla Redis: evita 504 y deja el doc en pendiente.
     """
     if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
         return obj.indexar()
-    try:
-        from core.tasks import indexar_documento_rag_por_id
-
-        indexar_documento_rag_por_id.delay('core', model_class_name, obj.pk)
-        modeladmin.message_user(
-            request,
-            'La indexación RAG se ejecuta en segundo plano; actualiza el listado en unos minutos para ver el estado.',
-            messages.INFO,
-        )
-        return None
-    except Exception as exc:
-        logger.warning('[RAG] No se pudo encolar indexación (%s); se indexa en línea.', exc)
-        return obj.indexar()
+    _enqueue_indexar_rag_task(model_class_name, obj.pk)
+    modeladmin.message_user(
+        request,
+        'La indexación RAG se ejecuta en segundo plano; actualiza el listado en unos minutos para ver el estado.',
+        messages.INFO,
+    )
+    return None
 
 
 @admin.register(DocumentoRAG)
@@ -6077,14 +6088,9 @@ class DocumentoRAGAdmin(admin.ModelAdmin):
         eager = getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False)
         for doc in queryset.filter(estado='pendiente'):
             if not eager:
-                try:
-                    from core.tasks import indexar_documento_rag_por_id
-
-                    indexar_documento_rag_por_id.delay('core', 'DocumentoRAG', doc.pk)
-                    queued += 1
-                    continue
-                except Exception as exc:
-                    logger.warning('[RAG] Encolado falló (%s); indexando en línea.', exc)
+                _enqueue_indexar_rag_task('DocumentoRAG', doc.pk)
+                queued += 1
+                continue
             n = doc.indexar()
             if n > 0:
                 ok += 1
@@ -6105,14 +6111,9 @@ class DocumentoRAGAdmin(admin.ModelAdmin):
             doc.estado = 'pendiente'
             doc.save(update_fields=['estado'])
             if not eager:
-                try:
-                    from core.tasks import indexar_documento_rag_por_id
-
-                    indexar_documento_rag_por_id.delay('core', 'DocumentoRAG', doc.pk)
-                    queued += 1
-                    continue
-                except Exception as exc:
-                    logger.warning('[RAG] Encolado falló (%s); reindex en línea.', exc)
+                _enqueue_indexar_rag_task('DocumentoRAG', doc.pk)
+                queued += 1
+                continue
             n = doc.indexar()
             if n > 0:
                 ok += 1
@@ -6214,14 +6215,9 @@ class DocumentoRAGComercialAdmin(admin.ModelAdmin):
         eager = getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False)
         for doc in queryset.filter(estado='pendiente'):
             if not eager:
-                try:
-                    from core.tasks import indexar_documento_rag_por_id
-
-                    indexar_documento_rag_por_id.delay('core', 'DocumentoRAGComercial', doc.pk)
-                    queued += 1
-                    continue
-                except Exception as exc:
-                    logger.warning('[RAG comercial] Encolado falló (%s); indexando en línea.', exc)
+                _enqueue_indexar_rag_task('DocumentoRAGComercial', doc.pk)
+                queued += 1
+                continue
             n = doc.indexar()
             if n > 0:
                 ok += 1
@@ -6242,14 +6238,9 @@ class DocumentoRAGComercialAdmin(admin.ModelAdmin):
             doc.estado = 'pendiente'
             doc.save(update_fields=['estado'])
             if not eager:
-                try:
-                    from core.tasks import indexar_documento_rag_por_id
-
-                    indexar_documento_rag_por_id.delay('core', 'DocumentoRAGComercial', doc.pk)
-                    queued += 1
-                    continue
-                except Exception as exc:
-                    logger.warning('[RAG comercial] Encolado falló (%s); reindex en línea.', exc)
+                _enqueue_indexar_rag_task('DocumentoRAGComercial', doc.pk)
+                queued += 1
+                continue
             n = doc.indexar()
             if n > 0:
                 ok += 1
