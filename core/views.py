@@ -1389,29 +1389,39 @@ def _bot_comercial_sin_contexto_natural(pregunta: str) -> str:
     )
 
 
-def _extraer_texto_archivo_simple(ruta_archivo: str) -> str:
-    """Extracción liviana de texto para fallback cuando RAG vectorial no retorna contexto."""
+def _extraer_texto_archivo_simple(ruta_archivo: str, *, xlsx_max_rows=None) -> str:
+    """Extracción liviana de texto para fallback cuando RAG vectorial no retorna contexto.
+
+    xlsx_max_rows: en Excel limita filas extraídas (evita bloquear Gunicorn con hojas enormes).
+    """
     import os
 
     ext = os.path.splitext(ruta_archivo)[1].lower()
     try:
         if ext == '.txt':
             with open(ruta_archivo, 'r', encoding='utf-8', errors='ignore') as f:
-                return f.read()
+                t = f.read()
+                return t[:120000]
         if ext == '.pdf':
             from PyPDF2 import PdfReader
 
             reader = PdfReader(ruta_archivo)
-            return "\n".join((p.extract_text() or "") for p in reader.pages)
+            parts = []
+            for i, p in enumerate(reader.pages):
+                if i >= 45:
+                    break
+                parts.append(p.extract_text() or "")
+            return "\n".join(parts)[:120000]
         if ext == '.docx':
             from docx import Document
 
             doc = Document(ruta_archivo)
-            return "\n".join(p.text for p in doc.paragraphs)
+            return "\n".join(p.text for p in doc.paragraphs)[:80000]
         if ext in ('.xlsx', '.xlsm'):
             from core.rag_eki_multitenant import RAGClienteCurso
 
-            return (RAGClienteCurso._extraer_xlsx(ruta_archivo) or '').strip()
+            mr = xlsx_max_rows if xlsx_max_rows is not None else None
+            return (RAGClienteCurso._extraer_xlsx(ruta_archivo, max_rows=mr) or '').strip()[:120000]
     except Exception:
         return ""
     return ""
@@ -1446,14 +1456,17 @@ def _contexto_fallback_desde_documentos(cliente_ids: list, pregunta: str, max_ch
                 default=1,
                 output_field=IntegerField(),
             )
-        ).order_by('_catprio', '-fecha_indexado', '-fecha_subida')[:20]
+        ).order_by('_catprio', '-fecha_indexado', '-fecha_subida')[:12]
     else:
-        qs = base_qs.order_by('-fecha_indexado', '-fecha_subida')[:20]
+        qs = base_qs.order_by('-fecha_indexado', '-fecha_subida')[:8]
 
     fragmentos = []
     chars_total = 0
+    docs_procesados = 0
     ya_extracto_general = False
     for doc in qs:
+        if docs_procesados >= 8:
+            break
         try:
             ruta = doc.archivo.path
         except Exception:
@@ -1461,7 +1474,8 @@ def _contexto_fallback_desde_documentos(cliente_ids: list, pregunta: str, max_ch
         if not ruta:
             continue
 
-        texto = _extraer_texto_archivo_simple(ruta)
+        texto = _extraer_texto_archivo_simple(ruta, xlsx_max_rows=3200)
+        docs_procesados += 1
         if not texto:
             continue
 

@@ -166,7 +166,7 @@ class RAGComercialManager:
                 rag = self.obtener_rag(cid, canal)
                 if not rag:
                     continue
-                for d in rag.muestreo_documentos(16):
+                for d in rag.muestreo_documentos(10):
                     contenido = (d.get("contenido") or "").strip()
                     if len(contenido) < 12:
                         continue

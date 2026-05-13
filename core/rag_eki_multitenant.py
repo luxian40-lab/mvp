@@ -6,7 +6,7 @@ Curso 1 NO puede ver documentos de Curso 2.
 """
 import os
 import logging
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -191,18 +191,33 @@ class RAGClienteCurso:
             return ""
 
     @staticmethod
-    def _extraer_xlsx(ruta: str) -> str:
-        """Excel: filas como texto con encabezados (mejor para embeddings y precios por producto)."""
+    def _extraer_xlsx(ruta: str, max_rows: Optional[int] = None) -> str:
+        """Excel: filas como texto con encabezados (mejor para embeddings y precios por producto).
+
+        max_rows: si se define, limita líneas indexadas/extraídas (ahorra CPU en lecturas web).
+        """
         try:
             from openpyxl import load_workbook
 
+            lim: Optional[int] = None
+            if max_rows is not None:
+                try:
+                    lim = max(50, int(max_rows))
+                except (TypeError, ValueError):
+                    lim = None
+
             wb = load_workbook(ruta, read_only=True, data_only=True)
             blocks: list[str] = []
+            written = 0
             try:
                 for sheet in wb.worksheets:
+                    if lim is not None and written >= lim:
+                        break
                     blocks.append(f"## Hoja: {sheet.title}")
                     header: list[str] | None = None
                     for row in sheet.iter_rows(values_only=True):
+                        if lim is not None and written >= lim:
+                            break
                         cells = [
                             str(c).strip() if c is not None and str(c).strip() != "" else ""
                             for c in (row or ())
@@ -212,6 +227,7 @@ class RAGClienteCurso:
                         if header is None:
                             header = cells
                             blocks.append("ENCABEZADOS: " + " | ".join(header))
+                            written += 1
                             continue
                         n = max(len(header), len(cells))
                         pairs: list[str] = []
@@ -226,6 +242,9 @@ class RAGClienteCurso:
                                 pairs.append(v)
                         if pairs:
                             blocks.append("FILA | " + " ; ".join(pairs))
+                            written += 1
+                    if lim is not None and written >= lim:
+                        break
             finally:
                 wb.close()
             return "\n".join(blocks)
