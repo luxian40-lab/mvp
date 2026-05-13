@@ -1408,6 +1408,10 @@ def _extraer_texto_archivo_simple(ruta_archivo: str) -> str:
 
             doc = Document(ruta_archivo)
             return "\n".join(p.text for p in doc.paragraphs)
+        if ext in ('.xlsx', '.xlsm'):
+            from core.rag_eki_multitenant import RAGClienteCurso
+
+            return (RAGClienteCurso._extraer_xlsx(ruta_archivo) or '').strip()
     except Exception:
         return ""
     return ""
@@ -1419,14 +1423,36 @@ def _contexto_fallback_desde_documentos(cliente_ids: list, pregunta: str, max_ch
     from .models import DocumentoRAGComercial
     import re
 
-    tokens = [t for t in re.findall(r"[a-zA-ZáéíóúñÁÉÍÓÚÑ0-9]{4,}", (pregunta or '').lower())][:10]
+    tokens = [t for t in re.findall(r"[a-zA-ZáéíóúñÁÉÍÓÚÑ0-9]{3,}", (pregunta or '').lower())][:12]
 
-    qs = DocumentoRAGComercial.objects.filter(estado='indexado').filter(
+    p_q = (pregunta or '').lower()
+    consulta_catalogo = bool(
+        re.search(
+            r'precio|precios|cotiz|lista|tarifa|valor|cu[aá]nto|cuesta|insumo|producto|'
+            r'cat[aá]logo|bulto|arroba|\bkg\b|kilo|dosis|paquete|mezcla|fertil|herbic|fungic',
+            p_q,
+        )
+    )
+
+    base_qs = DocumentoRAGComercial.objects.filter(estado='indexado').filter(
         Q(cliente_id__in=cliente_ids) | Q(cliente__isnull=True)
-    ).order_by('-fecha_indexado', '-fecha_subida')[:20]
+    )
+    if consulta_catalogo:
+        from django.db.models import Case, IntegerField, When
+
+        qs = base_qs.annotate(
+            _catprio=Case(
+                When(cliente__isnull=True, then=0),
+                default=1,
+                output_field=IntegerField(),
+            )
+        ).order_by('_catprio', '-fecha_indexado', '-fecha_subida')[:20]
+    else:
+        qs = base_qs.order_by('-fecha_indexado', '-fecha_subida')[:20]
 
     fragmentos = []
     chars_total = 0
+    ya_extracto_general = False
     for doc in qs:
         try:
             ruta = doc.archivo.path
@@ -1441,18 +1467,28 @@ def _contexto_fallback_desde_documentos(cliente_ids: list, pregunta: str, max_ch
 
         texto_norm = texto.lower()
         score = sum(1 for tk in tokens if tk in texto_norm)
-        if score <= 0 and tokens:
+        usar_extracto_inicial = (
+            consulta_catalogo
+            and doc.cliente_id is None
+            and score <= 0
+            and not ya_extracto_general
+        )
+        if score <= 0 and tokens and not usar_extracto_inicial:
             continue
 
         pos = 0
-        for tk in tokens:
-            p = texto_norm.find(tk)
-            if p >= 0:
-                pos = p
-                break
-
-        ini = max(0, pos - 260)
-        fin = min(len(texto), pos + 640)
+        if score > 0:
+            for tk in tokens:
+                p = texto_norm.find(tk)
+                if p >= 0:
+                    pos = p
+                    break
+        if usar_extracto_inicial:
+            ini, fin = 0, min(len(texto), 1600)
+            ya_extracto_general = True
+        else:
+            ini = max(0, pos - 260)
+            fin = min(len(texto), pos + 640)
         snippet = texto[ini:fin].strip().replace('\x00', ' ')
         if not snippet:
             continue

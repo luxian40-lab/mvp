@@ -3,6 +3,7 @@ Manager para RAG comercial.
 Aísla el conocimiento de ventas/catálogo del RAG educativo de cursos.
 """
 import logging
+import re
 from typing import Dict, List, Optional, Sequence
 
 logger = logging.getLogger(__name__)
@@ -13,6 +14,17 @@ try:
     _CHROMADB_OK = CHROMADB_DISPONIBLE
 except Exception:
     _CHROMADB_OK = False
+
+
+def _consulta_catalogo_comercial(pregunta: str) -> bool:
+    """Detecta intención de precios / listas / catálogo para activar refuerzos de recuperación."""
+    return bool(
+        re.search(
+            r"precio|precios|cotiz|lista|tarifa|valor|cu[aá]nto|cuesta|insumo|producto|"
+            r"cat[aá]logo|bulto|arroba|\bkg\b|kilo|dosis|paquete|mezcla|fertil|herbic|fungic",
+            (pregunta or "").lower(),
+        )
+    )
 
 
 class RAGComercialManager:
@@ -146,6 +158,60 @@ class RAGComercialManager:
             ronda += 1
             if chars >= int(max_chars * 0.98):
                 break
+
+        cat_q = _consulta_catalogo_comercial(pregunta)
+        if (not fragmentos) or (cat_q and chars < max(450, int(max_chars * 0.42))):
+            logger.info("[RAGComercial] refuerzo muestreo Chroma (catálogo o poco contexto vectorial)")
+            for cid in sorted(orden_ids, key=lambda x: (0 if x == 0 else 1, x)):
+                rag = self.obtener_rag(cid, canal)
+                if not rag:
+                    continue
+                for d in rag.muestreo_documentos(16):
+                    contenido = (d.get("contenido") or "").strip()
+                    if len(contenido) < 12:
+                        continue
+                    firma = contenido[:400]
+                    if firma in vistos:
+                        continue
+                    vistos.add(firma)
+                    fuente = (d.get("fuente") or "documento").strip()
+                    alcance = "catálogo general eki" if cid == 0 else f"material cliente {cid}"
+                    frag = f"[Fuente: {fuente} — {alcance} — extracto listado]\n{contenido}"
+                    if chars + len(frag) + 20 > max_chars:
+                        break
+                    fragmentos.append(frag)
+                    chars += len(frag)
+                if chars >= int(max_chars * 0.98):
+                    break
+
+        if not fragmentos:
+            amplia = f"{pregunta}\n\nPalabras clave: lista de precios productos insumos catálogo comercial venta."
+            for cid in sorted(orden_ids, key=lambda x: (0 if x == 0 else 1, x)):
+                rag = self.obtener_rag(cid, canal)
+                if not rag:
+                    continue
+                try:
+                    hits_amp = rag.buscar(amplia, top_k=top_k_por_scope)
+                except Exception as e:
+                    logger.warning("[RAGComercial] búsqueda ampliada falló cliente_id=%s: %s", cid, e)
+                    hits_amp = []
+                for d in hits_amp:
+                    contenido = (d.get("contenido") or "").strip()
+                    if len(contenido) < 12:
+                        continue
+                    firma = contenido[:400]
+                    if firma in vistos:
+                        continue
+                    vistos.add(firma)
+                    fuente = (d.get("fuente") or "documento").strip()
+                    alcance = "catálogo general eki" if cid == 0 else f"material cliente {cid}"
+                    frag = f"[Fuente: {fuente} — {alcance}]\n{contenido}"
+                    if chars + len(frag) + 20 > max_chars:
+                        break
+                    fragmentos.append(frag)
+                    chars += len(frag)
+                if fragmentos:
+                    break
 
         if not fragmentos:
             return ""

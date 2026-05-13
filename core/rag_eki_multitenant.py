@@ -305,6 +305,38 @@ class RAGClienteCurso:
             logger.error(f"[RAG] Error buscando: {e}")
             return []
 
+    def muestreo_documentos(self, limite: int = 12) -> List[Dict]:
+        """
+        Fragmentos almacenados sin query semántica (respaldo para listas/precios cuando el embedding no acierta).
+        """
+        try:
+            n = self.collection.count()
+            if n <= 0:
+                return []
+            limite = max(1, min(int(limite), n, 40))
+            raw = self.collection.get(limit=limite, include=["documents", "metadatas"])
+            docs_list = raw.get("documents") or []
+            metas_list = raw.get("metadatas") or []
+            if not docs_list:
+                return []
+            out: List[Dict] = []
+            for doc, meta in zip(docs_list, metas_list):
+                if not doc or not str(doc).strip():
+                    continue
+                meta = meta or {}
+                out.append(
+                    {
+                        "contenido": str(doc).strip(),
+                        "fuente": meta.get("source", "documento"),
+                        "tipo": meta.get("tipo", ""),
+                        "similitud": 0.0,
+                    }
+                )
+            return out
+        except Exception as e:
+            logger.error("[RAG] Error muestreo_documentos: %s", e)
+            return []
+
     def obtener_contexto_rag(self, pregunta: str, max_chars: int = 2000) -> str:
         """
         Obtiene contexto RAG formateado para inyectar en prompts de IA.
