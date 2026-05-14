@@ -1,0 +1,81 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Inicio</a>
+  &rsaquo; <a href="{{ changelist_url }}">{{ opts.verbose_name_plural|capfirst }}</a>
+  &rsaquo; Subida masiva
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+
+<p style="max-width:720px;line-height:1.5;color:#444;">
+  Subí entre <strong>{{ min_files }}</strong> y <strong>{{ max_files }}</strong> archivos en una sola carga.
+  Cada archivo genera un <strong>documento comercial aparte</strong> en el RAG.
+  El <strong>nombre del documento</strong> se toma del nombre del archivo (sin extensión); si ya existe uno igual
+  para el mismo cliente y canal, el sistema agrega sufijos (<code>_2</code>, <code>_3</code>, …).
+</p>
+
+<p style="max-width:720px;font-size:13px;color:#666;">
+  Formatos admitidos: <code>{{ ext_help }}</code>
+</p>
+
+<form method="post" enctype="multipart/form-data" style="max-width:640px;margin-top:1.5rem;">
+  {% csrf_token %}
+
+  <fieldset class="module aligned">
+    <div class="form-row">
+      <label for="id_cliente">Cliente</label>
+      <select name="cliente" id="id_cliente" style="min-width:280px;">
+        <option value="">— General (sin cliente) —</option>
+        {% for c in clientes %}
+          <option value="{{ c.pk }}">{{ c.nombre }}</option>
+        {% endfor %}
+      </select>
+      <p class="help">Mismo cliente y canal para todos los archivos de esta tanda.</p>
+    </div>
+
+    <div class="form-row">
+      <label for="id_canal">Canal</label>
+      <select name="canal" id="id_canal" style="min-width:280px;">
+        {% for val, label in canal_choices %}
+          <option value="{{ val }}"{% if val == 'bot_comercial' %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-row">
+      <label for="id_tipo">Tipo de documento</label>
+      <select name="tipo" id="id_tipo" style="min-width:280px;">
+        {% for val, label in tipo_choices %}
+          <option value="{{ val }}"{% if val == 'general' %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-row">
+      <label for="id_descripcion">Descripción (opcional, común a todos)</label>
+      <textarea name="descripcion" id="id_descripcion" rows="3" style="width:100%;max-width:560px;"></textarea>
+    </div>
+
+    <div class="form-row">
+      <label for="id_archivos">Archivos</label>
+      <input type="file" name="archivos" id="id_archivos" multiple required accept=".pdf,.docx,.txt,.xlsx,.xlsm,.xls">
+      <p class="help">En el explorador podés seleccionar varios archivos a la vez (Ctrl/Cmd + clic).</p>
+    </div>
+  </fieldset>
+
+  <div class="submit-row" style="margin-top:1rem;">
+    <input type="submit" value="Crear documentos e indexar en segundo plano" class="default" style="background:#0369a1;">
+    <a href="{{ changelist_url }}" class="button" style="margin-left:8px;">Cancelar</a>
+  </div>
+</form>
+
+<p style="margin-top:2rem;">
+  <a href="{{ changelist_url }}">← Volver al listado de documentos comerciales</a>
+</p>
+{% endblock %}

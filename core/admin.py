@@ -6092,7 +6092,7 @@ def _enqueue_indexar_rag_task(model_class_name: str, pk: int):
     transaction.on_commit(_run)
 
 
-def _encolar_o_indexar_rag_doc(request, modeladmin, model_class_name: str, obj):
+def _encolar_o_indexar_rag_doc(request, modeladmin, model_class_name: str, obj, show_index_message=True):
     """
     La indexación RAG puede superar el timeout de nginx/ALB; en producción
     se delega a Celery. No se indexa en línea si falla Redis: evita 504 y deja el doc en pendiente.
@@ -6100,12 +6100,24 @@ def _encolar_o_indexar_rag_doc(request, modeladmin, model_class_name: str, obj):
     if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
         return obj.indexar()
     _enqueue_indexar_rag_task(model_class_name, obj.pk)
-    modeladmin.message_user(
-        request,
-        'La indexación RAG se ejecuta en segundo plano; actualiza el listado en unos minutos para ver el estado.',
-        messages.INFO,
-    )
+    if show_index_message:
+        modeladmin.message_user(
+            request,
+            'La indexación RAG se ejecuta en segundo plano; actualiza el listado en unos minutos para ver el estado.',
+            messages.INFO,
+        )
     return None
+
+
+# Subida masiva solo RAG comercial (varios archivos → un DocumentoRAGComercial por archivo).
+RAG_COMERCIAL_SUBIDA_MASIVA_MIN = 2
+RAG_COMERCIAL_SUBIDA_MASIVA_MAX = 15
+_RAG_COMERCIAL_EXT_OK = {'.pdf', '.docx', '.txt', '.xlsx', '.xlsm', '.xls'}
+
+
+def _extension_archivo_comercial_ok(nombre: str) -> bool:
+    ext = os.path.splitext((nombre or '').lower())[1]
+    return ext in _RAG_COMERCIAL_EXT_OK
 
 
 @admin.register(DocumentoRAG)
@@ -6256,6 +6268,7 @@ class DocumentoRAGComercialAdmin(admin.ModelAdmin):
     """🛒 Documentos del RAG comercial (aislado del educativo)."""
 
     form = DocumentoRAGComercialAdminForm
+    change_list_template = 'admin/documentoragcomercial_changelist.html'
     list_display = (
         'nombre',
         'cliente_display',
@@ -6271,6 +6284,22 @@ class DocumentoRAGComercialAdmin(admin.ModelAdmin):
     ordering = ('-fecha_subida',)
     readonly_fields = ('estado', 'chunks_indexados', 'fecha_subida', 'fecha_indexado', 'subido_por')
     actions = ['indexar_seleccionados', 'reindexar_seleccionados', 'eliminar_del_rag']
+
+    def get_urls(self):
+        info = self.model._meta.app_label, self.model._meta.model_name
+        custom = [
+            path(
+                'subida-masiva/',
+                self.admin_site.admin_view(self.subida_masiva_view),
+                name='%s_%s_subida_masiva' % info,
+            ),
+        ]
+        return custom + super().get_urls()
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['subida_masiva_max'] = RAG_COMERCIAL_SUBIDA_MASIVA_MAX
+        return super().changelist_view(request, extra_context)
 
     fieldsets = (
         ('📄 Documento Comercial', {
@@ -6316,6 +6345,120 @@ class DocumentoRAGComercialAdmin(admin.ModelAdmin):
             obj.get_estado_display(),
         )
     estado_rag_badge.short_description = 'Estado RAG'
+
+    def subida_masiva_view(self, request):
+        """Varios archivos → un documento comercial por archivo; el nombre sale del nombre del archivo."""
+        from django.core.exceptions import PermissionDenied
+
+        if not self.has_add_permission(request):
+            raise PermissionDenied
+
+        opts = self.model._meta
+        changelist_url = reverse('admin:%s_%s_changelist' % (opts.app_label, opts.model_name))
+
+        clientes = Cliente.objects.filter(activo=True).order_by('nombre')
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Subida masiva — RAG comercial',
+            'opts': opts,
+            'changelist_url': changelist_url,
+            'clientes': clientes,
+            'canal_choices': DocumentoRAGComercial.CANAL_CHOICES,
+            'tipo_choices': DocumentoRAGComercial.TIPO_CHOICES,
+            'min_files': RAG_COMERCIAL_SUBIDA_MASIVA_MIN,
+            'max_files': RAG_COMERCIAL_SUBIDA_MASIVA_MAX,
+            'ext_help': ', '.join(sorted(_RAG_COMERCIAL_EXT_OK)),
+        }
+
+        if request.method != 'POST':
+            return render(request, 'admin/subida_masiva_rag_comercial.html', context)
+
+        canal = (request.POST.get('canal') or 'bot_comercial').strip()
+        tipo = (request.POST.get('tipo') or 'general').strip()
+        descripcion = (request.POST.get('descripcion') or '').strip()
+        cliente_id = request.POST.get('cliente') or ''
+        cliente = None
+        if cliente_id:
+            try:
+                cliente = Cliente.objects.get(pk=int(cliente_id))
+            except (ValueError, TypeError, Cliente.DoesNotExist):
+                messages.error(request, 'Cliente inválido.')
+                return render(request, 'admin/subida_masiva_rag_comercial.html', context)
+
+        valid_canal = {c for c, _ in DocumentoRAGComercial.CANAL_CHOICES}
+        if canal not in valid_canal:
+            messages.error(request, 'Canal inválido.')
+            return render(request, 'admin/subida_masiva_rag_comercial.html', context)
+
+        valid_tipo = {t for t, _ in DocumentoRAGComercial.TIPO_CHOICES}
+        if tipo not in valid_tipo:
+            messages.error(request, 'Tipo de documento inválido.')
+            return render(request, 'admin/subida_masiva_rag_comercial.html', context)
+
+        archivos = request.FILES.getlist('archivos')
+        n = len(archivos)
+        if n < RAG_COMERCIAL_SUBIDA_MASIVA_MIN:
+            messages.error(
+                request,
+                f'Seleccioná al menos {RAG_COMERCIAL_SUBIDA_MASIVA_MIN} archivos (documentos separados).',
+            )
+            return render(request, 'admin/subida_masiva_rag_comercial.html', context)
+        if n > RAG_COMERCIAL_SUBIDA_MASIVA_MAX:
+            messages.error(
+                request,
+                f'Máximo {RAG_COMERCIAL_SUBIDA_MASIVA_MAX} archivos por carga. Dividí en varias tandas.',
+            )
+            return render(request, 'admin/subida_masiva_rag_comercial.html', context)
+
+        rechazados = []
+        for f in archivos:
+            if not _extension_archivo_comercial_ok(getattr(f, 'name', '') or ''):
+                rechazados.append(getattr(f, 'name', '?'))
+        if rechazados:
+            messages.error(
+                request,
+                'Extensión no permitida en: ' + ', '.join(rechazados[:12])
+                + (f' (+{len(rechazados) - 12} más)' if len(rechazados) > 12 else '')
+                + f'. Permitidos: {context["ext_help"]}',
+            )
+            return render(request, 'admin/subida_masiva_rag_comercial.html', context)
+
+        creados = []
+        try:
+            with transaction.atomic():
+                for f in archivos:
+                    nombre = _nombre_documento_desde_nombre_archivo(f.name)
+                    nombre = _nombre_rag_comercial_unico(cliente, canal, nombre)
+                    doc = DocumentoRAGComercial(
+                        cliente=cliente,
+                        canal=canal,
+                        nombre=nombre,
+                        archivo=f,
+                        tipo=tipo,
+                        descripcion=descripcion,
+                        subido_por=request.user,
+                        estado='pendiente',
+                    )
+                    doc.save()
+                    creados.append(doc)
+        except Exception:
+            logger.exception('[RAG comercial] Subida masiva falló')
+            messages.error(request, 'No se pudieron guardar los documentos. Revisá los logs o probá con menos archivos.')
+            return render(request, 'admin/subida_masiva_rag_comercial.html', context)
+
+        for doc in creados:
+            if doc.estado == 'pendiente' and doc.archivo:
+                _encolar_o_indexar_rag_doc(
+                    request, self, 'DocumentoRAGComercial', doc, show_index_message=False
+                )
+
+        messages.success(
+            request,
+            f'Se crearon {len(creados)} documentos comerciales. El título de cada uno es el nombre del archivo '
+            '(ajustado si ya existía). La indexación corre en segundo plano; refrescá el listado en unos minutos.',
+        )
+        return redirect(changelist_url)
 
     def save_model(self, request, obj, form, change):
         arch2 = form.cleaned_data.get('archivo_segundo') if form and hasattr(form, 'cleaned_data') else None
