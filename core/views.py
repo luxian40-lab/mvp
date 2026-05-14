@@ -1427,7 +1427,14 @@ def _extraer_texto_archivo_simple(ruta_archivo: str, *, xlsx_max_rows=None) -> s
     return ""
 
 
-def _contexto_fallback_desde_documentos(cliente_ids: list, pregunta: str, max_chars: int = 1800) -> str:
+def _contexto_fallback_desde_documentos(
+    cliente_ids: list,
+    pregunta: str,
+    max_chars: int = 1800,
+    *,
+    max_docs: int = 8,
+    xlsx_max_rows: int | None = 3200,
+) -> str:
     """Fallback semántico simple sobre documentos indexados para evitar respuestas vacías."""
     from django.db.models import Q
     from .models import DocumentoRAGComercial
@@ -1456,16 +1463,16 @@ def _contexto_fallback_desde_documentos(cliente_ids: list, pregunta: str, max_ch
                 default=1,
                 output_field=IntegerField(),
             )
-        ).order_by('_catprio', '-fecha_indexado', '-fecha_subida')[:12]
+        ).order_by('_catprio', '-fecha_indexado', '-fecha_subida')[: max(4, max_docs + 4)]
     else:
-        qs = base_qs.order_by('-fecha_indexado', '-fecha_subida')[:8]
+        qs = base_qs.order_by('-fecha_indexado', '-fecha_subida')[: max(4, max_docs + 2)]
 
     fragmentos = []
     chars_total = 0
     docs_procesados = 0
     ya_extracto_general = False
     for doc in qs:
-        if docs_procesados >= 8:
+        if docs_procesados >= max_docs:
             break
         try:
             ruta = doc.archivo.path
@@ -1474,7 +1481,7 @@ def _contexto_fallback_desde_documentos(cliente_ids: list, pregunta: str, max_ch
         if not ruta:
             continue
 
-        texto = _extraer_texto_archivo_simple(ruta, xlsx_max_rows=3200)
+        texto = _extraer_texto_archivo_simple(ruta, xlsx_max_rows=xlsx_max_rows)
         docs_procesados += 1
         if not texto:
             continue
@@ -2130,7 +2137,7 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                 DocumentoRAGComercial.objects.filter(estado='indexado')
                 .exclude(cliente_id__isnull=True)
                 .values_list('cliente_id', flat=True)
-                .distinct()[:20]
+                .distinct()[:6]
             )
             for cid in clientes_indexados:
                 if cid not in cliente_ids_consulta:
@@ -2166,13 +2173,17 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                     )
                     break
 
-        if not contexto_rag:
+        if not contexto_rag and getattr(settings, 'BOT_COMERCIAL_RAG_FILE_FALLBACK', True):
             rag_fb = int(getattr(settings, 'BOT_COMERCIAL_RAG_MAX_CHARS', 1600) or 1600)
             rag_fb = max(400, min(rag_fb + 200, 4000))
+            fb_docs = int(getattr(settings, 'BOT_COMERCIAL_RAG_FALLBACK_MAX_DOCS', 2) or 2)
+            fb_rows = int(getattr(settings, 'BOT_COMERCIAL_RAG_FALLBACK_XLSX_ROWS', 800) or 800)
             contexto_rag = _contexto_fallback_desde_documentos(
                 cliente_ids=cliente_ids_consulta,
                 pregunta=consulta,
                 max_chars=rag_fb,
+                max_docs=fb_docs,
+                xlsx_max_rows=fb_rows,
             )
             if contexto_rag:
                 logger.info("🧠 RAG fallback documental usado | contexto_chars=%s", len(contexto_rag))
