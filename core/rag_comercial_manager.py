@@ -160,13 +160,13 @@ class RAGComercialManager:
                 break
 
         cat_q = _consulta_catalogo_comercial(pregunta)
-        if (not fragmentos) or (cat_q and chars < max(280, int(max_chars * 0.72))):
+        if (not fragmentos) or (cat_q and chars < max(400, int(max_chars * 0.58))):
             logger.info("[RAGComercial] refuerzo muestreo Chroma (catálogo o poco contexto vectorial)")
             for cid in sorted(orden_ids, key=lambda x: (0 if x == 0 else 1, x)):
                 rag = self.obtener_rag(cid, canal)
                 if not rag:
                     continue
-                for d in rag.muestreo_documentos(6):
+                for d in rag.muestreo_documentos(10):
                     contenido = (d.get("contenido") or "").strip()
                     if len(contenido) < 12:
                         continue

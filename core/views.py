@@ -2137,7 +2137,7 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                 DocumentoRAGComercial.objects.filter(estado='indexado')
                 .exclude(cliente_id__isnull=True)
                 .values_list('cliente_id', flat=True)
-                .distinct()[:6]
+                .distinct()[:14]
             )
             for cid in clientes_indexados:
                 if cid not in cliente_ids_consulta:
