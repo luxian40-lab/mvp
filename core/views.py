@@ -2137,7 +2137,7 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                 DocumentoRAGComercial.objects.filter(estado='indexado')
                 .exclude(cliente_id__isnull=True)
                 .values_list('cliente_id', flat=True)
-                .distinct()[:14]
+                .distinct()[:16]
             )
             for cid in clientes_indexados:
                 if cid not in cliente_ids_consulta:
@@ -2148,12 +2148,12 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                 if c and c not in canales_consulta:
                     canales_consulta.append(c)
 
-            rag_max = int(getattr(settings, 'BOT_COMERCIAL_RAG_MAX_CHARS', 1600) or 1600)
+            rag_max = int(getattr(settings, 'BOT_COMERCIAL_RAG_MAX_CHARS', 2500) or 2500)
             rag_max = max(400, min(rag_max, 4000))
             try:
-                top_k = int(getattr(settings, 'BOT_COMERCIAL_RAG_TOP_K', 8) or 8)
+                top_k = int(getattr(settings, 'BOT_COMERCIAL_RAG_TOP_K', 9) or 9)
             except (TypeError, ValueError):
-                top_k = 8
+                top_k = 9
             top_k = max(3, min(top_k, 20))
 
             for canal in canales_consulta:

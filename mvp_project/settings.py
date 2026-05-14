@@ -457,14 +457,14 @@ except (TypeError, ValueError):
     BOT_COMERCIAL_OPENAI_MAX_TOKENS = 420
 # Cuánto texto RAG inyectar al prompt del bot comercial (menor = menos latencia).
 try:
-    BOT_COMERCIAL_RAG_TOP_K = int(os.environ.get('BOT_COMERCIAL_RAG_TOP_K', '8'))
+    BOT_COMERCIAL_RAG_TOP_K = int(os.environ.get('BOT_COMERCIAL_RAG_TOP_K', '9'))
 except (TypeError, ValueError):
-    BOT_COMERCIAL_RAG_TOP_K = 8
+    BOT_COMERCIAL_RAG_TOP_K = 9
 BOT_COMERCIAL_RAG_TOP_K = max(3, min(BOT_COMERCIAL_RAG_TOP_K, 20))
 try:
-    BOT_COMERCIAL_RAG_MAX_CHARS = int(os.environ.get('BOT_COMERCIAL_RAG_MAX_CHARS', '2200'))
+    BOT_COMERCIAL_RAG_MAX_CHARS = int(os.environ.get('BOT_COMERCIAL_RAG_MAX_CHARS', '2500'))
 except (TypeError, ValueError):
-    BOT_COMERCIAL_RAG_MAX_CHARS = 2200
+    BOT_COMERCIAL_RAG_MAX_CHARS = 2500
 BOT_COMERCIAL_RAG_MAX_CHARS = max(400, min(BOT_COMERCIAL_RAG_MAX_CHARS, 4000))
 # Fallback leyendo Excel/PDF en webhook; con t3.medium defaults más altos (bajar vía env si hace falta).
 BOT_COMERCIAL_RAG_FILE_FALLBACK = os.environ.get('BOT_COMERCIAL_RAG_FILE_FALLBACK', 'true').strip().lower() in (

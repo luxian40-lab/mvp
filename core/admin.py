@@ -41,6 +41,7 @@ from django.utils import timezone  # Para timestamps
 import logging
 from datetime import datetime
 import json
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -5987,8 +5988,95 @@ class CampanaB2BAdmin(admin.ModelAdmin):
 
 
 # ========================================
-# �📚 ADMIN DE DOCUMENTOS RAG
+# 📚 ADMIN DE DOCUMENTOS RAG
 # ========================================
+
+def _nombre_documento_desde_nombre_archivo(filename: str) -> str:
+    """Identificador a partir del archivo subido (sin extensión), máx. 200 caracteres."""
+    base = os.path.basename((filename or '').strip())
+    stem, _ext = os.path.splitext(base)
+    stem = (stem or base or 'documento').strip()
+    return stem[:200]
+
+
+def _nombre_rag_comercial_unico(cliente, canal: str, nombre_base: str, exclude_pk=None):
+    """Evita violar unique_together (cliente, canal, nombre)."""
+    nombre = nombre_base[:200]
+    q = DocumentoRAGComercial.objects.filter(canal=canal, nombre=nombre)
+    q = q.filter(cliente__isnull=True) if cliente is None else q.filter(cliente=cliente)
+    if exclude_pk:
+        q = q.exclude(pk=exclude_pk)
+    if not q.exists():
+        return nombre
+    for i in range(2, 200):
+        suf = f'_{i}'
+        candidato = (nombre_base[: 200 - len(suf)] + suf)[:200]
+        q2 = DocumentoRAGComercial.objects.filter(canal=canal, nombre=candidato)
+        q2 = q2.filter(cliente__isnull=True) if cliente is None else q2.filter(cliente=cliente)
+        if exclude_pk:
+            q2 = q2.exclude(pk=exclude_pk)
+        if not q2.exists():
+            return candidato
+    return (nombre_base[:190] + '_dup')[:200]
+
+
+def _nombre_rag_curso_unico(curso, nombre_base: str, exclude_pk=None):
+    nombre = nombre_base[:200]
+    q = DocumentoRAG.objects.filter(curso=curso, nombre=nombre)
+    if exclude_pk:
+        q = q.exclude(pk=exclude_pk)
+    if not q.exists():
+        return nombre
+    for i in range(2, 200):
+        suf = f'_{i}'
+        candidato = (nombre_base[: 200 - len(suf)] + suf)[:200]
+        q2 = DocumentoRAG.objects.filter(curso=curso, nombre=candidato)
+        if exclude_pk:
+            q2 = q2.exclude(pk=exclude_pk)
+        if not q2.exists():
+            return candidato
+    return (nombre_base[:190] + '_dup')[:200]
+
+
+class DocumentoRAGComercialAdminForm(forms.ModelForm):
+    archivo_segundo = forms.FileField(
+        required=False,
+        label='Segundo archivo (opcional)',
+        help_text='Mismo cliente, canal y tipo. Se crea otro documento y se indexa en segundo plano.',
+    )
+
+    class Meta:
+        model = DocumentoRAGComercial
+        fields = '__all__'
+
+    def clean(self):
+        data = super().clean()
+        archivo = data.get('archivo')
+        nombre = (data.get('nombre') or '').strip()
+        if archivo and not nombre:
+            data['nombre'] = _nombre_documento_desde_nombre_archivo(getattr(archivo, 'name', '') or '')
+        return data
+
+
+class DocumentoRAGAdminForm(forms.ModelForm):
+    archivo_segundo = forms.FileField(
+        required=False,
+        label='Segundo archivo (opcional)',
+        help_text='Mismo curso y tipo. Se crea otro documento y se indexa en segundo plano.',
+    )
+
+    class Meta:
+        model = DocumentoRAG
+        fields = '__all__'
+
+    def clean(self):
+        data = super().clean()
+        archivo = data.get('archivo')
+        nombre = (data.get('nombre') or '').strip()
+        if archivo and not nombre:
+            data['nombre'] = _nombre_documento_desde_nombre_archivo(getattr(archivo, 'name', '') or '')
+        return data
+
 
 def _enqueue_indexar_rag_task(model_class_name: str, pk: int):
     """Registra indexación en Celery después del commit (archivo/DB visibles para el worker)."""
@@ -6026,6 +6114,7 @@ class DocumentoRAGAdmin(admin.ModelAdmin):
     📚 GESTIÓN DE DOCUMENTOS RAG — Base de Conocimiento para Agentes IA
     Multi-Tenant: cada documento está aislado por Cliente + Curso.
     """
+    form = DocumentoRAGAdminForm
     list_display = ('nombre', 'curso_link', 'cliente_display', 'tipo_badge', 'estado_rag_badge', 'chunks_indexados', 'fecha_subida')
     list_filter = ('estado', 'tipo', 'curso__cliente', 'curso')
     search_fields = ('nombre', 'descripcion', 'curso__nombre', 'curso__cliente__nombre')
@@ -6036,7 +6125,8 @@ class DocumentoRAGAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('📄 Documento', {
-            'fields': ('curso', 'nombre', 'archivo', 'tipo', 'descripcion')
+            'fields': ('curso', 'nombre', 'archivo', 'archivo_segundo', 'tipo', 'descripcion'),
+            'description': 'Si dejás "Nombre" vacío al subir archivo, se usa el nombre del archivo (sin extensión). Podés adjuntar un segundo archivo en la misma carga.',
         }),
         ('🤖 Estado RAG', {
             'fields': ('estado', 'chunks_indexados', 'fecha_subida', 'fecha_indexado', 'subido_por'),
@@ -6075,12 +6165,35 @@ class DocumentoRAGAdmin(admin.ModelAdmin):
     estado_rag_badge.short_description = "Estado RAG"
 
     def save_model(self, request, obj, form, change):
+        arch2 = form.cleaned_data.get('archivo_segundo') if form and hasattr(form, 'cleaned_data') else None
+        if obj.archivo and (not obj.nombre or not str(obj.nombre).strip()):
+            obj.nombre = _nombre_documento_desde_nombre_archivo(obj.archivo.name)
+        if obj.curso_id and obj.nombre:
+            obj.nombre = _nombre_rag_curso_unico(obj.curso, obj.nombre, exclude_pk=obj.pk if change else None)
         if not obj.subido_por_id:
             obj.subido_por = request.user
         super().save_model(request, obj, form, change)
-        # Auto-indexar al guardar (en Celery si está disponible)
         if obj.estado == 'pendiente' and obj.archivo:
             _encolar_o_indexar_rag_doc(request, self, 'DocumentoRAG', obj)
+        if arch2:
+            n2 = _nombre_documento_desde_nombre_archivo(arch2.name)
+            n2 = _nombre_rag_curso_unico(obj.curso, n2)
+            doc2 = DocumentoRAG(
+                curso=obj.curso,
+                nombre=n2,
+                archivo=arch2,
+                tipo=obj.tipo,
+                descripcion=obj.descripcion or '',
+                subido_por=request.user,
+                estado='pendiente',
+            )
+            doc2.save()
+            _encolar_o_indexar_rag_doc(request, self, 'DocumentoRAG', doc2)
+            self.message_user(
+                request,
+                f'Se creó también el documento «{n2}» en el mismo curso (indexación en segundo plano).',
+                messages.SUCCESS,
+            )
 
     @admin.action(description='🤖 Indexar documentos seleccionados en RAG')
     def indexar_seleccionados(self, request, queryset):
@@ -6142,6 +6255,7 @@ class DocumentoRAGAdmin(admin.ModelAdmin):
 class DocumentoRAGComercialAdmin(admin.ModelAdmin):
     """🛒 Documentos del RAG comercial (aislado del educativo)."""
 
+    form = DocumentoRAGComercialAdminForm
     list_display = (
         'nombre',
         'cliente_display',
@@ -6160,7 +6274,8 @@ class DocumentoRAGComercialAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('📄 Documento Comercial', {
-            'fields': ('cliente', 'canal', 'nombre', 'archivo', 'tipo', 'descripcion')
+            'fields': ('cliente', 'canal', 'nombre', 'archivo', 'archivo_segundo', 'tipo', 'descripcion'),
+            'description': 'Si dejás "Nombre" vacío al subir archivo, se usa el nombre del archivo (sin extensión). Podés adjuntar un segundo archivo en la misma carga.',
         }),
         ('🤖 Estado RAG Comercial', {
             'fields': ('estado', 'chunks_indexados', 'fecha_subida', 'fecha_indexado', 'subido_por'),
@@ -6203,11 +6318,35 @@ class DocumentoRAGComercialAdmin(admin.ModelAdmin):
     estado_rag_badge.short_description = 'Estado RAG'
 
     def save_model(self, request, obj, form, change):
+        arch2 = form.cleaned_data.get('archivo_segundo') if form and hasattr(form, 'cleaned_data') else None
+        if obj.archivo and (not obj.nombre or not str(obj.nombre).strip()):
+            obj.nombre = _nombre_documento_desde_nombre_archivo(obj.archivo.name)
+        obj.nombre = _nombre_rag_comercial_unico(obj.cliente, obj.canal, obj.nombre, exclude_pk=obj.pk if change else None)
         if not obj.subido_por_id:
             obj.subido_por = request.user
         super().save_model(request, obj, form, change)
         if obj.estado == 'pendiente' and obj.archivo:
             _encolar_o_indexar_rag_doc(request, self, 'DocumentoRAGComercial', obj)
+        if arch2:
+            n2 = _nombre_documento_desde_nombre_archivo(arch2.name)
+            n2 = _nombre_rag_comercial_unico(obj.cliente, obj.canal, n2)
+            doc2 = DocumentoRAGComercial(
+                cliente=obj.cliente,
+                canal=obj.canal,
+                nombre=n2,
+                archivo=arch2,
+                tipo=obj.tipo,
+                descripcion=obj.descripcion or '',
+                subido_por=request.user,
+                estado='pendiente',
+            )
+            doc2.save()
+            _encolar_o_indexar_rag_doc(request, self, 'DocumentoRAGComercial', doc2)
+            self.message_user(
+                request,
+                f'Se creó también el documento comercial «{n2}» (indexación en segundo plano).',
+                messages.SUCCESS,
+            )
 
     @admin.action(description='🤖 Indexar documentos comerciales seleccionados')
     def indexar_seleccionados(self, request, queryset):
