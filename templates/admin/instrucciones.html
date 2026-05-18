@@ -432,18 +432,24 @@
 
         <p>Plataforma de Educación Agrícola para Campesinos Colombianos por WhatsApp</p>
 
-        <p style="font-size: 0.9em; margin-top: 10px;">✅ Versión 1.4 | Abril 2026</p>
+        <p style="font-size: 0.9em; margin-top: 10px;">✅ Versión 1.5 | Mayo 2026</p>
 
-        <p style="font-size: 0.85em; opacity: 0.9;">Incluye: Ficha GEI (recolección en WhatsApp) • Métricas de fichas en dashboard • API `formulario_gei` • Producción AWS • Multimedia • Twilio</p>
+        <p style="font-size: 0.85em; opacity: 0.9;">Incluye: GEI en dos bloques (contexto + balance) • Conversaciones por cliente • Nati diagnóstico • Métricas B2B • Producción AWS • Twilio</p>
 
     </div>
 
+    <div class="subsection" style="border-left-color:#e03131;margin-top:20px;">
+
+        <h3>✨ Novedades operativas (17 may 2026)</h3>
+        <ul style="line-height:1.65;">
+            <li><strong>GEI dos bloques:</strong> M4 contexto (7 pasos) + M5 balance (6 pasos); WhatsApp de balance al cerrar el segundo formulario. Sembrar: <code>sembrar_flujos_gei_automatico --reset</code>.</li>
+            <li><strong>Conversaciones:</strong> <a href="/admin/conversaciones/">/admin/conversaciones/</a> — por teléfono, filtro y grupos por cliente.</li>
+            <li><strong>Nati:</strong> diagnóstico sin inventar; <code>gpt-4o</code>; RAG comercial manual.</li>
+        </ul>
+    </div>
     <div class="subsection" style="border-left-color:#7950f2;margin-top:20px;">
-
         <h3>✨ Novedades operativas (5 may 2026)</h3>
-
         <ul style="line-height:1.6;">
-
             <li><strong>Reportes B2B por grupo:</strong> en el <a href="/admin/dashboard/">dashboard unificado</a>, pestaña <strong>Reportes B2B</strong>, puede filtrar por <strong>grupo de estudiantes</strong>, ver el <em>estado de avance</em> (sin avance, en curso, completado) y descargar el mismo detalle en <strong>Excel</strong> (columnas de grupo y estado incluidas).</li>
 
             <li><strong>Nombre del asistente (compañero):</strong> los mensajes del compañero de estudio usan <code>nombre_agente_asistente</code> del <em>Cliente</em> o del <em>Curso</em> en el mismo orden que el resto del bot: primero organización, luego curso, y si falta ambos el nombre por defecto del sistema.</li>
@@ -612,7 +618,8 @@
 
                 <li><strong>Inicio de sesión:</strong> al completar el módulo disparador, el sistema (hook de avance) puede <strong>crear</strong> una <code>FichaGEI</code> y una <code>SesionFormulario</code> y enviar el <strong>primer mensaje de bienvenida + pregunta 1</strong> sin avanzar todavía el módulo siguiente del progreso (el avance se retoma al terminar o cerrar el formulario según la lógica configurada).</li>
 
-                <li><strong>Almacenamiento:</strong> cada respuesta aceptada hace <code>setattr</code> en el objeto Ficha y <code>save()</code>. <strong>Completitud</strong> agregada: porcentaje de <strong>7 campos clave</strong> no nulos (visible en el admin y en métricas como promedio en muestra).</li>
+                <li><strong>Almacenamiento:</strong> cada respuesta aceptada hace <code>setattr</code> en el objeto Ficha y <code>save()</code> (dispara recálculo GEI). <strong>Completitud</strong>: incluye contexto + balance (bosque, combustible, residuos, etc.).</li>
+                <li><strong>Dos disparadores (Preserva GEI):</strong> <em>TipoFormulario</em> en módulo 4 (<code>--bloque contexto</code>, 7 pasos) y otro en módulo 5 (<code>--bloque balance</code>, 6 pasos). Misma ficha; el WhatsApp de balance se envía al <strong>cerrar</strong> el segundo formulario, no al completar M5 sin balance.</li>
 
             </ol>
 
@@ -660,7 +667,7 @@
 
             <div class="alert-box alert-info">
 
-                <strong>Tip:</strong> el <em>TipoFormulario</em> sigue siendo donde se editan los <strong>pasos</strong> (las 7 preguntas). El toggle en Curso es solo para activar/desactivar sin tener que editar los pasos cada vez. Para ver completitud por productor, use el <strong><a href="/admin/gei/panel/">Panel GEI</a></strong>.
+                <strong>Tip:</strong> hay dos <em>TipoFormulario</em> (contexto y balance). Cargar con <code>cargar_flujo_gei</code> y <code>--bloque contexto|balance</code>. Toggle en Curso activa/desactiva sin reeditar pasos. Panel: <strong><a href="/admin/gei/panel/">Panel GEI</a></strong>. Conversaciones: <strong><a href="/admin/conversaciones/">/admin/conversaciones/</a></strong>.
 
             </div>
 
@@ -678,7 +685,7 @@
 
             <p>Nati es la <strong>asesora virtual de eki</strong> en el canal comercial (líneas no asociadas a un estudiante en un curso). Responde con tono colombiano, de “usted”, y se presenta como “Nati”, no como “eki”. eki es la plataforma; Nati es la persona que la representa por WhatsApp.</p>
 
-            <p>El motor está en <code>core/nati.py</code> (función <code>armar_system_prompt()</code>) y los saludos se generan vía <code>armar_saludo_inicial(cliente)</code> y <code>armar_saludo_menu(cliente)</code>. <strong>No</strong> deben quedar saludos hardcodeados tipo “Hola, soy eki” en las vistas: si aparece uno, abrirlo a <em>views.py</em> y reemplazarlo por las funciones del módulo Nati.</p>
+            <p>El motor está en <code>core/nati.py</code> (función <code>armar_system_prompt()</code>) con reglas de <strong>diagnóstico</strong> (no inventar; citar solo lo que viene de RAG o búsqueda). Modelo por defecto: <code>gpt-4o</code> (<code>BOT_COMERCIAL_OPENAI_MODEL</code>). Los saludos usan <code>armar_saludo_inicial(cliente)</code> y <code>armar_saludo_menu(cliente)</code>. La KB comercial (<em>DocumentoRAGComercial</em>) se sube manualmente; los chats <strong>no</strong> entrenan el vector store automáticamente.</p>
 
         </div>
 

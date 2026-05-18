@@ -5748,157 +5748,198 @@ def calendario_campanas_view(request):
 
 @staff_member_required
 def conversaciones_view(request):
-    """Vista de conversaciones estilo WhatsApp"""
-    from django.db.models import Max, Count, Q
-    # Obtener estudiantes con mensajes usando anotaciones (evita N+1)
-    estudiantes_con_mensajes = []
+    """Vista de conversaciones estilo WhatsApp, agrupadas por cliente (organización)."""
+    from django.db.models import Count, Max, Q
 
-    # Pre-calcular conteos y últimas fechas con anotaciones
-    todos_estudiantes = (
-        Estudiante.objects.all()
-        .annotate(
-            total_whatsapp=Count(
-                'mensajes_whatsapp',
-                distinct=True,
-            ),
-            total_envios=Count(
-                'enviolog',
-                distinct=True,
-            ),
-            last_whatsapp_fecha=Max('mensajes_whatsapp__fecha'),
-            last_envio_fecha=Max('enviolog__fecha_envio'),
-        )
-        .filter(Q(total_whatsapp__gt=0) | Q(total_envios__gt=0))
+    from core.utils_telefono import normalizar_telefono, variantes_telefono
+
+    cliente_filtro_raw = (request.GET.get("cliente") or "").strip()
+    cliente_filtro_id = int(cliente_filtro_raw) if cliente_filtro_raw.isdigit() else None
+
+    est_por_tel: dict[str, Estudiante] = {}
+    for est in Estudiante.objects.select_related("cliente").exclude(telefono=""):
+        key = normalizar_telefono(est.telefono)
+        if key:
+            est_por_tel[key] = est
+
+    contactos_por_tel: dict[str, dict] = {}
+    logs_agg = (
+        WhatsappLog.objects.values("telefono")
+        .annotate(ultima_fecha=Max("fecha"), total=Count("id"))
+        .order_by("-ultima_fecha")
     )
-
-    for est in todos_estudiantes:
-        try:
-            telefono_limpio = est.telefono.replace('+', '').replace(' ', '')
-            total_msgs = est.total_whatsapp + est.total_envios
-
-            # Obtener último mensaje (solo 2 queries, no N por estudiante)
-            ultimo_whatsapp = None
-            ultimo_envio = None
-            if est.last_whatsapp_fecha:
-                ultimo_whatsapp = WhatsappLog.objects.filter(
-                    telefono=telefono_limpio,
-                    fecha=est.last_whatsapp_fecha
-                ).first()
-            if est.last_envio_fecha:
-                ultimo_envio = EnvioLog.objects.filter(
-                    estudiante=est,
-                    fecha_envio=est.last_envio_fecha
-                ).select_related('campana').first()
-
-            # Determinar cuál es más reciente
-            ultima_fecha = None
-            ultimo_mensaje = None
-
-            if ultimo_whatsapp and ultimo_envio:
-                fecha_whatsapp = ultimo_whatsapp.fecha
-                fecha_envio = ultimo_envio.fecha_envio
-                if timezone.is_naive(fecha_whatsapp):
-                    fecha_whatsapp = timezone.make_aware(fecha_whatsapp)
-                if timezone.is_naive(fecha_envio):
-                    fecha_envio = timezone.make_aware(fecha_envio)
-                if fecha_whatsapp > fecha_envio:
-                    ultima_fecha = fecha_whatsapp
-                    ultimo_mensaje = ultimo_whatsapp.mensaje
-                else:
-                    ultima_fecha = fecha_envio
-                    ultimo_mensaje = f"Campaña: {ultimo_envio.campana.nombre}"
-            elif ultimo_whatsapp:
-                ultima_fecha = ultimo_whatsapp.fecha
-                if timezone.is_naive(ultima_fecha):
-                    ultima_fecha = timezone.make_aware(ultima_fecha)
-                ultimo_mensaje = ultimo_whatsapp.mensaje
-            elif ultimo_envio:
-                ultima_fecha = ultimo_envio.fecha_envio
-                if timezone.is_naive(ultima_fecha):
-                    ultima_fecha = timezone.make_aware(ultima_fecha)
-                ultimo_mensaje = f"Campaña: {ultimo_envio.campana.nombre}"
-
-            est.ultima_fecha = ultima_fecha
-            est.ultimo_mensaje = ultimo_mensaje
-            est.total_mensajes = total_msgs
-            estudiantes_con_mensajes.append(est)
-        except Exception as e:
-            print(f"Error procesando estudiante {est.id}: {str(e)}")
+    for row in logs_agg:
+        tel_raw = row["telefono"] or ""
+        tel_norm = normalizar_telefono(tel_raw)
+        if not tel_norm:
             continue
-    
-    # Ordenar por fecha más reciente
-    estudiantes_con_mensajes.sort(
-        key=lambda x: x.ultima_fecha if hasattr(x, 'ultima_fecha') and x.ultima_fecha else timezone.now() - timedelta(days=365*10), 
-        reverse=True
+        ultimo = (
+            WhatsappLog.objects.filter(telefono=tel_raw)
+            .order_by("-fecha")
+            .values("mensaje", "tipo", "agente_usado")
+            .first()
+        )
+        est = est_por_tel.get(tel_norm)
+        for v in variantes_telefono(tel_norm):
+            if v in est_por_tel and est is None:
+                est = est_por_tel[v]
+        cliente = getattr(est, "cliente", None) if est else None
+        contactos_por_tel[tel_norm] = {
+            "telefono": tel_norm,
+            "telefono_display": tel_raw or tel_norm,
+            "estudiante_id": est.id if est else None,
+            "nombre": (est.nombre if est else f"📱 {tel_norm}"),
+            "cliente_id": cliente.id if cliente else None,
+            "cliente_nombre": (cliente.nombre if cliente else "Sin organización / comercial"),
+            "ultima_fecha": row["ultima_fecha"],
+            "ultimo_mensaje": (ultimo or {}).get("mensaje") or "",
+            "agente": (ultimo or {}).get("agente_usado") or "",
+            "total_mensajes": row["total"],
+        }
+
+    for est in Estudiante.objects.select_related("cliente").annotate(
+        n_envios=Count("enviolog", distinct=True)
+    ).filter(n_envios__gt=0):
+        tel_norm = normalizar_telefono(est.telefono)
+        if not tel_norm:
+            continue
+        ultimo_envio = (
+            EnvioLog.objects.filter(estudiante=est)
+            .select_related("campana")
+            .order_by("-fecha_envio")
+            .first()
+        )
+        if not ultimo_envio:
+            continue
+        prev = contactos_por_tel.get(tel_norm)
+        fecha_env = ultimo_envio.fecha_envio
+        if prev and prev.get("ultima_fecha") and fecha_env <= prev["ultima_fecha"]:
+            prev["total_mensajes"] = prev.get("total_mensajes", 0) + est.n_envios
+            continue
+        cliente = est.cliente
+        contactos_por_tel[tel_norm] = {
+            "telefono": tel_norm,
+            "telefono_display": est.telefono,
+            "estudiante_id": est.id,
+            "nombre": est.nombre,
+            "cliente_id": cliente.id if cliente else None,
+            "cliente_nombre": (cliente.nombre if cliente else "Sin organización / comercial"),
+            "ultima_fecha": fecha_env,
+            "ultimo_mensaje": f"Campaña: {ultimo_envio.campana.nombre}",
+            "agente": "",
+            "total_mensajes": est.n_envios,
+        }
+
+    contactos = list(contactos_por_tel.values())
+    if cliente_filtro_id:
+        contactos = [c for c in contactos if c.get("cliente_id") == cliente_filtro_id]
+
+    contactos.sort(
+        key=lambda c: (
+            (c.get("cliente_nombre") or "").lower(),
+            -(c["ultima_fecha"].timestamp() if c.get("ultima_fecha") else 0),
+        )
     )
-    
-    # Estudiante seleccionado
-    estudiante_id = request.GET.get('estudiante')
+
+    grupos_dict: dict[str, list] = {}
+    for c in contactos:
+        grupos_dict.setdefault(c["cliente_nombre"], []).append(c)
+    grupos_cliente = [
+        {"cliente_nombre": nombre, "contactos": items}
+        for nombre, items in sorted(grupos_dict.items(), key=lambda x: x[0].lower())
+    ]
+
     estudiante_seleccionado = None
+    contacto_seleccionado = None
     mensajes = []
     page_obj = None
-    
-    if estudiante_id:
+
+    estudiante_id = (request.GET.get("estudiante") or "").strip()
+    telefono_param = (request.GET.get("telefono") or "").strip()
+
+    if estudiante_id.isdigit():
         try:
-            estudiante_seleccionado = Estudiante.objects.get(id=estudiante_id)
-            telefono_limpio = estudiante_seleccionado.telefono.replace('+', '').replace(' ', '')
-            
-            # Crear lista unificada de mensajes
-            lista_mensajes = []
-            
-            # WhatsApp logs
-            for msg in WhatsappLog.objects.filter(telefono=telefono_limpio):
-                fecha = msg.fecha
-                if timezone.is_naive(fecha):
-                    fecha = timezone.make_aware(fecha)
-                    
-                lista_mensajes.append({
-                    'mensaje': msg.mensaje,
-                    'fecha': fecha,
-                    'estado': msg.estado,
-                    'tipo': 'recibido' if msg.tipo == 'INCOMING' else 'enviado'
-                })
-            
-            # Envio logs (mensajes enviados por campañas)
-            for envio in EnvioLog.objects.filter(estudiante=estudiante_seleccionado).select_related('campana', 'campana__plantilla'):
+            estudiante_seleccionado = Estudiante.objects.select_related("cliente").get(
+                id=int(estudiante_id)
+            )
+            telefono_param = estudiante_seleccionado.telefono
+        except Estudiante.DoesNotExist:
+            estudiante_seleccionado = None
+
+    if telefono_param:
+        tel_norm = normalizar_telefono(telefono_param)
+        vars_tel = variantes_telefono(telefono_param)
+        if estudiante_seleccionado is None:
+            estudiante_seleccionado = est_por_tel.get(tel_norm)
+        contacto_seleccionado = contactos_por_tel.get(tel_norm) or {
+            "telefono": tel_norm,
+            "telefono_display": telefono_param,
+            "nombre": (
+                estudiante_seleccionado.nombre
+                if estudiante_seleccionado
+                else f"📱 {tel_norm}"
+            ),
+        }
+
+        lista_mensajes = []
+        for msg in WhatsappLog.objects.filter(telefono__in=vars_tel).order_by("fecha"):
+            fecha = msg.fecha
+            if timezone.is_naive(fecha):
+                fecha = timezone.make_aware(fecha)
+            texto = msg.mensaje or ""
+            if msg.es_audio and msg.audio_transcripcion:
+                texto = f"🎤 {msg.audio_transcripcion}"
+            lista_mensajes.append(
+                {
+                    "mensaje": texto,
+                    "fecha": fecha,
+                    "estado": msg.estado,
+                    "tipo": "recibido" if msg.tipo == "INCOMING" else "enviado",
+                    "agente": msg.agente_usado or "",
+                }
+            )
+
+        if estudiante_seleccionado:
+            for envio in (
+                EnvioLog.objects.filter(estudiante=estudiante_seleccionado)
+                .select_related("campana", "campana__plantilla")
+                .order_by("fecha_envio")
+            ):
                 fecha = envio.fecha_envio
                 if timezone.is_naive(fecha):
                     fecha = timezone.make_aware(fecha)
-                
-                # Obtener el mensaje de la plantilla
-                mensaje_campana = envio.campana.plantilla.cuerpo_mensaje
-                # Personalizar con el nombre del estudiante
-                mensaje_personalizado = mensaje_campana.replace('{nombre}', estudiante_seleccionado.nombre)
-                    
-                lista_mensajes.append({
-                    'mensaje': mensaje_personalizado,
-                    'fecha': fecha,
-                    'estado': envio.estado,
-                    'tipo': 'enviado'
-                })
-            
-            # Ordenar por fecha
-            lista_mensajes.sort(key=lambda x: x['fecha'] if x['fecha'] else timezone.now() - timedelta(days=365*10))
-            
-            # Paginación
-            paginator = Paginator(lista_mensajes, 50)
-            page_number = request.GET.get('page', 1)
-            page_obj = paginator.get_page(page_number)
-            mensajes = page_obj.object_list
-            
-        except Estudiante.DoesNotExist:
-            pass
-        except Exception as e:
-            print(f"Error cargando mensajes: {str(e)}")
-    
+                cuerpo = envio.campana.plantilla.cuerpo_mensaje
+                cuerpo = cuerpo.replace("{nombre}", estudiante_seleccionado.nombre)
+                lista_mensajes.append(
+                    {
+                        "mensaje": cuerpo,
+                        "fecha": fecha,
+                        "estado": envio.estado,
+                        "tipo": "enviado",
+                        "agente": "CAMPAÑA",
+                    }
+                )
+
+        lista_mensajes.sort(key=lambda x: x["fecha"] or timezone.now())
+        paginator = Paginator(lista_mensajes, 50)
+        page_obj = paginator.get_page(request.GET.get("page", 1))
+        mensajes = page_obj.object_list
+
+    clientes_qs = Cliente.objects.filter(activa=True).order_by("nombre")
+
     context = {
-        'estudiantes': estudiantes_con_mensajes[:50],  # Limitar a 50 contactos
-        'estudiante_seleccionado': estudiante_seleccionado,
-        'mensajes': mensajes,
-        'page_obj': page_obj,
+        "grupos_cliente": grupos_cliente,
+        "total_contactos": len(contactos),
+        "clientes": clientes_qs,
+        "cliente_filtro": cliente_filtro_id,
+        "estudiante_seleccionado": estudiante_seleccionado,
+        "contacto_seleccionado": contacto_seleccionado,
+        "mensajes": mensajes,
+        "page_obj": page_obj,
+        "estudiantes": contactos[:200],
     }
-    
-    return render(request, 'admin/conversaciones.html', context)
+
+    return render(request, "admin/conversaciones.html", context)
 
 
 @staff_member_required
