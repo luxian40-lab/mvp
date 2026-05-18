@@ -5813,9 +5813,17 @@ def conversaciones_view(request):
             continue
         prev = contactos_por_tel.get(tel_norm)
         fecha_env = ultimo_envio.fecha_envio
-        if prev and prev.get("ultima_fecha") and fecha_env <= prev["ultima_fecha"]:
-            prev["total_mensajes"] = prev.get("total_mensajes", 0) + est.n_envios
-            continue
+        if prev and prev.get("ultima_fecha"):
+            uf_prev = prev["ultima_fecha"]
+            if timezone.is_naive(uf_prev):
+                uf_prev = timezone.make_aware(uf_prev)
+            if timezone.is_naive(fecha_env):
+                fecha_env_cmp = timezone.make_aware(fecha_env)
+            else:
+                fecha_env_cmp = fecha_env
+            if fecha_env_cmp <= uf_prev:
+                prev["total_mensajes"] = prev.get("total_mensajes", 0) + est.n_envios
+                continue
         cliente = est.cliente
         contactos_por_tel[tel_norm] = {
             "telefono": tel_norm,
@@ -5834,10 +5842,17 @@ def conversaciones_view(request):
     if cliente_filtro_id:
         contactos = [c for c in contactos if c.get("cliente_id") == cliente_filtro_id]
 
+    def _ts_orden(fecha):
+        if not fecha:
+            return 0
+        if timezone.is_naive(fecha):
+            fecha = timezone.make_aware(fecha)
+        return fecha.timestamp()
+
     contactos.sort(
         key=lambda c: (
             (c.get("cliente_nombre") or "").lower(),
-            -(c["ultima_fecha"].timestamp() if c.get("ultima_fecha") else 0),
+            -_ts_orden(c.get("ultima_fecha")),
         )
     )
 
@@ -5925,7 +5940,7 @@ def conversaciones_view(request):
         page_obj = paginator.get_page(request.GET.get("page", 1))
         mensajes = page_obj.object_list
 
-    clientes_qs = Cliente.objects.filter(activa=True).order_by("nombre")
+    clientes_qs = Cliente.objects.filter(activo=True).order_by("nombre")
 
     context = {
         "grupos_cliente": grupos_cliente,
