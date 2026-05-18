@@ -325,10 +325,17 @@ class Command(BaseCommand):
             cliente = self._upsert_cliente()
             curso = self._upsert_curso(cliente)
             modulos_por_numero = self._upsert_modulos(curso)
-            modulo_disparador = modulos_por_numero[4]
+            modulo_contexto = modulos_por_numero[4]
+            modulo_balance = modulos_por_numero[5]
             self._upsert_preguntas_modulo3(modulos_por_numero[3])
-            tipo_form = self._upsert_tipo_formulario(cliente, curso, modulo_disparador)
-            self._copiar_pasos_gei(tipo_form)
+            tf_contexto = self._upsert_tipo_formulario(
+                cliente, curso, modulo_contexto, bloque="contexto"
+            )
+            tf_balance = self._upsert_tipo_formulario(
+                cliente, curso, modulo_balance, bloque="balance"
+            )
+            self._sembrar_pasos_gei(tf_contexto, "contexto")
+            self._sembrar_pasos_gei(tf_balance, "balance")
             estudiantes = self._upsert_estudiantes(cliente)
             self._inscribir_estudiantes(curso, estudiantes)
 
@@ -338,13 +345,17 @@ class Command(BaseCommand):
         self.stdout.write(f"   Cliente:        {cliente.nombre} (id={cliente.id})")
         self.stdout.write(f"   Curso:          {curso.nombre} (id={curso.id})")
         self.stdout.write(f"   Módulos:        {len(modulos_por_numero)}")
-        self.stdout.write(f"   Módulo dispara: #{modulo_disparador.numero} — {modulo_disparador.titulo}")
-        self.stdout.write(f"   TipoFormulario: id={tipo_form.id} (cliente={tipo_form.cliente_id})")
+        self.stdout.write(
+            f"   Form contexto (M4): id={tf_contexto.id} — {tf_contexto.flujo_pasos.count()} pasos"
+        )
+        self.stdout.write(
+            f"   Form balance (M5): id={tf_balance.id} — {tf_balance.flujo_pasos.count()} pasos"
+        )
         self.stdout.write(f"   Estudiantes:    {len(estudiantes)}")
         self.stdout.write("")
         self.stdout.write(self.style.SUCCESS(
-            "⚠️  Para probar: complete el módulo 4 de cualquier estudiante test "
-            "(cédulas 1000000001-3, teléfonos 573000000001-3) y el formulario GEI se disparará."
+            "⚠️  Para probar: complete M4 → formulario contexto (7 pasos); "
+            "complete M5 → formulario balance (6 pasos) y recibe el balance por WhatsApp."
         ))
         self.stdout.write(self.style.SUCCESS("=" * 60))
 
@@ -441,61 +452,41 @@ class Command(BaseCommand):
             )
         self.stdout.write(f"   ~ Preguntas módulo 3: {len(preguntas)}")
 
-    def _upsert_tipo_formulario(self, cliente: Cliente, curso: Curso, modulo: Modulo) -> TipoFormulario:
+    def _upsert_tipo_formulario(
+        self, cliente: Cliente, curso: Curso, modulo: Modulo, bloque: str
+    ) -> TipoFormulario:
+        from formulario.gei_flujos import BLOQUES_GEI
+
+        meta = BLOQUES_GEI[bloque]
+        nombre = f"Balance GEI {meta['nombre_suffix']} — Preserva"
         tf, created = TipoFormulario.objects.get_or_create(
-            nombre="Balance GEI — Preserva",
+            curso=curso,
+            modulo=modulo,
             cliente=cliente,
             defaults={
-                "descripcion": "Recolección GEI específica para productores Preserva (test).",
-                "curso": curso,
-                "modulo": modulo,
+                "nombre": nombre,
+                "descripcion": meta["descripcion"],
                 "activo": True,
             },
         )
         if not created:
-            tf.curso = curso
-            tf.modulo = modulo
+            tf.nombre = nombre
+            tf.descripcion = meta["descripcion"]
             tf.activo = True
             tf.save()
-        self.stdout.write(f"   {'+' if created else '~'} TipoFormulario id={tf.id} cliente={tf.cliente_id}")
+        self.stdout.write(
+            f"   {'+' if created else '~'} TipoFormulario {bloque} id={tf.id} M{modulo.numero}"
+        )
         return tf
 
-    def _copiar_pasos_gei(self, tf: TipoFormulario):
-        """Copia los 7 pasos del primer TipoFormulario activo (semilla) si no los tiene."""
-        if tf.flujo_pasos.exists():
-            self.stdout.write(f"   ~ TipoFormulario id={tf.id} ya tiene {tf.flujo_pasos.count()} pasos.")
-            return
-        seed = (
-            TipoFormulario.objects.filter(activo=True)
-            .exclude(id=tf.id)
-            .filter(flujo_pasos__isnull=False)
-            .order_by("id")
-            .first()
-        )
-        if not seed:
-            self.stdout.write(self.style.WARNING(
-                "   ⚠ No se encontró TipoFormulario semilla; ejecute primero "
-                "'python manage.py cargar_flujo_gei <curso_id> <modulo_id>'."
-            ))
-            return
-        pasos_copiados = 0
-        for p in seed.flujo_pasos.all().order_by("orden"):
-            FlujoPregunta.objects.create(
-                formulario=tf,
-                orden=p.orden,
-                campo_destino=p.campo_destino,
-                pregunta_texto=p.pregunta_texto,
-                tipo_dato=p.tipo_dato,
-                rango_min=p.rango_min,
-                rango_max=p.rango_max,
-                unidad_parseo=p.unidad_parseo,
-                opciones_choice=p.opciones_choice,
-                usar_llm_parseo=p.usar_llm_parseo,
-                es_opcional=p.es_opcional,
-                texto_reintento=p.texto_reintento,
-            )
-            pasos_copiados += 1
-        self.stdout.write(f"   + Pasos GEI copiados desde TF id={seed.id}: {pasos_copiados}")
+    def _sembrar_pasos_gei(self, tf: TipoFormulario, bloque: str):
+        from formulario.gei_flujos import BLOQUES_GEI
+
+        pasos = BLOQUES_GEI[bloque]["pasos"]
+        FlujoPregunta.objects.filter(formulario=tf).delete()
+        for paso in pasos:
+            FlujoPregunta.objects.create(formulario=tf, **paso)
+        self.stdout.write(f"   + {len(pasos)} pasos bloque {bloque} en TF id={tf.id}")
 
     def _upsert_estudiantes(self, cliente: Cliente) -> list[Estudiante]:
         estudiantes = []

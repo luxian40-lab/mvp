@@ -28,6 +28,17 @@ def test_armar_system_prompt_default_usa_nati():
     assert "Colombia" in prompt or "colombian" in prompt.lower()
 
 
+def test_armar_system_prompt_incluye_protocolo_diagnostico():
+    prompt = armar_system_prompt()
+    assert "DIAGNÓSTICO ANTES DE RESPONDER" in prompt
+    assert "máximo 2-3 preguntas" in prompt.lower() or "maximo 2-3 preguntas" in prompt.lower()
+
+
+def test_armar_system_prompt_prohibe_inventar_datos():
+    prompt = armar_system_prompt()
+    assert "NUNCA inventes" in prompt
+
+
 def test_armar_system_prompt_usa_nombre_bot_cliente():
     cliente = Cliente.objects.create(
         nombre="ACME NATI",

@@ -30,8 +30,9 @@ def recalcular_resultado_gei(sender, instance, **kwargs):
 @receiver(post_save, sender="core.ModuloCompletado")
 def enviar_balance_gei_tras_modulo(sender, instance, created, **kwargs):
     """
-    Al completar el módulo configurado (por defecto 5), envía por WhatsApp el resumen del balance
-    si el curso tiene formulario GEI y existe ficha para ese estudiante/curso.
+    Respaldo: si se completó el módulo del balance (p. ej. 5) y NO hay formulario
+    bloque balance activo, envía WhatsApp aquí. Si hay formulario balance, el envío
+    ocurre al cerrar esa sesión en formulario.agent._cerrar_sesion.
     """
     if not created:
         return
@@ -50,9 +51,29 @@ def enviar_balance_gei_tras_modulo(sender, instance, created, **kwargs):
     if not getattr(curso, "tiene_formulario_gei", False):
         return
 
+    from django.db.models import Q
+
+    from formulario.gei_flujos import es_formulario_balance_gei
+    from formulario.models import FichaGEI, TipoFormulario
+
     estudiante = progreso.estudiante
-    from formulario.calculadora import generar_mensaje_resultado_whatsapp, persistir_resultado_gei
-    from formulario.models import FichaGEI
+    cliente_id = getattr(estudiante, "cliente_id", None)
+    tf_qs = TipoFormulario.objects.filter(
+        curso=curso,
+        modulo=modulo,
+        activo=True,
+    )
+    if cliente_id:
+        tf_qs = tf_qs.filter(Q(cliente_id=cliente_id) | Q(cliente__isnull=True))
+    else:
+        tf_qs = tf_qs.filter(cliente__isnull=True)
+    tf_balance = tf_qs.order_by("-cliente_id", "id").first()
+    if tf_balance and es_formulario_balance_gei(tf_balance):
+        logger.debug(
+            "Balance GEI por WhatsApp diferido al formulario bloque balance (TF id=%s).",
+            tf_balance.id,
+        )
+        return
 
     ficha = (
         FichaGEI.objects.filter(estudiante=estudiante, curso=curso)
@@ -61,25 +82,13 @@ def enviar_balance_gei_tras_modulo(sender, instance, created, **kwargs):
     )
     if not ficha:
         logger.info(
-            "Módulo %s completado sin FichaGEI para estudiante=%s curso=%s",
+            "Módulo %s completado sin FichaGEI estudiante=%s curso=%s",
             modulo.numero,
             estudiante.pk,
             curso.pk,
         )
         return
 
-    try:
-        persistir_resultado_gei(ficha)
-        texto = generar_mensaje_resultado_whatsapp(ficha)
-        tel = (estudiante.telefono or "").strip()
-        if not tel:
-            logger.warning("Sin teléfono para enviar balance GEI estudiante_id=%s", estudiante.pk)
-            return
-        if not tel.startswith("+"):
-            tel = f"+{tel}"
+    from formulario.whatsapp_gei import enviar_balance_gei_whatsapp
 
-        from core.utils import enviar_whatsapp_twilio
-
-        enviar_whatsapp_twilio(tel, texto)
-    except Exception as e:
-        logger.exception("Error enviando balance GEI por WhatsApp: %s", e)
+    enviar_balance_gei_whatsapp(ficha, estudiante)

@@ -32,13 +32,13 @@ def test_ficha_gei_completitud_parcial():
         num_plantas=100,
         fertilizante_kg=10.0,
     )
-    assert f.completitud_pct == 42  # 3/7
+    assert f.completitud_pct == 25  # 3/12 campos de recolección
     f.concentracion_n_pct = 2.0
     f.produccion_kg = 50.0
     f.energia_kwh = 30.0
     f.nombre_finca = "Finca A"
     f.save()
-    assert f.completitud_pct == 100
+    assert f.completitud_pct == 58  # 7/12 (faltan combustible, residuos, bosque)
 
 
 def test_ficha_gei_completitud_total():
@@ -54,6 +54,30 @@ def test_ficha_gei_completitud_total():
         concentracion_n_pct=12.0,
         produccion_kg=200.0,
         energia_kwh=50.0,
+        tiene_bosque=False,
+    )
+    assert f.completitud_pct == 66  # 8/12 (7 básicos + bosque respondido «no»)
+
+
+def test_ficha_gei_completitud_con_bosque():
+    e = EstudianteFactory()
+    c = CursoFactory()
+    f = FichaGEI.objects.create(
+        estudiante=e,
+        curso=c,
+        nombre_finca="La Esperanza",
+        area_ha=1.0,
+        num_plantas=100,
+        fertilizante_kg=10.0,
+        concentracion_n_pct=12.0,
+        produccion_kg=200.0,
+        energia_kwh=50.0,
+        combustible_gal=5.0,
+        tipo_combustible="diesel",
+        residuos_ton=1.0,
+        manejo_residuos="compost",
+        tiene_bosque=True,
+        area_bosque_ha=0.5,
     )
     assert f.completitud_pct == 100
 
@@ -358,7 +382,7 @@ def test_inicio_sesion_desde_modulo():
     msg = intentar_iniciar_formulario_al_completar_modulo(
         e, p, m4, m5
     )
-    assert msg and "Necesitamos" in msg
+    assert msg and "Primera parte" in msg
     assert SesionFormulario.objects.filter(estudiante=e, completado=False).exists()
 
 
@@ -496,6 +520,49 @@ def test_cliente_diferente_no_dispara():
     assert not SesionFormulario.objects.filter(estudiante=estudiante_b).exists()
 
 
+def test_calcular_balance_gei_remocion_bosque_con_area_cero():
+    e = EstudianteFactory()
+    c = CursoFactory()
+    f = FichaGEI.objects.create(
+        estudiante=e,
+        curso=c,
+        fertilizante_kg=10.0,
+        concentracion_n_pct=15.0,
+        combustible_gal=1.0,
+        tipo_combustible="diesel",
+        energia_kwh=50.0,
+        residuos_ton=0.5,
+        manejo_residuos="compost",
+        produccion_kg=200.0,
+        tiene_bosque=True,
+        area_bosque_ha=0.0,
+    )
+    r = calcular_balance_gei(f)
+    assert r["remociones"].get("bosque_kg_co2e") == 0.0
+    assert "información de bosque" not in r["campos_faltantes"]
+
+
+def test_calcular_balance_gei_remocion_bosque_por_hectarea():
+    e = EstudianteFactory()
+    c = CursoFactory()
+    f = FichaGEI.objects.create(
+        estudiante=e,
+        curso=c,
+        fertilizante_kg=10.0,
+        concentracion_n_pct=15.0,
+        combustible_gal=1.0,
+        tipo_combustible="diesel",
+        energia_kwh=50.0,
+        residuos_ton=0.5,
+        manejo_residuos="compost",
+        produccion_kg=200.0,
+        tiene_bosque=True,
+        area_bosque_ha=2.0,
+    )
+    r = calcular_balance_gei(f)
+    assert r["remociones"]["bosque_kg_co2e"] == round(2.0 * 3.67 * 1000.0, 2)
+
+
 def test_calcular_balance_gei_emisiones_basicas():
     e = EstudianteFactory()
     c = CursoFactory()
@@ -562,6 +629,86 @@ def test_generar_mensaje_whatsapp_incluye_balance():
     assert "Balance GEI" in msg
     assert "tCO" in msg
     assert "módulo 6" in msg.lower() or "modulo 6" in msg.lower()
+
+
+@mock.patch("core.utils.enviar_whatsapp_twilio")
+def test_modulo5_no_whatsapp_si_hay_formulario_balance(mock_send):
+    """Con formulario bloque balance en M5, el envío se difiere al cerrar la sesión."""
+    from formulario.gei_flujos import PASOS_BALANCE
+
+    cliente = ClienteFactory()
+    cur, _m4, m5 = _bootstrap_curso_modulos()
+    cur.tiene_formulario_gei = True
+    cur.save(update_fields=["tiene_formulario_gei"])
+    tf = TipoFormulario.objects.create(
+        nombre="GEI Balance test", curso=cur, modulo=m5, cliente=cliente, activo=True
+    )
+    for paso in PASOS_BALANCE:
+        FlujoPregunta.objects.create(formulario=tf, **paso)
+    est = EstudianteFactory(cliente=cliente, telefono="573001112299")
+    FichaGEI.objects.create(
+        estudiante=est, curso=cur, cliente=cliente, fertilizante_kg=1.0, concentracion_n_pct=10.0
+    )
+    progreso = ProgresoEstudiante.objects.create(estudiante=est, curso=cur, modulo_actual=m5, completado=False)
+    ModuloCompletado.objects.create(progreso=progreso, modulo=m5)
+    mock_send.assert_not_called()
+
+
+@mock.patch("core.utils.enviar_whatsapp_twilio")
+def test_cerrar_formulario_balance_envia_whatsapp(mock_send):
+    from formulario.agent import _cerrar_sesion, iniciar_sesion_formulario
+    from formulario.gei_flujos import PASOS_BALANCE
+
+    cliente = ClienteFactory()
+    cur, _m4, m5 = _bootstrap_curso_modulos()
+    m6 = ModuloFactory(curso=cur, numero=6, titulo="M6")
+    est = EstudianteFactory(cliente=cliente, telefono="573001112288")
+    ficha = FichaGEI.objects.create(
+        estudiante=est,
+        curso=cur,
+        cliente=cliente,
+        fertilizante_kg=20.0,
+        concentracion_n_pct=30.0,
+        combustible_gal=2.0,
+        tipo_combustible="diesel",
+        energia_kwh=100.0,
+        residuos_ton=0.5,
+        manejo_residuos="compost",
+        produccion_kg=400.0,
+        tiene_bosque=False,
+    )
+    tf = TipoFormulario.objects.create(
+        nombre="GEI Balance", curso=cur, modulo=m5, cliente=cliente, activo=True
+    )
+    for paso in PASOS_BALANCE:
+        FlujoPregunta.objects.create(formulario=tf, **paso)
+    progreso = ProgresoEstudiante.objects.create(estudiante=est, curso=cur, modulo_actual=m5, completado=False)
+    iniciar_sesion_formulario(est, tf, progreso=progreso, modulo_siguiente=m6)
+    sesion = SesionFormulario.objects.get(estudiante=est, completado=False)
+    sesion.paso_actual = len(PASOS_BALANCE)
+    sesion.save()
+    pasos = list(tf.flujo_pasos.order_by("orden"))
+    msg = _cerrar_sesion(sesion, pasos)
+    assert "balance gei" in msg.lower()
+    mock_send.assert_called_once()
+    assert ficha.pk == sesion.ficha_id
+
+
+@mock.patch("core.utils.enviar_whatsapp_twilio")
+def test_iniciar_formulario_balance_reusa_ficha(mock_send):
+    from formulario.agent import iniciar_sesion_formulario
+    from formulario.gei_flujos import PASOS_BALANCE
+
+    cliente = ClienteFactory()
+    cur, _m4, m5 = _bootstrap_curso_modulos()
+    est = EstudianteFactory(cliente=cliente)
+    ficha1 = FichaGEI.objects.create(estudiante=est, curso=cur, cliente=cliente, nombre_finca="A")
+    tf = TipoFormulario.objects.create(nombre="Bal", curso=cur, modulo=m5, activo=True)
+    for paso in PASOS_BALANCE[:2]:
+        FlujoPregunta.objects.create(formulario=tf, **paso)
+    iniciar_sesion_formulario(est, tf)
+    sesion = SesionFormulario.objects.get(estudiante=est, completado=False)
+    assert sesion.ficha_id == ficha1.id
 
 
 @mock.patch("core.utils.enviar_whatsapp_twilio")

@@ -118,7 +118,7 @@ def calcular_balance_gei(ficha) -> dict[str, Any]:
     remociones_kg = 0.0
     if ficha.tiene_bosque is False:
         campos_usados += 1
-    elif ficha.tiene_bosque and ficha.area_bosque_ha is not None:
+    elif ficha.tiene_bosque is True and ficha.area_bosque_ha is not None:
         rem_bosque = float(ficha.area_bosque_ha) * FACTORES["bosque_conservacion_ha"] * 1000.0
         resultado["remociones"]["bosque_kg_co2e"] = round(rem_bosque, 2)
         remociones_kg += rem_bosque

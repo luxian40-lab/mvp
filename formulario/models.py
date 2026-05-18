@@ -15,6 +15,16 @@ CAMPOS_GEI_7 = (
     "energia_kwh",
 )
 
+# Campos adicionales del balance GEI (combustible, residuos, bosque).
+CAMPOS_GEI_EXTENSION = (
+    "tipo_combustible",
+    "combustible_gal",
+    "residuos_ton",
+    "manejo_residuos",
+    "tiene_bosque",
+    "area_bosque_ha",
+)
+
 
 class TipoFormulario(models.Model):
     """
@@ -178,12 +188,23 @@ class FichaGEI(models.Model):
 
     @property
     def completitud_pct(self) -> int:
+        """Porcentaje de campos de recolección llenos (incluye bosque y otras fuentes GEI)."""
+        campos = list(CAMPOS_GEI_7) + [
+            c
+            for c in CAMPOS_GEI_EXTENSION
+            if c not in ("area_bosque_ha", "tiene_bosque")
+        ]
+        total = len(campos) + 1  # bloque bosque (sí/no + ha si aplica)
         llenos = 0
-        for campo in CAMPOS_GEI_7:
+        for campo in campos:
             v = getattr(self, campo, None)
             if v is not None and v != "":
                 llenos += 1
-        return (100 * llenos) // len(CAMPOS_GEI_7)
+        if self.tiene_bosque is False:
+            llenos += 1
+        elif self.tiene_bosque is True and self.area_bosque_ha is not None:
+            llenos += 1
+        return min(100, (100 * llenos) // total) if total else 0
 
     def __str__(self) -> str:
         return f"Ficha GEI {self.estudiante_id} — {self.nombre_finca or 'sin finca'}"

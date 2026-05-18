@@ -704,13 +704,24 @@ def exportar_metricas_excel(request):
         ])
 
     ws_prog = wb.create_sheet("Progreso por Curso")
-    ws_prog.append(["Estudiante", "Curso", "Módulo actual", "Completado", "Fecha completado", "Puntos acumulados"])
+    ws_prog.append(
+        [
+            "Estudiante",
+            "Teléfono",
+            "Curso",
+            "Módulo actual",
+            "Completado",
+            "Fecha completado",
+            "Puntos acumulados",
+        ]
+    )
     puntos_por_est = {
         p.estudiante_id: p.puntos_totales for p in PerfilGamificacion.objects.filter(estudiante_id__in=progresos_q.values_list('estudiante_id', flat=True))
     }
     for p in progresos_q:
         ws_prog.append([
             p.estudiante.nombre if p.estudiante_id else '',
+            (p.estudiante.telefono or '').strip() if p.estudiante_id else '',
             p.curso.nombre if p.curso_id else '',
             p.modulo_actual.numero if p.modulo_actual_id else '',
             "Sí" if p.completado else "No",

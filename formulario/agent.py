@@ -7,7 +7,16 @@ from typing import Any
 from django.conf import settings
 from django.utils import timezone
 
-from .models import CAMPOS_GEI_7, FichaGEI, FlujoPregunta, SesionFormulario, TipoFormulario
+from .gei_flujos import es_formulario_balance_gei
+from .models import (
+    CAMPOS_GEI_7,
+    CAMPOS_GEI_EXTENSION,
+    FichaGEI,
+    FlujoPregunta,
+    SesionFormulario,
+    TipoFormulario,
+)
+from .whatsapp_gei import enviar_balance_gei_whatsapp
 
 
 def _formatear_pregunta(n: int, total: int, pregunta: FlujoPregunta) -> str:
@@ -196,10 +205,12 @@ def _validar_rango(
 
 def _resumen_ficha(ficha: FichaGEI) -> str:
     lineas: list[str] = []
-    for c in CAMPOS_GEI_7:
+    for c in list(CAMPOS_GEI_7) + list(CAMPOS_GEI_EXTENSION):
         v = getattr(ficha, c, None)
         if v is not None and v != "":
             lineas.append(f"• {c.replace('_', ' ')}: {v}")
+    if ficha.tiene_bosque is False and not any("bosque" in ln for ln in lineas):
+        lineas.append("• tiene bosque: no")
     if not lineas:
         return "Aún quedan datos vacíos. Si lo desea, su facilitador le puede acompañar a completarlos."
     return "\n".join(lineas)
@@ -230,11 +241,22 @@ def iniciar_sesion_formulario(
         return (
             "En este momento el formulario no está disponible. Puede comentar con su facilitador, por favor. "
         )
-    ficha = FichaGEI.objects.create(
-        estudiante=estudiante,
-        cliente=estudiante.cliente,
-        curso=tipo_formulario.curso,
+    es_balance = es_formulario_balance_gei(tipo_formulario)
+    ficha = (
+        FichaGEI.objects.filter(
+            estudiante=estudiante,
+            curso=tipo_formulario.curso,
+        )
+        .order_by("-fecha_update", "-id")
+        .first()
     )
+    if not ficha:
+        ficha = FichaGEI.objects.create(
+            estudiante=estudiante,
+            cliente=estudiante.cliente,
+            curso=tipo_formulario.curso,
+        )
+
     SesionFormulario.objects.create(
         estudiante=estudiante,
         formulario=tipo_formulario,
@@ -244,11 +266,18 @@ def iniciar_sesion_formulario(
         modulo_siguiente=modulo_siguiente,
     )
 
-    intro = (
-        f"Necesitamos completar *{len(pasos)} datos sencillos* sobre su finca para avanzar. "
-        f"Esto hace parte de: *{tipo_formulario.nombre}*.\n\n"
-        f"En los pasos que lo permitan, puede escribir *OMITIR* para dejarlo en blanco. Gracias por su paciencia.\n\n"
-    )
+    if es_balance:
+        intro = (
+            f"Para cerrar su *balance GEI* necesitamos *{len(pasos)} datos más* "
+            f"(combustible, residuos y bosque). Luego le enviamos el resultado por aquí.\n\n"
+            f"Puede escribir *OMITIR* en lo que no sepa.\n\n"
+        )
+    else:
+        intro = (
+            f"*Primera parte* de los datos de su finca: *{len(pasos)} preguntas* "
+            f"para avanzar al siguiente módulo.\n\n"
+            f"Puede escribir *OMITIR* donde lo permita el paso.\n\n"
+        )
     p0 = pasos[0]
     return intro + _formatear_pregunta(1, len(pasos), p0)
 
@@ -266,10 +295,27 @@ def _cerrar_sesion(sesion: SesionFormulario, pasos: list[FlujoPregunta]) -> str:
         p.fecha_ultimo_avance = timezone.now()
         p.save()
     r = _resumen_ficha(ficha)
+    es_balance = es_formulario_balance_gei(sesion.formulario)
+    cierre_balance = ""
+    if es_balance:
+        enviado = enviar_balance_gei_whatsapp(ficha, sesion.estudiante)
+        if enviado:
+            cierre_balance = (
+                "\n\n📊 *Le acabamos de enviar por aquí el resultado de su balance GEI.* "
+                "Revíselo con calma."
+            )
+        else:
+            cierre_balance = (
+                "\n\n📊 Su balance quedó calculado en el sistema. "
+                "Si no recibe el resumen, comente con su facilitador."
+            )
+
+    etapa = "el balance GEI" if es_balance else "la primera parte de los datos"
     return (
-        "Gracias, ya concluimos *la recolección de datos* de esta etapa. "
-        "A continuación el resumen enviado a su ficha (si hay alguna duda, puede anotarla a su facilitador):\n\n"
-        f"{r}\n\n"
+        f"Gracias, ya concluimos *{etapa}*. "
+        "Resumen guardado en su ficha:\n\n"
+        f"{r}"
+        f"{cierre_balance}\n\n"
         "Escriba *listo* para seguir con el módulo siguiente, o *menú* si necesita otra opción."
     )
 

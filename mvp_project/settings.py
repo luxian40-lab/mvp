@@ -448,7 +448,7 @@ BOT_COMERCIAL_CLIENTE_ID = os.environ.get('BOT_COMERCIAL_CLIENTE_ID', '0')
 BOT_COMERCIAL_CURSO_ID = os.environ.get('BOT_COMERCIAL_CURSO_ID', '0')
 BOT_COMERCIAL_WHATSAPP_NUMBER = os.environ.get('BOT_COMERCIAL_WHATSAPP_NUMBER', '')
 BOT_COMERCIAL_RAG_CANAL = os.environ.get('BOT_COMERCIAL_RAG_CANAL', 'bot_comercial')
-BOT_COMERCIAL_OPENAI_MODEL = os.environ.get('BOT_COMERCIAL_OPENAI_MODEL', 'gpt-4.1-mini')
+BOT_COMERCIAL_OPENAI_MODEL = os.environ.get('BOT_COMERCIAL_OPENAI_MODEL', 'gpt-4o')
 BOT_COMERCIAL_VISION_MODEL = os.environ.get('BOT_COMERCIAL_VISION_MODEL', 'gpt-4o-mini')
 # Límite de tokens de salida del chat (menor = respuesta más rápida y barata).
 try:
