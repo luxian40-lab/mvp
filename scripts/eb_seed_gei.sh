@@ -1,6 +1,6 @@
 #!/bin/bash
-# Ejecutar en instancia EB: bash /var/app/current/scripts/eb_seed_gei.sh
-set -euo pipefail
+# Ejecutar en instancia EB: sudo /bin/bash /var/app/current/scripts/eb_seed_gei.sh
+set -e
 export ELASTIC_BEANSTALK=true
 GC=/opt/elasticbeanstalk/bin/get-config
 for key in DB_NAME DB_USER DB_PASSWORD DB_HOST DB_PORT; do
