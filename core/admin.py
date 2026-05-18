@@ -6111,7 +6111,10 @@ def _encolar_o_indexar_rag_doc(request, modeladmin, model_class_name: str, obj, 
 
 # Subida masiva solo RAG comercial (varios archivos → un DocumentoRAGComercial por archivo).
 RAG_COMERCIAL_SUBIDA_MASIVA_MIN = 2
-RAG_COMERCIAL_SUBIDA_MASIVA_MAX = 15
+# Subida HTTP: solo guardar archivos; indexación vía Celery (no bloquear gunicorn).
+RAG_COMERCIAL_SUBIDA_MASIVA_MAX = 30
+RAG_COMERCIAL_ZIP_MAX_BYTES = 80 * 1024 * 1024  # 80 MB
+RAG_COMERCIAL_ZIP_MAX_FILES = 50
 _RAG_COMERCIAL_EXT_OK = {'.pdf', '.docx', '.txt', '.xlsx', '.xlsm', '.xls'}
 
 
@@ -6396,12 +6399,61 @@ class DocumentoRAGComercialAdmin(admin.ModelAdmin):
             messages.error(request, 'Tipo de documento inválido.')
             return render(request, 'admin/subida_masiva_rag_comercial.html', context)
 
+        archivo_zip = request.FILES.get('archivo_zip')
         archivos = request.FILES.getlist('archivos')
+
+        if archivo_zip:
+            import uuid
+
+            from django.core.files.storage import default_storage
+
+            if not (archivo_zip.name or '').lower().endswith('.zip'):
+                messages.error(request, 'El archivo debe ser un .zip')
+                return render(request, 'admin/subida_masiva_rag_comercial.html', context)
+            if archivo_zip.size > RAG_COMERCIAL_ZIP_MAX_BYTES:
+                messages.error(
+                    request,
+                    f'ZIP demasiado grande (máx {RAG_COMERCIAL_ZIP_MAX_BYTES // (1024 * 1024)} MB).',
+                )
+                return render(request, 'admin/subida_masiva_rag_comercial.html', context)
+            storage_path = default_storage.save(
+                f'rag_zip_uploads/{uuid.uuid4().hex}.zip',
+                archivo_zip,
+            )
+            try:
+                from core.tasks import procesar_zip_rag_comercial
+
+                procesar_zip_rag_comercial.delay(
+                    storage_path,
+                    cliente.pk if cliente else None,
+                    canal,
+                    tipo,
+                    descripcion,
+                    request.user.pk,
+                )
+            except Exception:
+                logger.exception('[RAG comercial] No se pudo encolar ZIP')
+                try:
+                    default_storage.delete(storage_path)
+                except Exception:
+                    pass
+                messages.error(
+                    request,
+                    'No se pudo encolar el ZIP (¿Celery worker activo?). Probá subida por archivos sueltos.',
+                )
+                return render(request, 'admin/subida_masiva_rag_comercial.html', context)
+            messages.success(
+                request,
+                f'ZIP recibido. Se procesará en el worker (hasta {RAG_COMERCIAL_ZIP_MAX_FILES} archivos válidos). '
+                'Refrescá el listado en unos minutos.',
+            )
+            return redirect(changelist_url)
+
         n = len(archivos)
         if n < RAG_COMERCIAL_SUBIDA_MASIVA_MIN:
             messages.error(
                 request,
-                f'Seleccioná al menos {RAG_COMERCIAL_SUBIDA_MASIVA_MIN} archivos (documentos separados).',
+                f'Seleccioná al menos {RAG_COMERCIAL_SUBIDA_MASIVA_MIN} archivos, o subí un ZIP.',
             )
             return render(request, 'admin/subida_masiva_rag_comercial.html', context)
         if n > RAG_COMERCIAL_SUBIDA_MASIVA_MAX:

@@ -356,3 +356,110 @@ def indexar_documento_rag_por_id(self, app_label: str, model_name: str, object_i
     except Exception as exc:
         logger.exception("[Celery][RAG] Error indexando %s.%s id=%s", app_label, model_name, object_id)
         raise self.retry(exc=exc)
+
+
+@shared_task(bind=True, max_retries=1, default_retry_delay=300, time_limit=3600, soft_time_limit=3300)
+def procesar_zip_rag_comercial(
+    self,
+    storage_path: str,
+    cliente_id,
+    canal: str,
+    tipo: str,
+    descripcion: str,
+    user_id,
+):
+    """
+    Extrae un ZIP en el worker Celery y crea DocumentoRAGComercial por archivo válido.
+    La indexación de cada doc se encola aparte (no en el request HTTP).
+    """
+    import os
+    import shutil
+    import tempfile
+    import zipfile
+
+    from django.contrib.auth import get_user_model
+    from django.core.files.storage import default_storage
+
+    from core.admin import (
+        _extension_archivo_comercial_ok,
+        _nombre_documento_desde_nombre_archivo,
+        _nombre_rag_comercial_unico,
+    )
+    from core.models import Cliente, DocumentoRAGComercial
+
+    User = get_user_model()
+    user = User.objects.filter(pk=user_id).first() if user_id else None
+    cliente = None
+    if cliente_id:
+        cliente = Cliente.objects.filter(pk=cliente_id).first()
+
+    tmp_dir = tempfile.mkdtemp(prefix="eki_rag_zip_")
+    creados = 0
+    omitidos = 0
+    try:
+        with default_storage.open(storage_path, "rb") as src:
+            zip_path = os.path.join(tmp_dir, "upload.zip")
+            with open(zip_path, "wb") as out:
+                shutil.copyfileobj(src, out)
+
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            members = [
+                m
+                for m in zf.namelist()
+                if m and not m.endswith("/") and not m.startswith("__MACOSX")
+            ]
+            if len(members) > 50:
+                logger.warning("[Celery][RAG ZIP] ZIP con %s archivos; se procesan solo 50", len(members))
+                members = members[:50]
+
+            for member in members:
+                base_name = os.path.basename(member)
+                if not _extension_archivo_comercial_ok(base_name):
+                    omitidos += 1
+                    continue
+                try:
+                    zf.extract(member, tmp_dir)
+                except Exception as exc:
+                    logger.warning("[Celery][RAG ZIP] No se extrajo %s: %s", member, exc)
+                    omitidos += 1
+                    continue
+                local_path = os.path.join(tmp_dir, member)
+                if not os.path.isfile(local_path):
+                    omitidos += 1
+                    continue
+                nombre = _nombre_rag_comercial_unico(
+                    cliente,
+                    canal,
+                    _nombre_documento_desde_nombre_archivo(base_name),
+                )
+                with open(local_path, "rb") as fh:
+                    from django.core.files import File
+
+                    doc = DocumentoRAGComercial(
+                        cliente=cliente,
+                        canal=canal,
+                        nombre=nombre,
+                        tipo=tipo,
+                        descripcion=descripcion,
+                        subido_por=user,
+                        estado="pendiente",
+                    )
+                    doc.archivo.save(base_name, File(fh), save=True)
+                indexar_documento_rag_por_id.delay(
+                    "core", "DocumentoRAGComercial", doc.pk
+                )
+                creados += 1
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        try:
+            default_storage.delete(storage_path)
+        except Exception:
+            pass
+
+    logger.info(
+        "[Celery][RAG ZIP] Listo: %s documentos, %s omitidos (storage=%s)",
+        creados,
+        omitidos,
+        storage_path,
+    )
+    return {"creados": creados, "omitidos": omitidos}

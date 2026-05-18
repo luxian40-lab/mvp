@@ -250,7 +250,7 @@
                data-name="{{ c.nombre|lower }}"
                data-phone="{{ c.telefono }}">
                 <div class="conv-avatar {% cycle 'green' 'blue' 'purple' 'orange' 'red' %}">
-                    {{ c.nombre|first|upper }}
+                    {% if c.nombre %}{{ c.nombre|slice:":1"|upper }}{% else %}?{% endif %}
                 </div>
                 <div class="conv-contact-info">
                     <div class="conv-contact-name">{{ c.nombre }}</div>
@@ -282,7 +282,7 @@
         {% if contacto_seleccionado or estudiante_seleccionado %}
         <div class="conv-chat-header">
             <div class="conv-avatar green" style="width:40px;height:40px;font-size:16px;">
-                {% if estudiante_seleccionado %}{{ estudiante_seleccionado.nombre|first|upper }}{% else %}{{ contacto_seleccionado.nombre|first|upper }}{% endif %}
+                {% if estudiante_seleccionado and estudiante_seleccionado.nombre %}{{ estudiante_seleccionado.nombre|slice:":1"|upper }}{% elif contacto_seleccionado.nombre %}{{ contacto_seleccionado.nombre|slice:":1"|upper }}{% else %}?{% endif %}
             </div>
             <div>
                 <div class="conv-chat-header-name">{% if estudiante_seleccionado %}{{ estudiante_seleccionado.nombre }}{% else %}{{ contacto_seleccionado.nombre }}{% endif %}</div>

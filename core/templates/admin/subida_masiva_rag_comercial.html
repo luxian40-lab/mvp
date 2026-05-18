@@ -14,7 +14,8 @@
 <h1>{{ title }}</h1>
 
 <p style="max-width:720px;line-height:1.5;color:#444;">
-  Subí entre <strong>{{ min_files }}</strong> y <strong>{{ max_files }}</strong> archivos en una sola carga.
+  Subí entre <strong>{{ min_files }}</strong> y <strong>{{ max_files }}</strong> archivos sueltos, <strong>o un ZIP</strong>
+  (hasta 50 PDF/DOCX/TXT/XLSX dentro; se procesa en el <strong>worker Celery</strong>, no en el servidor web).
   Cada archivo genera un <strong>documento comercial aparte</strong> en el RAG.
   El <strong>nombre del documento</strong> se toma del nombre del archivo (sin extensión); si ya existe uno igual
   para el mismo cliente y canal, el sistema agrega sufijos (<code>_2</code>, <code>_3</code>, …).
@@ -63,9 +64,15 @@
     </div>
 
     <div class="form-row">
-      <label for="id_archivos">Archivos</label>
-      <input type="file" name="archivos" id="id_archivos" multiple required accept=".pdf,.docx,.txt,.xlsx,.xlsm,.xls">
-      <p class="help">En el explorador podés seleccionar varios archivos a la vez (Ctrl/Cmd + clic).</p>
+      <label for="id_archivo_zip">ZIP (recomendado para muchos archivos)</label>
+      <input type="file" name="archivo_zip" id="id_archivo_zip" accept=".zip">
+      <p class="help">Máx. 80 MB. La extracción e indexación corren en Celery (no bloquean la app).</p>
+    </div>
+
+    <div class="form-row">
+      <label for="id_archivos">Archivos sueltos (alternativa)</label>
+      <input type="file" name="archivos" id="id_archivos" multiple accept=".pdf,.docx,.txt,.xlsx,.xlsm,.xls">
+      <p class="help">Entre {{ min_files }} y {{ max_files }} archivos. Ctrl/Cmd + clic para varios.</p>
     </div>
   </fieldset>
 

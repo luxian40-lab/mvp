@@ -5746,6 +5746,19 @@ def calendario_campanas_view(request):
     return render(request, 'admin/calendario_campanas.html', context)
 
 
+def _conversaciones_fecha_aware(fecha):
+    """Normaliza datetimes para ordenar/mezclar sin TypeError naive vs aware."""
+    if not fecha:
+        return timezone.now()
+    if timezone.is_naive(fecha):
+        return timezone.make_aware(fecha)
+    return fecha
+
+
+# Máximo de filas por fuente al abrir un chat (evita 500/timeout en prod con historiales largos).
+_CONVERSACIONES_MSG_LIMIT = 400
+
+
 @staff_member_required
 def conversaciones_view(request):
     """Vista de conversaciones estilo WhatsApp, agrupadas por cliente (organización)."""
@@ -5897,10 +5910,12 @@ def conversaciones_view(request):
         }
 
         lista_mensajes = []
-        for msg in WhatsappLog.objects.filter(telefono__in=vars_tel).order_by("fecha"):
-            fecha = msg.fecha
-            if timezone.is_naive(fecha):
-                fecha = timezone.make_aware(fecha)
+        wa_qs = (
+            WhatsappLog.objects.filter(telefono__in=vars_tel)
+            .order_by("-fecha")[:_CONVERSACIONES_MSG_LIMIT]
+        )
+        for msg in reversed(list(wa_qs)):
+            fecha = _conversaciones_fecha_aware(msg.fecha)
             texto = msg.mensaje or ""
             if msg.es_audio and msg.audio_transcripcion:
                 texto = f"🎤 {msg.audio_transcripcion}"
@@ -5915,16 +5930,21 @@ def conversaciones_view(request):
             )
 
         if estudiante_seleccionado:
-            for envio in (
+            envio_qs = (
                 EnvioLog.objects.filter(estudiante=estudiante_seleccionado)
                 .select_related("campana", "campana__plantilla")
-                .order_by("fecha_envio")
-            ):
-                fecha = envio.fecha_envio
-                if timezone.is_naive(fecha):
-                    fecha = timezone.make_aware(fecha)
-                cuerpo = envio.campana.plantilla.cuerpo_mensaje
-                cuerpo = cuerpo.replace("{nombre}", estudiante_seleccionado.nombre)
+                .order_by("-fecha_envio")[:_CONVERSACIONES_MSG_LIMIT]
+            )
+            for envio in reversed(list(envio_qs)):
+                fecha = _conversaciones_fecha_aware(envio.fecha_envio)
+                campana = envio.campana
+                plantilla = getattr(campana, "plantilla", None) if campana else None
+                if plantilla and getattr(plantilla, "cuerpo_mensaje", None):
+                    cuerpo = plantilla.cuerpo_mensaje.replace(
+                        "{nombre}", estudiante_seleccionado.nombre or ""
+                    )
+                else:
+                    cuerpo = f"Campaña: {campana.nombre if campana else 'sin nombre'}"
                 lista_mensajes.append(
                     {
                         "mensaje": cuerpo,
@@ -5935,7 +5955,7 @@ def conversaciones_view(request):
                     }
                 )
 
-        lista_mensajes.sort(key=lambda x: x["fecha"] or timezone.now())
+        lista_mensajes.sort(key=lambda x: _conversaciones_fecha_aware(x["fecha"]).timestamp())
         paginator = Paginator(lista_mensajes, 50)
         page_obj = paginator.get_page(request.GET.get("page", 1))
         mensajes = page_obj.object_list
