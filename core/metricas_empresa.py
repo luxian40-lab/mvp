@@ -147,6 +147,60 @@ def _pct(num: int, den: int) -> float:
     return round(num / den * 100, 1)
 
 
+def _formato_modulo_actual(progreso, mods_comp: int = 0, total_mods: int = 0) -> str:
+    if progreso.completado:
+        return "Curso completado"
+    if progreso.modulo_actual_id and progreso.modulo_actual:
+        m = progreso.modulo_actual
+        return f"M{m.numero} · {m.titulo}"
+    if mods_comp > 0 and total_mods:
+        return f"En curso ({mods_comp}/{total_mods} módulos)"
+    return "Sin iniciar"
+
+
+def _estado_progreso(progreso, avance_pct: int) -> str:
+    if progreso.completado:
+        return "Completado"
+    if avance_pct > 0:
+        return "En curso"
+    return "Sin avance"
+
+
+def listar_progreso_estudiantes(progreso_q, limite: int = 200) -> list[dict]:
+    """Detalle por inscripción: estudiante + curso + módulo actual."""
+    rows = []
+    qs = (
+        progreso_q.select_related("estudiante", "estudiante__cliente", "curso", "modulo_actual")
+        .annotate(
+            total_mods=Count("curso__modulos", distinct=True),
+            mods_comp=Count("modulos_completados", distinct=True),
+        )
+        .order_by("estudiante__nombre", "curso__nombre")[:limite]
+    )
+    for p in qs:
+        total_mods = p.total_mods or 0
+        mods_comp = p.mods_comp or 0
+        avance = round(mods_comp / total_mods * 100) if total_mods else 0
+        rows.append(
+            {
+                "estudiante_id": p.estudiante_id,
+                "nombre": p.estudiante.nombre,
+                "cedula": p.estudiante.cedula or "",
+                "telefono": p.estudiante.telefono or "",
+                "organizacion": p.estudiante.cliente.nombre if p.estudiante.cliente_id else "-",
+                "curso": p.curso.nombre if p.curso_id else "-",
+                "modulo_actual": _formato_modulo_actual(p, mods_comp, total_mods),
+                "modulo_numero": p.modulo_actual.numero if p.modulo_actual_id else None,
+                "modulos_completados": mods_comp,
+                "modulos_total": total_mods,
+                "avance_pct": avance,
+                "estado": _estado_progreso(p, avance),
+                "completado": p.completado,
+            }
+        )
+    return rows
+
+
 def calcular_metricas_empresa(
     *,
     cliente_id: int | None = None,
@@ -331,6 +385,7 @@ def calcular_metricas_empresa(
             ],
             "temporal": series_temporal,
         },
+        "progreso_estudiantes": listar_progreso_estudiantes(progreso_q),
     }
 
 

@@ -56,3 +56,5 @@ def test_metricas_empresa_estados_progreso():
     assert data["resumen"]["finalizados"] == 1
     assert data["resumen"]["no_iniciados"] == 1
     assert "finalizacion" in data["semaforos"]
+    assert len(data.get("progreso_estudiantes", [])) == 2
+    assert any("M" in row.get("modulo_actual", "") or row["estado"] == "Completado" for row in data["progreso_estudiantes"])

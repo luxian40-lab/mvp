@@ -246,13 +246,6 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
 
         est_ids = list(est_q[:200].values_list('id', flat=True))
 
-        progresos_map = {}
-        for p in progreso_q.filter(estudiante_id__in=est_ids).select_related('curso').annotate(
-            total_mods=Count('curso__modulos', distinct=True),
-            mods_comp=Count('modulos_completados', distinct=True),
-        ):
-            progresos_map.setdefault(p.estudiante_id, p)
-
         puntos_map = {}
         try:
             from .gamificacion import PerfilGamificacion as PG_detail
@@ -262,34 +255,68 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
         except Exception:
             puntos_map = {}
 
-        for est in est_q.filter(id__in=est_ids):
-            progreso = progresos_map.get(est.id)
-            puntos_est = puntos_map.get(est.id, 0)
-            avance = 0
-            curso_nombre = '-'
-            if progreso:
-                curso_nombre = progreso.curso.nombre if progreso.curso else '-'
-                total_mods = progreso.total_mods or 0
-                mods_comp = progreso.mods_comp or 0
-                avance = round(mods_comp / total_mods * 100) if total_mods > 0 else 0
-            grupos_txt = ', '.join(sorted(g.nombre for g in est.grupos.all())) or '-'
-            if progreso and progreso.completado:
+        progresos_rows = (
+            progreso_q.filter(estudiante_id__in=est_ids)
+            .select_related('estudiante', 'estudiante__cliente', 'curso', 'modulo_actual')
+            .prefetch_related('estudiante__grupos')
+            .annotate(
+                total_mods=Count('curso__modulos', distinct=True),
+                mods_comp=Count('modulos_completados', distinct=True),
+            )
+            .order_by('estudiante__nombre', 'curso__nombre')
+        )
+
+        seen_estudiante_sin_progreso = set()
+        for progreso in progresos_rows:
+            est = progreso.estudiante
+            seen_estudiante_sin_progreso.add(est.id)
+            total_mods = progreso.total_mods or 0
+            mods_comp = progreso.mods_comp or 0
+            avance = round(mods_comp / total_mods * 100) if total_mods > 0 else 0
+            if progreso.completado:
                 estado_avance = 'Completado'
+                modulo_txt = 'Curso completado'
+            elif progreso.modulo_actual_id and progreso.modulo_actual:
+                estado_avance = 'En curso'
+                m = progreso.modulo_actual
+                modulo_txt = f'M{m.numero} · {m.titulo}'
             elif avance > 0:
                 estado_avance = 'En curso'
+                modulo_txt = f'En curso ({mods_comp}/{total_mods} módulos)'
             else:
                 estado_avance = 'Sin avance'
+                modulo_txt = 'Sin iniciar'
+            grupos_txt = ', '.join(sorted(g.nombre for g in est.grupos.all())) or '-'
             estudiantes_detalle.append({
                 'nombre': est.nombre,
                 'cedula': est.cedula,
                 'telefono': (est.telefono or '').strip() or '-',
                 'organizacion': est.cliente.nombre if est.cliente else '-',
                 'municipio': est.municipio or '-',
-                'curso': curso_nombre,
+                'curso': progreso.curso.nombre if progreso.curso_id else '-',
+                'modulo_actual': modulo_txt,
+                'modulos_completados': f'{mods_comp}/{total_mods}' if total_mods else '-',
                 'avance': avance,
-                'puntos': puntos_est,
+                'puntos': puntos_map.get(est.id, 0),
                 'grupos': grupos_txt,
                 'estado_avance': estado_avance,
+            })
+
+        for est in est_q.filter(id__in=est_ids).exclude(id__in=seen_estudiante_sin_progreso):
+            grupos_txt = ', '.join(sorted(g.nombre for g in est.grupos.all())) or '-'
+            estudiantes_detalle.append({
+                'nombre': est.nombre,
+                'cedula': est.cedula,
+                'telefono': (est.telefono or '').strip() or '-',
+                'organizacion': est.cliente.nombre if est.cliente else '-',
+                'municipio': est.municipio or '-',
+                'curso': '-',
+                'modulo_actual': '-',
+                'modulos_completados': '-',
+                'avance': 0,
+                'puntos': puntos_map.get(est.id, 0),
+                'grupos': grupos_txt,
+                'estado_avance': 'Sin inscripción',
             })
 
         clientes_iter = clientes_all if not cliente_id else clientes_all.filter(id=cliente_id)
@@ -444,7 +471,7 @@ def dashboard_unificado(request):
 
         headers = [
             'Nombre', 'Cédula', 'Teléfono', 'Organización', 'Municipio', 'Grupo(s)', 'Curso',
-            'Estado avance', 'Avance %', 'Puntos',
+            'Módulo actual', 'Módulos', 'Estado avance', 'Avance %', 'Puntos',
         ]
         header_fill = PatternFill(start_color='3b5bdb', end_color='3b5bdb', fill_type='solid')
         header_font = Font(color='FFFFFF', bold=True)
@@ -462,9 +489,11 @@ def dashboard_unificado(request):
             ws.cell(row=row_idx, column=5, value=est['municipio'])
             ws.cell(row=row_idx, column=6, value=est.get('grupos', '-'))
             ws.cell(row=row_idx, column=7, value=est['curso'])
-            ws.cell(row=row_idx, column=8, value=est.get('estado_avance', '-'))
-            ws.cell(row=row_idx, column=9, value=est['avance'])
-            ws.cell(row=row_idx, column=10, value=est['puntos'])
+            ws.cell(row=row_idx, column=8, value=est.get('modulo_actual', '-'))
+            ws.cell(row=row_idx, column=9, value=est.get('modulos_completados', '-'))
+            ws.cell(row=row_idx, column=10, value=est.get('estado_avance', '-'))
+            ws.cell(row=row_idx, column=11, value=est['avance'])
+            ws.cell(row=row_idx, column=12, value=est['puntos'])
 
         for col in range(1, len(headers) + 1):
             ws.column_dimensions[get_column_letter(col)].width = 22

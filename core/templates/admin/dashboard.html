@@ -117,6 +117,7 @@
         <button class="tab-btn" onclick="switchTab('reportes', this)">📋 Reportes B2B</button>
         <button class="tab-btn" onclick="switchTab('auditoria', this)">💬 Auditoría Bot</button>
         <button class="tab-btn" onclick="switchTab('metricas_empresa', this)">📊 Métricas por Empresa</button>
+        <button class="tab-btn" onclick="switchTab('metricas_nati', this)">🤖 Métricas Nati</button>
     </div>
 
     <!-- ===== TAB 1: RESUMEN EJECUTIVO ===== -->
@@ -255,7 +256,7 @@
         <div class="section">
             <div class="section-title">Detalle por Estudiante</div>
             <table class="eki-table">
-                <thead><tr><th>Nombre</th><th>Cédula</th><th>Teléfono</th><th>Organización</th><th>Municipio</th><th>Grupo(s)</th><th>Curso</th><th>Estado</th><th>Avance</th><th>Puntos</th></tr></thead>
+                <thead><tr><th>Nombre</th><th>Cédula</th><th>Teléfono</th><th>Organización</th><th>Municipio</th><th>Grupo(s)</th><th>Curso</th><th>Módulo actual</th><th>Módulos</th><th>Estado</th><th>Avance</th><th>Puntos</th></tr></thead>
                 <tbody>
                     {% for est in estudiantes_detalle %}
                     <tr>
@@ -266,12 +267,14 @@
                         <td>{{ est.municipio }}</td>
                         <td>{{ est.grupos }}</td>
                         <td>{{ est.curso }}</td>
+                        <td>{{ est.modulo_actual|default:"-" }}</td>
+                        <td>{{ est.modulos_completados|default:"-" }}</td>
                         <td>{{ est.estado_avance }}</td>
                         <td>{{ est.avance }}%</td>
                         <td>{{ est.puntos }}</td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="10" style="text-align:center;color:#aaa;">Sin datos</td></tr>
+                    <tr><td colspan="12" style="text-align:center;color:#aaa;">Sin datos</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -336,7 +339,7 @@
         </div>
     </div>
 
-    <!-- ===== TAB 4: MÉTRICAS POR EMPRESA ===== -->
+    <!-- ===== TAB 4: MÉTRICAS POR EMPRESA (solo educación B2B) ===== -->
     <div id="tab-metricas_empresa" class="tab-content">
         <form method="get" class="filters-bar" id="form-metricas-empresa">
             <input type="hidden" name="tab" value="metricas_empresa">
@@ -345,14 +348,13 @@
             <div><label>Desde</label><input type="date" name="fecha_inicio" id="me-desde" value="{{ fecha_inicio }}"></div>
             <div><label>Hasta</label><input type="date" name="fecha_fin" id="me-hasta" value="{{ fecha_fin }}"></div>
             <button type="button" onclick="cargarMetricasEmpresa()">Actualizar gráficas</button>
-            <a href="/admin/core/metametricaempresa/" class="btn-meta">⚙️ Metas educativas</a>
-            <a href="/admin/core/metametricanati/" class="btn-meta">🤖 Metas Nati</a>
+            <a href="/admin/core/metametricaempresa/" class="btn-meta">⚙️ Configurar metas educativas</a>
         </form>
 
         <div id="me-loading" style="display:none;padding:20px;color:#868e96;">Cargando métricas…</div>
         <div id="me-error" style="display:none;padding:16px;background:#ffe3e3;border-radius:8px;color:#c92a2a;margin-bottom:16px;"></div>
 
-        <p class="sem-section-title">📚 Educación B2B</p>
+        <p class="sem-section-title">📚 Progreso educativo B2B</p>
         <div class="sem-grid" id="me-cards-edu"></div>
         <div class="charts-row">
             <div class="chart-card"><h3>Finalización vs pendientes</h3><canvas id="chartMeDona" height="220"></canvas></div>
@@ -361,9 +363,36 @@
         <div class="chart-card" style="margin-bottom:24px;"><h3>Distribución de avance</h3><canvas id="chartMeEstados" height="180"></canvas></div>
         <div class="chart-card" style="margin-bottom:24px;"><h3>Actividad diaria (mensajes / avances)</h3><canvas id="chartMeTemporal" height="200"></canvas></div>
 
-        <p class="sem-section-title">🤖 Nati — Bot comercial</p>
-        <div class="sem-grid" id="me-cards-nati"></div>
-        <div class="chart-card"><h3>Actividad Nati por día</h3><canvas id="chartNatiTemporal" height="200"></canvas></div>
+        <div class="section">
+            <div class="section-title">Progreso por estudiante (módulo actual)</div>
+            <div style="max-height:420px;overflow:auto;">
+                <table class="eki-table" id="me-tabla-progreso">
+                    <thead><tr><th>Estudiante</th><th>Organización</th><th>Curso</th><th>Módulo actual</th><th>Módulos</th><th>Estado</th><th>Avance</th></tr></thead>
+                    <tbody><tr><td colspan="7" style="text-align:center;color:#aaa;">Actualice con los filtros de arriba</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== TAB 5: MÉTRICAS NATI (bot comercial, separado) ===== -->
+    <div id="tab-metricas_nati" class="tab-content">
+        <form method="get" class="filters-bar" id="form-metricas-nati">
+            <input type="hidden" name="tab" value="metricas_nati">
+            <div><label>Organización</label><select name="cliente" id="nati-cliente"><option value="">Todas / general</option>{% for c in clientes %}<option value="{{ c.id }}" {% if c.id == cliente_filtro %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
+            <div><label>Desde</label><input type="date" name="fecha_inicio" id="nati-desde" value="{{ fecha_inicio }}"></div>
+            <div><label>Hasta</label><input type="date" name="fecha_fin" id="nati-hasta" value="{{ fecha_fin }}"></div>
+            <button type="button" onclick="cargarMetricasNati()">Actualizar</button>
+            <a href="/admin/core/metametricanati/" class="btn-meta">⚙️ Configurar metas Nati</a>
+            <a href="/admin/dashboard-metrics/" class="btn-meta" style="background:#0369a1;">📈 Métricas detalladas bot</a>
+        </form>
+
+        <div id="nati-loading" style="display:none;padding:20px;color:#868e96;">Cargando Nati…</div>
+        <div id="nati-error" style="display:none;padding:16px;background:#ffe3e3;border-radius:8px;color:#c92a2a;margin-bottom:16px;"></div>
+
+        <p class="sem-section-title">🤖 Nati — asistente comercial (WhatsApp)</p>
+        <p style="font-size:0.85rem;color:#868e96;margin:-8px 0 16px;">Canal comercial independiente del progreso de cursos. No mezcla datos de <code>ProgresoEstudiante</code>.</p>
+        <div class="sem-grid" id="nati-cards"></div>
+        <div class="chart-card"><h3>Actividad Nati por día</h3><canvas id="chartNatiTemporal" height="220"></canvas></div>
     </div>
 </div>
 
@@ -573,6 +602,7 @@ function switchTab(tabName, btn) {
     if (tabName === 'resumen') initResumenCharts();
     if (tabName === 'auditoria') initAuditoriaCharts();
     if (tabName === 'metricas_empresa') cargarMetricasEmpresa();
+    if (tabName === 'metricas_nati') cargarMetricasNati();
 }
 
 const analyticsEndpoint = (dashboardConfig && dashboardConfig.dataset.analyticsEndpoint) || '/admin/analytics/api/';
@@ -601,9 +631,21 @@ function renderMeCardsEdu(d) {
         meCardHtml('Promedio avance', (r.promedio_avance_pct||0) + '%', 'Inicio efectivo: ' + p.inicio + '% · meta ' + m.inicio + '%', s.inicio, 'Meta inicio: ' + m.inicio + '%');
 }
 
-function renderMeCardsNati(d) {
+function renderMeTablaProgreso(rows) {
+    const tbody = document.querySelector('#me-tabla-progreso tbody');
+    if (!tbody) return;
+    if (!rows || !rows.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#aaa;">Sin inscripciones para estos filtros</td></tr>';
+        return;
+    }
+    tbody.innerHTML = rows.map(function(r) {
+        return '<tr><td>' + (r.nombre||'') + '</td><td>' + (r.organizacion||'-') + '</td><td>' + (r.curso||'-') + '</td><td><strong>' + (r.modulo_actual||'-') + '</strong></td><td>' + (r.modulos_completados||0) + '/' + (r.modulos_total||0) + '</td><td>' + (r.estado||'') + '</td><td>' + (r.avance_pct||0) + '%</td></tr>';
+    }).join('');
+}
+
+function renderNatiCards(d) {
     const r = d.resumen || {}, p = d.porcentajes || {}, s = d.semaforos || {}, m = d.metas || {};
-    const el = document.getElementById('me-cards-nati');
+    const el = document.getElementById('nati-cards');
     if (!el) return;
     el.innerHTML =
         meCardHtml('Mensajes Nati enviados', r.mensajes_enviados||0, 'Leídos: ' + (r.mensajes_read||0), s.lectura, 'Meta lectura: ' + m.lectura + '%') +
@@ -694,19 +736,41 @@ async function cargarMetricasEmpresa() {
     if (d2) params.set('hasta', d2);
 
     try {
-        const [rEdu, rNati] = await Promise.all([
-            fetch(analyticsEndpoint + '?tipo=metricas_empresa&' + params.toString(), { credentials: 'same-origin' }),
-            fetch(analyticsEndpoint + '?tipo=metricas_nati&' + params.toString(), { credentials: 'same-origin' })
-        ]);
+        const rEdu = await fetch(analyticsEndpoint + '?tipo=metricas_empresa&' + params.toString(), { credentials: 'same-origin' });
         if (!rEdu.ok) throw new Error('API educativa ' + rEdu.status);
         const edu = await rEdu.json();
-        const nati = rNati.ok ? await rNati.json() : { resumen: {}, porcentajes: {}, semaforos: {}, metas: {}, series: {} };
         renderMeCardsEdu(edu);
-        renderMeCardsNati(nati);
+        renderMeTablaProgreso(edu.progreso_estudiantes || []);
         pintarGraficasEmpresa(edu);
-        pintarGraficasNati(nati);
     } catch (e) {
         if (errEl) { errEl.textContent = 'No se pudieron cargar las métricas: ' + e.message; errEl.style.display = 'block'; }
+    } finally {
+        if (loading) loading.style.display = 'none';
+    }
+}
+
+async function cargarMetricasNati() {
+    const loading = document.getElementById('nati-loading');
+    const errEl = document.getElementById('nati-error');
+    if (errEl) errEl.style.display = 'none';
+    if (loading) loading.style.display = 'block';
+
+    const params = new URLSearchParams();
+    const cid = document.getElementById('nati-cliente')?.value;
+    const d1 = document.getElementById('nati-desde')?.value;
+    const d2 = document.getElementById('nati-hasta')?.value;
+    if (cid) params.set('cliente_id', cid);
+    if (d1) params.set('desde', d1);
+    if (d2) params.set('hasta', d2);
+
+    try {
+        const rNati = await fetch(analyticsEndpoint + '?tipo=metricas_nati&' + params.toString(), { credentials: 'same-origin' });
+        if (!rNati.ok) throw new Error('API Nati ' + rNati.status);
+        const nati = await rNati.json();
+        renderNatiCards(nati);
+        pintarGraficasNati(nati);
+    } catch (e) {
+        if (errEl) { errEl.textContent = 'No se pudieron cargar métricas Nati: ' + e.message; errEl.style.display = 'block'; }
     } finally {
         if (loading) loading.style.display = 'none';
     }
@@ -758,6 +822,9 @@ function iniciarAutoRefreshResumen() {
     }
     if ((params.get('tab') || tabActual) === 'metricas_empresa') {
         cargarMetricasEmpresa();
+    }
+    if ((params.get('tab') || tabActual) === 'metricas_nati') {
+        cargarMetricasNati();
     }
 })();
 </script>
