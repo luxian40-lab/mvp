@@ -474,52 +474,18 @@ def dashboard_unificado(request):
     Métricas reales: cursos, clientes, estudiantes, certificados, gamificación,
     WhatsApp, IA, y progreso educativo.
     """
-    context, _ = _construir_dashboard_unificado_contexto(request, incluir_detalle=True)
+    context, resumen_payload = _construir_dashboard_unificado_contexto(request, incluir_detalle=True)
 
-    # --- Excel export ---
+    # --- Excel export (todas las pestañas + datos de gráficos) ---
     if request.GET.get('exportar') == 'excel':
-        import openpyxl
-        from openpyxl.styles import Font, PatternFill
-        from openpyxl.utils import get_column_letter
+        from analytics.exports import export_dashboard_excel
 
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = 'Estudiantes'
-
-        headers = [
-            'Nombre', 'Cédula', 'Teléfono', 'Organización', 'Municipio', 'Grupo(s)', 'Curso',
-            'Módulo actual', 'Módulos', 'Estado avance', 'Avance %', 'Puntos',
-        ]
-        header_fill = PatternFill(start_color='3b5bdb', end_color='3b5bdb', fill_type='solid')
-        header_font = Font(color='FFFFFF', bold=True)
-
-        for col, h in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col, value=h)
-            cell.fill = header_fill
-            cell.font = header_font
-
-        for row_idx, est in enumerate(context['estudiantes_detalle'], 2):
-            ws.cell(row=row_idx, column=1, value=est['nombre'])
-            ws.cell(row=row_idx, column=2, value=est['cedula'])
-            ws.cell(row=row_idx, column=3, value=est.get('telefono', '-'))
-            ws.cell(row=row_idx, column=4, value=est['organizacion'])
-            ws.cell(row=row_idx, column=5, value=est['municipio'])
-            ws.cell(row=row_idx, column=6, value=est.get('grupos', '-'))
-            ws.cell(row=row_idx, column=7, value=est['curso'])
-            ws.cell(row=row_idx, column=8, value=est.get('modulo_actual', '-'))
-            ws.cell(row=row_idx, column=9, value=est.get('modulos_completados', '-'))
-            ws.cell(row=row_idx, column=10, value=est.get('estado_avance', '-'))
-            ws.cell(row=row_idx, column=11, value=est['avance'])
-            ws.cell(row=row_idx, column=12, value=est['puntos'])
-
-        for col in range(1, len(headers) + 1):
-            ws.column_dimensions[get_column_letter(col)].width = 22
-
-        from django.http import HttpResponse as ExcelResponse
-        response = ExcelResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = 'attachment; filename=reporte_eki_b2b.xlsx'
-        wb.save(response)
-        return response
+        return export_dashboard_excel(
+            context=context,
+            resumen_payload=resumen_payload,
+            tab=context.get('tab_actual', 'executive'),
+            learning_section=context.get('learning_section', 'reportes'),
+        )
 
     return render(request, 'admin/dashboard.html', context)
 
@@ -1797,6 +1763,7 @@ def _bot_comercial_respuesta_catalogo(
     historial_chat: str = '',
     cliente=None,
     sesion_comercial=None,
+    bloque_contexto_agro: str = '',
 ) -> str:
     """Genera respuesta técnica/comercial estricta basada en contexto RAG (sin alucinaciones).
 
@@ -1836,8 +1803,10 @@ def _bot_comercial_respuesta_catalogo(
         inicio = time.time()
         client = OpenAI(api_key=api_key)
         system_prompt = armar_system_prompt(cliente=cliente)
+        bloque_agro = (bloque_contexto_agro or '').strip()
         user_prompt = (
             f"CONSULTA DEL CLIENTE:\n{pregunta}\n\n"
+            f"{'CONTEXTO AGRONÓMICO DEL PRODUCTOR (estructurado):\n' + bloque_agro + '\n\n' if bloque_agro else ''}"
             f"HISTORIAL RECIENTE:\n{historial_chat or '[VACIO]'}\n\n"
             f"DIAGNOSTICO VISION (si aplica):\n{diagnostico_vision or 'N/A'}\n\n"
             f"INFORMACION OFICIAL DE EKI (fuente principal — usá esto):\n{contexto_rag or '[VACIO]'}\n\n"
@@ -2189,6 +2158,21 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
         horas_expira=int(getattr(settings, 'BOT_COMERCIAL_SESSION_HOURS', 4) or 4),
     )
 
+    ctx_agro = None
+    bloque_contexto_agro = ''
+    try:
+        from core.ai_capabilities import resolver_ai_capability
+        from core.contexto_agro import actualizar_contexto_desde_mensaje, formatear_bloque_contexto_para_prompt
+
+        if resolver_ai_capability('nati_structured_context', cliente=cliente_nati):
+            ctx_agro = actualizar_contexto_desde_mensaje(sesion_comercial, msg_body)
+            bloque_contexto_agro = formatear_bloque_contexto_para_prompt(ctx_agro)
+    except Exception:
+        pass
+
+    consulta = msg_body or 'Necesito asesoría agrícola'
+    rag_chunks = []
+
     if es_saludo:
         from core.nati import armar_saludo_inicial
         texto_respuesta = armar_saludo_inicial(cliente_nati)
@@ -2211,7 +2195,6 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
 
         contexto_rag = ''
         contexto_web = ''
-        rag_chunks = []
         if rag_comercial_manager.disponible:
             from .models import DocumentoRAGComercial
 
@@ -2305,7 +2288,30 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
             historial_chat=historial_chat,
             cliente=cliente_nati,
             sesion_comercial=sesion_comercial,
+            bloque_contexto_agro=bloque_contexto_agro,
         )
+
+    if not es_saludo and msg_normalizado not in ['listo', 'continuar', 'menu', 'menú']:
+        try:
+            import uuid
+
+            from core.eventos_ia import get_or_create_trace_id
+            from core.knowledge_studio import crear_candidata_hitl
+
+            tid = get_or_create_trace_id()
+            trace_uuid = uuid.UUID(tid) if tid else None
+            crear_candidata_hitl(
+                cliente=cliente_nati,
+                sesion=sesion_comercial,
+                telefono=telefono_limpio,
+                pregunta=consulta,
+                respuesta_nati=texto_respuesta,
+                contexto_agro=ctx_agro.to_dict() if ctx_agro else {},
+                chunks_rag=rag_chunks,
+                trace_id=trace_uuid,
+            )
+        except Exception:
+            pass
 
     try:
         resultado_envio = enviar_whatsapp_twilio(

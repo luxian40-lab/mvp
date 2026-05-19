@@ -140,6 +140,7 @@
             <div><label>Desde</label><input type="date" name="fecha_inicio" value="{{ fecha_inicio }}"></div>
             <div><label>Hasta</label><input type="date" name="fecha_fin" value="{{ fecha_fin }}"></div>
             <button type="submit">Filtrar</button>
+            <a href="?exportar=excel&tab=executive{% if cliente_filtro %}&cliente={{ cliente_filtro }}{% endif %}{% if curso_filtro %}&curso={{ curso_filtro }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}" class="btn-excel">📥 Descargar Excel</a>
             <a href="?tab=executive" class="btn-excel" style="background:#495057;">Limpiar</a>
         </form>
 
@@ -309,6 +310,15 @@
     <!-- ===== AI OPERATIONS ===== -->
     <div id="tab-auditoria" class="tab-content {% if tab_actual == 'ai_ops' %}active{% endif %}">
 
+        <form method="get" class="filters-bar">
+            <input type="hidden" name="tab" value="ai_ops">
+            <div><label>Organización</label><select name="cliente"><option value="">Todos</option>{% for c in clientes %}<option value="{{ c.id }}" {% if c.id == cliente_filtro %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
+            <div><label>Desde</label><input type="date" name="fecha_inicio" value="{{ fecha_inicio }}"></div>
+            <div><label>Hasta</label><input type="date" name="fecha_fin" value="{{ fecha_fin }}"></div>
+            <button type="submit">Filtrar</button>
+            <a href="?exportar=excel&tab=ai_ops{% if cliente_filtro %}&cliente={{ cliente_filtro }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}" class="btn-excel">📥 Descargar Excel</a>
+        </form>
+
         <div class="section">
             <div class="section-title">Métricas del Bot</div>
             <div class="metrics-grid">
@@ -387,6 +397,7 @@
             <div><label>Desde</label><input type="date" name="fecha_inicio" id="me-desde" value="{{ fecha_inicio }}"></div>
             <div><label>Hasta</label><input type="date" name="fecha_fin" id="me-hasta" value="{{ fecha_fin }}"></div>
             <button type="button" onclick="cargarMetricasEmpresa()">Actualizar gráficas</button>
+            <a href="?exportar=excel&tab=learning&section=metricas_empresa{% if cliente_filtro %}&cliente={{ cliente_filtro }}{% endif %}{% if curso_filtro %}&curso={{ curso_filtro }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}" class="btn-excel">📥 Descargar Excel</a>
             <a href="/admin/core/metametricaempresa/" class="btn-meta">⚙️ Configurar metas educativas</a>
         </form>
 
@@ -422,7 +433,9 @@
             <div><label>Desde</label><input type="date" name="fecha_inicio" id="nati-desde" value="{{ fecha_inicio }}"></div>
             <div><label>Hasta</label><input type="date" name="fecha_fin" id="nati-hasta" value="{{ fecha_fin }}"></div>
             <button type="button" onclick="cargarMetricasNati()">Actualizar</button>
+            <a href="?exportar=excel&tab=commercial{% if cliente_filtro %}&cliente={{ cliente_filtro }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}" class="btn-excel">📥 Descargar Excel</a>
             <a href="/admin/core/metametricanati/" class="btn-meta">⚙️ Configurar metas Nati</a>
+            <a href="{% url 'knowledge_studio' %}" class="btn-meta" style="background:#7048e8;">📚 Knowledge Studio HITL</a>
             <a href="/admin/dashboard-metrics/" class="btn-meta" style="background:#0369a1;">📈 Métricas detalladas bot</a>
         </form>
 

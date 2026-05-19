@@ -34,6 +34,16 @@ DEFAULT_AI_CAPABILITIES: dict[str, dict[str, Any]] = {
         'label': 'Persistencia EventoIA',
         'por_cliente': False,
     },
+    'nati_structured_context': {
+        'default': True,
+        'label': 'Contexto agronómico estructurado Nati',
+        'por_cliente': True,
+    },
+    'hitl_rag_publish': {
+        'default': True,
+        'label': 'Cola HITL Knowledge Studio',
+        'por_cliente': True,
+    },
 }
 
 

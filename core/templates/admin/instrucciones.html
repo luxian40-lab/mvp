@@ -432,9 +432,114 @@
 
         <p>Plataforma de Educación Agrícola para Campesinos Colombianos por WhatsApp</p>
 
-        <p style="font-size: 0.9em; margin-top: 10px;">✅ Versión 1.4 | Abril 2026</p>
+        <p style="font-size: 0.9em; margin-top: 10px;">✅ Versión 2.0 | Mayo 2026</p>
 
-        <p style="font-size: 0.85em; opacity: 0.9;">Incluye: Ficha GEI (recolección en WhatsApp) • Métricas de fichas en dashboard • API `formulario_gei` • Producción AWS • Multimedia • Twilio</p>
+        <p style="font-size: 0.85em; opacity: 0.9;">Incluye: 4 dashboards · EventoIA/replay · Contexto agronómico Nati · Knowledge Studio HITL · Checkpoint auditable · Ficha GEI · Producción AWS</p>
+
+    </div>
+
+    <div class="subsection" id="manual-v20-mayo-2026" style="border-left-color:#7048e8;margin-top:20px;background:#f8f0ff;padding:16px 20px;border-radius:6px;">
+
+        <h3>🚀 Manual v2.0 — Mayo 2026 (observabilidad + Nati + HITL)</h3>
+
+        <p style="line-height:1.7;">Esta versión documenta la arquitectura operativa actual: dashboards por dominio, trazabilidad IA auditable, contexto agronómico estructurado para Nati y flujo human-in-the-loop para publicar conocimiento validado al RAG comercial.</p>
+
+        <h4 style="margin-top:18px;">1. Cuatro dashboards (una sola URL base)</h4>
+        <p>URL: <a href="/admin/dashboard/"><code>/admin/dashboard/</code></a> con pestañas:</p>
+        <ul style="line-height:1.7;">
+            <li><strong>Executive</strong> — KPIs gerenciales, cohortes, salud general.</li>
+            <li><strong>Learning</strong> — avance pedagógico, checkpoints, gamificación.</li>
+            <li><strong>AI Ops</strong> — últimos eventos IA, enlaces a replay y feature flags.</li>
+            <li><strong>Commercial CRM</strong> — bot comercial, prospectos B2B, métricas Nati.</li>
+        </ul>
+        <p>Las rutas antiguas (<code>/admin/dashboard-metrics/</code>, <code>/admin/dashboard-analytics/</code>, etc.) redirigen automáticamente al dashboard unificado con la pestaña equivalente.</p>
+
+        <h4 style="margin-top:18px;">2. EventoIA — audit trail y replay</h4>
+        <ul style="line-height:1.7;">
+            <li><strong>Listado:</strong> <a href="/admin/ai-ops/eventos/"><code>/admin/ai-ops/eventos/</code></a> — filtrar por tipo, trace, estudiante, canal.</li>
+            <li><strong>Replay:</strong> <code>/admin/ai-ops/replay/&lt;uuid&gt;/</code> — timeline del turno (webhook → intent → RAG → IA → enviado).</li>
+            <li><strong>API JSON:</strong> <code>GET /admin/ai-ops/api/eventos/</code> (staff).</li>
+            <li><strong>Admin Django:</strong> modelo <em>EventoIA</em> solo lectura (no se edita manualmente).</li>
+        </ul>
+        <p>Tipos de evento activos: <code>modulo_completado</code>, <code>checkpoint_evaluado</code>, <code>webhook_recibido</code>, <code>intent_detectado</code>, <code>rag_query_executed</code>, <code>ia_agent_triggered</code>, <code>mensaje_enviado</code>.</p>
+
+        <h4 style="margin-top:18px;">3. Checkpoint facilitadora — tres reglas (corregido mayo 2026)</h4>
+        <p>El campo <strong>Checkpoint facilitadora</strong> en cada Módulo define la precedencia:</p>
+        <table style="width:100%;border-collapse:collapse;font-size:0.9em;margin:12px 0;">
+            <tr style="background:#e9ecef;"><th style="padding:8px;text-align:left;">Valor admin</th><th style="padding:8px;text-align:left;">Efecto</th></tr>
+            <tr><td style="padding:8px;border-top:1px solid #dee2e6;"><strong>Sí</strong></td><td style="padding:8px;border-top:1px solid #dee2e6;">Siempre activa reto IA al cerrar ese módulo (incluso módulo 1).</td></tr>
+            <tr><td style="padding:8px;border-top:1px solid #dee2e6;"><strong>No</strong></td><td style="padding:8px;border-top:1px solid #dee2e6;">Nunca activa reto en ese módulo (aunque sea módulo 3).</td></tr>
+            <tr><td style="padding:8px;border-top:1px solid #dee2e6;"><strong>Auto (heredar)</strong></td><td style="padding:8px;border-top:1px solid #dee2e6;">Regla numérica: módulo 3, último si curso ≥5 módulos, intermedios 6/9/12… El <strong>módulo 1 en Auto NO activa reto</strong> por sí solo.</td></tr>
+        </table>
+        <p>Si el módulo ya estaba completado (anti-loop tras reto), se anula el reto. Cada decisión emite <code>checkpoint_evaluado</code> con <code>regla_aplicada</code> auditable.</p>
+
+        <h4 style="margin-top:18px;">4. Nati — contexto agronómico estructurado (Parte 3)</h4>
+        <ul style="line-height:1.7;">
+            <li>Modelo <strong>ContextoAgroSession</strong> (Admin → Contextos agronómicos): one-to-one con sesión comercial WhatsApp.</li>
+            <li>Campos: cultivo, etapa fenológica, región, municipio, clima, problema.</li>
+            <li>Extracción automática (NLU rule-based) de cada mensaje del productor; no sobrescribe campos ya llenos.</li>
+            <li>El bloque de contexto se inyecta en el prompt de Nati — evita respuestas genéricas cuando faltan datos, pide diagnóstico corto.</li>
+            <li>Completitud % = campos llenos / 6 dimensiones clave.</li>
+            <li>Feature flag: <code>nati_structured_context</code> en <code>core/ai_capabilities.py</code> (por cliente).</li>
+        </ul>
+
+        <h4 style="margin-top:18px;">5. Knowledge Studio + HITL (Parte 4)</h4>
+        <ul style="line-height:1.7;">
+            <li><strong>Panel:</strong> <a href="/admin/knowledge-studio/"><code>/admin/knowledge-studio/</code></a></li>
+            <li>Tras cada consulta técnica Nati (no saludos), se crea <strong>ConversacionRAGCandidata</strong> en cola <em>Pendiente</em>.</li>
+            <li>Flujo del agrónomo revisor: editar respuesta → <strong>Aprobar</strong> (guardar sin publicar) o <strong>Publicar en RAG</strong> (indexa chunk validado) o <strong>Rechazar</strong>.</li>
+            <li>Pestañas: Cola HITL · Biblioteca (DocumentoRAGComercial) · Salud RAG (docs indexados, chunks, ChromaDB).</li>
+            <li>Admin Django: <em>Candidatas RAG (HITL)</em> con acción masiva «Marcar aprobada».</li>
+            <li>Feature flag: <code>hitl_rag_publish</code>.</li>
+        </ul>
+
+        <h4 style="margin-top:18px;">6. Cómo probar en 10 minutos</h4>
+        <ol style="line-height:1.7;">
+            <li>Módulo 1 checkpoint = <strong>Sí</strong> → estudiante cierra M1 → evento <code>override_si</code> + reto.</li>
+            <li>Módulo 1 checkpoint = <strong>Auto</strong> → mismo cierre → <code>auto_sin_match</code>, sin reto.</li>
+            <li>WhatsApp Nati: «Tengo roya en café en Huila» → ver contexto en Admin → eventos RAG + IA.</li>
+            <li>Knowledge Studio → revisar candidata → Publicar → documento <code>hitl_*</code> en biblioteca.</li>
+            <li>Replay del trace en AI Ops.</li>
+        </ol>
+
+        <p style="margin-top:12px;font-size:0.9em;color:#495057;">Documentación técnica: <code>docs/ROADMAP_OBSERVABILIDAD.md</code> · <code>docs/DOMAIN_ARCHITECTURE.md</code></p>
+
+        <h4 style="margin-top:24px;">7. Mapa de dominios (bounded contexts — mayo 2026)</h4>
+        <p>No microservicios aún: apps Django con imports unidireccionales (<code>core</code> no importa las demás).</p>
+        <table style="width:100%;border-collapse:collapse;font-size:0.88em;margin:12px 0;">
+            <tr style="background:#e9ecef;"><th style="padding:8px;text-align:left;">Dominio</th><th style="padding:8px;text-align:left;">App Django</th><th style="padding:8px;text-align:left;">Hoy en código</th></tr>
+            <tr><td style="padding:8px;border-top:1px solid #dee2e6;">Core / identidad</td><td style="padding:8px;border-top:1px solid #dee2e6;"><code>core</code></td><td style="padding:8px;border-top:1px solid #dee2e6;">models, webhook orquestador Twilio</td></tr>
+            <tr><td style="padding:8px;border-top:1px solid #dee2e6;">Educación</td><td style="padding:8px;border-top:1px solid #dee2e6;"><code>learning</code></td><td style="padding:8px;border-top:1px solid #dee2e6;">cursos, módulos, progreso, drip, certificados</td></tr>
+            <tr><td style="padding:8px;border-top:1px solid #dee2e6;">IA pedagógica</td><td style="padding:8px;border-top:1px solid #dee2e6;"><code>agents_edu</code></td><td style="padding:8px;border-top:1px solid #dee2e6;">Darío, Claudia, checkpoint facilitadora</td></tr>
+            <tr><td style="padding:8px;border-top:1px solid #dee2e6;">IA comercial</td><td style="padding:8px;border-top:1px solid #dee2e6;"><code>agents_commercial</code></td><td style="padding:8px;border-top:1px solid #dee2e6;">Nati, RAG comercial, Knowledge Studio HITL</td></tr>
+            <tr><td style="padding:8px;border-top:1px solid #dee2e6;">Analytics</td><td style="padding:8px;border-top:1px solid #dee2e6;"><code>analytics</code></td><td style="padding:8px;border-top:1px solid #dee2e6;">4 dashboards, exports Excel, semáforos</td></tr>
+            <tr><td style="padding:8px;border-top:1px solid #dee2e6;">Integraciones</td><td style="padding:8px;border-top:1px solid #dee2e6;"><code>integrations</code></td><td style="padding:8px;border-top:1px solid #dee2e6;">API REST para Angular / LXP</td></tr>
+            <tr><td style="padding:8px;border-top:1px solid #dee2e6;">GEI / formularios</td><td style="padding:8px;border-top:1px solid #dee2e6;"><code>formulario</code></td><td style="padding:8px;border-top:1px solid #dee2e6;">Ficha GEI, balance carbono</td></tr>
+        </table>
+
+        <h4 style="margin-top:20px;">8. Export Excel en dashboards</h4>
+        <p>Cada pestaña del <a href="/admin/dashboard/">dashboard unificado</a> tiene botón <strong>📥 Descargar Excel</strong>. Incluye KPIs, tablas y <em>datos de gráficos</em> (series temporales, municipios, tipos WA, eventos IA, Nati).</p>
+        <p>Parámetro: <code>?exportar=excel&amp;tab=executive|learning|ai_ops|commercial</code> (+ filtros <code>cliente</code>, fechas).</p>
+
+        <h4 style="margin-top:20px;">9. APIs REST para frontend Angular</h4>
+        <p>Base URL producción: <code>https://&lt;su-dominio-eki&gt;/</code>. Auth integración: header <code>Authorization: Bearer &lt;INTEGRACION_API_KEY&gt;</code> o <code>X-API-Key</code> (variable de entorno en EB).</p>
+        <p>CORS: configure <code>INTEGRACION_API_ALLOWED_ORIGINS</code> con el origen de su app Angular.</p>
+        <table style="width:100%;border-collapse:collapse;font-size:0.85em;margin:12px 0;">
+            <tr style="background:#e9ecef;"><th style="padding:8px;">Método</th><th style="padding:8px;">Ruta</th><th style="padding:8px;">Uso Angular</th></tr>
+            <tr><td style="padding:8px;border-top:1px solid #dee2e6;">GET</td><td style="padding:8px;border-top:1px solid #dee2e6;"><code>/api/estudiante/{telefono}/</code></td><td style="padding:8px;border-top:1px solid #dee2e6;">Perfil estudiante</td></tr>
+            <tr><td style="padding:8px;border-top:1px solid #dee2e6;">GET</td><td style="padding:8px;border-top:1px solid #dee2e6;"><code>/api/estudiante/{telefono}/progreso/</code></td><td style="padding:8px;border-top:1px solid #dee2e6;">Avance cursos/módulos</td></tr>
+            <tr><td style="padding:8px;border-top:1px solid #dee2e6;">GET</td><td style="padding:8px;border-top:1px solid #dee2e6;"><code>/api/estudiante/{telefono}/siguiente-tarea/</code></td><td style="padding:8px;border-top:1px solid #dee2e6;">Próximo paso pedagógico</td></tr>
+            <tr><td style="padding:8px;border-top:1px solid #dee2e6;">GET</td><td style="padding:8px;border-top:1px solid #dee2e6;"><code>/api/integracion/educativa/metricas/?cliente_id=&amp;desde=&amp;hasta=</code></td><td style="padding:8px;border-top:1px solid #dee2e6;">KPIs educativos + series (dashboard Learning)</td></tr>
+            <tr><td style="padding:8px;border-top:1px solid #dee2e6;">GET</td><td style="padding:8px;border-top:1px solid #dee2e6;"><code>/api/integracion/empleabilidad/metricas/</code></td><td style="padding:8px;border-top:1px solid #dee2e6;">Misiones empleabilidad</td></tr>
+            <tr><td style="padding:8px;border-top:1px solid #dee2e6;">GET</td><td style="padding:8px;border-top:1px solid #dee2e6;"><code>/api/integracion/gei/detalle/</code></td><td style="padding:8px;border-top:1px solid #dee2e6;">Fichas GEI paginadas</td></tr>
+            <tr><td style="padding:8px;border-top:1px solid #dee2e6;">GET</td><td style="padding:8px;border-top:1px solid #dee2e6;"><code>/api/integracion/gei/exportar/</code></td><td style="padding:8px;border-top:1px solid #dee2e6;">Excel GEI directo</td></tr>
+            <tr><td style="padding:8px;border-top:1px solid #dee2e6;">GET</td><td style="padding:8px;border-top:1px solid #dee2e6;"><code>/api/empleabilidad/oportunidades/?telefono=&amp;latitud=&amp;longitud=</code></td><td style="padding:8px;border-top:1px solid #dee2e6;">Mapa oportunidades</td></tr>
+            <tr><td style="padding:8px;border-top:1px solid #dee2e6;">GET</td><td style="padding:8px;border-top:1px solid #dee2e6;"><code>/admin/analytics/api/?tipo=metricas_empresa|metricas_nati|formulario_gei</code></td><td style="padding:8px;border-top:1px solid #dee2e6;">Staff session — gráficas admin (mismo JSON que dashboard)</td></tr>
+            <tr><td style="padding:8px;border-top:1px solid #dee2e6;">GET</td><td style="padding:8px;border-top:1px solid #dee2e6;"><code>/admin/dashboard/resumen-data/</code></td><td style="padding:8px;border-top:1px solid #dee2e6;">Staff — KPIs Executive en JSON</td></tr>
+            <tr><td style="padding:8px;border-top:1px solid #dee2e6;">GET</td><td style="padding:8px;border-top:1px solid #dee2e6;"><code>/admin/ai-ops/api/eventos/</code></td><td style="padding:8px;border-top:1px solid #dee2e6;">Staff — audit trail IA</td></tr>
+            <tr><td style="padding:8px;border-top:1px solid #dee2e6;">GET</td><td style="padding:8px;border-top:1px solid #dee2e6;"><code>/api/certificados/verificar/?codigo=</code></td><td style="padding:8px;border-top:1px solid #dee2e6;">Verificación pública certificado</td></tr>
+        </table>
+        <p style="font-size:0.88em;color:#495057;">Empleabilidad POST: <code>/api/empleabilidad/claim/</code>, <code>/completar/</code>, <code>/flujo/</code>, <code>/resumen/</code> — ver OpenAPI en código <code>core/api.py</code>.</p>
 
     </div>
 
@@ -444,7 +549,7 @@
 
         <ul style="line-height:1.6;">
 
-            <li><strong>Compañero + facilitadora al cerrar el módulo 1:</strong> además de los checkpoints ya existentes (p. ej. módulo 3 y último en cursos de 5+ módulos), al terminar el <strong>módulo 1</strong> se activa el mismo flujo de pausa con el compañero de estudio y luego la facilitadora (ABR), si el curso tiene <code>usar_agentes_ia</code>. En admin, cada <em>Módulo</em> puede forzar o anular con el campo <strong>Checkpoint facilitadora</strong> (Sí / No / heredar).</li>
+            <li><strong>Checkpoint facilitadora — reglas admin (actualizado mayo 2026):</strong> el módulo 1 <em>no</em> activa reto en modo <strong>Auto</strong>. Solo activa reto en M1 si el admin pone <strong>Sí</strong> explícito en «Checkpoint facilitadora». Modo Auto sigue aplicando módulo 3, último (cursos ≥5) e intermedios 6/9/12… Ver sección <a href="#manual-v20-mayo-2026">Manual v2.0</a>.</li>
 
             <li><strong>Evaluación tipo A/B/C/D en pasos:</strong> si el estudiante falla, recibe el feedback negativo del admin (o el mensaje estándar). Después puede escribir <strong><em>listo</em></strong> (u otra palabra de avance admitida en evaluación) para <strong>seguir sin exigir la letra correcta</strong>. Si acierta, sigue el feedback positivo y el mismo criterio de avance.</li>
 

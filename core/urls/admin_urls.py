@@ -29,6 +29,7 @@ from core.views_admin_analytics import (
 )
 from core.views_analytics import gei_panel_view
 from core.views_eventos_ia import ai_ops_eventos_view, ai_ops_replay_view, api_eventos_ia_json
+from core.views_knowledge_studio import knowledge_studio_revisar, knowledge_studio_view
 from core.views_reportes import descargar_reporte_xlsx
 
 urlpatterns = [
@@ -64,4 +65,10 @@ urlpatterns = [
     path('admin/ai-ops/eventos/', ai_ops_eventos_view, name='ai_ops_eventos'),
     path('admin/ai-ops/api/eventos/', api_eventos_ia_json, name='api_eventos_ia'),
     path('admin/ai-ops/replay/<uuid:trace_id>/', ai_ops_replay_view, name='ai_ops_replay'),
+    path('admin/knowledge-studio/', knowledge_studio_view, name='knowledge_studio'),
+    path(
+        'admin/knowledge-studio/revisar/<int:candidata_id>/',
+        knowledge_studio_revisar,
+        name='knowledge_studio_revisar',
+    ),
 ]

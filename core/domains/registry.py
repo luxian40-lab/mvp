@@ -19,11 +19,13 @@ from typing import Any
 DOMAIN_REGISTRY: dict[str, dict[str, Any]] = {
     'core': {
         'label': 'Core',
+        'django_app': 'core',
         'description': 'Clientes, estudiantes, autenticación admin, utilidades compartidas.',
         'modules': ['core.models', 'core.utils_telefono', 'core.views'],
     },
     'learning': {
         'label': 'Learning',
+        'django_app': 'learning',
         'description': 'Cursos, progreso, drip, checkpoints y certificación.',
         'modules': [
             'core.domains.learning.checkpoints',
@@ -33,30 +35,35 @@ DOMAIN_REGISTRY: dict[str, dict[str, Any]] = {
     },
     'agents_edu': {
         'label': 'Agentes educativos',
+        'django_app': 'agents_edu',
         'description': 'Darío, Claudia, facilitadora y tutor por módulo.',
         'modules': ['core.agentes_ia', 'core.tutor_ia_modulo'],
     },
     'agents_commercial': {
         'label': 'Agentes comerciales',
+        'django_app': 'agents_commercial',
         'description': 'Nati, RAG comercial y bot de ventas.',
-        'modules': ['core.nati', 'core.rag_comercial_manager'],
+        'modules': ['core.nati', 'core.rag_comercial_manager', 'core.knowledge_studio'],
     },
     'analytics': {
         'label': 'Analytics',
+        'django_app': 'analytics',
         'description': 'Métricas, semáforos, dashboards y exportaciones.',
         'modules': [
             'core.domains.analytics.metricas',
-            'core.dashboard_avanzado',
+            'analytics.exports',
             'core.domains.dashboard',
         ],
     },
     'integrations': {
         'label': 'Integraciones',
-        'description': 'Twilio, webhooks, tareas asíncronas.',
-        'modules': ['core.tasks'],
+        'django_app': 'integrations',
+        'description': 'API REST LXP / Angular, CORS.',
+        'modules': ['integrations.urls', 'core.api'],
     },
     'formulario': {
         'label': 'Formularios',
+        'django_app': 'formulario',
         'description': 'GEI y flujos de encuesta WhatsApp.',
         'modules': ['formulario.gei_flujos', 'formulario.agent'],
     },

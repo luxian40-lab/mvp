@@ -23,7 +23,7 @@ urlpatterns = [
     # Rutas funcionales separadas por dominio
     path('', include('core.urls.admin_urls')),
     path('', include('core.urls.webhook_urls')),
-    path('', include('core.urls.api_urls')),
+    path('', include('integrations.urls')),
     path('', include('core.urls.certificados_urls')),
     path('', include('core.urls.media_urls')),
 

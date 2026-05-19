@@ -1,0 +1,139 @@
+{% extends "admin/base_site.html" %}
+{% block title %}Knowledge Studio — eki{% endblock %}
+{% block extrastyle %}
+<style>
+.ks-wrap { padding: 24px; max-width: 1280px; margin: 0 auto; }
+.ks-header { margin-bottom: 20px; }
+.ks-nav { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.ks-nav a, .ks-nav span { padding: 8px 16px; border-radius: 6px; font-weight: 600; text-decoration: none; border: 1px solid #dee2e6; color: #495057; }
+.ks-nav a.active, .ks-nav span.active { background: #3b5bdb; color: #fff; border-color: #3b5bdb; }
+.ks-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.ks-card { background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.ks-card .val { font-size: 1.6rem; font-weight: 700; color: #3b5bdb; }
+.ks-table { width: 100%; border-collapse: collapse; background: #fff; font-size: 0.88rem; }
+.ks-table th { background: #f8f9fa; padding: 10px; text-align: left; font-size: 0.75rem; text-transform: uppercase; color: #868e96; }
+.ks-table td { padding: 10px; border-top: 1px solid #eee; vertical-align: top; }
+.hitl-form textarea { width: 100%; min-height: 80px; font-size: 0.85rem; }
+.hitl-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.hitl-actions button { padding: 6px 14px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; }
+.btn-ok { background: #2f9e44; color: #fff; }
+.btn-pub { background: #3b5bdb; color: #fff; }
+.btn-no { background: #e03131; color: #fff; }
+.filters { margin-bottom: 16px; display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="ks-wrap">
+    <div class="ks-header">
+        <p><a href="{% url 'dashboard_unificado' %}?tab=commercial">← Dashboard Commercial CRM</a></p>
+        <h1>Knowledge Studio</h1>
+        <p style="color:#666;">Biblioteca RAG · Cola HITL · Salud del conocimiento comercial</p>
+    </div>
+
+    <form method="get" class="filters">
+        <input type="hidden" name="tab" value="{{ tab }}">
+        <div><label>Organización</label><br>
+            <select name="cliente_id" onchange="this.form.submit()">
+                <option value="">Todas</option>
+                {% for c in clientes %}
+                <option value="{{ c.id }}" {% if cliente_id == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </form>
+
+    <div class="ks-cards">
+        <div class="ks-card"><div class="val">{{ salud.documentos_indexados }}/{{ salud.documentos_total }}</div><div>Docs indexados</div></div>
+        <div class="ks-card"><div class="val">{{ salud.chunks_indexados }}</div><div>Chunks RAG</div></div>
+        <div class="ks-card"><div class="val">{{ salud.candidatas_pendientes }}</div><div>Cola HITL</div></div>
+        <div class="ks-card"><div class="val">{{ salud.candidatas_publicadas }}</div><div>Publicadas</div></div>
+        <div class="ks-card"><div class="val">{% if salud.rag_disponible %}OK{% else %}OFF{% endif %}</div><div>ChromaDB</div></div>
+    </div>
+
+    <div class="ks-nav">
+        <a href="?tab=hitl{% if cliente_id %}&cliente_id={{ cliente_id }}{% endif %}" class="{% if tab == 'hitl' %}active{% endif %}">Cola HITL</a>
+        <a href="?tab=biblioteca{% if cliente_id %}&cliente_id={{ cliente_id }}{% endif %}" class="{% if tab == 'biblioteca' %}active{% endif %}">Biblioteca</a>
+        <a href="?tab=salud{% if cliente_id %}&cliente_id={{ cliente_id }}{% endif %}" class="{% if tab == 'salud' %}active{% endif %}">Salud RAG</a>
+    </div>
+
+    {% if tab == 'hitl' %}
+    <h2>Pendientes de revisión agronómica</h2>
+    <p style="color:#666;font-size:0.9rem;">Conversaciones Nati candidatas a conocimiento validado. Un agrónomo revisa, edita y publica al RAG comercial.</p>
+    {% for c in candidatas_pendientes %}
+    <div style="background:#fff;padding:16px;border-radius:8px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);">
+        <div style="font-size:0.8rem;color:#868e96;">{{ c.fecha_creacion|date:"d/m/Y H:i" }} · {{ c.telefono }} · {% if c.cliente %}{{ c.cliente.nombre }}{% else %}General{% endif %}</div>
+        <p><strong>Pregunta:</strong> {{ c.pregunta }}</p>
+        <p><strong>Respuesta Nati:</strong> {{ c.respuesta_nati|truncatechars:600 }}</p>
+        {% if c.contexto_agro %}
+        <p style="font-size:0.85rem;"><strong>Contexto agro:</strong> {{ c.contexto_agro }}</p>
+        {% endif %}
+        <form method="post" action="{% url 'knowledge_studio_revisar' c.id %}" class="hitl-form">
+            {% csrf_token %}
+            <input type="hidden" name="cliente_id" value="{{ cliente_id|default:'' }}">
+            <label>Respuesta revisada (editable)</label>
+            <textarea name="respuesta_revisada">{{ c.respuesta_nati }}</textarea>
+            <label>Notas del revisor</label>
+            <textarea name="notas" placeholder="Opcional"></textarea>
+            <div class="hitl-actions">
+                <button type="submit" name="accion" value="aprobar" class="btn-ok">Aprobar</button>
+                <button type="submit" name="accion" value="publicar" class="btn-pub">Publicar en RAG</button>
+                <button type="submit" name="accion" value="rechazar" class="btn-no">Rechazar</button>
+            </div>
+        </form>
+    </div>
+    {% empty %}
+    <p style="color:#aaa;padding:24px;text-align:center;">Cola vacía. Las consultas técnicas de Nati generan candidatas automáticamente.</p>
+    {% endfor %}
+
+    {% if candidatas_recientes %}
+    <h3 style="margin-top:32px;">Historial reciente</h3>
+    <table class="ks-table">
+        <thead><tr><th>Fecha</th><th>Estado</th><th>Pregunta</th><th>Revisor</th></tr></thead>
+        <tbody>
+        {% for c in candidatas_recientes %}
+        <tr>
+            <td>{{ c.fecha_revision|date:"d/m H:i"|default:c.fecha_creacion|date:"d/m H:i" }}</td>
+            <td>{{ c.get_estado_display }}</td>
+            <td>{{ c.pregunta|truncatechars:80 }}</td>
+            <td>{% if c.revisado_por %}{{ c.revisado_por.username }}{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    {% elif tab == 'biblioteca' %}
+    <h2>Biblioteca de documentos RAG comercial</h2>
+    <table class="ks-table">
+        <thead><tr><th>Documento</th><th>Cliente</th><th>Tipo</th><th>Estado</th><th>Fecha</th></tr></thead>
+        <tbody>
+        {% for d in biblioteca %}
+        <tr>
+            <td>{{ d.nombre }}</td>
+            <td>{% if d.cliente %}{{ d.cliente.nombre }}{% else %}General{% endif %}</td>
+            <td>{{ d.get_tipo_display }}</td>
+            <td>{{ d.get_estado_display }}</td>
+            <td>{{ d.fecha_subida|date:"d/m/Y" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" style="text-align:center;color:#aaa;">Sin documentos. Suba archivos en Admin → Documentos RAG comercial.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    {% else %}
+    <h2>Salud del RAG</h2>
+    <table class="ks-table">
+        <tbody>
+        <tr><th>Documentos totales</th><td>{{ salud.documentos_total }}</td></tr>
+        <tr><th>Indexados</th><td>{{ salud.documentos_indexados }}</td></tr>
+        <tr><th>Pendientes indexar</th><td>{{ salud.documentos_pendientes }}</td></tr>
+        <tr><th>Con error</th><td>{{ salud.documentos_error }}</td></tr>
+        <tr><th>Chunks en vector store</th><td>{{ salud.chunks_indexados }}</td></tr>
+        <tr><th>ChromaDB disponible</th><td>{% if salud.rag_disponible %}Sí{% else %}No — revisar servidor{% endif %}</td></tr>
+        </tbody>
+    </table>
+    <p style="margin-top:16px;color:#666;">Recomendación: mantenga &gt;80% docs indexados y revise la cola HITL semanalmente.</p>
+    {% endif %}
+</div>
+{% endblock %}

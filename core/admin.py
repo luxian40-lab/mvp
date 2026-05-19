@@ -29,6 +29,8 @@ from .models import (
     DocumentoRAGComercial,  # 🛒 RAG Comercial
     MetaMetricaEmpresa, MetaMetricaNati,
     EventoIA,
+    ContextoAgroSession,
+    ConversacionRAGCandidata,
 )
 from .admin_campana_actualizado import CampanaUnicaAdmin, RespuestaCampanaUnicaAdmin
 from .models_extras import (
@@ -6675,4 +6677,34 @@ class EventoIAAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return request.user.is_superuser
+
+
+@admin.register(ContextoAgroSession)
+class ContextoAgroSessionAdmin(admin.ModelAdmin):
+    list_display = ('sesion', 'cultivo', 'etapa', 'region', 'problema', 'updated_at')
+    list_filter = ('cultivo', 'region')
+    search_fields = ('sesion__telefono', 'cultivo', 'problema', 'region', 'municipio')
+    readonly_fields = ('updated_at',)
+
+
+@admin.register(ConversacionRAGCandidata)
+class ConversacionRAGCandidataAdmin(admin.ModelAdmin):
+    list_display = (
+        'fecha_creacion', 'estado', 'telefono', 'cliente', 'pregunta_corta', 'revisado_por',
+    )
+    list_filter = ('estado', 'fecha_creacion', 'cliente')
+    search_fields = ('telefono', 'pregunta', 'respuesta_nati')
+    readonly_fields = ('fecha_creacion', 'fecha_revision', 'trace_id')
+    actions = ['marcar_aprobada']
+
+    @admin.display(description='Pregunta')
+    def pregunta_corta(self, obj):
+        return (obj.pregunta or '')[:80]
+
+    @admin.action(description='Marcar aprobada (sin publicar)')
+    def marcar_aprobada(self, request, queryset):
+        from core.knowledge_studio import revisar_candidata
+
+        for c in queryset.filter(estado=ConversacionRAGCandidata.ESTADO_PENDIENTE):
+            revisar_candidata(c, usuario=request.user, accion='aprobar')
 

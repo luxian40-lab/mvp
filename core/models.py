@@ -3004,6 +3004,119 @@ class EventoIA(models.Model):
         return f'{self.get_tipo_display()} · {self.trace_id} · {self.created_at:%Y-%m-%d %H:%M}'
 
 
+class ContextoAgroSession(models.Model):
+    """Contexto agronómico estructurado por sesión Nati (Parte 3)."""
+
+    sesion = models.OneToOneField(
+        SesionComercial,
+        on_delete=models.CASCADE,
+        related_name='contexto_agro',
+        verbose_name='Sesión comercial',
+    )
+    cultivo = models.CharField(max_length=80, blank=True, default='')
+    etapa = models.CharField(max_length=80, blank=True, default='', help_text='Ej: floración, desarrollo')
+    region = models.CharField(max_length=120, blank=True, default='', help_text='Departamento o zona')
+    municipio = models.CharField(max_length=80, blank=True, default='')
+    clima = models.CharField(max_length=80, blank=True, default='', help_text='Ej: alta humedad, sequía')
+    problema = models.CharField(max_length=200, blank=True, default='', help_text='Plaga, enfermedad, nutrición')
+    notas = models.TextField(blank=True, default='')
+    metadata = models.JSONField(default=dict, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Contexto agronómico (Nati)'
+        verbose_name_plural = 'Contextos agronómicos (Nati)'
+
+    def campos_llenos(self) -> list[str]:
+        out = []
+        for k in ('cultivo', 'etapa', 'region', 'municipio', 'clima', 'problema'):
+            if (getattr(self, k, '') or '').strip():
+                out.append(k)
+        return out
+
+    def completitud_pct(self) -> int:
+        total = 6
+        return int(len(self.campos_llenos()) * 100 / total) if total else 0
+
+    def to_dict(self) -> dict:
+        return {
+            'cultivo': self.cultivo,
+            'etapa': self.etapa,
+            'region': self.region,
+            'municipio': self.municipio,
+            'clima': self.clima,
+            'problema': self.problema,
+            'completitud_pct': self.completitud_pct(),
+        }
+
+    def __str__(self):
+        parts = [p for p in (self.cultivo, self.problema, self.region) if p]
+        return ' · '.join(parts) if parts else f'Contexto sesión {self.sesion_id}'
+
+
+class ConversacionRAGCandidata(models.Model):
+    """Cola HITL: conversación Nati candidata a publicarse como conocimiento validado (Parte 4)."""
+
+    ESTADO_PENDIENTE = 'pendiente'
+    ESTADO_APROBADA = 'aprobada'
+    ESTADO_RECHAZADA = 'rechazada'
+    ESTADO_PUBLICADA = 'publicada'
+    ESTADO_CHOICES = [
+        (ESTADO_PENDIENTE, 'Pendiente revisión'),
+        (ESTADO_APROBADA, 'Aprobada (sin publicar)'),
+        (ESTADO_RECHAZADA, 'Rechazada'),
+        (ESTADO_PUBLICADA, 'Publicada en RAG'),
+    ]
+
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='candidatas_rag',
+    )
+    sesion = models.ForeignKey(
+        SesionComercial,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='candidatas_rag',
+    )
+    telefono = models.CharField(max_length=30, db_index=True)
+    trace_id = models.UUIDField(null=True, blank=True, db_index=True)
+    pregunta = models.TextField()
+    respuesta_nati = models.TextField()
+    respuesta_revisada = models.TextField(blank=True, default='')
+    contexto_agro = models.JSONField(default=dict, blank=True)
+    chunks_rag = models.JSONField(default=list, blank=True)
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default=ESTADO_PENDIENTE, db_index=True)
+    revisado_por = models.ForeignKey(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='candidatas_rag_revisadas',
+    )
+    notas_revisor = models.TextField(blank=True, default='')
+    documento_rag = models.ForeignKey(
+        DocumentoRAGComercial,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='candidatas_origen',
+    )
+    fecha_creacion = models.DateTimeField(auto_now_add=True, db_index=True)
+    fecha_revision = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Candidata RAG (HITL)'
+        verbose_name_plural = 'Candidatas RAG (HITL)'
+        ordering = ['-fecha_creacion']
+
+    def __str__(self):
+        return f'{self.get_estado_display()} · {self.pregunta[:60]}'
+
+
 __all__ = [
     'TemaCampana', 'Cliente', 'Estudiante', 'Plantilla', 'Linea',
     'Campana', 'EnvioLog', 'WhatsappLog',
@@ -3022,4 +3135,6 @@ __all__ = [
     'AliadoEmpleabilidad', 'MisionEmpleabilidad', 'PreguntaAbiertaFinalCurso', 'RespuestaAbiertaFinal',
     'ConfiguracionGlobal',
     'EventoIA',
+    'ContextoAgroSession',
+    'ConversacionRAGCandidata',
 ]

@@ -47,8 +47,13 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'storages',                 # <--- AWS S3 para almacenar audios
-    'core',                     # <--- TU APP
-    'formulario',
+    'core',                     # <--- Orquestador + modelos compartidos
+    'formulario',               # GEI / encuestas
+    'learning',                 # Bounded context educación (migración gradual)
+    'agents_edu',               # Darío, Claudia, tutor
+    'agents_commercial',        # Nati, RAG comercial
+    'analytics',                # Dashboards, métricas, Excel
+    'integrations',             # API LXP / Angular
 ]
 
 MIDDLEWARE = [
