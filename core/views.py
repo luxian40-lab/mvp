@@ -1804,9 +1804,13 @@ def _bot_comercial_respuesta_catalogo(
         client = OpenAI(api_key=api_key)
         system_prompt = armar_system_prompt(cliente=cliente)
         bloque_agro = (bloque_contexto_agro or '').strip()
+        bloque_ctx_prompt = (
+            f"CONTEXTO AGRONÓMICO DEL PRODUCTOR (estructurado):\n{bloque_agro}\n\n"
+            if bloque_agro else ''
+        )
         user_prompt = (
             f"CONSULTA DEL CLIENTE:\n{pregunta}\n\n"
-            f"{'CONTEXTO AGRONÓMICO DEL PRODUCTOR (estructurado):\n' + bloque_agro + '\n\n' if bloque_agro else ''}"
+            f"{bloque_ctx_prompt}"
             f"HISTORIAL RECIENTE:\n{historial_chat or '[VACIO]'}\n\n"
             f"DIAGNOSTICO VISION (si aplica):\n{diagnostico_vision or 'N/A'}\n\n"
             f"INFORMACION OFICIAL DE EKI (fuente principal — usá esto):\n{contexto_rag or '[VACIO]'}\n\n"
