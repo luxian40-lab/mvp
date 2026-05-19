@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
@@ -230,6 +231,94 @@ class Cliente(models.Model):
     def total_cursos(self):
         """Retorna total de cursos asignados al cliente"""
         return self.cursos.count()
+
+
+class MetaMetricaEmpresa(models.Model):
+    """Metas configurables por organización (educación B2B)."""
+
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.CASCADE,
+        related_name="metas_metricas",
+        verbose_name="Organización",
+    )
+    curso = models.ForeignKey(
+        "Curso",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="metas_metricas",
+        verbose_name="Curso",
+        help_text="Vacío = meta general del cliente para todos los cursos.",
+    )
+    meta_finalizacion_porcentaje = models.DecimalField(
+        max_digits=5, decimal_places=2, default=70
+    )
+    meta_inicio_porcentaje = models.DecimalField(
+        max_digits=5, decimal_places=2, default=80
+    )
+    meta_max_no_iniciados_porcentaje = models.DecimalField(
+        max_digits=5, decimal_places=2, default=20
+    )
+    meta_min_lectura_mensajes_porcentaje = models.DecimalField(
+        max_digits=5, decimal_places=2, default=60
+    )
+    verde_desde = models.DecimalField(max_digits=5, decimal_places=2, default=80)
+    amarillo_desde = models.DecimalField(max_digits=5, decimal_places=2, default=50)
+    activa = models.BooleanField(default=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Meta métrica empresa"
+        verbose_name_plural = "Metas métricas por empresa"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["cliente", "curso"],
+                name="uniq_meta_metrica_cliente_curso",
+                condition=Q(curso__isnull=False),
+            ),
+            models.UniqueConstraint(
+                fields=["cliente"],
+                name="uniq_meta_metrica_cliente_general",
+                condition=Q(curso__isnull=True),
+            ),
+        ]
+
+    def __str__(self):
+        curso = self.curso.nombre if self.curso_id else "General"
+        return f"{self.cliente.nombre} — {curso}"
+
+
+class MetaMetricaNati(models.Model):
+    """Metas del bot comercial Nati por organización."""
+
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.CASCADE,
+        related_name="metas_nati",
+        verbose_name="Organización",
+    )
+    meta_lectura_porcentaje = models.DecimalField(
+        max_digits=5, decimal_places=2, default=60,
+        verbose_name="Meta lectura WhatsApp (%)",
+    )
+    meta_respuesta_porcentaje = models.DecimalField(
+        max_digits=5, decimal_places=2, default=70,
+        verbose_name="Meta respuesta a consultas (%)",
+    )
+    verde_desde = models.DecimalField(max_digits=5, decimal_places=2, default=80)
+    amarillo_desde = models.DecimalField(max_digits=5, decimal_places=2, default=50)
+    activa = models.BooleanField(default=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Meta métrica Nati"
+        verbose_name_plural = "Metas métricas Nati"
+
+    def __str__(self):
+        return f"Nati — {self.cliente.nombre}"
 
 
 # 1. ESTUDIANTE

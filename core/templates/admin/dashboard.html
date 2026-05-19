@@ -75,6 +75,29 @@
     .badge-pendiente { background: #fff3bf; color: #e67700; }
     .badge-resuelta { background: #d3f9d8; color: #2b8a3e; }
     .badge-en_atencion { background: #d0ebff; color: #1864ab; }
+
+    /* Semáforos métricas empresa */
+    .sem-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .sem-card { background: var(--eki-card); border-radius: var(--eki-radius); padding: 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); position: relative; border-top: 4px solid #adb5bd; }
+    .sem-card.verde { border-top-color: var(--eki-success); }
+    .sem-card.amarillo { border-top-color: var(--eki-warning); }
+    .sem-card.rojo { border-top-color: var(--eki-danger); }
+    .sem-card.gris { border-top-color: #adb5bd; }
+    .sem-dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: middle; }
+    .sem-dot.verde { background: var(--eki-success); }
+    .sem-dot.amarillo { background: var(--eki-warning); }
+    .sem-dot.rojo { background: var(--eki-danger); }
+    .sem-dot.gris { background: #adb5bd; }
+    .sem-value { font-size: 1.6rem; font-weight: 700; margin: 8px 0 4px; }
+    .sem-sub { font-size: 0.78rem; color: var(--eki-muted); }
+    .sem-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.72rem; font-weight: 600; margin-top: 6px; }
+    .sem-badge.verde { background: #d3f9d8; color: #2b8a3e; }
+    .sem-badge.amarillo { background: #fff3bf; color: #e67700; }
+    .sem-badge.rojo { background: #ffe3e3; color: #c92a2a; }
+    .sem-progress { height: 8px; background: #e9ecef; border-radius: 4px; margin-top: 10px; overflow: hidden; }
+    .sem-progress > span { display: block; height: 100%; border-radius: 4px; }
+    .sem-section-title { font-size: 1.05rem; font-weight: 700; margin: 28px 0 12px; color: var(--eki-text); }
+    .btn-meta { background: #495057; color: #fff; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 600; }
 </style>
 {% endblock %}
 
@@ -93,6 +116,7 @@
         <button class="tab-btn active" onclick="switchTab('resumen', this)">📊 Resumen Ejecutivo</button>
         <button class="tab-btn" onclick="switchTab('reportes', this)">📋 Reportes B2B</button>
         <button class="tab-btn" onclick="switchTab('auditoria', this)">💬 Auditoría Bot</button>
+        <button class="tab-btn" onclick="switchTab('metricas_empresa', this)">📊 Métricas por Empresa</button>
     </div>
 
     <!-- ===== TAB 1: RESUMEN EJECUTIVO ===== -->
@@ -311,9 +335,39 @@
             </table>
         </div>
     </div>
+
+    <!-- ===== TAB 4: MÉTRICAS POR EMPRESA ===== -->
+    <div id="tab-metricas_empresa" class="tab-content">
+        <form method="get" class="filters-bar" id="form-metricas-empresa">
+            <input type="hidden" name="tab" value="metricas_empresa">
+            <div><label>Organización</label><select name="cliente" id="me-cliente"><option value="">Seleccione empresa…</option>{% for c in clientes %}<option value="{{ c.id }}" {% if c.id == cliente_filtro %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
+            <div><label>Curso</label><select name="curso" id="me-curso"><option value="">Todos</option>{% for c in cursos %}<option value="{{ c.id }}" {% if c.id == curso_filtro %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
+            <div><label>Desde</label><input type="date" name="fecha_inicio" id="me-desde" value="{{ fecha_inicio }}"></div>
+            <div><label>Hasta</label><input type="date" name="fecha_fin" id="me-hasta" value="{{ fecha_fin }}"></div>
+            <button type="button" onclick="cargarMetricasEmpresa()">Actualizar gráficas</button>
+            <a href="/admin/core/metametricaempresa/" class="btn-meta">⚙️ Metas educativas</a>
+            <a href="/admin/core/metametricanati/" class="btn-meta">🤖 Metas Nati</a>
+        </form>
+
+        <div id="me-loading" style="display:none;padding:20px;color:#868e96;">Cargando métricas…</div>
+        <div id="me-error" style="display:none;padding:16px;background:#ffe3e3;border-radius:8px;color:#c92a2a;margin-bottom:16px;"></div>
+
+        <p class="sem-section-title">📚 Educación B2B</p>
+        <div class="sem-grid" id="me-cards-edu"></div>
+        <div class="charts-row">
+            <div class="chart-card"><h3>Finalización vs pendientes</h3><canvas id="chartMeDona" height="220"></canvas></div>
+            <div class="chart-card"><h3>No iniciados vs mensajes enviados</h3><canvas id="chartMeBarras" height="220"></canvas></div>
+        </div>
+        <div class="chart-card" style="margin-bottom:24px;"><h3>Distribución de avance</h3><canvas id="chartMeEstados" height="180"></canvas></div>
+        <div class="chart-card" style="margin-bottom:24px;"><h3>Actividad diaria (mensajes / avances)</h3><canvas id="chartMeTemporal" height="200"></canvas></div>
+
+        <p class="sem-section-title">🤖 Nati — Bot comercial</p>
+        <div class="sem-grid" id="me-cards-nati"></div>
+        <div class="chart-card"><h3>Actividad Nati por día</h3><canvas id="chartNatiTemporal" height="200"></canvas></div>
+    </div>
 </div>
 
-<div id="dashboard-config" data-resumen-endpoint="{% url 'dashboard_unificado_resumen_data' %}" data-tab-actual="{{ tab_actual }}"></div>
+<div id="dashboard-config" data-resumen-endpoint="{% url 'dashboard_unificado_resumen_data' %}" data-tab-actual="{{ tab_actual }}" data-analytics-endpoint="/admin/analytics/api/"></div>
 <script id="dashboard-resumen-payload" type="application/json">{{ resumen_payload_json|safe }}</script>
 
 <script>
@@ -518,6 +572,144 @@ function switchTab(tabName, btn) {
     btn.classList.add('active');
     if (tabName === 'resumen') initResumenCharts();
     if (tabName === 'auditoria') initAuditoriaCharts();
+    if (tabName === 'metricas_empresa') cargarMetricasEmpresa();
+}
+
+const analyticsEndpoint = (dashboardConfig && dashboardConfig.dataset.analyticsEndpoint) || '/admin/analytics/api/';
+let chartMeDona = null, chartMeBarras = null, chartMeEstados = null, chartMeTemporal = null, chartNatiTemporal = null;
+
+function meCardHtml(titulo, valor, sub, sem, metaTxt) {
+    const c = sem || 'gris';
+    const lbl = {verde:'Meta cumplida', amarillo:'En alerta', rojo:'Crítico', gris:'Sin datos'}[c] || '';
+    return '<div class="sem-card ' + c + '" title="' + (metaTxt || '') + '">' +
+        '<span class="sem-dot ' + c + '"></span><strong>' + titulo + '</strong>' +
+        '<div class="sem-value">' + valor + '</div>' +
+        '<div class="sem-sub">' + (sub || '') + '</div>' +
+        '<span class="sem-badge ' + c + '">' + lbl + '</span></div>';
+}
+
+function renderMeCardsEdu(d) {
+    const r = d.resumen || {}, p = d.porcentajes || {}, s = d.semaforos || {}, m = d.metas || {};
+    const el = document.getElementById('me-cards-edu');
+    if (!el) return;
+    el.innerHTML =
+        meCardHtml('Finalizados / totales', (r.finalizados||0) + ' / ' + (r.total_inscritos||0), p.finalizacion + '% finalización', s.finalizacion, 'Meta finalización: ' + m.finalizacion + '%') +
+        meCardHtml('En curso', r.en_curso||0, p.en_curso + '% del total', 'gris', '') +
+        meCardHtml('No iniciados', r.no_iniciados||0, p.no_iniciados + '% · meta máx ' + m.max_no_iniciados + '%', s.no_iniciados, 'Meta máx no iniciados: ' + m.max_no_iniciados + '%') +
+        meCardHtml('Mensajes enviados', r.mensajes_enviados||0, 'A no iniciados: ' + (r.mensajes_a_no_iniciados||0), s.mensajes_sin_inicio, '') +
+        meCardHtml('Lecturas WhatsApp', (r.mensajes_read||0) + ' / ' + (r.mensajes_enviados||0), p.lectura + '% · meta ' + m.lecturas + '%', s.lectura, 'Meta lectura: ' + m.lecturas + '%') +
+        meCardHtml('Promedio avance', (r.promedio_avance_pct||0) + '%', 'Inicio efectivo: ' + p.inicio + '% · meta ' + m.inicio + '%', s.inicio, 'Meta inicio: ' + m.inicio + '%');
+}
+
+function renderMeCardsNati(d) {
+    const r = d.resumen || {}, p = d.porcentajes || {}, s = d.semaforos || {}, m = d.metas || {};
+    const el = document.getElementById('me-cards-nati');
+    if (!el) return;
+    el.innerHTML =
+        meCardHtml('Mensajes Nati enviados', r.mensajes_enviados||0, 'Leídos: ' + (r.mensajes_read||0), s.lectura, 'Meta lectura: ' + m.lectura + '%') +
+        meCardHtml('Consultas recibidas', r.mensajes_recibidos||0, 'Conversaciones: ' + (r.conversaciones_unicas||0), 'gris', '') +
+        meCardHtml('Tasa respuesta', p.respuesta + '%', 'Meta ' + m.respuesta + '%', s.respuesta, 'Meta respuesta: ' + m.respuesta + '%') +
+        meCardHtml('Docs RAG indexados', r.documentos_rag_indexados||0, (r.chunks_rag||0) + ' chunks', 'gris', '');
+}
+
+function ensureChart(ref, canvasId, config) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return ref;
+    if (!ref) return new Chart(canvas, config);
+    ref.data = config.data;
+    ref.options = config.options;
+    ref.update();
+    return ref;
+}
+
+function pintarGraficasEmpresa(d) {
+    const fin = d.resumen?.finalizados || 0, rest = (d.resumen?.total_inscritos || 0) - fin;
+    chartMeDona = ensureChart(chartMeDona, 'chartMeDona', {
+        type: 'doughnut',
+        data: { labels: ['Finalizados', 'Pendientes'], datasets: [{ data: [fin, Math.max(rest,0)], backgroundColor: ['#2f9e44','#dee2e6'] }] },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+    const barras = d.series?.mensajes_vs_no_iniciados || [];
+    chartMeBarras = ensureChart(chartMeBarras, 'chartMeBarras', {
+        type: 'bar',
+        data: {
+            labels: barras.map(x => x.metrica),
+            datasets: [{ label: 'Total', data: barras.map(x => x.total), backgroundColor: ['#e03131','#3b5bdb'] }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+    const est = d.series?.por_estado || [];
+    chartMeEstados = ensureChart(chartMeEstados, 'chartMeEstados', {
+        type: 'bar',
+        data: {
+            labels: est.map(x => x.estado),
+            datasets: [{ label: 'Estudiantes', data: est.map(x => x.total), backgroundColor: ['#868e96','#f59f00','#2f9e44'] }]
+        },
+        options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+    });
+    const temp = d.series?.temporal || [];
+    chartMeTemporal = ensureChart(chartMeTemporal, 'chartMeTemporal', {
+        type: 'line',
+        data: {
+            labels: temp.map(x => x.fecha),
+            datasets: [
+                { label: 'Mensajes', data: temp.map(x => x.mensajes_enviados), borderColor: '#3b5bdb', tension: 0.2 },
+                { label: 'Avances', data: temp.map(x => x.avances), borderColor: '#2f9e44', tension: 0.2 }
+            ]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: true } } }
+    });
+}
+
+function pintarGraficasNati(d) {
+    const temp = d.series?.temporal || [];
+    chartNatiTemporal = ensureChart(chartNatiTemporal, 'chartNatiTemporal', {
+        type: 'line',
+        data: {
+            labels: temp.map(x => x.fecha),
+            datasets: [
+                { label: 'Enviados', data: temp.map(x => x.enviados), borderColor: '#3b5bdb', tension: 0.2 },
+                { label: 'Leídos', data: temp.map(x => x.leidos), borderColor: '#2f9e44', tension: 0.2 },
+                { label: 'Recibidos', data: temp.map(x => x.recibidos), borderColor: '#f59f00', tension: 0.2 }
+            ]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: true } } }
+    });
+}
+
+async function cargarMetricasEmpresa() {
+    const loading = document.getElementById('me-loading');
+    const errEl = document.getElementById('me-error');
+    if (errEl) errEl.style.display = 'none';
+    if (loading) loading.style.display = 'block';
+
+    const params = new URLSearchParams();
+    const cid = document.getElementById('me-cliente')?.value;
+    const cu = document.getElementById('me-curso')?.value;
+    const d1 = document.getElementById('me-desde')?.value;
+    const d2 = document.getElementById('me-hasta')?.value;
+    if (cid) params.set('cliente_id', cid);
+    if (cu) params.set('curso_id', cu);
+    if (d1) params.set('desde', d1);
+    if (d2) params.set('hasta', d2);
+
+    try {
+        const [rEdu, rNati] = await Promise.all([
+            fetch(analyticsEndpoint + '?tipo=metricas_empresa&' + params.toString(), { credentials: 'same-origin' }),
+            fetch(analyticsEndpoint + '?tipo=metricas_nati&' + params.toString(), { credentials: 'same-origin' })
+        ]);
+        if (!rEdu.ok) throw new Error('API educativa ' + rEdu.status);
+        const edu = await rEdu.json();
+        const nati = rNati.ok ? await rNati.json() : { resumen: {}, porcentajes: {}, semaforos: {}, metas: {}, series: {} };
+        renderMeCardsEdu(edu);
+        renderMeCardsNati(nati);
+        pintarGraficasEmpresa(edu);
+        pintarGraficasNati(nati);
+    } catch (e) {
+        if (errEl) { errEl.textContent = 'No se pudieron cargar las métricas: ' + e.message; errEl.style.display = 'block'; }
+    } finally {
+        if (loading) loading.style.display = 'none';
+    }
 }
 
 async function refrescarResumen() {
@@ -563,6 +755,9 @@ function iniciarAutoRefreshResumen() {
         if (btn) {
             switchTab(tab, btn);
         }
+    }
+    if ((params.get('tab') || tabActual) === 'metricas_empresa') {
+        cargarMetricasEmpresa();
     }
 })();
 </script>

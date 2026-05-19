@@ -356,6 +356,38 @@ def api_metricas_json(request):
             "tiempo_promedio_completar_min": tiempo_promedio_min,
         })
     
+    elif tipo_metrica == 'metricas_empresa':
+        from core.metricas_empresa import calcular_metricas_empresa
+
+        cliente_id = request.GET.get('cliente_id') or request.GET.get('cliente')
+        curso_id = request.GET.get('curso_id') or request.GET.get('curso')
+        desde = request.GET.get('desde') or request.GET.get('fecha_inicio')
+        hasta = request.GET.get('hasta') or request.GET.get('fecha_fin')
+
+        cid = int(cliente_id) if cliente_id and str(cliente_id).isdigit() else None
+        cu_id = int(curso_id) if curso_id and str(curso_id).isdigit() else None
+
+        payload = calcular_metricas_empresa(
+            cliente_id=cid,
+            curso_id=cu_id,
+            desde=desde,
+            hasta=hasta,
+        )
+        payload['schema'] = 'metricas_empresa_v1'
+        return JsonResponse(payload)
+
+    elif tipo_metrica == 'metricas_nati':
+        from core.metricas_empresa import calcular_metricas_nati
+
+        cliente_id = request.GET.get('cliente_id') or request.GET.get('cliente')
+        desde = request.GET.get('desde') or request.GET.get('fecha_inicio')
+        hasta = request.GET.get('hasta') or request.GET.get('fecha_fin')
+        cid = int(cliente_id) if cliente_id and str(cliente_id).isdigit() else None
+
+        payload = calcular_metricas_nati(cliente_id=cid, desde=desde, hasta=hasta)
+        payload['schema'] = 'metricas_nati_v1'
+        return JsonResponse(payload)
+
     return JsonResponse({'error': 'Tipo de métrica no válido'}, status=400)
 
 

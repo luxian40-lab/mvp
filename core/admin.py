@@ -27,6 +27,7 @@ from .models import (
     AliadoEmpleabilidad, MisionEmpleabilidad, PreguntaAbiertaFinalCurso, RespuestaAbiertaFinal,
     DocumentoRAG,  # 📚 RAG Multi-Tenant
     DocumentoRAGComercial,  # 🛒 RAG Comercial
+    MetaMetricaEmpresa, MetaMetricaNati,
 )
 from .admin_campana_actualizado import CampanaUnicaAdmin, RespuestaCampanaUnicaAdmin
 from .models_extras import (
@@ -6111,7 +6112,7 @@ def _encolar_o_indexar_rag_doc(request, modeladmin, model_class_name: str, obj, 
 
 # Subida masiva solo RAG comercial (varios archivos → un DocumentoRAGComercial por archivo).
 RAG_COMERCIAL_SUBIDA_MASIVA_MIN = 2
-# Subida HTTP: solo guardar archivos; indexación vía Celery (no bloquear gunicorn).
+# Subida masiva solo RAG comercial (varios archivos → un DocumentoRAGComercial por archivo).
 RAG_COMERCIAL_SUBIDA_MASIVA_MAX = 30
 RAG_COMERCIAL_ZIP_MAX_BYTES = 80 * 1024 * 1024  # 80 MB
 RAG_COMERCIAL_ZIP_MAX_FILES = 50
@@ -6121,6 +6122,25 @@ _RAG_COMERCIAL_EXT_OK = {'.pdf', '.docx', '.txt', '.xlsx', '.xlsm', '.xls'}
 def _extension_archivo_comercial_ok(nombre: str) -> bool:
     ext = os.path.splitext((nombre or '').lower())[1]
     return ext in _RAG_COMERCIAL_EXT_OK
+
+
+@admin.register(MetaMetricaEmpresa)
+class MetaMetricaEmpresaAdmin(admin.ModelAdmin):
+    list_display = (
+        "cliente", "curso", "meta_finalizacion_porcentaje",
+        "meta_inicio_porcentaje", "meta_max_no_iniciados_porcentaje", "activa",
+    )
+    list_filter = ("activa", "cliente")
+    search_fields = ("cliente__nombre", "curso__nombre")
+    autocomplete_fields = ("cliente", "curso")
+
+
+@admin.register(MetaMetricaNati)
+class MetaMetricaNatiAdmin(admin.ModelAdmin):
+    list_display = ("cliente", "meta_lectura_porcentaje", "meta_respuesta_porcentaje", "activa")
+    list_filter = ("activa",)
+    search_fields = ("cliente__nombre",)
+    autocomplete_fields = ("cliente",)
 
 
 @admin.register(DocumentoRAG)
