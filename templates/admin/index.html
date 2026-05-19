@@ -90,20 +90,17 @@
 {% block content %}
 
 <div class="eki-dashboards-nav">
-    <a href="{% url 'dashboard_unificado' %}">
-        <span class="dash-icon">📊</span> Dashboard Principal
+    <a href="{% url 'dashboard_unificado' %}?tab=executive">
+        <span class="dash-icon">📊</span> Executive
     </a>
-    <a href="{% url 'dashboard_metrics' %}">
-        <span class="dash-icon">📈</span> Métricas
+    <a href="{% url 'dashboard_unificado' %}?tab=learning&amp;section=reportes">
+        <span class="dash-icon">📚</span> Learning Analytics
     </a>
-    <a href="{% url 'dashboard_gerencial' %}">
-        <span class="dash-icon">🏢</span> Gerencial
+    <a href="{% url 'dashboard_unificado' %}?tab=ai_ops">
+        <span class="dash-icon">⚙️</span> AI Operations
     </a>
-    <a href="{% url 'dashboard_analytics' %}">
-        <span class="dash-icon">🔬</span> Analytics
-    </a>
-    <a href="{% url 'dashboard_reportes_avanzados' %}">
-        <span class="dash-icon">📋</span> Reportes
+    <a href="{% url 'dashboard_unificado' %}?tab=commercial">
+        <span class="dash-icon">🤝</span> Commercial CRM
     </a>
     <a href="{% url 'conversaciones' %}">
         <span class="dash-icon">💬</span> Conversaciones

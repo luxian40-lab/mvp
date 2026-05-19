@@ -2,6 +2,8 @@
 Helpers para validación de exámenes obligatorios y progreso de estudiantes
 """
 
+from dataclasses import dataclass
+
 from django.utils import timezone
 from .models import Examen, Modulo, ProgresoEstudiante, ModuloCompletado
 
@@ -351,9 +353,9 @@ def debe_activar_checkpoint_reto_ia(numero_modulo: int, total_modulos: int, usar
     Punto único de verdad: tras qué módulos activar compañero + facilitadora (reto).
     Debe coincidir con la rama de examen en views (esperando_respuesta_modulo).
 
-    Incluye el cierre del módulo 1 para que el primer corte pedagógico (Darío + facilitadora)
-    no quede siempre hasta el módulo 3. El admin puede desactivar por módulo con
-    Modulo.facilitador_checkpoint = «No».
+    Regla de producto (manual v1.5): M1 y M2 sin agentes; primer checkpoint en M3 (Darío);
+    último módulo si el curso tiene ≥5; en cursos >5 módulos, cada múltiplo de 3 >5
+    (6, 9, 12…) salvo el último. Override por módulo: Modulo.facilitador_checkpoint.
     """
     if not usar_agentes_ia_curso:
         return False
@@ -365,28 +367,108 @@ def debe_activar_checkpoint_reto_ia(numero_modulo: int, total_modulos: int, usar
         and not es_ultimo_modulo
     )
     return (
-        numero_modulo == 1
-        or numero_modulo == 3
+        numero_modulo == 3
         or (numero_modulo == total_modulos and total_modulos >= 5)
         or es_modulo_intermedio_post5
     )
+
+
+def _regla_auto_aplicada(numero_modulo: int, total_modulos: int) -> str:
+    """Nombre canónico de la regla numérica que disparó el checkpoint (modo Auto)."""
+    es_ultimo_modulo = numero_modulo == total_modulos and total_modulos >= 1
+    if numero_modulo == 3:
+        return 'auto_regla_m3'
+    if numero_modulo == total_modulos and total_modulos >= 5:
+        return 'auto_regla_ultimo'
+    if (
+        total_modulos > 5
+        and numero_modulo > 5
+        and numero_modulo % 3 == 0
+        and not es_ultimo_modulo
+    ):
+        return 'auto_regla_intermedio_post5'
+    return 'auto_sin_match'
+
+
+@dataclass(frozen=True)
+class CheckpointDecision:
+    """Resultado auditable de evaluar checkpoint IA por módulo."""
+
+    es_reto: bool
+    facilitador_checkpoint: str
+    regla_aplicada: str
+    usar_agentes_ia_curso: bool
+    numero_modulo: int | None
+    total_modulos: int
+    modulo_ya_completado_anulo: bool = False
+
+
+def evaluar_checkpoint_reto_ia(
+    modulo,
+    total_modulos: int,
+    usar_agentes_ia_curso: bool,
+    *,
+    modulo_ya_completado: bool = False,
+) -> CheckpointDecision:
+    """
+    Punto único de verdad auditable: decide si al cerrar este módulo entra reto IA.
+
+    Precedencia:
+    1. curso sin agentes IA → no reto
+    2. facilitador_checkpoint = NO → no reto
+    3. facilitador_checkpoint = SI → siempre reto
+    4. facilitador_checkpoint = AUTO → regla numérica del curso
+    5. modulo_ya_completado → anula reto (anti-loop post-reto)
+    """
+    pref = getattr(modulo, 'facilitador_checkpoint', None) or Modulo.FACILITADOR_CP_AUTO
+    try:
+        numero = int(modulo.numero) if modulo else None
+    except (TypeError, ValueError):
+        numero = None
+
+    base_kw = {
+        'facilitador_checkpoint': pref,
+        'usar_agentes_ia_curso': bool(usar_agentes_ia_curso),
+        'numero_modulo': numero,
+        'total_modulos': int(total_modulos or 0),
+    }
+
+    if not usar_agentes_ia_curso or not modulo:
+        return CheckpointDecision(
+            es_reto=False,
+            regla_aplicada='curso_sin_ia',
+            **base_kw,
+        )
+
+    if pref == Modulo.FACILITADOR_CP_NO:
+        decision = CheckpointDecision(es_reto=False, regla_aplicada='override_no', **base_kw)
+    elif pref == Modulo.FACILITADOR_CP_SI:
+        decision = CheckpointDecision(es_reto=True, regla_aplicada='override_si', **base_kw)
+    else:
+        es_auto = debe_activar_checkpoint_reto_ia(numero, total_modulos, True)
+        regla = _regla_auto_aplicada(numero, total_modulos) if es_auto else 'auto_sin_match'
+        decision = CheckpointDecision(es_reto=es_auto, regla_aplicada=regla, **base_kw)
+
+    if decision.es_reto and modulo_ya_completado:
+        return CheckpointDecision(
+            es_reto=False,
+            regla_aplicada='anulado_modulo_ya_completado',
+            modulo_ya_completado_anulo=True,
+            facilitador_checkpoint=decision.facilitador_checkpoint,
+            usar_agentes_ia_curso=decision.usar_agentes_ia_curso,
+            numero_modulo=decision.numero_modulo,
+            total_modulos=decision.total_modulos,
+        )
+
+    return decision
 
 
 def es_modulo_checkpoint_reto_ia(modulo, total_modulos: int, usar_agentes_ia_curso: bool) -> bool:
     """
     Igual que la regla numérica, pero con override por módulo (admin: checkpoint facilitadora).
     """
-    from .models import Modulo
-
-    if not usar_agentes_ia_curso or not modulo:
-        return False
-    pref = getattr(modulo, 'facilitador_checkpoint', None) or Modulo.FACILITADOR_CP_AUTO
-    try:
-        numero = int(modulo.numero)
-    except (TypeError, ValueError):
-        return False
-    if pref == Modulo.FACILITADOR_CP_NO:
-        return False
-    if pref == Modulo.FACILITADOR_CP_SI:
-        return True
-    return debe_activar_checkpoint_reto_ia(numero, total_modulos, True)
+    return evaluar_checkpoint_reto_ia(
+        modulo,
+        total_modulos,
+        usar_agentes_ia_curso,
+    ).es_reto

@@ -2917,6 +2917,93 @@ class ConfiguracionGlobal(models.Model):
         return obj
 
 
+class EventoIA(models.Model):
+    """Trazabilidad persistente de decisiones IA, checkpoints y RAG (Parte 2A)."""
+
+    TIPO_MODULO_COMPLETADO = 'modulo_completado'
+    TIPO_CHECKPOINT_EVALUADO = 'checkpoint_evaluado'
+    TIPO_IA_AGENT_TRIGGERED = 'ia_agent_triggered'
+    TIPO_RAG_QUERY_EXECUTED = 'rag_query_executed'
+    TIPO_WEBHOOK_RECIBIDO = 'webhook_recibido'
+    TIPO_INTENT_DETECTADO = 'intent_detectado'
+    TIPO_MENSAJE_ENVIADO = 'mensaje_enviado'
+
+    TIPO_CHOICES = [
+        (TIPO_MODULO_COMPLETADO, 'Módulo completado'),
+        (TIPO_CHECKPOINT_EVALUADO, 'Checkpoint evaluado'),
+        (TIPO_IA_AGENT_TRIGGERED, 'Agente IA activado'),
+        (TIPO_RAG_QUERY_EXECUTED, 'Consulta RAG'),
+        (TIPO_WEBHOOK_RECIBIDO, 'Webhook recibido'),
+        (TIPO_INTENT_DETECTADO, 'Intent detectado'),
+        (TIPO_MENSAJE_ENVIADO, 'Mensaje enviado'),
+    ]
+
+    CANAL_WHATSAPP_EDU = 'whatsapp_edu'
+    CANAL_WHATSAPP_COMERCIAL = 'whatsapp_comercial'
+    CANAL_ADMIN = 'admin'
+
+    trace_id = models.UUIDField(db_index=True, verbose_name='Trace ID')
+    tipo = models.CharField(max_length=40, choices=TIPO_CHOICES, db_index=True)
+
+    estudiante = models.ForeignKey(
+        'Estudiante',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='eventos_ia',
+    )
+    cliente = models.ForeignKey(
+        'Cliente',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='eventos_ia',
+    )
+    curso = models.ForeignKey(
+        'Curso',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='eventos_ia',
+    )
+    modulo = models.ForeignKey(
+        'Modulo',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='eventos_ia',
+    )
+
+    agente = models.CharField(max_length=60, blank=True, default='')
+    canal = models.CharField(max_length=30, default=CANAL_WHATSAPP_EDU, db_index=True)
+
+    facilitador_checkpoint = models.CharField(max_length=10, blank=True, default='')
+    regla_aplicada = models.CharField(max_length=60, blank=True, default='', db_index=True)
+    es_reto = models.BooleanField(null=True, blank=True)
+
+    modelo = models.CharField(max_length=60, blank=True, default='')
+    latencia_ms = models.PositiveIntegerField(null=True, blank=True)
+    tokens_in = models.PositiveIntegerField(null=True, blank=True)
+    tokens_out = models.PositiveIntegerField(null=True, blank=True)
+
+    input_preview = models.TextField(blank=True, default='')
+    output_preview = models.TextField(blank=True, default='')
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = 'Evento IA'
+        verbose_name_plural = 'Eventos IA'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['-created_at', 'tipo']),
+            models.Index(fields=['trace_id', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.get_tipo_display()} · {self.trace_id} · {self.created_at:%Y-%m-%d %H:%M}'
+
+
 __all__ = [
     'TemaCampana', 'Cliente', 'Estudiante', 'Plantilla', 'Linea',
     'Campana', 'EnvioLog', 'WhatsappLog',
@@ -2934,4 +3021,5 @@ __all__ = [
     'ProspectoB2B', 'CampanaB2B',
     'AliadoEmpleabilidad', 'MisionEmpleabilidad', 'PreguntaAbiertaFinalCurso', 'RespuestaAbiertaFinal',
     'ConfiguracionGlobal',
+    'EventoIA',
 ]

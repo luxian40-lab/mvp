@@ -84,7 +84,8 @@ class RAGComercialManager:
         pregunta: str,
         max_chars: int = 2200,
         top_k_por_scope: int = 8,
-    ) -> str:
+        retornar_chunks: bool = False,
+    ):
         """
         Une búsquedas semánticas en varios scopes (ej. cliente configurado + catálogo general id=0).
 
@@ -92,7 +93,7 @@ class RAGComercialManager:
         irrelevante, y nunca llegaba al Excel indexado en otro scope (típico: General vs cliente).
         """
         if not self.disponible or not (pregunta or "").strip():
-            return ""
+            return ("", []) if retornar_chunks else ""
 
         try:
             top_k_por_scope = int(top_k_por_scope)
@@ -110,9 +111,10 @@ class RAGComercialManager:
                 orden_ids.append(cid)
 
         if not orden_ids:
-            return ""
+            return ("", []) if retornar_chunks else ""
 
         por_cliente: Dict[int, List[dict]] = {}
+        chunks_meta: List[dict] = []
         for cid in orden_ids:
             rag = self.obtener_rag(cid, canal)
             if not rag:
@@ -144,6 +146,13 @@ class RAGComercialManager:
                 vistos.add(firma)
                 fuente = (d.get("fuente") or "documento").strip()
                 alcance = "catálogo general eki" if cid == 0 else f"material cliente {cid}"
+                chunks_meta.append({
+                    'cliente_id': cid,
+                    'fuente': fuente,
+                    'tipo': d.get('tipo') or '',
+                    'similitud': d.get('similitud'),
+                    'preview': contenido[:120],
+                })
                 frag = f"[Fuente: {fuente} — {alcance}]\n{contenido}"
                 if chars + len(frag) + 20 > max_chars:
                     salir = True
@@ -214,13 +223,16 @@ class RAGComercialManager:
                     break
 
         if not fragmentos:
-            return ""
+            return ("", chunks_meta) if retornar_chunks else ""
 
-        return (
+        texto = (
             "\n\n📚 INFORMACIÓN COMERCIAL INDEXADA (prioridad para precios, catálogo, condiciones):\n"
             + "\n---\n".join(fragmentos)
             + "\n\n⚠️ REGLA: Priorizá estos datos sobre conocimiento general; no inventes cifras, productos ni precios.\n"
         )
+        if retornar_chunks:
+            return texto, chunks_meta
+        return texto
 
     def procesar_documento(
         self,

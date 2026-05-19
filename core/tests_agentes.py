@@ -18,8 +18,15 @@ class ActivacionAgentesRetoTests(SimpleTestCase):
 		self.assertFalse(debe_activar_reto(numero_modulo=8, total_modulos=9, usar_agentes_ia_curso=True))
 		self.assertTrue(debe_activar_reto(numero_modulo=9, total_modulos=9, usar_agentes_ia_curso=True))
 
-	def test_curso_5_modulos_checkpoint_1_3_y_ultimo(self):
-		self.assertTrue(debe_activar_reto(numero_modulo=1, total_modulos=5, usar_agentes_ia_curso=True))
+	def test_modulo_1_y_2_no_activan_por_defecto(self):
+		"""Manual: M1/M2 sin agentes; primer reto pedagógico en M3."""
+		self.assertFalse(debe_activar_reto(numero_modulo=1, total_modulos=5, usar_agentes_ia_curso=True))
+		self.assertFalse(debe_activar_reto(numero_modulo=2, total_modulos=5, usar_agentes_ia_curso=True))
+		self.assertFalse(debe_activar_reto(numero_modulo=1, total_modulos=10, usar_agentes_ia_curso=True))
+		self.assertFalse(debe_activar_reto(numero_modulo=2, total_modulos=10, usar_agentes_ia_curso=True))
+
+	def test_curso_5_modulos_checkpoint_3_y_ultimo(self):
+		self.assertFalse(debe_activar_reto(numero_modulo=1, total_modulos=5, usar_agentes_ia_curso=True))
 		self.assertFalse(debe_activar_reto(numero_modulo=2, total_modulos=5, usar_agentes_ia_curso=True))
 		self.assertTrue(debe_activar_reto(numero_modulo=3, total_modulos=5, usar_agentes_ia_curso=True))
 		self.assertTrue(debe_activar_reto(numero_modulo=5, total_modulos=5, usar_agentes_ia_curso=True))
@@ -27,9 +34,9 @@ class ActivacionAgentesRetoTests(SimpleTestCase):
 	def test_modulo_3_siempre_activa_en_curso_largo(self):
 		self.assertTrue(debe_activar_reto(numero_modulo=3, total_modulos=10, usar_agentes_ia_curso=True))
 
-	def test_curso_10_modulos_checkpoints_1_3_6_9_10(self):
-		"""Cursos largos (>5): retos al cerrar 1, 3, cada múltiplo de 3 >5 (no último), y último módulo."""
-		self.assertTrue(debe_activar_reto(1, 10, True))
+	def test_curso_10_modulos_checkpoints_3_6_9_10(self):
+		"""Cursos largos (>5): retos al cerrar 3, cada múltiplo de 3 >5 (no último), y último módulo."""
+		self.assertFalse(debe_activar_reto(1, 10, True))
 		self.assertFalse(debe_activar_reto(2, 10, True))
 		self.assertTrue(debe_activar_reto(3, 10, True))
 		self.assertFalse(debe_activar_reto(4, 10, True))

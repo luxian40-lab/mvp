@@ -223,8 +223,11 @@ def exportar_metricas_csv(request):
 @staff_member_required
 def api_metricas_json(request):
     """API JSON para gráficos dinámicos"""
-    
+    from core.domains.dashboard import API_TIPO_ALIASES
+
     tipo_metrica = request.GET.get('tipo', 'modalidad')
+    if tipo_metrica in API_TIPO_ALIASES:
+        tipo_metrica = API_TIPO_ALIASES[tipo_metrica]
     
     if tipo_metrica == 'modalidad':
         # Comparación audio vs texto

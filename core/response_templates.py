@@ -8,7 +8,7 @@ from django.utils import timezone
 from datetime import timedelta
 from urllib.parse import quote
 
-from .helpers_examenes import es_modulo_checkpoint_reto_ia
+from .helpers_examenes import evaluar_checkpoint_reto_ia
 
 
 logger = logging.getLogger(__name__)
@@ -1346,11 +1346,25 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
 
                 total_modulos = progreso.curso.modulos.count()
                 usar_ia_curso = bool(getattr(progreso.curso, 'usar_agentes_ia', True))
-                es_modulo_reto = es_modulo_checkpoint_reto_ia(
-                    modulo_actual, total_modulos, usar_ia_curso
+                decision_cp = evaluar_checkpoint_reto_ia(
+                    modulo_actual,
+                    total_modulos,
+                    usar_ia_curso,
+                    modulo_ya_completado=modulo_ya_completado,
                 )
-                if es_modulo_reto and modulo_ya_completado:
-                    es_modulo_reto = False
+                es_modulo_reto = decision_cp.es_reto
+                try:
+                    from core.eventos_ia import emit_checkpoint_evaluado
+
+                    emit_checkpoint_evaluado(
+                        decision_cp,
+                        estudiante=estudiante,
+                        curso=progreso.curso,
+                        modulo=modulo_actual,
+                        origen='continuar_leccion',
+                    )
+                except Exception:
+                    pass
 
                 _blk_fin = mensaje_bloqueo_avance_siguiente_modulo(
                     estudiante, progreso, modulo_actual
@@ -1369,12 +1383,13 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 _cp_pref = getattr(modulo_actual, 'facilitador_checkpoint', None)
                 logger.info(
                     '🎯 [checkpoint-leccion] curso=%s mod_cerrado_num=%s total_mod=%s usar_ia=%s '
-                    'facilitador_checkpoint=%s -> es_reto=%s | est=%s',
+                    'facilitador_checkpoint=%s regla=%s -> es_reto=%s | est=%s',
                     progreso.curso_id,
                     getattr(modulo_actual, 'numero', None),
                     total_modulos,
                     usar_ia_curso,
                     _cp_pref,
+                    decision_cp.regla_aplicada,
                     es_modulo_reto,
                     estudiante.id,
                 )

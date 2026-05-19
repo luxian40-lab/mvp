@@ -98,6 +98,12 @@
     .sem-progress > span { display: block; height: 100%; border-radius: 4px; }
     .sem-section-title { font-size: 1.05rem; font-weight: 700; margin: 28px 0 12px; color: var(--eki-text); }
     .btn-meta { background: #495057; color: #fff; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 600; }
+    .sub-tab-nav { display: none; gap: 8px; margin: -12px 0 20px; flex-wrap: wrap; align-items: center; }
+    .sub-tab-nav.visible { display: flex; }
+    .sub-tab-btn { padding: 7px 16px; font-size: 0.85rem; font-weight: 600; border: 1px solid var(--eki-border); border-radius: 6px; background: #fff; color: var(--eki-muted); cursor: pointer; }
+    .sub-tab-btn.active { background: var(--eki-primary); color: #fff; border-color: var(--eki-primary); }
+    .sub-tab-link { font-size: 0.85rem; font-weight: 600; color: var(--eki-primary); text-decoration: none; margin-left: auto; }
+    .mono { font-family: ui-monospace, monospace; font-size: 0.82rem; }
 </style>
 {% endblock %}
 
@@ -107,30 +113,34 @@
         <h1>Dashboard Eki</h1>
         <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
             <span class="dash-ts">Datos en tiempo real</span>
-            <a href="{% url 'dashboard_metrics' %}" style="font-size:0.88rem;font-weight:600;color:var(--eki-primary);">Métricas detalladas (entregas, lecturas, bot comercial) →</a>
+            <a href="?tab=ai_ops" style="font-size:0.88rem;font-weight:600;color:var(--eki-primary);">AI Operations (Twilio, bot, activaciones IA) →</a>
         </div>
     </div>
 
-    <!-- ===== PESTAÑAS (Regla de 3) ===== -->
+    <!-- ===== 4 DASHBOARDS CANÓNICOS (Parte 1) ===== -->
     <div class="tab-nav">
-        <button class="tab-btn active" onclick="switchTab('resumen', this)">📊 Resumen Ejecutivo</button>
-        <button class="tab-btn" onclick="switchTab('reportes', this)">📋 Reportes B2B</button>
-        <button class="tab-btn" onclick="switchTab('auditoria', this)">💬 Auditoría Bot</button>
-        <button class="tab-btn" onclick="switchTab('metricas_empresa', this)">📊 Métricas por Empresa</button>
-        <button class="tab-btn" onclick="switchTab('metricas_nati', this)">🤖 Métricas Nati</button>
+        <button class="tab-btn {% if tab_actual == 'executive' %}active{% endif %}" data-tab="executive" onclick="switchTab('executive', this)">📊 Executive</button>
+        <button class="tab-btn {% if tab_actual == 'learning' %}active{% endif %}" data-tab="learning" onclick="switchTab('learning', this)">📚 Learning Analytics</button>
+        <button class="tab-btn {% if tab_actual == 'ai_ops' %}active{% endif %}" data-tab="ai_ops" onclick="switchTab('ai_ops', this)">⚙️ AI Operations</button>
+        <button class="tab-btn {% if tab_actual == 'commercial' %}active{% endif %}" data-tab="commercial" onclick="switchTab('commercial', this)">🤝 Commercial CRM</button>
+    </div>
+    <div id="learning-sub-nav" class="sub-tab-nav {% if tab_actual == 'learning' %}visible{% endif %}">
+        <button type="button" class="sub-tab-btn {% if learning_section == 'reportes' %}active{% endif %}" data-section="reportes" onclick="switchLearningSection('reportes', this)">Reportes B2B</button>
+        <button type="button" class="sub-tab-btn {% if learning_section == 'metricas_empresa' %}active{% endif %}" data-section="metricas_empresa" onclick="switchLearningSection('metricas_empresa', this)">Métricas por Empresa</button>
+        <a href="{% url 'gei_panel' %}" class="sub-tab-link">Panel GEI →</a>
     </div>
 
-    <!-- ===== TAB 1: RESUMEN EJECUTIVO ===== -->
-    <div id="tab-resumen" class="tab-content active">
+    <!-- ===== EXECUTIVE ===== -->
+    <div id="tab-resumen" class="tab-content {% if tab_actual == 'executive' %}active{% endif %}">
 
         <form method="get" class="filters-bar">
-            <input type="hidden" name="tab" value="resumen">
+            <input type="hidden" name="tab" value="executive">
             <div><label>Organización</label><select name="cliente"><option value="">Todos</option>{% for c in clientes %}<option value="{{ c.id }}" {% if c.id == cliente_filtro %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
             <div><label>Curso</label><select name="curso"><option value="">Todos</option>{% for c in cursos %}<option value="{{ c.id }}" {% if c.id == curso_filtro %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
             <div><label>Desde</label><input type="date" name="fecha_inicio" value="{{ fecha_inicio }}"></div>
             <div><label>Hasta</label><input type="date" name="fecha_fin" value="{{ fecha_fin }}"></div>
             <button type="submit">Filtrar</button>
-            <a href="?tab=resumen" class="btn-excel" style="background:#495057;">Limpiar</a>
+            <a href="?tab=executive" class="btn-excel" style="background:#495057;">Limpiar</a>
         </form>
 
         <!-- KPIs Principales -->
@@ -238,11 +248,12 @@
         </div>
     </div>
 
-    <!-- ===== TAB 2: REPORTES B2B ===== -->
-    <div id="tab-reportes" class="tab-content">
+    <!-- ===== LEARNING: REPORTES B2B ===== -->
+    <div id="tab-reportes" class="tab-content {% if tab_actual == 'learning' and learning_section == 'reportes' %}active{% endif %}">
 
         <form method="get" class="filters-bar">
-            <input type="hidden" name="tab" value="reportes">
+            <input type="hidden" name="tab" value="learning">
+            <input type="hidden" name="section" value="reportes">
             <div><label>Organización</label><select name="cliente"><option value="">Todos</option>{% for c in clientes %}<option value="{{ c.id }}" {% if c.id == cliente_filtro %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
             <div><label>Curso</label><select name="curso"><option value="">Todos</option>{% for c in cursos %}<option value="{{ c.id }}" {% if c.id == curso_filtro %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
             <div><label>Grupo</label><select name="grupo"><option value="">Todos</option>{% for g in grupos %}<option value="{{ g.id }}" {% if grupo_filtro == g.id %}selected{% endif %}>{{ g.emoji }} {{ g.nombre }}</option>{% endfor %}</select></div>
@@ -250,7 +261,7 @@
             <div><label>Desde</label><input type="date" name="fecha_inicio" value="{{ fecha_inicio }}"></div>
             <div><label>Hasta</label><input type="date" name="fecha_fin" value="{{ fecha_fin }}"></div>
             <button type="submit">Filtrar</button>
-            <a href="?exportar=excel&tab=reportes{% if cliente_filtro %}&cliente={{ cliente_filtro }}{% endif %}{% if curso_filtro %}&curso={{ curso_filtro }}{% endif %}{% if grupo_filtro %}&grupo={{ grupo_filtro }}{% endif %}{% if municipio_filtro %}&municipio={{ municipio_filtro|urlencode }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}" class="btn-excel">📥 Descargar Excel</a>
+            <a href="?exportar=excel&tab=learning&section=reportes{% if cliente_filtro %}&cliente={{ cliente_filtro }}{% endif %}{% if curso_filtro %}&curso={{ curso_filtro }}{% endif %}{% if grupo_filtro %}&grupo={{ grupo_filtro }}{% endif %}{% if municipio_filtro %}&municipio={{ municipio_filtro|urlencode }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}" class="btn-excel">📥 Descargar Excel</a>
         </form>
 
         <div class="section">
@@ -295,8 +306,8 @@
         </div>
     </div>
 
-    <!-- ===== TAB 3: AUDITORÍA BOT ===== -->
-    <div id="tab-auditoria" class="tab-content">
+    <!-- ===== AI OPERATIONS ===== -->
+    <div id="tab-auditoria" class="tab-content {% if tab_actual == 'ai_ops' %}active{% endif %}">
 
         <div class="section">
             <div class="section-title">Métricas del Bot</div>
@@ -316,6 +327,33 @@
         <div class="charts-row">
             <div class="chart-card"><h3>Actividad WhatsApp (7 días)</h3><canvas id="chartMensajesAudit" height="220"></canvas></div>
             <div class="chart-card"><h3>Tipos de Mensaje</h3><canvas id="chartTipos" height="220"></canvas></div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">
+                Eventos IA recientes
+                <a href="{% url 'ai_ops_eventos' %}" style="float:right;font-size:0.85rem;font-weight:600;">Ver todos →</a>
+            </div>
+            <p style="color:#666;font-size:0.85rem;margin:-8px 0 12px;">
+                Checkpoints con regla explícita (Auto / Sí / No del admin). Clic en trace → replay.
+            </p>
+            <table class="eki-table" id="tabla-eventos-ia">
+                <thead><tr><th>Fecha</th><th>Tipo</th><th>Trace</th><th>Estudiante</th><th>Checkpoint → Regla</th><th>Reto</th></tr></thead>
+                <tbody>
+                    {% for ev in eventos_ia_recientes %}
+                    <tr>
+                        <td>{{ ev.created_at|date:"d/m H:i" }}</td>
+                        <td>{{ ev.get_tipo_display }}</td>
+                        <td class="mono"><a href="{% url 'ai_ops_replay' ev.trace_id %}">{{ ev.trace_id|truncatechars:11 }}</a></td>
+                        <td>{% if ev.estudiante %}{{ ev.estudiante.nombre|truncatechars:20 }}{% else %}—{% endif %}</td>
+                        <td><small>{% if ev.facilitador_checkpoint %}{{ ev.facilitador_checkpoint }} → {{ ev.regla_aplicada }}{% else %}{{ ev.regla_aplicada|default:"—" }}{% endif %}</small></td>
+                        <td>{% if ev.es_reto is None %}—{% elif ev.es_reto %}<span style="color:#2b8a3e;font-weight:700;">SÍ</span>{% else %}<span style="color:#c92a2a;">NO</span>{% endif %}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" style="text-align:center;color:#aaa;">Sin eventos aún — completa un módulo o consulta a Nati.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
 
         <div class="section">
@@ -340,7 +378,8 @@
     </div>
 
     <!-- ===== TAB 4: MÉTRICAS POR EMPRESA (solo educación B2B) ===== -->
-    <div id="tab-metricas_empresa" class="tab-content">
+    <!-- ===== LEARNING: MÉTRICAS POR EMPRESA ===== -->
+    <div id="tab-metricas_empresa" class="tab-content {% if tab_actual == 'learning' and learning_section == 'metricas_empresa' %}active{% endif %}">
         <form method="get" class="filters-bar" id="form-metricas-empresa">
             <input type="hidden" name="tab" value="metricas_empresa">
             <div><label>Organización</label><select name="cliente" id="me-cliente"><option value="">Seleccione empresa…</option>{% for c in clientes %}<option value="{{ c.id }}" {% if c.id == cliente_filtro %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
@@ -375,7 +414,8 @@
     </div>
 
     <!-- ===== TAB 5: MÉTRICAS NATI (bot comercial, separado) ===== -->
-    <div id="tab-metricas_nati" class="tab-content">
+    <!-- ===== COMMERCIAL CRM ===== -->
+    <div id="tab-metricas_nati" class="tab-content {% if tab_actual == 'commercial' %}active{% endif %}">
         <form method="get" class="filters-bar" id="form-metricas-nati">
             <input type="hidden" name="tab" value="metricas_nati">
             <div><label>Organización</label><select name="cliente" id="nati-cliente"><option value="">Todas / general</option>{% for c in clientes %}<option value="{{ c.id }}" {% if c.id == cliente_filtro %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
@@ -396,7 +436,7 @@
     </div>
 </div>
 
-<div id="dashboard-config" data-resumen-endpoint="{% url 'dashboard_unificado_resumen_data' %}" data-tab-actual="{{ tab_actual }}" data-analytics-endpoint="/admin/analytics/api/"></div>
+<div id="dashboard-config" data-resumen-endpoint="{% url 'dashboard_unificado_resumen_data' %}" data-tab-actual="{{ tab_actual }}" data-learning-section="{{ learning_section }}" data-analytics-endpoint="/admin/analytics/api/"></div>
 <script id="dashboard-resumen-payload" type="application/json">{{ resumen_payload_json|safe }}</script>
 
 <script>
@@ -409,7 +449,41 @@ let resumenRefreshTimer = null;
 const dashboardConfig = document.getElementById('dashboard-config');
 const resumenPayloadNode = document.getElementById('dashboard-resumen-payload');
 const resumenDataEndpoint = (dashboardConfig && dashboardConfig.dataset.resumenEndpoint) || '/admin/dashboard/resumen-data/';
-const tabActual = (dashboardConfig && dashboardConfig.dataset.tabActual) || 'resumen';
+const tabActual = (dashboardConfig && dashboardConfig.dataset.tabActual) || 'executive';
+const learningSectionActual = (dashboardConfig && dashboardConfig.dataset.learningSection) || 'reportes';
+const TAB_PANELS = {
+    executive: 'tab-resumen',
+    ai_ops: 'tab-auditoria',
+    commercial: 'tab-metricas_nati',
+};
+const LEARNING_PANELS = {
+    reportes: 'tab-reportes',
+    metricas_empresa: 'tab-metricas_empresa',
+};
+const TAB_ALIASES = {
+    resumen: 'executive',
+    reportes: 'learning',
+    metricas_empresa: 'learning',
+    auditoria: 'ai_ops',
+    metricas_nati: 'commercial',
+};
+
+function normalizeTab(tab) {
+    return TAB_ALIASES[tab] || tab || 'executive';
+}
+
+function showPanel(panelId) {
+    document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
+    const panel = document.getElementById(panelId);
+    if (panel) panel.classList.add('active');
+}
+
+function switchLearningSection(section, btn) {
+    showPanel(LEARNING_PANELS[section] || 'tab-reportes');
+    document.querySelectorAll('.sub-tab-btn').forEach(function(b) { b.classList.remove('active'); });
+    if (btn) btn.classList.add('active');
+    if (section === 'metricas_empresa') cargarMetricasEmpresa();
+}
 const resumenRefreshMs = 30000;
 let ultimoResumenPayload = {};
 try {
@@ -595,14 +669,25 @@ function initAuditoriaCharts() {
 }
 
 function switchTab(tabName, btn) {
-    document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
+    tabName = normalizeTab(tabName);
     document.querySelectorAll('.tab-btn').forEach(function(t) { t.classList.remove('active'); });
-    document.getElementById('tab-' + tabName).classList.add('active');
-    btn.classList.add('active');
-    if (tabName === 'resumen') initResumenCharts();
-    if (tabName === 'auditoria') initAuditoriaCharts();
-    if (tabName === 'metricas_empresa') cargarMetricasEmpresa();
-    if (tabName === 'metricas_nati') cargarMetricasNati();
+    if (btn) btn.classList.add('active');
+
+    const subNav = document.getElementById('learning-sub-nav');
+    if (tabName === 'learning') {
+        if (subNav) subNav.classList.add('visible');
+        const params = new URLSearchParams(window.location.search);
+        const section = params.get('section') || learningSectionActual || 'reportes';
+        const subBtn = document.querySelector('.sub-tab-btn[data-section="' + section + '"]');
+        switchLearningSection(section, subBtn);
+    } else {
+        if (subNav) subNav.classList.remove('visible');
+        showPanel(TAB_PANELS[tabName] || 'tab-resumen');
+    }
+
+    if (tabName === 'executive') initResumenCharts();
+    if (tabName === 'ai_ops') initAuditoriaCharts();
+    if (tabName === 'commercial') cargarMetricasNati();
 }
 
 const analyticsEndpoint = (dashboardConfig && dashboardConfig.dataset.analyticsEndpoint) || '/admin/analytics/api/';
@@ -813,19 +898,16 @@ function iniciarAutoRefreshResumen() {
     iniciarAutoRefreshResumen();
 
     const params = new URLSearchParams(window.location.search);
-    const tab = params.get('tab') || tabActual;
-    if (tab && tab !== 'resumen') {
-        const btn = document.querySelector('.tab-btn[onclick*="' + tab + '"]');
-        if (btn) {
-            switchTab(tab, btn);
-        }
+    const rawTab = params.get('tab') || tabActual;
+    const tab = normalizeTab(rawTab);
+
+    if (tab === 'executive') initResumenCharts();
+    if (tab === 'ai_ops') initAuditoriaCharts();
+    if (tab === 'learning') {
+        const section = params.get('section') || learningSectionActual;
+        if (section === 'metricas_empresa') cargarMetricasEmpresa();
     }
-    if ((params.get('tab') || tabActual) === 'metricas_empresa') {
-        cargarMetricasEmpresa();
-    }
-    if ((params.get('tab') || tabActual) === 'metricas_nati') {
-        cargarMetricasNati();
-    }
+    if (tab === 'commercial') cargarMetricasNati();
 })();
 </script>
 {% endblock %}

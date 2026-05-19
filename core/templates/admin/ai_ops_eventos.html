@@ -1,0 +1,99 @@
+{% extends "admin/base_site.html" %}
+{% block title %}Eventos IA — AI Operations{% endblock %}
+
+{% block extrastyle %}
+<style>
+    .ops-wrap { padding: 24px; max-width: 1300px; margin: 0 auto; }
+    .ops-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+    .ops-header h1 { margin: 0; font-size: 1.6rem; }
+    .ops-nav a { margin-right: 14px; font-weight: 600; color: #3b5bdb; text-decoration: none; }
+    .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; align-items: flex-end; }
+    .filters label { font-size: 0.8rem; font-weight: 600; color: #666; display: block; }
+    .filters input, .filters select { padding: 7px 10px; border: 1px solid #dee2e6; border-radius: 6px; }
+    .filters button { background: #3b5bdb; color: #fff; border: none; padding: 8px 18px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+    .eki-table { width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.06); font-size: 0.88rem; }
+    .eki-table th { background: #f8f9fa; text-align: left; padding: 10px; font-size: 0.75rem; text-transform: uppercase; color: #868e96; }
+    .eki-table td { padding: 10px; border-top: 1px solid #eee; vertical-align: top; }
+    .badge-tipo { padding: 2px 8px; border-radius: 10px; font-size: 0.72rem; font-weight: 700; background: #e7f5ff; color: #1864ab; }
+    .badge-reto-si { background: #d3f9d8; color: #2b8a3e; }
+    .badge-reto-no { background: #ffe3e3; color: #c92a2a; }
+    .mono { font-family: ui-monospace, monospace; font-size: 0.8rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ops-wrap">
+    <div class="ops-header">
+        <div>
+            <div class="ops-nav">
+                <a href="{% url 'dashboard_unificado' %}?tab=ai_ops">← Dashboard AI Operations</a>
+            </div>
+            <h1>Eventos IA</h1>
+            <p style="color:#666;margin:6px 0 0;">Trazabilidad de checkpoints, agentes y RAG (Parte 2A).</p>
+        </div>
+    </div>
+
+    <form method="get" class="filters">
+        <div>
+            <label>Tipo</label>
+            <select name="tipo">
+                <option value="">Todos</option>
+                {% for val, lbl in tipos %}
+                <option value="{{ val }}" {% if filtro_tipo == val %}selected{% endif %}>{{ lbl }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>Trace ID</label>
+            <input type="text" name="trace_id" value="{{ filtro_trace }}" placeholder="uuid..." style="width:280px;">
+        </div>
+        <div>
+            <label>Estudiante ID</label>
+            <input type="text" name="estudiante_id" value="{{ filtro_estudiante }}" style="width:100px;">
+        </div>
+        <button type="submit">Filtrar</button>
+        <a href="{% url 'ai_ops_eventos' %}" style="padding:8px 14px;color:#495057;">Limpiar</a>
+    </form>
+
+    <table class="eki-table">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Trace</th>
+                <th>Estudiante / Curso</th>
+                <th>Checkpoint / Regla</th>
+                <th>Agente</th>
+                <th>Preview</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in eventos %}
+            <tr>
+                <td>{{ e.created_at|date:"d/m/Y H:i:s" }}</td>
+                <td><span class="badge-tipo">{{ e.get_tipo_display }}</span></td>
+                <td class="mono"><a href="{% url 'ai_ops_replay' e.trace_id %}">{{ e.trace_id|truncatechars:13 }}</a></td>
+                <td>
+                    {% if e.estudiante %}{{ e.estudiante.nombre }}{% else %}—{% endif %}
+                    {% if e.curso %}<br><small>{{ e.curso.nombre }}</small>{% endif %}
+                </td>
+                <td>
+                    {% if e.tipo == 'checkpoint_evaluado' %}
+                        <span class="{% if e.es_reto %}badge-reto-si{% else %}badge-reto-no{% endif %}" style="padding:2px 8px;border-radius:8px;font-size:0.75rem;font-weight:700;">
+                            {% if e.es_reto %}RETO{% else %}NO{% endif %}
+                        </span>
+                        <br><small>{{ e.facilitador_checkpoint }} → {{ e.regla_aplicada }}</small>
+                    {% else %}
+                        {{ e.regla_aplicada|default:"—" }}
+                    {% endif %}
+                </td>
+                <td>{{ e.agente|default:"—" }}</td>
+                <td><small>{{ e.output_preview|default:e.input_preview|truncatechars:80 }}</small></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" style="text-align:center;color:#aaa;padding:24px;">Sin eventos aún. Completa un módulo o envía un mensaje a Nati.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

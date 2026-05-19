@@ -56,6 +56,35 @@ def registrar_uso_agente(telefono: str, mensaje: str, agente_usado: str,
         guardar_estadisticas(stats)
         
         logger.info(f"📊 Registrado uso de {agente_usado} para {telefono[-4:]}")
+
+        try:
+            from core.models import Estudiante
+            from core.eventos_ia import emit_ia_agent_triggered
+
+            est = Estudiante.objects.filter(telefono=telefono).first()
+            if not est and len(telefono) >= 10:
+                est = Estudiante.objects.filter(telefono__endswith=telefono[-10:]).first()
+            curso = None
+            modulo = None
+            if est:
+                from core.models import ProgresoEstudiante
+                prog = ProgresoEstudiante.objects.filter(estudiante=est).order_by('-fecha_inicio').first()
+                if prog:
+                    curso = prog.curso
+                    modulo = prog.modulo_actual
+            emit_ia_agent_triggered(
+                estudiante=est,
+                cliente=getattr(est, 'cliente', None) if est else None,
+                curso=curso,
+                modulo=modulo,
+                agente=agente_usado,
+                mensaje=mensaje,
+                respuesta=respuesta,
+                latencia_ms=int(round(tiempo_respuesta * 1000)) if tiempo_respuesta else None,
+                canal='whatsapp_edu',
+            )
+        except Exception as e2:
+            logger.debug('Evento IA agente no emitido: %s', e2)
         
     except Exception as e:
         logger.error(f"❌ Error registrando uso de agente: {e}")

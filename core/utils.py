@@ -179,6 +179,8 @@ def enviar_whatsapp_twilio(
     media_url: str = None,
     texto_log: str = None,
     from_number: str = None,
+    canal_evento: str = 'whatsapp_edu',
+    agente_evento: str = '',
 ) -> dict:
     """Enviar mensaje por Twilio WhatsApp API.
 
@@ -304,6 +306,21 @@ def enviar_whatsapp_twilio(
                 logger.warning(f"No se pudo actualizar log: {log_err}")
 
         logger.info(f"TWILIO: Mensaje enviado a {telefono} - SID: {message.sid}")
+
+        try:
+            from core.eventos_ia import emit_mensaje_enviado
+            from core.ai_capabilities import resolver_ai_capability
+
+            if resolver_ai_capability('eventos_ia'):
+                emit_mensaje_enviado(
+                    telefono=telefono,
+                    texto=texto_log if texto_log else texto,
+                    mensaje_id=message.sid,
+                    canal=canal_evento,
+                    agente=agente_evento,
+                )
+        except Exception:
+            pass
 
         return {'success': True, 'mensaje_id': message.sid, 'response': 'Message sent'}
         

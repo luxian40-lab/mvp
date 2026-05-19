@@ -28,6 +28,7 @@ from .models import (
     DocumentoRAG,  # 📚 RAG Multi-Tenant
     DocumentoRAGComercial,  # 🛒 RAG Comercial
     MetaMetricaEmpresa, MetaMetricaNati,
+    EventoIA,
 )
 from .admin_campana_actualizado import CampanaUnicaAdmin, RespuestaCampanaUnicaAdmin
 from .models_extras import (
@@ -6649,4 +6650,29 @@ class ConfiguracionGlobalAdmin(admin.ModelAdmin):
         from django.urls import reverse
         obj = _ConfiguracionGlobal.get_solo()
         return redirect(reverse('admin:core_configuracionglobal_change', args=[obj.pk]))
+
+
+@admin.register(EventoIA)
+class EventoIAAdmin(admin.ModelAdmin):
+    """Solo lectura — audit trail IA (Parte 2A/2B)."""
+
+    list_display = (
+        'created_at', 'tipo', 'trace_id', 'estudiante', 'regla_aplicada',
+        'agente', 'es_reto', 'canal',
+    )
+    list_filter = ('tipo', 'canal', 'regla_aplicada', 'created_at')
+    search_fields = ('trace_id', 'input_preview', 'output_preview', 'agente')
+    readonly_fields = [
+        f.name for f in EventoIA._meta.fields
+    ]
+    ordering = ('-created_at',)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
 

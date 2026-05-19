@@ -29,7 +29,11 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
     fecha_inicio_raw = (request.GET.get('fecha_inicio') or '').strip()
     fecha_fin_raw = (request.GET.get('fecha_fin') or '').strip()
     municipio_filtro = (request.GET.get('municipio') or '').strip()
-    tab_actual = (request.GET.get('tab') or 'resumen').strip().lower()
+    tab_raw = (request.GET.get('tab') or 'executive').strip().lower()
+    from core.domains.dashboard import resolve_dashboard_tab, resolve_learning_section
+
+    tab_actual = resolve_dashboard_tab(tab_raw)
+    learning_section = resolve_learning_section(tab_raw, request.GET.get('section'))
     grupo_id = _to_int((request.GET.get('grupo') or '').strip())
 
     fecha_inicio_dt = _to_date(fecha_inicio_raw)
@@ -398,6 +402,17 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
         },
     }
 
+    eventos_ia_recientes = []
+    try:
+        from core.models import EventoIA
+
+        eventos_ia_recientes = list(
+            EventoIA.objects.select_related('estudiante', 'curso', 'modulo')
+            .order_by('-created_at')[:20]
+        )
+    except Exception:
+        eventos_ia_recientes = []
+
     context = {
         'total_cursos': total_cursos,
         'total_clientes': total_clientes,
@@ -440,11 +455,13 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
         'municipios': municipios,
         'municipio_filtro': municipio_filtro,
         'tab_actual': tab_actual,
+        'learning_section': learning_section,
         'grupos': grupos_qs,
         'grupo_filtro': grupo_id,
         'clientes_detalle': clientes_detalle,
         'estudiantes_detalle': estudiantes_detalle,
         'tickets_soporte': tickets_soporte,
+        'eventos_ia_recientes': eventos_ia_recientes,
     }
     return context, resumen_payload
 
@@ -1815,6 +1832,8 @@ def _bot_comercial_respuesta_catalogo(
     try:
         from openai import OpenAI
         from core.nati import armar_messages_para_openai, armar_system_prompt
+        import time
+        inicio = time.time()
         client = OpenAI(api_key=api_key)
         system_prompt = armar_system_prompt(cliente=cliente)
         user_prompt = (
@@ -1856,6 +1875,25 @@ def _bot_comercial_respuesta_catalogo(
             max_tokens=max_out,
         )
         texto = (completion.choices[0].message.content or '').strip()
+        latencia_ms = int((time.time() - inicio) * 1000)
+        usage = getattr(completion, 'usage', None)
+        try:
+            from core.eventos_ia import emit_ia_agent_triggered
+
+            emit_ia_agent_triggered(
+                cliente=cliente,
+                agente='nati',
+                mensaje=pregunta,
+                respuesta=texto,
+                modelo=modelo,
+                latencia_ms=latencia_ms,
+                tokens_in=getattr(usage, 'prompt_tokens', None) if usage else None,
+                tokens_out=getattr(usage, 'completion_tokens', None) if usage else None,
+                canal='whatsapp_comercial',
+                metadata={'tiene_rag': bool(contexto_rag), 'tiene_web': bool(contexto_web)},
+            )
+        except Exception:
+            pass
         return texto or "No logré construir una respuesta válida. Intenta con otra consulta."
     except Exception as e:
         logger.warning(f"⚠️ Bot Comercial LLM fallback: {e}")
@@ -2044,6 +2082,9 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
         logger.info("♻️ Bot comercial: webhook duplicado ignorado | sid=%s", msg_sid)
         return
 
+    from core.eventos_ia import set_trace_id
+    set_trace_id()
+
     if msg_from.startswith('whatsapp:'):
         msg_from = msg_from.replace('whatsapp:', '')
     if msg_to.startswith('whatsapp:'):
@@ -2086,6 +2127,19 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
         es_audio=('audio' in media_type),
         agente_usado='BOT_COMERCIAL',
     )
+
+    try:
+        from core.eventos_ia import emit_webhook_recibido
+        from core.ai_capabilities import resolver_ai_capability
+
+        if resolver_ai_capability('eventos_ia'):
+            emit_webhook_recibido(
+                mensaje=msg_body or f'[MEDIA:{media_type}]',
+                telefono=telefono_limpio,
+                canal='whatsapp_comercial',
+            )
+    except Exception:
+        pass
 
     msg_normalizado = re.sub(r'\s+', ' ', (msg_body or '').strip().lower())
     try:
@@ -2157,6 +2211,7 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
 
         contexto_rag = ''
         contexto_web = ''
+        rag_chunks = []
         if rag_comercial_manager.disponible:
             from .models import DocumentoRAGComercial
 
@@ -2186,13 +2241,15 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
             top_k = max(3, min(top_k, 20))
 
             for canal in canales_consulta:
-                contexto_rag = rag_comercial_manager.obtener_contexto_varios_clientes(
+                rag_result = rag_comercial_manager.obtener_contexto_varios_clientes(
                     cliente_ids_consulta,
                     canal,
                     consulta,
                     max_chars=rag_max,
                     top_k_por_scope=top_k,
+                    retornar_chunks=True,
                 )
+                contexto_rag, rag_chunks = rag_result
                 if contexto_rag:
                     logger.info(
                         "🧠 RAG comercial unificado | canal=%s | contexto_chars=%s | clientes=%s",
@@ -2200,6 +2257,20 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                         len(contexto_rag),
                         cliente_ids_consulta,
                     )
+                    try:
+                        from core.eventos_ia import emit_rag_query_executed
+
+                        emit_rag_query_executed(
+                            pregunta=consulta,
+                            cliente=cliente_nati,
+                            canal='whatsapp_comercial',
+                            chunks_count=len(rag_chunks),
+                            contexto_chars=len(contexto_rag),
+                            chunks=rag_chunks,
+                            metadata={'origen': 'rag_comercial', 'canal_rag': canal},
+                        )
+                    except Exception:
+                        pass
                     break
 
         if not contexto_rag and getattr(settings, 'BOT_COMERCIAL_RAG_FILE_FALLBACK', True):
@@ -2244,6 +2315,20 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
         )
         if not resultado_envio.get('success'):
             raise RuntimeError(str(resultado_envio.get('response') or 'Error enviando por Twilio'))
+
+        try:
+            from core.eventos_ia import emit_mensaje_enviado
+
+            emit_mensaje_enviado(
+                telefono=telefono_limpio,
+                texto=texto_respuesta,
+                mensaje_id=resultado_envio.get('mensaje_id'),
+                cliente=cliente_nati,
+                canal='whatsapp_comercial',
+                agente='nati',
+            )
+        except Exception:
+            pass
 
         WhatsappLog.objects.create(
             telefono=telefono_limpio,
@@ -2629,6 +2714,9 @@ def _procesar_twilio_webhook(post_data):
         if msg_sid and WhatsappLog.objects.filter(mensaje_id=msg_sid, tipo='INCOMING').exists():
             logger.info("♻️ Twilio inbound duplicado ignorado | sid=%s", msg_sid)
             return
+
+        from core.eventos_ia import set_trace_id
+        set_trace_id()
         
         logger.info(f"📱 Body: {msg_body} | From: {msg_from} | To: {msg_to}")
 
@@ -2683,6 +2771,19 @@ def _procesar_twilio_webhook(post_data):
             es_audio=es_audio,
         )
         logger.info(f"✅ Guardado INCOMING")
+
+        try:
+            from core.eventos_ia import emit_webhook_recibido
+            from core.ai_capabilities import resolver_ai_capability
+
+            if resolver_ai_capability('eventos_ia'):
+                emit_webhook_recibido(
+                    mensaje=msg_body,
+                    telefono=telefono_limpio,
+                    canal='whatsapp_edu',
+                )
+        except Exception:
+            pass
         
         # ============================================================
         # FASE 0: INTERCEPCIÓN DE NO REGISTRADOS (Lead Generation)
@@ -3421,9 +3522,15 @@ def _procesar_twilio_webhook(post_data):
                         estudiante.estado_onboarding = 'completado'
                         estudiante.contexto_temporal = None
                         estudiante.save()
-                        from .intent_detector import detect_intent
+                        from core.eventos_ia import detectar_intent_con_evento
                         from .response_templates import get_response_for_intent
-                        intent = detect_intent(msg_body)
+                        _p0 = estudiante.progresos.order_by('-fecha_inicio').first()
+                        intent = detectar_intent_con_evento(
+                            msg_body,
+                            estudiante=estudiante,
+                            curso=_p0.curso if _p0 else None,
+                            modulo=_p0.modulo_actual if _p0 else None,
+                        )
                         if intent != 'desconocido':
                             texto_respuesta = get_response_for_intent(intent, estudiante.nombre, estudiante_id=estudiante.id, mensaje_original=msg_body)
                         else:
@@ -4939,17 +5046,30 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
 
                                 if siguiente_modulo:
                                     from .drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
-                                    from .helpers_examenes import es_modulo_checkpoint_reto_ia
+                                    from .helpers_examenes import evaluar_checkpoint_reto_ia
 
                                     total_modulos = progreso.curso.modulos.count()
                                     usar_agentes_ia_curso = bool(
                                         getattr(progreso.curso, 'usar_agentes_ia', True)
                                     )
-                                    es_modulo_reto = es_modulo_checkpoint_reto_ia(
+                                    decision_cp = evaluar_checkpoint_reto_ia(
                                         modulo_actual,
                                         total_modulos,
                                         usar_agentes_ia_curso,
                                     )
+                                    es_modulo_reto = decision_cp.es_reto
+                                    try:
+                                        from core.eventos_ia import emit_checkpoint_evaluado
+
+                                        emit_checkpoint_evaluado(
+                                            decision_cp,
+                                            estudiante=estudiante,
+                                            curso=progreso.curso,
+                                            modulo=modulo_actual,
+                                            origen='pregunta_modulo',
+                                        )
+                                    except Exception:
+                                        pass
 
                                     _blk_v = mensaje_bloqueo_avance_siguiente_modulo(
                                         estudiante, progreso, modulo_actual
@@ -4964,12 +5084,13 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                     _fcp = getattr(modulo_actual, 'facilitador_checkpoint', None)
                                     logger.info(
                                         '🎯 [checkpoint-pregunta-modulo] curso=%s mod_num=%s total_mod=%s '
-                                        'usar_ia=%s facilitador_checkpoint=%s -> es_reto=%s | est=%s',
+                                        'usar_ia=%s facilitador_checkpoint=%s regla=%s -> es_reto=%s | est=%s',
                                         progreso.curso_id,
                                         getattr(modulo_actual, 'numero', None),
                                         total_modulos,
                                         usar_agentes_ia_curso,
                                         _fcp,
+                                        decision_cp.regla_aplicada,
                                         es_modulo_reto,
                                         estudiante.id,
                                     )
@@ -5272,9 +5393,15 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                         estudiante.estado_onboarding = 'completado'
                         estudiante.contexto_temporal = None
                         estudiante.save()
-                        from .intent_detector import detect_intent
+                        from core.eventos_ia import detectar_intent_con_evento
                         from .response_templates import get_response_for_intent
-                        intent = detect_intent(msg_body)
+                        _p0 = estudiante.progresos.order_by('-fecha_inicio').first()
+                        intent = detectar_intent_con_evento(
+                            msg_body,
+                            estudiante=estudiante,
+                            curso=_p0.curso if _p0 else None,
+                            modulo=_p0.modulo_actual if _p0 else None,
+                        )
                         if intent != 'desconocido':
                             texto_respuesta = get_response_for_intent(intent, estudiante.nombre, estudiante_id=estudiante.id, mensaje_original=msg_body)
                         else:
@@ -5282,10 +5409,20 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
             
             # 4. Detectar intent y usar templates primero
             else:
-                from .intent_detector import detect_intent
+                from core.eventos_ia import detectar_intent_con_evento
                 from .response_templates import get_response_for_intent
-                
-                intent = detect_intent(msg_body)
+
+                _prog = None
+                try:
+                    _prog = estudiante.progresos.order_by('-fecha_inicio').first()
+                except Exception:
+                    pass
+                intent = detectar_intent_con_evento(
+                    msg_body,
+                    estudiante=estudiante,
+                    curso=_prog.curso if _prog else None,
+                    modulo=_prog.modulo_actual if _prog else None,
+                )
                 print(f"🎯 Intent detectado: {intent}")
             
                 # Intent especial: corregir datos → redirigir al flujo de corrección
