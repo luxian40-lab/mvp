@@ -453,13 +453,22 @@ BOT_COMERCIAL_CLIENTE_ID = os.environ.get('BOT_COMERCIAL_CLIENTE_ID', '0')
 BOT_COMERCIAL_CURSO_ID = os.environ.get('BOT_COMERCIAL_CURSO_ID', '0')
 BOT_COMERCIAL_WHATSAPP_NUMBER = os.environ.get('BOT_COMERCIAL_WHATSAPP_NUMBER', '')
 BOT_COMERCIAL_RAG_CANAL = os.environ.get('BOT_COMERCIAL_RAG_CANAL', 'bot_comercial')
-BOT_COMERCIAL_OPENAI_MODEL = os.environ.get('BOT_COMERCIAL_OPENAI_MODEL', 'gpt-4o')
-BOT_COMERCIAL_VISION_MODEL = os.environ.get('BOT_COMERCIAL_VISION_MODEL', 'gpt-4o-mini')
+BOT_COMERCIAL_OPENAI_MODEL = os.environ.get('BOT_COMERCIAL_OPENAI_MODEL', 'gpt-5-mini')
+BOT_COMERCIAL_MODEL_TECNICO = os.environ.get('BOT_COMERCIAL_MODEL_TECNICO', 'gpt-5')
+BOT_COMERCIAL_MODEL_ROUTER = os.environ.get('BOT_COMERCIAL_MODEL_ROUTER', 'gpt-5-nano')
+BOT_COMERCIAL_ROUTER_USE_NANO = os.environ.get('BOT_COMERCIAL_ROUTER_USE_NANO', 'true').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
+try:
+    BOT_COMERCIAL_RAG_MIN_SIMILARITY = float(os.environ.get('BOT_COMERCIAL_RAG_MIN_SIMILARITY', '0.52'))
+except (TypeError, ValueError):
+    BOT_COMERCIAL_RAG_MIN_SIMILARITY = 0.52
+BOT_COMERCIAL_VISION_MODEL = os.environ.get('BOT_COMERCIAL_VISION_MODEL', 'gpt-5-mini')
 # Límite de tokens de salida del chat (menor = respuesta más rápida y barata).
 try:
-    BOT_COMERCIAL_OPENAI_MAX_TOKENS = int(os.environ.get('BOT_COMERCIAL_OPENAI_MAX_TOKENS', '420'))
+    BOT_COMERCIAL_OPENAI_MAX_TOKENS = int(os.environ.get('BOT_COMERCIAL_OPENAI_MAX_TOKENS', '650'))
 except (TypeError, ValueError):
-    BOT_COMERCIAL_OPENAI_MAX_TOKENS = 420
+    BOT_COMERCIAL_OPENAI_MAX_TOKENS = 650
 # Cuánto texto RAG inyectar al prompt del bot comercial (menor = menos latencia).
 try:
     BOT_COMERCIAL_RAG_TOP_K = int(os.environ.get('BOT_COMERCIAL_RAG_TOP_K', '9'))
@@ -485,8 +494,8 @@ try:
 except (TypeError, ValueError):
     BOT_COMERCIAL_RAG_FALLBACK_XLSX_ROWS = 2000
 BOT_COMERCIAL_RAG_FALLBACK_XLSX_ROWS = max(120, min(BOT_COMERCIAL_RAG_FALLBACK_XLSX_ROWS, 8000))
-# Modelo para búsqueda web (Responses API); gpt-4o-mini suele ser más rápido que gpt-4.1-mini.
-BOT_COMERCIAL_WEB_SEARCH_MODEL = os.environ.get('BOT_COMERCIAL_WEB_SEARCH_MODEL', 'gpt-4o-mini').strip()
+# Modelo para búsqueda web (Responses API).
+BOT_COMERCIAL_WEB_SEARCH_MODEL = os.environ.get('BOT_COMERCIAL_WEB_SEARCH_MODEL', 'gpt-5-mini').strip()
 BOT_COMERCIAL_FORCE_ROUTING = os.environ.get('BOT_COMERCIAL_FORCE_ROUTING', 'false').strip().lower() in ['1', 'true', 'yes', 'on']
 BOT_COMERCIAL_WEB_FALLBACK_ENABLED = os.environ.get('BOT_COMERCIAL_WEB_FALLBACK_ENABLED', 'true').strip().lower() in ['1', 'true', 'yes', 'on']
 try:

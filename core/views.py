@@ -1764,11 +1764,14 @@ def _bot_comercial_respuesta_catalogo(
     cliente=None,
     sesion_comercial=None,
     bloque_contexto_agro: str = '',
+    routing=None,
+    rag_chunks=None,
+    ctx_agro=None,
 ) -> str:
     """Genera respuesta técnica/comercial estricta basada en contexto RAG (sin alucinaciones).
 
     Si se pasa `cliente` (instancia de `core.Cliente`), se usa su `system_prompt_extra`
-    y `nombre_bot` para personalizar la identidad de Nati.
+    y `nombre_bot` para personalizar la identidad de Nat.
     """
     api_key = getattr(settings, 'OPENAI_API_KEY', '')
     contexto_base = contexto_rag or contexto_web
@@ -1798,37 +1801,51 @@ def _bot_comercial_respuesta_catalogo(
 
     try:
         from openai import OpenAI
-        from core.nati import armar_messages_para_openai, armar_system_prompt
+        from core.nati import armar_instruccion_modo, armar_messages_para_openai, armar_system_prompt
+        from core.nat_router import decidir_routing_nat
         import time
         inicio = time.time()
         client = OpenAI(api_key=api_key)
+
+        if routing is None:
+            routing = decidir_routing_nat(
+                pregunta,
+                rag_chunks=rag_chunks or [],
+                tiene_rag_texto=bool(contexto_rag),
+                contexto_rag_chars=len(contexto_rag or ''),
+                ctx_agro=ctx_agro,
+                diagnostico_vision=diagnostico_vision,
+            )
+
         system_prompt = armar_system_prompt(cliente=cliente)
         bloque_agro = (bloque_contexto_agro or '').strip()
         bloque_ctx_prompt = (
             f"CONTEXTO AGRONÓMICO DEL PRODUCTOR (estructurado):\n{bloque_agro}\n\n"
             if bloque_agro else ''
         )
+        bloque_modo = armar_instruccion_modo(routing.modo, routing.escala_premium)
         user_prompt = (
             f"CONSULTA DEL CLIENTE:\n{pregunta}\n\n"
             f"{bloque_ctx_prompt}"
+            f"{bloque_modo}"
             f"HISTORIAL RECIENTE:\n{historial_chat or '[VACIO]'}\n\n"
-            f"DIAGNOSTICO VISION (si aplica):\n{diagnostico_vision or 'N/A'}\n\n"
-            f"INFORMACION OFICIAL DE EKI (fuente principal — usá esto):\n{contexto_rag or '[VACIO]'}\n\n"
-            f"INFORMACION COMPLEMENTARIA DE WEB (apoyo solo si la oficial está vacía):\n{contexto_web or '[VACIO]'}\n\n"
-            "Recordá: nunca menciones al usuario palabras como 'RAG', 'base de "
-            "conocimiento', 'fragmento', 'documento indexado', 'contexto interno'. "
-            "Hablá natural, como una asesora de eki.\n"
-            "Si la consulta parece error de tipeo o no tiene sentido agronómico, "
-            "ofrecé 1–2 interpretaciones plausibles con '¿Quiso decir ...?' y pedí confirmación "
-            "antes de dar conclusiones fuertes.\n"
-            "Si INFORMACION OFICIAL incluye listas o datos tipo Excel (producto, precio, dosis), "
-            "usá solo esas cifras y nombres; si no aparecen ahí, no inventes precios ni productos."
+            f"DIAGNÓSTICO VISIÓN (si aplica):\n{diagnostico_vision or 'N/A'}\n\n"
+            f"INFORMACIÓN OFICIAL DE EKI (fuente principal — use esto con precisión):\n{contexto_rag or '[VACIO]'}\n\n"
+            f"INFORMACIÓN COMPLEMENTARIA WEB (solo si la oficial no alcanza):\n{contexto_web or '[VACIO]'}\n\n"
+            "Recuerde: nunca mencione al usuario términos como RAG, base de "
+            "conocimiento, fragmento o documento indexado. Hable de forma natural, "
+            "como agrónoma formal de eki (siempre de usted).\n"
+            "Si la consulta parece error de tipeo, ofrezca 1–2 interpretaciones plausibles "
+            "con '¿Quiso decir...?' antes de conclusiones fuertes.\n"
+            "Si INFORMACIÓN OFICIAL incluye listas Excel (producto, precio, dosis), "
+            "use solo esas cifras; si no aparecen, no las invente."
         )
-        modelo = str(getattr(settings, 'BOT_COMERCIAL_OPENAI_MODEL', '') or 'gpt-4o-mini')
+        modelo = routing.modelo
+        temperatura = 0.1 if routing.escala_premium else 0.15
         try:
-            max_out = int(getattr(settings, 'BOT_COMERCIAL_OPENAI_MAX_TOKENS', 420) or 420)
+            max_out = int(getattr(settings, 'BOT_COMERCIAL_OPENAI_MAX_TOKENS', 650) or 650)
         except (TypeError, ValueError):
-            max_out = 420
+            max_out = 650
         max_out = max(120, min(max_out, 900))
         if sesion_comercial is not None:
             messages = armar_messages_para_openai(
@@ -1843,7 +1860,7 @@ def _bot_comercial_respuesta_catalogo(
             ]
         completion = client.chat.completions.create(
             model=modelo,
-            temperature=0.15,
+            temperature=temperatura,
             messages=messages,
             max_tokens=max_out,
         )
@@ -1863,7 +1880,14 @@ def _bot_comercial_respuesta_catalogo(
                 tokens_in=getattr(usage, 'prompt_tokens', None) if usage else None,
                 tokens_out=getattr(usage, 'completion_tokens', None) if usage else None,
                 canal='whatsapp_comercial',
-                metadata={'tiene_rag': bool(contexto_rag), 'tiene_web': bool(contexto_web)},
+                metadata={
+                    'tiene_rag': bool(contexto_rag),
+                    'tiene_web': bool(contexto_web),
+                    'routing_modo': routing.modo,
+                    'routing_razon': routing.razon,
+                    'escala_premium': routing.escala_premium,
+                    'rag_max_similitud': routing.rag_max_similitud,
+                },
             )
         except Exception:
             pass
@@ -2275,14 +2299,34 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
             if contexto_rag:
                 logger.info("🧠 RAG fallback documental usado | contexto_chars=%s", len(contexto_rag))
 
-        if not contexto_rag:
+        from core.nat_router import decidir_routing_nat
+
+        routing = decidir_routing_nat(
+            consulta,
+            rag_chunks=rag_chunks,
+            tiene_rag_texto=bool(contexto_rag),
+            contexto_rag_chars=len(contexto_rag or ''),
+            ctx_agro=ctx_agro,
+            diagnostico_vision=diagnostico_vision,
+        )
+        logger.info(
+            "🧭 Nat routing | modelo=%s modo=%s razon=%s web=%s sim=%s",
+            routing.modelo,
+            routing.modo,
+            routing.razon,
+            routing.usar_web,
+            routing.rag_max_similitud,
+        )
+
+        if routing.usar_web and not contexto_web:
             from core.nati import buscar_en_web_colombia
+
             contexto_web = buscar_en_web_colombia(consulta) or _contexto_fallback_web_agro(
                 pregunta=consulta,
                 max_chars=1800,
             )
             if contexto_web:
-                logger.info("🌐 Fallback web/académico usado | contexto_chars=%s", len(contexto_web))
+                logger.info("🌐 Web complementaria (RAG débil/ausente) | chars=%s", len(contexto_web))
 
         texto_respuesta = _bot_comercial_respuesta_catalogo(
             pregunta=consulta,
@@ -2293,6 +2337,9 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
             cliente=cliente_nati,
             sesion_comercial=sesion_comercial,
             bloque_contexto_agro=bloque_contexto_agro,
+            routing=routing,
+            rag_chunks=rag_chunks,
+            ctx_agro=ctx_agro,
         )
 
     if not es_saludo and msg_normalizado not in ['listo', 'continuar', 'menu', 'menú']:

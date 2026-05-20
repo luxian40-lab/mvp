@@ -69,4 +69,4 @@ class ContextoAgroSessionTests(TestCase):
     def test_formatear_bloque_incompleto(self):
         ctx = obtener_o_crear_contexto(self.sesion)
         bloque = formatear_bloque_contexto_para_prompt(ctx)
-        self.assertIn('incompleto', bloque.lower())
+        self.assertIn('parcial', bloque.lower())

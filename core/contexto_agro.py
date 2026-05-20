@@ -109,8 +109,8 @@ def formatear_bloque_contexto_para_prompt(ctx) -> str:
             lineas.append(f'- {lbl}: {v}')
     if not lineas:
         return (
-            'CONTEXTO AGRONÓMICO DEL PRODUCTOR: aún incompleto. '
-            'Antes de recomendar, haz preguntas diagnósticas cortas (cultivo, síntoma, municipio).'
+            'CONTEXTO AGRONÓMICO: parcial. Si falta cultivo o síntoma principal, '
+            'formule como máximo 2 preguntas concretas antes de recomendar.'
         )
     pct = d.get('completitud_pct', ctx.completitud_pct() if ctx else 0)
     return (

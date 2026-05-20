@@ -19,9 +19,10 @@ from core.nati import (
 pytestmark = pytest.mark.django_db
 
 
-def test_armar_system_prompt_default_usa_nati():
-    """Sin cliente, el prompt usa el nombre default 'Nati' y describe la personalidad colombiana."""
+def test_armar_system_prompt_default_usa_nat():
+    """Sin cliente, el prompt usa el nombre default 'Nat'."""
     prompt = armar_system_prompt()
+    assert NOMBRE_BOT_DEFAULT == 'Nat'
     assert NOMBRE_BOT_DEFAULT in prompt
     assert "{nombre_bot}" not in prompt  # placeholder fue interpolado
     # señales de identidad colombiana / agro
@@ -30,8 +31,8 @@ def test_armar_system_prompt_default_usa_nati():
 
 def test_armar_system_prompt_incluye_protocolo_diagnostico():
     prompt = armar_system_prompt()
-    assert "DIAGNÓSTICO ANTES DE RESPONDER" in prompt
-    assert "máximo 2-3 preguntas" in prompt.lower() or "maximo 2-3 preguntas" in prompt.lower()
+    assert 'PROTOCOLO DE CONSULTA TÉCNICA' in prompt
+    assert 'como máximo 2 preguntas' in prompt.lower()
 
 
 def test_armar_system_prompt_prohibe_inventar_datos():
@@ -67,7 +68,7 @@ def test_system_prompt_extra_se_concatena():
 
 
 def test_obtener_nombre_bot_default_cuando_no_hay_cliente():
-    assert obtener_nombre_bot(None) == "Nati"
+    assert obtener_nombre_bot(None) == 'Nat'
 
 
 def test_obtener_nombre_bot_usa_cliente():
@@ -118,14 +119,13 @@ def test_nati_prompt_se_inyecta_en_bot_comercial(settings):
     messages = kwargs["messages"]
     system_msg = messages[0]
     assert system_msg["role"] == "system"
-    assert "Nati" in system_msg["content"]
+    assert 'Nat' in system_msg["content"]
     assert "Prioridad al producto demo." in system_msg["content"]
 
 
-def test_saludo_inicial_default_usa_nati_y_no_dice_eki_bot():
-    """Saludo de bienvenida default debe identificarse como Nati y NO como 'bot de eki'."""
+def test_saludo_inicial_default_usa_nat_y_no_dice_eki_bot():
     saludo = armar_saludo_inicial(None)
-    assert "Nati" in saludo
+    assert 'Nat' in saludo
     saludo_lower = saludo.lower()
     assert "soy tu bot de eki" not in saludo_lower
     assert "soy eki" not in saludo_lower
@@ -145,9 +145,9 @@ def test_saludo_inicial_respeta_nombre_bot_cliente():
     assert "Nati" not in saludo
 
 
-def test_saludo_menu_default_usa_nati():
+def test_saludo_menu_default_usa_nat():
     msg = armar_saludo_menu(None)
-    assert "Nati" in msg
+    assert 'Nat' in msg
     assert "soy tu bot de eki" not in msg.lower()
 
 
@@ -183,7 +183,7 @@ def test_bot_comercial_sin_cliente_usa_default_nati(settings):
 
     kwargs = fake_client.chat.completions.create.call_args.kwargs
     system_content = kwargs["messages"][0]["content"]
-    assert "Nati" in system_content
+    assert 'Nat' in system_content or 'Aliada' in system_content
 
 
 def test_nati_recuerda_conversacion():
