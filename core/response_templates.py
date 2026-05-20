@@ -13,6 +13,20 @@ from .helpers_examenes import evaluar_checkpoint_reto_ia
 
 logger = logging.getLogger(__name__)
 
+# Twilio exige body no vacío junto a media_url; nunca usar solo emoji (p. ej. 📹).
+MENSAJE_CAPTION_SOLO_MEDIA = (
+    'Aquí tiene el material del módulo. Revíselo con calma.'
+)
+
+
+def parte_mensaje_con_media(url: str, caption: str | None = None) -> str:
+    """Bloque para [MULTI_MSG]: texto legible + marcador [MEDIA:…]."""
+    cap = (caption or '').strip() or MENSAJE_CAPTION_SOLO_MEDIA
+    u = (url or '').strip()
+    if not u:
+        return cap
+    return f'{cap}\n\n[MEDIA:{u}]'
+
 
 def _es_mensaje_listo_avance_curso(texto: str) -> bool:
     """Igual que en webhook: *listo*, Listo, LISTO cuentan como avance de lección."""
@@ -1045,10 +1059,11 @@ Te inscribiste en: *{curso.nombre}*
         partes_insc = [msg_intro, mensaje_modulo]
         hay_media_insc = False
         if primera_media_url_1:
-            partes_insc.append(f"[MEDIA:{primera_media_url_1}]")
+            partes_insc.append(parte_mensaje_con_media(primera_media_url_1))
             hay_media_insc = True
         for extra_url_1, extra_titulo_1, extra_icono_1 in extra_media_urls_1:
-            partes_insc.append(f"[MEDIA:{extra_url_1}]")
+            cap_1 = f'{extra_icono_1} {extra_titulo_1}'.strip() if extra_titulo_1 else None
+            partes_insc.append(parte_mensaje_con_media(extra_url_1, cap_1))
             hay_media_insc = True
         if hay_media_insc:
             partes_insc.append("[DELAY:5]")
@@ -1535,10 +1550,11 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 partes = [msg_modulo]
                 hay_media = False
                 if primera_media_url:
-                    partes.append(f"[MEDIA:{primera_media_url}]")
+                    partes.append(parte_mensaje_con_media(primera_media_url))
                     hay_media = True
                 for extra_url, extra_titulo, extra_icono in extra_media_urls:
-                    partes.append(f"[MEDIA:{extra_url}]")
+                    cap_x = f'{extra_icono} {extra_titulo}'.strip() if extra_titulo else None
+                    partes.append(parte_mensaje_con_media(extra_url, cap_x))
                     hay_media = True
                 if hay_media:
                     partes.append("[DELAY:5]")
@@ -1793,10 +1809,11 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             partes_c = [respuesta]
             hay_media_c = False
             if primera_media_url_c:
-                partes_c.append(f"[MEDIA:{primera_media_url_c}]")
+                partes_c.append(parte_mensaje_con_media(primera_media_url_c))
                 hay_media_c = True
             for extra_url_c, extra_titulo_c, extra_icono_c in extra_media_urls_c:
-                partes_c.append(f"[MEDIA:{extra_url_c}]")
+                cap_c = f'{extra_icono_c} {extra_titulo_c}'.strip() if extra_titulo_c else None
+                partes_c.append(parte_mensaje_con_media(extra_url_c, cap_c))
                 hay_media_c = True
             if hay_media_c:
                 partes_c.append("[DELAY:5]")

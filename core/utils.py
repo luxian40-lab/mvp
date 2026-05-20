@@ -258,7 +258,7 @@ def enviar_whatsapp_twilio(
         if clean_url:
             logger.info(f"[MEDIA] Enviando con multimedia: {clean_url}")
 
-        _caption_solo_media = '📹'
+        from .response_templates import MENSAJE_CAPTION_SOLO_MEDIA as _caption_solo_media
 
         status_cb = str(getattr(settings, 'TWILIO_STATUS_CALLBACK_URL', '') or '').strip()
 

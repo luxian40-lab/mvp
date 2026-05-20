@@ -117,7 +117,7 @@ class ModuleStepsModelTests(TestCase):
         msg = entregar_paso_indice(self.prog, self.mod, 1)
         self.assertIn('Mirá este material', msg)
         self.assertIn('[MEDIA:https://example.com/video.mp4]', msg)
-        self.assertNotIn('📎 Aquí tienes el material', msg)
+        self.assertNotIn('📹', msg)
         bloques = [p for p in msg.replace('[MULTI_MSG]', '', 1).split('[SEP]') if p.strip()]
         solos_adjuntos = [b for b in bloques if b.strip().startswith('[MEDIA:')]
         self.assertEqual(

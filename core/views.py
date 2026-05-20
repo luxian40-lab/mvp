@@ -589,7 +589,11 @@ from .models import Campana, Estudiante, WhatsappLog, EnvioLog, Cliente, Curso, 
 from .models_extras import ArchivoModulo, GrupoEstudiantes
 from .utils import enviar_whatsapp, enviar_whatsapp_twilio
 from .intent_detector import detect_intent, mensaje_indica_listo as _mensaje_indica_listo
-from .response_templates import get_response_for_intent
+from .response_templates import (
+    MENSAJE_CAPTION_SOLO_MEDIA as TWILIO_CAPTION_ADJUNTO,
+    get_response_for_intent,
+    parte_mensaje_con_media,
+)
 
 from django.views.decorators.csrf import csrf_exempt
 
@@ -2513,10 +2517,6 @@ def _segmentar_texto_twilio(texto: str, max_chars: int = None) -> list:
     return [texto[i:i + limite] for i in range(0, len(texto), limite)]
 
 
-# Texto cuando un segmento MULTI_MSG es solo [MEDIA:…] (evita body en blanco / solo espacio en Twilio).
-TWILIO_CAPTION_ADJUNTO = '📹'
-
-
 def youtube_hace_solo_enlace_en_texto(url: str) -> bool:
     """True si la URL es página/embed de YouTube, no archivo .mp4 directo (Twilio no puede adjuntarla como media)."""
     u = (url or '').strip().lower()
@@ -3348,10 +3348,15 @@ def _procesar_twilio_webhook(post_data):
                                 # Video principal como mensaje separado después del texto
                                 hay_media_conf = False
                                 if primera_media_url:
-                                    texto_respuesta += f"[SEP][MEDIA:{primera_media_url}]"
+                                    texto_respuesta += f"[SEP]{parte_mensaje_con_media(primera_media_url)}"
                                     hay_media_conf = True
                                 for extra_url, extra_titulo, extra_icono in extra_media_urls:
-                                    texto_respuesta += f"[SEP][MEDIA:{extra_url}]"
+                                    cap_extra = (
+                                        f'{extra_icono} {extra_titulo}'.strip()
+                                        if extra_titulo
+                                        else None
+                                    )
+                                    texto_respuesta += f"[SEP]{parte_mensaje_con_media(extra_url, cap_extra)}"
                                     hay_media_conf = True
                                 # "Escribe listo" AL FINAL — solo si hay más módulos
                                 hay_mas_modulos = curso.modulos.filter(numero__gt=modulo.numero).exists()
@@ -4014,9 +4019,10 @@ def _procesar_twilio_webhook(post_data):
                                 )
                                 partes_menu = [msg_texto_menu]
                                 if primera_media_url:
-                                    partes_menu.append(f"[MEDIA:{primera_media_url}]")
+                                    partes_menu.append(parte_mensaje_con_media(primera_media_url))
                                 for extra_url, extra_titulo, extra_icono in extra_media_urls:
-                                    partes_menu.append(f"[MEDIA:{extra_url}]")
+                                    cap_m = f'{extra_icono} {extra_titulo}'.strip() if extra_titulo else None
+                                    partes_menu.append(parte_mensaje_con_media(extra_url, cap_m))
                                 if len(partes_menu) > 1:
                                     texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_menu)
                                 else:
@@ -5278,10 +5284,11 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                         partes = [msg_completado, msg_modulo]
                                         hay_media_exam = False
                                         if primera_media_url:
-                                            partes.append(f"[MEDIA:{primera_media_url}]")
+                                            partes.append(parte_mensaje_con_media(primera_media_url))
                                             hay_media_exam = True
                                         for extra_url, extra_titulo, extra_icono in extra_media_urls:
-                                            partes.append(f"[MEDIA:{extra_url}]")
+                                            cap_e = f'{extra_icono} {extra_titulo}'.strip() if extra_titulo else None
+                                            partes.append(parte_mensaje_con_media(extra_url, cap_e))
                                             hay_media_exam = True
                                         if hay_media_exam:
                                             partes.append("[DELAY:5]")

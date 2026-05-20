@@ -23,8 +23,7 @@ MSG_LISTO_FIN_PASOS_MODULO = (
     'siguiente módulo o paso del curso 👇'
 )
 
-# Texto mínimo junto al adjunto (Twilio exige body no vacío). El contenido del paso va después del [DELAY].
-_MEDIA_CAPTION_MINIMA = '📹'
+from .response_templates import MENSAJE_CAPTION_SOLO_MEDIA, parte_mensaje_con_media
 
 # Tras acertar evaluación de paso: un solo bubble (feedback + CTA) evita que WhatsApp
 # entregue antes el texto corto de *listo* que el feedback más largo.
@@ -331,13 +330,13 @@ def partes_mensaje_paso(paso: PasoModulo, curso) -> list[str]:
         return [msg if msg else '']
     caption, rest = _split_media_caption_y_rest(body)
     if caption:
-        bloque_media = f'{caption}\n\n[MEDIA:{url}]'
+        bloque_media = parte_mensaje_con_media(url, caption)
         after = (rest + tail).strip()
     elif body:
-        bloque_media = f'{body}\n\n[MEDIA:{url}]'
+        bloque_media = parte_mensaje_con_media(url, body)
         after = tail.strip()
     else:
-        bloque_media = f'{_MEDIA_CAPTION_MINIMA}\n\n[MEDIA:{url}]'
+        bloque_media = parte_mensaje_con_media(url, MENSAJE_CAPTION_SOLO_MEDIA)
         after = tail.strip()
     partes: list[str] = [bloque_media, '[DELAY:5]']
     if after:
