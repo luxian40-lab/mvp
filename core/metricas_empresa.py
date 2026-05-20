@@ -205,10 +205,12 @@ def calcular_metricas_empresa(
     *,
     cliente_id: int | None = None,
     curso_id: int | None = None,
+    grupo_id: int | None = None,
     desde: str | None = None,
     hasta: str | None = None,
 ) -> dict[str, Any]:
     from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante, WhatsappLog
+    from core.models_extras import GrupoEstudiantes
 
     desde_dt = _parse_fecha(desde)
     hasta_dt = _parse_fecha(hasta) or timezone.localdate()
@@ -219,12 +221,17 @@ def calcular_metricas_empresa(
     curso = None
     if curso_id:
         curso = Curso.objects.filter(pk=curso_id).first()
+    grupo = None
+    if grupo_id:
+        grupo = GrupoEstudiantes.objects.filter(pk=grupo_id).first()
 
     progreso_q = ProgresoEstudiante.objects.select_related("estudiante", "curso")
     if cliente_id:
         progreso_q = progreso_q.filter(estudiante__cliente_id=cliente_id)
     if curso_id:
         progreso_q = progreso_q.filter(curso_id=curso_id)
+    if grupo_id:
+        progreso_q = progreso_q.filter(estudiante__grupos__id=grupo_id).distinct()
     if desde_dt:
         progreso_q = progreso_q.filter(fecha_inicio__date__gte=desde_dt)
     if hasta_dt:
@@ -253,6 +260,28 @@ def calcular_metricas_empresa(
         estudiantes_scope = estudiantes_scope.filter(cliente_id=cliente_id)
     if curso_id:
         estudiantes_scope = estudiantes_scope.filter(progresos__curso_id=curso_id).distinct()
+    if grupo_id:
+        estudiantes_scope = estudiantes_scope.filter(grupos__id=grupo_id).distinct()
+
+    hace_30 = timezone.now() - timedelta(days=30)
+    activos_30d = 0
+    if telefonos := list(estudiantes_scope.exclude(telefono='').values_list('telefono', flat=True)):
+        tels_variantes = set()
+        for tel in telefonos:
+            t = normalizar_telefono(tel)
+            if t:
+                tels_variantes.add(t)
+                tels_variantes.update(variantes_telefono(tel))
+        if tels_variantes:
+            activos_30d = (
+                WhatsappLog.objects.filter(
+                    telefono__in=list(tels_variantes),
+                    fecha__gte=hace_30,
+                )
+                .values('telefono')
+                .distinct()
+                .count()
+            )
 
     telefonos = set()
     for tel in estudiantes_scope.exclude(telefono="").values_list("telefono", flat=True):
@@ -342,6 +371,7 @@ def calcular_metricas_empresa(
     return {
         "cliente": {"id": cliente.id, "nombre": cliente.nombre} if cliente else None,
         "curso": {"id": curso.id, "nombre": curso.nombre} if curso else None,
+        "grupo": {"id": grupo.id, "nombre": grupo.nombre} if grupo else None,
         "periodo": {
             "desde": desde_dt.isoformat() if desde_dt else None,
             "hasta": hasta_dt.isoformat() if hasta_dt else None,
@@ -358,6 +388,7 @@ def calcular_metricas_empresa(
             "mensajes_read": mensajes_read,
             "mensajes_a_no_iniciados": mensajes_a_no_iniciados,
             "promedio_avance_pct": prom_avance,
+            "activos_ultimos_30_dias": activos_30d,
         },
         "porcentajes": {
             "finalizacion": pct_final,

@@ -181,10 +181,10 @@ class ClienteAdmin(admin.ModelAdmin):
             'fields': ('nombre_agente_tutor', 'nombre_agente_asistente'),
             'description': '🎓 Personaliza los nombres de los agentes de IA para este cliente. Si se dejan vacíos, se usarán los nombres por defecto (Gerónimo y María). Roles: Tutor = Profesor que enseña módulos, Asistente = Ayuda y revisa progreso.',
         }),
-        ('🌾 Bot Comercial / Nati', {
+        ('🌾 Bot Comercial / Nat', {
             'fields': ('nombre_bot', 'system_prompt_extra'),
             'classes': ('collapse',),
-            'description': 'Identidad del bot comercial WhatsApp. Default: Nati. Si necesitas un tono o productos prioritarios para este cliente, agrégalo en "Instrucciones extra"; se concatena al system prompt base sin tocar código.',
+            'description': 'Identidad del bot comercial WhatsApp. Default: Nat. Si necesitas un tono o productos prioritarios para este cliente, agrégalo en "Instrucciones extra"; se concatena al system prompt base sin tocar código.',
         }),
         ('Estado', {
             'fields': ('activo', 'notas_internas')
@@ -1164,6 +1164,8 @@ class EstudianteAdmin(admin.ModelAdmin):
         """Exporta estudiantes con información detallada de cursos"""
         from openpyxl import Workbook
         from openpyxl.styles import Font, PatternFill, Alignment
+
+        from core.export_estudiantes import limpiar_telefono
         
         # Crear workbook
         wb = Workbook()
@@ -1172,9 +1174,12 @@ class EstudianteAdmin(admin.ModelAdmin):
         
         # Encabezados
         headers = [
-            'Cédula', 'Nombre', 'Teléfono', 'Cliente', 'Activo',
+            'Nombre', 'Apellido', 'Documento', 'Teléfono', 'Email',
+            'Municipio', 'Departamento', 'Ciudad',
+            'Organización', 'Grupo', 'Curso', 'Estado', 'Progreso (%)',
+            'Fecha registro', 'Activo',
             'Cursos Inscritos', 'Cursos Completados', 'Progreso Promedio',
-            'Total Mensajes', 'Fecha Registro'
+            'Total Mensajes',
         ]
         ws.append(headers)
         
@@ -1187,9 +1192,9 @@ class EstudianteAdmin(admin.ModelAdmin):
             cell.alignment = Alignment(horizontal='center', vertical='center')
         
         # Datos
-        for estudiante in queryset:
+        for estudiante in queryset.select_related('cliente').prefetch_related('grupos'):
             # Calcular estadísticas de cursos
-            progresos = ProgresoEstudiante.objects.filter(estudiante=estudiante)
+            progresos = ProgresoEstudiante.objects.filter(estudiante=estudiante).select_related('curso')
             total_cursos = progresos.count()
             cursos_completados = progresos.filter(completado=True).count()
             
@@ -1198,26 +1203,54 @@ class EstudianteAdmin(admin.ModelAdmin):
                 progreso_promedio = sum([p.porcentaje_avance() for p in progresos]) / total_cursos
             else:
                 progreso_promedio = 0
+
+            primer_progreso = progresos.first()
+            curso_nombre = primer_progreso.curso.nombre if primer_progreso and primer_progreso.curso_id else ''
+            if total_cursos > 1:
+                curso_nombre = f"{curso_nombre} (+{total_cursos - 1})" if curso_nombre else f"{total_cursos} cursos"
+            estado_prog = 'Sin inscripción'
+            pct_prog = 0
+            if primer_progreso:
+                pct_prog = primer_progreso.porcentaje_avance()
+                estado_prog = 'Completado' if primer_progreso.completado else (
+                    'En curso' if pct_prog > 0 else 'Sin avance'
+                )
             
             # Total mensajes
             total_mensajes = WhatsappLog.objects.filter(telefono=estudiante.telefono).count()
+            grupos_txt = ', '.join(g.nombre for g in estudiante.grupos.all()[:5])
+            municipio = (estudiante.municipio or '').strip()
+            departamento = (getattr(estudiante, 'departamento', '') or '').strip()
+            ciudad = municipio
             
             ws.append([
-                estudiante.cedula,
                 estudiante.nombre,
-                f"+{estudiante.telefono}",
-                estudiante.cliente.nombre if estudiante.cliente else "Sin cliente",
-                "Sí" if estudiante.activo else "No",
+                '',
+                estudiante.cedula,
+                limpiar_telefono(estudiante.telefono),
+                '',
+                municipio,
+                departamento,
+                ciudad,
+                estudiante.cliente.nombre if estudiante.cliente else 'Sin cliente',
+                grupos_txt,
+                curso_nombre,
+                estado_prog,
+                f"{pct_prog:.1f}%",
+                estudiante.fecha_registro.strftime('%Y-%m-%d %H:%M'),
+                'Sí' if estudiante.activo else 'No',
                 total_cursos,
                 cursos_completados,
                 f"{progreso_promedio:.1f}%",
                 total_mensajes,
-                estudiante.fecha_registro.strftime('%Y-%m-%d %H:%M'),
             ])
         
         # Crear segunda hoja con detalle de cursos
         ws2 = wb.create_sheet("Detalle por Curso")
-        headers2 = ['Cédula', 'Estudiante', 'Teléfono', 'Curso', 'Progreso', 'Estado', 'Fecha Inicio']
+        headers2 = [
+            'Documento', 'Estudiante', 'Teléfono', 'Municipio', 'Departamento',
+            'Curso', 'Progreso', 'Estado', 'Fecha Inicio',
+        ]
         ws2.append(headers2)
         
         # Estilo
@@ -1233,7 +1266,9 @@ class EstudianteAdmin(admin.ModelAdmin):
                 ws2.append([
                     estudiante.cedula,
                     estudiante.nombre,
-                    f"+{estudiante.telefono}",
+                    limpiar_telefono(estudiante.telefono),
+                    estudiante.municipio or '',
+                    getattr(estudiante, 'departamento', '') or '',
                     progreso.curso.nombre,
                     f"{progreso.porcentaje_avance()}%",
                     "Completado" if progreso.completado else "En progreso",

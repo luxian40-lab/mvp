@@ -16,12 +16,12 @@ DEFAULT_AI_CAPABILITIES: dict[str, dict[str, Any]] = {
     },
     'rag_comercial': {
         'default': True,
-        'label': 'RAG comercial Nati',
+        'label': 'RAG comercial Nat',
         'por_cliente': True,
     },
     'diagnostico_agro': {
         'default': True,
-        'label': 'Diagnóstico agronómico Nati',
+        'label': 'Diagnóstico agronómico Nat',
         'por_cliente': True,
     },
     'tutor_ia_modulo': {
@@ -36,7 +36,7 @@ DEFAULT_AI_CAPABILITIES: dict[str, dict[str, Any]] = {
     },
     'nati_structured_context': {
         'default': True,
-        'label': 'Contexto agronómico estructurado Nati',
+        'label': 'Contexto agronómico estructurado Nat',
         'por_cliente': True,
     },
     'hitl_rag_publish': {

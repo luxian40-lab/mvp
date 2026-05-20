@@ -187,19 +187,19 @@ class Cliente(models.Model):
         verbose_name='Nombre de la Asistente (IA)',
         help_text='Nombre personalizado para la agente asistente (por defecto: María). Ej: Laura, Andrea'
     )
-    # BOT COMERCIAL (Nati) — identidad y prompt extra editable desde admin
+    # BOT COMERCIAL (Nat) — identidad y prompt extra editable desde admin
     nombre_bot = models.CharField(
         max_length=40,
         blank=True,
         default='Nati',
         verbose_name='Nombre del Bot Comercial',
-        help_text='Nombre con el que se presenta el bot comercial al productor (default: Nati). Ej: Nati, Aliada, Sofi.'
+        help_text='Nombre con el que se presenta el bot comercial al productor (default en código: Nat). Ej: Nat, Aliada, Sofi.'
     )
     system_prompt_extra = models.TextField(
         blank=True,
         default='',
         verbose_name='Instrucciones extra para el Bot Comercial',
-        help_text='Instrucciones específicas de este cliente que se concatenan al system prompt de Nati. Útil para tono, productos prioritarios o restricciones por marca.'
+        help_text='Instrucciones específicas de este cliente que se concatenan al system prompt de Nat. Útil para tono, productos prioritarios o restricciones por marca.'
     )
     activo = models.BooleanField(
         default=True,
@@ -291,7 +291,7 @@ class MetaMetricaEmpresa(models.Model):
 
 
 class MetaMetricaNati(models.Model):
-    """Metas del bot comercial Nati por organización."""
+    """Metas del bot comercial Nat por organización."""
 
     cliente = models.ForeignKey(
         Cliente,
@@ -314,11 +314,11 @@ class MetaMetricaNati(models.Model):
     actualizado_en = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = "Meta métrica Nati"
-        verbose_name_plural = "Metas métricas Nati"
+        verbose_name = "Meta métrica Nat"
+        verbose_name_plural = "Metas métricas Nat"
 
     def __str__(self):
-        return f"Nati — {self.cliente.nombre}"
+        return f"Nat — {self.cliente.nombre}"
 
 
 # 1. ESTUDIANTE
@@ -2316,6 +2316,11 @@ class SolicitudSoporte(models.Model):
         verbose_name='Resuelto por agente IA',
         help_text='True si el agente PQRS resolvió en primer nivel; False si quedó escalado.',
     )
+    preguntas_realizadas = models.IntegerField(
+        default=0,
+        verbose_name='Preguntas de clarificación',
+        help_text='Preguntas de clarificación del agente PQRS (máximo 2 por ticket).',
+    )
 
     tipo_solicitud = models.CharField(
         max_length=20,
@@ -3005,7 +3010,7 @@ class EventoIA(models.Model):
 
 
 class ContextoAgroSession(models.Model):
-    """Contexto agronómico estructurado por sesión Nati (Parte 3)."""
+    """Contexto agronómico estructurado por sesión Nat (Parte 3)."""
 
     sesion = models.OneToOneField(
         SesionComercial,
@@ -3024,8 +3029,8 @@ class ContextoAgroSession(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = 'Contexto agronómico (Nati)'
-        verbose_name_plural = 'Contextos agronómicos (Nati)'
+        verbose_name = 'Contexto agronómico (Nat)'
+        verbose_name_plural = 'Contextos agronómicos (Nat)'
 
     def campos_llenos(self) -> list[str]:
         out = []
@@ -3055,7 +3060,7 @@ class ContextoAgroSession(models.Model):
 
 
 class ConversacionRAGCandidata(models.Model):
-    """Cola HITL: conversación Nati candidata a publicarse como conocimiento validado (Parte 4)."""
+    """Cola HITL: conversación Nat candidata a publicarse como conocimiento validado (Parte 4)."""
 
     ESTADO_PENDIENTE = 'pendiente'
     ESTADO_APROBADA = 'aprobada'

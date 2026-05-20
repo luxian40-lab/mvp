@@ -1,5 +1,5 @@
 """
-Extracción y persistencia de contexto agronómico estructurado para Nati (Parte 3).
+Extracción y persistencia de contexto agronómico estructurado para Nat (Parte 3).
 """
 
 from __future__ import annotations
@@ -90,7 +90,7 @@ def actualizar_contexto_desde_mensaje(sesion, mensaje: str) -> 'ContextoAgroSess
 
 
 def formatear_bloque_contexto_para_prompt(ctx) -> str:
-    """Bloque obligatorio en el prompt de Nati."""
+    """Bloque obligatorio en el prompt de Nat."""
     if not ctx:
         return ''
     d = ctx.to_dict() if hasattr(ctx, 'to_dict') else {}

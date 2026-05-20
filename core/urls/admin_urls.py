@@ -27,7 +27,7 @@ from core.views_admin_analytics import (
     detalle_estudiante,
     exportar_metricas_csv,
 )
-from core.views_analytics import gei_panel_view
+from core.views_analytics import api_grupos_por_empresa, gei_panel_view
 from core.views_eventos_ia import ai_ops_eventos_view, ai_ops_replay_view, api_eventos_ia_json
 from core.views_knowledge_studio import knowledge_studio_revisar, knowledge_studio_view
 from core.views_reportes import descargar_reporte_xlsx
@@ -55,6 +55,7 @@ urlpatterns = [
     path('admin/analytics/', redirect_dashboard_analytics, name='dashboard_analytics'),
     path('admin/analytics/export/', exportar_metricas_csv, name='exportar_metricas_csv'),
     path('admin/analytics/api/', api_metricas_json, name='api_metricas_json'),
+    path('admin/analytics/api/grupos/', api_grupos_por_empresa, name='api_grupos_por_empresa'),
     path('admin/analytics/estudiante/<int:estudiante_id>/', detalle_estudiante, name='detalle_estudiante'),
     path('admin/reportes-avanzados/', redirect_dashboard_reportes, name='dashboard_reportes_avanzados'),
     path('admin/reportes-avanzados/descargar/', descargar_reporte_xlsx, name='descargar_reporte_xlsx'),

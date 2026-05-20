@@ -6,8 +6,8 @@ Registro de bounded contexts — mapa Parte 0 de la hoja de ruta CTO.
 | core                 | Identidad, clientes, estudiantes, admin base         | core.models, core.views              |
 | learning             | Cursos, módulos, progreso, checkpoints, certificados | core.helpers_examenes, drip, tutor   |
 | agents_edu           | Darío, Claudia, facilitadora, tutor módulo           | core.agentes_ia, core.tutor_ia_modulo|
-| agents_commercial    | Nati, RAG comercial, prospectos                      | core.nati, core.rag_comercial_*      |
-| analytics            | KPIs, semáforos, reportes B2B, métricas empresa/Nati | core.metricas_empresa, dashboard   |
+| agents_commercial    | Nat, RAG comercial, prospectos                       | core.nati, core.rag_comercial_*      |
+| analytics            | KPIs, semáforos, reportes B2B, métricas empresa/Nat  | core.metricas_empresa, dashboard   |
 | integrations         | Twilio, WhatsApp logs, Celery externos               | core.tasks, webhooks                 |
 | formulario           | GEI, encuestas dinámicas                             | formulario.*                         |
 """
@@ -42,7 +42,7 @@ DOMAIN_REGISTRY: dict[str, dict[str, Any]] = {
     'agents_commercial': {
         'label': 'Agentes comerciales',
         'django_app': 'agents_commercial',
-        'description': 'Nati, RAG comercial y bot de ventas.',
+        'description': 'Nat, RAG comercial y bot de ventas.',
         'modules': ['core.nati', 'core.rag_comercial_manager', 'core.knowledge_studio'],
     },
     'analytics': {

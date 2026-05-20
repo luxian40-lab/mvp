@@ -3,6 +3,7 @@ Wrapper module para endpoints de analytics admin.
 """
 
 from core.views_analytics import (
+    api_grupos_por_empresa,
     api_metricas_json,
     dashboard_analytics,
     detalle_estudiante,

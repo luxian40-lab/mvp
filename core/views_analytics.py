@@ -221,6 +221,31 @@ def exportar_metricas_csv(request):
 
 
 @staff_member_required
+def api_grupos_por_empresa(request):
+    """Lista grupos con al menos un estudiante para la empresa (cliente_id)."""
+    from core.models import Estudiante
+    from core.models_extras import GrupoEstudiantes
+
+    cliente_id = request.GET.get('cliente_id') or request.GET.get('cliente')
+    if not cliente_id or not str(cliente_id).isdigit():
+        return JsonResponse({'grupos': []})
+
+    cid = int(cliente_id)
+    grupos_q = (
+        GrupoEstudiantes.objects.filter(activo=True, cliente_id=cid)
+        .filter(estudiantes__isnull=False)
+        .distinct()
+        .order_by('nombre')
+    )
+    payload = [
+        {'id': g.id, 'nombre': g.nombre}
+        for g in grupos_q
+        if Estudiante.objects.filter(grupos=g, cliente_id=cid).exists()
+    ]
+    return JsonResponse({'grupos': payload})
+
+
+@staff_member_required
 def api_metricas_json(request):
     """API JSON para gráficos dinámicos"""
     from core.domains.dashboard import API_TIPO_ALIASES
@@ -364,15 +389,18 @@ def api_metricas_json(request):
 
         cliente_id = request.GET.get('cliente_id') or request.GET.get('cliente')
         curso_id = request.GET.get('curso_id') or request.GET.get('curso')
+        grupo_id = request.GET.get('grupo_id') or request.GET.get('grupo')
         desde = request.GET.get('desde') or request.GET.get('fecha_inicio')
         hasta = request.GET.get('hasta') or request.GET.get('fecha_fin')
 
         cid = int(cliente_id) if cliente_id and str(cliente_id).isdigit() else None
         cu_id = int(curso_id) if curso_id and str(curso_id).isdigit() else None
+        gid = int(grupo_id) if grupo_id and str(grupo_id).isdigit() else None
 
         payload = calcular_metricas_empresa(
             cliente_id=cid,
             curso_id=cu_id,
+            grupo_id=gid,
             desde=desde,
             hasta=hasta,
         )

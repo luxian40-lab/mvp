@@ -222,9 +222,11 @@ def _sheet_learning_empresa(wb, context):
 
     cid = context.get('cliente_filtro')
     curso_id = context.get('curso_filtro')
+    grupo_id = context.get('grupo_filtro')
     payload = calcular_metricas_empresa(
         cliente_id=cid,
         curso_id=curso_id,
+        grupo_id=grupo_id,
         desde=context.get('fecha_inicio') or None,
         hasta=context.get('fecha_fin') or None,
     )

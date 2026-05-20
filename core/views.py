@@ -34,7 +34,7 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
 
     tab_actual = resolve_dashboard_tab(tab_raw)
     learning_section = resolve_learning_section(tab_raw, request.GET.get('section'))
-    grupo_id = _to_int((request.GET.get('grupo') or '').strip())
+    grupo_id = _to_int((request.GET.get('grupo_id') or request.GET.get('grupo') or '').strip())
 
     fecha_inicio_dt = _to_date(fecha_inicio_raw)
     fecha_fin_dt = _to_date(fecha_fin_raw)
@@ -2177,7 +2177,7 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
             cliente_nati = Cliente.objects.filter(id=cliente_id_cfg).first()
         except Exception as e:
             logger.warning(
-                "Bot comercial: no se pudo cargar Cliente id=%s para Nati: %s",
+                "Bot comercial: no se pudo cargar Cliente id=%s para Nat: %s",
                 cliente_id_cfg, e,
             )
     sesion_comercial = _obtener_o_crear_sesion_comercial(
@@ -4107,17 +4107,39 @@ def _procesar_twilio_webhook(post_data):
                     return
         
         # ============================================================
+        # PQRS: seguimiento de ticket abierto (máx. 2 preguntas de clarificación)
+        # ============================================================
+        pqrs_atendido = False
+        respuesta_pqrs = None
+        try:
+            from .pqrs_agent import intentar_procesar_seguimiento_pqrs_whatsapp
+
+            respuesta_pqrs = intentar_procesar_seguimiento_pqrs_whatsapp(estudiante, msg_body)
+            if respuesta_pqrs:
+                pqrs_atendido = True
+                logger.info(
+                    '🆘 PQRS seguimiento — respuesta automática estudiante_id=%s',
+                    estudiante.id,
+                )
+        except Exception as e:
+            logger.exception('PQRS seguimiento omitido: %s', e)
+
+        # ============================================================
         # FLUJO EXISTENTE: Procesamiento normal (IA tutors, módulos, etc.)
         # ============================================================
         
         # 3. 🛡️ PRIORIDAD 1: Verificar seguridad (Habeas Data) - Legacy
         from .security_handler import verificar_seguridad_completa
-        bloqueado, respuesta_seguridad, estudiante = verificar_seguridad_completa(
-            estudiante,
-            msg_body,
-            telefono_limpio,
-            numero_destino=msg_to,
-        )
+        if pqrs_atendido:
+            bloqueado = True
+            respuesta_seguridad = respuesta_pqrs
+        else:
+            bloqueado, respuesta_seguridad, estudiante = verificar_seguridad_completa(
+                estudiante,
+                msg_body,
+                telefono_limpio,
+                numero_destino=msg_to,
+            )
         print(f"🛡️ Seguridad: bloqueado={bloqueado} | estudiante={estudiante} | estado={getattr(estudiante, 'estado_onboarding', 'N/A')}", flush=True)
         
         # Default safety - will be overwritten by any branch below
