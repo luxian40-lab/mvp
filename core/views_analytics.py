@@ -392,10 +392,14 @@ def api_metricas_json(request):
         grupo_id = request.GET.get('grupo_id') or request.GET.get('grupo')
         desde = request.GET.get('desde') or request.GET.get('fecha_inicio')
         hasta = request.GET.get('hasta') or request.GET.get('fecha_fin')
+        modulo_hasta = request.GET.get('modulo_hasta') or request.GET.get('modulo_hasta_numero')
+        usar_drip = request.GET.get('usar_drip_calendario', '1')
 
         cid = int(cliente_id) if cliente_id and str(cliente_id).isdigit() else None
         cu_id = int(curso_id) if curso_id and str(curso_id).isdigit() else None
         gid = int(grupo_id) if grupo_id and str(grupo_id).isdigit() else None
+        mod_hasta = int(modulo_hasta) if modulo_hasta and str(modulo_hasta).isdigit() else None
+        drip_on = False if mod_hasta else str(usar_drip).lower() not in ('0', 'false', 'no')
 
         payload = calcular_metricas_empresa(
             cliente_id=cid,
@@ -403,6 +407,8 @@ def api_metricas_json(request):
             grupo_id=gid,
             desde=desde,
             hasta=hasta,
+            modulo_hasta_numero=mod_hasta,
+            usar_drip_calendario=drip_on,
         )
         payload['schema'] = 'metricas_empresa_v1'
         return JsonResponse(payload)
@@ -420,6 +426,70 @@ def api_metricas_json(request):
         return JsonResponse(payload)
 
     return JsonResponse({'error': 'Tipo de métrica no válido'}, status=400)
+
+
+@staff_member_required
+def api_modulos_curso_json(request):
+    """Lista módulos de un curso para filtro drip en dashboard."""
+    curso_id = request.GET.get('curso_id') or request.GET.get('curso')
+    if not curso_id or not str(curso_id).isdigit():
+        return JsonResponse({'modulos': []})
+    mods = (
+        Modulo.objects.filter(curso_id=int(curso_id))
+        .order_by('numero')
+        .values('id', 'numero', 'titulo')
+    )
+    return JsonResponse({'modulos': list(mods)})
+
+
+@staff_member_required
+def api_guardar_metas_empresa(request):
+    """Crea o actualiza MetaMetricaEmpresa desde el dashboard (POST JSON)."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST requerido'}, status=405)
+    if not request.user.has_perm('core.change_metametricaempresa'):
+        return JsonResponse({'error': 'Sin permiso'}, status=403)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+
+    from decimal import Decimal, InvalidOperation
+    from core.models import MetaMetricaEmpresa
+
+    cliente_id = data.get('cliente_id')
+    curso_id = data.get('curso_id') or None
+    if not cliente_id:
+        return JsonResponse({'error': 'cliente_id requerido'}, status=400)
+
+    try:
+        fields = {
+            'meta_finalizacion_porcentaje': Decimal(str(data.get('finalizacion', 70))),
+            'meta_inicio_porcentaje': Decimal(str(data.get('inicio', 80))),
+            'meta_max_no_iniciados_porcentaje': Decimal(str(data.get('max_no_iniciados', 20))),
+            'meta_min_lectura_mensajes_porcentaje': Decimal(str(data.get('lecturas', 60))),
+            'activa': True,
+        }
+    except (InvalidOperation, TypeError, ValueError):
+        return JsonResponse({'error': 'Valores numéricos inválidos'}, status=400)
+
+    lookup = {'cliente_id': int(cliente_id), 'curso_id': int(curso_id) if curso_id else None}
+    meta, created = MetaMetricaEmpresa.objects.update_or_create(
+        defaults=fields,
+        **lookup,
+    )
+    return JsonResponse({
+        'ok': True,
+        'created': created,
+        'meta_id': meta.pk,
+        'metas': {
+            'finalizacion': float(meta.meta_finalizacion_porcentaje),
+            'inicio': float(meta.meta_inicio_porcentaje),
+            'max_no_iniciados': float(meta.meta_max_no_iniciados_porcentaje),
+            'lecturas': float(meta.meta_min_lectura_mensajes_porcentaje),
+        },
+    })
 
 
 @staff_member_required

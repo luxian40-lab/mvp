@@ -1,0 +1,76 @@
+{% extends "admin/base_site.html" %}
+{% block title %}Vista previa — curso IA{% endblock %}
+{% block extrastyle %}
+<style>
+:root { --eki-brand: #9a6cac; }
+.vp-wrap { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+.vp-card { background: #fff; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,.08); padding: 20px; margin-bottom: 20px; }
+.vp-card h2 { font-size: 1.1rem; color: var(--eki-brand); margin: 0 0 14px; border-bottom: 2px solid #f3eaf7; padding-bottom: 8px; }
+.vp-field label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 4px; }
+.vp-field input, .vp-field textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 12px; }
+.mod-block { border: 1px solid #eee; border-radius: 8px; padding: 14px; margin-bottom: 12px; background: #fafafa; }
+.mod-block h3 { margin: 0 0 8px; font-size: 1rem; }
+.btn-eki { background: var(--eki-brand); color: #fff; border: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+.btn-danger { background: #e03131; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; }
+.btn-outline { background: #fff; color: var(--eki-brand); border: 1px solid var(--eki-brand); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+.vp-stats { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.vp-stat { background: #f3eaf7; padding: 10px 16px; border-radius: 8px; font-size: 0.9rem; }
+.vp-error { background: #ffe3e3; color: #c92a2a; padding: 12px; border-radius: 8px; margin-bottom: 16px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="vp-wrap">
+    <h1>Vista previa del curso</h1>
+    <p style="color:#666;">Organización: <strong>{{ cliente.nombre }}</strong> · Modelo: {{ modelo_usado }} · Fuente: {{ archivo_nombre }}</p>
+    {% if error %}<div class="vp-error">{{ error }}</div>{% endif %}
+
+    <div class="vp-stats">
+        <span class="vp-stat">{{ total_modulos }} módulos</span>
+        <span class="vp-stat">{{ total_lecciones }} lecciones</span>
+    </div>
+
+    <form method="post" id="form-guardar">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="guardar">
+        <div class="vp-card">
+            <h2>Datos generales</h2>
+            <div class="vp-field"><label>Título</label><input name="titulo" value="{{ estructura.titulo }}"></div>
+            <div class="vp-field"><label>Descripción</label><textarea name="descripcion" rows="3">{{ estructura.descripcion }}</textarea></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+                <div class="vp-field"><label>Duración</label><input name="duracion_estimada" value="{{ estructura.duracion_estimada|default:'4 semanas' }}"></div>
+                <div class="vp-field"><label>Nivel</label><input name="nivel" value="{{ estructura.nivel|default:'Intermedio' }}"></div>
+                <div class="vp-field"><label>Puntos/lección</label><input name="puntos_por_leccion" type="number" value="{{ estructura.puntos_por_leccion|default:50 }}"></div>
+            </div>
+        </div>
+        <button type="submit" class="btn-eki">✅ Guardar curso (inactivo)</button>
+    </form>
+
+    <div class="vp-card" style="margin-top:20px;">
+        <h2>Módulos — regenerar individualmente</h2>
+        {% for mod in estructura.modulos %}
+        <div class="mod-block">
+            <h3>M{{ forloop.counter }} — {{ mod.nombre }}</h3>
+            <p style="font-size:0.9rem;color:#555;">{{ mod.descripcion }}</p>
+            <p style="font-size:0.85rem;color:#888;">{{ mod.lecciones|length }} lección(es)</p>
+            <form method="post" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="regenerar_modulo">
+                <input type="hidden" name="modulo_indice" value="{{ forloop.counter0 }}">
+                <div style="flex:1;min-width:200px;">
+                    <label style="font-size:0.8rem;">Instrucciones</label>
+                    <input type="text" name="instrucciones_regenerar" placeholder="Ej: más práctico, enfoque aguacate..." style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px;">
+                </div>
+                <button type="submit" class="btn-outline">🔄 Regenerar módulo {{ forloop.counter }}</button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+
+    <form method="post" style="margin-top:12px;">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="cancelar">
+        <button type="submit" class="btn-danger">Cancelar</button>
+        <a href="{% url 'subir_documento_curso' %}" style="margin-left:12px;color:#9a6cac;">← Volver al chat</a>
+    </form>
+</div>
+{% endblock %}

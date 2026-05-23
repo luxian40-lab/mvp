@@ -1,0 +1,91 @@
+{% extends "admin/base_site.html" %}
+{% block title %}Crear curso con IA{% endblock %}
+{% block extrastyle %}
+<style>
+:root { --eki-brand: #9a6cac; }
+.ia-wrap { max-width: 960px; margin: 24px auto; padding: 0 16px; }
+.ia-header h1 { color: #333; margin-bottom: 8px; }
+.ia-grid { display: grid; grid-template-columns: 1fr 320px; gap: 20px; }
+@media (max-width: 900px) { .ia-grid { grid-template-columns: 1fr; } }
+.ia-panel { background: #fff; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,.08); padding: 20px; }
+.ia-chat { max-height: 420px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; padding: 12px; margin-bottom: 12px; background: #fafafa; }
+.ia-msg { margin-bottom: 10px; padding: 10px 12px; border-radius: 8px; font-size: 0.92rem; line-height: 1.45; }
+.ia-msg.user { background: #f3eaf7; border-left: 3px solid var(--eki-brand); }
+.ia-msg.assistant { background: #fff; border: 1px solid #e9ecef; }
+.ia-msg .rol { font-size: 0.72rem; font-weight: 700; color: var(--eki-brand); text-transform: uppercase; margin-bottom: 4px; }
+.ia-field label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 4px; color: #555; }
+.ia-field select, .ia-field input, .ia-field textarea { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 12px; }
+.ia-field textarea { min-height: 160px; resize: vertical; font-family: inherit; }
+.btn-eki { background: var(--eki-brand); color: #fff; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+.btn-eki:hover { opacity: 0.92; }
+.btn-ghost { background: #f1f3f5; color: #495057; border: none; padding: 8px 14px; border-radius: 6px; margin-left: 8px; cursor: pointer; }
+.ia-error { background: #ffe3e3; color: #c92a2a; padding: 12px; border-radius: 8px; margin-bottom: 16px; }
+.ia-hint { font-size: 0.85rem; color: #868e96; margin-top: -6px; margin-bottom: 12px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="ia-wrap">
+    <div class="ia-header">
+        <h1>✨ Crear curso con IA</h1>
+        <p style="color:#666;">Describe el curso en un prompt largo o adjunta PDF/Word. La IA generará módulos y lecciones para revisión antes de guardar.</p>
+    </div>
+    {% if error %}<div class="ia-error">{{ error }}</div>{% endif %}
+    {% if not modelos_ia_disponibles %}
+    <div class="ia-error">OPENAI_API_KEY no configurada. No se pueden generar cursos con IA.</div>
+    {% endif %}
+    <div class="ia-grid">
+        <div class="ia-panel">
+            <div class="ia-chat" id="chat-box">
+                {% for msg in historial_chat %}
+                <div class="ia-msg {{ msg.rol }}">
+                    <div class="rol">{% if msg.rol == 'user' %}Tú{% else %}Asistente IA{% endif %}</div>
+                    {{ msg.texto|linebreaksbr }}
+                </div>
+                {% empty %}
+                <p style="color:#aaa;text-align:center;margin:40px 0;">Empieza describiendo tu curso: público, objetivos, módulos deseados, tono agropecuario, etc.</p>
+                {% endfor %}
+            </div>
+            <form method="post" enctype="multipart/form-data" id="form-gen">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="generar">
+                <div class="ia-field">
+                    <label>Organización</label>
+                    <select name="cliente_id" required>
+                        <option value="">— Seleccionar —</option>
+                        {% for c in clientes %}
+                        <option value="{{ c.id }}">{{ c.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="ia-field">
+                    <label>Modelo IA</label>
+                    <select name="modelo_ia">
+                        {% for key, info in modelos_ia.items %}
+                        <option value="{{ key }}" {% if key == modelo_actual %}selected{% endif %}>{{ info.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="ia-field">
+                    <label for="prompt">Prompt / instrucciones</label>
+                    <textarea id="prompt" name="prompt" placeholder="Ej: Curso de 4 semanas sobre balance GEI para productores de café en Colombia. 5 módulos: intro, emisiones, remociones, cálculo práctico, plan de acción..."></textarea>
+                    <p class="ia-hint">Mínimo 200 caracteres. Puedes combinar prompt + archivo.</p>
+                </div>
+                <div class="ia-field">
+                    <label for="documento">Archivo opcional (PDF, DOCX, TXT)</label>
+                    <input type="file" id="documento" name="documento" accept=".pdf,.docx,.txt">
+                </div>
+                <button type="submit" class="btn-eki" {% if not modelos_ia_disponibles %}disabled{% endif %}>Generar estructura del curso →</button>
+            </form>
+        </div>
+        <div class="ia-panel">
+            <p class="ia-hint">El curso se crea <strong>inactivo</strong> hasta que lo revises en el admin.</p>
+            <form method="post" style="margin-top:16px;">
+                {% csrf_token %}
+                <input type="hidden" name="accion" value="limpiar_chat">
+                <button type="submit" class="btn-ghost">Limpiar chat</button>
+            </form>
+            <a href="/admin/dashboard/?tab=learning" style="display:inline-block;margin-top:12px;color:#9a6cac;font-weight:600;">← Volver al dashboard</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

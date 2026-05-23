@@ -19,6 +19,8 @@ from core.views import (
     importar_prospectos,
     instrucciones_view,
     subir_documento_curso,
+    generando_curso_ia,
+    api_estado_curso_ia,
     test_email_gmail_view,
     vista_previa_curso_ia,
 )
@@ -26,6 +28,8 @@ from core.views_admin_analytics import (
     api_metricas_json,
     detalle_estudiante,
     exportar_metricas_csv,
+    api_modulos_curso_json,
+    api_guardar_metas_empresa,
 )
 from core.views_analytics import api_grupos_por_empresa, gei_panel_view
 from core.views_eventos_ia import ai_ops_eventos_view, ai_ops_replay_view, api_eventos_ia_json
@@ -55,11 +59,15 @@ urlpatterns = [
     path('admin/analytics/', redirect_dashboard_analytics, name='dashboard_analytics'),
     path('admin/analytics/export/', exportar_metricas_csv, name='exportar_metricas_csv'),
     path('admin/analytics/api/', api_metricas_json, name='api_metricas_json'),
+    path('admin/analytics/api/modulos/', api_modulos_curso_json, name='api_modulos_curso'),
+    path('admin/analytics/api/metas/', api_guardar_metas_empresa, name='api_guardar_metas_empresa'),
     path('admin/analytics/api/grupos/', api_grupos_por_empresa, name='api_grupos_por_empresa'),
     path('admin/analytics/estudiante/<int:estudiante_id>/', detalle_estudiante, name='detalle_estudiante'),
     path('admin/reportes-avanzados/', redirect_dashboard_reportes, name='dashboard_reportes_avanzados'),
     path('admin/reportes-avanzados/descargar/', descargar_reporte_xlsx, name='descargar_reporte_xlsx'),
     path('admin/crear-curso-ia/', subir_documento_curso, name='subir_documento_curso'),
+    path('admin/crear-curso-ia/generando/', generando_curso_ia, name='generando_curso_ia'),
+    path('admin/crear-curso-ia/estado/', api_estado_curso_ia, name='api_estado_curso_ia'),
     path('admin/vista-previa-curso-ia/', vista_previa_curso_ia, name='vista_previa_curso_ia'),
     path('admin/dashboard-gerencial/', redirect_dashboard_gerencial, name='dashboard_gerencial'),
     path('admin/gei/panel/', gei_panel_view, name='gei_panel'),

@@ -226,7 +226,7 @@ JAZZMIN_SETTINGS = {
     "site_brand": "eki",
     "welcome_sign": "Bienvenido a eki",
     "copyright": "eki solutions",
-    "search_model": ["core.Estudiante", "core.Campana", "core.ProspectoB2B"],
+    "search_model": ["core.Estudiante", "core.Campana", "agents_commercial.ProspectoB2B"],
 
     # Menú Superior - Acceso rápido
     "topmenu_links": [
@@ -247,48 +247,61 @@ JAZZMIN_SETTINGS = {
         "auth.user": "fas fa-user-shield",
         "auth.Group": "fas fa-users-cog",
 
-        # 🎓 Estudiantes y Cursos
+        # Core — estudiantes, cursos, campañas, progreso
+        "core": "fas fa-home",
         "core.Cliente": "fas fa-building",
         "core.Estudiante": "fas fa-user-circle",
         "core.GrupoEstudiantes": "fas fa-users",
         "core.Curso": "fas fa-book-open",
         "core.Modulo": "fas fa-layer-group",
         "core.ProgresoEstudiante": "fas fa-chart-line",
-        "core.Examen": "fas fa-clipboard-check",
-        "core.PreguntaExamen": "fas fa-question-circle",
-        "core.ConfiguracionDripCliente": "fas fa-clock",
-
-        # 💬 Comunicación
         "core.Campana": "fas fa-bullhorn",
+        "core.MensajePush": "fas fa-paper-plane",
         "core.Plantilla": "fas fa-envelope-open-text",
         "core.WhatsappLog": "fas fa-comments",
         "core.TemaCampana": "fas fa-tags",
         "core.EnvioLog": "fas fa-paper-plane",
         "core.SolicitudSoporte": "fas fa-hands-helping",
         "core.Linea": "fas fa-phone-alt",
+        "core.ConfiguracionGlobal": "fas fa-cog",
 
-        # 🤖 Bot Comercial (Nati)
-        "core.ProspectoB2B": "fas fa-handshake",
-        "core.DocumentoRAGComercial": "fas fa-robot",
-        "core.DocumentoRAG": "fas fa-file-alt",
+        # IA Comercial
+        "agents_commercial": "fas fa-robot",
+        "agents_commercial.ProspectoB2B": "fas fa-handshake",
+        "agents_commercial.CampanaB2B": "fas fa-bullhorn",
+        "agents_commercial.DocumentoRAGComercial": "fas fa-file-contract",
+        "agents_commercial.MetaMetricaNati": "fas fa-bullseye",
+        "agents_commercial.ContextoAgroSession": "fas fa-seedling",
+        "agents_commercial.ConversacionRAGCandidata": "fas fa-lightbulb",
 
-        # 🌱 Formulario GEI
+        # Métricas
+        "analytics": "fas fa-chart-bar",
+        "analytics.MetaMetricaEmpresa": "fas fa-bullseye",
+        "analytics.EventoIA": "fas fa-microchip",
+
+        # IA Educativa
+        "agents_edu": "fas fa-graduation-cap",
+        "agents_edu.DocumentoRAG": "fas fa-file-alt",
+
+        # Evaluación y gamificación
+        "learning": "fas fa-trophy",
+        "learning.Examen": "fas fa-clipboard-check",
+        "learning.PreguntaExamen": "fas fa-question-circle",
+        "learning.PerfilGamificacion": "fas fa-trophy",
+        "learning.Badge": "fas fa-medal",
+        "learning.Recompensa": "fas fa-gift",
+        "learning.CanjeRecompensa": "fas fa-shopping-cart",
+        "learning.Certificado": "fas fa-certificate",
+        "learning.PlantillaCertificado": "fas fa-file-pdf",
+        "learning.AliadoEmpleabilidad": "fas fa-briefcase",
+        "learning.MisionEmpleabilidad": "fas fa-map-marker-alt",
+        "learning.AuditLog": "fas fa-lock",
+
+        # Formulario GEI
         "formulario.FichaGEI": "fas fa-seedling",
         "formulario.ResultadoGEI": "fas fa-calculator",
         "formulario.TipoFormulario": "fas fa-wpforms",
         "formulario.SesionFormulario": "fas fa-tasks",
-
-        # 🏆 Gamificación y Certificados
-        "core.PerfilGamificacion": "fas fa-trophy",
-        "core.Badge": "fas fa-medal",
-        "core.Recompensa": "fas fa-gift",
-        "core.CanjeRecompensa": "fas fa-shopping-cart",
-        "core.Certificado": "fas fa-certificate",
-        "core.PlantillaCertificado": "fas fa-file-pdf",
-
-        # ⚙️ Sistema
-        "core.AuditLog": "fas fa-lock",
-        "core.PQRS": "fas fa-comment-dots",
     },
 
     # Links custom (acceso rápido a vistas no-modelo)
@@ -303,16 +316,46 @@ JAZZMIN_SETTINGS = {
         ],
         "core": [
             {
-                "name": "📈 Dashboard",
+                "name": "📋 Manual / Instrucciones",
+                "url": "/admin/instrucciones/",
+                "icon": "fas fa-book",
+                "permissions": ["core.view_estudiante"],
+            },
+        ],
+        "agents_commercial": [
+            {
+                "name": "🤖 Panel bot comercial",
+                "url": "/admin/bot-comercial/",
+                "icon": "fas fa-comments",
+                "permissions": ["core.view_prospectob2b"],
+            },
+            {
+                "name": "💡 Knowledge Studio",
+                "url": "/admin/knowledge-studio/",
+                "icon": "fas fa-lightbulb",
+                "permissions": ["core.view_conversacionragcandidata"],
+            },
+        ],
+        "analytics": [
+            {
+                "name": "📈 Dashboard métricas",
                 "url": "/admin/dashboard/",
                 "icon": "fas fa-tachometer-alt",
                 "permissions": ["core.view_estudiante"],
             },
             {
-                "name": "📋 Manual / Instrucciones",
-                "url": "/admin/instrucciones/",
-                "icon": "fas fa-book",
-                "permissions": ["core.view_estudiante"],
+                "name": "🔬 AI Ops (eventos IA)",
+                "url": "/admin/ai-ops/eventos/",
+                "icon": "fas fa-microchip",
+                "permissions": ["core.view_eventoia"],
+            },
+        ],
+        "agents_edu": [
+            {
+                "name": "✨ Crear curso con IA",
+                "url": "/admin/crear-curso-ia/",
+                "icon": "fas fa-magic",
+                "permissions": ["core.view_curso"],
             },
         ],
     },
@@ -320,58 +363,73 @@ JAZZMIN_SETTINGS = {
     # Ocultar modelos automáticos / de sólo-código
     "hide_models": [
         "core.ModuloCompletado",
-        "core.BadgeEstudiante",
-        "core.TransaccionPuntos",
+        "learning.BadgeEstudiante",
+        "learning.TransaccionPuntos",
         "core.EnvioLog",
-        "core.ResultadoExamen",
+        "learning.ResultadoExamen",
         "core.GrupoWhatsApp",
         "core.InvitacionGrupo",
         "core.PreguntaModulo",
         "core.CampanaUnica",
         "core.RespuestaCampanaUnica",
         "core.EnvioProgramado",
-        "core.PQRS",
+        "learning.PQRS",
+        "learning.RespuestaAbiertaFinal",
+        "learning.PreguntaAbiertaFinalCurso",
     ],
 
     # Orden visual del sidebar — agrupado en 6 secciones lógicas
     "order_with_respect_to": [
         "auth",
-        # 🎓 Estudiantes y Cursos
+        # Core — núcleo operativo
+        "core",
         "core.Cliente",
         "core.Estudiante",
         "core.GrupoEstudiantes",
         "core.Curso",
         "core.Modulo",
         "core.ProgresoEstudiante",
-        "core.Examen",
-        "core.PreguntaExamen",
-        "core.ConfiguracionDripCliente",
-        # 💬 Comunicación
         "core.Campana",
         "core.Plantilla",
         "core.TemaCampana",
         "core.WhatsappLog",
         "core.SolicitudSoporte",
         "core.Linea",
-        # 🤖 Bot Comercial (Nati)
-        "core.ProspectoB2B",
-        "core.DocumentoRAGComercial",
-        "core.DocumentoRAG",
-        # 🌱 Formulario GEI (app separada)
+        "core.ConfiguracionGlobal",
+        # IA Comercial
+        "agents_commercial",
+        "agents_commercial.ProspectoB2B",
+        "agents_commercial.CampanaB2B",
+        "agents_commercial.DocumentoRAGComercial",
+        "agents_commercial.ConversacionRAGCandidata",
+        "agents_commercial.ContextoAgroSession",
+        "agents_commercial.MetaMetricaNati",
+        # Métricas
+        "analytics",
+        "analytics.MetaMetricaEmpresa",
+        "analytics.EventoIA",
+        # IA Educativa
+        "agents_edu",
+        "agents_edu.DocumentoRAG",
+        # Evaluación y gamificación
+        "learning",
+        "learning.Examen",
+        "learning.PreguntaExamen",
+        "learning.PerfilGamificacion",
+        "learning.Badge",
+        "learning.Recompensa",
+        "learning.CanjeRecompensa",
+        "learning.Certificado",
+        "learning.PlantillaCertificado",
+        "learning.AliadoEmpleabilidad",
+        "learning.MisionEmpleabilidad",
+        "learning.AuditLog",
+        # Formulario GEI
         "formulario",
         "formulario.TipoFormulario",
         "formulario.FichaGEI",
         "formulario.ResultadoGEI",
         "formulario.SesionFormulario",
-        # 🏆 Gamificación y Certificados
-        "core.PerfilGamificacion",
-        "core.Badge",
-        "core.Recompensa",
-        "core.CanjeRecompensa",
-        "core.Certificado",
-        "core.PlantillaCertificado",
-        # ⚙️ Sistema
-        "core.AuditLog",
     ],
 
     # Usar verbose names en español

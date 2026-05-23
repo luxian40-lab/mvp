@@ -33,6 +33,15 @@ except ImportError:
     SesionFormulario = None
 
 
+def _avance_drip_pct(progreso) -> int:
+    if not progreso:
+        return 0
+    from core.drip_schedule import avance_sobre_modulos, modulos_para_metricas
+    mods = modulos_para_metricas(progreso.estudiante, progreso.curso)
+    _, _, pct = avance_sobre_modulos(progreso, mods)
+    return pct
+
+
 def _excel_safe(value):
     """openpyxl no soporta datetime con timezone."""
     if hasattr(value, "tzinfo") and getattr(value, "tzinfo", None) is not None:
@@ -663,7 +672,8 @@ def exportar_metricas_excel(request):
             "Orden micro",
             "Contenido paso (vista)",
             "Eval. paso pendiente",
-            "% Progreso",
+            "% Progreso total",
+            "% Avance drip (actual)",
             "Fecha inscripción",
         ]
     )
@@ -700,6 +710,7 @@ def exportar_metricas_excel(request):
             snip_paso,
             eval_pend,
             prog.porcentaje_avance() if prog else 0,
+            _avance_drip_pct(prog) if prog else 0,
             _excel_safe(est.fecha_registro),
         ])
 

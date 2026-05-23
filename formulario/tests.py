@@ -750,3 +750,22 @@ def test_modulo5_no_whatsapp_si_curso_sin_gei(mock_send):
     progreso = ProgresoEstudiante.objects.create(estudiante=est, curso=cur, modulo_actual=m5, completado=False)
     ModuloCompletado.objects.create(progreso=progreso, modulo=m5)
     mock_send.assert_not_called()
+
+
+def test_balance_gei_modulo5_sin_modulo_siguiente():
+    """Balance GEI en último módulo (M5): debe disparar aunque no haya M6."""
+    c = ClienteFactory()
+    e = EstudianteFactory(cliente=c)
+    cur = CursoFactory(tiene_formulario_gei=True)
+    m5 = ModuloFactory(curso=cur, numero=5)
+    tf = TipoFormulario.objects.create(
+        nombre='GEI Balance M5', curso=cur, modulo=m5, activo=True,
+    )
+    FlujoPregunta.objects.create(
+        formulario=tf, orden=0, campo_destino='combustible_litros',
+        pregunta_texto='¿Cuántos litros?', tipo_dato='float',
+    )
+    p = ProgresoEstudiante.objects.create(estudiante=e, curso=cur, modulo_actual=m5)
+    msg = intentar_iniciar_formulario_al_completar_modulo(e, p, m5, None)
+    assert msg and 'balance gei' in msg.lower()
+    assert SesionFormulario.objects.filter(estudiante=e, completado=False).exists()

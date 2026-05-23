@@ -30,8 +30,10 @@ def intentar_iniciar_formulario_al_completar_modulo(estudiante, progreso, modulo
     Returns:
         str para enviar al usuario, o None si no aplica formulario.
     """
-    if not progreso or not modulo_completado or not modulo_siguiente:
+    if not progreso or not modulo_completado:
         return None
+
+    # Balance GEI en el último módulo: no hay modulo_siguiente pero sí debe dispararse.
 
     # Toggle por curso: el operador puede desactivar el formulario GEI desde
     # Admin → Cursos sin tener que editar TipoFormulario.
@@ -56,6 +58,12 @@ def intentar_iniciar_formulario_al_completar_modulo(estudiante, progreso, modulo
 
     tf = qs.order_by("-cliente_id", "id").first()
     if not tf:
+        logger.info(
+            "GEI: sin TipoFormulario activo curso=%s modulo=%s cliente=%s",
+            progreso.curso_id,
+            modulo_completado.id,
+            cliente_id,
+        )
         return None
 
     if not tf.flujo_pasos.exists():

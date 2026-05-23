@@ -7,7 +7,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <style>
     :root {
-        --eki-primary: #3b5bdb;
+        --eki-primary: #9a6cac;
+        --eki-primary-soft: #f3eaf7;
         --eki-success: #2f9e44;
         --eki-warning: #f59f00;
         --eki-danger: #e03131;
@@ -96,8 +97,18 @@
     .sem-badge.rojo { background: #ffe3e3; color: #c92a2a; }
     .sem-progress { height: 8px; background: #e9ecef; border-radius: 4px; margin-top: 10px; overflow: hidden; }
     .sem-progress > span { display: block; height: 100%; border-radius: 4px; }
+    .mod-dist-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-bottom: 20px; }
+    .mod-dist-card { background: #fff; border: 1px solid var(--eki-border); border-radius: var(--eki-radius); padding: 14px 16px; border-left: 4px solid var(--eki-primary); }
+    .mod-dist-label { font-size: 0.82rem; font-weight: 700; color: var(--eki-text); margin-bottom: 6px; line-height: 1.3; }
+    .mod-dist-count { font-size: 1.35rem; font-weight: 800; color: var(--eki-primary); }
+    .mod-dist-pct { font-size: 0.78rem; color: var(--eki-muted); margin: 4px 0 8px; }
     .sem-section-title { font-size: 1.05rem; font-weight: 700; margin: 28px 0 12px; color: var(--eki-text); }
-    .btn-meta { background: #495057; color: #fff; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 600; }
+    .btn-meta { background: var(--eki-primary); color: #fff; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 600; border: none; cursor: pointer; }
+    .metas-panel { background: var(--eki-primary-soft); border: 1px solid #dcc9e6; border-radius: var(--eki-radius); padding: 16px; margin-bottom: 20px; display: none; }
+    .metas-panel.visible { display: block; }
+    .metas-panel .meta-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 10px; }
+    .metas-panel input { width: 100%; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; }
+    .drip-badge { display: inline-block; background: var(--eki-primary-soft); color: var(--eki-primary); padding: 4px 10px; border-radius: 12px; font-size: 0.78rem; font-weight: 600; margin-left: 8px; }
     .sub-tab-nav { display: none; gap: 8px; margin: -12px 0 20px; flex-wrap: wrap; align-items: center; }
     .sub-tab-nav.visible { display: flex; }
     .sub-tab-btn { padding: 7px 16px; font-size: 0.85rem; font-weight: 600; border: 1px solid var(--eki-border); border-radius: 6px; background: #fff; color: var(--eki-muted); cursor: pointer; }
@@ -396,18 +407,41 @@
             <div><label>Organización</label><select name="cliente" id="me-cliente"><option value="">Seleccione empresa…</option>{% for c in clientes %}<option value="{{ c.id }}" {% if c.id == cliente_filtro %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
             <div><label>Grupo</label><select name="grupo_id" id="filtro_grupo" disabled><option value="">— seleccione empresa —</option></select></div>
             <div><label>Curso</label><select name="curso" id="me-curso"><option value="">Todos</option>{% for c in cursos %}<option value="{{ c.id }}" {% if c.id == curso_filtro %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
+            <div><label>Hasta módulo</label><select name="modulo_hasta" id="me-modulo-hasta"><option value="">Todos (calendario drip hoy)</option></select></div>
             <div><label>Desde</label><input type="date" name="fecha_inicio" id="me-desde" value="{{ fecha_inicio }}"></div>
             <div><label>Hasta</label><input type="date" name="fecha_fin" id="me-hasta" value="{{ fecha_fin }}"></div>
             <button type="button" onclick="cargarMetricasEmpresa()">Actualizar gráficas</button>
             <a href="#" id="me-export-excel" class="btn-excel">📥 Descargar Excel</a>
-            <a href="/admin/core/metametricaempresa/" class="btn-meta">⚙️ Configurar metas educativas</a>
+            <button type="button" class="btn-meta" onclick="toggleMetasPanel()">⚙️ Metas KPI</button>
+            <a href="/admin/analytics/metametricaempresa/" class="btn-meta" style="background:#6b4f7a;">Admin metas</a>
         </form>
+
+        <div id="me-metas-panel" class="metas-panel">
+            <strong style="color:var(--eki-primary);">Metas educativas (empresa + curso seleccionado)</strong>
+            <div class="meta-row" style="margin-top:12px;">
+                <div><label style="font-size:0.78rem;">Finalización %</label><input type="number" id="meta-finalizacion" min="0" max="100" step="1"></div>
+                <div><label style="font-size:0.78rem;">Inicio %</label><input type="number" id="meta-inicio" min="0" max="100" step="1"></div>
+                <div><label style="font-size:0.78rem;">Máx. no iniciados %</label><input type="number" id="meta-no-ini" min="0" max="100" step="1"></div>
+                <div><label style="font-size:0.78rem;">Lectura WhatsApp %</label><input type="number" id="meta-lecturas" min="0" max="100" step="1"></div>
+            </div>
+            <button type="button" class="btn-meta" onclick="guardarMetasEmpresa()">Guardar metas</button>
+            <span id="me-metas-msg" style="margin-left:10px;font-size:0.85rem;color:var(--eki-muted);"></span>
+        </div>
+
+        <p id="me-drip-contexto" style="font-size:0.85rem;color:var(--eki-muted);margin:-8px 0 16px;"></p>
 
         <div id="me-loading" style="display:none;padding:20px;color:#868e96;">Cargando métricas…</div>
         <div id="me-error" style="display:none;padding:16px;background:#ffe3e3;border-radius:8px;color:#c92a2a;margin-bottom:16px;"></div>
 
         <p class="sem-section-title">📚 Progreso educativo B2B</p>
         <div class="sem-grid" id="me-cards-edu"></div>
+
+        <p class="sem-section-title">📍 Estudiantes por módulo actual</p>
+        <p id="me-modulo-dist-hint" style="font-size:0.82rem;color:var(--eki-muted);margin:-8px 0 12px;">Cada caja agrupa quién va en M1, M2… El avance se calcula solo sobre M1 hasta ese módulo (en M1 antes de abrir M2 → 100% si ya cerró M1).</p>
+        <div id="me-modulo-dist-empty" style="display:none;padding:14px;background:var(--eki-primary-soft);border-radius:8px;color:var(--eki-muted);margin-bottom:16px;">Selecciona un curso para ver en qué módulo va cada cohorte.</div>
+        <div class="mod-dist-grid" id="me-modulo-dist"></div>
+        <div class="chart-card" style="margin-bottom:24px;"><h3>Estudiantes por módulo</h3><canvas id="chartMeModulos" height="200"></canvas></div>
+
         <div class="charts-row">
             <div class="chart-card"><h3>Finalización vs pendientes</h3><canvas id="chartMeDona" height="220"></canvas></div>
             <div class="chart-card"><h3>No iniciados vs mensajes enviados</h3><canvas id="chartMeBarras" height="220"></canvas></div>
@@ -416,11 +450,11 @@
         <div class="chart-card" style="margin-bottom:24px;"><h3>Actividad diaria (mensajes / avances)</h3><canvas id="chartMeTemporal" height="200"></canvas></div>
 
         <div class="section">
-            <div class="section-title">Progreso por estudiante (módulo actual)</div>
+            <div class="section-title">Progreso por estudiante <span class="drip-badge" id="me-avance-legend">Avance hasta módulo seleccionado</span></div>
             <div style="max-height:420px;overflow:auto;">
                 <table class="eki-table" id="me-tabla-progreso">
-                    <thead><tr><th>Estudiante</th><th>Organización</th><th>Curso</th><th>Módulo actual</th><th>Módulos</th><th>Estado</th><th>Avance</th></tr></thead>
-                    <tbody><tr><td colspan="7" style="text-align:center;color:#aaa;">Actualice con los filtros de arriba</td></tr></tbody>
+                    <thead><tr><th>Estudiante</th><th>Organización</th><th>Curso</th><th>Módulo actual</th><th>Módulos</th><th>Estado</th><th>Avance total</th><th id="me-col-avance-filtro">Avance hasta M</th></tr></thead>
+                    <tbody><tr><td colspan="8" style="text-align:center;color:#aaa;">Actualice con los filtros de arriba</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -706,7 +740,12 @@ function switchTab(tabName, btn) {
 }
 
 const analyticsEndpoint = (dashboardConfig && dashboardConfig.dataset.analyticsEndpoint) || '/admin/analytics/api/';
-let chartMeDona = null, chartMeBarras = null, chartMeEstados = null, chartMeTemporal = null, chartNatiTemporal = null;
+let chartMeDona = null, chartMeBarras = null, chartMeEstados = null, chartMeTemporal = null, chartMeModulos = null, chartNatiTemporal = null;
+const EKI_PURPLE = '#9a6cac';
+const EKI_PURPLE_LIGHT = '#c4a8d4';
+const EKI_PURPLE_SOFT = '#e8dff0';
+const EKI_PURPLE_DARK = '#6b4f7a';
+const EKI_CHART_PALETTE = [EKI_PURPLE, EKI_PURPLE_LIGHT, EKI_PURPLE_DARK, '#b88fc9', '#dcc9e6', '#7a5589'];
 
 function meCardHtml(titulo, valor, sub, sem, metaTxt) {
     const c = sem || 'gris';
@@ -728,7 +767,8 @@ function renderMeCardsEdu(d) {
         meCardHtml('No iniciados', r.no_iniciados||0, p.no_iniciados + '% · meta máx ' + m.max_no_iniciados + '%', s.no_iniciados, 'Meta máx no iniciados: ' + m.max_no_iniciados + '%') +
         meCardHtml('Mensajes enviados', r.mensajes_enviados||0, 'A no iniciados: ' + (r.mensajes_a_no_iniciados||0), s.mensajes_sin_inicio, '') +
         meCardHtml('Lecturas WhatsApp', (r.mensajes_read||0) + ' / ' + (r.mensajes_enviados||0), p.lectura + '% · meta ' + m.lecturas + '%', s.lectura, 'Meta lectura: ' + m.lecturas + '%') +
-        meCardHtml('Promedio avance', (r.promedio_avance_pct||0) + '%', 'Inicio efectivo: ' + p.inicio + '% · meta ' + m.inicio + '%', s.inicio, 'Meta inicio: ' + m.inicio + '%') +
+        meCardHtml('Promedio avance (total)', (r.promedio_avance_pct||0) + '%', 'Sobre todos los módulos del curso', 'gris', '') +
+        meCardHtml('Promedio avance (hasta M)', (r.promedio_avance_drip_pct||0) + '%', 'Solo módulos M1–Mn · meta inicio ' + m.inicio + '%', s.inicio, 'Meta inicio: ' + m.inicio + '%') +
         meCardHtml('Activos 30 días', r.activos_ultimos_30_dias||0, 'Con actividad WhatsApp en el grupo filtrado', 'gris', '');
 }
 
@@ -773,6 +813,8 @@ function syncUrlMetricasEmpresa() {
     if (cid) params.set('cliente_id', cid);
     if (gid) params.set('grupo_id', gid);
     if (cu) params.set('curso', cu);
+    const modH = document.getElementById('me-modulo-hasta')?.value;
+    if (modH) params.set('modulo_hasta', modH);
     if (d1) params.set('fecha_inicio', d1);
     if (d2) params.set('fecha_fin', d2);
     const qs = params.toString();
@@ -785,12 +827,81 @@ function renderMeTablaProgreso(rows) {
     const tbody = document.querySelector('#me-tabla-progreso tbody');
     if (!tbody) return;
     if (!rows || !rows.length) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#aaa;">Sin inscripciones para estos filtros</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#aaa;">Sin inscripciones para estos filtros</td></tr>';
         return;
     }
     tbody.innerHTML = rows.map(function(r) {
-        return '<tr><td>' + (r.nombre||'') + '</td><td>' + (r.organizacion||'-') + '</td><td>' + (r.curso||'-') + '</td><td><strong>' + (r.modulo_actual||'-') + '</strong></td><td>' + (r.modulos_completados||0) + '/' + (r.modulos_total||0) + '</td><td>' + (r.estado||'') + '</td><td>' + (r.avance_pct||0) + '%</td></tr>';
+        const drip = (r.avance_pct_drip != null ? r.avance_pct_drip : r.avance_pct) + '%';
+        const total = (r.avance_pct || 0) + '%';
+        const mods = (r.modulos_completados_drip != null ? r.modulos_completados_drip : r.modulos_completados) + '/' + (r.modulos_total_drip != null ? r.modulos_total_drip : r.modulos_total);
+        return '<tr><td>' + (r.nombre||'') + '</td><td>' + (r.organizacion||'-') + '</td><td>' + (r.curso||'-') + '</td><td><strong>' + (r.modulo_actual||'-') + '</strong></td><td>' + mods + '</td><td>' + (r.estado||'') + '</td><td>' + total + '</td><td><strong style="color:#9a6cac;">' + drip + '</strong></td></tr>';
     }).join('');
+}
+
+function toggleMetasPanel() {
+    const p = document.getElementById('me-metas-panel');
+    if (p) p.classList.toggle('visible');
+}
+
+function fillMetasForm(metas) {
+    if (!metas) return;
+    const set = function(id, v) { const el = document.getElementById(id); if (el && v != null) el.value = v; };
+    set('meta-finalizacion', metas.finalizacion);
+    set('meta-inicio', metas.inicio);
+    set('meta-no-ini', metas.max_no_iniciados);
+    set('meta-lecturas', metas.lecturas);
+}
+
+async function guardarMetasEmpresa() {
+    const cid = document.getElementById('me-cliente')?.value;
+    const cu = document.getElementById('me-curso')?.value;
+    const msg = document.getElementById('me-metas-msg');
+    if (!cid) { if (msg) msg.textContent = 'Selecciona una empresa'; return; }
+    const body = {
+        cliente_id: parseInt(cid, 10),
+        curso_id: cu ? parseInt(cu, 10) : null,
+        finalizacion: document.getElementById('meta-finalizacion')?.value,
+        inicio: document.getElementById('meta-inicio')?.value,
+        max_no_iniciados: document.getElementById('meta-no-ini')?.value,
+        lecturas: document.getElementById('meta-lecturas')?.value,
+    };
+    try {
+        const r = await fetch('/admin/analytics/api/metas/', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+            body: JSON.stringify(body),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || r.status);
+        if (msg) msg.textContent = 'Metas guardadas ✓';
+        cargarMetricasEmpresa();
+    } catch (e) {
+        if (msg) msg.textContent = 'Error: ' + e.message;
+    }
+}
+
+function getCsrfToken() {
+    const c = document.cookie.match(/csrftoken=([^;]+)/);
+    return c ? c[1] : '';
+}
+
+async function cargarModulosCursoMetricas() {
+    const sel = document.getElementById('me-modulo-hasta');
+    const cursoId = document.getElementById('me-curso')?.value;
+    if (!sel) return;
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">Todos (calendario drip hoy)</option>';
+    if (!cursoId) return;
+    try {
+        const r = await fetch('/admin/analytics/api/modulos/?curso_id=' + encodeURIComponent(cursoId), { credentials: 'same-origin' });
+        const data = await r.json();
+        (data.modulos || []).forEach(function(m) {
+            const opt = new Option('Hasta M' + m.numero + ' — ' + (m.titulo || '').substring(0, 40), String(m.numero));
+            sel.appendChild(opt);
+        });
+        if (prev) sel.value = prev;
+    } catch (e) { console.warn(e); }
 }
 
 function renderNatiCards(d) {
@@ -814,11 +925,71 @@ function ensureChart(ref, canvasId, config) {
     return ref;
 }
 
+function renderModuloDistribucion(items, cursoSeleccionado) {
+    const grid = document.getElementById('me-modulo-dist');
+    const empty = document.getElementById('me-modulo-dist-empty');
+    if (!grid) return;
+    if (!cursoSeleccionado) {
+        grid.innerHTML = '';
+        if (empty) { empty.style.display = 'block'; empty.textContent = 'Selecciona un curso para ver en qué módulo va cada cohorte.'; }
+        chartMeModulos = ensureChart(chartMeModulos, 'chartMeModulos', {
+            type: 'bar',
+            data: { labels: [], datasets: [{ label: 'Estudiantes', data: [], backgroundColor: EKI_PURPLE }] },
+            options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        });
+        return;
+    }
+    if (!items || !items.length) {
+        grid.innerHTML = '';
+        if (empty) { empty.style.display = 'block'; empty.textContent = 'Sin inscripciones para este curso con los filtros actuales.'; }
+        chartMeModulos = ensureChart(chartMeModulos, 'chartMeModulos', {
+            type: 'bar',
+            data: { labels: [], datasets: [{ label: 'Estudiantes', data: [], backgroundColor: EKI_PURPLE }] },
+            options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        });
+        return;
+    }
+    if (empty) empty.style.display = 'none';
+    grid.innerHTML = items.map(function(b, i) {
+        const pct = b.promedio_avance_pct || 0;
+        const est = b.estudiantes || 0;
+        const color = EKI_CHART_PALETTE[i % EKI_CHART_PALETTE.length];
+        const tramo = b.modulo === 999 ? 'curso completo' : (b.modulo === 0 ? 'sin iniciar' : ('M1–M' + b.modulo));
+        return '<div class="mod-dist-card" style="border-left-color:' + color + ';">' +
+            '<div class="mod-dist-label">' + (b.etiqueta || '') + '</div>' +
+            '<div class="mod-dist-count" style="color:' + color + ';">' + est + '</div>' +
+            '<div class="mod-dist-pct">' + est + ' estudiante' + (est === 1 ? '' : 's') + ' · ' + pct + '% avance (' + tramo + ')</div>' +
+            '<div class="sem-progress"><span style="width:' + Math.min(pct, 100) + '%;background:' + color + ';"></span></div>' +
+            '</div>';
+    }).join('');
+    const labels = items.map(function(b) { return b.etiqueta || ('M' + b.modulo); });
+    const counts = items.map(function(b) { return b.estudiantes || 0; });
+    const colors = items.map(function(_, i) { return EKI_CHART_PALETTE[i % EKI_CHART_PALETTE.length]; });
+    chartMeModulos = ensureChart(chartMeModulos, 'chartMeModulos', {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: 'Estudiantes', data: counts, backgroundColor: colors, borderRadius: 6 },
+                { label: 'Avance promedio %', data: items.map(function(b) { return b.promedio_avance_pct || 0; }), backgroundColor: EKI_PURPLE_SOFT, borderColor: EKI_PURPLE, borderWidth: 2, type: 'line', yAxisID: 'y1' }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom' } },
+            scales: {
+                y: { beginAtZero: true, title: { display: true, text: 'Estudiantes' } },
+                y1: { beginAtZero: true, max: 100, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Avance %' } }
+            }
+        }
+    });
+}
+
 function pintarGraficasEmpresa(d) {
     const fin = d.resumen?.finalizados || 0, rest = (d.resumen?.total_inscritos || 0) - fin;
     chartMeDona = ensureChart(chartMeDona, 'chartMeDona', {
         type: 'doughnut',
-        data: { labels: ['Finalizados', 'Pendientes'], datasets: [{ data: [fin, Math.max(rest,0)], backgroundColor: ['#2f9e44','#dee2e6'] }] },
+        data: { labels: ['Finalizados', 'Pendientes'], datasets: [{ data: [fin, Math.max(rest,0)], backgroundColor: [EKI_PURPLE, EKI_PURPLE_SOFT] }] },
         options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
     });
     const barras = d.series?.mensajes_vs_no_iniciados || [];
@@ -826,7 +997,7 @@ function pintarGraficasEmpresa(d) {
         type: 'bar',
         data: {
             labels: barras.map(x => x.metrica),
-            datasets: [{ label: 'Total', data: barras.map(x => x.total), backgroundColor: ['#e03131','#3b5bdb'] }]
+            datasets: [{ label: 'Total', data: barras.map(x => x.total), backgroundColor: [EKI_PURPLE_DARK, EKI_PURPLE] }]
         },
         options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
     });
@@ -835,7 +1006,7 @@ function pintarGraficasEmpresa(d) {
         type: 'bar',
         data: {
             labels: est.map(x => x.estado),
-            datasets: [{ label: 'Estudiantes', data: est.map(x => x.total), backgroundColor: ['#868e96','#f59f00','#2f9e44'] }]
+            datasets: [{ label: 'Estudiantes', data: est.map(x => x.total), backgroundColor: [EKI_PURPLE_SOFT, EKI_PURPLE_LIGHT, EKI_PURPLE] }]
         },
         options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
     });
@@ -845,8 +1016,8 @@ function pintarGraficasEmpresa(d) {
         data: {
             labels: temp.map(x => x.fecha),
             datasets: [
-                { label: 'Mensajes', data: temp.map(x => x.mensajes_enviados), borderColor: '#3b5bdb', tension: 0.2 },
-                { label: 'Avances', data: temp.map(x => x.avances), borderColor: '#2f9e44', tension: 0.2 }
+                { label: 'Mensajes', data: temp.map(x => x.mensajes_enviados), borderColor: EKI_PURPLE, backgroundColor: 'rgba(154,108,172,0.12)', fill: true, tension: 0.2 },
+                { label: 'Avances', data: temp.map(x => x.avances), borderColor: EKI_PURPLE_DARK, backgroundColor: 'rgba(107,79,122,0.08)', fill: false, tension: 0.2 }
             ]
         },
         options: { responsive: true, scales: { y: { beginAtZero: true } } }
@@ -884,6 +1055,8 @@ async function cargarMetricasEmpresa() {
     if (cid) params.set('cliente_id', cid);
     if (gid) params.set('grupo_id', gid);
     if (cu) params.set('curso_id', cu);
+    const modH = document.getElementById('me-modulo-hasta')?.value;
+    if (modH) params.set('modulo_hasta', modH);
     if (d1) params.set('desde', d1);
     if (d2) params.set('hasta', d2);
     syncUrlMetricasEmpresa();
@@ -893,7 +1066,20 @@ async function cargarMetricasEmpresa() {
         if (!rEdu.ok) throw new Error('API educativa ' + rEdu.status);
         const edu = await rEdu.json();
         renderMeCardsEdu(edu);
+        fillMetasForm(edu.metas);
         renderMeTablaProgreso(edu.progreso_estudiantes || []);
+        renderModuloDistribucion(edu.distribucion_modulos || [], !!cu);
+        const dripCtx = document.getElementById('me-drip-contexto');
+        if (dripCtx && edu.drip) {
+            dripCtx.textContent = (edu.drip.filtro_cohorte ? edu.drip.filtro_cohorte + '. ' : '') +
+                (edu.drip.etiqueta_denominador || '') +
+                ' (' + (edu.drip.modulos_en_denominador || '—') + ' módulos en base)';
+            const modH = document.getElementById('me-modulo-hasta')?.value;
+            const leg = document.getElementById('me-avance-legend');
+            const col = document.getElementById('me-col-avance-filtro');
+            if (leg) leg.textContent = modH ? ('Cohorte ≥ M' + modH + ' · avance M1–M' + modH) : 'Avance drip = módulos disponibles hoy';
+            if (col) col.textContent = modH ? ('Avance M1–M' + modH) : 'Avance drip';
+        }
         pintarGraficasEmpresa(edu);
     } catch (e) {
         if (errEl) { errEl.textContent = 'No se pudieron cargar las métricas: ' + e.message; errEl.style.display = 'block'; }
@@ -982,6 +1168,11 @@ function iniciarAutoRefreshResumen() {
         meCliente.addEventListener('change', function() {
             cargarGruposMetricasEmpresa();
         });
+    }
+    const meCurso = document.getElementById('me-curso');
+    if (meCurso) {
+        meCurso.addEventListener('change', cargarModulosCursoMetricas);
+        cargarModulosCursoMetricas();
     }
     if (tab === 'commercial') cargarMetricasNati();
 })();

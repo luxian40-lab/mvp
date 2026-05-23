@@ -759,3 +759,68 @@ class InvitacionGrupo(models.Model):
     
     def __str__(self):
         return f"{self.estudiante.nombre} → {self.grupo.nombre} ({self.get_estado_display()})"
+
+
+class MensajePush(models.Model):
+    """Recordatorio WhatsApp; el estudiante responde *listo* y sigue el curso."""
+
+    TIPO_CHOICES = [
+        ('recordatorio_inscripcion', 'Inscrito — aún no inicia'),
+        ('recordatorio_avance', 'Curso iniciado — sigue avanzando'),
+        ('recordatorio_modulo', 'Módulo disponible'),
+        ('personalizado', 'Personalizado'),
+    ]
+
+    nombre = models.CharField(max_length=120)
+    cliente = models.ForeignKey(
+        Cliente, on_delete=models.CASCADE, related_name='mensajes_push', null=True, blank=True,
+    )
+    curso = models.ForeignKey(
+        Curso, on_delete=models.SET_NULL, null=True, blank=True, related_name='mensajes_push',
+    )
+    plantilla = models.ForeignKey(
+        'core.Plantilla', on_delete=models.SET_NULL, null=True, blank=True, related_name='mensajes_push',
+    )
+    twilio_content_sid = models.CharField(max_length=64, blank=True)
+    tipo = models.CharField(max_length=32, choices=TIPO_CHOICES, default='recordatorio_avance')
+    cuerpo_fallback = models.TextField(
+        blank=True,
+        help_text='Texto libre si no hay SID. Variables: {nombre}, {curso}.',
+    )
+    incluir_boton_continuar = models.BooleanField(default=True)
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Mensaje push'
+        verbose_name_plural = 'Mensajes push'
+        ordering = ['-fecha_creacion']
+
+    def __str__(self):
+        return self.nombre
+
+    def render_texto(self, estudiante, curso=None) -> str:
+        c = curso or self.curso
+        curso_nom = c.nombre if c else 'su curso'
+        if self.plantilla_id and self.plantilla.cuerpo_mensaje:
+            txt = self.plantilla.cuerpo_mensaje.replace('{nombre}', estudiante.nombre or 'estudiante')
+        else:
+            txt = (self.cuerpo_fallback or 'Hola {nombre}, le recordamos continuar con {curso}.')
+        txt = txt.replace('{nombre}', estudiante.nombre or 'estudiante').replace('{curso}', curso_nom)
+        if self.incluir_boton_continuar and 'listo' not in txt.lower():
+            txt += '\n\nResponda *listo* para continuar con el curso (sin reiniciar).'
+        return txt.strip()
+
+
+class EnvioMensajePush(models.Model):
+    mensaje_push = models.ForeignKey(MensajePush, on_delete=models.CASCADE, related_name='envios')
+    estudiante = models.ForeignKey(Estudiante, on_delete=models.CASCADE, related_name='envios_push')
+    telefono = models.CharField(max_length=20)
+    exito = models.BooleanField(default=False)
+    detalle = models.CharField(max_length=255, blank=True)
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Envío mensaje push'
+        verbose_name_plural = 'Envíos mensajes push'
+        ordering = ['-fecha']

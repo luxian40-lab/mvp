@@ -1562,6 +1562,18 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 return "[MULTI_MSG]" + "[SEP]".join(partes)
             
             else:
+                # Completó el último módulo del curso (p. ej. balance GEI en M5)
+                try:
+                    from formulario.hooks import intentar_iniciar_formulario_al_completar_modulo
+                    _msg_ficha = intentar_iniciar_formulario_al_completar_modulo(
+                        estudiante, progreso, modulo_actual, None
+                    )
+                except Exception as _e:
+                    _msg_ficha = None
+                    logger.warning("Formulario GEI (último módulo): %s", _e, exc_info=True)
+                if _msg_ficha:
+                    return _msg_ficha
+
                 # Completó todos los módulos
                 from .models import PreguntaAbiertaFinalCurso, RespuestaAbiertaFinal
 

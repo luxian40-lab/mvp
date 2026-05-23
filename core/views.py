@@ -35,6 +35,7 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
     tab_actual = resolve_dashboard_tab(tab_raw)
     learning_section = resolve_learning_section(tab_raw, request.GET.get('section'))
     grupo_id = _to_int((request.GET.get('grupo_id') or request.GET.get('grupo') or '').strip())
+    modulo_hasta_numero = _to_int((request.GET.get('modulo_hasta') or '').strip())
 
     fecha_inicio_dt = _to_date(fecha_inicio_raw)
     fecha_fin_dt = _to_date(fecha_fin_raw)
@@ -271,12 +272,23 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
         )
 
         seen_estudiante_sin_progreso = set()
+        from core.drip_schedule import avance_sobre_modulos, estudiante_llego_hasta_modulo, modulos_para_metricas
+
         for progreso in progresos_rows:
             est = progreso.estudiante
+            if modulo_hasta_numero is not None and not estudiante_llego_hasta_modulo(progreso, modulo_hasta_numero):
+                continue
             seen_estudiante_sin_progreso.add(est.id)
             total_mods = progreso.total_mods or 0
             mods_comp = progreso.mods_comp or 0
             avance = round(mods_comp / total_mods * 100) if total_mods > 0 else 0
+            mods_drip = modulos_para_metricas(
+                est,
+                progreso.curso,
+                modulo_hasta_numero=modulo_hasta_numero,
+                usar_drip_calendario=modulo_hasta_numero is None,
+            )
+            comps_drip, total_drip, avance_drip = avance_sobre_modulos(progreso, mods_drip)
             if progreso.completado:
                 estado_avance = 'Completado'
                 modulo_txt = 'Curso completado'
@@ -300,7 +312,9 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
                 'curso': progreso.curso.nombre if progreso.curso_id else '-',
                 'modulo_actual': modulo_txt,
                 'modulos_completados': f'{mods_comp}/{total_mods}' if total_mods else '-',
+                'modulos_drip': f'{comps_drip}/{total_drip}' if total_drip else '-',
                 'avance': avance,
+                'avance_drip': avance_drip,
                 'puntos': puntos_map.get(est.id, 0),
                 'grupos': grupos_txt,
                 'estado_avance': estado_avance,
@@ -317,7 +331,9 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
                 'curso': '-',
                 'modulo_actual': '-',
                 'modulos_completados': '-',
+                'modulos_drip': '-',
                 'avance': 0,
+                'avance_drip': 0,
                 'puntos': puntos_map.get(est.id, 0),
                 'grupos': grupos_txt,
                 'estado_avance': 'Sin inscripción',
@@ -458,6 +474,7 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
         'learning_section': learning_section,
         'grupos': grupos_qs,
         'grupo_filtro': grupo_id,
+        'modulo_hasta_filtro': modulo_hasta_numero,
         'clientes_detalle': clientes_detalle,
         'estudiantes_detalle': estudiantes_detalle,
         'tickets_soporte': tickets_soporte,
@@ -6413,186 +6430,297 @@ def test_email_gmail_view(request):
 # VISTAS PARA GENERACIÓN DE CURSOS CON IA
 # ========================================
 
+def _contexto_crear_curso_ia(request):
+    from .models import Cliente
+    from .utils_ia import MODELO_IA_DEFAULT, modelos_ia_habilitados
+
+    historial = request.session.get('chat_curso_ia') or []
+    modelos = modelos_ia_habilitados()
+    return {
+        'clientes': Cliente.objects.filter(activo=True).order_by('nombre'),
+        'modelos_ia': modelos,
+        'modelos_ia_disponibles': bool(modelos),
+        'historial_chat': historial,
+        'modelo_actual': request.session.get('modelo_usado', MODELO_IA_DEFAULT),
+    }
+
+
+def _guardar_sesion_curso_ia(request, estructura, cliente_id, fuente_nombre, modelo_ia, texto_fuente=''):
+    request.session['estructura_curso'] = estructura
+    request.session['cliente_id'] = str(cliente_id)
+    request.session['archivo_nombre'] = fuente_nombre or 'prompt-ia'
+    request.session['modelo_usado'] = modelo_ia
+    request.session['texto_fuente_curso'] = (texto_fuente or '')[:12000]
+    request.session.modified = True
+
+
 @staff_member_required
 def subir_documento_curso(request):
-    """
-    Vista para subir documento (PDF/Word) y generar curso con IA.
-    Paso 1: Subida del archivo.
-    """
+    """Paso 1: chat + prompt largo o archivo → estructura JSON del curso."""
+    from django.shortcuts import redirect
     from .models import Cliente
-    
-    context = {
-        'clientes': Cliente.objects.all().order_by('nombre')
-    }
-    
+    from .utils_ia import (
+        extraer_texto_documento,
+        generar_estructura_curso_con_ia,
+        validar_estructura_curso,
+    )
+
+    context = _contexto_crear_curso_ia(request)
+
     if request.method == 'POST':
         try:
-            # Obtener datos del formulario
-            archivo = request.FILES.get('documento')
+            accion = request.POST.get('accion', 'generar')
             cliente_id = request.POST.get('cliente_id')
             modelo_ia = request.POST.get('modelo_ia', 'gpt-4o-mini')
-            
-            # Validaciones
-            if not archivo:
-                context['error'] = "Debes subir un archivo"
-                return render(request, 'admin/subir_documento_curso.html', context)
-            
+            prompt_usuario = (request.POST.get('prompt') or '').strip()
+            archivo = request.FILES.get('documento')
+
+            if accion == 'limpiar_chat':
+                request.session.pop('chat_curso_ia', None)
+                return redirect('subir_documento_curso')
+
             if not cliente_id:
-                context['error'] = "Debes seleccionar un cliente"
+                context['error'] = 'Selecciona una organización'
                 return render(request, 'admin/subir_documento_curso.html', context)
-            
+
             try:
                 cliente = Cliente.objects.get(id=cliente_id)
             except Cliente.DoesNotExist:
-                context['error'] = "Cliente no encontrado"
+                context['error'] = 'Organización no encontrada'
                 return render(request, 'admin/subir_documento_curso.html', context)
-            
-            # Validar tipo de archivo
-            nombre_archivo = archivo.name.lower()
-            if not (nombre_archivo.endswith('.pdf') or nombre_archivo.endswith('.docx') or nombre_archivo.endswith('.txt')):
-                context['error'] = "Solo se permiten archivos PDF, Word (.docx) o TXT"
+
+            texto = ''
+            fuente = 'prompt-ia'
+            if archivo:
+                nombre = archivo.name.lower()
+                if not (nombre.endswith('.pdf') or nombre.endswith('.docx') or nombre.endswith('.txt')):
+                    context['error'] = 'Solo PDF, Word (.docx) o TXT'
+                    return render(request, 'admin/subir_documento_curso.html', context)
+                texto = extraer_texto_documento(archivo)
+                fuente = archivo.name
+            elif prompt_usuario:
+                texto = prompt_usuario
+                fuente = 'prompt-chat'
+            else:
+                context['error'] = 'Escribe un prompt o sube un documento'
                 return render(request, 'admin/subir_documento_curso.html', context)
-            
-            # Procesar archivo
-            from .utils_ia import extraer_texto_documento, generar_estructura_curso_con_ia, validar_estructura_curso
-            
-            # Paso 1: Extraer texto
-            context['procesando'] = True
-            texto = extraer_texto_documento(archivo)
-            
-            if len(texto) < 500:
-                context['error'] = "El documento es muy corto (mínimo 500 caracteres)"
+
+            if len(texto) < 200:
+                context['error'] = 'El contenido es muy corto (mínimo 200 caracteres)'
                 return render(request, 'admin/subir_documento_curso.html', context)
-            
-            # Paso 2: Generar estructura con IA
+
+            from .utils_ia import validar_modelo_ia_disponible
+            try:
+                validar_modelo_ia_disponible(modelo_ia)
+            except ValueError as e:
+                context['error'] = str(e)
+                return render(request, 'admin/subir_documento_curso.html', context)
+
+            historial = list(request.session.get('chat_curso_ia') or [])
+            historial.append({'rol': 'user', 'texto': prompt_usuario or f'[Archivo: {fuente}]'})
+            request.session['chat_curso_ia'] = historial[-20:]
+
+            use_async = not getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False)
+            if use_async:
+                import uuid
+                from django.core.cache import cache
+                from core.tasks import generar_curso_ia_async, _curso_ia_cache_key
+
+                job_id = str(uuid.uuid4())
+                cache.set(_curso_ia_cache_key(job_id), {'status': 'pending'}, 3600)
+                request.session['curso_ia_job_id'] = job_id
+                request.session['curso_ia_pending'] = {
+                    'cliente_id': str(cliente_id),
+                    'fuente': fuente,
+                    'modelo_ia': modelo_ia,
+                    'texto': texto[:12000],
+                    'prompt_usuario': prompt_usuario,
+                }
+                request.session.modified = True
+                try:
+                    generar_curso_ia_async.delay(job_id, texto, modelo_ia)
+                    return redirect('generando_curso_ia')
+                except Exception as celery_err:
+                    logger.warning('Celery no disponible para curso IA, modo sync: %s', celery_err)
+                    request.session.pop('curso_ia_job_id', None)
+                    request.session.pop('curso_ia_pending', None)
+
             estructura = generar_estructura_curso_con_ia(texto, modelo=modelo_ia)
-            
-            # Paso 3: Validar estructura
             es_valida, errores = validar_estructura_curso(estructura)
-            
             if not es_valida:
-                context['error'] = f"La IA generó una estructura inválida: {', '.join(errores)}"
-                context['advertencia'] = "Intenta con un documento diferente o modelo GPT-4"
+                context['error'] = f'Estructura inválida: {", ".join(errores)}'
                 return render(request, 'admin/subir_documento_curso.html', context)
-            
-            # Guardar estructura en sesión para el siguiente paso
-            request.session['estructura_curso'] = estructura
-            request.session['cliente_id'] = cliente_id
-            request.session['archivo_nombre'] = archivo.name
-            request.session['modelo_usado'] = modelo_ia
-            
-            # Redirigir a vista previa
-            from django.shortcuts import redirect
+
+            historial.append({
+                'rol': 'assistant',
+                'texto': f'Generé «{estructura.get("titulo", "Curso")}» con {len(estructura.get("modulos", []))} módulos.',
+            })
+            request.session['chat_curso_ia'] = historial[-20:]
+            _guardar_sesion_curso_ia(request, estructura, cliente_id, fuente, modelo_ia, texto)
             return redirect('vista_previa_curso_ia')
-            
+
         except ValueError as e:
             context['error'] = str(e)
-            return render(request, 'admin/subir_documento_curso.html', context)
         except Exception as e:
-            context['error'] = f"Error inesperado: {str(e)}"
-            logger.error(f"Error en subir_documento_curso: {e}")
-            import traceback
-            traceback.print_exc()
-            return render(request, 'admin/subir_documento_curso.html', context)
-    
+            context['error'] = f'Error: {e}'
+            logger.error(f'Error en subir_documento_curso: {e}', exc_info=True)
+
     return render(request, 'admin/subir_documento_curso.html', context)
 
 
 @staff_member_required
+def generando_curso_ia(request):
+    """Pantalla de espera mientras Celery genera la estructura (evita 504)."""
+    job_id = request.session.get('curso_ia_job_id')
+    if not job_id:
+        return redirect('subir_documento_curso')
+    return render(request, 'admin/generando_curso_ia.html', {'job_id': job_id})
+
+
+@staff_member_required
+def api_estado_curso_ia(request):
+    """Polling JSON del job de generación IA."""
+    from django.core.cache import cache
+    from django.http import JsonResponse
+    from core.tasks import _curso_ia_cache_key
+
+    job_id = request.GET.get('job_id') or request.session.get('curso_ia_job_id')
+    if not job_id:
+        return JsonResponse({'status': 'missing'}, status=404)
+    data = cache.get(_curso_ia_cache_key(job_id)) or {'status': 'pending'}
+    if data.get('status') == 'ok':
+        pending = request.session.get('curso_ia_pending') or {}
+        estructura = data.get('estructura')
+        if estructura and pending.get('cliente_id'):
+            historial = list(request.session.get('chat_curso_ia') or [])
+            historial.append({
+                'rol': 'assistant',
+                'texto': f'Generé «{estructura.get("titulo", "Curso")}» con {len(estructura.get("modulos", []))} módulos.',
+            })
+            request.session['chat_curso_ia'] = historial[-20:]
+            _guardar_sesion_curso_ia(
+                request,
+                estructura,
+                pending['cliente_id'],
+                pending.get('fuente', 'prompt-ia'),
+                pending.get('modelo_ia', 'gpt-4o-mini'),
+                pending.get('texto', ''),
+            )
+            request.session.pop('curso_ia_job_id', None)
+            request.session.pop('curso_ia_pending', None)
+            return JsonResponse({
+                'status': 'ok',
+                'redirect': '/admin/vista-previa-curso-ia/',
+                'titulo': estructura.get('titulo'),
+                'modulos': len(estructura.get('modulos', [])),
+            })
+    if data.get('status') == 'error':
+        request.session.pop('curso_ia_job_id', None)
+        request.session.pop('curso_ia_pending', None)
+    return JsonResponse({
+        'status': data.get('status', 'pending'),
+        'error': data.get('error'),
+    })
+
+
+@staff_member_required
 def vista_previa_curso_ia(request):
-    """
-    Vista para mostrar preview del curso generado y permitir edición.
-    Paso 2: Revisión y edición antes de guardar.
-    """
+    """Paso 2: revisión humana, edición y regeneración por módulo."""
+    from django.contrib import messages
+    from django.shortcuts import redirect
     from .models import Cliente
-    from .utils_ia import guardar_curso_desde_estructura
-    
-    # Obtener estructura de la sesión
+    from .utils_ia import guardar_curso_desde_estructura, regenerar_modulo_en_estructura
+
     estructura = request.session.get('estructura_curso')
     cliente_id = request.session.get('cliente_id')
-    archivo_nombre = request.session.get('archivo_nombre')
+    archivo_nombre = request.session.get('archivo_nombre', 'prompt-ia')
     modelo_usado = request.session.get('modelo_usado', 'gpt-4o-mini')
-    
+    texto_fuente = request.session.get('texto_fuente_curso', '')
+
     if not estructura or not cliente_id:
-        from django.shortcuts import redirect
-        from django.contrib import messages
-        messages.error(request, "No hay datos de curso. Debes subir un documento primero.")
+        messages.error(request, 'No hay borrador de curso. Genera uno primero.')
         return redirect('subir_documento_curso')
-    
+
     try:
         cliente = Cliente.objects.get(id=cliente_id)
     except Cliente.DoesNotExist:
-        from django.contrib import messages
-        from django.shortcuts import redirect
-        messages.error(request, "Cliente no encontrado")
+        messages.error(request, 'Organización no encontrada')
         return redirect('subir_documento_curso')
-    
+
     context = {
         'estructura': estructura,
+        'estructura_json': json.dumps(estructura, ensure_ascii=False, indent=2),
         'cliente': cliente,
         'archivo_nombre': archivo_nombre,
         'modelo_usado': modelo_usado,
         'total_modulos': len(estructura.get('modulos', [])),
         'total_lecciones': sum(len(m.get('lecciones', [])) for m in estructura.get('modulos', [])),
-        'total_preguntas': sum(
-            sum(len(l.get('preguntas', [])) for l in m.get('lecciones', []))
-            for m in estructura.get('modulos', [])
-        ),
+        'historial_chat': request.session.get('chat_curso_ia') or [],
     }
-    
+
     if request.method == 'POST':
         accion = request.POST.get('accion')
-        
+
         if accion == 'guardar':
             try:
-                # Actualizar estructura con datos editados del formulario
                 estructura['titulo'] = request.POST.get('titulo', estructura['titulo'])
                 estructura['descripcion'] = request.POST.get('descripcion', estructura['descripcion'])
-                estructura['duracion_estimada'] = request.POST.get('duracion_estimada', estructura.get('duracion_estimada', '4 semanas'))
+                estructura['duracion_estimada'] = request.POST.get(
+                    'duracion_estimada', estructura.get('duracion_estimada', '4 semanas')
+                )
                 estructura['nivel'] = request.POST.get('nivel', estructura.get('nivel', 'Intermedio'))
-                estructura['puntos_por_leccion'] = int(request.POST.get('puntos_por_leccion', estructura.get('puntos_por_leccion', 50)))
-                estructura['puntos_por_quiz'] = int(request.POST.get('puntos_por_quiz', estructura.get('puntos_por_quiz', 100)))
-                
-                # Guardar curso en la base de datos
+                estructura['puntos_por_leccion'] = int(
+                    request.POST.get('puntos_por_leccion', estructura.get('puntos_por_leccion', 50))
+                )
                 curso = guardar_curso_desde_estructura(estructura, cliente, archivo_nombre)
-                
-                # Limpiar sesión
-                del request.session['estructura_curso']
-                del request.session['cliente_id']
-                del request.session['archivo_nombre']
-                if 'modelo_usado' in request.session:
-                    del request.session['modelo_usado']
-                
-                # Redirigir al admin del curso
-                from django.shortcuts import redirect
-                from django.contrib import messages
+                for key in (
+                    'estructura_curso', 'cliente_id', 'archivo_nombre',
+                    'modelo_usado', 'texto_fuente_curso', 'chat_curso_ia',
+                ):
+                    request.session.pop(key, None)
                 messages.success(
-                    request, 
-                    f'¡Curso "{curso.titulo}" creado exitosamente! Revisa y activa cuando esté listo.'
+                    request,
+                    f'Curso «{curso.nombre}» creado (inactivo). Revísalo en el admin antes de activar.',
                 )
                 return redirect(f'/admin/core/curso/{curso.id}/change/')
-                
             except Exception as e:
-                context['error'] = f"Error al guardar el curso: {str(e)}"
-                logger.error(f"Error guardando curso: {e}")
-                import traceback
-                traceback.print_exc()
-        
-        elif accion == 'regenerar':
-            # TODO: Implementar regeneración parcial en Fase 3
-            context['advertencia'] = "Regeneración parcial disponible en la próxima versión"
-        
+                context['error'] = f'Error al guardar: {e}'
+                logger.error(f'Error guardando curso IA: {e}', exc_info=True)
+
+        elif accion == 'regenerar_modulo':
+            try:
+                idx = int(request.POST.get('modulo_indice', 0))
+                instrucciones = (request.POST.get('instrucciones_regenerar') or '').strip()
+                estructura = regenerar_modulo_en_estructura(
+                    estructura,
+                    idx,
+                    texto_fuente=texto_fuente,
+                    instrucciones=instrucciones,
+                    modelo=modelo_usado,
+                )
+                request.session['estructura_curso'] = estructura
+                historial = list(request.session.get('chat_curso_ia') or [])
+                historial.append({
+                    'rol': 'assistant',
+                    'texto': f'Regeneré el módulo {idx + 1}: {estructura["modulos"][idx].get("nombre", "")}',
+                })
+                request.session['chat_curso_ia'] = historial[-20:]
+                messages.success(request, f'Módulo {idx + 1} regenerado.')
+                return redirect('vista_previa_curso_ia')
+            except Exception as e:
+                context['error'] = f'No se pudo regenerar: {e}'
+
         elif accion == 'cancelar':
-            # Limpiar sesión y redirigir
-            del request.session['estructura_curso']
-            del request.session['cliente_id']
-            del request.session['archivo_nombre']
-            if 'modelo_usado' in request.session:
-                del request.session['modelo_usado']
-            
-            from django.shortcuts import redirect
-            from django.contrib import messages
-            messages.info(request, "Creación de curso cancelada")
+            for key in (
+                'estructura_curso', 'cliente_id', 'archivo_nombre',
+                'modelo_usado', 'texto_fuente_curso', 'chat_curso_ia',
+            ):
+                request.session.pop(key, None)
+            messages.info(request, 'Creación cancelada')
             return redirect('subir_documento_curso')
-    
+
+        context['estructura'] = estructura
+        context['estructura_json'] = json.dumps(estructura, ensure_ascii=False, indent=2)
+        context['total_modulos'] = len(estructura.get('modulos', []))
+
     return render(request, 'admin/vista_previa_curso_ia.html', context)

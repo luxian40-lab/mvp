@@ -12,7 +12,7 @@ from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 
-HEADER_FILL = PatternFill(start_color='3b5bdb', end_color='3b5bdb', fill_type='solid')
+HEADER_FILL = PatternFill(start_color='9a6cac', end_color='9a6cac', fill_type='solid')
 HEADER_FONT = Font(color='FFFFFF', bold=True)
 
 
@@ -45,7 +45,8 @@ def _sheet_estudiantes(wb, estudiantes_detalle):
     ws = wb.create_sheet('Estudiantes B2B')
     headers = [
         'Nombre', 'Cédula', 'Teléfono', 'Organización', 'Municipio', 'Grupo(s)', 'Curso',
-        'Módulo actual', 'Módulos', 'Estado avance', 'Avance %', 'Puntos',
+        'Módulo actual', 'Módulos (total)', 'Módulos drip', 'Estado avance',
+        'Avance total %', 'Avance drip (actual) %', 'Puntos',
     ]
     _style_header(ws, headers)
     for row_idx, est in enumerate(estudiantes_detalle, 2):
@@ -58,9 +59,11 @@ def _sheet_estudiantes(wb, estudiantes_detalle):
         ws.cell(row=row_idx, column=7, value=est['curso'])
         ws.cell(row=row_idx, column=8, value=est.get('modulo_actual', '-'))
         ws.cell(row=row_idx, column=9, value=est.get('modulos_completados', '-'))
-        ws.cell(row=row_idx, column=10, value=est.get('estado_avance', '-'))
-        ws.cell(row=row_idx, column=11, value=est['avance'])
-        ws.cell(row=row_idx, column=12, value=est['puntos'])
+        ws.cell(row=row_idx, column=10, value=est.get('modulos_drip', '-'))
+        ws.cell(row=row_idx, column=11, value=est.get('estado_avance', '-'))
+        ws.cell(row=row_idx, column=12, value=est.get('avance', 0))
+        ws.cell(row=row_idx, column=13, value=est.get('avance_drip', est.get('avance', 0)))
+        ws.cell(row=row_idx, column=14, value=est['puntos'])
 
 
 def _sheet_executive(wb, context, resumen_payload):
@@ -218,26 +221,53 @@ def _sheet_commercial(wb, context):
 
 
 def _sheet_learning_empresa(wb, context):
-    from core.domains.analytics.metricas import calcular_metricas_empresa
+    from core.metricas_empresa import calcular_metricas_empresa
 
     cid = context.get('cliente_filtro')
     curso_id = context.get('curso_filtro')
     grupo_id = context.get('grupo_filtro')
+    modulo_hasta = context.get('modulo_hasta_filtro')
     payload = calcular_metricas_empresa(
         cliente_id=cid,
         curso_id=curso_id,
         grupo_id=grupo_id,
         desde=context.get('fecha_inicio') or None,
         hasta=context.get('fecha_fin') or None,
+        modulo_hasta_numero=modulo_hasta,
+        usar_drip_calendario=modulo_hasta is None,
     )
 
     ws = wb.active
-    pairs = [('Pestaña', 'learning / métricas empresa')]
+    drip = payload.get('drip') or {}
+    pairs = [
+        ('Pestaña', 'learning / métricas empresa'),
+        ('Denominador drip', drip.get('etiqueta_denominador', 'Drip hoy')),
+        ('Módulos en base drip', drip.get('modulos_en_denominador', '—')),
+    ]
     for k, v in (payload.get('resumen') or {}).items():
         pairs.append((k.replace('_', ' ').title(), v))
     for k, v in (payload.get('porcentajes') or {}).items():
         pairs.append((f'Pct {k}', v))
+    metas = payload.get('metas') or {}
+    for k, v in metas.items():
+        pairs.append((f'Meta {k}', v))
     _write_kv_sheet(ws, 'Métricas empresa', pairs)
+
+    ws_prog = wb.create_sheet('Progreso estudiantes')
+    _style_header(ws_prog, [
+        'Estudiante', 'Organización', 'Curso', 'Módulo actual', 'Módulos total',
+        'Módulos drip', 'Estado', 'Avance total %', 'Avance drip (actual) %',
+    ])
+    for row_idx, row in enumerate(payload.get('progreso_estudiantes') or [], 2):
+        ws_prog.cell(row=row_idx, column=1, value=row.get('nombre', ''))
+        ws_prog.cell(row=row_idx, column=2, value=row.get('organizacion', ''))
+        ws_prog.cell(row=row_idx, column=3, value=row.get('curso', ''))
+        ws_prog.cell(row=row_idx, column=4, value=row.get('modulo_actual', ''))
+        ws_prog.cell(row=row_idx, column=5, value=f"{row.get('modulos_completados', 0)}/{row.get('modulos_total', 0)}")
+        ws_prog.cell(row=row_idx, column=6, value=f"{row.get('modulos_completados_drip', 0)}/{row.get('modulos_total_drip', 0)}")
+        ws_prog.cell(row=row_idx, column=7, value=row.get('estado', ''))
+        ws_prog.cell(row=row_idx, column=8, value=row.get('avance_pct', 0))
+        ws_prog.cell(row=row_idx, column=9, value=row.get('avance_pct_drip', 0))
 
     distrib = (payload.get('series') or {}).get('distribucion_avance') or []
     if distrib:

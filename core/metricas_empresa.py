@@ -166,8 +166,24 @@ def _estado_progreso(progreso, avance_pct: int) -> str:
     return "Sin avance"
 
 
-def listar_progreso_estudiantes(progreso_q, limite: int = 200) -> list[dict]:
+def listar_progreso_estudiantes(
+    progreso_q,
+    limite: int = 200,
+    *,
+    modulo_hasta_numero: int | None = None,
+    usar_drip_calendario: bool = True,
+) -> list[dict]:
     """Detalle por inscripción: estudiante + curso + módulo actual."""
+    from core.drip_schedule import (
+        avance_sobre_modulos,
+        estudiante_llego_hasta_modulo,
+        max_modulo_alcanzado,
+        modulos_para_metricas,
+    )
+
+    if modulo_hasta_numero is not None:
+        usar_drip_calendario = False
+
     rows = []
     qs = (
         progreso_q.select_related("estudiante", "estudiante__cliente", "curso", "modulo_actual")
@@ -178,9 +194,18 @@ def listar_progreso_estudiantes(progreso_q, limite: int = 200) -> list[dict]:
         .order_by("estudiante__nombre", "curso__nombre")[:limite]
     )
     for p in qs:
+        if modulo_hasta_numero is not None and not estudiante_llego_hasta_modulo(p, modulo_hasta_numero):
+            continue
         total_mods = p.total_mods or 0
         mods_comp = p.mods_comp or 0
         avance = round(mods_comp / total_mods * 100) if total_mods else 0
+        mods_drip = modulos_para_metricas(
+            p.estudiante,
+            p.curso,
+            modulo_hasta_numero=modulo_hasta_numero,
+            usar_drip_calendario=usar_drip_calendario,
+        )
+        comps_drip, total_drip, avance_drip = avance_sobre_modulos(p, mods_drip)
         rows.append(
             {
                 "estudiante_id": p.estudiante_id,
@@ -194,11 +219,103 @@ def listar_progreso_estudiantes(progreso_q, limite: int = 200) -> list[dict]:
                 "modulos_completados": mods_comp,
                 "modulos_total": total_mods,
                 "avance_pct": avance,
-                "estado": _estado_progreso(p, avance),
+                "modulos_completados_drip": comps_drip,
+                "modulos_total_drip": total_drip,
+                "avance_pct_drip": avance_drip,
+                "max_modulo_alcanzado": max_modulo_alcanzado(p),
+                "estado": _estado_progreso(p, avance_drip if total_drip else avance),
                 "completado": p.completado,
             }
         )
     return rows
+
+
+def _posicion_modulo_dashboard(progreso) -> int | str:
+    """Módulo «actual» del estudiante para agrupar (0 = sin iniciar, 'completado' = curso listo)."""
+    from core.drip_schedule import max_modulo_alcanzado
+
+    if progreso.completado:
+        return 'completado'
+    mods_comp = progreso.modulos_completados.count() if hasattr(progreso, 'modulos_completados') else 0
+    if mods_comp == 0 and not progreso.modulo_actual_id:
+        return 0
+    if progreso.modulo_actual_id and progreso.modulo_actual:
+        return int(progreso.modulo_actual.numero)
+    return max_modulo_alcanzado(progreso) or 0
+
+
+def calcular_distribucion_por_modulo(progreso_q, curso) -> list[dict]:
+    """
+    Cajas por módulo: cuántos estudiantes están en M1, M2… y su avance promedio
+    calculado solo sobre M1..Mn (en M1 antes de M2 → 100% si ya cerraron M1).
+    """
+    from core.models import Modulo
+    from core.drip_schedule import avance_sobre_modulos
+
+    if not curso:
+        return []
+
+    mods = list(Modulo.objects.filter(curso=curso).order_by('numero'))
+    if not mods:
+        return []
+
+    buckets: dict[int | str, dict] = {
+        0: {'modulo': 0, 'etiqueta': 'Sin iniciar', 'estudiantes': 0, 'avance_sum': 0},
+        'completado': {
+            'modulo': 999,
+            'etiqueta': 'Curso completado',
+            'estudiantes': 0,
+            'avance_sum': 0,
+        },
+    }
+    for m in mods:
+        buckets[m.numero] = {
+            'modulo': m.numero,
+            'etiqueta': f'M{m.numero} · {(m.titulo or "")[:36]}',
+            'estudiantes': 0,
+            'avance_sum': 0,
+        }
+
+    qs = progreso_q.select_related('modulo_actual', 'curso').prefetch_related('modulos_completados')
+    for p in qs:
+        pos = _posicion_modulo_dashboard(p)
+        if pos not in buckets:
+            pos = int(pos) if pos else 0
+        if pos not in buckets:
+            continue
+        if pos == 'completado':
+            mods_subset = mods
+        elif pos == 0:
+            mods_subset = [mods[0]] if mods else []
+        else:
+            mods_subset = [m for m in mods if m.numero <= int(pos)]
+        _, _, pct = avance_sobre_modulos(p, mods_subset)
+        buckets[pos]['estudiantes'] += 1
+        buckets[pos]['avance_sum'] += pct
+
+    out = []
+    if buckets[0]['estudiantes']:
+        n = buckets[0]['estudiantes']
+        out.append({
+            **buckets[0],
+            'promedio_avance_pct': round(buckets[0]['avance_sum'] / n, 1),
+        })
+    for m in mods:
+        b = buckets[m.numero]
+        if not b['estudiantes']:
+            continue
+        n = b['estudiantes']
+        out.append({
+            **b,
+            'promedio_avance_pct': round(b['avance_sum'] / n, 1),
+        })
+    if buckets['completado']['estudiantes']:
+        n = buckets['completado']['estudiantes']
+        out.append({
+            **buckets['completado'],
+            'promedio_avance_pct': round(buckets['completado']['avance_sum'] / n, 1),
+        })
+    return out
 
 
 def calcular_metricas_empresa(
@@ -208,7 +325,10 @@ def calcular_metricas_empresa(
     grupo_id: int | None = None,
     desde: str | None = None,
     hasta: str | None = None,
+    modulo_hasta_numero: int | None = None,
+    usar_drip_calendario: bool = True,
 ) -> dict[str, Any]:
+    from core.drip_schedule import avance_sobre_modulos, modulos_para_metricas
     from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante, WhatsappLog
     from core.models_extras import GrupoEstudiantes
 
@@ -237,6 +357,17 @@ def calcular_metricas_empresa(
     if hasta_dt:
         progreso_q = progreso_q.filter(fecha_inicio__date__lte=hasta_dt)
 
+    if modulo_hasta_numero is not None:
+        usar_drip_calendario = False
+        from core.drip_schedule import estudiante_llego_hasta_modulo
+
+        cohorte_ids = [
+            p.pk
+            for p in progreso_q.select_related('modulo_actual', 'curso')
+            if estudiante_llego_hasta_modulo(p, modulo_hasta_numero)
+        ]
+        progreso_q = progreso_q.filter(pk__in=cohorte_ids)
+
     progreso_q = progreso_q.annotate(n_mods=Count("modulos_completados", distinct=True))
 
     total_inscritos = progreso_q.count()
@@ -245,9 +376,19 @@ def calcular_metricas_empresa(
     no_iniciados = progreso_q.filter(completado=False, n_mods=0).count()
 
     avance_sum = 0
-    for p in progreso_q[:5000]:
+    avance_drip_sum = 0
+    for p in progreso_q.select_related("estudiante", "curso")[:5000]:
         avance_sum += p.porcentaje_avance()
+        mods_drip = modulos_para_metricas(
+            p.estudiante,
+            p.curso,
+            modulo_hasta_numero=modulo_hasta_numero,
+            usar_drip_calendario=usar_drip_calendario,
+        )
+        _, _, pct_drip = avance_sobre_modulos(p, mods_drip)
+        avance_drip_sum += pct_drip
     prom_avance = round(avance_sum / total_inscritos, 1) if total_inscritos else 0.0
+    prom_avance_drip = round(avance_drip_sum / total_inscritos, 1) if total_inscritos else 0.0
 
     whatsapp_q = WhatsappLog.objects.all()
     if desde_dt:
@@ -368,10 +509,39 @@ def calcular_metricas_empresa(
             )
             d += timedelta(days=1)
 
+    drip_contexto = None
+    if curso:
+        from core.models import Modulo
+
+        mods_curso = list(Modulo.objects.filter(curso=curso).order_by("numero"))
+        if modulo_hasta_numero is not None:
+            mods_filtrados = [m for m in mods_curso if m.numero <= modulo_hasta_numero]
+        else:
+            mods_filtrados = mods_curso
+        drip_contexto = {
+            "modulo_hasta_numero": modulo_hasta_numero,
+            "usar_drip_calendario": usar_drip_calendario,
+            "modulos_curso": [
+                {"id": m.id, "numero": m.numero, "titulo": m.titulo} for m in mods_curso
+            ],
+            "modulos_en_denominador": len(mods_filtrados),
+            "etiqueta_denominador": (
+                f"Avance M1–M{modulo_hasta_numero} · cohorte que llegó a M{modulo_hasta_numero}"
+                if modulo_hasta_numero
+                else ("Drip hoy" if usar_drip_calendario else "Todos los módulos")
+            ),
+            "filtro_cohorte": (
+                f"Solo estudiantes que alcanzaron módulo {modulo_hasta_numero} o más"
+                if modulo_hasta_numero
+                else None
+            ),
+        }
+
     return {
         "cliente": {"id": cliente.id, "nombre": cliente.nombre} if cliente else None,
         "curso": {"id": curso.id, "nombre": curso.nombre} if curso else None,
         "grupo": {"id": grupo.id, "nombre": grupo.nombre} if grupo else None,
+        "drip": drip_contexto,
         "periodo": {
             "desde": desde_dt.isoformat() if desde_dt else None,
             "hasta": hasta_dt.isoformat() if hasta_dt else None,
@@ -388,6 +558,7 @@ def calcular_metricas_empresa(
             "mensajes_read": mensajes_read,
             "mensajes_a_no_iniciados": mensajes_a_no_iniciados,
             "promedio_avance_pct": prom_avance,
+            "promedio_avance_drip_pct": prom_avance_drip,
             "activos_ultimos_30_dias": activos_30d,
         },
         "porcentajes": {
@@ -416,7 +587,12 @@ def calcular_metricas_empresa(
             ],
             "temporal": series_temporal,
         },
-        "progreso_estudiantes": listar_progreso_estudiantes(progreso_q),
+        "progreso_estudiantes": listar_progreso_estudiantes(
+            progreso_q,
+            modulo_hasta_numero=modulo_hasta_numero,
+            usar_drip_calendario=usar_drip_calendario,
+        ),
+        "distribucion_modulos": calcular_distribucion_por_modulo(progreso_q, curso),
     }
 
 

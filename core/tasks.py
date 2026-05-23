@@ -463,3 +463,29 @@ def procesar_zip_rag_comercial(
         storage_path,
     )
     return {"creados": creados, "omitidos": omitidos}
+
+
+def _curso_ia_cache_key(job_id: str) -> str:
+    return f'curso_ia_job:{job_id}'
+
+
+@shared_task(bind=True, max_retries=0, soft_time_limit=300, time_limit=360)
+def generar_curso_ia_async(self, job_id: str, texto: str, modelo: str):
+    """Genera estructura de curso en Celery (evita 504 en nginx)."""
+    from django.core.cache import cache
+    from core.utils_ia import generar_estructura_curso_con_ia, validar_estructura_curso
+
+    key = _curso_ia_cache_key(job_id)
+    try:
+        cache.set(key, {'status': 'running'}, 3600)
+        estructura = generar_estructura_curso_con_ia(texto, modelo=modelo)
+        ok, errores = validar_estructura_curso(estructura)
+        if not ok:
+            cache.set(key, {'status': 'error', 'error': ', '.join(errores)}, 3600)
+            return {'status': 'error'}
+        cache.set(key, {'status': 'ok', 'estructura': estructura}, 3600)
+        return {'status': 'ok', 'modulos': len(estructura.get('modulos', []))}
+    except Exception as exc:
+        logger.exception('[Celery] generar_curso_ia_async job=%s', job_id)
+        cache.set(key, {'status': 'error', 'error': str(exc)}, 3600)
+        return {'status': 'error', 'error': str(exc)}

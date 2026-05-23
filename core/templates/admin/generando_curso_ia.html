@@ -1,0 +1,64 @@
+{% extends "admin/base_site.html" %}
+{% block title %}Generando curso con IA{% endblock %}
+{% block extrastyle %}
+<style>
+:root { --eki-brand: #9a6cac; }
+.wrap { max-width: 560px; margin: 48px auto; text-align: center; padding: 24px; }
+.box { background: #fff; border-radius: 12px; padding: 32px; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+.spinner { width: 48px; height: 48px; border: 4px solid #f3eaf7; border-top-color: var(--eki-brand); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.err { color: #c92a2a; margin-top: 16px; display: none; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="wrap">
+    <div class="box">
+        <div class="spinner" id="spinner"></div>
+        <h2 style="color:#333;margin:0 0 8px;">Generando estructura del curso…</h2>
+        <p style="color:#666;">La IA puede tardar 1–2 minutos. Esta pantalla evita el error 504.</p>
+        <p id="status" style="font-size:0.9rem;color:#868e96;margin-top:12px;">En cola…</p>
+        <p class="err" id="err"></p>
+        <a href="{% url 'subir_documento_curso' %}" id="back-link" style="display:none;margin-top:16px;color:#9a6cac;">← Volver</a>
+    </div>
+</div>
+<script>
+(function() {
+    const jobId = '{{ job_id|escapejs }}';
+    const statusEl = document.getElementById('status');
+    const errEl = document.getElementById('err');
+    const back = document.getElementById('back-link');
+    const spinner = document.getElementById('spinner');
+    let tries = 0;
+    function poll() {
+        fetch('/admin/crear-curso-ia/estado/?job_id=' + encodeURIComponent(jobId), {credentials: 'same-origin'})
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'ok' && data.redirect) {
+                    statusEl.textContent = 'Listo: ' + (data.titulo || 'curso') + ' (' + (data.modulos||0) + ' módulos)';
+                    window.location.href = data.redirect;
+                    return;
+                }
+                if (data.status === 'error') {
+                    spinner.style.display = 'none';
+                    errEl.style.display = 'block';
+                    errEl.textContent = data.error || 'Error al generar el curso';
+                    back.style.display = 'inline-block';
+                    return;
+                }
+                statusEl.textContent = data.status === 'running' ? 'Generando con OpenAI…' : 'En cola…';
+                tries++;
+                if (tries > 120) {
+                    errEl.style.display = 'block';
+                    errEl.textContent = 'Tiempo de espera agotado. Reintente o use un prompt más corto.';
+                    back.style.display = 'inline-block';
+                    spinner.style.display = 'none';
+                    return;
+                }
+                setTimeout(poll, 2000);
+            })
+            .catch(() => setTimeout(poll, 3000));
+    }
+    poll();
+})();
+</script>
+{% endblock %}

@@ -35,6 +35,7 @@ from .models import (
 from .admin_campana_actualizado import CampanaUnicaAdmin, RespuestaCampanaUnicaAdmin
 from .models_extras import (
     GrupoEstudiantes, EnvioProgramado, PQRS, ArchivoModulo,
+    MensajePush, EnvioMensajePush,
     GrupoWhatsApp, InvitacionGrupo  # 📦 NUEVOS MODELOS
 )
 from .models_audit import AuditLog  # 🔐 Auditoría
@@ -214,6 +215,39 @@ class ClienteAdmin(admin.ModelAdmin):
             return format_html('<span style="background:#2196f3;color:white;padding:4px 12px;border-radius:12px;font-weight:bold;">{}</span>', count)
         return format_html('<span style="color:#999;">0</span>')
     cursos_asignados.short_description = "📚 Cursos"
+
+    actions = ['copiar_todos_cursos_a_analytics_pruebas']
+
+    @admin.action(description='📋 Copiar todos los cursos → Analytics (Pruebas)')
+    def copiar_todos_cursos_a_analytics_pruebas(self, request, queryset):
+        from core.copiar_cursos import (
+            ClienteAnalyticsNoEncontrado,
+            copiar_cursos_a_pruebas,
+            obtener_cliente_analytics_origen,
+        )
+
+        if queryset.count() != 1:
+            self.message_user(request, 'Selecciona un solo cliente.', level='error')
+            return
+        cliente = queryset.first()
+        try:
+            origen = obtener_cliente_analytics_origen()
+        except ClienteOrigenNoEncontrado as e:
+            self.message_user(request, str(e), level='error')
+            return
+        if cliente.pk != origen.pk:
+            self.message_user(
+                request,
+                f'Selecciona el cliente «{origen.nombre}» (origen Alitic).',
+                level='error',
+            )
+            return
+        result = copiar_cursos_a_pruebas()
+        self.message_user(
+            request,
+            f'✅ {result.total_copiados} curso(s) copiados a {result.destino.nombre}. '
+            f'Omitidos (ya existían): {len(result.omitidos)}.',
+        )
 
 
 # ========== PLANTILLA ==========
@@ -2204,6 +2238,40 @@ class CampanaAdmin(admin.ModelAdmin):
     plantilla_estado.short_description = "Template"
 
 
+@admin.register(MensajePush)
+class MensajePushAdmin(admin.ModelAdmin):
+    """Recordatorios WhatsApp que no reinician el curso (responder *listo*)."""
+    list_display = ('nombre', 'tipo', 'cliente', 'curso', 'activo', 'fecha_creacion')
+    list_filter = ('tipo', 'activo', 'cliente')
+    search_fields = ('nombre', 'cuerpo_fallback', 'twilio_content_sid')
+    actions = ['enviar_push_seleccionados']
+    fieldsets = (
+        (None, {'fields': ('nombre', 'tipo', 'activo')}),
+        ('Audiencia', {'fields': ('cliente', 'curso')}),
+        ('Contenido Twilio / texto', {
+            'fields': ('twilio_content_sid', 'plantilla', 'cuerpo_fallback', 'incluir_boton_continuar'),
+            'description': 'Use Content SID (HX…) o plantilla Django. Variables: {nombre}, {curso}.',
+        }),
+    )
+
+    @admin.action(description='📲 Enviar push a audiencia del mensaje')
+    def enviar_push_seleccionados(self, request, queryset):
+        from core.mensajes_push import enviar_mensaje_push_masivo
+        for mp in queryset.filter(activo=True):
+            r = enviar_mensaje_push_masivo(mp)
+            self.message_user(
+                request,
+                f'{mp.nombre}: {r["enviados"]} enviados, {r["errores"]} errores.',
+            )
+
+
+@admin.register(EnvioMensajePush)
+class EnvioMensajePushAdmin(admin.ModelAdmin):
+    list_display = ('mensaje_push', 'estudiante', 'telefono', 'exito', 'fecha')
+    list_filter = ('exito', 'mensaje_push')
+    readonly_fields = ('mensaje_push', 'estudiante', 'telefono', 'exito', 'detalle', 'fecha')
+
+
 @admin.register(EnvioLog)
 class EnvioLogAdmin(admin.ModelAdmin):
     """Historial de envíos de campañas"""
@@ -2494,7 +2562,10 @@ class CursoAdmin(admin.ModelAdmin):
     search_fields = ('nombre', 'descripcion', 'cliente__nombre')
     list_editable = ('orden',)
     inlines = [ModuloInline, DocumentoRAGInline, PreguntaAbiertaFinalInline]
-    actions = ['ver_todos_modulos', 'indexar_documentos_rag', 'indexar_contenido_modulos', 'activar_cursos', 'desactivar_cursos']
+    actions = [
+        'ver_todos_modulos', 'indexar_documentos_rag', 'indexar_contenido_modulos',
+        'activar_cursos', 'desactivar_cursos', 'copiar_a_analytics_pruebas',
+    ]
     # change_list_template = 'admin/curso_changelist.html'  # Eliminado para usar el template estándar de Django
     
     fieldsets = (
@@ -2668,6 +2739,38 @@ class CursoAdmin(admin.ModelAdmin):
     def desactivar_cursos(self, request, queryset):
         count = queryset.update(activo=False)
         self.message_user(request, f"❌ {count} curso(s) desactivado(s)")
+
+    @admin.action(description='📋 Copiar a Analytics (Pruebas)')
+    def copiar_a_analytics_pruebas(self, request, queryset):
+        from core.copiar_cursos import (
+            CLIENTE_ORIGEN_NOMBRE,
+            ClienteOrigenNoEncontrado,
+            copiar_cursos_a_pruebas,
+            obtener_cliente_analytics_origen,
+        )
+
+        try:
+            origen = obtener_cliente_analytics_origen()
+        except ClienteOrigenNoEncontrado as e:
+            self.message_user(request, str(e), level='error')
+            return
+        fuera = queryset.exclude(cliente=origen)
+        if fuera.exists():
+            self.message_user(
+                request,
+                f'Solo se copian cursos del cliente «{CLIENTE_ORIGEN_NOMBRE}» '
+                f'(id={origen.pk}). {fuera.count()} curso(s) de otro cliente ignorados.',
+                level='warning',
+            )
+        ids = list(queryset.filter(cliente=origen).values_list('pk', flat=True))
+        if not ids:
+            self.message_user(request, 'No hay cursos de Analytics seleccionados.', level='error')
+            return
+        result = copiar_cursos_a_pruebas(curso_ids=ids)
+        self.message_user(
+            request,
+            f'✅ {result.total_copiados} curso(s) copiados a {result.destino.nombre}.',
+        )
 
 
 class PreguntaModuloInline(admin.StackedInline):
@@ -3202,7 +3305,6 @@ class PreguntaExamenInline(admin.TabularInline):
     ordering = ['numero']
 
 
-@admin.register(Examen)
 class ExamenAdmin(admin.ModelAdmin):
     """Administración de exámenes"""
     list_display = ('curso_nombre', 'total_preguntas_display', 'puntaje_minimo')
@@ -3229,7 +3331,6 @@ class ExamenAdmin(admin.ModelAdmin):
     total_preguntas_display.short_description = "Preguntas"
 
 
-@admin.register(PreguntaExamen)
 class PreguntaExamenAdmin(admin.ModelAdmin):
     """Administración de preguntas de examen"""
     list_display = ('numero_pregunta', 'examen', 'puntos', 'pregunta_preview')
@@ -3494,7 +3595,6 @@ class ModuloCompletadoAdmin(admin.ModelAdmin):
     modulo_info.short_description = "Módulo"
 
 
-@admin.register(ResultadoExamen)
 class ResultadoExamenAdmin(admin.ModelAdmin):
     """Resultados de exámenes"""
     list_display = ('estudiante', 'examen_info', 'puntaje_badge', 'aprobado_badge', 'fecha_realizado')
@@ -3579,7 +3679,6 @@ admin.site.index = index_view.__get__(admin.site, AdminSite)
 # 🏆 ADMIN UNIFICADO DE GAMIFICACIÓN (TODO EN UNO)
 # ========================================
 
-@admin.register(PerfilGamificacion)
 class PerfilGamificacionAdmin(admin.ModelAdmin):
     """
     🏆 GESTIÓN UNIFICADA DE GAMIFICACIÓN
@@ -3703,7 +3802,6 @@ class PerfilGamificacionAdmin(admin.ModelAdmin):
     badges_count.short_description = "Badges"
 
 
-@admin.register(Badge)
 class BadgeAdmin(admin.ModelAdmin):
     """Administración de badges/insignias (Ver también desde Perfil Gamificación)"""
     list_display = ('icono_nombre', 'tipo', 'descripcion_corta', 'criterios', 'puntos_bonus', 'total_obtenidos_display', 'activo')
@@ -3790,7 +3888,6 @@ class BadgeAdmin(admin.ModelAdmin):
     desactivar_badges.short_description = "❌ Desactivar badges"
 
 
-@admin.register(BadgeEstudiante)
 class BadgeEstudianteAdmin(admin.ModelAdmin):
     """Administración de badges obtenidos por estudiantes"""
     list_display = ('estudiante', 'badge_display', 'fecha_obtenido')
@@ -3804,7 +3901,6 @@ class BadgeEstudianteAdmin(admin.ModelAdmin):
     badge_display.short_description = "Badge"
 
 
-@admin.register(AliadoEmpleabilidad)
 class AliadoEmpleabilidadAdmin(admin.ModelAdmin):
     list_display = (
         'nombre_empresa',
@@ -3823,7 +3919,6 @@ class AliadoEmpleabilidadAdmin(admin.ModelAdmin):
     list_editable = ('vacantes_activas', 'cupos_disponibles', 'prioridad')
 
 
-@admin.register(MisionEmpleabilidad)
 class MisionEmpleabilidadAdmin(admin.ModelAdmin):
     list_display = (
         'id',
@@ -3852,7 +3947,6 @@ class MisionEmpleabilidadAdmin(admin.ModelAdmin):
     list_per_page = 100
 
 
-@admin.register(PreguntaAbiertaFinalCurso)
 class PreguntaAbiertaFinalCursoAdmin(admin.ModelAdmin):
     list_display = ('curso', 'orden', 'activa', 'fecha_creacion')
     list_filter = ('activa', 'curso')
@@ -3860,7 +3954,6 @@ class PreguntaAbiertaFinalCursoAdmin(admin.ModelAdmin):
     ordering = ('curso', 'orden', 'id')
 
 
-@admin.register(RespuestaAbiertaFinal)
 class RespuestaAbiertaFinalAdmin(admin.ModelAdmin):
     list_display = ('estudiante', 'curso', 'estado', 'calificacion', 'fecha_respuesta', 'fecha_calificacion')
     list_filter = ('estado', 'curso', 'fecha_respuesta')
@@ -3893,7 +3986,6 @@ except admin.sites.NotRegistered:
     pass
 
 
-@admin.register(TransaccionPuntos)
 class TransaccionPuntosAdmin(admin.ModelAdmin):
     """Historial de transacciones de puntos"""
     list_display = ('estudiante_nombre', 'puntos_display', 'tipo', 'razon', 'fecha')
@@ -3923,7 +4015,6 @@ class TransaccionPuntosAdmin(admin.ModelAdmin):
 
 
 # ========== RECOMPENSAS ==========
-@admin.register(Recompensa)
 class RecompensaAdmin(admin.ModelAdmin):
     """Gestión de recompensas canjeables (Ver también desde Perfil Gamificación)"""
     list_display = ('icono_nombre', 'puntos_requeridos', 'tipo', 'estado', 'cantidad_info', 'nivel_minimo', 'destacado', 'canjes_totales')
@@ -4000,7 +4091,6 @@ class RecompensaAdmin(admin.ModelAdmin):
     marcar_agotado.short_description = "Marcar como agotado"
 
 
-@admin.register(CanjeRecompensa)
 class CanjeRecompensaAdmin(admin.ModelAdmin):
     """Gestión de canjes de recompensas (Ver también desde Perfil Gamificación)"""
     list_display = ('estudiante_nombre', 'recompensa_info', 'puntos_gastados', 'estado_display', 'fecha_canje', 'fecha_entrega', 'atendido_por')
@@ -4320,7 +4410,6 @@ class SolicitudSoporteAdmin(admin.ModelAdmin):
 # 📜 CERTIFICADOS DIGITALES
 # ========================================
 
-@admin.register(PlantillaCertificado)
 class PlantillaCertificadoAdmin(admin.ModelAdmin):
     """Plantillas de Certificados — Simplificado: sube imagen a S3"""
     list_display = ('nombre', 'curso_info', 'cliente_info', 'tipo_plantilla', 'por_defecto', 'activa')
@@ -4505,7 +4594,6 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
         )
 
 
-@admin.register(Certificado)
 class CertificadoAdmin(admin.ModelAdmin):
     """
     📜 GESTIÓN UNIFICADA DE CERTIFICADOS
@@ -5170,7 +5258,6 @@ class CertificadoAdmin(admin.ModelAdmin):
 # 🔐 AUDITORÍA - AUDIT LOG
 # ========================================
 
-@admin.register(AuditLog)
 class AuditLogAdmin(admin.ModelAdmin):
     """Admin para registro de auditoría de certificados"""
     
@@ -5424,7 +5511,6 @@ class EnvioProgramadoAdmin(admin.ModelAdmin):
     estado_badge.short_description = "Estado"
 
 
-@admin.register(PQRS)
 class PQRSAdmin(admin.ModelAdmin):
     """Gestión auxiliar de PQRS (Ver principalmente desde Solicitudes de Soporte)"""
     change_list_template = 'admin/core/pqrs/change_list.html'
@@ -5845,7 +5931,6 @@ class PlantillaDashboardAdmin(admin.ModelAdmin):
 # 🤝 ADMIN DE PROSPECTOS B2B (LEADS)
 # ========================================
 
-@admin.register(ProspectoB2B)
 class ProspectoB2BAdmin(admin.ModelAdmin):
     """
     🤝 GESTIÓN DE LEADS B2B
@@ -5980,7 +6065,6 @@ class ProspectoB2BAdmin(admin.ModelAdmin):
 # � ADMIN DE CAMPAÑAS B2B
 # ========================================
 
-@admin.register(CampanaB2B)
 class CampanaB2BAdmin(admin.ModelAdmin):
     """
     📤 CAMPAÑAS B2B — Envío de plantillas/PDF a prospectos sin registrarlos.
@@ -6162,7 +6246,6 @@ def _extension_archivo_comercial_ok(nombre: str) -> bool:
     return ext in _RAG_COMERCIAL_EXT_OK
 
 
-@admin.register(MetaMetricaEmpresa)
 class MetaMetricaEmpresaAdmin(admin.ModelAdmin):
     list_display = (
         "cliente", "curso", "meta_finalizacion_porcentaje",
@@ -6173,7 +6256,6 @@ class MetaMetricaEmpresaAdmin(admin.ModelAdmin):
     autocomplete_fields = ("cliente", "curso")
 
 
-@admin.register(MetaMetricaNati)
 class MetaMetricaNatiAdmin(admin.ModelAdmin):
     list_display = ("cliente", "meta_lectura_porcentaje", "meta_respuesta_porcentaje", "activa")
     list_filter = ("activa",)
@@ -6181,7 +6263,6 @@ class MetaMetricaNatiAdmin(admin.ModelAdmin):
     autocomplete_fields = ("cliente",)
 
 
-@admin.register(DocumentoRAG)
 class DocumentoRAGAdmin(admin.ModelAdmin):
     """
     📚 GESTIÓN DE DOCUMENTOS RAG — Base de Conocimiento para Agentes IA
@@ -6324,7 +6405,6 @@ class DocumentoRAGAdmin(admin.ModelAdmin):
         return super().changelist_view(request, extra_context)
 
 
-@admin.register(DocumentoRAGComercial)
 class DocumentoRAGComercialAdmin(admin.ModelAdmin):
     """🛒 Documentos del RAG comercial (aislado del educativo)."""
 
@@ -6689,7 +6769,6 @@ class ConfiguracionGlobalAdmin(admin.ModelAdmin):
         return redirect(reverse('admin:core_configuracionglobal_change', args=[obj.pk]))
 
 
-@admin.register(EventoIA)
 class EventoIAAdmin(admin.ModelAdmin):
     """Solo lectura — audit trail IA (Parte 2A/2B)."""
 
@@ -6714,7 +6793,6 @@ class EventoIAAdmin(admin.ModelAdmin):
         return request.user.is_superuser
 
 
-@admin.register(ContextoAgroSession)
 class ContextoAgroSessionAdmin(admin.ModelAdmin):
     list_display = ('sesion', 'cultivo', 'etapa', 'region', 'problema', 'updated_at')
     list_filter = ('cultivo', 'region')
@@ -6722,7 +6800,6 @@ class ContextoAgroSessionAdmin(admin.ModelAdmin):
     readonly_fields = ('updated_at',)
 
 
-@admin.register(ConversacionRAGCandidata)
 class ConversacionRAGCandidataAdmin(admin.ModelAdmin):
     list_display = (
         'fecha_creacion', 'estado', 'telefono', 'cliente', 'pregunta_corta', 'revisado_por',

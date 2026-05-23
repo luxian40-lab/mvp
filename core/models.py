@@ -1118,6 +1118,12 @@ class Curso(models.Model):
     def total_modulos(self):
         return self.modulos.count()
 
+    def copiar_a_analytics_pruebas(self, reset: bool = False):
+        """Copia este curso al cliente Analytics (Pruebas). Ver ``core.copiar_cursos``."""
+        from core.copiar_cursos import copiar_cursos_a_pruebas
+
+        return copiar_cursos_a_pruebas(solo_curso_id=self.pk, reset=reset)
+
 
 class ConfiguracionDripCliente(models.Model):
     """
@@ -2442,7 +2448,8 @@ from .models_audit import AuditLog
 # Importar modelos adicionales
 from .models_extras import (
     GrupoEstudiantes, EnvioProgramado, PQRS, 
-    ArchivoModulo, GrupoWhatsApp, InvitacionGrupo
+    ArchivoModulo, GrupoWhatsApp, InvitacionGrupo,
+    MensajePush, EnvioMensajePush,
 )
 
 # ========== CAMPAÑAS ÚNICAS (SÍ/NO) ==========

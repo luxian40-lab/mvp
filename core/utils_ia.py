@@ -24,10 +24,39 @@ MODELOS_IA = {
     'gpt-4o-mini': {'proveedor': 'openai', 'nombre': 'GPT-4o Mini', 'costo': 0.005},
     'gpt-3.5-turbo': {'proveedor': 'openai', 'nombre': 'GPT-3.5 Turbo', 'costo': 0.01},
     'gpt-4': {'proveedor': 'openai', 'nombre': 'GPT-4', 'costo': 0.30},
-    'claude-3-sonnet': {'proveedor': 'anthropic', 'nombre': 'Claude 3 Sonnet', 'costo': 0.015},
-    'claude-3-opus': {'proveedor': 'anthropic', 'nombre': 'Claude 3 Opus', 'costo': 0.40},
-    'gemini-pro': {'proveedor': 'google', 'nombre': 'Gemini Pro', 'costo': 0.005},
+    'claude-3-sonnet': {'proveedor': 'anthropic', 'nombre': 'Claude 3 Sonnet (no disponible)', 'costo': 0.015},
+    'claude-3-opus': {'proveedor': 'anthropic', 'nombre': 'Claude 3 Opus (no disponible)', 'costo': 0.40},
+    'gemini-pro': {'proveedor': 'google', 'nombre': 'Gemini Pro (no disponible)', 'costo': 0.005},
 }
+
+
+def _tiene_openai() -> bool:
+    from django.conf import settings
+    return bool(getattr(settings, 'OPENAI_API_KEY', None) or os.getenv('OPENAI_API_KEY'))
+
+
+def modelos_ia_habilitados() -> dict:
+    """Solo modelos cuyo proveedor tiene API key configurada."""
+    if not _tiene_openai():
+        return {}
+    return {k: v for k, v in MODELOS_IA.items() if v.get('proveedor') == 'openai'}
+
+
+def validar_modelo_ia_disponible(modelo: str) -> None:
+    """Lanza ValueError si el modelo no está habilitado en este servidor."""
+    habilitados = modelos_ia_habilitados()
+    if not habilitados:
+        raise ValueError(
+            'OPENAI_API_KEY no configurada en el servidor. '
+            'No hay modelos de IA disponibles para crear cursos.'
+        )
+    if modelo not in habilitados:
+        info = MODELOS_IA.get(modelo, {})
+        nombre = info.get('nombre', modelo)
+        raise ValueError(
+            f'El modelo «{nombre}» no está disponible. '
+            f'Solo OpenAI está configurado; usa: {", ".join(habilitados.keys())}.'
+        )
 
 
 def extraer_texto_pdf(archivo) -> str:
@@ -146,8 +175,8 @@ def generar_estructura_curso_con_ia(texto: str, modelo: str = "gpt-4o-mini") -> 
     """
     # Limitar texto a 12000 caracteres para no exceder límites de tokens
     texto_resumido = texto[:12000] if len(texto) > 12000 else texto
-    
-    # Detectar proveedor del modelo
+
+    validar_modelo_ia_disponible(modelo)
     info_modelo = MODELOS_IA.get(modelo, {'proveedor': 'openai'})
     proveedor = info_modelo['proveedor']
     
@@ -260,6 +289,33 @@ INSTRUCCIONES IMPORTANTES:
         raise ValueError(f"Error al procesar con IA: {str(e)}")
 
 
+def _parse_duracion_semanas(texto: str | None, default: int = 4) -> int:
+    """Extrae número de semanas de textos como '4 semanas' o '8 horas'."""
+    if not texto:
+        return default
+    import re
+    m = re.search(r'(\d+)', str(texto))
+    if not m:
+        return default
+    n = int(m.group(1))
+    if 'hora' in str(texto).lower() and n < 10:
+        return max(1, (n + 6) // 7) or 1
+    return max(1, min(n, 52))
+
+
+def _contenido_modulo_desde_ia(modulo_data: dict) -> str:
+    if modulo_data.get('contenido'):
+        return modulo_data['contenido']
+    partes = []
+    for lec in modulo_data.get('lecciones') or []:
+        titulo = lec.get('titulo') or 'Lección'
+        cuerpo = lec.get('contenido') or ''
+        partes.append(f'*{titulo}*\n{cuerpo}')
+    if partes:
+        return '\n\n'.join(partes)
+    return modulo_data.get('descripcion') or ''
+
+
 def guardar_curso_desde_estructura(estructura: Dict, cliente: Cliente, archivo_nombre: str) -> Curso:
     """
     Guarda un curso en la base de datos desde la estructura generada por IA.
@@ -278,10 +334,8 @@ def guardar_curso_desde_estructura(estructura: Dict, cliente: Cliente, archivo_n
             cliente=cliente,
             nombre=estructura['titulo'],
             descripcion=estructura['descripcion'],
-            duracion_estimada=estructura.get('duracion_estimada', '4 semanas'),
-            nivel=estructura.get('nivel', 'intermedio'),
-            puntos_recompensa=estructura.get('puntos_por_leccion', 50),
-            activo=False  # Inactivo hasta que admin revise
+            duracion_semanas=_parse_duracion_semanas(estructura.get('duracion_estimada')),
+            activo=False,
         )
         
         logger.info(f"Curso creado: {curso.nombre} (ID: {curso.id})")
@@ -293,8 +347,8 @@ def guardar_curso_desde_estructura(estructura: Dict, cliente: Cliente, archivo_n
                 numero=idx,
                 titulo=modulo_data['nombre'],
                 descripcion=modulo_data.get('descripcion', ''),
-                contenido=modulo_data.get('contenido', modulo_data.get('descripcion', '')),
-                duracion_dias=7
+                contenido=_contenido_modulo_desde_ia(modulo_data),
+                duracion_dias=7,
             )
             
             logger.info(f"  Módulo creado: {modulo.titulo}")
@@ -350,6 +404,86 @@ def guardar_curso_desde_estructura(estructura: Dict, cliente: Cliente, archivo_n
         if 'curso' in locals():
             curso.delete()
         raise ValueError(f"Error al guardar el curso: {str(e)}")
+
+
+def regenerar_modulo_en_estructura(
+    estructura: Dict,
+    indice_modulo: int,
+    *,
+    texto_fuente: str = "",
+    instrucciones: str = "",
+    modelo: str = MODELO_IA_DEFAULT,
+) -> Dict:
+    """
+    Regenera un solo módulo dentro de la estructura JSON (índice 0-based).
+    Conserva el resto del curso intacto.
+    """
+    modulos = estructura.get('modulos') or []
+    if indice_modulo < 0 or indice_modulo >= len(modulos):
+        raise ValueError(f"Índice de módulo inválido: {indice_modulo + 1}")
+
+    modulo_actual = modulos[indice_modulo]
+    contexto_curso = json.dumps(
+        {
+            'titulo': estructura.get('titulo'),
+            'descripcion': estructura.get('descripcion'),
+            'modulos_resumen': [
+                {'orden': i + 1, 'nombre': m.get('nombre', '')} for i, m in enumerate(modulos)
+            ],
+        },
+        ensure_ascii=False,
+    )
+    fuente = (texto_fuente or '')[:8000]
+    prompt = f"""
+Regenera SOLO el módulo #{indice_modulo + 1} de un curso educativo.
+
+CONTEXTO DEL CURSO:
+{contexto_curso}
+
+MÓDULO ACTUAL (referencia):
+{json.dumps(modulo_actual, ensure_ascii=False)[:4000]}
+
+CONTENIDO FUENTE (si aplica):
+{fuente}
+
+INSTRUCCIONES ADICIONALES DEL ADMIN:
+{instrucciones or 'Mejorar claridad pedagógica y coherencia con el curso.'}
+
+Responde con JSON de UN solo módulo con esta estructura EXACTA:
+{{
+  "nombre": "Módulo N: ...",
+  "descripcion": "...",
+  "orden": {indice_modulo + 1},
+  "lecciones": [{{ "titulo": "...", "contenido": "...", "orden": 1, "duracion_minutos": 15, "preguntas": [] }}],
+  "mini_examen": [{{ "texto": "...", "opciones": [{{"texto": "...", "es_correcta": false}}], "explicacion": "..." }}]
+}}
+
+Responde SOLO el JSON del módulo, sin markdown.
+"""
+    info_modelo = MODELOS_IA.get(modelo, {'proveedor': 'openai'})
+    validar_modelo_ia_disponible(modelo)
+    proveedor = info_modelo['proveedor']
+    if proveedor == 'openai':
+        contenido = _generar_con_openai(modelo, prompt)
+    elif proveedor == 'anthropic':
+        contenido = _generar_con_claude(modelo, prompt)
+    elif proveedor == 'google':
+        contenido = _generar_con_gemini(modelo, prompt)
+    else:
+        raise ValueError(f"Proveedor no soportado: {proveedor}")
+
+    if contenido.startswith('```'):
+        contenido = contenido.replace('```json', '').replace('```', '').strip()
+
+    nuevo_modulo = json.loads(contenido)
+    estructura_nueva = dict(estructura)
+    modulos_nuevos = list(modulos)
+    modulos_nuevos[indice_modulo] = nuevo_modulo
+    estructura_nueva['modulos'] = modulos_nuevos
+    es_valida, errores = validar_estructura_curso(estructura_nueva)
+    if not es_valida:
+        raise ValueError(f"Regeneración inválida: {', '.join(errores)}")
+    return estructura_nueva
 
 
 def regenerar_seccion(curso_id: int, tipo: str, seccion_id: int, instrucciones: str = "") -> bool:
@@ -418,7 +552,11 @@ def validar_estructura_curso(estructura: Dict) -> tuple[bool, List[str]]:
 def _generar_con_openai(modelo: str, prompt: str) -> str:
     """Genera contenido usando OpenAI (GPT-3.5 o GPT-4)"""
     try:
-        client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        from django.conf import settings
+        api_key = getattr(settings, 'OPENAI_API_KEY', None) or os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            raise ValueError('OPENAI_API_KEY no configurada en el servidor')
+        client = openai.OpenAI(api_key=api_key)
         
         response = client.chat.completions.create(
             model=modelo,
@@ -450,15 +588,4 @@ def _generar_con_claude(modelo: str, prompt: str) -> str:
 
 def _generar_con_gemini(modelo: str, prompt: str) -> str:
     """Genera contenido usando Google Gemini"""
-    try:
-        # Intentar importar google-generativeai
-        raise ValueError("Funcionalidad Gemini deshabilitada: google.generativeai no está disponible.")
-        )
-        
-        response = model.generate_content(
-            f"Eres un experto en diseño instruccional. Respondes SOLO con JSON válido.\n\n{prompt}"
-        )
-        
-        return response.text.strip()
-    
-
+    raise ValueError('Funcionalidad Gemini deshabilitada en este entorno.')

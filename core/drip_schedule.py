@@ -158,6 +158,90 @@ def mensaje_bloqueo_avance_siguiente_modulo(
     return '\n\n'.join(partes)
 
 
+def modulos_curso_ordenados(curso: Curso | None) -> list:
+    """Módulos del curso ordenados por número."""
+    if curso is None:
+        return []
+    return list(curso.modulos.order_by('numero'))
+
+
+def modulo_disponible_por_calendario(
+    estudiante: Estudiante | None,
+    modulo: Modulo | None,
+    referencia=None,
+) -> bool:
+    """True si el módulo ya está habilitado por calendario drip (o sin restricción)."""
+    if modulo is None:
+        return False
+    dt = habilitado_desde_efectivo(estudiante, modulo)
+    if not dt:
+        return True
+    now = referencia or timezone.now()
+    return now >= dt
+
+
+def modulos_para_metricas(
+    estudiante: Estudiante | None,
+    curso: Curso | None,
+    *,
+    modulo_hasta_numero: int | None = None,
+    usar_drip_calendario: bool = True,
+    referencia=None,
+) -> list:
+    """
+    Módulos que cuentan como «disponibles» para calcular avance en dashboards.
+    - modulo_hasta_numero: solo M1..MN (simula drip liberado hasta esa semana).
+    - usar_drip_calendario: excluye módulos cuya habilitado_desde aún no llega.
+    """
+    mods = modulos_curso_ordenados(curso)
+    if modulo_hasta_numero is not None:
+        mods = [m for m in mods if m.numero <= modulo_hasta_numero]
+    if usar_drip_calendario:
+        mods = [
+            m for m in mods
+            if modulo_disponible_por_calendario(estudiante, m, referencia=referencia)
+        ]
+    return mods
+
+
+def avance_sobre_modulos(progreso: ProgresoEstudiante, modulos_disponibles: list) -> tuple[int, int, int]:
+    """(completados, total_disponibles, porcentaje 0-100) dentro del subconjunto drip."""
+    from .models import ModuloCompletado
+
+    total = len(modulos_disponibles)
+    if not total:
+        return 0, 0, 0
+    ids = {m.id for m in modulos_disponibles}
+    comps = ModuloCompletado.objects.filter(
+        progreso=progreso, modulo_id__in=ids
+    ).count()
+    return comps, total, round(comps / total * 100)
+
+
+def max_modulo_alcanzado(progreso: ProgresoEstudiante) -> int:
+    """Mayor número de módulo completado o módulo actual (1-based)."""
+    from django.db.models import Max
+    from .models import ModuloCompletado
+
+    if not progreso:
+        return 0
+    if progreso.completado and progreso.curso_id:
+        ultimo = progreso.curso.modulos.order_by('-numero').values_list('numero', flat=True).first()
+        return int(ultimo or 0)
+    max_comp = ModuloCompletado.objects.filter(progreso=progreso).aggregate(
+        m=Max('modulo__numero'),
+    )['m'] or 0
+    actual = progreso.modulo_actual.numero if progreso.modulo_actual_id else 0
+    return max(int(max_comp), int(actual or 0))
+
+
+def estudiante_llego_hasta_modulo(progreso: ProgresoEstudiante, modulo_numero: int) -> bool:
+    """True si el estudiante alcanzó al menos el módulo N (completó o está en él o más adelante)."""
+    if not modulo_numero:
+        return True
+    return max_modulo_alcanzado(progreso) >= int(modulo_numero)
+
+
 def drip_bloquea_siguiente_modulo(progreso: ProgresoEstudiante, modulo_actual) -> bool:
     """
     True si el módulo actual ya quedó completado pero aún no se puede abrir el siguiente:
