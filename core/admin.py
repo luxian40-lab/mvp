@@ -6218,11 +6218,32 @@ def _enqueue_indexar_rag_task(model_class_name: str, pk: int):
 def _encolar_o_indexar_rag_doc(request, modeladmin, model_class_name: str, obj, show_index_message=True):
     """
     La indexación RAG puede superar el timeout de nginx/ALB; en producción
-    se delega a Celery. No se indexa en línea si falla Redis: evita 504 y deja el doc en pendiente.
+    se delega a Celery o a un hilo en background si no hay worker Redis.
     """
-    if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
-        return obj.indexar()
-    _enqueue_indexar_rag_task(model_class_name, obj.pk)
+    pk = obj.pk
+
+    def _run():
+        try:
+            if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
+                import threading
+
+                def _bg():
+                    try:
+                        doc = DocumentoRAGComercial.objects.filter(pk=pk).first()
+                        if doc and doc.archivo:
+                            doc.indexar()
+                    except Exception:
+                        logger.exception('[RAG] Indexación background falló %s id=%s', model_class_name, pk)
+
+                threading.Thread(target=_bg, daemon=True, name=f'rag-idx-{pk}').start()
+            else:
+                from core.tasks import indexar_documento_rag_por_id
+
+                indexar_documento_rag_por_id.delay('core', model_class_name, pk)
+        except Exception:
+            logger.exception('[RAG] Fallo encolando %s id=%s', model_class_name, pk)
+
+    transaction.on_commit(_run)
     if show_index_message:
         modeladmin.message_user(
             request,
@@ -6232,12 +6253,46 @@ def _encolar_o_indexar_rag_doc(request, modeladmin, model_class_name: str, obj, 
     return None
 
 
+def _encolar_zip_rag_comercial(
+    storage_path: str,
+    cliente_id,
+    canal: str,
+    tipo: str,
+    descripcion: str,
+    user_id,
+) -> None:
+    """ZIP → worker Celery; si no hay broker, hilo en background (evita 504 en EB)."""
+    args = (storage_path, cliente_id, canal, tipo, descripcion, user_id)
+
+    def _run():
+        import threading
+
+        from core.tasks import procesar_zip_rag_comercial
+
+        def _bg():
+            try:
+                procesar_zip_rag_comercial.apply(args=args)
+            except Exception:
+                logger.exception('[RAG comercial] Procesamiento ZIP en background falló')
+
+        try:
+            if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
+                threading.Thread(target=_bg, daemon=True, name='rag-zip').start()
+            else:
+                procesar_zip_rag_comercial.delay(*args)
+        except Exception:
+            logger.warning('[RAG comercial] Celery no disponible; ZIP en hilo background')
+            threading.Thread(target=_bg, daemon=True, name='rag-zip').start()
+
+    transaction.on_commit(_run)
+
+
 # Subida masiva solo RAG comercial (varios archivos → un DocumentoRAGComercial por archivo).
 RAG_COMERCIAL_SUBIDA_MASIVA_MIN = 2
 # Subida masiva solo RAG comercial (varios archivos → un DocumentoRAGComercial por archivo).
-RAG_COMERCIAL_SUBIDA_MASIVA_MAX = 30
-RAG_COMERCIAL_ZIP_MAX_BYTES = 80 * 1024 * 1024  # 80 MB
-RAG_COMERCIAL_ZIP_MAX_FILES = 50
+RAG_COMERCIAL_SUBIDA_MASIVA_MAX = 50
+RAG_COMERCIAL_ZIP_MAX_BYTES = 150 * 1024 * 1024  # 150 MB
+RAG_COMERCIAL_ZIP_MAX_FILES = 100
 _RAG_COMERCIAL_EXT_OK = {'.pdf', '.docx', '.txt', '.xlsx', '.xlsm', '.xls'}
 
 
@@ -6439,7 +6494,11 @@ class DocumentoRAGComercialAdmin(admin.ModelAdmin):
 
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
+        opts = self.model._meta
         extra_context['subida_masiva_max'] = RAG_COMERCIAL_SUBIDA_MASIVA_MAX
+        extra_context['subida_masiva_url'] = reverse(
+            'admin:%s_%s_subida_masiva' % (opts.app_label, opts.model_name)
+        )
         return super().changelist_view(request, extra_context)
 
     fieldsets = (
@@ -6558,31 +6617,17 @@ class DocumentoRAGComercialAdmin(admin.ModelAdmin):
                 f'rag_zip_uploads/{uuid.uuid4().hex}.zip',
                 archivo_zip,
             )
-            try:
-                from core.tasks import procesar_zip_rag_comercial
-
-                procesar_zip_rag_comercial.delay(
-                    storage_path,
-                    cliente.pk if cliente else None,
-                    canal,
-                    tipo,
-                    descripcion,
-                    request.user.pk,
-                )
-            except Exception:
-                logger.exception('[RAG comercial] No se pudo encolar ZIP')
-                try:
-                    default_storage.delete(storage_path)
-                except Exception:
-                    pass
-                messages.error(
-                    request,
-                    'No se pudo encolar el ZIP (¿Celery worker activo?). Probá subida por archivos sueltos.',
-                )
-                return render(request, 'admin/subida_masiva_rag_comercial.html', context)
+            _encolar_zip_rag_comercial(
+                storage_path,
+                cliente.pk if cliente else None,
+                canal,
+                tipo,
+                descripcion,
+                request.user.pk,
+            )
             messages.success(
                 request,
-                f'ZIP recibido. Se procesará en el worker (hasta {RAG_COMERCIAL_ZIP_MAX_FILES} archivos válidos). '
+                f'ZIP recibido. Se procesará en segundo plano (hasta {RAG_COMERCIAL_ZIP_MAX_FILES} archivos válidos). '
                 'Refrescá el listado en unos minutos.',
             )
             return redirect(changelist_url)

@@ -408,9 +408,9 @@ def procesar_zip_rag_comercial(
                 for m in zf.namelist()
                 if m and not m.endswith("/") and not m.startswith("__MACOSX")
             ]
-            if len(members) > 50:
-                logger.warning("[Celery][RAG ZIP] ZIP con %s archivos; se procesan solo 50", len(members))
-                members = members[:50]
+            if len(members) > 100:
+                logger.warning("[Celery][RAG ZIP] ZIP con %s archivos; se procesan solo 100", len(members))
+                members = members[:100]
 
             for member in members:
                 base_name = os.path.basename(member)
