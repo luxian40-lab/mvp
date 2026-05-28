@@ -150,10 +150,14 @@ def detect_intent(mensaje: str) -> str:
     return 'desconocido'
 
 
+_AVANCE_CURSO_TRIGGERS = frozenset({'listo', 'continuar'})
+
+
 def mensaje_indica_listo(mensaje: str) -> bool:
     """
-    True si el usuario dice explícitamente listo para el gate del curso (sin detect_intent:
-    evita falsos positivos en prosa larga).
+    True si el usuario pide avanzar con *listo* o *continuar* (mensaje corto y explícito).
+    Usado en el gate del curso y en handoffs Darío → facilitadora.
+    No usa detect_intent para evitar falsos positivos en prosa larga.
     """
     if not mensaje or not str(mensaje).strip():
         return False
@@ -162,8 +166,8 @@ def mensaje_indica_listo(mensaje: str) -> bool:
     tokens = re.findall(r'\w+', t, flags=re.UNICODE)
     if not tokens:
         return False
-    if len(tokens) == 1 and tokens[0] == 'listo':
+    if len(tokens) == 1 and tokens[0] in _AVANCE_CURSO_TRIGGERS:
         return True
-    if len(tokens) <= 4 and 'listo' in tokens:
+    if len(tokens) <= 4 and any(tok in _AVANCE_CURSO_TRIGGERS for tok in tokens):
         return True
     return False

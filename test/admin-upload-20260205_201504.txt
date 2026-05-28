@@ -1,1 +1,0 @@
-Test de permisos de escritura S3

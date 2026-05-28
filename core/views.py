@@ -3842,7 +3842,7 @@ def _procesar_twilio_webhook(post_data):
                                 logger.error(f"❌ Error enviando respuesta paso módulo: {e}", exc_info=True)
                             return
 
-                # En flujo de curso normal: solo "listo" avanza y "ayuda" crea ticket.
+                # En flujo de curso normal: "listo" o "continuar" avanzan; "ayuda" crea ticket.
                 keywords_ayuda_curso = ['ayuda', 'soporte', 'ticket', 'problema']
                 keywords_corregir_curso = [
                     '4', 'corregir datos', 'corregir mis datos', 'cambiar datos', 'cambiar mis datos',
@@ -3884,9 +3884,9 @@ def _procesar_twilio_webhook(post_data):
 
                 if not _mensaje_indica_listo(msg_body):
                     if msg_body.strip() == '[AUDIO_NO_TRANSCRITO]':
-                        texto_respuesta = "⚠️ No pude escuchar tu audio. Por favor intenta de nuevo o escríbeme. Para avanzar escribe *listo*."
+                        texto_respuesta = "⚠️ No pude escuchar tu audio. Por favor intenta de nuevo o escríbeme. Para avanzar escribe *listo* o *continuar*."
                     else:
-                        texto_respuesta = "No entendí. Si quieres avanzar de módulo escribe *listo*. Si necesitas ayuda, escribe *ayuda*."
+                        texto_respuesta = "No entendí. Si quieres avanzar de módulo escribe *listo* o *continuar*. Si necesitas ayuda, escribe *ayuda*."
                     try:
                         from twilio.rest import Client as TwilioClient
                         account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')

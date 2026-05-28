@@ -32,3 +32,13 @@ def test_mensaje_indica_listo_solo_explicito_corto():
     assert (
         mensaje_indica_listo("ya terminé el material y estoy listo para continuar") is False
     )
+
+
+def test_mensaje_indica_continuar_explicito_corto():
+    assert mensaje_indica_listo("continuar") is True
+    assert mensaje_indica_listo("*continuar*") is True
+    assert mensaje_indica_listo("ok continuar") is True
+    assert mensaje_indica_listo("ya quiero continuar") is True
+    assert (
+        mensaje_indica_listo("ya terminé el material y quiero continuar con el curso") is False
+    )

@@ -1,2 +1,0 @@
-# Ejemplo de módulo para IA tutora
-Módulo 1: Finanzas personales. Las finanzas personales son la gestión del dinero y recursos de una persona o familia. Incluye ingresos, gastos, ahorro y planificación para el futuro.

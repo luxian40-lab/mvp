@@ -29,9 +29,9 @@ def parte_mensaje_con_media(url: str, caption: str | None = None) -> str:
 
 
 def _es_mensaje_listo_avance_curso(texto: str) -> bool:
-    """Igual que en webhook: *listo*, Listo, LISTO cuentan como avance de lección."""
-    t = (texto or '').strip().lower().replace('*', '').strip()
-    return t == 'listo'
+    """*listo* y *continuar* son el mismo disparador de avance."""
+    from .intent_detector import mensaje_indica_listo
+    return mensaje_indica_listo(texto)
 
 
 def partes_presentacion_agentes_curso(estudiante, curso) -> list:
@@ -1244,7 +1244,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
         if primero_listo_sin_ver_modulo:
             msg_norm = ''
         
-        # Regla estricta del curso: solo "listo" avanza.
+        # Regla del curso: "listo" o "continuar" avanzan (mismo trigger).
         if _es_mensaje_listo_avance_curso(msg_norm):
             from .drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
 
@@ -1741,7 +1741,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     partes.append(msg_cert_img)
                 return "[MULTI_MSG]" + "[SEP]".join(partes)
         
-        # Si escribieron "continuar" (primera vez o retomando), mostrar el módulo actual
+        # Cualquier otro texto en continuar_leccion: reenviar el módulo actual.
         else:
             _ctx_show = dict(estudiante.contexto_temporal or {})
             if modulo_actual and _ctx_show.get('post_reto_entregar_modulo_id') == modulo_actual.id:
