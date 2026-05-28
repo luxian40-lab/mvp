@@ -168,6 +168,32 @@ Solo necesitas:
 
 ---
 
+## CAMBIOS RECIENTES (Sesión Mayo–Jun 2026)
+
+### Manual de instrucciones v2.1
+- Actualizado en **Admin → Manual de Instrucciones** (`/admin/instrucciones/`)
+- Nuevas secciones: Flujo Habeas→Curso→GEI, Métricas por módulo, Mensajes push, Copiar cursos a Pruebas, RAG comercial masivo, Crear curso IA async
+
+### Dashboard Learning — Métricas por Empresa
+- Sub-pestaña con filtro **Hasta módulo** y cajas **Estudiantes por módulo actual**
+- Gráficas con paleta eki `#9a6cac`
+
+### Mensajes push
+- **Core → Mensajes push** — recordatorios WhatsApp sin reiniciar curso (*listo* para continuar)
+
+### Copiar cursos Alitic → Analytics (Pruebas)
+- Acciones admin + `python manage.py copiar_cursos --reset`
+- Destino NIT `900000002-0`
+
+### RAG comercial
+- Subida masiva en `/admin/agents_commercial/documentoragcomercial/` (ZIP o 2–50 archivos)
+- Fix error 500 en listado (URL proxy corregida)
+
+### Crear curso IA
+- `/admin/crear-curso-ia/` con generación async (evita 504)
+
+---
+
 ## CAMBIOS RECIENTES (Sesion Marzo 5, 2026)
 
 ### 1. Mensaje de Ventas — Opcion "Necesito ayuda"

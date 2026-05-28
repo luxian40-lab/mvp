@@ -432,9 +432,9 @@
 
         <p>Plataforma de Educación Agrícola para Campesinos Colombianos por WhatsApp</p>
 
-        <p style="font-size: 0.9em; margin-top: 10px;">✅ Versión 2.0 | Mayo 2026</p>
+        <p style="font-size: 0.9em; margin-top: 10px;">✅ Versión 2.1 | Mayo–Jun 2026</p>
 
-        <p style="font-size: 0.85em; opacity: 0.9;">Incluye: 4 dashboards · EventoIA/replay · Contexto agronómico Nati · Knowledge Studio HITL · Checkpoint auditable · Ficha GEI · Producción AWS</p>
+        <p style="font-size: 0.85em; opacity: 0.9;">Incluye: 4 dashboards · Métricas por módulo · Push WhatsApp · Copiar cursos a Pruebas · RAG comercial masivo · Crear curso IA · Ficha GEI · HITL · Producción AWS</p>
 
     </div>
 
@@ -448,7 +448,7 @@
         <p>URL: <a href="/admin/dashboard/"><code>/admin/dashboard/</code></a> con pestañas:</p>
         <ul style="line-height:1.7;">
             <li><strong>Executive</strong> — KPIs gerenciales, cohortes, salud general.</li>
-            <li><strong>Learning</strong> — avance pedagógico, checkpoints, gamificación.</li>
+            <li><strong>Learning</strong> — avance pedagógico, checkpoints, gamificación; sub-pestaña <strong>Métricas por Empresa</strong> (filtro hasta módulo, distribución por módulo).</li>
             <li><strong>AI Ops</strong> — últimos eventos IA, enlaces a replay y feature flags.</li>
             <li><strong>Commercial CRM</strong> — bot comercial, prospectos B2B, métricas Nati.</li>
         </ul>
@@ -488,7 +488,7 @@
             <li><strong>Panel:</strong> <a href="/admin/knowledge-studio/"><code>/admin/knowledge-studio/</code></a></li>
             <li>Tras cada consulta técnica Nati (no saludos), se crea <strong>ConversacionRAGCandidata</strong> en cola <em>Pendiente</em>.</li>
             <li>Flujo del agrónomo revisor: editar respuesta → <strong>Aprobar</strong> (guardar sin publicar) o <strong>Publicar en RAG</strong> (indexa chunk validado) o <strong>Rechazar</strong>.</li>
-            <li>Pestañas: Cola HITL · Biblioteca (DocumentoRAGComercial) · Salud RAG (docs indexados, chunks, ChromaDB).</li>
+            <li>Pestañas: Cola HITL · Biblioteca (<a href="/admin/agents_commercial/documentoragcomercial/">DocumentoRAGComercial</a>) · Salud RAG (docs indexados, chunks, ChromaDB).</li>
             <li>Admin Django: <em>Candidatas RAG (HITL)</em> con acción masiva «Marcar aprobada».</li>
             <li>Feature flag: <code>hitl_rag_publish</code>.</li>
         </ul>
@@ -577,7 +577,31 @@
 
             <li><strong>Retos (facilitador):</strong> se refuerza la limpieza del texto generado para que no aparezca la marca <strong>ACCIONA</strong> al participante; también se sanitizan las preguntas/ejemplos del instructor si traían ese rótulo.</li>
 
+            <li><strong>Learning Analytics → Métricas por Empresa:</strong> sub-pestaña en <a href="/admin/dashboard/?tab=learning&amp;section=metricas_empresa">dashboard Learning</a> con filtros por organización, grupo, curso y <strong>Hasta módulo</strong>; incluye cajas <em>Estudiantes por módulo actual</em> (avance M1…Mn) y gráficas en color marca (#9a6cac). Ver sección <a href="#metricas-empresa-dashboard">Métricas por Empresa</a>.</li>
+
             <li><strong>Cálculo GEI (referencia rápida):</strong> el balance se calcula en <code>formulario/calculadora.py</code> a partir de la ficha capturada (N aplicado → N₂O, combustibles, kWh con factor de red, residuos según manejo, cambio de uso del suelo, e intensidad frente a referencias de café); el resultado persistido está en <strong>ResultadoGEI</strong>. Más detalle en <code>docs/INSTRUCTIVO_EKI_RECOLECCION_GEI.md</code>.</li>
+
+        </ul>
+
+    </div>
+
+    <div class="subsection" style="border-left-color:#9a6cac;margin-top:20px;background:#f8f0ff;padding:16px 20px;border-radius:6px;">
+
+        <h3>✨ Novedades operativas (mayo–jun 2026)</h3>
+
+        <ul style="line-height:1.65;">
+
+            <li><strong>Mensajes push (recordatorios):</strong> <em>Core → Mensajes push</em> — envíos WhatsApp que <strong>no reinician</strong> el curso; el estudiante responde <code>*listo*</code> para seguir. Acción masiva «Enviar push». Ver <a href="#mensajes-push">Mensajes push</a>.</li>
+
+            <li><strong>Copiar cursos Alitic → Pruebas:</strong> acción en <em>Clientes</em> o <em>Cursos</em> del cliente origen <strong>Alitic</strong>; destino fijo <strong>Analytics (Pruebas)</strong> NIT <code>900000002-0</code>. CLI: <code>python manage.py copiar_cursos --reset</code>. Ver <a href="#copiar-cursos-pruebas">Copiar a entorno Pruebas</a>.</li>
+
+            <li><strong>RAG comercial — subida masiva:</strong> <a href="/admin/agents_commercial/documentoragcomercial/">Documentos RAG Comercial</a> → botón <strong>📦 Subida masiva</strong> (2–50 archivos sueltos o ZIP hasta 150 MB / 100 docs). Indexación en segundo plano. Ver <a href="#rag-comercial-masivo">RAG comercial masivo</a>.</li>
+
+            <li><strong>Crear curso con IA (async):</strong> <a href="/admin/crear-curso-ia/"><code>/admin/crear-curso-ia/</code></a> — sube PDF/DOCX; si tarda, pantalla de progreso con polling (evita error 504). Requiere worker Celery o modo eager en EB.</li>
+
+            <li><strong>Flujo completo estudiante:</strong> Habeas → cédula → menú → curso → módulos (<code>*listo*</code>) → formulario GEI en módulo disparador → balance M5. Diagrama en <a href="#flujo-habeas-curso-gei">Flujo Habeas → Curso → GEI</a>.</li>
+
+            <li><strong>Admin reorganizado por dominio:</strong> sidebar con apps <code>agents_commercial</code>, <code>agents_edu</code>, <code>analytics</code>, <code>learning</code>, <code>formulario</code> (mismas tablas <code>core.*</code>, permisos heredados).</li>
 
         </ul>
 
@@ -636,6 +660,18 @@
             <li><a href="#estudiantes">👥 Gestión de Estudiantes</a></li>
 
             <li><a href="#cursos">📖 Cursos y Contenido Educativo</a></li>
+
+            <li><a href="#flujo-habeas-curso-gei">🗺️ Flujo Habeas → Curso → GEI <span style="background:#9a6cac;color:white;padding:2px 8px;border-radius:3px;font-size:0.8em;">Nuevo jun 2026</span></a></li>
+
+            <li><a href="#metricas-empresa-dashboard">📊 Métricas por Empresa (por módulo) <span style="background:#9a6cac;color:white;padding:2px 8px;border-radius:3px;font-size:0.8em;">Nuevo jun 2026</span></a></li>
+
+            <li><a href="#mensajes-push">📲 Mensajes push (recordatorios) <span style="background:#9a6cac;color:white;padding:2px 8px;border-radius:3px;font-size:0.8em;">Nuevo jun 2026</span></a></li>
+
+            <li><a href="#copiar-cursos-pruebas">📋 Copiar cursos a Pruebas <span style="background:#9a6cac;color:white;padding:2px 8px;border-radius:3px;font-size:0.8em;">Nuevo jun 2026</span></a></li>
+
+            <li><a href="#rag-comercial-masivo">📦 RAG comercial — subida masiva <span style="background:#9a6cac;color:white;padding:2px 8px;border-radius:3px;font-size:0.8em;">Nuevo jun 2026</span></a></li>
+
+            <li><a href="#crear-curso-ia">🤖 Crear curso con IA <span style="background:#9a6cac;color:white;padding:2px 8px;border-radius:3px;font-size:0.8em;">Nuevo jun 2026</span></a></li>
 
             <li><a href="#ficha-gei">🧾 Ficha GEI: recolección de datos (WhatsApp) <span style="background:#15aabf;color:white;padding:2px 8px;border-radius:3px;font-size:0.8em;">Nuevo abr 2026</span></a></li>
 
@@ -699,6 +735,128 @@
 
         </ul>
 
+    </div>
+
+    <!-- ===== Novedades jun 2026 — secciones detalladas ===== -->
+
+    <div id="flujo-habeas-curso-gei" class="section">
+        <h2 class="section-title">🗺️ Flujo completo: Habeas Data → Curso → GEI</h2>
+        <div class="subsection">
+            <p>Resumen del recorrido del estudiante por WhatsApp (canal educativo) hasta la recolección GEI y el balance de carbono.</p>
+            <ol class="step-list" style="line-height:1.75;">
+                <li><strong>Entrada Twilio</strong> — <code>POST /webhook/whatsapp/</code> recibe mensaje, normaliza teléfono y busca estudiante.</li>
+                <li><strong>Habeas Data</strong> — <code>estado_chat = ESPERANDO_HABEAS_DATA</code>. Plantilla Twilio con botones Acepto / No. Sin aceptación no hay curso (Ley 1581).</li>
+                <li><strong>Verificación identidad</strong> — Cédula vs datos importados (Excel B2B) → confirmación de datos → <code>estado_chat = ACTIVO</code>.</li>
+                <li><strong>Menú y curso</strong> — «Mis cursos» / <code>tomar 1</code> → <code>ProgresoEstudiante</code> → contenido del módulo actual + multimedia.</li>
+                <li><strong>Avance</strong> — El estudiante escribe <code>*listo*</code> para cerrar pasos/módulo. Puede haber <strong>drip</strong> (fecha entre módulos), <strong>mini examen</strong> y <strong>checkpoint</strong> (reto IA facilitadora).</li>
+                <li><strong>Disparo GEI</strong> — Al cerrar el <strong>módulo disparador</strong> (ej. M4 contexto finca), si <code>curso.tiene_formulario_gei=True</code> y hay <code>TipoFormulario</code> activo, inicia <strong>sesión de formulario</strong> (prioridad sobre tutor).</li>
+                <li><strong>Preguntas secuenciales</strong> — Respuestas → <code>FichaGEI</code>. Puede usar <code>OMITIR</code> en pasos opcionales. Parseo IA para unidades colombianas (fanegadas, bultos, arrobas).</li>
+                <li><strong>Cierre formulario</strong> — Avance al siguiente módulo. En <strong>M5 balance</strong> se envía resultado GEI por WhatsApp (<code>ResultadoGEI</code>).</li>
+            </ol>
+            <div class="alert-box alert-info">
+                <strong>Orden de prioridad en webhook ACTIVO:</strong> (1) sesión formulario GEI abierta → (2) menú/selección curso → (3) flujo módulos / tutor IA / RAG educativo.
+            </div>
+            <p>Documentación técnica GEI: <code>docs/INSTRUCTIVO_EKI_RECOLECCION_GEI.md</code> · Comando sembrar flujos: <code>python manage.py sembrar_flujos_gei_automatico --cliente "Alitic"</code></p>
+        </div>
+    </div>
+
+    <div id="metricas-empresa-dashboard" class="section">
+        <h2 class="section-title">📊 Métricas por Empresa — dashboard Learning</h2>
+        <div class="subsection">
+            <p><strong>Ruta:</strong> <a href="/admin/dashboard/?tab=learning&amp;section=metricas_empresa"><code>/admin/dashboard/?tab=learning&amp;section=metricas_empresa</code></a></p>
+            <h3>Filtros</h3>
+            <ul>
+                <li><strong>Organización</strong> — cliente B2B (obligatorio para métricas útiles).</li>
+                <li><strong>Grupo</strong> — cohorte dentro de la organización.</li>
+                <li><strong>Curso</strong> — necesario para ver la sección <em>Estudiantes por módulo actual</em>.</li>
+                <li><strong>Hasta módulo</strong> — cohorte que llegó ≥ Mn; el avance KPI se calcula sobre M1…Mn (distinto del drip calendario).</li>
+                <li><strong>Fechas</strong> — rango de inscripción / actividad.</li>
+            </ul>
+            <h3>Tarjetas y gráficas</h3>
+            <ul>
+                <li>KPIs B2B: finalización, no iniciados, lecturas WhatsApp, avance total y avance hasta M.</li>
+                <li><strong>Estudiantes por módulo actual</strong> — cajas M1, M2… con conteo y % de avance calculado solo sobre M1 hasta ese módulo (ej. en M1 antes de M2 → 100% si cerró M1).</li>
+                <li>Gráficas con paleta marca eki <code>#9a6cac</code>.</li>
+                <li>Tabla por estudiante + botón <strong>📥 Descargar Excel</strong>.</li>
+                <li>Metas KPI editables desde el mismo panel (⚙️ Metas KPI).</li>
+            </ul>
+            <p><strong>API staff:</strong> <code>GET /admin/analytics/api/?tipo=metricas_empresa&amp;cliente_id=&amp;curso_id=&amp;modulo_hasta=</code></p>
+        </div>
+    </div>
+
+    <div id="mensajes-push" class="section">
+        <h2 class="section-title">📲 Mensajes push — recordatorios sin reiniciar curso</h2>
+        <div class="subsection">
+            <p>Recordatorios WhatsApp para estudiantes inscritos. <strong>No reinician</strong> el progreso del curso: invitan a responder <code>*listo*</code> para continuar donde iban.</p>
+            <h3>Dónde configurarlo</h3>
+            <ul>
+                <li><strong>Admin → Core → Mensajes push</strong> — crear plantilla con Content SID Twilio (HX…) o texto fallback.</li>
+                <li>Variables en cuerpo: <code>{nombre}</code>, <code>{curso}</code>.</li>
+                <li>Audiencia: filtrar por <strong>cliente</strong> y opcionalmente <strong>curso</strong>.</li>
+                <li>Acción masiva: <strong>📲 Enviar push a audiencia del mensaje</strong>.</li>
+                <li>Historial en <strong>Envíos mensaje push</strong> (éxito/error por estudiante).</li>
+            </ul>
+            <div class="alert-box alert-warning">
+                <strong>Diferencia con campañas:</strong> las campañas masivas pueden usar plantillas de marketing; los push están pensados para retomar el hilo educativo sin borrar <code>ProgresoEstudiante</code>.
+            </div>
+        </div>
+    </div>
+
+    <div id="copiar-cursos-pruebas" class="section">
+        <h2 class="section-title">📋 Copiar cursos Alitic → Analytics (Pruebas)</h2>
+        <div class="subsection">
+            <p>Sincroniza contenido del cliente productivo de pruebas internas sin copiar estudiantes ni progreso.</p>
+            <table style="width:100%;border-collapse:collapse;font-size:0.9em;margin:12px 0;">
+                <tr style="background:#e9ecef;"><th style="padding:8px;text-align:left;">Concepto</th><th style="padding:8px;text-align:left;">Valor</th></tr>
+                <tr><td style="padding:8px;border-top:1px solid #dee2e6;">Origen</td><td style="padding:8px;border-top:1px solid #dee2e6;">Cliente <strong>Alitic</strong> (no confundir con Pruebas)</td></tr>
+                <tr><td style="padding:8px;border-top:1px solid #dee2e6;">Destino</td><td style="padding:8px;border-top:1px solid #dee2e6;"><strong>Analytics (Pruebas)</strong> NIT <code>900000002-0</code></td></tr>
+                <tr><td style="padding:8px;border-top:1px solid #dee2e6;">Prefijo curso</td><td style="padding:8px;border-top:1px solid #dee2e6;"><code>[PRUEBA]</code> en el nombre</td></tr>
+                <tr><td style="padding:8px;border-top:1px solid #dee2e6;">Qué copia</td><td style="padding:8px;border-top:1px solid #dee2e6;">Módulos, pasos, archivos, exámenes, TipoFormulario GEI</td></tr>
+                <tr><td style="padding:8px;border-top:1px solid #dee2e6;">Qué NO copia</td><td style="padding:8px;border-top:1px solid #dee2e6;">Estudiantes, progreso, inscripciones</td></tr>
+            </table>
+            <h3>Cómo ejecutarlo</h3>
+            <ol>
+                <li><strong>Admin → Clientes</strong> — seleccionar <em>Alitic</em> → acción «Copiar todos los cursos → Analytics (Pruebas)».</li>
+                <li><strong>Admin → Cursos</strong> — seleccionar cursos de Alitic → acción «Copiar a Analytics (Pruebas)».</li>
+                <li><strong>CLI local o EB SSH:</strong> <code>python manage.py copiar_cursos --reset</code> (borra cursos destino antes de copiar).</li>
+                <li><strong>Script EB:</strong> <code>.\scripts\eb_run_copiar_cursos.ps1 -Reset</code></li>
+            </ol>
+        </div>
+    </div>
+
+    <div id="rag-comercial-masivo" class="section">
+        <h2 class="section-title">📦 RAG comercial — subida masiva de documentos</h2>
+        <div class="subsection">
+            <p><strong>Listado:</strong> <a href="/admin/agents_commercial/documentoragcomercial/"><code>/admin/agents_commercial/documentoragcomercial/</code></a></p>
+            <p>Alimenta el bot comercial (Nati) y <strong>no</strong> el RAG educativo de cursos. También accesible desde Knowledge Studio → pestaña Biblioteca.</p>
+            <h3>Subida masiva</h3>
+            <ul>
+                <li>Botón <strong>📦 Subida masiva</strong> en el listado.</li>
+                <li><strong>ZIP (recomendado):</strong> hasta 150 MB, hasta 100 archivos PDF/DOCX/TXT/XLSX dentro. Procesamiento en segundo plano.</li>
+                <li><strong>Archivos sueltos:</strong> 2 a 50 por tanda (Ctrl+clic múltiple).</li>
+                <li>Cada archivo → un <code>DocumentoRAGComercial</code>; el nombre del doc = nombre del archivo.</li>
+                <li>Estados: <em>Pendiente</em> → <em>Indexado</em> (refrescar listado tras unos minutos).</li>
+            </ul>
+            <p><strong>Acciones en listado:</strong> indexar seleccionados, re-indexar, eliminar del RAG (sin borrar archivo).</p>
+            <div class="alert-box alert-info">
+                <strong>Workers:</strong> en EB con <code>CELERY_TASK_ALWAYS_EAGER=True</code> la indexación corre en hilos internos. Para cargas muy grandes (200+ docs), configurar Redis + worker Celery dedicado.
+            </div>
+        </div>
+    </div>
+
+    <div id="crear-curso-ia" class="section">
+        <h2 class="section-title">🤖 Crear curso con IA (documento → curso)</h2>
+        <div class="subsection">
+            <p><strong>Ruta:</strong> <a href="/admin/crear-curso-ia/"><code>/admin/crear-curso-ia/</code></a></p>
+            <ol class="step-list">
+                <li>Subir PDF o DOCX con el contenido base del curso.</li>
+                <li>Indicar organización, nombre del curso y prompt opcional.</li>
+                <li>La IA genera módulos, lecciones y estructura pedagógica.</li>
+                <li>Si la generación tarda (OpenAI), redirige a pantalla <strong>Generando…</strong> con polling (<code>/admin/crear-curso-ia/generando/</code>) — evita error 504 del balanceador.</li>
+                <li>Vista previa antes de publicar; regenerar secciones con instrucciones puntuales.</li>
+            </ol>
+            <p>Requiere <code>OPENAI_API_KEY</code> en variables EB. Modelos no-OpenAI fallan con mensaje claro.</p>
+        </div>
     </div>
 
     <div id="ficha-gei" class="section">
@@ -1121,6 +1279,9 @@ python manage.py crear_cliente_preserva --reset   # borra y recrea</code></pre>
                 Primero responde con contexto indexado (vectorial + fallback documental) y, solo si no hay suficiente contexto,
                 activa respaldo externo académico/internet de forma temporal mientras se cargan más documentos.
             </div>
+
+            <h3 style="margin-top: 20px;">Documentos RAG comercial (biblioteca)</h3>
+            <p>Listado y subida masiva: <a href="/admin/agents_commercial/documentoragcomercial/"><code>/admin/agents_commercial/documentoragcomercial/</code></a> — ver también <a href="#rag-comercial-masivo">Subida masiva RAG</a>.</p>
 
             <h3 style="margin-top: 20px;">Checklist rápido para calidad de respuestas</h3>
             <ol>
@@ -5072,6 +5233,13 @@ Si escribe algo más, se le indica que ya completó el curso.)
         <h2 class="section-title">📝 Guía Paso a Paso: Crear un Curso Completo</h2>
 
         
+
+        <div class="subsection">
+
+            <h3>Paso 0 (alternativa): Generar curso con IA</h3>
+            <p>Si partís de un PDF o DOCX existente, usá <a href="/admin/crear-curso-ia/"><strong>Crear curso con IA</strong></a> en lugar de armar módulos a mano. Ver sección <a href="#crear-curso-ia">Crear curso con IA</a>.</p>
+
+        </div>
 
         <div class="subsection">
 
