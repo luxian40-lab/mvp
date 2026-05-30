@@ -1,0 +1,28 @@
+{
+  "cliente_id": null,
+  "vigencia_desde": "2026-05-01",
+  "vigencia_hasta": null,
+  "desactivar_ausentes": false,
+  "productos": [
+    {
+      "sku": "UREA-46-50KG",
+      "nombre": "Urea 46% granular",
+      "presentacion": "bulto 50 kg",
+      "unidad": "bulto",
+      "precio": 185000,
+      "moneda": "COP",
+      "categoria": "fertilizante",
+      "notas": "Precio sin flete"
+    },
+    {
+      "sku": "MAP-12-61-0-50KG",
+      "nombre": "MAP 12-61-0",
+      "presentacion": "bulto 50 kg",
+      "unidad": "bulto",
+      "precio": 245000,
+      "moneda": "COP",
+      "categoria": "fertilizante",
+      "notas": ""
+    }
+  ]
+}

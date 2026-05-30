@@ -1508,6 +1508,81 @@ class DocumentoRAGComercial(models.Model):
             return None
 
 
+class ProductoComercial(models.Model):
+    """
+    Catálogo de precios estructurado para Nat (WhatsApp comercial).
+    Fuente de verdad en Postgres; el RAG comercial queda para documentos técnicos.
+    """
+
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='productos_comerciales',
+        verbose_name='Cliente',
+        help_text='Vacío = catálogo general visible para todos los clientes.',
+    )
+    sku = models.CharField(
+        max_length=80,
+        verbose_name='SKU / código',
+        help_text='Identificador único por cliente (ej: UREA-46-50KG).',
+    )
+    nombre = models.CharField(max_length=200, verbose_name='Nombre del producto')
+    presentacion = models.CharField(
+        max_length=120,
+        blank=True,
+        default='',
+        verbose_name='Presentación',
+        help_text='Ej: bulto 50 kg, garrafa 1 L.',
+    )
+    unidad = models.CharField(
+        max_length=40,
+        blank=True,
+        default='',
+        verbose_name='Unidad de venta',
+        help_text='Ej: bulto, kg, litro.',
+    )
+    precio = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        verbose_name='Precio',
+    )
+    moneda = models.CharField(max_length=8, default='COP', verbose_name='Moneda')
+    categoria = models.CharField(
+        max_length=80,
+        blank=True,
+        default='',
+        verbose_name='Categoría',
+        help_text='Ej: fertilizante, herbicida, fungicida.',
+    )
+    notas = models.TextField(blank=True, default='', verbose_name='Notas comerciales')
+    vigencia_desde = models.DateField(null=True, blank=True, verbose_name='Vigente desde')
+    vigencia_hasta = models.DateField(null=True, blank=True, verbose_name='Vigente hasta')
+    activo = models.BooleanField(default=True, verbose_name='Activo')
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Producto comercial (precio)'
+        verbose_name_plural = 'Productos comerciales (precios)'
+        ordering = ['nombre', 'sku']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['cliente', 'sku'],
+                name='uniq_producto_comercial_cliente_sku',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['cliente', 'activo', '-fecha_actualizacion']),
+            models.Index(fields=['nombre']),
+            models.Index(fields=['categoria']),
+        ]
+
+    def __str__(self):
+        cliente_txt = self.cliente.nombre if self.cliente_id else 'General'
+        return f"{self.sku} — {self.nombre} ({cliente_txt})"
+
+
 class Modulo(models.Model):
     """Módulo dentro de un curso (ej: Módulo 1: Siembra)"""
     curso = models.ForeignKey(Curso, on_delete=models.CASCADE, related_name='modulos')

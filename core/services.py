@@ -1,7 +1,11 @@
 import time
+import logging
+import threading
+
+from django.conf import settings
+
 from .models import EnvioLog
 from .utils import enviar_whatsapp_twilio
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -126,3 +130,40 @@ def ejecutar_campana_servicio(campana):
     logger.info(f"CAMPANA COMPLETADA: {resultados['exitosos']} exitosos, {resultados['fallidos']} fallidos")
     
     return resultados
+
+
+def encolar_ejecutar_campana(campana_id: int) -> str:
+    """
+    Encola el envío masivo fuera del request HTTP del admin.
+    Evita 504 cuando hay muchos destinatarios (nginx/ALB ~60s).
+    Retorna: 'celery' | 'background'
+    """
+    def _ejecutar_en_background():
+        try:
+            from .models import Campana
+            campana = Campana.objects.get(pk=campana_id)
+            ejecutar_campana_servicio(campana)
+        except Exception:
+            logger.exception('[Campana] Error en envío background id=%s', campana_id)
+
+    try:
+        from core.tasks import ejecutar_campana_async
+
+        if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
+            threading.Thread(
+                target=_ejecutar_en_background,
+                daemon=True,
+                name=f'campana-{campana_id}',
+            ).start()
+            return 'background'
+
+        ejecutar_campana_async.delay(campana_id)
+        return 'celery'
+    except Exception:
+        logger.warning('[Campana] Celery no disponible; envío en hilo background id=%s', campana_id)
+        threading.Thread(
+            target=_ejecutar_en_background,
+            daemon=True,
+            name=f'campana-{campana_id}',
+        ).start()
+        return 'background'

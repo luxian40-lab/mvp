@@ -27,6 +27,7 @@ from .models import (
     AliadoEmpleabilidad, MisionEmpleabilidad, PreguntaAbiertaFinalCurso, RespuestaAbiertaFinal,
     DocumentoRAG,  # 📚 RAG Multi-Tenant
     DocumentoRAGComercial,  # 🛒 RAG Comercial
+    ProductoComercial,  # 💰 Precios Nat (Postgres)
     MetaMetricaEmpresa, MetaMetricaNati,
     EventoIA,
     ContextoAgroSession,
@@ -2130,8 +2131,8 @@ class CampanaAdmin(admin.ModelAdmin):
     
     @admin.action(description='🚀 Ejecutar Campaña (Enviar Mensajes)')
     def enviar_campana_accion(self, request, queryset):
-        """Ejecuta el envío de campañas masivas por WhatsApp"""
-        from .services import ejecutar_campana_servicio
+        """Encola el envío masivo en segundo plano (evita 504 con +90 destinatarios)."""
+        from .services import encolar_ejecutar_campana
         
         for campana in queryset:
             # Permitir re-envío de campañas ya ejecutadas
@@ -2179,16 +2180,19 @@ class CampanaAdmin(admin.ModelAdmin):
                 continue
             
             try:
-                res = ejecutar_campana_servicio(campana)
+                modo = encolar_ejecutar_campana(campana.id)
+                detalle_modo = 'Celery' if modo == 'celery' else 'proceso en background'
                 self.message_user(
-                    request, 
-                    f"✅ '{campana.nombre}': {res['exitosos']} enviados, {res['fallidos']} errores de {res['total']} total.", 
-                    level=messages.SUCCESS
+                    request,
+                    f"⏳ '{campana.nombre}' encolada ({detalle_modo}): "
+                    f"se enviará a {destinatarios_count} destinatarios en segundo plano. "
+                    f"Actualiza el listado en unos minutos para ver el resultado.",
+                    level=messages.SUCCESS,
                 )
             except Exception as e:
                 self.message_user(
                     request,
-                    f"❌ Error ejecutando '{campana.nombre}': {str(e)}",
+                    f"❌ Error encolando '{campana.nombre}': {str(e)}",
                     level=messages.ERROR
                 )
     
@@ -6457,6 +6461,26 @@ class DocumentoRAGAdmin(admin.ModelAdmin):
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
         extra_context['title'] = '📚 Documentos RAG — Base de Conocimiento para Agentes IA'
+        return super().changelist_view(request, extra_context)
+
+
+@admin.register(ProductoComercial)
+class ProductoComercialAdmin(admin.ModelAdmin):
+    """💰 Catálogo de precios estructurado para Nat (Postgres)."""
+
+    list_display = (
+        'sku', 'nombre', 'presentacion', 'precio', 'moneda',
+        'cliente', 'categoria', 'activo', 'fecha_actualizacion',
+    )
+    list_filter = ('activo', 'cliente', 'categoria', 'moneda')
+    search_fields = ('sku', 'nombre', 'categoria', 'notas')
+    list_editable = ('precio', 'activo')
+    ordering = ('-fecha_actualizacion',)
+    list_per_page = 50
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['title'] = '💰 Precios comerciales — Nat (Postgres)'
         return super().changelist_view(request, extra_context)
 
 

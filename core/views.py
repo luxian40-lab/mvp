@@ -2244,6 +2244,23 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
 
         contexto_rag = ''
         contexto_web = ''
+
+        from core.catalogo_precios import (
+            buscar_precios,
+            es_consulta_catalogo,
+            formatear_contexto_precios,
+        )
+        contexto_precios_db = ''
+        if es_consulta_catalogo(consulta):
+            productos_precio = buscar_precios(cliente_ids_consulta, consulta)
+            if productos_precio:
+                contexto_precios_db = formatear_contexto_precios(productos_precio)
+                logger.info(
+                    "💰 Precios Postgres | hits=%s | clientes=%s",
+                    len(productos_precio),
+                    cliente_ids_consulta,
+                )
+
         if rag_comercial_manager.disponible:
             from .models import DocumentoRAGComercial
 
@@ -2319,6 +2336,13 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
             )
             if contexto_rag:
                 logger.info("🧠 RAG fallback documental usado | contexto_chars=%s", len(contexto_rag))
+
+        if contexto_precios_db:
+            contexto_rag = (
+                f"{contexto_precios_db}\n\n{contexto_rag}".strip()
+                if contexto_rag
+                else contexto_precios_db
+            )
 
         from core.nat_router import decidir_routing_nat
 

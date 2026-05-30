@@ -223,7 +223,7 @@ def enviar_campanas_programadas():
         return f'Error: {e}'
 
 
-@shared_task(bind=True, max_retries=2, default_retry_delay=60)
+@shared_task(bind=True, max_retries=2, default_retry_delay=60, time_limit=3600, soft_time_limit=3300)
 def ejecutar_campana_async(self, campana_id):
     """
     Ejecuta una campaña específica de forma asíncrona (misma lógica que el admin).
