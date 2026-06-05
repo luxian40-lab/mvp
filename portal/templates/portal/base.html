@@ -63,6 +63,33 @@
         html[data-theme="dark"] .alert-error { background: #450a0a; border-color: #991b1b; color: #fecaca; }
         html[data-theme="dark"] .row-link:hover { background: #334155; }
 
+        html[data-theme="dark"] td {
+            color: var(--texto);
+        }
+
+        html[data-theme="dark"] table a,
+        html[data-theme="dark"] .row-link-anchor {
+            color: #93c5fd;
+        }
+
+        html[data-theme="dark"] table a:hover,
+        html[data-theme="dark"] .row-link-anchor:hover {
+            color: #bfdbfe;
+        }
+
+        html[data-theme="dark"] input,
+        html[data-theme="dark"] select,
+        html[data-theme="dark"] textarea {
+            background: var(--tabla-head);
+            color: var(--texto);
+            border-color: var(--borde);
+        }
+
+        html[data-theme="dark"] input::placeholder,
+        html[data-theme="dark"] textarea::placeholder {
+            color: var(--texto-muted);
+        }
+
         * { box-sizing: border-box; }
 
         body {
@@ -481,6 +508,7 @@
             border-bottom: 1px solid var(--borde);
             text-align: left;
             vertical-align: middle;
+            color: var(--texto);
         }
 
         th {
