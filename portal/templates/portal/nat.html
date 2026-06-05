@@ -9,7 +9,12 @@
         <p class="muted">Conversaciones, catálogo de productos y escalamientos.</p>
         {% if linea_nat %}<p class="muted">Línea: <strong>{{ linea_nat }}</strong></p>{% endif %}
     </div>
-    <a class="btn" href="/portal/pqrs/">PQRS comercial</a>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        {% if portal_es_admin %}
+            <a class="btn" href="/portal/nat/documentos/">Subir documentos</a>
+        {% endif %}
+        <a class="btn btn-outline" href="/portal/pqrs/">PQRS comercial</a>
+    </div>
 </div>
 
 <section class="cards-grid" style="margin-bottom:24px;">

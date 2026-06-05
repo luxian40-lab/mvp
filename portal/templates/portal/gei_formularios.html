@@ -1,0 +1,43 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Preguntas GEI | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <p class="muted" style="margin:0 0 6px;"><a href="/portal/gei/">Inventario GEI</a> / Preguntas del formulario</p>
+        <h1>Formularios GEI</h1>
+        <p class="muted">Edite el texto de las preguntas que reciben sus productores por WhatsApp.</p>
+    </div>
+</div>
+
+<section class="panel">
+    <table>
+        <thead>
+            <tr>
+                <th>Formulario</th>
+                <th>Curso</th>
+                <th>Módulo disparador</th>
+                <th>Pasos</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in formularios %}
+                <tr>
+                    <td>{{ row.obj.nombre }}</td>
+                    <td>{{ row.obj.curso.nombre }}</td>
+                    <td>{{ row.obj.modulo.titulo|default:row.obj.modulo }}</td>
+                    <td>{{ row.pasos }}</td>
+                    <td>
+                        <a href="/portal/gei/formularios/{{ row.obj.id }}/">{% if row.editable %}Editar{% else %}Ver{% endif %}</a>
+                        {% if not row.editable %}<span class="muted"> (global eki)</span>{% endif %}
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="5" class="muted">Sin formularios GEI para sus cursos. Solicite a eki la configuración del flujo.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

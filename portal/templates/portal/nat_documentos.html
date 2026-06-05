@@ -1,0 +1,75 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Documentos Nat | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <p class="muted" style="margin:0 0 6px;"><a href="/portal/nat/">Agente Nat</a> / Documentos</p>
+        <h1>Base de conocimiento Nat</h1>
+        <p class="muted">Suba catálogos, fichas técnicas o FAQs para que Nat responda con información de su marca.</p>
+    </div>
+</div>
+
+{% if ok %}
+    <section class="panel" style="margin-bottom:20px;border-left:4px solid var(--accent);">
+        <p>Archivo recibido. La indexación puede tardar unos minutos; actualice esta página para ver el estado.</p>
+    </section>
+{% endif %}
+{% if error %}
+    <section class="panel" style="margin-bottom:20px;border-left:4px solid #e03131;">
+        <p>{{ error }}</p>
+    </section>
+{% endif %}
+
+<section class="panel" style="margin-bottom:24px;">
+    <h2>Subir archivo</h2>
+    <form method="post" enctype="multipart/form-data" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;align-items:end;margin-top:12px;">
+        {% csrf_token %}
+        <label>
+            <strong>Nombre</strong>
+            <input type="text" name="nombre" required maxlength="120" placeholder="catalogo_abril_2026" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+        </label>
+        <label>
+            <strong>Tipo</strong>
+            <select name="tipo" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+                {% for key, label in tipos_documento %}
+                    <option value="{{ key }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <strong>Archivo</strong>
+            <input type="file" name="archivo" required accept=".pdf,.docx,.txt,.xlsx,.xlsm" style="width:100%;margin-top:6px;">
+        </label>
+        <button class="btn" type="submit">Subir e indexar</button>
+    </form>
+    <p class="muted" style="margin-top:10px;">Formatos: PDF, DOCX, TXT, XLSX.</p>
+</section>
+
+<section class="panel">
+    <h2>Documentos cargados</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Tipo</th>
+                <th>Estado</th>
+                <th>Fecha</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in documentos %}
+                <tr>
+                    <td>{{ d.nombre }}</td>
+                    <td>{{ d.get_tipo_display }}</td>
+                    <td>{{ d.get_estado_display }}</td>
+                    <td>{{ d.fecha_subida|date:"d/m/Y H:i" }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="4" class="muted">Aún no hay documentos. Suba el primero arriba.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

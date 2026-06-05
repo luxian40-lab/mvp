@@ -17,7 +17,14 @@ from core.models import (
 from core.models_extras import GrupoEstudiantes
 from core.drip_schedule import max_modulo_alcanzado
 from core.metricas_empresa import calcular_metricas_empresa
+from .authz import requiere_portal_admin
 from .capabilities import categorias_pqrs_portal, modulos_portal, requiere_modulo
+from .gei_config import (
+    formulario_editable_por_org,
+    obtener_formulario_org,
+    queryset_formularios_org,
+)
+from .nat_documentos import crear_documento_nat, listar_documentos_nat
 from .metricas_ejecutivas import detalle_estudiantes_learning, resumen_ejecutivo_portal
 from .ranking_portal import ranking_portal
 from .exports import filas_reenganche_sin_modulo, respuesta_excel_plantilla, validar_filtros_export
@@ -225,6 +232,71 @@ def portal_gei_detalle(request, ficha_id):
 
 
 @portal_login_required
+@requiere_modulo('gei')
+@requiere_portal_admin
+def portal_gei_formularios(request):
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    formularios = []
+    for f in queryset_formularios_org(org):
+        formularios.append({
+            'obj': f,
+            'editable': formulario_editable_por_org(f, org),
+            'pasos': f.flujo_pasos.count(),
+        })
+
+    return render(request, 'portal/gei_formularios.html', {
+        'org': org,
+        'formularios': formularios,
+    })
+
+
+@portal_login_required
+@requiere_modulo('gei')
+@requiere_portal_admin
+def portal_gei_formulario_editar(request, formulario_id):
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    formulario = obtener_formulario_org(formulario_id, org)
+    if not formulario:
+        return redirect('/portal/gei/formularios/')
+
+    editable = formulario_editable_por_org(formulario, org)
+    error = None
+    ok = False
+
+    if request.method == 'POST' and editable:
+        from formulario.models import FlujoPregunta
+
+        pasos = list(formulario.flujo_pasos.order_by('orden'))
+        for paso in pasos:
+            prefix = f'paso_{paso.pk}_'
+            texto = (request.POST.get(prefix + 'pregunta_texto') or '').strip()
+            if texto:
+                paso.pregunta_texto = texto
+            paso.texto_reintento = (request.POST.get(prefix + 'texto_reintento') or '').strip()
+            paso.es_opcional = prefix + 'es_opcional' in request.POST
+            paso.save(update_fields=['pregunta_texto', 'texto_reintento', 'es_opcional'])
+        ok = True
+    elif request.method == 'POST' and not editable:
+        error = 'Este formulario es global de eki; solicite una copia propia para editarlo.'
+
+    pasos = list(formulario.flujo_pasos.order_by('orden'))
+    return render(request, 'portal/gei_formulario_editar.html', {
+        'org': org,
+        'formulario': formulario,
+        'pasos': pasos,
+        'editable': editable,
+        'error': error,
+        'ok': ok,
+    })
+
+
+@portal_login_required
 @requiere_modulo('nat')
 def portal_nat(request):
     org = _portal_org(request)
@@ -242,6 +314,52 @@ def portal_nat(request):
         'org': org,
         'pqrs_recientes': pqrs,
         **data,
+    })
+
+
+@portal_login_required
+@requiere_modulo('nat')
+@requiere_portal_admin
+def portal_nat_documentos(request):
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    from core.models import DocumentoRAGComercial
+
+    error = None
+    ok = False
+    if request.method == 'POST':
+        nombre = (request.POST.get('nombre') or '').strip()
+        tipo = (request.POST.get('tipo') or 'general').strip()
+        archivo = request.FILES.get('archivo')
+        tipos_validos = {k for k, _ in DocumentoRAGComercial.TIPO_CHOICES}
+        if not nombre or not archivo:
+            error = 'Indique nombre y archivo.'
+        elif tipo not in tipos_validos:
+            error = 'Tipo de documento no válido.'
+        else:
+            try:
+                crear_documento_nat(
+                    org,
+                    nombre=nombre,
+                    tipo=tipo,
+                    archivo=archivo,
+                    subido_por=request.portal_usuario.user,
+                )
+                ok = True
+            except ValueError as exc:
+                error = str(exc)
+            except Exception:
+                error = 'No se pudo guardar el archivo. Intente de nuevo.'
+
+    documentos = listar_documentos_nat(org)
+    return render(request, 'portal/nat_documentos.html', {
+        'org': org,
+        'documentos': documentos,
+        'tipos_documento': DocumentoRAGComercial.TIPO_CHOICES,
+        'error': error,
+        'ok': ok,
     })
 
 

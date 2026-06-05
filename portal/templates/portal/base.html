@@ -714,6 +714,12 @@
                     <span class="link-icon">G</span>
                     <span class="link-text">Inventario GEI</span>
                 </a>
+                {% if portal_es_admin %}
+                <a href="/portal/gei/formularios/" class="sidebar-link {% if '/portal/gei/formularios' in request.path %}active{% endif %}" title="Preguntas del formulario GEI">
+                    <span class="link-icon">?</span>
+                    <span class="link-text">Preguntas GEI</span>
+                </a>
+                {% endif %}
             {% endif %}
 
             {% if portal_mod_nat %}
@@ -722,6 +728,12 @@
                     <span class="link-icon">N</span>
                     <span class="link-text">Agente Nat</span>
                 </a>
+                {% if portal_es_admin %}
+                <a href="/portal/nat/documentos/" class="sidebar-link {% if '/portal/nat/documentos' in request.path %}active{% endif %}" title="Documentos para Nat">
+                    <span class="link-icon">D</span>
+                    <span class="link-text">Documentos Nat</span>
+                </a>
+                {% endif %}
             {% endif %}
 
             <div class="nav-label">Soporte</div>

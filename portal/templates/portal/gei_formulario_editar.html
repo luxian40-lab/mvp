@@ -1,0 +1,55 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Editar preguntas GEI | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <p class="muted" style="margin:0 0 6px;"><a href="/portal/gei/formularios/">Formularios GEI</a> / {{ formulario.nombre }}</p>
+        <h1>{{ formulario.nombre }}</h1>
+        <p class="muted">{{ formulario.curso.nombre }} · dispara al completar módulo {{ formulario.modulo.numero }}</p>
+    </div>
+</div>
+
+{% if ok %}
+    <section class="panel" style="margin-bottom:20px;border-left:4px solid var(--accent);">
+        <p>Cambios guardados.</p>
+    </section>
+{% endif %}
+{% if error %}
+    <section class="panel" style="margin-bottom:20px;border-left:4px solid #e03131;">
+        <p>{{ error }}</p>
+    </section>
+{% endif %}
+{% if not editable %}
+    <section class="panel" style="margin-bottom:20px;">
+        <p class="muted">Este formulario es de eki (global). Puede revisar las preguntas; para editarlas pida a eki una copia asignada a su organización.</p>
+    </section>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    {% for paso in pasos %}
+        <section class="panel" style="margin-bottom:16px;">
+            <h2 style="font-size:1rem;margin-bottom:10px;">Paso {{ paso.orden }} — {{ paso.campo_destino }}</h2>
+            <label style="display:block;margin-bottom:12px;">
+                <strong>Pregunta</strong>
+                <textarea name="paso_{{ paso.id }}_pregunta_texto" rows="3" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;" {% if not editable %}readonly{% endif %}>{{ paso.pregunta_texto }}</textarea>
+            </label>
+            <label style="display:block;margin-bottom:12px;">
+                <strong>Mensaje si la respuesta no es válida</strong>
+                <textarea name="paso_{{ paso.id }}_texto_reintento" rows="2" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;" {% if not editable %}readonly{% endif %}>{{ paso.texto_reintento }}</textarea>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;">
+                <input type="checkbox" name="paso_{{ paso.id }}_es_opcional" {% if paso.es_opcional %}checked{% endif %} {% if not editable %}disabled{% endif %}>
+                El productor puede omitir este paso (OMITIR)
+            </label>
+        </section>
+    {% empty %}
+        <section class="panel"><p class="muted">Sin pasos configurados.</p></section>
+    {% endfor %}
+    {% if editable and pasos %}
+        <button class="btn" type="submit">Guardar cambios</button>
+    {% endif %}
+</form>
+{% endblock %}
