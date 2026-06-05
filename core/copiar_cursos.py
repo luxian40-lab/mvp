@@ -124,7 +124,39 @@ def obtener_cliente_analytics_origen(
     raise ClienteOrigenNoEncontrado(msg)
 
 
-def _asegurar_destino_pruebas(origen: Cliente) -> Cliente:
+def obtener_cliente_destino(
+    *,
+    destino_nombre: str | None = None,
+    destino_nit: str | None = None,
+) -> Cliente:
+    """Resuelve cliente destino por nombre o NIT (p. ej. «pruebas1»)."""
+    if destino_nit:
+        c = Cliente.objects.filter(nit=destino_nit).first()
+        if c:
+            return c
+    nombre = (destino_nombre or DESTINO_DEFAULT['nombre']).strip()
+    c = Cliente.objects.filter(nombre__iexact=nombre).first()
+    if c:
+        return c
+    c = Cliente.objects.filter(nombre__icontains=nombre).first()
+    if c:
+        return c
+    raise LookupError(
+        f'No se encontró cliente destino «{nombre}». Créelo en admin antes de copiar.'
+    )
+
+
+def _asegurar_destino_pruebas(
+    origen: Cliente,
+    *,
+    destino_nombre: str | None = None,
+    destino_nit: str | None = None,
+) -> Cliente:
+    if destino_nombre or destino_nit:
+        return obtener_cliente_destino(
+            destino_nombre=destino_nombre,
+            destino_nit=destino_nit,
+        )
     destino_data = dict(DESTINO_DEFAULT)
     for f in CLIENTE_COPY_FIELDS:
         if hasattr(origen, f):
@@ -285,20 +317,26 @@ def copiar_cursos_a_pruebas(
     reset: bool = False,
     origen_id: int | None = None,
     origen_nombre: str | None = None,
+    destino_nombre: str | None = None,
+    destino_nit: str | None = None,
     solo_curso_id: int | None = None,
     curso_ids: list[int] | None = None,
-    prefijo: str = '[PRUEBA] ',
+    prefijo: str = '',
 ) -> CopiarCursosResult:
     """
-    Copia cursos del cliente Alitic al entorno Analytics (Pruebas).
+    Copia cursos de un cliente origen a un cliente destino de pruebas.
 
-    Por defecto origen = cliente «Alitic» (excluye Pruebas).
+    Por defecto origen = «Alitic» y destino = «Analytics (Pruebas)».
     """
     origen = obtener_cliente_analytics_origen(
         origen_id=origen_id,
         origen_nombre=origen_nombre,
     )
-    destino = _asegurar_destino_pruebas(origen)
+    destino = _asegurar_destino_pruebas(
+        origen,
+        destino_nombre=destino_nombre,
+        destino_nit=destino_nit,
+    )
     result = CopiarCursosResult(origen=origen, destino=destino)
 
     if reset:

@@ -128,8 +128,10 @@ def calendario_bloquea_modulo(estudiante: Estudiante | None, modulo: Modulo | No
     return timezone.now() < dt
 
 
-def format_mensaje_bloqueo_drip(fecha_desbloqueo) -> str:
+def format_mensaje_bloqueo_drip(fecha_desbloqueo, cliente=None) -> str:
     """Mensaje WhatsApp: espera por días entre módulos (mismo tono que el drip histórico)."""
+    from .avance_whatsapp import texto_bloqueo_drip_cierre
+
     if hasattr(fecha_desbloqueo, 'hour'):
         f_txt = timezone.localtime(fecha_desbloqueo).strftime('%d/%m/%Y')
     else:
@@ -139,19 +141,21 @@ def format_mensaje_bloqueo_drip(fecha_desbloqueo) -> str:
         'Estamos preparando tu siguiente sesión; aún no enviamos el siguiente módulo para que puedas asimilar lo aprendido.\n\n'
         f'Tu próxima lección se desbloquea el *{f_txt}*.\n'
         'Mientras tanto, repasa el material del módulo que acabas de completar.\n\n'
-        'Cuando llegue esa fecha, responde *listo* y seguimos automáticamente.'
+        f'{texto_bloqueo_drip_cierre(cliente)}'
     )
 
 
-def format_mensaje_bloqueo_calendario_modulo(habilitado_desde) -> str:
+def format_mensaje_bloqueo_calendario_modulo(habilitado_desde, cliente=None) -> str:
     """Mismo tono que el drip por días; la fecha incluye hora (calendario programado)."""
+    from .avance_whatsapp import texto_bloqueo_drip_cierre
+
     f_txt = timezone.localtime(habilitado_desde).strftime('%d/%m/%Y a las %H:%M')
     return (
         '🌱 *¡Excelente energía!*\n\n'
         'Estamos preparando tu siguiente sesión; aún no enviamos el siguiente módulo para que puedas asimilar lo aprendido.\n\n'
         f'Tu próxima lección se desbloquea el *{f_txt}*.\n'
         'Mientras tanto, repasa el material del módulo que acabas de completar.\n\n'
-        'Cuando llegue esa fecha, responde *listo* y seguimos automáticamente.'
+        f'{texto_bloqueo_drip_cierre(cliente)}'
     )
 
 
@@ -177,16 +181,17 @@ def mensaje_bloqueo_avance_siguiente_modulo(
     ).exists():
         return None
 
+    cliente = getattr(estudiante, 'cliente', None) if estudiante else None
     partes: list[str] = []
     d = dias_espera_efectivos(estudiante, progreso.curso)
     if d > 0 and progreso.fecha_ultimo_avance:
         fecha_desbloqueo = fecha_desbloqueo_drip(progreso.fecha_ultimo_avance, d)
         if fecha_desbloqueo and timezone.localdate() < fecha_desbloqueo:
-            partes.append(format_mensaje_bloqueo_drip(fecha_desbloqueo))
+            partes.append(format_mensaje_bloqueo_drip(fecha_desbloqueo, cliente))
 
     cal_dt = habilitado_desde_efectivo(estudiante, siguiente)
     if cal_dt and timezone.now() < cal_dt:
-        partes.append(format_mensaje_bloqueo_calendario_modulo(cal_dt))
+        partes.append(format_mensaje_bloqueo_calendario_modulo(cal_dt, cliente))
 
     if not partes:
         return None

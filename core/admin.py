@@ -305,11 +305,13 @@ class ClienteAdmin(admin.ModelAdmin):
                 'numero_whatsapp_autorizado',
                 'enlace_habeas_data',
                 'content_sid_habeas_data_twilio',
+                'modo_avance_modulo',
+                'content_sid_boton_listo',
                 'enlace_grupo_whatsapp',
             ),
             'description': (
                 'Número autorizado en Meta Business; política de datos (Habeas) y plantilla Twilio propia; '
-                'enlace de invitación al grupo de WhatsApp del cliente.'
+                'avance por texto o botón «Listo» al cerrar cada módulo; enlace de invitación al grupo.'
             ),
         }),
         ('Certificados, drip y gamificación', {

@@ -3396,7 +3396,10 @@ def _procesar_twilio_webhook(post_data):
                                 if hay_mas_modulos:
                                     if hay_media_conf:
                                         texto_respuesta += "[SEP][DELAY:5]"
-                                    texto_respuesta += "[SEP]Tómese su tiempo para ver el material. Mientras usted aprende, aquí iremos organizando los recursos del siguiente nivel. En cuanto termine, solo responda *listo* para continuar."
+                                    from .avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
+                                    texto_respuesta += "[SEP]" + resolver_cta_listo(
+                                        estudiante, curso, CTX_FIN_ENTREGA_MODULO
+                                    )
                         else:
                             texto_respuesta = f"✅ *¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nEl curso aún no tiene módulos configurados. Te notificaremos cuando estén listos."
                     else:
@@ -4008,7 +4011,6 @@ def _procesar_twilio_webhook(post_data):
                         estudiante=estudiante, completado=False, curso__activo=True
                     ).first()
                     curso = progreso_existente.curso if progreso_existente else cursos.first()
-                    _enviar_btn_continuar_menu = False
                     if curso:
                         progreso, _ = ProgresoEstudiante.objects.get_or_create(
                             estudiante=estudiante, curso=curso, defaults={'completado': False}
@@ -4056,8 +4058,6 @@ def _procesar_twilio_webhook(post_data):
                                             f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
                                             "Escribe *continuar* o *listo* cuando quieras seguir."
                                         )
-                                    if curso.modulos.filter(numero__gt=modulo.numero).exists():
-                                        _enviar_btn_continuar_menu = True
                             else:
                                 video_url = obtener_video_url(modulo)
                                 archivos_multimedia = modulo.archivos_multimedia.filter(activo=True)
@@ -4094,8 +4094,6 @@ def _procesar_twilio_webhook(post_data):
                                     texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_menu)
                                 else:
                                     texto_respuesta = msg_texto_menu
-                                if curso.modulos.filter(numero__gt=modulo.numero).exists():
-                                    _enviar_btn_continuar_menu = True
                         else:
                             texto_respuesta = f"📚 Tu curso *{curso.nombre}* aún no tiene módulos configurados."
                     else:
@@ -4170,11 +4168,6 @@ def _procesar_twilio_webhook(post_data):
                                 mp.pop('media_url', None)
                                 client_tw.messages.create(**mp)
                             WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta[:500], tipo='SENT')
-                        if _enviar_btn_continuar_menu:
-                            import time; time.sleep(0.5)
-                            from .whatsapp_service import enviar_template_twilio
-                            tel_limpio_t = msg_from.replace('whatsapp:', '').replace('+', '')
-                            enviar_template_twilio(tel_limpio_t, 'HX33af3a0f2bb63715e03965c2bd642285')
                     except Exception as e:
                         logger.error(f"❌ Error enviando curso: {e}")
                     return
@@ -5389,7 +5382,12 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                             hay_media_exam = True
                                         if hay_media_exam:
                                             partes.append("[DELAY:5]")
-                                        partes.append("Tómese su tiempo para ver el material. Mientras usted aprende, aquí iremos organizando los recursos del siguiente nivel. En cuanto termine, solo responda *listo* para continuar.")
+                                        from .avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
+                                        partes.append(
+                                            resolver_cta_listo(
+                                                estudiante, progreso.curso, CTX_FIN_ENTREGA_MODULO
+                                            )
+                                        )
                                         texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
 
                                 elif not drip_bloqueado:
@@ -5643,11 +5641,15 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                     print(f"🤖 Usando IA para pregunta sobre agricultura")
                     if estudiante.preguntas_ia_restantes <= 0:
                         # Freno de mano: IA pausada
+                        from .avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
+                        _prog_ia = estudiante.progresos.order_by('-fecha_inicio').first()
+                        _curso_ia = _prog_ia.curso if _prog_ia else None
                         texto_respuesta = (
                             "[MULTI_MSG]⚠️ *Has agotado tus preguntas libres a la IA para este modulo.*\n\n"
                             "Para desbloquear mas preguntas, necesitas responder "
                             "la pregunta de evaluacion del modulo actual."
-                            "[SEP]Tómese su tiempo para ver el material. Mientras usted aprende, aquí iremos organizando los recursos del siguiente nivel. En cuanto termine, solo responda *listo* para continuar."
+                            "[SEP]"
+                            + resolver_cta_listo(estudiante, _curso_ia, CTX_FIN_ENTREGA_MODULO)
                         )
                     else:
                         try:

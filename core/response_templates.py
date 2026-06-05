@@ -1257,7 +1257,8 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     estudiante, progreso, modulo_actual
                 )
                 if _blk:
-                    return _blk
+                    from .avance_whatsapp import adaptar_mensaje_drip_bloqueo
+                    return adaptar_mensaje_drip_bloqueo(_blk, estudiante)
 
             from .module_steps import (
                 modulo_usa_pasos,
@@ -1393,7 +1394,8 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                         getattr(modulo_actual, 'numero', None),
                         getattr(siguiente_modulo, 'numero', None),
                     )
-                    return _blk_fin
+                    from .avance_whatsapp import adaptar_mensaje_drip_bloqueo
+                    return adaptar_mensaje_drip_bloqueo(_blk_fin, estudiante)
 
                 _cp_pref = getattr(modulo_actual, 'facilitador_checkpoint', None)
                 logger.info(
@@ -1558,7 +1560,11 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     hay_media = True
                 if hay_media:
                     partes.append("[DELAY:5]")
-                partes.append("Tómese su tiempo para ver el material. Mientras usted aprende, aquí iremos organizando los recursos del siguiente nivel. En cuanto termine, solo responda *listo* para continuar.")
+                from .avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
+
+                partes.append(
+                    resolver_cta_listo(estudiante, progreso.curso, CTX_FIN_ENTREGA_MODULO)
+                )
                 return "[MULTI_MSG]" + "[SEP]".join(partes)
             
             else:

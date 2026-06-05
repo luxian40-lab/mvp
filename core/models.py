@@ -134,6 +134,27 @@ class Cliente(models.Model):
             'Desactivada: sin gamificación visible.'
         ),
     )
+    modo_avance_modulo = models.CharField(
+        max_length=20,
+        choices=[
+            ('texto', 'Solo escribir listo / continuar'),
+            ('boton', 'Solo botón WhatsApp (plantilla)'),
+            ('ambos', 'Texto y botón'),
+        ],
+        default='texto',
+        verbose_name='Avance entre módulos',
+        help_text=(
+            'Texto = escribir listo (default). Botón = plantilla Twilio al cerrar entrega del módulo. '
+            'No aplica en onboarding, PQRS ni conversación con agentes IA.'
+        ),
+    )
+    content_sid_boton_listo = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        verbose_name='Plantilla botón Listo (Twilio)',
+        help_text='Content SID (HX…) con quick reply «Listo». Vacío = plantilla global continuar_modulo.',
+    )
     peso_gamificacion_reto = models.DecimalField(
         max_digits=5,
         decimal_places=2,

@@ -24,7 +24,9 @@ class Command(BaseCommand):
             help=f'Nombre parcial origen (default: {CLIENTE_ORIGEN_NOMBRE})',
         )
         parser.add_argument('--solo-curso', type=int, help='Solo un curso por ID')
-        parser.add_argument('--prefijo', default='[PRUEBA] ')
+        parser.add_argument('--destino-nombre', type=str, help='Cliente destino (ej. pruebas1)')
+        parser.add_argument('--destino-nit', type=str, help='NIT del cliente destino')
+        parser.add_argument('--prefijo', default='')
 
     def handle(self, *args, **options):
         try:
@@ -32,6 +34,8 @@ class Command(BaseCommand):
                 reset=options['reset'],
                 origen_id=options['origen_id'],
                 origen_nombre=options['origen_nombre'],
+                destino_nombre=options.get('destino_nombre'),
+                destino_nit=options.get('destino_nit'),
                 solo_curso_id=options['solo_curso'],
                 prefijo=options['prefijo'] or '',
             )

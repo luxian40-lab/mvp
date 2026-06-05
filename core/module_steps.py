@@ -511,8 +511,11 @@ def entregar_bloque_secciones_desde_paso(
             else:
                 partes.append(MSG_LISTO_CONTINUAR_EN_MODULO)
         else:
-            # Último microcontenido del módulo: sin esto no pedía *listo* y no había traspaso claro.
-            partes.append(MSG_LISTO_FIN_PASOS_MODULO)
+            from .avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
+
+            partes.append(
+                resolver_cta_listo(progreso.estudiante, progreso.curso, CTX_FIN_ENTREGA_MODULO)
+            )
         logger.info(
             "📚 [pasos] bloque entregado (1 sección por *listo*) | estudiante_id=%s progreso_id=%s "
             "último_paso_id=%s nuevo_idx=%s n_pasos=%s sec_cerrada_ids=%s",
@@ -569,7 +572,11 @@ def entregar_paso_indice(progreso: ProgresoEstudiante, modulo: Modulo, idx: int)
         if progreso.paso_actual_modulo <= n:
             partes.append(MSG_LISTO_CONTINUAR_EN_MODULO)
         else:
-            partes.append(MSG_LISTO_FIN_PASOS_MODULO)
+            from .avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
+
+            partes.append(
+                resolver_cta_listo(progreso.estudiante, progreso.curso, CTX_FIN_ENTREGA_MODULO)
+            )
         logger.info(
             "📚 [pasos] contenido entregado | estudiante_id=%s progreso_id=%s paso_id=%s nuevo_idx=%s",
             progreso.estudiante_id,

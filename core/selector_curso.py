@@ -329,7 +329,8 @@ Cuando termines, escribe: *"listo"*"""
         )
         if _blk_listo:
             _persist_curso_foco()
-            return _blk_listo
+            from .avance_whatsapp import adaptar_mensaje_drip_bloqueo
+            return adaptar_mensaje_drip_bloqueo(_blk_listo, estudiante)
 
         from .module_steps import modulo_usa_pasos
 
@@ -367,7 +368,8 @@ Cuando termines, escribe: *"listo"*"""
             )
             if _blk_sig:
                 _persist_curso_foco()
-                return _blk_sig
+                from .avance_whatsapp import adaptar_mensaje_drip_bloqueo
+                return adaptar_mensaje_drip_bloqueo(_blk_sig, estudiante)
 
             progreso.modulo_actual = siguiente_modulo
             from .module_steps import reset_progreso_pasos_modulo
