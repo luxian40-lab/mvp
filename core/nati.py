@@ -5,6 +5,7 @@ Centraliza system prompt, saludos y búsqueda web. El nombre por cliente
 """
 from __future__ import annotations
 
+import re
 from typing import Optional
 
 from django.conf import settings
@@ -69,6 +70,126 @@ LÍMITES:
 NATI_DIAGNOSTICO_PROMPT = NAT_DIAGNOSTICO_PROMPT
 NATI_SYSTEM_PROMPT_BASE = NAT_SYSTEM_PROMPT_BASE
 
+def normalizar_telefono_whatsapp(numero: str) -> str:
+    """Solo dígitos; Colombia 10 dígitos → prefijo 57."""
+    limpio = re.sub(r'\D', '', (numero or '').strip())
+    if len(limpio) == 10:
+        limpio = f'57{limpio}'
+    return limpio
+
+
+def resolver_cliente_desde_numero_whatsapp(numero_to: str):
+    """
+    [Hoja de ruta — no usado en MVP] Cliente por número Twilio (campo To).
+    Hoy el entorno usa BOT_COMERCIAL_CLIENTE_ID; sin menú al productor.
+    """
+    from core.models import Cliente
+
+    clave = normalizar_telefono_whatsapp(numero_to)
+    if not clave:
+        return None
+
+    for c in Cliente.objects.filter(activo=True).exclude(numero_whatsapp_nat=''):
+        if normalizar_telefono_whatsapp(c.numero_whatsapp_nat) == clave:
+            return c
+
+    global_num = normalizar_telefono_whatsapp(
+        str(getattr(settings, 'BOT_COMERCIAL_WHATSAPP_NUMBER', '') or '')
+    )
+    if global_num and clave == global_num:
+        cid = int(getattr(settings, 'BOT_COMERCIAL_CLIENTE_ID', 0) or 0)
+        if cid:
+            return Cliente.objects.filter(pk=cid, activo=True).first()
+
+    return None
+
+
+def obtener_contexto_productos(cliente) -> str:
+    """
+    Bloque de catálogo del cliente activo para recomendaciones comerciales.
+    Retorna string vacío si no hay productos cargados.
+    """
+    if not cliente:
+        return ''
+
+    try:
+        from core.models import ProductoCatalogo
+
+        productos = ProductoCatalogo.objects.filter(
+            cliente=cliente,
+            activo=True,
+        ).order_by('categoria', 'nombre')
+
+        if not productos.exists():
+            return ''
+
+        lineas = ['CATÁLOGO DE PRODUCTOS DISPONIBLES PARA RECOMENDAR:\n']
+        for p in productos:
+            bloque = f'Producto: {p.nombre}'
+            if p.categoria:
+                bloque += f'\nCategoría: {p.categoria}'
+            if p.cultivos_objetivo:
+                bloque += f'\nCultivos: {p.cultivos_objetivo}'
+            bloque += f'\nPara qué sirve: {p.descripcion}'
+            bloque += f'\nProblemas que resuelve: {p.problema_que_resuelve}'
+            if p.ingrediente_activo:
+                bloque += f'\nIngrediente activo: {p.ingrediente_activo}'
+            if p.dosis:
+                bloque += f'\nDosis: {p.dosis}'
+            if p.precio_cop:
+                precio_fmt = f'${p.precio_cop:,.0f}'
+                bloque += f'\nPrecio: {precio_fmt} COP'
+                if p.unidad:
+                    bloque += f' por {p.unidad}'
+            if p.url_producto:
+                bloque += f'\nComprar: {p.url_producto}'
+            bloque += '\n---'
+            lineas.append(bloque)
+
+        return '\n'.join(lineas)
+
+    except Exception:
+        return ''
+
+
+_NAT_REGLAS_CATALOGO_CON_PRODUCTOS = """
+
+CÓMO RECOMENDAR PRODUCTOS (sigue este orden siempre):
+
+1. DIAGNÓSTICO TÉCNICO (2-3 líneas, lenguaje de campo):
+   Explica qué está pasando y por qué. Usa términos que entienda un agricultor.
+
+2. QUÉ HACER (1-2 líneas):
+   La acción concreta antes de mencionar cualquier producto.
+
+3. PRODUCTO RECOMENDADO (máximo 2, solo del catálogo de arriba):
+   Formato exacto para WhatsApp:
+
+   📦 [Nombre del producto]
+   Sirve para: [problema específico del agricultor]
+   Dosis: [dosis exacta del catálogo]
+   Precio: $[precio] COP por [unidad]
+   Comprar acá: [url_producto]
+
+   Cierra siempre con: "Verifique el precio final en el link."
+
+REGLAS COMERCIALES (nunca las incumplas):
+- Solo recomiendas productos que aparecen en el catálogo de arriba.
+- Si no tienes un producto específico para ese problema, indíquelo con claridad
+  y invite a consultar el catálogo completo de la organización del productor.
+- NUNCA inventes precios, dosis ni links aunque conozcas el producto.
+- Si el problema requiere visita técnica presencial, dilo ANTES de cualquier producto.
+- No menciones productos de otras marcas o proveedores.
+- Después de recomendar, haz UNA pregunta útil (ej: hectáreas para calcular cantidad).
+"""
+
+_NAT_SIN_CATALOGO = """
+
+No tienes productos específicos para recomendar en este momento.
+Si el productor necesita insumos, invítalo a consultar con su proveedor local
+o al equipo técnico de su organización.
+"""
+
 
 def armar_instruccion_modo(modo: str = 'conversacion', escala_premium: bool = False) -> str:
     """Bloque extra en user prompt según modo de routing."""
@@ -124,6 +245,19 @@ def armar_system_prompt(cliente=None, nombre_bot_override: Optional[str] = None)
             f"Instrucciones adicionales del operador:\n{extra_global}"
         )
 
+    contexto_productos = obtener_contexto_productos(cliente)
+    if contexto_productos:
+        org_nombre = getattr(cliente, 'nombre', '') or 'esta organización'
+        prompt = (
+            f"{prompt}\n\n"
+            f"Organización activa del productor: {org_nombre}. "
+            f"Use únicamente el catálogo de esta organización.\n\n"
+            f"{contexto_productos}"
+            f"{_NAT_REGLAS_CATALOGO_CON_PRODUCTOS}"
+        )
+    else:
+        prompt = f"{prompt}{_NAT_SIN_CATALOGO}"
+
     return prompt
 
 
@@ -133,15 +267,11 @@ def obtener_nombre_bot(cliente=None) -> str:
 
 
 def armar_saludo_inicial(cliente=None) -> str:
-    """Saludo de bienvenida del bot comercial cuando el productor escribe por primera vez.
-
-    Usa el `nombre_bot` del cliente si existe, de lo contrario "Nati".
-    Reemplaza el saludo legacy "Hola, soy tu bot de EKI" para que la identidad
-    coincida con el system prompt.
-    """
+    """Saludo de bienvenida del bot comercial cuando el productor escribe por primera vez."""
     nombre = obtener_nombre_bot(cliente)
+    org_txt = f' de *{cliente.nombre}*' if cliente else ''
     return (
-        f"Buenos días. Soy {nombre}, agrónoma virtual de eki.\n\n"
+        f"Buenos días. Soy {nombre}, agrónoma virtual de eki{org_txt}.\n\n"
         "Le acompaño en consultas técnicas de su cultivo: nutrición, plagas, "
         "enfermedades, manejo integrado y, cuando corresponda, orientación de catálogo.\n\n"
         "Indíqueme, por favor, su cultivo y qué necesita resolver."

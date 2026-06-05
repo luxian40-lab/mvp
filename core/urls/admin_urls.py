@@ -35,6 +35,12 @@ from core.views_analytics import api_grupos_por_empresa, gei_panel_view
 from core.views_eventos_ia import ai_ops_eventos_view, ai_ops_replay_view, api_eventos_ia_json
 from core.views_knowledge_studio import knowledge_studio_revisar, knowledge_studio_view
 from core.views_reportes import descargar_reporte_xlsx
+from core.views_cobertura_admin import (
+    cobertura_admin_api,
+    cobertura_admin_municipios_geojson,
+    cobertura_admin_view,
+)
+from core.views_drip_estudiantes import drip_estudiantes_view
 
 urlpatterns = [
     path('admin/dashboard/', dashboard_unificado, name='dashboard_unificado'),
@@ -74,6 +80,10 @@ urlpatterns = [
     path('admin/ai-ops/eventos/', ai_ops_eventos_view, name='ai_ops_eventos'),
     path('admin/ai-ops/api/eventos/', api_eventos_ia_json, name='api_eventos_ia'),
     path('admin/ai-ops/replay/<uuid:trace_id>/', ai_ops_replay_view, name='ai_ops_replay'),
+    path('admin/cobertura/', cobertura_admin_view, name='admin_cobertura_mapa'),
+    path('admin/cobertura/datos.json', cobertura_admin_api, name='admin_cobertura_api'),
+    path('admin/cobertura/municipios.geojson', cobertura_admin_municipios_geojson, name='admin_cobertura_geojson'),
+    path('admin/drip-estudiantes/', drip_estudiantes_view, name='admin_drip_estudiantes'),
     path('admin/knowledge-studio/', knowledge_studio_view, name='knowledge_studio'),
     path(
         'admin/knowledge-studio/revisar/<int:candidata_id>/',

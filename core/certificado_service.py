@@ -544,6 +544,61 @@ def calcular_calificacion_curso(estudiante, curso):
     return round(calificacion, 2)
 
 
+def evaluar_elegibilidad_certificado(estudiante, curso) -> tuple[bool, str | None]:
+    """
+    Reglas opcionales por cliente (nota mínima en modo calificación 1–5).
+    Returns: (puede_emitir, motivo_si_no)
+    """
+    from decimal import Decimal
+
+    from core.gamificacion_modo import (
+        MODO_CALIFICACION,
+        formatear_nota,
+        get_modo_gamificacion,
+        resumen_calificaciones_estudiante,
+    )
+
+    cliente = getattr(estudiante, 'cliente', None)
+    if not cliente or not getattr(cliente, 'exigir_nota_minima_certificado', False):
+        return True, None
+    if get_modo_gamificacion(cliente) != MODO_CALIFICACION:
+        return True, None
+
+    resumen = resumen_calificaciones_estudiante(estudiante, curso.id if curso else None)
+    promedio = resumen.get('promedio')
+    if promedio is None or resumen.get('cantidad', 0) == 0:
+        return True, None
+
+    minima = Decimal(str(getattr(cliente, 'nota_minima_certificado', None) or 3))
+    if promedio < minima:
+        return False, (
+            f'Su promedio es {formatear_nota(promedio)}/5 y se requiere al menos '
+            f'{formatear_nota(minima)}/5 para el certificado.'
+        )
+    return True, None
+
+
+def mensaje_whatsapp_sin_certificado(estudiante, curso, motivo: str | None = None) -> str:
+    """Texto cuando el curso se completó pero no aplica certificado."""
+    from core.gamificacion_modo import formatear_nota, resumen_calificaciones_estudiante
+
+    cliente = getattr(estudiante, 'cliente', None)
+    resumen = resumen_calificaciones_estudiante(estudiante, curso.id if curso else None)
+    prom = resumen.get('promedio')
+    prom_txt = f'{formatear_nota(prom)}/5' if prom is not None else '—'
+    minima = getattr(cliente, 'nota_minima_certificado', 3) if cliente else 3
+    detalle = motivo or (
+        f'Su promedio ({prom_txt}) está por debajo del mínimo ({formatear_nota(minima)}/5) '
+        'definido por su organización.'
+    )
+    return (
+        '🎓 *Curso completado*\n\n'
+        f'{detalle}\n\n'
+        'Puede seguir repasando el material escribiendo *menú*. '
+        'Si cree que hay un error, escriba *ayuda* para contactar al equipo.'
+    )
+
+
 def crear_certificado_automatico(estudiante, curso):
     """
     Crea automáticamente un certificado cuando el estudiante completa el curso
@@ -577,7 +632,17 @@ def crear_certificado_automatico(estudiante, curso):
     if certificado_existente:
         logger.info(f"Ya existe certificado para {estudiante.nombre} - {curso.nombre}")
         return certificado_existente
-    
+
+    puede, motivo = evaluar_elegibilidad_certificado(estudiante, curso)
+    if not puede:
+        logger.info(
+            'Certificado no emitido para %s — %s: %s',
+            estudiante.nombre,
+            curso.nombre,
+            motivo,
+        )
+        return None
+
     try:
         # Calcular calificación
         calificacion = calcular_calificacion_curso(estudiante, curso)

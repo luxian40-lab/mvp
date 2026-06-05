@@ -4,6 +4,8 @@ CON función de envío directo desde Plantillas Y gestión de cursos/módulos/ex
 """
 from django.contrib import admin
 from django import forms
+from django.contrib.auth import get_user_model
+from django.core.exceptions import PermissionDenied
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.shortcuts import render, redirect
@@ -17,7 +19,8 @@ import openpyxl
 from django.http import HttpResponse
 from .models import (
     Estudiante, WhatsappLog, Plantilla, Campana, EnvioLog, Linea,
-    Curso, ConfiguracionDripCliente, HabilitacionModuloDripCliente, Modulo, SeccionModulo, PasoModulo, ProgresoEstudiante, ModuloCompletado,
+    Curso, ConfiguracionDripCliente, HabilitacionModuloDripCliente, HabilitacionModuloEstudiante,
+    Modulo, SeccionModulo, PasoModulo, ProgresoEstudiante, ModuloCompletado,
     Examen, PreguntaExamen, ResultadoExamen, Cliente,
     PerfilGamificacion, Badge, BadgeEstudiante, TransaccionPuntos,
     SolicitudSoporte, PreguntaModulo,  # 🆘 NUEVO + 📝 PREGUNTA MODULO
@@ -28,6 +31,7 @@ from .models import (
     DocumentoRAG,  # 📚 RAG Multi-Tenant
     DocumentoRAGComercial,  # 🛒 RAG Comercial
     ProductoComercial,  # 💰 Precios Nat (Postgres)
+    ProductoCatalogo,  # 📦 Catálogo recomendación Nat
     MetaMetricaEmpresa, MetaMetricaNati,
     EventoIA,
     ContextoAgroSession,
@@ -43,6 +47,7 @@ from .models_audit import AuditLog  # 🔐 Auditoría
 from .recompensas import Recompensa, CanjeRecompensa
 from .utils import enviar_whatsapp_twilio, enviar_whatsapp  # Asegurar que tenemos la función
 from .widgets import ColorPickerWidget  # 🎨 Color picker para certificados
+from portal.models import PortalUsuario
 from django.utils import timezone  # Para timestamps
 import logging
 from datetime import datetime
@@ -50,6 +55,18 @@ import json
 import os
 
 logger = logging.getLogger(__name__)
+
+
+def guardar_upload_admin_media(uploaded_file, *, carpeta='admin_media', prefix='media'):
+    """Guarda un upload del admin en el storage activo y devuelve su URL pública."""
+    from django.core.files.storage import default_storage
+    from django.utils.text import get_valid_filename
+
+    now = timezone.now()
+    filename = get_valid_filename(uploaded_file.name)
+    path = f'{carpeta}/{now:%Y/%m}/{prefix}_{now:%Y%m%d%H%M%S}_{filename}'
+    saved_path = default_storage.save(path, uploaded_file)
+    return default_storage.url(saved_path)
 
 
 # ================================================
@@ -109,6 +126,43 @@ class ConfiguracionDripClienteInline(admin.TabularInline):
     verbose_name_plural = '⏱️ Ritmo drip por curso (override)'
 
 
+class HabilitacionModuloEstudianteInline(admin.TabularInline):
+    model = HabilitacionModuloEstudiante
+    extra = 1
+    fields = ('curso', 'modulo', 'habilitado_desde', 'activo', 'notas')
+    autocomplete_fields = ('curso', 'modulo')
+    verbose_name = 'Módulo individual'
+    verbose_name_plural = (
+        'Módulos habilitados solo para este estudiante '
+        '(requiere «solo por lista» activo en el cliente)'
+    )
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'curso' and request.resolver_match:
+            obj_id = request.resolver_match.kwargs.get('object_id')
+            if obj_id:
+                try:
+                    est = Estudiante.objects.only('cliente_id').get(pk=obj_id)
+                    kwargs['queryset'] = Curso.objects.filter(cliente_id=est.cliente_id, activo=True)
+                except Estudiante.DoesNotExist:
+                    pass
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
+@admin.register(HabilitacionModuloEstudiante)
+class HabilitacionModuloEstudianteAdmin(admin.ModelAdmin):
+    """Listado masivo de qué estudiante puede ver qué módulo."""
+    list_display = ('estudiante', 'curso', 'modulo', 'habilitado_desde', 'activo', 'notas')
+    list_filter = ('activo', 'curso__cliente', 'curso')
+    search_fields = (
+        'estudiante__nombre', 'estudiante__cedula', 'estudiante__telefono',
+        'curso__nombre', 'modulo__nombre',
+    )
+    autocomplete_fields = ('estudiante', 'curso', 'modulo')
+    list_select_related = ('estudiante', 'curso', 'modulo', 'curso__cliente')
+    ordering = ('-id',)
+
+
 class HabilitacionModuloDripClienteInline(admin.TabularInline):
     """Fecha/hora en que un módulo del curso se habilita para este cliente (sustituye la fecha global del módulo)."""
     model = HabilitacionModuloDripCliente
@@ -119,46 +173,161 @@ class HabilitacionModuloDripClienteInline(admin.TabularInline):
     verbose_name_plural = '📅 Habilitación de módulos por calendario'
 
 
+class ProductoCatalogoInline(admin.TabularInline):
+    model = ProductoCatalogo
+    extra = 0
+    fields = (
+        'nombre', 'categoria', 'cultivos_objetivo',
+        'precio_cop', 'unidad', 'url_producto', 'activo',
+    )
+    show_change_link = True
+
+
+class PortalUsuarioInline(admin.TabularInline):
+    model = PortalUsuario
+    extra = 0
+    fields = ('user', 'rol', 'portal_user_link')
+    readonly_fields = ('portal_user_link',)
+    autocomplete_fields = ('user',)
+    verbose_name = 'Usuario del portal'
+    verbose_name_plural = 'Usuarios del portal'
+
+    def portal_user_link(self, obj):
+        if not obj or not obj.user_id:
+            return '-'
+        url = reverse('admin:auth_user_change', args=[obj.user_id])
+        return format_html('<a href="{}">Editar usuario / contraseña</a>', url)
+    portal_user_link.short_description = 'Acceso'
+
+
+class CrearUsuarioPortalForm(forms.Form):
+    username = forms.CharField(label='Usuario', max_length=150)
+    first_name = forms.CharField(label='Nombre', max_length=150, required=False)
+    last_name = forms.CharField(label='Apellido', max_length=150, required=False)
+    email = forms.EmailField(label='Email', required=False)
+    password1 = forms.CharField(label='Contraseña', widget=forms.PasswordInput)
+    password2 = forms.CharField(label='Confirmar contraseña', widget=forms.PasswordInput)
+    rol = forms.ChoiceField(label='Rol', choices=PortalUsuario.ROL_CHOICES, initial='viewer')
+    is_active = forms.BooleanField(label='Usuario activo', required=False, initial=True)
+
+    def clean_username(self):
+        username = self.cleaned_data['username'].strip()
+        User = get_user_model()
+        if User.objects.filter(username__iexact=username).exists():
+            raise forms.ValidationError('Ya existe un usuario con ese username.')
+        return username
+
+    def clean(self):
+        cleaned = super().clean()
+        password1 = cleaned.get('password1')
+        password2 = cleaned.get('password2')
+        if password1 and password2 and password1 != password2:
+            raise forms.ValidationError('Las contraseñas no coinciden.')
+        return cleaned
+
+    def save(self, cliente):
+        User = get_user_model()
+        user = User(
+            username=self.cleaned_data['username'],
+            first_name=self.cleaned_data.get('first_name', ''),
+            last_name=self.cleaned_data.get('last_name', ''),
+            email=self.cleaned_data.get('email', ''),
+            is_staff=False,
+            is_superuser=False,
+            is_active=self.cleaned_data.get('is_active', True),
+        )
+        user.set_password(self.cleaned_data['password1'])
+        user.save()
+        PortalUsuario.objects.create(
+            user=user,
+            organizacion=cliente,
+            rol=self.cleaned_data['rol'],
+        )
+        return user
+
+
 @admin.register(Cliente)
 class ClienteAdmin(admin.ModelAdmin):
     """Gestión de clientes/organizaciones"""
-    inlines = [ConfiguracionDripClienteInline, HabilitacionModuloDripClienteInline]
+    change_form_template = 'admin/core/cliente/change_form.html'
+
+    def get_form(self, request, obj=None, **kwargs):
+        from portal.forms import ClientePortalAdminForm
+        kwargs['form'] = ClientePortalAdminForm
+        return super().get_form(request, obj, **kwargs)
+
+    inlines = [
+        PortalUsuarioInline,
+        ConfiguracionDripClienteInline,
+        HabilitacionModuloDripClienteInline,
+        ProductoCatalogoInline,
+    ]
     list_display = ('nombre', 'contacto_principal', 'email', 'numero_meta_badge', 'estudiantes_activos', 'cursos_asignados', 'activo', 'fecha_registro')
     list_filter = ('activo', 'enviar_certificados_email', 'fecha_registro')
     search_fields = ('nombre', 'nit', 'contacto_principal', 'email')
     list_per_page = 50
     ordering = ('-fecha_registro',)
+    readonly_fields = ('portal_usuarios_acciones', 'cobertura_y_drip_acciones', 'usar_gamificacion')
     
     fieldsets = (
-        ('Información del Cliente', {
-            'fields': ('nombre', 'nit', 'contacto_principal', 'email', 'telefono')
-        }),
-        ('📱 WhatsApp Business (Meta)', {
-            'fields': ('numero_whatsapp_autorizado',),
-            'description': '🔑 Número autorizado en Meta Business para envío masivo. Debe coincidir con tu cuenta de WhatsApp Business API.'
-        }),
-        ('🛡️ Habeas Data', {
-            'fields': ('enlace_habeas_data', 'content_sid_habeas_data_twilio'),
-            'description': (
-                '🔗 URL de política de tratamiento de datos para este cliente. Si está vacía, '
-                'se usa la URL general de eki.<br>'
-                '📨 <strong>Habeas Data Template</strong> (Twilio Content SID HX...) propio del cliente. '
-                'Si está vacío, se usa la plantilla global definida en "Configuración Global".'
+        ('Datos del cliente', {
+            'fields': (
+                'nombre',
+                'nit',
+                'contacto_principal',
+                'email',
+                'telefono',
+                'activo',
+                'notas_internas',
             ),
         }),
-        ('� Grupo de WhatsApp', {
-            'fields': ('enlace_grupo_whatsapp',),
-            'description': '🔗 Enlace de invitación al grupo de WhatsApp del cliente. Se usará para invitar automáticamente a los estudiantes. Ejemplo: https://chat.whatsapp.com/xxxxx'
+        ('Portal B2B', {
+            'fields': (
+                'tipo_proyecto',
+                'portal_modulos',
+                'fecha_inicio_suscripcion',
+                'fecha_fin_suscripcion',
+                'logo_url',
+                'portal_subtitulo',
+                'portal_usuarios_acciones',
+                'whatsapp_numero',
+                'twilio_account_sid',
+                'twilio_auth_token',
+                'twilio_whatsapp_from',
+            ),
+            'description': (
+                'Acceso web, branding y credenciales Twilio del cliente. '
+                'Logo y subtítulo también en <code>/portal/perfil/</code> (rol admin).'
+            ),
         }),
-        ('📬 Certificados', {
-            'fields': ('enviar_certificados_email',),
-            'description': '✉️ Si está activado, los certificados de los estudiantes de este cliente se enviarán automáticamente al email del cliente'
+        ('WhatsApp, legal y grupo', {
+            'fields': (
+                'numero_whatsapp_autorizado',
+                'enlace_habeas_data',
+                'content_sid_habeas_data_twilio',
+                'enlace_grupo_whatsapp',
+            ),
+            'description': (
+                'Número autorizado en Meta Business; política de datos (Habeas) y plantilla Twilio propia; '
+                'enlace de invitación al grupo de WhatsApp del cliente.'
+            ),
         }),
-        ('🎮 Gamificación', {
-            'fields': ('usar_gamificacion',),
-            'description': '🎮 Si está activado, los estudiantes verán puntos, badges y recompensas. Si está desactivado, solo verán el contenido educativo sin elementos de juego.'
+        ('Certificados, drip y gamificación', {
+            'fields': (
+                'enviar_certificados_email',
+                'exigir_nota_minima_certificado',
+                'nota_minima_certificado',
+                'drip_modulos_solo_estudiantes_listados',
+                'cobertura_y_drip_acciones',
+                'modo_gamificacion',
+                'usar_gamificacion',
+            ),
+            'description': (
+                'Certificados por email y nota mínima; drip por estudiante (ver tablas al final); '
+                'modo puntos o calificación 1–5.'
+            ),
         }),
-        ('📅 Reglas por Cliente (Fechas)', {
+        ('Ventanas por fechas', {
             'fields': (
                 'habilitar_pregunta_abierta_final',
                 'fecha_inicio_pregunta_abierta_final',
@@ -167,31 +336,122 @@ class ClienteAdmin(admin.ModelAdmin):
                 'fecha_inicio_gamificacion_proximidad',
                 'fecha_fin_gamificacion_proximidad',
             ),
-            'description': 'Controla por cliente y por ventana de fechas cuándo se activa la pregunta abierta final y el radar de empleabilidad por proximidad.'
+            'description': (
+                'Cuándo se activa la pregunta abierta final y el radar de empleabilidad por proximidad.'
+            ),
         }),
-        ('🧭 Empleabilidad por Exploración', {
+        ('Empleabilidad, IA y bot comercial', {
             'fields': (
                 'empleabilidad_exploracion_activa',
                 'empleabilidad_radio_metros',
                 'empleabilidad_cooldown_horas',
                 'empleabilidad_max_misiones_dia',
                 'empleabilidad_puntos_validacion',
+                'nombre_agente_tutor',
+                'nombre_agente_asistente',
+                'nombre_bot',
+                'system_prompt_extra',
             ),
-            'description': 'Configuración Fase 0/1 para clientes que activen la experiencia tipo exploración de empleabilidad.'
-        }),
-        ('🤖 Nombres de Agentes IA', {
-            'fields': ('nombre_agente_tutor', 'nombre_agente_asistente'),
-            'description': '🎓 Personaliza los nombres de los agentes de IA para este cliente. Si se dejan vacíos, se usarán los nombres por defecto (Gerónimo y María). Roles: Tutor = Profesor que enseña módulos, Asistente = Ayuda y revisa progreso.',
-        }),
-        ('🌾 Bot Comercial / Nat', {
-            'fields': ('nombre_bot', 'system_prompt_extra'),
-            'classes': ('collapse',),
-            'description': 'Identidad del bot comercial WhatsApp. Default: Nat. Si necesitas un tono o productos prioritarios para este cliente, agrégalo en "Instrucciones extra"; se concatena al system prompt base sin tocar código.',
-        }),
-        ('Estado', {
-            'fields': ('activo', 'notas_internas')
+            'description': (
+                'Exploración de empleabilidad, nombres de agentes educativos y bot Nat/comercial. '
+                'Catálogo e inlines al final del formulario.'
+            ),
         }),
     )
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                '<int:cliente_id>/crear-usuario-portal/',
+                self.admin_site.admin_view(self.crear_usuario_portal_view),
+                name='core_cliente_crear_usuario_portal',
+            ),
+        ]
+        return custom_urls + urls
+
+    def portal_usuarios_acciones(self, obj):
+        if not obj or not obj.pk:
+            return 'Guarda el cliente para crear usuarios del portal.'
+
+        crear_url = reverse('admin:core_cliente_crear_usuario_portal', args=[obj.pk])
+        usuarios_url = (
+            reverse('admin:portal_portalusuario_changelist')
+            + f'?organizacion__id__exact={obj.pk}'
+        )
+        portal_url = '/portal/login/'
+        total = obj.usuarios_portal.count()
+
+        return format_html(
+            '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">'
+            '<a class="button" href="{}">➕ Crear usuario portal</a>'
+            '<a class="button" href="{}">Ver usuarios ({})</a>'
+            '<a class="button" href="{}" target="_blank" rel="noopener">Abrir portal</a>'
+            '</div>'
+            '<p style="margin:8px 0 0;color:#666;">'
+            'Crea aquí usuarios no-staff para esta organización. '
+            'La contraseña queda en Django Auth; el rol y la organización quedan en PortalUsuario.'
+            '</p>',
+            crear_url,
+            usuarios_url,
+            total,
+            portal_url,
+        )
+    portal_usuarios_acciones.short_description = 'Accesos portal'
+
+    def cobertura_y_drip_acciones(self, obj):
+        if not obj or not obj.pk:
+            return 'Guarde el cliente para ver enlaces.'
+        mapa_url = reverse('admin_cobertura_mapa') + f'?cliente={obj.pk}'
+        drip_url = reverse('admin_drip_estudiantes') + f'?cliente={obj.pk}'
+        return format_html(
+            '<div style="display:flex;gap:10px;flex-wrap:wrap;">'
+            '<a class="button" href="{}">Mapa cobertura</a>'
+            '<a class="button" href="{}">Módulos por estudiante (tabla)</a>'
+            '</div>',
+            mapa_url,
+            drip_url,
+        )
+
+    cobertura_y_drip_acciones.short_description = 'Mapa y listas'
+
+    def crear_usuario_portal_view(self, request, cliente_id):
+        cliente = self.get_object(request, str(cliente_id))
+        if not cliente:
+            self.message_user(request, 'Cliente no encontrado.', level=messages.ERROR)
+            return redirect('admin:core_cliente_changelist')
+        if not self.has_change_permission(request, cliente):
+            raise PermissionDenied
+
+        initial = {
+            'email': cliente.email,
+            'first_name': cliente.contacto_principal,
+            'is_active': True,
+        }
+        if request.method == 'POST':
+            form = CrearUsuarioPortalForm(request.POST)
+            if form.is_valid():
+                with transaction.atomic():
+                    user = form.save(cliente)
+                self.message_user(
+                    request,
+                    f'Usuario portal "{user.username}" creado para {cliente.nombre}.',
+                    level=messages.SUCCESS,
+                )
+                return redirect('admin:core_cliente_change', cliente.pk)
+        else:
+            form = CrearUsuarioPortalForm(initial=initial)
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': f'Crear usuario portal para {cliente.nombre}',
+            'opts': self.model._meta,
+            'original': cliente,
+            'cliente': cliente,
+            'form': form,
+            'change_url': reverse('admin:core_cliente_change', args=[cliente.pk]),
+        }
+        return render(request, 'admin/core/cliente/crear_usuario_portal.html', context)
     
     def estudiantes_activos(self, obj):
         count = obj.total_estudiantes()
@@ -209,7 +469,7 @@ class ClienteAdmin(admin.ModelAdmin):
             )
         return format_html('<span style="background:#ff9800;color:white;padding:4px 10px;border-radius:12px;font-size:11px;">⚠️ Sin Meta</span>')
     numero_meta_badge.short_description = "📱 WhatsApp Meta"
-    
+
     def cursos_asignados(self, obj):
         count = obj.total_cursos()
         if count > 0:
@@ -417,6 +677,8 @@ class PlantillaDashboardAdmin(admin.ModelAdmin):
 @admin.register(Estudiante)
 class EstudianteAdmin(admin.ModelAdmin):
     """Gestión de estudiantes/campesinos"""
+    change_form_template = 'admin/core/estudiante/change_form.html'
+    inlines = [HabilitacionModuloEstudianteInline]
     list_display = ('cedula_formateada', 'nombre', 'telefono_formateado', 'municipio', 'departamento', 'genero', 'edad', 'cliente_nombre', 'grupos_display', 'cursos_inscritos', 'activo', 'fecha_registro')
     list_filter = ('activo', 'cliente', 'genero', 'departamento', 'fecha_registro', CursosEstudianteFilter, GruposEstudianteFilter)
     search_fields = ('nombre', 'cedula', 'telefono', 'cliente__nombre')
@@ -437,23 +699,22 @@ class EstudianteAdmin(admin.ModelAdmin):
     change_list_template = 'admin/estudiante_changelist.html'
     
     fieldsets = (
-        ('🔐 Identificación y Seguridad', {
-            'fields': ('tipo_documento', 'cedula', 'nombre'),
-            'description': 'El documento es el identificador único y autenticador de seguridad'
+        ('Identificación y contacto', {
+            'fields': ('tipo_documento', 'cedula', 'nombre', 'telefono', 'cliente', 'activo'),
+            'description': 'Documento único; teléfono WhatsApp y organización del campesino.',
         }),
-        ('📍 Ubicación', {
-            'fields': ('municipio', 'departamento', 'ubicacion_detalle'),
-            'description': 'Municipio, departamento y detalles de ubicación del estudiante'
+        ('Ubicación y perfil', {
+            'fields': ('municipio', 'departamento', 'ubicacion_detalle', 'genero', 'edad', 'rango_edad'),
         }),
-        ('👤 Datos Demográficos', {
-            'fields': ('genero', 'edad', 'rango_edad'),
+        ('Módulos drip (lista)', {
+            'fields': (),
+            'description': (
+                'Si el cliente tiene activo «Módulos solo por lista», agregue en la tabla inferior '
+                'cada combinación curso + módulo que este estudiante puede abrir.'
+            ),
         }),
-        ('📱 Contacto y Organización', {
-            'fields': ('telefono', 'cliente', 'activo')
-        }),
-        ('📚 Cursos Inscritos', {
+        ('Cursos inscritos', {
             'fields': ('mostrar_cursos_inscritos',),
-            'classes': ('collapse',),
         }),
     )
     readonly_fields = ('mostrar_cursos_inscritos',)
@@ -1623,7 +1884,7 @@ class EstudianteAdmin(admin.ModelAdmin):
 
     def asignar_a_grupo_accion(self, request, queryset):
         """Asigna múltiples estudiantes a un grupo (existente o nuevo)"""
-        if 'apply' in request.POST:
+        if request.POST.get('aplicar') or 'apply' in request.POST:
             # Verificar si es grupo existente o nuevo
             grupo_tipo = request.POST.get('grupo_tipo', 'existente')
             
@@ -1961,11 +2222,50 @@ class PlantillaAdminDuplicado(admin.ModelAdmin):
         })
 
 
+class EnvioProgramadoForm(forms.ModelForm):
+    media_file_upload = forms.FileField(
+        label='Subir archivo desde PC',
+        required=False,
+        help_text='Opcional. Guarda el archivo en storage/S3 y completa URL del Archivo.',
+    )
+
+    class Meta:
+        model = EnvioProgramado
+        exclude = (
+            'fecha_envio_real',
+            'total_destinatarios',
+            'total_enviados',
+            'total_fallidos',
+            'error',
+            'fecha_creacion',
+            'creado_por',
+        )
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        uploaded_file = self.cleaned_data.get('media_file_upload')
+        if uploaded_file:
+            instance.media_url = guardar_upload_admin_media(
+                uploaded_file,
+                carpeta='envios_programados',
+                prefix='media',
+            )
+            instance.incluir_media = True
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
+
+
 class EnvioProgramadoInline(admin.TabularInline):
     """Envíos programados dentro de una campaña"""
     model = EnvioProgramado
+    form = EnvioProgramadoForm
     extra = 0
-    fields = ('nombre', 'tipo', 'fecha_programada', 'estado', 'mensaje', 'fecha_envio_real')
+    fields = (
+        'nombre', 'tipo', 'fecha_programada', 'estado', 'mensaje',
+        'incluir_media', 'media_url', 'media_file_upload', 'fecha_envio_real',
+    )
     readonly_fields = ('fecha_envio_real',)
     show_change_link = True
 
@@ -2561,6 +2861,7 @@ class PreguntaAbiertaFinalInline(admin.TabularInline):
 @admin.register(Curso)
 class CursoAdmin(admin.ModelAdmin):
     """Administración de cursos"""
+    change_form_template = 'admin/core/curso/change_form.html'
     list_display = ('nombre', 'cliente_nombre', 'total_modulos_display', 'docs_rag_count', 'duracion_semanas', 'ver_modulos_link', 'activo', 'tiene_formulario_gei', 'usar_agentes_ia', 'orden')
     list_filter = ('activo', 'cliente', 'usar_gamificacion', 'usar_agentes_ia', 'habilitar_pregunta_abierta_final', 'tiene_formulario_gei')
     search_fields = ('nombre', 'descripcion', 'cliente__nombre')
@@ -2573,62 +2874,39 @@ class CursoAdmin(admin.ModelAdmin):
     # change_list_template = 'admin/curso_changelist.html'  # Eliminado para usar el template estándar de Django
     
     fieldsets = (
-        ('📚 Información del Curso', {
-            'fields': ('nombre', 'descripcion', 'cliente', 'duracion_semanas'),
+        ('Datos del curso', {
+            'fields': ('nombre', 'descripcion', 'cliente', 'duracion_semanas', 'activo', 'orden'),
         }),
-        ('⏱️ Ritmo entre módulos (drip)', {
-            'fields': ('dias_espera_entre_modulos',),
+        ('Ritmo drip y acceso', {
+            'fields': (
+                'dias_espera_entre_modulos',
+                'usar_gamificacion',
+                'habilitar_pregunta_abierta_final',
+            ),
             'description': mark_safe(
-                '<p><strong>0</strong> = el estudiante puede avanzar al siguiente módulo de inmediato con <em>listo</em>. '
-                '<strong>Mayor que 0</strong> = días obligatorios de espera entre módulos; el bot bloquea el avance hasta la fecha. '
-                'Celery envía un recordatorio diario a las 8:00 cuando corresponde (<code>reenganche_drip_content_diario</code>).</p>'
-                '<p><strong>Un curso por empresa (recomendado sin overrides):</strong> creá un curso por cliente y definí aquí los días; '
-                'afecta a todos los estudiantes de ese curso.</p>'
-                '<p><strong>Curso global compartido:</strong> dejá aquí el valor por defecto y en el admin del <strong>Cliente</strong> '
-                'usá la tabla <em>Ritmo drip por curso (override)</em> para que cada organización tenga su propio ritmo sobre el mismo curso.</p>'
+                '<p><strong>0</strong> = avance inmediato con <em>listo</em>. '
+                '<strong>&gt; 0</strong> = días de espera entre módulos.</p>'
+                '<p>Override por cliente: tabla <em>Ritmo drip por curso</em> en la ficha Cliente.</p>'
             ),
         }),
-        ('🤖 Nombres de Agentes IA (Override)', {
-            'fields': ('nombre_agente_tutor', 'nombre_agente_asistente'),
-            'description': '🎓 Override por curso. Si se dejan vacíos, se usarán los nombres configurados en el Cliente. Si el Cliente tampoco tiene, se usan los por defecto (Gerónimo y María).',
-            'classes': ('collapse',),
-        }),
-        ('🧠 Preguntas IA (Tutor + Recuperación)', {
-            'fields': ('preguntas_ejemplo_ia',),
-            'description': '📝 Preguntas ejemplo que la IA usará como referencia de estilo y dificultad para: 1) Las preguntas del Profesor/Tutor durante el curso, y 2) La pregunta final de recuperación si el estudiante termina con menos de 70 puntos. Una pregunta por línea.',
-            'classes': ('collapse',),
-        }),
-        ('👥 Grupo de WhatsApp', {
-            'fields': ('enlace_grupo_whatsapp',),
-            'description': '🔗 Enlace de invitación al grupo de WhatsApp del curso.',
-            'classes': ('collapse',)
-        }),
-        ('🌱 Recolección GEI (Ficha de Carbono)', {
-            'fields': ('tiene_formulario_gei',),
+        ('IA y retos', {
+            'fields': (
+                'usar_agentes_ia',
+                'nombre_agente_tutor',
+                'nombre_agente_asistente',
+                'preguntas_ejemplo_ia',
+            ),
             'description': mark_safe(
-                '<p>Cuando está activo, al completar el módulo disparador configurado en '
-                '<strong>Formulario → Tipos de formulario</strong> se inicia automáticamente '
-                'la recolección de datos GEI por WhatsApp (las 7 preguntas del cuestionario).</p>'
-                '<p>Si lo dejás <strong>inactivo</strong>, aunque exista un TipoFormulario para '
-                'este curso, no se disparará el flujo. Útil para pausar la recolección sin '
-                'borrar la configuración.</p>'
-                '<p><a href="/admin/gei/panel/" target="_blank">📊 Ver Panel GEI</a></p>'
+                '<p>Retos Darío/Claudia, nombres de agentes (override) y preguntas ejemplo para el tutor.</p>'
+                '<p>Si los nombres van vacíos, se usan los del Cliente o los por defecto.</p>'
             ),
         }),
-        ('🎯 Retos con Agentes IA (Darío + Claudia)', {
-            'fields': ('usar_agentes_ia',),
+        ('GEI y WhatsApp', {
+            'fields': ('tiene_formulario_gei', 'enlace_grupo_whatsapp'),
             'description': mark_safe(
-                '<p>Si está <strong>activo</strong>, al completar el módulo 3 y el último módulo del curso '
-                '(con 5+ módulos) se dispara una pausa con el asistente <strong>Darío</strong> (resuelve '
-                'dudas vía RAG) y luego un reto evaluado por la facilitadora <strong>Claudia</strong>, '
-                'que otorga puntos al estudiante.</p>'
-                '<p>Si está <strong>inactivo</strong>, el curso es lineal: cada módulo pasa al siguiente '
-                'sin pausa de IA. Recomendado para cursos cortos, formularios o pilotos donde no se '
-                'requiere la capa de retos IA.</p>'
+                '<p>Recolección GEI al completar el módulo disparador (Formulario → Tipos de formulario). '
+                '<a href="/admin/gei/panel/" target="_blank">Panel GEI</a></p>'
             ),
-        }),
-        ('⚙️ Configuración', {
-            'fields': ('activo', 'orden', 'usar_gamificacion', 'habilitar_pregunta_abierta_final')
         }),
     )
     
@@ -2834,6 +3112,15 @@ class SeccionModuloInline(admin.TabularInline):
 
 
 class PasoModuloForm(forms.ModelForm):
+    media_file_upload = forms.FileField(
+        label='Subir archivo desde PC',
+        required=False,
+        help_text=(
+            'Opcional. Si subes un archivo aquí, se guarda en el storage configurado '
+            '(S3 en producción) y se copia su URL pública a “Media url”.'
+        ),
+    )
+
     class Meta:
         model = PasoModulo
         fields = '__all__'
@@ -2853,6 +3140,22 @@ class PasoModuloForm(forms.ModelForm):
                     if val:
                         self.initial[fname] = str(val)
 
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        uploaded_file = self.cleaned_data.get('media_file_upload')
+        if uploaded_file:
+            modulo_id = instance.modulo_id or 'sin_modulo'
+            instance.media_url = guardar_upload_admin_media(
+                uploaded_file,
+                carpeta='modulos/pasos',
+                prefix=f'modulo_{modulo_id}',
+            )
+
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
+
 
 class PasoModuloInline(admin.StackedInline):
     """Microcontenidos WhatsApp dentro del módulo (orden + listo)."""
@@ -2869,10 +3172,11 @@ class PasoModuloInline(admin.StackedInline):
             'fields': ('orden', 'seccion', 'activo', 'requiere_listo_para_avanzar', 'tipo'),
         }),
         ('Texto y multimedia (WhatsApp)', {
-            'fields': ('titulo', 'contenido', 'media_url'),
+            'fields': ('titulo', 'contenido', 'media_url', 'media_file_upload'),
             'description': (
                 'El título es referencia interna. Lo que recibe el estudiante va en «Contenido». '
-                'Si hay video: el primer párrafo puede ir como leyenda con el archivo; el resto se envía después.'
+                'Puedes pegar una URL o subir archivo desde tu PC. Si subes archivo, se guarda en S3 '
+                'en producción y se completa Media URL automáticamente.'
             ),
         }),
         ('Evaluación tipo opciones', {
@@ -4162,10 +4466,14 @@ class SolicitudSoporteAdmin(admin.ModelAdmin):
     Todo en un solo lugar: soporte técnico + peticiones, quejas, reclamos, sugerencias
     """
     change_list_template = 'admin/core/solicitudsoporte/change_list.html'
+    change_form_template = 'admin/core/solicitudsoporte/change_form.html'
     list_display = ('tipo_badge', 'estudiante_info', 'asunto_o_keyword', 'categoria_badge', 'estado_badge', 'prioridad_badge', 'fecha_solicitud', 'tiempo_espera', 'atendido_por_info')
     list_filter = ('tipo_solicitud', 'categoria', 'resuelto_por_agente', 'estado', 'prioridad', 'keyword_usada', 'fecha_solicitud')
     search_fields = ('estudiante__nombre', 'estudiante__telefono', 'mensaje_original', 'asunto', 'respuesta')
-    readonly_fields = ('fecha_solicitud', 'categoria', 'resuelto_por_agente', 'notas_internas')
+    readonly_fields = (
+        'fecha_solicitud', 'categoria', 'resuelto_por_agente', 'notas_internas',
+        'fecha_respuesta', 'respondido_por',
+    )
     list_per_page = 50
     ordering = ('-fecha_solicitud',)
     actions = ['marcar_en_atencion', 'marcar_resuelta', 'marcar_prioridad_alta']
@@ -4184,8 +4492,9 @@ class SolicitudSoporteAdmin(admin.ModelAdmin):
             'fields': ('estado', 'atendido_por', 'categoria', 'resuelto_por_agente'),
             'description': 'Categoría y resuelto_por_agente los completa el agente PQRS automático.',
         }),
-        ('📝 Respuesta', {
-            'fields': ('respuesta', 'fecha_atencion', 'fecha_resolucion'),
+        ('Respuesta', {
+            'fields': ('respuesta', 'respuesta_portal', 'fecha_atencion', 'fecha_resolucion', 'fecha_respuesta', 'respondido_por'),
+            'description': 'Registro interno. Para notificar al estudiante, use el formulario al final de la página.',
         }),
         ('📋 Notas Internas', {
             'fields': ('notas_internas',),
@@ -4361,6 +4670,36 @@ class SolicitudSoporteAdmin(admin.ModelAdmin):
     def marcar_prioridad_alta(self, request, queryset):
         queryset.update(prioridad='alta')
         self.message_user(request, f"🚨 {queryset.count()} solicitud(es) marcada(s) como 'Prioridad Alta'")
+
+    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        err = request.session.pop('pqrs_envio_error', None)
+        if err:
+            extra_context['envio_error'] = err
+        if request.session.pop('pqrs_envio_ok', False):
+            extra_context['envio_ok'] = True
+
+        if request.method == 'POST' and '_enviar_whatsapp' in request.POST and object_id:
+            from core.pqrs_respuesta import aplicar_respuesta_pqrs
+
+            obj = self.get_object(request, object_id)
+            texto = (
+                request.POST.get('respuesta_whatsapp_admin', '').strip()
+                or request.POST.get('respuesta', '').strip()
+            )
+            ok, error = aplicar_respuesta_pqrs(obj, texto, request.user)
+            if ok:
+                self.message_user(
+                    request,
+                    f'Respuesta enviada por WhatsApp a {obj.estudiante.nombre}.',
+                    messages.SUCCESS,
+                )
+                request.session['pqrs_envio_ok'] = True
+                return redirect(reverse('admin:core_solicitudsoporte_change', args=[obj.pk]))
+            request.session['pqrs_envio_error'] = error
+            return redirect(reverse('admin:core_solicitudsoporte_change', args=[obj.pk]))
+
+        return super().changeform_view(request, object_id, form_url, extra_context)
 
     def changelist_view(self, request, extra_context=None):
         """Vista unificada de Soporte y PQRS con estadísticas"""
@@ -5348,36 +5687,146 @@ except Exception as e:
 class GrupoEstudiantesAdmin(admin.ModelAdmin):
     """
     📦 GESTIÓN UNIFICADA DE GRUPOS
-    Desde aquí puedes gestionar:
-    - Grupos de Estudiantes
-    - Ver Grupos de WhatsApp (botón de acción)
-    - Ver Invitaciones (botón de acción)
+    Los miembros se gestionan en «Gestionar miembros» (lista/Excel), no con el selector doble.
     """
-    list_display = ('nombre_completo', 'cliente_nombre', 'cantidad_estudiantes', 'cursos_asociados_display', 'whatsapp_grupos_link', 'invitaciones_link', 'fecha_creacion')
+    list_display = (
+        'nombre_completo', 'cliente_nombre', 'cantidad_estudiantes',
+        'gestionar_miembros_link', 'cursos_asociados_display',
+        'whatsapp_grupos_link', 'invitaciones_link', 'fecha_creacion',
+    )
     list_filter = ('cliente', 'activo', 'fecha_creacion')
     search_fields = ('nombre', 'descripcion', 'cliente__nombre')
-    filter_horizontal = ('estudiantes', 'cursos')
+    filter_horizontal = ('cursos',)
+    exclude = ('estudiantes',)
+    readonly_fields = ('panel_gestion_miembros',)
+    autocomplete_fields = ('cliente',)
     actions = ['crear_grupo_whatsapp', 'enviar_invitaciones']
-    
+
     fieldsets = (
         ('📋 Información del Grupo', {
-            'fields': ('nombre', 'emoji', 'descripcion', 'cliente')
+            'fields': ('nombre', 'emoji', 'descripcion', 'cliente', 'activo'),
         }),
-        ('👥 Estudiantes', {
-            'fields': ('estudiantes',),
-            'description': '✅ Selecciona los estudiantes que pertenecen a este grupo'
+        ('👥 Miembros del grupo', {
+            'fields': ('panel_gestion_miembros',),
+            'description': (
+                'Use «Gestionar miembros» para pegar cédulas/teléfonos o subir Excel. '
+                'Para muchos estudiantes: lista Estudiantes → marcar → acción «Asignar a un grupo».'
+            ),
         }),
-        ('📚 Cursos Asociados', {
+        ('📚 Cursos asociados (opcional)', {
             'fields': ('cursos',),
-            'description': '📖 Asocia cursos específicos con este grupo',
-            'classes': ('collapse',)
-        }),
-        ('⚙️ Configuración', {
-            'fields': ('activo',),
-            'classes': ('collapse',)
+            'classes': ('collapse',),
         }),
     )
-    
+
+    def get_urls(self):
+        from django.urls import path
+        urls = super().get_urls()
+        custom = [
+            path(
+                '<path:object_id>/gestionar-miembros/',
+                self.admin_site.admin_view(self.gestionar_miembros_view),
+                name='core_grupoestudiantes_gestionar_miembros',
+            ),
+        ]
+        return custom + urls
+
+    def gestionar_miembros_view(self, request, object_id):
+        from django.contrib import messages
+        from django.shortcuts import get_object_or_404, render
+
+        from core.grupos_miembros import (
+            agregar_miembros_por_identificadores,
+            leer_identificadores_desde_excel,
+            parsear_lineas_identificadores,
+            quitar_miembros_por_identificadores,
+        )
+
+        grupo = get_object_or_404(GrupoEstudiantes, pk=object_id)
+
+        if request.method == 'POST':
+            accion = request.POST.get('accion')
+            modo = request.POST.get('modo_busqueda', 'auto')
+            ids = parsear_lineas_identificadores(request.POST.get('lista_identificadores', ''))
+
+            archivo = request.FILES.get('archivo_excel')
+            if archivo and accion == 'agregar':
+                try:
+                    ids_excel = leer_identificadores_desde_excel(archivo, columna='cedula')
+                    if not ids_excel:
+                        ids_excel = leer_identificadores_desde_excel(archivo, columna='telefono')
+                    ids = list(dict.fromkeys(ids + ids_excel))
+                except Exception as exc:
+                    messages.error(request, f'No se pudo leer el Excel: {exc}')
+
+            if not ids:
+                messages.warning(request, 'No ingresó cédulas, teléfonos ni archivo válido.')
+            elif accion == 'agregar':
+                r = agregar_miembros_por_identificadores(grupo, ids, modo=modo)
+                messages.success(
+                    request,
+                    f'Agregados: {r["agregados"]}. Ya estaban: {r["ya_estaban"]}. '
+                    f'No encontrados: {len(r["no_encontrados"])}.',
+                )
+                if r['no_encontrados'][:5]:
+                    messages.warning(
+                        request,
+                        'Ejemplos no encontrados: ' + ', '.join(r['no_encontrados'][:5]),
+                    )
+            elif accion == 'quitar':
+                r = quitar_miembros_por_identificadores(grupo, ids, modo=modo)
+                messages.success(
+                    request,
+                    f'Quitados: {r["quitados"]}. No estaban en el grupo: {len(r["no_en_grupo"])}. '
+                    f'No encontrados: {len(r["no_encontrados"])}.',
+                )
+
+        total = grupo.estudiantes.count()
+        miembros = list(
+            grupo.estudiantes.order_by('nombre').values('cedula', 'nombre', 'telefono')[:50]
+        )
+        ctx = {
+            'title': f'Gestionar miembros — {grupo.emoji} {grupo.nombre}',
+            'grupo': grupo,
+            'total_miembros': total,
+            'miembros_muestra': miembros,
+            'opts': self.model._meta,
+        }
+        return render(request, 'admin/grupo_gestionar_miembros.html', ctx)
+
+    def panel_gestion_miembros(self, obj):
+        if not obj or not obj.pk:
+            return format_html(
+                '<p style="color:#666;">Guarde el grupo primero; luego podrá agregar miembros.</p>'
+            )
+        n = obj.estudiantes.count()
+        url = reverse('admin:core_grupoestudiantes_gestionar_miembros', args=[obj.pk])
+        lista_url = (
+            f'{reverse("admin:core_estudiante_changelist")}?grupos__id__exact={obj.pk}'
+        )
+        return format_html(
+            '<p><strong>{}</strong> estudiante(s) en este grupo.</p>'
+            '<p><a href="{}" class="button" style="background:#1976d2;color:#fff!important;'
+            'padding:8px 16px;border-radius:4px;text-decoration:none;margin-right:8px;">'
+            'Gestionar miembros (lista / Excel)</a>'
+            '<a href="{}" style="margin-left:4px;">Ver en lista de estudiantes</a></p>'
+            '<p style="color:#666;font-size:12px;margin-top:12px;">'
+            'También: Admin → Estudiantes → filtrar → marcar → acción «Asignar estudiantes a un grupo».</p>',
+            n, url, lista_url,
+        )
+    panel_gestion_miembros.short_description = 'Miembros'
+
+    def gestionar_miembros_link(self, obj):
+        if not obj.pk:
+            return '-'
+        url = reverse('admin:core_grupoestudiantes_gestionar_miembros', args=[obj.pk])
+        return format_html(
+            '<a href="{}" style="background:#1976d2;color:#fff;padding:5px 10px;'
+            'border-radius:6px;text-decoration:none;font-size:11px;">Gestionar</a>',
+            url,
+        )
+    gestionar_miembros_link.short_description = 'Miembros'
+
     def nombre_completo(self, obj):
         """Muestra el nombre con emoji"""
         return format_html(
@@ -5385,21 +5834,6 @@ class GrupoEstudiantesAdmin(admin.ModelAdmin):
             obj.emoji, obj.nombre
         )
     nombre_completo.short_description = "Grupo"
-    
-    fieldsets = (
-        ('📋 Información del Grupo', {
-            'fields': ('nombre', 'descripcion', 'cliente')
-        }),
-        ('👥 Estudiantes', {
-            'fields': ('estudiantes',),
-            'description': 'Selecciona los estudiantes que pertenecen a este grupo'
-        }),
-        ('📚 Cursos Asociados (Opcional)', {
-            'fields': ('cursos',),
-            'description': 'Opcionalmente, asocia cursos específicos con este grupo',
-            'classes': ('collapse',)
-        }),
-    )
     
     def cliente_nombre(self, obj):
         if obj.cliente:
@@ -5477,6 +5911,7 @@ class GrupoEstudiantesAdmin(admin.ModelAdmin):
 @admin.register(EnvioProgramado)
 class EnvioProgramadoAdmin(admin.ModelAdmin):
     """Gestión de envíos programados"""
+    form = EnvioProgramadoForm
     list_display = ('nombre', 'tipo', 'fecha_programada', 'estado_badge', 'fecha_envio_real')
     list_filter = ('estado', 'tipo', 'fecha_programada')
     search_fields = ('nombre', 'mensaje')
@@ -5487,7 +5922,7 @@ class EnvioProgramadoAdmin(admin.ModelAdmin):
             'fields': ('nombre', 'tipo', 'campana', 'grupo', 'estudiante', 'mensaje')
         }),
         ('📎 Multimedia (Opcional)', {
-            'fields': ('incluir_media', 'media_url'),
+            'fields': ('incluir_media', 'media_url', 'media_file_upload'),
             'classes': ('collapse',)
         }),
         ('📅 Programación', {
@@ -6069,10 +6504,37 @@ class ProspectoB2BAdmin(admin.ModelAdmin):
 # � ADMIN DE CAMPAÑAS B2B
 # ========================================
 
+class CampanaB2BAdminForm(forms.ModelForm):
+    media_file_upload = forms.FileField(
+        label='Subir archivo desde PC',
+        required=False,
+        help_text='Opcional. Guarda el archivo en storage/S3 y completa URL del PDF/Media.',
+    )
+
+    class Meta:
+        model = CampanaB2B
+        fields = '__all__'
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        uploaded_file = self.cleaned_data.get('media_file_upload')
+        if uploaded_file:
+            instance.url_media = guardar_upload_admin_media(
+                uploaded_file,
+                carpeta='campanas_b2b',
+                prefix='media',
+            )
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
+
+
 class CampanaB2BAdmin(admin.ModelAdmin):
     """
     📤 CAMPAÑAS B2B — Envío de plantillas/PDF a prospectos sin registrarlos.
     """
+    form = CampanaB2BAdminForm
     list_display = ('nombre', 'estado_badge', 'tiene_template', 'tiene_media', 'total_enviados', 'total_errores', 'fecha_creacion')
     list_filter = ('estado',)
     search_fields = ('nombre',)
@@ -6084,8 +6546,8 @@ class CampanaB2BAdmin(admin.ModelAdmin):
             'fields': ('nombre', 'estado')
         }),
         ('💬 Contenido del Mensaje', {
-            'fields': ('mensaje', 'twilio_template_sid', 'url_media'),
-            'description': '📝 Si especificas un Content SID de Twilio, se usará ese template. Si no, se envía el mensaje de texto. El PDF/media se adjunta en ambos casos.'
+            'fields': ('mensaje', 'twilio_template_sid', 'url_media', 'media_file_upload'),
+            'description': '📝 Si especificas un Content SID de Twilio, se usará ese template. Si no, se envía el mensaje de texto. Puedes pegar URL o subir archivo desde PC; el PDF/media se adjunta en ambos casos.'
         }),
         ('📊 Resultados', {
             'fields': ('total_enviados', 'total_errores', 'fecha_envio'),
@@ -6464,10 +6926,49 @@ class DocumentoRAGAdmin(admin.ModelAdmin):
         return super().changelist_view(request, extra_context)
 
 
+@admin.register(ProductoCatalogo)
+class ProductoCatalogoAdmin(admin.ModelAdmin):
+    list_display = (
+        'nombre', 'cliente', 'categoria',
+        'cultivos_objetivo', 'precio_cop', 'unidad', 'activo',
+    )
+    list_filter = ('cliente', 'categoria', 'activo')
+    search_fields = ('nombre', 'descripcion', 'problema_que_resuelve', 'ingrediente_activo')
+    list_editable = ('activo',)
+    readonly_fields = ('fecha_actualizacion',)
+    fieldsets = (
+        ('Identificación', {
+            'fields': ('cliente', 'nombre', 'categoria', 'cultivos_objetivo', 'activo'),
+        }),
+        ('Información técnica', {
+            'fields': ('descripcion', 'problema_que_resuelve', 'ingrediente_activo', 'dosis'),
+        }),
+        ('Información comercial', {
+            'fields': ('precio_cop', 'unidad', 'url_producto'),
+        }),
+        ('Auditoría', {
+            'fields': ('fecha_actualizacion',),
+            'classes': ('collapse',),
+        }),
+    )
+    actions = ['desactivar_productos', 'activar_productos']
+
+    @admin.action(description='Desactivar productos seleccionados')
+    def desactivar_productos(self, request, queryset):
+        count = queryset.update(activo=False)
+        self.message_user(request, f'{count} productos desactivados.')
+
+    @admin.action(description='Activar productos seleccionados')
+    def activar_productos(self, request, queryset):
+        count = queryset.update(activo=True)
+        self.message_user(request, f'{count} productos activados.')
+
+
 @admin.register(ProductoComercial)
 class ProductoComercialAdmin(admin.ModelAdmin):
     """💰 Catálogo de precios estructurado para Nat (Postgres)."""
 
+    change_list_template = 'admin/productocomercial_changelist.html'
     list_display = (
         'sku', 'nombre', 'presentacion', 'precio', 'moneda',
         'cliente', 'categoria', 'activo', 'fecha_actualizacion',
@@ -6478,10 +6979,122 @@ class ProductoComercialAdmin(admin.ModelAdmin):
     ordering = ('-fecha_actualizacion',)
     list_per_page = 50
 
+    def get_urls(self):
+        info = self.model._meta.app_label, self.model._meta.model_name
+        custom = [
+            path(
+                'importar-precios/',
+                self.admin_site.admin_view(self.importar_precios_view),
+                name='%s_%s_importar_precios' % info,
+            ),
+        ]
+        return custom + super().get_urls()
+
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
+        opts = self.model._meta
         extra_context['title'] = '💰 Precios comerciales — Nat (Postgres)'
+        extra_context['importar_precios_url'] = reverse(
+            'admin:%s_%s_importar_precios' % (opts.app_label, opts.model_name)
+        )
         return super().changelist_view(request, extra_context)
+
+    def importar_precios_view(self, request):
+        import os
+        import tempfile
+
+        from django.core.exceptions import PermissionDenied
+
+        from core.precios_import import importar_precios_desde_archivo
+
+        if not self.has_add_permission(request):
+            raise PermissionDenied
+
+        opts = self.model._meta
+        changelist_url = reverse('admin:%s_%s_changelist' % (opts.app_label, opts.model_name))
+        clientes = Cliente.objects.filter(activo=True).order_by('nombre')
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Importar precios comerciales (Excel → Postgres)',
+            'opts': opts,
+            'changelist_url': changelist_url,
+            'clientes': clientes,
+            'preview': None,
+            'cliente_sel': '',
+            'vigencia_desde': '',
+            'vigencia_hasta': '',
+            'desactivar_ausentes': False,
+        }
+
+        if request.method != 'POST':
+            return render(request, 'admin/importar_precios_comercial.html', context)
+
+        archivo = request.FILES.get('archivo')
+        if not archivo:
+            messages.error(request, 'Seleccioná un archivo Excel o JSON.')
+            return render(request, 'admin/importar_precios_comercial.html', context)
+
+        cliente_id_raw = (request.POST.get('cliente') or '').strip()
+        cliente_id = int(cliente_id_raw) if cliente_id_raw else None
+        context['cliente_sel'] = cliente_id_raw
+        context['vigencia_desde'] = request.POST.get('vigencia_desde') or ''
+        context['vigencia_hasta'] = request.POST.get('vigencia_hasta') or ''
+        context['desactivar_ausentes'] = request.POST.get('desactivar_ausentes') == '1'
+
+        ext = os.path.splitext(archivo.name or '')[1].lower()
+        if ext not in {'.xlsx', '.xlsm', '.xls', '.json'}:
+            messages.error(request, 'Formato no soportado. Use .xlsx, .xlsm, .xls o .json')
+            return render(request, 'admin/importar_precios_comercial.html', context)
+
+        tmp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+                for chunk in archivo.chunks():
+                    tmp.write(chunk)
+                tmp_path = tmp.name
+
+            dry_run = (request.POST.get('accion') or '').strip().lower() == 'vista previa'
+            result = importar_precios_desde_archivo(
+                tmp_path,
+                cliente_id=cliente_id,
+                desactivar_ausentes=context['desactivar_ausentes'],
+                dry_run=dry_run,
+                vigencia_desde=context['vigencia_desde'] or None,
+                vigencia_hasta=context['vigencia_hasta'] or None,
+            )
+
+            if result.errores:
+                messages.error(
+                    request,
+                    'Errores de validación:\n' + '\n'.join(result.errores[:12]),
+                )
+                context['preview'] = result
+                return render(request, 'admin/importar_precios_comercial.html', context)
+
+            if dry_run:
+                context['preview'] = result
+                messages.info(
+                    request,
+                    f'Vista previa: {result.total_validos} producto(s) válido(s) para «{result.cliente_nombre}».',
+                )
+                return render(request, 'admin/importar_precios_comercial.html', context)
+
+            messages.success(
+                request,
+                f'Importación lista: {result.creados} creados, {result.actualizados} actualizados'
+                + (f', {result.desactivados} desactivados' if result.desactivados else '')
+                + f' — cliente «{result.cliente_nombre}».',
+            )
+            return redirect(changelist_url)
+        except (ValueError, FileNotFoundError) as e:
+            messages.error(request, str(e))
+            return render(request, 'admin/importar_precios_comercial.html', context)
+        finally:
+            if tmp_path:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
 
 
 class DocumentoRAGComercialAdmin(admin.ModelAdmin):
@@ -6503,7 +7116,12 @@ class DocumentoRAGComercialAdmin(admin.ModelAdmin):
     list_per_page = 50
     ordering = ('-fecha_subida',)
     readonly_fields = ('estado', 'chunks_indexados', 'fecha_subida', 'fecha_indexado', 'subido_por')
-    actions = ['indexar_seleccionados', 'reindexar_seleccionados', 'eliminar_del_rag']
+    actions = [
+        'indexar_seleccionados',
+        'reindexar_seleccionados',
+        'eliminar_del_rag',
+        'importar_precios_a_catalogo',
+    ]
 
     def get_urls(self):
         info = self.model._meta.app_label, self.model._meta.model_name
@@ -6789,6 +7407,35 @@ class DocumentoRAGComercialAdmin(admin.ModelAdmin):
         if queued:
             parts.append(f'{queued} en cola')
         self.message_user(request, '✅ ' + ', '.join(parts) if parts else 'Listo.')
+
+    @admin.action(description='📥 Importar precios a catálogo (Excel → Postgres)')
+    def importar_precios_a_catalogo(self, request, queryset):
+        from core.precios_import import importar_precios_desde_documento_rag
+
+        ok = err = 0
+        for doc in queryset:
+            try:
+                result = importar_precios_desde_documento_rag(doc)
+                if result.errores:
+                    err += 1
+                    self.message_user(
+                        request,
+                        f'«{doc.nombre}»: ' + '; '.join(result.errores[:3]),
+                        level=messages.ERROR,
+                    )
+                    continue
+                ok += 1
+                self.message_user(
+                    request,
+                    f'«{doc.nombre}»: {result.creados} creados, {result.actualizados} actualizados '
+                    f'(cliente «{result.cliente_nombre}»).',
+                    level=messages.SUCCESS,
+                )
+            except (ValueError, FileNotFoundError) as e:
+                err += 1
+                self.message_user(request, f'«{doc.nombre}»: {e}', level=messages.ERROR)
+        if ok and not err:
+            self.message_user(request, f'✅ {ok} lista(s) importada(s) al catálogo de precios.', level=messages.SUCCESS)
 
     @admin.action(description='🗑️ Eliminar del RAG comercial (sin borrar archivo)')
     def eliminar_del_rag(self, request, queryset):

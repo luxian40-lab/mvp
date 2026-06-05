@@ -1,0 +1,258 @@
+/* Cobertura + pantallas operativas eki (morado marca) */
+.eki-cobertura {
+    --eki-brand: #9b67b1;
+    --eki-brand-soft: #f3eaf7;
+    --eki-brand-dark: #7d4f94;
+    --eki-surface: #ffffff;
+    --eki-muted: #64748b;
+    --eki-border: #e2e8f0;
+    --eki-bg: #f8fafc;
+    padding: 1.25rem 1.5rem 2.5rem;
+    max-width: 1320px;
+}
+
+.eki-cobertura-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.eki-cobertura h1 {
+    margin: 0 0 0.35rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    color: #0f172a;
+}
+
+.eki-cobertura .sub {
+    margin: 0;
+    color: var(--eki-muted);
+    font-size: 0.9rem;
+}
+
+.eki-filtros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1rem;
+    align-items: flex-end;
+    background: var(--eki-surface);
+    border: 1px solid var(--eki-border);
+    border-radius: 12px;
+    padding: 1rem 1.15rem;
+    margin-bottom: 1.25rem;
+}
+
+.eki-filtros .field label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--eki-muted);
+    margin-bottom: 0.35rem;
+}
+
+.eki-filtros select {
+    min-width: 200px;
+    padding: 0.5rem 0.65rem;
+    border-radius: 8px;
+    border: 1px solid var(--eki-border);
+    font-size: 0.875rem;
+}
+
+.eki-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.eki-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.45rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid var(--eki-border);
+    background: var(--eki-surface);
+    color: #334155;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.15s ease;
+}
+
+.eki-pill:hover {
+    border-color: var(--eki-brand);
+    color: var(--eki-brand-dark);
+    text-decoration: none;
+}
+
+.eki-pill.is-active {
+    background: var(--eki-brand);
+    border-color: var(--eki-brand);
+    color: #fff;
+}
+
+.eki-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.eki-metric {
+    background: var(--eki-surface);
+    border: 1px solid var(--eki-border);
+    border-radius: 12px;
+    padding: 1rem;
+}
+
+.eki-metric.is-global {
+    border-color: #d8b4e0;
+    background: var(--eki-brand-soft);
+}
+
+.eki-metric.is-filtered {
+    border-left: 3px solid var(--eki-brand);
+}
+
+.eki-metric .n {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--eki-brand-dark);
+    line-height: 1.1;
+}
+
+.eki-metric .l {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--eki-muted);
+    margin-top: 0.25rem;
+}
+
+.eki-metric .hint {
+    font-size: 0.75rem;
+    color: var(--eki-muted);
+    margin-top: 0.35rem;
+}
+
+.eki-panel {
+    background: var(--eki-surface);
+    border: 1px solid var(--eki-border);
+    border-radius: 12px;
+    padding: 1.15rem 1.25rem;
+    margin-bottom: 1.25rem;
+}
+
+.eki-panel h2, .eki-panel h3 {
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+#mapa-cobertura {
+    height: 440px;
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid var(--eki-border);
+    background: #e2e8f0;
+}
+
+.eki-mapa-leyenda {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1rem;
+    align-items: center;
+    margin-top: 0.75rem;
+    font-size: 0.8125rem;
+    color: var(--eki-muted);
+}
+
+.eki-mapa-leyenda-bar {
+    height: 8px;
+    width: 120px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #f3eaf7 0%, #9b67b1 55%, #5b3d6b 100%);
+}
+
+.eki-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid transparent;
+    cursor: pointer;
+}
+
+.eki-btn-primary {
+    background: var(--eki-brand);
+    color: #fff;
+    border-color: var(--eki-brand);
+}
+
+.eki-btn-primary:hover {
+    background: var(--eki-brand-dark);
+    color: #fff;
+}
+
+.eki-btn-ghost {
+    background: var(--eki-surface);
+    color: #334155;
+    border-color: var(--eki-border);
+}
+
+.eki-btn-ghost:hover {
+    border-color: var(--eki-brand);
+    color: var(--eki-brand-dark);
+    text-decoration: none;
+}
+
+.eki-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.eki-table th {
+    text-align: left;
+    padding: 0.55rem 0.65rem;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--eki-muted);
+    border-bottom: 1px solid var(--eki-border);
+}
+
+.eki-table td {
+    padding: 0.55rem 0.65rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.eki-table tr.is-active td {
+    background: var(--eki-brand-soft);
+}
+
+.eki-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.eki-banner-global {
+    background: var(--eki-brand-soft);
+    border: 1px solid #d8b4e0;
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+    color: #5b3d6b;
+}

@@ -1,0 +1,184 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}{{ titulo }} | {{ site_title }}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/cobertura_eki.css' %}">
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+{% endblock %}
+
+{% block content %}
+<div class="eki-cobertura">
+    <header class="eki-cobertura-header">
+        <div>
+            <h1>Cobertura territorial</h1>
+            <p class="sub">Vista global: todos los cursos con inscritos de la organización.</p>
+        </div>
+        {% if org %}
+        <a class="eki-btn eki-btn-ghost" href="{% url 'admin_drip_estudiantes' %}?cliente={{ org.id }}">Módulos por estudiante</a>
+        {% endif %}
+    </header>
+
+    <form method="get" class="eki-filtros">
+        <div class="field">
+            <label for="cliente">Organización</label>
+            <select name="cliente" id="cliente" required>
+                <option value="">— Elija —</option>
+                {% for c in clientes %}
+                <option value="{{ c.id }}" {% if org and org.id == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="eki-btn eki-btn-primary">Ver cobertura</button>
+        {% if org %}
+        <a class="eki-btn eki-btn-ghost" href="{% url 'admin:core_cliente_change' org.id %}">Ficha cliente</a>
+        {% endif %}
+    </form>
+
+    {% if not org %}
+    <p class="sub">Elija una organización para cargar el mapa global.</p>
+    {% elif resumen %}
+
+    <div class="eki-banner-global">
+        <strong>Global</strong> — {{ resumen.total_estudiantes }} participantes
+        · {{ resumen.municipios_distintos }} municipios
+        · {{ resumen.departamentos_distintos }} departamentos
+        · {{ resumen.con_municipio_mapeado }} en mapa DANE
+    </div>
+
+    <section class="eki-metrics">
+        <article class="eki-metric is-global">
+            <div class="n">{{ resumen.total_estudiantes }}</div>
+            <div class="l">Participantes</div>
+        </article>
+        <article class="eki-metric is-global">
+            <div class="n">{{ resumen.departamentos_distintos }}</div>
+            <div class="l">Departamentos</div>
+        </article>
+        <article class="eki-metric is-global">
+            <div class="n">{{ resumen.municipios_distintos }}</div>
+            <div class="l">Municipios</div>
+        </article>
+        <article class="eki-metric is-global">
+            <div class="n">{{ resumen.con_municipio_mapeado }}</div>
+            <div class="l">En mapa DANE</div>
+        </article>
+    </section>
+
+    <section class="eki-panel">
+        <h2>Mapa global</h2>
+        <div id="mapa-cobertura" aria-label="Mapa Colombia"></div>
+        <div class="eki-mapa-leyenda">
+            <span>Municipios (más morado = más participantes)</span>
+            <span class="eki-mapa-leyenda-bar" aria-hidden="true"></span>
+        </div>
+        <p id="mapa-cobertura-msg" style="display:none;color:#b91c1c;margin-top:8px;font-size:0.875rem;"></p>
+    </section>
+
+    {% if resumen.por_curso %}
+    <section class="eki-panel">
+        <h2>Referencia por curso</h2>
+        <p class="sub" style="margin-top:0;">Solo lectura; el mapa arriba siempre es la unión de todos.</p>
+        <table class="eki-table">
+            <thead>
+                <tr>
+                    <th>Curso</th>
+                    <th>Participantes</th>
+                    <th>En mapa</th>
+                    <th>Municipios</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in resumen.por_curso %}
+                <tr>
+                    <td>{{ c.nombre }}</td>
+                    <td>{{ c.total_estudiantes }}</td>
+                    <td>{{ c.con_municipio_mapeado }}</td>
+                    <td>{{ c.municipios_distintos }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+    {% endif %}
+
+    <div class="eki-grid-2">
+        <section class="eki-panel">
+            <h3>Top municipios</h3>
+            <ul style="margin:0;padding-left:1.1rem;">
+                {% for m in resumen.top_municipios %}
+                <li>{{ m.municipio }} — <strong>{{ m.cantidad }}</strong></li>
+                {% empty %}<li class="sub">Sin datos</li>{% endfor %}
+            </ul>
+        </section>
+        <section class="eki-panel">
+            <h3>Por departamento</h3>
+            {% if resumen.por_departamento %}
+            <canvas id="chart-deptos" height="200"></canvas>
+            {% else %}<p class="sub">Sin departamentos</p>{% endif %}
+        </section>
+    </div>
+    {% endif %}
+</div>
+
+{% if org and resumen %}
+<script>
+(function () {
+    var labels = {{ chart_labels|safe }};
+    var values = {{ chart_values|safe }};
+    if (labels.length && document.getElementById('chart-deptos')) {
+        new Chart(document.getElementById('chart-deptos'), {
+            type: 'bar',
+            data: { labels: labels, datasets: [{ data: values, backgroundColor: '#9b67b1', borderRadius: 6 }] },
+            options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+        });
+    }
+})();
+</script>
+<script>
+(function () {
+    if (typeof L === 'undefined') return;
+    var q = 'cliente=' + encodeURIComponent('{{ org.id }}');
+    function colorMuni(cantidad, maxCant) {
+        if (!maxCant || !cantidad) return '#f1f5f9';
+        var t = Math.min(1, cantidad / maxCant);
+        return 'rgb(' + Math.round(243 + (155 - 243) * t) + ',' + Math.round(234 + (103 - 234) * t) + ',' + Math.round(247 + (177 - 247) * t) + ')';
+    }
+    var map = L.map('mapa-cobertura', { scrollWheelZoom: true }).setView([4.57, -74.29], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 14, attribution: '&copy; OSM' }).addTo(map);
+    Promise.all([
+        fetch('/admin/cobertura/datos.json?' + q, { credentials: 'same-origin' }).then(function (r) { return r.json(); }),
+        fetch('/admin/cobertura/municipios.geojson', { credentials: 'same-origin' }).then(function (r) { return r.json(); })
+    ]).then(function (res) {
+        var datos = res[0], geo = res[1], porMuni = datos.por_municipio_clave || {}, maxM = datos.max_municipio || 0;
+        L.geoJSON(geo, {
+            style: function (f) {
+                var n = porMuni[f.properties.CLAVE] || 0;
+                return { fillColor: colorMuni(n, maxM), weight: 0.5, color: '#cbd5e1', fillOpacity: n ? 0.9 : 0.2 };
+            },
+            onEachFeature: function (f, layer) {
+                var n = porMuni[f.properties.CLAVE] || 0;
+                if (n) layer.bindPopup('<strong>' + f.properties.MPIO_CNMBR + '</strong><br>' + n + ' participante(s)');
+            }
+        }).addTo(map);
+        (datos.puntos || []).filter(function (p) { return p.lat != null; }).forEach(function (p) {
+            L.circleMarker([p.lat, p.lng], { radius: 5, color: '#7d4f94', fillColor: '#9b67b1', fillOpacity: 0.9, weight: 1 })
+                .addTo(map).bindPopup('<strong>' + p.nombre + '</strong><br>' + (p.municipio || ''));
+        });
+    }).catch(function () {
+        var el = document.getElementById('mapa-cobertura-msg');
+        el.style.display = 'block';
+        el.textContent = 'Error cargando mapa.';
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}

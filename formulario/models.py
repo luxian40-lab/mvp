@@ -9,18 +9,23 @@ CAMPOS_GEI_7 = (
     "nombre_finca",
     "area_ha",
     "num_plantas",
+    "tipo_fertilizante",
     "fertilizante_kg",
     "concentracion_n_pct",
     "produccion_kg",
     "energia_kwh",
+    "anio_datos_energia",
 )
 
-# Campos adicionales del balance GEI (combustible, residuos, bosque).
+# Campos adicionales del balance GEI (combustible, residuos, bosque, perfil).
 CAMPOS_GEI_EXTENSION = (
     "tipo_combustible",
     "combustible_gal",
     "residuos_ton",
     "manejo_residuos",
+    "tipo_cultivo",
+    "alta_mecanizacion",
+    "usa_enmiendas_cal",
     "tiene_bosque",
     "area_bosque_ha",
 )
@@ -140,9 +145,21 @@ class FichaGEI(models.Model):
         ("glp", "GLP"),
         ("otro", "Otro / no aplica"),
     ]
+    TIPO_FERTILIZANTE = [
+        ("", "—"),
+        ("sintetico", "Síntesis química (con % N en empaque)"),
+        ("organico", "Orgánico sin composición fija (compost, abono)"),
+    ]
+    TIPO_CULTIVO = [
+        ("", "—"),
+        ("perenne", "Perenne (café, cacao, plátano…)"),
+        ("transitorio", "Transitorio (maíz, papa, hortalizas…)"),
+        ("arroz", "Arroz en inundación"),
+    ]
     MANEJO_RESIDUOS = [
         ("", "—"),
-        ("compost", "Compost o enterrado en finca"),
+        ("compost", "Compostaje"),
+        ("suelo_directo", "Disposición directa en suelo"),
         ("externo", "Entrega a tercero / recolección"),
         ("quemado", "Quema en campo (no recomendado)"),
         ("otro", "Otra forma / no aplica"),
@@ -159,9 +176,25 @@ class FichaGEI(models.Model):
     nombre_finca = models.CharField(max_length=200, blank=True, default="")
     area_ha = models.FloatField(null=True, blank=True, verbose_name="Área (ha)")
     num_plantas = models.PositiveIntegerField(null=True, blank=True, verbose_name="Número de plantas")
+    tipo_fertilizante = models.CharField(
+        max_length=20, choices=TIPO_FERTILIZANTE, blank=True, default=""
+    )
     fertilizante_kg = models.FloatField(null=True, blank=True, verbose_name="Fertilizante (kg)")
     concentracion_n_pct = models.FloatField(
         null=True, blank=True, verbose_name="Concentración de N (%)"
+    )
+    tipo_cultivo = models.CharField(
+        max_length=20, choices=TIPO_CULTIVO, blank=True, default=""
+    )
+    alta_mecanizacion = models.BooleanField(
+        null=True, blank=True, verbose_name="¿Alta mecanización?"
+    )
+    usa_enmiendas_cal = models.BooleanField(
+        null=True, blank=True, verbose_name="¿Usa enmiendas como cal?"
+    )
+    anio_datos_energia = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name="Año de referencia energía",
+        help_text="2025 → factor 0.097; 2026 o posterior → 0.126 kg CO₂e/kWh",
     )
     tipo_combustible = models.CharField(
         max_length=20, choices=TIPO_COMBUSTIBLE, blank=True, default=""
@@ -244,6 +277,9 @@ class ResultadoGEI(models.Model):
 
     completitud_calculo_pct = models.IntegerField(default=0, verbose_name="Completitud del cálculo (%)")
     campos_faltantes = models.JSONField(default=list, blank=True, verbose_name="Campos faltantes")
+    nota_cobertura = models.TextField(
+        blank=True, default="", verbose_name="Nota de cobertura metodológica"
+    )
     fecha_calculo = models.DateTimeField(auto_now=True, verbose_name="Último cálculo")
 
     class Meta:

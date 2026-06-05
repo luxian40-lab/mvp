@@ -1,0 +1,117 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Estudiantes | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <h1>Estudiantes</h1>
+        <p class="muted">Haga clic en un nombre para ver avance, módulos y PQRS.</p>
+    </div>
+</div>
+
+{% if request.GET.export_error == 'modulo' %}
+    <div class="alert alert-error">Indique el número de módulo (ej. 5) para exportar quienes no lo alcanzaron.</div>
+{% endif %}
+
+<section class="panel" style="margin-bottom:24px;">
+    <h2>Exportar para reenganche</h2>
+    <p class="muted" style="margin-bottom:14px;">
+        Genera un Excel con formato de importación: personas del grupo/curso que
+        <strong>no alcanzaron</strong> el módulo indicado (útil para borrar y volver a cargar).
+    </p>
+    <form method="get" action="/portal/estudiantes/exportar/" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;align-items:end;">
+        <label>
+            <strong>Curso</strong>
+            <select name="curso" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+                <option value="">Todos los cursos</option>
+                {% for c in cursos %}
+                    <option value="{{ c.id }}">{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <strong>Grupo</strong>
+            <select name="grupo" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+                <option value="">Todos los grupos</option>
+                {% for g in grupos %}
+                    <option value="{{ g.id }}">{{ g.nombre }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <strong>Sin alcanzar módulo</strong>
+            <input type="number" name="sin_modulo" min="1" placeholder="Ej. 5" required
+                style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+        </label>
+        <button class="btn" type="submit">Descargar Excel</button>
+    </form>
+</section>
+
+<section class="panel">
+    <input
+        id="buscador-estudiantes"
+        type="search"
+        placeholder="Buscar por nombre..."
+        style="width:100%;max-width:420px;margin-bottom:18px;border:1px solid var(--borde);border-radius:8px;padding:11px 12px;font:inherit;"
+    >
+    <table id="tabla-estudiantes">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Teléfono</th>
+                <th>Estado</th>
+                <th>Cursos</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for estudiante in estudiantes %}
+                <tr class="row-link" data-href="/portal/estudiantes/{{ estudiante.id }}/">
+                    <td data-nombre="{{ estudiante.nombre|lower }}">
+                        <a href="/portal/estudiantes/{{ estudiante.id }}/" class="row-link-anchor">{{ estudiante.nombre }}</a>
+                    </td>
+                    <td>{{ estudiante.telefono }}</td>
+                    <td>
+                        {% if estudiante.activo %}
+                            <span class="status status-resuelta">Activo</span>
+                        {% else %}
+                            <span class="status status-cerrada">Inactivo</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ estudiante.cursos_count }}</td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="4" class="muted">No hay estudiantes registrados todavía.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<style>
+    .row-link { cursor: pointer; }
+    .row-link:hover { background: #f8fafc; }
+    .row-link-anchor { color: var(--accent); font-weight: 600; text-decoration: none; }
+    .row-link-anchor:hover { text-decoration: underline; }
+</style>
+
+<script>
+    const buscador = document.getElementById('buscador-estudiantes');
+    const filas = document.querySelectorAll('#tabla-estudiantes tbody tr.row-link');
+    filas.forEach(function (fila) {
+        fila.addEventListener('click', function (e) {
+            if (e.target.closest('a')) return;
+            window.location = fila.dataset.href;
+        });
+    });
+    buscador.addEventListener('input', function () {
+        const filtro = this.value.trim().toLowerCase();
+        filas.forEach(function (fila) {
+            const celda = fila.querySelector('[data-nombre]');
+            if (!celda) return;
+            fila.style.display = celda.dataset.nombre.includes(filtro) ? '' : 'none';
+        });
+    });
+</script>
+{% endblock %}

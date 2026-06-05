@@ -1,0 +1,52 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Campañas | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <h1>Campañas y envíos</h1>
+        <p class="muted">Seguimiento de mensajes masivos WhatsApp de su organización.</p>
+    </div>
+    {% if portal_es_admin %}
+        <span class="muted" style="font-size:12px;">Para crear o ejecutar campañas use el admin eki.</span>
+    {% endif %}
+</div>
+
+<section class="panel">
+    <table>
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Estado</th>
+                <th>Destinatarios</th>
+                <th>Enviados</th>
+                <th>Fecha</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in campanas %}
+                <tr>
+                    <td>{{ c.nombre }}</td>
+                    <td>
+                        {% if c.ejecutada %}
+                            <span class="status status-resuelta">Ejecutada</span>
+                        {% elif c.fecha_programada %}
+                            <span class="status status-en_proceso">Programada</span>
+                        {% else %}
+                            <span class="status status-pendiente">Borrador</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ c.dest_count }}</td>
+                    <td>{{ c.total_enviados }}</td>
+                    <td>{{ c.fecha_creacion|date:"d/m/Y" }}</td>
+                    <td><a href="/portal/campanas/{{ c.id }}/">Detalle</a></td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="6" class="muted">No hay campañas registradas.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

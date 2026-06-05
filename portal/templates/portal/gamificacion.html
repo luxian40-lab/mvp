@@ -1,0 +1,68 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Gamificación | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <h1>Gamificación</h1>
+        <p class="muted">
+            Modo de su organización: <strong>{{ modo_label }}</strong>
+            {% if es_calificacion %} — ranking por promedio ponderado de notas (1–5){% else %} — ranking por puntos acumulados{% endif %}
+        </p>
+    </div>
+    <a class="btn btn-outline" href="/portal/metricas/">Reporte B2B</a>
+</div>
+
+{% if not gamificacion_activa %}
+<section class="panel">
+    <p>La gamificación está desactivada para esta organización. Puede activarla en el admin de eki (modo puntos o calificación 1–5).</p>
+</section>
+{% else %}
+
+<form method="get" class="panel" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:20px;">
+    <div>
+        <label for="curso" style="display:block;font-weight:600;margin-bottom:6px;">Curso</label>
+        <select name="curso" id="curso" style="min-width:220px;padding:8px 12px;border-radius:8px;border:1px solid var(--borde);">
+            <option value="">Todos los inscritos</option>
+            {% for c in cursos %}
+            <option value="{{ c.id }}" {% if filtro_curso == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button class="btn" type="submit">Filtrar</button>
+    {% if curso_seleccionado %}
+    <span class="muted">Filtrando: {{ curso_seleccionado.nombre }}</span>
+    {% endif %}
+</form>
+
+<section class="panel">
+    {% if ranking %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Estudiante</th>
+                    <th>{{ columna_valor }}</th>
+                    <th>Detalle</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in ranking %}
+                <tr>
+                    <td>{{ row.posicion }}</td>
+                    <td><a href="/portal/estudiantes/{{ row.estudiante_id }}/">{{ row.nombre }}</a></td>
+                    <td><strong>{{ row.valor }}</strong></td>
+                    <td class="muted">{{ row.detalle }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="muted">Aún no hay datos de ranking{% if es_calificacion %} (se generan al evaluar retos con notas){% endif %}.</p>
+    {% endif %}
+</section>
+{% endif %}
+{% endblock %}

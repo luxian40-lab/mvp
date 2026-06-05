@@ -2,10 +2,6 @@
 {% load i18n admin_urls %}
 
 {% block object-tools-items %}
-<li>
-  <a href="{{ subida_masiva_url }}" class="addlink" style="background:#0369a1;border-radius:4px;">
-    📦 Subida masiva (2–{{ subida_masiva_max }} archivos o ZIP)
-  </a>
-</li>
+{% include "admin/includes/object_tool_link.html" with url=subida_masiva_url label="Subida masiva RAG" %}
 {{ block.super }}
 {% endblock %}

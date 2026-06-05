@@ -26,6 +26,7 @@ class ResultadoGEIInline(admin.StackedInline):
         "evaluacion",
         "completitud_calculo_pct",
         "campos_faltantes",
+        "nota_cobertura",
         "fecha_calculo",
     )
 
@@ -96,6 +97,7 @@ class ResultadoGEIAdmin(admin.ModelAdmin):
         "evaluacion",
         "completitud_calculo_pct",
         "campos_faltantes",
+        "nota_cobertura",
         "fecha_calculo",
     )
 

@@ -26,6 +26,7 @@ urlpatterns = [
     path('', include('integrations.urls')),
     path('', include('core.urls.certificados_urls')),
     path('', include('core.urls.media_urls')),
+    path('portal/', include('portal.urls')),
 
     # Admin de Django
     path('admin/', admin.site.urls),

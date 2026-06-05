@@ -2192,6 +2192,9 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
     )
     canal_rag = str(getattr(settings, 'BOT_COMERCIAL_RAG_CANAL', 'bot_comercial') or 'bot_comercial')
 
+    from core.nati import armar_saludo_inicial, armar_saludo_menu
+
+    # MVP: un cliente por entorno vía BOT_COMERCIAL_CLIENTE_ID (sin menú ni routing por número).
     cliente_nati = None
     if cliente_id_cfg:
         try:
@@ -2201,11 +2204,15 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                 "Bot comercial: no se pudo cargar Cliente id=%s para Nat: %s",
                 cliente_id_cfg, e,
             )
+
     sesion_comercial = _obtener_o_crear_sesion_comercial(
         telefono=telefono_limpio,
         cliente=cliente_nati,
         horas_expira=int(getattr(settings, 'BOT_COMERCIAL_SESSION_HOURS', 4) or 4),
     )
+
+    consulta = msg_body or 'Necesito asesoría agrícola'
+    rag_chunks = []
 
     ctx_agro = None
     bloque_contexto_agro = ''
@@ -2219,14 +2226,9 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
     except Exception:
         pass
 
-    consulta = msg_body or 'Necesito asesoría agrícola'
-    rag_chunks = []
-
     if es_saludo:
-        from core.nati import armar_saludo_inicial
         texto_respuesta = armar_saludo_inicial(cliente_nati)
     elif msg_normalizado in ['listo', 'continuar', 'menu', 'menú']:
-        from core.nati import armar_saludo_menu
         texto_respuesta = armar_saludo_menu(cliente_nati)
     else:
         diagnostico_vision = ''
@@ -2238,9 +2240,12 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
             consulta = f"{consulta}\n\nDiagnóstico preliminar imagen: {diagnostico_vision}"
 
         cliente_ids_consulta = []
-        for cid in [cliente_id_cfg, 0]:
-            if cid not in cliente_ids_consulta:
-                cliente_ids_consulta.append(cid)
+        if cliente_nati and cliente_nati.id:
+            cliente_ids_consulta = [cliente_nati.id]
+        elif cliente_id_cfg:
+            cliente_ids_consulta = [cliente_id_cfg]
+        else:
+            cliente_ids_consulta = [0]
 
         contexto_rag = ''
         contexto_web = ''
@@ -2251,7 +2256,7 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
             formatear_contexto_precios,
         )
         contexto_precios_db = ''
-        if es_consulta_catalogo(consulta):
+        if es_consulta_catalogo(consulta) and cliente_ids_consulta != [0]:
             productos_precio = buscar_precios(cliente_ids_consulta, consulta)
             if productos_precio:
                 contexto_precios_db = formatear_contexto_precios(productos_precio)
@@ -2262,20 +2267,7 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                 )
 
         if rag_comercial_manager.disponible:
-            from .models import DocumentoRAGComercial
-
-            # Robustez: si el cliente configurado no coincide con donde se indexaron docs,
-            # buscar también en clientes con documentos comerciales indexados.
-            clientes_indexados = list(
-                DocumentoRAGComercial.objects.filter(estado='indexado')
-                .exclude(cliente_id__isnull=True)
-                .values_list('cliente_id', flat=True)
-                .distinct()[:16]
-            )
-            for cid in clientes_indexados:
-                if cid not in cliente_ids_consulta:
-                    cliente_ids_consulta.append(cid)
-
+            # Scope estricto: solo cliente_ids_consulta (sesión o BOT_COMERCIAL_CLIENTE_ID).
             canales_consulta = []
             for c in [canal_rag, 'bot_comercial']:
                 if c and c not in canales_consulta:
@@ -3729,6 +3721,58 @@ def _procesar_twilio_webhook(post_data):
                 pass
 
             else:
+                # 🆘 PQRS / ayuda con contexto — antes del gate «solo listo» (evita «No entendí»)
+                try:
+                    from .pqrs_agent import (
+                        intentar_procesar_seguimiento_pqrs_whatsapp,
+                        mensaje_activa_soporte,
+                        respuesta_ayuda_con_ticket_abierto,
+                    )
+                    from .security_handler import procesar_solicitud_soporte
+
+                    _resp_pqrs_gate = None
+                    if mensaje_activa_soporte(msg_body):
+                        _resp_pqrs_gate = respuesta_ayuda_con_ticket_abierto(estudiante, msg_body)
+                        if not _resp_pqrs_gate:
+                            _resp_pqrs_gate = procesar_solicitud_soporte(
+                                estudiante, msg_body, 'curso_ayuda',
+                            )
+                    else:
+                        _resp_pqrs_gate = intentar_procesar_seguimiento_pqrs_whatsapp(
+                            estudiante, msg_body,
+                        )
+
+                    if _resp_pqrs_gate:
+                        try:
+                            from twilio.rest import Client as TwilioClient
+
+                            account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                            auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                            twilio_number = getattr(
+                                settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806',
+                            )
+                            client_tw = TwilioClient(account_sid, auth_token)
+                            destino = (
+                                f'whatsapp:{msg_from}'
+                                if not msg_from.startswith('whatsapp:')
+                                else msg_from
+                            )
+                            client_tw.messages.create(
+                                body=_resp_pqrs_gate,
+                                from_=str(twilio_number).strip(),
+                                to=str(destino).strip(),
+                            )
+                            WhatsappLog.objects.create(
+                                telefono=telefono_limpio,
+                                mensaje=_resp_pqrs_gate[:500],
+                                tipo='SENT',
+                            )
+                        except Exception as e:
+                            logger.error('❌ Error enviando PQRS/ayuda en gate curso: %s', e)
+                        return
+                except Exception:
+                    logger.exception('PQRS gate curso omitido')
+
                 # 📚 Paso módulo: evaluación / reto — antes del gate "solo listo" (A, texto libre, etc.)
                 if estado_chat == 'ACTIVO':
                     from .module_steps import procesar_respuesta_evaluacion_paso
@@ -3866,29 +3910,11 @@ def _procesar_twilio_webhook(post_data):
                                 logger.error(f"❌ Error enviando respuesta paso módulo: {e}", exc_info=True)
                             return
 
-                # En flujo de curso normal: "listo" o "continuar" avanzan; "ayuda" crea ticket.
-                keywords_ayuda_curso = ['ayuda', 'soporte', 'ticket', 'problema']
                 keywords_corregir_curso = [
                     '4', 'corregir datos', 'corregir mis datos', 'cambiar datos', 'cambiar mis datos',
                     'me equivoqué', 'me equivoque', 'editar datos', 'modificar datos', 'modificar',
                     'datos incorrectos', 'mis datos', 'actualizar datos'
                 ]
-
-                if msg_lower in keywords_ayuda_curso:
-                    from .security_handler import procesar_solicitud_soporte
-                    respuesta = procesar_solicitud_soporte(estudiante, msg_body, 'curso_ayuda')
-                    try:
-                        from twilio.rest import Client as TwilioClient
-                        account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-                        auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-                        twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
-                        client_tw = TwilioClient(account_sid, auth_token)
-                        destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
-                        client_tw.messages.create(body=respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
-                        WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=respuesta, tipo='SENT')
-                    except Exception:
-                        pass
-                    return
 
                 if msg_lower in keywords_corregir_curso:
                     from .correccion_datos import iniciar_flujo_correccion
@@ -4335,35 +4361,77 @@ def _procesar_twilio_webhook(post_data):
                         )
                         try:
                             from .tutor_ia_modulo import evaluar_reto_facilitador
-                            puntaje_final_10, feedback_final = evaluar_reto_facilitador(
+                            from core.gamificacion_modo import (
+                                get_modo_gamificacion,
+                                modo_usa_calificacion,
+                                gamificacion_otorga_puntos,
+                                formatear_nota,
+                                registrar_nota_gamificacion,
+                                resumen_calificaciones_estudiante,
+                            )
+
+                            modo_gami = get_modo_gamificacion(
+                                getattr(estudiante, 'cliente', None),
+                            )
+                            puntaje_final, feedback_final = evaluar_reto_facilitador(
                                 modulos_eval,
                                 msg_body,
                                 pregunta.pregunta,
                                 estudiante_nombre=estudiante.nombre or "Estudiante",
                                 curso_nombre=(getattr(curso_obj, 'nombre', None) if curso_obj else None),
+                                modo_gamificacion=modo_gami,
                             )
                         except Exception as e:
                             logger.warning(f"⚠️ No se pudo evaluar pregunta abierta final con IA: {e}")
 
                         respuesta_final.estado = 'calificada'
-                        respuesta_final.calificacion = int(max(1, min(10, puntaje_final_10)) * 10)
+                        if modo_usa_calificacion(getattr(estudiante, 'cliente', None)):
+                            nota = float(puntaje_final)
+                            respuesta_final.calificacion = int(round(nota * 10))
+                        else:
+                            respuesta_final.calificacion = int(
+                                max(1, min(10, int(puntaje_final))) * 10,
+                            )
                         respuesta_final.retroalimentacion = feedback_final
                         respuesta_final.fecha_calificacion = timezone.now()
                         respuesta_final.save(update_fields=['estado', 'calificacion', 'retroalimentacion', 'fecha_calificacion'])
 
                         puntos_msg = ""
                         try:
-                            usar_gamificacion_final = bool(
-                                (curso_obj.usar_gamificacion if curso_obj else False) or
-                                (estudiante.cliente.usar_gamificacion if getattr(estudiante, 'cliente', None) else False)
-                            )
-                            if usar_gamificacion_final:
+                            if modo_usa_calificacion(getattr(estudiante, 'cliente', None)):
+                                nota_f = float(puntaje_final)
+                                registrar_nota_gamificacion(
+                                    estudiante,
+                                    nota_f,
+                                    'pregunta_abierta',
+                                    curso=curso_obj,
+                                    detalle='Pregunta abierta final',
+                                )
+                                res_n = resumen_calificaciones_estudiante(
+                                    estudiante,
+                                    curso_obj.id if curso_obj else None,
+                                )
+                                prom = res_n.get('promedio')
+                                extra_prom = (
+                                    f"\n📊 *Promedio acumulado:* {formatear_nota(prom)}/5"
+                                    if prom is not None else ''
+                                )
+                                puntos_msg = (
+                                    f"\n\n📋 *Nota:* {formatear_nota(nota_f)}/5{extra_prom}"
+                                )
+                            elif gamificacion_otorga_puntos(
+                                getattr(estudiante, 'cliente', None), curso_obj,
+                            ):
                                 from .gamificacion import PerfilGamificacion
                                 from .response_templates import _barra_progreso
 
                                 perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
-                                puntos_abierta = int(max(1, min(10, puntaje_final_10)) * 5)
-                                perfil.agregar_puntos(puntos_abierta, f"Pregunta abierta final: {puntaje_final_10}/10")
+                                puntaje_10 = int(puntaje_final)
+                                puntos_abierta = int(max(1, min(10, puntaje_10)) * 5)
+                                perfil.agregar_puntos(
+                                    puntos_abierta,
+                                    f"Pregunta abierta final: {puntaje_10}/10",
+                                )
                                 perfil.refresh_from_db()
 
                                 porcentaje = progreso.porcentaje_avance() if progreso else 100
@@ -4649,22 +4717,17 @@ def _procesar_twilio_webhook(post_data):
                         modulos_reto_ids, progreso.curso_id if progreso else None
                     )
                     
+                    from core.gamificacion_modo import get_modo_gamificacion, construir_mensaje_evaluacion_reto
+
+                    _cliente = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
+                    modo_gami = get_modo_gamificacion(_cliente)
                     puntaje, feedback = evaluar_reto_facilitador(
                         modulos_reto, msg_body, reto_texto,
                         estudiante_nombre=estudiante.nombre or "Estudiante",
                         curso_nombre=(progreso.curso.nombre if progreso else None),
+                        modo_gamificacion=modo_gami,
                     )
-                    
-                    # Award points based on reto score (v1.9.8g: points ONLY here)
-                    from .gamificacion import PerfilGamificacion
-                    perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
-                    
-                    # Points: puntaje * 5 (so max 50 pts per reto)
-                    puntos_reto = puntaje * 5
-                    perfil.agregar_puntos(puntos_reto, f"Reto evaluado: {puntaje}/10")
-                    perfil.refresh_from_db()
-                    
-                    _cliente = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
+
                     nombre_tutor = (
                         (_cliente.nombre_agente_tutor if _cliente and hasattr(_cliente, 'nombre_agente_tutor') and _cliente.nombre_agente_tutor else '') or
                         'Claudia'
@@ -4674,16 +4737,9 @@ def _procesar_twilio_webhook(post_data):
                         nombre_tutor = progreso.curso.nombre_agente_tutor or nombre_tutor
                     except ProgresoEstudiante.DoesNotExist:
                         progreso = None
-                    
-                    # Gamification bar shown ONLY after reto evaluation
-                    porcentaje = progreso.porcentaje_avance() if progreso else 0
-                    from .response_templates import _barra_progreso
-                    barra = _barra_progreso(porcentaje)
-                    msg_eval = (
-                        f"📋 *{nombre_tutor}*\n\n"
-                        f"{feedback}\n\n"
-                        f"💰 *+{puntos_reto} puntos* → Total: *{perfil.puntos_totales} pts*\n"
-                        f"{barra} {porcentaje}%"
+
+                    msg_eval = construir_mensaje_evaluacion_reto(
+                        estudiante, progreso, puntaje, feedback, nombre_tutor,
                     )
                     
                     es_final = ctx.get('es_final', False)
@@ -4838,7 +4894,7 @@ def _procesar_twilio_webhook(post_data):
                                 "✅ Escribe *continuar* para recibir el contenido del siguiente módulo.\n"
                                 "Cuando lo hayas revisado, responde *listo* para seguir."
                             )
-                    print(f"✅ Facilitadora reto evaluado: {puntaje}/10, +{puntos_reto} pts", flush=True)
+                    print(f"✅ Facilitadora reto evaluado | modo={modo_gami} | valor={puntaje}", flush=True)
             
             # 3.5a PRIORIDAD: Si está respondiendo al TUTOR IA (legacy)
             elif estudiante.estado_onboarding == 'esperando_respuesta_tutor_ia':

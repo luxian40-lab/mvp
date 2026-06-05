@@ -79,6 +79,8 @@ def detect_intent(mensaje: str) -> str:
                          'pqrs', 'soporte', 'queja', 'reclamo', 'solicitud', 'petición', 'peticion',
                          'necesito ayuda', 'necesito soporte']:
         return 'opcion_3'
+    if re.match(r'^ayuda\b', texto_limpio):
+        return 'opcion_3'
     
     # NOTA: Removidos intents de café, cacao, aguacate individuales
     # Ahora solo se usan cursos a través de "ver cursos" e inscripción

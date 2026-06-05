@@ -1,0 +1,109 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Agente Nat | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <h1>Agente comercial (Nat)</h1>
+        <p class="muted">Conversaciones, catálogo de productos y escalamientos.</p>
+        {% if linea_nat %}<p class="muted">Línea: <strong>{{ linea_nat }}</strong></p>{% endif %}
+    </div>
+    <a class="btn" href="/portal/pqrs/">PQRS comercial</a>
+</div>
+
+<section class="cards-grid" style="margin-bottom:24px;">
+    <article class="card">
+        <div class="metric-number">{{ sesiones_total }}</div>
+        <div class="metric-label">Sesiones totales</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ sesiones_7d }}</div>
+        <div class="metric-label">Activas 7 días</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ catalogo_total }}</div>
+        <div class="metric-label">Productos en catálogo</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ hitl_pendientes }}</div>
+        <div class="metric-label">HITL pendientes</div>
+    </article>
+</section>
+
+<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px;margin-bottom:24px;">
+    <article class="panel">
+        <h2>Catálogo activo</h2>
+        <table>
+            <thead><tr><th>Producto</th><th>Categoría</th><th>Precio</th></tr></thead>
+            <tbody>
+                {% for p in catalogo_top %}
+                    <tr>
+                        <td>{{ p.nombre }}</td>
+                        <td>{{ p.categoria|default:"—" }}</td>
+                        <td>{% if p.precio_cop %}${{ p.precio_cop|floatformat:0 }}{% else %}—{% endif %}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="3" class="muted">Sin productos configurados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </article>
+    <article class="panel">
+        <h2>Escalamientos HITL</h2>
+        <p class="muted" style="margin-bottom:12px;">Conversaciones candidatas a conocimiento validado (revisión eki).</p>
+        <table>
+            <thead><tr><th>Fecha</th><th>Estado</th><th>Pregunta</th></tr></thead>
+            <tbody>
+                {% for h in hitl_recientes %}
+                    <tr>
+                        <td>{{ h.fecha_creacion|date:"d/m/Y" }}</td>
+                        <td>{{ h.get_estado_display }}</td>
+                        <td>{{ h.pregunta|truncatechars:60 }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="3" class="muted">Sin candidatas recientes.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </article>
+</section>
+
+<section class="panel" style="margin-bottom:24px;">
+    <h2>Conversaciones recientes</h2>
+    <table>
+        <thead><tr><th>Teléfono</th><th>Último mensaje</th><th>Turnos</th></tr></thead>
+        <tbody>
+            {% for s in sesiones_recientes %}
+                <tr>
+                    <td>{{ s.telefono }}</td>
+                    <td>{{ s.fecha_ultimo_mensaje|date:"d/m/Y H:i" }}</td>
+                    <td>{{ s.historial_mensajes|length }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="3" class="muted">Sin sesiones registradas.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<section class="panel">
+    <h2>PQRS comercial</h2>
+    <table>
+        <thead><tr><th>Fecha</th><th>Productor</th><th>Categoría</th><th>Estado</th><th></th></tr></thead>
+        <tbody>
+            {% for p in pqrs_recientes %}
+                <tr>
+                    <td>{{ p.fecha_solicitud|date:"d/m/Y" }}</td>
+                    <td>{{ p.estudiante.nombre }}</td>
+                    <td>{{ p.get_categoria_display|default:p.categoria }}</td>
+                    <td>{{ p.get_estado_display|default:p.estado }}</td>
+                    <td><a href="/portal/pqrs/{{ p.id }}/">Ver</a></td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="5" class="muted">Sin solicitudes.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

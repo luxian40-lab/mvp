@@ -1,0 +1,59 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Detalle PQRS | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1>Detalle de PQRS</h1>
+    <a class="pill" href="/portal/pqrs/">Volver</a>
+</div>
+
+<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px;">
+    <article class="panel">
+        <h2>Solicitud</h2>
+        <p><strong>Estudiante:</strong> {{ pqrs.estudiante.nombre }}</p>
+        <p><strong>Teléfono:</strong> {{ pqrs.estudiante.telefono }}</p>
+        <p><strong>Tipo:</strong> {{ pqrs.get_tipo_solicitud_display }}</p>
+        <p><strong>Categoría:</strong> {{ pqrs.get_categoria_display }}</p>
+        <p><strong>Fecha:</strong> {{ pqrs.fecha_solicitud|date:"d/m/Y H:i" }}</p>
+        <p><strong>Estado:</strong> <span class="status status-{{ pqrs.estado }}">{{ pqrs.get_estado_display }}</span></p>
+
+        <h3>Mensaje del estudiante</h3>
+        <div class="soft-box">{{ pqrs.mensaje_original|linebreaks }}</div>
+    </article>
+
+    <article class="panel">
+        <h2>Respuesta</h2>
+        {% if error_envio %}
+            <p style="background:#fdeaea;color:#b4413d;border-radius:12px;padding:12px 14px;font-weight:600;">{{ error_envio }}</p>
+        {% endif %}
+
+        {% if pqrs.estado == 'resuelta' or pqrs.respuesta_portal %}
+            <div style="background:#eaf7ef;border-radius:14px;padding:18px;">
+                {{ pqrs.respuesta_portal|default:pqrs.respuesta|linebreaks }}
+            </div>
+            <p class="muted">
+                Respondida
+                {% if pqrs.fecha_respuesta %}el {{ pqrs.fecha_respuesta|date:"d/m/Y H:i" }}{% endif %}
+                {% if pqrs.respondido_por %}por {{ pqrs.respondido_por.get_full_name|default:pqrs.respondido_por.username }}{% endif %}
+            </p>
+        {% elif puede_responder %}
+            <form method="post">
+                {% csrf_token %}
+                <label for="respuesta" style="display:block;margin-bottom:8px;font-weight:700;">Mensaje para WhatsApp</label>
+                <textarea
+                    id="respuesta"
+                    name="respuesta"
+                    rows="9"
+                    required
+                    style="width:100%;border:1px solid #e7e1eb;border-radius:14px;padding:14px 15px;font:inherit;resize:vertical;"
+                ></textarea>
+                <p class="muted">Escribe como en un chat: si empiezas con «Hola», se envía tal cual; si no, se añade un saludo con el nombre.</p>
+                <button class="btn" type="submit">Enviar por WhatsApp</button>
+            </form>
+        {% else %}
+            <p class="muted">Solo los administradores pueden responder.</p>
+        {% endif %}
+    </article>
+</section>
+{% endblock %}

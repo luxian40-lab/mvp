@@ -1,0 +1,167 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Inventario GEI | Portal eki{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <h1>Inventario GEI</h1>
+        <p class="muted">Recolección de datos y balance de emisiones por productor.</p>
+    </div>
+</div>
+
+{% if not gei_ok %}
+    <section class="panel"><p class="muted">Módulo GEI no disponible.</p></section>
+{% else %}
+
+<section class="panel" style="margin-bottom:24px;">
+    <form method="get" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;align-items:end;">
+        <label>
+            <strong>Curso</strong>
+            <select name="curso" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+                <option value="">Todos</option>
+                {% for c in cursos %}
+                    <option value="{{ c.id }}" {% if filtros.curso_id == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <strong>Desde</strong>
+            <input type="date" name="desde" value="{{ filtros.desde_str }}" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+        </label>
+        <label>
+            <strong>Hasta</strong>
+            <input type="date" name="hasta" value="{{ filtros.hasta_str }}" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+        </label>
+        <button class="btn" type="submit">Aplicar</button>
+        <a class="btn btn-outline" href="/portal/gei/exportar/?curso={{ filtros.curso_id|default:'' }}&desde={{ filtros.desde_str }}&hasta={{ filtros.hasta_str }}">Excel</a>
+    </form>
+</section>
+
+<section class="cards-grid" style="margin-bottom:24px;">
+    <article class="card">
+        <div class="metric-number">{{ fichas_total }}</div>
+        <div class="metric-label">Fichas</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ fichas_completas }}</div>
+        <div class="metric-label">Completas</div>
+        <small class="muted">{{ pct_completas }}% del total</small>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ completitud_promedio }}%</div>
+        <div class="metric-label">Completitud promedio</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ fichas_pendientes }}</div>
+        <div class="metric-label">Sin iniciar</div>
+    </article>
+</section>
+
+<section class="charts-grid" style="margin-bottom:24px;">
+    <article class="panel chart-panel">
+        <h2>Distribución de completitud</h2>
+        <canvas id="chart-gei-dist" height="200"></canvas>
+    </article>
+    <article class="panel chart-panel">
+        <h2>Completitud por variable</h2>
+        <canvas id="chart-gei-vars" height="200"></canvas>
+    </article>
+</section>
+
+{% if completitud_variables %}
+<section class="panel" style="margin-bottom:24px;">
+    <h2>Variables de recolección</h2>
+    <table>
+        <thead><tr><th>Variable</th><th>Con dato</th><th>%</th></tr></thead>
+        <tbody>
+            {% for v in completitud_variables %}
+                <tr>
+                    <td>{{ v.label }}</td>
+                    <td>{{ v.con_dato }} / {{ v.total }}</td>
+                    <td>
+                        <span class="progress-track" style="display:inline-block;width:120px;vertical-align:middle;">
+                            <span class="progress-fill" style="width:{{ v.pct }}%;"></span>
+                        </span>
+                        {{ v.pct }}%
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endif %}
+
+<section class="panel">
+    <h2>Productores</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Productor</th>
+                <th>Finca</th>
+                <th>Curso</th>
+                <th>Completitud</th>
+                <th>Balance tCO₂e</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in productores %}
+                <tr class="row-link" data-href="/portal/gei/{{ row.ficha_id }}/">
+                    <td>{{ row.productor }}</td>
+                    <td>{{ row.finca }}</td>
+                    <td>{{ row.curso }}</td>
+                    <td><span class="status status-{{ row.estado_key }}">{{ row.completitud_pct }}% · {{ row.estado_label }}</span></td>
+                    <td>{% if row.balance_tco2e is not None %}{{ row.balance_tco2e|floatformat:2 }}{% else %}—{% endif %}</td>
+                    <td><a href="/portal/gei/{{ row.ficha_id }}/">Detalle</a></td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="6" class="muted">Sin fichas en el periodo.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if total_paginas > 1 %}
+        <p class="muted" style="margin-top:14px;">
+            Página {{ page }} de {{ total_paginas }}
+            {% if page_anterior %}<a href="?page={{ page_anterior }}&curso={{ filtros.curso_id|default:'' }}&desde={{ filtros.desde_str }}&hasta={{ filtros.hasta_str }}">← Anterior</a>{% endif %}
+            {% if page_siguiente %}<a href="?page={{ page_siguiente }}&curso={{ filtros.curso_id|default:'' }}&desde={{ filtros.desde_str }}&hasta={{ filtros.hasta_str }}">Siguiente →</a>{% endif %}
+        </p>
+    {% endif %}
+</section>
+
+<script>
+    document.querySelectorAll('tr.row-link').forEach(function (tr) {
+        tr.addEventListener('click', function (e) {
+            if (e.target.closest('a')) return;
+            location.href = tr.dataset.href;
+        });
+    });
+    var distLabels = {{ dist_chart_labels }};
+    var distValues = {{ dist_chart_values }};
+    var varsLabels = {{ vars_chart_labels }};
+    var varsValues = {{ vars_chart_values }};
+    if (typeof Chart !== 'undefined') {
+        var grid = getComputedStyle(document.documentElement).getPropertyValue('--borde').trim() || '#e2e8f0';
+        var text = getComputedStyle(document.documentElement).getPropertyValue('--texto-muted').trim() || '#64748b';
+        if (document.getElementById('chart-gei-dist')) {
+            new Chart(document.getElementById('chart-gei-dist'), {
+                type: 'bar',
+                data: { labels: distLabels, datasets: [{ data: distValues, backgroundColor: '#3b82f6', borderRadius: 6 }] },
+                options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: grid } }, x: { ticks: { color: text } } } }
+            });
+        }
+        if (document.getElementById('chart-gei-vars') && varsLabels.length) {
+            new Chart(document.getElementById('chart-gei-vars'), {
+                type: 'bar',
+                data: { labels: varsLabels, datasets: [{ data: varsValues, backgroundColor: '#059669', borderRadius: 6 }] },
+                options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { max: 100, grid: { color: grid } } } }
+            });
+        }
+    }
+</script>
+{% endif %}
+{% endblock %}

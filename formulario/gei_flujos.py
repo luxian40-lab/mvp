@@ -58,10 +58,27 @@ PASOS_CONTEXTO = [
     },
     {
         "orden": 4,
+        "campo_destino": "tipo_fertilizante",
+        "pregunta_texto": (
+            "¿Qué tipo de fertilizante usa más? Responda *sintetico* (químico con % N en el bulto) "
+            "u *organico* (compost, abono sin composición fija). Si no usa, escriba *otro* u OMITIR."
+        ),
+        "tipo_dato": "choice",
+        "rango_min": None,
+        "rango_max": None,
+        "unidad_parseo": "",
+        "opciones_choice": "sintetico|organico|otro",
+        "es_opcional": True,
+        "usar_llm_parseo": False,
+        "texto_reintento": "Escriba: sintetico, organico u otro. O OMITIR si no aplica.",
+    },
+    {
+        "orden": 5,
         "campo_destino": "fertilizante_kg",
         "pregunta_texto": (
-            "¿Cuántos kilos de fertilizante con nitrógeno usa *al año* en esa finca? "
-            "Si lo mide en bultos, también me sirve (un bulto suele ser 50 kg)."
+            "¿Cuántos kilos de fertilizante usa *al año* en esa finca? "
+            "Si es orgánico, cuente compost o abono en kg. "
+            "Si lo mide en bultos, un bulto suele ser 50 kg."
         ),
         "tipo_dato": "float",
         "rango_min": 0.0,
@@ -75,12 +92,13 @@ PASOS_CONTEXTO = [
         ),
     },
     {
-        "orden": 5,
+        "orden": 6,
         "campo_destino": "concentracion_n_pct",
         "pregunta_texto": (
             "¿Sabe el porcentaje de Nitrógeno (N) del fertilizante? "
             "Sale en el bulto, como '15-15-15' o '46-0-0'. "
-            "Mándeme solo el primer número, o escriba OMITIR si no lo sabe."
+            "Mándeme solo el primer número. "
+            "Si es *orgánico* o no lo sabe, escriba *OMITIR*."
         ),
         "tipo_dato": "float",
         "rango_min": 0.0,
@@ -93,7 +111,7 @@ PASOS_CONTEXTO = [
         ),
     },
     {
-        "orden": 6,
+        "orden": 7,
         "campo_destino": "produccion_kg",
         "pregunta_texto": (
             "¿Cuántos kilos produjo *el año pasado* en esta finca? "
@@ -111,11 +129,11 @@ PASOS_CONTEXTO = [
         ),
     },
     {
-        "orden": 7,
+        "orden": 8,
         "campo_destino": "energia_kwh",
         "pregunta_texto": (
-            "Última de esta parte: ¿cuántos kWh de luz gasta *al mes* en la finca? "
-            "Lo ve en el recibo. Si no usa luz en el lote, escriba 0."
+            "¿Cuántos kWh de luz eléctrica consume *al año* en la finca? "
+            "Puede estimarlo desde el recibo (kWh/mes × 12). Si no usa luz, escriba 0."
         ),
         "tipo_dato": "float",
         "rango_min": 0.0,
@@ -124,8 +142,24 @@ PASOS_CONTEXTO = [
         "es_opcional": True,
         "usar_llm_parseo": True,
         "texto_reintento": (
-            "Mándeme solo la cantidad, ej: 80 kWh al mes, o 0. Si no sabe, escriba OMITIR."
+            "Mándeme kWh al año, ej: 960 kWh/año, o 0. Si no sabe, escriba OMITIR."
         ),
+    },
+    {
+        "orden": 9,
+        "campo_destino": "anio_datos_energia",
+        "pregunta_texto": (
+            "¿Esos datos de energía son del *2025* o del *2026*? "
+            "Responda 2025 o 2026. Si no sabe, escriba 2026 u OMITIR."
+        ),
+        "tipo_dato": "choice",
+        "rango_min": None,
+        "rango_max": None,
+        "unidad_parseo": "",
+        "opciones_choice": "2025|2026",
+        "es_opcional": True,
+        "usar_llm_parseo": False,
+        "texto_reintento": "Escriba 2025 o 2026, o OMITIR.",
     },
 ]
 
@@ -183,20 +217,67 @@ PASOS_BALANCE = [
         "orden": 4,
         "campo_destino": "manejo_residuos",
         "pregunta_texto": (
-            "¿Qué hace con esos residuos? *compost*, *externo*, *quemado* u *otro*. "
-            "(Compost = en finca; externo = lo recogen). Si no aplica, OMITIR."
+            "¿Qué hace con esos residuos? *compost*, *suelo_directo*, *externo*, *quemado* u *otro*. "
+            "(compost = compostaje; suelo_directo = los deja en el suelo). Si no aplica, OMITIR."
         ),
         "tipo_dato": "choice",
         "rango_min": None,
         "rango_max": None,
         "unidad_parseo": "",
-        "opciones_choice": "compost|externo|quemado|otro",
+        "opciones_choice": "compost|suelo_directo|externo|quemado|otro",
         "es_opcional": True,
         "usar_llm_parseo": False,
-        "texto_reintento": "Escriba: compost, externo, quemado u otro. O OMITIR.",
+        "texto_reintento": "Escriba: compost, suelo_directo, externo, quemado u otro. O OMITIR.",
     },
     {
         "orden": 5,
+        "campo_destino": "tipo_cultivo",
+        "pregunta_texto": (
+            "¿Qué tipo de cultivo tiene? *perenne* (café, cacao, plátano), "
+            "*transitorio* (maíz, papa, hortalizas) o *arroz* (inundación). "
+            "Si no sabe, escriba perenne u OMITIR."
+        ),
+        "tipo_dato": "choice",
+        "rango_min": None,
+        "rango_max": None,
+        "unidad_parseo": "",
+        "opciones_choice": "perenne|transitorio|arroz",
+        "es_opcional": True,
+        "usar_llm_parseo": False,
+        "texto_reintento": "Escriba: perenne, transitorio o arroz. O OMITIR.",
+    },
+    {
+        "orden": 6,
+        "campo_destino": "alta_mecanizacion",
+        "pregunta_texto": (
+            "¿Usa maquinaria pesada con frecuencia (tractor, cosechadora)? "
+            "Responda *sí* o *no*. Si no sabe, escriba OMITIR."
+        ),
+        "tipo_dato": "bool",
+        "rango_min": None,
+        "rango_max": None,
+        "unidad_parseo": "",
+        "es_opcional": True,
+        "usar_llm_parseo": False,
+        "texto_reintento": "Responda sí o no, por favor. O OMITIR.",
+    },
+    {
+        "orden": 7,
+        "campo_destino": "usa_enmiendas_cal",
+        "pregunta_texto": (
+            "¿Aplica enmiendas como *cal* u otros corretivos al suelo? "
+            "Responda *sí* o *no*. Si no sabe, escriba OMITIR."
+        ),
+        "tipo_dato": "bool",
+        "rango_min": None,
+        "rango_max": None,
+        "unidad_parseo": "",
+        "es_opcional": True,
+        "usar_llm_parseo": False,
+        "texto_reintento": "Responda sí o no, por favor. O OMITIR.",
+    },
+    {
+        "orden": 8,
         "campo_destino": "tiene_bosque",
         "pregunta_texto": (
             "¿Tiene áreas de bosque natural, setos o cobertura arbórea que *conserva* "
@@ -211,7 +292,7 @@ PASOS_BALANCE = [
         "texto_reintento": "Responda solo sí o no, por favor.",
     },
     {
-        "orden": 6,
+        "orden": 9,
         "campo_destino": "area_bosque_ha",
         "pregunta_texto": (
             "¿Cuántas hectáreas de bosque o cobertura conserva? "
@@ -238,7 +319,7 @@ BLOQUES_GEI = {
     "balance": {
         "pasos": PASOS_BALANCE,
         "nombre_suffix": "Balance",
-        "descripcion": "Combustible, residuos y bosque para el balance (disparo al completar módulo 5).",
+        "descripcion": "Combustible, residuos, perfil y bosque para el balance (disparo al completar módulo 5).",
     },
 }
 

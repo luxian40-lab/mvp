@@ -1,0 +1,181 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Cobertura territorial | Portal eki{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<style>
+    .cobertura-wrap { max-width: 1200px; }
+    .cob-banner {
+        background: #f3eaf7; border: 1px solid #d8b4e0; border-radius: 10px;
+        padding: 12px 14px; margin-bottom: 18px; font-size: 14px; color: #5b3d6b;
+    }
+    .cob-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 22px; }
+    .cob-metric {
+        background: var(--fondo-card); border: 1px solid var(--borde); border-radius: 10px; padding: 14px;
+        background: #f3eaf7; border-color: #d8b4e0;
+    }
+    .cob-metric .n { font-size: 1.6rem; font-weight: 700; color: #7d4f94; }
+    .cob-metric .l { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--texto-muted); margin-top: 4px; }
+    #mapa-cobertura {
+        height: 420px; width: 100%; border-radius: 10px; border: 1px solid var(--borde); background: #e2e8f0;
+    }
+    .mapa-leyenda { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 12px; font-size: 13px; color: var(--texto-muted); }
+    .mapa-leyenda-bar {
+        height: 8px; width: 120px; border-radius: 4px;
+        background: linear-gradient(90deg, #f3eaf7 0%, #9b67b1 55%, #5b3d6b 100%);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cobertura-wrap">
+    <div class="page-title">
+        <div>
+            <h1>Cobertura territorial</h1>
+            <p class="muted">Vista <strong>global</strong> de su organización (todos los cursos con inscritos).</p>
+        </div>
+    </div>
+
+    <div class="cob-banner">
+        <strong>Global:</strong> {{ resumen.total_estudiantes }} participantes
+        · {{ resumen.municipios_distintos }} municipios
+        · {{ resumen.departamentos_distintos }} departamentos
+        · {{ resumen.con_municipio_mapeado }} ubicados en mapa DANE
+    </div>
+
+    <section class="cob-metrics">
+        <article class="cob-metric">
+            <div class="n">{{ resumen.total_estudiantes }}</div>
+            <div class="l">Participantes</div>
+        </article>
+        <article class="cob-metric">
+            <div class="n">{{ resumen.departamentos_distintos }}</div>
+            <div class="l">Departamentos</div>
+        </article>
+        <article class="cob-metric">
+            <div class="n">{{ resumen.municipios_distintos }}</div>
+            <div class="l">Municipios</div>
+        </article>
+        <article class="cob-metric">
+            <div class="n">{{ resumen.con_municipio_mapeado }}</div>
+            <div class="l">En mapa DANE</div>
+        </article>
+    </section>
+
+    <section class="panel" style="margin-bottom:24px;">
+        <h2 style="margin-top:0;font-size:16px;">Mapa global</h2>
+        <div id="mapa-cobertura" aria-label="Mapa de Colombia"></div>
+        <div class="mapa-leyenda">
+            <span>Municipios (más morado = más participantes)</span>
+            <span class="mapa-leyenda-bar" aria-hidden="true"></span>
+        </div>
+        <p id="mapa-cobertura-msg" class="muted" style="margin-top:10px;display:none;"></p>
+    </section>
+
+    {% if resumen.por_curso %}
+    <section class="panel" style="margin-bottom:24px;">
+        <h2 style="margin-top:0;font-size:16px;">Referencia por curso</h2>
+        <p class="muted" style="margin-top:0;">El mapa es siempre la unión de todos; aquí solo el desglose.</p>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Curso</th>
+                        <th>Participantes</th>
+                        <th>En mapa</th>
+                        <th>Municipios</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in resumen.por_curso %}
+                    <tr>
+                        <td>{{ c.nombre }}</td>
+                        <td>{{ c.total_estudiantes }}</td>
+                        <td>{{ c.con_municipio_mapeado }}</td>
+                        <td>{{ c.municipios_distintos }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    {% endif %}
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px;margin-bottom:24px;">
+        <article class="panel">
+            <h2 style="margin-top:0;font-size:16px;">Por departamento</h2>
+            {% if resumen.por_departamento %}
+            <canvas id="chart-deptos" height="220"></canvas>
+            {% else %}
+            <p class="muted">Sin datos de departamento.</p>
+            {% endif %}
+        </article>
+        <article class="panel">
+            <h2 style="margin-top:0;font-size:16px;">Top municipios</h2>
+            <ul style="margin:0;padding-left:18px;">
+                {% for m in resumen.top_municipios %}
+                <li>{{ m.municipio }} — <strong>{{ m.cantidad }}</strong></li>
+                {% empty %}
+                <li class="muted">Sin municipios registrados</li>
+                {% endfor %}
+            </ul>
+        </article>
+    </div>
+</div>
+
+<script>
+(function () {
+    var labels = {{ chart_labels|safe }};
+    var values = {{ chart_values|safe }};
+    if (labels.length && document.getElementById('chart-deptos')) {
+        new Chart(document.getElementById('chart-deptos'), {
+            type: 'bar',
+            data: { labels: labels, datasets: [{ data: values, backgroundColor: '#9b67b1', borderRadius: 6 }] },
+            options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+        });
+    }
+})();
+</script>
+
+<script>
+(function () {
+    if (typeof L === 'undefined') return;
+    var msgEl = document.getElementById('mapa-cobertura-msg');
+    function colorMuni(cantidad, maxCant) {
+        if (!maxCant || !cantidad) return '#f1f5f9';
+        var t = Math.min(1, cantidad / maxCant);
+        return 'rgb(' + Math.round(243 + (155-243)*t) + ',' + Math.round(234 + (103-234)*t) + ',' + Math.round(247 + (177-247)*t) + ')';
+    }
+    var map = L.map('mapa-cobertura', { scrollWheelZoom: false }).setView([4.57, -74.29], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 14, attribution: '&copy; OSM' }).addTo(map);
+    Promise.all([
+        fetch('/portal/cobertura/datos.json', { credentials: 'same-origin' }).then(function (r) { return r.json(); }),
+        fetch('/portal/cobertura/municipios.geojson', { credentials: 'same-origin' }).then(function (r) { return r.json(); })
+    ]).then(function (results) {
+        var datos = results[0], geo = results[1], porMuni = datos.por_municipio_clave || {}, maxM = datos.max_municipio || 0;
+        var capa = L.geoJSON(geo, {
+            style: function (feat) {
+                var n = porMuni[feat.properties.CLAVE] || 0;
+                return { fillColor: colorMuni(n, maxM), weight: 0.5, color: '#cbd5e1', fillOpacity: n ? 0.9 : 0.25 };
+            },
+            onEachFeature: function (feat, layer) {
+                var n = porMuni[feat.properties.CLAVE] || 0;
+                if (!n) return;
+                layer.bindPopup('<strong>' + (feat.properties.MPIO_CNMBR || '') + '</strong><br>' + n + ' participante(s)');
+            }
+        }).addTo(map);
+        try { map.fitBounds(capa.getBounds(), { padding: [20, 20] }); } catch (e) {}
+        (datos.puntos || []).filter(function (p) { return p.lat != null; }).forEach(function (p) {
+            L.circleMarker([p.lat, p.lng], { radius: 5, color: '#7d4f94', fillColor: '#9b67b1', fillOpacity: 0.92, weight: 1 })
+                .addTo(map).bindPopup('<strong>' + (p.nombre || '') + '</strong><br>' + (p.municipio || ''));
+        });
+    }).catch(function () {
+        msgEl.style.display = 'block';
+        msgEl.textContent = 'No se pudo cargar el mapa.';
+    });
+})();
+</script>
+{% endblock %}

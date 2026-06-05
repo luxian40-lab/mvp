@@ -1,0 +1,733 @@
+/**
+ * eki admin v2 — look operativo B2B (no plantilla genérica).
+ * Solo CSS + Jazzmin; misma plataforma, cero cambios de lógica.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('custom_sidebar.css');
+@import url('eki_admin_nav.css');
+
+:root {
+    --eki-bg: #f1f5f9;
+    --eki-surface: #ffffff;
+    --eki-surface-2: #f8fafc;
+    --eki-border: #e2e8f0;
+    --eki-border-strong: #cbd5e1;
+    --eki-text: #0f172a;
+    --eki-muted: #64748b;
+    --eki-brand: #9b67b1;
+    --eki-accent: #9b67b1;
+    --eki-accent-soft: #f3eaf7;
+    --eki-accent-hover: #7d4f94;
+    --eki-sidebar: #141018;
+    --eki-sidebar-hover: #221a28;
+    --eki-sidebar-active: #3d2d48;
+    --eki-radius: 12px;
+    --eki-radius-sm: 8px;
+    --eki-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    --eki-shadow-md: 0 4px 16px rgba(15, 23, 42, 0.06);
+    --eki-font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* —— Base —— */
+body,
+.main-header,
+.main-sidebar,
+.content-wrapper,
+.form-control,
+.btn,
+.select2-container {
+    font-family: var(--eki-font) !important;
+    -webkit-font-smoothing: antialiased;
+}
+
+body {
+    background: var(--eki-bg) !important;
+    color: var(--eki-text);
+    font-size: 0.9rem;
+}
+
+a {
+    color: var(--eki-accent);
+}
+
+a:hover {
+    color: var(--eki-accent-hover);
+}
+
+/* —— Top bar —— */
+.main-header {
+    border-bottom: 1px solid var(--eki-border) !important;
+    box-shadow: none !important;
+    min-height: 3.25rem;
+}
+
+.main-header .navbar-nav .nav-link {
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    color: var(--eki-muted) !important;
+    padding: 0.4rem 0.75rem !important;
+    border-radius: var(--eki-radius-sm);
+}
+
+.main-header .navbar-nav .nav-link:hover {
+    color: var(--eki-text) !important;
+    background: var(--eki-surface-2) !important;
+}
+
+.navbar-white {
+    background: var(--eki-surface) !important;
+}
+
+/* —— Sidebar —— */
+.main-sidebar,
+.sidebar-dark-primary {
+    background: var(--eki-sidebar) !important;
+    box-shadow: none !important;
+    border-right: 1px solid #0b1220;
+}
+
+.brand-link {
+    border-bottom: 1px solid #1e293b !important;
+    font-weight: 600 !important;
+    font-size: 1.05rem !important;
+    letter-spacing: -0.03em;
+    padding: 0.75rem 1rem !important;
+    color: #f8fafc !important;
+    display: flex !important;
+    align-items: center !important;
+    min-height: 3.5rem;
+}
+
+.brand-link:hover {
+    color: #fff !important;
+}
+
+.brand-link .brand-image,
+.brand-link .eki-brand-hidden {
+    display: none !important;
+}
+
+#jazzy-logo .brand-text {
+    display: inline !important;
+    font-weight: 600 !important;
+    font-size: 1.15rem !important;
+    letter-spacing: -0.04em;
+    color: #f8fafc !important;
+}
+
+#jazzy-logo.brand-link {
+    justify-content: flex-start !important;
+    padding: 0.9rem 1rem !important;
+    margin: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.sidebar-dark-primary .nav-sidebar > .nav-item > .nav-link {
+    color: #94a3b8 !important;
+}
+
+.sidebar-dark-primary .nav-sidebar > .nav-item > .nav-link:hover {
+    background: var(--eki-sidebar-hover) !important;
+    color: #e2e8f0 !important;
+}
+
+.sidebar-dark-primary .nav-sidebar > .nav-item > .nav-link.active {
+    background: var(--eki-sidebar-active) !important;
+    color: #f8fafc !important;
+    font-weight: 500 !important;
+}
+
+.user-panel {
+    border-bottom: 1px solid #1e293b !important;
+}
+
+/* —— Área de contenido —— */
+.content-wrapper {
+    background: var(--eki-bg) !important;
+}
+
+.content-wrapper > .content {
+    padding: 0 1.5rem 2.5rem !important;
+    max-width: 1440px;
+}
+
+.content-header {
+    background: transparent !important;
+    padding: 1.25rem 0 0.75rem !important;
+    margin: 0 !important;
+}
+
+.content-header .breadcrumb {
+    margin-bottom: 0.35rem !important;
+}
+
+.content-header h1,
+h1.m-0 {
+    font-size: 1.5rem !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.03em;
+    color: var(--eki-text) !important;
+    line-height: 1.25 !important;
+}
+
+.breadcrumb-item,
+.breadcrumb-item a {
+    color: var(--eki-muted) !important;
+    font-size: 0.8125rem !important;
+}
+
+.breadcrumb-item.active {
+    color: var(--eki-text) !important;
+    font-weight: 500;
+}
+
+/* —— Tarjetas: una capa, sin “marco Bootstrap” —— */
+.card {
+    border: 1px solid var(--eki-border) !important;
+    border-radius: var(--eki-radius) !important;
+    box-shadow: var(--eki-shadow) !important;
+    background: var(--eki-surface) !important;
+    margin-bottom: 1rem !important;
+}
+
+.card.card-outline,
+.card.card-primary.card-outline {
+    border: 1px solid var(--eki-border) !important;
+    border-left: 3px solid var(--eki-accent) !important;
+    border-top: 1px solid var(--eki-border) !important;
+}
+
+.card-header {
+    background: var(--eki-surface) !important;
+    border-bottom: 1px solid var(--eki-border) !important;
+    padding: 1rem 1.35rem !important;
+}
+
+.card-header .card-title {
+    font-size: 0.9375rem !important;
+    font-weight: 600 !important;
+    color: var(--eki-text) !important;
+}
+
+.card-body {
+    padding: 1.35rem 1.5rem 1.5rem !important;
+}
+
+.card-footer {
+    background: var(--eki-surface-2) !important;
+    border-top: 1px solid var(--eki-border) !important;
+    padding: 0.85rem 1.35rem !important;
+}
+
+/* —— Fieldsets: secciones, no cajas apiladas —— */
+fieldset.module,
+fieldset.module.aligned {
+    background: transparent !important;
+    border: none !important;
+    border-top: 1px solid var(--eki-border) !important;
+    box-shadow: none !important;
+    margin: 2rem 0 0 !important;
+    padding: 1.25rem 0 0 !important;
+}
+
+fieldset.module:first-of-type,
+.card-body > fieldset.module:first-of-type {
+    border-top: none !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
+fieldset.module h2 {
+    background: transparent !important;
+    color: var(--eki-text) !important;
+    font-size: 0.8125rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0 0 1rem !important;
+    margin: 0 !important;
+}
+
+fieldset.module .description,
+.help,
+.helptext {
+    color: var(--eki-muted) !important;
+    font-size: 0.8125rem !important;
+    line-height: 1.55 !important;
+}
+
+fieldset.module .description {
+    margin: -0.5rem 0 1rem !important;
+    padding: 0 !important;
+}
+
+/* Formulario en dos columnas más legible */
+.aligned .form-row {
+    padding: 0.5rem 0 !important;
+    border: none !important;
+}
+
+.aligned label {
+    font-weight: 500 !important;
+    color: var(--eki-muted) !important;
+    font-size: 0.8125rem !important;
+    padding-top: 0.45rem !important;
+}
+
+.form-control,
+.custom-select,
+.select2-container--default .select2-selection--single,
+.select2-container--default .select2-selection--multiple {
+    border-radius: var(--eki-radius-sm) !important;
+    border-color: var(--eki-border-strong) !important;
+    font-size: 0.875rem !important;
+    min-height: 2.5rem;
+}
+
+.form-control:focus,
+.custom-select:focus {
+    border-color: var(--eki-accent) !important;
+    box-shadow: 0 0 0 3px rgba(155, 103, 177, 0.18) !important;
+}
+
+.readonly,
+.form-control:disabled,
+.form-control[readonly] {
+    background: var(--eki-surface-2) !important;
+    color: #475569 !important;
+    border-color: var(--eki-border) !important;
+}
+
+/* Checkbox / radio menos “widget viejo” */
+input[type="checkbox"],
+input[type="radio"] {
+    accent-color: var(--eki-accent);
+}
+
+/* —— Inlines —— */
+.inline-group {
+    background: var(--eki-surface) !important;
+    border: 1px solid var(--eki-border) !important;
+    border-radius: var(--eki-radius) !important;
+    box-shadow: none !important;
+    margin: 1.5rem 0 !important;
+    overflow: hidden;
+}
+
+.inline-group h2 {
+    background: var(--eki-surface-2) !important;
+    color: var(--eki-text) !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.75rem 1rem !important;
+    border-bottom: 1px solid var(--eki-border) !important;
+}
+
+.inline-related.tabular {
+    margin: 0 !important;
+}
+
+.tabular.inline-related thead th {
+    background: var(--eki-surface-2) !important;
+    font-size: 0.7rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--eki-muted) !important;
+    font-weight: 600 !important;
+    border: none !important;
+    padding: 0.55rem 0.65rem !important;
+}
+
+.tabular.inline-related tbody td {
+    padding: 0.5rem 0.65rem !important;
+    vertical-align: middle !important;
+    border-color: #f1f5f9 !important;
+    font-size: 0.875rem !important;
+}
+
+/* —— Changelist —— */
+#changelist {
+    margin-top: 0.5rem;
+}
+
+#changelist .actions {
+    background: var(--eki-surface-2) !important;
+    border: 1px solid var(--eki-border) !important;
+    border-radius: var(--eki-radius-sm) !important;
+    padding: 0.65rem 0.85rem !important;
+    margin-bottom: 0.75rem !important;
+}
+
+#toolbar {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 0 0.75rem !important;
+}
+
+#changelist-search input[type="text"] {
+    border-radius: var(--eki-radius-sm) !important;
+    border-color: var(--eki-border-strong) !important;
+    padding: 0.45rem 0.75rem !important;
+}
+
+#result_list {
+    width: 100%;
+    border: 1px solid var(--eki-border) !important;
+    border-radius: var(--eki-radius) !important;
+    overflow: hidden;
+    background: var(--eki-surface) !important;
+}
+
+#result_list thead th {
+    background: var(--eki-surface-2) !important;
+    color: var(--eki-muted) !important;
+    font-size: 0.6875rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-bottom: 1px solid var(--eki-border) !important;
+    padding: 0.7rem 0.85rem !important;
+    white-space: nowrap;
+}
+
+#result_list tbody td {
+    padding: 0.65rem 0.85rem !important;
+    font-size: 0.875rem !important;
+    border-color: #f1f5f9 !important;
+}
+
+#result_list tbody tr:nth-child(even) {
+    background: #fafbfc;
+}
+
+#result_list tbody tr:hover {
+    background: var(--eki-accent-soft) !important;
+}
+
+#changelist-filter {
+    background: var(--eki-surface) !important;
+    border: 1px solid var(--eki-border) !important;
+    border-radius: var(--eki-radius) !important;
+    box-shadow: var(--eki-shadow) !important;
+    padding: 0 !important;
+    overflow: hidden;
+}
+
+#changelist-filter h2 {
+    background: var(--eki-surface-2) !important;
+    color: var(--eki-text) !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.75rem 1rem !important;
+    border-bottom: 1px solid var(--eki-border) !important;
+}
+
+#changelist-filter h3 {
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    color: var(--eki-muted) !important;
+    padding: 0.5rem 1rem 0.25rem !important;
+}
+
+#changelist-filter li {
+    padding: 0.15rem 0.5rem !important;
+}
+
+#changelist-filter a {
+    font-size: 0.8125rem !important;
+    color: var(--eki-text) !important;
+}
+
+.paginator {
+    font-size: 0.8125rem !important;
+    color: var(--eki-muted) !important;
+    padding: 0.75rem 0 !important;
+}
+
+/* —— Botones —— */
+.btn {
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    border-radius: var(--eki-radius-sm) !important;
+    padding: 0.4rem 0.9rem !important;
+    box-shadow: none !important;
+}
+
+.btn-primary {
+    background: var(--eki-accent) !important;
+    border-color: var(--eki-accent) !important;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background: var(--eki-accent-hover) !important;
+    border-color: var(--eki-accent-hover) !important;
+}
+
+.btn-secondary,
+.btn-default,
+.btn-info {
+    background: var(--eki-surface) !important;
+    border-color: var(--eki-border-strong) !important;
+    color: var(--eki-text) !important;
+}
+
+.btn-success {
+    background: #059669 !important;
+    border-color: #059669 !important;
+}
+
+.btn-danger {
+    background: #dc2626 !important;
+    border-color: #dc2626 !important;
+}
+
+/* Object tools (Añadir X) */
+.object-tools {
+    margin: 0 0 0.75rem !important;
+}
+
+.object-tools li {
+    margin-left: 0.35rem !important;
+}
+
+.object-tools a {
+    background: var(--eki-accent) !important;
+    border: 1px solid var(--eki-accent) !important;
+    color: #fff !important;
+    border-radius: var(--eki-radius-sm) !important;
+    font-size: 0.8125rem !important;
+    font-weight: 500 !important;
+    padding: 0.4rem 0.85rem !important;
+}
+
+.object-tools a:hover {
+    background: var(--eki-accent-hover) !important;
+    border-color: var(--eki-accent-hover) !important;
+}
+
+/* Barra guardar */
+.submit-row {
+    background: var(--eki-surface) !important;
+    border: 1px solid var(--eki-border) !important;
+    border-radius: var(--eki-radius) !important;
+    box-shadow: var(--eki-shadow-md) !important;
+    padding: 0.85rem 1.25rem !important;
+    margin: 1.5rem 0 0 !important;
+    position: sticky;
+    bottom: 0.75rem;
+    z-index: 20;
+}
+
+.submit-row input {
+    border-radius: var(--eki-radius-sm) !important;
+}
+
+/* Mensajes */
+.alert {
+    border-radius: var(--eki-radius-sm) !important;
+    font-size: 0.875rem !important;
+    border-width: 1px !important;
+}
+
+.messagelist {
+    margin: 0 0 1rem !important;
+    padding: 0 !important;
+    list-style: none !important;
+}
+
+.messagelist li {
+    border-radius: var(--eki-radius-sm) !important;
+    margin-bottom: 0.5rem !important;
+    padding: 0.65rem 1rem !important;
+    font-size: 0.875rem !important;
+}
+
+/* Login */
+.login-page,
+.register-page {
+    background: var(--eki-bg) !important;
+}
+
+.login-box .card,
+.register-box .card {
+    border-radius: var(--eki-radius) !important;
+    box-shadow: var(--eki-shadow-md) !important;
+}
+
+.login-logo a,
+.register-logo a {
+    font-weight: 600 !important;
+    letter-spacing: -0.03em;
+}
+
+/* Páginas internas custom */
+.cobertura-admin,
+.gei-panel {
+    max-width: 1440px;
+}
+
+/* Footer discreto */
+.main-footer {
+    background: transparent !important;
+    border-top: none !important;
+    color: var(--eki-muted) !important;
+    font-size: 0.75rem !important;
+    padding: 1rem !important;
+}
+
+/* Select2 */
+.select2-container--default .select2-selection--single {
+    height: 2.5rem !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 2.35rem !important;
+    padding-left: 0.65rem !important;
+}
+
+/* Related widget + botones + */
+.related-widget-wrapper-link {
+    opacity: 0.7;
+}
+
+/* Reduce animaciones “marketing” */
+* {
+    scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        transition: none !important;
+        animation: none !important;
+    }
+}
+
+/* Móvil: contenido respira */
+@media (max-width: 991px) {
+    .content-wrapper > .content {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+}
+
+/* —— Menú lateral: solo botón ☰ de la barra superior —— */
+.main-header [data-widget="pushmenu"].eki-pushmenu-btn {
+    font-size: 1.05rem !important;
+    color: var(--eki-muted) !important;
+    border-radius: var(--eki-radius-sm);
+}
+
+.main-header [data-widget="pushmenu"].eki-pushmenu-btn:hover {
+    color: var(--eki-text) !important;
+    background: var(--eki-surface-2) !important;
+}
+
+body.sidebar-collapse .change-form .col-lg-9 {
+    flex: 0 0 100%;
+    max-width: 100%;
+}
+
+/* —— Formularios acordeón (Cliente, Estudiante, Curso) —— */
+.change-form.model-cliente #jazzy-tabs,
+.change-form.model-estudiante #jazzy-tabs,
+.change-form.model-curso #jazzy-tabs,
+.change-form.model-cliente .nav-tabs,
+.change-form.model-estudiante .nav-tabs,
+.change-form.model-curso .nav-tabs {
+    display: none !important;
+}
+
+.change-form.model-cliente #jazzy-collapsible .card,
+.change-form.model-estudiante #jazzy-collapsible .card,
+.change-form.model-curso #jazzy-collapsible .card {
+    margin-bottom: 0.65rem !important;
+    border-radius: var(--eki-radius-sm) !important;
+}
+
+.change-form.model-cliente #jazzy-collapsible .card-header,
+.change-form.model-estudiante #jazzy-collapsible .card-header,
+.change-form.model-curso #jazzy-collapsible .card-header {
+    cursor: pointer;
+    padding: 0.75rem 1.1rem !important;
+}
+
+.change-form.model-cliente #jazzy-collapsible .card-header .card-title,
+.change-form.model-estudiante #jazzy-collapsible .card-header .card-title,
+.change-form.model-curso #jazzy-collapsible .card-header .card-title {
+    font-size: 0.9rem !important;
+    margin: 0;
+}
+
+.change-form.model-cliente .card > .card-body > .card-body,
+.change-form.model-estudiante .card > .card-body > .card-body,
+.change-form.model-curso .card > .card-body > .card-body {
+    padding-top: 0.5rem !important;
+}
+
+.eki-form-section-nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem 1rem;
+    margin: 0 0 1.25rem;
+    padding: 0.65rem 0.85rem;
+    background: var(--eki-surface-2);
+    border: 1px solid var(--eki-border);
+    border-radius: var(--eki-radius-sm);
+}
+
+.eki-form-section-nav__label {
+    margin: 0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--eki-muted);
+}
+
+.eki-form-section-nav select {
+    min-width: 200px;
+    max-width: 100%;
+    flex: 1 1 180px;
+}
+
+.eki-inlines-intro {
+    margin: 0 0 1rem;
+    padding: 0.65rem 0.9rem;
+    font-size: 0.8125rem;
+    color: var(--eki-muted);
+    background: var(--eki-surface-2);
+    border-left: 3px solid var(--eki-accent);
+    border-radius: 0 var(--eki-radius-sm) var(--eki-radius-sm) 0;
+}
+
+/* —— Marca morada en botones y acentos Bootstrap —— */
+.btn-primary,
+.button.default,
+input[type="submit"].default {
+    background-color: var(--eki-brand) !important;
+    border-color: var(--eki-brand) !important;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.button.default:hover,
+input[type="submit"].default:hover {
+    background-color: var(--eki-accent-hover) !important;
+    border-color: var(--eki-accent-hover) !important;
+}
+
+.sidebar-dark-primary .nav-sidebar > .nav-item > .nav-link.active {
+    box-shadow: inset 3px 0 0 var(--eki-brand);
+}
+
+.login-logo img,
+.register-logo img {
+    max-height: 4rem;
+    width: auto;
+}

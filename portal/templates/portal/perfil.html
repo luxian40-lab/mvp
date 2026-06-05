@@ -1,0 +1,87 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Perfil de empresa | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <h1>Perfil de la organización</h1>
+        <p class="muted">Logo e identidad visibles en el portal para su equipo.</p>
+    </div>
+</div>
+
+{% if mensaje_ok %}
+    <div class="alert alert-ok">{{ mensaje_ok }}</div>
+{% endif %}
+{% if mensaje_error %}
+    <div class="alert alert-error">{{ mensaje_error }}</div>
+{% endif %}
+
+<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,340px);gap:24px;align-items:start;">
+    <section class="panel">
+        {% if puede_editar %}
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <h2>Identidad en el portal</h2>
+            <p class="muted" style="margin-bottom:20px;">
+                Suba el logo de su empresa (PNG, JPG o WebP, máximo 5 MB). También puede pegar una URL pública si ya está alojada.
+            </p>
+
+            <label style="display:block;font-weight:600;margin-bottom:8px;">Subir logo</label>
+            <input type="file" name="logo_archivo" accept="image/jpeg,image/png,image/webp,image/gif"
+                style="display:block;margin-bottom:16px;font:inherit;">
+
+            <label style="display:block;font-weight:600;margin-bottom:8px;">O URL del logo</label>
+            <input type="url" name="logo_url" value="{{ org.logo_url }}"
+                placeholder="https://..."
+                style="width:100%;padding:10px 12px;border:1px solid var(--borde);border-radius:8px;font:inherit;margin-bottom:20px;">
+
+            <label style="display:block;font-weight:600;margin-bottom:8px;">Subtítulo</label>
+            <input type="text" name="portal_subtitulo" value="{{ org.portal_subtitulo }}" maxlength="200"
+                placeholder="Ej: Programa de aceleración 2026"
+                style="width:100%;padding:10px 12px;border:1px solid var(--borde);border-radius:8px;font:inherit;margin-bottom:20px;">
+
+            <button type="submit" class="btn">Guardar cambios</button>
+        </form>
+        {% else %}
+            <p class="muted">Su rol es de solo lectura. Un administrador del portal puede actualizar logo y subtítulo.</p>
+            {% if org.logo_url or org.portal_subtitulo %}
+                <dl style="margin-top:16px;">
+                    {% if org.portal_subtitulo %}
+                        <dt class="muted">Subtítulo</dt>
+                        <dd style="margin:4px 0 16px;">{{ org.portal_subtitulo }}</dd>
+                    {% endif %}
+                    {% if org.logo_url %}
+                        <dt class="muted">Logo</dt>
+                        <dd><img src="{{ org.logo_url }}" alt="Logo" style="max-width:200px;max-height:80px;border-radius:8px;border:1px solid var(--borde);padding:8px;background:#fff;"></dd>
+                    {% endif %}
+                </dl>
+            {% endif %}
+        {% endif %}
+    </section>
+
+    <aside class="panel">
+        <h2>Vista previa</h2>
+        <p class="muted" style="margin-bottom:16px;">Así se verá en la barra lateral del portal.</p>
+        <div class="soft-box" style="background:var(--sidebar);border:none;padding:16px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                {% if org.logo_url %}
+                    <img src="{{ org.logo_url }}" alt="" style="width:44px;height:44px;border-radius:10px;object-fit:contain;background:#fff;padding:4px;">
+                {% else %}
+                    <div style="width:44px;height:44px;border-radius:10px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;">{{ org_iniciales }}</div>
+                {% endif %}
+                <div>
+                    <div style="color:#f8fafc;font-weight:600;font-size:14px;">{{ org.nombre }}</div>
+                    <div style="color:#94a3b8;font-size:11px;margin-top:2px;">
+                        {{ org.portal_subtitulo|default:"Portal empresarial" }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <p class="muted" style="margin-top:14px;font-size:12px;">
+            El nombre legal de la organización lo gestiona el equipo eki. Aquí solo personaliza la presentación del portal.
+        </p>
+    </aside>
+</div>
+{% endblock %}

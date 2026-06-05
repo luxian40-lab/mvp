@@ -1,0 +1,62 @@
+/* Navegación lateral sobria (sin iconos de colores tipo “plantilla”) */
+
+.nav-sidebar > .nav-item {
+    margin-bottom: 1px;
+}
+
+.nav-sidebar .nav-link {
+    padding: 0.55rem 0.85rem !important;
+    margin: 0 0.5rem !important;
+    border-radius: 8px !important;
+    border-left: none !important;
+    transition: background 0.15s ease, color 0.15s ease !important;
+}
+
+.nav-sidebar .nav-link:hover {
+    transform: none !important;
+}
+
+.nav-sidebar .nav-link p {
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+}
+
+.nav-icon {
+    width: 1.15rem !important;
+    height: auto !important;
+    min-width: 1.15rem !important;
+    margin-right: 0.65rem !important;
+    font-size: 0.9rem !important;
+    line-height: 1 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    color: inherit !important;
+    opacity: 0.75;
+    display: inline-block !important;
+}
+
+.nav-link:hover .nav-icon,
+.nav-link.active .nav-icon {
+    opacity: 1;
+    transform: none !important;
+    background: transparent !important;
+}
+
+.nav-header {
+    font-size: 0.65rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.07em !important;
+    text-transform: uppercase !important;
+    color: #64748b !important;
+    padding: 1.1rem 1rem 0.35rem !important;
+    margin-top: 0.25rem !important;
+}
+
+/* Anula reglas de color por URL del menú antiguo */
+.nav-link[href] {
+    border-left-color: transparent !important;
+}
+
+.nav-link[href]:hover {
+    background: var(--eki-sidebar-hover, #1e293b) !important;
+}

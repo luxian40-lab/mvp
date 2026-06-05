@@ -1,0 +1,14 @@
+{% extends "admin/change_list.html" %}
+
+{% load i18n admin_urls %}
+
+
+
+{% block object-tools-items %}
+
+{% include "admin/includes/object_tool_link.html" with url=importar_precios_url label="Importar precios (Excel / JSON)" %}
+
+{{ block.super }}
+
+{% endblock %}
+

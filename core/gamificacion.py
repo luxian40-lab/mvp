@@ -354,6 +354,62 @@ class TransaccionPuntos(models.Model):
         return f"{self.perfil.estudiante.nombre}: {signo}{self.puntos} pts - {self.razon}"
 
 
+class EvaluacionNotaGamificacion(models.Model):
+    """Notas 1–5 por evaluación (modo gamificación por calificación). Alimenta ranking por promedio ponderado."""
+
+    TIPO_CHOICES = [
+        ('reto', 'Reto facilitadora'),
+        ('pregunta_abierta', 'Pregunta abierta final'),
+        ('manual', 'Manual (equipo)'),
+    ]
+
+    estudiante = models.ForeignKey(
+        Estudiante,
+        on_delete=models.CASCADE,
+        related_name='evaluaciones_nota_gamificacion',
+    )
+    curso = models.ForeignKey(
+        Curso,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='evaluaciones_nota_gamificacion',
+    )
+    modulo = models.ForeignKey(
+        'Modulo',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='evaluaciones_nota_gamificacion',
+    )
+    nota = models.DecimalField(
+        max_digits=3,
+        decimal_places=1,
+        verbose_name='Nota (1–5)',
+        help_text='Escala 1 a 5; admite decimales (ej. 3.5).',
+    )
+    peso = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=1,
+        help_text='Peso para el promedio ponderado del ranking (ej. reto=2, abierta=1).',
+    )
+    tipo = models.CharField(max_length=30, choices=TIPO_CHOICES, default='reto')
+    detalle = models.CharField(max_length=200, blank=True, default='')
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Evaluación por nota (gamificación)'
+        verbose_name_plural = 'Evaluaciones por nota (gamificación)'
+        ordering = ['-fecha']
+        indexes = [
+            models.Index(fields=['estudiante', '-fecha']),
+        ]
+
+    def __str__(self):
+        return f"{self.estudiante.nombre} — {self.nota}/5 ({self.get_tipo_display()})"
+
+
 # Señales para crear perfil automáticamente
 @receiver(post_save, sender=Estudiante)
 def crear_perfil_gamificacion(sender, instance, created, **kwargs):

@@ -1,0 +1,546 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Métricas detalladas | Portal eki{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+    .metric-accordion {
+        display: grid;
+        gap: 14px;
+        margin-bottom: 24px;
+    }
+
+    .metric-accordion details {
+        background: var(--blanco);
+        border: 1px solid var(--borde);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .metric-accordion summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 18px 22px;
+        font-weight: 700;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        user-select: none;
+    }
+
+    .metric-accordion summary::-webkit-details-marker { display: none; }
+
+    .metric-accordion summary::after {
+        content: "▾";
+        color: var(--texto-muted);
+        font-size: 14px;
+        transition: transform 0.15s ease;
+    }
+
+    .metric-accordion details[open] summary::after {
+        transform: rotate(180deg);
+    }
+
+    .metric-accordion .accordion-body {
+        padding: 0 22px 22px;
+        border-top: 1px solid var(--borde);
+    }
+
+    .metric-accordion .accordion-intro {
+        margin: 16px 0 0;
+        color: var(--texto-muted);
+        font-size: 13px;
+    }
+
+    .report-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.6fr);
+        gap: 22px;
+        margin-bottom: 24px;
+    }
+
+    .progress-ring {
+        --value: 0;
+        width: 220px;
+        height: 220px;
+        border-radius: 50%;
+        margin: 8px auto 12px;
+        background: conic-gradient(var(--accent) calc(var(--value) * 1%), #e2e8f0 0);
+        display: grid;
+        place-items: center;
+        position: relative;
+    }
+
+    .progress-ring::before {
+        content: "";
+        width: 132px;
+        height: 132px;
+        border-radius: 50%;
+        background: var(--blanco);
+        position: absolute;
+    }
+
+    .progress-ring-value {
+        position: relative;
+        z-index: 1;
+        color: var(--accent);
+        font-size: 34px;
+        font-weight: 800;
+    }
+
+    .bar-row, .funnel-row {
+        display: grid;
+        grid-template-columns: 150px 1fr 70px;
+        gap: 12px;
+        align-items: center;
+        margin: 12px 0;
+    }
+
+    .bar-track, .funnel-bar {
+        height: 12px;
+        border-radius: 999px;
+        background: #e2e8f0;
+        overflow: hidden;
+    }
+
+    .funnel-bar { height: 34px; border-radius: 12px; }
+
+    .bar-fill, .funnel-fill {
+        height: 100%;
+        border-radius: inherit;
+        background: var(--accent);
+    }
+
+    .funnel-fill {
+        min-width: 34px;
+        background: linear-gradient(90deg, var(--accent), #3b82f6);
+    }
+
+    .funnel { display: grid; gap: 12px; }
+
+    .kpi-card small {
+        display: block;
+        margin-top: 8px;
+        color: var(--texto-muted);
+        line-height: 1.5;
+    }
+
+    .config-panel {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 14px;
+    }
+
+    .exec-charts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 18px;
+        margin-top: 18px;
+    }
+
+    @media (max-width: 980px) {
+        .report-hero { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <h1>Métricas detalladas</h1>
+        <p class="muted">Análisis por secciones: resumen ejecutivo, aprendizaje y detalle por estudiante. La cobertura geográfica está en <a href="/portal/cobertura/">Cobertura</a>.</p>
+        {% if grupo_seleccionado or curso_seleccionado %}
+            <p class="muted" style="margin-top:8px;">
+                Filtro activo:
+                {% if curso_seleccionado %}<strong>{{ curso_seleccionado.nombre }}</strong>{% endif %}
+                {% if grupo_seleccionado %} · Grupo <strong>{{ grupo_seleccionado.nombre }}</strong>{% endif %}
+            </p>
+        {% endif %}
+    </div>
+    <a class="btn btn-outline" href="/portal/dashboard/">Volver al dashboard</a>
+</div>
+
+{% if portal_solo_lectura %}
+<section class="panel" style="margin-bottom:18px;border-left:4px solid var(--accent);">
+    <strong>Modo solo lectura.</strong> Puede consultar métricas; las metas las gestiona un administrador.
+</section>
+{% endif %}
+{% if metas_guardadas %}
+<section class="panel" style="margin-bottom:18px;border-left:4px solid #2e8b57;">
+    <strong>Metas actualizadas.</strong> Los semáforos ya usan la nueva configuración.
+</section>
+{% endif %}
+{% if metas_error_lectura %}
+<div class="alert alert-error">{{ metas_error_lectura }}</div>
+{% endif %}
+
+<section class="panel" style="margin-bottom:24px;">
+    <h2>Filtros</h2>
+    <form method="get" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;align-items:end;margin-top:12px;">
+        <label>
+            <strong>Curso</strong>
+            <select name="curso" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+                <option value="">Todos</option>
+                {% for curso in cursos %}
+                    <option value="{{ curso.id }}" {% if filtros.curso == curso.id %}selected{% endif %}>{{ curso.nombre }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <strong>Grupo</strong>
+            <select name="grupo" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+                <option value="">Todos</option>
+                {% for grupo in grupos %}
+                    <option value="{{ grupo.id }}" {% if filtros.grupo == grupo.id %}selected{% endif %}>{{ grupo.nombre }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <strong>Desde</strong>
+            <input type="date" name="desde" value="{{ filtros.desde }}" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+        </label>
+        <label>
+            <strong>Hasta</strong>
+            <input type="date" name="hasta" value="{{ filtros.hasta }}" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+        </label>
+        <label>
+            <strong>Módulo hasta (cohorte)</strong>
+            <input type="number" name="modulo_hasta" value="{{ filtros.modulo_hasta }}" min="1" placeholder="Ej. 5"
+                style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+        </label>
+        <button class="btn" type="submit">Aplicar filtros</button>
+    </form>
+</section>
+
+<section class="panel" style="margin-bottom:24px;">
+    <h2>Exportar reenganche (Excel)</h2>
+    <p class="muted" style="margin-bottom:12px;">Descargue quienes no alcanzaron un módulo con los filtros actuales.</p>
+    <form method="get" action="/portal/estudiantes/exportar/" style="display:flex;flex-wrap:wrap;gap:12px;align-items:end;">
+        <input type="hidden" name="curso" value="{{ filtros.curso|default:'' }}">
+        <input type="hidden" name="grupo" value="{{ filtros.grupo|default:'' }}">
+        <label>
+            <strong>Sin alcanzar módulo</strong>
+            <input type="number" name="sin_modulo" min="1" placeholder="Ej. 5" required
+                style="width:120px;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+        </label>
+        <button class="btn btn-outline" type="submit">Descargar Excel</button>
+    </form>
+</section>
+
+<div class="metric-accordion">
+
+    <details open>
+        <summary>Resumen ejecutivo</summary>
+        <div class="accordion-body">
+            <p class="accordion-intro">KPIs operativos y participación WhatsApp (sin mapa — ver Cobertura).</p>
+            <div class="cards-grid" style="margin-top:16px;">
+                <article class="card">
+                    <div class="metric-number">{{ ejecutivo.total_estudiantes }}</div>
+                    <div class="metric-label">Estudiantes activos</div>
+                </article>
+                <article class="card">
+                    <div class="metric-number">{{ ejecutivo.tasa_completacion }}%</div>
+                    <div class="metric-label">Tasa completación</div>
+                    <p class="muted">{{ ejecutivo.cursos_completados }} inscripciones terminadas</p>
+                </article>
+                <article class="card">
+                    <div class="metric-number">{{ ejecutivo.total_certificados }}</div>
+                    <div class="metric-label">Certificados emitidos</div>
+                </article>
+                <article class="card">
+                    <div class="metric-number">{{ ejecutivo.total_cursos }}</div>
+                    <div class="metric-label">Cursos activos</div>
+                </article>
+                <article class="card">
+                    <div class="metric-number">{{ ejecutivo.total_mensajes_whatsapp }}</div>
+                    <div class="metric-label">Mensajes WhatsApp</div>
+                    <p class="muted">Enviados {{ ejecutivo.mensajes_enviados }} · Recibidos {{ ejecutivo.mensajes_recibidos }}</p>
+                </article>
+                <article class="card">
+                    <div class="metric-number">{{ ejecutivo.puntos_promedio }}</div>
+                    <div class="metric-label">Puntos promedio</div>
+                </article>
+            </div>
+
+            <div class="exec-charts">
+                <article class="panel">
+                    <h3>Progreso por curso</h3>
+                    <table>
+                        <thead>
+                            <tr><th>Curso</th><th>Inscritos</th><th>Completados</th><th>%</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for curso in ejecutivo.progreso_por_curso %}
+                            <tr>
+                                <td>{{ curso.nombre }}</td>
+                                <td>{{ curso.total_estudiantes }}</td>
+                                <td>{{ curso.completados }}</td>
+                                <td>{{ curso.pct }}%</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="muted">Sin datos</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </article>
+                <article class="panel">
+                    <h3>Mensajes WhatsApp (7 días)</h3>
+                    <canvas id="chart-mensajes-exec" height="200"></canvas>
+                </article>
+            </div>
+
+            <div class="cards-grid" style="margin-top:18px;">
+                <article class="card">
+                    <div class="metric-number" style="font-size:20px;">{{ ejecutivo.wa_entregados }}</div>
+                    <div class="metric-label">Entregados</div>
+                </article>
+                <article class="card">
+                    <div class="metric-number" style="font-size:20px;">{{ ejecutivo.wa_leidos }}</div>
+                    <div class="metric-label">Leídos</div>
+                </article>
+                <article class="card">
+                    <div class="metric-number" style="font-size:20px;">{{ ejecutivo.total_audios }}</div>
+                    <div class="metric-label">Audios</div>
+                </article>
+                <article class="card">
+                    <div class="metric-number" style="font-size:20px;">{{ ejecutivo.total_agentes_ia }}</div>
+                    <div class="metric-label">Interacciones IA</div>
+                </article>
+            </div>
+        </div>
+    </details>
+
+    <details>
+        <summary>Analítica de aprendizaje</summary>
+        <div class="accordion-body">
+            <p class="accordion-intro">Embudo educativo, semáforos, metas y distribución por módulo (Learning Analytics).</p>
+
+            <section class="report-hero" style="margin-top:16px;">
+                <article class="panel">
+                    <h3>Progreso educativo</h3>
+                    <div class="cards-grid" style="margin-bottom:0;">
+                        <article class="card kpi-card">
+                            <div class="metric-number">{{ resumen.finalizados }} / {{ resumen.total_inscritos }}</div>
+                            <div class="metric-label">Finalizados / totales</div>
+                            <small>Meta finalización: {{ metas.finalizacion }}%</small>
+                        </article>
+                        <article class="card kpi-card">
+                            <div class="metric-number">{{ resumen.en_curso }}</div>
+                            <div class="metric-label">En curso</div>
+                            <small>{{ metricas.porcentajes.en_curso }}% del total</small>
+                        </article>
+                        <article class="card kpi-card">
+                            <div class="metric-number">{{ resumen.no_iniciados }}</div>
+                            <div class="metric-label">No iniciados</div>
+                            <small>{{ metricas.porcentajes.no_iniciados }}% · meta máx {{ metas.max_no_iniciados }}%</small>
+                        </article>
+                        <article class="card kpi-card">
+                            <div class="metric-number">{{ resumen.activos_ultimos_30_dias }}</div>
+                            <div class="metric-label">Activos 30 días</div>
+                        </article>
+                    </div>
+                </article>
+                <article class="panel" style="text-align:center;">
+                    <h3>Finalización</h3>
+                    <div class="progress-ring" style="--value: {{ metricas.porcentajes.finalizacion }};">
+                        <div class="progress-ring-value">{{ metricas.porcentajes.finalizacion }}%</div>
+                    </div>
+                    <p class="muted">{{ resumen.finalizados }} finalizados · {{ resumen.en_curso|add:resumen.no_iniciados }} pendientes</p>
+                </article>
+            </section>
+
+            <section class="panel" style="margin-top:18px;">
+                <h3>Embudo educativo</h3>
+                <div class="funnel">
+                    <div class="funnel-row">
+                        <strong>Inscritos</strong>
+                        <span class="funnel-bar"><span class="funnel-fill" style="width:{{ resumen_visual.inscritos_pct }}%"></span></span>
+                        <span>{{ resumen.total_inscritos }}</span>
+                    </div>
+                    <div class="funnel-row">
+                        <strong>Iniciaron</strong>
+                        <span class="funnel-bar"><span class="funnel-fill" style="width:{{ resumen_visual.iniciados_pct }}%"></span></span>
+                        <span>{{ resumen_visual.iniciados }}</span>
+                    </div>
+                    <div class="funnel-row">
+                        <strong>En curso</strong>
+                        <span class="funnel-bar"><span class="funnel-fill" style="width:{{ resumen_visual.en_curso_pct }}%"></span></span>
+                        <span>{{ resumen.en_curso }}</span>
+                    </div>
+                    <div class="funnel-row">
+                        <strong>Finalizados</strong>
+                        <span class="funnel-bar"><span class="funnel-fill" style="width:{{ resumen_visual.finalizados_pct }}%"></span></span>
+                        <span>{{ resumen.finalizados }}</span>
+                    </div>
+                </div>
+            </section>
+
+            <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-top:18px;">
+                <article class="panel">
+                    <h3>Semáforos</h3>
+                    <table>
+                        <tbody>
+                            <tr><td>Finalización</td><td class="semaforo-{{ semaforos.finalizacion }}">{{ metricas.semaforo_labels.finalizacion }}</td></tr>
+                            <tr><td>Inicio</td><td class="semaforo-{{ semaforos.inicio }}">{{ metricas.semaforo_labels.inicio }}</td></tr>
+                            <tr><td>No iniciados</td><td class="semaforo-{{ semaforos.no_iniciados }}">{{ metricas.semaforo_labels.no_iniciados }}</td></tr>
+                            <tr><td>Lectura</td><td class="semaforo-{{ semaforos.lectura }}">{{ metricas.semaforo_labels.lectura }}</td></tr>
+                        </tbody>
+                    </table>
+                </article>
+                <article class="panel">
+                    <h3>Avance y participación</h3>
+                    <div class="bar-row">
+                        <span>Avance promedio</span>
+                        <span class="bar-track"><span class="bar-fill" style="width:{{ resumen.promedio_avance_drip_pct }}%"></span></span>
+                        <strong>{{ resumen.promedio_avance_drip_pct }}%</strong>
+                    </div>
+                    <div class="bar-row">
+                        <span>Lectura</span>
+                        <span class="bar-track"><span class="bar-fill" style="width:{{ metricas.porcentajes.lectura }}%"></span></span>
+                        <strong>{{ metricas.porcentajes.lectura }}%</strong>
+                    </div>
+                </article>
+                <article class="panel">
+                    <h3>Distribución por módulo</h3>
+                    <table>
+                        <thead><tr><th>Etapa</th><th>Estudiantes</th><th>Avance prom.</th></tr></thead>
+                        <tbody>
+                            {% for item in distribucion_modulos %}
+                            <tr>
+                                <td>{{ item.etiqueta }}</td>
+                                <td>{{ item.estudiantes }}</td>
+                                <td>{{ item.promedio_avance_pct }}%</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="muted">Sin datos</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </article>
+            </section>
+
+            {% if puede_configurar %}
+            <section class="panel" style="margin-top:18px;">
+                <h3>Configurar metas KPI</h3>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="config-panel">
+                        <label><strong>Meta finalización (%)</strong><input name="meta_finalizacion_porcentaje" type="number" step="0.01" min="0" max="100" value="{{ metas.finalizacion }}" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;"></label>
+                        <label><strong>Meta inicio (%)</strong><input name="meta_inicio_porcentaje" type="number" step="0.01" min="0" max="100" value="{{ metas.inicio }}" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;"></label>
+                        <label><strong>Máx. no iniciados (%)</strong><input name="meta_max_no_iniciados_porcentaje" type="number" step="0.01" min="0" max="100" value="{{ metas.max_no_iniciados }}" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;"></label>
+                        <label><strong>Meta lectura (%)</strong><input name="meta_min_lectura_mensajes_porcentaje" type="number" step="0.01" min="0" max="100" value="{{ metas.lecturas }}" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;"></label>
+                        <label><strong>Verde desde (%)</strong><input name="verde_desde" type="number" step="0.01" min="0" max="100" value="{{ meta_config.verde_desde }}" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;"></label>
+                        <label><strong>Amarillo desde (%)</strong><input name="amarillo_desde" type="number" step="0.01" min="0" max="100" value="{{ meta_config.amarillo_desde }}" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;"></label>
+                    </div>
+                    <button class="btn" style="margin-top:16px;" type="submit">Guardar metas</button>
+                </form>
+            </section>
+            {% else %}
+            <section class="panel" style="margin-top:18px;">
+                <h3>Metas KPI (solo lectura)</h3>
+                <div class="cards-grid" style="margin-bottom:0;">
+                    <article class="card"><div class="metric-number" style="font-size:18px;">{{ metas.finalizacion }}%</div><div class="metric-label">Meta finalización</div></article>
+                    <article class="card"><div class="metric-number" style="font-size:18px;">{{ metas.inicio }}%</div><div class="metric-label">Meta inicio</div></article>
+                    <article class="card"><div class="metric-number" style="font-size:18px;">{{ metas.max_no_iniciados }}%</div><div class="metric-label">Máx. no iniciados</div></article>
+                    <article class="card"><div class="metric-number" style="font-size:18px;">{{ metas.lecturas }}%</div><div class="metric-label">Meta lectura</div></article>
+                </div>
+            </section>
+            {% endif %}
+
+            <section class="panel" style="margin-top:18px;">
+                <h3>Avance por estudiante (filtro actual)</h3>
+                <table>
+                    <thead>
+                        <tr><th>Nombre</th><th>Curso</th><th>Estado</th><th>Avance</th><th>Módulo máx.</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for row in progreso_estudiantes %}
+                        <tr>
+                            <td>{% if row.estudiante_id %}<a href="/portal/estudiantes/{{ row.estudiante_id }}/">{{ row.nombre }}</a>{% else %}{{ row.nombre }}{% endif %}</td>
+                            <td>{{ row.curso }}</td>
+                            <td>{{ row.estado }}</td>
+                            <td>{{ row.avance_pct_drip|default:row.avance_pct }}%</td>
+                            <td>M{{ row.max_modulo_alcanzado|default:"0" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="muted">Sin estudiantes en el filtro.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+        </div>
+    </details>
+
+    <details>
+        <summary>Detalle por estudiante</summary>
+        <div class="accordion-body">
+            <p class="accordion-intro">Vista tipo reporte B2B del admin: progreso, módulo actual, grupos y puntos.</p>
+            <div class="table-wrap" style="margin-top:16px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Cédula</th>
+                            <th>Teléfono</th>
+                            <th>Grupo(s)</th>
+                            <th>Curso</th>
+                            <th>Módulo actual</th>
+                            <th>Módulos</th>
+                            <th>Estado</th>
+                            <th>Avance</th>
+                            <th>Puntos</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for est in estudiantes_detalle %}
+                        <tr>
+                            <td><a href="/portal/estudiantes/{{ est.estudiante_id }}/">{{ est.nombre }}</a></td>
+                            <td>{{ est.cedula }}</td>
+                            <td>{{ est.telefono }}</td>
+                            <td>{{ est.grupos }}</td>
+                            <td>{{ est.curso }}</td>
+                            <td>{{ est.modulo_actual }}</td>
+                            <td>{{ est.modulos_completados }}</td>
+                            <td>{{ est.estado_avance }}</td>
+                            <td>{{ est.avance }}%</td>
+                            <td>{{ est.puntos }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="10" class="muted">Sin datos en el filtro seleccionado.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </details>
+
+</div>
+
+<script>
+(function () {
+    if (typeof Chart === 'undefined') return;
+    var el = document.getElementById('chart-mensajes-exec');
+    if (!el) return;
+    var grid = getComputedStyle(document.documentElement).getPropertyValue('--borde').trim() || '#e2e8f0';
+    new Chart(el, {
+        type: 'bar',
+        data: {
+            labels: {{ ejecutivo_chart_json.mensajes_labels|safe }},
+            datasets: [{
+                data: {{ ejecutivo_chart_json.mensajes_values|safe }},
+                backgroundColor: '#3b82f6',
+                borderRadius: 6,
+                maxBarThickness: 40
+            }]
+        },
+        options: {
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, grid: { color: grid } } }
+        }
+    });
+})();
+</script>
+{% endblock %}

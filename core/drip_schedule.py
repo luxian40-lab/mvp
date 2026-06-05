@@ -59,20 +59,41 @@ def _siguiente_modulo_orden(curso, modulo_actual) -> Modulo | None:
     )
 
 
+def estudiante_autorizado_en_modulo(estudiante: Estudiante | None, modulo: Modulo | None) -> bool:
+    """
+    Con «Módulos solo por lista» en el cliente, el estudiante debe tener fila activa.
+    Si no está activada esa política, todos los estudiantes del cliente pueden intentar el módulo
+    (sujeto al calendario/drip).
+    """
+    if modulo is None or estudiante is None:
+        return True
+    cliente = getattr(estudiante, 'cliente', None)
+    if not cliente or not getattr(cliente, 'drip_modulos_solo_estudiantes_listados', False):
+        return True
+    from .models import HabilitacionModuloEstudiante
+
+    return HabilitacionModuloEstudiante.objects.filter(
+        estudiante_id=estudiante.id,
+        curso_id=modulo.curso_id,
+        modulo_id=modulo.id,
+        activo=True,
+    ).exists()
+
+
 def habilitado_desde_efectivo(estudiante: Estudiante | None, modulo: Modulo | None):
     """
     datetime a partir del cual el módulo puede enviarse, o None = sin restricción de calendario.
-    Prioridad: fila activa (cliente × curso × módulo) → Modulo.habilitado_desde.
+    Prioridad: estudiante → cliente × curso × módulo → Modulo.habilitado_desde.
     """
     if modulo is None:
         return None
     curso_id = modulo.curso_id
-    if estudiante is not None and getattr(estudiante, 'cliente_id', None):
-        from .models import HabilitacionModuloDripCliente
+    if estudiante is not None:
+        from .models import HabilitacionModuloEstudiante, HabilitacionModuloDripCliente
 
-        row = (
-            HabilitacionModuloDripCliente.objects.filter(
-                cliente_id=estudiante.cliente_id,
+        row_est = (
+            HabilitacionModuloEstudiante.objects.filter(
+                estudiante_id=estudiante.id,
                 curso_id=curso_id,
                 modulo_id=modulo.id,
                 activo=True,
@@ -80,8 +101,22 @@ def habilitado_desde_efectivo(estudiante: Estudiante | None, modulo: Modulo | No
             .only('habilitado_desde')
             .first()
         )
-        if row is not None and row.habilitado_desde:
-            return row.habilitado_desde
+        if row_est is not None and row_est.habilitado_desde:
+            return row_est.habilitado_desde
+
+        if getattr(estudiante, 'cliente_id', None):
+            row = (
+                HabilitacionModuloDripCliente.objects.filter(
+                    cliente_id=estudiante.cliente_id,
+                    curso_id=curso_id,
+                    modulo_id=modulo.id,
+                    activo=True,
+                )
+                .only('habilitado_desde')
+                .first()
+            )
+            if row is not None and row.habilitado_desde:
+                return row.habilitado_desde
     return getattr(modulo, 'habilitado_desde', None) or None
 
 
@@ -170,8 +205,10 @@ def modulo_disponible_por_calendario(
     modulo: Modulo | None,
     referencia=None,
 ) -> bool:
-    """True si el módulo ya está habilitado por calendario drip (o sin restricción)."""
+    """True si el estudiante puede acceder al módulo (lista, calendario drip)."""
     if modulo is None:
+        return False
+    if not estudiante_autorizado_en_modulo(estudiante, modulo):
         return False
     dt = habilitado_desde_efectivo(estudiante, modulo)
     if not dt:

@@ -10,6 +10,8 @@ from core.pqrs_agent import (
     MENSAJE_CONTENIDO_CURSO,
     MENSAJE_FUERA_ALCANCE,
     aplicar_resultado_pqrs,
+    intentar_procesar_seguimiento_pqrs_whatsapp,
+    mensaje_activa_soporte,
     procesar_pqrs_automatico,
     procesar_seguimiento_pqrs,
 )
@@ -102,3 +104,63 @@ class TestPQRSAgentReglas(TestCase):
         solicitud.refresh_from_db()
         self.assertEqual(solicitud.preguntas_realizadas, 1)
         self.assertFalse(solicitud.resuelto_por_agente)
+
+
+class TestAyudaWhatsAppFlujo(TestCase):
+    def setUp(self):
+        self.est = _estudiante()
+
+    def test_ayuda_con_detalle_activa_soporte(self):
+        self.assertTrue(mensaje_activa_soporte('Ayuda no funciona el curso'))
+
+    def test_seguimiento_anexa_ticket_pendiente(self):
+        solicitud = SolicitudSoporte.objects.create(
+            estudiante=self.est,
+            mensaje_original='ayuda',
+            keyword_usada='curso_ayuda',
+            estado='pendiente',
+            resuelto_por_agente=False,
+        )
+        resp = intentar_procesar_seguimiento_pqrs_whatsapp(
+            self.est, 'No funciona el curso',
+        )
+        self.assertIsNotNone(resp)
+        self.assertIn('añadimos', resp.lower())
+        solicitud.refresh_from_db()
+        self.assertIn('No funciona el curso', solicitud.mensaje_original)
+
+
+class TestMensajeWhatsAppPQRS(TestCase):
+    def test_sin_plantilla_robotica(self):
+        from core.pqrs_respuesta import mensaje_whatsapp_pqrs
+
+        msg = mensaje_whatsapp_pqrs('María López', 'Ya puedes ingresar con tu cédula.')
+        self.assertEqual(msg, 'Hola María,\n\nYa puedes ingresar con tu cédula.')
+        self.assertNotIn('respuesta a tu solicitud', msg.lower())
+
+    def test_respeta_saludo_del_operador(self):
+        from core.pqrs_respuesta import mensaje_whatsapp_pqrs
+
+        texto = 'Hola, revisamos tu caso y quedó listo.'
+        self.assertEqual(mensaje_whatsapp_pqrs('Pedro', texto), texto)
+
+
+class TestPQRSRespuestaWhatsApp(TestCase):
+    def setUp(self):
+        self.est = _estudiante()
+
+    @patch('core.utils.enviar_whatsapp_twilio', return_value={'success': True, 'mensaje_id': 'SM1'})
+    def test_aplicar_respuesta_envia_y_resuelve(self, _mock_twilio):
+        from core.pqrs_respuesta import aplicar_respuesta_pqrs
+
+        solicitud = SolicitudSoporte.objects.create(
+            estudiante=self.est,
+            mensaje_original='No puedo entrar',
+            estado='pendiente',
+        )
+        ok, err = aplicar_respuesta_pqrs(solicitud, 'Intente de nuevo con su cédula.', user=None)
+        self.assertTrue(ok)
+        self.assertIsNone(err)
+        solicitud.refresh_from_db()
+        self.assertEqual(solicitud.estado, 'resuelta')
+        self.assertIn('cédula', solicitud.respuesta)

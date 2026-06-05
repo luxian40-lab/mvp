@@ -32,13 +32,13 @@ def test_ficha_gei_completitud_parcial():
         num_plantas=100,
         fertilizante_kg=10.0,
     )
-    assert f.completitud_pct == 25  # 3/12 campos de recolección
+    assert f.completitud_pct == 17  # 3/17 campos de recolección
     f.concentracion_n_pct = 2.0
     f.produccion_kg = 50.0
     f.energia_kwh = 30.0
     f.nombre_finca = "Finca A"
     f.save()
-    assert f.completitud_pct == 58  # 7/12 (faltan combustible, residuos, bosque)
+    assert f.completitud_pct == 41  # 7/17 (faltan combustible, residuos, bosque, perfil)
 
 
 def test_ficha_gei_completitud_total():
@@ -56,7 +56,7 @@ def test_ficha_gei_completitud_total():
         energia_kwh=50.0,
         tiene_bosque=False,
     )
-    assert f.completitud_pct == 66  # 8/12 (7 básicos + bosque respondido «no»)
+    assert f.completitud_pct == 47  # 8/17 (7 básicos + bosque respondido «no»)
 
 
 def test_ficha_gei_completitud_con_bosque():
@@ -79,7 +79,7 @@ def test_ficha_gei_completitud_con_bosque():
         tiene_bosque=True,
         area_bosque_ha=0.5,
     )
-    assert f.completitud_pct == 100
+    assert f.completitud_pct == 70  # 12/17 (faltan tipo fertilizante, año energía, perfil cultivo)
 
 
 def test_parseo_numero_directo():
@@ -161,21 +161,32 @@ def test_validacion_rango_pasa():
     assert SesionFormulario.objects.get(estudiante=e, completado=False).paso_actual == 1
 
 
-def test_flujo_completo_7_pasos():
+def test_flujo_completo_contexto():
     c = ClienteFactory()
     e = EstudianteFactory(cliente=c)
     cur = CursoFactory()
     ficha = FichaGEI.objects.create(estudiante=e, curso=cur, cliente=c)
     m0 = ModuloFactory(curso=cur, numero=1)
-    tf = TipoFormulario.objects.create(nombre="7 pasos", curso=cur, modulo=m0)
-    campos = list(CAMPOS_GEI_7)
-    for i, campo in enumerate(campos):
+    tf = TipoFormulario.objects.create(nombre="Contexto GEI", curso=cur, modulo=m0)
+    pasos_spec = [
+        ("nombre_finca", "text", ""),
+        ("area_ha", "float", ""),
+        ("num_plantas", "float", ""),
+        ("tipo_fertilizante", "choice", "sintetico|organico|otro"),
+        ("fertilizante_kg", "float", ""),
+        ("concentracion_n_pct", "float", ""),
+        ("produccion_kg", "float", ""),
+        ("energia_kwh", "float", ""),
+        ("anio_datos_energia", "choice", "2025|2026"),
+    ]
+    for i, (campo, tipo, opciones) in enumerate(pasos_spec):
         FlujoPregunta.objects.create(
             formulario=tf,
             orden=i,
             campo_destino=campo,
             pregunta_texto=f"Indique dato {campo}, por favor.",
-            tipo_dato="text" if campo == "nombre_finca" else "float",
+            tipo_dato=tipo,
+            opciones_choice=opciones,
         )
     ses = SesionFormulario.objects.create(
         estudiante=e, formulario=tf, paso_actual=0, ficha=ficha, progreso=None, modulo_siguiente=None
@@ -184,10 +195,12 @@ def test_flujo_completo_7_pasos():
         "Finca El Roble",
         "2.5",
         "120",
+        "sintetico",
         "50",
         "12",
         "800",
-        "35",
+        "960",
+        "2026",
     ]
     for _txt in respuestas:
         r = manejar_mensaje_formulario(e, _txt)
@@ -200,7 +213,8 @@ def test_flujo_completo_7_pasos():
     assert ficha.fertilizante_kg == 50.0
     assert ficha.concentracion_n_pct == 12.0
     assert ficha.produccion_kg == 800.0
-    assert ficha.energia_kwh == 35.0
+    assert ficha.energia_kwh == 960.0
+    assert ficha.anio_datos_energia == 2026
     assert ficha.num_plantas == 120
 
 
@@ -561,6 +575,91 @@ def test_calcular_balance_gei_remocion_bosque_por_hectarea():
     )
     r = calcular_balance_gei(f)
     assert r["remociones"]["bosque_kg_co2e"] == round(2.0 * 3.67 * 1000.0, 2)
+
+
+def test_calcular_fertilizante_sintetico_tres_terminos():
+    e = EstudianteFactory()
+    c = CursoFactory()
+    f = FichaGEI.objects.create(
+        estudiante=e,
+        curso=c,
+        tipo_fertilizante="sintetico",
+        fertilizante_kg=100.0,
+        concentracion_n_pct=46.0,
+        tiene_bosque=False,
+    )
+    r = calcular_balance_gei(f)
+    kg_n = 46.0
+    conv = 44.0 / 28.0 * 273.0
+    esperado = kg_n * (0.01 + 0.001 + 0.00225) * conv
+    assert r["emisiones"]["fertilizante_kg_co2e"] == round(esperado, 2)
+
+
+def test_calcular_fertilizante_organico():
+    e = EstudianteFactory()
+    c = CursoFactory()
+    f = FichaGEI.objects.create(
+        estudiante=e,
+        curso=c,
+        tipo_fertilizante="organico",
+        fertilizante_kg=1000.0,
+        tiene_bosque=False,
+    )
+    r = calcular_balance_gei(f)
+    kg_n = 1000.0 * 0.016
+    conv = 44.0 / 28.0 * 273.0
+    esperado = kg_n * (0.003 + 0.001 + 0.00225) * conv
+    assert r["emisiones"]["fertilizante_kg_co2e"] == round(esperado, 2)
+
+
+def test_calcular_residuos_compost_factor_kg():
+    e = EstudianteFactory()
+    c = CursoFactory()
+    f = FichaGEI.objects.create(
+        estudiante=e,
+        curso=c,
+        residuos_ton=2.0,
+        manejo_residuos="compost",
+        tiene_bosque=False,
+    )
+    r = calcular_balance_gei(f)
+    assert r["emisiones"]["residuos_kg_co2e"] == round(2.0 * 1000.0 * 0.1899, 2)
+
+
+def test_calcular_combustible_diesel_factor():
+    e = EstudianteFactory()
+    c = CursoFactory()
+    f = FichaGEI.objects.create(
+        estudiante=e,
+        curso=c,
+        combustible_gal=10.0,
+        tipo_combustible="diesel",
+        tiene_bosque=False,
+    )
+    r = calcular_balance_gei(f)
+    assert r["emisiones"]["combustible_kg_co2e"] == round(10.0 * 10.28, 2)
+
+
+def test_nota_cobertura_en_whatsapp():
+    e = EstudianteFactory()
+    c = CursoFactory()
+    f = FichaGEI.objects.create(
+        estudiante=e,
+        curso=c,
+        tipo_cultivo="perenne",
+        fertilizante_kg=10.0,
+        concentracion_n_pct=15.0,
+        combustible_gal=2.0,
+        tipo_combustible="diesel",
+        energia_kwh=50.0,
+        residuos_ton=0.5,
+        manejo_residuos="compost",
+        produccion_kg=200.0,
+        tiene_bosque=False,
+    )
+    persistir_resultado_gei(f)
+    msg = generar_mensaje_resultado_whatsapp(f)
+    assert "Cobertura estimada" in msg or "80" in msg
 
 
 def test_calcular_balance_gei_emisiones_basicas():

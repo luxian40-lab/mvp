@@ -1,0 +1,67 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Ficha GEI | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <p class="muted" style="margin:0 0 6px;"><a href="/portal/gei/">Inventario GEI</a> / Detalle</p>
+        <h1>{{ ficha.estudiante.nombre|default:"Productor" }}</h1>
+        <p class="muted">{{ ficha.nombre_finca|default:"Sin nombre de finca" }} · {{ ficha.curso.nombre|default:"—" }}</p>
+    </div>
+    <span class="status status-{% if ficha.completitud_pct >= 80 %}resuelta{% elif ficha.completitud_pct >= 40 %}en_proceso{% else %}pendiente{% endif %}">
+        {{ ficha.completitud_pct }}% completitud
+    </span>
+</div>
+
+{% if resultado %}
+<section class="panel" style="margin-bottom:24px;border-left:4px solid var(--accent);">
+    <h2>Resultado CO₂ (balance)</h2>
+    <div class="cards-grid" style="margin-bottom:0;">
+        <article class="card">
+            <div class="metric-number" style="font-size:20px;">{{ resultado.em_total_kg|floatformat:1|default:"—" }}</div>
+            <div class="metric-label">Emisiones totales (kg CO₂e)</div>
+        </article>
+        <article class="card">
+            <div class="metric-number" style="font-size:20px;">{{ resultado.rem_bosque_kg|floatformat:1|default:"—" }}</div>
+            <div class="metric-label">Remoción bosque (kg)</div>
+        </article>
+        <article class="card">
+            <div class="metric-number" style="font-size:20px;">{{ resultado.balance_neto_tco2e|floatformat:2|default:"—" }}</div>
+            <div class="metric-label">Balance neto (t CO₂e/año)</div>
+        </article>
+        <article class="card">
+            <div class="metric-number" style="font-size:20px;">{{ resultado.get_evaluacion_display|default:"—" }}</div>
+            <div class="metric-label">Evaluación café</div>
+        </article>
+    </div>
+    {% if resultado.intensidad_kg_co2e_por_kg %}
+        <p class="muted" style="margin-top:12px;">Intensidad: {{ resultado.intensidad_kg_co2e_por_kg|floatformat:3 }} kg CO₂e / kg producto</p>
+    {% endif %}
+    {% if resultado.nota_cobertura %}
+        <p class="muted" style="margin-top:8px;">{{ resultado.nota_cobertura }}</p>
+    {% endif %}
+</section>
+{% else %}
+<section class="panel" style="margin-bottom:24px;">
+    <p class="muted">Aún no hay cálculo de balance para esta ficha (complete más variables o espere el recálculo automático).</p>
+</section>
+{% endif %}
+
+<section class="panel" style="margin-bottom:24px;">
+    <h2>Datos de inventario</h2>
+    <table>
+        <tbody>
+            {% for v in variables %}
+                <tr><th style="width:40%;">{{ v.label }}</th><td>{{ v.valor }}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<section class="panel">
+    <h2>Productor</h2>
+    <p><strong>{{ ficha.estudiante.nombre }}</strong> · {{ ficha.estudiante.telefono }} · {{ ficha.estudiante.cedula }}</p>
+    <p class="muted">Actualizado {{ ficha.fecha_update|date:"d/m/Y H:i" }}</p>
+</section>
+{% endblock %}

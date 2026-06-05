@@ -1,0 +1,97 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Inicio</a>
+  &rsaquo; <a href="{{ changelist_url }}">{{ opts.verbose_name_plural|capfirst }}</a>
+  &rsaquo; Importar precios
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+
+<p style="max-width:760px;line-height:1.55;color:#444;">
+  Subí una <strong>lista de precios</strong> en Excel (<code>.xlsx</code>) o JSON.
+  El sistema convierte el Excel a JSON internamente y actualiza la tabla
+  <strong>Productos comerciales</strong> que Nat usa para cotizaciones exactas en WhatsApp.
+</p>
+
+<p style="max-width:760px;font-size:13px;color:#666;">
+  Columnas típicas en Excel: <code>nombre</code>, <code>precio</code>, <code>sku</code> (opcional),
+  <code>presentacion</code>, <code>categoria</code>, <code>unidad</code>.
+  Ver ejemplo en <code>core/data/ejemplo_precios_comercial.json</code>.
+</p>
+
+<div class="alert-box" style="max-width:760px;padding:12px 16px;background:#eff6ff;border-left:4px solid #2563eb;margin:1rem 0;border-radius:4px;">
+  <strong>Importante:</strong> esto es distinto de subir el Excel al RAG comercial.
+  El RAG sirve para contexto técnico; <em>esta importación</em> alimenta los precios numéricos
+  que Nat cita cuando preguntan «¿cuánto cuesta…?».
+</div>
+
+{% if preview %}
+<div style="max-width:760px;margin:1.5rem 0;padding:14px;background:#ecfdf5;border:1px solid #6ee7b7;border-radius:6px;">
+  <strong>Vista previa (sin guardar):</strong>
+  {{ preview.total_validos }} producto(s) válido(s) para cliente «{{ preview.cliente_nombre }}».
+  {% if preview.errores %}
+  <p style="color:#b45309;margin-top:8px;">Errores ({{ preview.errores|length }}):</p>
+  <ul style="font-size:13px;">
+    {% for e in preview.errores|slice:":8" %}
+    <li>{{ e }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" style="max-width:640px;margin-top:1.5rem;">
+  {% csrf_token %}
+
+  <fieldset class="module aligned">
+    <div class="form-row">
+      <label for="id_archivo">Archivo *</label>
+      <input type="file" name="archivo" id="id_archivo" accept=".xlsx,.xlsm,.xls,.json" required>
+    </div>
+
+    <div class="form-row">
+      <label for="id_cliente">Cliente</label>
+      <select name="cliente" id="id_cliente" style="min-width:280px;">
+        <option value="">— General (catálogo compartido) —</option>
+        {% for c in clientes %}
+          <option value="{{ c.pk }}" {% if cliente_sel == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>
+        {% endfor %}
+      </select>
+      <p class="help">Debe coincidir con <code>BOT_COMERCIAL_CLIENTE_ID</code> del número WhatsApp comercial.</p>
+    </div>
+
+    <div class="form-row">
+      <label for="id_vigencia_desde">Vigente desde</label>
+      <input type="date" name="vigencia_desde" id="id_vigencia_desde" value="{{ vigencia_desde|default:'' }}">
+    </div>
+    <div class="form-row">
+      <label for="id_vigencia_hasta">Vigente hasta</label>
+      <input type="date" name="vigencia_hasta" id="id_vigencia_hasta" value="{{ vigencia_hasta|default:'' }}">
+    </div>
+
+    <div class="form-row">
+      <label>
+        <input type="checkbox" name="desactivar_ausentes" value="1" {% if desactivar_ausentes %}checked{% endif %}>
+        Desactivar productos del cliente que no vengan en el archivo
+      </label>
+    </div>
+  </fieldset>
+
+  <div class="submit-row" style="margin-top:1rem;">
+    <input type="submit" name="accion" value="Vista previa" class="default" style="background:#64748b;">
+    <input type="submit" name="accion" value="Importar precios" class="default" style="background:#059669;">
+    <a href="{{ changelist_url }}" class="button cancel-link">Cancelar</a>
+  </div>
+</form>
+
+<p style="max-width:760px;margin-top:2rem;font-size:13px;color:#666;">
+  Tras importar, revisá el listado de productos. Nat responderá precios cuando detecte
+  preguntas de catálogo/cotización y exista <code>BOT_COMERCIAL_CLIENTE_ID</code> configurado.
+</p>
+{% endblock %}

@@ -62,6 +62,29 @@ REGLAS:
 - Evalúe según el dominio de los módulos (presupuesto, ahorro, metas, campo, u otro): no exija conceptos que no estén en el material."""
 
 
+PROMPT_FACILITADOR_EVALUACION_NOTAS = """Eres la Facilitadora Claudia, evaluadora de eki con metodología ABR.
+El participante respondió a un reto. Asigne una NOTA de 1 a 5 (puede usar un decimal, ej. 3.5).
+
+DIMENSIONES (referencia interna, no liste todo al estudiante):
+- Enfoque y comprensión del reto
+- Fundamentación con el curso y viabilidad
+- Claridad de la respuesta
+
+FORMATO DE RESPUESTA OBLIGATORIO:
+1. Retroalimentación positiva primero (qué hizo bien).
+2. Qué puede mejorar, de forma concreta.
+3. Nota final: X/5 (use un solo número; decimal con punto, ej. 3.5/5)
+4. Cierre motivador breve.
+
+REGLAS:
+- TRATO DE USTED siempre.
+- Máximo 120 palabras.
+- Máximo 2 emojis.
+- Sea empático y honesto; cite evidencia de la respuesta del participante.
+- PROHIBIDO hacer preguntas de seguimiento.
+- NO mencione puntos ni ranking."""
+
+
 # =====================================================
 # PROMPT ASISTENTE — Companion, tutea (nombre según cliente/curso)
 # Se activa SOLO al final de módulo 3 y módulo 5
@@ -290,14 +313,34 @@ PROHIBIDO: Incluir la palabra ACCIONA (o Acciona) en el mensaje."""
         return _fallback_reto(modulos_cubiertos, curso_nombre)
 
 
+def _extraer_nota_1_5(feedback: str) -> float:
+    import re
+
+    texto = feedback or ''
+    for patron in (
+        r'(\d+(?:[.,]\d+)?)\s*/\s*5',
+        r'nota\s*(?:final)?\s*:?\s*(\d+(?:[.,]\d+)?)',
+    ):
+        match = re.search(patron, texto, re.I)
+        if match:
+            valor = float(match.group(1).replace(',', '.'))
+            return min(5.0, max(1.0, valor))
+    return 3.5
+
+
 def evaluar_reto_facilitador(modulos_cubiertos, respuesta_estudiante, reto_original,
-                              estudiante_nombre="Estudiante", curso_nombre=None) -> tuple:
+                              estudiante_nombre="Estudiante", curso_nombre=None,
+                              modo_gamificacion=None) -> tuple:
     """
     Facilitadora evalúa la respuesta al reto con rúbrica ABR.
 
     Returns:
-        tuple: (puntaje: int 1-10, feedback: str)
+        tuple: (puntaje int 1-10 o nota float 1-5, feedback: str)
     """
+    from core.gamificacion_modo import MODO_CALIFICACION, MODO_PUNTOS
+
+    modo = modo_gamificacion or MODO_PUNTOS
+    usar_notas = modo == MODO_CALIFICACION
     respuesta_limpia = (respuesta_estudiante or "").strip()
     if _es_respuesta_sin_contenido_reto(respuesta_limpia):
         # Regla anti-alucinación: si la persona dice "no sé"/"no se", nunca inventar evidencia.
@@ -342,13 +385,17 @@ Módulos cubiertos:
 RETO PLANTEADO: {reto_original}
 RESPUESTA DEL PARTICIPANTE ({estudiante_nombre}): {respuesta_limpia}
 
-Evalúe según la rúbrica y el dominio de este curso. Dé retroalimentación y puntaje."""
+Evalúe según la rúbrica y el dominio de este curso. Dé retroalimentación y {'nota 1-5' if usar_notas else 'puntaje 1-10'}."""
+
+    system_prompt = (
+        PROMPT_FACILITADOR_EVALUACION_NOTAS if usar_notas else PROMPT_FACILITADOR_EVALUACION
+    )
 
     try:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": PROMPT_FACILITADOR_EVALUACION},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt_usuario}
             ],
             temperature=0.5,
@@ -357,9 +404,13 @@ Evalúe según la rúbrica y el dominio de este curso. Dé retroalimentación y 
         )
         feedback = response.choices[0].message.content.strip()
 
-        # Extract score from feedback
         import re
-        puntaje = 7  # default
+        if usar_notas:
+            nota = _extraer_nota_1_5(feedback)
+            logger.info("✅ Facilitadora evaluación reto (notas): %s/5", nota)
+            return nota, feedback
+
+        puntaje = 7
         match = re.search(r'(\d+)\s*/\s*10', feedback)
         if match:
             puntaje = min(10, max(1, int(match.group(1))))

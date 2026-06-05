@@ -50,6 +50,12 @@ class TemaCampana(models.Model):
 # 0b. CLIENTE (Organización/Empresa que usa la plataforma)
 class Cliente(models.Model):
     """Cliente/Organización que usa la plataforma (cooperativa, empresa, ONG)"""
+    TIPO_PROYECTO_CHOICES = [
+        ('cursos', 'Cursos eki'),
+        ('gei', 'Inventario GEI'),
+        ('nat', 'Agente Nat'),
+    ]
+
     nombre = models.CharField(
         max_length=200,
         verbose_name="Nombre del Cliente",
@@ -111,7 +117,60 @@ class Cliente(models.Model):
     usar_gamificacion = models.BooleanField(
         default=True,
         verbose_name="Usar Gamificación",
-        help_text="Si está activado, los estudiantes de este cliente podrán ver puntos, badges y recompensas. Si está desactivado, solo verán el contenido educativo."
+        help_text="Sincronizado automáticamente desde «Modo de gamificación». Legacy para compatibilidad."
+    )
+    modo_gamificacion = models.CharField(
+        max_length=20,
+        choices=[
+            ('desactivado', 'Desactivada'),
+            ('puntos', 'Puntos (ranking y recompensas)'),
+            ('calificacion', 'Calificación 1–5 (ranking por promedio)'),
+        ],
+        default='puntos',
+        verbose_name='Modo de gamificación',
+        help_text=(
+            'Puntos: ranking por puntos acumulados (actual). '
+            'Calificación 1–5: gamificación por notas (promedio ponderado para ranking; ej. 3,5). '
+            'Desactivada: sin gamificación visible.'
+        ),
+    )
+    peso_gamificacion_reto = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=1,
+        verbose_name='Peso de notas — reto',
+        help_text='Peso en el promedio ponderado del ranking (modo calificación).',
+    )
+    peso_gamificacion_abierta = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=1,
+        verbose_name='Peso de notas — pregunta abierta',
+        help_text='Peso en el promedio ponderado del ranking (modo calificación).',
+    )
+    exigir_nota_minima_certificado = models.BooleanField(
+        default=False,
+        verbose_name='Exigir nota mínima para certificado',
+        help_text=(
+            'Opcional. Solo aplica en modo «Calificación 1–5». Si el promedio ponderado '
+            'es menor a la nota mínima, no se emite certificado.'
+        ),
+    )
+    nota_minima_certificado = models.DecimalField(
+        max_digits=3,
+        decimal_places=1,
+        default=3,
+        verbose_name='Nota mínima certificado (1–5)',
+        help_text='Umbral de aprobación (ej. 3 o 3.5). Por debajo: curso completado sin certificado.',
+    )
+    drip_modulos_solo_estudiantes_listados = models.BooleanField(
+        default=False,
+        verbose_name='Módulos solo por lista de estudiantes',
+        help_text=(
+            'Si está activo, cada módulo solo es accesible para estudiantes con '
+            '«Habilitación de módulo (estudiante)» en el admin. El drip general del cliente sigue '
+            'aplicando fechas; la lista define quién puede entrar.'
+        ),
     )
     habilitar_pregunta_abierta_final = models.BooleanField(
         default=False,
@@ -201,6 +260,83 @@ class Cliente(models.Model):
         verbose_name='Instrucciones extra para el Bot Comercial',
         help_text='Instrucciones específicas de este cliente que se concatenan al system prompt de Nat. Útil para tono, productos prioritarios o restricciones por marca.'
     )
+    numero_whatsapp_nat = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        verbose_name='Número WhatsApp Nat (línea comercial)',
+        help_text=(
+            'Número Twilio al que escribe el productor para hablar con Nat (solo dígitos, ej: 573001234567). '
+            'Cada organización puede tener su propia línea; el webhook identifica el cliente por este número (campo To). '
+            'Distinto del número de campañas educativas y del BOT_COMERCIAL_CLIENTE_ID global.'
+        ),
+    )
+    tipo_proyecto = models.CharField(
+        max_length=20,
+        choices=TIPO_PROYECTO_CHOICES,
+        default='cursos',
+        verbose_name='Tipo de producto principal',
+        help_text='Producto principal del contrato. Para combinar varios módulos en el portal, use «Módulos del portal».',
+    )
+    portal_productos = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        verbose_name='Módulos del portal',
+        help_text=(
+            'Opcional. Lista separada por coma: cursos, gei, nat. '
+            'Ej: cursos,gei o cursos,nat,gei. Vacío = solo el tipo principal.'
+        ),
+    )
+    fecha_inicio_suscripcion = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Inicio de suscripción',
+    )
+    fecha_fin_suscripcion = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Fin de suscripción',
+    )
+    logo_url = models.URLField(
+        max_length=500,
+        blank=True,
+        verbose_name='Logo (portal)',
+        help_text='URL pública del logo de la organización. Visible en el portal B2B.',
+    )
+    portal_subtitulo = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name='Subtítulo en portal',
+        help_text='Texto corto bajo el nombre en el portal (ej: Cooperativa del Valle — 2026).',
+    )
+    whatsapp_numero = models.CharField(
+        max_length=20,
+        unique=True,
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name='WhatsApp propio del cliente',
+        help_text='Número WhatsApp del cliente para multi-tenant futuro.',
+    )
+    twilio_account_sid = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        verbose_name='Twilio Account SID propio',
+    )
+    twilio_auth_token = models.CharField(
+        max_length=200,
+        null=True,
+        blank=True,
+        verbose_name='Twilio Auth Token propio',
+    )
+    twilio_whatsapp_from = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+        verbose_name='Twilio WhatsApp From propio',
+    )
     activo = models.BooleanField(
         default=True,
         verbose_name="Activo",
@@ -223,6 +359,20 @@ class Cliente(models.Model):
     
     def __str__(self):
         return self.nombre
+
+    def save(self, *args, **kwargs):
+        from core.gamificacion_modo import sincronizar_usar_gamificacion
+
+        sincronizar_usar_gamificacion(self)
+        super().save(*args, **kwargs)
+
+    @property
+    def suscripcion_activa(self):
+        from datetime import date
+
+        if not self.fecha_fin_suscripcion:
+            return self.activo
+        return self.activo and date.today() <= self.fecha_fin_suscripcion
     
     def total_estudiantes(self):
         """Retorna total de estudiantes activos del cliente"""
@@ -1216,6 +1366,67 @@ class HabilitacionModuloDripCliente(models.Model):
         return f'{self.cliente} · M{self.modulo.numero} · desde {self.habilitado_desde}'
 
 
+class HabilitacionModuloEstudiante(models.Model):
+    """
+    Override de drip/calendario por estudiante (además del drip del cliente).
+    Con «Módulos solo por lista» en el cliente, solo estos estudiantes acceden al módulo.
+    """
+
+    estudiante = models.ForeignKey(
+        'Estudiante',
+        on_delete=models.CASCADE,
+        related_name='habilitaciones_modulo_individual',
+        verbose_name='Estudiante',
+    )
+    curso = models.ForeignKey(
+        'Curso',
+        on_delete=models.CASCADE,
+        related_name='habilitaciones_modulo_estudiante',
+        verbose_name='Curso',
+    )
+    modulo = models.ForeignKey(
+        'Modulo',
+        on_delete=models.CASCADE,
+        related_name='habilitaciones_estudiante',
+        verbose_name='Módulo',
+    )
+    habilitado_desde = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Disponible desde (este estudiante)',
+        help_text=(
+            'Opcional. Si se define, sustituye la fecha del cliente para este estudiante. '
+            'Vacío = sin fecha extra (solo inclusión en la lista).'
+        ),
+    )
+    activo = models.BooleanField(default=True, verbose_name='Activo')
+    notas = models.CharField(max_length=200, blank=True, default='', verbose_name='Notas internas')
+
+    class Meta:
+        verbose_name = 'Habilitación de módulo (estudiante)'
+        verbose_name_plural = 'Habilitaciones de módulos por estudiante'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['estudiante', 'curso', 'modulo'],
+                name='uniq_habilitacion_modulo_estudiante',
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.modulo_id and self.curso_id and self.modulo.curso_id != self.curso_id:
+            raise ValidationError('El módulo debe pertenecer al curso seleccionado.')
+        if self.estudiante_id and self.curso_id and self.estudiante.cliente_id:
+            curso = self.curso
+            if curso.cliente_id and curso.cliente_id != self.estudiante.cliente_id:
+                raise ValidationError('El curso debe ser del mismo cliente que el estudiante.')
+
+    def __str__(self):
+        desde = self.habilitado_desde.strftime('%d/%m/%Y %H:%M') if self.habilitado_desde else 'sin fecha'
+        return f'{self.estudiante.nombre} · M{self.modulo.numero} · {desde}'
+
+
 class DocumentoRAG(models.Model):
     """
     Documento subido para el sistema RAG Multi-Tenant.
@@ -1581,6 +1792,91 @@ class ProductoComercial(models.Model):
     def __str__(self):
         cliente_txt = self.cliente.nombre if self.cliente_id else 'General'
         return f"{self.sku} — {self.nombre} ({cliente_txt})"
+
+
+class ProductoCatalogo(models.Model):
+    """
+    Catálogo comercial por organización (Cliente) para recomendaciones Nat.
+    Separado de ProductoComercial (lista de precios SKU) y de DocumentoRAGComercial.
+    """
+
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.CASCADE,
+        related_name='catalogo_productos',
+        verbose_name='Cliente',
+    )
+    nombre = models.CharField(max_length=200, verbose_name='Nombre del producto')
+    descripcion = models.TextField(
+        verbose_name='Descripción',
+        help_text='Para qué sirve el producto',
+    )
+    problema_que_resuelve = models.TextField(
+        verbose_name='Problemas que resuelve',
+        help_text=(
+            'Síntomas o problemas del cultivo que este producto atiende. '
+            'Ej: roya, manchas amarillas, deficiencia de nitrógeno, plagas de suelo. '
+            'Mientras más descriptivo, mejor el match con la pregunta del agricultor.'
+        ),
+    )
+    ingrediente_activo = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name='Ingrediente activo',
+    )
+    categoria = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='Categoría',
+        help_text='Ej: fungicida, fertilizante foliar, bioestimulante, herbicida',
+    )
+    cultivos_objetivo = models.CharField(
+        max_length=300,
+        blank=True,
+        verbose_name='Cultivos objetivo',
+        help_text='Ej: café, caña panelera, aguacate, maíz',
+    )
+    dosis = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name='Dosis recomendada',
+        help_text='Ej: 300-500g por 200L de agua',
+    )
+    precio_cop = models.DecimalField(
+        max_digits=12,
+        decimal_places=0,
+        null=True,
+        blank=True,
+        verbose_name='Precio (COP)',
+    )
+    unidad = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name='Unidad de venta',
+        help_text='Ej: 500g, 1L, bolsa x 25kg',
+    )
+    url_producto = models.URLField(
+        blank=True,
+        verbose_name='Link del producto',
+        help_text='URL directa a la página de compra del producto',
+    )
+    activo = models.BooleanField(default=True, verbose_name='Activo')
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Producto del catálogo'
+        verbose_name_plural = 'Catálogo de productos'
+        ordering = ['cliente', 'categoria', 'nombre']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['cliente', 'nombre'],
+                name='uniq_producto_catalogo_cliente_nombre',
+            ),
+        ]
+
+    def __str__(self):
+        precio_str = f' — ${self.precio_cop:,.0f}' if self.precio_cop else ''
+        return f'{self.nombre} ({self.cliente.nombre}){precio_str}'
 
 
 class Modulo(models.Model):
@@ -2381,11 +2677,20 @@ class SolicitudSoporte(models.Model):
         ('acceso', '🔑 Acceso (login, cédula, número)'),
         ('contenido', '📚 Contenido (módulo, video, examen)'),
         ('tecnico', '🛠️ Técnico (errores del sistema)'),
+        ('duda_modulo', 'Duda de módulo'),
+        ('problema_acceso', 'Problema de acceso'),
+        ('solicitud_certificado', 'Solicitud de certificado'),
+        ('consulta_calculo', 'Consulta de cálculo'),
+        ('correccion_datos', 'Corrección de datos'),
+        ('problema_tecnico', 'Problema técnico'),
+        ('conversacion_escalada', 'Conversación escalada'),
+        ('pregunta_sin_respuesta', 'Pregunta sin respuesta'),
+        ('queja', 'Queja'),
         ('otro', '❓ Otro'),
     ]
 
     categoria = models.CharField(
-        max_length=20,
+        max_length=30,
         choices=CATEGORIA_PQRS_CHOICES,
         blank=True,
         default='',
@@ -2467,6 +2772,24 @@ class SolicitudSoporte(models.Model):
         verbose_name='Respuesta del Equipo',
         help_text='Respuesta que se le dio al estudiante'
     )
+    respuesta_portal = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name='Respuesta desde portal',
+    )
+    fecha_respuesta = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Fecha de respuesta desde portal',
+    )
+    respondido_por = models.ForeignKey(
+        'auth.User',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='pqrs_respondidas',
+        verbose_name='Respondido por',
+    )
     atendido_por = models.CharField(
         max_length=100,
         blank=True,
@@ -2509,7 +2832,13 @@ class SolicitudSoporte(models.Model):
 
 # ========== GAMIFICACIÓN ==========
 # Importar modelos de gamificación desde archivo separado
-from .gamificacion import PerfilGamificacion, Badge, BadgeEstudiante, TransaccionPuntos
+from .gamificacion import (
+    PerfilGamificacion,
+    Badge,
+    BadgeEstudiante,
+    TransaccionPuntos,
+    EvaluacionNotaGamificacion,
+)
 
 # ========== CERTIFICADOS ==========
 # Importar modelos de certificados desde archivo separado
@@ -3208,11 +3537,14 @@ __all__ = [
     'TemaCampana', 'Cliente', 'Estudiante', 'Plantilla', 'Linea',
     'Campana', 'EnvioLog', 'WhatsappLog',
     'SesionComercial',
-    'Curso', 'ConfiguracionDripCliente', 'HabilitacionModuloDripCliente', 'DocumentoRAG', 'DocumentoRAGComercial', 'Modulo', 'ProgresoEstudiante', 'ModuloCompletado',
+    'Curso', 'ConfiguracionDripCliente', 'HabilitacionModuloDripCliente',
+    'HabilitacionModuloEstudiante', 'DocumentoRAG', 'DocumentoRAGComercial', 'Modulo',
+    'ProgresoEstudiante', 'ModuloCompletado',
     'Examen', 'PreguntaExamen', 'ResultadoExamen',
     'ObjetivoCurso', 'RubricaEvaluacion', 'EjercicioPractico', 'RespuestaEjercicio',
     'InteraccionLog', 'SolicitudSoporte', 'PreguntaModulo',
     'PerfilGamificacion', 'Badge', 'BadgeEstudiante', 'TransaccionPuntos',
+    'EvaluacionNotaGamificacion',
     'Certificado', 'PlantillaCertificado',
     'AuditLog',
     'GrupoEstudiantes', 'EnvioProgramado', 'PQRS',
@@ -3224,4 +3556,6 @@ __all__ = [
     'EventoIA',
     'ContextoAgroSession',
     'ConversacionRAGCandidata',
+    'ProductoComercial',
+    'ProductoCatalogo',
 ]

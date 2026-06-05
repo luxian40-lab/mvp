@@ -1,7 +1,7 @@
 """
-Motor de balance GEI (simplificado) a partir de FichaGEI.
+Motor de balance GEI a partir de FichaGEI.
 
-Factores alineados con IPCC 2006 Tier 1 (simplificado) y factor red Colombia (UPME ~2023).
+Factores alineados con metodología simplificada acordada (GWP N₂O=273, red Colombia).
 """
 from __future__ import annotations
 
@@ -9,26 +9,32 @@ from typing import Any
 
 from django.db import transaction
 
-# Factores de emisión — referencia técnica simplificada
+# Conversión N₂O-N → CO₂e
+GWP_N2O = 273.0
+N2O_TO_CO2 = 44.0 / 28.0
+
 FACTORES: dict[str, float] = {
-    # N aplicado → N2O-N directo (EF1) → N2O → CO2e (GWP AR4 298)
-    "n2o_suelo_directo": 0.01,  # fracción del N que se emite como N2O-N
-    "gwp_n2o": 298.0,
-    # kg CO2e / galón (combustión móvil/estacionaria, valores típicos reportados)
-    "gasolina_gal": 8.78,
-    "diesel_gal": 10.15,
-    "ambos_gal": 9.46,
-    # Red nacional Colombia (kg CO2e / kWh), orden de magnitud UPME
-    "electricidad_kwh": 0.126,
-    # Residuos orgánicos (kg CO2e / tonelada tratada según manejo simplificado)
-    "residuos_compost": 4.0,
-    "residuos_externo": 8.5,
-    "residuos_quemado": 58.0,
-    "residuos_otro": 8.5,
-    "residuos_default": 8.5,
-    # Remoción bosque (t CO2e / ha / año) → se convierte a kg en el cálculo
+    # kg CO₂e / galón
+    "gasolina_gal": 7.62,
+    "diesel_gal": 10.28,
+    "ambos_gal": 8.95,
+    # Red nacional Colombia (kg CO₂e / kWh)
+    "electricidad_kwh_2026": 0.126,
+    "electricidad_kwh_2025": 0.097,
+    # Residuos orgánicos (kg CO₂e / kg residuo)
+    "residuos_compost_kg": 0.1899,
+    "residuos_suelo_directo_kg": 0.026,
+    "residuos_externo_kg": 0.0085,
+    "residuos_quemado_kg": 0.058,
+    "residuos_otro_kg": 0.026,
+    "residuos_default_kg": 0.026,
+    # Fertilizante orgánico sin composición establecida (% N asumido)
+    "organico_n_pct": 0.016,
+    "organico_ef_directo": 0.003,
+    "sintetico_ef_directo": 0.01,
+    # Remoción bosque (t CO₂e / ha / año) → se convierte a kg en el cálculo
     "bosque_conservacion_ha": 3.67,
-    # Benchmark café (kg CO2e / kg producto)
+    # Benchmark café (kg CO₂e / kg producto)
     "intensidad_cafe_eficiente": 1.5,
     "intensidad_cafe_promedio": 2.8,
 }
@@ -37,14 +43,16 @@ FACTORES: dict[str, float] = {
 def _factor_residuos_por_manejo(manejo: str) -> float:
     m = (manejo or "").strip().lower()
     if m == "compost":
-        return FACTORES["residuos_compost"]
+        return FACTORES["residuos_compost_kg"]
+    if m == "suelo_directo":
+        return FACTORES["residuos_suelo_directo_kg"]
     if m == "externo":
-        return FACTORES["residuos_externo"]
+        return FACTORES["residuos_externo_kg"]
     if m == "quemado":
-        return FACTORES["residuos_quemado"]
+        return FACTORES["residuos_quemado_kg"]
     if m == "otro":
-        return FACTORES["residuos_otro"]
-    return FACTORES["residuos_default"]
+        return FACTORES["residuos_otro_kg"]
+    return FACTORES["residuos_default_kg"]
 
 
 def _factor_combustible_gal(tipo: str) -> float:
@@ -54,6 +62,107 @@ def _factor_combustible_gal(tipo: str) -> float:
     if t == "diesel":
         return FACTORES["diesel_gal"]
     return FACTORES["ambos_gal"]
+
+
+def _factor_electricidad_kwh(anio: int | None) -> float:
+    if anio is not None and int(anio) <= 2025:
+        return FACTORES["electricidad_kwh_2025"]
+    return FACTORES["electricidad_kwh_2026"]
+
+
+def _emision_n2o_desde_kg_n(kg_n: float, ef_directo: float) -> float:
+    """Tres términos: emisión directa + volatilización + lixiviación (Tier 1 simplificado)."""
+    if kg_n <= 0:
+        return 0.0
+    t1 = kg_n * ef_directo * N2O_TO_CO2 * GWP_N2O
+    t2 = kg_n * 0.1 * 0.01 * N2O_TO_CO2 * GWP_N2O
+    t3 = kg_n * 0.3 * 0.0075 * N2O_TO_CO2 * GWP_N2O
+    return t1 + t2 + t3
+
+
+def _calcular_emision_fertilizante(ficha) -> tuple[float | None, str | None]:
+    """
+    Devuelve (kg CO₂e, motivo_faltante).
+    Orgánico: kg fertilizante con 1,6% N fijo. Sintético: kg × % N.
+    """
+    if ficha.fertilizante_kg is None:
+        return None, "fertilizante"
+    kg_fert = float(ficha.fertilizante_kg)
+    if kg_fert == 0:
+        return 0.0, None
+
+    tipo = (getattr(ficha, "tipo_fertilizante", None) or "sintetico").strip().lower()
+    if tipo == "organico":
+        kg_n = kg_fert * FACTORES["organico_n_pct"]
+        return _emision_n2o_desde_kg_n(kg_n, FACTORES["organico_ef_directo"]), None
+
+    if ficha.concentracion_n_pct is None:
+        return None, "fertilizante / % nitrógeno"
+    kg_n = kg_fert * (float(ficha.concentracion_n_pct) / 100.0)
+    return _emision_n2o_desde_kg_n(kg_n, FACTORES["sintetico_ef_directo"]), None
+
+
+def estimar_cobertura_metodologica(ficha) -> dict[str, Any]:
+    """
+    Cobertura aproximada del inventario operativo (no confundir con completitud de datos).
+    """
+    tipo_cultivo = (getattr(ficha, "tipo_cultivo", None) or "perenne").strip().lower()
+
+    if tipo_cultivo == "arroz":
+        return {
+            "pct_min": None,
+            "pct_max": None,
+            "nota": (
+                "Este método no se recomienda para cultivos en inundación como el arroz. "
+                "Use el resultado solo como referencia orientativa."
+            ),
+            "advertencia_fuerte": True,
+        }
+
+    alta_mec = getattr(ficha, "alta_mecanizacion", None)
+    usa_cal = getattr(ficha, "usa_enmiendas_cal", None)
+
+    if tipo_cultivo == "transitorio" or alta_mec is True:
+        return {
+            "pct_min": 50,
+            "pct_max": 60,
+            "nota": (
+                "En fincas muy mecanizadas o de cultivo transitorio, este balance suele cubrir "
+                "entre el 50% y 60% de las emisiones directas u operativas."
+            ),
+            "advertencia_fuerte": False,
+        }
+
+    if usa_cal is True:
+        return {
+            "pct_min": 70,
+            "pct_max": 80,
+            "nota": (
+                "Al usar enmiendas como cal u otros insumos no incluidos aquí, este balance "
+                "podría cubrir entre el 70% y 80% de las emisiones operativas."
+            ),
+            "advertencia_fuerte": False,
+        }
+
+    return {
+        "pct_min": 80,
+        "pct_max": 90,
+        "nota": (
+            "En un escenario sencillo donde la fertilización es la principal fuente, "
+            "este balance suele cubrir entre el 80% y 90% de las emisiones operativas."
+        ),
+        "advertencia_fuerte": False,
+    }
+
+
+def formatear_nota_cobertura(cobertura: dict[str, Any]) -> str:
+    if cobertura.get("advertencia_fuerte"):
+        return cobertura["nota"]
+    pmin = cobertura.get("pct_min")
+    pmax = cobertura.get("pct_max")
+    if pmin is not None and pmax is not None:
+        return f"ℹ️ Cobertura estimada: {pmin}–{pmax}% de emisiones operativas. {cobertura['nota']}"
+    return cobertura.get("nota", "")
 
 
 def calcular_balance_gei(ficha) -> dict[str, Any]:
@@ -69,21 +178,20 @@ def calcular_balance_gei(ficha) -> dict[str, Any]:
         "comparacion_benchmark": None,
         "completitud_calculo_pct": 0,
         "campos_faltantes": [],
+        "cobertura_metodologica": estimar_cobertura_metodologica(ficha),
     }
 
     emisiones_kg = 0.0
     campos_usados = 0
 
     # 1. Fertilizante nitrogenado
-    if ficha.fertilizante_kg is not None and ficha.concentracion_n_pct is not None:
-        kg_n = float(ficha.fertilizante_kg) * (float(ficha.concentracion_n_pct) / 100.0)
-        conv = FACTORES["n2o_suelo_directo"] * (44.0 / 28.0) * FACTORES["gwp_n2o"]
-        em_fert = kg_n * conv
+    em_fert, falta_fert = _calcular_emision_fertilizante(ficha)
+    if em_fert is not None:
         resultado["emisiones"]["fertilizante_kg_co2e"] = round(em_fert, 2)
         emisiones_kg += em_fert
         campos_usados += 1
-    else:
-        resultado["campos_faltantes"].append("fertilizante / % nitrógeno")
+    elif falta_fert:
+        resultado["campos_faltantes"].append(falta_fert)
 
     # 2. Combustible
     if ficha.combustible_gal is not None:
@@ -95,19 +203,20 @@ def calcular_balance_gei(ficha) -> dict[str, Any]:
     else:
         resultado["campos_faltantes"].append("combustible")
 
-    # 3. Energía eléctrica
+    # 3. Energía eléctrica (kWh/año)
     if ficha.energia_kwh is not None:
-        em_elec = float(ficha.energia_kwh) * FACTORES["electricidad_kwh"]
+        anio = getattr(ficha, "anio_datos_energia", None)
+        em_elec = float(ficha.energia_kwh) * _factor_electricidad_kwh(anio)
         resultado["emisiones"]["energia_kg_co2e"] = round(em_elec, 2)
         emisiones_kg += em_elec
         campos_usados += 1
     else:
         resultado["campos_faltantes"].append("energía eléctrica")
 
-    # 4. Residuos orgánicos
+    # 4. Residuos orgánicos (ton → kg × factor kg/kg)
     if ficha.residuos_ton is not None and (ficha.manejo_residuos or "").strip():
         factor_res = _factor_residuos_por_manejo(ficha.manejo_residuos)
-        em_res = float(ficha.residuos_ton) * factor_res
+        em_res = float(ficha.residuos_ton) * 1000.0 * factor_res
         resultado["emisiones"]["residuos_kg_co2e"] = round(em_res, 2)
         emisiones_kg += em_res
         campos_usados += 1
@@ -165,6 +274,7 @@ def persistir_resultado_gei(ficha) -> None:
 
     data = calcular_balance_gei(ficha)
     comp = data.get("comparacion_benchmark") or {}
+    cobertura = data.get("cobertura_metodologica") or {}
     with transaction.atomic():
         ResultadoGEI.objects.update_or_create(
             ficha=ficha,
@@ -180,6 +290,7 @@ def persistir_resultado_gei(ficha) -> None:
                 "evaluacion": comp.get("evaluacion"),
                 "completitud_calculo_pct": data["completitud_calculo_pct"],
                 "campos_faltantes": data["campos_faltantes"],
+                "nota_cobertura": formatear_nota_cobertura(cobertura),
             },
         )
 
@@ -211,6 +322,9 @@ def generar_mensaje_resultado_whatsapp(ficha) -> str:
         msg += f"📈 Intensidad: {r.intensidad_kg_co2e_por_kg:.2f} kg CO₂e / kg producto\n"
         msg += f"📉 Promedio sectorial: {FACTORES['intensidad_cafe_promedio']:.2f} kg CO₂e / kg\n"
         msg += f"{emoji} Evaluación: *{(r.evaluacion or '').upper()}*\n\n"
+
+    if r.nota_cobertura:
+        msg += f"{r.nota_cobertura}\n\n"
 
     if r.campos_faltantes:
         msg += f"⚠️ Datos que faltaron: {', '.join(r.campos_faltantes)}\n"

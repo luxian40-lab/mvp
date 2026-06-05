@@ -1,0 +1,50 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}PQRS | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1>PQRS</h1>
+    {% if total_pendientes > 0 %}
+        <span class="badge">{{ total_pendientes }} pendientes</span>
+    {% endif %}
+</div>
+
+<section class="panel">
+    <div style="margin-bottom:18px;">
+        <a class="pill {% if not estado_filtro %}active{% endif %}" href="/portal/pqrs/">Todos</a>
+        <a class="pill {% if estado_filtro == 'pendiente' %}active{% endif %}" href="/portal/pqrs/?estado=pendiente">Pendientes</a>
+        <a class="pill {% if estado_filtro == 'en_atencion' %}active{% endif %}" href="/portal/pqrs/?estado=en_atencion">En proceso</a>
+        <a class="pill {% if estado_filtro == 'resuelta' %}active{% endif %}" href="/portal/pqrs/?estado=resuelta">Resueltas</a>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Estudiante</th>
+                <th>Tipo/Categoría</th>
+                <th>Mensaje</th>
+                <th>Fecha</th>
+                <th>Estado</th>
+                <th>Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in pqrs %}
+                <tr>
+                    <td>{{ item.estudiante.nombre }}</td>
+                    <td>{{ item.get_tipo_solicitud_display }}<br><span class="muted">{{ item.get_categoria_display }}</span></td>
+                    <td>{{ item.mensaje_original|truncatechars:80 }}</td>
+                    <td>{{ item.fecha_solicitud|date:"d/m/Y H:i" }}</td>
+                    <td><span class="status status-{{ item.estado }}">{{ item.get_estado_display }}</span></td>
+                    <td><a class="btn btn-secondary" href="/portal/pqrs/{{ item.id }}/">Ver</a></td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="6" class="muted">No hay solicitudes de tus estudiantes aún.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}{{ campana.nombre }} | Campañas{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <p class="muted" style="margin:0 0 6px;"><a href="/portal/campanas/">Campañas</a> / Detalle</p>
+        <h1>{{ campana.nombre }}</h1>
+    </div>
+</div>
+
+<section class="cards-grid" style="margin-bottom:24px;">
+    <article class="card">
+        <div class="metric-number">{{ campana.destinatarios.count }}</div>
+        <div class="metric-label">Destinatarios</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ campana.total_enviados }}</div>
+        <div class="metric-label">Enviados</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ campana.respuestas_si }}</div>
+        <div class="metric-label">Respuestas Sí</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ campana.respuestas_no }}</div>
+        <div class="metric-label">Respuestas No</div>
+    </article>
+</section>
+
+<section class="panel">
+    <h2>Información</h2>
+    <table>
+        <tbody>
+            <tr><th>Canal</th><td>{{ campana.get_canal_envio_display }}</td></tr>
+            <tr><th>Audiencia</th><td>{{ campana.get_tipo_audiencia_display }}</td></tr>
+            <tr><th>Ejecutada</th><td>{% if campana.ejecutada %}Sí{% else %}No{% endif %}</td></tr>
+            <tr><th>Programada</th><td>{{ campana.fecha_programada|date:"d/m/Y H:i"|default:"—" }}</td></tr>
+            <tr><th>Creada</th><td>{{ campana.fecha_creacion|date:"d/m/Y H:i" }}</td></tr>
+            {% if campana.es_campana_curso and campana.curso_destino %}
+                <tr><th>Curso destino</th><td>{{ campana.curso_destino.nombre }}</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+    {% if puede_gestionar %}
+        <p class="muted" style="margin-top:14px;">Edición y envío: panel de administración eki → Campañas.</p>
+    {% endif %}
+</section>
+{% endblock %}

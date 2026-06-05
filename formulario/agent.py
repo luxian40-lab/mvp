@@ -227,6 +227,11 @@ def _ajuste_valor_ficha(pregunta: FlujoPregunta, valor: Any) -> Any:
         return float(valor)
     if f.get_internal_type() == "BooleanField":
         return bool(valor)
+    if f.get_internal_type() in ("IntegerField", "PositiveIntegerField", "PositiveSmallIntegerField"):
+        try:
+            return int(float(valor))
+        except (TypeError, ValueError):
+            return None
     return valor
 
 

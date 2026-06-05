@@ -61,6 +61,13 @@ Devuelva SIEMPRE JSON válido:
 
 CATEGORIAS_VALIDAS = {"acceso", "contenido", "tecnico", "otro"}
 
+_AYUDA_EXACTAS = frozenset({
+    'ayuda', 'help', 'soporte', 'ticket', 'problema', 'pqrs', 'queja', 'reclamo', 'solicitud',
+    'necesito ayuda', 'necesito soporte', 'ayudame', 'ayúdame',
+})
+
+_HORAS_TICKET_ABIERTO = 72
+
 _PATRONES_FUERA_ALCANCE = [
     re.compile(r'cambiar\s+(?:el\s+|mi\s+|su\s+)?tel[eé]fono', re.I),
     re.compile(r'actualizar\s+tel[eé]fono', re.I),
@@ -166,6 +173,89 @@ def _registrar_seguimiento_estudiante(solicitud, mensaje: str) -> None:
     _append_nota(solicitud, f"[Seguimiento estudiante] {mensaje.strip()[:500]}")
 
 
+def _normalizar_texto_whatsapp(mensaje: str) -> str:
+    t = (mensaje or '').strip().lower()
+    return re.sub(r'[*_]+', '', t).strip()
+
+
+def mensaje_es_solo_ayuda(mensaje: str) -> bool:
+    return _normalizar_texto_whatsapp(mensaje) in _AYUDA_EXACTAS
+
+
+def mensaje_activa_soporte(mensaje: str) -> bool:
+    """True si el mensaje debe abrir soporte o reforzar un ticket (p. ej. «ayuda no funciona el curso»)."""
+    t = _normalizar_texto_whatsapp(mensaje)
+    if not t:
+        return False
+    if t in _AYUDA_EXACTAS:
+        return True
+    if re.match(r'^ayuda\b', t):
+        return True
+    if re.match(r'^(?:necesito|quiero)\s+ayuda\b', t):
+        return True
+    return False
+
+
+def obtener_ticket_pqrs_abierto(estudiante):
+    """Ticket reciente pendiente o en atención (no resuelto por el agente)."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from core.models import SolicitudSoporte
+
+    desde = timezone.now() - timedelta(hours=_HORAS_TICKET_ABIERTO)
+    return (
+        SolicitudSoporte.objects.filter(
+            estudiante=estudiante,
+            estado__in=('pendiente', 'en_atencion'),
+            resuelto_por_agente=False,
+            fecha_solicitud__gte=desde,
+        )
+        .order_by('-fecha_solicitud')
+        .first()
+    )
+
+
+def respuesta_ayuda_con_ticket_abierto(estudiante, mensaje: str) -> Optional[str]:
+    """Si ya hay ticket abierto y repiten «ayuda» sin detalle, no crear otro."""
+    if not mensaje_es_solo_ayuda(mensaje):
+        return None
+    if not obtener_ticket_pqrs_abierto(estudiante):
+        return None
+    nombre = (estudiante.nombre or '').strip().split()
+    saludo = f"Hola {nombre[0]}, " if nombre else ''
+    return (
+        f"{saludo}ya tenemos tu solicitud registrada.\n\n"
+        "Cuéntanos qué pasa (por ejemplo: no carga el curso, no puedo entrar, error en un módulo) "
+        "y lo añadimos a tu caso en este mismo chat."
+    )
+
+
+def _seguimiento_ticket_pendiente(solicitud, mensaje: str) -> str:
+    """Añade detalle al ticket recién creado sin pasar por el gate «solo listo»."""
+    texto = (mensaje or '').strip()
+    _registrar_seguimiento_estudiante(solicitud, texto)
+    base = _normalizar_texto_whatsapp(solicitud.mensaje_original or '')
+    if base in _AYUDA_EXACTAS or not base:
+        solicitud.mensaje_original = texto
+        update_fields = ['mensaje_original', 'notas_internas']
+    else:
+        solicitud.mensaje_original = f"{solicitud.mensaje_original.strip()}\n\n{texto}"
+        update_fields = ['mensaje_original', 'notas_internas']
+    solicitud.save(update_fields=update_fields)
+
+    nombre = (getattr(solicitud.estudiante, 'nombre', None) or '').strip().split()
+    saludo = f"Hola {nombre[0]}, " if nombre else ''
+    fragmento = texto[:400] + ('…' if len(texto) > 400 else '')
+    return (
+        f"{saludo}gracias, añadimos esto a tu caso:\n\n"
+        f"«{fragmento}»\n\n"
+        "Nuestro equipo lo revisará por este canal. "
+        "Para seguir con el curso escribe *listo* o *menú*."
+    )
+
+
 def procesar_pqrs_automatico(solicitud_soporte) -> dict[str, Any]:
     """Primera respuesta del agente tras crear la solicitud."""
     mensaje = (getattr(solicitud_soporte, 'mensaje_original', '') or '').strip()
@@ -217,19 +307,18 @@ def procesar_seguimiento_pqrs(solicitud_soporte, mensaje_estudiante: str) -> dic
 
 def intentar_procesar_seguimiento_pqrs_whatsapp(estudiante, mensaje: str) -> Optional[str]:
     """Si hay ticket PQRS abierto, procesa el mensaje y devuelve texto de respuesta."""
-    from core.models import SolicitudSoporte
-
-    ticket = (
-        SolicitudSoporte.objects.filter(
-            estudiante=estudiante,
-            estado='en_atencion',
-            resuelto_por_agente=False,
-        )
-        .order_by('-fecha_solicitud')
-        .first()
-    )
+    ticket = obtener_ticket_pqrs_abierto(estudiante)
     if not ticket:
         return None
+
+    if mensaje_es_solo_ayuda(mensaje):
+        return respuesta_ayuda_con_ticket_abierto(estudiante, mensaje)
+
+    if mensaje_activa_soporte(mensaje):
+        return None
+
+    if ticket.estado == 'pendiente':
+        return _seguimiento_ticket_pendiente(ticket, mensaje)
 
     resultado = procesar_seguimiento_pqrs(ticket, mensaje)
     aplicar_resultado_pqrs(ticket, resultado)

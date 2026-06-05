@@ -1,0 +1,48 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Inicio</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{% url 'admin:core_cliente_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+    &rsaquo; <a href="{{ change_url }}">{{ cliente.nombre }}</a>
+    &rsaquo; Crear usuario portal
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <form method="post" novalidate>
+        {% csrf_token %}
+        <fieldset class="module aligned">
+            <h2>Acceso al portal para {{ cliente.nombre }}</h2>
+            <p class="help">
+                Este formulario crea un usuario Django sin permisos staff y lo asocia a esta organización en el portal.
+            </p>
+
+            {% if form.non_field_errors %}
+                <div class="errors">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            {% for field in form %}
+                <div class="form-row{% if field.errors %} errors{% endif %}">
+                    {{ field.errors }}
+                    <div>
+                        {{ field.label_tag }}
+                        {{ field }}
+                        {% if field.help_text %}
+                            <div class="help">{{ field.help_text }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </fieldset>
+
+        <div class="submit-row">
+            <input type="submit" value="Crear usuario portal" class="default">
+            <a class="button cancel-link" href="{{ change_url }}">Volver al cliente</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

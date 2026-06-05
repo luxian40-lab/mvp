@@ -1,0 +1,29 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Cursos | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1>Cursos</h1>
+</div>
+
+<section class="cards-grid">
+    {% for curso in cursos %}
+        <article class="card">
+            <p class="metric-label" style="margin:0 0 8px;">Curso</p>
+            <h2 style="margin:0 0 8px;font-size:16px;">{{ curso.nombre }}</h2>
+            <p class="muted">{{ curso.modulos_count }} módulos</p>
+            <p class="muted">{{ curso.estudiantes_count }} estudiantes inscritos</p>
+            {% if curso.activo %}
+                <span class="status status-resuelta">Activo</span>
+            {% else %}
+                <span class="status status-cerrada">Inactivo</span>
+            {% endif %}
+        </article>
+    {% empty %}
+        <article class="panel">
+            <p class="muted">No hay cursos asignados todavía.</p>
+        </article>
+    {% endfor %}
+</section>
+{% endblock %}

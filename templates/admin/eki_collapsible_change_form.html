@@ -1,0 +1,18 @@
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+
+{% block form_top %}
+{% if not is_popup %}
+<div class="eki-form-section-nav" id="eki-form-section-nav" aria-label="Navegación por secciones">
+    <label for="eki-form-section-select" class="eki-form-section-nav__label">Ir a sección</label>
+    <select id="eki-form-section-select" class="custom-select">
+        <option value="">— Elija una sección —</option>
+    </select>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block inline_field_sets %}
+{% block eki_inlines_intro %}{% endblock %}
+{{ block.super }}
+{% endblock %}

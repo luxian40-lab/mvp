@@ -1,0 +1,149 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Dashboard | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <h1>Dashboard</h1>
+        <p class="muted">Vista general de su organización. Para el detalle analítico use <a href="/portal/metricas/">Métricas detalladas</a>.</p>
+    </div>
+    {% if portal_mod_cursos %}
+        <a class="btn btn-outline" href="/portal/metricas/">Métricas detalladas</a>
+    {% endif %}
+</div>
+
+{% if portal_mod_gei and gei_resumen %}
+<section class="cards-grid" style="margin-bottom:24px;">
+    <article class="card">
+        <div class="metric-number">{{ gei_resumen.total }}</div>
+        <div class="metric-label">Fichas GEI</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ gei_resumen.completas }}</div>
+        <div class="metric-label">Fichas completas</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ gei_resumen.promedio_pct }}%</div>
+        <div class="metric-label">Completitud promedio</div>
+        <p class="muted"><a href="/portal/gei/">Ver inventario GEI</a></p>
+    </article>
+</section>
+{% endif %}
+
+{% if portal_mod_nat and nat_resumen %}
+<section class="cards-grid" style="margin-bottom:24px;">
+    <article class="card">
+        <div class="metric-number">{{ nat_resumen.pqrs_total }}</div>
+        <div class="metric-label">PQRS comercial</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ nat_resumen.pqrs_pendientes }}</div>
+        <div class="metric-label">Pendientes</div>
+        <p class="muted"><a href="/portal/nat/">Ver agente Nat</a></p>
+    </article>
+</section>
+{% endif %}
+
+{% if portal_mod_cursos %}
+<section class="cards-grid" style="margin-bottom:24px;">
+    <article class="card">
+        <div class="metric-number">{{ total_estudiantes }}</div>
+        <div class="metric-label">Estudiantes</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ total_cursos }}</div>
+        <div class="metric-label">Cursos activos</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ total_grupos }}</div>
+        <div class="metric-label">Grupos</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ completados }}</div>
+        <div class="metric-label">Inscripciones completadas</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ en_progreso }}</div>
+        <div class="metric-label">En progreso</div>
+    </article>
+    {% if resumen_general.total_inscritos %}
+    <article class="card">
+        <div class="metric-number">{{ resumen_general.finalizados }} / {{ resumen_general.total_inscritos }}</div>
+        <div class="metric-label">Finalizados / inscritos</div>
+    </article>
+    {% endif %}
+</section>
+
+<section class="panel" style="margin-bottom:24px;">
+    <h2>Accesos rápidos</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;">
+        <a class="pill active" href="/portal/metricas/">Métricas detalladas</a>
+        <a class="pill" href="/portal/cobertura/">Cobertura territorial</a>
+        <a class="pill" href="/portal/estudiantes/">Estudiantes</a>
+        <a class="pill" href="/portal/cursos/">Cursos</a>
+    </div>
+</section>
+
+{% if ranking.activa %}
+<section class="panel" id="ranking" style="margin-bottom:24px;">
+    <div class="page-title" style="margin-bottom:16px;">
+        <div>
+            <h2>Mejores estudiantes</h2>
+            <p class="muted">Modo: <strong>{{ ranking.modo_label }}</strong>{% if ranking.es_calificacion %} — promedio ponderado de notas{% else %} — puntos acumulados{% endif %}</p>
+        </div>
+    </div>
+    {% if ranking.ranking %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Estudiante</th>
+                    <th>{{ ranking.columna_valor }}</th>
+                    <th>Detalle</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in ranking.ranking %}
+                <tr>
+                    <td>{{ row.posicion }}</td>
+                    <td><a href="/portal/estudiantes/{{ row.estudiante_id }}/">{{ row.nombre }}</a></td>
+                    <td><strong>{{ row.valor }}</strong></td>
+                    <td class="muted">{{ row.detalle }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="muted">Aún no hay datos de ranking.</p>
+    {% endif %}
+</section>
+{% endif %}
+
+<section class="panel">
+    <h2>Cursos activos</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Módulos</th>
+                <th>Inscritos</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for curso in cursos %}
+            <tr>
+                <td>{{ curso.emoji }} {{ curso.nombre }}</td>
+                <td>{{ curso.modulos_count }}</td>
+                <td>{{ curso.estudiantes_count }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="muted">No hay cursos activos.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endif %}
+{% endblock %}

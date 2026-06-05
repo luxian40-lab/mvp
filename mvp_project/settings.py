@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'agents_commercial',        # Nati, RAG comercial
     'analytics',                # Dashboards, métricas, Excel
     'integrations',             # API LXP / Angular
+    'portal',                   # Portal web para clientes B2B
 ]
 
 MIDDLEWARE = [
@@ -64,6 +65,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'portal.middleware.SuscripcionMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.RateLimitMiddleware',  # 🔒 Rate limiting
@@ -84,6 +86,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'portal.context_processors.pqrs_pendientes',
+                'portal.context_processors.portal_organizacion',
             ],
         },
     },
@@ -218,19 +222,22 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # ==========================================
 # 🎨 8. CONFIGURACIÓN VISUAL JAZZMIN
 # ==========================================
-
 JAZZMIN_SETTINGS = {
-    # Títulos y Marca
+    # Títulos y Marca (texto en sidebar; sin PNG)
     "site_title": "eki",
     "site_header": "eki",
     "site_brand": "eki",
-    "welcome_sign": "Bienvenido a eki",
+    "site_logo_classes": "eki-brand-hidden",
+    "welcome_sign": "Panel de operaciones eki",
     "copyright": "eki solutions",
     "search_model": ["core.Estudiante", "core.Campana", "agents_commercial.ProspectoB2B"],
 
-    # Menú Superior - Acceso rápido
+    # Menú superior — atajos (sin duplicar custom_links del sidebar)
     "topmenu_links": [
+        {"name": "Inicio", "url": "admin:index", "new_window": False},
         {"name": "Dashboard", "url": "/admin/dashboard/", "new_window": False},
+        {"name": "Cobertura", "url": "/admin/cobertura/", "new_window": False},
+        {"name": "Manual", "url": "/admin/instrucciones/", "new_window": False},
         {"name": "Conversaciones", "url": "conversaciones", "new_window": False},
     ],
 
@@ -238,8 +245,16 @@ JAZZMIN_SETTINGS = {
     "show_sidebar": True,
     "navigation_expanded": False,  # Colapsado por defecto
 
-    # CSS Personalizado
-    "custom_css": "admin/css/custom_menu.css",
+    # CSS / JS personalizado
+    "custom_css": "admin/css/eki_admin_theme.css",
+    "custom_js": "admin/js/eki_admin_ui.js",
+
+    # Formularios largos: acordeón en lugar de muchas pestañas horizontales
+    "changeform_format_overrides": {
+        "core.cliente": "collapsible",
+        "core.estudiante": "collapsible",
+        "core.curso": "collapsible",
+    },
 
     # Iconos — agrupados por sección visual
     "icons": {
@@ -308,29 +323,22 @@ JAZZMIN_SETTINGS = {
     "custom_links": {
         "formulario": [
             {
-                "name": "📊 Panel GEI",
+                "name": "Panel GEI",
                 "url": "/admin/gei/panel/",
                 "icon": "fas fa-leaf",
                 "permissions": ["formulario.view_fichagei"],
             },
         ],
-        "core": [
-            {
-                "name": "📋 Manual / Instrucciones",
-                "url": "/admin/instrucciones/",
-                "icon": "fas fa-book",
-                "permissions": ["core.view_estudiante"],
-            },
-        ],
+        "core": [],
         "agents_commercial": [
             {
-                "name": "🤖 Panel bot comercial",
+                "name": "Bot comercial",
                 "url": "/admin/bot-comercial/",
                 "icon": "fas fa-comments",
                 "permissions": ["core.view_prospectob2b"],
             },
             {
-                "name": "💡 Knowledge Studio",
+                "name": "Knowledge Studio",
                 "url": "/admin/knowledge-studio/",
                 "icon": "fas fa-lightbulb",
                 "permissions": ["core.view_conversacionragcandidata"],
@@ -338,13 +346,7 @@ JAZZMIN_SETTINGS = {
         ],
         "analytics": [
             {
-                "name": "📈 Dashboard métricas",
-                "url": "/admin/dashboard/",
-                "icon": "fas fa-tachometer-alt",
-                "permissions": ["core.view_estudiante"],
-            },
-            {
-                "name": "🔬 AI Ops (eventos IA)",
+                "name": "AI Ops",
                 "url": "/admin/ai-ops/eventos/",
                 "icon": "fas fa-microchip",
                 "permissions": ["core.view_eventoia"],
@@ -352,7 +354,7 @@ JAZZMIN_SETTINGS = {
         ],
         "agents_edu": [
             {
-                "name": "✨ Crear curso con IA",
+                "name": "Crear curso con IA",
                 "url": "/admin/crear-curso-ia/",
                 "icon": "fas fa-magic",
                 "permissions": ["core.view_curso"],
@@ -441,27 +443,27 @@ JAZZMIN_SETTINGS = {
 
 JAZZMIN_UI_TWEAKS = {
     "navbar_small_text": False,
-    "footer_small_text": False,
+    "footer_small_text": True,
     "body_small_text": False,
     "brand_small_text": False,
-    "brand_colour": "navbar-primary",
+    "brand_colour": False,
     "accent": "accent-primary",
     "navbar": "navbar-white navbar-light",
-    "no_navbar_border": False,
-    "navbar_fixed": False,
+    "no_navbar_border": True,
+    "navbar_fixed": True,
     "layout_boxed": False,
     "footer_fixed": False,
-    "sidebar_fixed": False,  # Cambio: Deshabilitado para permitir scroll natural
+    "sidebar_fixed": True,
     "sidebar": "sidebar-dark-primary",
     "sidebar_nav_small_text": False,
     "sidebar_disable_expand": False,
-    "sidebar_nav_child_indent": False,
+    "sidebar_nav_child_indent": True,
     "sidebar_nav_compact_style": False,
     "sidebar_nav_legacy_style": False,
     "sidebar_nav_flat_style": True,
-    
-    # TEMA PRINCIPAL
-    "theme": "flatly",
+
+    # Tema base Bootstrap; el look final lo define eki_admin_theme.css
+    "theme": "lumen",
     "dark_mode_theme": None,
     "button_classes": {
         "primary": "btn-primary",
@@ -659,6 +661,15 @@ if USE_S3:
     
     # Configuración de archivos multimedia en S3
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    STORAGES = {
+        **globals().get('STORAGES', {}),
+        'default': {
+            'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        },
+    }
     MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
     
     # Configuración de seguridad S3
@@ -708,6 +719,9 @@ RATE_LIMIT_REQUESTS = 100  # Máximo de requests por IP
 RATE_LIMIT_PERIOD = 60  # Período en segundos
 
 # WhatsApp rate limiting
+# Soporte eki desde el portal B2B (botón flotante WhatsApp)
+PORTAL_WHATSAPP_SOPORTE = os.environ.get('PORTAL_WHATSAPP_SOPORTE', '573103844274')
+
 WHATSAPP_RATE_LIMIT = 5  # Máximo de mensajes por teléfono
 WHATSAPP_RATE_PERIOD = 60  # Período en segundos
 

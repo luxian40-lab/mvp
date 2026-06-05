@@ -1,0 +1,143 @@
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+
+{% block after_field_sets %}
+{{ block.super }}
+
+{% if original and original.estudiante_id %}
+<style>
+  .eki-pqrs-wa {
+    margin-top: 1.25rem;
+    max-width: 720px;
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: 4px;
+    background: var(--body-bg, #fff);
+  }
+  .eki-pqrs-wa__head {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color, #dee2e6);
+    background: var(--darkened-bg, #f8f9fa);
+  }
+  .eki-pqrs-wa__head h2 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--body-fg, #333);
+  }
+  .eki-pqrs-wa__meta {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: var(--body-quiet-color, #6c757d);
+  }
+  .eki-pqrs-wa__body {
+    padding: 16px;
+  }
+  .eki-pqrs-wa__alert {
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .eki-pqrs-wa__alert--ok {
+    background: #f0f9f4;
+    border-left: 3px solid #2e7d4f;
+    color: #1e4620;
+  }
+  .eki-pqrs-wa__alert--err {
+    background: #fdf4f4;
+    border-left: 3px solid #c62828;
+    color: #5c1a1a;
+  }
+  .eki-pqrs-wa__hint {
+    margin: 8px 0 0;
+    font-size: 12px;
+    color: var(--body-quiet-color, #6c757d);
+    line-height: 1.5;
+  }
+  .eki-pqrs-wa__actions {
+    margin-top: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+  }
+  .eki-pqrs-wa__actions .default {
+    font-weight: 500;
+  }
+  .eki-pqrs-wa__cerrada {
+    font-size: 13px;
+    color: var(--body-quiet-color, #6c757d);
+  }
+  .eki-pqrs-wa__historial {
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--darkened-bg, #f8f9fa);
+    border: 1px solid var(--border-color, #e9ecef);
+    border-radius: 4px;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+</style>
+
+<section class="eki-pqrs-wa" aria-labelledby="eki-pqrs-wa-title">
+  <div class="eki-pqrs-wa__head">
+    <h2 id="eki-pqrs-wa-title">{% trans "Enviar respuesta por WhatsApp" %}</h2>
+    <p class="eki-pqrs-wa__meta">
+      {{ original.estudiante.nombre }} · +{{ original.estudiante.telefono }}
+      {% if original.estado != 'resuelta' and original.estado != 'cerrada' %}
+      · {% trans "Al enviar, la solicitud queda como" %} <strong>{% trans "Resuelta" %}</strong>
+      {% endif %}
+    </p>
+  </div>
+
+  <div class="eki-pqrs-wa__body">
+    {% if envio_error %}
+    <div class="eki-pqrs-wa__alert eki-pqrs-wa__alert--err" role="alert">{{ envio_error }}</div>
+    {% endif %}
+    {% if envio_ok %}
+    <div class="eki-pqrs-wa__alert eki-pqrs-wa__alert--ok" role="status">{% trans "Mensaje enviado al estudiante." %}</div>
+    {% endif %}
+
+    {% if original.estado != 'resuelta' and original.estado != 'cerrada' %}
+    <div class="form-row">
+      <div>
+        <label for="id_respuesta_whatsapp_admin" class="required">{% trans "Texto del mensaje" %}</label>
+        <textarea
+          id="id_respuesta_whatsapp_admin"
+          name="respuesta_whatsapp_admin"
+          rows="6"
+          class="vLargeTextField"
+          style="width:100%;max-width:100%;box-sizing:border-box;"
+          placeholder="{% trans 'Ejemplo: Hola, ya revisamos tu caso. Intenta entrar de nuevo con tu cédula sin puntos.' %}"
+        >{% if original.respuesta %}{{ original.respuesta }}{% endif %}</textarea>
+        <p class="eki-pqrs-wa__hint">
+          {% trans "Escribe como en un chat. Si no empiezas con «Hola», el sistema agrega un saludo breve con el nombre. También puedes guardar solo en «Respuesta del Equipo» arriba sin enviar WhatsApp." %}
+        </p>
+      </div>
+    </div>
+    <div class="eki-pqrs-wa__actions">
+      <input
+        type="submit"
+        value="{% trans 'Enviar y marcar resuelta' %}"
+        name="_enviar_whatsapp"
+        class="default"
+      >
+    </div>
+    {% else %}
+    <p class="eki-pqrs-wa__cerrada">
+      {% trans "Solicitud" %} {{ original.get_estado_display|lower }}.
+      {% if original.fecha_respuesta %}
+      {% trans "Respondida el" %} {{ original.fecha_respuesta|date:"d/m/Y H:i" }}.
+      {% endif %}
+    </p>
+    {% if original.respuesta %}
+    <div class="eki-pqrs-wa__historial">{{ original.respuesta }}</div>
+    {% endif %}
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+

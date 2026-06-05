@@ -1,148 +1,119 @@
 ﻿{% extends "admin/index.html" %}
-{% load static %}
+{% load i18n %}
 
 {% block extrahead %}
-<!-- Eliminar todo el contenido adicional del admin, solo dejar el banner instructivo -->
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Montserrat:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+{{ block.super }}
 <style>
-    .eki-instructivo-banner {
-        background: #f5f6fa;
-        border: 1.5px solid #d1d5db;
-        padding: 28px 32px;
-        border-radius: 6px;
-        margin-bottom: 32px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        font-family: 'Inter', 'Montserrat', 'Roboto', Arial, sans-serif;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        min-width: 0;
+    .eki-admin-hub {
+        margin-bottom: 1.5rem;
     }
-    .eki-instructivo-banner h2 {
-        margin: 0 0 6px 0;
-        font-size: 2rem;
-        font-weight: 700;
-        color: #2d2d2d;
-        letter-spacing: -1px;
-        font-family: 'Montserrat', 'Inter', 'Roboto', Arial, sans-serif;
+    .eki-hub-intro {
+        margin: 0 0 1rem;
+        color: #64748b;
+        font-size: 0.9rem;
     }
-    .eki-instructivo-banner p {
-        margin: 0;
-        font-size: 1.08rem;
-        color: #444;
-        opacity: 0.92;
-        font-family: 'Inter', 'Roboto', Arial, sans-serif;
+    .eki-hub-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
     }
-    .eki-instructivo-banner .eki-btn {
+    .eki-hub-card {
+        display: block;
+        padding: 0.9rem 1rem;
         background: #fff;
-        color: #3b5bdb;
-        border: 1.5px solid #3b5bdb;
-        padding: 12px 28px;
-        border-radius: 4px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
         text-decoration: none;
-        font-weight: 700;
-        font-size: 1.08rem;
-        box-shadow: 0 1px 4px rgba(59,91,219,0.08);
-        transition: background 0.18s, color 0.18s, border 0.18s;
-        font-family: 'Inter', 'Montserrat', 'Roboto', Arial, sans-serif;
-        margin-left: 32px;
-        display: inline-block;
-    }
-    .eki-instructivo-banner .eki-btn:hover {
-        background: #3b5bdb;
-        color: #fff;
-        border-color: #3b5bdb;
-    }
-    .eki-dashboards-nav {
-        display: flex;
-        gap: 16px;
-        flex-wrap: wrap;
-        margin-bottom: 28px;
-    }
-    .eki-dashboards-nav a {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        background: #fff;
-        border: 1.5px solid #e0e0e0;
-        padding: 14px 22px;
-        border-radius: 6px;
-        text-decoration: none;
-        color: #333;
+        color: #0f172a;
         font-weight: 600;
-        font-size: 1rem;
-        transition: all 0.2s;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-        font-family: 'Inter', 'Roboto', Arial, sans-serif;
+        font-size: 0.875rem;
+        transition: border-color 0.15s, background 0.15s;
     }
-    .eki-dashboards-nav a:hover {
-        border-color: #3b5bdb;
-        background: #f0f4ff;
-        color: #3b5bdb;
-        box-shadow: 0 2px 8px rgba(59,91,219,0.12);
+    .eki-hub-card:hover {
+        border-color: #9b67b1;
+        background: #f3eaf7;
+        color: #7d4f94;
+        text-decoration: none;
     }
-    .eki-dashboards-nav .dash-icon {
-        font-size: 1.4rem;
+    .eki-hub-card span {
+        display: block;
+        margin-top: 0.25rem;
+        font-weight: 400;
+        font-size: 0.75rem;
+        color: #64748b;
+    }
+    .eki-admin-all-models {
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        background: #f8fafc;
+        padding: 0.75rem 1rem 0.25rem;
+    }
+    .eki-admin-all-models > summary {
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: #334155;
+        padding: 0.35rem 0;
+        list-style-position: outside;
+    }
+    .eki-admin-all-models[open] > summary {
+        margin-bottom: 0.75rem;
+    }
+    .eki-admin-all-models .eki-all-modules-body .col-lg-9 {
+        max-width: 100%;
+        flex: 0 0 100%;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-
-<div class="eki-dashboards-nav">
-    <a href="{% url 'dashboard_unificado' %}?tab=executive">
-        <span class="dash-icon">📊</span> Executive
-    </a>
-    <a href="{% url 'dashboard_unificado' %}?tab=learning&amp;section=reportes">
-        <span class="dash-icon">📚</span> Learning Analytics
-    </a>
-    <a href="{% url 'dashboard_unificado' %}?tab=ai_ops">
-        <span class="dash-icon">⚙️</span> AI Operations
-    </a>
-    <a href="{% url 'dashboard_unificado' %}?tab=commercial">
-        <span class="dash-icon">🤝</span> Commercial CRM
-    </a>
-    <a href="{% url 'conversaciones' %}">
-        <span class="dash-icon">💬</span> Conversaciones
-    </a>
-    <a href="{% url 'bot_comercial_admin_view' %}">
-        <span class="dash-icon">🛒</span> Bot Comercial IA
-    </a>
-    <a href="{% url 'instrucciones' %}">
-        <span class="dash-icon">📚</span> Instrucciones
-    </a>
-</div>
-
-<div class="eki-instructivo-banner">
-    <div>
-        <h2>¿Primera vez usando Eki?</h2>
-        <p>Lee el manual completo con instrucciones paso a paso de todas las funciones</p>
+<section class="eki-admin-hub">
+    <p class="eki-hub-intro">Accesos frecuentes. El listado completo de módulos queda abajo, plegado.</p>
+    <div class="eki-hub-grid">
+        <a class="eki-hub-card" href="{% url 'admin:core_cliente_changelist' %}">
+            Clientes
+            <span>Organizaciones B2B</span>
+        </a>
+        <a class="eki-hub-card" href="{% url 'admin:core_estudiante_changelist' %}">
+            Estudiantes
+            <span>Campesinos / participantes</span>
+        </a>
+        <a class="eki-hub-card" href="{% url 'admin:core_curso_changelist' %}">
+            Cursos
+            <span>Módulos y contenido</span>
+        </a>
+        <a class="eki-hub-card" href="{% url 'admin_cobertura_mapa' %}">
+            Cobertura
+            <span>Mapa territorial</span>
+        </a>
+        <a class="eki-hub-card" href="{% url 'admin_drip_estudiantes' %}">
+            Drip estudiantes
+            <span>Tabla unificada por cliente</span>
+        </a>
+        <a class="eki-hub-card" href="{% url 'admin:core_campana_changelist' %}">
+            Campañas
+            <span>Envíos WhatsApp</span>
+        </a>
+        <a class="eki-hub-card" href="{% url 'dashboard_unificado' %}">
+            Dashboard
+            <span>Métricas y reportes</span>
+        </a>
+        <a class="eki-hub-card" href="{% url 'conversaciones' %}">
+            Conversaciones
+            <span>Historial de chats</span>
+        </a>
+        <a class="eki-hub-card" href="{% url 'instrucciones' %}">
+            Manual
+            <span>Guía paso a paso</span>
+        </a>
     </div>
-    <a href="{% url 'instrucciones' %}" class="eki-btn">Leer Instructivo</a>
-</div>
+</section>
 
-<div class="module" style="margin-bottom: 24px;">
-    <table>
-        <caption>
-            <span class="section">Accesos Operativos</span>
-        </caption>
-        <tbody>
-            <tr class="model-conversaciones">
-                <th scope="row"><a href="{% url 'bot_comercial_admin_view' %}">Bot Comercial IA</a></th>
-                <td><a href="{% url 'bot_comercial_admin_view' %}" class="viewlink">Abrir</a></td>
-            </tr>
-            <tr class="model-conversaciones">
-                <th scope="row"><a href="{% url 'conversaciones' %}">Conversaciones</a></th>
-                <td><a href="{% url 'conversaciones' %}" class="viewlink">Abrir</a></td>
-            </tr>
-            <tr class="model-instrucciones">
-                <th scope="row"><a href="{% url 'instrucciones' %}">Manual de Instrucciones</a></th>
-                <td><a href="{% url 'instrucciones' %}" class="viewlink">Abrir</a></td>
-            </tr>
-        </tbody>
-    </table>
-</div>
-
-{{ block.super }}
+<details class="eki-admin-all-models">
+    <summary>Todos los módulos del sistema</summary>
+    <div class="eki-all-modules-body">
+        {{ block.super }}
+    </div>
+</details>
 {% endblock %}
-
