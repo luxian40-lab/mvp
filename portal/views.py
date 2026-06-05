@@ -8,7 +8,6 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from core.models import (
-    Campana,
     Curso,
     Estudiante,
     MetaMetricaEmpresa,
@@ -249,39 +248,14 @@ def portal_nat(request):
 @portal_login_required
 @requiere_modulo('cursos')
 def campanas_lista(request):
-    """Campañas y envíos de la organización (lectura; creación en admin eki)."""
-    org = _portal_org(request)
-    if not org:
-        return redirect('/portal/login/')
-
-    campanas = (
-        Campana.objects.filter(cliente=org)
-        .annotate(dest_count=Count('destinatarios', distinct=True))
-        .order_by('-fecha_creacion')[:50]
-    )
-    return render(request, 'portal/campanas.html', {
-        'org': org,
-        'campanas': campanas,
-        'puede_gestionar': request.portal_usuario.rol == 'admin',
-    })
+    """Campañas solo en admin eki; redirige al dashboard."""
+    return redirect('/portal/dashboard/')
 
 
 @portal_login_required
 @requiere_modulo('cursos')
 def campana_detalle(request, campana_id):
-    org = _portal_org(request)
-    if not org:
-        return redirect('/portal/login/')
-
-    campana = get_object_or_404(
-        Campana.objects.filter(cliente=org).prefetch_related('destinatarios'),
-        pk=campana_id,
-    )
-    return render(request, 'portal/campana_detalle.html', {
-        'org': org,
-        'campana': campana,
-        'puede_gestionar': request.portal_usuario.rol == 'admin',
-    })
+    return redirect('/portal/dashboard/')
 
 
 def _filtros_portal_cursos_grupos(org):
@@ -460,19 +434,6 @@ def metricas_empresa(request):
         modulo_hasta_numero=modulo_hasta_int,
     )
     resumen = metricas.get('resumen', {})
-    porcentajes = metricas.get('porcentajes', {})
-    resumen_visual = {
-        'iniciados': max(
-            (resumen.get('total_inscritos') or 0)
-            - (resumen.get('no_iniciados') or 0),
-            0,
-        ),
-        'pendientes': (resumen.get('en_curso') or 0) + (resumen.get('no_iniciados') or 0),
-        'inscritos_pct': 100 if resumen.get('total_inscritos') else 0,
-        'iniciados_pct': porcentajes.get('inicio', 0),
-        'en_curso_pct': porcentajes.get('en_curso', 0),
-        'finalizados_pct': porcentajes.get('finalizacion', 0),
-    }
     meta_config, _created = MetaMetricaEmpresa.objects.get_or_create(
         cliente=org,
         curso=None,
@@ -501,7 +462,6 @@ def metricas_empresa(request):
         'org': org,
         'metricas': metricas,
         'resumen': resumen,
-        'resumen_visual': resumen_visual,
         'semaforos': metricas.get('semaforos', {}),
         'progreso_estudiantes': metricas.get('progreso_estudiantes', [])[:100],
         'estudiantes_detalle': estudiantes_detalle,

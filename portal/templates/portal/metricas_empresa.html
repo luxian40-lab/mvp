@@ -91,7 +91,7 @@
         font-weight: 800;
     }
 
-    .bar-row, .funnel-row {
+    .bar-row {
         display: grid;
         grid-template-columns: 150px 1fr 70px;
         gap: 12px;
@@ -99,27 +99,18 @@
         margin: 12px 0;
     }
 
-    .bar-track, .funnel-bar {
+    .bar-track {
         height: 12px;
         border-radius: 999px;
         background: #e2e8f0;
         overflow: hidden;
     }
 
-    .funnel-bar { height: 34px; border-radius: 12px; }
-
-    .bar-fill, .funnel-fill {
+    .bar-fill {
         height: 100%;
         border-radius: inherit;
         background: var(--accent);
     }
-
-    .funnel-fill {
-        min-width: 34px;
-        background: linear-gradient(90deg, var(--accent), #3b82f6);
-    }
-
-    .funnel { display: grid; gap: 12px; }
 
     .kpi-card small {
         display: block;
@@ -316,7 +307,7 @@
     <details>
         <summary>Analítica de aprendizaje</summary>
         <div class="accordion-body">
-            <p class="accordion-intro">Embudo educativo, semáforos, metas y distribución por módulo (Learning Analytics).</p>
+            <p class="accordion-intro">Semáforos, metas y distribución por módulo (Learning Analytics).</p>
 
             <section class="report-hero" style="margin-top:16px;">
                 <article class="panel">
@@ -350,32 +341,6 @@
                     </div>
                     <p class="muted">{{ resumen.finalizados }} finalizados · {{ resumen.en_curso|add:resumen.no_iniciados }} pendientes</p>
                 </article>
-            </section>
-
-            <section class="panel" style="margin-top:18px;">
-                <h3>Embudo educativo</h3>
-                <div class="funnel">
-                    <div class="funnel-row">
-                        <strong>Inscritos</strong>
-                        <span class="funnel-bar"><span class="funnel-fill" style="width:{{ resumen_visual.inscritos_pct }}%"></span></span>
-                        <span>{{ resumen.total_inscritos }}</span>
-                    </div>
-                    <div class="funnel-row">
-                        <strong>Iniciaron</strong>
-                        <span class="funnel-bar"><span class="funnel-fill" style="width:{{ resumen_visual.iniciados_pct }}%"></span></span>
-                        <span>{{ resumen_visual.iniciados }}</span>
-                    </div>
-                    <div class="funnel-row">
-                        <strong>En curso</strong>
-                        <span class="funnel-bar"><span class="funnel-fill" style="width:{{ resumen_visual.en_curso_pct }}%"></span></span>
-                        <span>{{ resumen.en_curso }}</span>
-                    </div>
-                    <div class="funnel-row">
-                        <strong>Finalizados</strong>
-                        <span class="funnel-bar"><span class="funnel-fill" style="width:{{ resumen_visual.finalizados_pct }}%"></span></span>
-                        <span>{{ resumen.finalizados }}</span>
-                    </div>
-                </div>
             </section>
 
             <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-top:18px;">
