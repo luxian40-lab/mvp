@@ -41,6 +41,7 @@ from core.views_cobertura_admin import (
     cobertura_admin_view,
 )
 from core.views_drip_estudiantes import drip_estudiantes_view
+from core.views_copiar_curso import copiar_curso_cliente_view
 
 urlpatterns = [
     path('admin/dashboard/', dashboard_unificado, name='dashboard_unificado'),
@@ -55,6 +56,7 @@ urlpatterns = [
     path('admin/importar-prospectos/', importar_prospectos, name='importar_prospectos'),
     path('admin/calendario/', calendario_campanas_view, name='calendario_campanas'),
     path('admin/conversaciones/', conversaciones_view, name='conversaciones'),
+    path('admin/copiar-curso/', copiar_curso_cliente_view, name='copiar_curso_cliente'),
     path('admin/instruccion/', instrucciones_view, name='instruccion_alias'),
     path('admin/instrucciones/', instrucciones_view, name='instrucciones'),
     path('admin/bot-comercial/', bot_comercial_admin_view, name='bot_comercial_admin_view'),

@@ -2871,7 +2871,7 @@ class CursoAdmin(admin.ModelAdmin):
     inlines = [ModuloInline, DocumentoRAGInline, PreguntaAbiertaFinalInline]
     actions = [
         'ver_todos_modulos', 'indexar_documentos_rag', 'indexar_contenido_modulos',
-        'activar_cursos', 'desactivar_cursos', 'copiar_a_analytics_pruebas',
+        'activar_cursos', 'desactivar_cursos', 'copiar_a_otro_cliente', 'copiar_a_analytics_pruebas',
     ]
     # change_list_template = 'admin/curso_changelist.html'  # Eliminado para usar el template estándar de Django
     
@@ -3024,7 +3024,14 @@ class CursoAdmin(admin.ModelAdmin):
         count = queryset.update(activo=False)
         self.message_user(request, f"❌ {count} curso(s) desactivado(s)")
 
-    @admin.action(description='📋 Copiar a Analytics (Pruebas)')
+    @admin.action(description='📋 Copiar a otro cliente…')
+    def copiar_a_otro_cliente(self, request, queryset):
+        from django.shortcuts import redirect
+
+        ids = ','.join(str(c.pk) for c in queryset)
+        return redirect(f'/admin/copiar-curso/?cursos={ids}')
+
+    @admin.action(description='📋 Copiar a Analytics (Pruebas) — legacy')
     def copiar_a_analytics_pruebas(self, request, queryset):
         from core.copiar_cursos import (
             CLIENTE_ORIGEN_NOMBRE,

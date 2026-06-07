@@ -1,5 +1,16 @@
 {% extends "admin/eki_collapsible_change_form.html" %}
 
+{% block object-tools-items %}
+    {{ block.super }}
+    {% if original and original.pk %}
+        <li>
+            <a href="{% url 'copiar_curso_cliente' %}?curso={{ original.pk }}" class="historylink">
+                Copiar a otro cliente
+            </a>
+        </li>
+    {% endif %}
+{% endblock %}
+
 {% block eki_inlines_intro %}
 <p class="eki-inlines-intro">
     <strong>Tablas al final:</strong> módulos del curso, documentos RAG y preguntas abiertas finales.

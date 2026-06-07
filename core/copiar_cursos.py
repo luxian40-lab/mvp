@@ -357,11 +357,41 @@ def copiar_cursos_a_pruebas(
         if omitido:
             result.omitidos.append(omitido)
 
+    _copiar_grupos_cliente(origen, destino)
+    return result
+
+
+@transaction.atomic
+def copiar_cursos_a_cliente(
+    *,
+    curso_ids: list[int],
+    destino_id: int,
+    prefijo: str = '',
+) -> CopiarCursosResult:
+    """Copia uno o más cursos al cliente destino (mismo origen = cliente del curso)."""
+    destino = Cliente.objects.get(pk=destino_id)
+    cursos = list(Curso.objects.filter(pk__in=curso_ids).select_related('cliente'))
+    if not cursos:
+        raise LookupError('No hay cursos para copiar.')
+    origenes = {c.cliente_id for c in cursos}
+    if len(origenes) != 1:
+        raise ValueError('Seleccione cursos del mismo cliente origen.')
+    origen = cursos[0].cliente
+    result = CopiarCursosResult(origen=origen, destino=destino)
+    for curso_origen in cursos:
+        copiado, omitido = _copiar_un_curso(curso_origen, destino, origen, prefijo=prefijo)
+        if copiado:
+            result.copiados.append(copiado)
+        if omitido:
+            result.omitidos.append(omitido)
+    _copiar_grupos_cliente(origen, destino)
+    return result
+
+
+def _copiar_grupos_cliente(origen: Cliente, destino: Cliente) -> None:
     for grp in GrupoEstudiantes.objects.filter(cliente=origen):
         GrupoEstudiantes.objects.get_or_create(
             cliente=destino,
             nombre=grp.nombre,
             defaults={'emoji': grp.emoji, 'descripcion': grp.descripcion, 'activo': grp.activo},
         )
-
-    return result

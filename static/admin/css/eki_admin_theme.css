@@ -731,3 +731,84 @@ input[type="submit"].default:hover {
     max-height: 4rem;
     width: auto;
 }
+
+/* —— Modo nocturno (admin) —— */
+html[data-eki-theme="dark"] {
+    --eki-bg: #0f1419;
+    --eki-surface: #1a222d;
+    --eki-surface-2: #232d3b;
+    --eki-border: #334155;
+    --eki-border-strong: #475569;
+    --eki-text: #e2e8f0;
+    --eki-muted: #94a3b8;
+    --eki-accent-soft: #2d2438;
+    --eki-sidebar: #0c0a10;
+    --eki-sidebar-hover: #1a1520;
+    --eki-sidebar-active: #3d2d48;
+}
+
+html[data-eki-theme="dark"] body,
+html[data-eki-theme="dark"] .content-wrapper {
+    background: var(--eki-bg) !important;
+    color: var(--eki-text);
+}
+
+html[data-eki-theme="dark"] .content-header,
+html[data-eki-theme="dark"] .card,
+html[data-eki-theme="dark"] .module,
+html[data-eki-theme="dark"] .form-row,
+html[data-eki-theme="dark"] #content-main .card {
+    background: var(--eki-surface) !important;
+    color: var(--eki-text);
+    border-color: var(--eki-border) !important;
+}
+
+html[data-eki-theme="dark"] .navbar-white,
+html[data-eki-theme="dark"] .main-header {
+    background: var(--eki-surface) !important;
+    border-color: var(--eki-border) !important;
+}
+
+html[data-eki-theme="dark"] .main-header .navbar-nav .nav-link {
+    color: var(--eki-muted) !important;
+}
+
+html[data-eki-theme="dark"] input,
+html[data-eki-theme="dark"] select,
+html[data-eki-theme="dark"] textarea,
+html[data-eki-theme="dark"] .form-control,
+html[data-eki-theme="dark"] .select2-container--default .select2-selection--single {
+    background: var(--eki-surface-2) !important;
+    color: var(--eki-text) !important;
+    border-color: var(--eki-border) !important;
+}
+
+html[data-eki-theme="dark"] table thead th,
+html[data-eki-theme="dark"] #result_list thead th {
+    background: var(--eki-surface-2) !important;
+    color: var(--eki-muted) !important;
+}
+
+html[data-eki-theme="dark"] #result_list tbody tr {
+    background: var(--eki-surface) !important;
+    color: var(--eki-text);
+}
+
+html[data-eki-theme="dark"] #result_list tbody tr:nth-child(even) {
+    background: var(--eki-surface-2) !important;
+}
+
+.eki-theme-toggle {
+    border: 1px solid var(--eki-border);
+    background: var(--eki-surface-2);
+    color: var(--eki-muted);
+    border-radius: 8px;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    margin-right: 0.5rem;
+}
+
+.eki-theme-toggle:hover {
+    color: var(--eki-text);
+}

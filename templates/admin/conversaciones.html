@@ -6,32 +6,53 @@
 {% block content %}
 <style>
     .conv-container {
+        --conv-bg: #f0f2f5;
+        --conv-panel: #fff;
+        --conv-border: #e0e0e0;
+        --conv-header: #075e54;
+        --conv-text: #111;
+        --conv-muted: #667781;
+        --conv-chat-bg: #efeae2;
+        --conv-bubble-in: #fff;
+        --conv-bubble-out: #d9fdd3;
         display: flex;
         height: calc(100vh - 160px);
-        background: #f0f2f5;
-        border-radius: 8px;
+        background: var(--conv-bg);
+        border-radius: 12px;
         overflow: hidden;
-        box-shadow: 0 1px 6px rgba(0,0,0,0.12);
+        box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08);
+    }
+    html[data-eki-theme="dark"] .conv-container {
+        --conv-bg: #1a222d;
+        --conv-panel: #232d3b;
+        --conv-border: #334155;
+        --conv-header: #1e4d47;
+        --conv-text: #e2e8f0;
+        --conv-muted: #94a3b8;
+        --conv-chat-bg: #141a22;
+        --conv-bubble-in: #2a3544;
+        --conv-bubble-out: #1e3d32;
     }
     .conv-sidebar {
         width: 380px;
         min-width: 300px;
-        background: #fff;
-        border-right: 1px solid #e0e0e0;
+        background: var(--conv-panel);
+        border-right: 1px solid var(--conv-border);
         display: flex;
         flex-direction: column;
     }
     .conv-sidebar-header {
         padding: 16px;
-        background: #075e54;
+        background: var(--conv-header);
         color: #fff;
         font-weight: 700;
         font-size: 18px;
+        letter-spacing: -0.02em;
     }
     .conv-filters {
         padding: 10px 12px;
-        border-bottom: 1px solid #e0e0e0;
-        background: #fafafa;
+        border-bottom: 1px solid var(--conv-border);
+        background: var(--conv-panel);
     }
     .conv-filters label {
         font-size: 12px;
@@ -85,8 +106,9 @@
         text-decoration: none;
         color: inherit;
     }
-    .conv-contact:hover { background: #f5f6f6; }
-    .conv-contact.active { background: #ebebeb; }
+    .conv-contact:hover { background: rgba(0,0,0,0.04); }
+    html[data-eki-theme="dark"] .conv-contact:hover { background: rgba(255,255,255,0.04); }
+    .conv-contact.active { background: rgba(7, 94, 84, 0.12); }
     .conv-avatar {
         width: 48px;
         height: 48px;
@@ -107,7 +129,7 @@
     .conv-avatar.orange { background: #ff6f00; }
     .conv-avatar.red { background: #ef5350; }
     .conv-contact-info { flex: 1; min-width: 0; }
-    .conv-contact-name { font-weight: 600; font-size: 15px; color: #111; margin-bottom: 2px; }
+    .conv-contact-name { font-weight: 600; font-size: 15px; color: var(--conv-text); margin-bottom: 2px; }
     .conv-contact-sub { font-size: 11px; color: #8696a0; }
     .conv-contact-last {
         font-size: 13px;
@@ -136,7 +158,7 @@
         flex: 1;
         display: flex;
         flex-direction: column;
-        background: #efeae2;
+        background: var(--conv-chat-bg);
     }
     .conv-chat-header {
         padding: 12px 16px;
@@ -166,16 +188,18 @@
         white-space: pre-wrap;
     }
     .conv-msg-received {
-        background: #fff;
+        background: var(--conv-bubble-in);
+        color: var(--conv-text);
         align-self: flex-start;
         border-top-left-radius: 0;
-        box-shadow: 0 1px 1px rgba(0,0,0,0.08);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.06);
     }
     .conv-msg-sent {
-        background: #d9fdd3;
+        background: var(--conv-bubble-out);
+        color: var(--conv-text);
         align-self: flex-end;
         border-top-right-radius: 0;
-        box-shadow: 0 1px 1px rgba(0,0,0,0.08);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.06);
     }
     .conv-msg-time { font-size: 11px; color: #667781; text-align: right; margin-top: 4px; }
     .conv-msg-agent { font-size: 10px; color: #8696a0; margin-top: 2px; }
@@ -215,12 +239,13 @@
     }
     .conv-stats {
         padding: 8px 16px;
-        background: #fff;
-        border-bottom: 1px solid #e0e0e0;
+        background: var(--conv-panel);
+        border-bottom: 1px solid var(--conv-border);
         font-size: 12px;
-        color: #667781;
+        color: var(--conv-muted);
         text-align: center;
     }
+    .conv-empty { color: var(--conv-muted); }
 </style>
 
 <div class="conv-container">

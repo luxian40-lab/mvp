@@ -69,8 +69,47 @@
         }
     }
 
+    function initThemeToggle() {
+        var KEY = 'eki-admin-theme';
+        var html = document.documentElement;
+        var stored = localStorage.getItem(KEY);
+        if (stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            html.setAttribute('data-eki-theme', 'dark');
+        }
+
+        var nav = document.querySelector('.main-header .navbar-nav');
+        if (!nav || document.getElementById('eki-theme-toggle')) {
+            return;
+        }
+        var li = document.createElement('li');
+        li.className = 'nav-item';
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.id = 'eki-theme-toggle';
+        btn.className = 'eki-theme-toggle nav-link';
+        btn.setAttribute('aria-label', 'Modo nocturno');
+        function label() {
+            btn.textContent = html.getAttribute('data-eki-theme') === 'dark' ? 'Modo claro' : 'Modo nocturno';
+        }
+        label();
+        btn.addEventListener('click', function () {
+            var dark = html.getAttribute('data-eki-theme') === 'dark';
+            if (dark) {
+                html.removeAttribute('data-eki-theme');
+                localStorage.setItem(KEY, 'light');
+            } else {
+                html.setAttribute('data-eki-theme', 'dark');
+                localStorage.setItem(KEY, 'dark');
+            }
+            label();
+        });
+        li.appendChild(btn);
+        nav.insertBefore(li, nav.firstChild);
+    }
+
     onReady(function () {
         enhancePushmenu();
+        initThemeToggle();
         if (isCollapsibleChangeForm()) {
             initSectionNav();
         }
