@@ -87,9 +87,10 @@
         btn.type = 'button';
         btn.id = 'eki-theme-toggle';
         btn.className = 'eki-theme-toggle nav-link';
-        btn.setAttribute('aria-label', 'Modo nocturno');
+        btn.setAttribute('title', 'Modo nocturno');
+        btn.setAttribute('aria-label', 'Cambiar tema claro/oscuro');
         function label() {
-            btn.textContent = html.getAttribute('data-eki-theme') === 'dark' ? 'Modo claro' : 'Modo nocturno';
+            btn.textContent = html.getAttribute('data-eki-theme') === 'dark' ? '☀' : '🌙';
         }
         label();
         btn.addEventListener('click', function () {

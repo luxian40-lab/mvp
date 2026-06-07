@@ -802,13 +802,25 @@ html[data-eki-theme="dark"] #result_list tbody tr:nth-child(even) {
     border: 1px solid var(--eki-border);
     background: var(--eki-surface-2);
     color: var(--eki-muted);
-    border-radius: 8px;
-    padding: 0.35rem 0.65rem;
-    font-size: 0.8rem;
+    border-radius: 6px;
+    padding: 0.15rem 0.4rem;
+    font-size: 0.95rem;
+    line-height: 1;
     cursor: pointer;
-    margin-right: 0.5rem;
+    margin-right: 0.35rem;
+    min-width: 1.75rem;
+    min-height: 1.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .eki-theme-toggle:hover {
     color: var(--eki-text);
+}
+
+/* Jazzmin: ocultar barra de búsqueda global si reaparece */
+.navbar-search,
+form[action*="autocomplete"] {
+    display: none !important;
 }

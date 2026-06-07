@@ -230,7 +230,7 @@ JAZZMIN_SETTINGS = {
     "site_logo_classes": "eki-brand-hidden",
     "welcome_sign": "Panel de operaciones eki",
     "copyright": "eki solutions",
-    "search_model": ["core.Estudiante", "core.Campana", "agents_commercial.ProspectoB2B"],
+    # Búsqueda global desactivada (estudiantes/campañas/prospectos: usar listados filtrados).
 
     # Menú superior — atajos (sin duplicar custom_links del sidebar)
     "topmenu_links": [
