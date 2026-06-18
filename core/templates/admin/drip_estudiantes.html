@@ -15,6 +15,92 @@
 .drip-alert { padding: 0.75rem 1rem; border-radius: 10px; margin-bottom: 1rem; font-size: 0.875rem; }
 .drip-alert-warn { background: #fef3c7; border: 1px solid #fcd34d; color: #92400e; }
 .drip-alert-ok { background: #f3eaf7; border: 1px solid #d8b4e0; color: #5b3d6b; }
+.drip-matriz {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.15rem 1.25rem;
+    margin-bottom: 1.5rem;
+}
+.drip-matriz h2 { margin: 0 0 0.35rem; font-size: 1.1rem; color: #0f172a; }
+.drip-matriz-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    align-items: center;
+    margin: 0.75rem 0 1rem;
+}
+.drip-matriz-toolbar input[type="search"] {
+    flex: 1;
+    min-width: 180px;
+    padding: 0.45rem 0.65rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.875rem;
+}
+.drip-matriz-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 0.5rem;
+    max-height: 65vh;
+    overflow-y: auto;
+    padding: 0.25rem;
+}
+.drip-matriz-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+.drip-matriz-item:has(input:checked) {
+    background: #f3eaf7;
+    border-color: #d8b4e0;
+}
+.drip-matriz-item input { margin-top: 0.15rem; flex-shrink: 0; }
+.drip-matriz-item .meta { color: #64748b; font-size: 0.78rem; }
+.drip-section-title {
+    margin: 1.75rem 0 0.75rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #334155;
+}
+.drip-guardadas {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1rem 1.15rem;
+    margin-top: 1.25rem;
+}
+.drip-guardadas.recien-guardado {
+    border-color: #86efac;
+    box-shadow: 0 0 0 1px #bbf7d0;
+}
+.drip-guardadas table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.drip-guardadas th {
+    text-align: left;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+.drip-guardadas td { padding: 0.45rem 0.5rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.drip-guardadas tr:last-child td { border-bottom: none; }
+.drip-badge-ok {
+    display: inline-block;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    background: #dcfce7;
+    color: #166534;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
 </style>
 {% endblock %}
 
@@ -23,11 +109,11 @@
     <header class="eki-cobertura-header">
         <div>
             <h1>{{ titulo }}</h1>
-            <p class="sub">Una sola tabla por cliente: estudiante + curso + módulo. Sin abrir cada ficha.</p>
+            <p class="sub">Elija <strong>Cliente → Curso → Módulo</strong>, marque con ✓ quiénes pueden entrar y guarde. Sin límite de cantidad.</p>
         </div>
     </header>
 
-    <form method="get" class="eki-filtros">
+    <form method="get" class="eki-filtros" id="drip-filtros">
         <div class="field">
             <label for="cliente">Cliente</label>
             <select name="cliente" id="cliente" required>
@@ -39,16 +125,25 @@
         </div>
         {% if cliente %}
         <div class="field">
-            <label for="curso">Filtrar curso</label>
+            <label for="curso">Curso</label>
             <select name="curso" id="curso">
-                <option value="">Todos</option>
+                <option value="">— Elija —</option>
                 {% for c in cursos %}
                 <option value="{{ c.id }}" {% if filtro_curso == c.id %}selected{% endif %}>{{ c.nombre }}</option>
                 {% endfor %}
             </select>
         </div>
         <div class="field">
-            <label for="estudiante">Filtrar estudiante</label>
+            <label for="modulo">Módulo</label>
+            <select name="modulo" id="modulo" {% if not filtro_curso %}disabled{% endif %}>
+                <option value="">— Elija —</option>
+                {% for m in modulos %}
+                <option value="{{ m.id }}" {% if filtro_modulo == m.id %}selected{% endif %}>M{{ m.numero }} — {{ m.titulo }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="estudiante">Filtrar tabla (opcional)</label>
             <select name="estudiante" id="estudiante">
                 <option value="">Todos</option>
                 {% for e in estudiantes %}
@@ -64,27 +159,129 @@
     </form>
 
     {% if not cliente %}
-    <p class="sub">Seleccione un cliente para ver y editar habilitaciones.</p>
+    <p class="sub">Seleccione un cliente para asignar accesos.</p>
     {% else %}
 
     {% if not drip_lista_activo %}
     <div class="drip-alert drip-alert-warn">
-        Este cliente no tiene activo «Módulos solo por lista». Active el flag en la ficha del cliente para que estas filas surtan efecto.
+        Active «Módulos solo por lista» en la ficha del <strong>Cliente</strong> para que solo los marcados vean cada módulo.
     </div>
     {% else %}
     <div class="drip-alert drip-alert-ok">
-        Modo lista activo — solo los estudiantes con filas aquí verán esos módulos.
+        <strong>¿Qué hace esto?</strong> Solo los estudiantes <em>marcados</em> pueden abrir ese módulo.
+        El <strong>drip no se quita</strong> para nadie: quien esté marcado sigue sujeto a fechas/calendario del cliente.
+        Quien <em>no</em> esté marcado no entra aunque el drip ya haya liberado el módulo.
     </div>
     {% endif %}
 
-    <p class="sub" style="margin-bottom:1rem;"><strong>{{ total_filas }}</strong> fila(s) en esta vista. Las filas vacías al final son para agregar nuevas.</p>
+    {% if not filtro_curso or not filtro_modulo %}
+    <div class="drip-alert" style="background:#eff6ff;border-color:#bfdbfe;color:#1e40af;">
+        <strong>Paso 1:</strong> en los filtros de arriba elija <strong>Curso</strong> y <strong>Módulo</strong>, pulse Aplicar.
+        Aparecerá la lista con checkboxes — no use la tabla de abajo salvo fechas especiales.
+    </div>
+    {% endif %}
 
-    <form method="post" class="eki-panel">
+    {% if curso_matriz and modulo_matriz %}
+    <section class="drip-matriz">
+        <h2>Asignación rápida — {{ curso_matriz.nombre }} · M{{ modulo_matriz.numero }}</h2>
+        <p class="sub"><strong>{{ matriz_habilitados }}</strong> de <strong>{{ matriz_total }}</strong> estudiantes con acceso a este módulo.</p>
+
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="cliente" value="{{ cliente.id }}">
+            <input type="hidden" name="curso" value="{{ filtro_curso }}">
+            <input type="hidden" name="modulo" value="{{ filtro_modulo }}">
+            {% if filtro_estudiante %}<input type="hidden" name="estudiante" value="{{ filtro_estudiante }}">{% endif %}
+            <input type="hidden" name="action" value="guardar_matriz">
+
+            <div class="drip-matriz-toolbar">
+                <input type="search" id="matriz-buscar" placeholder="Buscar por nombre o cédula…" autocomplete="off">
+                <button type="button" class="eki-btn eki-btn-ghost" id="matriz-todos">Marcar todos</button>
+                <button type="button" class="eki-btn eki-btn-ghost" id="matriz-ninguno">Quitar todos</button>
+            </div>
+
+            <div class="drip-matriz-grid" id="matriz-grid">
+                {% for fila in matriz_filas %}
+                <label class="drip-matriz-item" data-text="{{ fila.estudiante.nombre|lower }} {{ fila.estudiante.cedula }}">
+                    <input type="checkbox" name="estudiantes_habilitados" value="{{ fila.estudiante.id }}" {% if fila.habilitado %}checked{% endif %}>
+                    <span>
+                        <strong>{{ fila.estudiante.nombre }}</strong><br>
+                        <span class="meta">{{ fila.estudiante.cedula }} · {{ fila.estudiante.telefono }}</span>
+                    </span>
+                </label>
+                {% empty %}
+                <p class="sub">No hay estudiantes activos en este cliente.</p>
+                {% endfor %}
+            </div>
+
+            <div style="margin-top:1rem;">
+                <button type="submit" class="eki-btn eki-btn-primary">Guardar accesos de este módulo</button>
+            </div>
+        </form>
+    </section>
+    {% elif filtro_curso %}
+    <p class="sub" style="margin-bottom:1rem;">Elija un módulo para ver la lista de estudiantes y marcar quiénes tienen acceso.</p>
+    {% endif %}
+
+    {% if curso_matriz and modulo_matriz %}
+    <section class="drip-guardadas{% if recien_guardado %} recien-guardado{% endif %}" id="habilitaciones-guardadas">
+        <h2 class="drip-section-title" style="margin-top:0;">
+            Habilitaciones guardadas — {{ curso_matriz.nombre }} · M{{ modulo_matriz.numero }}
+        </h2>
+        {% if recien_guardado %}
+        <p class="sub" style="color:#166534;margin:0 0 0.75rem;">✓ Cambios guardados. Esta tabla refleja lo que quedó en el sistema.</p>
+        {% else %}
+        <p class="sub" style="margin:0 0 0.75rem;">Listado actual en base de datos para este módulo (solo activos).</p>
+        {% endif %}
+        {% if habilitaciones_guardadas %}
+        <div style="overflow-x:auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Estudiante</th>
+                        <th>Cédula</th>
+                        <th>Teléfono</th>
+                        <th>Estado</th>
+                        <th>Desde (opcional)</th>
+                        <th>Notas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for h in habilitaciones_guardadas %}
+                    <tr>
+                        <td><strong>{{ h.estudiante.nombre }}</strong></td>
+                        <td>{{ h.estudiante.cedula }}</td>
+                        <td>{{ h.estudiante.telefono }}</td>
+                        <td><span class="drip-badge-ok">Activo</span></td>
+                        <td>{% if h.habilitado_desde %}{{ h.habilitado_desde|date:"d/m/Y H:i" }}{% else %}—{% endif %}</td>
+                        <td>{{ h.notas|default:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="sub" style="margin:0;">Nadie tiene acceso guardado a este módulo todavía. Marque checkboxes arriba y pulse Guardar.</p>
+        {% endif %}
+    </section>
+    {% endif %}
+
+    <details class="eki-panel" style="margin-top:1.5rem;" {% if mostrar_tabla_avanzada %}open{% endif %}>
+        <summary class="drip-section-title" style="cursor:pointer;margin:0;">Opciones avanzadas — fechas distintas por persona ({{ total_filas }} filas)</summary>
+        <p class="sub" style="margin:0.75rem 0 1rem;">Para la mayoría de casos use solo los checkboxes de arriba. Esta tabla sirve si necesita «disponible desde» por estudiante.</p>
+    <form method="post" style="margin-top:0.5rem;">
         {% csrf_token %}
         <input type="hidden" name="cliente" value="{{ cliente.id }}">
         <input type="hidden" name="action" value="guardar">
+        <input type="hidden" name="avanzado" value="1">
         {% if filtro_curso %}<input type="hidden" name="curso" value="{{ filtro_curso }}">{% endif %}
+        {% if filtro_modulo %}<input type="hidden" name="modulo" value="{{ filtro_modulo }}">{% endif %}
         {% if filtro_estudiante %}<input type="hidden" name="estudiante" value="{{ filtro_estudiante }}">{% endif %}
+        {% if formset.non_form_errors %}
+        <div class="drip-alert" style="background:#fef2f2;border-color:#fecaca;color:#991b1b;margin-bottom:0.75rem;">
+            {{ formset.non_form_errors }}
+        </div>
+        {% endif %}
         {{ formset.management_form }}
         <div style="overflow-x:auto;">
             <table class="drip-table" style="width:100%;border-collapse:collapse;">
@@ -105,9 +302,9 @@
                         <td>{{ form.id }}{{ form.estudiante }}{% if form.estudiante.errors %}<br><small style="color:#b91c1c;">{{ form.estudiante.errors }}</small>{% endif %}</td>
                         <td>{{ form.curso }}{% if form.curso.errors %}<br><small style="color:#b91c1c;">{{ form.curso.errors }}</small>{% endif %}</td>
                         <td>{{ form.modulo }}{% if form.modulo.errors %}<br><small style="color:#b91c1c;">{{ form.modulo.errors }}</small>{% endif %}</td>
-                        <td>{{ form.habilitado_desde }}</td>
+                        <td>{{ form.habilitado_desde }}{% if form.habilitado_desde.errors %}<br><small style="color:#b91c1c;">{{ form.habilitado_desde.errors }}</small>{% endif %}</td>
                         <td style="text-align:center;">{{ form.activo }}</td>
-                        <td>{{ form.notas }}</td>
+                        <td>{{ form.notas }}{% if form.notas.errors %}<br><small style="color:#b91c1c;">{{ form.notas.errors }}</small>{% endif %}</td>
                         <td class="delete">{% if form.DELETE %}{{ form.DELETE }}{% endif %}</td>
                     </tr>
                     {% endfor %}
@@ -115,10 +312,64 @@
             </table>
         </div>
         <div style="margin-top:1rem;display:flex;gap:0.75rem;flex-wrap:wrap;">
-            <button type="submit" class="eki-btn eki-btn-primary">Guardar cambios</button>
+            <button type="submit" class="eki-btn eki-btn-primary">Guardar tabla avanzada</button>
+            <a class="eki-btn eki-btn-ghost" href="?cliente={{ cliente.id }}{% if filtro_curso %}&curso={{ filtro_curso }}{% endif %}{% if filtro_modulo %}&modulo={{ filtro_modulo }}{% endif %}&avanzado=1">Mantener abierta</a>
             <a class="eki-btn eki-btn-ghost" href="{% url 'admin:core_habilitacionmoduloestudiante_changelist' %}?estudiante__cliente__id__exact={{ cliente.id }}">Vista Django clásica</a>
         </div>
     </form>
+    </details>
     {% endif %}
 </div>
+
+<script>
+(function () {
+    var curso = document.getElementById('curso');
+    var modulo = document.getElementById('modulo');
+    if (curso && modulo) {
+        curso.addEventListener('change', function () {
+            if (!curso.value) {
+                modulo.value = '';
+            }
+        });
+    }
+
+    var buscar = document.getElementById('matriz-buscar');
+    var grid = document.getElementById('matriz-grid');
+    if (buscar && grid) {
+        buscar.addEventListener('input', function () {
+            var q = buscar.value.trim().toLowerCase();
+            grid.querySelectorAll('.drip-matriz-item').forEach(function (el) {
+                var text = el.getAttribute('data-text') || '';
+                el.style.display = !q || text.indexOf(q) !== -1 ? '' : 'none';
+            });
+        });
+    }
+
+    var todos = document.getElementById('matriz-todos');
+    var ninguno = document.getElementById('matriz-ninguno');
+    if (grid && todos) {
+        todos.addEventListener('click', function () {
+            grid.querySelectorAll('input[type=checkbox]').forEach(function (cb) {
+                if (cb.closest('.drip-matriz-item').style.display !== 'none') {
+                    cb.checked = true;
+                }
+            });
+        });
+    }
+    if (grid && ninguno) {
+        ninguno.addEventListener('click', function () {
+            grid.querySelectorAll('input[type=checkbox]').forEach(function (cb) {
+                if (cb.closest('.drip-matriz-item').style.display !== 'none') {
+                    cb.checked = false;
+                }
+            });
+        });
+    }
+
+    var guardadas = document.getElementById('habilitaciones-guardadas');
+    if (guardadas && window.location.search.indexOf('guardado=1') !== -1) {
+        guardadas.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+})();
+</script>
 {% endblock %}

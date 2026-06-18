@@ -203,6 +203,19 @@ class PlantillaCertificado(models.Model):
         help_text="📤 Sube tu propia plantilla en PDF. Solo necesita tener espacio para el NOMBRE del estudiante."
     )
     
+    MODO_PLANTILLA_CHOICES = [
+        ('imagen', 'Imagen (S3 / archivo con marcadores)'),
+        ('diseno_eki', 'Diseño eki (colores y textos)'),
+        ('pdf', 'PDF personalizado'),
+    ]
+    modo_plantilla = models.CharField(
+        max_length=20,
+        choices=MODO_PLANTILLA_CHOICES,
+        default='imagen',
+        verbose_name='Modo de plantilla',
+        help_text='Define cómo se generará el certificado para esta plantilla.',
+    )
+
     # 🖼️ OPCIÓN 1B: SUBIR IMAGEN/MULTIMEDIA (Alternativa al PDF)
     FORMATO_CERTIFICADO_CHOICES = [
         ('pdf', '📄 PDF'),
@@ -305,9 +318,30 @@ class PlantillaCertificado(models.Model):
         cliente_str = f" ({self.cliente.nombre})" if self.cliente else ""
         return f"{self.nombre}{cliente_str} {'(Por defecto)' if self.por_defecto else ''}"
     
+    def modo_efectivo(self) -> str:
+        modo = (self.modo_plantilla or '').strip()
+        if modo in dict(self.MODO_PLANTILLA_CHOICES):
+            return modo
+        if self.archivo_plantilla_imagen or self.url_plantilla_imagen:
+            return 'imagen'
+        if self.archivo_plantilla_pdf:
+            return 'pdf'
+        return 'diseno_eki'
+
     def clean(self):
         """Validar y limpiar URL de plantilla para evitar duplicaciones y errores"""
         super().clean()
+        modo = self.modo_efectivo()
+        if modo == 'imagen' and not (self.archivo_plantilla_imagen or self.url_plantilla_imagen):
+            raise ValidationError({
+                'url_plantilla_imagen': (
+                    'En modo Imagen debes subir un archivo o pegar la URL de S3 (.png/.jpg).'
+                ),
+            })
+        if modo == 'pdf' and not self.archivo_plantilla_pdf:
+            raise ValidationError({
+                'archivo_plantilla_pdf': 'En modo PDF debes subir el archivo PDF personalizado.',
+            })
         if self.url_plantilla_imagen:
             url = self.url_plantilla_imagen.strip()
             # Detectar URLs duplicadas pegadas (ej: "archivo.jpghttps://...archivo.jpg")

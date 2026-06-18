@@ -294,6 +294,18 @@ MIDDLEWARE.append('django.middleware.gzip.GZipMiddleware')
 
 # Deployment note: ensure SESSION_ENGINE is not indented in deployed copy
 # This comment forces a clean commit to push the validated local file to EB
+
+# ============================================
+# CELERY + REDIS (Elastic Beanstalk)
+# ============================================
+# Worker y beat del Procfile usan Redis en localhost (.ebextensions/03_redis.config).
+# CELERY_TASK_ALWAYS_EAGER=True (env EB): .delay() en el proceso web corre en línea;
+# beat sigue necesitando Redis para campañas programadas y reenganche drip (8:00).
+if _ON_ELASTIC_BEANSTALK and not os.environ.get('CELERY_BROKER_URL'):
+    _REDIS_LOCAL = 'redis://127.0.0.1:6379/0'
+    CELERY_BROKER_URL = _REDIS_LOCAL
+    CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND') or _REDIS_LOCAL
+
 # ============================================
 # FORZAR BACKEND DE ARCHIVOS S3 EN PRODUCCIÓN
 # ============================================

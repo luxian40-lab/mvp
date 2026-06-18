@@ -1,0 +1,272 @@
+{% extends "admin/change_form.html" %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .cert-admin-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 340px;
+        gap: 20px;
+        align-items: start;
+    }
+    @media (max-width: 1100px) {
+        .cert-admin-layout { grid-template-columns: 1fr; }
+        .cert-preview-panel { order: -1; }
+    }
+    .cert-preview-panel {
+        position: sticky;
+        top: 72px;
+        background: #f8fafc;
+        border: 1px solid #dbe3ea;
+        border-radius: 12px;
+        padding: 14px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    }
+    .cert-preview-panel h3 {
+        margin: 0 0 8px;
+        font-size: 15px;
+        color: #0f172a;
+    }
+    .cert-preview-panel p {
+        margin: 0 0 12px;
+        font-size: 12px;
+        color: #64748b;
+        line-height: 1.45;
+    }
+    .cert-preview-frame {
+        background: #e2e8f0;
+        border-radius: 8px;
+        min-height: 220px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+    .cert-preview-frame img {
+        width: 100%;
+        height: auto;
+        display: block;
+        border-radius: 6px;
+    }
+    .cert-preview-placeholder {
+        color: #64748b;
+        font-size: 13px;
+        text-align: center;
+        padding: 24px 12px;
+    }
+    .cert-preview-actions {
+        margin-top: 10px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .cert-preview-actions button {
+        background: #0f766e;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 12px;
+        cursor: pointer;
+    }
+    .cert-preview-actions button:hover { background: #0d9488; }
+    fieldset.module.collapse { display: block !important; height: auto !important; }
+</style>
+{% endblock %}
+
+{% block field_sets %}
+<div class="cert-admin-layout">
+    <div class="cert-admin-form">
+        {{ block.super }}
+    </div>
+    <input type="hidden" id="certPlantillaPk" value="{% if original %}{{ original.pk }}{% endif %}">
+    <aside class="cert-preview-panel" aria-label="Vista previa del certificado">
+        <h3>Vista previa</h3>
+        <p>Sube la plantilla y elige un estudiante real (o demo) para ver nombre, cédula y QR.</p>
+        <label for="certEstudiantePreview" style="display:block;font-size:12px;margin-bottom:8px;color:#334155;">
+            Estudiante de prueba
+            <select id="certEstudiantePreview" style="display:block;width:100%;margin-top:4px;padding:6px 8px;border-radius:6px;border:1px solid #cbd5e1;">
+                <option value="">Demo (María González Pérez)</option>
+                {% for est in estudiantes_preview %}
+                <option value="{{ est.id }}">{{ est.nombre }} — {{ est.cedula }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <div class="cert-preview-frame" id="certPreviewFrame">
+            <div class="cert-preview-placeholder" id="certPreviewPlaceholder">Guarda o edita la plantilla para ver la previsualización.</div>
+            <img id="certPreviewImg" alt="Vista previa certificado" style="display:none;">
+        </div>
+        <div class="cert-preview-actions">
+            <button type="button" id="certPreviewRefresh">Actualizar vista previa</button>
+        </div>
+    </aside>
+</div>
+<script>
+(function () {
+    const previewUrl = '{% url "admin:learning_plantillacertificado_preview" %}';
+    const estudiantesUrl = '{% url "admin:learning_plantillacertificado_estudiantes_preview" %}';
+    const selectEst = document.getElementById('certEstudiantePreview');
+    const img = document.getElementById('certPreviewImg');
+    const placeholder = document.getElementById('certPreviewPlaceholder');
+    const btn = document.getElementById('certPreviewRefresh');
+    let timer = null;
+
+    function getCsrfToken() {
+        const input = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (input && input.value) return input.value;
+        const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : '';
+    }
+
+    function fieldValue(name) {
+        const el = document.getElementById('id_' + name);
+        return el ? el.value : '';
+    }
+
+    function selectedFileUrl(inputId) {
+        const input = document.getElementById(inputId);
+        if (!input || !input.files || !input.files[0]) return '';
+        try {
+            return URL.createObjectURL(input.files[0]);
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function existingThumb(fieldName) {
+        const row = document.querySelector('.field-' + fieldName.replace(/_/g, '-') + ' a');
+        return row ? row.href : '';
+    }
+
+    function showPreviewBlob(blob) {
+        img.src = URL.createObjectURL(blob);
+        img.style.display = 'block';
+        placeholder.style.display = 'none';
+    }
+
+    function showFallbackImage() {
+        const modo = fieldValue('modo_plantilla');
+        const url = fieldValue('url_plantilla_imagen')
+            || existingThumb('archivo_plantilla_imagen')
+            || existingThumb('imagen_fondo')
+            || selectedFileUrl('id_archivo_plantilla_imagen')
+            || selectedFileUrl('id_imagen_fondo');
+        if (url) {
+            img.src = url;
+            img.style.display = 'block';
+            placeholder.style.display = 'none';
+            return true;
+        }
+        if (modo === 'diseno_eki') {
+            placeholder.textContent = 'No se pudo generar la vista previa del diseño eki. Guarda la plantilla e intenta de nuevo.';
+        } else {
+            placeholder.textContent = 'No se pudo generar la vista previa. Revisa modo, URL S3 o archivo de imagen.';
+        }
+        placeholder.style.display = 'block';
+        img.style.display = 'none';
+        return false;
+    }
+
+    function refreshPreview() {
+        const fd = new FormData();
+        const csrf = getCsrfToken();
+        if (csrf) {
+            fd.append('csrfmiddlewaretoken', csrf);
+        }
+        fd.append('modo_plantilla', fieldValue('modo_plantilla'));
+        fd.append('color_primario', fieldValue('color_primario'));
+        fd.append('color_secundario', fieldValue('color_secundario'));
+        fd.append('texto_superior', fieldValue('texto_superior'));
+        fd.append('texto_certificado', fieldValue('texto_certificado'));
+        fd.append('url_plantilla_imagen', fieldValue('url_plantilla_imagen'));
+        const pkEl = document.getElementById('certPlantillaPk');
+        if (pkEl && pkEl.value) fd.append('plantilla_id', pkEl.value);
+        if (selectEst && selectEst.value) fd.append('estudiante_preview', selectEst.value);
+
+        const imgFile = document.getElementById('id_archivo_plantilla_imagen');
+        if (imgFile && imgFile.files && imgFile.files[0]) {
+            fd.append('archivo_plantilla_imagen', imgFile.files[0]);
+        }
+        const fondoFile = document.getElementById('id_imagen_fondo');
+        if (fondoFile && fondoFile.files && fondoFile.files[0]) {
+            fd.append('imagen_fondo', fondoFile.files[0]);
+        }
+        const logoFile = document.getElementById('id_logo_institucion');
+        if (logoFile && logoFile.files && logoFile.files[0]) {
+            fd.append('logo_institucion', logoFile.files[0]);
+        }
+
+        placeholder.textContent = 'Generando vista previa...';
+        placeholder.style.display = 'block';
+        img.style.display = 'none';
+
+        fetch(previewUrl, {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin',
+            headers: csrf ? { 'X-CSRFToken': csrf } : {},
+        }).then(function (r) {
+            if (!r.ok) {
+                return r.text().then(function (txt) {
+                    throw new Error(txt || ('HTTP ' + r.status));
+                });
+            }
+            return r.blob();
+        }).then(function (blob) {
+            if (!blob || !blob.size) throw new Error('empty');
+            showPreviewBlob(blob);
+        }).catch(function () {
+            showFallbackImage();
+        });
+    }
+
+    function schedulePreview() {
+        clearTimeout(timer);
+        timer = setTimeout(refreshPreview, 500);
+    }
+
+    function repoblarEstudiantes(clienteId) {
+        if (!selectEst || !estudiantesUrl) return;
+        const prev = selectEst.value;
+        selectEst.innerHTML = '<option value="">Demo (María González Pérez)</option>';
+        if (!clienteId) return;
+        fetch(estudiantesUrl + '?cliente=' + encodeURIComponent(clienteId), {
+            credentials: 'same-origin',
+        }).then(function (r) { return r.json(); }).then(function (data) {
+            (data.estudiantes || []).forEach(function (est) {
+                const opt = document.createElement('option');
+                opt.value = est.id;
+                opt.textContent = (est.nombre || 'Sin nombre') + ' — ' + (est.cedula || '');
+                selectEst.appendChild(opt);
+            });
+            if (prev) selectEst.value = prev;
+        }).catch(function () {});
+    }
+
+    if (selectEst) selectEst.addEventListener('change', schedulePreview);
+    const clienteField = document.getElementById('id_cliente');
+    if (clienteField) {
+        clienteField.addEventListener('change', function () {
+            repoblarEstudiantes(clienteField.value);
+            schedulePreview();
+        });
+    }
+
+    ['modo_plantilla', 'color_primario', 'color_secundario', 'texto_superior', 'texto_certificado', 'url_plantilla_imagen'].forEach(function (name) {
+        const el = document.getElementById('id_' + name);
+        if (el) el.addEventListener('input', schedulePreview);
+        if (el) el.addEventListener('change', schedulePreview);
+    });
+    ['id_archivo_plantilla_imagen', 'id_imagen_fondo', 'id_logo_institucion'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', schedulePreview);
+    });
+    if (btn) btn.addEventListener('click', refreshPreview);
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () { setTimeout(refreshPreview, 600); });
+    } else {
+        setTimeout(refreshPreview, 600);
+    }
+})();
+</script>
+{% endblock %}

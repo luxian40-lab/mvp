@@ -223,6 +223,60 @@ def _guardar_cert_s3(certificado, img_buffer, label=""):
     return False
 
 
+def resolver_plantilla_certificado(estudiante, curso, plantilla_id=None):
+    """
+    Elige la plantilla que se usará al generar el certificado.
+    Prioridad: id explícito → curso+cliente → curso → cliente → por_defecto.
+    """
+    from .models_certificados import PlantillaCertificado
+
+    if plantilla_id:
+        p = PlantillaCertificado.objects.filter(pk=plantilla_id, activa=True).first()
+        if p:
+            return p, 'elegida_manual'
+
+    cliente = getattr(estudiante, 'cliente', None) if estudiante else None
+    if curso and cliente:
+        p = PlantillaCertificado.objects.filter(
+            curso=curso, cliente=cliente, activa=True,
+        ).first()
+        if p:
+            return p, 'curso_y_cliente'
+
+    if curso:
+        p = PlantillaCertificado.objects.filter(curso=curso, activa=True).first()
+        if p:
+            return p, 'curso'
+
+    if cliente:
+        p = PlantillaCertificado.objects.filter(
+            cliente=cliente, curso__isnull=True, activa=True,
+        ).first()
+        if p:
+            return p, 'cliente'
+
+    p = PlantillaCertificado.objects.filter(por_defecto=True, activa=True).first()
+    if p:
+        return p, 'por_defecto'
+
+    return None, 'diseno_eki_default'
+
+
+def plantillas_selectables_para_curso(cliente, curso):
+    """Plantillas que el admin puede elegir para un curso presencial."""
+    from .models_certificados import PlantillaCertificado
+    from django.db.models import Q
+
+    return list(
+        PlantillaCertificado.objects.filter(activa=True).filter(
+            Q(curso=curso)
+            | Q(cliente=cliente, curso__isnull=True)
+            | Q(por_defecto=True)
+            | Q(cliente__isnull=True, curso__isnull=True)
+        ).distinct().order_by('nombre')
+    )
+
+
 def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
     """
     Genera el certificado y lo sube a S3 via boto3 DIRECTO.
@@ -254,25 +308,16 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
     try:
         from .models_certificados import PlantillaCertificado
         
-        # === Buscar plantilla en DB: curso+cliente > curso > cliente > default ===
         if not plantilla:
-            if hasattr(certificado, 'curso') and certificado.curso:
-                if certificado.estudiante and certificado.estudiante.cliente:
-                    plantilla = PlantillaCertificado.objects.filter(
-                        curso=certificado.curso, cliente=certificado.estudiante.cliente, activa=True
-                    ).first()
-                if not plantilla:
-                    plantilla = PlantillaCertificado.objects.filter(
-                        curso=certificado.curso, activa=True
-                    ).first()
-            if not plantilla and certificado.estudiante and certificado.estudiante.cliente:
-                plantilla = PlantillaCertificado.objects.filter(
-                    cliente=certificado.estudiante.cliente, curso__isnull=True, activa=True
-                ).first()
-            if not plantilla:
-                plantilla = PlantillaCertificado.objects.filter(por_defecto=True, activa=True).first()
-            
-            logger.info(f"📋 Plantilla encontrada: {plantilla.nombre if plantilla else 'NINGUNA - usará default eki'}")
+            plantilla, origen = resolver_plantilla_certificado(
+                certificado.estudiante,
+                certificado.curso,
+            )
+            logger.info(
+                '📋 Plantilla certificado (%s): %s',
+                origen,
+                plantilla.nombre if plantilla else 'diseño eki por defecto',
+            )
         
         url_verificacion = certificado.obtener_url_verificacion()
         # EMPRESA marker = contacto_principal (representante), no nombre de empresa
@@ -282,13 +327,25 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
         cedula_est = certificado.estudiante.cedula or ''
         
         generado = False
-        
+        modo = plantilla.modo_efectivo() if plantilla else 'imagen'
+
         # =====================================================
-        # PRIORIDAD 0: Marcadores RGB con plantilla de DB
+        # PRIORIDAD 0A: Diseño eki (colores, textos, fondo opcional)
         # =====================================================
-        # Determinar URL de la plantilla: url_plantilla_imagen > archivo_plantilla_imagen.url
+        if not generado and plantilla and modo == 'diseno_eki':
+            try:
+                from .certificado_diseno_eki import generar_certificado_diseno_eki
+                img_buffer = generar_certificado_diseno_eki(certificado, plantilla)
+                if img_buffer:
+                    generado = _guardar_cert_s3(certificado, img_buffer, 'P0 Diseño eki')
+            except Exception as e:
+                logger.warning(f'⚠️ Diseño eki falló ({e}), continuando...')
+
+        # =====================================================
+        # PRIORIDAD 0B: Marcadores RGB con plantilla de DB (modo imagen)
+        # =====================================================
         plantilla_url_db = None
-        if plantilla:
+        if plantilla and modo == 'imagen':
             if plantilla.url_plantilla_imagen:
                 plantilla_url_db = plantilla.url_plantilla_imagen
                 logger.info(f"📋 Usando url_plantilla_imagen: {plantilla_url_db}")
@@ -298,7 +355,7 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
                     logger.info(f"📋 Usando archivo_plantilla_imagen.url: {plantilla_url_db}")
                 except Exception:
                     pass
-        
+
         if not generado and plantilla_url_db:
             try:
                 from .utils_certificados import generar_certificado_marcadores

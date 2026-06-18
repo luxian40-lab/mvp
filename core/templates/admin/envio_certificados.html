@@ -1,0 +1,225 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}{{ titulo }} | {{ site_title }}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/cobertura_eki.css' %}">
+<style>
+.ec-page { padding: 1.25rem 1.5rem 2.5rem; max-width: 1200px; }
+.ec-alert { padding: 0.75rem 1rem; border-radius: 10px; margin-bottom: 1rem; font-size: 0.875rem; background: #f3eaf7; border: 1px solid #d8b4e0; color: #5b3d6b; }
+.ec-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.15rem 1.25rem; margin-bottom: 1rem; }
+.ec-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0.5rem; max-height: 480px; overflow-y: auto; margin-top: 0.75rem; }
+.ec-item { display: flex; gap: 0.5rem; padding: 0.55rem 0.65rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; font-size: 0.875rem; cursor: pointer; }
+.ec-item:has(input:checked) { background: #f3eaf7; border-color: #d8b4e0; }
+.ec-item.otro-cliente { border-color: #fcd34d; background: #fffbeb; }
+.ec-meta { color: #64748b; font-size: 0.78rem; }
+.ec-opciones { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start; font-size: 0.875rem; }
+.ec-opciones label { display: flex; flex-direction: column; gap: 0.35rem; }
+.ec-opciones textarea { min-width: 280px; min-height: 72px; padding: 0.5rem; border-radius: 8px; border: 1px solid #e2e8f0; font-family: inherit; font-size: 0.85rem; }
+.ec-toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
+.ec-contador { font-size: 0.85rem; color: #475569; }
+.ec-inline-form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-end; font-size: 0.875rem; }
+.ec-inline-form input { padding: 0.4rem 0.55rem; border-radius: 8px; border: 1px solid #e2e8f0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="eki-cobertura ec-page">
+    <header class="eki-cobertura-header">
+        <div>
+            <h1>{{ titulo }}</h1>
+            <p class="sub">Elija el <strong>curso del certificado</strong>, marque estudiantes (de este cliente u otro) y envíe. No afecta cursos digitales en curso.</p>
+        </div>
+    </header>
+
+    <form method="get" class="eki-filtros">
+        <div class="field">
+            <label for="cliente">Organización del evento</label>
+            <select name="cliente" id="cliente" required>
+                <option value="">— Elija —</option>
+                {% for c in clientes %}
+                <option value="{{ c.id }}" {% if cliente and cliente.id == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% if cliente %}
+        <div class="field">
+            <label for="curso">Curso del certificado</label>
+            <select name="curso" id="curso" required>
+                <option value="">— Elija —</option>
+                {% for c in cursos %}
+                <option value="{{ c.id }}" {% if filtro_curso == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="grupo">Grupo (opcional)</label>
+            <select name="grupo" id="grupo">
+                <option value="">Todos del cliente</option>
+                {% for g in grupos %}
+                <option value="{{ g.id }}" {% if filtro_grupo == g.id %}selected{% endif %}>{{ g.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="q">Filtrar lista</label>
+            <input type="search" name="q" id="q" value="{{ busqueda }}" placeholder="Nombre, cédula o teléfono">
+        </div>
+        <div class="field">
+            <label for="qg">Buscar en todo el sistema</label>
+            <input type="search" name="qg" id="qg" value="{{ busqueda_global }}" placeholder="Traer estudiante de otro cliente">
+        </div>
+        {% if extra_raw %}<input type="hidden" name="extra" value="{{ extra_raw }}">{% endif %}
+        {% endif %}
+        <button type="submit" class="eki-btn eki-btn-primary">Cargar lista</button>
+        <a class="eki-btn eki-btn-ghost" href="{% url 'admin:learning_plantillacertificado_changelist' %}">Plantillas</a>
+    </form>
+
+    {% if curso %}
+
+    <div class="ec-alert">
+        Solo los <strong>marcados</strong> reciben envío. Si el estudiante es de <strong>otro cliente</strong> o tiene curso digital activo,
+        igual puede recibir este certificado — <em>no se reinicia</em> su avance WhatsApp.
+    </div>
+
+    <div class="ec-panel">
+        <h2 style="margin:0 0 0.75rem;font-size:1.05rem;">Agregar participante</h2>
+        <p class="ec-meta" style="margin:0 0 0.75rem;">Si ya existe (cédula/teléfono), se usa esa ficha aunque sea de otra organización. Si no, se crea aquí.</p>
+        <form method="post" class="ec-inline-form">
+            {% csrf_token %}
+            <input type="hidden" name="cliente" value="{{ cliente.id }}">
+            <input type="hidden" name="curso" value="{{ curso.id }}">
+            <input type="hidden" name="action" value="agregar_participante">
+            {% if filtro_grupo %}<input type="hidden" name="grupo" value="{{ filtro_grupo }}">{% endif %}
+            {% if extra_raw %}<input type="hidden" name="extra" value="{{ extra_raw }}">{% endif %}
+            <label>Nombre <input type="text" name="part_nombre" required></label>
+            <label>Cédula <input type="text" name="part_cedula" required></label>
+            <label>Teléfono <input type="text" name="part_telefono" required placeholder="573..."></label>
+            <button type="submit" class="eki-btn eki-btn-ghost">Agregar a la lista</button>
+        </form>
+    </div>
+
+    <div class="ec-panel">
+        <h2 style="margin:0 0 0.5rem;font-size:1.05rem;">Plantilla (opcional)</h2>
+        {{ guia_marcadores_html|safe }}
+        <form method="post" enctype="multipart/form-data" class="ec-inline-form" style="margin-top:0.75rem;">
+            {% csrf_token %}
+            <input type="hidden" name="cliente" value="{{ cliente.id }}">
+            <input type="hidden" name="curso" value="{{ curso.id }}">
+            <input type="hidden" name="action" value="subir_plantilla">
+            {% if filtro_plantilla %}<input type="hidden" name="plantilla_id" value="{{ filtro_plantilla }}">{% endif %}
+            <label>Imagen <input type="file" name="archivo_plantilla_imagen" accept="image/png,image/jpeg" required></label>
+            <button type="submit" class="eki-btn eki-btn-ghost">Subir a S3</button>
+        </form>
+        {% if plantilla_info and plantilla_info.plantilla %}
+        <p class="ec-meta" style="margin:0.75rem 0 0;">Activa: «{{ plantilla_info.plantilla.nombre }}» — {{ plantilla_info.origen_txt }}</p>
+        {% endif %}
+    </div>
+
+    <form method="post" class="ec-panel" id="form-envio">
+        {% csrf_token %}
+        <input type="hidden" name="cliente" value="{{ cliente.id }}">
+        <input type="hidden" name="curso" value="{{ curso.id }}">
+        <input type="hidden" name="action" value="enviar">
+        {% if filtro_grupo %}<input type="hidden" name="grupo" value="{{ filtro_grupo }}">{% endif %}
+        {% if busqueda %}<input type="hidden" name="q" value="{{ busqueda }}">{% endif %}
+        {% if busqueda_global %}<input type="hidden" name="qg" value="{{ busqueda_global }}">{% endif %}
+        {% if extra_raw %}<input type="hidden" name="extra" value="{{ extra_raw }}">{% endif %}
+        {% if filtro_plantilla %}<input type="hidden" name="plantilla_id" value="{{ filtro_plantilla }}">{% endif %}
+
+        <h2 style="margin:0 0 0.75rem;font-size:1.05rem;">Enviar a seleccionados</h2>
+        <div class="ec-opciones">
+            <label>
+                <span><input type="checkbox" name="usar_mensaje_previo" checked> Mensaje previo</span>
+                <textarea name="mensaje_previo">{{ mensaje_previo_default }}</textarea>
+            </label>
+            <label><span><input type="checkbox" name="emitir_certificado" checked> Generar certificado</span></label>
+            <label><span><input type="checkbox" name="enviar_certificado_wa" checked> Enviar diploma WhatsApp</span></label>
+            <label>Calificación % <input type="number" name="calificacion" value="100" min="0" max="100" style="width:5rem;padding:0.35rem;border-radius:6px;border:1px solid #e2e8f0;"></label>
+            <label><span><input type="checkbox" name="regenerar"> Regenerar si existe</span></label>
+        </div>
+
+        <div class="ec-toolbar" style="margin-top:1rem;">
+            <button type="button" class="eki-btn eki-btn-ghost" id="ec-todos">Marcar todos</button>
+            <button type="button" class="eki-btn eki-btn-ghost" id="ec-ninguno">Ninguno</button>
+            {% if filtro_grupo %}<button type="button" class="eki-btn eki-btn-ghost" id="ec-grupo">Marcar grupo</button>{% endif %}
+            <span class="ec-contador" id="ec-contador">0 seleccionados</span>
+        </div>
+
+        <div class="ec-grid" id="ec-grid">
+            {% for fila in filas %}
+            <label class="ec-item{% if fila.otro_cliente %} otro-cliente{% endif %}">
+                <input type="checkbox" name="estudiantes" value="{{ fila.estudiante.id }}" class="ec-check">
+                <span>
+                    <strong>{{ fila.estudiante.nombre }}</strong><br>
+                    <span class="ec-meta">{{ fila.estudiante.cedula }} · {{ fila.estudiante.telefono }}</span>
+                    {% if fila.otro_cliente %}
+                    <br><span class="ec-meta" style="color:#b45309;">🏢 Cliente: {{ fila.cliente_nombre }}</span>
+                    {% endif %}
+                    {% if fila.emitido %}<br><span class="ec-meta">✓ Certificado ya emitido</span>{% endif %}
+                    {% if fila.cursos_digitales_activos %}
+                    <br><span class="ec-meta" style="color:#7c3aed;">📱 Curso digital: {{ fila.cursos_digitales_activos|join:", " }}</span>
+                    {% endif %}
+                </span>
+            </label>
+            {% empty %}
+            <p class="ec-meta">Sin resultados. Use «Buscar en todo el sistema» o «Agregar participante».</p>
+            {% endfor %}
+        </div>
+
+        <div style="margin-top:1rem;">
+            <button type="submit" class="eki-btn eki-btn-primary" onclick="return confirm('¿Enviar a los marcados?');">Enviar a seleccionados</button>
+        </div>
+    </form>
+
+    <form method="post" target="_blank" class="ec-panel" style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;">
+        {% csrf_token %}
+        <input type="hidden" name="cliente" value="{{ cliente.id }}">
+        <input type="hidden" name="curso" value="{{ curso.id }}">
+        <input type="hidden" name="action" value="preview">
+        {% if filtro_plantilla %}<input type="hidden" name="plantilla_id" value="{{ filtro_plantilla }}">{% endif %}
+        <span class="ec-meta">Vista previa:</span>
+        <select name="estudiante_preview">
+            <option value="">Demo</option>
+            {% for fila in filas %}
+            <option value="{{ fila.estudiante.id }}">{{ fila.estudiante.nombre }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="eki-btn eki-btn-ghost">Ver certificado</button>
+    </form>
+
+    {% elif cliente %}
+    <p class="sub">Elija el curso del certificado y pulse «Cargar lista».</p>
+    {% endif %}
+</div>
+<script>
+(function(){
+    var grid = document.getElementById('ec-grid');
+    if (!grid) return;
+    var contador = document.getElementById('ec-contador');
+    function actualizarContador() {
+        var n = grid.querySelectorAll('.ec-check:checked').length;
+        if (contador) contador.textContent = n + ' seleccionado(s)';
+    }
+    grid.addEventListener('change', actualizarContador);
+    document.getElementById('ec-todos')?.addEventListener('click', function(){
+        grid.querySelectorAll('.ec-check').forEach(function(c){ c.checked = true; });
+        actualizarContador();
+    });
+    document.getElementById('ec-ninguno')?.addEventListener('click', function(){
+        grid.querySelectorAll('.ec-check').forEach(function(c){ c.checked = false; });
+        actualizarContador();
+    });
+    var idsGrupo = [{% for id in ids_en_grupo %}{{ id }}{% if not forloop.last %},{% endif %}{% endfor %}];
+    document.getElementById('ec-grupo')?.addEventListener('click', function(){
+        grid.querySelectorAll('.ec-check').forEach(function(c){
+            c.checked = idsGrupo.indexOf(parseInt(c.value, 10)) >= 0;
+        });
+        actualizarContador();
+    });
+    actualizarContador();
+})();
+</script>
+{% endblock %}

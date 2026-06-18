@@ -40,7 +40,11 @@ from core.views_cobertura_admin import (
     cobertura_admin_municipios_geojson,
     cobertura_admin_view,
 )
+from core.views_avance_reset import ajustar_avance_view
+from core.views_certificados_presenciales import certificados_presenciales_view
+from core.views_envio_certificados import envio_certificados_view
 from core.views_drip_estudiantes import drip_estudiantes_view
+from core.views_push_estudiantes import push_estudiantes_view
 from core.views_copiar_curso import copiar_curso_cliente_view
 
 urlpatterns = [
@@ -86,6 +90,10 @@ urlpatterns = [
     path('admin/cobertura/datos.json', cobertura_admin_api, name='admin_cobertura_api'),
     path('admin/cobertura/municipios.geojson', cobertura_admin_municipios_geojson, name='admin_cobertura_geojson'),
     path('admin/drip-estudiantes/', drip_estudiantes_view, name='admin_drip_estudiantes'),
+    path('admin/ajustar-avance/', ajustar_avance_view, name='admin_ajustar_avance'),
+    path('admin/certificados-presenciales/', certificados_presenciales_view, name='admin_certificados_presenciales'),
+    path('admin/envio-certificados/', envio_certificados_view, name='admin_envio_certificados'),
+    path('admin/push-estudiantes/', push_estudiantes_view, name='admin_push_estudiantes'),
     path('admin/knowledge-studio/', knowledge_studio_view, name='knowledge_studio'),
     path(
         'admin/knowledge-studio/revisar/<int:candidata_id>/',

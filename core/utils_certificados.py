@@ -30,6 +30,7 @@ MARCADOR_NOMBRE  = (128, 128, 128)  # Gris puro para nombre
 MARCADOR_CEDULA  = (255, 0, 0)      # Rojo puro para cédula
 MARCADOR_QR      = (0, 0, 255)      # Azul puro para QR
 TOLERANCIA_COLOR = 18               # Tolerancia reducida para detectar solo marcadores puros
+TAMAÑO_QR_DEFAULT = 190             # 200 − 5 px por cada lado
 
 # --- RUTA DE FUENTES ---
 FONTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
@@ -130,14 +131,16 @@ def cargar_fuente(nombre_fuente='GreatVibes-Regular.ttf', tamaño=80):
 
 
 def generar_certificado_marcadores(
-    plantilla_url_o_path,
+    plantilla_url_o_path=None,
+    *,
+    plantilla_bytes=None,
     nombre_estudiante,
     cedula_estudiante,
     url_verificacion,
     organizacion_nombre=None,
     fuente_nombre_size=80,
     fuente_cedula_size=40,
-    tamaño_qr=200,
+    tamaño_qr=TAMAÑO_QR_DEFAULT,
     ajuste_qr_y=20,
 ):
     """
@@ -157,13 +160,17 @@ def generar_certificado_marcadores(
     Returns:
         BytesIO: Buffer con la imagen PNG del certificado
     """
-    # 1. Cargar plantilla (desde URL o archivo local)
-    if plantilla_url_o_path.startswith('http'):
+    # 1. Cargar plantilla (bytes en memoria, URL o archivo local)
+    if plantilla_bytes:
+        plantilla = Image.open(BytesIO(plantilla_bytes)).convert("RGB")
+    elif plantilla_url_o_path and str(plantilla_url_o_path).startswith('http'):
         response = requests.get(plantilla_url_o_path, timeout=15)
         response.raise_for_status()
         plantilla = Image.open(BytesIO(response.content)).convert("RGB")
-    else:
+    elif plantilla_url_o_path:
         plantilla = Image.open(plantilla_url_o_path).convert("RGB")
+    else:
+        raise ValueError("Debe indicar plantilla_bytes o plantilla_url_o_path")
     
     ancho_img, alto_img = plantilla.size
     draw = ImageDraw.Draw(plantilla)
