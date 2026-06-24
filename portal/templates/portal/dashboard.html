@@ -9,9 +9,23 @@
         <p class="muted">Vista general de su organización. Para el detalle analítico use <a href="/portal/metricas/">Métricas detalladas</a>.</p>
     </div>
     {% if portal_mod_cursos %}
+        <a class="btn btn-outline" href="/portal/reportes/">Descargar reportes</a>
         <a class="btn btn-outline" href="/portal/metricas/">Métricas detalladas</a>
     {% endif %}
 </div>
+
+{% if portal_es_admin and not portal_branding_completo %}
+<section class="alert alert-onboarding" style="margin-bottom:24px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;">
+    <div>
+        <strong>Complete la identidad de su organización</strong>
+        <p class="muted" style="margin:6px 0 0;font-size:14px;">
+            Suba el logo y un subtítulo para que su equipo reconozca el portal clientes.
+            {% if portal_branding_pendientes %}Faltan {{ portal_branding_pendientes }} paso{{ portal_branding_pendientes|pluralize }}.{% endif %}
+        </p>
+    </div>
+    <a class="btn" href="/portal/perfil/">Configurar perfil</a>
+</section>
+{% endif %}
 
 {% if portal_mod_gei and gei_resumen %}
 <section class="cards-grid" style="margin-bottom:24px;">
@@ -79,6 +93,7 @@
     <h2>Accesos rápidos</h2>
     <div style="display:flex;flex-wrap:wrap;gap:10px;">
         <a class="pill active" href="/portal/metricas/">Métricas detalladas</a>
+        <a class="pill" href="/portal/reportes/">Reportes Excel</a>
         <a class="pill" href="/portal/cobertura/">Cobertura territorial</a>
         <a class="pill" href="/portal/estudiantes/">Estudiantes</a>
         <a class="pill" href="/portal/cursos/">Cursos</a>

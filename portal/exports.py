@@ -126,3 +126,53 @@ def validar_filtros_export(org, curso_id, grupo_id) -> tuple[int | None, int | N
     if grupo_id_int and not org.grupos_estudiantes.filter(pk=grupo_id_int, activo=True).exists():
         grupo_id_int = None
     return curso_id_int, grupo_id_int
+
+
+def respuesta_excel_avance_estudiantes(
+    filas: Iterable[dict],
+    *,
+    nombre_archivo: str = 'avance_estudiantes.xlsx',
+) -> HttpResponse:
+    """Excel con avance detallado por estudiante (portal clientes)."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Avance estudiantes'
+
+    headers = [
+        'Nombre', 'Cédula', 'Teléfono', 'Grupo(s)', 'Curso',
+        'Módulo actual', 'Módulos completados', 'Estado', 'Avance %', 'Puntos',
+    ]
+    ws.append(headers)
+    header_fill = PatternFill(start_color='2563EB', end_color='2563EB', fill_type='solid')
+    header_font = Font(bold=True, color='FFFFFF', size=11)
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center')
+
+    for row in filas:
+        ws.append([
+            row.get('nombre', ''),
+            row.get('cedula', ''),
+            row.get('telefono', ''),
+            row.get('grupos', ''),
+            row.get('curso', ''),
+            row.get('modulo_actual', ''),
+            row.get('modulos_completados', ''),
+            row.get('estado_avance', ''),
+            row.get('avance', 0),
+            row.get('puntos', 0),
+        ])
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    response = HttpResponse(
+        buf.read(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
+    return response

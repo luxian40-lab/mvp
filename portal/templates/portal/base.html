@@ -612,6 +612,8 @@
         }
         .alert-ok { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
         .alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+        .alert-onboarding { background: #eff6ff; color: #1e3a8a; border: 1px solid #bfdbfe; border-radius: 12px; padding: 16px 20px; }
+        html[data-theme="dark"] .alert-onboarding { background: #1e3a5f; border-color: #3b82f6; color: #dbeafe; }
 
         @media (max-width: 900px) {
             body {
@@ -673,7 +675,7 @@
                     {% if org.portal_subtitulo %}
                         <span>{{ org.portal_subtitulo|truncatechars:36 }}</span>
                     {% else %}
-                        <span>Portal empresarial</span>
+                        <span>Portal clientes</span>
                     {% endif %}
                 </div>
             </a>
@@ -693,6 +695,13 @@
                     <span class="link-icon">M</span>
                     <span class="link-text">Métricas detalladas</span>
                 </a>
+                <a href="/portal/reportes/" class="sidebar-link {% if '/portal/reportes' in request.path %}active{% endif %}" title="Reportes y descargas Excel">
+                    <span class="link-icon" aria-hidden="true">📥</span>
+                    <span class="link-text">Reportes</span>
+                </a>
+                <a href="/portal/certificados/" class="sidebar-link {% if '/portal/certificados' in request.path %}active{% endif %}" title="Certificados emitidos">
+                    <span class="link-icon" aria-hidden="true">🎓</span><span class="link-text">Certificados</span>
+                </a>
             {% endif %}
 
             {% if portal_mod_cursos %}
@@ -700,6 +709,10 @@
                 <a href="/portal/estudiantes/" class="sidebar-link {% if '/portal/estudiantes' in request.path %}active{% endif %}" title="Estudiantes">
                     <span class="link-icon">E</span>
                     <span class="link-text">Estudiantes</span>
+                </a>
+                <a href="/portal/conversaciones/" class="sidebar-link {% if '/portal/conversaciones' in request.path %}active{% endif %}" title="Conversaciones WhatsApp">
+                    <span class="link-icon" aria-hidden="true">💬</span>
+                    <span class="link-text">Conversaciones</span>
                 </a>
                 <a href="/portal/cursos/" class="sidebar-link {% if request.path == '/portal/cursos/' %}active{% endif %}" title="Cursos">
                     <span class="link-icon">C</span>
@@ -719,6 +732,13 @@
                     <span class="link-text">Preguntas GEI</span>
                 </a>
                 {% endif %}
+            {% endif %}
+
+            {% if portal_mod_empleabilidad %}
+                <div class="nav-label">Empleabilidad</div>
+                <a href="/portal/empleabilidad/" class="sidebar-link {% if '/portal/empleabilidad' in request.path %}active{% endif %}" title="Empleabilidad territorial">
+                    <span class="link-icon" aria-hidden="true">📍</span><span class="link-text">Empleabilidad</span>
+                </a>
             {% endif %}
 
             {% if portal_mod_nat %}

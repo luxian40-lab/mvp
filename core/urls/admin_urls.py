@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.generic import RedirectView
 
 from core.dashboard_avanzado import exportar_metricas_excel
 from core.dashboard_redirects import (
@@ -45,6 +46,7 @@ from core.views_certificados_presenciales import certificados_presenciales_view
 from core.views_envio_certificados import envio_certificados_view
 from core.views_drip_estudiantes import drip_estudiantes_view
 from core.views_push_estudiantes import push_estudiantes_view
+from aprende.views_admin import aula_web_admin_view
 from core.views_copiar_curso import copiar_curso_cliente_view
 
 urlpatterns = [
@@ -94,6 +96,8 @@ urlpatterns = [
     path('admin/certificados-presenciales/', certificados_presenciales_view, name='admin_certificados_presenciales'),
     path('admin/envio-certificados/', envio_certificados_view, name='admin_envio_certificados'),
     path('admin/push-estudiantes/', push_estudiantes_view, name='admin_push_estudiantes'),
+    path('admin/aula-web/', aula_web_admin_view, name='admin_aula_web'),
+    path('admin/portal-estudio/', RedirectView.as_view(url='/admin/aula-web/', permanent=False), name='admin_portal_estudio'),
     path('admin/knowledge-studio/', knowledge_studio_view, name='knowledge_studio'),
     path(
         'admin/knowledge-studio/revisar/<int:candidata_id>/',

@@ -1,0 +1,16 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Conversaciones | Portal eki{% endblock %}
+
+{% block extra_head %}
+<style>
+    .conv-portal-wrap { margin: -8px -4px 0; }
+    .conv-portal-wrap .main-content-inner { padding: 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="conv-portal-wrap">
+    {% include "conversaciones/whatsapp_inbox.html" %}
+</div>
+{% endblock %}

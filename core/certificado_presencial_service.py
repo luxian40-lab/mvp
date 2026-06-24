@@ -13,8 +13,94 @@ from core.certificado_service import (
     plantillas_selectables_para_curso,
     resolver_plantilla_certificado,
 )
-from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante
+from core.models import Cliente, Curso, Estudiante, Plantilla, ProgresoEstudiante
 from core.models_certificados import Certificado, PlantillaCertificado
+
+
+def plantillas_twilio_whatsapp() -> list[Plantilla]:
+    """Plantillas Twilio aprobadas (HX…) para elegir en envío masivo."""
+    return list(
+        Plantilla.objects.filter(activa=True, aprobada_twilio=True)
+        .exclude(twilio_template_sid__isnull=True)
+        .exclude(twilio_template_sid='')
+        .order_by('nombre_interno')
+    )
+
+
+def resolver_twilio_content_sid(
+    *,
+    plantilla_id: int | None = None,
+    sid_manual: str | None = None,
+) -> str:
+    """Prioridad: plantilla admin → HX pegado a mano."""
+    sid = (sid_manual or '').strip()
+    if plantilla_id:
+        pl = (
+            Plantilla.objects.filter(pk=plantilla_id, activa=True)
+            .exclude(twilio_template_sid__isnull=True)
+            .exclude(twilio_template_sid='')
+            .first()
+        )
+        if pl:
+            return (pl.twilio_template_sid or '').strip()
+    return sid
+
+
+def marcar_cert_envio_pendiente(
+    estudiante: Estudiante,
+    certificado: Certificado,
+    curso: Curso,
+) -> None:
+    """Marca certificado para envío tras respuesta del estudiante (abre ventana WhatsApp)."""
+    ctx = estudiante.contexto_temporal or {}
+    ctx['cert_envio_pendiente'] = {
+        'certificado_id': certificado.id,
+        'curso_id': curso.id,
+        'ts': timezone.now().isoformat(),
+    }
+    estudiante.contexto_temporal = ctx
+    estudiante.save(update_fields=['contexto_temporal'])
+
+
+def limpiar_cert_envio_pendiente(estudiante: Estudiante) -> None:
+    ctx = estudiante.contexto_temporal or {}
+    if 'cert_envio_pendiente' not in ctx:
+        return
+    ctx.pop('cert_envio_pendiente', None)
+    estudiante.contexto_temporal = ctx or None
+    estudiante.save(update_fields=['contexto_temporal'])
+
+
+def enviar_previo_whatsapp(
+    estudiante: Estudiante,
+    curso: Curso,
+    *,
+    texto_libre: str | None = None,
+    twilio_content_sid: str | None = None,
+) -> dict:
+    """Aviso previo al diploma. Fuera de ventana 24 h use twilio_content_sid (plantilla aprobada)."""
+    from core.enviar_plantillas import enviar_plantilla_twilio
+    from core.utils import enviar_whatsapp_twilio
+
+    sid = (twilio_content_sid or '').strip()
+    if sid:
+        return enviar_plantilla_twilio(
+            estudiante.telefono,
+            sid,
+            variables={
+                '1': estudiante.nombre or 'estudiante',
+                '2': curso.nombre or 'curso',
+            },
+        )
+
+    texto = (texto_libre or '').strip()
+    if not texto:
+        return {'success': True, 'skipped': True}
+
+    cuerpo = texto.replace('{nombre}', estudiante.nombre or 'Estudiante')
+    cuerpo = cuerpo.replace('{cedula}', estudiante.cedula or '')
+    cuerpo = cuerpo.replace('{curso}', curso.nombre or '')
+    return enviar_whatsapp_twilio(telefono=estudiante.telefono, texto=cuerpo)
 
 
 def _cursos_digitales_activos_por_estudiante(
@@ -69,7 +155,7 @@ def filas_estudiantes_certificado(
             Q(nombre__icontains=term)
             | Q(cedula__icontains=term)
             | Q(telefono__icontains=term)
-        ).select_related('cliente')[:40]
+        ).select_related('cliente')[:80]
         ids.update(global_qs.values_list('pk', flat=True))
 
     estudiantes = list(
@@ -296,26 +382,170 @@ def info_plantilla_curso(cliente: Cliente, curso: Curso, plantilla_id: int | Non
     }
 
 
+def _enviar_plantilla_twilio_cert(telefono: str, content_sid: str, variables: dict) -> dict:
+    """Wrapper testeable para enviar plantilla inicial (import perezoso de Twilio)."""
+    from core.enviar_plantillas import enviar_plantilla_twilio
+
+    return enviar_plantilla_twilio(telefono, content_sid, variables=variables)
+
+
+def enviar_plantilla_inicial_certificado(
+    estudiante_ids: set[int] | list[int],
+    curso: Curso,
+    *,
+    twilio_content_sid_inicial: str,
+    emitir_certificado: bool = True,
+    calificacion: float = 100.0,
+    regenerar_si_existe: bool = False,
+    plantilla: PlantillaCertificado | None = None,
+    permitir_otro_cliente: bool = True,
+) -> dict:
+    """
+    Flujo presencial recomendado SIN tocar la automatización de cursos:
+      1. Emite el certificado (si aplica).
+      2. Envía una plantilla Twilio inicial pidiendo que respondan *OK* o un número.
+      3. Marca el certificado como pendiente en contexto_temporal.
+
+    Cuando el estudiante responde OK/número, el webhook libera el certificado
+    (la ventana de 24 h ya quedó abierta). NO usa 'listo' para no chocar con cursos.
+    """
+    from django.utils import timezone
+
+    sid = (twilio_content_sid_inicial or '').strip()
+    if not sid:
+        return {'errores': 0, 'sin_plantilla': True}
+
+    estudiantes = Estudiante.objects.filter(pk__in=estudiante_ids, activo=True)
+    if not permitir_otro_cliente:
+        estudiantes = estudiantes.filter(cliente_id=curso.cliente_id)
+
+    resumen = {
+        'plantillas_enviadas': 0,
+        'creados': 0,
+        'existentes': 0,
+        'regenerados': 0,
+        'pendientes': 0,
+        'omitidos': 0,
+        'errores': 0,
+    }
+
+    for est in estudiantes:
+        try:
+            cert = None
+            if emitir_certificado:
+                cert, estado = crear_certificado_presencial(
+                    est,
+                    curso,
+                    calificacion=calificacion,
+                    regenerar_si_existe=regenerar_si_existe,
+                    generar_archivo=True,
+                    plantilla=plantilla,
+                    permitir_otro_cliente=permitir_otro_cliente,
+                )
+                if estado == 'creado':
+                    resumen['creados'] += 1
+                elif estado == 'existente':
+                    resumen['existentes'] += 1
+                elif estado == 'regenerado':
+                    resumen['regenerados'] += 1
+                elif estado in ('error', 'error_generar', 'error_cliente'):
+                    resumen['errores'] += 1
+                    continue
+            else:
+                cert = Certificado.objects.filter(
+                    estudiante=est, curso=curso, emitido=True,
+                ).first()
+                if not cert:
+                    resumen['omitidos'] += 1
+                    continue
+
+            res = _enviar_plantilla_twilio_cert(
+                est.telefono,
+                sid,
+                {
+                    '1': est.nombre or 'estudiante',
+                    '2': curso.nombre or 'curso',
+                },
+            )
+            if not res.get('success'):
+                resumen['errores'] += 1
+                continue
+            resumen['plantillas_enviadas'] += 1
+
+            marcar_cert_envio_pendiente(est, cert, curso)
+            resumen['pendientes'] += 1
+        except Exception:
+            resumen['errores'] += 1
+
+    return resumen
+
+
 @transaction.atomic
 def enviar_whatsapp_certificados_existentes(
     estudiante_ids: set[int] | list[int],
     curso: Curso,
+    *,
+    mensaje_previo: str | None = None,
+    twilio_content_sid_media: str | None = None,
+    media_var_index: str = '1',
+    twilio_content_sid_previo: str | None = None,
+    twilio_content_sid_diploma: str | None = None,
+    permitir_otro_cliente: bool = True,
 ) -> dict:
     """Reenvía por WhatsApp certificados ya emitidos (sin regenerar PDF)."""
-    enviados = errores = omitidos = 0
-    for cert in Certificado.objects.filter(
+    enviados = errores = omitidos = previos = 0
+    sid_media = (twilio_content_sid_media or '').strip()
+    sid_previo = (twilio_content_sid_previo or '').strip()
+    sid_diploma = (twilio_content_sid_diploma or '').strip()
+    texto_previo = (mensaje_previo or '').strip()
+
+    qs = Certificado.objects.filter(
         curso=curso,
         estudiante_id__in=estudiante_ids,
-        estudiante__cliente_id=curso.cliente_id,
         emitido=True,
-    ).select_related('estudiante'):
-        if enviar_certificado_whatsapp(cert):
-            enviados += 1
-        else:
+    ).select_related('estudiante')
+    if not permitir_otro_cliente:
+        qs = qs.filter(estudiante__cliente_id=curso.cliente_id)
+
+    for cert in qs:
+        est = cert.estudiante
+        try:
+            # Plantilla con imagen = un solo mensaje, sin previo ni ventana.
+            if not sid_media and (sid_previo or texto_previo):
+                ok_prev = enviar_previo_whatsapp(
+                    est,
+                    curso,
+                    texto_libre=texto_previo if not sid_previo else None,
+                    twilio_content_sid=sid_previo or None,
+                )
+                if ok_prev.get('success'):
+                    previos += 1
+                    marcar_cert_envio_pendiente(est, cert, curso)
+                    continue
+                errores += 1
+                continue
+
+            if enviar_certificado_whatsapp(
+                cert,
+                twilio_content_sid_media=sid_media or None,
+                media_var_index=media_var_index,
+                twilio_content_sid=sid_diploma or None,
+                tras_plantilla_previo=bool(sid_previo or texto_previo),
+            ):
+                enviados += 1
+            else:
+                errores += 1
+        except Exception:
             errores += 1
+
     total_sel = len(set(estudiante_ids))
-    omitidos = total_sel - enviados - errores
-    return {'enviados': enviados, 'errores': errores, 'omitidos': omitidos}
+    omitidos = max(0, total_sel - enviados - errores)
+    return {
+        'mensajes_previos': previos,
+        'enviados': enviados,
+        'errores': errores,
+        'omitidos': omitidos,
+    }
 
 
 def enviar_certificados_seleccion(
@@ -323,6 +553,10 @@ def enviar_certificados_seleccion(
     curso: Curso,
     *,
     mensaje_previo: str | None = None,
+    twilio_content_sid_media: str | None = None,
+    media_var_index: str = '1',
+    twilio_content_sid_previo: str | None = None,
+    twilio_content_sid_diploma: str | None = None,
     emitir_certificado: bool = True,
     enviar_whatsapp_certificado: bool = True,
     calificacion: float = 100.0,
@@ -333,9 +567,11 @@ def enviar_certificados_seleccion(
     """
     Flujo tipo campaña + certificado para los marcados.
     No toca ProgresoEstudiante ni onboarding.
-    """
-    from core.utils import enviar_whatsapp_twilio
 
+    Modo ideal: twilio_content_sid_media → plantilla aprobada con imagen del
+    certificado en el header (un solo mensaje, sin previo ni ventana de 24 h).
+    Alternativa: previo + imagen de sesión (twilio_content_sid_previo/diploma).
+    """
     estudiantes = Estudiante.objects.filter(pk__in=estudiante_ids, activo=True)
     if not permitir_otro_cliente:
         estudiantes = estudiantes.filter(cliente_id=curso.cliente_id)
@@ -346,24 +582,20 @@ def enviar_certificados_seleccion(
         'existentes': 0,
         'regenerados': 0,
         'certificados_enviados': 0,
+        'pendientes_respuesta': 0,
         'omitidos': 0,
         'errores': 0,
     }
 
+    sid_media = (twilio_content_sid_media or '').strip()
+    sid_previo = (twilio_content_sid_previo or '').strip()
+    sid_diploma = (twilio_content_sid_diploma or '').strip()
     texto_previo = (mensaje_previo or '').strip()
+    # Plantilla con imagen = un solo mensaje; no se usa el previo.
+    usar_previo = bool(not sid_media and (sid_previo or texto_previo))
+
     for est in estudiantes:
         try:
-            if texto_previo:
-                cuerpo = texto_previo.replace('{nombre}', est.nombre or 'Estudiante')
-                cuerpo = cuerpo.replace('{cedula}', est.cedula or '')
-                cuerpo = cuerpo.replace('{curso}', curso.nombre or '')
-                ok_prev = enviar_whatsapp_twilio(telefono=est.telefono, texto=cuerpo)
-                if ok_prev.get('success'):
-                    resumen['mensajes_previos'] += 1
-                else:
-                    resumen['errores'] += 1
-                    continue
-
             cert = None
             estado = None
             if emitir_certificado:
@@ -393,8 +625,36 @@ def enviar_certificados_seleccion(
                     resumen['omitidos'] += 1
                     continue
 
+            if usar_previo:
+                ok_prev = enviar_previo_whatsapp(
+                    est,
+                    curso,
+                    texto_libre=texto_previo if not sid_previo else None,
+                    twilio_content_sid=sid_previo or None,
+                )
+                if ok_prev.get('success'):
+                    resumen['mensajes_previos'] += 1
+                else:
+                    resumen['errores'] += 1
+                    continue
+
+                if enviar_whatsapp_certificado and cert and cert.emitido:
+                    marcar_cert_envio_pendiente(est, cert, curso)
+                    if cert.enviado_whatsapp:
+                        cert.enviado_whatsapp = False
+                        cert.fecha_envio = None
+                        cert.save(update_fields=['enviado_whatsapp', 'fecha_envio'])
+                    resumen['pendientes_respuesta'] += 1
+                continue
+
             if enviar_whatsapp_certificado and cert and cert.emitido:
-                if enviar_certificado_whatsapp(cert):
+                if enviar_certificado_whatsapp(
+                    cert,
+                    twilio_content_sid_media=sid_media or None,
+                    media_var_index=media_var_index,
+                    twilio_content_sid=sid_diploma or None,
+                    tras_plantilla_previo=usar_previo,
+                ):
                     resumen['certificados_enviados'] += 1
                 else:
                     resumen['errores'] += 1

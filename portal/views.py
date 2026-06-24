@@ -8,16 +8,21 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from core.models import (
+    CampanaUnica,
     Curso,
     Estudiante,
     MetaMetricaEmpresa,
     ProgresoEstudiante,
+    RespuestaCampanaUnica,
     SolicitudSoporte,
 )
+from core.models_certificados import Certificado
+from core.campana_respuestas import destinatarios_efectivos_qs
 from core.models_extras import GrupoEstudiantes
 from core.drip_schedule import max_modulo_alcanzado
 from core.metricas_empresa import calcular_metricas_empresa
 from .authz import requiere_portal_admin
+from .curso_flujo_service import embudo_curso_portal
 from .capabilities import categorias_pqrs_portal, modulos_portal, requiere_modulo
 from .gei_config import (
     formulario_editable_por_org,
@@ -27,7 +32,12 @@ from .gei_config import (
 from .nat_documentos import crear_documento_nat, listar_documentos_nat
 from .metricas_ejecutivas import detalle_estudiantes_learning, resumen_ejecutivo_portal
 from .ranking_portal import ranking_portal
-from .exports import filas_reenganche_sin_modulo, respuesta_excel_plantilla, validar_filtros_export
+from .exports import (
+    filas_reenganche_sin_modulo,
+    respuesta_excel_avance_estudiantes,
+    respuesta_excel_plantilla,
+    validar_filtros_export,
+)
 from .gei_exports import respuesta_excel_fichas_gei
 from .gei_service import analitica_gei, parse_filtros_gei
 from .nat_service import analitica_nat
@@ -366,14 +376,51 @@ def portal_nat_documentos(request):
 @portal_login_required
 @requiere_modulo('cursos')
 def campanas_lista(request):
-    """Campañas solo en admin eki; redirige al dashboard."""
-    return redirect('/portal/dashboard/')
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    campanas = []
+    for c in CampanaUnica.objects.filter(cliente=org).order_by('-fecha_creacion'):
+        campanas.append({
+            'obj': c,
+            'dest_count': destinatarios_efectivos_qs(c).count(),
+        })
+
+    return render(request, 'portal/campanas.html', {
+        'org': org,
+        'campanas': campanas,
+        'portal_es_admin': getattr(request, 'portal_es_admin', False),
+    })
 
 
 @portal_login_required
 @requiere_modulo('cursos')
 def campana_detalle(request, campana_id):
-    return redirect('/portal/dashboard/')
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    campana = get_object_or_404(CampanaUnica, pk=campana_id, cliente=org)
+    respuestas = (
+        RespuestaCampanaUnica.objects.filter(campana=campana)
+        .select_related('estudiante')
+        .order_by('-fecha_respuesta')
+    )
+    resp_si = [r for r in respuestas if r.respuesta == 'si']
+    resp_no = [r for r in respuestas if r.respuesta == 'no']
+    dest_count = destinatarios_efectivos_qs(campana).count()
+    pct_si = round(100 * len(resp_si) / dest_count, 1) if dest_count else 0
+
+    return render(request, 'portal/campana_detalle.html', {
+        'org': org,
+        'campana': campana,
+        'dest_count': dest_count,
+        'resp_si': resp_si,
+        'resp_no': resp_no,
+        'pct_si': pct_si,
+        'puede_gestionar': getattr(request, 'portal_es_admin', False),
+    })
 
 
 def _filtros_portal_cursos_grupos(org):
@@ -478,6 +525,62 @@ def exportar_estudiantes_excel(request):
 
 @portal_login_required
 @requiere_modulo('cursos')
+def exportar_avance_excel(request):
+    """Excel con avance detallado de estudiantes (mismos filtros que métricas)."""
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    curso_id_int, grupo_id_int = validar_filtros_export(
+        org,
+        request.GET.get('curso'),
+        request.GET.get('grupo'),
+    )
+    desde = request.GET.get('desde') or None
+    hasta = request.GET.get('hasta') or None
+    filas = detalle_estudiantes_learning(
+        org,
+        curso_id=curso_id_int,
+        grupo_id=grupo_id_int,
+        desde=desde,
+        hasta=hasta,
+        limite=10000,
+    )
+    slug = (org.nombre or 'org')[:30].replace(' ', '_')
+    return respuesta_excel_avance_estudiantes(
+        filas,
+        nombre_archivo=f'avance_estudiantes_{slug}.xlsx',
+    )
+
+
+@portal_login_required
+def portal_reportes(request):
+    """Centro de descargas Excel para la organización."""
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    mods = modulos_portal(org)
+    cursos, grupos = _filtros_portal_cursos_grupos(org) if mods.get('cursos') else ([], [])
+    gei_filtros = parse_filtros_gei(request, org) if mods.get('gei') else {}
+
+    return render(request, 'portal/reportes.html', {
+        'org': org,
+        'mods': mods,
+        'cursos': cursos,
+        'grupos': grupos,
+        'gei_filtros': gei_filtros,
+        'filtros': {
+            'curso': request.GET.get('curso', ''),
+            'grupo': request.GET.get('grupo', ''),
+            'desde': request.GET.get('desde', ''),
+            'hasta': request.GET.get('hasta', ''),
+        },
+    })
+
+
+@portal_login_required
+@requiere_modulo('cursos')
 def cursos_lista(request):
     org = _portal_org(request)
     if not org:
@@ -490,6 +593,59 @@ def cursos_lista(request):
     return render(request, 'portal/cursos.html', {
         'org': org,
         'cursos': lista,
+    })
+
+
+@portal_login_required
+@requiere_modulo('cursos')
+def portal_curso_flujo(request, curso_id: int):
+    """Embudo de avance por módulo (solo lectura)."""
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    datos = embudo_curso_portal(org, curso_id)
+    if datos is None:
+        return redirect('/portal/cursos/')
+
+    cursos = Curso.objects.filter(cliente=org, activo=True).order_by('orden', 'nombre')
+    return render(request, 'portal/curso_flujo.html', {
+        'org': org,
+        'cursos': cursos,
+        'datos': datos,
+        'curso': datos['curso'],
+    })
+
+
+@portal_login_required
+@requiere_modulo('cursos')
+def portal_certificados(request):
+    """Listado de certificados emitidos por la organización (solo lectura)."""
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    curso_id_raw = request.GET.get('curso') or ''
+    curso_id = int(curso_id_raw) if str(curso_id_raw).isdigit() else None
+    cursos = Curso.objects.filter(cliente=org, activo=True).order_by('orden', 'nombre')
+    if curso_id and not cursos.filter(pk=curso_id).exists():
+        curso_id = None
+
+    qs = (
+        Certificado.objects.filter(estudiante__cliente=org)
+        .select_related('estudiante', 'curso')
+        .order_by('-fecha_emision', '-id')
+    )
+    if curso_id:
+        qs = qs.filter(curso_id=curso_id)
+
+    total_emitidos = qs.filter(emitido=True).count()
+    return render(request, 'portal/certificados.html', {
+        'org': org,
+        'cursos': cursos,
+        'certificados': qs[:500],
+        'total_emitidos': total_emitidos,
+        'filtro_curso': curso_id,
     })
 
 
@@ -618,6 +774,54 @@ def _curso_filtro_portal(request, org, cursos):
 def portal_gamificacion(request):
     """Redirige al dashboard (ranking integrado allí)."""
     return redirect('/portal/dashboard/#ranking')
+
+
+@portal_login_required
+@requiere_modulo('cursos')
+def portal_conversaciones(request):
+    """Historial WhatsApp de los participantes de la organización."""
+    from core.conversaciones_service import construir_contexto_inbox
+
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    estudiante_raw = (request.GET.get('estudiante') or '').strip()
+    estudiante_id = int(estudiante_raw) if estudiante_raw.isdigit() else None
+    page_raw = (request.GET.get('page') or '1').strip()
+    page = int(page_raw) if page_raw.isdigit() else 1
+
+    context = construir_contexto_inbox(
+        estudiante_id=estudiante_id,
+        telefono=(request.GET.get('telefono') or '').strip() or None,
+        page=page,
+        org_fijo=org,
+    )
+    context.update({
+        'org': org,
+        'inbox_base_url': '/portal/conversaciones/',
+        'inbox_volver_url': '/portal/dashboard/',
+        'inbox_volver_label': 'Dashboard',
+        'inbox_modo': 'portal',
+    })
+    return render(request, 'portal/conversaciones.html', context)
+
+
+@portal_login_required
+@requiere_modulo('empleabilidad')
+def portal_empleabilidad(request):
+    """KPIs de exploración territorial: retención, misiones y oportunidades georef."""
+    from .empleabilidad_metricas import resumen_empleabilidad_portal
+
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    resumen = resumen_empleabilidad_portal(org)
+    return render(request, 'portal/empleabilidad.html', {
+        'org': org,
+        'resumen': resumen,
+    })
 
 
 @portal_login_required
@@ -795,9 +999,13 @@ def perfil_organizacion(request):
     elif request.method == 'POST' and not puede_editar:
         mensaje_error = 'Solo los administradores del portal pueden editar el perfil.'
 
+    from .branding import branding_portal_completo, pasos_branding
+
     return render(request, 'portal/perfil.html', {
         'org': org,
         'puede_editar': puede_editar,
         'mensaje_ok': mensaje_ok,
         'mensaje_error': mensaje_error,
+        'branding_completo': branding_portal_completo(org),
+        'branding_pasos': pasos_branding(org),
     })

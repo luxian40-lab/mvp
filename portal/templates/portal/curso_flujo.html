@@ -1,0 +1,65 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Flujo del curso | Portal eki{% endblock %}
+
+{% block extra_head %}
+<style>
+    .flujo-hero { margin-bottom: 1.5rem; }
+    .flujo-stats { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1rem 0 1.5rem; }
+    .flujo-stat { background: var(--blanco); border: 1px solid var(--borde); border-radius: 10px; padding: 12px 16px; min-width: 140px; }
+    .flujo-stat strong { display: block; font-size: 1.35rem; }
+    .flujo-bar-wrap { margin-bottom: 14px; }
+    .flujo-bar-label { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px; }
+    .flujo-bar { height: 28px; background: #f1f5f9; border-radius: 8px; overflow: hidden; border: 1px solid var(--borde); }
+    .flujo-bar-fill { height: 100%; background: linear-gradient(90deg, #7c3aed, #a78bfa); border-radius: 7px; min-width: 2px; transition: width 0.3s ease; }
+    .flujo-readonly { font-size: 13px; color: var(--texto-muted); margin-top: 0.5rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title flujo-hero">
+    <h1>Flujo del curso</h1>
+    <p class="muted">Avance por módulo — solo lectura. No modifica fechas ni habilitaciones del curso.</p>
+</div>
+
+<form method="get" class="panel" style="margin-bottom:1.25rem;display:flex;flex-wrap:wrap;gap:12px;align-items:end;">
+    <label>
+        <span class="metric-label">Curso</span>
+        <select name="curso" onchange="if(this.value) location.href='/portal/cursos/'+this.value+'/flujo/'" style="display:block;margin-top:6px;padding:8px 12px;border-radius:8px;border:1px solid var(--borde);min-width:240px;">
+            {% for c in cursos %}
+            <option value="{{ c.id }}" {% if c.id == curso.id %}selected{% endif %}>{{ c.nombre }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <a href="/portal/cursos/" class="btn btn-ghost">Volver a cursos</a>
+</form>
+
+<section class="panel">
+    <h2 style="margin:0 0 0.5rem;font-size:1.1rem;">{{ curso.nombre }}</h2>
+    <div class="flujo-stats">
+        <div class="flujo-stat"><span class="metric-label">Inscritos</span><strong>{{ datos.total_inscritos }}</strong></div>
+        <div class="flujo-stat"><span class="metric-label">Completaron</span><strong>{{ datos.completados }}</strong></div>
+        <div class="flujo-stat"><span class="metric-label">Sin iniciar</span><strong>{{ datos.sin_iniciar }}</strong></div>
+    </div>
+
+    {% if datos.pasos %}
+    <h3 style="font-size:15px;margin:0 0 1rem;">Embudo por módulo</h3>
+    <p class="muted" style="margin:0 0 1rem;font-size:13px;">«Alcanzó M{n}» = el estudiante llegó al menos a ese módulo o ya terminó el curso.</p>
+    {% for paso in datos.pasos %}
+    <div class="flujo-bar-wrap">
+        <div class="flujo-bar-label">
+            <span><strong>M{{ paso.numero }}</strong> — {{ paso.titulo }}</span>
+            <span>{{ paso.estudiantes }} estudiantes ({{ paso.pct }}%)</span>
+        </div>
+        <div class="flujo-bar" role="presentation">
+            <div class="flujo-bar-fill" style="width: {{ paso.pct }}%;"></div>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="muted">Este curso aún no tiene módulos configurados.</p>
+    {% endif %}
+
+    <p class="flujo-readonly">Para cambiar fechas de habilitación o enviar push, use el panel de administración eki.</p>
+</section>
+{% endblock %}

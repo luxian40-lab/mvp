@@ -79,3 +79,19 @@ def enviar_mensaje_push_masivo(mensaje: MensajePush, grupo=None) -> dict:
             errores += 1
     logger.info('[Push] %s: enviados=%s errores=%s', mensaje.nombre, enviados, errores)
     return {'enviados': enviados, 'errores': errores}
+
+
+def enviar_push_a_estudiantes(mensaje: MensajePush, estudiante_ids: set[int] | list[int]) -> dict:
+    """Envía un mensaje push solo a los estudiantes marcados (no altera el avance del curso)."""
+    enviados = errores = 0
+    qs = Estudiante.objects.filter(pk__in=estudiante_ids, activo=True)
+    if mensaje.cliente_id:
+        qs = qs.filter(cliente_id=mensaje.cliente_id)
+    for est in qs.select_related('cliente'):
+        r = enviar_mensaje_push_a_estudiante(mensaje, est)
+        if r.get('success'):
+            enviados += 1
+        else:
+            errores += 1
+    logger.info('[Push] %s selección: enviados=%s errores=%s', mensaje.nombre, enviados, errores)
+    return {'enviados': enviados, 'errores': errores}

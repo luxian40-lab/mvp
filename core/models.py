@@ -305,8 +305,8 @@ class Cliente(models.Model):
         default='',
         verbose_name='Módulos del portal',
         help_text=(
-            'Opcional. Lista separada por coma: cursos, gei, nat. '
-            'Ej: cursos,gei o cursos,nat,gei. Vacío = solo el tipo principal.'
+            'Opcional. Lista separada por coma: cursos, gei, nat, empleabilidad. '
+            'Ej: cursos,empleabilidad o cursos,gei,nat. Vacío = solo el tipo principal.'
         ),
     )
     fecha_inicio_suscripcion = models.DateField(

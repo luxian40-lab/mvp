@@ -824,3 +824,82 @@ class EnvioMensajePush(models.Model):
         verbose_name = 'Envío mensaje push'
         verbose_name_plural = 'Envíos mensajes push'
         ordering = ['-fecha']
+
+
+class EnlaceFormularioExterno(models.Model):
+    """
+    Google Form (u otro) → al enviar respuesta, habilita un módulo al estudiante.
+    URL webhook: POST /api/integracion/form-externo/<token>/
+    """
+
+    CAMPO_CHOICES = [
+        ('cedula', 'Solo cédula (menos seguro)'),
+        ('telefono', 'Solo teléfono WhatsApp'),
+        ('cedula_y_telefono', 'Cédula + teléfono (recomendado)'),
+        ('cedula_y_nombre', 'Cédula + nombre completo'),
+    ]
+
+    nombre = models.CharField(max_length=120, help_text='Ej: Google Form pre-evaluación M5')
+    cliente = models.ForeignKey(
+        Cliente, on_delete=models.CASCADE, related_name='enlaces_formulario_externo',
+    )
+    curso = models.ForeignKey(
+        Curso, on_delete=models.CASCADE, related_name='enlaces_formulario_externo',
+    )
+    modulo = models.ForeignKey(
+        Modulo,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='enlaces_formulario_externo',
+        help_text='Vacío = último módulo del curso (mayor número).',
+    )
+    campo_identificador = models.CharField(
+        max_length=24,
+        choices=CAMPO_CHOICES,
+        default='cedula_y_telefono',
+        verbose_name='Validación de identidad',
+    )
+    token = models.CharField(max_length=64, unique=True, editable=False)
+    activo = models.BooleanField(default=True)
+    notas = models.TextField(blank=True, default='')
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Enlace formulario externo'
+        verbose_name_plural = 'Enlaces formulario externo (Google Form)'
+        ordering = ['-creado_en']
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            import secrets
+            self.token = secrets.token_urlsafe(24)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.nombre} · {self.cliente.nombre}'
+
+    def modulo_efectivo(self):
+        if self.modulo_id:
+            return self.modulo
+        return self.curso.modulos.order_by('-numero').first()
+
+
+class RegistroFormularioExterno(models.Model):
+    """Log de cada llamada al webhook (auditoría)."""
+    enlace = models.ForeignKey(
+        EnlaceFormularioExterno, on_delete=models.CASCADE, related_name='registros',
+    )
+    estudiante = models.ForeignKey(
+        Estudiante, on_delete=models.SET_NULL, null=True, blank=True, related_name='registros_form_externo',
+    )
+    identificador_recibido = models.CharField(max_length=80, blank=True, default='')
+    exito = models.BooleanField(default=False)
+    detalle = models.CharField(max_length=255, blank=True, default='')
+    payload = models.JSONField(default=dict, blank=True)
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Registro formulario externo'
+        verbose_name_plural = 'Registros formulario externo'
+        ordering = ['-fecha']

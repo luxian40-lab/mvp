@@ -88,8 +88,32 @@
             <span>Mapa territorial</span>
         </a>
         <a class="eki-hub-card" href="{% url 'admin_drip_estudiantes' %}">
-            Drip estudiantes
-            <span>Tabla unificada por cliente</span>
+            Acceso módulos
+            <span>Elegir varios estudiantes por módulo</span>
+        </a>
+        <a class="eki-hub-card" href="{% url 'admin:core_enlaceformularioexterno_changelist' %}">
+            Form externo
+            <span>Google Form → habilitar módulo</span>
+        </a>
+        <a class="eki-hub-card" href="{% url 'admin_ajustar_avance' %}">
+            Ajustar avance
+            <span>Retroceder módulos sin borrar personas</span>
+        </a>
+        <a class="eki-hub-card" href="{% url 'admin_aula_web' %}">
+            Aula web eki
+            <span>Profesores y estudiantes — /aprende/</span>
+        </a>
+        <a class="eki-hub-card" href="/portal/login/" target="_blank" rel="noopener">
+            Portal clientes
+            <span>Métricas B2B — /portal/</span>
+        </a>
+        <a class="eki-hub-card" href="{% url 'admin_envio_certificados' %}">
+            Envío certificados
+            <span>Mensaje + diploma — cualquier estudiante</span>
+        </a>
+        <a class="eki-hub-card" href="{% url 'admin:learning_plantillacertificado_changelist' %}">
+            Plantillas certificado
+            <span>Marcadores RGB y vista previa</span>
         </a>
         <a class="eki-hub-card" href="{% url 'admin:core_campana_changelist' %}">
             Campañas

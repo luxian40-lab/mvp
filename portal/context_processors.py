@@ -4,6 +4,7 @@ from django.conf import settings
 
 from core.models import SolicitudSoporte
 
+from .branding import branding_portal_completo, pasos_branding
 from .capabilities import categorias_pqrs_portal, modulos_portal
 
 
@@ -35,6 +36,7 @@ def portal_organizacion(request):
     msg = quote(f'Hola eki, necesito apoyo desde el portal — {org.nombre}.')
     mods = modulos_portal(org)
     es_admin = pu.rol == 'admin'
+    branding_ok = branding_portal_completo(org)
     return {
         'org': org,
         'portal_usuario': pu,
@@ -45,4 +47,8 @@ def portal_organizacion(request):
         'portal_mod_cursos': mods['cursos'],
         'portal_mod_gei': mods['gei'],
         'portal_mod_nat': mods['nat'],
+        'portal_mod_empleabilidad': mods['empleabilidad'],
+        'portal_branding_completo': branding_ok,
+        'portal_branding_pasos': pasos_branding(org),
+        'portal_branding_pendientes': sum(1 for p in pasos_branding(org) if not p['done']),
     }

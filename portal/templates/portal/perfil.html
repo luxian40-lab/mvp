@@ -1,13 +1,59 @@
 {% extends 'portal/base.html' %}
 
-{% block title %}Perfil de empresa | Portal eki{% endblock %}
+{% block title %}Perfil de empresa | Portal clientes eki{% endblock %}
+
+{% block extra_head %}
+<style>
+.perfil-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); gap: 24px; align-items: start; }
+@media (max-width: 900px) { .perfil-layout { grid-template-columns: 1fr; } }
+.perfil-checklist { list-style: none; margin: 0 0 20px; padding: 0; }
+.perfil-checklist li {
+    display: flex; gap: 10px; align-items: flex-start; padding: 10px 0;
+    border-bottom: 1px solid var(--borde); font-size: 14px;
+}
+.perfil-checklist li:last-child { border-bottom: none; }
+.perfil-check { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+.perfil-check.done { background: #d1fae5; color: #065f46; }
+.perfil-check.pending { background: #fef3c7; color: #92400e; }
+.perfil-field { margin-bottom: 18px; }
+.perfil-field label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 14px; }
+.perfil-field input[type="text"],
+.perfil-field input[type="url"],
+.perfil-field input[type="file"] { width: 100%; font: inherit; }
+.perfil-field input[type="text"],
+.perfil-field input[type="url"] {
+    padding: 10px 12px; border: 1px solid var(--borde); border-radius: 8px; box-sizing: border-box;
+}
+.perfil-field .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.perfil-preview-box {
+    background: var(--sidebar); border-radius: 12px; padding: 16px;
+}
+.perfil-preview-topbar {
+    background: var(--card); border: 1px solid var(--borde); border-radius: 8px;
+    padding: 10px 12px; margin-top: 12px; font-size: 12px;
+}
+.perfil-badge-ok {
+    display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+    background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0;
+}
+.perfil-badge-pending {
+    display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+    background: #fffbeb; color: #92400e; border: 1px solid #fde68a;
+}
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="page-title">
     <div>
         <h1>Perfil de la organización</h1>
-        <p class="muted">Logo e identidad visibles en el portal para su equipo.</p>
+        <p class="muted">Personalice cómo ve su equipo el <strong>portal clientes</strong>: logo y subtítulo en la barra lateral.</p>
     </div>
+    {% if branding_completo %}
+        <span class="perfil-badge-ok">Identidad completa</span>
+    {% else %}
+        <span class="perfil-badge-pending">Configuración pendiente</span>
+    {% endif %}
 </div>
 
 {% if mensaje_ok %}
@@ -17,30 +63,43 @@
     <div class="alert alert-error">{{ mensaje_error }}</div>
 {% endif %}
 
-<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,340px);gap:24px;align-items:start;">
+<div class="perfil-layout">
     <section class="panel">
+        <h2>Configuración de marca</h2>
+        <ul class="perfil-checklist" aria-label="Pasos de configuración">
+            {% for paso in branding_pasos %}
+            <li>
+                <span class="perfil-check {% if paso.done %}done{% else %}pending{% endif %}" aria-hidden="true">{% if paso.done %}✓{% else %}!{% endif %}</span>
+                <div>
+                    <strong>{{ paso.label }}</strong>
+                    <div class="muted" style="font-size:12px;margin-top:2px;">{{ paso.hint }}</div>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+
         {% if puede_editar %}
-        <form method="post" enctype="multipart/form-data">
+        <form method="post" enctype="multipart/form-data" id="perfil-form">
             {% csrf_token %}
 
-            <h2>Identidad en el portal</h2>
-            <p class="muted" style="margin-bottom:20px;">
-                Suba el logo de su empresa (PNG, JPG o WebP, máximo 5 MB). También puede pegar una URL pública si ya está alojada.
-            </p>
+            <div class="perfil-field">
+                <label for="logo_archivo">Subir logo</label>
+                <input type="file" id="logo_archivo" name="logo_archivo" accept="image/jpeg,image/png,image/webp,image/gif">
+                <p class="hint">PNG, JPG o WebP. Máximo 5 MB. Recomendado: fondo transparente o blanco.</p>
+            </div>
 
-            <label style="display:block;font-weight:600;margin-bottom:8px;">Subir logo</label>
-            <input type="file" name="logo_archivo" accept="image/jpeg,image/png,image/webp,image/gif"
-                style="display:block;margin-bottom:16px;font:inherit;">
+            <div class="perfil-field">
+                <label for="logo_url">O pegar URL del logo</label>
+                <input type="url" id="logo_url" name="logo_url" value="{{ org.logo_url }}" placeholder="https://...">
+                <p class="hint">Si ya tiene el logo en internet, pegue el enlace directo a la imagen.</p>
+            </div>
 
-            <label style="display:block;font-weight:600;margin-bottom:8px;">O URL del logo</label>
-            <input type="url" name="logo_url" value="{{ org.logo_url }}"
-                placeholder="https://..."
-                style="width:100%;padding:10px 12px;border:1px solid var(--borde);border-radius:8px;font:inherit;margin-bottom:20px;">
-
-            <label style="display:block;font-weight:600;margin-bottom:8px;">Subtítulo</label>
-            <input type="text" name="portal_subtitulo" value="{{ org.portal_subtitulo }}" maxlength="200"
-                placeholder="Ej: Programa de aceleración 2026"
-                style="width:100%;padding:10px 12px;border:1px solid var(--borde);border-radius:8px;font:inherit;margin-bottom:20px;">
+            <div class="perfil-field">
+                <label for="portal_subtitulo">Subtítulo del programa</label>
+                <input type="text" id="portal_subtitulo" name="portal_subtitulo" value="{{ org.portal_subtitulo }}" maxlength="200"
+                    placeholder="Ej: Programa de aceleración empresarial 2026">
+                <p class="hint">Aparece debajo del nombre de su organización en el portal.</p>
+            </div>
 
             <button type="submit" class="btn">Guardar cambios</button>
         </form>
@@ -62,26 +121,87 @@
     </section>
 
     <aside class="panel">
-        <h2>Vista previa</h2>
-        <p class="muted" style="margin-bottom:16px;">Así se verá en la barra lateral del portal.</p>
-        <div class="soft-box" style="background:var(--sidebar);border:none;padding:16px;">
-            <div style="display:flex;align-items:center;gap:12px;">
-                {% if org.logo_url %}
-                    <img src="{{ org.logo_url }}" alt="" style="width:44px;height:44px;border-radius:10px;object-fit:contain;background:#fff;padding:4px;">
-                {% else %}
-                    <div style="width:44px;height:44px;border-radius:10px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;">{{ org_iniciales }}</div>
-                {% endif %}
+        <h2>Vista previa en vivo</h2>
+        <p class="muted" style="margin-bottom:16px;">Así lo verán los coordinadores de su organización.</p>
+
+        <div class="perfil-preview-box">
+            <div style="display:flex;align-items:center;gap:12px;" id="preview-sidebar">
+                <img id="preview-logo-img" src="{{ org.logo_url }}" alt=""
+                    style="width:44px;height:44px;border-radius:10px;object-fit:contain;background:#fff;padding:4px;{% if not org.logo_url %}display:none{% endif %}">
+                <div id="preview-logo-fallback"
+                    style="width:44px;height:44px;border-radius:10px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;{% if org.logo_url %}display:none{% endif %}">{{ org_iniciales }}</div>
                 <div>
                     <div style="color:#f8fafc;font-weight:600;font-size:14px;">{{ org.nombre }}</div>
-                    <div style="color:#94a3b8;font-size:11px;margin-top:2px;">
+                    <div id="preview-subtitulo" style="color:#94a3b8;font-size:11px;margin-top:2px;">
                         {{ org.portal_subtitulo|default:"Portal empresarial" }}
                     </div>
                 </div>
             </div>
+            <div class="perfil-preview-topbar">
+                <div style="font-weight:600;color:var(--texto);">{{ org.nombre }}</div>
+                <div id="preview-topbar-meta" class="muted" style="margin-top:4px;">
+                    {{ org.portal_subtitulo|default:"Seguimiento y métricas de su organización" }}
+                </div>
+            </div>
         </div>
-        <p class="muted" style="margin-top:14px;font-size:12px;">
-            El nombre legal de la organización lo gestiona el equipo eki. Aquí solo personaliza la presentación del portal.
+
+        <p class="muted" style="margin-top:14px;font-size:12px;line-height:1.5;">
+            El nombre legal lo gestiona el equipo eki. Aquí solo personaliza la presentación del portal clientes para su equipo interno.
         </p>
     </aside>
 </div>
+
+{% if puede_editar %}
+<script>
+(function () {
+    var subtitulo = document.getElementById('portal_subtitulo');
+    var logoUrl = document.getElementById('logo_url');
+    var logoFile = document.getElementById('logo_archivo');
+    var previewSub = document.getElementById('preview-subtitulo');
+    var previewTop = document.getElementById('preview-topbar-meta');
+    var previewImg = document.getElementById('preview-logo-img');
+    var previewFallback = document.getElementById('preview-logo-fallback');
+
+    function updateSubtitulo() {
+        var val = (subtitulo && subtitulo.value.trim()) || 'Portal empresarial';
+        var top = (subtitulo && subtitulo.value.trim()) || 'Seguimiento y métricas de su organización';
+        if (previewSub) previewSub.textContent = val;
+        if (previewTop) previewTop.textContent = top;
+    }
+
+    function showLogoPreview(url) {
+        if (!url) {
+            if (previewImg) previewImg.style.display = 'none';
+            if (previewFallback) previewFallback.style.display = 'flex';
+            return;
+        }
+        if (previewImg) {
+            previewImg.src = url;
+            previewImg.style.display = 'block';
+            previewImg.onerror = function () {
+                previewImg.style.display = 'none';
+                if (previewFallback) previewFallback.style.display = 'flex';
+            };
+        }
+        if (previewFallback) previewFallback.style.display = 'none';
+    }
+
+    if (subtitulo) {
+        subtitulo.addEventListener('input', updateSubtitulo);
+    }
+    if (logoUrl) {
+        logoUrl.addEventListener('input', function () { showLogoPreview(logoUrl.value.trim()); });
+    }
+    if (logoFile) {
+        logoFile.addEventListener('change', function () {
+            var f = logoFile.files && logoFile.files[0];
+            if (!f) return;
+            var reader = new FileReader();
+            reader.onload = function (e) { showLogoPreview(e.target.result); };
+            reader.readAsDataURL(f);
+        });
+    }
+})();
+</script>
+{% endif %}
 {% endblock %}

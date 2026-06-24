@@ -1,0 +1,19 @@
+{% extends "aprende/base.html" %}
+{% block title %}{{ progreso.curso.nombre }}{% endblock %}
+{% block nav %}
+<a href="{% url 'aprende_estudiante_cursos' %}">← Mis cursos</a>
+{% endblock %}
+{% block content %}
+<h1>{{ progreso.curso.nombre }}</h1>
+<p class="muted">{{ progreso.curso.descripcion|default:"Lecciones del curso" }}</p>
+<ul class="lecciones card">
+    {% for m in modulos %}
+    <li>
+        <a href="{% url 'aprende_estudiante_modulo' m.id %}">Módulo {{ m.numero }}: {{ m.titulo }}</a>
+        <div class="muted">{{ m.descripcion|truncatewords:20 }}</div>
+    </li>
+    {% empty %}
+    <li class="muted">Sin lecciones publicadas aún.</li>
+    {% endfor %}
+</ul>
+{% endblock %}

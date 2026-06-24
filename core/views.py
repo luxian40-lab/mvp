@@ -1247,6 +1247,35 @@ def descargar_reportes(request):
     return render(request, 'admin/descargar_reportes.html', context)
 
 
+_TWILIO_STATUS_CALLBACKS = frozenset({
+    'queued', 'sending', 'sent', 'delivered', 'undelivered', 'failed', 'read',
+})
+
+
+def _twilio_post_plano(post_data) -> dict:
+    if hasattr(post_data, 'keys'):
+        return {k: post_data.get(k) for k in post_data.keys()}
+    return dict(post_data)
+
+
+def _es_status_callback_twilio(post_data) -> bool:
+    message_status = (post_data.get('MessageStatus') or post_data.get('SmsStatus') or '').lower()
+    return bool(message_status and message_status in _TWILIO_STATUS_CALLBACKS)
+
+
+def _encolar_twilio_edu_si_async(post_data) -> bool:
+    """Encola webhook educativo en Celery si WEBHOOK_CELERY_ASYNC=true."""
+    if not getattr(settings, 'WEBHOOK_CELERY_ASYNC', False):
+        return False
+    if _es_status_callback_twilio(post_data):
+        return False
+    from core.tasks import procesar_twilio_webhook_async
+
+    procesar_twilio_webhook_async.delay(_twilio_post_plano(post_data))
+    logger.info("📤 Webhook educativo encolado en Celery | sid=%s", post_data.get('MessageSid', ''))
+    return True
+
+
 # ---------- Webhook para WhatsApp Cloud API ----------
 @csrf_exempt
 def whatsapp_webhook(request):
@@ -1319,7 +1348,8 @@ def whatsapp_webhook(request):
                         _procesar_bot_comercial_twilio_webhook(payload)
                     else:
                         logger.info("🧭 Router webhook: Twilio destino educativo detectado (JSON)")
-                        _procesar_twilio_webhook(payload)
+                        if not _encolar_twilio_edu_si_async(payload):
+                            _procesar_twilio_webhook(payload)
                 else:
                     print("⚠️ JSON desconocido — ignorando", flush=True)
                 return HttpResponse('OK')
@@ -1342,7 +1372,10 @@ def whatsapp_webhook(request):
                 twilio_result = None
             else:
                 logger.info("🧭 Router webhook: Twilio destino educativo detectado (Form-Data)")
-                twilio_result = _procesar_twilio_webhook(request.POST)
+                if _encolar_twilio_edu_si_async(request.POST):
+                    twilio_result = None
+                else:
+                    twilio_result = _procesar_twilio_webhook(request.POST)
             # Si _procesar_twilio_webhook devuelve TwiML HttpResponse, retornarlo
             if isinstance(twilio_result, HttpResponse):
                 return twilio_result
@@ -1394,31 +1427,34 @@ def _cliente_habilita_proximidad(cliente):
     return bool(habilitado_legacy or (cliente and getattr(cliente, 'empleabilidad_exploracion_activa', False)))
 
 
-def _bot_comercial_sin_contexto_natural(pregunta: str) -> str:
-    """Respuestas naturales cuando aún no hay contexto RAG suficiente."""
+def _bot_comercial_sin_contexto_natural(pregunta: str, cliente=None) -> str:
+    """Respuestas cuando aún no hay contexto RAG suficiente (tono formal agrónomo)."""
+    from core.nati import obtener_nombre_bot
+
+    nombre = obtener_nombre_bot(cliente)
     q = (pregunta or '').strip().lower()
 
     saludos = {'hola', 'buenas', 'buenos dias', 'buen día', 'buenas tardes', 'buenas noches', 'hey'}
     if q in saludos or any(s in q for s in ['hola', 'buenas', 'buen dia', 'buen día']):
         return (
-            "Hola, soy tu asesor técnico agrícola.\n\n"
-            "Primero te ayudo con manejo del cultivo y luego, si aplica, te recomiendo "
-            "opciones de catálogo con base en la información indexada.\n\n"
-            "Cuéntame cultivo + objetivo (suelo, nutrición, enfermedad, plaga o productividad)."
+            f"Buenos días. Soy {nombre}, agrónoma virtual de eki.\n\n"
+            "Le acompaño en manejo técnico de su cultivo y, si usted lo solicita, "
+            "en orientación de catálogo con base en información oficial.\n\n"
+            "Indíqueme, por favor, su cultivo y qué necesita resolver."
         )
 
-    if 'gulupa' in q:
+    if 'gulupa' in q or 'gulupa' in q:
         return (
             "Perfecto, trabajemos *gulupa*.\n\n"
-            "Puedo orientarte en suelo, pH, altitud, nutrición y manejo sanitario "
-            "usando lo que ya está indexado en la base técnica.\n\n"
-            "Para darte una respuesta precisa, dime el punto puntual que quieres resolver primero."
+            "Puedo orientarle en suelo, pH, altitud, nutrición y manejo sanitario "
+            "con la información técnica disponible.\n\n"
+            "Para una respuesta precisa, indíqueme el punto puntual que desea resolver primero."
         )
 
     return (
         "Entendido. Vamos a resolverlo de forma técnica y práctica.\n\n"
-        "Indícame cultivo + objetivo puntual (suelo, nutrición, plaga o enfermedad) "
-        "y te respondo con base en la información indexada disponible."
+        "Indíqueme cultivo y objetivo puntual (suelo, nutrición, plaga o enfermedad) "
+        "y le responderé con base en la información oficial disponible."
     )
 
 
@@ -1799,7 +1835,7 @@ def _bot_comercial_respuesta_catalogo(
     tiene_rag = bool(contexto_rag)
     if not api_key:
         if not contexto_base:
-            return _bot_comercial_sin_contexto_natural(pregunta)
+            return _bot_comercial_sin_contexto_natural(pregunta, cliente=cliente)
 
         if tiene_rag:
             encabezado = "Con base en la información oficial de eki:"
@@ -1845,22 +1881,38 @@ def _bot_comercial_respuesta_catalogo(
             if bloque_agro else ''
         )
         bloque_modo = armar_instruccion_modo(routing.modo, routing.escala_premium)
-        user_prompt = (
-            f"CONSULTA DEL CLIENTE:\n{pregunta}\n\n"
+        bloque_consulta = (
+            f"CONSULTA DEL PRODUCTOR:\n{pregunta}\n\n"
             f"{bloque_ctx_prompt}"
             f"{bloque_modo}"
-            f"HISTORIAL RECIENTE:\n{historial_chat or '[VACIO]'}\n\n"
             f"DIAGNÓSTICO VISIÓN (si aplica):\n{diagnostico_vision or 'N/A'}\n\n"
             f"INFORMACIÓN OFICIAL DE EKI (fuente principal — use esto con precisión):\n{contexto_rag or '[VACIO]'}\n\n"
             f"INFORMACIÓN COMPLEMENTARIA WEB (solo si la oficial no alcanza):\n{contexto_web or '[VACIO]'}\n\n"
-            "Recuerde: nunca mencione al usuario términos como RAG, base de "
-            "conocimiento, fragmento o documento indexado. Hable de forma natural, "
-            "como agrónoma formal de eki (siempre de usted).\n"
+            "Recuerde: nunca mencione al productor términos como RAG, base de "
+            "conocimiento, fragmento o documento indexado. Hable como agrónoma formal de eki (siempre de usted).\n"
             "Si la consulta parece error de tipeo, ofrezca 1–2 interpretaciones plausibles "
             "con '¿Quiso decir...?' antes de conclusiones fuertes.\n"
             "Si INFORMACIÓN OFICIAL incluye listas Excel (producto, precio, dosis), "
             "use solo esas cifras; si no aparecen, no las invente."
         )
+        if sesion_comercial is not None:
+            # Memoria en SesionComercial; no duplicar WhatsappLog en el prompt.
+            messages = armar_messages_para_openai(
+                sesion=sesion_comercial,
+                nuevo_mensaje=bloque_consulta,
+                cliente=cliente,
+            )
+        else:
+            user_prompt = bloque_consulta
+            if historial_chat:
+                user_prompt = (
+                    f"{bloque_consulta}\n\n"
+                    f"HISTORIAL RECIENTE (referencia):\n{historial_chat}"
+                )
+            messages = [
+                {'role': 'system', 'content': system_prompt},
+                {'role': 'user', 'content': user_prompt},
+            ]
         modelo = routing.modelo
         temperatura = 0.1 if routing.escala_premium else 0.15
         try:
@@ -1868,17 +1920,6 @@ def _bot_comercial_respuesta_catalogo(
         except (TypeError, ValueError):
             max_out = 650
         max_out = max(120, min(max_out, 900))
-        if sesion_comercial is not None:
-            messages = armar_messages_para_openai(
-                sesion=sesion_comercial,
-                nuevo_mensaje=user_prompt,
-                cliente=cliente,
-            )
-        else:
-            messages = [
-                {'role': 'system', 'content': system_prompt},
-                {'role': 'user', 'content': user_prompt},
-            ]
         completion = client.chat.completions.create(
             model=modelo,
             temperature=temperatura,
@@ -1917,18 +1958,18 @@ def _bot_comercial_respuesta_catalogo(
         logger.warning(f"⚠️ Bot Comercial LLM fallback: {e}")
         if contexto_rag:
             return (
-                "Te comparto lo que encontré en la base técnica/comercial indexada:\n\n"
+                "Le comparto lo que encontré en la información oficial de eki:\n\n"
                 f"{contexto_rag[:1000]}\n\n"
-                "Para cotizar, envíame cantidad y municipio."
+                "Para cotizar, indíqueme cantidad y municipio."
             )
         if contexto_web:
             return (
-                "Aún no tengo suficiente contenido indexado en RAG para responder con exactitud. "
+                "Aún no tengo suficiente contenido indexado para responder con exactitud. "
                 "Encontré estas referencias externas de apoyo:\n\n"
                 f"{contexto_web[:1000]}\n\n"
-                "Si subes fichas técnicas o precios al RAG, te doy recomendación directa de producto."
+                "Si sube fichas técnicas o precios al equipo eki, podré darle una recomendación directa."
             )
-        return _bot_comercial_sin_contexto_natural(pregunta)
+        return _bot_comercial_sin_contexto_natural(pregunta, cliente=cliente)
 
 
 def _bot_comercial_historial_reciente(telefono: str, max_turnos: int = 6, max_chars: int = 1200) -> str:
@@ -2034,10 +2075,18 @@ def _actualizar_sesion_comercial(sesion, mensaje_usuario: str, respuesta_bot: st
     sesion.save(update_fields=['historial_mensajes', 'fecha_ultimo_mensaje'])
 
 
-def _bot_comercial_diagnosticar_imagen(media_url: str, media_type: str) -> str:
+def _bot_comercial_diagnosticar_imagen(media_url: str, media_type: str, cliente=None) -> str:
     """Diagnóstico preliminar de imagen de cultivo usando visión (si está disponible)."""
     if not media_url or not media_type.startswith('image'):
         return ''
+
+    from core.ai_capabilities import resolver_ai_capability
+
+    if not resolver_ai_capability('diagnostico_agro', cliente=cliente):
+        return (
+            "Recibí su imagen. El diagnóstico visual automático no está habilitado "
+            "para su organización; describa los síntomas y el cultivo, por favor."
+        )
 
     api_key = getattr(settings, 'OPENAI_API_KEY', '')
     if not api_key:
@@ -2054,8 +2103,9 @@ def _bot_comercial_diagnosticar_imagen(media_url: str, media_type: str) -> str:
                 {
                     'role': 'system',
                     'content': (
-                        "Eres agrónomo asistente. Entrega diagnóstico preliminar breve y prudente. "
-                        "No afirmes certeza absoluta. Enlista posible plaga/estrés y síntomas clave."
+                        "Usted es agrónoma de campo en Colombia. Entregue un diagnóstico preliminar "
+                        "breve y prudente, tratando al productor de usted. No afirme certeza absoluta. "
+                        "Indique posible plaga, enfermedad o estrés y síntomas observados."
                     ),
                 },
                 {
@@ -2070,7 +2120,10 @@ def _bot_comercial_diagnosticar_imagen(media_url: str, media_type: str) -> str:
         return (resp.choices[0].message.content or '').strip()
     except Exception as e:
         logger.warning(f"⚠️ Bot Comercial visión no disponible: {e}")
-        return "Recibí tu imagen, pero no pude completar el diagnóstico visual ahora."
+        return (
+            "Recibí su imagen, pero no pude completar el diagnóstico visual en este momento. "
+            "Describa los síntomas y el cultivo, por favor."
+        )
 
 
 def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
@@ -2160,14 +2213,8 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
         pass
 
     msg_normalizado = re.sub(r'\s+', ' ', (msg_body or '').strip().lower())
-    try:
-        memoria_turnos = int(getattr(settings, 'BOT_COMERCIAL_MEMORY_TURNOS', 6) or 6)
-    except (TypeError, ValueError):
-        memoria_turnos = 6
-    try:
-        memoria_chars = int(getattr(settings, 'BOT_COMERCIAL_MEMORY_MAX_CHARS', 1200) or 1200)
-    except (TypeError, ValueError):
-        memoria_chars = 1200
+    memoria_turnos = int(getattr(settings, 'BOT_COMERCIAL_MEMORY_TURNOS', 12) or 12)
+    memoria_chars = int(getattr(settings, 'BOT_COMERCIAL_MEMORY_MAX_CHARS', 3600) or 3600)
     historial_chat = _bot_comercial_historial_reciente(
         telefono=telefono_limpio,
         max_turnos=memoria_turnos,
@@ -2192,13 +2239,12 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
     )
     canal_rag = str(getattr(settings, 'BOT_COMERCIAL_RAG_CANAL', 'bot_comercial') or 'bot_comercial')
 
-    from core.nati import armar_saludo_inicial, armar_saludo_menu
+    from core.nati import armar_saludo_inicial, armar_saludo_menu, armar_cliente_ids_rag, resolver_cliente_desde_numero_whatsapp
 
-    # MVP: un cliente por entorno vía BOT_COMERCIAL_CLIENTE_ID (sin menú ni routing por número).
-    cliente_nati = None
-    if cliente_id_cfg:
+    cliente_nati = resolver_cliente_desde_numero_whatsapp(msg_to)
+    if not cliente_nati and cliente_id_cfg:
         try:
-            cliente_nati = Cliente.objects.filter(id=cliente_id_cfg).first()
+            cliente_nati = Cliente.objects.filter(id=cliente_id_cfg, activo=True).first()
         except Exception as e:
             logger.warning(
                 "Bot comercial: no se pudo cargar Cliente id=%s para Nat: %s",
@@ -2226,6 +2272,7 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
     except Exception:
         pass
 
+    routing = None
     if es_saludo:
         texto_respuesta = armar_saludo_inicial(cliente_nati)
     elif msg_normalizado in ['listo', 'continuar', 'menu', 'menú']:
@@ -2233,19 +2280,15 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
     else:
         diagnostico_vision = ''
         if num_media > 0 and media_type.startswith('image') and media_url:
-            diagnostico_vision = _bot_comercial_diagnosticar_imagen(media_url, media_type)
+            diagnostico_vision = _bot_comercial_diagnosticar_imagen(
+                media_url, media_type, cliente=cliente_nati,
+            )
 
         consulta = msg_body or 'Necesito asesoría agrícola'
         if diagnostico_vision:
             consulta = f"{consulta}\n\nDiagnóstico preliminar imagen: {diagnostico_vision}"
 
-        cliente_ids_consulta = []
-        if cliente_nati and cliente_nati.id:
-            cliente_ids_consulta = [cliente_nati.id]
-        elif cliente_id_cfg:
-            cliente_ids_consulta = [cliente_id_cfg]
-        else:
-            cliente_ids_consulta = [0]
+        cliente_ids_consulta = armar_cliente_ids_rag(cliente_nati)
 
         contexto_rag = ''
         contexto_web = ''
@@ -2256,8 +2299,11 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
             formatear_contexto_precios,
         )
         contexto_precios_db = ''
-        if es_consulta_catalogo(consulta) and cliente_ids_consulta != [0]:
-            productos_precio = buscar_precios(cliente_ids_consulta, consulta)
+        if es_consulta_catalogo(consulta) and cliente_ids_consulta:
+            productos_precio = buscar_precios(
+                [i for i in cliente_ids_consulta if i != 0] or cliente_ids_consulta,
+                consulta,
+            )
             if productos_precio:
                 contexto_precios_db = formatear_contexto_precios(productos_precio)
                 logger.info(
@@ -2379,7 +2425,12 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
             ctx_agro=ctx_agro,
         )
 
-    if not es_saludo and msg_normalizado not in ['listo', 'continuar', 'menu', 'menú']:
+    if (
+        not es_saludo
+        and msg_normalizado not in ['listo', 'continuar', 'menu', 'menú']
+        and routing is not None
+        and routing.modo in ('tecnico', 'catalogo', 'ambiguo')
+    ):
         try:
             import uuid
 
@@ -2772,6 +2823,79 @@ def _procesar_ubicacion_empleabilidad(estudiante, latitud, longitud):
     )
 
 
+def _es_respuesta_liberar_certificado(msg: str) -> bool:
+    """
+    Respuesta del estudiante que abre ventana WhatsApp tras plantilla de certificado.
+    Acepta OK, gracias, cualquier texto o número. NO acepta 'listo'/'continuar'
+    (comandos de avance de curso).
+    """
+    import re
+
+    t = (msg or '').strip().lower()
+    if not t:
+        return False
+    limpio = re.sub(r'[^0-9a-záéíóúñ ]', '', t).strip()
+    if not limpio:
+        return False
+    if limpio in ('listo', 'continuar', 'continuar curso', 'siguiente', 'menu', 'menú'):
+        return False
+    return True
+
+
+def _es_ack_certificado(msg: str) -> bool:
+    """Alias retrocompatible para tests y plantilla inicial (pide OK)."""
+    return _es_respuesta_liberar_certificado(msg)
+
+
+def _intentar_responder_envio_certificado(estudiante, msg_body, telefono_limpio, msg_from):
+    """
+    Si el estudiante tiene un certificado pendiente (tras plantilla de aviso) y responde
+    cualquier mensaje, envía el diploma (la ventana de 24 h quedó abierta por su respuesta).
+    """
+    ctx = estudiante.contexto_temporal or {}
+    pend = ctx.get('cert_envio_pendiente')
+    if not pend:
+        return False
+    if not _es_respuesta_liberar_certificado(msg_body):
+        return False
+
+    cert_id = pend.get('certificado_id')
+    from .models_certificados import Certificado
+    from .certificado_service import enviar_certificado_whatsapp
+    from .certificado_presencial_service import limpiar_cert_envio_pendiente
+
+    cert = (
+        Certificado.objects.filter(id=cert_id, emitido=True)
+        .select_related('estudiante', 'curso')
+        .first()
+    )
+    if not cert:
+        limpiar_cert_envio_pendiente(estudiante)
+        return False
+
+    ok = False
+    try:
+        ok = enviar_certificado_whatsapp(cert)
+    except Exception as e:
+        logger.error('🎓 Envío certificado tras OK falló est=%s: %s', estudiante.id, e, exc_info=True)
+
+    if ok:
+        limpiar_cert_envio_pendiente(estudiante)
+        logger.info(
+            '🎓 Certificado %s entregado tras respuesta de est=%s',
+            cert.codigo_verificacion,
+            estudiante.id,
+        )
+    else:
+        logger.error(
+            '🎓 Certificado %s NO pudo enviarse tras respuesta de est=%s (sigue pendiente)',
+            cert.codigo_verificacion,
+            estudiante.id,
+        )
+    # La respuesta era para el certificado: no seguir onboarding/curso.
+    return True
+
+
 def _procesar_twilio_webhook(post_data):
     """Procesa webhooks de Twilio WhatsApp"""
     # ============================================================
@@ -2883,6 +3007,48 @@ def _procesar_twilio_webhook(post_data):
             estudiante = Estudiante.objects.select_related('cliente').get(telefono=telefono_limpio)
             logger.info(f"Estudiante encontrado: {estudiante.nombre} (ID: {estudiante.id})")
 
+            # Respuesta campaña única (Sí/No, Asistiré/No asistiré) — antes del flujo del curso
+            try:
+                from .campana_respuestas import intentar_registrar_respuesta_campana_unica
+
+                _ack_campana = intentar_registrar_respuesta_campana_unica(
+                    telefono_limpio=telefono_limpio,
+                    post_data=post_data,
+                    msg_body=msg_body,
+                    estudiante=estudiante,
+                    mensaje_sid=msg_sid,
+                )
+                if _ack_campana:
+                    from twilio.rest import Client as TwilioClient
+
+                    account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                    auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                    twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
+                    client_tw = TwilioClient(account_sid, auth_token)
+                    destino = (
+                        f'whatsapp:{msg_from}'
+                        if not str(msg_from).startswith('whatsapp:')
+                        else msg_from
+                    )
+                    client_tw.messages.create(
+                        body=_ack_campana,
+                        from_=str(twilio_number).strip(),
+                        to=str(destino).strip(),
+                    )
+                    WhatsappLog.objects.create(
+                        telefono=telefono_limpio,
+                        mensaje=_ack_campana,
+                        tipo='SENT',
+                    )
+                    logger.info(
+                        '📣 [campana] ack enviado | est=%s tel=%s',
+                        estudiante.id,
+                        telefono_limpio[-6:],
+                    )
+                    return
+            except Exception as _e_camp:
+                logger.warning('📣 [campana] error registrando respuesta: %s', _e_camp, exc_info=True)
+
             # Ubicación de WhatsApp (Twilio): Latitude/Longitude
             if latitud_raw is not None and longitud_raw is not None:
                 try:
@@ -2903,6 +3069,18 @@ def _procesar_twilio_webhook(post_data):
                     return
                 except ValueError:
                     logger.warning(f"⚠️ Coordenadas inválidas recibidas: lat={latitud_raw}, lon={longitud_raw}")
+
+            # Certificado presencial pendiente: ANTES de Habeas/onboarding.
+            # Si el estudiante respondió OK a la plantilla inicial, "ok" no debe
+            # interpretarse como aceptación de política de datos.
+            try:
+                if _intentar_responder_envio_certificado(
+                    estudiante, msg_body, telefono_limpio, msg_from,
+                ):
+                    return
+            except Exception as e:
+                logger.exception('Intercept certificado pendiente omitido: %s', e)
+
         except Estudiante.DoesNotExist:
             # Verificar si ya es un prospecto B2B existente
             from .models import ProspectoB2B
@@ -3077,65 +3255,66 @@ def _procesar_twilio_webhook(post_data):
         
         # --- BARRERA 1: HABEAS DATA ---
         if estado_chat == 'ESPERANDO_HABEAS_DATA':
-            msg_lower = msg_body.strip().lower()
-            keywords_acepto = ['acepto', 'sí', 'si', 'aceptar', 'ok', 'yes', 'acepto', 'de acuerdo']
-            keywords_no = ['no acepto', 'no', 'rechazo', 'rechazar']
-            
-            if any(k in msg_lower for k in keywords_acepto):
-                estudiante.acepto_terminos = True
-                estudiante.fecha_aceptacion_terminos = timezone.now()
-                estudiante.estado_chat = 'ESPERANDO_CEDULA'
-                estudiante.save()
-                
-                texto_respuesta = (
-                    "✅ *¡Gracias por aceptar!*\n\n"
-                    "Para verificar tu identidad, por favor escribe "
-                    "tu *número de cédula* (solo los números, sin puntos ni espacios).\n\n"
-                    "👉 Ejemplo: 1234567890"
-                )
-            elif any(k in msg_lower for k in keywords_no):
-                texto_respuesta = (
-                    "😔 Entendemos tu decisión.\n\n"
-                    "Sin la aceptación de la política de datos no podemos "
-                    "activar tu cuenta en la plataforma.\n\n"
-                    "Si cambias de opinión, escríbenos en cualquier momento. 🌱"
-                )
-            else:
-                # Enviar primero template Twilio (cliente > global > fallback eki).
-                # Si falla, degradar a texto plano con URL para no bloquear onboarding.
-                from .whatsapp_service import enviar_habeas_data
-                resultado_tpl = enviar_habeas_data(msg_from, cliente=estudiante.cliente)
-                if resultado_tpl.get('success'):
-                    return
+            if not (estudiante.contexto_temporal or {}).get('cert_envio_pendiente'):
+                msg_lower = msg_body.strip().lower()
+                keywords_acepto = ['acepto', 'sí', 'si', 'aceptar', 'ok', 'yes', 'acepto', 'de acuerdo']
+                keywords_no = ['no acepto', 'no', 'rechazo', 'rechazar']
 
-                # Fallback texto: mostrar URL efectiva del cliente.
-                from .security_handler import _url_politica_datos_cliente
-                url_politica = _url_politica_datos_cliente(estudiante=estudiante)
-                texto_respuesta = (
-                    "👋 *¡Bienvenido a eki!*\n\n"
-                    "🚜 Tu plataforma de soluciones educativas por WhatsApp\n\n"
-                    "📜 *Protección de Datos Personales*\n"
-                    "Antes de comenzar, necesitamos tu autorización para usar "
-                    "tus datos de acuerdo con la Ley 1581 de 2012.\n\n"
-                    f"🔗 Lee nuestra política completa aquí:\n{url_politica}\n\n"
-                    "*¿Aceptas el tratamiento de tus datos?*\n\n"
-                    "👉 Escribe *Acepto* o *No acepto*"
-                )
-            
-            # Enviar y cortar
-            try:
-                from twilio.rest import Client as TwilioClient
-                account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-                auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-                twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
-                client_tw = TwilioClient(account_sid, auth_token)
-                destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
-                client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
-                WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
-            except Exception as e:
-                logger.error(f"❌ Error enviando habeas data: {e}")
-                import traceback; traceback.print_exc()
-            return  # CORTAR EJECUCIÓN
+                if any(k in msg_lower for k in keywords_acepto):
+                    estudiante.acepto_terminos = True
+                    estudiante.fecha_aceptacion_terminos = timezone.now()
+                    estudiante.estado_chat = 'ESPERANDO_CEDULA'
+                    estudiante.save()
+
+                    texto_respuesta = (
+                        "✅ *¡Gracias por aceptar!*\n\n"
+                        "Para verificar tu identidad, por favor escribe "
+                        "tu *número de cédula* (solo los números, sin puntos ni espacios).\n\n"
+                        "👉 Ejemplo: 1234567890"
+                    )
+                elif any(k in msg_lower for k in keywords_no):
+                    texto_respuesta = (
+                        "😔 Entendemos tu decisión.\n\n"
+                        "Sin la aceptación de la política de datos no podemos "
+                        "activar tu cuenta en la plataforma.\n\n"
+                        "Si cambias de opinión, escríbenos en cualquier momento. 🌱"
+                    )
+                else:
+                    # Enviar primero template Twilio (cliente > global > fallback eki).
+                    # Si falla, degradar a texto plano con URL para no bloquear onboarding.
+                    from .whatsapp_service import enviar_habeas_data
+                    resultado_tpl = enviar_habeas_data(msg_from, cliente=estudiante.cliente)
+                    if resultado_tpl.get('success'):
+                        return
+
+                    # Fallback texto: mostrar URL efectiva del cliente.
+                    from .security_handler import _url_politica_datos_cliente
+                    url_politica = _url_politica_datos_cliente(estudiante=estudiante)
+                    texto_respuesta = (
+                        "👋 *¡Bienvenido a eki!*\n\n"
+                        "🚜 Tu plataforma de soluciones educativas por WhatsApp\n\n"
+                        "📜 *Protección de Datos Personales*\n"
+                        "Antes de comenzar, necesitamos tu autorización para usar "
+                        "tus datos de acuerdo con la Ley 1581 de 2012.\n\n"
+                        f"🔗 Lee nuestra política completa aquí:\n{url_politica}\n\n"
+                        "*¿Aceptas el tratamiento de tus datos?*\n\n"
+                        "👉 Escribe *Acepto* o *No acepto*"
+                    )
+
+                # Enviar y cortar
+                try:
+                    from twilio.rest import Client as TwilioClient
+                    account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                    auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                    twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
+                    client_tw = TwilioClient(account_sid, auth_token)
+                    destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
+                    client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
+                    WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
+                except Exception as e:
+                    logger.error(f"❌ Error enviando habeas data: {e}")
+                    import traceback; traceback.print_exc()
+                return  # CORTAR EJECUCIÓN
         
         # --- BARRERA 2: VALIDACIÓN 2FA (Cédula) ---
         if estado_chat == 'ESPERANDO_CEDULA':
@@ -6097,234 +6276,30 @@ def calendario_campanas_view(request):
     return render(request, 'admin/calendario_campanas.html', context)
 
 
-def _conversaciones_fecha_aware(fecha):
-    """Normaliza datetimes para ordenar/mezclar sin TypeError naive vs aware."""
-    if not fecha:
-        return timezone.now()
-    if timezone.is_naive(fecha):
-        return timezone.make_aware(fecha)
-    return fecha
-
-
-# Máximo de filas por fuente al abrir un chat (evita 500/timeout en prod con historiales largos).
-_CONVERSACIONES_MSG_LIMIT = 400
-
-
 @staff_member_required
 def conversaciones_view(request):
-    """Vista de conversaciones estilo WhatsApp, agrupadas por cliente (organización)."""
-    from django.db.models import Count, Max, Q
-
-    from core.utils_telefono import normalizar_telefono, variantes_telefono
+    """Vista de conversaciones estilo WhatsApp Web (pantalla completa)."""
+    from core.conversaciones_service import construir_contexto_inbox
 
     cliente_filtro_raw = (request.GET.get("cliente") or "").strip()
     cliente_filtro_id = int(cliente_filtro_raw) if cliente_filtro_raw.isdigit() else None
+    estudiante_raw = (request.GET.get("estudiante") or "").strip()
+    estudiante_id = int(estudiante_raw) if estudiante_raw.isdigit() else None
+    page_raw = (request.GET.get("page") or "1").strip()
+    page = int(page_raw) if page_raw.isdigit() else 1
 
-    est_por_tel: dict[str, Estudiante] = {}
-    for est in Estudiante.objects.select_related("cliente").exclude(telefono=""):
-        key = normalizar_telefono(est.telefono)
-        if key:
-            est_por_tel[key] = est
-
-    contactos_por_tel: dict[str, dict] = {}
-    logs_agg = (
-        WhatsappLog.objects.values("telefono")
-        .annotate(ultima_fecha=Max("fecha"), total=Count("id"))
-        .order_by("-ultima_fecha")
+    context = construir_contexto_inbox(
+        cliente_filtro_id=cliente_filtro_id,
+        estudiante_id=estudiante_id,
+        telefono=(request.GET.get("telefono") or "").strip() or None,
+        page=page,
     )
-    for row in logs_agg:
-        tel_raw = row["telefono"] or ""
-        tel_norm = normalizar_telefono(tel_raw)
-        if not tel_norm:
-            continue
-        ultimo = (
-            WhatsappLog.objects.filter(telefono=tel_raw)
-            .order_by("-fecha")
-            .values("mensaje", "tipo", "agente_usado")
-            .first()
-        )
-        est = est_por_tel.get(tel_norm)
-        for v in variantes_telefono(tel_norm):
-            if v in est_por_tel and est is None:
-                est = est_por_tel[v]
-        cliente = getattr(est, "cliente", None) if est else None
-        contactos_por_tel[tel_norm] = {
-            "telefono": tel_norm,
-            "telefono_display": tel_raw or tel_norm,
-            "estudiante_id": est.id if est else None,
-            "nombre": (est.nombre if est else f"📱 {tel_norm}"),
-            "cliente_id": cliente.id if cliente else None,
-            "cliente_nombre": (cliente.nombre if cliente else "Sin organización / comercial"),
-            "ultima_fecha": row["ultima_fecha"],
-            "ultimo_mensaje": (ultimo or {}).get("mensaje") or "",
-            "agente": (ultimo or {}).get("agente_usado") or "",
-            "total_mensajes": row["total"],
-        }
-
-    for est in Estudiante.objects.select_related("cliente").annotate(
-        n_envios=Count("enviolog", distinct=True)
-    ).filter(n_envios__gt=0):
-        tel_norm = normalizar_telefono(est.telefono)
-        if not tel_norm:
-            continue
-        ultimo_envio = (
-            EnvioLog.objects.filter(estudiante=est)
-            .select_related("campana")
-            .order_by("-fecha_envio")
-            .first()
-        )
-        if not ultimo_envio:
-            continue
-        prev = contactos_por_tel.get(tel_norm)
-        fecha_env = ultimo_envio.fecha_envio
-        if prev and prev.get("ultima_fecha"):
-            uf_prev = prev["ultima_fecha"]
-            if timezone.is_naive(uf_prev):
-                uf_prev = timezone.make_aware(uf_prev)
-            if timezone.is_naive(fecha_env):
-                fecha_env_cmp = timezone.make_aware(fecha_env)
-            else:
-                fecha_env_cmp = fecha_env
-            if fecha_env_cmp <= uf_prev:
-                prev["total_mensajes"] = prev.get("total_mensajes", 0) + est.n_envios
-                continue
-        cliente = est.cliente
-        contactos_por_tel[tel_norm] = {
-            "telefono": tel_norm,
-            "telefono_display": est.telefono,
-            "estudiante_id": est.id,
-            "nombre": est.nombre,
-            "cliente_id": cliente.id if cliente else None,
-            "cliente_nombre": (cliente.nombre if cliente else "Sin organización / comercial"),
-            "ultima_fecha": fecha_env,
-            "ultimo_mensaje": f"Campaña: {ultimo_envio.campana.nombre}",
-            "agente": "",
-            "total_mensajes": est.n_envios,
-        }
-
-    contactos = list(contactos_por_tel.values())
-    if cliente_filtro_id:
-        contactos = [c for c in contactos if c.get("cliente_id") == cliente_filtro_id]
-
-    def _ts_orden(fecha):
-        if not fecha:
-            return 0
-        if timezone.is_naive(fecha):
-            fecha = timezone.make_aware(fecha)
-        return fecha.timestamp()
-
-    contactos.sort(
-        key=lambda c: (
-            (c.get("cliente_nombre") or "").lower(),
-            -_ts_orden(c.get("ultima_fecha")),
-        )
-    )
-
-    grupos_dict: dict[str, list] = {}
-    for c in contactos:
-        grupos_dict.setdefault(c["cliente_nombre"], []).append(c)
-    grupos_cliente = [
-        {"cliente_nombre": nombre, "contactos": items}
-        for nombre, items in sorted(grupos_dict.items(), key=lambda x: x[0].lower())
-    ]
-
-    estudiante_seleccionado = None
-    contacto_seleccionado = None
-    mensajes = []
-    page_obj = None
-
-    estudiante_id = (request.GET.get("estudiante") or "").strip()
-    telefono_param = (request.GET.get("telefono") or "").strip()
-
-    if estudiante_id.isdigit():
-        try:
-            estudiante_seleccionado = Estudiante.objects.select_related("cliente").get(
-                id=int(estudiante_id)
-            )
-            telefono_param = estudiante_seleccionado.telefono
-        except Estudiante.DoesNotExist:
-            estudiante_seleccionado = None
-
-    if telefono_param:
-        tel_norm = normalizar_telefono(telefono_param)
-        vars_tel = variantes_telefono(telefono_param)
-        if estudiante_seleccionado is None:
-            estudiante_seleccionado = est_por_tel.get(tel_norm)
-        contacto_seleccionado = contactos_por_tel.get(tel_norm) or {
-            "telefono": tel_norm,
-            "telefono_display": telefono_param,
-            "nombre": (
-                estudiante_seleccionado.nombre
-                if estudiante_seleccionado
-                else f"📱 {tel_norm}"
-            ),
-        }
-
-        lista_mensajes = []
-        wa_qs = (
-            WhatsappLog.objects.filter(telefono__in=vars_tel)
-            .order_by("-fecha")[:_CONVERSACIONES_MSG_LIMIT]
-        )
-        for msg in reversed(list(wa_qs)):
-            fecha = _conversaciones_fecha_aware(msg.fecha)
-            texto = msg.mensaje or ""
-            if msg.es_audio and msg.audio_transcripcion:
-                texto = f"🎤 {msg.audio_transcripcion}"
-            lista_mensajes.append(
-                {
-                    "mensaje": texto,
-                    "fecha": fecha,
-                    "estado": msg.estado,
-                    "tipo": "recibido" if msg.tipo == "INCOMING" else "enviado",
-                    "agente": msg.agente_usado or "",
-                }
-            )
-
-        if estudiante_seleccionado:
-            envio_qs = (
-                EnvioLog.objects.filter(estudiante=estudiante_seleccionado)
-                .select_related("campana", "campana__plantilla")
-                .order_by("-fecha_envio")[:_CONVERSACIONES_MSG_LIMIT]
-            )
-            for envio in reversed(list(envio_qs)):
-                fecha = _conversaciones_fecha_aware(envio.fecha_envio)
-                campana = envio.campana
-                plantilla = getattr(campana, "plantilla", None) if campana else None
-                if plantilla and getattr(plantilla, "cuerpo_mensaje", None):
-                    cuerpo = plantilla.cuerpo_mensaje.replace(
-                        "{nombre}", estudiante_seleccionado.nombre or ""
-                    )
-                else:
-                    cuerpo = f"Campaña: {campana.nombre if campana else 'sin nombre'}"
-                lista_mensajes.append(
-                    {
-                        "mensaje": cuerpo,
-                        "fecha": fecha,
-                        "estado": envio.estado,
-                        "tipo": "enviado",
-                        "agente": "CAMPAÑA",
-                    }
-                )
-
-        lista_mensajes.sort(key=lambda x: _conversaciones_fecha_aware(x["fecha"]).timestamp())
-        paginator = Paginator(lista_mensajes, 50)
-        page_obj = paginator.get_page(request.GET.get("page", 1))
-        mensajes = page_obj.object_list
-
-    clientes_qs = Cliente.objects.filter(activo=True).order_by("nombre")
-
-    context = {
-        "grupos_cliente": grupos_cliente,
-        "total_contactos": len(contactos),
-        "clientes": clientes_qs,
-        "cliente_filtro": cliente_filtro_id,
-        "estudiante_seleccionado": estudiante_seleccionado,
-        "contacto_seleccionado": contacto_seleccionado,
-        "mensajes": mensajes,
-        "page_obj": page_obj,
-        "estudiantes": contactos[:200],
-    }
-
+    context.update({
+        "inbox_base_url": "/admin/conversaciones/",
+        "inbox_volver_url": "/admin/",
+        "inbox_volver_label": "Panel admin",
+        "inbox_modo": "admin",
+    })
     return render(request, "admin/conversaciones.html", context)
 
 

@@ -1,0 +1,18 @@
+{% extends "aprende/base.html" %}
+{% block title %}eki Aprende — Inicio{% endblock %}
+{% block content %}
+<h1>Aula web eki</h1>
+<p class="muted">Estudia en la web o sube contenido como profesor. Mismo motor que WhatsApp y el portal.</p>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;margin-top:1.5rem;">
+    <div class="card">
+        <h2>Estudiantes</h2>
+        <p class="muted">Entra con cédula y teléfono WhatsApp para ver tus cursos y lecciones.</p>
+        <a class="btn" href="{% url 'aprende_estudiante_login' %}">Ingresar como estudiante</a>
+    </div>
+    <div class="card">
+        <h2>Profesores</h2>
+        <p class="muted">Sube textos, videos y archivos a los módulos de tu organización.</p>
+        <a class="btn" href="{% url 'aprende_profesor_login' %}">Ingresar como profesor</a>
+    </div>
+</div>
+{% endblock %}

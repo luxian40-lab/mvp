@@ -41,6 +41,7 @@ from .admin_campana_actualizado import CampanaUnicaAdmin, RespuestaCampanaUnicaA
 from .models_extras import (
     GrupoEstudiantes, EnvioProgramado, PQRS, ArchivoModulo,
     MensajePush, EnvioMensajePush,
+    EnlaceFormularioExterno, RegistroFormularioExterno,
     GrupoWhatsApp, InvitacionGrupo  # 📦 NUEVOS MODELOS
 )
 from .models_audit import AuditLog  # 🔐 Auditoría
@@ -267,7 +268,12 @@ class ClienteAdmin(admin.ModelAdmin):
     search_fields = ('nombre', 'nit', 'contacto_principal', 'email')
     list_per_page = 50
     ordering = ('-fecha_registro',)
-    readonly_fields = ('portal_usuarios_acciones', 'cobertura_y_drip_acciones', 'usar_gamificacion')
+    readonly_fields = (
+        'portal_usuarios_acciones',
+        'cobertura_y_drip_acciones',
+        'empleabilidad_kpis_resumen',
+        'usar_gamificacion',
+    )
     
     fieldsets = (
         ('Datos del cliente', {
@@ -344,6 +350,7 @@ class ClienteAdmin(admin.ModelAdmin):
         }),
         ('Empleabilidad, IA y bot comercial', {
             'fields': (
+                'empleabilidad_kpis_resumen',
                 'empleabilidad_exploracion_activa',
                 'empleabilidad_radio_metros',
                 'empleabilidad_cooldown_horas',
@@ -355,7 +362,8 @@ class ClienteAdmin(admin.ModelAdmin):
                 'system_prompt_extra',
             ),
             'description': (
-                'Exploración de empleabilidad, nombres de agentes educativos y bot Nat/comercial. '
+                'KPIs de exploración territorial (retención, misiones, oportunidades georreferenciadas). '
+                'Exploración WhatsApp, nombres de agentes educativos y bot Nat/comercial. '
                 'Catálogo e inlines al final del formulario.'
             ),
         }),
@@ -406,16 +414,98 @@ class ClienteAdmin(admin.ModelAdmin):
             return 'Guarde el cliente para ver enlaces.'
         mapa_url = reverse('admin_cobertura_mapa') + f'?cliente={obj.pk}'
         drip_url = reverse('admin_drip_estudiantes') + f'?cliente={obj.pk}'
+        avance_url = reverse('admin_ajustar_avance') + f'?cliente={obj.pk}'
+        cert_url = reverse('admin_certificados_presenciales') + f'?cliente={obj.pk}'
+        push_url = reverse('admin_push_estudiantes') + f'?cliente={obj.pk}'
+        form_url = reverse('admin:core_enlaceformularioexterno_changelist') + f'?cliente={obj.pk}'
         return format_html(
             '<div style="display:flex;gap:10px;flex-wrap:wrap;">'
             '<a class="button" href="{}">Mapa cobertura</a>'
-            '<a class="button" href="{}">Módulos por estudiante (tabla)</a>'
+            '<a class="button" href="{}">Acceso módulos</a>'
+            '<a class="button" href="{}">Ajustar avance</a>'
+            '<a class="button" href="{}">Certificados presenciales</a>'
+            '<a class="button" href="{}">Push recordatorios</a>'
+            '<a class="button" href="{}">Form externo</a>'
             '</div>',
             mapa_url,
             drip_url,
+            avance_url,
+            cert_url,
+            push_url,
+            form_url,
         )
 
     cobertura_y_drip_acciones.short_description = 'Mapa y listas'
+
+    def empleabilidad_kpis_resumen(self, obj):
+        if not obj or not obj.pk:
+            return 'Guarde el cliente para ver los KPIs de empleabilidad.'
+
+        from portal.capabilities import modulos_portal
+        from portal.empleabilidad_metricas import resumen_empleabilidad_portal
+
+        resumen = resumen_empleabilidad_portal(obj)
+        mods = modulos_portal(obj)
+        misiones_url = (
+            reverse('admin:learning_misionempleabilidad_changelist')
+            + f'?cliente__id__exact={obj.pk}'
+        )
+        aliados_url = (
+            reverse('admin:learning_aliadoempleabilidad_changelist')
+            + f'?cliente__id__exact={obj.pk}'
+        )
+        portal_url = '/portal/empleabilidad/'
+
+        portal_note = ''
+        if not mods.get('empleabilidad'):
+            portal_note = (
+                '<p style="margin:10px 0 0;color:#b45309;font-size:13px;">'
+                'El módulo <strong>Empleabilidad territorial</strong> no está activo en el portal. '
+                'Márquelo en «Módulos visibles en portal» (sección Portal B2B).'
+                '</p>'
+            )
+
+        return format_html(
+            '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));'
+            'gap:12px;max-width:760px;">'
+            '<div style="background:#eef6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px;">'
+            '<div style="font-size:1.75rem;font-weight:700;color:#1d4ed8;">{}%</div>'
+            '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748b;">'
+            'Retención ({} días)</div>'
+            '<div style="font-size:12px;color:#64748b;margin-top:6px;">{} de {} jóvenes activos</div>'
+            '</div>'
+            '<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:14px;">'
+            '<div style="font-size:1.75rem;font-weight:700;color:#047857;">{}</div>'
+            '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748b;">'
+            'Misiones completadas</div>'
+            '<div style="font-size:12px;color:#64748b;margin-top:6px;">Código validado en aliado</div>'
+            '</div>'
+            '<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:14px;">'
+            '<div style="font-size:1.75rem;font-weight:700;color:#6d28d9;">{}</div>'
+            '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748b;">'
+            'Oportunidades georreferenciadas</div>'
+            '<div style="font-size:12px;color:#64748b;margin-top:6px;">Exploraciones con coordenadas</div>'
+            '</div>'
+            '</div>'
+            '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">'
+            '<a class="button" href="{}">Ver misiones</a>'
+            '<a class="button" href="{}">Ver aliados</a>'
+            '<a class="button" href="{}" target="_blank" rel="noopener">Portal empleabilidad</a>'
+            '</div>'
+            '{}',
+            resumen['retencion_pct'],
+            resumen['dias_retencion'],
+            resumen['jovenes_activos'],
+            resumen['total_inscritos'],
+            resumen['misiones_completadas'],
+            resumen['oportunidades_georef'],
+            misiones_url,
+            aliados_url,
+            portal_url,
+            mark_safe(portal_note),
+        )
+
+    empleabilidad_kpis_resumen.short_description = 'KPIs empleabilidad'
 
     def crear_usuario_portal_view(self, request, cliente_id):
         cliente = self.get_object(request, str(cliente_id))
@@ -2556,7 +2646,11 @@ class MensajePushAdmin(admin.ModelAdmin):
         ('Audiencia', {'fields': ('cliente', 'curso')}),
         ('Contenido Twilio / texto', {
             'fields': ('twilio_content_sid', 'plantilla', 'cuerpo_fallback', 'incluir_boton_continuar'),
-            'description': 'Use Content SID (HX…) o plantilla Django. Variables: {nombre}, {curso}.',
+            'description': (
+                'Recordatorio únicamente: no cambia módulo ni progreso. '
+                'Texto libre (cuerpo fallback) basta sin Twilio; o use Content SID (HX…). '
+                'Variables: {nombre}, {curso}.'
+            ),
         }),
     )
 
@@ -2576,6 +2670,96 @@ class EnvioMensajePushAdmin(admin.ModelAdmin):
     list_display = ('mensaje_push', 'estudiante', 'telefono', 'exito', 'fecha')
     list_filter = ('exito', 'mensaje_push')
     readonly_fields = ('mensaje_push', 'estudiante', 'telefono', 'exito', 'detalle', 'fecha')
+
+
+@admin.register(EnlaceFormularioExterno)
+class EnlaceFormularioExternoAdmin(admin.ModelAdmin):
+    """Google Form → habilitar módulo al enviar respuesta."""
+    list_display = ('nombre', 'cliente', 'curso', 'modulo_resumen', 'campo_identificador', 'activo', 'creado_en')
+    list_filter = ('activo', 'cliente', 'campo_identificador')
+    search_fields = ('nombre', 'token', 'cliente__nombre', 'curso__nombre')
+    readonly_fields = ('token', 'webhook_url', 'instrucciones_google', 'creado_en')
+    autocomplete_fields = ('cliente', 'curso', 'modulo')
+    fieldsets = (
+        (None, {'fields': ('nombre', 'activo', 'cliente', 'curso', 'modulo', 'campo_identificador', 'notas')}),
+        ('Webhook (copiar a Google Apps Script)', {
+            'fields': ('token', 'webhook_url', 'instrucciones_google'),
+        }),
+        ('Auditoría', {'fields': ('creado_en',), 'classes': ('collapse',)}),
+    )
+
+    def modulo_resumen(self, obj):
+        if obj.modulo_id:
+            return f'M{obj.modulo.numero}'
+        return 'Último módulo'
+    modulo_resumen.short_description = 'Módulo'
+
+    def webhook_url(self, obj):
+        if not obj or not obj.token:
+            return 'Guarde el registro para generar el token.'
+        from django.urls import reverse
+        path = reverse('api_form_externo_webhook', args=[obj.token])
+        base = 'https://eki-prod-final.eba-32krwxas.us-east-2.elasticbeanstalk.com'
+        return format_html('<code style="word-break:break-all;">{}{}</code>', base, path)
+    webhook_url.short_description = 'URL POST'
+
+    def instrucciones_google(self, obj):
+        if not obj or not obj.pk:
+            return 'Guarde primero para ver el script de ejemplo.'
+        campo = obj.campo_identificador
+        campos_txt = {
+            'cedula': 'solo cédula (si se equivoca, no habilita a nadie; si coincide con otra persona, riesgo)',
+            'telefono': 'teléfono WhatsApp del curso',
+            'cedula_y_telefono': 'cédula + teléfono WhatsApp (recomendado: ambos deben coincidir)',
+            'cedula_y_nombre': 'cédula + nombre completo (el nombre debe parecerse al registro)',
+        }.get(campo, campo)
+        payload_ej = {
+            'cedula': '{"cedula": cedula}',
+            'telefono': '{"telefono": telefono}',
+            'cedula_y_telefono': '{"cedula": cedula, "telefono": telefono}',
+            'cedula_y_nombre': '{"cedula": cedula, "nombre": nombre}',
+        }.get(campo, '{"cedula": cedula}')
+        return format_html(
+            '<div style="font-size:12px;line-height:1.55;max-width:720px;">'
+            '<p><strong>1.</strong> En Google Form → ⋮ → Editor de secuencias de comandos.</p>'
+            '<p><strong>2.</strong> Activadores → Al enviar el formulario → pegar función que llame a la URL POST.</p>'
+            '<p><strong>3.</strong> El formulario debe pedir: <strong>{}</strong>.</p>'
+            '<p><strong>4.</strong> Si falla la validación, el estudiante no queda habilitado; '
+            'revise en «Registros formulario externo» o habilite manual en Acceso módulos.</p>'
+            '<p><strong>5.</strong> Active «Módulos solo por lista» en el cliente para que el acceso surta efecto.</p>'
+            '<pre style="background:#f1f5f9;padding:10px;border-radius:8px;overflow:auto;">'
+            'function onSubmit(e) {{\n'
+            '  var cedula = "", telefono = "", nombre = "";\n'
+            '  e.response.getItemResponses().forEach(function(r) {{\n'
+            '    var t = r.getItem().getTitle().toLowerCase();\n'
+            '    if (t.indexOf("cedula") >= 0 || t.indexOf("documento") >= 0 || t.indexOf("identificacion") >= 0)\n'
+            '      cedula = String(r.getResponse()).replace(/\\D/g, "");\n'
+            '  if (t.indexOf("whatsapp") >= 0 || t.indexOf("telefono") >= 0 || t.indexOf("celular") >= 0)\n'
+            '      telefono = String(r.getResponse()).replace(/\\D/g, "");\n'
+            '    if (t.indexOf("nombre") >= 0)\n'
+            '      nombre = r.getResponse();\n'
+            '  }});\n'
+            '  UrlFetchApp.fetch("{url}", {{\n'
+            '    method: "post",\n'
+            '    contentType: "application/json",\n'
+            '    payload: JSON.stringify({payload}),\n'
+            '    muteHttpExceptions: true\n'
+            '  }});\n'
+            '}}'
+            '</pre></div>',
+            campos_txt,
+            url=f'https://eki-prod-final.eba-32krwxas.us-east-2.elasticbeanstalk.com/api/integracion/form-externo/{obj.token}/',
+            payload=payload_ej,
+        )
+    instrucciones_google.short_description = 'Cómo conectar Google Form'
+
+
+@admin.register(RegistroFormularioExterno)
+class RegistroFormularioExternoAdmin(admin.ModelAdmin):
+    list_display = ('fecha', 'enlace', 'estudiante', 'identificador_recibido', 'exito', 'detalle')
+    list_filter = ('exito', 'enlace')
+    readonly_fields = ('enlace', 'estudiante', 'identificador_recibido', 'exito', 'detalle', 'payload', 'fecha')
+    ordering = ('-fecha',)
 
 
 @admin.register(EnvioLog)
@@ -4763,15 +4947,16 @@ class SolicitudSoporteAdmin(admin.ModelAdmin):
 # ========================================
 
 class PlantillaCertificadoAdmin(admin.ModelAdmin):
-    """Plantillas de Certificados — Simplificado: sube imagen a S3"""
+    """Plantillas de Certificados — imagen S3 o diseño eki con vista previa"""
+    change_form_template = 'admin/learning/plantillacertificado/change_form.html'
     list_display = ('nombre', 'curso_info', 'cliente_info', 'tipo_plantilla', 'por_defecto', 'activa')
-    list_filter = ('activa', 'por_defecto', 'cliente', 'curso')
+    list_filter = ('activa', 'por_defecto', 'modo_plantilla', 'cliente', 'curso')
     search_fields = ('nombre', 'descripcion', 'cliente__nombre', 'curso__nombre')
     list_per_page = 50
     
     fieldsets = (
         ('📝 Información Básica', {
-            'fields': ('nombre', 'descripcion', 'curso', 'cliente', 'activa', 'por_defecto'),
+            'fields': ('nombre', 'descripcion', 'curso', 'cliente', 'modo_plantilla', 'activa', 'por_defecto'),
             'description': mark_safe('''<div style="background:#e3f2fd;padding:12px;border-radius:8px;border-left:4px solid #2196F3;margin:10px 0;">
                 <strong>📌 IMPORTANTE:</strong> Selecciona el <strong>Curso</strong> para que el certificado se genere automáticamente al completar ese curso.<br>
                 Si no seleccionas curso, se usará solo si está marcada como "Por defecto".
@@ -4799,12 +4984,112 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
                 <em>Opcional: sube un PDF con variables {nombre}, {curso}, {fecha}</em>
             </div>''')
         }),
-        ('🎨 Diseño eki (Avanzado)', {
+        ('🎨 Diseño eki', {
             'fields': ('imagen_fondo', 'logo_institucion', 'color_primario', 'color_secundario', 'texto_superior', 'texto_certificado'),
-            'classes': ('collapse',),
-            'description': 'Solo si no subes imagen ni PDF'
+            'description': mark_safe('''<div style="background:#ede9fe;padding:12px;border-radius:8px;border-left:4px solid #7c3aed;margin:8px 0;">
+                Use este modo cuando quiera armar el certificado con colores y textos de eki.
+                La vista previa a la derecha muestra un ejemplo con nombre de prueba.
+            </div>'''),
         }),
     )
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                'preview/',
+                self.admin_site.admin_view(self.preview_certificado_view),
+                name='learning_plantillacertificado_preview',
+            ),
+            path(
+                'estudiantes-preview/',
+                self.admin_site.admin_view(self.estudiantes_preview_view),
+                name='learning_plantillacertificado_estudiantes_preview',
+            ),
+        ]
+        return custom + urls
+
+    def estudiantes_preview_view(self, request):
+        """Lista estudiantes del cliente para elegir en vista previa."""
+        from django.http import JsonResponse
+
+        from core.models import Estudiante
+
+        raw = request.GET.get('cliente') or ''
+        if not str(raw).isdigit():
+            return JsonResponse({'estudiantes': []})
+        filas = list(
+            Estudiante.objects.filter(cliente_id=int(raw), activo=True)
+            .order_by('nombre')
+            .values('id', 'nombre', 'cedula')[:200]
+        )
+        return JsonResponse({'estudiantes': filas})
+
+    def preview_certificado_view(self, request):
+        """Genera PNG de vista previa según modo y campos del formulario."""
+        import logging
+
+        from django.http import HttpResponse
+        from core.certificado_preview import generar_preview_certificado, plantilla_desde_request
+        from core.models import Estudiante
+
+        if request.method != 'POST':
+            return HttpResponse(status=405)
+
+        nombre = cedula = org = url = None
+        est_id_raw = request.POST.get('estudiante_preview')
+        if str(est_id_raw or '').isdigit():
+            est = (
+                Estudiante.objects.filter(pk=int(est_id_raw), activo=True)
+                .select_related('cliente')
+                .first()
+            )
+            if est:
+                nombre = est.nombre
+                cedula = est.cedula or ''
+                org = est.cliente.nombre if est.cliente else None
+                url = 'https://certificadosseki.netlify.app/?code=PREVIEW'
+
+        try:
+            plantilla = plantilla_desde_request(request.POST)
+            buf = generar_preview_certificado(
+                plantilla,
+                post_data=request.POST,
+                files=request.FILES,
+                nombre_estudiante=nombre,
+                cedula_estudiante=cedula,
+                organizacion_nombre=org,
+                url_verificacion=url,
+            )
+            if not buf:
+                return HttpResponse('No se pudo generar', status=500)
+            return HttpResponse(buf.getvalue(), content_type='image/png')
+        except ValueError as exc:
+            return HttpResponse(str(exc), status=400)
+        except Exception as exc:
+            logging.getLogger(__name__).exception('Vista previa certificado falló')
+            return HttpResponse(str(exc), status=500)
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        from django.urls import reverse
+
+        from core.models import Estudiante
+
+        extra_context = extra_context or {}
+        estudiantes = []
+        if object_id:
+            obj = self.get_object(request, object_id)
+            if obj and obj.cliente_id:
+                estudiantes = list(
+                    Estudiante.objects.filter(cliente_id=obj.cliente_id, activo=True)
+                    .order_by('nombre')
+                    .values('id', 'nombre', 'cedula')[:200]
+                )
+        extra_context['estudiantes_preview'] = estudiantes
+        extra_context['estudiantes_preview_url'] = reverse(
+            'admin:learning_plantillacertificado_estudiantes_preview',
+        )
+        return super().change_view(request, object_id, form_url, extra_context=extra_context)
     
     def get_form(self, request, obj=None, **kwargs):
         """Personaliza el formulario para usar color picker"""
@@ -4834,19 +5119,20 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
     cliente_info.short_description = "Cliente"
     
     def tipo_plantilla(self, obj):
-        """Muestra si usa PDF personalizado, imagen o diseño eki"""
-        if obj.archivo_plantilla_imagen or obj.url_plantilla_imagen:
-            label = '🖼️ Imagen' + (' (URL)' if obj.url_plantilla_imagen and not obj.archivo_plantilla_imagen else '')
-            return format_html(
-                '<span style="background:#f59f00;color:white;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;">{}</span>',
-                label
-            )
-        if obj.archivo_plantilla_pdf:
-            return format_html(
-                '<span style="background:#4CAF50;color:white;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;">📄 PDF Personalizado</span>'
-            )
+        """Muestra el modo efectivo de la plantilla"""
+        modo = obj.modo_efectivo()
+        labels = {
+            'imagen': ('🖼️ Imagen', '#f59f00'),
+            'diseno_eki': ('🎨 Diseño eki', '#2196F3'),
+            'pdf': ('📄 PDF', '#4CAF50'),
+        }
+        label, color = labels.get(modo, ('?', '#64748b'))
+        if modo == 'imagen' and obj.url_plantilla_imagen and not obj.archivo_plantilla_imagen:
+            label += ' (URL)'
         return format_html(
-            '<span style="background:#2196F3;color:white;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;">🎨 Diseño eki</span>'
+            '<span style="background:{};color:white;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;">{}</span>',
+            color,
+            label,
         )
     tipo_plantilla.short_description = "Tipo"
     
@@ -4920,30 +5206,17 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
                     messages.WARNING
                 )
 
+    actions = ['previsualizar_certificado_accion']
+
     @admin.action(description='👁️ Previsualizar con nombre de prueba')
     def previsualizar_certificado_accion(self, request, queryset):
-        """Genera un certificado de prueba para ver cómo se verá"""
-        if queryset.count() > 1:
-            self.message_user(request, "⚠️ Selecciona solo una plantilla para previsualizar", level=messages.WARNING)
+        """Abre la plantilla en edición (vista previa a la derecha)."""
+        if queryset.count() != 1:
+            self.message_user(request, 'Selecciona una sola plantilla.', level=messages.WARNING)
             return
-        
         plantilla = queryset.first()
-        
-        if not plantilla.archivo_plantilla_pdf:
-            self.message_user(
-                request,
-                "⚠️ Esta plantilla no tiene PDF personalizado. Previsualización solo disponible para PDFs personalizados.",
-                level=messages.WARNING
-            )
-            return
-        
-        # TODO: Implementar generación de certificado de prueba
-        # Por ahora solo muestra el PDF
-        self.message_user(
-            request,
-            f"✅ Plantilla: {plantilla.nombre} - Archivo: {plantilla.archivo_plantilla_pdf.name}",
-            level=messages.SUCCESS
-        )
+        url = reverse('admin:learning_plantillacertificado_change', args=[plantilla.pk])
+        return redirect(url)
 
 
 class CertificadoAdmin(admin.ModelAdmin):

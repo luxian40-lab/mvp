@@ -1,2 +1,0 @@
-# Dependencias necesarias para exportar a XLSX
-openpyxl>=3.1.0

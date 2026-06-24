@@ -11,10 +11,15 @@ from django.core.files.base import ContentFile
 from django.utils import timezone
 from django.conf import settings
 import logging
+import time
 import boto3
 from botocore.config import Config as BotoConfig
 
 logger = logging.getLogger(__name__)
+
+# Tras plantilla Twilio, pausa breve antes del diploma (mensaje de sesión + imagen).
+PAUSA_TRAS_PLANTILLA_SEG = 2.0
+MAX_REINTENTOS_ENVIO_DIPLOMA = 3
 
 # URL de plantilla por defecto en S3 (PNG con marcadores RGB)
 DEFAULT_TEMPLATE_URL = "https://eki-produccion.s3.us-east-2.amazonaws.com/pruebas/certificadoeki.png"
@@ -469,13 +474,135 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
         return False
 
 
-def enviar_certificado_whatsapp(certificado):
+def _variables_plantilla_certificado(certificado) -> dict:
+    """Variables típicas para plantillas Twilio ({{1}}, {{2}}, …)."""
+    est = certificado.estudiante
+    curso = certificado.curso
+    return {
+        '1': est.nombre or 'estudiante',
+        '2': curso.nombre if curso else 'curso',
+        '3': certificado.codigo_verificacion or '',
+        '4': certificado.obtener_url_verificacion() or '',
+    }
+
+
+def _media_url_certificado(certificado) -> str | None:
+    if certificado.archivo_imagen:
+        media_url = obtener_url_certificado_twilio(certificado)
+        if media_url:
+            return media_url
+        s3_key = str(certificado.archivo_imagen.name)
+        bucket = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'eki-produccion')
+        return f"https://{bucket}.s3.{S3_REGION}.amazonaws.com/{s3_key}"
+    if certificado.archivo_pdf:
+        return certificado.archivo_pdf.url
+    return None
+
+
+def _enviar_whatsapp_con_reintentos(
+    telefono: str,
+    texto: str,
+    *,
+    media_url: str | None = None,
+    pausa_inicial: float = 0.0,
+) -> dict:
+    """Reintenta envío de sesión (p. ej. imagen del diploma tras plantilla HSM)."""
+    from .utils import enviar_whatsapp_twilio
+
+    if pausa_inicial > 0:
+        time.sleep(pausa_inicial)
+
+    ultimo: dict = {'success': False, 'response': 'sin respuesta'}
+    for intento in range(1, MAX_REINTENTOS_ENVIO_DIPLOMA + 1):
+        ultimo = enviar_whatsapp_twilio(
+            telefono=telefono,
+            texto=texto,
+            media_url=media_url,
+        )
+        if ultimo.get('success'):
+            return ultimo
+        detalle = str(ultimo.get('response', '')).lower()
+        reintentar = any(x in detalle for x in ('63016', '63019', 'window', '24 hour', '24-hour', 'rate', 'media'))
+        if intento < MAX_REINTENTOS_ENVIO_DIPLOMA and reintentar:
+            time.sleep(2.0 * intento)
+            continue
+        break
+    return ultimo
+
+
+def _intentar_enviar_imagen_diploma(
+    estudiante,
+    certificado,
+    *,
+    caption: str,
+    media_url: str,
+    pausa_inicial: float,
+) -> tuple[dict, str]:
+    """Intenta enviar la imagen del diploma por sesión (con reintentos)."""
+    resultado = _enviar_whatsapp_con_reintentos(
+        estudiante.telefono,
+        caption,
+        media_url=media_url,
+        pausa_inicial=pausa_inicial,
+    )
+    if resultado.get('success'):
+        return resultado, 'imagen'
+    logger.warning(
+        '⚠️ Imagen diploma falló para %s: %s',
+        certificado.codigo_verificacion,
+        resultado.get('response'),
+    )
+    return resultado, 'fallo'
+
+
+def _variables_plantilla_media_certificado(
+    certificado,
+    media_url: str,
+    media_var_index: str = '1',
+) -> dict:
     """
-    Envía el certificado por WhatsApp al estudiante
-    
-    Args:
-        certificado: Instancia de Certificado
-    
+    Variables para plantilla de IMAGEN (header media + texto).
+    Por defecto: {{1}} = URL imagen (header), {{2}} = nombre, {{3}} = curso, {{4}} = código.
+    """
+    est = certificado.estudiante
+    curso = certificado.curso
+    base = {
+        media_var_index: media_url,
+        '2': est.nombre or 'estudiante',
+        '3': curso.nombre if curso else 'curso',
+        '4': certificado.codigo_verificacion or '',
+    }
+    # Si el header usa otro índice, no pisar el {{1}} de texto del autor.
+    base.setdefault('1', media_url)
+    return base
+
+
+def _enviar_plantilla_media_twilio(telefono: str, content_sid: str, variables: dict) -> dict:
+    """Wrapper testeable para plantilla con imagen (header media)."""
+    from .enviar_plantillas import enviar_plantilla_twilio
+
+    return enviar_plantilla_twilio(telefono, content_sid, variables=variables)
+
+
+def enviar_certificado_whatsapp(
+    certificado,
+    *,
+    twilio_content_sid_media: str | None = None,
+    media_var_index: str = '1',
+    twilio_content_sid: str | None = None,
+    template_variables: dict | None = None,
+    tras_plantilla_previo: bool = False,
+):
+    """
+    Envía el certificado por WhatsApp al estudiante.
+
+    Prioridad de modos:
+      0. twilio_content_sid_media → plantilla aprobada CON imagen en el header
+         (la URL del PNG va como variable). UN solo mensaje business-initiated que
+         entrega el diploma SIN que el estudiante responda. ← modo ideal.
+      1. twilio_content_sid / tras_plantilla_previo → plantilla de texto + imagen de
+         sesión (solo funciona si la ventana de 24 h está abierta).
+
     Returns:
         bool: True si se envió exitosamente
     """
@@ -484,56 +611,80 @@ def enviar_certificado_whatsapp(certificado):
         return False
 
     try:
-        from .utils import enviar_whatsapp_twilio
-        from .models_certificados import PlantillaCertificado
-
         estudiante = certificado.estudiante
         curso = certificado.curso
-
-        # Determinar si el certificado fue generado desde plantilla imagen
-        plantilla = None
-        if hasattr(certificado, 'plantilla_certificado'):
-            plantilla = certificado.plantilla_certificado
-        else:
-            # Si no hay relación directa, intentar buscar por curso o lógica de tu sistema
-            from .models_certificados import PlantillaCertificado as PC
-            plantilla = PC.objects.filter(por_defecto=True, activa=True).first()
-
-        usar_imagen = False
-        media_url = None
-        
-        # Preferir imagen sobre PDF — usar URL pública directa (ACL public-read)
-        if certificado.archivo_imagen:
-            usar_imagen = True
-            media_url = obtener_url_certificado_twilio(certificado)
-            if not media_url:
-                # Fallback a URL pública directa sin /media/ prefix
-                s3_key = str(certificado.archivo_imagen.name)
-                bucket = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'eki-produccion')
-                media_url = f"https://{bucket}.s3.{S3_REGION}.amazonaws.com/{s3_key}"
-
-        # Si no hay imagen, usar PDF
-        if not usar_imagen:
-            if certificado.archivo_pdf:
-                media_url = certificado.archivo_pdf.url
-            else:
-                logger.error(f"Certificado {certificado.codigo_verificacion} no tiene archivo")
-                return False
+        media_url = _media_url_certificado(certificado)
+        if not media_url:
+            logger.error(f"Certificado {certificado.codigo_verificacion} no tiene archivo")
+            return False
 
         verificacion_url = certificado.obtener_url_verificacion()
         mencion = certificado.obtener_mencion()
         calificacion = float(certificado.calificacion_final)
+        vars_tpl = template_variables or _variables_plantilla_certificado(certificado)
+        sid_media = (twilio_content_sid_media or '').strip()
+        sid = (twilio_content_sid or '').strip()
+        pausa = PAUSA_TRAS_PLANTILLA_SEG if tras_plantilla_previo else 0.0
+        modo_envio = 'imagen'
 
-        mensaje = f"""🎓 *¡FELICITACIONES {estudiante.nombre.upper()}!* 🎉
+        caption_corto = (
+            f"🎓 *{estudiante.nombre}* — certificado *{curso.nombre}* "
+            f"({calificacion}%). Código: `{certificado.codigo_verificacion}`"
+        )
+        if mencion:
+            caption_corto += f"\n🏆 {mencion}"
+
+        if sid_media:
+            # MODO IDEAL: plantilla aprobada con imagen del certificado en el header.
+            resultado = _enviar_plantilla_media_twilio(
+                estudiante.telefono,
+                sid_media,
+                _variables_plantilla_media_certificado(
+                    certificado, media_url, media_var_index,
+                ),
+            )
+            modo_envio = 'plantilla_imagen'
+        elif sid:
+            from .enviar_plantillas import enviar_plantilla_twilio
+
+            tpl_res = enviar_plantilla_twilio(
+                estudiante.telefono,
+                sid,
+                variables=vars_tpl,
+            )
+            if not tpl_res.get('success'):
+                logger.error(
+                    "❌ Plantilla Twilio diploma falló para %s: %s",
+                    certificado.codigo_verificacion,
+                    tpl_res.get('response'),
+                )
+                return False
+            resultado, modo_envio = _intentar_enviar_imagen_diploma(
+                estudiante,
+                certificado,
+                caption=caption_corto,
+                media_url=media_url,
+                pausa_inicial=pausa or PAUSA_TRAS_PLANTILLA_SEG,
+            )
+        elif tras_plantilla_previo:
+            resultado, modo_envio = _intentar_enviar_imagen_diploma(
+                estudiante,
+                certificado,
+                caption=caption_corto,
+                media_url=media_url,
+                pausa_inicial=pausa,
+            )
+        else:
+            mensaje = f"""🎓 *¡FELICITACIONES {estudiante.nombre.upper()}!* 🎉
 
 Has completado exitosamente el curso:
 📚 *{curso.nombre}*
 
 📊 *Calificación Final:* {calificacion}%"""
-        if mencion:
-            mensaje += f"\n🏆 *{mencion}*"
+            if mencion:
+                mensaje += f"\n🏆 *{mencion}*"
 
-        mensaje += f"""
+            mensaje += f"""
 
 📜 Tu certificado digital está listo:
 🔗 {media_url}
@@ -546,22 +697,29 @@ Has completado exitosamente el curso:
 
 ¡Comparte tu logro con orgullo! 🌟"""
 
-        # Enviar con media_url (imagen o PDF)
-        resultado = enviar_whatsapp_twilio(
-            telefono=estudiante.telefono,
-            texto=mensaje,
-            media_url=media_url
-        )
+            resultado, modo_envio = _intentar_enviar_imagen_diploma(
+                estudiante,
+                certificado,
+                caption=mensaje,
+                media_url=media_url,
+                pausa_inicial=0,
+            )
 
-        if resultado['success']:
+        if resultado.get('success'):
             certificado.enviado_whatsapp = True
             certificado.fecha_envio = timezone.now()
-            certificado.save()
-            logger.info(f"✅ Certificado {certificado.codigo_verificacion} enviado a {estudiante.telefono}")
+            certificado.save(update_fields=['enviado_whatsapp', 'fecha_envio'])
+            logger.info(
+                "✅ Certificado %s enviado a %s (modo=%s, template_diploma=%s)",
+                certificado.codigo_verificacion,
+                estudiante.telefono,
+                modo_envio,
+                bool(sid),
+            )
             return True
-        else:
-            logger.error(f"❌ Error enviando certificado: {resultado.get('error')}")
-            return False
+
+        logger.error(f"❌ Error enviando certificado: {resultado.get('response')}")
+        return False
 
     except Exception as e:
         logger.error(f"❌ Error enviando certificado {certificado.codigo_verificacion}: {e}", exc_info=True)

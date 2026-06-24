@@ -1,5 +1,7 @@
 # Ignorar archivos de versiones de app de Elastic Beanstalk
 .elasticbeanstalk/app_versions/
+# Snapshots EB locales (pueden contener secretos; no versionar)
+.elasticbeanstalk/saved_configs/
 
 # Python
 __pycache__/

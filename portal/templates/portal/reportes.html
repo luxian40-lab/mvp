@@ -1,0 +1,117 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Reportes | Portal clientes eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <h1>Reportes y descargas</h1>
+        <p class="muted">Exporte datos de su organización en Excel. Los archivos respetan los filtros que elija.</p>
+    </div>
+</div>
+
+{% if mods.cursos %}
+<section class="panel" style="margin-bottom:24px;border-left:4px solid var(--accent);">
+    <h2>Avance de estudiantes</h2>
+    <p class="muted" style="margin-bottom:16px;">
+        Listado completo con curso, módulo actual, progreso, estado y puntos de gamificación.
+        Equivalente al detalle de <a href="/portal/metricas/">Métricas detalladas</a>.
+    </p>
+    <form method="get" action="{% url 'portal_exportar_avance' %}" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;align-items:end;">
+        <label>
+            <strong>Curso</strong>
+            <select name="curso" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+                <option value="">Todos</option>
+                {% for c in cursos %}
+                    <option value="{{ c.id }}" {% if filtros.curso == c.id|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <strong>Grupo</strong>
+            <select name="grupo" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+                <option value="">Todos</option>
+                {% for g in grupos %}
+                    <option value="{{ g.id }}" {% if filtros.grupo == g.id|stringformat:"s" %}selected{% endif %}>{{ g.nombre }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <strong>Desde</strong>
+            <input type="date" name="desde" value="{{ filtros.desde }}"
+                style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+        </label>
+        <label>
+            <strong>Hasta</strong>
+            <input type="date" name="hasta" value="{{ filtros.hasta }}"
+                style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+        </label>
+        <button class="btn" type="submit">Descargar Excel de avance</button>
+    </form>
+</section>
+
+<section class="panel" style="margin-bottom:24px;">
+    <h2>Reenganche (sin alcanzar módulo)</h2>
+    <p class="muted" style="margin-bottom:16px;">
+        Personas que <strong>no llegaron</strong> a un módulo dado. Formato listo para reimportar o contactar.
+    </p>
+    <form method="get" action="{% url 'portal_exportar_estudiantes' %}" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;align-items:end;">
+        <label>
+            <strong>Curso</strong>
+            <select name="curso" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+                <option value="">Todos</option>
+                {% for c in cursos %}
+                    <option value="{{ c.id }}">{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <strong>Grupo</strong>
+            <select name="grupo" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+                <option value="">Todos</option>
+                {% for g in grupos %}
+                    <option value="{{ g.id }}">{{ g.nombre }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <strong>Sin alcanzar módulo</strong>
+            <input type="number" name="sin_modulo" min="1" placeholder="Ej. 5" required
+                style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+        </label>
+        <button class="btn btn-outline" type="submit">Descargar Excel reenganche</button>
+    </form>
+</section>
+{% endif %}
+
+{% if mods.gei %}
+<section class="panel" style="margin-bottom:24px;">
+    <h2>Inventario GEI</h2>
+    <p class="muted" style="margin-bottom:16px;">
+        Fichas de huella de carbono con variables y balance. También disponible desde
+        <a href="/portal/gei/">Inventario GEI</a>.
+    </p>
+    <form method="get" action="{% url 'portal_gei_exportar' %}" style="display:flex;flex-wrap:wrap;gap:12px;align-items:end;">
+        <input type="hidden" name="curso" value="{{ gei_filtros.curso_id|default:'' }}">
+        <input type="hidden" name="desde" value="{{ gei_filtros.desde_str|default:'' }}">
+        <input type="hidden" name="hasta" value="{{ gei_filtros.hasta_str|default:'' }}">
+        <a class="btn btn-outline" href="/portal/gei/">Ir a GEI y filtrar</a>
+        <button class="btn" type="submit">Descargar Excel GEI (filtros actuales)</button>
+    </form>
+</section>
+{% endif %}
+
+<section class="panel">
+    <h2>Otras consultas</h2>
+    <ul class="muted" style="margin:0;padding-left:1.2rem;line-height:1.7;">
+        {% if mods.cursos %}
+        <li><a href="/portal/metricas/">Métricas detalladas</a> — KPIs, semáforos y gráficos en pantalla.</li>
+        <li><a href="/portal/certificados/">Certificados emitidos</a> — listado en portal (export masivo vía equipo eki).</li>
+        <li><a href="/portal/campanas/">Campañas</a> — respuestas Sí/No (export avanzado en admin eki).</li>
+        {% endif %}
+        {% if not mods.cursos and not mods.gei %}
+        <li>Su organización no tiene módulos con exportación activa. Contacte a eki para habilitarlos.</li>
+        {% endif %}
+    </ul>
+</section>
+{% endblock %}

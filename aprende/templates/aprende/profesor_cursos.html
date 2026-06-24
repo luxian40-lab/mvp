@@ -1,0 +1,18 @@
+{% extends "aprende/base.html" %}
+{% block title %}Profesor — Cursos{% endblock %}
+{% block nav %}
+<a href="{% url 'aprende_profesor_cursos' %}">Cursos</a> ·
+<a href="/portal/dashboard/">Portal B2B</a> ·
+<a href="{% url 'aprende_profesor_logout' %}">Salir</a>
+{% endblock %}
+{% block content %}
+<h1>{{ organizacion.nombre }}</h1>
+<p class="muted">Selecciona un curso para editar lecciones y subir material.</p>
+<ul class="lecciones card">
+    {% for c in cursos %}
+    <li><a href="{% url 'aprende_profesor_curso' c.id %}">{{ c.nombre }}</a></li>
+    {% empty %}
+    <li class="muted">No hay cursos activos. Créalos en el admin Django.</li>
+    {% endfor %}
+</ul>
+{% endblock %}

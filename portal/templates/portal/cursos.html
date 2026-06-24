@@ -14,6 +14,9 @@
             <h2 style="margin:0 0 8px;font-size:16px;">{{ curso.nombre }}</h2>
             <p class="muted">{{ curso.modulos_count }} módulos</p>
             <p class="muted">{{ curso.estudiantes_count }} estudiantes inscritos</p>
+            <p style="margin:12px 0 0;">
+                <a href="/portal/cursos/{{ curso.id }}/flujo/">Ver flujo del curso</a>
+            </p>
             {% if curso.activo %}
                 <span class="status status-resuelta">Activo</span>
             {% else %}

@@ -48,14 +48,23 @@ class ContextoAgroSessionTests(TestCase):
         self.assertEqual(ctx.region, 'Santander')
         self.assertGreaterEqual(ctx.completitud_pct(), 50)
 
-    def test_no_sobrescribe_campo_lleno(self):
+    def test_problema_se_actualiza_en_conversacion(self):
         ctx = obtener_o_crear_contexto(self.sesion)
         ctx.cultivo = 'maíz'
+        ctx.problema = 'sequía'
         ctx.save()
-        actualizar_contexto_desde_mensaje(self.sesion, 'Problema de roya en café')
+        actualizar_contexto_desde_mensaje(self.sesion, 'Ahora apareció roya en las hojas')
         ctx.refresh_from_db()
         self.assertEqual(ctx.cultivo, 'maíz')
         self.assertEqual(ctx.problema, 'roya')
+
+    def test_correccion_cultivo_con_pista(self):
+        ctx = obtener_o_crear_contexto(self.sesion)
+        ctx.cultivo = 'maíz'
+        ctx.save()
+        actualizar_contexto_desde_mensaje(self.sesion, 'No es maíz, en realidad es café con roya')
+        ctx.refresh_from_db()
+        self.assertEqual(ctx.cultivo, 'café')
 
     def test_formatear_bloque_prompt(self):
         ctx = actualizar_contexto_desde_mensaje(

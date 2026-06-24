@@ -6,6 +6,8 @@ Angular / LXP consumen estas URLs bajo el mismo host de eki.
 
 from django.urls import path
 
+from core.views_form_externo import webhook_formulario_externo
+
 from core.api import (
     api_empleabilidad_claim,
     api_empleabilidad_completar,
@@ -22,6 +24,11 @@ from core.api import (
 )
 
 urlpatterns = [
+    path(
+        'api/integracion/form-externo/<str:token>/',
+        webhook_formulario_externo,
+        name='api_form_externo_webhook',
+    ),
     path('api/estudiante/<str:telefono>/', api_estudiante, name='api_estudiante'),
     path('api/estudiante/<str:telefono>/progreso/', api_estudiante_progreso, name='api_estudiante_progreso'),
     path(

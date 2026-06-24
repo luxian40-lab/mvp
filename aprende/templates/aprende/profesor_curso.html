@@ -1,0 +1,18 @@
+{% extends "aprende/base.html" %}
+{% block title %}{{ curso.nombre }} — Profesor{% endblock %}
+{% block nav %}
+<a href="{% url 'aprende_profesor_cursos' %}">← Cursos</a>
+{% endblock %}
+{% block content %}
+<h1>{{ curso.nombre }}</h1>
+<p><a class="btn" href="{% url 'aprende_profesor_modulo_nuevo' curso.id %}">+ Nueva lección</a></p>
+<ul class="lecciones card">
+    {% for m in modulos %}
+    <li>
+        <a href="{% url 'aprende_profesor_modulo_editar' m.id %}">Módulo {{ m.numero }}: {{ m.titulo }}</a>
+    </li>
+    {% empty %}
+    <li class="muted">Sin módulos. Crea la primera lección.</li>
+    {% endfor %}
+</ul>
+{% endblock %}

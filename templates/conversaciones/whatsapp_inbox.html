@@ -1,0 +1,489 @@
+{% load static %}
+<style>
+    .wa-inbox {
+        --wa-green: #00a884;
+        --wa-green-dark: #008069;
+        --wa-header: #008069;
+        --wa-sidebar: #fff;
+        --wa-sidebar-border: #e9edef;
+        --wa-chat-bg: #efeae2;
+        --wa-bubble-in: #fff;
+        --wa-bubble-out: #d9fdd3;
+        --wa-text: #111b21;
+        --wa-muted: #667781;
+        --wa-hover: #f5f6f6;
+        --wa-active: #f0f2f5;
+        --wa-font: "Segoe UI", "Helvetica Neue", Helvetica, "Lucida Grande", Arial, sans-serif;
+        font-family: var(--wa-font);
+        color: var(--wa-text);
+        display: flex;
+        height: var(--wa-inbox-height, calc(100vh - 8px));
+        min-height: 520px;
+        background: #d1d7db;
+        border-radius: 0;
+        overflow: hidden;
+        box-shadow: 0 6px 18px rgba(11, 20, 26, 0.18);
+    }
+    .wa-inbox--portal {
+        --wa-inbox-height: calc(100vh - 120px);
+        border-radius: 12px;
+        border: 1px solid #d1d7db;
+    }
+    .wa-inbox__sidebar {
+        width: 30%;
+        min-width: 320px;
+        max-width: 420px;
+        background: var(--wa-sidebar);
+        border-right: 1px solid var(--wa-sidebar-border);
+        display: flex;
+        flex-direction: column;
+    }
+    .wa-inbox__sidebar-head {
+        background: var(--wa-header);
+        color: #fff;
+        padding: 10px 16px;
+        min-height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+    .wa-inbox__sidebar-head h1 {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 500;
+        letter-spacing: 0.01em;
+    }
+    .wa-inbox__back {
+        color: #fff;
+        text-decoration: none;
+        font-size: 13px;
+        opacity: 0.92;
+        white-space: nowrap;
+    }
+    .wa-inbox__back:hover { opacity: 1; text-decoration: underline; }
+    .wa-inbox__toolbar {
+        padding: 8px 12px;
+        background: #f0f2f5;
+        border-bottom: 1px solid var(--wa-sidebar-border);
+    }
+    .wa-inbox__toolbar label {
+        display: block;
+        font-size: 11px;
+        color: var(--wa-muted);
+        margin-bottom: 4px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+    .wa-inbox__toolbar select,
+    .wa-inbox__toolbar input {
+        width: 100%;
+        border: none;
+        border-radius: 8px;
+        padding: 9px 12px;
+        font-size: 14px;
+        background: #fff;
+        color: var(--wa-text);
+        outline: none;
+        box-shadow: 0 1px 2px rgba(11, 20, 26, 0.08);
+    }
+    .wa-inbox__stats {
+        padding: 6px 16px;
+        font-size: 12px;
+        color: var(--wa-muted);
+        background: #fff;
+        border-bottom: 1px solid var(--wa-sidebar-border);
+    }
+    .wa-inbox__contacts {
+        flex: 1;
+        overflow-y: auto;
+        background: #fff;
+    }
+    .wa-inbox__group-title {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        padding: 8px 16px 6px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--wa-green-dark);
+        background: #f0f2f5;
+        border-bottom: 1px solid var(--wa-sidebar-border);
+    }
+    .wa-inbox__contact {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        text-decoration: none;
+        color: inherit;
+        border-bottom: 1px solid #f5f6f6;
+        transition: background 0.12s ease;
+    }
+    .wa-inbox__contact:hover { background: var(--wa-hover); }
+    .wa-inbox__contact.is-active { background: var(--wa-active); }
+    .wa-inbox__avatar {
+        width: 49px;
+        height: 49px;
+        border-radius: 50%;
+        background: #dfe5e7;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+    .wa-inbox__avatar--g { background: #00a884; }
+    .wa-inbox__avatar--b { background: #53bdeb; }
+    .wa-inbox__avatar--p { background: #7f66ff; }
+    .wa-inbox__avatar--o { background: #ff7a45; }
+    .wa-inbox__avatar--r { background: #ff6b6b; }
+    .wa-inbox__contact-body { flex: 1; min-width: 0; }
+    .wa-inbox__contact-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        align-items: baseline;
+    }
+    .wa-inbox__contact-name {
+        font-size: 16px;
+        font-weight: 500;
+        color: var(--wa-text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .wa-inbox__contact-time {
+        font-size: 12px;
+        color: var(--wa-muted);
+        flex-shrink: 0;
+    }
+    .wa-inbox__contact-preview {
+        margin-top: 3px;
+        font-size: 14px;
+        color: var(--wa-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .wa-inbox__contact-preview--out::before {
+        content: "Tú: ";
+        color: #8696a0;
+    }
+    .wa-inbox__badge {
+        background: var(--wa-green);
+        color: #fff;
+        border-radius: 999px;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        font-size: 11px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 4px;
+    }
+    .wa-inbox__chat {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: var(--wa-chat-bg);
+        background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d9d0c3' fill-opacity='0.22'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    .wa-inbox__chat-head {
+        min-height: 60px;
+        padding: 10px 16px;
+        background: var(--wa-header);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 1px 3px rgba(11, 20, 26, 0.16);
+    }
+    .wa-inbox__chat-head-name { font-size: 16px; font-weight: 500; }
+    .wa-inbox__chat-head-sub { font-size: 13px; opacity: 0.88; margin-top: 2px; }
+    .wa-inbox__messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px 5% 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    .wa-inbox__day {
+        align-self: center;
+        margin: 14px 0 10px;
+        background: #fff;
+        color: #54656f;
+        font-size: 12.5px;
+        padding: 5px 12px 6px;
+        border-radius: 8px;
+        box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+    }
+    .wa-inbox__bubble-wrap {
+        display: flex;
+        flex-direction: column;
+        max-width: 78%;
+        margin-bottom: 2px;
+    }
+    .wa-inbox__bubble-wrap--out { align-self: flex-end; align-items: flex-end; }
+    .wa-inbox__bubble-wrap--in { align-self: flex-start; align-items: flex-start; }
+    .wa-inbox__bubble {
+        position: relative;
+        padding: 6px 7px 8px 9px;
+        border-radius: 7.5px;
+        font-size: 14.2px;
+        line-height: 19px;
+        color: var(--wa-text);
+        box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+        word-wrap: break-word;
+        white-space: pre-wrap;
+    }
+    .wa-inbox__bubble--in {
+        background: var(--wa-bubble-in);
+        border-top-left-radius: 0;
+    }
+    .wa-inbox__bubble--out {
+        background: var(--wa-bubble-out);
+        border-top-right-radius: 0;
+    }
+    .wa-inbox__bubble-meta {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 4px;
+        margin-top: 2px;
+        font-size: 11px;
+        color: var(--wa-muted);
+        float: right;
+        margin-left: 12px;
+        position: relative;
+        top: 4px;
+    }
+    .wa-inbox__ticks { color: #53bdeb; letter-spacing: -2px; }
+    .wa-inbox__agent {
+        font-size: 11px;
+        color: #8696a0;
+        margin-top: 2px;
+        padding-left: 2px;
+    }
+    .wa-inbox__audio-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 12px;
+        color: var(--wa-green-dark);
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    .wa-inbox__empty {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #41525d;
+        text-align: center;
+        padding: 24px;
+    }
+    .wa-inbox__empty-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: #f0f2f5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 36px;
+        margin-bottom: 18px;
+    }
+    .wa-inbox__empty h2 {
+        margin: 0 0 8px;
+        font-size: 1.35rem;
+        font-weight: 300;
+        color: #41525d;
+    }
+    .wa-inbox__empty p { margin: 0; font-size: 14px; color: #667781; max-width: 420px; }
+    .wa-inbox__pager {
+        padding: 10px 16px;
+        background: rgba(240, 242, 245, 0.96);
+        border-top: 1px solid #d1d7db;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .wa-inbox__pager a {
+        background: var(--wa-green);
+        color: #fff;
+        text-decoration: none;
+        padding: 6px 14px;
+        border-radius: 18px;
+        font-size: 13px;
+        font-weight: 500;
+    }
+    .wa-inbox__pager span { font-size: 13px; color: var(--wa-muted); }
+    @media (max-width: 900px) {
+        .wa-inbox { flex-direction: column; height: auto; min-height: 100vh; }
+        .wa-inbox__sidebar { width: 100%; max-width: none; min-height: 280px; }
+        .wa-inbox__chat { min-height: 420px; }
+    }
+</style>
+
+<div class="wa-inbox {% if inbox_modo == 'portal' %}wa-inbox--portal{% endif %}" id="waInbox">
+    <aside class="wa-inbox__sidebar">
+        <div class="wa-inbox__sidebar-head">
+            <h1>Chats</h1>
+            {% if inbox_volver_url %}
+            <a class="wa-inbox__back" href="{{ inbox_volver_url }}">← {{ inbox_volver_label|default:"Volver" }}</a>
+            {% endif %}
+        </div>
+        <div class="wa-inbox__toolbar">
+            {% if mostrar_filtro_clientes %}
+            <label for="filtroCliente">Organización</label>
+            <select id="filtroCliente" onchange="waCambiarCliente(this.value)">
+                <option value="">Todas las organizaciones</option>
+                {% for c in clientes %}
+                <option value="{{ c.id }}" {% if cliente_filtro == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+            {% elif org_nombre %}
+            <div style="font-size:14px;font-weight:500;color:#111b21;padding:4px 0;">{{ org_nombre }}</div>
+            {% endif %}
+            <label for="searchContacts" style="margin-top:8px;">Buscar</label>
+            <input type="search" id="searchContacts" placeholder="Nombre o teléfono" oninput="waFilterContacts()">
+        </div>
+        <div class="wa-inbox__stats">
+            {{ total_contactos }} chat{{ total_contactos|pluralize }} con actividad
+        </div>
+        <div class="wa-inbox__contacts" id="contactsList">
+            {% for grupo in grupos_cliente %}
+            {% if mostrar_filtro_clientes %}
+            <div class="wa-inbox__group-title">{{ grupo.cliente_nombre }}</div>
+            {% endif %}
+            {% for c in grupo.contactos %}
+            <a href="{{ inbox_base_url }}?{% if cliente_filtro %}cliente={{ cliente_filtro }}&{% endif %}{% if c.estudiante_id %}estudiante={{ c.estudiante_id }}{% else %}telefono={{ c.telefono }}{% endif %}"
+               class="wa-inbox__contact {% if contacto_seleccionado and contacto_seleccionado.telefono == c.telefono %}is-active{% elif estudiante_seleccionado and c.estudiante_id == estudiante_seleccionado.id %}is-active{% endif %}"
+               data-name="{{ c.nombre|lower }}"
+               data-phone="{{ c.telefono }}">
+                <div class="wa-inbox__avatar {% cycle 'wa-inbox__avatar--g' 'wa-inbox__avatar--b' 'wa-inbox__avatar--p' 'wa-inbox__avatar--o' 'wa-inbox__avatar--r' %}">
+                    {% if c.nombre %}{{ c.nombre|slice:":1"|upper }}{% else %}?{% endif %}
+                </div>
+                <div class="wa-inbox__contact-body">
+                    <div class="wa-inbox__contact-top">
+                        <div class="wa-inbox__contact-name">{{ c.nombre }}</div>
+                        {% if c.ultima_fecha %}
+                        <div class="wa-inbox__contact-time">{{ c.ultima_fecha|date:"d/m/Y" }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="wa-inbox__contact-preview {% if c.ultimo_tipo == 'SENT' %}wa-inbox__contact-preview--out{% endif %}">
+                        {% if c.ultimo_mensaje %}{{ c.ultimo_mensaje|truncatechars:72 }}{% else %}Sin mensajes{% endif %}
+                    </div>
+                </div>
+                {% if c.total_mensajes %}
+                <span class="wa-inbox__badge">{{ c.total_mensajes }}</span>
+                {% endif %}
+            </a>
+            {% endfor %}
+            {% empty %}
+            <div class="wa-inbox__empty" style="min-height:200px;">
+                <p>No hay conversaciones{% if cliente_filtro %} para esta organización{% endif %}.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </aside>
+
+    <section class="wa-inbox__chat">
+        {% if contacto_seleccionado or estudiante_seleccionado %}
+        <header class="wa-inbox__chat-head">
+            <div class="wa-inbox__avatar wa-inbox__avatar--g" style="width:40px;height:40px;font-size:15px;">
+                {% if estudiante_seleccionado and estudiante_seleccionado.nombre %}{{ estudiante_seleccionado.nombre|slice:":1"|upper }}{% elif contacto_seleccionado.nombre %}{{ contacto_seleccionado.nombre|slice:":1"|upper }}{% else %}?{% endif %}
+            </div>
+            <div>
+                <div class="wa-inbox__chat-head-name">
+                    {% if estudiante_seleccionado %}{{ estudiante_seleccionado.nombre }}{% else %}{{ contacto_seleccionado.nombre }}{% endif %}
+                </div>
+                <div class="wa-inbox__chat-head-sub">
+                    {% if estudiante_seleccionado %}{{ estudiante_seleccionado.telefono }}{% else %}{{ contacto_seleccionado.telefono_display }}{% endif %}
+                    {% if estudiante_seleccionado and estudiante_seleccionado.cliente %}
+                    · {{ estudiante_seleccionado.cliente.nombre }}
+                    {% endif %}
+                </div>
+            </div>
+        </header>
+        <div class="wa-inbox__messages" id="chatMessages">
+            {% for msg in mensajes %}
+                {% ifchanged msg.fecha|date:"d/m/Y" %}
+                <div class="wa-inbox__day">{{ msg.fecha|date:"d/m/Y" }}</div>
+                {% endifchanged %}
+                <div class="wa-inbox__bubble-wrap {% if msg.tipo == 'enviado' %}wa-inbox__bubble-wrap--out{% else %}wa-inbox__bubble-wrap--in{% endif %}">
+                    <div class="wa-inbox__bubble {% if msg.tipo == 'enviado' %}wa-inbox__bubble--out{% else %}wa-inbox__bubble--in{% endif %}">
+                        {% if msg.es_audio %}<div class="wa-inbox__audio-tag">🎤 Audio</div>{% endif %}
+                        {{ msg.mensaje }}
+                        <span class="wa-inbox__bubble-meta">
+                            {{ msg.fecha|date:"H:i" }}
+                            {% if msg.tipo == 'enviado' %}
+                                {% if msg.estado == 'DELIVERED' or msg.estado == 'READ' or msg.estado == 'delivered' or msg.estado == 'read' %}
+                                <span class="wa-inbox__ticks">✓✓</span>
+                                {% elif msg.estado == 'SENT' or msg.estado == 'sent' %}
+                                <span>✓</span>
+                                {% endif %}
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% if msg.agente %}<div class="wa-inbox__agent">{{ msg.agente }}</div>{% endif %}
+                </div>
+            {% empty %}
+                <div class="wa-inbox__empty">
+                    <div class="wa-inbox__empty-icon">📭</div>
+                    <p>No hay mensajes para este contacto.</p>
+                </div>
+            {% endfor %}
+        </div>
+        {% if page_obj and page_obj.has_other_pages %}
+        <div class="wa-inbox__pager">
+            {% if page_obj.has_previous %}
+            <a href="{{ inbox_base_url }}?{% if cliente_filtro %}cliente={{ cliente_filtro }}&{% endif %}{% if estudiante_seleccionado %}estudiante={{ estudiante_seleccionado.id }}{% else %}telefono={{ contacto_seleccionado.telefono }}{% endif %}&page={{ page_obj.previous_page_number }}">← Anteriores</a>
+            {% endif %}
+            <span>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}
+            <a href="{{ inbox_base_url }}?{% if cliente_filtro %}cliente={{ cliente_filtro }}&{% endif %}{% if estudiante_seleccionado %}estudiante={{ estudiante_seleccionado.id }}{% else %}telefono={{ contacto_seleccionado.telefono }}{% endif %}&page={{ page_obj.next_page_number }}">Siguientes →</a>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="wa-inbox__empty">
+            <div class="wa-inbox__empty-icon">
+                <svg viewBox="0 0 24 24" width="42" height="42" fill="#8696a0"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+            </div>
+            <h2>Conversaciones eki</h2>
+            <p>Selecciona un chat de la lista para ver el historial de WhatsApp con ese participante.</p>
+        </div>
+        {% endif %}
+    </section>
+</div>
+
+<script>
+function waCambiarCliente(id) {
+    const base = '{{ inbox_base_url|escapejs }}';
+    window.location.href = id ? base + '?cliente=' + id : base;
+}
+function waFilterContacts() {
+    const q = (document.getElementById('searchContacts').value || '').toLowerCase();
+    document.querySelectorAll('.wa-inbox__contact').forEach(function (c) {
+        const name = c.getAttribute('data-name') || '';
+        const phone = c.getAttribute('data-phone') || '';
+        c.style.display = (name.includes(q) || phone.includes(q)) ? '' : 'none';
+    });
+}
+document.addEventListener('DOMContentLoaded', function () {
+    const chat = document.getElementById('chatMessages');
+    if (chat) chat.scrollTop = chat.scrollHeight;
+});
+</script>

@@ -1,0 +1,97 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}{{ titulo }} | {{ site_title }}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+.aw-page { padding: 1.25rem 1.5rem 2.5rem; max-width: 1100px; }
+.aw-intro { color: #64748b; font-size: 0.9rem; margin: 0 0 1.25rem; }
+.aw-filtros { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: end; margin-bottom: 1.25rem; }
+.aw-filtros label { display: block; font-size: 0.78rem; font-weight: 600; color: #475569; margin-bottom: 0.25rem; }
+.aw-filtros select { min-width: 220px; padding: 0.45rem 0.6rem; border-radius: 8px; border: 1px solid #cbd5e1; }
+.aw-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.65rem; margin-bottom: 1.25rem; }
+.aw-stat { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.75rem 0.9rem; }
+.aw-stat strong { display: block; font-size: 1.35rem; color: #0f172a; }
+.aw-stat span { font-size: 0.78rem; color: #64748b; }
+.aw-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.75rem; }
+.aw-card {
+    display: block; padding: 1rem 1.1rem; background: #fff; border: 1px solid #e2e8f0;
+    border-radius: 12px; text-decoration: none; color: #0f172a; transition: border-color .15s, background .15s;
+}
+.aw-card:hover { border-color: #9b67b1; background: #f3eaf7; color: #5b3d6b; text-decoration: none; }
+.aw-card h2 { font-size: 0.95rem; margin: 0 0 0.35rem; font-weight: 700; }
+.aw-card p { margin: 0; font-size: 0.78rem; color: #64748b; line-height: 1.45; }
+.aw-card.ext { border-style: dashed; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="aw-page">
+    <h1>{{ titulo }}</h1>
+    <p class="aw-intro">
+        Gestión del aula web (<code>/aprende/</code>): estudiantes, profesores y contenido.
+        No confundir con el <strong>portal clientes</strong> B2B (<code>/portal/</code>).
+        {% if cliente %}Filtrando por <strong>{{ cliente.nombre }}</strong>.{% endif %}
+    </p>
+
+    <form method="get" class="aw-filtros">
+        <div>
+            <label for="cliente">Organización (opcional)</label>
+            <select name="cliente" id="cliente" onchange="this.form.submit()">
+                <option value="">— Todas —</option>
+                {% for c in clientes %}
+                <option value="{{ c.id }}" {% if cliente and cliente.id == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </form>
+
+    <div class="aw-stats">
+        <div class="aw-stat"><strong>{{ stats.estudiantes }}</strong><span>Estudiantes activos</span></div>
+        <div class="aw-stat"><strong>{{ stats.profesores }}</strong><span>Profesores aula web</span></div>
+        <div class="aw-stat"><strong>{{ stats.cursos }}</strong><span>Cursos activos</span></div>
+        <div class="aw-stat"><strong>{{ stats.progresos }}</strong><span>Progresos registrados</span></div>
+    </div>
+
+    <div class="aw-grid">
+        <a class="aw-card" href="{% url 'admin:portal_portalusuario_add' %}?rol=profesor">
+            <h2>+ Nuevo profesor</h2>
+            <p>Usuario con rol Profesor para subir lecciones en /aprende/profesor/.</p>
+        </a>
+        <a class="aw-card" href="{% url 'admin:portal_portalusuario_changelist' %}?rol__exact=profesor{% if cliente %}&organizacion__id__exact={{ cliente.id }}{% endif %}">
+            <h2>Profesores</h2>
+            <p>Docentes del aula web por organización.</p>
+        </a>
+        <a class="aw-card" href="{% url 'admin:core_estudiante_changelist' %}{% if cliente %}?cliente__id__exact={{ cliente.id }}{% endif %}">
+            <h2>Estudiantes</h2>
+            <p>Cédula y teléfono WhatsApp (login en /aprende/estudiante/).</p>
+        </a>
+        <a class="aw-card" href="{% url 'admin:core_estudiante_add' %}">
+            <h2>+ Nuevo estudiante</h2>
+            <p>Alta manual de participante.</p>
+        </a>
+        <a class="aw-card" href="{% url 'admin:core_curso_changelist' %}{% if cliente %}?cliente__id__exact={{ cliente.id }}{% endif %}">
+            <h2>Cursos y módulos</h2>
+            <p>Contenido compartido con WhatsApp y aula web.</p>
+        </a>
+        <a class="aw-card" href="{% url 'admin:core_progresoestudiante_changelist' %}{% if cliente %}?estudiante__cliente__id__exact={{ cliente.id }}{% endif %}">
+            <h2>Progreso</h2>
+            <p>Módulo actual por estudiante y curso.</p>
+        </a>
+        <a class="aw-card" href="{% url 'admin_drip_estudiantes' %}{% if cliente %}?cliente={{ cliente.id }}{% endif %}">
+            <h2>Acceso a módulos</h2>
+            <p>Drip y habilitación por estudiante.</p>
+        </a>
+        <a class="aw-card ext" href="/aprende/" target="_blank" rel="noopener">
+            <h2>Abrir aula web ↗</h2>
+            <p>Vista pública estudiante / profesor.</p>
+        </a>
+        <a class="aw-card ext" href="/portal/login/" target="_blank" rel="noopener">
+            <h2>Portal clientes ↗</h2>
+            <p>Métricas B2B para coordinadores (producto distinto).</p>
+        </a>
+    </div>
+</div>
+{% endblock %}

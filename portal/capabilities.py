@@ -6,7 +6,7 @@ from functools import wraps
 
 from django.shortcuts import redirect
 
-MODULOS_VALIDOS = frozenset({'cursos', 'gei', 'nat'})
+MODULOS_VALIDOS = frozenset({'cursos', 'gei', 'nat', 'empleabilidad'})
 
 CATEGORIAS_POR_TIPO_PROYECTO = {
     'cursos': [
@@ -59,6 +59,7 @@ def modulos_portal(org) -> dict[str, bool]:
         'cursos': principal == 'cursos',
         'gei': principal == 'gei',
         'nat': principal == 'nat',
+        'empleabilidad': False,
     }
 
 

@@ -1,0 +1,98 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Empleabilidad | Portal eki{% endblock %}
+
+{% block extra_head %}
+<style>
+    .emp-wrap { max-width: 1100px; }
+    .emp-banner {
+        background: #eef6ff; border: 1px solid #bfdbfe; border-radius: 10px;
+        padding: 12px 14px; margin-bottom: 18px; font-size: 14px; color: #1e3a5f;
+    }
+    .emp-metrics {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 14px;
+        margin-bottom: 24px;
+    }
+    .emp-metric {
+        background: #eef6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 10px;
+        padding: 18px 16px;
+    }
+    .emp-metric .n { font-size: 2rem; font-weight: 700; color: #1d4ed8; line-height: 1.1; }
+    .emp-metric .l {
+        font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+        color: var(--texto-muted); margin-top: 6px;
+    }
+    .emp-metric .sub { font-size: 13px; color: var(--texto-muted); margin-top: 8px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="emp-wrap">
+    <div class="page-title">
+        <div>
+            <h1>Empleabilidad territorial</h1>
+            <p class="muted">Exploración de oportunidades por proximidad (WhatsApp + validación en sitio).</p>
+        </div>
+    </div>
+
+    <div class="emp-banner">
+        <strong>Organización:</strong> {{ org.nombre }}
+        · <strong>{{ resumen.total_inscritos }}</strong> jóvenes activos inscritos
+        · ventana de retención: últimos <strong>{{ resumen.dias_retencion }}</strong> días
+    </div>
+
+    <section class="emp-metrics">
+        <article class="emp-metric">
+            <div class="n">{{ resumen.retencion_pct }}%</div>
+            <div class="l">Retención</div>
+            <div class="sub">{{ resumen.jovenes_activos }} de {{ resumen.total_inscritos }} jóvenes con actividad reciente</div>
+        </article>
+        <article class="emp-metric">
+            <div class="n">{{ resumen.misiones_completadas }}</div>
+            <div class="l">Misiones completadas</div>
+            <div class="sub">Código secreto validado en aliado</div>
+        </article>
+        <article class="emp-metric">
+            <div class="n">{{ resumen.oportunidades_georef }}</div>
+            <div class="l">Oportunidades georreferenciadas</div>
+            <div class="sub">Exploraciones con coordenadas registradas</div>
+        </article>
+    </section>
+
+    <section class="panel">
+        <h2 style="margin-top:0;font-size:16px;">Actividad reciente</h2>
+        {% if resumen.misiones_recientes %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Joven</th>
+                        <th>Aliado</th>
+                        <th>Estado</th>
+                        <th>Distancia</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in resumen.misiones_recientes %}
+                    <tr>
+                        <td>{{ m.fecha_descubierta|date:"d/m/Y H:i" }}</td>
+                        <td>{{ m.estudiante.nombre }}</td>
+                        <td>{{ m.aliado.nombre_empresa }}</td>
+                        <td>{{ m.get_estado_display }}</td>
+                        <td>{% if m.distancia_metros %}{{ m.distancia_metros|floatformat:0 }} m{% else %}—{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="muted">Aún no hay misiones de exploración registradas para esta organización.</p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

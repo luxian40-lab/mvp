@@ -37,7 +37,7 @@ def test_armar_system_prompt_incluye_protocolo_diagnostico():
 
 def test_armar_system_prompt_prohibe_inventar_datos():
     prompt = armar_system_prompt()
-    assert "NUNCA inventes" in prompt
+    assert "no invente" in prompt.lower()
 
 
 def test_armar_system_prompt_usa_nombre_bot_cliente():

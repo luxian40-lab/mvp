@@ -19,6 +19,7 @@ def health_check(request):
 urlpatterns = [
     # Health check (DEBE estar primero)
     path('health/', health_check, name='health_check'),
+    path('healthz/', health_check, name='health_check_z'),
 
     # Rutas funcionales separadas por dominio
     path('', include('core.urls.admin_urls')),
@@ -27,6 +28,7 @@ urlpatterns = [
     path('', include('core.urls.certificados_urls')),
     path('', include('core.urls.media_urls')),
     path('portal/', include('portal.urls')),
+    path('aprende/', include('aprende.urls')),
 
     # Admin de Django
     path('admin/', admin.site.urls),

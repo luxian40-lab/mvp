@@ -8,6 +8,30 @@ from django.contrib import messages
 from .exportar_respuestas_xlsx import exportar_respuestas_xlsx
 
 
+class RespuestaCampanaUnicaInline(admin.TabularInline):
+    model = RespuestaCampanaUnica
+    extra = 0
+    can_delete = False
+    readonly_fields = (
+        'numero_telefono',
+        'nombre_estudiante_inline',
+        'respuesta',
+        'fecha_respuesta',
+        'mensaje_sid',
+    )
+    fields = readonly_fields
+
+    def nombre_estudiante_inline(self, obj):
+        if obj.estudiante_id:
+            return obj.estudiante.nombre
+        return '—'
+
+    nombre_estudiante_inline.short_description = 'Estudiante'
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(CampanaUnica)
 class CampanaUnicaAdmin(admin.ModelAdmin):
     list_display = ['nombre', 'cliente', 'estado', 'total_enviados', 'respuestas_si', 'respuestas_no', 'fecha_envio', 'descargar_xlsx_link']
@@ -33,6 +57,7 @@ class CampanaUnicaAdmin(admin.ModelAdmin):
         }),
     )
     actions = ['enviar_campana_unica']
+    inlines = [RespuestaCampanaUnicaInline]
 
     def get_urls(self):
         urls = super().get_urls()

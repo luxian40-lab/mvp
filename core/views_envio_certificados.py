@@ -14,8 +14,12 @@ from core.certificado_admin_preview import (
 from core.certificado_presencial_service import (
     agregar_participante_certificado,
     enviar_certificados_seleccion,
+    enviar_plantilla_inicial_certificado,
+    enviar_whatsapp_certificados_existentes,
     filas_estudiantes_certificado,
     info_plantilla_curso,
+    plantillas_twilio_whatsapp,
+    resolver_twilio_content_sid,
 )
 from core.models import Cliente, Curso
 from core.models_extras import GrupoEstudiantes
@@ -111,6 +115,42 @@ def _plantilla_desde_post(request) -> PlantillaCertificado | None:
     if not pid:
         return None
     return PlantillaCertificado.objects.filter(pk=pid, activa=True).first()
+
+
+def _twilio_params_desde_post(request) -> dict:
+    """Lee plantillas Twilio (admin o HX manual) del formulario."""
+    inicial_id = _int_param(request, 'twilio_plantilla_inicial_id')
+    media_id = _int_param(request, 'twilio_plantilla_media_id')
+    previo_id = _int_param(request, 'twilio_plantilla_previo_id')
+    diploma_id = _int_param(request, 'twilio_plantilla_diploma_id')
+    media_var = (request.POST.get('media_var_index') or '1').strip() or '1'
+    return {
+        'twilio_content_sid_inicial': resolver_twilio_content_sid(
+            plantilla_id=inicial_id,
+            sid_manual=request.POST.get('twilio_sid_inicial_manual', ''),
+        ),
+        'twilio_content_sid_media': resolver_twilio_content_sid(
+            plantilla_id=media_id,
+            sid_manual=request.POST.get('twilio_sid_media_manual', ''),
+        ),
+        'media_var_index': media_var,
+        'twilio_content_sid_previo': resolver_twilio_content_sid(
+            plantilla_id=previo_id,
+            sid_manual=request.POST.get('twilio_sid_previo_manual', ''),
+        ),
+        'twilio_content_sid_diploma': resolver_twilio_content_sid(
+            plantilla_id=diploma_id,
+            sid_manual=request.POST.get('twilio_sid_diploma_manual', ''),
+        ),
+    }
+
+
+def _mensaje_previo_desde_post(request) -> str:
+    if request.POST.get('usar_mensaje_previo') != 'on':
+        return ''
+    if request.POST.get('modo_previo') == 'twilio':
+        return ''
+    return request.POST.get('mensaje_previo', '')
 
 
 @staff_member_required
@@ -216,6 +256,49 @@ def envio_certificados_view(request):
                 q=busqueda, qg=busqueda_global, plantilla_id=plantilla_id, extra=extra_raw,
             )
 
+        if action == 'enviar_plantilla_inicial':
+            try:
+                calificacion = float(request.POST.get('calificacion') or '100')
+            except ValueError:
+                calificacion = 100.0
+            calificacion = max(0, min(100, calificacion))
+
+            twilio = _twilio_params_desde_post(request)
+            if not twilio['twilio_content_sid_inicial']:
+                messages.error(
+                    request,
+                    'Elija la plantilla inicial (la que pide responder OK) o pegue su HX.',
+                )
+                return _redirect(
+                    cliente.id, curso_id=curso.id, grupo_id=grupo_id,
+                    q=busqueda, qg=busqueda_global, plantilla_id=plantilla_id, extra=extra_raw,
+                )
+
+            resumen = enviar_plantilla_inicial_certificado(
+                seleccionados,
+                curso,
+                twilio_content_sid_inicial=twilio['twilio_content_sid_inicial'],
+                emitir_certificado=request.POST.get('emitir_certificado') == 'on',
+                calificacion=calificacion,
+                regenerar_si_existe=request.POST.get('regenerar') == 'on',
+                plantilla=_plantilla_desde_post(request),
+                permitir_otro_cliente=True,
+            )
+            messages.success(
+                request,
+                f'Plantilla inicial enviada a {len(seleccionados)} seleccionado(s): '
+                f'{resumen.get("plantillas_enviadas", 0)} plantilla(s), '
+                f'{resumen.get("creados", 0)} cert. nuevos, '
+                f'{resumen.get("existentes", 0)} ya existían, '
+                f'{resumen.get("pendientes", 0)} en espera de OK, '
+                f'{resumen.get("errores", 0)} error(es). '
+                'Cuando respondan *OK* o un número, reciben el certificado automáticamente.',
+            )
+            return _redirect(
+                cliente.id, curso_id=curso.id, grupo_id=grupo_id,
+                q=busqueda, qg=busqueda_global, plantilla_id=plantilla_id, extra=extra_raw,
+            )
+
         if action == 'enviar':
             try:
                 calificacion = float(request.POST.get('calificacion') or '100')
@@ -223,16 +306,32 @@ def envio_certificados_view(request):
                 calificacion = 100.0
             calificacion = max(0, min(100, calificacion))
 
-            mensaje_previo = request.POST.get('mensaje_previo', '')
-            if request.POST.get('usar_mensaje_previo') != 'on':
-                mensaje_previo = ''
+            twilio = _twilio_params_desde_post(request)
+            mensaje_previo = _mensaje_previo_desde_post(request)
+            enviar_wa = request.POST.get('enviar_certificado_wa') == 'on'
+
+            if (
+                enviar_wa
+                and not twilio['twilio_content_sid_media']
+                and not twilio['twilio_content_sid_previo']
+                and not mensaje_previo
+            ):
+                messages.warning(
+                    request,
+                    'Sin plantilla de aviso ni plantilla con imagen: el diploma solo llega si el estudiante '
+                    'escribió en las últimas 24 h. Elija plantilla aviso o plantilla con imagen.',
+                )
 
             resumen = enviar_certificados_seleccion(
                 seleccionados,
                 curso,
                 mensaje_previo=mensaje_previo,
+                twilio_content_sid_media=twilio['twilio_content_sid_media'] or None,
+                media_var_index=twilio['media_var_index'],
+                twilio_content_sid_previo=twilio['twilio_content_sid_previo'] or None,
+                twilio_content_sid_diploma=twilio['twilio_content_sid_diploma'] or None,
                 emitir_certificado=request.POST.get('emitir_certificado') == 'on',
-                enviar_whatsapp_certificado=request.POST.get('enviar_certificado_wa') == 'on',
+                enviar_whatsapp_certificado=enviar_wa,
                 calificacion=calificacion,
                 regenerar_si_existe=request.POST.get('regenerar') == 'on',
                 plantilla=_plantilla_desde_post(request),
@@ -241,11 +340,52 @@ def envio_certificados_view(request):
             messages.success(
                 request,
                 f'Enviado a {len(seleccionados)} seleccionado(s): '
-                f'{resumen["mensajes_previos"]} mensaje(s) previo, '
+                f'{resumen["mensajes_previos"]} plantilla(s) aviso, '
+                f'{resumen.get("pendientes_respuesta", 0)} en espera de respuesta del estudiante, '
                 f'{resumen["creados"]} cert. nuevos, '
                 f'{resumen["existentes"]} ya existían, '
-                f'{resumen["certificados_enviados"]} diploma(s) por WhatsApp, '
-                f'{resumen["errores"]} error(es).',
+                f'{resumen["certificados_enviados"]} diploma(s) directos por WhatsApp, '
+                f'{resumen["errores"]} error(es). '
+                'Tras la plantilla, el diploma llega cuando el estudiante responde cualquier mensaje.',
+            )
+            return _redirect(
+                cliente.id, curso_id=curso.id, grupo_id=grupo_id,
+                q=busqueda, qg=busqueda_global, plantilla_id=plantilla_id, extra=extra_raw,
+            )
+
+        if action == 'reenviar_wa':
+            twilio = _twilio_params_desde_post(request)
+            mensaje_previo = _mensaje_previo_desde_post(request)
+            if (
+                not twilio['twilio_content_sid_media']
+                and not twilio['twilio_content_sid_previo']
+                and not mensaje_previo
+            ):
+                messages.error(
+                    request,
+                    'Para reenviar fuera de ventana 24 h elija la plantilla con imagen (ideal) '
+                    'o una plantilla de aviso previo.',
+                )
+                return _redirect(
+                    cliente.id, curso_id=curso.id, grupo_id=grupo_id,
+                    q=busqueda, qg=busqueda_global, plantilla_id=plantilla_id, extra=extra_raw,
+                )
+
+            resumen = enviar_whatsapp_certificados_existentes(
+                seleccionados,
+                curso,
+                mensaje_previo=mensaje_previo,
+                twilio_content_sid_media=twilio['twilio_content_sid_media'] or None,
+                media_var_index=twilio['media_var_index'],
+                twilio_content_sid_previo=twilio['twilio_content_sid_previo'] or None,
+                twilio_content_sid_diploma=twilio['twilio_content_sid_diploma'] or None,
+                permitir_otro_cliente=True,
+            )
+            messages.success(
+                request,
+                f'Reenvío WhatsApp: {resumen["mensajes_previos"]} aviso(s) previo, '
+                f'{resumen["enviados"]} diploma(s), {resumen["errores"]} error(es), '
+                f'{resumen["omitidos"]} sin certificado emitido.',
             )
             return _redirect(
                 cliente.id, curso_id=curso.id, grupo_id=grupo_id,
@@ -270,4 +410,5 @@ def envio_certificados_view(request):
         'extra_raw': extra_raw,
         'mensaje_previo_default': MENSAJE_PREVIO_DEFAULT,
         'guia_marcadores_html': GUIA_MARCADORES_HTML,
+        'plantillas_twilio': plantillas_twilio_whatsapp(),
     })

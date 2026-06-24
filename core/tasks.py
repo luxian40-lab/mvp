@@ -92,6 +92,22 @@ def procesar_respuesta_estudiante(self, estudiante_id, mensaje, media_url=None):
         raise self.retry(exc=exc)
 
 
+@shared_task(bind=True, max_retries=2, default_retry_delay=5)
+def procesar_twilio_webhook_async(self, post_data: dict):
+    """
+    Procesa webhook Twilio educativo en Celery (libera worker Gunicorn).
+    Activar con WEBHOOK_CELERY_ASYNC=true en EB cuando haya picos de mensajes.
+    """
+    try:
+        from core.views import _procesar_twilio_webhook
+
+        logger.info("[Celery] Webhook Twilio educativo | sid=%s", post_data.get('MessageSid', ''))
+        return _procesar_twilio_webhook(post_data)
+    except Exception as exc:
+        logger.error("[Celery] Error webhook Twilio async: %s", exc)
+        raise self.retry(exc=exc)
+
+
 @shared_task(bind=True, max_retries=3, default_retry_delay=30)
 def generar_certificado_async(self, certificado_id):
     """

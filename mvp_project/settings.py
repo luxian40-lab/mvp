@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'analytics',                # Dashboards, métricas, Excel
     'integrations',             # API LXP / Angular
     'portal',                   # Portal web para clientes B2B
+    'aprende',                  # Aula web estudiantes / profesores
 ]
 
 MIDDLEWARE = [
@@ -66,6 +67,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'portal.middleware.SuscripcionMiddleware',
+    'aprende.middleware.AprendeEstudianteMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.RateLimitMiddleware',  # 🔒 Rate limiting
@@ -242,6 +244,7 @@ JAZZMIN_SETTINGS = {
         {"name": "Envío certificados", "url": "/admin/envio-certificados/", "new_window": False},
         {"name": "Push", "url": "/admin/push-estudiantes/", "new_window": False},
         {"name": "Form externo", "url": "/admin/core/enlaceformularioexterno/", "new_window": False},
+        {"name": "Aula web", "url": "/admin/aula-web/", "new_window": False},
         {"name": "Manual", "url": "/admin/instrucciones/", "new_window": False},
         {"name": "Conversaciones", "url": "conversaciones", "new_window": False},
     ],
@@ -322,6 +325,13 @@ JAZZMIN_SETTINGS = {
         "formulario.ResultadoGEI": "fas fa-calculator",
         "formulario.TipoFormulario": "fas fa-wpforms",
         "formulario.SesionFormulario": "fas fa-tasks",
+
+        # Portal clientes — usuarios B2B por organización
+        "portal": "fas fa-building",
+        "portal.PortalUsuario": "fas fa-user-tie",
+
+        # Aula web eki — distinto del portal clientes
+        "aprende": "fas fa-laptop",
     },
 
     # Links custom (acceso rápido a vistas no-modelo)
@@ -363,6 +373,30 @@ JAZZMIN_SETTINGS = {
                 "url": "/admin/crear-curso-ia/",
                 "icon": "fas fa-magic",
                 "permissions": ["core.view_curso"],
+            },
+        ],
+        "portal": [
+            {
+                "name": "Abrir portal clientes",
+                "url": "/portal/login/",
+                "icon": "fas fa-external-link-alt",
+                "permissions": ["portal.view_portalusuario"],
+                "new_window": True,
+            },
+        ],
+        "aprende": [
+            {
+                "name": "Inicio aula web",
+                "url": "/admin/aula-web/",
+                "icon": "fas fa-home",
+                "permissions": ["core.view_estudiante"],
+            },
+            {
+                "name": "Abrir /aprende/",
+                "url": "/aprende/",
+                "icon": "fas fa-laptop",
+                "permissions": ["core.view_estudiante"],
+                "new_window": True,
             },
         ],
     },
@@ -437,6 +471,11 @@ JAZZMIN_SETTINGS = {
         "formulario.FichaGEI",
         "formulario.ResultadoGEI",
         "formulario.SesionFormulario",
+        # Portal clientes (usuarios B2B)
+        "portal",
+        "portal.PortalUsuario",
+        # Aula web eki
+        "aprende",
     ],
 
     # Usar verbose names en español
@@ -598,7 +637,7 @@ CERT_VERIFICATION_ALLOWED_ORIGIN = os.environ.get(
 ).strip().rstrip('/')
 
 # ==========================================
-# 🌱 AGRO NEXO IA (Segundo número / webhook)
+# 🌱 AGRONEXO — alias legacy de BOT_COMERCIAL (canal unificado bot_comercial)
 # ==========================================
 AGRONEXO_CLIENTE_ID = os.environ.get('AGRONEXO_CLIENTE_ID', BOT_COMERCIAL_CLIENTE_ID)
 AGRONEXO_CURSO_ID = os.environ.get('AGRONEXO_CURSO_ID', BOT_COMERCIAL_CURSO_ID)
@@ -820,6 +859,9 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 # En desarrollo sin Redis, deshabilitar Celery (las tareas se ejecutan síncronamente)
 CELERY_TASK_ALWAYS_EAGER = os.environ.get('CELERY_TASK_ALWAYS_EAGER', 'False') == 'True'
 CELERY_TASK_EAGER_PROPAGATES = True
+
+# Webhook WhatsApp educativo en Celery (libera Gunicorn). Desactivado por defecto.
+WEBHOOK_CELERY_ASYNC = os.environ.get('WEBHOOK_CELERY_ASYNC', 'False') == 'True'
 
 # Formulario GEI — envío automático del balance por WhatsApp al completar un módulo del curso
 GEI_MODULO_NUMERO_WHATSAPP_RESULTADO = int(os.environ.get('GEI_MODULO_NUMERO_WHATSAPP_RESULTADO', '5') or '5')

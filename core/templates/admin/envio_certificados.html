@@ -22,6 +22,12 @@
 .ec-contador { font-size: 0.85rem; color: #475569; }
 .ec-inline-form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-end; font-size: 0.875rem; }
 .ec-inline-form input { padding: 0.4rem 0.55rem; border-radius: 8px; border: 1px solid #e2e8f0; }
+.ec-sel-panel { background: #f0fdf4; border: 1px solid #86efac; border-radius: 10px; padding: 0.75rem 1rem; margin-bottom: 1rem; }
+.ec-sel-panel h3 { margin: 0 0 0.5rem; font-size: 0.92rem; }
+.ec-sel-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.ec-sel-chip { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.55rem; border-radius: 999px; background: #fff; border: 1px solid #bbf7d0; font-size: 0.8rem; }
+.ec-sel-chip button { border: none; background: transparent; color: #b91c1c; cursor: pointer; font-size: 1rem; line-height: 1; padding: 0; }
+.ec-sel-empty { font-size: 0.82rem; color: #64748b; margin: 0; }
 </style>
 {% endblock %}
 
@@ -63,17 +69,17 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="field">
-            <label for="q">Filtrar lista</label>
-            <input type="search" name="q" id="q" value="{{ busqueda }}" placeholder="Nombre, cédula o teléfono">
+        <div class="field" style="min-width:280px;">
+            <label for="qg">🔎 Buscar estudiante (cualquier organización)</label>
+            <input type="search" name="qg" id="qg" value="{{ busqueda_global }}" placeholder="Nombre, cédula o teléfono — busca en todo el sistema">
         </div>
         <div class="field">
-            <label for="qg">Buscar en todo el sistema</label>
-            <input type="search" name="qg" id="qg" value="{{ busqueda_global }}" placeholder="Traer estudiante de otro cliente">
+            <label for="q">Filtrar lista cargada</label>
+            <input type="search" name="q" id="q" value="{{ busqueda }}" placeholder="Filtra los ya mostrados">
         </div>
-        {% if extra_raw %}<input type="hidden" name="extra" value="{{ extra_raw }}">{% endif %}
+        <input type="hidden" name="extra" id="ec-extra-ids" value="{{ extra_raw }}">
         {% endif %}
-        <button type="submit" class="eki-btn eki-btn-primary">Cargar lista</button>
+        <button type="submit" class="eki-btn eki-btn-primary">Cargar / Buscar</button>
         <a class="eki-btn eki-btn-ghost" href="{% url 'admin:learning_plantillacertificado_changelist' %}">Plantillas</a>
     </form>
 
@@ -82,6 +88,7 @@
     <div class="ec-alert">
         Solo los <strong>marcados</strong> reciben envío. Si el estudiante es de <strong>otro cliente</strong> o tiene curso digital activo,
         igual puede recibir este certificado — <em>no se reinicia</em> su avance WhatsApp.
+        <br><strong>WhatsApp masivo:</strong> fuera de ventana 24 h use <em>plantilla Twilio aprobada</em> (no confundir con la plantilla PDF del diploma).
     </div>
 
     <div class="ec-panel">
@@ -126,15 +133,139 @@
         {% if filtro_grupo %}<input type="hidden" name="grupo" value="{{ filtro_grupo }}">{% endif %}
         {% if busqueda %}<input type="hidden" name="q" value="{{ busqueda }}">{% endif %}
         {% if busqueda_global %}<input type="hidden" name="qg" value="{{ busqueda_global }}">{% endif %}
-        {% if extra_raw %}<input type="hidden" name="extra" value="{{ extra_raw }}">{% endif %}
+        <input type="hidden" name="extra" id="ec-extra-ids-post" value="{{ extra_raw }}">
         {% if filtro_plantilla %}<input type="hidden" name="plantilla_id" value="{{ filtro_plantilla }}">{% endif %}
 
         <h2 style="margin:0 0 0.75rem;font-size:1.05rem;">Enviar a seleccionados</h2>
+
+        <div class="ec-panel" style="background:#ecfdf5;border:1px solid #6ee7b7;margin-bottom:1rem;padding:0.85rem 1rem;">
+            <h3 style="margin:0 0 0.5rem;font-size:0.95rem;">Recomendado — plantilla de aviso + imagen del certificado</h3>
+            <p class="ec-meta" style="margin:0 0 0.75rem;">
+                Se envía la <strong>plantilla Twilio de aviso</strong>. El diploma llega cuando el estudiante
+                <strong>responde cualquier mensaje</strong> (eso abre la ventana de WhatsApp y el sistema envía la imagen).
+                No uses envío inmediato tras plantilla: WhatsApp bloquea la imagen sin respuesta del usuario.
+            </p>
+            <div class="ec-opciones">
+                <label>
+                    <span><input type="checkbox" name="usar_mensaje_previo" id="ec-usar-previo" checked> Enviar plantilla de aviso antes del diploma</span>
+                </label>
+                <label>
+                    <span>Plantilla aviso</span>
+                    <select name="twilio_plantilla_previo_id">
+                        <option value="">— Elija o pegue HX abajo —</option>
+                        {% for pl in plantillas_twilio %}
+                        <option value="{{ pl.id }}">{{ pl.nombre_interno }} ({{ pl.twilio_template_sid|truncatechars:18 }})</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>
+                    <span>HX aviso (manual)</span>
+                    <input type="text" name="twilio_sid_previo_manual" placeholder="HX…" style="min-width:220px;padding:0.4rem;border-radius:8px;border:1px solid #e2e8f0;">
+                </label>
+                <p class="ec-meta" style="margin:0;grid-column:1/-1;">
+                    Variables aviso: <code>{{1}}</code> nombre, <code>{{2}}</code> curso.
+                    Texto sugerido:
+                    {% verbatim %}
+                    <code>Hola {{1}}, tu certificado del curso {{2}} está listo. En un momento te lo enviamos.</code>
+                    {% endverbatim %}
+                </p>
+            </div>
+        </div>
+
+        <details style="margin-bottom:1rem;">
+        <summary class="ec-meta" style="cursor:pointer;">Opciones avanzadas (plantilla con imagen en header / texto libre)</summary>
+
+        <div class="ec-panel" style="background:#f8fafc;border:1px solid #e2e8f0;margin:0.75rem 0;padding:0.85rem 1rem;">
+            <h3 style="margin:0 0 0.5rem;font-size:0.95rem;">Un solo mensaje — plantilla con imagen en el header</h3>
+            <p class="ec-meta" style="margin:0 0 0.75rem;">
+                El diploma viaja <strong>dentro</strong> de la plantilla aprobada (header media).
+                No requiere aviso previo ni ventana de 24 h.
+            </p>
+            <div class="ec-opciones">
+                <label>
+                    <span>Plantilla con imagen (Content SID media)</span>
+                    <select name="twilio_plantilla_media_id">
+                        <option value="">— Sin plantilla imagen —</option>
+                        {% for pl in plantillas_twilio %}
+                        <option value="{{ pl.id }}">{{ pl.nombre_interno }} ({{ pl.twilio_template_sid|truncatechars:18 }})</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>
+                    <span>HX imagen (manual)</span>
+                    <input type="text" name="twilio_sid_media_manual" placeholder="HX…" style="min-width:220px;padding:0.4rem;border-radius:8px;border:1px solid #e2e8f0;">
+                </label>
+                <label>
+                    <span>Variable del header (imagen)</span>
+                    <input type="text" name="media_var_index" value="1" style="width:4rem;padding:0.4rem;border-radius:8px;border:1px solid #e2e8f0;">
+                </label>
+            </div>
+        </div>
+
+        <div class="ec-panel" style="background:#f8fafc;margin-bottom:1rem;padding:0.85rem 1rem;">
+            <h3 style="margin:0 0 0.5rem;font-size:0.95rem;">Texto libre / plantilla diploma (legacy)</h3>
+            <div class="ec-opciones">
+                <label>
+                    <span>Modo aviso alternativo</span>
+                    <select name="modo_previo" id="ec-modo-previo">
+                        <option value="twilio" selected>Plantilla Twilio</option>
+                        <option value="texto">Texto libre (solo ventana 24 h)</option>
+                    </select>
+                </label>
+                <label id="ec-wrap-texto-previo" style="display:none;">
+                    <span>Texto aviso</span>
+                    <textarea name="mensaje_previo">{{ mensaje_previo_default }}</textarea>
+                </label>
+                <label>
+                    <span>Plantilla diploma (opcional)</span>
+                    <select name="twilio_plantilla_diploma_id">
+                        <option value="">— Sin plantilla: solo imagen tras aviso —</option>
+                        {% for pl in plantillas_twilio %}
+                        <option value="{{ pl.id }}">{{ pl.nombre_interno }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>
+                    <span>HX diploma (manual)</span>
+                    <input type="text" name="twilio_sid_diploma_manual" placeholder="HX…" style="min-width:220px;padding:0.4rem;border-radius:8px;border:1px solid #e2e8f0;">
+                </label>
+                <p class="ec-meta" style="margin:0;grid-column:1/-1;">
+                    <a href="{% url 'admin:core_plantilla_changelist' %}">Gestionar plantillas Twilio</a>
+                </p>
+            </div>
+        </div>
+
+        <div class="ec-panel" style="background:#fef3c7;border:1px solid #fcd34d;margin-bottom:0.75rem;padding:0.85rem 1rem;">
+            <h3 style="margin:0 0 0.5rem;font-size:0.95rem;">Legacy — esperar OK del estudiante (no recomendado)</h3>
+            <p class="ec-meta" style="margin:0 0 0.75rem;">
+                Solo si necesita que el estudiante responda antes del diploma. Puede chocar con onboarding
+                si el participante aún no completó Habeas Data.
+            </p>
+            <div class="ec-opciones">
+                <label>
+                    <span>Plantilla inicial (pide OK)</span>
+                    <select name="twilio_plantilla_inicial_id">
+                        <option value="">— Elija o pegue HX —</option>
+                        {% for pl in plantillas_twilio %}
+                        <option value="{{ pl.id }}">{{ pl.nombre_interno }} ({{ pl.twilio_template_sid|truncatechars:18 }})</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>
+                    <span>HX inicial (manual)</span>
+                    <input type="text" name="twilio_sid_inicial_manual" placeholder="HX…" style="min-width:220px;padding:0.4rem;border-radius:8px;border:1px solid #e2e8f0;">
+                </label>
+            </div>
+            <div style="margin-top:0.75rem;">
+                <button type="submit" class="eki-btn eki-btn-ghost"
+                        onclick="document.getElementById('form-envio').querySelector('[name=action]').value='enviar_plantilla_inicial'; return confirm('¿Solo plantilla inicial? El diploma llegará cuando respondan OK.');">
+                    Solo plantilla inicial (esperan OK)
+                </button>
+            </div>
+        </div>
+        </details>
+
         <div class="ec-opciones">
-            <label>
-                <span><input type="checkbox" name="usar_mensaje_previo" checked> Mensaje previo</span>
-                <textarea name="mensaje_previo">{{ mensaje_previo_default }}</textarea>
-            </label>
             <label><span><input type="checkbox" name="emitir_certificado" checked> Generar certificado</span></label>
             <label><span><input type="checkbox" name="enviar_certificado_wa" checked> Enviar diploma WhatsApp</span></label>
             <label>Calificación % <input type="number" name="calificacion" value="100" min="0" max="100" style="width:5rem;padding:0.35rem;border-radius:6px;border:1px solid #e2e8f0;"></label>
@@ -142,10 +273,17 @@
         </div>
 
         <div class="ec-toolbar" style="margin-top:1rem;">
-            <button type="button" class="eki-btn eki-btn-ghost" id="ec-todos">Marcar todos</button>
-            <button type="button" class="eki-btn eki-btn-ghost" id="ec-ninguno">Ninguno</button>
+            <button type="button" class="eki-btn eki-btn-ghost" id="ec-todos">Marcar todos visibles</button>
+            <button type="button" class="eki-btn eki-btn-ghost" id="ec-ninguno">Quitar todos</button>
+            <button type="button" class="eki-btn eki-btn-ghost" id="ec-limpiar-sel">Limpiar selección acumulada</button>
             {% if filtro_grupo %}<button type="button" class="eki-btn eki-btn-ghost" id="ec-grupo">Marcar grupo</button>{% endif %}
             <span class="ec-contador" id="ec-contador">0 seleccionados</span>
+        </div>
+
+        <div class="ec-sel-panel" id="ec-sel-panel">
+            <h3>Selección acumulada <span class="ec-meta">(se mantiene al buscar otras personas)</span></h3>
+            <div class="ec-sel-chips" id="ec-sel-chips"></div>
+            <p class="ec-sel-empty" id="ec-sel-empty">Marque estudiantes en la lista o búsquelos uno a uno; cada marcado queda guardado.</p>
         </div>
 
         <div class="ec-grid" id="ec-grid">
@@ -158,7 +296,7 @@
                     {% if fila.otro_cliente %}
                     <br><span class="ec-meta" style="color:#b45309;">🏢 Cliente: {{ fila.cliente_nombre }}</span>
                     {% endif %}
-                    {% if fila.emitido %}<br><span class="ec-meta">✓ Certificado ya emitido</span>{% endif %}
+                    {% if fila.emitido %}<br><span class="ec-meta">✓ Certificado ya emitido{% if fila.enviado_whatsapp %} · enviado WA{% else %} · <strong style="color:#b45309;">WA pendiente</strong>{% endif %}</span>{% endif %}
                     {% if fila.cursos_digitales_activos %}
                     <br><span class="ec-meta" style="color:#7c3aed;">📱 Curso digital: {{ fila.cursos_digitales_activos|join:", " }}</span>
                     {% endif %}
@@ -169,8 +307,15 @@
             {% endfor %}
         </div>
 
-        <div style="margin-top:1rem;">
-            <button type="submit" class="eki-btn eki-btn-primary" onclick="return confirm('¿Enviar a los marcados?');">Enviar a seleccionados</button>
+        <div style="margin-top:1rem;display:flex;flex-wrap:wrap;gap:0.5rem;">
+            <button type="submit" class="eki-btn eki-btn-primary"
+                    onclick="document.getElementById('form-envio').querySelector('[name=action]').value='enviar'; return confirm('¿Enviar plantilla + certificado a los marcados?');">
+                Enviar plantilla + certificado
+            </button>
+            <button type="submit" class="eki-btn eki-btn-ghost"
+                    onclick="document.getElementById('form-envio').querySelector('[name=action]').value='reenviar_wa'; return confirm('¿Reenviar solo WhatsApp (certificados ya emitidos)? No regenera el PDF.');">
+                Reenviar solo WhatsApp
+            </button>
         </div>
     </form>
 
@@ -198,28 +343,162 @@
 (function(){
     var grid = document.getElementById('ec-grid');
     if (!grid) return;
+
     var contador = document.getElementById('ec-contador');
-    function actualizarContador() {
-        var n = grid.querySelectorAll('.ec-check:checked').length;
-        if (contador) contador.textContent = n + ' seleccionado(s)';
+    var chipsEl = document.getElementById('ec-sel-chips');
+    var emptyEl = document.getElementById('ec-sel-empty');
+    var extraInput = document.getElementById('ec-extra-ids');
+    var formEnvio = document.getElementById('form-envio');
+    var formFiltros = document.querySelector('.eki-filtros');
+
+    var nombres = {
+        {% for fila in filas %}
+        {{ fila.estudiante.id }}: "{{ fila.estudiante.nombre|escapejs }}"{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    };
+
+    var selected = new Set();
+
+    function parseIds(raw) {
+        (raw || '').split(',').forEach(function(part) {
+            var id = parseInt(part, 10);
+            if (id > 0) selected.add(id);
+        });
     }
-    grid.addEventListener('change', actualizarContador);
-    document.getElementById('ec-todos')?.addEventListener('click', function(){
-        grid.querySelectorAll('.ec-check').forEach(function(c){ c.checked = true; });
+
+    function syncExtraField() {
+        var val = Array.from(selected).sort(function(a, b) { return a - b; }).join(',');
+        var postExtra = formEnvio && formEnvio.querySelector('input[name="extra"]');
+        if (postExtra) postExtra.value = val;
+        var getExtra = document.getElementById('ec-extra-ids');
+        if (getExtra) getExtra.value = val;
+    }
+
+    function syncHiddenEstudiantes() {
+        if (!formEnvio) return;
+        formEnvio.querySelectorAll('.ec-hidden-est').forEach(function(el) { el.remove(); });
+        var visible = new Set();
+        grid.querySelectorAll('.ec-check').forEach(function(c) {
+            visible.add(parseInt(c.value, 10));
+        });
+        selected.forEach(function(id) {
+            if (!visible.has(id)) {
+                var inp = document.createElement('input');
+                inp.type = 'hidden';
+                inp.name = 'estudiantes';
+                inp.value = String(id);
+                inp.className = 'ec-hidden-est';
+                formEnvio.appendChild(inp);
+            }
+        });
+    }
+
+    function renderChips() {
+        if (!chipsEl) return;
+        chipsEl.innerHTML = '';
+        if (!selected.size) {
+            if (emptyEl) emptyEl.style.display = 'block';
+            return;
+        }
+        if (emptyEl) emptyEl.style.display = 'none';
+        Array.from(selected).sort(function(a, b) { return a - b; }).forEach(function(id) {
+            var chip = document.createElement('span');
+            chip.className = 'ec-sel-chip';
+            var label = nombres[id] || ('ID ' + id);
+            chip.innerHTML = '<span>' + label + '</span>';
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.title = 'Quitar';
+            btn.textContent = '×';
+            btn.addEventListener('click', function() {
+                selected.delete(id);
+                applySelection();
+            });
+            chip.appendChild(btn);
+            chipsEl.appendChild(chip);
+        });
+    }
+
+    function actualizarContador() {
+        if (contador) contador.textContent = selected.size + ' seleccionado(s)';
+    }
+
+    function applySelection() {
+        grid.querySelectorAll('.ec-check').forEach(function(c) {
+            c.checked = selected.has(parseInt(c.value, 10));
+        });
+        syncExtraField();
+        syncHiddenEstudiantes();
+        renderChips();
         actualizarContador();
+    }
+
+    function onCheckChange(ev) {
+        var cb = ev.target;
+        if (!cb.classList.contains('ec-check')) return;
+        var id = parseInt(cb.value, 10);
+        if (!id) return;
+        if (cb.checked) {
+            selected.add(id);
+            var label = cb.closest('.ec-item');
+            if (label) {
+                var strong = label.querySelector('strong');
+                if (strong) nombres[id] = strong.textContent.trim();
+            }
+        } else {
+            selected.delete(id);
+        }
+        applySelection();
+    }
+
+    parseIds(extraInput && extraInput.value);
+    applySelection();
+
+    grid.addEventListener('change', onCheckChange);
+
+    document.getElementById('ec-todos')?.addEventListener('click', function(){
+        grid.querySelectorAll('.ec-check').forEach(function(c){
+            var id = parseInt(c.value, 10);
+            if (id) selected.add(id);
+        });
+        applySelection();
     });
     document.getElementById('ec-ninguno')?.addEventListener('click', function(){
-        grid.querySelectorAll('.ec-check').forEach(function(c){ c.checked = false; });
-        actualizarContador();
+        grid.querySelectorAll('.ec-check').forEach(function(c){
+            selected.delete(parseInt(c.value, 10));
+        });
+        applySelection();
+    });
+    document.getElementById('ec-limpiar-sel')?.addEventListener('click', function(){
+        selected.clear();
+        applySelection();
     });
     var idsGrupo = [{% for id in ids_en_grupo %}{{ id }}{% if not forloop.last %},{% endif %}{% endfor %}];
     document.getElementById('ec-grupo')?.addEventListener('click', function(){
-        grid.querySelectorAll('.ec-check').forEach(function(c){
-            c.checked = idsGrupo.indexOf(parseInt(c.value, 10)) >= 0;
-        });
-        actualizarContador();
+        idsGrupo.forEach(function(id) { if (id) selected.add(id); });
+        applySelection();
     });
-    actualizarContador();
+
+    if (formFiltros) {
+        formFiltros.addEventListener('submit', function() {
+            syncExtraField();
+        });
+    }
+    if (formEnvio) {
+        formEnvio.addEventListener('submit', function() {
+            syncExtraField();
+            syncHiddenEstudiantes();
+        });
+    }
+
+    var modoPrevio = document.getElementById('ec-modo-previo');
+    var wrapTexto = document.getElementById('ec-wrap-texto-previo');
+    function syncModoPrevio() {
+        var twilio = !modoPrevio || modoPrevio.value === 'twilio';
+        if (wrapTexto) wrapTexto.style.display = twilio ? 'none' : 'flex';
+    }
+    modoPrevio?.addEventListener('change', syncModoPrevio);
+    syncModoPrevio();
 })();
 </script>
 {% endblock %}

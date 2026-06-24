@@ -13,7 +13,9 @@ from django.utils import timezone
 _PATRONES = {
     'cultivo': re.compile(
         r'\b(caf[eé]|cacao|platano|plátano|banano|aguacate|papa|tomate|ma[ií]z|arroz|'
-        r'caña|papa|mora|fríjol|frijol|hortaliza|pasto|ganado|bovino|porcino|avícola|avicola)\b',
+        r'caña|mora|fr[ií]jol|frijol|hortaliza|pasto|ganado|bovino|porcino|av[ií]cola|avicola|'
+        r'yuca|mandioca|cítrico|citrico|limón|limon|naranja|mango|piña|pina|panela|'
+        r'cebolla|zanahoria|lechuga|pepino|berenjena|guayaba|maracuy[aá]|lulo)\b',
         re.I,
     ),
     'etapa': re.compile(
@@ -40,6 +42,14 @@ _PATRONES = {
     ),
 }
 
+_CORRECCION = re.compile(
+    r'\b(no es|no era|me equivoqu[eé]|corrijo|en realidad|sino que|perdón|perdon)\b',
+    re.I,
+)
+
+# Problema, clima y etapa pueden cambiar en la misma conversación.
+_CAMPOS_EVOLUTIVOS = frozenset({'problema', 'etapa', 'clima', 'municipio'})
+
 
 def _normalizar_valor(campo: str, match: re.Match) -> str:
     val = (match.group(1) or match.group(0) or '').strip()
@@ -55,6 +65,12 @@ def extraer_campos_desde_mensaje(mensaje: str) -> dict[str, str]:
         return {}
     found: dict[str, str] = {}
     for campo, patron in _PATRONES.items():
+        if campo == 'cultivo':
+            matches = list(patron.finditer(texto))
+            if matches:
+                m = matches[-1] if len(matches) > 1 else matches[0]
+                found[campo] = _normalizar_valor(campo, m)
+            continue
         m = patron.search(texto)
         if m:
             found[campo] = _normalizar_valor(campo, m)
@@ -76,9 +92,19 @@ def actualizar_contexto_desde_mensaje(sesion, mensaje: str) -> 'ContextoAgroSess
     """Fusiona extracción del mensaje con contexto previo de la sesión."""
     ctx = obtener_o_crear_contexto(sesion)
     nuevos = extraer_campos_desde_mensaje(mensaje)
+    permite_corregir = bool(_CORRECCION.search(mensaje or ''))
     changed = False
     for campo, valor in nuevos.items():
-        if valor and not (getattr(ctx, campo, '') or '').strip():
+        if not valor:
+            continue
+        actual = (getattr(ctx, campo, '') or '').strip()
+        if not actual:
+            setattr(ctx, campo, valor)
+            changed = True
+        elif campo in _CAMPOS_EVOLUTIVOS and valor.lower() != actual.lower():
+            setattr(ctx, campo, valor)
+            changed = True
+        elif permite_corregir and valor.lower() != actual.lower():
             setattr(ctx, campo, valor)
             changed = True
     if changed:

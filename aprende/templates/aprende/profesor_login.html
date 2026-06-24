@@ -1,0 +1,16 @@
+{% extends "aprende/base.html" %}
+{% block title %}Ingreso profesor{% endblock %}
+{% block nav %}<a href="/aprende/">Inicio</a>{% endblock %}
+{% block content %}
+<h1>Ingreso profesor</h1>
+<p class="muted">Mismas credenciales del portal B2B (rol admin o profesor).</p>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<form method="post" class="card" style="max-width:400px;">
+    {% csrf_token %}
+    <label>Usuario</label>
+    <input type="text" name="username" required autocomplete="username">
+    <label>Contraseña</label>
+    <input type="password" name="password" required autocomplete="current-password">
+    <button type="submit" class="btn">Entrar</button>
+</form>
+{% endblock %}

@@ -149,7 +149,23 @@ class PortalExportDetalleTests(TestCase):
         r = self.http.get(f'/portal/metricas/?grupo={self.grupo.pk}&curso={self.curso.pk}')
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Grupo Norte')
-        self.assertContains(r, 'Exportar reenganche')
+        self.assertContains(r, 'Descargar reportes')
+
+    def test_portal_reportes_page(self):
+        r = self.http.get('/portal/reportes/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Reportes y descargas')
+        self.assertContains(r, 'Avance de estudiantes')
+
+    def test_export_avance_excel(self):
+        r = self.http.get(f'/portal/estudiantes/exportar/avance/?curso={self.curso.pk}')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('spreadsheetml', r['Content-Type'])
+        wb = load_workbook(io.BytesIO(r.content))
+        rows = list(wb.active.iter_rows(min_row=2, values_only=True))
+        nombres = {row[0] for row in rows}
+        self.assertIn('Bajo Modulo', nombres)
+        self.assertIn('Alto Modulo', nombres)
 
 
 class PortalModulosTests(TestCase):
@@ -165,6 +181,7 @@ class PortalModulosTests(TestCase):
         )
         m = modulos_portal(c)
         self.assertTrue(m['cursos'] and m['gei'] and m['nat'])
+        self.assertFalse(m['empleabilidad'])
 
     def test_modulos_solo_tipo_principal(self):
         c = Cliente.objects.create(
@@ -244,3 +261,95 @@ class PortalMetricasReorganizacionTests(TestCase):
         self.assertContains(r, 'Dashboard')
         self.assertNotContains(r, 'Reporte B2B')
         self.assertContains(r, 'Métricas detalladas')
+
+
+class PortalCertificadosFlujoTests(TestCase):
+    def setUp(self):
+        self.cliente = Cliente.objects.create(
+            nombre='Org Portal CF',
+            contacto_principal='Ana',
+            email='cf@test.com',
+            telefono='573007777771',
+            activo=True,
+            fecha_fin_suscripcion='2099-12-31',
+            tipo_proyecto='cursos',
+        )
+        self.otro = Cliente.objects.create(
+            nombre='Otra Org CF',
+            contacto_principal='Bob',
+            email='otrocf@test.com',
+            telefono='573007777772',
+            activo=True,
+            fecha_fin_suscripcion='2099-12-31',
+        )
+        user = User.objects.create_user('portal_cf', password='pass1234')
+        PortalUsuario.objects.create(user=user, organizacion=self.cliente, rol='viewer')
+        self.http = Client()
+        session = self.http.session
+        session[PORTAL_SESSION_KEY] = PortalUsuario.objects.get(user=user).pk
+        session.save()
+
+        self.curso = Curso.objects.create(
+            nombre='Curso Embudo', cliente=self.cliente, activo=True,
+        )
+        self.m1 = Modulo.objects.create(
+            curso=self.curso, numero=1, titulo='Intro', descripcion='d', contenido='c',
+        )
+        self.m2 = Modulo.objects.create(
+            curso=self.curso, numero=2, titulo='Avanzado', descripcion='d', contenido='c',
+        )
+        self.est1 = Estudiante.objects.create(
+            cedula='cf1', nombre='Uno', telefono='573007777773', cliente=self.cliente,
+        )
+        self.est2 = Estudiante.objects.create(
+            cedula='cf2', nombre='Dos', telefono='573007777774', cliente=self.cliente,
+        )
+        self.est_otro = Estudiante.objects.create(
+            cedula='cf3', nombre='Externo', telefono='573007777775', cliente=self.otro,
+        )
+        ProgresoEstudiante.objects.create(
+            estudiante=self.est1, curso=self.curso, modulo_actual=self.m2,
+        )
+        ProgresoEstudiante.objects.create(
+            estudiante=self.est2, curso=self.curso, modulo_actual=self.m1,
+        )
+
+    def test_flujo_curso_solo_lectura(self):
+        r = self.http.get(f'/portal/cursos/{self.curso.id}/flujo/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Flujo del curso')
+        self.assertContains(r, 'solo lectura')
+        self.assertContains(r, 'M1')
+        self.assertContains(r, 'M2')
+
+    def test_flujo_no_expone_curso_otra_org(self):
+        curso_otro = Curso.objects.create(nombre='Ajeno', cliente=self.otro, activo=True)
+        r = self.http.get(f'/portal/cursos/{curso_otro.id}/flujo/')
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/portal/cursos/', r['Location'])
+
+    def test_certificados_solo_org(self):
+        from core.models_certificados import Certificado
+        from django.utils import timezone
+
+        Certificado.objects.create(
+            estudiante=self.est1,
+            curso=self.curso,
+            calificacion_final=100,
+            fecha_inicio='2026-01-01',
+            emitido=True,
+            fecha_emision=timezone.now(),
+        )
+        curso_otro = Curso.objects.create(nombre='Ajeno', cliente=self.otro, activo=True)
+        Certificado.objects.create(
+            estudiante=self.est_otro,
+            curso=curso_otro,
+            calificacion_final=100,
+            fecha_inicio='2026-01-01',
+            emitido=True,
+            fecha_emision=timezone.now(),
+        )
+        r = self.http.get('/portal/certificados/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Uno')
+        self.assertNotContains(r, 'Externo')

@@ -5,8 +5,9 @@ from core.models import Cliente
 
 class PortalUsuario(models.Model):
     ROL_CHOICES = [
-        ('admin', 'Administrador'),
-        ('viewer', 'Solo lectura'),
+        ('admin', 'Administrador (portal clientes)'),
+        ('profesor', 'Profesor (solo aula web /aprende/)'),
+        ('viewer', 'Solo lectura (portal clientes)'),
     ]
 
     user = models.OneToOneField(
@@ -25,5 +26,5 @@ class PortalUsuario(models.Model):
         return f"{self.user.username} - {self.organizacion.nombre} ({self.rol})"
 
     class Meta:
-        verbose_name = "Usuario del Portal"
-        verbose_name_plural = "Usuarios del Portal"
+        verbose_name = 'Usuario portal clientes'
+        verbose_name_plural = 'Usuarios portal clientes'

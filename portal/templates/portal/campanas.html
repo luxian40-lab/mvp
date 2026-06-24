@@ -6,10 +6,10 @@
 <div class="page-title">
     <div>
         <h1>Campañas y envíos</h1>
-        <p class="muted">Seguimiento de mensajes masivos WhatsApp de su organización.</p>
+        <p class="muted">Seguimiento de mensajes masivos WhatsApp (Sí/No, eventos) de su organización.</p>
     </div>
     {% if portal_es_admin %}
-        <span class="muted" style="font-size:12px;">Para crear o ejecutar campañas use el admin eki.</span>
+        <span class="muted" style="font-size:12px;">Para crear o ejecutar campañas use el admin eki → Campañas únicas.</span>
     {% endif %}
 </div>
 
@@ -21,30 +21,36 @@
                 <th>Estado</th>
                 <th>Destinatarios</th>
                 <th>Enviados</th>
-                <th>Fecha</th>
+                <th>Sí</th>
+                <th>No</th>
+                <th>Enviada</th>
                 <th></th>
             </tr>
         </thead>
         <tbody>
-            {% for c in campanas %}
+            {% for item in campanas %}
+                {% with c=item.obj %}
                 <tr>
                     <td>{{ c.nombre }}</td>
                     <td>
-                        {% if c.ejecutada %}
-                            <span class="status status-resuelta">Ejecutada</span>
-                        {% elif c.fecha_programada %}
-                            <span class="status status-en_proceso">Programada</span>
+                        {% if c.estado == 'enviada' %}
+                            <span class="status status-en_proceso">Enviada</span>
+                        {% elif c.estado == 'completada' %}
+                            <span class="status status-resuelta">Completada</span>
                         {% else %}
                             <span class="status status-pendiente">Borrador</span>
                         {% endif %}
                     </td>
-                    <td>{{ c.dest_count }}</td>
+                    <td>{{ item.dest_count }}</td>
                     <td>{{ c.total_enviados }}</td>
-                    <td>{{ c.fecha_creacion|date:"d/m/Y" }}</td>
+                    <td>{{ c.respuestas_si }}</td>
+                    <td>{{ c.respuestas_no }}</td>
+                    <td>{{ c.fecha_envio|date:"d/m/Y H:i"|default:"—" }}</td>
                     <td><a href="/portal/campanas/{{ c.id }}/">Detalle</a></td>
                 </tr>
+                {% endwith %}
             {% empty %}
-                <tr><td colspan="6" class="muted">No hay campañas registradas.</td></tr>
+                <tr><td colspan="8" class="muted">No hay campañas registradas.</td></tr>
             {% endfor %}
         </tbody>
     </table>

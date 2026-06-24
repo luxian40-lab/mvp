@@ -80,8 +80,8 @@ def normalizar_telefono_whatsapp(numero: str) -> str:
 
 def resolver_cliente_desde_numero_whatsapp(numero_to: str):
     """
-    [Hoja de ruta — no usado en MVP] Cliente por número Twilio (campo To).
-    Hoy el entorno usa BOT_COMERCIAL_CLIENTE_ID; sin menú al productor.
+    Resuelve Cliente por número Twilio destino (To) o número global del bot.
+    Fallback: BOT_COMERCIAL_CLIENTE_ID si no hay match por numero_whatsapp_nat.
     """
     from core.models import Cliente
 
@@ -102,6 +102,19 @@ def resolver_cliente_desde_numero_whatsapp(numero_to: str):
             return Cliente.objects.filter(pk=cid, activo=True).first()
 
     return None
+
+
+def armar_cliente_ids_rag(cliente) -> list[int]:
+    """IDs de cliente para RAG: organización activa + documentos generales (id=0)."""
+    ids: list[int] = []
+    if cliente and getattr(cliente, 'id', None):
+        ids.append(int(cliente.id))
+    cid_cfg = int(getattr(settings, 'BOT_COMERCIAL_CLIENTE_ID', 0) or 0)
+    if cid_cfg and cid_cfg not in ids:
+        ids.append(cid_cfg)
+    if 0 not in ids:
+        ids.append(0)
+    return ids
 
 
 def obtener_contexto_productos(cliente) -> str:

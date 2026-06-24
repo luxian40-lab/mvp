@@ -1,0 +1,242 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}{{ titulo }} | {{ site_title }}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/cobertura_eki.css' %}">
+<style>
+.cp-page { padding: 1.25rem 1.5rem 2.5rem; max-width: 1200px; }
+.cp-alert { padding: 0.75rem 1rem; border-radius: 10px; margin-bottom: 1rem; font-size: 0.875rem; background: #f3eaf7; border: 1px solid #d8b4e0; color: #5b3d6b; }
+.cp-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.15rem 1.25rem; margin-bottom: 1rem; }
+.cp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.5rem; max-height: 520px; overflow-y: auto; margin-top: 1rem; }
+.cp-item { display: flex; gap: 0.5rem; padding: 0.55rem 0.65rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; font-size: 0.875rem; }
+.cp-item:has(input:checked) { background: #f3eaf7; border-color: #d8b4e0; }
+.cp-meta { color: #64748b; font-size: 0.78rem; }
+.cp-opciones { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; margin: 1rem 0; font-size: 0.875rem; }
+.cp-pasos { font-size: 0.85rem; line-height: 1.55; margin: 0; padding-left: 1.1rem; }
+.cp-pasos li { margin-bottom: 0.35rem; }
+.cp-plantilla-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.85rem 1rem; margin-bottom: 1rem; font-size: 0.875rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="eki-cobertura cp-page">
+    <header class="eki-cobertura-header">
+        <div>
+            <h1>{{ titulo }}</h1>
+            <p class="sub">Para asistentes presenciales: genera el PDF/imagen y opcionalmente lo envía por WhatsApp.</p>
+        </div>
+    </header>
+
+    <form method="get" class="eki-filtros">
+        <div class="field">
+            <label for="cliente">Cliente</label>
+            <select name="cliente" id="cliente" required>
+                <option value="">— Elija —</option>
+                {% for c in clientes %}
+                <option value="{{ c.id }}" {% if cliente and cliente.id == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% if cliente %}
+        <div class="field">
+            <label for="curso">Curso presencial (certificado)</label>
+            <select name="curso" id="curso" required>
+                <option value="">— Elija —</option>
+                {% for c in cursos %}
+                <option value="{{ c.id }}" {% if filtro_curso == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="grupo">Grupo (opcional)</label>
+            <select name="grupo" id="grupo">
+                <option value="">Todos los estudiantes</option>
+                {% for g in grupos %}
+                <option value="{{ g.id }}" {% if filtro_grupo == g.id %}selected{% endif %}>{{ g.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <button type="submit" class="eki-btn eki-btn-primary">Ver participantes</button>
+        <a class="eki-btn eki-btn-ghost" href="{% url 'admin:learning_plantillacertificado_changelist' %}">Plantillas certificado</a>
+        <a class="eki-btn eki-btn-ghost" href="{% url 'admin:learning_certificado_changelist' %}">Todos los certificados</a>
+    </form>
+
+    {% if curso %}
+
+    <div class="cp-alert">
+        <strong>Dos certificados, sin conflicto.</strong>
+        Este envío es solo para el curso presencial «{{ curso.nombre }}».
+        Si alguien también hace un curso digital (otro curso en el sistema), recibe este certificado
+        <em>y sigue su avance digital</em> — al terminar obtendrá el certificado de ese otro curso.
+        No se reinicia onboarding ni se toca el progreso WhatsApp.
+    </div>
+
+    <div class="cp-panel">
+        <h2 style="margin:0 0 0.75rem;font-size:1.05rem;">Proceso</h2>
+        <ol class="cp-pasos">
+            <li><strong>Plantilla</strong> — abajo se muestra cuál se usará (o elíjala manualmente).</li>
+            <li><strong>Emitir</strong> — marca estudiantes → genera archivo con nombre, cédula y código QR.</li>
+            <li><strong>WhatsApp</strong> — al emitir (casilla) o después con «Solo enviar WhatsApp» si ya está emitido.</li>
+        </ol>
+        <p class="sub" style="margin:0.75rem 0 0;">El mensaje WhatsApp incluye felicitación, enlace al archivo y código de verificación.</p>
+    </div>
+
+    {% if plantilla_info %}
+    <div class="cp-plantilla-box">
+        <strong>Plantilla que se usará</strong>
+        {% if plantilla_info.plantilla %}
+        <p style="margin:0.35rem 0;">
+            «{{ plantilla_info.plantilla.nombre }}»
+            ({{ plantilla_info.plantilla.get_modo_plantilla_display }})
+            — <em>{{ plantilla_info.origen_txt }}</em>
+            <a href="{% url 'admin:learning_plantillacertificado_change' plantilla_info.plantilla.id %}">Editar plantilla</a>
+        </p>
+        {% else %}
+        <p style="margin:0.35rem 0;">Diseño eki por defecto (sin plantilla en BD). Cree una en <strong>Plantillas certificado</strong>.</p>
+        {% endif %}
+        <form method="get" style="margin-top:0.5rem;display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;">
+            <input type="hidden" name="cliente" value="{{ cliente.id }}">
+            <input type="hidden" name="curso" value="{{ curso.id }}">
+            <label>O forzar otra:</label>
+            <select name="plantilla_id" style="padding:0.4rem;border-radius:8px;border:1px solid #e2e8f0;min-width:220px;">
+                <option value="">Automática (recomendado)</option>
+                {% for p in plantilla_info.opciones %}
+                <option value="{{ p.id }}" {% if filtro_plantilla == p.id %}selected{% endif %}>{{ p.nombre }}{% if p.curso_id %} · curso{% endif %}{% if p.cliente_id %} · cliente{% endif %}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="eki-btn eki-btn-ghost">Vista previa elección</button>
+        </form>
+    </div>
+
+    <div class="cp-panel">
+        <h2 style="margin:0 0 0.75rem;font-size:1.05rem;">Subir plantilla y vista previa</h2>
+        {{ guia_marcadores_html|safe }}
+
+        <form method="post" enctype="multipart/form-data" class="cp-opciones" style="margin-bottom:1rem;align-items:flex-end;">
+            {% csrf_token %}
+            <input type="hidden" name="cliente" value="{{ cliente.id }}">
+            <input type="hidden" name="curso" value="{{ curso.id }}">
+            <input type="hidden" name="action" value="subir_plantilla">
+            {% if filtro_plantilla %}<input type="hidden" name="plantilla_id" value="{{ filtro_plantilla }}">{% endif %}
+            <label>Imagen plantilla (S3)
+                <input type="file" name="archivo_plantilla_imagen" accept="image/png,image/jpeg,image/jpg" required style="display:block;margin-top:0.35rem;">
+            </label>
+            <button type="submit" class="eki-btn eki-btn-primary">Subir a almacenamiento</button>
+        </form>
+
+        <form method="post" target="_blank" class="cp-opciones" style="align-items:flex-end;">
+            {% csrf_token %}
+            <input type="hidden" name="cliente" value="{{ cliente.id }}">
+            <input type="hidden" name="curso" value="{{ curso.id }}">
+            <input type="hidden" name="action" value="preview">
+            {% if filtro_plantilla %}<input type="hidden" name="plantilla_id" value="{{ filtro_plantilla }}">{% endif %}
+            <label>Estudiante para la prueba
+                <select name="estudiante_preview" style="display:block;margin-top:0.35rem;padding:0.4rem;border-radius:8px;border:1px solid #e2e8f0;min-width:260px;">
+                    <option value="">Demo (María González Pérez)</option>
+                    {% for fila in filas %}
+                    <option value="{{ fila.estudiante.id }}">{{ fila.estudiante.nombre }} — {{ fila.estudiante.cedula }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <button type="submit" class="eki-btn eki-btn-ghost">Ver certificado de prueba</button>
+        </form>
+        <p class="sub" style="margin:0.75rem 0 0;">La vista previa abre en otra pestaña. Revise nombre, cédula y QR antes de emitir masivamente.</p>
+    </div>
+    {% endif %}
+
+    <form method="post" class="cp-panel" id="form-emitir" onsubmit="return confirm('¿Emitir certificados a los marcados?');">
+        {% csrf_token %}
+        <input type="hidden" name="cliente" value="{{ cliente.id }}">
+        <input type="hidden" name="curso" value="{{ curso.id }}">
+        <input type="hidden" name="action" value="emitir">
+        {% if filtro_plantilla %}<input type="hidden" name="plantilla_id" value="{{ filtro_plantilla }}">{% endif %}
+
+        <h2 style="margin:0 0 0.5rem;font-size:1.05rem;">{{ curso.nombre }} — emitir</h2>
+
+        <div class="cp-opciones">
+            <label>Calificación % <input type="number" name="calificacion" value="100" min="0" max="100" step="0.01" style="width:5rem;margin-left:0.35rem;padding:0.35rem;border-radius:6px;border:1px solid #e2e8f0;"></label>
+            <label><input type="checkbox" name="regenerar"> Regenerar si ya existe</label>
+            <label><input type="checkbox" name="enviar_whatsapp"> Enviar WhatsApp al emitir</label>
+            <button type="button" class="eki-btn eki-btn-ghost" id="cp-todos">Marcar todos</button>
+            <button type="button" class="eki-btn eki-btn-ghost" id="cp-ninguno">Ninguno</button>
+            {% if filtro_grupo %}<button type="button" class="eki-btn eki-btn-ghost" id="cp-grupo">Marcar grupo</button>{% endif %}
+        </div>
+
+        <p class="cp-meta" style="margin:0 0 0.5rem;">{{ filas|length }} estudiante(s){% if filtro_grupo %} en el grupo filtrado{% endif %}</p>
+
+        <div class="cp-grid" id="cp-grid">
+            {% for fila in filas %}
+            <label class="cp-item">
+                <input type="checkbox" name="estudiantes" value="{{ fila.estudiante.id }}" class="cp-check">
+                <span>
+                    <strong>{{ fila.estudiante.nombre }}</strong><br>
+                    <span class="cp-meta">{{ fila.estudiante.cedula }}</span>
+                    {% if fila.tiene_certificado %}
+                    <br><span class="cp-meta">{% if fila.emitido %}✓ Emitido{% else %}Borrador{% endif %}{% if fila.enviado_whatsapp %} · ✉ WhatsApp{% endif %}</span>
+                    {% if fila.certificado %}<br><span class="cp-meta">Código {{ fila.certificado.codigo_verificacion }}</span>{% endif %}
+                    {% endif %}
+                    {% if fila.cursos_digitales_activos %}
+                    <br><span class="cp-meta" style="color:#7c3aed;">📱 También en curso digital: {{ fila.cursos_digitales_activos|join:", " }} (no se interrumpe)</span>
+                    {% endif %}
+                </span>
+            </label>
+            {% endfor %}
+        </div>
+
+        <div style="margin-top:1rem;display:flex;gap:0.75rem;flex-wrap:wrap;">
+            <button type="submit" class="eki-btn eki-btn-primary">1. Emitir certificados seleccionados</button>
+        </div>
+    </form>
+
+    <form method="post" class="cp-panel" id="form-wa" onsubmit="return confirm('¿Enviar por WhatsApp solo a quienes ya tienen certificado emitido?');">
+        {% csrf_token %}
+        <input type="hidden" name="cliente" value="{{ cliente.id }}">
+        <input type="hidden" name="curso" value="{{ curso.id }}">
+        <input type="hidden" name="action" value="enviar_whatsapp">
+        <h2 style="margin:0 0 0.5rem;font-size:1.05rem;">2. Solo enviar WhatsApp (ya emitidos)</h2>
+        <p class="sub">Use los mismos checkboxes de arriba: marque y pulse aquí sin volver a generar el archivo.</p>
+        <button type="submit" class="eki-btn eki-btn-primary" id="btn-wa-sync">Enviar WhatsApp a seleccionados</button>
+    </form>
+
+    {% elif cliente %}
+    <p class="sub">Elija un curso.</p>
+    {% endif %}
+</div>
+<script>
+(function(){
+    var grid = document.getElementById('cp-grid');
+    if (!grid) return;
+    document.getElementById('cp-todos')?.addEventListener('click', function(){
+        grid.querySelectorAll('.cp-check').forEach(function(c){ c.checked = true; });
+    });
+    document.getElementById('cp-ninguno')?.addEventListener('click', function(){
+        grid.querySelectorAll('.cp-check').forEach(function(c){ c.checked = false; });
+    });
+    var idsGrupo = [{% for id in ids_en_grupo %}{{ id }}{% if not forloop.last %},{% endif %}{% endfor %}];
+    document.getElementById('cp-grupo')?.addEventListener('click', function(){
+        grid.querySelectorAll('.cp-check').forEach(function(c){
+            c.checked = idsGrupo.indexOf(parseInt(c.value, 10)) >= 0;
+        });
+    });
+    document.getElementById('btn-wa-sync')?.addEventListener('click', function(e){
+        var waForm = document.getElementById('form-wa');
+        waForm.querySelectorAll('input[name=estudiantes]').forEach(function(el){ el.remove(); });
+        grid.querySelectorAll('.cp-check:checked').forEach(function(c){
+            var h = document.createElement('input');
+            h.type = 'hidden';
+            h.name = 'estudiantes';
+            h.value = c.value;
+            waForm.appendChild(h);
+        });
+        if (!waForm.querySelector('input[name=estudiantes]')) {
+            e.preventDefault();
+            alert('Marque al menos un estudiante arriba.');
+        }
+    });
+})();
+</script>
+{% endblock %}

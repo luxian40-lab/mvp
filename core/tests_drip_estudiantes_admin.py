@@ -30,4 +30,4 @@ class DripEstudiantesAdminTests(TestCase):
         self.http.login(username='admin_drip', password='pass')
         r = self.http.get(f'/admin/drip-estudiantes/?cliente={self.cliente.id}')
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'Módulos por estudiante')
+        self.assertContains(r, 'Acceso a módulos por estudiante')

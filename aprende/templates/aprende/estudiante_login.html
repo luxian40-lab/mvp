@@ -1,0 +1,16 @@
+{% extends "aprende/base.html" %}
+{% block title %}Ingreso estudiante{% endblock %}
+{% block nav %}<a href="/aprende/">Inicio</a>{% endblock %}
+{% block content %}
+<h1>Ingreso estudiante</h1>
+<p class="muted">Use la misma cédula y teléfono registrados en eki (WhatsApp).</p>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<form method="post" class="card" style="max-width:400px;">
+    {% csrf_token %}
+    <label>Cédula</label>
+    <input type="text" name="cedula" required autocomplete="username" placeholder="1234567890">
+    <label>Teléfono WhatsApp</label>
+    <input type="text" name="telefono" required autocomplete="tel" placeholder="573001234567">
+    <button type="submit" class="btn">Entrar</button>
+</form>
+{% endblock %}

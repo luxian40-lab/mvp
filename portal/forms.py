@@ -8,6 +8,7 @@ PORTAL_PRODUCTO_CHOICES = [
     ('cursos', 'Cursos eki'),
     ('gei', 'Inventario GEI'),
     ('nat', 'Agente Nat'),
+    ('empleabilidad', 'Empleabilidad territorial'),
 ]
 
 

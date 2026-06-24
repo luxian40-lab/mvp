@@ -1,0 +1,74 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Certificados | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1>Certificados emitidos</h1>
+    <p class="muted">Solo lectura — certificados de estudiantes de su organización.</p>
+</div>
+
+<form method="get" class="panel" style="margin-bottom:1.25rem;display:flex;flex-wrap:wrap;gap:12px;align-items:end;">
+    <label>
+        <span class="metric-label">Filtrar por curso</span>
+        <select name="curso" style="display:block;margin-top:6px;padding:8px 12px;border-radius:8px;border:1px solid var(--borde);min-width:220px;">
+            <option value="">Todos los cursos</option>
+            {% for c in cursos %}
+            <option value="{{ c.id }}" {% if filtro_curso == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <button type="submit" class="btn btn-primary">Filtrar</button>
+</form>
+
+<div class="flujo-stats" style="display:flex;gap:1rem;margin-bottom:1rem;">
+    <div class="panel" style="padding:12px 16px;">
+        <span class="metric-label">Emitidos</span>
+        <strong style="font-size:1.25rem;">{{ total_emitidos }}</strong>
+    </div>
+</div>
+
+<section class="panel" style="overflow-x:auto;">
+    <table class="data-table" style="width:100%;border-collapse:collapse;font-size:14px;">
+        <thead>
+            <tr style="text-align:left;border-bottom:1px solid var(--borde);">
+                <th style="padding:10px 8px;">Estudiante</th>
+                <th style="padding:10px 8px;">Curso</th>
+                <th style="padding:10px 8px;">Código</th>
+                <th style="padding:10px 8px;">Emisión</th>
+                <th style="padding:10px 8px;">Estado</th>
+                <th style="padding:10px 8px;"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cert in certificados %}
+            <tr style="border-bottom:1px solid var(--borde);">
+                <td style="padding:10px 8px;">{{ cert.estudiante.nombre }}</td>
+                <td style="padding:10px 8px;">{{ cert.curso.nombre }}</td>
+                <td style="padding:10px 8px;font-family:monospace;font-size:12px;">{{ cert.codigo_verificacion }}</td>
+                <td style="padding:10px 8px;">{% if cert.fecha_emision %}{{ cert.fecha_emision|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+                <td style="padding:10px 8px;">
+                    {% if cert.emitido %}
+                    <span class="status status-resuelta">Emitido</span>
+                    {% else %}
+                    <span class="status status-cerrada">Pendiente</span>
+                    {% endif %}
+                </td>
+                <td style="padding:10px 8px;">
+                    {% if cert.emitido %}
+                    <a href="{{ cert.obtener_url_verificacion }}" target="_blank" rel="noopener">Verificar</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="padding:16px 8px;" class="muted">No hay certificados para mostrar.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if certificados|length >= 500 %}
+    <p class="muted" style="margin-top:12px;font-size:13px;">Mostrando los 500 más recientes. Use el filtro por curso para acotar.</p>
+    {% endif %}
+</section>
+{% endblock %}

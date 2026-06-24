@@ -1,0 +1,48 @@
+{% extends "aprende/base.html" %}
+{% block title %}{% if modulo %}Editar{% else %}Nueva{% endif %} lección{% endblock %}
+{% block nav %}
+<a href="{% if modulo %}{% url 'aprende_profesor_curso' modulo.curso_id %}{% else %}{% url 'aprende_profesor_curso' curso.id %}{% endif %}">← Volver</a>
+{% endblock %}
+{% block content %}
+<h1>{% if modulo %}Editar: {{ modulo.titulo }}{% else %}Nueva lección{% endif %}</h1>
+<form method="post" enctype="multipart/form-data" class="card">
+    {% csrf_token %}
+    <label>Título</label>
+    <input type="text" name="titulo" value="{{ modulo.titulo|default:'' }}" required>
+    <label>Descripción breve</label>
+    <input type="text" name="descripcion" value="{{ modulo.descripcion|default:'' }}">
+    <label>Contenido (texto de la lección)</label>
+    <textarea name="contenido" rows="8">{{ modulo.contenido|default:'' }}</textarea>
+    <label>URL de video (YouTube o MP4)</label>
+    <input type="url" name="video_url" value="{{ modulo.video_url|default:'' }}" placeholder="https://...">
+    <label>URL PDF externo (opcional)</label>
+    <input type="url" name="archivo_pdf_url" value="{{ modulo.archivo_pdf_url|default:'' }}" placeholder="https://...">
+
+    <h2 style="margin-top:1.25rem;">Subir archivo a S3</h2>
+    <p class="muted">PDF, video, imagen o audio — se asocia al módulo (mismo almacén que WhatsApp).</p>
+    <label>Título del archivo</label>
+    <input type="text" name="titulo_archivo" placeholder="Guía de la lección">
+    <label>Tipo</label>
+    <select name="tipo_archivo">
+        <option value="pdf">PDF</option>
+        <option value="video">Video</option>
+        <option value="imagen">Imagen</option>
+        <option value="audio">Audio</option>
+    </select>
+    <label>Archivo</label>
+    <input type="file" name="archivo_subir" accept="video/*,image/*,application/pdf,audio/*">
+
+    <button type="submit" class="btn">Guardar</button>
+</form>
+
+{% if archivos %}
+<div class="card">
+    <h2>Archivos en esta lección</h2>
+    <ul class="lecciones">
+        {% for a in archivos %}
+        <li>{{ a.titulo }} — {{ a.get_tipo_display }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% endblock %}
