@@ -39,7 +39,8 @@ class AprendeWebTests(TestCase):
     def test_inicio_carga(self):
         r = self.http.get('/aprende/')
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'Estudiantes')
+        self.assertContains(r, 'Estudiante')
+        self.assertContains(r, 'Aula web')
 
     def test_estudiante_login_y_ve_modulo(self):
         r = self.http.post('/aprende/estudiante/login/', {

@@ -2,6 +2,29 @@
 
 {% block title %}Dashboard | Portal eki{% endblock %}
 
+{% block extra_head %}
+<style>
+.card-link { text-decoration: none; color: inherit; transition: box-shadow .2s, transform .15s; }
+.card-link:hover { box-shadow: 0 4px 16px rgba(37,99,235,.12); transform: translateY(-2px); }
+.ops-msg-list { list-style: none; padding: 0; margin: 0; font-size: 14px; }
+.ops-msg-list li { padding: 8px 0; border-bottom: 1px solid var(--borde); }
+.compare-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+.compare-card { background: var(--tabla-head); border-radius: 10px; padding: 14px; border: 1px solid var(--borde); }
+.compare-label { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--texto-muted); font-weight: 600; }
+.compare-values span { font-size: 1.5rem; font-weight: 700; }
+.compare-delta { font-size: 13px; font-weight: 600; margin-top: 4px; }
+.compare-delta.up { color: var(--ok); }
+.compare-delta.down { color: var(--danger); }
+.timeline-compact { list-style: none; padding: 0; margin: 0; }
+.timeline-compact__item { display: grid; grid-template-columns: 110px 1fr; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--borde); font-size: 14px; align-items: baseline; }
+.timeline-compact__item time { color: var(--texto-muted); font-size: 12px; }
+.medal { display: inline-flex; width: 28px; height: 28px; border-radius: 50%; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; color: #fff; }
+.medal-gold { background: linear-gradient(145deg, #fbbf24, #d97706); box-shadow: 0 2px 8px rgba(217,119,6,.4); }
+.medal-silver { background: linear-gradient(145deg, #e2e8f0, #94a3b8); }
+.medal-bronze { background: linear-gradient(145deg, #fdba74, #c2410c); }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-title">
     <div>
@@ -60,6 +83,85 @@
 {% endif %}
 
 {% if portal_mod_cursos %}
+{% if ops %}
+<section class="panel panel-ops" style="margin-bottom:24px;border-left:4px solid var(--accent);">
+    <h2>Operación del día</h2>
+    <p class="muted" style="margin-bottom:16px;">Acciones que requieren atención ahora.</p>
+    <div class="cards-grid">
+        <a href="/portal/pqrs/?estado=pendiente" class="card card-link">
+            <div class="metric-number">{{ ops.pqrs_pendientes }}</div>
+            <div class="metric-label">PQRS pendientes</div>
+        </a>
+        <a href="/portal/certificados/" class="card card-link">
+            <div class="metric-number">{{ ops.certificados_semana }}</div>
+            <div class="metric-label">Certificados (7 días)</div>
+        </a>
+        <a href="/portal/estudiantes/" class="card card-link">
+            <div class="metric-number">{{ ops.sin_avance }}</div>
+            <div class="metric-label">Sin avance en curso</div>
+        </a>
+        <a href="/portal/estudiantes/" class="card card-link">
+            <div class="metric-number">{{ ops.inactivos_30_dias }}</div>
+            <div class="metric-label">Inactivos 30+ días</div>
+        </a>
+    </div>
+    {% if ops.ultimos_mensajes %}
+    <h3 style="margin:20px 0 10px;font-size:15px;">Últimos mensajes WhatsApp</h3>
+    <ul class="ops-msg-list">
+        {% for m in ops.ultimos_mensajes %}
+        <li>
+            <span class="muted">{{ m.fecha|date:"d/m H:i" }}</span>
+            <strong>{{ m.telefono }}</strong>
+            {{ m.mensaje|truncatechars:80 }}
+        </li>
+        {% endfor %}
+    </ul>
+    <p class="muted"><a href="/portal/conversaciones/">Abrir conversaciones →</a></p>
+    {% endif %}
+</section>
+{% endif %}
+
+{% if comparativa %}
+<section class="panel" style="margin-bottom:24px;">
+    <h2>Este mes vs mes anterior</h2>
+    <div class="compare-grid">
+        <div class="compare-card">
+            <div class="compare-label">Certificados</div>
+            <div class="compare-values"><span>{{ comparativa.certificados.actual }}</span> <small>vs {{ comparativa.certificados.anterior }}</small></div>
+            {% if comparativa.certificados.delta_pct != None %}<div class="compare-delta {% if comparativa.certificados.delta_pct >= 0 %}up{% else %}down{% endif %}">{{ comparativa.certificados.delta_pct }}%</div>{% endif %}
+        </div>
+        <div class="compare-card">
+            <div class="compare-label">PQRS nuevas</div>
+            <div class="compare-values"><span>{{ comparativa.pqrs.actual }}</span> <small>vs {{ comparativa.pqrs.anterior }}</small></div>
+            {% if comparativa.pqrs.delta_pct != None %}<div class="compare-delta {% if comparativa.pqrs.delta_pct <= 0 %}up{% else %}down{% endif %}">{{ comparativa.pqrs.delta_pct }}%</div>{% endif %}
+        </div>
+        <div class="compare-card">
+            <div class="compare-label">Cursos completados</div>
+            <div class="compare-values"><span>{{ comparativa.completados.actual }}</span> <small>vs {{ comparativa.completados.anterior }}</small></div>
+            {% if comparativa.completados.delta_pct != None %}<div class="compare-delta {% if comparativa.completados.delta_pct >= 0 %}up{% else %}down{% endif %}">{{ comparativa.completados.delta_pct }}%</div>{% endif %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+{% if timeline_preview %}
+<section class="panel" style="margin-bottom:24px;">
+    <div class="page-title" style="margin-bottom:12px;">
+        <h2>Actividad reciente</h2>
+        <a class="btn btn-outline btn-sm" href="/portal/timeline/">Ver todo</a>
+    </div>
+    <ul class="timeline-compact">
+        {% for ev in timeline_preview %}
+        <li class="timeline-compact__item timeline-compact__item--{{ ev.tipo }}">
+            <time>{{ ev.fecha|date:"d/m/Y H:i" }}</time>
+            <a href="{{ ev.url }}">{{ ev.titulo }}</a>
+            <span class="muted">{{ ev.detalle|truncatechars:50 }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+</section>
+{% endif %}
+
 <section class="cards-grid" style="margin-bottom:24px;">
     <article class="card">
         <div class="metric-number">{{ total_estudiantes }}</div>
@@ -121,8 +223,13 @@
             </thead>
             <tbody>
                 {% for row in ranking.ranking %}
-                <tr>
-                    <td>{{ row.posicion }}</td>
+                <tr class="rank-row rank-row--{{ row.posicion }}">
+                    <td>
+                        {% if row.posicion == 1 %}<span class="medal medal-gold" title="1°">1</span>
+                        {% elif row.posicion == 2 %}<span class="medal medal-silver" title="2°">2</span>
+                        {% elif row.posicion == 3 %}<span class="medal medal-bronze" title="3°">3</span>
+                        {% else %}{{ row.posicion }}{% endif %}
+                    </td>
                     <td><a href="/portal/estudiantes/{{ row.estudiante_id }}/">{{ row.nombre }}</a></td>
                     <td><strong>{{ row.valor }}</strong></td>
                     <td class="muted">{{ row.detalle }}</td>

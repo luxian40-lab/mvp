@@ -1,46 +1,74 @@
 {% extends "aprende/base.html" %}
-{% block title %}{% if modulo %}Editar{% else %}Nueva{% endif %} lección{% endblock %}
+{% block title %}{% if modulo %}Editar{% else %}Nueva{% endif %} lección | Aula web eki{% endblock %}
 {% block nav %}
-<a href="{% if modulo %}{% url 'aprende_profesor_curso' modulo.curso_id %}{% else %}{% url 'aprende_profesor_curso' curso.id %}{% endif %}">← Volver</a>
+<a href="{% if modulo %}{% url 'aprende_profesor_curso' modulo.curso_id %}{% else %}{% url 'aprende_profesor_curso' curso.id %}{% endif %}">← Volver al curso</a>
 {% endblock %}
+{% block main_class %}eki-main--wide{% endblock %}
 {% block content %}
-<h1>{% if modulo %}Editar: {{ modulo.titulo }}{% else %}Nueva lección{% endif %}</h1>
-<form method="post" enctype="multipart/form-data" class="card">
+<div class="eki-page-head">
+    <span class="eki-badge">{% if modulo %}Editar lección{% else %}Nueva lección{% endif %}</span>
+    <h1>{% if modulo %}{{ modulo.titulo }}{% else %}Crear lección{% endif %}</h1>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="eki-card">
     {% csrf_token %}
-    <label>Título</label>
-    <input type="text" name="titulo" value="{{ modulo.titulo|default:'' }}" required>
-    <label>Descripción breve</label>
-    <input type="text" name="descripcion" value="{{ modulo.descripcion|default:'' }}">
-    <label>Contenido (texto de la lección)</label>
-    <textarea name="contenido" rows="8">{{ modulo.contenido|default:'' }}</textarea>
-    <label>URL de video (YouTube o MP4)</label>
-    <input type="url" name="video_url" value="{{ modulo.video_url|default:'' }}" placeholder="https://...">
-    <label>URL PDF externo (opcional)</label>
-    <input type="url" name="archivo_pdf_url" value="{{ modulo.archivo_pdf_url|default:'' }}" placeholder="https://...">
 
-    <h2 style="margin-top:1.25rem;">Subir archivo a S3</h2>
-    <p class="muted">PDF, video, imagen o audio — se asocia al módulo (mismo almacén que WhatsApp).</p>
-    <label>Título del archivo</label>
-    <input type="text" name="titulo_archivo" placeholder="Guía de la lección">
-    <label>Tipo</label>
-    <select name="tipo_archivo">
-        <option value="pdf">PDF</option>
-        <option value="video">Video</option>
-        <option value="imagen">Imagen</option>
-        <option value="audio">Audio</option>
-    </select>
-    <label>Archivo</label>
-    <input type="file" name="archivo_subir" accept="video/*,image/*,application/pdf,audio/*">
+    <div class="eki-field">
+        <label for="titulo">Título</label>
+        <input type="text" name="titulo" id="titulo" value="{{ modulo.titulo|default:'' }}" required placeholder="Ej. Introducción al cultivo">
+    </div>
+    <div class="eki-field">
+        <label for="descripcion">Descripción breve</label>
+        <input type="text" name="descripcion" id="descripcion" value="{{ modulo.descripcion|default:'' }}" placeholder="Una línea para el listado">
+    </div>
+    <div class="eki-field">
+        <label for="contenido">Contenido de la lección</label>
+        <textarea name="contenido" id="contenido" rows="10" placeholder="Texto principal que verá el estudiante…">{{ modulo.contenido|default:'' }}</textarea>
+    </div>
+    <div class="eki-field">
+        <label for="video_url">URL de video (YouTube o MP4)</label>
+        <input type="url" name="video_url" id="video_url" value="{{ modulo.video_url|default:'' }}" placeholder="https://youtube.com/watch?v=…">
+    </div>
+    <div class="eki-field">
+        <label for="archivo_pdf_url">URL PDF externo (opcional)</label>
+        <input type="url" name="archivo_pdf_url" id="archivo_pdf_url" value="{{ modulo.archivo_pdf_url|default:'' }}" placeholder="https://…">
+    </div>
 
-    <button type="submit" class="btn">Guardar</button>
+    <p class="eki-section-title">Subir archivo a almacenamiento</p>
+    <p class="eki-muted" style="margin:-0.5rem 0 1rem;">PDF, video, imagen o audio — mismo almacén que WhatsApp.</p>
+
+    <div class="eki-grid-2" style="gap:1rem;">
+        <div class="eki-field">
+            <label for="titulo_archivo">Título del archivo</label>
+            <input type="text" name="titulo_archivo" id="titulo_archivo" placeholder="Guía de la lección">
+        </div>
+        <div class="eki-field">
+            <label for="tipo_archivo">Tipo</label>
+            <select name="tipo_archivo" id="tipo_archivo">
+                <option value="pdf">PDF</option>
+                <option value="video">Video</option>
+                <option value="imagen">Imagen</option>
+                <option value="audio">Audio</option>
+            </select>
+        </div>
+    </div>
+    <div class="eki-field">
+        <label for="archivo_subir">Archivo</label>
+        <input type="file" name="archivo_subir" id="archivo_subir" accept="video/*,image/*,application/pdf,audio/*">
+    </div>
+
+    <button type="submit" class="eki-btn eki-btn--primary">Guardar lección</button>
 </form>
 
 {% if archivos %}
-<div class="card">
-    <h2>Archivos en esta lección</h2>
-    <ul class="lecciones">
+<div class="eki-card" style="margin-top:1.25rem;">
+    <h2 class="eki-h2">Archivos en esta lección</h2>
+    <ul class="eki-list">
         {% for a in archivos %}
-        <li>{{ a.titulo }} — {{ a.get_tipo_display }}</li>
+        <li class="eki-list-item">
+            <span class="eki-material-tag">DOC</span>
+            <span>{{ a.titulo }} — <span class="eki-muted">{{ a.get_tipo_display }}</span></span>
+        </li>
         {% endfor %}
     </ul>
 </div>

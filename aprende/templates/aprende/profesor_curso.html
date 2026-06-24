@@ -2,17 +2,34 @@
 {% block title %}{{ curso.nombre }} — Profesor{% endblock %}
 {% block nav %}
 <a href="{% url 'aprende_profesor_cursos' %}">← Cursos</a>
+<a href="{% url 'aprende_profesor_logout' %}">Salir</a>
 {% endblock %}
 {% block content %}
-<h1>{{ curso.nombre }}</h1>
-<p><a class="btn" href="{% url 'aprende_profesor_modulo_nuevo' curso.id %}">+ Nueva lección</a></p>
-<ul class="lecciones card">
-    {% for m in modulos %}
-    <li>
-        <a href="{% url 'aprende_profesor_modulo_editar' m.id %}">Módulo {{ m.numero }}: {{ m.titulo }}</a>
-    </li>
-    {% empty %}
-    <li class="muted">Sin módulos. Crea la primera lección.</li>
-    {% endfor %}
-</ul>
+<div class="eki-page-head">
+    <span class="eki-badge">Editar curso</span>
+    <h1>{{ curso.nombre }}</h1>
+</div>
+
+<div class="eki-toolbar">
+    <a class="eki-btn eki-btn--primary" href="{% url 'aprende_profesor_modulo_nuevo' curso.id %}">+ Nueva lección</a>
+</div>
+
+<div class="eki-card">
+    <h2 class="eki-h2">Módulos del curso</h2>
+    <ul class="eki-list">
+        {% for m in modulos %}
+        <li class="eki-list-item">
+            <span class="eki-list-num">{{ m.numero }}</span>
+            <div>
+                <a href="{% url 'aprende_profesor_modulo_editar' m.id %}">{{ m.titulo }}</a>
+                <p class="eki-muted" style="margin:0.2rem 0 0;">Editar contenido y archivos</p>
+            </div>
+        </li>
+        {% empty %}
+        <li class="eki-list-item">
+            <p class="eki-muted" style="margin:0;">Aún no hay módulos. Crea la primera lección.</p>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
 {% endblock %}

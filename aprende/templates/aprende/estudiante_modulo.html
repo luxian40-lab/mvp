@@ -1,41 +1,69 @@
 {% extends "aprende/base.html" %}
-{% block title %}{{ modulo.titulo }}{% endblock %}
+{% block title %}{{ modulo.titulo }} | eki{% endblock %}
+{% block body_class %}page-lesson{% endblock %}
 {% block nav %}
-<a href="{% url 'aprende_estudiante_curso' modulo.curso_id %}">← {{ modulo.curso.nombre }}</a>
+<a href="{% url 'aprende_estudiante_curso' modulo.curso_id %}">{{ modulo.curso.nombre }}</a>
+<a href="{% url 'aprende_estudiante_cursos' %}">Mis cursos</a>
 {% endblock %}
 {% block content %}
-<h1>{{ modulo.titulo }}</h1>
-<p class="muted">{{ modulo.descripcion }}</p>
+<div class="eki-page-head">
+    <span class="eki-badge">Módulo {{ modulo.numero }}</span>
+    <h1>{{ modulo.titulo }}</h1>
+    {% if modulo.descripcion %}<p class="eki-lead">{{ modulo.descripcion }}</p>{% endif %}
+</div>
 
 {% if video_url %}
-<div class="card">
-    <h2>Video</h2>
-    {% if 'youtube.com' in video_url or 'youtu.be' in video_url %}
-    <p><a class="btn btn-ghost" href="{{ video_url }}" target="_blank" rel="noopener">Ver video en YouTube</a></p>
-    {% else %}
-    <video controls src="{{ video_url }}" style="width:100%;max-height:480px;"></video>
-    {% endif %}
+<div class="eki-card" style="padding:0;overflow:hidden;">
+    <div class="eki-video-wrap">
+        {% if youtube_id %}
+        <iframe src="https://www.youtube.com/embed/{{ youtube_id }}" title="Video" allowfullscreen loading="lazy"></iframe>
+        {% elif 'youtube.com' in video_url or 'youtu.be' in video_url %}
+        <p style="padding:2rem;text-align:center;background:#fff;">
+            <a class="eki-btn eki-btn--primary" href="{{ video_url }}" target="_blank" rel="noopener">Abrir en YouTube</a>
+        </p>
+        {% else %}
+        <video controls src="{{ video_url }}"></video>
+        {% endif %}
+    </div>
 </div>
 {% endif %}
 
-<div class="card contenido">{{ modulo.contenido }}</div>
+{% if modulo.contenido %}
+<div class="eki-card eki-card--bar">
+    <h2 class="eki-h2">Lectura</h2>
+    <div class="eki-article">{{ modulo.contenido }}</div>
+</div>
+{% endif %}
 
 {% if modulo.archivo_pdf_url %}
-<div class="card"><a class="btn btn-ghost" href="{{ modulo.archivo_pdf_url }}" target="_blank" rel="noopener">Descargar PDF</a></div>
+<div class="eki-card">
+    <a class="eki-material" href="{{ modulo.archivo_pdf_url }}" target="_blank" rel="noopener">
+        <span class="eki-material-tag">PDF</span>
+        <span><strong>Descargar documento</strong><br><span class="eki-muted">Material de la lección</span></span>
+    </a>
+</div>
 {% endif %}
 
 {% if archivos %}
-<div class="card">
-    <h2>Material adicional</h2>
-    <ul class="lecciones">
+<div class="eki-card">
+    <h2 class="eki-h2">Archivos</h2>
+    <div class="eki-material-grid">
         {% for a in archivos %}
-        <li>
-            <strong>{{ a.titulo }}</strong> ({{ a.get_tipo_display }})
-            {% if a.url_externa %}<br><a href="{{ a.url_externa }}" target="_blank">Abrir enlace</a>
-            {% elif a.archivo %}<br><a href="{{ a.archivo.url }}" target="_blank">Descargar archivo</a>{% endif %}
-        </li>
+        {% if a.url_externa %}
+        <a class="eki-material" href="{{ a.url_externa }}" target="_blank" rel="noopener">
+        {% elif a.archivo %}
+        <a class="eki-material" href="{{ a.archivo.url }}" target="_blank" rel="noopener">
+        {% else %}
+        <div class="eki-material">
+        {% endif %}
+            <span class="eki-material-tag">{% if a.tipo == 'video' %}VID{% elif a.tipo == 'audio' %}AUD{% elif a.tipo == 'imagen' %}IMG{% else %}DOC{% endif %}</span>
+            <span>
+                <strong>{{ a.titulo }}</strong><br>
+                <span class="eki-muted">{{ a.get_tipo_display }}</span>
+            </span>
+        {% if a.url_externa or a.archivo %}</a>{% else %}</div>{% endif %}
         {% endfor %}
-    </ul>
+    </div>
 </div>
 {% endif %}
 {% endblock %}

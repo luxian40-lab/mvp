@@ -1,23 +1,40 @@
 {% extends "aprende/base.html" %}
-{% block title %}Mis cursos{% endblock %}
+{% block title %}Mis cursos | {{ estudiante.nombre }}{% endblock %}
 {% block nav %}
-<a href="/aprende/estudiante/">Mis cursos</a> ·
+<a href="{% url 'aprende_estudiante_cursos' %}">Mis cursos</a>
 <a href="{% url 'aprende_estudiante_logout' %}">Salir</a>
 {% endblock %}
 {% block content %}
-<h1>Hola, {{ estudiante.nombre }}</h1>
-<p class="muted">Tus cursos activos</p>
+<div class="eki-page-head">
+    <span class="eki-badge">Estudiante</span>
+    <h1>Hola, {{ estudiante.nombre }}</h1>
+    <p class="eki-lead">Tus cursos activos.</p>
+</div>
+
 {% if progresos %}
-<ul class="lecciones card">
+<div class="eki-grid-2">
     {% for p in progresos %}
-    <li>
-        <a href="{% url 'aprende_estudiante_curso' p.curso.id %}">{{ p.curso.nombre }}</a>
-        {% if p.completado %}<span class="muted"> — completado</span>
-        {% elif p.modulo_actual %}<span class="muted"> — módulo {{ p.modulo_actual.numero }}</span>{% endif %}
-    </li>
+    <a href="{% url 'aprende_estudiante_curso' p.curso.id %}" class="eki-card eki-card--bar eki-card--interactive">
+        <h2 style="margin-bottom:0.3rem;font-size:1.05rem;">{{ p.curso.nombre }}</h2>
+        {% if p.completado %}
+        <p class="eki-muted">Completado</p>
+        <div class="eki-progress"><div class="eki-progress-bar" data-width="100"></div></div>
+        {% elif p.modulo_actual %}
+        <p class="eki-muted">Módulo {{ p.modulo_actual.numero }}</p>
+        <div class="eki-progress"><div class="eki-progress-bar" data-width="{% widthratio p.modulo_actual.numero 10 100 %}"></div></div>
+        {% else %}
+        <p class="eki-muted">Sin iniciar</p>
+        <div class="eki-progress"><div class="eki-progress-bar" data-width="4"></div></div>
+        {% endif %}
+        <span class="eki-btn eki-btn--ghost eki-btn--sm" style="margin-top:0.85rem;">Ver curso</span>
+    </a>
     {% endfor %}
-</ul>
+</div>
 {% else %}
-<div class="card"><p class="muted">Aún no tienes cursos asignados. Contacta a tu coordinador.</p></div>
+<div class="eki-card eki-empty">
+    <div class="eki-empty-mark" aria-hidden="true"></div>
+    <h2>Sin cursos</h2>
+    <p class="eki-muted">Pide a tu coordinador que te inscriban en un programa.</p>
+</div>
 {% endif %}
 {% endblock %}

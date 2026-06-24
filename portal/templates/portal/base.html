@@ -699,6 +699,14 @@
                     <span class="link-icon" aria-hidden="true">📥</span>
                     <span class="link-text">Reportes</span>
                 </a>
+                <a href="/portal/timeline/" class="sidebar-link {% if '/portal/timeline' in request.path %}active{% endif %}" title="Línea de tiempo">
+                    <span class="link-icon">T</span>
+                    <span class="link-text">Actividad</span>
+                </a>
+                <a href="/portal/gamificacion/" class="sidebar-link {% if '/portal/gamificacion' in request.path %}active{% endif %}" title="Gamificación y medallas">
+                    <span class="link-icon" aria-hidden="true">🏅</span>
+                    <span class="link-text">Gamificación</span>
+                </a>
                 <a href="/portal/certificados/" class="sidebar-link {% if '/portal/certificados' in request.path %}active{% endif %}" title="Certificados emitidos">
                     <span class="link-icon" aria-hidden="true">🎓</span><span class="link-text">Certificados</span>
                 </a>
@@ -717,6 +725,10 @@
                 <a href="/portal/cursos/" class="sidebar-link {% if request.path == '/portal/cursos/' %}active{% endif %}" title="Cursos">
                     <span class="link-icon">C</span>
                     <span class="link-text">Cursos</span>
+                </a>
+                <a href="/portal/campanas/" class="sidebar-link {% if '/portal/campanas' in request.path %}active{% endif %}" title="Campañas">
+                    <span class="link-icon">K</span>
+                    <span class="link-text">Campañas</span>
                 </a>
             {% endif %}
 
@@ -767,6 +779,10 @@
                 <a href="/portal/perfil/" class="sidebar-link {% if request.path == '/portal/perfil/' %}active{% endif %}" title="Perfil de empresa">
                     <span class="link-icon">F</span>
                     <span class="link-text">Perfil de empresa</span>
+                </a>
+                <a href="/portal/usuarios/" class="sidebar-link {% if '/portal/usuarios' in request.path %}active{% endif %}" title="Usuarios del equipo">
+                    <span class="link-icon">U</span>
+                    <span class="link-text">Usuarios</span>
                 </a>
             {% endif %}
         </nav>

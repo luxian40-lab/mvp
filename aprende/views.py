@@ -30,6 +30,16 @@ def _org_profesor(request):
     return pu.organizacion if pu else None
 
 
+def _youtube_embed_id(url: str) -> str | None:
+    if not url:
+        return None
+    m = re.search(
+        r'(?:youtube\.com/(?:watch\?v=|embed/|shorts/)|youtu\.be/)([a-zA-Z0-9_-]{11})',
+        url,
+    )
+    return m.group(1) if m else None
+
+
 def inicio(request):
     return render(request, 'aprende/inicio.html')
 
@@ -115,6 +125,7 @@ def estudiante_modulo(request, modulo_id: int):
         'modulo': modulo,
         'archivos': archivos,
         'video_url': video_url,
+        'youtube_id': _youtube_embed_id(video_url or ''),
     })
 
 

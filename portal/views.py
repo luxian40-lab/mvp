@@ -42,7 +42,11 @@ from .gei_exports import respuesta_excel_fichas_gei
 from .gei_service import analitica_gei, parse_filtros_gei
 from .nat_service import analitica_nat
 from .middleware import PORTAL_SESSION_KEY
-from .utils import limpiar_numero_whatsapp
+from .utils import limpiar_numero_whatsapp, enviar_whatsapp_respuesta
+from .dashboard_ops import comparativa_periodos, operacion_del_dia
+from .timeline_service import timeline_organizacion
+from .forms_usuarios import CrearUsuarioPortalForm
+from .models import PortalUsuario
 
 
 def _portal_org(request):
@@ -128,6 +132,14 @@ def dashboard(request):
     gei_resumen = _resumen_gei_portal(org) if mods['gei'] else None
     nat_resumen = analitica_nat(org) if mods['nat'] else None
 
+    ops = None
+    comparativa = None
+    timeline_preview = []
+    if mods['cursos']:
+        ops = operacion_del_dia(org, categorias_pqrs=categorias_pqrs_portal(org))
+        comparativa = comparativa_periodos(org)
+        timeline_preview = timeline_organizacion(org, limite=8)
+
     return render(request, 'portal/dashboard.html', {
         'org': org,
         'portal_modulos': mods,
@@ -142,6 +154,9 @@ def dashboard(request):
         'grupos': grupos,
         'resumen_general': resumen_general,
         'ranking': ranking_data,
+        'ops': ops,
+        'comparativa': comparativa,
+        'timeline_preview': timeline_preview,
     })
 
 
@@ -484,12 +499,39 @@ def estudiante_detalle(request, estudiante_id):
 
     grupos = estudiante.grupos.filter(cliente=org).order_by('nombre')
 
+    certificados = Certificado.objects.filter(
+        estudiante=estudiante,
+    ).select_related('curso').order_by('-fecha_emision')[:20]
+
+    gamificacion = None
+    try:
+        from core.gamificacion_modo import gamificacion_activa
+        if gamificacion_activa(org):
+            from core.gamificacion_actions import obtener_estadisticas_estudiante
+            gamificacion = obtener_estadisticas_estudiante(estudiante)
+    except Exception:
+        pass
+
+    mensajes_recientes = []
+    try:
+        from core.models import WhatsappLog
+        if estudiante.telefono:
+            mensajes_recientes = list(
+                WhatsappLog.objects.filter(telefono=estudiante.telefono)
+                .order_by('-fecha')[:6]
+            )
+    except Exception:
+        pass
+
     return render(request, 'portal/estudiante_detalle.html', {
         'org': org,
         'estudiante': estudiante,
         'progreso_filas': progreso_filas,
         'pqrs': pqrs,
         'grupos': grupos,
+        'certificados': certificados,
+        'gamificacion': gamificacion,
+        'mensajes_recientes': mensajes_recientes,
     })
 
 
@@ -772,8 +814,51 @@ def _curso_filtro_portal(request, org, cursos):
 @portal_login_required
 @requiere_modulo('cursos')
 def portal_gamificacion(request):
-    """Redirige al dashboard (ranking integrado allí)."""
-    return redirect('/portal/dashboard/#ranking')
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    from core.gamificacion import Badge, BadgeEstudiante
+    from core.gamificacion_modo import gamificacion_activa, get_modo_gamificacion, modo_usa_calificacion
+
+    curso_id = request.GET.get('curso')
+    curso_id_int = int(curso_id) if curso_id and str(curso_id).isdigit() else None
+    curso_sel = None
+    if curso_id_int:
+        curso_sel = Curso.objects.filter(pk=curso_id_int, cliente=org).first()
+
+    ranking_data = ranking_portal(org, curso_id=curso_id_int, limite=30)
+    modo = get_modo_gamificacion(org)
+
+    medallas_catalogo = []
+    if gamificacion_activa(org):
+        badges = list(Badge.objects.filter(activo=True).order_by('nombre')[:24])
+        counts = {
+            row['badge_id']: row['c']
+            for row in BadgeEstudiante.objects.filter(
+                estudiante__cliente=org,
+                badge_id__in=[b.id for b in badges],
+            ).values('badge_id').annotate(c=Count('id'))
+        }
+        for b in badges:
+            medallas_catalogo.append({
+                'badge': b,
+                'otorgadas': counts.get(b.id, 0),
+            })
+
+    return render(request, 'portal/gamificacion.html', {
+        'org': org,
+        'gamificacion_activa': gamificacion_activa(org),
+        'modo_label': ranking_data.get('modo_label', ''),
+        'es_calificacion': modo_usa_calificacion(org),
+        'ranking': ranking_data.get('ranking', []),
+        'columna_valor': ranking_data.get('columna_valor', ''),
+        'cursos': Curso.objects.filter(cliente=org, activo=True).order_by('nombre'),
+        'filtro_curso': curso_id_int,
+        'curso_seleccionado': curso_sel,
+        'medallas_catalogo': medallas_catalogo,
+        'modo': modo,
+    })
 
 
 @portal_login_required
@@ -781,10 +866,34 @@ def portal_gamificacion(request):
 def portal_conversaciones(request):
     """Historial WhatsApp de los participantes de la organización."""
     from core.conversaciones_service import construir_contexto_inbox
+    from django.contrib import messages
 
     org = _portal_org(request)
     if not org:
         return redirect('/portal/login/')
+
+    puede_responder = request.portal_usuario.rol == 'admin'
+
+    if request.method == 'POST' and puede_responder:
+        estudiante_raw = request.POST.get('estudiante_id', '').strip()
+        telefono = request.POST.get('telefono', '').strip()
+        texto = request.POST.get('mensaje', '').strip()
+        est = None
+        if estudiante_raw.isdigit():
+            est = Estudiante.objects.filter(pk=int(estudiante_raw), cliente=org, activo=True).first()
+        if est:
+            telefono = est.telefono
+        if texto and telefono:
+            if enviar_whatsapp_respuesta(telefono, texto):
+                messages.success(request, 'Mensaje enviado por WhatsApp.')
+            else:
+                messages.error(request, 'No se pudo enviar el mensaje. Verifique ventana 24 h o plantilla.')
+        redirect_url = '/portal/conversaciones/'
+        if est:
+            redirect_url += f'?estudiante={est.pk}'
+        elif telefono:
+            redirect_url += f'?telefono={limpiar_numero_whatsapp(telefono)}'
+        return redirect(redirect_url)
 
     estudiante_raw = (request.GET.get('estudiante') or '').strip()
     estudiante_id = int(estudiante_raw) if estudiante_raw.isdigit() else None
@@ -803,8 +912,50 @@ def portal_conversaciones(request):
         'inbox_volver_url': '/portal/dashboard/',
         'inbox_volver_label': 'Dashboard',
         'inbox_modo': 'portal',
+        'inbox_allow_reply': puede_responder,
     })
     return render(request, 'portal/conversaciones.html', context)
+
+
+@portal_login_required
+@requiere_modulo('cursos')
+def portal_timeline(request):
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+    return render(request, 'portal/timeline.html', {
+        'org': org,
+        'eventos': timeline_organizacion(org, limite=50),
+    })
+
+
+@portal_login_required
+@requiere_portal_admin
+def portal_usuarios(request):
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    form = None
+    ok_msg = None
+    if request.method == 'POST':
+        form = CrearUsuarioPortalForm(request.POST)
+        if form.is_valid():
+            form.save(org)
+            return redirect('/portal/usuarios/?creado=1')
+    else:
+        form = CrearUsuarioPortalForm()
+
+    usuarios = PortalUsuario.objects.filter(organizacion=org).select_related('user').order_by('user__username')
+    if request.GET.get('creado'):
+        ok_msg = 'Usuario creado correctamente.'
+
+    return render(request, 'portal/usuarios.html', {
+        'org': org,
+        'form': form,
+        'usuarios': usuarios,
+        'ok_msg': ok_msg,
+    })
 
 
 @portal_login_required

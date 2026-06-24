@@ -1,16 +1,31 @@
 {% extends "aprende/base.html" %}
-{% block title %}Ingreso estudiante{% endblock %}
+{% block title %}Ingreso estudiante | eki{% endblock %}
 {% block nav %}<a href="/aprende/">Inicio</a>{% endblock %}
+{% block main_class %}eki-main--wide{% endblock %}
 {% block content %}
-<h1>Ingreso estudiante</h1>
-<p class="muted">Use la misma cédula y teléfono registrados en eki (WhatsApp).</p>
-{% if error %}<div class="error">{{ error }}</div>{% endif %}
-<form method="post" class="card" style="max-width:400px;">
-    {% csrf_token %}
-    <label>Cédula</label>
-    <input type="text" name="cedula" required autocomplete="username" placeholder="1234567890">
-    <label>Teléfono WhatsApp</label>
-    <input type="text" name="telefono" required autocomplete="tel" placeholder="573001234567">
-    <button type="submit" class="btn">Entrar</button>
-</form>
+<div class="eki-auth-split">
+    <aside class="eki-auth-panel">
+        <h2>Acceso estudiante</h2>
+        <p>Mismos datos con los que recibes mensajes de eki por WhatsApp. No necesitas otra contraseña.</p>
+    </aside>
+    <div>
+        <div class="eki-page-head">
+            <h1>Ingresar</h1>
+            <p class="eki-muted">Cédula y teléfono registrados.</p>
+        </div>
+        {% if error %}<div class="eki-alert eki-alert--error" role="alert">{{ error }}</div>{% endif %}
+        <form method="post" class="eki-card eki-card--bar">
+            {% csrf_token %}
+            <div class="eki-field">
+                <label for="cedula">Cédula</label>
+                <input type="text" name="cedula" id="cedula" required autocomplete="username" placeholder="1234567890">
+            </div>
+            <div class="eki-field">
+                <label for="telefono">Teléfono WhatsApp</label>
+                <input type="text" name="telefono" id="telefono" required autocomplete="tel" placeholder="573001234567">
+            </div>
+            <button type="submit" class="eki-btn eki-btn--primary">Continuar</button>
+        </form>
+    </div>
+</div>
 {% endblock %}

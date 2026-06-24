@@ -3,43 +3,597 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}eki Aprende{% endblock %}</title>
+    <title>{% block title %}Aula web eki{% endblock %}</title>
     <style>
-        :root { --bg:#f8fafc; --card:#fff; --text:#0f172a; --muted:#64748b; --accent:#2563eb; --border:#e2e8f0; }
-        * { box-sizing: border-box; }
-        body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--text); line-height:1.5; }
-        .wrap { max-width: 960px; margin: 0 auto; padding: 1.25rem; }
-        header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:.75rem; }
-        header a { color:var(--accent); text-decoration:none; font-weight:500; }
-        .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1.25rem; margin-bottom:1rem; }
-        h1 { font-size:1.5rem; margin:0 0 .5rem; }
-        h2 { font-size:1.15rem; margin:0 0 .75rem; }
-        .muted { color:var(--muted); font-size:.9rem; }
-        .btn { display:inline-block; background:var(--accent); color:#fff; padding:.55rem 1rem; border-radius:8px; text-decoration:none; border:none; cursor:pointer; font-size:.95rem; }
-        .btn-ghost { background:#fff; color:var(--accent); border:1px solid var(--border); }
-        input, textarea, select { width:100%; padding:.5rem .65rem; border:1px solid var(--border); border-radius:8px; margin-bottom:.75rem; font:inherit; }
-        label { display:block; font-weight:500; margin-bottom:.25rem; font-size:.9rem; }
-        .error { background:#fef2f2; border:1px solid #fecaca; color:#991b1b; padding:.75rem; border-radius:8px; margin-bottom:1rem; }
-        .ok { background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; padding:.75rem; border-radius:8px; margin-bottom:1rem; }
-        ul.lecciones { list-style:none; padding:0; margin:0; }
-        ul.lecciones li { border-bottom:1px solid var(--border); padding:.75rem 0; }
-        ul.lecciones li:last-child { border:none; }
-        ul.lecciones a { color:var(--text); text-decoration:none; font-weight:500; }
-        ul.lecciones a:hover { color:var(--accent); }
-        .contenido { white-space:pre-wrap; }
-        iframe, video { max-width:100%; border-radius:8px; margin:1rem 0; }
+        :root {
+            --eki-purple: #7D2181;
+            --eki-purple-hover: #6a1c6e;
+            --eki-purple-soft: #9A6EAE;
+            --eki-purple-pale: #f3eaf4;
+            --eki-purple-muted: rgba(125, 33, 129, 0.12);
+            --eki-ink: #1a1520;
+            --eki-ink-soft: #3d3544;
+            --eki-muted: #6b6570;
+            --eki-bg: #f8f6f9;
+            --eki-surface: #ffffff;
+            --eki-border: #e5dde8;
+            --eki-radius: 6px;
+            --header-h: 58px;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+            font-size: 1rem;
+            line-height: 1.55;
+            color: var(--eki-ink);
+            background: var(--eki-bg);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* —— Header —— */
+        .eki-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            height: var(--header-h);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.5rem;
+            background: var(--eki-surface);
+            border-bottom: 3px solid var(--eki-purple);
+        }
+
+        .eki-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            text-decoration: none;
+            color: var(--eki-ink);
+        }
+
+        .eki-brand-mark {
+            width: 34px;
+            height: 34px;
+            border-radius: 4px;
+            background: var(--eki-purple);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: 700;
+            font-size: 0.95rem;
+            letter-spacing: -0.03em;
+        }
+
+        .eki-brand-text strong {
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .eki-brand-text span {
+            display: block;
+            font-size: 0.7rem;
+            color: var(--eki-muted);
+            font-weight: 500;
+            margin-top: 1px;
+        }
+
+        .eki-nav {
+            display: flex;
+            align-items: center;
+            gap: 0.15rem;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .eki-nav a {
+            color: var(--eki-ink-soft);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            padding: 0.4rem 0.75rem;
+            border-radius: var(--eki-radius);
+            transition: color 0.15s, background 0.15s;
+        }
+
+        .eki-nav a:hover {
+            color: var(--eki-purple);
+            background: var(--eki-purple-pale);
+        }
+
+        .eki-nav-toggle {
+            display: none;
+            background: var(--eki-surface);
+            border: 1px solid var(--eki-border);
+            border-radius: var(--eki-radius);
+            padding: 0.35rem 0.55rem;
+            cursor: pointer;
+            color: var(--eki-ink);
+            line-height: 1;
+        }
+
+        .eki-nav-toggle span {
+            display: block;
+            width: 18px;
+            height: 2px;
+            background: currentColor;
+            margin: 4px 0;
+        }
+
+        /* —— Layout —— */
+        .eki-main {
+            flex: 1;
+            width: 100%;
+            max-width: 920px;
+            margin: 0 auto;
+            padding: 2rem 1.25rem 3rem;
+        }
+
+        .eki-main--wide { max-width: 1000px; }
+
+        h1, h2, h3, .eki-h2 {
+            font-weight: 700;
+            line-height: 1.3;
+            color: var(--eki-ink);
+            letter-spacing: -0.02em;
+        }
+
+        h1 { font-size: clamp(1.5rem, 3.5vw, 1.85rem); margin: 0 0 0.4rem; }
+        h2, .eki-h2 { font-size: 1.05rem; margin: 0 0 0.65rem; }
+
+        .eki-lead {
+            color: var(--eki-muted);
+            font-size: 1rem;
+            margin: 0 0 1.25rem;
+            max-width: 48ch;
+        }
+
+        .eki-muted { color: var(--eki-muted); font-size: 0.875rem; }
+
+        /* —— Cards —— */
+        .eki-card {
+            background: var(--eki-surface);
+            border: 1px solid var(--eki-border);
+            border-radius: var(--eki-radius);
+            padding: 1.25rem 1.35rem;
+        }
+
+        .eki-card--bar {
+            border-left: 4px solid var(--eki-purple);
+        }
+
+        .eki-card--interactive {
+            display: block;
+            text-decoration: none;
+            color: inherit;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .eki-card--interactive:hover {
+            border-color: var(--eki-purple-soft);
+            box-shadow: 0 2px 12px rgba(125, 33, 129, 0.08);
+        }
+
+        /* —— Buttons —— */
+        .eki-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.55rem 1.1rem;
+            border-radius: var(--eki-radius);
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+
+        .eki-btn--primary {
+            background: var(--eki-purple);
+            color: #fff;
+        }
+
+        .eki-btn--primary:hover { background: var(--eki-purple-hover); }
+
+        .eki-btn--ghost {
+            background: transparent;
+            color: var(--eki-purple);
+            border: 1px solid var(--eki-border);
+        }
+
+        .eki-btn--ghost:hover {
+            border-color: var(--eki-purple-soft);
+            background: var(--eki-purple-pale);
+        }
+
+        .eki-btn--sm { padding: 0.4rem 0.75rem; font-size: 0.82rem; }
+
+        /* —— Forms —— */
+        .eki-field { margin-bottom: 1rem; }
+
+        .eki-field label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.82rem;
+            margin-bottom: 0.3rem;
+            color: var(--eki-ink-soft);
+        }
+
+        .eki-field input,
+        .eki-field textarea,
+        .eki-field select {
+            width: 100%;
+            padding: 0.55rem 0.75rem;
+            border: 1px solid var(--eki-border);
+            border-radius: var(--eki-radius);
+            font: inherit;
+            background: #fff;
+        }
+
+        .eki-field input:focus,
+        .eki-field textarea:focus,
+        .eki-field select:focus {
+            outline: 2px solid var(--eki-purple-soft);
+            outline-offset: 0;
+            border-color: var(--eki-purple);
+        }
+
+        .eki-field textarea { min-height: 130px; resize: vertical; }
+
+        /* —— Alerts —— */
+        .eki-alert {
+            padding: 0.75rem 1rem;
+            border-radius: var(--eki-radius);
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            border-left: 4px solid;
+        }
+
+        .eki-alert--ok {
+            background: #f0fdf4;
+            border-color: #22c55e;
+            color: #166534;
+        }
+
+        .eki-alert--error {
+            background: #fef2f2;
+            border-color: #ef4444;
+            color: #991b1b;
+        }
+
+        .eki-grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1rem;
+        }
+
+        .eki-page-head { margin-bottom: 1.5rem; }
+
+        .eki-badge {
+            display: inline-block;
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--eki-purple);
+            border: 1px solid var(--eki-purple-soft);
+            padding: 0.2rem 0.5rem;
+            border-radius: 3px;
+            margin-bottom: 0.5rem;
+        }
+
+        /* —— Lists —— */
+        .eki-list { list-style: none; padding: 0; margin: 0; }
+
+        .eki-list-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.85rem;
+            padding: 0.85rem 0;
+            border-bottom: 1px solid var(--eki-border);
+        }
+
+        .eki-list-item:last-child { border-bottom: none; }
+
+        .eki-list-item a {
+            color: var(--eki-ink);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.98rem;
+        }
+
+        .eki-list-item a:hover { color: var(--eki-purple); text-decoration: underline; }
+
+        .eki-list-num {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 4px;
+            border: 2px solid var(--eki-purple-soft);
+            color: var(--eki-purple);
+            font-weight: 700;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .eki-list-num--done {
+            background: var(--eki-purple);
+            border-color: var(--eki-purple);
+            color: #fff;
+        }
+
+        .eki-progress {
+            height: 4px;
+            background: var(--eki-border);
+            margin-top: 0.6rem;
+        }
+
+        .eki-progress-bar {
+            height: 100%;
+            background: var(--eki-purple);
+            width: 0;
+            transition: width 0.5s ease;
+        }
+
+        /* —— Landing —— */
+        .eki-hero {
+            padding: 0.5rem 0 2rem;
+            max-width: 36rem;
+        }
+
+        .eki-hero h1 { font-size: clamp(1.75rem, 4vw, 2.25rem); }
+
+        .eki-role-card {
+            padding: 1.35rem 1.35rem 1.35rem 1.5rem;
+            position: relative;
+        }
+
+        .eki-role-num {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--eki-purple-soft);
+            letter-spacing: 0.05em;
+        }
+
+        .eki-role-card h2 { font-size: 1.1rem; }
+        .eki-role-card p { margin: 0 0 1rem; flex: 1; }
+
+        /* —— Auth —— */
+        .eki-auth-split {
+            display: grid;
+            gap: 1.5rem;
+            align-items: start;
+        }
+
+        .eki-auth-panel {
+            display: none;
+            background: var(--eki-purple);
+            color: #fff;
+            padding: 2rem;
+            border-radius: var(--eki-radius);
+        }
+
+        .eki-auth-panel h2 {
+            color: #fff;
+            font-size: 1.4rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .eki-auth-panel p { opacity: 0.9; font-size: 0.95rem; margin: 0; line-height: 1.6; }
+
+        /* —— Lesson reader —— */
+        .eki-read-progress {
+            position: fixed;
+            top: var(--header-h);
+            left: 0;
+            height: 2px;
+            background: var(--eki-purple);
+            width: 0;
+            z-index: 99;
+            transition: width 0.1s linear;
+        }
+
+        .eki-article {
+            font-size: 1rem;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            color: var(--eki-ink-soft);
+        }
+
+        .eki-video-wrap {
+            background: #1a1520;
+            aspect-ratio: 16 / 9;
+        }
+
+        .eki-video-wrap iframe,
+        .eki-video-wrap video {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+
+        .eki-material-grid { display: grid; gap: 0.5rem; }
+
+        .eki-material {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 0.9rem;
+            border: 1px solid var(--eki-border);
+            border-radius: var(--eki-radius);
+            text-decoration: none;
+            color: inherit;
+            transition: border-color 0.15s;
+        }
+
+        .eki-material:hover { border-color: var(--eki-purple-soft); }
+
+        .eki-material-tag {
+            flex-shrink: 0;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--eki-purple);
+            background: var(--eki-purple-pale);
+            padding: 0.25rem 0.45rem;
+            border-radius: 3px;
+            min-width: 2.5rem;
+            text-align: center;
+        }
+
+        .eki-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .eki-section-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--eki-muted);
+            margin: 1.25rem 0 0.65rem;
+            padding-top: 0.85rem;
+            border-top: 1px solid var(--eki-border);
+        }
+
+        .eki-empty {
+            text-align: center;
+            padding: 2rem 1.5rem;
+        }
+
+        .eki-empty-mark {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 1rem;
+            border: 2px dashed var(--eki-purple-soft);
+            border-radius: 50%;
+        }
+
+        .eki-footer {
+            padding: 1rem 1.5rem;
+            font-size: 0.78rem;
+            color: var(--eki-muted);
+            border-top: 1px solid var(--eki-border);
+            background: var(--eki-surface);
+        }
+
+        @media (max-width: 640px) {
+            .eki-nav { display: none; }
+            .eki-nav.is-open {
+                display: flex;
+                flex-direction: column;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: var(--eki-surface);
+                padding: 0.75rem;
+                border-bottom: 1px solid var(--eki-border);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+            }
+            .eki-nav-toggle { display: block; }
+            .eki-header { position: relative; flex-wrap: wrap; }
+        }
+
+        @media (min-width: 768px) {
+            .eki-auth-split {
+                grid-template-columns: 1fr 1fr;
+                max-width: 820px;
+                margin: 0 auto;
+            }
+            .eki-auth-panel { display: block; }
+        }
+
+        {% block extra_css %}{% endblock %}
     </style>
 </head>
-<body>
-<div class="wrap">
-    <header>
-        <div><strong>eki</strong> Aprende</div>
-        <nav>{% block nav %}{% endblock %}</nav>
+<body class="{% block body_class %}{% endblock %}">
+    <div class="eki-read-progress" id="eki-read-progress" hidden></div>
+
+    <header class="eki-header">
+        <a href="/aprende/" class="eki-brand">
+            <div class="eki-brand-mark">e</div>
+            <div class="eki-brand-text">
+                <strong>eki</strong>
+                <span>Aula web</span>
+            </div>
+        </a>
+        <button type="button" class="eki-nav-toggle" id="eki-nav-toggle" aria-label="Abrir menú" aria-expanded="false">
+            <span></span><span></span><span></span>
+        </button>
+        <nav class="eki-nav" id="eki-nav">{% block nav %}{% endblock %}</nav>
     </header>
-    {% if messages %}
-        {% for m in messages %}<div class="ok">{{ m }}</div>{% endfor %}
-    {% endif %}
-    {% block content %}{% endblock %}
-</div>
+
+    <main class="eki-main {% block main_class %}{% endblock %}">
+        {% if messages %}
+            {% for m in messages %}
+            <div class="eki-alert eki-alert--ok" role="status">{{ m }}</div>
+            {% endfor %}
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="eki-footer">
+        eki · formación en web y WhatsApp
+    </footer>
+
+    <script>
+    (function () {
+        var toggle = document.getElementById('eki-nav-toggle');
+        var nav = document.getElementById('eki-nav');
+
+        function closeNav() {
+            if (nav) nav.classList.remove('is-open');
+            if (toggle) toggle.setAttribute('aria-expanded', 'false');
+        }
+
+        if (toggle && nav) {
+            toggle.addEventListener('click', function (e) {
+                e.stopPropagation();
+                var open = nav.classList.toggle('is-open');
+                toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            });
+            document.addEventListener('click', function () { closeNav(); });
+            nav.addEventListener('click', function (e) { e.stopPropagation(); });
+        }
+
+        document.querySelectorAll('.eki-progress-bar').forEach(function (bar) {
+            var w = bar.getAttribute('data-width');
+            if (w) requestAnimationFrame(function () { bar.style.width = w + '%'; });
+        });
+
+        var readBar = document.getElementById('eki-read-progress');
+        var article = document.querySelector('.eki-article');
+        if (readBar && article) {
+            readBar.hidden = false;
+            window.addEventListener('scroll', function () {
+                var rect = article.getBoundingClientRect();
+                var total = article.offsetHeight - window.innerHeight;
+                if (total <= 0) return;
+                var scrolled = Math.min(Math.max(-rect.top, 0), total);
+                readBar.style.width = (scrolled / total * 100) + '%';
+            }, { passive: true });
+        }
+    })();
+    </script>
+    {% block extra_js %}{% endblock %}
 </body>
 </html>

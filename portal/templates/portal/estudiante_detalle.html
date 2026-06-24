@@ -15,6 +15,7 @@
         {% else %}
             <span class="status status-cerrada">Inactivo</span>
         {% endif %}
+        <a class="btn btn-outline btn-sm" href="/portal/conversaciones/?estudiante={{ estudiante.id }}" style="margin-left:8px;">Conversaciones</a>
     </div>
 </div>
 
@@ -83,6 +84,77 @@
         </tbody>
     </table>
 </section>
+
+{% if certificados %}
+<section class="panel" style="margin-bottom:24px;">
+    <h2>Certificados</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Curso</th>
+                <th>Código</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in certificados %}
+            <tr>
+                <td>{{ c.fecha_emision|date:"d/m/Y"|default:"—" }}</td>
+                <td>{{ c.curso.nombre|default:"—" }}</td>
+                <td class="muted">{{ c.codigo_verificacion|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endif %}
+
+{% if gamificacion %}
+<section class="panel" style="margin-bottom:24px;">
+    <h2>Gamificación</h2>
+    <div class="cards-grid" style="margin-bottom:16px;">
+        <article class="card">
+            <div class="metric-number">{{ gamificacion.puntos_totales }}</div>
+            <div class="metric-label">Puntos</div>
+        </article>
+        <article class="card">
+            <div class="metric-number">Nivel {{ gamificacion.nivel }}</div>
+            <div class="metric-label">{{ gamificacion.porcentaje_nivel }}% del nivel</div>
+        </article>
+        <article class="card">
+            <div class="metric-number">#{{ gamificacion.posicion_ranking|default:"—" }}</div>
+            <div class="metric-label">Ranking</div>
+        </article>
+        <article class="card">
+            <div class="metric-number">{{ gamificacion.badges_obtenidos }}</div>
+            <div class="metric-label">Medallas</div>
+        </article>
+    </div>
+    {% if gamificacion.badges %}
+    <p>
+        {% for b in gamificacion.badges %}
+        <span class="pill" title="{{ b.descripcion }}">{{ b.icono|default:"🏅" }} {{ b.nombre }}</span>
+        {% endfor %}
+    </p>
+    {% endif %}
+    <p class="muted"><a href="/portal/gamificacion/">Ver ranking completo →</a></p>
+</section>
+{% endif %}
+
+{% if mensajes_recientes %}
+<section class="panel" style="margin-bottom:24px;">
+    <h2>WhatsApp reciente</h2>
+    <ul style="list-style:none;padding:0;margin:0;font-size:14px;">
+        {% for m in mensajes_recientes %}
+        <li style="padding:8px 0;border-bottom:1px solid var(--borde);">
+            <span class="muted">{{ m.fecha|date:"d/m H:i" }}</span>
+            <span class="pill" style="font-size:11px;">{{ m.tipo }}</span>
+            {{ m.mensaje|truncatechars:100 }}
+        </li>
+        {% endfor %}
+    </ul>
+</section>
+{% endif %}
 
 <section class="panel">
     <h2>PQRS recientes</h2>
