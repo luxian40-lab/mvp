@@ -2,8 +2,11 @@
 from datetime import timedelta
 from unittest.mock import patch
 
+from django.contrib.admin.sites import AdminSite
 from django.test import TestCase, override_settings
 from django.utils import timezone
+
+from core.admin import PasoModuloInline
 
 from core.models import (
     Curso,
@@ -1283,3 +1286,57 @@ class ModuloContenidoVsMicrocontenidosTests(TestCase):
         )
         with self.assertRaises(ValidationError):
             validar_contenido_modulo('', nuevo)
+
+    def test_formset_admin_sin_contenido_ni_pasos_falla(self):
+        from django.contrib.auth import get_user_model
+        from django.test import RequestFactory
+
+        User = get_user_model()
+        user = User.objects.create_superuser('admin_mod', 'a@test.com', 'pass')
+        request = RequestFactory().get('/')
+        request.user = user
+
+        site = AdminSite()
+        inline = PasoModuloInline(Modulo, site)
+        FormSet = inline.get_formset(request=request, obj=self.mod)
+        prefix = FormSet.get_default_prefix()
+        data = {
+            'contenido': '',
+            f'{prefix}-TOTAL_FORMS': '0',
+            f'{prefix}-INITIAL_FORMS': '0',
+            f'{prefix}-MIN_NUM_FORMS': '0',
+            f'{prefix}-MAX_NUM_FORMS': '1000',
+        }
+        formset = FormSet(data, instance=self.mod)
+        self.assertFalse(formset.is_valid())
+
+    def test_formset_admin_con_paso_permite_contenido_vacio(self):
+        from django.contrib.auth import get_user_model
+        from django.test import RequestFactory
+
+        s1 = _seccion(self.mod, 1)
+        User = get_user_model()
+        user = User.objects.create_superuser('admin_mod2', 'b@test.com', 'pass')
+        request = RequestFactory().get('/')
+        request.user = user
+
+        site = AdminSite()
+        inline = PasoModuloInline(Modulo, site)
+        FormSet = inline.get_formset(request=request, obj=self.mod)
+        prefix = FormSet.get_default_prefix()
+        data = {
+            'contenido': '',
+            f'{prefix}-TOTAL_FORMS': '1',
+            f'{prefix}-INITIAL_FORMS': '0',
+            f'{prefix}-MIN_NUM_FORMS': '0',
+            f'{prefix}-MAX_NUM_FORMS': '1000',
+            f'{prefix}-0-seccion': str(s1.pk),
+            f'{prefix}-0-orden': '1',
+            f'{prefix}-0-modulo': str(self.mod.pk),
+            f'{prefix}-0-tipo': PasoModulo.TIPO_CONTENIDO,
+            f'{prefix}-0-contenido': 'Micro paso 1',
+            f'{prefix}-0-activo': 'on',
+            f'{prefix}-0-requiere_listo_para_avanzar': 'on',
+        }
+        formset = FormSet(data, instance=self.mod)
+        self.assertTrue(formset.is_valid(), formset.errors)
