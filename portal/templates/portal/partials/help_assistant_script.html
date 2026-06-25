@@ -1,0 +1,359 @@
+<script>
+/**
+ * Asistente de ayuda del portal clientes (estilo guía contextual, sin IA).
+ */
+(function () {
+    'use strict';
+
+    var STORAGE_PREFIX = 'eki-portal-help-';
+    var path = (document.body.getAttribute('data-portal-path') || window.location.pathname || '').replace(/\/+$/, '') || '/';
+
+    var PAGES = [
+        {
+            id: 'dashboard',
+            test: function (p) { return p === '/portal/dashboard'; },
+            steps: [
+                {
+                    title: 'Su panel de control',
+                    text: 'Aquí ve el resumen de su organización: estudiantes, cursos y avance general. Use el menú lateral para ir a cada módulo.'
+                },
+                {
+                    title: 'Operación del día',
+                    text: 'Tarjetas con lo urgente: PQRS pendientes, certificados de la semana, personas sin avance e inactivos. Haga clic en cada número para actuar.'
+                },
+                {
+                    title: 'Comparativa y actividad',
+                    text: 'Compare este mes con el anterior y revise la línea de tiempo reciente. Para el detalle analítico use Métricas detalladas o Reportes.'
+                }
+            ]
+        },
+        {
+            id: 'metricas',
+            test: function (p) { return p === '/portal/metricas'; },
+            steps: [
+                {
+                    title: 'Métricas detalladas',
+                    text: 'Analice avance por curso, grupo y módulo. Filtre por fechas para ver cómo evoluciona su programa.'
+                },
+                {
+                    title: 'Filtros y exportación',
+                    text: 'Combine curso y grupo para segmentar. Desde Reportes puede descargar Excel con el mismo criterio.'
+                }
+            ]
+        },
+        {
+            id: 'reportes',
+            test: function (p) { return p === '/portal/reportes'; },
+            steps: [
+                {
+                    title: 'Centro de reportes',
+                    text: 'Descargue archivos Excel listos para su equipo: avance de estudiantes, reenganche por módulo y más.'
+                },
+                {
+                    title: 'Reenganche sin módulo',
+                    text: 'Indique el número de módulo (ej. 5) para obtener quienes aún no lo alcanzaron. Útil para campañas o importaciones.'
+                }
+            ]
+        },
+        {
+            id: 'timeline',
+            test: function (p) { return p === '/portal/timeline'; },
+            steps: [
+                {
+                    title: 'Línea de tiempo',
+                    text: 'Historial unificado: certificados emitidos, cursos completados, PQRS y respuestas de campañas.'
+                },
+                {
+                    title: 'Seguimiento rápido',
+                    text: 'Cada evento enlaza al estudiante o solicitud. Ideal para auditorías y reuniones de seguimiento.'
+                }
+            ]
+        },
+        {
+            id: 'gamificacion',
+            test: function (p) { return p === '/portal/gamificacion'; },
+            steps: [
+                {
+                    title: 'Gamificación',
+                    text: 'Ranking de estudiantes por puntos o calificaciones, según la configuración de su organización.'
+                },
+                {
+                    title: 'Medallas',
+                    text: 'Vea las insignias del programa y cuántas veces se han otorgado. El top 3 del ranking lleva medallitas destacadas.'
+                }
+            ]
+        },
+        {
+            id: 'certificados',
+            test: function (p) { return p === '/portal/certificados'; },
+            steps: [
+                {
+                    title: 'Certificados emitidos',
+                    text: 'Listado de certificados generados para sus estudiantes. Verifique fechas, cursos y códigos de validación.'
+                }
+            ]
+        },
+        {
+            id: 'estudiantes',
+            test: function (p) { return p === '/portal/estudiantes'; },
+            steps: [
+                {
+                    title: 'Listado de estudiantes',
+                    text: 'Busque participantes y abra su ficha con un clic. Desde aquí también puede exportar listas para reenganche.'
+                },
+                {
+                    title: 'Exportar reenganche',
+                    text: 'Elija curso, grupo y módulo no alcanzado para generar un Excel con formato de importación.'
+                }
+            ]
+        },
+        {
+            id: 'estudiante_detalle',
+            test: function (p) { return /^\/portal\/estudiantes\/\d+$/.test(p); },
+            steps: [
+                {
+                    title: 'Ficha 360°',
+                    text: 'Avance por curso, grupos, PQRS, certificados, gamificación y mensajes recientes de WhatsApp en una sola vista.'
+                },
+                {
+                    title: 'Conversaciones',
+                    text: 'Use el botón Conversaciones para abrir el historial de ese estudiante y responder si tiene permisos de administrador.'
+                }
+            ]
+        },
+        {
+            id: 'conversaciones',
+            test: function (p) { return p === '/portal/conversaciones'; },
+            steps: [
+                {
+                    title: 'Inbox WhatsApp',
+                    text: 'Historial de mensajes de sus estudiantes. Seleccione un contacto en la lista para ver la conversación.'
+                },
+                {
+                    title: 'Responder desde el portal',
+                    text: 'Los administradores pueden escribir al pie del chat. Recuerde la ventana de 24 horas de WhatsApp para mensajes libres.'
+                }
+            ]
+        },
+        {
+            id: 'cursos',
+            test: function (p) { return p === '/portal/cursos'; },
+            steps: [
+                {
+                    title: 'Cursos activos',
+                    text: 'Vea los cursos de su organización, módulos e inscritos. Entre al flujo del curso para el embudo de avance.'
+                }
+            ]
+        },
+        {
+            id: 'cobertura',
+            test: function (p) { return p.indexOf('/portal/cobertura') === 0; },
+            steps: [
+                {
+                    title: 'Cobertura territorial',
+                    text: 'Mapa de participantes por departamento y municipio. Útil para ver dónde está llegando el programa.'
+                }
+            ]
+        },
+        {
+            id: 'pqrs',
+            test: function (p) { return p === '/portal/pqrs' || /^\/portal\/pqrs\/\d+$/.test(p); },
+            steps: [
+                {
+                    title: 'PQRS',
+                    text: 'Solicitudes de soporte de sus estudiantes. Filtre por estado y abra cada caso para ver el detalle.'
+                }
+            ]
+        },
+        {
+            id: 'campanas',
+            test: function (p) { return p === '/portal/campanas' || /^\/portal\/campanas\/\d+$/.test(p); },
+            steps: [
+                {
+                    title: 'Campañas',
+                    text: 'Consulte campañas de mensajes y respuestas recibidas. Ideal para encuestas rápidas por WhatsApp.'
+                }
+            ]
+        },
+        {
+            id: 'usuarios',
+            test: function (p) { return p === '/portal/usuarios'; },
+            steps: [
+                {
+                    title: 'Usuarios del portal',
+                    text: 'Invite coordinadores (solo lectura) o administradores para que accedan sin entrar al admin de eki.'
+                },
+                {
+                    title: 'Roles',
+                    text: 'Administrador: puede editar perfil, usuarios y responder WhatsApp. Solo lectura: consulta sin cambios.'
+                }
+            ]
+        },
+        {
+            id: 'perfil',
+            test: function (p) { return p === '/portal/perfil'; },
+            steps: [
+                {
+                    title: 'Perfil de empresa',
+                    text: 'Suba el logo y subtítulo para que su equipo reconozca el portal. Solo visible para administradores.'
+                }
+            ]
+        },
+        {
+            id: 'gei',
+            test: function (p) { return p.indexOf('/portal/gei') === 0; },
+            steps: [
+                {
+                    title: 'Inventario GEI',
+                    text: 'Fichas de inventario de gases de efecto invernadero de su organización. Exporte y revise completitud.'
+                }
+            ]
+        },
+        {
+            id: 'nat',
+            test: function (p) { return p.indexOf('/portal/nat') === 0; },
+            steps: [
+                {
+                    title: 'Agente Nat',
+                    text: 'Métricas del agente comercial Nat: PQRS, documentos y actividad de su línea WhatsApp comercial.'
+                }
+            ]
+        },
+        {
+            id: 'empleabilidad',
+            test: function (p) { return p === '/portal/empleabilidad'; },
+            steps: [
+                {
+                    title: 'Empleabilidad',
+                    text: 'KPIs de exploración territorial: retención, misiones y oportunidades georreferenciadas.'
+                }
+            ]
+        },
+        {
+            id: 'default',
+            test: function () { return true; },
+            steps: [
+                {
+                    title: 'Portal clientes eki',
+                    text: 'Use el menú lateral para navegar. Pulse este botón cuando necesite una guía de la pantalla actual.'
+                }
+            ]
+        }
+    ];
+
+    function resolvePage() {
+        for (var i = 0; i < PAGES.length; i++) {
+            if (PAGES[i].id !== 'default' && PAGES[i].test(path)) {
+                return PAGES[i];
+            }
+        }
+        return PAGES[PAGES.length - 1];
+    }
+
+    function storageKey(pageId, suffix) {
+        return STORAGE_PREFIX + pageId + '-' + suffix;
+    }
+
+    function isDismissed(pageId) {
+        return localStorage.getItem(storageKey(pageId, 'dismissed')) === '1';
+    }
+
+    var root = document.getElementById('eki-help');
+    if (!root) return;
+
+    var page = resolvePage();
+    var stepIndex = 0;
+    var panel = document.getElementById('eki-help-panel');
+    var titleEl = document.getElementById('eki-help-title');
+    var textEl = document.getElementById('eki-help-text');
+    var stepLabel = document.getElementById('eki-help-step-label');
+    var btnToggle = document.getElementById('eki-help-toggle');
+    var btnNext = document.getElementById('eki-help-next');
+    var btnClose = document.getElementById('eki-help-close');
+    var btnDismiss = document.getElementById('eki-help-dismiss');
+    var dotsEl = document.getElementById('eki-help-dots');
+
+    function renderDots() {
+        if (!dotsEl) return;
+        dotsEl.innerHTML = '';
+        for (var i = 0; i < page.steps.length; i++) {
+            var dot = document.createElement('span');
+            dot.className = 'eki-help__dot' + (i === stepIndex ? ' is-active' : '');
+            dot.setAttribute('aria-hidden', 'true');
+            dotsEl.appendChild(dot);
+        }
+    }
+
+    function renderStep() {
+        var step = page.steps[stepIndex];
+        if (!step) return;
+        if (titleEl) titleEl.textContent = step.title;
+        if (textEl) textEl.textContent = step.text;
+        if (stepLabel) {
+            stepLabel.textContent = page.steps.length > 1
+                ? 'Paso ' + (stepIndex + 1) + ' de ' + page.steps.length
+                : '';
+        }
+        if (btnNext) {
+            var last = stepIndex >= page.steps.length - 1;
+            btnNext.textContent = last ? 'Entendido' : 'Siguiente';
+        }
+        renderDots();
+    }
+
+    function openPanel() {
+        if (!panel) return;
+        panel.hidden = false;
+        root.classList.add('is-open');
+        if (btnToggle) btnToggle.setAttribute('aria-expanded', 'true');
+        renderStep();
+    }
+
+    function closePanel() {
+        if (!panel) return;
+        panel.hidden = true;
+        root.classList.remove('is-open');
+        if (btnToggle) btnToggle.setAttribute('aria-expanded', 'false');
+    }
+
+    function nextStep() {
+        if (stepIndex < page.steps.length - 1) {
+            stepIndex += 1;
+            renderStep();
+        } else {
+            closePanel();
+        }
+    }
+
+    function dismissPage() {
+        localStorage.setItem(storageKey(page.id, 'dismissed'), '1');
+        closePanel();
+    }
+
+    if (btnToggle) {
+        btnToggle.addEventListener('click', function () {
+            if (panel && panel.hidden) {
+                stepIndex = 0;
+                openPanel();
+            } else {
+                closePanel();
+            }
+        });
+    }
+    if (btnNext) btnNext.addEventListener('click', nextStep);
+    if (btnClose) btnClose.addEventListener('click', closePanel);
+    if (btnDismiss) btnDismiss.addEventListener('click', dismissPage);
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && root.classList.contains('is-open')) {
+            closePanel();
+        }
+    });
+
+    if (!isDismissed(page.id)) {
+        window.setTimeout(function () {
+            openPanel();
+        }, 900);
+    }
+})();
+</script>
