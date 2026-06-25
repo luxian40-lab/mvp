@@ -446,7 +446,7 @@
             border: 0;
         }
 
-        /* Asistente de ayuda (eki) — mascota tipo clip */
+        /* Asistente de ayuda — mascota sombrero vueltiao */
         .eki-help {
             position: fixed;
             right: 20px;
@@ -468,93 +468,71 @@
             outline-offset: 4px;
             border-radius: 12px;
         }
-        .eki-clip-wrap {
+        .eki-guia-wrap {
             position: relative;
             display: inline-block;
-            animation: eki-clip-sway 3.8s ease-in-out infinite;
-            transform-origin: 50% 85%;
+            animation: eki-guia-sway 4s ease-in-out infinite;
+            transform-origin: 50% 90%;
         }
-        .eki-help.is-open .eki-clip-wrap {
-            animation: eki-clip-nod 0.45s ease;
+        .eki-help.is-open .eki-guia-wrap {
+            animation: eki-guia-nod 0.45s ease;
         }
-        .eki-help__toggle:hover .eki-clip-wrap {
-            animation: eki-clip-wiggle 0.55s ease-in-out infinite;
+        .eki-help__toggle:hover .eki-guia-wrap {
+            animation: eki-guia-wiggle 0.6s ease-in-out infinite;
         }
-        @keyframes eki-clip-sway {
-            0%, 100% { transform: translateY(0) rotate(-3deg); }
-            50% { transform: translateY(-7px) rotate(3deg); }
+        @keyframes eki-guia-sway {
+            0%, 100% { transform: translateY(0) rotate(-2deg); }
+            50% { transform: translateY(-6px) rotate(2deg); }
         }
-        @keyframes eki-clip-wiggle {
-            0%, 100% { transform: rotate(-4deg); }
-            25% { transform: rotate(5deg); }
-            75% { transform: rotate(-5deg); }
+        @keyframes eki-guia-wiggle {
+            0%, 100% { transform: rotate(-3deg); }
+            50% { transform: rotate(3deg); }
         }
-        @keyframes eki-clip-nod {
+        @keyframes eki-guia-nod {
             0%, 100% { transform: rotate(0); }
-            40% { transform: rotate(8deg); }
-            70% { transform: rotate(-4deg); }
+            40% { transform: rotate(6deg); }
+            70% { transform: rotate(-3deg); }
         }
-        .eki-clip-char {
-            width: 68px;
-            height: 86px;
+        .eki-guia-char {
+            width: 76px;
+            height: 88px;
             display: block;
-            filter: drop-shadow(0 8px 18px rgba(125, 33, 129, 0.38));
+            filter: drop-shadow(0 6px 14px rgba(60, 40, 20, 0.22));
         }
-        .eki-clip-char .eki-clip__metal {
-            fill: none;
-            stroke: url(#ekiClipGrad);
-            stroke-width: 8;
-            stroke-linecap: round;
-            stroke-linejoin: round;
+        .eki-guia-char .eki-guia__eye {
+            animation: eki-guia-blink 6s step-end infinite;
         }
-        .eki-clip-char .eki-clip__shine {
-            fill: none;
-            stroke: rgba(255, 255, 255, 0.35);
-            stroke-width: 2;
-            stroke-linecap: round;
+        @keyframes eki-guia-blink {
+            0%, 94%, 100% { transform: scaleY(1); }
+            96% { transform: scaleY(0.15); }
         }
-        .eki-clip-char .eki-clip__eye {
-            fill: #fff;
-            animation: eki-clip-blink 5s step-end infinite;
-        }
-        .eki-clip-char .eki-clip__pupil { fill: #1e293b; }
-        .eki-clip-char .eki-clip__brow {
-            fill: none;
-            stroke: #5a1860;
-            stroke-width: 2.5;
-            stroke-linecap: round;
-        }
-        @keyframes eki-clip-blink {
-            0%, 92%, 100% { opacity: 1; }
-            94% { opacity: 0.12; }
-        }
-        .eki-clip__bubble {
+        .eki-guia__bubble {
             position: absolute;
-            right: calc(100% + 6px);
-            top: 6px;
-            background: #fff;
-            color: #7D2181;
-            border: 2px solid #9A6EAE;
+            right: calc(100% + 8px);
+            top: 4px;
+            background: #FFFBF5;
+            color: #5C3D2E;
+            border: 2px solid #C4A574;
             padding: 9px 13px;
-            border-radius: 14px 14px 4px 14px;
+            border-radius: 16px 16px 4px 16px;
             font-size: 13px;
             font-weight: 700;
-            line-height: 1.2;
+            line-height: 1.25;
             white-space: nowrap;
-            box-shadow: 0 4px 16px rgba(125, 33, 129, 0.18);
+            box-shadow: 0 4px 14px rgba(92, 61, 46, 0.12);
             pointer-events: none;
             animation: eki-bubble-pop 0.35s ease;
         }
-        .eki-clip__bubble::after {
+        .eki-guia__bubble::after {
             content: '';
             position: absolute;
             right: -7px;
-            bottom: 10px;
+            bottom: 12px;
             width: 12px;
             height: 12px;
-            background: #fff;
-            border-right: 2px solid #9A6EAE;
-            border-bottom: 2px solid #9A6EAE;
+            background: #FFFBF5;
+            border-right: 2px solid #C4A574;
+            border-bottom: 2px solid #C4A574;
             transform: rotate(-45deg);
             border-radius: 0 0 3px 0;
         }
@@ -562,13 +540,12 @@
             from { opacity: 0; transform: scale(0.85) translateX(6px); }
             to { opacity: 1; transform: scale(1) translateX(0); }
         }
-        .eki-help.is-open .eki-clip__bubble { display: none; }
-        .eki-clip-char--sm {
-            width: 36px;
+        .eki-help.is-open .eki-guia__bubble { display: none; }
+        .eki-guia-char--sm {
+            width: 38px;
             height: 44px;
             filter: none;
         }
-        .eki-clip-char--sm .eki-clip__metal { stroke-width: 5; }
         .eki-help__panel {
             position: absolute;
             right: 0;
@@ -593,7 +570,7 @@
             background: linear-gradient(135deg, #7D2181 0%, #9A6EAE 100%);
             color: #fff;
         }
-        .eki-help__head svg.eki-clip-char--sm { flex-shrink: 0; }
+        .eki-help__head svg.eki-guia-char--sm { flex-shrink: 0; }
         .eki-help__head strong { font-size: 14px; display: block; }
         .eki-help__head span { font-size: 11px; opacity: 0.9; }
         .eki-help__body { padding: 14px 16px 8px; }
@@ -668,8 +645,8 @@
         @media (max-width: 480px) {
             .eki-help { bottom: 92px; right: 12px; }
             .eki-help__panel { bottom: 72px; right: -4px; }
-            .eki-clip-char { width: 58px; height: 74px; }
-            .eki-clip__bubble { font-size: 12px; padding: 7px 10px; max-width: 140px; white-space: normal; }
+            .eki-guia-char { width: 64px; height: 76px; }
+            .eki-guia__bubble { font-size: 12px; padding: 7px 10px; max-width: 150px; white-space: normal; }
             .wa-fab { right: 16px; bottom: 16px; }
         }
 
@@ -1045,32 +1022,52 @@
     <div class="eki-help" id="eki-help" aria-live="polite">
         <svg width="0" height="0" style="position:absolute" aria-hidden="true">
             <defs>
-                <linearGradient id="ekiClipGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#B88BC4"/>
-                    <stop offset="45%" stop-color="#9A6EAE"/>
-                    <stop offset="100%" stop-color="#7D2181"/>
+                <linearGradient id="ekiVueltiaoBrim" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#F0E2C4"/>
+                    <stop offset="100%" stop-color="#D4B896"/>
                 </linearGradient>
-                <symbol id="eki-clip-symbol" viewBox="0 0 72 88">
-                    <path class="eki-clip__metal" d="M44 6c11 0 20 9 20 20v34c0 15-12 27-27 27S10 75 10 60V26c0-6 5-11 11-11s11 5 11 11v34c0 3-2 5-5 5s-5-2-5-5V28"/>
-                    <path class="eki-clip__shine" d="M48 14c6 2 10 8 10 14"/>
-                    <path class="eki-clip__brow" d="M24 24c3-3 8-4 12-2"/>
-                    <path class="eki-clip__brow" d="M48 24c-3-3-8-4-12-2"/>
-                    <ellipse class="eki-clip__eye" cx="28" cy="34" rx="6" ry="7"/>
-                    <ellipse class="eki-clip__eye" cx="44" cy="34" rx="6" ry="7"/>
-                    <circle class="eki-clip__pupil" cx="29.5" cy="35" r="2.8"/>
-                    <circle class="eki-clip__pupil" cx="45.5" cy="35" r="2.8"/>
-                    <circle class="eki-clip__pupil" cx="30.5" cy="33.5" r="1" fill="#fff" opacity="0.9"/>
-                    <circle class="eki-clip__pupil" cx="46.5" cy="33.5" r="1" fill="#fff" opacity="0.9"/>
-                    <path d="M26 44 Q36 50 46 44" fill="none" stroke="#5a1860" stroke-width="2.2" stroke-linecap="round"/>
+                <symbol id="eki-guia-symbol" viewBox="0 0 88 96">
+                    <!-- Rostro amable -->
+                    <ellipse cx="44" cy="78" rx="17" ry="15" fill="#E8B48A"/>
+                    <ellipse cx="44" cy="80" rx="14" ry="11" fill="#F0C49A"/>
+                    <circle cx="34" cy="80" r="4" fill="#F4A5A5" opacity="0.45"/>
+                    <circle cx="54" cy="80" r="4" fill="#F4A5A5" opacity="0.45"/>
+                    <g class="eki-guia__eye">
+                        <ellipse cx="37" cy="76" rx="3.2" ry="3.8" fill="#3D2914"/>
+                        <circle cx="38" cy="75" r="1" fill="#fff" opacity="0.85"/>
+                    </g>
+                    <g class="eki-guia__eye">
+                        <ellipse cx="51" cy="76" rx="3.2" ry="3.8" fill="#3D2914"/>
+                        <circle cx="52" cy="75" r="1" fill="#fff" opacity="0.85"/>
+                    </g>
+                    <path d="M38 83 Q44 87 50 83" fill="none" stroke="#B07050" stroke-width="2" stroke-linecap="round"/>
+                    <!-- Ala del sombrero -->
+                    <ellipse cx="44" cy="62" rx="40" ry="11" fill="url(#ekiVueltiaoBrim)"/>
+                    <ellipse cx="44" cy="60" rx="40" ry="9" fill="#E8D4B0" opacity="0.6"/>
+                    <path d="M6 62 Q44 50 82 62" fill="none" stroke="#B8956A" stroke-width="1.5"/>
+                    <!-- Copa vueltiao — franjas tejidas -->
+                    <path d="M26 18h36a6 6 0 0 1 6 6v30a4 4 0 0 1-4 4H24a4 4 0 0 1-4-4V24a6 6 0 0 1 6-6z" fill="#F8F0E3"/>
+                    <rect x="22" y="24" width="44" height="5" fill="#1E1A16"/>
+                    <rect x="22" y="29" width="44" height="5" fill="#F8F0E3"/>
+                    <rect x="22" y="34" width="44" height="5" fill="#1E1A16"/>
+                    <rect x="22" y="39" width="44" height="5" fill="#F8F0E3"/>
+                    <rect x="22" y="44" width="44" height="5" fill="#1E1A16"/>
+                    <rect x="22" y="49" width="44" height="4" fill="#F8F0E3"/>
+                    <!-- Zigzag decorativo simplificado -->
+                    <path d="M26 30h4l2-2 2 2h4l2-2 2 2h4l2-2 2 2h4l2-2 2 2h4" fill="none" stroke="#F8F0E3" stroke-width="1.2"/>
+                    <path d="M26 40h4l2 2 2-2h4l2 2 2-2h4l2 2 2-2h4l2 2 2-2h4" fill="none" stroke="#F8F0E3" stroke-width="1.2"/>
+                    <!-- Cintillo morado eki -->
+                    <rect x="24" y="54" width="40" height="5" rx="2" fill="#7D2181"/>
+                    <text x="44" y="58" text-anchor="middle" fill="#fff" font-size="4.5" font-weight="700" font-family="Inter,system-ui,sans-serif">eki</text>
                 </symbol>
             </defs>
         </svg>
         <div class="eki-help__panel" id="eki-help-panel" hidden>
             <div class="eki-help__head">
-                <svg class="eki-clip-char eki-clip-char--sm" aria-hidden="true"><use href="#eki-clip-symbol"/></svg>
+                <svg class="eki-guia-char eki-guia-char--sm" aria-hidden="true"><use href="#eki-guia-symbol"/></svg>
                 <div>
                     <strong>Guía eki</strong>
-                    <span>Su asistente en el portal</span>
+                    <span>Su compañero del campo</span>
                 </div>
             </div>
             <div class="eki-help__body">
@@ -1086,9 +1083,9 @@
             </div>
         </div>
         <button type="button" class="eki-help__toggle" id="eki-help-toggle" aria-expanded="false" aria-controls="eki-help-panel" title="¿Necesita ayuda?">
-            <span class="eki-clip-wrap">
-                <span class="eki-clip__bubble">¿En qué le ayudo?</span>
-                <svg class="eki-clip-char" aria-hidden="true"><use href="#eki-clip-symbol"/></svg>
+            <span class="eki-guia-wrap">
+                <span class="eki-guia__bubble">¡Hola! ¿Le ayudo?</span>
+                <svg class="eki-guia-char" aria-hidden="true"><use href="#eki-guia-symbol"/></svg>
             </span>
         </button>
     </div>
