@@ -1224,3 +1224,62 @@ class RetoFacilitadoraRespetaDripTests(TestCase):
             (self.est.contexto_temporal or {}).get('post_reto_entregar_modulo_id'),
             self.m2.id,
         )
+
+
+class ModuloContenidoVsMicrocontenidosTests(TestCase):
+    def setUp(self):
+        self.curso = Curso.objects.create(
+            nombre='Curso validación',
+            descripcion='d',
+            dias_espera_entre_modulos=0,
+        )
+        self.mod = Modulo.objects.create(
+            curso=self.curso,
+            numero=1,
+            titulo='M1',
+            descripcion='d',
+            contenido='Texto legacy',
+            duracion_dias=7,
+        )
+
+    def test_sin_microcontenidos_contenido_obligatorio(self):
+        from django.core.exceptions import ValidationError
+
+        from core.module_steps import validar_contenido_modulo
+
+        self.mod.contenido = ''
+        with self.assertRaises(ValidationError):
+            validar_contenido_modulo('', self.mod)
+
+    def test_con_microcontenidos_contenido_opcional(self):
+        from core.module_steps import validar_contenido_modulo
+
+        s1 = _seccion(self.mod, 1)
+        PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=s1,
+            orden=1,
+            titulo='Paso 1',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='Hola paso',
+        )
+        validar_contenido_modulo('', self.mod)
+        self.mod.contenido = ''
+        self.mod.full_clean()
+        self.mod.save()
+
+    def test_modulo_nuevo_sin_contenido_falla(self):
+        from django.core.exceptions import ValidationError
+
+        from core.module_steps import validar_contenido_modulo
+
+        nuevo = Modulo(
+            curso=self.curso,
+            numero=2,
+            titulo='M2',
+            descripcion='d',
+            contenido='',
+            duracion_dias=7,
+        )
+        with self.assertRaises(ValidationError):
+            validar_contenido_modulo('', nuevo)

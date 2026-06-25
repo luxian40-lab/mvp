@@ -1914,7 +1914,14 @@ class Modulo(models.Model):
     )
     titulo = models.CharField(max_length=200, help_text="Ej: Siembra y Establecimiento")
     descripcion = models.TextField(help_text="Breve descripción del módulo")
-    contenido = models.TextField(help_text="Contenido educativo completo del módulo")
+    contenido = models.TextField(
+        blank=True,
+        default='',
+        help_text=(
+            'Contenido educativo del módulo completo. Obligatorio si no hay microcontenidos; '
+            'opcional si configuró pasos en la pestaña Microcontenidos.'
+        ),
+    )
 
     # 🎥 SOPORTE DE VIDEOS Y MULTIMEDIA
     video_url = models.URLField(
@@ -2061,6 +2068,17 @@ class Modulo(models.Model):
     )
 
     duracion_dias = models.IntegerField(default=7, help_text="Días estimados para completar")
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        from .module_steps import validar_contenido_modulo
+
+        super().clean()
+        try:
+            validar_contenido_modulo(self.contenido or '', self)
+        except ValidationError as exc:
+            raise ValidationError({'contenido': exc.messages}) from exc
 
     class Meta:
         ordering = ['curso', 'numero']

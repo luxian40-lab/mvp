@@ -156,6 +156,53 @@ def modulo_tiene_pasos_activos(modulo: Optional[Modulo]) -> bool:
     return pasos_activos_qs(modulo).exists()
 
 
+def cuenta_microcontenidos_modulo(modulo: Optional[Modulo]) -> int:
+    """Microcontenidos guardados en BD (cualquier estado activo/inactivo)."""
+    if not modulo or not getattr(modulo, 'pk', None):
+        return 0
+    from .models import PasoModulo
+
+    return PasoModulo.objects.filter(modulo=modulo).count()
+
+
+def _paso_form_cuenta_como_microcontenido(cleaned_data: dict) -> bool:
+    if not cleaned_data or cleaned_data.get('DELETE'):
+        return False
+    return bool(cleaned_data.get('seccion'))
+
+
+def cuenta_microcontenidos_desde_formset(pasos_formset) -> int:
+    if not pasos_formset:
+        return 0
+    return sum(
+        1
+        for form in pasos_formset.forms
+        if form.cleaned_data and _paso_form_cuenta_como_microcontenido(form.cleaned_data)
+    )
+
+
+def modulo_requiere_contenido_texto(modulo: Optional[Modulo], *, pasos_formset=None) -> bool:
+    """True si Modulo.contenido es obligatorio (sin filas de microcontenido)."""
+    if pasos_formset is not None:
+        return cuenta_microcontenidos_desde_formset(pasos_formset) == 0
+    return cuenta_microcontenidos_modulo(modulo) == 0
+
+
+def validar_contenido_modulo(
+    contenido: str,
+    modulo: Optional[Modulo],
+    *,
+    pasos_formset=None,
+) -> None:
+    from django.core.exceptions import ValidationError
+
+    if modulo_requiere_contenido_texto(modulo, pasos_formset=pasos_formset):
+        if not (contenido or '').strip():
+            raise ValidationError(
+                'El contenido del módulo es obligatorio cuando no hay microcontenidos configurados.'
+            )
+
+
 def reset_progreso_pasos_modulo(progreso: ProgresoEstudiante, save: bool = True) -> None:
     progreso.paso_actual_modulo = 1
     progreso.esperando_respuesta_evaluacion_paso = False

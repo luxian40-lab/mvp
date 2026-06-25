@@ -5,7 +5,8 @@ CON función de envío directo desde Plantillas Y gestión de cursos/módulos/ex
 from django.contrib import admin
 from django import forms
 from django.contrib.auth import get_user_model
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.forms.models import BaseInlineFormSet
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.shortcuts import render, redirect
@@ -3350,10 +3351,45 @@ class PasoModuloForm(forms.ModelForm):
         return instance
 
 
+class ModuloAdminForm(forms.ModelForm):
+    class Meta:
+        model = Modulo
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['contenido'].required = False
+        self.fields['contenido'].help_text = (
+            'Obligatorio si no hay microcontenidos. Opcional si configuró pasos en la pestaña '
+            '«Microcontenidos» (cada uno con sección asignada).'
+        )
+
+    def clean_contenido(self):
+        from core.module_steps import validar_contenido_modulo
+
+        contenido = self.cleaned_data.get('contenido', '')
+        if not self.instance.pk:
+            validar_contenido_modulo(contenido, self.instance)
+        return contenido
+
+
+class PasoModuloInlineFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        from core.module_steps import validar_contenido_modulo
+
+        contenido = (self.data.get('contenido') or '').strip()
+        try:
+            validar_contenido_modulo(contenido, self.instance, pasos_formset=self)
+        except ValidationError as exc:
+            raise ValidationError(exc.messages) from exc
+
+
 class PasoModuloInline(admin.StackedInline):
     """Microcontenidos WhatsApp dentro del módulo (orden + listo)."""
     model = PasoModulo
     form = PasoModuloForm
+    formset = PasoModuloInlineFormSet
     extra = 0
     can_delete = True
     ordering = ('orden', 'id')
@@ -3512,6 +3548,7 @@ class ArchivoModuloInline(admin.StackedInline):
 @admin.register(Modulo)
 class ModuloAdmin(admin.ModelAdmin):
     """Administración de módulos"""
+    form = ModuloAdminForm
     class Media:
         css = {
             'all': ('admin/css/modulo_whatsapp_bloques.css',),
@@ -3621,7 +3658,11 @@ class ModuloAdmin(admin.ModelAdmin):
         }),
         ('📝 Contenido Educativo', {
             'fields': ('contenido',),
-            'description': 'Texto del módulo completo (en modo <b>Legacy</b> es lo principal que ve el estudiante).',
+            'description': (
+                'Texto del módulo completo (principal en modo <b>Legacy</b>). '
+                '<b>Obligatorio</b> si no hay filas en <b>Microcontenidos</b>; '
+                '<b>opcional</b> si ya configuró pasos con sección asignada.'
+            ),
         }),
         ('✅ Examen Obligatorio', {
             'fields': ('examen_obligatorio', 'puntaje_minimo_aprobacion'),

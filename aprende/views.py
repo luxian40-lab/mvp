@@ -6,6 +6,7 @@ import re
 
 from django.contrib import messages
 from django.contrib.auth import authenticate
+from django.core.exceptions import ValidationError
 from django.db.models import Max
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -197,12 +198,23 @@ def profesor_modulo_nuevo(request, curso_id: int):
 
     if request.method == 'POST':
         max_num = Modulo.objects.filter(curso=curso).aggregate(m=Max('numero'))['m'] or 0
+        contenido = request.POST.get('contenido', '').strip()
+        from core.module_steps import validar_contenido_modulo
+
+        try:
+            validar_contenido_modulo(contenido, None)
+        except ValidationError as exc:
+            messages.error(request, exc.messages[0])
+            return render(request, 'aprende/profesor_modulo_form.html', {
+                'curso': curso,
+                'modulo': None,
+            })
         modulo = Modulo.objects.create(
             curso=curso,
             numero=int(max_num) + 1,
             titulo=request.POST.get('titulo', 'Nueva lección').strip() or 'Nueva lección',
             descripcion=request.POST.get('descripcion', '').strip(),
-            contenido=request.POST.get('contenido', '').strip() or 'Contenido pendiente.',
+            contenido=contenido,
             video_url=request.POST.get('video_url', '').strip() or None,
             archivo_pdf_url=request.POST.get('archivo_pdf_url', '').strip() or None,
         )
@@ -228,6 +240,19 @@ def profesor_modulo_editar(request, modulo_id: int):
         modulo.contenido = request.POST.get('contenido', '').strip()
         modulo.video_url = request.POST.get('video_url', '').strip() or None
         modulo.archivo_pdf_url = request.POST.get('archivo_pdf_url', '').strip() or None
+        from core.module_steps import validar_contenido_modulo
+
+        try:
+            validar_contenido_modulo(modulo.contenido, modulo)
+            modulo.full_clean()
+        except ValidationError as exc:
+            msg = exc.messages[0] if getattr(exc, 'messages', None) else str(exc)
+            messages.error(request, msg)
+            return render(request, 'aprende/profesor_modulo_form.html', {
+                'curso': modulo.curso,
+                'modulo': modulo,
+                'archivos': archivos,
+            })
         modulo.save()
         _guardar_archivo_modulo(request, modulo)
         messages.success(request, 'Lección actualizada.')
