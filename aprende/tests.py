@@ -1,7 +1,10 @@
 """Tests básicos del aula web /aprende/."""
 
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
+
+from aprende.models import EntregaTarea, TareaCurso
 
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
 from portal.models import PortalUsuario
@@ -153,3 +156,40 @@ class AprendeWebTests(TestCase):
         })
         r = self.http.get('/aprende/estudiante/')
         self.assertContains(r, 'Curso General')
+
+    def test_profesor_crea_tarea_y_estudiante_entrega(self):
+        self.http.post('/aprende/profesor/login/', {'username': 'prof_ap', 'password': 'pass'})
+        r = self.http.post(f'/aprende/profesor/curso/{self.curso.id}/tarea/nueva/', {
+            'titulo': 'Informe final',
+            'instrucciones': 'Sube PDF',
+        })
+        self.assertEqual(r.status_code, 302)
+        tarea = TareaCurso.objects.get(titulo='Informe final')
+        self.http.post('/aprende/estudiante/login/', {
+            'cedula': 'web1',
+            'telefono': '3009999002',
+        })
+        archivo = SimpleUploadedFile('tarea.pdf', b'%PDF-1.4 test', content_type='application/pdf')
+        r2 = self.http.post(f'/aprende/estudiante/tarea/{tarea.id}/', {
+            'archivo': archivo,
+            'comentario': 'Listo profe',
+        })
+        self.assertEqual(r2.status_code, 302)
+        self.assertTrue(EntregaTarea.objects.filter(tarea=tarea, estudiante=self.est).exists())
+
+    def test_profesor_califica_entrega(self):
+        tarea = TareaCurso.objects.create(curso=self.curso, titulo='T1', instrucciones='x')
+        archivo = SimpleUploadedFile('t.pdf', b'%PDF', content_type='application/pdf')
+        entrega = EntregaTarea.objects.create(
+            tarea=tarea, estudiante=self.est, archivo=archivo, nombre_archivo='t.pdf',
+        )
+        self.http.post('/aprende/profesor/login/', {'username': 'prof_ap', 'password': 'pass'})
+        r = self.http.post(f'/aprende/profesor/tarea/{tarea.id}/entregas/', {
+            'entrega_id': entrega.id,
+            'nota': '4',
+            'comentario_profesor': 'Buen trabajo',
+        })
+        self.assertEqual(r.status_code, 302)
+        entrega.refresh_from_db()
+        self.assertEqual(entrega.nota, 4)
+        self.assertEqual(entrega.comentario_profesor, 'Buen trabajo')

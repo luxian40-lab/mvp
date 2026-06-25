@@ -6,6 +6,7 @@ import re
 
 from django.contrib import messages
 from django.contrib.auth import authenticate
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 
 from core.models import Curso, Modulo, ProgresoEstudiante
@@ -23,6 +24,8 @@ from .catalogo_service import (
 )
 from .lesson_service import actualizar_modulo_aula, crear_modulo_aula
 from .middleware import APRENDE_EST_SESSION_KEY
+from .models import EntregaTarea, TareaCurso
+from .tarea_service import calificar_entrega, crear_tarea, guardar_entrega
 
 
 def _telefonos_coinciden(a: str, b: str) -> bool:
@@ -124,10 +127,45 @@ def estudiante_curso(request, curso_id: int):
         curso__activo=True,
     )
     modulos = Modulo.objects.filter(curso=progreso.curso).order_by('numero')
+    tareas = TareaCurso.objects.filter(curso=progreso.curso, activa=True).select_related('modulo')
+    entregas = {
+        e.tarea_id: e
+        for e in EntregaTarea.objects.filter(estudiante=est, tarea__curso=progreso.curso)
+    }
+    tareas_list = [{'tarea': t, 'entrega': entregas.get(t.pk)} for t in tareas]
     return render(request, 'aprende/estudiante_curso.html', {
         'estudiante': est,
         'progreso': progreso,
         'modulos': modulos,
+        'tareas_list': tareas_list,
+    })
+
+
+@requiere_estudiante_aprende
+def estudiante_tarea(request, tarea_id: int):
+    est = request.aprende_estudiante
+    tarea = get_object_or_404(
+        TareaCurso.objects.select_related('curso', 'modulo'),
+        pk=tarea_id,
+        activa=True,
+        curso__activo=True,
+    )
+    if not ProgresoEstudiante.objects.filter(estudiante=est, curso=tarea.curso).exists():
+        return redirect('/aprende/estudiante/')
+
+    entrega = EntregaTarea.objects.filter(tarea=tarea, estudiante=est).first()
+    if request.method == 'POST':
+        entrega, error = guardar_entrega(request, tarea, est)
+        if error:
+            messages.error(request, error)
+        else:
+            messages.success(request, 'Tarea entregada correctamente.')
+            return redirect('aprende_estudiante_curso', curso_id=tarea.curso_id)
+
+    return render(request, 'aprende/estudiante_tarea.html', {
+        'estudiante': est,
+        'tarea': tarea,
+        'entrega': entrega,
     })
 
 
@@ -212,9 +250,15 @@ def profesor_curso(request, curso_id: int):
     org = _org_profesor(request)
     curso = get_object_or_404(Curso, pk=curso_id, cliente=org, activo=True)
     modulos = Modulo.objects.filter(curso=curso).order_by('numero')
+    tareas = (
+        TareaCurso.objects.filter(curso=curso)
+        .annotate(total_entregas=Count('entregas'), pendientes=Count('entregas', filter=Q(entregas__nota__isnull=True)))
+        .order_by('orden', '-fecha_creacion')
+    )
     return render(request, 'aprende/profesor_curso.html', {
         'curso': curso,
         'modulos': modulos,
+        'tareas': tareas,
     })
 
 
@@ -262,5 +306,59 @@ def profesor_modulo_editar(request, modulo_id: int):
         'curso': modulo.curso,
         'modulo': modulo,
         'archivos': archivos,
+    })
+
+
+@requiere_profesor_aprende
+def profesor_tarea_nueva(request, curso_id: int):
+    org = _org_profesor(request)
+    curso = get_object_or_404(Curso, pk=curso_id, cliente=org, activo=True)
+    modulos = Modulo.objects.filter(curso=curso).order_by('numero')
+
+    if request.method == 'POST':
+        tarea, error = crear_tarea(request, curso)
+        if error:
+            messages.error(request, error)
+        else:
+            messages.success(request, f'Tarea «{tarea.titulo}» publicada.')
+            return redirect('aprende_profesor_curso', curso_id=curso.pk)
+
+    return render(request, 'aprende/profesor_tarea_form.html', {
+        'curso': curso,
+        'modulos': modulos,
+        'tarea': None,
+    })
+
+
+@requiere_profesor_aprende
+def profesor_tarea_entregas(request, tarea_id: int):
+    org = _org_profesor(request)
+    tarea = get_object_or_404(
+        TareaCurso.objects.select_related('curso'),
+        pk=tarea_id,
+        curso__cliente=org,
+    )
+    entregas = (
+        EntregaTarea.objects.filter(tarea=tarea)
+        .select_related('estudiante')
+        .order_by('-fecha_entrega')
+    )
+
+    if request.method == 'POST':
+        entrega_id = request.POST.get('entrega_id')
+        entrega = entregas.filter(pk=entrega_id).first()
+        if not entrega:
+            messages.error(request, 'Entrega no encontrada.')
+        else:
+            error = calificar_entrega(request, entrega)
+            if error:
+                messages.error(request, error)
+            else:
+                messages.success(request, f'Calificación guardada para {entrega.estudiante.nombre}.')
+        return redirect('aprende_profesor_tarea_entregas', tarea_id=tarea.pk)
+
+    return render(request, 'aprende/profesor_tarea_entregas.html', {
+        'tarea': tarea,
+        'entregas': entregas,
     })
 

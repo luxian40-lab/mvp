@@ -334,6 +334,8 @@ JAZZMIN_SETTINGS = {
 
         # Aula web eki — distinto del portal clientes
         "aprende": "fas fa-laptop",
+        "aprende.TareaCurso": "fas fa-tasks",
+        "aprende.EntregaTarea": "fas fa-file-upload",
     },
 
     # Links custom (acceso rápido a vistas no-modelo)
@@ -491,6 +493,8 @@ JAZZMIN_SETTINGS = {
         "portal.PortalUsuario",
         # Aula web eki
         "aprende",
+        "aprende.TareaCurso",
+        "aprende.EntregaTarea",
     ],
 
     # Usar verbose names en español

@@ -12,6 +12,7 @@
 
 <div class="eki-toolbar">
     <a class="eki-btn eki-btn--primary" href="{% url 'aprende_profesor_modulo_nuevo' curso.id %}">+ Nueva lección</a>
+    <a class="eki-btn eki-btn--ghost" href="{% url 'aprende_profesor_tarea_nueva' curso.id %}">+ Nueva tarea</a>
 </div>
 
 <div class="eki-card">
@@ -28,6 +29,29 @@
         {% empty %}
         <li class="eki-list-item">
             <p class="eki-muted" style="margin:0;">Aún no hay módulos. Crea la primera lección.</p>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+
+<div class="eki-card" style="margin-top:1.25rem;">
+    <h2 class="eki-h2">Tareas (entregas estudiantes)</h2>
+    <p class="eki-muted" style="margin:-0.35rem 0 0.75rem;">Los estudiantes suben archivos; tú calificas del 1 al 5.</p>
+    <ul class="eki-list">
+        {% for t in tareas %}
+        <li class="eki-list-item">
+            <span class="eki-list-num">T</span>
+            <div style="flex:1;">
+                <a href="{% url 'aprende_profesor_tarea_entregas' t.id %}">{{ t.titulo }}</a>
+                <p class="eki-muted" style="margin:0.2rem 0 0;font-size:0.8rem;">
+                    {{ t.total_entregas }} entrega{{ t.total_entregas|pluralize:"s" }}
+                    {% if t.pendientes %} · {{ t.pendientes }} por calificar{% endif %}
+                </p>
+            </div>
+        </li>
+        {% empty %}
+        <li class="eki-list-item">
+            <p class="eki-muted" style="margin:0;">Sin tareas. Crea una para que los estudiantes entreguen trabajo.</p>
         </li>
         {% endfor %}
     </ul>

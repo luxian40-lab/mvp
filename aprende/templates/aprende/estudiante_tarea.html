@@ -1,0 +1,67 @@
+{% extends "aprende/base.html" %}
+{% block title %}{{ tarea.titulo }} | Tarea{% endblock %}
+{% block nav %}
+<a href="{% url 'aprende_estudiante_curso' tarea.curso_id %}">← Volver al curso</a>
+<a href="{% url 'aprende_estudiante_logout' %}">Salir</a>
+{% endblock %}
+{% block main_class %}eki-main--wide{% endblock %}
+{% block content %}
+<div class="eki-page-head">
+    <span class="eki-badge">Tarea</span>
+    <h1>{{ tarea.titulo }}</h1>
+    {% if tarea.modulo %}
+    <p class="eki-muted">Lección {{ tarea.modulo.numero }}: {{ tarea.modulo.titulo }}</p>
+    {% endif %}
+    {% if tarea.fecha_limite %}
+    <p class="eki-muted">Fecha límite: {{ tarea.fecha_limite|date:"d/m/Y H:i" }}</p>
+    {% endif %}
+</div>
+
+{% if messages %}
+{% for message in messages %}
+<div class="eki-alert eki-alert--{% if message.tags == 'error' %}error{% else %}ok{% endif %}">{{ message }}</div>
+{% endfor %}
+{% endif %}
+
+{% if tarea.instrucciones %}
+<div class="eki-card" style="margin-bottom:1rem;">
+    <h2 class="eki-h2">Instrucciones</h2>
+    <p style="white-space:pre-wrap;margin:0;">{{ tarea.instrucciones }}</p>
+</div>
+{% endif %}
+
+{% if entrega and entrega.calificada %}
+<div class="eki-card" style="margin-bottom:1rem;border-color:#22c55e;">
+    <h2 class="eki-h2">Calificación</h2>
+    <p style="font-size:1.5rem;font-weight:700;color:var(--eki-purple);margin:0 0 0.5rem;">{{ entrega.nota }} / 5</p>
+    {% if entrega.comentario_profesor %}
+    <p class="eki-muted" style="white-space:pre-wrap;margin:0;">{{ entrega.comentario_profesor }}</p>
+    {% endif %}
+    <p class="eki-muted" style="font-size:0.8rem;margin:0.75rem 0 0;">Entregado: {{ entrega.nombre_archivo|default:entrega.archivo.name }}</p>
+</div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="eki-card">
+    {% csrf_token %}
+    <h2 class="eki-h2">{% if entrega %}Actualizar entrega{% else %}Subir tarea{% endif %}</h2>
+    <p class="eki-muted" style="margin:-0.25rem 0 1rem;">PDF, Word, Excel, imagen o ZIP (máx. 25 MB).</p>
+
+    <div class="eki-field">
+        <label for="archivo">Archivo</label>
+        <input type="file" name="archivo" id="archivo" {% if not entrega %}required{% endif %} {% if entrega and entrega.calificada %}disabled{% endif %}>
+        {% if entrega and not entrega.calificada %}
+        <p class="eki-muted" style="font-size:0.8rem;margin:0.35rem 0 0;">Archivo actual: {{ entrega.nombre_archivo|default:entrega.archivo.name }}</p>
+        {% endif %}
+    </div>
+    <div class="eki-field">
+        <label for="comentario">Comentario (opcional)</label>
+        <textarea name="comentario" id="comentario" rows="3" placeholder="Notas para el profesor…" {% if entrega and entrega.calificada %}disabled{% endif %}>{{ entrega.comentario_estudiante|default:'' }}</textarea>
+    </div>
+
+    {% if not entrega or not entrega.calificada %}
+    <button type="submit" class="eki-btn eki-btn--primary">{% if entrega %}Reenviar tarea{% else %}Entregar tarea{% endif %}</button>
+    {% else %}
+    <p class="eki-muted">Ya fue calificada. Si necesitas corregir, habla con tu profesor.</p>
+    {% endif %}
+</form>
+{% endblock %}

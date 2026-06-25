@@ -59,7 +59,7 @@ class PortalCrmTests(TestCase):
         self.assertContains(r, 'Operación del día')
         self.assertContains(r, 'Este mes vs mes anterior')
         self.assertContains(r, 'eki-help')
-        self.assertContains(r, 'eki-guia-symbol')
+        self.assertContains(r, 'eki-flag-co')
         self.assertContains(r, '¡Hola! ¿Le ayudo?')
 
     def test_timeline_page(self):

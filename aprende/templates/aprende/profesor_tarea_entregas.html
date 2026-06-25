@@ -1,0 +1,69 @@
+{% extends "aprende/base.html" %}
+{% block title %}Entregas — {{ tarea.titulo }}{% endblock %}
+{% block nav %}
+<a href="{% url 'aprende_profesor_curso' tarea.curso_id %}">← Volver al curso</a>
+<a href="{% url 'aprende_profesor_logout' %}">Salir</a>
+{% endblock %}
+{% block main_class %}eki-main--wide{% endblock %}
+{% block content %}
+<div class="eki-page-head">
+    <span class="eki-badge">Calificar entregas</span>
+    <h1>{{ tarea.titulo }}</h1>
+    <p class="eki-lead">{{ entregas|length }} entrega{{ entregas|length|pluralize:"s" }}</p>
+</div>
+
+{% if messages %}
+{% for message in messages %}
+<div class="eki-alert eki-alert--{% if message.tags == 'error' %}error{% else %}ok{% endif %}">{{ message }}</div>
+{% endfor %}
+{% endif %}
+
+{% if entregas %}
+{% for e in entregas %}
+<div class="eki-card" style="margin-bottom:1rem;">
+    <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:0.5rem;margin-bottom:0.75rem;">
+        <div>
+            <strong>{{ e.estudiante.nombre }}</strong>
+            <span class="eki-muted"> — {{ e.estudiante.cedula }}</span>
+        </div>
+        <span class="eki-muted" style="font-size:0.8rem;">{{ e.fecha_entrega|date:"d/m/Y H:i" }}</span>
+    </div>
+
+    <p style="margin:0 0 0.5rem;">
+        <a href="{{ e.archivo.url }}" target="_blank" rel="noopener" class="eki-btn eki-btn--ghost eki-btn--sm">
+            ↓ {{ e.nombre_archivo|default:"Descargar archivo" }}
+        </a>
+    </p>
+    {% if e.comentario_estudiante %}
+    <p class="eki-muted" style="white-space:pre-wrap;margin:0 0 0.75rem;"><em>Estudiante:</em> {{ e.comentario_estudiante }}</p>
+    {% endif %}
+
+    <form method="post" class="eki-grid-2" style="gap:0.75rem;align-items:end;">
+        {% csrf_token %}
+        <input type="hidden" name="entrega_id" value="{{ e.id }}">
+        <div class="eki-field" style="margin:0;">
+            <label for="nota-{{ e.id }}">Nota (1–5)</label>
+            <select name="nota" id="nota-{{ e.id }}" required>
+                <option value="">—</option>
+                <option value="1" {% if e.nota == 1 %}selected{% endif %}>1</option>
+                <option value="2" {% if e.nota == 2 %}selected{% endif %}>2</option>
+                <option value="3" {% if e.nota == 3 %}selected{% endif %}>3</option>
+                <option value="4" {% if e.nota == 4 %}selected{% endif %}>4</option>
+                <option value="5" {% if e.nota == 5 %}selected{% endif %}>5</option>
+            </select>
+        </div>
+        <div class="eki-field" style="margin:0;">
+            <label for="comentario-{{ e.id }}">Retroalimentación</label>
+            <input type="text" name="comentario_profesor" id="comentario-{{ e.id }}" value="{{ e.comentario_profesor }}" placeholder="Comentario para el estudiante">
+        </div>
+        <button type="submit" class="eki-btn eki-btn--primary eki-btn--sm">Guardar nota</button>
+    </form>
+</div>
+{% endfor %}
+{% else %}
+<div class="eki-card eki-empty">
+    <h2>Sin entregas aún</h2>
+    <p class="eki-muted">Los estudiantes verán esta tarea en su curso y podrán subir archivos.</p>
+</div>
+{% endif %}
+{% endblock %}

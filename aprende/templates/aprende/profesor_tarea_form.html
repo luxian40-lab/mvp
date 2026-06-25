@@ -1,0 +1,40 @@
+{% extends "aprende/base.html" %}
+{% block title %}Nueva tarea | {{ curso.nombre }}{% endblock %}
+{% block nav %}
+<a href="{% url 'aprende_profesor_curso' curso.id %}">← Volver al curso</a>
+{% endblock %}
+{% block main_class %}eki-main--wide{% endblock %}
+{% block content %}
+<div class="eki-page-head">
+    <span class="eki-badge">Nueva tarea</span>
+    <h1>{{ curso.nombre }}</h1>
+</div>
+
+<form method="post" class="eki-card">
+    {% csrf_token %}
+    <div class="eki-field">
+        <label for="titulo">Título de la tarea</label>
+        <input type="text" name="titulo" id="titulo" required placeholder="Ej. Informe de práctica campo">
+    </div>
+    <div class="eki-field">
+        <label for="instrucciones">Instrucciones para el estudiante</label>
+        <textarea name="instrucciones" id="instrucciones" rows="6" placeholder="Qué deben entregar, formato, criterios…"></textarea>
+    </div>
+    <div class="eki-grid-2">
+        <div class="eki-field">
+            <label for="modulo">Lección relacionada (opcional)</label>
+            <select name="modulo" id="modulo">
+                <option value="">— Todo el curso —</option>
+                {% for m in modulos %}
+                <option value="{{ m.id }}">Módulo {{ m.numero }}: {{ m.titulo }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="eki-field">
+            <label for="fecha_limite">Fecha límite (opcional)</label>
+            <input type="datetime-local" name="fecha_limite" id="fecha_limite">
+        </div>
+    </div>
+    <button type="submit" class="eki-btn eki-btn--primary">Publicar tarea</button>
+</form>
+{% endblock %}

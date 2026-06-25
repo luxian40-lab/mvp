@@ -152,6 +152,10 @@
                 <h3>+ Nuevo curso</h3>
                 <p>Marca «Visible en aula web» al crear.</p>
             </a>
+            <a class="aw-card" href="{% url 'admin:aprende_tareacurso_changelist' %}{% if cliente %}?curso__cliente__id__exact={{ cliente.id }}{% endif %}">
+                <h3>Tareas y entregas</h3>
+                <p>Trabajos subidos por estudiantes y calificaciones.</p>
+            </a>
             <a class="aw-card" href="{% url 'admin:core_progresoestudiante_changelist' %}{% if cliente %}?estudiante__cliente__id__exact={{ cliente.id }}{% endif %}">
                 <h3>Inscripciones</h3>
                 <p>Progreso por estudiante y curso.</p>
