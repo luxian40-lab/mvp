@@ -6,8 +6,6 @@ import re
 
 from django.contrib import messages
 from django.contrib.auth import authenticate
-from django.core.exceptions import ValidationError
-from django.db.models import Max
 from django.shortcuts import get_object_or_404, redirect, render
 
 from core.models import Curso, Modulo, ProgresoEstudiante
@@ -17,6 +15,13 @@ from portal.middleware import PORTAL_SESSION_KEY
 from portal.models import PortalUsuario
 
 from .auth import es_profesor_aprende, requiere_estudiante_aprende, requiere_profesor_aprende
+from .catalogo_service import (
+    cursos_catalogo_aula,
+    curso_disponible_para_estudiante,
+    ids_cursos_inscritos,
+    inscribir_estudiante_en_curso,
+)
+from .lesson_service import actualizar_modulo_aula, crear_modulo_aula
 from .middleware import APRENDE_EST_SESSION_KEY
 
 
@@ -81,10 +86,32 @@ def estudiante_cursos(request):
         .select_related('curso', 'modulo_actual')
         .order_by('curso__nombre')
     )
+    inscritos = ids_cursos_inscritos(est)
+    catalogo = [
+        c for c in cursos_catalogo_aula(est)
+        if c.pk not in inscritos
+    ]
     return render(request, 'aprende/estudiante_cursos.html', {
         'estudiante': est,
         'progresos': progresos,
+        'catalogo': catalogo,
     })
+
+
+@requiere_estudiante_aprende
+def estudiante_inscribir(request, curso_id: int):
+    if request.method != 'POST':
+        return redirect('/aprende/estudiante/')
+    est = request.aprende_estudiante
+    curso = curso_disponible_para_estudiante(est, curso_id)
+    if not curso:
+        messages.error(request, 'Ese curso no está disponible para ti.')
+        return redirect('/aprende/estudiante/')
+    if curso.pk in ids_cursos_inscritos(est):
+        return redirect(f'/aprende/estudiante/curso/{curso.pk}/')
+    inscribir_estudiante_en_curso(est, curso)
+    messages.success(request, f'Te inscribiste en «{curso.nombre}». ¡A estudiar!')
+    return redirect(f'/aprende/estudiante/curso/{curso.pk}/')
 
 
 @requiere_estudiante_aprende
@@ -197,28 +224,13 @@ def profesor_modulo_nuevo(request, curso_id: int):
     curso = get_object_or_404(Curso, pk=curso_id, cliente=org, activo=True)
 
     if request.method == 'POST':
-        max_num = Modulo.objects.filter(curso=curso).aggregate(m=Max('numero'))['m'] or 0
-        contenido = request.POST.get('contenido', '').strip()
-        from core.module_steps import validar_contenido_modulo
-
-        try:
-            validar_contenido_modulo(contenido, None)
-        except ValidationError as exc:
-            messages.error(request, exc.messages[0])
+        modulo, error = crear_modulo_aula(request, curso)
+        if error:
+            messages.error(request, error)
             return render(request, 'aprende/profesor_modulo_form.html', {
                 'curso': curso,
                 'modulo': None,
             })
-        modulo = Modulo.objects.create(
-            curso=curso,
-            numero=int(max_num) + 1,
-            titulo=request.POST.get('titulo', 'Nueva lección').strip() or 'Nueva lección',
-            descripcion=request.POST.get('descripcion', '').strip(),
-            contenido=contenido,
-            video_url=request.POST.get('video_url', '').strip() or None,
-            archivo_pdf_url=request.POST.get('archivo_pdf_url', '').strip() or None,
-        )
-        _guardar_archivo_modulo(request, modulo)
         messages.success(request, f'Lección «{modulo.titulo}» creada.')
         return redirect(f'/aprende/profesor/modulo/{modulo.pk}/')
 
@@ -235,26 +247,14 @@ def profesor_modulo_editar(request, modulo_id: int):
     archivos = ArchivoModulo.objects.filter(modulo=modulo, activo=True).order_by('orden')
 
     if request.method == 'POST':
-        modulo.titulo = request.POST.get('titulo', modulo.titulo).strip()
-        modulo.descripcion = request.POST.get('descripcion', '').strip()
-        modulo.contenido = request.POST.get('contenido', '').strip()
-        modulo.video_url = request.POST.get('video_url', '').strip() or None
-        modulo.archivo_pdf_url = request.POST.get('archivo_pdf_url', '').strip() or None
-        from core.module_steps import validar_contenido_modulo
-
-        try:
-            validar_contenido_modulo(modulo.contenido, modulo)
-            modulo.full_clean()
-        except ValidationError as exc:
-            msg = exc.messages[0] if getattr(exc, 'messages', None) else str(exc)
-            messages.error(request, msg)
+        error = actualizar_modulo_aula(request, modulo)
+        if error:
+            messages.error(request, error)
             return render(request, 'aprende/profesor_modulo_form.html', {
                 'curso': modulo.curso,
                 'modulo': modulo,
                 'archivos': archivos,
             })
-        modulo.save()
-        _guardar_archivo_modulo(request, modulo)
         messages.success(request, 'Lección actualizada.')
         return redirect(f'/aprende/profesor/modulo/{modulo.pk}/')
 
@@ -264,18 +264,3 @@ def profesor_modulo_editar(request, modulo_id: int):
         'archivos': archivos,
     })
 
-
-def _guardar_archivo_modulo(request, modulo: Modulo) -> None:
-    archivo = request.FILES.get('archivo_subir')
-    if not archivo:
-        return
-    tipo = request.POST.get('tipo_archivo', 'pdf')
-    if tipo not in dict(ArchivoModulo.TIPOS):
-        tipo = 'pdf'
-    ArchivoModulo.objects.create(
-        modulo=modulo,
-        tipo=tipo,
-        titulo=request.POST.get('titulo_archivo', archivo.name)[:200],
-        descripcion=request.POST.get('descripcion_archivo', '')[:500],
-        archivo=archivo,
-    )

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Portal eki{% endblock %}</title>
+    {% include 'portal/partials/favicon_co.html' %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -446,7 +447,7 @@
             border: 0;
         }
 
-        /* Asistente de ayuda — botón eki (mismo tamaño que WhatsApp) */
+        /* Asistente de ayuda — bandera Colombia (mismo tamaño que WhatsApp) */
         .eki-help {
             position: fixed;
             right: 24px;
@@ -459,76 +460,78 @@
             width: 56px;
             height: 56px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #8B2D8F 0%, #5E1870 100%);
-            color: #fff;
+            background: #fff;
             padding: 0;
             display: flex;
             align-items: center;
             justify-content: center;
             line-height: 0;
-            box-shadow: 0 4px 14px rgba(125, 33, 129, 0.42);
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
             transition: transform 0.15s ease, box-shadow 0.15s ease;
         }
         .eki-help__toggle:hover {
             transform: scale(1.06);
-            box-shadow: 0 6px 18px rgba(125, 33, 129, 0.5);
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.22);
         }
         .eki-help__toggle:focus-visible {
-            outline: 2px solid #FCD116;
+            outline: 2px solid #7D2181;
             outline-offset: 3px;
         }
-        .eki-guia-wrap {
+        .eki-help-btn-inner {
             position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
         }
-        .eki-guia-char {
-            width: 30px;
-            height: 30px;
+        .eki-flag {
+            width: 40px;
+            height: 27px;
             display: block;
-            color: #fff;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
+            border: 1px solid rgba(0, 0, 0, 0.08);
         }
-        .eki-guia__bubble {
+        .eki-flag--sm {
+            width: 28px;
+            height: 19px;
+            border-radius: 3px;
+        }
+        .eki-help__bubble {
             position: absolute;
             right: calc(100% + 8px);
             top: 4px;
-            background: #FFFBF5;
-            color: #5C3D2E;
-            border: 2px solid #C4A574;
+            background: var(--blanco);
+            color: var(--texto);
+            border: 1px solid var(--borde);
             padding: 9px 13px;
-            border-radius: 16px 16px 4px 16px;
+            border-radius: 12px 12px 4px 12px;
             font-size: 13px;
-            font-weight: 700;
+            font-weight: 600;
             line-height: 1.25;
             white-space: nowrap;
-            box-shadow: 0 4px 14px rgba(92, 61, 46, 0.12);
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.1);
             pointer-events: none;
             animation: eki-bubble-pop 0.35s ease;
         }
-        .eki-guia__bubble::after {
+        .eki-help__bubble::after {
             content: '';
             position: absolute;
-            right: -7px;
+            right: -6px;
             bottom: 12px;
-            width: 12px;
-            height: 12px;
-            background: #FFFBF5;
-            border-right: 2px solid #C4A574;
-            border-bottom: 2px solid #C4A574;
+            width: 10px;
+            height: 10px;
+            background: var(--blanco);
+            border-right: 1px solid var(--borde);
+            border-bottom: 1px solid var(--borde);
             transform: rotate(-45deg);
-            border-radius: 0 0 3px 0;
+            border-radius: 0 0 2px 0;
         }
         @keyframes eki-bubble-pop {
             from { opacity: 0; transform: scale(0.85) translateX(6px); }
             to { opacity: 1; transform: scale(1) translateX(0); }
         }
-        .eki-help.is-open .eki-guia__bubble { display: none; }
-        .eki-guia-char--sm {
-            width: 22px;
-            height: 22px;
-            color: #fff;
-        }
+        .eki-help.is-open .eki-help__bubble { display: none; }
         .eki-help__panel {
             position: absolute;
             right: 0;
@@ -553,7 +556,7 @@
             background: linear-gradient(135deg, #7D2181 0%, #9A6EAE 100%);
             color: #fff;
         }
-        .eki-help__head svg.eki-guia-char--sm { flex-shrink: 0; }
+        .eki-help__head svg.eki-flag--sm { flex-shrink: 0; }
         .eki-help__head strong { font-size: 14px; display: block; }
         .eki-help__head span { font-size: 11px; opacity: 0.9; }
         .eki-help__body { padding: 14px 16px 8px; }
@@ -629,8 +632,8 @@
             .eki-help { bottom: 80px; right: 16px; }
             .eki-help__panel { bottom: 64px; right: 0; }
             .eki-help__toggle { width: 56px; height: 56px; }
-            .eki-guia-char { width: 30px; height: 30px; }
-            .eki-guia__bubble { font-size: 12px; padding: 7px 10px; max-width: 150px; white-space: normal; }
+            .eki-flag { width: 36px; height: 24px; }
+            .eki-help__bubble { font-size: 12px; padding: 7px 10px; max-width: 150px; white-space: normal; }
             .wa-fab { right: 16px; bottom: 16px; }
         }
 
@@ -1018,21 +1021,16 @@
     <div class="eki-help" id="eki-help" aria-live="polite">
         <svg width="0" height="0" style="position:absolute" aria-hidden="true">
             <defs>
-                <!-- Vista superior: ala ancha + copa (sombrero vueltiao Zenú) -->
-                <symbol id="eki-guia-symbol" viewBox="0 0 48 48">
-                    <ellipse cx="24" cy="27" rx="19" ry="11.5" fill="none" stroke="currentColor" stroke-width="2"/>
-                    <ellipse cx="24" cy="27" rx="13.5" ry="8" fill="none" stroke="currentColor" stroke-width="1.3" opacity="0.85"/>
-                    <path d="M8 27h3.5l1.8-1.6 1.7 1.6H17l1.8-1.6 1.7 1.6h3.5l1.8-1.6 1.7 1.6H31l1.8-1.6 1.7 1.6H38" fill="none" stroke="currentColor" stroke-width="1" opacity="0.75" stroke-linecap="round"/>
-                    <ellipse cx="24" cy="24" rx="6.5" ry="4.2" fill="currentColor"/>
-                    <path d="M11 31.5h26" stroke="#FCD116" stroke-width="1.2" stroke-linecap="round" opacity="0.95"/>
-                    <path d="M11 33h26" stroke="#7EB8FF" stroke-width="1.2" stroke-linecap="round" opacity="0.95"/>
-                    <path d="M11 34.5h26" stroke="#FF8A8A" stroke-width="1.2" stroke-linecap="round" opacity="0.95"/>
+                <symbol id="eki-flag-co" viewBox="0 0 48 32">
+                    <rect width="48" height="16" fill="#FCD116"/>
+                    <rect width="48" height="8" y="16" fill="#003893"/>
+                    <rect width="48" height="8" y="24" fill="#CE1126"/>
                 </symbol>
             </defs>
         </svg>
         <div class="eki-help__panel" id="eki-help-panel" hidden>
             <div class="eki-help__head">
-                <svg class="eki-guia-char eki-guia-char--sm" aria-hidden="true"><use href="#eki-guia-symbol"/></svg>
+                <svg class="eki-flag eki-flag--sm" aria-hidden="true" role="img" aria-label="Bandera de Colombia"><use href="#eki-flag-co"/></svg>
                 <div>
                     <strong>Guía eki</strong>
                     <span>Su guía en el portal</span>
@@ -1051,9 +1049,9 @@
             </div>
         </div>
         <button type="button" class="eki-help__toggle" id="eki-help-toggle" aria-expanded="false" aria-controls="eki-help-panel" title="¿Necesita ayuda?">
-            <span class="eki-guia-wrap">
-                <span class="eki-guia__bubble">¿Ayuda?</span>
-                <svg class="eki-guia-char" aria-hidden="true"><use href="#eki-guia-symbol"/></svg>
+            <span class="eki-help-btn-inner">
+                <span class="eki-help__bubble">¡Hola! ¿Le ayudo?</span>
+                <svg class="eki-flag" aria-hidden="true" role="img" aria-label="Bandera de Colombia"><use href="#eki-flag-co"/></svg>
             </span>
         </button>
     </div>

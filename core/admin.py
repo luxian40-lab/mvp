@@ -416,6 +416,7 @@ class ClienteAdmin(admin.ModelAdmin):
         mapa_url = reverse('admin_cobertura_mapa') + f'?cliente={obj.pk}'
         drip_url = reverse('admin_drip_estudiantes') + f'?cliente={obj.pk}'
         avance_url = reverse('admin_ajustar_avance') + f'?cliente={obj.pk}'
+        gamif_url = reverse('admin_gamificacion_ajuste') + f'?cliente={obj.pk}'
         cert_url = reverse('admin_certificados_presenciales') + f'?cliente={obj.pk}'
         push_url = reverse('admin_push_estudiantes') + f'?cliente={obj.pk}'
         form_url = reverse('admin:core_enlaceformularioexterno_changelist') + f'?cliente={obj.pk}'
@@ -424,6 +425,7 @@ class ClienteAdmin(admin.ModelAdmin):
             '<a class="button" href="{}">Mapa cobertura</a>'
             '<a class="button" href="{}">Acceso módulos</a>'
             '<a class="button" href="{}">Ajustar avance</a>'
+            '<a class="button" href="{}">Gamificación manual</a>'
             '<a class="button" href="{}">Certificados presenciales</a>'
             '<a class="button" href="{}">Push recordatorios</a>'
             '<a class="button" href="{}">Form externo</a>'
@@ -431,6 +433,7 @@ class ClienteAdmin(admin.ModelAdmin):
             mapa_url,
             drip_url,
             avance_url,
+            gamif_url,
             cert_url,
             push_url,
             form_url,
@@ -3049,8 +3052,8 @@ class PreguntaAbiertaFinalInline(admin.TabularInline):
 class CursoAdmin(admin.ModelAdmin):
     """Administración de cursos"""
     change_form_template = 'admin/core/curso/change_form.html'
-    list_display = ('nombre', 'cliente_nombre', 'total_modulos_display', 'docs_rag_count', 'duracion_semanas', 'ver_modulos_link', 'activo', 'tiene_formulario_gei', 'usar_agentes_ia', 'orden')
-    list_filter = ('activo', 'cliente', 'usar_gamificacion', 'usar_agentes_ia', 'habilitar_pregunta_abierta_final', 'tiene_formulario_gei')
+    list_display = ('nombre', 'cliente_nombre', 'total_modulos_display', 'docs_rag_count', 'duracion_semanas', 'ver_modulos_link', 'activo', 'visible_en_aula', 'tiene_formulario_gei', 'usar_agentes_ia', 'orden')
+    list_filter = ('activo', 'visible_en_aula', 'cliente', 'usar_gamificacion', 'usar_agentes_ia', 'habilitar_pregunta_abierta_final', 'tiene_formulario_gei')
     search_fields = ('nombre', 'descripcion', 'cliente__nombre')
     list_editable = ('orden',)
     inlines = [ModuloInline, DocumentoRAGInline, PreguntaAbiertaFinalInline]
@@ -3062,7 +3065,7 @@ class CursoAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Datos del curso', {
-            'fields': ('nombre', 'descripcion', 'cliente', 'duracion_semanas', 'activo', 'orden'),
+            'fields': ('nombre', 'descripcion', 'cliente', 'duracion_semanas', 'activo', 'visible_en_aula', 'orden'),
         }),
         ('Ritmo drip y acceso', {
             'fields': (

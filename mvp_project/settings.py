@@ -240,6 +240,7 @@ JAZZMIN_SETTINGS = {
         {"name": "Dashboard", "url": "/admin/dashboard/", "new_window": False},
         {"name": "Cobertura", "url": "/admin/cobertura/", "new_window": False},
         {"name": "Ajustar avance", "url": "/admin/ajustar-avance/", "new_window": False},
+        {"name": "Gamificación manual", "url": "/admin/gamificacion-ajuste/", "new_window": False},
         {"name": "Acceso módulos", "url": "/admin/drip-estudiantes/", "new_window": False},
         {"name": "Envío certificados", "url": "/admin/envio-certificados/", "new_window": False},
         {"name": "Push", "url": "/admin/push-estudiantes/", "new_window": False},
@@ -391,6 +392,18 @@ JAZZMIN_SETTINGS = {
                 "url": "/admin/aula-web/",
                 "icon": "fas fa-home",
                 "permissions": ["core.view_estudiante"],
+            },
+            {
+                "name": "Profesores aula",
+                "url": "/admin/portal/portalusuario/?rol__exact=profesor",
+                "icon": "fas fa-chalkboard-teacher",
+                "permissions": ["portal.view_portalusuario"],
+            },
+            {
+                "name": "Catálogo cursos",
+                "url": "/admin/core/curso/?visible_en_aula__exact=1",
+                "icon": "fas fa-book-open",
+                "permissions": ["core.view_curso"],
             },
             {
                 "name": "Abrir /aprende/",

@@ -1282,6 +1282,16 @@ class Curso(models.Model):
         ),
     )
 
+    visible_en_aula = models.BooleanField(
+        default=True,
+        verbose_name='Visible en aula web',
+        help_text=(
+            'Si está activo, el curso aparece en el catálogo de /aprende/ para que '
+            'los estudiantes lo elijan. El contenido subido por profesores queda '
+            'disponible para quienes se inscriban.'
+        ),
+    )
+
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:

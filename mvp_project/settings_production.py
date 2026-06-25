@@ -54,19 +54,36 @@ DEBUG = False
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-CAMBIAR-EN-PRODUCCION')
 
 # Hosts permitidos
-ALLOWED_HOSTS = ['*']  # Permitir todos los hosts en producción
+_EB_CNAME = os.environ.get(
+    'EB_CNAME_HOST',
+    'eki-prod-final.eba-32krwxas.us-east-2.elasticbeanstalk.com',
+)
+_explicit_hosts = os.environ.get('EKI_ALLOWED_HOSTS', '').strip()
+if _explicit_hosts:
+    ALLOWED_HOSTS = [h.strip() for h in _explicit_hosts.split(',') if h.strip()]
+    if _EB_CNAME not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_EB_CNAME)
+else:
+    ALLOWED_HOSTS = ['*']
+    if 'ALLOWED_HOSTS_EXTRA' in os.environ:
+        extra_hosts = [h.strip() for h in os.environ['ALLOWED_HOSTS_EXTRA'].split(',') if h.strip()]
+        if ALLOWED_HOSTS == ['*']:
+            ALLOWED_HOSTS = list(extra_hosts)
+            if _EB_CNAME not in ALLOWED_HOSTS:
+                ALLOWED_HOSTS.append(_EB_CNAME)
+        else:
+            ALLOWED_HOSTS.extend(extra_hosts)
 
-# Agregar dominios personalizados desde variable de entorno
-if 'ALLOWED_HOSTS_EXTRA' in os.environ:
-    extra_hosts = os.environ['ALLOWED_HOSTS_EXTRA'].split(',')
-    ALLOWED_HOSTS.extend(extra_hosts)
+_csrf_env = os.environ.get('CSRF_TRUSTED_ORIGINS', '').strip()
+if _csrf_env:
+    CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_env.split(',') if o.strip()]
 
 # ============================================
 # SSL/HTTPS - Resolución de Warnings
 # ============================================
 
 # ?: (security.W008) Redirigir todo a HTTPS
-# DESACTIVADO: No hay certificado SSL en SingleInstance EB
+# DESACTIVADO: Cloudflare termina HTTPS; el origen EB (single instance) suele ser HTTP:80
 SECURE_SSL_REDIRECT = False
 
 # ?: (security.W004) HTTP Strict Transport Security
@@ -75,15 +92,22 @@ SECURE_HSTS_SECONDS = 0
 SECURE_HSTS_INCLUDE_SUBDOMAINS = False
 SECURE_HSTS_PRELOAD = False
 
-# ?: (security.W012) Cookies seguras de sesión
-# DESACTIVADO hasta configurar SSL
-SESSION_COOKIE_SECURE = False
+_behind_cloudflare = os.environ.get('EKI_BEHIND_CLOUDFLARE', 'true').lower() in ('1', 'true', 'yes')
+if _behind_cloudflare:
+    # Cloudflare envía X-Forwarded-Proto: https aunque el origen sea HTTP
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    USE_X_FORWARDED_HOST = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+else:
+    SESSION_COOKIE_SECURE = False
+
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 
 # ?: (security.W016) CSRF cookies seguras
-# DESACTIVADO hasta configurar SSL
-CSRF_COOKIE_SECURE = False
+if not _behind_cloudflare:
+    CSRF_COOKIE_SECURE = False
 CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = 'Lax'
 

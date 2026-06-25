@@ -139,7 +139,38 @@ class PerfilGamificacion(models.Model):
         )
         
         return self.nivel > nivel_anterior  # True si subió de nivel
-    
+
+    def ajustar_puntos_manual(self, delta: int, motivo: str) -> int:
+        """
+        Ajuste manual por el equipo (suma o resta). Devuelve puntos efectivamente aplicados.
+        """
+        motivo = (motivo or 'Ajuste manual').strip()[:180] or 'Ajuste manual'
+        if delta == 0:
+            raise ValueError('Indique puntos distintos de cero.')
+
+        if delta > 0:
+            self.puntos_totales += delta
+            self.calcular_nivel()
+            TransaccionPuntos.objects.create(
+                perfil=self,
+                puntos=delta,
+                tipo='BONUS',
+                razon=f'Manual: {motivo}',
+            )
+            return delta
+
+        quitado = min(abs(delta), self.puntos_totales)
+        if quitado:
+            self.puntos_totales -= quitado
+            self.calcular_nivel()
+            TransaccionPuntos.objects.create(
+                perfil=self,
+                puntos=quitado,
+                tipo='GASTO',
+                razon=f'Manual (−): {motivo}',
+            )
+        return quitado
+
     def actualizar_racha(self):
         """Actualiza la racha de días consecutivos"""
         ahora = timezone.now()

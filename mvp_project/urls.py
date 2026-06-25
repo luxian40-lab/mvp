@@ -7,7 +7,14 @@ from django.http import HttpResponse
 
 
 def root_redirect(request):
-    """Redirige a la página de administración principal"""
+    """Raíz según subdominio (Cloudflare) o admin por defecto."""
+    host = request.get_host().split(':')[0].lower()
+    if host == 'app.eki.technology':
+        return redirect('/portal/login/')
+    if host == 'admin.eki.technology':
+        return redirect('/admin/')
+    if host in ('aprende.eki.technology', 'aula.eki.technology'):
+        return redirect('/aprende/')
     return redirect('/admin/')
 
 

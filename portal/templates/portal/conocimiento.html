@@ -1,96 +1,192 @@
-{% extends 'portal/base.html' %}
-
-{% block title %}Conocimiento IA | Portal eki{% endblock %}
-
-{% block content %}
-<div class="page-title">
-    <div>
-        <h1>Conocimiento para la facilitadora</h1>
-        <p class="muted">Documentos RAG y <strong>preguntas ejemplo para IA</strong> por curso (mismo campo que en admin → Curso → IA y retos). No aplica al agente Nat.</p>
-    </div>
-</div>
-
-{% if ok %}
-<section class="panel" style="margin-bottom:20px;border-left:4px solid var(--ok);"><p>Guardado correctamente.</p></section>
-{% endif %}
-{% if error %}
-<section class="panel" style="margin-bottom:20px;border-left:4px solid var(--danger);"><p>{{ error }}</p></section>
-{% endif %}
-
-{% if mods.cursos %}
-<section class="panel" style="margin-bottom:24px;">
-    <h2>Preguntas ejemplo para IA</h2>
-    <p class="muted" style="margin-bottom:12px;">La facilitadora usará estas preguntas como referencia para generar la pregunta final de recuperación al terminar cada módulo. Una pregunta por línea.</p>
-    {% if curso_sel %}
-    <form method="post" style="max-width:720px;">
-        {% csrf_token %}
-        <input type="hidden" name="accion" value="preguntas_ia">
-        <label style="display:block;font-weight:600;margin:8px 0 6px;">Curso</label>
-        <select name="curso_preguntas" onchange="location.href='/portal/conocimiento/?curso='+this.value" style="width:100%;max-width:400px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
-            {% for c in cursos %}
-            <option value="{{ c.id }}" {% if curso_sel.id == c.id %}selected{% endif %}>{{ c.nombre }}</option>
-            {% endfor %}
-        </select>
-        <label style="display:block;font-weight:600;margin:14px 0 6px;">Preguntas ejemplo</label>
-        <textarea name="preguntas_ejemplo_ia" rows="12" {% if not es_admin %}readonly{% endif %} placeholder="Ejemplo:&#10;¿Cómo aplicarías lo aprendido en tu finca esta semana?&#10;¿Qué señales revisarías primero en campo?" style="width:100%;padding:12px;border:1px solid var(--borde);border-radius:8px;font:inherit;box-sizing:border-box;font-family:inherit;">{{ curso_sel.preguntas_ejemplo_ia }}</textarea>
-        {% if es_admin %}
-        <p style="margin-top:14px;"><button class="btn" type="submit">Guardar preguntas</button></p>
-        {% else %}
-        <p class="muted" style="margin-top:10px;">Solo lectura. Pida a un administrador del portal si necesita cambios.</p>
-        {% endif %}
-    </form>
-    {% else %}
-    <p class="muted">No hay cursos activos en su organización.</p>
-    {% endif %}
-</section>
-
-<section class="panel" style="margin-bottom:24px;">
-    <h2>Documentos RAG por curso</h2>
-    <p class="muted" style="margin-bottom:12px;">La facilitadora del curso usará estos archivos para responder por WhatsApp.</p>
-    <form method="post" enctype="multipart/form-data" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:end;margin-bottom:16px;">
-        {% csrf_token %}
-        <input type="hidden" name="accion" value="rag">
-        <label>
-            <strong>Curso</strong>
-            <select name="curso" required style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
-                {% for c in cursos %}<option value="{{ c.id }}">{{ c.nombre }}</option>{% endfor %}
-            </select>
-        </label>
-        <label>
-            <strong>Nombre</strong>
-            <input type="text" name="nombre" required maxlength="120" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
-        </label>
-        <label>
-            <strong>Tipo</strong>
-            <select name="tipo" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
-                {% for key, label in tipos_documento %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
-            </select>
-        </label>
-        <label>
-            <strong>Archivo</strong>
-            <input type="file" name="archivo" required accept=".pdf,.docx,.txt,.xlsx,.xlsm" style="width:100%;margin-top:6px;">
-        </label>
-        <button class="btn" type="submit">Subir e indexar</button>
-    </form>
-    <table>
-        <thead><tr><th>Curso</th><th>Nombre</th><th>Estado</th><th>Fecha</th></tr></thead>
-        <tbody>
-            {% for d in documentos %}
-            <tr>
-                <td>{{ d.curso.nombre }}</td>
-                <td>{{ d.nombre }}</td>
-                <td>{{ d.get_estado_display }}</td>
-                <td>{{ d.fecha_subida|date:"d/m/Y H:i" }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="4" class="muted">Sin documentos aún.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</section>
-{% elif mods.gei %}
-<section class="panel">
-    <p class="muted">Su organización tiene inventario GEI. Las preguntas ejemplo para IA se configuran por <strong>curso</strong>; active el módulo de cursos o edítelas desde el admin de eki.</p>
-</section>
-{% endif %}
-{% endblock %}
+{% extends 'portal/base.html' %}
+
+
+
+{% block title %}Conocimiento IA | Portal eki{% endblock %}
+
+
+
+{% block content %}
+
+<div class="page-title">
+
+    <div>
+
+        <h1>Conocimiento para la facilitadora</h1>
+
+        <p class="muted">Documentos RAG y <strong>preguntas ejemplo para IA</strong> por curso (mismo campo que en admin → Curso → IA y retos). No aplica al agente Nat.</p>
+
+    </div>
+
+</div>
+
+
+
+{% if ok %}
+
+<section class="panel" style="margin-bottom:20px;border-left:4px solid var(--ok);"><p>Guardado correctamente.</p></section>
+
+{% endif %}
+
+{% if error %}
+
+<section class="panel" style="margin-bottom:20px;border-left:4px solid var(--danger);"><p>{{ error }}</p></section>
+
+{% endif %}
+
+
+
+{% if mods.cursos %}
+
+<section class="panel" style="margin-bottom:24px;">
+
+    <h2>Preguntas ejemplo para IA</h2>
+
+    <p class="muted" style="margin-bottom:12px;">La facilitadora usará estas preguntas como referencia para generar la pregunta final de recuperación al terminar cada módulo. Una pregunta por línea.</p>
+
+    {% if curso_sel %}
+
+    <form method="post" style="max-width:720px;">
+
+        {% csrf_token %}
+
+        <input type="hidden" name="accion" value="preguntas_ia">
+
+        <label style="display:block;font-weight:600;margin:8px 0 6px;">Curso</label>
+
+        <select name="curso_preguntas" onchange="location.href='/portal/conocimiento/?curso='+this.value" style="width:100%;max-width:400px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
+
+            {% for c in cursos %}
+
+            <option value="{{ c.id }}" {% if curso_sel.id == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+
+            {% endfor %}
+
+        </select>
+
+        <label style="display:block;font-weight:600;margin:14px 0 6px;">Preguntas ejemplo</label>
+
+        <textarea name="preguntas_ejemplo_ia" rows="12" {% if not es_admin %}readonly{% endif %} placeholder="Ejemplo:&#10;¿Cómo aplicarías lo aprendido en tu finca esta semana?&#10;¿Qué señales revisarías primero en campo?" style="width:100%;padding:12px;border:1px solid var(--borde);border-radius:8px;font:inherit;box-sizing:border-box;font-family:inherit;">{{ curso_sel.preguntas_ejemplo_ia }}</textarea>
+
+        {% if es_admin %}
+
+        <p style="margin-top:14px;"><button class="btn" type="submit">Guardar preguntas</button></p>
+
+        {% else %}
+
+        <p class="muted" style="margin-top:10px;">Solo lectura. Pida a un administrador del portal si necesita cambios.</p>
+
+        {% endif %}
+
+    </form>
+
+    {% else %}
+
+    <p class="muted">No hay cursos activos en su organización.</p>
+
+    {% endif %}
+
+</section>
+
+
+
+<section class="panel" style="margin-bottom:24px;">
+
+    <h2>Documentos RAG por curso</h2>
+
+    <p class="muted" style="margin-bottom:12px;">La facilitadora del curso usará estos archivos para responder por WhatsApp.</p>
+
+    <form method="post" enctype="multipart/form-data" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:end;margin-bottom:16px;">
+
+        {% csrf_token %}
+
+        <input type="hidden" name="accion" value="rag">
+
+        <label>
+
+            <strong>Curso</strong>
+
+            <select name="curso" required style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
+
+                {% for c in cursos %}<option value="{{ c.id }}">{{ c.nombre }}</option>{% endfor %}
+
+            </select>
+
+        </label>
+
+        <label>
+
+            <strong>Nombre</strong>
+
+            <input type="text" name="nombre" required maxlength="120" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
+
+        </label>
+
+        <label>
+
+            <strong>Tipo</strong>
+
+            <select name="tipo" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
+
+                {% for key, label in tipos_documento %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+
+            </select>
+
+        </label>
+
+        <label>
+
+            <strong>Archivo</strong>
+
+            <input type="file" name="archivo" required accept=".pdf,.docx,.txt,.xlsx,.xlsm" style="width:100%;margin-top:6px;">
+
+        </label>
+
+        <button class="btn" type="submit">Subir e indexar</button>
+
+    </form>
+
+    <table>
+
+        <thead><tr><th>Curso</th><th>Nombre</th><th>Estado</th><th>Fecha</th></tr></thead>
+
+        <tbody>
+
+            {% for d in documentos %}
+
+            <tr>
+
+                <td>{{ d.curso.nombre }}</td>
+
+                <td>{{ d.nombre }}</td>
+
+                <td>{{ d.get_estado_display }}</td>
+
+                <td>{{ d.fecha_subida|date:"d/m/Y H:i" }}</td>
+
+            </tr>
+
+            {% empty %}
+
+            <tr><td colspan="4" class="muted">Sin documentos aún.</td></tr>
+
+            {% endfor %}
+
+        </tbody>
+
+    </table>
+
+</section>
+
+{% elif mods.gei %}
+
+<section class="panel">
+
+    <p class="muted">Su organización tiene inventario GEI. Las preguntas ejemplo para IA se configuran por <strong>curso</strong>; active el módulo de cursos o edítelas desde el admin de eki.</p>
+
+</section>
+
+{% endif %}
+
+{% endblock %}
+

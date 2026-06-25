@@ -39,7 +39,14 @@ class AulaWebAdminTests(TestCase):
         r = self.http.get('/admin/aula-web/')
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Aula web eki')
-        self.assertContains(r, 'portal clientes')
+        self.assertContains(r, 'Profesores ≠ clientes')
+        self.assertContains(r, 'Catálogo')
+
+    def test_panel_filtra_por_cliente(self):
+        self.http.force_login(self.staff)
+        r = self.http.get(f'/admin/aula-web/?cliente={self.cliente.id}')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Org AW')
 
     def test_redirect_viejo_portal_estudio(self):
         self.http.force_login(self.staff)

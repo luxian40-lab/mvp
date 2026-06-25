@@ -1,0 +1,165 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}{{ titulo }} | {{ site_title }}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/cobertura_eki.css' %}">
+<style>
+.gamif-page { padding: 1.25rem 1.5rem 2.5rem; max-width: 1200px; }
+.gamif-alert { padding: 0.75rem 1rem; border-radius: 10px; margin-bottom: 1rem; font-size: 0.875rem; }
+.gamif-alert-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+.gamif-alert-warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+.gamif-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.15rem 1.25rem; margin-bottom: 1.25rem; }
+.gamif-panel h2 { margin: 0 0 0.75rem; font-size: 1.05rem; }
+.gamif-opciones { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; margin: 0.75rem 0 1rem; }
+.gamif-opciones label { font-size: 0.875rem; display: block; margin-bottom: 4px; }
+.gamif-opciones input[type="text"], .gamif-opciones input[type="number"], .gamif-opciones select {
+    padding: 0.45rem 0.6rem; border-radius: 8px; border: 1px solid #e2e8f0; min-width: 120px;
+}
+.gamif-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.gamif-table th { text-align: left; font-size: 0.7rem; text-transform: uppercase; color: #64748b; padding: 0.5rem 0.4rem; border-bottom: 1px solid #e2e8f0; }
+.gamif-table td { padding: 0.55rem 0.4rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.gamif-muted { color: #64748b; font-size: 0.82rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="eki-cobertura gamif-page">
+    <header class="eki-cobertura-header">
+        <div>
+            <h1>{{ titulo }}</h1>
+            <p class="sub">Sumar o restar puntos, o registrar notas 1–5 manuales (taller presencial, híbrido, etc.).</p>
+        </div>
+    </header>
+
+    <form method="get" class="eki-filtros">
+        <div class="field">
+            <label for="cliente">Cliente / organización</label>
+            <select name="cliente" id="cliente" required>
+                <option value="">— Elija —</option>
+                {% for c in clientes %}
+                <option value="{{ c.id }}" {% if cliente and cliente.id == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="eki-btn eki-btn-primary">Ver estudiantes</button>
+    </form>
+
+    {% if cliente %}
+    <div class="gamif-alert {% if gamif_activa %}gamif-alert-info{% else %}gamif-alert-warn{% endif %}">
+        <strong>{{ cliente.nombre }}</strong> — modo: <strong>{{ modo_label }}</strong>.
+        {% if not gamif_activa %}
+        La gamificación está desactivada para esta org. Active «Modo gamificación» en el cliente para que el portal muestre ranking.
+        {% elif usa_puntos %}
+        Puede sumar o restar puntos individuales; queda en historial y actualiza el ranking.
+        {% elif usa_notas %}
+        Puede registrar notas 1–5 manuales; se promedian con retos y preguntas abiertas.
+        {% endif %}
+    </div>
+
+    {% if filas %}
+    <div class="gamif-panel">
+        <h2>{{ filas|length }} estudiante(s)</h2>
+        <table class="gamif-table">
+            <thead>
+                <tr>
+                    {% if usa_puntos %}<th></th>{% endif %}
+                    <th>Estudiante</th>
+                    <th>Cédula</th>
+                    {% if usa_puntos %}<th>Puntos</th><th>Nivel</th>{% endif %}
+                    {% if usa_notas %}<th>Promedio</th><th># notas</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in filas %}
+                <tr>
+                    {% if usa_puntos %}
+                    <td><input type="checkbox" name="estudiantes" value="{{ f.estudiante.id }}" form="form-puntos"></td>
+                    {% endif %}
+                    <td>{{ f.estudiante.nombre }}</td>
+                    <td class="gamif-muted">{{ f.estudiante.cedula }}</td>
+                    {% if usa_puntos %}
+                    <td><strong>{{ f.puntos }}</strong></td>
+                    <td>{{ f.nivel }}</td>
+                    {% endif %}
+                    {% if usa_notas %}
+                    <td>{% if f.promedio != None %}{{ f.promedio|floatformat:1 }}{% else %}—{% endif %}</td>
+                    <td>{{ f.num_notas }}</td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="sub">No hay estudiantes activos en esta organización.</p>
+    {% endif %}
+
+    {% if usa_puntos and filas %}
+    <form method="post" class="gamif-panel" id="form-puntos" onsubmit="return confirm('¿Aplicar el ajuste de puntos a los estudiantes marcados?');">
+        {% csrf_token %}
+        <input type="hidden" name="cliente" value="{{ cliente.id }}">
+        <input type="hidden" name="action" value="ajustar_puntos">
+        <h2>Sumar o restar puntos</h2>
+        <p class="gamif-muted">Marque estudiantes en la tabla. Use número positivo para sumar (ej. 15) o negativo para restar (ej. −5).</p>
+        <div class="gamif-opciones">
+            <div>
+                <label for="delta">Puntos (+/−)</label>
+                <input type="number" name="delta" id="delta" required placeholder="15 o -5" step="1">
+            </div>
+            <div style="flex:1;min-width:220px;">
+                <label for="motivo">Motivo</label>
+                <input type="text" name="motivo" id="motivo" required maxlength="180" placeholder="Ej. Taller presencial 24/jun" style="width:100%;">
+            </div>
+            <button type="submit" class="eki-btn eki-btn-primary">Aplicar puntos</button>
+        </div>
+    </form>
+    {% endif %}
+
+    {% if usa_notas %}
+    <form method="post" class="gamif-panel" onsubmit="return confirm('¿Registrar esta nota manual?');">
+        {% csrf_token %}
+        <input type="hidden" name="cliente" value="{{ cliente.id }}">
+        <input type="hidden" name="action" value="registrar_nota">
+        <h2>Registrar nota manual (1–5)</h2>
+        <p class="gamif-muted">Útil para evaluación presencial o criterios del facilitador. Admite decimales (ej. 4.5).</p>
+        <div class="gamif-opciones">
+            <div>
+                <label for="estudiante_nota">Estudiante</label>
+                <select name="estudiante_nota" id="estudiante_nota" required>
+                    <option value="">— Elija —</option>
+                    {% for f in filas %}
+                    <option value="{{ f.estudiante.id }}">{{ f.estudiante.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="curso_nota">Curso (opcional)</label>
+                <select name="curso_nota" id="curso_nota">
+                    <option value="">— General —</option>
+                    {% for c in cursos %}
+                    <option value="{{ c.id }}">{{ c.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="nota">Nota</label>
+                <input type="text" name="nota" id="nota" required placeholder="1 a 5" style="width:80px;">
+            </div>
+            <div>
+                <label for="peso_nota">Peso (opc.)</label>
+                <input type="text" name="peso_nota" id="peso_nota" placeholder="1" style="width:70px;">
+            </div>
+            <div style="flex:1;min-width:200px;">
+                <label for="detalle_nota">Detalle</label>
+                <input type="text" name="detalle_nota" id="detalle_nota" maxlength="200" placeholder="Ej. Práctica en finca" style="width:100%;">
+            </div>
+            <button type="submit" class="eki-btn eki-btn-primary">Guardar nota</button>
+        </div>
+    </form>
+    {% endif %}
+    {% endif %}
+</div>
+{% endblock %}
