@@ -446,65 +446,133 @@
             border: 0;
         }
 
-        /* Asistente de ayuda (eki) */
+        /* Asistente de ayuda (eki) — mascota tipo clip */
         .eki-help {
             position: fixed;
-            right: 24px;
-            bottom: 92px;
+            right: 20px;
+            bottom: 96px;
             z-index: 51;
         }
         .eki-help__toggle {
-            width: 52px;
-            height: 52px;
-            border-radius: 50%;
             border: none;
             cursor: pointer;
-            background: #7D2181;
-            color: #fff;
-            box-shadow: 0 4px 16px rgba(125, 33, 129, 0.4);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            background: transparent;
             padding: 0;
-        }
-        .eki-help__toggle:hover {
-            transform: scale(1.06);
-            box-shadow: 0 6px 20px rgba(125, 33, 129, 0.5);
-        }
-        .eki-help__toggle svg.eki-help__icon {
-            width: 28px;
-            height: 28px;
             display: block;
+            line-height: 0;
+            transition: transform 0.2s ease;
         }
-        .eki-help__toggle-label {
+        .eki-help__toggle:hover { transform: scale(1.04); }
+        .eki-help__toggle:focus-visible {
+            outline: 2px solid #7D2181;
+            outline-offset: 4px;
+            border-radius: 12px;
+        }
+        .eki-clip-wrap {
+            position: relative;
+            display: inline-block;
+            animation: eki-clip-sway 3.8s ease-in-out infinite;
+            transform-origin: 50% 85%;
+        }
+        .eki-help.is-open .eki-clip-wrap {
+            animation: eki-clip-nod 0.45s ease;
+        }
+        .eki-help__toggle:hover .eki-clip-wrap {
+            animation: eki-clip-wiggle 0.55s ease-in-out infinite;
+        }
+        @keyframes eki-clip-sway {
+            0%, 100% { transform: translateY(0) rotate(-3deg); }
+            50% { transform: translateY(-7px) rotate(3deg); }
+        }
+        @keyframes eki-clip-wiggle {
+            0%, 100% { transform: rotate(-4deg); }
+            25% { transform: rotate(5deg); }
+            75% { transform: rotate(-5deg); }
+        }
+        @keyframes eki-clip-nod {
+            0%, 100% { transform: rotate(0); }
+            40% { transform: rotate(8deg); }
+            70% { transform: rotate(-4deg); }
+        }
+        .eki-clip-char {
+            width: 68px;
+            height: 86px;
+            display: block;
+            filter: drop-shadow(0 8px 18px rgba(125, 33, 129, 0.38));
+        }
+        .eki-clip-char .eki-clip__metal {
+            fill: none;
+            stroke: url(#ekiClipGrad);
+            stroke-width: 8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        .eki-clip-char .eki-clip__shine {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.35);
+            stroke-width: 2;
+            stroke-linecap: round;
+        }
+        .eki-clip-char .eki-clip__eye {
+            fill: #fff;
+            animation: eki-clip-blink 5s step-end infinite;
+        }
+        .eki-clip-char .eki-clip__pupil { fill: #1e293b; }
+        .eki-clip-char .eki-clip__brow {
+            fill: none;
+            stroke: #5a1860;
+            stroke-width: 2.5;
+            stroke-linecap: round;
+        }
+        @keyframes eki-clip-blink {
+            0%, 92%, 100% { opacity: 1; }
+            94% { opacity: 0.12; }
+        }
+        .eki-clip__bubble {
             position: absolute;
-            right: 60px;
-            bottom: 14px;
-            background: var(--blanco);
-            color: var(--texto);
-            border: 1px solid var(--borde);
-            padding: 6px 12px;
-            border-radius: 8px;
+            right: calc(100% + 6px);
+            top: 6px;
+            background: #fff;
+            color: #7D2181;
+            border: 2px solid #9A6EAE;
+            padding: 9px 13px;
+            border-radius: 14px 14px 4px 14px;
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 700;
+            line-height: 1.2;
             white-space: nowrap;
-            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.08);
+            box-shadow: 0 4px 16px rgba(125, 33, 129, 0.18);
             pointer-events: none;
-            opacity: 0;
-            transform: translateX(6px);
-            transition: opacity 0.2s, transform 0.2s;
+            animation: eki-bubble-pop 0.35s ease;
         }
-        .eki-help:not(.is-open) .eki-help__toggle:hover + .eki-help__toggle-label,
-        .eki-help:not(.is-open) .eki-help__toggle:focus + .eki-help__toggle-label {
-            opacity: 1;
-            transform: translateX(0);
+        .eki-clip__bubble::after {
+            content: '';
+            position: absolute;
+            right: -7px;
+            bottom: 10px;
+            width: 12px;
+            height: 12px;
+            background: #fff;
+            border-right: 2px solid #9A6EAE;
+            border-bottom: 2px solid #9A6EAE;
+            transform: rotate(-45deg);
+            border-radius: 0 0 3px 0;
         }
-        .eki-help.is-open .eki-help__toggle-label { display: none; }
+        @keyframes eki-bubble-pop {
+            from { opacity: 0; transform: scale(0.85) translateX(6px); }
+            to { opacity: 1; transform: scale(1) translateX(0); }
+        }
+        .eki-help.is-open .eki-clip__bubble { display: none; }
+        .eki-clip-char--sm {
+            width: 36px;
+            height: 44px;
+            filter: none;
+        }
+        .eki-clip-char--sm .eki-clip__metal { stroke-width: 5; }
         .eki-help__panel {
             position: absolute;
             right: 0;
-            bottom: 64px;
+            bottom: 78px;
             width: min(320px, calc(100vw - 48px));
             background: var(--blanco);
             border: 1px solid var(--borde);
@@ -525,7 +593,7 @@
             background: linear-gradient(135deg, #7D2181 0%, #9A6EAE 100%);
             color: #fff;
         }
-        .eki-help__head svg.eki-help__icon { width: 32px; height: 32px; flex-shrink: 0; }
+        .eki-help__head svg.eki-clip-char--sm { flex-shrink: 0; }
         .eki-help__head strong { font-size: 14px; display: block; }
         .eki-help__head span { font-size: 11px; opacity: 0.9; }
         .eki-help__body { padding: 14px 16px 8px; }
@@ -598,8 +666,10 @@
             padding: 4px 0;
         }
         @media (max-width: 480px) {
-            .eki-help { bottom: 88px; right: 16px; }
-            .eki-help__panel { bottom: 60px; right: -8px; }
+            .eki-help { bottom: 92px; right: 12px; }
+            .eki-help__panel { bottom: 72px; right: -4px; }
+            .eki-clip-char { width: 58px; height: 74px; }
+            .eki-clip__bubble { font-size: 12px; padding: 7px 10px; max-width: 140px; white-space: normal; }
             .wa-fab { right: 16px; bottom: 16px; }
         }
 
@@ -973,9 +1043,31 @@
     </main>
 
     <div class="eki-help" id="eki-help" aria-live="polite">
+        <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+            <defs>
+                <linearGradient id="ekiClipGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#B88BC4"/>
+                    <stop offset="45%" stop-color="#9A6EAE"/>
+                    <stop offset="100%" stop-color="#7D2181"/>
+                </linearGradient>
+                <symbol id="eki-clip-symbol" viewBox="0 0 72 88">
+                    <path class="eki-clip__metal" d="M44 6c11 0 20 9 20 20v34c0 15-12 27-27 27S10 75 10 60V26c0-6 5-11 11-11s11 5 11 11v34c0 3-2 5-5 5s-5-2-5-5V28"/>
+                    <path class="eki-clip__shine" d="M48 14c6 2 10 8 10 14"/>
+                    <path class="eki-clip__brow" d="M24 24c3-3 8-4 12-2"/>
+                    <path class="eki-clip__brow" d="M48 24c-3-3-8-4-12-2"/>
+                    <ellipse class="eki-clip__eye" cx="28" cy="34" rx="6" ry="7"/>
+                    <ellipse class="eki-clip__eye" cx="44" cy="34" rx="6" ry="7"/>
+                    <circle class="eki-clip__pupil" cx="29.5" cy="35" r="2.8"/>
+                    <circle class="eki-clip__pupil" cx="45.5" cy="35" r="2.8"/>
+                    <circle class="eki-clip__pupil" cx="30.5" cy="33.5" r="1" fill="#fff" opacity="0.9"/>
+                    <circle class="eki-clip__pupil" cx="46.5" cy="33.5" r="1" fill="#fff" opacity="0.9"/>
+                    <path d="M26 44 Q36 50 46 44" fill="none" stroke="#5a1860" stroke-width="2.2" stroke-linecap="round"/>
+                </symbol>
+            </defs>
+        </svg>
         <div class="eki-help__panel" id="eki-help-panel" hidden>
             <div class="eki-help__head">
-                <svg class="eki-help__icon" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="12" fill="#fff" fill-opacity="0.2"/><path d="M11 12h18v3.2H15.8v2.4h11.2v3.2H15.8v6.4H11V12z" fill="#fff"/></svg>
+                <svg class="eki-clip-char eki-clip-char--sm" aria-hidden="true"><use href="#eki-clip-symbol"/></svg>
                 <div>
                     <strong>Guía eki</strong>
                     <span>Su asistente en el portal</span>
@@ -993,10 +1085,12 @@
                 <button type="button" class="btn-help btn-help-dismiss" id="eki-help-dismiss">No volver a mostrar aquí</button>
             </div>
         </div>
-        <button type="button" class="eki-help__toggle" id="eki-help-toggle" aria-expanded="false" aria-controls="eki-help-panel" title="¿Ayuda?">
-            <svg class="eki-help__icon" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="12" fill="#fff" fill-opacity="0.15"/><path d="M11 12h18v3.2H15.8v2.4h11.2v3.2H15.8v6.4H11V12z" fill="#fff"/></svg>
+        <button type="button" class="eki-help__toggle" id="eki-help-toggle" aria-expanded="false" aria-controls="eki-help-panel" title="¿Necesita ayuda?">
+            <span class="eki-clip-wrap">
+                <span class="eki-clip__bubble">¿En qué le ayudo?</span>
+                <svg class="eki-clip-char" aria-hidden="true"><use href="#eki-clip-symbol"/></svg>
+            </span>
         </button>
-        <span class="eki-help__toggle-label" aria-hidden="true">¿Ayuda?</span>
     </div>
 
     <a href="{{ portal_whatsapp_url }}" class="wa-fab" target="_blank" rel="noopener noreferrer" title="Contactar soporte eki por WhatsApp">

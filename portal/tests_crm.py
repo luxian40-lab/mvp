@@ -58,7 +58,8 @@ class PortalCrmTests(TestCase):
         self.assertContains(r, 'Operación del día')
         self.assertContains(r, 'Este mes vs mes anterior')
         self.assertContains(r, 'eki-help')
-        self.assertContains(r, 'Guía eki')
+        self.assertContains(r, 'eki-clip-symbol')
+        self.assertContains(r, '¿En qué le ayudo?')
 
     def test_timeline_page(self):
         self._login('crm_admin')
