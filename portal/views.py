@@ -46,7 +46,7 @@ from .utils import limpiar_numero_whatsapp, enviar_whatsapp_respuesta
 from .dashboard_ops import comparativa_periodos, operacion_del_dia
 from .timeline_service import timeline_organizacion
 from .forms_usuarios import CrearUsuarioPortalForm
-from .models import PortalFeedback, PortalSugerenciaIA, PortalUsuario
+from .models import PortalFeedback, PortalUsuario
 from .rag_curso_service import crear_documento_curso, listar_documentos_curso_org
 from .gei_factores import filas_factores_portal
 
@@ -1200,7 +1200,7 @@ def portal_feedback(request):
 
 @portal_login_required
 def portal_conocimiento(request):
-    """RAG y sugerencias para facilitadora IA (cursos / GEI — no Nat)."""
+    """RAG y preguntas ejemplo IA del curso (facilitadora — no Nat)."""
     org = _portal_org(request)
     if not org:
         return redirect('/portal/login/')
@@ -1209,8 +1209,16 @@ def portal_conocimiento(request):
 
     mods = modulos_portal(org)
     cursos = Curso.objects.filter(cliente=org, activo=True).order_by('nombre')
+    es_admin = request.portal_usuario.rol == 'admin'
     error = None
     ok = False
+
+    curso_sel = None
+    curso_raw = request.POST.get('curso_preguntas') or request.GET.get('curso') or ''
+    if str(curso_raw).isdigit():
+        curso_sel = cursos.filter(pk=int(curso_raw)).first()
+    if not curso_sel and cursos.exists():
+        curso_sel = cursos.first()
 
     if request.method == 'POST':
         accion = request.POST.get('accion') or ''
@@ -1227,6 +1235,7 @@ def portal_conocimiento(request):
                         curso,
                         nombre=nombre,
                         tipo=request.POST.get('tipo') or 'contenido',
+                        archivo=archivo,
                         descripcion=(request.POST.get('descripcion') or '').strip(),
                         subido_por=request.portal_usuario.user,
                     )
@@ -1235,43 +1244,31 @@ def portal_conocimiento(request):
                     error = str(exc)
             else:
                 error = 'Seleccione curso, nombre y archivo.'
-        elif accion == 'sugerencia':
-            ambito = request.POST.get('ambito') or 'curso'
-            if ambito not in ('curso', 'gei'):
-                ambito = 'curso'
-            if ambito == 'gei' and not mods['gei']:
-                ambito = 'curso'
-            if ambito == 'curso' and not mods['cursos']:
-                ambito = 'gei'
-            pregunta = (request.POST.get('pregunta') or '').strip()
-            curso = None
-            curso_raw = request.POST.get('curso_sugerencia') or ''
-            if str(curso_raw).isdigit():
-                curso = cursos.filter(pk=int(curso_raw)).first()
-            if pregunta:
-                PortalSugerenciaIA.objects.create(
-                    organizacion=org,
-                    usuario=request.portal_usuario.user,
-                    ambito=ambito,
-                    curso=curso,
-                    pregunta=pregunta,
-                    notas=(request.POST.get('notas') or '').strip(),
-                )
-                ok = True
+        elif accion == 'preguntas_ia' and mods['cursos']:
+            if not es_admin:
+                error = 'Solo administradores del portal pueden editar las preguntas ejemplo.'
             else:
-                error = 'Escriba la pregunta o tema sugerido.'
+                curso_id = request.POST.get('curso_preguntas') or ''
+                curso = None
+                if str(curso_id).isdigit():
+                    curso = cursos.filter(pk=int(curso_id)).first()
+                if curso:
+                    curso.preguntas_ejemplo_ia = (request.POST.get('preguntas_ejemplo_ia') or '').strip()
+                    curso.save(update_fields=['preguntas_ejemplo_ia'])
+                    curso_sel = curso
+                    ok = True
+                else:
+                    error = 'Seleccione un curso válido.'
 
     documentos = listar_documentos_curso_org(org) if mods['cursos'] else []
-    sugerencias = PortalSugerenciaIA.objects.filter(organizacion=org).select_related(
-        'curso', 'usuario',
-    )[:30]
 
     return render(request, 'portal/conocimiento.html', {
         'org': org,
         'mods': mods,
         'cursos': cursos,
+        'curso_sel': curso_sel,
+        'es_admin': es_admin,
         'documentos': documentos,
-        'sugerencias': sugerencias,
         'tipos_documento': [
             ('contenido', 'Contenido del curso'),
             ('manual', 'Manual'),

@@ -330,7 +330,6 @@ JAZZMIN_SETTINGS = {
         "portal": "fas fa-building",
         "portal.PortalUsuario": "fas fa-user-tie",
         "portal.PortalFeedback": "fas fa-comment-dots",
-        "portal.PortalSugerenciaIA": "fas fa-lightbulb",
 
         # Aula web eki — distinto del portal clientes
         "aprende": "fas fa-laptop",
@@ -476,7 +475,6 @@ JAZZMIN_SETTINGS = {
         # Portal clientes (usuarios B2B)
         "portal",
         "portal.PortalFeedback",
-        "portal.PortalSugerenciaIA",
         "portal.PortalUsuario",
         # Aula web eki
         "aprende",

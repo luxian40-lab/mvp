@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import PortalFeedback, PortalSugerenciaIA, PortalUsuario
+from .models import PortalFeedback, PortalUsuario
 
 
 @admin.register(PortalUsuario)
@@ -96,55 +96,3 @@ class PortalFeedbackAdmin(admin.ModelAdmin):
             texto = texto[:117] + '…'
         return texto
 
-
-@admin.register(PortalSugerenciaIA)
-class PortalSugerenciaIAAdmin(admin.ModelAdmin):
-    """Preguntas sugeridas para la facilitadora (cursos / GEI) desde el portal."""
-
-    list_display = ('creado', 'ambito_badge', 'organizacion', 'curso', 'usuario', 'pregunta_corta')
-    list_filter = ('ambito', 'organizacion', 'creado')
-    search_fields = (
-        'pregunta',
-        'notas',
-        'organizacion__nombre',
-        'curso__nombre',
-        'usuario__username',
-        'usuario__email',
-    )
-    readonly_fields = (
-        'organizacion', 'usuario', 'ambito', 'curso', 'pregunta', 'notas', 'creado',
-    )
-    ordering = ('-creado',)
-    list_per_page = 50
-    date_hierarchy = 'creado'
-
-    fieldsets = (
-        (None, {
-            'fields': ('ambito', 'organizacion', 'curso', 'usuario', 'creado'),
-        }),
-        ('Sugerencia', {
-            'fields': ('pregunta', 'notas'),
-        }),
-    )
-
-    def has_add_permission(self, request):
-        return False
-
-    @admin.display(description='Ámbito')
-    def ambito_badge(self, obj):
-        colores = {
-            'curso': ('#ede9fe', '#6d28d9'),
-            'gei': ('#dcfce7', '#15803d'),
-        }
-        bg, color = colores.get(obj.ambito, ('#f1f5f9', '#475569'))
-        return format_html(
-            '<span style="background:{};color:{};padding:3px 10px;border-radius:8px;font-size:0.8rem;">{}</span>',
-            bg, color, obj.get_ambito_display(),
-        )
-
-    @admin.display(description='Pregunta')
-    def pregunta_corta(self, obj):
-        texto = (obj.pregunta or '').replace('\n', ' ')
-        if len(texto) > 100:
-            texto = texto[:97] + '…'
-        return texto

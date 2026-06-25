@@ -130,4 +130,15 @@ class PortalCrmTests(TestCase):
         self._login('crm_admin')
         r = self.http.get('/portal/conocimiento/')
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'facilitadora')
+        self.assertContains(r, 'Preguntas ejemplo para IA')
+
+    def test_conocimiento_guarda_preguntas_ejemplo_ia(self):
+        self._login('crm_admin')
+        r = self.http.post('/portal/conocimiento/', {
+            'accion': 'preguntas_ia',
+            'curso_preguntas': str(self.curso.pk),
+            'preguntas_ejemplo_ia': '¿Cómo lo aplicaría en su finca?\n¿Qué revisaría primero?',
+        })
+        self.assertEqual(r.status_code, 200)
+        self.curso.refresh_from_db()
+        self.assertIn('finca', self.curso.preguntas_ejemplo_ia)
