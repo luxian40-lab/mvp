@@ -68,6 +68,18 @@
 </section>
 {% endif %}
 
+{% if portal_mod_gei %}
+<section class="panel" style="margin-bottom:24px;border-left:4px solid #15803d;">
+    <h2 style="margin-top:0;">Configuración GEI</h2>
+    <p class="muted" style="margin-bottom:14px;">Formularios WhatsApp y factores de cálculo de emisiones para sus productores.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;">
+        <a class="btn btn-outline" href="/portal/gei/formularios/">Preguntas del formulario</a>
+        <a class="btn btn-outline" href="/portal/gei/parametros/">Parámetros de cálculo</a>
+        <a class="btn btn-ghost" href="/portal/gei/">Inventario de fichas</a>
+    </div>
+</section>
+{% endif %}
+
 {% if portal_mod_nat and nat_resumen %}
 <section class="cards-grid" style="margin-bottom:24px;">
     <article class="card">

@@ -446,7 +446,7 @@
             border: 0;
         }
 
-        /* Asistente de ayuda — mascota sombrero vueltiao */
+        /* Asistente de ayuda — botón eki (mismo tamaño que WhatsApp) */
         .eki-help {
             position: fixed;
             right: 24px;
@@ -459,22 +459,22 @@
             width: 56px;
             height: 56px;
             border-radius: 50%;
-            background: linear-gradient(145deg, #FFF9F0 0%, #E8D5B5 100%);
-            border: 2px solid #C9A66B;
+            background: linear-gradient(135deg, #8B2D8F 0%, #5E1870 100%);
+            color: #fff;
             padding: 0;
             display: flex;
             align-items: center;
             justify-content: center;
             line-height: 0;
-            box-shadow: 0 4px 14px rgba(92, 61, 46, 0.22);
+            box-shadow: 0 4px 14px rgba(125, 33, 129, 0.42);
             transition: transform 0.15s ease, box-shadow 0.15s ease;
         }
         .eki-help__toggle:hover {
             transform: scale(1.06);
-            box-shadow: 0 6px 18px rgba(92, 61, 46, 0.28);
+            box-shadow: 0 6px 18px rgba(125, 33, 129, 0.5);
         }
         .eki-help__toggle:focus-visible {
-            outline: 2px solid #7D2181;
+            outline: 2px solid #FCD116;
             outline-offset: 3px;
         }
         .eki-guia-wrap {
@@ -482,33 +482,12 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            animation: eki-guia-sway 4s ease-in-out infinite;
-            transform-origin: 50% 100%;
-        }
-        .eki-help.is-open .eki-guia-wrap {
-            animation: eki-guia-nod 0.45s ease;
-        }
-        .eki-help__toggle:hover .eki-guia-wrap {
-            animation: eki-guia-wiggle 0.6s ease-in-out infinite;
-        }
-        @keyframes eki-guia-sway {
-            0%, 100% { transform: translateY(0) rotate(-2deg); }
-            50% { transform: translateY(-6px) rotate(2deg); }
-        }
-        @keyframes eki-guia-wiggle {
-            0%, 100% { transform: rotate(-3deg); }
-            50% { transform: rotate(3deg); }
-        }
-        @keyframes eki-guia-nod {
-            0%, 100% { transform: rotate(0); }
-            40% { transform: rotate(6deg); }
-            70% { transform: rotate(-3deg); }
         }
         .eki-guia-char {
-            width: 38px;
-            height: 38px;
+            width: 30px;
+            height: 30px;
             display: block;
-            filter: drop-shadow(0 1px 2px rgba(40, 28, 16, 0.15));
+            color: #fff;
         }
         .eki-guia__bubble {
             position: absolute;
@@ -546,9 +525,9 @@
         }
         .eki-help.is-open .eki-guia__bubble { display: none; }
         .eki-guia-char--sm {
-            width: 26px;
-            height: 26px;
-            filter: none;
+            width: 22px;
+            height: 22px;
+            color: #fff;
         }
         .eki-help__panel {
             position: absolute;
@@ -650,7 +629,7 @@
             .eki-help { bottom: 80px; right: 16px; }
             .eki-help__panel { bottom: 64px; right: 0; }
             .eki-help__toggle { width: 56px; height: 56px; }
-            .eki-guia-char { width: 38px; height: 38px; }
+            .eki-guia-char { width: 30px; height: 30px; }
             .eki-guia__bubble { font-size: 12px; padding: 7px 10px; max-width: 150px; white-space: normal; }
             .wa-fab { right: 16px; bottom: 16px; }
         }
@@ -1039,39 +1018,15 @@
     <div class="eki-help" id="eki-help" aria-live="polite">
         <svg width="0" height="0" style="position:absolute" aria-hidden="true">
             <defs>
-                <linearGradient id="ekiVueltiaoBrim" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stop-color="#F4E8D0"/>
-                    <stop offset="100%" stop-color="#C9A66B"/>
-                </linearGradient>
-                <linearGradient id="ekiVueltiaoCrown" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#FAF3E6"/>
-                    <stop offset="100%" stop-color="#E6D4B2"/>
-                </linearGradient>
-                <pattern id="ekiVueltiaoTejido" width="8" height="6" patternUnits="userSpaceOnUse">
-                    <rect width="8" height="6" fill="#F3E8D4"/>
-                    <path d="M0 0 L4 3 L0 6 M4 0 L8 3 L4 6" fill="none" stroke="#1A1410" stroke-width="1.1"/>
-                    <path d="M0 3 L4 0 L8 3 M0 6 L4 3 L8 6" fill="none" stroke="#1A1410" stroke-width="0.7" opacity="0.35"/>
-                </pattern>
-                <symbol id="eki-guia-symbol" viewBox="0 0 64 64">
-                    <!-- Sombrero vueltiao: ala ancha volteada + copa baja (referencia artesanal Zenú) -->
-                    <ellipse cx="32" cy="52" rx="27" ry="5" fill="#000" opacity="0.06"/>
-                    <!-- Ala / ruedo — bordes hacia arriba (vuelta) -->
-                    <path d="M6 44 C6 40 14 34 32 33 C50 34 58 40 58 44 C58 49 50 53 32 53 C14 53 6 49 6 44Z" fill="url(#ekiVueltiaoBrim)"/>
-                    <path d="M6 44 C4 39 8 31 14 29" fill="none" stroke="#9A7848" stroke-width="1.3" stroke-linecap="round"/>
-                    <path d="M58 44 C60 39 56 31 50 29" fill="none" stroke="#9A7848" stroke-width="1.3" stroke-linecap="round"/>
-                    <!-- Ribete tricolor (detalle colombiano en el ala) -->
-                    <path d="M12 46.5 H52" stroke="#FCD116" stroke-width="1.1" stroke-linecap="round"/>
-                    <path d="M12 48 H52" stroke="#003893" stroke-width="1.1" stroke-linecap="round"/>
-                    <path d="M12 49.5 H52" stroke="#CE1126" stroke-width="1.1" stroke-linecap="round"/>
-                    <!-- Copa baja (encopadura) -->
-                    <path d="M20 42 C20 30 24 22 32 20 C40 22 44 30 44 42 Z" fill="url(#ekiVueltiaoCrown)"/>
-                    <path d="M20 42 C20 30 24 22 32 20 C40 22 44 30 44 42 Z" fill="url(#ekiVueltiaoTejido)" opacity="0.92"/>
-                    <!-- Pintas / zigzag caña flecha (rombos) -->
-                    <path d="M22 26 L26 30 L22 34 L18 30 Z M30 26 L34 30 L30 34 L26 30 Z M38 26 L42 30 L38 34 L34 30 Z" fill="#1A1410" opacity="0.85"/>
-                    <path d="M22 34 L26 38 L22 42 L18 38 Z M30 34 L34 38 L30 42 L26 38 Z M38 34 L42 38 L38 42 L34 38 Z" fill="#1A1410" opacity="0.55"/>
-                    <!-- Cintillo -->
-                    <rect x="21" y="39" width="22" height="3.5" rx="1" fill="#7D2181"/>
-                    <text x="32" y="41.8" text-anchor="middle" fill="#fff" font-size="2.8" font-weight="700" font-family="Inter,system-ui,sans-serif">eki</text>
+                <!-- Vista superior: ala ancha + copa (sombrero vueltiao Zenú) -->
+                <symbol id="eki-guia-symbol" viewBox="0 0 48 48">
+                    <ellipse cx="24" cy="27" rx="19" ry="11.5" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <ellipse cx="24" cy="27" rx="13.5" ry="8" fill="none" stroke="currentColor" stroke-width="1.3" opacity="0.85"/>
+                    <path d="M8 27h3.5l1.8-1.6 1.7 1.6H17l1.8-1.6 1.7 1.6h3.5l1.8-1.6 1.7 1.6H31l1.8-1.6 1.7 1.6H38" fill="none" stroke="currentColor" stroke-width="1" opacity="0.75" stroke-linecap="round"/>
+                    <ellipse cx="24" cy="24" rx="6.5" ry="4.2" fill="currentColor"/>
+                    <path d="M11 31.5h26" stroke="#FCD116" stroke-width="1.2" stroke-linecap="round" opacity="0.95"/>
+                    <path d="M11 33h26" stroke="#7EB8FF" stroke-width="1.2" stroke-linecap="round" opacity="0.95"/>
+                    <path d="M11 34.5h26" stroke="#FF8A8A" stroke-width="1.2" stroke-linecap="round" opacity="0.95"/>
                 </symbol>
             </defs>
         </svg>
@@ -1097,7 +1052,7 @@
         </div>
         <button type="button" class="eki-help__toggle" id="eki-help-toggle" aria-expanded="false" aria-controls="eki-help-panel" title="¿Necesita ayuda?">
             <span class="eki-guia-wrap">
-                <span class="eki-guia__bubble">¡Hola! ¿Le ayudo?</span>
+                <span class="eki-guia__bubble">¿Ayuda?</span>
                 <svg class="eki-guia-char" aria-hidden="true"><use href="#eki-guia-symbol"/></svg>
             </span>
         </button>

@@ -196,6 +196,28 @@ class PortalModulosTests(TestCase):
         self.assertFalse(m['cursos'])
         self.assertTrue(m['gei'])
 
+    def test_modulos_gei_por_ficha_en_curso(self):
+        from core.models import Curso
+
+        c = Cliente.objects.create(
+            nombre='Cursos+GEI ficha',
+            contacto_principal='X',
+            email='ficha@test.com',
+            telefono='573009990096',
+            activo=True,
+            tipo_proyecto='cursos',
+            portal_productos='cursos',
+        )
+        Curso.objects.create(
+            cliente=c,
+            nombre='Curso con GEI',
+            activo=True,
+            tiene_formulario_gei=True,
+        )
+        m = modulos_portal(c)
+        self.assertTrue(m['cursos'])
+        self.assertTrue(m['gei'])
+
 
 class PortalViewerGeiTests(TestCase):
     def setUp(self):

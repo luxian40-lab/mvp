@@ -23,7 +23,7 @@ from core.drip_schedule import max_modulo_alcanzado
 from core.metricas_empresa import calcular_metricas_empresa
 from .authz import requiere_portal_admin
 from .curso_flujo_service import embudo_curso_portal
-from .capabilities import categorias_pqrs_portal, modulos_portal, requiere_modulo
+from .capabilities import categorias_pqrs_portal, modulos_portal, puede_editar_config_gei_portal, requiere_modulo
 from .gei_config import (
     formulario_editable_por_org,
     obtener_formulario_org,
@@ -274,13 +274,14 @@ def portal_gei_formularios(request):
     for f in queryset_formularios_org(org):
         formularios.append({
             'obj': f,
-            'editable': formulario_editable_por_org(f, org),
+            'editable': formulario_editable_por_org(f, org, portal_usuario=request.portal_usuario),
             'pasos': f.flujo_pasos.count(),
         })
 
     return render(request, 'portal/gei_formularios.html', {
         'org': org,
         'formularios': formularios,
+        'puede_editar': puede_editar_config_gei_portal(request.portal_usuario),
     })
 
 
@@ -295,12 +296,12 @@ def portal_gei_formulario_editar(request, formulario_id):
     if not formulario:
         return redirect('/portal/gei/formularios/')
 
-    editable = formulario_editable_por_org(formulario, org)
-    es_admin = request.portal_usuario.rol == 'admin'
+    editable = formulario_editable_por_org(formulario, org, portal_usuario=request.portal_usuario)
+    puede_editar = puede_editar_config_gei_portal(request.portal_usuario)
     error = None
     ok = False
 
-    if request.method == 'POST' and editable and es_admin:
+    if request.method == 'POST' and editable and puede_editar:
         from formulario.models import FlujoPregunta
 
         pasos = list(formulario.flujo_pasos.order_by('orden'))
@@ -314,16 +315,17 @@ def portal_gei_formulario_editar(request, formulario_id):
             paso.save(update_fields=['pregunta_texto', 'texto_reintento', 'es_opcional'])
         ok = True
     elif request.method == 'POST' and not editable:
-        error = 'Este formulario es global de eki; solicite una copia propia para editarlo.'
-    elif request.method == 'POST' and not es_admin:
-        error = 'Solo los administradores del portal pueden guardar cambios.'
+        error = 'No tiene permiso para editar este formulario.'
+    elif request.method == 'POST' and not puede_editar:
+        error = 'Solo administrador o profesor del portal pueden guardar cambios.'
 
     pasos = list(formulario.flujo_pasos.order_by('orden'))
     return render(request, 'portal/gei_formulario_editar.html', {
         'org': org,
         'formulario': formulario,
         'pasos': pasos,
-        'editable': editable and es_admin,
+        'editable': editable,
+        'puede_editar': puede_editar,
         'error': error,
         'ok': ok,
     })
@@ -1288,7 +1290,7 @@ def portal_gei_parametros(request):
     if not org:
         return redirect('/portal/login/')
 
-    es_admin = request.portal_usuario.rol == 'admin'
+    es_admin = puede_editar_config_gei_portal(request.portal_usuario)
     ok = False
     error = None
 

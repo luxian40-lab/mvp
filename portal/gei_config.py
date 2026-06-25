@@ -6,6 +6,8 @@ from django.db.models import Q
 
 from core.models import Cliente
 
+from .capabilities import puede_editar_config_gei_portal
+
 
 def queryset_formularios_org(org: Cliente):
     from formulario.models import TipoFormulario
@@ -19,8 +21,13 @@ def queryset_formularios_org(org: Cliente):
     )
 
 
-def formulario_editable_por_org(formulario, org: Cliente) -> bool:
-    return formulario.cliente_id == org.pk
+def formulario_editable_por_org(formulario, org: Cliente, *, portal_usuario=None) -> bool:
+    if formulario.curso.cliente_id != org.pk:
+        return False
+    if portal_usuario is not None and not puede_editar_config_gei_portal(portal_usuario):
+        return False
+    # Admin/profesor: formulario propio o plantilla global eki del curso de la org.
+    return formulario.cliente_id in (org.pk, None)
 
 
 def obtener_formulario_org(formulario_id: int, org: Cliente):

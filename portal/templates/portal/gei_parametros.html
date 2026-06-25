@@ -27,7 +27,7 @@
                 <tr>
                     <th>Parámetro</th>
                     <th>Valor por defecto eki</th>
-                    <th>Su valor</th>
+                    <th>Valor en uso</th>
                 </tr>
             </thead>
             <tbody>
@@ -39,10 +39,12 @@
                     </td>
                     <td class="muted">{{ row.default }}</td>
                     <td>
+                        {% if row.personalizado %}<span class="muted" style="font-size:11px;">Personalizado · </span>{% endif %}
+                        <strong>{{ row.actual }}</strong>
                         {% if es_admin %}
-                        <input type="text" name="factor_{{ row.clave }}" value="{% if row.personalizado %}{{ row.actual }}{% endif %}" placeholder="{{ row.default }}" style="width:100%;max-width:140px;padding:8px;border:1px solid var(--borde);border-radius:6px;font:inherit;">
-                        {% else %}
-                        {% if row.personalizado %}<strong>{{ row.actual }}</strong>{% else %}<span class="muted">Por defecto</span>{% endif %}
+                        <div style="margin-top:6px;">
+                        <input type="text" name="factor_{{ row.clave }}" value="{% if row.personalizado %}{{ row.actual }}{% endif %}" placeholder="Usar default ({{ row.default }})" style="width:100%;max-width:160px;padding:8px;border:1px solid var(--borde);border-radius:6px;font:inherit;">
+                        </div>
                         {% endif %}
                     </td>
                 </tr>
@@ -50,10 +52,10 @@
             </tbody>
         </table>
         {% if es_admin %}
-        <p class="muted" style="margin:14px 0;">Deje vacío un campo para volver al valor por defecto eki.</p>
+        <p class="muted">Deje vacío un campo para volver al valor por defecto eki.</p>
         <button class="btn" type="submit">Guardar parámetros</button>
         {% else %}
-        <p class="muted" style="margin-top:14px;">Solo el administrador del portal puede modificar estos valores.</p>
+        <p class="muted" style="margin-top:14px;">Vista de solo lectura. Solo administrador o profesor del portal pueden modificar estos valores.</p>
         {% endif %}
     </form>
 </section>

@@ -3,6 +3,7 @@ from django.test import Client, TestCase
 
 from core.models import Cliente, Curso, Modulo
 from formulario.models import FlujoPregunta, TipoFormulario
+from portal.gei_config import formulario_editable_por_org
 from portal.middleware import PORTAL_SESSION_KEY
 from portal.models import PortalUsuario
 
@@ -69,7 +70,18 @@ class PortalGeiNatConfigTests(TestCase):
     def test_gei_formularios_viewer_puede_ver(self):
         r = self.http_viewer.get('/portal/gei/formularios/')
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'Inventario finca')
+        self.assertContains(r, self.formulario.nombre)
+
+    def test_gei_formularios_global_editable_admin(self):
+        self.formulario.cliente = None
+        self.formulario.save(update_fields=['cliente'])
+        pu = PortalUsuario.objects.get(user__username='admin_gei')
+        self.assertTrue(
+            formulario_editable_por_org(self.formulario, self.org_gei, portal_usuario=pu)
+        )
+        r = self.http_admin_gei.get(f'/portal/gei/formularios/{self.formulario.pk}/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Plantilla global eki')
 
     def test_gei_editar_pregunta(self):
         paso = self.formulario.flujo_pasos.first()

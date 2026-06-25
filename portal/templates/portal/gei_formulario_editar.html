@@ -23,7 +23,15 @@
 {% endif %}
 {% if not editable %}
     <section class="panel" style="margin-bottom:20px;">
-        <p class="muted">Este formulario es de eki (global). Puede revisar las preguntas; para editarlas pida a eki una copia asignada a su organización.</p>
+        <p class="muted">Este formulario no está asignado a su organización. Contacte a eki si necesita una copia editable.</p>
+    </section>
+{% elif not puede_editar %}
+    <section class="panel" style="margin-bottom:20px;">
+        <p class="muted">Vista de solo lectura. Solo administrador o profesor del portal pueden guardar cambios.</p>
+    </section>
+{% elif formulario.cliente_id is None %}
+    <section class="panel" style="margin-bottom:20px;border-left:4px solid var(--accent);">
+        <p class="muted">Plantilla global eki para su curso. Puede adaptar las preguntas; los cambios aplican a su flujo WhatsApp.</p>
     </section>
 {% endif %}
 
@@ -34,21 +42,21 @@
             <h2 style="font-size:1rem;margin-bottom:10px;">Paso {{ paso.orden }} — {{ paso.campo_destino }}</h2>
             <label style="display:block;margin-bottom:12px;">
                 <strong>Pregunta</strong>
-                <textarea name="paso_{{ paso.id }}_pregunta_texto" rows="3" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;" {% if not editable %}readonly{% endif %}>{{ paso.pregunta_texto }}</textarea>
+                <textarea name="paso_{{ paso.id }}_pregunta_texto" rows="3" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;" {% if not editable or not puede_editar %}readonly{% endif %}>{{ paso.pregunta_texto }}</textarea>
             </label>
             <label style="display:block;margin-bottom:12px;">
                 <strong>Mensaje si la respuesta no es válida</strong>
-                <textarea name="paso_{{ paso.id }}_texto_reintento" rows="2" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;" {% if not editable %}readonly{% endif %}>{{ paso.texto_reintento }}</textarea>
+                <textarea name="paso_{{ paso.id }}_texto_reintento" rows="2" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;" {% if not editable or not puede_editar %}readonly{% endif %}>{{ paso.texto_reintento }}</textarea>
             </label>
             <label style="display:flex;align-items:center;gap:8px;">
-                <input type="checkbox" name="paso_{{ paso.id }}_es_opcional" {% if paso.es_opcional %}checked{% endif %} {% if not editable %}disabled{% endif %}>
+                <input type="checkbox" name="paso_{{ paso.id }}_es_opcional" {% if paso.es_opcional %}checked{% endif %} {% if not editable or not puede_editar %}disabled{% endif %}>
                 El productor puede omitir este paso (OMITIR)
             </label>
         </section>
     {% empty %}
         <section class="panel"><p class="muted">Sin pasos configurados.</p></section>
     {% endfor %}
-    {% if editable and pasos %}
+    {% if editable and puede_editar and pasos %}
         <button class="btn" type="submit">Guardar cambios</button>
     {% endif %}
 </form>

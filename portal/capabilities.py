@@ -44,6 +44,41 @@ def _parse_portal_productos(raw: str) -> set[str]:
     }
 
 
+def org_tiene_gei_operativo(org) -> bool:
+    """GEI activo si hay ficha/formulario en cursos de la org (aunque portal_productos no liste gei)."""
+    if not org or not getattr(org, 'pk', None):
+        return False
+    try:
+        from core.models import Curso
+
+        if Curso.objects.filter(
+            cliente_id=org.pk,
+            tiene_formulario_gei=True,
+        ).exists():
+            return True
+    except Exception:
+        pass
+    try:
+        from formulario.models import TipoFormulario
+
+        if TipoFormulario.objects.filter(curso__cliente_id=org.pk).exists():
+            return True
+    except Exception:
+        pass
+    try:
+        from formulario.models import FichaGEI
+
+        if FichaGEI.objects.filter(cliente_id=org.pk).exists():
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def puede_editar_config_gei_portal(portal_usuario) -> bool:
+    return getattr(portal_usuario, 'rol', None) in ('admin', 'profesor')
+
+
 def modulos_portal(org) -> dict[str, bool]:
     """
     Módulos activos en el portal.
@@ -52,15 +87,21 @@ def modulos_portal(org) -> dict[str, bool]:
     """
     explicit = _parse_portal_productos(getattr(org, 'portal_productos', '') or '')
     if explicit:
-        return {m: m in explicit for m in MODULOS_VALIDOS}
+        result = {m: m in explicit for m in MODULOS_VALIDOS}
+        if org_tiene_gei_operativo(org):
+            result['gei'] = True
+        return result
 
     principal = (getattr(org, 'tipo_proyecto', None) or 'cursos').lower()
-    return {
+    result = {
         'cursos': principal == 'cursos',
         'gei': principal == 'gei',
         'nat': principal == 'nat',
         'empleabilidad': False,
     }
+    if org_tiene_gei_operativo(org):
+        result['gei'] = True
+    return result
 
 
 def categorias_pqrs_portal(org) -> list[str] | None:
