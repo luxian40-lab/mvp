@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
+from django.urls import reverse
 
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
 from core.models_extras import GrupoEstudiantes
@@ -116,6 +117,14 @@ class PortalCrmTests(TestCase):
         })
         self.assertEqual(r.status_code, 302)
         self.assertTrue(PortalFeedback.objects.filter(mensaje='Me gusta el portal').exists())
+
+    def test_feedback_registrado_en_admin(self):
+        from django.contrib import admin
+
+        self.assertIn(PortalFeedback, admin.site._registry)
+        meta = PortalFeedback._meta
+        url = reverse(f'admin:{meta.app_label}_{meta.model_name}_changelist')
+        self.assertEqual(url, '/admin/portal/portalfeedback/')
 
     def test_conocimiento_page(self):
         self._login('crm_admin')
