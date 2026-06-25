@@ -1,0 +1,60 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Parámetros GEI | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <p class="muted" style="margin:0 0 6px;"><a href="/portal/gei/">Inventario GEI</a> / Parámetros</p>
+        <h1>Parámetros de cálculo GEI</h1>
+        <p class="muted">Factores usados en el balance de emisiones. El valor <strong>por defecto eki</strong> se muestra en gris; puede personalizarlo si su metodología lo requiere.</p>
+    </div>
+    <a class="btn btn-outline" href="/portal/gei/formularios/">Formularios</a>
+</div>
+
+{% if ok %}
+<section class="panel" style="margin-bottom:20px;border-left:4px solid var(--ok);"><p>Parámetros guardados.</p></section>
+{% endif %}
+{% if error %}
+<section class="panel" style="margin-bottom:20px;border-left:4px solid var(--danger);"><p>{{ error }}</p></section>
+{% endif %}
+
+<section class="panel">
+    <form method="post">
+        {% csrf_token %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Parámetro</th>
+                    <th>Valor por defecto eki</th>
+                    <th>Su valor</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in filas %}
+                <tr>
+                    <td>
+                        <strong>{{ row.label }}</strong>
+                        <div class="muted" style="font-size:11px;">{{ row.clave }}</div>
+                    </td>
+                    <td class="muted">{{ row.default }}</td>
+                    <td>
+                        {% if es_admin %}
+                        <input type="text" name="factor_{{ row.clave }}" value="{% if row.personalizado %}{{ row.actual }}{% endif %}" placeholder="{{ row.default }}" style="width:100%;max-width:140px;padding:8px;border:1px solid var(--borde);border-radius:6px;font:inherit;">
+                        {% else %}
+                        {% if row.personalizado %}<strong>{{ row.actual }}</strong>{% else %}<span class="muted">Por defecto</span>{% endif %}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if es_admin %}
+        <p class="muted" style="margin:14px 0;">Deje vacío un campo para volver al valor por defecto eki.</p>
+        <button class="btn" type="submit">Guardar parámetros</button>
+        {% else %}
+        <p class="muted" style="margin-top:14px;">Solo el administrador del portal puede modificar estos valores.</p>
+        {% endif %}
+    </form>
+</section>
+{% endblock %}

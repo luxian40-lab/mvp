@@ -66,9 +66,10 @@ class PortalGeiNatConfigTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Inventario finca')
 
-    def test_gei_formularios_viewer_bloqueado(self):
+    def test_gei_formularios_viewer_puede_ver(self):
         r = self.http_viewer.get('/portal/gei/formularios/')
-        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Inventario finca')
 
     def test_gei_editar_pregunta(self):
         paso = self.formulario.flujo_pasos.first()

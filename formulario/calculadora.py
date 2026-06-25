@@ -40,34 +40,58 @@ FACTORES: dict[str, float] = {
 }
 
 
-def _factor_residuos_por_manejo(manejo: str) -> float:
+def factores_para_cliente_id(cliente_id) -> dict[str, float]:
+    """Factores globales + overrides guardados en Cliente.gei_factores_json."""
+    merged = dict(FACTORES)
+    if not cliente_id:
+        return merged
+    try:
+        from core.models import Cliente
+
+        raw = Cliente.objects.filter(pk=cliente_id).values_list('gei_factores_json', flat=True).first()
+        if isinstance(raw, dict):
+            for key, val in raw.items():
+                if key in merged:
+                    try:
+                        merged[key] = float(val)
+                    except (TypeError, ValueError):
+                        continue
+    except Exception:
+        pass
+    return merged
+
+
+def _factor_residuos_por_manejo(manejo: str, factores: dict | None = None) -> float:
+    f = factores or FACTORES
     m = (manejo or "").strip().lower()
     if m == "compost":
-        return FACTORES["residuos_compost_kg"]
+        return f["residuos_compost_kg"]
     if m == "suelo_directo":
-        return FACTORES["residuos_suelo_directo_kg"]
+        return f["residuos_suelo_directo_kg"]
     if m == "externo":
-        return FACTORES["residuos_externo_kg"]
+        return f["residuos_externo_kg"]
     if m == "quemado":
-        return FACTORES["residuos_quemado_kg"]
+        return f["residuos_quemado_kg"]
     if m == "otro":
-        return FACTORES["residuos_otro_kg"]
-    return FACTORES["residuos_default_kg"]
+        return f["residuos_otro_kg"]
+    return f["residuos_default_kg"]
 
 
-def _factor_combustible_gal(tipo: str) -> float:
+def _factor_combustible_gal(tipo: str, factores: dict | None = None) -> float:
+    f = factores or FACTORES
     t = (tipo or "").strip().lower()
     if t == "gasolina":
-        return FACTORES["gasolina_gal"]
+        return f["gasolina_gal"]
     if t == "diesel":
-        return FACTORES["diesel_gal"]
-    return FACTORES["ambos_gal"]
+        return f["diesel_gal"]
+    return f["ambos_gal"]
 
 
-def _factor_electricidad_kwh(anio: int | None) -> float:
+def _factor_electricidad_kwh(anio: int | None, factores: dict | None = None) -> float:
+    f = factores or FACTORES
     if anio is not None and int(anio) <= 2025:
-        return FACTORES["electricidad_kwh_2025"]
-    return FACTORES["electricidad_kwh_2026"]
+        return f["electricidad_kwh_2025"]
+    return f["electricidad_kwh_2026"]
 
 
 def _emision_n2o_desde_kg_n(kg_n: float, ef_directo: float) -> float:
@@ -80,7 +104,7 @@ def _emision_n2o_desde_kg_n(kg_n: float, ef_directo: float) -> float:
     return t1 + t2 + t3
 
 
-def _calcular_emision_fertilizante(ficha) -> tuple[float | None, str | None]:
+def _calcular_emision_fertilizante(ficha, factores: dict | None = None) -> tuple[float | None, str | None]:
     """
     Devuelve (kg CO₂e, motivo_faltante).
     Orgánico: kg fertilizante con 1,6% N fijo. Sintético: kg × % N.
@@ -92,14 +116,15 @@ def _calcular_emision_fertilizante(ficha) -> tuple[float | None, str | None]:
         return 0.0, None
 
     tipo = (getattr(ficha, "tipo_fertilizante", None) or "sintetico").strip().lower()
+    f = factores or FACTORES
     if tipo == "organico":
-        kg_n = kg_fert * FACTORES["organico_n_pct"]
-        return _emision_n2o_desde_kg_n(kg_n, FACTORES["organico_ef_directo"]), None
+        kg_n = kg_fert * f["organico_n_pct"]
+        return _emision_n2o_desde_kg_n(kg_n, f["organico_ef_directo"]), None
 
     if ficha.concentracion_n_pct is None:
         return None, "fertilizante / % nitrógeno"
     kg_n = kg_fert * (float(ficha.concentracion_n_pct) / 100.0)
-    return _emision_n2o_desde_kg_n(kg_n, FACTORES["sintetico_ef_directo"]), None
+    return _emision_n2o_desde_kg_n(kg_n, f["sintetico_ef_directo"]), None
 
 
 def estimar_cobertura_metodologica(ficha) -> dict[str, Any]:
@@ -170,6 +195,7 @@ def calcular_balance_gei(ficha) -> dict[str, Any]:
     Devuelve dict con emisiones, remociones, balance, intensidad, completitud y faltantes.
     `ficha` debe ser instancia de FichaGEI.
     """
+    F = factores_para_cliente_id(getattr(ficha, 'cliente_id', None))
     resultado: dict[str, Any] = {
         "emisiones": {},
         "remociones": {},
@@ -185,7 +211,7 @@ def calcular_balance_gei(ficha) -> dict[str, Any]:
     campos_usados = 0
 
     # 1. Fertilizante nitrogenado
-    em_fert, falta_fert = _calcular_emision_fertilizante(ficha)
+    em_fert, falta_fert = _calcular_emision_fertilizante(ficha, F)
     if em_fert is not None:
         resultado["emisiones"]["fertilizante_kg_co2e"] = round(em_fert, 2)
         emisiones_kg += em_fert
@@ -195,7 +221,7 @@ def calcular_balance_gei(ficha) -> dict[str, Any]:
 
     # 2. Combustible
     if ficha.combustible_gal is not None:
-        factor = _factor_combustible_gal(getattr(ficha, "tipo_combustible", "") or "")
+        factor = _factor_combustible_gal(getattr(ficha, "tipo_combustible", "") or "", F)
         em_comb = float(ficha.combustible_gal) * factor
         resultado["emisiones"]["combustible_kg_co2e"] = round(em_comb, 2)
         emisiones_kg += em_comb
@@ -206,7 +232,7 @@ def calcular_balance_gei(ficha) -> dict[str, Any]:
     # 3. Energía eléctrica (kWh/año)
     if ficha.energia_kwh is not None:
         anio = getattr(ficha, "anio_datos_energia", None)
-        em_elec = float(ficha.energia_kwh) * _factor_electricidad_kwh(anio)
+        em_elec = float(ficha.energia_kwh) * _factor_electricidad_kwh(anio, F)
         resultado["emisiones"]["energia_kg_co2e"] = round(em_elec, 2)
         emisiones_kg += em_elec
         campos_usados += 1
@@ -215,7 +241,7 @@ def calcular_balance_gei(ficha) -> dict[str, Any]:
 
     # 4. Residuos orgánicos (ton → kg × factor kg/kg)
     if ficha.residuos_ton is not None and (ficha.manejo_residuos or "").strip():
-        factor_res = _factor_residuos_por_manejo(ficha.manejo_residuos)
+        factor_res = _factor_residuos_por_manejo(ficha.manejo_residuos, F)
         em_res = float(ficha.residuos_ton) * 1000.0 * factor_res
         resultado["emisiones"]["residuos_kg_co2e"] = round(em_res, 2)
         emisiones_kg += em_res
@@ -228,7 +254,7 @@ def calcular_balance_gei(ficha) -> dict[str, Any]:
     if ficha.tiene_bosque is False:
         campos_usados += 1
     elif ficha.tiene_bosque is True and ficha.area_bosque_ha is not None:
-        rem_bosque = float(ficha.area_bosque_ha) * FACTORES["bosque_conservacion_ha"] * 1000.0
+        rem_bosque = float(ficha.area_bosque_ha) * F["bosque_conservacion_ha"] * 1000.0
         resultado["remociones"]["bosque_kg_co2e"] = round(rem_bosque, 2)
         remociones_kg += rem_bosque
         campos_usados += 1
@@ -249,15 +275,15 @@ def calcular_balance_gei(ficha) -> dict[str, Any]:
         resultado["intensidad_kg_co2e_por_kg"] = round(intensidad, 3)
         ev = (
             "excelente"
-            if intensidad < FACTORES["intensidad_cafe_eficiente"]
+            if intensidad < F["intensidad_cafe_eficiente"]
             else "bueno"
-            if intensidad < FACTORES["intensidad_cafe_promedio"]
+            if intensidad < F["intensidad_cafe_promedio"]
             else "mejorable"
         )
         resultado["comparacion_benchmark"] = {
             "valor_finca": round(intensidad, 3),
-            "promedio_sectorial": FACTORES["intensidad_cafe_promedio"],
-            "escenario_eficiente": FACTORES["intensidad_cafe_eficiente"],
+            "promedio_sectorial": F["intensidad_cafe_promedio"],
+            "escenario_eficiente": F["intensidad_cafe_eficiente"],
             "evaluacion": ev,
         }
         campos_usados += 1

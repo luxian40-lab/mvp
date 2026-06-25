@@ -28,3 +28,73 @@ class PortalUsuario(models.Model):
     class Meta:
         verbose_name = 'Usuario portal clientes'
         verbose_name_plural = 'Usuarios portal clientes'
+
+
+class PortalFeedback(models.Model):
+    """Comentarios de usuarios del portal hacia el equipo eki."""
+
+    CATEGORIA_CHOICES = [
+        ('bug', 'Problema / error'),
+        ('mejora', 'Sugerencia de mejora'),
+        ('pregunta', 'Pregunta'),
+        ('otro', 'Otro'),
+    ]
+
+    organizacion = models.ForeignKey(
+        Cliente,
+        on_delete=models.CASCADE,
+        related_name='feedbacks_portal',
+    )
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    categoria = models.CharField(max_length=20, choices=CATEGORIA_CHOICES, default='mejora')
+    mensaje = models.TextField()
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-creado']
+        verbose_name = 'Feedback portal'
+        verbose_name_plural = 'Feedbacks portal'
+
+    def __str__(self):
+        return f'Feedback {self.organizacion.nombre} ({self.categoria})'
+
+
+class PortalSugerenciaIA(models.Model):
+    """Preguntas sugeridas para la facilitadora IA (cursos / GEI)."""
+
+    AMBITO_CHOICES = [
+        ('curso', 'Curso / facilitadora'),
+        ('gei', 'Inventario GEI'),
+    ]
+
+    organizacion = models.ForeignKey(
+        Cliente,
+        on_delete=models.CASCADE,
+        related_name='sugerencias_ia_portal',
+    )
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    ambito = models.CharField(max_length=10, choices=AMBITO_CHOICES)
+    curso = models.ForeignKey(
+        'core.Curso',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
+    pregunta = models.TextField(help_text='Pregunta o tema que la IA debería saber responder.')
+    notas = models.TextField(blank=True, default='')
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-creado']
+        verbose_name = 'Sugerencia IA portal'
+        verbose_name_plural = 'Sugerencias IA portal'

@@ -46,7 +46,9 @@ from .utils import limpiar_numero_whatsapp, enviar_whatsapp_respuesta
 from .dashboard_ops import comparativa_periodos, operacion_del_dia
 from .timeline_service import timeline_organizacion
 from .forms_usuarios import CrearUsuarioPortalForm
-from .models import PortalUsuario
+from .models import PortalFeedback, PortalSugerenciaIA, PortalUsuario
+from .rag_curso_service import crear_documento_curso, listar_documentos_curso_org
+from .gei_factores import filas_factores_portal
 
 
 def _portal_org(request):
@@ -256,9 +258,13 @@ def portal_gei_detalle(request, ficha_id):
     })
 
 
+def _modulo_facilitador_ia(org):
+    mods = modulos_portal(org)
+    return mods.get('cursos') or mods.get('gei')
+
+
 @portal_login_required
 @requiere_modulo('gei')
-@requiere_portal_admin
 def portal_gei_formularios(request):
     org = _portal_org(request)
     if not org:
@@ -280,7 +286,6 @@ def portal_gei_formularios(request):
 
 @portal_login_required
 @requiere_modulo('gei')
-@requiere_portal_admin
 def portal_gei_formulario_editar(request, formulario_id):
     org = _portal_org(request)
     if not org:
@@ -291,10 +296,11 @@ def portal_gei_formulario_editar(request, formulario_id):
         return redirect('/portal/gei/formularios/')
 
     editable = formulario_editable_por_org(formulario, org)
+    es_admin = request.portal_usuario.rol == 'admin'
     error = None
     ok = False
 
-    if request.method == 'POST' and editable:
+    if request.method == 'POST' and editable and es_admin:
         from formulario.models import FlujoPregunta
 
         pasos = list(formulario.flujo_pasos.order_by('orden'))
@@ -309,13 +315,15 @@ def portal_gei_formulario_editar(request, formulario_id):
         ok = True
     elif request.method == 'POST' and not editable:
         error = 'Este formulario es global de eki; solicite una copia propia para editarlo.'
+    elif request.method == 'POST' and not es_admin:
+        error = 'Solo los administradores del portal pueden guardar cambios.'
 
     pasos = list(formulario.flujo_pasos.order_by('orden'))
     return render(request, 'portal/gei_formulario_editar.html', {
         'org': org,
         'formulario': formulario,
         'pasos': pasos,
-        'editable': editable,
+        'editable': editable and es_admin,
         'error': error,
         'ok': ok,
     })
@@ -1159,4 +1167,157 @@ def perfil_organizacion(request):
         'mensaje_error': mensaje_error,
         'branding_completo': branding_portal_completo(org),
         'branding_pasos': pasos_branding(org),
+    })
+
+
+@portal_login_required
+def portal_feedback(request):
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    ok = False
+    if request.method == 'POST':
+        mensaje = (request.POST.get('mensaje') or '').strip()
+        categoria = request.POST.get('categoria') or 'mejora'
+        if mensaje:
+            PortalFeedback.objects.create(
+                organizacion=org,
+                usuario=request.portal_usuario.user,
+                categoria=categoria,
+                mensaje=mensaje,
+            )
+            return redirect('/portal/feedback/?enviado=1')
+    if request.GET.get('enviado'):
+        ok = True
+
+    return render(request, 'portal/feedback.html', {
+        'org': org,
+        'ok': ok,
+        'categorias': PortalFeedback.CATEGORIA_CHOICES,
+    })
+
+
+@portal_login_required
+def portal_conocimiento(request):
+    """RAG y sugerencias para facilitadora IA (cursos / GEI — no Nat)."""
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+    if not _modulo_facilitador_ia(org):
+        return redirect('/portal/dashboard/')
+
+    mods = modulos_portal(org)
+    cursos = Curso.objects.filter(cliente=org, activo=True).order_by('nombre')
+    error = None
+    ok = False
+
+    if request.method == 'POST':
+        accion = request.POST.get('accion') or ''
+        if accion == 'rag' and mods['cursos']:
+            curso_id = request.POST.get('curso') or ''
+            curso = None
+            if str(curso_id).isdigit():
+                curso = cursos.filter(pk=int(curso_id)).first()
+            nombre = (request.POST.get('nombre') or '').strip()
+            archivo = request.FILES.get('archivo')
+            if curso and nombre and archivo:
+                try:
+                    crear_documento_curso(
+                        curso,
+                        nombre=nombre,
+                        tipo=request.POST.get('tipo') or 'contenido',
+                        descripcion=(request.POST.get('descripcion') or '').strip(),
+                        subido_por=request.portal_usuario.user,
+                    )
+                    ok = True
+                except ValueError as exc:
+                    error = str(exc)
+            else:
+                error = 'Seleccione curso, nombre y archivo.'
+        elif accion == 'sugerencia':
+            ambito = request.POST.get('ambito') or 'curso'
+            if ambito not in ('curso', 'gei'):
+                ambito = 'curso'
+            if ambito == 'gei' and not mods['gei']:
+                ambito = 'curso'
+            if ambito == 'curso' and not mods['cursos']:
+                ambito = 'gei'
+            pregunta = (request.POST.get('pregunta') or '').strip()
+            curso = None
+            curso_raw = request.POST.get('curso_sugerencia') or ''
+            if str(curso_raw).isdigit():
+                curso = cursos.filter(pk=int(curso_raw)).first()
+            if pregunta:
+                PortalSugerenciaIA.objects.create(
+                    organizacion=org,
+                    usuario=request.portal_usuario.user,
+                    ambito=ambito,
+                    curso=curso,
+                    pregunta=pregunta,
+                    notas=(request.POST.get('notas') or '').strip(),
+                )
+                ok = True
+            else:
+                error = 'Escriba la pregunta o tema sugerido.'
+
+    documentos = listar_documentos_curso_org(org) if mods['cursos'] else []
+    sugerencias = PortalSugerenciaIA.objects.filter(organizacion=org).select_related(
+        'curso', 'usuario',
+    )[:30]
+
+    return render(request, 'portal/conocimiento.html', {
+        'org': org,
+        'mods': mods,
+        'cursos': cursos,
+        'documentos': documentos,
+        'sugerencias': sugerencias,
+        'tipos_documento': [
+            ('contenido', 'Contenido del curso'),
+            ('manual', 'Manual'),
+            ('faq', 'Preguntas frecuentes'),
+            ('guia', 'Guía práctica'),
+            ('normativa', 'Normativa'),
+        ],
+        'error': error,
+        'ok': ok,
+    })
+
+
+@portal_login_required
+@requiere_modulo('gei')
+def portal_gei_parametros(request):
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    es_admin = request.portal_usuario.rol == 'admin'
+    ok = False
+    error = None
+
+    if request.method == 'POST' and es_admin:
+        from formulario.calculadora import FACTORES
+
+        overrides = dict(org.gei_factores_json or {})
+        for key in FACTORES:
+            raw = (request.POST.get(f'factor_{key}') or '').strip()
+            if raw == '':
+                overrides.pop(key, None)
+                continue
+            try:
+                overrides[key] = float(raw.replace(',', '.'))
+            except ValueError:
+                error = f'Valor inválido para {key}.'
+                break
+        if not error:
+            org.gei_factores_json = overrides
+            org.save(update_fields=['gei_factores_json'])
+            ok = True
+
+    return render(request, 'portal/gei_parametros.html', {
+        'org': org,
+        'filas': filas_factores_portal(org),
+        'es_admin': es_admin,
+        'ok': ok,
+        'error': error,
     })

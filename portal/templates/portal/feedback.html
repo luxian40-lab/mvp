@@ -1,0 +1,33 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Feedback | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <h1>Feedback</h1>
+        <p class="muted">Cuéntenos qué mejorar del portal o reporte un problema. Lo recibe el equipo eki.</p>
+    </div>
+</div>
+
+{% if ok %}
+<section class="panel" style="margin-bottom:20px;border-left:4px solid var(--ok);">
+    <p>Gracias — recibimos su mensaje.</p>
+</section>
+{% endif %}
+
+<section class="panel">
+    <form method="post" style="max-width:520px;">
+        {% csrf_token %}
+        <label style="display:block;font-weight:600;margin-bottom:6px;">Tipo</label>
+        <select name="categoria" style="width:100%;margin-bottom:14px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
+            {% for key, label in categorias %}
+            <option value="{{ key }}">{{ label }}</option>
+            {% endfor %}
+        </select>
+        <label style="display:block;font-weight:600;margin-bottom:6px;">Mensaje</label>
+        <textarea name="mensaje" rows="5" required placeholder="Describa su experiencia, idea o problema…" style="width:100%;margin-bottom:14px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;box-sizing:border-box;"></textarea>
+        <button class="btn" type="submit">Enviar feedback</button>
+    </form>
+</section>
+{% endblock %}

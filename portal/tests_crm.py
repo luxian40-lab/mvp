@@ -8,7 +8,7 @@ from django.test import Client, TestCase
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
 from core.models_extras import GrupoEstudiantes
 from portal.middleware import PORTAL_SESSION_KEY
-from portal.models import PortalUsuario
+from portal.models import PortalFeedback, PortalUsuario
 
 
 class PortalCrmTests(TestCase):
@@ -107,3 +107,18 @@ class PortalCrmTests(TestCase):
         r = self.http.get('/portal/gamificacion/')
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Gamificación')
+
+    def test_feedback_page(self):
+        self._login('crm_admin')
+        r = self.http.post('/portal/feedback/', {
+            'categoria': 'mejora',
+            'mensaje': 'Me gusta el portal',
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(PortalFeedback.objects.filter(mensaje='Me gusta el portal').exists())
+
+    def test_conocimiento_page(self):
+        self._login('crm_admin')
+        r = self.http.get('/portal/conocimiento/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'facilitadora')

@@ -12,9 +12,10 @@
         <h1>Inventario GEI</h1>
         <p class="muted">Recolección de datos y balance de emisiones por productor.</p>
     </div>
-    {% if portal_es_admin %}
+    <div style="display:flex;flex-wrap:wrap;gap:10px;">
         <a class="btn btn-outline" href="/portal/gei/formularios/">Preguntas del formulario</a>
-    {% endif %}
+        <a class="btn btn-outline" href="/portal/gei/parametros/">Parámetros de cálculo</a>
+    </div>
 </div>
 
 {% if not gei_ok %}

@@ -331,6 +331,12 @@ class Cliente(models.Model):
         verbose_name='Subtítulo en portal',
         help_text='Texto corto bajo el nombre en el portal (ej: Cooperativa del Valle — 2026).',
     )
+    gei_factores_json = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='Factores GEI personalizados',
+        help_text='Overrides de factores de emisión (portal). Claves válidas = FACTORES en formulario.calculadora.',
+    )
     whatsapp_numero = models.CharField(
         max_length=20,
         unique=True,

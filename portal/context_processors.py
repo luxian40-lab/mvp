@@ -48,6 +48,7 @@ def portal_organizacion(request):
         'portal_mod_gei': mods['gei'],
         'portal_mod_nat': mods['nat'],
         'portal_mod_empleabilidad': mods['empleabilidad'],
+        'portal_mod_facilitador': mods['cursos'] or mods['gei'],
         'portal_branding_completo': branding_ok,
         'portal_branding_pasos': pasos_branding(org),
         'portal_branding_pendientes': sum(1 for p in pasos_branding(org) if not p['done']),
