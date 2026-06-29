@@ -5,7 +5,7 @@
 <div class="eki-page-head">
     <span class="eki-kicker">Panel del estudiante</span>
     <h1>{{ estudiante.nombre }}</h1>
-    <p class="eki-lead">Continúe su formación o inscríbase en un curso del catálogo.</p>
+    <p class="eki-lead">Continúe su formación en los cursos donde está inscrito.</p>
 </div>
 
 {% if messages %}
@@ -17,7 +17,7 @@
 {% endif %}
 
 {% if progresos %}
-<section style="margin-bottom:2rem;">
+<section>
     <h2 class="eki-h2">Mis cursos</h2>
     <div class="eki-grid-2">
         {% for p in progresos %}
@@ -38,35 +38,18 @@
         {% endfor %}
     </div>
 </section>
-{% endif %}
-
-{% if catalogo %}
-<section>
-    <h2 class="eki-h2">Catálogo</h2>
-    <p class="eki-muted" style="margin:-0.5rem 0 1rem;">Cursos disponibles para inscripción en su organización.</p>
-    <div class="eki-grid-2">
-        {% for c in catalogo %}
-        <article class="eki-card eki-card--bar">
-            <h3 style="margin-bottom:0.35rem;font-size:1.05rem;font-family:var(--font-serif);">{{ c.nombre }}</h3>
-            {% if c.cliente %}
-            <p class="eki-muted" style="font-size:0.8rem;margin:0 0 0.35rem;">{{ c.cliente.nombre }}</p>
-            {% else %}
-            <p class="eki-muted" style="font-size:0.8rem;margin:0 0 0.35rem;">Curso general eki</p>
-            {% endif %}
-            <p class="eki-muted">{{ c.descripcion|truncatewords:24 }}</p>
-            <p class="eki-muted" style="font-size:0.8rem;">{{ c.total_lecciones }} lección{{ c.total_lecciones|pluralize:"es" }}</p>
-            <form method="post" action="{% url 'aprende_estudiante_inscribir' c.id %}" style="margin-top:0.85rem;">
-                {% csrf_token %}
-                <button type="submit" class="eki-btn eki-btn--primary eki-btn--sm">Empezar curso</button>
-            </form>
-        </article>
-        {% endfor %}
-    </div>
-</section>
-{% elif not progresos %}
+<p class="eki-muted" style="margin-top:1rem;font-size:0.85rem;">
+    Las entregas y calificaciones están en <a href="{% url 'aprende_estudiante_tareas' %}">Tareas</a>.
+</p>
+{% else %}
 <div class="eki-card eki-empty">
-    <h2>Sin cursos disponibles</h2>
-    <p class="eki-muted">Comuníquese con su coordinador para publicar cursos o completar su inscripción.</p>
+    <h2>Sin cursos activos</h2>
+    <p class="eki-muted">Si busca inscribirse en un programa nuevo, hágalo en eki Studio.</p>
+    <a href="/studio/cursos/" class="eki-btn eki-btn--ghost eki-btn--sm" style="margin-top:1rem;">Explorar en Studio</a>
 </div>
 {% endif %}
+
+<p class="eki-muted" style="margin-top:2rem;font-size:0.8rem;text-align:center;">
+    ¿Más cursos? <a href="/studio/">eki Studio</a>
+</p>
 {% endblock %}

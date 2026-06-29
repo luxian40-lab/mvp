@@ -32,6 +32,7 @@ Sustituir dominio si pruebas contra prod:
 curl -4 -s -o NUL -w "health: %{http_code}\n" "https://admin.eki.technology/health/"
 curl -4 -s -o NUL -w "portal: %{http_code}\n" "https://app.eki.technology/portal/login/"
 curl -4 -s -o NUL -w "aprende: %{http_code}\n" "https://aprende.eki.technology/aprende/"
+curl -4 -s -o NUL -w "studio: %{http_code}\n" "https://studio.eki.technology/studio/"
 curl -4 -s -o NUL -w "admin: %{http_code}\n" "https://admin.eki.technology/admin/login/"
 ```
 
@@ -45,7 +46,9 @@ Esperado: **200** en health, portal, aprende; **302** en admin login (sin sesió
 | Aula web hub | `/admin/aula-web/` |
 | Portal login | `/portal/login/` |
 | Aula estudiante | `/aprende/estudiante/login/` |
-| Catálogo cursos | login estudiante → ver cursos/tareas |
+| Studio catálogo | `https://studio.eki.technology/studio/cursos/` |
+| Tareas estudiante | login → `/aprende/estudiante/tareas/` |
+| Calificar tarea | `/aprende/profesor/` o admin → Entregas de tareas |
 
 ## 5. WhatsApp (opcional, número prueba)
 

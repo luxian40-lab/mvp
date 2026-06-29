@@ -1,0 +1,44 @@
+{% extends "aprende/base.html" %}
+{% block title %}Tareas | eki{% endblock %}
+{% block nav %}{% include "aprende/estudiante_nav.html" %}{% endblock %}
+{% block content %}
+<div class="eki-page-head">
+    <span class="eki-kicker">Entregas académicas</span>
+    <h1>Tareas</h1>
+    <p class="eki-lead">Aquí entrega el trabajo que asigne su docente. Suba archivos; ellos o el equipo eki los calificarán de 1 a 5.</p>
+</div>
+
+{% include "aprende/partials/tareas_guia_estudiante.html" %}
+
+{% if not secciones %}
+<div class="eki-card">
+    <p class="eki-muted">No hay tareas publicadas en sus cursos por ahora. Aparecerán cuando el docente las asigne.</p>
+</div>
+{% else %}
+{% for sec in secciones %}
+<div class="eki-card" style="margin-bottom:1.25rem;">
+    <h2 class="eki-h2">{{ sec.curso.nombre }}</h2>
+    <ul class="eki-list">
+        {% for item in sec.tareas_list %}
+        <li class="eki-list-item">
+            <span class="eki-list-num">T</span>
+            <div style="flex:1;min-width:0;">
+                <a href="{% url 'aprende_estudiante_tarea' item.tarea.id %}">{{ item.tarea.titulo }}</a>
+                {% if item.tarea.modulo %}
+                <p class="eki-muted" style="margin:0.2rem 0 0;font-size:0.8rem;">Módulo {{ item.tarea.modulo.numero }}</p>
+                {% endif %}
+                {% if item.entrega and item.entrega.calificada %}
+                <p class="eki-muted" style="margin:0.25rem 0 0;">Nota: <strong>{{ item.entrega.nota }}/5</strong></p>
+                {% elif item.entrega %}
+                <p class="eki-muted" style="margin:0.25rem 0 0;">Entregada — pendiente de calificación</p>
+                {% else %}
+                <p class="eki-muted" style="margin:0.25rem 0 0;">Pendiente de entrega</p>
+                {% endif %}
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}

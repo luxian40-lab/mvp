@@ -2,23 +2,40 @@
 {% block title %}Biblioteca | eki{% endblock %}
 {% block nav %}{% include "aprende/estudiante_nav.html" %}{% endblock %}
 {% block extra_css %}
+.eki-bib-modulo {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px dashed var(--eki-border);
+}
+.eki-bib-modulo:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+.eki-bib-modulo-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+.eki-bib-modulo-num {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    color: var(--eki-purple-dark);
+    font-size: 0.9rem;
+}
 .eki-bib-item {
-    padding: 1rem 0;
+    padding: 0.85rem 0;
     border-bottom: 1px solid var(--eki-border);
 }
 .eki-bib-item:last-child { border-bottom: none; }
-.eki-bib-meta {
-    font-size: 0.8125rem;
-    color: var(--eki-muted);
-    margin-bottom: 0.5rem;
-}
 {% endblock %}
 {% block content %}
 <div class="eki-page-head">
     <span class="eki-kicker">Repositorio de material</span>
     <h1>Biblioteca de recursos</h1>
     <p class="eki-lead">
-        Material de los módulos habilitados en su avance. Solo consulta en línea.
+        Material organizado por módulo de sus cursos habilitados. Solo consulta en línea.
     </p>
 </div>
 
@@ -31,14 +48,21 @@
 {% for sec in secciones %}
 <div class="eki-card" style="margin-bottom:1.25rem;">
     <h2 class="eki-h2">{{ sec.curso.nombre }}</h2>
-    {% for item in sec.items %}
-    <div class="eki-bib-item">
-        <p class="eki-bib-meta">Módulo {{ item.modulo.numero }} — {{ item.modulo.titulo }}</p>
-        {% if item.media %}
-        {% include "aprende/partials/media_viewer.html" with medias=item.media|make_list %}
-        {% else %}
-        <p class="eki-muted">{{ item.titulo }}</p>
-        {% endif %}
+    {% for bloque in sec.modulos %}
+    <div class="eki-bib-modulo">
+        <div class="eki-bib-modulo-head">
+            <span class="eki-bib-modulo-num">Módulo {{ bloque.modulo.numero }}</span>
+            <strong>{{ bloque.modulo.titulo }}</strong>
+        </div>
+        {% for item in bloque.items %}
+        <div class="eki-bib-item">
+            {% if item.media %}
+            {% include "aprende/partials/media_viewer.html" with medias=item.media|make_list %}
+            {% else %}
+            <p class="eki-muted">{{ item.titulo }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
     </div>
     {% endfor %}
 </div>

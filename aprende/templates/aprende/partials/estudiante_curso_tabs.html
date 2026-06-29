@@ -1,0 +1,4 @@
+<nav class="eki-tabs" aria-label="Secciones del curso">
+    <a href="{% url 'aprende_estudiante_curso' progreso.curso.id %}" class="eki-tab{% if curso_tab == 'modulos' %} eki-tab--active{% endif %}">Módulos</a>
+    <a href="{% url 'aprende_estudiante_curso_tareas' progreso.curso.id %}" class="eki-tab{% if curso_tab == 'tareas' %} eki-tab--active{% endif %}">Tareas</a>
+</nav>

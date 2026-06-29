@@ -13,7 +13,7 @@ from portal.models import PortalUsuario
 
 def _cursos_aula_qs(cliente=None):
     qs = (
-        Curso.objects.filter(activo=True, visible_en_aula=True)
+        Curso.objects.filter(activo=True, visible_en_studio=True)
         .annotate(total_modulos=Count('modulos'))
         .select_related('cliente')
         .order_by('orden', 'nombre')
@@ -45,7 +45,7 @@ def aula_web_admin_view(request):
 
     cursos_aula = list(_cursos_aula_qs(cliente)[:12])
     modulos_recientes_qs = (
-        Modulo.objects.filter(curso__activo=True, curso__visible_en_aula=True)
+        Modulo.objects.filter(curso__activo=True, curso__visible_en_studio=True)
         .select_related('curso', 'curso__cliente')
         .order_by('-id')
     )
@@ -58,7 +58,7 @@ def aula_web_admin_view(request):
     archivos_aula = ArchivoModulo.objects.filter(
         activo=True,
         modulo__curso__activo=True,
-        modulo__curso__visible_en_aula=True,
+        modulo__curso__visible_en_studio=True,
     ).count()
 
     return render(request, 'admin/aula_web.html', {

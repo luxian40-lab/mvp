@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'integrations',             # API LXP / Angular
     'portal',                   # Portal web para clientes B2B
     'aprende',                  # Aula web estudiantes / profesores
+    'studio',                   # Catálogo / creadores (separado del aula)
 ]
 
 MIDDLEWARE = [

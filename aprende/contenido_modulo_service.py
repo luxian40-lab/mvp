@@ -18,6 +18,8 @@ class PasoAula:
     contenido: str
     medias: list[MediaAula] = field(default_factory=list)
     es_evaluacion: bool = False
+    es_entrega: bool = False
+    solo_whatsapp: bool = False
 
 
 @dataclass
@@ -75,15 +77,19 @@ def secciones_modulo_aula(modulo: Modulo) -> list[SeccionAula]:
                 PasoModulo.TIPO_EVAL_ABIERTA,
                 PasoModulo.TIPO_RETO,
             )
-            if contenido or medias or es_eval:
+            es_entrega = paso.tipo == PasoModulo.TIPO_ENTREGA
+            solo_wa = es_eval or es_entrega
+            if contenido or medias or solo_wa:
                 pasos_out.append(
                     PasoAula(
                         orden=paso.orden,
                         tipo=paso.tipo,
                         tipo_etiqueta=_TIPO_ETIQUETA.get(paso.tipo, paso.tipo),
-                        contenido=contenido,
+                        contenido=contenido if not solo_wa else '',
                         medias=medias,
                         es_evaluacion=es_eval,
+                        es_entrega=es_entrega,
+                        solo_whatsapp=solo_wa,
                     )
                 )
         titulo_sec = (sec.titulo or '').strip()

@@ -4,11 +4,36 @@
 <a href="{% url 'aprende_estudiante_curso' progreso.curso.id %}">{{ progreso.curso.nombre }}</a>
 {% include "aprende/estudiante_nav.html" %}
 {% endblock %}
+{% block extra_css %}
+.eki-tabs {
+    display: flex;
+    gap: 0.35rem;
+    margin-bottom: 1.25rem;
+    border-bottom: 1px solid var(--eki-border);
+    padding-bottom: 0;
+}
+.eki-tab {
+    padding: 0.55rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--eki-muted);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+.eki-tab:hover { color: var(--eki-purple-dark); }
+.eki-tab--active {
+    color: var(--eki-purple-dark);
+    border-bottom-color: var(--eki-purple);
+}
+{% endblock %}
 {% block content %}
 <div class="eki-page-head">
     <span class="eki-kicker">Programa de formación</span>
     <h1>{{ progreso.curso.nombre }}</h1>
-    <p class="eki-lead">{{ progreso.curso.descripcion|default:"Recorra los módulos habilitados según su avance en el programa." }}</p>
+    {% if progreso.curso.descripcion %}
+    <p class="eki-lead">{{ progreso.curso.descripcion|truncatewords:32 }}</p>
+    {% endif %}
 </div>
 
 {% if messages %}
@@ -16,6 +41,8 @@
 <div class="eki-alert eki-alert--{% if message.tags == 'error' %}error{% else %}ok{% endif %}">{{ message }}</div>
 {% endfor %}
 {% endif %}
+
+{% include "aprende/partials/estudiante_curso_tabs.html" %}
 
 <div class="eki-card">
     <h2 class="eki-h2">Módulos</h2>
@@ -26,7 +53,7 @@
             <div style="flex:1;min-width:0;">
                 <a href="{% url 'aprende_estudiante_modulo' m.id %}">{{ m.titulo }}</a>
                 {% if m.descripcion %}
-                <p class="eki-muted" style="margin:0.25rem 0 0;">{{ m.descripcion|truncatewords:18 }}</p>
+                <p class="eki-muted" style="margin:0.25rem 0 0;">{{ m.descripcion|truncatewords:14 }}</p>
                 {% endif %}
             </div>
         </li>
@@ -37,31 +64,4 @@
         {% endfor %}
     </ul>
 </div>
-
-{% if tareas_list %}
-<div class="eki-card" style="margin-top:1.25rem;">
-    <h2 class="eki-h2">Tareas</h2>
-    <p class="eki-muted" style="margin:-0.35rem 0 0.75rem;">Entregas calificadas por el docente (escala 1 a 5).</p>
-    <ul class="eki-list">
-        {% for item in tareas_list %}
-        <li class="eki-list-item">
-            <span class="eki-list-num">T</span>
-            <div style="flex:1;min-width:0;">
-                <a href="{% url 'aprende_estudiante_tarea' item.tarea.id %}">{{ item.tarea.titulo }}</a>
-                {% if item.tarea.modulo %}
-                <p class="eki-muted" style="margin:0.2rem 0 0;font-size:0.8rem;">Módulo {{ item.tarea.modulo.numero }}</p>
-                {% endif %}
-                {% if item.entrega and item.entrega.calificada %}
-                <p class="eki-muted" style="margin:0.25rem 0 0;">Nota: <strong>{{ item.entrega.nota }}/5</strong></p>
-                {% elif item.entrega %}
-                <p class="eki-muted" style="margin:0.25rem 0 0;">Entregada — pendiente de calificación</p>
-                {% else %}
-                <p class="eki-muted" style="margin:0.25rem 0 0;">Pendiente de entrega</p>
-                {% endif %}
-            </div>
-        </li>
-        {% endfor %}
-    </ul>
-</div>
-{% endif %}
 {% endblock %}

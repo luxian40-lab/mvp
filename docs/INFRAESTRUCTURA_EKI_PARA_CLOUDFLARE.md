@@ -141,7 +141,8 @@ S3 (media) ◄── uploads / certificados / audios
 Opcional más adelante:
 
 - `api.eki.technology` → mismo EB, rutas webhook (`/webhook/whatsapp/`).
-- `aprende.eki.technology` → mismo EB, rutas `/aprende/` (experiencia estudiante separada por marca).
+- `aprende.eki.technology` → mismo EB, rutas `/aprende/` (aula: estudiar y tareas).
+- `studio.eki.technology` → mismo EB, rutas `/studio/` (catálogo e inscripción; creadores).
 
 ---
 
@@ -156,6 +157,7 @@ Base actual: `http://eki-prod-final.eba-32krwxas.us-east-2.elasticbeanstalk.com`
 | Admin Django / Jazzmin | `/admin/` |
 | Gamificación manual (staff) | `/admin/gamificacion-ajuste/` |
 | Aula web | `/aprende/` |
+| eki Studio | `/studio/` |
 | Health | `/health/` |
 
 Tras dominio custom (ejemplo):
@@ -180,8 +182,8 @@ En **producción** (`mvp_project/settings_production.py`):
 ### Sprint 1 — variables en EB (Configuration → Software → Environment properties)
 
 ```env
-EKI_ALLOWED_HOSTS=app.eki.technology,admin.eki.technology,aprende.eki.technology,aula.eki.technology,eki.technology,eki-prod-final.eba-32krwxas.us-east-2.elasticbeanstalk.com
-CSRF_TRUSTED_ORIGINS=https://app.eki.technology,https://admin.eki.technology,https://aprende.eki.technology,https://aula.eki.technology,https://eki.technology
+EKI_ALLOWED_HOSTS=app.eki.technology,admin.eki.technology,aprende.eki.technology,aula.eki.technology,studio.eki.technology,eki.technology,eki-prod-final.eba-32krwxas.us-east-2.elasticbeanstalk.com
+CSRF_TRUSTED_ORIGINS=https://app.eki.technology,https://admin.eki.technology,https://aprende.eki.technology,https://aula.eki.technology,https://studio.eki.technology,https://eki.technology
 EKI_BEHIND_CLOUDFLARE=true
 ```
 
@@ -194,6 +196,7 @@ Después: `eb deploy eki-prod-final` (para cargar `settings_production.py` actua
 | `app` | CNAME | `eki-prod-final.eba-32krwxas.us-east-2.elasticbeanstalk.com` | Proxied |
 | `admin` | CNAME | mismo CNAME EB | Proxied |
 | `aprende` (o `aula`) | CNAME | mismo CNAME EB | Proxied |
+| `studio` | CNAME | mismo CNAME EB | Proxied |
 
 `eki.technology` → sin cambios (landing CloudFront).
 

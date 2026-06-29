@@ -1290,12 +1290,20 @@ class Curso(models.Model):
     )
 
     visible_en_aula = models.BooleanField(
-        default=True,
-        verbose_name='Visible en aula web',
+        default=False,
+        verbose_name='Visible en aula (catálogo interno)',
         help_text=(
-            'Si está activo, el curso aparece en el catálogo de /aprende/ para que '
-            'los estudiantes lo elijan. El contenido subido por profesores queda '
-            'disponible para quienes se inscriban.'
+            'Reservado para listados internos. El catálogo público de inscripción '
+            'vive en eki Studio (visible_en_studio).'
+        ),
+    )
+
+    visible_en_studio = models.BooleanField(
+        default=False,
+        verbose_name='Publicado en eki Studio',
+        help_text=(
+            'Si está activo, el curso aparece en studio.eki.technology para que '
+            'estudiantes elegibles se inscriban. El estudio se hace en el aula virtual.'
         ),
     )
 

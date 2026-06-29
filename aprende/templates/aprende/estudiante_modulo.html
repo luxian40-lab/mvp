@@ -87,12 +87,7 @@
 {% if modulo.contenido and not tiene_micro %}
 <div class="eki-card eki-card--bar" style="margin-bottom:1.25rem;">
     <h2 class="eki-h2">Contenido</h2>
-    <div class="eki-article">{{ modulo.contenido }}</div>
-</div>
-{% elif modulo.contenido and tiene_micro %}
-<div class="eki-card eki-card--bar" style="margin-bottom:1.25rem;">
-    <h2 class="eki-h2">Introducción</h2>
-    <div class="eki-article">{{ modulo.contenido }}</div>
+    <div class="eki-article">{{ modulo.contenido|linebreaksbr }}</div>
 </div>
 {% endif %}
 
@@ -102,11 +97,21 @@
     {% for paso in sec.pasos %}
     <div class="eki-paso-block">
         <p class="eki-paso-meta">Paso {{ paso.orden }} · {{ paso.tipo_etiqueta }}</p>
+        {% if paso.solo_whatsapp %}
+        <p class="eki-muted" style="margin:0;">
+            {% if paso.es_entrega %}
+            Esta entrega se gestiona en la pestaña <a href="{% url 'aprende_estudiante_tareas' %}">Tareas</a>.
+            {% else %}
+            Esta actividad se completa por WhatsApp con el mismo número registrado.
+            {% endif %}
+        </p>
+        {% else %}
         {% if paso.contenido %}
-        <div class="eki-article">{{ paso.contenido }}</div>
+        <div class="eki-article">{{ paso.contenido|linebreaksbr }}</div>
         {% endif %}
         {% if paso.medias %}
         {% include "aprende/partials/media_viewer.html" with medias=paso.medias %}
+        {% endif %}
         {% endif %}
     </div>
     {% endfor %}
@@ -127,39 +132,4 @@
 </div>
 {% endif %}
 
-<div class="eki-card">
-    <h2 class="eki-h2">Mis entregas en este módulo</h2>
-    {% if documentos %}
-    <ul class="eki-list" style="margin-bottom:1rem;">
-        {% for d in documentos %}
-        <li class="eki-list-item">
-            <span class="eki-material-tag">DOC</span>
-            <span>
-                <strong>{{ d.titulo }}</strong><br>
-                <span class="eki-muted">{{ d.fecha_subida|date:"d/m/Y" }}</span>
-            </span>
-        </li>
-        {% endfor %}
-    </ul>
-    {% else %}
-    <p class="eki-muted" style="margin-bottom:1rem;">Puede subir aquí documentos propios (entregables o evidencias).</p>
-    {% endif %}
-    <form method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-        <input type="hidden" name="accion" value="subir_documento">
-        <div class="eki-field">
-            <label for="doc_titulo">Título</label>
-            <input id="doc_titulo" name="titulo" type="text" required maxlength="200">
-        </div>
-        <div class="eki-field">
-            <label for="doc_descripcion">Descripción (opcional)</label>
-            <textarea id="doc_descripcion" name="descripcion" rows="2"></textarea>
-        </div>
-        <div class="eki-field">
-            <label for="doc_archivo">Archivo (máx. 25 MB)</label>
-            <input id="doc_archivo" name="archivo" type="file" required>
-        </div>
-        <button type="submit" class="eki-btn eki-btn--primary eki-btn--sm">Subir documento</button>
-    </form>
-</div>
 {% endblock %}

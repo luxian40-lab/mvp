@@ -51,12 +51,34 @@
     letter-spacing: 0.06em;
     color: var(--eki-muted);
 }
+.eki-ranking-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+.eki-ranking-table th,
+.eki-ranking-table td {
+    padding: 0.55rem 0.4rem;
+    text-align: left;
+    border-bottom: 1px solid var(--eki-border);
+}
+.eki-ranking-table th {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--eki-muted);
+    font-weight: 600;
+}
+.eki-ranking-table tr.eki-ranking-me {
+    background: rgba(107, 33, 168, 0.06);
+    font-weight: 600;
+}
 {% endblock %}
 {% block content %}
 <div class="eki-page-head">
     <span class="eki-kicker">Registro académico</span>
     <h1>Mi perfil</h1>
-    <p class="eki-lead">Datos personales, progreso en gamificación y documentos entregados.</p>
+    <p class="eki-lead">Datos personales, progreso y ranking de su grupo.</p>
 </div>
 
 {% if messages %}
@@ -139,53 +161,43 @@
     <button type="submit" class="eki-btn eki-btn--primary">Guardar cambios</button>
 </form>
 
+{% if ranking.activo and ranking.grupo %}
 <div class="eki-card">
-    <h2 class="eki-h2">Mis documentos</h2>
-    <p class="eki-muted" style="margin-bottom:1rem;">También puedes subir archivos desde cada módulo liberado.</p>
-
-    {% if documentos %}
-    <ul class="eki-list">
-        {% for d in documentos %}
-        <li class="eki-list-item">
-            <span class="eki-material-tag">DOC</span>
-            <span>
-                <a href="{{ d.archivo.url }}" target="_blank" rel="noopener"><strong>{{ d.titulo }}</strong></a><br>
-                <span class="eki-muted">{{ d.curso.nombre }}{% if d.modulo %} · Módulo {{ d.modulo.numero }}{% endif %} · {{ d.fecha_subida|date:"d/m/Y H:i" }}</span>
-            </span>
-        </li>
-        {% endfor %}
-    </ul>
+    <h2 class="eki-h2">Ranking — {{ ranking.grupo.nombre }}</h2>
+    <p class="eki-muted" style="margin:-0.35rem 0 0.75rem;">
+        {% if ranking.mi_posicion %}
+        Su posición: <strong>{{ ranking.mi_posicion }}</strong> de {{ ranking.filas|length }}
+        {% else %}
+        Compita con los compañeros de su mismo grupo.
+        {% endif %}
+    </p>
+    {% if ranking.filas %}
+    <table class="eki-ranking-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Estudiante</th>
+                <th>{% if ranking.modo == 'calificacion' %}Promedio{% else %}Puntos{% endif %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for f in ranking.filas %}
+            <tr{% if f.estudiante_id == estudiante.id %} class="eki-ranking-me"{% endif %}>
+                <td>{{ f.posicion }}</td>
+                <td>{% if f.estudiante_id == estudiante.id %}Usted{% else %}{{ f.nombre }}{% endif %}</td>
+                <td>{% if ranking.modo == 'calificacion' %}{{ f.promedio }}/5{% else %}{{ f.puntos }}{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
     {% else %}
-    <p class="eki-muted">Aún no has subido documentos.</p>
-    {% endif %}
-
-    {% if progresos %}
-    <form method="post" enctype="multipart/form-data" style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--eki-border);">
-        {% csrf_token %}
-        <input type="hidden" name="accion" value="subir_documento">
-        <h3 class="eki-h2">Subir documento</h3>
-        <div class="eki-field">
-            <label for="curso_id">Curso</label>
-            <select id="curso_id" name="curso_id" required>
-                {% for p in progresos %}
-                <option value="{{ p.curso.id }}">{{ p.curso.nombre }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="eki-field">
-            <label for="doc_titulo">Título</label>
-            <input id="doc_titulo" name="titulo" type="text" required maxlength="200" placeholder="Ej. Certificado laboral">
-        </div>
-        <div class="eki-field">
-            <label for="doc_descripcion">Descripción (opcional)</label>
-            <textarea id="doc_descripcion" name="descripcion" rows="2"></textarea>
-        </div>
-        <div class="eki-field">
-            <label for="doc_archivo">Archivo (PDF, Word, imagen… máx. 25 MB)</label>
-            <input id="doc_archivo" name="archivo" type="file" required>
-        </div>
-        <button type="submit" class="eki-btn eki-btn--ghost">Subir documento</button>
-    </form>
+    <p class="eki-muted">Aún no hay datos de ranking en su grupo.</p>
     {% endif %}
 </div>
+{% elif ranking.activo and ranking.modo == 'sin_grupo' %}
+<div class="eki-card">
+    <h2 class="eki-h2">Ranking</h2>
+    <p class="eki-muted">Su coordinador aún no lo asignó a un grupo. El ranking aparecerá cuando esté en un grupo de estudiantes.</p>
+</div>
+{% endif %}
 {% endblock %}

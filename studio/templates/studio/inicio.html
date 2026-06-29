@@ -1,0 +1,37 @@
+{% extends "studio/base.html" %}
+{% block title %}eki Studio — Cursos y creadores{% endblock %}
+{% block content %}
+<div class="st-kicker">Marketplace de formación</div>
+<h1>Aprende más. Enseña lo tuyo.</h1>
+<p class="st-lead">
+    eki Studio es donde exploras cursos nuevos y donde los instructores publican programas.
+    El aula virtual es tu espacio de estudio: módulos, tareas y progreso.
+</p>
+
+<div class="st-grid" style="margin-bottom:2rem;">
+    <article class="st-card st-card--bar">
+        <h2 style="font-size:1.05rem;margin:0 0 0.5rem;">Explorar cursos</h2>
+        <p class="st-muted">Inscríbete en programas de eki y de tu organización.</p>
+        <a href="{% url 'studio_catalogo' %}" class="st-btn st-btn--primary st-btn--sm" style="margin-top:0.75rem;">Ver catálogo</a>
+    </article>
+    <article class="st-card st-card--bar">
+        <h2 style="font-size:1.05rem;margin:0 0 0.5rem;">Soy instructor</h2>
+        <p class="st-muted">Publica cursos, gestiona alumnos y monetiza (próximamente pagos).</p>
+        <a href="{% url 'studio_creador' %}" class="st-btn st-btn--ghost st-btn--sm" style="margin-top:0.75rem;">Crear en Studio</a>
+    </article>
+</div>
+
+{% if destacados %}
+<h2 style="font-size:1.1rem;margin-bottom:0.75rem;">Destacados</h2>
+<div class="st-grid">
+    {% for c in destacados %}
+    <article class="st-card">
+        <h3 style="font-size:1rem;margin:0 0 0.35rem;font-family:var(--font-serif);">{{ c.nombre }}</h3>
+        <p class="st-muted">{{ c.descripcion|truncatewords:20 }}</p>
+        <p class="st-muted" style="font-size:0.78rem;">{{ c.total_lecciones }} lección{{ c.total_lecciones|pluralize:"es" }}</p>
+        <a href="{% url 'studio_catalogo' %}" class="st-btn st-btn--ghost st-btn--sm" style="margin-top:0.65rem;">Ver en catálogo</a>
+    </article>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

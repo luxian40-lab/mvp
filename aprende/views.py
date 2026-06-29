@@ -21,25 +21,20 @@ from .acceso_modulos import (
     tareas_visibles_aula,
 )
 from .auth import es_profesor_aprende, requiere_estudiante_aprende, requiere_profesor_aprende
-from .biblioteca_service import biblioteca_agrupada_por_curso
-from .catalogo_service import (
-    cursos_catalogo_aula,
-    curso_disponible_para_estudiante,
-    ids_cursos_inscritos,
-    inscribir_estudiante_en_curso,
-)
+from .biblioteca_service import biblioteca_agrupada_por_curso_modulo
 from .contenido_modulo_service import (
     archivos_multimedia_modulo,
     modulo_tiene_microcontenidos,
     secciones_modulo_aula,
 )
-from .documento_service import guardar_documento_aula
 from .lesson_service import actualizar_modulo_aula, crear_modulo_aula
 from .media_aula import media_desde_url
 from .middleware import APRENDE_EST_SESSION_KEY
-from .models import DocumentoEstudianteAula, EntregaTarea, TareaCurso
+from .models import EntregaTarea, TareaCurso
 from .perfil_service import actualizar_perfil_aula, resumen_perfil_aula
+from .ranking_service import resumen_ranking_aula
 from .tarea_service import calificar_entrega, crear_tarea, guardar_entrega
+from .tareas_aula_service import tareas_agrupadas_estudiante, tareas_por_curso
 
 
 def _telefonos_coinciden(a: str, b: str) -> bool:
@@ -103,35 +98,10 @@ def estudiante_cursos(request):
         .select_related('curso', 'modulo_actual')
         .order_by('curso__nombre')
     )
-    inscritos = ids_cursos_inscritos(est)
-    catalogo = [
-        c for c in cursos_catalogo_aula(est)
-        if c.pk not in inscritos
-    ]
     return render(request, 'aprende/estudiante_cursos.html', {
         'estudiante': est,
         'progresos': progresos,
-        'catalogo': catalogo,
     })
-
-
-@requiere_estudiante_aprende
-def estudiante_inscribir(request, curso_id: int):
-    if request.method != 'POST':
-        return redirect('/aprende/estudiante/')
-    est = request.aprende_estudiante
-    curso = curso_disponible_para_estudiante(est, curso_id)
-    if not curso:
-        messages.error(request, 'Ese curso no está disponible para ti.')
-        return redirect('/aprende/estudiante/')
-    if curso.pk in ids_cursos_inscritos(est):
-        return redirect(f'/aprende/estudiante/curso/{curso.pk}/')
-    inscribir_estudiante_en_curso(est, curso)
-    messages.success(request, f'Te inscribiste en «{curso.nombre}». ¡A estudiar!')
-    return redirect(f'/aprende/estudiante/curso/{curso.pk}/')
-
-
-@requiere_estudiante_aprende
 def estudiante_curso(request, curso_id: int):
     est = request.aprende_estudiante
     progreso = get_object_or_404(
@@ -141,17 +111,29 @@ def estudiante_curso(request, curso_id: int):
         curso__activo=True,
     )
     modulos = modulos_visibles_aula(est, progreso.curso, progreso)
-    tareas = tareas_visibles_aula(est, progreso.curso, progreso)
-    entregas = {
-        e.tarea_id: e
-        for e in EntregaTarea.objects.filter(estudiante=est, tarea__curso=progreso.curso)
-    }
-    tareas_list = [{'tarea': t, 'entrega': entregas.get(t.pk)} for t in tareas]
     return render(request, 'aprende/estudiante_curso.html', {
         'estudiante': est,
         'progreso': progreso,
         'modulos': modulos,
+        'curso_tab': 'modulos',
+    })
+
+
+@requiere_estudiante_aprende
+def estudiante_curso_tareas(request, curso_id: int):
+    est = request.aprende_estudiante
+    progreso = get_object_or_404(
+        ProgresoEstudiante.objects.select_related('curso'),
+        estudiante=est,
+        curso_id=curso_id,
+        curso__activo=True,
+    )
+    tareas_list = tareas_por_curso(est, progreso.curso)
+    return render(request, 'aprende/estudiante_curso_tareas.html', {
+        'estudiante': est,
+        'progreso': progreso,
         'tareas_list': tareas_list,
+        'curso_tab': 'tareas',
     })
 
 
@@ -178,12 +160,22 @@ def estudiante_tarea(request, tarea_id: int):
             messages.error(request, error)
         else:
             messages.success(request, 'Tarea entregada correctamente.')
-            return redirect('aprende_estudiante_curso', curso_id=tarea.curso_id)
+            return redirect('aprende_estudiante_tareas')
 
     return render(request, 'aprende/estudiante_tarea.html', {
         'estudiante': est,
         'tarea': tarea,
         'entrega': entrega,
+    })
+
+
+@requiere_estudiante_aprende
+def estudiante_tareas(request):
+    est = request.aprende_estudiante
+    secciones = tareas_agrupadas_estudiante(est)
+    return render(request, 'aprende/estudiante_tareas.html', {
+        'estudiante': est,
+        'secciones': secciones,
     })
 
 
@@ -207,9 +199,6 @@ def estudiante_modulo(request, modulo_id: int):
     archivos_media = archivos_multimedia_modulo(modulo)
     secciones = secciones_modulo_aula(modulo)
     tiene_micro = modulo_tiene_microcontenidos(modulo)
-    documentos = DocumentoEstudianteAula.objects.filter(
-        estudiante=est, curso=modulo.curso, modulo=modulo,
-    ).order_by('-fecha_subida')
     video_url = modulo.get_video_url_publica() if modulo.video_url or modulo.video_archivo else modulo.video_url
     video_media = media_desde_url(f'Video — {modulo.titulo}', video_url or '', 'video') if video_url else None
     pdf_media = (
@@ -217,21 +206,12 @@ def estudiante_modulo(request, modulo_id: int):
         if modulo.archivo_pdf_url else None
     )
 
-    if request.method == 'POST' and request.POST.get('accion') == 'subir_documento':
-        doc, error = guardar_documento_aula(request, est, modulo.curso, modulo)
-        if error:
-            messages.error(request, error)
-        else:
-            messages.success(request, f'Documento «{doc.titulo}» subido correctamente.')
-            return redirect('aprende_estudiante_modulo', modulo_id=modulo.pk)
-
     return render(request, 'aprende/estudiante_modulo.html', {
         'estudiante': est,
         'modulo': modulo,
         'secciones': secciones,
         'tiene_micro': tiene_micro,
         'archivos_media': archivos_media,
-        'documentos': documentos,
         'video_media': video_media,
         'pdf_media': pdf_media,
     })
@@ -240,8 +220,8 @@ def estudiante_modulo(request, modulo_id: int):
 @requiere_estudiante_aprende
 def estudiante_biblioteca(request):
     est = request.aprende_estudiante
-    secciones = biblioteca_agrupada_por_curso(est)
-    total = sum(len(s['items']) for s in secciones)
+    secciones = biblioteca_agrupada_por_curso_modulo(est)
+    total = sum(len(m['items']) for s in secciones for m in s['modulos'])
     return render(request, 'aprende/estudiante_biblioteca.html', {
         'estudiante': est,
         'secciones': secciones,
@@ -255,19 +235,6 @@ def estudiante_perfil(request):
     resumen = resumen_perfil_aula(est)
 
     if request.method == 'POST':
-        accion = request.POST.get('accion', 'perfil')
-        if accion == 'subir_documento':
-            curso_id = request.POST.get('curso_id')
-            curso = Curso.objects.filter(pk=curso_id, activo=True).first()
-            if not curso:
-                messages.error(request, 'Curso no válido.')
-            else:
-                doc, error = guardar_documento_aula(request, est, curso)
-                if error:
-                    messages.error(request, error)
-                else:
-                    messages.success(request, f'Documento «{doc.titulo}» subido.')
-            return redirect('aprende_estudiante_perfil')
         error = actualizar_perfil_aula(request, est)
         if error:
             messages.error(request, error)
@@ -275,14 +242,12 @@ def estudiante_perfil(request):
             messages.success(request, 'Perfil actualizado.')
             return redirect('aprende_estudiante_perfil')
 
-    progresos = ProgresoEstudiante.objects.filter(
-        estudiante=est, curso__activo=True,
-    ).select_related('curso').order_by('curso__nombre')
+    ranking = resumen_ranking_aula(est)
 
     return render(request, 'aprende/estudiante_perfil.html', {
         'estudiante': est,
-        'progresos': progresos,
         'genero_choices': Estudiante.GENERO_CHOICES,
+        'ranking': ranking,
         **resumen,
     })
 

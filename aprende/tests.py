@@ -78,85 +78,6 @@ class AprendeWebTests(TestCase):
         self.assertEqual(r.status_code, 302)
         self.assertEqual(r.url, '/aprende/')
 
-    def test_catalogo_e_inscripcion(self):
-        curso2 = Curso.objects.create(
-            nombre='Curso Catálogo',
-            descripcion='Para elegir',
-            cliente=self.cliente,
-            activo=True,
-            visible_en_aula=True,
-        )
-        Modulo.objects.create(
-            curso=curso2, numero=1, titulo='L1', descripcion='', contenido='x',
-        )
-        est2 = Estudiante.objects.create(
-            cedula='web2',
-            nombre='Est Cat',
-            telefono='573009999003',
-            cliente=self.cliente,
-            activo=True,
-        )
-        self.http.post('/aprende/estudiante/login/', {
-            'cedula': 'web2',
-            'telefono': '3009999003',
-        })
-        r = self.http.get('/aprende/estudiante/')
-        self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'Catálogo')
-        self.assertContains(r, 'Curso Catálogo')
-        r2 = self.http.post(f'/aprende/estudiante/inscribir/{curso2.id}/')
-        self.assertEqual(r2.status_code, 302)
-        self.assertTrue(
-            ProgresoEstudiante.objects.filter(estudiante=est2, curso=curso2).exists()
-        )
-
-    def test_no_inscribir_curso_de_otra_org(self):
-        otra = Cliente.objects.create(
-            nombre='Otra Org',
-            contacto_principal='B',
-            email='b@t.com',
-            telefono='573009999004',
-            activo=True,
-        )
-        ajeno = Curso.objects.create(
-            nombre='Curso Ajeno',
-            descripcion='x',
-            cliente=otra,
-            activo=True,
-            visible_en_aula=True,
-        )
-        self.http.post('/aprende/estudiante/login/', {
-            'cedula': 'web1',
-            'telefono': '3009999002',
-        })
-        r = self.http.post(f'/aprende/estudiante/inscribir/{ajeno.id}/')
-        self.assertEqual(r.status_code, 302)
-        self.assertFalse(
-            ProgresoEstudiante.objects.filter(estudiante=self.est, curso=ajeno).exists()
-        )
-
-    def test_curso_general_en_catalogo(self):
-        general = Curso.objects.create(
-            nombre='Curso General',
-            descripcion='Para todos',
-            cliente=None,
-            activo=True,
-            visible_en_aula=True,
-        )
-        est2 = Estudiante.objects.create(
-            cedula='web3',
-            nombre='Est Gen',
-            telefono='573009999005',
-            cliente=self.cliente,
-            activo=True,
-        )
-        self.http.post('/aprende/estudiante/login/', {
-            'cedula': 'web3',
-            'telefono': '3009999005',
-        })
-        r = self.http.get('/aprende/estudiante/')
-        self.assertContains(r, 'Curso General')
-
     def test_profesor_crea_tarea_y_estudiante_entrega(self):
         self.http.post('/aprende/profesor/login/', {'username': 'prof_ap', 'password': 'pass'})
         r = self.http.post(f'/aprende/profesor/curso/{self.curso.id}/tarea/nueva/', {
@@ -253,6 +174,7 @@ class AprendeWebTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Biblioteca de recursos')
         self.assertContains(r, 'Guía WA')
+        self.assertContains(r, 'Módulo 1')
         self.assertContains(r, self.curso.nombre)
 
     def test_modulo_muestra_secciones_y_media_solo_consulta(self):
@@ -338,23 +260,59 @@ class AprendeWebTests(TestCase):
         self.assertEqual(self.est.nombre, 'Est Web Actualizado')
         self.assertEqual(self.est.municipio, 'Medellín')
 
-    def test_estudiante_sube_documento_en_modulo(self):
-        from aprende.models import DocumentoEstudianteAula
+    def test_estudiante_pagina_tareas_sin_subida_en_modulo(self):
+        TareaCurso.objects.create(curso=self.curso, titulo='Entrega 1', instrucciones='Sube PDF')
+        self.http.post('/aprende/estudiante/login/', {
+            'cedula': 'web1',
+            'telefono': '3009999002',
+        })
+        r = self.http.get('/aprende/estudiante/tareas/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Entrega 1')
+        r2 = self.http.get(f'/aprende/estudiante/modulo/{self.modulo.id}/')
+        self.assertEqual(r2.status_code, 200)
+        self.assertNotContains(r2, 'Subir documento')
+
+    def test_ranking_grupo_en_perfil(self):
+        from core.gamificacion import PerfilGamificacion
+        from core.models_extras import GrupoEstudiantes
+
+        est2 = Estudiante.objects.create(
+            cedula='web_rank',
+            nombre='Compañero',
+            telefono='573009999099',
+            cliente=self.cliente,
+            activo=True,
+        )
+        grupo = GrupoEstudiantes.objects.create(nombre='Grupo Norte', cliente=self.cliente, activo=True)
+        grupo.estudiantes.add(self.est, est2)
+        grupo.cursos.add(self.curso)
+        p1, _ = PerfilGamificacion.objects.get_or_create(estudiante=self.est)
+        p1.puntos_totales = 50
+        p1.save(update_fields=['puntos_totales'])
+        p2, _ = PerfilGamificacion.objects.get_or_create(estudiante=est2)
+        p2.puntos_totales = 200
+        p2.save(update_fields=['puntos_totales'])
 
         self.http.post('/aprende/estudiante/login/', {
             'cedula': 'web1',
             'telefono': '3009999002',
         })
-        archivo = SimpleUploadedFile('evidencia.pdf', b'%PDF-1.4 test', content_type='application/pdf')
-        r = self.http.post(f'/aprende/estudiante/modulo/{self.modulo.id}/', {
-            'accion': 'subir_documento',
-            'titulo': 'Mi evidencia',
-            'descripcion': 'Prueba',
-            'archivo': archivo,
+        r = self.http.get('/aprende/estudiante/perfil/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Grupo Norte')
+        self.assertContains(r, 'Compañero')
+        self.assertContains(r, 'Usted')
+
+    def test_curso_pestanas_modulos_y_tareas(self):
+        TareaCurso.objects.create(curso=self.curso, titulo='Tarea curso', instrucciones='x')
+        self.http.post('/aprende/estudiante/login/', {
+            'cedula': 'web1',
+            'telefono': '3009999002',
         })
-        self.assertEqual(r.status_code, 302)
-        self.assertTrue(
-            DocumentoEstudianteAula.objects.filter(
-                estudiante=self.est, modulo=self.modulo, titulo='Mi evidencia',
-            ).exists()
-        )
+        r = self.http.get(f'/aprende/estudiante/curso/{self.curso.id}/')
+        self.assertContains(r, 'Módulos')
+        self.assertContains(r, 'Tareas')
+        r2 = self.http.get(f'/aprende/estudiante/curso/{self.curso.id}/tareas/')
+        self.assertEqual(r2.status_code, 200)
+        self.assertContains(r2, 'Tarea curso')

@@ -1,0 +1,32 @@
+{% extends "studio/base.html" %}
+{% block title %}Soy creador | eki Studio{% endblock %}
+{% block content %}
+<div class="st-kicker">Para instructores</div>
+<h1>Publica en eki Studio</h1>
+<p class="st-lead">
+    Fase actual: onboarding manual. Si eres profesor, cooperativa o experto agro,
+    solicita acceso y el equipo eki activa tu espacio de creador.
+</p>
+
+<div class="st-card st-card--bar" style="margin-bottom:1.25rem;">
+    <h2 style="font-size:1.05rem;margin:0 0 0.5rem;">Qué podrás hacer (roadmap)</h2>
+    <ul class="st-muted" style="margin:0;padding-left:1.2rem;">
+        <li>Publicar cursos en el catálogo Studio</li>
+        <li>Gestionar lecciones y tareas (mismo motor que el aula)</li>
+        <li>Recibir inscripciones y, más adelante, cobros (Stripe / Wompi)</li>
+        <li>Panel de alumnos y métricas</li>
+    </ul>
+</div>
+
+<div class="st-grid">
+    <article class="st-card">
+        <h2 style="font-size:1rem;margin:0 0 0.5rem;">Ya tengo cuenta portal</h2>
+        <p class="st-muted">Si tu organización ya usa eki, entra con rol Profesor en el aula web.</p>
+        <a href="/aprende/profesor/login/" class="st-btn st-btn--primary st-btn--sm" style="margin-top:0.75rem;">Aula docente</a>
+    </article>
+    <article class="st-card">
+        <h2 style="font-size:1rem;margin:0 0 0.5rem;">Quiero ser creador nuevo</h2>
+        <p class="st-muted">Escríbenos a <strong>soporte@eki.technology</strong> con tu propuesta de curso. Te respondemos en 48 h.</p>
+    </article>
+</div>
+{% endblock %}

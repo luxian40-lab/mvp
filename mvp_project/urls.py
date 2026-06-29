@@ -15,6 +15,8 @@ def root_redirect(request):
         return redirect('/admin/')
     if host in ('aprende.eki.technology', 'aula.eki.technology'):
         return redirect('/aprende/')
+    if host == 'studio.eki.technology':
+        return redirect('/studio/')
     return redirect('/admin/')
 
 
@@ -36,6 +38,7 @@ urlpatterns = [
     path('', include('core.urls.media_urls')),
     path('portal/', include('portal.urls')),
     path('aprende/', include('aprende.urls')),
+    path('studio/', include('studio.urls')),
 
     # Admin de Django
     path('admin/', admin.site.urls),

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}eki Studio{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --st-accent: #0f766e;
+            --st-accent-dark: #0d5c56;
+            --st-ink: #121018;
+            --st-muted: #5c5563;
+            --st-bg: #f4f6f5;
+            --st-surface: #fff;
+            --st-border: #d8dedc;
+            --st-radius: 4px;
+            --font-serif: "Source Serif 4", Georgia, serif;
+            --font-sans: "Source Sans 3", system-ui, sans-serif;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; min-height: 100vh; font-family: var(--font-sans);
+            font-size: 0.9375rem; line-height: 1.6; color: var(--st-ink);
+            background: var(--st-bg); display: flex; flex-direction: column;
+        }
+        .st-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 1.5rem; min-height: 56px;
+            background: var(--st-ink); border-bottom: 1px solid #2a2430;
+        }
+        .st-brand {
+            text-decoration: none; color: #fff;
+            font-family: var(--font-serif); font-weight: 600; font-size: 1.2rem;
+        }
+        .st-brand small {
+            display: block; font-family: var(--font-sans); font-size: 0.65rem;
+            letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.55);
+            font-weight: 500;
+        }
+        .st-nav { display: flex; gap: 0.25rem; flex-wrap: wrap; }
+        .st-nav a {
+            color: rgba(255,255,255,0.85); text-decoration: none; font-size: 0.8rem;
+            font-weight: 500; padding: 0.4rem 0.65rem; border-radius: var(--st-radius);
+        }
+        .st-nav a:hover { background: rgba(255,255,255,0.08); color: #fff; }
+        .st-main {
+            flex: 1; width: 100%; max-width: 1000px; margin: 0 auto;
+            padding: 2rem 1.25rem 3rem;
+        }
+        h1, h2 { font-family: var(--font-serif); font-weight: 600; line-height: 1.25; }
+        h1 { font-size: clamp(1.5rem, 3vw, 2rem); margin: 0 0 0.5rem; }
+        .st-lead { color: var(--st-muted); max-width: 54ch; margin: 0 0 1.5rem; }
+        .st-muted { color: var(--st-muted); font-size: 0.875rem; }
+        .st-card {
+            background: var(--st-surface); border: 1px solid var(--st-border);
+            border-radius: var(--st-radius); padding: 1.25rem 1.35rem;
+        }
+        .st-card--bar { border-left: 3px solid var(--st-accent); }
+        .st-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+        .st-btn {
+            display: inline-flex; align-items: center; padding: 0.5rem 1rem;
+            border-radius: var(--st-radius); font-weight: 600; font-size: 0.8125rem;
+            text-decoration: none; border: none; cursor: pointer;
+        }
+        .st-btn--primary { background: var(--st-accent); color: #fff; }
+        .st-btn--primary:hover { background: var(--st-accent-dark); }
+        .st-btn--ghost { background: transparent; border: 1px solid var(--st-border); color: var(--st-ink); }
+        .st-btn--sm { padding: 0.35rem 0.75rem; font-size: 0.78rem; }
+        .st-kicker {
+            font-size: 0.68rem; font-weight: 600; letter-spacing: 0.12em;
+            text-transform: uppercase; color: var(--st-accent); margin-bottom: 0.35rem;
+        }
+        .st-alert { padding: 0.65rem 1rem; border-radius: var(--st-radius); margin-bottom: 1rem; font-size: 0.875rem; }
+        .st-alert--ok { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; }
+        .st-alert--error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+        .st-field { margin-bottom: 1rem; }
+        .st-field label { display: block; font-weight: 600; font-size: 0.78rem; margin-bottom: 0.35rem; }
+        .st-field input { width: 100%; padding: 0.55rem 0.75rem; border: 1px solid var(--st-border); border-radius: var(--st-radius); font: inherit; }
+        .st-footer {
+            text-align: center; padding: 1.25rem; font-size: 0.78rem; color: var(--st-muted);
+            border-top: 1px solid var(--st-border);
+        }
+        .st-footer a { color: var(--st-accent-dark); }
+        {% block extra_css %}{% endblock %}
+    </style>
+</head>
+<body>
+<header class="st-header">
+    <a class="st-brand" href="{% url 'studio_inicio' %}">
+        eki Studio
+        <small>Explorar y publicar</small>
+    </a>
+    <nav class="st-nav">
+        <a href="{% url 'studio_catalogo' %}">Cursos</a>
+        <a href="{% url 'studio_creador' %}">Soy creador</a>
+        {% if estudiante %}
+        <a href="/aprende/estudiante/">Mi aula</a>
+        {% else %}
+        <a href="{% url 'studio_estudiante_login' %}">Ingresar</a>
+        {% endif %}
+    </nav>
+</header>
+<main class="st-main">
+    {% if messages %}
+    {% for message in messages %}
+    <div class="st-alert st-alert--{% if message.tags == 'error' %}error{% else %}ok{% endif %}">{{ message }}</div>
+    {% endfor %}
+    {% endif %}
+    {% block content %}{% endblock %}
+</main>
+<footer class="st-footer">
+    Estudiar y entregar tareas → <a href="/aprende/">Aula virtual eki</a>
+</footer>
+</body>
+</html>

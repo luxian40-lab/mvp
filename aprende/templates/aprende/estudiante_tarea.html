@@ -1,7 +1,7 @@
 {% extends "aprende/base.html" %}
 {% block title %}{{ tarea.titulo }} | Tarea{% endblock %}
 {% block nav %}
-<a href="{% url 'aprende_estudiante_curso' tarea.curso_id %}">← Volver al curso</a>
+<a href="{% url 'aprende_estudiante_tareas' %}">← Volver a tareas</a>
 {% include "aprende/estudiante_nav.html" %}
 {% endblock %}
 {% block main_class %}eki-main--wide{% endblock %}
@@ -21,6 +21,16 @@
 {% for message in messages %}
 <div class="eki-alert eki-alert--{% if message.tags == 'error' %}error{% else %}ok{% endif %}">{{ message }}</div>
 {% endfor %}
+{% endif %}
+
+{% if not entrega or not entrega.calificada %}
+<div class="eki-card" style="margin-bottom:1rem;background:var(--eki-bg);">
+    <p class="eki-muted" style="margin:0;font-size:0.875rem;">
+        <strong>Paso 1:</strong> Lea las instrucciones.
+        <strong>Paso 2:</strong> Suba su archivo abajo.
+        <strong>Paso 3:</strong> Espere la calificación (1–5) de su docente o del equipo eki.
+    </p>
+</div>
 {% endif %}
 
 {% if tarea.instrucciones %}

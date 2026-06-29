@@ -48,8 +48,8 @@ class PreguntaAbiertaFinalInline(admin.TabularInline):
 class CursoAdmin(admin.ModelAdmin):
     """Administración de cursos"""
     change_form_template = 'admin/core/curso/change_form.html'
-    list_display = ('nombre', 'cliente_nombre', 'total_modulos_display', 'docs_rag_count', 'duracion_semanas', 'ver_modulos_link', 'activo', 'visible_en_aula', 'tiene_formulario_gei', 'usar_agentes_ia', 'orden')
-    list_filter = ('activo', 'visible_en_aula', 'cliente', 'usar_gamificacion', 'usar_agentes_ia', 'habilitar_pregunta_abierta_final', 'tiene_formulario_gei')
+    list_display = ('nombre', 'cliente_nombre', 'total_modulos_display', 'docs_rag_count', 'duracion_semanas', 'ver_modulos_link', 'activo', 'visible_en_studio', 'visible_en_aula', 'tiene_formulario_gei', 'usar_agentes_ia', 'orden')
+    list_filter = ('activo', 'visible_en_studio', 'visible_en_aula', 'cliente', 'usar_gamificacion', 'usar_agentes_ia', 'habilitar_pregunta_abierta_final', 'tiene_formulario_gei')
     search_fields = ('nombre', 'descripcion', 'cliente__nombre')
     list_editable = ('orden',)
     inlines = [ModuloInline, DocumentoRAGInline, PreguntaAbiertaFinalInline]
@@ -61,7 +61,7 @@ class CursoAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Datos del curso', {
-            'fields': ('nombre', 'descripcion', 'cliente', 'duracion_semanas', 'activo', 'visible_en_aula', 'orden'),
+            'fields': ('nombre', 'descripcion', 'cliente', 'duracion_semanas', 'activo', 'visible_en_studio', 'visible_en_aula', 'orden'),
         }),
         ('Ritmo drip y acceso', {
             'fields': (

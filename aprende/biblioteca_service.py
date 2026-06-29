@@ -105,3 +105,23 @@ def biblioteca_agrupada_por_curso(estudiante: Estudiante) -> list[dict]:
             por_curso[cid] = {'curso': item.curso, 'items': []}
         por_curso[cid]['items'].append(item)
     return list(por_curso.values())
+
+
+def biblioteca_agrupada_por_curso_modulo(estudiante: Estudiante) -> list[dict]:
+    """Curso → módulos (lecciones) → recursos multimedia."""
+    por_curso: dict[int, dict] = {}
+    for item in items_biblioteca_aula(estudiante):
+        cid = item.curso.pk
+        if cid not in por_curso:
+            por_curso[cid] = {'curso': item.curso, 'modulos': {}}
+        mid = item.modulo.pk
+        if mid not in por_curso[cid]['modulos']:
+            por_curso[cid]['modulos'][mid] = {'modulo': item.modulo, 'items': []}
+        por_curso[cid]['modulos'][mid]['items'].append(item)
+
+    secciones: list[dict] = []
+    for data in por_curso.values():
+        modulos = sorted(data['modulos'].values(), key=lambda m: m['modulo'].numero)
+        secciones.append({'curso': data['curso'], 'modulos': modulos})
+    secciones.sort(key=lambda s: s['curso'].nombre)
+    return secciones

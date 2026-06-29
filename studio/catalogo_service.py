@@ -1,4 +1,4 @@
-"""Catálogo e inscripción de cursos en el aula web (estilo Platzi)."""
+"""Catálogo e inscripción en eki Studio (marketplace / explorar cursos)."""
 
 from __future__ import annotations
 
@@ -7,18 +7,17 @@ from django.db.models import Count, Q
 from core.models import Curso, Estudiante, Modulo, ProgresoEstudiante
 
 
-def cursos_catalogo_aula(estudiante: Estudiante):
+def cursos_catalogo_studio(estudiante: Estudiante | None = None):
     """
-    Cursos que el estudiante puede elegir en /aprende/:
-    - De su organización (cliente)
-    - Generales eki (sin cliente específico)
-  """
-    qs = Curso.objects.filter(activo=True, visible_en_aula=True).annotate(
+    Cursos publicados en Studio.
+    Con estudiante: de su organización + generales eki.
+    Sin sesión: solo generales eki (cliente null).
+    """
+    qs = Curso.objects.filter(activo=True, visible_en_studio=True).annotate(
         total_lecciones=Count('modulos'),
     )
-    org_id = getattr(estudiante, 'cliente_id', None)
-    if org_id:
-        qs = qs.filter(Q(cliente_id=org_id) | Q(cliente__isnull=True))
+    if estudiante and estudiante.cliente_id:
+        qs = qs.filter(Q(cliente_id=estudiante.cliente_id) | Q(cliente__isnull=True))
     else:
         qs = qs.filter(cliente__isnull=True)
     return qs.order_by('orden', 'nombre')
@@ -31,12 +30,13 @@ def ids_cursos_inscritos(estudiante: Estudiante) -> set[int]:
     )
 
 
-def curso_disponible_para_estudiante(estudiante: Estudiante, curso_id: int) -> Curso | None:
-    return cursos_catalogo_aula(estudiante).filter(pk=curso_id).first()
+def curso_disponible_en_studio(estudiante: Estudiante | None, curso_id: int) -> Curso | None:
+    if estudiante:
+        return cursos_catalogo_studio(estudiante).filter(pk=curso_id).first()
+    return cursos_catalogo_studio(None).filter(pk=curso_id).first()
 
 
 def inscribir_estudiante_en_curso(estudiante: Estudiante, curso: Curso) -> ProgresoEstudiante:
-    """Crea o retoma progreso en un curso del catálogo aula."""
     primer_modulo = Modulo.objects.filter(curso=curso).order_by('numero').first()
     progreso, creado = ProgresoEstudiante.objects.get_or_create(
         estudiante=estudiante,
