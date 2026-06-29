@@ -5,6 +5,64 @@
 <a href="{% url 'aprende_estudiante_curso' modulo.curso_id %}">{{ modulo.curso.nombre }}</a>
 {% include "aprende/estudiante_nav.html" %}
 {% endblock %}
+{% block extra_css %}
+.eki-paso-meta {
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--eki-muted);
+    margin-bottom: 0.35rem;
+}
+.eki-paso-block {
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--eki-border);
+}
+.eki-paso-block:last-child { border-bottom: none; }
+.eki-media-block { margin: 0.75rem 0 0.25rem; }
+.eki-media-caption {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--eki-ink-soft);
+    margin: 0 0 0.4rem;
+}
+.eki-media-frame {
+    background: #1a1520;
+    border: 1px solid var(--eki-border);
+    border-radius: var(--eki-radius);
+    overflow: hidden;
+}
+.eki-media-frame--image {
+    background: var(--eki-bg);
+    text-align: center;
+}
+.eki-media-frame--image img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+.eki-media-frame--pdf iframe,
+.eki-media-frame--embed iframe {
+    width: 100%;
+    height: min(70vh, 520px);
+    border: none;
+    display: block;
+    background: #fff;
+}
+.eki-media-frame--audio {
+    background: var(--eki-surface);
+    padding: 0.75rem;
+}
+.eki-media-frame--audio audio { width: 100%; }
+.eki-aviso-consulta {
+    font-size: 0.78rem;
+    color: var(--eki-muted);
+    margin-top: 0.5rem;
+}
+{% endblock %}
 {% block content %}
 <div class="eki-page-head">
     <span class="eki-kicker">Módulo {{ modulo.numero }}</span>
@@ -18,74 +76,73 @@
 {% endfor %}
 {% endif %}
 
-{% if video_url %}
-<div class="eki-card" style="padding:0;overflow:hidden;">
-    <div class="eki-video-wrap">
-        {% if youtube_id %}
-        <iframe src="https://www.youtube.com/embed/{{ youtube_id }}" title="Video" allowfullscreen loading="lazy"></iframe>
-        {% elif 'youtube.com' in video_url or 'youtu.be' in video_url %}
-        <p style="padding:2rem;text-align:center;background:#fff;">
-            <a class="eki-btn eki-btn--primary" href="{{ video_url }}" target="_blank" rel="noopener">Abrir en YouTube</a>
-        </p>
-        {% else %}
-        <video controls src="{{ video_url }}"></video>
-        {% endif %}
-    </div>
+<p class="eki-aviso-consulta">El material de este módulo es de consulta en línea. No está habilitada la descarga desde el aula.</p>
+
+{% if video_media %}
+<div class="eki-card" style="padding:0;overflow:hidden;margin-bottom:1.25rem;">
+    {% include "aprende/partials/media_viewer.html" with medias=video_media|make_list %}
 </div>
 {% endif %}
 
-{% if modulo.contenido %}
-<div class="eki-card eki-card--bar">
-    <h2 class="eki-h2">Lectura</h2>
+{% if modulo.contenido and not tiene_micro %}
+<div class="eki-card eki-card--bar" style="margin-bottom:1.25rem;">
+    <h2 class="eki-h2">Contenido</h2>
+    <div class="eki-article">{{ modulo.contenido }}</div>
+</div>
+{% elif modulo.contenido and tiene_micro %}
+<div class="eki-card eki-card--bar" style="margin-bottom:1.25rem;">
+    <h2 class="eki-h2">Introducción</h2>
     <div class="eki-article">{{ modulo.contenido }}</div>
 </div>
 {% endif %}
 
-{% if modulo.archivo_pdf_url %}
-<div class="eki-card">
-    <a class="eki-material" href="{{ modulo.archivo_pdf_url }}" target="_blank" rel="noopener">
-        <span class="eki-material-tag">PDF</span>
-        <span><strong>Descargar documento</strong><br><span class="eki-muted">Material de la lección</span></span>
-    </a>
-</div>
-{% endif %}
-
-{% if archivos %}
-<div class="eki-card">
-    <h2 class="eki-h2">Archivos</h2>
-    <div class="eki-material-grid">
-        {% for a in archivos %}
-        {% if a.url_externa %}
-        <a class="eki-material" href="{{ a.url_externa }}" target="_blank" rel="noopener">
-        {% elif a.archivo %}
-        <a class="eki-material" href="{{ a.archivo.url }}" target="_blank" rel="noopener">
-        {% else %}
-        <div class="eki-material">
+{% for sec in secciones %}
+<div class="eki-card" style="margin-bottom:1.25rem;">
+    <h2 class="eki-h2">{{ sec.titulo }}</h2>
+    {% for paso in sec.pasos %}
+    <div class="eki-paso-block">
+        <p class="eki-paso-meta">Paso {{ paso.orden }} · {{ paso.tipo_etiqueta }}</p>
+        {% if paso.contenido %}
+        <div class="eki-article">{{ paso.contenido }}</div>
         {% endif %}
-            <span class="eki-material-tag">{% if a.tipo == 'video' %}VID{% elif a.tipo == 'audio' %}AUD{% elif a.tipo == 'imagen' %}IMG{% else %}DOC{% endif %}</span>
-            <span>
-                <strong>{{ a.titulo }}</strong><br>
-                <span class="eki-muted">{{ a.get_tipo_display }}</span>
-            </span>
-        {% if a.url_externa or a.archivo %}</a>{% else %}</div>{% endif %}
-        {% endfor %}
+        {% if paso.medias %}
+        {% include "aprende/partials/media_viewer.html" with medias=paso.medias %}
+        {% endif %}
     </div>
+    {% endfor %}
+</div>
+{% endfor %}
+
+{% if pdf_media %}
+<div class="eki-card" style="margin-bottom:1.25rem;">
+    <h2 class="eki-h2">Documento de apoyo</h2>
+    {% include "aprende/partials/media_viewer.html" with medias=pdf_media|make_list %}
+</div>
+{% endif %}
+
+{% if archivos_media %}
+<div class="eki-card" style="margin-bottom:1.25rem;">
+    <h2 class="eki-h2">Material multimedia</h2>
+    {% include "aprende/partials/media_viewer.html" with medias=archivos_media %}
 </div>
 {% endif %}
 
 <div class="eki-card">
-    <h2 class="eki-h2">Mis documentos en este módulo</h2>
+    <h2 class="eki-h2">Mis entregas en este módulo</h2>
     {% if documentos %}
     <ul class="eki-list" style="margin-bottom:1rem;">
         {% for d in documentos %}
         <li class="eki-list-item">
-            <a href="{{ d.archivo.url }}" target="_blank" rel="noopener">{{ d.titulo }}</a>
-            <span class="eki-muted"> · {{ d.fecha_subida|date:"d/m/Y" }}</span>
+            <span class="eki-material-tag">DOC</span>
+            <span>
+                <strong>{{ d.titulo }}</strong><br>
+                <span class="eki-muted">{{ d.fecha_subida|date:"d/m/Y" }}</span>
+            </span>
         </li>
         {% endfor %}
     </ul>
     {% else %}
-    <p class="eki-muted" style="margin-bottom:1rem;">Sube aquí entregables o archivos de apoyo para este módulo.</p>
+    <p class="eki-muted" style="margin-bottom:1rem;">Puede subir aquí documentos propios (entregables o evidencias).</p>
     {% endif %}
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}

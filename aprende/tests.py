@@ -255,6 +255,32 @@ class AprendeWebTests(TestCase):
         self.assertContains(r, 'Guía WA')
         self.assertContains(r, self.curso.nombre)
 
+    def test_modulo_muestra_secciones_y_media_solo_consulta(self):
+        from core.models import PasoModulo, SeccionModulo
+
+        sec = SeccionModulo.objects.create(
+            modulo=self.modulo, orden=1, titulo='Fundamentos',
+        )
+        PasoModulo.objects.create(
+            modulo=self.modulo,
+            seccion=sec,
+            orden=1,
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='Contenido del micro paso.',
+            media_url='https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        )
+        self.http.post('/aprende/estudiante/login/', {
+            'cedula': 'web1',
+            'telefono': '3009999002',
+        })
+        r = self.http.get(f'/aprende/estudiante/modulo/{self.modulo.id}/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Fundamentos')
+        self.assertContains(r, 'Contenido del micro paso')
+        self.assertContains(r, 'youtube.com/embed/')
+        self.assertContains(r, 'consulta en línea')
+        self.assertNotContains(r, 'Descargar documento')
+
     def test_aula_oculta_modulo_con_drip_tras_completar_anterior(self):
         from datetime import timedelta
 

@@ -1,13 +1,24 @@
 {% extends "aprende/base.html" %}
 {% block title %}Biblioteca | eki{% endblock %}
 {% block nav %}{% include "aprende/estudiante_nav.html" %}{% endblock %}
+{% block extra_css %}
+.eki-bib-item {
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--eki-border);
+}
+.eki-bib-item:last-child { border-bottom: none; }
+.eki-bib-meta {
+    font-size: 0.8125rem;
+    color: var(--eki-muted);
+    margin-bottom: 0.5rem;
+}
+{% endblock %}
 {% block content %}
 <div class="eki-page-head">
     <span class="eki-kicker">Repositorio de material</span>
     <h1>Biblioteca de recursos</h1>
     <p class="eki-lead">
-        Documentos y medios de los módulos habilitados en su avance,
-        disponibles para consulta y repaso.
+        Material de los módulos habilitados en su avance. Solo consulta en línea.
     </p>
 </div>
 
@@ -16,27 +27,20 @@
     <p class="eki-muted">Aún no hay material disponible en sus cursos. Los recursos aparecerán conforme avance en el programa.</p>
 </div>
 {% else %}
-<p class="eki-muted" style="margin-bottom:1rem;">{{ total }} archivo(s) en {{ secciones|length }} curso(s)</p>
+<p class="eki-muted" style="margin-bottom:1rem;">{{ total }} recurso(s) en {{ secciones|length }} curso(s)</p>
 {% for sec in secciones %}
 <div class="eki-card" style="margin-bottom:1.25rem;">
     <h2 class="eki-h2">{{ sec.curso.nombre }}</h2>
-    <div class="eki-material-grid">
-        {% for item in sec.items %}
-        {% if item.url %}
-        <a class="eki-material" href="{{ item.url }}" target="_blank" rel="noopener">
+    {% for item in sec.items %}
+    <div class="eki-bib-item">
+        <p class="eki-bib-meta">Módulo {{ item.modulo.numero }} — {{ item.modulo.titulo }}</p>
+        {% if item.media %}
+        {% include "aprende/partials/media_viewer.html" with medias=item.media|make_list %}
         {% else %}
-        <div class="eki-material">
+        <p class="eki-muted">{{ item.titulo }}</p>
         {% endif %}
-            <span class="eki-material-tag">
-                {% if item.tipo == 'video' %}VID{% elif item.tipo == 'audio' %}AUD{% elif item.tipo == 'imagen' %}IMG{% else %}DOC{% endif %}
-            </span>
-            <span>
-                <strong>{{ item.titulo }}</strong><br>
-                <span class="eki-muted">Módulo {{ item.modulo.numero }} — {{ item.modulo.titulo }}</span>
-            </span>
-        {% if item.url %}</a>{% else %}</div>{% endif %}
-        {% endfor %}
     </div>
+    {% endfor %}
 </div>
 {% endfor %}
 {% endif %}

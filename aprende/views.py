@@ -28,8 +28,14 @@ from .catalogo_service import (
     ids_cursos_inscritos,
     inscribir_estudiante_en_curso,
 )
+from .contenido_modulo_service import (
+    archivos_multimedia_modulo,
+    modulo_tiene_microcontenidos,
+    secciones_modulo_aula,
+)
 from .documento_service import guardar_documento_aula
 from .lesson_service import actualizar_modulo_aula, crear_modulo_aula
+from .media_aula import media_desde_url
 from .middleware import APRENDE_EST_SESSION_KEY
 from .models import DocumentoEstudianteAula, EntregaTarea, TareaCurso
 from .perfil_service import actualizar_perfil_aula, resumen_perfil_aula
@@ -198,14 +204,18 @@ def estudiante_modulo(request, modulo_id: int):
         messages.error(request, 'Este módulo aún no está disponible para ti.')
         return redirect('aprende_estudiante_curso', curso_id=modulo.curso_id)
 
-    archivos = (
-        ArchivoModulo.objects.filter(modulo=modulo, activo=True)
-        .order_by('orden', 'titulo')
-    )
+    archivos_media = archivos_multimedia_modulo(modulo)
+    secciones = secciones_modulo_aula(modulo)
+    tiene_micro = modulo_tiene_microcontenidos(modulo)
     documentos = DocumentoEstudianteAula.objects.filter(
         estudiante=est, curso=modulo.curso, modulo=modulo,
     ).order_by('-fecha_subida')
     video_url = modulo.get_video_url_publica() if modulo.video_url or modulo.video_archivo else modulo.video_url
+    video_media = media_desde_url(f'Video — {modulo.titulo}', video_url or '', 'video') if video_url else None
+    pdf_media = (
+        media_desde_url('Documento del módulo', modulo.archivo_pdf_url, 'pdf')
+        if modulo.archivo_pdf_url else None
+    )
 
     if request.method == 'POST' and request.POST.get('accion') == 'subir_documento':
         doc, error = guardar_documento_aula(request, est, modulo.curso, modulo)
@@ -218,10 +228,12 @@ def estudiante_modulo(request, modulo_id: int):
     return render(request, 'aprende/estudiante_modulo.html', {
         'estudiante': est,
         'modulo': modulo,
-        'archivos': archivos,
+        'secciones': secciones,
+        'tiene_micro': tiene_micro,
+        'archivos_media': archivos_media,
         'documentos': documentos,
-        'video_url': video_url,
-        'youtube_id': _youtube_embed_id(video_url or ''),
+        'video_media': video_media,
+        'pdf_media': pdf_media,
     })
 
 

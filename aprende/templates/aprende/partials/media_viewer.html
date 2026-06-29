@@ -1,0 +1,41 @@
+{% comment %}Visualización en línea — sin enlaces de descarga directa.{% endcomment %}
+{% for m in medias %}
+<div class="eki-media-block">
+    <p class="eki-media-caption">{{ m.titulo }}</p>
+    {% if m.tipo == 'youtube' and m.youtube_id %}
+    <div class="eki-media-frame eki-video-wrap">
+        <iframe
+            src="https://www.youtube.com/embed/{{ m.youtube_id }}?rel=0"
+            title="{{ m.titulo }}"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen
+            loading="lazy"
+        ></iframe>
+    </div>
+    {% elif m.tipo == 'video' %}
+    <div class="eki-media-frame eki-video-wrap">
+        <video controls controlsList="nodownload noplaybackrate" disablePictureInPicture playsinline preload="metadata">
+            <source src="{{ m.url }}">
+        </video>
+    </div>
+    {% elif m.tipo == 'imagen' %}
+    <figure class="eki-media-frame eki-media-frame--image">
+        <img src="{{ m.url }}" alt="{{ m.titulo }}" loading="lazy" draggable="false">
+    </figure>
+    {% elif m.tipo == 'audio' %}
+    <div class="eki-media-frame eki-media-frame--audio">
+        <audio controls controlsList="nodownload" preload="metadata">
+            <source src="{{ m.url }}">
+        </audio>
+    </div>
+    {% elif m.tipo == 'pdf' %}
+    <div class="eki-media-frame eki-media-frame--pdf">
+        <iframe src="{{ m.url }}#toolbar=0&navpanes=0" title="{{ m.titulo }}" loading="lazy"></iframe>
+    </div>
+    {% else %}
+    <div class="eki-media-frame eki-media-frame--embed">
+        <iframe src="{{ m.url }}" title="{{ m.titulo }}" loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
+    </div>
+    {% endif %}
+</div>
+{% endfor %}

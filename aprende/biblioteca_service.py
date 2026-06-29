@@ -8,6 +8,7 @@ from core.models import Curso, Estudiante, Modulo, ProgresoEstudiante
 from core.models_extras import ArchivoModulo
 
 from .acceso_modulos import modulos_visibles_aula
+from .media_aula import MediaAula, media_desde_url
 
 
 @dataclass
@@ -18,6 +19,7 @@ class ItemBibliotecaAula:
     tipo: str
     titulo: str
     url: str | None
+    media: MediaAula | None = None
     es_video_modulo: bool = False
 
 
@@ -50,6 +52,7 @@ def items_biblioteca_aula(estudiante: Estudiante) -> list[ItemBibliotecaAula]:
                 else modulo.video_url
             )
             if video_url:
+                media = media_desde_url(f'Video — {modulo.titulo}', video_url, 'video')
                 items.append(
                     ItemBibliotecaAula(
                         curso=prog.curso,
@@ -58,10 +61,12 @@ def items_biblioteca_aula(estudiante: Estudiante) -> list[ItemBibliotecaAula]:
                         tipo='video',
                         titulo=f'Video — {modulo.titulo}',
                         url=video_url,
+                        media=media,
                         es_video_modulo=True,
                     )
                 )
             if modulo.archivo_pdf_url:
+                media = media_desde_url(f'PDF — {modulo.titulo}', modulo.archivo_pdf_url, 'pdf')
                 items.append(
                     ItemBibliotecaAula(
                         curso=prog.curso,
@@ -70,11 +75,13 @@ def items_biblioteca_aula(estudiante: Estudiante) -> list[ItemBibliotecaAula]:
                         tipo='pdf',
                         titulo=f'PDF — {modulo.titulo}',
                         url=modulo.archivo_pdf_url,
+                        media=media,
                     )
                 )
             for arch in ArchivoModulo.objects.filter(modulo=modulo, activo=True).order_by(
                 'orden', 'titulo'
             ):
+                url = _url_archivo(arch)
                 items.append(
                     ItemBibliotecaAula(
                         curso=prog.curso,
@@ -82,7 +89,8 @@ def items_biblioteca_aula(estudiante: Estudiante) -> list[ItemBibliotecaAula]:
                         archivo=arch,
                         tipo=arch.tipo,
                         titulo=arch.titulo,
-                        url=_url_archivo(arch),
+                        url=url,
+                        media=media_desde_url(arch.titulo, url or '', arch.tipo),
                     )
                 )
     return items
