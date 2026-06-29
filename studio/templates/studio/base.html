@@ -4,102 +4,466 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}eki Studio{% endblock %}</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 32'%3E%3Crect width='48' height='16' fill='%23FCD116'/%3E%3Crect width='48' height='8' y='16' fill='%23003893'/%3E%3Crect width='48' height='8' y='24' fill='%23CE1126'/%3E%3C/svg%3E" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --st-accent: #0f766e;
-            --st-accent-dark: #0d5c56;
-            --st-ink: #121018;
-            --st-muted: #5c5563;
-            --st-bg: #f4f6f5;
-            --st-surface: #fff;
-            --st-border: #d8dedc;
-            --st-radius: 4px;
+            --st-purple: #7D2181;
+            --st-purple-dark: #5a1860;
+            --st-purple-deep: #431244;
+            --st-purple-soft: #9A6EAE;
+            --st-purple-pale: #f3eaf4;
+            --st-gold: #d4a012;
+            --st-gold-light: #fef9e8;
+            --st-warm: #faf7f2;
+            --st-warm-deep: #f0ebe3;
+            --st-ink: #1f1524;
+            --st-ink-soft: #3d3544;
+            --st-muted: #6b6370;
+            --st-surface: #ffffff;
+            --st-border: #e8e0d4;
+            --st-shadow: 0 4px 24px rgba(90, 24, 96, 0.07);
+            --st-shadow-hover: 0 8px 32px rgba(90, 24, 96, 0.12);
+            --st-radius: 10px;
+            --st-radius-sm: 6px;
             --font-serif: "Source Serif 4", Georgia, serif;
             --font-sans: "Source Sans 3", system-ui, sans-serif;
         }
-        * { box-sizing: border-box; }
+
+        *, *::before, *::after { box-sizing: border-box; }
+
         body {
-            margin: 0; min-height: 100vh; font-family: var(--font-sans);
-            font-size: 0.9375rem; line-height: 1.6; color: var(--st-ink);
-            background: var(--st-bg); display: flex; flex-direction: column;
+            margin: 0;
+            min-height: 100vh;
+            font-family: var(--font-sans);
+            font-size: 0.9375rem;
+            line-height: 1.6;
+            color: var(--st-ink);
+            background: var(--st-warm);
+            background-image:
+                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(125, 33, 129, 0.08), transparent),
+                radial-gradient(ellipse 60% 40% at 100% 0%, rgba(212, 160, 18, 0.06), transparent);
+            display: flex;
+            flex-direction: column;
         }
+
         .st-header {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 0 1.5rem; min-height: 56px;
-            background: var(--st-ink); border-bottom: 1px solid #2a2430;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.5rem;
+            min-height: 60px;
+            background: linear-gradient(135deg, var(--st-purple-dark) 0%, var(--st-purple-deep) 100%);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 2px 16px rgba(67, 18, 68, 0.25);
         }
+
         .st-brand {
-            text-decoration: none; color: #fff;
-            font-family: var(--font-serif); font-weight: 600; font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            text-decoration: none;
+            color: #fff;
         }
-        .st-brand small {
-            display: block; font-family: var(--font-sans); font-size: 0.65rem;
-            letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.55);
+
+        .st-brand-mark {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--st-radius-sm);
+            background: linear-gradient(145deg, var(--st-gold) 0%, #b8860b 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-serif);
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--st-purple-deep);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .st-brand-text strong {
+            display: block;
+            font-family: var(--font-serif);
+            font-weight: 600;
+            font-size: 1.15rem;
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+        }
+
+        .st-brand-text span {
+            font-size: 0.65rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.65);
             font-weight: 500;
         }
-        .st-nav { display: flex; gap: 0.25rem; flex-wrap: wrap; }
+
+        .st-nav { display: flex; gap: 0.2rem; flex-wrap: wrap; align-items: center; }
+
         .st-nav a {
-            color: rgba(255,255,255,0.85); text-decoration: none; font-size: 0.8rem;
-            font-weight: 500; padding: 0.4rem 0.65rem; border-radius: var(--st-radius);
+            color: rgba(255,255,255,0.88);
+            text-decoration: none;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            padding: 0.45rem 0.85rem;
+            border-radius: var(--st-radius-sm);
+            transition: background 0.15s, color 0.15s;
         }
-        .st-nav a:hover { background: rgba(255,255,255,0.08); color: #fff; }
+
+        .st-nav a:hover { background: rgba(255,255,255,0.12); color: #fff; }
+
+        .st-nav a.st-nav--cta {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+        }
+
+        .st-nav a.st-nav--cta:hover { background: rgba(255,255,255,0.22); }
+
         .st-main {
-            flex: 1; width: 100%; max-width: 1000px; margin: 0 auto;
-            padding: 2rem 1.25rem 3rem;
+            flex: 1;
+            width: 100%;
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 2rem 1.25rem 3.5rem;
         }
-        h1, h2 { font-family: var(--font-serif); font-weight: 600; line-height: 1.25; }
-        h1 { font-size: clamp(1.5rem, 3vw, 2rem); margin: 0 0 0.5rem; }
-        .st-lead { color: var(--st-muted); max-width: 54ch; margin: 0 0 1.5rem; }
+
+        .st-hero {
+            padding: 2.25rem 2rem;
+            margin-bottom: 2rem;
+            border-radius: var(--st-radius);
+            background: linear-gradient(135deg, var(--st-surface) 0%, var(--st-purple-pale) 55%, var(--st-gold-light) 100%);
+            border: 1px solid var(--st-border);
+            box-shadow: var(--st-shadow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .st-hero::after {
+            content: "";
+            position: absolute;
+            top: -40%;
+            right: -10%;
+            width: 280px;
+            height: 280px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(125,33,129,0.12) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .st-hero > * { position: relative; z-index: 1; }
+
+        h1, h2, h3, .st-h2 {
+            font-family: var(--font-serif);
+            font-weight: 600;
+            line-height: 1.25;
+            color: var(--st-ink);
+            letter-spacing: -0.015em;
+        }
+
+        h1 { font-size: clamp(1.65rem, 4vw, 2.35rem); margin: 0 0 0.6rem; }
+
+        .st-h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
+
+        .st-lead {
+            color: var(--st-ink-soft);
+            max-width: 52ch;
+            margin: 0 0 1.25rem;
+            font-size: 1rem;
+            line-height: 1.65;
+        }
+
         .st-muted { color: var(--st-muted); font-size: 0.875rem; }
-        .st-card {
-            background: var(--st-surface); border: 1px solid var(--st-border);
-            border-radius: var(--st-radius); padding: 1.25rem 1.35rem;
-        }
-        .st-card--bar { border-left: 3px solid var(--st-accent); }
-        .st-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
-        .st-btn {
-            display: inline-flex; align-items: center; padding: 0.5rem 1rem;
-            border-radius: var(--st-radius); font-weight: 600; font-size: 0.8125rem;
-            text-decoration: none; border: none; cursor: pointer;
-        }
-        .st-btn--primary { background: var(--st-accent); color: #fff; }
-        .st-btn--primary:hover { background: var(--st-accent-dark); }
-        .st-btn--ghost { background: transparent; border: 1px solid var(--st-border); color: var(--st-ink); }
-        .st-btn--sm { padding: 0.35rem 0.75rem; font-size: 0.78rem; }
+
         .st-kicker {
-            font-size: 0.68rem; font-weight: 600; letter-spacing: 0.12em;
-            text-transform: uppercase; color: var(--st-accent); margin-bottom: 0.35rem;
+            display: inline-block;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--st-purple);
+            background: var(--st-purple-pale);
+            padding: 0.3rem 0.65rem;
+            border-radius: 999px;
+            margin-bottom: 0.75rem;
         }
-        .st-alert { padding: 0.65rem 1rem; border-radius: var(--st-radius); margin-bottom: 1rem; font-size: 0.875rem; }
-        .st-alert--ok { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; }
-        .st-alert--error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+
+        .st-card {
+            background: var(--st-surface);
+            border: 1px solid var(--st-border);
+            border-radius: var(--st-radius);
+            padding: 1.35rem 1.5rem;
+            box-shadow: 0 1px 3px rgba(31, 21, 36, 0.04);
+            transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
+        }
+
+        .st-card--hover:hover {
+            box-shadow: var(--st-shadow-hover);
+            transform: translateY(-2px);
+            border-color: var(--st-purple-soft);
+        }
+
+        .st-card--path {
+            border-top: 3px solid var(--st-purple);
+            background: linear-gradient(180deg, #fff 0%, var(--st-warm) 100%);
+        }
+
+        .st-card--path-gold { border-top-color: var(--st-gold); }
+
+        .st-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.15rem;
+        }
+
+        .st-grid--2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+
+        .st-course-card {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .st-course-card__head {
+            padding: 1.25rem 1.35rem 0.75rem;
+            background: linear-gradient(180deg, var(--st-purple-pale) 0%, transparent 100%);
+        }
+
+        .st-course-card__emoji {
+            font-size: 1.75rem;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+
+        .st-course-card__title {
+            font-family: var(--font-serif);
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin: 0 0 0.35rem;
+            color: var(--st-ink);
+        }
+
+        .st-course-card__org {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--st-purple);
+        }
+
+        .st-course-card__body {
+            padding: 0 1.35rem 1.25rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .st-course-card__desc {
+            flex: 1;
+            margin: 0 0 1rem;
+            font-size: 0.875rem;
+            color: var(--st-muted);
+            line-height: 1.55;
+        }
+
+        .st-pill {
+            display: inline-block;
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 0.25rem 0.55rem;
+            border-radius: 999px;
+            background: var(--st-warm-deep);
+            color: var(--st-ink-soft);
+            margin-bottom: 0.85rem;
+        }
+
+        .st-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.35rem;
+            padding: 0.55rem 1.1rem;
+            border-radius: var(--st-radius-sm);
+            font-family: var(--font-sans);
+            font-weight: 600;
+            font-size: 0.8125rem;
+            letter-spacing: 0.02em;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+        }
+
+        .st-btn:active { transform: scale(0.98); }
+
+        .st-btn--primary {
+            background: linear-gradient(180deg, var(--st-purple) 0%, var(--st-purple-dark) 100%);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(125, 33, 129, 0.35);
+        }
+
+        .st-btn--primary:hover {
+            background: linear-gradient(180deg, #8b2890 0%, var(--st-purple) 100%);
+            box-shadow: 0 4px 12px rgba(125, 33, 129, 0.4);
+        }
+
+        .st-btn--gold {
+            background: linear-gradient(180deg, #e8b020 0%, var(--st-gold) 100%);
+            color: var(--st-purple-deep);
+            box-shadow: 0 2px 8px rgba(212, 160, 18, 0.35);
+        }
+
+        .st-btn--ghost {
+            background: var(--st-surface);
+            border: 1px solid var(--st-border);
+            color: var(--st-purple-dark);
+        }
+
+        .st-btn--ghost:hover {
+            border-color: var(--st-purple-soft);
+            background: var(--st-purple-pale);
+        }
+
+        .st-btn--block { width: 100%; }
+
+        .st-btn--sm { padding: 0.4rem 0.85rem; font-size: 0.78rem; }
+
+        .st-hero-actions { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 0.5rem; }
+
+        .st-section-title {
+            font-size: 1.15rem;
+            margin: 0 0 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .st-section-title::before {
+            content: "";
+            width: 4px;
+            height: 1.1em;
+            background: linear-gradient(180deg, var(--st-purple), var(--st-gold));
+            border-radius: 2px;
+        }
+
+        .st-alert {
+            padding: 0.75rem 1rem;
+            border-radius: var(--st-radius-sm);
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+            border: 1px solid;
+        }
+
+        .st-alert--ok { background: #f0fdf4; border-color: #86efac; color: #166534; }
+        .st-alert--error { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+
         .st-field { margin-bottom: 1rem; }
-        .st-field label { display: block; font-weight: 600; font-size: 0.78rem; margin-bottom: 0.35rem; }
-        .st-field input { width: 100%; padding: 0.55rem 0.75rem; border: 1px solid var(--st-border); border-radius: var(--st-radius); font: inherit; }
+
+        .st-field label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.78rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 0.35rem;
+            color: var(--st-ink-soft);
+        }
+
+        .st-field input {
+            width: 100%;
+            padding: 0.6rem 0.85rem;
+            border: 1px solid var(--st-border);
+            border-radius: var(--st-radius-sm);
+            font: inherit;
+            background: var(--st-warm);
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .st-field input:focus {
+            outline: none;
+            border-color: var(--st-purple-soft);
+            box-shadow: 0 0 0 3px rgba(125, 33, 129, 0.12);
+            background: #fff;
+        }
+
+        .st-login-wrap {
+            max-width: 420px;
+            margin: 2rem auto;
+        }
+
+        .st-login-card {
+            padding: 2rem;
+            box-shadow: var(--st-shadow);
+        }
+
+        .st-empty {
+            text-align: center;
+            padding: 2.5rem 1.5rem;
+        }
+
+        .st-empty-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.75rem;
+            opacity: 0.85;
+        }
+
         .st-footer {
-            text-align: center; padding: 1.25rem; font-size: 0.78rem; color: var(--st-muted);
+            margin-top: auto;
+            padding: 1.5rem 1.25rem;
+            text-align: center;
+            font-size: 0.8125rem;
+            color: var(--st-muted);
+            background: var(--st-surface);
             border-top: 1px solid var(--st-border);
         }
-        .st-footer a { color: var(--st-accent-dark); }
+
+        .st-footer a {
+            color: var(--st-purple);
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .st-footer a:hover { text-decoration: underline; }
+
+        .st-footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 1.25rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.5rem;
+        }
+
+        @media (max-width: 640px) {
+            .st-header { padding: 0 1rem; }
+            .st-hero { padding: 1.5rem 1.25rem; }
+            .st-brand-text span { display: none; }
+        }
+
         {% block extra_css %}{% endblock %}
     </style>
 </head>
 <body>
 <header class="st-header">
     <a class="st-brand" href="{% url 'studio_inicio' %}">
-        eki Studio
-        <small>Explorar y publicar</small>
+        <span class="st-brand-mark" aria-hidden="true">S</span>
+        <span class="st-brand-text">
+            <strong>eki Studio</strong>
+            <span>Formación que crece contigo</span>
+        </span>
     </a>
     <nav class="st-nav">
         <a href="{% url 'studio_catalogo' %}">Cursos</a>
         <a href="{% url 'studio_creador' %}">Soy creador</a>
         {% if estudiante %}
-        <a href="/aprende/estudiante/">Mi aula</a>
+        <a href="/aprende/estudiante/" class="st-nav--cta">Mi aula</a>
         {% else %}
-        <a href="{% url 'studio_estudiante_login' %}">Ingresar</a>
+        <a href="{% url 'studio_estudiante_login' %}" class="st-nav--cta">Ingresar</a>
         {% endif %}
     </nav>
 </header>
@@ -112,7 +476,12 @@
     {% block content %}{% endblock %}
 </main>
 <footer class="st-footer">
-    Estudiar y entregar tareas → <a href="/aprende/">Aula virtual eki</a>
+    <div class="st-footer-links">
+        <a href="{% url 'studio_catalogo' %}">Catálogo</a>
+        <a href="{% url 'studio_creador' %}">Publicar curso</a>
+        <a href="/aprende/">Aula virtual</a>
+    </div>
+    <p style="margin:0;">Estudiar y entregar tareas → <a href="/aprende/">Aula virtual eki</a></p>
 </footer>
 </body>
 </html>

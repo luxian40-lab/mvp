@@ -1,23 +1,26 @@
 {% extends "studio/base.html" %}
 {% block title %}Ingresar | eki Studio{% endblock %}
 {% block content %}
-<div class="st-card" style="max-width:400px;margin:0 auto;">
-    <h1 style="font-size:1.25rem;">Ingresar</h1>
-    <p class="st-muted">Misma cuenta que WhatsApp y el aula virtual.</p>
-    {% if error %}
-    <div class="st-alert st-alert--error">{{ error }}</div>
-    {% endif %}
-    <form method="post">
-        {% csrf_token %}
-        <div class="st-field">
-            <label for="cedula">Cédula</label>
-            <input id="cedula" name="cedula" type="text" required autocomplete="username">
-        </div>
-        <div class="st-field">
-            <label for="telefono">Teléfono WhatsApp</label>
-            <input id="telefono" name="telefono" type="tel" required autocomplete="tel">
-        </div>
-        <button type="submit" class="st-btn st-btn--primary">Continuar</button>
-    </form>
+<div class="st-login-wrap">
+    <div class="st-card st-login-card">
+        <span class="st-kicker">Bienvenido de nuevo</span>
+        <h1 style="font-size:1.35rem;margin-bottom:0.35rem;">Ingresar a Studio</h1>
+        <p class="st-muted" style="margin-bottom:1.25rem;">La misma cédula y teléfono de WhatsApp y del aula virtual.</p>
+        {% if error %}
+        <div class="st-alert st-alert--error">{{ error }}</div>
+        {% endif %}
+        <form method="post">
+            {% csrf_token %}
+            <div class="st-field">
+                <label for="cedula">Cédula</label>
+                <input id="cedula" name="cedula" type="text" required autocomplete="username" placeholder="Sin puntos ni espacios">
+            </div>
+            <div class="st-field">
+                <label for="telefono">Teléfono WhatsApp</label>
+                <input id="telefono" name="telefono" type="tel" required autocomplete="tel" placeholder="Ej. 300 123 4567">
+            </div>
+            <button type="submit" class="st-btn st-btn--primary st-btn--block">Continuar</button>
+        </form>
+    </div>
 </div>
 {% endblock %}
