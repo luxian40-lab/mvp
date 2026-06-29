@@ -444,7 +444,19 @@ def get_response_for_intent(intent: str, nombre_usuario: str = "Estudiante", **k
     Returns:
         mensaje: respuesta en formato texto
     """
-    
+    estudiante_id_b2b = kwargs.get('estudiante_id')
+    if estudiante_id_b2b:
+        try:
+            from .models import Estudiante
+            from .flujo_whatsapp_b2b import respuesta_b2b_sin_menu
+
+            _est_b2b = Estudiante.objects.select_related('cliente').get(id=estudiante_id_b2b)
+            _alt = respuesta_b2b_sin_menu(_est_b2b, intent, nombre_usuario, kwargs)
+            if _alt is not None:
+                return _alt
+        except Estudiante.DoesNotExist:
+            pass
+
     # Saludos
     if intent == 'saludo':
         estudiante_id_menu = kwargs.get('estudiante_id')
@@ -464,7 +476,7 @@ def get_response_for_intent(intent: str, nombre_usuario: str = "Estudiante", **k
                         return (
                             f"🌱 Hola {nombre_usuario}, bienvenido al programa de *{org}*.\n\n"
                             f"{emoji} Tu curso: *{cur.nombre}*\n\n"
-                            "Escribe *continuar* para seguir tu lección.\n"
+                            "Escribe *listo* para seguir tu lección.\n"
                             "Si tienes dudas, escribe *ayuda*."
                         )
                     return (
@@ -576,8 +588,11 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             
             respuesta += "\n"
         
-        respuesta += "Escribe *CONTINUAR* para seguir tu lección\n"
-        respuesta += "O escribe *MENÚ* para volver al inicio"
+        if getattr(estudiante, 'cliente_id', None):
+            respuesta += "Escribe *listo* para seguir tu lección."
+        else:
+            respuesta += "Escribe *CONTINUAR* para seguir tu lección\n"
+            respuesta += "O escribe *MENÚ* para volver al inicio"
         return respuesta
     
     # Opción 2: cursos (sandbox: lista + números; B2B: sin menú global, curso del cliente)
@@ -1169,7 +1184,16 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 estudiante.contexto_temporal = _ctx_drip
                 estudiante.save(update_fields=['contexto_temporal'])
         
-        # Si tiene MÚLTIPLES cursos activos, preguntar cuál continuar
+        # B2B: un solo curso activo según campaña/catálogo (sin lista numerada)
+        if getattr(estudiante, 'cliente_id', None) and progresos_activos.count() > 1:
+            from .flujo_whatsapp_b2b import resolver_progreso_b2b, salir_seleccion_curso_legacy
+
+            salir_seleccion_curso_legacy(estudiante)
+            prog_b2b = resolver_progreso_b2b(estudiante)
+            if prog_b2b:
+                progresos_activos = ProgresoEstudiante.objects.filter(id=prog_b2b.id)
+
+        # Si tiene MÚLTIPLES cursos activos, preguntar cuál continuar (solo sandbox)
         if progresos_activos.count() > 1:
             respuesta = "📚 Tienes varios cursos activos:\n\n"
             for idx, prog in enumerate(progresos_activos, 1):

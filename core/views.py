@@ -3248,6 +3248,24 @@ def _procesar_twilio_webhook(post_data):
                 enviar_whatsapp_twilio(msg_from, texto_respuesta)
                 return
 
+            from .flujo_whatsapp_b2b import (
+                es_estudiante_b2b,
+                es_keyword_retomar,
+                salir_seleccion_curso_legacy,
+            )
+            from .response_templates import get_response_for_intent
+
+            if es_estudiante_b2b(estudiante) and es_keyword_retomar(texto_norm):
+                salir_seleccion_curso_legacy(estudiante)
+                texto_respuesta = get_response_for_intent(
+                    'continuar_leccion',
+                    estudiante.nombre,
+                    estudiante_id=estudiante.id,
+                    mensaje_original=msg_body,
+                )
+                enviar_whatsapp_twilio(msg_from, texto_respuesta)
+                return
+
             if es_keyword_menu(texto_norm):
                 texto_respuesta = construir_menu_principal_texto(estudiante)
                 enviar_whatsapp_twilio(msg_from, texto_respuesta)
@@ -3772,7 +3790,24 @@ def _procesar_twilio_webhook(post_data):
             
             # PRIORIDAD: Si está seleccionando curso, NO interceptar números
             if estudiante.estado_onboarding == 'esperando_seleccion_curso':
-                if msg_lower in ['menu', 'menú']:
+                from .flujo_whatsapp_b2b import (
+                    es_estudiante_b2b,
+                    mensaje_digitos_sin_menu,
+                    salir_seleccion_curso_legacy,
+                )
+                if es_estudiante_b2b(estudiante):
+                    salir_seleccion_curso_legacy(estudiante)
+                    from .response_templates import get_response_for_intent
+                    if msg_body.strip().isdigit():
+                        texto_respuesta = mensaje_digitos_sin_menu(estudiante)
+                    else:
+                        texto_respuesta = get_response_for_intent(
+                            'continuar_leccion',
+                            estudiante.nombre,
+                            estudiante_id=estudiante.id,
+                            mensaje_original=msg_body,
+                        )
+                elif msg_lower in ['menu', 'menú']:
                     estudiante.estado_onboarding = 'completado'
                     estudiante.contexto_temporal = None
                     estudiante.save()
@@ -5095,10 +5130,12 @@ def _procesar_twilio_webhook(post_data):
                     estudiante.save()
                     print(f"⏭️ Profesor Gerónimo omitido por usuario")
                     
-                    # Si dijo "menu", mostrar el menú principal
+                    # Si dijo "menu", retomar curso (B2B) o menú sandbox
                     if msg_lower in ['menu', 'menú']:
-                        from .response_templates import get_response_for_intent
-                        texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
+                        from .flujo_whatsapp_b2b import respuesta_tras_keyword_menu
+                        texto_respuesta = respuesta_tras_keyword_menu(
+                            estudiante, estudiante.nombre, msg_body
+                        )
                     else:
                         # v1.9.6: NO llamar continuar_leccion — el skip solo cierra el tutor.
                         # El estudiante ya tiene el contenido del módulo. Cuando lo estudie
@@ -5243,8 +5280,10 @@ def _procesar_twilio_webhook(post_data):
                     print(f"⏭️ María omitida por usuario → activando reto")
                     
                     if msg_lower in ['menu', 'menú']:
-                        from .response_templates import get_response_for_intent
-                        texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
+                        from .flujo_whatsapp_b2b import respuesta_tras_keyword_menu
+                        texto_respuesta = respuesta_tras_keyword_menu(
+                            estudiante, estudiante.nombre, msg_body
+                        )
                     else:
                         texto_respuesta = _activar_reto_despues_de_maria("👍 Perfecto, pasemos al reto de la facilitadora.")
                 else:
@@ -5307,8 +5346,10 @@ def _procesar_twilio_webhook(post_data):
                 elif msg_lower_exam in ['menu', 'menú']:
                     estudiante.estado_onboarding = 'completado'
                     estudiante.save()
-                    from .response_templates import get_response_for_intent
-                    texto_respuesta = get_response_for_intent('saludo', estudiante.nombre, estudiante_id=estudiante.id)
+                    from .flujo_whatsapp_b2b import respuesta_tras_keyword_menu
+                    texto_respuesta = respuesta_tras_keyword_menu(
+                        estudiante, estudiante.nombre, msg_body
+                    )
                 else:
                     # Validar respuesta a pregunta de módulo
                     from .pregunta_handler import validar_respuesta, procesar_respuesta_abierta_ia
@@ -5727,8 +5768,25 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
             
             # 3.5c PRIORIDAD: Si está seleccionando un curso de la lista
             elif estudiante.estado_onboarding == 'esperando_seleccion_curso':
+                from .flujo_whatsapp_b2b import (
+                    es_estudiante_b2b,
+                    mensaje_digitos_sin_menu,
+                    salir_seleccion_curso_legacy,
+                )
                 msg_sel = msg_body.strip().lower()
-                if msg_sel in ['menu', 'menú']:
+                if es_estudiante_b2b(estudiante):
+                    salir_seleccion_curso_legacy(estudiante)
+                    from .response_templates import get_response_for_intent
+                    if msg_body.strip().isdigit():
+                        texto_respuesta = mensaje_digitos_sin_menu(estudiante)
+                    else:
+                        texto_respuesta = get_response_for_intent(
+                            'continuar_leccion',
+                            estudiante.nombre,
+                            estudiante_id=estudiante.id,
+                            mensaje_original=msg_body,
+                        )
+                elif msg_sel in ['menu', 'menú']:
                     estudiante.estado_onboarding = 'completado'
                     estudiante.contexto_temporal = None
                     estudiante.save()

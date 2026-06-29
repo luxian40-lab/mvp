@@ -1,18 +1,24 @@
 {% extends "aprende/base.html" %}
 {% block title %}{{ progreso.curso.nombre }} | Aula web eki{% endblock %}
 {% block nav %}
-<a href="{% url 'aprende_estudiante_cursos' %}">← Mis cursos</a>
-<a href="{% url 'aprende_estudiante_logout' %}">Salir</a>
+<a href="{% url 'aprende_estudiante_curso' progreso.curso.id %}">{{ progreso.curso.nombre }}</a>
+{% include "aprende/estudiante_nav.html" %}
 {% endblock %}
 {% block content %}
 <div class="eki-page-head">
-    <span class="eki-badge">Curso</span>
+    <span class="eki-kicker">Programa de formación</span>
     <h1>{{ progreso.curso.nombre }}</h1>
-    <p class="eki-lead">{{ progreso.curso.descripcion|default:"Recorre cada módulo a tu ritmo. El material también puede llegarte por WhatsApp." }}</p>
+    <p class="eki-lead">{{ progreso.curso.descripcion|default:"Recorra los módulos habilitados según su avance en el programa." }}</p>
 </div>
 
+{% if messages %}
+{% for message in messages %}
+<div class="eki-alert eki-alert--{% if message.tags == 'error' %}error{% else %}ok{% endif %}">{{ message }}</div>
+{% endfor %}
+{% endif %}
+
 <div class="eki-card">
-    <h2 class="eki-h2">Lecciones</h2>
+    <h2 class="eki-h2">Módulos</h2>
     <ul class="eki-list">
         {% for m in modulos %}
         <li class="eki-list-item">
@@ -26,7 +32,7 @@
         </li>
         {% empty %}
         <li class="eki-list-item">
-            <p class="eki-muted" style="margin:0;">Sin lecciones publicadas aún. Vuelve pronto.</p>
+            <p class="eki-muted" style="margin:0;">No hay módulos publicados en este curso.</p>
         </li>
         {% endfor %}
     </ul>
@@ -35,7 +41,7 @@
 {% if tareas_list %}
 <div class="eki-card" style="margin-top:1.25rem;">
     <h2 class="eki-h2">Tareas</h2>
-    <p class="eki-muted" style="margin:-0.35rem 0 0.75rem;">Sube tu trabajo y recibe calificación del profesor (1–5).</p>
+    <p class="eki-muted" style="margin:-0.35rem 0 0.75rem;">Entregas calificadas por el docente (escala 1 a 5).</p>
     <ul class="eki-list">
         {% for item in tareas_list %}
         <li class="eki-list-item">

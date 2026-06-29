@@ -43,7 +43,7 @@ class AprendeWebTests(TestCase):
         r = self.http.get('/aprende/')
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Estudiante')
-        self.assertContains(r, 'Aula web')
+        self.assertContains(r, 'Aula virtual')
 
     def test_estudiante_login_y_ve_modulo(self):
         r = self.http.post('/aprende/estudiante/login/', {
@@ -193,3 +193,142 @@ class AprendeWebTests(TestCase):
         entrega.refresh_from_db()
         self.assertEqual(entrega.nota, 4)
         self.assertEqual(entrega.comentario_profesor, 'Buen trabajo')
+
+    def test_aula_solo_modulos_habilitados_por_admin(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from core.models import HabilitacionModuloEstudiante
+
+        self.cliente.drip_modulos_solo_estudiantes_listados = True
+        self.cliente.save(update_fields=['drip_modulos_solo_estudiantes_listados'])
+        m2 = Modulo.objects.create(
+            curso=self.curso, numero=2, titulo='Modulo 2', descripcion='', contenido='Secreto',
+        )
+        HabilitacionModuloEstudiante.objects.create(
+            estudiante=self.est,
+            curso=self.curso,
+            modulo=self.modulo,
+            habilitado_desde=timezone.now() - timedelta(hours=1),
+        )
+        self.http.post('/aprende/estudiante/login/', {
+            'cedula': 'web1',
+            'telefono': '3009999002',
+        })
+        r = self.http.get(f'/aprende/estudiante/curso/{self.curso.id}/')
+        self.assertContains(r, 'Intro')
+        self.assertNotContains(r, 'Modulo 2')
+        r2 = self.http.get(f'/aprende/estudiante/modulo/{m2.id}/')
+        self.assertEqual(r2.status_code, 302)
+
+    def test_aula_sin_lista_solo_hasta_modulo_actual(self):
+        m2 = Modulo.objects.create(
+            curso=self.curso, numero=2, titulo='Futuro', descripcion='', contenido='No aún',
+        )
+        self.http.post('/aprende/estudiante/login/', {
+            'cedula': 'web1',
+            'telefono': '3009999002',
+        })
+        r = self.http.get(f'/aprende/estudiante/curso/{self.curso.id}/')
+        self.assertContains(r, 'Intro')
+        self.assertNotContains(r, 'Futuro')
+        r2 = self.http.get(f'/aprende/estudiante/modulo/{m2.id}/')
+        self.assertEqual(r2.status_code, 302)
+
+    def test_biblioteca_muestra_archivos_modulo_liberado(self):
+        from core.models_extras import ArchivoModulo
+
+        ArchivoModulo.objects.create(
+            modulo=self.modulo,
+            tipo='pdf',
+            titulo='Guía WA',
+            activo=True,
+        )
+        self.http.post('/aprende/estudiante/login/', {
+            'cedula': 'web1',
+            'telefono': '3009999002',
+        })
+        r = self.http.get('/aprende/estudiante/biblioteca/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Biblioteca de recursos')
+        self.assertContains(r, 'Guía WA')
+        self.assertContains(r, self.curso.nombre)
+
+    def test_aula_oculta_modulo_con_drip_tras_completar_anterior(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from core.models import ModuloCompletado
+
+        m2 = Modulo.objects.create(
+            curso=self.curso, numero=2, titulo='Bloqueado drip', descripcion='', contenido='Espera',
+        )
+        m2.habilitado_desde = timezone.now() + timedelta(days=5)
+        m2.save(update_fields=['habilitado_desde'])
+        progreso = ProgresoEstudiante.objects.get(estudiante=self.est, curso=self.curso)
+        ModuloCompletado.objects.create(progreso=progreso, modulo=self.modulo)
+        progreso.modulo_actual = m2
+        progreso.fecha_ultimo_avance = timezone.now()
+        progreso.save(update_fields=['modulo_actual', 'fecha_ultimo_avance'])
+
+        self.http.post('/aprende/estudiante/login/', {
+            'cedula': 'web1',
+            'telefono': '3009999002',
+        })
+        r = self.http.get(f'/aprende/estudiante/curso/{self.curso.id}/')
+        self.assertContains(r, 'Intro')
+        self.assertNotContains(r, 'Bloqueado drip')
+        r2 = self.http.get(f'/aprende/estudiante/modulo/{m2.id}/')
+        self.assertEqual(r2.status_code, 302)
+
+    def test_estudiante_perfil_y_puntos(self):
+        from core.gamificacion import PerfilGamificacion
+
+        perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=self.est)
+        perfil.puntos_totales = 120
+        perfil.nivel = 3
+        perfil.save(update_fields=['puntos_totales', 'nivel'])
+        self.http.post('/aprende/estudiante/login/', {
+            'cedula': 'web1',
+            'telefono': '3009999002',
+        })
+        r = self.http.get('/aprende/estudiante/perfil/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, '120')
+        self.assertContains(r, 'Mi perfil')
+
+        r2 = self.http.post('/aprende/estudiante/perfil/', {
+            'accion': 'perfil',
+            'nombre': 'Est Web Actualizado',
+            'municipio': 'Medellín',
+            'departamento': 'Antioquia',
+            'genero': 'M',
+            'edad': '28',
+        })
+        self.assertEqual(r2.status_code, 302)
+        self.est.refresh_from_db()
+        self.assertEqual(self.est.nombre, 'Est Web Actualizado')
+        self.assertEqual(self.est.municipio, 'Medellín')
+
+    def test_estudiante_sube_documento_en_modulo(self):
+        from aprende.models import DocumentoEstudianteAula
+
+        self.http.post('/aprende/estudiante/login/', {
+            'cedula': 'web1',
+            'telefono': '3009999002',
+        })
+        archivo = SimpleUploadedFile('evidencia.pdf', b'%PDF-1.4 test', content_type='application/pdf')
+        r = self.http.post(f'/aprende/estudiante/modulo/{self.modulo.id}/', {
+            'accion': 'subir_documento',
+            'titulo': 'Mi evidencia',
+            'descripcion': 'Prueba',
+            'archivo': archivo,
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(
+            DocumentoEstudianteAula.objects.filter(
+                estudiante=self.est, modulo=self.modulo, titulo='Mi evidencia',
+            ).exists()
+        )

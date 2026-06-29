@@ -619,6 +619,13 @@ class Estudiante(models.Model):
         help_text='Organización/Empresa B2B a la que pertenece este estudiante'
     )
     activo = models.BooleanField(default=True, verbose_name='Activo')
+    foto_perfil = models.ImageField(
+        upload_to='estudiantes/avatars/%Y/%m/',
+        blank=True,
+        null=True,
+        verbose_name='Foto de perfil',
+        help_text='Avatar del estudiante (aula web y reportes).',
+    )
     fecha_registro = models.DateTimeField(auto_now_add=True, verbose_name='Fecha de Registro')
     
     # HABEAS DATA - Proteccion de datos personales (Ley 1581 de 2012 - Colombia)

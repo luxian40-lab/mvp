@@ -43,6 +43,11 @@ def es_keyword_correccion(texto_norm: str) -> bool:
 
 
 def construir_menu_principal_texto(estudiante) -> str:
+    from .flujo_whatsapp_b2b import es_estudiante_b2b, texto_ayuda_comandos
+
+    if es_estudiante_b2b(estudiante):
+        return texto_ayuda_comandos(estudiante)
+
     nombre = (getattr(estudiante, "nombre", "") or "estudiante").split()[0]
     return (
         f"Hola {nombre}. Este es su menu principal:\n\n"

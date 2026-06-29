@@ -84,3 +84,38 @@ class EntregaTarea(models.Model):
     @property
     def calificada(self) -> bool:
         return self.nota is not None
+
+
+class DocumentoEstudianteAula(models.Model):
+    """Documento subido por el estudiante desde el aula (por curso o módulo)."""
+
+    estudiante = models.ForeignKey(
+        Estudiante,
+        on_delete=models.CASCADE,
+        related_name='documentos_aula',
+    )
+    curso = models.ForeignKey(
+        Curso,
+        on_delete=models.CASCADE,
+        related_name='documentos_estudiantes_aula',
+    )
+    modulo = models.ForeignKey(
+        Modulo,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='documentos_estudiantes_aula',
+    )
+    titulo = models.CharField(max_length=200)
+    descripcion = models.TextField(blank=True)
+    archivo = models.FileField(upload_to='aprende/documentos/%Y/%m/')
+    nombre_archivo = models.CharField(max_length=255, blank=True)
+    fecha_subida = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-fecha_subida']
+        verbose_name = 'Documento del estudiante (aula)'
+        verbose_name_plural = 'Documentos del estudiante (aula)'
+
+    def __str__(self):
+        return f'{self.estudiante.nombre} — {self.titulo}'

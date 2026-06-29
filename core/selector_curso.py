@@ -213,7 +213,7 @@ def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_
         return (
             f"✅ Ya completaste *{curso_seleccionado.nombre}*\n\n"
             f"🎓 Tu certificado está disponible.\n\n"
-            f"Escribe *menú* para ver las opciones o selecciona otro curso."
+            f"Escribe *listo* para seguir con otro curso o *ayuda* si necesitas soporte."
         )
 
     # Obtener módulo actual
@@ -434,7 +434,7 @@ Has completado el curso: {curso_seleccionado.nombre}
 
 🏆 Tu certificado se está generando.
 
-Escribe *menú* para ver las opciones."""
+Escribe *listo* para seguir o *ayuda* si necesitas soporte."""
 
     _persist_curso_foco()
-    return f"Escribe *listo* cuando termines el módulo o *menú* para volver."
+    return f"Escribe *listo* cuando termines el módulo o *ayuda* si necesitas soporte."

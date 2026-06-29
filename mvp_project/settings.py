@@ -238,6 +238,8 @@ JAZZMIN_SETTINGS = {
     "topmenu_links": [
         {"name": "Inicio", "url": "admin:index", "new_window": False},
         {"name": "Dashboard", "url": "/admin/dashboard/", "new_window": False},
+        {"name": "Estudiantes", "url": "/admin/core/estudiante/", "new_window": False},
+        {"name": "Grupos", "url": "/admin/core/grupoestudiantes/", "new_window": False},
         {"name": "Cobertura", "url": "/admin/cobertura/", "new_window": False},
         {"name": "Ajustar avance", "url": "/admin/ajustar-avance/", "new_window": False},
         {"name": "Gamificación manual", "url": "/admin/gamificacion-ajuste/", "new_window": False},
@@ -348,7 +350,14 @@ JAZZMIN_SETTINGS = {
                 "permissions": ["formulario.view_fichagei"],
             },
         ],
-        "core": [],
+        "core": [
+            {
+                "name": "Grupos de estudiantes",
+                "url": "/admin/core/grupoestudiantes/",
+                "icon": "fas fa-users",
+                "permissions": ["core.view_grupoestudiantes"],
+            },
+        ],
         "agents_commercial": [
             {
                 "name": "Bot comercial",

@@ -2,33 +2,13 @@
 
 from __future__ import annotations
 
-import os
-
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from core.models import Curso, ProgresoEstudiante
 
+from .archivos_aula import validar_archivo_entrega
 from .models import EntregaTarea, TareaCurso
-
-MAX_ARCHIVO_MB = 25
-EXTENSIONES_PERMITIDAS = frozenset({
-    '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
-    '.jpg', '.jpeg', '.png', '.gif', '.webp', '.zip', '.txt', '.mp4',
-})
-
-
-def _validar_archivo_entrega(archivo) -> None:
-    if not archivo:
-        raise ValidationError('Debes adjuntar un archivo.')
-    ext = os.path.splitext(archivo.name)[1].lower()
-    if ext not in EXTENSIONES_PERMITIDAS:
-        raise ValidationError(
-            f'Formato no permitido ({ext or "sin extensión"}). '
-            f'Usa PDF, Word, Excel, imagen o ZIP.'
-        )
-    if archivo.size > MAX_ARCHIVO_MB * 1024 * 1024:
-        raise ValidationError(f'El archivo no puede superar {MAX_ARCHIVO_MB} MB.')
 
 
 def estudiante_inscrito_en_curso(estudiante, curso: Curso) -> bool:
@@ -73,7 +53,7 @@ def guardar_entrega(request, tarea: TareaCurso, estudiante) -> tuple[EntregaTare
         return None, 'Debes adjuntar un archivo.'
     if archivo:
         try:
-            _validar_archivo_entrega(archivo)
+            validar_archivo_entrega(archivo)
         except ValidationError as exc:
             return None, exc.messages[0]
 

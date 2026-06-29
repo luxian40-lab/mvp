@@ -3,14 +3,20 @@
 {% block body_class %}page-lesson{% endblock %}
 {% block nav %}
 <a href="{% url 'aprende_estudiante_curso' modulo.curso_id %}">{{ modulo.curso.nombre }}</a>
-<a href="{% url 'aprende_estudiante_cursos' %}">Mis cursos</a>
+{% include "aprende/estudiante_nav.html" %}
 {% endblock %}
 {% block content %}
 <div class="eki-page-head">
-    <span class="eki-badge">Módulo {{ modulo.numero }}</span>
+    <span class="eki-kicker">Módulo {{ modulo.numero }}</span>
     <h1>{{ modulo.titulo }}</h1>
     {% if modulo.descripcion %}<p class="eki-lead">{{ modulo.descripcion }}</p>{% endif %}
 </div>
+
+{% if messages %}
+{% for message in messages %}
+<div class="eki-alert eki-alert--{% if message.tags == 'error' %}error{% else %}ok{% endif %}">{{ message }}</div>
+{% endfor %}
+{% endif %}
 
 {% if video_url %}
 <div class="eki-card" style="padding:0;overflow:hidden;">
@@ -66,4 +72,37 @@
     </div>
 </div>
 {% endif %}
+
+<div class="eki-card">
+    <h2 class="eki-h2">Mis documentos en este módulo</h2>
+    {% if documentos %}
+    <ul class="eki-list" style="margin-bottom:1rem;">
+        {% for d in documentos %}
+        <li class="eki-list-item">
+            <a href="{{ d.archivo.url }}" target="_blank" rel="noopener">{{ d.titulo }}</a>
+            <span class="eki-muted"> · {{ d.fecha_subida|date:"d/m/Y" }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="eki-muted" style="margin-bottom:1rem;">Sube aquí entregables o archivos de apoyo para este módulo.</p>
+    {% endif %}
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="subir_documento">
+        <div class="eki-field">
+            <label for="doc_titulo">Título</label>
+            <input id="doc_titulo" name="titulo" type="text" required maxlength="200">
+        </div>
+        <div class="eki-field">
+            <label for="doc_descripcion">Descripción (opcional)</label>
+            <textarea id="doc_descripcion" name="descripcion" rows="2"></textarea>
+        </div>
+        <div class="eki-field">
+            <label for="doc_archivo">Archivo (máx. 25 MB)</label>
+            <input id="doc_archivo" name="archivo" type="file" required>
+        </div>
+        <button type="submit" class="eki-btn eki-btn--primary eki-btn--sm">Subir documento</button>
+    </form>
+</div>
 {% endblock %}

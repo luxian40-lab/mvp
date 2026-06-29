@@ -106,7 +106,7 @@ def _respuesta_cola_tras_avanzar_eval_opc(
 # Mensaje al estudiante si modo "pasos" quedó mal configurado (sin filas PasoModulo activas).
 FALLBACK_MODULO_PASOS_SIN_PASOS = (
     '📚 Estamos organizando el contenido de esta unidad. '
-    'Intentá de nuevo en unos minutos o escribe *menú* para ver opciones.'
+    'Intentá de nuevo en unos minutos o escribe *listo* para retomar tu curso.'
 )
 
 

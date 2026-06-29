@@ -2,7 +2,7 @@
 {% block title %}{{ tarea.titulo }} | Tarea{% endblock %}
 {% block nav %}
 <a href="{% url 'aprende_estudiante_curso' tarea.curso_id %}">← Volver al curso</a>
-<a href="{% url 'aprende_estudiante_logout' %}">Salir</a>
+{% include "aprende/estudiante_nav.html" %}
 {% endblock %}
 {% block main_class %}eki-main--wide{% endblock %}
 {% block content %}

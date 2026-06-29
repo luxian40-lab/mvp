@@ -1,28 +1,28 @@
 {% extends "aprende/base.html" %}
-{% block title %}Aula web eki{% endblock %}
+{% block title %}Aula virtual eki{% endblock %}
 {% block main_class %}eki-main--wide{% endblock %}
 {% block content %}
 <section class="eki-hero">
-    <span class="eki-badge">Aula web</span>
-    <h1>Estudia y enseña en un solo lugar</h1>
+    <span class="eki-kicker">Plataforma de formación</span>
+    <h1>Aula virtual</h1>
     <p class="eki-lead">
-        Lecciones, videos y archivos conectados al mismo contenido que usas por WhatsApp
-        y en el portal de tu organización.
+        Acceda a lecciones, material de estudio y tareas del mismo programa
+        que cursa por WhatsApp, en un entorno ordenado para el aprendizaje.
     </p>
 </section>
 
 <div class="eki-grid-2">
     <article class="eki-card eki-card--bar eki-card--interactive eki-role-card">
-        <span class="eki-role-num">01</span>
+        <span class="eki-role-num">I</span>
         <h2>Estudiante</h2>
-        <p class="eki-muted">Ingresa con cédula y teléfono WhatsApp. Retoma tus módulos y descarga material.</p>
-        <a class="eki-btn eki-btn--primary" href="{% url 'aprende_estudiante_login' %}">Entrar</a>
+        <p class="eki-muted">Ingrese con cédula y teléfono registrado. Consulte módulos, biblioteca y perfil académico.</p>
+        <a class="eki-btn eki-btn--primary" href="{% url 'aprende_estudiante_login' %}">Ingresar</a>
     </article>
     <article class="eki-card eki-card--bar eki-card--interactive eki-role-card">
-        <span class="eki-role-num">02</span>
-        <h2>Profesor</h2>
-        <p class="eki-muted">Publica lecciones y sube archivos para tu organización. Credenciales del portal.</p>
-        <a class="eki-btn eki-btn--primary" href="{% url 'aprende_profesor_login' %}">Entrar</a>
+        <span class="eki-role-num">II</span>
+        <h2>Docente</h2>
+        <p class="eki-muted">Publique lecciones y gestione tareas de su organización con las credenciales del portal.</p>
+        <a class="eki-btn eki-btn--primary" href="{% url 'aprende_profesor_login' %}">Ingresar</a>
     </article>
 </div>
 {% endblock %}

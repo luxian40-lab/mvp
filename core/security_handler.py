@@ -541,9 +541,8 @@ Ver en admin: {settings.ALLOWED_HOSTS[0]}/admin/core/solicitudsoporte/{solicitud
         f'"{mensaje_texto}"\n\n'
         "Si tienes más información, envíala ahora y la añadiremos a tu caso.\n\n"
         "✏️ *Si solo falló un dato tuyo* (nombre, municipio, documento, etc.), puedes corregirlo "
-        "tú mismo sin esperar: escribe *menú* y luego la opción *corregir datos*, "
-        "o envía directamente *corregir datos* y sigue las instrucciones. "
-        "Tu curso sigue ahí: cuando quieras retomarlo escribe *listo* o *menú*.\n\n"
+        "tú mismo sin esperar: escribe *corregir datos* y sigue las instrucciones. "
+        "Tu curso sigue ahí: cuando quieras retomarlo escribe *listo*.\n\n"
         "Gracias por tu paciencia 🙏"
     )
     

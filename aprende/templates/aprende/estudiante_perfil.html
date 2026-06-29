@@ -1,0 +1,191 @@
+{% extends "aprende/base.html" %}
+{% block title %}Mi perfil | eki{% endblock %}
+{% block nav %}{% include "aprende/estudiante_nav.html" %}{% endblock %}
+{% block extra_css %}
+.eki-perfil-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+}
+.eki-avatar {
+    width: 96px;
+    height: 96px;
+    border-radius: var(--eki-radius);
+    object-fit: cover;
+    border: 1px solid var(--eki-border);
+    background: var(--eki-bg);
+}
+.eki-avatar--empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-serif);
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: var(--eki-purple-dark);
+}
+.eki-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+.eki-stat {
+    background: var(--eki-bg);
+    border: 1px solid var(--eki-border);
+    border-radius: var(--eki-radius);
+    padding: 0.65rem 0.75rem;
+    text-align: center;
+}
+.eki-stat strong {
+    display: block;
+    font-family: var(--font-serif);
+    font-size: 1.2rem;
+    color: var(--eki-purple-dark);
+}
+.eki-stat span {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--eki-muted);
+}
+{% endblock %}
+{% block content %}
+<div class="eki-page-head">
+    <span class="eki-kicker">Registro académico</span>
+    <h1>Mi perfil</h1>
+    <p class="eki-lead">Datos personales, progreso en gamificación y documentos entregados.</p>
+</div>
+
+{% if messages %}
+{% for message in messages %}
+<div class="eki-alert eki-alert--{% if message.tags == 'error' %}error{% else %}ok{% endif %}">{{ message }}</div>
+{% endfor %}
+{% endif %}
+
+<div class="eki-perfil-head">
+    <div>
+        {% if estudiante.foto_perfil %}
+        <img class="eki-avatar" src="{{ estudiante.foto_perfil.url }}" alt="Foto de {{ estudiante.nombre }}">
+        {% else %}
+        <div class="eki-avatar eki-avatar--empty" aria-hidden="true">{{ estudiante.nombre|slice:":1"|upper }}</div>
+        {% endif %}
+    </div>
+    <div style="flex:1;min-width:200px;">
+        <h2 style="margin:0 0 0.25rem;font-size:1.2rem;">{{ estudiante.nombre }}</h2>
+        <p class="eki-muted" style="margin:0;">CC {{ estudiante.cedula }} · WhatsApp {{ estudiante.telefono }}</p>
+        {% if gamificacion_activa %}
+        <div class="eki-stat-grid">
+            {% if puntos is not None %}
+            <div class="eki-stat"><strong>{{ puntos }}</strong><span>Puntos</span></div>
+            <div class="eki-stat"><strong>{{ nivel }}</strong><span>Nivel</span></div>
+            <div class="eki-stat"><strong>{{ racha }}</strong><span>Racha días</span></div>
+            {% elif promedio %}
+            <div class="eki-stat"><strong>{{ promedio }}</strong><span>Promedio</span></div>
+            <div class="eki-stat"><strong>{{ cantidad_notas }}</strong><span>Evaluaciones</span></div>
+            {% endif %}
+        </div>
+        {% else %}
+        <p class="eki-muted" style="margin-top:0.75rem;">Gamificación desactivada para tu organización.</p>
+        {% endif %}
+    </div>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="eki-card eki-card--bar" style="margin-bottom:1.25rem;">
+    {% csrf_token %}
+    <input type="hidden" name="accion" value="perfil">
+    <h2 class="eki-h2">Datos personales</h2>
+    <p class="eki-muted" style="margin-bottom:1rem;">Para cambiar cédula o teléfono escribe <strong>corregir datos</strong> por WhatsApp.</p>
+
+    <div class="eki-field">
+        <label for="nombre">Nombre completo</label>
+        <input id="nombre" name="nombre" type="text" value="{{ estudiante.nombre }}" required maxlength="100">
+    </div>
+    <div class="eki-grid-2">
+        <div class="eki-field">
+            <label for="municipio">Municipio</label>
+            <input id="municipio" name="municipio" type="text" value="{{ estudiante.municipio }}" maxlength="100">
+        </div>
+        <div class="eki-field">
+            <label for="departamento">Departamento</label>
+            <input id="departamento" name="departamento" type="text" value="{{ estudiante.departamento }}" maxlength="100">
+        </div>
+    </div>
+    <div class="eki-field">
+        <label for="ubicacion_detalle">Ubicación (vereda, barrio…)</label>
+        <textarea id="ubicacion_detalle" name="ubicacion_detalle" rows="2">{{ estudiante.ubicacion_detalle }}</textarea>
+    </div>
+    <div class="eki-grid-2">
+        <div class="eki-field">
+            <label for="genero">Género</label>
+            <select id="genero" name="genero">
+                <option value="">—</option>
+                {% for val, label in genero_choices %}
+                <option value="{{ val }}" {% if estudiante.genero == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="eki-field">
+            <label for="edad">Edad</label>
+            <input id="edad" name="edad" type="number" min="5" max="120" value="{% if estudiante.edad %}{{ estudiante.edad }}{% endif %}">
+        </div>
+    </div>
+    <div class="eki-field">
+        <label for="foto_perfil">Foto de perfil (JPG, PNG, máx. 5 MB)</label>
+        <input id="foto_perfil" name="foto_perfil" type="file" accept="image/jpeg,image/png,image/gif,image/webp">
+    </div>
+    <button type="submit" class="eki-btn eki-btn--primary">Guardar cambios</button>
+</form>
+
+<div class="eki-card">
+    <h2 class="eki-h2">Mis documentos</h2>
+    <p class="eki-muted" style="margin-bottom:1rem;">También puedes subir archivos desde cada módulo liberado.</p>
+
+    {% if documentos %}
+    <ul class="eki-list">
+        {% for d in documentos %}
+        <li class="eki-list-item">
+            <span class="eki-material-tag">DOC</span>
+            <span>
+                <a href="{{ d.archivo.url }}" target="_blank" rel="noopener"><strong>{{ d.titulo }}</strong></a><br>
+                <span class="eki-muted">{{ d.curso.nombre }}{% if d.modulo %} · Módulo {{ d.modulo.numero }}{% endif %} · {{ d.fecha_subida|date:"d/m/Y H:i" }}</span>
+            </span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="eki-muted">Aún no has subido documentos.</p>
+    {% endif %}
+
+    {% if progresos %}
+    <form method="post" enctype="multipart/form-data" style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--eki-border);">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="subir_documento">
+        <h3 class="eki-h2">Subir documento</h3>
+        <div class="eki-field">
+            <label for="curso_id">Curso</label>
+            <select id="curso_id" name="curso_id" required>
+                {% for p in progresos %}
+                <option value="{{ p.curso.id }}">{{ p.curso.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="eki-field">
+            <label for="doc_titulo">Título</label>
+            <input id="doc_titulo" name="titulo" type="text" required maxlength="200" placeholder="Ej. Certificado laboral">
+        </div>
+        <div class="eki-field">
+            <label for="doc_descripcion">Descripción (opcional)</label>
+            <textarea id="doc_descripcion" name="descripcion" rows="2"></textarea>
+        </div>
+        <div class="eki-field">
+            <label for="doc_archivo">Archivo (PDF, Word, imagen… máx. 25 MB)</label>
+            <input id="doc_archivo" name="archivo" type="file" required>
+        </div>
+        <button type="submit" class="eki-btn eki-btn--ghost">Subir documento</button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

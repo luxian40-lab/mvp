@@ -809,7 +809,7 @@ def mensaje_whatsapp_sin_certificado(estudiante, curso, motivo: str | None = Non
     return (
         '🎓 *Curso completado*\n\n'
         f'{detalle}\n\n'
-        'Puede seguir repasando el material escribiendo *menú*. '
+        'Puede seguir repasando el material escribiendo *listo*. '
         'Si cree que hay un error, escriba *ayuda* para contactar al equipo.'
     )
 

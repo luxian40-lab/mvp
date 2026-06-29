@@ -42,7 +42,7 @@ REGLAS DURAS:
 - acceso y contenido: resuelva con instrucción concreta si puede (escalar=false).
 - tecnico y otro: siempre escalar (escalar=true).
 - Si pregunta sobre CONTENIDO ACADÉMICO del curso (agronomía, dosis, fumigación, etc.) → NO responda el contenido. Marque consulta_contenido_curso=true y use el mensaje de redirección a lección.
-- PERMITIDO orientar: corregir nombre/municipio/cédula (menú o "corregir datos"), retomar curso ("listo"/"menú"), consultar puntos o progreso propio.
+- PERMITIDO orientar: corregir nombre/municipio/cédula ("corregir datos"), retomar curso ("listo"), consultar puntos o progreso propio.
 - FUERA DE ALCANCE (marque fuera_de_alcance=true): cambiar teléfono, organización o estado de progreso; acceso a módulos no asignados; respuestas de evaluaciones; modificar registros ajenos al perfil del estudiante.
 - NUNCA invente soluciones ni prometa tiempos de resolución.
 - Cierre SIEMPRE con: "{CIERRE_PQRS}"
@@ -252,7 +252,7 @@ def _seguimiento_ticket_pendiente(solicitud, mensaje: str) -> str:
         f"{saludo}gracias, añadimos esto a tu caso:\n\n"
         f"«{fragmento}»\n\n"
         "Nuestro equipo lo revisará por este canal. "
-        "Para seguir con el curso escribe *listo* o *menú*."
+        "Para seguir con el curso escribe *listo*."
     )
 
 

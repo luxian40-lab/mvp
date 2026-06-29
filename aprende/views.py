@@ -9,22 +9,30 @@ from django.contrib.auth import authenticate
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 
-from core.models import Curso, Modulo, ProgresoEstudiante
+from core.models import Curso, Modulo, ProgresoEstudiante, Estudiante
 from core.models_extras import ArchivoModulo
 from core.utils_telefono import normalizar_telefono, variantes_telefono
 from portal.middleware import PORTAL_SESSION_KEY
 from portal.models import PortalUsuario
 
+from .acceso_modulos import (
+    modulo_accesible_aula,
+    modulos_visibles_aula,
+    tareas_visibles_aula,
+)
 from .auth import es_profesor_aprende, requiere_estudiante_aprende, requiere_profesor_aprende
+from .biblioteca_service import biblioteca_agrupada_por_curso
 from .catalogo_service import (
     cursos_catalogo_aula,
     curso_disponible_para_estudiante,
     ids_cursos_inscritos,
     inscribir_estudiante_en_curso,
 )
+from .documento_service import guardar_documento_aula
 from .lesson_service import actualizar_modulo_aula, crear_modulo_aula
 from .middleware import APRENDE_EST_SESSION_KEY
-from .models import EntregaTarea, TareaCurso
+from .models import DocumentoEstudianteAula, EntregaTarea, TareaCurso
+from .perfil_service import actualizar_perfil_aula, resumen_perfil_aula
 from .tarea_service import calificar_entrega, crear_tarea, guardar_entrega
 
 
@@ -126,8 +134,8 @@ def estudiante_curso(request, curso_id: int):
         curso_id=curso_id,
         curso__activo=True,
     )
-    modulos = Modulo.objects.filter(curso=progreso.curso).order_by('numero')
-    tareas = TareaCurso.objects.filter(curso=progreso.curso, activa=True).select_related('modulo')
+    modulos = modulos_visibles_aula(est, progreso.curso, progreso)
+    tareas = tareas_visibles_aula(est, progreso.curso, progreso)
     entregas = {
         e.tarea_id: e
         for e in EntregaTarea.objects.filter(estudiante=est, tarea__curso=progreso.curso)
@@ -152,6 +160,10 @@ def estudiante_tarea(request, tarea_id: int):
     )
     if not ProgresoEstudiante.objects.filter(estudiante=est, curso=tarea.curso).exists():
         return redirect('/aprende/estudiante/')
+    progreso = ProgresoEstudiante.objects.filter(estudiante=est, curso=tarea.curso).first()
+    if tarea.modulo_id and not modulo_accesible_aula(est, tarea.modulo, progreso):
+        messages.error(request, 'Esta tarea aún no está disponible para ti.')
+        return redirect('aprende_estudiante_curso', curso_id=tarea.curso_id)
 
     entrega = EntregaTarea.objects.filter(tarea=tarea, estudiante=est).first()
     if request.method == 'POST':
@@ -177,21 +189,89 @@ def estudiante_modulo(request, modulo_id: int):
         pk=modulo_id,
         curso__activo=True,
     )
-    if not ProgresoEstudiante.objects.filter(estudiante=est, curso=modulo.curso).exists():
+    progreso = ProgresoEstudiante.objects.filter(
+        estudiante=est, curso=modulo.curso,
+    ).first()
+    if not progreso:
         return redirect('/aprende/estudiante/')
+    if not modulo_accesible_aula(est, modulo, progreso):
+        messages.error(request, 'Este módulo aún no está disponible para ti.')
+        return redirect('aprende_estudiante_curso', curso_id=modulo.curso_id)
 
     archivos = (
         ArchivoModulo.objects.filter(modulo=modulo, activo=True)
         .order_by('orden', 'titulo')
     )
+    documentos = DocumentoEstudianteAula.objects.filter(
+        estudiante=est, curso=modulo.curso, modulo=modulo,
+    ).order_by('-fecha_subida')
     video_url = modulo.get_video_url_publica() if modulo.video_url or modulo.video_archivo else modulo.video_url
+
+    if request.method == 'POST' and request.POST.get('accion') == 'subir_documento':
+        doc, error = guardar_documento_aula(request, est, modulo.curso, modulo)
+        if error:
+            messages.error(request, error)
+        else:
+            messages.success(request, f'Documento «{doc.titulo}» subido correctamente.')
+            return redirect('aprende_estudiante_modulo', modulo_id=modulo.pk)
 
     return render(request, 'aprende/estudiante_modulo.html', {
         'estudiante': est,
         'modulo': modulo,
         'archivos': archivos,
+        'documentos': documentos,
         'video_url': video_url,
         'youtube_id': _youtube_embed_id(video_url or ''),
+    })
+
+
+@requiere_estudiante_aprende
+def estudiante_biblioteca(request):
+    est = request.aprende_estudiante
+    secciones = biblioteca_agrupada_por_curso(est)
+    total = sum(len(s['items']) for s in secciones)
+    return render(request, 'aprende/estudiante_biblioteca.html', {
+        'estudiante': est,
+        'secciones': secciones,
+        'total': total,
+    })
+
+
+@requiere_estudiante_aprende
+def estudiante_perfil(request):
+    est = request.aprende_estudiante
+    resumen = resumen_perfil_aula(est)
+
+    if request.method == 'POST':
+        accion = request.POST.get('accion', 'perfil')
+        if accion == 'subir_documento':
+            curso_id = request.POST.get('curso_id')
+            curso = Curso.objects.filter(pk=curso_id, activo=True).first()
+            if not curso:
+                messages.error(request, 'Curso no válido.')
+            else:
+                doc, error = guardar_documento_aula(request, est, curso)
+                if error:
+                    messages.error(request, error)
+                else:
+                    messages.success(request, f'Documento «{doc.titulo}» subido.')
+            return redirect('aprende_estudiante_perfil')
+        error = actualizar_perfil_aula(request, est)
+        if error:
+            messages.error(request, error)
+        else:
+            messages.success(request, 'Perfil actualizado.')
+            return redirect('aprende_estudiante_perfil')
+
+    progresos = ProgresoEstudiante.objects.filter(
+        estudiante=est, curso__activo=True,
+    ).select_related('curso').order_by('curso__nombre')
+
+    return render(request, 'aprende/estudiante_perfil.html', {
+        'estudiante': est,
+        'progresos': progresos,
+        'genero_choices': Estudiante.GENERO_CHOICES,
+        **resumen,
     })
 
 

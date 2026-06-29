@@ -3,23 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Aula web eki{% endblock %}</title>
+    <title>{% block title %}Aula virtual eki{% endblock %}</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 32'%3E%3Crect width='48' height='16' fill='%23FCD116'/%3E%3Crect width='48' height='8' y='16' fill='%23003893'/%3E%3Crect width='48' height='8' y='24' fill='%23CE1126'/%3E%3C/svg%3E" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet">
     <style>
         :root {
             --eki-purple: #7D2181;
+            --eki-purple-dark: #5a1860;
+            --eki-purple-deep: #431244;
             --eki-purple-hover: #6a1c6e;
             --eki-purple-soft: #9A6EAE;
             --eki-purple-pale: #f3eaf4;
-            --eki-purple-muted: rgba(125, 33, 129, 0.12);
+            --eki-purple-muted: rgba(125, 33, 129, 0.1);
             --eki-ink: #1a1520;
             --eki-ink-soft: #3d3544;
-            --eki-muted: #6b6570;
-            --eki-bg: #f8f6f9;
+            --eki-muted: #5c5563;
+            --eki-bg: #f6f4f7;
             --eki-surface: #ffffff;
-            --eki-border: #e5dde8;
-            --eki-radius: 6px;
-            --header-h: 58px;
+            --eki-border: #ddd5e3;
+            --eki-radius: 3px;
+            --header-h: 56px;
+            --font-serif: "Source Serif 4", "Georgia", "Times New Roman", serif;
+            --font-sans: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
         }
 
         *, *::before, *::after { box-sizing: border-box; }
@@ -27,96 +34,88 @@
         body {
             margin: 0;
             min-height: 100vh;
-            font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-            font-size: 1rem;
-            line-height: 1.55;
+            font-family: var(--font-sans);
+            font-size: 0.9375rem;
+            line-height: 1.6;
             color: var(--eki-ink);
             background: var(--eki-bg);
             display: flex;
             flex-direction: column;
         }
 
-        /* —— Header —— */
+        /* —— Header institucional —— */
         .eki-header {
             position: sticky;
             top: 0;
             z-index: 100;
-            height: var(--header-h);
+            min-height: var(--header-h);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 1.5rem;
-            background: var(--eki-surface);
-            border-bottom: 3px solid var(--eki-purple);
+            padding: 0 1.75rem;
+            background: var(--eki-purple-dark);
+            border-bottom: 1px solid var(--eki-purple-deep);
+            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
         }
 
         .eki-brand {
             display: flex;
-            align-items: center;
-            gap: 0.6rem;
+            align-items: baseline;
+            gap: 0.65rem;
             text-decoration: none;
-            color: var(--eki-ink);
-        }
-
-        .eki-brand-mark {
-            width: 34px;
-            height: 34px;
-            border-radius: 4px;
-            background: var(--eki-purple);
-            display: flex;
-            align-items: center;
-            justify-content: center;
             color: #fff;
-            font-weight: 700;
-            font-size: 0.95rem;
-            letter-spacing: -0.03em;
         }
 
-        .eki-brand-text strong {
-            font-size: 1.1rem;
-            font-weight: 700;
+        .eki-brand-word {
+            font-family: var(--font-serif);
+            font-size: 1.35rem;
+            font-weight: 600;
             letter-spacing: -0.02em;
+            line-height: 1;
         }
 
         .eki-brand-text span {
             display: block;
-            font-size: 0.7rem;
-            color: var(--eki-muted);
+            font-size: 0.68rem;
             font-weight: 500;
-            margin-top: 1px;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.72);
+            margin-top: 2px;
         }
 
         .eki-nav {
             display: flex;
             align-items: center;
-            gap: 0.15rem;
+            gap: 0.1rem;
             flex-wrap: wrap;
             justify-content: flex-end;
         }
 
         .eki-nav a {
-            color: var(--eki-ink-soft);
+            color: rgba(255, 255, 255, 0.88);
             text-decoration: none;
-            font-size: 0.875rem;
+            font-size: 0.8125rem;
             font-weight: 500;
-            padding: 0.4rem 0.75rem;
+            letter-spacing: 0.02em;
+            padding: 0.45rem 0.7rem;
             border-radius: var(--eki-radius);
             transition: color 0.15s, background 0.15s;
         }
 
         .eki-nav a:hover {
-            color: var(--eki-purple);
-            background: var(--eki-purple-pale);
+            color: #fff;
+            background: rgba(255, 255, 255, 0.1);
         }
 
         .eki-nav-toggle {
             display: none;
-            background: var(--eki-surface);
-            border: 1px solid var(--eki-border);
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.35);
             border-radius: var(--eki-radius);
             padding: 0.35rem 0.55rem;
             cursor: pointer;
-            color: var(--eki-ink);
+            color: #fff;
             line-height: 1;
         }
 
@@ -132,28 +131,30 @@
         .eki-main {
             flex: 1;
             width: 100%;
-            max-width: 920px;
+            max-width: 880px;
             margin: 0 auto;
-            padding: 2rem 1.25rem 3rem;
+            padding: 2.25rem 1.5rem 3rem;
         }
 
-        .eki-main--wide { max-width: 1000px; }
+        .eki-main--wide { max-width: 960px; }
 
         h1, h2, h3, .eki-h2 {
-            font-weight: 700;
-            line-height: 1.3;
+            font-family: var(--font-serif);
+            font-weight: 600;
+            line-height: 1.25;
             color: var(--eki-ink);
-            letter-spacing: -0.02em;
+            letter-spacing: -0.015em;
         }
 
-        h1 { font-size: clamp(1.5rem, 3.5vw, 1.85rem); margin: 0 0 0.4rem; }
-        h2, .eki-h2 { font-size: 1.05rem; margin: 0 0 0.65rem; }
+        h1 { font-size: clamp(1.45rem, 3vw, 1.75rem); margin: 0 0 0.5rem; }
+        h2, .eki-h2 { font-size: 1.0625rem; margin: 0 0 0.75rem; }
 
         .eki-lead {
             color: var(--eki-muted);
-            font-size: 1rem;
-            margin: 0 0 1.25rem;
-            max-width: 48ch;
+            font-size: 0.9375rem;
+            margin: 0 0 1.5rem;
+            max-width: 52ch;
+            line-height: 1.65;
         }
 
         .eki-muted { color: var(--eki-muted); font-size: 0.875rem; }
@@ -163,11 +164,11 @@
             background: var(--eki-surface);
             border: 1px solid var(--eki-border);
             border-radius: var(--eki-radius);
-            padding: 1.25rem 1.35rem;
+            padding: 1.35rem 1.5rem;
         }
 
         .eki-card--bar {
-            border-left: 4px solid var(--eki-purple);
+            border-left: 3px solid var(--eki-purple);
         }
 
         .eki-card--interactive {
@@ -179,7 +180,7 @@
 
         .eki-card--interactive:hover {
             border-color: var(--eki-purple-soft);
-            box-shadow: 0 2px 12px rgba(125, 33, 129, 0.08);
+            box-shadow: 0 1px 4px rgba(90, 24, 96, 0.06);
         }
 
         /* —— Buttons —— */
@@ -187,10 +188,12 @@
             display: inline-flex;
             align-items: center;
             gap: 0.35rem;
-            padding: 0.55rem 1.1rem;
+            padding: 0.5rem 1rem;
             border-radius: var(--eki-radius);
+            font-family: var(--font-sans);
             font-weight: 600;
-            font-size: 0.9rem;
+            font-size: 0.8125rem;
+            letter-spacing: 0.03em;
             text-decoration: none;
             border: none;
             cursor: pointer;
@@ -206,7 +209,7 @@
 
         .eki-btn--ghost {
             background: transparent;
-            color: var(--eki-purple);
+            color: var(--eki-purple-dark);
             border: 1px solid var(--eki-border);
         }
 
@@ -215,7 +218,7 @@
             background: var(--eki-purple-pale);
         }
 
-        .eki-btn--sm { padding: 0.4rem 0.75rem; font-size: 0.82rem; }
+        .eki-btn--sm { padding: 0.38rem 0.7rem; font-size: 0.78rem; }
 
         /* —— Forms —— */
         .eki-field { margin-bottom: 1rem; }
@@ -223,8 +226,10 @@
         .eki-field label {
             display: block;
             font-weight: 600;
-            font-size: 0.82rem;
-            margin-bottom: 0.3rem;
+            font-size: 0.78rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 0.35rem;
             color: var(--eki-ink-soft);
         }
 
@@ -236,6 +241,7 @@
             border: 1px solid var(--eki-border);
             border-radius: var(--eki-radius);
             font: inherit;
+            font-size: 0.9375rem;
             background: #fff;
         }
 
@@ -247,27 +253,27 @@
             border-color: var(--eki-purple);
         }
 
-        .eki-field textarea { min-height: 130px; resize: vertical; }
+        .eki-field textarea { min-height: 120px; resize: vertical; }
 
         /* —— Alerts —— */
         .eki-alert {
-            padding: 0.75rem 1rem;
+            padding: 0.7rem 1rem;
             border-radius: var(--eki-radius);
             margin-bottom: 1rem;
-            font-size: 0.9rem;
-            border-left: 4px solid;
+            font-size: 0.875rem;
+            border: 1px solid;
         }
 
         .eki-alert--ok {
-            background: #f0fdf4;
-            border-color: #22c55e;
-            color: #166534;
+            background: #f7fdf9;
+            border-color: #a7d4b5;
+            color: #1e5631;
         }
 
         .eki-alert--error {
-            background: #fef2f2;
-            border-color: #ef4444;
-            color: #991b1b;
+            background: #fdf7f7;
+            border-color: #e8b4b4;
+            color: #7f1d1d;
         }
 
         .eki-grid-2 {
@@ -276,19 +282,22 @@
             gap: 1rem;
         }
 
-        .eki-page-head { margin-bottom: 1.5rem; }
+        .eki-page-head {
+            margin-bottom: 1.75rem;
+            padding-bottom: 1.25rem;
+            border-bottom: 1px solid var(--eki-border);
+        }
 
-        .eki-badge {
-            display: inline-block;
+        .eki-badge,
+        .eki-kicker {
+            display: block;
+            font-family: var(--font-sans);
             font-size: 0.68rem;
-            font-weight: 700;
+            font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--eki-purple);
-            border: 1px solid var(--eki-purple-soft);
-            padding: 0.2rem 0.5rem;
-            border-radius: 3px;
-            margin-bottom: 0.5rem;
+            letter-spacing: 0.14em;
+            color: var(--eki-purple-dark);
+            margin-bottom: 0.45rem;
         }
 
         /* —— Lists —— */
@@ -298,45 +307,47 @@
             display: flex;
             align-items: flex-start;
             gap: 0.85rem;
-            padding: 0.85rem 0;
+            padding: 0.9rem 0;
             border-bottom: 1px solid var(--eki-border);
         }
 
         .eki-list-item:last-child { border-bottom: none; }
 
         .eki-list-item a {
+            font-family: var(--font-serif);
             color: var(--eki-ink);
             text-decoration: none;
             font-weight: 600;
-            font-size: 0.98rem;
+            font-size: 1rem;
         }
 
-        .eki-list-item a:hover { color: var(--eki-purple); text-decoration: underline; }
+        .eki-list-item a:hover { color: var(--eki-purple-dark); text-decoration: underline; }
 
         .eki-list-num {
             flex-shrink: 0;
-            width: 32px;
-            height: 32px;
-            border-radius: 4px;
-            border: 2px solid var(--eki-purple-soft);
-            color: var(--eki-purple);
-            font-weight: 700;
-            font-size: 0.8rem;
+            width: 30px;
+            height: 30px;
+            border-radius: var(--eki-radius);
+            border: 1px solid var(--eki-border);
+            background: var(--eki-bg);
+            color: var(--eki-purple-dark);
+            font-weight: 600;
+            font-size: 0.78rem;
             display: flex;
             align-items: center;
             justify-content: center;
         }
 
         .eki-list-num--done {
-            background: var(--eki-purple);
-            border-color: var(--eki-purple);
+            background: var(--eki-purple-dark);
+            border-color: var(--eki-purple-dark);
             color: #fff;
         }
 
         .eki-progress {
-            height: 4px;
+            height: 3px;
             background: var(--eki-border);
-            margin-top: 0.6rem;
+            margin-top: 0.65rem;
         }
 
         .eki-progress-bar {
@@ -348,14 +359,14 @@
 
         /* —— Landing —— */
         .eki-hero {
-            padding: 0.5rem 0 2rem;
-            max-width: 36rem;
+            padding: 0.25rem 0 2rem;
+            max-width: 38rem;
         }
 
-        .eki-hero h1 { font-size: clamp(1.75rem, 4vw, 2.25rem); }
+        .eki-hero h1 { font-size: clamp(1.65rem, 3.5vw, 2rem); }
 
         .eki-role-card {
-            padding: 1.35rem 1.35rem 1.35rem 1.5rem;
+            padding: 1.5rem;
             position: relative;
         }
 
@@ -363,13 +374,13 @@
             position: absolute;
             top: 1rem;
             right: 1rem;
-            font-size: 0.75rem;
-            font-weight: 700;
-            color: var(--eki-purple-soft);
-            letter-spacing: 0.05em;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--eki-muted);
+            letter-spacing: 0.08em;
         }
 
-        .eki-role-card h2 { font-size: 1.1rem; }
+        .eki-role-card h2 { font-size: 1.125rem; }
         .eki-role-card p { margin: 0 0 1rem; flex: 1; }
 
         /* —— Auth —— */
@@ -381,19 +392,25 @@
 
         .eki-auth-panel {
             display: none;
-            background: var(--eki-purple);
+            background: var(--eki-purple-dark);
             color: #fff;
-            padding: 2rem;
+            padding: 2rem 1.75rem;
             border-radius: var(--eki-radius);
         }
 
         .eki-auth-panel h2 {
+            font-family: var(--font-serif);
             color: #fff;
-            font-size: 1.4rem;
+            font-size: 1.35rem;
             margin-bottom: 0.75rem;
         }
 
-        .eki-auth-panel p { opacity: 0.9; font-size: 0.95rem; margin: 0; line-height: 1.6; }
+        .eki-auth-panel p {
+            opacity: 0.9;
+            font-size: 0.9375rem;
+            margin: 0;
+            line-height: 1.65;
+        }
 
         /* —— Lesson reader —— */
         .eki-read-progress {
@@ -408,8 +425,9 @@
         }
 
         .eki-article {
-            font-size: 1rem;
-            line-height: 1.7;
+            font-family: var(--font-serif);
+            font-size: 1.0625rem;
+            line-height: 1.75;
             white-space: pre-wrap;
             color: var(--eki-ink-soft);
         }
@@ -433,27 +451,31 @@
             display: flex;
             align-items: center;
             gap: 0.75rem;
-            padding: 0.75rem 0.9rem;
+            padding: 0.7rem 0.85rem;
             border: 1px solid var(--eki-border);
             border-radius: var(--eki-radius);
             text-decoration: none;
             color: inherit;
-            transition: border-color 0.15s;
+            transition: border-color 0.15s, background 0.15s;
         }
 
-        .eki-material:hover { border-color: var(--eki-purple-soft); }
+        .eki-material:hover {
+            border-color: var(--eki-purple-soft);
+            background: var(--eki-purple-pale);
+        }
 
         .eki-material-tag {
             flex-shrink: 0;
-            font-size: 0.65rem;
+            font-size: 0.62rem;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: var(--eki-purple);
-            background: var(--eki-purple-pale);
-            padding: 0.25rem 0.45rem;
-            border-radius: 3px;
-            min-width: 2.5rem;
+            letter-spacing: 0.08em;
+            color: var(--eki-purple-dark);
+            background: var(--eki-bg);
+            border: 1px solid var(--eki-border);
+            padding: 0.2rem 0.4rem;
+            border-radius: 2px;
+            min-width: 2.4rem;
             text-align: center;
         }
 
@@ -465,10 +487,10 @@
         }
 
         .eki-section-title {
-            font-size: 0.72rem;
-            font-weight: 700;
+            font-size: 0.68rem;
+            font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.12em;
             color: var(--eki-muted);
             margin: 1.25rem 0 0.65rem;
             padding-top: 0.85rem;
@@ -477,23 +499,16 @@
 
         .eki-empty {
             text-align: center;
-            padding: 2rem 1.5rem;
-        }
-
-        .eki-empty-mark {
-            width: 48px;
-            height: 48px;
-            margin: 0 auto 1rem;
-            border: 2px dashed var(--eki-purple-soft);
-            border-radius: 50%;
+            padding: 2.5rem 1.5rem;
         }
 
         .eki-footer {
-            padding: 1rem 1.5rem;
-            font-size: 0.78rem;
+            padding: 1rem 1.75rem;
+            font-size: 0.75rem;
             color: var(--eki-muted);
             border-top: 1px solid var(--eki-border);
             background: var(--eki-surface);
+            letter-spacing: 0.02em;
         }
 
         @media (max-width: 640px) {
@@ -505,10 +520,10 @@
                 top: 100%;
                 left: 0;
                 right: 0;
-                background: var(--eki-surface);
+                background: var(--eki-purple-dark);
                 padding: 0.75rem;
-                border-bottom: 1px solid var(--eki-border);
-                box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+                border-bottom: 1px solid var(--eki-purple-deep);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             }
             .eki-nav-toggle { display: block; }
             .eki-header { position: relative; flex-wrap: wrap; }
@@ -531,10 +546,9 @@
 
     <header class="eki-header">
         <a href="/aprende/" class="eki-brand">
-            <div class="eki-brand-mark">e</div>
+            <div class="eki-brand-word">eki</div>
             <div class="eki-brand-text">
-                <strong>eki</strong>
-                <span>Aula web</span>
+                <span>Aula virtual</span>
             </div>
         </a>
         <button type="button" class="eki-nav-toggle" id="eki-nav-toggle" aria-label="Abrir menú" aria-expanded="false">
@@ -553,7 +567,7 @@
     </main>
 
     <footer class="eki-footer">
-        eki · formación en web y WhatsApp
+        eki · plataforma de formación profesional
     </footer>
 
     <script>
