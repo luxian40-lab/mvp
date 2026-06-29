@@ -1,0 +1,47 @@
+{% extends "aprende/base.html" %}
+{% block title %}Ranking — {{ progreso.curso.nombre }} | eki{% endblock %}
+{% block nav %}
+<a href="{% url 'aprende_estudiante_curso' progreso.curso.id %}">{{ progreso.curso.nombre }}</a>
+{% include "aprende/estudiante_nav.html" %}
+{% endblock %}
+{% block extra_css %}
+{% include "aprende/partials/ranking_grupo_styles.html" %}
+.eki-tabs {
+    display: flex;
+    gap: 0.35rem;
+    margin-bottom: 1.25rem;
+    border-bottom: 1px solid var(--eki-border);
+    padding-bottom: 0;
+}
+.eki-tab {
+    padding: 0.55rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--eki-muted);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+.eki-tab:hover { color: var(--eki-purple-dark); }
+.eki-tab--active {
+    color: var(--eki-purple-dark);
+    border-bottom-color: var(--eki-purple);
+}
+{% endblock %}
+{% block content %}
+<div class="eki-page-head">
+    <span class="eki-kicker">Competencia sana</span>
+    <h1>Ranking del curso</h1>
+    <p class="eki-lead">Compara tu avance con los compañeros de tu mismo grupo.</p>
+</div>
+
+{% include "aprende/partials/estudiante_curso_tabs.html" %}
+
+{% if not ranking.activo %}
+<div class="eki-card">
+    <p class="eki-muted">La gamificación no está activa para tu organización.</p>
+</div>
+{% else %}
+{% include "aprende/partials/ranking_grupo.html" %}
+{% endif %}
+{% endblock %}

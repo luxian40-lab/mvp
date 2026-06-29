@@ -102,6 +102,7 @@ def estudiante_cursos(request):
         'estudiante': est,
         'progresos': progresos,
     })
+@requiere_estudiante_aprende
 def estudiante_curso(request, curso_id: int):
     est = request.aprende_estudiante
     progreso = get_object_or_404(
@@ -134,6 +135,24 @@ def estudiante_curso_tareas(request, curso_id: int):
         'progreso': progreso,
         'tareas_list': tareas_list,
         'curso_tab': 'tareas',
+    })
+
+
+@requiere_estudiante_aprende
+def estudiante_curso_ranking(request, curso_id: int):
+    est = request.aprende_estudiante
+    progreso = get_object_or_404(
+        ProgresoEstudiante.objects.select_related('curso'),
+        estudiante=est,
+        curso_id=curso_id,
+        curso__activo=True,
+    )
+    ranking = resumen_ranking_aula(est, progreso.curso)
+    return render(request, 'aprende/estudiante_curso_ranking.html', {
+        'estudiante': est,
+        'progreso': progreso,
+        'ranking': ranking,
+        'curso_tab': 'ranking',
     })
 
 

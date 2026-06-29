@@ -1,0 +1,68 @@
+{% if ranking.activo and ranking.grupo and ranking.filas %}
+<div class="eki-ranking-wrap">
+    <div class="eki-ranking-head">
+        <div>
+            <h2 class="eki-h2" style="margin:0;">Ranking del grupo</h2>
+            <p class="eki-muted" style="margin:0.35rem 0 0;font-size:0.85rem;">
+                {{ ranking.grupo.nombre }}
+                {% if ranking.curso %} · {{ ranking.curso.nombre }}{% endif %}
+            </p>
+        </div>
+        {% if ranking.mi_posicion %}
+        <div class="eki-ranking-mi-pos">
+            <span class="eki-ranking-mi-pos__num">#{{ ranking.mi_posicion }}</span>
+            <span class="eki-ranking-mi-pos__lbl">Tu puesto</span>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if ranking.modo == 'calificacion' %}
+    <p class="eki-muted" style="font-size:0.8rem;margin:0 0 1rem;">Por promedio de evaluaciones en este curso.</p>
+    {% elif ranking.modo == 'avance' %}
+    <p class="eki-muted" style="font-size:0.8rem;margin:0 0 1rem;">Por módulos completados en este curso. ¡Sigue avanzando!</p>
+    {% else %}
+    <p class="eki-muted" style="font-size:0.8rem;margin:0 0 1rem;">Por puntos totales en tu grupo.</p>
+    {% endif %}
+
+    {% if ranking.top3 %}
+    <div class="eki-podium" aria-label="Top 3 del grupo">
+        {% for f in ranking.top3 %}
+        <div class="eki-podium-item eki-podium-item--{{ f.posicion }}{% if f.estudiante_id == estudiante.id %} eki-podium-item--me{% endif %}">
+            <span class="eki-podium-medal">{% if f.posicion == 1 %}1{% elif f.posicion == 2 %}2{% else %}3{% endif %}</span>
+            <p class="eki-podium-name">{% if f.estudiante_id == estudiante.id %}Tú{% else %}{{ f.nombre|truncatechars:18 }}{% endif %}</p>
+            <p class="eki-podium-score">{{ f.valor }}{% if ranking.modo == 'calificacion' %}/5{% elif ranking.modo == 'avance' %}<span style="font-size:0.7rem;font-weight:500;"> mód.</span>{% else %}<span style="font-size:0.7rem;font-weight:500;"> pts</span>{% endif %}</p>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <table class="eki-ranking-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Estudiante</th>
+                <th>{% if ranking.modo == 'calificacion' %}Promedio{% elif ranking.modo == 'avance' %}Módulos{% else %}Puntos{% endif %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for f in ranking.filas %}
+            <tr{% if f.estudiante_id == estudiante.id %} class="eki-ranking-me"{% endif %}>
+                <td>{{ f.posicion }}</td>
+                <td>{% if f.estudiante_id == estudiante.id %}<strong>Tú</strong>{% else %}{{ f.nombre }}{% endif %}</td>
+                <td><strong>{{ f.valor }}</strong>{% if ranking.modo == 'calificacion' %}/5{% elif ranking.modo == 'avance' %} mód.{% else %} pts{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% elif ranking.activo and ranking.modo == 'sin_grupo' %}
+<div class="eki-card">
+    <h2 class="eki-h2">Ranking</h2>
+    <p class="eki-muted">Aún no estás en un grupo de estudiantes. Tu coordinador te asignará uno para competir con tus compañeros.</p>
+</div>
+{% elif ranking.activo and not ranking.filas %}
+<div class="eki-card">
+    <h2 class="eki-h2">Ranking — {{ ranking.grupo.nombre }}</h2>
+    <p class="eki-muted">Aún no hay datos. Avanza en el curso o completa evaluaciones para aparecer en el ranking.</p>
+</div>
+{% endif %}

@@ -10,6 +10,7 @@ urlpatterns = [
     path('estudiante/tareas/', views.estudiante_tareas, name='aprende_estudiante_tareas'),
     path('estudiante/curso/<int:curso_id>/', views.estudiante_curso, name='aprende_estudiante_curso'),
     path('estudiante/curso/<int:curso_id>/tareas/', views.estudiante_curso_tareas, name='aprende_estudiante_curso_tareas'),
+    path('estudiante/curso/<int:curso_id>/ranking/', views.estudiante_curso_ranking, name='aprende_estudiante_curso_ranking'),
     path('estudiante/tarea/<int:tarea_id>/', views.estudiante_tarea, name='aprende_estudiante_tarea'),
     path('estudiante/modulo/<int:modulo_id>/', views.estudiante_modulo, name='aprende_estudiante_modulo'),
     path('estudiante/biblioteca/', views.estudiante_biblioteca, name='aprende_estudiante_biblioteca'),

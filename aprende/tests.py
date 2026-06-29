@@ -302,7 +302,7 @@ class AprendeWebTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Grupo Norte')
         self.assertContains(r, 'Compañero')
-        self.assertContains(r, 'Usted')
+        self.assertContains(r, 'Tú')
 
     def test_curso_pestanas_modulos_y_tareas(self):
         TareaCurso.objects.create(curso=self.curso, titulo='Tarea curso', instrucciones='x')
@@ -313,6 +313,41 @@ class AprendeWebTests(TestCase):
         r = self.http.get(f'/aprende/estudiante/curso/{self.curso.id}/')
         self.assertContains(r, 'Módulos')
         self.assertContains(r, 'Tareas')
+        self.assertContains(r, 'Ranking')
         r2 = self.http.get(f'/aprende/estudiante/curso/{self.curso.id}/tareas/')
         self.assertEqual(r2.status_code, 200)
         self.assertContains(r2, 'Tarea curso')
+
+    def test_ranking_curso_por_grupo(self):
+        from core.gamificacion import PerfilGamificacion
+        from core.models import ModuloCompletado, ProgresoEstudiante
+        from core.models_extras import GrupoEstudiantes
+
+        est2 = Estudiante.objects.create(
+            cedula='web_rank2',
+            nombre='Líder grupo',
+            telefono='573009999088',
+            cliente=self.cliente,
+            activo=True,
+        )
+        grupo = GrupoEstudiantes.objects.create(nombre='Grupo Curso', cliente=self.cliente, activo=True)
+        grupo.estudiantes.add(self.est, est2)
+        grupo.cursos.add(self.curso)
+
+        progreso1 = ProgresoEstudiante.objects.get(estudiante=self.est, curso=self.curso)
+        progreso2 = ProgresoEstudiante.objects.create(estudiante=est2, curso=self.curso, modulo_actual=self.modulo)
+        ModuloCompletado.objects.create(progreso=progreso2, modulo=self.modulo)
+
+        PerfilGamificacion.objects.get_or_create(estudiante=self.est)
+        PerfilGamificacion.objects.get_or_create(estudiante=est2)
+
+        self.http.post('/aprende/estudiante/login/', {
+            'cedula': 'web1',
+            'telefono': '3009999002',
+        })
+        r = self.http.get(f'/aprende/estudiante/curso/{self.curso.id}/ranking/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Ranking del curso')
+        self.assertContains(r, 'Grupo Curso')
+        self.assertContains(r, 'Líder Grupo')
+        self.assertContains(r, 'Tu puesto')
