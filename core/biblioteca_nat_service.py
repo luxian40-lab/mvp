@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 import tempfile
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from django.utils.text import slugify
@@ -19,6 +19,7 @@ EXTENSIONES_ARCHIVO = frozenset({
     '.pdf', '.docx', '.txt', '.xlsx', '.xlsm', '.png', '.jpg', '.jpeg', '.webp',
     '.mp3', '.m4a', '.wav', '.mp4', '.webm',
 })
+EXTENSIONES_TEXTO_RAG = frozenset({'.pdf', '.docx', '.txt', '.xlsx', '.xlsm'})
 CANAL_RAG = 'bot_comercial'
 
 
@@ -70,57 +71,10 @@ def _texto_metadatos(item: BibliotecaConocimiento) -> str:
     return '\n\n'.join(lineas)
 
 
-def indexar_item(item: BibliotecaConocimiento) -> int:
-    """Indexa un ítem publicado en Chroma (RAG comercial)."""
-    from core.rag_comercial_manager import rag_comercial_manager
-
-    if item.estado_publicacion != 'publicado':
-        item.estado_rag = 'pendiente'
-        item.save(update_fields=['estado_rag'])
-        return 0
-
-    if not rag_comercial_manager.disponible:
-        item.estado_rag = 'error'
-        item.save(update_fields=['estado_rag'])
-        return 0
-
-    nombre = _nombre_rag(item)
-    tipo = _tipo_rag(item)
-    cliente_id = item.cliente_scope_id
-
-    try:
-        rag_comercial_manager.eliminar_documento(cliente_id, CANAL_RAG, nombre)
-    except Exception:
-        pass
-
-    n_chunks = 0
-    try:
-        if item.formato == 'archivo' and item.archivo:
-            ruta = _ruta_local_archivo(item)
-            if ruta:
-                n_chunks = rag_comercial_manager.procesar_documento(
-                    cliente_id, CANAL_RAG, ruta, nombre, tipo,
-                )
-        else:
-            texto = _texto_metadatos(item)
-            if texto.strip():
-                n_chunks = rag_comercial_manager.procesar_texto(
-                    cliente_id, CANAL_RAG, texto, nombre, tipo,
-                )
-    except Exception as exc:
-        logger.exception('[BibliotecaNat] Error indexando %s: %s', item.pk, exc)
-        item.estado_rag = 'error'
-        item.save(update_fields=['estado_rag'])
-        return 0
-
-    item.chunks_indexados = n_chunks
-    item.estado_rag = 'indexado' if n_chunks > 0 else 'error'
-    item.fecha_indexado = timezone.now()
-    item.save(update_fields=['chunks_indexados', 'estado_rag', 'fecha_indexado'])
-    return n_chunks
-
-
 def _ruta_local_archivo(item: BibliotecaConocimiento) -> str | None:
+    """Descarga a temporal local (S3 o disco) para extracción de texto."""
+    if not item.archivo:
+        return None
     try:
         if hasattr(item.archivo, 'path') and os.path.exists(item.archivo.path):
             return item.archivo.path
@@ -132,18 +86,137 @@ def _ruta_local_archivo(item: BibliotecaConocimiento) -> str | None:
             for chunk in item.archivo.chunks():
                 tmp.write(chunk)
             return tmp.name
-    except Exception:
+    except Exception as exc:
+        logger.error('[BibliotecaNat] Error descargando archivo id=%s: %s', item.pk, exc)
         return None
+
+
+def _marcar_estado(item: BibliotecaConocimiento, *, estado: str, n_chunks: int = 0, error: str = '') -> None:
+    item.chunks_indexados = n_chunks
+    item.estado_rag = estado
+    item.rag_error_detalle = (error or '')[:500]
+    if estado == 'indexado':
+        item.fecha_indexado = timezone.now()
+        item.save(update_fields=['chunks_indexados', 'estado_rag', 'rag_error_detalle', 'fecha_indexado'])
+    else:
+        item.save(update_fields=['chunks_indexados', 'estado_rag', 'rag_error_detalle'])
+
+
+def indexar_item(item: BibliotecaConocimiento) -> int:
+    """Indexa un ítem publicado en Chroma (RAG comercial)."""
+    from core.rag_comercial_manager import rag_comercial_manager
+
+    if item.estado_publicacion != 'publicado':
+        _marcar_estado(item, estado='pendiente', error='')
+        return 0
+
+    if not rag_comercial_manager.disponible:
+        _marcar_estado(
+            item,
+            estado='error',
+            error='ChromaDB no disponible en el servidor. Contacte soporte eki.',
+        )
+        return 0
+
+    nombre = _nombre_rag(item)
+    tipo = _tipo_rag(item)
+    cliente_id = item.cliente_scope_id
+    errores: list[str] = []
+
+    try:
+        rag_comercial_manager.eliminar_documento(cliente_id, CANAL_RAG, nombre)
+    except Exception:
+        pass
+
+    n_chunks = 0
+
+    # 1) Archivo (PDF, Word, Excel…)
+    if item.archivo:
+        ruta = _ruta_local_archivo(item)
+        if not ruta:
+            errores.append('No se pudo leer el archivo (revisar permisos S3 o volver a subirlo).')
+        else:
+            ext = os.path.splitext(ruta)[1].lower()
+            try:
+                if ext in EXTENSIONES_TEXTO_RAG:
+                    n_chunks = rag_comercial_manager.procesar_documento(
+                        cliente_id, CANAL_RAG, ruta, nombre, tipo,
+                    )
+                    if n_chunks == 0:
+                        errores.append(
+                            'El archivo no tiene texto extraíble (PDF escaneado, Excel vacío o Word sin contenido). '
+                            'Agregue un resumen en la pestaña Artículo y guarde de nuevo.',
+                        )
+                else:
+                    errores.append(
+                        f'Formato {ext} no se indexa solo por archivo. '
+                        'Escriba un resumen en la pestaña Artículo (título + texto).',
+                    )
+            except Exception as exc:
+                logger.exception('[BibliotecaNat] Error procesando archivo %s: %s', item.pk, exc)
+                errores.append(f'Error al procesar archivo: {exc}')
+            finally:
+                try:
+                    if ruta and not hasattr(item.archivo, 'path'):
+                        os.unlink(ruta)
+                except Exception:
+                    pass
+
+    # 2) Texto / FAQ / enlace / resumen complementario
+    if n_chunks == 0:
+        texto = _texto_metadatos(item)
+        if len((texto or '').strip()) >= 15:
+            try:
+                n_chunks = rag_comercial_manager.procesar_texto(
+                    cliente_id, CANAL_RAG, texto, nombre, tipo,
+                )
+                if n_chunks == 0:
+                    errores.append('El texto del artículo es demasiado corto para indexar.')
+            except Exception as exc:
+                logger.exception('[BibliotecaNat] Error indexando texto %s: %s', item.pk, exc)
+                errores.append(f'Error al indexar texto: {exc}')
+        elif not item.archivo:
+            errores.append('Sin archivo ni texto suficiente. Complete el contenido o adjunte un PDF/DOCX/TXT/Excel.')
+
+    if n_chunks > 0:
+        _marcar_estado(item, estado='indexado', n_chunks=n_chunks, error='')
+        return n_chunks
+
+    detalle = errores[0] if errores else 'No se generaron fragmentos indexables.'
+    _marcar_estado(item, estado='error', n_chunks=0, error=detalle)
+    logger.warning('[BibliotecaNat] Indexación fallida id=%s: %s', item.pk, detalle)
+    return 0
 
 
 def encolar_indexacion(item_id: int) -> None:
     def _run():
         try:
-            item = BibliotecaConocimiento.objects.filter(pk=item_id).first()
-            if item:
-                indexar_item(item)
+            if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
+                import threading
+
+                def _bg():
+                    try:
+                        item = BibliotecaConocimiento.objects.filter(pk=item_id).first()
+                        if item:
+                            indexar_item(item)
+                    except Exception:
+                        logger.exception('[BibliotecaNat] Fallo indexación id=%s', item_id)
+
+                threading.Thread(
+                    target=_bg, daemon=True, name=f'bib-nat-{item_id}',
+                ).start()
+            else:
+                from core.tasks import indexar_biblioteca_nat_por_id
+
+                indexar_biblioteca_nat_por_id.delay(item_id)
         except Exception:
-            logger.exception('[BibliotecaNat] Fallo indexación id=%s', item_id)
+            logger.exception('[BibliotecaNat] Fallo encolando indexación id=%s', item_id)
+            try:
+                item = BibliotecaConocimiento.objects.filter(pk=item_id).first()
+                if item:
+                    indexar_item(item)
+            except Exception:
+                logger.exception('[BibliotecaNat] Fallback sync falló id=%s', item_id)
 
     transaction.on_commit(_run)
 
@@ -218,6 +291,7 @@ def actualizar_item(item: BibliotecaConocimiento, data: dict, archivo=None) -> B
             raise ValueError(f'Formato no soportado ({ext}).')
         item.archivo = archivo
     item.estado_rag = 'pendiente'
+    item.rag_error_detalle = ''
     item.save()
     encolar_indexacion(item.pk)
     return item
@@ -234,9 +308,19 @@ def listar_biblioteca(org: Cliente, *, categoria: str = '', cultivo: str = '', q
     return qs.order_by('-fecha_creacion')
 
 
-def reindexar_publicados(org: Cliente) -> int:
-    count = 0
+def reindexar_publicados(org: Cliente) -> tuple[int, int]:
+    """Reindexa todos los publicados. Devuelve (ok, error)."""
+    ok = err = 0
     for item in BibliotecaConocimiento.objects.filter(cliente=org, estado_publicacion='publicado'):
         if indexar_item(item) > 0:
-            count += 1
-    return count
+            ok += 1
+        else:
+            err += 1
+    return ok, err
+
+
+def reindexar_item(item: BibliotecaConocimiento) -> int:
+    item.estado_rag = 'pendiente'
+    item.rag_error_detalle = ''
+    item.save(update_fields=['estado_rag', 'rag_error_detalle'])
+    return indexar_item(item)

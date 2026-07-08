@@ -42,7 +42,10 @@
             <label><strong>Archivo</strong>
                 <input type="file" name="archivo" accept=".pdf,.docx,.txt,.xlsx,.xlsm,.png,.jpg,.jpeg,.mp3,.mp4" style="display:block;margin-top:6px;">
             </label>
-            <p class="muted" style="font-size:13px;">PDF, Word, Excel, imagen, audio o video. Para video/audio sin transcripción, agregue también un resumen en «Artículo».</p>
+            <p class="muted" style="font-size:13px;">PDF, Word, Excel, imagen, audio o video.</p>
+            <label style="display:block;margin-top:14px;"><strong>Resumen para Nat (recomendado)</strong>
+                <textarea name="texto_resumen_archivo" rows="5" placeholder="Si el PDF es escaneado o sube imagen/audio, escriba aquí el contenido clave…" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">{% if item and item.formato == 'archivo' %}{{ item.texto_contenido }}{% endif %}</textarea>
+            </label>
         </div>
         <div class="bib-panel" id="panel-texto">
             <label><strong>Contenido del artículo</strong>
@@ -139,6 +142,12 @@
 
     form.addEventListener('submit', function() {
         const fmt = formatoInput.value;
+        if (fmt === 'archivo') {
+            const resTa = form.querySelector('[name="texto_resumen_archivo"]');
+            let hidden = form.querySelector('[name="texto_contenido"]');
+            if (!hidden) { hidden = document.createElement('textarea'); hidden.name = 'texto_contenido'; hidden.hidden = true; form.appendChild(hidden); }
+            hidden.value = resTa ? resTa.value : '';
+        }
         if (fmt === 'faq') {
             const faqTa = form.querySelector('[name="texto_contenido_faq"]');
             let hidden = form.querySelector('[name="texto_contenido"]');

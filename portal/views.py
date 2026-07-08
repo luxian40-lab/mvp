@@ -1345,6 +1345,7 @@ def portal_biblioteca(request):
     cultivo = (request.GET.get('cultivo') or '').strip()
     q = (request.GET.get('q') or '').strip()
     items = listar_biblioteca(org, categoria=categoria, cultivo=cultivo, q=q)
+    bib_flash = request.session.pop('bib_flash', None)
 
     return render(request, 'portal/biblioteca.html', {
         'org': org,
@@ -1354,6 +1355,7 @@ def portal_biblioteca(request):
         'filtro_cultivo': cultivo,
         'filtro_q': q,
         'total': items.count(),
+        'bib_flash': bib_flash,
     })
 
 
@@ -1425,4 +1427,42 @@ def portal_biblioteca_editar(request, item_id: int):
         'fuentes': BibliotecaConocimiento.FUENTE_CHOICES,
         'estados_pub': BibliotecaConocimiento.ESTADO_PUBLICACION_CHOICES,
     })
+
+
+@portal_login_required
+@requiere_modulo('nat')
+def portal_biblioteca_reindexar(request, item_id: int):
+    from core.biblioteca_nat_service import reindexar_item
+    from core.models import BibliotecaConocimiento
+
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    item = get_object_or_404(BibliotecaConocimiento, pk=item_id, cliente=org)
+    if request.method == 'POST':
+        n = reindexar_item(item)
+        item.refresh_from_db()
+        if n > 0:
+            request.session['bib_flash'] = f'«{item.titulo}» indexado ({n} fragmentos).'
+        else:
+            det = item.rag_error_detalle or 'Revise el archivo o agregue un resumen en Artículo.'
+            request.session['bib_flash'] = f'No se pudo indexar «{item.titulo}»: {det}'
+    return redirect('/portal/biblioteca/')
+
+
+@portal_login_required
+@requiere_modulo('nat')
+@requiere_portal_admin
+def portal_biblioteca_reindexar_todo(request):
+    from core.biblioteca_nat_service import reindexar_publicados
+
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    if request.method == 'POST':
+        ok, err = reindexar_publicados(org)
+        request.session['bib_flash'] = f'Reindexación: {ok} correctos, {err} con error.'
+    return redirect('/portal/biblioteca/')
 

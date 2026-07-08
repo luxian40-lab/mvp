@@ -347,6 +347,27 @@ def enviar_email_org_admin_async(self, estudiante_id, asunto, mensaje_html):
 
 
 @shared_task(bind=True, max_retries=2, default_retry_delay=120, time_limit=3600, soft_time_limit=3300)
+def indexar_biblioteca_nat_por_id(self, item_id: int):
+    """Indexa BibliotecaConocimiento (Nat Knowledge Hub) fuera del request HTTP."""
+    from core.biblioteca_nat_service import indexar_item
+    from core.models import BibliotecaConocimiento
+
+    try:
+        item = BibliotecaConocimiento.objects.get(pk=item_id)
+    except BibliotecaConocimiento.DoesNotExist:
+        logger.warning('[Celery][BibliotecaNat] ítem id=%s no existe', item_id)
+        return {'error': 'not_found'}
+
+    try:
+        n = indexar_item(item)
+        logger.info('[Celery][BibliotecaNat] Indexado id=%s -> %s chunks', item_id, n)
+        return {'chunks': n, 'id': item_id}
+    except Exception as exc:
+        logger.exception('[Celery][BibliotecaNat] Error indexando id=%s', item_id)
+        raise self.retry(exc=exc)
+
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=120, time_limit=3600, soft_time_limit=3300)
 def indexar_documento_rag_por_id(self, app_label: str, model_name: str, object_id: int):
     """
     Indexa un DocumentoRAG o DocumentoRAGComercial fuera del ciclo HTTP del admin.

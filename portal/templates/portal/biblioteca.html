@@ -10,8 +10,29 @@
             Centro de conocimiento agrícola de {{ org.nombre }}. Todo lo que publique aquí alimenta a <strong>Nat</strong> en WhatsApp.
         </p>
     </div>
-    <a class="btn" href="{% url 'portal_biblioteca_crear' %}">+ Nuevo conocimiento</a>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <a class="btn" href="{% url 'portal_biblioteca_crear' %}">+ Nuevo conocimiento</a>
+        {% if request.portal_usuario.rol == 'admin' %}
+        <form method="post" action="{% url 'portal_biblioteca_reindexar_todo' %}" style="margin:0;">
+            {% csrf_token %}
+            <button class="btn btn-outline" type="submit" title="Reintentar indexación de todos los publicados">↻ Reindexar todo</button>
+        </form>
+        {% endif %}
+    </div>
 </div>
+
+{% if bib_flash %}
+<section class="panel" style="margin-bottom:16px;border-left:4px solid var(--accent);"><p style="margin:0;">{{ bib_flash }}</p></section>
+{% endif %}
+
+<section class="panel" style="margin-bottom:20px;border-left:4px solid #fab005;">
+    <p class="muted" style="margin:0;font-size:14px;">
+        <strong>Si aparece «Error al indexar»:</strong>
+        PDF escaneado (solo imagen) → agregue un <em>resumen en Artículo</em> y guarde de nuevo.
+        Imagen, audio o video → obligatorio escribir resumen en Artículo.
+        Formatos ideales: PDF con texto, Word (.docx), Excel, TXT.
+    </p>
+</section>
 
 <section class="panel" style="margin-bottom:20px;">
     <form method="get" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
@@ -60,10 +81,28 @@
                 <td>{{ item.get_formato_display }}</td>
                 <td>{{ item.cultivo|default:"—" }}</td>
                 <td>
+                    {% if item.estado_rag == 'indexado' %}
+                    <span style="color:#2f9e44;">{{ item.get_estado_rag_display }}</span>
+                    {% elif item.estado_rag == 'error' %}
+                    <span style="color:#e03131;">{{ item.get_estado_rag_display }}</span>
+                    {% if item.rag_error_detalle %}
+                    <div class="muted" style="font-size:11px;max-width:280px;margin-top:4px;">{{ item.rag_error_detalle }}</div>
+                    {% endif %}
+                    {% else %}
                     {{ item.get_estado_rag_display }}
-                    {% if item.chunks_indexados %}<span class="muted">({{ item.chunks_indexados }} fragmentos)</span>{% endif %}
+                    {% endif %}
+                    {% if item.chunks_indexados %}<span class="muted"> ({{ item.chunks_indexados }} frag.)</span>{% endif %}
                 </td>
-                <td><a href="{% url 'portal_biblioteca_editar' item.id %}">Editar</a></td>
+                <td style="white-space:nowrap;">
+                    <a href="{% url 'portal_biblioteca_editar' item.id %}">Editar</a>
+                    {% if item.estado_rag == 'error' or item.estado_rag == 'pendiente' %}
+                    ·
+                    <form method="post" action="{% url 'portal_biblioteca_reindexar' item.id %}" style="display:inline;margin:0;">
+                        {% csrf_token %}
+                        <button type="submit" style="background:none;border:none;color:var(--accent);cursor:pointer;padding:0;font:inherit;text-decoration:underline;">Reindexar</button>
+                    </form>
+                    {% endif %}
+                </td>
             </tr>
             {% empty %}
             <tr>
@@ -81,7 +120,6 @@
 <section class="panel" style="margin-top:20px;border-left:4px solid var(--accent);">
     <p class="muted" style="margin:0;">
         También puede ver métricas de Nat en <a href="/portal/nat/">Agente Nat</a>.
-        Los documentos legacy siguen en <a href="/portal/nat/documentos/">Documentos Nat (redirige aquí)</a>.
     </p>
 </section>
 {% endif %}

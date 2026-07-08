@@ -39,6 +39,31 @@ class BibliotecaNatServiceTests(TestCase):
         self.assertEqual(item.formato, 'faq')
         mock_enc.assert_called_once_with(item.pk)
 
+    @patch('core.rag_comercial_manager.rag_comercial_manager')
+    def test_fallback_texto_si_archivo_vacio(self, mock_rag):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from core.biblioteca_nat_service import indexar_item
+
+        mock_rag.disponible = True
+        mock_rag.procesar_documento.return_value = 0
+        mock_rag.procesar_texto.return_value = 4
+
+        item = BibliotecaConocimiento.objects.create(
+            cliente=self.cliente,
+            titulo='Cartilla escaneada',
+            slug='cartilla-escaneada',
+            formato='archivo',
+            texto_contenido='Resumen manual del contenido agrícola con suficiente detalle.',
+            estado_publicacion='publicado',
+        )
+        item.archivo.save('doc.pdf', SimpleUploadedFile('doc.pdf', b'%PDF'), save=True)
+        n = indexar_item(item)
+        item.refresh_from_db()
+        self.assertEqual(n, 4)
+        self.assertEqual(item.estado_rag, 'indexado')
+        mock_rag.procesar_texto.assert_called_once()
+
 
 class PortalSoloNatTests(TestCase):
     def setUp(self):

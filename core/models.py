@@ -1860,6 +1860,12 @@ class BibliotecaConocimiento(models.Model):
         default='publicado',
     )
     estado_rag = models.CharField(max_length=20, choices=ESTADO_RAG_CHOICES, default='pendiente')
+    rag_error_detalle = models.CharField(
+        max_length=500,
+        blank=True,
+        default='',
+        help_text='Motivo del último fallo de indexación (si aplica).',
+    )
     chunks_indexados = models.IntegerField(default=0)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_indexado = models.DateTimeField(null=True, blank=True)
