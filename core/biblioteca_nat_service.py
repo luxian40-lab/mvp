@@ -129,6 +129,9 @@ def indexar_item(item: BibliotecaConocimiento) -> int:
         pass
 
     n_chunks = 0
+    ruta = None
+    texto_archivo = ''
+    metodo_archivo = ''
 
     # 1) Archivo (PDF, Word, Excel…)
     if item.archivo:
@@ -139,16 +142,25 @@ def indexar_item(item: BibliotecaConocimiento) -> int:
             ext = os.path.splitext(ruta)[1].lower()
             try:
                 if ext in EXTENSIONES_TEXTO_RAG:
+                    from core.extractores_documento import extraer_texto_archivo
+
+                    texto_archivo, metodo_archivo = extraer_texto_archivo(ruta)
                     n_chunks = rag_comercial_manager.procesar_documento(
                         cliente_id, CANAL_RAG, ruta, nombre, tipo,
                     )
-                    if n_chunks == 0:
+                    if n_chunks == 0 and texto_archivo.strip():
+                        errores.append(
+                            f'Extracción OK ({metodo_archivo}, {len(texto_archivo)} chars) '
+                            'pero Chroma no generó fragmentos.',
+                        )
+                    elif n_chunks == 0:
                         from core.extractores_documento import diagnostico_pdf
 
                         diag = diagnostico_pdf(ruta)
+                        ocr_ok = 'sí' if diag.get('ocr_disponible') else 'no'
                         errores.append(
-                            f'PDF sin texto ({diag.get("paginas", "?")} págs, método={diag.get("metodo")}). '
-                            'OCR intentado si está disponible; agregue resumen en Artículo.',
+                            f'PDF sin texto ({diag.get("paginas", "?")} págs, método={diag.get("metodo")}, '
+                            f'OCR={ocr_ok}). Agregue resumen en Artículo o reindexe.',
                         )
                 else:
                     errores.append(
@@ -158,28 +170,35 @@ def indexar_item(item: BibliotecaConocimiento) -> int:
             except Exception as exc:
                 logger.exception('[BibliotecaNat] Error procesando archivo %s: %s', item.pk, exc)
                 errores.append(f'Error al procesar archivo: {exc}')
-            finally:
-                try:
-                    if ruta and not hasattr(item.archivo, 'path'):
-                        os.unlink(ruta)
-                except Exception:
-                    pass
 
-    # 2) Texto / FAQ / enlace / resumen complementario
+    # 2) Texto / FAQ / enlace / extracto parcial / título
     if n_chunks == 0:
         texto = _texto_metadatos(item)
-        if len((texto or '').strip()) >= 15:
+        if texto_archivo.strip():
+            texto = (
+                f'{texto}\n\nExtracto del archivo ({metodo_archivo or "archivo"}):\n'
+                f'{texto_archivo[:12000]}'
+            )
+
+        if len((texto or '').strip()) >= 10:
             try:
                 n_chunks = rag_comercial_manager.procesar_texto(
                     cliente_id, CANAL_RAG, texto, nombre, tipo,
                 )
                 if n_chunks == 0:
-                    errores.append('El texto del artículo es demasiado corto para indexar.')
+                    errores.append('El contenido disponible es demasiado corto para indexar.')
             except Exception as exc:
                 logger.exception('[BibliotecaNat] Error indexando texto %s: %s', item.pk, exc)
                 errores.append(f'Error al indexar texto: {exc}')
         elif not item.archivo:
             errores.append('Sin archivo ni texto suficiente. Complete el contenido o adjunte un PDF/DOCX/TXT/Excel.')
+
+    if ruta:
+        try:
+            if not hasattr(item.archivo, 'path') or not os.path.exists(getattr(item.archivo, 'path', '')):
+                os.unlink(ruta)
+        except Exception:
+            pass
 
     if n_chunks > 0:
         _marcar_estado(item, estado='indexado', n_chunks=n_chunks, error='')
@@ -372,6 +391,7 @@ def crear_masivo_desde_archivos(
                     'titulo': titulo,
                     'categoria': categoria,
                     'cultivo': cultivo,
+                    'texto_contenido': f'Resumen automático: {titulo}.',
                     'estado_publicacion': 'publicado',
                 },
                 archivo=archivo,

@@ -320,6 +320,11 @@ MIDDLEWARE.append('django.middleware.gzip.GZipMiddleware')
 # This comment forces a clean commit to push the validated local file to EB
 
 # ============================================
+# CHROMA DB — persistir fuera de /var/app/current (sobrevive deploys EB)
+# ============================================
+CHROMA_DB_DIR = os.environ.get('CHROMA_DB_DIR', '/var/app/chroma_data')
+
+# ============================================
 # CELERY + REDIS (Elastic Beanstalk)
 # ============================================
 # Worker y beat del Procfile usan Redis en localhost (.ebextensions/03_redis.config).

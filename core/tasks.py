@@ -364,6 +364,14 @@ def indexar_biblioteca_nat_por_id(self, item_id: int):
         return {'chunks': n, 'id': item_id}
     except Exception as exc:
         logger.exception('[Celery][BibliotecaNat] Error indexando id=%s', item_id)
+        try:
+            item.refresh_from_db()
+            if item.estado_rag == 'pendiente':
+                item.estado_rag = 'error'
+                item.rag_error_detalle = str(exc)[:500]
+                item.save(update_fields=['estado_rag', 'rag_error_detalle'])
+        except Exception:
+            pass
         raise self.retry(exc=exc)
 
 

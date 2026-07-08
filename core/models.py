@@ -1765,13 +1765,15 @@ class DocumentoRAGComercial(models.Model):
                 tipo=self.tipo,
             )
 
-            if n_chunks == 0 and (self.descripcion or '').strip():
+            if n_chunks == 0:
                 from core.extractores_documento import extraer_texto_archivo
 
                 texto_arch, metodo = extraer_texto_archivo(ruta)
                 fallback = f"# {self.nombre}\n\n{(self.descripcion or '').strip()}"
-                if len(texto_arch.strip()) >= 20:
-                    fallback = f"{fallback}\n\nExtracto parcial ({metodo}):\n{texto_arch[:3000]}"
+                if len(fallback.strip()) < 15:
+                    fallback = f"# {self.nombre}\nDocumento comercial indexado desde biblioteca RAG."
+                if len(texto_arch.strip()) >= 5:
+                    fallback = f"{fallback}\n\nExtracto parcial ({metodo}):\n{texto_arch[:8000]}"
                 n_chunks = rag_comercial_manager.procesar_texto(
                     cliente_id=self.cliente_scope_id,
                     canal=self.canal,
