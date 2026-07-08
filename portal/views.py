@@ -1466,3 +1466,41 @@ def portal_biblioteca_reindexar_todo(request):
         request.session['bib_flash'] = f'Reindexación: {ok} correctos, {err} con error.'
     return redirect('/portal/biblioteca/')
 
+
+@portal_login_required
+@requiere_modulo('nat')
+def portal_biblioteca_subida_masiva(request):
+    from core.biblioteca_nat_service import crear_masivo_desde_archivos
+    from core.models import BibliotecaConocimiento
+
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    error = None
+    if request.method == 'POST':
+        archivos = request.FILES.getlist('archivos')
+        if not archivos:
+            error = 'Seleccione al menos un archivo PDF.'
+        elif len(archivos) > 50:
+            error = 'Máximo 50 archivos por carga. Divida en tandas.'
+        else:
+            ok, err = crear_masivo_desde_archivos(
+                org,
+                archivos,
+                user=request.portal_usuario.user,
+                categoria=(request.POST.get('categoria') or 'general').strip(),
+                cultivo=(request.POST.get('cultivo') or '').strip(),
+            )
+            request.session['bib_flash'] = (
+                f'Subida masiva: {ok} documento(s) en cola de indexación'
+                + (f', {err} rechazados.' if err else '. Indexación en segundo plano (1–5 min).')
+            )
+            return redirect('/portal/biblioteca/')
+
+    return render(request, 'portal/biblioteca_masiva.html', {
+        'org': org,
+        'error': error,
+        'categorias': BibliotecaConocimiento.CATEGORIA_CHOICES,
+    })
+

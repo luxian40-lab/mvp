@@ -143,9 +143,12 @@ def indexar_item(item: BibliotecaConocimiento) -> int:
                         cliente_id, CANAL_RAG, ruta, nombre, tipo,
                     )
                     if n_chunks == 0:
+                        from core.extractores_documento import diagnostico_pdf
+
+                        diag = diagnostico_pdf(ruta)
                         errores.append(
-                            'El archivo no tiene texto extraíble (PDF escaneado, Excel vacío o Word sin contenido). '
-                            'Agregue un resumen en la pestaña Artículo y guarde de nuevo.',
+                            f'PDF sin texto ({diag.get("paginas", "?")} págs, método={diag.get("metodo")}). '
+                            'OCR intentado si está disponible; agregue resumen en Artículo.',
                         )
                 else:
                     errores.append(
@@ -324,3 +327,38 @@ def reindexar_item(item: BibliotecaConocimiento) -> int:
     item.rag_error_detalle = ''
     item.save(update_fields=['estado_rag', 'rag_error_detalle'])
     return indexar_item(item)
+
+
+def crear_masivo_desde_archivos(
+    org: Cliente,
+    archivos,
+    *,
+    user=None,
+    categoria: str = 'general',
+    cultivo: str = '',
+) -> tuple[int, int]:
+    """Subida masiva portal: un ítem BibliotecaConocimiento por PDF/archivo."""
+    ok = err = 0
+    for i, archivo in enumerate(archivos or []):
+        titulo = (getattr(archivo, 'name', '') or 'documento').rsplit('/', 1)[-1]
+        titulo = titulo.rsplit('\\', 1)[-1]
+        if '.' in titulo:
+            titulo = titulo.rsplit('.', 1)[0]
+        titulo = titulo.replace('_', ' ').replace('-', ' ').strip()[:200] or f'Documento {i + 1}'
+        try:
+            crear_desde_formulario(
+                org,
+                {
+                    'formato': 'archivo',
+                    'titulo': titulo,
+                    'categoria': categoria,
+                    'cultivo': cultivo,
+                    'estado_publicacion': 'publicado',
+                },
+                archivo=archivo,
+                user=user,
+            )
+            ok += 1
+        except ValueError:
+            err += 1
+    return ok, err

@@ -1,0 +1,49 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Subida masiva PDF | Biblioteca Nat{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <p class="muted" style="margin:0 0 6px;"><a href="{% url 'portal_biblioteca' %}">Biblioteca</a> / Subida masiva</p>
+        <h1>Subida masiva de PDFs</h1>
+        <p class="muted">Hasta 50 archivos por tanda. La indexación corre en segundo plano (Celery).</p>
+    </div>
+</div>
+
+{% if error %}
+<section class="panel" style="margin-bottom:16px;border-left:4px solid #e03131;"><p>{{ error }}</p></section>
+{% endif %}
+
+<section class="panel" style="margin-bottom:16px;border-left:4px solid #fab005;">
+    <p class="muted" style="margin:0;font-size:14px;">
+        PDFs con texto seleccionable se indexan directo. PDFs escaneados usan OCR automático (Tesseract) si está activo en el servidor.
+        Si alguno falla, use <strong>Reindexar</strong> en la lista o agregue resumen al editar.
+    </p>
+</section>
+
+<section class="panel">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <label><strong>Archivos PDF (múltiple)</strong>
+            <input type="file" name="archivos" accept=".pdf,.docx,.txt,.xlsx,.xlsm" multiple required style="display:block;margin-top:8px;">
+        </label>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:16px;">
+            <label><strong>Categoría</strong>
+                <select name="categoria" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+                    {% for key, label in categorias %}
+                    <option value="{{ key }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label><strong>Cultivo (opcional)</strong>
+                <input type="text" name="cultivo" placeholder="café, palma…" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+        </div>
+        <div style="margin-top:20px;display:flex;gap:10px;">
+            <button class="btn" type="submit">Subir e indexar en lote</button>
+            <a class="btn btn-outline" href="{% url 'portal_biblioteca' %}">Cancelar</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

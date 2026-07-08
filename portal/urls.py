@@ -26,6 +26,7 @@ urlpatterns = [
     path('biblioteca/<int:item_id>/editar/', views.portal_biblioteca_editar, name='portal_biblioteca_editar'),
     path('biblioteca/<int:item_id>/reindexar/', views.portal_biblioteca_reindexar, name='portal_biblioteca_reindexar'),
     path('biblioteca/reindexar-todo/', views.portal_biblioteca_reindexar_todo, name='portal_biblioteca_reindexar_todo'),
+    path('biblioteca/subida-masiva/', views.portal_biblioteca_subida_masiva, name='portal_biblioteca_subida_masiva'),
     path('campanas/', views.campanas_lista, name='portal_campanas'),
     path('campanas/<int:campana_id>/', views.campana_detalle, name='portal_campana_detalle'),
     path('conversaciones/', views.portal_conversaciones, name='portal_conversaciones'),

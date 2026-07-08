@@ -156,29 +156,21 @@ class RAGClienteCurso:
 
     def _extraer_texto(self, ruta: str) -> str:
         """Extrae texto de PDF, DOCX, TXT o Excel (XLSX/XLSM; p. ej. listas de precios)."""
-        ext = os.path.splitext(ruta)[1].lower()
+        from core.extractores_documento import extraer_texto_archivo
 
-        if ext == '.pdf':
-            return self._extraer_pdf(ruta)
-        elif ext == '.docx':
-            return self._extraer_docx(ruta)
-        elif ext == '.txt':
-            return self._extraer_txt(ruta)
-        elif ext in ('.xlsx', '.xlsm'):
-            return self._extraer_xlsx(ruta)
+        texto, metodo = extraer_texto_archivo(ruta)
+        if texto:
+            logger.info('[RAG] Extracción %s | método=%s | chars=%s', os.path.basename(ruta), metodo, len(texto))
         else:
-            logger.warning(f"[RAG] Tipo no soportado: {ext}")
-            return ""
+            logger.warning('[RAG] Sin texto extraíble: %s (método=%s)', os.path.basename(ruta), metodo)
+        return texto
 
     @staticmethod
     def _extraer_pdf(ruta: str) -> str:
-        try:
-            from PyPDF2 import PdfReader
-            reader = PdfReader(ruta)
-            return "\n".join(p.extract_text() or "" for p in reader.pages)
-        except Exception as e:
-            logger.error(f"[RAG] Error PDF: {e}")
-            return ""
+        from core.extractores_documento import extraer_texto_pdf
+
+        texto, _ = extraer_texto_pdf(ruta)
+        return texto
 
     @staticmethod
     def _extraer_docx(ruta: str) -> str:

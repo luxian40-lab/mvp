@@ -746,10 +746,13 @@ class DocumentoRAGComercialAdmin(admin.ModelAdmin):
         'fecha_subida',
     )
     list_filter = ('estado', 'tipo', 'canal', 'cliente')
-    search_fields = ('nombre', 'descripcion', 'cliente__nombre')
+    search_fields = ('nombre', 'descripcion', 'cliente__nombre', 'error_indexacion')
     list_per_page = 50
     ordering = ('-fecha_subida',)
-    readonly_fields = ('estado', 'chunks_indexados', 'fecha_subida', 'fecha_indexado', 'subido_por')
+    readonly_fields = (
+        'estado', 'chunks_indexados', 'error_indexacion',
+        'fecha_subida', 'fecha_indexado', 'subido_por',
+    )
     actions = [
         'indexar_seleccionados',
         'reindexar_seleccionados',
@@ -958,11 +961,19 @@ class DocumentoRAGComercialAdmin(admin.ModelAdmin):
             messages.error(request, 'No se pudieron guardar los documentos. Revisá los logs o probá con menos archivos.')
             return render(request, 'admin/subida_masiva_rag_comercial.html', context)
 
-        for doc in creados:
+        for i, doc in enumerate(creados):
             if doc.estado == 'pendiente' and doc.archivo:
-                _encolar_o_indexar_rag_doc(
-                    request, self, 'DocumentoRAGComercial', doc, show_index_message=False
-                )
+                try:
+                    from core.tasks import indexar_documento_rag_por_id
+
+                    indexar_documento_rag_por_id.apply_async(
+                        ('core', 'DocumentoRAGComercial', doc.pk),
+                        countdown=min(i * 3, 180),
+                    )
+                except Exception:
+                    _encolar_o_indexar_rag_doc(
+                        request, self, 'DocumentoRAGComercial', doc, show_index_message=False
+                    )
 
         messages.success(
             request,

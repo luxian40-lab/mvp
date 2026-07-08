@@ -1685,6 +1685,12 @@ class DocumentoRAGComercial(models.Model):
         verbose_name='Chunks indexados',
         help_text='Cantidad de fragmentos indexados en la BD vectorial comercial.'
     )
+    error_indexacion = models.CharField(
+        max_length=500,
+        blank=True,
+        default='',
+        help_text='Motivo del último fallo de indexación RAG.',
+    )
     descripcion = models.TextField(
         blank=True,
         verbose_name='Descripción',
@@ -1724,17 +1730,32 @@ class DocumentoRAGComercial(models.Model):
 
         if not self.archivo:
             self.estado = 'error'
-            self.save(update_fields=['estado'])
+            self.error_indexacion = 'Sin archivo adjunto.'
+            self.save(update_fields=['estado', 'error_indexacion'])
             return 0
 
+        if not rag_comercial_manager.disponible:
+            self.estado = 'error'
+            self.error_indexacion = 'ChromaDB no disponible en el servidor.'
+            self.save(update_fields=['estado', 'error_indexacion'])
+            return 0
+
+        ruta_temp = None
         try:
-            ruta = self.archivo.path
-            if not os.path.exists(ruta):
-                ruta = self._descargar_temp()
-                if not ruta:
-                    self.estado = 'error'
-                    self.save(update_fields=['estado'])
-                    return 0
+            ruta = None
+            try:
+                if hasattr(self.archivo, 'path') and os.path.exists(self.archivo.path):
+                    ruta = self.archivo.path
+            except Exception:
+                pass
+            if not ruta:
+                ruta_temp = self._descargar_temp()
+                ruta = ruta_temp
+            if not ruta:
+                self.estado = 'error'
+                self.error_indexacion = 'No se pudo descargar el archivo desde almacenamiento (S3).'
+                self.save(update_fields=['estado', 'error_indexacion'])
+                return 0
 
             n_chunks = rag_comercial_manager.procesar_documento(
                 cliente_id=self.cliente_scope_id,
@@ -1743,17 +1764,55 @@ class DocumentoRAGComercial(models.Model):
                 nombre_documento=self.nombre,
                 tipo=self.tipo,
             )
+
+            if n_chunks == 0 and (self.descripcion or '').strip():
+                from core.extractores_documento import extraer_texto_archivo
+
+                texto_arch, metodo = extraer_texto_archivo(ruta)
+                fallback = f"# {self.nombre}\n\n{(self.descripcion or '').strip()}"
+                if len(texto_arch.strip()) >= 20:
+                    fallback = f"{fallback}\n\nExtracto parcial ({metodo}):\n{texto_arch[:3000]}"
+                n_chunks = rag_comercial_manager.procesar_texto(
+                    cliente_id=self.cliente_scope_id,
+                    canal=self.canal,
+                    texto=fallback,
+                    nombre_documento=self.nombre,
+                    tipo=self.tipo,
+                )
+
             self.chunks_indexados = n_chunks
-            self.estado = 'indexado' if n_chunks > 0 else 'error'
+            if n_chunks > 0:
+                self.estado = 'indexado'
+                self.error_indexacion = ''
+            else:
+                self.estado = 'error'
+                from core.extractores_documento import diagnostico_pdf
+                ext = os.path.splitext(ruta)[1].lower()
+                if ext == '.pdf':
+                    diag = diagnostico_pdf(ruta)
+                    self.error_indexacion = (
+                        f'PDF sin texto indexable ({diag.get("paginas", "?")} págs, '
+                        f'método={diag.get("metodo")}). '
+                        'Si es escaneado, active OCR o agregue descripción al documento.'
+                    )[:500]
+                else:
+                    self.error_indexacion = 'No se extrajo texto del archivo. Revise formato o agregue descripción.'
             self.fecha_indexado = timezone.now()
-            self.save(update_fields=['chunks_indexados', 'estado', 'fecha_indexado'])
+            self.save(update_fields=['chunks_indexados', 'estado', 'error_indexacion', 'fecha_indexado'])
             return n_chunks
         except Exception as e:
             import logging
             logging.getLogger(__name__).error(f"[DocumentoRAGComercial] Error indexando {self.nombre}: {e}")
             self.estado = 'error'
-            self.save(update_fields=['estado'])
+            self.error_indexacion = str(e)[:500]
+            self.save(update_fields=['estado', 'error_indexacion'])
             return 0
+        finally:
+            if ruta_temp and os.path.exists(ruta_temp):
+                try:
+                    os.unlink(ruta_temp)
+                except Exception:
+                    pass
 
     def _descargar_temp(self):
         """Descarga archivo desde storage a un temporal local para indexación."""

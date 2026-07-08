@@ -12,6 +12,7 @@
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <a class="btn" href="{% url 'portal_biblioteca_crear' %}">+ Nuevo conocimiento</a>
+        <a class="btn btn-outline" href="{% url 'portal_biblioteca_subida_masiva' %}">📦 Subida masiva PDF</a>
         {% if request.portal_usuario.rol == 'admin' %}
         <form method="post" action="{% url 'portal_biblioteca_reindexar_todo' %}" style="margin:0;">
             {% csrf_token %}

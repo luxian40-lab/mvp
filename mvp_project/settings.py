@@ -603,6 +603,13 @@ try:
 except (TypeError, ValueError):
     BOT_COMERCIAL_RAG_MIN_SIMILARITY = 0.52
 BOT_COMERCIAL_VISION_MODEL = os.environ.get('BOT_COMERCIAL_VISION_MODEL', 'gpt-5-mini')
+# Extracción PDF para RAG (PyMuPDF + OCR Tesseract en servidores con tesseract instalado)
+RAG_PDF_OCR_ENABLED = os.environ.get('RAG_PDF_OCR_ENABLED', 'True').strip().lower() in ('1', 'true', 'yes', 'on')
+RAG_PDF_OCR_LANG = os.environ.get('RAG_PDF_OCR_LANG', 'spa+eng')
+try:
+    RAG_PDF_OCR_MAX_PAGES = int(os.environ.get('RAG_PDF_OCR_MAX_PAGES', '12'))
+except (TypeError, ValueError):
+    RAG_PDF_OCR_MAX_PAGES = 12
 # Límite de tokens de salida del chat (menor = respuesta más rápida y barata).
 try:
     BOT_COMERCIAL_OPENAI_MAX_TOKENS = int(os.environ.get('BOT_COMERCIAL_OPENAI_MAX_TOKENS', '650'))
