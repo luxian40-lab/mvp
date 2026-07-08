@@ -191,7 +191,13 @@ def indexar_item(item: BibliotecaConocimiento) -> int:
     return 0
 
 
-def encolar_indexacion(item_id: int) -> None:
+def _stagger_segundos(indice: int) -> int:
+    paso = int(getattr(settings, 'RAG_INDEX_TASK_STAGGER_SECONDS', 12) or 12)
+    paso = max(3, min(paso, 60))
+    return min(indice * paso, 900)
+
+
+def encolar_indexacion(item_id: int, *, countdown: int = 0) -> None:
     def _run():
         try:
             if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
@@ -211,7 +217,10 @@ def encolar_indexacion(item_id: int) -> None:
             else:
                 from core.tasks import indexar_biblioteca_nat_por_id
 
-                indexar_biblioteca_nat_por_id.delay(item_id)
+                indexar_biblioteca_nat_por_id.apply_async(
+                    args=[item_id],
+                    countdown=max(0, int(countdown or 0)),
+                )
         except Exception:
             logger.exception('[BibliotecaNat] Fallo encolando indexación id=%s', item_id)
             try:
@@ -224,7 +233,14 @@ def encolar_indexacion(item_id: int) -> None:
     transaction.on_commit(_run)
 
 
-def crear_desde_formulario(org: Cliente, data: dict, archivo=None, user=None) -> BibliotecaConocimiento:
+def crear_desde_formulario(
+    org: Cliente,
+    data: dict,
+    archivo=None,
+    user=None,
+    *,
+    index_countdown: int = 0,
+) -> BibliotecaConocimiento:
     titulo = (data.get('titulo') or '').strip()
     if not titulo:
         raise ValueError('El título es obligatorio.')
@@ -267,7 +283,7 @@ def crear_desde_formulario(org: Cliente, data: dict, archivo=None, user=None) ->
     if archivo:
         item.archivo = archivo
     item.save()
-    encolar_indexacion(item.pk)
+    encolar_indexacion(item.pk, countdown=index_countdown)
     return item
 
 
@@ -311,22 +327,25 @@ def listar_biblioteca(org: Cliente, *, categoria: str = '', cultivo: str = '', q
     return qs.order_by('-fecha_creacion')
 
 
-def reindexar_publicados(org: Cliente) -> tuple[int, int]:
-    """Reindexa todos los publicados. Devuelve (ok, error)."""
-    ok = err = 0
-    for item in BibliotecaConocimiento.objects.filter(cliente=org, estado_publicacion='publicado'):
-        if indexar_item(item) > 0:
-            ok += 1
-        else:
-            err += 1
-    return ok, err
+def reindexar_publicados(org: Cliente) -> int:
+    """Encola reindexación de todos los publicados (evita 504 en portal)."""
+    qs = BibliotecaConocimiento.objects.filter(cliente=org, estado_publicacion='publicado')
+    encolados = 0
+    for i, item in enumerate(qs):
+        item.estado_rag = 'pendiente'
+        item.rag_error_detalle = ''
+        item.save(update_fields=['estado_rag', 'rag_error_detalle'])
+        encolar_indexacion(item.pk, countdown=_stagger_segundos(i))
+        encolados += 1
+    return encolados
 
 
-def reindexar_item(item: BibliotecaConocimiento) -> int:
+def reindexar_item(item: BibliotecaConocimiento) -> None:
+    """Encola reindexación de un ítem (no bloquea el request HTTP)."""
     item.estado_rag = 'pendiente'
     item.rag_error_detalle = ''
     item.save(update_fields=['estado_rag', 'rag_error_detalle'])
-    return indexar_item(item)
+    encolar_indexacion(item.pk)
 
 
 def crear_masivo_desde_archivos(
@@ -357,6 +376,7 @@ def crear_masivo_desde_archivos(
                 },
                 archivo=archivo,
                 user=user,
+                index_countdown=_stagger_segundos(i),
             )
             ok += 1
         except ValueError:

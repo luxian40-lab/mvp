@@ -37,7 +37,7 @@ class BibliotecaNatServiceTests(TestCase):
             },
         )
         self.assertEqual(item.formato, 'faq')
-        mock_enc.assert_called_once_with(item.pk)
+        mock_enc.assert_called_once_with(item.pk, countdown=0)
 
     @patch('core.rag_comercial_manager.rag_comercial_manager')
     def test_fallback_texto_si_archivo_vacio(self, mock_rag):

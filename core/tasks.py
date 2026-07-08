@@ -484,7 +484,7 @@ def procesar_zip_rag_comercial(
                     doc.archivo.save(base_name, File(fh), save=True)
                 indexar_documento_rag_por_id.apply_async(
                     ("core", "DocumentoRAGComercial", doc.pk),
-                    countdown=min(creados * 3, 180),
+                    countdown=min(creados * 12, 900),
                 )
                 creados += 1
     finally:

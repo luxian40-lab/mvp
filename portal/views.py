@@ -1441,13 +1441,10 @@ def portal_biblioteca_reindexar(request, item_id: int):
 
     item = get_object_or_404(BibliotecaConocimiento, pk=item_id, cliente=org)
     if request.method == 'POST':
-        n = reindexar_item(item)
-        item.refresh_from_db()
-        if n > 0:
-            request.session['bib_flash'] = f'«{item.titulo}» indexado ({n} fragmentos).'
-        else:
-            det = item.rag_error_detalle or 'Revise el archivo o agregue un resumen en Artículo.'
-            request.session['bib_flash'] = f'No se pudo indexar «{item.titulo}»: {det}'
+        reindexar_item(item)
+        request.session['bib_flash'] = (
+            f'«{item.titulo}» en cola de indexación. Actualice la lista en 1–3 min.'
+        )
     return redirect('/portal/biblioteca/')
 
 
@@ -1462,8 +1459,11 @@ def portal_biblioteca_reindexar_todo(request):
         return redirect('/portal/login/')
 
     if request.method == 'POST':
-        ok, err = reindexar_publicados(org)
-        request.session['bib_flash'] = f'Reindexación: {ok} correctos, {err} con error.'
+        encolados = reindexar_publicados(org)
+        request.session['bib_flash'] = (
+            f'Reindexación en cola: {encolados} documento(s). '
+            'Procesamiento en segundo plano (puede tardar varios minutos).'
+        )
     return redirect('/portal/biblioteca/')
 
 
