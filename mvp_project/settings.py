@@ -902,6 +902,22 @@ CELERY_TASK_SOFT_TIME_LIMIT = int(os.environ.get('CELERY_TASK_SOFT_TIME_LIMIT', 
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # Para distribución justa de tareas
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
+# Cola dedicada para indexación PDF/RAG (worker_rag en Procfile EB).
+# Las tareas pesadas no bloquean campañas, emails ni webhooks.
+CELERY_TASK_QUEUES = {
+    'celery': {'exchange': 'celery', 'routing_key': 'celery'},
+    'rag_index': {'exchange': 'rag_index', 'routing_key': 'rag_index'},
+}
+CELERY_TASK_ROUTES = {
+    'core.tasks.indexar_biblioteca_nat_por_id': {'queue': 'rag_index'},
+    'core.tasks.indexar_documento_rag_por_id': {'queue': 'rag_index'},
+    'core.tasks.procesar_zip_rag_comercial': {'queue': 'rag_index'},
+}
+try:
+    RAG_WORKER_CONCURRENCY = int(os.environ.get('RAG_WORKER_CONCURRENCY', '1'))
+except (TypeError, ValueError):
+    RAG_WORKER_CONCURRENCY = 1
+
 # En desarrollo sin Redis, deshabilitar Celery (las tareas se ejecutan síncronamente)
 CELERY_TASK_ALWAYS_EAGER = os.environ.get('CELERY_TASK_ALWAYS_EAGER', 'False') == 'True'
 CELERY_TASK_EAGER_PROPAGATES = True
