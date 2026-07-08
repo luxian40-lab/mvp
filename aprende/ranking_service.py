@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from django.db.models import Count
-
 from core.gamificacion import PerfilGamificacion
 from core.gamificacion_modo import (
     gamificacion_activa,
@@ -11,7 +9,7 @@ from core.gamificacion_modo import (
     modo_usa_puntos,
     ranking_calificaciones_cliente,
 )
-from core.models import Curso, Estudiante, ModuloCompletado
+from core.models import Curso, Estudiante
 from core.models_extras import GrupoEstudiantes
 
 
@@ -30,25 +28,33 @@ def ranking_puntos_grupo(
     *,
     limite: int = 50,
 ) -> list[dict]:
-    ids = list(grupo.estudiantes.filter(activo=True).values_list('pk', flat=True))
-    if not ids:
+    estudiantes = list(
+        grupo.estudiantes.filter(activo=True).order_by('nombre').values('pk', 'nombre')
+    )
+    if not estudiantes:
         return []
 
-    perfiles = (
-        PerfilGamificacion.objects.filter(estudiante_id__in=ids, estudiante__activo=True)
-        .select_related('estudiante')
-        .order_by('-puntos_totales', '-nivel', 'estudiante__nombre')[:limite]
-    )
-    out: list[dict] = []
-    for pos, p in enumerate(perfiles, start=1):
-        out.append({
-            'posicion': pos,
-            'estudiante_id': p.estudiante_id,
-            'nombre': p.estudiante.nombre,
-            'puntos': p.puntos_totales,
-            'nivel': p.nivel,
-            'racha': p.racha_dias_actual,
+    ids = [e['pk'] for e in estudiantes]
+    perfiles = {
+        p.estudiante_id: p
+        for p in PerfilGamificacion.objects.filter(estudiante_id__in=ids).select_related('estudiante')
+    }
+
+    filas = []
+    for e in estudiantes:
+        perfil = perfiles.get(e['pk'])
+        filas.append({
+            'estudiante_id': e['pk'],
+            'nombre': e['nombre'],
+            'puntos': perfil.puntos_totales if perfil else 0,
+            'nivel': perfil.nivel if perfil else 1,
+            'racha': perfil.racha_dias_actual if perfil else 0,
         })
+
+    filas.sort(key=lambda r: (-r['puntos'], -r['nivel'], r['nombre'].lower()))
+    out: list[dict] = []
+    for pos, row in enumerate(filas[:limite], start=1):
+        out.append({**row, 'posicion': pos})
     return out
 
 
@@ -67,55 +73,12 @@ def ranking_calificacion_grupo(
     return filtrado
 
 
-def ranking_avance_grupo_curso(
-    grupo: GrupoEstudiantes,
-    curso: Curso,
-    *,
-    limite: int = 50,
-) -> list[dict]:
-    """Ranking por módulos completados en un curso (competitivo por avance)."""
-    estudiantes = list(
-        grupo.estudiantes.filter(activo=True).order_by('nombre').values('pk', 'nombre')
-    )
-    if not estudiantes:
-        return []
-
-    ids = [e['pk'] for e in estudiantes]
-    conteos = dict(
-        ModuloCompletado.objects.filter(
-            progreso__estudiante_id__in=ids,
-            progreso__estudiante__activo=True,
-            modulo__curso=curso,
-        )
-        .values('progreso__estudiante_id')
-        .annotate(n=Count('id'))
-        .values_list('progreso__estudiante_id', 'n')
-    )
-
-    filas = [
-        {
-            'estudiante_id': e['pk'],
-            'nombre': e['nombre'],
-            'modulos': conteos.get(e['pk'], 0),
-        }
-        for e in estudiantes
-    ]
-    filas.sort(key=lambda r: (-r['modulos'], r['nombre'].lower()))
-    out: list[dict] = []
-    for pos, row in enumerate(filas[:limite], start=1):
-        out.append({**row, 'posicion': pos})
-    return out
-
-
 def _etiquetas_filas(filas: list[dict], modo: str) -> list[dict]:
     for f in filas:
         if modo == 'calificacion':
             f['valor'] = f.get('promedio')
             f['valor_unidad'] = '/5'
-        elif modo == 'avance':
-            f['valor'] = f.get('modulos', 0)
-            f['valor_unidad'] = ' mód.'
-        else:
+        elif modo == 'puntos':
             f['valor'] = f.get('puntos', 0)
             f['valor_unidad'] = ' pts'
     return filas
@@ -148,12 +111,12 @@ def resumen_ranking_aula(
     if modo_usa_calificacion(cliente):
         filas = ranking_calificacion_grupo(grupo, cliente, curso_id=curso.pk if curso else None)
         modo = 'calificacion'
-    elif curso and modo_usa_puntos(cliente):
-        filas = ranking_avance_grupo_curso(grupo, curso)
-        modo = 'avance'
-    else:
+    elif modo_usa_puntos(cliente):
         filas = ranking_puntos_grupo(grupo)
         modo = 'puntos'
+    else:
+        filas = []
+        modo = 'desactivado'
 
     filas = _etiquetas_filas(filas, modo)
 
@@ -161,6 +124,15 @@ def resumen_ranking_aula(
         (f['posicion'] for f in filas if f['estudiante_id'] == estudiante.pk),
         None,
     )
+    mi_fila = next((f for f in filas if f['estudiante_id'] == estudiante.pk), None)
+    lider_puntos = filas[0].get('puntos', 0) if filas and modo == 'puntos' else None
+    mi_puntos = mi_fila.get('puntos', 0) if mi_fila and modo == 'puntos' else None
+    puntos_para_subir = None
+    if mi_fila and modo == 'puntos' and mi_posicion and mi_posicion > 1:
+        anterior = next((f for f in filas if f['posicion'] == mi_posicion - 1), None)
+        if anterior:
+            puntos_para_subir = max(0, anterior.get('puntos', 0) - mi_fila.get('puntos', 0) + 1)
+
     return {
         'activo': True,
         'grupo': grupo,
@@ -168,5 +140,8 @@ def resumen_ranking_aula(
         'top3': filas[:3],
         'modo': modo,
         'mi_posicion': mi_posicion,
+        'mi_puntos': mi_puntos,
+        'lider_puntos': lider_puntos,
+        'puntos_para_subir': puntos_para_subir,
         'curso': curso,
     }

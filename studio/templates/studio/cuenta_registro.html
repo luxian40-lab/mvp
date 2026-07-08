@@ -1,0 +1,31 @@
+{% extends "studio/base.html" %}
+{% block title %}Crear cuenta | eki Studio{% endblock %}
+{% block content %}
+<div class="st-login-wrap">
+    <div class="st-card st-login-card st-card--neon">
+        <span class="st-kicker st-kicker--neon">Nueva cuenta</span>
+        <h1 style="font-size:1.45rem;margin-bottom:0.35rem;">Únete a eki Studio</h1>
+        <p class="st-muted" style="margin-bottom:1.25rem;">Correo y contraseña. Estudia en el aula con los mismos puntos de gamificación.</p>
+        {% if error %}<div class="st-alert st-alert--error">{{ error }}</div>{% endif %}
+        <form method="post">
+            {% csrf_token %}
+            <div class="st-field">
+                <label for="nombre">Nombre completo</label>
+                <input id="nombre" name="nombre" type="text" required autocomplete="name">
+            </div>
+            <div class="st-field">
+                <label for="email">Correo electrónico</label>
+                <input id="email" name="email" type="email" required autocomplete="email">
+            </div>
+            <div class="st-field">
+                <label for="password">Contraseña (mín. 8 caracteres)</label>
+                <input id="password" name="password" type="password" required minlength="8" autocomplete="new-password">
+            </div>
+            <button type="submit" class="st-btn st-btn--neon st-btn--block">Crear cuenta</button>
+        </form>
+        <p class="st-muted" style="margin-top:1rem;text-align:center;">
+            ¿Ya tienes cuenta? <a href="{% url 'studio_cuenta_login' %}">Ingresar</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

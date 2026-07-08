@@ -1,0 +1,30 @@
+{% extends "studio/base.html" %}
+{% block title %}Ingresar | eki Studio{% endblock %}
+{% block content %}
+<div class="st-login-wrap">
+    <div class="st-card st-login-card st-card--neon">
+        <span class="st-kicker st-kicker--neon">Bienvenido</span>
+        <h1 style="font-size:1.45rem;margin-bottom:0.35rem;">Ingresar</h1>
+        <p class="st-muted" style="margin-bottom:1.25rem;">Tu cuenta Studio. Después estudias en el aula virtual.</p>
+        {% if error %}<div class="st-alert st-alert--error">{{ error }}</div>{% endif %}
+        <form method="post">
+            {% csrf_token %}
+            <div class="st-field">
+                <label for="email">Correo electrónico</label>
+                <input id="email" name="email" type="email" required autocomplete="email">
+            </div>
+            <div class="st-field">
+                <label for="password">Contraseña</label>
+                <input id="password" name="password" type="password" required autocomplete="current-password">
+            </div>
+            <button type="submit" class="st-btn st-btn--neon st-btn--block">Ingresar</button>
+        </form>
+        <p class="st-muted" style="margin-top:0.85rem;text-align:center;font-size:0.8rem;">
+            <a href="{% url 'studio_estudiante_whatsapp' %}">Entrar con cédula WhatsApp (programa B2B)</a>
+        </p>
+        <p class="st-muted" style="margin-top:0.5rem;text-align:center;">
+            ¿Sin cuenta? <a href="{% url 'studio_cuenta_registro' %}">Regístrate gratis</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

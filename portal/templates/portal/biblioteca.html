@@ -1,0 +1,88 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Biblioteca de conocimiento | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <h1>Biblioteca de conocimiento</h1>
+        <p class="muted">
+            Centro de conocimiento agrícola de {{ org.nombre }}. Todo lo que publique aquí alimenta a <strong>Nat</strong> en WhatsApp.
+        </p>
+    </div>
+    <a class="btn" href="{% url 'portal_biblioteca_crear' %}">+ Nuevo conocimiento</a>
+</div>
+
+<section class="panel" style="margin-bottom:20px;">
+    <form method="get" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
+        <label>
+            <strong>Buscar</strong>
+            <input type="search" name="q" value="{{ filtro_q }}" placeholder="Título…" style="margin-top:6px;padding:8px;border:1px solid var(--borde);border-radius:8px;">
+        </label>
+        <label>
+            <strong>Categoría</strong>
+            <select name="categoria" style="margin-top:6px;padding:8px;border:1px solid var(--borde);border-radius:8px;">
+                <option value="">Todas</option>
+                {% for key, label in categorias %}
+                <option value="{{ key }}" {% if filtro_categoria == key %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <strong>Cultivo</strong>
+            <input type="text" name="cultivo" value="{{ filtro_cultivo }}" placeholder="Ej. café, palma" style="margin-top:6px;padding:8px;border:1px solid var(--borde);border-radius:8px;">
+        </label>
+        <button class="btn btn-outline" type="submit">Filtrar</button>
+    </form>
+</section>
+
+<section class="panel">
+    <h2>{{ total }} elemento{{ total|pluralize:"s" }}</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Título</th>
+                <th>Categoría</th>
+                <th>Formato</th>
+                <th>Cultivo</th>
+                <th>Estado RAG</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>
+                    <strong>{{ item.titulo }}</strong>
+                    {% if item.autor %}<div class="muted" style="font-size:12px;">{{ item.autor }}</div>{% endif %}
+                </td>
+                <td>{{ item.get_categoria_display }}</td>
+                <td>{{ item.get_formato_display }}</td>
+                <td>{{ item.cultivo|default:"—" }}</td>
+                <td>
+                    {{ item.get_estado_rag_display }}
+                    {% if item.chunks_indexados %}<span class="muted">({{ item.chunks_indexados }} fragmentos)</span>{% endif %}
+                </td>
+                <td><a href="{% url 'portal_biblioteca_editar' item.id %}">Editar</a></td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" class="muted">
+                    Aún no hay conocimiento publicado.
+                    <a href="{% url 'portal_biblioteca_crear' %}">Cree el primero</a> (archivo, artículo o FAQ).
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+{% if not portal_solo_nat %}
+<section class="panel" style="margin-top:20px;border-left:4px solid var(--accent);">
+    <p class="muted" style="margin:0;">
+        También puede ver métricas de Nat en <a href="/portal/nat/">Agente Nat</a>.
+        Los documentos legacy siguen en <a href="/portal/nat/documentos/">Documentos Nat (redirige aquí)</a>.
+    </p>
+</section>
+{% endif %}
+{% endblock %}

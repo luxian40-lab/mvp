@@ -2,7 +2,7 @@
 
 Documento de referencia para el equipo de producto, operaciones, contenido y desarrollo. Explica **qué hace eki**, **cómo se conectan las piezas**, **cómo operar cada superficie** y **cómo configurar cursos** para WhatsApp y aula virtual.
 
-**Última actualización:** junio 2026  
+**Última actualización:** 30 junio 2026  
 **Entorno producción:** AWS Elastic Beanstalk `eki-prod-final`  
 **Repositorio:** monolito Django (`mvp_project/`)
 
@@ -12,6 +12,9 @@ Documento de referencia para el equipo de producto, operaciones, contenido y des
 |-----------|----------------|
 | `docs/AUDITORIA_ARQUITECTURA_EKI.md` | Deuda técnica, archivos críticos, seguridad P0–P3 |
 | `docs/CHECKLIST_PRE_DEPLOY.md` | Comandos y smoke tests antes de cada deploy |
+| `docs/EKI_STUDIO.md` | Catálogo, inscripción y DNS de eki Studio |
+| `docs/INSTRUCTIVO_EKI_RECOLECCION_GEI.md` | Recolección de datos GEI por WhatsApp, fichas y export |
+| `docs/INFRAESTRUCTURA_EKI_PARA_CLOUDFLARE.md` | DNS, EB, variables `EKI_ALLOWED_HOSTS` |
 
 ---
 
@@ -27,18 +30,20 @@ Documento de referencia para el equipo de producto, operaciones, contenido y des
 8. [Campañas y comunicación masiva](#8-campañas-y-comunicación-masiva)
 9. [Aula virtual (aprende)](#9-aula-virtual-aprende)
 10. [Portal B2B (app)](#10-portal-b2b-app)
+    - [10.5 ¿Qué es GEI? ¿Qué es Nat?](#105-qué-es-gei-qué-es-nat)
 11. [Admin operaciones](#11-admin-operaciones)
 12. [Gamificación](#12-gamificación)
 13. [Certificados y verificación](#13-certificados-y-verificación)
 14. [Empleabilidad y formularios externos](#14-empleabilidad-y-formularios-externos)
-15. [Integraciones (Twilio, S3, IA)](#15-integraciones-twilio-s3-ia)
-16. [Tareas en segundo plano (Celery)](#16-tareas-en-segundo-plano-celery)
-17. [Infraestructura y despliegue](#17-infraestructura-y-despliegue)
-18. [Guía operativa: publicar un curso de punta a punta](#18-guía-operativa-publicar-un-curso-de-punta-a-punta)
-19. [Guía operativa: probar antes de producción](#19-guía-operativa-probar-antes-de-producción)
-20. [Resolución de problemas frecuentes](#20-resolución-de-problemas-frecuentes)
-21. [Glosario](#21-glosario)
-22. [Historial de capacidades (junio 2026)](#22-historial-de-capacidades-junio-2026)
+15. [Retención y anti-deserción (portal)](#15-retención-y-anti-deserción-portal)
+16. [Integraciones (Twilio, S3, IA)](#16-integraciones-twilio-s3-ia)
+17. [Tareas en segundo plano (Celery)](#17-tareas-en-segundo-plano-celery)
+18. [Infraestructura y despliegue](#18-infraestructura-y-despliegue)
+19. [Guía operativa: publicar un curso de punta a punta](#19-guía-operativa-publicar-un-curso-de-punta-a-punta)
+20. [Guía operativa: probar antes de producción](#20-guía-operativa-probar-antes-de-producción)
+21. [Resolución de problemas frecuentes](#21-resolución-de-problemas-frecuentes)
+22. [Glosario](#22-glosario)
+23. [Historial de capacidades (junio 2026)](#23-historial-de-capacidades-junio-2026)
 
 ---
 
@@ -53,14 +58,15 @@ El diferenciador no es “otro LMS web”, sino un **motor conversacional** que:
 - Entrega microlecciones por WhatsApp con multimedia optimizada.
 - Controla el avance con la palabra **listo** (sin depender de apps móviles).
 - Aplica **drip** (liberación programada) para cohortes y calendarios académicos.
-- Ofrece **portal** a coordinadores y **aula virtual** como complemento de consulta.
+- Ofrece **portal** a coordinadores, **aula virtual** para estudio y **eki Studio** para catálogo e inscripción.
 - Emite **certificados** verificables y conecta con **empleabilidad** cuando el cliente lo contrata.
+- Recolecta **datos de finca (GEI)** y asiste **ventas agrícolas (Nat)** cuando el cliente contrata esos módulos en el portal.
 
 ### 1.2 Usuarios del sistema
 
 | Actor | Rol | Canal principal |
 |-------|-----|-----------------|
-| **Estudiante** | Persona en formación | WhatsApp + aula web |
+| **Estudiante** | Persona en formación | WhatsApp + aula + Studio |
 | **Coordinador B2B** | Responsable del programa en la organización | Portal `app.eki.technology` |
 | **Docente / facilitador** | Crea o revisa contenido | Admin eki + aula profesor |
 | **Operaciones eki** | Staff interno | Admin `admin.eki.technology` |
@@ -81,8 +87,8 @@ Admin configura
 
                     ↓ misma fuente de verdad ↓
 
-    WhatsApp          Aula virtual           Portal
- (entrega activa)   (consulta pasiva)    (métricas agregadas)
+    WhatsApp          Aula virtual        eki Studio         Portal
+ (entrega activa)   (consulta pasiva)  (catálogo/inscrip.) (métricas agregadas)
 ```
 
 ---
@@ -100,7 +106,7 @@ Admin configura
 | Hosting | AWS Elastic Beanstalk |
 | CDN / TLS | Cloudflare |
 | Mensajería | Twilio WhatsApp API (+ Meta Cloud API opcional) |
-| IA | OpenAI / Google Gemini (tutor, PQRS, Nati comercial) |
+| IA | OpenAI / Google Gemini (tutor educativo, PQRS, Nat comercial, formulario GEI) |
 | Admin UI | Django Admin + Jazzmin |
 
 ### 2.2 Aplicaciones Django
@@ -109,8 +115,9 @@ Admin configura
 |-----|-----------------|
 | **core** | Modelos centrales, webhooks WhatsApp, drip, campañas, certificados, RAG |
 | **portal** | Portal B2B para clientes |
-| **aprende** | Aula virtual estudiante/docente |
-| **formulario** | GEI (encuestas de género e inclusión) |
+| **aprende** | Aula virtual: estudio, tareas, ranking, biblioteca |
+| **studio** | Catálogo e inscripción (eki Studio); creadores (roadmap) |
+| **formulario** | GEI: inventario de gases de efecto invernadero (fichas y formularios WhatsApp) |
 | **integrations** | Fachada URL `/api/` hacia LXP |
 | **learning** | Scaffold de migración futura (proxies) |
 | **agents_edu / agents_commercial** | Agrupación admin de bots IA |
@@ -131,6 +138,7 @@ flowchart TB
         ADM[admin.eki.technology]
         APP[app.eki.technology]
         APR[aprende.eki.technology]
+        STU[studio.eki.technology]
     end
 
     subgraph aws [AWS]
@@ -152,6 +160,7 @@ flowchart TB
     EB --> RDS
     EB --> S3
     EB --> REDIS
+    EST --> CF --> STU
     EB --> TW
 ```
 
@@ -164,7 +173,8 @@ Archivo: `mvp_project/urls.py`
 | `/health/` | Health check para EB |
 | `/admin/` | Django Admin (Jazzmin) |
 | `/portal/` | App portal B2B |
-| `/aprende/` | Aula virtual |
+| `/aprende/` | Aula virtual (estudio) |
+| `/studio/` | eki Studio (catálogo e inscripción) |
 | `/webhook/whatsapp/` | Webhook Twilio educativo |
 | `/api/` | API LXP (integrations) |
 | `/verificar-certificado/<codigo>/` | Verificación pública PDF |
@@ -176,6 +186,7 @@ Archivo: `mvp_project/urls.py`
 | `app.eki.technology` | `/portal/login/` |
 | `admin.eki.technology` | `/admin/` |
 | `aprende.eki.technology` o `aula.eki.technology` | `/aprende/` |
+| `studio.eki.technology` | `/studio/` |
 
 ---
 
@@ -217,16 +228,53 @@ El portal **no reemplaza** al admin eki: es la cara visible del cliente sobre su
 - **Estudiante:** cédula + teléfono WhatsApp (sin contraseña nueva).
 - **Docente:** usuario del portal con rol profesor o admin de la organización.
 
-**Para qué:**
+**Para qué (solo estudio):**
 
 - Consultar material ya liberado por drip/avance.
-- Subir tareas y documentos propios.
-- Ver perfil, puntos y biblioteca multimedia.
-- El docente puede subir lecciones simplificadas (pruebas piloto).
+- Entregar y revisar **tareas** del curso.
+- Ver **ranking** competitivo del grupo en cada curso.
+- Biblioteca multimedia agrupada por curso y módulo.
+- Perfil: datos, foto, puntos o promedio según gamificación.
 
-La aula es **complementaria** a WhatsApp: no sustituye el flujo *listo*; es repaso y entrega formal.
+**Qué no hace el aula:**
 
-### 3.4 WhatsApp (canal principal)
+- No muestra catálogo ni inscripción pública → eso es **eki Studio** (`studio.eki.technology`).
+- No sustituye el flujo *listo* de WhatsApp; es repaso y entrega formal.
+
+**Navegación estudiante:** Mis cursos | Tareas | Biblioteca | Mi perfil. Enlace discreto a Studio para descubrir cursos nuevos.
+
+La sesión de estudiante (`aprende_estudiante_id`) es la misma si entra por Studio o por Aula.
+
+### 3.4 eki Studio (`studio.eki.technology`)
+
+**Quién:**
+
+- **Estudiante:** mismo login cédula + teléfono que en el aula.
+- **Creador / instructor:** página informativa hoy; onboarding self-service en roadmap.
+
+**Para qué:**
+
+- Vitrina de cursos con `visible_en_studio=True`.
+- Inscripción self-service → crea `ProgresoEstudiante`.
+- Tras inscribirse, el estudiante estudia en `/aprende/` (mismos módulos, drip y tareas).
+
+**Diseño:** interfaz cálida morado + dorado (`studio/templates/studio/`). Producto separado del aula académica sobria.
+
+**Operación:** en Admin → Cursos → marcar **Publicado en eki Studio** (`visible_en_studio`). Ver `docs/EKI_STUDIO.md` para DNS y variables EB.
+
+**Rutas (`studio/urls.py`):**
+
+| Ruta | Descripción |
+|------|-------------|
+| `/studio/` | Landing Studio |
+| `/studio/cursos/` | Catálogo de cursos publicados |
+| `/studio/estudiante/login/` | Login estudiante (misma sesión que aula) |
+| `/studio/inscribir/<id>/` | POST inscripción → `ProgresoEstudiante` |
+| `/studio/creador/` | Página creadores (roadmap onboarding) |
+
+Servicio catálogo: `studio/catalogo_service.py` (filtra `visible_en_studio=True`, mismo cliente o cursos generales).
+
+### 3.5 WhatsApp (canal principal)
 
 **Quién:** cualquier estudiante registrado con teléfono válido.
 
@@ -285,7 +333,8 @@ Modelo: `core.Curso`
 
 - Pertenece a un `Cliente` (o `cliente=None` para curso “general” eki).
 - `activo`, `orden`, `nombre`, `descripcion`, `emoji` (solo admin; no se muestra en aula académica).
-- `visible_en_aula`: aparece en catálogo Platzi del aula.
+- `visible_en_studio`: aparece en catálogo eki Studio e permite inscripción web.
+- `visible_en_aula`: legado interno; el catálogo público ya no vive en `/aprende/`.
 - Configuración drip a nivel curso: días entre módulos, etc.
 - Relación: `curso.modulos` ordenados por `numero`.
 
@@ -565,39 +614,56 @@ Cuando una campaña asigna `curso_destino`:
 
 1. Se crea `ProgresoEstudiante`.
 2. El estudiante empieza módulo 1 por WhatsApp.
-3. Si el curso tiene `visible_en_aula=True`, también puede entrar a `/aprende/` y ver el mismo curso (módulos según drip).
+3. Si el curso tiene `visible_en_studio=True`, el estudiante puede inscribirse en Studio y estudiar en `/aprende/`.
+4. Si solo tiene progreso por campaña (B2B típico), entra directo al aula con **Mis cursos** sin pasar por Studio.
 
 ---
 
 ## 9. Aula virtual (aprende)
 
+Dominio: `aprende.eki.technology`. App Django: `aprende/`. Complemento de WhatsApp; el catálogo e inscripción viven en **eki Studio** (sección 3.4).
+
 ### 9.1 URLs completas
+
+**Estudiante**
 
 | Ruta | Descripción |
 |------|-------------|
-| `/aprende/` | Landing: estudiante vs docente |
+| `/aprende/` | Landing: acceso estudiante vs docente |
 | `/aprende/estudiante/login/` | Login cédula + teléfono |
-| `/aprende/estudiante/` | Mis cursos + catálogo |
-| `/aprende/estudiante/inscribir/<id>/` | POST inscripción catálogo |
-| `/aprende/estudiante/curso/<id>/` | Lista módulos y tareas |
-| `/aprende/estudiante/modulo/<id>/` | Contenido didáctico |
-| `/aprende/estudiante/tarea/<id>/` | Entrega de tarea |
-| `/aprende/estudiante/biblioteca/` | Multimedia liberada |
-| `/aprende/estudiante/perfil/` | Datos, foto, puntos, documentos |
-| `/aprende/profesor/login/` | Login portal |
+| `/aprende/estudiante/` | **Mis cursos** (sin catálogo) |
+| `/aprende/estudiante/curso/<id>/` | Pestaña **Módulos** del curso |
+| `/aprende/estudiante/curso/<id>/tareas/` | Pestaña **Tareas** del curso |
+| `/aprende/estudiante/curso/<id>/ranking/` | Pestaña **Ranking** del curso |
+| `/aprende/estudiante/modulo/<id>/` | Contenido didáctico del módulo |
+| `/aprende/estudiante/tarea/<id>/` | Formulario de entrega de una tarea |
+| `/aprende/estudiante/tareas/` | Hub central de todas las tareas pendientes |
+| `/aprende/estudiante/biblioteca/` | Multimedia liberada (por curso → módulo) |
+| `/aprende/estudiante/perfil/` | Datos, foto, puntos o promedio |
+
+**Docente**
+
+| Ruta | Descripción |
+|------|-------------|
+| `/aprende/profesor/login/` | Login con usuario portal |
 | `/aprende/profesor/` | Cursos de la organización |
-| `/aprende/profesor/curso/<id>/` | Gestión módulos y tareas |
-| `/aprende/profesor/modulo/<id>/` | Editar lección |
-| `/admin/aula-web/` | Hub operaciones eki |
+| `/aprende/profesor/curso/<id>/` | Gestión de módulos y tareas |
+| `/aprende/profesor/modulo/<id>/` | Editar lección simplificada |
+
+**Operaciones eki**
+
+| Ruta | Descripción |
+|------|-------------|
+| `/admin/aula-web/` | Hub operaciones aula |
 
 ### 9.2 Autenticación estudiante
 
 1. POST cédula (limpia) + teléfono.
 2. `normalizar_telefono` + `variantes_telefono` comparan con `Estudiante.telefono`.
-3. Sesión: `request.session['aprende_estudiante_id']`.
+3. Sesión: `request.session['aprende_estudiante_id']` (clave `APRENDE_EST_SESSION_KEY` en settings).
 4. Middleware `aprende/middleware.py` expone `request.aprende_estudiante`.
 
-**No hay contraseña:** la posesión del WhatsApp es el segundo factor.
+**No hay contraseña:** la posesión del WhatsApp es el segundo factor. La misma sesión sirve si el estudiante se autenticó en Studio.
 
 ### 9.3 Diseño visual (junio 2026)
 
@@ -605,6 +671,7 @@ Cuando una campaña asigna `curso_destino`:
 - Color institucional: morado `#7D2181`, barra `#5a1860`.
 - Estilo académico sobrio, sin emojis en listados.
 - Plantilla base: `aprende/templates/aprende/base.html`.
+- Pestañas por curso: partial `aprende/templates/aprende/partials/estudiante_curso_tabs.html`.
 
 ### 9.4 Vista de módulo — qué se renderiza
 
@@ -612,48 +679,74 @@ Orden en pantalla (`estudiante_modulo.html`):
 
 1. Aviso: material de consulta en línea, sin descarga.
 2. Video principal del módulo (visor embebido).
-3. Texto introductorio (`modulo.contenido`) — como “Introducción” si hay microcontenidos.
+3. Texto introductorio (`modulo.contenido`) **solo si no hay microcontenidos** (evita duplicar el mismo texto).
 4. **Por cada sección:** título + pasos con texto y multimedia.
-5. PDF del módulo (iframe, toolbar oculto).
-6. Archivos `ArchivoModulo` (visores).
-7. Formulario de entregas del estudiante (documentos propios).
+5. Evaluaciones tipo WhatsApp: opciones sin repetir enunciado largo en web.
+6. PDF del módulo (iframe, toolbar oculto).
+7. Archivos `ArchivoModulo` (visores embebidos).
+
+**No incluye:** formulario genérico de “documentos del estudiante” en módulo ni en perfil (las entregas formales van por **Tareas**).
 
 Servicios:
 
 - `aprende/contenido_modulo_service.py` — estructura secciones/pasos.
+- `aprende/acceso_modulos.py` — drip y visibilidad (misma lógica que WhatsApp).
 - `aprende/media_aula.py` — clasifica URL (YouTube, mp4, pdf…).
 - `aprende/partials/media_viewer.html` — HTML sin `<a download>`.
 
 ### 9.5 Biblioteca
 
-`aprende/biblioteca_service.py` agrega todo multimedia de módulos **visibles** según drip, agrupado por curso. Misma política de solo visualización.
+`aprende/biblioteca_service.py` → `biblioteca_agrupada_por_curso_modulo()`:
 
-### 9.6 Tareas estilo Moodle
+- Agrega multimedia de módulos **visibles** según drip.
+- Agrupa **curso → módulo** (no solo lista plana por curso).
+- Misma política de solo visualización embebida.
+
+### 9.6 Tareas académicas
 
 Modelos: `aprende.TareaCurso`, `aprende.EntregaTarea`.
 
-- Docente crea tarea vinculada a curso (opcionalmente a módulo).
-- Estudiante sube archivo (máx. 25 MB).
-- Docente califica 1–5 con comentario.
+**Flujo estudiante**
 
-Las tareas respetan drip: si la tarea apunta a un módulo no liberado, no aparece (`tareas_visibles_aula`).
+1. Desde **Mis cursos** → pestaña Tareas del curso, o hub `/aprende/estudiante/tareas/`.
+2. Guía integrada: `aprende/templates/aprende/partials/tareas_guia_estudiante.html`.
+3. Abre tarea → sube archivo (máx. 25 MB) → queda en estado pendiente de calificación.
 
-### 9.7 Perfil del estudiante
+**Flujo docente** (`/aprende/profesor/`)
+
+- Crea tarea vinculada a curso (opcionalmente a módulo).
+- Revisa entregas y asigna nota **1–5** con comentario.
+
+**Flujo admin eki**
+
+- Modelo `EntregaTarea` en `aprende/admin.py` con `list_editable` en campo nota (soporte operaciones).
+
+**Drip:** las tareas respetan liberación de módulo (`tareas_visibles_aula` en `aprende/tareas_aula_service.py`). Si la tarea apunta a un módulo no liberado, no aparece.
+
+### 9.7 Ranking competitivo por grupo y curso
+
+Servicio: `aprende/ranking_service.py`. Vista: `/aprende/estudiante/curso/<id>/ranking/`. Partial: `partials/ranking_grupo.html`.
+
+**Requisito:** el estudiante debe pertenecer a un `GrupoEstudiantes` (M2M en `core.models_extras`) con otros participantes del mismo programa.
+
+**Métrica según `Cliente.modo_gamificacion`:**
+
+| Modo | En ranking del curso (aula) | En perfil (aula) |
+|------|---------------------------|------------------|
+| `calificacion` | Promedio ponderado 1–5 **en ese curso** | Promedio global del grupo |
+| `puntos` | **Puntos conseguidos** (`PerfilGamificacion.puntos_totales`) | Igual |
+| `desactivado` | Sin pestaña de ranking | Sin UI de juego |
+
+**UI:** podio top 3, tabla completa, tarjeta “Tu puesto”. Solo compite con miembros del mismo grupo que tengan progreso en el curso.
+
+### 9.8 Perfil del estudiante
 
 `aprende/perfil_service.py`:
 
-- Edición: nombre, municipio, departamento, género, edad, foto.
+- Edición: nombre, municipio, departamento, género, edad, foto (`foto_perfil` en S3).
 - **No editable en aula:** cédula, teléfono (corregir por WhatsApp).
 - Gamificación: puntos/nivel/racha o promedio según modo del cliente.
-- Subida de documentos generales (`DocumentoEstudianteAula`).
-
-### 9.8 Catálogo Platzi
-
-`aprende/catalogo_service.py`:
-
-- Cursos con `visible_en_aula=True` del mismo cliente o generales.
-- Estudiante se inscribe → crea `ProgresoEstudiante`.
-- No inscribe cursos de otra organización.
+- Sin subida de documentos genéricos; usar **Tareas** para entregas calificables.
 
 ### 9.9 Docente en aula
 
@@ -661,6 +754,7 @@ Usa `PortalUsuario` de su organización:
 
 - Solo ve cursos donde `curso.cliente == organización del usuario`.
 - Puede crear módulos vía `lesson_service.py` (título, contenido, archivos).
+- Califica entregas de tareas desde la vista profesor.
 - Para microcontenidos avanzados se recomienda **admin eki**.
 
 ### 9.10 Política de descarga de material
@@ -668,10 +762,20 @@ Usa `PortalUsuario` de su organización:
 | Tipo | ¿Descargable en aula? |
 |------|------------------------|
 | Video/PDF/imagen del curso | **No** — solo visor embebido |
-| Documento subido por el estudiante | Sí — es su entrega |
 | Entrega de tarea | Sí — flujo académico formal |
 
 **Limitación:** URLs S3 directas pueden copiarse manualmente; protección fuerte requiere proxy con URLs firmadas (roadmap).
+
+### 9.11 Relación Aula ↔ Studio
+
+```
+Studio (descubrir + inscribir)          Aula (estudiar)
+studio.eki.technology/studio/    →    aprende.eki.technology/aprende/
+         │                                      │
+         └─ visible_en_studio ─ ProgresoEstudiante ─┘
+```
+
+Tras inscripción en Studio, redirección o enlace a **Mis cursos** en el aula. Cursos B2B asignados por campaña aparecen en el aula sin pasar por Studio.
 
 ---
 
@@ -687,12 +791,12 @@ Usa `PortalUsuario` de su organización:
 
 `portal/capabilities.py` lee `Cliente.portal_productos`:
 
-| Producto | Funcionalidad |
-|----------|---------------|
-| `cursos` | Métricas de avance, listados |
-| `gei` | Encuestas género e inclusión |
-| `nat` | Asistente comercial documentos |
-| `empleabilidad` | Códigos geo, métricas de inserción |
+| Producto | Funcionalidad (resumen) |
+|----------|-------------------------|
+| `cursos` | Métricas de avance, estudiantes, campañas, conversaciones |
+| `gei` | Inventario GEI: fichas de finca, balance de emisiones, export Excel — ver [§10.5](#105-qué-es-gei-qué-es-nat) |
+| `nat` | Agente comercial WhatsApp: catálogo, asesoría, RAG — ver [§10.5](#105-qué-es-gei-qué-es-nat) |
+| `empleabilidad` | Códigos geo, aliados laborales, métricas territoriales |
 
 ### 10.3 Pantallas principales
 
@@ -701,13 +805,58 @@ Usa `PortalUsuario` de su organización:
 - **Cursos:** progreso por módulo, vista flujo (`curso_flujo_service.py`).
 - **Campañas:** historial y detalle.
 - **Conversaciones:** inbox WhatsApp simplificado.
+- **GEI** (`/portal/gei/`): inventario de emisiones, completitud de fichas, gráficos, export — si el cliente tiene producto `gei`.
+- **Nat** (`/portal/nat/`): sesiones comerciales, catálogo de productos, escalamientos HITL — si el cliente tiene producto `nat`.
 - **Empleabilidad:** mapas y métricas (`portal/empleabilidad_metricas.py`).
 - **Certificados:** estado de envíos.
+- **Retención** (`/portal/retencion/`): embudo de aprendizaje, activos/inactivos, módulo con mayor abandono — Fase 1 del roadmap anti-deserción.
 - **Perfil organización:** branding (`portal/branding.py`).
 
 ### 10.4 Branding
 
 El coordinador sube logo y subtítulo; el portal muestra identidad del cliente. Validación: `portal/branding.py` → `branding_portal_completo()`.
+
+### 10.5 ¿Qué es GEI? ¿Qué es Nat?
+
+Son **módulos opcionales** del portal B2B. Se activan por organización en Admin → Cliente → campo `portal_productos` (lista separada por comas, ej. `cursos,gei,nat`). Si un módulo no está contratado, el menú del portal no lo muestra.
+
+#### GEI — Inventario de gases de efecto invernadero
+
+| | |
+|---|---|
+| **Siglas** | GEI = Gases de Efecto Invernadero |
+| **Para qué sirve** | Recolectar datos de la finca del productor (área, cultivos, fertilizantes, combustible, residuos, etc.) y calcular un **balance de emisiones** útil para reportes, trazabilidad y programas de clima. |
+| **Canal** | **WhatsApp**: un agente de formulario hace preguntas **una por una** (como una encuesta guiada). Tiene prioridad sobre el tutor del curso mientras la sesión está activa. |
+| **Dónde se guarda** | Modelo `FichaGEI` (app `formulario`), una ficha por productor/curso. Pasos configurables en Admin → Formulario → Tipos de formulario. |
+| **Qué ve el coordinador** | Portal → **Inventario GEI**: total de fichas, % completitud, gráficos, filtros por curso/fecha, **export a Excel**. |
+| **Relación con cursos** | Suele dispararse al llegar a un módulo concreto del curso (ej. módulo de balance). No es un chat libre: es recolección **estructurada** de variables. |
+| **Doc técnica** | `docs/INSTRUCTIVO_EKI_RECOLECCION_GEI.md` |
+
+**En una frase:** GEI es el módulo de **recolectar datos de finca por WhatsApp** y entregar **métricas y export** al cliente B2B — el mismo patrón que se puede reutilizar para otros formularios estructurados en el futuro.
+
+#### Nat — Agente comercial (ventas y asesoría agrícola)
+
+| | |
+|---|---|
+| **Nombre** | **Nat** (configurable por cliente: `nombre_bot` en Admin → Cliente, ej. Nat, Nati, Aliada) |
+| **Para qué sirve** | Atender por WhatsApp a **productores o clientes finales** con asesoría agrícola y **recomendación de productos** del catálogo de la organización (insumos, servicios, etc.). |
+| **Canal** | **WhatsApp en línea comercial** distinta a la de cursos: cada organización puede tener su `numero_whatsapp_nat`. El webhook identifica al cliente por el número destino (`To`). |
+| **Cómo responde** | IA + **RAG** sobre documentos comerciales subidos + **catálogo de productos** (`ProductoCatalogo`: nombre, problema que resuelve, dosis, precio, link de compra). Extrae contexto agronómico (cultivo, plaga, región) de la conversación. |
+| **Qué ve el coordinador** | Portal → **Agente Nat**: sesiones activas, productos en catálogo, conversaciones recientes, escalamientos **HITL** (preguntas candidatas a validar como conocimiento), enlace a PQRS comercial. |
+| **Diferencia con el tutor del curso** | El tutor enseña el **módulo** del programa formativo. Nat **vende y asesora** sobre el portafolio comercial del cliente; no sustituye el avance del curso salvo que el productor use solo la línea comercial. |
+| **Admin** | `core/admin/commercial.py` — catálogo, documentos RAG, sesiones comerciales, metas. |
+
+**En una frase:** Nat es el **vendedor-asistente por WhatsApp** de la organización: conversación libre, catálogo y documentos, con panel en el portal para operación comercial.
+
+#### Comparación rápida
+
+| | **GEI** | **Nat** |
+|---|---------|---------|
+| Objetivo | Datos estructurados + balance | Asesoría + recomendación comercial |
+| Interacción | Preguntas secuenciales fijas | Chat conversacional |
+| Usuario típico | Estudiante en curso (productor en formación) | Productor o cliente de la cooperativa/distribuidor |
+| Salida principal | Ficha + Excel + métricas de completitud | Sesiones + catálogo + escalamientos |
+| App Django | `formulario` | `core` (comercial) + `agents_commercial` |
 
 ---
 
@@ -726,7 +875,7 @@ Tras refactor junio 2026, el monolito `core/admin.py` se dividió en:
 | `certificados.py` | Plantillas PDF, envío masivo |
 | `grupos.py` | Grupos, ArchivoModulo global |
 | `gamificacion.py` | Perfiles, badges, ajustes |
-| `commercial.py` | Bot Nati, RAG comercial |
+| `commercial.py` | Bot Nat comercial, RAG, catálogo de productos |
 | `sistema.py` | Configuración técnica |
 
 ### 11.2 Vistas admin custom (`core/urls/admin_urls.py`)
@@ -746,7 +895,7 @@ Tema visual del admin en `mvp_project/settings.py` → `JAZZMIN_SETTINGS`, `cust
 ### 11.4 Flujo recomendado para equipo de contenido
 
 1. Crear/editar **Cliente** y verificar productos portal.
-2. Crear **Curso** activo; marcar `visible_en_aula` si aplica.
+2. Crear **Curso** activo; marcar **Publicado en eki Studio** si quieres catálogo web.
 3. Por cada **Módulo**: secciones → pasos → multimedia.
 4. Probar con estudiante de prueba en WhatsApp.
 5. Verificar en `aprende.eki.technology` con mismo estudiante.
@@ -776,8 +925,13 @@ Modelos: `core/gamificacion.py` (`PerfilGamificacion`, `Badge`, `EvaluacionNotaG
 
 - WhatsApp: mensajes de refuerzo ocasionales.
 - **Aula → Mi perfil:** puntos, nivel, racha o promedio.
+- **Aula → curso → Ranking:** posición frente al grupo en ese curso (si gamificación activa y hay grupo).
 
-### 12.4 Ajuste manual
+### 12.4 Ranking en el aula
+
+Ver sección [9.7](#97-ranking-competitivo-por-grupo-y-curso). El admin debe asignar estudiantes a un `GrupoEstudiantes` para que el ranking tenga sentido.
+
+### 12.5 Ajuste manual
 
 Admin gamificación permite corregir puntos y resetear rachas (soporte a coordinadores).
 
@@ -823,38 +977,79 @@ Estudiante puede enviar código geo por WhatsApp (`esperando_codigo_empleabilida
 
 Documentación de campo: `docs/EMPLEABILIDAD_GEO_WHATSAPP_PORTAL.md` (si existe en repo).
 
+### 14.4 GEI (inventario de emisiones)
+
+Módulo de recolección de datos de finca y balance GEI. Resumen conceptual en [§10.5](#105-qué-es-gei-qué-es-nat). Operación detallada: `docs/INSTRUCTIVO_EKI_RECOLECCION_GEI.md`. Portal: `/portal/gei/`. Admin: Formulario → Tipos de formulario, Fichas GEI.
+
 ---
 
-## 15. Integraciones (Twilio, S3, IA)
+## 15. Retención y anti-deserción (portal)
 
-### 15.1 Twilio WhatsApp
+**Fase 1 del roadmap** — medir antes de intervenir. Panel B2B en `/portal/retencion/` (menú **Analítica → Retención**). Requiere módulo `cursos` en `portal_productos`.
+
+### 15.1 KPIs
+
+| Indicador | Definición |
+|-----------|------------|
+| Inscritos | Registros en `ProgresoEstudiante` (filtros curso/grupo/fechas) |
+| Activos | Sin completar curso y con actividad en últimos **7 días** (`fecha_ultimo_avance` o WhatsApp entrante) |
+| Inactivos | Inscritos no completados sin actividad reciente |
+| Certificados | `Certificado` emitido por estudiante/curso |
+| Tiempo promedio abandono | Días desde última actividad (solo inactivos) |
+| Módulo mayor abandono | Transición M→M+1 con más estudiantes que completaron M pero no M+1 |
+| Tiempo promedio módulo | Media de días entre completados consecutivos |
+
+La inscripción sola (`fecha_inicio`) **no** cuenta como actividad.
+
+### 15.2 Embudo
+
+Pasos: Inscritos → Aceptaron datos → Comenzaron → Módulo 1…N → Certificados. El detalle por módulo requiere **filtro de curso**.
+
+### 15.3 Implementación
+
+- Servicio: `portal/retencion_service.py` → `analitica_retencion_portal()`
+- Portal: `/portal/retencion/` · Admin: `/admin/retencion/` (misma lógica, filtro por cliente)
+- Vista portal: `portal/views.py` → `portal_retencion`
+- Vista admin: `core/views_retencion_admin.py`
+- Plantilla: `portal/templates/portal/retencion.html`
+- Tests: `portal/tests_retencion.py`
+
+Fases 2–8 (score de riesgo, drip, IA, gamificación, predictor, panel coordinadores, A/B) están planificadas en la UI como próximas iteraciones.
+
+---
+
+## 16. Integraciones (Twilio, S3, IA)
+
+### 16.1 Twilio WhatsApp
 
 - Envío: `core/whatsapp_service.py`.
 - Plantillas Content API para mensajes HSM aprobados.
 - Media: URLs públicas o presigned S3 (evita error 63019).
 - Variables de entorno: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`.
 
-### 15.2 AWS S3
+### 16.2 AWS S3
 
 - Bucket: `eki-produccion`, región `us-east-2`.
 - `DEFAULT_FILE_STORAGE = storages.backends.s3boto3.S3Boto3Storage` en producción.
 - Rutas típicas: `modulos/`, `videos/lecciones/`, `aprende/entregas/`, `estudiantes/avatars/`.
 
-### 15.3 IA generativa
+### 16.3 IA generativa
 
-- Tutor IA en flujo de módulo (`core/nati.py`, contexto RAG).
-- PQRS: `core/pqrs_agent.py`.
-- Base conocimientos: señales en `signals_conocimientos` actualizan índice al guardar cursos.
+- **Tutor del curso** (estudiante en formación): respuestas en flujo de módulo, RAG educativo (`core/nati.py` — nombre histórico del módulo; no confundir con Nat comercial).
+- **Nat comercial** (línea WhatsApp comercial): asesoría + catálogo + RAG de documentos (`core/views.py` webhook comercial, `core/nat_router.py`).
+- **PQRS:** `core/pqrs_agent.py`.
+- **Formulario GEI:** agente secuencial sin RAG (`formulario/agent.py`).
+- Base conocimientos educativa: señales en `signals_conocimientos` actualizan índice al guardar cursos.
 
-### 15.4 API LXP
+### 16.4 API LXP
 
 `core/api.py` — endpoints JSON para frontend Angular legacy; autenticación por token/teléfono. Ver auditoría para deuda de auth.
 
 ---
 
-## 16. Tareas en segundo plano (Celery)
+## 17. Tareas en segundo plano (Celery)
 
-### 16.1 Procesos en EB
+### 17.1 Procesos en EB
 
 `Procfile`:
 
@@ -864,7 +1059,7 @@ worker: celery -A mvp_project worker
 beat: celery -A mvp_project beat
 ```
 
-### 16.2 Tareas programadas
+### 17.2 Tareas programadas
 
 | Tarea | Frecuencia | Función |
 |-------|------------|---------|
@@ -872,15 +1067,15 @@ beat: celery -A mvp_project beat
 | `reenganche_drip_content_diario` | Diario | Recordatorios drip |
 | `procesar_twilio_webhook_async` | Bajo demanda | Webhook no bloqueante |
 
-### 16.3 Cuándo importa
+### 17.3 Cuándo importa
 
 Si el estudiante “no recibió campaña a la hora exacta”, revisar worker + beat en EB (no solo Gunicorn web).
 
 ---
 
-## 17. Infraestructura y despliegue
+## 18. Infraestructura y despliegue
 
-### 17.1 Entornos
+### 18.1 Entornos
 
 | Entorno | BD | Media |
 |---------|-----|-------|
@@ -888,7 +1083,7 @@ Si el estudiante “no recibió campaña a la hora exacta”, revisar worker + b
 | Local con VPN | RDS | S3 |
 | Local sin VPN | SQLite desactualizado | S3 o local |
 
-### 17.2 Deploy estándar
+### 18.2 Deploy estándar
 
 ```powershell
 cd ruta\eki_mvp
@@ -898,24 +1093,35 @@ cd ruta\eki_mvp
 
 El script etiqueta versión `main-YYYYMMDD-HHMMSS`, sube zip a S3 EB, ejecuta hook de migraciones.
 
-### 17.3 Migraciones recientes relevantes
+### 18.3 Migraciones recientes relevantes
 
 | Migración | Cambio |
 |-----------|--------|
-| `core/0113_curso_visible_en_aula` | Flag catálogo aula |
+| `core/0113_curso_visible_en_aula` | Flag legado catálogo en aula |
 | `core/0114_estudiante_foto_perfil` | Avatar estudiante |
+| `core/0115_curso_visible_en_studio` | Flag catálogo eki Studio |
 | `aprende/0001` | Tareas aula |
-| `aprende/0002` | DocumentoEstudianteAula |
+| `aprende/0002` | DocumentoEstudianteAula (legado; entregas vía Tareas) |
 
-### 17.4 Smoke tests post-deploy
+### 18.4 Variables EB (subdominios)
+
+Además de RDS y Twilio, en **Configuration → Software → Environment properties**:
+
+- `EKI_ALLOWED_HOSTS` debe incluir: `admin.eki.technology`, `app.eki.technology`, `aprende.eki.technology`, `studio.eki.technology`, host EB interno.
+- `CSRF_TRUSTED_ORIGINS` debe incluir `https://` de cada subdominio público.
+
+Si falta un host → error **400 DISALLOWED_HOST** (no es fallo de Cloudflare).
+
+### 18.5 Smoke tests post-deploy
 
 ```text
 GET https://admin.eki.technology/health/        → 200
 GET https://aprende.eki.technology/aprende/     → 200
+GET https://studio.eki.technology/studio/       → 200
 GET https://app.eki.technology/portal/login/    → 200
 ```
 
-### 17.5 Rollback
+### 18.6 Rollback
 
 ```powershell
 eb deploy eki-prod-final --version <label-anterior>
@@ -923,7 +1129,7 @@ eb deploy eki-prod-final --version <label-anterior>
 
 Obtener label: `eb status eki-prod-final` o consola AWS EB.
 
-### 17.6 Logs
+### 18.7 Logs
 
 ```powershell
 eb logs eki-prod-final
@@ -933,7 +1139,7 @@ Buscar errores 500, fallos migración, Twilio 4xx/5xx.
 
 ---
 
-## 18. Guía operativa: publicar un curso de punta a punta
+## 19. Guía operativa: publicar un curso de punta a punta
 
 ### Paso 1 — Organización
 
@@ -945,7 +1151,7 @@ Buscar errores 500, fallos migración, Twilio 4xx/5xx.
 
 1. Admin → Cursos → Añadir.
 2. Nombre, descripción, cliente, orden.
-3. Marcar **Activo** y **Visible en aula** (si quieres catálogo web).
+3. Marcar **Activo** y **Publicado en eki Studio** (si quieres vitrina e inscripción web).
 4. Guardar.
 
 ### Paso 3 — Módulos
@@ -982,26 +1188,27 @@ Inline **Archivos multimedia** en el módulo para PDFs/videos adicionales.
 ### Paso 8 — Validación
 
 1. WhatsApp con teléfono de prueba: recibir módulo 1, responder listo, evaluar.
-2. Aula: login mismo estudiante → ver módulo 1 con secciones y visores.
-3. Portal: verificar que aparece progreso del piloto.
+2. Aula: login mismo estudiante → Mis cursos → módulos, tareas, ranking (si hay grupo).
+3. Studio (opcional): curso visible → inscripción → mismo estudiante ve el curso en aula.
+4. Portal: verificar que aparece progreso del piloto.
 
 ### Paso 9 — Producción
 
-1. Ampliar grupo o abrir catálogo aula.
+1. Ampliar grupo o publicar curso en Studio.
 2. Monitorear `EnvioLog` y conversaciones primeras 48 h.
 
 ---
 
-## 19. Guía operativa: probar antes de producción
+## 20. Guía operativa: probar antes de producción
 
-### 19.1 Tests automáticos
+### 20.1 Tests automáticos
 
 ```bash
 python manage.py check
-python manage.py test aprende.tests core.tests_flujo_whatsapp_b2b core.tests_admin_package -v 1
+python manage.py test aprende.tests studio.tests core.tests_flujo_whatsapp_b2b core.tests_admin_package -v 1
 ```
 
-### 19.2 Estudiante de prueba
+### 20.2 Estudiante de prueba
 
 | Campo | Valor ejemplo |
 |-------|---------------|
@@ -1009,17 +1216,26 @@ python manage.py test aprende.tests core.tests_flujo_whatsapp_b2b core.tests_adm
 | Teléfono | `573026480629` |
 | Cliente | organización de prueba |
 
-### 19.3 Checklist manual aula
+### 20.3 Checklist manual aula
 
 - [ ] Login estudiante OK
+- [ ] Mis cursos sin catálogo embebido (catálogo solo en Studio)
 - [ ] Solo módulos liberados visibles
-- [ ] Secciones y pasos se ven con multimedia embebida
+- [ ] Secciones y pasos con multimedia embebida; sin texto duplicado si hay microcontenidos
 - [ ] No hay botones “Descargar” en material del curso
-- [ ] Biblioteca lista archivos de módulos abiertos
-- [ ] Perfil muestra puntos (si gamificación activa)
-- [ ] Subida documento y tarea funciona
+- [ ] Biblioteca agrupada por curso y módulo
+- [ ] Hub tareas y pestaña tareas por curso
+- [ ] Entrega y calificación 1–5 (profesor o admin)
+- [ ] Ranking por curso si estudiante en `GrupoEstudiantes`
+- [ ] Perfil muestra puntos o promedio (si gamificación activa)
 
-### 19.4 Checklist manual WhatsApp
+### 20.4 Checklist manual Studio
+
+- [ ] `https://studio.eki.technology/studio/` → 200 (no 400)
+- [ ] Catálogo muestra solo cursos `visible_en_studio`
+- [ ] Inscripción crea progreso y curso aparece en aula
+
+### 20.5 Checklist manual WhatsApp
 
 - [ ] Onboarding completo
 - [ ] listo entrega sección esperada
@@ -1029,7 +1245,7 @@ python manage.py test aprende.tests core.tests_flujo_whatsapp_b2b core.tests_adm
 
 ---
 
-## 20. Resolución de problemas frecuentes
+## 21. Resolución de problemas frecuentes
 
 ### “El estudiante no ve el módulo en el aula”
 
@@ -1056,6 +1272,19 @@ python manage.py test aprende.tests core.tests_flujo_whatsapp_b2b core.tests_adm
 1. SQLite desactualizado vs migraciones — correr `migrate` o conectar RDS.
 2. Columnas nuevas (`modo_gamificacion`, `foto_perfil`) requieren migraciones 0103+.
 
+### “studio.eki.technology devuelve 400”
+
+1. Añadir `studio.eki.technology` a `EKI_ALLOWED_HOSTS` en EB.
+2. Añadir `https://studio.eki.technology` a `CSRF_TRUSTED_ORIGINS`.
+3. `eb deploy` o reinicio si solo cambiaste variables.
+4. Cloudflare CNAME `studio` → mismo target que `aprende` (Proxied).
+
+### “El ranking está vacío”
+
+1. ¿Estudiante en un `GrupoEstudiantes` con otros miembros?
+2. ¿Modo gamificación distinto de `desactivado`?
+3. ¿Otros del grupo tienen `ProgresoEstudiante` en ese curso?
+
 ### “Campaña no salió”
 
 1. Celery beat corriendo en EB.
@@ -1069,7 +1298,7 @@ python manage.py test aprende.tests core.tests_flujo_whatsapp_b2b core.tests_adm
 
 ---
 
-## 21. Glosario
+## 22. Glosario
 
 | Término | Definición |
 |---------|------------|
@@ -1082,28 +1311,32 @@ python manage.py test aprende.tests core.tests_flujo_whatsapp_b2b core.tests_adm
 | **Progreso** | Registro `ProgresoEstudiante` de avance en un curso |
 | **ArchivoModulo** | Adjunto multimedia a nivel módulo |
 | **Portal** | `app.eki.technology` para coordinadores |
-| **Aula** | `aprende.eki.technology` para estudiantes/docentes |
-| **GEI** | Módulo de encuestas de género e inclusión |
-| **Nati** | Bot comercial (sandbox Twilio separado) |
+| **Aula** | `aprende.eki.technology` — estudio, tareas, ranking, biblioteca |
+| **eki Studio** | `studio.eki.technology` — catálogo e inscripción |
+| **Grupo** | `GrupoEstudiantes` — cohorte para campañas y ranking |
+| **GEI** | **Gases de Efecto Invernadero.** Módulo de recolección de datos de finca por WhatsApp (`FichaGEI`), cálculo de balance de emisiones y panel en portal. Ver [§10.5](#105-qué-es-gei-qué-es-nat). |
+| **Nat** | **Agente comercial** por WhatsApp: asesoría agrícola, catálogo de productos y RAG comercial por organización. Distinto del tutor educativo del curso. Ver [§10.5](#105-qué-es-gei-qué-es-nat). |
 
 ---
 
-## 22. Historial de capacidades (junio 2026)
+## 23. Historial de capacidades (junio 2026)
 
 | Capacidad | Descripción | Estado prod |
 |-----------|-------------|-------------|
+| **Separación Aula / Studio** | Catálogo en `studio.*`; aula solo estudio | Desplegado |
+| **eki Studio** | Catálogo, login, inscripción, diseño vitrina | Desplegado |
 | Aula diseño académico | Tipografía serif, morado institucional | Desplegado |
 | Drip en listado aula | Mismas reglas que WhatsApp | Desplegado |
-| Perfil estudiante | Foto, datos, puntos | Desplegado |
-| Documentos estudiante | Subida en módulo y perfil | Desplegado |
-| Biblioteca multimedia | Por curso, solo visualización | Desplegado |
-| Secciones en vista módulo | Microcontenidos admin → aula | Desplegado |
+| Perfil estudiante | Foto, datos, puntos o promedio | Desplegado |
+| Biblioteca multimedia | Por curso → módulo, solo visualización | Desplegado |
+| Secciones en vista módulo | Microcontenidos admin → aula; sin texto duplicado | Desplegado |
 | Visores sin descarga | video/img/pdf/audio embed | Desplegado |
+| Tareas académicas | Hub central + pestaña por curso; calificación 1–5 | Desplegado |
+| Ranking por grupo/curso | Podio, tabla, “Tu puesto” según modo gamificación | Desplegado |
 | WhatsApp B2B sin menú 1-2-3 | Campaña + listo | Desplegado |
 | Admin package split | `core/admin/` modular | Desplegado |
-| Tareas y calificación 1-5 | Flujo docente-estudiante | Desplegado |
-| Catálogo Platzi | Inscripción self-service | Desplegado |
 | Hub `/admin/aula-web/` | Operaciones aula | Desplegado |
+| `visible_en_studio` | Flag admin para publicar en Studio | Desplegado |
 
 ---
 
@@ -1117,7 +1350,10 @@ python manage.py test aprende.tests core.tests_flujo_whatsapp_b2b core.tests_adm
 | Drip | `core/drip_schedule.py`, `aprende/acceso_modulos.py` |
 | B2B flujo | `core/flujo_whatsapp_b2b.py`, `core/selector_curso.py` |
 | Aula vistas | `aprende/views.py`, `aprende/urls.py` |
+| Aula tareas | `aprende/tareas_aula_service.py`, `aprende/admin.py` |
+| Aula ranking | `aprende/ranking_service.py` |
 | Aula contenido | `aprende/contenido_modulo_service.py`, `media_viewer.html` |
+| eki Studio | `studio/views.py`, `studio/catalogo_service.py`, `studio/urls.py` |
 | Portal | `portal/views.py`, `portal/capabilities.py` |
 | Certificados | `core/certificado_service.py` |
 | Deploy | `scripts/eb_deploy_main.ps1`, `Procfile` |

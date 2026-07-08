@@ -1,0 +1,27 @@
+{% extends "studio/base.html" %}
+{% block title %}WhatsApp B2B | eki Studio{% endblock %}
+{% block content %}
+<div class="st-login-wrap">
+    <div class="st-card st-login-card">
+        <span class="st-kicker">Programa WhatsApp</span>
+        <h1 style="font-size:1.25rem;">Ingreso B2B</h1>
+        <p class="st-muted" style="margin-bottom:1rem;">Cédula y teléfono del programa (sin contraseña).</p>
+        {% if error %}<div class="st-alert st-alert--error">{{ error }}</div>{% endif %}
+        <form method="post">
+            {% csrf_token %}
+            <div class="st-field">
+                <label for="cedula">Cédula</label>
+                <input id="cedula" name="cedula" type="text" required>
+            </div>
+            <div class="st-field">
+                <label for="telefono">Teléfono WhatsApp</label>
+                <input id="telefono" name="telefono" type="tel" required>
+            </div>
+            <button type="submit" class="st-btn st-btn--primary st-btn--block">Continuar</button>
+        </form>
+        <p class="st-muted" style="margin-top:1rem;text-align:center;">
+            <a href="{% url 'studio_cuenta_login' %}">Usar correo y contraseña</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

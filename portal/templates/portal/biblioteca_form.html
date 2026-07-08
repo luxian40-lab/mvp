@@ -1,0 +1,161 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}{% if item %}Editar{% else %}Nuevo{% endif %} conocimiento | Biblioteca{% endblock %}
+
+{% block extra_head %}
+<style>
+.bib-tabs { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+.bib-tab { padding:8px 14px; border:1px solid var(--borde); border-radius:8px; cursor:pointer; background:var(--tabla-head); font-size:14px; }
+.bib-tab.active { border-color:var(--accent); background:var(--accent-soft, #eff6ff); font-weight:600; }
+.bib-panel { display:none; }
+.bib-panel.active { display:block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <p class="muted" style="margin:0 0 6px;"><a href="{% url 'portal_biblioteca' %}">Biblioteca</a> / {% if item %}Editar{% else %}Nuevo{% endif %}</p>
+        <h1>{% if item %}{{ item.titulo }}{% else %}Nuevo conocimiento{% endif %}</h1>
+        <p class="muted">Suba un archivo, escriba un artículo o cree una FAQ. Nat lo indexará automáticamente.</p>
+    </div>
+</div>
+
+{% if error %}
+<section class="panel" style="margin-bottom:16px;border-left:4px solid #e03131;"><p>{{ error }}</p></section>
+{% endif %}
+
+<section class="panel">
+    <form method="post" enctype="multipart/form-data" id="bib-form">
+        {% csrf_token %}
+
+        <div class="bib-tabs" role="tablist">
+            <button type="button" class="bib-tab active" data-panel="archivo">📄 Archivo</button>
+            <button type="button" class="bib-tab" data-panel="texto">✍️ Artículo</button>
+            <button type="button" class="bib-tab" data-panel="faq">❓ FAQ</button>
+            <button type="button" class="bib-tab" data-panel="enlace">🔗 Enlace</button>
+        </div>
+
+        <input type="hidden" name="formato" id="formato-input" value="{% if item %}{{ item.formato }}{% else %}archivo{% endif %}">
+
+        <div class="bib-panel active" id="panel-archivo">
+            <label><strong>Archivo</strong>
+                <input type="file" name="archivo" accept=".pdf,.docx,.txt,.xlsx,.xlsm,.png,.jpg,.jpeg,.mp3,.mp4" style="display:block;margin-top:6px;">
+            </label>
+            <p class="muted" style="font-size:13px;">PDF, Word, Excel, imagen, audio o video. Para video/audio sin transcripción, agregue también un resumen en «Artículo».</p>
+        </div>
+        <div class="bib-panel" id="panel-texto">
+            <label><strong>Contenido del artículo</strong>
+                <textarea name="texto_contenido" rows="10" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">{% if item %}{{ item.texto_contenido }}{% endif %}</textarea>
+            </label>
+        </div>
+        <div class="bib-panel" id="panel-faq">
+            <label><strong>Pregunta</strong>
+                <input type="text" name="pregunta" maxlength="500" value="{% if item %}{{ item.pregunta }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label style="display:block;margin-top:12px;"><strong>Respuesta</strong>
+                <textarea name="texto_contenido_faq" rows="8" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">{% if item and item.formato == 'faq' %}{{ item.texto_contenido }}{% endif %}</textarea>
+            </label>
+        </div>
+        <div class="bib-panel" id="panel-enlace">
+            <label><strong>URL</strong>
+                <input type="url" name="enlace_url" value="{% if item %}{{ item.enlace_url }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label style="display:block;margin-top:12px;"><strong>Resumen para Nat</strong>
+                <textarea name="texto_contenido_enlace" rows="6" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">{% if item and item.formato == 'enlace' %}{{ item.texto_contenido }}{% endif %}</textarea>
+            </label>
+        </div>
+
+        <hr style="margin:24px 0;border:none;border-top:1px solid var(--borde);">
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;">
+            <label><strong>Título</strong>
+                <input type="text" name="titulo" required maxlength="200" value="{% if item %}{{ item.titulo }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label><strong>Categoría</strong>
+                <select name="categoria" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+                    {% for key, label in categorias %}
+                    <option value="{{ key }}" {% if item and item.categoria == key %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label><strong>Cultivo</strong>
+                <input type="text" name="cultivo" placeholder="café, palma, cacao…" value="{% if item %}{{ item.cultivo }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label><strong>Problema / tema</strong>
+                <input type="text" name="problema" placeholder="PC, roya, fertilización…" value="{% if item %}{{ item.problema }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label><strong>Región</strong>
+                <input type="text" name="region" value="{% if item %}{{ item.region }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label><strong>Nivel</strong>
+                <select name="nivel" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+                    {% for key, label in niveles %}
+                    <option value="{{ key }}" {% if item and item.nivel == key %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label><strong>Fuente</strong>
+                <select name="fuente" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+                    {% for key, label in fuentes %}
+                    <option value="{{ key }}" {% if item and item.fuente == key %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label><strong>Autor</strong>
+                <input type="text" name="autor" value="{% if item %}{{ item.autor }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label><strong>Estado</strong>
+                <select name="estado_publicacion" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+                    {% for key, label in estados_pub %}
+                    <option value="{{ key }}" {% if item and item.estado_publicacion == key %}selected{% elif not item and key == 'publicado' %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+        </div>
+
+        <div style="margin-top:20px;display:flex;gap:10px;">
+            <button class="btn" type="submit">{% if item %}Guardar e indexar{% else %}Publicar e indexar{% endif %}</button>
+            <a class="btn btn-outline" href="{% url 'portal_biblioteca' %}">Cancelar</a>
+        </div>
+    </form>
+</section>
+
+<script>
+(function() {
+    const tabs = document.querySelectorAll('.bib-tab');
+    const panels = document.querySelectorAll('.bib-panel');
+    const formatoInput = document.getElementById('formato-input');
+    const form = document.getElementById('bib-form');
+    const map = { archivo: 'archivo', texto: 'texto', faq: 'faq', enlace: 'enlace' };
+
+    function activate(name) {
+        tabs.forEach(t => t.classList.toggle('active', t.dataset.panel === name));
+        panels.forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+        formatoInput.value = map[name] || 'archivo';
+    }
+
+    tabs.forEach(t => t.addEventListener('click', () => activate(t.dataset.panel)));
+
+    form.addEventListener('submit', function() {
+        const fmt = formatoInput.value;
+        if (fmt === 'faq') {
+            const faqTa = form.querySelector('[name="texto_contenido_faq"]');
+            let hidden = form.querySelector('[name="texto_contenido"]');
+            if (!hidden) { hidden = document.createElement('textarea'); hidden.name = 'texto_contenido'; hidden.hidden = true; form.appendChild(hidden); }
+            hidden.value = faqTa ? faqTa.value : '';
+        }
+        if (fmt === 'enlace') {
+            const elTa = form.querySelector('[name="texto_contenido_enlace"]');
+            let hidden = form.querySelector('[name="texto_contenido"]');
+            if (!hidden) { hidden = document.createElement('textarea'); hidden.name = 'texto_contenido'; hidden.hidden = true; form.appendChild(hidden); }
+            hidden.value = elTa ? elTa.value : '';
+        }
+    });
+
+    {% if item %}
+    activate('{{ item.formato }}');
+    {% endif %}
+})();
+</script>
+{% endblock %}

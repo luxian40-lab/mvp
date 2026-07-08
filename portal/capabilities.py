@@ -104,6 +104,23 @@ def modulos_portal(org) -> dict[str, bool]:
     return result
 
 
+def portal_solo_nat(org) -> bool:
+    """Organización con contrato únicamente Nat (Knowledge Hub)."""
+    mods = modulos_portal(org)
+    return (
+        mods.get('nat')
+        and not mods.get('cursos')
+        and not mods.get('gei')
+        and not mods.get('empleabilidad')
+    )
+
+
+def portal_home_url(org) -> str:
+    if portal_solo_nat(org):
+        return '/portal/biblioteca/'
+    return '/portal/dashboard/'
+
+
 def categorias_pqrs_portal(org) -> list[str] | None:
     """Unión de categorías PQRS según módulos activos; None = sin filtrar."""
     mods = modulos_portal(org)

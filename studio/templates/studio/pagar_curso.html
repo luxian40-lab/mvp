@@ -1,0 +1,24 @@
+{% extends "studio/base.html" %}
+{% block title %}Pagar — {{ curso.nombre }} | eki Studio{% endblock %}
+{% block content %}
+<section class="st-hero st-hero--neon">
+    <span class="st-kicker st-kicker--neon">Acceso al curso</span>
+    <h1>{{ curso.nombre }}</h1>
+    <p class="st-lead">Monto: <strong>${{ acceso.monto_cop|floatformat:0 }} COP</strong></p>
+</section>
+
+<div class="st-card st-card--neon" style="max-width:480px;margin:0 auto;">
+    {% if wompi_activo %}
+    <p class="st-muted">Próximamente: botón de pago Wompi embebido con llave <code>{{ wompi_public_key|slice:":12" }}…</code></p>
+    {% else %}
+    <p class="st-muted" style="margin-bottom:1rem;">
+        Integración Wompi en configuración. En este entorno puedes confirmar el pago de prueba para desbloquear el curso.
+    </p>
+    <form method="post" action="{% url 'studio_pagar_confirmar' acceso.wompi_referencia %}">
+        {% csrf_token %}
+        <button type="submit" class="st-btn st-btn--neon st-btn--block">Confirmar pago y entrar al aula</button>
+    </form>
+    {% endif %}
+    <p class="st-muted" style="margin-top:1rem;font-size:0.75rem;">Ref: {{ acceso.wompi_referencia }}</p>
+</div>
+{% endblock %}

@@ -16,7 +16,7 @@
     display: flex;
     align-items: baseline;
     gap: 0.5rem;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.65rem;
 }
 .eki-bib-modulo-num {
     font-family: var(--font-serif);
@@ -24,18 +24,138 @@
     color: var(--eki-purple-dark);
     font-size: 0.9rem;
 }
-.eki-bib-item {
-    padding: 0.85rem 0;
-    border-bottom: 1px solid var(--eki-border);
+.eki-bib-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: flex-start;
 }
-.eki-bib-item:last-child { border-bottom: none; }
+.eki-bib-thumb {
+    width: 35px;
+    height: 35px;
+    padding: 0;
+    border: 1px solid var(--eki-border);
+    border-radius: 3px;
+    background: var(--eki-bg);
+    cursor: pointer;
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+.eki-bib-thumb:hover {
+    border-color: var(--eki-purple-soft);
+    box-shadow: 0 2px 8px rgba(125, 33, 129, 0.15);
+    transform: scale(1.06);
+}
+.eki-bib-thumb:focus-visible {
+    outline: 2px solid var(--eki-purple-soft);
+    outline-offset: 2px;
+}
+.eki-bib-thumb img,
+.eki-bib-thumb video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    pointer-events: none;
+}
+.eki-bib-thumb-play {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(26, 21, 32, 0.35);
+    pointer-events: none;
+}
+.eki-bib-thumb-play::after {
+    content: "";
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 5px 0 5px 9px;
+    border-color: transparent transparent transparent #fff;
+    margin-left: 2px;
+}
+.eki-bib-thumb-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--eki-purple-dark);
+    background: var(--eki-purple-pale);
+}
+.eki-bib-thumb--pdf .eki-bib-thumb-icon { font-size: 0.5rem; }
+.eki-bib-thumb--static {
+    cursor: default;
+    opacity: 0.75;
+}
+.eki-bib-thumb--static:hover {
+    transform: none;
+    box-shadow: none;
+}
+.eki-bib-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(26, 21, 32, 0.82);
+}
+.eki-bib-lightbox.is-open { display: flex; }
+.eki-bib-lightbox__panel {
+    width: min(920px, 100%);
+    max-height: 90vh;
+    overflow: auto;
+    background: var(--eki-surface);
+    border-radius: var(--eki-radius);
+    padding: 1.25rem 1.35rem 1.35rem;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+.eki-bib-lightbox__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+.eki-bib-lightbox__title {
+    margin: 0;
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    font-weight: 600;
+}
+.eki-bib-lightbox__close {
+    flex-shrink: 0;
+    border: 1px solid var(--eki-border);
+    background: var(--eki-bg);
+    border-radius: var(--eki-radius);
+    padding: 0.35rem 0.65rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--eki-ink-soft);
+}
+.eki-bib-lightbox__close:hover {
+    border-color: var(--eki-purple-soft);
+    color: var(--eki-purple-dark);
+}
+.eki-bib-lightbox__body .eki-media-block { margin-bottom: 0; }
+.eki-bib-lightbox__body .eki-media-frame { max-height: 70vh; }
 {% endblock %}
 {% block content %}
 <div class="eki-page-head">
     <span class="eki-kicker">Repositorio de material</span>
     <h1>Biblioteca de recursos</h1>
     <p class="eki-lead">
-        Material organizado por módulo de sus cursos habilitados. Solo consulta en línea.
+        Fotos y videos de sus módulos en miniatura. Pulse un cuadro para ver el material completo.
     </p>
 </div>
 
@@ -54,18 +174,101 @@
             <span class="eki-bib-modulo-num">Módulo {{ bloque.modulo.numero }}</span>
             <strong>{{ bloque.modulo.titulo }}</strong>
         </div>
-        {% for item in bloque.items %}
-        <div class="eki-bib-item">
-            {% if item.media %}
-            {% include "aprende/partials/media_viewer.html" with medias=item.media|make_list %}
-            {% else %}
-            <p class="eki-muted">{{ item.titulo }}</p>
-            {% endif %}
+        <div class="eki-bib-grid" role="list" aria-label="Recursos del módulo {{ bloque.modulo.numero }}">
+            {% for item in bloque.items %}
+            {% include "aprende/partials/biblioteca_media_thumb.html" %}
+            {% endfor %}
         </div>
-        {% endfor %}
     </div>
     {% endfor %}
 </div>
 {% endfor %}
 {% endif %}
+
+<div id="eki-bib-lightbox" class="eki-bib-lightbox" hidden aria-hidden="true">
+    <div class="eki-bib-lightbox__panel" role="dialog" aria-modal="true" aria-labelledby="eki-bib-lightbox-title">
+        <div class="eki-bib-lightbox__head">
+            <h2 id="eki-bib-lightbox-title" class="eki-bib-lightbox__title"></h2>
+            <button type="button" class="eki-bib-lightbox__close" id="eki-bib-lightbox-close">Cerrar</button>
+        </div>
+        <div class="eki-bib-lightbox__body" id="eki-bib-lightbox-body"></div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+    var box = document.getElementById('eki-bib-lightbox');
+    var body = document.getElementById('eki-bib-lightbox-body');
+    var titleEl = document.getElementById('eki-bib-lightbox-title');
+    var closeBtn = document.getElementById('eki-bib-lightbox-close');
+    if (!box || !body) return;
+
+    function esc(s) {
+        return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    }
+
+    function renderMedia(tipo, url, youtubeId) {
+        if (tipo === 'youtube' && youtubeId) {
+            return '<div class="eki-media-block"><div class="eki-media-frame eki-video-wrap">' +
+                '<iframe src="https://www.youtube.com/embed/' + esc(youtubeId) + '?rel=0" ' +
+                'allowfullscreen loading="lazy"></iframe></div></div>';
+        }
+        if (tipo === 'video') {
+            return '<div class="eki-media-block"><div class="eki-media-frame eki-video-wrap">' +
+                '<video controls controlsList="nodownload" playsinline preload="metadata">' +
+                '<source src="' + esc(url) + '"></video></div></div>';
+        }
+        if (tipo === 'imagen') {
+            return '<div class="eki-media-block"><figure class="eki-media-frame eki-media-frame--image">' +
+                '<img src="' + esc(url) + '" alt="" draggable="false"></figure></div>';
+        }
+        if (tipo === 'audio') {
+            return '<div class="eki-media-block"><div class="eki-media-frame eki-media-frame--audio">' +
+                '<audio controls controlsList="nodownload" preload="metadata">' +
+                '<source src="' + esc(url) + '"></audio></div></div>';
+        }
+        if (tipo === 'pdf') {
+            return '<div class="eki-media-block"><div class="eki-media-frame eki-media-frame--pdf">' +
+                '<iframe src="' + esc(url) + '#toolbar=0&navpanes=0" loading="lazy"></iframe></div></div>';
+        }
+        return '<div class="eki-media-block"><div class="eki-media-frame eki-media-frame--embed">' +
+            '<iframe src="' + esc(url) + '" loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe></div></div>';
+    }
+
+    function openLightbox(btn) {
+        titleEl.textContent = btn.getAttribute('data-bib-titulo') || 'Material';
+        body.innerHTML = renderMedia(
+            btn.getAttribute('data-bib-tipo'),
+            btn.getAttribute('data-bib-url'),
+            btn.getAttribute('data-bib-youtube')
+        );
+        box.hidden = false;
+        box.setAttribute('aria-hidden', 'false');
+        box.classList.add('is-open');
+        document.body.style.overflow = 'hidden';
+        closeBtn.focus();
+    }
+
+    function closeLightbox() {
+        box.classList.remove('is-open');
+        box.hidden = true;
+        box.setAttribute('aria-hidden', 'true');
+        body.innerHTML = '';
+        document.body.style.overflow = '';
+    }
+
+    document.querySelectorAll('.eki-bib-thumb').forEach(function (btn) {
+        btn.addEventListener('click', function () { openLightbox(btn); });
+    });
+
+    closeBtn.addEventListener('click', closeLightbox);
+    box.addEventListener('click', function (e) {
+        if (e.target === box) closeLightbox();
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && box.classList.contains('is-open')) closeLightbox();
+    });
+})();
+</script>
 {% endblock %}

@@ -2288,142 +2288,173 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
         if diagnostico_vision:
             consulta = f"{consulta}\n\nDiagnóstico preliminar imagen: {diagnostico_vision}"
 
-        cliente_ids_consulta = armar_cliente_ids_rag(cliente_nati)
+        texto_respuesta = None
+        try:
+            from core.nat_diagnostico import siguiente_pregunta_diagnostico
 
-        contexto_rag = ''
-        contexto_web = ''
-
-        from core.catalogo_precios import (
-            buscar_precios,
-            es_consulta_catalogo,
-            formatear_contexto_precios,
-        )
-        contexto_precios_db = ''
-        if es_consulta_catalogo(consulta) and cliente_ids_consulta:
-            productos_precio = buscar_precios(
-                [i for i in cliente_ids_consulta if i != 0] or cliente_ids_consulta,
-                consulta,
+            pregunta_diag = siguiente_pregunta_diagnostico(
+                ctx_agro,
+                msg_body,
+                tiene_imagen=bool(diagnostico_vision),
             )
-            if productos_precio:
-                contexto_precios_db = formatear_contexto_precios(productos_precio)
-                logger.info(
-                    "💰 Precios Postgres | hits=%s | clientes=%s",
-                    len(productos_precio),
-                    cliente_ids_consulta,
-                )
+            if pregunta_diag:
+                texto_respuesta = pregunta_diag
+        except Exception:
+            pass
 
-        if rag_comercial_manager.disponible:
-            # Scope estricto: solo cliente_ids_consulta (sesión o BOT_COMERCIAL_CLIENTE_ID).
-            canales_consulta = []
-            for c in [canal_rag, 'bot_comercial']:
-                if c and c not in canales_consulta:
-                    canales_consulta.append(c)
+        rag_chunks: list = []
+        routing = None
+        if texto_respuesta is None:
+            cliente_ids_consulta = armar_cliente_ids_rag(cliente_nati)
 
-            rag_max = int(getattr(settings, 'BOT_COMERCIAL_RAG_MAX_CHARS', 2500) or 2500)
-            rag_max = max(400, min(rag_max, 4000))
-            try:
-                top_k = int(getattr(settings, 'BOT_COMERCIAL_RAG_TOP_K', 9) or 9)
-            except (TypeError, ValueError):
-                top_k = 9
-            top_k = max(3, min(top_k, 20))
+            contexto_rag = ''
+            contexto_web = ''
 
-            for canal in canales_consulta:
-                rag_result = rag_comercial_manager.obtener_contexto_varios_clientes(
-                    cliente_ids_consulta,
-                    canal,
+            from core.catalogo_precios import (
+                buscar_precios,
+                es_consulta_catalogo,
+                formatear_contexto_precios,
+            )
+            contexto_precios_db = ''
+            if es_consulta_catalogo(consulta) and cliente_ids_consulta:
+                productos_precio = buscar_precios(
+                    [i for i in cliente_ids_consulta if i != 0] or cliente_ids_consulta,
                     consulta,
-                    max_chars=rag_max,
-                    top_k_por_scope=top_k,
-                    retornar_chunks=True,
                 )
-                contexto_rag, rag_chunks = rag_result
-                if contexto_rag:
+                if productos_precio:
+                    contexto_precios_db = formatear_contexto_precios(productos_precio)
                     logger.info(
-                        "🧠 RAG comercial unificado | canal=%s | contexto_chars=%s | clientes=%s",
-                        canal,
-                        len(contexto_rag),
+                        "💰 Precios Postgres | hits=%s | clientes=%s",
+                        len(productos_precio),
                         cliente_ids_consulta,
                     )
-                    try:
-                        from core.eventos_ia import emit_rag_query_executed
 
-                        emit_rag_query_executed(
-                            pregunta=consulta,
-                            cliente=cliente_nati,
-                            canal='whatsapp_comercial',
-                            chunks_count=len(rag_chunks),
-                            contexto_chars=len(contexto_rag),
-                            chunks=rag_chunks,
-                            metadata={'origen': 'rag_comercial', 'canal_rag': canal},
+            if rag_comercial_manager.disponible:
+                canales_consulta = []
+                for c in [canal_rag, 'bot_comercial']:
+                    if c and c not in canales_consulta:
+                        canales_consulta.append(c)
+
+                rag_max = int(getattr(settings, 'BOT_COMERCIAL_RAG_MAX_CHARS', 2500) or 2500)
+                rag_max = max(400, min(rag_max, 4000))
+                try:
+                    top_k = int(getattr(settings, 'BOT_COMERCIAL_RAG_TOP_K', 9) or 9)
+                except (TypeError, ValueError):
+                    top_k = 9
+                top_k = max(3, min(top_k, 20))
+
+                for canal in canales_consulta:
+                    rag_result = rag_comercial_manager.obtener_contexto_varios_clientes(
+                        cliente_ids_consulta,
+                        canal,
+                        consulta,
+                        max_chars=rag_max,
+                        top_k_por_scope=top_k,
+                        retornar_chunks=True,
+                    )
+                    contexto_rag, rag_chunks = rag_result
+                    if contexto_rag:
+                        logger.info(
+                            "🧠 RAG comercial unificado | canal=%s | contexto_chars=%s | clientes=%s",
+                            canal,
+                            len(contexto_rag),
+                            cliente_ids_consulta,
                         )
-                    except Exception:
-                        pass
-                    break
+                        try:
+                            from core.eventos_ia import emit_rag_query_executed
 
-        if not contexto_rag and getattr(settings, 'BOT_COMERCIAL_RAG_FILE_FALLBACK', True):
-            rag_fb = int(getattr(settings, 'BOT_COMERCIAL_RAG_MAX_CHARS', 1600) or 1600)
-            rag_fb = max(400, min(rag_fb + 200, 4000))
-            fb_docs = int(getattr(settings, 'BOT_COMERCIAL_RAG_FALLBACK_MAX_DOCS', 2) or 2)
-            fb_rows = int(getattr(settings, 'BOT_COMERCIAL_RAG_FALLBACK_XLSX_ROWS', 800) or 800)
-            contexto_rag = _contexto_fallback_desde_documentos(
-                cliente_ids=cliente_ids_consulta,
+                            emit_rag_query_executed(
+                                pregunta=consulta,
+                                cliente=cliente_nati,
+                                canal='whatsapp_comercial',
+                                chunks_count=len(rag_chunks),
+                                contexto_chars=len(contexto_rag),
+                                chunks=rag_chunks,
+                                metadata={'origen': 'rag_comercial', 'canal_rag': canal},
+                            )
+                        except Exception:
+                            pass
+                        break
+
+            if not contexto_rag and getattr(settings, 'BOT_COMERCIAL_RAG_FILE_FALLBACK', True):
+                rag_fb = int(getattr(settings, 'BOT_COMERCIAL_RAG_MAX_CHARS', 1600) or 1600)
+                rag_fb = max(400, min(rag_fb + 200, 4000))
+                fb_docs = int(getattr(settings, 'BOT_COMERCIAL_RAG_FALLBACK_MAX_DOCS', 2) or 2)
+                fb_rows = int(getattr(settings, 'BOT_COMERCIAL_RAG_FALLBACK_XLSX_ROWS', 800) or 800)
+                contexto_rag = _contexto_fallback_desde_documentos(
+                    cliente_ids=cliente_ids_consulta,
+                    pregunta=consulta,
+                    max_chars=rag_fb,
+                    max_docs=fb_docs,
+                    xlsx_max_rows=fb_rows,
+                )
+                if contexto_rag:
+                    logger.info("🧠 RAG fallback documental usado | contexto_chars=%s", len(contexto_rag))
+
+            try:
+                from core.agrosavia_connector import buscar_agrosavia, formatear_contexto_agrosavia
+
+                if len(contexto_rag or '') < 800:
+                    ctx_agrosavia = formatear_contexto_agrosavia(buscar_agrosavia(consulta, size=3))
+                    if ctx_agrosavia:
+                        contexto_rag = (
+                            f"{contexto_rag}\n\n{ctx_agrosavia}".strip()
+                            if contexto_rag
+                            else ctx_agrosavia
+                        )
+                        logger.info("🌾 AGROSAVIA live | chars=%s", len(ctx_agrosavia))
+            except Exception:
+                pass
+
+            if contexto_precios_db:
+                contexto_rag = (
+                    f"{contexto_precios_db}\n\n{contexto_rag}".strip()
+                    if contexto_rag
+                    else contexto_precios_db
+                )
+
+            from core.nat_router import decidir_routing_nat
+
+            routing = decidir_routing_nat(
+                consulta,
+                rag_chunks=rag_chunks,
+                tiene_rag_texto=bool(contexto_rag),
+                contexto_rag_chars=len(contexto_rag or ''),
+                ctx_agro=ctx_agro,
+                diagnostico_vision=diagnostico_vision,
+            )
+            logger.info(
+                "🧭 Nat routing | modelo=%s modo=%s razon=%s web=%s sim=%s",
+                routing.modelo,
+                routing.modo,
+                routing.razon,
+                routing.usar_web,
+                routing.rag_max_similitud,
+            )
+
+            if routing.usar_web and not contexto_web:
+                from core.nati import buscar_en_web_colombia
+
+                contexto_web = buscar_en_web_colombia(consulta) or _contexto_fallback_web_agro(
+                    pregunta=consulta,
+                    max_chars=1800,
+                )
+                if contexto_web:
+                    logger.info("🌐 Web complementaria (RAG débil/ausente) | chars=%s", len(contexto_web))
+
+            texto_respuesta = _bot_comercial_respuesta_catalogo(
                 pregunta=consulta,
-                max_chars=rag_fb,
-                max_docs=fb_docs,
-                xlsx_max_rows=fb_rows,
+                contexto_rag=contexto_rag,
+                diagnostico_vision=diagnostico_vision,
+                contexto_web=contexto_web,
+                historial_chat=historial_chat,
+                cliente=cliente_nati,
+                sesion_comercial=sesion_comercial,
+                bloque_contexto_agro=bloque_contexto_agro,
+                routing=routing,
+                rag_chunks=rag_chunks,
+                ctx_agro=ctx_agro,
             )
-            if contexto_rag:
-                logger.info("🧠 RAG fallback documental usado | contexto_chars=%s", len(contexto_rag))
-
-        if contexto_precios_db:
-            contexto_rag = (
-                f"{contexto_precios_db}\n\n{contexto_rag}".strip()
-                if contexto_rag
-                else contexto_precios_db
-            )
-
-        from core.nat_router import decidir_routing_nat
-
-        routing = decidir_routing_nat(
-            consulta,
-            rag_chunks=rag_chunks,
-            tiene_rag_texto=bool(contexto_rag),
-            contexto_rag_chars=len(contexto_rag or ''),
-            ctx_agro=ctx_agro,
-            diagnostico_vision=diagnostico_vision,
-        )
-        logger.info(
-            "🧭 Nat routing | modelo=%s modo=%s razon=%s web=%s sim=%s",
-            routing.modelo,
-            routing.modo,
-            routing.razon,
-            routing.usar_web,
-            routing.rag_max_similitud,
-        )
-
-        if routing.usar_web and not contexto_web:
-            from core.nati import buscar_en_web_colombia
-
-            contexto_web = buscar_en_web_colombia(consulta) or _contexto_fallback_web_agro(
-                pregunta=consulta,
-                max_chars=1800,
-            )
-            if contexto_web:
-                logger.info("🌐 Web complementaria (RAG débil/ausente) | chars=%s", len(contexto_web))
-
-        texto_respuesta = _bot_comercial_respuesta_catalogo(
-            pregunta=consulta,
-            contexto_rag=contexto_rag,
-            diagnostico_vision=diagnostico_vision,
-            contexto_web=contexto_web,
-            historial_chat=historial_chat,
-            cliente=cliente_nati,
-            sesion_comercial=sesion_comercial,
-            bloque_contexto_agro=bloque_contexto_agro,
-            routing=routing,
-            rag_chunks=rag_chunks,
-            ctx_agro=ctx_agro,
-        )
 
     if (
         not es_saludo

@@ -23,7 +23,14 @@ from core.drip_schedule import max_modulo_alcanzado
 from core.metricas_empresa import calcular_metricas_empresa
 from .authz import requiere_portal_admin
 from .curso_flujo_service import embudo_curso_portal
-from .capabilities import categorias_pqrs_portal, modulos_portal, puede_editar_config_gei_portal, requiere_modulo
+from .capabilities import (
+    categorias_pqrs_portal,
+    modulos_portal,
+    portal_home_url,
+    portal_solo_nat,
+    puede_editar_config_gei_portal,
+    requiere_modulo,
+)
 from .gei_config import (
     formulario_editable_por_org,
     obtener_formulario_org,
@@ -31,6 +38,7 @@ from .gei_config import (
 )
 from .nat_documentos import crear_documento_nat, listar_documentos_nat
 from .metricas_ejecutivas import detalle_estudiantes_learning, resumen_ejecutivo_portal
+from .retencion_service import analitica_retencion_portal
 from .ranking_portal import ranking_portal
 from .exports import (
     filas_reenganche_sin_modulo,
@@ -75,22 +83,21 @@ def _filtrar_pqrs_por_tipo_proyecto(queryset, org):
 
 def portal_login(request):
     if getattr(request, 'portal_usuario', None):
-        return redirect('/portal/dashboard/')
+        org = request.portal_usuario.organizacion
+        return redirect(portal_home_url(org))
 
     error = None
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
         user = authenticate(request, username=username, password=password)
-        if user and not user.is_staff:
-            try:
-                portal_usuario = user.portal_usuario
-                request.session[PORTAL_SESSION_KEY] = portal_usuario.pk
-                return redirect('/portal/dashboard/')
-            except Exception:
-                error = 'Tu usuario no tiene organización asignada.'
-        else:
-            error = 'Credenciales incorrectas.'
+        from portal.portal_auth import iniciar_sesion_portal, portal_usuario_de_user, puede_acceder_portal
+
+        pu = portal_usuario_de_user(user) if user else None
+        if puede_acceder_portal(pu):
+            iniciar_sesion_portal(request, pu)
+            return redirect(portal_home_url(pu.organizacion))
+        error = 'Credenciales incorrectas o usuario sin acceso al portal.'
     return render(request, 'portal/login.html', {'error': error})
 
 
@@ -104,6 +111,8 @@ def dashboard(request):
     org = _portal_org(request)
     if not org:
         return redirect('/portal/login/')
+    if portal_solo_nat(org):
+        return redirect('/portal/biblioteca/')
 
     mods = modulos_portal(org)
     total_estudiantes = Estudiante.objects.filter(cliente=org).count()
@@ -356,46 +365,7 @@ def portal_nat(request):
 @requiere_modulo('nat')
 @requiere_portal_admin
 def portal_nat_documentos(request):
-    org = _portal_org(request)
-    if not org:
-        return redirect('/portal/login/')
-
-    from core.models import DocumentoRAGComercial
-
-    error = None
-    ok = False
-    if request.method == 'POST':
-        nombre = (request.POST.get('nombre') or '').strip()
-        tipo = (request.POST.get('tipo') or 'general').strip()
-        archivo = request.FILES.get('archivo')
-        tipos_validos = {k for k, _ in DocumentoRAGComercial.TIPO_CHOICES}
-        if not nombre or not archivo:
-            error = 'Indique nombre y archivo.'
-        elif tipo not in tipos_validos:
-            error = 'Tipo de documento no válido.'
-        else:
-            try:
-                crear_documento_nat(
-                    org,
-                    nombre=nombre,
-                    tipo=tipo,
-                    archivo=archivo,
-                    subido_por=request.portal_usuario.user,
-                )
-                ok = True
-            except ValueError as exc:
-                error = str(exc)
-            except Exception:
-                error = 'No se pudo guardar el archivo. Intente de nuevo.'
-
-    documentos = listar_documentos_nat(org)
-    return render(request, 'portal/nat_documentos.html', {
-        'org': org,
-        'documentos': documentos,
-        'tipos_documento': DocumentoRAGComercial.TIPO_CHOICES,
-        'error': error,
-        'ok': ok,
-    })
+    return redirect('/portal/biblioteca/')
 
 
 @portal_login_required
@@ -809,6 +779,45 @@ def metricas_empresa(request):
             'desde': desde or '',
             'hasta': hasta or '',
             'modulo_hasta': modulo_hasta or '',
+        },
+    })
+
+
+@portal_login_required
+@requiere_modulo('cursos')
+def portal_retencion(request):
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    cursos, grupos = _filtros_portal_cursos_grupos(org)
+    curso_id_int = _curso_filtro_portal(request, org, cursos)
+    grupo_id = request.GET.get('grupo') or None
+    grupo_id_int = int(grupo_id) if grupo_id and str(grupo_id).isdigit() else None
+    if grupo_id_int and not grupos.filter(pk=grupo_id_int).exists():
+        grupo_id_int = None
+
+    desde = request.GET.get('desde') or ''
+    hasta = request.GET.get('hasta') or ''
+
+    data = analitica_retencion_portal(
+        org,
+        curso_id=curso_id_int,
+        grupo_id=grupo_id_int,
+        desde=desde or None,
+        hasta=hasta or None,
+    )
+
+    return render(request, 'portal/retencion.html', {
+        'org': org,
+        'data': data,
+        'cursos': cursos,
+        'grupos': grupos,
+        'filtros': {
+            'curso_id': curso_id_int,
+            'grupo_id': grupo_id_int,
+            'desde': desde,
+            'hasta': hasta,
         },
     })
 
@@ -1320,3 +1329,100 @@ def portal_gei_parametros(request):
         'ok': ok,
         'error': error,
     })
+
+
+@portal_login_required
+@requiere_modulo('nat')
+def portal_biblioteca(request):
+    from core.biblioteca_nat_service import listar_biblioteca
+    from core.models import BibliotecaConocimiento
+
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    categoria = (request.GET.get('categoria') or '').strip()
+    cultivo = (request.GET.get('cultivo') or '').strip()
+    q = (request.GET.get('q') or '').strip()
+    items = listar_biblioteca(org, categoria=categoria, cultivo=cultivo, q=q)
+
+    return render(request, 'portal/biblioteca.html', {
+        'org': org,
+        'items': items,
+        'categorias': BibliotecaConocimiento.CATEGORIA_CHOICES,
+        'filtro_categoria': categoria,
+        'filtro_cultivo': cultivo,
+        'filtro_q': q,
+        'total': items.count(),
+    })
+
+
+@portal_login_required
+@requiere_modulo('nat')
+def portal_biblioteca_crear(request):
+    from core.biblioteca_nat_service import crear_desde_formulario
+    from core.models import BibliotecaConocimiento
+
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    error = None
+    ok = False
+    if request.method == 'POST':
+        try:
+            crear_desde_formulario(
+                org,
+                request.POST,
+                archivo=request.FILES.get('archivo'),
+                user=request.portal_usuario.user,
+            )
+            ok = True
+            return redirect('/portal/biblioteca/')
+        except ValueError as exc:
+            error = str(exc)
+
+    return render(request, 'portal/biblioteca_form.html', {
+        'org': org,
+        'item': None,
+        'error': error,
+        'ok': ok,
+        'categorias': BibliotecaConocimiento.CATEGORIA_CHOICES,
+        'formatos': BibliotecaConocimiento.FORMATO_CHOICES,
+        'niveles': BibliotecaConocimiento.NIVEL_CHOICES,
+        'fuentes': BibliotecaConocimiento.FUENTE_CHOICES,
+        'estados_pub': BibliotecaConocimiento.ESTADO_PUBLICACION_CHOICES,
+    })
+
+
+@portal_login_required
+@requiere_modulo('nat')
+def portal_biblioteca_editar(request, item_id: int):
+    from core.biblioteca_nat_service import actualizar_item
+    from core.models import BibliotecaConocimiento
+
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    item = get_object_or_404(BibliotecaConocimiento, pk=item_id, cliente=org)
+    error = None
+
+    if request.method == 'POST':
+        try:
+            actualizar_item(item, request.POST, archivo=request.FILES.get('archivo'))
+            return redirect('/portal/biblioteca/')
+        except ValueError as exc:
+            error = str(exc)
+
+    return render(request, 'portal/biblioteca_form.html', {
+        'org': org,
+        'item': item,
+        'error': error,
+        'categorias': BibliotecaConocimiento.CATEGORIA_CHOICES,
+        'formatos': BibliotecaConocimiento.FORMATO_CHOICES,
+        'niveles': BibliotecaConocimiento.NIVEL_CHOICES,
+        'fuentes': BibliotecaConocimiento.FUENTE_CHOICES,
+        'estados_pub': BibliotecaConocimiento.ESTADO_PUBLICACION_CHOICES,
+    })
+

@@ -44,9 +44,10 @@ class StudioTests(TestCase):
         self.assertEqual(r.url, '/studio/')
 
     def test_catalogo_e_inscripcion(self):
-        self.http.post('/studio/estudiante/login/', {
-            'cedula': 'st1',
-            'telefono': '3009999011',
+        self.http.post('/studio/cuenta/registro/', {
+            'nombre': 'Est Studio',
+            'email': 'estudio@test.com',
+            'password': 'testpass123',
         })
         r = self.http.get('/studio/cursos/')
         self.assertEqual(r.status_code, 200)
@@ -54,9 +55,18 @@ class StudioTests(TestCase):
 
         r2 = self.http.post(f'/studio/inscribir/{self.curso.id}/')
         self.assertEqual(r2.status_code, 302)
+        est = Estudiante.objects.get(cedula__startswith='WEB')
         self.assertTrue(
-            ProgresoEstudiante.objects.filter(estudiante=self.est, curso=self.curso).exists()
+            ProgresoEstudiante.objects.filter(estudiante=est, curso=self.curso).exists()
         )
+
+    def test_whatsapp_login_legacy(self):
+        self.http.post('/studio/estudiante/whatsapp/', {
+            'cedula': 'st1',
+            'telefono': '3009999011',
+        })
+        r = self.http.get('/studio/cursos/')
+        self.assertEqual(r.status_code, 200)
 
     def test_no_inscribir_curso_de_otra_org(self):
         otra = Cliente.objects.create(
@@ -72,7 +82,7 @@ class StudioTests(TestCase):
             activo=True,
             visible_en_studio=True,
         )
-        self.http.post('/studio/estudiante/login/', {
+        self.http.post('/studio/estudiante/whatsapp/', {
             'cedula': 'st1',
             'telefono': '3009999011',
         })
@@ -92,6 +102,22 @@ class StudioTests(TestCase):
         )
         r = self.http.get('/studio/cursos/')
         self.assertContains(r, 'Curso General')
+
+    def test_curso_pago_requiere_confirmacion(self):
+        from studio.models import PublicacionStudio
+
+        PublicacionStudio.objects.create(curso=self.curso, precio_cop=99000)
+        self.http.post('/studio/cuenta/registro/', {
+            'nombre': 'Comprador',
+            'email': 'buyer@test.com',
+            'password': 'testpass123',
+        })
+        r = self.http.post(f'/studio/inscribir/{self.curso.id}/')
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/studio/pagar/', r.url)
+        self.assertFalse(
+            ProgresoEstudiante.objects.filter(curso=self.curso).exists()
+        )
 
     def test_aula_sin_catalogo(self):
         self.http.post('/aprende/estudiante/login/', {

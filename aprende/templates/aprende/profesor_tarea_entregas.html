@@ -13,19 +13,13 @@
     <p class="eki-muted">{{ entregas|length }} entrega{{ entregas|length|pluralize:"s" }}</p>
 </div>
 
-{% if messages %}
-{% for message in messages %}
-<div class="eki-alert eki-alert--{% if message.tags == 'error' %}error{% else %}ok{% endif %}">{{ message }}</div>
-{% endfor %}
-{% endif %}
-
 {% if entregas %}
 {% for e in entregas %}
 <div class="eki-card" style="margin-bottom:1rem;">
     <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:0.5rem;margin-bottom:0.75rem;">
         <div>
             <strong>{{ e.estudiante.nombre }}</strong>
-            <span class="eki-muted"> — {{ e.estudiante.cedula }}</span>
+            <span class="eki-muted"> — Doc. {{ e.estudiante.cedula }}</span>
         </div>
         <span class="eki-muted" style="font-size:0.8rem;">{{ e.fecha_entrega|date:"d/m/Y H:i" }}</span>
     </div>

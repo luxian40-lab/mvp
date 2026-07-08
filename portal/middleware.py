@@ -18,7 +18,7 @@ class SuscripcionMiddleware:
                 request.portal_usuario = PortalUsuario.objects.select_related(
                     'user',
                     'organizacion',
-                ).get(pk=portal_usuario_id, user__is_active=True, user__is_staff=False)
+                ).get(pk=portal_usuario_id, user__is_active=True)
             except PortalUsuario.DoesNotExist:
                 request.session.pop(PORTAL_SESSION_KEY, None)
 

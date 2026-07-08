@@ -1,37 +1,39 @@
 {% extends "studio/base.html" %}
 {% block title %}Soy creador | eki Studio{% endblock %}
 {% block content %}
-<section class="st-hero">
-    <span class="st-kicker">Para instructores y expertos</span>
-    <h1>Enseña con eki Studio</h1>
+<section class="st-hero st-hero--neon">
+    <span class="st-kicker st-kicker--neon">Futuro de la formación</span>
+    <h1>Monetiza tu conocimiento</h1>
     <p class="st-lead">
-        Lleva tu experiencia al campo, a cooperativas o a quien quiera aprender.
-        Nosotros te acompañamos a publicar y a que tus alumnos estudien en el aula.
+        Publica cursos, cobra con Wompi y tus estudiantes estudian en el aula eki con ranking y tareas.
     </p>
+    <div class="st-hero-actions">
+        {% if creador_perfil %}
+        <a href="{% url 'studio_creador_panel' %}" class="st-btn st-btn--neon">Mi panel</a>
+        {% else %}
+        <a href="{% url 'studio_creador_registro' %}" class="st-btn st-btn--neon">Crear perfil de creador</a>
+        {% endif %}
+        <a href="{% url 'studio_catalogo' %}" class="st-btn st-btn--ghost">Ver catálogo</a>
+    </div>
 </section>
 
-<div class="st-card st-card--path" style="margin-bottom:1.5rem;">
-    <h2 class="st-h2">Tu camino como creador</h2>
-    <ol class="st-muted" style="margin:0;padding-left:1.25rem;line-height:1.8;">
-        <li>Solicitas acceso (o usas tu cuenta portal si ya eres profesor).</li>
-        <li>Publicamos tu curso en el catálogo Studio.</li>
-        <li>Los estudiantes se inscriben y estudian en el aula virtual.</li>
-        <li>Próximamente: cobros y panel de ingresos.</li>
-    </ol>
-</div>
-
 <div class="st-grid st-grid--2">
-    <article class="st-card st-card--hover">
-        <h2 class="st-h2">Ya soy profesor eki</h2>
-        <p class="st-muted">Si tu organización ya usa la plataforma, entra al aula docente para subir lecciones y calificar tareas.</p>
-        <a href="/aprende/profesor/login/" class="st-btn st-btn--primary st-btn--sm" style="margin-top:0.85rem;">Aula docente</a>
+    <article class="st-card st-card--neon st-card--hover">
+        <h2 class="st-h2">1 · Publica</h2>
+        <p class="st-muted">Sube tu curso, define precio en COP (o gratuito) y aparece en el catálogo neon Studio.</p>
     </article>
-    <article class="st-card st-card--path-gold st-card--hover" style="border-top:3px solid var(--st-gold);">
-        <h2 class="st-h2">Quiero ser creador nuevo</h2>
-        <p class="st-muted">Cuéntanos tu propuesta de curso. El equipo eki revisa y activa tu espacio en 48 horas hábiles.</p>
-        <p style="margin:0.85rem 0 0;">
-            <a href="mailto:soporte@eki.technology" class="st-btn st-btn--gold st-btn--sm">soporte@eki.technology</a>
-        </p>
+    <article class="st-card st-card--neon st-card--hover">
+        <h2 class="st-h2">2 · Cobras</h2>
+        <p class="st-muted">Wompi valida el pago. Solo quien pagó accede al aula — sin pagos huérfanos.</p>
+    </article>
+    <article class="st-card st-card--neon st-card--hover">
+        <h2 class="st-h2">3 · Enseñan</h2>
+        <p class="st-muted">Tus alumnos estudian en el aula: módulos, WhatsApp, puntos y ranking competitivo.</p>
+    </article>
+    <article class="st-card st-card--neon st-card--hover">
+        <h2 class="st-h2">Profesor B2B</h2>
+        <p class="st-muted">¿Ya tienes cuenta portal de organización?</p>
+        <a href="/aprende/profesor/login/" class="st-btn st-btn--ghost st-btn--sm" style="margin-top:0.75rem;">Aula docente</a>
     </article>
 </div>
 {% endblock %}

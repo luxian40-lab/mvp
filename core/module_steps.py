@@ -60,6 +60,7 @@ def _respuesta_cola_tras_avanzar_eval_opc(
     paso: PasoModulo,
     n: int,
     es_acierto: bool,
+    head_override: Optional[str] = None,
 ) -> str:
     """
     Construye respuesta tras avanzar paso_actual_modulo y limpiar flags de evaluación.
@@ -76,7 +77,7 @@ def _respuesta_cola_tras_avanzar_eval_opc(
             _saltar_bloque_pasos_internos=True,
         )
         if es_acierto:
-            head = (paso.feedback_correcto or '').strip() or '✅ ¡Muy bien! Seguimos.'
+            head = head_override or (paso.feedback_correcto or '').strip() or '✅ ¡Muy bien! Seguimos.'
         else:
             head = '📚 Seguimos con el curso.'
         if tail and tail.startswith('[MULTI_MSG]'):
@@ -93,6 +94,8 @@ def _respuesta_cola_tras_avanzar_eval_opc(
             partes.append(tail)
         return unir_multimsg(partes)
     if es_acierto:
+        if head_override:
+            return unir_multimsg([head_override, _CTA_LISTO_SIGUIENTE_MATERIAL_EVAL])
         return '[MULTI_MSG]' + mensaje_exito_eval_opciones_con_cta_listo(paso.feedback_correcto)
     # El *listo* ya se pidió junto al feedback del intento incorrecto: entregar siguiente micro(s) sin repetir «Seguimos…».
     modulo_col = progreso.modulo_actual
@@ -313,7 +316,7 @@ def _suffix_evaluacion_paso(paso: PasoModulo) -> str:
             "\n\n💡 Responde con la letra correcta (*A*, *B*, *C* o *D*), como en la validación del módulo."
         )
     elif paso.tipo == PasoModulo.TIPO_EVAL_ABIERTA:
-        parts.append("\n\n✍️ Envía tu respuesta en un mensaje.")
+        parts.append("\n\n✍️ Envía tu respuesta en un mensaje. La facilitadora la calificará.")
     elif paso.tipo in (PasoModulo.TIPO_RETO, PasoModulo.TIPO_ENTREGA):
         parts.append("\n\n📎 Envía tu respuesta o escribe *listo* cuando termines.")
     return ''.join(parts)
@@ -663,6 +666,86 @@ def mensaje_recordatorio_paso_actual(progreso: ProgresoEstudiante, modulo: Modul
     return unir_multimsg(partes)
 
 
+def _evaluar_abierta_microcontenido_facilitadora(
+    estudiante: Estudiante,
+    progreso: ProgresoEstudiante,
+    paso: PasoModulo,
+    respuesta_texto: str,
+) -> tuple[object, str, str]:
+    """
+    Califica evaluación abierta de microcontenido con la misma IA facilitadora
+    que la pregunta final del curso. Devuelve (puntaje_o_nota, feedback, sufijo_puntos).
+    """
+    from .tutor_ia_modulo import evaluar_reto_facilitador
+    from core.gamificacion_modo import (
+        formatear_nota,
+        gamificacion_otorga_puntos,
+        get_modo_gamificacion,
+        modo_usa_calificacion,
+        registrar_nota_gamificacion,
+        resumen_calificaciones_estudiante,
+    )
+
+    modulo = progreso.modulo_actual
+    curso = progreso.curso
+    modulos_eval = [modulo] if modulo else []
+    enunciado = (paso.contenido or '').strip() or 'Pregunta abierta del módulo'
+    puntaje = 7
+    feedback = (
+        '1. Gracias por su respuesta; usted plantea una línea de acción.\n\n'
+        '2. Para subir nivel, puede ser más preciso en diagnóstico y acción concreta.\n\n'
+        '3. Puntaje total: 7/10'
+    )
+    puntos_msg = ''
+
+    try:
+        modo_gami = get_modo_gamificacion(getattr(estudiante, 'cliente', None))
+        puntaje, feedback = evaluar_reto_facilitador(
+            modulos_eval,
+            respuesta_texto,
+            enunciado,
+            estudiante_nombre=estudiante.nombre or 'Estudiante',
+            curso_nombre=getattr(curso, 'nombre', None),
+            modo_gamificacion=modo_gami,
+        )
+        if modo_usa_calificacion(getattr(estudiante, 'cliente', None)):
+            nota_f = float(puntaje)
+            registrar_nota_gamificacion(
+                estudiante,
+                nota_f,
+                'reto',
+                curso=curso,
+                modulo=modulo,
+                detalle=f'Evaluación abierta (paso {paso.orden})',
+            )
+            res_n = resumen_calificaciones_estudiante(
+                estudiante,
+                curso.id if curso else None,
+            )
+            prom = res_n.get('promedio')
+            extra_prom = (
+                f"\n📊 *Promedio acumulado:* {formatear_nota(prom)}/5"
+                if prom is not None else ''
+            )
+            puntos_msg = f"\n\n📋 *Nota:* {formatear_nota(nota_f)}/5{extra_prom}"
+        elif gamificacion_otorga_puntos(getattr(estudiante, 'cliente', None), curso):
+            from .gamificacion import PerfilGamificacion
+
+            perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
+            puntaje_10 = int(puntaje)
+            puntos = int(max(1, min(10, puntaje_10)) * 5)
+            perfil.agregar_puntos(
+                puntos,
+                f'Evaluación abierta paso {paso.orden}: {puntaje_10}/10',
+            )
+            perfil.refresh_from_db()
+            puntos_msg = f"\n\n💰 *+{puntos} puntos* → Total: *{perfil.puntos_totales} pts*"
+    except Exception as exc:
+        logger.warning('[pasos] eval abierta facilitadora falló: %s', exc)
+
+    return puntaje, feedback, puntos_msg
+
+
 def procesar_respuesta_evaluacion_paso(
     estudiante: Estudiante,
     progreso: ProgresoEstudiante,
@@ -709,6 +792,7 @@ def procesar_respuesta_evaluacion_paso(
 
     ok = False
     letra_in_eval = ''
+    head_facilitadora = None
     if paso.tipo == PasoModulo.TIPO_EVAL_OPC or paso_contenido_con_mc_como_eval(paso):
         letra_in_eval = re.sub(r'[^a-dA-D]', '', texto)
         letra_in_eval = (letra_in_eval[:1] or '').upper()
@@ -744,7 +828,14 @@ def procesar_respuesta_evaluacion_paso(
             )
         ok = bool(letra_in_eval) and letra_in_eval == letra_ok
     elif paso.tipo == PasoModulo.TIPO_EVAL_ABIERTA:
-        ok = bool(texto)
+        if texto:
+            ok = True
+            _puntaje, feedback_ia, puntos_msg = _evaluar_abierta_microcontenido_facilitadora(
+                estudiante, progreso, paso, texto,
+            )
+            head_facilitadora = f"📋 *Facilitadora*\n\n{feedback_ia}{puntos_msg}"
+        else:
+            ok = False
     elif paso.tipo in (PasoModulo.TIPO_RETO, PasoModulo.TIPO_ENTREGA):
         raw = (texto_crudo or '').strip().lower()
         ok = bool(texto) or raw in ('listo', 'lista', 'ok', 'sí', 'si')
@@ -761,7 +852,7 @@ def procesar_respuesta_evaluacion_paso(
             )
             return '[MULTI_MSG]' + mensaje_incorrecto_eval_opciones_con_cta_listo(fb)
         fb = (paso.feedback_incorrecto or '').strip() or (
-            "❌ No es correcto. Revisa el material y vuelve a intentar."
+            "❌ Escriba su respuesta para que la facilitadora pueda calificarla."
         )
         logger.info(
             "📚 [pasos] eval incorrecta | est=%s paso_id=%s",
@@ -789,5 +880,5 @@ def procesar_respuesta_evaluacion_paso(
     )
 
     return _respuesta_cola_tras_avanzar_eval_opc(
-        estudiante, progreso, paso, n, es_acierto=True
+        estudiante, progreso, paso, n, es_acierto=True, head_override=head_facilitadora,
     )

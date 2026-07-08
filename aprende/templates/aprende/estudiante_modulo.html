@@ -1,10 +1,7 @@
 {% extends "aprende/base.html" %}
 {% block title %}{{ modulo.titulo }} | eki{% endblock %}
 {% block body_class %}page-lesson{% endblock %}
-{% block nav %}
-<a href="{% url 'aprende_estudiante_curso' modulo.curso_id %}">{{ modulo.curso.nombre }}</a>
-{% include "aprende/estudiante_nav.html" %}
-{% endblock %}
+{% block nav %}{% include "aprende/estudiante_nav.html" %}{% endblock %}
 {% block extra_css %}
 .eki-paso-meta {
     font-size: 0.68rem;
@@ -64,17 +61,12 @@
 }
 {% endblock %}
 {% block content %}
+{% include "aprende/partials/estudiante_breadcrumb.html" with modulo=modulo %}
 <div class="eki-page-head">
     <span class="eki-kicker">Módulo {{ modulo.numero }}</span>
     <h1>{{ modulo.titulo }}</h1>
     {% if modulo.descripcion %}<p class="eki-lead">{{ modulo.descripcion }}</p>{% endif %}
 </div>
-
-{% if messages %}
-{% for message in messages %}
-<div class="eki-alert eki-alert--{% if message.tags == 'error' %}error{% else %}ok{% endif %}">{{ message }}</div>
-{% endfor %}
-{% endif %}
 
 <p class="eki-aviso-consulta">El material de este módulo es de consulta en línea. No está habilitada la descarga desde el aula.</p>
 

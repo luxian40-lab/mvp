@@ -6,13 +6,12 @@
 <div class="eki-auth-split">
     <aside class="eki-auth-panel">
         <h2>Panel docente</h2>
-        <p>Publique módulos y material de estudio. El contenido queda disponible para los estudiantes en el aula virtual.</p>
+        <p>Mismas credenciales que el <a href="/portal/login/">portal B2B</a> (usuario y contraseña). Si ya inició en el portal, vaya directo a <a href="/aprende/profesor/">Aula docente</a>. Publique lecciones, suba archivos y califique entregas de tareas (nota 1–5).</p>
     </aside>
     <div>
         <div class="eki-page-head">
-            <span class="eki-kicker">Aula virtual</span>
             <h1>Ingreso docente</h1>
-            <p class="eki-muted">Usuario del portal (admin o profesor).</p>
+            <p class="eki-muted">Usuario y contraseña del portal (rol Administrador o Profesor).</p>
         </div>
         {% if error %}<div class="eki-alert eki-alert--error" role="alert">{{ error }}</div>{% endif %}
         <form method="post" class="eki-card eki-card--bar">

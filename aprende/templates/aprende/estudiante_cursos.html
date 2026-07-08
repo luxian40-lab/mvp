@@ -8,14 +8,6 @@
     <p class="eki-lead">Continúe su formación en los cursos donde está inscrito.</p>
 </div>
 
-{% if messages %}
-<div style="margin-bottom:1rem;">
-    {% for message in messages %}
-    <div class="eki-alert eki-alert--{% if message.tags == 'error' %}error{% else %}ok{% endif %}" role="status">{{ message }}</div>
-    {% endfor %}
-</div>
-{% endif %}
-
 {% if progresos %}
 <section>
     <h2 class="eki-h2">Mis cursos</h2>

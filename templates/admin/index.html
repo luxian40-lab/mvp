@@ -79,9 +79,9 @@
             Estudiantes
             <span>Campesinos / participantes</span>
         </a>
-        <a class="eki-hub-card" href="{% url 'admin:core_grupoestudiantes_changelist' %}">
-            Grupos
-            <span>Audiencias para campañas</span>
+        <a class="eki-hub-card" href="{% url 'admin_retencion' %}">
+            Retención
+            <span>Embudo, activos/inactivos y deserción</span>
         </a>
         <a class="eki-hub-card" href="{% url 'admin:core_curso_changelist' %}">
             Cursos
@@ -126,6 +126,10 @@
         <a class="eki-hub-card" href="{% url 'admin:core_campana_changelist' %}">
             Campañas
             <span>Envíos WhatsApp</span>
+        </a>
+        <a class="eki-hub-card" href="{% url 'admin_push_estudiantes' %}">
+            Push recordatorios
+            <span>Reenganche con *listo* — no reinicia curso</span>
         </a>
         <a class="eki-hub-card" href="{% url 'dashboard_unificado' %}">
             Dashboard

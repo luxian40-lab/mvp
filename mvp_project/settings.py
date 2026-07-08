@@ -69,11 +69,17 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'portal.middleware.SuscripcionMiddleware',
     'aprende.middleware.AprendeEstudianteMiddleware',
+    'studio.middleware.StudioCuentaMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.RateLimitMiddleware',  # 🔒 Rate limiting
     'core.middleware.CertificadoAccessMiddleware',  # 🔐 Auditoría de acceso a certificados
 ]
+
+# Wompi (Studio — pagos cursos)
+WOMPI_PUBLIC_KEY = os.environ.get('WOMPI_PUBLIC_KEY', '')
+WOMPI_PRIVATE_KEY = os.environ.get('WOMPI_PRIVATE_KEY', '')
+WOMPI_INTEGRITY_SECRET = os.environ.get('WOMPI_INTEGRITY_SECRET', '')
 
 ROOT_URLCONF = 'mvp_project.urls'
 
@@ -240,7 +246,7 @@ JAZZMIN_SETTINGS = {
         {"name": "Inicio", "url": "admin:index", "new_window": False},
         {"name": "Dashboard", "url": "/admin/dashboard/", "new_window": False},
         {"name": "Estudiantes", "url": "/admin/core/estudiante/", "new_window": False},
-        {"name": "Grupos", "url": "/admin/core/grupoestudiantes/", "new_window": False},
+        {"name": "Retención", "url": "/admin/retencion/", "new_window": False},
         {"name": "Cobertura", "url": "/admin/cobertura/", "new_window": False},
         {"name": "Ajustar avance", "url": "/admin/ajustar-avance/", "new_window": False},
         {"name": "Gamificación manual", "url": "/admin/gamificacion-ajuste/", "new_window": False},

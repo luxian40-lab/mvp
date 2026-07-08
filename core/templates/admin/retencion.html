@@ -1,0 +1,185 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}{{ titulo }} | {{ site_title }}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/cobertura_eki.css' %}">
+<style>
+.ret-funnel { list-style: none; padding: 0; margin: 0; }
+.ret-funnel__item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 120px 72px;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 14px;
+}
+.ret-funnel__item:last-child { border-bottom: none; }
+.ret-funnel__bar-wrap {
+    height: 10px;
+    background: #f1f5f9;
+    border-radius: 999px;
+    overflow: hidden;
+}
+.ret-funnel__bar {
+    height: 100%;
+    background: linear-gradient(90deg, #9b67b1, #60a5fa);
+    border-radius: inherit;
+    min-width: 2px;
+}
+.ret-funnel__count { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.ret-funnel__pct { color: #64748b; font-size: 12px; text-align: right; }
+.ret-kpi-hint { font-size: 12px; color: #64748b; margin-top: 4px; }
+.ret-alert-modulo {
+    border-left: 4px solid #f59e0b;
+    padding: 14px 18px;
+    background: #fffbeb;
+    border-radius: 0 10px 10px 0;
+    margin-bottom: 1.25rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="eki-cobertura">
+    <header class="eki-cobertura-header">
+        <div>
+            <h1>{{ titulo }}</h1>
+            <p class="sub">
+                Fase 1 — medir dónde se pierden los estudiantes.
+                {% if data %}Ventana de actividad: <strong>{{ data.dias_activo }} días</strong>.{% endif %}
+            </p>
+        </div>
+        {% if org %}
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            <a class="eki-btn eki-btn-ghost" href="{% url 'admin_push_estudiantes' %}?cliente={{ org.id }}">Push recordatorios</a>
+            <a class="eki-btn eki-btn-ghost" href="{% url 'dashboard_unificado' %}?cliente={{ org.id }}">Dashboard</a>
+        </div>
+        {% endif %}
+    </header>
+
+    <form method="get" class="eki-filtros">
+        <div class="field">
+            <label for="cliente">Organización</label>
+            <select name="cliente" id="cliente" required>
+                <option value="">— Elija —</option>
+                {% for c in clientes %}
+                <option value="{{ c.id }}" {% if org and org.id == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% if org %}
+        <div class="field">
+            <label for="curso">Curso</label>
+            <select name="curso" id="curso">
+                <option value="">Todos (embudo por módulo requiere curso)</option>
+                {% for c in cursos %}
+                <option value="{{ c.id }}" {% if filtros.curso_id == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="grupo">Grupo</label>
+            <select name="grupo" id="grupo">
+                <option value="">Todos</option>
+                {% for g in grupos %}
+                <option value="{{ g.id }}" {% if filtros.grupo_id == g.id %}selected{% endif %}>{{ g.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="desde">Inscripción desde</label>
+            <input type="date" name="desde" id="desde" value="{{ filtros.desde }}">
+        </div>
+        <div class="field">
+            <label for="hasta">Inscripción hasta</label>
+            <input type="date" name="hasta" id="hasta" value="{{ filtros.hasta }}">
+        </div>
+        {% endif %}
+        <button type="submit" class="eki-btn eki-btn-primary">Aplicar</button>
+    </form>
+
+    {% if not org %}
+    <p class="sub">Elija una organización para ver KPIs y embudo.</p>
+    {% elif data %}
+    {% with k=data.kpis %}
+    <section class="eki-metrics">
+        <article class="eki-metric">
+            <div class="n">{{ k.inscritos }}</div>
+            <div class="l">Inscritos</div>
+        </article>
+        <article class="eki-metric">
+            <div class="n">{{ k.activos }}</div>
+            <div class="l">Activos</div>
+            <p class="ret-kpi-hint">{{ k.pct_activos }}% · {{ data.dias_activo }} días</p>
+        </article>
+        <article class="eki-metric">
+            <div class="n">{{ k.inactivos }}</div>
+            <div class="l">Inactivos</div>
+        </article>
+        <article class="eki-metric">
+            <div class="n">{{ k.certificados }}</div>
+            <div class="l">Certificados</div>
+            <p class="ret-kpi-hint">{{ k.pct_certificacion }}%</p>
+        </article>
+        <article class="eki-metric">
+            <div class="n">{% if k.tiempo_promedio_abandono_dias != None %}{{ k.tiempo_promedio_abandono_dias }} d{% else %}—{% endif %}</div>
+            <div class="l">Prom. sin actividad</div>
+        </article>
+        <article class="eki-metric">
+            <div class="n">{% if k.tiempo_promedio_modulo_dias != None %}{{ k.tiempo_promedio_modulo_dias }} d{% else %}—{% endif %}</div>
+            <div class="l">Prom. entre módulos</div>
+        </article>
+    </section>
+
+    {% if k.modulo_mayor_abandono %}
+    <section class="ret-alert-modulo">
+        <strong>Módulo con mayor abandono:</strong>
+        M{{ k.modulo_mayor_abandono.modulo_numero }} · {{ k.modulo_mayor_abandono.modulo_titulo }}
+        — {{ k.modulo_mayor_abandono.caidas }} estudiante{{ k.modulo_mayor_abandono.caidas|pluralize:"s" }}
+        no pasaron a M{{ k.modulo_mayor_abandono.siguiente_numero }}
+        ({{ k.modulo_mayor_abandono.tasa_pct }}%).
+    </section>
+    {% endif %}
+    {% endwith %}
+
+    <section class="eki-panel">
+        <h2>Embudo de aprendizaje</h2>
+        {% if data.requiere_curso_para_modulos %}
+        <p class="sub">Seleccione un <strong>curso</strong> para ver M1, M2…</p>
+        {% elif data.curso %}
+        <p class="sub">Curso: <strong>{{ data.curso.nombre }}</strong></p>
+        {% endif %}
+        <ul class="ret-funnel">
+            {% for paso in data.embudo %}
+            <li class="ret-funnel__item">
+                <div>
+                    <strong>{{ paso.etiqueta }}</strong>
+                    {% if paso.titulo %}<br><span class="sub" style="font-size:12px;">{{ paso.titulo }}</span>{% endif %}
+                    <div class="ret-funnel__bar-wrap" style="margin-top:8px;">
+                        <div class="ret-funnel__bar" style="width:{{ paso.pct_del_total }}%;"></div>
+                    </div>
+                </div>
+                <span class="ret-funnel__count">{{ paso.cantidad }}</span>
+                <span class="ret-funnel__pct">
+                    {% if paso.pct_desde_anterior != None %}{{ paso.pct_desde_anterior }}%{% else %}100%{% endif %}
+                </span>
+            </li>
+            {% empty %}
+            <li class="sub">Sin inscripciones para los filtros seleccionados.</li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    <section class="eki-panel" style="border-left:4px solid #9b67b1;">
+        <h2>Próximas fases</h2>
+        <p class="sub" style="margin:0;">
+            Score de riesgo · automatizaciones día 2/5/10/20 · mensajes IA · panel coordinadores con alertas.
+        </p>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

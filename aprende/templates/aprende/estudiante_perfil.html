@@ -60,12 +60,6 @@
     <p class="eki-lead">Datos personales, progreso y ranking de su grupo.</p>
 </div>
 
-{% if messages %}
-{% for message in messages %}
-<div class="eki-alert eki-alert--{% if message.tags == 'error' %}error{% else %}ok{% endif %}">{{ message }}</div>
-{% endfor %}
-{% endif %}
-
 <div class="eki-perfil-head">
     <div>
         {% if estudiante.foto_perfil %}
@@ -76,7 +70,7 @@
     </div>
     <div style="flex:1;min-width:200px;">
         <h2 style="margin:0 0 0.25rem;font-size:1.2rem;">{{ estudiante.nombre }}</h2>
-        <p class="eki-muted" style="margin:0;">CC {{ estudiante.cedula }} · WhatsApp {{ estudiante.telefono }}</p>
+        <p class="eki-muted" style="margin:0;">Doc. {{ estudiante.cedula }} · WhatsApp {{ estudiante.telefono }}</p>
         {% if gamificacion_activa %}
         <div class="eki-stat-grid">
             {% if puntos is not None %}
@@ -98,7 +92,7 @@
     {% csrf_token %}
     <input type="hidden" name="accion" value="perfil">
     <h2 class="eki-h2">Datos personales</h2>
-    <p class="eki-muted" style="margin-bottom:1rem;">Para cambiar cédula o teléfono escribe <strong>corregir datos</strong> por WhatsApp.</p>
+    <p class="eki-muted" style="margin-bottom:1rem;">Para cambiar número de documento o teléfono escribe <strong>corregir datos</strong> por WhatsApp.</p>
 
     <div class="eki-field">
         <label for="nombre">Nombre completo</label>

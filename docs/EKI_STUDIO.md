@@ -1,39 +1,147 @@
-# eki Studio — arquitectura y DNS
+# eki Studio — guía técnica y operativa
 
-**eki Studio** (`studio.eki.technology`) es el producto de **descubrimiento e inscripción** (catálogo, creadores).  
-**Aula virtual** (`aprende.eki.technology`) es solo **estudio**: módulos, biblioteca, tareas, perfil.
+**eki Studio** (`studio.eki.technology`) es el producto de **descubrimiento e inscripción**: catálogo público, login estudiante e inscripción a cursos.
 
-Mismo backend Django, mismo deploy EB, rutas distintas.
+**Aula virtual** (`aprende.eki.technology`) es solo **estudio**: módulos, biblioteca, tareas, ranking y perfil.
 
-## Cloudflare — crear `studio.eki.technology`
+Mismo backend Django, mismo deploy en Elastic Beanstalk (`eki-prod-final`), rutas y templates distintos. Opción de arquitectura **B**: dos productos, un motor de contenido.
+
+---
+
+## Flujo del estudiante
+
+```
+1. Entra a studio.eki.technology/studio/
+2. Explora catálogo (cursos con visible_en_studio=True)
+3. Registro / login: correo + contraseña (o WhatsApp B2B legacy)
+4. Inscribe curso (gratis o pago Wompi) → ProgresoEstudiante
+5. Estudia en aprende.eki.technology/aprende/estudiante/
+```
+
+## Cuentas web (`CuentaAula`)
+
+Separado de `Estudiante` (WhatsApp) y de `PortalUsuario` (staff B2B).
+
+- **Login / registro:** solo en Studio → `/studio/cuenta/login/` y `/studio/cuenta/registro/`
+- **Aula** (`/aprende/estudiante/login/`): solo cédula + teléfono WhatsApp (programa ya inscrito)
+- Tras entrar por Studio, la sesión permite abrir el aula sin volver a autenticarse
+
+Cada cuenta web crea un `Estudiante` vinculado (progreso, puntos, ranking).
+
+## Creadores y pagos Wompi
+
+| Modelo | Rol |
+|--------|-----|
+| `CreadorStudio` | Instructor (activar en admin) |
+| `PublicacionStudio` | Precio COP del curso en Studio |
+| `AccesoCursoPagado` | Referencia + estado del pago |
+
+Curso de pago → checkout → webhook `/studio/webhook/wompi/` → solo con `aprobado` se inscribe en aula.
+
+Variables EB: `WOMPI_PUBLIC_KEY`, `WOMPI_PRIVATE_KEY`, `WOMPI_INTEGRITY_SECRET`.
+
+---
+
+## Rutas (`studio/`)
+
+| Ruta | Vista | Descripción |
+|------|-------|-------------|
+| `/studio/` | `inicio` | Landing Studio |
+| `/studio/cursos/` | `catalogo` | Listado de cursos publicados |
+| `/studio/cuenta/registro/` | Registro correo |
+| `/studio/cuenta/login/` | Login correo |
+| `/studio/creador/registro/` | Alta creador |
+| `/studio/creador/panel/` | Panel creador |
+| `/studio/pagar/<ref>/` | Checkout |
+| `/studio/webhook/wompi/` | Webhook pagos |
+| `/studio/inscribir/<curso_id>/` | `inscribir` | POST inscripción |
+| `/studio/creador/` | `creador` | Página creadores (roadmap) |
+
+Enrutamiento por host en `mvp_project/urls.py`: `studio.eki.technology` redirige la raíz a `/studio/`.
+
+---
+
+## Admin — publicar curso en Studio
+
+1. Admin → **Cursos** → editar curso.
+2. Marcar **Publicado en eki Studio** (`visible_en_studio`).
+3. Curso **Activo** y con módulos configurados.
+4. El estudiante debe poder inscribirse solo si el curso es de su cliente o es curso general eki (`cliente=None`).
+
+El flag `visible_en_aula` quedó como legado; el catálogo web ya no vive en `/aprende/`.
+
+Servicio: `studio/catalogo_service.py`.
+
+---
+
+## Cloudflare — DNS `studio.eki.technology`
 
 Igual que `aprende` y `app`:
 
-1. Entra a [Cloudflare](https://dash.cloudflare.com) → dominio **eki.technology** → **DNS** → **Records**.
+1. [Cloudflare](https://dash.cloudflare.com) → dominio **eki.technology** → **DNS** → **Records**.
 2. **Add record**
    - **Type:** `CNAME`
    - **Name:** `studio`
    - **Target:** `eki-prod-final.eba-32krwxas.us-east-2.elasticbeanstalk.com` (mismo CNAME que app/admin/aprende)
    - **Proxy status:** Proxied (nube naranja)
-3. **SSL/TLS** → mismo modo que los otros subdominios (Full o Flexible según tu origen EB).
-4. En **AWS EB** → Configuration → Software → Environment properties, añade:
-   - `studio.eki.technology` a `EKI_ALLOWED_HOSTS`
-   - `https://studio.eki.technology` a `CSRF_TRUSTED_ORIGINS`
-5. `eb deploy eki-prod-final`
-6. Verificar: `curl -s -o NUL -w "%{http_code}" https://studio.eki.technology/studio/`
+3. **SSL/TLS** → mismo modo que los otros subdominios (Full o Flexible según origen EB).
 
-## Admin — publicar curso en Studio
+---
 
-En **Cursos** → marcar **Publicado en eki Studio** (`visible_en_studio`).
+## AWS Elastic Beanstalk — variables obligatorias
 
-Tras inscribirse en Studio, el estudiante estudia en `/aprende/`.
+En **Configuration → Software → Environment properties**:
 
-## Roadmap Studio (CTO)
+```
+EKI_ALLOWED_HOSTS=...,studio.eki.technology,...
+CSRF_TRUSTED_ORIGINS=...,https://studio.eki.technology,...
+```
+
+Si falta el host → Django responde **400 DISALLOWED_HOST** (no es un error de Cloudflare).
+
+Después: `eb deploy eki-prod-final` (o solo reinicio si solo cambiaste variables).
+
+### Verificación
+
+```powershell
+curl -s -o NUL -w "%{http_code}" https://studio.eki.technology/studio/
+# Esperado: 200
+```
+
+---
+
+## Diseño visual
+
+Templates en `studio/templates/studio/`:
+
+- `base.html` — tema **neon morado** futurista (grid, glow)
+- `inicio.html`, `catalogo.html`, `creador.html`
+
+El aula (`aprende/templates/`) no se modifica para mantener identidad académica sobria.
+
+---
+
+## Tests
+
+```bash
+python manage.py test studio.tests aprende.tests -v 1
+```
+
+---
+
+## Roadmap Studio
 
 | Fase | Qué |
 |------|-----|
-| **Ahora** | Catálogo, login estudiante, inscripción → aula |
-| **Siguiente** | Onboarding creador self-service, vitrina por instructor |
-| **Después** | Pagos (Stripe/Wompi), comisión eki, suscripciones |
+| **Ahora** | Cuentas correo, catálogo neon, creador, pagos MVP + webhook Wompi |
+| **Siguiente** | Widget Wompi real, split a creador, panel ingresos |
 
-Ver también `docs/INFRAESTRUCTURA_EKI_PARA_CLOUDFLARE.md`.
+---
+
+## Documentos relacionados
+
+| Documento | Contenido |
+|-----------|-----------|
+| `docs/GUIA_PLATAFORMA_EKI.md` | Guía completa: aula, tareas, ranking, Studio, operación |
+| `docs/INFRAESTRUCTURA_EKI_PARA_CLOUDFLARE.md` | DNS y arquitectura de dominios |
+| `docs/CHECKLIST_PRE_DEPLOY.md` | Smoke tests pre-deploy |

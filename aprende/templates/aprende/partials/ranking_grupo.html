@@ -1,5 +1,15 @@
 {% if ranking.activo and ranking.grupo and ranking.filas %}
-<div class="eki-ranking-wrap">
+<div class="eki-ranking-wrap{% if ranking.modo == 'puntos' %} eki-ranking-wrap--live{% endif %}">
+    {% if ranking.modo == 'puntos' %}
+    <div class="eki-ranking-banner" role="status">
+        <div class="eki-ranking-banner__icon" aria-hidden="true">🏆</div>
+        <div>
+            <p class="eki-ranking-banner__title">¡Compite con tu grupo!</p>
+            <p class="eki-ranking-banner__sub">Los mismos puntos que ganas en WhatsApp (evaluaciones, retos y actividades) cuentan aquí.</p>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="eki-ranking-head">
         <div>
             <h2 class="eki-h2" style="margin:0;">Ranking del grupo</h2>
@@ -9,19 +19,22 @@
             </p>
         </div>
         {% if ranking.mi_posicion %}
-        <div class="eki-ranking-mi-pos">
+        <div class="eki-ranking-mi-pos{% if ranking.mi_posicion == 1 %} eki-ranking-mi-pos--gold{% endif %}">
             <span class="eki-ranking-mi-pos__num">#{{ ranking.mi_posicion }}</span>
             <span class="eki-ranking-mi-pos__lbl">Tu puesto</span>
+            {% if ranking.mi_puntos is not None %}
+            <span class="eki-ranking-mi-pos__pts">{{ ranking.mi_puntos }} pts</span>
+            {% endif %}
         </div>
         {% endif %}
     </div>
 
     {% if ranking.modo == 'calificacion' %}
     <p class="eki-muted" style="font-size:0.8rem;margin:0 0 1rem;">Por promedio de evaluaciones en este curso.</p>
-    {% elif ranking.modo == 'avance' %}
-    <p class="eki-muted" style="font-size:0.8rem;margin:0 0 1rem;">Por módulos completados en este curso. ¡Sigue avanzando!</p>
-    {% else %}
-    <p class="eki-muted" style="font-size:0.8rem;margin:0 0 1rem;">Por puntos totales en tu grupo.</p>
+    {% elif ranking.modo == 'puntos' and ranking.puntos_para_subir %}
+    <p class="eki-ranking-chase">Te faltan <strong>{{ ranking.puntos_para_subir }} pts</strong> para subir al puesto #{{ ranking.mi_posicion|add:"-1" }}. Responde en WhatsApp y entrega tus tareas.</p>
+    {% elif ranking.modo == 'puntos' and ranking.mi_posicion == 1 %}
+    <p class="eki-ranking-chase">¡Vas primero! Mantén el ritmo en WhatsApp y en tus tareas del curso.</p>
     {% endif %}
 
     {% if ranking.top3 %}
@@ -30,18 +43,41 @@
         <div class="eki-podium-item eki-podium-item--{{ f.posicion }}{% if f.estudiante_id == estudiante.id %} eki-podium-item--me{% endif %}">
             <span class="eki-podium-medal">{% if f.posicion == 1 %}1{% elif f.posicion == 2 %}2{% else %}3{% endif %}</span>
             <p class="eki-podium-name">{% if f.estudiante_id == estudiante.id %}Tú{% else %}{{ f.nombre|truncatechars:18 }}{% endif %}</p>
-            <p class="eki-podium-score">{{ f.valor }}{% if ranking.modo == 'calificacion' %}/5{% elif ranking.modo == 'avance' %}<span style="font-size:0.7rem;font-weight:500;"> mód.</span>{% else %}<span style="font-size:0.7rem;font-weight:500;"> pts</span>{% endif %}</p>
+            <p class="eki-podium-score">{{ f.valor }}{% if ranking.modo == 'calificacion' %}/5{% else %}<span style="font-size:0.65rem;font-weight:600;"> pts</span>{% endif %}</p>
         </div>
         {% endfor %}
     </div>
     {% endif %}
 
+    {% if ranking.modo == 'puntos' %}
+    <ul class="eki-leaderboard" aria-label="Tabla de posiciones">
+        {% for f in ranking.filas %}
+        <li class="eki-leaderboard-item{% if f.estudiante_id == estudiante.id %} eki-leaderboard-item--me{% endif %}{% if f.posicion == 1 %} eki-leaderboard-item--top1{% elif f.posicion == 2 %} eki-leaderboard-item--top2{% elif f.posicion == 3 %} eki-leaderboard-item--top3{% endif %}"
+            style="animation-delay: {{ forloop.counter0|add:3 }}0ms;">
+            <span class="eki-leaderboard-rank">#{{ f.posicion }}</span>
+            <div>
+                <div class="eki-leaderboard-name">{% if f.estudiante_id == estudiante.id %}Tú{% else %}{{ f.nombre }}{% endif %}</div>
+                {% if f.nivel %}<div class="eki-leaderboard-meta">Nivel {{ f.nivel }}{% if f.racha %} · Racha {{ f.racha }} d{% endif %}</div>{% endif %}
+            </div>
+            <div class="eki-leaderboard-score">
+                <span class="eki-leaderboard-score__num">{{ f.valor }}</span>
+                <span class="eki-leaderboard-score__lbl">puntos</span>
+            </div>
+            {% if ranking.lider_puntos %}
+            <div class="eki-leaderboard-bar-wrap" aria-hidden="true">
+                <div class="eki-leaderboard-bar" style="width: {% widthratio f.valor ranking.lider_puntos 100 %}%;"></div>
+            </div>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
     <table class="eki-ranking-table">
         <thead>
             <tr>
                 <th>#</th>
                 <th>Estudiante</th>
-                <th>{% if ranking.modo == 'calificacion' %}Promedio{% elif ranking.modo == 'avance' %}Módulos{% else %}Puntos{% endif %}</th>
+                <th>Promedio</th>
             </tr>
         </thead>
         <tbody>
@@ -49,11 +85,12 @@
             <tr{% if f.estudiante_id == estudiante.id %} class="eki-ranking-me"{% endif %}>
                 <td>{{ f.posicion }}</td>
                 <td>{% if f.estudiante_id == estudiante.id %}<strong>Tú</strong>{% else %}{{ f.nombre }}{% endif %}</td>
-                <td><strong>{{ f.valor }}</strong>{% if ranking.modo == 'calificacion' %}/5{% elif ranking.modo == 'avance' %} mód.{% else %} pts{% endif %}</td>
+                <td><strong>{{ f.valor }}</strong>/5</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+    {% endif %}
 </div>
 {% elif ranking.activo and ranking.modo == 'sin_grupo' %}
 <div class="eki-card">
@@ -63,6 +100,6 @@
 {% elif ranking.activo and not ranking.filas %}
 <div class="eki-card">
     <h2 class="eki-h2">Ranking — {{ ranking.grupo.nombre }}</h2>
-    <p class="eki-muted">Aún no hay datos. Avanza en el curso o completa evaluaciones para aparecer en el ranking.</p>
+    <p class="eki-muted">Participa en WhatsApp y completa evaluaciones para sumar puntos. ¡El ranking se actualiza con cada actividad!</p>
 </div>
 {% endif %}

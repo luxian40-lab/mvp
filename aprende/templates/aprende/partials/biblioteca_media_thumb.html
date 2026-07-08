@@ -1,0 +1,37 @@
+{% comment %}Miniatura 35×35 — biblioteca del aula.{% endcomment %}
+{% if item.media %}
+{% with m=item.media %}
+<button type="button"
+        class="eki-bib-thumb eki-bib-thumb--{{ m.tipo }}"
+        title="{{ item.titulo }}"
+        aria-label="Ver {{ item.titulo }}"
+        data-bib-titulo="{{ item.titulo }}"
+        data-bib-tipo="{{ m.tipo }}"
+        data-bib-url="{{ m.url }}"
+        {% if m.youtube_id %}data-bib-youtube="{{ m.youtube_id }}"{% endif %}>
+    {% if m.tipo == 'youtube' and m.youtube_id %}
+    <img src="https://img.youtube.com/vi/{{ m.youtube_id }}/default.jpg" alt="" width="35" height="35" loading="lazy" draggable="false">
+    <span class="eki-bib-thumb-play" aria-hidden="true"></span>
+    {% elif m.tipo == 'imagen' %}
+    <img src="{{ m.url }}" alt="" width="35" height="35" loading="lazy" draggable="false">
+    {% elif m.tipo == 'video' %}
+    <video muted playsinline preload="metadata" draggable="false">
+        <source src="{{ m.url }}">
+    </video>
+    <span class="eki-bib-thumb-play" aria-hidden="true"></span>
+    {% elif m.tipo == 'pdf' %}
+    <span class="eki-bib-thumb-icon" aria-hidden="true">PDF</span>
+    {% elif m.tipo == 'audio' %}
+    <span class="eki-bib-thumb-icon" aria-hidden="true">♪</span>
+    {% else %}
+    <span class="eki-bib-thumb-icon" aria-hidden="true">↗</span>
+    {% endif %}
+</button>
+{% endwith %}
+{% elif item.tipo %}
+<span class="eki-bib-thumb eki-bib-thumb--{{ item.tipo }} eki-bib-thumb--static"
+      title="{{ item.titulo }}"
+      aria-label="{{ item.titulo }}">
+    <span class="eki-bib-thumb-icon" aria-hidden="true">{% if item.tipo == 'pdf' %}PDF{% else %}?{% endif %}</span>
+</span>
+{% endif %}

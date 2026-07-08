@@ -1771,6 +1771,123 @@ class DocumentoRAGComercial(models.Model):
             return None
 
 
+class BibliotecaConocimiento(models.Model):
+    """
+    Knowledge Hub Nat — biblioteca de conocimiento agrícola por organización.
+    Alimenta el RAG comercial (Chroma) además de DocumentoRAGComercial legacy.
+    """
+
+    CATEGORIA_CHOICES = [
+        ('manuales', 'Manuales'),
+        ('investigaciones', 'Investigaciones'),
+        ('protocolos', 'Protocolos'),
+        ('cartillas', 'Cartillas'),
+        ('videos', 'Videos'),
+        ('podcasts', 'Podcasts'),
+        ('faq', 'Preguntas frecuentes'),
+        ('casos', 'Casos reales'),
+        ('productos', 'Productos'),
+        ('normatividad', 'Normatividad'),
+        ('noticias', 'Noticias'),
+        ('experiencias', 'Experiencias'),
+        ('general', 'General'),
+    ]
+    FORMATO_CHOICES = [
+        ('archivo', 'Archivo (PDF, Word, Excel…)'),
+        ('texto', 'Artículo / texto'),
+        ('faq', 'Pregunta y respuesta'),
+        ('enlace', 'Enlace web'),
+        ('imagen', 'Imagen'),
+        ('audio', 'Audio / podcast'),
+        ('video', 'Video'),
+    ]
+    NIVEL_CHOICES = [
+        ('basico', 'Básico'),
+        ('intermedio', 'Intermedio'),
+        ('avanzado', 'Avanzado'),
+    ]
+    FUENTE_CHOICES = [
+        ('cliente', 'Organización'),
+        ('agrosavia', 'AGROSAVIA'),
+        ('ica', 'ICA'),
+        ('fedepanela', 'Fedepanela'),
+        ('cenipalma', 'Cenipalma'),
+        ('ciat', 'CIAT'),
+        ('fao', 'FAO'),
+        ('eki', 'eki'),
+        ('otro', 'Otra fuente'),
+    ]
+    ESTADO_PUBLICACION_CHOICES = [
+        ('borrador', 'Borrador'),
+        ('publicado', 'Publicado'),
+        ('archivado', 'Archivado'),
+    ]
+    ESTADO_RAG_CHOICES = [
+        ('pendiente', 'Pendiente de indexar'),
+        ('indexado', 'Indexado en RAG'),
+        ('error', 'Error al indexar'),
+    ]
+
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.CASCADE,
+        related_name='biblioteca_conocimiento',
+    )
+    titulo = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=200, help_text='Identificador único para indexación RAG')
+    categoria = models.CharField(max_length=30, choices=CATEGORIA_CHOICES, default='general')
+    formato = models.CharField(max_length=20, choices=FORMATO_CHOICES, default='archivo')
+    pregunta = models.CharField(max_length=500, blank=True, default='', help_text='Solo FAQ')
+    texto_contenido = models.TextField(blank=True, default='', help_text='Artículo, respuesta FAQ o transcripción')
+    archivo = models.FileField(
+        upload_to='biblioteca_nat/%Y/%m/',
+        blank=True,
+        null=True,
+        help_text='PDF, DOCX, TXT, XLSX, imagen, audio o video',
+    )
+    enlace_url = models.URLField(max_length=500, blank=True, default='')
+    cultivo = models.CharField(max_length=80, blank=True, default='')
+    problema = models.CharField(max_length=120, blank=True, default='')
+    region = models.CharField(max_length=120, blank=True, default='')
+    idioma = models.CharField(max_length=20, default='es', verbose_name='Idioma')
+    nivel = models.CharField(max_length=20, choices=NIVEL_CHOICES, default='basico')
+    fuente = models.CharField(max_length=30, choices=FUENTE_CHOICES, default='cliente')
+    autor = models.CharField(max_length=120, blank=True, default='')
+    fecha_contenido = models.DateField(null=True, blank=True)
+    estado_publicacion = models.CharField(
+        max_length=20,
+        choices=ESTADO_PUBLICACION_CHOICES,
+        default='publicado',
+    )
+    estado_rag = models.CharField(max_length=20, choices=ESTADO_RAG_CHOICES, default='pendiente')
+    chunks_indexados = models.IntegerField(default=0)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_indexado = models.DateTimeField(null=True, blank=True)
+    subido_por = models.ForeignKey(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='biblioteca_subidos',
+    )
+
+    class Meta:
+        ordering = ['-fecha_creacion']
+        verbose_name = 'Conocimiento (biblioteca Nat)'
+        verbose_name_plural = 'Biblioteca de conocimiento Nat'
+        unique_together = [('cliente', 'slug')]
+        indexes = [
+            models.Index(fields=['cliente', 'estado_publicacion', 'categoria']),
+        ]
+
+    def __str__(self):
+        return f'{self.titulo} ({self.cliente.nombre})'
+
+    @property
+    def cliente_scope_id(self):
+        return self.cliente_id
+
+
 class ProductoComercial(models.Model):
     """
     Catálogo de precios estructurado para Nat (WhatsApp comercial).

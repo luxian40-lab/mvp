@@ -1,0 +1,28 @@
+{% extends "studio/base.html" %}
+{% block title %}Panel creador | eki Studio{% endblock %}
+{% block content %}
+<section class="st-hero st-hero--neon">
+    <span class="st-kicker st-kicker--neon">Panel creador</span>
+    <h1>{{ creador.nombre_publico }}</h1>
+    <p class="st-lead">
+        {% if creador.activo %}
+        Perfil activo — tus cursos pueden publicarse en Studio.
+        {% else %}
+        En revisión por el equipo eki. Te avisamos por correo cuando esté activo.
+        {% endif %}
+    </p>
+</section>
+
+<div class="st-card st-card--neon">
+    <h2 class="st-h2">Tus publicaciones ({{ publicaciones|length }})</h2>
+    {% if publicaciones %}
+    <ul class="st-muted" style="margin:0;padding-left:1.2rem;">
+        {% for p in publicaciones %}
+        <li>{{ p.curso.nombre }} — {% if p.es_gratis %}Gratis{% else %}${{ p.precio_cop|floatformat:0 }} COP{% endif %}</li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="st-muted">Aún no hay cursos vinculados. Contacta a soporte@eki.technology para publicar el primero.</p>
+    {% endif %}
+</div>
+{% endblock %}

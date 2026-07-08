@@ -86,6 +86,41 @@ class EntregaTarea(models.Model):
         return self.nota is not None
 
 
+class AsistenciaAula(models.Model):
+    """Registro de asistencia presencial por sesión (aula docente)."""
+
+    curso = models.ForeignKey(
+        Curso,
+        on_delete=models.CASCADE,
+        related_name='asistencias_aula',
+    )
+    estudiante = models.ForeignKey(
+        Estudiante,
+        on_delete=models.CASCADE,
+        related_name='asistencias_aula',
+    )
+    fecha = models.DateField(verbose_name='Fecha de sesión')
+    presente = models.BooleanField(default=True)
+    registrado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='asistencias_registradas',
+    )
+    fecha_registro = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [('curso', 'estudiante', 'fecha')]
+        ordering = ['-fecha', 'estudiante__nombre']
+        verbose_name = 'Asistencia (aula)'
+        verbose_name_plural = 'Asistencias (aula)'
+
+    def __str__(self):
+        estado = 'presente' if self.presente else 'ausente'
+        return f'{self.estudiante.nombre} — {self.curso.nombre} ({self.fecha}, {estado})'
+
+
 class DocumentoEstudianteAula(models.Model):
     """Documento subido por el estudiante desde el aula (por curso o módulo)."""
 

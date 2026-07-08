@@ -806,30 +806,94 @@
         .alert-onboarding { background: #eff6ff; color: #1e3a8a; border: 1px solid #bfdbfe; border-radius: 12px; padding: 16px 20px; }
         html[data-theme="dark"] .alert-onboarding { background: #1e3a5f; border-color: #3b82f6; color: #dbeafe; }
 
+        .table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-bottom: 16px;
+        }
+        .table-wrap table { min-width: 560px; }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
+        }
+
+        .btn:focus-visible,
+        .sidebar-link:focus-visible,
+        .pill:focus-visible,
+        .icon-btn:focus-visible,
+        .sidebar-menu-toggle:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        .sidebar-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            z-index: 18;
+        }
+        body.sidebar-drawer-open .sidebar-backdrop { display: block; }
+        .sidebar-backdrop[hidden] { display: none !important; }
+
+        .sidebar-menu-toggle {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            margin-right: 12px;
+            border: 1px solid var(--borde);
+            border-radius: 8px;
+            background: var(--blanco);
+            cursor: pointer;
+            color: var(--texto);
+            flex-shrink: 0;
+        }
+
         @media (max-width: 900px) {
             body {
                 grid-template-columns: 1fr;
                 grid-template-areas:
                     "topbar"
-                    "sidebar"
                     "main";
             }
             .sidebar {
-                position: static;
-                height: auto;
-                max-height: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                width: min(280px, 88vw);
+                z-index: 20;
+                transform: translateX(-100%);
+                transition: transform 0.22s ease;
+                height: 100vh;
+                max-height: 100vh;
+                overflow-y: auto;
+            }
+            body.sidebar-drawer-open .sidebar {
+                transform: translateX(0);
             }
             .topbar { position: sticky; }
             .main {
                 justify-self: stretch;
                 max-width: none;
-                padding: 20px 16px 80px;
+                padding: 20px 16px calc(80px + env(safe-area-inset-bottom, 0px));
             }
             .sidebar-collapse-btn { display: none; }
+            .sidebar-menu-toggle { display: inline-flex; }
             body.sidebar-collapsed .brand-text,
             body.sidebar-collapsed .sidebar-powered,
             body.sidebar-collapsed .nav-label,
             body.sidebar-collapsed .sidebar-link .link-text { display: block; }
+            body.sidebar-collapsed { --sidebar-width: 260px; }
         }
     </style>
     <script>
@@ -855,7 +919,7 @@
                     <path d="M15 18l-6-6 6-6"/>
                 </svg>
             </button>
-            <a href="/portal/dashboard/" class="brand-org">
+            <a href="{{ portal_home_url }}" class="brand-org">
                 {% if org.logo_url %}
                     <img src="{{ org.logo_url }}" alt="{{ org.nombre }}" class="brand-logo">
                 {% else %}
@@ -873,12 +937,34 @@
         </div>
         <div class="sidebar-powered">plataforma eki</div>
         <nav>
+            {% if portal_solo_nat %}
+            <div class="nav-label">Nat — Knowledge Hub</div>
+            <a href="{% url 'portal_biblioteca' %}" class="sidebar-link {% if '/portal/biblioteca' in request.path %}active{% endif %}" title="Biblioteca de conocimiento">
+                <span class="link-icon">📚</span>
+                <span class="link-text">Biblioteca</span>
+            </a>
+            {% if portal_es_admin %}
+            <div class="nav-label">Cuenta</div>
+            <a href="/portal/perfil/" class="sidebar-link {% if request.path == '/portal/perfil/' %}active{% endif %}" title="Perfil de empresa">
+                <span class="link-icon">F</span>
+                <span class="link-text">Perfil de empresa</span>
+            </a>
+            <a href="/portal/usuarios/" class="sidebar-link {% if '/portal/usuarios' in request.path %}active{% endif %}" title="Usuarios del equipo">
+                <span class="link-icon">U</span>
+                <span class="link-text">Usuarios</span>
+            </a>
+            {% endif %}
+            {% else %}
             <div class="nav-label">Analítica</div>
             <a href="/portal/dashboard/" class="sidebar-link {% if request.path == '/portal/dashboard/' %}active{% endif %}" title="Dashboard">
                 <span class="link-icon">D</span>
                 <span class="link-text">Dashboard</span>
             </a>
             {% if portal_mod_cursos %}
+                <a href="/portal/retencion/" class="sidebar-link {% if '/portal/retencion' in request.path %}active{% endif %}" title="Retención y embudo">
+                    <span class="link-icon" aria-hidden="true">📉</span>
+                    <span class="link-text">Retención</span>
+                </a>
                 <a href="/portal/cobertura/" class="sidebar-link {% if '/portal/cobertura' in request.path %}active{% endif %}" title="Cobertura territorial">
                     <span class="link-icon" aria-hidden="true">🗺</span><span class="link-text">Cobertura</span>
                 </a>
@@ -921,6 +1007,12 @@
                     <span class="link-icon">K</span>
                     <span class="link-text">Campañas</span>
                 </a>
+                {% if portal_es_docente %}
+                <a href="/aprende/profesor/" class="sidebar-link" title="Aula docente — lecciones y tareas" target="_blank" rel="noopener">
+                    <span class="link-icon" aria-hidden="true">📚</span>
+                    <span class="link-text">Aula docente</span>
+                </a>
+                {% endif %}
             {% endif %}
 
             {% if portal_mod_gei %}
@@ -947,17 +1039,15 @@
             {% endif %}
 
             {% if portal_mod_nat %}
-                <div class="nav-label">Comercial</div>
-                <a href="/portal/nat/" class="sidebar-link {% if request.path == '/portal/nat/' %}active{% endif %}" title="Agente Nat">
+                <div class="nav-label">Nat — Agrónomo IA</div>
+                <a href="{% url 'portal_biblioteca' %}" class="sidebar-link {% if '/portal/biblioteca' in request.path %}active{% endif %}" title="Biblioteca de conocimiento">
+                    <span class="link-icon">📚</span>
+                    <span class="link-text">Biblioteca</span>
+                </a>
+                <a href="/portal/nat/" class="sidebar-link {% if request.path == '/portal/nat/' %}active{% endif %}" title="Métricas Agente Nat">
                     <span class="link-icon">N</span>
                     <span class="link-text">Agente Nat</span>
                 </a>
-                {% if portal_es_admin %}
-                <a href="/portal/nat/documentos/" class="sidebar-link {% if '/portal/nat/documentos' in request.path %}active{% endif %}" title="Documentos para Nat">
-                    <span class="link-icon">D</span>
-                    <span class="link-text">Documentos Nat</span>
-                </a>
-                {% endif %}
             {% endif %}
 
             <div class="nav-label">Soporte</div>
@@ -988,14 +1078,23 @@
                     <span class="link-text">Usuarios</span>
                 </a>
             {% endif %}
+            {% endif %}
         </nav>
     </aside>
+    <div class="sidebar-backdrop" id="sidebar-backdrop" hidden aria-hidden="true"></div>
 
     <header class="topbar">
-        <div>
+        <div style="display:flex;align-items:center;min-width:0;">
+            <button type="button" class="sidebar-menu-toggle" id="sidebar-menu-toggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="portal-sidebar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M3 12h18M3 6h18M3 18h18"/>
+                </svg>
+            </button>
+            <div style="min-width:0;">
             <div class="topbar-title">{{ org.nombre }}</div>
             <div class="topbar-meta">
                 {% if org.portal_subtitulo %}{{ org.portal_subtitulo }}{% else %}Seguimiento y métricas de su organización{% endif %}
+            </div>
             </div>
         </div>
         <div class="topbar-actions">
@@ -1015,6 +1114,11 @@
     </header>
 
     <main class="main">
+        {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{% if message.tags == 'error' %}error{% else %}ok{% endif %}" role="{% if message.tags == 'error' %}alert{% else %}status{% endif %}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
         {% block content %}{% endblock %}
     </main>
 
@@ -1112,6 +1216,48 @@
                     setTheme(dark ? 'light' : 'dark');
                 });
             }
+
+            var menuBtn = document.getElementById('sidebar-menu-toggle');
+            var backdrop = document.getElementById('sidebar-backdrop');
+            var sidebar = document.getElementById('portal-sidebar');
+
+            function closeDrawer() {
+                body.classList.remove('sidebar-drawer-open');
+                if (menuBtn) menuBtn.setAttribute('aria-expanded', 'false');
+                if (backdrop) backdrop.setAttribute('hidden', '');
+            }
+            function openDrawer() {
+                body.classList.add('sidebar-drawer-open');
+                if (menuBtn) menuBtn.setAttribute('aria-expanded', 'true');
+                if (backdrop) backdrop.removeAttribute('hidden');
+            }
+
+            if (menuBtn && sidebar) {
+                menuBtn.addEventListener('click', function () {
+                    if (body.classList.contains('sidebar-drawer-open')) closeDrawer();
+                    else openDrawer();
+                });
+                if (backdrop) backdrop.addEventListener('click', closeDrawer);
+                sidebar.querySelectorAll('.sidebar-link').forEach(function (link) {
+                    link.addEventListener('click', closeDrawer);
+                });
+                document.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape') closeDrawer();
+                });
+            }
+
+            document.querySelectorAll('form').forEach(function (form) {
+                form.addEventListener('submit', function () {
+                    var btn = form.querySelector('button[type=submit], input[type=submit]');
+                    if (!btn || btn.disabled) return;
+                    btn.disabled = true;
+                    btn.setAttribute('aria-busy', 'true');
+                    if (btn.tagName === 'BUTTON') {
+                        btn.dataset.ekiLabel = btn.textContent;
+                        btn.textContent = 'Enviando…';
+                    }
+                });
+            });
         })();
     </script>
     {% include 'portal/partials/help_assistant_script.html' %}

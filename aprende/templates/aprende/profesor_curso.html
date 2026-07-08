@@ -10,7 +10,9 @@
     <h1>{{ curso.nombre }}</h1>
 </div>
 
-<div class="eki-toolbar">
+{% include "aprende/partials/profesor_curso_tabs.html" %}
+
+<div class="eki-toolbar" style="margin-top:1rem;">
     <a class="eki-btn eki-btn--primary" href="{% url 'aprende_profesor_modulo_nuevo' curso.id %}">+ Nueva lección</a>
     <a class="eki-btn eki-btn--ghost" href="{% url 'aprende_profesor_tarea_nueva' curso.id %}">+ Nueva tarea</a>
 </div>
@@ -42,15 +44,22 @@
     </p>
     <ul class="eki-list">
         {% for t in tareas %}
-        <li class="eki-list-item">
+        <li class="eki-list-item{% if not t.activa %} eki-muted{% endif %}">
             <span class="eki-list-num">T</span>
             <div style="flex:1;">
                 <a href="{% url 'aprende_profesor_tarea_entregas' t.id %}">{{ t.titulo }}</a>
+                {% if not t.activa %}<span class="eki-badge" style="font-size:0.65rem;margin-left:0.35rem;">Inactiva</span>{% endif %}
                 <p class="eki-muted" style="margin:0.2rem 0 0;font-size:0.8rem;">
                     {{ t.total_entregas }} entrega{{ t.total_entregas|pluralize:"s" }}
-                    {% if t.pendientes %} · {{ t.pendientes }} por calificar{% endif %}
+                    {% if t.pendientes %} · <strong style="color:var(--eki-purple-dark);">{{ t.pendientes }} por calificar</strong>{% endif %}
                 </p>
             </div>
+            <a class="eki-btn eki-btn--ghost eki-btn--sm" href="{% url 'aprende_profesor_tarea_editar' t.id %}">Editar</a>
+            {% if t.pendientes %}
+            <a class="eki-btn eki-btn--primary eki-btn--sm" href="{% url 'aprende_profesor_tarea_entregas' t.id %}">Calificar</a>
+            {% else %}
+            <a class="eki-btn eki-btn--ghost eki-btn--sm" href="{% url 'aprende_profesor_tarea_entregas' t.id %}">Entregas</a>
+            {% endif %}
         </li>
         {% empty %}
         <li class="eki-list-item">

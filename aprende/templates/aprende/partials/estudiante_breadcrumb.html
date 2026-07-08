@@ -1,0 +1,16 @@
+{% comment %}Migas de pan — curso / módulo (fuera del header).{% endcomment %}
+<nav class="eki-breadcrumb" aria-label="Navegación del curso">
+    <a href="{% url 'aprende_estudiante_cursos' %}">Mis cursos</a>
+    <span class="eki-breadcrumb-sep" aria-hidden="true">›</span>
+    {% if modulo %}
+    <a href="{% url 'aprende_estudiante_curso' modulo.curso_id %}">{{ modulo.curso.nombre }}</a>
+    <span class="eki-breadcrumb-sep" aria-hidden="true">›</span>
+    <span aria-current="page">{{ modulo.titulo }}</span>
+    {% elif tarea %}
+    <a href="{% url 'aprende_estudiante_curso' tarea.curso_id %}">{{ tarea.curso.nombre }}</a>
+    <span class="eki-breadcrumb-sep" aria-hidden="true">›</span>
+    <span aria-current="page">{{ tarea.titulo }}</span>
+    {% elif progreso %}
+    <span aria-current="page">{{ progreso.curso.nombre }}</span>
+    {% endif %}
+</nav>

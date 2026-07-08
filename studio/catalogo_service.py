@@ -18,6 +18,8 @@ def cursos_catalogo_studio(estudiante: Estudiante | None = None):
     )
     if estudiante and estudiante.cliente_id:
         qs = qs.filter(Q(cliente_id=estudiante.cliente_id) | Q(cliente__isnull=True))
+    elif estudiante:
+        pass
     else:
         qs = qs.filter(cliente__isnull=True)
     return qs.order_by('orden', 'nombre')

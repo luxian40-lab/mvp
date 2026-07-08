@@ -193,6 +193,41 @@ class ModuleStepsModelTests(TestCase):
         self.assertIn('listo', blob)
         self.assertLess(blob.index('excelente'), blob.index('listo'))
 
+    @patch('core.tutor_ia_modulo.evaluar_reto_facilitador', return_value=(8, 'Muy bien aplicado el concepto.'))
+    def test_eval_abierta_califica_con_facilitadora(self, _mock_eval):
+        s1 = _seccion(self.mod, 1)
+        PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=s1,
+            orden=1,
+            titulo='Abierta',
+            tipo=PasoModulo.TIPO_EVAL_ABIERTA,
+            contenido='¿Cómo aplicaría el ahorro en su hogar?',
+        )
+        PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=s1,
+            orden=2,
+            titulo='P2',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='Siguiente bloque',
+        )
+        reset_progreso_pasos_modulo(self.prog, save=True)
+        entregar_paso_indice(self.prog, self.mod, 1)
+        self.prog.refresh_from_db()
+        self.assertTrue(self.prog.esperando_respuesta_evaluacion_paso)
+
+        out = procesar_respuesta_evaluacion_paso(
+            self.est, self.prog, 'Separaría gastos fijos y variables cada mes.',
+        )
+        self.assertIsNotNone(out)
+        self.assertIn('Facilitadora', out)
+        self.assertIn('Muy bien aplicado', out)
+        self.prog.refresh_from_db()
+        self.assertFalse(self.prog.esperando_respuesta_evaluacion_paso)
+        self.assertEqual(self.prog.paso_actual_modulo, 2)
+        _mock_eval.assert_called_once()
+
     def test_eval_incorrecta_feedback_y_cta_listo_en_un_solo_segmento(self):
         """Un bubble: feedback de error + CTA *listo* (misma UX que acierto)."""
         s1 = _seccion(self.mod, 1)

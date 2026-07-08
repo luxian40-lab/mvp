@@ -1,0 +1,179 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Retención | Portal eki{% endblock %}
+
+{% block extra_head %}
+<style>
+.ret-funnel { list-style: none; padding: 0; margin: 0; }
+.ret-funnel__item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 120px 72px;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--borde);
+    font-size: 14px;
+}
+.ret-funnel__item:last-child { border-bottom: none; }
+.ret-funnel__bar-wrap {
+    height: 10px;
+    background: var(--tabla-head);
+    border-radius: 999px;
+    overflow: hidden;
+}
+.ret-funnel__bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #60a5fa);
+    border-radius: inherit;
+    min-width: 2px;
+}
+.ret-funnel__count { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.ret-funnel__pct { color: var(--texto-muted); font-size: 12px; text-align: right; }
+.ret-kpi-hint { font-size: 12px; color: var(--texto-muted); margin-top: 4px; }
+.ret-alert-modulo {
+    border-left: 4px solid var(--warn);
+    padding: 14px 18px;
+    background: var(--tabla-head);
+    border-radius: 0 10px 10px 0;
+    margin-bottom: 24px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <h1>Retención y embudo</h1>
+        <p class="muted">
+            Fase 1 — medir dónde se pierden los estudiantes. Ventana de actividad reciente:
+            <strong>{{ data.dias_activo }} días</strong>.
+        </p>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;">
+        <a class="btn btn-outline" href="/portal/dashboard/">Dashboard</a>
+        <a class="btn btn-outline" href="/portal/metricas/">Métricas detalladas</a>
+    </div>
+</div>
+
+<section class="panel" style="margin-bottom:24px;">
+    <form method="get" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;align-items:end;">
+        <label>
+            <strong>Curso</strong>
+            <select name="curso" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+                <option value="">Todos (embudo por módulo requiere curso)</option>
+                {% for c in cursos %}
+                <option value="{{ c.id }}" {% if filtros.curso_id == c.id %}selected{% endif %}>{{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <strong>Grupo</strong>
+            <select name="grupo" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+                <option value="">Todos</option>
+                {% for g in grupos %}
+                <option value="{{ g.id }}" {% if filtros.grupo_id == g.id %}selected{% endif %}>{{ g.nombre }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <strong>Inscripción desde</strong>
+            <input type="date" name="desde" value="{{ filtros.desde }}" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+        </label>
+        <label>
+            <strong>Inscripción hasta</strong>
+            <input type="date" name="hasta" value="{{ filtros.hasta }}" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+        </label>
+        <button class="btn" type="submit">Aplicar</button>
+    </form>
+</section>
+
+{% with k=data.kpis %}
+<section class="cards-grid" style="margin-bottom:24px;">
+    <article class="card">
+        <div class="metric-number">{{ k.inscritos }}</div>
+        <div class="metric-label">Inscritos</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ k.activos }}</div>
+        <div class="metric-label">Activos</div>
+        <p class="ret-kpi-hint">{{ k.pct_activos }}% del total · actividad en {{ data.dias_activo }} días</p>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ k.inactivos }}</div>
+        <div class="metric-label">Inactivos</div>
+        <p class="ret-kpi-hint">Sin avance reciente y curso sin completar</p>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ k.certificados }}</div>
+        <div class="metric-label">Certificados</div>
+        <p class="ret-kpi-hint">{{ k.pct_certificacion }}% de inscritos</p>
+    </article>
+</section>
+
+<section class="cards-grid" style="margin-bottom:24px;">
+    <article class="card">
+        <div class="metric-number">{% if k.tiempo_promedio_abandono_dias != None %}{{ k.tiempo_promedio_abandono_dias }} d{% else %}—{% endif %}</div>
+        <div class="metric-label">Tiempo prom. sin actividad</div>
+        <p class="ret-kpi-hint">Entre estudiantes inactivos</p>
+    </article>
+    <article class="card">
+        <div class="metric-number">{% if k.tiempo_promedio_modulo_dias != None %}{{ k.tiempo_promedio_modulo_dias }} d{% else %}—{% endif %}</div>
+        <div class="metric-label">Tiempo prom. entre módulos</div>
+        <p class="ret-kpi-hint">Entre cierres consecutivos</p>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ k.completados_curso }}</div>
+        <div class="metric-label">Cursos completados</div>
+    </article>
+</section>
+
+{% if k.modulo_mayor_abandono %}
+<section class="ret-alert-modulo">
+    <strong>Módulo con mayor abandono:</strong>
+    M{{ k.modulo_mayor_abandono.modulo_numero }} · {{ k.modulo_mayor_abandono.modulo_titulo }}
+    — {{ k.modulo_mayor_abandono.caidas }} estudiante{{ k.modulo_mayor_abandono.caidas|pluralize:"s" }}
+    completaron este módulo y no el siguiente (M{{ k.modulo_mayor_abandono.siguiente_numero }}),
+    tasa {{ k.modulo_mayor_abandono.tasa_pct }}%.
+</section>
+{% endif %}
+{% endwith %}
+
+<section class="panel">
+    <h2 style="margin-top:0;">Embudo de aprendizaje</h2>
+    {% if data.requiere_curso_para_modulos %}
+    <p class="muted" style="margin-bottom:16px;">
+        Seleccione un <strong>curso</strong> arriba para ver el desglose por módulo (M1, M2…).
+        Los pasos de onboarding y certificados se muestran con todos los cursos.
+    </p>
+    {% elif data.curso %}
+    <p class="muted" style="margin-bottom:16px;">Curso: <strong>{{ data.curso.nombre }}</strong></p>
+    {% endif %}
+    <ul class="ret-funnel">
+        {% for paso in data.embudo %}
+        <li class="ret-funnel__item">
+            <div>
+                <strong>{{ paso.etiqueta }}</strong>
+                {% if paso.titulo %}<br><span class="muted" style="font-size:12px;">{{ paso.titulo }}</span>{% endif %}
+                <div class="ret-funnel__bar-wrap" style="margin-top:8px;">
+                    <div class="ret-funnel__bar" style="width:{{ paso.pct_del_total }}%;"></div>
+                </div>
+            </div>
+            <span class="ret-funnel__count">{{ paso.cantidad }}</span>
+            <span class="ret-funnel__pct">
+                {% if paso.pct_desde_anterior != None %}{{ paso.pct_desde_anterior }}%{% else %}100%{% endif %}
+            </span>
+        </li>
+        {% empty %}
+        <li class="muted">Sin inscripciones para los filtros seleccionados.</li>
+        {% endfor %}
+    </ul>
+</section>
+
+<section class="panel" style="margin-top:24px;border-left:4px solid var(--accent);">
+    <h2 style="margin-top:0;">Próximas fases (roadmap)</h2>
+    <p class="muted" style="margin-bottom:0;">
+        Fase 2: score de riesgo por estudiante · Fase 3: automatizaciones de reactivación ·
+        Fase 4: mensajes personalizados con IA · Fase 7: alertas para coordinadores en este panel.
+    </p>
+</section>
+{% endblock %}

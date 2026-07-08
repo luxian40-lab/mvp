@@ -1,9 +1,49 @@
-<style>
 .eki-ranking-wrap {
     background: var(--eki-surface);
     border: 1px solid var(--eki-border);
     border-radius: var(--eki-radius);
     padding: 1.35rem 1.5rem;
+    overflow: hidden;
+}
+.eki-ranking-wrap--live {
+    border-color: var(--eki-purple-soft);
+    box-shadow: 0 4px 24px rgba(125, 33, 129, 0.08);
+}
+.eki-ranking-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    margin-bottom: 1.1rem;
+    border-radius: var(--eki-radius);
+    background: linear-gradient(135deg, var(--eki-purple-dark) 0%, #6a1c6e 55%, #8b2d90 100%);
+    color: #fff;
+    animation: eki-rank-banner-in 0.5s ease-out both;
+}
+.eki-ranking-banner__icon {
+    flex-shrink: 0;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    animation: eki-rank-trophy-pulse 2.2s ease-in-out infinite;
+}
+.eki-ranking-banner__title {
+    margin: 0;
+    font-family: var(--font-serif);
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.25;
+}
+.eki-ranking-banner__sub {
+    margin: 0.2rem 0 0;
+    font-size: 0.78rem;
+    opacity: 0.88;
+    line-height: 1.4;
 }
 .eki-ranking-head {
     display: flex;
@@ -19,22 +59,46 @@
     border: 1px solid var(--eki-purple-soft);
     border-radius: var(--eki-radius);
     padding: 0.5rem 1rem;
-    min-width: 72px;
+    min-width: 80px;
+    animation: eki-rank-pop 0.45s ease-out 0.15s both;
+}
+.eki-ranking-mi-pos--gold {
+    background: linear-gradient(180deg, #fef9e8, #fff8dc);
+    border-color: #e8c547;
 }
 .eki-ranking-mi-pos__num {
     display: block;
     font-family: var(--font-serif);
-    font-size: 1.5rem;
+    font-size: 1.65rem;
     font-weight: 700;
     color: var(--eki-purple-dark);
     line-height: 1;
 }
+.eki-ranking-mi-pos--gold .eki-ranking-mi-pos__num { color: #9a7b0a; }
 .eki-ranking-mi-pos__lbl {
     font-size: 0.65rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--eki-muted);
 }
+.eki-ranking-mi-pos__pts {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--eki-purple);
+}
+.eki-ranking-chase {
+    margin: 0 0 1rem;
+    padding: 0.65rem 0.85rem;
+    border-radius: var(--eki-radius);
+    background: #fffbeb;
+    border: 1px solid #f0d878;
+    font-size: 0.82rem;
+    color: #6b5a12;
+    animation: eki-rank-banner-in 0.5s ease-out 0.25s both;
+}
+.eki-ranking-chase strong { color: #9a7b0a; }
 .eki-podium {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -48,22 +112,28 @@
     border-radius: var(--eki-radius);
     background: var(--eki-bg);
     border: 1px solid var(--eki-border);
+    animation: eki-rank-podium-up 0.55s ease-out both;
 }
 .eki-podium-item--1 {
     order: 2;
-    padding-top: 1.35rem;
-    background: linear-gradient(180deg, #fef9e8 0%, var(--eki-bg) 100%);
+    padding-top: 1.5rem;
+    background: linear-gradient(180deg, #fef9e8 0%, #fffdf5 100%);
     border-color: #e8c547;
+    box-shadow: 0 6px 20px rgba(201, 162, 39, 0.22);
+    animation-delay: 0.1s;
 }
-.eki-podium-item--2 { order: 1; }
-.eki-podium-item--3 { order: 3; }
-.eki-podium-item--me { box-shadow: 0 0 0 2px var(--eki-purple-soft); }
+.eki-podium-item--2 { order: 1; animation-delay: 0.2s; }
+.eki-podium-item--3 { order: 3; animation-delay: 0.3s; }
+.eki-podium-item--me {
+    box-shadow: 0 0 0 2px var(--eki-purple-soft);
+    transform: scale(1.02);
+}
 .eki-podium-medal {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 2rem;
-    height: 2rem;
+    width: 2.15rem;
+    height: 2.15rem;
     border-radius: 50%;
     font-family: var(--font-serif);
     font-weight: 700;
@@ -73,8 +143,21 @@
     color: var(--eki-purple-dark);
 }
 .eki-podium-item--1 .eki-podium-medal {
+    width: 2.5rem;
+    height: 2.5rem;
+    font-size: 1.05rem;
     background: linear-gradient(145deg, #f5d547, #c9a227);
     color: var(--eki-purple-deep);
+    box-shadow: 0 2px 8px rgba(201, 162, 39, 0.45);
+    animation: eki-rank-trophy-pulse 2s ease-in-out infinite;
+}
+.eki-podium-item--2 .eki-podium-medal {
+    background: linear-gradient(145deg, #e8eaed, #b8bcc4);
+    color: #4a4f57;
+}
+.eki-podium-item--3 .eki-podium-medal {
+    background: linear-gradient(145deg, #e8c4a8, #c9956a);
+    color: #5c3d24;
 }
 .eki-podium-name {
     margin: 0;
@@ -84,11 +167,96 @@
     line-height: 1.3;
 }
 .eki-podium-score {
-    margin: 0.25rem 0 0;
+    margin: 0.3rem 0 0;
     font-family: var(--font-serif);
-    font-size: 1.1rem;
+    font-size: 1.25rem;
     font-weight: 700;
     color: var(--eki-purple-dark);
+}
+.eki-podium-item--1 .eki-podium-score { font-size: 1.45rem; color: #9a7b0a; }
+.eki-leaderboard {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.eki-leaderboard-item {
+    display: grid;
+    grid-template-columns: 2.25rem 1fr auto;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 0.65rem;
+    border-bottom: 1px solid var(--eki-border);
+    animation: eki-rank-row-in 0.4s ease-out both;
+}
+.eki-leaderboard-item:last-child { border-bottom: none; }
+.eki-leaderboard-item--me {
+    background: linear-gradient(90deg, rgba(125, 33, 129, 0.1), rgba(125, 33, 129, 0.03));
+    border-radius: var(--eki-radius);
+    border-bottom-color: transparent;
+    margin: 0.15rem 0;
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
+    box-shadow: inset 3px 0 0 var(--eki-purple);
+}
+.eki-leaderboard-rank {
+    font-family: var(--font-serif);
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--eki-muted);
+    text-align: center;
+}
+.eki-leaderboard-item--top1 .eki-leaderboard-rank { color: #c9a227; }
+.eki-leaderboard-item--top2 .eki-leaderboard-rank { color: #8a9199; }
+.eki-leaderboard-item--top3 .eki-leaderboard-rank { color: #b87d4b; }
+.eki-leaderboard-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--eki-ink);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.eki-leaderboard-meta {
+    font-size: 0.72rem;
+    color: var(--eki-muted);
+    margin-top: 0.1rem;
+}
+.eki-leaderboard-score {
+    text-align: right;
+    min-width: 4.5rem;
+}
+.eki-leaderboard-score__num {
+    display: block;
+    font-family: var(--font-serif);
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--eki-purple-dark);
+    line-height: 1.1;
+}
+.eki-leaderboard-score__lbl {
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--eki-muted);
+    font-weight: 600;
+}
+.eki-leaderboard-bar-wrap {
+    grid-column: 1 / -1;
+    height: 4px;
+    background: var(--eki-border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: -0.15rem;
+}
+.eki-leaderboard-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--eki-purple-soft), var(--eki-purple));
+    border-radius: 2px;
+    transition: width 0.8s ease-out;
+}
+.eki-leaderboard-item--me .eki-leaderboard-bar {
+    background: linear-gradient(90deg, #c9a227, var(--eki-purple));
 }
 .eki-ranking-table {
     width: 100%;
@@ -112,8 +280,35 @@
     background: rgba(125, 33, 129, 0.07);
     font-weight: 600;
 }
+@keyframes eki-rank-banner-in {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes eki-rank-podium-up {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes eki-rank-row-in {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+@keyframes eki-rank-pop {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+@keyframes eki-rank-trophy-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.06); }
+}
 @media (max-width: 480px) {
     .eki-podium { grid-template-columns: 1fr; }
     .eki-podium-item--1, .eki-podium-item--2, .eki-podium-item--3 { order: unset; }
 }
-</style>
+@media (prefers-reduced-motion: reduce) {
+    .eki-ranking-banner,
+    .eki-ranking-mi-pos,
+    .eki-podium-item,
+    .eki-leaderboard-item,
+    .eki-ranking-chase,
+    .eki-podium-medal { animation: none !important; }
+}

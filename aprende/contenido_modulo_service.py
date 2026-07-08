@@ -46,6 +46,34 @@ def _url_archivo_modulo(archivo: ArchivoModulo) -> str | None:
     return None
 
 
+def _titulo_paso_media(paso: PasoModulo) -> str:
+    return (paso.titulo or '').strip() or f'Material paso {paso.orden}'
+
+
+def media_de_paso(paso: PasoModulo) -> MediaAula | None:
+    return media_desde_url(_titulo_paso_media(paso), paso.media_url)
+
+
+def media_pasos_modulo(modulo: Modulo) -> list[tuple[str, MediaAula]]:
+    """Media de microcontenidos (PasoModulo) en secciones activas."""
+    items: list[tuple[str, MediaAula]] = []
+    pasos = (
+        PasoModulo.objects.filter(modulo=modulo, activo=True, seccion__activa=True)
+        .exclude(media_url='')
+        .select_related('seccion')
+        .order_by('seccion__orden', 'seccion__id', 'orden', 'id')
+    )
+    for paso in pasos:
+        url = (paso.media_url or '').strip()
+        if not url:
+            continue
+        titulo = _titulo_paso_media(paso)
+        media = media_desde_url(titulo, url)
+        if media:
+            items.append((titulo, media))
+    return items
+
+
 def archivos_multimedia_modulo(modulo: Modulo) -> list[MediaAula]:
     items: list[MediaAula] = []
     for arch in ArchivoModulo.objects.filter(modulo=modulo, activo=True).order_by('orden', 'titulo'):
@@ -65,10 +93,7 @@ def secciones_modulo_aula(modulo: Modulo) -> list[SeccionAula]:
         pasos = PasoModulo.objects.filter(seccion=sec, activo=True).order_by('orden', 'id')
         for paso in pasos:
             medias: list[MediaAula] = []
-            media = media_desde_url(
-                (paso.titulo or '').strip() or f'Material paso {paso.orden}',
-                paso.media_url,
-            )
+            media = media_de_paso(paso)
             if media:
                 medias.append(media)
             contenido = (paso.contenido or '').strip()

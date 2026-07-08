@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils import timezone
 
-from .models import EntregaTarea, TareaCurso
+from .models import AsistenciaAula, EntregaTarea, TareaCurso
 
 
 @admin.register(TareaCurso)

@@ -5,7 +5,7 @@ from django.conf import settings
 from core.models import SolicitudSoporte
 
 from .branding import branding_portal_completo, pasos_branding
-from .capabilities import categorias_pqrs_portal, modulos_portal
+from .capabilities import categorias_pqrs_portal, modulos_portal, portal_home_url, portal_solo_nat
 
 
 def pqrs_pendientes(request):
@@ -36,12 +36,14 @@ def portal_organizacion(request):
     msg = quote(f'Hola eki, necesito apoyo desde el portal — {org.nombre}.')
     mods = modulos_portal(org)
     es_admin = pu.rol == 'admin'
+    es_docente = pu.rol in ('admin', 'profesor')
     branding_ok = branding_portal_completo(org)
     return {
         'org': org,
         'portal_usuario': pu,
         'portal_es_admin': es_admin,
-        'portal_solo_lectura': not es_admin,
+        'portal_es_docente': es_docente,
+        'portal_solo_lectura': pu.rol == 'viewer',
         'org_iniciales': ''.join(p[0].upper() for p in (org.nombre or 'E')[:2].split()[:2]) or 'E',
         'portal_whatsapp_url': f'https://wa.me/{tel}?text={msg}',
         'portal_mod_cursos': mods['cursos'],
@@ -49,6 +51,8 @@ def portal_organizacion(request):
         'portal_mod_nat': mods['nat'],
         'portal_mod_empleabilidad': mods['empleabilidad'],
         'portal_mod_facilitador': mods['cursos'] or mods['gei'],
+        'portal_solo_nat': portal_solo_nat(org),
+        'portal_home_url': portal_home_url(org),
         'portal_branding_completo': branding_ok,
         'portal_branding_pasos': pasos_branding(org),
         'portal_branding_pendientes': sum(1 for p in pasos_branding(org) if not p['done']),

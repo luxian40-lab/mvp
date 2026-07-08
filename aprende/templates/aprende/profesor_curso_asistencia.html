@@ -1,0 +1,64 @@
+{% extends "aprende/base.html" %}
+{% block title %}{{ curso.nombre }} — Asistencia{% endblock %}
+{% block nav %}
+<a href="{% url 'aprende_profesor_cursos' %}">← Cursos</a>
+<a href="{% url 'aprende_profesor_logout' %}">Salir</a>
+{% endblock %}
+{% block content %}
+<div class="eki-page-head">
+    <span class="eki-badge">Aula docente</span>
+    <h1>{{ curso.nombre }}</h1>
+</div>
+
+{% include "aprende/partials/profesor_curso_tabs.html" %}
+
+<div class="eki-card" style="margin-top:1rem;">
+    <h2 class="eki-h2">Registro de asistencia</h2>
+    <p class="eki-muted" style="margin:-0.35rem 0 1rem;">
+        Marque quién asistió a la sesión. Cada asistencia cuenta como <strong>1 punto de peso</strong> en el promedio del curso
+        (nota 5 si asistió, 1 si no).
+    </p>
+
+    <form method="get" class="eki-toolbar" style="margin-bottom:1rem;">
+        <div class="eki-field" style="margin:0;">
+            <label for="fecha">Fecha de sesión</label>
+            <input type="date" name="fecha" id="fecha" value="{{ fecha|date:'Y-m-d' }}" required>
+        </div>
+        <button type="submit" class="eki-btn eki-btn--ghost">Cargar fecha</button>
+    </form>
+
+    {% if not filas %}
+    <p class="eki-muted">No hay estudiantes inscritos en este curso.</p>
+    {% else %}
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="fecha" value="{{ fecha|date:'Y-m-d' }}">
+        <div class="eki-table-wrap">
+            <table class="eki-table">
+                <thead>
+                    <tr>
+                        <th style="width:3rem;">✓</th>
+                        <th>Estudiante</th>
+                        <th>Documento</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in filas %}
+                    <tr>
+                        <td>
+                            <input type="checkbox" name="presente" value="{{ f.estudiante.id }}"
+                                {% if f.presente %}checked{% endif %}
+                                aria-label="Presente: {{ f.estudiante.nombre }}">
+                        </td>
+                        <td>{{ f.estudiante.nombre }}</td>
+                        <td class="eki-muted">{{ f.estudiante.cedula|default:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <button type="submit" class="eki-btn eki-btn--primary" style="margin-top:1rem;">Guardar asistencia</button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

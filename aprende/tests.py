@@ -166,6 +166,13 @@ class AprendeWebTests(TestCase):
             titulo='Guía WA',
             activo=True,
         )
+        ArchivoModulo.objects.create(
+            modulo=self.modulo,
+            tipo='imagen',
+            titulo='Foto campo',
+            url_externa='https://eki-produccion.s3.us-east-2.amazonaws.com/media/test.jpg',
+            activo=True,
+        )
         self.http.post('/aprende/estudiante/login/', {
             'cedula': 'web1',
             'telefono': '3009999002',
@@ -176,6 +183,44 @@ class AprendeWebTests(TestCase):
         self.assertContains(r, 'Guía WA')
         self.assertContains(r, 'Módulo 1')
         self.assertContains(r, self.curso.nombre)
+        self.assertContains(r, 'eki-bib-grid')
+        self.assertContains(r, 'eki-bib-thumb')
+        self.assertContains(r, 'aria-label="Ver Foto campo"')
+        self.assertContains(r, 'width="35" height="35"')
+        self.assertContains(r, 'eki-bib-lightbox')
+        self.assertContains(r, 'title="Guía WA"')
+
+    def test_biblioteca_incluye_media_microcontenido(self):
+        from core.models import PasoModulo, SeccionModulo
+
+        sec = SeccionModulo.objects.create(
+            modulo=self.modulo, orden=1, titulo='Fundamentos',
+        )
+        PasoModulo.objects.create(
+            modulo=self.modulo,
+            seccion=sec,
+            orden=1,
+            titulo='Video intro micro',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='Texto del paso.',
+            media_url='https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        )
+        PasoModulo.objects.create(
+            modulo=self.modulo,
+            seccion=sec,
+            orden=2,
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='Solo texto, sin media.',
+        )
+        self.http.post('/aprende/estudiante/login/', {
+            'cedula': 'web1',
+            'telefono': '3009999002',
+        })
+        r = self.http.get('/aprende/estudiante/biblioteca/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Video intro micro')
+        self.assertContains(r, 'aria-label="Ver Video intro micro"')
+        self.assertContains(r, 'img.youtube.com/vi/dQw4w9WgXcQ/default.jpg')
 
     def test_modulo_muestra_secciones_y_media_solo_consulta(self):
         from core.models import PasoModulo, SeccionModulo
@@ -320,7 +365,6 @@ class AprendeWebTests(TestCase):
 
     def test_ranking_curso_por_grupo(self):
         from core.gamificacion import PerfilGamificacion
-        from core.models import ModuloCompletado, ProgresoEstudiante
         from core.models_extras import GrupoEstudiantes
 
         est2 = Estudiante.objects.create(
@@ -334,12 +378,12 @@ class AprendeWebTests(TestCase):
         grupo.estudiantes.add(self.est, est2)
         grupo.cursos.add(self.curso)
 
-        progreso1 = ProgresoEstudiante.objects.get(estudiante=self.est, curso=self.curso)
-        progreso2 = ProgresoEstudiante.objects.create(estudiante=est2, curso=self.curso, modulo_actual=self.modulo)
-        ModuloCompletado.objects.create(progreso=progreso2, modulo=self.modulo)
-
-        PerfilGamificacion.objects.get_or_create(estudiante=self.est)
-        PerfilGamificacion.objects.get_or_create(estudiante=est2)
+        p1, _ = PerfilGamificacion.objects.get_or_create(estudiante=self.est)
+        p1.puntos_totales = 30
+        p1.save(update_fields=['puntos_totales'])
+        p2, _ = PerfilGamificacion.objects.get_or_create(estudiante=est2)
+        p2.puntos_totales = 120
+        p2.save(update_fields=['puntos_totales'])
 
         self.http.post('/aprende/estudiante/login/', {
             'cedula': 'web1',
@@ -350,4 +394,142 @@ class AprendeWebTests(TestCase):
         self.assertContains(r, 'Ranking del curso')
         self.assertContains(r, 'Grupo Curso')
         self.assertContains(r, 'Líder Grupo')
+        self.assertContains(r, 'eki-leaderboard-score__num">120')
         self.assertContains(r, 'Tu puesto')
+        self.assertContains(r, 'Te faltan')
+
+
+class AprendeProfesorAuthTests(TestCase):
+    """Portal B2B y aula docente comparten sesión; is_staff no debe bloquear."""
+
+    def setUp(self):
+        self.http = Client()
+        self.cliente = Cliente.objects.create(
+            nombre='Org Docente',
+            contacto_principal='A',
+            email='doc@test.com',
+            telefono='573008888001',
+            activo=True,
+            fecha_fin_suscripcion='2099-12-31',
+        )
+        self.curso = Curso.objects.create(nombre='Curso Doc', cliente=self.cliente, activo=True)
+        self.user_staff = User.objects.create_user('coord_admin', 'c@t.com', 'pass1234')
+        self.user_staff.is_staff = True
+        self.user_staff.save(update_fields=['is_staff'])
+        PortalUsuario.objects.create(
+            user=self.user_staff, organizacion=self.cliente, rol='admin',
+        )
+        self.viewer = User.objects.create_user('solo_ver', 'v@t.com', 'pass1234')
+        PortalUsuario.objects.create(
+            user=self.viewer, organizacion=self.cliente, rol='viewer',
+        )
+
+    def test_staff_admin_entra_aprende_profesor(self):
+        r = self.http.post('/aprende/profesor/login/', {
+            'username': 'coord_admin',
+            'password': 'pass1234',
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r.url, '/aprende/profesor/')
+        r2 = self.http.get('/aprende/profesor/')
+        self.assertEqual(r2.status_code, 200)
+        self.assertContains(r2, 'Curso Doc')
+
+    def test_sesion_portal_abre_aula_sin_relogin(self):
+        self.http.post('/portal/login/', {'username': 'coord_admin', 'password': 'pass1234'})
+        r = self.http.get('/aprende/profesor/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Curso Doc')
+
+    def test_viewer_no_entra_aula_docente(self):
+        r = self.http.post('/aprende/profesor/login/', {
+            'username': 'solo_ver',
+            'password': 'pass1234',
+        })
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Administrador o Profesor')
+
+
+class AprendeProfesorGestionTests(TestCase):
+    """Tareas editar/borrar, asistencia y calificaciones en aula docente."""
+
+    def setUp(self):
+        self.http = Client()
+        self.cliente = Cliente.objects.create(
+            nombre='Org Gestión',
+            contacto_principal='A',
+            email='gest@test.com',
+            telefono='573007777001',
+            activo=True,
+            modo_gamificacion='calificacion',
+        )
+        self.curso = Curso.objects.create(nombre='Curso Gest', cliente=self.cliente, activo=True)
+        self.modulo = Modulo.objects.create(
+            curso=self.curso, numero=1, titulo='M1', descripcion='', contenido='x',
+        )
+        self.est = Estudiante.objects.create(
+            cedula='gest1', nombre='Est Gest', telefono='573007777002',
+            cliente=self.cliente, activo=True,
+        )
+        ProgresoEstudiante.objects.create(estudiante=self.est, curso=self.curso, modulo_actual=self.modulo)
+        self.user = User.objects.create_user('prof_gest', 'pg@t.com', 'pass')
+        PortalUsuario.objects.create(user=self.user, organizacion=self.cliente, rol='profesor')
+        self.http.post('/aprende/profesor/login/', {'username': 'prof_gest', 'password': 'pass'})
+
+    def test_editar_y_desactivar_tarea(self):
+        tarea = TareaCurso.objects.create(curso=self.curso, titulo='Original', instrucciones='a')
+        archivo = SimpleUploadedFile('x.pdf', b'%PDF', content_type='application/pdf')
+        EntregaTarea.objects.create(
+            tarea=tarea, estudiante=self.est,
+            archivo=archivo, nombre_archivo='x.pdf',
+        )
+        r = self.http.post(f'/aprende/profesor/tarea/{tarea.id}/editar/', {
+            'titulo': 'Actualizada',
+            'instrucciones': 'b',
+            'activa': '',
+        })
+        self.assertEqual(r.status_code, 302)
+        tarea.refresh_from_db()
+        self.assertEqual(tarea.titulo, 'Actualizada')
+        self.assertFalse(tarea.activa)
+
+        r2 = self.http.post(f'/aprende/profesor/tarea/{tarea.id}/eliminar/')
+        self.assertEqual(r2.status_code, 302)
+        self.assertTrue(TareaCurso.objects.filter(pk=tarea.pk).exists())
+        tarea.refresh_from_db()
+        self.assertFalse(tarea.activa)
+
+    def test_eliminar_tarea_sin_entregas(self):
+        tarea = TareaCurso.objects.create(curso=self.curso, titulo='Borrar', instrucciones='x')
+        r = self.http.post(f'/aprende/profesor/tarea/{tarea.id}/eliminar/')
+        self.assertEqual(r.status_code, 302)
+        self.assertFalse(TareaCurso.objects.filter(pk=tarea.pk).exists())
+
+    def test_asistencia_y_calificacion(self):
+        from core.gamificacion import EvaluacionNotaGamificacion
+
+        r = self.http.post(f'/aprende/profesor/curso/{self.curso.id}/asistencia/', {
+            'fecha': '2026-07-06',
+            'presente': [str(self.est.pk)],
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(
+            EvaluacionNotaGamificacion.objects.filter(
+                estudiante=self.est, curso=self.curso, tipo='asistencia',
+            ).exists()
+        )
+
+        r2 = self.http.get(f'/aprende/profesor/curso/{self.curso.id}/calificaciones/')
+        self.assertEqual(r2.status_code, 200)
+        self.assertContains(r2, 'Est Gest')
+
+        r3 = self.http.post(f'/aprende/profesor/curso/{self.curso.id}/calificaciones/', {
+            'accion': 'nota_manual',
+            'estudiante_id': str(self.est.pk),
+            'nota': '4',
+            'detalle': 'Participación',
+        })
+        self.assertEqual(r3.status_code, 302)
+        self.assertTrue(
+            EvaluacionNotaGamificacion.objects.filter(estudiante=self.est, tipo='manual').exists()
+        )

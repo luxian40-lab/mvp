@@ -1,12 +1,12 @@
 {% extends "aprende/base.html" %}
-{% block title %}Nueva tarea | {{ curso.nombre }}{% endblock %}
+{% block title %}{% if tarea %}Editar tarea{% else %}Nueva tarea{% endif %} | {{ curso.nombre }}{% endblock %}
 {% block nav %}
 <a href="{% url 'aprende_profesor_curso' curso.id %}">← Volver al curso</a>
 {% endblock %}
 {% block main_class %}eki-main--wide{% endblock %}
 {% block content %}
 <div class="eki-page-head">
-    <span class="eki-badge">Nueva tarea</span>
+    <span class="eki-badge">{% if tarea %}Editar tarea{% else %}Nueva tarea{% endif %}</span>
     <h1>{{ curso.nombre }}</h1>
 </div>
 
@@ -14,11 +14,12 @@
     {% csrf_token %}
     <div class="eki-field">
         <label for="titulo">Título de la tarea</label>
-        <input type="text" name="titulo" id="titulo" required placeholder="Ej. Informe de práctica campo">
+        <input type="text" name="titulo" id="titulo" required placeholder="Ej. Informe de práctica campo"
+            value="{{ tarea.titulo|default:'' }}">
     </div>
     <div class="eki-field">
         <label for="instrucciones">Instrucciones para el estudiante</label>
-        <textarea name="instrucciones" id="instrucciones" rows="6" placeholder="Qué deben entregar, formato, criterios…"></textarea>
+        <textarea name="instrucciones" id="instrucciones" rows="6" placeholder="Qué deben entregar, formato, criterios…">{{ tarea.instrucciones|default:'' }}</textarea>
     </div>
     <div class="eki-grid-2">
         <div class="eki-field">
@@ -26,15 +27,36 @@
             <select name="modulo" id="modulo">
                 <option value="">— Todo el curso —</option>
                 {% for m in modulos %}
-                <option value="{{ m.id }}">Módulo {{ m.numero }}: {{ m.titulo }}</option>
+                <option value="{{ m.id }}" {% if tarea.modulo_id == m.id %}selected{% endif %}>Módulo {{ m.numero }}: {{ m.titulo }}</option>
                 {% endfor %}
             </select>
         </div>
         <div class="eki-field">
             <label for="fecha_limite">Fecha límite (opcional)</label>
-            <input type="datetime-local" name="fecha_limite" id="fecha_limite">
+            <input type="datetime-local" name="fecha_limite" id="fecha_limite"
+                {% if tarea.fecha_limite %}value="{{ tarea.fecha_limite|date:'Y-m-d\TH:i' }}"{% endif %}>
         </div>
     </div>
-    <button type="submit" class="eki-btn eki-btn--primary">Publicar tarea</button>
+    {% if tarea %}
+    <div class="eki-field">
+        <label><input type="checkbox" name="activa" {% if tarea.activa %}checked{% endif %}> Tarea activa (visible para estudiantes)</label>
+    </div>
+    {% endif %}
+    <div class="eki-toolbar">
+        <button type="submit" class="eki-btn eki-btn--primary">{% if tarea %}Guardar cambios{% else %}Publicar tarea{% endif %}</button>
+        {% if tarea %}
+        <a href="{% url 'aprende_profesor_tarea_entregas' tarea.id %}" class="eki-btn eki-btn--ghost">Ver entregas</a>
+        {% endif %}
+    </div>
 </form>
+
+{% if tarea %}
+<form method="post" action="{% url 'aprende_profesor_tarea_eliminar' tarea.id %}" class="eki-card" style="margin-top:1rem;border-color:#fecaca;"
+    onsubmit="return confirm('¿Eliminar esta tarea? Si tiene entregas se desactivará.');">
+    {% csrf_token %}
+    <h2 class="eki-h2" style="color:#b91c1c;">Zona de peligro</h2>
+    <p class="eki-muted">Eliminar la tarea. Si ya hay entregas, solo se ocultará a los estudiantes.</p>
+    <button type="submit" class="eki-btn eki-btn--ghost" style="color:#b91c1c;border-color:#fecaca;">Eliminar tarea</button>
+</form>
+{% endif %}
 {% endblock %}

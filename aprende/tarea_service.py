@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from datetime import datetime, time
+
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from django.utils.dateparse import parse_date, parse_datetime
 
 from core.models import Curso, ProgresoEstudiante
 
@@ -15,35 +18,57 @@ def estudiante_inscrito_en_curso(estudiante, curso: Curso) -> bool:
     return ProgresoEstudiante.objects.filter(estudiante=estudiante, curso=curso).exists()
 
 
+def _parse_fecha_limite(raw_fecha: str):
+    raw_fecha = (raw_fecha or '').strip()
+    if not raw_fecha:
+        return None
+    fecha_limite = parse_datetime(raw_fecha)
+    if not fecha_limite:
+        d = parse_date(raw_fecha)
+        if d:
+            fecha_limite = timezone.make_aware(datetime.combine(d, time(23, 59, 59)))
+    return fecha_limite
+
+
 def crear_tarea(request, curso: Curso) -> tuple[TareaCurso | None, str | None]:
     titulo = request.POST.get('titulo', '').strip()
     if not titulo:
         return None, 'El título de la tarea es obligatorio.'
     modulo_id = request.POST.get('modulo') or None
-    modulo = None
-    if modulo_id:
-        modulo = curso.modulos.filter(pk=modulo_id).first()
-    fecha_limite = None
-    raw_fecha = request.POST.get('fecha_limite', '').strip()
-    if raw_fecha:
-        from datetime import datetime, time
-
-        from django.utils.dateparse import parse_date, parse_datetime
-
-        fecha_limite = parse_datetime(raw_fecha)
-        if not fecha_limite:
-            d = parse_date(raw_fecha)
-            if d:
-                fecha_limite = timezone.make_aware(datetime.combine(d, time(23, 59, 59)))
+    modulo = curso.modulos.filter(pk=modulo_id).first() if modulo_id else None
     tarea = TareaCurso.objects.create(
         curso=curso,
         modulo=modulo,
         titulo=titulo,
         instrucciones=request.POST.get('instrucciones', '').strip(),
-        fecha_limite=fecha_limite,
+        fecha_limite=_parse_fecha_limite(request.POST.get('fecha_limite', '')),
         activa=True,
     )
     return tarea, None
+
+
+def actualizar_tarea(request, tarea: TareaCurso) -> str | None:
+    titulo = request.POST.get('titulo', '').strip()
+    if not titulo:
+        return 'El título de la tarea es obligatorio.'
+    curso = tarea.curso
+    modulo_id = request.POST.get('modulo') or None
+    tarea.titulo = titulo
+    tarea.instrucciones = request.POST.get('instrucciones', '').strip()
+    tarea.modulo = curso.modulos.filter(pk=modulo_id).first() if modulo_id else None
+    tarea.fecha_limite = _parse_fecha_limite(request.POST.get('fecha_limite', ''))
+    tarea.activa = request.POST.get('activa', 'on') == 'on'
+    tarea.save()
+    return None
+
+
+def eliminar_tarea(tarea: TareaCurso) -> tuple[bool, str]:
+    if tarea.entregas.exists():
+        tarea.activa = False
+        tarea.save(update_fields=['activa'])
+        return False, 'La tarea tiene entregas; se desactivó en lugar de borrarla.'
+    tarea.delete()
+    return True, 'Tarea eliminada.'
 
 
 def guardar_entrega(request, tarea: TareaCurso, estudiante) -> tuple[EntregaTarea | None, str | None]:
@@ -93,4 +118,7 @@ def calificar_entrega(request, entrega: EntregaTarea) -> str | None:
     pu = getattr(request, 'portal_usuario', None)
     entrega.calificado_por = pu.user if pu else None
     entrega.save()
+    from .calificacion_aula_service import sincronizar_nota_tarea_entrega
+
+    sincronizar_nota_tarea_entrega(entrega)
     return None

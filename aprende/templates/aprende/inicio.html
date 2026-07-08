@@ -1,28 +1,18 @@
 {% extends "aprende/base.html" %}
-{% block title %}Aula virtual eki{% endblock %}
+{% block title %}Aula eki{% endblock %}
 {% block main_class %}eki-main--wide{% endblock %}
 {% block content %}
-<section class="eki-hero">
-    <span class="eki-kicker">Plataforma de formación</span>
-    <h1>Aula virtual</h1>
-    <p class="eki-lead">
-        Su espacio de estudio: módulos, biblioteca y tareas del programa
-        que cursa por WhatsApp. Para inscribirse en cursos nuevos, use
-        <a href="/studio/" style="color:var(--eki-purple-dark);">eki Studio</a>.
-    </p>
-</section>
-
 <div class="eki-grid-2">
     <article class="eki-card eki-card--bar eki-card--interactive eki-role-card">
         <span class="eki-role-num">I</span>
         <h2>Estudiante</h2>
-        <p class="eki-muted">Ingrese con cédula y teléfono registrado. Consulte módulos, biblioteca y perfil académico.</p>
+        <p class="eki-muted">Ingrese con <strong>número de documento</strong> y teléfono WhatsApp registrados. Consulte módulos, biblioteca y perfil académico.</p>
         <a class="eki-btn eki-btn--primary" href="{% url 'aprende_estudiante_login' %}">Ingresar</a>
     </article>
     <article class="eki-card eki-card--bar eki-card--interactive eki-role-card">
         <span class="eki-role-num">II</span>
         <h2>Docente</h2>
-        <p class="eki-muted">Publique lecciones y gestione tareas de su organización con las credenciales del portal.</p>
+        <p class="eki-muted">Ingrese con <strong>usuario y contraseña del portal</strong> (mismas credenciales que el portal B2B). Publique lecciones, archivos y califique tareas.</p>
         <a class="eki-btn eki-btn--primary" href="{% url 'aprende_profesor_login' %}">Ingresar</a>
     </article>
 </div>

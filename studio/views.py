@@ -1,11 +1,16 @@
-"""eki Studio: catálogo, inscripción y onboarding de creadores (separado del aula)."""
+"""eki Studio: catálogo, cuentas, creadores y pagos."""
 
 from __future__ import annotations
 
 import re
 
 from django.contrib import messages
-from django.shortcuts import redirect, render
+from django.contrib.auth import logout
+from django.contrib.auth.decorators import login_required
+from django.http import Http404, HttpResponse, HttpResponseForbidden
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 
 from core.models import Estudiante
 from core.utils_telefono import normalizar_telefono, variantes_telefono
@@ -17,6 +22,23 @@ from .catalogo_service import (
     curso_disponible_en_studio,
     ids_cursos_inscritos,
     inscribir_estudiante_en_curso,
+)
+from .cuenta_service import (
+    autenticar_cuenta_aula,
+    cerrar_sesion_cuenta,
+    cuenta_desde_request,
+    iniciar_sesion_cuenta,
+    registrar_cuenta_aula,
+)
+from .models import CreadorStudio, PublicacionStudio
+from .pago_service import (
+    crear_intento_pago,
+    curso_requiere_pago,
+    marcar_pago_aprobado,
+    precio_curso_studio,
+    tiene_acceso_curso,
+    wompi_integracion_activa,
+    wompi_llave_publica,
 )
 
 
@@ -30,27 +52,85 @@ def _estudiante_sesion(request) -> Estudiante | None:
     return getattr(request, 'aprende_estudiante', None)
 
 
+def _cuenta_o_redirect(request, next_url='/studio/cursos/'):
+    cuenta = cuenta_desde_request(request)
+    if cuenta:
+        return cuenta
+    return redirect(f'/studio/cuenta/login/?next={next_url}')
+
+
 def inicio(request):
     est = _estudiante_sesion(request)
     catalogo = cursos_catalogo_studio(est)[:6]
     return render(request, 'studio/inicio.html', {
         'estudiante': est,
+        'cuenta': cuenta_desde_request(request),
         'destacados': catalogo,
     })
 
 
 def catalogo(request):
     est = _estudiante_sesion(request)
+    cuenta = cuenta_desde_request(request)
     inscritos = ids_cursos_inscritos(est) if est else set()
     todos = cursos_catalogo_studio(est)
+    for c in todos:
+        c.precio_studio = precio_curso_studio(c)
     return render(request, 'studio/catalogo.html', {
         'estudiante': est,
+        'cuenta': cuenta,
         'cursos': todos,
         'inscritos': inscritos,
     })
 
 
-def estudiante_login(request):
+def cuenta_registro(request):
+    if cuenta_desde_request(request):
+        return redirect('/studio/cursos/')
+
+    error = None
+    if request.method == 'POST':
+        cuenta, error = registrar_cuenta_aula(
+            email=request.POST.get('email', ''),
+            password=request.POST.get('password', ''),
+            nombre=request.POST.get('nombre', ''),
+        )
+        if cuenta:
+            iniciar_sesion_cuenta(request, cuenta)
+            messages.success(request, 'Cuenta creada. ¡Explora el catálogo!')
+            return redirect(request.GET.get('next', '/studio/cursos/'))
+
+    return render(request, 'studio/cuenta_registro.html', {'error': error})
+
+
+def cuenta_login(request):
+    if cuenta_desde_request(request):
+        return redirect(request.GET.get('next', '/studio/cursos/'))
+
+    error = None
+    if request.method == 'POST':
+        cuenta, error = autenticar_cuenta_aula(
+            email=request.POST.get('email', ''),
+            password=request.POST.get('password', ''),
+        )
+        if cuenta:
+            iniciar_sesion_cuenta(request, cuenta)
+            pending = request.session.pop('studio_pending_curso', None)
+            if pending:
+                return redirect(f'/studio/inscribir/{pending}/')
+            return redirect(request.GET.get('next', '/studio/cursos/'))
+
+    return render(request, 'studio/cuenta_login.html', {'error': error})
+
+
+def cuenta_logout(request):
+    cerrar_sesion_cuenta(request)
+    logout(request)
+    return redirect('/studio/')
+
+
+def estudiante_login_whatsapp(request):
+    """Legacy: cédula + teléfono (programas B2B por WhatsApp)."""
     if _estudiante_sesion(request):
         return redirect('/studio/cursos/')
 
@@ -68,23 +148,30 @@ def estudiante_login(request):
                     inscribir_estudiante_en_curso(est, curso)
                     messages.success(request, f'Te inscribiste en «{curso.nombre}».')
                     return redirect(f'/aprende/estudiante/curso/{curso.pk}/')
-            next_url = request.GET.get('next', '/studio/cursos/')
-            return redirect(next_url)
-        error = (
-            'Cédula o teléfono no coinciden. Use el mismo número de WhatsApp registrado.'
-        )
+            return redirect(request.GET.get('next', '/studio/cursos/'))
+        error = 'Cédula o teléfono no coinciden con el registro de WhatsApp.'
 
-    return render(request, 'studio/estudiante_login.html', {'error': error})
+    return render(request, 'studio/estudiante_login_whatsapp.html', {'error': error})
+
+
+def estudiante_login(request):
+    return redirect('/studio/cuenta/login/' + (
+        f'?next={request.GET["next"]}' if request.GET.get('next') else ''
+    ))
 
 
 def inscribir(request, curso_id: int):
     if request.method != 'POST':
         return redirect('/studio/cursos/')
 
+    cuenta = cuenta_desde_request(request)
     est = _estudiante_sesion(request)
-    if not est:
+    if not cuenta and not est:
         request.session['studio_pending_curso'] = curso_id
-        return redirect('/studio/estudiante/login/?next=/studio/cursos/')
+        return redirect(f'/studio/cuenta/login/?next=/studio/cursos/')
+
+    if cuenta:
+        est = cuenta.estudiante
 
     curso = curso_disponible_en_studio(est, curso_id)
     if not curso:
@@ -95,6 +182,15 @@ def inscribir(request, curso_id: int):
         messages.info(request, f'Ya estás inscrito en «{curso.nombre}».')
         return redirect(f'/aprende/estudiante/curso/{curso.pk}/')
 
+    if curso_requiere_pago(curso):
+        if not cuenta:
+            request.session['studio_pending_curso'] = curso_id
+            messages.info(request, 'Para cursos de pago necesitas una cuenta con correo.')
+            return redirect(f'/studio/cuenta/login/?next=/studio/cursos/')
+        if not tiene_acceso_curso(cuenta, curso):
+            acceso = crear_intento_pago(cuenta, curso)
+            return redirect(f'/studio/pagar/{acceso.wompi_referencia}/')
+
     inscribir_estudiante_en_curso(est, curso)
     messages.success(
         request,
@@ -103,6 +199,151 @@ def inscribir(request, curso_id: int):
     return redirect(f'/aprende/estudiante/curso/{curso.pk}/')
 
 
+def pagar_curso(request, referencia: str):
+    from .models import AccesoCursoPagado
+
+    acceso = get_object_or_404(
+        AccesoCursoPagado.objects.select_related('cuenta', 'curso'),
+        wompi_referencia=referencia,
+    )
+    cuenta = cuenta_desde_request(request)
+    if not cuenta or cuenta.pk != acceso.cuenta_id:
+        return redirect(f'/studio/cuenta/login/?next=/studio/pagar/{referencia}/')
+
+    if acceso.estado == AccesoCursoPagado.ESTADO_APROBADO:
+        return redirect(f'/aprende/estudiante/curso/{acceso.curso_id}/')
+
+    return render(request, 'studio/pagar_curso.html', {
+        'acceso': acceso,
+        'curso': acceso.curso,
+        'wompi_activo': wompi_integracion_activa(),
+        'wompi_public_key': wompi_llave_publica(),
+    })
+
+
+@require_POST
+def pagar_curso_confirmar(request, referencia: str):
+    """MVP: simula pago aprobado. Reemplazar por webhook Wompi en producción."""
+    from .models import AccesoCursoPagado
+
+    acceso = get_object_or_404(AccesoCursoPagado, wompi_referencia=referencia)
+    cuenta = cuenta_desde_request(request)
+    if not cuenta or cuenta.pk != acceso.cuenta_id:
+        return HttpResponseForbidden()
+
+    if acceso.estado != AccesoCursoPagado.ESTADO_APROBADO:
+        marcar_pago_aprobado(
+            acceso,
+            wompi_transaccion_id=f'MVP-{referencia[:16]}',
+            metadata={'origen': 'confirmar_mvp'},
+        )
+        messages.success(request, f'Pago confirmado. ¡Bienvenido a «{acceso.curso.nombre}»!')
+    return redirect(f'/aprende/estudiante/curso/{acceso.curso_id}/')
+
+
+@csrf_exempt
+@require_POST
+def webhook_wompi(request):
+    """
+    Webhook Wompi: validar firma y marcar AccesoCursoPagado como aprobado.
+    Configurar URL en panel Wompi → eventos transaction.updated APPROVED.
+    """
+    import json
+
+    from .models import AccesoCursoPagado
+
+    try:
+        payload = json.loads(request.body.decode('utf-8'))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return redirect('/studio/')
+
+    data = payload.get('data', payload)
+    referencia = (
+        data.get('reference')
+        or data.get('referencia')
+        or (data.get('transaction', {}) or {}).get('reference')
+    )
+    estado_wompi = (
+        data.get('status')
+        or (data.get('transaction', {}) or {}).get('status')
+        or ''
+    ).upper()
+    txn_id = (
+        data.get('id')
+        or (data.get('transaction', {}) or {}).get('id')
+        or ''
+    )
+
+    if not referencia:
+        return HttpResponse(status=400)
+
+    acceso = AccesoCursoPagado.objects.filter(wompi_referencia=referencia).first()
+    if not acceso:
+        raise Http404()
+
+    if estado_wompi in ('APPROVED', 'APROBADA', 'APROBADO'):
+        marcar_pago_aprobado(
+            acceso,
+            wompi_transaccion_id=str(txn_id),
+            metadata={'webhook': payload},
+        )
+    elif estado_wompi in ('DECLINED', 'REJECTED', 'ERROR'):
+        acceso.estado = AccesoCursoPagado.ESTADO_RECHAZADO
+        acceso.metadata = {**(acceso.metadata or {}), 'webhook': payload}
+        acceso.save(update_fields=['estado', 'metadata'])
+
+    return HttpResponse(status=200)
+
+
 def creador(request):
-    """Landing para profesores / creadores (MVP: solicitud manual)."""
-    return render(request, 'studio/creador.html')
+    creador_perfil = None
+    if request.user.is_authenticated:
+        creador_perfil = CreadorStudio.objects.filter(user=request.user).first()
+    publicaciones = 0
+    if creador_perfil:
+        publicaciones = PublicacionStudio.objects.filter(creador=creador_perfil).count()
+    return render(request, 'studio/creador.html', {
+        'creador_perfil': creador_perfil,
+        'publicaciones': publicaciones,
+        'cuenta': cuenta_desde_request(request),
+    })
+
+
+@login_required(login_url='/studio/creador/registro/')
+def creador_panel(request):
+    creador_perfil = get_object_or_404(CreadorStudio, user=request.user)
+    pubs = PublicacionStudio.objects.filter(creador=creador_perfil).select_related('curso')
+    return render(request, 'studio/creador_panel.html', {
+        'creador': creador_perfil,
+        'publicaciones': pubs,
+    })
+
+
+def creador_registro(request):
+    if request.user.is_authenticated and CreadorStudio.objects.filter(user=request.user).exists():
+        return redirect('/studio/creador/panel/')
+
+    error = None
+    if request.method == 'POST':
+        email = request.POST.get('email', '').strip().lower()
+        password = request.POST.get('password', '')
+        nombre = request.POST.get('nombre_publico', '').strip()
+        bio = request.POST.get('bio', '').strip()
+
+        cuenta, err = registrar_cuenta_aula(email=email, password=password, nombre=nombre)
+        if cuenta and not err:
+            CreadorStudio.objects.create(
+                user=cuenta.user,
+                nombre_publico=nombre,
+                bio=bio,
+                activo=False,
+            )
+            iniciar_sesion_cuenta(request, cuenta)
+            messages.success(
+                request,
+                'Solicitud recibida. El equipo eki activará tu espacio de creador pronto.',
+            )
+            return redirect('/studio/creador/panel/')
+        error = err or 'No se pudo crear la cuenta.'
+
+    return render(request, 'studio/creador_registro.html', {'error': error})

@@ -1,38 +1,15 @@
 {% extends "aprende/base.html" %}
 {% block title %}Ranking — {{ progreso.curso.nombre }} | eki{% endblock %}
-{% block nav %}
-<a href="{% url 'aprende_estudiante_curso' progreso.curso.id %}">{{ progreso.curso.nombre }}</a>
-{% include "aprende/estudiante_nav.html" %}
-{% endblock %}
+{% block nav %}{% include "aprende/estudiante_nav.html" %}{% endblock %}
 {% block extra_css %}
 {% include "aprende/partials/ranking_grupo_styles.html" %}
-.eki-tabs {
-    display: flex;
-    gap: 0.35rem;
-    margin-bottom: 1.25rem;
-    border-bottom: 1px solid var(--eki-border);
-    padding-bottom: 0;
-}
-.eki-tab {
-    padding: 0.55rem 1rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--eki-muted);
-    text-decoration: none;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-}
-.eki-tab:hover { color: var(--eki-purple-dark); }
-.eki-tab--active {
-    color: var(--eki-purple-dark);
-    border-bottom-color: var(--eki-purple);
-}
 {% endblock %}
 {% block content %}
+{% include "aprende/partials/estudiante_breadcrumb.html" with progreso=progreso %}
 <div class="eki-page-head">
     <span class="eki-kicker">Competencia sana</span>
     <h1>Ranking del curso</h1>
-    <p class="eki-lead">Compara tu avance con los compañeros de tu mismo grupo.</p>
+    <p class="eki-lead">Nombre y puntaje de tu grupo. Los puntos vienen de WhatsApp y de tu participación en el curso.</p>
 </div>
 
 {% include "aprende/partials/estudiante_curso_tabs.html" %}

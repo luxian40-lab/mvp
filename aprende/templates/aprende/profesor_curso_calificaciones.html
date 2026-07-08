@@ -1,0 +1,115 @@
+{% extends "aprende/base.html" %}
+{% block title %}{{ curso.nombre }} — Calificaciones{% endblock %}
+{% block nav %}
+<a href="{% url 'aprende_profesor_cursos' %}">← Cursos</a>
+<a href="{% url 'aprende_profesor_logout' %}">Salir</a>
+{% endblock %}
+{% block main_class %}eki-main--wide{% endblock %}
+{% block content %}
+<div class="eki-page-head">
+    <span class="eki-badge">Aula docente</span>
+    <h1>{{ curso.nombre }}</h1>
+</div>
+
+{% include "aprende/partials/profesor_curso_tabs.html" %}
+
+<div class="eki-card" style="margin-top:1rem;">
+    <h2 class="eki-h2">Calificaciones del curso</h2>
+    <p class="eki-muted" style="margin:-0.35rem 0 1rem;">
+        Promedio ponderado: asistencia (peso 1), tareas, retos y notas manuales. Puede corregir notas o sumar evaluaciones.
+    </p>
+
+    {% if not usa_calificacion %}
+    <p class="eki-muted">
+        Esta organización usa modo <strong>puntos</strong> o gamificación desactivada.
+        Las asistencias suman +1 punto cuando corresponde; las tareas se califican en cada entrega.
+    </p>
+    {% endif %}
+
+    {% if not filas %}
+    <p class="eki-muted">No hay estudiantes inscritos.</p>
+    {% else %}
+    <div class="eki-table-wrap">
+        <table class="eki-table">
+            <thead>
+                <tr>
+                    <th>Estudiante</th>
+                    <th>Asistencia</th>
+                    <th>Tareas</th>
+                    <th>Promedio</th>
+                    <th>Detalle / editar</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in filas %}
+                <tr>
+                    <td>
+                        <strong>{{ f.estudiante.nombre }}</strong>
+                        <div class="eki-muted" style="font-size:0.8rem;">{{ f.estudiante.cedula|default:"—" }}</div>
+                    </td>
+                    <td>{{ f.asistencia.presentes }}/{{ f.asistencia.total }} sesiones</td>
+                    <td>
+                        {% for e in f.entregas %}
+                        <div style="font-size:0.85rem;">{{ e.tarea.titulo }}: <strong>{{ e.nota }}/5</strong></div>
+                        {% empty %}
+                        <span class="eki-muted">—</span>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% if f.promedio != None %}<strong>{{ f.promedio|floatformat:1 }}</strong>/5{% else %}—{% endif %}
+                        {% if f.num_evaluaciones %}<div class="eki-muted" style="font-size:0.75rem;">{{ f.num_evaluaciones }} eval.</div>{% endif %}
+                    </td>
+                    <td>
+                        {% for ev in f.evaluaciones %}
+                        <form method="post" style="display:flex;gap:0.35rem;align-items:center;margin-bottom:0.35rem;flex-wrap:wrap;">
+                            {% csrf_token %}
+                            <input type="hidden" name="accion" value="editar_eval">
+                            <input type="hidden" name="eval_id" value="{{ ev.id }}">
+                            <span style="font-size:0.75rem;min-width:5rem;">{{ ev.get_tipo_display }}</span>
+                            <input type="number" name="nota" value="{{ ev.nota }}" min="1" max="5" step="0.1" style="width:4rem;padding:0.25rem;">
+                            <button type="submit" class="eki-btn eki-btn--ghost eki-btn--sm">OK</button>
+                        </form>
+                        {% empty %}
+                        <span class="eki-muted" style="font-size:0.8rem;">Sin evaluaciones aún</span>
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+<div class="eki-card" style="margin-top:1.25rem;">
+    <h2 class="eki-h2">Sumar calificación manual</h2>
+    <form method="post" class="eki-grid-2">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="nota_manual">
+        <div class="eki-field">
+            <label for="estudiante_id">Estudiante</label>
+            <select name="estudiante_id" id="estudiante_id" required>
+                <option value="">— Elija —</option>
+                {% for f in filas %}
+                <option value="{{ f.estudiante.id }}">{{ f.estudiante.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="eki-field">
+            <label for="nota">Nota (1–5)</label>
+            <input type="number" name="nota" id="nota" min="1" max="5" step="0.1" required placeholder="Ej. 4.5">
+        </div>
+        <div class="eki-field">
+            <label for="peso">Peso (default 1)</label>
+            <input type="number" name="peso" id="peso" min="0.1" max="10" step="0.1" placeholder="1">
+        </div>
+        <div class="eki-field">
+            <label for="detalle">Concepto</label>
+            <input type="text" name="detalle" id="detalle" maxlength="200" placeholder="Ej. Taller presencial, participación">
+        </div>
+        <div style="grid-column:1/-1;">
+            <button type="submit" class="eki-btn eki-btn--primary">Registrar nota</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

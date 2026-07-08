@@ -11,8 +11,10 @@
 {% include "aprende/partials/tareas_guia_estudiante.html" %}
 
 {% if not secciones %}
-<div class="eki-card">
-    <p class="eki-muted">No hay tareas publicadas en sus cursos por ahora. Aparecerán cuando el docente las asigne.</p>
+<div class="eki-card eki-empty">
+    <h2>Sin tareas por ahora</h2>
+    <p class="eki-muted">Aparecerán cuando su docente las publique en sus cursos.</p>
+    <a href="{% url 'aprende_estudiante_cursos' %}" class="eki-btn eki-btn--ghost eki-btn--sm">Volver a mis cursos</a>
 </div>
 {% else %}
 {% for sec in secciones %}

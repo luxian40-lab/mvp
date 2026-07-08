@@ -392,6 +392,8 @@ class EvaluacionNotaGamificacion(models.Model):
         ('reto', 'Reto facilitadora'),
         ('pregunta_abierta', 'Pregunta abierta final'),
         ('manual', 'Manual (equipo)'),
+        ('asistencia', 'Asistencia (aula docente)'),
+        ('tarea_aula', 'Tarea aula web'),
     ]
 
     estudiante = models.ForeignKey(

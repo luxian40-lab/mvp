@@ -32,8 +32,17 @@ from .media_aula import media_desde_url
 from .middleware import APRENDE_EST_SESSION_KEY
 from .models import EntregaTarea, TareaCurso
 from .perfil_service import actualizar_perfil_aula, resumen_perfil_aula
+from .calificacion_aula_service import (
+    actualizar_nota_evaluacion,
+    contexto_modo_calificacion,
+    filas_asistencia_curso,
+    filas_calificacion_curso,
+    guardar_asistencia_sesion,
+    parse_fecha_asistencia,
+    registrar_nota_manual_curso,
+)
 from .ranking_service import resumen_ranking_aula
-from .tarea_service import calificar_entrega, crear_tarea, guardar_entrega
+from .tarea_service import actualizar_tarea, calificar_entrega, crear_tarea, eliminar_tarea, guardar_entrega
 from .tareas_aula_service import tareas_agrupadas_estudiante, tareas_por_curso
 
 
@@ -68,8 +77,6 @@ def estudiante_login(request):
 
     error = None
     if request.method == 'POST':
-        from core.models import Estudiante
-
         cedula = re.sub(r'[\s\.\-]', '', request.POST.get('cedula', '').strip())
         tel = normalizar_telefono(request.POST.get('telefono', ''))
 
@@ -78,8 +85,8 @@ def estudiante_login(request):
             request.session[APRENDE_EST_SESSION_KEY] = est.pk
             return redirect('/aprende/estudiante/')
         error = (
-            'Cédula o teléfono no coinciden. Use el mismo número de WhatsApp registrado '
-            '(puede escribirlo con o sin 57).'
+            'Número de documento o teléfono no coinciden. Use el mismo teléfono WhatsApp '
+            'registrado (puede escribirlo con o sin 57).'
         )
 
     return render(request, 'aprende/estudiante_login.html', {'error': error})
@@ -277,31 +284,28 @@ def profesor_login(request):
 
     error = None
     if request.method == 'POST':
+        from portal.portal_auth import (
+            iniciar_sesion_portal,
+            portal_usuario_de_user,
+            puede_acceder_aula_docente,
+        )
+
         user = authenticate(
             request,
             username=request.POST.get('username', ''),
             password=request.POST.get('password', ''),
         )
-        if user and user.is_staff:
+        pu = portal_usuario_de_user(user) if user else None
+        if not user or not pu:
+            error = 'Credenciales incorrectas o usuario sin organización en el portal.'
+        elif not puede_acceder_aula_docente(pu):
             error = (
-                'Esta es la cuenta de administrador Django (/admin/). '
-                'Use un usuario del portal B2B con rol Administrador o Profesor.'
+                f'Tu usuario tiene rol «{pu.get_rol_display()}». '
+                'Solo Administrador o Profesor pueden entrar al aula docente.'
             )
-        elif user:
-            try:
-                pu = user.portal_usuario
-                if pu.rol not in ('admin', 'profesor'):
-                    error = (
-                        f'Tu usuario tiene rol «{pu.get_rol_display()}». '
-                        'Solo Administrador o Profesor pueden subir contenido en el aula web.'
-                    )
-                else:
-                    request.session[PORTAL_SESSION_KEY] = pu.pk
-                    return redirect('/aprende/profesor/')
-            except PortalUsuario.DoesNotExist:
-                error = 'Usuario sin organización en el portal. Pida acceso al coordinador.'
         else:
-            error = 'Credenciales incorrectas.'
+            iniciar_sesion_portal(request, pu)
+            return redirect('/aprende/profesor/')
 
     return render(request, 'aprende/profesor_login.html', {'error': error})
 
@@ -335,6 +339,7 @@ def profesor_curso(request, curso_id: int):
         'curso': curso,
         'modulos': modulos,
         'tareas': tareas,
+        'profesor_tab': 'contenido',
     })
 
 
@@ -436,5 +441,115 @@ def profesor_tarea_entregas(request, tarea_id: int):
     return render(request, 'aprende/profesor_tarea_entregas.html', {
         'tarea': tarea,
         'entregas': entregas,
+    })
+
+
+@requiere_profesor_aprende
+def profesor_tarea_editar(request, tarea_id: int):
+    org = _org_profesor(request)
+    tarea = get_object_or_404(
+        TareaCurso.objects.select_related('curso'),
+        pk=tarea_id,
+        curso__cliente=org,
+    )
+    curso = tarea.curso
+    modulos = Modulo.objects.filter(curso=curso).order_by('numero')
+
+    if request.method == 'POST':
+        error = actualizar_tarea(request, tarea)
+        if error:
+            messages.error(request, error)
+        else:
+            messages.success(request, f'Tarea «{tarea.titulo}» actualizada.')
+            return redirect('aprende_profesor_tarea_editar', tarea_id=tarea.pk)
+
+    return render(request, 'aprende/profesor_tarea_form.html', {
+        'curso': curso,
+        'modulos': modulos,
+        'tarea': tarea,
+    })
+
+
+@requiere_profesor_aprende
+def profesor_tarea_eliminar(request, tarea_id: int):
+    if request.method != 'POST':
+        return redirect('aprende_profesor_cursos')
+    org = _org_profesor(request)
+    tarea = get_object_or_404(
+        TareaCurso.objects.select_related('curso'),
+        pk=tarea_id,
+        curso__cliente=org,
+    )
+    curso_id = tarea.curso_id
+    _, msg = eliminar_tarea(tarea)
+    messages.success(request, msg)
+    return redirect('aprende_profesor_curso', curso_id=curso_id)
+
+
+@requiere_profesor_aprende
+def profesor_curso_asistencia(request, curso_id: int):
+    from django.utils import timezone
+
+    org = _org_profesor(request)
+    curso = get_object_or_404(Curso, pk=curso_id, cliente=org, activo=True)
+    fecha = parse_fecha_asistencia(request.GET.get('fecha') or request.POST.get('fecha'))
+    if not fecha:
+        fecha = timezone.localdate()
+
+    if request.method == 'POST':
+        presente_ids = {int(x) for x in request.POST.getlist('presente') if str(x).isdigit()}
+        total_inscritos = len(filas_asistencia_curso(curso, fecha))
+        n = guardar_asistencia_sesion(request, curso, fecha, presente_ids)
+        messages.success(request, f'Asistencia guardada: {n} presente(s) de {total_inscritos} inscrito(s).')
+        return redirect(f'/aprende/profesor/curso/{curso.pk}/asistencia/?fecha={fecha.isoformat()}')
+
+    filas = filas_asistencia_curso(curso, fecha)
+    return render(request, 'aprende/profesor_curso_asistencia.html', {
+        'curso': curso,
+        'fecha': fecha,
+        'filas': filas,
+        'profesor_tab': 'asistencia',
+        **contexto_modo_calificacion(org),
+    })
+
+
+@requiere_profesor_aprende
+def profesor_curso_calificaciones(request, curso_id: int):
+    org = _org_profesor(request)
+    curso = get_object_or_404(Curso, pk=curso_id, cliente=org, activo=True)
+
+    if request.method == 'POST':
+        accion = request.POST.get('accion', '')
+        try:
+            if accion == 'editar_eval':
+                ev = actualizar_nota_evaluacion(
+                    int(request.POST.get('eval_id', 0)),
+                    curso,
+                    request.POST.get('nota', ''),
+                )
+                messages.success(request, f'Nota actualizada ({ev.get_tipo_display()}).')
+            elif accion == 'nota_manual':
+                res = registrar_nota_manual_curso(
+                    curso,
+                    int(request.POST.get('estudiante_id', 0)),
+                    request.POST.get('nota', ''),
+                    detalle=request.POST.get('detalle', ''),
+                    peso_raw=request.POST.get('peso', ''),
+                )
+                prom = res['promedio']
+                prom_txt = f'{prom:.1f}' if prom is not None else '—'
+                messages.success(request, f'Nota registrada para {res["estudiante"].nombre}. Promedio: {prom_txt}/5.')
+            else:
+                messages.error(request, 'Acción no reconocida.')
+        except ValueError as exc:
+            messages.error(request, str(exc))
+        return redirect('aprende_profesor_calificaciones', curso_id=curso.pk)
+
+    filas = filas_calificacion_curso(curso)
+    return render(request, 'aprende/profesor_curso_calificaciones.html', {
+        'curso': curso,
+        'filas': filas,
+        'profesor_tab': 'calificaciones',
+        **contexto_modo_calificacion(org),
     })
 

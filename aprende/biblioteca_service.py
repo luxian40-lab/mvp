@@ -1,4 +1,4 @@
-"""Biblioteca multimedia del aula: archivos de módulos liberados (mismo origen que WhatsApp)."""
+"""Biblioteca multimedia del aula: módulos liberados + microcontenidos (mismo origen que WhatsApp)."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from core.models import Curso, Estudiante, Modulo, ProgresoEstudiante
 from core.models_extras import ArchivoModulo
 
 from .acceso_modulos import modulos_visibles_aula
+from .contenido_modulo_service import media_pasos_modulo
 from .media_aula import MediaAula, media_desde_url
 
 
@@ -35,7 +36,7 @@ def items_biblioteca_aula(estudiante: Estudiante) -> list[ItemBibliotecaAula]:
     """
     Multimedia accesible en el aula para un estudiante:
     archivos activos de módulos liberados (drip/avance) en sus cursos inscritos.
-    Incluye video/PDF del módulo cuando están configurados.
+    Incluye video/PDF del módulo, archivos multimedia y media de pasos (microcontenidos).
     """
     items: list[ItemBibliotecaAula] = []
     progresos = (
@@ -91,6 +92,18 @@ def items_biblioteca_aula(estudiante: Estudiante) -> list[ItemBibliotecaAula]:
                         titulo=arch.titulo,
                         url=url,
                         media=media_desde_url(arch.titulo, url or '', arch.tipo),
+                    )
+                )
+            for titulo_paso, media_paso in media_pasos_modulo(modulo):
+                items.append(
+                    ItemBibliotecaAula(
+                        curso=prog.curso,
+                        modulo=modulo,
+                        archivo=None,
+                        tipo=media_paso.tipo,
+                        titulo=titulo_paso,
+                        url=media_paso.url,
+                        media=media_paso,
                     )
                 )
     return items

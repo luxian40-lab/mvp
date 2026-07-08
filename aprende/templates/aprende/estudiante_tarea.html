@@ -1,11 +1,9 @@
 {% extends "aprende/base.html" %}
 {% block title %}{{ tarea.titulo }} | Tarea{% endblock %}
-{% block nav %}
-<a href="{% url 'aprende_estudiante_tareas' %}">← Volver a tareas</a>
-{% include "aprende/estudiante_nav.html" %}
-{% endblock %}
+{% block nav %}{% include "aprende/estudiante_nav.html" %}{% endblock %}
 {% block main_class %}eki-main--wide{% endblock %}
 {% block content %}
+{% include "aprende/partials/estudiante_breadcrumb.html" with tarea=tarea %}
 <div class="eki-page-head">
     <span class="eki-badge">Tarea</span>
     <h1>{{ tarea.titulo }}</h1>
@@ -16,12 +14,6 @@
     <p class="eki-muted">Fecha límite: {{ tarea.fecha_limite|date:"d/m/Y H:i" }}</p>
     {% endif %}
 </div>
-
-{% if messages %}
-{% for message in messages %}
-<div class="eki-alert eki-alert--{% if message.tags == 'error' %}error{% else %}ok{% endif %}">{{ message }}</div>
-{% endfor %}
-{% endif %}
 
 {% if not entrega or not entrega.calificada %}
 <div class="eki-card" style="margin-bottom:1rem;background:var(--eki-bg);">
@@ -58,7 +50,10 @@
 
     <div class="eki-field">
         <label for="archivo">Archivo</label>
-        <input type="file" name="archivo" id="archivo" {% if not entrega %}required{% endif %} {% if entrega and entrega.calificada %}disabled{% endif %}>
+        <div class="eki-file">
+            <input type="file" name="archivo" id="archivo" {% if not entrega %}required{% endif %} {% if entrega and entrega.calificada %}disabled{% endif %} accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.jpg,.jpeg,.png">
+            <span class="eki-file-name" id="archivo-nombre" aria-live="polite"></span>
+        </div>
         {% if entrega and not entrega.calificada %}
         <p class="eki-muted" style="font-size:0.8rem;margin:0.35rem 0 0;">Archivo actual: {{ entrega.nombre_archivo|default:entrega.archivo.name }}</p>
         {% endif %}
@@ -74,4 +69,25 @@
     <p class="eki-muted">Ya fue calificada. Si necesitas corregir, habla con tu profesor.</p>
     {% endif %}
 </form>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+    var input = document.getElementById('archivo');
+    var label = document.getElementById('archivo-nombre');
+    if (!input || !label) return;
+    input.addEventListener('change', function () {
+        var f = input.files && input.files[0];
+        if (!f) { label.textContent = ''; return; }
+        var mb = f.size / (1024 * 1024);
+        if (mb > 25) {
+            label.textContent = '⚠ ' + f.name + ' supera 25 MB (' + mb.toFixed(1) + ' MB). Elija un archivo más pequeño.';
+            label.style.color = '#b91c1c';
+        } else {
+            label.textContent = '✓ ' + f.name + ' (' + mb.toFixed(1) + ' MB)';
+            label.style.color = '';
+        }
+    });
+})();
+</script>
 {% endblock %}
