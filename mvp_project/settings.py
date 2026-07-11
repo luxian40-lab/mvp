@@ -246,7 +246,7 @@ JAZZMIN_SETTINGS = {
         {"name": "Inicio", "url": "admin:index", "new_window": False},
         {"name": "Dashboard", "url": "/admin/dashboard/", "new_window": False},
         {"name": "Estudiantes", "url": "/admin/core/estudiante/", "new_window": False},
-        {"name": "Retención", "url": "/admin/retencion/", "new_window": False},
+        {"name": "Retención", "url": "/admin/dashboard/?tab=retencion", "new_window": False},
         {"name": "Cobertura", "url": "/admin/cobertura/", "new_window": False},
         {"name": "Ajustar avance", "url": "/admin/ajustar-avance/", "new_window": False},
         {"name": "Gamificación manual", "url": "/admin/gamificacion-ajuste/", "new_window": False},

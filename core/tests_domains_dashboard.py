@@ -38,6 +38,8 @@ class DashboardTabResolverTests(SimpleTestCase):
         self.assertEqual(resolve_dashboard_tab('reportes'), 'learning')
         self.assertEqual(resolve_dashboard_tab('auditoria'), 'ai_ops')
         self.assertEqual(resolve_dashboard_tab('metricas_nati'), 'commercial')
+        self.assertEqual(resolve_dashboard_tab('retencion'), 'retencion')
+        self.assertEqual(resolve_dashboard_tab('embudo'), 'retencion')
 
     def test_learning_section_desde_tab_legacy(self):
         self.assertEqual(resolve_learning_section('reportes', None), 'reportes')

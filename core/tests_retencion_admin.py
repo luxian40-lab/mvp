@@ -1,4 +1,4 @@
-"""Tests panel retención admin."""
+"""Tests panel retención admin (ahora tab del Dashboard Eki)."""
 
 from django.contrib.auth.models import User
 from django.test import Client, TestCase, override_settings
@@ -29,14 +29,26 @@ class RetencionAdminViewTests(TestCase):
         self.http = Client()
         self.http.force_login(self.admin)
 
-    @override_settings(STORAGES=_STATIC_TEST_STORAGES)
-    def test_retencion_admin_carga(self):
+    @override_settings(SECURE_SSL_REDIRECT=False)
+    def test_retencion_url_redirige_a_dashboard_tab(self):
         r = self.http.get(f'/admin/retencion/?cliente={self.cliente.pk}&curso={self.curso.pk}')
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/admin/dashboard/', r['Location'])
+        self.assertIn('tab=retencion', r['Location'])
+        self.assertIn(f'cliente={self.cliente.pk}', r['Location'])
+
+    @override_settings(STORAGES=_STATIC_TEST_STORAGES, SECURE_SSL_REDIRECT=False)
+    def test_dashboard_tab_retencion_carga(self):
+        r = self.http.get(
+            f'/admin/dashboard/?tab=retencion&cliente={self.cliente.pk}&curso={self.curso.pk}'
+        )
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'Retención y embudo')
+        self.assertContains(r, 'Retención')
         self.assertContains(r, 'Embudo de aprendizaje')
         self.assertContains(r, 'Inscritos')
+        self.assertContains(r, 'tab-retencion')
 
+    @override_settings(SECURE_SSL_REDIRECT=False)
     def test_retencion_admin_requiere_staff(self):
         User.objects.create_user('norm', password='x')
         c = Client()

@@ -1,5 +1,5 @@
 """
-Parte 1 — modelo de 4 dashboards unificados.
+Parte 1 — modelo de dashboards unificados.
 
 | Tab canónico | Etiqueta UI           | Contenido legacy                    |
 |--------------|-----------------------|-------------------------------------|
@@ -7,6 +7,7 @@ Parte 1 — modelo de 4 dashboards unificados.
 | learning     | Learning Analytics    | Reportes B2B, métricas empresa, GEI |
 | ai_ops       | AI Operations         | Bot, Twilio, activaciones IA, RAG   |
 | commercial   | Commercial CRM        | Nati, prospectos, campañas          |
+| retencion    | Retención             | Embudo, activos/inactivos, deserción|
 """
 
 from __future__ import annotations
@@ -33,6 +34,11 @@ DASHBOARD_TABS: dict[str, dict] = {
         'label': 'Commercial CRM',
         'panel_id': 'tab-metricas_nati',
         'legacy_aliases': ['metricas_nati'],
+    },
+    'retencion': {
+        'label': 'Retención',
+        'panel_id': 'tab-retencion',
+        'legacy_aliases': ['retention', 'embudo'],
     },
 }
 

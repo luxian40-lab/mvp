@@ -479,7 +479,30 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
         'estudiantes_detalle': estudiantes_detalle,
         'tickets_soporte': tickets_soporte,
         'eventos_ia_recientes': eventos_ia_recientes,
+        'retencion_data': None,
+        'cursos_retencion': Curso.objects.none(),
     }
+
+    # Retención solo se calcula en su tab (evita costo en Executive/Learning/etc.).
+    if tab_actual == 'retencion':
+        from portal.retencion_service import analitica_retencion_portal
+
+        cursos_ret = Curso.objects.filter(activo=True).order_by('orden', 'nombre')
+        if cliente_id:
+            cursos_ret = cursos_ret.filter(cliente_id=cliente_id)
+            org = Cliente.objects.filter(pk=cliente_id, activo=True).first()
+            if org:
+                desde_ret = (request.GET.get('desde') or fecha_inicio or '').strip() or None
+                hasta_ret = (request.GET.get('hasta') or fecha_fin or '').strip() or None
+                context['retencion_data'] = analitica_retencion_portal(
+                    org,
+                    curso_id=curso_id,
+                    grupo_id=grupo_id,
+                    desde=desde_ret,
+                    hasta=hasta_ret,
+                )
+        context['cursos_retencion'] = cursos_ret
+
     return context, resumen_payload
 
 
