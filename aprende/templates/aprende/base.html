@@ -7,26 +7,28 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 32'%3E%3Crect width='48' height='16' fill='%23FCD116'/%3E%3Crect width='48' height='8' y='16' fill='%23003893'/%3E%3Crect width='48' height='8' y='24' fill='%23CE1126'/%3E%3C/svg%3E" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Sora:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --eki-purple: #7D2181;
-            --eki-purple-dark: #5a1860;
-            --eki-purple-deep: #431244;
-            --eki-purple-hover: #6a1c6e;
-            --eki-purple-soft: #9A6EAE;
-            --eki-purple-pale: #f3eaf4;
-            --eki-purple-muted: rgba(125, 33, 129, 0.1);
-            --eki-ink: #1a1520;
-            --eki-ink-soft: #3d3544;
-            --eki-muted: #5c5563;
-            --eki-bg: #f6f4f7;
+            /* Alias --eki-purple* → teal de marca (partials legacy siguen OK) */
+            --eki-purple: #0f6e6a;
+            --eki-purple-dark: #0a5552;
+            --eki-purple-deep: #083f3c;
+            --eki-purple-hover: #0c5c58;
+            --eki-purple-soft: #3d9e99;
+            --eki-purple-pale: #e6f2f1;
+            --eki-purple-muted: rgba(15, 110, 106, 0.12);
+            --eki-ink: #12141a;
+            --eki-ink-soft: #3d4450;
+            --eki-muted: #5c6570;
+            --eki-bg: #f3f4f2;
             --eki-surface: #ffffff;
-            --eki-border: #ddd5e3;
-            --eki-radius: 3px;
-            --header-h: 56px;
-            --font-serif: "Source Serif 4", "Georgia", "Times New Roman", serif;
-            --font-sans: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+            --eki-border: #e4e6e2;
+            --eki-radius: 6px;
+            --header-h: 58px;
+            --font-serif: "Fraunces", Georgia, "Times New Roman", serif;
+            --font-sans: "Sora", system-ui, sans-serif;
+            --font-read: "Source Serif 4", Georgia, "Times New Roman", serif;
         }
 
         *, *::before, *::after { box-sizing: border-box; }
@@ -38,9 +40,12 @@
             font-size: 0.9375rem;
             line-height: 1.6;
             color: var(--eki-ink);
-            background: var(--eki-bg);
+            background:
+                radial-gradient(ellipse 70% 40% at 0% 0%, rgba(15, 110, 106, 0.06), transparent 55%),
+                var(--eki-bg);
             display: flex;
             flex-direction: column;
+            -webkit-font-smoothing: antialiased;
         }
 
         /* —— Header institucional —— */
@@ -53,34 +58,34 @@
             align-items: center;
             justify-content: space-between;
             padding: 0 1.75rem;
-            background: var(--eki-purple-dark);
-            border-bottom: 1px solid var(--eki-purple-deep);
-            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
+            background: #0c1222;
+            border-bottom: 1px solid #1a2436;
+            box-shadow: none;
         }
 
         .eki-brand {
             display: flex;
             align-items: baseline;
-            gap: 0.65rem;
+            gap: 0.75rem;
             text-decoration: none;
             color: #fff;
         }
 
         .eki-brand-word {
             font-family: var(--font-serif);
-            font-size: 1.35rem;
-            font-weight: 600;
-            letter-spacing: -0.02em;
+            font-size: 1.55rem;
+            font-weight: 650;
+            letter-spacing: -0.03em;
             line-height: 1;
         }
 
         .eki-brand-text span {
             display: block;
-            font-size: 0.68rem;
+            font-size: 0.65rem;
             font-weight: 500;
-            letter-spacing: 0.14em;
+            letter-spacing: 0.12em;
             text-transform: uppercase;
-            color: rgba(255, 255, 255, 0.72);
+            color: rgba(255, 255, 255, 0.62);
             margin-top: 2px;
         }
 
@@ -165,22 +170,23 @@
             border: 1px solid var(--eki-border);
             border-radius: var(--eki-radius);
             padding: 1.35rem 1.5rem;
+            box-shadow: none;
         }
 
         .eki-card--bar {
-            border-left: 3px solid var(--eki-purple);
+            border-left: 2px solid var(--eki-purple);
         }
 
         .eki-card--interactive {
             display: block;
             text-decoration: none;
             color: inherit;
-            transition: border-color 0.2s, box-shadow 0.2s;
+            transition: border-color 0.2s;
         }
 
         .eki-card--interactive:hover {
             border-color: var(--eki-purple-soft);
-            box-shadow: 0 1px 4px rgba(90, 24, 96, 0.06);
+            box-shadow: none;
         }
 
         /* —— Buttons —— */
@@ -392,7 +398,7 @@
 
         .eki-auth-panel {
             display: none;
-            background: var(--eki-purple-dark);
+            background: #0c1222;
             color: #fff;
             padding: 2rem 1.75rem;
             border-radius: var(--eki-radius);
@@ -425,7 +431,7 @@
         }
 
         .eki-article {
-            font-family: var(--font-serif);
+            font-family: var(--font-read);
             font-size: 1.0625rem;
             line-height: 1.75;
             white-space: pre-wrap;
@@ -503,12 +509,18 @@
         }
 
         .eki-footer {
-            padding: 1rem 1.75rem;
+            padding: 1.15rem 1.75rem;
             font-size: 0.75rem;
             color: var(--eki-muted);
             border-top: 1px solid var(--eki-border);
-            background: var(--eki-surface);
+            background: transparent;
             letter-spacing: 0.02em;
+        }
+        .eki-footer strong {
+            font-family: var(--font-serif);
+            font-weight: 560;
+            color: var(--eki-ink);
+            letter-spacing: -0.02em;
         }
 
         .eki-tabs {
@@ -609,9 +621,9 @@
                 top: 100%;
                 left: 0;
                 right: 0;
-                background: var(--eki-purple-dark);
+                background: #0c1222;
                 padding: 0.75rem;
-                border-bottom: 1px solid var(--eki-purple-deep);
+                border-bottom: 1px solid #1a2436;
                 box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             }
             .eki-nav-toggle { display: block; }
@@ -647,7 +659,7 @@
     </main>
 
     <footer class="eki-footer">
-        eki · plataforma de formación profesional
+        <strong>eki</strong> · aula de formación
     </footer>
 
     <script>

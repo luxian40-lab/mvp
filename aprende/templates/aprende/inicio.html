@@ -1,19 +1,54 @@
 {% extends "aprende/base.html" %}
 {% block title %}Aula eki{% endblock %}
 {% block main_class %}eki-main--wide{% endblock %}
+{% block extra_css %}
+.eki-landing-hero {
+    margin: 0 0 2rem;
+    padding: 0.5rem 0 1.75rem;
+    border-bottom: 1px solid var(--eki-border);
+    max-width: 36rem;
+}
+.eki-landing-hero .eki-kicker {
+    color: var(--eki-purple-dark);
+}
+.eki-landing-hero h1 {
+    font-size: clamp(1.85rem, 4vw, 2.35rem);
+    font-weight: 560;
+    letter-spacing: -0.03em;
+    margin: 0 0 0.65rem;
+}
+.eki-landing-hero p {
+    margin: 0;
+    color: var(--eki-muted);
+    font-size: 1rem;
+    line-height: 1.65;
+    max-width: 34ch;
+}
+.eki-role-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 11rem;
+}
+.eki-role-card .eki-btn { align-self: flex-start; margin-top: auto; }
+{% endblock %}
 {% block content %}
+<header class="eki-landing-hero">
+    <span class="eki-kicker">Aula virtual</span>
+    <h1>Aprender con calma, avanzar con claridad</h1>
+    <p>Lecciones, materiales y tareas en un espacio pensado para el aula — no para un panel genérico.</p>
+</header>
 <div class="eki-grid-2">
-    <article class="eki-card eki-card--bar eki-card--interactive eki-role-card">
+    <article class="eki-card eki-card--bar eki-role-card">
         <span class="eki-role-num">I</span>
         <h2>Estudiante</h2>
         <p class="eki-muted">Ingrese con <strong>número de documento</strong> y teléfono WhatsApp registrados. Consulte módulos, biblioteca y perfil académico.</p>
-        <a class="eki-btn eki-btn--primary" href="{% url 'aprende_estudiante_login' %}">Ingresar</a>
+        <a class="eki-btn eki-btn--primary" href="{% url 'aprende_estudiante_login' %}">Ingresar como estudiante</a>
     </article>
-    <article class="eki-card eki-card--bar eki-card--interactive eki-role-card">
+    <article class="eki-card eki-card--bar eki-role-card">
         <span class="eki-role-num">II</span>
         <h2>Docente</h2>
-        <p class="eki-muted">Ingrese con <strong>usuario y contraseña del portal</strong> (mismas credenciales que el portal B2B). Publique lecciones, archivos y califique tareas.</p>
-        <a class="eki-btn eki-btn--primary" href="{% url 'aprende_profesor_login' %}">Ingresar</a>
+        <p class="eki-muted">Ingrese con <strong>usuario y contraseña del portal</strong>. Publique lecciones, archivos y califique tareas.</p>
+        <a class="eki-btn eki-btn--primary" href="{% url 'aprende_profesor_login' %}">Ingresar como docente</a>
     </article>
 </div>
 {% endblock %}
