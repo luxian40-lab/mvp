@@ -62,6 +62,23 @@ class PortalCrmTests(TestCase):
         self.assertContains(r, 'eki-flag-co')
         self.assertContains(r, '¡Hola! ¿Le ayudo?')
 
+    def test_dashboard_ops_aggregates_sin_metricas_full(self):
+        from portal.dashboard_ops import operacion_del_dia, resumen_dashboard_rapido
+
+        # Sin módulo actual ni completados → sin_avance
+        est2 = Estudiante.objects.create(
+            cedula='8002', nombre='Sin avance', telefono='573222222202', cliente=self.cliente,
+        )
+        ProgresoEstudiante.objects.create(estudiante=est2, curso=self.curso, modulo_actual=None)
+
+        resumen = resumen_dashboard_rapido(self.cliente)
+        self.assertEqual(resumen['total_inscritos'], 2)
+        self.assertEqual(resumen['finalizados'], 0)
+
+        ops = operacion_del_dia(self.cliente)
+        self.assertEqual(ops['sin_avance'], 1)
+        self.assertNotIn('resumen', ops)
+
     def test_timeline_page(self):
         self._login('crm_admin')
         r = self.http.get('/portal/timeline/')

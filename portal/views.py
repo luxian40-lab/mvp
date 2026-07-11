@@ -51,7 +51,7 @@ from .gei_service import analitica_gei, parse_filtros_gei
 from .nat_service import analitica_nat
 from .middleware import PORTAL_SESSION_KEY
 from .utils import limpiar_numero_whatsapp, enviar_whatsapp_respuesta
-from .dashboard_ops import comparativa_periodos, operacion_del_dia
+from .dashboard_ops import comparativa_periodos, operacion_del_dia, resumen_dashboard_rapido
 from .timeline_service import timeline_organizacion
 from .forms_usuarios import CrearUsuarioPortalForm
 from .models import PortalFeedback, PortalUsuario
@@ -137,7 +137,8 @@ def dashboard(request):
     resumen_general = {}
     ranking_data = {'activa': False, 'ranking': []}
     if mods['cursos']:
-        resumen_general = calcular_metricas_empresa(cliente_id=org.pk).get('resumen', {})
+        # KPI slim: no llamar calcular_metricas_empresa (sigue en /portal/metricas/).
+        resumen_general = resumen_dashboard_rapido(org)
         ranking_data = ranking_portal(org, limite=15)
 
     gei_resumen = _resumen_gei_portal(org) if mods['gei'] else None

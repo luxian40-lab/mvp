@@ -4,11 +4,9 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.utils import timezone
 
-from core.drip_schedule import max_modulo_alcanzado
-from core.metricas_empresa import calcular_metricas_empresa
 from core.models import Estudiante, ProgresoEstudiante, SolicitudSoporte
 from core.models_certificados import Certificado
 
@@ -35,6 +33,28 @@ def _delta_pct(actual: int, anterior: int) -> int | None:
     if anterior == 0:
         return None if actual == 0 else 100
     return round((actual - anterior) / anterior * 100)
+
+
+def resumen_dashboard_rapido(org) -> dict:
+    """
+    KPIs mínimos del home del portal (solo aggregates SQL).
+
+    No usa calcular_metricas_empresa: esa función sigue intacta para
+    /portal/metricas/ y analytics. Aquí solo lo que pinta el dashboard.
+    """
+    progreso_q = ProgresoEstudiante.objects.filter(
+        estudiante__cliente_id=org.pk,
+    ).annotate(n_mods=Count('modulos_completados', distinct=True))
+    total_inscritos = progreso_q.count()
+    finalizados = progreso_q.filter(completado=True).count()
+    en_curso = progreso_q.filter(completado=False, n_mods__gt=0).count()
+    no_iniciados = progreso_q.filter(completado=False, n_mods=0).count()
+    return {
+        'total_inscritos': total_inscritos,
+        'finalizados': finalizados,
+        'en_curso': en_curso,
+        'no_iniciados': no_iniciados,
+    }
 
 
 def comparativa_periodos(org) -> dict:
@@ -79,7 +99,7 @@ def comparativa_periodos(org) -> dict:
 
 
 def operacion_del_dia(org, *, categorias_pqrs=None) -> dict:
-    """Acciones pendientes y actividad reciente."""
+    """Acciones pendientes y actividad reciente (sin métricas full / sin N+1)."""
     from core.models import WhatsappLog
 
     hoy = timezone.localdate()
@@ -90,18 +110,16 @@ def operacion_del_dia(org, *, categorias_pqrs=None) -> dict:
     if categorias_pqrs is not None:
         pqrs_q = pqrs_q.filter(categoria__in=categorias_pqrs)
 
-    sin_avance = 0
-    inactivos_30 = 0
-    progresos = ProgresoEstudiante.objects.filter(
+    # Equivalente a max_modulo_alcanzado(p) <= 0: sin módulos completados y sin módulo actual.
+    # Quienes ya tienen avance (n_mods>0 o modulo_actual) y llevan 30+ días sin actividad.
+    incompletos = ProgresoEstudiante.objects.filter(
         curso__cliente=org, completado=False,
-    ).select_related('estudiante')
-    for p in progresos:
-        if max_modulo_alcanzado(p) <= 0:
-            sin_avance += 1
-        elif p.fecha_ultimo_avance and p.fecha_ultimo_avance.date() < hace_30:
-            inactivos_30 += 1
-        elif not p.fecha_ultimo_avance:
-            inactivos_30 += 1
+    ).annotate(n_mods=Count('modulos_completados', distinct=True))
+    sin_avance = incompletos.filter(n_mods=0, modulo_actual__isnull=True).count()
+    con_avance = incompletos.filter(Q(n_mods__gt=0) | Q(modulo_actual__isnull=False))
+    inactivos_30 = con_avance.filter(
+        Q(fecha_ultimo_avance__isnull=True) | Q(fecha_ultimo_avance__date__lt=hace_30),
+    ).count()
 
     telefonos = list(
         Estudiante.objects.filter(cliente=org, activo=True)
@@ -127,5 +145,4 @@ def operacion_del_dia(org, *, categorias_pqrs=None) -> dict:
         'sin_avance': sin_avance,
         'inactivos_30_dias': inactivos_30,
         'ultimos_mensajes': ultimos_msgs,
-        'resumen': calcular_metricas_empresa(cliente_id=org.pk).get('resumen', {}),
     }
