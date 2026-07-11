@@ -1,31 +1,32 @@
 /**
- * eki admin v2 — look operativo B2B (no plantilla genérica).
+ * eki admin v3 — menos genérico: tipografía propia, acento teal, menos “card UI”.
  * Solo CSS + Jazzmin; misma plataforma, cero cambios de lógica.
  */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Sora:wght@400;500;600;700&display=swap');
 @import url('custom_sidebar.css');
 @import url('eki_admin_nav.css');
 
 :root {
-    --eki-bg: #f1f5f9;
+    --eki-bg: #f3f4f2;
     --eki-surface: #ffffff;
-    --eki-surface-2: #f8fafc;
-    --eki-border: #e2e8f0;
-    --eki-border-strong: #cbd5e1;
-    --eki-text: #0f172a;
-    --eki-muted: #64748b;
-    --eki-brand: #9b67b1;
-    --eki-accent: #9b67b1;
-    --eki-accent-soft: #f3eaf7;
-    --eki-accent-hover: #7d4f94;
-    --eki-sidebar: #141018;
-    --eki-sidebar-hover: #221a28;
-    --eki-sidebar-active: #3d2d48;
-    --eki-radius: 12px;
-    --eki-radius-sm: 8px;
-    --eki-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-    --eki-shadow-md: 0 4px 16px rgba(15, 23, 42, 0.06);
-    --eki-font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --eki-surface-2: #f7f8f6;
+    --eki-border: #e4e6e2;
+    --eki-border-strong: #c9cdc7;
+    --eki-text: #12141a;
+    --eki-muted: #5c6570;
+    --eki-brand: #0f6e6a;
+    --eki-accent: #0f6e6a;
+    --eki-accent-soft: #e6f2f1;
+    --eki-accent-hover: #0a5552;
+    --eki-sidebar: #0c1222;
+    --eki-sidebar-hover: #161d2e;
+    --eki-sidebar-active: #1e2a3d;
+    --eki-radius: 10px;
+    --eki-radius-sm: 6px;
+    --eki-shadow: none;
+    --eki-shadow-md: 0 1px 2px rgba(12, 18, 34, 0.04);
+    --eki-font: 'Sora', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --eki-display: 'Fraunces', Georgia, 'Times New Roman', serif;
 }
 
 /* —— Base —— */
@@ -109,9 +110,10 @@ a:hover {
 
 #jazzy-logo .brand-text {
     display: inline !important;
-    font-weight: 600 !important;
-    font-size: 1.15rem !important;
-    letter-spacing: -0.04em;
+    font-family: var(--eki-display) !important;
+    font-weight: 650 !important;
+    font-size: 1.35rem !important;
+    letter-spacing: -0.03em;
     color: #f8fafc !important;
 }
 
@@ -165,9 +167,10 @@ a:hover {
 
 .content-header h1,
 h1.m-0 {
-    font-size: 1.5rem !important;
-    font-weight: 600 !important;
-    letter-spacing: -0.03em;
+    font-family: var(--eki-display) !important;
+    font-size: 1.65rem !important;
+    font-weight: 560 !important;
+    letter-spacing: -0.02em;
     color: var(--eki-text) !important;
     line-height: 1.25 !important;
 }
@@ -183,11 +186,11 @@ h1.m-0 {
     font-weight: 500;
 }
 
-/* —— Tarjetas: una capa, sin “marco Bootstrap” —— */
+/* —— Superficies: borde fino, sin sombra ni “card stack” —— */
 .card {
     border: 1px solid var(--eki-border) !important;
     border-radius: var(--eki-radius) !important;
-    box-shadow: var(--eki-shadow) !important;
+    box-shadow: none !important;
     background: var(--eki-surface) !important;
     margin-bottom: 1rem !important;
 }
@@ -195,7 +198,7 @@ h1.m-0 {
 .card.card-outline,
 .card.card-primary.card-outline {
     border: 1px solid var(--eki-border) !important;
-    border-left: 3px solid var(--eki-accent) !important;
+    border-left: 2px solid var(--eki-accent) !important;
     border-top: 1px solid var(--eki-border) !important;
 }
 
@@ -289,7 +292,7 @@ fieldset.module .description {
 .form-control:focus,
 .custom-select:focus {
     border-color: var(--eki-accent) !important;
-    box-shadow: 0 0 0 3px rgba(155, 103, 177, 0.18) !important;
+    box-shadow: 0 0 0 3px rgba(15, 110, 106, 0.18) !important;
 }
 
 .readonly,
@@ -741,10 +744,10 @@ html[data-eki-theme="dark"] {
     --eki-border-strong: #475569;
     --eki-text: #e2e8f0;
     --eki-muted: #94a3b8;
-    --eki-accent-soft: #2d2438;
-    --eki-sidebar: #0c0a10;
-    --eki-sidebar-hover: #1a1520;
-    --eki-sidebar-active: #3d2d48;
+    --eki-accent-soft: #1a2e2c;
+    --eki-sidebar: #080c14;
+    --eki-sidebar-hover: #121826;
+    --eki-sidebar-active: #1c2738;
 }
 
 html[data-eki-theme="dark"] body,

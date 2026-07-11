@@ -241,22 +241,14 @@ JAZZMIN_SETTINGS = {
     "copyright": "eki solutions",
     # Búsqueda global desactivada (estudiantes/campañas/prospectos: usar listados filtrados).
 
-    # Menú superior — atajos (sin duplicar custom_links del sidebar)
+    # Menú superior — pocos atajos (el resto vive en sidebar / hub)
     "topmenu_links": [
         {"name": "Inicio", "url": "admin:index", "new_window": False},
         {"name": "Dashboard", "url": "/admin/dashboard/", "new_window": False},
         {"name": "Estudiantes", "url": "/admin/core/estudiante/", "new_window": False},
         {"name": "Retención", "url": "/admin/dashboard/?tab=retencion", "new_window": False},
         {"name": "Cobertura", "url": "/admin/cobertura/", "new_window": False},
-        {"name": "Ajustar avance", "url": "/admin/ajustar-avance/", "new_window": False},
-        {"name": "Gamificación manual", "url": "/admin/gamificacion-ajuste/", "new_window": False},
-        {"name": "Acceso módulos", "url": "/admin/drip-estudiantes/", "new_window": False},
-        {"name": "Envío certificados", "url": "/admin/envio-certificados/", "new_window": False},
-        {"name": "Push", "url": "/admin/push-estudiantes/", "new_window": False},
-        {"name": "Form externo", "url": "/admin/core/enlaceformularioexterno/", "new_window": False},
-        {"name": "Aula web", "url": "/admin/aula-web/", "new_window": False},
         {"name": "Manual", "url": "/admin/instrucciones/", "new_window": False},
-        {"name": "Conversaciones", "url": "conversaciones", "new_window": False},
     ],
 
     # Menú Lateral

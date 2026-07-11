@@ -5,60 +5,83 @@
 {{ block.super }}
 <style>
     .eki-admin-hub {
-        margin-bottom: 1.5rem;
+        margin-bottom: 2rem;
+        max-width: 920px;
+    }
+    .eki-hub-kicker {
+        font-family: 'Fraunces', Georgia, serif;
+        font-size: 1.75rem;
+        font-weight: 560;
+        letter-spacing: -0.02em;
+        color: #12141a;
+        margin: 0 0 0.35rem;
     }
     .eki-hub-intro {
-        margin: 0 0 1rem;
-        color: #64748b;
+        margin: 0 0 1.75rem;
+        color: #5c6570;
         font-size: 0.9rem;
+        line-height: 1.5;
     }
-    .eki-hub-grid {
+    .eki-hub-cols {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-        gap: 0.75rem;
-        margin-bottom: 1.25rem;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 2rem 2.5rem;
+        margin-bottom: 1.5rem;
     }
-    .eki-hub-card {
-        display: block;
-        padding: 0.9rem 1rem;
-        background: #fff;
-        border: 1px solid #e2e8f0;
-        border-radius: 10px;
-        text-decoration: none;
-        color: #0f172a;
+    @media (max-width: 800px) {
+        .eki-hub-cols { grid-template-columns: 1fr; gap: 1.5rem; }
+    }
+    .eki-hub-col h2 {
+        margin: 0 0 0.75rem;
+        font-size: 0.72rem;
         font-weight: 600;
-        font-size: 0.875rem;
-        transition: border-color 0.15s, background 0.15s;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #5c6570;
+        border-bottom: 1px solid #e4e6e2;
+        padding-bottom: 0.5rem;
     }
-    .eki-hub-card:hover {
-        border-color: #9b67b1;
-        background: #f3eaf7;
-        color: #7d4f94;
+    .eki-hub-col a {
+        display: block;
+        padding: 0.4rem 0;
+        color: #12141a;
+        text-decoration: none;
+        font-size: 0.9rem;
+        font-weight: 500;
+        border: none;
+        background: none;
+    }
+    .eki-hub-col a:hover {
+        color: #0f6e6a;
         text-decoration: none;
     }
-    .eki-hub-card span {
+    .eki-hub-col a span {
         display: block;
-        margin-top: 0.25rem;
-        font-weight: 400;
         font-size: 0.75rem;
-        color: #64748b;
+        font-weight: 400;
+        color: #5c6570;
+        margin-top: 0.1rem;
     }
     .eki-admin-all-models {
-        border: 1px solid #e2e8f0;
-        border-radius: 10px;
-        background: #f8fafc;
-        padding: 0.75rem 1rem 0.25rem;
+        border-top: 1px solid #e4e6e2;
+        border-radius: 0;
+        background: transparent;
+        padding: 0.75rem 0 0.25rem;
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
     }
     .eki-admin-all-models > summary {
         cursor: pointer;
         font-weight: 600;
         font-size: 0.875rem;
-        color: #334155;
+        color: #5c6570;
         padding: 0.35rem 0;
         list-style-position: outside;
     }
     .eki-admin-all-models[open] > summary {
         margin-bottom: 0.75rem;
+        color: #12141a;
     }
     .eki-admin-all-models .eki-all-modules-body .col-lg-9 {
         max-width: 100%;
@@ -69,80 +92,32 @@
 
 {% block content %}
 <section class="eki-admin-hub">
-    <p class="eki-hub-intro">Accesos frecuentes. El listado completo de módulos queda abajo, plegado.</p>
-    <div class="eki-hub-grid">
-        <a class="eki-hub-card" href="{% url 'admin:core_cliente_changelist' %}">
-            Clientes
-            <span>Organizaciones B2B</span>
-        </a>
-        <a class="eki-hub-card" href="{% url 'admin:core_estudiante_changelist' %}">
-            Estudiantes
-            <span>Campesinos / participantes</span>
-        </a>
-        <a class="eki-hub-card" href="{% url 'dashboard_unificado' %}?tab=retencion">
-            Retención
-            <span>Embudo, activos/inactivos y deserción</span>
-        </a>
-        <a class="eki-hub-card" href="{% url 'admin:core_curso_changelist' %}">
-            Cursos
-            <span>Módulos y contenido</span>
-        </a>
-        <a class="eki-hub-card" href="{% url 'admin_cobertura_mapa' %}">
-            Cobertura
-            <span>Mapa territorial</span>
-        </a>
-        <a class="eki-hub-card" href="{% url 'admin_drip_estudiantes' %}">
-            Acceso módulos
-            <span>Elegir varios estudiantes por módulo</span>
-        </a>
-        <a class="eki-hub-card" href="{% url 'admin:core_enlaceformularioexterno_changelist' %}">
-            Form externo
-            <span>Google Form → habilitar módulo</span>
-        </a>
-        <a class="eki-hub-card" href="{% url 'admin_ajustar_avance' %}">
-            Ajustar avance
-            <span>Retroceder módulos sin borrar personas</span>
-        </a>
-        <a class="eki-hub-card" href="{% url 'admin_gamificacion_ajuste' %}">
-            Gamificación manual
-            <span>Sumar puntos o notas 1–5 (híbrido / presencial)</span>
-        </a>
-        <a class="eki-hub-card" href="{% url 'admin_aula_web' %}">
-            Aula web eki
-            <span>Profesores y estudiantes — /aprende/</span>
-        </a>
-        <a class="eki-hub-card" href="/portal/login/" target="_blank" rel="noopener">
-            Portal clientes
-            <span>Métricas B2B — /portal/</span>
-        </a>
-        <a class="eki-hub-card" href="{% url 'admin_envio_certificados' %}">
-            Envío certificados
-            <span>Mensaje + diploma — cualquier estudiante</span>
-        </a>
-        <a class="eki-hub-card" href="{% url 'admin:learning_plantillacertificado_changelist' %}">
-            Plantillas certificado
-            <span>Marcadores RGB y vista previa</span>
-        </a>
-        <a class="eki-hub-card" href="{% url 'admin:core_campana_changelist' %}">
-            Campañas
-            <span>Envíos WhatsApp</span>
-        </a>
-        <a class="eki-hub-card" href="{% url 'admin_push_estudiantes' %}">
-            Push recordatorios
-            <span>Reenganche con *listo* — no reinicia curso</span>
-        </a>
-        <a class="eki-hub-card" href="{% url 'dashboard_unificado' %}">
-            Dashboard
-            <span>Métricas y reportes</span>
-        </a>
-        <a class="eki-hub-card" href="{% url 'conversaciones' %}">
-            Conversaciones
-            <span>Historial de chats</span>
-        </a>
-        <a class="eki-hub-card" href="{% url 'instrucciones' %}">
-            Manual
-            <span>Guía paso a paso</span>
-        </a>
+    <p class="eki-hub-kicker">eki</p>
+    <p class="eki-hub-intro">Operaciones. Tres caminos; el catálogo completo queda abajo.</p>
+    <div class="eki-hub-cols">
+        <div class="eki-hub-col">
+            <h2>Operar</h2>
+            <a href="{% url 'admin:core_estudiante_changelist' %}">Estudiantes<span>Participantes y avance</span></a>
+            <a href="{% url 'admin_drip_estudiantes' %}">Acceso módulos<span>Drip por persona</span></a>
+            <a href="{% url 'admin_push_estudiantes' %}">Push<span>Reenganche WhatsApp</span></a>
+            <a href="{% url 'conversaciones' %}">Conversaciones<span>Historial de chats</span></a>
+            <a href="{% url 'admin_envio_certificados' %}">Certificados<span>Envío de diplomas</span></a>
+        </div>
+        <div class="eki-hub-col">
+            <h2>Medir</h2>
+            <a href="{% url 'dashboard_unificado' %}">Dashboard<span>Executive · Learning · Ops</span></a>
+            <a href="{% url 'dashboard_unificado' %}?tab=retencion">Retención<span>Embudo y deserción</span></a>
+            <a href="{% url 'admin_cobertura_mapa' %}">Cobertura<span>Mapa territorial</span></a>
+            <a href="{% url 'admin:core_cliente_changelist' %}">Clientes<span>Organizaciones B2B</span></a>
+        </div>
+        <div class="eki-hub-col">
+            <h2>Configurar</h2>
+            <a href="{% url 'admin:core_curso_changelist' %}">Cursos<span>Módulos y contenido</span></a>
+            <a href="{% url 'admin_ajustar_avance' %}">Ajustar avance<span>Corregir progreso</span></a>
+            <a href="{% url 'admin_aula_web' %}">Aula web<span>/aprende/</span></a>
+            <a href="/portal/login/" target="_blank" rel="noopener">Portal clientes<span>Vista B2B</span></a>
+            <a href="{% url 'instrucciones' %}">Manual<span>Guía operativa</span></a>
+        </div>
     </div>
 </section>
 

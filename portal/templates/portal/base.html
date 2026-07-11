@@ -7,28 +7,30 @@
     {% include 'portal/partials/favicon_co.html' %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --sidebar: #0f172a;
-            --sidebar-text: #94a3b8;
-            --sidebar-active: #1e293b;
-            --sidebar-border: #1e293b;
+            --sidebar: #0c1222;
+            --sidebar-text: #8b95a5;
+            --sidebar-active: #1a2436;
+            --sidebar-border: #1a2436;
             --sidebar-width: 260px;
             --sidebar-collapsed-width: 72px;
-            --accent: #2563eb;
-            --accent-hover: #1d4ed8;
-            --fondo: #f1f5f9;
-            --texto: #0f172a;
-            --texto-muted: #64748b;
-            --borde: #e2e8f0;
+            --accent: #0f6e6a;
+            --accent-hover: #0a5552;
+            --fondo: #f3f4f2;
+            --texto: #12141a;
+            --texto-muted: #5c6570;
+            --borde: #e4e6e2;
             --blanco: #ffffff;
-            --tabla-head: #f8fafc;
+            --tabla-head: #f7f8f6;
             --ok: #059669;
             --warn: #d97706;
             --danger: #dc2626;
             --wa-green: #25d366;
             --wa-green-hover: #1ebe57;
+            --font: 'Sora', system-ui, -apple-system, sans-serif;
+            --font-display: 'Fraunces', Georgia, serif;
         }
 
         html[data-theme="dark"] {
@@ -38,8 +40,8 @@
             --borde: #334155;
             --blanco: #1e293b;
             --tabla-head: #0f172a;
-            --accent: #3b82f6;
-            --accent-hover: #2563eb;
+            --accent: #3d9e99;
+            --accent-hover: #5a9e9a;
         }
 
         html[data-theme="dark"] .topbar {
@@ -97,7 +99,7 @@
             margin: 0;
             background: var(--fondo);
             color: var(--texto);
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-family: var(--font);
             font-size: 14px;
             line-height: 1.5;
             -webkit-font-smoothing: antialiased;
@@ -229,6 +231,7 @@
             font-size: 14px;
             font-weight: 600;
             line-height: 1.3;
+            font-family: var(--font);
         }
 
         .brand-text span {
@@ -240,10 +243,22 @@
         }
 
         .sidebar-powered {
-            padding: 8px 18px 12px;
-            font-size: 11px;
-            letter-spacing: 0.02em;
-            color: #64748b;
+            padding: 8px 18px 14px;
+            font-family: var(--font-display);
+            font-size: 1.05rem;
+            font-weight: 560;
+            letter-spacing: -0.02em;
+            color: #f1f5f9;
+        }
+        .sidebar-powered span {
+            display: block;
+            font-family: var(--font);
+            font-size: 0.65rem;
+            font-weight: 500;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--sidebar-text);
+            margin-top: 2px;
         }
 
         .sidebar nav {
@@ -474,7 +489,7 @@
             box-shadow: 0 6px 18px rgba(15, 23, 42, 0.22);
         }
         .eki-help__toggle:focus-visible {
-            outline: 2px solid #7D2181;
+            outline: 2px solid var(--accent);
             outline-offset: 3px;
         }
         .eki-help-btn-inner {
@@ -553,7 +568,7 @@
             align-items: center;
             gap: 10px;
             padding: 14px 14px 10px;
-            background: linear-gradient(135deg, #7D2181 0%, #9A6EAE 100%);
+            background: linear-gradient(135deg, #0f6e6a 0%, #3d9e99 100%);
             color: #fff;
         }
         .eki-help__head svg.eki-flag--sm { flex-shrink: 0; }
@@ -592,7 +607,7 @@
             border-radius: 50%;
             background: var(--borde);
         }
-        .eki-help__dot.is-active { background: #7D2181; }
+        .eki-help__dot.is-active { background: var(--accent); }
         .eki-help__actions {
             display: flex;
             flex-wrap: wrap;
@@ -611,10 +626,10 @@
             cursor: pointer;
         }
         .eki-help__actions .btn-help-primary {
-            background: #7D2181;
+            background: var(--accent);
             color: #fff;
         }
-        .eki-help__actions .btn-help-primary:hover { background: #6a1c6e; }
+        .eki-help__actions .btn-help-primary:hover { background: var(--accent-hover); }
         .eki-help__actions .btn-help-ghost {
             background: transparent;
             color: var(--texto-muted);
@@ -647,8 +662,9 @@
 
         .page-title h1 {
             margin: 0;
-            font-size: 22px;
-            font-weight: 700;
+            font-family: var(--font-display);
+            font-size: 1.75rem;
+            font-weight: 560;
             letter-spacing: -0.02em;
         }
 
@@ -935,7 +951,7 @@
                 </div>
             </a>
         </div>
-        <div class="sidebar-powered">plataforma eki</div>
+        <div class="sidebar-powered">eki<span>plataforma</span></div>
         <nav>
             {% if portal_solo_nat %}
             <div class="nav-label">Nat — Knowledge Hub</div>

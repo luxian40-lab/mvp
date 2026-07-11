@@ -1,8 +1,8 @@
 /* Cobertura + pantallas operativas eki (morado marca) */
 .eki-cobertura {
-    --eki-brand: #9b67b1;
-    --eki-brand-soft: #f3eaf7;
-    --eki-brand-dark: #7d4f94;
+    --eki-brand: #0f6e6a;
+    --eki-brand-soft: #e6f2f1;
+    --eki-brand-dark: #0a5552;
     --eki-surface: #ffffff;
     --eki-muted: #64748b;
     --eki-border: #e2e8f0;
@@ -178,7 +178,7 @@
     height: 8px;
     width: 120px;
     border-radius: 4px;
-    background: linear-gradient(90deg, #f3eaf7 0%, #9b67b1 55%, #5b3d6b 100%);
+    background: linear-gradient(90deg, #e6f2f1 0%, #0f6e6a 55%, #0a5552 100%);
 }
 
 .eki-btn {
