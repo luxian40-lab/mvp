@@ -237,6 +237,7 @@ JAZZMIN_SETTINGS = {
     "site_header": "eki",
     "site_brand": "eki",
     "site_logo_classes": "eki-brand-hidden",
+    "site_icon": "favicons/admin.svg",
     "welcome_sign": "Panel de operaciones eki",
     "copyright": "eki solutions",
     # Búsqueda global desactivada (estudiantes/campañas/prospectos: usar listados filtrados).

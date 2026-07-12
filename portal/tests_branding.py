@@ -68,7 +68,8 @@ class PortalBrandingOnboardingTests(TestCase):
         self.assertContains(r, 'Configuración de marca')
         self.assertContains(r, 'Vista previa en vivo')
 
-    def test_favicon_bandera_colombia(self):
+    def test_favicon_portal_distinto(self):
         r_login = Client().get('/portal/login/')
+        self.assertEqual(r_login.status_code, 200)
+        self.assertContains(r_login, 'favicons/portal.svg')
         self.assertContains(r_login, 'image/svg+xml')
-        self.assertContains(r_login, 'FCD116')
