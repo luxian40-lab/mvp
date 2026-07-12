@@ -3,33 +3,23 @@
 {% block main_class %}eki-main--flush{% endblock %}
 {% block content %}
 <section class="eki-hero-bleed" aria-label="Aprende">
-    <div class="eki-hero-bleed__media" role="img" aria-label="Espacio de estudio"></div>
+    <div class="eki-hero-bleed__media" role="img" aria-label="Aula en formación"></div>
     <div class="eki-hero-bleed__shade"></div>
     <div class="eki-hero-bleed__inner">
         <p class="eki-brand-hero">aprende</p>
-        <h1>Formación verificada para estudiantes y docentes</h1>
-        <p class="eki-lead">Contenido del programa, tareas y avance. Acceso solo con credenciales registradas.</p>
+        <h1>Tu aula verificada</h1>
+        <p class="eki-lead">Lecciones, tareas y avance académico — con acceso seguro a tu programa.</p>
         <div class="eki-hero-actions">
-            <a class="eki-btn eki-btn--on-dark" href="{% url 'aprende_estudiante_login' %}">Soy estudiante</a>
-            <a class="eki-btn eki-btn--ghost-light" href="{% url 'aprende_profesor_login' %}">Soy docente</a>
+            <a class="eki-btn eki-btn--on-dark" href="{% url 'aprende_estudiante_login' %}">Ingresar al aula</a>
         </div>
     </div>
 </section>
 
 <section class="eki-section">
-    <div class="eki-grid-2">
-        <article class="eki-card eki-card--bar eki-role-card">
-            <span class="eki-role-num">I</span>
-            <h2>Estudiante</h2>
-            <p class="eki-muted">Correo (Studio) o documento + WhatsApp (B2B). Módulos, biblioteca y perfil académico.</p>
-            <a class="eki-btn eki-btn--primary" href="{% url 'aprende_estudiante_login' %}">Ingresar como estudiante</a>
-        </article>
-        <article class="eki-card eki-card--bar eki-role-card">
-            <span class="eki-role-num">II</span>
-            <h2>Docente</h2>
-            <p class="eki-muted">Usuario y contraseña del portal. Lecciones, archivos y calificación de tareas.</p>
-            <a class="eki-btn eki-btn--primary" href="{% url 'aprende_profesor_login' %}">Ingresar como docente</a>
-        </article>
-    </div>
+    <p class="eki-landing-promise">Un espacio serio para estudiar: contenido de tu organización, progreso claro y sesión protegida.</p>
+    <p class="eki-landing-note">
+        ¿Docente o coordinador? <a href="{% url 'aprende_profesor_login' %}">Acceso docente</a>
+        · ¿Buscas cursos? <a href="/studio/">eki Studio</a>
+    </p>
 </section>
 {% endblock %}

@@ -188,7 +188,7 @@
             inset: 0;
             z-index: -2;
             background:
-                url("https://images.unsplash.com/photo-1456513080801-7e5dd2dd4799?auto=format&fit=crop&w=1800&q=80")
+                url("https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=1800&q=80")
                 center / cover no-repeat;
             animation: eki-ken 18s var(--ease) both;
         }
@@ -563,6 +563,126 @@
 
         .eki-auth-panel a { color: #cbb8d8; }
         .eki-auth-panel a:hover { color: #fff; }
+
+        /* —— Dedicated login screen (separate from landing) —— */
+        .eki-login-screen {
+            display: grid;
+            grid-template-columns: minmax(0, 1.1fr) minmax(300px, 440px);
+            min-height: calc(100vh - var(--header-h));
+            margin: calc(-2.25rem) -1.5rem -3rem;
+            background: var(--eki-surface);
+            animation: eki-rise 0.55s var(--ease) both;
+        }
+
+        .eki-main--flush .eki-login-screen {
+            margin: 0;
+            min-height: calc(100vh - var(--header-h));
+        }
+
+        .eki-login-visual {
+            position: relative;
+            overflow: hidden;
+            isolation: isolate;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: clamp(1.75rem, 4vw, 3rem);
+        }
+
+        .eki-login-visual__media {
+            position: absolute;
+            inset: 0;
+            z-index: -2;
+            background-size: cover;
+            background-position: center;
+            animation: eki-ken 18s var(--ease) both;
+        }
+
+        .eki-login-visual__media--estudiante {
+            background-image: url("https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=1600&q=80");
+        }
+
+        .eki-login-visual__media--docente {
+            background-image: url("https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=1600&q=80");
+        }
+
+        .eki-login-visual__shade {
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            background:
+                linear-gradient(115deg, rgba(61, 39, 80, 0.9) 0%, rgba(122, 78, 142, 0.55) 55%, rgba(61, 39, 80, 0.35) 100%),
+                linear-gradient(0deg, rgba(61, 39, 80, 0.82) 0%, transparent 50%);
+        }
+
+        .eki-login-visual h2 {
+            font-family: var(--font-serif);
+            font-size: clamp(1.6rem, 3vw, 2.1rem);
+            font-weight: 650;
+            letter-spacing: -0.03em;
+            color: #fff;
+            margin: 0 0 0.5rem;
+            max-width: 16ch;
+        }
+
+        .eki-login-visual p {
+            margin: 0;
+            color: rgba(255, 255, 255, 0.82);
+            max-width: 28ch;
+            font-size: 0.95rem;
+            line-height: 1.55;
+        }
+
+        .eki-login-form {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: clamp(1.5rem, 4vw, 2.5rem);
+            border-left: 1px solid var(--eki-border);
+            background: var(--eki-surface);
+        }
+
+        .eki-login-form h1 {
+            font-size: clamp(1.45rem, 2.5vw, 1.75rem);
+            margin-bottom: 0.35rem;
+        }
+
+        .eki-login-form .eki-muted { margin-bottom: 1.25rem; }
+
+        .eki-landing-promise {
+            max-width: 36rem;
+            margin: 0;
+            font-family: var(--font-serif);
+            font-size: clamp(1.15rem, 2.2vw, 1.4rem);
+            font-weight: 560;
+            letter-spacing: -0.02em;
+            line-height: 1.35;
+            color: var(--eki-ink);
+        }
+
+        .eki-landing-note {
+            margin: 1.5rem 0 0;
+            font-size: 0.85rem;
+            color: var(--eki-muted);
+        }
+
+        .eki-landing-note a {
+            color: var(--eki-purple);
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .eki-landing-note a:hover { text-decoration: underline; }
+
+        @media (max-width: 840px) {
+            .eki-login-screen {
+                grid-template-columns: 1fr;
+                min-height: auto;
+            }
+            .eki-login-visual { min-height: 28vh; }
+            .eki-login-form { border-left: none; border-top: 1px solid var(--eki-border); }
+        }
 
         /* —— Lesson reader —— */
         .eki-read-progress {
