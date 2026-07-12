@@ -255,8 +255,8 @@ class PreguntaModuloInline(admin.StackedInline):
     extra = 0
     can_delete = True
     show_change_link = True
-    verbose_name = 'Pregunta de Mini Examen'
-    verbose_name_plural = 'Mini examen (después de los pasos)'
+    verbose_name = 'Pregunta'
+    verbose_name_plural = 'Mini examen'
 
     fieldsets = (
         ('Pregunta', {
@@ -286,7 +286,8 @@ class SeccionModuloInline(admin.TabularInline):
     ordering = ('orden', 'id')
     show_change_link = True
     verbose_name = 'Bloque'
-    verbose_name_plural = 'Bloques del recorrido'
+    # Jazzmin: títulos cortos SIN tildes (IDs de pestaña se rompen con acentos).
+    verbose_name_plural = 'Bloques'
     fields = ('orden', 'activa', 'titulo', 'resumen_pasos')
     readonly_fields = ('resumen_pasos',)
 
@@ -445,7 +446,7 @@ class PasoModuloInline(admin.StackedInline):
     model = PasoModulo
     form = PasoModuloForm
     formset = PasoModuloInlineFormSet
-    extra = 0
+    extra = 1
     can_delete = True
     ordering = ('orden', 'id')
     show_change_link = True
@@ -641,7 +642,7 @@ class ModuloAdmin(admin.ModelAdmin):
         if obj is None:
             return (
                 (
-                    'Cómo se estructura',
+                    'Como se estructura',
                     {
                         'fields': ('guia_alta_modulo',),
                         'classes': ('wide',),
@@ -654,26 +655,26 @@ class ModuloAdmin(admin.ModelAdmin):
                     },
                 ),
                 (
-                    '2. Tipo de módulo',
+                    '2. Tipo de modulo',
                     {
                         'fields': ('modo_entrega',),
                         'description': (
                             '<div class="eki-modo-hint">'
-                            '<p><strong>Contenido único (Legacy / Automático sin pasos):</strong> '
-                            'llene solo «Contenido único». El estudiante recibe el módulo de una vez.</p>'
+                            '<p><strong>Contenido unico (Legacy / Automatico sin pasos):</strong> '
+                            'llene solo «Contenido unico». El estudiante recibe el modulo de una vez.</p>'
                             '<p><strong>Por microcontenidos (Pasos):</strong> defina bloques abajo '
-                            'y, tras guardar, use la pestaña <em>Microcontenidos</em>. '
+                            'y, tras guardar, use la pestana <em>Microcontenidos</em>. '
                             'El estudiante avanza con <em>*listo*</em>.</p>'
                             '</div>'
                         ),
                     },
                 ),
                 (
-                    '3a. Contenido único',
+                    '3a. Contenido unico',
                     {
                         'fields': ('contenido',),
                         'description': (
-                            'Úselo si el módulo es <strong>solo texto/media de una vez</strong>. '
+                            'Uselo si el modulo es <strong>solo texto/media de una vez</strong>. '
                             'Si va a usar microcontenidos, puede dejar un resumen corto.'
                         ),
                     },
@@ -683,8 +684,8 @@ class ModuloAdmin(admin.ModelAdmin):
                     {
                         'fields': ('bloques_rapidos',),
                         'description': (
-                            'Opcional. <strong>Una línea = un bloque</strong> del curriculum. '
-                            'Tras guardar se abrirá el módulo: pestaña <strong>Microcontenidos</strong>.'
+                            'Opcional. <strong>Una linea = un bloque</strong> del curriculum. '
+                            'Tras guardar se abrira el modulo: pestana <strong>Microcontenidos</strong>.'
                         ),
                     },
                 ),
@@ -704,18 +705,18 @@ class ModuloAdmin(admin.ModelAdmin):
             )
         return (
             (
-                'Curriculum y avance',
+                'Curriculum',
                 {
                     'fields': ('mapa_curriculum', 'modo_entrega', 'secciones_por_listo', 'facilitador_checkpoint'),
                     'classes': ('wide',),
                     'description': (
-                        'Cómo avanza el estudiante. Luego: pestañas '
-                        '<strong>Bloques del recorrido</strong> y <strong>Microcontenidos</strong>.'
+                        'Como avanza el estudiante. Luego use las pestanas '
+                        '<strong>Bloques</strong> y <strong>Microcontenidos</strong>.'
                     ),
                 },
             ),
             (
-                'Guía microcontenidos',
+                'Guia microcontenidos',
                 {
                     'fields': ('guia_microcontenidos_whatsapp',),
                     'classes': ('wide',),
@@ -728,12 +729,12 @@ class ModuloAdmin(admin.ModelAdmin):
                 },
             ),
             (
-                'Contenido único (si no hay pasos)',
+                'Contenido unico',
                 {
                     'fields': ('contenido',),
                     'description': (
                         'Texto completo. Se usa en modo <strong>Legacy</strong> '
-                        'o si aún no hay microcontenidos activos.'
+                        'o si aun no hay microcontenidos activos.'
                     ),
                 },
             ),

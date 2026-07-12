@@ -67,8 +67,8 @@ class ModuloAdminUxTests(TestCase):
     def test_fieldsets_alta_dos_caminos(self):
         req = self._req()
         titles = [fs[0] for fs in self.admin.get_fieldsets(req, None)]
-        self.assertIn('2. Tipo de módulo', titles)
-        self.assertIn('3a. Contenido único', titles)
+        self.assertIn('2. Tipo de modulo', titles)
+        self.assertIn('3a. Contenido unico', titles)
         self.assertIn('3b. Curriculum (bloques)', titles)
         fields_bloques = dict(self.admin.get_fieldsets(req, None))['3b. Curriculum (bloques)']['fields']
         self.assertIn('bloques_rapidos', fields_bloques)
@@ -77,12 +77,34 @@ class ModuloAdminUxTests(TestCase):
         req = self._req()
         mod = Modulo.objects.get(curso=self.curso, numero=2)
         titles = [fs[0] for fs in self.admin.get_fieldsets(req, mod)]
-        self.assertIn('Curriculum y avance', titles)
-        self.assertIn('mapa_curriculum', dict(self.admin.get_fieldsets(req, mod))['Curriculum y avance']['fields'])
+        self.assertIn('Curriculum', titles)
+        self.assertIn('mapa_curriculum', dict(self.admin.get_fieldsets(req, mod))['Curriculum']['fields'])
         self.assertEqual(
             self.admin.get_readonly_fields(req, mod),
             ('mapa_curriculum', 'guia_microcontenidos_whatsapp'),
         )
+
+    def test_edicion_html_pestanas_sin_tildes_y_grupos_inline(self):
+        """Jazzmin rompe pestañas si el id lleva tildes; related_name = secciones/pasos."""
+        from core.models import PasoModulo, SeccionModulo
+
+        mod = Modulo.objects.get(curso=self.curso, numero=2)
+        sec = SeccionModulo.objects.create(modulo=mod, orden=1, titulo='B1', activa=True)
+        PasoModulo.objects.create(
+            modulo=mod, seccion=sec, orden=1, titulo='P1',
+            tipo=PasoModulo.TIPO_CONTENIDO, contenido='texto paso', activo=True,
+        )
+        self.client.force_login(self.user)
+        r = self.client.get(f'/admin/core/modulo/{mod.pk}/change/')
+        self.assertEqual(r.status_code, 200)
+        body = r.content.decode('utf-8')
+        self.assertIn('id="pasos-group"', body)
+        self.assertIn('id="secciones-group"', body)
+        self.assertIn('href="#microcontenidos-tab"', body)
+        self.assertIn('href="#bloques-tab"', body)
+        self.assertNotIn('href="#contenido-único', body)
+        self.assertNotIn('href="#guía-', body)
+        self.assertIn('P1', body)
 
     def test_alta_sin_inlines_separados(self):
         req = self._req()

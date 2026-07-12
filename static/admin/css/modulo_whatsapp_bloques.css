@@ -1,6 +1,6 @@
-/* Agrupa visualmente Secciones + Microcontenidos en la pantalla de Módulo (admin / Jazzmin). */
-#seccionmodulo_set-group,
-#pasomodulo_set-group {
+/* IDs reales de related_name: secciones / pasos (no pasomodulo_set) */
+#secciones-group,
+#pasos-group {
   border: 2px solid #14b8a6;
   border-radius: 12px;
   padding: 12px 14px 16px;
@@ -9,22 +9,22 @@
   box-shadow: 0 1px 2px rgba(15, 118, 110, 0.06);
 }
 
-#seccionmodulo_set-group .inline-related h2,
-#pasomodulo_set-group .inline-related h2,
-#seccionmodulo_set-group > h2,
-#pasomodulo_set-group > h2 {
+#secciones-group .inline-related h2,
+#pasos-group .inline-related h2,
+#secciones-group > h2,
+#pasos-group > h2 {
   border-bottom: 1px solid rgba(20, 184, 166, 0.35);
   padding-bottom: 8px;
   margin-bottom: 10px;
 }
 
-#pasomodulo_set-group {
+#pasos-group {
   border-color: #0e7490;
   background: linear-gradient(180deg, rgba(14, 116, 144, 0.07) 0%, #fff 48px);
 }
 
-#pasomodulo_set-group::before {
-  content: "Cada microcontenido debe elegir una sección de la pestaña «Secciones».";
+#pasos-group::before {
+  content: "Cada microcontenido debe elegir un bloque de la pestana «Bloques».";
   display: block;
   font-size: 12px;
   color: #0f766e;
@@ -274,6 +274,28 @@
   color: #5c6570;
 }
 
+.eki-modulo-jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+.eki-modulo-jump a {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid #0f6e6a;
+  background: #fff;
+  color: #0f6e6a !important;
+  font-size: 0.78rem;
+  font-weight: 650;
+  text-decoration: none !important;
+}
+.eki-modulo-jump a:hover {
+  background: #e6f2f1;
+}
+
 .app-core.model-modulo .form-row textarea {
   min-height: 7rem;
 }
@@ -294,12 +316,11 @@
   letter-spacing: -0.02em;
 }
 
-.app-core.model-modulo #seccionmodulo_set-group {
+.app-core.model-modulo #secciones-group {
   margin-top: 0.5rem;
 }
 
-/* Resaltar pestaña Microcontenidos en el nav de Jazzmin */
-.app-core.model-modulo .nav-tabs .nav-link[href*="pasomodulo"],
-.app-core.model-modulo a[href="#pasomodulo_set-group"] {
+.app-core.model-modulo a[href="#microcontenidos-tab"],
+.app-core.model-modulo a[href="#bloques-tab"] {
   font-weight: 700 !important;
 }
