@@ -574,13 +574,27 @@ class ModuloAdmin(admin.ModelAdmin):
     actions = ['enviar_archivos_multimedia', 'ver_archivos_multimedia', 'renumerar_modulos']
 
     def get_inline_instances(self, request, obj=None):
-        """Módulo nuevo: solo secciones hasta la 1.ª guardada (luego se elige sección por módulo)."""
+        """Módulo nuevo: Microcontenidos aparecen tras el 1.er guardado (necesitan PK + sección)."""
         instances = []
         for inline_class in self.inlines:
             if inline_class is PasoModuloInline and obj is None:
                 continue
             instances.append(inline_class(self.model, self.admin_site))
         return instances
+
+    def response_add(self, request, obj, post_url_continue=None):
+        """Tras crear, abrir el módulo para agregar Microcontenidos (no estaban en el alta)."""
+        if '_addanother' in request.POST:
+            return super().response_add(request, obj, post_url_continue)
+        self.message_user(
+            request,
+            (
+                'Módulo creado. Abajo ya puede usar «Secciones» y «Microcontenidos» '
+                '(cada paso debe elegir una sección).'
+            ),
+            level=messages.SUCCESS,
+        )
+        return redirect('admin:core_modulo_change', obj.pk)
 
     def ver_curso_link(self, obj):
         """Link directo al curso padre"""
@@ -641,9 +655,11 @@ class ModuloAdmin(admin.ModelAdmin):
                 'fields': ('guia_microcontenidos_whatsapp',),
                 'classes': ('wide',),
                 'description': (
-                    'Referencia visual; no se guarda. Orden práctico: definí <strong>Secciones</strong>, '
-                    '<strong>Guardá</strong>, luego pestaña <strong>Microcontenidos</strong> '
-                    '(asigná cada paso a un bloque). Primera vez sin guardar solo verás Secciones.'
+                    'Orden: 1) cree el módulo y al menos una <strong>Sección</strong>, '
+                    '2) <strong>Guarde</strong> — al guardar se abre este módulo con '
+                    '<strong>Microcontenidos</strong> visibles, '
+                    '3) agregue cada paso y asígnelo a un bloque/sección. '
+                    'En el alta desde cero aún no se muestran Microcontenidos (hace falta guardar antes).'
                 ),
             },
         ),
