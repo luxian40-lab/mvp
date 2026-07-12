@@ -354,6 +354,24 @@ class ModuloAdminForm(forms.ModelForm):
     class Meta:
         model = Modulo
         fields = '__all__'
+        widgets = {
+            'titulo': forms.TextInput(attrs={
+                'placeholder': 'Ej. Siembra y establecimiento',
+                'style': 'max-width: 32rem;',
+            }),
+            'descripcion': forms.Textarea(attrs={
+                'rows': 3,
+                'placeholder': 'Qué aprenderá el estudiante en este módulo (1–2 frases).',
+            }),
+            'contenido': forms.Textarea(attrs={
+                'rows': 8,
+                'placeholder': (
+                    'Texto completo del módulo (modo Legacy) o borrador. '
+                    'Si usará microcontenidos, puede dejarlo corto y ampliar después.'
+                ),
+            }),
+            'numero': forms.NumberInput(attrs={'min': 0, 'style': 'max-width: 8rem;'}),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -362,6 +380,12 @@ class ModuloAdminForm(forms.ModelForm):
             'Obligatorio si no hay microcontenidos. Opcional si configuró pasos en la pestaña '
             '«Microcontenidos» (cada uno con sección asignada).'
         )
+        if 'titulo' in self.fields:
+            self.fields['titulo'].help_text = 'Nombre corto y claro; aparece en reportes y portal.'
+        if 'numero' in self.fields:
+            self.fields['numero'].help_text = (
+                'Orden en el curso (0 = intro/bienvenida; luego 1, 2, 3…). Sin decimales.'
+            )
 
     def clean_contenido(self):
         from core.module_steps import validar_contenido_modulo
@@ -548,6 +572,8 @@ class ArchivoModuloInline(admin.StackedInline):
 class ModuloAdmin(admin.ModelAdmin):
     """Administración de módulos"""
     form = ModuloAdminForm
+    change_form_template = 'admin/core/modulo/change_form.html'
+
     class Media:
         css = {
             'all': ('admin/css/modulo_whatsapp_bloques.css',),
@@ -569,15 +595,116 @@ class ModuloAdmin(admin.ModelAdmin):
     search_fields = ('titulo', 'descripcion', 'contenido')
     list_per_page = 50
     ordering = ['curso', 'numero']
-    readonly_fields = ('guia_microcontenidos_whatsapp',)
+    autocomplete_fields = ('curso',)
+    readonly_fields = ()
     inlines = [SeccionModuloInline, PasoModuloInline, ArchivoModuloInline, PreguntaModuloInline]
     actions = ['enviar_archivos_multimedia', 'ver_archivos_multimedia', 'renumerar_modulos']
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj is None:
+            return ('guia_alta_modulo',)
+        return ('guia_microcontenidos_whatsapp',)
+
+    def get_fieldsets(self, request, obj=None):
+        if obj is None:
+            return (
+                (
+                    'Antes de empezar',
+                    {
+                        'fields': ('guia_alta_modulo',),
+                        'classes': ('wide',),
+                        'description': (
+                            'Guía corta para el primer guardado. Los microcontenidos se configuran '
+                            'después de crear el módulo.'
+                        ),
+                    },
+                ),
+                (
+                    'Identidad del módulo',
+                    {
+                        'fields': ('curso', 'numero', 'titulo', 'descripcion'),
+                        'description': (
+                            'Lo esencial para que el módulo exista en el curso. '
+                            'El número define el orden (0 = bienvenida; luego 1, 2, 3…).'
+                        ),
+                    },
+                ),
+                (
+                    'Contenido inicial',
+                    {
+                        'fields': ('contenido',),
+                        'description': (
+                            'Borrador o texto completo (modo Legacy). '
+                            'Si planea microcontenidos, puede escribir un resumen y completar pasos al reabrir.'
+                        ),
+                    },
+                ),
+                (
+                    'Entrega y duración',
+                    {
+                        'fields': ('modo_entrega', 'secciones_por_listo', 'duracion_dias'),
+                        'classes': ('collapse',),
+                        'description': (
+                            'Opcional en el alta. Por defecto Automático: usa pasos si existen, '
+                            'si no envía el contenido completo.'
+                        ),
+                    },
+                ),
+                (
+                    'Examen y calendario',
+                    {
+                        'fields': ('examen_obligatorio', 'puntaje_minimo_aprobacion', 'habilitado_desde'),
+                        'classes': ('collapse',),
+                    },
+                ),
+            )
+        return self.fieldsets
+
+    def get_changeform_initial_data(self, request):
+        initial = super().get_changeform_initial_data(request)
+        curso_id = request.GET.get('curso')
+        if not curso_id:
+            raw = request.GET.get('_changelist_filters') or ''
+            try:
+                from urllib.parse import parse_qs, unquote
+                parsed = parse_qs(unquote(raw))
+                curso_id = (parsed.get('curso__id__exact') or parsed.get('curso') or [None])[0]
+            except Exception:
+                curso_id = None
+        if curso_id:
+            try:
+                cid = int(curso_id)
+            except (TypeError, ValueError):
+                return initial
+            initial['curso'] = cid
+            from django.db.models import Max
+            mx = Modulo.objects.filter(curso_id=cid).aggregate(m=Max('numero')).get('m')
+            initial.setdefault('numero', (mx or 0) + 1)
+        return initial
+
+    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['add'] = object_id is None
+        curso_contexto = ''
+        if object_id is None:
+            initial = self.get_changeform_initial_data(request)
+            cid = initial.get('curso')
+            if cid:
+                curso = Curso.objects.filter(pk=cid).only('nombre').first()
+                if curso:
+                    curso_contexto = curso.nombre
+        extra_context['curso_contexto'] = curso_contexto
+        return super().changeform_view(request, object_id, form_url, extra_context)
 
     def get_inline_instances(self, request, obj=None):
         """Módulo nuevo: solo secciones hasta la 1.ª guardada (luego se elige sección por módulo)."""
         instances = []
         for inline_class in self.inlines:
             if inline_class is PasoModuloInline and obj is None:
+                continue
+            if inline_class is PreguntaModuloInline and obj is None:
+                continue
+            if inline_class is ArchivoModuloInline and obj is None:
                 continue
             instances.append(inline_class(self.model, self.admin_site))
         return instances
@@ -587,6 +714,22 @@ class ModuloAdmin(admin.ModelAdmin):
         url = reverse('admin:core_curso_change', args=[obj.curso.id])
         return format_html('<a href="{}" style="color:#2196F3;">📚 Ver Curso</a>', url)
     ver_curso_link.short_description = "Curso"
+
+    @admin.display(description='')
+    def guia_alta_modulo(self, obj):
+        return format_html(
+            '<div class="eki-modulo-guide">'
+            '<h3>Qué completar ahora</h3>'
+            '<p>En este primer guardado basta con identidad + un contenido base. '
+            'Luego reabra el módulo para microcontenidos, multimedia y mini examen.</p>'
+            '<ul>'
+            '<li><strong>Curso y número</strong> — si vino del listado del curso, ya vienen sugeridos.</li>'
+            '<li><strong>Título y descripción</strong> — lo que el equipo y el portal reconocerán.</li>'
+            '<li><strong>Contenido</strong> — texto Legacy o resumen; con pasos será opcional después.</li>'
+            '<li><strong>Secciones</strong> (tabla abajo) — opcional: cree 1–2 bloques antes de guardar.</li>'
+            '</ul>'
+            '</div>'
+        )
 
     @admin.display(description='')
     def guia_microcontenidos_whatsapp(self, obj):

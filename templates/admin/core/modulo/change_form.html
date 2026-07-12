@@ -1,0 +1,52 @@
+{% extends "admin/eki_collapsible_change_form.html" %}
+{% load i18n %}
+
+{% block form_top %}
+{{ block.super }}
+{% if not is_popup %}
+<section class="eki-modulo-hero {% if add %}eki-modulo-hero--add{% endif %}" aria-label="Contexto del módulo">
+    {% if add %}
+        <p class="eki-modulo-hero__kicker">Nuevo módulo</p>
+        <h1 class="eki-modulo-hero__title">Arme la unidad del curso</h1>
+        <p class="eki-modulo-hero__lead">
+            {% if curso_contexto %}
+                Se creará en <strong>{{ curso_contexto }}</strong>.
+            {% else %}
+                Elija el curso, el número y un título claro.
+            {% endif %}
+            Guarde una primera versión; los microcontenidos y el multimedia se configuran al reabrir.
+        </p>
+        <ol class="eki-modulo-steps">
+            <li><span>1</span> Identidad (curso, número, título)</li>
+            <li><span>2</span> Contenido base o secciones</li>
+            <li><span>3</span> Guardar y luego microcontenidos</li>
+        </ol>
+    {% else %}
+        <p class="eki-modulo-hero__kicker">Módulo {{ original.numero }}</p>
+        <h1 class="eki-modulo-hero__title">{{ original.titulo }}</h1>
+        <p class="eki-modulo-hero__lead">
+            Curso: <strong>{{ original.curso.nombre }}</strong>
+            · Modo: {{ original.get_modo_entrega_display }}
+        </p>
+        {% if original.pk %}
+        <p class="eki-modulo-hero__actions">
+            <a class="eki-modulo-hero__link" href="{% url 'admin:core_curso_change' original.curso_id %}">Ver curso</a>
+        </p>
+        {% endif %}
+    {% endif %}
+</section>
+{% endif %}
+{% endblock %}
+
+{% block eki_inlines_intro %}
+{% if add %}
+<p class="eki-inlines-intro eki-modulo-inline-hint">
+    <strong>Primera guardada:</strong> puede definir bloques en «Secciones».
+    Los microcontenidos aparecen después de guardar este módulo.
+</p>
+{% else %}
+<p class="eki-inlines-intro eki-modulo-inline-hint">
+    Orden sugerido: <strong>Secciones</strong> → <strong>Microcontenidos</strong> → multimedia / mini examen.
+</p>
+{% endif %}
+{% endblock %}
