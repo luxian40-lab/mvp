@@ -75,11 +75,33 @@
             position: absolute;
             inset: 0;
             z-index: -2;
-            background:
-                url("https://images.unsplash.com/photo-1574943320219-553eb213f72d?auto=format&fit=crop&w=2000&q=85")
-                center 35% / cover no-repeat;
-            animation: portal-ken 22s var(--ease) both;
+            overflow: hidden;
+        }
+        .login-hero__slide {
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-repeat: no-repeat;
+            opacity: 0;
+            transform: scale(1.06);
+            transition: opacity 1.4s var(--ease), transform 22s var(--ease);
             filter: saturate(0.9) contrast(1.05);
+        }
+        .login-hero__slide.is-active {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .login-hero__slide--ops {
+            background-image: url("https://images.unsplash.com/photo-1574943320219-553eb213f72d?auto=format&fit=crop&w=2000&q=85");
+            background-position: center 35%;
+        }
+        .login-hero__slide--invernadero {
+            background-image: url("https://images.unsplash.com/photo-1530836369250-ef72a3dce685?auto=format&fit=crop&w=2000&q=85");
+            background-position: center 40%;
+        }
+        .login-hero__slide--agroindustria {
+            background-image: url("https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fit=crop&w=2000&q=85");
+            background-position: center 45%;
         }
         .login-hero__shade {
             position: absolute;
@@ -213,7 +235,11 @@
 </head>
 <body>
     <aside class="login-hero" aria-label="eki portal">
-        <div class="login-hero__media" role="img" aria-label="Empresa rural con operaciones en campo"></div>
+        <div class="login-hero__media" role="img" aria-label="Empresas rurales: campo, invernadero y agroindustria">
+            <div class="login-hero__slide login-hero__slide--ops is-active"></div>
+            <div class="login-hero__slide login-hero__slide--invernadero"></div>
+            <div class="login-hero__slide login-hero__slide--agroindustria"></div>
+        </div>
         <div class="login-hero__shade"></div>
         <div class="login-hero-inner">
             <p class="brand">eki <em>portal</em></p>
@@ -238,16 +264,27 @@
         <p class="footer-note">¿Problemas de acceso? Contacte a su administrador eki.</p>
     </main>
     <script>
-        document.getElementById('login-theme').addEventListener('click', function () {
-            var dark = document.documentElement.getAttribute('data-theme') === 'dark';
-            if (dark) {
-                document.documentElement.removeAttribute('data-theme');
-                localStorage.setItem('eki-portal-theme', 'light');
-            } else {
-                document.documentElement.setAttribute('data-theme', 'dark');
-                localStorage.setItem('eki-portal-theme', 'dark');
+        (function () {
+            var slides = document.querySelectorAll('.login-hero__slide');
+            if (slides.length > 1) {
+                var i = 0;
+                setInterval(function () {
+                    slides[i].classList.remove('is-active');
+                    i = (i + 1) % slides.length;
+                    slides[i].classList.add('is-active');
+                }, 7000);
             }
-        });
+            document.getElementById('login-theme').addEventListener('click', function () {
+                var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+                if (dark) {
+                    document.documentElement.removeAttribute('data-theme');
+                    localStorage.setItem('eki-portal-theme', 'light');
+                } else {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                    localStorage.setItem('eki-portal-theme', 'dark');
+                }
+            });
+        })();
     </script>
 </body>
 </html>
