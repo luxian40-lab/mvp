@@ -254,8 +254,8 @@ class PreguntaModuloInline(admin.StackedInline):
     extra = 0
     can_delete = True
     show_change_link = True
-    verbose_name = 'Pregunta de Mini Examen'
-    verbose_name_plural = 'Mini examen (después de los pasos)'
+    verbose_name = 'Pregunta'
+    verbose_name_plural = 'Mini examen'
 
     fieldsets = (
         ('Pregunta', {
@@ -280,7 +280,7 @@ class PreguntaModuloInline(admin.StackedInline):
 class SeccionModuloInline(admin.TabularInline):
     """Agrupa pasos en el admin; el título de la sección no se envía por WhatsApp."""
     model = SeccionModulo
-    extra = 0
+    extra = 1
     can_delete = True
     ordering = ('orden', 'id')
     show_change_link = True
@@ -389,7 +389,7 @@ class PasoModuloInline(admin.StackedInline):
     model = PasoModulo
     form = PasoModuloForm
     formset = PasoModuloInlineFormSet
-    extra = 0
+    extra = 1
     can_delete = True
     ordering = ('orden', 'id')
     show_change_link = True
@@ -449,7 +449,7 @@ class ArchivoModuloInline(admin.StackedInline):
     extra = 1
     can_delete = True
     show_change_link = True
-    verbose_name = '📎 Multimedia'
+    verbose_name = 'Archivo'
     verbose_name_plural = 'Multimedia'
     readonly_fields = ('preview_multimedia',)
     
@@ -650,20 +650,21 @@ class ModuloAdmin(admin.ModelAdmin):
     
     fieldsets = (
         (
-            '📱 Guía: envío por WhatsApp (*listo*)',
+            'Guia WhatsApp',
             {
                 'fields': ('guia_microcontenidos_whatsapp',),
                 'classes': ('wide',),
                 'description': (
                     'Orden: 1) cree el módulo y al menos una <strong>Sección</strong>, '
-                    '2) <strong>Guarde</strong> — al guardar se abre este módulo con '
-                    '<strong>Microcontenidos</strong> visibles, '
-                    '3) agregue cada paso y asígnelo a un bloque/sección. '
-                    'En el alta desde cero aún no se muestran Microcontenidos (hace falta guardar antes).'
+                    '2) <strong>Guarde</strong> — se abre la edición con '
+                    '<strong>Microcontenidos</strong>, '
+                    '3) haga click en la pestaña Microcontenidos y complete el paso '
+                    '(elija la sección). '
+                    'En el alta desde cero Microcontenidos aparece solo después de guardar.'
                 ),
             },
         ),
-        ('📖 Información del Módulo', {
+        ('Informacion del modulo', {
             'fields': ('curso', 'numero', 'titulo', 'descripcion'),
             'description': (
                 '<strong>Número del módulo:</strong> entero <strong>≥ 0</strong> (0 = bienvenida u onboarding; '
@@ -671,7 +672,7 @@ class ModuloAdmin(admin.ModelAdmin):
                 'Sin decimales en este campo.'
             ),
         }),
-        ('📝 Contenido Educativo', {
+        ('Contenido educativo', {
             'fields': ('contenido',),
             'description': (
                 'Texto del módulo completo (principal en modo <b>Legacy</b>). '
@@ -679,12 +680,11 @@ class ModuloAdmin(admin.ModelAdmin):
                 '<b>opcional</b> si ya configuró pasos con sección asignada.'
             ),
         }),
-        ('✅ Examen Obligatorio', {
+        ('Examen obligatorio', {
             'fields': ('examen_obligatorio', 'puntaje_minimo_aprobacion'),
             'description': 'Si activas "Examen Obligatorio", el estudiante NO podrá avanzar al siguiente módulo hasta aprobar',
-            'classes': ('collapse',)
         }),
-        ('📦 Entrega al estudiante y checkpoint IA', {
+        ('Entrega y checkpoint IA', {
             'fields': ('modo_entrega', 'secciones_por_listo', 'facilitador_checkpoint'),
             'description': (
                 '<div style="font-size:13px;line-height:1.5;color:#334155;">'
@@ -694,10 +694,10 @@ class ModuloAdmin(admin.ModelAdmin):
                 '</div>'
             ),
         }),
-        ('⏱️ Duración, calendario y multimedia', {
+        ('Duracion y calendario', {
             'fields': ('duracion_dias', 'habilitado_desde'),
             'description': (
-                'Multimedia del módulo: usá la tabla <strong>ARCHIVOS MULTIMEDIA</strong> más abajo '
+                'Multimedia del módulo: usá la tabla <strong>Multimedia</strong> más abajo '
                 '(videos, imágenes, PDFs, etc.). '
                 '<strong>Disponible desde</strong>: opcional; bloquea el envío de este módulo hasta esa fecha para todos los estudiantes, '
                 'salvo que en el <em>Cliente</em> exista una habilitación distinta para el mismo módulo.'

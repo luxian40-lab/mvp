@@ -63,10 +63,32 @@ class ModuloAltaMicrocontenidosTests(TestCase):
         )
         req = self.rf.post('/admin/core/modulo/add/', {})
         req.user = self.user
-        # messages framework needs a middleware-like attribute
         from django.contrib.messages.storage.fallback import FallbackStorage
         setattr(req, 'session', 'session')
         setattr(req, '_messages', FallbackStorage(req))
         resp = self.admin.response_add(req, mod)
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(resp.url, reverse('admin:core_modulo_change', args=[mod.pk]))
+
+    def test_edicion_pestanas_ascii_y_formulario_micro_vacio(self):
+        """Tras guardar, Microcontenidos debe existir con extra>=1 y tabs sin tildes."""
+        mod = Modulo.objects.create(
+            curso=self.curso,
+            numero=3,
+            titulo='Tabs',
+            descripcion='d',
+            contenido='Contenido suficiente para validación de módulo.',
+        )
+        self.client.force_login(self.user)
+        r = self.client.get(reverse('admin:core_modulo_change', args=[mod.pk]))
+        self.assertEqual(r.status_code, 200)
+        body = r.content.decode('utf-8')
+        self.assertIn('id="pasos-group"', body)
+        self.assertIn('href="#microcontenidos-tab"', body)
+        self.assertIn('href="#secciones-tab"', body)
+        self.assertNotIn('href="#guía', body)
+        self.assertNotIn('href="#duración', body)
+        self.assertNotIn('Mini examen (después', body)
+        # Al menos un formulario vacío de paso (extra=1)
+        self.assertIn('pasos-0-contenido', body)
+        self.assertIn('pasos-0-seccion', body)
