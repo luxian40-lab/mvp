@@ -67,3 +67,14 @@ class NatRouterTests(SimpleTestCase):
         ])
         self.assertEqual(mx, 0.7)
         self.assertEqual(n, 1)
+
+    @override_settings(BOT_COMERCIAL_RAG_MIN_SIMILARITY=0.52)
+    def test_filtrar_chunks_por_similitud(self):
+        from core.nat_router import filtrar_chunks_por_similitud
+        out = filtrar_chunks_por_similitud([
+            {'similitud': 0.4, 'fuente': 'ruido'},
+            {'similitud': 0.6, 'fuente': 'util'},
+            {'fuente': 'sin_score'},
+        ])
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]['fuente'], 'util')

@@ -594,6 +594,10 @@ try:
     BOT_COMERCIAL_RAG_MIN_SIMILARITY = float(os.environ.get('BOT_COMERCIAL_RAG_MIN_SIMILARITY', '0.52'))
 except (TypeError, ValueError):
     BOT_COMERCIAL_RAG_MIN_SIMILARITY = 0.52
+# Si true, no inyecta al prompt chunks por debajo del umbral (reduce alucinación por contexto basura)
+BOT_COMERCIAL_RAG_FILTER_CHUNKS = os.environ.get('BOT_COMERCIAL_RAG_FILTER_CHUNKS', 'true').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 BOT_COMERCIAL_VISION_MODEL = os.environ.get('BOT_COMERCIAL_VISION_MODEL', 'gpt-5-mini')
 # Extracción PDF para RAG (PyMuPDF + OCR Tesseract en servidores con tesseract instalado)
 RAG_PDF_OCR_ENABLED = os.environ.get('RAG_PDF_OCR_ENABLED', 'True').strip().lower() in ('1', 'true', 'yes', 'on')

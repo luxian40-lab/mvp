@@ -40,6 +40,12 @@ def test_armar_system_prompt_prohibe_inventar_datos():
     assert "no invente" in prompt.lower()
 
 
+def test_armar_system_prompt_apoyo_decision():
+    prompt = armar_system_prompt()
+    assert "apoyo a decisión" in prompt.lower() or "decidir" in prompt.lower()
+    assert "qué confirmar" in prompt.lower() or "que confirmar" in prompt.lower()
+
+
 def test_armar_system_prompt_usa_nombre_bot_cliente():
     cliente = Cliente.objects.create(
         nombre="ACME NATI",

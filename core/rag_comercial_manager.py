@@ -16,6 +16,34 @@ except Exception:
     _CHROMADB_OK = False
 
 
+def _umbral_similitud() -> float:
+    from django.conf import settings
+    try:
+        return float(getattr(settings, 'BOT_COMERCIAL_RAG_MIN_SIMILARITY', 0.52) or 0.52)
+    except (TypeError, ValueError):
+        return 0.52
+
+
+def _filtrar_rag_activo() -> bool:
+    from django.conf import settings
+    return str(getattr(settings, 'BOT_COMERCIAL_RAG_FILTER_CHUNKS', 'true')).strip().lower() in (
+        '1', 'true', 'yes', 'on',
+    )
+
+
+def _hit_pasa_umbral(hit: dict, umbral: float, *, exigir_score: bool = True) -> bool:
+    """True si el hit es usable en el prompt (similitud suficiente)."""
+    if not _filtrar_rag_activo():
+        return True
+    s = hit.get('similitud') if isinstance(hit, dict) else None
+    if s is None:
+        return not exigir_score
+    try:
+        return float(s) >= umbral
+    except (TypeError, ValueError):
+        return False
+
+
 def _consulta_catalogo_comercial(pregunta: str) -> bool:
     """Detecta intención de precios / listas / catálogo para activar refuerzos de recuperación."""
     return bool(
@@ -114,7 +142,6 @@ class RAGComercialManager:
             return ("", []) if retornar_chunks else ""
 
         por_cliente: Dict[int, List[dict]] = {}
-        chunks_meta: List[dict] = []
         for cid in orden_ids:
             rag = self.obtener_rag(cid, canal)
             if not rag:
@@ -127,9 +154,12 @@ class RAGComercialManager:
 
         vistos: set[str] = set()
         fragmentos: List[str] = []
+        chunks_meta: List[dict] = []
         chars = 0
         ronda = 0
         salir = False
+        umbral = _umbral_similitud()
+        descartados_debiles = 0
         while chars < max_chars and ronda < top_k_por_scope + 5 and not salir:
             avance = False
             for cid in orden_ids:
@@ -137,6 +167,9 @@ class RAGComercialManager:
                 if ronda >= len(hits):
                     continue
                 d = hits[ronda]
+                if not _hit_pasa_umbral(d, umbral, exigir_score=True):
+                    descartados_debiles += 1
+                    continue
                 contenido = (d.get("contenido") or "").strip()
                 if len(contenido) < 12:
                     continue
@@ -146,14 +179,16 @@ class RAGComercialManager:
                 vistos.add(firma)
                 fuente = (d.get("fuente") or "documento").strip()
                 alcance = "catálogo general eki" if cid == 0 else f"material cliente {cid}"
+                sim = d.get('similitud')
                 chunks_meta.append({
                     'cliente_id': cid,
                     'fuente': fuente,
                     'tipo': d.get('tipo') or '',
-                    'similitud': d.get('similitud'),
+                    'similitud': sim,
                     'preview': contenido[:120],
                 })
-                frag = f"[Fuente: {fuente} — {alcance}]\n{contenido}"
+                sim_txt = f" · similitud {sim}" if sim is not None else ""
+                frag = f"[Fuente: {fuente} — {alcance}{sim_txt}]\n{contenido}"
                 if chars + len(frag) + 20 > max_chars:
                     salir = True
                     break
@@ -163,14 +198,26 @@ class RAGComercialManager:
             if salir:
                 break
             if not avance:
-                break
+                # Si en esta ronda solo hubo hits débiles, avanzar ronda igual
+                ronda += 1
+                if all(ronda >= len(por_cliente.get(cid) or []) for cid in orden_ids):
+                    break
+                continue
             ronda += 1
             if chars >= int(max_chars * 0.98):
                 break
 
+        if descartados_debiles:
+            logger.info(
+                "[RAGComercial] descartados por similitud baja: %s (umbral=%.2f)",
+                descartados_debiles,
+                umbral,
+            )
+
+        # Muestreo sin score solo si no hubo hits fuertes (evita ruido en el prompt)
         cat_q = _consulta_catalogo_comercial(pregunta)
-        if (not fragmentos) or (cat_q and chars < max(400, int(max_chars * 0.58))):
-            logger.info("[RAGComercial] refuerzo muestreo Chroma (catálogo o poco contexto vectorial)")
+        if (not fragmentos) and cat_q:
+            logger.info("[RAGComercial] refuerzo muestreo Chroma (sin hits >= umbral)")
             for cid in sorted(orden_ids, key=lambda x: (0 if x == 0 else 1, x)):
                 rag = self.obtener_rag(cid, canal)
                 if not rag:
@@ -185,7 +232,53 @@ class RAGComercialManager:
                     vistos.add(firma)
                     fuente = (d.get("fuente") or "documento").strip()
                     alcance = "catálogo general eki" if cid == 0 else f"material cliente {cid}"
+                    chunks_meta.append({
+                        'cliente_id': cid,
+                        'fuente': fuente,
+                        'tipo': d.get('tipo') or 'muestreo',
+                        'similitud': None,
+                        'preview': contenido[:120],
+                    })
                     frag = f"[Fuente: {fuente} — {alcance} — extracto listado]\n{contenido}"
+                    if chars + len(frag) + 20 > max_chars:
+                        break
+                    fragmentos.append(frag)
+                    chars += len(frag)
+                if chars >= int(max_chars * 0.98):
+                    break
+        elif fragmentos and cat_q and chars < max(400, int(max_chars * 0.35)):
+            # Ya hay hits fuertes pero poco texto: ampliar SOLO con búsqueda vectorial filtrada
+            logger.info("[RAGComercial] poco contexto fuerte; búsqueda ampliada filtrada")
+            amplia = f"{pregunta}\n\nPalabras clave: lista de precios productos insumos catálogo comercial venta."
+            for cid in sorted(orden_ids, key=lambda x: (0 if x == 0 else 1, x)):
+                rag = self.obtener_rag(cid, canal)
+                if not rag:
+                    continue
+                try:
+                    hits_amp = rag.buscar(amplia, top_k=top_k_por_scope)
+                except Exception as e:
+                    logger.warning("[RAGComercial] búsqueda ampliada falló cliente_id=%s: %s", cid, e)
+                    hits_amp = []
+                for d in hits_amp:
+                    if not _hit_pasa_umbral(d, umbral, exigir_score=True):
+                        continue
+                    contenido = (d.get("contenido") or "").strip()
+                    if len(contenido) < 12:
+                        continue
+                    firma = contenido[:400]
+                    if firma in vistos:
+                        continue
+                    vistos.add(firma)
+                    fuente = (d.get("fuente") or "documento").strip()
+                    alcance = "catálogo general eki" if cid == 0 else f"material cliente {cid}"
+                    chunks_meta.append({
+                        'cliente_id': cid,
+                        'fuente': fuente,
+                        'tipo': d.get('tipo') or '',
+                        'similitud': d.get('similitud'),
+                        'preview': contenido[:120],
+                    })
+                    frag = f"[Fuente: {fuente} — {alcance}]\n{contenido}"
                     if chars + len(frag) + 20 > max_chars:
                         break
                     fragmentos.append(frag)
@@ -205,6 +298,8 @@ class RAGComercialManager:
                     logger.warning("[RAGComercial] búsqueda ampliada falló cliente_id=%s: %s", cid, e)
                     hits_amp = []
                 for d in hits_amp:
+                    if not _hit_pasa_umbral(d, umbral, exigir_score=True):
+                        continue
                     contenido = (d.get("contenido") or "").strip()
                     if len(contenido) < 12:
                         continue
@@ -214,6 +309,13 @@ class RAGComercialManager:
                     vistos.add(firma)
                     fuente = (d.get("fuente") or "documento").strip()
                     alcance = "catálogo general eki" if cid == 0 else f"material cliente {cid}"
+                    chunks_meta.append({
+                        'cliente_id': cid,
+                        'fuente': fuente,
+                        'tipo': d.get('tipo') or '',
+                        'similitud': d.get('similitud'),
+                        'preview': contenido[:120],
+                    })
                     frag = f"[Fuente: {fuente} — {alcance}]\n{contenido}"
                     if chars + len(frag) + 20 > max_chars:
                         break

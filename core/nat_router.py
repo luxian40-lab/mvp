@@ -56,18 +56,54 @@ def _cfg(name: str, default: str) -> str:
     return str(getattr(settings, name, default) or default).strip()
 
 
+def umbral_similitud_rag() -> float:
+    try:
+        return float(getattr(settings, 'BOT_COMERCIAL_RAG_MIN_SIMILARITY', 0.52) or 0.52)
+    except (TypeError, ValueError):
+        return 0.52
+
+
+def filtrar_chunks_por_similitud(
+    chunks: list[dict] | None,
+    umbral: float | None = None,
+    *,
+    incluir_sin_score: bool = False,
+) -> list[dict]:
+    """
+    Quedarse solo con chunks semánticamente útiles para el prompt.
+    Por defecto descarta similitud < umbral y los que no traen score.
+    """
+    if not chunks:
+        return []
+    if umbral is None:
+        umbral = umbral_similitud_rag()
+    out: list[dict] = []
+    for c in chunks:
+        if not isinstance(c, dict):
+            continue
+        s = c.get('similitud')
+        if s is None:
+            if incluir_sin_score:
+                out.append(c)
+            continue
+        try:
+            val = float(s)
+        except (TypeError, ValueError):
+            continue
+        if val >= umbral:
+            out.append(c)
+    return out
+
+
 def evaluar_calidad_rag(chunks: list[dict] | None) -> tuple[float | None, int]:
-    """Devuelve (max_similitud, chunks con similitud >= umbral)."""
+    """Devuelve (max_similitud entre todos, cantidad de chunks >= umbral)."""
     if not chunks:
         return None, 0
-    try:
-        umbral = float(getattr(settings, 'BOT_COMERCIAL_RAG_MIN_SIMILARITY', 0.52) or 0.52)
-    except (TypeError, ValueError):
-        umbral = 0.52
-    sims = []
+    umbral = umbral_similitud_rag()
+    sims: list[float] = []
     utiles = 0
     for c in chunks:
-        s = c.get('similitud')
+        s = c.get('similitud') if isinstance(c, dict) else None
         if s is None:
             continue
         try:
