@@ -182,8 +182,23 @@
   min-height: 7rem;
 }
 
+.app-core.model-modulo .eki-bloques-rapidos {
+  min-height: 8.5rem !important;
+  font-family: 'Sora', system-ui, sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  border: 2px solid #0f6e6a !important;
+  border-radius: 10px !important;
+  background: #f4fbfa !important;
+}
+
 .app-core.model-modulo fieldset.module h2 {
   font-family: 'Fraunces', Georgia, serif !important;
   font-weight: 650 !important;
   letter-spacing: -0.02em;
+}
+
+/* Formato single: bloques y microcontenidos en el mismo scroll, no “perdidos” */
+.app-core.model-modulo #seccionmodulo_set-group {
+  margin-top: 0.5rem;
 }

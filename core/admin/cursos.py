@@ -280,13 +280,12 @@ class PreguntaModuloInline(admin.StackedInline):
 class SeccionModuloInline(admin.TabularInline):
     """Agrupa pasos en el admin; el título de la sección no se envía por WhatsApp."""
     model = SeccionModulo
-    extra = 0
+    extra = 1
     can_delete = True
     ordering = ('orden', 'id')
     show_change_link = True
     verbose_name = 'Bloque'
-    # Texto corto: Jazzmin usa esto en pestañas + ancla #slug-tab; títulos largos rompen el cambio de pestaña.
-    verbose_name_plural = 'Secciones'
+    verbose_name_plural = 'Bloques del recorrido'
     fields = ('orden', 'activa', 'titulo', 'resumen_pasos')
     readonly_fields = ('resumen_pasos',)
 
@@ -299,7 +298,7 @@ class SeccionModuloInline(admin.TabularInline):
         n = obj.pasos.filter(activo=True).count()
         return format_html(
             '<span style="font-weight:600;color:#0f766e;">{}</span>'
-            '<span style="color:#64748b;font-size:11px;"> en esta sección</span>',
+            '<span style="color:#64748b;font-size:11px;"> en este bloque</span>',
             n,
         )
 
@@ -350,7 +349,54 @@ class PasoModuloForm(forms.ModelForm):
         return instance
 
 
+def parse_titulos_bloques_rapidos(raw: str) -> list[str]:
+    """Una línea no vacía = un bloque. Deduplica por orden, máx. 20."""
+    out: list[str] = []
+    for line in (raw or '').splitlines():
+        t = ' '.join(line.strip().split())
+        if not t:
+            continue
+        out.append(t[:200])
+        if len(out) >= 20:
+            break
+    return out
+
+
+def crear_secciones_desde_titulos(modulo: Modulo, titulos: list[str]) -> int:
+    """Crea SeccionModulo en orden 1..n. No borra secciones existentes."""
+    if not modulo or not modulo.pk or not titulos:
+        return 0
+    created = 0
+    orden_base = (
+        SeccionModulo.objects.filter(modulo=modulo).order_by('-orden').values_list('orden', flat=True).first()
+        or 0
+    )
+    for i, titulo in enumerate(titulos, start=1):
+        SeccionModulo.objects.create(
+            modulo=modulo,
+            orden=orden_base + i,
+            titulo=titulo,
+            activa=True,
+        )
+        created += 1
+    return created
+
+
 class ModuloAdminForm(forms.ModelForm):
+    bloques_rapidos = forms.CharField(
+        required=False,
+        label='Bloques del recorrido',
+        help_text=(
+            'Una línea = un bloque. Ejemplo: Introducción / Práctica / Cierre. '
+            'Se crean al guardar; después agregue microcontenidos en cada bloque.'
+        ),
+        widget=forms.Textarea(attrs={
+            'rows': 5,
+            'placeholder': 'Introducción\nPráctica en campo\nCierre y checklist',
+            'class': 'eki-bloques-rapidos',
+        }),
+    )
+
     class Meta:
         model = Modulo
         fields = '__all__'
@@ -364,10 +410,10 @@ class ModuloAdminForm(forms.ModelForm):
                 'placeholder': 'Qué aprenderá el estudiante en este módulo (1–2 frases).',
             }),
             'contenido': forms.Textarea(attrs={
-                'rows': 8,
+                'rows': 6,
                 'placeholder': (
-                    'Texto completo del módulo (modo Legacy) o borrador. '
-                    'Si usará microcontenidos, puede dejarlo corto y ampliar después.'
+                    'Texto si aún no hay microcontenidos. '
+                    'Si ya listó bloques arriba, un resumen corto alcanza.'
                 ),
             }),
             'numero': forms.NumberInput(attrs={'min': 0, 'style': 'max-width: 8rem;'}),
@@ -377,8 +423,8 @@ class ModuloAdminForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['contenido'].required = False
         self.fields['contenido'].help_text = (
-            'Obligatorio si no hay microcontenidos. Opcional si configuró pasos en la pestaña '
-            '«Microcontenidos» (cada uno con sección asignada).'
+            'Respaldo mientras arma microcontenidos. Si listó bloques y deja esto vacío, '
+            'se genera un borrador automático con esos títulos.'
         )
         if 'titulo' in self.fields:
             self.fields['titulo'].help_text = 'Nombre corto y claro; aparece en reportes y portal.'
@@ -386,12 +432,30 @@ class ModuloAdminForm(forms.ModelForm):
             self.fields['numero'].help_text = (
                 'Orden en el curso (0 = intro/bienvenida; luego 1, 2, 3…). Sin decimales.'
             )
+        if self.instance and self.instance.pk and 'bloques_rapidos' in self.fields:
+            del self.fields['bloques_rapidos']
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.instance.pk:
+            return cleaned
+        contenido = (cleaned.get('contenido') or '').strip()
+        titulos = parse_titulos_bloques_rapidos(cleaned.get('bloques_rapidos') or '')
+        if not contenido and titulos:
+            cleaned['contenido'] = (
+                'Estructura del módulo (completar microcontenidos al reabrir):\n'
+                + '\n'.join(f'• {t}' for t in titulos)
+            )
+        return cleaned
 
     def clean_contenido(self):
         from core.module_steps import validar_contenido_modulo
 
         contenido = self.cleaned_data.get('contenido', '')
         if not self.instance.pk:
+            titulos = parse_titulos_bloques_rapidos(self.data.get('bloques_rapidos', ''))
+            if titulos and not (contenido or '').strip():
+                return contenido
             validar_contenido_modulo(contenido, self.instance)
         return contenido
 
@@ -613,47 +677,47 @@ class ModuloAdmin(admin.ModelAdmin):
                     {
                         'fields': ('guia_alta_modulo',),
                         'classes': ('wide',),
-                        'description': (
-                            'Guía corta para el primer guardado. Los microcontenidos se configuran '
-                            'después de crear el módulo.'
-                        ),
                     },
                 ),
                 (
-                    'Identidad del módulo',
+                    '1. Identidad',
                     {
                         'fields': ('curso', 'numero', 'titulo', 'descripcion'),
+                        'description': 'Curso, orden y nombre. Lo mínimo para crear el módulo.',
+                    },
+                ),
+                (
+                    '2. Bloques del recorrido',
+                    {
+                        'fields': ('bloques_rapidos',),
                         'description': (
-                            'Lo esencial para que el módulo exista en el curso. '
-                            'El número define el orden (0 = bienvenida; luego 1, 2, 3…).'
+                            'Escriba <strong>un bloque por línea</strong>. '
+                            'Quedan en el mismo formulario (no en otra pestaña). '
+                            'Después de guardar, abra el módulo y agregue microcontenidos en cada bloque.'
                         ),
                     },
                 ),
                 (
-                    'Contenido inicial',
+                    '3. Contenido de respaldo',
                     {
                         'fields': ('contenido',),
                         'description': (
-                            'Borrador o texto completo (modo Legacy). '
-                            'Si planea microcontenidos, puede escribir un resumen y completar pasos al reabrir.'
+                            'Texto mientras arma los pasos. Si dejó bloques y vacía esto, '
+                            'se genera un borrador con esos títulos.'
                         ),
                     },
                 ),
                 (
-                    'Entrega y duración',
+                    'Opciones avanzadas',
                     {
-                        'fields': ('modo_entrega', 'secciones_por_listo', 'duracion_dias'),
-                        'classes': ('collapse',),
-                        'description': (
-                            'Opcional en el alta. Por defecto Automático: usa pasos si existen, '
-                            'si no envía el contenido completo.'
+                        'fields': (
+                            'modo_entrega',
+                            'secciones_por_listo',
+                            'duracion_dias',
+                            'examen_obligatorio',
+                            'puntaje_minimo_aprobacion',
+                            'habilitado_desde',
                         ),
-                    },
-                ),
-                (
-                    'Examen y calendario',
-                    {
-                        'fields': ('examen_obligatorio', 'puntaje_minimo_aprobacion', 'habilitado_desde'),
                         'classes': ('collapse',),
                     },
                 ),
@@ -680,6 +744,10 @@ class ModuloAdmin(admin.ModelAdmin):
             from django.db.models import Max
             mx = Modulo.objects.filter(curso_id=cid).aggregate(m=Max('numero')).get('m')
             initial.setdefault('numero', (mx or 0) + 1)
+        initial.setdefault(
+            'bloques_rapidos',
+            'Introducción\nDesarrollo\nCierre',
+        )
         return initial
 
     def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
@@ -696,18 +764,24 @@ class ModuloAdmin(admin.ModelAdmin):
         extra_context['curso_contexto'] = curso_contexto
         return super().changeform_view(request, object_id, form_url, extra_context)
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if change:
+            return
+        titulos = parse_titulos_bloques_rapidos(form.cleaned_data.get('bloques_rapidos') or '')
+        n = crear_secciones_desde_titulos(obj, titulos)
+        if n:
+            self.message_user(
+                request,
+                f'Se crearon {n} bloque(s). Ahora agregue microcontenidos en cada uno.',
+                level=messages.SUCCESS,
+            )
+
     def get_inline_instances(self, request, obj=None):
-        """Módulo nuevo: solo secciones hasta la 1.ª guardada (luego se elige sección por módulo)."""
-        instances = []
-        for inline_class in self.inlines:
-            if inline_class is PasoModuloInline and obj is None:
-                continue
-            if inline_class is PreguntaModuloInline and obj is None:
-                continue
-            if inline_class is ArchivoModuloInline and obj is None:
-                continue
-            instances.append(inline_class(self.model, self.admin_site))
-        return instances
+        """Alta: sin inlines (bloques van en el formulario). Edición: flujo completo."""
+        if obj is None:
+            return []
+        return [inline_class(self.model, self.admin_site) for inline_class in self.inlines]
 
     def ver_curso_link(self, obj):
         """Link directo al curso padre"""
@@ -719,14 +793,14 @@ class ModuloAdmin(admin.ModelAdmin):
     def guia_alta_modulo(self, obj):
         return format_html(
             '<div class="eki-modulo-guide">'
-            '<h3>Qué completar ahora</h3>'
-            '<p>En este primer guardado basta con identidad + un contenido base. '
-            'Luego reabra el módulo para microcontenidos, multimedia y mini examen.</p>'
+            '<h3>Alta en un solo paso</h3>'
+            '<p>Todo queda en esta pantalla: identidad + bloques + contenido. '
+            'No use otra pestaña para «Secciones».</p>'
             '<ul>'
-            '<li><strong>Curso y número</strong> — si vino del listado del curso, ya vienen sugeridos.</li>'
-            '<li><strong>Título y descripción</strong> — lo que el equipo y el portal reconocerán.</li>'
-            '<li><strong>Contenido</strong> — texto Legacy o resumen; con pasos será opcional después.</li>'
-            '<li><strong>Secciones</strong> (tabla abajo) — opcional: cree 1–2 bloques antes de guardar.</li>'
+            '<li><strong>Identidad</strong> — curso, número y título.</li>'
+            '<li><strong>Bloques</strong> — una línea por bloque (Introducción, Práctica…).</li>'
+            '<li><strong>Guardar</strong> — se crean los bloques solos.</li>'
+            '<li><strong>Reabrir</strong> — agregue microcontenidos dentro de cada bloque.</li>'
             '</ul>'
             '</div>'
         )

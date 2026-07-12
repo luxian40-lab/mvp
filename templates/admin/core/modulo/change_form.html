@@ -7,19 +7,17 @@
 <section class="eki-modulo-hero {% if add %}eki-modulo-hero--add{% endif %}" aria-label="Contexto del módulo">
     {% if add %}
         <p class="eki-modulo-hero__kicker">Nuevo módulo</p>
-        <h1 class="eki-modulo-hero__title">Arme la unidad del curso</h1>
+        <h1 class="eki-modulo-hero__title">Crear en un solo flujo</h1>
         <p class="eki-modulo-hero__lead">
             {% if curso_contexto %}
-                Se creará en <strong>{{ curso_contexto }}</strong>.
-            {% else %}
-                Elija el curso, el número y un título claro.
+                Curso: <strong>{{ curso_contexto }}</strong>.
             {% endif %}
-            Guarde una primera versión; los microcontenidos y el multimedia se configuran al reabrir.
+            Identidad + bloques (una línea cada uno) + contenido. Sin pestaña aparte de secciones.
         </p>
         <ol class="eki-modulo-steps">
-            <li><span>1</span> Identidad (curso, número, título)</li>
-            <li><span>2</span> Contenido base o secciones</li>
-            <li><span>3</span> Guardar y luego microcontenidos</li>
+            <li><span>1</span> Título y número</li>
+            <li><span>2</span> Bloques (una línea = un bloque)</li>
+            <li><span>3</span> Guardar → microcontenidos al reabrir</li>
         </ol>
     {% else %}
         <p class="eki-modulo-hero__kicker">Módulo {{ original.numero }}</p>
@@ -39,14 +37,9 @@
 {% endblock %}
 
 {% block eki_inlines_intro %}
-{% if add %}
+{% if not add %}
 <p class="eki-inlines-intro eki-modulo-inline-hint">
-    <strong>Primera guardada:</strong> puede definir bloques en «Secciones».
-    Los microcontenidos aparecen después de guardar este módulo.
-</p>
-{% else %}
-<p class="eki-inlines-intro eki-modulo-inline-hint">
-    Orden sugerido: <strong>Secciones</strong> → <strong>Microcontenidos</strong> → multimedia / mini examen.
+    Orden: <strong>Bloques del recorrido</strong> → <strong>Microcontenidos</strong> (cada paso elige un bloque) → multimedia / mini examen.
 </p>
 {% endif %}
 {% endblock %}

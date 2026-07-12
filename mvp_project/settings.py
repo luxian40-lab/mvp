@@ -265,6 +265,7 @@ JAZZMIN_SETTINGS = {
         "core.cliente": "collapsible",
         "core.estudiante": "collapsible",
         "core.curso": "collapsible",
+        "core.modulo": "single",
     },
 
     # Iconos — agrupados por sección visual

@@ -4,8 +4,13 @@ from django.contrib.admin.sites import site
 from django.contrib.auth.models import User
 from django.test import RequestFactory, TestCase, override_settings
 
-from core.admin.cursos import ModuloAdmin
-from core.models import Cliente, Curso, Modulo
+from core.admin.cursos import (
+    ModuloAdmin,
+    ModuloAdminForm,
+    crear_secciones_desde_titulos,
+    parse_titulos_bloques_rapidos,
+)
+from core.models import Cliente, Curso, Modulo, SeccionModulo
 
 
 @override_settings(
@@ -47,37 +52,30 @@ class ModuloAdminUxTests(TestCase):
         req.user = self.user
         return req
 
+    def test_parse_bloques_rapidos(self):
+        self.assertEqual(
+            parse_titulos_bloques_rapidos('  Intro \n\nPráctica\n'),
+            ['Intro', 'Práctica'],
+        )
+
     def test_initial_precarga_curso_y_siguiente_numero(self):
         req = self._req(data={'_changelist_filters': f'curso__id__exact={self.curso.id}'})
         initial = self.admin.get_changeform_initial_data(req)
         self.assertEqual(initial.get('curso'), self.curso.id)
         self.assertEqual(initial.get('numero'), 3)
+        self.assertIn('Introducción', initial.get('bloques_rapidos') or '')
 
-    def test_fieldsets_alta_usan_guia_corta(self):
+    def test_fieldsets_alta_integran_bloques(self):
         req = self._req()
         titles = [fs[0] for fs in self.admin.get_fieldsets(req, None)]
-        self.assertIn('Antes de empezar', titles)
-        self.assertIn('Identidad del módulo', titles)
-        self.assertNotIn('📱 Guía: envío por WhatsApp (*listo*)', titles)
-        self.assertEqual(self.admin.get_readonly_fields(req, None), ('guia_alta_modulo',))
+        self.assertIn('2. Bloques del recorrido', titles)
+        self.assertIn('1. Identidad', titles)
+        fields_bloques = dict(self.admin.get_fieldsets(req, None))['2. Bloques del recorrido']['fields']
+        self.assertIn('bloques_rapidos', fields_bloques)
 
-    def test_fieldsets_edicion_conservan_guia_whatsapp(self):
+    def test_alta_sin_inlines_separados(self):
         req = self._req()
-        mod = Modulo.objects.get(curso=self.curso, numero=2)
-        titles = [fs[0] for fs in self.admin.get_fieldsets(req, mod)]
-        self.assertIn('📱 Guía: envío por WhatsApp (*listo*)', titles)
-        self.assertEqual(
-            self.admin.get_readonly_fields(req, mod),
-            ('guia_microcontenidos_whatsapp',),
-        )
-
-    def test_alta_oculta_inlines_avanzados(self):
-        req = self._req()
-        names = [type(i).__name__ for i in self.admin.get_inline_instances(req, None)]
-        self.assertIn('SeccionModuloInline', names)
-        self.assertNotIn('PasoModuloInline', names)
-        self.assertNotIn('ArchivoModuloInline', names)
-        self.assertNotIn('PreguntaModuloInline', names)
+        self.assertEqual(self.admin.get_inline_instances(req, None), [])
 
     def test_edicion_muestra_inlines_completos(self):
         req = self._req()
@@ -85,5 +83,37 @@ class ModuloAdminUxTests(TestCase):
         names = [type(i).__name__ for i in self.admin.get_inline_instances(req, mod)]
         self.assertIn('SeccionModuloInline', names)
         self.assertIn('PasoModuloInline', names)
-        self.assertIn('ArchivoModuloInline', names)
-        self.assertIn('PreguntaModuloInline', names)
+
+    def test_form_alta_rellena_contenido_desde_bloques(self):
+        form = ModuloAdminForm(data={
+            'curso': self.curso.id,
+            'numero': 5,
+            'titulo': 'Nuevo',
+            'descripcion': 'desc',
+            'contenido': '',
+            'bloques_rapidos': 'A\nB\nC',
+            'modo_entrega': 'auto',
+            'secciones_por_listo': 1,
+            'facilitador_checkpoint': 'auto',
+            'duracion_dias': 7,
+            'examen_obligatorio': False,
+            'puntaje_minimo_aprobacion': 70,
+            'video_resolucion': '360p',
+        })
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertIn('• A', form.cleaned_data['contenido'])
+
+    def test_crear_secciones_desde_titulos(self):
+        mod = Modulo.objects.create(
+            curso=self.curso,
+            numero=9,
+            titulo='Con bloques',
+            descripcion='d',
+            contenido='texto',
+        )
+        n = crear_secciones_desde_titulos(mod, ['Uno', 'Dos'])
+        self.assertEqual(n, 2)
+        self.assertEqual(
+            list(SeccionModulo.objects.filter(modulo=mod).order_by('orden').values_list('titulo', flat=True)),
+            ['Uno', 'Dos'],
+        )
