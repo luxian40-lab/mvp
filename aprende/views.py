@@ -75,21 +75,48 @@ def estudiante_login(request):
     if getattr(request, 'aprende_estudiante', None):
         return redirect('/aprende/estudiante/')
 
+    modo = (request.POST.get('modo') or request.GET.get('modo') or '').strip().lower()
+    if not modo:
+        # Compat: posts legacy solo envían cédula/teléfono
+        if request.method == 'POST' and request.POST.get('cedula'):
+            modo = 'whatsapp'
+        else:
+            modo = 'correo'
+    if modo not in ('correo', 'whatsapp'):
+        modo = 'correo'
+
     error = None
+    email_val = ''
+
     if request.method == 'POST':
-        cedula = re.sub(r'[\s\.\-]', '', request.POST.get('cedula', '').strip())
-        tel = normalizar_telefono(request.POST.get('telefono', ''))
+        if modo == 'correo':
+            from studio.cuenta_service import autenticar_cuenta_aula, iniciar_sesion_cuenta
 
-        est = Estudiante.objects.filter(cedula=cedula, activo=True).first()
-        if est and _telefonos_coinciden(est.telefono, tel):
-            request.session[APRENDE_EST_SESSION_KEY] = est.pk
-            return redirect('/aprende/estudiante/')
-        error = (
-            'Número de documento o teléfono no coinciden. Use el mismo teléfono WhatsApp '
-            'registrado (puede escribirlo con o sin 57).'
-        )
+            email_val = request.POST.get('email', '')
+            cuenta, error = autenticar_cuenta_aula(
+                email=email_val,
+                password=request.POST.get('password', ''),
+            )
+            if cuenta:
+                iniciar_sesion_cuenta(request, cuenta)
+                return redirect(request.GET.get('next') or '/aprende/estudiante/')
+        else:
+            cedula = re.sub(r'[\s\.\-]', '', request.POST.get('cedula', '').strip())
+            tel = normalizar_telefono(request.POST.get('telefono', ''))
+            est = Estudiante.objects.filter(cedula=cedula, activo=True).first()
+            if est and _telefonos_coinciden(est.telefono, tel):
+                request.session[APRENDE_EST_SESSION_KEY] = est.pk
+                return redirect(request.GET.get('next') or '/aprende/estudiante/')
+            error = (
+                'Número de documento o teléfono no coinciden. Use el mismo teléfono WhatsApp '
+                'registrado (puede escribirlo con o sin 57).'
+            )
 
-    return render(request, 'aprende/estudiante_login.html', {'error': error})
+    return render(request, 'aprende/estudiante_login.html', {
+        'error': error,
+        'modo': modo,
+        'email_val': email_val,
+    })
 
 
 def estudiante_logout(request):

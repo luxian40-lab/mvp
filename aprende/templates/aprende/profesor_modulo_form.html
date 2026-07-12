@@ -1,5 +1,5 @@
 {% extends "aprende/base.html" %}
-{% block title %}{% if modulo %}Editar{% else %}Nueva{% endif %} lección | Aula web eki{% endblock %}
+{% block title %}{% if modulo %}Editar{% else %}Nueva{% endif %} lección | Aprende{% endblock %}
 {% block nav %}
 <a href="{% if modulo %}{% url 'aprende_profesor_curso' modulo.curso_id %}{% else %}{% url 'aprende_profesor_curso' curso.id %}{% endif %}">← Volver al curso</a>
 {% endblock %}

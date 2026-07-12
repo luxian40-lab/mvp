@@ -1,28 +1,53 @@
 {% extends "aprende/base.html" %}
-{% block title %}Aula eki{% endblock %}
+{% block title %}Aprende · eki{% endblock %}
 {% block main_class %}eki-main--wide{% endblock %}
 {% block extra_css %}
 .eki-landing-hero {
     margin: 0 0 2rem;
-    padding: 0.5rem 0 1.75rem;
+    padding: 0.35rem 0 1.75rem;
     border-bottom: 1px solid var(--eki-border);
-    max-width: 36rem;
+    max-width: 38rem;
 }
 .eki-landing-hero .eki-kicker {
     color: var(--eki-purple-dark);
 }
 .eki-landing-hero h1 {
-    font-size: clamp(1.85rem, 4vw, 2.35rem);
-    font-weight: 560;
-    letter-spacing: -0.03em;
+    font-size: clamp(1.7rem, 3.5vw, 2.15rem);
+    font-weight: 600;
+    letter-spacing: -0.02em;
     margin: 0 0 0.65rem;
 }
 .eki-landing-hero p {
     margin: 0;
     color: var(--eki-muted);
-    font-size: 1rem;
-    line-height: 1.65;
-    max-width: 34ch;
+    font-size: 0.98rem;
+    line-height: 1.6;
+    max-width: 40ch;
+}
+.eki-landing-trust {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
+    margin: 1.1rem 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--eki-ink-soft);
+}
+.eki-landing-trust li {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.eki-landing-trust li::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--eki-purple);
 }
 .eki-role-card {
     display: flex;
@@ -33,9 +58,14 @@
 {% endblock %}
 {% block content %}
 <header class="eki-landing-hero">
-    <span class="eki-kicker">Aula virtual</span>
-    <h1>Aprender con calma, avanzar con claridad</h1>
-    <p>Lecciones, materiales y tareas en un espacio pensado para el aula — no para un panel genérico.</p>
+    <span class="eki-kicker">Aprende</span>
+    <h1>Espacio de formación para estudiantes y docentes</h1>
+    <p>Contenido del programa, tareas y avance académico. Acceso solo con credenciales registradas.</p>
+    <ul class="eki-landing-trust">
+        <li>Identidad verificada</li>
+        <li>Sesión protegida</li>
+        <li>Datos de su organización</li>
+    </ul>
 </header>
 <div class="eki-grid-2">
     <article class="eki-card eki-card--bar eki-role-card">

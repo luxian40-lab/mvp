@@ -2,7 +2,7 @@
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 
 from aprende.models import EntregaTarea, TareaCurso
 
@@ -10,6 +10,7 @@ from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
 from portal.models import PortalUsuario
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class AprendeWebTests(TestCase):
     def setUp(self):
         self.http = Client()
@@ -42,8 +43,8 @@ class AprendeWebTests(TestCase):
     def test_inicio_carga(self):
         r = self.http.get('/aprende/')
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'Estudiante')
-        self.assertContains(r, 'Aula virtual')
+        self.assertContains(r, 'Aprende')
+        self.assertNotContains(r, 'Aula virtual')
 
     def test_estudiante_login_y_ve_modulo(self):
         r = self.http.post('/aprende/estudiante/login/', {

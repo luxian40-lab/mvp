@@ -8,16 +8,35 @@
 </section>
 
 <div class="st-card st-card--neon" style="max-width:480px;margin:0 auto;">
-    {% if wompi_activo %}
-    <p class="st-muted">Próximamente: botón de pago Wompi embebido con llave <code>{{ wompi_public_key|slice:":12" }}…</code></p>
-    {% else %}
+    {% if wompi_activo and wompi_widget and wompi_widget.integrity %}
+    <p class="st-muted" style="margin-bottom:1rem;">Paga de forma segura con Wompi. Al aprobarse el pago, entrarás automáticamente a Aprende.</p>
+    <form>
+        <script
+            src="https://checkout.wompi.co/widget.js"
+            data-render="button"
+            data-public-key="{{ wompi_widget.public_key }}"
+            data-currency="{{ wompi_widget.currency }}"
+            data-amount-in-cents="{{ wompi_widget.amount_in_cents }}"
+            data-reference="{{ wompi_widget.reference }}"
+            data-signature:integrity="{{ wompi_widget.integrity }}"
+            data-redirect-url="{{ wompi_widget.redirect_url }}"
+            {% if wompi_widget.customer_email %}data-customer-data:email="{{ wompi_widget.customer_email }}"{% endif %}
+            {% if wompi_widget.customer_name %}data-customer-data:full-name="{{ wompi_widget.customer_name }}"{% endif %}
+        ></script>
+    </form>
+    <p class="st-muted" style="margin-top:1rem;font-size:0.8rem;">
+        ¿Ya pagaste? <a href="{% url 'studio_pagar_resultado' acceso.wompi_referencia %}">Comprobar estado</a>
+    </p>
+    {% elif permite_simulacion %}
     <p class="st-muted" style="margin-bottom:1rem;">
-        Integración Wompi en configuración. En este entorno puedes confirmar el pago de prueba para desbloquear el curso.
+        Wompi no está configurado en este entorno. Puedes simular el pago para probar la inscripción en Aprende.
     </p>
     <form method="post" action="{% url 'studio_pagar_confirmar' acceso.wompi_referencia %}">
         {% csrf_token %}
-        <button type="submit" class="st-btn st-btn--neon st-btn--block">Confirmar pago y entrar al aula</button>
+        <button type="submit" class="st-btn st-btn--neon st-btn--block">Simular pago y entrar a Aprende</button>
     </form>
+    {% else %}
+    <p class="st-muted">Configura <code>WOMPI_PUBLIC_KEY</code> y <code>WOMPI_INTEGRITY_SECRET</code> en el entorno para habilitar el checkout.</p>
     {% endif %}
     <p class="st-muted" style="margin-top:1rem;font-size:0.75rem;">Ref: {{ acceso.wompi_referencia }}</p>
 </div>

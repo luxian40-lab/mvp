@@ -9,7 +9,7 @@
 <div class="eki-page-head">
     <span class="eki-badge">Calificar entregas</span>
     <h1>{{ tarea.titulo }}</h1>
-    <p class="eki-lead">Revise cada archivo, asigne nota del 1 al 5 y deje retroalimentación. El estudiante la verá en Aula → Tareas.</p>
+    <p class="eki-lead">Revise cada archivo, asigne nota del 1 al 5 y deje retroalimentación. El estudiante la verá en Aprende → Tareas.</p>
     <p class="eki-muted">{{ entregas|length }} entrega{{ entregas|length|pluralize:"s" }}</p>
 </div>
 
@@ -58,7 +58,7 @@
 {% else %}
 <div class="eki-card eki-empty">
     <h2>Sin entregas aún</h2>
-    <p class="eki-muted">Los estudiantes verán esta tarea en <strong>Aula → Tareas</strong> y podrán subir archivos desde allí.</p>
+    <p class="eki-muted">Los estudiantes verán esta tarea en <strong>Aprende → Tareas</strong> y podrán subir archivos desde allí.</p>
 </div>
 {% endif %}
 {% endblock %}

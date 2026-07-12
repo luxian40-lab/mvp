@@ -1,10 +1,11 @@
 """Tests eki Studio (/studio/)."""
 
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class StudioTests(TestCase):
     def setUp(self):
         self.http = Client()
@@ -119,8 +120,61 @@ class StudioTests(TestCase):
             ProgresoEstudiante.objects.filter(curso=self.curso).exists()
         )
 
+    def test_pago_simulado_inscribe_en_aprende(self):
+        from studio.models import AccesoCursoPagado, PublicacionStudio
+        from studio.pago_service import monto_en_centavos, firma_integridad_checkout
+
+        PublicacionStudio.objects.create(curso=self.curso, precio_cop=50000)
+        self.assertEqual(monto_en_centavos(50000), 5_000_000)
+
+        self.http.post('/studio/cuenta/registro/', {
+            'nombre': 'Buyer2',
+            'email': 'buyer2@test.com',
+            'password': 'testpass123',
+        })
+        r = self.http.post(f'/studio/inscribir/{self.curso.id}/')
+        ref = r.url.rstrip('/').split('/')[-1]
+        r2 = self.http.post(f'/studio/pagar/{ref}/confirmar/')
+        self.assertEqual(r2.status_code, 302)
+        self.assertIn('/aprende/estudiante/curso/', r2.url)
+        self.assertTrue(
+            AccesoCursoPagado.objects.filter(
+                wompi_referencia=ref, estado='aprobado',
+            ).exists()
+        )
+        self.assertTrue(
+            ProgresoEstudiante.objects.filter(curso=self.curso).exists()
+        )
+
+    def test_creador_publica_curso_con_precio(self):
+        from studio.models import CreadorStudio, PublicacionStudio
+
+        self.http.post('/studio/creador/registro/', {
+            'email': 'creador@test.com',
+            'password': 'testpass123',
+            'nombre_publico': 'Profe Test',
+            'bio': 'Bio',
+        })
+        creador = CreadorStudio.objects.get(user__username='creador@test.com')
+        creador.activo = True
+        creador.save(update_fields=['activo'])
+
+        r = self.http.post('/studio/creador/panel/', {
+            'accion': 'crear',
+            'nombre': 'Curso Creador',
+            'descripcion': 'Aprende X',
+            'precio_cop': '120000',
+            'publicar': 'on',
+        })
+        self.assertEqual(r.status_code, 302)
+        pub = PublicacionStudio.objects.get(curso__nombre='Curso Creador')
+        self.assertEqual(pub.precio_cop, 120000)
+        self.assertEqual(pub.creador_id, creador.pk)
+        self.assertTrue(pub.curso.visible_en_studio)
+
     def test_aula_sin_catalogo(self):
         self.http.post('/aprende/estudiante/login/', {
+            'modo': 'whatsapp',
             'cedula': 'st1',
             'telefono': '3009999011',
         })
@@ -128,3 +182,18 @@ class StudioTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertNotContains(r, 'Inscribirme')
         self.assertContains(r, 'eki Studio')
+
+    def test_aprende_login_correo(self):
+        self.http.post('/studio/cuenta/registro/', {
+            'nombre': 'Web Est',
+            'email': 'webest@test.com',
+            'password': 'testpass123',
+        })
+        self.http.get('/studio/cuenta/logout/')
+        r = self.http.post('/aprende/estudiante/login/', {
+            'modo': 'correo',
+            'email': 'webest@test.com',
+            'password': 'testpass123',
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/aprende/estudiante/', r.url)

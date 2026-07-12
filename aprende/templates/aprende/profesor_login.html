@@ -1,17 +1,18 @@
 {% extends "aprende/base.html" %}
-{% block title %}Ingreso profesor | eki{% endblock %}
+{% block title %}Ingreso docente | Aprende{% endblock %}
 {% block nav %}<a href="/aprende/">Inicio</a>{% endblock %}
 {% block main_class %}eki-main--wide{% endblock %}
 {% block content %}
 <div class="eki-auth-split">
     <aside class="eki-auth-panel">
-        <h2>Panel docente</h2>
-        <p>Mismas credenciales que el <a href="/portal/login/">portal B2B</a> (usuario y contraseña). Si ya inició en el portal, vaya directo a <a href="/aprende/profesor/">Aula docente</a>. Publique lecciones, suba archivos y califique entregas de tareas (nota 1–5).</p>
+        <h2>Acceso docente</h2>
+        <p>Mismas credenciales que el <a href="/portal/login/">portal B2B</a>. Si ya inició sesión allí, puede ir directo a <a href="/aprende/profesor/">Aprende docente</a>.</p>
+        <p class="eki-trust">Credenciales del portal · rol autorizado</p>
     </aside>
     <div>
         <div class="eki-page-head">
             <h1>Ingreso docente</h1>
-            <p class="eki-muted">Usuario y contraseña del portal (rol Administrador o Profesor).</p>
+            <p class="eki-muted">Usuario y contraseña del portal (Administrador o Profesor).</p>
         </div>
         {% if error %}<div class="eki-alert eki-alert--error" role="alert">{{ error }}</div>{% endif %}
         <form method="post" class="eki-card eki-card--bar">
@@ -24,7 +25,7 @@
                 <label for="password">Contraseña</label>
                 <input type="password" name="password" id="password" required autocomplete="current-password">
             </div>
-            <button type="submit" class="eki-btn eki-btn--primary">Continuar</button>
+            <button type="submit" class="eki-btn eki-btn--primary">Continuar de forma segura</button>
         </form>
     </div>
 </div>

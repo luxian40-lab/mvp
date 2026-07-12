@@ -31,14 +31,19 @@ from .cuenta_service import (
     registrar_cuenta_aula,
 )
 from .models import CreadorStudio, PublicacionStudio
+from .creador_service import actualizar_precio_publicacion, publicar_curso_creador
 from .pago_service import (
+    contexto_widget_wompi,
     crear_intento_pago,
     curso_requiere_pago,
     marcar_pago_aprobado,
     precio_curso_studio,
+    procesar_evento_wompi,
     tiene_acceso_curso,
+    validar_checksum_webhook,
     wompi_integracion_activa,
     wompi_llave_publica,
+    wompi_permite_simulacion,
 )
 
 
@@ -194,7 +199,7 @@ def inscribir(request, curso_id: int):
     inscribir_estudiante_en_curso(est, curso)
     messages.success(
         request,
-        f'Te inscribiste en «{curso.nombre}». Continúa en el aula virtual.',
+        f'Te inscribiste en «{curso.nombre}». Continúa en Aprende.',
     )
     return redirect(f'/aprende/estudiante/curso/{curso.pk}/')
 
@@ -213,18 +218,50 @@ def pagar_curso(request, referencia: str):
     if acceso.estado == AccesoCursoPagado.ESTADO_APROBADO:
         return redirect(f'/aprende/estudiante/curso/{acceso.curso_id}/')
 
+    redirect_url = request.build_absolute_uri(f'/studio/pagar/{referencia}/resultado/')
+    widget = None
+    if wompi_integracion_activa():
+        widget = contexto_widget_wompi(acceso, redirect_url=redirect_url)
+
     return render(request, 'studio/pagar_curso.html', {
         'acceso': acceso,
         'curso': acceso.curso,
         'wompi_activo': wompi_integracion_activa(),
         'wompi_public_key': wompi_llave_publica(),
+        'wompi_widget': widget,
+        'permite_simulacion': wompi_permite_simulacion(),
+    })
+
+
+def pagar_curso_resultado(request, referencia: str):
+    """Landing tras redirect de Wompi: muestra estado e inscripción si ya aprobó el webhook."""
+    from .models import AccesoCursoPagado
+
+    acceso = get_object_or_404(
+        AccesoCursoPagado.objects.select_related('cuenta', 'curso'),
+        wompi_referencia=referencia,
+    )
+    cuenta = cuenta_desde_request(request)
+    if not cuenta or cuenta.pk != acceso.cuenta_id:
+        return redirect(f'/studio/cuenta/login/?next=/studio/pagar/{referencia}/resultado/')
+
+    if acceso.estado == AccesoCursoPagado.ESTADO_APROBADO:
+        messages.success(request, f'Pago aprobado. ¡Bienvenido a «{acceso.curso.nombre}»!')
+        return redirect(f'/aprende/estudiante/curso/{acceso.curso_id}/')
+
+    return render(request, 'studio/pagar_resultado.html', {
+        'acceso': acceso,
+        'curso': acceso.curso,
     })
 
 
 @require_POST
 def pagar_curso_confirmar(request, referencia: str):
-    """MVP: simula pago aprobado. Reemplazar por webhook Wompi en producción."""
+    """Simulación solo en entornos sin Wompi real (o DEBUG)."""
     from .models import AccesoCursoPagado
+
+    if not wompi_permite_simulacion():
+        return HttpResponseForbidden('Simulación deshabilitada: use Wompi.')
 
     acceso = get_object_or_404(AccesoCursoPagado, wompi_referencia=referencia)
     cuenta = cuenta_desde_request(request)
@@ -245,52 +282,29 @@ def pagar_curso_confirmar(request, referencia: str):
 @require_POST
 def webhook_wompi(request):
     """
-    Webhook Wompi: validar firma y marcar AccesoCursoPagado como aprobado.
-    Configurar URL en panel Wompi → eventos transaction.updated APPROVED.
+    Webhook Wompi: validar checksum y marcar AccesoCursoPagado.
+    URL: /studio/webhook/wompi/ — evento transaction.updated APPROVED.
     """
     import json
-
-    from .models import AccesoCursoPagado
 
     try:
         payload = json.loads(request.body.decode('utf-8'))
     except (json.JSONDecodeError, UnicodeDecodeError):
-        return redirect('/studio/')
-
-    data = payload.get('data', payload)
-    referencia = (
-        data.get('reference')
-        or data.get('referencia')
-        or (data.get('transaction', {}) or {}).get('reference')
-    )
-    estado_wompi = (
-        data.get('status')
-        or (data.get('transaction', {}) or {}).get('status')
-        or ''
-    ).upper()
-    txn_id = (
-        data.get('id')
-        or (data.get('transaction', {}) or {}).get('id')
-        or ''
-    )
-
-    if not referencia:
         return HttpResponse(status=400)
 
-    acceso = AccesoCursoPagado.objects.filter(wompi_referencia=referencia).first()
-    if not acceso:
-        raise Http404()
+    checksum = (
+        request.headers.get('X-Event-Checksum')
+        or request.META.get('HTTP_X_EVENT_CHECKSUM', '')
+    )
+    if not validar_checksum_webhook(payload, checksum):
+        return HttpResponse(status=401)
 
-    if estado_wompi in ('APPROVED', 'APROBADA', 'APROBADO'):
-        marcar_pago_aprobado(
-            acceso,
-            wompi_transaccion_id=str(txn_id),
-            metadata={'webhook': payload},
-        )
-    elif estado_wompi in ('DECLINED', 'REJECTED', 'ERROR'):
-        acceso.estado = AccesoCursoPagado.ESTADO_RECHAZADO
-        acceso.metadata = {**(acceso.metadata or {}), 'webhook': payload}
-        acceso.save(update_fields=['estado', 'metadata'])
+    acceso = procesar_evento_wompi(payload)
+    if acceso is None and not (
+        (payload.get('data') or {}).get('transaction', {}).get('reference')
+        or payload.get('data', {}).get('reference')
+    ):
+        return HttpResponse(status=400)
 
     return HttpResponse(status=200)
 
@@ -312,10 +326,53 @@ def creador(request):
 @login_required(login_url='/studio/creador/registro/')
 def creador_panel(request):
     creador_perfil = get_object_or_404(CreadorStudio, user=request.user)
+    error = None
+
+    if request.method == 'POST':
+        accion = request.POST.get('accion', 'crear')
+        if accion == 'crear':
+            curso, err = publicar_curso_creador(
+                creador_perfil,
+                nombre=request.POST.get('nombre', ''),
+                descripcion=request.POST.get('descripcion', ''),
+                precio_cop=request.POST.get('precio_cop', '0'),
+                publicar_en_catalogo=request.POST.get('publicar') == 'on',
+            )
+            if err:
+                error = err
+            elif curso:
+                if curso.visible_en_studio:
+                    messages.success(request, f'Curso «{curso.nombre}» publicado en el catálogo.')
+                else:
+                    messages.success(
+                        request,
+                        f'Curso «{curso.nombre}» creado. '
+                        f'{"Perfil en revisión: " if not creador_perfil.activo else ""}'
+                        f'aparecerá en catálogo cuando esté activo y marcado como publicar.',
+                    )
+                return redirect('/studio/creador/panel/')
+        elif accion == 'precio':
+            pub, err = actualizar_precio_publicacion(
+                creador_perfil,
+                int(request.POST.get('publicacion_id', 0) or 0),
+                precio_cop=request.POST.get('precio_cop', '0'),
+                publicar_en_catalogo=(
+                    True if request.POST.get('publicar') == 'on'
+                    else False if request.POST.get('publicar') == 'off'
+                    else None
+                ),
+            )
+            if err:
+                error = err
+            elif pub:
+                messages.success(request, f'Precio actualizado: ${pub.precio_cop} COP.')
+                return redirect('/studio/creador/panel/')
+
     pubs = PublicacionStudio.objects.filter(creador=creador_perfil).select_related('curso')
     return render(request, 'studio/creador_panel.html', {
         'creador': creador_perfil,
         'publicaciones': pubs,
+        'error': error,
     })
 
 

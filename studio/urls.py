@@ -12,6 +12,7 @@ urlpatterns = [
     path('estudiante/whatsapp/', views.estudiante_login_whatsapp, name='studio_estudiante_whatsapp'),
     path('inscribir/<int:curso_id>/', views.inscribir, name='studio_inscribir'),
     path('pagar/<str:referencia>/', views.pagar_curso, name='studio_pagar'),
+    path('pagar/<str:referencia>/resultado/', views.pagar_curso_resultado, name='studio_pagar_resultado'),
     path('pagar/<str:referencia>/confirmar/', views.pagar_curso_confirmar, name='studio_pagar_confirmar'),
     path('webhook/wompi/', views.webhook_wompi, name='studio_webhook_wompi'),
     path('creador/', views.creador, name='studio_creador'),
