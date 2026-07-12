@@ -1,46 +1,39 @@
 {% extends "studio/base.html" %}
 {% block title %}Catálogo | eki Studio{% endblock %}
 {% block content %}
-<section class="st-hero" style="padding:1.75rem 2rem;margin-bottom:1.75rem;">
-    <span class="st-kicker">Catálogo</span>
-    <h1 style="font-size:clamp(1.4rem,3vw,1.85rem);">Elige tu próximo programa</h1>
-    <p class="st-lead" style="margin-bottom:0;">
-        Inscríbete aquí y continúa en el <strong>aula virtual</strong>: módulos, biblioteca y tareas con calificación.
-    </p>
-</section>
+<header class="st-page-intro">
+    <h1>Catálogo</h1>
+    <p class="st-lead">Elige un programa, inscríbete aquí y continúa en Aprende con módulos y tareas.</p>
+</header>
 
 {% if not cursos %}
-<div class="st-card st-empty">
-    <div class="st-empty-icon" aria-hidden="true">🌱</div>
+<div class="st-empty">
     <h2 class="st-h2">Pronto habrá más cursos</h2>
     <p class="st-muted">Estamos preparando nuevos programas. Vuelve en unos días o consulta con tu coordinador.</p>
 </div>
 {% else %}
-<div class="st-grid">
+<div class="st-course-list st-course-list--3">
     {% for c in cursos %}
-    <article class="st-card st-course-card st-card--hover">
-        <div class="st-course-card__head">
-            <div class="st-course-card__emoji" aria-hidden="true">{{ c.emoji|default:"📚" }}</div>
-            <p class="st-course-card__org">{% if c.cliente %}{{ c.cliente.nombre }}{% else %}Curso eki{% endif %}</p>
-            <h2 class="st-course-card__title">{{ c.nombre }}</h2>
-        </div>
-        <div class="st-course-card__body">
-            <p class="st-course-card__desc">{{ c.descripcion|truncatewords:28 }}</p>
-            <span class="st-pill">{{ c.total_lecciones }} lección{{ c.total_lecciones|pluralize:"es" }}</span>
-            <p class="st-price{% if not c.precio_studio %} st-price--free{% endif %}" style="margin:0 0 0.85rem;">
+    <article class="st-course">
+        <p class="st-course__org">{% if c.cliente %}{{ c.cliente.nombre }}{% else %}Curso eki{% endif %}</p>
+        <h2 class="st-course__title">{{ c.nombre }}</h2>
+        <p class="st-course__desc">{{ c.descripcion|truncatewords:28 }}</p>
+        <div class="st-course__meta">
+            <span>{{ c.total_lecciones }} lección{{ c.total_lecciones|pluralize:"es" }}</span>
+            <span class="st-price{% if not c.precio_studio %} st-price--free{% endif %}">
                 {% if c.precio_studio %}${{ c.precio_studio|floatformat:0 }} COP{% else %}Gratis{% endif %}
-            </p>
-            {% if c.id in inscritos %}
-            <a href="/aprende/estudiante/curso/{{ c.id }}/" class="st-btn st-btn--primary st-btn--sm st-btn--block">Ir al aula</a>
-            {% else %}
-            <form method="post" action="{% url 'studio_inscribir' c.id %}">
-                {% csrf_token %}
-                <button type="submit" class="st-btn st-btn--primary st-btn--sm st-btn--block">
-                    {% if c.precio_studio %}Comprar e inscribirme{% else %}Inscribirme gratis{% endif %}
-                </button>
-            </form>
-            {% endif %}
+            </span>
         </div>
+        {% if c.id in inscritos %}
+        <a href="/aprende/estudiante/curso/{{ c.id }}/" class="st-btn st-btn--primary st-btn--sm st-btn--block">Ir al aula</a>
+        {% else %}
+        <form method="post" action="{% url 'studio_inscribir' c.id %}">
+            {% csrf_token %}
+            <button type="submit" class="st-btn st-btn--dark st-btn--sm st-btn--block">
+                {% if c.precio_studio %}Comprar e inscribirme{% else %}Inscribirme gratis{% endif %}
+            </button>
+        </form>
+        {% endif %}
     </article>
     {% endfor %}
 </div>

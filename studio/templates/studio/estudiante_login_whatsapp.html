@@ -2,9 +2,8 @@
 {% block title %}WhatsApp B2B | eki Studio{% endblock %}
 {% block content %}
 <div class="st-login-wrap">
-    <div class="st-card st-login-card">
-        <span class="st-kicker">Programa WhatsApp</span>
-        <h1 style="font-size:1.25rem;">Ingreso B2B</h1>
+    <div class="st-panel">
+        <h1 style="font-family:var(--font-display);font-size:1.45rem;letter-spacing:-0.03em;margin:0 0 0.35rem;">Ingreso B2B</h1>
         <p class="st-muted" style="margin-bottom:1rem;">Cédula y teléfono del programa (sin contraseña).</p>
         {% if error %}<div class="st-alert st-alert--error">{{ error }}</div>{% endif %}
         <form method="post">
@@ -20,7 +19,7 @@
             <button type="submit" class="st-btn st-btn--primary st-btn--block">Continuar</button>
         </form>
         <p class="st-muted" style="margin-top:1rem;text-align:center;">
-            <a href="{% url 'studio_cuenta_login' %}">Usar correo y contraseña</a>
+            <a href="{% url 'studio_cuenta_login' %}" style="color:var(--st-accent);font-weight:600;">Usar correo y contraseña</a>
         </p>
     </div>
 </div>

@@ -1,49 +1,59 @@
 {% extends "studio/base.html" %}
 {% block title %}eki Studio — Cursos y creadores{% endblock %}
+{% block main_class %} st-main--flush{% endblock %}
 {% block content %}
-<section class="st-hero">
-    <span class="st-kicker">Formación para el campo y más allá</span>
-    <h1>Descubre cursos.<br>Comparte lo que sabes.</h1>
-    <p class="st-lead">
-        eki Studio es tu vitrina: explora programas nuevos, inscríbete en un clic
-        y continúa estudiando en el aula virtual con módulos y tareas.
-    </p>
-    <div class="st-hero-actions">
-        <a href="{% url 'studio_catalogo' %}" class="st-btn st-btn--primary">Explorar cursos</a>
-        <a href="{% url 'studio_creador' %}" class="st-btn st-btn--ghost">Quiero enseñar</a>
+<section class="st-hero-bleed" aria-label="eki Studio">
+    <div class="st-hero-bleed__media" role="img" aria-label="Personas aprendiendo en equipo"></div>
+    <div class="st-hero-bleed__shade"></div>
+    <div class="st-hero-bleed__inner">
+        <p class="st-brand-hero">eki <span>studio</span></p>
+        <h1>Descubre cursos. Comparte lo que sabes.</h1>
+        <p class="st-lead">Marketplace de formación: compra o publica programas y estudia en Aprende.</p>
+        <div class="st-hero-actions">
+            <a href="{% url 'studio_catalogo' %}" class="st-btn st-btn--primary">Explorar cursos</a>
+            <a href="{% url 'studio_creador' %}" class="st-btn st-btn--ghost">Quiero enseñar</a>
+        </div>
     </div>
 </section>
 
-<div class="st-grid st-grid--2" style="margin-bottom:2.5rem;">
-    <article class="st-card st-card--path st-card--hover">
-        <h2 class="st-h2">Para estudiantes</h2>
-        <p class="st-muted">Encuentra cursos de tu organización o programas abiertos de eki. Al inscribirte, todo el estudio pasa al aula: lecciones, biblioteca y entregas calificadas.</p>
-        <a href="{% url 'studio_catalogo' %}" class="st-btn st-btn--primary st-btn--sm" style="margin-top:0.5rem;">Ver catálogo</a>
-    </article>
-    <article class="st-card st-card--path st-card--path-gold st-card--hover">
-        <h2 class="st-h2">Para instructores</h2>
-        <p class="st-muted">Publica tu conocimiento, llega a más personas y gestiona alumnos con la misma plataforma que usan cooperativas y empresas en Colombia.</p>
-        <a href="{% url 'studio_creador' %}" class="st-btn st-btn--gold st-btn--sm" style="margin-top:0.5rem;">Empezar como creador</a>
-    </article>
-</div>
+<section class="st-section">
+    <p class="st-section-label">Cómo funciona</p>
+    <h2 class="st-h2" style="font-size:clamp(1.4rem,3vw,1.85rem);max-width:20ch;margin-bottom:1.75rem;">
+        Una vitrina. Un aula. Sin fricción.
+    </h2>
+    <ol class="st-steps">
+        <li data-step="01">
+            <strong>Elige en Studio</strong>
+            <span class="st-muted">Catálogo abierto: cursos de organizaciones y creadores, gratis o con pago Wompi.</span>
+        </li>
+        <li data-step="02">
+            <strong>Estudia en Aprende</strong>
+            <span class="st-muted">Lecciones, biblioteca y tareas con la misma cuenta — acceso seguro al aula.</span>
+        </li>
+        <li data-step="03">
+            <strong>Enseña y cobra</strong>
+            <span class="st-muted">Publica tu curso, fija el precio en COP y llega a más estudiantes.</span>
+        </li>
+    </ol>
+</section>
 
 {% if destacados %}
-<h2 class="st-section-title">Cursos destacados</h2>
-<div class="st-grid">
-    {% for c in destacados %}
-    <article class="st-card st-course-card st-card--hover">
-        <div class="st-course-card__head">
-            <div class="st-course-card__emoji" aria-hidden="true">{{ c.emoji|default:"📚" }}</div>
-            <p class="st-course-card__org">{% if c.cliente %}{{ c.cliente.nombre }}{% else %}eki{% endif %}</p>
-            <h3 class="st-course-card__title">{{ c.nombre }}</h3>
-        </div>
-        <div class="st-course-card__body">
-            <p class="st-course-card__desc">{{ c.descripcion|truncatewords:22 }}</p>
-            <span class="st-pill">{{ c.total_lecciones }} lección{{ c.total_lecciones|pluralize:"es" }}</span>
-            <a href="{% url 'studio_catalogo' %}" class="st-btn st-btn--ghost st-btn--sm st-btn--block">Ver en catálogo</a>
-        </div>
-    </article>
-    {% endfor %}
-</div>
+<section class="st-section st-section--band">
+    <p class="st-section-label">Destacados</p>
+    <h2 class="st-h2" style="font-size:clamp(1.35rem,3vw,1.7rem);margin-bottom:1.5rem;">Programas para empezar hoy</h2>
+    <div class="st-course-list st-course-list--3">
+        {% for c in destacados %}
+        <article class="st-course">
+            <p class="st-course__org">{% if c.cliente %}{{ c.cliente.nombre }}{% else %}eki{% endif %}</p>
+            <h3 class="st-course__title">{{ c.nombre }}</h3>
+            <p class="st-course__desc">{{ c.descripcion|truncatewords:22 }}</p>
+            <div class="st-course__meta">
+                <span>{{ c.total_lecciones }} lección{{ c.total_lecciones|pluralize:"es" }}</span>
+            </div>
+            <a href="{% url 'studio_catalogo' %}" class="st-btn st-btn--ghost-ink st-btn--sm st-btn--block">Ver en catálogo</a>
+        </article>
+        {% endfor %}
+    </div>
+</section>
 {% endif %}
 {% endblock %}

@@ -2,13 +2,10 @@
 {% block title %}Ingresar | eki Studio{% endblock %}
 {% block content %}
 <div class="st-login-wrap">
-    <div class="st-card st-login-card">
-        <span class="st-kicker">Bienvenido de nuevo</span>
-        <h1 style="font-size:1.35rem;margin-bottom:0.35rem;">Ingresar a Studio</h1>
-        <p class="st-muted" style="margin-bottom:1.25rem;">La misma cédula y teléfono de WhatsApp y del aula virtual.</p>
-        {% if error %}
-        <div class="st-alert st-alert--error">{{ error }}</div>
-        {% endif %}
+    <div class="st-panel">
+        <h1 style="font-family:var(--font-display);font-size:1.5rem;letter-spacing:-0.03em;margin:0 0 0.35rem;">Ingresar a Studio</h1>
+        <p class="st-muted" style="margin-bottom:1.25rem;">La misma cédula y teléfono de WhatsApp y del aula.</p>
+        {% if error %}<div class="st-alert st-alert--error">{{ error }}</div>{% endif %}
         <form method="post">
             {% csrf_token %}
             <div class="st-field">

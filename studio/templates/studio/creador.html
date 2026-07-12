@@ -1,39 +1,39 @@
 {% extends "studio/base.html" %}
 {% block title %}Soy creador | eki Studio{% endblock %}
 {% block content %}
-<section class="st-hero st-hero--neon">
-    <span class="st-kicker st-kicker--neon">Futuro de la formación</span>
+<header class="st-page-intro">
     <h1>Monetiza tu conocimiento</h1>
-    <p class="st-lead">
-        Publica cursos, cobra con Wompi y tus estudiantes estudian en el aula eki con ranking y tareas.
-    </p>
+    <p class="st-lead">Publica cursos, cobra con Wompi y tus estudiantes estudian en Aprende.</p>
     <div class="st-hero-actions">
         {% if creador_perfil %}
-        <a href="{% url 'studio_creador_panel' %}" class="st-btn st-btn--neon">Mi panel</a>
+        <a href="{% url 'studio_creador_panel' %}" class="st-btn st-btn--primary">Mi panel</a>
         {% else %}
-        <a href="{% url 'studio_creador_registro' %}" class="st-btn st-btn--neon">Crear perfil de creador</a>
+        <a href="{% url 'studio_creador_registro' %}" class="st-btn st-btn--primary">Crear perfil de creador</a>
         {% endif %}
-        <a href="{% url 'studio_catalogo' %}" class="st-btn st-btn--ghost">Ver catálogo</a>
+        <a href="{% url 'studio_catalogo' %}" class="st-btn st-btn--ghost-ink">Ver catálogo</a>
+    </div>
+</header>
+
+<section class="st-split" style="margin-top:0.5rem;">
+    <ol class="st-steps">
+        <li data-step="01">
+            <strong>Publica</strong>
+            <span class="st-muted">Define nombre, descripción y precio en COP. Aparece en el catálogo Studio.</span>
+        </li>
+        <li data-step="02">
+            <strong>Cobra</strong>
+            <span class="st-muted">Wompi valida el pago. Solo quien pagó entra al aula.</span>
+        </li>
+        <li data-step="03">
+            <strong>Enseña</strong>
+            <span class="st-muted">Tus alumnos estudian en Aprende: módulos, tareas y progreso.</span>
+        </li>
+    </ol>
+    <div>
+        <p class="st-section-label">También</p>
+        <h2 class="st-h2">¿Ya eres docente B2B?</h2>
+        <p class="st-muted" style="margin-bottom:1rem;">Si tienes cuenta portal de organización, entra al aula docente.</p>
+        <a href="/aprende/profesor/login/" class="st-btn st-btn--ghost-ink st-btn--sm">Aprende docente</a>
     </div>
 </section>
-
-<div class="st-grid st-grid--2">
-    <article class="st-card st-card--neon st-card--hover">
-        <h2 class="st-h2">1 · Publica</h2>
-        <p class="st-muted">Sube tu curso, define precio en COP (o gratuito) y aparece en el catálogo neon Studio.</p>
-    </article>
-    <article class="st-card st-card--neon st-card--hover">
-        <h2 class="st-h2">2 · Cobras</h2>
-        <p class="st-muted">Wompi valida el pago. Solo quien pagó accede al aula — sin pagos huérfanos.</p>
-    </article>
-    <article class="st-card st-card--neon st-card--hover">
-        <h2 class="st-h2">3 · Enseñan</h2>
-        <p class="st-muted">Tus alumnos estudian en el aula: módulos, WhatsApp, puntos y ranking competitivo.</p>
-    </article>
-    <article class="st-card st-card--neon st-card--hover">
-        <h2 class="st-h2">Profesor B2B</h2>
-        <p class="st-muted">¿Ya tienes cuenta portal de organización?</p>
-        <a href="/aprende/profesor/login/" class="st-btn st-btn--ghost st-btn--sm" style="margin-top:0.75rem;">Aprende docente</a>
-    </article>
-</div>
 {% endblock %}

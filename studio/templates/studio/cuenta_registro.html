@@ -2,10 +2,9 @@
 {% block title %}Crear cuenta | eki Studio{% endblock %}
 {% block content %}
 <div class="st-login-wrap">
-    <div class="st-card st-login-card st-card--neon">
-        <span class="st-kicker st-kicker--neon">Nueva cuenta</span>
-        <h1 style="font-size:1.45rem;margin-bottom:0.35rem;">Únete a eki Studio</h1>
-        <p class="st-muted" style="margin-bottom:1.25rem;">Correo y contraseña. Estudia en el aula con los mismos puntos de gamificación.</p>
+    <div class="st-panel">
+        <h1 style="font-family:var(--font-display);font-size:1.65rem;letter-spacing:-0.03em;margin:0 0 0.35rem;">Únete a Studio</h1>
+        <p class="st-muted" style="margin-bottom:1.25rem;">Correo y contraseña. Estudia en Aprende con la misma cuenta.</p>
         {% if error %}<div class="st-alert st-alert--error">{{ error }}</div>{% endif %}
         <form method="post">
             {% csrf_token %}
@@ -21,10 +20,10 @@
                 <label for="password">Contraseña (mín. 8 caracteres)</label>
                 <input id="password" name="password" type="password" required minlength="8" autocomplete="new-password">
             </div>
-            <button type="submit" class="st-btn st-btn--neon st-btn--block">Crear cuenta</button>
+            <button type="submit" class="st-btn st-btn--primary st-btn--block">Crear cuenta</button>
         </form>
         <p class="st-muted" style="margin-top:1rem;text-align:center;">
-            ¿Ya tienes cuenta? <a href="{% url 'studio_cuenta_login' %}">Ingresar</a>
+            ¿Ya tienes cuenta? <a href="{% url 'studio_cuenta_login' %}" style="color:var(--st-ink);font-weight:700;">Ingresar</a>
         </p>
     </div>
 </div>

@@ -1,24 +1,23 @@
 {% extends "studio/base.html" %}
 {% block title %}Estado del pago | eki Studio{% endblock %}
 {% block content %}
-<section class="st-hero st-hero--neon">
-    <span class="st-kicker st-kicker--neon">Pago</span>
+<header class="st-page-intro">
     <h1>{{ curso.nombre }}</h1>
     <p class="st-lead">Estado: <strong>{{ acceso.get_estado_display }}</strong></p>
-</section>
+</header>
 
-<div class="st-card st-card--neon" style="max-width:480px;margin:0 auto;">
+<div class="st-panel" style="max-width:480px;margin:0 auto;">
     {% if acceso.estado == 'pendiente' %}
-    <p class="st-muted">Estamos esperando la confirmación de Wompi. Si ya pagaste, espera unos segundos y vuelve a comprobar.</p>
-    <p style="margin-top:1rem;">
-        <a class="st-btn st-btn--neon" href="{% url 'studio_pagar_resultado' acceso.wompi_referencia %}">Actualizar estado</a>
-        <a class="st-btn st-btn--ghost" href="{% url 'studio_pagar' acceso.wompi_referencia %}">Volver al checkout</a>
-    </p>
+    <p class="st-muted">Esperamos la confirmación de Wompi. Si ya pagaste, espera unos segundos y vuelve a comprobar.</p>
+    <div class="st-hero-actions" style="margin-top:1.25rem;">
+        <a class="st-btn st-btn--primary" href="{% url 'studio_pagar_resultado' acceso.wompi_referencia %}">Actualizar estado</a>
+        <a class="st-btn st-btn--ghost-ink" href="{% url 'studio_pagar' acceso.wompi_referencia %}">Volver al checkout</a>
+    </div>
     {% elif acceso.estado == 'rechazado' %}
-    <p class="st-muted">El pago no se aprobó. Puedes intentar de nuevo desde el catálogo.</p>
-    <a class="st-btn st-btn--neon" href="{% url 'studio_catalogo' %}">Ir al catálogo</a>
+    <p class="st-muted" style="margin-bottom:1rem;">El pago no se aprobó. Puedes intentar de nuevo desde el catálogo.</p>
+    <a class="st-btn st-btn--primary" href="{% url 'studio_catalogo' %}">Ir al catálogo</a>
     {% else %}
-    <a class="st-btn st-btn--neon" href="/aprende/estudiante/curso/{{ curso.id }}/">Ir a Aprende</a>
+    <a class="st-btn st-btn--primary" href="/aprende/estudiante/curso/{{ curso.id }}/">Ir a Aprende</a>
     {% endif %}
     <p class="st-muted" style="margin-top:1rem;font-size:0.75rem;">Ref: {{ acceso.wompi_referencia }}</p>
 </div>
