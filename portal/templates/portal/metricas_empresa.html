@@ -87,8 +87,10 @@
         position: relative;
         z-index: 1;
         color: var(--accent);
+        font-family: var(--font-display);
         font-size: 34px;
-        font-weight: 800;
+        font-weight: 700;
+        letter-spacing: -0.04em;
     }
 
     .bar-row {
@@ -269,29 +271,13 @@
             </div>
 
             <div class="exec-charts">
-                <article class="panel">
+                <article class="panel chart-panel">
                     <h3>Progreso por curso</h3>
-                    <table>
-                        <thead>
-                            <tr><th>Curso</th><th>Inscritos</th><th>Completados</th><th>%</th></tr>
-                        </thead>
-                        <tbody>
-                            {% for curso in ejecutivo.progreso_por_curso %}
-                            <tr>
-                                <td>{{ curso.nombre }}</td>
-                                <td>{{ curso.total_estudiantes }}</td>
-                                <td>{{ curso.completados }}</td>
-                                <td>{{ curso.pct }}%</td>
-                            </tr>
-                            {% empty %}
-                            <tr><td colspan="4" class="muted">Sin datos</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                    <canvas id="chart-cursos-exec" height="220" aria-label="Gráfico progreso por curso"></canvas>
                 </article>
-                <article class="panel">
+                <article class="panel chart-panel">
                     <h3>Mensajes WhatsApp (7 días)</h3>
-                    <canvas id="chart-mensajes-exec" height="200"></canvas>
+                    <canvas id="chart-mensajes-exec" height="220" aria-label="Gráfico mensajes WhatsApp"></canvas>
                 </article>
             </div>
 
@@ -352,6 +338,17 @@
                         <div class="progress-ring-value">{{ metricas.porcentajes.finalizacion }}%</div>
                     </div>
                     <p class="muted">{{ resumen.finalizados }} finalizados · {{ resumen.en_curso|add:resumen.no_iniciados }} pendientes</p>
+                </article>
+            </section>
+
+            <section class="charts-grid" style="margin-top:18px;">
+                <article class="panel chart-panel">
+                    <h3>Estado del aprendizaje</h3>
+                    <canvas id="chart-learning" height="220" aria-label="Gráfico estado aprendizaje"></canvas>
+                </article>
+                <article class="panel chart-panel">
+                    <h3>Distribución por módulo</h3>
+                    <canvas id="chart-modulos" height="220" aria-label="Gráfico distribución por módulo"></canvas>
                 </article>
             </section>
 
@@ -506,25 +503,109 @@
 <script>
 (function () {
     if (typeof Chart === 'undefined') return;
-    var el = document.getElementById('chart-mensajes-exec');
-    if (!el) return;
-    var grid = getComputedStyle(document.documentElement).getPropertyValue('--borde').trim() || '#e2e8f0';
-    new Chart(el, {
-        type: 'bar',
-        data: {
-            labels: {{ ejecutivo_chart_json.mensajes_labels|safe }},
-            datasets: [{
-                data: {{ ejecutivo_chart_json.mensajes_values|safe }},
-                backgroundColor: '#3b82f6',
-                borderRadius: 6,
-                maxBarThickness: 40
-            }]
-        },
-        options: {
-            plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true, grid: { color: grid } } }
-        }
-    });
+    var ink = getComputedStyle(document.documentElement).getPropertyValue('--texto-muted').trim() || '#7a6d88';
+    var grid = getComputedStyle(document.documentElement).getPropertyValue('--borde').trim() || '#e0d8e8';
+    var c1 = getComputedStyle(document.documentElement).getPropertyValue('--chart-1').trim() || '#7a4e8e';
+    var c2 = getComputedStyle(document.documentElement).getPropertyValue('--chart-2').trim() || '#9a6cac';
+    var c3 = getComputedStyle(document.documentElement).getPropertyValue('--chart-3').trim() || '#cbb8d8';
+    var c4 = getComputedStyle(document.documentElement).getPropertyValue('--chart-4').trim() || '#5f3a70';
+    var legend = { position: 'bottom', labels: { color: ink, boxWidth: 12, font: { family: 'Sora', size: 12 } } };
+
+    var msg = document.getElementById('chart-mensajes-exec');
+    if (msg) {
+        new Chart(msg, {
+            type: 'bar',
+            data: {
+                labels: {{ ejecutivo_chart_json.mensajes_labels|safe }},
+                datasets: [{
+                    data: {{ ejecutivo_chart_json.mensajes_values|safe }},
+                    backgroundColor: c1,
+                    borderRadius: 4,
+                    maxBarThickness: 36
+                }]
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: ink }, grid: { display: false } },
+                    y: { beginAtZero: true, ticks: { color: ink }, grid: { color: grid } }
+                }
+            }
+        });
+    }
+
+    var cursos = document.getElementById('chart-cursos-exec');
+    if (cursos) {
+        new Chart(cursos, {
+            type: 'bar',
+            data: {
+                labels: {{ ejecutivo_chart_json.cursos_labels|safe }},
+                datasets: [
+                    {
+                        label: 'Inscritos',
+                        data: {{ ejecutivo_chart_json.cursos_inscritos|safe }},
+                        backgroundColor: c4,
+                        borderRadius: 4,
+                        maxBarThickness: 28
+                    },
+                    {
+                        label: 'Completados',
+                        data: {{ ejecutivo_chart_json.cursos_completados|safe }},
+                        backgroundColor: c1,
+                        borderRadius: 4,
+                        maxBarThickness: 28
+                    }
+                ]
+            },
+            options: {
+                plugins: { legend: legend },
+                scales: {
+                    x: { ticks: { color: ink, maxRotation: 45 }, grid: { display: false } },
+                    y: { beginAtZero: true, ticks: { color: ink }, grid: { color: grid } }
+                }
+            }
+        });
+    }
+
+    var learning = document.getElementById('chart-learning');
+    if (learning) {
+        new Chart(learning, {
+            type: 'doughnut',
+            data: {
+                labels: {{ ejecutivo_chart_json.learning_labels|safe }},
+                datasets: [{
+                    data: {{ ejecutivo_chart_json.learning_values|safe }},
+                    backgroundColor: [c1, c2, c3],
+                    borderWidth: 0
+                }]
+            },
+            options: { cutout: '60%', plugins: { legend: legend } }
+        });
+    }
+
+    var mods = document.getElementById('chart-modulos');
+    if (mods) {
+        new Chart(mods, {
+            type: 'bar',
+            data: {
+                labels: {{ ejecutivo_chart_json.modulos_labels|safe }},
+                datasets: [{
+                    data: {{ ejecutivo_chart_json.modulos_values|safe }},
+                    backgroundColor: c2,
+                    borderRadius: 4,
+                    maxBarThickness: 32
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { beginAtZero: true, ticks: { color: ink }, grid: { color: grid } },
+                    y: { ticks: { color: ink }, grid: { display: false } }
+                }
+            }
+        });
+    }
 })();
 </script>
 {% endblock %}

@@ -195,10 +195,30 @@ def dashboard(request):
     ops = None
     comparativa = None
     timeline_preview = []
+    dashboard_charts = {}
     if mods['cursos']:
         ops = operacion_del_dia(org, categorias_pqrs=categorias_pqrs_portal(org))
         comparativa = comparativa_periodos(org)
         timeline_preview = timeline_organizacion(org, limite=8)
+        dashboard_charts = {
+            'funnel_labels': ['Finalizados', 'En curso', 'No iniciados'],
+            'funnel_values': [
+                int(resumen_general.get('finalizados') or 0),
+                int(resumen_general.get('en_curso') or 0),
+                int(resumen_general.get('no_iniciados') or 0),
+            ],
+            'compare_labels': ['Certificados', 'PQRS', 'Completados'],
+            'compare_actual': [
+                int(comparativa['certificados']['actual']),
+                int(comparativa['pqrs']['actual']),
+                int(comparativa['completados']['actual']),
+            ],
+            'compare_anterior': [
+                int(comparativa['certificados']['anterior']),
+                int(comparativa['pqrs']['anterior']),
+                int(comparativa['completados']['anterior']),
+            ],
+        }
 
     return render(request, 'portal/dashboard.html', {
         'org': org,
@@ -217,6 +237,7 @@ def dashboard(request):
         'ops': ops,
         'comparativa': comparativa,
         'timeline_preview': timeline_preview,
+        'dashboard_charts': dashboard_charts,
     })
 
 
@@ -798,9 +819,22 @@ def metricas_empresa(request):
         desde=desde,
         hasta=hasta,
     )
+    cursos_prog = ejecutivo.get('progreso_por_curso') or []
+    dist_mods = metricas.get('distribucion_modulos') or []
     ejecutivo_chart_json = {
         'mensajes_labels': json.dumps(ejecutivo['chart_mensajes_labels'], ensure_ascii=False),
         'mensajes_values': json.dumps(ejecutivo['chart_mensajes_values']),
+        'cursos_labels': json.dumps([c.get('nombre', '')[:28] for c in cursos_prog], ensure_ascii=False),
+        'cursos_inscritos': json.dumps([int(c.get('total_estudiantes') or 0) for c in cursos_prog]),
+        'cursos_completados': json.dumps([int(c.get('completados') or 0) for c in cursos_prog]),
+        'learning_labels': json.dumps(['Finalizados', 'En curso', 'No iniciados'], ensure_ascii=False),
+        'learning_values': json.dumps([
+            int(resumen.get('finalizados') or 0),
+            int(resumen.get('en_curso') or 0),
+            int(resumen.get('no_iniciados') or 0),
+        ]),
+        'modulos_labels': json.dumps([d.get('etiqueta', '') for d in dist_mods], ensure_ascii=False),
+        'modulos_values': json.dumps([int(d.get('estudiantes') or 0) for d in dist_mods]),
     }
 
     return render(request, 'portal/metricas_empresa.html', {

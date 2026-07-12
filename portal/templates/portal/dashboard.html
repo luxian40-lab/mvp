@@ -3,15 +3,16 @@
 {% block title %}Dashboard | Portal eki{% endblock %}
 
 {% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 .card-link { text-decoration: none; color: inherit; }
 .card-link:hover { outline: 1px solid var(--accent); }
 .ops-msg-list { list-style: none; padding: 0; margin: 0; font-size: 14px; }
 .ops-msg-list li { padding: 8px 0; border-bottom: 1px solid var(--borde); }
 .compare-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
-.compare-card { background: var(--tabla-head); border-radius: 10px; padding: 14px; border: 1px solid var(--borde); }
-.compare-label { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--texto-muted); font-weight: 600; }
-.compare-values span { font-size: 1.5rem; font-weight: 700; }
+.compare-card { background: var(--tabla-head); border-radius: 8px; padding: 14px; border: 1px solid var(--borde); }
+.compare-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--texto-muted); font-weight: 600; }
+.compare-values span { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; letter-spacing: -0.03em; }
 .compare-delta { font-size: 13px; font-weight: 600; margin-top: 4px; }
 .compare-delta.up { color: var(--ok); }
 .compare-delta.down { color: var(--danger); }
@@ -22,14 +23,24 @@
 .medal-gold { background: linear-gradient(145deg, #fbbf24, #d97706); box-shadow: 0 2px 8px rgba(217,119,6,.4); }
 .medal-silver { background: linear-gradient(145deg, #e2e8f0, #94a3b8); }
 .medal-bronze { background: linear-gradient(145deg, #fdba74, #c2410c); }
+.dash-hero {
+    margin-bottom: 24px;
+    padding: 22px 24px;
+    border: 1px solid var(--borde);
+    border-radius: 10px;
+    background:
+        linear-gradient(120deg, rgba(122, 78, 142, 0.1), transparent 55%),
+        var(--blanco);
+}
+.dash-hero h1 { margin: 0; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="page-title">
+<div class="page-title dash-hero">
     <div>
         <h1>Dashboard</h1>
-        <p class="muted">Vista general de su organización. Retención: <a href="/portal/retencion/">Embudo y deserción</a> · Análisis: <a href="/portal/metricas/">Métricas detalladas</a>.</p>
+        <p class="muted">Vista ejecutiva de su organización. Retención: <a href="/portal/retencion/">Embudo y deserción</a> · Análisis: <a href="/portal/metricas/">Métricas detalladas</a>.</p>
     </div>
     {% if portal_mod_cursos %}
         <a class="btn btn-outline" href="/portal/reportes/">Descargar reportes</a>
@@ -203,6 +214,22 @@
     {% endif %}
 </section>
 
+{% if dashboard_charts %}
+<section class="charts-grid">
+    <article class="panel chart-panel">
+        <h2>Embudo de avance</h2>
+        <p class="muted" style="margin:0 0 12px;font-size:13px;">Distribución de inscripciones por estado.</p>
+        <canvas id="chart-funnel" aria-label="Gráfico embudo de avance"></canvas>
+    </article>
+    <article class="panel chart-panel">
+        <h2>Comparativa mensual</h2>
+        <p class="muted" style="margin:0 0 12px;font-size:13px;">Mes actual vs mes anterior.</p>
+        <canvas id="chart-compare" aria-label="Gráfico comparativa mensual"></canvas>
+    </article>
+</section>
+{{ dashboard_charts|json_script:"dashboard-charts-data" }}
+{% endif %}
+
 <section class="panel" style="margin-bottom:24px;">
     <h2>Accesos rápidos</h2>
     <div style="display:flex;flex-wrap:wrap;gap:10px;">
@@ -280,4 +307,84 @@
     </table>
 </section>
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    if (typeof Chart === 'undefined') return;
+    var node = document.getElementById('dashboard-charts-data');
+    if (!node) return;
+    var data = JSON.parse(node.textContent);
+    var ink = getComputedStyle(document.documentElement).getPropertyValue('--texto-muted').trim() || '#7a6d88';
+    var grid = getComputedStyle(document.documentElement).getPropertyValue('--borde').trim() || '#e0d8e8';
+    var c1 = getComputedStyle(document.documentElement).getPropertyValue('--chart-1').trim() || '#7a4e8e';
+    var c2 = getComputedStyle(document.documentElement).getPropertyValue('--chart-2').trim() || '#9a6cac';
+    var c3 = getComputedStyle(document.documentElement).getPropertyValue('--chart-3').trim() || '#cbb8d8';
+    var c4 = getComputedStyle(document.documentElement).getPropertyValue('--chart-4').trim() || '#5f3a70';
+
+    var funnelEl = document.getElementById('chart-funnel');
+    if (funnelEl) {
+        new Chart(funnelEl, {
+            type: 'doughnut',
+            data: {
+                labels: data.funnel_labels || [],
+                datasets: [{
+                    data: data.funnel_values || [],
+                    backgroundColor: [c1, c2, c3],
+                    borderWidth: 0,
+                    hoverOffset: 6
+                }]
+            },
+            options: {
+                cutout: '62%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: ink, boxWidth: 12, font: { family: 'Sora', size: 12 } }
+                    }
+                }
+            }
+        });
+    }
+
+    var compareEl = document.getElementById('chart-compare');
+    if (compareEl) {
+        new Chart(compareEl, {
+            type: 'bar',
+            data: {
+                labels: data.compare_labels || [],
+                datasets: [
+                    {
+                        label: 'Mes actual',
+                        data: data.compare_actual || [],
+                        backgroundColor: c1,
+                        borderRadius: 4,
+                        maxBarThickness: 36
+                    },
+                    {
+                        label: 'Mes anterior',
+                        data: data.compare_anterior || [],
+                        backgroundColor: c4,
+                        borderRadius: 4,
+                        maxBarThickness: 36
+                    }
+                ]
+            },
+            options: {
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: ink, boxWidth: 12, font: { family: 'Sora', size: 12 } }
+                    }
+                },
+                scales: {
+                    x: { ticks: { color: ink }, grid: { display: false } },
+                    y: { beginAtZero: true, ticks: { color: ink }, grid: { color: grid } }
+                }
+            }
+        });
+    }
+})();
+</script>
 {% endblock %}

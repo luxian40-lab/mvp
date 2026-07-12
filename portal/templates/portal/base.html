@@ -7,17 +7,18 @@
     {% include 'portal/partials/favicon_co.html' %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650;9..144,700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --sidebar: #3d2750;
+            --sidebar: #2a183a;
             --sidebar-text: #cbb8d8;
-            --sidebar-active: #4f3566;
-            --sidebar-border: #4f3566;
+            --sidebar-active: #3d2750;
+            --sidebar-border: #3d2750;
             --sidebar-width: 260px;
             --sidebar-collapsed-width: 72px;
             --accent: #7a4e8e;
             --accent-hover: #5f3a70;
+            --accent-soft: rgba(122, 78, 142, 0.12);
             --fondo: #f4f2f7;
             --texto: #2a1f33;
             --texto-muted: #7a6d88;
@@ -32,17 +33,25 @@
             --font: 'Sora', system-ui, -apple-system, sans-serif;
             --font-display: 'Fraunces', Georgia, serif;
             --ease: cubic-bezier(0.22, 1, 0.36, 1);
+            --chart-1: #7a4e8e;
+            --chart-2: #9a6cac;
+            --chart-3: #cbb8d8;
+            --chart-4: #5f3a70;
         }
 
         html[data-theme="dark"] {
-            --fondo: #0b1220;
-            --texto: #e2e8f0;
-            --texto-muted: #94a3b8;
-            --borde: #334155;
-            --blanco: #1e293b;
-            --tabla-head: #0f172a;
+            --fondo: #1a1222;
+            --texto: #f4f2f7;
+            --texto-muted: #cbb8d8;
+            --borde: rgba(244, 242, 247, 0.12);
+            --blanco: #24182e;
+            --tabla-head: #2a183a;
             --accent: #9a6cac;
             --accent-hover: #b080c0;
+            --accent-soft: rgba(154, 108, 172, 0.16);
+            --sidebar: #140e1a;
+            --sidebar-active: #2a183a;
+            --sidebar-border: #2a183a;
         }
 
         html[data-theme="dark"] .topbar {
@@ -281,7 +290,7 @@
             font-weight: 600;
             letter-spacing: 0.08em;
             text-transform: uppercase;
-            color: #475569;
+            color: #8a7a9a;
             padding: 12px 12px 6px;
         }
 
@@ -308,8 +317,8 @@
             justify-content: center;
             font-size: 11px;
             font-weight: 700;
-            color: #cbd5e1;
-            background: #334155;
+            color: #e8dff0;
+            background: #3d2750;
             border-radius: 6px;
         }
 
@@ -672,18 +681,37 @@
         .page-title h1 {
             margin: 0;
             font-family: var(--font-display);
-            font-size: 1.75rem;
-            font-weight: 650;
-            letter-spacing: -0.03em;
+            font-size: clamp(1.65rem, 2.4vw, 2.05rem);
+            font-weight: 700;
+            letter-spacing: -0.035em;
+            line-height: 1.15;
             animation: portal-title-in 0.55s var(--ease) both;
+        }
+        .page-title .muted {
+            margin: 0.45rem 0 0;
+            font-size: 0.9rem;
+            max-width: 42rem;
         }
         @keyframes portal-title-in {
             from { opacity: 0; transform: translateY(8px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        h2 { font-size: 16px; font-weight: 600; margin: 0 0 12px; }
-        h3 { font-size: 14px; font-weight: 600; }
+        h2 {
+            font-family: var(--font-display);
+            font-size: 1.2rem;
+            font-weight: 650;
+            letter-spacing: -0.025em;
+            margin: 0 0 12px;
+            color: var(--texto);
+        }
+        h3 {
+            font-family: var(--font-display);
+            font-size: 1rem;
+            font-weight: 650;
+            letter-spacing: -0.02em;
+            margin: 0 0 10px;
+        }
 
         .cards-grid {
             display: grid;
@@ -695,8 +723,8 @@
         .card, .panel {
             background: var(--blanco);
             border: 1px solid var(--borde);
-            border-radius: 12px;
-            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+            border-radius: 10px;
+            box-shadow: none;
         }
 
         .card { padding: 20px; }
@@ -704,18 +732,38 @@
         .metric-number {
             margin: 0 0 4px;
             color: var(--texto);
-            font-size: 28px;
+            font-family: var(--font-display);
+            font-size: 1.85rem;
             font-weight: 700;
-            letter-spacing: -0.03em;
+            letter-spacing: -0.04em;
+            line-height: 1.1;
         }
 
         .metric-label {
             color: var(--texto-muted);
             font-weight: 500;
-            font-size: 13px;
+            font-size: 12px;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
         }
 
         .panel { padding: 22px; }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 18px;
+            margin-bottom: 24px;
+        }
+        .chart-panel {
+            min-height: 280px;
+            display: flex;
+            flex-direction: column;
+        }
+        .chart-panel canvas {
+            flex: 1;
+            max-height: 240px;
+        }
 
         table {
             width: 100%;
@@ -1291,5 +1339,6 @@
         })();
     </script>
     {% include 'portal/partials/help_assistant_script.html' %}
+    {% block extra_js %}{% endblock %}
 </body>
 </html>

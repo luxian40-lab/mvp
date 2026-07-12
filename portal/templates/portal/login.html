@@ -76,17 +76,18 @@
             inset: 0;
             z-index: -2;
             background:
-                url("https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&w=1800&q=80")
-                center / cover no-repeat;
-            animation: portal-ken 20s var(--ease) both;
+                url("https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=2000&q=85")
+                center 40% / cover no-repeat;
+            animation: portal-ken 22s var(--ease) both;
+            filter: saturate(0.88) contrast(1.05);
         }
         .login-hero__shade {
             position: absolute;
             inset: 0;
             z-index: -1;
             background:
-                linear-gradient(115deg, rgba(61, 39, 80, 0.92) 0%, rgba(122, 78, 142, 0.62) 55%, rgba(61, 39, 80, 0.4) 100%),
-                linear-gradient(0deg, rgba(61, 39, 80, 0.85) 0%, transparent 50%);
+                linear-gradient(105deg, rgba(42, 24, 58, 0.94) 0%, rgba(61, 39, 80, 0.78) 42%, rgba(42, 24, 58, 0.35) 100%),
+                linear-gradient(0deg, rgba(26, 18, 34, 0.88) 0%, transparent 48%);
         }
         .login-hero-inner {
             position: relative;
@@ -212,11 +213,11 @@
 </head>
 <body>
     <aside class="login-hero" aria-label="eki portal">
-        <div class="login-hero__media" role="img" aria-label="Equipo colaborando"></div>
+        <div class="login-hero__media" role="img" aria-label="Sede corporativa"></div>
         <div class="login-hero__shade"></div>
         <div class="login-hero-inner">
             <p class="brand">eki <em>portal</em></p>
-            <p>Métricas, retención y operación para tu organización — en un solo lugar.</p>
+            <p>Inteligencia operativa para su organización: métricas, retención y seguimiento en un solo lugar.</p>
         </div>
     </aside>
     <main class="login-panel">
