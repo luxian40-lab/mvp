@@ -660,6 +660,8 @@ except (TypeError, ValueError):
     BOT_COMERCIAL_MEMORY_MAX_CHARS = 3600
 # Texto extra para el system prompt (sin romper RAG-first); multilínea vía env.
 BOT_COMERCIAL_SYSTEM_PROMPT_EXTRA = os.environ.get('BOT_COMERCIAL_SYSTEM_PROMPT_EXTRA', '').strip()
+# gpt-5*: minimal|low|medium|high — low evita gastar todo el cupo en reasoning vacío
+BOT_COMERCIAL_REASONING_EFFORT = os.environ.get('BOT_COMERCIAL_REASONING_EFFORT', 'low').strip().lower() or 'low'
 
 # ==========================================
 # 📜 Certificados — URL pública del QR (landing Netlify)

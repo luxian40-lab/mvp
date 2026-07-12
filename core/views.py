@@ -1942,14 +1942,24 @@ def _bot_comercial_respuesta_catalogo(
             max_out = int(getattr(settings, 'BOT_COMERCIAL_OPENAI_MAX_TOKENS', 650) or 650)
         except (TypeError, ValueError):
             max_out = 650
-        max_out = max(120, min(max_out, 900))
+        max_out = max(400, min(max_out, 1200))
+        from core.openai_compat import chat_completion_token_kwargs
         completion = client.chat.completions.create(
             model=modelo,
-            temperature=temperatura,
             messages=messages,
-            max_tokens=max_out,
+            **chat_completion_token_kwargs(modelo, max_out, temperatura),
         )
         texto = (completion.choices[0].message.content or '').strip()
+        if not texto:
+            # Segundo intento: effort mínimo si el modelo gastó el cupo en reasoning
+            completion = client.chat.completions.create(
+                model=modelo,
+                messages=messages,
+                **chat_completion_token_kwargs(
+                    modelo, max(max_out, 900), temperatura, reasoning_effort='minimal',
+                ),
+            )
+            texto = (completion.choices[0].message.content or '').strip()
         latencia_ms = int((time.time() - inicio) * 1000)
         usage = getattr(completion, 'usage', None)
         try:
@@ -2117,11 +2127,11 @@ def _bot_comercial_diagnosticar_imagen(media_url: str, media_type: str, cliente=
 
     try:
         from openai import OpenAI
+        from core.openai_compat import chat_completion_token_kwargs
         client = OpenAI(api_key=api_key)
+        vision_model = getattr(settings, 'BOT_COMERCIAL_VISION_MODEL', 'gpt-4o-mini')
         resp = client.chat.completions.create(
-            model=getattr(settings, 'BOT_COMERCIAL_VISION_MODEL', 'gpt-4o-mini'),
-            temperature=0.2,
-            max_tokens=280,
+            model=vision_model,
             messages=[
                 {
                     'role': 'system',
@@ -2139,6 +2149,7 @@ def _bot_comercial_diagnosticar_imagen(media_url: str, media_type: str, cliente=
                     ],
                 },
             ],
+            **chat_completion_token_kwargs(vision_model, 280, 0.2),
         )
         return (resp.choices[0].message.content or '').strip()
     except Exception as e:
