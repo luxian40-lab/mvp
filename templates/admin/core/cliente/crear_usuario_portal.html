@@ -18,7 +18,10 @@
         <fieldset class="module aligned">
             <h2>Acceso al portal para {{ cliente.nombre }}</h2>
             <p class="help">
-                Este formulario crea un usuario Django sin permisos staff y lo asocia a esta organización en el portal.
+                Cupos: <strong>{{ cupos_usados }} / {{ cupos_totales }}</strong>
+                ({{ cupos_restantes }} disponibles).
+                Crea un usuario <strong>sin permisos de Django admin</strong>.
+                En el primer ingreso deberá cambiar nombre y contraseña.
             </p>
 
             {% if form.non_field_errors %}
@@ -40,7 +43,7 @@
         </fieldset>
 
         <div class="submit-row">
-            <input type="submit" value="Crear usuario portal" class="default">
+            <input type="submit" value="Crear usuario portal" class="default" {% if cupos_restantes < 1 %}disabled{% endif %}>
             <a class="button cancel-link" href="{{ change_url }}">Volver al cliente</a>
         </div>
     </form>

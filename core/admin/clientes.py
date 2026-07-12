@@ -71,64 +71,21 @@ class ProductoCatalogoInline(admin.TabularInline):
 class PortalUsuarioInline(admin.TabularInline):
     model = PortalUsuario
     extra = 0
-    fields = ('user', 'rol', 'portal_user_link')
-    readonly_fields = ('portal_user_link',)
+    fields = ('user', 'rol', 'debe_cambiar_credenciales', 'password_temporal', 'portal_user_link')
+    readonly_fields = ('password_temporal', 'portal_user_link')
     autocomplete_fields = ('user',)
     verbose_name = 'Usuario del portal'
-    verbose_name_plural = 'Usuarios del portal'
+    verbose_name_plural = 'Usuarios del portal (solo lectura de temporales aquí)'
 
     def portal_user_link(self, obj):
         if not obj or not obj.user_id:
             return '-'
-        url = reverse('admin:auth_user_change', args=[obj.user_id])
-        return format_html('<a href="{}">Editar usuario / contraseña</a>', url)
+        url = reverse('admin:portal_portalusuario_change', args=[obj.pk])
+        return format_html('<a href="{}">Ver / resetear</a>', url)
     portal_user_link.short_description = 'Acceso'
 
 
-class CrearUsuarioPortalForm(forms.Form):
-    username = forms.CharField(label='Usuario', max_length=150)
-    first_name = forms.CharField(label='Nombre', max_length=150, required=False)
-    last_name = forms.CharField(label='Apellido', max_length=150, required=False)
-    email = forms.EmailField(label='Email', required=False)
-    password1 = forms.CharField(label='Contraseña', widget=forms.PasswordInput)
-    password2 = forms.CharField(label='Confirmar contraseña', widget=forms.PasswordInput)
-    rol = forms.ChoiceField(label='Rol', choices=PortalUsuario.ROL_CHOICES, initial='viewer')
-    is_active = forms.BooleanField(label='Usuario activo', required=False, initial=True)
-
-    def clean_username(self):
-        username = self.cleaned_data['username'].strip()
-        User = get_user_model()
-        if User.objects.filter(username__iexact=username).exists():
-            raise forms.ValidationError('Ya existe un usuario con ese username.')
-        return username
-
-    def clean(self):
-        cleaned = super().clean()
-        password1 = cleaned.get('password1')
-        password2 = cleaned.get('password2')
-        if password1 and password2 and password1 != password2:
-            raise forms.ValidationError('Las contraseñas no coinciden.')
-        return cleaned
-
-    def save(self, cliente):
-        User = get_user_model()
-        user = User(
-            username=self.cleaned_data['username'],
-            first_name=self.cleaned_data.get('first_name', ''),
-            last_name=self.cleaned_data.get('last_name', ''),
-            email=self.cleaned_data.get('email', ''),
-            is_staff=False,
-            is_superuser=False,
-            is_active=self.cleaned_data.get('is_active', True),
-        )
-        user.set_password(self.cleaned_data['password1'])
-        user.save()
-        PortalUsuario.objects.create(
-            user=user,
-            organizacion=cliente,
-            rol=self.cleaned_data['rol'],
-        )
-        return user
+# CrearUsuarioPortalForm vive en portal.forms_usuarios (provisión con cupos).
 
 
 @admin.register(Cliente)
@@ -175,6 +132,7 @@ class ClienteAdmin(admin.ModelAdmin):
             'fields': (
                 'tipo_proyecto',
                 'portal_modulos',
+                'cupos_portal',
                 'fecha_inicio_suscripcion',
                 'fecha_fin_suscripcion',
                 'logo_url',
@@ -186,7 +144,7 @@ class ClienteAdmin(admin.ModelAdmin):
                 'twilio_whatsapp_from',
             ),
             'description': (
-                'Acceso web, branding y credenciales Twilio del cliente. '
+                'Acceso web, branding y cupos. Solo eki crea usuarios portal (nunca staff). '
                 'Logo y subtítulo también en <code>/portal/perfil/</code> (rol admin).'
             ),
         }),
@@ -274,21 +232,28 @@ class ClienteAdmin(admin.ModelAdmin):
             + f'?organizacion__id__exact={obj.pk}'
         )
         portal_url = '/portal/login/'
-        total = obj.usuarios_portal.count()
+        from portal.provision import cupos_restantes, cupos_totales, cupos_usados
+        usados = cupos_usados(obj)
+        total = cupos_totales(obj)
+        restan = cupos_restantes(obj)
 
         return format_html(
+            '<div style="margin-bottom:8px;font-weight:600;">Cupos: {} / {} '
+            '<span style="color:#666;font-weight:400;">({} disponibles)</span></div>'
             '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">'
             '<a class="button" href="{}">➕ Crear usuario portal</a>'
-            '<a class="button" href="{}">Ver usuarios ({})</a>'
+            '<a class="button" href="{}">Ver usuarios</a>'
             '<a class="button" href="{}" target="_blank" rel="noopener">Abrir portal</a>'
             '</div>'
             '<p style="margin:8px 0 0;color:#666;">'
-            'Crea aquí usuarios no-staff para esta organización. '
-            'La contraseña queda en Django Auth; el rol y la organización quedan en PortalUsuario.'
+            'Solo eki aprovisiona accesos. El usuario nunca es staff/admin Django. '
+            'En el primer ingreso cambia nombre y contraseña; la temporal se ve aquí hasta entonces.'
             '</p>',
+            usados,
+            total,
+            restan,
             crear_url,
             usuarios_url,
-            total,
             portal_url,
         )
     portal_usuarios_acciones.short_description = 'Accesos portal'
@@ -402,6 +367,9 @@ class ClienteAdmin(admin.ModelAdmin):
         if not self.has_change_permission(request, cliente):
             raise PermissionDenied
 
+        from portal.forms_usuarios import CrearUsuarioPortalForm
+        from portal.provision import cupos_restantes, cupos_totales, cupos_usados
+
         initial = {
             'email': cliente.email,
             'first_name': cliente.contacto_principal,
@@ -410,14 +378,22 @@ class ClienteAdmin(admin.ModelAdmin):
         if request.method == 'POST':
             form = CrearUsuarioPortalForm(request.POST)
             if form.is_valid():
-                with transaction.atomic():
-                    user = form.save(cliente)
-                self.message_user(
-                    request,
-                    f'Usuario portal "{user.username}" creado para {cliente.nombre}.',
-                    level=messages.SUCCESS,
-                )
-                return redirect('admin:core_cliente_change', cliente.pk)
+                try:
+                    with transaction.atomic():
+                        user = form.save(cliente)
+                except forms.ValidationError as exc:
+                    form.add_error(None, exc)
+                else:
+                    pwd = getattr(user, '_password_plano_provision', '')
+                    self.message_user(
+                        request,
+                        (
+                            f'Usuario portal "{user.username}" creado para {cliente.nombre}. '
+                            f'Contraseña temporal: {pwd} — el usuario debe cambiarla en el primer ingreso.'
+                        ),
+                        level=messages.SUCCESS,
+                    )
+                    return redirect('admin:core_cliente_change', cliente.pk)
         else:
             form = CrearUsuarioPortalForm(initial=initial)
 
@@ -428,6 +404,9 @@ class ClienteAdmin(admin.ModelAdmin):
             'original': cliente,
             'cliente': cliente,
             'form': form,
+            'cupos_usados': cupos_usados(cliente),
+            'cupos_totales': cupos_totales(cliente),
+            'cupos_restantes': cupos_restantes(cliente),
             'change_url': reverse('admin:core_cliente_change', args=[cliente.pk]),
         }
         return render(request, 'admin/core/cliente/crear_usuario_portal.html', context)

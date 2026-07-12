@@ -3,7 +3,7 @@
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
@@ -12,6 +12,7 @@ from portal.middleware import PORTAL_SESSION_KEY
 from portal.models import PortalFeedback, PortalUsuario
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class PortalCrmTests(TestCase):
     def setUp(self):
         self.cliente = Cliente.objects.create(
@@ -91,9 +92,13 @@ class PortalCrmTests(TestCase):
         self.assertEqual(r.status_code, 302)
         self.assertIn('/portal/dashboard/', r.url)
 
-    def test_usuarios_admin_crea(self):
+    def test_usuarios_solo_consulta_sin_crear(self):
         self._login('crm_admin')
-        r = self.http.post('/portal/usuarios/', {
+        r = self.http.get('/portal/usuarios/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Cupos')
+        self.assertNotContains(r, 'Invitar usuario')
+        r2 = self.http.post('/portal/usuarios/', {
             'username': 'nuevo_coord',
             'first_name': 'Nuevo',
             'last_name': 'Coord',
@@ -103,11 +108,8 @@ class PortalCrmTests(TestCase):
             'rol': 'viewer',
             'is_active': 'on',
         })
-        self.assertEqual(r.status_code, 302)
-        self.assertTrue(User.objects.filter(username='nuevo_coord').exists())
-        self.assertTrue(
-            PortalUsuario.objects.filter(user__username='nuevo_coord', organizacion=self.cliente).exists()
-        )
+        self.assertEqual(r2.status_code, 200)
+        self.assertFalse(User.objects.filter(username='nuevo_coord').exists())
 
     @patch('portal.views.enviar_whatsapp_respuesta', return_value=True)
     def test_conversaciones_post_admin(self, mock_send):

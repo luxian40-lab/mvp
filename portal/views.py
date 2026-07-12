@@ -53,7 +53,6 @@ from .middleware import PORTAL_SESSION_KEY
 from .utils import limpiar_numero_whatsapp, enviar_whatsapp_respuesta
 from .dashboard_ops import comparativa_periodos, operacion_del_dia, resumen_dashboard_rapido
 from .timeline_service import timeline_organizacion
-from .forms_usuarios import CrearUsuarioPortalForm
 from .models import PortalFeedback, PortalUsuario
 from .rag_curso_service import crear_documento_curso, listar_documentos_curso_org
 from .gei_factores import filas_factores_portal
@@ -84,6 +83,8 @@ def _filtrar_pqrs_por_tipo_proyecto(queryset, org):
 def portal_login(request):
     if getattr(request, 'portal_usuario', None):
         org = request.portal_usuario.organizacion
+        if request.portal_usuario.debe_cambiar_credenciales:
+            return redirect('/portal/primer-acceso/')
         return redirect(portal_home_url(org))
 
     error = None
@@ -95,10 +96,57 @@ def portal_login(request):
 
         pu = portal_usuario_de_user(user) if user else None
         if puede_acceder_portal(pu):
+            # Nunca dejar staff colado en cuentas portal
+            if user.is_staff or user.is_superuser:
+                user.is_staff = False
+                user.is_superuser = False
+                user.save(update_fields=['is_staff', 'is_superuser'])
             iniciar_sesion_portal(request, pu)
+            if pu.debe_cambiar_credenciales:
+                return redirect('/portal/primer-acceso/')
             return redirect(portal_home_url(pu.organizacion))
         error = 'Credenciales incorrectas o usuario sin acceso al portal.'
     return render(request, 'portal/login.html', {'error': error})
+
+
+@portal_login_required
+def portal_primer_acceso(request):
+    """Obligatorio la primera vez: nombre + contraseña nueva."""
+    from .forms_usuarios import PrimerAccesoPortalForm
+    from .provision import completar_primer_acceso
+
+    pu = getattr(request, 'portal_usuario', None)
+    if not pu:
+        return redirect('/portal/login/')
+    if not pu.debe_cambiar_credenciales:
+        return redirect(portal_home_url(pu.organizacion))
+
+    error = None
+    form = PrimerAccesoPortalForm(
+        request.POST or None,
+        initial={
+            'first_name': pu.user.first_name,
+            'last_name': pu.user.last_name,
+        },
+    )
+    if request.method == 'POST' and form.is_valid():
+        completar_primer_acceso(
+            pu,
+            first_name=form.cleaned_data['first_name'],
+            last_name=form.cleaned_data.get('last_name', ''),
+            password=form.cleaned_data['password1'],
+        )
+        pu.refresh_from_db()
+        return redirect(portal_home_url(pu.organizacion))
+    elif request.method == 'POST':
+        error = form.errors.as_text() or 'Revisa los datos.'
+
+    return render(request, 'portal/primer_acceso.html', {
+        'form': form,
+        'error': error,
+        'org': pu.organizacion,
+        'username': pu.user.username,
+    })
 
 
 def portal_logout(request):
@@ -952,29 +1000,20 @@ def portal_timeline(request):
 @portal_login_required
 @requiere_portal_admin
 def portal_usuarios(request):
+    """Solo consulta: eki aprovisiona cupos/usuarios desde Django admin."""
     org = _portal_org(request)
     if not org:
         return redirect('/portal/login/')
 
-    form = None
-    ok_msg = None
-    if request.method == 'POST':
-        form = CrearUsuarioPortalForm(request.POST)
-        if form.is_valid():
-            form.save(org)
-            return redirect('/portal/usuarios/?creado=1')
-    else:
-        form = CrearUsuarioPortalForm()
+    from .provision import cupos_restantes, cupos_totales, cupos_usados
 
     usuarios = PortalUsuario.objects.filter(organizacion=org).select_related('user').order_by('user__username')
-    if request.GET.get('creado'):
-        ok_msg = 'Usuario creado correctamente.'
-
     return render(request, 'portal/usuarios.html', {
         'org': org,
-        'form': form,
         'usuarios': usuarios,
-        'ok_msg': ok_msg,
+        'cupos_usados': cupos_usados(org),
+        'cupos_totales': cupos_totales(org),
+        'cupos_restantes': cupos_restantes(org),
     })
 
 

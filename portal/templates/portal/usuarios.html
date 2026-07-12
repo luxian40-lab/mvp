@@ -4,15 +4,13 @@
 
 {% block extra_head %}
 <style>
-.user-form label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 14px; }
-.user-form input, .user-form select {
-    width: 100%; padding: 10px 12px; border: 1px solid var(--borde);
-    border-radius: 8px; font: inherit; box-sizing: border-box;
-}
-.user-form .field { margin-bottom: 14px; }
-.user-form .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-@media (max-width: 640px) { .user-form .row-2 { grid-template-columns: 1fr; } }
 .rol-pill { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: var(--tabla-head); }
+.cupos-box {
+    display: inline-flex; gap: 8px; align-items: baseline;
+    padding: 10px 14px; border: 1px solid var(--borde); border-radius: 8px;
+    background: var(--blanco); margin-bottom: 1rem;
+}
+.cupos-box strong { font-family: var(--font-display); font-size: 1.25rem; }
 </style>
 {% endblock %}
 
@@ -20,88 +18,46 @@
 <div class="page-title">
     <div>
         <h1>Usuarios del portal</h1>
-        <p class="muted">Invite coordinadores y usuarios de solo lectura para {{ org.nombre }}.</p>
+        <p class="muted">Equipo de {{ org.nombre }}. Los accesos los aprovisiona eki; aquí solo puedes consultarlos.</p>
     </div>
 </div>
 
-{% if ok_msg %}
-<div class="alert alert-ok">{{ ok_msg }}</div>
-{% endif %}
-
-<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,380px);gap:24px;align-items:start;">
-    <section class="panel">
-        <h2>Equipo actual</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Usuario</th>
-                    <th>Nombre</th>
-                    <th>Rol</th>
-                    <th>Estado</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for pu in usuarios %}
-                <tr>
-                    <td>{{ pu.user.username }}</td>
-                    <td>{{ pu.user.get_full_name|default:"—" }}</td>
-                    <td><span class="rol-pill">{{ pu.get_rol_display }}</span></td>
-                    <td>{% if pu.user.is_active %}Activo{% else %}Inactivo{% endif %}</td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="4" class="muted">Sin usuarios.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </section>
-
-    <section class="panel">
-        <h2>Invitar usuario</h2>
-        <form method="post" class="user-form">
-            {% csrf_token %}
-            <div class="field">
-                <label for="id_username">{{ form.username.label }}</label>
-                {{ form.username }}
-                {% if form.username.errors %}<p class="alert alert-error" style="margin-top:6px;">{{ form.username.errors.0 }}</p>{% endif %}
-            </div>
-            <div class="row-2">
-                <div class="field">
-                    <label for="id_first_name">{{ form.first_name.label }}</label>
-                    {{ form.first_name }}
-                </div>
-                <div class="field">
-                    <label for="id_last_name">{{ form.last_name.label }}</label>
-                    {{ form.last_name }}
-                </div>
-            </div>
-            <div class="field">
-                <label for="id_email">{{ form.email.label }}</label>
-                {{ form.email }}
-            </div>
-            <div class="row-2">
-                <div class="field">
-                    <label for="id_password1">{{ form.password1.label }}</label>
-                    {{ form.password1 }}
-                </div>
-                <div class="field">
-                    <label for="id_password2">{{ form.password2.label }}</label>
-                    {{ form.password2 }}
-                </div>
-            </div>
-            <div class="field">
-                <label for="id_rol">{{ form.rol.label }}</label>
-                {{ form.rol }}
-            </div>
-            <div class="field">
-                <label style="display:flex;align-items:center;gap:8px;font-weight:500;">
-                    {{ form.is_active }} {{ form.is_active.label }}
-                </label>
-            </div>
-            {% if form.non_field_errors %}
-            <div class="alert alert-error">{{ form.non_field_errors.0 }}</div>
-            {% endif %}
-            <button class="btn" type="submit">Crear usuario</button>
-        </form>
-    </section>
+<div class="cupos-box">
+    <span class="muted">Cupos</span>
+    <strong>{{ cupos_usados }} / {{ cupos_totales }}</strong>
+    <span class="muted">({{ cupos_restantes }} disponibles)</span>
 </div>
+
+<section class="panel">
+    <h2>Equipo actual</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Usuario</th>
+                <th>Nombre</th>
+                <th>Rol</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pu in usuarios %}
+            <tr>
+                <td>{{ pu.user.username }}</td>
+                <td>{{ pu.user.get_full_name|default:"—" }}</td>
+                <td><span class="rol-pill">{{ pu.get_rol_display }}</span></td>
+                <td>
+                    {% if not pu.user.is_active %}Inactivo
+                    {% elif pu.debe_cambiar_credenciales %}Pendiente primer acceso
+                    {% else %}Activo{% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="muted">Sin usuarios. Contacta a eki para aprovisionar cupos.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <p class="muted" style="margin-top:1rem;font-size:13px;">
+        ¿Necesitas más usuarios? Escríbele a tu contacto eki: ellos definen los cupos y entregan usuario + contraseña temporal.
+    </p>
+</section>
 {% endblock %}

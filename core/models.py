@@ -331,6 +331,14 @@ class Cliente(models.Model):
         verbose_name='Subtítulo en portal',
         help_text='Texto corto bajo el nombre en el portal (ej: Cooperativa del Valle — 2026).',
     )
+    cupos_portal = models.PositiveIntegerField(
+        default=5,
+        verbose_name='Cupos de usuarios portal',
+        help_text=(
+            'Máximo de usuarios del portal B2B para esta organización. '
+            'Solo eki (Django admin) puede crearlos; el cliente no invita usuarios.'
+        ),
+    )
     gei_factores_json = models.JSONField(
         default=dict,
         blank=True,

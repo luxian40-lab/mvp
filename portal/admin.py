@@ -1,20 +1,66 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.utils.html import format_html
 
 from .models import PortalFeedback, PortalUsuario
+from .provision import resetear_password_temporal
 
 
 @admin.register(PortalUsuario)
 class PortalUsuarioAdmin(admin.ModelAdmin):
-    list_display = ['user', 'organizacion', 'rol_badge', 'aula_web']
-    list_filter = ['rol', 'organizacion']
-    search_fields = ['user__username', 'user__email', 'organizacion__nombre']
+    list_display = [
+        'user',
+        'organizacion',
+        'rol_badge',
+        'password_temporal',
+        'debe_cambiar_credenciales',
+        'aula_web',
+    ]
+    list_filter = ['rol', 'debe_cambiar_credenciales', 'organizacion']
+    search_fields = ['user__username', 'user__email', 'organizacion__nombre', 'password_temporal']
     autocomplete_fields = ['user', 'organizacion']
+    readonly_fields = ['password_temporal']
     list_per_page = 50
+    actions = ['action_resetear_password_temporal']
+
+    fieldsets = (
+        (None, {
+            'fields': ('user', 'organizacion', 'rol'),
+        }),
+        ('Primer acceso', {
+            'fields': ('debe_cambiar_credenciales', 'password_temporal'),
+            'description': (
+                'La contraseña temporal es visible solo hasta que el usuario complete '
+                '/portal/primer-acceso/. Nunca uses is_staff en estos usuarios.'
+            ),
+        }),
+    )
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        user = obj.user
+        if user.is_staff or user.is_superuser:
+            user.is_staff = False
+            user.is_superuser = False
+            user.save(update_fields=['is_staff', 'is_superuser'])
+            self.message_user(
+                request,
+                f'Se quitó staff/superuser de «{user.username}» (usuarios portal no son admin Django).',
+                level=messages.WARNING,
+            )
+
+    @admin.action(description='Resetear contraseña temporal (fuerza primer acceso)')
+    def action_resetear_password_temporal(self, request, queryset):
+        for pu in queryset.select_related('user'):
+            pwd = resetear_password_temporal(pu)
+            self.message_user(
+                request,
+                f'{pu.user.username}: temporal = {pwd}',
+                level=messages.SUCCESS,
+            )
 
     @admin.display(description='Rol')
     def rol_badge(self, obj):
-        colors = {'admin': '#7c3aed', 'profesor': '#0d9488', 'viewer': '#64748b'}
+        colors = {'admin': '#7a4e8e', 'profesor': '#0d9488', 'viewer': '#64748b'}
         color = colors.get(obj.rol, '#64748b')
         return format_html(
             '<span style="background:{}22;color:{};padding:2px 8px;border-radius:6px;font-size:0.8rem;">{}</span>',
@@ -95,4 +141,3 @@ class PortalFeedbackAdmin(admin.ModelAdmin):
         if len(texto) > 120:
             texto = texto[:117] + '…'
         return texto
-

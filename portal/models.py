@@ -21,6 +21,21 @@ class PortalUsuario(models.Model):
         related_name='usuarios_portal',
     )
     rol = models.CharField(max_length=20, choices=ROL_CHOICES, default='viewer')
+    debe_cambiar_credenciales = models.BooleanField(
+        default=False,
+        verbose_name='Debe cambiar nombre y contraseña',
+        help_text='Si está activo, al entrar al portal debe definir nombre y contraseña nueva.',
+    )
+    password_temporal = models.CharField(
+        max_length=128,
+        blank=True,
+        default='',
+        verbose_name='Contraseña temporal (visible)',
+        help_text=(
+            'Solo para entrega al cliente. Se borra cuando el usuario completa el primer acceso. '
+            'No es un hash: úsala solo como referencia operativa.'
+        ),
+    )
 
     def __str__(self):
         return f"{self.user.username} - {self.organizacion.nombre} ({self.rol})"
