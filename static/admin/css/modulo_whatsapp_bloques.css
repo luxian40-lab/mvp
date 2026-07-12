@@ -320,7 +320,16 @@
   margin-top: 0.5rem;
 }
 
-.app-core.model-modulo a[href="#microcontenidos-tab"],
-.app-core.model-modulo a[href="#bloques-tab"] {
+/* Cinturon de seguridad: si Jazzmin dejara paneles collapse, no ocultar curriculum */
+.app-core.model-modulo .panel-collapse {
+  display: block !important;
+  height: auto !important;
+  overflow: visible !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.app-core.model-modulo a[href="#secciones-group"],
+.app-core.model-modulo a[href="#pasos-group"] {
   font-weight: 700 !important;
 }

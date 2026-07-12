@@ -703,17 +703,17 @@ class ModuloAdmin(admin.ModelAdmin):
                 ),
             )
         return (
-            (
-                'Curriculum',
-                {
-                    'fields': ('mapa_curriculum', 'modo_entrega', 'secciones_por_listo', 'facilitador_checkpoint'),
-                    'classes': ('wide',),
-                    'description': (
-                        'Como avanza el estudiante. Abajo abra las secciones '
-                        '<strong>Bloques</strong> y <strong>Microcontenidos</strong>.'
-                    ),
-                },
-            ),
+                (
+                    'Curriculum',
+                    {
+                        'fields': ('mapa_curriculum', 'modo_entrega', 'secciones_por_listo', 'facilitador_checkpoint'),
+                        'classes': ('wide',),
+                        'description': (
+                            'Como avanza el estudiante. Mas abajo estan '
+                            '<strong>Bloques</strong> y <strong>Microcontenidos</strong> (siempre visibles).'
+                        ),
+                    },
+                ),
             (
                 'Guia microcontenidos',
                 {
@@ -809,7 +809,7 @@ class ModuloAdmin(admin.ModelAdmin):
             self.message_user(
                 request,
                 (
-                    f'Se crearon {n} bloque(s). Abra la sección «Microcontenidos» '
+                    f'Se crearon {n} bloque(s). Baje hasta «Microcontenidos» '
                     f'para agregar el texto de cada paso (*listo*).'
                 ),
                 level=messages.SUCCESS,
