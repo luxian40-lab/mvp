@@ -77,15 +77,13 @@ class PortalBrandingOnboardingTests(TestCase):
     def test_login_hero_rural(self):
         r_login = Client().get('/portal/login/')
         self.assertEqual(r_login.status_code, 200)
-        self.assertContains(r_login, 'Empresas rurales: campo, invernadero y agroindustria')
+        self.assertContains(r_login, 'Empresa rural con operaciones en campo')
         self.assertContains(r_login, 'empresas rurales')
-        # Tres fotos distintas: operación en campo, invernadero, agroindustria
         self.assertContains(r_login, 'photo-1574943320219-553eb213f72d')
-        self.assertContains(r_login, 'photo-1530836369250-ef72a3dce685')
-        self.assertContains(r_login, 'photo-1625246333195-78d9c38ad449')
-        self.assertContains(r_login, 'login-hero__slide')
+        self.assertNotContains(r_login, 'login-hero__slide')
         self.assertNotContains(r_login, 'photo-1486406146926-c627a92ad1ab')
-        self.assertNotContains(r_login, 'photo-1464226184884-fa280b87c399')
+        self.assertNotContains(r_login, 'photo-1530836369250-ef72a3dce685')
+        self.assertNotContains(r_login, 'photo-1625246333195-78d9c38ad449')
 
 
 class FaviconSurfacesTests(SimpleTestCase):
