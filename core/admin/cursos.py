@@ -1,4 +1,5 @@
 from core.admin._common import *  # noqa: F401,F403
+from core.bloques_modulo import crear_secciones_desde_titulos, parse_titulos_bloques_rapidos
 
 # ==========================================
 # SISTEMA EDUCATIVO - ADMINISTRACIÓN
@@ -347,39 +348,6 @@ class PasoModuloForm(forms.ModelForm):
             instance.save()
             self.save_m2m()
         return instance
-
-
-def parse_titulos_bloques_rapidos(raw: str) -> list[str]:
-    """Una línea no vacía = un bloque. Deduplica por orden, máx. 20."""
-    out: list[str] = []
-    for line in (raw or '').splitlines():
-        t = ' '.join(line.strip().split())
-        if not t:
-            continue
-        out.append(t[:200])
-        if len(out) >= 20:
-            break
-    return out
-
-
-def crear_secciones_desde_titulos(modulo: Modulo, titulos: list[str]) -> int:
-    """Crea SeccionModulo en orden 1..n. No borra secciones existentes."""
-    if not modulo or not modulo.pk or not titulos:
-        return 0
-    created = 0
-    orden_base = (
-        SeccionModulo.objects.filter(modulo=modulo).order_by('-orden').values_list('orden', flat=True).first()
-        or 0
-    )
-    for i, titulo in enumerate(titulos, start=1):
-        SeccionModulo.objects.create(
-            modulo=modulo,
-            orden=orden_base + i,
-            titulo=titulo,
-            activa=True,
-        )
-        created += 1
-    return created
 
 
 class ModuloAdminForm(forms.ModelForm):

@@ -8,6 +8,7 @@
 <div class="eki-page-head">
     <span class="eki-badge">{% if modulo %}Editar lección{% else %}Nueva lección{% endif %}</span>
     <h1>{% if modulo %}{{ modulo.titulo }}{% else %}Crear lección{% endif %}</h1>
+    <p class="eki-lead">Defina la lección y sus bloques (secciones). El estudiante verá el contenido agrupado por bloque.</p>
 </div>
 
 <form method="post" enctype="multipart/form-data" class="eki-card">
@@ -21,9 +22,34 @@
         <label for="descripcion">Descripción breve</label>
         <input type="text" name="descripcion" id="descripcion" value="{{ modulo.descripcion|default:'' }}" placeholder="Una línea para el listado">
     </div>
+
+    {% if secciones %}
+    <div class="eki-field">
+        <label>Bloques actuales</label>
+        <ul class="eki-list" style="margin:0.35rem 0 0;">
+            {% for s in secciones %}
+            <li class="eki-list-item">
+                <span class="eki-material-tag">{{ s.orden }}</span>
+                    <span>{{ s.titulo|default:"(sin título)" }}
+                    <span class="eki-muted">· {{ s.pasos.all|length }} paso{{ s.pasos.all|length|pluralize }}</span>
+                </span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <div class="eki-field">
+        <label for="bloques_rapidos">{% if modulo %}Agregar bloques{% else %}Bloques del recorrido{% endif %}</label>
+        <p class="eki-muted" style="margin:0 0 0.45rem;font-size:0.85rem;">
+            Una línea = un bloque. {% if modulo %}Solo se agregan los nuevos; no se borran los existentes.{% else %}Se crean al guardar la lección.{% endif %}
+        </p>
+        <textarea name="bloques_rapidos" id="bloques_rapidos" rows="5" placeholder="Introducción&#10;Práctica en campo&#10;Cierre">{{ bloques_rapidos }}</textarea>
+    </div>
+
     <div class="eki-field">
         <label for="contenido">Contenido de la lección</label>
-        <textarea name="contenido" id="contenido" rows="10" placeholder="Texto principal que verá el estudiante…">{{ modulo.contenido|default:'' }}</textarea>
+        <textarea name="contenido" id="contenido" rows="8" placeholder="Texto principal. Si dejó bloques y esto vacío, se genera un borrador con esos títulos.">{{ modulo.contenido|default:'' }}</textarea>
     </div>
     <div class="eki-field">
         <label for="video_url">URL de video (YouTube o MP4)</label>

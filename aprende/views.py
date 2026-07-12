@@ -27,7 +27,7 @@ from .contenido_modulo_service import (
     modulo_tiene_microcontenidos,
     secciones_modulo_aula,
 )
-from .lesson_service import actualizar_modulo_aula, crear_modulo_aula
+from .lesson_service import actualizar_modulo_aula, crear_modulo_aula, secciones_modulo_aula
 from .media_aula import media_desde_url
 from .middleware import APRENDE_EST_SESSION_KEY
 from .models import EntregaTarea, TareaCurso
@@ -382,6 +382,8 @@ def profesor_modulo_nuevo(request, curso_id: int):
             return render(request, 'aprende/profesor_modulo_form.html', {
                 'curso': curso,
                 'modulo': None,
+                'secciones': [],
+                'bloques_rapidos': request.POST.get('bloques_rapidos', 'Introducción\nDesarrollo\nCierre'),
             })
         messages.success(request, f'Lección «{modulo.titulo}» creada.')
         return redirect(f'/aprende/profesor/modulo/{modulo.pk}/')
@@ -389,6 +391,8 @@ def profesor_modulo_nuevo(request, curso_id: int):
     return render(request, 'aprende/profesor_modulo_form.html', {
         'curso': curso,
         'modulo': None,
+        'secciones': [],
+        'bloques_rapidos': 'Introducción\nDesarrollo\nCierre',
     })
 
 
@@ -397,6 +401,7 @@ def profesor_modulo_editar(request, modulo_id: int):
     org = _org_profesor(request)
     modulo = get_object_or_404(Modulo.objects.select_related('curso'), pk=modulo_id, curso__cliente=org)
     archivos = ArchivoModulo.objects.filter(modulo=modulo, activo=True).order_by('orden')
+    secciones = list(secciones_modulo_aula(modulo))
 
     if request.method == 'POST':
         error = actualizar_modulo_aula(request, modulo)
@@ -406,6 +411,8 @@ def profesor_modulo_editar(request, modulo_id: int):
                 'curso': modulo.curso,
                 'modulo': modulo,
                 'archivos': archivos,
+                'secciones': secciones,
+                'bloques_rapidos': request.POST.get('bloques_rapidos', ''),
             })
         messages.success(request, 'Lección actualizada.')
         return redirect(f'/aprende/profesor/modulo/{modulo.pk}/')
@@ -414,6 +421,8 @@ def profesor_modulo_editar(request, modulo_id: int):
         'curso': modulo.curso,
         'modulo': modulo,
         'archivos': archivos,
+        'secciones': secciones,
+        'bloques_rapidos': '',
     })
 
 

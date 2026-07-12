@@ -10,7 +10,13 @@ from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
 from portal.models import PortalUsuario
 
 
-@override_settings(SECURE_SSL_REDIRECT=False)
+@override_settings(
+    SECURE_SSL_REDIRECT=False,
+    STORAGES={
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    },
+)
 class AprendeWebTests(TestCase):
     def setUp(self):
         self.http = Client()
@@ -68,6 +74,30 @@ class AprendeWebTests(TestCase):
         r = self.http.get('/aprende/profesor/')
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Curso Web')
+
+    def test_profesor_crea_leccion_con_bloques(self):
+        from core.models import SeccionModulo
+
+        self.http.post('/aprende/profesor/login/', {'username': 'prof_ap', 'password': 'pass'})
+        r_form = self.http.get(f'/aprende/profesor/curso/{self.curso.id}/modulo/nuevo/')
+        self.assertEqual(r_form.status_code, 200)
+        self.assertContains(r_form, 'Bloques del recorrido')
+        r = self.http.post(f'/aprende/profesor/curso/{self.curso.id}/modulo/nuevo/', {
+            'titulo': 'Lección con bloques',
+            'descripcion': 'd',
+            'contenido': '',
+            'bloques_rapidos': 'Intro\nCampo\nCierre',
+        })
+        self.assertEqual(r.status_code, 302)
+        mod = Modulo.objects.get(curso=self.curso, titulo='Lección con bloques')
+        titulos = list(
+            SeccionModulo.objects.filter(modulo=mod).order_by('orden').values_list('titulo', flat=True)
+        )
+        self.assertEqual(titulos, ['Intro', 'Campo', 'Cierre'])
+        r_edit = self.http.get(f'/aprende/profesor/modulo/{mod.pk}/')
+        self.assertEqual(r_edit.status_code, 200)
+        self.assertContains(r_edit, 'Bloques actuales')
+        self.assertContains(r_edit, 'Intro')
 
     def test_subdominio_aprende_redirige_raiz(self):
         r = self.http.get('/', HTTP_HOST='aprende.eki.technology')

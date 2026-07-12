@@ -7,9 +7,8 @@ from django.test import RequestFactory, TestCase, override_settings
 from core.admin.cursos import (
     ModuloAdmin,
     ModuloAdminForm,
-    crear_secciones_desde_titulos,
-    parse_titulos_bloques_rapidos,
 )
+from core.bloques_modulo import crear_secciones_desde_titulos, parse_titulos_bloques_rapidos
 from core.models import Cliente, Curso, Modulo, SeccionModulo
 
 
