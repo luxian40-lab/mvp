@@ -442,18 +442,18 @@
 
         .wa-fab {
             position: fixed;
-            right: 24px;
-            bottom: 24px;
+            right: 20px;
+            bottom: 20px;
             z-index: 50;
-            width: 56px;
-            height: 56px;
+            width: 42px;
+            height: 42px;
             border-radius: 50%;
             background: var(--wa-green);
             color: #fff;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 14px rgba(37, 211, 102, 0.45);
+            box-shadow: 0 3px 10px rgba(37, 211, 102, 0.4);
             text-decoration: none;
             transition: transform 0.15s ease, background 0.15s ease;
         }
@@ -464,8 +464,8 @@
         }
 
         .wa-fab svg {
-            width: 28px;
-            height: 28px;
+            width: 20px;
+            height: 20px;
             fill: currentColor;
         }
 
@@ -483,15 +483,15 @@
         /* Asistente de ayuda — bandera Colombia (mismo tamaño que WhatsApp) */
         .eki-help {
             position: fixed;
-            right: 24px;
-            bottom: 88px;
+            right: 20px;
+            bottom: 72px;
             z-index: 51;
         }
         .eki-help__toggle {
             border: none;
             cursor: pointer;
-            width: 56px;
-            height: 56px;
+            width: 42px;
+            height: 42px;
             border-radius: 50%;
             background: #fff;
             padding: 0;
@@ -499,12 +499,12 @@
             align-items: center;
             justify-content: center;
             line-height: 0;
-            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
+            box-shadow: 0 3px 10px rgba(15, 23, 42, 0.16);
             transition: transform 0.15s ease, box-shadow 0.15s ease;
         }
         .eki-help__toggle:hover {
             transform: scale(1.06);
-            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.22);
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
         }
         .eki-help__toggle:focus-visible {
             outline: 2px solid var(--accent);
@@ -517,18 +517,18 @@
             justify-content: center;
         }
         .eki-flag {
-            width: 40px;
-            height: 27px;
+            width: 26px;
+            height: 17px;
             display: block;
-            border-radius: 4px;
+            border-radius: 3px;
             overflow: hidden;
-            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
             border: 1px solid rgba(0, 0, 0, 0.08);
         }
         .eki-flag--sm {
-            width: 28px;
-            height: 19px;
-            border-radius: 3px;
+            width: 22px;
+            height: 15px;
+            border-radius: 2px;
         }
         .eki-help__bubble {
             position: absolute;
@@ -568,7 +568,7 @@
         .eki-help__panel {
             position: absolute;
             right: 0;
-            bottom: 64px;
+            bottom: 52px;
             width: min(320px, calc(100vw - 48px));
             background: var(--blanco);
             border: 1px solid var(--borde);
@@ -662,12 +662,13 @@
             padding: 4px 0;
         }
         @media (max-width: 480px) {
-            .eki-help { bottom: 80px; right: 16px; }
-            .eki-help__panel { bottom: 64px; right: 0; }
-            .eki-help__toggle { width: 56px; height: 56px; }
-            .eki-flag { width: 36px; height: 24px; }
+            .eki-help { bottom: 64px; right: 14px; }
+            .eki-help__panel { bottom: 52px; right: 0; }
+            .eki-help__toggle { width: 40px; height: 40px; }
+            .eki-flag { width: 24px; height: 16px; }
             .eki-help__bubble { font-size: 12px; padding: 7px 10px; max-width: 150px; white-space: normal; }
-            .wa-fab { right: 16px; bottom: 16px; }
+            .wa-fab { width: 40px; height: 40px; right: 14px; bottom: 14px; }
+            .wa-fab svg { width: 18px; height: 18px; }
         }
 
         .page-title {

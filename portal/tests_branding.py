@@ -74,6 +74,14 @@ class PortalBrandingOnboardingTests(TestCase):
         self.assertContains(r_login, 'favicons/portal.svg')
         self.assertContains(r_login, 'image/svg+xml')
 
+    def test_login_hero_rural(self):
+        r_login = Client().get('/portal/login/')
+        self.assertEqual(r_login.status_code, 200)
+        self.assertContains(r_login, 'Campo y empresas rurales')
+        self.assertContains(r_login, 'empresas rurales')
+        self.assertContains(r_login, 'photo-1464226184884-fa280b87c399')
+        self.assertNotContains(r_login, 'photo-1486406146926-c627a92ad1ab')
+
 
 class FaviconSurfacesTests(SimpleTestCase):
     """Los favicons deben diferenciarse por color, no todos morados."""
