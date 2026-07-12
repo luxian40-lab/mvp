@@ -19,7 +19,7 @@
             </div>
             <div class="eki-modo-card eki-modo-card--accent">
                 <strong>B. Microcontenidos</strong>
-                <p>Bloques → pasos · pestana Microcontenidos</p>
+                <p>Bloques → pasos · tras guardar, abra Microcontenidos</p>
             </div>
         </div>
     {% else %}
@@ -39,11 +39,11 @@
             <span class="eki-pill">Contenido unico / sin pasos</span>
             {% endif %}
         </p>
-        <nav class="eki-modulo-jump" aria-label="Ir a pestanas del modulo">
-            <a href="#curriculum-tab">Curriculum</a>
-            <a href="#bloques-tab">Bloques</a>
-            <a href="#microcontenidos-tab">Microcontenidos</a>
-            <a href="#contenido-unico-tab">Contenido unico</a>
+        <nav class="eki-modulo-jump" aria-label="Abrir secciones del modulo">
+            <a href="#bloques-tab" data-eki-open-section="Bloques">Bloques</a>
+            <a href="#microcontenidos-tab" data-eki-open-section="Microcontenidos">Microcontenidos</a>
+            <a href="#contenido-unico-tab" data-eki-open-section="Contenido unico">Contenido unico</a>
+            <a href="#curriculum-tab" data-eki-open-section="Curriculum">Curriculum</a>
         </nav>
     {% endif %}
 </section>
@@ -53,8 +53,8 @@
 {% block eki_inlines_intro %}
 {% if not add %}
 <p class="eki-inlines-intro eki-modulo-inline-hint">
-    <strong>Curriculum:</strong> primero filas en <em>Bloques</em>,
-    luego en <em>Microcontenidos</em> cada paso elige un bloque (avance con *listo*).
+    <strong>Curriculum:</strong> abra <em>Bloques</em> (filas del recorrido),
+    luego <em>Microcontenidos</em> (cada paso elige un bloque; avance con *listo*).
     Si el modulo es solo texto de una vez, use modo Legacy + Contenido unico.
 </p>
 {% endif %}

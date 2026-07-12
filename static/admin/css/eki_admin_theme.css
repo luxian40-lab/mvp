@@ -637,40 +637,46 @@ body.sidebar-collapse .change-form .col-lg-9 {
     max-width: 100%;
 }
 
-/* —— Formularios acordeón (Cliente, Estudiante, Curso) —— */
+/* —— Formularios acordeón (Cliente, Estudiante, Curso, Módulo) —— */
 .change-form.model-cliente #jazzy-tabs,
 .change-form.model-estudiante #jazzy-tabs,
 .change-form.model-curso #jazzy-tabs,
+.change-form.model-modulo #jazzy-tabs,
 .change-form.model-cliente .nav-tabs,
 .change-form.model-estudiante .nav-tabs,
-.change-form.model-curso .nav-tabs {
+.change-form.model-curso .nav-tabs,
+.change-form.model-modulo .nav-tabs {
     display: none !important;
 }
 
 .change-form.model-cliente #jazzy-collapsible .card,
 .change-form.model-estudiante #jazzy-collapsible .card,
-.change-form.model-curso #jazzy-collapsible .card {
+.change-form.model-curso #jazzy-collapsible .card,
+.change-form.model-modulo #jazzy-collapsible .card {
     margin-bottom: 0.65rem !important;
     border-radius: var(--eki-radius-sm) !important;
 }
 
 .change-form.model-cliente #jazzy-collapsible .card-header,
 .change-form.model-estudiante #jazzy-collapsible .card-header,
-.change-form.model-curso #jazzy-collapsible .card-header {
+.change-form.model-curso #jazzy-collapsible .card-header,
+.change-form.model-modulo #jazzy-collapsible .card-header {
     cursor: pointer;
     padding: 0.75rem 1.1rem !important;
 }
 
 .change-form.model-cliente #jazzy-collapsible .card-header .card-title,
 .change-form.model-estudiante #jazzy-collapsible .card-header .card-title,
-.change-form.model-curso #jazzy-collapsible .card-header .card-title {
+.change-form.model-curso #jazzy-collapsible .card-header .card-title,
+.change-form.model-modulo #jazzy-collapsible .card-header .card-title {
     font-size: 0.9rem !important;
     margin: 0;
 }
 
 .change-form.model-cliente .card > .card-body > .card-body,
 .change-form.model-estudiante .card > .card-body > .card-body,
-.change-form.model-curso .card > .card-body > .card-body {
+.change-form.model-curso .card > .card-body > .card-body,
+.change-form.model-modulo .card > .card-body > .card-body {
     padding-top: 0.5rem !important;
 }
 

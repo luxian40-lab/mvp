@@ -84,8 +84,8 @@ class ModuloAdminUxTests(TestCase):
             ('mapa_curriculum', 'guia_microcontenidos_whatsapp'),
         )
 
-    def test_edicion_html_pestanas_sin_tildes_y_grupos_inline(self):
-        """Jazzmin rompe pestañas si el id lleva tildes; related_name = secciones/pasos."""
+    def test_edicion_html_acordeon_y_grupos_inline(self):
+        """Modulo usa acordeón Jazzmin (no pestañas); related_name = secciones/pasos."""
         from core.models import PasoModulo, SeccionModulo
 
         mod = Modulo.objects.get(curso=self.curso, numero=2)
@@ -98,13 +98,19 @@ class ModuloAdminUxTests(TestCase):
         r = self.client.get(f'/admin/core/modulo/{mod.pk}/change/')
         self.assertEqual(r.status_code, 200)
         body = r.content.decode('utf-8')
+        self.assertIn('id="jazzy-collapsible"', body)
         self.assertIn('id="pasos-group"', body)
         self.assertIn('id="secciones-group"', body)
-        self.assertIn('href="#microcontenidos-tab"', body)
-        self.assertIn('href="#bloques-tab"', body)
-        self.assertNotIn('href="#contenido-único', body)
-        self.assertNotIn('href="#guía-', body)
+        self.assertIn('id="bloques-tab"', body)
+        self.assertIn('id="microcontenidos-tab"', body)
+        self.assertIn('id="contenido-unico-tab"', body)
+        self.assertNotIn('id="contenido-único', body)
+        self.assertNotIn('id="guía-', body)
+        self.assertIn('data-eki-open-section="Microcontenidos"', body)
         self.assertIn('P1', body)
+        self.assertIn('model-modulo', body)
+        # Acordeón Jazzmin (no pestañas horizontales)
+        self.assertNotIn('id="jazzy-tabs"', body)
 
     def test_alta_sin_inlines_separados(self):
         req = self._req()

@@ -699,7 +699,6 @@ class ModuloAdmin(admin.ModelAdmin):
                             'puntaje_minimo_aprobacion',
                             'habilitado_desde',
                         ),
-                        'classes': ('collapse',),
                     },
                 ),
             )
@@ -710,7 +709,7 @@ class ModuloAdmin(admin.ModelAdmin):
                     'fields': ('mapa_curriculum', 'modo_entrega', 'secciones_por_listo', 'facilitador_checkpoint'),
                     'classes': ('wide',),
                     'description': (
-                        'Como avanza el estudiante. Luego use las pestanas '
+                        'Como avanza el estudiante. Abajo abra las secciones '
                         '<strong>Bloques</strong> y <strong>Microcontenidos</strong>.'
                     ),
                 },
@@ -742,7 +741,6 @@ class ModuloAdmin(admin.ModelAdmin):
                 'Examen y calendario',
                 {
                     'fields': ('examen_obligatorio', 'puntaje_minimo_aprobacion', 'duracion_dias', 'habilitado_desde'),
-                    'classes': ('collapse',),
                 },
             ),
         )
@@ -811,7 +809,7 @@ class ModuloAdmin(admin.ModelAdmin):
             self.message_user(
                 request,
                 (
-                    f'Se crearon {n} bloque(s). Use la pestaña «Microcontenidos» '
+                    f'Se crearon {n} bloque(s). Abra la sección «Microcontenidos» '
                     f'para agregar el texto de cada paso (*listo*).'
                 ),
                 level=messages.SUCCESS,
