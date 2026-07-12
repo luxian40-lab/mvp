@@ -635,13 +635,13 @@ class ModuloAdmin(admin.ModelAdmin):
     def get_readonly_fields(self, request, obj=None):
         if obj is None:
             return ('guia_alta_modulo',)
-        return ('guia_microcontenidos_whatsapp',)
+        return ('mapa_curriculum', 'guia_microcontenidos_whatsapp')
 
     def get_fieldsets(self, request, obj=None):
         if obj is None:
             return (
                 (
-                    'Antes de empezar',
+                    'Cómo se estructura',
                     {
                         'fields': ('guia_alta_modulo',),
                         'classes': ('wide',),
@@ -651,35 +651,47 @@ class ModuloAdmin(admin.ModelAdmin):
                     '1. Identidad',
                     {
                         'fields': ('curso', 'numero', 'titulo', 'descripcion'),
-                        'description': 'Curso, orden y nombre. Lo mínimo para crear el módulo.',
                     },
                 ),
                 (
-                    '2. Bloques del recorrido',
+                    '2. Tipo de módulo',
                     {
-                        'fields': ('bloques_rapidos',),
+                        'fields': ('modo_entrega',),
                         'description': (
-                            'Escriba <strong>un bloque por línea</strong>. '
-                            'Quedan en el mismo formulario (no en otra pestaña). '
-                            'Después de guardar, abra el módulo y agregue microcontenidos en cada bloque.'
+                            '<div class="eki-modo-hint">'
+                            '<p><strong>Contenido único (Legacy / Automático sin pasos):</strong> '
+                            'llene solo «Contenido único». El estudiante recibe el módulo de una vez.</p>'
+                            '<p><strong>Por microcontenidos (Pasos):</strong> defina bloques abajo '
+                            'y, tras guardar, use la pestaña <em>Microcontenidos</em>. '
+                            'El estudiante avanza con <em>*listo*</em>.</p>'
+                            '</div>'
                         ),
                     },
                 ),
                 (
-                    '3. Contenido de respaldo',
+                    '3a. Contenido único',
                     {
                         'fields': ('contenido',),
                         'description': (
-                            'Texto mientras arma los pasos. Si dejó bloques y vacía esto, '
-                            'se genera un borrador con esos títulos.'
+                            'Úselo si el módulo es <strong>solo texto/media de una vez</strong>. '
+                            'Si va a usar microcontenidos, puede dejar un resumen corto.'
                         ),
                     },
                 ),
                 (
-                    'Opciones avanzadas',
+                    '3b. Curriculum (bloques)',
+                    {
+                        'fields': ('bloques_rapidos',),
+                        'description': (
+                            'Opcional. <strong>Una línea = un bloque</strong> del curriculum. '
+                            'Tras guardar se abrirá el módulo: pestaña <strong>Microcontenidos</strong>.'
+                        ),
+                    },
+                ),
+                (
+                    'Opciones',
                     {
                         'fields': (
-                            'modo_entrega',
                             'secciones_por_listo',
                             'duracion_dias',
                             'examen_obligatorio',
@@ -690,7 +702,49 @@ class ModuloAdmin(admin.ModelAdmin):
                     },
                 ),
             )
-        return self.fieldsets
+        return (
+            (
+                'Curriculum y avance',
+                {
+                    'fields': ('mapa_curriculum', 'modo_entrega', 'secciones_por_listo', 'facilitador_checkpoint'),
+                    'classes': ('wide',),
+                    'description': (
+                        'Cómo avanza el estudiante. Luego: pestañas '
+                        '<strong>Bloques del recorrido</strong> y <strong>Microcontenidos</strong>.'
+                    ),
+                },
+            ),
+            (
+                'Guía microcontenidos',
+                {
+                    'fields': ('guia_microcontenidos_whatsapp',),
+                    'classes': ('wide',),
+                },
+            ),
+            (
+                'Identidad',
+                {
+                    'fields': ('curso', 'numero', 'titulo', 'descripcion'),
+                },
+            ),
+            (
+                'Contenido único (si no hay pasos)',
+                {
+                    'fields': ('contenido',),
+                    'description': (
+                        'Texto completo. Se usa en modo <strong>Legacy</strong> '
+                        'o si aún no hay microcontenidos activos.'
+                    ),
+                },
+            ),
+            (
+                'Examen y calendario',
+                {
+                    'fields': ('examen_obligatorio', 'puntaje_minimo_aprobacion', 'duracion_dias', 'habilitado_desde'),
+                    'classes': ('collapse',),
+                },
+            ),
+        )
 
     def get_changeform_initial_data(self, request):
         initial = super().get_changeform_initial_data(request)
@@ -712,16 +766,15 @@ class ModuloAdmin(admin.ModelAdmin):
             from django.db.models import Max
             mx = Modulo.objects.filter(curso_id=cid).aggregate(m=Max('numero')).get('m')
             initial.setdefault('numero', (mx or 0) + 1)
-        initial.setdefault(
-            'bloques_rapidos',
-            'Introducción\nDesarrollo\nCierre',
-        )
+        initial.setdefault('bloques_rapidos', '')
+        initial.setdefault('modo_entrega', Modulo.MODO_ENTREGA_AUTO)
         return initial
 
     def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
         extra_context = extra_context or {}
         extra_context['add'] = object_id is None
         curso_contexto = ''
+        curriculum = {'bloques': 0, 'pasos': 0, 'modo': '', 'usa_micro': False}
         if object_id is None:
             initial = self.get_changeform_initial_data(request)
             cid = initial.get('curso')
@@ -729,7 +782,19 @@ class ModuloAdmin(admin.ModelAdmin):
                 curso = Curso.objects.filter(pk=cid).only('nombre').first()
                 if curso:
                     curso_contexto = curso.nombre
+        else:
+            mod = Modulo.objects.filter(pk=object_id).first()
+            if mod:
+                n_bloques = mod.secciones.filter(activa=True).count()
+                n_pasos = mod.pasos.filter(activo=True, seccion__activa=True).count()
+                curriculum = {
+                    'bloques': n_bloques,
+                    'pasos': n_pasos,
+                    'modo': mod.get_modo_entrega_display(),
+                    'usa_micro': n_pasos > 0 or mod.modo_entrega == Modulo.MODO_ENTREGA_PASOS,
+                }
         extra_context['curso_contexto'] = curso_contexto
+        extra_context['curriculum'] = curriculum
         return super().changeform_view(request, object_id, form_url, extra_context)
 
     def save_model(self, request, obj, form, change):
@@ -739,11 +804,24 @@ class ModuloAdmin(admin.ModelAdmin):
         titulos = parse_titulos_bloques_rapidos(form.cleaned_data.get('bloques_rapidos') or '')
         n = crear_secciones_desde_titulos(obj, titulos)
         if n:
+            if obj.modo_entrega == Modulo.MODO_ENTREGA_AUTO:
+                obj.modo_entrega = Modulo.MODO_ENTREGA_PASOS
+                obj.save(update_fields=['modo_entrega'])
             self.message_user(
                 request,
-                f'Se crearon {n} bloque(s). Ahora agregue microcontenidos en cada uno.',
+                (
+                    f'Se crearon {n} bloque(s). Use la pestaña «Microcontenidos» '
+                    f'para agregar el texto de cada paso (*listo*).'
+                ),
                 level=messages.SUCCESS,
             )
+
+    def response_add(self, request, obj, post_url_continue=None):
+        """Tras crear, abrir el módulo para ver pestañas Bloques / Microcontenidos."""
+        if '_addanother' in request.POST:
+            return super().response_add(request, obj, post_url_continue)
+        from django.http import HttpResponseRedirect
+        return HttpResponseRedirect(reverse('admin:core_modulo_change', args=[obj.pk]))
 
     def get_inline_instances(self, request, obj=None):
         """Alta: sin inlines (bloques van en el formulario). Edición: flujo completo."""
@@ -758,18 +836,64 @@ class ModuloAdmin(admin.ModelAdmin):
     ver_curso_link.short_description = "Curso"
 
     @admin.display(description='')
+    def mapa_curriculum(self, obj):
+        if not obj or not obj.pk:
+            return '—'
+        secciones = list(
+            obj.secciones.filter(activa=True).prefetch_related('pasos').order_by('orden', 'id')
+        )
+        if not secciones:
+            return format_html(
+                '<div class="eki-curriculum-map eki-curriculum-map--empty">'
+                '<p><strong>Sin bloques aún.</strong> Cree filas en «Bloques del recorrido» '
+                'y luego pasos en «Microcontenidos». '
+                'Si solo necesita un texto, use «Contenido único» y modo Legacy.</p>'
+                '</div>'
+            )
+        items = []
+        for sec in secciones:
+            pasos = [p for p in sec.pasos.all() if p.activo]
+            pasos_html = ''.join(
+                '<li><span class="eki-curr-step">Paso {}</span> {}</li>'.format(
+                    p.orden,
+                    (p.titulo or p.get_tipo_display() or 'sin título')[:60],
+                )
+                for p in pasos
+            ) or (
+                '<li class="eki-muted">Sin microcontenidos — agréguelos en la pestaña Microcontenidos</li>'
+            )
+            items.append(
+                '<div class="eki-curr-block">'
+                '<div class="eki-curr-block__title">Bloque {}: {}</div>'
+                '<ul>{}</ul></div>'.format(
+                    sec.orden,
+                    sec.titulo or '(sin título)',
+                    pasos_html,
+                )
+            )
+        return format_html(
+            '<div class="eki-curriculum-map"><div class="eki-curriculum-map__head">'
+            'Mapa del módulo (curriculum)</div>{}</div>',
+            mark_safe(''.join(items)),
+        )
+
+    @admin.display(description='')
     def guia_alta_modulo(self, obj):
         return format_html(
             '<div class="eki-modulo-guide">'
-            '<h3>Alta en un solo paso</h3>'
-            '<p>Todo queda en esta pantalla: identidad + bloques + contenido. '
-            'No use otra pestaña para «Secciones».</p>'
-            '<ul>'
-            '<li><strong>Identidad</strong> — curso, número y título.</li>'
-            '<li><strong>Bloques</strong> — una línea por bloque (Introducción, Práctica…).</li>'
-            '<li><strong>Guardar</strong> — se crean los bloques solos.</li>'
-            '<li><strong>Reabrir</strong> — agregue microcontenidos dentro de cada bloque.</li>'
-            '</ul>'
+            '<h3>Dos caminos (estilo curriculum de curso)</h3>'
+            '<div class="eki-modo-cards">'
+            '<div class="eki-modo-card">'
+            '<strong>A. Contenido único</strong>'
+            '<p>Un solo texto/media. Modo <em>Legacy</em> o Automático sin pasos. '
+            'Complete «Contenido único» y guarde.</p>'
+            '</div>'
+            '<div class="eki-modo-card eki-modo-card--accent">'
+            '<strong>B. Microcontenidos</strong>'
+            '<p>Curriculum: bloques → pasos. Liste bloques, guarde, y use la pestaña '
+            '<em>Microcontenidos</em> (avance con *listo*).</p>'
+            '</div>'
+            '</div>'
             '</div>'
         )
 

@@ -178,6 +178,102 @@
   margin-bottom: 0.35rem;
 }
 
+.eki-modo-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+.eki-modo-cards--hero { margin-top: 1rem; }
+.eki-modo-card {
+  padding: 0.85rem 1rem;
+  border: 1px solid #e4e6e2;
+  border-radius: 10px;
+  background: #fff;
+}
+.eki-modo-card strong {
+  display: block;
+  font-size: 0.9rem;
+  margin-bottom: 0.35rem;
+  color: #12141a;
+}
+.eki-modo-card p {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #5c6570;
+}
+.eki-modo-card--accent {
+  border-color: #0f6e6a;
+  background: #f0faf8;
+}
+.eki-modo-hint p { margin: 0.35rem 0; font-size: 0.86rem; line-height: 1.45; }
+
+.eki-curriculum-map {
+  max-width: 920px;
+  margin: 0 0 0.75rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid #c5ddd9;
+  border-radius: 10px;
+  background: #f7fbfa;
+}
+.eki-curriculum-map__head {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 650;
+  font-size: 1.05rem;
+  margin-bottom: 0.75rem;
+  color: #0a5552;
+}
+.eki-curriculum-map--empty p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #475569;
+  line-height: 1.5;
+}
+.eki-curr-block {
+  margin: 0 0 0.65rem;
+  padding: 0.65rem 0.75rem;
+  border-left: 3px solid #0f6e6a;
+  background: #fff;
+  border-radius: 0 8px 8px 0;
+}
+.eki-curr-block__title {
+  font-weight: 650;
+  font-size: 0.88rem;
+  margin-bottom: 0.35rem;
+}
+.eki-curr-block ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+  color: #334155;
+}
+.eki-curr-step {
+  font-weight: 600;
+  color: #0f6e6a;
+  margin-right: 0.25rem;
+}
+.eki-pill {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.75rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: #eef0ee;
+  color: #5c6570;
+}
+.eki-pill--ok {
+  background: #e6f2f1;
+  color: #0a5552;
+}
+.eki-modulo-hero__tabs-hint {
+  margin: 0.75rem 0 0;
+  font-size: 0.82rem;
+  color: #5c6570;
+}
+
 .app-core.model-modulo .form-row textarea {
   min-height: 7rem;
 }
@@ -198,7 +294,12 @@
   letter-spacing: -0.02em;
 }
 
-/* Formato single: bloques y microcontenidos en el mismo scroll, no “perdidos” */
 .app-core.model-modulo #seccionmodulo_set-group {
   margin-top: 0.5rem;
+}
+
+/* Resaltar pestaña Microcontenidos en el nav de Jazzmin */
+.app-core.model-modulo .nav-tabs .nav-link[href*="pasomodulo"],
+.app-core.model-modulo a[href="#pasomodulo_set-group"] {
+  font-weight: 700 !important;
 }

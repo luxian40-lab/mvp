@@ -62,15 +62,27 @@ class ModuloAdminUxTests(TestCase):
         initial = self.admin.get_changeform_initial_data(req)
         self.assertEqual(initial.get('curso'), self.curso.id)
         self.assertEqual(initial.get('numero'), 3)
-        self.assertIn('Introducción', initial.get('bloques_rapidos') or '')
+        self.assertEqual(initial.get('bloques_rapidos'), '')
 
-    def test_fieldsets_alta_integran_bloques(self):
+    def test_fieldsets_alta_dos_caminos(self):
         req = self._req()
         titles = [fs[0] for fs in self.admin.get_fieldsets(req, None)]
-        self.assertIn('2. Bloques del recorrido', titles)
-        self.assertIn('1. Identidad', titles)
-        fields_bloques = dict(self.admin.get_fieldsets(req, None))['2. Bloques del recorrido']['fields']
+        self.assertIn('2. Tipo de módulo', titles)
+        self.assertIn('3a. Contenido único', titles)
+        self.assertIn('3b. Curriculum (bloques)', titles)
+        fields_bloques = dict(self.admin.get_fieldsets(req, None))['3b. Curriculum (bloques)']['fields']
         self.assertIn('bloques_rapidos', fields_bloques)
+
+    def test_fieldsets_edicion_exponen_curriculum_y_micro(self):
+        req = self._req()
+        mod = Modulo.objects.get(curso=self.curso, numero=2)
+        titles = [fs[0] for fs in self.admin.get_fieldsets(req, mod)]
+        self.assertIn('Curriculum y avance', titles)
+        self.assertIn('mapa_curriculum', dict(self.admin.get_fieldsets(req, mod))['Curriculum y avance']['fields'])
+        self.assertEqual(
+            self.admin.get_readonly_fields(req, mod),
+            ('mapa_curriculum', 'guia_microcontenidos_whatsapp'),
+        )
 
     def test_alta_sin_inlines_separados(self):
         req = self._req()
