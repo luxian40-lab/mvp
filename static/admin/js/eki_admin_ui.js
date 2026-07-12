@@ -4,8 +4,7 @@
 (function () {
     'use strict';
 
-    var COLLAPSIBLE_MODELS = ['model-cliente', 'model-estudiante', 'model-curso', 'model-modulo'];
-    var MODULO_AUTO_OPEN = ['Bloques', 'Microcontenidos'];
+    var COLLAPSIBLE_MODELS = ['model-cliente', 'model-estudiante', 'model-curso'];
 
     function enhancePushmenu() {
         var pushmenu = document.querySelector('[data-widget="pushmenu"]');
@@ -15,48 +14,6 @@
         pushmenu.setAttribute('title', 'Ocultar o mostrar menú lateral');
         pushmenu.setAttribute('aria-label', 'Menú lateral');
         pushmenu.classList.add('eki-pushmenu-btn');
-    }
-
-    function openCollapsibleCard(card, opts) {
-        if (!card) {
-            return;
-        }
-        opts = opts || {};
-        var panel = card.querySelector('.panel-collapse');
-        if (panel && !panel.classList.contains('show')) {
-            panel.classList.add('show');
-            panel.classList.add('in');
-        }
-        if (opts.scroll !== false) {
-            card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-    }
-
-    function findCardByTitle(title) {
-        var collapsible = document.getElementById('jazzy-collapsible');
-        if (!collapsible || !title) {
-            return null;
-        }
-        var cards = collapsible.querySelectorAll('.card');
-        var needle = title.trim().toLowerCase();
-        for (var i = 0; i < cards.length; i++) {
-            var titleEl = cards[i].querySelector('.card-title');
-            if (titleEl && titleEl.textContent.trim().toLowerCase() === needle) {
-                return cards[i];
-            }
-        }
-        return null;
-    }
-
-    function findCardByPanelId(panelId) {
-        if (!panelId) {
-            return null;
-        }
-        var panel = document.getElementById(panelId.replace(/^#/, ''));
-        if (!panel) {
-            return null;
-        }
-        return panel.closest ? panel.closest('.card') : panel.parentElement;
     }
 
     function initSectionNav() {
@@ -83,25 +40,15 @@
             if (isNaN(idx) || !cards[idx]) {
                 return;
             }
-            openCollapsibleCard(cards[idx]);
-        });
-    }
-
-    function initModuloSectionJumps() {
-        if (!document.body.classList.contains('model-modulo')) {
-            return;
-        }
-        MODULO_AUTO_OPEN.forEach(function (title) {
-            openCollapsibleCard(findCardByTitle(title), { scroll: false });
-        });
-
-        document.querySelectorAll('.eki-modulo-jump a').forEach(function (link) {
-            link.addEventListener('click', function (ev) {
-                ev.preventDefault();
-                var byTitle = findCardByTitle(link.getAttribute('data-eki-open-section'));
-                var byHref = findCardByPanelId(link.getAttribute('href'));
-                openCollapsibleCard(byTitle || byHref);
-            });
+            var card = cards[idx];
+            var panel = card.querySelector('.panel-collapse');
+            if (panel && !panel.classList.contains('show')) {
+                var header = card.querySelector('.collapsible-header');
+                if (header) {
+                    header.click();
+                }
+            }
+            card.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
     }
 
@@ -166,7 +113,6 @@
         initThemeToggle();
         if (isCollapsibleChangeForm()) {
             initSectionNav();
-            initModuloSectionJumps();
         }
     });
 })();

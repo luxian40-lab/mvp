@@ -1,28 +1,29 @@
-{% extends "admin/change_form.html" %}
+{% extends "admin/eki_collapsible_change_form.html" %}
 {% load i18n %}
 
 {% block form_top %}
+{{ block.super }}
 {% if not is_popup %}
-<section class="eki-modulo-hero {% if add %}eki-modulo-hero--add{% endif %}" aria-label="Contexto del modulo">
+<section class="eki-modulo-hero {% if add %}eki-modulo-hero--add{% endif %}" aria-label="Contexto del módulo">
     {% if add %}
-        <p class="eki-modulo-hero__kicker">Nuevo modulo</p>
-        <h1 class="eki-modulo-hero__title">Contenido unico o curriculum</h1>
+        <p class="eki-modulo-hero__kicker">Nuevo módulo</p>
+        <h1 class="eki-modulo-hero__title">Contenido único o curriculum</h1>
         <p class="eki-modulo-hero__lead">
             {% if curso_contexto %}Curso: <strong>{{ curso_contexto }}</strong>. {% endif %}
             Elija el tipo: un solo contenido, o bloques + microcontenidos (avance con *listo*).
         </p>
         <div class="eki-modo-cards eki-modo-cards--hero">
             <div class="eki-modo-card">
-                <strong>A. Contenido unico</strong>
+                <strong>A. Contenido único</strong>
                 <p>Texto/media de una vez · modo Legacy</p>
             </div>
             <div class="eki-modo-card eki-modo-card--accent">
                 <strong>B. Microcontenidos</strong>
-                <p>Liste bloques abajo, guarde, luego complete Microcontenidos</p>
+                <p>Bloques → pasos · pestaña Microcontenidos</p>
             </div>
         </div>
     {% else %}
-        <p class="eki-modulo-hero__kicker">Modulo {{ original.numero }}</p>
+        <p class="eki-modulo-hero__kicker">Módulo {{ original.numero }}</p>
         <h1 class="eki-modulo-hero__title">{{ original.titulo }}</h1>
         <p class="eki-modulo-hero__lead">
             Curso: <strong>{{ original.curso.nombre }}</strong>
@@ -35,19 +36,25 @@
             {% if curriculum.usa_micro %}
             <span class="eki-pill eki-pill--ok">Curriculum activo</span>
             {% else %}
-            <span class="eki-pill">Contenido unico / sin pasos</span>
+            <span class="eki-pill">Contenido único / sin pasos</span>
             {% endif %}
         </p>
-        <nav class="eki-modulo-jump" aria-label="Ir a bloques del formulario">
-            <a href="#secciones-group">Ir a Bloques</a>
-            <a href="#pasos-group">Ir a Microcontenidos</a>
-            <a href="#id_contenido">Ir a Contenido unico</a>
-        </nav>
         <p class="eki-modulo-hero__tabs-hint">
-            Todo el formulario esta visible en esta pagina (sin pestañas).
-            Baje hasta <strong>Bloques</strong> y <strong>Microcontenidos</strong> o use los enlaces de arriba.
+            Pestañas clave: <strong>Curriculum y avance</strong> ·
+            <strong>Bloques del recorrido</strong> ·
+            <strong>Microcontenidos</strong>
         </p>
     {% endif %}
 </section>
+{% endif %}
+{% endblock %}
+
+{% block eki_inlines_intro %}
+{% if not add %}
+<p class="eki-inlines-intro eki-modulo-inline-hint">
+    <strong>Curriculum:</strong> primero filas en <em>Bloques del recorrido</em>,
+    luego en <em>Microcontenidos</em> cada paso elige un bloque (el estudiante avanza con *listo*).
+    Si el módulo es solo texto de una vez, ignore estas tablas y use modo Legacy + Contenido único.
+</p>
 {% endif %}
 {% endblock %}
