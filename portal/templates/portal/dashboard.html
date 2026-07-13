@@ -25,22 +25,30 @@
 .medal-bronze { background: linear-gradient(145deg, #fdba74, #c2410c); }
 .dash-hero {
     margin-bottom: 24px;
-    padding: 22px 24px;
+    padding: 1.35rem 1.5rem 1.25rem;
     border: 1px solid var(--borde);
-    border-radius: 10px;
+    border-radius: var(--radius, 10px);
     background:
-        linear-gradient(120deg, rgba(122, 78, 142, 0.1), transparent 55%),
+        linear-gradient(115deg, rgba(15, 110, 106, 0.08) 0%, transparent 42%),
+        linear-gradient(120deg, rgba(122, 78, 142, 0.1), transparent 58%),
         var(--blanco);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
 }
 .dash-hero h1 { margin: 0; }
+.dash-hero .section-kicker { margin-bottom: 0.4rem; }
+.dash-hero .muted { max-width: 36rem; }
+.card-link:hover .card {
+    border-left-color: var(--field);
+}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="page-title dash-hero">
     <div>
-        <h1>Dashboard</h1>
-        <p class="muted">Vista ejecutiva de su organización. Retención: <a href="/portal/retencion/">Embudo y deserción</a> · Análisis: <a href="/portal/metricas/">Métricas detalladas</a>.</p>
+        <p class="section-kicker">Vista ejecutiva</p>
+        <h1>Operaciones de hoy</h1>
+        <p class="muted">Retención, avance y alertas de su organización. Profundice en <a href="/portal/retencion/">embudo</a> o <a href="/portal/metricas/">métricas</a>.</p>
     </div>
     {% if portal_mod_cursos %}
         <a class="btn btn-outline" href="/portal/reportes/">Descargar reportes</a>

@@ -62,6 +62,15 @@ class PortalBrandingOnboardingTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertNotContains(r, 'Complete la identidad')
 
+    def test_portal_identidad_visual(self):
+        r = self.http.get('/portal/dashboard/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'CRM · empresas rurales')
+        self.assertContains(r, 'topbar-chip')
+        self.assertContains(r, 'Operaciones de hoy')
+        self.assertContains(r, 'section-kicker')
+        self.assertContains(r, '--field:')
+
     def test_perfil_muestra_checklist(self):
         r = self.http.get('/portal/perfil/')
         self.assertEqual(r.status_code, 200)

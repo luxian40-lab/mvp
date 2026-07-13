@@ -19,7 +19,9 @@
             --accent: #7a4e8e;
             --accent-hover: #5f3a70;
             --accent-soft: rgba(122, 78, 142, 0.12);
-            --fondo: #f4f2f7;
+            --field: #0f6e6a;
+            --field-soft: rgba(15, 110, 106, 0.1);
+            --fondo: #f3f0f6;
             --texto: #2a1f33;
             --texto-muted: #7a6d88;
             --borde: #e0d8e8;
@@ -34,9 +36,10 @@
             --font-display: 'Fraunces', Georgia, serif;
             --ease: cubic-bezier(0.22, 1, 0.36, 1);
             --chart-1: #7a4e8e;
-            --chart-2: #9a6cac;
-            --chart-3: #cbb8d8;
+            --chart-2: #0f6e6a;
+            --chart-3: #9a6cac;
             --chart-4: #5f3a70;
+            --radius: 10px;
         }
 
         html[data-theme="dark"] {
@@ -49,6 +52,8 @@
             --accent: #9a6cac;
             --accent-hover: #b080c0;
             --accent-soft: rgba(154, 108, 172, 0.16);
+            --field: #2dd4bf;
+            --field-soft: rgba(45, 212, 191, 0.12);
             --sidebar: #140e1a;
             --sidebar-active: #2a183a;
             --sidebar-border: #2a183a;
@@ -108,8 +113,9 @@
         body {
             margin: 0;
             background:
-                radial-gradient(ellipse 70% 40% at 100% -10%, rgba(154, 108, 172, 0.14), transparent 55%),
-                var(--fondo);
+                radial-gradient(ellipse 55% 35% at 0% 0%, rgba(15, 110, 106, 0.07), transparent 50%),
+                radial-gradient(ellipse 70% 40% at 100% -10%, rgba(122, 78, 142, 0.12), transparent 55%),
+                linear-gradient(180deg, #f7f4fa 0%, var(--fondo) 38%, #f0edf3 100%);
             color: var(--texto);
             font-family: var(--font);
             font-size: 14px;
@@ -263,6 +269,7 @@
             color: #f7f2fa;
             text-transform: lowercase;
             line-height: 1;
+            border-bottom: 1px solid rgba(203, 184, 216, 0.12);
         }
         .sidebar-powered em {
             font-style: normal;
@@ -276,7 +283,7 @@
             letter-spacing: 0.12em;
             text-transform: uppercase;
             color: var(--sidebar-text);
-            margin-top: 0.35rem;
+            margin-top: 0.45rem;
         }
 
         .sidebar nav {
@@ -389,8 +396,11 @@
             position: sticky;
             top: 0;
             height: 64px;
-            background: var(--blanco);
+            background:
+                linear-gradient(90deg, rgba(15, 110, 106, 0.06) 0%, transparent 28%),
+                var(--blanco);
             border-bottom: 1px solid var(--borde);
+            box-shadow: inset 3px 0 0 var(--field);
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -400,15 +410,39 @@
         }
 
         .topbar-title {
-            font-weight: 600;
-            font-size: 15px;
+            font-family: var(--font-display);
+            font-weight: 650;
+            font-size: 1.05rem;
+            letter-spacing: -0.02em;
             color: var(--texto);
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 4px 0;
+            min-width: 0;
         }
 
         .topbar-meta {
             font-size: 12px;
             color: var(--texto-muted);
             margin-top: 2px;
+        }
+
+        .topbar-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 12px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(15, 110, 106, 0.22);
+            background: var(--field-soft);
+            color: var(--field);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            white-space: nowrap;
         }
 
         .topbar-actions {
@@ -724,11 +758,17 @@
         .card, .panel {
             background: var(--blanco);
             border: 1px solid var(--borde);
-            border-radius: 10px;
+            border-radius: var(--radius);
             box-shadow: none;
         }
 
-        .card { padding: 20px; }
+        .card {
+            padding: 18px 20px 18px 18px;
+            border-left: 3px solid var(--accent);
+            background:
+                linear-gradient(135deg, rgba(122, 78, 142, 0.04), transparent 42%),
+                var(--blanco);
+        }
 
         .metric-number {
             margin: 0 0 4px;
@@ -742,13 +782,25 @@
 
         .metric-label {
             color: var(--texto-muted);
-            font-weight: 500;
-            font-size: 12px;
-            letter-spacing: 0.04em;
+            font-weight: 600;
+            font-size: 11px;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
         }
 
-        .panel { padding: 22px; }
+        .panel {
+            padding: 22px;
+            border-top: 2px solid rgba(15, 110, 106, 0.35);
+        }
+
+        .section-kicker {
+            margin: 0 0 0.35rem;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--field);
+        }
 
         .charts-grid {
             display: grid;
@@ -1014,7 +1066,7 @@
                 </div>
             </a>
         </div>
-        <div class="sidebar-powered">eki <em>portal</em><span>Operación B2B</span></div>
+        <div class="sidebar-powered">eki <em>portal</em><span>CRM · empresas rurales</span></div>
         <nav>
             {% if portal_solo_nat %}
             <div class="nav-label">Nat — Knowledge Hub</div>
@@ -1170,9 +1222,12 @@
                 </svg>
             </button>
             <div style="min-width:0;">
-            <div class="topbar-title">{{ org.nombre }}</div>
+            <div class="topbar-title">
+                {{ org.nombre }}
+                <span class="topbar-chip">eki portal</span>
+            </div>
             <div class="topbar-meta">
-                {% if org.portal_subtitulo %}{{ org.portal_subtitulo }}{% else %}Seguimiento y métricas de su organización{% endif %}
+                {% if org.portal_subtitulo %}{{ org.portal_subtitulo }}{% else %}Operaciones y seguimiento para su organización rural{% endif %}
             </div>
             </div>
         </div>
