@@ -139,8 +139,14 @@ def requiere_modulo(modulo: str):
     def decorator(view_func):
         @wraps(view_func)
         def wrapper(request, *args, **kwargs):
+            from django.contrib import messages
+
             org = getattr(getattr(request, 'portal_usuario', None), 'organizacion', None)
             if not org or not modulos_portal(org).get(modulo):
+                messages.warning(
+                    request,
+                    'Ese módulo no está disponible para su organización.',
+                )
                 return redirect('/portal/dashboard/')
             return view_func(request, *args, **kwargs)
 

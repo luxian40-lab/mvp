@@ -3,7 +3,7 @@
 from datetime import timedelta
 
 from django.contrib.auth.models import User
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.utils import timezone
 
 from core.models import Cliente, Curso, Estudiante, Modulo, ModuloCompletado, ProgresoEstudiante
@@ -100,6 +100,13 @@ class RetencionServiceTests(TestCase):
         self.assertEqual(data['kpis']['certificados'], 1)
 
 
+@override_settings(
+    SECURE_SSL_REDIRECT=False,
+    STORAGES={
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    },
+)
 class RetencionPortalViewTests(TestCase):
     def setUp(self):
         self.cliente = Cliente.objects.create(
@@ -130,6 +137,7 @@ class RetencionPortalViewTests(TestCase):
         self.assertContains(r, 'Retención y embudo')
         self.assertContains(r, 'Inscritos')
         self.assertContains(r, 'Embudo de aprendizaje')
+        self.assertContains(r, 'data-width=')
 
     def test_retencion_requiere_modulo_cursos(self):
         self.cliente.portal_productos = 'gei'

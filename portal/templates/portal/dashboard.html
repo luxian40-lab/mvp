@@ -24,35 +24,32 @@
 .medal-silver { background: linear-gradient(145deg, #e2e8f0, #94a3b8); }
 .medal-bronze { background: linear-gradient(145deg, #fdba74, #c2410c); }
 .dash-hero {
-    margin-bottom: 24px;
-    padding: 1.35rem 1.5rem 1.25rem;
+    margin-bottom: 20px;
+    padding: 1rem 1.15rem;
     border: 1px solid var(--borde);
-    border-radius: var(--radius, 10px);
-    background:
-        linear-gradient(115deg, rgba(15, 110, 106, 0.08) 0%, transparent 42%),
-        linear-gradient(120deg, rgba(122, 78, 142, 0.1), transparent 58%),
-        var(--blanco);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+    border-radius: var(--radius, 6px);
+    background: var(--blanco);
 }
 .dash-hero h1 { margin: 0; }
-.dash-hero .section-kicker { margin-bottom: 0.4rem; }
-.dash-hero .muted { max-width: 36rem; }
+.dash-hero .section-kicker { margin-bottom: 0.25rem; }
+.dash-hero .muted { max-width: 40rem; }
 .card-link:hover .card {
-    border-left-color: var(--field);
+    border-color: var(--accent);
 }
+.compare-values span { font-family: var(--font); font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="page-title dash-hero">
     <div>
-        <p class="section-kicker">Vista ejecutiva</p>
-        <h1>Operaciones de hoy</h1>
-        <p class="muted">Retención, avance y alertas de su organización. Profundice en <a href="/portal/retencion/">embudo</a> o <a href="/portal/metricas/">métricas</a>.</p>
+        <p class="section-kicker">Portal</p>
+        <h1>Resumen</h1>
+        <p class="muted">Indicadores de su organización. <a href="/portal/retencion/">Retención</a> · <a href="/portal/metricas/">Métricas</a>.</p>
     </div>
     {% if portal_mod_cursos %}
-        <a class="btn btn-outline" href="/portal/reportes/">Descargar reportes</a>
-        <a class="btn btn-outline" href="/portal/metricas/">Métricas detalladas</a>
+        <a class="btn btn-outline" href="/portal/reportes/">Reportes</a>
+        <a class="btn btn-outline" href="/portal/metricas/">Métricas</a>
     {% endif %}
 </div>
 

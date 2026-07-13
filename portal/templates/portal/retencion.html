@@ -23,10 +23,13 @@
 }
 .ret-funnel__bar {
     height: 100%;
-    background: linear-gradient(90deg, var(--accent), #60a5fa);
+    width: 0;
+    background: var(--accent);
     border-radius: inherit;
-    min-width: 2px;
+    min-width: 0;
+    transition: width 0.7s ease;
 }
+.ret-funnel__bar.is-ready { min-width: 2px; }
 .ret-funnel__count { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
 .ret-funnel__pct { color: var(--texto-muted); font-size: 12px; text-align: right; }
 .ret-kpi-hint { font-size: 12px; color: var(--texto-muted); margin-top: 4px; }
@@ -155,7 +158,7 @@
                 <strong>{{ paso.etiqueta }}</strong>
                 {% if paso.titulo %}<br><span class="muted" style="font-size:12px;">{{ paso.titulo }}</span>{% endif %}
                 <div class="ret-funnel__bar-wrap" style="margin-top:8px;">
-                    <div class="ret-funnel__bar" style="width:{{ paso.pct_del_total }}%;"></div>
+                    <div class="ret-funnel__bar" data-width="{{ paso.pct_del_total }}"></div>
                 </div>
             </div>
             <span class="ret-funnel__count">{{ paso.cantidad }}</span>
@@ -176,4 +179,18 @@
         Fase 4: mensajes personalizados con IA · Fase 7: alertas para coordinadores en este panel.
     </p>
 </section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    document.querySelectorAll('.ret-funnel__bar[data-width]').forEach(function (bar) {
+        var w = bar.getAttribute('data-width') || '0';
+        requestAnimationFrame(function () {
+            bar.style.width = w + '%';
+            bar.classList.add('is-ready');
+        });
+    });
+})();
+</script>
 {% endblock %}

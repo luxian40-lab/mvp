@@ -26,7 +26,14 @@
     .dash-header .dash-ts { font-size: 0.85rem; color: var(--eki-muted); }
 
     /* === Tabs === */
-    .tab-nav { display: flex; gap: 0; border-bottom: 2px solid var(--eki-border); margin-bottom: 24px; }
+    .tab-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0;
+        border-bottom: 2px solid var(--eki-border);
+        margin-bottom: 24px;
+        overflow-x: auto;
+    }
     .tab-btn { padding: 12px 24px; font-size: 0.95rem; font-weight: 600; color: var(--eki-muted); cursor: pointer; border: none; background: none; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
     .tab-btn:hover { color: var(--eki-primary); }
     .tab-btn.active { color: var(--eki-primary); border-bottom-color: var(--eki-primary); }
@@ -107,7 +114,17 @@
     .ret-funnel__item { display: grid; grid-template-columns: minmax(0, 1fr) 100px 64px; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--eki-border); font-size: 0.9rem; }
     .ret-funnel__item:last-child { border-bottom: none; }
     .ret-funnel__bar-wrap { height: 10px; background: #e9ecef; border-radius: 999px; overflow: hidden; margin-top: 8px; }
-    .ret-funnel__bar { height: 100%; background: var(--eki-primary); border-radius: inherit; min-width: 2px; }
+    .ret-funnel__bar {
+        height: 100%;
+        width: 0;
+        background: var(--eki-primary);
+        border-radius: inherit;
+        min-width: 0;
+        transition: width 0.7s ease;
+    }
+    .ret-funnel__bar.is-ready { min-width: 2px; }
+    .tab-btn.is-loading { opacity: 0.65; pointer-events: none; }
+    .tab-btn.is-loading::after { content: ' …'; }
     .ret-funnel__count { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
     .ret-funnel__pct { color: var(--eki-muted); font-size: 0.78rem; text-align: right; }
     .ret-alert-modulo { border-left: 4px solid var(--eki-warning); padding: 14px 18px; background: #fff9db; border-radius: 0 10px 10px 0; margin-bottom: 1.25rem; }
@@ -142,7 +159,7 @@
         <button class="tab-btn {% if tab_actual == 'learning' %}active{% endif %}" data-tab="learning" onclick="switchTab('learning', this)">Learning Analytics</button>
         <button class="tab-btn {% if tab_actual == 'ai_ops' %}active{% endif %}" data-tab="ai_ops" onclick="switchTab('ai_ops', this)">AI Operations</button>
         <button class="tab-btn {% if tab_actual == 'commercial' %}active{% endif %}" data-tab="commercial" onclick="switchTab('commercial', this)">Commercial CRM</button>
-        <button class="tab-btn {% if tab_actual == 'retencion' %}active{% endif %}" data-tab="retencion" onclick="switchTab('retencion', this)">Retención</button>
+        <button type="button" class="tab-btn {% if tab_actual == 'retencion' %}active{% endif %}" data-tab="retencion" onclick="switchTab('retencion', this)">Retención</button>
     </div>
     <div id="learning-sub-nav" class="sub-tab-nav {% if tab_actual == 'learning' %}visible{% endif %}">
         <button type="button" class="sub-tab-btn {% if learning_section == 'reportes' %}active{% endif %}" data-section="reportes" onclick="switchLearningSection('reportes', this)">Reportes B2B</button>
@@ -494,12 +511,12 @@
     </div>
 
     <!-- ===== RETENCIÓN ===== -->
-    <div id="tab-retencion" class="tab-content {% if tab_actual == 'retencion' %}active{% endif %}" {% if retencion_data %}data-loaded="1"{% endif %}>
+    <div id="tab-retencion" class="tab-content {% if tab_actual == 'retencion' %}active{% endif %}" {% if tab_actual == 'retencion' %}data-loaded="1"{% endif %}>
         <form method="get" class="filters-bar">
             <input type="hidden" name="tab" value="retencion">
             <div>
                 <label>Organización</label>
-                <select name="cliente" required>
+                <select name="cliente">
                     <option value="">— Elija —</option>
                     {% for c in clientes %}
                     <option value="{{ c.id }}" {% if c.id == cliente_filtro %}selected{% endif %}>{{ c.nombre }}</option>
@@ -577,7 +594,7 @@
                         <strong>{{ paso.etiqueta }}</strong>
                         {% if paso.titulo %}<br><span style="font-size:12px;color:var(--eki-muted);">{{ paso.titulo }}</span>{% endif %}
                         <div class="ret-funnel__bar-wrap">
-                            <div class="ret-funnel__bar" style="width:{{ paso.pct_del_total }}%;"></div>
+                            <div class="ret-funnel__bar" data-width="{{ paso.pct_del_total }}"></div>
                         </div>
                     </div>
                     <span class="ret-funnel__count">{{ paso.cantidad }}</span>
@@ -829,19 +846,31 @@ function initAuditoriaCharts() {
     ensureAuditoriaCharts(ultimoResumenPayload);
 }
 
+function animateRetencionBars() {
+    document.querySelectorAll('#tab-retencion .ret-funnel__bar[data-width]').forEach(function (bar) {
+        var w = bar.getAttribute('data-width') || '0';
+        requestAnimationFrame(function () {
+            bar.style.width = w + '%';
+            bar.classList.add('is-ready');
+        });
+    });
+}
+
 function switchTab(tabName, btn) {
     tabName = normalizeTab(tabName);
-    // Retención es SSR: si aún no está cargada, navegar con ?tab=retencion
+    // Retención es SSR: navegar con feedback visible (evita sensación de “no se mueve”)
     if (tabName === 'retencion') {
         const panel = document.getElementById('tab-retencion');
         const already = normalizeTab(tabActual) === 'retencion' || (panel && panel.dataset.loaded === '1');
         if (!already) {
+            if (btn) btn.classList.add('is-loading');
             const params = new URLSearchParams(window.location.search);
             params.set('tab', 'retencion');
             params.delete('section');
-            window.location.search = params.toString();
+            window.location.assign(window.location.pathname + '?' + params.toString());
             return;
         }
+        animateRetencionBars();
     }
     document.querySelectorAll('.tab-btn').forEach(function(t) { t.classList.remove('active'); });
     if (btn) btn.classList.add('active');
@@ -1303,6 +1332,7 @@ function iniciarAutoRefreshResumen() {
         cargarModulosCursoMetricas();
     }
     if (tab === 'commercial') cargarMetricasNati();
+    if (tab === 'retencion') animateRetencionBars();
 })();
 </script>
 {% endblock %}

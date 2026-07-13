@@ -47,6 +47,9 @@ class RetencionAdminViewTests(TestCase):
         self.assertContains(r, 'Embudo de aprendizaje')
         self.assertContains(r, 'Inscritos')
         self.assertContains(r, 'tab-retencion')
+        self.assertContains(r, 'data-loaded="1"')
+        self.assertContains(r, 'data-width=')
+        self.assertContains(r, 'animateRetencionBars')
 
     @override_settings(SECURE_SSL_REDIRECT=False)
     def test_retencion_admin_requiere_staff(self):

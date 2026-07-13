@@ -65,11 +65,11 @@ class PortalBrandingOnboardingTests(TestCase):
     def test_portal_identidad_visual(self):
         r = self.http.get('/portal/dashboard/')
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'CRM · empresas rurales')
-        self.assertContains(r, 'topbar-chip')
-        self.assertContains(r, 'Operaciones de hoy')
-        self.assertContains(r, 'section-kicker')
-        self.assertContains(r, '--field:')
+        self.assertContains(r, 'IBM+Plex+Sans')
+        self.assertContains(r, 'eki <em>portal</em>')
+        self.assertContains(r, 'Resumen')
+        self.assertNotContains(r, 'Fraunces')
+        self.assertNotContains(r, 'family=Sora')
 
     def test_perfil_muestra_checklist(self):
         r = self.http.get('/portal/perfil/')

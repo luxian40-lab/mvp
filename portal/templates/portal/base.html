@@ -7,39 +7,39 @@
     {% include 'portal/partials/favicon_co.html' %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650;9..144,700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --sidebar: #2a183a;
-            --sidebar-text: #cbb8d8;
-            --sidebar-active: #3d2750;
-            --sidebar-border: #3d2750;
-            --sidebar-width: 260px;
+            --sidebar: #1f1630;
+            --sidebar-text: #c4b8d0;
+            --sidebar-active: #342448;
+            --sidebar-border: #342448;
+            --sidebar-width: 248px;
             --sidebar-collapsed-width: 72px;
-            --accent: #7a4e8e;
-            --accent-hover: #5f3a70;
-            --accent-soft: rgba(122, 78, 142, 0.12);
-            --field: #0f6e6a;
-            --field-soft: rgba(15, 110, 106, 0.1);
-            --fondo: #f3f0f6;
-            --texto: #2a1f33;
-            --texto-muted: #7a6d88;
-            --borde: #e0d8e8;
-            --blanco: #fbfafc;
-            --tabla-head: #f0ecf4;
-            --ok: #059669;
-            --warn: #d97706;
-            --danger: #dc2626;
+            --accent: #6b457c;
+            --accent-hover: #553564;
+            --accent-soft: rgba(107, 69, 124, 0.1);
+            --field: #0d5c58;
+            --field-soft: rgba(13, 92, 88, 0.08);
+            --fondo: #f5f4f6;
+            --texto: #1c1524;
+            --texto-muted: #6b6574;
+            --borde: #ddd8e3;
+            --blanco: #ffffff;
+            --tabla-head: #f0eef3;
+            --ok: #047857;
+            --warn: #b45309;
+            --danger: #b91c1c;
             --wa-green: #25d366;
             --wa-green-hover: #1ebe57;
-            --font: 'Sora', system-ui, -apple-system, sans-serif;
-            --font-display: 'Fraunces', Georgia, serif;
-            --ease: cubic-bezier(0.22, 1, 0.36, 1);
-            --chart-1: #7a4e8e;
-            --chart-2: #0f6e6a;
-            --chart-3: #9a6cac;
-            --chart-4: #5f3a70;
-            --radius: 10px;
+            --font: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+            --font-display: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+            --ease: ease;
+            --chart-1: #6b457c;
+            --chart-2: #0d5c58;
+            --chart-3: #8a6a98;
+            --chart-4: #553564;
+            --radius: 6px;
         }
 
         html[data-theme="dark"] {
@@ -112,10 +112,7 @@
 
         body {
             margin: 0;
-            background:
-                radial-gradient(ellipse 55% 35% at 0% 0%, rgba(15, 110, 106, 0.07), transparent 50%),
-                radial-gradient(ellipse 70% 40% at 100% -10%, rgba(122, 78, 142, 0.12), transparent 55%),
-                linear-gradient(180deg, #f7f4fa 0%, var(--fondo) 38%, #f0edf3 100%);
+            background: var(--fondo);
             color: var(--texto);
             font-family: var(--font);
             font-size: 14px;
@@ -262,28 +259,29 @@
 
         .sidebar-powered {
             padding: 8px 18px 14px;
-            font-family: var(--font-display);
-            font-size: 1.35rem;
-            font-weight: 650;
-            letter-spacing: -0.035em;
-            color: #f7f2fa;
+            font-family: var(--font);
+            font-size: 1.05rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #f4f2f7;
             text-transform: lowercase;
-            line-height: 1;
-            border-bottom: 1px solid rgba(203, 184, 216, 0.12);
+            line-height: 1.15;
+            border-bottom: 1px solid rgba(196, 184, 208, 0.14);
         }
         .sidebar-powered em {
             font-style: normal;
-            color: #cbb8d8;
+            font-weight: 500;
+            color: #c4b8d0;
         }
         .sidebar-powered span {
             display: block;
             font-family: var(--font);
-            font-size: 0.62rem;
+            font-size: 0.65rem;
             font-weight: 600;
-            letter-spacing: 0.12em;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
             color: var(--sidebar-text);
-            margin-top: 0.45rem;
+            margin-top: 0.4rem;
         }
 
         .sidebar nav {
@@ -395,25 +393,22 @@
             grid-area: topbar;
             position: sticky;
             top: 0;
-            height: 64px;
-            background:
-                linear-gradient(90deg, rgba(15, 110, 106, 0.06) 0%, transparent 28%),
-                var(--blanco);
+            height: 56px;
+            background: var(--blanco);
             border-bottom: 1px solid var(--borde);
-            box-shadow: inset 3px 0 0 var(--field);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 28px;
+            padding: 0 24px;
             z-index: 9;
             min-width: 0;
         }
 
         .topbar-title {
-            font-family: var(--font-display);
-            font-weight: 650;
-            font-size: 1.05rem;
-            letter-spacing: -0.02em;
+            font-family: var(--font);
+            font-weight: 600;
+            font-size: 0.95rem;
+            letter-spacing: -0.01em;
             color: var(--texto);
             display: flex;
             align-items: center;
@@ -425,24 +420,11 @@
         .topbar-meta {
             font-size: 12px;
             color: var(--texto-muted);
-            margin-top: 2px;
+            margin-top: 1px;
         }
 
         .topbar-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            margin-left: 12px;
-            padding: 4px 10px;
-            border-radius: 999px;
-            border: 1px solid rgba(15, 110, 106, 0.22);
-            background: var(--field-soft);
-            color: var(--field);
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            white-space: nowrap;
+            display: none;
         }
 
         .topbar-actions {
@@ -715,12 +697,11 @@
 
         .page-title h1 {
             margin: 0;
-            font-family: var(--font-display);
-            font-size: clamp(1.65rem, 2.4vw, 2.05rem);
-            font-weight: 700;
-            letter-spacing: -0.035em;
-            line-height: 1.15;
-            animation: portal-title-in 0.55s var(--ease) both;
+            font-family: var(--font);
+            font-size: clamp(1.35rem, 2vw, 1.55rem);
+            font-weight: 650;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
         }
         .page-title .muted {
             margin: 0.45rem 0 0;
@@ -733,25 +714,25 @@
         }
 
         h2 {
-            font-family: var(--font-display);
-            font-size: 1.2rem;
+            font-family: var(--font);
+            font-size: 1.05rem;
             font-weight: 650;
-            letter-spacing: -0.025em;
+            letter-spacing: -0.015em;
             margin: 0 0 12px;
             color: var(--texto);
         }
         h3 {
-            font-family: var(--font-display);
-            font-size: 1rem;
+            font-family: var(--font);
+            font-size: 0.95rem;
             font-weight: 650;
-            letter-spacing: -0.02em;
+            letter-spacing: -0.01em;
             margin: 0 0 10px;
         }
 
         .cards-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
+            gap: 12px;
             margin-bottom: 24px;
         }
 
@@ -763,43 +744,39 @@
         }
 
         .card {
-            padding: 18px 20px 18px 18px;
-            border-left: 3px solid var(--accent);
-            background:
-                linear-gradient(135deg, rgba(122, 78, 142, 0.04), transparent 42%),
-                var(--blanco);
+            padding: 16px 18px;
         }
 
         .metric-number {
             margin: 0 0 4px;
             color: var(--texto);
-            font-family: var(--font-display);
-            font-size: 1.85rem;
+            font-family: var(--font);
+            font-size: 1.65rem;
             font-weight: 700;
-            letter-spacing: -0.04em;
+            letter-spacing: -0.02em;
             line-height: 1.1;
+            font-variant-numeric: tabular-nums;
         }
 
         .metric-label {
             color: var(--texto-muted);
-            font-weight: 600;
-            font-size: 11px;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
+            font-weight: 500;
+            font-size: 12px;
+            letter-spacing: 0.02em;
+            text-transform: none;
         }
 
         .panel {
-            padding: 22px;
-            border-top: 2px solid rgba(15, 110, 106, 0.35);
+            padding: 20px;
         }
 
         .section-kicker {
-            margin: 0 0 0.35rem;
-            font-size: 0.68rem;
-            font-weight: 700;
-            letter-spacing: 0.12em;
+            margin: 0 0 0.3rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
-            color: var(--field);
+            color: var(--texto-muted);
         }
 
         .charts-grid {
@@ -1066,7 +1043,7 @@
                 </div>
             </a>
         </div>
-        <div class="sidebar-powered">eki <em>portal</em><span>CRM · empresas rurales</span></div>
+        <div class="sidebar-powered">eki <em>portal</em><span>Clientes</span></div>
         <nav>
             {% if portal_solo_nat %}
             <div class="nav-label">Nat — Knowledge Hub</div>
@@ -1227,7 +1204,7 @@
                 <span class="topbar-chip">eki portal</span>
             </div>
             <div class="topbar-meta">
-                {% if org.portal_subtitulo %}{{ org.portal_subtitulo }}{% else %}Operaciones y seguimiento para su organización rural{% endif %}
+                {% if org.portal_subtitulo %}{{ org.portal_subtitulo }}{% else %}Seguimiento operativo{% endif %}
             </div>
             </div>
         </div>
