@@ -45,6 +45,87 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
     fecha_inicio = fecha_inicio_dt.isoformat() if fecha_inicio_dt else ''
     fecha_fin = fecha_fin_dt.isoformat() if fecha_fin_dt else ''
 
+    # Retención: contexto liviano (evita recalcular Executive/Learning completo).
+    if tab_actual == 'retencion':
+        from portal.retencion_service import analitica_retencion_portal
+
+        clientes_all = Cliente.objects.all().order_by('nombre')
+        cursos_all = Curso.objects.filter(activo=True).order_by('orden', 'nombre')
+        if cliente_id:
+            cursos_all = cursos_all.filter(cliente_id=cliente_id)
+        grupos_qs = GrupoEstudiantes.objects.all().order_by('nombre')
+        if cliente_id:
+            grupos_qs = grupos_qs.filter(Q(cliente_id=cliente_id) | Q(cliente__isnull=True))
+
+        retencion_data = None
+        if cliente_id:
+            org = Cliente.objects.filter(pk=cliente_id, activo=True).first()
+            if org:
+                desde_ret = (request.GET.get('desde') or fecha_inicio or '').strip() or None
+                hasta_ret = (request.GET.get('hasta') or fecha_fin or '').strip() or None
+                retencion_data = analitica_retencion_portal(
+                    org,
+                    curso_id=curso_id,
+                    grupo_id=grupo_id,
+                    desde=desde_ret,
+                    hasta=hasta_ret,
+                )
+
+        context = {
+            'tab_actual': tab_actual,
+            'learning_section': learning_section,
+            'clientes': Cliente.objects.all().order_by('nombre'),
+            'cursos': cursos_all,
+            'cursos_retencion': cursos_all,
+            'cliente_filtro': cliente_id,
+            'curso_filtro': curso_id,
+            'fecha_inicio': fecha_inicio,
+            'fecha_fin': fecha_fin,
+            'municipios': [],
+            'municipio_filtro': municipio_filtro,
+            'grupos': grupos_qs,
+            'grupo_filtro': grupo_id,
+            'modulo_hasta_filtro': modulo_hasta_numero,
+            'retencion_data': retencion_data,
+            'clientes_detalle': [],
+            'estudiantes_detalle': [],
+            'tickets_soporte': [],
+            'eventos_ia_recientes': [],
+            'resumen_payload_json': '{}',
+            'chart_labels': '[]',
+            'chart_values': '[]',
+            'chart_ubicaciones_labels': '[]',
+            'chart_ubicaciones_values': '[]',
+            'chart_tipos_labels': '[]',
+            'chart_tipos_values': '[]',
+            'total_cursos': 0,
+            'total_clientes': 0,
+            'total_estudiantes': 0,
+            'total_mensajes_whatsapp': 0,
+            'mensajes_enviados': 0,
+            'mensajes_recibidos': 0,
+            'wa_entregados': 0,
+            'wa_leidos': 0,
+            'wa_en_transito': 0,
+            'wa_bot_comercial_sent': 0,
+            'wa_bot_comercial_read': 0,
+            'total_audios': 0,
+            'total_agentes_ia': 0,
+            'total_progreso': 0,
+            'total_modulos_completados': 0,
+            'cursos_completados': 0,
+            'total_certificados': 0,
+            'total_perfiles_gam': 0,
+            'puntos_promedio': 0,
+            'top_estudiantes': [],
+            'ranking_gamificacion_completo': [],
+            'total_prospectos': 0,
+            'tasa_completacion': 0,
+            'ubicaciones_municipio': [],
+            'progreso_por_curso': [],
+        }
+        return context, {}
+
     clientes_all = Cliente.objects.all().order_by('nombre')
     cursos_all = Curso.objects.all().order_by('nombre')
 
@@ -482,26 +563,6 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
         'retencion_data': None,
         'cursos_retencion': Curso.objects.none(),
     }
-
-    # Retención solo se calcula en su tab (evita costo en Executive/Learning/etc.).
-    if tab_actual == 'retencion':
-        from portal.retencion_service import analitica_retencion_portal
-
-        cursos_ret = Curso.objects.filter(activo=True).order_by('orden', 'nombre')
-        if cliente_id:
-            cursos_ret = cursos_ret.filter(cliente_id=cliente_id)
-            org = Cliente.objects.filter(pk=cliente_id, activo=True).first()
-            if org:
-                desde_ret = (request.GET.get('desde') or fecha_inicio or '').strip() or None
-                hasta_ret = (request.GET.get('hasta') or fecha_fin or '').strip() or None
-                context['retencion_data'] = analitica_retencion_portal(
-                    org,
-                    curso_id=curso_id,
-                    grupo_id=grupo_id,
-                    desde=desde_ret,
-                    hasta=hasta_ret,
-                )
-        context['cursos_retencion'] = cursos_ret
 
     return context, resumen_payload
 

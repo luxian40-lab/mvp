@@ -875,6 +875,11 @@ def portal_retencion(request):
 
     cursos, grupos = _filtros_portal_cursos_grupos(org)
     curso_id_int = _curso_filtro_portal(request, org, cursos)
+    # Primera visita: precargar un curso para que el embudo muestre módulos.
+    if curso_id_int is None and 'curso' not in request.GET:
+        primero = cursos.first()
+        if primero:
+            curso_id_int = primero.pk
     grupo_id = request.GET.get('grupo') or None
     grupo_id_int = int(grupo_id) if grupo_id and str(grupo_id).isdigit() else None
     if grupo_id_int and not grupos.filter(pk=grupo_id_int).exists():
