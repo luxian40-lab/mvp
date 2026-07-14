@@ -25,9 +25,13 @@ from .biblioteca_service import biblioteca_agrupada_por_curso_modulo
 from .contenido_modulo_service import (
     archivos_multimedia_modulo,
     modulo_tiene_microcontenidos,
-    secciones_modulo_aula,
+    secciones_modulo_aula as secciones_contenido_aula,
 )
-from .lesson_service import actualizar_modulo_aula, crear_modulo_aula, secciones_modulo_aula
+from .lesson_service import (
+    actualizar_modulo_aula,
+    crear_modulo_aula,
+    secciones_modulo_aula as secciones_gestion_aula,
+)
 from .media_aula import media_desde_url
 from .middleware import APRENDE_EST_SESSION_KEY
 from .models import EntregaTarea, TareaCurso
@@ -68,54 +72,51 @@ def _youtube_embed_id(url: str) -> str | None:
 
 
 def inicio(request):
+    # Ya con sesión (Studio o WhatsApp) → al aula, sin pantalla de ingreso.
+    if getattr(request, 'aprende_estudiante', None):
+        return redirect('/aprende/estudiante/')
+    cuenta = getattr(request, 'cuenta_aula', None)
+    if cuenta and cuenta.estudiante_id:
+        request.session[APRENDE_EST_SESSION_KEY] = cuenta.estudiante_id
+        return redirect('/aprende/estudiante/')
     return render(request, 'aprende/inicio.html')
 
 
 def estudiante_login(request):
+    """
+    Aula = solo documento + WhatsApp (programas B2B).
+    Cuenta correo vive en Studio; si ya hay sesión Studio, entra directo.
+    """
     if getattr(request, 'aprende_estudiante', None):
-        return redirect('/aprende/estudiante/')
+        return redirect(request.GET.get('next') or '/aprende/estudiante/')
+
+    # Ya autenticado en Studio (misma sesión) → rehidratar y entrar al aula
+    cuenta = getattr(request, 'cuenta_aula', None)
+    if cuenta and cuenta.estudiante_id:
+        request.session[APRENDE_EST_SESSION_KEY] = cuenta.estudiante_id
+        return redirect(request.GET.get('next') or '/aprende/estudiante/')
 
     modo = (request.POST.get('modo') or request.GET.get('modo') or '').strip().lower()
-    if not modo:
-        # Compat: posts legacy solo envían cédula/teléfono
-        if request.method == 'POST' and request.POST.get('cedula'):
-            modo = 'whatsapp'
-        else:
-            modo = 'correo'
-    if modo not in ('correo', 'whatsapp'):
-        modo = 'correo'
+    # Correo ya no se autentica aquí: redirigir a Studio
+    if modo == 'correo' or request.GET.get('from') == 'correo':
+        next_url = request.GET.get('next') or '/aprende/estudiante/'
+        return redirect(f'/studio/cuenta/login/?next={next_url}')
 
     error = None
-    email_val = ''
-
     if request.method == 'POST':
-        if modo == 'correo':
-            from studio.cuenta_service import autenticar_cuenta_aula, iniciar_sesion_cuenta
-
-            email_val = request.POST.get('email', '')
-            cuenta, error = autenticar_cuenta_aula(
-                email=email_val,
-                password=request.POST.get('password', ''),
-            )
-            if cuenta:
-                iniciar_sesion_cuenta(request, cuenta)
-                return redirect(request.GET.get('next') or '/aprende/estudiante/')
-        else:
-            cedula = re.sub(r'[\s\.\-]', '', request.POST.get('cedula', '').strip())
-            tel = normalizar_telefono(request.POST.get('telefono', ''))
-            est = Estudiante.objects.filter(cedula=cedula, activo=True).first()
-            if est and _telefonos_coinciden(est.telefono, tel):
-                request.session[APRENDE_EST_SESSION_KEY] = est.pk
-                return redirect(request.GET.get('next') or '/aprende/estudiante/')
-            error = (
-                'Número de documento o teléfono no coinciden. Use el mismo teléfono WhatsApp '
-                'registrado (puede escribirlo con o sin 57).'
-            )
+        cedula = re.sub(r'[\s\.\-]', '', request.POST.get('cedula', '').strip())
+        tel = normalizar_telefono(request.POST.get('telefono', ''))
+        est = Estudiante.objects.filter(cedula=cedula, activo=True).first()
+        if est and _telefonos_coinciden(est.telefono, tel):
+            request.session[APRENDE_EST_SESSION_KEY] = est.pk
+            return redirect(request.GET.get('next') or '/aprende/estudiante/')
+        error = (
+            'Número de documento o teléfono no coinciden. Use el mismo teléfono WhatsApp '
+            'registrado (puede escribirlo con o sin 57).'
+        )
 
     return render(request, 'aprende/estudiante_login.html', {
         'error': error,
-        'modo': modo,
-        'email_val': email_val,
     })
 
 
@@ -250,7 +251,7 @@ def estudiante_modulo(request, modulo_id: int):
         return redirect('aprende_estudiante_curso', curso_id=modulo.curso_id)
 
     archivos_media = archivos_multimedia_modulo(modulo)
-    secciones = secciones_modulo_aula(modulo)
+    secciones = secciones_contenido_aula(modulo)
     tiene_micro = modulo_tiene_microcontenidos(modulo)
     video_url = modulo.get_video_url_publica() if modulo.video_url or modulo.video_archivo else modulo.video_url
     video_media = media_desde_url(f'Video — {modulo.titulo}', video_url or '', 'video') if video_url else None
@@ -266,7 +267,9 @@ def estudiante_modulo(request, modulo_id: int):
         'tiene_micro': tiene_micro,
         'archivos_media': archivos_media,
         'video_media': video_media,
+        'video_medias': [video_media] if video_media else [],
         'pdf_media': pdf_media,
+        'pdf_medias': [pdf_media] if pdf_media else [],
     })
 
 
@@ -401,7 +404,7 @@ def profesor_modulo_editar(request, modulo_id: int):
     org = _org_profesor(request)
     modulo = get_object_or_404(Modulo.objects.select_related('curso'), pk=modulo_id, curso__cliente=org)
     archivos = ArchivoModulo.objects.filter(modulo=modulo, activo=True).order_by('orden')
-    secciones = list(secciones_modulo_aula(modulo))
+    secciones = list(secciones_gestion_aula(modulo))
 
     if request.method == 'POST':
         error = actualizar_modulo_aula(request, modulo)

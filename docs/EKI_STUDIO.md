@@ -22,9 +22,9 @@ Mismo backend Django, mismo deploy en Elastic Beanstalk (`eki-prod-final`), ruta
 
 Separado de `Estudiante` (WhatsApp) y de `PortalUsuario` (staff B2B).
 
-- **Login / registro:** solo en Studio → `/studio/cuenta/login/` y `/studio/cuenta/registro/`
+- **Login / registro con correo:** solo en Studio → `/studio/cuenta/login/` y `/studio/cuenta/registro/`
 - **Aula** (`/aprende/estudiante/login/`): solo cédula + teléfono WhatsApp (programa ya inscrito)
-- Tras entrar por Studio, la sesión permite abrir el aula sin volver a autenticarse
+- Tras entrar por Studio, la sesión se comparte con Aprende (`SESSION_COOKIE_DOMAIN=.eki.technology`) y no pide login otra vez
 
 Cada cuenta web crea un `Estudiante` vinculado (progreso, puntos, ranking).
 

@@ -149,6 +149,17 @@
 }
 .eki-bib-lightbox__body .eki-media-block { margin-bottom: 0; }
 .eki-bib-lightbox__body .eki-media-frame { max-height: 70vh; }
+@media (max-width: 640px) {
+    .eki-bib-lightbox { padding: 0.5rem; align-items: flex-end; }
+    .eki-bib-lightbox__panel {
+        max-height: 92dvh;
+        padding: 1rem;
+        border-radius: var(--eki-radius) var(--eki-radius) 0 0;
+        width: 100%;
+    }
+    .eki-bib-lightbox__body .eki-media-frame { max-height: 55dvh; }
+    .eki-bib-thumb { width: 44px; height: 44px; }
+}
 {% endblock %}
 {% block content %}
 <div class="eki-page-head">
@@ -156,6 +167,7 @@
     <h1>Biblioteca de recursos</h1>
     <p class="eki-lead">
         Fotos y videos de sus módulos en miniatura. Pulse un cuadro para ver el material completo.
+        Solo consulta en línea: la descarga no está habilitada desde el aula.
     </p>
 </div>
 

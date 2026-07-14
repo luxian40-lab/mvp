@@ -264,17 +264,24 @@ class StudioTests(TestCase):
         self.assertNotContains(r, 'Inscribirme')
         self.assertContains(r, 'eki Studio')
 
-    def test_aprende_login_correo(self):
+    def test_aprende_login_correo_redirige_a_studio(self):
         self.http.post('/studio/cuenta/registro/', {
             'nombre': 'Web Est',
             'email': 'webest@test.com',
             'password': 'testpass123',
         })
         self.http.get('/studio/cuenta/logout/')
-        r = self.http.post('/aprende/estudiante/login/', {
-            'modo': 'correo',
-            'email': 'webest@test.com',
+        r = self.http.get('/aprende/estudiante/login/?modo=correo&next=/aprende/estudiante/')
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/studio/cuenta/login/', r.url)
+        self.assertIn('next=', r.url)
+
+    def test_studio_sesion_abre_aula_sin_relogin(self):
+        self.http.post('/studio/cuenta/registro/', {
+            'nombre': 'Web Est2',
+            'email': 'webest2@test.com',
             'password': 'testpass123',
         })
-        self.assertEqual(r.status_code, 302)
-        self.assertIn('/aprende/estudiante/', r.url)
+        r = self.http.get('/aprende/estudiante/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'eki Studio')

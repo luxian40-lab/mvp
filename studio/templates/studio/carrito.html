@@ -15,7 +15,7 @@
 <div class="st-panel" style="max-width:640px;margin:0 auto;">
     <ul style="list-style:none;padding:0;margin:0;">
         {% for item in items %}
-        <li style="display:flex;justify-content:space-between;gap:1rem;align-items:center;padding:0.85rem 0;border-bottom:1px solid var(--st-line);">
+        <li class="st-cart-row">
             <div>
                 <strong>{{ item.publicacion.curso.nombre }}</strong>
                 <div class="st-muted" style="font-size:0.85rem;">${{ item.publicacion.precio_cop|floatformat:0 }} COP</div>

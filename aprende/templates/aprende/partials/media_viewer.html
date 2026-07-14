@@ -1,11 +1,11 @@
-{% comment %}Visualización en línea — sin enlaces de descarga directa.{% endcomment %}
+{% comment %}Visualización en línea — sin enlaces ni UI de descarga.{% endcomment %}
 {% for m in medias %}
-<div class="eki-media-block">
+<div class="eki-media-block" oncontextmenu="return false;">
     <p class="eki-media-caption">{{ m.titulo }}</p>
     {% if m.tipo == 'youtube' and m.youtube_id %}
     <div class="eki-media-frame eki-video-wrap">
         <iframe
-            src="https://www.youtube.com/embed/{{ m.youtube_id }}?rel=0"
+            src="https://www.youtube.com/embed/{{ m.youtube_id }}?rel=0&modestbranding=1"
             title="{{ m.titulo }}"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowfullscreen
@@ -14,23 +14,24 @@
     </div>
     {% elif m.tipo == 'video' %}
     <div class="eki-media-frame eki-video-wrap">
-        <video controls controlsList="nodownload noplaybackrate" disablePictureInPicture playsinline preload="metadata">
+        <video controls controlsList="nodownload noplaybackrate noremoteplayback" disablePictureInPicture playsinline preload="metadata" oncontextmenu="return false;">
             <source src="{{ m.url }}">
         </video>
     </div>
     {% elif m.tipo == 'imagen' %}
-    <figure class="eki-media-frame eki-media-frame--image">
+    <figure class="eki-media-frame eki-media-frame--image" oncontextmenu="return false;">
         <img src="{{ m.url }}" alt="{{ m.titulo }}" loading="lazy" draggable="false">
     </figure>
     {% elif m.tipo == 'audio' %}
     <div class="eki-media-frame eki-media-frame--audio">
-        <audio controls controlsList="nodownload" preload="metadata">
+        <audio controls controlsList="nodownload noremoteplayback" preload="metadata" oncontextmenu="return false;">
             <source src="{{ m.url }}">
         </audio>
     </div>
     {% elif m.tipo == 'pdf' %}
     <div class="eki-media-frame eki-media-frame--pdf">
-        <iframe src="{{ m.url }}#toolbar=0&navpanes=0" title="{{ m.titulo }}" loading="lazy"></iframe>
+        {# toolbar=0 oculta botones de descarga del visor embebido #}
+        <iframe src="{{ m.url }}#toolbar=0&navpanes=0&scrollbar=0" title="{{ m.titulo }}" loading="lazy"></iframe>
     </div>
     {% else %}
     <div class="eki-media-frame eki-media-frame--embed">

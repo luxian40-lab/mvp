@@ -17,7 +17,17 @@ def es_profesor_aprende(request) -> bool:
 def requiere_estudiante_aprende(view_func):
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        if not getattr(request, 'aprende_estudiante', None):
+        est = getattr(request, 'aprende_estudiante', None)
+        if not est:
+            # Fallback: sesión Studio aún no sincronizada al request
+            cuenta = getattr(request, 'cuenta_aula', None)
+            if cuenta and cuenta.estudiante_id:
+                from .middleware import APRENDE_EST_SESSION_KEY
+
+                request.session[APRENDE_EST_SESSION_KEY] = cuenta.estudiante_id
+                request.aprende_estudiante = cuenta.estudiante
+                est = cuenta.estudiante
+        if not est:
             return redirect('/aprende/estudiante/login/')
         return view_func(request, *args, **kwargs)
 

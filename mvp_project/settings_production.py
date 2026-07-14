@@ -104,6 +104,12 @@ else:
 
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
+# Compartir sesión entre studio.eki.technology y aprende.eki.technology
+# (Studio = correo; Aprende = aula). Override vacío desactiva el dominio padre.
+_session_domain = os.environ.get('SESSION_COOKIE_DOMAIN', '.eki.technology').strip()
+if _session_domain:
+    SESSION_COOKIE_DOMAIN = _session_domain
+    CSRF_COOKIE_DOMAIN = os.environ.get('CSRF_COOKIE_DOMAIN', _session_domain).strip() or _session_domain
 
 # ?: (security.W016) CSRF cookies seguras
 if not _behind_cloudflare:

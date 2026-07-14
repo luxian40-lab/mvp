@@ -72,7 +72,7 @@
 
 {% if video_media %}
 <div class="eki-card" style="padding:0;overflow:hidden;margin-bottom:1.25rem;">
-    {% include "aprende/partials/media_viewer.html" with medias=video_media|make_list %}
+    {% include "aprende/partials/media_viewer.html" with medias=video_medias %}
 </div>
 {% endif %}
 
@@ -113,7 +113,7 @@
 {% if pdf_media %}
 <div class="eki-card" style="margin-bottom:1.25rem;">
     <h2 class="eki-h2">Documento de apoyo</h2>
-    {% include "aprende/partials/media_viewer.html" with medias=pdf_media|make_list %}
+    {% include "aprende/partials/media_viewer.html" with medias=pdf_medias %}
 </div>
 {% endif %}
 
