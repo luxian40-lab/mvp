@@ -218,9 +218,9 @@ def enviar_whatsapp_twilio(
         # S3 URLs: usar URL pública directa (bucket tiene ACL public-read)
         # NO generar presigned URL — causa 63019 por redirect de región
         if media_url and 'amazonaws.com' in media_url:
-            # Asegurar que la URL use el endpoint regional correcto (sin redirects)
-            if '.s3.amazonaws.com/' in media_url and '.s3.us-east-2.amazonaws.com/' not in media_url:
-                media_url = media_url.replace('.s3.amazonaws.com/', '.s3.us-east-2.amazonaws.com/')
+            from .twilio_media import normalizar_media_url_s3
+
+            media_url = normalizar_media_url_s3(media_url)
             logger.info(f"[S3] URL pública directa: {media_url[:100]}...")
 
         # Crear cliente Twilio
@@ -281,13 +281,19 @@ def enviar_whatsapp_twilio(
             try:
                 message = client.messages.create(**message_params)
             except Exception as media_err:
-                err_str = str(media_err)
-                # Error 63019 = Twilio no pudo descargar el media.
-                if '63019' in err_str and clean_url and idx == 0:
+                from .twilio_media import cuerpo_con_enlace_archivo, es_error_media_twilio
+
+                # 63019 download / 63021 channel invalid / 63005 channel rejected
+                if es_error_media_twilio(media_err) and clean_url and idx == 0:
                     message_params.pop('media_url', None)
-                    extra = f"\n\n📎 Archivo: {clean_url}"
-                    body_with_fallback = (message_params.get('body') or '').strip()
-                    message_params['body'] = f"{body_with_fallback}{extra}".strip()
+                    message_params['body'] = cuerpo_con_enlace_archivo(
+                        message_params.get('body') or '', clean_url,
+                    )
+                    logger.warning(
+                        '[MEDIA] Twilio %s → fallback enlace | %s',
+                        media_err,
+                        clean_url[:120],
+                    )
                     message = client.messages.create(**message_params)
                 else:
                     raise

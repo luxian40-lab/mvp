@@ -2647,10 +2647,58 @@ def _escape_twiml(text):
     return text
 
 
+def _reenviar_media_fallida_como_enlace(log, error_code: str = '') -> None:
+    """Si WhatsApp rechazó el adjunto (p. ej. 63021), manda el archivo como enlace de texto."""
+    from .twilio_media import (
+        cuerpo_con_enlace_archivo,
+        es_error_media_twilio,
+        extraer_media_url_de_mensaje,
+        marcar_fallback_enlace,
+        ya_envio_fallback_enlace,
+    )
+
+    if not es_error_media_twilio(error_code):
+        return
+    if ya_envio_fallback_enlace(log):
+        return
+    media_url = extraer_media_url_de_mensaje(getattr(log, 'mensaje', None))
+    if not media_url:
+        logger.warning(
+            '📎 Callback media fallida sin [MEDIA:url] en log | sid=%s code=%s',
+            getattr(log, 'mensaje_id', ''),
+            error_code,
+        )
+        return
+    telefono = (getattr(log, 'telefono', None) or '').strip()
+    if not telefono or telefono == 'desconocido':
+        return
+    try:
+        from .utils import enviar_whatsapp_twilio
+
+        body = cuerpo_con_enlace_archivo(
+            'No se pudo adjuntar el archivo en WhatsApp. Ábralo con este enlace:',
+            media_url,
+        )
+        resultado = enviar_whatsapp_twilio(telefono, body, media_url=None)
+        log.error_detalle = marcar_fallback_enlace(
+            f"{error_code} | {(getattr(log, 'error_detalle', None) or '')}".strip(' |')
+        )
+        log.save(update_fields=['error_detalle'])
+        logger.info(
+            '📎 Fallback enlace enviado tras %s | telefono=%s ok=%s',
+            error_code,
+            telefono,
+            bool(resultado and resultado.get('success')),
+        )
+    except Exception as exc:
+        logger.warning('📎 No se pudo reenviar media como enlace: %s', exc)
+
+
 def _registrar_estado_twilio_callback(post_data):
     """
     Actualiza estado de WhatsappLog (SENT) con callbacks de Twilio.
     Permite métricas de entregado/abierto/fallido por mensaje.
+    Ante 63019/63021/63005 reintenta una vez el archivo como enlace de texto.
     """
     try:
         sid = (
@@ -2666,6 +2714,12 @@ def _registrar_estado_twilio_callback(post_data):
             or ''
         )
         status = str(status_raw).strip().upper()
+        error_code = str(
+            post_data.get('ErrorCode') or post_data.get('error_code') or ''
+        ).strip()
+        error_message = str(
+            post_data.get('ErrorMessage') or post_data.get('error_message') or ''
+        ).strip()
 
         if not sid or not status:
             return
@@ -2677,9 +2731,22 @@ def _registrar_estado_twilio_callback(post_data):
             .first()
         )
         if log:
+            campos = []
             if log.estado != status:
                 log.estado = status
-                log.save(update_fields=['estado'])
+                campos.append('estado')
+            detalle = ' '.join(x for x in (error_code, error_message) if x).strip()
+            if detalle and detalle != (log.error_detalle or '').strip():
+                # Conservar marcador FALLBACK_ENLACE si ya existía.
+                prev = log.error_detalle or ''
+                if 'FALLBACK_ENLACE' in prev and 'FALLBACK_ENLACE' not in detalle:
+                    detalle = f'{detalle} | FALLBACK_ENLACE'
+                log.error_detalle = detalle[:2000]
+                campos.append('error_detalle')
+            if campos:
+                log.save(update_fields=campos)
+            if status in ('UNDELIVERED', 'FAILED') and error_code:
+                _reenviar_media_fallida_como_enlace(log, error_code)
             return
 
         # Fallback para no perder trazabilidad de callbacks huérfanos.
@@ -2689,7 +2756,10 @@ def _registrar_estado_twilio_callback(post_data):
             mensaje_id=sid,
             tipo='SENT',
             estado=status,
-            error_detalle='Callback Twilio sin log SENT previo.',
+            error_detalle=(
+                f"{' '.join(x for x in (error_code, error_message) if x)} | "
+                'Callback Twilio sin log SENT previo.'
+            ).strip(' |'),
         )
     except Exception as e:
         logger.warning(f"⚠️ No se pudo registrar callback Twilio: {e}")
@@ -2728,19 +2798,27 @@ def _segmentar_texto_twilio(texto: str, max_chars: int = None) -> list:
 
 
 def youtube_hace_solo_enlace_en_texto(url: str) -> bool:
-    """True si la URL es página/embed de YouTube, no archivo .mp4 directo (Twilio no puede adjuntarla como media)."""
-    u = (url or '').strip().lower()
-    if not u:
-        return False
-    if u.endswith('.mp4') or '/videoplayback' in u:
-        return False
-    return 'youtube.com/watch' in u or 'youtu.be/' in u or 'youtube.com/shorts/' in u
+    """True si la URL es página/embed (YouTube/Drive/…), no archivo directo adjuntarle por Twilio."""
+    from .twilio_media import url_no_es_media_directo
+
+    return url_no_es_media_directo(url)
 
 
 def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, body: str, media_url: str = None) -> list:
     """Envía mensaje Twilio en segmentos seguros y devuelve [(sid, texto_enviado), ...]."""
+    from .twilio_media import (
+        cuerpo_con_enlace_archivo,
+        es_error_media_twilio,
+        normalizar_media_url_s3,
+        url_no_es_media_directo,
+    )
+
     body_limpio = str(body or '').strip()
-    media_limpia = str(media_url or '').strip() or None
+    media_limpia = normalizar_media_url_s3(media_url)
+    # Páginas (YouTube/Drive): no adjuntar; mandar enlace de una.
+    if media_limpia and url_no_es_media_directo(media_limpia):
+        body_limpio = cuerpo_con_enlace_archivo(body_limpio or TWILIO_CAPTION_ADJUNTO, media_limpia)
+        media_limpia = None
     if not body_limpio and media_limpia:
         body_limpio = TWILIO_CAPTION_ADJUNTO
 
@@ -2767,11 +2845,14 @@ def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, 
         try:
             mensaje = client.messages.create(**params)
         except Exception as media_err:
-            err_str = str(media_err)
-            if '63019' in err_str and media_limpia and idx == 0:
+            if es_error_media_twilio(media_err) and media_limpia and idx == 0:
                 params.pop('media_url', None)
-                body_base = (params.get('body') or '').strip()
-                params['body'] = f"{body_base}\n\n📎 Archivo: {media_limpia}".strip()
+                params['body'] = cuerpo_con_enlace_archivo(params.get('body') or '', media_limpia)
+                logger.warning(
+                    '📎 Media Twilio falló en create (%s); reenviando como enlace | url=%s',
+                    media_err,
+                    media_limpia[:120],
+                )
                 mensaje = client.messages.create(**params)
             else:
                 raise
@@ -3817,14 +3898,22 @@ def _procesar_twilio_webhook(post_data):
                         try:
                             msg_sent = client_tw.messages.create(**mp_c)
                         except Exception as media_err_c:
-                            if '63019' in str(media_err_c) and parte_media_c:
+                            from .twilio_media import cuerpo_con_enlace_archivo, es_error_media_twilio, mensaje_log_con_media
+
+                            if es_error_media_twilio(media_err_c) and parte_media_c:
                                 mp_c.pop('media_url', None)
-                                mp_c['body'] += f"\n\n📎 Archivo: {parte_media_c}"
+                                mp_c['body'] = cuerpo_con_enlace_archivo(mp_c.get('body') or '', parte_media_c)
                                 msg_sent = client_tw.messages.create(**mp_c)
                             else:
                                 raise
                         import time; time.sleep(0.5)
-                        WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=parte_texto_c[:500], tipo='SENT')
+                        from .twilio_media import mensaje_log_con_media
+                        WhatsappLog.objects.create(
+                            telefono=telefono_limpio,
+                            mensaje=mensaje_log_con_media(parte_texto_c, parte_media_c)[:1500],
+                            mensaje_id=getattr(msg_sent, 'sid', None),
+                            tipo='SENT',
+                        )
                 else:
                     client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
                     WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
@@ -4479,18 +4568,26 @@ def _procesar_twilio_webhook(post_data):
                                 if parte_media_mm:
                                     mp_mm['media_url'] = [parte_media_mm]
                                 try:
-                                    client_tw.messages.create(**mp_mm)
+                                    msg_mm = client_tw.messages.create(**mp_mm)
                                 except Exception as ex_mm:
-                                    if '63019' in str(ex_mm) and parte_media_mm:
+                                    from .twilio_media import cuerpo_con_enlace_archivo, es_error_media_twilio
+
+                                    if es_error_media_twilio(ex_mm) and parte_media_mm:
                                         mp_mm.pop('media_url', None)
-                                        mp_mm['body'] = (mp_mm.get('body') or '').strip() + f"\n\n📎 Archivo: {parte_media_mm}"
-                                        client_tw.messages.create(**mp_mm)
+                                        mp_mm['body'] = cuerpo_con_enlace_archivo(
+                                            mp_mm.get('body') or '', parte_media_mm,
+                                        )
+                                        msg_mm = client_tw.messages.create(**mp_mm)
                                     else:
                                         raise
                                 import time
                                 time.sleep(0.5)
+                                from .twilio_media import mensaje_log_con_media
                                 WhatsappLog.objects.create(
-                                    telefono=telefono_limpio, mensaje=(cuerpo_mm or parte_txt)[:500], tipo='SENT'
+                                    telefono=telefono_limpio,
+                                    mensaje=mensaje_log_con_media(cuerpo_mm or parte_txt, parte_media_mm)[:1500],
+                                    mensaje_id=getattr(msg_mm, 'sid', None),
+                                    tipo='SENT',
                                 )
                         else:
                             media_url_menu = None
@@ -6154,7 +6251,12 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
 
                     for seg_idx, (mensaje, texto_enviado) in enumerate(mensajes_enviados, start=1):
                         print(f"✅ Mensaje {idx+1}.{seg_idx} enviado via Twilio: {mensaje.sid}")
-                        texto_log = texto_enviado or parte_texto or (f"[MEDIA:{parte_media}]" if parte_media else '')
+                        from .twilio_media import mensaje_log_con_media
+
+                        texto_log = mensaje_log_con_media(
+                            texto_enviado or parte_texto,
+                            parte_media if seg_idx == 1 else None,
+                        )
                         WhatsappLog.objects.create(
                             telefono=telefono_limpio,
                             mensaje=texto_log[:1500],
@@ -6182,7 +6284,12 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                     else:
                         print(f"✅ Mensaje segmento {seg_idx}/{len(mensajes_enviados)} enviado via Twilio: {mensaje.sid}")
 
-                    texto_log = texto_enviado or texto_respuesta or (f"[MEDIA:{media_url_to_send}]" if media_url_to_send else '')
+                    from .twilio_media import mensaje_log_con_media
+
+                    texto_log = mensaje_log_con_media(
+                        texto_enviado or texto_respuesta,
+                        media_url_to_send if seg_idx == 1 else None,
+                    )
                     WhatsappLog.objects.create(
                         telefono=telefono_limpio,
                         mensaje=texto_log[:1500],
