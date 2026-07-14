@@ -5103,9 +5103,8 @@ def _procesar_twilio_webhook(post_data):
                     else:
                         texto_respuesta = (
                             f"💬 *{nombre_asistente}*\n\n{respuesta_dario}\n\n"
-                            f"¿Tienes otra pregunta? Te queda {2 - preguntas_hechas} pregunta más.\n"
-                            f"Ejemplos: \"¿qué reviso primero en campo?\", \"¿cómo confirmo el diagnóstico?\". "
-                            f"Si no, escribe *listo*."
+                            f"¿Tienes otra pregunta? Te queda {2 - preguntas_hechas} pregunta más. "
+                            f"Puedes preguntar sobre el tema del módulo. Si no, escribe *listo*."
                         )
             
             # v1.9.8g: Facilitadora — evaluando respuesta al reto
@@ -5775,10 +5774,8 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                             f"{nombre_tutor} te va a recibir con un reto sobre {modulos_reto_range}.\n\n"
                                             f"Te puedo ayudar a resolver un par de preguntas antes. "
                                             f"¿Tienes alguna pregunta sobre lo que hemos visto?\n\n"
-                                            f"Ejemplos:\n"
-                                            f"• ¿Cómo identifico a tiempo el daño en campo?\n"
-                                            f"• ¿Qué error debo evitar al aplicar control?\n"
-                                            f"• ¿Qué reviso primero antes de decidir tratamiento?\n\n"
+                                            f"Pregunta lo que te haya quedado del módulo "
+                                            f"(conceptos, dudas o cómo aplicarlo). "
                                             f"Envíame un audio o escríbeme; si no tienes preguntas, escribe *listo*."
                                         )
 

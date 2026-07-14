@@ -261,7 +261,7 @@ class StudioTests(TestCase):
         r = self.http.get('/aprende/estudiante/')
         self.assertEqual(r.status_code, 200)
         self.assertNotContains(r, 'Inscribirme')
-        self.assertContains(r, 'eki Studio')
+        self.assertNotContains(r, 'eki Studio')
 
     def test_aprende_login_correo_redirige_a_studio(self):
         self.http.post('/studio/cuenta/registro/', {
@@ -283,4 +283,23 @@ class StudioTests(TestCase):
         })
         r = self.http.get('/aprende/estudiante/')
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'eki Studio')
+        self.assertContains(r, 'Mis cursos')
+
+    def test_registro_studio_no_saca_sesion_admin(self):
+        from django.contrib.auth.models import User
+
+        staff = User.objects.create_superuser('adminstudio', 'adminstudio@test.com', 'adminpass123')
+        self.http.force_login(staff)
+        r = self.http.post('/studio/cuenta/registro/', {
+            'nombre': 'Alumno Sin Pishe Admin',
+            'email': 'alumnosinpishe@test.com',
+            'password': 'testpass123',
+        })
+        self.assertEqual(r.status_code, 302)
+        # Staff sigue autenticado (misma cookie de sesión)
+        r_admin = self.http.get('/admin/', follow=False)
+        self.assertIn(r_admin.status_code, (200, 302))
+        if r_admin.status_code == 302:
+            self.assertNotIn('/login', r_admin.url)
+        # Sesión Studio también quedó (cuenta_aula_id)
+        self.assertTrue(self.http.session.get('cuenta_aula_id'))

@@ -87,8 +87,17 @@ def autenticar_cuenta_aula(
     return cuenta, None
 
 
+def _request_es_staff(request) -> bool:
+    """Admin/staff en la misma cookie: no reemplazar su sesión con un usuario Studio."""
+    u = getattr(request, 'user', None)
+    return bool(u and u.is_authenticated and (u.is_staff or u.is_superuser))
+
+
 def iniciar_sesion_cuenta(request, cuenta: CuentaAula) -> Estudiante:
-    login(request, cuenta.user)
+    # Studio usa CUENTA_AULA_SESSION_KEY. login() de Django pisa _auth_user_id
+    # y saca al admin si prueba Studio en el mismo navegador.
+    if not _request_es_staff(request):
+        login(request, cuenta.user)
     request.session[CUENTA_AULA_SESSION_KEY] = cuenta.pk
     if cuenta.estudiante_id:
         request.session['aprende_estudiante_id'] = cuenta.estudiante_id
@@ -98,6 +107,15 @@ def iniciar_sesion_cuenta(request, cuenta: CuentaAula) -> Estudiante:
 def cerrar_sesion_cuenta(request) -> None:
     request.session.pop(CUENTA_AULA_SESSION_KEY, None)
     request.session.pop('aprende_estudiante_id', None)
+
+
+def cerrar_sesion_studio(request) -> None:
+    """Sale de Studio sin cerrar sesión de staff/admin."""
+    cerrar_sesion_cuenta(request)
+    if not _request_es_staff(request):
+        from django.contrib.auth import logout
+
+        logout(request)
 
 
 def cuenta_desde_request(request) -> CuentaAula | None:

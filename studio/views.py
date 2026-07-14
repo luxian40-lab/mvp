@@ -5,8 +5,6 @@ from __future__ import annotations
 import re
 
 from django.contrib import messages
-from django.contrib.auth import logout
-from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt
@@ -25,7 +23,7 @@ from .catalogo_service import (
 )
 from .cuenta_service import (
     autenticar_cuenta_aula,
-    cerrar_sesion_cuenta,
+    cerrar_sesion_studio,
     cuenta_desde_request,
     iniciar_sesion_cuenta,
     registrar_cuenta_aula,
@@ -152,8 +150,7 @@ def cuenta_login(request):
 
 
 def cuenta_logout(request):
-    cerrar_sesion_cuenta(request)
-    logout(request)
+    cerrar_sesion_studio(request)
     return redirect('/studio/')
 
 
@@ -468,10 +465,20 @@ def webhook_wompi(request):
     return HttpResponse(status=200)
 
 
+def _creador_desde_request(request):
+    """Creador vía sesión Studio (cuenta) o user Django — no depende solo de login()."""
+    cuenta = cuenta_desde_request(request)
+    if cuenta:
+        c = CreadorStudio.objects.filter(user_id=cuenta.user_id).first()
+        if c:
+            return c
+    if getattr(request.user, 'is_authenticated', False):
+        return CreadorStudio.objects.filter(user=request.user).first()
+    return None
+
+
 def creador(request):
-    creador_perfil = None
-    if request.user.is_authenticated:
-        creador_perfil = CreadorStudio.objects.filter(user=request.user).first()
+    creador_perfil = _creador_desde_request(request)
     publicaciones = 0
     if creador_perfil:
         publicaciones = PublicacionStudio.objects.filter(creador=creador_perfil).count()
@@ -482,9 +489,10 @@ def creador(request):
     })
 
 
-@login_required(login_url='/studio/creador/registro/')
 def creador_panel(request):
-    creador_perfil = get_object_or_404(CreadorStudio, user=request.user)
+    creador_perfil = _creador_desde_request(request)
+    if not creador_perfil:
+        return redirect('/studio/creador/registro/')
     error = None
 
     if request.method == 'POST':
@@ -534,7 +542,7 @@ def creador_panel(request):
 
 
 def creador_registro(request):
-    if request.user.is_authenticated and CreadorStudio.objects.filter(user=request.user).exists():
+    if _creador_desde_request(request):
         return redirect('/studio/creador/panel/')
 
     error = None
