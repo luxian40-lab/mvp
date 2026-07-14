@@ -1254,7 +1254,8 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             progreso.save()
         
         # Tras cerrar reto (Darío + facilitadora), el puntero ya está en el siguiente módulo pero el estudiante
-        # aún no ha visto su contenido. Un "listo" aquí no debe cerrar ese módulo (evita saltar módulo 4).
+        # aún no ha visto su contenido. Un "listo" aquí no debe cerrar ese módulo (evita saltar módulo 4):
+        # debe ENTREGAR el material. Con microcontenidos eso es entregar_bloque; sin ellos, el else reenvía texto.
         msg_norm = (mensaje_original or '').strip()
         _ctx_reto = dict(estudiante.contexto_temporal or {})
         _post_reto_mid = _ctx_reto.get('post_reto_entregar_modulo_id')
@@ -1266,8 +1267,36 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             and not ModuloCompletado.objects.filter(progreso=progreso, modulo=modulo_actual).exists()
         )
         if primero_listo_sin_ver_modulo:
+            from .module_steps import (
+                entregar_bloque_secciones_desde_paso,
+                modulo_usa_pasos,
+                pasos_activos_qs,
+                reset_progreso_pasos_modulo,
+            )
+
+            _ctx_reto.pop('post_reto_entregar_modulo_id', None)
+            estudiante.contexto_temporal = _ctx_reto or None
+            estudiante.save(update_fields=['contexto_temporal'])
+
+            if modulo_usa_pasos(modulo_actual) and pasos_activos_qs(modulo_actual).exists():
+                _n_post = pasos_activos_qs(modulo_actual).count()
+                idx_post = progreso.paso_actual_modulo or 1
+                if idx_post > _n_post:
+                    reset_progreso_pasos_modulo(progreso, save=True)
+                    idx_post = 1
+                logger.info(
+                    "📚 [pasos] primer listo post-reto → entregar material | est=%s idx=%s n=%s mod=%s",
+                    estudiante.id,
+                    idx_post,
+                    _n_post,
+                    modulo_actual.id,
+                )
+                return entregar_bloque_secciones_desde_paso(
+                    progreso, modulo_actual, idx_post
+                )
+            # Legacy (sin microcontenidos): caer al reenvío de Modulo.contenido, no al cierre.
             msg_norm = ''
-        
+
         # Regla del curso: "listo" o "continuar" avanzan (mismo trigger).
         if _es_mensaje_listo_avance_curso(msg_norm):
             from .drip_schedule import mensaje_bloqueo_avance_siguiente_modulo

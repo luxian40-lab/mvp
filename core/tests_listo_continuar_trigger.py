@@ -7,7 +7,15 @@ from unittest.mock import MagicMock, patch
 from django.test import TestCase
 
 from core.intent_detector import mensaje_indica_listo
-from core.models import Curso, Estudiante, Modulo, ModuloCompletado, ProgresoEstudiante
+from core.models import (
+    Curso,
+    Estudiante,
+    Modulo,
+    ModuloCompletado,
+    PasoModulo,
+    ProgresoEstudiante,
+    SeccionModulo,
+)
 from core.response_templates import _es_mensaje_listo_avance_curso, get_response_for_intent
 
 TRIGGERS_VALIDOS = ('listo', 'continuar', '*listo*', '*continuar*', 'ok continuar', 'ya listo')
@@ -126,6 +134,35 @@ class PostRetoListoContinuarParidadTests(TestCase):
                 self.assertTrue(
                     ModuloCompletado.objects.filter(progreso=progreso, modulo=m2).exists()
                 )
+
+    def test_primer_listo_post_reto_con_micros_entrega_no_recordatorio(self):
+        """Regresión prod: tras facilitadora no debe mandar 'Sigues en este material'."""
+        estudiante, progreso, m2, _m3 = self._setup_post_reto('micros')
+        sec = SeccionModulo.objects.create(modulo=m2, orden=1, titulo='Sec post')
+        PasoModulo.objects.create(
+            modulo=m2,
+            seccion=sec,
+            orden=1,
+            titulo='Micro post',
+            contenido='TEXTO_MICRO_POST_RETO',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+        )
+        progreso.paso_actual_modulo = 1
+        progreso.save(update_fields=['paso_actual_modulo'])
+
+        respuesta = self._continuar_leccion(estudiante, 'listo')
+        self.assertIn('TEXTO_MICRO_POST_RETO', respuesta)
+        self.assertNotIn('Sigues en este material', respuesta)
+        estudiante.refresh_from_db()
+        self.assertNotIn(
+            'post_reto_entregar_modulo_id',
+            estudiante.contexto_temporal or {},
+        )
+        progreso.refresh_from_db()
+        self.assertEqual(progreso.modulo_actual_id, m2.id)
+        self.assertFalse(
+            ModuloCompletado.objects.filter(progreso=progreso, modulo=m2).exists()
+        )
 
 
 class DaríoHandoffContinuarTests(TestCase):
