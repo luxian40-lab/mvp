@@ -3,13 +3,7 @@
 {% block content %}
 <header class="st-page-intro">
     <h1>{{ creador.nombre_publico }}</h1>
-    <p class="st-lead">
-        {% if creador.activo %}
-        Perfil activo — publica cursos, define el precio en COP y los estudiantes pagan con Wompi.
-        {% else %}
-        En revisión por el equipo eki. Puedes crear cursos; el catálogo público se activa cuando aprueben tu perfil.
-        {% endif %}
-    </p>
+    <p class="st-lead">Publica cursos, define el precio en COP y los estudiantes pagan con Wompi.</p>
 </header>
 
 {% if error %}
@@ -36,8 +30,8 @@
                 <input id="precio_cop" name="precio_cop" type="number" min="0" step="1000" value="0" required>
             </div>
             <label class="st-muted" style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;">
-                <input type="checkbox" name="publicar" {% if creador.activo %}checked{% endif %} style="width:auto;">
-                Publicar en catálogo (requiere perfil activo)
+                <input type="checkbox" name="publicar" checked style="width:auto;">
+                Publicar en el catálogo
             </label>
             <button type="submit" class="st-btn st-btn--primary">Crear curso</button>
         </form>

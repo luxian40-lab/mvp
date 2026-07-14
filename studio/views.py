@@ -505,9 +505,7 @@ def creador_panel(request):
                 else:
                     messages.success(
                         request,
-                        f'Curso «{curso.nombre}» creado. '
-                        f'{"Perfil en revisión: " if not creador_perfil.activo else ""}'
-                        f'aparecerá en catálogo cuando esté activo y marcado como publicar.',
+                        f'Curso «{curso.nombre}» creado. Márcalo como publicar para verlo en el catálogo.',
                     )
                 return redirect('/studio/creador/panel/')
         elif accion == 'precio':
@@ -552,13 +550,10 @@ def creador_registro(request):
                 user=cuenta.user,
                 nombre_publico=nombre,
                 bio=bio,
-                activo=False,
+                activo=True,
             )
             iniciar_sesion_cuenta(request, cuenta)
-            messages.success(
-                request,
-                'Solicitud recibida. El equipo eki activará tu espacio de creador pronto.',
-            )
+            messages.success(request, 'Perfil creado. Ya puedes publicar cursos.')
             return redirect('/studio/creador/panel/')
         error = err or 'No se pudo crear la cuenta.'
 

@@ -56,8 +56,8 @@ class CreadorStudio(models.Model):
     slug = models.SlugField(max_length=80, unique=True, blank=True)
     bio = models.TextField(blank=True, default='')
     activo = models.BooleanField(
-        default=False,
-        help_text='Revisión eki antes de publicar en catálogo.',
+        default=True,
+        help_text='Perfil listo para publicar en catálogo.',
     )
     wompi_recipient_id = models.CharField(
         max_length=120,

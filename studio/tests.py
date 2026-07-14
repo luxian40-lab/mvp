@@ -192,8 +192,7 @@ class StudioTests(TestCase):
             'bio': 'Bio',
         })
         creador = CreadorStudio.objects.get(user__username='creador@test.com')
-        creador.activo = True
-        creador.save(update_fields=['activo'])
+        self.assertTrue(creador.activo)
 
         r = self.http.post('/studio/creador/panel/', {
             'accion': 'crear',

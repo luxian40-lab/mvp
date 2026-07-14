@@ -8,10 +8,9 @@
     <div class="eki-hero-bleed__inner">
         <p class="eki-brand-hero">aprende</p>
         <h1>Tu aula con WhatsApp</h1>
-        <p class="eki-lead">Lecciones, tareas y avance de tu programa — el aula va junto al chat; Studio es otro producto (cursos y creadores).</p>
+        <p class="eki-lead">Lecciones, tareas y avance de tu programa — junto al chat de WhatsApp.</p>
         <div class="eki-hero-actions">
-            <a class="eki-btn eki-btn--on-dark" href="{% url 'aprende_estudiante_login' %}">Ingresar (WhatsApp)</a>
-            <a class="eki-btn eki-btn--on-dark" href="/studio/cuenta/login/?next=/aprende/estudiante/" style="background:transparent;border:1px solid rgba(255,255,255,0.55);">Entrar con Studio</a>
+            <a class="eki-btn eki-btn--on-dark" href="{% url 'aprende_estudiante_login' %}">Ingresar</a>
         </div>
     </div>
 </section>
@@ -20,7 +19,6 @@
     <p class="eki-landing-promise">Espacio para estudiar y entregar tareas: contenido de tu organización, progreso claro y sesión protegida.</p>
     <p class="eki-landing-note">
         ¿Docente o coordinador? <a href="{% url 'aprende_profesor_login' %}">Acceso docente</a>
-        · ¿Quieres comprar o publicar cursos? <a href="/studio/">eki Studio</a>
     </p>
 </section>
 {% endblock %}
