@@ -3424,7 +3424,20 @@ def _procesar_twilio_webhook(post_data):
         texto_norm = normalizar_texto(msg_body)
 
         # Si el usuario quedó en estado legacy por PQRS/corrección, normalizar
-        # para que "listo" retome el curso sin falso "sin curso".
+        # chat a ACTIVO para que "listo" retome el curso. NUNCA pisar estados
+        # de agentes (Darío / facilitadora / tutor): eso saltaba la evaluación.
+        _ESTADOS_AGENTE_NO_FORZAR = frozenset({
+            'completado',
+            'esperando_respuesta_asistente',
+            'esperando_respuesta_reto',
+            'esperando_respuesta_tutor_ia',
+            'esperando_respuesta_progreso',
+            'esperando_respuesta_modulo',
+            'esperando_respuesta_pregunta_abierta_final',
+            'esperando_seleccion_curso',
+            'curso_finalizado',
+            'esperando_codigo_empleabilidad',
+        })
         if texto_norm in {"listo", "continuar"}:
             from .models import ProgresoEstudiante
             if ProgresoEstudiante.objects.filter(
@@ -3434,7 +3447,7 @@ def _procesar_twilio_webhook(post_data):
                 if estudiante.estado_chat != "ACTIVO":
                     estudiante.estado_chat = "ACTIVO"
                     cambios.append("estado_chat")
-                if estudiante.estado_onboarding not in ("completado",):
+                if estudiante.estado_onboarding not in _ESTADOS_AGENTE_NO_FORZAR:
                     estudiante.estado_onboarding = "completado"
                     cambios.append("estado_onboarding")
                 if cambios:
@@ -4644,23 +4657,33 @@ def _procesar_twilio_webhook(post_data):
             print(f"🛡️ Bloqueado por seguridad/habeas data", flush=True)
             texto_respuesta = respuesta_seguridad
         else:
-            # Si el contexto sigue en Darío pero el estado quedó desincronizado, continuar_leccion
-            # podía ejecutarse antes que la rama del asistente y saltar la facilitadora.
+            # Si el contexto de agente quedó y el estado se desincronizó, no caer
+            # en continuar_leccion (saltaría Darío / facilitadora).
             try:
-                _ctx_dario_sync = estudiante.contexto_temporal or {}
-                if _ctx_dario_sync.get('tipo') == 'asistente_dario':
-                    if estudiante.estado_onboarding != 'esperando_respuesta_asistente':
-                        _ob_prev = estudiante.estado_onboarding
-                        estudiante.estado_onboarding = 'esperando_respuesta_asistente'
-                        estudiante.save(update_fields=['estado_onboarding'])
-                        logger.warning(
-                            "🔄 Darío: estado resincronizado %s → esperando_respuesta_asistente "
-                            "(ctx=asistente_dario) estudiante_id=%s",
-                            _ob_prev,
-                            estudiante.id,
-                        )
+                _ctx_agente_sync = estudiante.contexto_temporal or {}
+                _tipo_ctx = _ctx_agente_sync.get('tipo')
+                if _tipo_ctx == 'asistente_dario' and estudiante.estado_onboarding != 'esperando_respuesta_asistente':
+                    _ob_prev = estudiante.estado_onboarding
+                    estudiante.estado_onboarding = 'esperando_respuesta_asistente'
+                    estudiante.save(update_fields=['estado_onboarding'])
+                    logger.warning(
+                        "🔄 Darío: estado resincronizado %s → esperando_respuesta_asistente "
+                        "(ctx=asistente_dario) estudiante_id=%s",
+                        _ob_prev,
+                        estudiante.id,
+                    )
+                elif _tipo_ctx == 'reto_facilitador' and estudiante.estado_onboarding != 'esperando_respuesta_reto':
+                    _ob_prev = estudiante.estado_onboarding
+                    estudiante.estado_onboarding = 'esperando_respuesta_reto'
+                    estudiante.save(update_fields=['estado_onboarding'])
+                    logger.warning(
+                        "🔄 Facilitadora: estado resincronizado %s → esperando_respuesta_reto "
+                        "(ctx=reto_facilitador) estudiante_id=%s",
+                        _ob_prev,
+                        estudiante.id,
+                    )
             except Exception as e:
-                logger.warning("⚠️ Darío sync omitido: %s", e)
+                logger.warning("⚠️ Sync agente pedagógico omitido: %s", e)
 
             if estudiante.estado_onboarding == 'esperando_codigo_empleabilidad':
                 from .models import AliadoEmpleabilidad, MisionEmpleabilidad
@@ -5125,6 +5148,13 @@ def _procesar_twilio_webhook(post_data):
                     texto_respuesta = (
                         "⚠️ No pude escuchar tu audio. Por favor intenta de nuevo "
                         "o escríbeme tu respuesta al reto.\n\n"
+                        "✍️ _Escriba o envíe un audio con su respuesta._"
+                    )
+                elif _mensaje_indica_listo(msg_body):
+                    # *listo* no es respuesta al reto (antes se "evaluaba" o se saltaba el avance).
+                    texto_respuesta = (
+                        "📋 Para el reto necesito su respuesta en texto o audio "
+                        "(una idea concreta). Cuando envíe esa respuesta, la facilitadora la revisa.\n\n"
                         "✍️ _Escriba o envíe un audio con su respuesta._"
                     )
                 else:

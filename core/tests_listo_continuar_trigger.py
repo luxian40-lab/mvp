@@ -203,3 +203,93 @@ class DaríoHandoffContinuarTests(TestCase):
                 self.assertIn('Reto de prueba', texto)
                 self.assertNotIn('No entendí', texto)
 
+
+class FacilitadoraNoSaltaConListoTests(TestCase):
+    """Regresión prod: listo no debe forzar completado ni saltar la facilitadora."""
+
+    def setUp(self):
+        self.est = Estudiante.objects.create(
+            cedula='10007766',
+            nombre='Facil Gate',
+            telefono='573007766554',
+            acepto_terminos=True,
+            estado_chat='ACTIVO',
+            estado_onboarding='esperando_respuesta_reto',
+        )
+        self.curso = Curso.objects.create(
+            nombre='Curso Facil',
+            dias_espera_entre_modulos=0,
+            usar_agentes_ia=True,
+        )
+        self.mod = Modulo.objects.create(
+            curso=self.curso,
+            numero=1,
+            titulo='M1',
+            descripcion='D',
+            contenido='C',
+        )
+        self.prog = ProgresoEstudiante.objects.create(
+            estudiante=self.est,
+            curso=self.curso,
+            modulo_actual=self.mod,
+        )
+        self.est.contexto_temporal = {
+            'tipo': 'reto_facilitador',
+            'reto_texto': '¿Qué haría usted?',
+            'modulos_reto_ids': [self.mod.id],
+            'progreso_id': self.prog.id,
+            'es_final': False,
+        }
+        self.est.save(update_fields=['contexto_temporal'])
+
+    def test_listo_durante_reto_no_avanza_ni_evalua(self):
+        from core.views import _procesar_twilio_webhook
+
+        mock_instance = MagicMock()
+        mock_instance.messages.create.return_value = MagicMock(sid='SM_facil_listo')
+        FakeTwilioClient = MagicMock(return_value=mock_instance)
+
+        with _twilio_client_patch(FakeTwilioClient):
+            _procesar_twilio_webhook(
+                {
+                    'Body': 'listo',
+                    'From': 'whatsapp:+573007766554',
+                    'To': 'whatsapp:+14155238886',
+                    'MessageSid': 'SM_facil_listo',
+                    'NumMedia': '0',
+                }
+            )
+
+        self.est.refresh_from_db()
+        self.assertEqual(self.est.estado_onboarding, 'esperando_respuesta_reto')
+        bodies = [c.kwargs.get('body', '') for c in mock_instance.messages.create.call_args_list]
+        texto = ' '.join(bodies)
+        self.assertIn('texto o audio', texto.lower())
+        self.assertNotIn('módulo se está cargando', texto.lower())
+        self.assertNotIn('Combinar redes', texto)
+
+    @patch('core.tutor_ia_modulo.evaluar_reto_facilitador', return_value=(8, 'Buen enfoque en autocuidado.'))
+    def test_respuesta_real_evalua_facilitadora(self, _mock_eval):
+        from core.views import _procesar_twilio_webhook
+
+        mock_instance = MagicMock()
+        mock_instance.messages.create.return_value = MagicMock(sid='SM_facil_ans')
+        FakeTwilioClient = MagicMock(return_value=mock_instance)
+
+        with _twilio_client_patch(FakeTwilioClient):
+            _procesar_twilio_webhook(
+                {
+                    'Body': 'Practicaría hablarme con cariño y limitar comparaciones en redes.',
+                    'From': 'whatsapp:+573007766554',
+                    'To': 'whatsapp:+14155238886',
+                    'MessageSid': 'SM_facil_ans',
+                    'NumMedia': '0',
+                }
+            )
+
+        self.est.refresh_from_db()
+        self.assertEqual(self.est.estado_onboarding, 'completado')
+        bodies = [c.kwargs.get('body', '') for c in mock_instance.messages.create.call_args_list]
+        texto = ' '.join(bodies)
+        self.assertIn('Buen enfoque', texto)
+

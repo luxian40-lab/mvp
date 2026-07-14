@@ -17,7 +17,9 @@ from core.models import (
     Estudiante,
     Modulo,
     ModuloCompletado,
+    PasoModulo,
     ProgresoEstudiante,
+    SeccionModulo,
 )
 from core.models_certificados import Certificado
 
@@ -111,6 +113,30 @@ class AvanceResetServiceTests(TestCase):
         self.assertEqual(prog2.modulo_actual_id, self.m2.id)
         self.assertEqual(prog2.modulos_completados.count(), 1)
 
+    def test_ajustar_hasta_microcontenido(self):
+        sec1 = SeccionModulo.objects.create(modulo=self.m2, orden=1, titulo='Intro')
+        sec2 = SeccionModulo.objects.create(modulo=self.m2, orden=2, titulo='Práctica')
+        PasoModulo.objects.create(
+            modulo=self.m2, seccion=sec1, orden=1, titulo='Micro A',
+            contenido='Texto A', tipo=PasoModulo.TIPO_CONTENIDO,
+        )
+        p2 = PasoModulo.objects.create(
+            modulo=self.m2, seccion=sec2, orden=2, titulo='Micro B',
+            contenido='Texto B', tipo=PasoModulo.TIPO_CONTENIDO,
+        )
+        resultado = ajustar_avance_hasta_modulo(
+            self.est, self.curso, self.m2, paso_destino=p2,
+        )
+        self.progreso.refresh_from_db()
+        self.assertEqual(self.progreso.modulo_actual_id, self.m2.id)
+        self.assertEqual(self.progreso.paso_actual_modulo, 2)
+        self.assertFalse(self.progreso.esperando_respuesta_evaluacion_paso)
+        self.assertEqual(resultado['paso_actual_modulo'], 2)
+        from core.avance_reset_service import etiqueta_paso_actual
+        label = etiqueta_paso_actual(self.progreso)
+        self.assertIn('Sec.2', label)
+        self.assertIn('Micro B', label)
+
 
 class AvanceResetAdminTests(TestCase):
     def setUp(self):
@@ -137,6 +163,7 @@ class AvanceResetAdminTests(TestCase):
         self.http = Client()
 
     @override_settings(
+        SECURE_SSL_REDIRECT=False,
         STORAGES={
             'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
             'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
@@ -151,6 +178,7 @@ class AvanceResetAdminTests(TestCase):
         self.assertContains(r, 'Curso completo')
 
     @override_settings(
+        SECURE_SSL_REDIRECT=False,
         STORAGES={
             'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
             'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
@@ -173,3 +201,59 @@ class AvanceResetAdminTests(TestCase):
         self.assertFalse(self.progreso.completado)
         self.assertEqual(self.progreso.modulos_completados.count(), 0)
         self.assertTrue(modulo_disponible_por_calendario(self.est, self.m1))
+
+    @override_settings(
+        SECURE_SSL_REDIRECT=False,
+        STORAGES={
+            'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+            'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+        },
+    )
+    def test_post_ajusta_hasta_micro(self):
+        sec = SeccionModulo.objects.create(modulo=self.m1, orden=1, titulo='Bloque')
+        PasoModulo.objects.create(
+            modulo=self.m1, seccion=sec, orden=1, titulo='Uno',
+            contenido='c1', tipo=PasoModulo.TIPO_CONTENIDO,
+        )
+        p2 = PasoModulo.objects.create(
+            modulo=self.m1, seccion=sec, orden=2, titulo='Dos',
+            contenido='c2', tipo=PasoModulo.TIPO_CONTENIDO,
+        )
+        self.http.login(username='admin_av', password='pass')
+        r = self.http.post('/admin/ajustar-avance/', {
+            'action': 'ajustar',
+            'cliente': str(self.cliente.id),
+            'curso': str(self.curso.id),
+            'modo': 'modulo',
+            'modulo_destino': str(self.m1.id),
+            'paso_destino': str(p2.id),
+            'estudiantes': [str(self.est.id)],
+            'quitar_certificado': 'on',
+            'quitar_examen': 'on',
+        })
+        self.assertEqual(r.status_code, 302)
+        self.progreso.refresh_from_db()
+        self.assertEqual(self.progreso.paso_actual_modulo, 2)
+
+    @override_settings(
+        SECURE_SSL_REDIRECT=False,
+        STORAGES={
+            'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+            'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+        },
+    )
+    def test_pagina_muestra_selector_micro(self):
+        sec = SeccionModulo.objects.create(modulo=self.m1, orden=1, titulo='Autocuidado')
+        PasoModulo.objects.create(
+            modulo=self.m1, seccion=sec, orden=1, titulo='Respiración',
+            contenido='Texto', tipo=PasoModulo.TIPO_CONTENIDO,
+        )
+        self.progreso.paso_actual_modulo = 1
+        self.progreso.save(update_fields=['paso_actual_modulo'])
+        self.http.login(username='admin_av', password='pass')
+        url = f'/admin/ajustar-avance/?cliente={self.cliente.id}&curso={self.curso.id}'
+        r = self.http.get(url)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Sección / microcontenido')
+        self.assertContains(r, 'Respiración')
+        self.assertContains(r, 'paso_destino')

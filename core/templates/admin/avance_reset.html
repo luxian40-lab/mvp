@@ -12,13 +12,15 @@
 .avance-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.15rem 1.25rem; margin-bottom: 1.25rem; }
 .avance-panel h2 { margin: 0 0 0.5rem; font-size: 1.05rem; }
 .avance-opciones { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; margin: 1rem 0; }
-.avance-opciones label { font-size: 0.875rem; }
+.avance-opciones label { font-size: 0.875rem; display: block; margin-bottom: 0.25rem; }
+.avance-opciones select { padding: 0.4rem; border-radius: 8px; border: 1px solid #e2e8f0; min-width: 14rem; max-width: 28rem; }
 .avance-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
 .avance-table th { text-align: left; font-size: 0.7rem; text-transform: uppercase; color: #64748b; padding: 0.5rem 0.4rem; border-bottom: 1px solid #e2e8f0; }
 .avance-table td { padding: 0.55rem 0.4rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
 .badge-ok { color: #15803d; font-weight: 600; }
 .badge-warn { color: #b45309; font-weight: 600; }
 .badge-cert { color: #7c3aed; font-size: 0.78rem; }
+.paso-lbl { color: #475569; font-size: 0.78rem; max-width: 18rem; }
 </style>
 {% endblock %}
 
@@ -27,7 +29,7 @@
     <header class="eki-cobertura-header">
         <div>
             <h1>{{ titulo }}</h1>
-            <p class="sub">Corrija avance por curso sin eliminar estudiantes. Útil si alguien terminó un curso en construcción o sin drip configurado.</p>
+            <p class="sub">Corrija avance por curso sin eliminar estudiantes. Elija módulo y, si hay microcontenidos, la sección/paso donde deben retomar.</p>
         </div>
     </header>
 
@@ -59,9 +61,9 @@
     <p class="sub">Seleccione cliente y curso para ver y ajustar avances.</p>
     {% elif curso %}
     <div class="avance-alert">
-        <strong>Cómo funciona:</strong> elige estudiantes y el módulo donde deben quedar.
+        <strong>Cómo funciona:</strong> elija estudiantes, el módulo y (opcional) el microcontenido.
         Se borran los completados de ese módulo en adelante (no la persona).
-        Cuando escriban <em>listo</em> en WhatsApp, el bot les envía ese módulo.
+        Cuando escriban <em>listo</em> en WhatsApp, el bot les envía desde ese punto.
     </div>
 
     <form method="post" class="avance-panel" id="form-ajustar" onsubmit="return confirm('¿Ajustar el avance de los estudiantes marcados? Esta acción no se puede deshacer automáticamente.');">
@@ -75,10 +77,16 @@
         <div class="avance-opciones">
             <div>
                 <label><input type="radio" name="modo" value="modulo" checked> Dejar en módulo</label>
-                <select name="modulo_destino" id="modulo_destino" style="margin-left:0.5rem;padding:0.4rem;border-radius:8px;border:1px solid #e2e8f0;">
+                <select name="modulo_destino" id="modulo_destino">
                     {% for m in modulos %}
                     <option value="{{ m.id }}">M{{ m.numero }} — {{ m.titulo }}</option>
                     {% endfor %}
+                </select>
+            </div>
+            <div id="wrap-paso-destino">
+                <label for="paso_destino">Sección / microcontenido</label>
+                <select name="paso_destino" id="paso_destino">
+                    <option value="">Inicio del módulo (primer micro)</option>
                 </select>
             </div>
             <div>
@@ -99,6 +107,7 @@
                         <th style="width:2rem;"></th>
                         <th>Estudiante</th>
                         <th>Módulo actual</th>
+                        <th>Sección / micro</th>
                         <th>Completados</th>
                         <th>Estado</th>
                     </tr>
@@ -118,6 +127,13 @@
                             <span style="color:#94a3b8;">Sin inicio</span>
                             {% endif %}
                         </td>
+                        <td class="paso-lbl">
+                            {% if fila.paso_actual_label %}
+                            {{ fila.paso_actual_label }}
+                            {% else %}
+                            <span style="color:#94a3b8;">—</span>
+                            {% endif %}
+                        </td>
                         <td>{{ fila.modulos_completados }} / {{ modulos|length }}</td>
                         <td>
                             {% if fila.completado %}
@@ -131,7 +147,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="5">No hay estudiantes activos en este cliente.</td></tr>
+                    <tr><td colspan="6">No hay estudiantes activos en este cliente.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -141,6 +157,7 @@
             <button type="submit" class="eki-btn eki-btn-primary">Ajustar avance seleccionado</button>
         </div>
     </form>
+    {{ pasos_por_modulo|json_script:"pasos-por-modulo-data" }}
     {% endif %}
 </div>
 
@@ -149,13 +166,56 @@
     var form = document.getElementById('form-ajustar');
     if (!form) return;
     var moduloSelect = document.getElementById('modulo_destino');
-    form.querySelectorAll('input[name=modo]').forEach(function (radio) {
-        radio.addEventListener('change', function () {
-            if (moduloSelect) {
-                moduloSelect.disabled = radio.value === 'reiniciar';
-            }
+    var pasoSelect = document.getElementById('paso_destino');
+    var wrapPaso = document.getElementById('wrap-paso-destino');
+    var dataEl = document.getElementById('pasos-por-modulo-data');
+    var pasosPorModulo = {};
+    try {
+        pasosPorModulo = dataEl ? JSON.parse(dataEl.textContent || '{}') : {};
+    } catch (e) {
+        pasosPorModulo = {};
+    }
+
+    function refillPasos() {
+        if (!pasoSelect || !moduloSelect) return;
+        var mid = String(moduloSelect.value || '');
+        var opts = pasosPorModulo[mid] || [];
+        pasoSelect.innerHTML = '';
+        var first = document.createElement('option');
+        first.value = '';
+        first.textContent = opts.length
+            ? 'Inicio del módulo (primer micro)'
+            : 'Sin microcontenidos (módulo completo)';
+        pasoSelect.appendChild(first);
+        opts.forEach(function (p) {
+            var o = document.createElement('option');
+            o.value = String(p.id);
+            o.textContent = p.label;
+            pasoSelect.appendChild(o);
         });
+        pasoSelect.disabled = !opts.length;
+    }
+
+    function syncModo() {
+        var reiniciar = form.querySelector('input[name=modo]:checked');
+        var off = reiniciar && reiniciar.value === 'reiniciar';
+        if (moduloSelect) moduloSelect.disabled = off;
+        if (pasoSelect) pasoSelect.disabled = off || !(pasosPorModulo[String(moduloSelect && moduloSelect.value)] || []).length;
+        if (wrapPaso) wrapPaso.style.opacity = off ? '0.45' : '1';
+    }
+
+    if (moduloSelect) {
+        moduloSelect.addEventListener('change', function () {
+            refillPasos();
+            syncModo();
+        });
+    }
+    form.querySelectorAll('input[name=modo]').forEach(function (radio) {
+        radio.addEventListener('change', syncModo);
     });
+    refillPasos();
+    syncModo();
+
     var todos = document.getElementById('marcar-todos');
     var ninguno = document.getElementById('marcar-ninguno');
     if (todos) {

@@ -10,8 +10,9 @@ from core.avance_reset_service import (
     ajustar_avance_estudiantes,
     filas_avance_curso,
     modulos_curso_ordenados,
+    opciones_pasos_por_modulo,
 )
-from core.models import Cliente, Curso, Modulo
+from core.models import Cliente, Curso, Modulo, PasoModulo
 
 
 def _cliente_desde_request(request) -> Cliente | None:
@@ -53,12 +54,14 @@ def ajustar_avance_view(request):
     curso = None
     modulos = []
     filas = []
+    pasos_por_modulo = {}
 
     if curso_id:
         try:
             curso = Curso.objects.get(pk=curso_id, cliente=cliente, activo=True)
             modulos = modulos_curso_ordenados(curso)
             filas = filas_avance_curso(cliente, curso)
+            pasos_por_modulo = opciones_pasos_por_modulo(curso)
         except Curso.DoesNotExist:
             messages.error(request, 'Curso no válido para este cliente.')
 
@@ -73,7 +76,9 @@ def ajustar_avance_view(request):
 
         reiniciar = request.POST.get('modo') == 'reiniciar'
         modulo_id = _int_param(request, 'modulo_destino')
+        paso_id = _int_param(request, 'paso_destino')
         modulo_destino = None
+        paso_destino = None
         if not reiniciar:
             if not modulo_id:
                 messages.error(request, 'Elija el módulo donde dejar al estudiante.')
@@ -83,6 +88,14 @@ def ajustar_avance_view(request):
             except Modulo.DoesNotExist:
                 messages.error(request, 'Módulo no válido.')
                 return _redirect_avance(cliente.id, curso_id=curso.id)
+            if paso_id:
+                try:
+                    paso_destino = PasoModulo.objects.select_related('seccion').get(
+                        pk=paso_id, modulo=modulo_destino,
+                    )
+                except PasoModulo.DoesNotExist:
+                    messages.error(request, 'Microcontenido no válido para ese módulo.')
+                    return _redirect_avance(cliente.id, curso_id=curso.id)
 
         quitar_cert = request.POST.get('quitar_certificado') == 'on'
         quitar_examen = request.POST.get('quitar_examen') == 'on'
@@ -92,6 +105,7 @@ def ajustar_avance_view(request):
                 seleccionados,
                 curso,
                 modulo_destino,
+                paso_destino=paso_destino,
                 reiniciar=reiniciar,
                 quitar_certificado=quitar_cert,
                 quitar_resultado_examen=quitar_examen,
@@ -102,8 +116,12 @@ def ajustar_avance_view(request):
 
         if reiniciar:
             destino_txt = 'desde el inicio'
+        elif paso_destino:
+            destino_txt = (
+                f'en M{modulo_destino.numero}, micro #{paso_destino.orden}'
+            )
         else:
-            destino_txt = f'en M{modulo_destino.numero}'
+            destino_txt = f'en M{modulo_destino.numero} (primer micro)'
         messages.success(
             request,
             f'Avance ajustado para {len(resultados)} estudiante(s) {destino_txt}. '
@@ -120,4 +138,5 @@ def ajustar_avance_view(request):
         'modulos': modulos,
         'filas': filas,
         'filtro_curso': curso_id,
+        'pasos_por_modulo': pasos_por_modulo,
     })
