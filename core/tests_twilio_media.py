@@ -1,15 +1,16 @@
-"""Tests for Twilio media helpers and 63021 fallback."""
+"""Tests for Twilio media helpers (sin links S3 en WhatsApp)."""
 from django.test import SimpleTestCase, TestCase
 
 from core.models import WhatsappLog
 from core.twilio_media import (
     cuerpo_con_enlace_archivo,
     es_error_media_twilio,
+    es_url_s3_o_firmada,
     extraer_media_url_de_mensaje,
+    media_requiere_enlace_previo,
     mensaje_log_con_media,
     normalizar_media_url_s3,
     url_no_es_media_directo,
-    ya_envio_fallback_enlace,
 )
 
 
@@ -35,17 +36,23 @@ class TwilioMediaHelpersTests(SimpleTestCase):
         self.assertIn('[MEDIA:https://cdn.example/a.mp4]', msg)
         self.assertEqual(extraer_media_url_de_mensaje(msg), 'https://cdn.example/a.mp4')
 
-    def test_cuerpo_enlace(self):
-        body = cuerpo_con_enlace_archivo('Ver material', 'https://cdn.example/a.mp4')
+    def test_cuerpo_enlace_permite_externo_bloquea_s3(self):
+        body = cuerpo_con_enlace_archivo('Ver material', 'https://youtu.be/abc')
         self.assertIn('📎 Archivo:', body)
-        self.assertIn('https://cdn.example/a.mp4', body)
+        self.assertIn('https://youtu.be/abc', body)
 
-    def test_media_requiere_enlace_previo_solo_video(self):
-        from core.twilio_media import media_requiere_enlace_previo
+        s3 = 'https://eki-produccion.s3.us-east-2.amazonaws.com/media/a.mp4'
+        self.assertTrue(es_url_s3_o_firmada(s3))
+        body_s3 = cuerpo_con_enlace_archivo('Ver material', s3)
+        self.assertEqual(body_s3, 'Ver material')
+        self.assertNotIn('amazonaws.com', body_s3)
 
-        self.assertTrue(media_requiere_enlace_previo('https://x/a.mp4'))
+        firmada = 'https://eki-produccion.s3.us-east-2.amazonaws.com/x.mp4?X-Amz-Signature=abc'
+        self.assertEqual(cuerpo_con_enlace_archivo('hola', firmada), 'hola')
+
+    def test_media_requiere_enlace_previo_desactivado(self):
+        self.assertFalse(media_requiere_enlace_previo('https://x/a.mp4'))
         self.assertFalse(media_requiere_enlace_previo('https://x/a.png'))
-        self.assertFalse(media_requiere_enlace_previo('https://x/a.pdf'))
 
     def test_mp4_faststart_remux_mueve_moov(self):
         from core.twilio_media import mp4_necesita_faststart, remux_mp4_faststart
@@ -63,11 +70,7 @@ class TwilioMediaHelpersTests(SimpleTestCase):
 
 
 class TwilioMediaCallbackFallbackTests(TestCase):
-    def test_ya_envio_fallback(self):
-        log = WhatsappLog(mensaje='x', error_detalle='63021 | FALLBACK_ENLACE')
-        self.assertTrue(ya_envio_fallback_enlace(log))
-
-    def test_callback_63021_reenvia_enlace(self):
+    def test_callback_63021_no_envia_enlace_s3(self):
         from unittest.mock import patch
 
         from core.views import _registrar_estado_twilio_callback
@@ -81,20 +84,14 @@ class TwilioMediaCallbackFallbackTests(TestCase):
             estado='SENT',
         )
         with patch('core.utils.enviar_whatsapp_twilio') as send_mock:
-            send_mock.return_value = {'success': True}
             _registrar_estado_twilio_callback({
                 'MessageSid': log.mensaje_id,
                 'MessageStatus': 'undelivered',
                 'ErrorCode': '63021',
                 'ErrorMessage': 'Channel invalid content error',
             })
-            send_mock.assert_called_once()
-            args, kwargs = send_mock.call_args
-            self.assertEqual(args[0], '573026480629')
-            self.assertIn(url, args[1])
-            self.assertIn('📎 Archivo:', args[1])
+            send_mock.assert_not_called()
 
         log.refresh_from_db()
         self.assertEqual(log.estado, 'UNDELIVERED')
         self.assertIn('63021', log.error_detalle or '')
-        self.assertIn('FALLBACK_ENLACE', log.error_detalle or '')

@@ -38,13 +38,30 @@ def normalizar_media_url_s3(url: Optional[str]) -> Optional[str]:
     return clean
 
 
+def es_url_s3_o_firmada(url: Optional[str]) -> bool:
+    """True si la URL apunta a S3 / firma AWS (no debe ir en el texto de WhatsApp)."""
+    u = (url or '').strip().lower()
+    if not u:
+        return False
+    if 'amazonaws.com' in u or 'x-amz-' in u or 's3.' in u:
+        return True
+    if '.s3.' in u or 's3-' in u:
+        return True
+    return False
+
+
 def cuerpo_con_enlace_archivo(body: str, media_url: str) -> str:
+    """
+    Añade enlace al cuerpo solo si NO es S3/firmado.
+    Política: nunca enviar links de S3 por WhatsApp (ni públicos ni firmados).
+    Sirve para YouTube/Drive/páginas externas.
+    """
     base = (body or '').strip()
     url = (media_url or '').strip()
-    extra = f'📎 Archivo: {url}' if url else ''
-    if not extra:
+    if not url or es_url_s3_o_firmada(url):
         return base
-    if url and url in base:
+    extra = f'📎 Archivo: {url}'
+    if url in base:
         return base
     return f'{base}\n\n{extra}'.strip() if base else extra
 
@@ -264,13 +281,10 @@ def es_video_url(url: Optional[str]) -> bool:
 
 def media_requiere_enlace_previo(url: Optional[str]) -> bool:
     """
-    Videos: WhatsApp a veces rechaza el adjunto (63021) y marca TODO el mensaje
-    undelivered (incluido el caption). Hay que mandar el enlace en un SMS de texto aparte.
+    Desactivado: no enviamos links S3 por WhatsApp.
+    El material solo se entrega como MediaUrl (adjunto).
     """
-    if not url:
-        return False
-    u = url.split('?', 1)[0].lower()
-    return u.endswith(('.mp4', '.m4v', '.mov', '.3gp'))
+    return False
 
 
 def mp4_bitstream_ilegible(data: bytes) -> bool:

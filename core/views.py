@@ -2648,57 +2648,27 @@ def _escape_twiml(text):
 
 
 def _reenviar_media_fallida_como_enlace(log, error_code: str = '') -> None:
-    """Si WhatsApp rechazó el adjunto (p. ej. 63021), manda el archivo como enlace de texto."""
-    from .twilio_media import (
-        cuerpo_con_enlace_archivo,
-        es_error_media_twilio,
-        extraer_media_url_de_mensaje,
-        marcar_fallback_enlace,
-        ya_envio_fallback_enlace,
-    )
+    """
+    Política: no reenviar archivos como link S3 por WhatsApp.
+    Solo deja trazabilidad del fallo (63021/63019/…).
+    """
+    from .twilio_media import es_error_media_twilio
 
     if not es_error_media_twilio(error_code):
         return
-    if ya_envio_fallback_enlace(log):
-        return
-    media_url = extraer_media_url_de_mensaje(getattr(log, 'mensaje', None))
-    if not media_url:
-        logger.warning(
-            '📎 Callback media fallida sin [MEDIA:url] en log | sid=%s code=%s',
-            getattr(log, 'mensaje_id', ''),
-            error_code,
-        )
-        return
-    telefono = (getattr(log, 'telefono', None) or '').strip()
-    if not telefono or telefono == 'desconocido':
-        return
-    try:
-        from .utils import enviar_whatsapp_twilio
-
-        body = cuerpo_con_enlace_archivo(
-            'No se pudo adjuntar el archivo en WhatsApp. Ábralo con este enlace:',
-            media_url,
-        )
-        resultado = enviar_whatsapp_twilio(telefono, body, media_url=None)
-        log.error_detalle = marcar_fallback_enlace(
-            f"{error_code} | {(getattr(log, 'error_detalle', None) or '')}".strip(' |')
-        )
-        log.save(update_fields=['error_detalle'])
-        logger.info(
-            '📎 Fallback enlace enviado tras %s | telefono=%s ok=%s',
-            error_code,
-            telefono,
-            bool(resultado and resultado.get('success')),
-        )
-    except Exception as exc:
-        logger.warning('📎 No se pudo reenviar media como enlace: %s', exc)
+    logger.warning(
+        '📎 Media undelivered/failed (sin fallback enlace S3) | sid=%s code=%s tel=%s',
+        getattr(log, 'mensaje_id', ''),
+        error_code,
+        getattr(log, 'telefono', ''),
+    )
 
 
 def _registrar_estado_twilio_callback(post_data):
     """
     Actualiza estado de WhatsappLog (SENT) con callbacks de Twilio.
     Permite métricas de entregado/abierto/fallido por mensaje.
-    Ante 63019/63021/63005 reintenta una vez el archivo como enlace de texto.
+    Ante 63019/63021/63005 solo registra el fallo (no envía links S3).
     """
     try:
         sid = (
@@ -2809,70 +2779,45 @@ def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, 
     from .twilio_media import (
         cuerpo_con_enlace_archivo,
         es_error_media_twilio,
-        media_requiere_enlace_previo,
+        es_url_s3_o_firmada,
         normalizar_media_url_s3,
         preparar_url_media_whatsapp,
         url_no_es_media_directo,
     )
 
     body_limpio = str(body or '').strip()
-    media_original = normalizar_media_url_s3(media_url)
-    media_limpia = media_original
-    # Páginas (YouTube/Drive): no adjuntar; mandar enlace de una.
+    media_limpia = normalizar_media_url_s3(media_url)
+    # Páginas (YouTube/Drive): no adjuntar; solo enlace externo (nunca S3).
     if media_limpia and url_no_es_media_directo(media_limpia):
-        body_limpio = cuerpo_con_enlace_archivo(body_limpio or TWILIO_CAPTION_ADJUNTO, media_limpia)
+        if not es_url_s3_o_firmada(media_limpia):
+            body_limpio = cuerpo_con_enlace_archivo(body_limpio or TWILIO_CAPTION_ADJUNTO, media_limpia)
+        else:
+            logger.warning('📎 URL página apunta a S3; no se envía en texto | %s', media_limpia[:120])
         media_limpia = None
-        media_original = None
     elif media_limpia:
         try:
             preparada = preparar_url_media_whatsapp(media_limpia)
-            # None = video ilegible: solo enlace de texto (no MediaUrl → evita 63021).
-            if preparada is None and media_requiere_enlace_previo(media_limpia):
+            # None = video ilegible: no adjuntar y no enviar link S3.
+            if preparada is None:
                 logger.warning(
-                    '📎 Video no adjuntable; se enviará solo enlace | %s',
+                    '📎 Video no adjuntable; se omite media (sin enlace S3) | %s',
                     media_limpia[:120],
                 )
-                media_limpia = None  # no adjunto; media_original se usa en enlace previo
+                media_limpia = None
             else:
                 media_limpia = preparada or media_limpia
-                media_original = media_limpia
         except Exception as prep_err:
             logger.warning('📎 preparar_url_media_whatsapp falló (se envía original): %s', prep_err)
-    if not body_limpio and (media_limpia or media_original):
+    if not body_limpio and media_limpia:
         body_limpio = TWILIO_CAPTION_ADJUNTO
+    # Sin media y sin texto útil: no spamear al estudiante.
+    if not body_limpio and not media_limpia:
+        return []
 
     enviados = []
     from_limpio = str(from_number or '').strip()
     to_limpio = str(to_number or '').strip()
     status_cb = str(getattr(settings, 'TWILIO_STATUS_CALLBACK_URL', '') or '').strip()
-
-    # Video: primero enlace en texto (sobrevive si el adjunto cae en 63021 undelivered).
-    url_enlace = media_limpia or media_original
-    if url_enlace and media_requiere_enlace_previo(url_enlace):
-        link_body = cuerpo_con_enlace_archivo(
-            '🎥 Material del módulo (enlace por si el video no se reproduce en el chat):',
-            url_enlace,
-        )
-        link_params = {
-            'body': link_body,
-            'from_': from_limpio,
-            'to': to_limpio,
-        }
-        if status_cb:
-            link_params['status_callback'] = status_cb
-        try:
-            link_msg = client.messages.create(**link_params)
-            enviados.append((link_msg, link_body))
-            logger.info('📎 Enlace de video enviado antes del adjunto | sid=%s', getattr(link_msg, 'sid', ''))
-        except Exception as link_err:
-            logger.warning('📎 No se pudo enviar enlace previo de video: %s', link_err)
-
-    # Si no hay adjunto pero sí había video ilegible, el enlace previo ya cubre el material.
-    if not media_limpia and media_original and media_requiere_enlace_previo(media_original):
-        if not body_limpio or body_limpio == TWILIO_CAPTION_ADJUNTO:
-            return enviados
-        # Aún enviar caption/texto del paso sin MediaUrl
-        media_original = None
 
     segmentos = _segmentar_texto_twilio(body_limpio)
 
@@ -2888,7 +2833,7 @@ def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, 
         if status_cb:
             params['status_callback'] = status_cb
 
-        # Adjuntar media solo en el primer segmento.
+        # Adjuntar media solo en el primer segmento (Twilio descarga la URL; el alumno no ve el link).
         if media_limpia and idx == 0:
             params['media_url'] = [media_limpia]
 
@@ -2896,10 +2841,12 @@ def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, 
             mensaje = client.messages.create(**params)
         except Exception as media_err:
             if es_error_media_twilio(media_err) and media_limpia and idx == 0:
+                # Sin fallback a link S3: solo caption/texto.
                 params.pop('media_url', None)
-                params['body'] = cuerpo_con_enlace_archivo(params.get('body') or '', media_limpia)
+                if not (params.get('body') or '').strip():
+                    params['body'] = TWILIO_CAPTION_ADJUNTO
                 logger.warning(
-                    '📎 Media Twilio falló en create (%s); reenviando como enlace | url=%s',
+                    '📎 Media Twilio falló en create (%s); reintento solo texto (sin URL S3) | url=%s',
                     media_err,
                     media_limpia[:120],
                 )

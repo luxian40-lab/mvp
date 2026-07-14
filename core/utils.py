@@ -270,31 +270,9 @@ def enviar_whatsapp_twilio(
             logger.info(f"[MEDIA] Enviando con multimedia: {clean_url}")
 
         from .response_templates import MENSAJE_CAPTION_SOLO_MEDIA as _caption_solo_media
-        from .twilio_media import (
-            cuerpo_con_enlace_archivo,
-            es_error_media_twilio,
-            media_requiere_enlace_previo,
-        )
+        from .twilio_media import es_error_media_twilio
 
         status_cb = str(getattr(settings, 'TWILIO_STATUS_CALLBACK_URL', '') or '').strip()
-
-        if clean_url and media_requiere_enlace_previo(clean_url):
-            link_body = cuerpo_con_enlace_archivo(
-                '🎥 Material del módulo (enlace por si el video no se reproduce en el chat):',
-                clean_url,
-            )
-            link_params = {
-                'from_': twilio_number,
-                'body': link_body,
-                'to': telefono,
-            }
-            if status_cb:
-                link_params['status_callback'] = status_cb
-            try:
-                link_msg = client.messages.create(**link_params)
-                sent_messages.append(link_msg)
-            except Exception as link_err:
-                logger.warning('[MEDIA] enlace previo falló: %s', link_err)
 
         for idx, chunk in enumerate(chunks):
             chunk_eff = (chunk or '').strip()
@@ -315,14 +293,13 @@ def enviar_whatsapp_twilio(
             try:
                 message = client.messages.create(**message_params)
             except Exception as media_err:
-                # 63019 download / 63021 channel invalid / 63005 channel rejected
+                # 63019 / 63021 / 63005: reintento solo texto (nunca link S3 en el body).
                 if es_error_media_twilio(media_err) and clean_url and idx == 0:
                     message_params.pop('media_url', None)
-                    message_params['body'] = cuerpo_con_enlace_archivo(
-                        message_params.get('body') or '', clean_url,
-                    )
+                    if not (message_params.get('body') or '').strip():
+                        message_params['body'] = _caption_solo_media
                     logger.warning(
-                        '[MEDIA] Twilio %s → fallback enlace | %s',
+                        '[MEDIA] Twilio %s → reintento solo texto (sin URL S3) | %s',
                         media_err,
                         clean_url[:120],
                     )
