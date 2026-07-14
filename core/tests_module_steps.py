@@ -1375,3 +1375,56 @@ class ModuloContenidoVsMicrocontenidosTests(TestCase):
         }
         formset = FormSet(data, instance=self.mod)
         self.assertTrue(formset.is_valid(), formset.errors)
+
+    def test_formset_sin_cleaned_data_usa_pasos_en_bd(self):
+        """Regresión: con micros en BD, no exigir contenido aunque el formset no limpie bien."""
+        from core.module_steps import validar_contenido_modulo
+
+        s1 = _seccion(self.mod, 1)
+        paso = PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=s1,
+            orden=1,
+            titulo='Ya guardado',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='Texto del paso',
+        )
+
+        class _FakeForm:
+            prefix = 'pasos-0'
+            cleaned_data = None  # simula form con errores / sin clean
+            data = {}
+            instance = paso
+
+        class _FakeFormSet:
+            forms = [_FakeForm()]
+
+        # No debe lanzar: hay microcontenido persistido
+        validar_contenido_modulo('', self.mod, pasos_formset=_FakeFormSet())
+
+    def test_formset_borrar_ultimo_paso_exige_contenido(self):
+        from django.core.exceptions import ValidationError
+
+        from core.module_steps import validar_contenido_modulo
+
+        s1 = _seccion(self.mod, 1)
+        paso = PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=s1,
+            orden=1,
+            titulo='A borrar',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='x',
+        )
+
+        class _FakeForm:
+            prefix = 'pasos-0'
+            cleaned_data = {'DELETE': True, 'seccion': s1}
+            data = {'pasos-0-DELETE': 'on'}
+            instance = paso
+
+        class _FakeFormSet:
+            forms = [_FakeForm()]
+
+        with self.assertRaises(ValidationError):
+            validar_contenido_modulo('', self.mod, pasos_formset=_FakeFormSet())

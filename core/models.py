@@ -2135,8 +2135,8 @@ class Modulo(models.Model):
         blank=True,
         default='',
         help_text=(
-            'Contenido educativo del módulo completo. Obligatorio si no hay microcontenidos; '
-            'opcional si configuró pasos en la pestaña Microcontenidos.'
+            'Contenido del módulo completo (Legacy). Obligatorio solo sin microcontenidos; '
+            'con pasos en Microcontenidos puede quedar vacío.'
         ),
     )
 

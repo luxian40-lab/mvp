@@ -357,11 +357,21 @@ class ModuloAdminForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        from core.module_steps import cuenta_microcontenidos_modulo
+
         self.fields['contenido'].required = False
-        self.fields['contenido'].help_text = (
-            'Obligatorio si no hay microcontenidos. Opcional si configuró pasos en la pestaña '
-            '«Microcontenidos» (cada uno con sección asignada).'
-        )
+        n_micro = cuenta_microcontenidos_modulo(self.instance)
+        if n_micro > 0:
+            self.fields['contenido'].help_text = (
+                f'Opcional: este módulo ya tiene {n_micro} microcontenido(s). '
+                'Puede dejar este campo vacío; el estudiante recibe el texto de cada paso '
+                'en la pestaña «Microcontenidos». Solo úselo en modo Legacy o como intro extra.'
+            )
+        else:
+            self.fields['contenido'].help_text = (
+                'Obligatorio solo si aún no hay microcontenidos. Tras crear secciones y pasos '
+                'en «Microcontenidos» (cada uno con sección), puede vaciar este campo.'
+            )
 
     def clean_contenido(self):
         from core.module_steps import validar_contenido_modulo
@@ -676,8 +686,8 @@ class ModuloAdmin(admin.ModelAdmin):
             'fields': ('contenido',),
             'description': (
                 'Texto del módulo completo (principal en modo <b>Legacy</b>). '
-                '<b>Obligatorio</b> si no hay filas en <b>Microcontenidos</b>; '
-                '<b>opcional</b> si ya configuró pasos con sección asignada.'
+                'Si ya tiene pasos en <b>Microcontenidos</b>, este campo es <b>opcional</b> '
+                'y puede quedar vacío. Solo es obligatorio cuando el módulo no tiene pasos.'
             ),
         }),
         ('Examen obligatorio', {

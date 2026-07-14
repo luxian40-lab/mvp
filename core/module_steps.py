@@ -174,21 +174,73 @@ def _paso_form_cuenta_como_microcontenido(cleaned_data: dict) -> bool:
     return bool(cleaned_data.get('seccion'))
 
 
+def _paso_form_marcado_borrar(form) -> bool:
+    cd = getattr(form, 'cleaned_data', None) or {}
+    if cd.get('DELETE'):
+        return True
+    data = getattr(form, 'data', None)
+    if data is None:
+        return False
+    return bool(data.get(f'{form.prefix}-DELETE'))
+
+
 def cuenta_microcontenidos_desde_formset(pasos_formset) -> int:
+    """Cuenta pasos válidos en el POST; si el form no limpió, cae al instance guardado."""
     if not pasos_formset:
         return 0
-    return sum(
-        1
-        for form in pasos_formset.forms
-        if form.cleaned_data and _paso_form_cuenta_como_microcontenido(form.cleaned_data)
-    )
+    n = 0
+    for form in pasos_formset.forms:
+        if _paso_form_marcado_borrar(form):
+            continue
+        cd = getattr(form, 'cleaned_data', None)
+        if cd and _paso_form_cuenta_como_microcontenido(cd):
+            n += 1
+            continue
+        # Form con error / vacío: no borrar lo ya persistido con sección.
+        inst = getattr(form, 'instance', None)
+        if inst is not None and getattr(inst, 'pk', None) and getattr(inst, 'seccion_id', None):
+            n += 1
+    return n
+
+
+def ids_pasos_marcados_borrar(pasos_formset) -> set[int]:
+    if not pasos_formset:
+        return set()
+    out: set[int] = set()
+    for form in pasos_formset.forms:
+        if not _paso_form_marcado_borrar(form):
+            continue
+        pk = getattr(getattr(form, 'instance', None), 'pk', None)
+        if pk:
+            out.add(int(pk))
+    return out
+
+
+def cuenta_microcontenidos_efectivos(modulo: Optional[Modulo], *, pasos_formset=None) -> int:
+    """
+    Microcontenidos que quedan tras guardar: POST (formset) + fallback BD
+    (excluye los marcados para borrar). Evita exigir Modulo.contenido cuando
+    ya hay pasos guardados pero el formset no aportó cleaned_data útil.
+    """
+    if pasos_formset is not None:
+        n_form = cuenta_microcontenidos_desde_formset(pasos_formset)
+        if n_form > 0:
+            return n_form
+        if not modulo or not getattr(modulo, 'pk', None):
+            return 0
+        from .models import PasoModulo
+
+        borrados = ids_pasos_marcados_borrar(pasos_formset)
+        qs = PasoModulo.objects.filter(modulo=modulo)
+        if borrados:
+            qs = qs.exclude(pk__in=borrados)
+        return qs.count()
+    return cuenta_microcontenidos_modulo(modulo)
 
 
 def modulo_requiere_contenido_texto(modulo: Optional[Modulo], *, pasos_formset=None) -> bool:
     """True si Modulo.contenido es obligatorio (sin filas de microcontenido)."""
-    if pasos_formset is not None:
-        return cuenta_microcontenidos_desde_formset(pasos_formset) == 0
-    return cuenta_microcontenidos_modulo(modulo) == 0
+    return cuenta_microcontenidos_efectivos(modulo, pasos_formset=pasos_formset) == 0
 
 
 def validar_contenido_modulo(
