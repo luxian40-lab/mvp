@@ -51,6 +51,9 @@ def _nueva_referencia() -> str:
     return f'eki-{secrets.token_hex(12)}'
 
 
+nueva_referencia = _nueva_referencia
+
+
 def crear_intento_pago(cuenta: CuentaAula, curso: Curso) -> AccesoCursoPagado:
     monto = precio_curso_studio(curso)
     return AccesoCursoPagado.objects.create(
@@ -133,17 +136,34 @@ def firma_integridad_checkout(referencia: str, monto_cop: Decimal | int) -> str:
     return hashlib.sha256(raw.encode('utf-8')).hexdigest()
 
 
-def contexto_widget_wompi(acceso: AccesoCursoPagado, *, redirect_url: str) -> dict:
+def contexto_widget_wompi_monto(
+    *,
+    referencia: str,
+    monto_cop: Decimal | int,
+    customer_email: str = '',
+    customer_name: str = '',
+    redirect_url: str,
+) -> dict:
     return {
         'public_key': wompi_llave_publica(),
         'currency': 'COP',
-        'amount_in_cents': monto_en_centavos(acceso.monto_cop),
-        'reference': acceso.wompi_referencia,
-        'integrity': firma_integridad_checkout(acceso.wompi_referencia, acceso.monto_cop),
+        'amount_in_cents': monto_en_centavos(monto_cop),
+        'reference': referencia,
+        'integrity': firma_integridad_checkout(referencia, monto_cop),
         'redirect_url': redirect_url,
-        'customer_email': acceso.cuenta.email or '',
-        'customer_name': acceso.cuenta.nombre_visible or '',
+        'customer_email': customer_email or '',
+        'customer_name': customer_name or '',
     }
+
+
+def contexto_widget_wompi(acceso: AccesoCursoPagado, *, redirect_url: str) -> dict:
+    return contexto_widget_wompi_monto(
+        referencia=acceso.wompi_referencia,
+        monto_cop=acceso.monto_cop,
+        customer_email=acceso.cuenta.email or '',
+        customer_name=acceso.cuenta.nombre_visible or '',
+        redirect_url=redirect_url,
+    )
 
 
 def validar_checksum_webhook(payload: dict, checksum_header: str) -> bool:
@@ -180,7 +200,11 @@ def validar_checksum_webhook(payload: dict, checksum_header: str) -> bool:
     return hmac.compare_digest(alt.lower(), checksum_header.lower())
 
 
-def procesar_evento_wompi(payload: dict) -> AccesoCursoPagado | None:
+def procesar_evento_wompi(payload: dict):
+    """Procesa webhook: AccesoCursoPagado (1 curso) u OrdenStudio (carrito)."""
+    from .carrito_service import marcar_orden_aprobada, marcar_orden_rechazada
+    from .models import OrdenStudio
+
     data = payload.get('data', payload)
     transaction = data.get('transaction') if isinstance(data, dict) else None
     if not isinstance(transaction, dict):
@@ -199,6 +223,18 @@ def procesar_evento_wompi(payload: dict) -> AccesoCursoPagado | None:
 
     if not referencia:
         return None
+
+    orden = OrdenStudio.objects.filter(wompi_referencia=referencia).first()
+    if orden:
+        if estado_wompi in ('APPROVED', 'APROBADA', 'APROBADO'):
+            return marcar_orden_aprobada(
+                orden,
+                wompi_transaccion_id=txn_id,
+                metadata={'webhook': payload},
+            )
+        if estado_wompi in ('DECLINED', 'REJECTED', 'ERROR', 'VOIDED'):
+            return marcar_orden_rechazada(orden, metadata={'webhook': payload})
+        return orden
 
     acceso = AccesoCursoPagado.objects.filter(wompi_referencia=referencia).first()
     if not acceso:

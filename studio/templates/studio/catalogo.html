@@ -26,6 +26,18 @@
         </div>
         {% if c.id in inscritos %}
         <a href="/aprende/estudiante/curso/{{ c.id }}/" class="st-btn st-btn--primary st-btn--sm st-btn--block">Ir al aula</a>
+        {% elif c.precio_studio and c.publicacion_id and cuenta %}
+        <div style="display:flex;flex-direction:column;gap:0.45rem;">
+            <form method="post" action="{% url 'studio_carrito_agregar' c.publicacion_id %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{% url 'studio_carrito' %}">
+                <button type="submit" class="st-btn st-btn--dark st-btn--sm st-btn--block">Agregar al carrito</button>
+            </form>
+            <form method="post" action="{% url 'studio_inscribir' c.id %}">
+                {% csrf_token %}
+                <button type="submit" class="st-btn st-btn--sm st-btn--block">Comprar solo este</button>
+            </form>
+        </div>
         {% else %}
         <form method="post" action="{% url 'studio_inscribir' c.id %}">
             {% csrf_token %}

@@ -12,7 +12,7 @@ Mismo backend Django, mismo deploy en Elastic Beanstalk (`eki-prod-final`), ruta
 
 ```
 1. Entra a studio.eki.technology/studio/
-2. Explora catálogo (cursos con visible_en_studio=True)
+2. Explora catálogo (cursos con **PublicacionStudio** + `visible_en_studio`; no programas B2B solo por flag)
 3. Registro / login: correo + contraseña (o WhatsApp B2B legacy)
 4. Inscribe curso (gratis o pago Wompi) → ProgresoEstudiante
 5. Estudia en aprende.eki.technology/aprende/estudiante/
@@ -63,12 +63,12 @@ Enrutamiento por host en `mvp_project/urls.py`: `studio.eki.technology` redirige
 
 ## Admin — publicar curso en Studio
 
-1. Admin → **Cursos** → editar curso.
-2. Marcar **Publicado en eki Studio** (`visible_en_studio`).
-3. Curso **Activo** y con módulos configurados.
-4. El estudiante debe poder inscribirse solo si el curso es de su cliente o es curso general eki (`cliente=None`).
+El catálogo marketplace **solo** lista cursos con `PublicacionStudio` (creador o alta manual en admin) y `visible_en_studio=True`.  
+Marcar solo el flag en un curso B2B existente **ya no** lo pone en Studio.
 
-El flag `visible_en_aula` quedó como legado; el catálogo web ya no vive en `/aprende/`.
+1. Preferido: panel creador → crea curso nuevo + publicación.
+2. Alternativa admin: crear `PublicacionStudio` para un curso general (`cliente` vacío) y marcar **Publicado en eki Studio**.
+3. Carrito: `/studio/carrito/` — varios cursos pagos → un checkout Wompi (`OrdenStudio`).
 
 Servicio: `studio/catalogo_service.py`.
 

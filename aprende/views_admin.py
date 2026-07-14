@@ -12,8 +12,13 @@ from portal.models import PortalUsuario
 
 
 def _cursos_aula_qs(cliente=None):
+    """Cursos del marketplace Studio (con PublicacionStudio), no flags B2B sueltos."""
     qs = (
-        Curso.objects.filter(activo=True, visible_en_studio=True)
+        Curso.objects.filter(
+            activo=True,
+            visible_en_studio=True,
+            publicacion_studio__isnull=False,
+        )
         .annotate(total_modulos=Count('modulos'))
         .select_related('cliente')
         .order_by('orden', 'nombre')
@@ -45,7 +50,11 @@ def aula_web_admin_view(request):
 
     cursos_aula = list(_cursos_aula_qs(cliente)[:12])
     modulos_recientes_qs = (
-        Modulo.objects.filter(curso__activo=True, curso__visible_en_studio=True)
+        Modulo.objects.filter(
+            curso__activo=True,
+            curso__visible_en_studio=True,
+            curso__publicacion_studio__isnull=False,
+        )
         .select_related('curso', 'curso__cliente')
         .order_by('-id')
     )
@@ -59,6 +68,7 @@ def aula_web_admin_view(request):
         activo=True,
         modulo__curso__activo=True,
         modulo__curso__visible_en_studio=True,
+        modulo__curso__publicacion_studio__isnull=False,
     ).count()
 
     return render(request, 'admin/aula_web.html', {

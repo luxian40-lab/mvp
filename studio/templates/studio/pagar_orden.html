@@ -1,0 +1,50 @@
+{% extends "studio/base.html" %}
+{% block title %}Pagar carrito | eki Studio{% endblock %}
+{% block content %}
+<header class="st-page-intro">
+    <h1>Pagar carrito</h1>
+    <p class="st-lead">Monto: <strong class="st-price">${{ orden.monto_cop|floatformat:0 }} COP</strong> · {{ items|length }} curso{{ items|length|pluralize:"s" }}</p>
+</header>
+
+<div class="st-panel" style="max-width:520px;margin:0 auto;">
+    <ul style="list-style:none;padding:0;margin:0 0 1rem;">
+        {% for item in items %}
+        <li style="padding:0.4rem 0;border-bottom:1px solid var(--st-line);">
+            {{ item.curso.nombre }} — ${{ item.precio_cop|floatformat:0 }} COP
+        </li>
+        {% endfor %}
+    </ul>
+
+    {% if wompi_activo and wompi_widget and wompi_widget.integrity %}
+    <p class="st-muted" style="margin-bottom:1rem;">Paga de forma segura con Wompi. Al aprobarse, tus cursos quedan en Aprende.</p>
+    <form>
+        <script
+            src="https://checkout.wompi.co/widget.js"
+            data-render="button"
+            data-public-key="{{ wompi_widget.public_key }}"
+            data-currency="{{ wompi_widget.currency }}"
+            data-amount-in-cents="{{ wompi_widget.amount_in_cents }}"
+            data-reference="{{ wompi_widget.reference }}"
+            data-signature:integrity="{{ wompi_widget.integrity }}"
+            data-redirect-url="{{ wompi_widget.redirect_url }}"
+            {% if wompi_widget.customer_email %}data-customer-data:email="{{ wompi_widget.customer_email }}"{% endif %}
+            {% if wompi_widget.customer_name %}data-customer-data:full-name="{{ wompi_widget.customer_name }}"{% endif %}
+        ></script>
+    </form>
+    <p class="st-muted" style="margin-top:1rem;font-size:0.8rem;">
+        ¿Ya pagaste? <a href="{% url 'studio_pagar_orden_resultado' orden.wompi_referencia %}" style="color:var(--st-accent);font-weight:600;">Comprobar estado</a>
+    </p>
+    {% elif permite_simulacion %}
+    <p class="st-muted" style="margin-bottom:1rem;">
+        Wompi no está configurado en este entorno. Puedes simular el pago.
+    </p>
+    <form method="post" action="{% url 'studio_pagar_orden_confirmar' orden.wompi_referencia %}">
+        {% csrf_token %}
+        <button type="submit" class="st-btn st-btn--primary st-btn--block">Simular pago y entrar a Aprende</button>
+    </form>
+    {% else %}
+    <p class="st-muted">Configura Wompi para habilitar el checkout.</p>
+    {% endif %}
+    <p class="st-muted" style="margin-top:1rem;font-size:0.75rem;">Ref: {{ orden.wompi_referencia }}</p>
+</div>
+{% endblock %}

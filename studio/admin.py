@@ -1,6 +1,15 @@
 from django.contrib import admin
 
-from .models import AccesoCursoPagado, CreadorStudio, CuentaAula, PublicacionStudio
+from .models import (
+    AccesoCursoPagado,
+    CarritoStudio,
+    CreadorStudio,
+    CuentaAula,
+    ItemCarritoStudio,
+    OrdenItemStudio,
+    OrdenStudio,
+    PublicacionStudio,
+)
 
 
 @admin.register(CuentaAula)
@@ -31,3 +40,31 @@ class AccesoCursoPagadoAdmin(admin.ModelAdmin):
     list_filter = ('estado',)
     search_fields = ('wompi_referencia', 'wompi_transaccion_id', 'cuenta__user__email')
     raw_id_fields = ('cuenta', 'curso')
+
+
+class ItemCarritoInline(admin.TabularInline):
+    model = ItemCarritoStudio
+    extra = 0
+    raw_id_fields = ('publicacion',)
+
+
+@admin.register(CarritoStudio)
+class CarritoStudioAdmin(admin.ModelAdmin):
+    list_display = ('cuenta', 'actualizado')
+    raw_id_fields = ('cuenta',)
+    inlines = [ItemCarritoInline]
+
+
+class OrdenItemInline(admin.TabularInline):
+    model = OrdenItemStudio
+    extra = 0
+    raw_id_fields = ('publicacion', 'curso')
+
+
+@admin.register(OrdenStudio)
+class OrdenStudioAdmin(admin.ModelAdmin):
+    list_display = ('wompi_referencia', 'cuenta', 'monto_cop', 'estado', 'pagado_en', 'creado')
+    list_filter = ('estado',)
+    search_fields = ('wompi_referencia', 'cuenta__user__email')
+    raw_id_fields = ('cuenta',)
+    inlines = [OrdenItemInline]

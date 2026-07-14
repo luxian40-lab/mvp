@@ -1,0 +1,15 @@
+{% extends "studio/base.html" %}
+{% block title %}Estado del pago | eki Studio{% endblock %}
+{% block content %}
+<header class="st-page-intro">
+    <h1>Pago pendiente</h1>
+    <p class="st-lead">Aún no registramos la aprobación de Wompi para esta orden.</p>
+</header>
+<div class="st-panel" style="max-width:480px;margin:0 auto;">
+    <p class="st-muted">Estado: <strong>{{ orden.estado }}</strong></p>
+    <p class="st-muted" style="font-size:0.8rem;">Ref: {{ orden.wompi_referencia }}</p>
+    <p style="margin-top:1rem;">
+        <a class="st-btn st-btn--primary" href="{% url 'studio_pagar_orden' orden.wompi_referencia %}">Volver al pago</a>
+    </p>
+</div>
+{% endblock %}

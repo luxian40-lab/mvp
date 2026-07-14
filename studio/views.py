@@ -32,8 +32,17 @@ from .cuenta_service import (
 )
 from .models import CreadorStudio, PublicacionStudio
 from .creador_service import actualizar_precio_publicacion, publicar_curso_creador
+from .carrito_service import (
+    agregar_al_carrito,
+    cantidad_items_carrito,
+    crear_orden_desde_carrito,
+    marcar_orden_aprobada,
+    obtener_o_crear_carrito,
+    quitar_del_carrito,
+)
 from .pago_service import (
     contexto_widget_wompi,
+    contexto_widget_wompi_monto,
     crear_intento_pago,
     curso_requiere_pago,
     marcar_pago_aprobado,
@@ -45,6 +54,17 @@ from .pago_service import (
     wompi_llave_publica,
     wompi_permite_simulacion,
 )
+
+
+def _ctx_nav(request, **extra):
+    cuenta = extra.get('cuenta', cuenta_desde_request(request))
+    ctx = {
+        'estudiante': extra.get('estudiante', _estudiante_sesion(request)),
+        'cuenta': cuenta,
+        'carrito_count': cantidad_items_carrito(cuenta),
+    }
+    ctx.update({k: v for k, v in extra.items() if k not in ctx})
+    return ctx
 
 
 def _telefonos_coinciden(a: str, b: str) -> bool:
@@ -67,11 +87,11 @@ def _cuenta_o_redirect(request, next_url='/studio/cursos/'):
 def inicio(request):
     est = _estudiante_sesion(request)
     catalogo = cursos_catalogo_studio(est)[:6]
-    return render(request, 'studio/inicio.html', {
-        'estudiante': est,
-        'cuenta': cuenta_desde_request(request),
-        'destacados': catalogo,
-    })
+    return render(request, 'studio/inicio.html', _ctx_nav(
+        request,
+        estudiante=est,
+        destacados=catalogo,
+    ))
 
 
 def catalogo(request):
@@ -81,12 +101,15 @@ def catalogo(request):
     todos = cursos_catalogo_studio(est)
     for c in todos:
         c.precio_studio = precio_curso_studio(c)
-    return render(request, 'studio/catalogo.html', {
-        'estudiante': est,
-        'cuenta': cuenta,
-        'cursos': todos,
-        'inscritos': inscritos,
-    })
+        pub = getattr(c, 'publicacion_studio', None)
+        c.publicacion_id = pub.pk if pub else None
+    return render(request, 'studio/catalogo.html', _ctx_nav(
+        request,
+        estudiante=est,
+        cuenta=cuenta,
+        cursos=todos,
+        inscritos=inscritos,
+    ))
 
 
 def cuenta_registro(request):
@@ -202,6 +225,142 @@ def inscribir(request, curso_id: int):
         f'Te inscribiste en «{curso.nombre}». Continúa en Aprende.',
     )
     return redirect(f'/aprende/estudiante/curso/{curso.pk}/')
+
+
+@require_POST
+def carrito_agregar(request, publicacion_id: int):
+    cuenta = cuenta_desde_request(request)
+    if not cuenta:
+        return redirect(f'/studio/cuenta/login/?next=/studio/cursos/')
+    _, err = agregar_al_carrito(cuenta, publicacion_id)
+    if err:
+        messages.error(request, err)
+    else:
+        messages.success(request, 'Curso agregado al carrito.')
+    return redirect(request.POST.get('next') or '/studio/carrito/')
+
+
+@require_POST
+def carrito_quitar(request, item_id: int):
+    cuenta = cuenta_desde_request(request)
+    if not cuenta:
+        return redirect('/studio/cuenta/login/?next=/studio/carrito/')
+    if quitar_del_carrito(cuenta, item_id):
+        messages.info(request, 'Curso quitado del carrito.')
+    return redirect('/studio/carrito/')
+
+
+def carrito_ver(request):
+    cuenta = cuenta_desde_request(request)
+    if not cuenta:
+        return redirect('/studio/cuenta/login/?next=/studio/carrito/')
+    carrito = obtener_o_crear_carrito(cuenta)
+    items = list(carrito.items.select_related('publicacion', 'publicacion__curso'))
+    return render(request, 'studio/carrito.html', _ctx_nav(
+        request,
+        cuenta=cuenta,
+        carrito=carrito,
+        items=items,
+        total=carrito.total_cop,
+    ))
+
+
+@require_POST
+def carrito_checkout(request):
+    cuenta = cuenta_desde_request(request)
+    if not cuenta:
+        return redirect('/studio/cuenta/login/?next=/studio/carrito/')
+    orden, err = crear_orden_desde_carrito(cuenta)
+    if err:
+        messages.error(request, err)
+        return redirect('/studio/carrito/')
+    return redirect(f'/studio/orden/{orden.wompi_referencia}/')
+
+
+def pagar_orden(request, referencia: str):
+    from .models import OrdenStudio
+
+    orden = get_object_or_404(
+        OrdenStudio.objects.select_related('cuenta').prefetch_related('items__curso'),
+        wompi_referencia=referencia,
+    )
+    cuenta = cuenta_desde_request(request)
+    if not cuenta or cuenta.pk != orden.cuenta_id:
+        return redirect(f'/studio/cuenta/login/?next=/studio/orden/{referencia}/')
+
+    if orden.estado == OrdenStudio.ESTADO_APROBADO:
+        first = orden.items.select_related('curso').first()
+        if first:
+            return redirect(f'/aprende/estudiante/curso/{first.curso_id}/')
+        return redirect('/aprende/estudiante/')
+
+    redirect_url = request.build_absolute_uri(f'/studio/orden/{referencia}/resultado/')
+    widget = None
+    if wompi_integracion_activa():
+        widget = contexto_widget_wompi_monto(
+            referencia=orden.wompi_referencia,
+            monto_cop=orden.monto_cop,
+            customer_email=orden.cuenta.email or '',
+            customer_name=orden.cuenta.nombre_visible or '',
+            redirect_url=redirect_url,
+        )
+
+    return render(request, 'studio/pagar_orden.html', _ctx_nav(
+        request,
+        cuenta=cuenta,
+        orden=orden,
+        items=list(orden.items.select_related('curso')),
+        wompi_activo=wompi_integracion_activa(),
+        wompi_widget=widget,
+        permite_simulacion=wompi_permite_simulacion(),
+    ))
+
+
+def pagar_orden_resultado(request, referencia: str):
+    from .models import OrdenStudio
+
+    orden = get_object_or_404(OrdenStudio.objects.select_related('cuenta'), wompi_referencia=referencia)
+    cuenta = cuenta_desde_request(request)
+    if not cuenta or cuenta.pk != orden.cuenta_id:
+        return redirect(f'/studio/cuenta/login/?next=/studio/orden/{referencia}/resultado/')
+
+    if orden.estado == OrdenStudio.ESTADO_APROBADO:
+        messages.success(request, 'Pago aprobado. ¡Ya tienes acceso a tus cursos!')
+        first = orden.items.select_related('curso').first()
+        if first:
+            return redirect(f'/aprende/estudiante/curso/{first.curso_id}/')
+        return redirect('/aprende/estudiante/')
+
+    return render(request, 'studio/pagar_orden_resultado.html', _ctx_nav(
+        request,
+        cuenta=cuenta,
+        orden=orden,
+    ))
+
+
+@require_POST
+def pagar_orden_confirmar(request, referencia: str):
+    from .models import OrdenStudio
+
+    if not wompi_permite_simulacion():
+        return HttpResponseForbidden('Simulación deshabilitada: use Wompi.')
+
+    orden = get_object_or_404(OrdenStudio, wompi_referencia=referencia)
+    cuenta = cuenta_desde_request(request)
+    if not cuenta or cuenta.pk != orden.cuenta_id:
+        return HttpResponseForbidden()
+
+    if orden.estado != OrdenStudio.ESTADO_APROBADO:
+        marcar_orden_aprobada(
+            orden,
+            wompi_transaccion_id=f'MVP-{referencia[:16]}',
+            metadata={'origen': 'confirmar_mvp_orden'},
+        )
+        messages.success(request, 'Pago confirmado. ¡Cursos desbloqueados!')
+    first = orden.items.select_related('curso').first()
+    if first:
+        return redirect(f'/aprende/estudiante/curso/{first.curso_id}/')
+    return redirect('/aprende/estudiante/')
 
 
 def pagar_curso(request, referencia: str):

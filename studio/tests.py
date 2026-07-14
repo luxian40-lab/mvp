@@ -4,10 +4,21 @@ from django.test import Client, TestCase, override_settings
 
 from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
 
+_STATIC_TEST_STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+}
 
-@override_settings(SECURE_SSL_REDIRECT=False)
+
+@override_settings(
+    SECURE_SSL_REDIRECT=False,
+    STORAGES=_STATIC_TEST_STORAGES,
+    ALLOWED_HOSTS=['testserver', 'localhost', '127.0.0.1', 'studio.eki.technology'],
+)
 class StudioTests(TestCase):
     def setUp(self):
+        from studio.models import PublicacionStudio
+
         self.http = Client()
         self.cliente = Cliente.objects.create(
             nombre='Org Studio',
@@ -16,16 +27,29 @@ class StudioTests(TestCase):
             telefono='573009999010',
             activo=True,
         )
+        # B2B live course with flag only — must NOT appear in Studio catalog
+        self.curso_b2b = Curso.objects.create(
+            nombre='Curso B2B Live',
+            descripcion='Programa org',
+            cliente=self.cliente,
+            activo=True,
+            visible_en_studio=True,
+        )
+        Modulo.objects.create(
+            curso=self.curso_b2b, numero=1, titulo='L1', descripcion='', contenido='x',
+        )
+        # Marketplace course: general + PublicacionStudio
         self.curso = Curso.objects.create(
             nombre='Curso Studio',
-            descripcion='Público',
-            cliente=self.cliente,
+            descripcion='Público marketplace',
+            cliente=None,
             activo=True,
             visible_en_studio=True,
         )
         Modulo.objects.create(
             curso=self.curso, numero=1, titulo='L1', descripcion='', contenido='x',
         )
+        PublicacionStudio.objects.create(curso=self.curso, precio_cop=0)
         self.est = Estudiante.objects.create(
             cedula='st1',
             nombre='Est Studio',
@@ -53,6 +77,7 @@ class StudioTests(TestCase):
         r = self.http.get('/studio/cursos/')
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Curso Studio')
+        self.assertNotContains(r, 'Curso B2B Live')
 
         r2 = self.http.post(f'/studio/inscribir/{self.curso.id}/')
         self.assertEqual(r2.status_code, 302)
@@ -60,6 +85,10 @@ class StudioTests(TestCase):
         self.assertTrue(
             ProgresoEstudiante.objects.filter(estudiante=est, curso=self.curso).exists()
         )
+
+    def test_b2b_flag_solo_no_aparece_sin_publicacion(self):
+        r = self.http.get('/studio/cursos/')
+        self.assertNotContains(r, 'Curso B2B Live')
 
     def test_whatsapp_login_legacy(self):
         self.http.post('/studio/estudiante/whatsapp/', {
@@ -94,6 +123,8 @@ class StudioTests(TestCase):
         )
 
     def test_curso_general_en_catalogo(self):
+        from studio.models import PublicacionStudio
+
         general = Curso.objects.create(
             nombre='Curso General',
             descripcion='Para todos',
@@ -101,13 +132,16 @@ class StudioTests(TestCase):
             activo=True,
             visible_en_studio=True,
         )
+        PublicacionStudio.objects.create(curso=general, precio_cop=0)
         r = self.http.get('/studio/cursos/')
         self.assertContains(r, 'Curso General')
 
     def test_curso_pago_requiere_confirmacion(self):
         from studio.models import PublicacionStudio
 
-        PublicacionStudio.objects.create(curso=self.curso, precio_cop=99000)
+        pub = PublicacionStudio.objects.get(curso=self.curso)
+        pub.precio_cop = 99000
+        pub.save(update_fields=['precio_cop'])
         self.http.post('/studio/cuenta/registro/', {
             'nombre': 'Comprador',
             'email': 'buyer@test.com',
@@ -122,9 +156,11 @@ class StudioTests(TestCase):
 
     def test_pago_simulado_inscribe_en_aprende(self):
         from studio.models import AccesoCursoPagado, PublicacionStudio
-        from studio.pago_service import monto_en_centavos, firma_integridad_checkout
+        from studio.pago_service import monto_en_centavos
 
-        PublicacionStudio.objects.create(curso=self.curso, precio_cop=50000)
+        pub = PublicacionStudio.objects.get(curso=self.curso)
+        pub.precio_cop = 50000
+        pub.save(update_fields=['precio_cop'])
         self.assertEqual(monto_en_centavos(50000), 5_000_000)
 
         self.http.post('/studio/cuenta/registro/', {
@@ -171,6 +207,51 @@ class StudioTests(TestCase):
         self.assertEqual(pub.precio_cop, 120000)
         self.assertEqual(pub.creador_id, creador.pk)
         self.assertTrue(pub.curso.visible_en_studio)
+        self.assertIsNone(pub.curso.cliente_id)
+
+        r_cat = self.http.get('/studio/cursos/')
+        self.assertContains(r_cat, 'Curso Creador')
+
+    def test_carrito_multi_curso_checkout(self):
+        from studio.models import OrdenStudio, PublicacionStudio
+
+        c2 = Curso.objects.create(
+            nombre='Curso Dos',
+            descripcion='Otro',
+            cliente=None,
+            activo=True,
+            visible_en_studio=True,
+        )
+        Modulo.objects.create(curso=c2, numero=1, titulo='L1', descripcion='', contenido='x')
+        pub1 = PublicacionStudio.objects.get(curso=self.curso)
+        pub1.precio_cop = 10000
+        pub1.save(update_fields=['precio_cop'])
+        pub2 = PublicacionStudio.objects.create(curso=c2, precio_cop=20000)
+
+        self.http.post('/studio/cuenta/registro/', {
+            'nombre': 'Cart User',
+            'email': 'cart@test.com',
+            'password': 'testpass123',
+        })
+        r1 = self.http.post(f'/studio/carrito/agregar/{pub1.id}/')
+        self.assertEqual(r1.status_code, 302)
+        r2 = self.http.post(f'/studio/carrito/agregar/{pub2.id}/')
+        self.assertEqual(r2.status_code, 302)
+
+        r3 = self.http.post('/studio/carrito/checkout/')
+        self.assertEqual(r3.status_code, 302)
+        self.assertIn('/studio/orden/', r3.url)
+        ref = r3.url.rstrip('/').split('/')[-1]
+        orden = OrdenStudio.objects.get(wompi_referencia=ref)
+        self.assertEqual(orden.monto_cop, 30000)
+        self.assertEqual(orden.items.count(), 2)
+
+        r4 = self.http.post(f'/studio/orden/{ref}/confirmar/')
+        self.assertEqual(r4.status_code, 302)
+        orden.refresh_from_db()
+        self.assertEqual(orden.estado, 'aprobado')
+        self.assertTrue(ProgresoEstudiante.objects.filter(curso=self.curso).exists())
+        self.assertTrue(ProgresoEstudiante.objects.filter(curso=c2).exists())
 
     def test_aula_sin_catalogo(self):
         self.http.post('/aprende/estudiante/login/', {
