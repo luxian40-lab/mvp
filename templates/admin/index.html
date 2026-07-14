@@ -98,6 +98,7 @@
         <div class="eki-hub-col">
             <h2>Operar</h2>
             <a href="{% url 'admin:core_estudiante_changelist' %}">Estudiantes<span>Participantes y avance</span></a>
+            <a href="{% url 'admin_ajustar_avance' %}">Ajustar avance<span>Corregir progreso por curso</span></a>
             <a href="{% url 'admin_drip_estudiantes' %}">Acceso módulos<span>Drip por persona</span></a>
             <a href="{% url 'admin_push_estudiantes' %}">Push<span>Reenganche WhatsApp</span></a>
             <a href="{% url 'conversaciones' %}">Conversaciones<span>Historial de chats</span></a>
@@ -113,7 +114,6 @@
         <div class="eki-hub-col">
             <h2>Configurar</h2>
             <a href="{% url 'admin:core_curso_changelist' %}">Cursos<span>Módulos y contenido</span></a>
-            <a href="{% url 'admin_ajustar_avance' %}">Ajustar avance<span>Corregir progreso</span></a>
             <a href="{% url 'admin_aula_web' %}">Aula web<span>Ops admin · distinto de Aprende</span></a>
             <a href="/portal/login/" target="_blank" rel="noopener">Portal clientes<span>Vista B2B</span></a>
             <a href="{% url 'instrucciones' %}">Manual<span>Guía operativa</span></a>

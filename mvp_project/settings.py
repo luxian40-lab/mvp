@@ -247,6 +247,7 @@ JAZZMIN_SETTINGS = {
         {"name": "Inicio", "url": "admin:index", "new_window": False},
         {"name": "Dashboard", "url": "/admin/dashboard/", "new_window": False},
         {"name": "Estudiantes", "url": "/admin/core/estudiante/", "new_window": False},
+        {"name": "Ajustar avance", "url": "/admin/ajustar-avance/", "new_window": False},
         {"name": "Retención", "url": "/admin/dashboard/?tab=retencion", "new_window": False},
         {"name": "Cobertura", "url": "/admin/cobertura/", "new_window": False},
         {"name": "Manual", "url": "/admin/instrucciones/", "new_window": False},
@@ -356,6 +357,12 @@ JAZZMIN_SETTINGS = {
                 "url": "/admin/core/grupoestudiantes/",
                 "icon": "fas fa-users",
                 "permissions": ["core.view_grupoestudiantes"],
+            },
+            {
+                "name": "Ajustar avance",
+                "url": "/admin/ajustar-avance/",
+                "icon": "fas fa-sliders-h",
+                "permissions": ["core.view_progresoestudiante"],
             },
         ],
         "agents_commercial": [

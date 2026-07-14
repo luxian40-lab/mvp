@@ -515,14 +515,11 @@ def _batch_pasos_desde_indice(modulo: Modulo, qs: list, idx: int) -> list:
     return batch
 
 
-def partes_multimedia_modulo(modulo: Modulo) -> list[str]:
-    """
-    Adjuntos de la pestaña Multimedia / video del módulo (ArchivoModulo).
-    En modo pasos estos archivos se ignoraban antes; se reinyectan al abrir el módulo.
-    """
-    from .response_templates import obtener_video_url, parte_mensaje_con_media
+def _urls_y_captions_multimedia_modulo(modulo: Modulo) -> list[tuple[str, str | None]]:
+    """Lista (url, caption_opcional) de ArchivoModulo / video del módulo."""
+    from .response_templates import obtener_video_url
 
-    partes: list[str] = []
+    items: list[tuple[str, str | None]] = []
     try:
         archivos = list(modulo.archivos_multimedia.filter(activo=True))
     except Exception:
@@ -546,14 +543,25 @@ def partes_multimedia_modulo(modulo: Modulo) -> list[str]:
         icono = iconos.get(getattr(archivo, 'tipo', ''), '📁')
         titulo = (getattr(archivo, 'titulo', None) or '').strip()
         cap = f'{icono} {titulo}'.strip() if titulo else None
-        partes.append(parte_mensaje_con_media(url, cap))
-    if not partes:
+        items.append((url, cap))
+    if not items:
         try:
             video_url = (obtener_video_url(modulo) or '').strip()
         except Exception:
             video_url = ''
         if video_url and video_url not in urls_vistas:
-            partes.append(parte_mensaje_con_media(video_url))
+            items.append((video_url, None))
+    return items
+
+
+def partes_multimedia_modulo(modulo: Modulo) -> list[str]:
+    """
+    Adjuntos de la pestaña Multimedia / video del módulo (ArchivoModulo).
+    En modo pasos estos archivos se ignoraban antes; se reinyectan al abrir el módulo.
+    """
+    partes: list[str] = []
+    for url, cap in _urls_y_captions_multimedia_modulo(modulo):
+        partes.append(parte_mensaje_con_media(url, cap))
     if partes:
         partes.append('[DELAY:5]')
         logger.info(
@@ -564,22 +572,72 @@ def partes_multimedia_modulo(modulo: Modulo) -> list[str]:
     return partes
 
 
+def _fusionar_multimedia_con_primer_paso(
+    multi_items: list[tuple[str, str | None]],
+    batch: list,
+    curso,
+) -> tuple[list[str], list]:
+    """
+    Evita: burbuja genérica «Aquí tiene el material…» + misma idea del micro aparte.
+    Si el primer paso de contenido no trae media propia, su texto va como caption
+    del primer ArchivoModulo; el resto de archivos sigue con su caption.
+    """
+    from .models import PasoModulo
+
+    if not multi_items or not batch:
+        partes = [parte_mensaje_con_media(u, c) for u, c in multi_items]
+        if partes:
+            partes.append('[DELAY:5]')
+        return partes, batch
+
+    first = batch[0]
+    body = (first.contenido or '').strip()
+    tiene_media_propia = bool((first.media_url or '').strip())
+    es_contenido = first.tipo == PasoModulo.TIPO_CONTENIDO and not paso_contenido_con_mc_como_eval(first)
+
+    if not (es_contenido and body and not tiene_media_propia):
+        partes = [parte_mensaje_con_media(u, c) for u, c in multi_items]
+        if partes:
+            partes.append('[DELAY:5]')
+        return partes, batch
+
+    url0, _cap0 = multi_items[0]
+    # Caption = texto del micro (WhatsApp limita; se corta con margen)
+    caption = body if len(body) <= 900 else (body[:897].rstrip() + '…')
+    partes: list[str] = [parte_mensaje_con_media(url0, caption)]
+    for url, cap in multi_items[1:]:
+        partes.append(parte_mensaje_con_media(url, cap))
+    partes.append('[DELAY:5]')
+    logger.info(
+        '📎 [pasos] multimedia fusionada con primer micro | paso_id=%s url=%s',
+        getattr(first, 'id', None),
+        url0[:80],
+    )
+    # Primer paso ya va en el caption: no volver a mandar su texto suelto
+    return partes, batch[1:]
+
+
 def entregar_bloque_secciones_desde_paso(
     progreso: ProgresoEstudiante, modulo: Modulo, idx: int
 ) -> str:
     """Entrega **una sección (bloque) por cada *listo***; dentro de la sección, todos los pasos hasta evaluación."""
     qs = list(pasos_activos_qs(modulo))
     n = len(qs)
-    batch = _batch_pasos_desde_indice(modulo, qs, idx)
-    if not batch:
+    batch_orig = _batch_pasos_desde_indice(modulo, qs, idx)
+    if not batch_orig:
         raise ValueError('índice de paso fuera de rango o batch vacío')
     curso = progreso.curso
     partes: list[str] = []
-    # Al abrir el módulo (primer índice), adjuntar Multimedia del módulo (como en Legacy).
+    batch_envio = list(batch_orig)
+    # Al abrir el módulo (primer índice), adjuntar Multimedia (fusionada al 1.er micro si aplica).
     if idx == 1:
-        partes.extend(partes_multimedia_modulo(modulo))
+        multi_items = _urls_y_captions_multimedia_modulo(modulo)
+        multi_partes, batch_envio = _fusionar_multimedia_con_primer_paso(
+            multi_items, batch_envio, curso
+        )
+        partes.extend(multi_partes)
     last_sec_id = None
-    for paso in batch:
+    for paso in batch_envio:
         if paso.seccion_id != last_sec_id:
             if last_sec_id is not None:
                 partes.append('[DELAY:2]')
@@ -594,7 +652,7 @@ def entregar_bloque_secciones_desde_paso(
             len((paso.contenido or '').strip()),
         )
         partes.extend(partes_mensaje_paso(paso, curso))
-    last_paso = batch[-1]
+    last_paso = batch_orig[-1]
     last_idx = qs.index(last_paso) + 1
 
     if last_paso.es_evaluacion:
@@ -634,7 +692,7 @@ def entregar_bloque_secciones_desde_paso(
             otro_bloque = False
             if 1 <= sig_idx <= len(qs):
                 try:
-                    sec_cerrada = batch[-1].seccion_id
+                    sec_cerrada = batch_orig[-1].seccion_id
                     next_sec_id = qs[sig_idx - 1].seccion_id
                     otro_bloque = bool(
                         sec_cerrada and next_sec_id and next_sec_id != sec_cerrada
@@ -678,7 +736,7 @@ def entregar_bloque_secciones_desde_paso(
             last_paso.id,
             progreso.paso_actual_modulo,
             n,
-            sorted({p.seccion_id for p in batch if p.seccion_id}),
+            sorted({p.seccion_id for p in batch_orig if p.seccion_id}),
         )
     return unir_multimsg(partes)
 
@@ -742,32 +800,32 @@ def entregar_paso_indice(progreso: ProgresoEstudiante, modulo: Modulo, idx: int)
 
 
 def mensaje_recordatorio_paso_actual(progreso: ProgresoEstudiante, modulo: Modulo) -> Optional[str]:
-    """Para *continuar*: reenvía el paso en curso sin avanzar índices."""
+    """
+    Nudge sin reenviar el microcompleto (evita duplicar texto + infografía al *listo*).
+    Si hay evaluación pendiente, sí reenvía el enunciado/opciones.
+    """
     qs = list(pasos_activos_qs(modulo))
     n = len(qs)
     if n == 0:
         return None
     if progreso.esperando_respuesta_evaluacion_paso and progreso.paso_evaluacion_paso_id:
-        paso = progreso.paso_evaluacion_paso
-        idx = progreso.paso_actual_modulo
-    else:
-        idx = progreso.paso_actual_modulo
-        if idx > n:
-            return None
-        if idx < 1:
-            idx = 1
-        paso = qs[idx - 1]
-    partes = partes_mensaje_paso(paso, progreso.curso)
-    if progreso.esperando_respuesta_evaluacion_paso and progreso.paso_evaluacion_paso_id:
+        partes = partes_mensaje_paso(progreso.paso_evaluacion_paso, progreso.curso)
         partes.append(
             "Cuando puedas, responde según las opciones de arriba 👆 "
             "(letra o mensaje según el tipo de actividad)."
         )
-    else:
-        partes.append(
-            "Cuando estés listo, escribe *listo* para el siguiente material o responde la actividad 👇"
-        )
-    return unir_multimsg(partes)
+        return unir_multimsg(partes)
+
+    idx = progreso.paso_actual_modulo
+    if idx > n:
+        return None
+    if idx < 1:
+        idx = 1
+    # No reenviar contenido: el alumno ya lo tiene; solo recordar el CTA.
+    return (
+        "Sigues en este material. Cuando termines de revisarlo, escribe *listo* "
+        "para continuar 👇"
+    )
 
 
 def _evaluar_abierta_microcontenido_facilitadora(

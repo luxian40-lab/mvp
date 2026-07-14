@@ -155,6 +155,33 @@ class ModuleStepsModelTests(TestCase):
         msg = entregar_bloque_secciones_desde_paso(self.prog, self.mod, 1)
         self.assertIn('[MEDIA:https://cdn.example.com/modulo1.mp4]', msg)
         self.assertIn('Solo texto del paso', msg)
+        media_bloque = [
+            p for p in msg.replace('[MULTI_MSG]', '', 1).split('[SEP]')
+            if '[MEDIA:https://cdn.example.com/modulo1.mp4]' in p
+        ]
+        self.assertEqual(len(media_bloque), 1)
+        self.assertIn('Solo texto del paso', media_bloque[0])
+        self.assertNotIn('Aquí tiene el material del módulo', media_bloque[0])
+        self.assertEqual(msg.count('Solo texto del paso'), 1)
+
+    def test_recordatorio_no_redetails_el_micro(self):
+        from core.module_steps import mensaje_recordatorio_paso_actual
+
+        s1 = _seccion(self.mod, 1)
+        PasoModulo.objects.filter(modulo=self.mod).delete()
+        PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=s1,
+            orden=1,
+            titulo='Micro',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='¿Combinar redes y sexualidad? Texto del micro.',
+        )
+        reset_progreso_pasos_modulo(self.prog, save=True)
+        rem = mensaje_recordatorio_paso_actual(self.prog, self.mod)
+        self.assertIsNotNone(rem)
+        self.assertIn('listo', rem.lower())
+        self.assertNotIn('Combinar redes', rem)
 
     def test_evaluacion_opciones_espera_respuesta(self):
         s1 = _seccion(self.mod, 1)
