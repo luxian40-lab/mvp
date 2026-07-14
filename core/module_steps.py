@@ -515,6 +515,55 @@ def _batch_pasos_desde_indice(modulo: Modulo, qs: list, idx: int) -> list:
     return batch
 
 
+def partes_multimedia_modulo(modulo: Modulo) -> list[str]:
+    """
+    Adjuntos de la pestaña Multimedia / video del módulo (ArchivoModulo).
+    En modo pasos estos archivos se ignoraban antes; se reinyectan al abrir el módulo.
+    """
+    from .response_templates import obtener_video_url, parte_mensaje_con_media
+
+    partes: list[str] = []
+    try:
+        archivos = list(modulo.archivos_multimedia.filter(activo=True))
+    except Exception:
+        archivos = []
+    iconos = {
+        'video': '🎥',
+        'imagen': '🖼️',
+        'infografia': '📊',
+        'pdf': '📄',
+        'audio': '🎵',
+    }
+    urls_vistas: set[str] = set()
+    for archivo in archivos:
+        try:
+            url = (archivo.get_url_para_envio() or '').strip()
+        except Exception:
+            url = ''
+        if not url or url in urls_vistas:
+            continue
+        urls_vistas.add(url)
+        icono = iconos.get(getattr(archivo, 'tipo', ''), '📁')
+        titulo = (getattr(archivo, 'titulo', None) or '').strip()
+        cap = f'{icono} {titulo}'.strip() if titulo else None
+        partes.append(parte_mensaje_con_media(url, cap))
+    if not partes:
+        try:
+            video_url = (obtener_video_url(modulo) or '').strip()
+        except Exception:
+            video_url = ''
+        if video_url and video_url not in urls_vistas:
+            partes.append(parte_mensaje_con_media(video_url))
+    if partes:
+        partes.append('[DELAY:5]')
+        logger.info(
+            '📎 [pasos] multimedia de módulo reinyectada | modulo_id=%s n=%s',
+            getattr(modulo, 'id', None),
+            len(partes) - 1,
+        )
+    return partes
+
+
 def entregar_bloque_secciones_desde_paso(
     progreso: ProgresoEstudiante, modulo: Modulo, idx: int
 ) -> str:
@@ -526,6 +575,9 @@ def entregar_bloque_secciones_desde_paso(
         raise ValueError('índice de paso fuera de rango o batch vacío')
     curso = progreso.curso
     partes: list[str] = []
+    # Al abrir el módulo (primer índice), adjuntar Multimedia del módulo (como en Legacy).
+    if idx == 1:
+        partes.extend(partes_multimedia_modulo(modulo))
     last_sec_id = None
     for paso in batch:
         if paso.seccion_id != last_sec_id:

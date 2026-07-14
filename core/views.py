@@ -2810,6 +2810,7 @@ def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, 
         cuerpo_con_enlace_archivo,
         es_error_media_twilio,
         normalizar_media_url_s3,
+        preparar_url_media_whatsapp,
         url_no_es_media_directo,
     )
 
@@ -2819,6 +2820,11 @@ def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, 
     if media_limpia and url_no_es_media_directo(media_limpia):
         body_limpio = cuerpo_con_enlace_archivo(body_limpio or TWILIO_CAPTION_ADJUNTO, media_limpia)
         media_limpia = None
+    elif media_limpia:
+        try:
+            media_limpia = preparar_url_media_whatsapp(media_limpia) or media_limpia
+        except Exception as prep_err:
+            logger.warning('📎 preparar_url_media_whatsapp falló (se envía original): %s', prep_err)
     if not body_limpio and media_limpia:
         body_limpio = TWILIO_CAPTION_ADJUNTO
 

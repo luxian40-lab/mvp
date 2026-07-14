@@ -129,6 +129,33 @@ class ModuleStepsModelTests(TestCase):
             'El adjunto no debe ir en un mensaje Twilio sin texto propio',
         )
 
+    @patch('core.models_extras.ArchivoModulo.validar_url_publica', return_value=True)
+    def test_bloque_idx1_inyecta_archivo_modulo_multimedia(self, _mock_val):
+        """Regresión: modo pasos no debe olvidar la pestaña Multimedia del módulo."""
+        from core.models_extras import ArchivoModulo
+
+        s1 = _seccion(self.mod, 1)
+        PasoModulo.objects.filter(modulo=self.mod).delete()
+        PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=s1,
+            orden=1,
+            titulo='Texto',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='Solo texto del paso',
+        )
+        ArchivoModulo.objects.create(
+            modulo=self.mod,
+            tipo='video',
+            titulo='Video módulo',
+            url_externa='https://cdn.example.com/modulo1.mp4',
+            activo=True,
+        )
+        reset_progreso_pasos_modulo(self.prog, save=True)
+        msg = entregar_bloque_secciones_desde_paso(self.prog, self.mod, 1)
+        self.assertIn('[MEDIA:https://cdn.example.com/modulo1.mp4]', msg)
+        self.assertIn('Solo texto del paso', msg)
+
     def test_evaluacion_opciones_espera_respuesta(self):
         s1 = _seccion(self.mod, 1)
         PasoModulo.objects.create(

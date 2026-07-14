@@ -218,10 +218,21 @@ def enviar_whatsapp_twilio(
         # S3 URLs: usar URL pública directa (bucket tiene ACL public-read)
         # NO generar presigned URL — causa 63019 por redirect de región
         if media_url and 'amazonaws.com' in media_url:
-            from .twilio_media import normalizar_media_url_s3
+            from .twilio_media import normalizar_media_url_s3, preparar_url_media_whatsapp
 
             media_url = normalizar_media_url_s3(media_url)
+            try:
+                media_url = preparar_url_media_whatsapp(media_url) or media_url
+            except Exception as prep_err:
+                logger.warning('[MEDIA] preparar_url falló: %s', prep_err)
             logger.info(f"[S3] URL pública directa: {media_url[:100]}...")
+        elif media_url:
+            from .twilio_media import preparar_url_media_whatsapp
+
+            try:
+                media_url = preparar_url_media_whatsapp(media_url) or media_url
+            except Exception as prep_err:
+                logger.warning('[MEDIA] preparar_url falló: %s', prep_err)
 
         # Crear cliente Twilio
         client = Client(account_sid, auth_token)

@@ -40,6 +40,20 @@ class TwilioMediaHelpersTests(SimpleTestCase):
         self.assertIn('📎 Archivo:', body)
         self.assertIn('https://cdn.example/a.mp4', body)
 
+    def test_mp4_faststart_remux_mueve_moov(self):
+        from core.twilio_media import mp4_necesita_faststart, remux_mp4_faststart
+
+        # ftyp(8+8) + mdat(8+4) + moov(8+4) — moov al final
+        ftyp = (20).to_bytes(4, 'big') + b'ftyp' + b'isom' + b'\x00' * 8
+        mdat = (12).to_bytes(4, 'big') + b'mdat' + b'XXXX'
+        moov = (12).to_bytes(4, 'big') + b'moov' + b'YYYY'
+        raw = ftyp + mdat + moov
+        self.assertTrue(mp4_necesita_faststart(raw))
+        fixed = remux_mp4_faststart(raw)
+        self.assertFalse(mp4_necesita_faststart(fixed))
+        # moov debe ir antes de mdat
+        self.assertLess(fixed.find(b'moov'), fixed.find(b'mdat'))
+
 
 class TwilioMediaCallbackFallbackTests(TestCase):
     def test_ya_envio_fallback(self):

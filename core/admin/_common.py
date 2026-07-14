@@ -61,13 +61,26 @@ logger = logging.getLogger(__name__)
 
 def guardar_upload_admin_media(uploaded_file, *, carpeta='admin_media', prefix='media'):
     """Guarda un upload del admin en el storage activo y devuelve su URL pública."""
+    from django.core.files.base import ContentFile
     from django.core.files.storage import default_storage
     from django.utils.text import get_valid_filename
 
     now = timezone.now()
     filename = get_valid_filename(uploaded_file.name)
+    raw = uploaded_file.read()
+    # MP4 sin faststart → WhatsApp 63021; remux antes de guardar.
+    name_l = (filename or '').lower()
+    if name_l.endswith('.mp4') or (getattr(uploaded_file, 'content_type', '') or '').lower() == 'video/mp4':
+        try:
+            from core.twilio_media import mp4_necesita_faststart, remux_mp4_faststart
+
+            if mp4_necesita_faststart(raw):
+                raw = remux_mp4_faststart(raw)
+                logger.info('🎬 Upload admin remux faststart | %s', filename)
+        except Exception as exc:
+            logger.warning('No se pudo aplicar faststart al upload %s: %s', filename, exc)
     path = f'{carpeta}/{now:%Y/%m}/{prefix}_{now:%Y%m%d%H%M%S}_{filename}'
-    saved_path = default_storage.save(path, uploaded_file)
+    saved_path = default_storage.save(path, ContentFile(raw))
     return default_storage.url(saved_path)
 
 
