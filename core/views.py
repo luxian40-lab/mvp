@@ -2809,30 +2809,72 @@ def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, 
     from .twilio_media import (
         cuerpo_con_enlace_archivo,
         es_error_media_twilio,
+        media_requiere_enlace_previo,
         normalizar_media_url_s3,
         preparar_url_media_whatsapp,
         url_no_es_media_directo,
     )
 
     body_limpio = str(body or '').strip()
-    media_limpia = normalizar_media_url_s3(media_url)
+    media_original = normalizar_media_url_s3(media_url)
+    media_limpia = media_original
     # Páginas (YouTube/Drive): no adjuntar; mandar enlace de una.
     if media_limpia and url_no_es_media_directo(media_limpia):
         body_limpio = cuerpo_con_enlace_archivo(body_limpio or TWILIO_CAPTION_ADJUNTO, media_limpia)
         media_limpia = None
+        media_original = None
     elif media_limpia:
         try:
-            media_limpia = preparar_url_media_whatsapp(media_limpia) or media_limpia
+            preparada = preparar_url_media_whatsapp(media_limpia)
+            # None = video ilegible: solo enlace de texto (no MediaUrl → evita 63021).
+            if preparada is None and media_requiere_enlace_previo(media_limpia):
+                logger.warning(
+                    '📎 Video no adjuntable; se enviará solo enlace | %s',
+                    media_limpia[:120],
+                )
+                media_limpia = None  # no adjunto; media_original se usa en enlace previo
+            else:
+                media_limpia = preparada or media_limpia
+                media_original = media_limpia
         except Exception as prep_err:
             logger.warning('📎 preparar_url_media_whatsapp falló (se envía original): %s', prep_err)
-    if not body_limpio and media_limpia:
+    if not body_limpio and (media_limpia or media_original):
         body_limpio = TWILIO_CAPTION_ADJUNTO
 
-    segmentos = _segmentar_texto_twilio(body_limpio)
     enviados = []
-
     from_limpio = str(from_number or '').strip()
     to_limpio = str(to_number or '').strip()
+    status_cb = str(getattr(settings, 'TWILIO_STATUS_CALLBACK_URL', '') or '').strip()
+
+    # Video: primero enlace en texto (sobrevive si el adjunto cae en 63021 undelivered).
+    url_enlace = media_limpia or media_original
+    if url_enlace and media_requiere_enlace_previo(url_enlace):
+        link_body = cuerpo_con_enlace_archivo(
+            '🎥 Material del módulo (enlace por si el video no se reproduce en el chat):',
+            url_enlace,
+        )
+        link_params = {
+            'body': link_body,
+            'from_': from_limpio,
+            'to': to_limpio,
+        }
+        if status_cb:
+            link_params['status_callback'] = status_cb
+        try:
+            link_msg = client.messages.create(**link_params)
+            enviados.append((link_msg, link_body))
+            logger.info('📎 Enlace de video enviado antes del adjunto | sid=%s', getattr(link_msg, 'sid', ''))
+        except Exception as link_err:
+            logger.warning('📎 No se pudo enviar enlace previo de video: %s', link_err)
+
+    # Si no hay adjunto pero sí había video ilegible, el enlace previo ya cubre el material.
+    if not media_limpia and media_original and media_requiere_enlace_previo(media_original):
+        if not body_limpio or body_limpio == TWILIO_CAPTION_ADJUNTO:
+            return enviados
+        # Aún enviar caption/texto del paso sin MediaUrl
+        media_original = None
+
+    segmentos = _segmentar_texto_twilio(body_limpio)
 
     for idx, segmento in enumerate(segmentos):
         seg_txt = (segmento or '').strip()
@@ -2843,6 +2885,8 @@ def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, 
             'from_': from_limpio,
             'to': to_limpio,
         }
+        if status_cb:
+            params['status_callback'] = status_cb
 
         # Adjuntar media solo en el primer segmento.
         if media_limpia and idx == 0:
@@ -3898,28 +3942,25 @@ def _procesar_twilio_webhook(post_data):
                             parte_texto_c = parte_texto_c.replace(media_m_c.group(0), '').strip()
                         if parte_media_c and not (parte_texto_c or '').strip():
                             parte_texto_c = TWILIO_CAPTION_ADJUNTO
-                        mp_c = {'body': parte_texto_c, 'from_': str(twilio_number).strip(), 'to': str(destino).strip()}
-                        if parte_media_c:
-                            mp_c['media_url'] = [parte_media_c]
-                        try:
-                            msg_sent = client_tw.messages.create(**mp_c)
-                        except Exception as media_err_c:
-                            from .twilio_media import cuerpo_con_enlace_archivo, es_error_media_twilio, mensaje_log_con_media
-
-                            if es_error_media_twilio(media_err_c) and parte_media_c:
-                                mp_c.pop('media_url', None)
-                                mp_c['body'] = cuerpo_con_enlace_archivo(mp_c.get('body') or '', parte_media_c)
-                                msg_sent = client_tw.messages.create(**mp_c)
-                            else:
-                                raise
+                        enviados_c = _enviar_mensaje_twilio_segmentado(
+                            client=client_tw,
+                            from_number=str(twilio_number).strip(),
+                            to_number=str(destino).strip(),
+                            body=parte_texto_c,
+                            media_url=parte_media_c,
+                        )
                         import time; time.sleep(0.5)
                         from .twilio_media import mensaje_log_con_media
-                        WhatsappLog.objects.create(
-                            telefono=telefono_limpio,
-                            mensaje=mensaje_log_con_media(parte_texto_c, parte_media_c)[:1500],
-                            mensaje_id=getattr(msg_sent, 'sid', None),
-                            tipo='SENT',
-                        )
+                        for seg_i, (msg_sent, texto_env) in enumerate(enviados_c, start=1):
+                            WhatsappLog.objects.create(
+                                telefono=telefono_limpio,
+                                mensaje=mensaje_log_con_media(
+                                    texto_env or parte_texto_c,
+                                    parte_media_c if seg_i == 1 else None,
+                                )[:1500],
+                                mensaje_id=getattr(msg_sent, 'sid', None),
+                                tipo='SENT',
+                            )
                 else:
                     client_tw.messages.create(body=texto_respuesta, from_=str(twilio_number).strip(), to=str(destino).strip())
                     WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta, tipo='SENT')
@@ -4105,14 +4146,13 @@ def _procesar_twilio_webhook(post_data):
                                 parte_texto = parte_texto.replace(media_m.group(0), '').strip()
                             if parte_media and not parte_texto:
                                 parte_texto = TWILIO_CAPTION_ADJUNTO
-                            mp = {'body': parte_texto, 'from_': str(twilio_number).strip(), 'to': str(destino).strip()}
-                            if parte_media:
-                                mp['media_url'] = [parte_media]
-                            try:
-                                client_tw.messages.create(**mp)
-                            except Exception:
-                                mp.pop('media_url', None)
-                                client_tw.messages.create(**mp)
+                            _enviar_mensaje_twilio_segmentado(
+                                client=client_tw,
+                                from_number=str(twilio_number).strip(),
+                                to_number=str(destino).strip(),
+                                body=parte_texto,
+                                media_url=parte_media,
+                            )
                             import time; time.sleep(0.5)
                     else:
                         media_url_sel = None
@@ -4123,14 +4163,13 @@ def _procesar_twilio_webhook(post_data):
                             texto_respuesta = texto_respuesta.replace(media_m.group(0), '').strip()
                         if media_url_sel and not texto_respuesta:
                             texto_respuesta = TWILIO_CAPTION_ADJUNTO
-                        mp = {'body': texto_respuesta, 'from_': str(twilio_number).strip(), 'to': str(destino).strip()}
-                        if media_url_sel:
-                            mp['media_url'] = [media_url_sel]
-                        try:
-                            client_tw.messages.create(**mp)
-                        except Exception:
-                            mp.pop('media_url', None)
-                            client_tw.messages.create(**mp)
+                        _enviar_mensaje_twilio_segmentado(
+                            client=client_tw,
+                            from_number=str(twilio_number).strip(),
+                            to_number=str(destino).strip(),
+                            body=texto_respuesta,
+                            media_url=media_url_sel,
+                        )
                     WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta[:500], tipo='SENT')
                 except Exception as e:
                     logger.error(f"❌ Error enviando selección curso: {e}")
@@ -4566,35 +4605,26 @@ def _procesar_twilio_webhook(post_data):
                                 cuerpo_mm = parte_txt.strip() if parte_txt else ''
                                 if parte_media_mm and not cuerpo_mm:
                                     cuerpo_mm = TWILIO_CAPTION_ADJUNTO
-                                mp_mm = {
-                                    'body': cuerpo_mm if cuerpo_mm else ' ',
-                                    'from_': twilio_from,
-                                    'to': str(destino).strip(),
-                                }
-                                if parte_media_mm:
-                                    mp_mm['media_url'] = [parte_media_mm]
-                                try:
-                                    msg_mm = client_tw.messages.create(**mp_mm)
-                                except Exception as ex_mm:
-                                    from .twilio_media import cuerpo_con_enlace_archivo, es_error_media_twilio
-
-                                    if es_error_media_twilio(ex_mm) and parte_media_mm:
-                                        mp_mm.pop('media_url', None)
-                                        mp_mm['body'] = cuerpo_con_enlace_archivo(
-                                            mp_mm.get('body') or '', parte_media_mm,
-                                        )
-                                        msg_mm = client_tw.messages.create(**mp_mm)
-                                    else:
-                                        raise
+                                enviados_mm = _enviar_mensaje_twilio_segmentado(
+                                    client=client_tw,
+                                    from_number=twilio_from,
+                                    to_number=str(destino).strip(),
+                                    body=cuerpo_mm if cuerpo_mm else ' ',
+                                    media_url=parte_media_mm,
+                                )
                                 import time
                                 time.sleep(0.5)
                                 from .twilio_media import mensaje_log_con_media
-                                WhatsappLog.objects.create(
-                                    telefono=telefono_limpio,
-                                    mensaje=mensaje_log_con_media(cuerpo_mm or parte_txt, parte_media_mm)[:1500],
-                                    mensaje_id=getattr(msg_mm, 'sid', None),
-                                    tipo='SENT',
-                                )
+                                for seg_i, (msg_mm, texto_env) in enumerate(enviados_mm, start=1):
+                                    WhatsappLog.objects.create(
+                                        telefono=telefono_limpio,
+                                        mensaje=mensaje_log_con_media(
+                                            texto_env or cuerpo_mm or parte_txt,
+                                            parte_media_mm if seg_i == 1 else None,
+                                        )[:1500],
+                                        mensaje_id=getattr(msg_mm, 'sid', None),
+                                        tipo='SENT',
+                                    )
                         else:
                             media_url_menu = None
                             import re as re_menu
@@ -4602,15 +4632,24 @@ def _procesar_twilio_webhook(post_data):
                             if media_m:
                                 media_url_menu = media_m.group(1).strip()
                                 texto_respuesta = texto_respuesta.replace(media_m.group(0), '').strip()
-                            mp = {'body': texto_respuesta, 'from_': twilio_from, 'to': str(destino).strip()}
-                            if media_url_menu:
-                                mp['media_url'] = [media_url_menu]
-                            try:
-                                client_tw.messages.create(**mp)
-                            except Exception:
-                                mp.pop('media_url', None)
-                                client_tw.messages.create(**mp)
-                            WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_respuesta[:500], tipo='SENT')
+                            enviados_menu = _enviar_mensaje_twilio_segmentado(
+                                client=client_tw,
+                                from_number=twilio_from,
+                                to_number=str(destino).strip(),
+                                body=texto_respuesta,
+                                media_url=media_url_menu,
+                            )
+                            from .twilio_media import mensaje_log_con_media
+                            for seg_i, (msg_menu, texto_env) in enumerate(enviados_menu, start=1):
+                                WhatsappLog.objects.create(
+                                    telefono=telefono_limpio,
+                                    mensaje=mensaje_log_con_media(
+                                        texto_env or texto_respuesta,
+                                        media_url_menu if seg_i == 1 else None,
+                                    )[:1500],
+                                    mensaje_id=getattr(msg_menu, 'sid', None),
+                                    tipo='SENT',
+                                )
                     except Exception as e:
                         logger.error(f"❌ Error enviando curso: {e}")
                     return

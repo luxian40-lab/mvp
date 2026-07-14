@@ -2371,7 +2371,14 @@ class PasoModulo(models.Model):
         blank=True,
         help_text='Texto que ve el estudiante (enunciado, instrucciones). En evaluación opciones = la pregunta.',
     )
-    media_url = models.URLField(max_length=500, blank=True)
+    media_url = models.URLField(
+        max_length=1000,
+        blank=True,
+        help_text=(
+            'URL pública del archivo (S3). Si usa «Subir archivo desde PC», se completa al Guardar. '
+            'Debe verse un enlace https://… aquí; si queda vacío, el video no se enviará por WhatsApp.'
+        ),
+    )
     eval_opcion_a = models.TextField(blank=True, default='', verbose_name='Opción A')
     eval_opcion_b = models.TextField(blank=True, default='', verbose_name='Opción B')
     eval_opcion_c = models.TextField(blank=True, default='', verbose_name='Opción C')

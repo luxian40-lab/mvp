@@ -232,6 +232,21 @@ def _subir_bytes_s3(key: str, data: bytes, content_type: str) -> Optional[str]:
 
 
 def _descargar_bytes(url: str, timeout: int = 90) -> Optional[bytes]:
+    """Descarga bytes; para S3 de eki usa boto3 (evita 403 en bucket privado)."""
+    key = _s3_key_desde_url(url)
+    if key:
+        try:
+            import boto3
+            from botocore.config import Config
+
+            client = boto3.client(
+                's3',
+                config=Config(signature_version='s3v4', region_name='us-east-2'),
+            )
+            obj = client.get_object(Bucket='eki-produccion', Key=key)
+            return obj['Body'].read()
+        except Exception as exc:
+            logger.warning('S3 get_object falló (%s): %s', key[:80], exc)
     try:
         import urllib.request
 
@@ -239,8 +254,54 @@ def _descargar_bytes(url: str, timeout: int = 90) -> Optional[bytes]:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.read()
     except Exception as exc:
-        logger.warning('No se pudo descargar media para faststart: %s | %s', url[:120], exc)
+        logger.warning('No se pudo descargar media: %s | %s', (url or '')[:120], exc)
         return None
+
+
+def es_video_url(url: Optional[str]) -> bool:
+    return bool(url and _es_url_video_mp4(url))
+
+
+def media_requiere_enlace_previo(url: Optional[str]) -> bool:
+    """
+    Videos: WhatsApp a veces rechaza el adjunto (63021) y marca TODO el mensaje
+    undelivered (incluido el caption). Hay que mandar el enlace en un SMS de texto aparte.
+    """
+    if not url:
+        return False
+    u = url.split('?', 1)[0].lower()
+    return u.endswith(('.mp4', '.m4v', '.mov', '.3gp'))
+
+
+def mp4_bitstream_ilegible(data: bytes) -> bool:
+    """True si ffmpeg no puede decodificar 1 frame (bitstream roto → Twilio 63021)."""
+    import shutil
+    import subprocess
+    import tempfile
+
+    if not data or not shutil.which('ffmpeg'):
+        return False
+    path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as tmp:
+            tmp.write(data)
+            path = tmp.name
+        r = subprocess.run(
+            ['ffmpeg', '-v', 'error', '-xerror', '-i', path, '-frames:v', '1', '-f', 'null', '-'],
+            capture_output=True,
+            text=True,
+            timeout=45,
+        )
+        return r.returncode != 0
+    except Exception:
+        return False
+    finally:
+        if path:
+            try:
+                import os
+                os.unlink(path)
+            except OSError:
+                pass
 
 
 def preparar_url_media_whatsapp(url: Optional[str]) -> Optional[str]:
@@ -248,6 +309,7 @@ def preparar_url_media_whatsapp(url: Optional[str]) -> Optional[str]:
     Prepara URL para MediaUrl de Twilio/WhatsApp.
     - Normaliza S3 regional.
     - Si es MP4 sin faststart (moov al final), remux y re-sube a S3.
+    - Si el bitstream está corrupto, retorna None (solo enlace de texto; evita 63021).
     - Audio/imagen/PDF: sin cambios de contenedor (no romper audio).
     """
     clean = normalizar_media_url_s3(url)
@@ -286,6 +348,13 @@ def preparar_url_media_whatsapp(url: Optional[str]) -> Optional[str]:
     raw = _descargar_bytes(clean)
     if not raw:
         return clean
+    if mp4_bitstream_ilegible(raw):
+        logger.warning(
+            '🎬 MP4 ilegible (no adjuntar; solo enlace) | bytes=%s url=%s',
+            len(raw),
+            clean[:120],
+        )
+        return None
     if not mp4_necesita_faststart(raw):
         logger.info('🎬 MP4 ya es faststart; sin remux | bytes=%s', len(raw))
         return clean

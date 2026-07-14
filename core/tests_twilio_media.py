@@ -40,6 +40,13 @@ class TwilioMediaHelpersTests(SimpleTestCase):
         self.assertIn('📎 Archivo:', body)
         self.assertIn('https://cdn.example/a.mp4', body)
 
+    def test_media_requiere_enlace_previo_solo_video(self):
+        from core.twilio_media import media_requiere_enlace_previo
+
+        self.assertTrue(media_requiere_enlace_previo('https://x/a.mp4'))
+        self.assertFalse(media_requiere_enlace_previo('https://x/a.png'))
+        self.assertFalse(media_requiere_enlace_previo('https://x/a.pdf'))
+
     def test_mp4_faststart_remux_mueve_moov(self):
         from core.twilio_media import mp4_necesita_faststart, remux_mp4_faststart
 

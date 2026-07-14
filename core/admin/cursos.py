@@ -343,6 +343,15 @@ class PasoModuloForm(forms.ModelForm):
                 carpeta='modulos/pasos',
                 prefix=f'modulo_{modulo_id}',
             )
+            if not (instance.media_url or '').strip():
+                raise ValidationError(
+                    {
+                        'media_file_upload': (
+                            'El archivo se subió pero no se obtuvo URL pública. '
+                            'Reintente o pegue la URL en «Media url».'
+                        )
+                    }
+                )
 
         if commit:
             instance.save()

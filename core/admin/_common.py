@@ -68,20 +68,80 @@ def guardar_upload_admin_media(uploaded_file, *, carpeta='admin_media', prefix='
     now = timezone.now()
     filename = get_valid_filename(uploaded_file.name)
     raw = uploaded_file.read()
-    # MP4 sin faststart → WhatsApp 63021; remux antes de guardar.
     name_l = (filename or '').lower()
-    if name_l.endswith('.mp4') or (getattr(uploaded_file, 'content_type', '') or '').lower() == 'video/mp4':
-        try:
-            from core.twilio_media import mp4_necesita_faststart, remux_mp4_faststart
-
-            if mp4_necesita_faststart(raw):
-                raw = remux_mp4_faststart(raw)
-                logger.info('🎬 Upload admin remux faststart | %s', filename)
-        except Exception as exc:
-            logger.warning('No se pudo aplicar faststart al upload %s: %s', filename, exc)
+    # No remuxeamos aquí: un remux mal aplicado puede corromper el MP4.
+    # WhatsApp: se prepara (faststart) al enviar. Rechazar MP4 ilegibles (causa 63021).
+    if name_l.endswith(('.mp4', '.m4v', '.mov')):
+        if len(raw) > 12 and b'ftyp' not in raw[:64]:
+            raise ValidationError(
+                f'El video "{filename}" no es un MP4 válido (cabecera incorrecta). '
+                'Exporte de nuevo como H.264 + AAC (.mp4) e intente otra vez.'
+            )
+        _validar_video_decodificable(raw, filename)
     path = f'{carpeta}/{now:%Y/%m}/{prefix}_{now:%Y%m%d%H%M%S}_{filename}'
     saved_path = default_storage.save(path, ContentFile(raw))
     return default_storage.url(saved_path)
+
+
+def _validar_video_decodificable(raw: bytes, filename: str) -> None:
+    """ffprobe: exige pista de video; evita subir MP4 corruptos que WhatsApp rechaza (63021)."""
+    import shutil
+    import subprocess
+    import tempfile
+
+    if not shutil.which('ffprobe'):
+        logger.warning('ffprobe no disponible; se omite validación profunda de %s', filename)
+        return
+    path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as tmp:
+            tmp.write(raw)
+            path = tmp.name
+        probe = subprocess.run(
+            [
+                'ffprobe', '-v', 'error',
+                '-select_streams', 'v:0',
+                '-show_entries', 'stream=codec_name,width,height',
+                '-of', 'csv=p=0',
+                path,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=45,
+        )
+        line = (probe.stdout or '').strip()
+        if probe.returncode != 0 or not line or line.startswith(','):
+            err = (probe.stderr or '').strip()[:200]
+            raise ValidationError(
+                f'El video "{filename}" está dañado o no es reproducible '
+                f'(WhatsApp lo rechazaría). Reexporte como H.264 + AAC. {err}'.strip()
+            )
+        # Intento corto de decode: 1 frame; si falla, el bitstream está roto.
+        if shutil.which('ffmpeg'):
+            dec = subprocess.run(
+                [
+                    'ffmpeg', '-v', 'error', '-xerror', '-i', path,
+                    '-frames:v', '1', '-f', 'null', '-',
+                ],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            if dec.returncode != 0:
+                raise ValidationError(
+                    f'El video "{filename}" no se puede decodificar (archivo corrupto). '
+                    'Exporte de nuevo como MP4 H.264 + AAC e intente otra vez.'
+                )
+    except ValidationError:
+        raise
+    except Exception as exc:
+        logger.warning('Validación video omitida por error: %s | %s', filename, exc)
+    finally:
+        if path:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
 
 
 # ================================================

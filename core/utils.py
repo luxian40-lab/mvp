@@ -270,8 +270,31 @@ def enviar_whatsapp_twilio(
             logger.info(f"[MEDIA] Enviando con multimedia: {clean_url}")
 
         from .response_templates import MENSAJE_CAPTION_SOLO_MEDIA as _caption_solo_media
+        from .twilio_media import (
+            cuerpo_con_enlace_archivo,
+            es_error_media_twilio,
+            media_requiere_enlace_previo,
+        )
 
         status_cb = str(getattr(settings, 'TWILIO_STATUS_CALLBACK_URL', '') or '').strip()
+
+        if clean_url and media_requiere_enlace_previo(clean_url):
+            link_body = cuerpo_con_enlace_archivo(
+                '🎥 Material del módulo (enlace por si el video no se reproduce en el chat):',
+                clean_url,
+            )
+            link_params = {
+                'from_': twilio_number,
+                'body': link_body,
+                'to': telefono,
+            }
+            if status_cb:
+                link_params['status_callback'] = status_cb
+            try:
+                link_msg = client.messages.create(**link_params)
+                sent_messages.append(link_msg)
+            except Exception as link_err:
+                logger.warning('[MEDIA] enlace previo falló: %s', link_err)
 
         for idx, chunk in enumerate(chunks):
             chunk_eff = (chunk or '').strip()
@@ -292,8 +315,6 @@ def enviar_whatsapp_twilio(
             try:
                 message = client.messages.create(**message_params)
             except Exception as media_err:
-                from .twilio_media import cuerpo_con_enlace_archivo, es_error_media_twilio
-
                 # 63019 download / 63021 channel invalid / 63005 channel rejected
                 if es_error_media_twilio(media_err) and clean_url and idx == 0:
                     message_params.pop('media_url', None)
