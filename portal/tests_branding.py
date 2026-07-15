@@ -91,11 +91,21 @@ class PortalBrandingOnboardingTests(TestCase):
         self.assertContains(r_login, 'Bienvenido nuevamente')
         self.assertContains(r_login, 'Avance del programa')
         self.assertContains(r_login, 'Personas activas')
-        self.assertContains(r_login, 'portal-hero-integrated.png')
         self.assertNotContains(r_login, 'Ingresar con Google')
         self.assertNotContains(r_login, 'google-btn')
         self.assertNotContains(r_login, 'images.unsplash.com')
         self.assertNotContains(r_login, 'hero-metrics')
+
+    def test_login_hero_es_una_sola_escena(self):
+        """El personaje debe superponerse al dashboard, no vivir en un bloque de imagen aparte."""
+        r_login = Client().get('/portal/login/')
+        self.assertEqual(r_login.status_code, 200)
+        self.assertContains(r_login, 'hero-stage')
+        self.assertContains(r_login, 'class="dash"')
+        self.assertContains(r_login, 'character-transparent.png')
+        self.assertContains(r_login, 'hero-stage__shadow')
+        self.assertNotContains(r_login, 'hero__visual')
+        self.assertNotContains(r_login, 'portal-hero-integrated.png')
 
 
 class FaviconSurfacesTests(SimpleTestCase):

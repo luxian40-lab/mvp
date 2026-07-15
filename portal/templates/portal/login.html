@@ -56,163 +56,231 @@
             position: relative;
             display: flex;
             flex-direction: column;
-            padding: 24px 40px 16px 32px;
+            padding: 28px 36px 24px 32px;
             min-height: calc(100vh - 48px);
             animation: rise 0.7s var(--ease) both;
         }
-        .brand {
-            display: inline-flex;
-            align-items: center;
-            gap: 12px;
-            text-decoration: none;
-            color: var(--ink);
-            width: fit-content;
-            margin-bottom: 40px;
+        .hero-text {
+            flex: 0 0 auto;
+            max-width: 42rem;
+            margin-bottom: clamp(20px, 4vh, 40px);
         }
-        .brand__mark {
-            width: 40px;
-            height: 40px;
-            border-radius: 12px;
-            background: linear-gradient(145deg, var(--purple) 0%, var(--purple-deep) 100%);
-            display: grid;
-            place-items: center;
-            box-shadow: 0 8px 20px rgba(47, 36, 141, 0.22);
-            flex-shrink: 0;
-        }
-        .brand__mark img { width: 22px; height: 22px; display: block; filter: brightness(0) invert(1); }
-        .brand__name {
-            font-size: 1.25rem;
+        .hero-text__logo {
+            margin: 0 0 20px;
+            font-size: 1rem;
             font-weight: 700;
-            letter-spacing: -0.03em;
-            line-height: 1;
+            letter-spacing: -0.01em;
+            color: var(--ink);
         }
-        .brand__name em {
+        .hero-text__logo em {
             font-style: normal;
             font-weight: 500;
             color: var(--muted);
             margin-left: 0.28em;
         }
-        .hero__copy {
-            max-width: 34rem;
-            margin-bottom: 8px;
-        }
-        .hero__copy h1 {
-            margin: 0 0 16px;
-            font-size: clamp(1.75rem, 3.2vw, 2.35rem);
+        .hero-text h1 {
+            margin: 0 0 12px;
+            font-size: clamp(1.85rem, 3.4vw, 2.5rem);
             font-weight: 800;
             letter-spacing: -0.04em;
-            line-height: 1.18;
+            line-height: 1.16;
             color: var(--purple-deep);
         }
-        .hero__features {
-            list-style: none;
+        .hero-text__sub {
             margin: 0;
-            padding: 0;
-            display: grid;
-            gap: 10px;
-        }
-        .hero__features li {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 0.95rem;
-            font-weight: 500;
+            font-size: 1rem;
+            line-height: 1.55;
             color: var(--muted);
-        }
-        .hero__features svg {
-            width: 20px;
-            height: 20px;
-            color: var(--purple);
-            flex-shrink: 0;
+            max-width: 34rem;
         }
 
-        .hero__visual {
+        /* ── Escena única: dashboard (HTML) + personaje superpuesto ── */
+        .hero-stage {
+            position: relative;
             flex: 1;
             display: flex;
-            align-items: flex-end;
+            align-items: flex-start;
             justify-content: center;
+            min-height: 0;
+        }
+        .dash {
             position: relative;
-            margin: -16px -12px 0;
-            min-height: 340px;
-            isolation: isolate;
-        }
-        .hero__visual::after {
-            content: "";
-            position: absolute;
-            left: 16%;
-            right: 10%;
-            bottom: 2%;
-            height: 12%;
-            z-index: -1;
-            border-radius: 50%;
-            background: rgba(47, 36, 141, 0.12);
-            filter: blur(28px);
-        }
-        .hero__visual img {
-            width: min(820px, 112%);
-            max-height: min(57vh, 590px);
-            object-fit: contain;
-            filter: drop-shadow(0 26px 42px rgba(47, 36, 141, 0.14));
-            -webkit-mask-image: radial-gradient(ellipse 78% 74% at 50% 52%, #000 72%, transparent 100%);
-            mask-image: radial-gradient(ellipse 78% 74% at 50% 52%, #000 72%, transparent 100%);
-            user-select: none;
-            pointer-events: none;
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 240px));
-            gap: 16px;
-            margin-top: auto;
-            padding-bottom: 8px;
-            animation: rise 0.85s var(--ease) 0.12s both;
-        }
-        .stat {
+            width: 100%;
+            max-width: 980px;
             background: var(--white);
             border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 18px 20px;
-            box-shadow: var(--shadow-soft);
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 4px 12px;
-            align-items: end;
+            border-radius: 22px;
+            box-shadow: 0 40px 80px -20px rgba(47, 36, 141, 0.22), 0 2px 0 rgba(255, 255, 255, 0.6) inset;
+            overflow: hidden;
+            animation: rise 0.85s var(--ease) 0.1s both;
         }
-        .stat__label {
-            grid-column: 1 / -1;
-            font-size: 0.75rem;
+        .dash__topbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border);
+        }
+        .dash__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--lilac-2); }
+        .dash__dot--a { background: #f3b7c4; }
+        .dash__dot--b { background: #f6d69b; }
+        .dash__dot--c { background: #9fdcb8; }
+        .dash__tabs {
+            margin-left: 12px;
+            display: flex;
+            gap: 8px;
+        }
+        .dash__tab {
+            font-size: 0.72rem;
             font-weight: 600;
-            letter-spacing: 0.02em;
+            padding: 5px 12px;
+            border-radius: 999px;
+            color: var(--muted);
+            background: var(--lilac-2);
+        }
+        .dash__tab.is-active {
+            color: #fff;
+            background: linear-gradient(135deg, var(--purple) 0%, var(--purple-deep) 100%);
+        }
+        .dash__body {
+            display: grid;
+            grid-template-columns: 64px 1fr;
+        }
+        .dash__sidebar {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 18px;
+            padding: 22px 0;
+            border-right: 1px solid var(--border);
+        }
+        .dash__sidebar span {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            display: grid;
+            place-items: center;
             color: var(--muted);
         }
-        .stat__value {
-            font-size: 1.85rem;
+        .dash__sidebar span.is-active {
+            background: var(--lilac-2);
+            color: var(--purple-deep);
+        }
+        .dash__sidebar svg { width: 17px; height: 17px; }
+        .dash__main {
+            padding: 22px 24px 26px;
+            display: grid;
+            gap: 16px;
+        }
+        .dash__row {
+            display: grid;
+            grid-template-columns: 1.1fr 1.4fr;
+            gap: 16px;
+        }
+        .dash__card {
+            background: var(--lilac);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 18px;
+        }
+        .dash__card-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--muted);
+            margin: 0 0 12px;
+        }
+        .dash__donut {
+            width: 92px;
+            height: 92px;
+            border-radius: 50%;
+            margin: 0 auto 10px;
+            background: conic-gradient(var(--purple-deep) 0% 42%, var(--purple) 42% 78%, var(--lilac-2) 78% 100%);
+            display: grid;
+            place-items: center;
+        }
+        .dash__donut::after {
+            content: "";
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            background: var(--lilac);
+        }
+        .dash__legend {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            font-size: 0.68rem;
+            color: var(--muted);
+        }
+        .dash__legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+        .dash__chart {
+            width: 100%;
+            height: 96px;
+        }
+        .dash__chart path.area { fill: url(#dashGrad); stroke: none; }
+        .dash__chart path.line {
+            fill: none;
+            stroke: var(--purple-deep);
+            stroke-width: 2.4;
+            stroke-linecap: round;
+            stroke-dasharray: 260;
+            animation: spark 1.6s var(--ease) 0.3s both;
+        }
+        .dash__kpi-value {
+            font-size: 2rem;
             font-weight: 800;
-            letter-spacing: -0.04em;
+            letter-spacing: -0.03em;
             color: var(--purple-deep);
             line-height: 1;
         }
-        .stat__delta {
+        .dash__kpi-delta {
+            display: inline-block;
+            margin-top: 8px;
             font-size: 0.72rem;
             font-weight: 600;
             color: #16a34a;
-            grid-column: 1;
         }
-        .stat__spark {
-            grid-row: 2 / 4;
-            grid-column: 2;
-            width: 72px;
-            height: 36px;
-            align-self: center;
+        .dash__bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            height: 96px;
         }
-        .stat__spark path {
-            fill: none;
-            stroke: var(--purple);
-            stroke-width: 2.2;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-            stroke-dasharray: 120;
-            animation: spark 1.4s var(--ease) 0.4s both;
+        .dash__bars i {
+            flex: 1;
+            border-radius: 6px 6px 2px 2px;
+            background: linear-gradient(180deg, var(--purple) 0%, var(--purple-deep) 100%);
+            transform-origin: bottom;
+            animation: growbar 0.9s var(--ease) both;
+        }
+        @keyframes growbar { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+
+        .hero-stage__shadow {
+            position: absolute;
+            top: 30%;
+            right: 12%;
+            width: 26%;
+            height: 11%;
+            border-radius: 50%;
+            background: radial-gradient(ellipse closest-side, rgba(30, 22, 48, 0.34), transparent 75%);
+            filter: blur(7px);
+            z-index: 2;
+            pointer-events: none;
+        }
+        .hero-character {
+            position: absolute;
+            top: -15%;
+            right: 9%;
+            width: 22%;
+            height: auto;
+            aspect-ratio: 600 / 1324;
+            min-width: 168px;
+            max-width: 260px;
+            z-index: 3;
+            filter: drop-shadow(0 18px 22px rgba(30, 22, 48, 0.28));
+            user-select: none;
+            pointer-events: none;
+            animation: rise 0.9s var(--ease) 0.2s both;
         }
 
         .panel-wrap {
@@ -427,22 +495,33 @@
                 min-height: auto;
                 padding: 16px 8px 0;
             }
-            .hero__visual img {
-                width: min(108%, 560px);
-                max-height: 360px;
-            }
-            .stats {
-                grid-template-columns: 1fr 1fr;
+            .dash__row { grid-template-columns: 1fr; }
+            .hero-character {
+                width: 34%;
+                min-width: 130px;
+                right: 8%;
+                top: -7%;
             }
             .panel {
                 max-width: none;
                 min-height: auto;
             }
-            .brand { margin-bottom: 24px; }
+            .hero-text { margin-bottom: 24px; }
+        }
+        @media (max-width: 640px) {
+            .dash__body { grid-template-columns: 1fr; }
+            .dash__sidebar {
+                flex-direction: row;
+                justify-content: center;
+                border-right: 0;
+                border-bottom: 1px solid var(--border);
+                padding: 12px 0;
+            }
+            .hero-character { display: none; }
+            .hero-stage__shadow { display: none; }
         }
         @media (max-width: 520px) {
-            .stats { grid-template-columns: 1fr; }
-            .hero__copy h1 { font-size: 1.55rem; }
+            .hero-text h1 { font-size: 1.55rem; }
             .row-meta { flex-direction: column; align-items: flex-start; }
         }
         @media (prefers-reduced-motion: reduce) {
@@ -455,63 +534,86 @@
 </head>
 <body>
     <section class="hero" aria-label="eki portal">
-        <a class="brand" href="/portal/login/" aria-label="eki portal">
-            <span class="brand__mark" aria-hidden="true">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <circle cx="9" cy="8" r="2.2" fill="#fff"/>
-                    <circle cx="15" cy="8" r="2.2" fill="#fff"/>
-                    <path d="M5.5 17c.8-2.4 2.5-3.6 3.5-3.6S12 14.6 12 14.6s1.4-1.2 3-1.2 2.7 1.2 3.5 3.6" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
-                </svg>
-            </span>
-            <span class="brand__name">eki<em>portal</em></span>
-        </a>
-
-        <div class="hero__copy">
+        <div class="hero-text">
+            <p class="hero-text__logo">eki<em>portal</em></p>
             <h1>Acompaña el aprendizaje, mide el impacto y fortalece el desarrollo de tu organización.</h1>
-            <ul class="hero__features">
-                <li>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
-                    Gestiona programas
-                </li>
-                <li>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 19V5M8 19v-7M12 19v-4M16 19V8M20 19v-6"/></svg>
-                    Analiza resultados
-                </li>
-                <li>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="3"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    Toma decisiones con datos
-                </li>
-            </ul>
+            <p class="hero-text__sub">Gestiona programas, analiza resultados y toma decisiones con datos, todo desde un solo lugar.</p>
         </div>
 
-        <div class="hero__visual">
+        <div class="hero-stage" aria-hidden="true">
+            <div class="dash">
+                <div class="dash__topbar">
+                    <span class="dash__dot dash__dot--a"></span>
+                    <span class="dash__dot dash__dot--b"></span>
+                    <span class="dash__dot dash__dot--c"></span>
+                    <div class="dash__tabs">
+                        <span class="dash__tab is-active">Resumen</span>
+                        <span class="dash__tab">Programas</span>
+                        <span class="dash__tab">Reportes</span>
+                    </div>
+                </div>
+                <div class="dash__body">
+                    <aside class="dash__sidebar">
+                        <span class="is-active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-7 9 7"/><path d="M5 10v9h14v-9"/></svg></span>
+                        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V9M12 19V5M20 19v-6"/></svg></span>
+                        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3 3-5 7-5s7 2 7 5"/></svg></span>
+                        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z"/></svg></span>
+                    </aside>
+                    <div class="dash__main">
+                        <div class="dash__row">
+                            <div class="dash__card">
+                                <p class="dash__card-label">Avance del programa</p>
+                                <div class="dash__donut"></div>
+                                <div class="dash__legend">
+                                    <span><i style="background:var(--purple-deep)"></i>Certificó</span>
+                                    <span><i style="background:var(--purple)"></i>Activo</span>
+                                </div>
+                            </div>
+                            <div class="dash__card">
+                                <p class="dash__card-label">Progreso semanal</p>
+                                <svg class="dash__chart" viewBox="0 0 240 96" preserveAspectRatio="none">
+                                    <defs>
+                                        <linearGradient id="dashGrad" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stop-color="#9a6bac" stop-opacity="0.28"/>
+                                            <stop offset="100%" stop-color="#9a6bac" stop-opacity="0"/>
+                                        </linearGradient>
+                                    </defs>
+                                    <path class="area" d="M0 70 C30 60, 45 30, 75 40 S120 78, 150 34 S195 18, 240 12 V96 H0 Z"/>
+                                    <path class="line" d="M0 70 C30 60, 45 30, 75 40 S120 78, 150 34 S195 18, 240 12"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="dash__row">
+                            <div class="dash__card">
+                                <p class="dash__card-label">Personas activas</p>
+                                <span class="dash__kpi-value">142</span>
+                                <span class="dash__kpi-delta">▲ 12% vs. semana anterior</span>
+                            </div>
+                            <div class="dash__card">
+                                <p class="dash__card-label">Cobertura por sede</p>
+                                <div class="dash__bars">
+                                    <i style="height:46%; animation-delay:.05s"></i>
+                                    <i style="height:68%; animation-delay:.1s"></i>
+                                    <i style="height:52%; animation-delay:.15s"></i>
+                                    <i style="height:88%; animation-delay:.2s"></i>
+                                    <i style="height:74%; animation-delay:.25s"></i>
+                                    <i style="height:95%; animation-delay:.3s"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-stage__shadow"></div>
             <img
-                src="{% static 'portal/portal-hero-integrated.png' %}"
-                alt="Profesional trabajando sobre el monitor del dashboard de eki portal"
-                width="1024"
-                height="768"
+                class="hero-character"
+                src="{% static 'portal/character-transparent.png' %}"
+                alt=""
+                width="600"
+                height="1324"
                 decoding="async"
                 fetchpriority="high"
             >
-        </div>
-
-        <div class="stats" aria-label="Indicadores de ejemplo">
-            <article class="stat">
-                <span class="stat__label">Avance del programa</span>
-                <span class="stat__value">78%</span>
-                <span class="stat__delta">▲ 8% vs. semana anterior</span>
-                <svg class="stat__spark" viewBox="0 0 72 36" aria-hidden="true">
-                    <path d="M2 28 C12 26, 16 10, 28 14 S44 30, 52 12 S64 8, 70 6"/>
-                </svg>
-            </article>
-            <article class="stat">
-                <span class="stat__label">Personas activas</span>
-                <span class="stat__value">142</span>
-                <span class="stat__delta">▲ 12% vs. semana anterior</span>
-                <svg class="stat__spark" viewBox="0 0 72 36" aria-hidden="true">
-                    <path d="M2 24 C14 22, 18 28, 28 16 S42 6, 50 14 S62 20, 70 8"/>
-                </svg>
-            </article>
         </div>
     </section>
 
