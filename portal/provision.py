@@ -136,17 +136,18 @@ def establecer_password_admin(
         raise ValidationError('La contraseña debe tener al menos 8 caracteres.')
 
     user = portal_usuario.user
+    user.is_active = True
     user.is_staff = False
     user.is_superuser = False
     user.set_password(password_plano)
-    user.save(update_fields=['password', 'is_staff', 'is_superuser'])
+    user.save(update_fields=['password', 'is_active', 'is_staff', 'is_superuser'])
 
     if forzar_primer_acceso:
         portal_usuario.password_temporal = password_plano
         portal_usuario.debe_cambiar_credenciales = True
         portal_usuario.save(update_fields=['password_temporal', 'debe_cambiar_credenciales'])
     else:
-        portal_usuario.password_temporal = ''
+        portal_usuario.password_temporal = password_plano  # visible para el staff al entregar
         portal_usuario.debe_cambiar_credenciales = False
         portal_usuario.save(update_fields=['password_temporal', 'debe_cambiar_credenciales'])
     return password_plano

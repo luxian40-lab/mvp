@@ -4,9 +4,13 @@
 <a href="{% url 'aprende_profesor_cursos' %}">← Cursos</a>
 <a href="{% url 'aprende_profesor_logout' %}">Salir</a>
 {% endblock %}
+{% block extra_css %}
+{% include "aprende/partials/ranking_grupo_styles.html" %}
+.eki-rank-prof-note { margin: -0.35rem 0 1rem; }
+.eki-rank-grupo { margin-top: 1rem; }
+{% endblock %}
 {% block main_class %}eki-main--wide{% endblock %}
 {% block content %}
-{% include "aprende/partials/ranking_grupo_styles.html" %}
 <div class="eki-page-head">
     <span class="eki-badge">Aprende docente</span>
     <h1>{{ curso.nombre }}</h1>
@@ -16,13 +20,13 @@
 
 <div class="eki-card" style="margin-top:1rem;">
     <h2 class="eki-h2">Ranking de estudiantes</h2>
-    <p class="eki-muted" style="margin:-0.35rem 0 1rem;">
+    <p class="eki-muted eki-rank-prof-note">
         {% if ranking.modo == 'calificacion' %}
         Ordenado por promedio ponderado de notas del curso.
         {% elif ranking.modo == 'puntos' %}
         Ordenado por puntos de gamificación (WhatsApp + actividades).
         {% else %}
-        Vista del ranking del grupo / curso.
+        Vista del ranking del curso.
         {% endif %}
     </p>
 
@@ -33,61 +37,67 @@
     {% else %}
 
     {% if ranking.top3 %}
-    <div class="eki-podium" style="margin-bottom:1.25rem;">
+    <div class="eki-podium" aria-label="Top 3">
         {% for f in ranking.top3 %}
         <div class="eki-podium-item eki-podium-item--{{ forloop.counter }}">
-            <span class="eki-podium-rank">#{{ f.posicion }}</span>
+            <span class="eki-podium-medal">{{ f.posicion }}</span>
             <p class="eki-podium-name">{{ f.nombre }}</p>
-            <p class="eki-podium-score">{{ f.valor }}{% if ranking.modo == 'calificacion' %}/5{% else %}<span style="font-size:0.65rem;font-weight:600;"> pts</span>{% endif %}</p>
+            <p class="eki-podium-score">
+                {{ f.valor }}{% if ranking.modo == 'calificacion' %}/5{% else %}<span style="font-size:0.65rem;font-weight:600;"> pts</span>{% endif %}
+            </p>
         </div>
         {% endfor %}
     </div>
     {% endif %}
 
-    <table class="eki-ranking-table">
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Estudiante</th>
-                <th>{% if ranking.modo == 'calificacion' %}Promedio{% else %}Puntos{% endif %}</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for f in ranking.filas %}
-            <tr>
-                <td>{{ f.posicion }}</td>
-                <td>{{ f.nombre }}</td>
-                <td>{{ f.valor }}{{ f.valor_unidad }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="eki-table-wrap">
+        <table class="eki-table">
+            <thead>
+                <tr>
+                    <th style="width:3rem;">#</th>
+                    <th>Estudiante</th>
+                    <th>{% if ranking.modo == 'calificacion' %}Promedio{% else %}Puntos{% endif %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in ranking.filas %}
+                <tr>
+                    <td>{{ f.posicion }}</td>
+                    <td>{{ f.nombre }}</td>
+                    <td>{{ f.valor }}{{ f.valor_unidad }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     {% endif %}
 </div>
 
 {% if ranking.grupos %}
 {% for item in ranking.grupos %}
 {% if item.filas %}
-<div class="eki-card" style="margin-top:1rem;">
+<div class="eki-card eki-rank-grupo">
     <h2 class="eki-h2">Grupo: {{ item.grupo.nombre }}</h2>
-    <table class="eki-ranking-table">
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Estudiante</th>
-                <th>{% if ranking.modo == 'calificacion' %}Promedio{% else %}Puntos{% endif %}</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for f in item.filas %}
-            <tr>
-                <td>{{ f.posicion }}</td>
-                <td>{{ f.nombre }}</td>
-                <td>{{ f.valor }}{{ f.valor_unidad }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="eki-table-wrap">
+        <table class="eki-table">
+            <thead>
+                <tr>
+                    <th style="width:3rem;">#</th>
+                    <th>Estudiante</th>
+                    <th>{% if ranking.modo == 'calificacion' %}Promedio{% else %}Puntos{% endif %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in item.filas %}
+                <tr>
+                    <td>{{ f.posicion }}</td>
+                    <td>{{ f.nombre }}</td>
+                    <td>{{ f.valor }}{{ f.valor_unidad }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endif %}
 {% endfor %}

@@ -98,8 +98,9 @@ class ProfesorAulaPasswordYRedirectTests(TestCase):
         pu.refresh_from_db()
         user.refresh_from_db()
         self.assertFalse(pu.debe_cambiar_credenciales)
-        self.assertEqual(pu.password_temporal, '')
+        self.assertEqual(pu.password_temporal, 'ClaveDefinitiva1')
         self.assertTrue(user.check_password('ClaveDefinitiva1'))
+        self.assertTrue(user.is_active)
 
     def test_primer_acceso_profesor_redirige_a_aula(self):
         user, pu, _ = provisionar_usuario_portal(
@@ -136,8 +137,25 @@ class ProfesorAulaPasswordYRedirectTests(TestCase):
         self.assertEqual(r.status_code, 302)
         self.assertIn('/aprende/profesor/', r.url)
 
+    def test_login_profesor_con_forzar_pide_primer_acceso(self):
+        from portal.provision import establecer_password_admin
+
+        user, pu, _ = provisionar_usuario_portal(
+            cliente=self.org,
+            username='docente_force',
+            password='TempOld999',
+            rol='profesor',
+            forzar_cambio=False,
+        )
+        establecer_password_admin(pu, 'TempNueva88', forzar_primer_acceso=True)
+        r = self.http.post('/aprende/profesor/login/', {
+            'username': 'docente_force',
+            'password': 'TempNueva88',
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/portal/primer-acceso/', r.url)
+
     def test_admin_profesores_aula_solo_rol_profesor(self):
-        from django.contrib.auth.models import User as AuthUser
         from portal.models import ProfesorAula
 
         _, pu_prof, _ = provisionar_usuario_portal(

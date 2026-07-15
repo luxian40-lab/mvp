@@ -23,24 +23,34 @@ class PortalUsuarioAdminForm(forms.ModelForm):
         label='Nueva contraseña',
         required=False,
         min_length=8,
-        widget=forms.PasswordInput(render_value=False, attrs={'autocomplete': 'new-password'}),
+        widget=forms.TextInput(attrs={
+            'autocomplete': 'off',
+            'spellcheck': 'false',
+            'placeholder': 'Ej: ClaveTemp2026',
+            'style': 'font-family:ui-monospace,monospace;letter-spacing:0.02em;',
+        }),
         help_text=(
-            'Escribe una contraseña para actualizarla ahora mismo. '
+            'Escribe la contraseña en texto visible (podrás copiarla y enviársela al profesor). '
             'Si la dejas vacía, no se modifica. Mínimo 8 caracteres.'
         ),
     )
     confirmar_password = forms.CharField(
         label='Confirmar contraseña',
         required=False,
-        widget=forms.PasswordInput(render_value=False, attrs={'autocomplete': 'new-password'}),
+        widget=forms.TextInput(attrs={
+            'autocomplete': 'off',
+            'spellcheck': 'false',
+            'placeholder': 'Repite la misma contraseña',
+            'style': 'font-family:ui-monospace,monospace;letter-spacing:0.02em;',
+        }),
     )
     forzar_primer_acceso = forms.BooleanField(
         label='Forzar cambio en el próximo ingreso',
         required=False,
         help_text=(
-            'Si marcas esto junto con una nueva contraseña, el usuario deberá '
-            'completar /portal/primer-acceso/ (nombre + contraseña nueva). '
-            'Sin marcar, la contraseña queda definitiva y usable de inmediato en aula/portal.'
+            'Si lo marcas (recomendado al entregar la clave), el profesor al entrar a '
+            '/aprende/profesor/ deberá completar nombre y una contraseña nueva. '
+            'Si no lo marcas, la clave queda definitiva y usable de inmediato.'
         ),
     )
 
@@ -149,7 +159,7 @@ class PortalUsuarioAdminBase(admin.ModelAdmin):
         nueva = (form.cleaned_data.get('nueva_password') or '').strip()
         if nueva:
             try:
-                establecer_password_admin(
+                pwd = establecer_password_admin(
                     obj,
                     nueva,
                     forzar_primer_acceso=bool(form.cleaned_data.get('forzar_primer_acceso')),
@@ -157,18 +167,19 @@ class PortalUsuarioAdminBase(admin.ModelAdmin):
             except ValidationError as exc:
                 self.message_user(request, str(exc), level=messages.ERROR)
                 return
+            obj.refresh_from_db()
             if form.cleaned_data.get('forzar_primer_acceso'):
                 self.message_user(
                     request,
-                    f'Contraseña temporal definida para «{user.username}». '
-                    'Debe completar primer acceso en el próximo ingreso.',
+                    f'Contraseña temporal para «{user.username}»: {pwd}. '
+                    'Al entrar a /aprende/profesor/ deberá completar nombre y contraseña nueva.',
                     level=messages.SUCCESS,
                 )
             else:
                 self.message_user(
                     request,
-                    f'Contraseña actualizada para «{user.username}». '
-                    'Ya puede entrar al aula/portal con esa clave.',
+                    f'Contraseña de «{user.username}» actualizada: {pwd}. '
+                    'Ya puede entrar en /aprende/profesor/login/ con esa clave.',
                     level=messages.SUCCESS,
                 )
 

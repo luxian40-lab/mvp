@@ -38,6 +38,7 @@ from .models import EntregaTarea, TareaCurso
 from .perfil_service import actualizar_perfil_aula, resumen_perfil_aula
 from .calificacion_aula_service import (
     actualizar_nota_evaluacion,
+    borrar_asistencia_sesion,
     contexto_modo_calificacion,
     filas_asistencia_curso,
     filas_calificacion_curso,
@@ -310,6 +311,9 @@ def estudiante_perfil(request):
 
 def profesor_login(request):
     if es_profesor_aprende(request):
+        pu = request.portal_usuario
+        if pu.debe_cambiar_credenciales:
+            return redirect('/portal/primer-acceso/')
         return redirect('/aprende/profesor/')
 
     error = None
@@ -320,21 +324,27 @@ def profesor_login(request):
             puede_acceder_aula_docente,
         )
 
-        user = authenticate(
-            request,
-            username=request.POST.get('username', ''),
-            password=request.POST.get('password', ''),
-        )
+        username = (request.POST.get('username') or '').strip()
+        password = request.POST.get('password') or ''
+        user = authenticate(request, username=username, password=password)
         pu = portal_usuario_de_user(user) if user else None
         if not user or not pu:
             error = 'Credenciales incorrectas o usuario sin organización en el portal.'
+        elif not user.is_active:
+            error = 'Esta cuenta está desactivada. Contacta a tu administrador eki.'
         elif not puede_acceder_aula_docente(pu):
             error = (
                 f'Tu usuario tiene rol «{pu.get_rol_display()}». '
                 'Solo Administrador o Profesor pueden entrar al aula docente.'
             )
         else:
+            if user.is_staff or user.is_superuser:
+                user.is_staff = False
+                user.is_superuser = False
+                user.save(update_fields=['is_staff', 'is_superuser'])
             iniciar_sesion_portal(request, pu)
+            if pu.debe_cambiar_credenciales:
+                return redirect('/portal/primer-acceso/')
             return redirect('/aprende/profesor/')
 
     return render(request, 'aprende/profesor_login.html', {'error': error})
@@ -536,6 +546,15 @@ def profesor_curso_asistencia(request, curso_id: int):
         fecha = timezone.localdate()
 
     if request.method == 'POST':
+        accion = (request.POST.get('accion') or 'guardar').strip()
+        if accion == 'borrar':
+            n = borrar_asistencia_sesion(curso, fecha)
+            messages.success(
+                request,
+                f'Asistencia del {fecha.isoformat()} borrada ({n} registro(s)).',
+            )
+            return redirect(f'/aprende/profesor/curso/{curso.pk}/asistencia/?fecha={fecha.isoformat()}')
+
         presente_ids = {int(x) for x in request.POST.getlist('presente') if str(x).isdigit()}
         total_inscritos = len(filas_asistencia_curso(curso, fecha))
         n = guardar_asistencia_sesion(request, curso, fecha, presente_ids)
@@ -543,10 +562,12 @@ def profesor_curso_asistencia(request, curso_id: int):
         return redirect(f'/aprende/profesor/curso/{curso.pk}/asistencia/?fecha={fecha.isoformat()}')
 
     filas = filas_asistencia_curso(curso, fecha)
+    hay_registro = any(f['registrado'] for f in filas)
     return render(request, 'aprende/profesor_curso_asistencia.html', {
         'curso': curso,
         'fecha': fecha,
         'filas': filas,
+        'hay_registro': hay_registro,
         'profesor_tab': 'asistencia',
         **contexto_modo_calificacion(org),
     })

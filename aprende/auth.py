@@ -39,6 +39,9 @@ def requiere_profesor_aprende(view_func):
     def wrapper(request, *args, **kwargs):
         if not es_profesor_aprende(request):
             return redirect('/aprende/profesor/login/')
+        pu = request.portal_usuario
+        if pu.debe_cambiar_credenciales and not request.path.startswith('/portal/primer-acceso'):
+            return redirect('/portal/primer-acceso/')
         return view_func(request, *args, **kwargs)
 
     return wrapper

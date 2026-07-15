@@ -577,3 +577,36 @@ class AprendeProfesorGestionTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Ranking de estudiantes')
         self.assertContains(r, f'/aprende/profesor/curso/{self.curso.id}/ranking/')
+        # CSS debe ir en <style> (extra_css), no como texto suelto antes del page-head
+        html = r.content.decode('utf-8')
+        head, _, body = html.partition('<body')
+        self.assertIn('.eki-ranking-wrap', head)
+        self.assertNotIn('.eki-ranking-wrap {', body)
+
+    def test_borrar_asistencia_del_dia(self):
+        from aprende.models import AsistenciaAula
+        from core.gamificacion import EvaluacionNotaGamificacion
+
+        self.http.post(f'/aprende/profesor/curso/{self.curso.id}/asistencia/', {
+            'fecha': '2026-07-06',
+            'accion': 'guardar',
+            'presente': [str(self.est.pk)],
+        })
+        self.assertTrue(
+            AsistenciaAula.objects.filter(curso=self.curso, fecha='2026-07-06').exists()
+        )
+
+        r = self.http.post(f'/aprende/profesor/curso/{self.curso.id}/asistencia/', {
+            'fecha': '2026-07-06',
+            'accion': 'borrar',
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertFalse(
+            AsistenciaAula.objects.filter(curso=self.curso, fecha='2026-07-06').exists()
+        )
+        self.assertFalse(
+            EvaluacionNotaGamificacion.objects.filter(
+                estudiante=self.est, curso=self.curso, tipo='asistencia',
+                detalle='Asistencia 2026-07-06',
+            ).exists()
+        )

@@ -57,7 +57,16 @@
                 </tbody>
             </table>
         </div>
-        <button type="submit" class="eki-btn eki-btn--primary" style="margin-top:1rem;">Guardar asistencia</button>
+        <div style="display:flex;flex-wrap:wrap;gap:0.65rem;align-items:center;margin-top:1rem;">
+            <button type="submit" name="accion" value="guardar" class="eki-btn eki-btn--primary">Guardar asistencia</button>
+            {% if hay_registro %}
+            <button type="submit" name="accion" value="borrar" class="eki-btn eki-btn--ghost"
+                style="color:#b91c1c;border-color:#fecaca;"
+                onclick="return confirm('¿Borrar toda la asistencia de este día? Esta acción no se puede deshacer.');">
+                Borrar
+            </button>
+            {% endif %}
+        </div>
     </form>
     {% endif %}
 </div>

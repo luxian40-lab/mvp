@@ -131,6 +131,35 @@ def guardar_asistencia_sesion(request, curso: Curso, fecha: date, presente_ids: 
     return count
 
 
+def borrar_asistencia_sesion(curso: Curso, fecha: date) -> int:
+    """
+    Elimina el registro de asistencia de ese día (y notas/puntos ligados a esa sesión).
+    Útil cuando el profesor cargó mal la fecha o los presentes.
+    """
+    from core.gamificacion import TransaccionPuntos
+
+    detalle = _detalle_asistencia(fecha)
+    n = AsistenciaAula.objects.filter(curso=curso, fecha=fecha).count()
+    AsistenciaAula.objects.filter(curso=curso, fecha=fecha).delete()
+
+    cliente = curso.cliente
+    if cliente and modo_usa_calificacion(cliente):
+        EvaluacionNotaGamificacion.objects.filter(
+            curso=curso,
+            tipo='asistencia',
+            detalle=detalle,
+        ).delete()
+    elif cliente and modo_usa_puntos(cliente):
+        razon = f'Manual: {detalle}'
+        for tx in TransaccionPuntos.objects.filter(razon=razon).select_related('perfil'):
+            perfil = tx.perfil
+            perfil.puntos_totales = max(0, perfil.puntos_totales - abs(tx.puntos))
+            perfil.calcular_nivel()
+            perfil.save()
+            tx.delete()
+    return n
+
+
 def filas_asistencia_curso(curso: Curso, fecha: date) -> list[dict]:
     """Lista inscritos con checkbox de asistencia para una fecha."""
     registros = {
