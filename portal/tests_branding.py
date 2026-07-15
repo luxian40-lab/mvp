@@ -91,8 +91,9 @@ class PortalBrandingOnboardingTests(TestCase):
         self.assertContains(r_login, 'Bienvenido nuevamente')
         self.assertContains(r_login, 'Avance del programa')
         self.assertContains(r_login, 'Personas activas')
-        self.assertContains(r_login, 'login-hero-illustration.png')
-        self.assertContains(r_login, 'Ingresar con Google')
+        self.assertContains(r_login, 'portal-hero-integrated.png')
+        self.assertNotContains(r_login, 'Ingresar con Google')
+        self.assertNotContains(r_login, 'google-btn')
         self.assertNotContains(r_login, 'images.unsplash.com')
         self.assertNotContains(r_login, 'hero-metrics')
 
