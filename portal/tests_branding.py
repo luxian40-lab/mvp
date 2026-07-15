@@ -83,15 +83,18 @@ class PortalBrandingOnboardingTests(TestCase):
         self.assertContains(r_login, 'favicons/portal.svg')
         self.assertContains(r_login, 'image/svg+xml')
 
-    def test_login_hero_metricas_empresa(self):
+    def test_login_hero_premium_saas(self):
         r_login = Client().get('/portal/login/')
         self.assertEqual(r_login.status_code, 200)
-        self.assertContains(r_login, 'hero-metrics')
-        self.assertContains(r_login, 'Avance organizacional')
-        self.assertContains(r_login, 'Métricas y seguimiento para su empresa')
+        self.assertContains(r_login, 'eki')
+        self.assertContains(r_login, 'portal')
+        self.assertContains(r_login, 'Bienvenido nuevamente')
+        self.assertContains(r_login, 'Avance del programa')
+        self.assertContains(r_login, 'Personas activas')
+        self.assertContains(r_login, 'login-hero-illustration.png')
+        self.assertContains(r_login, 'Ingresar con Google')
         self.assertNotContains(r_login, 'images.unsplash.com')
-        self.assertNotContains(r_login, 'login-hero__slide')
-        self.assertNotContains(r_login, 'photo-1574943320219-553eb213f72d')
+        self.assertNotContains(r_login, 'hero-metrics')
 
 
 class FaviconSurfacesTests(SimpleTestCase):
