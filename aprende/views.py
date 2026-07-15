@@ -45,7 +45,7 @@ from .calificacion_aula_service import (
     parse_fecha_asistencia,
     registrar_nota_manual_curso,
 )
-from .ranking_service import resumen_ranking_aula
+from .ranking_service import ranking_curso_profesor, resumen_ranking_aula
 from .tarea_service import actualizar_tarea, calificar_entrega, crear_tarea, eliminar_tarea, guardar_entrega
 from .tareas_aula_service import tareas_agrupadas_estudiante, tareas_por_curso
 
@@ -589,6 +589,19 @@ def profesor_curso_calificaciones(request, curso_id: int):
         'curso': curso,
         'filas': filas,
         'profesor_tab': 'calificaciones',
+        **contexto_modo_calificacion(org),
+    })
+
+
+@requiere_profesor_aprende
+def profesor_curso_ranking(request, curso_id: int):
+    org = _org_profesor(request)
+    curso = get_object_or_404(Curso, pk=curso_id, cliente=org, activo=True)
+    ranking = ranking_curso_profesor(org, curso)
+    return render(request, 'aprende/profesor_curso_ranking.html', {
+        'curso': curso,
+        'ranking': ranking,
+        'profesor_tab': 'ranking',
         **contexto_modo_calificacion(org),
     })
 

@@ -481,6 +481,13 @@ class AprendeProfesorAuthTests(TestCase):
         self.assertContains(r, 'Administrador o Profesor')
 
 
+@override_settings(
+    SECURE_SSL_REDIRECT=False,
+    STORAGES={
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    },
+)
 class AprendeProfesorGestionTests(TestCase):
     """Tareas editar/borrar, asistencia y calificaciones en aula docente."""
 
@@ -564,3 +571,9 @@ class AprendeProfesorGestionTests(TestCase):
         self.assertTrue(
             EvaluacionNotaGamificacion.objects.filter(estudiante=self.est, tipo='manual').exists()
         )
+
+    def test_profesor_ve_ranking_del_curso(self):
+        r = self.http.get(f'/aprende/profesor/curso/{self.curso.id}/ranking/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Ranking de estudiantes')
+        self.assertContains(r, f'/aprende/profesor/curso/{self.curso.id}/ranking/')

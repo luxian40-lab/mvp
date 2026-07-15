@@ -85,7 +85,8 @@ def portal_login(request):
         org = request.portal_usuario.organizacion
         if request.portal_usuario.debe_cambiar_credenciales:
             return redirect('/portal/primer-acceso/')
-        return redirect(portal_home_url(org))
+        from .provision import destino_post_autenticacion
+        return redirect(destino_post_autenticacion(request.portal_usuario))
 
     error = None
     if request.method == 'POST':
@@ -93,6 +94,7 @@ def portal_login(request):
         password = request.POST.get('password')
         user = authenticate(request, username=username, password=password)
         from portal.portal_auth import iniciar_sesion_portal, portal_usuario_de_user, puede_acceder_portal
+        from .provision import destino_post_autenticacion
 
         pu = portal_usuario_de_user(user) if user else None
         if puede_acceder_portal(pu):
@@ -104,7 +106,7 @@ def portal_login(request):
             iniciar_sesion_portal(request, pu)
             if pu.debe_cambiar_credenciales:
                 return redirect('/portal/primer-acceso/')
-            return redirect(portal_home_url(pu.organizacion))
+            return redirect(destino_post_autenticacion(pu))
         error = 'Credenciales incorrectas o usuario sin acceso al portal.'
     return render(request, 'portal/login.html', {'error': error})
 
@@ -113,13 +115,13 @@ def portal_login(request):
 def portal_primer_acceso(request):
     """Obligatorio la primera vez: nombre + contraseña nueva."""
     from .forms_usuarios import PrimerAccesoPortalForm
-    from .provision import completar_primer_acceso
+    from .provision import completar_primer_acceso, destino_post_autenticacion
 
     pu = getattr(request, 'portal_usuario', None)
     if not pu:
         return redirect('/portal/login/')
     if not pu.debe_cambiar_credenciales:
-        return redirect(portal_home_url(pu.organizacion))
+        return redirect(destino_post_autenticacion(pu))
 
     error = None
     form = PrimerAccesoPortalForm(
@@ -137,7 +139,7 @@ def portal_primer_acceso(request):
             password=form.cleaned_data['password1'],
         )
         pu.refresh_from_db()
-        return redirect(portal_home_url(pu.organizacion))
+        return redirect(destino_post_autenticacion(pu))
     elif request.method == 'POST':
         error = form.errors.as_text() or 'Revisa los datos.'
 

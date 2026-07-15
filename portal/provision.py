@@ -116,3 +116,46 @@ def completar_primer_acceso(portal_usuario: PortalUsuario, *, first_name: str, l
     portal_usuario.debe_cambiar_credenciales = False
     portal_usuario.password_temporal = ''
     portal_usuario.save(update_fields=['debe_cambiar_credenciales', 'password_temporal'])
+
+
+@transaction.atomic
+def establecer_password_admin(
+    portal_usuario: PortalUsuario,
+    password: str,
+    *,
+    forzar_primer_acceso: bool = False,
+) -> str:
+    """
+    Staff define la contraseña desde el admin.
+    Por defecto queda definitiva (sin forzar /portal/primer-acceso/).
+    """
+    password_plano = (password or '').strip()
+    if not password_plano:
+        raise ValidationError('La contraseña no puede estar vacía.')
+    if len(password_plano) < 8:
+        raise ValidationError('La contraseña debe tener al menos 8 caracteres.')
+
+    user = portal_usuario.user
+    user.is_staff = False
+    user.is_superuser = False
+    user.set_password(password_plano)
+    user.save(update_fields=['password', 'is_staff', 'is_superuser'])
+
+    if forzar_primer_acceso:
+        portal_usuario.password_temporal = password_plano
+        portal_usuario.debe_cambiar_credenciales = True
+        portal_usuario.save(update_fields=['password_temporal', 'debe_cambiar_credenciales'])
+    else:
+        portal_usuario.password_temporal = ''
+        portal_usuario.debe_cambiar_credenciales = False
+        portal_usuario.save(update_fields=['password_temporal', 'debe_cambiar_credenciales'])
+    return password_plano
+
+
+def destino_post_autenticacion(portal_usuario: PortalUsuario) -> str:
+    """Profesores van al aula; el resto al home del portal B2B."""
+    if portal_usuario.rol == 'profesor':
+        return '/aprende/profesor/'
+    from .capabilities import portal_home_url
+
+    return portal_home_url(portal_usuario.organizacion)

@@ -413,7 +413,7 @@ JAZZMIN_SETTINGS = {
             },
             {
                 "name": "Profesores aula",
-                "url": "/admin/portal/portalusuario/?rol__exact=profesor",
+                "url": "/admin/portal/profesoraula/",
                 "icon": "fas fa-chalkboard-teacher",
                 "permissions": ["portal.view_portalusuario"],
             },

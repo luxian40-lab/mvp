@@ -45,6 +45,22 @@ class PortalUsuario(models.Model):
         verbose_name_plural = 'Usuarios portal clientes'
 
 
+class ProfesorAulaManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(rol='profesor')
+
+
+class ProfesorAula(PortalUsuario):
+    """Proxy: gestión de profesores del aula sin mezclar con portal B2B en el menú."""
+
+    objects = ProfesorAulaManager()
+
+    class Meta:
+        proxy = True
+        verbose_name = 'Profesor aula'
+        verbose_name_plural = 'Profesores aula'
+
+
 class PortalFeedback(models.Model):
     """Comentarios de usuarios del portal hacia el equipo eki."""
 

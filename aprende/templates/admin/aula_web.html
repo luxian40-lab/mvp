@@ -85,13 +85,13 @@
     <section class="aw-section">
         <h2>Profesores del aula</h2>
         <div class="aw-grid">
-            <a class="aw-card" href="{% url 'admin:portal_portalusuario_add' %}?rol=profesor">
+            <a class="aw-card" href="{% url 'admin:portal_profesoraula_add' %}">
                 <h3>+ Nuevo profesor</h3>
-                <p>Usuario portal con rol Profesor. Sube contenido en /aprende/profesor/.</p>
+                <p>Crea un profesor del aula. Aquí puedes definir nombre y contraseña definitivos.</p>
             </a>
-            <a class="aw-card" href="{% url 'admin:portal_portalusuario_changelist' %}?rol__exact=profesor{% if cliente %}&organizacion__id__exact={{ cliente.id }}{% endif %}">
+            <a class="aw-card" href="{% url 'admin:portal_profesoraula_changelist' %}{% if cliente %}?organizacion__id__exact={{ cliente.id }}{% endif %}">
                 <h3>Listar profesores</h3>
-                <p>Docentes por organización (no son el registro Cliente).</p>
+                <p>Gestiona contraseñas y nombres de docentes sin mezclar con usuarios del portal B2B.</p>
             </a>
             <a class="aw-card ext" href="/aprende/profesor/login/" target="_blank" rel="noopener">
                 <h3>Vista profesor ↗</h3>
@@ -106,7 +106,7 @@
             <tbody>
                 {% for p in profesores %}
                 <tr>
-                    <td><a href="{% url 'admin:portal_portalusuario_change' p.pk %}">{{ p.user.username }}</a></td>
+                    <td><a href="{% url 'admin:portal_profesoraula_change' p.pk %}">{{ p.user.username }}</a></td>
                     <td>{{ p.organizacion.nombre }}</td>
                     <td>{{ p.get_rol_display }}</td>
                 </tr>
