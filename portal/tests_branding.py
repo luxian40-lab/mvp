@@ -104,7 +104,7 @@ class PortalBrandingOnboardingTests(TestCase):
         self.assertEqual(r_login.status_code, 200)
         self.assertContains(r_login, 'hero-stage')
         self.assertContains(r_login, 'class="dash"')
-        self.assertContains(r_login, 'paula-placing-kpi.png')
+        self.assertContains(r_login, 'paula-laptop-chair.png')
         self.assertContains(r_login, 'hero-stage__shadow')
         self.assertNotContains(r_login, 'hero__visual')
         self.assertNotContains(r_login, 'portal-hero-integrated.png')

@@ -280,28 +280,28 @@
 
         .hero-stage__shadow {
             position: absolute;
-            bottom: 6%;
-            right: 6.5%;
-            width: 20%;
-            height: 34px;
+            bottom: 2%;
+            right: 3%;
+            width: 17%;
+            height: 26px;
             border-radius: 50%;
-            background: radial-gradient(ellipse closest-side, rgba(31, 31, 40, 0.28), transparent 75%);
+            background: radial-gradient(ellipse closest-side, rgba(31, 31, 40, 0.26), transparent 75%);
             filter: blur(7px);
             z-index: 2;
             pointer-events: none;
         }
         .hero-character {
             position: absolute;
-            bottom: -3%;
-            right: 2%;
-            width: 24%;
+            bottom: 1%;
+            right: -3%;
+            width: 21%;
             height: auto;
-            aspect-ratio: 674 / 1345;
-            min-width: 170px;
-            max-width: 280px;
-            max-height: 56%;
+            aspect-ratio: 256 / 350;
+            min-width: 150px;
+            max-width: 225px;
+            max-height: 42%;
             z-index: 3;
-            filter: drop-shadow(0 16px 20px rgba(31, 31, 40, 0.24));
+            filter: drop-shadow(0 14px 18px rgba(31, 31, 40, 0.22));
             user-select: none;
             pointer-events: none;
             animation: rise 0.9s var(--ease) 0.2s both;
@@ -560,14 +560,16 @@
             .dash__card { min-height: 190px; }
             .dash__chart, .dash__bars { min-height: 130px; }
             .hero-character {
-                width: 34%;
-                min-width: 140px;
-                right: 4%;
-                bottom: -4%;
+                width: 30%;
+                min-width: 130px;
+                max-width: 190px;
+                right: 0%;
+                bottom: 1%;
             }
             .hero-stage__shadow {
                 bottom: 3%;
-                right: 8%;
+                right: 6%;
+                width: 22%;
             }
             .panel {
                 max-width: none;
@@ -679,10 +681,10 @@
             <div class="hero-stage__shadow"></div>
             <img
                 class="hero-character"
-                src="{% static 'portal/paula-placing-kpi.png' %}"
+                src="{% static 'portal/paula-laptop-chair.png' %}"
                 alt=""
-                width="674"
-                height="1345"
+                width="256"
+                height="350"
                 decoding="async"
                 fetchpriority="high"
             >
