@@ -10,40 +10,49 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --sidebar: #1a1330;
-            --sidebar-text: #c9bfd8;
-            --sidebar-active: #2a2150;
-            --sidebar-border: rgba(255, 255, 255, 0.08);
-            --sidebar-width: 248px;
+            /* Paleta oficial eki: morado primario, verde éxito, azul información + bases neutras */
+            --purple: #9A6CAC;
+            --purple-deep: #5F3A6E;
+            --purple-mid: #855698;
+            --purple-soft: #C4ACCE;
+            --success: #35A647;
+            --info: #3C7BBF;
+            --ink: #1F1F28;
+            --ink-muted: #6C6C7A;
+
+            --sidebar: #1D1726;
+            --sidebar-text: #C7BFD3;
+            --sidebar-active: rgba(154, 108, 172, 0.22);
+            --sidebar-border: rgba(255, 255, 255, 0.07);
+            --sidebar-width: 252px;
             --sidebar-collapsed-width: 72px;
-            --accent: #9a6bac;
-            --accent-hover: #2F248D;
-            --accent-soft: rgba(154, 107, 172, 0.12);
-            --purple-deep: #2F248D;
-            --lilac: #F8F7FF;
-            --lilac-2: #F0EDF8;
-            --field: #6b4fa0;
-            --field-soft: rgba(107, 79, 160, 0.10);
-            --fondo: #F8F7FF;
-            --texto: #1E1630;
-            --texto-muted: #6B6280;
-            --borde: rgba(47, 36, 141, 0.10);
+            --accent: var(--purple);
+            --accent-hover: var(--purple-deep);
+            --accent-soft: rgba(154, 108, 172, 0.12);
+            --lilac: #FAFAFC;
+            --lilac-2: #F4F3F8;
+            --field: var(--purple-mid);
+            --field-soft: rgba(133, 86, 152, 0.10);
+            --fondo: #FAFAFC;
+            --texto: var(--ink);
+            --texto-muted: var(--ink-muted);
+            --borde: rgba(31, 31, 40, 0.08);
             --blanco: #ffffff;
-            --tabla-head: #F0EDF8;
-            --ok: #047857;
-            --warn: #b45309;
-            --danger: #b91c1c;
+            --tabla-head: #F4F3F8;
+            --ok: #2E8F3D;
+            --warn: #B4740E;
+            --danger: #C23B3B;
             --wa-green: #25d366;
             --wa-green-hover: #1ebe57;
             --font: 'Plus Jakarta Sans', 'Segoe UI', system-ui, sans-serif;
             --font-display: 'Plus Jakarta Sans', 'Segoe UI', system-ui, sans-serif;
             --ease: cubic-bezier(0.22, 1, 0.36, 1);
-            --chart-1: #2F248D;
-            --chart-2: #9a6bac;
-            --chart-3: #cbb8d8;
-            --chart-4: #6b4fa0;
-            --radius: 14px;
-            --shadow-soft: 0 8px 28px rgba(47, 36, 141, 0.07);
+            --chart-1: var(--purple);
+            --chart-2: var(--info);
+            --chart-3: var(--success);
+            --chart-4: var(--purple-soft);
+            --radius: 16px;
+            --shadow-soft: 0 10px 34px rgba(31, 31, 40, 0.06);
         }
 
         html[data-theme="dark"] {
@@ -53,13 +62,13 @@
             --borde: rgba(244, 242, 247, 0.12);
             --blanco: #24182e;
             --tabla-head: #2a183a;
-            --accent: #9a6cac;
+            --accent: var(--purple);
             --accent-hover: #b080c0;
             --accent-soft: rgba(154, 108, 172, 0.16);
-            --field: #2dd4bf;
-            --field-soft: rgba(45, 212, 191, 0.12);
+            --field: var(--info);
+            --field-soft: rgba(60, 123, 191, 0.14);
             --sidebar: #140e1a;
-            --sidebar-active: #2a183a;
+            --sidebar-active: rgba(154, 108, 172, 0.22);
             --sidebar-border: #2a183a;
         }
 
@@ -117,8 +126,8 @@
         body {
             margin: 0;
             background:
-                radial-gradient(ellipse 55% 40% at 88% 0%, rgba(154, 107, 172, 0.14), transparent 55%),
-                radial-gradient(ellipse 40% 35% at 8% 100%, rgba(47, 36, 141, 0.08), transparent 50%),
+                radial-gradient(ellipse 55% 40% at 88% 0%, rgba(154, 108, 172, 0.13), transparent 55%),
+                radial-gradient(ellipse 40% 35% at 8% 100%, rgba(133, 86, 152, 0.07), transparent 50%),
                 var(--fondo);
             color: var(--texto);
             font-family: var(--font);
@@ -178,7 +187,7 @@
 
         .sidebar-brand {
             position: relative;
-            padding: 18px 44px 14px 18px;
+            padding: 22px 44px 18px 20px;
             border-bottom: 1px solid var(--sidebar-border);
         }
 
@@ -265,7 +274,7 @@
         }
 
         .sidebar-powered {
-            padding: 8px 18px 14px;
+            padding: 10px 20px 18px;
             font-family: var(--font);
             font-size: 1.05rem;
             font-weight: 700;
@@ -273,7 +282,7 @@
             color: #f4f2f7;
             text-transform: lowercase;
             line-height: 1.15;
-            border-bottom: 1px solid rgba(196, 184, 208, 0.14);
+            border-bottom: 1px solid rgba(196, 184, 208, 0.1);
         }
         .sidebar-powered em {
             font-style: normal;
@@ -293,18 +302,20 @@
 
         .sidebar nav {
             flex: 1;
-            padding: 8px 10px 20px;
+            padding: 10px 14px 24px;
             overflow-y: auto;
         }
 
         .nav-label {
             font-size: 10px;
             font-weight: 600;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.09em;
             text-transform: uppercase;
-            color: rgba(201, 191, 216, 0.55);
-            padding: 14px 12px 4px;
+            color: rgba(201, 191, 216, 0.45);
+            padding: 22px 8px 8px;
         }
+
+        .nav-label:first-child { padding-top: 6px; }
 
         .sidebar-link {
             display: flex;
@@ -313,30 +324,46 @@
             gap: 10px;
             color: var(--sidebar-text);
             text-decoration: none;
-            padding: 8px 12px;
+            padding: 9px 10px;
             border-radius: 10px;
-            margin-bottom: 1px;
+            margin-bottom: 2px;
             font-weight: 500;
             font-size: 13px;
-            transition: background 0.12s, color 0.12s;
+            transition: background 0.15s, color 0.15s;
         }
 
         .sidebar-link .link-icon {
-            display: none;
-            width: 22px;
-            height: 22px;
+            display: inline-flex;
+            width: 18px;
+            height: 18px;
             align-items: center;
             justify-content: center;
-            font-size: 11px;
-            font-weight: 700;
-            color: #e8dff0;
-            background: #3d2750;
-            border-radius: 6px;
+            color: rgba(199, 191, 211, 0.75);
+            flex-shrink: 0;
         }
 
-        body.sidebar-collapsed .sidebar-link.active .link-icon {
-            background: var(--accent);
+        .sidebar-link .link-icon svg {
+            width: 18px;
+            height: 18px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .sidebar-link.active .link-icon,
+        .sidebar-link:hover .link-icon {
             color: #fff;
+        }
+
+        body.sidebar-collapsed .sidebar-link .link-icon {
+            width: 20px;
+            height: 20px;
+        }
+        body.sidebar-collapsed .sidebar-link .link-icon svg {
+            width: 20px;
+            height: 20px;
         }
 
         .icon-btn {
@@ -376,10 +403,15 @@
             background: #2f6da8;
         }
 
-        .sidebar-link:hover,
+        .sidebar-link:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #f4f2f7;
+        }
+
         .sidebar-link.active {
             background: var(--sidebar-active);
-            color: #f1f5f9;
+            color: #fff;
+            font-weight: 600;
         }
 
         .badge {
@@ -400,19 +432,15 @@
             grid-area: topbar;
             position: sticky;
             top: 0;
-            height: 60px;
-            background: linear-gradient(
-                180deg,
-                rgba(248, 247, 255, 0.92) 0%,
-                rgba(255, 255, 255, 0.78) 100%
-            );
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
-            border-bottom: 1px solid rgba(47, 36, 141, 0.08);
+            height: 68px;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--borde);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 28px;
+            padding: 0 32px;
             z-index: 9;
             min-width: 0;
         }
@@ -624,7 +652,7 @@
             align-items: center;
             gap: 10px;
             padding: 14px 14px 10px;
-            background: linear-gradient(135deg, #7a4e8e 0%, #9a6cac 100%);
+            background: linear-gradient(135deg, var(--purple-deep) 0%, var(--purple) 100%);
             color: #fff;
         }
         .eki-help__head svg.eki-flag--sm { flex-shrink: 0; }
@@ -714,20 +742,21 @@
             align-items: flex-start;
             justify-content: space-between;
             gap: 16px;
-            margin-bottom: 24px;
+            margin-bottom: 32px;
         }
 
         .page-title h1 {
             margin: 0;
             font-family: var(--font);
-            font-size: clamp(1.35rem, 2vw, 1.55rem);
-            font-weight: 650;
-            letter-spacing: -0.02em;
+            font-size: clamp(1.4rem, 2vw, 1.65rem);
+            font-weight: 700;
+            letter-spacing: -0.025em;
             line-height: 1.2;
+            color: var(--ink);
         }
         .page-title .muted {
-            margin: 0.45rem 0 0;
-            font-size: 0.9rem;
+            margin: 0.5rem 0 0;
+            font-size: 0.92rem;
             max-width: 42rem;
         }
         @keyframes portal-title-in {
@@ -772,14 +801,14 @@
         }
 
         .card {
-            padding: 18px 20px;
+            padding: 22px 24px;
         }
 
         .metric-number {
             margin: 0 0 4px;
             color: var(--purple-deep);
             font-family: var(--font);
-            font-size: 1.7rem;
+            font-size: 1.85rem;
             font-weight: 800;
             letter-spacing: -0.03em;
             line-height: 1.1;
@@ -825,42 +854,48 @@
 
         table {
             width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
             font-size: 13px;
         }
 
         th, td {
-            padding: 12px 14px;
+            padding: 14px 16px;
             border-bottom: 1px solid var(--borde);
             text-align: left;
             vertical-align: middle;
             color: var(--texto);
         }
 
+        tbody tr:last-child td { border-bottom: 0; }
+
         th {
             color: var(--texto-muted);
-            font-size: 11px;
-            font-weight: 600;
+            font-size: 10.5px;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            background: var(--tabla-head);
+            letter-spacing: 0.06em;
+            background: transparent;
+            border-bottom: 1px solid var(--borde);
+            padding-top: 4px;
+            padding-bottom: 12px;
         }
 
         .btn {
             display: inline-block;
             border: 0;
             border-radius: 10px;
-            background: linear-gradient(135deg, #b48bc4 0%, var(--accent) 45%, #7a4e9e 100%);
+            background: linear-gradient(135deg, var(--purple) 0%, var(--purple-deep) 130%);
             color: #fff;
-            padding: 10px 16px;
+            padding: 10px 18px;
             text-decoration: none;
             font-weight: 650;
             font-size: 13px;
             cursor: pointer;
-            box-shadow: 0 6px 16px rgba(47, 36, 141, 0.16);
+            box-shadow: 0 8px 20px rgba(95, 58, 110, 0.18);
         }
 
-        .btn:hover { filter: brightness(1.05); }
+        .btn:hover { filter: brightness(1.06); }
 
         .btn-outline {
             background: transparent;
@@ -918,14 +953,14 @@
             font-weight: 600;
         }
 
-        .status-pendiente { background: #fef3c7; color: #92400e; }
+        .status-pendiente { background: rgba(180, 116, 14, 0.12); color: #8a5a0b; }
         .status-en_atencion,
-        .status-en_proceso { background: #dbeafe; color: #1e40af; }
+        .status-en_proceso { background: rgba(60, 123, 191, 0.12); color: var(--info); }
         .status-resuelta,
         .status-cerrada,
-        .status-ok { background: #d1fae5; color: #065f46; }
-        .status-warn { background: #fef3c7; color: #92400e; }
-        .status-danger { background: #fee2e2; color: #991b1b; }
+        .status-ok { background: rgba(53, 166, 71, 0.12); color: var(--ok); }
+        .status-warn { background: rgba(180, 116, 14, 0.12); color: #8a5a0b; }
+        .status-danger { background: rgba(194, 59, 59, 0.12); color: var(--danger); }
 
         .charts-grid {
             display: grid;
@@ -954,9 +989,9 @@
             font-size: 13px;
             font-weight: 500;
         }
-        .alert-ok { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
-        .alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-        .alert-onboarding { background: #eff6ff; color: #1e3a8a; border: 1px solid #bfdbfe; border-radius: 12px; padding: 16px 20px; }
+        .alert-ok { background: rgba(53, 166, 71, 0.08); color: var(--ok); border: 1px solid rgba(53, 166, 71, 0.28); }
+        .alert-error { background: rgba(194, 59, 59, 0.07); color: var(--danger); border: 1px solid rgba(194, 59, 59, 0.24); }
+        .alert-onboarding { background: rgba(60, 123, 191, 0.08); color: #234d70; border: 1px solid rgba(60, 123, 191, 0.28); border-radius: 12px; padding: 16px 20px; }
         html[data-theme="dark"] .alert-onboarding { background: #1e3a5f; border-color: #3b82f6; color: #dbeafe; }
 
         .table-wrap {
@@ -1065,6 +1100,35 @@
 </head>
 <body data-portal-path="{{ request.path }}">
 <script>if (document.documentElement.classList.contains('sidebar-collapsed-pending')) { document.body.classList.add('sidebar-collapsed'); }</script>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+        <defs>
+            <g id="ic-defs" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="9" rx="1.6"/><rect x="13.5" y="3" width="7" height="5.5" rx="1.6"/><rect x="13.5" y="11.5" width="7" height="9.5" rx="1.6"/><rect x="3" y="15" width="7.5" height="6" rx="1.6"/></symbol>
+                <symbol id="i-funnel" viewBox="0 0 24 24"><path d="M4 4h16l-6 8.2V18l-4 2.2v-8z"/></symbol>
+                <symbol id="i-map" viewBox="0 0 24 24"><path d="M9 3l-6 2v16l6-2 6 2 6-2V3l-6 2-6-2z"/><path d="M9 3v16M15 5v18"/></symbol>
+                <symbol id="i-bars" viewBox="0 0 24 24"><rect x="3.5" y="10.5" width="4" height="9.5" rx="1"/><rect x="10" y="5.5" width="4" height="14.5" rx="1"/><rect x="16.5" y="13" width="4" height="7" rx="1"/></symbol>
+                <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7.5 10.5L12 15l4.5-4.5"/><path d="M4.5 20h15"/></symbol>
+                <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2.5"/></symbol>
+                <symbol id="i-award" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="5"/><path d="M8.3 12.8L6.8 20.8 12 18l5.2 2.8-1.5-8"/></symbol>
+                <symbol id="i-cap" viewBox="0 0 24 24"><path d="M12 3.5l9 4.6-9 4.6-9-4.6 9-4.6z"/><path d="M6.5 10.3v5c0 1.6 2.5 3.2 5.5 3.2s5.5-1.6 5.5-3.2v-5"/></symbol>
+                <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M2.3 20c0-3.4 3-5.8 6.7-5.8s6.7 2.4 6.7 5.8"/><circle cx="17.3" cy="8.5" r="2.4"/><path d="M17 14.6c2.6.4 4.3 2.1 4.3 5"/></symbol>
+                <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 4.5h16v12H8.5L4 20.5v-4z"/></symbol>
+                <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 6c-2-1.5-5.2-2-8.2-1.6v13c3-.4 6.2 0 8.2 1.6 2-1.6 5.2-2 8.2-1.6v-13c-3-.4-6.2 0-8.2 1.6z"/><path d="M12 6v13"/></symbol>
+                <symbol id="i-megaphone" viewBox="0 0 24 24"><path d="M3 10v4.2h3.2l6.8 4V6l-6.8 4H3z"/><path d="M14.3 8.6a4.2 4.2 0 010 6.8"/></symbol>
+                <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M8 20.5h8M12 16.5v4"/></symbol>
+                <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M5 21c0-9.5 4.2-16.2 14.5-16.2C19.5 14.3 13.5 18.7 5 21z"/><path d="M5.3 20.7c2-4 5-7.3 9.4-9.4"/></symbol>
+                <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9.3 9.6a2.8 2.8 0 115.2 1.5c-.7.9-1.8 1.2-1.8 2.7"/><path d="M12.6 17.2h.01"/></symbol>
+                <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M6 4v16M12 4v16M18 4v16"/><circle cx="6" cy="9" r="2.1"/><circle cx="12" cy="16" r="2.1"/><circle cx="18" cy="7" r="2.1"/></symbol>
+                <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.7-7-11.3a7 7 0 1114 0C19 14.3 12 21 12 21z"/><circle cx="12" cy="9.8" r="2.4"/></symbol>
+                <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 2.5l1.7 5 5 1.7-5 1.7-1.7 5-1.7-5-5-1.7 5-1.7z"/><path d="M19 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></symbol>
+                <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h16"/><path d="M16.4 3.6a2.1 2.1 0 013 3L7.5 18.5l-4 1 1-4L16.4 3.6z"/></symbol>
+                <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9.5 18h5M10.3 21h3.4"/><path d="M12 2.5a6 6 0 00-3.7 10.7c.5.4.7.9.7 1.5V16h6v-1.3c0-.6.2-1.1.7-1.5A6 6 0 0012 2.5z"/></symbol>
+                <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M4 4.5h16v12H9l-4.5 3.8V4.5z"/><path d="M12 8.3v3M12 14h.01"/></symbol>
+                <symbol id="i-building" viewBox="0 0 24 24"><rect x="4.5" y="3" width="15" height="18" rx="1.2"/><path d="M9 8h1M14 8h1M9 12h1M14 12h1M9 16h1M14 16h1"/></symbol>
+                <symbol id="i-user-cog" viewBox="0 0 24 24"><circle cx="10" cy="8" r="3.4"/><path d="M3.5 20c0-3.6 3-6 6.5-6" /><circle cx="18" cy="16.5" r="2.6"/><path d="M18 12.5v1.3M18 19.4v1.3M14.5 16.5h1.3M20.2 16.5h1.3M15.4 13.9l.9.9M20.7 19.1l.9.9M15.4 19.1l.9-.9M20.7 13.9l.9-.9"/></symbol>
+            </g>
+        </defs>
+    </svg>
     <aside class="sidebar" id="portal-sidebar">
         <div class="sidebar-brand">
             <button type="button" class="sidebar-collapse-btn" id="sidebar-collapse" aria-label="Contraer menú" title="Contraer menú">
@@ -1093,76 +1157,76 @@
             {% if portal_solo_nat %}
             <div class="nav-label">Nat — Knowledge Hub</div>
             <a href="{% url 'portal_biblioteca' %}" class="sidebar-link {% if '/portal/biblioteca' in request.path %}active{% endif %}" title="Biblioteca de conocimiento">
-                <span class="link-icon">📚</span>
+                <span class="link-icon"><svg><use href="#i-book"/></svg></span>
                 <span class="link-text">Biblioteca</span>
             </a>
             {% if portal_es_admin %}
             <div class="nav-label">Cuenta</div>
             <a href="/portal/perfil/" class="sidebar-link {% if request.path == '/portal/perfil/' %}active{% endif %}" title="Perfil de empresa">
-                <span class="link-icon">F</span>
+                <span class="link-icon"><svg><use href="#i-building"/></svg></span>
                 <span class="link-text">Perfil de empresa</span>
             </a>
             <a href="/portal/usuarios/" class="sidebar-link {% if '/portal/usuarios' in request.path %}active{% endif %}" title="Usuarios del equipo">
-                <span class="link-icon">U</span>
+                <span class="link-icon"><svg><use href="#i-user-cog"/></svg></span>
                 <span class="link-text">Usuarios</span>
             </a>
             {% endif %}
             {% else %}
             <div class="nav-label">Analítica</div>
             <a href="/portal/dashboard/" class="sidebar-link {% if request.path == '/portal/dashboard/' %}active{% endif %}" title="Dashboard">
-                <span class="link-icon">D</span>
+                <span class="link-icon"><svg><use href="#i-dashboard"/></svg></span>
                 <span class="link-text">Dashboard</span>
             </a>
             {% if portal_mod_cursos %}
                 <a href="/portal/retencion/" class="sidebar-link {% if '/portal/retencion' in request.path %}active{% endif %}" title="Retención y embudo">
-                    <span class="link-icon" aria-hidden="true">📉</span>
+                    <span class="link-icon"><svg><use href="#i-funnel"/></svg></span>
                     <span class="link-text">Retención</span>
                 </a>
                 <a href="/portal/cobertura/" class="sidebar-link {% if '/portal/cobertura' in request.path %}active{% endif %}" title="Cobertura territorial">
-                    <span class="link-icon" aria-hidden="true">🗺</span><span class="link-text">Cobertura</span>
+                    <span class="link-icon"><svg><use href="#i-map"/></svg></span><span class="link-text">Cobertura</span>
                 </a>
                 <a href="/portal/metricas/" class="sidebar-link {% if request.path == '/portal/metricas/' %}active{% endif %}" title="Métricas detalladas">
-                    <span class="link-icon">M</span>
+                    <span class="link-icon"><svg><use href="#i-bars"/></svg></span>
                     <span class="link-text">Métricas detalladas</span>
                 </a>
                 <a href="/portal/reportes/" class="sidebar-link {% if '/portal/reportes' in request.path %}active{% endif %}" title="Reportes y descargas Excel">
-                    <span class="link-icon" aria-hidden="true">📥</span>
+                    <span class="link-icon"><svg><use href="#i-download"/></svg></span>
                     <span class="link-text">Reportes</span>
                 </a>
                 <a href="/portal/timeline/" class="sidebar-link {% if '/portal/timeline' in request.path %}active{% endif %}" title="Línea de tiempo">
-                    <span class="link-icon">T</span>
+                    <span class="link-icon"><svg><use href="#i-clock"/></svg></span>
                     <span class="link-text">Actividad</span>
                 </a>
                 <a href="/portal/gamificacion/" class="sidebar-link {% if '/portal/gamificacion' in request.path %}active{% endif %}" title="Gamificación y medallas">
-                    <span class="link-icon" aria-hidden="true">🏅</span>
+                    <span class="link-icon"><svg><use href="#i-award"/></svg></span>
                     <span class="link-text">Gamificación</span>
                 </a>
                 <a href="/portal/certificados/" class="sidebar-link {% if '/portal/certificados' in request.path %}active{% endif %}" title="Certificados emitidos">
-                    <span class="link-icon" aria-hidden="true">🎓</span><span class="link-text">Certificados</span>
+                    <span class="link-icon"><svg><use href="#i-cap"/></svg></span><span class="link-text">Certificados</span>
                 </a>
             {% endif %}
 
             {% if portal_mod_cursos %}
                 <div class="nav-label">Cursos</div>
                 <a href="/portal/estudiantes/" class="sidebar-link {% if '/portal/estudiantes' in request.path %}active{% endif %}" title="Estudiantes">
-                    <span class="link-icon">E</span>
+                    <span class="link-icon"><svg><use href="#i-users"/></svg></span>
                     <span class="link-text">Estudiantes</span>
                 </a>
                 <a href="/portal/conversaciones/" class="sidebar-link {% if '/portal/conversaciones' in request.path %}active{% endif %}" title="Conversaciones WhatsApp">
-                    <span class="link-icon" aria-hidden="true">💬</span>
+                    <span class="link-icon"><svg><use href="#i-chat"/></svg></span>
                     <span class="link-text">Conversaciones</span>
                 </a>
                 <a href="/portal/cursos/" class="sidebar-link {% if request.path == '/portal/cursos/' %}active{% endif %}" title="Cursos">
-                    <span class="link-icon">C</span>
+                    <span class="link-icon"><svg><use href="#i-monitor"/></svg></span>
                     <span class="link-text">Cursos</span>
                 </a>
                 <a href="/portal/campanas/" class="sidebar-link {% if '/portal/campanas' in request.path %}active{% endif %}" title="Campañas">
-                    <span class="link-icon">K</span>
+                    <span class="link-icon"><svg><use href="#i-megaphone"/></svg></span>
                     <span class="link-text">Campañas</span>
                 </a>
                 {% if portal_es_docente %}
                 <a href="/aprende/profesor/" class="sidebar-link" title="Aprende docente — lecciones y tareas" target="_blank" rel="noopener">
-                    <span class="link-icon" aria-hidden="true">📚</span>
+                    <span class="link-icon"><svg><use href="#i-sparkle"/></svg></span>
                     <span class="link-text">Aprende docente</span>
                 </a>
                 {% endif %}
@@ -1171,15 +1235,15 @@
             {% if portal_mod_gei %}
                 <div class="nav-label">GEI</div>
                 <a href="/portal/gei/" class="sidebar-link {% if request.path == '/portal/gei/' %}active{% endif %}" title="Inventario GEI">
-                    <span class="link-icon">G</span>
+                    <span class="link-icon"><svg><use href="#i-leaf"/></svg></span>
                     <span class="link-text">Inventario GEI</span>
                 </a>
                 <a href="/portal/gei/formularios/" class="sidebar-link {% if '/portal/gei/formularios' in request.path %}active{% endif %}" title="Preguntas del formulario GEI">
-                    <span class="link-icon">?</span>
+                    <span class="link-icon"><svg><use href="#i-help"/></svg></span>
                     <span class="link-text">Preguntas GEI</span>
                 </a>
                 <a href="/portal/gei/parametros/" class="sidebar-link {% if '/portal/gei/parametros' in request.path %}active{% endif %}" title="Parámetros de cálculo">
-                    <span class="link-icon">ƒ</span>
+                    <span class="link-icon"><svg><use href="#i-sliders"/></svg></span>
                     <span class="link-text">Parámetros GEI</span>
                 </a>
             {% endif %}
@@ -1187,35 +1251,35 @@
             {% if portal_mod_empleabilidad %}
                 <div class="nav-label">Empleabilidad</div>
                 <a href="/portal/empleabilidad/" class="sidebar-link {% if '/portal/empleabilidad' in request.path %}active{% endif %}" title="Empleabilidad territorial">
-                    <span class="link-icon" aria-hidden="true">📍</span><span class="link-text">Empleabilidad</span>
+                    <span class="link-icon"><svg><use href="#i-pin"/></svg></span><span class="link-text">Empleabilidad</span>
                 </a>
             {% endif %}
 
             {% if portal_mod_nat %}
                 <div class="nav-label">Nat — Agrónomo IA</div>
                 <a href="{% url 'portal_biblioteca' %}" class="sidebar-link {% if '/portal/biblioteca' in request.path %}active{% endif %}" title="Biblioteca de conocimiento">
-                    <span class="link-icon">📚</span>
+                    <span class="link-icon"><svg><use href="#i-book"/></svg></span>
                     <span class="link-text">Biblioteca</span>
                 </a>
                 <a href="/portal/nat/" class="sidebar-link {% if request.path == '/portal/nat/' %}active{% endif %}" title="Métricas Agente Nat">
-                    <span class="link-icon">N</span>
+                    <span class="link-icon"><svg><use href="#i-bulb"/></svg></span>
                     <span class="link-text">Agente Nat</span>
                 </a>
             {% endif %}
 
             <div class="nav-label">Soporte</div>
             <a href="/portal/feedback/" class="sidebar-link {% if '/portal/feedback' in request.path %}active{% endif %}" title="Enviar feedback">
-                <span class="link-icon">✎</span>
+                <span class="link-icon"><svg><use href="#i-edit"/></svg></span>
                 <span class="link-text">Feedback</span>
             </a>
             {% if portal_mod_facilitador %}
             <a href="/portal/conocimiento/" class="sidebar-link {% if '/portal/conocimiento' in request.path %}active{% endif %}" title="Conocimiento IA facilitadora">
-                <span class="link-icon">IA</span>
+                <span class="link-icon"><svg><use href="#i-bulb"/></svg></span>
                 <span class="link-text">Conocimiento IA</span>
             </a>
             {% endif %}
             <a href="/portal/pqrs/" class="sidebar-link {% if '/portal/pqrs' in request.path %}active{% endif %}" title="PQRS">
-                <span class="link-icon">P</span>
+                <span class="link-icon"><svg><use href="#i-inbox"/></svg></span>
                 <span class="link-text">PQRS</span>
                 {% if pendientes_count > 0 %}<span class="badge">{{ pendientes_count }}</span>{% endif %}
             </a>
@@ -1223,11 +1287,11 @@
             {% if portal_es_admin %}
                 <div class="nav-label">Cuenta</div>
                 <a href="/portal/perfil/" class="sidebar-link {% if request.path == '/portal/perfil/' %}active{% endif %}" title="Perfil de empresa">
-                    <span class="link-icon">F</span>
+                    <span class="link-icon"><svg><use href="#i-building"/></svg></span>
                     <span class="link-text">Perfil de empresa</span>
                 </a>
                 <a href="/portal/usuarios/" class="sidebar-link {% if '/portal/usuarios' in request.path %}active{% endif %}" title="Usuarios del equipo">
-                    <span class="link-icon">U</span>
+                    <span class="link-icon"><svg><use href="#i-user-cog"/></svg></span>
                     <span class="link-text">Usuarios</span>
                 </a>
             {% endif %}

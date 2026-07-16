@@ -11,32 +11,35 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
+            /* Paleta oficial eki */
             --white: #FFFFFF;
-            --purple: #9a6bac;
-            --purple-deep: #2F248D;
-            --purple-mid: #6b4fa0;
-            --lilac: #F8F7FF;
-            --lilac-2: #F0EDF8;
-            --ink: #1E1630;
-            --muted: #6B6280;
-            --border: rgba(47, 36, 141, 0.10);
-            --shadow: 0 24px 64px rgba(47, 36, 141, 0.12);
-            --shadow-soft: 0 8px 28px rgba(47, 36, 141, 0.08);
+            --purple: #9A6CAC;
+            --purple-deep: #5F3A6E;
+            --purple-mid: #855698;
+            --purple-soft: #C4ACCE;
+            --green: #35A647;
+            --blue: #3C7BBF;
+            --lilac: #FAFAFC;
+            --lilac-2: #F4F3F8;
+            --ink: #1F1F28;
+            --muted: #6C6C7A;
+            --border: rgba(31, 31, 40, 0.08);
+            --shadow: 0 24px 64px rgba(31, 31, 40, 0.14);
+            --shadow-soft: 0 10px 32px rgba(31, 31, 40, 0.07);
             --font: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
             --ease: cubic-bezier(0.22, 1, 0.36, 1);
             --r: 8px;
         }
         * { box-sizing: border-box; }
-        html, body { height: 100%; }
+        html { height: 100%; }
         body {
             margin: 0;
             min-height: 100vh;
             font-family: var(--font);
             color: var(--ink);
             background:
-                radial-gradient(ellipse 55% 45% at 12% 18%, rgba(154, 107, 172, 0.18), transparent 60%),
-                radial-gradient(ellipse 40% 35% at 78% 72%, rgba(47, 36, 141, 0.10), transparent 55%),
-                radial-gradient(ellipse 30% 28% at 55% 8%, rgba(203, 184, 216, 0.35), transparent 50%),
+                radial-gradient(ellipse 50% 40% at 14% 14%, rgba(154, 108, 172, 0.10), transparent 60%),
+                radial-gradient(ellipse 38% 32% at 80% 78%, rgba(133, 86, 152, 0.07), transparent 55%),
                 var(--lilac);
             display: grid;
             grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.72fr);
@@ -59,14 +62,31 @@
             padding: 28px 36px 24px 32px;
             min-height: calc(100vh - 48px);
             animation: rise 0.7s var(--ease) both;
+            overflow: hidden;
+        }
+        .hero-rural-bg {
+            position: absolute;
+            inset: -4% -6%;
+            width: 112%;
+            height: 112%;
+            object-fit: cover;
+            object-position: center 30%;
+            opacity: 0.65;
+            mix-blend-mode: multiply;
+            filter: saturate(1.3) contrast(1.05);
+            z-index: 0;
+            pointer-events: none;
+            user-select: none;
         }
         .hero-text {
+            position: relative;
+            z-index: 1;
             flex: 0 0 auto;
             max-width: 42rem;
             margin-bottom: clamp(20px, 4vh, 40px);
         }
         .hero-text__logo {
-            margin: 0 0 20px;
+            margin: 0 0 22px;
             font-size: 1rem;
             font-weight: 700;
             letter-spacing: -0.01em;
@@ -79,25 +99,30 @@
             margin-left: 0.28em;
         }
         .hero-text h1 {
-            margin: 0 0 12px;
-            font-size: clamp(1.85rem, 3.4vw, 2.5rem);
+            margin: 0 0 14px;
+            font-size: clamp(1.75rem, 3.1vw, 2.35rem);
             font-weight: 800;
-            letter-spacing: -0.04em;
-            line-height: 1.16;
-            color: var(--purple-deep);
+            letter-spacing: -0.03em;
+            line-height: 1.22;
         }
+        .hero-text h1 span {
+            display: block;
+        }
+        .hero-text h1 .is-ink { color: var(--ink); }
+        .hero-text h1 .is-accent { color: var(--purple); }
         .hero-text__sub {
             margin: 0;
             font-size: 1rem;
             line-height: 1.55;
             color: var(--muted);
-            max-width: 34rem;
+            max-width: 32rem;
         }
 
         /* ── Escena única: dashboard (HTML) + personaje superpuesto ── */
         /* El dashboard se estira a la misma altura que el panel de login: dos bloques a un solo nivel. */
         .hero-stage {
             position: relative;
+            z-index: 1;
             flex: 1;
             display: flex;
             align-items: stretch;
@@ -111,7 +136,7 @@
             background: var(--white);
             border: 1px solid var(--border);
             border-radius: 22px;
-            box-shadow: 0 40px 80px -20px rgba(47, 36, 141, 0.22), 0 2px 0 rgba(255, 255, 255, 0.6) inset;
+            box-shadow: 0 40px 80px -20px rgba(95, 58, 110, 0.22), 0 2px 0 rgba(255, 255, 255, 0.6) inset;
             overflow: hidden;
             display: flex;
             flex-direction: column;
@@ -123,6 +148,7 @@
             gap: 8px;
             padding: 14px 18px;
             border-bottom: 1px solid var(--border);
+            flex: 0 0 auto;
         }
         .dash__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--lilac-2); }
         .dash__dot--a { background: #f3b7c4; }
@@ -145,47 +171,69 @@
             color: #fff;
             background: linear-gradient(135deg, var(--purple) 0%, var(--purple-deep) 100%);
         }
-        .dash__body {
-            flex: 1;
-            min-height: 0;
-            display: grid;
-            grid-template-columns: 64px 1fr;
-        }
-        .dash__sidebar {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 18px;
-            padding: 22px 0;
-            border-right: 1px solid var(--border);
-        }
-        .dash__sidebar span {
-            width: 34px;
-            height: 34px;
-            border-radius: 10px;
-            display: grid;
-            place-items: center;
-            color: var(--muted);
-        }
-        .dash__sidebar span.is-active {
-            background: var(--lilac-2);
-            color: var(--purple-deep);
-        }
-        .dash__sidebar svg { width: 17px; height: 17px; }
         .dash__main {
             flex: 1;
             min-height: 0;
-            padding: 22px 24px 26px;
+            padding: 24px 26px 28px;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 18px;
         }
-        .dash__row {
+        .dash__kpis {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+        }
+        .dash__kpi {
+            background: var(--lilac);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px 16px 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-height: 0;
+        }
+        .dash__kpi-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            display: grid;
+            place-items: center;
+            color: #fff;
+            flex: 0 0 auto;
+        }
+        .dash__kpi-icon svg { width: 15px; height: 15px; }
+        .dash__kpi-icon--purple { background: var(--purple); }
+        .dash__kpi-icon--blue { background: var(--blue); }
+        .dash__kpi-icon--green { background: var(--green); }
+        .dash__kpi-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--muted);
+            margin: 0;
+        }
+        .dash__kpi-value {
+            font-size: clamp(1.35rem, 2.1vw, 1.65rem);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            color: var(--purple-deep);
+            line-height: 1;
+            margin: 0;
+        }
+        .dash__kpi-delta {
+            display: inline-block;
+            font-size: 0.68rem;
+            font-weight: 600;
+            color: var(--green);
+        }
+        .dash__kpi-delta.is-muted { color: var(--muted); font-weight: 500; }
+        .dash__charts {
             flex: 1;
             min-height: 0;
             display: grid;
-            grid-template-columns: 1.1fr 1.4fr;
-            gap: 16px;
+            grid-template-columns: 1.15fr 1fr;
+            gap: 14px;
         }
         .dash__card {
             background: var(--lilac);
@@ -203,48 +251,6 @@
             margin: 0 0 12px;
             flex: 0 0 auto;
         }
-        .dash__card-body {
-            flex: 1;
-            min-height: 0;
-            display: flex;
-            flex-direction: column;
-        }
-        .dash__card-body--center {
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-        .dash__card-body--middle {
-            justify-content: center;
-            gap: 6px;
-        }
-        .dash__donut {
-            width: 30%;
-            max-width: 96px;
-            min-width: 64px;
-            aspect-ratio: 1 / 1;
-            border-radius: 50%;
-            background: conic-gradient(var(--purple-deep) 0% 42%, var(--purple) 42% 78%, var(--lilac-2) 78% 100%);
-            display: grid;
-            place-items: center;
-            flex: 0 0 auto;
-        }
-        .dash__donut::after {
-            content: "";
-            width: 58%;
-            height: 58%;
-            border-radius: 50%;
-            background: var(--lilac);
-        }
-        .dash__legend {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            font-size: 0.68rem;
-            color: var(--muted);
-            flex: 0 0 auto;
-        }
-        .dash__legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
         .dash__chart {
             flex: 1;
             min-height: 0;
@@ -253,37 +259,22 @@
         .dash__chart path.area { fill: url(#dashGrad); stroke: none; }
         .dash__chart path.line {
             fill: none;
-            stroke: var(--purple-deep);
+            stroke: var(--purple);
             stroke-width: 2.4;
             stroke-linecap: round;
             stroke-dasharray: 260;
             animation: spark 1.6s var(--ease) 0.3s both;
-        }
-        .dash__kpi-value {
-            font-size: clamp(1.85rem, 3vw, 2.4rem);
-            font-weight: 800;
-            letter-spacing: -0.03em;
-            color: var(--purple-deep);
-            line-height: 1;
-        }
-        .dash__kpi-delta {
-            display: inline-block;
-            margin-top: 8px;
-            font-size: 0.72rem;
-            font-weight: 600;
-            color: #16a34a;
         }
         .dash__bars {
             flex: 1;
             min-height: 0;
             display: flex;
             align-items: flex-end;
-            gap: 8px;
+            gap: 10px;
         }
         .dash__bars i {
             flex: 1;
             border-radius: 6px 6px 2px 2px;
-            background: linear-gradient(180deg, var(--purple) 0%, var(--purple-deep) 100%);
             transform-origin: bottom;
             animation: growbar 0.9s var(--ease) both;
         }
@@ -291,27 +282,27 @@
 
         .hero-stage__shadow {
             position: absolute;
-            top: 128px;
-            right: 12%;
-            width: 26%;
-            height: 46px;
+            bottom: 6%;
+            right: 6.5%;
+            width: 20%;
+            height: 34px;
             border-radius: 50%;
-            background: radial-gradient(ellipse closest-side, rgba(30, 22, 48, 0.34), transparent 75%);
+            background: radial-gradient(ellipse closest-side, rgba(31, 31, 40, 0.28), transparent 75%);
             filter: blur(7px);
             z-index: 2;
             pointer-events: none;
         }
         .hero-character {
             position: absolute;
-            top: -48px;
-            right: 9%;
-            width: 22%;
+            bottom: -7%;
+            right: 2%;
+            width: 24%;
             height: auto;
-            aspect-ratio: 600 / 1324;
-            min-width: 168px;
-            max-width: 260px;
+            aspect-ratio: 674 / 1345;
+            min-width: 170px;
+            max-width: 280px;
             z-index: 3;
-            filter: drop-shadow(0 18px 22px rgba(30, 22, 48, 0.28));
+            filter: drop-shadow(0 16px 20px rgba(31, 31, 40, 0.24));
             user-select: none;
             pointer-events: none;
             animation: rise 0.9s var(--ease) 0.2s both;
@@ -327,11 +318,11 @@
             width: 100%;
             max-width: 400px;
             margin: 0 auto;
-            background: linear-gradient(165deg, #4a3bb8 0%, var(--purple-deep) 42%, #241a6e 100%);
-            border-radius: 28px;
+            background: linear-gradient(165deg, #623d70 0%, var(--purple-deep) 42%, #201325 100%);
+            border-radius: 30px;
             box-shadow: var(--shadow), 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
             color: var(--white);
-            padding: 32px 28px 28px;
+            padding: 34px 30px 28px;
             display: flex;
             flex-direction: column;
             position: relative;
@@ -342,7 +333,7 @@
             position: absolute;
             inset: 0;
             background:
-                radial-gradient(ellipse 80% 50% at 80% -10%, rgba(154, 107, 172, 0.35), transparent 55%),
+                radial-gradient(ellipse 80% 50% at 80% -10%, rgba(154, 108, 172, 0.35), transparent 55%),
                 radial-gradient(ellipse 60% 40% at 10% 100%, rgba(255, 255, 255, 0.06), transparent 50%);
             pointer-events: none;
         }
@@ -409,7 +400,7 @@
         }
         .field__control:focus-within {
             border-color: var(--purple);
-            box-shadow: 0 0 0 3px rgba(154, 107, 172, 0.35);
+            box-shadow: 0 0 0 3px rgba(154, 108, 172, 0.35);
         }
         .field__control svg {
             width: 18px;
@@ -486,8 +477,8 @@
             font-size: 0.95rem;
             color: var(--white);
             cursor: pointer;
-            background: linear-gradient(135deg, #b48bc4 0%, var(--purple) 45%, #7a4e9e 100%);
-            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+            background: linear-gradient(135deg, var(--purple) 0%, var(--purple-deep) 130%);
+            box-shadow: 0 10px 24px rgba(31, 19, 37, 0.28);
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -529,16 +520,19 @@
                 min-height: auto;
                 padding: 16px 8px 0;
             }
-            .dash__row { grid-template-columns: 1fr; }
+            .dash__kpis { grid-template-columns: repeat(2, 1fr); }
+            .dash__charts { grid-template-columns: 1fr; }
+            .dash__card { min-height: 190px; }
+            .dash__chart, .dash__bars { min-height: 130px; }
             .hero-character {
-                width: 30%;
-                min-width: 130px;
-                right: 8%;
-                top: -34px;
+                width: 34%;
+                min-width: 140px;
+                right: 4%;
+                bottom: -4%;
             }
             .hero-stage__shadow {
-                top: 92px;
-                right: 10%;
+                bottom: 3%;
+                right: 8%;
             }
             .panel {
                 max-width: none;
@@ -547,16 +541,13 @@
             .hero-text { margin-bottom: 24px; }
         }
         @media (max-width: 640px) {
-            .dash__body { grid-template-columns: 1fr; }
-            .dash__sidebar {
-                flex-direction: row;
-                justify-content: center;
-                border-right: 0;
-                border-bottom: 1px solid var(--border);
-                padding: 12px 0;
-            }
+            .dash__kpis { grid-template-columns: repeat(2, 1fr); }
+            .dash__charts { grid-template-columns: 1fr; }
+            .dash__card { min-height: 170px; }
+            .dash__chart, .dash__bars { min-height: 110px; }
             .hero-character { display: none; }
             .hero-stage__shadow { display: none; }
+            .hero-rural-bg { opacity: 0.45; }
         }
         @media (max-width: 520px) {
             .hero-text h1 { font-size: 1.55rem; }
@@ -572,9 +563,15 @@
 </head>
 <body>
     <section class="hero" aria-label="eki portal">
+        <img class="hero-rural-bg" src="{% static 'portal/login-rural-bg.png' %}" alt="" aria-hidden="true" decoding="async">
         <div class="hero-text">
             <p class="hero-text__logo">eki<em>portal</em></p>
-            <h1>Acompaña el aprendizaje, mide el impacto y fortalece el desarrollo de tu organización.</h1>
+            <h1>
+                <span class="is-ink">Acompaña el aprendizaje,</span>
+                <span class="is-accent">mide el impacto y fortalece</span>
+                <span class="is-ink">el desarrollo de</span>
+                <span class="is-accent">tu organización.</span>
+            </h1>
             <p class="hero-text__sub">Gestiona programas, analiza resultados y toma decisiones con datos, todo desde un solo lugar.</p>
         </div>
 
@@ -590,57 +587,55 @@
                         <span class="dash__tab">Reportes</span>
                     </div>
                 </div>
-                <div class="dash__body">
-                    <aside class="dash__sidebar">
-                        <span class="is-active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-7 9 7"/><path d="M5 10v9h14v-9"/></svg></span>
-                        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V9M12 19V5M20 19v-6"/></svg></span>
-                        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3 3-5 7-5s7 2 7 5"/></svg></span>
-                        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z"/></svg></span>
-                    </aside>
-                    <div class="dash__main">
-                        <div class="dash__row">
-                            <div class="dash__card">
-                                <p class="dash__card-label">Avance del programa</p>
-                                <div class="dash__card-body dash__card-body--center">
-                                    <div class="dash__donut"></div>
-                                    <div class="dash__legend">
-                                        <span><i style="background:var(--purple-deep)"></i>Certificó</span>
-                                        <span><i style="background:var(--purple)"></i>Activo</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="dash__card">
-                                <p class="dash__card-label">Progreso semanal</p>
-                                <svg class="dash__chart" viewBox="0 0 240 96" preserveAspectRatio="none">
-                                    <defs>
-                                        <linearGradient id="dashGrad" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stop-color="#9a6bac" stop-opacity="0.28"/>
-                                            <stop offset="100%" stop-color="#9a6bac" stop-opacity="0"/>
-                                        </linearGradient>
-                                    </defs>
-                                    <path class="area" d="M0 70 C30 60, 45 30, 75 40 S120 78, 150 34 S195 18, 240 12 V96 H0 Z"/>
-                                    <path class="line" d="M0 70 C30 60, 45 30, 75 40 S120 78, 150 34 S195 18, 240 12"/>
-                                </svg>
-                            </div>
+                <div class="dash__main">
+                    <div class="dash__kpis">
+                        <div class="dash__kpi">
+                            <span class="dash__kpi-icon dash__kpi-icon--purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M2.5 20c0-3.3 2.9-5.6 6.5-5.6s6.5 2.3 6.5 5.6"/><circle cx="17" cy="8.5" r="2.3"/><path d="M16.8 14.6c2.4.4 4 2 4 4.6"/></svg></span>
+                            <p class="dash__kpi-label">Participantes activos</p>
+                            <p class="dash__kpi-value">142</p>
+                            <span class="dash__kpi-delta">▲ 12% vs. semana anterior</span>
                         </div>
-                        <div class="dash__row">
-                            <div class="dash__card">
-                                <p class="dash__card-label">Personas activas</p>
-                                <div class="dash__card-body dash__card-body--middle">
-                                    <span class="dash__kpi-value">142</span>
-                                    <span class="dash__kpi-delta">▲ 12% vs. semana anterior</span>
-                                </div>
-                            </div>
-                            <div class="dash__card">
-                                <p class="dash__card-label">Cobertura por sede</p>
-                                <div class="dash__bars">
-                                    <i style="height:46%; animation-delay:.05s"></i>
-                                    <i style="height:68%; animation-delay:.1s"></i>
-                                    <i style="height:52%; animation-delay:.15s"></i>
-                                    <i style="height:88%; animation-delay:.2s"></i>
-                                    <i style="height:74%; animation-delay:.25s"></i>
-                                    <i style="height:95%; animation-delay:.3s"></i>
-                                </div>
+                        <div class="dash__kpi">
+                            <span class="dash__kpi-icon dash__kpi-icon--blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16l4.5-5 4 3L19 7"/><path d="M14.5 7H19v4.5"/></svg></span>
+                            <p class="dash__kpi-label">Avance promedio</p>
+                            <p class="dash__kpi-value">91%</p>
+                            <span class="dash__kpi-delta">▲ 8% vs. semana anterior</span>
+                        </div>
+                        <div class="dash__kpi">
+                            <span class="dash__kpi-icon dash__kpi-icon--green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5c-2-1.4-4.7-1.8-7-1.4v12.7c2.3-.4 5 0 7 1.4 2-1.4 4.7-1.8 7-1.4V3.6c-2.3-.4-5 0-7 1.4z"/><path d="M12 5v12.7"/></svg></span>
+                            <p class="dash__kpi-label">Cursos en curso</p>
+                            <p class="dash__kpi-value">4</p>
+                            <span class="dash__kpi-delta is-muted">2 próximos a finalizar</span>
+                        </div>
+                        <div class="dash__kpi">
+                            <span class="dash__kpi-icon dash__kpi-icon--purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l7.5 3.8-7.5 3.8-7.5-3.8L12 3z"/><path d="M6 8.7v4.2c0 1.3 2.1 2.6 6 2.6s6-1.3 6-2.6V8.7"/></svg></span>
+                            <p class="dash__kpi-label">Certificados emitidos</p>
+                            <p class="dash__kpi-value">26</p>
+                            <span class="dash__kpi-delta">▲ 5 esta semana</span>
+                        </div>
+                    </div>
+                    <div class="dash__charts">
+                        <div class="dash__card">
+                            <p class="dash__card-label">Progreso del programa</p>
+                            <svg class="dash__chart" viewBox="0 0 240 96" preserveAspectRatio="none">
+                                <defs>
+                                    <linearGradient id="dashGrad" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stop-color="#9A6CAC" stop-opacity="0.26"/>
+                                        <stop offset="100%" stop-color="#9A6CAC" stop-opacity="0"/>
+                                    </linearGradient>
+                                </defs>
+                                <path class="area" d="M0 70 C30 60, 45 30, 75 40 S120 78, 150 34 S195 18, 240 12 V96 H0 Z"/>
+                                <path class="line" d="M0 70 C30 60, 45 30, 75 40 S120 78, 150 34 S195 18, 240 12"/>
+                            </svg>
+                        </div>
+                        <div class="dash__card">
+                            <p class="dash__card-label">Cobertura por sede</p>
+                            <div class="dash__bars">
+                                <i style="height:46%; background:var(--purple); animation-delay:.05s"></i>
+                                <i style="height:68%; background:var(--purple-deep); animation-delay:.1s"></i>
+                                <i style="height:52%; background:var(--blue); animation-delay:.15s"></i>
+                                <i style="height:88%; background:var(--purple); animation-delay:.2s"></i>
+                                <i style="height:74%; background:var(--green); animation-delay:.25s"></i>
                             </div>
                         </div>
                     </div>
@@ -649,10 +644,10 @@
             <div class="hero-stage__shadow"></div>
             <img
                 class="hero-character"
-                src="{% static 'portal/character-transparent.png' %}"
+                src="{% static 'portal/paula-placing-kpi.png' %}"
                 alt=""
-                width="600"
-                height="1324"
+                width="674"
+                height="1345"
                 decoding="async"
                 fetchpriority="high"
             >

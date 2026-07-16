@@ -8,21 +8,21 @@
 .card-link { text-decoration: none; color: inherit; display: block; }
 .card-link:hover .card,
 .card-link:hover {
-    border-color: rgba(154, 107, 172, 0.45);
-    box-shadow: 0 12px 32px rgba(47, 36, 141, 0.10);
+    border-color: rgba(154, 108, 172, 0.4);
+    box-shadow: 0 14px 34px rgba(31, 31, 40, 0.08);
 }
 .ops-msg-list { list-style: none; padding: 0; margin: 0; font-size: 13px; }
 .ops-msg-list li { padding: 10px 0; border-bottom: 1px solid var(--borde); }
 .ops-msg-list li:last-child { border-bottom: 0; }
 .compare-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
 .compare-card {
-    background: var(--lilac-2, #F0EDF8);
-    border-radius: 12px;
-    padding: 16px;
+    background: var(--lilac-2, #F4F3F8);
+    border-radius: 14px;
+    padding: 18px;
     border: 1px solid var(--borde);
 }
 .compare-label { font-size: 11px; letter-spacing: .04em; color: var(--texto-muted); font-weight: 600; margin-bottom: 6px; }
-.compare-values span { font-family: var(--font-display); font-size: 1.4rem; font-weight: 800; letter-spacing: -0.03em; color: var(--purple-deep, #2F248D); }
+.compare-values span { font-family: var(--font-display); font-size: 1.4rem; font-weight: 800; letter-spacing: -0.03em; color: var(--purple-deep, #5F3A6E); }
 .compare-delta { font-size: 12px; font-weight: 600; margin-top: 4px; }
 .compare-delta.up { color: var(--ok); }
 .compare-delta.down { color: var(--danger); }
@@ -35,25 +35,25 @@
 .medal-silver { background: linear-gradient(145deg, #e2e8f0, #94a3b8); }
 .medal-bronze { background: linear-gradient(145deg, #fdba74, #c2410c); }
 .dash-hero {
-    margin-bottom: 28px;
-    padding: 1.35rem 1.5rem;
-    border: 1px solid var(--borde);
-    border-radius: var(--radius, 14px);
-    background: rgba(255, 255, 255, 0.72);
-    box-shadow: var(--shadow-soft, 0 8px 28px rgba(47, 36, 141, 0.07));
+    margin: 4px 0 36px;
+    padding: 0 0 26px;
+    border: 0;
+    border-bottom: 1px solid var(--borde);
+    background: transparent;
+    box-shadow: none;
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
     justify-content: space-between;
-    gap: 16px;
+    gap: 20px;
 }
-.dash-hero h1 { margin: 0; letter-spacing: -0.035em; }
-.dash-hero .section-kicker { margin-bottom: 0.35rem; color: var(--accent); }
-.dash-hero .muted { max-width: 36rem; margin-top: 0.4rem; }
+.dash-hero h1 { margin: 0; font-size: clamp(1.6rem, 2.4vw, 2rem); letter-spacing: -0.035em; }
+.dash-hero .section-kicker { margin-bottom: 0.4rem; color: var(--accent); }
+.dash-hero .muted { max-width: 38rem; margin-top: 0.5rem; font-size: 0.95rem; }
 .dash-hero__actions { display: flex; flex-wrap: wrap; gap: 10px; }
-.dash-section { margin-bottom: 28px; }
+.dash-section { margin-bottom: 36px; }
 .dash-section > h2 { margin-bottom: 6px; }
-.dash-section > .muted { margin: 0 0 16px; }
+.dash-section > .muted { margin: 0 0 18px; }
 .panel-quiet { border-left: 0 !important; }
 .quick-links {
     display: flex;
@@ -62,7 +62,7 @@
     padding-top: 2px;
 }
 .quick-links a {
-    color: var(--purple-deep, #2F248D);
+    color: var(--purple-deep, #5F3A6E);
     text-decoration: none;
     font-size: 13px;
     font-weight: 600;
@@ -358,10 +358,10 @@
     var data = JSON.parse(node.textContent);
     var ink = getComputedStyle(document.documentElement).getPropertyValue('--texto-muted').trim() || '#7a6d88';
     var grid = getComputedStyle(document.documentElement).getPropertyValue('--borde').trim() || '#e0d8e8';
-    var c1 = getComputedStyle(document.documentElement).getPropertyValue('--chart-1').trim() || '#7a4e8e';
-    var c2 = getComputedStyle(document.documentElement).getPropertyValue('--chart-2').trim() || '#9a6cac';
-    var c3 = getComputedStyle(document.documentElement).getPropertyValue('--chart-3').trim() || '#cbb8d8';
-    var c4 = getComputedStyle(document.documentElement).getPropertyValue('--chart-4').trim() || '#5f3a70';
+    var c1 = getComputedStyle(document.documentElement).getPropertyValue('--chart-1').trim() || '#9A6CAC';
+    var c2 = getComputedStyle(document.documentElement).getPropertyValue('--chart-2').trim() || '#3C7BBF';
+    var c3 = getComputedStyle(document.documentElement).getPropertyValue('--chart-3').trim() || '#35A647';
+    var c4 = getComputedStyle(document.documentElement).getPropertyValue('--chart-4').trim() || '#C4ACCE';
 
     var funnelEl = document.getElementById('chart-funnel');
     if (funnelEl) {
