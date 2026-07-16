@@ -99,13 +99,11 @@ class PortalBrandingOnboardingTests(TestCase):
         self.assertNotContains(r_login, 'hero-metrics')
 
     def test_login_hero_es_una_sola_escena(self):
-        """El personaje debe superponerse al dashboard, no vivir en un bloque de imagen aparte."""
+        """El dashboard vive integrado en el hero, sin bloques de imagen aparte ni personaje."""
         r_login = Client().get('/portal/login/')
         self.assertEqual(r_login.status_code, 200)
         self.assertContains(r_login, 'hero-stage')
         self.assertContains(r_login, 'class="dash"')
-        self.assertContains(r_login, 'paula-laptop-chair.png')
-        self.assertContains(r_login, 'hero-stage__shadow')
         self.assertNotContains(r_login, 'hero__visual')
         self.assertNotContains(r_login, 'portal-hero-integrated.png')
 

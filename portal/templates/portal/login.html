@@ -278,35 +278,6 @@
         }
         @keyframes growbar { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 
-        .hero-stage__shadow {
-            position: absolute;
-            bottom: 2%;
-            right: 3%;
-            width: 17%;
-            height: 26px;
-            border-radius: 50%;
-            background: radial-gradient(ellipse closest-side, rgba(31, 31, 40, 0.26), transparent 75%);
-            filter: blur(7px);
-            z-index: 2;
-            pointer-events: none;
-        }
-        .hero-character {
-            position: absolute;
-            bottom: 1%;
-            right: -3%;
-            width: 21%;
-            height: auto;
-            aspect-ratio: 256 / 350;
-            min-width: 150px;
-            max-width: 225px;
-            max-height: 42%;
-            z-index: 3;
-            filter: drop-shadow(0 14px 18px rgba(31, 31, 40, 0.22));
-            user-select: none;
-            pointer-events: none;
-            animation: rise 0.9s var(--ease) 0.2s both;
-        }
-
         .panel-wrap {
             display: flex;
             align-items: stretch;
@@ -559,18 +530,6 @@
             .dash__charts { grid-template-columns: 1fr; }
             .dash__card { min-height: 190px; }
             .dash__chart, .dash__bars { min-height: 130px; }
-            .hero-character {
-                width: 30%;
-                min-width: 130px;
-                max-width: 190px;
-                right: 0%;
-                bottom: 1%;
-            }
-            .hero-stage__shadow {
-                bottom: 3%;
-                right: 6%;
-                width: 22%;
-            }
             .panel {
                 max-width: none;
                 min-height: auto;
@@ -582,8 +541,6 @@
             .dash__charts { grid-template-columns: 1fr; }
             .dash__card { min-height: 170px; }
             .dash__chart, .dash__bars { min-height: 110px; }
-            .hero-character { display: none; }
-            .hero-stage__shadow { display: none; }
             .hero-rural-bg { opacity: 0.4; }
         }
         @media (max-width: 520px) {
@@ -678,16 +635,6 @@
                     </div>
                 </div>
             </div>
-            <div class="hero-stage__shadow"></div>
-            <img
-                class="hero-character"
-                src="{% static 'portal/paula-laptop-chair.png' %}"
-                alt=""
-                width="256"
-                height="350"
-                decoding="async"
-                fetchpriority="high"
-            >
         </div>
     </section>
 
