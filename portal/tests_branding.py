@@ -81,8 +81,8 @@ class PortalBrandingOnboardingTests(TestCase):
     def test_favicon_portal_distinto(self):
         r_login = Client().get('/portal/login/')
         self.assertEqual(r_login.status_code, 200)
-        self.assertContains(r_login, 'favicons/portal.svg')
-        self.assertContains(r_login, 'image/svg+xml')
+        self.assertContains(r_login, 'favicons/portal')
+        self.assertContains(r_login, 'image/png')
 
     def test_login_hero_premium_saas(self):
         r_login = Client().get('/portal/login/')
@@ -109,21 +109,24 @@ class PortalBrandingOnboardingTests(TestCase):
 
 
 class FaviconSurfacesTests(SimpleTestCase):
-    """Los favicons deben diferenciarse por color, no todos morados."""
+    """Cada superficie tiene favicon propio (PNG de marca o SVG de color distinto)."""
 
     def test_favicons_tienen_colores_distintos(self):
         from pathlib import Path
         root = Path(__file__).resolve().parents[1] / 'static' / 'favicons'
+        # Portal y Aprende usan logo de marca en PNG.
+        self.assertTrue((root / 'portal.png').is_file())
+        self.assertTrue((root / 'portal-32.png').is_file())
+        self.assertTrue((root / 'aprende.png').is_file())
+        self.assertTrue((root / 'aprende-32.png').is_file())
+        # Admin / studio siguen en SVG con colores distintos.
+        import re
         colors = {}
-        for name in ('admin', 'portal', 'aprende', 'studio'):
+        for name in ('admin', 'studio'):
             svg = (root / f'{name}.svg').read_text(encoding='utf-8')
-            # primer fill de fondo
-            import re
             m = re.search(r'fill="(#[0-9a-fA-F]{6})"', svg)
             self.assertIsNotNone(m, name)
             colors[name] = m.group(1).lower()
-        self.assertEqual(colors['portal'], '#7a4e8e')
         self.assertEqual(colors['admin'], '#0f172a')
-        self.assertEqual(colors['aprende'], '#0f6e6a')
         self.assertEqual(colors['studio'], '#c2410c')
-        self.assertEqual(len(set(colors.values())), 4)
+        self.assertNotEqual(colors['admin'], colors['studio'])
