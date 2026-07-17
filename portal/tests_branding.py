@@ -67,7 +67,7 @@ class PortalBrandingOnboardingTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Plus+Jakarta+Sans')
         self.assertContains(r, 'eki <em>portal</em>')
-        self.assertContains(r, 'Resumen')
+        self.assertContains(r, 'Inicio')
         self.assertNotContains(r, 'Fraunces')
         self.assertNotContains(r, 'family=Sora')
         self.assertNotContains(r, 'IBM+Plex+Sans')

@@ -280,7 +280,7 @@ class PortalMetricasReorganizacionTests(TestCase):
     def test_dashboard_sin_reporte_b2b(self):
         r = self.http.get('/portal/dashboard/')
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'Dashboard')
+        self.assertContains(r, 'Inicio')
         self.assertNotContains(r, 'Reporte B2B')
         self.assertContains(r, 'Métricas detalladas')
 

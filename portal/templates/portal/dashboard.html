@@ -1,19 +1,87 @@
 {% extends 'portal/base.html' %}
 
-{% block title %}Dashboard | Portal eki{% endblock %}
+{% block title %}Inicio | Portal eki{% endblock %}
 
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
-.card-link { text-decoration: none; color: inherit; display: block; }
+.card-link { text-decoration: none; color: inherit; display: block; transition: border-color .15s, box-shadow .15s, transform .15s; }
 .card-link:hover .card,
 .card-link:hover {
     border-color: rgba(154, 108, 172, 0.4);
     box-shadow: 0 14px 34px rgba(31, 31, 40, 0.08);
 }
-.ops-msg-list { list-style: none; padding: 0; margin: 0; font-size: 13px; }
-.ops-msg-list li { padding: 10px 0; border-bottom: 1px solid var(--borde); }
-.ops-msg-list li:last-child { border-bottom: 0; }
+.card-link:hover { transform: translateY(-2px); }
+
+/* Cabecera Inicio */
+.dash-hero {
+    margin: 2px 0 30px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+.dash-hero h1 { margin: 0; font-size: clamp(1.7rem, 2.6vw, 2.1rem); letter-spacing: -0.04em; font-weight: 800; }
+.dash-hero .muted { max-width: 40rem; margin-top: 0.55rem; font-size: 0.98rem; }
+
+/* Pregunta guía de cada bloque */
+.dash-q {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--purple);
+    margin: 0 0 14px;
+}
+.dash-section { margin-bottom: 40px; }
+
+/* Estado del programa (narrativa de coordinador) */
+.estado-card {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 24px;
+    padding: 30px 32px;
+    border-radius: 20px;
+    border: 1px solid var(--borde);
+    background:
+        radial-gradient(ellipse 60% 120% at 100% 0%, rgba(154,108,172,0.10), transparent 60%),
+        linear-gradient(180deg, rgba(255,255,255,0.9), rgba(250,250,252,0.9));
+    box-shadow: var(--shadow-soft);
+}
+html[data-theme="dark"] .estado-card { background: var(--blanco); }
+.estado-card__title {
+    font-family: var(--font-display);
+    font-size: clamp(1.25rem, 2vw, 1.6rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--purple-deep);
+    margin: 0 0 8px;
+    line-height: 1.15;
+}
+.estado-card__body { margin: 0; font-size: 1rem; line-height: 1.6; color: var(--texto); max-width: 46rem; }
+.estado-card__cta { flex-shrink: 0; }
+@media (max-width: 720px) {
+    .estado-card { grid-template-columns: 1fr; padding: 24px; }
+}
+
+/* Requiere atención */
+.ops-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+.ops-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 22px 22px 20px;
+    background: rgba(255,255,255,0.9);
+    border: 1px solid var(--borde);
+    border-radius: 16px;
+    box-shadow: var(--shadow-soft);
+}
+html[data-theme="dark"] .ops-card { background: var(--blanco); }
+.ops-card__num { font-family: var(--font-display); font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; color: var(--purple-deep); line-height: 1; font-variant-numeric: tabular-nums; }
+.ops-card__label { font-weight: 650; font-size: 13.5px; color: var(--texto); }
+.ops-card__hint { font-size: 12px; color: var(--texto-muted); margin-top: 2px; }
+
 .compare-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
 .compare-card {
     background: var(--lilac-2, #F4F3F8);
@@ -26,35 +94,34 @@
 .compare-delta { font-size: 12px; font-weight: 600; margin-top: 4px; }
 .compare-delta.up { color: var(--ok); }
 .compare-delta.down { color: var(--danger); }
+
+/* Actividad reciente */
 .timeline-compact { list-style: none; padding: 0; margin: 0; }
-.timeline-compact__item { display: grid; grid-template-columns: 110px 1fr; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--borde); font-size: 13px; align-items: baseline; }
-.timeline-compact__item:last-child { border-bottom: 0; }
-.timeline-compact__item time { color: var(--texto-muted); font-size: 12px; }
-.medal { display: inline-flex; width: 28px; height: 28px; border-radius: 50%; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; color: #fff; }
-.medal-gold { background: linear-gradient(145deg, #fbbf24, #d97706); box-shadow: 0 2px 8px rgba(217,119,6,.35); }
-.medal-silver { background: linear-gradient(145deg, #e2e8f0, #94a3b8); }
-.medal-bronze { background: linear-gradient(145deg, #fdba74, #c2410c); }
-.dash-hero {
-    margin: 4px 0 36px;
-    padding: 0 0 26px;
-    border: 0;
-    border-bottom: 1px solid var(--borde);
-    background: transparent;
-    box-shadow: none;
+.timeline-compact__item {
     display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 20px;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 13px 0;
+    border-bottom: 1px solid var(--borde);
+    font-size: 13.5px;
 }
-.dash-hero h1 { margin: 0; font-size: clamp(1.6rem, 2.4vw, 2rem); letter-spacing: -0.035em; }
-.dash-hero .section-kicker { margin-bottom: 0.4rem; color: var(--accent); }
-.dash-hero .muted { max-width: 38rem; margin-top: 0.5rem; font-size: 0.95rem; }
-.dash-hero__actions { display: flex; flex-wrap: wrap; gap: 10px; }
-.dash-section { margin-bottom: 36px; }
-.dash-section > h2 { margin-bottom: 6px; }
-.dash-section > .muted { margin: 0 0 18px; }
-.panel-quiet { border-left: 0 !important; }
+.timeline-compact__item:last-child { border-bottom: 0; }
+.timeline-compact__dot {
+    flex-shrink: 0;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--purple);
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 1px;
+}
+.timeline-compact__dot svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.timeline-compact__main { flex: 1; min-width: 0; }
+.timeline-compact__main a { color: var(--texto); text-decoration: none; font-weight: 600; }
+.timeline-compact__main a:hover { color: var(--purple-deep); }
+.timeline-compact__meta { display: block; color: var(--texto-muted); font-size: 12px; margin-top: 2px; }
+.timeline-compact__time { flex-shrink: 0; color: var(--texto-muted); font-size: 12px; white-space: nowrap; }
+
 .quick-links {
     display: flex;
     flex-wrap: wrap;
@@ -68,23 +135,18 @@
     font-weight: 600;
 }
 .quick-links a:hover { color: var(--accent); text-decoration: underline; }
-.kpi-strip .metric-number { font-size: 1.45rem; }
+
+.medal { display: inline-flex; width: 28px; height: 28px; border-radius: 50%; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; color: #fff; }
+.medal-gold { background: linear-gradient(145deg, #fbbf24, #d97706); box-shadow: 0 2px 8px rgba(217,119,6,.35); }
+.medal-silver { background: linear-gradient(145deg, #e2e8f0, #94a3b8); }
+.medal-bronze { background: linear-gradient(145deg, #fdba74, #c2410c); }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="page-title dash-hero">
-    <div>
-        <p class="section-kicker">Portal</p>
-        <h1>Resumen</h1>
-        <p class="muted">Indicadores clave de su organización, listos para actuar.</p>
-    </div>
-    {% if portal_mod_cursos %}
-    <div class="dash-hero__actions">
-        <a class="btn" href="/portal/reportes/">Reportes</a>
-        <a class="btn btn-outline" href="/portal/metricas/">Métricas</a>
-    </div>
-    {% endif %}
+<div class="dash-hero">
+    <h1>Inicio</h1>
+    <p class="muted">Bienvenido nuevamente. Aquí encontrará el estado general de su programa y lo que requiere su atención hoy.</p>
 </div>
 
 {% if portal_es_admin and not portal_branding_completo %}
@@ -145,207 +207,159 @@
 {% endif %}
 
 {% if portal_mod_cursos %}
+{% if estado_programa %}
+<section class="dash-section">
+    <p class="dash-q">¿Cómo va mi programa?</p>
+    <div class="estado-card">
+        <div>
+            <p class="estado-card__title">{{ estado_programa.titulo }}</p>
+            <p class="estado-card__body">{{ estado_programa.cuerpo }}</p>
+        </div>
+        <div class="estado-card__cta">
+            <a class="btn" href="{{ estado_programa.cta.url }}">{{ estado_programa.cta.label }}</a>
+        </div>
+    </div>
+</section>
+{% endif %}
+
 {% if ops %}
-<section class="panel panel-ops panel-quiet dash-section">
-    <h2>Operación del día</h2>
-    <p class="muted">Acciones que requieren atención ahora.</p>
-    <div class="cards-grid">
-        <a href="/portal/pqrs/?estado=pendiente" class="card card-link">
-            <div class="metric-number">{{ ops.pqrs_pendientes }}</div>
-            <div class="metric-label">PQRS pendientes</div>
+<section class="dash-section">
+    <p class="dash-q">¿Qué requiere atención hoy?</p>
+    <div class="ops-grid">
+        <a href="/portal/estudiantes/" class="card-link">
+            <div class="ops-card">
+                <span class="ops-card__num">{{ ops.sin_avance }}</span>
+                <span class="ops-card__label">Participantes sin avance</span>
+                <span class="ops-card__hint">Aún no inician su primer módulo.</span>
+            </div>
         </a>
-        <a href="/portal/certificados/" class="card card-link">
-            <div class="metric-number">{{ ops.certificados_semana }}</div>
-            <div class="metric-label">Certificados (7 días)</div>
+        <a href="/portal/estudiantes/" class="card-link">
+            <div class="ops-card">
+                <span class="ops-card__num">{{ ops.inactivos_30_dias }}</span>
+                <span class="ops-card__label">Inactivos 30+ días</span>
+                <span class="ops-card__hint">Empezaron pero se detuvieron. Candidatos a reenganche.</span>
+            </div>
         </a>
-        <a href="/portal/estudiantes/" class="card card-link">
-            <div class="metric-number">{{ ops.sin_avance }}</div>
-            <div class="metric-label">Sin avance en curso</div>
+        <a href="/portal/pqrs/?estado=pendiente" class="card-link">
+            <div class="ops-card">
+                <span class="ops-card__num">{{ ops.pqrs_pendientes }}</span>
+                <span class="ops-card__label">PQRS pendientes</span>
+                <span class="ops-card__hint">Solicitudes de sus participantes por responder.</span>
+            </div>
         </a>
-        <a href="/portal/estudiantes/" class="card card-link">
-            <div class="metric-number">{{ ops.inactivos_30_dias }}</div>
-            <div class="metric-label">Inactivos 30+ días</div>
+        <a href="/portal/certificados/" class="card-link">
+            <div class="ops-card">
+                <span class="ops-card__num">{{ ops.certificados_semana }}</span>
+                <span class="ops-card__label">Certificados esta semana</span>
+                <span class="ops-card__hint">Emitidos en los últimos 7 días.</span>
+            </div>
         </a>
-    </div>
-    {% if ops.ultimos_mensajes %}
-    <h3 style="margin:20px 0 10px;font-size:15px;">Últimos mensajes WhatsApp</h3>
-    <ul class="ops-msg-list">
-        {% for m in ops.ultimos_mensajes %}
-        <li>
-            <span class="muted">{{ m.fecha|date:"d/m H:i" }}</span>
-            <strong>{{ m.telefono }}</strong>
-            {{ m.mensaje|truncatechars:80 }}
-        </li>
-        {% endfor %}
-    </ul>
-    <p class="muted"><a href="/portal/conversaciones/">Abrir conversaciones →</a></p>
-    {% endif %}
-</section>
-{% endif %}
-
-{% if comparativa %}
-<section class="panel panel-quiet dash-section">
-    <h2>Este mes vs mes anterior</h2>
-    <div class="compare-grid">
-        <div class="compare-card">
-            <div class="compare-label">Certificados</div>
-            <div class="compare-values"><span>{{ comparativa.certificados.actual }}</span> <small>vs {{ comparativa.certificados.anterior }}</small></div>
-            {% if comparativa.certificados.delta_pct != None %}<div class="compare-delta {% if comparativa.certificados.delta_pct >= 0 %}up{% else %}down{% endif %}">{{ comparativa.certificados.delta_pct }}%</div>{% endif %}
-        </div>
-        <div class="compare-card">
-            <div class="compare-label">PQRS nuevas</div>
-            <div class="compare-values"><span>{{ comparativa.pqrs.actual }}</span> <small>vs {{ comparativa.pqrs.anterior }}</small></div>
-            {% if comparativa.pqrs.delta_pct != None %}<div class="compare-delta {% if comparativa.pqrs.delta_pct <= 0 %}up{% else %}down{% endif %}">{{ comparativa.pqrs.delta_pct }}%</div>{% endif %}
-        </div>
-        <div class="compare-card">
-            <div class="compare-label">Cursos completados</div>
-            <div class="compare-values"><span>{{ comparativa.completados.actual }}</span> <small>vs {{ comparativa.completados.anterior }}</small></div>
-            {% if comparativa.completados.delta_pct != None %}<div class="compare-delta {% if comparativa.completados.delta_pct >= 0 %}up{% else %}down{% endif %}">{{ comparativa.completados.delta_pct }}%</div>{% endif %}
-        </div>
     </div>
 </section>
 {% endif %}
-
-{% if timeline_preview %}
-<section class="panel panel-quiet dash-section">
-    <div class="page-title" style="margin-bottom:12px;">
-        <h2>Actividad reciente</h2>
-        <a class="btn btn-outline btn-sm" href="/portal/timeline/">Ver todo</a>
-    </div>
-    <ul class="timeline-compact">
-        {% for ev in timeline_preview %}
-        <li class="timeline-compact__item timeline-compact__item--{{ ev.tipo }}">
-            <time>{{ ev.fecha|date:"d/m/Y H:i" }}</time>
-            <a href="{{ ev.url }}">{{ ev.titulo }}</a>
-            <span class="muted">{{ ev.detalle|truncatechars:50 }}</span>
-        </li>
-        {% endfor %}
-    </ul>
-</section>
-{% endif %}
-
-<section class="cards-grid kpi-strip dash-section">
-    <article class="card">
-        <div class="metric-number">{{ total_estudiantes }}</div>
-        <div class="metric-label">Estudiantes</div>
-    </article>
-    <article class="card">
-        <div class="metric-number">{{ total_cursos }}</div>
-        <div class="metric-label">Cursos activos</div>
-    </article>
-    <article class="card">
-        <div class="metric-number">{{ total_grupos }}</div>
-        <div class="metric-label">Grupos</div>
-    </article>
-    <article class="card">
-        <div class="metric-number">{{ completados }}</div>
-        <div class="metric-label">Inscripciones completadas</div>
-    </article>
-    <article class="card">
-        <div class="metric-number">{{ en_progreso }}</div>
-        <div class="metric-label">En progreso</div>
-    </article>
-    {% if resumen_general.total_inscritos %}
-    <article class="card">
-        <div class="metric-number">{{ resumen_general.finalizados }} / {{ resumen_general.total_inscritos }}</div>
-        <div class="metric-label">Finalizados / inscritos</div>
-    </article>
-    {% endif %}
-</section>
 
 {% if dashboard_charts %}
-<section class="charts-grid">
-    <article class="panel chart-panel">
-        <h2>Embudo de avance</h2>
-        <p class="muted" style="margin:0 0 12px;font-size:13px;">Distribución de inscripciones por estado.</p>
-        <canvas id="chart-funnel" aria-label="Gráfico embudo de avance"></canvas>
-    </article>
-    <article class="panel chart-panel">
-        <h2>Comparativa mensual</h2>
-        <p class="muted" style="margin:0 0 12px;font-size:13px;">Mes actual vs mes anterior.</p>
-        <canvas id="chart-compare" aria-label="Gráfico comparativa mensual"></canvas>
-    </article>
+<section class="dash-section">
+    <p class="dash-q">¿Cómo evoluciona?</p>
+    <div class="charts-grid">
+        <article class="panel chart-panel">
+            <h2>Embudo de avance</h2>
+            <p class="muted" style="margin:0 0 12px;font-size:13px;">Distribución de inscripciones por estado.</p>
+            <canvas id="chart-funnel" aria-label="Gráfico embudo de avance"></canvas>
+        </article>
+        <article class="panel chart-panel">
+            <h2>Este mes vs mes anterior</h2>
+            <p class="muted" style="margin:0 0 12px;font-size:13px;">Certificados, PQRS y cursos completados.</p>
+            <canvas id="chart-compare" aria-label="Gráfico comparativa mensual"></canvas>
+        </article>
+    </div>
 </section>
 {{ dashboard_charts|json_script:"dashboard-charts-data" }}
 {% endif %}
 
-<section class="panel panel-quiet dash-section">
-    <h2>Accesos rápidos</h2>
-    <div class="quick-links">
-        <a href="/portal/metricas/">Métricas detalladas</a>
-        <a href="/portal/reportes/">Reportes Excel</a>
-        <a href="/portal/cobertura/">Cobertura territorial</a>
-        <a href="/portal/estudiantes/">Estudiantes</a>
-        <a href="/portal/cursos/">Cursos</a>
-        <a href="/portal/retencion/">Retención</a>
+{% if timeline_preview %}
+<section class="dash-section">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px;">
+        <p class="dash-q" style="margin:0;">¿Qué ha ocurrido recientemente?</p>
+        <a class="btn btn-outline" href="/portal/timeline/">Ver todo</a>
+    </div>
+    <div class="panel">
+        <ul class="timeline-compact">
+            {% for ev in timeline_preview %}
+            <li class="timeline-compact__item">
+                <span class="timeline-compact__dot">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+                </span>
+                <span class="timeline-compact__main">
+                    <a href="{{ ev.url }}">{{ ev.titulo }}</a>
+                    {% if ev.detalle %}<span class="timeline-compact__meta">{{ ev.detalle|truncatechars:70 }}</span>{% endif %}
+                </span>
+                <span class="timeline-compact__time">{{ ev.fecha|date:"d/m H:i" }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</section>
+{% endif %}
+
+<section class="dash-section">
+    <p class="dash-q">¿Cuál debería ser mi siguiente acción?</p>
+    <div class="panel">
+        <div class="quick-links">
+            <a href="/portal/retencion/">Ver retención y embudo</a>
+            <a href="/portal/metricas/">Métricas detalladas</a>
+            <a href="/portal/reportes/">Reportes Excel</a>
+            <a href="/portal/cobertura/">Cobertura territorial</a>
+            <a href="/portal/estudiantes/">Estudiantes</a>
+            <a href="/portal/cursos/">Cursos</a>
+        </div>
     </div>
 </section>
 
 {% if ranking.activa %}
-<section class="panel" id="ranking" style="margin-bottom:24px;">
-    <div class="page-title" style="margin-bottom:16px;">
+<section class="dash-section" id="ranking">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px;">
         <div>
-            <h2>Mejores estudiantes</h2>
-            <p class="muted">Modo: <strong>{{ ranking.modo_label }}</strong>{% if ranking.es_calificacion %} — promedio ponderado de notas{% else %} — puntos acumulados{% endif %}</p>
+            <p class="dash-q" style="margin:0 0 4px;">Mejores estudiantes</p>
+            <p class="muted" style="margin:0;">Modo: <strong>{{ ranking.modo_label }}</strong>{% if ranking.es_calificacion %} — promedio ponderado de notas{% else %} — puntos acumulados{% endif %}</p>
         </div>
+        <a class="btn btn-outline" href="/portal/gamificacion/">Ver gamificación</a>
     </div>
-    {% if ranking.ranking %}
-    <div class="table-wrap">
-        <table>
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Estudiante</th>
-                    <th>{{ ranking.columna_valor }}</th>
-                    <th>Detalle</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in ranking.ranking %}
-                <tr class="rank-row rank-row--{{ row.posicion }}">
-                    <td>
-                        {% if row.posicion == 1 %}<span class="medal medal-gold" title="1°">1</span>
-                        {% elif row.posicion == 2 %}<span class="medal medal-silver" title="2°">2</span>
-                        {% elif row.posicion == 3 %}<span class="medal medal-bronze" title="3°">3</span>
-                        {% else %}{{ row.posicion }}{% endif %}
-                    </td>
-                    <td><a href="/portal/estudiantes/{{ row.estudiante_id }}/">{{ row.nombre }}</a></td>
-                    <td><strong>{{ row.valor }}</strong></td>
-                    <td class="muted">{{ row.detalle }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="panel">
+        {% if ranking.ranking %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Estudiante</th>
+                        <th>{{ ranking.columna_valor }}</th>
+                        <th>Detalle</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in ranking.ranking %}
+                    <tr class="rank-row rank-row--{{ row.posicion }}">
+                        <td>
+                            {% if row.posicion == 1 %}<span class="medal medal-gold" title="1°">1</span>
+                            {% elif row.posicion == 2 %}<span class="medal medal-silver" title="2°">2</span>
+                            {% elif row.posicion == 3 %}<span class="medal medal-bronze" title="3°">3</span>
+                            {% else %}{{ row.posicion }}{% endif %}
+                        </td>
+                        <td><a href="/portal/estudiantes/{{ row.estudiante_id }}/">{{ row.nombre }}</a></td>
+                        <td><strong>{{ row.valor }}</strong></td>
+                        <td class="muted">{{ row.detalle }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="muted" style="margin:0;">Aún no hay datos de ranking.</p>
+        {% endif %}
     </div>
-    {% else %}
-    <p class="muted">Aún no hay datos de ranking.</p>
-    {% endif %}
 </section>
 {% endif %}
-
-<section class="panel">
-    <h2>Cursos activos</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Nombre</th>
-                <th>Módulos</th>
-                <th>Inscritos</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for curso in cursos %}
-            <tr>
-                <td>{{ curso.emoji }} {{ curso.nombre }}</td>
-                <td>{{ curso.modulos_count }}</td>
-                <td>{{ curso.estudiantes_count }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="3" class="muted">No hay cursos activos.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</section>
 {% endif %}
 {% endblock %}
 

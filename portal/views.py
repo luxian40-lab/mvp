@@ -51,7 +51,12 @@ from .gei_service import analitica_gei, parse_filtros_gei
 from .nat_service import analitica_nat
 from .middleware import PORTAL_SESSION_KEY
 from .utils import limpiar_numero_whatsapp, enviar_whatsapp_respuesta
-from .dashboard_ops import comparativa_periodos, operacion_del_dia, resumen_dashboard_rapido
+from .dashboard_ops import (
+    comparativa_periodos,
+    narrativa_estado_programa,
+    operacion_del_dia,
+    resumen_dashboard_rapido,
+)
 from .timeline_service import timeline_organizacion
 from .models import PortalFeedback, PortalUsuario
 from .rag_curso_service import crear_documento_curso, listar_documentos_curso_org
@@ -196,11 +201,13 @@ def dashboard(request):
 
     ops = None
     comparativa = None
+    estado_programa = None
     timeline_preview = []
     dashboard_charts = {}
     if mods['cursos']:
         ops = operacion_del_dia(org, categorias_pqrs=categorias_pqrs_portal(org))
         comparativa = comparativa_periodos(org)
+        estado_programa = narrativa_estado_programa(ops, comparativa, resumen_general)
         timeline_preview = timeline_organizacion(org, limite=8)
         dashboard_charts = {
             'funnel_labels': ['Finalizados', 'En curso', 'No iniciados'],
@@ -238,6 +245,7 @@ def dashboard(request):
         'ranking': ranking_data,
         'ops': ops,
         'comparativa': comparativa,
+        'estado_programa': estado_programa,
         'timeline_preview': timeline_preview,
         'dashboard_charts': dashboard_charts,
     })

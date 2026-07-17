@@ -57,11 +57,11 @@ class PortalCrmTests(TestCase):
         self._login('crm_admin')
         r = self.http.get('/portal/dashboard/')
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'Operación del día')
+        self.assertContains(r, '¿Qué requiere atención hoy?')
         self.assertContains(r, 'Este mes vs mes anterior')
         self.assertContains(r, 'eki-help')
         self.assertContains(r, 'eki-flag-co')
-        self.assertContains(r, '¡Hola! ¿Le ayudo?')
+        self.assertContains(r, 'Guía EKI')
 
     def test_dashboard_ops_aggregates_sin_metricas_full(self):
         from portal.dashboard_ops import operacion_del_dia, resumen_dashboard_rapido

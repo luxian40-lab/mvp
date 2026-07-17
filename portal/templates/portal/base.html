@@ -302,31 +302,32 @@
 
         .sidebar nav {
             flex: 1;
-            padding: 10px 14px 24px;
+            padding: 12px 16px 26px;
             overflow-y: auto;
         }
 
         .nav-label {
             font-size: 10px;
-            font-weight: 600;
-            letter-spacing: 0.09em;
+            font-weight: 700;
+            letter-spacing: 0.11em;
             text-transform: uppercase;
-            color: rgba(201, 191, 216, 0.45);
-            padding: 22px 8px 8px;
+            color: rgba(201, 191, 216, 0.42);
+            padding: 26px 10px 9px;
         }
 
-        .nav-label:first-child { padding-top: 6px; }
+        .nav-label:first-child { padding-top: 8px; }
 
         .sidebar-link {
+            position: relative;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 10px;
+            gap: 11px;
             color: var(--sidebar-text);
             text-decoration: none;
-            padding: 9px 10px;
+            padding: 10px 12px;
             border-radius: 10px;
-            margin-bottom: 2px;
+            margin-bottom: 3px;
             font-weight: 500;
             font-size: 13px;
             transition: background 0.15s, color 0.15s;
@@ -413,6 +414,18 @@
             color: #fff;
             font-weight: 600;
         }
+        .sidebar-link.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 3px;
+            height: 18px;
+            border-radius: 0 3px 3px 0;
+            background: var(--purple-soft);
+        }
+        body.sidebar-collapsed .sidebar-link.active::before { display: none; }
 
         .badge {
             min-width: 20px;
@@ -432,15 +445,16 @@
             grid-area: topbar;
             position: sticky;
             top: 0;
-            height: 68px;
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
+            min-height: 84px;
+            background: rgba(255, 255, 255, 0.72);
+            backdrop-filter: blur(18px) saturate(1.4);
+            -webkit-backdrop-filter: blur(18px) saturate(1.4);
             border-bottom: 1px solid var(--borde);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 32px;
+            gap: 20px;
+            padding: 14px 36px;
             z-index: 9;
             min-width: 0;
         }
@@ -455,23 +469,39 @@
         }
 
         .topbar-title {
-            font-family: var(--font);
+            font-family: var(--font-display);
             font-weight: 700;
-            font-size: 0.95rem;
-            letter-spacing: -0.02em;
+            font-size: 1.15rem;
+            letter-spacing: -0.03em;
             color: var(--texto);
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 4px 0;
+            line-height: 1.15;
             min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .topbar-meta {
-            font-size: 12px;
+            font-size: 12.5px;
             color: var(--texto-muted);
-            margin-top: 1px;
+            margin-top: 4px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 4px 0;
+            font-weight: 500;
         }
+        .topbar-meta .sep {
+            display: inline-block;
+            width: 3px;
+            height: 3px;
+            border-radius: 50%;
+            background: var(--purple-soft);
+            margin: 0 9px;
+            vertical-align: middle;
+        }
+        .topbar-meta strong { color: var(--purple-deep); font-weight: 700; }
+        .topbar-meta .prog { color: var(--purple-deep); font-weight: 700; }
 
         .topbar-chip {
             display: none;
@@ -480,7 +510,8 @@
         .topbar-actions {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 12px;
+            flex-shrink: 0;
         }
 
         .topbar-actions a {
@@ -491,6 +522,87 @@
         }
 
         .topbar-actions a:hover { color: var(--purple-deep); }
+
+        /* Avatar de usuario + menú */
+        .user-menu { position: relative; }
+        .user-menu__btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            padding: 5px 8px 5px 5px;
+            border: 1px solid transparent;
+            border-radius: 999px;
+            background: transparent;
+            cursor: pointer;
+            font: inherit;
+            color: var(--texto);
+            transition: background 0.14s, border-color 0.14s;
+        }
+        .user-menu__btn:hover { background: var(--accent-soft); border-color: var(--borde); }
+        .user-menu__avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: linear-gradient(140deg, var(--purple) 0%, var(--purple-deep) 100%);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12.5px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(95, 58, 110, 0.25);
+        }
+        .user-menu__name {
+            font-size: 13px;
+            font-weight: 600;
+            max-width: 140px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .user-menu__chev { color: var(--texto-muted); transition: transform 0.18s var(--ease); }
+        .user-menu.is-open .user-menu__chev { transform: rotate(180deg); }
+        .user-menu__panel {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            min-width: 210px;
+            background: var(--blanco);
+            border: 1px solid var(--borde);
+            border-radius: 14px;
+            box-shadow: 0 18px 44px rgba(31, 31, 40, 0.16);
+            padding: 6px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-6px);
+            transition: opacity 0.16s var(--ease), transform 0.16s var(--ease), visibility 0.16s;
+            z-index: 40;
+        }
+        .user-menu.is-open .user-menu__panel { opacity: 1; visibility: visible; transform: translateY(0); }
+        .user-menu__head {
+            padding: 10px 12px 10px;
+            border-bottom: 1px solid var(--borde);
+            margin-bottom: 4px;
+        }
+        .user-menu__head strong { display: block; font-size: 13.5px; font-weight: 700; color: var(--texto); }
+        .user-menu__head span { display: block; font-size: 11.5px; color: var(--texto-muted); margin-top: 2px; }
+        .user-menu__item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 12px;
+            border-radius: 9px;
+            color: var(--texto);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .user-menu__item:hover { background: var(--accent-soft); color: var(--purple-deep); }
+        .user-menu__item svg { width: 16px; height: 16px; opacity: 0.75; }
+        .user-menu__item--danger { color: var(--danger); }
+        .user-menu__item--danger:hover { background: rgba(194, 59, 59, 0.08); color: var(--danger); }
 
         .main {
             grid-area: main;
@@ -1082,6 +1194,15 @@
             body.sidebar-collapsed .nav-label,
             body.sidebar-collapsed .sidebar-link .link-text { display: block; }
             body.sidebar-collapsed { --sidebar-width: 260px; }
+            .topbar { min-height: 64px; padding: 10px 16px; }
+            .topbar-title { font-size: 1rem; }
+            .topbar-meta { font-size: 11.5px; }
+            .topbar-meta .sep { margin: 0 6px; }
+            .user-menu__name { display: none; }
+        }
+        @media (max-width: 620px) {
+            .topbar-meta span:not(.prog):not(.sep) { display: none; }
+            .topbar-meta .sep { display: none; }
         }
     </style>
     <script>
@@ -1104,6 +1225,7 @@
         <defs>
             <g id="ic-defs" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="9" rx="1.6"/><rect x="13.5" y="3" width="7" height="5.5" rx="1.6"/><rect x="13.5" y="11.5" width="7" height="9.5" rx="1.6"/><rect x="3" y="15" width="7.5" height="6" rx="1.6"/></symbol>
+                <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11.5L12 4l8 7.5"/><path d="M6 10v9.5h12V10"/><path d="M10 19.5v-5h4v5"/></symbol>
                 <symbol id="i-funnel" viewBox="0 0 24 24"><path d="M4 4h16l-6 8.2V18l-4 2.2v-8z"/></symbol>
                 <symbol id="i-map" viewBox="0 0 24 24"><path d="M9 3l-6 2v16l6-2 6 2 6-2V3l-6 2-6-2z"/><path d="M9 3v16M15 5v18"/></symbol>
                 <symbol id="i-bars" viewBox="0 0 24 24"><rect x="3.5" y="10.5" width="4" height="9.5" rx="1"/><rect x="10" y="5.5" width="4" height="14.5" rx="1"/><rect x="16.5" y="13" width="4" height="7" rx="1"/></symbol>
@@ -1173,9 +1295,9 @@
             {% endif %}
             {% else %}
             <div class="nav-label">Analítica</div>
-            <a href="/portal/dashboard/" class="sidebar-link {% if request.path == '/portal/dashboard/' %}active{% endif %}" title="Dashboard">
-                <span class="link-icon"><svg><use href="#i-dashboard"/></svg></span>
-                <span class="link-text">Dashboard</span>
+            <a href="/portal/dashboard/" class="sidebar-link {% if request.path == '/portal/dashboard/' %}active{% endif %}" title="Inicio">
+                <span class="link-icon"><svg><use href="#i-home"/></svg></span>
+                <span class="link-text">Inicio</span>
             </a>
             {% if portal_mod_cursos %}
                 <a href="/portal/retencion/" class="sidebar-link {% if '/portal/retencion' in request.path %}active{% endif %}" title="Retención y embudo">
@@ -1308,12 +1430,21 @@
                 </svg>
             </button>
             <div style="min-width:0;">
-            <div class="topbar-title">
-                {{ org.nombre }}
-                <span class="topbar-chip">eki portal</span>
-            </div>
+            <div class="topbar-title">{{ org.nombre }}</div>
             <div class="topbar-meta">
-                {% if org.portal_subtitulo %}{{ org.portal_subtitulo }}{% else %}Seguimiento operativo{% endif %}
+                {% if org.portal_subtitulo %}<span class="prog">{{ org.portal_subtitulo }}</span>{% endif %}
+                {% if portal_header_stats %}
+                    {% if org.portal_subtitulo %}<span class="sep"></span>{% endif %}
+                    <span><strong>{{ portal_header_stats.participantes }}</strong> participantes</span>
+                    <span class="sep"></span>
+                    <span><strong>{{ portal_header_stats.cursos }}</strong> curso{{ portal_header_stats.cursos|pluralize }}</span>
+                    <span class="sep"></span>
+                    <span><strong>{{ portal_header_stats.avance_pct }}%</strong> avance</span>
+                    <span class="sep"></span>
+                    <span><strong>{{ portal_header_stats.certificados }}</strong> certificados</span>
+                {% elif not org.portal_subtitulo %}
+                    <span>Seguimiento del programa</span>
+                {% endif %}
             </div>
             </div>
         </div>
@@ -1326,10 +1457,33 @@
                     <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
                 </svg>
             </button>
-            {% if portal_es_admin %}
-                <a href="/portal/perfil/">Perfil</a>
-            {% endif %}
-            <a href="/portal/logout/">Cerrar sesión</a>
+            <div class="user-menu" id="user-menu">
+                <button type="button" class="user-menu__btn" id="user-menu-btn" aria-haspopup="true" aria-expanded="false">
+                    <span class="user-menu__avatar">{{ portal_user_iniciales }}</span>
+                    <span class="user-menu__name">{{ portal_user_nombre }}</span>
+                    <svg class="user-menu__chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="user-menu__panel" role="menu" aria-labelledby="user-menu-btn">
+                    <div class="user-menu__head">
+                        <strong>{{ portal_user_nombre }}</strong>
+                        <span>{% if portal_es_admin %}Administrador{% elif portal_solo_lectura %}Solo lectura{% else %}Equipo{% endif %} · {{ org.nombre|truncatechars:24 }}</span>
+                    </div>
+                    {% if portal_es_admin %}
+                    <a href="/portal/perfil/" class="user-menu__item" role="menuitem">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="3" width="15" height="18" rx="1.2"/><path d="M9 8h1M14 8h1M9 12h1M14 12h1M9 16h1M14 16h1"/></svg>
+                        Perfil de empresa
+                    </a>
+                    <a href="/portal/usuarios/" class="user-menu__item" role="menuitem">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.3 20c0-3.4 3-5.8 6.7-5.8s6.7 2.4 6.7 5.8"/></svg>
+                        Usuarios
+                    </a>
+                    {% endif %}
+                    <a href="/portal/logout/" class="user-menu__item user-menu__item--danger" role="menuitem">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h3a1 1 0 011 1v14a1 1 0 01-1 1h-3"/><path d="M10 16l-4-4 4-4M6 12h9"/></svg>
+                        Cerrar sesión
+                    </a>
+                </div>
+            </div>
         </div>
     </header>
 
@@ -1356,8 +1510,8 @@
             <div class="eki-help__head">
                 <svg class="eki-flag eki-flag--sm" aria-hidden="true" role="img" aria-label="Bandera de Colombia"><use href="#eki-flag-co"/></svg>
                 <div>
-                    <strong>Guía eki</strong>
-                    <span>Su guía en el portal</span>
+                    <strong>Guía EKI</strong>
+                    <span>Le acompaña en cada pantalla</span>
                 </div>
             </div>
             <div class="eki-help__body">
@@ -1372,9 +1526,9 @@
                 <button type="button" class="btn-help btn-help-dismiss" id="eki-help-dismiss">No volver a mostrar aquí</button>
             </div>
         </div>
-        <button type="button" class="eki-help__toggle" id="eki-help-toggle" aria-expanded="false" aria-controls="eki-help-panel" title="¿Necesita ayuda?">
+        <button type="button" class="eki-help__toggle" id="eki-help-toggle" aria-expanded="false" aria-controls="eki-help-panel" title="Guía EKI">
             <span class="eki-help-btn-inner">
-                <span class="eki-help__bubble">¡Hola! ¿Le ayudo?</span>
+                <span class="eki-help__bubble">Guía EKI</span>
                 <svg class="eki-flag" aria-hidden="true" role="img" aria-label="Bandera de Colombia"><use href="#eki-flag-co"/></svg>
             </span>
         </button>
@@ -1434,6 +1588,28 @@
                 themeBtn.addEventListener('click', function () {
                     var dark = document.documentElement.getAttribute('data-theme') === 'dark';
                     setTheme(dark ? 'light' : 'dark');
+                });
+            }
+
+            var userMenu = document.getElementById('user-menu');
+            var userBtn = document.getElementById('user-menu-btn');
+            if (userMenu && userBtn) {
+                userBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    var open = userMenu.classList.toggle('is-open');
+                    userBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                });
+                document.addEventListener('click', function (e) {
+                    if (!userMenu.contains(e.target)) {
+                        userMenu.classList.remove('is-open');
+                        userBtn.setAttribute('aria-expanded', 'false');
+                    }
+                });
+                document.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape') {
+                        userMenu.classList.remove('is-open');
+                        userBtn.setAttribute('aria-expanded', 'false');
+                    }
                 });
             }
 

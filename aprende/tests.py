@@ -580,8 +580,9 @@ class AprendeProfesorGestionTests(TestCase):
         # CSS debe ir en <style> (extra_css), no como texto suelto antes del page-head
         html = r.content.decode('utf-8')
         head, _, body = html.partition('<body')
-        self.assertIn('.eki-ranking-wrap', head)
-        self.assertNotIn('.eki-ranking-wrap {', body)
+        self.assertIn('.eki-lb', head)
+        self.assertNotIn('.eki-lb {', body)
+        self.assertContains(r, 'eki-lb-board')
 
     def test_borrar_asistencia_del_dia(self):
         from aprende.models import AsistenciaAula

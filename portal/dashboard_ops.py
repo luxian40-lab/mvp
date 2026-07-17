@@ -146,3 +146,85 @@ def operacion_del_dia(org, *, categorias_pqrs=None) -> dict:
         'inactivos_30_dias': inactivos_30,
         'ultimos_mensajes': ultimos_msgs,
     }
+
+
+def narrativa_estado_programa(ops: dict | None, comparativa: dict | None, resumen: dict | None) -> dict:
+    """
+    Redacta el 'Estado del programa' con lenguaje de coordinador, a partir de
+    cifras reales. Nunca usa frases genéricas vacías: si no hay movimiento, lo dice.
+    """
+    ops = ops or {}
+    comparativa = comparativa or {}
+    resumen = resumen or {}
+
+    cert_mes = int((comparativa.get('certificados') or {}).get('actual') or 0)
+    comp_mes = int((comparativa.get('completados') or {}).get('actual') or 0)
+    comp_ant = int((comparativa.get('completados') or {}).get('anterior') or 0)
+    sin_avance = int(ops.get('sin_avance') or 0)
+    inactivos = int(ops.get('inactivos_30_dias') or 0)
+    pqrs = int(ops.get('pqrs_pendientes') or 0)
+    en_curso = int(resumen.get('en_curso') or 0)
+
+    logros = []
+    if comp_mes:
+        if comp_mes == 1:
+            logros.append('1 persona completó su curso este mes')
+        else:
+            logros.append(f'{comp_mes} personas completaron su curso este mes')
+    if cert_mes:
+        if cert_mes == 1:
+            logros.append('se emitió 1 certificado')
+        else:
+            logros.append(f'se emitieron {cert_mes} certificados')
+
+    pendientes = []
+    if sin_avance:
+        pendientes.append(f'{sin_avance} aún no inician')
+    if inactivos:
+        pendientes.append(f'{inactivos} llevan 30+ días sin actividad')
+    if pqrs:
+        pendientes.append(f'{pqrs} PQRS por atender')
+
+    # Titular honesto según el pulso real del programa.
+    if comp_mes and comp_mes >= comp_ant:
+        titulo = 'Buen ritmo de participación.'
+    elif comp_mes or cert_mes:
+        titulo = 'El programa sigue avanzando.'
+    elif en_curso:
+        titulo = 'Momento de reactivar.'
+    else:
+        titulo = 'Programa recién comienza.'
+
+    if logros:
+        cuerpo = _capitalizar(_unir(logros)) + '.'
+        if pendientes:
+            cuerpo += ' Requiere atención: ' + _unir(pendientes) + '.'
+    elif pendientes:
+        cuerpo = 'Sin finalizaciones nuevas este mes. Requiere atención: ' + _unir(pendientes) + '.'
+    else:
+        cuerpo = 'Todavía no hay actividad registrada este mes. Es buen momento para inscribir o reactivar participantes.'
+
+    # Siguiente acción: la más relevante según los datos.
+    if sin_avance:
+        cta = {'label': 'Ver participantes sin avance', 'url': '/portal/estudiantes/'}
+    elif pqrs:
+        cta = {'label': 'Atender PQRS', 'url': '/portal/pqrs/?estado=pendiente'}
+    elif inactivos:
+        cta = {'label': 'Ver retención', 'url': '/portal/retencion/'}
+    else:
+        cta = {'label': 'Ver retención', 'url': '/portal/retencion/'}
+
+    return {'titulo': titulo, 'cuerpo': cuerpo, 'cta': cta}
+
+
+def _unir(items: list[str]) -> str:
+    items = [i for i in items if i]
+    if not items:
+        return ''
+    if len(items) == 1:
+        return items[0]
+    return ', '.join(items[:-1]) + ' y ' + items[-1]
+
+
+def _capitalizar(texto: str) -> str:
+    return texto[:1].upper() + texto[1:] if texto else texto

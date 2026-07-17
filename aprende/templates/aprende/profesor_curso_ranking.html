@@ -5,9 +5,248 @@
 <a href="{% url 'aprende_profesor_logout' %}">Salir</a>
 {% endblock %}
 {% block extra_css %}
-{% include "aprende/partials/ranking_grupo_styles.html" %}
-.eki-rank-prof-note { margin: -0.35rem 0 1rem; }
-.eki-rank-grupo { margin-top: 1rem; }
+.eki-lb { margin-top: 1rem; }
+.eki-lb__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 0.75rem 1.25rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--eki-border);
+}
+.eki-lb__kicker {
+    margin: 0 0 0.25rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--eki-purple);
+}
+.eki-lb__title {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--eki-ink);
+}
+.eki-lb__meta {
+    margin: 0.35rem 0 0;
+    font-size: 0.82rem;
+    color: var(--eki-muted);
+}
+.eki-lb__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid var(--eki-border);
+    background: var(--eki-surface);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--eki-ink-soft);
+}
+.eki-lb__chip strong { color: var(--eki-purple-dark); font-variant-numeric: tabular-nums; }
+
+/* Top 3 — franja de competencia, sin podio ornamental */
+.eki-lb-top {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.65rem;
+    margin-bottom: 1.35rem;
+}
+.eki-lb-top__card {
+    position: relative;
+    padding: 1rem 0.85rem 0.9rem;
+    border-radius: 10px;
+    border: 1px solid var(--eki-border);
+    background: var(--eki-surface);
+    text-align: left;
+    overflow: hidden;
+}
+.eki-lb-top__card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--eki-border);
+}
+.eki-lb-top__card--1 {
+    border-color: rgba(122, 78, 142, 0.35);
+    background: linear-gradient(180deg, rgba(122, 78, 142, 0.07), var(--eki-surface) 70%);
+}
+.eki-lb-top__card--1::before { background: var(--eki-purple); width: 4px; }
+.eki-lb-top__card--2::before { background: #8a9199; }
+.eki-lb-top__card--3::before { background: #b07a4a; }
+.eki-lb-top__pos {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.6rem;
+    height: 1.4rem;
+    padding: 0 0.35rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+    color: #fff;
+    background: var(--eki-ink-soft);
+    margin-bottom: 0.55rem;
+}
+.eki-lb-top__card--1 .eki-lb-top__pos { background: var(--eki-purple); }
+.eki-lb-top__card--2 .eki-lb-top__pos { background: #6b7280; }
+.eki-lb-top__card--3 .eki-lb-top__pos { background: #9a6b45; }
+.eki-lb-top__name {
+    margin: 0;
+    font-size: 0.88rem;
+    font-weight: 650;
+    color: var(--eki-ink);
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.eki-lb-top__score {
+    margin: 0.35rem 0 0;
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+    color: var(--eki-ink);
+    line-height: 1;
+}
+.eki-lb-top__unit {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--eki-muted);
+    margin-left: 0.15rem;
+}
+
+/* Tabla de posiciones */
+.eki-lb-board {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--eki-border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--eki-surface);
+}
+.eki-lb-row {
+    display: grid;
+    grid-template-columns: 2.5rem 2.25rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.7rem 0.9rem;
+    border-bottom: 1px solid var(--eki-border);
+}
+.eki-lb-row:last-child { border-bottom: 0; }
+.eki-lb-row:nth-child(even) { background: rgba(244, 242, 247, 0.55); }
+.eki-lb-row--top1 { background: rgba(122, 78, 142, 0.06); }
+.eki-lb-rank {
+    font-size: 0.85rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--eki-muted);
+    text-align: center;
+}
+.eki-lb-row--top1 .eki-lb-rank { color: var(--eki-purple); }
+.eki-lb-row--top2 .eki-lb-rank { color: #6b7280; }
+.eki-lb-row--top3 .eki-lb-rank { color: #9a6b45; }
+.eki-lb-av {
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--eki-purple-dark);
+    background: var(--eki-purple-pale);
+    border: 1px solid rgba(122, 78, 142, 0.18);
+    flex-shrink: 0;
+}
+.eki-lb-row--top1 .eki-lb-av {
+    background: var(--eki-purple);
+    color: #fff;
+    border-color: transparent;
+}
+.eki-lb-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--eki-ink);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.eki-lb-sub {
+    display: block;
+    margin-top: 0.1rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--eki-muted);
+}
+.eki-lb-pts {
+    text-align: right;
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    color: var(--eki-ink);
+    white-space: nowrap;
+}
+.eki-lb-pts small {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--eki-muted);
+    margin-left: 0.1rem;
+}
+.eki-lb-bar {
+    grid-column: 2 / -1;
+    height: 3px;
+    margin-top: -0.15rem;
+    border-radius: 2px;
+    background: var(--eki-border);
+    overflow: hidden;
+}
+.eki-lb-bar > span {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: inherit;
+    background: var(--eki-purple);
+    transition: width 0.7s var(--ease);
+}
+.eki-lb-row--top1 .eki-lb-bar > span { background: var(--eki-purple-dark); }
+
+.eki-lb-grupo {
+    margin-top: 1.25rem;
+}
+.eki-lb-grupo__title {
+    margin: 0 0 0.65rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--eki-muted);
+}
+.eki-lb-empty {
+    padding: 1.5rem 0.25rem;
+    color: var(--eki-muted);
+    font-size: 0.9rem;
+}
+
+@media (max-width: 640px) {
+    .eki-lb-top { grid-template-columns: 1fr; }
+    .eki-lb-row { grid-template-columns: 2rem 2rem minmax(0, 1fr) auto; gap: 0.5rem; padding: 0.65rem 0.7rem; }
+}
 {% endblock %}
 {% block main_class %}eki-main--wide{% endblock %}
 {% block content %}
@@ -18,86 +257,88 @@
 
 {% include "aprende/partials/profesor_curso_tabs.html" %}
 
-<div class="eki-card" style="margin-top:1rem;">
-    <h2 class="eki-h2">Ranking de estudiantes</h2>
-    <p class="eki-muted eki-rank-prof-note">
-        {% if ranking.modo == 'calificacion' %}
-        Ordenado por promedio ponderado de notas del curso.
-        {% elif ranking.modo == 'puntos' %}
-        Ordenado por puntos de gamificación (WhatsApp + actividades).
-        {% else %}
-        Vista del ranking del curso.
+<div class="eki-card eki-lb">
+    <div class="eki-lb__head">
+        <div>
+            <p class="eki-lb__kicker">Clasificación</p>
+            <h2 class="eki-lb__title">Ranking de estudiantes</h2>
+            <p class="eki-lb__meta">
+                {% if ranking.modo == 'calificacion' %}
+                Por promedio ponderado de notas del curso.
+                {% elif ranking.modo == 'puntos' %}
+                Por puntos de gamificación (WhatsApp + actividades).
+                {% else %}
+                Vista del ranking del curso.
+                {% endif %}
+            </p>
+        </div>
+        {% if ranking.activo and ranking.filas %}
+        <span class="eki-lb__chip"><strong>{{ ranking.filas|length }}</strong> en competencia</span>
         {% endif %}
-    </p>
+    </div>
 
     {% if not ranking.activo %}
-    <p class="eki-muted">La gamificación no está activa para esta organización.</p>
+    <p class="eki-lb-empty">La gamificación no está activa para esta organización.</p>
     {% elif not ranking.filas %}
-    <p class="eki-muted">Aún no hay datos de ranking para este curso.</p>
+    <p class="eki-lb-empty">Aún no hay datos de ranking para este curso.</p>
     {% else %}
 
     {% if ranking.top3 %}
-    <div class="eki-podium" aria-label="Top 3">
+    <div class="eki-lb-top" aria-label="Top 3">
         {% for f in ranking.top3 %}
-        <div class="eki-podium-item eki-podium-item--{{ forloop.counter }}">
-            <span class="eki-podium-medal">{{ f.posicion }}</span>
-            <p class="eki-podium-name">{{ f.nombre }}</p>
-            <p class="eki-podium-score">
-                {{ f.valor }}{% if ranking.modo == 'calificacion' %}/5{% else %}<span style="font-size:0.65rem;font-weight:600;"> pts</span>{% endif %}
+        <article class="eki-lb-top__card eki-lb-top__card--{{ f.posicion }}">
+            <span class="eki-lb-top__pos">#{{ f.posicion }}</span>
+            <p class="eki-lb-top__name">{{ f.nombre }}</p>
+            <p class="eki-lb-top__score">
+                {{ f.valor }}{% if ranking.modo == 'calificacion' %}<span class="eki-lb-top__unit">/5</span>{% else %}<span class="eki-lb-top__unit">pts</span>{% endif %}
             </p>
-        </div>
+        </article>
         {% endfor %}
     </div>
     {% endif %}
 
-    <div class="eki-table-wrap">
-        <table class="eki-table">
-            <thead>
-                <tr>
-                    <th style="width:3rem;">#</th>
-                    <th>Estudiante</th>
-                    <th>{% if ranking.modo == 'calificacion' %}Promedio{% else %}Puntos{% endif %}</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for f in ranking.filas %}
-                <tr>
-                    <td>{{ f.posicion }}</td>
-                    <td>{{ f.nombre }}</td>
-                    <td>{{ f.valor }}{{ f.valor_unidad }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+    <ol class="eki-lb-board" aria-label="Tabla de posiciones">
+        {% for f in ranking.filas %}
+        <li class="eki-lb-row{% if f.posicion == 1 %} eki-lb-row--top1{% elif f.posicion == 2 %} eki-lb-row--top2{% elif f.posicion == 3 %} eki-lb-row--top3{% endif %}">
+            <span class="eki-lb-rank">{{ f.posicion }}</span>
+            <span class="eki-lb-av" aria-hidden="true">{{ f.nombre|slice:":1"|upper }}</span>
+            <div style="min-width:0;">
+                <div class="eki-lb-name">{{ f.nombre }}</div>
+                {% if ranking.modo == 'puntos' and f.nivel %}
+                <span class="eki-lb-sub">Nivel {{ f.nivel }}{% if f.racha %} · Racha {{ f.racha }} d{% endif %}</span>
+                {% endif %}
+            </div>
+            <div class="eki-lb-pts">
+                {{ f.valor }}{% if ranking.modo == 'calificacion' %}<small>/5</small>{% else %}<small>pts</small>{% endif %}
+            </div>
+            {% if ranking.modo == 'puntos' and ranking.lider_puntos %}
+            <div class="eki-lb-bar" aria-hidden="true">
+                <span style="width:{% widthratio f.valor ranking.lider_puntos 100 %}%;"></span>
+            </div>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ol>
     {% endif %}
 </div>
 
 {% if ranking.grupos %}
 {% for item in ranking.grupos %}
 {% if item.filas %}
-<div class="eki-card eki-rank-grupo">
-    <h2 class="eki-h2">Grupo: {{ item.grupo.nombre }}</h2>
-    <div class="eki-table-wrap">
-        <table class="eki-table">
-            <thead>
-                <tr>
-                    <th style="width:3rem;">#</th>
-                    <th>Estudiante</th>
-                    <th>{% if ranking.modo == 'calificacion' %}Promedio{% else %}Puntos{% endif %}</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for f in item.filas %}
-                <tr>
-                    <td>{{ f.posicion }}</td>
-                    <td>{{ f.nombre }}</td>
-                    <td>{{ f.valor }}{{ f.valor_unidad }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+<div class="eki-card eki-lb eki-lb-grupo">
+    <p class="eki-lb-grupo__title">Grupo · {{ item.grupo.nombre }}</p>
+    <ol class="eki-lb-board" aria-label="Ranking {{ item.grupo.nombre }}">
+        {% for f in item.filas %}
+        <li class="eki-lb-row{% if f.posicion == 1 %} eki-lb-row--top1{% elif f.posicion == 2 %} eki-lb-row--top2{% elif f.posicion == 3 %} eki-lb-row--top3{% endif %}">
+            <span class="eki-lb-rank">{{ f.posicion }}</span>
+            <span class="eki-lb-av" aria-hidden="true">{{ f.nombre|slice:":1"|upper }}</span>
+            <div class="eki-lb-name">{{ f.nombre }}</div>
+            <div class="eki-lb-pts">
+                {{ f.valor }}{% if ranking.modo == 'calificacion' %}<small>/5</small>{% else %}<small>pts</small>{% endif %}
+            </div>
+        </li>
+        {% endfor %}
+    </ol>
 </div>
 {% endif %}
 {% endfor %}

@@ -8,6 +8,35 @@ from .branding import branding_portal_completo, pasos_branding
 from .capabilities import categorias_pqrs_portal, modulos_portal, portal_home_url, portal_solo_nat
 
 
+def _resumen_header_org(org):
+    """Cifras ligeras (solo COUNT) para la cabecera editorial. Nunca rompe la página."""
+    try:
+        from django.db.models import Count, Q
+
+        from core.models import Curso, Estudiante, ProgresoEstudiante
+        from core.models_certificados import Certificado
+
+        participantes = Estudiante.objects.filter(cliente=org).count()
+        cursos = Curso.objects.filter(cliente=org, activo=True).count()
+        certificados = Certificado.objects.filter(
+            estudiante__cliente=org, emitido=True,
+        ).count()
+        agg = ProgresoEstudiante.objects.filter(curso__cliente=org).aggregate(
+            total=Count('id'),
+            completos=Count('id', filter=Q(completado=True)),
+        )
+        total = agg['total'] or 0
+        avance_pct = round((agg['completos'] or 0) / total * 100) if total else 0
+        return {
+            'participantes': participantes,
+            'cursos': cursos,
+            'certificados': certificados,
+            'avance_pct': avance_pct,
+        }
+    except Exception:
+        return None
+
+
 def pqrs_pendientes(request):
     if getattr(request, 'portal_usuario', None):
         try:
@@ -38,9 +67,26 @@ def portal_organizacion(request):
     es_admin = pu.rol == 'admin'
     es_docente = pu.rol in ('admin', 'profesor')
     branding_ok = branding_portal_completo(org)
+
+    user = getattr(pu, 'user', None)
+    user_nombre = ''
+    if user is not None:
+        user_nombre = (user.get_full_name() or user.username or '').strip()
+    partes = [p for p in user_nombre.replace('.', ' ').replace('_', ' ').split() if p]
+    if partes:
+        user_iniciales = (partes[0][0] + (partes[1][0] if len(partes) > 1 else '')).upper()
+    else:
+        user_iniciales = 'U'
+
+    mods_cursos = mods['cursos']
+    header_stats = _resumen_header_org(org) if mods_cursos else None
+
     return {
         'org': org,
         'portal_usuario': pu,
+        'portal_user_nombre': user_nombre or 'Usuario',
+        'portal_user_iniciales': user_iniciales,
+        'portal_header_stats': header_stats,
         'portal_es_admin': es_admin,
         'portal_es_docente': es_docente,
         'portal_solo_lectura': pu.rol == 'viewer',

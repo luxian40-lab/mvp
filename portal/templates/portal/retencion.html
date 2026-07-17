@@ -4,34 +4,74 @@
 
 {% block extra_head %}
 <style>
-.ret-funnel { list-style: none; padding: 0; margin: 0; }
-.ret-funnel__item {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 120px 72px;
+/* Embudo de aprendizaje — barras que se estrechan (forma de embudo real) */
+.ret-funnel { list-style: none; padding: 4px 0 0; margin: 0; }
+.ret-funnel__step { margin-bottom: 10px; }
+.ret-funnel__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
     gap: 12px;
-    align-items: center;
-    padding: 12px 0;
-    border-bottom: 1px solid var(--borde);
-    font-size: 14px;
+    margin-bottom: 8px;
 }
-.ret-funnel__item:last-child { border-bottom: none; }
-.ret-funnel__bar-wrap {
-    height: 10px;
+.ret-funnel__name { font-weight: 700; font-size: 14px; color: var(--texto); }
+.ret-funnel__name small { display: block; font-weight: 500; color: var(--texto-muted); font-size: 12px; margin-top: 2px; }
+.ret-funnel__count {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--purple-deep);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+}
+.ret-funnel__count span { font-size: 12px; font-weight: 600; color: var(--texto-muted); }
+.ret-funnel__track {
+    width: 100%;
+    height: 44px;
+    border-radius: 12px;
     background: var(--tabla-head);
-    border-radius: 999px;
     overflow: hidden;
 }
 .ret-funnel__bar {
     height: 100%;
     width: 0;
-    background: var(--accent);
-    border-radius: inherit;
-    min-width: 0;
-    transition: width 0.7s ease;
+    min-width: 3px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--purple) 0%, var(--purple-deep) 100%);
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    color: #fff;
+    font-size: 12.5px;
+    font-weight: 700;
+    white-space: nowrap;
+    transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow: 0 6px 16px rgba(95, 58, 110, 0.22);
 }
-.ret-funnel__bar.is-ready { min-width: 2px; }
-.ret-funnel__count { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
-.ret-funnel__pct { color: var(--texto-muted); font-size: 12px; text-align: right; }
+/* Conector entre pasos: cuánta gente continúa vs se pierde */
+.ret-funnel__drop {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 0 12px 2px;
+    font-size: 12.5px;
+    color: var(--texto-muted);
+}
+.ret-funnel__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 12px;
+}
+.ret-funnel__chip--keep { background: rgba(53, 166, 71, 0.12); color: var(--ok); }
+.ret-funnel__chip--warn { background: rgba(180, 116, 14, 0.14); color: #8a5a0b; }
+.ret-funnel__chip--drop { background: rgba(194, 59, 59, 0.10); color: var(--danger); }
+.ret-funnel__chip svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+
 .ret-kpi-hint { font-size: 12px; color: var(--texto-muted); margin-top: 4px; }
 .ret-alert-modulo {
     border-left: 4px solid var(--warn);
@@ -53,7 +93,7 @@
         </p>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:10px;">
-        <a class="btn btn-outline" href="/portal/dashboard/">Dashboard</a>
+        <a class="btn btn-outline" href="/portal/dashboard/">Inicio</a>
         <a class="btn btn-outline" href="/portal/metricas/">Métricas detalladas</a>
     </div>
 </div>
@@ -153,18 +193,29 @@
     {% endif %}
     <ul class="ret-funnel">
         {% for paso in data.embudo %}
-        <li class="ret-funnel__item">
-            <div>
-                <strong>{{ paso.etiqueta }}</strong>
-                {% if paso.titulo %}<br><span class="muted" style="font-size:12px;">{{ paso.titulo }}</span>{% endif %}
-                <div class="ret-funnel__bar-wrap" style="margin-top:8px;">
-                    <div class="ret-funnel__bar" data-width="{{ paso.pct_del_total }}"></div>
-                </div>
+        <li class="ret-funnel__step">
+            {% if not forloop.first and paso.pct_desde_anterior != None %}
+            <div class="ret-funnel__drop">
+                {% if paso.pct_desde_anterior >= 80 %}
+                <span class="ret-funnel__chip ret-funnel__chip--keep"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>{{ paso.pct_desde_anterior }}% continúan</span>
+                {% elif paso.pct_desde_anterior >= 50 %}
+                <span class="ret-funnel__chip ret-funnel__chip--warn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg>{{ paso.pct_desde_anterior }}% continúan</span>
+                {% else %}
+                <span class="ret-funnel__chip ret-funnel__chip--drop"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg>solo {{ paso.pct_desde_anterior }}% continúan</span>
+                {% endif %}
+                <span>desde el paso anterior</span>
             </div>
-            <span class="ret-funnel__count">{{ paso.cantidad }}</span>
-            <span class="ret-funnel__pct">
-                {% if paso.pct_desde_anterior != None %}{{ paso.pct_desde_anterior }}%{% else %}100%{% endif %}
-            </span>
+            {% endif %}
+            <div class="ret-funnel__head">
+                <span class="ret-funnel__name">
+                    {{ paso.etiqueta }}
+                    {% if paso.titulo %}<small>{{ paso.titulo }}</small>{% endif %}
+                </span>
+                <span class="ret-funnel__count">{{ paso.cantidad }} <span>· {{ paso.pct_del_total }}% del total</span></span>
+            </div>
+            <div class="ret-funnel__track">
+                <div class="ret-funnel__bar" data-width="{{ paso.pct_del_total }}">{{ paso.pct_del_total }}%</div>
+            </div>
         </li>
         {% empty %}
         <li class="muted">Sin inscripciones para los filtros seleccionados.</li>
@@ -184,12 +235,15 @@
 {% block extra_js %}
 <script>
 (function () {
-    document.querySelectorAll('.ret-funnel__bar[data-width]').forEach(function (bar) {
-        var w = bar.getAttribute('data-width') || '0';
-        requestAnimationFrame(function () {
+    var bars = document.querySelectorAll('.ret-funnel__bar[data-width]');
+    // Animación escalonada: cada barra crece un instante después de la anterior.
+    bars.forEach(function (bar, i) {
+        var w = parseFloat(bar.getAttribute('data-width') || '0');
+        // Ocultamos el texto si la barra es muy angosta para que no se corte.
+        if (w < 12) { bar.style.color = 'transparent'; }
+        window.setTimeout(function () {
             bar.style.width = w + '%';
-            bar.classList.add('is-ready');
-        });
+        }, 120 + i * 130);
     });
 })();
 </script>
