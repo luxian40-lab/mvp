@@ -60,6 +60,12 @@ audios_whatsapp/
 logs/
 staticfiles/
 
+# Entregas de estudiantes (subidas locales / temporales; no versionar)
+aprende/entregas/
+
+# Capturas temporales de revisión visual
+_shots/
+
 # ChromaDB (bases vectoriales RAG - se generan en producci?n)
 chroma_db/
 

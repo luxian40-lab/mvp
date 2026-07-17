@@ -16,12 +16,36 @@ def _load_local_env():
     load_dotenv(root / '.env.local', override=False)
 
 
+def _on_elastic_beanstalk() -> bool:
+    return bool(
+        os.environ.get('ELASTIC_BEANSTALK')
+        or os.environ.get('AWS_EXECUTION_ENV')
+        or os.environ.get('AWS_EB_ENVIRONMENT_NAME')
+    )
+
+
+def _force_production_settings() -> bool:
+    return os.environ.get('EKI_USE_PRODUCTION_SETTINGS', '').strip().lower() in (
+        '1', 'true', 'yes', 'on',
+    )
+
+
 _load_local_env()
 
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mvp_project.settings_production')
+    # EB / AWS: production. Laptop: settings base (sin S3 forzado ni sondeo RDS).
+    # Override local→prod: EKI_USE_PRODUCTION_SETTINGS=1
+    if _on_elastic_beanstalk() or _force_production_settings():
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mvp_project.settings_production')
+    else:
+        # Si .env dejó production por costumbre, corregir en laptop.
+        if os.environ.get('DJANGO_SETTINGS_MODULE', '').endswith('settings_production'):
+            os.environ['DJANGO_SETTINGS_MODULE'] = 'mvp_project.settings'
+        else:
+            os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mvp_project.settings')
+
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

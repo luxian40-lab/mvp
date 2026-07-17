@@ -44,7 +44,7 @@
     font-size: 12px;
     font-weight: 700;
     color: var(--accent);
-    background: rgba(125, 33, 129, .08);
+    background: var(--accent-soft);
     display: inline-block;
     padding: 3px 10px;
     border-radius: 999px;
@@ -86,7 +86,7 @@
             {% if es_calificacion %} — ranking por promedio ponderado de notas (1–5){% else %} — ranking por puntos acumulados{% endif %}
         </p>
     </div>
-    <a class="btn btn-outline" href="/portal/metricas/">Reporte B2B</a>
+    <a class="btn btn-outline" href="/portal/metricas/">Métricas detalladas</a>
 </div>
 
 {% if not gamificacion_activa %}

@@ -345,3 +345,12 @@ if _ON_ELASTIC_BEANSTALK and not os.environ.get('CELERY_BROKER_URL'):
 # FORZAR BACKEND DE ARCHIVOS S3 EN PRODUCCIÓN
 # ============================================
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+# Safety net: si alguien corre tests con este módulo, no exigir manifest/S3.
+if 'test' in sys.argv or os.environ.get('DJANGO_TEST') == '1':
+    STORAGES = {
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    }
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'

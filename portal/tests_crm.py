@@ -60,7 +60,7 @@ class PortalCrmTests(TestCase):
         self.assertContains(r, '¿Qué requiere atención hoy?')
         self.assertContains(r, 'Este mes vs mes anterior')
         self.assertContains(r, 'eki-help')
-        self.assertContains(r, 'eki-flag-co')
+        self.assertContains(r, 'favicons/aprende-32.png')
         self.assertContains(r, 'Guía EKI')
 
     def test_dashboard_ops_aggregates_sin_metricas_full(self):
@@ -79,6 +79,7 @@ class PortalCrmTests(TestCase):
         ops = operacion_del_dia(self.cliente)
         self.assertEqual(ops['sin_avance'], 1)
         self.assertNotIn('resumen', ops)
+        self.assertNotIn('ultimos_mensajes', ops)
 
     def test_timeline_page(self):
         self._login('crm_admin')

@@ -38,7 +38,7 @@
     width: 0;
     min-width: 3px;
     border-radius: 12px;
-    background: linear-gradient(135deg, var(--purple) 0%, var(--purple-deep) 100%);
+    background: linear-gradient(135deg, var(--brand-fill, var(--purple)) 0%, var(--info) 100%);
     display: flex;
     align-items: center;
     padding: 0 14px;
@@ -47,7 +47,18 @@
     font-weight: 700;
     white-space: nowrap;
     transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow: 0 6px 16px rgba(60, 123, 191, 0.18);
+}
+.ret-funnel__step:nth-child(3n+1) .ret-funnel__bar {
+    background: linear-gradient(135deg, var(--brand-fill, var(--purple)) 0%, var(--brand-fill-deep, var(--purple-deep)) 100%);
     box-shadow: 0 6px 16px rgba(95, 58, 110, 0.22);
+}
+.ret-funnel__step:nth-child(3n+2) .ret-funnel__bar {
+    background: linear-gradient(135deg, var(--info) 0%, var(--brand-fill, var(--purple)) 100%);
+}
+.ret-funnel__step:nth-child(3n) .ret-funnel__bar {
+    background: linear-gradient(135deg, var(--success) 0%, var(--info) 100%);
+    box-shadow: 0 6px 16px rgba(53, 166, 71, 0.18);
 }
 /* Conector entre pasos: cuánta gente continúa vs se pierde */
 .ret-funnel__drop {
@@ -67,9 +78,13 @@
     font-weight: 700;
     font-size: 12px;
 }
-.ret-funnel__chip--keep { background: rgba(53, 166, 71, 0.12); color: var(--ok); }
-.ret-funnel__chip--warn { background: rgba(180, 116, 14, 0.14); color: #8a5a0b; }
+.ret-funnel__chip--keep { background: var(--success-soft, rgba(53, 166, 71, 0.12)); color: var(--ok); }
+.ret-funnel__chip--warn { background: rgba(180, 116, 14, 0.14); color: var(--warn); }
 .ret-funnel__chip--drop { background: rgba(194, 59, 59, 0.10); color: var(--danger); }
+html[data-theme="dark"] .ret-funnel__chip--warn { background: rgba(224, 176, 74, 0.16); color: #F0D48A; }
+html[data-theme="dark"] .ret-funnel__bar {
+    color: #fff;
+}
 .ret-funnel__chip svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 
 .ret-kpi-hint { font-size: 12px; color: var(--texto-muted); margin-top: 4px; }

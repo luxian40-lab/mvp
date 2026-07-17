@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import sys
 from dotenv import load_dotenv
 
 # 1. RUTAS DEL PROYECTO
@@ -108,6 +109,15 @@ WSGI_APPLICATION = 'mvp_project.wsgi.application'
 import os
 
 # Prioridad: variables individuales DB_* → DATABASE_URL → SQLite
+_ON_EB = bool(
+    os.environ.get('ELASTIC_BEANSTALK')
+    or os.environ.get('AWS_EXECUTION_ENV')
+    or os.environ.get('AWS_EB_ENVIRONMENT_NAME')
+)
+_USE_REMOTE_DB = _ON_EB or os.environ.get('EKI_USE_REMOTE_DB', '').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
+
 if (
     os.environ.get('DB_NAME')
     and os.environ.get('DB_USER')
@@ -125,7 +135,7 @@ if (
             'PORT': os.environ.get('DB_PORT', '5432'),
         }
     }
-elif os.environ.get('DATABASE_URL'):
+elif os.environ.get('DATABASE_URL') and _USE_REMOTE_DB:
     # Parsear DATABASE_URL (formato: postgresql://user:pass@host:port/dbname)
     import urllib.parse
     db_url = os.environ['DATABASE_URL']
@@ -145,29 +155,42 @@ elif os.environ.get('DATABASE_URL'):
                 },
             }
         }
-        # Verificar conexion real; si falla (ej. local sin acceso a RDS), usar SQLite
-        # Solo verificar si NO estamos en EB (variable ELASTIC_BEANSTALK indica EB)
-        if not os.environ.get('ELASTIC_BEANSTALK'):
-            try:
-                import psycopg
-                conn = psycopg.connect(
-                    host=parsed.hostname,
-                    port=parsed.port or 5432,
-                    user=parsed.username,
-                    password=parsed.password,
-                    dbname=parsed.path.lstrip('/'),
-                    connect_timeout=3,
-                )
-                conn.close()
-                print('[OK] Conexion PostgreSQL verificada.')
-            except Exception as conn_err:
-                print(f'[WARN] PostgreSQL no accesible localmente ({conn_err}). Usando SQLite.')
+        # Verificar conexion real; si falla (ej. local sin acceso a RDS), usar SQLite.
+        # En `manage.py test` no sondear RDS: ahorra ~3s por arranque y evita ruido.
+        if not _ON_EB:
+            running_tests = (
+                'test' in sys.argv
+                or os.environ.get('DJANGO_TEST') == '1'
+            )
+            if running_tests:
+                print('[OK] Tests: usando SQLite (sin sondear RDS).')
                 DATABASES = {
                     'default': {
                         'ENGINE': 'django.db.backends.sqlite3',
                         'NAME': BASE_DIR / 'db.sqlite3',
                     }
                 }
+            else:
+                try:
+                    import psycopg
+                    conn = psycopg.connect(
+                        host=parsed.hostname,
+                        port=parsed.port or 5432,
+                        user=parsed.username,
+                        password=parsed.password,
+                        dbname=parsed.path.lstrip('/'),
+                        connect_timeout=3,
+                    )
+                    conn.close()
+                    print('[OK] Conexion PostgreSQL verificada.')
+                except Exception as conn_err:
+                    print(f'[WARN] PostgreSQL no accesible localmente ({conn_err}). Usando SQLite.')
+                    DATABASES = {
+                        'default': {
+                            'ENGINE': 'django.db.backends.sqlite3',
+                            'NAME': BASE_DIR / 'db.sqlite3',
+                        }
+                    }
     except Exception as e:
         print(f'[WARN] Error parseando DATABASE_URL: {e}. Usando SQLite.')
         DATABASES = {
@@ -176,6 +199,14 @@ elif os.environ.get('DATABASE_URL'):
                 'NAME': BASE_DIR / 'db.sqlite3',
             }
         }
+elif os.environ.get('DATABASE_URL') and not _USE_REMOTE_DB:
+    print('[OK] Local: SQLite (DATABASE_URL del .env ignorada; EKI_USE_REMOTE_DB=1 para RDS).')
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 else:
     print('[WARN] MODO LOCAL DETECTADO: Usando SQLite.')
     DATABASES = {
@@ -731,16 +762,23 @@ VOSK_MODEL_PATH = os.path.join(BASE_DIR, 'models', 'vosk-model-small-es-0.42')
 # En desarrollo local: usa carpeta media/
 # En producción: usa AWS S3 para persistencia
 
-# AUTO-DETECCION DE PRODUCCION
-import sys
+# AUTO-DETECCION DE PRODUCCION / S3
 import logging
 logger = logging.getLogger(__name__)
 
-if os.environ.get('DJANGO_SETTINGS_MODULE', '').endswith('settings_production'):
+_settings_mod = os.environ.get('DJANGO_SETTINGS_MODULE', '')
+_force_s3_local = os.environ.get('EKI_USE_S3_LOCAL', '').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
+if _settings_mod.endswith('settings_production') or _ON_EB:
     sys.stderr.write("[PRODUCCION DETECTADA - FORZANDO S3]\n")
     USE_S3 = True
+elif _force_s3_local:
+    # Opt-in: probar S3 desde laptop sin settings_production
+    USE_S3 = True
 else:
-    USE_S3 = os.environ.get('USE_S3', 'False') == 'True'
+    # Ignora USE_S3=True del .env de prod en desarrollo local (menos fricción).
+    USE_S3 = False
 
 sys.stderr.write(f"[USE_S3 = {USE_S3}]\n")
 
@@ -806,6 +844,18 @@ else:
     # 📂 Desarrollo local: almacenamiento en carpeta media/
     MEDIA_ROOT = BASE_DIR / 'media'
     MEDIA_URL = '/media/'
+
+# Tests: sin manifest hashed ni S3 (evita Missing staticfiles manifest entry).
+_running_tests = (
+    'test' in sys.argv
+    or os.environ.get('DJANGO_TEST') == '1'
+)
+if _running_tests:
+    STORAGES = {
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    }
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 
 # ========================================
 # 🔒 CONFIGURACIÓN DE RATE LIMITING

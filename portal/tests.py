@@ -1,7 +1,7 @@
 import io
 
 from django.contrib.auth.models import User
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from openpyxl import load_workbook
 
@@ -246,6 +246,7 @@ class PortalViewerGeiTests(TestCase):
         self.assertEqual(r.status_code, 302)
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class PortalMetricasReorganizacionTests(TestCase):
     def setUp(self):
         self.cliente = Cliente.objects.create(
@@ -264,11 +265,11 @@ class PortalMetricasReorganizacionTests(TestCase):
         session[PORTAL_SESSION_KEY] = PortalUsuario.objects.get(user=user).pk
         session.save()
 
-    def test_gamificacion_redirige_a_dashboard(self):
+    def test_gamificacion_page_propia(self):
+        """Gamificación tiene pantalla propia (ya no redirige a dashboard#ranking)."""
         r = self.http.get('/portal/gamificacion/')
-        self.assertEqual(r.status_code, 302)
-        self.assertIn('/portal/dashboard/', r['Location'])
-        self.assertIn('#ranking', r['Location'])
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Gamificación')
 
     def test_metricas_detalladas_titulo(self):
         r = self.http.get('/portal/metricas/')

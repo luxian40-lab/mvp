@@ -7,7 +7,7 @@ from datetime import timedelta
 from django.db.models import Count, Q
 from django.utils import timezone
 
-from core.models import Estudiante, ProgresoEstudiante, SolicitudSoporte
+from core.models import ProgresoEstudiante, SolicitudSoporte
 from core.models_certificados import Certificado
 
 
@@ -99,9 +99,7 @@ def comparativa_periodos(org) -> dict:
 
 
 def operacion_del_dia(org, *, categorias_pqrs=None) -> dict:
-    """Acciones pendientes y actividad reciente (sin métricas full / sin N+1)."""
-    from core.models import WhatsappLog
-
+    """Acciones pendientes del día (aggregates SQL, sin N+1 ni inbox WhatsApp)."""
     hoy = timezone.localdate()
     semana = hoy - timedelta(days=7)
     hace_30 = hoy - timedelta(days=30)
@@ -121,21 +119,6 @@ def operacion_del_dia(org, *, categorias_pqrs=None) -> dict:
         Q(fecha_ultimo_avance__isnull=True) | Q(fecha_ultimo_avance__date__lt=hace_30),
     ).count()
 
-    telefonos = list(
-        Estudiante.objects.filter(cliente=org, activo=True)
-        .exclude(telefono='')
-        .values_list('telefono', flat=True)[:2000]
-    )
-    ultimos_msgs = []
-    if telefonos:
-        for log in WhatsappLog.objects.filter(telefono__in=telefonos).order_by('-fecha')[:8]:
-            ultimos_msgs.append({
-                'telefono': log.telefono,
-                'mensaje': (log.mensaje or '')[:120],
-                'fecha': log.fecha,
-                'tipo': log.tipo,
-            })
-
     return {
         'pqrs_pendientes': pqrs_q.count(),
         'certificados_semana': Certificado.objects.filter(
@@ -144,7 +127,6 @@ def operacion_del_dia(org, *, categorias_pqrs=None) -> dict:
         ).count(),
         'sin_avance': sin_avance,
         'inactivos_30_dias': inactivos_30,
-        'ultimos_mensajes': ultimos_msgs,
     }
 
 

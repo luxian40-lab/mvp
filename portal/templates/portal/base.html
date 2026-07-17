@@ -4,19 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Portal eki{% endblock %}</title>
+    {% load static %}
     {% include 'portal/partials/favicon_co.html' %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            /* Paleta oficial eki: morado primario, verde éxito, azul información + bases neutras */
+            /* Paleta oficial eki: morado ~80%, verde y azul ~10% c/u como acento */
             --purple: #9A6CAC;
             --purple-deep: #5F3A6E;
             --purple-mid: #855698;
             --purple-soft: #C4ACCE;
             --success: #35A647;
+            --success-soft: rgba(53, 166, 71, 0.12);
             --info: #3C7BBF;
+            --info-soft: rgba(60, 123, 191, 0.12);
             --ink: #1F1F28;
             --ink-muted: #6C6C7A;
 
@@ -53,46 +56,86 @@
             --chart-4: var(--purple-soft);
             --radius: 16px;
             --shadow-soft: 0 10px 34px rgba(31, 31, 40, 0.06);
+            --surface: rgba(255, 255, 255, 0.88);
+            --brand-ink: var(--purple-deep);
+            --brand-fill: #9A6CAC;
+            --brand-fill-deep: #5F3A6E;
         }
 
+        /* Modo oscuro: superficies propias, contraste claro; fills de marca no se blanquean */
         html[data-theme="dark"] {
-            --fondo: #1a1222;
-            --texto: #f4f2f7;
-            --texto-muted: #cbb8d8;
-            --borde: rgba(244, 242, 247, 0.12);
-            --blanco: #24182e;
-            --tabla-head: #2a183a;
-            --accent: var(--purple);
-            --accent-hover: #b080c0;
-            --accent-soft: rgba(154, 108, 172, 0.16);
-            --field: var(--info);
-            --field-soft: rgba(60, 123, 191, 0.14);
-            --sidebar: #140e1a;
-            --sidebar-active: rgba(154, 108, 172, 0.22);
-            --sidebar-border: #2a183a;
+            --fondo: #121018;
+            --texto: #F2EEF6;
+            --texto-muted: #A99BB8;
+            --borde: rgba(255, 255, 255, 0.09);
+            --blanco: #1B1524;
+            --surface: #1B1524;
+            --tabla-head: #241C30;
+            --lilac: #16121E;
+            --lilac-2: #241C30;
+            --ink: #F2EEF6;
+            --ink-muted: #A99BB8;
+            /* Texto énfasis (lavender). Los fills siguen en --brand-* */
+            --brand-ink: #D8C4E4;
+            --purple-deep: #D8C4E4;
+            --accent: #B48BC4;
+            --accent-hover: #C9A8D6;
+            --accent-soft: rgba(180, 139, 196, 0.16);
+            --field: #8EB6DE;
+            --field-soft: rgba(60, 123, 191, 0.18);
+            --success: #4EC45F;
+            --success-soft: rgba(53, 166, 71, 0.18);
+            --info: #5B9AD9;
+            --info-soft: rgba(60, 123, 191, 0.18);
+            --ok: #4EC45F;
+            --warn: #E0B04A;
+            --danger: #E57373;
+            --sidebar: #0E0B14;
+            --sidebar-text: #C7BFD3;
+            --sidebar-active: rgba(154, 108, 172, 0.28);
+            --sidebar-border: rgba(255, 255, 255, 0.08);
+            --shadow-soft: none;
+            --chart-1: #B48BC4;
+            --chart-2: #5B9AD9;
+            --chart-3: #4EC45F;
+            --chart-4: #8A6B9A;
+        }
+
+        html[data-theme="dark"] body {
+            background:
+                radial-gradient(ellipse 50% 40% at 90% 0%, rgba(154, 108, 172, 0.18), transparent 55%),
+                radial-gradient(ellipse 35% 30% at 8% 100%, rgba(60, 123, 191, 0.10), transparent 50%),
+                radial-gradient(ellipse 30% 25% at 70% 90%, rgba(53, 166, 71, 0.07), transparent 45%),
+                var(--fondo);
         }
 
         html[data-theme="dark"] .topbar {
+            background: rgba(18, 16, 24, 0.88);
             border-bottom-color: var(--borde);
         }
 
         html[data-theme="dark"] th {
-            background: var(--tabla-head);
+            background: transparent;
+            color: var(--texto-muted);
         }
 
         html[data-theme="dark"] .soft-box,
         html[data-theme="dark"] .pill {
-            background: #0f172a;
+            background: var(--lilac-2);
+            color: var(--texto);
+            border-color: var(--borde);
         }
 
-        html[data-theme="dark"] .status-pendiente { background: #422006; color: #fcd34d; }
+        html[data-theme="dark"] .status-pendiente { background: rgba(224, 176, 74, 0.16); color: #F0D48A; }
         html[data-theme="dark"] .status-en_atencion,
-        html[data-theme="dark"] .status-en_proceso { background: #1e3a5f; color: #93c5fd; }
+        html[data-theme="dark"] .status-en_proceso { background: var(--info-soft); color: #9CC4EF; }
         html[data-theme="dark"] .status-resuelta,
-        html[data-theme="dark"] .status-cerrada { background: #064e3b; color: #6ee7b7; }
-        html[data-theme="dark"] .alert-ok { background: #064e3b; border-color: #059669; color: #a7f3d0; }
-        html[data-theme="dark"] .alert-error { background: #450a0a; border-color: #991b1b; color: #fecaca; }
-        html[data-theme="dark"] .row-link:hover { background: #334155; }
+        html[data-theme="dark"] .status-cerrada,
+        html[data-theme="dark"] .status-ok { background: var(--success-soft); color: #8FDB9A; }
+        html[data-theme="dark"] .alert-ok { background: var(--success-soft); border-color: rgba(53, 166, 71, 0.35); color: #8FDB9A; }
+        html[data-theme="dark"] .alert-error { background: rgba(229, 115, 115, 0.14); border-color: rgba(229, 115, 115, 0.35); color: #F5B4B4; }
+        html[data-theme="dark"] .alert-onboarding { background: var(--info-soft); border-color: rgba(60, 123, 191, 0.4); color: #C5DBF5; }
+        html[data-theme="dark"] .row-link:hover { background: rgba(255, 255, 255, 0.04); }
 
         html[data-theme="dark"] td {
             color: var(--texto);
@@ -100,12 +143,12 @@
 
         html[data-theme="dark"] table a,
         html[data-theme="dark"] .row-link-anchor {
-            color: #93c5fd;
+            color: #C5DBF5;
         }
 
         html[data-theme="dark"] table a:hover,
         html[data-theme="dark"] .row-link-anchor:hover {
-            color: #bfdbfe;
+            color: #E4EEF9;
         }
 
         html[data-theme="dark"] input,
@@ -121,13 +164,64 @@
             color: var(--texto-muted);
         }
 
+        html[data-theme="dark"] .btn {
+            background: linear-gradient(135deg, #9A6CAC 0%, #5F3A6E 130%);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+        }
+        html[data-theme="dark"] .btn-outline {
+            color: var(--brand-ink, var(--purple-deep));
+            border-color: rgba(255, 255, 255, 0.14);
+        }
+        html[data-theme="dark"] .btn-outline:hover {
+            background: var(--accent-soft);
+            border-color: var(--accent);
+            color: var(--accent-hover);
+        }
+        html[data-theme="dark"] .user-menu__panel {
+            background: var(--blanco);
+            border-color: var(--borde);
+            box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+        }
+        html[data-theme="dark"] .user-menu__avatar,
+        html[data-theme="dark"] .eki-help__head {
+            background: linear-gradient(135deg, #5F3A6E 0%, #9A6CAC 100%);
+            color: #fff;
+        }
+        html[data-theme="dark"] .icon-btn {
+            background: var(--blanco);
+            border-color: var(--borde);
+            color: var(--texto-muted);
+        }
+        html[data-theme="dark"] .icon-btn:hover {
+            color: var(--texto);
+            border-color: var(--accent);
+        }
+        html[data-theme="dark"] .page-title h1 {
+            color: var(--ink);
+        }
+        html[data-theme="dark"] .metric-number {
+            color: var(--brand-ink, var(--purple-deep));
+        }
+        html[data-theme="dark"] .eki-help__panel {
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+        }
+        html[data-theme="dark"] .eki-help__bubble {
+            background: var(--blanco);
+            color: var(--texto);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        }
+        html[data-theme="dark"] .eki-help__bubble::after {
+            background: var(--blanco);
+        }
+
         * { box-sizing: border-box; }
 
         body {
             margin: 0;
             background:
                 radial-gradient(ellipse 55% 40% at 88% 0%, rgba(154, 108, 172, 0.13), transparent 55%),
-                radial-gradient(ellipse 40% 35% at 8% 100%, rgba(133, 86, 152, 0.07), transparent 50%),
+                radial-gradient(ellipse 32% 28% at 6% 92%, rgba(60, 123, 191, 0.07), transparent 50%),
+                radial-gradient(ellipse 28% 24% at 72% 100%, rgba(53, 166, 71, 0.06), transparent 48%),
                 var(--fondo);
             color: var(--texto);
             font-family: var(--font);
@@ -284,6 +378,15 @@
             line-height: 1.15;
             border-bottom: 1px solid rgba(196, 184, 208, 0.1);
         }
+        .sidebar-powered::after {
+            content: '';
+            display: block;
+            width: 36px;
+            height: 2px;
+            margin-top: 12px;
+            border-radius: 2px;
+            background: linear-gradient(90deg, #35A647 0%, #3C7BBF 100%);
+        }
         .sidebar-powered em {
             font-style: normal;
             font-weight: 500;
@@ -401,7 +504,7 @@
         }
 
         .progress-fill-alt {
-            background: #2f6da8;
+            background: var(--info);
         }
 
         .sidebar-link:hover {
@@ -423,7 +526,7 @@
             width: 3px;
             height: 18px;
             border-radius: 0 3px 3px 0;
-            background: var(--purple-soft);
+            background: linear-gradient(180deg, var(--purple-soft) 0%, #3C7BBF 100%);
         }
         body.sidebar-collapsed .sidebar-link.active::before { display: none; }
 
@@ -457,15 +560,6 @@
             padding: 14px 36px;
             z-index: 9;
             min-width: 0;
-        }
-
-        html[data-theme="dark"] .topbar {
-            background: linear-gradient(
-                180deg,
-                rgba(36, 24, 46, 0.92) 0%,
-                rgba(26, 18, 34, 0.88) 100%
-            );
-            border-bottom-color: var(--borde);
         }
 
         .topbar-title {
@@ -502,6 +596,8 @@
         }
         .topbar-meta strong { color: var(--purple-deep); font-weight: 700; }
         .topbar-meta .prog { color: var(--purple-deep); font-weight: 700; }
+        .topbar-meta .stat-ok strong { color: var(--success); }
+        .topbar-meta .stat-info strong { color: var(--info); }
 
         .topbar-chip {
             display: none;
@@ -543,7 +639,7 @@
             width: 34px;
             height: 34px;
             border-radius: 50%;
-            background: linear-gradient(140deg, var(--purple) 0%, var(--purple-deep) 100%);
+            background: linear-gradient(140deg, var(--brand-fill, #9A6CAC) 0%, var(--brand-fill-deep, #5F3A6E) 100%);
             color: #fff;
             display: flex;
             align-items: center;
@@ -658,7 +754,7 @@
             border: 0;
         }
 
-        /* Asistente de ayuda — bandera Colombia (mismo tamaño que WhatsApp) */
+        /* Asistente de ayuda — icono libro Aprende (mismo tamaño que WhatsApp) */
         .eki-help {
             position: fixed;
             right: 20px;
@@ -694,19 +790,18 @@
             align-items: center;
             justify-content: center;
         }
-        .eki-flag {
-            width: 26px;
-            height: 17px;
+        .eki-help__icon {
+            width: 28px;
+            height: 28px;
             display: block;
-            border-radius: 3px;
-            overflow: hidden;
-            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
-            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 7px;
+            object-fit: contain;
         }
-        .eki-flag--sm {
+        .eki-help__icon--sm {
             width: 22px;
-            height: 15px;
-            border-radius: 2px;
+            height: 22px;
+            border-radius: 5px;
+            flex-shrink: 0;
         }
         .eki-help__bubble {
             position: absolute;
@@ -764,10 +859,9 @@
             align-items: center;
             gap: 10px;
             padding: 14px 14px 10px;
-            background: linear-gradient(135deg, var(--purple-deep) 0%, var(--purple) 100%);
+            background: linear-gradient(135deg, var(--brand-fill-deep, #5F3A6E) 0%, var(--brand-fill, #9A6CAC) 100%);
             color: #fff;
         }
-        .eki-help__head svg.eki-flag--sm { flex-shrink: 0; }
         .eki-help__head strong { font-size: 14px; display: block; }
         .eki-help__head span { font-size: 11px; opacity: 0.9; }
         .eki-help__body { padding: 14px 16px 8px; }
@@ -804,6 +898,8 @@
             background: var(--borde);
         }
         .eki-help__dot.is-active { background: var(--accent); }
+        .eki-help__dot:nth-child(2).is-active { background: var(--info); }
+        .eki-help__dot:nth-child(3).is-active { background: var(--success); }
         .eki-help__actions {
             display: flex;
             flex-wrap: wrap;
@@ -843,7 +939,7 @@
             .eki-help { bottom: 64px; right: 14px; }
             .eki-help__panel { bottom: 52px; right: 0; }
             .eki-help__toggle { width: 40px; height: 40px; }
-            .eki-flag { width: 24px; height: 16px; }
+            .eki-help__icon { width: 26px; height: 26px; }
             .eki-help__bubble { font-size: 12px; padding: 7px 10px; max-width: 150px; white-space: normal; }
             .wa-fab { width: 40px; height: 40px; right: 14px; bottom: 14px; }
             .wa-fab svg { width: 18px; height: 18px; }
@@ -900,7 +996,7 @@
         }
 
         .card, .panel {
-            background: rgba(255, 255, 255, 0.88);
+            background: var(--surface);
             border: 1px solid var(--borde);
             border-radius: var(--radius);
             box-shadow: var(--shadow-soft);
@@ -997,7 +1093,7 @@
             display: inline-block;
             border: 0;
             border-radius: 10px;
-            background: linear-gradient(135deg, var(--purple) 0%, var(--purple-deep) 130%);
+            background: linear-gradient(135deg, var(--brand-fill, var(--purple)) 0%, var(--brand-fill-deep, #5F3A6E) 130%);
             color: #fff;
             padding: 10px 18px;
             text-decoration: none;
@@ -1101,10 +1197,9 @@
             font-size: 13px;
             font-weight: 500;
         }
-        .alert-ok { background: rgba(53, 166, 71, 0.08); color: var(--ok); border: 1px solid rgba(53, 166, 71, 0.28); }
+            .alert-ok { background: rgba(53, 166, 71, 0.08); color: var(--ok); border: 1px solid rgba(53, 166, 71, 0.28); }
         .alert-error { background: rgba(194, 59, 59, 0.07); color: var(--danger); border: 1px solid rgba(194, 59, 59, 0.24); }
-        .alert-onboarding { background: rgba(60, 123, 191, 0.08); color: #234d70; border: 1px solid rgba(60, 123, 191, 0.28); border-radius: 12px; padding: 16px 20px; }
-        html[data-theme="dark"] .alert-onboarding { background: #1e3a5f; border-color: #3b82f6; color: #dbeafe; }
+        .alert-onboarding { background: var(--info-soft); color: #234d70; border: 1px solid rgba(60, 123, 191, 0.28); border-radius: 12px; padding: 16px 20px; }
 
         .table-wrap {
             overflow-x: auto;
@@ -1439,9 +1534,9 @@
                     <span class="sep"></span>
                     <span><strong>{{ portal_header_stats.cursos }}</strong> curso{{ portal_header_stats.cursos|pluralize }}</span>
                     <span class="sep"></span>
-                    <span><strong>{{ portal_header_stats.avance_pct }}%</strong> avance</span>
+                    <span class="stat-ok"><strong>{{ portal_header_stats.avance_pct }}%</strong> avance</span>
                     <span class="sep"></span>
-                    <span><strong>{{ portal_header_stats.certificados }}</strong> certificados</span>
+                    <span class="stat-info"><strong>{{ portal_header_stats.certificados }}</strong> certificados</span>
                 {% elif not org.portal_subtitulo %}
                     <span>Seguimiento del programa</span>
                 {% endif %}
@@ -1497,18 +1592,9 @@
     </main>
 
     <div class="eki-help" id="eki-help" aria-live="polite">
-        <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-            <defs>
-                <symbol id="eki-flag-co" viewBox="0 0 48 32">
-                    <rect width="48" height="16" fill="#FCD116"/>
-                    <rect width="48" height="8" y="16" fill="#003893"/>
-                    <rect width="48" height="8" y="24" fill="#CE1126"/>
-                </symbol>
-            </defs>
-        </svg>
         <div class="eki-help__panel" id="eki-help-panel" hidden>
             <div class="eki-help__head">
-                <svg class="eki-flag eki-flag--sm" aria-hidden="true" role="img" aria-label="Bandera de Colombia"><use href="#eki-flag-co"/></svg>
+                <img class="eki-help__icon eki-help__icon--sm" src="{% static 'favicons/aprende-32.png' %}" width="22" height="22" alt="" aria-hidden="true">
                 <div>
                     <strong>Guía EKI</strong>
                     <span>Le acompaña en cada pantalla</span>
@@ -1529,7 +1615,7 @@
         <button type="button" class="eki-help__toggle" id="eki-help-toggle" aria-expanded="false" aria-controls="eki-help-panel" title="Guía EKI">
             <span class="eki-help-btn-inner">
                 <span class="eki-help__bubble">Guía EKI</span>
-                <svg class="eki-flag" aria-hidden="true" role="img" aria-label="Bandera de Colombia"><use href="#eki-flag-co"/></svg>
+                <img class="eki-help__icon" src="{% static 'favicons/aprende-32.png' %}" width="28" height="28" alt="" aria-hidden="true">
             </span>
         </button>
     </div>

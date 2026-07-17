@@ -21,8 +21,13 @@
     background: transparent;
     box-shadow: none;
 }
-.dash-hero h1 { margin: 0; font-size: clamp(1.7rem, 2.6vw, 2.1rem); letter-spacing: -0.04em; font-weight: 800; }
+.dash-hero h1 { margin: 0; font-size: clamp(1.7rem, 2.6vw, 2.1rem); letter-spacing: -0.04em; font-weight: 800; color: var(--ink); }
 .dash-hero .muted { max-width: 40rem; margin-top: 0.55rem; font-size: 0.98rem; }
+html[data-theme="dark"] .card-link:hover .card,
+html[data-theme="dark"] .card-link:hover {
+    box-shadow: none;
+    border-color: rgba(180, 139, 196, 0.45);
+}
 
 /* Pregunta guía de cada bloque */
 .dash-q {
@@ -45,11 +50,17 @@
     border-radius: 20px;
     border: 1px solid var(--borde);
     background:
-        radial-gradient(ellipse 60% 120% at 100% 0%, rgba(154,108,172,0.10), transparent 60%),
-        linear-gradient(180deg, rgba(255,255,255,0.9), rgba(250,250,252,0.9));
+        radial-gradient(ellipse 50% 100% at 100% 0%, rgba(154,108,172,0.10), transparent 55%),
+        radial-gradient(ellipse 40% 80% at 0% 100%, rgba(60,123,191,0.06), transparent 50%),
+        linear-gradient(180deg, var(--surface, rgba(255,255,255,0.9)), var(--lilac, #FAFAFC));
     box-shadow: var(--shadow-soft);
 }
-html[data-theme="dark"] .estado-card { background: var(--blanco); }
+html[data-theme="dark"] .estado-card {
+    background:
+        radial-gradient(ellipse 50% 100% at 100% 0%, rgba(154,108,172,0.16), transparent 55%),
+        radial-gradient(ellipse 40% 80% at 0% 100%, rgba(60,123,191,0.10), transparent 50%),
+        var(--blanco);
+}
 .estado-card__title {
     font-family: var(--font-display);
     font-size: clamp(1.25rem, 2vw, 1.6rem);
@@ -72,13 +83,19 @@ html[data-theme="dark"] .estado-card { background: var(--blanco); }
     flex-direction: column;
     gap: 6px;
     padding: 22px 22px 20px;
-    background: rgba(255,255,255,0.9);
+    background: var(--surface, rgba(255,255,255,0.9));
     border: 1px solid var(--borde);
     border-radius: 16px;
     box-shadow: var(--shadow-soft);
+    border-left: 3px solid var(--purple);
 }
 html[data-theme="dark"] .ops-card { background: var(--blanco); }
+.ops-card--warn { border-left-color: var(--warn); }
+.ops-card--info { border-left-color: var(--info); }
+.ops-card--ok { border-left-color: var(--success); }
 .ops-card__num { font-family: var(--font-display); font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; color: var(--purple-deep); line-height: 1; font-variant-numeric: tabular-nums; }
+.ops-card--info .ops-card__num { color: var(--info); }
+.ops-card--ok .ops-card__num { color: var(--success); }
 .ops-card__label { font-weight: 650; font-size: 13.5px; color: var(--texto); }
 .ops-card__hint { font-size: 12px; color: var(--texto-muted); margin-top: 2px; }
 
@@ -110,8 +127,8 @@ html[data-theme="dark"] .ops-card { background: var(--blanco); }
     flex-shrink: 0;
     width: 24px; height: 24px;
     border-radius: 50%;
-    background: var(--accent-soft);
-    color: var(--purple);
+    background: var(--success-soft, rgba(53, 166, 71, 0.12));
+    color: var(--success);
     display: flex; align-items: center; justify-content: center;
     margin-top: 1px;
 }
@@ -215,21 +232,21 @@ html[data-theme="dark"] .ops-card { background: var(--blanco); }
             </div>
         </a>
         <a href="/portal/estudiantes/" class="card-link">
-            <div class="ops-card">
+            <div class="ops-card ops-card--warn">
                 <span class="ops-card__num">{{ ops.inactivos_30_dias }}</span>
                 <span class="ops-card__label">Inactivos 30+ días</span>
                 <span class="ops-card__hint">Empezaron pero se detuvieron. Candidatos a reenganche.</span>
             </div>
         </a>
         <a href="/portal/pqrs/?estado=pendiente" class="card-link">
-            <div class="ops-card">
+            <div class="ops-card ops-card--info">
                 <span class="ops-card__num">{{ ops.pqrs_pendientes }}</span>
                 <span class="ops-card__label">PQRS pendientes</span>
                 <span class="ops-card__hint">Solicitudes de sus participantes por responder.</span>
             </div>
         </a>
         <a href="/portal/certificados/" class="card-link">
-            <div class="ops-card">
+            <div class="ops-card ops-card--ok">
                 <span class="ops-card__num">{{ ops.certificados_semana }}</span>
                 <span class="ops-card__label">Certificados esta semana</span>
                 <span class="ops-card__hint">Emitidos en los últimos 7 días.</span>
@@ -341,7 +358,7 @@ html[data-theme="dark"] .ops-card { background: var(--blanco); }
                     {
                         label: 'Mes anterior',
                         data: data.compare_anterior || [],
-                        backgroundColor: c4,
+                        backgroundColor: c2,
                         borderRadius: 4,
                         maxBarThickness: 36
                     }
