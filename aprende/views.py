@@ -7,6 +7,7 @@ import re
 from django.contrib import messages
 from django.contrib.auth import authenticate
 from django.db.models import Count, Q
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from core.models import Curso, Modulo, ProgresoEstudiante, Estudiante
@@ -40,11 +41,14 @@ from .calificacion_aula_service import (
     actualizar_nota_evaluacion,
     borrar_asistencia_sesion,
     contexto_modo_calificacion,
+    fechas_asistencia_marcadas,
     filas_asistencia_curso,
     filas_calificacion_curso,
+    generar_excel_asistencia_curso,
     guardar_asistencia_sesion,
     parse_fecha_asistencia,
     registrar_nota_manual_curso,
+    slug_archivo_asistencia,
 )
 from .ranking_service import ranking_curso_profesor, resumen_ranking_aula
 from .tarea_service import actualizar_tarea, calificar_entrega, crear_tarea, eliminar_tarea, guardar_entrega
@@ -563,14 +567,54 @@ def profesor_curso_asistencia(request, curso_id: int):
 
     filas = filas_asistencia_curso(curso, fecha)
     hay_registro = any(f['registrado'] for f in filas)
+    dias_marcados = fechas_asistencia_marcadas(curso)
     return render(request, 'aprende/profesor_curso_asistencia.html', {
         'curso': curso,
         'fecha': fecha,
         'filas': filas,
         'hay_registro': hay_registro,
+        'dias_marcados': dias_marcados,
         'profesor_tab': 'asistencia',
         **contexto_modo_calificacion(org),
     })
+
+
+@requiere_profesor_aprende
+def profesor_curso_asistencia_excel(request, curso_id: int):
+    """Descarga Excel con la asistencia de los días marcados (o de una fecha si se indica)."""
+    org = _org_profesor(request)
+    curso = get_object_or_404(Curso, pk=curso_id, cliente=org, activo=True)
+    fecha = parse_fecha_asistencia(request.GET.get('fecha'))
+    fechas = fechas_asistencia_marcadas(curso, fecha=fecha)
+    if not fechas:
+        messages.warning(
+            request,
+            'No hay asistencia marcada para descargar.'
+            + (f' (fecha {fecha.isoformat()})' if fecha else ''),
+        )
+        dest = f'/aprende/profesor/curso/{curso.pk}/asistencia/'
+        if fecha:
+            dest += f'?fecha={fecha.isoformat()}'
+        return redirect(dest)
+
+    try:
+        contenido = generar_excel_asistencia_curso(curso, fechas=fechas)
+    except ValueError as exc:
+        messages.warning(request, str(exc))
+        return redirect('aprende_profesor_asistencia', curso_id=curso.pk)
+
+    slug = slug_archivo_asistencia(curso.nombre)
+    if len(fechas) == 1:
+        nombre = f'asistencia_{slug}_{fechas[0].isoformat()}.xlsx'
+    else:
+        nombre = f'asistencia_{slug}_{fechas[0].isoformat()}_a_{fechas[-1].isoformat()}.xlsx'
+
+    response = HttpResponse(
+        contenido,
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = f'attachment; filename="{nombre}"'
+    return response
 
 
 @requiere_profesor_aprende

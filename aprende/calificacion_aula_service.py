@@ -220,6 +220,113 @@ def parse_fecha_asistencia(raw: str) -> date | None:
     return parse_date((raw or '').strip())
 
 
+def fechas_asistencia_marcadas(curso: Curso, fecha: date | None = None) -> list[date]:
+    """Días con asistencia registrada. Si `fecha` se indica, solo ese día (si existe)."""
+    qs = AsistenciaAula.objects.filter(curso=curso)
+    if fecha:
+        qs = qs.filter(fecha=fecha)
+    return list(qs.values_list('fecha', flat=True).distinct().order_by('fecha'))
+
+
+def slug_archivo_asistencia(nombre: str) -> str:
+    import re
+    from unicodedata import normalize
+
+    s = normalize('NFKD', nombre or '').encode('ascii', 'ignore').decode('ascii')
+    s = re.sub(r'[^A-Za-z0-9._-]+', '_', s).strip('._') or 'curso'
+    return s[:60]
+
+
+def generar_excel_asistencia_curso(curso: Curso, fechas: list[date] | None = None) -> bytes:
+    """
+    Genera un .xlsx con la asistencia de los días marcados.
+    Una fila por estudiante y una columna por fecha (Presente/Ausente).
+    """
+    from io import BytesIO
+
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+
+    if fechas is None:
+        fechas = fechas_asistencia_marcadas(curso)
+    if not fechas:
+        raise ValueError('No hay días con asistencia marcada para descargar.')
+
+    inscritos = list(estudiantes_inscritos_curso(curso))
+    registros = {
+        (a.estudiante_id, a.fecha): a.presente
+        for a in AsistenciaAula.objects.filter(curso=curso, fecha__in=fechas)
+    }
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Asistencia'
+
+    headers = ['Estudiante', 'Documento'] + [f.strftime('%d/%m/%Y') for f in fechas] + [
+        'Presentes', 'Total días', '% asistencia',
+    ]
+    ws.append(headers)
+
+    header_fill = PatternFill(start_color='9A6CAC', end_color='9A6CAC', fill_type='solid')
+    header_font = Font(bold=True, color='FFFFFF', size=11)
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', wrap_text=True)
+
+    presente_fill = PatternFill(start_color='DCFCE7', end_color='DCFCE7', fill_type='solid')
+    ausente_fill = PatternFill(start_color='FEE2E2', end_color='FEE2E2', fill_type='solid')
+
+    for est in inscritos:
+        presentes = 0
+        estados = []
+        for fecha in fechas:
+            presente = registros.get((est.pk, fecha), False)
+            if presente:
+                presentes += 1
+            estados.append('Presente' if presente else 'Ausente')
+        total = len(fechas)
+        pct = round((presentes / total) * 100, 1) if total else 0
+        ws.append([est.nombre or '', est.cedula or '', *estados, presentes, total, pct])
+
+        row_idx = ws.max_row
+        for col_idx, estado in enumerate(estados, start=3):
+            cell = ws.cell(row=row_idx, column=col_idx)
+            cell.alignment = Alignment(horizontal='center')
+            cell.fill = presente_fill if estado == 'Presente' else ausente_fill
+
+    ws.column_dimensions['A'].width = 32
+    ws.column_dimensions['B'].width = 16
+    for i in range(3, 3 + len(fechas)):
+        ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = 12
+    for i in range(3 + len(fechas), 3 + len(fechas) + 3):
+        ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = 14
+
+    # Hoja detalle largo (útil para filtrar por fecha)
+    ws2 = wb.create_sheet('Detalle por día')
+    ws2.append(['Fecha', 'Estudiante', 'Documento', 'Estado'])
+    for cell in ws2[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+    for fecha in fechas:
+        for est in inscritos:
+            presente = registros.get((est.pk, fecha), False)
+            ws2.append([
+                fecha.strftime('%d/%m/%Y'),
+                est.nombre or '',
+                est.cedula or '',
+                'Presente' if presente else 'Ausente',
+            ])
+    ws2.column_dimensions['A'].width = 12
+    ws2.column_dimensions['B'].width = 32
+    ws2.column_dimensions['C'].width = 16
+    ws2.column_dimensions['D'].width = 12
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    return buffer.getvalue()
+
+
 def actualizar_nota_evaluacion(eval_id: int, curso: Curso, nota_raw: str) -> EvaluacionNotaGamificacion:
     try:
         nota = Decimal(str(nota_raw).replace(',', '.'))

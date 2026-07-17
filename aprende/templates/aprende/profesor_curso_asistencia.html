@@ -27,6 +27,20 @@
         <button type="submit" class="eki-btn eki-btn--ghost">Cargar fecha</button>
     </form>
 
+    {% if dias_marcados %}
+    <div class="eki-toolbar" style="margin-bottom:1rem;gap:0.65rem;">
+        <a href="{% url 'aprende_profesor_asistencia_excel' curso.id %}" class="eki-btn eki-btn--ghost">
+            Descargar Excel ({{ dias_marcados|length }} día{{ dias_marcados|length|pluralize:"s" }} marcado{{ dias_marcados|length|pluralize:"s" }})
+        </a>
+        {% if hay_registro %}
+        <a href="{% url 'aprende_profesor_asistencia_excel' curso.id %}?fecha={{ fecha|date:'Y-m-d' }}"
+           class="eki-btn eki-btn--ghost">
+            Excel de este día
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+
     {% if not filas %}
     <p class="eki-muted">No hay estudiantes inscritos en este curso.</p>
     {% else %}

@@ -610,3 +610,61 @@ class AprendeProfesorGestionTests(TestCase):
                 detalle='Asistencia 2026-07-06',
             ).exists()
         )
+
+    def test_descargar_asistencia_excel_dias_marcados(self):
+        from io import BytesIO
+
+        from openpyxl import load_workbook
+
+        self.http.post(f'/aprende/profesor/curso/{self.curso.id}/asistencia/', {
+            'fecha': '2026-07-06',
+            'accion': 'guardar',
+            'presente': [str(self.est.pk)],
+        })
+        self.http.post(f'/aprende/profesor/curso/{self.curso.id}/asistencia/', {
+            'fecha': '2026-07-07',
+            'accion': 'guardar',
+            'presente': [],
+        })
+
+        pagina = self.http.get(f'/aprende/profesor/curso/{self.curso.id}/asistencia/')
+        self.assertEqual(pagina.status_code, 200)
+        self.assertContains(pagina, 'Descargar Excel')
+        self.assertContains(pagina, 'asistencia/excel/')
+
+        r = self.http.get(f'/aprende/profesor/curso/{self.curso.id}/asistencia/excel/')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            r['Content-Type'],
+        )
+        self.assertIn('attachment', r['Content-Disposition'])
+        self.assertIn('.xlsx', r['Content-Disposition'])
+
+        wb = load_workbook(BytesIO(r.content))
+        self.assertIn('Asistencia', wb.sheetnames)
+        self.assertIn('Detalle por día', wb.sheetnames)
+        ws = wb['Asistencia']
+        headers = [c.value for c in ws[1]]
+        self.assertIn('Estudiante', headers)
+        self.assertIn('06/07/2026', headers)
+        self.assertIn('07/07/2026', headers)
+        # Fila del estudiante: presente el 06, ausente el 07
+        fila = [c.value for c in ws[2]]
+        self.assertEqual(fila[0], 'Est Gest')
+        self.assertEqual(fila[2], 'Presente')
+        self.assertEqual(fila[3], 'Ausente')
+
+        r_dia = self.http.get(
+            f'/aprende/profesor/curso/{self.curso.id}/asistencia/excel/?fecha=2026-07-06'
+        )
+        self.assertEqual(r_dia.status_code, 200)
+        wb_dia = load_workbook(BytesIO(r_dia.content))
+        headers_dia = [c.value for c in wb_dia['Asistencia'][1]]
+        self.assertIn('06/07/2026', headers_dia)
+        self.assertNotIn('07/07/2026', headers_dia)
+
+        r_vacio = self.http.get(
+            f'/aprende/profesor/curso/{self.curso.id}/asistencia/excel/?fecha=2026-01-01'
+        )
+        self.assertEqual(r_vacio.status_code, 302)
