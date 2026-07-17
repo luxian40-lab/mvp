@@ -1,8 +1,11 @@
 {% if ranking.activo and ranking.grupo and ranking.filas %}
+{% include "aprende/partials/ranking_icons.svg.html" %}
 <div class="eki-ranking-wrap{% if ranking.modo == 'puntos' %} eki-ranking-wrap--live{% endif %}">
     {% if ranking.modo == 'puntos' %}
     <div class="eki-ranking-banner" role="status">
-        <div class="eki-ranking-banner__icon" aria-hidden="true">🏆</div>
+        <div class="eki-ranking-banner__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><use href="#eki-ico-trophy"/></svg>
+        </div>
         <div>
             <p class="eki-ranking-banner__title">¡Compite con tu grupo!</p>
             <p class="eki-ranking-banner__sub">Los mismos puntos que ganas en WhatsApp (evaluaciones, retos y actividades) cuentan aquí.</p>
@@ -37,17 +40,7 @@
     <p class="eki-ranking-chase">¡Vas primero! Mantén el ritmo en WhatsApp y en tus tareas del curso.</p>
     {% endif %}
 
-    {% if ranking.top3 %}
-    <div class="eki-podium" aria-label="Top 3 del grupo">
-        {% for f in ranking.top3 %}
-        <div class="eki-podium-item eki-podium-item--{{ f.posicion }}{% if f.estudiante_id == estudiante.id %} eki-podium-item--me{% endif %}">
-            <span class="eki-podium-medal">{% if f.posicion == 1 %}1{% elif f.posicion == 2 %}2{% else %}3{% endif %}</span>
-            <p class="eki-podium-name">{% if f.estudiante_id == estudiante.id %}Tú{% else %}{{ f.nombre|truncatechars:18 }}{% endif %}</p>
-            <p class="eki-podium-score">{{ f.valor }}{% if ranking.modo == 'calificacion' %}/5{% else %}<span style="font-size:0.65rem;font-weight:600;"> pts</span>{% endif %}</p>
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
+    {% include "aprende/partials/ranking_podium.html" with top3=ranking.top3 modo=ranking.modo highlight_id=estudiante.id only %}
 
     {% if ranking.modo == 'puntos' %}
     <ul class="eki-leaderboard" aria-label="Tabla de posiciones">

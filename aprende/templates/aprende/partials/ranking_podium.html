@@ -1,0 +1,24 @@
+{% if top3 %}
+<div class="eki-podium" aria-label="Top 3">
+    {% for f in top3 %}
+    <div class="eki-podium-item eki-podium-item--{{ f.posicion }}{% if highlight_id and f.estudiante_id == highlight_id %} eki-podium-item--me{% endif %}">
+        <div class="eki-podium-person">
+            <span class="eki-podium-mark" aria-hidden="true">
+                {% if f.posicion == 1 %}
+                <svg class="eki-podium-mark__svg" viewBox="0 0 24 24"><use href="#eki-ico-trophy"/></svg>
+                {% else %}
+                <svg class="eki-podium-mark__svg" viewBox="0 0 24 24"><use href="#eki-ico-medal"/></svg>
+                {% endif %}
+            </span>
+            <p class="eki-podium-name">{% if highlight_id and f.estudiante_id == highlight_id %}Tú{% else %}{{ f.nombre|truncatechars:18 }}{% endif %}</p>
+            <p class="eki-podium-score">
+                {{ f.valor }}{% if modo == 'calificacion' %}<span class="eki-podium-score__unit">/5</span>{% else %}<span class="eki-podium-score__unit"> pts</span>{% endif %}
+            </p>
+        </div>
+        <div class="eki-podium-plinth" aria-hidden="true">
+            <span class="eki-podium-plinth__n">{{ f.posicion }}</span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}

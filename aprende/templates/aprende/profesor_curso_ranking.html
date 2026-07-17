@@ -5,6 +5,7 @@
 <a href="{% url 'aprende_profesor_logout' %}">Salir</a>
 {% endblock %}
 {% block extra_css %}
+{% include "aprende/partials/ranking_grupo_styles.html" %}
 .eki-lb { margin-top: 1rem; }
 .eki-lb__head {
     display: flex;
@@ -51,82 +52,6 @@
 }
 .eki-lb__chip strong { color: var(--eki-purple-dark); font-variant-numeric: tabular-nums; }
 
-/* Top 3 — franja de competencia, sin podio ornamental */
-.eki-lb-top {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.65rem;
-    margin-bottom: 1.35rem;
-}
-.eki-lb-top__card {
-    position: relative;
-    padding: 1rem 0.85rem 0.9rem;
-    border-radius: 10px;
-    border: 1px solid var(--eki-border);
-    background: var(--eki-surface);
-    text-align: left;
-    overflow: hidden;
-}
-.eki-lb-top__card::before {
-    content: '';
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 3px;
-    background: var(--eki-border);
-}
-.eki-lb-top__card--1 {
-    border-color: rgba(122, 78, 142, 0.35);
-    background: linear-gradient(180deg, rgba(122, 78, 142, 0.07), var(--eki-surface) 70%);
-}
-.eki-lb-top__card--1::before { background: var(--eki-purple); width: 4px; }
-.eki-lb-top__card--2::before { background: #8a9199; }
-.eki-lb-top__card--3::before { background: #b07a4a; }
-.eki-lb-top__pos {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 1.6rem;
-    height: 1.4rem;
-    padding: 0 0.35rem;
-    border-radius: 4px;
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.02em;
-    font-variant-numeric: tabular-nums;
-    color: #fff;
-    background: var(--eki-ink-soft);
-    margin-bottom: 0.55rem;
-}
-.eki-lb-top__card--1 .eki-lb-top__pos { background: var(--eki-purple); }
-.eki-lb-top__card--2 .eki-lb-top__pos { background: #6b7280; }
-.eki-lb-top__card--3 .eki-lb-top__pos { background: #9a6b45; }
-.eki-lb-top__name {
-    margin: 0;
-    font-size: 0.88rem;
-    font-weight: 650;
-    color: var(--eki-ink);
-    line-height: 1.25;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.eki-lb-top__score {
-    margin: 0.35rem 0 0;
-    font-size: 1.35rem;
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    font-variant-numeric: tabular-nums;
-    color: var(--eki-ink);
-    line-height: 1;
-}
-.eki-lb-top__unit {
-    font-size: 0.68rem;
-    font-weight: 600;
-    color: var(--eki-muted);
-    margin-left: 0.15rem;
-}
-
-/* Tabla de posiciones */
 .eki-lb-board {
     list-style: none;
     margin: 0;
@@ -200,56 +125,54 @@
     letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums;
     color: var(--eki-ink);
-    white-space: nowrap;
+    line-height: 1.1;
 }
 .eki-lb-pts small {
-    font-size: 0.65rem;
+    display: block;
+    font-size: 0.62rem;
     font-weight: 600;
     color: var(--eki-muted);
-    margin-left: 0.1rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 .eki-lb-bar {
-    grid-column: 2 / -1;
+    grid-column: 1 / -1;
     height: 3px;
-    margin-top: -0.15rem;
-    border-radius: 2px;
     background: var(--eki-border);
+    border-radius: 2px;
     overflow: hidden;
+    margin-top: -0.15rem;
 }
-.eki-lb-bar > span {
+.eki-lb-bar span {
     display: block;
     height: 100%;
-    width: 0;
-    border-radius: inherit;
     background: var(--eki-purple);
-    transition: width 0.7s var(--ease);
+    border-radius: 2px;
 }
-.eki-lb-row--top1 .eki-lb-bar > span { background: var(--eki-purple-dark); }
-
-.eki-lb-grupo {
-    margin-top: 1.25rem;
+.eki-lb-empty {
+    margin: 0;
+    padding: 1.5rem 0.5rem;
+    text-align: center;
+    color: var(--eki-muted);
+    font-size: 0.9rem;
 }
+.eki-lb-grupo { margin-top: 1rem; }
 .eki-lb-grupo__title {
-    margin: 0 0 0.65rem;
+    margin: 0 0 0.85rem;
     font-size: 0.78rem;
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--eki-muted);
 }
-.eki-lb-empty {
-    padding: 1.5rem 0.25rem;
-    color: var(--eki-muted);
-    font-size: 0.9rem;
-}
-
+.eki-lb .eki-podium { margin-top: 0; }
 @media (max-width: 640px) {
-    .eki-lb-top { grid-template-columns: 1fr; }
     .eki-lb-row { grid-template-columns: 2rem 2rem minmax(0, 1fr) auto; gap: 0.5rem; padding: 0.65rem 0.7rem; }
 }
 {% endblock %}
 {% block main_class %}eki-main--wide{% endblock %}
 {% block content %}
+{% include "aprende/partials/ranking_icons.svg.html" %}
 <div class="eki-page-head">
     <span class="eki-badge">Aprende docente</span>
     <h1>{{ curso.nombre }}</h1>
@@ -283,19 +206,7 @@
     <p class="eki-lb-empty">Aún no hay datos de ranking para este curso.</p>
     {% else %}
 
-    {% if ranking.top3 %}
-    <div class="eki-lb-top" aria-label="Top 3">
-        {% for f in ranking.top3 %}
-        <article class="eki-lb-top__card eki-lb-top__card--{{ f.posicion }}">
-            <span class="eki-lb-top__pos">#{{ f.posicion }}</span>
-            <p class="eki-lb-top__name">{{ f.nombre }}</p>
-            <p class="eki-lb-top__score">
-                {{ f.valor }}{% if ranking.modo == 'calificacion' %}<span class="eki-lb-top__unit">/5</span>{% else %}<span class="eki-lb-top__unit">pts</span>{% endif %}
-            </p>
-        </article>
-        {% endfor %}
-    </div>
-    {% endif %}
+    {% include "aprende/partials/ranking_podium.html" with top3=ranking.top3 modo=ranking.modo only %}
 
     <ol class="eki-lb-board" aria-label="Tabla de posiciones">
         {% for f in ranking.filas %}
