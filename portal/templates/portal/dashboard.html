@@ -121,25 +121,6 @@ html[data-theme="dark"] .ops-card { background: var(--blanco); }
 .timeline-compact__main a:hover { color: var(--purple-deep); }
 .timeline-compact__meta { display: block; color: var(--texto-muted); font-size: 12px; margin-top: 2px; }
 .timeline-compact__time { flex-shrink: 0; color: var(--texto-muted); font-size: 12px; white-space: nowrap; }
-
-.quick-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px 18px;
-    padding-top: 2px;
-}
-.quick-links a {
-    color: var(--purple-deep, #5F3A6E);
-    text-decoration: none;
-    font-size: 13px;
-    font-weight: 600;
-}
-.quick-links a:hover { color: var(--accent); text-decoration: underline; }
-
-.medal { display: inline-flex; width: 28px; height: 28px; border-radius: 50%; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; color: #fff; }
-.medal-gold { background: linear-gradient(145deg, #fbbf24, #d97706); box-shadow: 0 2px 8px rgba(217,119,6,.35); }
-.medal-silver { background: linear-gradient(145deg, #e2e8f0, #94a3b8); }
-.medal-bronze { background: linear-gradient(145deg, #fdba74, #c2410c); }
 </style>
 {% endblock %}
 
@@ -298,65 +279,6 @@ html[data-theme="dark"] .ops-card { background: var(--blanco); }
             </li>
             {% endfor %}
         </ul>
-    </div>
-</section>
-{% endif %}
-
-<section class="dash-section">
-    <p class="dash-q">¿Cuál debería ser mi siguiente acción?</p>
-    <div class="panel">
-        <div class="quick-links">
-            <a href="/portal/retencion/">Ver retención y embudo</a>
-            <a href="/portal/metricas/">Métricas detalladas</a>
-            <a href="/portal/reportes/">Reportes Excel</a>
-            <a href="/portal/cobertura/">Cobertura territorial</a>
-            <a href="/portal/estudiantes/">Estudiantes</a>
-            <a href="/portal/cursos/">Cursos</a>
-        </div>
-    </div>
-</section>
-
-{% if ranking.activa %}
-<section class="dash-section" id="ranking">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px;">
-        <div>
-            <p class="dash-q" style="margin:0 0 4px;">Mejores estudiantes</p>
-            <p class="muted" style="margin:0;">Modo: <strong>{{ ranking.modo_label }}</strong>{% if ranking.es_calificacion %} — promedio ponderado de notas{% else %} — puntos acumulados{% endif %}</p>
-        </div>
-        <a class="btn btn-outline" href="/portal/gamificacion/">Ver gamificación</a>
-    </div>
-    <div class="panel">
-        {% if ranking.ranking %}
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Estudiante</th>
-                        <th>{{ ranking.columna_valor }}</th>
-                        <th>Detalle</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in ranking.ranking %}
-                    <tr class="rank-row rank-row--{{ row.posicion }}">
-                        <td>
-                            {% if row.posicion == 1 %}<span class="medal medal-gold" title="1°">1</span>
-                            {% elif row.posicion == 2 %}<span class="medal medal-silver" title="2°">2</span>
-                            {% elif row.posicion == 3 %}<span class="medal medal-bronze" title="3°">3</span>
-                            {% else %}{{ row.posicion }}{% endif %}
-                        </td>
-                        <td><a href="/portal/estudiantes/{{ row.estudiante_id }}/">{{ row.nombre }}</a></td>
-                        <td><strong>{{ row.valor }}</strong></td>
-                        <td class="muted">{{ row.detalle }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <p class="muted" style="margin:0;">Aún no hay datos de ranking.</p>
-        {% endif %}
     </div>
 </section>
 {% endif %}

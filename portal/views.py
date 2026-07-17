@@ -190,11 +190,9 @@ def dashboard(request):
         cursos_count=Count('cursos', distinct=True),
     ).order_by('nombre')
     resumen_general = {}
-    ranking_data = {'activa': False, 'ranking': []}
     if mods['cursos']:
         # KPI slim: no llamar calcular_metricas_empresa (sigue en /portal/metricas/).
         resumen_general = resumen_dashboard_rapido(org)
-        ranking_data = ranking_portal(org, limite=15)
 
     gei_resumen = _resumen_gei_portal(org) if mods['gei'] else None
     nat_resumen = analitica_nat(org) if mods['nat'] else None
@@ -242,7 +240,6 @@ def dashboard(request):
         'cursos': cursos,
         'grupos': grupos,
         'resumen_general': resumen_general,
-        'ranking': ranking_data,
         'ops': ops,
         'comparativa': comparativa,
         'estado_programa': estado_programa,
