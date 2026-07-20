@@ -9,6 +9,7 @@ urlpatterns = [
     path('dashboard/', views.dashboard, name='portal_dashboard'),
     path('metricas/', views.metricas_empresa, name='portal_metricas'),
     path('retencion/', views.portal_retencion, name='portal_retencion'),
+    path('retencion/agente/', views.portal_retencion_agente, name='portal_retencion_agente'),
     path('gamificacion/', views.portal_gamificacion, name='portal_gamificacion'),
     path('empleabilidad/', views.portal_empleabilidad, name='portal_empleabilidad'),
     path('cobertura/', views.portal_cobertura, name='portal_cobertura'),

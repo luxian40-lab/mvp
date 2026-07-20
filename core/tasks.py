@@ -58,6 +58,23 @@ def reenganche_drip_content_diario():
                     resultado = enviar_whatsapp_twilio(progreso.estudiante.telefono, msg)
                 if resultado.get('success'):
                     enviados += 1
+                    try:
+                        from core.models import EstudianteEventoAprendizaje
+                        from core.telemetria import registrar_evento
+
+                        registrar_evento(
+                            tipo=EstudianteEventoAprendizaje.TIPO_RECORDATORIO_ENVIADO,
+                            estudiante=progreso.estudiante,
+                            curso=progreso.curso,
+                            modulo=siguiente,
+                            metadata={
+                                'origen': 'reenganche_drip',
+                                'template': bool(template_sid),
+                                'modulo_desbloqueado_id': siguiente.pk,
+                            },
+                        )
+                    except Exception:
+                        pass
 
         logger.info(f"[Celery] Reenganche drip completado. Notificaciones enviadas: {enviados}")
         return {'enviados': enviados}

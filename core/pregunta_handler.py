@@ -301,6 +301,25 @@ def validar_respuesta(estudiante, respuesta_letra):
     else:
         progreso.fecha_ultimo_avance = timezone.now()
         progreso.save(update_fields=['fecha_ultimo_avance'])
+
+    try:
+        from core.models import EstudianteEventoAprendizaje
+        from core.telemetria import registrar_evento
+
+        registrar_evento(
+            tipo=EstudianteEventoAprendizaje.TIPO_EVALUACION_RESPONDIDA,
+            estudiante=estudiante,
+            curso=progreso.curso,
+            modulo=modulo,
+            metadata={
+                'acierto': es_correcta,
+                'letra': respuesta_letra,
+                'pregunta_id': pregunta_id,
+                'origen': 'mini_examen_modulo',
+            },
+        )
+    except Exception:
+        pass
     
     # REFRESCAR perfil después del signal (que ya otorgó +10 pts)
     perfil.refresh_from_db()

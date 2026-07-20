@@ -1,4 +1,4 @@
-"""Tests panel de retención portal (Fase 1)."""
+"""Tests panel de retención / Centro de Éxito (portal)."""
 
 from datetime import timedelta
 
@@ -11,6 +11,8 @@ from core.models_certificados import Certificado
 from portal.middleware import PORTAL_SESSION_KEY
 from portal.models import PortalUsuario
 from portal.retencion_service import analitica_retencion_portal
+from portal.agente_retencion import responder_agente_retencion
+from portal.centro_exito import RIESGO_ALTO, _nivel_riesgo
 
 
 class RetencionServiceTests(TestCase):
@@ -99,6 +101,34 @@ class RetencionServiceTests(TestCase):
         data = analitica_retencion_portal(self.cliente, curso_id=self.curso.pk)
         self.assertEqual(data['kpis']['certificados'], 1)
 
+    def test_score_riesgo_y_mapa(self):
+        data = analitica_retencion_portal(self.cliente, curso_id=self.curso.pk)
+        self.assertIn('riesgo', data)
+        self.assertGreaterEqual(data['riesgo']['resumen']['alto'], 1)
+        # Sin avance + muchos días sin actividad → alto
+        todos = data['riesgo']['alto'] + data['riesgo']['medio']
+        habeas = next((a for a in todos if a['nombre'] == 'Sin Habeas'), None)
+        self.assertIsNotNone(habeas)
+        self.assertEqual(habeas['nivel'], RIESGO_ALTO)
+        self.assertTrue(habeas['razones'])
+        self.assertGreaterEqual(habeas['probabilidad_terminar'], 5)
+        self.assertTrue(data['mapa_abandono'])
+        self.assertTrue(data['embudo_vivo'])
+        self.assertTrue(data['curva_abandono'])
+        self.assertTrue(data['recomendaciones'])
+
+    def test_nivel_umbrales(self):
+        self.assertEqual(_nivel_riesgo(10), 'bajo')
+        self.assertEqual(_nivel_riesgo(40), 'medio')
+        self.assertEqual(_nivel_riesgo(70), 'alto')
+
+    def test_agente_reglas(self):
+        data = analitica_retencion_portal(self.cliente, curso_id=self.curso.pk)
+        with self.settings(OPENAI_API_KEY=''):
+            out = responder_agente_retencion('¿Quiénes están en riesgo alto?', data)
+        self.assertEqual(out['fuente'], 'reglas')
+        self.assertIn('riesgo', out['respuesta'].lower())
+
 
 @override_settings(
     SECURE_SSL_REDIRECT=False,
@@ -118,29 +148,34 @@ class RetencionPortalViewTests(TestCase):
             fecha_fin_suscripcion='2099-12-31',
             portal_productos='cursos',
         )
-        self.curso = Curso.objects.create(nombre='Curso P', cliente=self.cliente, activo=True)
-        self.user = User.objects.create_user('ret_portal', password='pass1234')
-        PortalUsuario.objects.create(user=self.user, organizacion=self.cliente, rol='admin')
+        self.user = User.objects.create_user('retportal', password='x')
+        self.pu = PortalUsuario.objects.create(
+            user=self.user, organizacion=self.cliente, rol='admin',
+        )
         self.http = Client()
-        session = self.http.session
-        session[PORTAL_SESSION_KEY] = PortalUsuario.objects.get(user=self.user).pk
-        session.save()
+        s = self.http.session
+        s[PORTAL_SESSION_KEY] = self.pu.pk
+        s.save()
+        self.curso = Curso.objects.create(nombre='C', cliente=self.cliente, activo=True)
 
     def test_retencion_carga(self):
-        est = Estudiante.objects.create(
-            cedula='rp1', nombre='E1', telefono='573002222002', cliente=self.cliente,
-        )
-        ProgresoEstudiante.objects.create(estudiante=est, curso=self.curso)
-
         r = self.http.get('/portal/retencion/')
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'Retención y embudo')
-        self.assertContains(r, 'Inscritos')
-        self.assertContains(r, 'Embudo de aprendizaje')
-        self.assertContains(r, 'data-width=')
+        self.assertContains(r, 'Centro de Éxito')
+        self.assertContains(r, 'Riesgo alto')
 
     def test_retencion_requiere_modulo_cursos(self):
-        self.cliente.portal_productos = 'gei'
+        self.cliente.portal_productos = 'nat'
         self.cliente.save(update_fields=['portal_productos'])
         r = self.http.get('/portal/retencion/')
         self.assertIn(r.status_code, (302, 403))
+
+    def test_agente_endpoint(self):
+        r = self.http.post(
+            '/portal/retencion/agente/',
+            data='{"pregunta":"¿Qué hacer hoy?","curso":%d}' % self.curso.pk,
+            content_type='application/json',
+        )
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertIn('respuesta', body)

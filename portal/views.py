@@ -39,6 +39,7 @@ from .gei_config import (
 from .nat_documentos import crear_documento_nat, listar_documentos_nat
 from .metricas_ejecutivas import detalle_estudiantes_learning, resumen_ejecutivo_portal
 from .retencion_service import analitica_retencion_portal
+from .agente_retencion import responder_agente_retencion
 from .ranking_portal import ranking_portal
 from .exports import (
     filas_reenganche_sin_modulo,
@@ -915,6 +916,44 @@ def portal_retencion(request):
             'hasta': hasta,
         },
     })
+
+
+@portal_login_required
+@requiere_modulo('cursos')
+def portal_retencion_agente(request):
+    """Agente de retención (Centro de Éxito). No es Nat."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST requerido'}, status=405)
+
+    org = _portal_org(request)
+    if not org:
+        return JsonResponse({'error': 'no auth'}, status=401)
+
+    try:
+        body = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        body = {}
+    pregunta = (body.get('pregunta') or request.POST.get('pregunta') or '').strip()
+
+    cursos, grupos = _filtros_portal_cursos_grupos(org)
+    curso_id = body.get('curso') or request.GET.get('curso')
+    curso_id_int = int(curso_id) if curso_id and str(curso_id).isdigit() else None
+    if curso_id_int and not cursos.filter(pk=curso_id_int).exists():
+        curso_id_int = None
+    grupo_id = body.get('grupo') or request.GET.get('grupo')
+    grupo_id_int = int(grupo_id) if grupo_id and str(grupo_id).isdigit() else None
+    if grupo_id_int and not grupos.filter(pk=grupo_id_int).exists():
+        grupo_id_int = None
+
+    data = analitica_retencion_portal(
+        org,
+        curso_id=curso_id_int,
+        grupo_id=grupo_id_int,
+        desde=(body.get('desde') or None),
+        hasta=(body.get('hasta') or None),
+    )
+    out = responder_agente_retencion(pregunta, data)
+    return JsonResponse(out)
 
 
 def _curso_filtro_portal(request, org, cursos):

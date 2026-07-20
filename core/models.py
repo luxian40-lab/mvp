@@ -2556,6 +2556,94 @@ class ModuloCompletado(models.Model):
         return f"{self.progreso.estudiante.nombre} completó {self.modulo.titulo}"
 
 
+class EstudianteEventoAprendizaje(models.Model):
+    """
+    Telemetría de aprendizaje (Centro de Éxito).
+    Independiente de EventoIA (trazas técnicas de agentes).
+    """
+
+    TIPO_CONTENIDO_ENVIADO = 'contenido_enviado'
+    TIPO_LISTO_RECIBIDO = 'listo_recibido'
+    TIPO_EVALUACION_RESPONDIDA = 'evaluacion_respondida'
+    TIPO_RECORDATORIO_ENVIADO = 'recordatorio_enviado'
+    TIPO_RECORDATORIO_RESPONDIDO = 'recordatorio_respondido'
+    TIPO_MEDIA_ENTREGADA = 'media_entregada'
+    TIPO_MEDIA_FALLIDA = 'media_fallida'
+    TIPO_MODULO_INICIADO = 'modulo_iniciado'
+    TIPO_MODULO_COMPLETADO = 'modulo_completado'
+
+    TIPO_CHOICES = [
+        (TIPO_CONTENIDO_ENVIADO, 'Contenido enviado'),
+        (TIPO_LISTO_RECIBIDO, 'Listo recibido'),
+        (TIPO_EVALUACION_RESPONDIDA, 'Evaluación respondida'),
+        (TIPO_RECORDATORIO_ENVIADO, 'Recordatorio enviado'),
+        (TIPO_RECORDATORIO_RESPONDIDO, 'Recordatorio respondido'),
+        (TIPO_MEDIA_ENTREGADA, 'Media entregada'),
+        (TIPO_MEDIA_FALLIDA, 'Media fallida'),
+        (TIPO_MODULO_INICIADO, 'Módulo iniciado'),
+        (TIPO_MODULO_COMPLETADO, 'Módulo completado'),
+    ]
+
+    estudiante = models.ForeignKey(
+        'Estudiante',
+        on_delete=models.CASCADE,
+        related_name='eventos_aprendizaje',
+    )
+    cliente = models.ForeignKey(
+        'Cliente',
+        on_delete=models.CASCADE,
+        related_name='eventos_aprendizaje',
+        null=True,
+        blank=True,
+    )
+    curso = models.ForeignKey(
+        'Curso',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='eventos_aprendizaje',
+    )
+    modulo = models.ForeignKey(
+        'Modulo',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='eventos_aprendizaje',
+    )
+    paso = models.ForeignKey(
+        'PasoModulo',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='eventos_aprendizaje',
+    )
+    seccion = models.ForeignKey(
+        'SeccionModulo',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='eventos_aprendizaje',
+    )
+    tipo = models.CharField(max_length=40, choices=TIPO_CHOICES, db_index=True)
+    canal = models.CharField(max_length=30, default='whatsapp', db_index=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = 'Evento de aprendizaje'
+        verbose_name_plural = 'Eventos de aprendizaje'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['estudiante', 'created_at']),
+            models.Index(fields=['curso', 'tipo', 'created_at']),
+            models.Index(fields=['modulo', 'tipo']),
+            models.Index(fields=['cliente', 'tipo', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.tipo} · est={self.estudiante_id} · {self.created_at:%Y-%m-%d %H:%M}'
+
+
 class Examen(models.Model):
     """Examen final del curso"""
     curso = models.OneToOneField(Curso, on_delete=models.CASCADE, related_name='examen')

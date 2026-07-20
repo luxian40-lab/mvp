@@ -2728,6 +2728,39 @@ def _registrar_estado_twilio_callback(post_data):
                 log.save(update_fields=campos)
             if status in ('UNDELIVERED', 'FAILED') and error_code:
                 _reenviar_media_fallida_como_enlace(log, error_code)
+            # Telemetría entrega media (Centro de Éxito).
+            try:
+                from core.models import Estudiante, EstudianteEventoAprendizaje
+                from core.telemetria import registrar_evento
+                from core.utils_telefono import variantes_telefono
+
+                est = log.estudiante
+                if est is None and log.telefono:
+                    for v in variantes_telefono(log.telefono):
+                        est = Estudiante.objects.filter(telefono=v).first()
+                        if est:
+                            break
+                if est:
+                    tipo_ev = (
+                        EstudianteEventoAprendizaje.TIPO_MEDIA_FALLIDA
+                        if status in ('UNDELIVERED', 'FAILED')
+                        else EstudianteEventoAprendizaje.TIPO_MEDIA_ENTREGADA
+                        if status in ('DELIVERED', 'READ', 'RECEIVED')
+                        else None
+                    )
+                    if tipo_ev:
+                        registrar_evento(
+                            tipo=tipo_ev,
+                            estudiante=est,
+                            metadata={
+                                'twilio_sid': sid,
+                                'status': status,
+                                'error_code': error_code,
+                                'whatsapp_log_id': log.pk,
+                            },
+                        )
+            except Exception as te:
+                logger.debug('telemetria status twilio: %s', te)
             return
 
         # Fallback para no perder trazabilidad de callbacks huérfanos.

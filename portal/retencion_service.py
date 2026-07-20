@@ -1,4 +1,4 @@
-"""Métricas de retención y embudo de aprendizaje para el portal B2B (Fase 1)."""
+"""Métricas de retención y Centro de Éxito del Programa (portal B2B)."""
 
 from __future__ import annotations
 
@@ -9,6 +9,8 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 from core.utils_telefono import normalizar_telefono, variantes_telefono
+
+from . import centro_exito
 
 DIAS_ESTUDIANTE_ACTIVO = 7
 
@@ -312,21 +314,91 @@ def analitica_retencion_portal(
     for paso in embudo:
         paso['pct_del_total'] = round(paso['cantidad'] / embudo_max * 100, 1)
 
+    # —— Centro de Éxito (score, predicción, mapa, cohortes, etc.) ——
+    total_mods_por_curso: dict[int, int] = {}
+    curso_ids = set(progreso_qs.values_list('curso_id', flat=True))
+    if curso_ids:
+        from core.models import Modulo
+
+        for row in (
+            Modulo.objects.filter(curso_id__in=curso_ids)
+            .values('curso_id')
+            .annotate(n=Count('id'))
+        ):
+            total_mods_por_curso[row['curso_id']] = row['n']
+
+    pcts = []
+    for p in progreso_qs:
+        if p.completado:
+            continue
+        tm = total_mods_por_curso.get(p.curso_id, 0)
+        nm = getattr(p, 'n_mods', 0) or 0
+        if tm:
+            pcts.append(100.0 * nm / tm)
+    promedio_grupo_pct = round(sum(pcts) / len(pcts), 1) if pcts else 0.0
+
+    wa_stats = centro_exito._wa_stats_por_estudiante(progreso_qs, telefonos)
+    filas_riesgo = centro_exito.calcular_scores_riesgo(
+        progreso_qs,
+        ultima_act=ultima_act,
+        wa_stats=wa_stats,
+        total_mods_por_curso=total_mods_por_curso,
+        promedio_grupo_pct=promedio_grupo_pct,
+    )
+    resumen_riesgo = centro_exito.resumen_riesgo(filas_riesgo)
+    mapa = centro_exito.mapa_abandono_modulos(progreso_qs, curso)
+    mapa_pasos = centro_exito.mapa_abandono_pasos(progreso_qs, curso)
+    curva = centro_exito.curva_abandono(progreso_qs, ultima_act)
+    cohortes = centro_exito.cohortes_mensuales(progreso_qs, ultima_act)
+    vivo = centro_exito.embudo_vivo(progreso_qs, ultima_act)
+    comparativa = centro_exito.comparativa_eki(
+        org, curso_id=curso_id, pct_certificacion=pct_certificacion,
+    )
+    kpis = {
+        'inscritos': inscritos,
+        'activos': activos,
+        'inactivos': inactivos,
+        'certificados': certificados,
+        'completados_curso': completados_curso,
+        'pct_certificacion': pct_certificacion,
+        'pct_activos': pct_activos,
+        'tiempo_promedio_abandono_dias': tiempo_promedio_abandono,
+        'tiempo_promedio_modulo_dias': tiempo_promedio_modulo,
+        'modulo_mayor_abandono': modulo_abandono,
+    }
+    recomendaciones = centro_exito.recomendaciones_programa(
+        mapa=mapa,
+        resumen=resumen_riesgo,
+        cohortes=cohortes,
+        curva=curva,
+        kpis=kpis,
+        comparativa=comparativa,
+        mapa_pasos=mapa_pasos,
+    )
+    wa_health = centro_exito.whatsapp_health_agregado(wa_stats, filas_riesgo)
+    automatizaciones = centro_exito.automatizaciones_sugeridas(resumen_riesgo, mapa)
+
+    alto_detalle = [f for f in filas_riesgo if f['nivel'] == 'alto'][:40]
+    medio_detalle = [f for f in filas_riesgo if f['nivel'] == 'medio'][:20]
+
     return {
         'curso': curso,
         'dias_activo': dias_activo,
-        'kpis': {
-            'inscritos': inscritos,
-            'activos': activos,
-            'inactivos': inactivos,
-            'certificados': certificados,
-            'completados_curso': completados_curso,
-            'pct_certificacion': pct_certificacion,
-            'pct_activos': pct_activos,
-            'tiempo_promedio_abandono_dias': tiempo_promedio_abandono,
-            'tiempo_promedio_modulo_dias': tiempo_promedio_modulo,
-            'modulo_mayor_abandono': modulo_abandono,
-        },
+        'kpis': kpis,
         'embudo': embudo,
+        'embudo_vivo': vivo,
         'requiere_curso_para_modulos': curso is None,
+        'riesgo': {
+            'resumen': resumen_riesgo,
+            'alto': alto_detalle,
+            'medio': medio_detalle,
+        },
+        'mapa_abandono': mapa,
+        'mapa_abandono_pasos': mapa_pasos,
+        'curva_abandono': curva,
+        'cohortes': cohortes,
+        'comparativa_eki': comparativa,
+        'recomendaciones': recomendaciones,
+        'whatsapp_health': wa_health,
+        'automatizaciones': automatizaciones,
     }

@@ -1,115 +1,210 @@
 {% extends 'portal/base.html' %}
 
-{% block title %}Retención | Portal eki{% endblock %}
+{% block title %}Centro de Éxito | Portal eki{% endblock %}
 
 {% block extra_head %}
 <style>
-/* Embudo de aprendizaje — barras que se estrechan (forma de embudo real) */
 .ret-funnel { list-style: none; padding: 4px 0 0; margin: 0; }
 .ret-funnel__step { margin-bottom: 10px; }
 .ret-funnel__head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 8px;
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px;
 }
 .ret-funnel__name { font-weight: 700; font-size: 14px; color: var(--texto); }
 .ret-funnel__name small { display: block; font-weight: 500; color: var(--texto-muted); font-size: 12px; margin-top: 2px; }
 .ret-funnel__count {
-    font-family: var(--font-display);
-    font-size: 1.5rem;
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    color: var(--purple-deep);
-    font-variant-numeric: tabular-nums;
-    flex-shrink: 0;
+    font-family: var(--font-display); font-size: 1.5rem; font-weight: 800;
+    letter-spacing: -0.03em; color: var(--purple-deep); font-variant-numeric: tabular-nums; flex-shrink: 0;
 }
 .ret-funnel__count span { font-size: 12px; font-weight: 600; color: var(--texto-muted); }
 .ret-funnel__track {
-    width: 100%;
-    height: 44px;
-    border-radius: 12px;
-    background: var(--tabla-head);
-    overflow: hidden;
+    width: 100%; height: 44px; border-radius: 12px; background: var(--tabla-head); overflow: hidden;
 }
 .ret-funnel__bar {
-    height: 100%;
-    width: 0;
-    min-width: 3px;
-    border-radius: 12px;
+    height: 100%; width: 0; min-width: 3px; border-radius: 12px;
     background: linear-gradient(135deg, var(--brand-fill, var(--purple)) 0%, var(--info) 100%);
-    display: flex;
-    align-items: center;
-    padding: 0 14px;
-    color: #fff;
-    font-size: 12.5px;
-    font-weight: 700;
-    white-space: nowrap;
+    display: flex; align-items: center; padding: 0 14px; color: #fff;
+    font-size: 12.5px; font-weight: 700; white-space: nowrap;
     transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1);
-    box-shadow: 0 6px 16px rgba(60, 123, 191, 0.18);
 }
 .ret-funnel__step:nth-child(3n+1) .ret-funnel__bar {
     background: linear-gradient(135deg, var(--brand-fill, var(--purple)) 0%, var(--brand-fill-deep, var(--purple-deep)) 100%);
-    box-shadow: 0 6px 16px rgba(95, 58, 110, 0.22);
 }
 .ret-funnel__step:nth-child(3n+2) .ret-funnel__bar {
     background: linear-gradient(135deg, var(--info) 0%, var(--brand-fill, var(--purple)) 100%);
 }
 .ret-funnel__step:nth-child(3n) .ret-funnel__bar {
     background: linear-gradient(135deg, var(--success) 0%, var(--info) 100%);
-    box-shadow: 0 6px 16px rgba(53, 166, 71, 0.18);
 }
-/* Conector entre pasos: cuánta gente continúa vs se pierde */
 .ret-funnel__drop {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 7px 0 12px 2px;
-    font-size: 12.5px;
-    color: var(--texto-muted);
+    display: flex; align-items: center; gap: 8px; padding: 7px 0 12px 2px;
+    font-size: 12.5px; color: var(--texto-muted);
 }
 .ret-funnel__chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 3px 10px;
-    border-radius: 999px;
-    font-weight: 700;
-    font-size: 12px;
+    display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px;
+    border-radius: 999px; font-weight: 700; font-size: 12px;
 }
 .ret-funnel__chip--keep { background: var(--success-soft, rgba(53, 166, 71, 0.12)); color: var(--ok); }
 .ret-funnel__chip--warn { background: rgba(180, 116, 14, 0.14); color: var(--warn); }
 .ret-funnel__chip--drop { background: rgba(194, 59, 59, 0.10); color: var(--danger); }
 html[data-theme="dark"] .ret-funnel__chip--warn { background: rgba(224, 176, 74, 0.16); color: #F0D48A; }
-html[data-theme="dark"] .ret-funnel__bar {
-    color: #fff;
-}
-.ret-funnel__chip svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 
 .ret-kpi-hint { font-size: 12px; color: var(--texto-muted); margin-top: 4px; }
 .ret-alert-modulo {
-    border-left: 4px solid var(--warn);
-    padding: 14px 18px;
-    background: var(--tabla-head);
-    border-radius: 0 10px 10px 0;
-    margin-bottom: 24px;
+    border-left: 4px solid var(--warn); padding: 14px 18px; background: var(--tabla-head);
+    border-radius: 0 10px 10px 0; margin-bottom: 24px;
 }
+
+.ret-risk-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
+@media (max-width: 720px) { .ret-risk-grid { grid-template-columns: 1fr; } }
+.ret-risk-card {
+    border-radius: 14px; padding: 18px 20px; border: 1px solid var(--borde);
+    background: var(--surface, var(--blanco));
+}
+.ret-risk-card__n {
+    font-family: var(--font-display); font-size: 2.4rem; font-weight: 800;
+    letter-spacing: -0.04em; line-height: 1; margin: 6px 0 4px;
+}
+.ret-risk-card--alto { border-color: rgba(194, 59, 59, 0.35); background: rgba(194, 59, 59, 0.06); }
+.ret-risk-card--alto .ret-risk-card__n { color: var(--danger); }
+.ret-risk-card--medio { border-color: rgba(180, 116, 14, 0.35); background: rgba(180, 116, 14, 0.07); }
+.ret-risk-card--medio .ret-risk-card__n { color: var(--warn); }
+.ret-risk-card--bajo { border-color: rgba(53, 166, 71, 0.35); background: rgba(53, 166, 71, 0.07); }
+.ret-risk-card--bajo .ret-risk-card__n { color: var(--ok); }
+.ret-risk-card__label { font-size: 13px; font-weight: 700; color: var(--texto); }
+.ret-risk-card__hint { font-size: 12px; color: var(--texto-muted); margin: 0; }
+
+.ret-pill {
+    display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px;
+    border-radius: 999px; font-size: 11px; font-weight: 700;
+}
+.ret-pill--alto { background: rgba(194, 59, 59, 0.12); color: var(--danger); }
+.ret-pill--medio { background: rgba(180, 116, 14, 0.14); color: var(--warn); }
+.ret-pill--bajo { background: rgba(53, 166, 71, 0.12); color: var(--ok); }
+
+.ret-student {
+    padding: 14px 0; border-bottom: 1px solid var(--borde);
+}
+.ret-student:last-child { border-bottom: none; }
+.ret-student__top {
+    display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px;
+}
+.ret-student__name { font-weight: 700; color: var(--texto); }
+.ret-student__meta { font-size: 12px; color: var(--texto-muted); }
+.ret-student__why { margin: 8px 0 0; padding-left: 1.1rem; font-size: 13px; color: var(--texto); }
+.ret-student__rec {
+    margin: 8px 0 0; font-size: 13px; color: var(--texto-muted);
+    padding: 8px 12px; border-radius: 8px; background: var(--tabla-head);
+}
+
+.ret-map-row { margin-bottom: 14px; }
+.ret-map-row__head {
+    display: flex; justify-content: space-between; gap: 10px; font-size: 13px; margin-bottom: 6px;
+}
+.ret-map-row__track {
+    height: 28px; border-radius: 8px; background: var(--tabla-head); overflow: hidden;
+}
+.ret-map-row__bar {
+    height: 100%; width: 0; border-radius: 8px;
+    background: linear-gradient(90deg, var(--danger), var(--warn));
+    transition: width 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+    min-width: 2px;
+}
+
+.ret-curve {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: 10px;
+}
+.ret-curve__day {
+    text-align: center; padding: 12px 8px; border-radius: 12px;
+    background: var(--tabla-head); border: 1px solid var(--borde);
+}
+.ret-curve__pct {
+    font-family: var(--font-display); font-size: 1.35rem; font-weight: 800;
+    color: var(--purple-deep); letter-spacing: -0.03em;
+}
+.ret-curve__label { font-size: 11px; color: var(--texto-muted); margin-top: 4px; }
+
+.ret-compare {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+}
+@media (max-width: 560px) { .ret-compare { grid-template-columns: 1fr; } }
+.ret-compare__box {
+    padding: 18px; border-radius: 14px; border: 1px solid var(--borde); text-align: center;
+}
+.ret-compare__box--eki { background: rgba(60, 123, 191, 0.08); }
+.ret-compare__n {
+    font-family: var(--font-display); font-size: 2rem; font-weight: 800;
+    letter-spacing: -0.03em; color: var(--purple-deep);
+}
+
+.ret-rec {
+    padding: 12px 14px; border-radius: 10px; margin-bottom: 10px;
+    border-left: 3px solid var(--accent); background: var(--tabla-head);
+}
+.ret-rec--alta { border-left-color: var(--danger); }
+.ret-rec--media { border-left-color: var(--warn); }
+.ret-rec h3 { margin: 0 0 4px; font-size: 14px; }
+.ret-rec p { margin: 0; font-size: 13px; color: var(--texto-muted); }
+
+.ret-auto {
+    display: grid; gap: 10px;
+}
+.ret-auto__card {
+    display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center;
+    padding: 12px 14px; border-radius: 10px; border: 1px dashed var(--borde);
+    font-size: 13px;
+}
+@media (max-width: 640px) {
+    .ret-auto__card { grid-template-columns: 1fr; }
+}
+.ret-auto__arrow { color: var(--texto-muted); font-weight: 700; text-align: center; }
+
+.ret-agent {
+    border-radius: 16px; border: 1px solid var(--borde); overflow: hidden;
+    background: linear-gradient(165deg, rgba(95, 58, 110, 0.08), transparent 55%);
+}
+.ret-agent__head { padding: 16px 18px 8px; }
+.ret-agent__head h2 { margin: 0 0 4px; font-size: 1.1rem; }
+.ret-agent__body { padding: 0 18px 18px; }
+.ret-agent__log {
+    min-height: 80px; max-height: 280px; overflow-y: auto;
+    margin-bottom: 12px; font-size: 14px; line-height: 1.55;
+}
+.ret-agent__msg { margin-bottom: 10px; padding: 10px 12px; border-radius: 10px; }
+.ret-agent__msg--user { background: var(--tabla-head); }
+.ret-agent__msg--bot { background: rgba(154, 108, 172, 0.12); border: 1px solid rgba(154, 108, 172, 0.2); }
+.ret-agent__form { display: flex; gap: 8px; flex-wrap: wrap; }
+.ret-agent__form input {
+    flex: 1; min-width: 180px; padding: 11px 14px; border-radius: 10px;
+    border: 1px solid var(--borde); font: inherit; background: var(--blanco, #fff); color: var(--texto);
+}
+.ret-agent__chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.ret-agent__chip {
+    border: 1px solid var(--borde); background: var(--surface, var(--blanco));
+    border-radius: 999px; padding: 5px 12px; font-size: 12px; cursor: pointer; color: var(--texto);
+}
+.ret-agent__chip:hover { border-color: var(--purple); }
+
+.ret-two { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 20px; }
+@media (max-width: 980px) { .ret-two { grid-template-columns: 1fr; } }
+
+.ret-wa dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; font-size: 13px; }
+.ret-wa dt { color: var(--texto-muted); }
+.ret-wa dd { margin: 0; font-weight: 600; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="page-title">
     <div>
-        <h1>Retención y embudo</h1>
+        <h1>Centro de Éxito del Programa</h1>
         <p class="muted">
-            Fase 1 — medir dónde se pierden los estudiantes. Ventana de actividad reciente:
-            <strong>{{ data.dias_activo }} días</strong>.
+            ¿Quién está en riesgo? ¿Por qué abandona? ¿Qué hacer hoy?
+            Ventana de actividad: <strong>{{ data.dias_activo }} días</strong>.
         </p>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:10px;">
         <a class="btn btn-outline" href="/portal/dashboard/">Inicio</a>
-        <a class="btn btn-outline" href="/portal/metricas/">Métricas detalladas</a>
+        <a class="btn btn-outline" href="/portal/estudiantes/">Estudiantes</a>
     </div>
 </div>
 
@@ -117,8 +212,8 @@ html[data-theme="dark"] .ret-funnel__bar {
     <form method="get" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;align-items:end;">
         <label>
             <strong>Curso</strong>
-            <select name="curso" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
-                <option value="">Todos (embudo por módulo requiere curso)</option>
+            <select name="curso" id="ret-filtro-curso" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+                <option value="">Todos</option>
                 {% for c in cursos %}
                 <option value="{{ c.id }}" {% if filtros.curso_id == c.id %}selected{% endif %}>{{ c.nombre }}</option>
                 {% endfor %}
@@ -126,7 +221,7 @@ html[data-theme="dark"] .ret-funnel__bar {
         </label>
         <label>
             <strong>Grupo</strong>
-            <select name="grupo" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+            <select name="grupo" id="ret-filtro-grupo" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
                 <option value="">Todos</option>
                 {% for g in grupos %}
                 <option value="{{ g.id }}" {% if filtros.grupo_id == g.id %}selected{% endif %}>{{ g.nombre }}</option>
@@ -135,15 +230,39 @@ html[data-theme="dark"] .ret-funnel__bar {
         </label>
         <label>
             <strong>Inscripción desde</strong>
-            <input type="date" name="desde" value="{{ filtros.desde }}" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+            <input type="date" name="desde" id="ret-filtro-desde" value="{{ filtros.desde }}" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
         </label>
         <label>
             <strong>Inscripción hasta</strong>
-            <input type="date" name="hasta" value="{{ filtros.hasta }}" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+            <input type="date" name="hasta" id="ret-filtro-hasta" value="{{ filtros.hasta }}" style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
         </label>
         <button class="btn" type="submit">Aplicar</button>
     </form>
 </section>
+
+{% with r=data.riesgo.resumen %}
+<section class="ret-risk-grid">
+    <article class="ret-risk-card ret-risk-card--alto">
+        <div class="ret-risk-card__label">🔴 Riesgo alto</div>
+        <div class="ret-risk-card__n">{{ r.alto }}</div>
+        <p class="ret-risk-card__hint">Prioridad de contacto hoy</p>
+    </article>
+    <article class="ret-risk-card ret-risk-card--medio">
+        <div class="ret-risk-card__label">🟡 Riesgo medio</div>
+        <div class="ret-risk-card__n">{{ r.medio }}</div>
+        <p class="ret-risk-card__hint">Vigilar esta semana</p>
+    </article>
+    <article class="ret-risk-card ret-risk-card--bajo">
+        <div class="ret-risk-card__label">🟢 Riesgo bajo</div>
+        <div class="ret-risk-card__n">{{ r.bajo }}</div>
+        <p class="ret-risk-card__hint">
+            {% if r.probabilidad_promedio != None %}
+            Prob. promedio terminar: {{ r.probabilidad_promedio }}%
+            {% else %}En curso con buen ritmo{% endif %}
+        </p>
+    </article>
+</section>
+{% endwith %}
 
 {% with k=data.kpis %}
 <section class="cards-grid" style="margin-bottom:24px;">
@@ -154,57 +273,295 @@ html[data-theme="dark"] .ret-funnel__bar {
     <article class="card">
         <div class="metric-number">{{ k.activos }}</div>
         <div class="metric-label">Activos</div>
-        <p class="ret-kpi-hint">{{ k.pct_activos }}% del total · actividad en {{ data.dias_activo }} días</p>
-    </article>
-    <article class="card">
-        <div class="metric-number">{{ k.inactivos }}</div>
-        <div class="metric-label">Inactivos</div>
-        <p class="ret-kpi-hint">Sin avance reciente y curso sin completar</p>
+        <p class="ret-kpi-hint">{{ k.pct_activos }}% · {{ data.dias_activo }} días</p>
     </article>
     <article class="card">
         <div class="metric-number">{{ k.certificados }}</div>
         <div class="metric-label">Certificados</div>
         <p class="ret-kpi-hint">{{ k.pct_certificacion }}% de inscritos</p>
     </article>
-</section>
-
-<section class="cards-grid" style="margin-bottom:24px;">
     <article class="card">
-        <div class="metric-number">{% if k.tiempo_promedio_abandono_dias != None %}{{ k.tiempo_promedio_abandono_dias }} d{% else %}—{% endif %}</div>
-        <div class="metric-label">Tiempo prom. sin actividad</div>
-        <p class="ret-kpi-hint">Entre estudiantes inactivos</p>
-    </article>
-    <article class="card">
-        <div class="metric-number">{% if k.tiempo_promedio_modulo_dias != None %}{{ k.tiempo_promedio_modulo_dias }} d{% else %}—{% endif %}</div>
-        <div class="metric-label">Tiempo prom. entre módulos</div>
-        <p class="ret-kpi-hint">Entre cierres consecutivos</p>
-    </article>
-    <article class="card">
-        <div class="metric-number">{{ k.completados_curso }}</div>
-        <div class="metric-label">Cursos completados</div>
+        <div class="metric-number">{% if data.riesgo.resumen.probabilidad_promedio != None %}{{ data.riesgo.resumen.probabilidad_promedio }}%{% else %}—{% endif %}</div>
+        <div class="metric-label">Prob. terminar (est.)</div>
+        <p class="ret-kpi-hint">Promedio del grupo en curso</p>
     </article>
 </section>
-
-{% if k.modulo_mayor_abandono %}
-<section class="ret-alert-modulo">
-    <strong>Módulo con mayor abandono:</strong>
-    M{{ k.modulo_mayor_abandono.modulo_numero }} · {{ k.modulo_mayor_abandono.modulo_titulo }}
-    — {{ k.modulo_mayor_abandono.caidas }} estudiante{{ k.modulo_mayor_abandono.caidas|pluralize:"s" }}
-    completaron este módulo y no el siguiente (M{{ k.modulo_mayor_abandono.siguiente_numero }}),
-    tasa {{ k.modulo_mayor_abandono.tasa_pct }}%.
-</section>
-{% endif %}
 {% endwith %}
 
-<section class="panel">
-    <h2 style="margin-top:0;">Embudo de aprendizaje</h2>
+<div class="ret-two" style="margin-bottom:24px;">
+    <section class="panel" style="margin:0;">
+        <h2 style="margin-top:0;">Personas en riesgo alto</h2>
+        <p class="muted" style="margin-top:0;">Score + explicación (no solo un %). El coordinador ve a quién actuar.</p>
+        {% for s in data.riesgo.alto %}
+        <article class="ret-student">
+            <div class="ret-student__top">
+                <div>
+                    <span class="ret-student__name">{{ s.nombre }}</span>
+                    <span class="ret-pill ret-pill--alto">score {{ s.score }}</span>
+                    <span class="ret-student__meta">· terminar {{ s.probabilidad_terminar }}%</span>
+                </div>
+                <a class="ret-student__meta" href="/portal/estudiantes/{{ s.estudiante_id }}/">Ver ficha</a>
+            </div>
+            <ul class="ret-student__why">
+                {% for razon in s.razones %}<li>{{ razon }}</li>{% endfor %}
+            </ul>
+            <p class="ret-student__rec"><strong>Recomendación:</strong> {{ s.recomendacion }}</p>
+        </article>
+        {% empty %}
+        <p class="muted">Nadie en riesgo alto con estos filtros. Bien.</p>
+        {% endfor %}
+
+        {% if data.riesgo.medio %}
+        <h3 style="margin-top:28px;font-size:1rem;">Riesgo medio (muestra)</h3>
+        {% for s in data.riesgo.medio %}
+        <article class="ret-student">
+            <div class="ret-student__top">
+                <div>
+                    <span class="ret-student__name">{{ s.nombre }}</span>
+                    <span class="ret-pill ret-pill--medio">score {{ s.score }}</span>
+                    <span class="ret-student__meta">· terminar {{ s.probabilidad_terminar }}%</span>
+                </div>
+            </div>
+            <ul class="ret-student__why">
+                {% for razon in s.razones %}<li>{{ razon }}</li>{% endfor %}
+            </ul>
+        </article>
+        {% endfor %}
+        {% endif %}
+    </section>
+
+    <div style="display:flex;flex-direction:column;gap:20px;">
+        <section class="panel ret-agent" style="margin:0;">
+            <div class="ret-agent__head">
+                <h2>Consultor de retención</h2>
+                <p class="muted" style="margin:0;font-size:13px;">Agente del Centro de Éxito — aparte de Nat comercial.</p>
+            </div>
+            <div class="ret-agent__body">
+                <div class="ret-agent__chips">
+                    <button type="button" class="ret-agent__chip" data-q="¿Quiénes están en riesgo alto y por qué?">¿Quiénes en riesgo?</button>
+                    <button type="button" class="ret-agent__chip" data-q="¿Por qué abandonan en este programa?">¿Por qué abandonan?</button>
+                    <button type="button" class="ret-agent__chip" data-q="¿Qué debo hacer hoy para mejorar la retención?">¿Qué hacer hoy?</button>
+                </div>
+                <div class="ret-agent__log" id="ret-agent-log" aria-live="polite"></div>
+                <form class="ret-agent__form" id="ret-agent-form">
+                    {% csrf_token %}
+                    <input type="text" id="ret-agent-input" placeholder="Ej. ¿Por qué desertan en el módulo 3?" maxlength="500" autocomplete="off">
+                    <button class="btn" type="submit">Preguntar</button>
+                </form>
+            </div>
+        </section>
+
+        <section class="panel" style="margin:0;">
+            <h2 style="margin-top:0;">Recomendaciones</h2>
+            {% for rec in data.recomendaciones %}
+            <div class="ret-rec {% if rec.prioridad == 'alta' %}ret-rec--alta{% elif rec.prioridad == 'media' %}ret-rec--media{% endif %}">
+                <h3>{{ rec.titulo }}</h3>
+                <p>{{ rec.detalle }}</p>
+            </div>
+            {% empty %}
+            <p class="muted">Sin recomendaciones por ahora.</p>
+            {% endfor %}
+        </section>
+    </div>
+</div>
+
+<section class="panel" style="margin-bottom:24px;">
+    <h2 style="margin-top:0;">Mapa de abandono por módulo</h2>
     {% if data.requiere_curso_para_modulos %}
-    <p class="muted" style="margin-bottom:16px;">
-        Seleccione un <strong>curso</strong> arriba para ver el desglose por módulo (M1, M2…).
-        Los pasos de onboarding y certificados se muestran con todos los cursos.
-    </p>
+    <p class="muted">Seleccione un <strong>curso</strong> para ver en qué módulo desertan.</p>
+    {% elif data.mapa_abandono %}
+    <p class="muted" style="margin-top:0;">Ancho = personas que completaron el módulo y no el siguiente.</p>
+    {% for m in data.mapa_abandono %}
+    <div class="ret-map-row">
+        <div class="ret-map-row__head">
+            <span><strong>M{{ m.modulo_numero }}</strong> · {{ m.titulo }}
+                <span class="muted">({{ m.completaron }} completaron)</span>
+            </span>
+            {% if m.caidas %}
+            <span style="color:var(--danger);font-weight:700;">desertan {{ m.caidas }} · {{ m.tasa_pct }}%</span>
+            {% else %}
+            <span class="muted">sin caída medida</span>
+            {% endif %}
+        </div>
+        <div class="ret-map-row__track">
+            <div class="ret-map-row__bar" data-width="{{ m.barra_pct }}"></div>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="muted">Sin datos de módulos para este filtro.</p>
+    {% endif %}
+
+    {% if data.mapa_abandono_pasos %}
+    <h3 style="font-size:1rem;margin-top:28px;">Por paso / media (telemetría)</h3>
+    <p class="muted" style="margin-top:0;">Quiénes recibieron el paso y no avanzaron (listo/evaluación).</p>
+    {% for m in data.mapa_abandono_pasos %}
+    <div class="ret-map-row">
+        <div class="ret-map-row__head">
+            <span>
+                <strong>M{{ m.modulo_numero }} · paso {{ m.paso_orden }}</strong>
+                {% if m.tiene_media %}<span class="ret-pill ret-pill--medio">media</span>{% endif %}
+                · {{ m.titulo }}
+            </span>
+            <span style="color:var(--danger);font-weight:700;">
+                desertan {{ m.caidas }} · {{ m.tasa_pct }}%
+                <span class="muted">(env {{ m.enviados }} / avanz {{ m.avanzaron }})</span>
+            </span>
+        </div>
+        <div class="ret-map-row__track">
+            <div class="ret-map-row__bar" data-width="{{ m.barra_pct }}"></div>
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+</section>
+
+<div class="ret-two" style="margin-bottom:24px;">
+    <section class="panel" style="margin:0;">
+        <h2 style="margin-top:0;">Embudo vivo</h2>
+        <ul class="ret-funnel">
+            {% for paso in data.embudo_vivo %}
+            <li class="ret-funnel__step">
+                {% if not forloop.first and paso.pct_desde_anterior != None %}
+                <div class="ret-funnel__drop">
+                    {% if paso.pct_desde_anterior >= 80 %}
+                    <span class="ret-funnel__chip ret-funnel__chip--keep">{{ paso.pct_desde_anterior }}% continúan</span>
+                    {% elif paso.pct_desde_anterior >= 50 %}
+                    <span class="ret-funnel__chip ret-funnel__chip--warn">{{ paso.pct_desde_anterior }}% continúan</span>
+                    {% else %}
+                    <span class="ret-funnel__chip ret-funnel__chip--drop">solo {{ paso.pct_desde_anterior }}%</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+                <div class="ret-funnel__head">
+                    <span class="ret-funnel__name">{{ paso.etiqueta }}</span>
+                    <span class="ret-funnel__count">{{ paso.cantidad }} <span>· {{ paso.pct_del_total }}%</span></span>
+                </div>
+                <div class="ret-funnel__track">
+                    <div class="ret-funnel__bar" data-width="{{ paso.pct_del_total }}">{{ paso.pct_del_total }}%</div>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    <div style="display:flex;flex-direction:column;gap:20px;">
+        <section class="panel" style="margin:0;">
+            <h2 style="margin-top:0;">Curva de retención</h2>
+            <div class="ret-curve">
+                {% for p in data.curva_abandono %}
+                <div class="ret-curve__day">
+                    <div class="ret-curve__pct">{% if p.retenidos_pct != None %}{{ p.retenidos_pct }}%{% else %}—{% endif %}</div>
+                    <div class="ret-curve__label">Día {{ p.dia }}</div>
+                    <div class="ret-curve__label">n={{ p.base }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="panel" style="margin:0;">
+            <h2 style="margin-top:0;">Vs promedio eki</h2>
+            {% with c=data.comparativa_eki %}
+            <div class="ret-compare">
+                <div class="ret-compare__box">
+                    <div class="muted" style="font-size:12px;">{{ c.etiqueta_tu }}</div>
+                    <div class="ret-compare__n">{{ c.tu_pct }}%</div>
+                    <div class="muted" style="font-size:12px;">certificación</div>
+                </div>
+                <div class="ret-compare__box ret-compare__box--eki">
+                    <div class="muted" style="font-size:12px;">Promedio eki</div>
+                    <div class="ret-compare__n">{% if c.eki_pct != None %}{{ c.eki_pct }}%{% else %}—{% endif %}</div>
+                    <div class="muted" style="font-size:12px;">{% if c.disponible %}anonimizado plataforma{% else %}sin muestra aún{% endif %}</div>
+                </div>
+            </div>
+            {% endwith %}
+        </section>
+    </div>
+</div>
+
+<div class="ret-two" style="margin-bottom:24px;">
+    <section class="panel" style="margin:0;">
+        <h2 style="margin-top:0;">Cohortes (por mes de inscripción)</h2>
+        {% if data.cohortes.insight %}
+        <p class="ret-alert-modulo" style="margin-bottom:16px;">{{ data.cohortes.insight }}</p>
+        {% endif %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Mes</th>
+                        <th>Inscritos</th>
+                        <th>Completados</th>
+                        <th>Tasa fin.</th>
+                        <th>Deserción*</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in data.cohortes.meses %}
+                    <tr>
+                        <td>{{ m.etiqueta }}</td>
+                        <td>{{ m.inscritos }}</td>
+                        <td>{{ m.completados }}</td>
+                        <td>{{ m.tasa_completado_pct }}%</td>
+                        <td>{{ m.tasa_desercion_pct }}%</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="muted">Sin cohortes en el rango.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="muted" style="font-size:12px;margin-bottom:0;">*Inactivos ≥14 días sin completar, sobre inscritos del mes.</p>
+    </section>
+
+    <section class="panel ret-wa" style="margin:0;">
+        <h2 style="margin-top:0;">WhatsApp Health</h2>
+        {% with w=data.whatsapp_health %}
+        <dl>
+            <dt>Hora favorita</dt>
+            <dd>{{ w.hora_favorita_programa|default:"—" }}</dd>
+            <dt>Días favoritos</dt>
+            <dd>{% if w.dias_favoritos_programa %}{{ w.dias_favoritos_programa|join:", " }}{% else %}—{% endif %}</dd>
+            <dt>Resp. promedio</dt>
+            <dd>{% if w.tiempo_promedio_respuesta_h != None %}{{ w.tiempo_promedio_respuesta_h }} h{% else %}—{% endif %}</dd>
+            <dt>Último msg (mediana)</dt>
+            <dd>{% if w.mediana_dias_ultimo_mensaje != None %}hace {{ w.mediana_dias_ultimo_mensaje }} d{% else %}—{% endif %}</dd>
+        </dl>
+        {% if w.muestras_alto_riesgo %}
+        <h3 style="font-size:0.95rem;margin-top:18px;">Alto riesgo · horario</h3>
+        {% for m in w.muestras_alto_riesgo %}
+        <p style="font-size:13px;margin:8px 0;">
+            <strong>{{ m.nombre }}</strong>
+            · último {% if m.dias_ultimo_mensaje != None %}hace {{ m.dias_ultimo_mensaje }} d{% else %}sin msg{% endif %}
+            {% if m.hora_favorita %} · suele {{ m.hora_favorita }}{% endif %}
+            {% if m.dias_favoritos %} · {{ m.dias_favoritos|join:", " }}{% endif %}
+        </p>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+    </section>
+</div>
+
+<section class="panel" style="margin-bottom:24px;">
+    <h2 style="margin-top:0;">Automatizaciones inteligentes</h2>
+    <p class="muted">Reglas sugeridas a partir del riesgo (ejecución automática = siguiente iteración; hoy orientan la campaña).</p>
+    <div class="ret-auto">
+        {% for a in data.automatizaciones %}
+        <div class="ret-auto__card">
+            <div><strong>Si</strong> {{ a.si }}</div>
+            <div class="ret-auto__arrow">→</div>
+            <div><strong>Entonces</strong> {{ a.entonces }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="panel">
+    <h2 style="margin-top:0;">Embudo clásico (onboarding → módulos → certificado)</h2>
+    {% if data.requiere_curso_para_modulos %}
+    <p class="muted">Seleccione un curso para ver módulos M1…Mn.</p>
     {% elif data.curso %}
-    <p class="muted" style="margin-bottom:16px;">Curso: <strong>{{ data.curso.nombre }}</strong></p>
+    <p class="muted">Curso: <strong>{{ data.curso.nombre }}</strong></p>
     {% endif %}
     <ul class="ret-funnel">
         {% for paso in data.embudo %}
@@ -212,13 +569,12 @@ html[data-theme="dark"] .ret-funnel__bar {
             {% if not forloop.first and paso.pct_desde_anterior != None %}
             <div class="ret-funnel__drop">
                 {% if paso.pct_desde_anterior >= 80 %}
-                <span class="ret-funnel__chip ret-funnel__chip--keep"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>{{ paso.pct_desde_anterior }}% continúan</span>
+                <span class="ret-funnel__chip ret-funnel__chip--keep">{{ paso.pct_desde_anterior }}% continúan</span>
                 {% elif paso.pct_desde_anterior >= 50 %}
-                <span class="ret-funnel__chip ret-funnel__chip--warn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg>{{ paso.pct_desde_anterior }}% continúan</span>
+                <span class="ret-funnel__chip ret-funnel__chip--warn">{{ paso.pct_desde_anterior }}% continúan</span>
                 {% else %}
-                <span class="ret-funnel__chip ret-funnel__chip--drop"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg>solo {{ paso.pct_desde_anterior }}% continúan</span>
+                <span class="ret-funnel__chip ret-funnel__chip--drop">solo {{ paso.pct_desde_anterior }}%</span>
                 {% endif %}
-                <span>desde el paso anterior</span>
             </div>
             {% endif %}
             <div class="ret-funnel__head">
@@ -226,39 +582,85 @@ html[data-theme="dark"] .ret-funnel__bar {
                     {{ paso.etiqueta }}
                     {% if paso.titulo %}<small>{{ paso.titulo }}</small>{% endif %}
                 </span>
-                <span class="ret-funnel__count">{{ paso.cantidad }} <span>· {{ paso.pct_del_total }}% del total</span></span>
+                <span class="ret-funnel__count">{{ paso.cantidad }} <span>· {{ paso.pct_del_total }}%</span></span>
             </div>
             <div class="ret-funnel__track">
                 <div class="ret-funnel__bar" data-width="{{ paso.pct_del_total }}">{{ paso.pct_del_total }}%</div>
             </div>
         </li>
         {% empty %}
-        <li class="muted">Sin inscripciones para los filtros seleccionados.</li>
+        <li class="muted">Sin inscripciones.</li>
         {% endfor %}
     </ul>
-</section>
-
-<section class="panel" style="margin-top:24px;border-left:4px solid var(--accent);">
-    <h2 style="margin-top:0;">Próximas fases (roadmap)</h2>
-    <p class="muted" style="margin-bottom:0;">
-        Fase 2: score de riesgo por estudiante · Fase 3: automatizaciones de reactivación ·
-        Fase 4: mensajes personalizados con IA · Fase 7: alertas para coordinadores en este panel.
-    </p>
 </section>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 (function () {
-    var bars = document.querySelectorAll('.ret-funnel__bar[data-width]');
-    // Animación escalonada: cada barra crece un instante después de la anterior.
-    bars.forEach(function (bar, i) {
-        var w = parseFloat(bar.getAttribute('data-width') || '0');
-        // Ocultamos el texto si la barra es muy angosta para que no se corte.
-        if (w < 12) { bar.style.color = 'transparent'; }
-        window.setTimeout(function () {
-            bar.style.width = w + '%';
-        }, 120 + i * 130);
+    function animateBars(sel) {
+        document.querySelectorAll(sel).forEach(function (bar, i) {
+            var w = parseFloat(bar.getAttribute('data-width') || '0');
+            if (w < 12 && bar.classList.contains('ret-funnel__bar')) bar.style.color = 'transparent';
+            window.setTimeout(function () { bar.style.width = w + '%'; }, 80 + i * 90);
+        });
+    }
+    animateBars('.ret-funnel__bar[data-width]');
+    animateBars('.ret-map-row__bar[data-width]');
+
+    var log = document.getElementById('ret-agent-log');
+    var form = document.getElementById('ret-agent-form');
+    var input = document.getElementById('ret-agent-input');
+    var csrf = form ? form.querySelector('[name=csrfmiddlewaretoken]') : null;
+
+    function addMsg(text, who) {
+        if (!log) return;
+        var d = document.createElement('div');
+        d.className = 'ret-agent__msg ret-agent__msg--' + who;
+        d.textContent = text;
+        log.appendChild(d);
+        log.scrollTop = log.scrollHeight;
+    }
+
+    function ask(pregunta) {
+        if (!pregunta) return;
+        addMsg(pregunta, 'user');
+        if (input) input.value = '';
+        addMsg('Analizando…', 'bot');
+        var pending = log.lastChild;
+        fetch('/portal/retencion/agente/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrf ? csrf.value : ''
+            },
+            body: JSON.stringify({
+                pregunta: pregunta,
+                curso: (document.getElementById('ret-filtro-curso') || {}).value || '',
+                grupo: (document.getElementById('ret-filtro-grupo') || {}).value || '',
+                desde: (document.getElementById('ret-filtro-desde') || {}).value || '',
+                hasta: (document.getElementById('ret-filtro-hasta') || {}).value || ''
+            })
+        }).then(function (r) { return r.json(); }).then(function (data) {
+            if (pending) pending.remove();
+            var txt = data.respuesta || data.error || 'Sin respuesta.';
+            if (data.fuente === 'reglas') txt += '\n\n(Fuente: reglas con datos del programa; configure OPENAI_API_KEY para IA generativa.)';
+            else if (data.fuente === 'ia') txt += '\n\n(Fuente: consultor IA de retención.)';
+            addMsg(txt, 'bot');
+        }).catch(function () {
+            if (pending) pending.remove();
+            addMsg('No se pudo consultar el agente. Intente de nuevo.', 'bot');
+        });
+    }
+
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            ask((input && input.value || '').trim());
+        });
+    }
+    document.querySelectorAll('.ret-agent__chip').forEach(function (btn) {
+        btn.addEventListener('click', function () { ask(btn.getAttribute('data-q')); });
     });
 })();
 </script>

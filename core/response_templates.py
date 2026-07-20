@@ -1132,6 +1132,27 @@ Te inscribiste en: *{curso.nombre}*
         # ═══════════════════════════════════════════════════════════════
         
         estudiante = Estudiante.objects.get(id=estudiante_id)
+
+        try:
+            from core.models import EstudianteEventoAprendizaje
+            from core.telemetria import marcar_recordatorio_respondido, registrar_evento
+
+            prog0 = (
+                ProgresoEstudiante.objects.filter(estudiante=estudiante, completado=False)
+                .select_related('curso', 'modulo_actual')
+                .first()
+            )
+            registrar_evento(
+                tipo=EstudianteEventoAprendizaje.TIPO_LISTO_RECIBIDO,
+                estudiante=estudiante,
+                curso=prog0.curso if prog0 else None,
+                modulo=prog0.modulo_actual if prog0 else None,
+                paso=getattr(prog0, 'paso_evaluacion_paso', None) if prog0 else None,
+                metadata={'origen': 'continuar_leccion'},
+            )
+            marcar_recordatorio_respondido(estudiante)
+        except Exception:
+            pass
         
         mensaje_original = kwargs.get('mensaje_original', '').lower()
         

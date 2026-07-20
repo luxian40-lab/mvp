@@ -835,7 +835,7 @@ Tras inscripción en Studio, redirección o enlace a **Mis cursos** en el aula. 
 - **Nat** (`/portal/nat/`): sesiones comerciales, catálogo de productos, escalamientos HITL — si el cliente tiene producto `nat`.
 - **Empleabilidad:** mapas y métricas (`portal/empleabilidad_metricas.py`).
 - **Certificados:** estado de envíos.
-- **Retención** (`/portal/retencion/`): embudo animado, chips de continuidad, activos/inactivos, módulo con mayor abandono — Fase 1 anti-deserción.
+- **Retención / Centro de Éxito** (`/portal/retencion/`): score de riesgo 🟢🟡🔴, predicción de terminar, mapa de abandono, embudo vivo, curva, cohortes, WhatsApp Health, vs promedio eki, recomendaciones y consultor de retención (aparte de Nat).
 - **Gamificación:** ranking y métricas de puntos/notas.
 - **Perfil organización:** branding (`portal/branding.py`).
 - **Guía EKI:** FAB + panel de ayuda por ruta (partials `help_assistant_script.html`).
@@ -1012,11 +1012,15 @@ Módulo de recolección de datos de finca y balance GEI. Resumen conceptual en [
 
 ---
 
-## 15. Retención y anti-deserción (portal)
+## 15. Retención y Centro de Éxito del Programa
 
-**Fase 1 del roadmap** — medir antes de intervenir. Panel B2B en `/portal/retencion/` (menú **Analítica → Retención**). Requiere módulo `cursos` en `portal_productos`.
+**Panel B2B** `/portal/retencion/` (menú **Analítica → Retención**). Requiere módulo `cursos` en `portal_productos`.
 
-### 15.1 KPIs
+Objetivo de producto: ayudar al coordinador a responder tres preguntas — ¿quién está en riesgo?, ¿por qué abandona?, ¿qué hacer hoy? — no solo medir inscritos/completados.
+
+> **Nat es otro agente.** El consultor de retención del Portal es independiente del bot comercial/agro Nat.
+
+### 15.1 KPIs clásicos
 
 | Indicador | Definición |
 |-----------|------------|
@@ -1030,20 +1034,68 @@ Módulo de recolección de datos de finca y balance GEI. Resumen conceptual en [
 
 La inscripción sola (`fecha_inicio`) **no** cuenta como actividad.
 
-### 15.2 Embudo
+### 15.2 Score de riesgo y predicción
 
-Pasos: Inscritos → Aceptaron datos → Comenzaron → Módulo 1…N → Certificados. El detalle por módulo requiere **filtro de curso**.
+Cada estudiante en curso recibe un **score 0–100** y semáforo:
 
-### 15.3 Implementación
+| Nivel | Score | Uso |
+|-------|-------|-----|
+| 🟢 Bajo | &lt; 35 | Ritmo OK |
+| 🟡 Medio | 35–64 | Vigilar |
+| 🔴 Alto | ≥ 65 | Contactar hoy |
 
-- Servicio: `portal/retencion_service.py` → `analitica_retencion_portal()`
-- Portal: `/portal/retencion/` · Admin: `/admin/retencion/` (misma lógica, filtro por cliente)
-- Vista portal: `portal/views.py` → `portal_retencion`
-- Vista admin: `core/views_retencion_admin.py`
+Señales (heurística v1): días sin actividad, no abrió módulo, % completado vs promedio del grupo, recordatorios WhatsApp sin respuesta (~72 h), edad 50+ con pausa, módulo donde se detuvo. Completados → riesgo bajo.
+
+**Probabilidad de terminar** = estimación derivada del score y el avance (no modelo ML aún).
+
+### 15.3 Explicación + recomendaciones + agente
+
+- Por persona en riesgo alto: viñetas *por qué* + recomendación (audio / reenganche / etc.).
+- Bloque **Recomendaciones** del programa (módulo pico de abandono, curva, cohortes, vs promedio eki).
+- **Consultor de retención** en el mismo panel: `POST /portal/retencion/agente/` — usa OpenAI si hay `OPENAI_API_KEY`, si no responde con reglas sobre el mismo JSON analítico.
+
+### 15.4 Mapa, embudo vivo, curva, cohortes, WhatsApp Health, comparativa
+
+| Pieza | Qué muestra |
+|-------|-------------|
+| Mapa de abandono | Por módulo: completaron / desertan hacia el siguiente |
+| Embudo vivo | Inscritos → entraron hoy → leyeron → interactuaron → listo → evaluación → continuaron → finalizaron |
+| Embudo clásico | Onboarding → módulos → certificados |
+| Curva | % retenidos días 1 / 5 / 10 / 15 / 30 |
+| Cohortes | Por mes de inscripción: tasa fin. y deserción + insight |
+| Vs promedio eki | % certificación del filtro vs promedio anonimizado plataforma |
+| WhatsApp Health | Hora/días favoritos, tiempo respuesta, muestras alto riesgo |
+| Automatizaciones | Reglas *si → entonces* sugeridas (ejecución auto = siguiente fase) |
+
+### 15.5 Implementación
+
+- `portal/retencion_service.py` → `analitica_retencion_portal()`
+- `portal/centro_exito.py` → score, mapa, curva, cohortes, WA health, recomendaciones
+- `portal/agente_retencion.py` → consultor (IA o reglas)
+- Portal: `/portal/retencion/` · agente: `/portal/retencion/agente/`
 - Plantilla: `portal/templates/portal/retencion.html`
 - Tests: `portal/tests_retencion.py`
 
-Fases 2–8 (score de riesgo, drip, IA, gamificación, predictor, panel coordinadores, A/B) están planificadas en la UI como próximas iteraciones.
+Pendiente de producto: ejecutar automatizaciones (Twilio) según reglas; ML de predicción.
+
+### 15.6 Telemetría de aprendizaje
+
+Modelo `EstudianteEventoAprendizaje` + `core/telemetria.registrar_evento()`.
+
+| Evento | Cuándo se escribe |
+|--------|-------------------|
+| `contenido_enviado` | Entrega de bloque/paso (`module_steps.entregar_bloque…`) |
+| `listo_recibido` | Intent `continuar_leccion` (anti-dup OK) |
+| `evaluacion_respondida` | Eval de paso OK / mini-examen módulo |
+| `modulo_iniciado` | Primer bloque del módulo (idx=1) |
+| `modulo_completado` | Signal `post_save` de `ModuloCompletado` (created) |
+| `recordatorio_enviado` | Celery `reenganche_drip_content_diario` |
+| `recordatorio_respondido` | Tras un `listo` si había recordatorio reciente |
+| `media_entregada` / `media_fallida` | Callback status Twilio |
+
+El panel usa telemetría para **mapa por paso/media** y para **recordatorios ignorados** (con fallback a heurística WhatsApp).
+
+Archivos: `core/telemetria.py`, `core/signals_telemetria.py`, migración `0122_estudiante_evento_aprendizaje`.
 
 ---
 
@@ -1357,7 +1409,7 @@ python manage.py test aprende.tests studio.tests core.tests_flujo_whatsapp_b2b c
 | Portal **Inicio** operativo | Narrativa coordinador, atención del día, sin ruido de ranking/WA en home | Desplegado |
 | Portal dark mode + acentos eki | Contrastes legibles; verde/azul ~10 % en stats/estados/charts | Desplegado |
 | Guía EKI | Ayuda contextual; icono cuaderno Aprende | Desplegado |
-| Retención embudo UI | Barras animadas + chips de continuidad | Desplegado |
+| Centro de Éxito (retención) | Score riesgo, mapa, agente, curva, cohortes | Desplegado (heurística v1) |
 | Ranking SVG (aula + docente) | Podio con bloques + trofeo/medalla vectorial | Desplegado |
 | Favicons de marca | Portal personas / Aprende cuaderno | Desplegado |
 | Asistencia Excel docente | Descarga openpyxl desde aula profesor | Desplegado |
@@ -1461,7 +1513,8 @@ Eso cierra el gap entre “arquitectura sana” y “podemos firmar un anexo de 
 | Aula ranking | `aprende/ranking_service.py` |
 | Aula contenido | `aprende/contenido_modulo_service.py`, `media_viewer.html` |
 | eki Studio | `studio/views.py`, `studio/catalogo_service.py`, `studio/urls.py` |
-| Portal | `portal/views.py`, `portal/capabilities.py`, `portal/dashboard_ops.py`, `portal/retencion_service.py` |
+| Portal | `portal/views.py`, `portal/capabilities.py`, `portal/dashboard_ops.py`, `portal/retencion_service.py`, `portal/centro_exito.py`, `portal/agente_retencion.py` |
+| Telemetría aprendizaje | `core/telemetria.py`, `core/signals_telemetria.py`, modelo `EstudianteEventoAprendizaje` |
 | Certificados | `core/certificado_service.py` |
 | Deploy | `scripts/eb_deploy_main.ps1`, `Procfile` |
 | Ranking aula SVG | `aprende/partials/ranking_podium.html`, `ranking_icons.svg.html` |

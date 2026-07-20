@@ -22,3 +22,6 @@ class CoreConfig(AppConfig):
         # Base de conocimientos para IAs
         import core.signals_conocimientos  # Actualiza conocimientos cuando se modifican cursos
 
+        # Telemetría Centro de Éxito (eventos de aprendizaje)
+        import core.signals_telemetria
+

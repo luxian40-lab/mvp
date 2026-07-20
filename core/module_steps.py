@@ -738,6 +738,40 @@ def entregar_bloque_secciones_desde_paso(
             n,
             sorted({p.seccion_id for p in batch_orig if p.seccion_id}),
         )
+
+    # Telemetría Centro de Éxito (no debe romper la entrega).
+    try:
+        from core.models import EstudianteEventoAprendizaje
+        from core.telemetria import registrar_evento
+
+        est = progreso.estudiante
+        if idx == 1:
+            registrar_evento(
+                tipo=EstudianteEventoAprendizaje.TIPO_MODULO_INICIADO,
+                estudiante=est,
+                curso=curso,
+                modulo=modulo,
+                metadata={'idx': 1},
+            )
+        for paso in batch_orig:
+            media = (paso.media_url or '').strip()
+            registrar_evento(
+                tipo=EstudianteEventoAprendizaje.TIPO_CONTENIDO_ENVIADO,
+                estudiante=est,
+                curso=curso,
+                modulo=modulo,
+                paso=paso,
+                seccion=paso.seccion if paso.seccion_id else None,
+                metadata={
+                    'paso_tipo': paso.tipo,
+                    'paso_orden': paso.orden,
+                    'tiene_media': bool(media),
+                    'media_url': media[:500] if media else '',
+                },
+            )
+    except Exception as exc:
+        logger.warning('telemetria entregar_bloque: %s', exc)
+
     return unir_multimsg(partes)
 
 
@@ -1040,6 +1074,25 @@ def procesar_respuesta_evaluacion_paso(
         progreso.paso_actual_modulo,
         n,
     )
+
+    try:
+        from core.models import EstudianteEventoAprendizaje
+        from core.telemetria import registrar_evento
+
+        registrar_evento(
+            tipo=EstudianteEventoAprendizaje.TIPO_EVALUACION_RESPONDIDA,
+            estudiante=estudiante,
+            curso=progreso.curso,
+            modulo=modulo,
+            paso=paso,
+            metadata={
+                'acierto': True,
+                'paso_tipo': paso.tipo,
+                'letra': letra_in_eval or '',
+            },
+        )
+    except Exception as exc:
+        logger.warning('telemetria eval correcta: %s', exc)
 
     return _respuesta_cola_tras_avanzar_eval_opc(
         estudiante, progreso, paso, n, es_acierto=True, head_override=head_facilitadora,
