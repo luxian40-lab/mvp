@@ -7,29 +7,63 @@
     <aside class="eki-login-visual" aria-hidden="false">
         <div class="eki-login-visual__media eki-login-visual__media--docente" role="img" aria-label="Docente en aula"></div>
         <div class="eki-login-visual__shade"></div>
+        <div class="eki-login-visual__logo">
+            <span class="eki-brand-word">aprende</span>
+            <span>by eki</span>
+        </div>
+        <div class="eki-login-badges">
+            <span class="eki-login-badge eki-login-badge--green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M4 12.5l4.5 4.5L20 5.5"/></svg> Entregas al día</span>
+            <span class="eki-login-badge eki-login-badge--blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 16l4.5-5 4 3L19 7"/><path d="M14.5 7H19v4.5"/></svg> Ranking del grupo</span>
+        </div>
         <h2>Espacio docente</h2>
         <p>Publica lecciones, revisa entregas y acompaña a tu grupo con las credenciales del portal.</p>
     </aside>
     <div class="eki-login-form">
-        <h1>Ingreso docente</h1>
-        <p class="eki-muted">Usuario y contraseña del portal (Administrador o Profesor).</p>
-        {% if error %}<div class="eki-alert eki-alert--error" role="alert">{{ error }}</div>{% endif %}
-        <form method="post">
-            {% csrf_token %}
-            <div class="eki-field">
-                <label for="username">Usuario</label>
-                <input type="text" name="username" id="username" required autocomplete="username">
-            </div>
-            <div class="eki-field">
-                <label for="password">Contraseña</label>
-                <input type="password" name="password" id="password" required autocomplete="current-password">
-            </div>
-            <button type="submit" class="eki-btn eki-btn--primary" style="width:100%;justify-content:center;">Continuar de forma segura</button>
-        </form>
-        <p class="eki-muted" style="margin-top:1.25rem;font-size:0.85rem;">
-            Mismas credenciales que el <a href="/portal/login/">portal B2B</a>.
-            · <a href="{% url 'aprende_estudiante_login' %}">Soy estudiante</a>
-        </p>
+        <div class="eki-login-card">
+            <h1>Ingreso docente</h1>
+            <p class="eki-muted">Usuario y contraseña del portal (Administrador o Profesor).</p>
+
+            {% if error %}<div class="eki-alert eki-alert--error" role="alert">{{ error }}</div>{% endif %}
+
+            <form method="post">
+                {% csrf_token %}
+                <div class="eki-field">
+                    <label for="username">Usuario</label>
+                    <div class="eki-field-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <input type="text" name="username" id="username" required autocomplete="username">
+                    </div>
+                </div>
+                <div class="eki-field">
+                    <label for="password">Contraseña</label>
+                    <div class="eki-field-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        <input type="password" name="password" id="password" required autocomplete="current-password">
+                        <button type="button" class="eki-toggle-pass" id="toggle-pass" aria-label="Mostrar contraseña" title="Mostrar u ocultar">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <button type="submit" class="eki-btn eki-btn--primary">Continuar de forma segura</button>
+            </form>
+
+            <p class="eki-login-card__footer">
+                Mismas credenciales que el <a href="/portal/login/">portal B2B</a> · <a href="{% url 'aprende_estudiante_login' %}">Soy estudiante</a>
+            </p>
+        </div>
     </div>
 </div>
+<script>
+(function () {
+    var pass = document.getElementById('password');
+    var toggle = document.getElementById('toggle-pass');
+    if (toggle && pass) {
+        toggle.addEventListener('click', function () {
+            var show = pass.type === 'password';
+            pass.type = show ? 'text' : 'password';
+            toggle.setAttribute('aria-label', show ? 'Ocultar contraseña' : 'Mostrar contraseña');
+        });
+    }
+})();
+</script>
 {% endblock %}

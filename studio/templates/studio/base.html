@@ -527,6 +527,232 @@
             margin: 1.5rem auto 2rem;
         }
 
+        /* —— Dedicated login/registro screen (split, matches Portal/Aprende entrance) —— */
+        .st-login-screen {
+            display: grid;
+            grid-template-columns: minmax(0, 1.25fr) minmax(320px, 460px);
+            min-height: calc(100vh - var(--header-h));
+            margin: calc(-2rem) calc(-1.35rem) -4rem;
+            background: var(--st-bg);
+            animation: st-rise 0.55s var(--ease) both;
+        }
+
+        .st-main--flush .st-login-screen { margin: 0; }
+
+        .st-login-visual {
+            position: relative;
+            overflow: hidden;
+            isolation: isolate;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: clamp(1.75rem, 4vw, 3rem);
+        }
+
+        .st-login-visual__media {
+            position: absolute;
+            inset: 0;
+            z-index: -2;
+            background:
+                url("https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1600&q=80")
+                center / cover no-repeat;
+            animation: st-ken 18s var(--ease) both;
+        }
+
+        .st-login-visual__shade {
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            background:
+                linear-gradient(115deg, rgba(20, 17, 15, 0.9) 0%, rgba(42, 31, 51, 0.6) 50%, rgba(122, 78, 142, 0.32) 100%),
+                linear-gradient(0deg, rgba(20, 17, 15, 0.8) 0%, transparent 50%);
+        }
+
+        .st-login-visual__logo {
+            position: relative;
+            z-index: 1;
+            margin: 0 0 auto;
+            font-family: var(--font-display);
+            font-size: 1.2rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            text-transform: lowercase;
+        }
+
+        .st-login-visual__logo em { font-style: normal; color: #cbb8d8; }
+
+        .st-login-badges {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+            margin: 0 0 1.15rem;
+        }
+
+        .st-login-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.4rem 0.7rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            font-size: 0.74rem;
+            font-weight: 600;
+            color: #fff;
+            backdrop-filter: blur(6px);
+        }
+
+        .st-login-badge svg { width: 14px; height: 14px; flex-shrink: 0; }
+        .st-login-badge--green svg { color: #6fdc8a; }
+        .st-login-badge--blue svg { color: #7fb8f2; }
+
+        .st-login-visual h2 {
+            position: relative;
+            z-index: 1;
+            font-family: var(--font-display);
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            line-height: 1.2;
+            color: #fff;
+            margin: 0 0 0.5rem;
+            max-width: 18ch;
+        }
+
+        .st-login-visual p {
+            position: relative;
+            z-index: 1;
+            margin: 0;
+            color: rgba(255, 255, 255, 0.82);
+            max-width: 30ch;
+            font-size: 0.95rem;
+            line-height: 1.55;
+        }
+
+        .st-login-form-col {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: clamp(1.5rem, 4vw, 2.5rem);
+            background:
+                radial-gradient(ellipse 70% 55% at 100% 0%, rgba(154, 108, 172, 0.14), transparent 55%),
+                var(--st-bg);
+        }
+
+        .st-login-card {
+            width: 100%;
+            max-width: 400px;
+            background: linear-gradient(165deg, #423650 0%, #2a1f33 48%, #16111c 100%);
+            border-radius: var(--st-radius);
+            border-radius: 20px;
+            box-shadow: 0 32px 64px -18px rgba(20, 17, 15, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+            color: #fff;
+            padding: 2.1rem 1.85rem 1.7rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .st-login-card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 80% 50% at 85% -10%, rgba(154, 108, 172, 0.38), transparent 55%),
+                radial-gradient(ellipse 60% 40% at 5% 100%, rgba(255, 255, 255, 0.05), transparent 50%);
+            pointer-events: none;
+        }
+
+        .st-login-card > * { position: relative; z-index: 1; }
+
+        .st-login-card h1 {
+            font-family: var(--font-display);
+            font-size: clamp(1.35rem, 2.3vw, 1.6rem);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            margin: 0 0 0.35rem;
+            color: #fff;
+        }
+
+        .st-login-card .st-muted {
+            margin-bottom: 1.5rem;
+            color: rgba(255, 255, 255, 0.72);
+            display: block;
+        }
+
+        .st-login-card .st-field label { color: rgba(255, 255, 255, 0.65); }
+
+        .st-field-icon {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            background: #fff;
+            border-radius: 12px;
+            padding: 0 0.85rem;
+            min-height: 46px;
+            border: 1px solid transparent;
+            transition: box-shadow 0.15s, border-color 0.15s;
+        }
+
+        .st-field-icon:focus-within {
+            border-color: var(--st-accent);
+            box-shadow: 0 0 0 3px var(--st-accent-soft);
+        }
+
+        .st-field-icon svg { width: 17px; height: 17px; color: #8b7a97; flex-shrink: 0; }
+
+        .st-field-icon input {
+            flex: 1;
+            border: 0;
+            outline: none;
+            background: transparent;
+            font: inherit;
+            font-size: 0.92rem;
+            color: var(--st-ink);
+            padding: 0.68rem 0;
+            min-width: 0;
+        }
+
+        .st-field-icon input::placeholder { color: #a89bb5; }
+
+        .st-toggle-pass {
+            border: 0;
+            background: transparent;
+            padding: 4px;
+            cursor: pointer;
+            color: #8b7a97;
+            display: grid;
+            place-items: center;
+        }
+
+        .st-toggle-pass:hover { color: var(--st-accent-deep); }
+        .st-toggle-pass svg { width: 17px; height: 17px; }
+
+        .st-login-card .st-btn--primary {
+            min-height: 46px;
+            border-radius: 12px;
+            box-shadow: 0 10px 24px rgba(15, 11, 18, 0.35);
+        }
+
+        .st-login-card__footer {
+            margin-top: 1.25rem;
+            padding-top: 1.1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
+            font-size: 0.78rem;
+            color: rgba(255, 255, 255, 0.6);
+            text-align: center;
+        }
+
+        .st-login-card__footer a { color: #cbb8d8; font-weight: 600; text-decoration: none; }
+        .st-login-card__footer a:hover { color: #fff; }
+
+        @media (max-width: 840px) {
+            .st-login-screen { grid-template-columns: 1fr; min-height: auto; }
+            .st-login-visual { min-height: 26vh; min-height: 26dvh; }
+        }
+
         .st-alert {
             padding: 0.75rem 1rem;
             border-radius: var(--st-radius);
@@ -719,6 +945,9 @@
                 max-width: none;
                 margin: 0.75rem 0 1.5rem;
             }
+
+            .st-login-card { max-width: none; padding: 1.6rem 1.35rem 1.4rem; }
+            .st-login-form-col { padding: 1.35rem 1.1rem 2rem; }
 
             .st-footer {
                 padding: 1.5rem max(1rem, env(safe-area-inset-right)) calc(1.5rem + env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));

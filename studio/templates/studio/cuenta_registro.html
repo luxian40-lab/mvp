@@ -1,30 +1,67 @@
 {% extends "studio/base.html" %}
 {% block title %}Crear cuenta | eki Studio{% endblock %}
+{% block main_class %} st-main--flush{% endblock %}
 {% block content %}
-<div class="st-login-wrap">
-    <div class="st-panel">
-        <h1 style="font-family:var(--font-display);font-size:1.65rem;letter-spacing:-0.03em;margin:0 0 0.35rem;">Únete a Studio</h1>
-        <p class="st-muted" style="margin-bottom:1.25rem;">Correo y contraseña. Estudia en Aprende con la misma cuenta.</p>
-        {% if error %}<div class="st-alert st-alert--error">{{ error }}</div>{% endif %}
-        <form method="post">
-            {% csrf_token %}
-            <div class="st-field">
-                <label for="nombre">Nombre completo</label>
-                <input id="nombre" name="nombre" type="text" required autocomplete="name">
-            </div>
-            <div class="st-field">
-                <label for="email">Correo electrónico</label>
-                <input id="email" name="email" type="email" required autocomplete="email">
-            </div>
-            <div class="st-field">
-                <label for="password">Contraseña (mín. 8 caracteres)</label>
-                <input id="password" name="password" type="password" required minlength="8" autocomplete="new-password">
-            </div>
-            <button type="submit" class="st-btn st-btn--primary st-btn--block">Crear cuenta</button>
-        </form>
-        <p class="st-muted" style="margin-top:1rem;text-align:center;">
-            ¿Ya tienes cuenta? <a href="{% url 'studio_cuenta_login' %}" style="color:var(--st-ink);font-weight:700;">Ingresar</a>
-        </p>
+<div class="st-login-screen">
+    <aside class="st-login-visual" aria-hidden="false">
+        <div class="st-login-visual__media"></div>
+        <div class="st-login-visual__shade"></div>
+        <p class="st-login-visual__logo">eki <em>studio</em></p>
+        <div class="st-login-badges">
+            <span class="st-login-badge st-login-badge--green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M4 12.5l4.5 4.5L20 5.5"/></svg> Registro gratis</span>
+            <span class="st-login-badge st-login-badge--blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l7.5 3.8-7.5 3.8-7.5-3.8L12 3z"/><path d="M6 8.7v4.2c0 1.3 2.1 2.6 6 2.6s6-1.3 6-2.6V8.7"/></svg> Cuenta única</span>
+        </div>
+        <h2>Únete al catálogo eki Studio</h2>
+        <p>Crea tu cuenta y explora cursos. La misma cuenta te sirve para estudiar en Aprende.</p>
+    </aside>
+    <div class="st-login-form-col">
+        <div class="st-login-card">
+            <h1>Únete a Studio</h1>
+            <span class="st-muted">Correo y contraseña. Estudia en Aprende con la misma cuenta.</span>
+            {% if error %}<div class="st-alert st-alert--error">{{ error }}</div>{% endif %}
+            <form method="post">
+                {% csrf_token %}
+                <div class="st-field">
+                    <label for="nombre">Nombre completo</label>
+                    <div class="st-field-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <input id="nombre" name="nombre" type="text" required autocomplete="name">
+                    </div>
+                </div>
+                <div class="st-field">
+                    <label for="email">Correo electrónico</label>
+                    <div class="st-field-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 6.5l8 6 8-6"/></svg>
+                        <input id="email" name="email" type="email" required autocomplete="email">
+                    </div>
+                </div>
+                <div class="st-field">
+                    <label for="password">Contraseña (mín. 8 caracteres)</label>
+                    <div class="st-field-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        <input id="password" name="password" type="password" required minlength="8" autocomplete="new-password">
+                        <button type="button" class="st-toggle-pass" id="toggle-pass" aria-label="Mostrar contraseña" title="Mostrar u ocultar">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <button type="submit" class="st-btn st-btn--primary st-btn--block">Crear cuenta</button>
+            </form>
+            <p class="st-login-card__footer">¿Ya tienes cuenta? <a href="{% url 'studio_cuenta_login' %}">Ingresar</a></p>
+        </div>
     </div>
 </div>
+<script>
+(function () {
+    var pass = document.getElementById('password');
+    var toggle = document.getElementById('toggle-pass');
+    if (toggle && pass) {
+        toggle.addEventListener('click', function () {
+            var show = pass.type === 'password';
+            pass.type = show ? 'text' : 'password';
+            toggle.setAttribute('aria-label', show ? 'Ocultar contraseña' : 'Mostrar contraseña');
+        });
+    }
+})();
+</script>
 {% endblock %}
