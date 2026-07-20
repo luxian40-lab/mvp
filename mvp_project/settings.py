@@ -654,6 +654,18 @@ try:
     BOT_COMERCIAL_OPENAI_MAX_TOKENS = int(os.environ.get('BOT_COMERCIAL_OPENAI_MAX_TOKENS', '650'))
 except (TypeError, ValueError):
     BOT_COMERCIAL_OPENAI_MAX_TOKENS = 650
+# Nat + Open-Meteo: probabilidad climática por municipio (WhatsApp)
+NAT_OPEN_METEO_ENABLED = os.environ.get('NAT_OPEN_METEO_ENABLED', 'true').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
+try:
+    NAT_OPEN_METEO_TIMEOUT = float(os.environ.get('NAT_OPEN_METEO_TIMEOUT', '4'))
+except (TypeError, ValueError):
+    NAT_OPEN_METEO_TIMEOUT = 4.0
+try:
+    NAT_OPEN_METEO_CACHE_SECONDS = int(os.environ.get('NAT_OPEN_METEO_CACHE_SECONDS', '3600'))
+except (TypeError, ValueError):
+    NAT_OPEN_METEO_CACHE_SECONDS = 3600
 # Cuánto texto RAG inyectar al prompt del bot comercial (menor = menos latencia).
 try:
     BOT_COMERCIAL_RAG_TOP_K = int(os.environ.get('BOT_COMERCIAL_RAG_TOP_K', '9'))

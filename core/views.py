@@ -1964,6 +1964,17 @@ def _bot_comercial_respuesta_catalogo(
             f"CONTEXTO AGRONÓMICO DEL PRODUCTOR (estructurado):\n{bloque_agro}\n\n"
             if bloque_agro else ''
         )
+        try:
+            from core.clima_open_meteo import obtener_bloque_clima_para_nat
+
+            bloque_clima = obtener_bloque_clima_para_nat(
+                pregunta=pregunta,
+                ctx_agro=ctx_agro,
+            )
+            if bloque_clima:
+                bloque_ctx_prompt += f"{bloque_clima}\n\n"
+        except Exception:
+            logger.exception('Nat Open-Meteo: error al obtener clima')
         bloque_modo = armar_instruccion_modo(routing.modo, routing.escala_premium)
         bloque_consulta = (
             f"CONSULTA DEL PRODUCTOR:\n{pregunta}\n\n"

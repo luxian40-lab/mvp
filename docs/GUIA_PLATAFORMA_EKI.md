@@ -2,9 +2,10 @@
 
 Documento de referencia para el equipo de producto, operaciones, contenido y desarrollo. Explica **qué hace eki**, **cómo se conectan las piezas**, **cómo operar cada superficie** y **cómo configurar cursos** para WhatsApp y aula virtual.
 
-**Última actualización:** 30 junio 2026  
+**Última actualización:** 20 julio 2026  
 **Entorno producción:** AWS Elastic Beanstalk `eki-prod-final`  
-**Repositorio:** monolito Django (`mvp_project/`)
+**Repositorio:** monolito Django (`mvp_project/`)  
+**Lectura CTO:** el producto en prod ya no es solo “LMS + WhatsApp”; es un monolito operativo con portal B2B de coordinación, aula/Studio, gamificación, retención, GEI y Nat comercial (clima Open-Meteo en §24). La sección **25** cubre seguridad frente a inyecciones.
 
 **Documentos relacionados:**
 
@@ -43,7 +44,28 @@ Documento de referencia para el equipo de producto, operaciones, contenido y des
 20. [Guía operativa: probar antes de producción](#20-guía-operativa-probar-antes-de-producción)
 21. [Resolución de problemas frecuentes](#21-resolución-de-problemas-frecuentes)
 22. [Glosario](#22-glosario)
-23. [Historial de capacidades (junio 2026)](#23-historial-de-capacidades-junio-2026)
+23. [Historial de capacidades (julio 2026)](#23-historial-de-capacidades-julio-2026)
+24. [CTO — Clima Open-Meteo para Nat](#24-cto--clima-open-meteo-para-nat)
+25. [CTO — Seguridad frente a inyección de datos](#25-cto--seguridad-frente-a-inyección-de-datos)
+
+---
+
+## Estado del producto al 20 julio 2026 (resumen ejecutivo)
+
+Lo que un coordinador o un inversor debe entender **hoy**, sin leer todo el documento:
+
+| Superficie | Qué está vivo en producción |
+|------------|-----------------------------|
+| **WhatsApp** | Canal pedagógico principal: onboarding, *listo*, drip, evaluaciones, certificados, PQRS, campañas B2B sin menú 1-2-3. |
+| **Portal** (`app.eki.technology`) | Coordinación B2B: **Inicio** (antes “Dashboard”) con narrativa operativa, atención del día, retención/embudo, métricas, gamificación, branding, modo claro/oscuro, paleta eki (morado ~80 %, verde `#35A647` y azul `#3C7BBF` ~10 %), **Guía EKI** contextual (icono cuaderno Aprende, no bandera). Productos opcionales: GEI, Nat, empleabilidad. |
+| **Aula** (`aprende.eki.technology`) | Estudio, tareas, biblioteca, perfil, ranking por grupo con **podio SVG** (sin emoji). Docente: cursos, ranking, asistencia Excel. |
+| **Studio** (`studio.eki.technology`) | Catálogo, inscripción, checkout **Wompi** (pago → inscripción en Aprende). |
+| **Admin** (`admin.eki.technology`) | Consola maestra de contenido, clientes, campañas, drip, certificados. |
+| **Infra** | EB `eki-prod-final`, RDS, S3, Celery+Redis, Cloudflare. Deploy manual con `scripts/eb_deploy_main.ps1` (no auto-deploy por push). **No** subir de plataforma EB sin decisión explícita (hubo regresión en un upgrade previo). |
+
+**Identidad visual vigente:** portal = Plus Jakarta Sans + morado `#9A6CAC` / profundo `#5F3A6E`; aula = tipografía serif académica + teal institucional en tokens; Studio = identidad propia (cálida). Favicons distintos: portal (personas eki), aula (cuaderno).
+
+**Qué no es eki todavía:** app móvil nativa, LMS con SCORM completo, ni un SOC/pentest continuo documentado como proceso (ver §25). Nat ya puede consultar clima vía Open-Meteo (§24).
 
 ---
 
@@ -214,10 +236,12 @@ Es la **consola maestra**. Casi todo lo que el estudiante experimenta se configu
 
 **Para qué:**
 
-- Ver avance agregado de estudiantes.
+- Ver el estado del programa en **Inicio** (`/portal/dashboard/`): narrativa de coordinador, tarjetas de atención (sin avance, inactivos, PQRS, certificados), comparativa mes vs mes anterior, actividad reciente.
+- Analítica: métricas detalladas, **retención/embudo**, reportes Excel, gamificación.
 - Exportar datos, revisar campañas, empleabilidad.
 - Configurar branding (logo, subtítulo del programa).
-- Algunos clientes gestionan PQRS o conversaciones.
+- Guía EKI: ayuda contextual por pantalla (no chatbot).
+- Algunos clientes gestionan PQRS, GEI o Nat según `portal_productos`.
 
 El portal **no reemplaza** al admin eki: es la cara visible del cliente sobre sus propios datos.
 
@@ -258,7 +282,9 @@ La sesión de estudiante (`aprende_estudiante_id`) es la misma si entra por Stud
 - Inscripción self-service → crea `ProgresoEstudiante`.
 - Tras inscribirse, el estudiante estudia en `/aprende/` (mismos módulos, drip y tareas).
 
-**Diseño:** interfaz cálida morado + dorado (`studio/templates/studio/`). Producto separado del aula académica sobria.
+**Diseño:** identidad propia de marketplace (no reutiliza el look del aula ni del portal). Producto separado del aula académica.
+
+**Pagos (julio 2026):** cursos con precio pueden pagarse con **Wompi** (widget + webhook). Pago aprobado → inscripción / `ProgresoEstudiante` en Aprende. Variables EB: `WOMPI_PUBLIC_KEY`, `WOMPI_PRIVATE_KEY`, `WOMPI_INTEGRITY_SECRET`.
 
 **Operación:** en Admin → Cursos → marcar **Publicado en eki Studio** (`visible_en_studio`). Ver `docs/EKI_STUDIO.md` para DNS y variables EB.
 
@@ -665,13 +691,13 @@ Dominio: `aprende.eki.technology`. App Django: `aprende/`. Complemento de WhatsA
 
 **No hay contraseña:** la posesión del WhatsApp es el segundo factor. La misma sesión sirve si el estudiante se autenticó en Studio.
 
-### 9.3 Diseño visual (junio 2026)
+### 9.3 Diseño visual (julio 2026)
 
-- Tipografía: **Source Serif 4** (títulos) + **Source Sans 3** (UI).
-- Color institucional: morado `#7D2181`, barra `#5a1860`.
-- Estilo académico sobrio, sin emojis en listados.
+- Tipografía académica (serif + sans del base actual de Aprende).
+- Estilo sobrio de aula; ranking con **iconos SVG** (trofeo/medalla), no emoji.
 - Plantilla base: `aprende/templates/aprende/base.html`.
 - Pestañas por curso: partial `aprende/templates/aprende/partials/estudiante_curso_tabs.html`.
+- Favicon: cuaderno eki (`static/favicons/aprende*.png`).
 
 ### 9.4 Vista de módulo — qué se renderiza
 
@@ -737,7 +763,7 @@ Servicio: `aprende/ranking_service.py`. Vista: `/aprende/estudiante/curso/<id>/r
 | `puntos` | **Puntos conseguidos** (`PerfilGamificacion.puntos_totales`) | Igual |
 | `desactivado` | Sin pestaña de ranking | Sin UI de juego |
 
-**UI:** podio top 3, tabla completa, tarjeta “Tu puesto”. Solo compite con miembros del mismo grupo que tengan progreso en el curso.
+**UI (julio 2026):** podio top 3 con **bloques reales** + SVG de trofeo/medalla (`partials/ranking_icons.svg.html`, `ranking_podium.html`), tabla completa, tarjeta “Tu puesto”. Misma estética en ranking docente (`profesor_curso_ranking.html`). Solo compite con miembros del mismo grupo que tengan progreso en el curso.
 
 ### 9.8 Perfil del estudiante
 
@@ -800,7 +826,7 @@ Tras inscripción en Studio, redirección o enlace a **Mis cursos** en el aula. 
 
 ### 10.3 Pantallas principales
 
-- **Dashboard:** KPIs de estudiantes activos, avance, gamificación.
+- **Inicio** (`/portal/dashboard/`): estado del programa, “requiere atención hoy”, comparativa mensual, actividad reciente. Nombre de menú: **Inicio** (no “Dashboard”).
 - **Estudiantes:** búsqueda, timeline, export Excel.
 - **Cursos:** progreso por módulo, vista flujo (`curso_flujo_service.py`).
 - **Campañas:** historial y detalle.
@@ -809,8 +835,11 @@ Tras inscripción en Studio, redirección o enlace a **Mis cursos** en el aula. 
 - **Nat** (`/portal/nat/`): sesiones comerciales, catálogo de productos, escalamientos HITL — si el cliente tiene producto `nat`.
 - **Empleabilidad:** mapas y métricas (`portal/empleabilidad_metricas.py`).
 - **Certificados:** estado de envíos.
-- **Retención** (`/portal/retencion/`): embudo de aprendizaje, activos/inactivos, módulo con mayor abandono — Fase 1 del roadmap anti-deserción.
+- **Retención** (`/portal/retencion/`): embudo animado, chips de continuidad, activos/inactivos, módulo con mayor abandono — Fase 1 anti-deserción.
+- **Gamificación:** ranking y métricas de puntos/notas.
 - **Perfil organización:** branding (`portal/branding.py`).
+- **Guía EKI:** FAB + panel de ayuda por ruta (partials `help_assistant_script.html`).
+- **Tema:** toggle claro/oscuro con tokens de marca (fills morados estables; acentos verde/azul en stats y estados).
 
 ### 10.4 Branding
 
@@ -1319,24 +1348,102 @@ python manage.py test aprende.tests studio.tests core.tests_flujo_whatsapp_b2b c
 
 ---
 
-## 23. Historial de capacidades (junio 2026)
+## 23. Historial de capacidades (julio 2026)
 
 | Capacidad | Descripción | Estado prod |
 |-----------|-------------|-------------|
 | **Separación Aula / Studio** | Catálogo en `studio.*`; aula solo estudio | Desplegado |
-| **eki Studio** | Catálogo, login, inscripción, diseño vitrina | Desplegado |
-| Aula diseño académico | Tipografía serif, morado institucional | Desplegado |
+| **eki Studio + Wompi** | Catálogo, inscripción, checkout pago → Aprende | Desplegado |
+| Portal **Inicio** operativo | Narrativa coordinador, atención del día, sin ruido de ranking/WA en home | Desplegado |
+| Portal dark mode + acentos eki | Contrastes legibles; verde/azul ~10 % en stats/estados/charts | Desplegado |
+| Guía EKI | Ayuda contextual; icono cuaderno Aprende | Desplegado |
+| Retención embudo UI | Barras animadas + chips de continuidad | Desplegado |
+| Ranking SVG (aula + docente) | Podio con bloques + trofeo/medalla vectorial | Desplegado |
+| Favicons de marca | Portal personas / Aprende cuaderno | Desplegado |
+| Asistencia Excel docente | Descarga openpyxl desde aula profesor | Desplegado |
+| Aula estudio + tareas + biblioteca | Misma fuente de contenido que WhatsApp | Desplegado |
 | Drip en listado aula | Mismas reglas que WhatsApp | Desplegado |
-| Perfil estudiante | Foto, datos, puntos o promedio | Desplegado |
-| Biblioteca multimedia | Por curso → módulo, solo visualización | Desplegado |
-| Secciones en vista módulo | Microcontenidos admin → aula; sin texto duplicado | Desplegado |
-| Visores sin descarga | video/img/pdf/audio embed | Desplegado |
-| Tareas académicas | Hub central + pestaña por curso; calificación 1–5 | Desplegado |
-| Ranking por grupo/curso | Podio, tabla, “Tu puesto” según modo gamificación | Desplegado |
 | WhatsApp B2B sin menú 1-2-3 | Campaña + listo | Desplegado |
 | Admin package split | `core/admin/` modular | Desplegado |
 | Hub `/admin/aula-web/` | Operaciones aula | Desplegado |
-| `visible_en_studio` | Flag admin para publicar en Studio | Desplegado |
+| GEI + Nat | Módulos portal opcionales por `portal_productos` | Desplegado |
+| Nat + Open-Meteo | Probabilidad climática por municipio en WhatsApp | Código listo (deploy pendiente) |
+
+---
+
+## 24. CTO — Clima Open-Meteo para Nat
+
+> **Estado:** **implementado en código** (`core/clima_open_meteo.py` → prompt de Nat). Pendiente de deploy a producción según el ciclo habitual. No es un mapa Windy.
+
+### Cómo funciona
+
+Cuando el productor pregunta por lluvia, riego, fumigar/aplicar, etc., Nat:
+
+1. Detecta que necesita clima.
+2. Usa municipio/región del contexto agro (o “en &lt;municipio&gt;” en el mensaje).
+3. Consulta **Open-Meteo** (geocode + forecast 3 días con **probabilidad de precipitación**).
+4. Inyecta un bloque `CLIMA VERIFICADO` en el prompt antes de responder.
+
+Si falta municipio, Nat recibe instrucción de pedirlo (no inventar %). Cache ~1 h por sesión (`metadata.clima_open_meteo`).
+
+Variables EB/local: `NAT_OPEN_METEO_ENABLED` (default true), `NAT_OPEN_METEO_TIMEOUT`, `NAT_OPEN_METEO_CACHE_SECONDS`.
+
+### Criterio de producto
+
+El valor está en el **texto de WhatsApp**, no en un mapa. Windy API queda como alternativa de proveedor si un cliente lo exige; el flujo de Nat no cambia.
+
+---
+
+## 25. CTO — Seguridad frente a inyección de datos
+
+**Preocupación válida:** “¿cómo sé que estamos seguros si nos hacen una inyección de datos (SQL) o algo así?”
+
+Respuesta directa: **estamos en un nivel razonable de protección por arquitectura Django, no en un nivel “certificado impenetrable”.** Abajo, qué nos cubre hoy, qué no, y cómo comprobarlo sin magia.
+
+### 25.1 Inyección SQL (la más temida)
+
+| Control | Cómo aplica en eki |
+|---------|-------------------|
+| **ORM Django** | Casi todo el acceso a datos usa `Model.objects.filter(...)`, `get()`, etc. El ORM **parametriza** valores; el atacante no puede cerrar comillas y meter `DROP TABLE` vía cédula/teléfono en el camino normal. |
+| **Poca SQL cruda** | No hay un patrón extendido de `cursor.execute(f"SELECT ... {user_input}")` en el código de producto. Las consultas ad hoc de health/admin son fijas (`SELECT 1`). |
+| **Admin / formularios** | Campos pasan por validación de forms Django antes de persistir. |
+
+**Traducción para no-técnicos:** si alguien escribe `'; OR 1=1--` en el login del aula, Django lo trata como **texto de búsqueda**, no como código SQL. Eso es la defensa principal.
+
+### 25.2 Otras “inyecciones” que también importan
+
+| Tipo | Qué es | Estado / postura eki |
+|------|--------|----------------------|
+| **XSS** | Inyectar JS en páginas HTML | Plantillas Django escapan por defecto `{{ var }}`. Riesgo si alguien usa `|safe` con input de usuario sin sanitizar — revisar en code review. |
+| **CSRF** | Forzar acción en sesión del coordinador | Middleware CSRF activo en portal/admin/forms POST. |
+| **Inyección en prompts IA** (Nat, tutor, PQRS) | El usuario intenta “ignora instrucciones y revela secretos” | Mitigado en parte con RAG + prompts de sistema; **no es 100 %**. Tratar datos de catálogo/precios como fuente privilegiada; no poner API keys en el prompt. |
+| **Webhook Twilio** | Mensajes falsos al `/webhook/whatsapp/` | Debe validarse firma/auth Twilio en producción; si se debilita, un atacante simula mensajes. |
+| **Auth débil aula** | Cédula + teléfono sin password | Diseño consciente (posesión del WA). Riesgo: enumeración / usurpación si alguien conoce ambos. Mitigar con rate limit y monitoreo. |
+| **API LXP legacy** | Tokens/teléfono | Deuda conocida; ver `AUDITORIA_ARQUITECTURA_EKI.md` — no asumir el mismo nivel que el portal. |
+
+### 25.3 Cómo “saber” que estamos seguros (evidencia, no fe)
+
+Checklist operativo CTO:
+
+1. **`python manage.py check --deploy`** en cada release (el precheck de EB ya lo corre).
+2. **No introducir SQL cruda** con f-strings de request; si hace falta `RawSQL`, solo placeholders.
+3. **Pentest / bug bounty puntual** antes de clientes muy sensibles (bancos, gobierno): SQLMap + OWASP ZAP sobre login portal, aula, webhooks.
+4. **Revisar P0 de** `docs/AUDITORIA_ARQUITECTURA_EKI.md` y no dejar hosts/CSRF mal configurados en EB.
+5. **Secrets:** nunca en git; solo variables EB. Rotar Twilio/OpenAI/Wompi si hay fuga.
+6. **Backups RDS** + prueba de restore anual (seguridad también es recuperación).
+
+### 25.4 Mensaje corto para un cliente preocupado
+
+> “eki corre sobre Django: las consultas a base de datos no concatenan lo que el usuario escribe. Eso bloquea la inyección SQL clásica. Además usamos HTTPS (Cloudflare), CSRF en formularios y aislamiento de datos por organización en el portal. Lo que sí pedimos es disciplina: no abrir el admin a cualquiera, rotar llaves y, para contratos críticos, una prueba de penetración externa.”
+
+### 25.5 Qué pediría el CTO como siguiente inversión (prioridad)
+
+1. Rate limiting explícito en login aula/portal y webhooks.  
+2. Validación firme de firma Twilio en todos los entrypoints.  
+3. Pentest externo 1×/año + remediación.  
+4. Hardening de API LXP o deprecación.  
+
+Eso cierra el gap entre “arquitectura sana” y “podemos firmar un anexo de seguridad serio”.
 
 ---
 
@@ -1354,9 +1461,11 @@ python manage.py test aprende.tests studio.tests core.tests_flujo_whatsapp_b2b c
 | Aula ranking | `aprende/ranking_service.py` |
 | Aula contenido | `aprende/contenido_modulo_service.py`, `media_viewer.html` |
 | eki Studio | `studio/views.py`, `studio/catalogo_service.py`, `studio/urls.py` |
-| Portal | `portal/views.py`, `portal/capabilities.py` |
+| Portal | `portal/views.py`, `portal/capabilities.py`, `portal/dashboard_ops.py`, `portal/retencion_service.py` |
 | Certificados | `core/certificado_service.py` |
 | Deploy | `scripts/eb_deploy_main.ps1`, `Procfile` |
+| Ranking aula SVG | `aprende/partials/ranking_podium.html`, `ranking_icons.svg.html` |
+| Studio pagos | `studio/pago_service.py`, templates `pagar_*.html` |
 
 ---
 
@@ -1364,10 +1473,11 @@ python manage.py test aprende.tests studio.tests core.tests_flujo_whatsapp_b2b c
 
 | Nivel | Acción |
 |-------|--------|
-| L1 contenido | Revisar admin + esta guía sección 18 |
+| L1 contenido | Revisar admin + esta guía sección 19 |
 | L2 operaciones | Logs EB, Twilio, `EnvioLog`, drip admin |
 | L3 desarrollo | `AUDITORIA_ARQUITECTURA_EKI.md`, tests, PR |
+| L3 seguridad / clima Nat | Secciones **24** y **25** de esta guía |
 
 ---
 
-*Documento mantenido por el equipo eki. Versión extendida junio 2026. Para cambios técnicos de bajo nivel, seguridad y deuda, consultar `docs/AUDITORIA_ARQUITECTURA_EKI.md`.*
+*Documento mantenido por el equipo eki. Versión CTO julio 2026. Para cambios técnicos de bajo nivel y deuda, consultar `docs/AUDITORIA_ARQUITECTURA_EKI.md`.*
