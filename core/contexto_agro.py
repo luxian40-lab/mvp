@@ -48,7 +48,74 @@ _CORRECCION = re.compile(
 )
 
 # Problema, clima y etapa pueden cambiar en la misma conversación.
-_CAMPOS_EVOLUTIVOS = frozenset({'problema', 'etapa', 'clima', 'municipio'})
+_CAMPOS_EVOLUTIVOS = frozenset({'problema', 'etapa', 'clima', 'municipio', 'vereda'})
+
+_CIUDADES_CO = {
+    'bogota': 'Bogotá',
+    'bogotá': 'Bogotá',
+    'ibague': 'Ibagué',
+    'ibagué': 'Ibagué',
+    'neiva': 'Neiva',
+    'medellin': 'Medellín',
+    'medellín': 'Medellín',
+    'cali': 'Cali',
+    'barranquilla': 'Barranquilla',
+    'cartagena': 'Cartagena',
+    'bucaramanga': 'Bucaramanga',
+    'manizales': 'Manizales',
+    'pereira': 'Pereira',
+    'armenia': 'Armenia',
+    'pasto': 'Pasto',
+    'villavicencio': 'Villavicencio',
+    'popayan': 'Popayán',
+    'popayán': 'Popayán',
+    'tunja': 'Tunja',
+    'sincelejo': 'Sincelejo',
+    'monteria': 'Montería',
+    'montería': 'Montería',
+    'valledupar': 'Valledupar',
+    'santa marta': 'Santa Marta',
+}
+
+_STOP_EN = frozenset({
+    'para', 'con', 'de', 'del', 'la', 'el', 'los', 'las', 'por', 'una', 'un',
+    'hoy', 'manana', 'mañana', 'luego', 'fumigar', 'aplicar', 'regar', 'riego',
+    'clima', 'tiempo', 'lluvia', 'llover', 'semana', 'dias', 'días',
+})
+
+
+def _extraer_municipio_texto(texto: str) -> str:
+    """Municipio desde ciudades conocidas o patrón 'en <lugar>'."""
+    low = (texto or '').lower()
+    for key, canon in sorted(_CIUDADES_CO.items(), key=lambda x: -len(x[0])):
+        if re.search(rf'\b{re.escape(key)}\b', low):
+            return canon
+    m = re.search(
+        r'\ben\s+([A-Za-zÁÉÍÓÚáéíóúÑñ]{3,})(?:\s+([A-Za-zÁÉÍÓÚáéíóúÑñ]{3,}))?',
+        texto or '',
+        re.I,
+    )
+    if not m:
+        return ''
+    primero = m.group(1)
+    segundo = m.group(2) or ''
+    if segundo and segundo.lower() not in _STOP_EN and segundo[:1].isupper():
+        return f'{primero.title()} {segundo.title()}'[:80]
+    return primero.title()[:80]
+
+
+def _extraer_vereda(texto: str) -> str:
+    m = re.search(
+        r'\b(?:vereda|localidad|corregimiento|barrio)\s+([A-Za-zÁÉÍÓÚáéíóúÑñ0-9][\wÁÉÍÓÚáéíóúÑñ\s\-]{2,60})',
+        texto or '',
+        re.I,
+    )
+    if not m:
+        return ''
+    val = m.group(1).strip()
+    # Cortar en conectores
+    val = re.split(r'\b(?:para|con|porque|y|en)\b', val, maxsplit=1, flags=re.I)[0].strip(' ,.-')
+    return val[:120]
 
 
 def _normalizar_valor(campo: str, match: re.Match) -> str:
@@ -74,10 +141,12 @@ def extraer_campos_desde_mensaje(mensaje: str) -> dict[str, str]:
         m = patron.search(texto)
         if m:
             found[campo] = _normalizar_valor(campo, m)
-    # Municipio: "en <Nombre>" muy heurístico
-    m_mun = re.search(r'\ben\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)?)\b', texto)
-    if m_mun and 'region' not in found:
-        found.setdefault('municipio', m_mun.group(1)[:80])
+    mun = _extraer_municipio_texto(texto)
+    if mun:
+        found['municipio'] = mun
+    vereda = _extraer_vereda(texto)
+    if vereda:
+        found['vereda'] = vereda
     return found
 
 
@@ -126,13 +195,19 @@ def formatear_bloque_contexto_para_prompt(ctx) -> str:
         'etapa': 'Etapa fenológica',
         'region': 'Región',
         'municipio': 'Municipio',
+        'vereda': 'Vereda / localidad',
         'clima': 'Clima / condición',
         'problema': 'Problema reportado',
     }
     for k, lbl in etiquetas.items():
-        v = (d.get(k) or '').strip()
+        v = (d.get(k) or '').strip() if isinstance(d.get(k), str) else d.get(k)
+        if k in ('latitud', 'longitud'):
+            continue
         if v:
             lineas.append(f'- {lbl}: {v}')
+    lat, lon = d.get('latitud'), d.get('longitud')
+    if lat is not None and lon is not None:
+        lineas.append(f'- Coordenadas guardadas: {lat}, {lon}')
     if not lineas:
         return (
             'CONTEXTO AGRONÓMICO: parcial. Si falta cultivo o síntoma principal, '

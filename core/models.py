@@ -3702,6 +3702,26 @@ class ContextoAgroSession(models.Model):
     etapa = models.CharField(max_length=80, blank=True, default='', help_text='Ej: floración, desarrollo')
     region = models.CharField(max_length=120, blank=True, default='', help_text='Departamento o zona')
     municipio = models.CharField(max_length=80, blank=True, default='')
+    vereda = models.CharField(
+        max_length=120,
+        blank=True,
+        default='',
+        help_text='Vereda, localidad o zona más exacta dentro del municipio',
+    )
+    latitud = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        help_text='Latitud geocodificada (Open-Meteo u otra fuente)',
+    )
+    longitud = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        help_text='Longitud geocodificada (Open-Meteo u otra fuente)',
+    )
     clima = models.CharField(max_length=80, blank=True, default='', help_text='Ej: alta humedad, sequía')
     problema = models.CharField(max_length=200, blank=True, default='', help_text='Plaga, enfermedad, nutrición')
     notas = models.TextField(blank=True, default='')
@@ -3729,6 +3749,9 @@ class ContextoAgroSession(models.Model):
             'etapa': self.etapa,
             'region': self.region,
             'municipio': self.municipio,
+            'vereda': self.vereda,
+            'latitud': float(self.latitud) if self.latitud is not None else None,
+            'longitud': float(self.longitud) if self.longitud is not None else None,
             'clima': self.clima,
             'problema': self.problema,
             'completitud_pct': self.completitud_pct(),

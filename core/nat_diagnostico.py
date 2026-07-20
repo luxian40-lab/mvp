@@ -73,8 +73,11 @@ def siguiente_pregunta_diagnostico(ctx, mensaje: str, *, tiene_imagen: bool = Fa
 
     if not (ctx.cultivo or '').strip():
         return 'Para orientarle mejor: ¿qué cultivo tiene plantado?'
-    if not ((ctx.municipio or '').strip() or (ctx.region or '').strip()):
-        return '¿En qué municipio o vereda está ubicado el lote?'
+    if not (ctx.municipio or '').strip() and not (ctx.region or '').strip():
+        return (
+            'Para orientarle mejor con clima y recomendación: '
+            '¿en qué municipio y departamento está el lote, y si puede la vereda o localidad?'
+        )
     if not (ctx.problema or '').strip():
         return '¿Puede describir con más detalle el problema que observa en las plantas?'
     if not meta.get('tiempo_problema'):

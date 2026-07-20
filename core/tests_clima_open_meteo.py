@@ -25,11 +25,19 @@ class ConsultaNecesitaClimaTests(SimpleTestCase):
 class ResolverUbicacionTests(SimpleTestCase):
     def test_desde_pregunta_en_municipio(self):
         u = resolver_ubicacion_texto(None, '¿Llueve en ibague?')
-        self.assertIn('Ibague', u)
+        self.assertIn('Ibagué', u)
         self.assertIn('Colombia', u)
 
+    def test_bogota_sin_enganchar_para(self):
+        u = resolver_ubicacion_texto(None, 'Cual es el clima en Bogota para fumigar manana?')
+        self.assertIn('Bogotá', u)
+        self.assertNotIn('Para', u)
+
     def test_desde_ctx_municipio(self):
-        ctx = mock.Mock(municipio='Neiva', region='Huila')
+        ctx = mock.Mock(spec=['municipio', 'region', 'vereda'])
+        ctx.municipio = 'Neiva'
+        ctx.region = 'Huila'
+        ctx.vereda = ''
         u = resolver_ubicacion_texto(ctx, 'hola')
         self.assertIn('Neiva', u)
         self.assertIn('Huila', u)
@@ -69,6 +77,8 @@ class ObtenerBloqueClimaTests(SimpleTestCase):
     def test_sin_ubicacion_pide_municipio(self):
         out = obtener_bloque_clima_para_nat('¿Va a llover mañana?')
         self.assertIn('municipio', out.lower())
+        self.assertIn('departamento', out.lower())
+        self.assertIn('vereda', out.lower())
 
     @mock.patch('core.clima_open_meteo.forecast_open_meteo')
     @mock.patch('core.clima_open_meteo.geocode_open_meteo')
@@ -95,6 +105,42 @@ class ObtenerBloqueClimaTests(SimpleTestCase):
         self.assertIn('Ibagué', out)
         mock_geo.assert_called_once()
         mock_fc.assert_called_once()
+
+    @mock.patch('core.clima_open_meteo.forecast_open_meteo')
+    @mock.patch('core.clima_open_meteo.geocode_open_meteo')
+    def test_bogota_live_query_shape(self, mock_geo, mock_fc):
+        mock_geo.return_value = {
+            'name': 'Bogotá',
+            'admin1': 'Bogotá D.C.',
+            'country': 'Colombia',
+            'latitude': 4.71,
+            'longitude': -74.07,
+        }
+        mock_fc.return_value = {
+            'daily': {
+                'time': ['2026-07-20', '2026-07-21'],
+                'precipitation_probability_max': [55, 40],
+                'precipitation_sum': [3.0, 1.0],
+                'temperature_2m_max': [20, 19],
+                'temperature_2m_min': [10, 9],
+                'wind_speed_10m_max': [12, 11],
+            }
+        }
+        ctx = mock.Mock(
+            municipio='', region='', vereda='', latitud=None, longitud=None, metadata={},
+        )
+        ctx.save = mock.Mock()
+        out = obtener_bloque_clima_para_nat(
+            'Cual es el clima en Bogota para fumigar manana?',
+            ctx_agro=ctx,
+        )
+        self.assertIn('Bogotá', out)
+        self.assertIn('55%', out)
+        # Debe persistir coords en el contexto
+        self.assertTrue(ctx.save.called)
+        args = mock_geo.call_args[0][0]
+        self.assertIn('Bogotá', args)
+        self.assertNotIn('Para', args)
 
     @override_settings(NAT_OPEN_METEO_ENABLED=False)
     def test_deshabilitado(self):

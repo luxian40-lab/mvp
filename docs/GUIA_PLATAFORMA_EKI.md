@@ -1384,7 +1384,7 @@ Cuando el productor pregunta por lluvia, riego, fumigar/aplicar, etc., Nat:
 3. Consulta **Open-Meteo** (geocode + forecast 3 días con **probabilidad de precipitación**).
 4. Inyecta un bloque `CLIMA VERIFICADO` en el prompt antes de responder.
 
-Si falta municipio, Nat recibe instrucción de pedirlo (no inventar %). Cache ~1 h por sesión (`metadata.clima_open_meteo`).
+Si falta municipio, Nat recibe instrucción de pedir **municipio + departamento + vereda/localidad** (no inventar %). Al resolver Open-Meteo se **persiste en BD** (`ContextoAgroSession.municipio`, `region`, `vereda`, `latitud`, `longitud` + `metadata.ubicacion_recoleccion`) para reutilizar en la misma sesión. Cache forecast ~1 h (`metadata.clima_open_meteo`).
 
 Variables EB/local: `NAT_OPEN_METEO_ENABLED` (default true), `NAT_OPEN_METEO_TIMEOUT`, `NAT_OPEN_METEO_CACHE_SECONDS`.
 

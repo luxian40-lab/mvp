@@ -56,29 +56,89 @@ def _cache_seconds() -> int:
 
 
 def resolver_ubicacion_texto(ctx_agro=None, pregunta: str = '') -> str:
-    """Municipio / región / mención 'en X' para geocoding."""
+    """Municipio / región / mención en pregunta para geocoding."""
+    from core.contexto_agro import _extraer_municipio_texto
+
+    def _txt(val) -> str:
+        if val is None:
+            return ''
+        if not isinstance(val, str):
+            return ''
+        return val.strip()
+
     partes: list[str] = []
     if ctx_agro is not None:
-        mun = (getattr(ctx_agro, 'municipio', '') or '').strip()
-        reg = (getattr(ctx_agro, 'region', '') or '').strip()
+        mun = _txt(getattr(ctx_agro, 'municipio', '') or '')
+        vereda = _txt(getattr(ctx_agro, 'vereda', '') or '')
+        reg = _txt(getattr(ctx_agro, 'region', '') or '')
         if mun:
             partes.append(mun)
-        if reg and reg.lower() not in (mun or '').lower():
+        if vereda:
+            partes.append(vereda)
+        if reg and reg.lower() not in ' '.join(partes).lower():
             partes.append(reg)
     if not partes:
-        m = re.search(
-            r'\ben\s+([A-Za-zÁÉÍÓÚáéíóúÑñ]{3,}(?:\s+[A-Za-zÁÉÍÓÚáéíóúÑñ]{3,})?)\b',
-            pregunta or '',
-            re.I,
-        )
-        if m:
-            partes.append(m.group(1).strip().title())
+        mun = _extraer_municipio_texto(pregunta or '')
+        if mun:
+            partes.append(mun)
     if not partes:
         return ''
     texto = ', '.join(partes)
     if 'colombia' not in texto.lower():
         texto = f'{texto}, Colombia'
     return texto
+
+
+def persistir_ubicacion_en_contexto(ctx_agro, geo: dict[str, Any], *, fuente: str = 'open_meteo') -> None:
+    """Guarda municipio/depto/coords en ContextoAgroSession para reutilizar."""
+    if ctx_agro is None or not geo:
+        return
+    from decimal import Decimal, InvalidOperation
+    from django.utils import timezone
+
+    changed_fields: list[str] = []
+    nombre = (geo.get('name') or '').strip()
+    admin1 = (geo.get('admin1') or '').strip()
+    if nombre and not (getattr(ctx_agro, 'municipio', '') or '').strip():
+        ctx_agro.municipio = nombre[:80]
+        changed_fields.append('municipio')
+    elif nombre and (ctx_agro.municipio or '').strip().lower() in ('bogota', 'bogotá'):
+        # Normalizar acento
+        if nombre.lower().startswith('bogot'):
+            ctx_agro.municipio = nombre[:80]
+            changed_fields.append('municipio')
+    if admin1 and not (getattr(ctx_agro, 'region', '') or '').strip():
+        ctx_agro.region = admin1[:120]
+        changed_fields.append('region')
+
+    try:
+        lat = Decimal(str(round(float(geo['latitude']), 6)))
+        lon = Decimal(str(round(float(geo['longitude']), 6)))
+        if getattr(ctx_agro, 'latitud', None) != lat:
+            ctx_agro.latitud = lat
+            changed_fields.append('latitud')
+        if getattr(ctx_agro, 'longitud', None) != lon:
+            ctx_agro.longitud = lon
+            changed_fields.append('longitud')
+    except (KeyError, TypeError, ValueError, InvalidOperation):
+        pass
+
+    meta = dict(getattr(ctx_agro, 'metadata', None) or {})
+    meta['ubicacion_recoleccion'] = {
+        'fuente': fuente,
+        'nombre': nombre,
+        'admin1': admin1,
+        'lat': geo.get('latitude'),
+        'lon': geo.get('longitude'),
+        'collected_at': timezone.now().isoformat(),
+    }
+    ctx_agro.metadata = meta
+    changed_fields.append('metadata')
+    try:
+        update = list(dict.fromkeys(changed_fields + ['updated_at']))
+        ctx_agro.save(update_fields=update)
+    except Exception as exc:
+        logger.debug('No se pudo persistir ubicación clima: %s', exc)
 
 
 def geocode_open_meteo(ubicacion: str) -> dict[str, Any] | None:
@@ -277,23 +337,59 @@ def obtener_bloque_clima_para_nat(
 
     ubicacion = resolver_ubicacion_texto(ctx_agro, pregunta)
     if not ubicacion:
+        # Marca en metadata que pedimos ubicación (para analitica / seguimiento)
+        if ctx_agro is not None:
+            try:
+                from django.utils import timezone
+
+                meta = dict(getattr(ctx_agro, 'metadata', None) or {})
+                meta['ubicacion_pendiente'] = {
+                    'motivo': 'clima',
+                    'asked_at': timezone.now().isoformat(),
+                    'pregunta': (pregunta or '')[:200],
+                }
+                ctx_agro.metadata = meta
+                ctx_agro.save(update_fields=['metadata', 'updated_at'])
+            except Exception:
+                pass
         return (
             'CLIMA: el productor pregunta por condiciones climáticas pero '
-            'aún no hay municipio/región claros. Pida el municipio (y vereda '
-            'si es posible) antes de afirmar probabilidad de lluvia o momento '
-            'de aplicación.'
+            'aún no hay ubicación clara en BD.\n'
+            'OBLIGATORIO: pídale en un solo mensaje, de usted:\n'
+            '1) municipio,\n'
+            '2) departamento,\n'
+            '3) vereda, localidad o zona del lote (si la conoce).\n'
+            'Ejemplo: «Para darte la probabilidad de lluvia exacta, ¿en qué '
+            'municipio y departamento está, y si puede la vereda o localidad?»\n'
+            'Cuando responda, use esos datos; no invente probabilidad de lluvia.'
         )
+
+    # Si ya tenemos coords guardadas en BD, úsalas (más exacto / menos API)
+    lat_saved = getattr(ctx_agro, 'latitud', None) if ctx_agro is not None else None
+    lon_saved = getattr(ctx_agro, 'longitud', None) if ctx_agro is not None else None
+    geo = None
+    if lat_saved is not None and lon_saved is not None:
+        geo = {
+            'name': (getattr(ctx_agro, 'municipio', None) or ubicacion.split(',')[0]).strip(),
+            'admin1': (getattr(ctx_agro, 'region', None) or '').strip(),
+            'country': 'Colombia',
+            'latitude': float(lat_saved),
+            'longitude': float(lon_saved),
+        }
 
     cached = _leer_cache(ctx_agro, ubicacion)
     if cached:
         return cached
 
-    geo = geocode_open_meteo(ubicacion)
+    if geo is None:
+        geo = geocode_open_meteo(ubicacion)
     if not geo:
         return (
             f'CLIMA: no se pudo resolver la ubicación «{ubicacion}» en Open-Meteo. '
-            'Pida confirmar municipio/departamento; no invente probabilidad de lluvia.'
+            'Pida confirmar municipio, departamento y vereda/localidad; no invente probabilidad de lluvia.'
         )
+
+    persistir_ubicacion_en_contexto(ctx_agro, geo, fuente='open_meteo')
 
     data = forecast_open_meteo(geo['latitude'], geo['longitude'])
     if not data:
