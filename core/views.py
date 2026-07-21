@@ -5117,10 +5117,25 @@ def _procesar_twilio_webhook(post_data):
                         estudiante.estado_onboarding = 'completado'
                         estudiante.contexto_temporal = None
                         estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])
-                        texto_respuesta = (
-                            "Seguimos con tu curso. Escribí *listo* para continuar "
-                            "o *ayuda* si necesitás soporte."
-                        )
+                        # Si el progreso ya está completado, no pedir *listo* como si hubiera más módulos
+                        _prog_fin = None
+                        try:
+                            from .models import ProgresoEstudiante
+                            if progreso_id:
+                                _prog_fin = ProgresoEstudiante.objects.filter(id=progreso_id).first()
+                        except Exception:
+                            _prog_fin = None
+                        if _prog_fin and _prog_fin.completado:
+                            texto_respuesta = (
+                                "🎉 Ya completaste este curso.\n\n"
+                                "Si el certificado aún no llega, escribe *ayuda*. "
+                                "Si tienes otro curso asignado, también puedes escribir *listo*."
+                            )
+                        else:
+                            texto_respuesta = (
+                                "Seguimos con tu curso. Escribí *listo* para continuar "
+                                "o *ayuda* si necesitás soporte."
+                            )
                 else:
                     # Student asked a question to Darío — answer from RAG (max 2)
                     preguntas_hechas += 1
@@ -5504,6 +5519,13 @@ def _procesar_twilio_webhook(post_data):
                         estudiante.contexto_temporal = None
                         estudiante.estado_onboarding = 'completado'
                         estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
+                        if progreso_r and progreso_r.completado:
+                            return (
+                                f"{prefijo}\n\n"
+                                "🎉 Ya completaste este curso.\n\n"
+                                "Si el certificado aún no llega, escribe *ayuda*. "
+                                "Si tienes otro curso asignado, también puedes escribir *listo*."
+                            ).strip()
                         return (
                             f"{prefijo}\n\n"
                             "Seguimos con tu curso. Escribí *listo* para continuar "

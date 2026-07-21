@@ -1180,6 +1180,25 @@ Te inscribiste en: *{curso.nombre}*
         ).order_by('-fecha_inicio')
         
         if not progresos_activos.exists():
+            completados = (
+                ProgresoEstudiante.objects.filter(
+                    estudiante=estudiante,
+                    completado=True,
+                )
+                .select_related('curso')
+                .order_by('-fecha_inicio')
+            )
+            if completados.exists():
+                nombres = ', '.join(
+                    f"*{p.curso.nombre}*" for p in completados[:3] if p.curso_id
+                )
+                return (
+                    f"🎉 Ya completaste {nombres}.\n\n"
+                    "No hay más módulos pendientes en ese curso. "
+                    "Si estás en el reto final o el certificado, responde lo que te pidió el agente "
+                    "o escribe *ayuda* si necesitas soporte.\n\n"
+                    "Si tu organización te asigna otro curso, te avisaremos por aquí."
+                )
             return """Aún no tienes un curso asignado. 📚
 
 Tu organización te asignará un curso pronto. Si crees que es un error, escribe *ayuda* para contactar soporte."""
