@@ -2,10 +2,10 @@
 
 Documento de referencia para el equipo de producto, operaciones, contenido y desarrollo. Explica **qué hace eki**, **cómo se conectan las piezas**, **cómo operar cada superficie** y **cómo configurar cursos** para WhatsApp y aula virtual.
 
-**Última actualización:** 20 julio 2026  
+**Última actualización:** 20 julio 2026 (Centro de Éxito + telemetría en portal; deploy `main-20260720-172516`)  
 **Entorno producción:** AWS Elastic Beanstalk `eki-prod-final`  
 **Repositorio:** monolito Django (`mvp_project/`)  
-**Lectura CTO:** el producto en prod ya no es solo “LMS + WhatsApp”; es un monolito operativo con portal B2B de coordinación, aula/Studio, gamificación, retención, GEI y Nat comercial (clima Open-Meteo en §24). La sección **25** cubre seguridad frente a inyecciones.
+**Lectura CTO:** el producto en prod ya no es solo “LMS + WhatsApp”; es un monolito operativo con portal B2B de coordinación (**Centro de Éxito** en retención), aula/Studio, gamificación, GEI y Nat comercial (clima Open-Meteo en §24). La sección **25** cubre seguridad frente a inyecciones.
 
 **Documentos relacionados:**
 
@@ -36,7 +36,7 @@ Documento de referencia para el equipo de producto, operaciones, contenido y des
 12. [Gamificación](#12-gamificación)
 13. [Certificados y verificación](#13-certificados-y-verificación)
 14. [Empleabilidad y formularios externos](#14-empleabilidad-y-formularios-externos)
-15. [Retención y anti-deserción (portal)](#15-retención-y-anti-deserción-portal)
+15. [Retención y Centro de Éxito del Programa](#15-retención-y-centro-de-éxito-del-programa)
 16. [Integraciones (Twilio, S3, IA)](#16-integraciones-twilio-s3-ia)
 17. [Tareas en segundo plano (Celery)](#17-tareas-en-segundo-plano-celery)
 18. [Infraestructura y despliegue](#18-infraestructura-y-despliegue)
@@ -57,7 +57,7 @@ Lo que un coordinador o un inversor debe entender **hoy**, sin leer todo el docu
 | Superficie | Qué está vivo en producción |
 |------------|-----------------------------|
 | **WhatsApp** | Canal pedagógico principal: onboarding, *listo*, drip, evaluaciones, certificados, PQRS, campañas B2B sin menú 1-2-3. |
-| **Portal** (`app.eki.technology`) | Coordinación B2B: **Inicio** (antes “Dashboard”) con narrativa operativa, atención del día, retención/embudo, métricas, gamificación, branding, modo claro/oscuro, paleta eki (morado ~80 %, verde `#35A647` y azul `#3C7BBF` ~10 %), **Guía EKI** contextual (icono cuaderno Aprende, no bandera). Productos opcionales: GEI, Nat, empleabilidad. |
+| **Portal** (`app.eki.technology`) | Coordinación B2B: **Inicio** operativo, métricas, gamificación, branding, modo claro/oscuro (morado ~80 %, verde/azul ~10 %), **Guía EKI**. **Centro de Éxito** (`/portal/retencion/`): score 🟢🟡🔴, predicción de terminar, mapa abandono (módulo + paso/media), embudo vivo, curva, cohortes, WhatsApp Health, vs promedio eki, recomendaciones y **consultor de retención** (agente aparte de Nat). Telemetría `EstudianteEventoAprendizaje` (migr. 0122). Productos opcionales: GEI, Nat, empleabilidad. |
 | **Aula** (`aprende.eki.technology`) | Estudio, tareas, biblioteca, perfil, ranking por grupo con **podio SVG** (sin emoji). Docente: cursos, ranking, asistencia Excel. |
 | **Studio** (`studio.eki.technology`) | Catálogo, inscripción, checkout **Wompi** (pago → inscripción en Aprende). |
 | **Admin** (`admin.eki.technology`) | Consola maestra de contenido, clientes, campañas, drip, certificados. |
@@ -65,7 +65,7 @@ Lo que un coordinador o un inversor debe entender **hoy**, sin leer todo el docu
 
 **Identidad visual vigente:** portal = Plus Jakarta Sans + morado `#9A6CAC` / profundo `#5F3A6E`; aula = tipografía serif académica + teal institucional en tokens; Studio = identidad propia (cálida). Favicons distintos: portal (personas eki), aula (cuaderno).
 
-**Qué no es eki todavía:** app móvil nativa, LMS con SCORM completo, ni un SOC/pentest continuo documentado como proceso (ver §25). Nat ya puede consultar clima vía Open-Meteo (§24).
+**Qué no es eki todavía:** app móvil nativa, LMS con SCORM completo, ni un SOC/pentest continuo documentado como proceso (ver §25). Nat ya consulta clima vía Open-Meteo (§24). El Centro de Éxito **sí** está en prod (heurística v1 + telemetría); aún no ejecuta automatizaciones Twilio ni predicción ML.
 
 ---
 
@@ -80,7 +80,7 @@ El diferenciador no es “otro LMS web”, sino un **motor conversacional** que:
 - Entrega microlecciones por WhatsApp con multimedia optimizada.
 - Controla el avance con la palabra **listo** (sin depender de apps móviles).
 - Aplica **drip** (liberación programada) para cohortes y calendarios académicos.
-- Ofrece **portal** a coordinadores, **aula virtual** para estudio y **eki Studio** para catálogo e inscripción.
+- Ofrece **portal** a coordinadores (métricas + **Centro de Éxito**: quién abandona, por qué, qué hacer hoy), **aula virtual** para estudio y **eki Studio** para catálogo e inscripción.
 - Emite **certificados** verificables y conecta con **empleabilidad** cuando el cliente lo contrata.
 - Recolecta **datos de finca (GEI)** y asiste **ventas agrícolas (Nat)** cuando el cliente contrata esos módulos en el portal.
 
@@ -110,7 +110,7 @@ Admin configura
                     ↓ misma fuente de verdad ↓
 
     WhatsApp          Aula virtual        eki Studio         Portal
- (entrega activa)   (consulta pasiva)  (catálogo/inscrip.) (métricas agregadas)
+ (entrega activa)   (consulta pasiva)  (catálogo/inscrip.) (métricas + Centro de Éxito)
 ```
 
 ---
@@ -237,7 +237,8 @@ Es la **consola maestra**. Casi todo lo que el estudiante experimenta se configu
 **Para qué:**
 
 - Ver el estado del programa en **Inicio** (`/portal/dashboard/`): narrativa de coordinador, tarjetas de atención (sin avance, inactivos, PQRS, certificados), comparativa mes vs mes anterior, actividad reciente.
-- Analítica: métricas detalladas, **retención/embudo**, reportes Excel, gamificación.
+- Analítica: métricas detalladas, reportes Excel, gamificación.
+- **Centro de Éxito** (`/portal/retencion/`): riesgo, predicción, mapa de abandono, embudo, curva, cohortes, WhatsApp Health y consultor de retención — ver [§15](#15-retención-y-centro-de-éxito-del-programa).
 - Exportar datos, revisar campañas, empleabilidad.
 - Configurar branding (logo, subtítulo del programa).
 - Guía EKI: ayuda contextual por pantalla (no chatbot).
@@ -835,7 +836,14 @@ Tras inscripción en Studio, redirección o enlace a **Mis cursos** en el aula. 
 - **Nat** (`/portal/nat/`): sesiones comerciales, catálogo de productos, escalamientos HITL — si el cliente tiene producto `nat`.
 - **Empleabilidad:** mapas y métricas (`portal/empleabilidad_metricas.py`).
 - **Certificados:** estado de envíos.
-- **Retención / Centro de Éxito** (`/portal/retencion/`): score de riesgo 🟢🟡🔴, predicción de terminar, mapa de abandono, embudo vivo, curva, cohortes, WhatsApp Health, vs promedio eki, recomendaciones y consultor de retención (aparte de Nat).
+- **Centro de Éxito** (`/portal/retencion/` — menú lateral **Centro de Éxito**): responde ¿quién está en riesgo?, ¿por qué abandona?, ¿qué hacer hoy?
+  - Semáforo de riesgo 🟢🟡🔴 + conteos (no listas de miles).
+  - Explicación por estudiante + probabilidad estimada de terminar.
+  - Mapa de abandono por módulo y, con telemetría, por paso/media.
+  - Embudo vivo + embudo clásico, curva día 1–30, cohortes mensuales.
+  - WhatsApp Health, vs promedio eki, recomendaciones y reglas de automatización *sugeridas*.
+  - **Consultor de retención** (`POST /portal/retencion/agente/`): agente del portal, **aparte de Nat**.
+  - Ver detalle en [§15](#15-retención-y-centro-de-éxito-del-programa).
 - **Gamificación:** ranking y métricas de puntos/notas.
 - **Perfil organización:** branding (`portal/branding.py`).
 - **Guía EKI:** FAB + panel de ayuda por ruta (partials `help_assistant_script.html`).
@@ -1014,7 +1022,9 @@ Módulo de recolección de datos de finca y balance GEI. Resumen conceptual en [
 
 ## 15. Retención y Centro de Éxito del Programa
 
-**Panel B2B** `/portal/retencion/` (menú **Analítica → Retención**). Requiere módulo `cursos` en `portal_productos`.
+**Panel B2B** `/portal/retencion/` (menú lateral **Centro de Éxito**). Requiere módulo `cursos` en `portal_productos`. Desplegado en prod (`main-20260720-172516`); migración telemetría `0122` aplicada en predeploy.
+
+**También en Admin** (`admin.eki.technology`): Dashboard Eki → pestaña **Centro de Éxito** (`/admin/dashboard/?tab=retencion`) — misma visual y consultor (`POST /admin/retencion/agente/`). Elija organización y Aplicar.
 
 Objetivo de producto: ayudar al coordinador a responder tres preguntas — ¿quién está en riesgo?, ¿por qué abandona?, ¿qué hacer hoy? — no solo medir inscritos/completados.
 
@@ -1118,6 +1128,7 @@ Archivos: `core/telemetria.py`, `core/signals_telemetria.py`, migración `0122_e
 
 - **Tutor del curso** (estudiante en formación): respuestas en flujo de módulo, RAG educativo (`core/nati.py` — nombre histórico del módulo; no confundir con Nat comercial).
 - **Nat comercial** (línea WhatsApp comercial): asesoría + catálogo + RAG de documentos (`core/views.py` webhook comercial, `core/nat_router.py`).
+- **Consultor de retención** (portal Centro de Éxito): `portal/agente_retencion.py` — OpenAI o reglas; **no** es Nat.
 - **PQRS:** `core/pqrs_agent.py`.
 - **Formulario GEI:** agente secuencial sin RAG (`formulario/agent.py`).
 - Base conocimientos educativa: señales en `signals_conocimientos` actualizan índice al guardar cursos.
@@ -1392,11 +1403,13 @@ python manage.py test aprende.tests studio.tests core.tests_flujo_whatsapp_b2b c
 | **Progreso** | Registro `ProgresoEstudiante` de avance en un curso |
 | **ArchivoModulo** | Adjunto multimedia a nivel módulo |
 | **Portal** | `app.eki.technology` para coordinadores |
+| **Centro de Éxito** | Panel de retención en portal (`/portal/retencion/`): score 🟢🟡🔴, mapa abandono, embudo, curva, cohortes, WhatsApp Health y consultor IA/reglas. Ver [§15](#15-retención-y-centro-de-éxito-del-programa). |
+| **Telemetría de aprendizaje** | Eventos `EstudianteEventoAprendizaje` (listo, contenido, módulo, recordatorios, media Twilio) que alimentan el mapa por paso del Centro de Éxito |
 | **Aula** | `aprende.eki.technology` — estudio, tareas, ranking, biblioteca |
 | **eki Studio** | `studio.eki.technology` — catálogo e inscripción |
 | **Grupo** | `GrupoEstudiantes` — cohorte para campañas y ranking |
 | **GEI** | **Gases de Efecto Invernadero.** Módulo de recolección de datos de finca por WhatsApp (`FichaGEI`), cálculo de balance de emisiones y panel en portal. Ver [§10.5](#105-qué-es-gei-qué-es-nat). |
-| **Nat** | **Agente comercial** por WhatsApp: asesoría agrícola, catálogo de productos y RAG comercial por organización. Distinto del tutor educativo del curso. Ver [§10.5](#105-qué-es-gei-qué-es-nat). |
+| **Nat** | **Agente comercial** por WhatsApp: asesoría agrícola, catálogo de productos y RAG comercial por organización. Distinto del tutor educativo del curso y del consultor de retención del portal. Ver [§10.5](#105-qué-es-gei-qué-es-nat). |
 
 ---
 
@@ -1409,7 +1422,8 @@ python manage.py test aprende.tests studio.tests core.tests_flujo_whatsapp_b2b c
 | Portal **Inicio** operativo | Narrativa coordinador, atención del día, sin ruido de ranking/WA en home | Desplegado |
 | Portal dark mode + acentos eki | Contrastes legibles; verde/azul ~10 % en stats/estados/charts | Desplegado |
 | Guía EKI | Ayuda contextual; icono cuaderno Aprende | Desplegado |
-| Centro de Éxito (retención) | Score riesgo, mapa, agente, curva, cohortes | Desplegado (heurística v1) |
+| Centro de Éxito (retención) | Score 🟢🟡🔴, predicción, mapa módulo/paso, embudo vivo, curva, cohortes, WA Health, vs eki, recomendaciones, consultor (`agente_retencion`) | Desplegado (heurística v1; `main-20260720-172516`) |
+| Telemetría aprendizaje | `EstudianteEventoAprendizaje` + hooks WA/Celery/Twilio; mapa por paso en Centro de Éxito | Desplegado (migr. 0122 en predeploy) |
 | Ranking SVG (aula + docente) | Podio con bloques + trofeo/medalla vectorial | Desplegado |
 | Favicons de marca | Portal personas / Aprende cuaderno | Desplegado |
 | Asistencia Excel docente | Descarga openpyxl desde aula profesor | Desplegado |
@@ -1419,13 +1433,13 @@ python manage.py test aprende.tests studio.tests core.tests_flujo_whatsapp_b2b c
 | Admin package split | `core/admin/` modular | Desplegado |
 | Hub `/admin/aula-web/` | Operaciones aula | Desplegado |
 | GEI + Nat | Módulos portal opcionales por `portal_productos` | Desplegado |
-| Nat + Open-Meteo | Probabilidad climática por municipio en WhatsApp | Código listo (deploy pendiente) |
+| Nat + Open-Meteo | Probabilidad climática por municipio; persistencia vereda/lat/lon en sesión agro | Desplegado |
 
 ---
 
 ## 24. CTO — Clima Open-Meteo para Nat
 
-> **Estado:** **implementado en código** (`core/clima_open_meteo.py` → prompt de Nat). Pendiente de deploy a producción según el ciclo habitual. No es un mapa Windy.
+> **Estado:** **en producción** (`core/clima_open_meteo.py` → prompt de Nat). Persistencia de municipio/vereda/coords en `ContextoAgroSession`. No es un mapa Windy.
 
 ### Cómo funciona
 

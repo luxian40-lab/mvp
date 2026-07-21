@@ -1,5 +1,7 @@
 """Tests panel retención admin (ahora tab del Dashboard Eki)."""
 
+import json
+
 from django.contrib.auth.models import User
 from django.test import Client, TestCase, override_settings
 
@@ -43,8 +45,9 @@ class RetencionAdminViewTests(TestCase):
             f'/admin/dashboard/?tab=retencion&cliente={self.cliente.pk}&curso={self.curso.pk}'
         )
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'Retención')
-        self.assertContains(r, 'Embudo de aprendizaje')
+        self.assertContains(r, 'Centro de Éxito')
+        self.assertContains(r, 'Consultor de retención')
+        self.assertContains(r, 'Embudo vivo')
         self.assertContains(r, 'Inscritos')
         self.assertContains(r, 'tab-retencion')
         self.assertContains(r, 'data-loaded="1"')
@@ -52,6 +55,21 @@ class RetencionAdminViewTests(TestCase):
         self.assertContains(r, 'animateRetencionBars')
         # Payload ejecutivo vacío en tab retención (carga liviana)
         self.assertContains(r, 'type="application/json">{}</script>')
+
+    @override_settings(SECURE_SSL_REDIRECT=False)
+    def test_retencion_admin_agente_staff(self):
+        r = self.http.post(
+            '/admin/retencion/agente/',
+            data=json.dumps({
+                'pregunta': '¿Quiénes están en riesgo?',
+                'cliente': self.cliente.pk,
+                'curso': self.curso.pk,
+            }),
+            content_type='application/json',
+        )
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertIn('respuesta', body)
 
     @override_settings(SECURE_SSL_REDIRECT=False)
     def test_retencion_admin_requiere_staff(self):

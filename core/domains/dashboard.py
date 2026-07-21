@@ -7,7 +7,7 @@ Parte 1 — modelo de dashboards unificados.
 | learning     | Learning Analytics    | Reportes B2B, métricas empresa, GEI |
 | ai_ops       | AI Operations         | Bot, Twilio, activaciones IA, RAG   |
 | commercial   | Commercial CRM        | Nati, prospectos, campañas          |
-| retencion    | Retención             | Embudo, activos/inactivos, deserción|
+| retencion    | Centro de Éxito       | Riesgo, mapa, embudo, consultor     |
 """
 
 from __future__ import annotations

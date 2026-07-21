@@ -110,24 +110,8 @@
     .mod-dist-count { font-size: 1.35rem; font-weight: 800; color: var(--eki-primary); }
     .mod-dist-pct { font-size: 0.78rem; color: var(--eki-muted); margin: 4px 0 8px; }
     .sem-section-title { font-size: 1.05rem; font-weight: 700; margin: 28px 0 12px; color: var(--eki-text); }
-    .ret-funnel { list-style: none; padding: 0; margin: 0; background: var(--eki-card); border-radius: var(--eki-radius); box-shadow: 0 1px 4px rgba(0,0,0,0.06); padding: 8px 20px; }
-    .ret-funnel__item { display: grid; grid-template-columns: minmax(0, 1fr) 100px 64px; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--eki-border); font-size: 0.9rem; }
-    .ret-funnel__item:last-child { border-bottom: none; }
-    .ret-funnel__bar-wrap { height: 10px; background: #e9ecef; border-radius: 999px; overflow: hidden; margin-top: 8px; }
-    .ret-funnel__bar {
-        height: 100%;
-        width: 0;
-        background: var(--eki-primary);
-        border-radius: inherit;
-        min-width: 0;
-        transition: width 0.7s ease;
-    }
-    .ret-funnel__bar.is-ready { min-width: 2px; }
     .tab-btn.is-loading { opacity: 0.65; pointer-events: none; }
     .tab-btn.is-loading::after { content: ' …'; }
-    .ret-funnel__count { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
-    .ret-funnel__pct { color: var(--eki-muted); font-size: 0.78rem; text-align: right; }
-    .ret-alert-modulo { border-left: 4px solid var(--eki-warning); padding: 14px 18px; background: #fff9db; border-radius: 0 10px 10px 0; margin-bottom: 1.25rem; }
     .btn-meta { background: var(--eki-primary); color: #fff; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 600; border: none; cursor: pointer; }
     .metas-panel { background: var(--eki-primary-soft); border: 1px solid #b8d9d7; border-radius: var(--eki-radius); padding: 16px; margin-bottom: 20px; display: none; }
     .metas-panel.visible { display: block; }
@@ -141,6 +125,7 @@
     .sub-tab-link { font-size: 0.85rem; font-weight: 600; color: var(--eki-primary); text-decoration: none; margin-left: auto; }
     .mono { font-family: ui-monospace, monospace; font-size: 0.82rem; }
 </style>
+{% include 'portal/partials/centro_exito_styles.html' %}
 {% endblock %}
 
 {% block content %}
@@ -159,7 +144,7 @@
         <button class="tab-btn {% if tab_actual == 'learning' %}active{% endif %}" data-tab="learning" onclick="switchTab('learning', this)">Learning Analytics</button>
         <button class="tab-btn {% if tab_actual == 'ai_ops' %}active{% endif %}" data-tab="ai_ops" onclick="switchTab('ai_ops', this)">AI Operations</button>
         <button class="tab-btn {% if tab_actual == 'commercial' %}active{% endif %}" data-tab="commercial" onclick="switchTab('commercial', this)">Commercial CRM</button>
-        <button type="button" class="tab-btn {% if tab_actual == 'retencion' %}active{% endif %}" data-tab="retencion" onclick="switchTab('retencion', this)">Retención</button>
+        <button type="button" class="tab-btn {% if tab_actual == 'retencion' %}active{% endif %}" data-tab="retencion" onclick="switchTab('retencion', this)">Centro de Éxito</button>
     </div>
     <div id="learning-sub-nav" class="sub-tab-nav {% if tab_actual == 'learning' %}visible{% endif %}">
         <button type="button" class="sub-tab-btn {% if learning_section == 'reportes' %}active{% endif %}" data-section="reportes" onclick="switchLearningSection('reportes', this)">Reportes B2B</button>
@@ -510,13 +495,13 @@
         <div class="chart-card"><h3>Actividad Nat por día</h3><canvas id="chartNatiTemporal" height="220"></canvas></div>
     </div>
 
-    <!-- ===== RETENCIÓN ===== -->
+    <!-- ===== CENTRO DE ÉXITO ===== -->
     <div id="tab-retencion" class="tab-content {% if tab_actual == 'retencion' %}active{% endif %}" {% if tab_actual == 'retencion' %}data-loaded="1"{% endif %}>
         <form method="get" class="filters-bar">
             <input type="hidden" name="tab" value="retencion">
             <div>
                 <label>Organización</label>
-                <select name="cliente">
+                <select name="cliente" id="ret-filtro-cliente">
                     <option value="">— Elija —</option>
                     {% for c in clientes %}
                     <option value="{{ c.id }}" {% if c.id == cliente_filtro %}selected{% endif %}>{{ c.nombre }}</option>
@@ -525,8 +510,8 @@
             </div>
             <div>
                 <label>Curso</label>
-                <select name="curso">
-                    <option value="">Todos (embudo por módulo requiere curso)</option>
+                <select name="curso" id="ret-filtro-curso">
+                    <option value="">Todos (mapa por módulo requiere curso)</option>
                     {% for c in cursos_retencion %}
                     <option value="{{ c.id }}" {% if c.id == curso_filtro %}selected{% endif %}>{{ c.nombre }}</option>
                     {% empty %}
@@ -538,15 +523,15 @@
             </div>
             <div>
                 <label>Grupo</label>
-                <select name="grupo">
+                <select name="grupo" id="ret-filtro-grupo">
                     <option value="">Todos</option>
                     {% for g in grupos %}
                     <option value="{{ g.id }}" {% if g.id == grupo_filtro %}selected{% endif %}>{{ g.nombre }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <div><label>Inscripción desde</label><input type="date" name="fecha_inicio" value="{{ fecha_inicio }}"></div>
-            <div><label>Inscripción hasta</label><input type="date" name="fecha_fin" value="{{ fecha_fin }}"></div>
+            <div><label>Inscripción desde</label><input type="date" name="fecha_inicio" id="ret-filtro-desde" value="{{ fecha_inicio }}"></div>
+            <div><label>Inscripción hasta</label><input type="date" name="fecha_fin" id="ret-filtro-hasta" value="{{ fecha_fin }}"></div>
             <button type="submit">Aplicar</button>
             {% if cliente_filtro %}
             <a href="{% url 'admin_push_estudiantes' %}?cliente={{ cliente_filtro }}" class="btn-meta" style="background:#495057;">Push recordatorios</a>
@@ -554,59 +539,10 @@
         </form>
 
         {% if not cliente_filtro %}
-        <p style="color:var(--eki-muted);">Elija una <strong>organización</strong> y pulse <strong>Aplicar</strong> para cargar KPIs y embudo.</p>
+        <p style="color:var(--eki-muted);">Elija una <strong>organización</strong> y pulse <strong>Aplicar</strong> para abrir el Centro de Éxito.</p>
         {% elif retencion_data %}
-        {% with k=retencion_data.kpis %}
-        <div class="section">
-            <div class="section-title">Retención y embudo{% if retencion_data.dias_activo %} · ventana {{ retencion_data.dias_activo }} días{% endif %}</div>
-            <div class="metrics-grid">
-                <div class="m-card"><span class="m-label">Inscritos</span><span class="m-value">{{ k.inscritos }}</span></div>
-                <div class="m-card green"><span class="m-label">Activos</span><span class="m-value">{{ k.activos }}</span><span class="m-sub">{{ k.pct_activos }}%</span></div>
-                <div class="m-card orange"><span class="m-label">Inactivos</span><span class="m-value">{{ k.inactivos }}</span></div>
-                <div class="m-card blue"><span class="m-label">Certificados</span><span class="m-value">{{ k.certificados }}</span><span class="m-sub">{{ k.pct_certificacion }}%</span></div>
-                <div class="m-card"><span class="m-label">Prom. sin actividad</span><span class="m-value">{% if k.tiempo_promedio_abandono_dias != None %}{{ k.tiempo_promedio_abandono_dias }} d{% else %}—{% endif %}</span></div>
-                <div class="m-card"><span class="m-label">Prom. entre módulos</span><span class="m-value">{% if k.tiempo_promedio_modulo_dias != None %}{{ k.tiempo_promedio_modulo_dias }} d{% else %}—{% endif %}</span></div>
-            </div>
-        </div>
-
-        {% if k.modulo_mayor_abandono %}
-        <div class="ret-alert-modulo">
-            <strong>Módulo con mayor abandono:</strong>
-            M{{ k.modulo_mayor_abandono.modulo_numero }} · {{ k.modulo_mayor_abandono.modulo_titulo }}
-            — {{ k.modulo_mayor_abandono.caidas }} estudiante{{ k.modulo_mayor_abandono.caidas|pluralize:"s" }}
-            no pasaron a M{{ k.modulo_mayor_abandono.siguiente_numero }}
-            ({{ k.modulo_mayor_abandono.tasa_pct }}%).
-        </div>
-        {% endif %}
-        {% endwith %}
-
-        <div class="section">
-            <div class="section-title">Embudo de aprendizaje</div>
-            {% if retencion_data.requiere_curso_para_modulos %}
-            <p style="color:var(--eki-muted);margin-bottom:12px;">Seleccione un <strong>curso</strong> para ver M1, M2…</p>
-            {% elif retencion_data.curso %}
-            <p style="color:var(--eki-muted);margin-bottom:12px;">Curso: <strong>{{ retencion_data.curso.nombre }}</strong></p>
-            {% endif %}
-            <ul class="ret-funnel">
-                {% for paso in retencion_data.embudo %}
-                <li class="ret-funnel__item">
-                    <div>
-                        <strong>{{ paso.etiqueta }}</strong>
-                        {% if paso.titulo %}<br><span style="font-size:12px;color:var(--eki-muted);">{{ paso.titulo }}</span>{% endif %}
-                        <div class="ret-funnel__bar-wrap">
-                            <div class="ret-funnel__bar" data-width="{{ paso.pct_del_total }}"></div>
-                        </div>
-                    </div>
-                    <span class="ret-funnel__count">{{ paso.cantidad }}</span>
-                    <span class="ret-funnel__pct">
-                        {% if paso.pct_desde_anterior != None %}{{ paso.pct_desde_anterior }}%{% else %}100%{% endif %}
-                    </span>
-                </li>
-                {% empty %}
-                <li style="padding:12px 0;color:var(--eki-muted);">Sin inscripciones para los filtros seleccionados.</li>
-                {% endfor %}
-            </ul>
-        </div>
+        {% include 'portal/partials/centro_exito_body.html' with data=retencion_data ce_surface='admin' ce_agente_url='/admin/retencion/agente/' ce_cliente_id=cliente_filtro %}
+        {% include 'portal/partials/centro_exito_agent_js.html' %}
         {% endif %}
     </div>
 </div>
@@ -847,12 +783,16 @@ function initAuditoriaCharts() {
 }
 
 function animateRetencionBars() {
-    document.querySelectorAll('#tab-retencion .ret-funnel__bar[data-width]').forEach(function (bar) {
+    if (typeof window.animateCentroExitoBars === 'function') {
+        window.animateCentroExitoBars();
+        return;
+    }
+    document.querySelectorAll('#tab-retencion .ret-funnel__bar[data-width], #tab-retencion .ret-map-row__bar[data-width]').forEach(function (bar, i) {
         var w = bar.getAttribute('data-width') || '0';
-        requestAnimationFrame(function () {
+        window.setTimeout(function () {
             bar.style.width = w + '%';
             bar.classList.add('is-ready');
-        });
+        }, 80 + i * 40);
     });
 }
 
