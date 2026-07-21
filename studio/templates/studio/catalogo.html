@@ -25,7 +25,7 @@
             </span>
         </div>
         {% if c.id in inscritos %}
-        <a href="/aprende/estudiante/curso/{{ c.id }}/" class="st-btn st-btn--primary st-btn--sm st-btn--block">Ir al aula</a>
+        <a href="/studio/ir-a-aprende/?next=/aprende/estudiante/curso/{{ c.id }}/" class="st-btn st-btn--primary st-btn--sm st-btn--block">Ir al aula</a>
         {% elif c.precio_studio and c.publicacion_id and cuenta %}
         <div style="display:flex;flex-direction:column;gap:0.45rem;">
             <form method="post" action="{% url 'studio_carrito_agregar' c.publicacion_id %}">

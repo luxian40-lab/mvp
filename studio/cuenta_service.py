@@ -13,6 +13,7 @@ from core.models import Estudiante
 from .models import CuentaAula
 
 CUENTA_AULA_SESSION_KEY = 'cuenta_aula_id'
+STUDIO_EST_SESSION_KEY = 'studio_estudiante_id'
 
 
 def _normalizar_email(email: str) -> str:
@@ -88,24 +89,29 @@ def autenticar_cuenta_aula(
 
 
 def _request_es_staff(request) -> bool:
-    """Admin/staff en la misma cookie: no reemplazar su sesión con un usuario Studio."""
+    """Evita pisar sesión staff si alguien prueba Studio en el mismo host local."""
     u = getattr(request, 'user', None)
     return bool(u and u.is_authenticated and (u.is_staff or u.is_superuser))
 
 
 def iniciar_sesion_cuenta(request, cuenta: CuentaAula) -> Estudiante:
-    # Studio usa CUENTA_AULA_SESSION_KEY. login() de Django pisa _auth_user_id
-    # y saca al admin si prueba Studio en el mismo navegador.
+    # Solo sesión de Studio. No escribe aprende_estudiante_id (productos separados).
     if not _request_es_staff(request):
         login(request, cuenta.user)
     request.session[CUENTA_AULA_SESSION_KEY] = cuenta.pk
-    if cuenta.estudiante_id:
-        request.session['aprende_estudiante_id'] = cuenta.estudiante_id
+    request.session.pop(STUDIO_EST_SESSION_KEY, None)
     return cuenta.estudiante
+
+
+def iniciar_sesion_estudiante_studio(request, estudiante: Estudiante) -> None:
+    """Login B2B WhatsApp en Studio (sin CuentaAula)."""
+    request.session[STUDIO_EST_SESSION_KEY] = estudiante.pk
+    request.session.pop(CUENTA_AULA_SESSION_KEY, None)
 
 
 def cerrar_sesion_cuenta(request) -> None:
     request.session.pop(CUENTA_AULA_SESSION_KEY, None)
+    request.session.pop(STUDIO_EST_SESSION_KEY, None)
     request.session.pop('aprende_estudiante_id', None)
 
 

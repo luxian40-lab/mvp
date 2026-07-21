@@ -933,7 +933,7 @@
         <a href="{% url 'studio_creador' %}">Soy creador</a>
         <a href="{% url 'studio_carrito' %}">Carrito{% if carrito_count %} ({{ carrito_count }}){% endif %}</a>
         {% if cuenta or estudiante %}
-        <a href="/aprende/estudiante/" class="st-nav--cta">Ir al aula</a>
+        <a href="/studio/ir-a-aprende/" class="st-nav--cta">Ir al aula</a>
         <a href="{% url 'studio_cuenta_logout' %}">Salir</a>
         {% else %}
         <a href="{% url 'studio_cuenta_login' %}">Ingresar</a>

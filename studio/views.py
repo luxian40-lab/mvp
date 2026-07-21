@@ -13,8 +13,7 @@ from django.views.decorators.http import require_POST
 from core.models import Estudiante
 from core.utils_telefono import normalizar_telefono, variantes_telefono
 
-from aprende.middleware import APRENDE_EST_SESSION_KEY
-
+from .aprende_bridge import url_handoff_aprende
 from .catalogo_service import (
     cursos_catalogo_studio,
     curso_disponible_en_studio,
@@ -26,6 +25,7 @@ from .cuenta_service import (
     cerrar_sesion_studio,
     cuenta_desde_request,
     iniciar_sesion_cuenta,
+    iniciar_sesion_estudiante_studio,
     registrar_cuenta_aula,
 )
 from .models import CreadorStudio, PublicacionStudio
@@ -72,7 +72,36 @@ def _telefonos_coinciden(a: str, b: str) -> bool:
 
 
 def _estudiante_sesion(request) -> Estudiante | None:
-    return getattr(request, 'aprende_estudiante', None)
+    est = getattr(request, 'studio_estudiante', None)
+    if est:
+        return est
+    cuenta = getattr(request, 'cuenta_aula', None)
+    if cuenta and cuenta.estudiante_id:
+        return cuenta.estudiante
+    return None
+
+
+def _redirigir_a_aprende(request, next_path: str):
+    """Pasa a Aprende vía handoff firmado (sesiones separadas por host)."""
+    cuenta = cuenta_desde_request(request)
+    est = _estudiante_sesion(request)
+    if cuenta and cuenta.estudiante_id:
+        eid = cuenta.estudiante_id
+    elif est:
+        eid = est.pk
+    else:
+        return redirect('/studio/cuenta/login/?next=/studio/ir-a-aprende/')
+    return redirect(url_handoff_aprende(estudiante_id=eid, next_path=next_path, request=request))
+
+
+def ir_a_aprende(request):
+    next_path = (request.GET.get('next') or '/aprende/estudiante/').strip()
+    if not next_path.startswith('/aprende/'):
+        next_path = '/aprende/estudiante/'
+    if not _estudiante_sesion(request) and not cuenta_desde_request(request):
+        from urllib.parse import quote
+        return redirect(f'/studio/cuenta/login/?next={quote("/studio/ir-a-aprende/?next=" + next_path)}')
+    return _redirigir_a_aprende(request, next_path)
 
 
 def _cuenta_o_redirect(request, next_url='/studio/cursos/'):
@@ -110,6 +139,15 @@ def catalogo(request):
     ))
 
 
+def _redirect_post_login_studio(request, default='/studio/cursos/'):
+    next_url = (request.GET.get('next') or default).strip() or default
+    if next_url.startswith('/aprende/'):
+        return _redirigir_a_aprende(request, next_url)
+    if not next_url.startswith('/'):
+        next_url = default
+    return redirect(next_url)
+
+
 def cuenta_registro(request):
     if cuenta_desde_request(request):
         return redirect('/studio/cursos/')
@@ -124,14 +162,14 @@ def cuenta_registro(request):
         if cuenta:
             iniciar_sesion_cuenta(request, cuenta)
             messages.success(request, 'Cuenta creada. ¡Explora el catálogo!')
-            return redirect(request.GET.get('next', '/studio/cursos/'))
+            return _redirect_post_login_studio(request)
 
     return render(request, 'studio/cuenta_registro.html', {'error': error})
 
 
 def cuenta_login(request):
     if cuenta_desde_request(request):
-        return redirect(request.GET.get('next', '/studio/cursos/'))
+        return _redirect_post_login_studio(request)
 
     error = None
     if request.method == 'POST':
@@ -144,7 +182,7 @@ def cuenta_login(request):
             pending = request.session.pop('studio_pending_curso', None)
             if pending:
                 return redirect(f'/studio/inscribir/{pending}/')
-            return redirect(request.GET.get('next', '/studio/cursos/'))
+            return _redirect_post_login_studio(request)
 
     return render(request, 'studio/cuenta_login.html', {'error': error})
 
@@ -165,14 +203,14 @@ def estudiante_login_whatsapp(request):
         tel = normalizar_telefono(request.POST.get('telefono', ''))
         est = Estudiante.objects.filter(cedula=cedula, activo=True).first()
         if est and _telefonos_coinciden(est.telefono, tel):
-            request.session[APRENDE_EST_SESSION_KEY] = est.pk
+            iniciar_sesion_estudiante_studio(request, est)
             pending = request.session.pop('studio_pending_curso', None)
             if pending:
                 curso = curso_disponible_en_studio(est, int(pending))
                 if curso and curso.pk not in ids_cursos_inscritos(est):
                     inscribir_estudiante_en_curso(est, curso)
                     messages.success(request, f'Te inscribiste en «{curso.nombre}».')
-                    return redirect(f'/aprende/estudiante/curso/{curso.pk}/')
+                    return _redirigir_a_aprende(request, f'/aprende/estudiante/curso/{curso.pk}/')
             return redirect(request.GET.get('next', '/studio/cursos/'))
         error = 'Cédula o teléfono no coinciden con el registro de WhatsApp.'
 
@@ -205,7 +243,7 @@ def inscribir(request, curso_id: int):
 
     if curso.pk in ids_cursos_inscritos(est):
         messages.info(request, f'Ya estás inscrito en «{curso.nombre}».')
-        return redirect(f'/aprende/estudiante/curso/{curso.pk}/')
+        return _redirigir_a_aprende(request, f'/aprende/estudiante/curso/{curso.pk}/')
 
     if curso_requiere_pago(curso):
         if not cuenta:
@@ -221,7 +259,7 @@ def inscribir(request, curso_id: int):
         request,
         f'Te inscribiste en «{curso.nombre}». Continúa en Aprende.',
     )
-    return redirect(f'/aprende/estudiante/curso/{curso.pk}/')
+    return _redirigir_a_aprende(request, f'/aprende/estudiante/curso/{curso.pk}/')
 
 
 @require_POST
@@ -288,8 +326,8 @@ def pagar_orden(request, referencia: str):
     if orden.estado == OrdenStudio.ESTADO_APROBADO:
         first = orden.items.select_related('curso').first()
         if first:
-            return redirect(f'/aprende/estudiante/curso/{first.curso_id}/')
-        return redirect('/aprende/estudiante/')
+            return _redirigir_a_aprende(request, f'/aprende/estudiante/curso/{first.curso_id}/')
+        return _redirigir_a_aprende(request, '/aprende/estudiante/')
 
     redirect_url = request.build_absolute_uri(f'/studio/orden/{referencia}/resultado/')
     widget = None
@@ -325,8 +363,8 @@ def pagar_orden_resultado(request, referencia: str):
         messages.success(request, 'Pago aprobado. ¡Ya tienes acceso a tus cursos!')
         first = orden.items.select_related('curso').first()
         if first:
-            return redirect(f'/aprende/estudiante/curso/{first.curso_id}/')
-        return redirect('/aprende/estudiante/')
+            return _redirigir_a_aprende(request, f'/aprende/estudiante/curso/{first.curso_id}/')
+        return _redirigir_a_aprende(request, '/aprende/estudiante/')
 
     return render(request, 'studio/pagar_orden_resultado.html', _ctx_nav(
         request,
@@ -356,8 +394,8 @@ def pagar_orden_confirmar(request, referencia: str):
         messages.success(request, 'Pago confirmado. ¡Cursos desbloqueados!')
     first = orden.items.select_related('curso').first()
     if first:
-        return redirect(f'/aprende/estudiante/curso/{first.curso_id}/')
-    return redirect('/aprende/estudiante/')
+        return _redirigir_a_aprende(request, f'/aprende/estudiante/curso/{first.curso_id}/')
+    return _redirigir_a_aprende(request, '/aprende/estudiante/')
 
 
 def pagar_curso(request, referencia: str):
@@ -372,7 +410,7 @@ def pagar_curso(request, referencia: str):
         return redirect(f'/studio/cuenta/login/?next=/studio/pagar/{referencia}/')
 
     if acceso.estado == AccesoCursoPagado.ESTADO_APROBADO:
-        return redirect(f'/aprende/estudiante/curso/{acceso.curso_id}/')
+        return _redirigir_a_aprende(request, f'/aprende/estudiante/curso/{acceso.curso_id}/')
 
     redirect_url = request.build_absolute_uri(f'/studio/pagar/{referencia}/resultado/')
     widget = None
@@ -403,7 +441,7 @@ def pagar_curso_resultado(request, referencia: str):
 
     if acceso.estado == AccesoCursoPagado.ESTADO_APROBADO:
         messages.success(request, f'Pago aprobado. ¡Bienvenido a «{acceso.curso.nombre}»!')
-        return redirect(f'/aprende/estudiante/curso/{acceso.curso_id}/')
+        return _redirigir_a_aprende(request, f'/aprende/estudiante/curso/{acceso.curso_id}/')
 
     return render(request, 'studio/pagar_resultado.html', {
         'acceso': acceso,
@@ -431,7 +469,7 @@ def pagar_curso_confirmar(request, referencia: str):
             metadata={'origen': 'confirmar_mvp'},
         )
         messages.success(request, f'Pago confirmado. ¡Bienvenido a «{acceso.curso.nombre}»!')
-    return redirect(f'/aprende/estudiante/curso/{acceso.curso_id}/')
+    return _redirigir_a_aprende(request, f'/aprende/estudiante/curso/{acceso.curso_id}/')
 
 
 @csrf_exempt

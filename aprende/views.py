@@ -77,35 +77,53 @@ def _youtube_embed_id(url: str) -> str | None:
 
 
 def inicio(request):
-    # Ya con sesión (Studio o WhatsApp) → al aula, sin pantalla de ingreso.
     if getattr(request, 'aprende_estudiante', None):
-        return redirect('/aprende/estudiante/')
-    cuenta = getattr(request, 'cuenta_aula', None)
-    if cuenta and cuenta.estudiante_id:
-        request.session[APRENDE_EST_SESSION_KEY] = cuenta.estudiante_id
         return redirect('/aprende/estudiante/')
     return render(request, 'aprende/inicio.html')
 
 
+def handoff_desde_studio(request):
+    """Recibe token firmado de Studio y abre sesión solo en Aprende."""
+    from django.core import signing
+
+    from studio.aprende_bridge import consumir_token_handoff
+
+    token = (request.GET.get('t') or '').strip()
+    if not token:
+        messages.error(request, 'Enlace de acceso inválido o incompleto.')
+        return redirect('/aprende/estudiante/login/')
+    try:
+        eid, next_path = consumir_token_handoff(token)
+    except (signing.BadSignature, signing.SignatureExpired, KeyError, TypeError, ValueError):
+        messages.error(request, 'El enlace de acceso expiró o no es válido. Vuelve a entrar desde Studio.')
+        return redirect('/aprende/estudiante/login/')
+
+    est = Estudiante.objects.filter(pk=eid, activo=True).first()
+    if not est:
+        messages.error(request, 'No encontramos tu cuenta de estudiante.')
+        return redirect('/aprende/estudiante/login/')
+
+    request.session[APRENDE_EST_SESSION_KEY] = est.pk
+    return redirect(next_path)
+
+
 def estudiante_login(request):
     """
-    Aula = solo documento + WhatsApp (programas B2B).
-    Cuenta correo vive en Studio; si ya hay sesión Studio, entra directo.
+    Aula = documento + WhatsApp (programas B2B) o handoff desde Studio.
+    La cuenta correo vive solo en Studio (sesiones separadas por host).
     """
     if getattr(request, 'aprende_estudiante', None):
         return redirect(request.GET.get('next') or '/aprende/estudiante/')
 
-    # Ya autenticado en Studio (misma sesión) → rehidratar y entrar al aula
-    cuenta = getattr(request, 'cuenta_aula', None)
-    if cuenta and cuenta.estudiante_id:
-        request.session[APRENDE_EST_SESSION_KEY] = cuenta.estudiante_id
-        return redirect(request.GET.get('next') or '/aprende/estudiante/')
-
     modo = (request.POST.get('modo') or request.GET.get('modo') or '').strip().lower()
-    # Correo ya no se autentica aquí: redirigir a Studio
     if modo == 'correo' or request.GET.get('from') == 'correo':
+        from urllib.parse import quote
+
+        from core.host_isolation import absolute_path
+
         next_url = request.GET.get('next') or '/aprende/estudiante/'
-        return redirect(f'/studio/cuenta/login/?next={next_url}')
+        studio_next = quote(f'/studio/ir-a-aprende/?next={next_url}')
+        return redirect(absolute_path('studio', f'/studio/cuenta/login/?next={studio_next}', request))
 
     error = None
     if request.method == 'POST':

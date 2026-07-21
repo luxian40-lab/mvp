@@ -1,6 +1,8 @@
-"""Expone request.cuenta_aula y sincroniza sesión del estudiante."""
+"""Expone request.cuenta_aula / request.studio_estudiante (solo Studio)."""
 
-from .cuenta_service import CUENTA_AULA_SESSION_KEY
+from core.models import Estudiante
+
+from .cuenta_service import CUENTA_AULA_SESSION_KEY, STUDIO_EST_SESSION_KEY
 from .models import CuentaAula
 
 
@@ -10,6 +12,8 @@ class StudioCuentaMiddleware:
 
     def __call__(self, request):
         request.cuenta_aula = None
+        request.studio_estudiante = None
+
         cid = request.session.get(CUENTA_AULA_SESSION_KEY)
         if cid:
             cuenta = CuentaAula.objects.filter(pk=cid, activo=True).select_related(
@@ -18,6 +22,15 @@ class StudioCuentaMiddleware:
             if cuenta:
                 request.cuenta_aula = cuenta
                 if cuenta.estudiante_id:
-                    request.aprende_estudiante = cuenta.estudiante
-                    request.session['aprende_estudiante_id'] = cuenta.estudiante_id
+                    request.studio_estudiante = cuenta.estudiante
+                    return self.get_response(request)
+
+        sid = request.session.get(STUDIO_EST_SESSION_KEY)
+        if sid:
+            est = Estudiante.objects.filter(pk=sid, activo=True).select_related('cliente').first()
+            if est:
+                request.studio_estudiante = est
+            else:
+                request.session.pop(STUDIO_EST_SESSION_KEY, None)
+
         return self.get_response(request)

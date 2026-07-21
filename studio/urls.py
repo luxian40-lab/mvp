@@ -8,6 +8,7 @@ urlpatterns = [
     path('cuenta/registro/', views.cuenta_registro, name='studio_cuenta_registro'),
     path('cuenta/login/', views.cuenta_login, name='studio_cuenta_login'),
     path('cuenta/logout/', views.cuenta_logout, name='studio_cuenta_logout'),
+    path('ir-a-aprende/', views.ir_a_aprende, name='studio_ir_a_aprende'),
     path('estudiante/login/', views.estudiante_login, name='studio_estudiante_login'),
     path('estudiante/whatsapp/', views.estudiante_login_whatsapp, name='studio_estudiante_whatsapp'),
     path('inscribir/<int:curso_id>/', views.inscribir, name='studio_inscribir'),

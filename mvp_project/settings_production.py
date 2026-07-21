@@ -104,12 +104,26 @@ else:
 
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
-# Compartir sesión entre studio.eki.technology y aprende.eki.technology
-# (Studio = correo; Aprende = aula). Override vacío desactiva el dominio padre.
-_session_domain = os.environ.get('SESSION_COOKIE_DOMAIN', '.eki.technology').strip()
+# Cookies por host (default): aísla admin / app / studio / aprende.
+# Ignorar .eki.technology salvo override explícito EKI_ALLOW_SHARED_SESSION=1
+# (compartir sesión entre productos ya no es el diseño deseado).
+_session_domain = os.environ.get('SESSION_COOKIE_DOMAIN', '').strip()
+_allow_shared = os.environ.get('EKI_ALLOW_SHARED_SESSION', '').lower() in ('1', 'true', 'yes')
+if _session_domain in ('.eki.technology', 'eki.technology') and not _allow_shared:
+    _session_domain = ''
 if _session_domain:
     SESSION_COOKIE_DOMAIN = _session_domain
     CSRF_COOKIE_DOMAIN = os.environ.get('CSRF_COOKIE_DOMAIN', _session_domain).strip() or _session_domain
+else:
+    SESSION_COOKIE_DOMAIN = None
+    CSRF_COOKIE_DOMAIN = None
+
+# URLs públicas canónicas (handoff Studio→Aprende y redirects de host)
+ADMIN_PUBLIC_URL = os.environ.get('ADMIN_PUBLIC_URL', 'https://admin.eki.technology').rstrip('/')
+APP_PUBLIC_URL = os.environ.get('APP_PUBLIC_URL', 'https://app.eki.technology').rstrip('/')
+STUDIO_PUBLIC_URL = os.environ.get('STUDIO_PUBLIC_URL', 'https://studio.eki.technology').rstrip('/')
+APRENDE_PUBLIC_URL = os.environ.get('APRENDE_PUBLIC_URL', 'https://aprende.eki.technology').rstrip('/')
+EKI_DISABLE_HOST_ISOLATION = os.environ.get('EKI_DISABLE_HOST_ISOLATION', '').lower() in ('1', 'true', 'yes')
 
 # ?: (security.W016) CSRF cookies seguras
 if not _behind_cloudflare:

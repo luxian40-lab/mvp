@@ -17,7 +17,7 @@
     <p class="st-muted" style="margin-bottom:1rem;">El pago no se aprobó. Puedes intentar de nuevo desde el catálogo.</p>
     <a class="st-btn st-btn--primary" href="{% url 'studio_catalogo' %}">Ir al catálogo</a>
     {% else %}
-    <a class="st-btn st-btn--primary" href="/aprende/estudiante/curso/{{ curso.id }}/">Ir a Aprende</a>
+    <a class="st-btn st-btn--primary" href="/studio/ir-a-aprende/?next=/aprende/estudiante/curso/{{ curso.id }}/">Ir a Aprende</a>
     {% endif %}
     <p class="st-muted" style="margin-top:1rem;font-size:0.75rem;">Ref: {{ acceso.wompi_referencia }}</p>
 </div>

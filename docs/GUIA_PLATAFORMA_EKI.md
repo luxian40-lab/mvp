@@ -2,7 +2,7 @@
 
 Documento de referencia para el equipo de producto, operaciones, contenido y desarrollo. Explica **qué hace eki**, **cómo se conectan las piezas**, **cómo operar cada superficie** y **cómo configurar cursos** para WhatsApp y aula virtual.
 
-**Última actualización:** 20 julio 2026 (Centro de Éxito + telemetría en portal; deploy `main-20260720-172516`)  
+**Última actualización:** 21 julio 2026 (aislamiento host admin/app/studio/aprende + handoff Studio→Aprende)  
 **Entorno producción:** AWS Elastic Beanstalk `eki-prod-final`  
 **Repositorio:** monolito Django (`mvp_project/`)  
 **Lectura CTO:** el producto en prod ya no es solo “LMS + WhatsApp”; es un monolito operativo con portal B2B de coordinación (**Centro de Éxito** en retención), aula/Studio, gamificación, GEI y Nat comercial (clima Open-Meteo en §24). La sección **25** cubre seguridad frente a inyecciones.
@@ -268,24 +268,26 @@ El portal **no reemplaza** al admin eki: es la cara visible del cliente sobre su
 
 **Navegación estudiante:** Mis cursos | Tareas | Biblioteca | Mi perfil. Enlace discreto a Studio para descubrir cursos nuevos.
 
-La sesión de estudiante (`aprende_estudiante_id`) es la misma si entra por Studio o por Aula.
+La sesión de estudiante en Aprende (`aprende_estudiante_id`) es **propia del host** `aprende.*`. Studio no la comparte: el paso al aula usa handoff firmado (`/studio/ir-a-aprende/` → `/aprende/handoff/`).
 
 ### 3.4 eki Studio (`studio.eki.technology`)
 
 **Quién:**
 
-- **Estudiante:** mismo login cédula + teléfono que en el aula.
-- **Creador / instructor:** página informativa hoy; onboarding self-service en roadmap.
+- **Estudiante:** cuenta correo (`CuentaAula`) o login cédula + WhatsApp B2B en Studio.
+- **Creador / instructor:** panel creador + publicación de cursos.
 
 **Para qué:**
 
 - Vitrina de cursos con `visible_en_studio=True`.
 - Inscripción self-service → crea `ProgresoEstudiante`.
-- Tras inscribirse, el estudiante estudia en `/aprende/` (mismos módulos, drip y tareas).
+- Tras inscribirse, **Ir al aula** abre Aprende vía handoff (sesiones separadas por subdominio).
 
-**Diseño:** identidad propia de marketplace (no reutiliza el look del aula ni del portal). Producto separado del aula académica.
+**Diseño:** identidad propia de marketplace. Producto separado del aula (cookies y hosts aislados).
 
 **Pagos (julio 2026):** cursos con precio pueden pagarse con **Wompi** (widget + webhook). Pago aprobado → inscripción / `ProgresoEstudiante` en Aprende. Variables EB: `WOMPI_PUBLIC_KEY`, `WOMPI_PRIVATE_KEY`, `WOMPI_INTEGRITY_SECRET`.
+
+**Aislamiento (julio 2026):** `/admin/` solo en `admin.*`; `/portal/` en `app.*`; `/studio/` en `studio.*`; `/aprende/` en `aprende.*`/`aula.*`. Cookie de sesión **por host** (no `.eki.technology`).
 
 **Operación:** en Admin → Cursos → marcar **Publicado en eki Studio** (`visible_en_studio`). Ver `docs/EKI_STUDIO.md` para DNS y variables EB.
 
@@ -295,7 +297,8 @@ La sesión de estudiante (`aprende_estudiante_id`) es la misma si entra por Stud
 |------|-------------|
 | `/studio/` | Landing Studio |
 | `/studio/cursos/` | Catálogo de cursos publicados |
-| `/studio/estudiante/login/` | Login estudiante (misma sesión que aula) |
+| `/studio/cuenta/login/` | Login correo |
+| `/studio/ir-a-aprende/` | Handoff firmado hacia Aprende |
 | `/studio/inscribir/<id>/` | POST inscripción → `ProgresoEstudiante` |
 | `/studio/creador/` | Página creadores (roadmap onboarding) |
 

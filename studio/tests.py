@@ -172,7 +172,9 @@ class StudioTests(TestCase):
         ref = r.url.rstrip('/').split('/')[-1]
         r2 = self.http.post(f'/studio/pagar/{ref}/confirmar/')
         self.assertEqual(r2.status_code, 302)
-        self.assertIn('/aprende/estudiante/curso/', r2.url)
+        self.assertTrue(
+            '/aprende/handoff/' in r2.url or '/aprende/estudiante/curso/' in r2.url
+        )
         self.assertTrue(
             AccesoCursoPagado.objects.filter(
                 wompi_referencia=ref, estado='aprobado',
@@ -273,17 +275,36 @@ class StudioTests(TestCase):
         r = self.http.get('/aprende/estudiante/login/?modo=correo&next=/aprende/estudiante/')
         self.assertEqual(r.status_code, 302)
         self.assertIn('/studio/cuenta/login/', r.url)
-        self.assertIn('next=', r.url)
+        self.assertIn('ir-a-aprende', r.url)
 
-    def test_studio_sesion_abre_aula_sin_relogin(self):
+    def test_studio_no_abre_aula_sin_handoff(self):
         self.http.post('/studio/cuenta/registro/', {
             'nombre': 'Web Est2',
             'email': 'webest2@test.com',
             'password': 'testpass123',
         })
+        self.assertTrue(self.http.session.get('cuenta_aula_id'))
+        self.assertFalse(self.http.session.get('aprende_estudiante_id'))
         r = self.http.get('/aprende/estudiante/')
-        self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'Mis cursos')
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/aprende/estudiante/login/', r.url)
+
+    def test_handoff_studio_abre_aula(self):
+        self.http.post('/studio/cuenta/registro/', {
+            'nombre': 'Web Est3',
+            'email': 'webest3@test.com',
+            'password': 'testpass123',
+        })
+        r = self.http.get('/studio/ir-a-aprende/?next=/aprende/estudiante/')
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/aprende/handoff/', r.url)
+        r2 = self.http.get(r.url)
+        self.assertEqual(r2.status_code, 302)
+        self.assertIn('/aprende/estudiante/', r2.url)
+        r3 = self.http.get('/aprende/estudiante/')
+        self.assertEqual(r3.status_code, 200)
+        self.assertContains(r3, 'Mis cursos')
+        self.assertTrue(self.http.session.get('aprende_estudiante_id'))
 
     def test_registro_studio_no_saca_sesion_admin(self):
         from django.contrib.auth.models import User

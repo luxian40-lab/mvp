@@ -15,8 +15,8 @@ Mismo backend Django, mismo deploy en Elastic Beanstalk (`eki-prod-final`), ruta
 2. Explora catálogo (cursos con **PublicacionStudio** + `visible_en_studio`; no programas B2B solo por flag)
 3. Registro / login: correo + contraseña (o WhatsApp B2B legacy)
 4. Inscribe curso (gratis o pago Wompi) → ProgresoEstudiante
-5. Estudia en aprende.eki.technology/aprende/estudiante/
-```
+Tras pagar o inscribirte en **Studio**, el enlace **Ir al aula** abre un *handoff* firmado
+hacia `aprende.eki.technology` (sesiones **no** compartidas entre subdominios).
 
 ## Cuentas web (`CuentaAula`)
 
@@ -24,9 +24,20 @@ Separado de `Estudiante` (WhatsApp) y de `PortalUsuario` (staff B2B).
 
 - **Login / registro con correo:** solo en Studio → `/studio/cuenta/login/` y `/studio/cuenta/registro/`
 - **Aula** (`/aprende/estudiante/login/`): solo cédula + teléfono WhatsApp (programa ya inscrito)
-- Tras entrar por Studio, la sesión se comparte con Aprende (`SESSION_COOKIE_DOMAIN=.eki.technology`) y no pide login otra vez
+- **No hay cookie compartida** entre Studio y Aprende. El paso al aula usa `/studio/ir-a-aprende/` → `/aprende/handoff/`
 
 Cada cuenta web crea un `Estudiante` vinculado (progreso, puntos, ranking).
+
+## Aislamiento por host
+
+| Host | Rutas permitidas |
+|------|------------------|
+| `admin.eki.technology` | `/admin/` |
+| `app.eki.technology` | `/portal/` |
+| `studio.eki.technology` | `/studio/` |
+| `aprende.eki.technology` | `/aprende/` |
+
+`SESSION_COOKIE_DOMAIN` por defecto **vacío** (cookie por host). No usar `.eki.technology`.
 
 ## Creadores y pagos Wompi
 
