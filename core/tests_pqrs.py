@@ -57,22 +57,22 @@ class TestAgentePQRS(TestCase):
         )
 
     def test_acceso_resuelto_por_agente(self):
-        """Mensaje de acceso → agente resuelve, solicitud queda en_atencion."""
+        """Mensaje de acceso → agente resuelve, solicitud queda resuelta."""
         respuesta_modelo = (
             '{"categoria":"acceso","respuesta_whatsapp":"Hola, intente con su cédula sin puntos.",'
-            '"escalar":false,"nota_interna":"Acceso, resuelto en primer nivel."}'
+            '"escalar":false,"accion":"ninguna","nota_interna":"Acceso, resuelto en primer nivel."}'
         )
         with patch("core.pqrs_agent._llamar_openai_pqrs", return_value=respuesta_modelo):
             resultado = procesar_pqrs_automatico(self.solicitud)
         self.assertEqual(resultado["categoria"], "acceso")
         self.assertFalse(resultado["escalar"])
-        self.assertIn("escríbame de nuevo", resultado["respuesta_whatsapp"])
+        self.assertIn("listo", resultado["respuesta_whatsapp"].lower())
 
         aplicar_resultado_pqrs(self.solicitud, resultado)
         self.solicitud.refresh_from_db()
         self.assertEqual(self.solicitud.categoria, "acceso")
         self.assertTrue(self.solicitud.resuelto_por_agente)
-        self.assertEqual(self.solicitud.estado, "en_atencion")
+        self.assertEqual(self.solicitud.estado, "resuelta")
         self.assertIn("[Agente PQRS]", self.solicitud.notas_internas)
 
     def test_tecnico_se_escala(self):
@@ -97,7 +97,7 @@ class TestAgentePQRS(TestCase):
             resultado = procesar_pqrs_automatico(self.solicitud)
         self.assertEqual(resultado["categoria"], "otro")
         self.assertTrue(resultado["escalar"])
-        self.assertIn("escríbame de nuevo", resultado["respuesta_whatsapp"])
+        self.assertIn("listo", resultado["respuesta_whatsapp"].lower())
 
     def test_fallback_si_mensaje_vacio(self):
         self.solicitud.mensaje_original = ""
@@ -117,7 +117,7 @@ class TestAgentePQRS(TestCase):
             '"escalar":false,"nota_interna":"Contenido"}'
         )
         resultado = _parsear_respuesta_pqrs(raw)
-        self.assertIn("escríbame de nuevo", resultado["respuesta_whatsapp"])
+        self.assertIn("listo", resultado["respuesta_whatsapp"].lower())
 
     def test_fallback_helper_estructura(self):
         f = _fallback_escalar("motivo X")

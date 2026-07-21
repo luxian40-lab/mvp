@@ -469,8 +469,9 @@ def procesar_solicitud_soporte(estudiante, mensaje_texto, keyword_usada):
     """
     Procesa una solicitud de soporte:
     1. Guarda en BD
-    2. Notifica al equipo por email
-    3. Responde al usuario
+    2. Dispara agente PQRS (async) con contexto
+    3. Acuse corto (el agente envía la respuesta real)
+    Email a humanos solo si el agente escala.
     
     Returns:
         str: Mensaje de respuesta para el usuario
@@ -497,56 +498,23 @@ def procesar_solicitud_soporte(estudiante, mensaje_texto, keyword_usada):
 
         disparar_agente_pqrs_async(solicitud, callback_envio_whatsapp=_enviar_pqrs_whatsapp)
     except Exception:
-        logger.exception("[PQRS Agent] No se pudo disparar el agente; continuando flujo manual")
+        logger.exception("[PQRS Agent] No se pudo disparar el agente; notificando equipo")
+        try:
+            from .pqrs_agent import notificar_escalacion_humana
+            notificar_escalacion_humana(solicitud, motivo='No se pudo disparar agente PQRS')
+        except Exception:
+            logger.exception("[PQRS] Fallback email también falló")
 
-    # 2. Notificar al equipo por email
-    try:
-        asunto = f"🆘 Nueva Solicitud de Soporte - {estudiante.nombre}"
-        cuerpo = f"""
-Nueva solicitud de soporte recibida:
-
-📱 Estudiante: {estudiante.nombre}
-📞 Teléfono: {estudiante.telefono}
-🆔 Cédula: {estudiante.cedula}
-🔑 Keyword: {keyword_usada}
-📅 Fecha: {solicitud.fecha_solicitud.strftime('%d/%m/%Y %H:%M')}
-
-💬 Mensaje:
-{mensaje_texto}
-
----
-Ver en admin: {settings.ALLOWED_HOSTS[0]}/admin/core/solicitudsoporte/{solicitud.id}/change/
-        """
-        
-        send_mail(
-            subject=asunto,
-            message=cuerpo,
-            from_email=settings.DEFAULT_FROM_EMAIL if hasattr(settings, 'DEFAULT_FROM_EMAIL') else EMAIL_SOPORTE,
-            recipient_list=[EMAIL_SOPORTE],
-            fail_silently=True  # No romper si falla el email
-        )
-        logger.info(f"✅ Email de notificación enviado a {EMAIL_SOPORTE}")
-    except Exception as e:
-        logger.error(f"❌ Error enviando email de soporte: {e}")
-    
-    # 3. Responder al usuario
-    mensaje_respuesta = (
-        f"🆘 *Solicitud de Soporte Recibida*\n\n"
-        f"Hola {estudiante.nombre}, entendemos que necesitas ayuda.\n\n"
-        "📧 *Hemos notificado a nuestro equipo.*\n\n"
-        "🕐 *Tiempo de respuesta*\n"
-        "Somos un equipo pequeño trabajando para ti. "
-        "Te responderemos lo antes posible, generalmente en menos de 24 horas.\n\n"
-        "📝 *Tu mensaje:*\n"
-        f'"{mensaje_texto}"\n\n'
-        "Si tienes más información, envíala ahora y la añadiremos a tu caso.\n\n"
-        "✏️ *Si solo falló un dato tuyo* (nombre, municipio, documento, etc.), puedes corregirlo "
-        "tú mismo sin esperar: escribe *corregir datos* y sigue las instrucciones. "
-        "Tu curso sigue ahí: cuando quieras retomarlo escribe *listo*.\n\n"
-        "Gracias por tu paciencia 🙏"
+    # 2. Acuse corto — el agente completa la respuesta
+    nombre = (estudiante.nombre or 'estudiante').split()[0]
+    return (
+        f"Hola {nombre}, recibimos su mensaje.\n\n"
+        "Un asistente está revisando su caso con el contexto de su curso "
+        "y le responderá enseguida por este chat.\n\n"
+        "Si solo necesita corregir un dato (nombre, municipio o cédula), "
+        "también puede escribir *corregir datos*.\n\n"
+        "Para retomar la lección cuando quiera, escriba *listo*."
     )
-    
-    return mensaje_respuesta
 
 
 # ========== INTERCEPTOR PRINCIPAL ==========
