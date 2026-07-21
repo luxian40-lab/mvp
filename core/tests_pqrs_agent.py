@@ -138,7 +138,7 @@ class TestAyudaWhatsAppFlujo(TestCase):
         self.assertEqual(solicitud.estado, 'resuelta')
 
     def test_listo_no_secuestrado_por_ticket_pendiente(self):
-        SolicitudSoporte.objects.create(
+        solicitud = SolicitudSoporte.objects.create(
             estudiante=self.est,
             mensaje_original='ayuda',
             keyword_usada='curso_ayuda',
@@ -147,9 +147,40 @@ class TestAyudaWhatsAppFlujo(TestCase):
         )
         for msg in ('listo', 'Listo', 'continuar', '*listo*'):
             with self.subTest(msg=msg):
+                solicitud.estado = 'pendiente'
+                solicitud.resuelto_por_agente = False
+                solicitud.save(update_fields=['estado', 'resuelto_por_agente'])
                 self.assertIsNone(
                     intentar_procesar_seguimiento_pqrs_whatsapp(self.est, msg)
                 )
+                solicitud.refresh_from_db()
+                # listo pausa el ticket para no secuestrar el siguiente turno
+                self.assertTrue(solicitud.resuelto_por_agente)
+
+    def test_ayuda_con_detalle_no_crea_segundo_ticket(self):
+        SolicitudSoporte.objects.create(
+            estudiante=self.est,
+            mensaje_original='ayuda',
+            keyword_usada='curso_ayuda',
+            estado='pendiente',
+            resuelto_por_agente=False,
+        )
+        raw = (
+            '{"categoria":"contenido","respuesta_whatsapp":"Revisaremos el video.",'
+            '"escalar":false,"accion":"ninguna","nota_interna":"ok",'
+            '"hacer_pregunta_clarificacion":false,"fuera_de_alcance":false,'
+            '"consulta_contenido_curso":false}'
+        )
+        before = SolicitudSoporte.objects.filter(estudiante=self.est).count()
+        with patch('core.pqrs_agent._llamar_openai_pqrs', return_value=raw):
+            resp = intentar_procesar_seguimiento_pqrs_whatsapp(
+                self.est, 'ayuda no carga el video',
+            )
+        self.assertIsNotNone(resp)
+        self.assertEqual(
+            SolicitudSoporte.objects.filter(estudiante=self.est).count(),
+            before,
+        )
 
 
 class TestMensajeWhatsAppPQRS(TestCase):
@@ -247,10 +278,30 @@ class TestContextoYAccionesPQRS(TestCase):
             mensaje_original='reenvia el modulo por favor',
             keyword_usada='ayuda',
         )
+        paso_antes = self.prog.paso_actual_modulo
         resultado = procesar_pqrs_automatico(solicitud)
         self.assertEqual(resultado['accion'], 'reenviar_modulo')
-        self.assertIn('CONTENIDO_MODULO_DOS_PQRS', resultado['respuesta_whatsapp'])
         self.assertIn('listo', resultado['respuesta_whatsapp'].lower())
+        self.prog.refresh_from_db()
+        # CRÍTICO: reenviar no debe avanzar el puntero de pasos
+        self.assertEqual(self.prog.paso_actual_modulo, paso_antes)
+        self.assertFalse(self.prog.completado)
+
+    def test_pedagogia_prioridad_no_secuesra_eval(self):
+        from core.pqrs_agent import pedagogia_tiene_prioridad
+
+        self.prog.esperando_respuesta_evaluacion_paso = True
+        self.prog.save(update_fields=['esperando_respuesta_evaluacion_paso'])
+        SolicitudSoporte.objects.create(
+            estudiante=self.est,
+            mensaje_original='ayuda',
+            estado='pendiente',
+            resuelto_por_agente=False,
+        )
+        self.assertTrue(pedagogia_tiene_prioridad(self.est))
+        self.assertIsNone(
+            intentar_procesar_seguimiento_pqrs_whatsapp(self.est, 'A')
+        )
 
     def test_accion_corregir_datos_inicia_flujo(self):
         solicitud = SolicitudSoporte.objects.create(

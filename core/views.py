@@ -4186,26 +4186,40 @@ def _procesar_twilio_webhook(post_data):
                 pass
 
             else:
-                # 🆘 PQRS / ayuda con contexto — antes del gate «solo listo» (evita «No entendí»)
+                # 🆘 PQRS / ayuda — cede a evaluación/agentes; no duplicar tickets
                 try:
                     from .pqrs_agent import (
                         intentar_procesar_seguimiento_pqrs_whatsapp,
                         mensaje_activa_soporte,
+                        mensaje_es_solo_ayuda,
+                        obtener_ticket_pqrs_abierto,
+                        pedagogia_tiene_prioridad,
                         respuesta_ayuda_con_ticket_abierto,
                     )
                     from .security_handler import procesar_solicitud_soporte
 
                     _resp_pqrs_gate = None
-                    if mensaje_activa_soporte(msg_body):
-                        _resp_pqrs_gate = respuesta_ayuda_con_ticket_abierto(estudiante, msg_body)
-                        if not _resp_pqrs_gate:
-                            _resp_pqrs_gate = procesar_solicitud_soporte(
-                                estudiante, msg_body, 'curso_ayuda',
+                    if not pedagogia_tiene_prioridad(estudiante):
+                        if mensaje_activa_soporte(msg_body):
+                            _ticket_abierto = obtener_ticket_pqrs_abierto(estudiante)
+                            if _ticket_abierto:
+                                if mensaje_es_solo_ayuda(msg_body):
+                                    _resp_pqrs_gate = respuesta_ayuda_con_ticket_abierto(
+                                        estudiante, msg_body,
+                                    )
+                                else:
+                                    # ayuda + detalle con ticket abierto → seguimiento, no 2.º ticket
+                                    _resp_pqrs_gate = intentar_procesar_seguimiento_pqrs_whatsapp(
+                                        estudiante, msg_body,
+                                    )
+                            else:
+                                _resp_pqrs_gate = procesar_solicitud_soporte(
+                                    estudiante, msg_body, 'curso_ayuda',
+                                )
+                        else:
+                            _resp_pqrs_gate = intentar_procesar_seguimiento_pqrs_whatsapp(
+                                estudiante, msg_body,
                             )
-                    else:
-                        _resp_pqrs_gate = intentar_procesar_seguimiento_pqrs_whatsapp(
-                            estudiante, msg_body,
-                        )
 
                     if _resp_pqrs_gate:
                         try:
@@ -4643,20 +4657,26 @@ def _procesar_twilio_webhook(post_data):
                     return
         
         # ============================================================
-        # PQRS: seguimiento de ticket abierto (máx. 2 preguntas de clarificación)
+        # PQRS: seguimiento de ticket abierto (cede a pedagogía / agentes)
         # ============================================================
         pqrs_atendido = False
         respuesta_pqrs = None
         try:
-            from .pqrs_agent import intentar_procesar_seguimiento_pqrs_whatsapp
+            from .pqrs_agent import (
+                intentar_procesar_seguimiento_pqrs_whatsapp,
+                pedagogia_tiene_prioridad,
+            )
 
-            respuesta_pqrs = intentar_procesar_seguimiento_pqrs_whatsapp(estudiante, msg_body)
-            if respuesta_pqrs:
-                pqrs_atendido = True
-                logger.info(
-                    '🆘 PQRS seguimiento — respuesta automática estudiante_id=%s',
-                    estudiante.id,
+            if not pedagogia_tiene_prioridad(estudiante):
+                respuesta_pqrs = intentar_procesar_seguimiento_pqrs_whatsapp(
+                    estudiante, msg_body,
                 )
+                if respuesta_pqrs:
+                    pqrs_atendido = True
+                    logger.info(
+                        '🆘 PQRS seguimiento — respuesta automática estudiante_id=%s',
+                        estudiante.id,
+                    )
         except Exception as e:
             logger.exception('PQRS seguimiento omitido: %s', e)
 

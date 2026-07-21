@@ -73,6 +73,17 @@ _AYUDA_EXACTAS = frozenset({
 
 _HORAS_TICKET_ABIERTO = 72
 
+# Estados donde el curso/agentes pedagógicos tienen prioridad absoluta sobre PQRS
+ESTADOS_PEDAGOGIA = frozenset({
+    'esperando_respuesta_asistente',
+    'esperando_respuesta_reto',
+    'esperando_respuesta_tutor_ia',
+    'esperando_respuesta_progreso',
+    'esperando_respuesta_modulo',
+    'esperando_respuesta_pregunta_abierta_final',
+    'esperando_seleccion_curso',
+})
+
 _PATRONES_FUERA_ALCANCE = [
     re.compile(r'cambiar\s+(?:el\s+|mi\s+|su\s+)?tel[eé]fono', re.I),
     re.compile(r'actualizar\s+tel[eé]fono', re.I),
@@ -276,6 +287,66 @@ def obtener_ticket_pqrs_abierto(estudiante):
     )
 
 
+def pedagogia_tiene_prioridad(estudiante) -> bool:
+    """True si el turno pertenece al curso (agentes / evaluación), no a PQRS."""
+    if getattr(estudiante, 'estado_onboarding', None) in ESTADOS_PEDAGOGIA:
+        return True
+    ctx = estudiante.contexto_temporal or {}
+    if ctx.get('tipo') in {
+        'asistente_dario',
+        'reto_facilitador',
+        'correccion_datos',
+        'seleccion_curso',
+    }:
+        # correccion_datos y seleccion_curso: no secuestrar con seguimiento PQRS genérico
+        if ctx.get('tipo') in {'asistente_dario', 'reto_facilitador'}:
+            return True
+    from core.models import ProgresoEstudiante
+
+    prog = (
+        ProgresoEstudiante.objects.filter(
+            estudiante=estudiante,
+            completado=False,
+        )
+        .order_by('-fecha_inicio')
+        .first()
+    )
+    if prog and prog.esperando_respuesta_evaluacion_paso:
+        return True
+    return False
+
+
+def pausar_ticket_por_retorno_curso(estudiante) -> bool:
+    """
+    Si hay ticket abierto y el estudiante escribe listo/continuar, libera el turno
+    al curso para que PQRS no vuelva a secuestrar el siguiente mensaje.
+    """
+    ticket = obtener_ticket_pqrs_abierto(estudiante)
+    if not ticket:
+        return False
+    from django.utils import timezone
+
+    ticket.estado = 'en_atencion'
+    ticket.resuelto_por_agente = True
+    ticket.fecha_atencion = timezone.now()
+    ticket.atendido_por = ticket.atendido_por or 'Agente PQRS (IA)'
+    _append_nota(
+        ticket,
+        'Pausado: estudiante escribió listo/continuar y retomó el curso. '
+        'Si necesita más soporte, puede escribir ayuda de nuevo.',
+    )
+    ticket.save(
+        update_fields=[
+            'estado',
+            'resuelto_por_agente',
+            'fecha_atencion',
+            'atendido_por',
+            'notas_internas',
+        ]
+    )
+    return True
+
+
 def respuesta_ayuda_con_ticket_abierto(estudiante, mensaje: str) -> Optional[str]:
     """Si ya hay ticket abierto y repiten «ayuda» sin detalle, no crear otro."""
     if not mensaje_es_solo_ayuda(mensaje):
@@ -409,28 +480,39 @@ def procesar_seguimiento_pqrs(solicitud_soporte, mensaje_estudiante: str) -> dic
 
 def intentar_procesar_seguimiento_pqrs_whatsapp(estudiante, mensaje: str) -> Optional[str]:
     """Si hay ticket PQRS abierto, procesa el mensaje y devuelve texto de respuesta."""
+    if pedagogia_tiene_prioridad(estudiante):
+        return None
+
     ticket = obtener_ticket_pqrs_abierto(estudiante)
     if not ticket:
         return None
 
     from core.intent_detector import mensaje_indica_listo
 
+    # listo/continuar → liberar ticket y ceder al curso (no anexar al caso)
     if mensaje_indica_listo(mensaje):
+        pausar_ticket_por_retorno_curso(estudiante)
         return None
 
     if mensaje_es_solo_ayuda(mensaje):
         return respuesta_ayuda_con_ticket_abierto(estudiante, mensaje)
 
-    if mensaje_activa_soporte(mensaje):
-        return None
+    # «ayuda …detalle» con ticket abierto: NO crear otro; tratar como seguimiento
+    # (antes retornaba None y views abría un segundo ticket)
 
-    # Detalle del problema → agente con contexto (también si estaba pendiente)
+    # Detalle del problema → agente con contexto
     base = _normalizar_texto_whatsapp(ticket.mensaje_original or '')
+    texto = (mensaje or '').strip()
+    if mensaje_activa_soporte(texto) and not mensaje_es_solo_ayuda(texto):
+        # Quitar prefijo "ayuda " para el mensaje útil
+        tnorm = _normalizar_texto_whatsapp(texto)
+        if tnorm.startswith('ayuda'):
+            texto = texto[len('ayuda'):].strip(' :,-') or texto
     if base in _AYUDA_EXACTAS or not base:
-        ticket.mensaje_original = (mensaje or '').strip()
+        ticket.mensaje_original = texto
         ticket.save(update_fields=['mensaje_original'])
 
-    resultado = procesar_seguimiento_pqrs(ticket, mensaje)
+    resultado = procesar_seguimiento_pqrs(ticket, texto)
     aplicar_resultado_pqrs(ticket, resultado)
     if resultado.get('escalar'):
         notificar_escalacion_humana(ticket, motivo='Seguimiento escalado por agente')

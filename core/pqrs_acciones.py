@@ -1,4 +1,8 @@
-"""Acciones seguras que el agente PQRS puede ejecutar con contexto del estudiante."""
+"""Acciones seguras que el agente PQRS puede ejecutar con contexto del estudiante.
+
+IMPORTANTE: ninguna acción puede avanzar ProgresoEstudiante (pasos/módulos).
+El reenvío es solo lectura / re-mostrar material ya entregado.
+"""
 from __future__ import annotations
 
 import logging
@@ -60,6 +64,21 @@ def texto_explicar_progreso(estudiante) -> str:
     saludo = f"Hola {nombre[0]}, " if nombre else ''
 
     if not progresos:
+        hechos = list(
+            ProgresoEstudiante.objects.filter(
+                estudiante=estudiante,
+                completado=True,
+            )
+            .select_related('curso')
+            .order_by('-fecha_inicio')[:3]
+        )
+        if hechos:
+            nomes = ', '.join(f"*{p.curso.nombre}*" for p in hechos if p.curso_id)
+            return (
+                f"{saludo}ya completó {nomes}.\n\n"
+                "No hay módulos pendientes. Si el certificado no llega o necesita otra cosa, "
+                f"descríbalo aquí. {CIERRE_RETORNO_CURSO}"
+            )
         return (
             f"{saludo}aún no veo un curso activo en su perfil.\n\n"
             "Si cree que es un error, descríbalo y lo revisamos. "
@@ -86,12 +105,17 @@ def texto_explicar_progreso(estudiante) -> str:
 
 
 def texto_reenviar_modulo(estudiante) -> str:
-    """Reenvía el material del módulo/paso actual sin avanzar el progreso."""
+    """
+    Re-muestra el material del módulo/paso actual SIN mutar progreso.
+
+    Nunca llama a entregar_bloque_secciones_desde_paso (ese avanza paso_actual).
+    """
     from core.module_steps import (
-        entregar_bloque_secciones_desde_paso,
         mensaje_recordatorio_paso_actual,
         modulo_usa_pasos,
+        partes_mensaje_paso,
         pasos_activos_qs,
+        unir_multimsg,
     )
     from core.response_templates import obtener_video_url
 
@@ -110,30 +134,37 @@ def texto_reenviar_modulo(estudiante) -> str:
                 f"El curso *{progreso.curso.nombre}* no tiene módulos configurados.\n\n"
                 f"{CIERRE_RETORNO_CURSO}"
             )
-        progreso.modulo_actual = modulo
-        progreso.save(update_fields=['modulo_actual'])
+        # Solo lectura: no persistir modulo_actual desde PQRS
 
     encabezado = (
         f"📚 Reenvío de material — *{progreso.curso.nombre}*\n"
         f"Módulo {modulo.numero}: {modulo.titulo}\n\n"
+        "_Esto no avanza su curso; solo vuelve a mostrar lo que ya tiene._\n\n"
     )
 
     if modulo_usa_pasos(modulo) and pasos_activos_qs(modulo).exists():
-        paso_n = max(1, int(progreso.paso_actual_modulo or 1))
-        try:
-            bloque = entregar_bloque_secciones_desde_paso(progreso, modulo, paso_n)
-        except Exception:
-            logger.exception('[PQRS] Error reenviando pasos')
-            bloque = None
-        if bloque:
-            # Prefijar encabezado dentro de MULTI_MSG si aplica
-            if bloque.startswith('[MULTI_MSG]'):
-                inner = bloque[len('[MULTI_MSG]'):]
-                return '[MULTI_MSG]' + encabezado + '[SEP]' + inner
-            return encabezado + bloque
+        # Si hay evaluación pendiente, reenvía solo el enunciado (recordatorio ya lo hace)
         rem = mensaje_recordatorio_paso_actual(progreso, modulo)
-        if rem:
-            return encabezado + rem.replace('[MULTI_MSG]', '').replace('[SEP]', '\n\n')
+        if progreso.esperando_respuesta_evaluacion_paso and rem:
+            inner = rem[len('[MULTI_MSG]'):] if rem.startswith('[MULTI_MSG]') else rem
+            return '[MULTI_MSG]' + encabezado + '[SEP]' + inner
+
+        qs = list(pasos_activos_qs(modulo))
+        n = len(qs)
+        idx = int(progreso.paso_actual_modulo or 1)
+        if idx < 1:
+            idx = 1
+        if idx > n:
+            # Ya recibió todo el bloque: solo CTA, sin avanzar
+            return (
+                encabezado
+                + "Ya recibió el material de esta unidad.\n\n"
+                + CIERRE_RETORNO_CURSO
+            )
+        paso = qs[idx - 1]
+        partes = [encabezado.rstrip()] + partes_mensaje_paso(paso, progreso.curso)
+        partes.append(CIERRE_RETORNO_CURSO)
+        return unir_multimsg(partes)
 
     cuerpo = (modulo.contenido or '').strip() or (modulo.descripcion or '').strip()
     video = obtener_video_url(modulo) if modulo else None
@@ -165,7 +196,6 @@ def ejecutar_correccion_datos(
         ok_msg = _aplicar_campo(estudiante, campo_n, valor)
         return ok_msg, True
 
-    # Sin valor claro → menú de corrección (el estudiante termina el cambio)
     guia = iniciar_flujo_correccion(estudiante)
     return (
         f"{guia}\n\n"
@@ -221,7 +251,7 @@ def ejecutar_accion_pqrs(
 ) -> dict[str, Any]:
     """
     Ejecuta la acción declarada por el modelo y ajusta respuesta/escalar.
-    Mutates and returns resultado.
+    Mutates and returns resultado. Nunca avanza módulos/pasos.
     """
     accion = (resultado.get('accion') or 'ninguna').strip().lower()
     if accion not in ACCIONES_VALIDAS:
@@ -244,7 +274,8 @@ def ejecutar_accion_pqrs(
         resultado['respuesta_whatsapp'] = texto_reenviar_modulo(estudiante)
         resultado['escalar'] = False
         resultado['nota_interna'] = (
-            (resultado.get('nota_interna') or '') + ' | Acción: reenviar_modulo'
+            (resultado.get('nota_interna') or '')
+            + ' | Acción: reenviar_modulo (solo lectura, sin avanzar)'
         ).strip(' |')
         return resultado
 
@@ -262,7 +293,6 @@ def ejecutar_accion_pqrs(
         ).strip(' |')
         return resultado
 
-    # ninguna: asegurar cierre con retorno al curso si no escala
     if not resultado.get('escalar'):
         resp = (resultado.get('respuesta_whatsapp') or '').strip()
         if CIERRE_RETORNO_CURSO not in resp and 'listo' not in resp.lower():
