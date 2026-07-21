@@ -466,10 +466,23 @@ def get_response_for_intent(intent: str, nombre_usuario: str = "Estudiante", **k
                 from .selector_curso import asegurar_inscripcion_catalogo_cliente
 
                 _est = _EstMenu.objects.select_related('cliente').get(id=estudiante_id_menu)
-                # B2B: con organización no hay menú 1-2-3; el curso viene del cliente vinculado
+                # B2B: sin menú 1-2-3 global; si tiene 2+ cursos activos, menú de elección
                 if _est.cliente_id:
-                    prog = asegurar_inscripcion_catalogo_cliente(_est)
+                    from .flujo_whatsapp_b2b import (
+                        armar_menu_seleccion_cursos,
+                        tiene_varios_cursos_activos,
+                    )
+
                     org = _est.cliente.nombre if _est.cliente else 'tu organización'
+                    if tiene_varios_cursos_activos(_est):
+                        return armar_menu_seleccion_cursos(
+                            _est,
+                            prefijo=(
+                                f"🌱 Hola {nombre_usuario}, bienvenido al programa de *{org}*.\n\n"
+                                "Tienes varios cursos activos:"
+                            ),
+                        )
+                    prog = asegurar_inscripcion_catalogo_cliente(_est)
                     if prog and prog.curso:
                         cur = prog.curso
                         emoji = (cur.emoji or '📚').strip()
@@ -1205,16 +1218,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 estudiante.contexto_temporal = _ctx_drip
                 estudiante.save(update_fields=['contexto_temporal'])
         
-        # B2B: un solo curso activo según campaña/catálogo (sin lista numerada)
-        if getattr(estudiante, 'cliente_id', None) and progresos_activos.count() > 1:
-            from .flujo_whatsapp_b2b import resolver_progreso_b2b, salir_seleccion_curso_legacy
-
-            salir_seleccion_curso_legacy(estudiante)
-            prog_b2b = resolver_progreso_b2b(estudiante)
-            if prog_b2b:
-                progresos_activos = ProgresoEstudiante.objects.filter(id=prog_b2b.id)
-
-        # Si tiene MÚLTIPLES cursos activos, preguntar cuál continuar (solo sandbox)
+        # Si tiene MÚLTIPLES cursos activos (sandbox o B2B), preguntar cuál continuar
         if progresos_activos.count() > 1:
             respuesta = "📚 Tienes varios cursos activos:\n\n"
             for idx, prog in enumerate(progresos_activos, 1):

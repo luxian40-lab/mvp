@@ -69,7 +69,7 @@ class FlujoWhatsappB2BTests(TestCase):
         self.assertIn('1️⃣', msg)
         self.assertIn('2️⃣', msg)
 
-    def test_opcion_2_b2b_sin_lista_cursos(self):
+    def test_opcion_2_b2b_un_curso_sin_lista(self):
         msg = get_response_for_intent(
             'opcion_2', self.est_b2b.nombre, estudiante_id=self.est_b2b.id
         )
@@ -79,7 +79,7 @@ class FlujoWhatsappB2BTests(TestCase):
         self.est_b2b.refresh_from_db()
         self.assertNotEqual(self.est_b2b.estado_onboarding, 'esperando_seleccion_curso')
 
-    def test_opcion_numerica_b2b_redirige_a_listo(self):
+    def test_opcion_numerica_b2b_un_curso_redirige_a_listo(self):
         msg = get_response_for_intent(
             'opcion_numerica',
             self.est_b2b.nombre,
@@ -88,6 +88,28 @@ class FlujoWhatsappB2BTests(TestCase):
         )
         self.assertIn('Cultivo Básico', msg)
         self.assertIn('listo', msg.lower())
+
+    def test_b2b_dos_cursos_opcion_2_muestra_menu(self):
+        curso2 = Curso.objects.create(
+            nombre='Poda Avanzada',
+            cliente=self.cliente,
+            activo=True,
+            emoji='✂️',
+        )
+        Modulo.objects.create(
+            curso=curso2, numero=1, titulo='Intro 2', descripcion='D', contenido='C'
+        )
+        ProgresoEstudiante.objects.create(
+            estudiante=self.est_b2b, curso=curso2, completado=False
+        )
+        msg = get_response_for_intent(
+            'opcion_2', self.est_b2b.nombre, estudiante_id=self.est_b2b.id
+        )
+        self.assertIn('Cultivo Básico', msg)
+        self.assertIn('Poda Avanzada', msg)
+        self.assertIn('número', msg.lower())
+        self.est_b2b.refresh_from_db()
+        self.assertEqual(self.est_b2b.estado_onboarding, 'esperando_seleccion_curso')
 
     def test_construir_menu_b2b_usa_comandos(self):
         msg = construir_menu_principal_texto(self.est_b2b)

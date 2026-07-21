@@ -4055,25 +4055,9 @@ def _procesar_twilio_webhook(post_data):
                     logger.error(f"❌ Agente formulario: {e}", exc_info=True)
             
             # PRIORIDAD: Si está seleccionando curso, NO interceptar números
+            # (B2B con 2+ cursos también usa este menú numerado)
             if estudiante.estado_onboarding == 'esperando_seleccion_curso':
-                from .flujo_whatsapp_b2b import (
-                    es_estudiante_b2b,
-                    mensaje_digitos_sin_menu,
-                    salir_seleccion_curso_legacy,
-                )
-                if es_estudiante_b2b(estudiante):
-                    salir_seleccion_curso_legacy(estudiante)
-                    from .response_templates import get_response_for_intent
-                    if msg_body.strip().isdigit():
-                        texto_respuesta = mensaje_digitos_sin_menu(estudiante)
-                    else:
-                        texto_respuesta = get_response_for_intent(
-                            'continuar_leccion',
-                            estudiante.nombre,
-                            estudiante_id=estudiante.id,
-                            mensaje_original=msg_body,
-                        )
-                elif msg_lower in ['menu', 'menú']:
+                if msg_lower in ['menu', 'menú']:
                     estudiante.estado_onboarding = 'completado'
                     estudiante.contexto_temporal = None
                     estudiante.save()
@@ -6053,26 +6037,10 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                     print(f"✅ Respuesta validada: {'Correcta' if es_correcta else 'Incorrecta'}")
             
             # 3.5c PRIORIDAD: Si está seleccionando un curso de la lista
+            # (B2B con 2+ cursos también elige por número aquí)
             elif estudiante.estado_onboarding == 'esperando_seleccion_curso':
-                from .flujo_whatsapp_b2b import (
-                    es_estudiante_b2b,
-                    mensaje_digitos_sin_menu,
-                    salir_seleccion_curso_legacy,
-                )
                 msg_sel = msg_body.strip().lower()
-                if es_estudiante_b2b(estudiante):
-                    salir_seleccion_curso_legacy(estudiante)
-                    from .response_templates import get_response_for_intent
-                    if msg_body.strip().isdigit():
-                        texto_respuesta = mensaje_digitos_sin_menu(estudiante)
-                    else:
-                        texto_respuesta = get_response_for_intent(
-                            'continuar_leccion',
-                            estudiante.nombre,
-                            estudiante_id=estudiante.id,
-                            mensaje_original=msg_body,
-                        )
-                elif msg_sel in ['menu', 'menú']:
+                if msg_sel in ['menu', 'menú']:
                     estudiante.estado_onboarding = 'completado'
                     estudiante.contexto_temporal = None
                     estudiante.save()
