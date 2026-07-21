@@ -129,6 +129,20 @@ class TestAyudaWhatsAppFlujo(TestCase):
         solicitud.refresh_from_db()
         self.assertIn('No funciona el curso', solicitud.mensaje_original)
 
+    def test_listo_no_secuestrado_por_ticket_pendiente(self):
+        SolicitudSoporte.objects.create(
+            estudiante=self.est,
+            mensaje_original='ayuda',
+            keyword_usada='curso_ayuda',
+            estado='pendiente',
+            resuelto_por_agente=False,
+        )
+        for msg in ('listo', 'Listo', 'continuar', '*listo*'):
+            with self.subTest(msg=msg):
+                self.assertIsNone(
+                    intentar_procesar_seguimiento_pqrs_whatsapp(self.est, msg)
+                )
+
 
 class TestMensajeWhatsAppPQRS(TestCase):
     def test_sin_plantilla_robotica(self):

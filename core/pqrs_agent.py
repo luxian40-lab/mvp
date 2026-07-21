@@ -311,6 +311,12 @@ def intentar_procesar_seguimiento_pqrs_whatsapp(estudiante, mensaje: str) -> Opt
     if not ticket:
         return None
 
+    # No secuestrar avance del curso: *listo* / *continuar* deben ir al flujo educativo
+    from core.intent_detector import mensaje_indica_listo
+
+    if mensaje_indica_listo(mensaje):
+        return None
+
     if mensaje_es_solo_ayuda(mensaje):
         return respuesta_ayuda_con_ticket_abierto(estudiante, mensaje)
 
