@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Aprende · eki{% endblock %}</title>
+    <title>{% block title %}eki aprende{% endblock %}</title>
     {% load static %}
     <link rel="icon" href="{% static 'favicons/aprende-32.png' %}" type="image/png" sizes="32x32">
     <link rel="icon" href="{% static 'favicons/aprende.png' %}" type="image/png" sizes="any">
@@ -102,11 +102,16 @@
 
         .eki-brand-word {
             font-family: var(--font-serif);
-            font-size: 1.45rem;
+            font-size: 1.35rem;
             font-weight: 650;
             letter-spacing: -0.03em;
             line-height: 1;
             text-transform: lowercase;
+            color: #fff;
+        }
+
+        .eki-brand-word em {
+            font-style: normal;
             color: var(--eki-accent-soft);
         }
 
@@ -228,12 +233,16 @@
 
         .eki-hero-bleed .eki-brand-hero {
             font-family: var(--font-serif);
-            font-size: clamp(3rem, 9vw, 5.75rem);
+            font-size: clamp(2.6rem, 8vw, 5rem);
             font-weight: 650;
             letter-spacing: -0.04em;
-            line-height: 0.92;
+            line-height: 0.95;
             margin: 0 0 1rem;
             text-transform: lowercase;
+            color: #fff;
+        }
+
+        .eki-hero-bleed .eki-brand-hero span {
             color: var(--eki-accent-soft);
         }
 
@@ -580,10 +589,10 @@
         .eki-auth-panel a { color: #cbb8d8; }
         .eki-auth-panel a:hover { color: #fff; }
 
-        /* —— Dedicated login screen (separate from landing) —— */
+        /* —— Login: idea Portal (marca + formulario), identidad propia —— */
         .eki-login-screen {
             display: grid;
-            grid-template-columns: minmax(0, 1.25fr) minmax(320px, 460px);
+            grid-template-columns: minmax(0, 1.15fr) minmax(300px, 420px);
             min-height: calc(100vh - var(--header-h));
             margin: calc(-2.25rem) -1.5rem -3rem;
             background: var(--eki-bg);
@@ -598,109 +607,49 @@
         .eki-login-visual {
             position: relative;
             overflow: hidden;
-            isolation: isolate;
-            color: #fff;
             display: flex;
             flex-direction: column;
-            justify-content: flex-end;
-            padding: clamp(1.75rem, 4vw, 3rem);
-        }
-
-        .eki-login-visual__media {
-            position: absolute;
-            inset: 0;
-            z-index: -2;
-            background-size: cover;
-            background-position: center;
-            animation: eki-ken 18s var(--ease) both;
-        }
-
-        .eki-login-visual__media--estudiante {
-            background-image: url("https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=1600&q=80");
-        }
-
-        .eki-login-visual__media--docente {
-            background-image: url("https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=1600&q=80");
-        }
-
-        .eki-login-visual__shade {
-            position: absolute;
-            inset: 0;
-            z-index: -1;
+            justify-content: center;
+            padding: clamp(2rem, 5vw, 3.5rem);
+            color: #fff;
             background:
-                linear-gradient(115deg, rgba(61, 39, 80, 0.9) 0%, rgba(122, 78, 142, 0.55) 55%, rgba(61, 39, 80, 0.35) 100%),
-                linear-gradient(0deg, rgba(61, 39, 80, 0.82) 0%, transparent 50%);
+                radial-gradient(ellipse 90% 70% at 10% 20%, rgba(154, 108, 172, 0.45), transparent 55%),
+                radial-gradient(ellipse 60% 50% at 90% 80%, rgba(122, 78, 142, 0.35), transparent 50%),
+                linear-gradient(145deg, #3d2750 0%, #5f3a70 55%, #2a1f33 100%);
         }
 
         .eki-login-visual__logo {
-            position: relative;
-            z-index: 1;
-            display: flex;
-            align-items: baseline;
-            gap: 0.5rem;
-            margin: 0 0 auto;
+            margin: 0 0 1.75rem;
+            font-family: var(--font-serif);
+            font-size: clamp(1.5rem, 3vw, 1.85rem);
+            font-weight: 650;
+            letter-spacing: -0.03em;
+            line-height: 1;
+            text-transform: lowercase;
         }
 
-        .eki-login-visual__logo .eki-brand-word {
-            font-size: 1.25rem;
-            color: #fff;
+        .eki-login-visual__logo em {
+            font-style: normal;
+            color: var(--eki-accent-soft);
         }
-
-        .eki-login-visual__logo span {
-            font-size: 0.68rem;
-            font-weight: 600;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            color: rgba(255, 255, 255, 0.6);
-        }
-
-        .eki-login-badges {
-            position: relative;
-            z-index: 1;
-            display: flex;
-            gap: 0.6rem;
-            flex-wrap: wrap;
-            margin: 0 0 1.15rem;
-        }
-
-        .eki-login-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-            padding: 0.4rem 0.7rem;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.12);
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            font-size: 0.74rem;
-            font-weight: 600;
-            color: #fff;
-            backdrop-filter: blur(6px);
-        }
-
-        .eki-login-badge svg { width: 14px; height: 14px; flex-shrink: 0; }
-        .eki-login-badge--green svg { color: #6fdc8a; }
-        .eki-login-badge--blue svg { color: #7fb8f2; }
 
         .eki-login-visual h2 {
             font-family: var(--font-serif);
-            font-size: clamp(1.6rem, 3vw, 2.1rem);
+            font-size: clamp(1.55rem, 3.2vw, 2.15rem);
             font-weight: 650;
             letter-spacing: -0.03em;
+            line-height: 1.2;
             color: #fff;
-            margin: 0 0 0.5rem;
-            max-width: 16ch;
-            position: relative;
-            z-index: 1;
+            margin: 0 0 0.75rem;
+            max-width: 14ch;
         }
 
         .eki-login-visual p {
             margin: 0;
-            color: rgba(255, 255, 255, 0.82);
-            max-width: 28ch;
-            font-size: 0.95rem;
+            color: rgba(255, 255, 255, 0.78);
+            max-width: 32ch;
+            font-size: 0.98rem;
             line-height: 1.55;
-            position: relative;
-            z-index: 1;
         }
 
         .eki-login-form {
@@ -708,71 +657,55 @@
             align-items: center;
             justify-content: center;
             padding: clamp(1.5rem, 4vw, 2.5rem);
-            background:
-                radial-gradient(ellipse 70% 55% at 100% 0%, rgba(154, 108, 172, 0.14), transparent 55%),
-                var(--eki-bg);
+            background: var(--eki-surface);
+            border-left: 1px solid var(--eki-border);
         }
 
         .eki-login-card {
             width: 100%;
-            max-width: 380px;
-            background: linear-gradient(165deg, #6a4280 0%, var(--eki-purple-dark) 45%, #241729 100%);
-            border-radius: 22px;
-            box-shadow: 0 32px 64px -18px rgba(61, 39, 80, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
-            color: #fff;
-            padding: 2.1rem 1.85rem 1.7rem;
-            position: relative;
-            overflow: hidden;
+            max-width: 360px;
         }
-
-        .eki-login-card::before {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background:
-                radial-gradient(ellipse 80% 50% at 85% -10%, rgba(154, 108, 172, 0.4), transparent 55%),
-                radial-gradient(ellipse 60% 40% at 5% 100%, rgba(255, 255, 255, 0.06), transparent 50%);
-            pointer-events: none;
-        }
-
-        .eki-login-card > * { position: relative; z-index: 1; }
 
         .eki-login-card h1 {
-            font-size: clamp(1.35rem, 2.3vw, 1.6rem);
-            margin-bottom: 0.35rem;
-            color: #fff;
+            font-family: var(--font-serif);
+            font-size: clamp(1.35rem, 2.2vw, 1.55rem);
+            font-weight: 650;
+            letter-spacing: -0.02em;
+            margin: 0 0 0.4rem;
+            color: var(--eki-ink);
         }
 
         .eki-login-card .eki-muted {
-            margin-bottom: 1.5rem;
-            color: rgba(255, 255, 255, 0.72);
+            margin: 0 0 1.4rem;
+            color: var(--eki-muted);
+            font-size: 0.9rem;
         }
 
         .eki-login-card .eki-field label {
-            color: rgba(255, 255, 255, 0.65);
+            color: var(--eki-ink-soft);
         }
 
         .eki-field-icon {
             display: flex;
             align-items: center;
-            gap: 0.6rem;
+            gap: 0.55rem;
             background: #fff;
-            border-radius: 12px;
-            padding: 0 0.85rem;
-            min-height: 46px;
-            border: 1px solid transparent;
+            border-radius: var(--eki-radius);
+            padding: 0 0.75rem;
+            min-height: 44px;
+            border: 1px solid var(--eki-border);
             transition: box-shadow 0.15s, border-color 0.15s;
         }
 
         .eki-field-icon:focus-within {
             border-color: var(--eki-purple-soft);
-            box-shadow: 0 0 0 3px rgba(154, 108, 172, 0.35);
+            box-shadow: 0 0 0 3px rgba(154, 108, 172, 0.22);
         }
 
         .eki-field-icon svg {
-            width: 17px;
-            height: 17px;
-            color: #8b7a97;
+            width: 16px;
+            height: 16px;
+            color: var(--eki-muted);
             flex-shrink: 0;
         }
 
@@ -784,7 +717,7 @@
             font: inherit;
             font-size: 0.92rem;
             color: var(--eki-ink);
-            padding: 0.68rem 0;
+            padding: 0.65rem 0;
             min-width: 0;
         }
 
@@ -795,33 +728,55 @@
             background: transparent;
             padding: 4px;
             cursor: pointer;
-            color: #8b7a97;
+            color: var(--eki-muted);
             display: grid;
             place-items: center;
         }
 
         .eki-toggle-pass:hover { color: var(--eki-purple-dark); }
-        .eki-toggle-pass svg { width: 17px; height: 17px; }
+        .eki-toggle-pass svg { width: 16px; height: 16px; }
 
         .eki-login-card .eki-btn--primary {
             width: 100%;
-            justify-content: center;
-            min-height: 46px;
-            border-radius: 12px;
-            box-shadow: 0 10px 24px rgba(31, 19, 37, 0.32);
+            min-height: 44px;
+            margin-top: 0.35rem;
         }
 
         .eki-login-card__footer {
             margin-top: 1.25rem;
-            padding-top: 1.1rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.12);
-            font-size: 0.78rem;
-            color: rgba(255, 255, 255, 0.6);
+            padding-top: 1rem;
+            border-top: 1px solid var(--eki-border);
+            font-size: 0.82rem;
+            color: var(--eki-muted);
             text-align: center;
         }
 
-        .eki-login-card__footer a { color: #cbb8d8; font-weight: 600; text-decoration: none; }
-        .eki-login-card__footer a:hover { color: #fff; }
+        .eki-login-card__footer a {
+            color: var(--eki-purple);
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .eki-login-card__footer a:hover { color: var(--eki-purple-dark); text-decoration: underline; }
+
+        @media (max-width: 860px) {
+            .eki-login-screen {
+                grid-template-columns: 1fr;
+                min-height: auto;
+            }
+            .eki-login-visual {
+                min-height: 32vh;
+                justify-content: flex-end;
+                padding-bottom: 1.75rem;
+            }
+            .eki-login-visual h2 { max-width: none; font-size: 1.45rem; }
+            .eki-login-form {
+                border-left: 0;
+                border-top: 1px solid var(--eki-border);
+                padding: 1.5rem 1.15rem 2rem;
+            }
+            .eki-login-card { max-width: none; }
+        }
 
         .eki-landing-promise {
             max-width: 36rem;
@@ -848,16 +803,6 @@
 
         .eki-landing-note a:hover { text-decoration: underline; }
 
-        @media (max-width: 840px) {
-            .eki-login-screen {
-                grid-template-columns: 1fr;
-                min-height: auto;
-            }
-            .eki-login-visual { min-height: 28vh; }
-            .eki-login-form { padding: 2rem 1.25rem; }
-        }
-
-        /* —— Lesson reader —— */
         .eki-read-progress {
             position: fixed;
             top: var(--header-h);
@@ -1114,13 +1059,13 @@
 
             .eki-login-screen { min-height: auto; }
             .eki-login-visual {
-                min-height: 26vh;
-                min-height: 26dvh;
-                padding: 1.25rem 1.1rem;
+                min-height: 28vh;
+                min-height: 28dvh;
+                padding: 1.5rem 1.15rem;
             }
-            .eki-login-visual h2 { max-width: none; font-size: 1.45rem; }
+            .eki-login-visual h2 { max-width: none; font-size: 1.4rem; }
             .eki-login-form { padding: 1.35rem 1.1rem 2rem; }
-            .eki-login-card { max-width: none; padding: 1.6rem 1.35rem 1.4rem; }
+            .eki-login-card { max-width: none; }
 
             .eki-list-item {
                 flex-wrap: wrap;
@@ -1152,9 +1097,9 @@
 
     <header class="eki-header">
         <a href="/aprende/" class="eki-brand">
-            <div class="eki-brand-word">aprende</div>
+            <div class="eki-brand-word">eki <em>aprende</em></div>
             <div class="eki-brand-text">
-                <span>by eki · acceso seguro</span>
+                <span>aula virtual</span>
             </div>
         </a>
         <button type="button" class="eki-nav-toggle" id="eki-nav-toggle" aria-label="Abrir menú" aria-expanded="false">
@@ -1173,7 +1118,7 @@
     </main>
 
     <footer class="eki-footer">
-        <strong>aprende</strong> · formación verificada · eki
+        <strong>eki aprende</strong> · formación verificada
     </footer>
 
     <script>

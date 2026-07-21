@@ -3,21 +3,15 @@
 {% block main_class %} st-main--flush{% endblock %}
 {% block content %}
 <div class="st-login-screen">
-    <aside class="st-login-visual" aria-hidden="false">
-        <div class="st-login-visual__media"></div>
-        <div class="st-login-visual__shade"></div>
+    <aside class="st-login-visual">
         <p class="st-login-visual__logo">eki <em>studio</em></p>
-        <div class="st-login-badges">
-            <span class="st-login-badge st-login-badge--green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M4 12.5l4.5 4.5L20 5.5"/></svg> Registro gratis</span>
-            <span class="st-login-badge st-login-badge--blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l7.5 3.8-7.5 3.8-7.5-3.8L12 3z"/><path d="M6 8.7v4.2c0 1.3 2.1 2.6 6 2.6s6-1.3 6-2.6V8.7"/></svg> Cuenta única</span>
-        </div>
-        <h2>Únete al catálogo eki Studio</h2>
-        <p>Crea tu cuenta y explora cursos. La misma cuenta te sirve para estudiar en Aprende.</p>
+        <h2>Crea tu cuenta y explora el catálogo.</h2>
+        <p>La misma cuenta te sirve para estudiar en eki aprende.</p>
     </aside>
     <div class="st-login-form-col">
         <div class="st-login-card">
-            <h1>Únete a Studio</h1>
-            <span class="st-muted">Correo y contraseña. Estudia en Aprende con la misma cuenta.</span>
+            <h1>Crear cuenta</h1>
+            <span class="st-muted">Correo y contraseña. Sin tarjeta para registrarte.</span>
             {% if error %}<div class="st-alert st-alert--error">{{ error }}</div>{% endif %}
             <form method="post">
                 {% csrf_token %}

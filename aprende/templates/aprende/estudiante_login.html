@@ -1,27 +1,18 @@
 {% extends "aprende/base.html" %}
-{% block title %}Ingreso estudiante | Aprende{% endblock %}
+{% block title %}Ingreso estudiante | eki aprende{% endblock %}
 {% block nav %}<a href="/aprende/">Inicio</a>{% endblock %}
 {% block main_class %}eki-main--flush{% endblock %}
 {% block content %}
 <div class="eki-login-screen">
-    <aside class="eki-login-visual" aria-hidden="false">
-        <div class="eki-login-visual__media eki-login-visual__media--estudiante" role="img" aria-label="Estudiante concentrado"></div>
-        <div class="eki-login-visual__shade"></div>
-        <div class="eki-login-visual__logo">
-            <span class="eki-brand-word">aprende</span>
-            <span>by eki</span>
-        </div>
-        <div class="eki-login-badges">
-            <span class="eki-login-badge eki-login-badge--green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M4 12.5l4.5 4.5L20 5.5"/></svg> Progreso claro</span>
-            <span class="eki-login-badge eki-login-badge--blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l7.5 3.8-7.5 3.8-7.5-3.8L12 3z"/><path d="M6 8.7v4.2c0 1.3 2.1 2.6 6 2.6s6-1.3 6-2.6V8.7"/></svg> Junto a WhatsApp</span>
-        </div>
-        <h2>Acceso seguro al aula</h2>
+    <aside class="eki-login-visual">
+        <p class="eki-login-visual__logo">eki <em>aprende</em></p>
+        <h2>Tu aula, a un paso.</h2>
         <p>Ingresa con el documento y el WhatsApp del programa.</p>
     </aside>
     <div class="eki-login-form">
         <div class="eki-login-card">
-            <h1>Ingreso al aula</h1>
-            <p class="eki-muted">Use el documento y el WhatsApp con el que está registrado en el programa.</p>
+            <h1>Ingreso estudiante</h1>
+            <p class="eki-muted">Documento y WhatsApp con los que estás registrado.</p>
 
             {% if error %}<div class="eki-alert eki-alert--error" role="alert">{{ error }}</div>{% endif %}
 
@@ -41,7 +32,7 @@
                         <input type="text" name="telefono" id="telefono" required autocomplete="tel" placeholder="573001234567">
                     </div>
                 </div>
-                <button type="submit" class="eki-btn eki-btn--primary">Continuar de forma segura</button>
+                <button type="submit" class="eki-btn eki-btn--primary">Continuar</button>
             </form>
 
             <p class="eki-login-card__footer">¿Eres docente? <a href="{% url 'aprende_profesor_login' %}">Ingresa aquí</a></p>

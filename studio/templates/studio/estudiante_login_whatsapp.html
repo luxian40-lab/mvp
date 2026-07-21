@@ -3,21 +3,15 @@
 {% block main_class %} st-main--flush{% endblock %}
 {% block content %}
 <div class="st-login-screen">
-    <aside class="st-login-visual" aria-hidden="false">
-        <div class="st-login-visual__media"></div>
-        <div class="st-login-visual__shade"></div>
+    <aside class="st-login-visual">
         <p class="st-login-visual__logo">eki <em>studio</em></p>
-        <div class="st-login-badges">
-            <span class="st-login-badge st-login-badge--green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M4 12.5l4.5 4.5L20 5.5"/></svg> Sin contraseña</span>
-            <span class="st-login-badge st-login-badge--blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 16l4.5-5 4 3L19 7"/><path d="M14.5 7H19v4.5"/></svg> Programas B2B</span>
-        </div>
-        <h2>Ingreso con cédula y WhatsApp</h2>
-        <p>Usa los mismos datos con los que te registraste en el programa de tu organización.</p>
+        <h2>Ingreso B2B sin contraseña.</h2>
+        <p>Usa cédula y WhatsApp del programa de tu organización.</p>
     </aside>
     <div class="st-login-form-col">
         <div class="st-login-card">
             <h1>Ingreso B2B</h1>
-            <span class="st-muted">Cédula y teléfono del programa (sin contraseña).</span>
+            <span class="st-muted">Cédula y teléfono del programa.</span>
             {% if error %}<div class="st-alert st-alert--error">{{ error }}</div>{% endif %}
             <form method="post">
                 {% csrf_token %}

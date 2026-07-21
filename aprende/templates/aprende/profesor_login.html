@@ -1,22 +1,13 @@
 {% extends "aprende/base.html" %}
-{% block title %}Ingreso docente | Aprende{% endblock %}
+{% block title %}Ingreso docente | eki aprende{% endblock %}
 {% block nav %}<a href="/aprende/">Inicio</a>{% endblock %}
 {% block main_class %}eki-main--flush{% endblock %}
 {% block content %}
 <div class="eki-login-screen">
-    <aside class="eki-login-visual" aria-hidden="false">
-        <div class="eki-login-visual__media eki-login-visual__media--docente" role="img" aria-label="Docente en aula"></div>
-        <div class="eki-login-visual__shade"></div>
-        <div class="eki-login-visual__logo">
-            <span class="eki-brand-word">aprende</span>
-            <span>by eki</span>
-        </div>
-        <div class="eki-login-badges">
-            <span class="eki-login-badge eki-login-badge--green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M4 12.5l4.5 4.5L20 5.5"/></svg> Entregas al día</span>
-            <span class="eki-login-badge eki-login-badge--blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 16l4.5-5 4 3L19 7"/><path d="M14.5 7H19v4.5"/></svg> Ranking del grupo</span>
-        </div>
-        <h2>Espacio docente</h2>
-        <p>Publica lecciones, revisa entregas y acompaña a tu grupo con las credenciales del portal.</p>
+    <aside class="eki-login-visual">
+        <p class="eki-login-visual__logo">eki <em>aprende</em></p>
+        <h2>Espacio docente.</h2>
+        <p>Revisa entregas y acompaña a tu grupo con las credenciales del portal.</p>
     </aside>
     <div class="eki-login-form">
         <div class="eki-login-card">
@@ -44,11 +35,12 @@
                         </button>
                     </div>
                 </div>
-                <button type="submit" class="eki-btn eki-btn--primary">Continuar de forma segura</button>
+                <button type="submit" class="eki-btn eki-btn--primary">Continuar</button>
             </form>
 
             <p class="eki-login-card__footer">
-                Mismas credenciales que el <a href="/portal/login/">portal B2B</a> · <a href="{% url 'aprende_estudiante_login' %}">Soy estudiante</a>
+                Mismas credenciales que el <a href="/portal/login/">portal</a>
+                · <a href="{% url 'aprende_estudiante_login' %}">Soy estudiante</a>
             </p>
         </div>
     </div>
