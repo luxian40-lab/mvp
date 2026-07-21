@@ -106,7 +106,7 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
                 nombre = est.nombre
                 cedula = est.cedula or ''
                 org = est.cliente.nombre if est.cliente else None
-                url = 'https://certificadosseki.netlify.app/?code=PREVIEW'
+                url = f'https://admin.eki.technology/verificar-certificado/PREVIEW/'
 
         try:
             plantilla = plantilla_desde_request(request.POST)

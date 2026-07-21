@@ -22,6 +22,10 @@ _ALWAYS_OK_PREFIXES = (
     '/webhook/',
     '/static/',
     '/media/',
+    '/verificar-certificado/',
+    '/verificar/',
+    '/descargar-certificado/',
+    '/api/certificados/',
 )
 
 

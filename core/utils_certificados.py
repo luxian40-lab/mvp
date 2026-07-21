@@ -320,16 +320,16 @@ def generar_y_subir_certificado(estudiante, curso, plantilla_url=None, url_verif
                 base = getattr(
                     settings,
                     'CERTIFICADO_VERIFICACION_BASE_URL',
-                    'https://certificadosseki.netlify.app',
+                    'https://admin.eki.technology',
                 ).rstrip('/')
-                url_verificacion = f"{base}/"
+                url_verificacion = f"{base}/verificar/"
         except Exception:
             base = getattr(
                 settings,
                 'CERTIFICADO_VERIFICACION_BASE_URL',
-                'https://certificadosseki.netlify.app',
+                'https://admin.eki.technology',
             ).rstrip('/')
-            url_verificacion = f"{base}/"
+            url_verificacion = f"{base}/verificar/"
     
     org_nombre = estudiante.cliente.nombre if estudiante.cliente else 'eki'
     

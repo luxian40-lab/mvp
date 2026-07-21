@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 NOMBRE_DEMO = 'María González Pérez'
 CEDULA_DEMO = '1234567890'
-URL_DEMO = 'https://certificadosseki.netlify.app/?code=DEMO'
+URL_DEMO = 'https://admin.eki.technology/verificar-certificado/DEMO/'
 ORG_DEMO = 'Organización demo'
 
 CAMPOS_TEXTO = (

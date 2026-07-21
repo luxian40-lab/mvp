@@ -170,7 +170,7 @@ class CertificadoAccessMiddleware(MiddlewareMixin):
         
         # Extraer código del certificado
         import re
-        match = re.search(r'/verificar-certificado/([A-Z0-9\-]+)/', request.path)
+        match = re.search(r'/verificar-certificado/([A-Za-z0-9\-]+)/', request.path)
         
         if not match:
             return None

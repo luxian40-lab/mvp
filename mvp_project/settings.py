@@ -720,16 +720,16 @@ BOT_COMERCIAL_SYSTEM_PROMPT_EXTRA = os.environ.get('BOT_COMERCIAL_SYSTEM_PROMPT_
 BOT_COMERCIAL_REASONING_EFFORT = os.environ.get('BOT_COMERCIAL_REASONING_EFFORT', 'low').strip().lower() or 'low'
 
 # ==========================================
-# 📜 Certificados — URL pública del QR (landing Netlify)
+# Certificados — URL pública del QR (página eki)
 # ==========================================
 CERTIFICADO_VERIFICACION_BASE_URL = os.environ.get(
     'CERTIFICADO_VERIFICACION_BASE_URL',
-    'https://certificadosseki.netlify.app',
+    'https://admin.eki.technology',
 ).strip().rstrip('/')
-# CORS: origen permitido para llamadas desde la landing al API de verificación.
+# CORS: origen permitido para llamadas al API de verificación.
 CERT_VERIFICATION_ALLOWED_ORIGIN = os.environ.get(
     'CERT_VERIFICATION_ALLOWED_ORIGIN',
-    CERTIFICADO_VERIFICACION_BASE_URL,
+    '*',
 ).strip().rstrip('/')
 
 # ==========================================

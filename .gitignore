@@ -69,7 +69,8 @@ _shots/
 # ChromaDB (bases vectoriales RAG - se generan en producci?n)
 chroma_db/
 
-# Certificados generados localmente
-certificados/
+# Certificados generados localmente (no templates Django)
+/certificados/
+!core/templates/certificados/
 /GreatVibes-Regular.ttf
 generar_certificado_local.py

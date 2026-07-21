@@ -905,11 +905,11 @@ def verificar_certificado_publico(codigo_verificacion):
     
     try:
         certificado = Certificado.objects.select_related(
-            'estudiante', 
-            'curso'
+            'estudiante',
+            'curso',
         ).get(
-            codigo_verificacion=codigo_verificacion.upper(),
-            emitido=True
+            codigo_verificacion__iexact=(codigo_verificacion or '').strip(),
+            emitido=True,
         )
         
         return {

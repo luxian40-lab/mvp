@@ -84,7 +84,7 @@ def render_certificado_diseno_eki(
     curso_nombre=CURSO_DEMO,
     calificacion_final=95,
     codigo_verificacion='DEMO-0001',
-    url_verificacion='https://certificadosseki.netlify.app/?code=DEMO',
+    url_verificacion='https://admin.eki.technology/verificar-certificado/DEMO/',
     fecha_emision=None,
 ) -> BytesIO:
     """Renderiza certificado PNG con colores/textos/fondo del diseño eki."""
@@ -146,7 +146,7 @@ def render_certificado_diseno_eki(
     try:
         import qrcode
         qr = qrcode.QRCode(version=1, box_size=4, border=1)
-        qr.add_data(url_verificacion or 'https://certificadosseki.netlify.app/')
+        qr.add_data(url_verificacion or 'https://admin.eki.technology/verificar/')
         qr.make(fit=True)
         qr_img = qr.make_image(fill_color='black', back_color='white').resize((110, 110))
         img.paste(qr_img, (ANCHO - 150, ALTO - 150))

@@ -129,12 +129,13 @@ class Certificado(models.Model):
         return codigo
     
     def obtener_url_verificacion(self):
-        """Retorna URL pública para verificar certificado en landing page"""
+        """URL pública del QR: página eki que valida este certificado."""
         base = (
             getattr(settings, "CERTIFICADO_VERIFICACION_BASE_URL", "")
-            or "https://certificadosseki.netlify.app"
+            or "https://admin.eki.technology"
         ).rstrip("/")
-        return f"{base}/?code={self.codigo_verificacion}"
+        codigo = self.codigo_verificacion or ""
+        return f"{base}/verificar-certificado/{codigo}/"
     
     def obtener_mencion(self):
         """
