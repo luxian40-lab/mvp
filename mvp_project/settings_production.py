@@ -63,6 +63,9 @@ if _explicit_hosts:
     ALLOWED_HOSTS = [h.strip() for h in _explicit_hosts.split(',') if h.strip()]
     if _EB_CNAME not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append(_EB_CNAME)
+    # Verificación pública de certificados (QR)
+    if 'certificados.eki.technology' not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append('certificados.eki.technology')
 else:
     ALLOWED_HOSTS = ['*']
     if 'ALLOWED_HOSTS_EXTRA' in os.environ:
@@ -73,6 +76,8 @@ else:
                 ALLOWED_HOSTS.append(_EB_CNAME)
         else:
             ALLOWED_HOSTS.extend(extra_hosts)
+        if 'certificados.eki.technology' not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append('certificados.eki.technology')
 
 _csrf_env = os.environ.get('CSRF_TRUSTED_ORIGINS', '').strip()
 if _csrf_env:
@@ -123,6 +128,13 @@ ADMIN_PUBLIC_URL = os.environ.get('ADMIN_PUBLIC_URL', 'https://admin.eki.technol
 APP_PUBLIC_URL = os.environ.get('APP_PUBLIC_URL', 'https://app.eki.technology').rstrip('/')
 STUDIO_PUBLIC_URL = os.environ.get('STUDIO_PUBLIC_URL', 'https://studio.eki.technology').rstrip('/')
 APRENDE_PUBLIC_URL = os.environ.get('APRENDE_PUBLIC_URL', 'https://aprende.eki.technology').rstrip('/')
+# QR públicos — mismo EB; DNS CNAME certificados → EB (no usar admin.*)
+CERTIFICADOS_PUBLIC_URL = os.environ.get(
+    'CERTIFICADOS_PUBLIC_URL',
+    'https://certificados.eki.technology',
+).rstrip('/')
+if not os.environ.get('CERTIFICADO_VERIFICACION_BASE_URL', '').strip():
+    CERTIFICADO_VERIFICACION_BASE_URL = CERTIFICADOS_PUBLIC_URL
 EKI_DISABLE_HOST_ISOLATION = os.environ.get('EKI_DISABLE_HOST_ISOLATION', '').lower() in ('1', 'true', 'yes')
 
 # ?: (security.W016) CSRF cookies seguras

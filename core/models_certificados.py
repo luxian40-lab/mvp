@@ -132,7 +132,7 @@ class Certificado(models.Model):
         """URL pública del QR: página eki que valida este certificado."""
         base = (
             getattr(settings, "CERTIFICADO_VERIFICACION_BASE_URL", "")
-            or "https://admin.eki.technology"
+            or "https://certificados.eki.technology"
         ).rstrip("/")
         codigo = self.codigo_verificacion or ""
         return f"{base}/verificar-certificado/{codigo}/"

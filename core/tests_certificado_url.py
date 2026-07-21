@@ -44,6 +44,8 @@ def test_obtener_url_verificacion_usa_eki():
     assert "/verificar-certificado/" in url
     assert cert.codigo_verificacion in url
     assert "netlify" not in url
+    assert "admin.eki" not in url
+    assert "certificados.eki.technology" in url
 
 
 @pytest.mark.django_db

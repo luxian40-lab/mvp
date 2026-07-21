@@ -86,7 +86,7 @@ def respuesta_preview_png(request, cliente: Cliente, curso: Curso) -> HttpRespon
             nombre = est.nombre
             cedula = est.cedula or ''
             org = cliente.nombre
-            url = 'https://admin.eki.technology/verificar-certificado/PREVIEW/'
+            url = 'https://certificados.eki.technology/verificar-certificado/PREVIEW/'
 
     try:
         buf = generar_preview_certificado(

@@ -320,14 +320,14 @@ def generar_y_subir_certificado(estudiante, curso, plantilla_url=None, url_verif
                 base = getattr(
                     settings,
                     'CERTIFICADO_VERIFICACION_BASE_URL',
-                    'https://admin.eki.technology',
+                    'https://certificados.eki.technology',
                 ).rstrip('/')
                 url_verificacion = f"{base}/verificar/"
         except Exception:
             base = getattr(
                 settings,
                 'CERTIFICADO_VERIFICACION_BASE_URL',
-                'https://admin.eki.technology',
+                'https://certificados.eki.technology',
             ).rstrip('/')
             url_verificacion = f"{base}/verificar/"
     

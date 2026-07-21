@@ -722,9 +722,10 @@ BOT_COMERCIAL_REASONING_EFFORT = os.environ.get('BOT_COMERCIAL_REASONING_EFFORT'
 # ==========================================
 # Certificados — URL pública del QR (página eki)
 # ==========================================
+# Público (QR). No usar admin.* — subdominio dedicado + CNAME en Cloudflare.
 CERTIFICADO_VERIFICACION_BASE_URL = os.environ.get(
     'CERTIFICADO_VERIFICACION_BASE_URL',
-    'https://admin.eki.technology',
+    'https://certificados.eki.technology',
 ).strip().rstrip('/')
 # CORS: origen permitido para llamadas al API de verificación.
 CERT_VERIFICATION_ALLOWED_ORIGIN = os.environ.get(

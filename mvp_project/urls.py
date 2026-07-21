@@ -17,6 +17,8 @@ def root_redirect(request):
         return redirect('/aprende/')
     if host == 'studio.eki.technology':
         return redirect('/studio/')
+    if host == 'certificados.eki.technology':
+        return redirect('/verificar/')
     return redirect('/admin/')
 
 
