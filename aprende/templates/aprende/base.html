@@ -607,19 +607,45 @@
         .eki-login-visual {
             position: relative;
             overflow: hidden;
+            isolation: isolate;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: flex-end;
             padding: clamp(2rem, 5vw, 3.5rem);
             color: #fff;
+            background: #3d2750;
+        }
+
+        .eki-login-visual__media {
+            position: absolute;
+            inset: 0;
+            z-index: -2;
+            background-size: cover;
+            background-position: center;
+            animation: eki-ken 18s var(--ease) both;
+        }
+
+        .eki-login-visual__media--estudiante {
+            background-image: url("https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=1600&q=80");
+        }
+
+        .eki-login-visual__media--docente {
+            background-image: url("https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=1600&q=80");
+        }
+
+        .eki-login-visual__shade {
+            position: absolute;
+            inset: 0;
+            z-index: -1;
             background:
-                radial-gradient(ellipse 90% 70% at 10% 20%, rgba(154, 108, 172, 0.45), transparent 55%),
-                radial-gradient(ellipse 60% 50% at 90% 80%, rgba(122, 78, 142, 0.35), transparent 50%),
-                linear-gradient(145deg, #3d2750 0%, #5f3a70 55%, #2a1f33 100%);
+                linear-gradient(115deg, rgba(61, 39, 80, 0.88) 0%, rgba(95, 58, 112, 0.45) 48%, rgba(61, 39, 80, 0.28) 100%),
+                linear-gradient(0deg, rgba(42, 31, 51, 0.88) 0%, rgba(42, 31, 51, 0.25) 45%, transparent 70%);
         }
 
         .eki-login-visual__logo {
-            margin: 0 0 1.75rem;
+            position: relative;
+            z-index: 1;
+            margin: 0 0 auto;
             font-family: var(--font-serif);
             font-size: clamp(1.5rem, 3vw, 1.85rem);
             font-weight: 650;
@@ -634,6 +660,8 @@
         }
 
         .eki-login-visual h2 {
+            position: relative;
+            z-index: 1;
             font-family: var(--font-serif);
             font-size: clamp(1.55rem, 3.2vw, 2.15rem);
             font-weight: 650;
@@ -644,9 +672,11 @@
             max-width: 14ch;
         }
 
-        .eki-login-visual p {
+        .eki-login-visual > p {
+            position: relative;
+            z-index: 1;
             margin: 0;
-            color: rgba(255, 255, 255, 0.78);
+            color: rgba(255, 255, 255, 0.82);
             max-width: 32ch;
             font-size: 0.98rem;
             line-height: 1.55;
