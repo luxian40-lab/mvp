@@ -76,6 +76,20 @@ def url_vision_desde_twilio(media_url: str, media_type: str) -> str:
         return ''
 
 
+def es_analisis_vision_util(texto: str) -> bool:
+    """True si la respuesta parece análisis de campo (no mensaje de error/capability)."""
+    t = (texto or '').strip().lower()
+    if len(t) < 40:
+        return False
+    if t.startswith('recibí su foto'):
+        return False
+    return (
+        'posibles causas' in t
+        or 'lo que se observa' in t
+        or 'compatible con' in t
+    )
+
+
 def diagnosticar_imagen_cultivo(media_url: str, media_type: str, cliente=None) -> str:
     """Diagnóstico preliminar por visión: hipótesis, nunca veredicto cerrado."""
     if not media_url or not (media_type or '').startswith('image'):
@@ -83,10 +97,12 @@ def diagnosticar_imagen_cultivo(media_url: str, media_type: str, cliente=None) -
 
     from core.ai_capabilities import resolver_ai_capability
 
+    # Visión Nat es parte del producto: no bloquear si el override está off.
+    # Solo registramos para ops; el productor siempre recibe análisis si hay foto.
     if not resolver_ai_capability('diagnostico_agro', cliente=cliente):
-        return (
-            "Recibí su foto. El análisis visual automático no está habilitado "
-            "para su organización; describa los síntomas y el cultivo, por favor."
+        logger.info(
+            'Nat visión: diagnostico_agro off en org=%s — se analiza igual (feature producto)',
+            getattr(cliente, 'id', None),
         )
 
     api_key = getattr(settings, 'OPENAI_API_KEY', '')
@@ -95,8 +111,10 @@ def diagnosticar_imagen_cultivo(media_url: str, media_type: str, cliente=None) -
 
     vision_url = url_vision_desde_twilio(media_url, media_type)
     if not vision_url:
-        # Fallback: intentar URL directa (útil en tests / URLs públicas)
-        vision_url = media_url
+        return (
+            "Recibí su foto, pero no pude leerla ahora. "
+            "Describa los síntomas y el cultivo, por favor."
+        )
 
     try:
         from openai import OpenAI

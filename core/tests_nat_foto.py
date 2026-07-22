@@ -26,6 +26,48 @@ def test_prompt_vision_pide_hipotesis_no_veredicto():
     assert 'POSIBLES causas' in _PROMPT_VISION
     assert 'certeza' in _PROMPT_VISION.lower() or 'Nunca afirme' in _PROMPT_VISION
     assert 'productor' in _PROMPT_VISION.lower()
+    assert 'Empiece SIEMPRE' in _PROMPT_VISION
+
+
+def test_es_analisis_vision_util_filtra_errores():
+    from core.bot_comercial.vision import es_analisis_vision_util
+
+    assert not es_analisis_vision_util('Recibí su foto. El análisis visual no está disponible.')
+    assert not es_analisis_vision_util('corto')
+    assert es_analisis_vision_util(
+        '*Lo que se observa:* orificios\n*Posibles causas:*\n1) larva\n2) pudrición'
+    )
+
+
+def test_url_producto_relativa_sin_base_no_se_envia(settings):
+    settings.APP_PUBLIC_URL = ''
+    settings.MEDIA_HOST = ''
+    settings.MEDIA_URL = '/media/'
+    org = Cliente.objects.create(
+        nombre='Org Rel',
+        contacto_principal='A',
+        email='rel@test.com',
+        telefono='573001000001',
+        activo=True,
+        tipo_proyecto='nat',
+    )
+    img = SimpleUploadedFile('r.jpg', b'\xff\xd8\xff\xd9', content_type='image/jpeg')
+    ProductoCatalogo.objects.create(
+        cliente=org,
+        nombre='Prod Rel',
+        sku='REL-1',
+        descripcion='d',
+        problema_que_resuelve='p',
+        activo=True,
+        imagen=img,
+    )
+    fotos = fotos_productos_para_whatsapp(
+        org, '📦 Prod Rel\nSKU: REL-1\n', limite=2,
+    )
+    # Sin base pública absoluta no debe devolver URL relativa
+    assert fotos == [] or all(
+        (f.get('url') or '').startswith('https://') for f in fotos
+    )
 
 
 @override_settings(TWILIO_ACCOUNT_SID='ACtest', TWILIO_AUTH_TOKEN='tok')
@@ -84,6 +126,70 @@ def test_extraer_sku_y_nombre_de_respuesta():
     assert nombres == ['Fungicida Café Plus']
 
 
+def test_extraer_sku_flexible_sin_emoji():
+    texto = (
+        "Le recomiendo: Bioestimulante Verde\n"
+        "sku BIO-99\n"
+        "Dosis según etiqueta."
+    )
+    skus, nombres = extraer_claves_productos_respuesta(texto)
+    assert 'BIO-99' in skus
+    assert any('Bioestimulante' in n for n in nombres)
+
+
+def test_match_producto_por_nombre_en_texto_sin_formato():
+    """Sin 📦 ni SKU: si el nombre del catálogo aparece en el texto, manda foto."""
+    org = Cliente.objects.create(
+        nombre='Org Soft Match',
+        contacto_principal='A',
+        email='soft@test.com',
+        telefono='573001234570',
+        activo=True,
+        tipo_proyecto='nat',
+    )
+    img = SimpleUploadedFile('s.jpg', b'\xff\xd8\xff\xd9', content_type='image/jpeg')
+    ProductoCatalogo.objects.create(
+        cliente=org,
+        nombre='Control Fruto Tomate Plus',
+        sku='TOM-X',
+        descripcion='d',
+        problema_que_resuelve='orificios',
+        activo=True,
+        imagen=img,
+    )
+    texto = (
+        "Puede usar Control Fruto Tomate Plus en dosis de etiqueta. "
+        "Verifique el precio final en el punto de venta."
+    )
+    with override_settings(APP_PUBLIC_URL='https://app.eki.technology'):
+        fotos = fotos_productos_para_whatsapp(org, texto, limite=2)
+    assert len(fotos) == 1
+    assert fotos[0]['nombre'] == 'Control Fruto Tomate Plus'
+
+
+@override_settings(OPENAI_API_KEY='sk-test')
+@patch('core.ai_capabilities.resolver_ai_capability', return_value=False)
+@patch('core.bot_comercial.vision.url_vision_desde_twilio', return_value='data:image/jpeg;base64,abc')
+@patch('openai.OpenAI')
+def test_vision_sigue_con_capability_off(mock_openai, _url, _cap):
+    choice = MagicMock()
+    choice.message.content = (
+        '*Lo que se observa:* manchas\n'
+        '*Posibles causas:*\n1) hongo\n'
+        '*Importante:* usted decide'
+    )
+    mock_openai.return_value.chat.completions.create.return_value = MagicMock(
+        choices=[choice],
+    )
+    out = diagnosticar_imagen_cultivo(
+        'https://api.twilio.com/media/ME1',
+        'image/jpeg',
+        cliente=None,
+    )
+    assert 'Posibles causas' in out or 'posibles' in out.lower()
+    mock_openai.assert_called_once()
+
+
 def test_fotos_productos_match_por_sku():
     org = Cliente.objects.create(
         nombre='Org Foto Nat',
@@ -112,10 +218,11 @@ def test_fotos_productos_match_por_sku():
         activo=True,
     )
     texto = "📦 Fungicida Café Plus\nSKU: FUNG-CAFE-500\n"
-    fotos = fotos_productos_para_whatsapp(org, texto, limite=2)
+    with override_settings(APP_PUBLIC_URL='https://app.eki.technology'):
+        fotos = fotos_productos_para_whatsapp(org, texto, limite=2)
     assert len(fotos) == 1
     assert fotos[0]['nombre'] == 'Fungicida Café Plus'
-    assert fotos[0]['url']
+    assert fotos[0]['url'].startswith('https://')
 
 
 @patch('core.bot_comercial.productos_media.enviar_whatsapp_twilio')
@@ -139,6 +246,7 @@ def test_enviar_fotos_productos_llama_twilio_con_media(mock_send):
     BOT_COMERCIAL_WHATSAPP_NUMBER='whatsapp:+15550001111',
     BOT_COMERCIAL_FORCE_ROUTING=True,
     SECURE_SSL_REDIRECT=False,
+    APP_PUBLIC_URL='https://app.eki.technology',
 )
 @patch('core.bot_comercial.productos_media.enviar_whatsapp_twilio')
 @patch('core.bot_comercial.webhook.enviar_whatsapp_twilio')

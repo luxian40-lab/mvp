@@ -865,8 +865,13 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                 media_url, media_type, cliente=cliente_nati,
             )
 
+        from core.bot_comercial.vision import es_analisis_vision_util
+
+        vision_util = es_analisis_vision_util(diagnostico_vision)
+
         consulta = msg_body or 'Necesito asesoría agrícola'
-        if diagnostico_vision:
+        # Solo inyectar análisis real (no mensajes de error/capability) al LLM
+        if vision_util:
             consulta = f"{consulta}\n\nDiagnóstico preliminar imagen: {diagnostico_vision}"
 
         texto_respuesta = None
@@ -878,8 +883,17 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                 msg_body,
                 tiene_imagen=bool(diagnostico_vision),
             )
-            if pregunta_diag:
+            if pregunta_diag and vision_util:
+                # Foto útil a mitad de anamnesis: no botar el análisis
+                texto_respuesta = (
+                    f"{diagnostico_vision.strip()}\n\n"
+                    f"Para afinar la orientación:\n{pregunta_diag.strip()}"
+                )
+            elif pregunta_diag:
                 texto_respuesta = pregunta_diag
+            elif vision_util and not (msg_body or '').strip():
+                # Solo foto, anamnesis completa → devolver visión directa si no hay LLM path
+                pass
         except Exception:
             pass
 
@@ -1109,13 +1123,24 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                     from_number=from_number_respuesta,
                 )
                 for item in envios:
-                    if item.get('success'):
-                        WhatsappLog.objects.create(
-                            telefono=telefono_limpio,
-                            mensaje=f"[FOTO PRODUCTO] {item.get('nombre', '')}"[:500],
-                            mensaje_id=item.get('mensaje_id'),
-                            tipo='SENT',
-                            agente_usado='BOT_COMERCIAL',
+                    ok = bool(item.get('success'))
+                    WhatsappLog.objects.create(
+                        telefono=telefono_limpio,
+                        mensaje=(
+                            f"[FOTO PRODUCTO] {item.get('nombre', '')}"
+                            if ok
+                            else f"[FOTO PRODUCTO FALLÓ] {item.get('nombre', '')}: {item.get('response', '')}"
+                        )[:500],
+                        mensaje_id=item.get('mensaje_id'),
+                        tipo='SENT',
+                        estado='SENT' if ok else 'FAILED',
+                        agente_usado='BOT_COMERCIAL',
+                    )
+                    if not ok:
+                        logger.warning(
+                            'Nat foto producto no enviada | prod=%s | err=%s',
+                            item.get('nombre'),
+                            item.get('response'),
                         )
         except Exception:
             logger.exception('Nat: no se pudieron enviar fotos de producto')
