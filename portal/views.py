@@ -168,7 +168,7 @@ def dashboard(request):
     if not org:
         return redirect('/portal/login/')
     if portal_solo_nat(org):
-        return redirect('/portal/biblioteca/')
+        return redirect(portal_home_url(org))
 
     mods = modulos_portal(org)
     total_estudiantes = Estudiante.objects.filter(cliente=org).count()

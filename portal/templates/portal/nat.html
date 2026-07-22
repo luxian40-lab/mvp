@@ -1,69 +1,115 @@
 {% extends 'portal/base.html' %}
 
-{% block title %}Agente Nat | Portal eki{% endblock %}
+{% block title %}{% if portal_solo_nat %}Inicio Nat{% else %}Agente Nat{% endif %} | Portal eki{% endblock %}
 
 {% block content %}
 <div class="page-title">
     <div>
-        <h1>Agente comercial (Nat)</h1>
-        <p class="muted">Conversaciones, catálogo de recomendaciones y escalamientos. El conocimiento nuevo se carga en <a href="/portal/biblioteca/">Biblioteca</a>; productos y precios en <a href="{% url 'portal_catalogo' %}">Productos</a> y <a href="{% url 'portal_precios' %}">Precios</a>.</p>
-        {% if linea_nat %}<p class="muted">Línea WhatsApp Nat: <strong>{{ linea_nat }}</strong></p>{% endif %}
-    </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <a class="btn" href="{% url 'portal_catalogo' %}">Productos</a>
-        <a class="btn btn-outline" href="{% url 'portal_precios' %}">Precios</a>
-        {% if portal_es_admin %}
-            <a class="btn btn-outline" href="/portal/biblioteca/">Biblioteca</a>
-        {% endif %}
-        <a class="btn btn-outline" href="/portal/pqrs/">PQRS comercial</a>
+        <h1>{% if portal_solo_nat %}{{ org.nombre }}{% else %}Agente Nat{% endif %}</h1>
+        <p class="muted">
+            {% if portal_solo_nat %}
+            Hub de su agrónoma en WhatsApp: conocimiento, productos, precios y conversaciones.
+            {% else %}
+            Conversaciones, catálogo y escalamientos. Gestione <a href="{% url 'portal_biblioteca' %}">Biblioteca</a>,
+            <a href="{% url 'portal_catalogo' %}">Productos</a> y <a href="{% url 'portal_precios' %}">Precios</a>.
+            {% endif %}
+        </p>
+        {% if linea_nat %}<p class="muted">Línea WhatsApp: <strong>{{ linea_nat }}</strong></p>{% endif %}
     </div>
 </div>
 
-{% if checklist_nat %}
+{% if portal_solo_nat %}
 <section class="panel" style="margin-bottom:24px;">
-    <h2>Preparación de Nat</h2>
-    <p class="muted" style="margin:0 0 12px;">Checklist para que Nat responda con base (no invente). Biblioteca = docs preferidos; catálogo = recomendaciones; lista de precios = SKU.</p>
+    <h2 style="margin-bottom:6px;">Acciones rápidas</h2>
+    <p class="muted" style="margin:0 0 14px;">Lo que alimenta a Nat para asesorar y referir su oferta.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
+        <a class="btn" href="{% url 'portal_catalogo_crear' %}">+ Producto</a>
+        <a class="btn btn-outline" href="{% url 'portal_precios_crear' %}">+ Precio SKU</a>
+        <a class="btn btn-outline" href="{% url 'portal_biblioteca_crear' %}">+ Conocimiento</a>
+        <a class="btn btn-outline" href="/portal/pqrs/">Ver PQRS{% if pqrs_pendientes %} ({{ pqrs_pendientes }}){% endif %}</a>
+    </div>
+</section>
+{% else %}
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px;">
+    <a class="btn" href="{% url 'portal_catalogo' %}">Productos</a>
+    <a class="btn btn-outline" href="{% url 'portal_precios' %}">Precios</a>
+    <a class="btn btn-outline" href="{% url 'portal_biblioteca' %}">Biblioteca</a>
+    <a class="btn btn-outline" href="/portal/pqrs/">PQRS comercial</a>
+</div>
+{% endif %}
+
+{% if checklist_pendientes %}
+<section class="panel" style="margin-bottom:24px;border-left:4px solid #e67700;">
+    <h2>Pendiente para que Nat rinda</h2>
+    <p class="muted" style="margin:0 0 12px;">{{ checklist_ok }} de {{ checklist_total }} listos. Complete lo que falta:</p>
     <ul style="list-style:none;margin:0;padding:0;display:grid;gap:10px;">
+        {% for item in checklist_pendientes %}
+        <li style="display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--borde,#e0d8e8);border-radius:8px;border-left:4px solid {% if item.nivel == 'bad' %}#c92a2a{% else %}#e67700{% endif %};">
+            <span>
+                <strong>{{ item.titulo }}</strong><br>
+                <span class="muted" style="font-size:0.9rem;">{{ item.detalle }}</span>
+            </span>
+            {% if item.url %}
+            <a class="btn btn-outline" href="{{ item.url }}" style="white-space:nowrap;">Resolver</a>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+</section>
+{% elif checklist_nat %}
+<section class="panel" style="margin-bottom:24px;border-left:4px solid #35A647;">
+    <h2>Nat listo</h2>
+    <p class="muted" style="margin:0;">Checklist completo ({{ checklist_ok }}/{{ checklist_total }}). Siga actualizando productos y conocimiento.</p>
+</section>
+{% endif %}
+
+<section class="cards-grid" style="margin-bottom:24px;">
+    <article class="card">
+        <div class="metric-number">{{ sesiones_7d }}</div>
+        <div class="metric-label">Conversaciones (7 días)</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ sesiones_total }}</div>
+        <div class="metric-label">Sesiones totales</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ catalogo_total }}</div>
+        <div class="metric-label">Productos activos</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ precios_total|default:0 }}</div>
+        <div class="metric-label">Precios SKU</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ bib_indexados|default:0 }}</div>
+        <div class="metric-label">Docs indexados</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ pqrs_pendientes|default:0 }}</div>
+        <div class="metric-label">PQRS pendientes</div>
+    </article>
+</section>
+
+<details class="panel" style="margin-bottom:24px;">
+    <summary style="cursor:pointer;font-weight:600;">Ver preparación completa</summary>
+    <ul style="list-style:none;margin:14px 0 0;padding:0;display:grid;gap:10px;">
         {% for item in checklist_nat %}
         <li style="display:flex;gap:12px;align-items:flex-start;padding:10px 12px;border:1px solid var(--borde,#e0d8e8);border-radius:8px;border-left:4px solid {% if item.nivel == 'ok' %}#35A647{% elif item.nivel == 'bad' %}#c92a2a{% else %}#e67700{% endif %};">
             <span style="font-weight:700;min-width:2.5rem;">{% if item.ok %}OK{% else %}!{% endif %}</span>
             <span>
                 <strong>{{ item.titulo }}</strong><br>
                 <span class="muted" style="font-size:0.9rem;">{{ item.detalle }}</span>
+                {% if item.url and not item.ok %} · <a href="{{ item.url }}">Ir</a>{% endif %}
             </span>
         </li>
         {% endfor %}
     </ul>
-</section>
-{% endif %}
-
-<section class="cards-grid" style="margin-bottom:24px;">
-    <article class="card">
-        <div class="metric-number">{{ sesiones_total }}</div>
-        <div class="metric-label">Sesiones totales</div>
-    </article>
-    <article class="card">
-        <div class="metric-number">{{ sesiones_7d }}</div>
-        <div class="metric-label">Activas 7 días</div>
-    </article>
-    <article class="card">
-        <div class="metric-number">{{ catalogo_total }}</div>
-        <div class="metric-label">Catálogo (recomendaciones)</div>
-    </article>
-    <article class="card">
-        <div class="metric-number">{{ precios_total|default:0 }}</div>
-        <div class="metric-label">Lista de precios (SKU)</div>
-    </article>
-    <article class="card">
-        <div class="metric-number">{{ hitl_pendientes }}</div>
-        <div class="metric-label">HITL pendientes</div>
-    </article>
-</section>
+</details>
 
 <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px;margin-bottom:24px;">
     <article class="panel">
-        <h2>Catálogo de recomendaciones</h2>
-        <p class="muted" style="margin:0 0 12px;font-size:13px;">Lo que Nat sugiere (dosis, link). Gestione en <a href="{% url 'portal_catalogo' %}">Productos</a>. Precios oficiales en <a href="{% url 'portal_precios' %}">Precios</a>.</p>
+        <h2>Productos recientes</h2>
+        <p class="muted" style="margin:0 0 12px;font-size:13px;"><a href="{% url 'portal_catalogo' %}">Ver catálogo</a> · <a href="{% url 'portal_precios' %}">Precios</a></p>
         <table>
             <thead><tr><th>Producto</th><th>Categoría</th><th>Precio ref.</th></tr></thead>
             <tbody>
@@ -81,7 +127,7 @@
     </article>
     <article class="panel">
         <h2>Escalamientos HITL</h2>
-        <p class="muted" style="margin-bottom:12px;">Conversaciones candidatas a conocimiento validado (revisión eki).</p>
+        <p class="muted" style="margin-bottom:12px;">Candidatas a conocimiento (revisión eki). Pendientes: {{ hitl_pendientes }}.</p>
         <table>
             <thead><tr><th>Fecha</th><th>Estado</th><th>Pregunta</th></tr></thead>
             <tbody>

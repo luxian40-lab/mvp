@@ -1372,7 +1372,11 @@
         <div class="sidebar-powered">eki <em>portal</em><span>Clientes</span></div>
         <nav>
             {% if portal_solo_nat %}
-            <div class="nav-label">Nat — Knowledge Hub</div>
+            <div class="nav-label">Mi negocio · Nat</div>
+            <a href="{% url 'portal_nat' %}" class="sidebar-link {% if request.path == '/portal/nat/' %}active{% endif %}" title="Inicio — hub Nat">
+                <span class="link-icon"><svg><use href="#i-home"/></svg></span>
+                <span class="link-text">Inicio</span>
+            </a>
             <a href="{% url 'portal_biblioteca' %}" class="sidebar-link {% if '/portal/biblioteca' in request.path %}active{% endif %}" title="Biblioteca de conocimiento">
                 <span class="link-icon"><svg><use href="#i-book"/></svg></span>
                 <span class="link-text">Biblioteca</span>
@@ -1384,6 +1388,16 @@
             <a href="{% url 'portal_precios' %}" class="sidebar-link {% if '/portal/precios' in request.path %}active{% endif %}" title="Lista de precios SKU">
                 <span class="link-icon"><svg><use href="#i-bars"/></svg></span>
                 <span class="link-text">Precios</span>
+            </a>
+            <div class="nav-label">Soporte</div>
+            <a href="/portal/feedback/" class="sidebar-link {% if '/portal/feedback' in request.path %}active{% endif %}" title="Enviar feedback">
+                <span class="link-icon"><svg><use href="#i-edit"/></svg></span>
+                <span class="link-text">Feedback</span>
+            </a>
+            <a href="/portal/pqrs/" class="sidebar-link {% if '/portal/pqrs' in request.path %}active{% endif %}" title="PQRS">
+                <span class="link-icon"><svg><use href="#i-inbox"/></svg></span>
+                <span class="link-text">PQRS</span>
+                {% if pendientes_count > 0 %}<span class="badge">{{ pendientes_count }}</span>{% endif %}
             </a>
             {% if portal_es_admin %}
             <div class="nav-label">Cuenta</div>

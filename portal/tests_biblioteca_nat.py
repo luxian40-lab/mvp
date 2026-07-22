@@ -3,7 +3,7 @@
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 
 from core.models import BibliotecaConocimiento, Cliente
 from portal.capabilities import portal_home_url, portal_solo_nat
@@ -65,6 +65,7 @@ class BibliotecaNatServiceTests(TestCase):
         mock_rag.procesar_texto.assert_called_once()
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class PortalSoloNatTests(TestCase):
     def setUp(self):
         self.http = Client()
@@ -81,18 +82,25 @@ class PortalSoloNatTests(TestCase):
 
     def test_portal_solo_nat_detectado(self):
         self.assertTrue(portal_solo_nat(self.cliente))
-        self.assertEqual(portal_home_url(self.cliente), '/portal/biblioteca/')
+        self.assertEqual(portal_home_url(self.cliente), '/portal/nat/')
 
-    def test_login_redirige_biblioteca(self):
+    def test_login_redirige_hub_nat(self):
         r = self.http.post('/portal/login/', {'username': 'admin_nat', 'password': 'pass'})
         self.assertEqual(r.status_code, 302)
-        self.assertEqual(r.url, '/portal/biblioteca/')
+        self.assertEqual(r.url, '/portal/nat/')
 
-    def test_dashboard_redirige_biblioteca(self):
+    def test_dashboard_redirige_hub_nat(self):
         self.http.post('/portal/login/', {'username': 'admin_nat', 'password': 'pass'})
         r = self.http.get('/portal/dashboard/')
         self.assertEqual(r.status_code, 302)
-        self.assertEqual(r.url, '/portal/biblioteca/')
+        self.assertEqual(r.url, '/portal/nat/')
+
+    def test_hub_nat_carga(self):
+        self.http.post('/portal/login/', {'username': 'admin_nat', 'password': 'pass'})
+        r = self.http.get('/portal/nat/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Acciones rápidas')
+        self.assertContains(r, 'Mi negocio')
 
     def test_biblioteca_carga(self):
         self.http.post('/portal/login/', {'username': 'admin_nat', 'password': 'pass'})

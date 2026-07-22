@@ -117,7 +117,7 @@ def portal_solo_nat(org) -> bool:
 
 def portal_home_url(org) -> str:
     if portal_solo_nat(org):
-        return '/portal/biblioteca/'
+        return '/portal/nat/'
     return '/portal/dashboard/'
 
 
@@ -134,7 +134,7 @@ def categorias_pqrs_portal(org) -> list[str] | None:
 
 
 def requiere_modulo(modulo: str):
-    """Redirige al dashboard si el módulo no está contratado para la organización."""
+    """Redirige al home del portal si el módulo no está contratado para la organización."""
 
     def decorator(view_func):
         @wraps(view_func)
@@ -147,7 +147,7 @@ def requiere_modulo(modulo: str):
                     request,
                     'Ese módulo no está disponible para su organización.',
                 )
-                return redirect('/portal/dashboard/')
+                return redirect(portal_home_url(org) if org else '/portal/login/')
             return view_func(request, *args, **kwargs)
 
         return wrapper

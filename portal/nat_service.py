@@ -3,14 +3,13 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from django.db.models import Count
 from django.utils import timezone
 
 
 def checklist_preparacion_nat(org) -> list[dict]:
     """
     Semáforo operativo: qué falta para que Nat responda bien a esta org.
-    Cada ítem: clave, ok (bool), titulo, detalle, nivel (ok|warn|bad).
+    Cada ítem: clave, ok, titulo, detalle, nivel (ok|warn|bad), url opcional.
     """
     from core.models import BibliotecaConocimiento, DocumentoRAGComercial, ProductoCatalogo, ProductoComercial
 
@@ -34,8 +33,9 @@ def checklist_preparacion_nat(org) -> list[dict]:
             'detalle': (
                 f'Configurada: {linea}. Debe coincidir con el To de Twilio.'
                 if linea
-                else 'Sin numero_whatsapp_nat: los mensajes pueden ir al bot educativo.'
+                else 'Sin numero_whatsapp_nat: pida a eki configurarla en Admin → Cliente.'
             ),
+            'url': '/portal/perfil/' if not linea else None,
         },
         {
             'clave': 'catalogo',
@@ -43,10 +43,11 @@ def checklist_preparacion_nat(org) -> list[dict]:
             'nivel': 'ok' if catalogo_n > 0 else 'warn',
             'titulo': 'Catálogo de recomendaciones',
             'detalle': (
-                f'{catalogo_n} producto(s) en ProductoCatalogo (dosis, link, problema).'
+                f'{catalogo_n} producto(s) activos (dosis, problemas, link).'
                 if catalogo_n
-                else 'Sin ProductoCatalogo: cargue productos en Portal → Productos.'
+                else 'Sin productos: Nat recomienda poco. Cargue su catálogo.'
             ),
+            'url': '/portal/catalogo/nuevo/' if catalogo_n == 0 else '/portal/catalogo/',
         },
         {
             'clave': 'precios',
@@ -54,21 +55,22 @@ def checklist_preparacion_nat(org) -> list[dict]:
             'nivel': 'ok' if precios_n > 0 else 'warn',
             'titulo': 'Lista de precios (SKU)',
             'detalle': (
-                f'{precios_n} ítem(s) en ProductoComercial (consultas de precio).'
+                f'{precios_n} ítem(s) de precio oficial.'
                 if precios_n
-                else 'Sin ProductoComercial: cargue SKUs en Portal → Precios.'
+                else 'Sin precios: las consultas de costo no tendrán lista oficial.'
             ),
+            'url': '/portal/precios/nuevo/' if precios_n == 0 else '/portal/precios/',
         },
         {
             'clave': 'biblioteca',
             'ok': bib_idx > 0 or rag_legacy > 0,
             'nivel': 'ok' if (bib_idx > 0 or rag_legacy > 0) else 'warn',
-            'titulo': 'Conocimiento (Biblioteca / RAG)',
+            'titulo': 'Conocimiento (Biblioteca)',
             'detalle': (
                 f'Biblioteca: {bib_idx}/{bib_n} indexados. '
-                f'Documentos RAG legacy (admin): {rag_legacy}. '
-                'Preferir Portal → Biblioteca para material nuevo.'
+                f'Documentos RAG legacy (admin): {rag_legacy}.'
             ),
+            'url': '/portal/biblioteca/nuevo/' if bib_n == 0 else '/portal/biblioteca/',
         },
     ]
     return items
@@ -76,6 +78,7 @@ def checklist_preparacion_nat(org) -> list[dict]:
 
 def analitica_nat(org) -> dict:
     from core.models import (
+        BibliotecaConocimiento,
         ConversacionRAGCandidata,
         ProductoCatalogo,
         ProductoComercial,
@@ -95,6 +98,10 @@ def analitica_nat(org) -> dict:
 
     catalogo_total = ProductoCatalogo.objects.filter(cliente_id=org.pk, activo=True).count()
     precios_total = ProductoComercial.objects.filter(cliente_id=org.pk, activo=True).count()
+    bib_total = BibliotecaConocimiento.objects.filter(cliente_id=org.pk).count()
+    bib_indexados = BibliotecaConocimiento.objects.filter(
+        cliente_id=org.pk, estado_rag='indexado'
+    ).count()
     catalogo_top = list(
         ProductoCatalogo.objects.filter(cliente_id=org.pk, activo=True)
         .order_by('categoria', 'nombre')[:12]
@@ -116,12 +123,18 @@ def analitica_nat(org) -> dict:
         sesiones.order_by('-fecha_ultimo_mensaje')[:15]
     )
 
+    checklist = checklist_preparacion_nat(org)
+    checklist_ok = sum(1 for i in checklist if i.get('ok'))
+    checklist_pendientes = [i for i in checklist if not i.get('ok')]
+
     return {
         'sesiones_total': sesiones_total,
         'sesiones_7d': sesiones_7d,
         'sesiones_30d': sesiones_30d,
         'catalogo_total': catalogo_total,
         'precios_total': precios_total,
+        'bib_total': bib_total,
+        'bib_indexados': bib_indexados,
         'catalogo_top': catalogo_top,
         'pqrs_total': pqrs_q.count(),
         'pqrs_pendientes': pqrs_q.filter(estado='pendiente').count(),
@@ -129,5 +142,8 @@ def analitica_nat(org) -> dict:
         'hitl_recientes': hitl_recientes,
         'sesiones_recientes': sesiones_recientes,
         'linea_nat': (org.numero_whatsapp_nat or '').strip() or None,
-        'checklist_nat': checklist_preparacion_nat(org),
+        'checklist_nat': checklist,
+        'checklist_ok': checklist_ok,
+        'checklist_total': len(checklist),
+        'checklist_pendientes': checklist_pendientes,
     }
