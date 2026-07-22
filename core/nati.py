@@ -38,6 +38,7 @@ ORDEN CLÍNICO (cuando falte información):
 5) Etapa del cultivo
 6) Qué ya aplicó o hizo (fertilización, riego, agroquímico) — o si no ha hecho nada
 7) Foto si aporta; si no, continuar con *sin foto* / *saltar*
+   Con foto: liste POSIBLES causas (no cierre "es X"); el productor decide.
 
 CUÁNDO RESPONDER (dejar de preguntar):
 - Si ya trae cultivo + síntoma + ubicación (y lo esencial del cuadro), oriente.
@@ -201,10 +202,7 @@ def obtener_contexto_productos(cliente) -> str:
             if sku_key and sku_key in stock_por_sku:
                 bloque += f'\nStock disponible: {stock_por_sku[sku_key]}'
             if p.imagen:
-                try:
-                    bloque += f'\nFoto: {p.imagen.url}'
-                except Exception:
-                    pass
+                bloque += '\nTiene_foto: sí (el sistema enviará la foto del empaque por WhatsApp)'
             if p.url_producto:
                 bloque += f'\nComprar: {p.url_producto}'
             bloque += '\n---'
@@ -238,7 +236,8 @@ CÓMO RECOMENDAR PRODUCTOS (sigue este orden siempre):
    Comprar acá: [url_producto]
 
    Cierra siempre con: "Verifique el precio final en el punto de venta."
-   No invente stock ni diga que hay foto si no viene en el catálogo.
+   No invente stock. Si Tiene_foto: sí, NO pegue URLs de imagen en el texto;
+   el sistema enviará la foto del empaque en un mensaje aparte.
 
 REGLAS COMERCIALES (nunca las incumplas):
 - Solo recomiendas productos que aparecen en el catálogo de arriba.
@@ -248,6 +247,8 @@ REGLAS COMERCIALES (nunca las incumplas):
 - Si el problema requiere visita técnica presencial, dilo ANTES de cualquier producto.
 - No menciones productos de otras marcas o proveedores.
 - Después de recomendar, haz UNA pregunta útil (ej: hectáreas para calcular cantidad).
+- Si el productor envió foto: use las POSIBLES causas del análisis visual; no cierre
+  diagnóstico. El productor decide el manejo con esa orientación.
 """
 
 _NAT_SIN_CATALOGO = """

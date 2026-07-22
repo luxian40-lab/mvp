@@ -699,55 +699,10 @@ def _actualizar_sesion_comercial(sesion, mensaje_usuario: str, respuesta_bot: st
 
 
 def _bot_comercial_diagnosticar_imagen(media_url: str, media_type: str, cliente=None) -> str:
-    """Diagnóstico preliminar de imagen de cultivo usando visión (si está disponible)."""
-    if not media_url or not media_type.startswith('image'):
-        return ''
+    """Diagnóstico preliminar de imagen de cultivo (hipótesis, sin veredicto cerrado)."""
+    from core.bot_comercial.vision import diagnosticar_imagen_cultivo
 
-    from core.ai_capabilities import resolver_ai_capability
-
-    if not resolver_ai_capability('diagnostico_agro', cliente=cliente):
-        return (
-            "Recibí su imagen. El diagnóstico visual automático no está habilitado "
-            "para su organización; describa los síntomas y el cultivo, por favor."
-        )
-
-    api_key = getattr(settings, 'OPENAI_API_KEY', '')
-    if not api_key:
-        return "Imagen recibida. Diagnóstico visual no disponible en este entorno."
-
-    try:
-        from openai import OpenAI
-        from core.openai_compat import chat_completion_token_kwargs
-        client = OpenAI(api_key=api_key)
-        vision_model = getattr(settings, 'BOT_COMERCIAL_VISION_MODEL', 'gpt-4o-mini')
-        resp = client.chat.completions.create(
-            model=vision_model,
-            messages=[
-                {
-                    'role': 'system',
-                    'content': (
-                        "Usted es agrónoma de campo en Colombia. Entregue un diagnóstico preliminar "
-                        "breve y prudente, tratando al productor de usted. No afirme certeza absoluta. "
-                        "Indique posible plaga, enfermedad o estrés y síntomas observados."
-                    ),
-                },
-                {
-                    'role': 'user',
-                    'content': [
-                        {'type': 'text', 'text': 'Analiza esta imagen de cultivo y da un diagnóstico preliminar.'},
-                        {'type': 'image_url', 'image_url': {'url': media_url}},
-                    ],
-                },
-            ],
-            **chat_completion_token_kwargs(vision_model, 280, 0.2),
-        )
-        return (resp.choices[0].message.content or '').strip()
-    except Exception as e:
-        logger.warning(f"⚠️ Bot Comercial visión no disponible: {e}")
-        return (
-            "Recibí su imagen, pero no pude completar el diagnóstico visual en este momento. "
-            "Describa los síntomas y el cultivo, por favor."
-        )
+    return diagnosticar_imagen_cultivo(media_url, media_type, cliente=cliente)
 
 
 def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
@@ -1139,6 +1094,32 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
             tipo='SENT',
             agente_usado='BOT_COMERCIAL',
         )
+        # Fotos de productos recomendados (catálogo) — mensaje aparte por WhatsApp
+        try:
+            from core.bot_comercial.productos_media import (
+                enviar_fotos_productos_whatsapp,
+                fotos_productos_para_whatsapp,
+            )
+
+            fotos = fotos_productos_para_whatsapp(cliente_nati, texto_respuesta, limite=2)
+            if fotos:
+                envios = enviar_fotos_productos_whatsapp(
+                    telefono_limpio,
+                    fotos,
+                    from_number=from_number_respuesta,
+                )
+                for item in envios:
+                    if item.get('success'):
+                        WhatsappLog.objects.create(
+                            telefono=telefono_limpio,
+                            mensaje=f"[FOTO PRODUCTO] {item.get('nombre', '')}"[:500],
+                            mensaje_id=item.get('mensaje_id'),
+                            tipo='SENT',
+                            agente_usado='BOT_COMERCIAL',
+                        )
+        except Exception:
+            logger.exception('Nat: no se pudieron enviar fotos de producto')
+
         _actualizar_sesion_comercial(
             sesion=sesion_comercial,
             mensaje_usuario=msg_body or consulta,
