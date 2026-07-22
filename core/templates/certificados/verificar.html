@@ -9,17 +9,23 @@
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-deep: #071411;
-      --bg: #0c1c18;
-      --panel: #122820;
-      --ink: #eef6f2;
-      --muted: #8fa89f;
-      --mint: #5ee0a8;
-      --mint-dim: rgba(94, 224, 168, 0.14);
+      /* Paleta oficial eki */
+      --purple: #9A6CAC;
+      --purple-mid: #855698;
+      --purple-brand: #7a4e8e;
+      --purple-deep: #5F3A6E;
+      --purple-deeper: #3d2750;
+      --bg-deep: #201325;
+      --bg: #2a1f33;
+      --panel: #352540;
+      --ink: #FAFAFC;
+      --muted: #C4ACCE;
+      --accent: var(--purple);
+      --accent-dim: rgba(154, 108, 172, 0.18);
       --coral: #ff7a6e;
       --coral-dim: rgba(255, 122, 110, 0.14);
-      --gold: #d4b56a;
-      --line: rgba(238, 246, 242, 0.1);
+      --gold: #e0c878;
+      --line: rgba(250, 250, 252, 0.12);
     }
     * { box-sizing: border-box; }
     body {
@@ -28,9 +34,9 @@
       font-family: "Instrument Sans", system-ui, sans-serif;
       color: var(--ink);
       background:
-        radial-gradient(ellipse 80% 55% at 50% -5%, rgba(94, 224, 168, 0.16), transparent 55%),
-        radial-gradient(ellipse 50% 40% at 100% 100%, rgba(40, 70, 90, 0.35), transparent 50%),
-        linear-gradient(165deg, var(--bg) 0%, var(--bg-deep) 100%);
+        radial-gradient(ellipse 80% 55% at 50% -5%, rgba(154, 108, 172, 0.28), transparent 55%),
+        radial-gradient(ellipse 50% 40% at 100% 100%, rgba(95, 58, 110, 0.45), transparent 50%),
+        linear-gradient(165deg, #623d70 0%, var(--purple-deep) 42%, var(--bg-deep) 100%);
       display: grid;
       place-items: center;
       padding: 2rem 1rem 2.5rem;
@@ -71,7 +77,7 @@
       line-height: 1;
     }
     .brand span {
-      color: var(--mint);
+      color: var(--purple);
     }
     .brand-tag {
       font-size: 0.72rem;
@@ -89,8 +95,8 @@
       border-radius: 4px 22px 22px 4px;
       padding: 1.65rem 1.4rem 1.35rem;
       box-shadow:
-        0 0 0 1px rgba(94, 224, 168, 0.06),
-        0 28px 70px rgba(0, 0, 0, 0.45);
+        0 0 0 1px rgba(154, 108, 172, 0.12),
+        0 28px 70px rgba(32, 19, 37, 0.55);
       overflow: hidden;
     }
     .sheet::before {
@@ -100,7 +106,7 @@
       top: 0;
       bottom: 0;
       width: 4px;
-      background: linear-gradient(180deg, var(--mint), var(--gold));
+      background: linear-gradient(180deg, var(--purple), var(--gold));
     }
     .sheet::after {
       content: "eki";
@@ -135,9 +141,9 @@
       animation: seal-in 0.9s 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
     }
     .seal.ok {
-      color: var(--mint);
-      background: var(--mint-dim);
-      box-shadow: 0 0 24px rgba(94, 224, 168, 0.15);
+      color: var(--purple);
+      background: var(--accent-dim);
+      box-shadow: 0 0 24px rgba(154, 108, 172, 0.28);
     }
     .seal.bad {
       color: var(--coral);
@@ -153,7 +159,7 @@
       font-weight: 700;
       letter-spacing: 0.14em;
       text-transform: uppercase;
-      color: var(--gold);
+      color: var(--purple);
       margin: 0 0 0.65rem;
       padding-right: 4.5rem;
     }
@@ -205,7 +211,7 @@
       font-family: ui-monospace, "Cascadia Code", Menlo, monospace;
       font-size: 0.88rem;
       letter-spacing: 0.04em;
-      color: var(--mint);
+      color: var(--purple);
     }
     .actions {
       margin-top: 1.25rem;
@@ -218,18 +224,19 @@
       display: inline-flex;
       align-items: center;
       gap: 0.4rem;
-      color: var(--bg-deep);
-      background: var(--mint);
+      color: #fff;
+      background: var(--purple-brand);
       text-decoration: none;
       font-weight: 700;
       font-size: 0.88rem;
       padding: 0.65rem 1.1rem;
       border-radius: 999px;
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
     }
     a.btn:hover {
       transform: translateY(-1px);
-      box-shadow: 0 8px 24px rgba(94, 224, 168, 0.25);
+      background: var(--purple-mid);
+      box-shadow: 0 8px 24px rgba(122, 78, 142, 0.4);
     }
     form.check {
       display: flex;
@@ -249,20 +256,21 @@
       outline: none;
     }
     form.check input:focus {
-      border-color: rgba(94, 224, 168, 0.45);
-      box-shadow: 0 0 0 3px rgba(94, 224, 168, 0.12);
+      border-color: rgba(154, 108, 172, 0.55);
+      box-shadow: 0 0 0 3px rgba(122, 78, 142, 0.2);
     }
     form.check button {
       border: 0;
       border-radius: 12px;
-      background: var(--mint);
-      color: var(--bg-deep);
+      background: var(--purple-brand);
+      color: #fff;
       font-weight: 700;
       font-size: 0.88rem;
       padding: 0 1rem;
       cursor: pointer;
       white-space: nowrap;
     }
+    form.check button:hover { background: var(--purple-mid); }
     .foot {
       margin-top: 1.25rem;
       color: var(--muted);
@@ -276,7 +284,7 @@
       transform: translateX(-50%);
       width: 72%;
       height: 2px;
-      background: linear-gradient(90deg, transparent, var(--mint), var(--gold), transparent);
+      background: linear-gradient(90deg, transparent, var(--purple), var(--gold), transparent);
       opacity: 0.7;
       animation: glow 2.4s ease-in-out infinite alternate;
     }
