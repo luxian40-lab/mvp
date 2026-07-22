@@ -108,7 +108,8 @@ def texto_ayuda_comandos(estudiante) -> str:
         "📚 *listo* — continuar tu lección\n"
         "📊 *progreso* — ver tu avance\n"
         "✏️ *corregir datos* — actualizar nombre, municipio o cédula\n"
-        "🆘 *ayuda* — soporte"
+        "🆘 *ayuda* — soporte\n"
+        "🖥️ *aula* — enlace al aula web"
     )
     if tiene_varios_cursos_activos(estudiante):
         base += "\n📖 *cursos* — elegir entre tus cursos activos"

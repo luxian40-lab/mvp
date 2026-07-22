@@ -8,23 +8,25 @@
         <div class="eki-login-visual__media eki-login-visual__media--estudiante" role="img" aria-label="Estudiante concentrado"></div>
         <div class="eki-login-visual__shade"></div>
         <p class="eki-login-visual__logo">eki <em>aprende</em></p>
-        <h2>Tu aula, a un paso.</h2>
-        <p>{% if paso == 'otp' %}Te enviamos un código al WhatsApp registrado.{% else %}Documento, WhatsApp y un código que llega a tu celular.{% endif %}</p>
+        <h2>Entra desde WhatsApp.</h2>
+        <p>Escribe <strong>aula</strong> al número del programa. Te respondemos con el enlace (o un código).</p>
     </aside>
     <div class="eki-login-form">
         <div class="eki-login-card">
-            {% if paso == 'otp' %}
-            <h1>Código de acceso</h1>
-            <p class="eki-muted">Revisa WhatsApp en {{ telefono_mask|default:"tu número" }}. El código vence en unos minutos.</p>
+            <h1>Ingreso estudiante</h1>
+            <p class="eki-muted">
+                1. Abre el WhatsApp del curso.<br>
+                2. Escribe <strong>aula</strong>.<br>
+                3. Toca el enlace, o pega aquí el código de 6 dígitos.
+            </p>
 
             {% if error %}<div class="eki-alert eki-alert--error" role="alert">{{ error }}</div>{% endif %}
 
             <form method="post">
                 {% csrf_token %}
-                <input type="hidden" name="accion" value="verificar_otp">
                 <input type="hidden" name="next" value="{{ next }}">
                 <div class="eki-field">
-                    <label for="codigo">Código de 6 dígitos</label>
+                    <label for="codigo">Código de WhatsApp</label>
                     <div class="eki-field-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
                         <input type="text" name="codigo" id="codigo" required inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="000000" autofocus>
@@ -33,43 +35,12 @@
                 <button type="submit" class="eki-btn eki-btn--primary">Entrar al aula</button>
             </form>
 
-            <form method="post" style="margin-top:0.85rem;">
-                {% csrf_token %}
-                <input type="hidden" name="accion" value="reenviar">
-                <input type="hidden" name="next" value="{{ next }}">
-                <button type="submit" class="eki-btn eki-btn--ghost" style="width:100%;">Reenviar código</button>
-            </form>
-            <p class="eki-login-card__footer"><a href="{% url 'aprende_estudiante_login' %}?reset=1">Usar otro documento</a></p>
-
-            {% else %}
-            <h1>Ingreso estudiante</h1>
-            <p class="eki-muted">Documento y WhatsApp del programa. Te enviaremos un código por WhatsApp.</p>
-
-            {% if error %}<div class="eki-alert eki-alert--error" role="alert">{{ error }}</div>{% endif %}
-
-            <form method="post">
-                {% csrf_token %}
-                <input type="hidden" name="accion" value="identificar">
-                <input type="hidden" name="next" value="{{ next }}">
-                <div class="eki-field">
-                    <label for="cedula">Número de documento</label>
-                    <div class="eki-field-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="1.5"/><path d="M6 16c0-1.4 1.1-2.3 2.5-2.3s2.5.9 2.5 2.3"/><path d="M13.5 9.5h5M13.5 12.5h5"/></svg>
-                        <input type="text" name="cedula" id="cedula" required autocomplete="username" placeholder="Ej. 1234567890">
-                    </div>
-                </div>
-                <div class="eki-field">
-                    <label for="telefono">Teléfono WhatsApp</label>
-                    <div class="eki-field-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4.5 4.5h4l1.6 4.3-2 1.7a11.5 11.5 0 0 0 5.4 5.4l1.7-2 4.3 1.6v4a1.5 1.5 0 0 1-1.6 1.5C10.7 20.6 3.4 13.3 3 6.1A1.5 1.5 0 0 1 4.5 4.5z"/></svg>
-                        <input type="text" name="telefono" id="telefono" required autocomplete="tel" placeholder="573001234567">
-                    </div>
-                </div>
-                <button type="submit" class="eki-btn eki-btn--primary">Enviar código</button>
-            </form>
-
-            <p class="eki-login-card__footer">¿Eres docente? <a href="{% url 'aprende_profesor_login' %}">Ingresa aquí</a></p>
-            {% endif %}
+            <p class="eki-login-card__footer">
+                ¿Cuenta con correo?
+                <a href="{{ studio_correo_url }}">Ingresar por Studio</a>
+                · ¿Docente?
+                <a href="{% url 'aprende_profesor_login' %}">Aquí</a>
+            </p>
         </div>
     </div>
 </div>

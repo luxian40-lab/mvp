@@ -12,7 +12,6 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from core.models import Curso, Modulo, ProgresoEstudiante, Estudiante
 from core.models_extras import ArchivoModulo
-from core.utils_telefono import normalizar_telefono, variantes_telefono
 from portal.middleware import PORTAL_SESSION_KEY
 from portal.models import PortalUsuario
 
@@ -53,12 +52,6 @@ from .calificacion_aula_service import (
 from .ranking_service import ranking_curso_profesor, resumen_ranking_aula
 from .tarea_service import actualizar_tarea, calificar_entrega, crear_tarea, eliminar_tarea, guardar_entrega
 from .tareas_aula_service import tareas_agrupadas_estudiante, tareas_por_curso
-
-
-def _telefonos_coinciden(a: str, b: str) -> bool:
-    va = set(variantes_telefono(a))
-    vb = set(variantes_telefono(b))
-    return bool(va & vb)
 
 
 def _org_profesor(request):
@@ -109,18 +102,11 @@ def handoff_desde_studio(request):
 
 def estudiante_login(request):
     """
-    Aula B2B: cédula + WhatsApp identifican; OTP por WhatsApp prueba posesión.
-    Cuenta correo: handoff desde Studio (sesiones separadas por host).
+    Acceso aula B2B: el código/enlace se emite solo cuando el estudiante
+    escribe *aula* por WhatsApp (respuesta inbound). No hay OTP saliente en frío.
+    Cuenta correo: Studio → handoff.
     """
-    from aprende.login_otp import (
-        SESSION_PENDING_ID,
-        SESSION_PENDING_MASK,
-        emitir_otp,
-        enmascarar_telefono,
-        limpiar_pending,
-        next_aprende_seguro,
-        verificar_otp,
-    )
+    from aprende.acceso_whatsapp import next_aprende_seguro, verificar_codigo_web
 
     if getattr(request, 'aprende_estudiante', None):
         return redirect(next_aprende_seguro(request.GET.get('next')))
@@ -136,90 +122,30 @@ def estudiante_login(request):
         return redirect(absolute_path('studio', f'/studio/cuenta/login/?next={studio_next}', request))
 
     error = None
-    paso = 'credenciales'
-    telefono_mask = request.session.get(SESSION_PENDING_MASK) or ''
-    next_url = next_aprende_seguro(
-        request.POST.get('next') or request.GET.get('next')
-    )
+    next_url = next_aprende_seguro(request.POST.get('next') or request.GET.get('next'))
 
     if request.method == 'POST':
-        accion = (request.POST.get('accion') or 'identificar').strip().lower()
-        pending_id = request.session.get(SESSION_PENDING_ID)
-
-        if accion == 'verificar_otp' and pending_id:
-            ok, msg = verificar_otp(int(pending_id), request.POST.get('codigo') or '')
-            if ok:
-                est = Estudiante.objects.filter(pk=pending_id, activo=True).first()
-                limpiar_pending(request.session)
-                if est:
-                    request.session[APRENDE_EST_SESSION_KEY] = est.pk
-                    request.session.cycle_key()
-                    return redirect(next_url)
-                error = 'No encontramos tu cuenta de estudiante.'
-                paso = 'credenciales'
-            else:
-                error = msg
-                paso = 'otp'
-                telefono_mask = request.session.get(SESSION_PENDING_MASK) or ''
-
-        elif accion == 'reenviar' and pending_id:
-            est = Estudiante.objects.filter(pk=pending_id, activo=True).first()
-            if not est:
-                limpiar_pending(request.session)
-                error = 'Sesión de verificación expirada. Ingresa de nuevo.'
-                paso = 'credenciales'
-            else:
-                ok, msg = emitir_otp(est)
-                if ok:
-                    paso = 'otp'
-                    telefono_mask = enmascarar_telefono(est.telefono)
-                    request.session[SESSION_PENDING_MASK] = telefono_mask
-                else:
-                    error = msg
-                    paso = 'otp'
-                    telefono_mask = request.session.get(SESSION_PENDING_MASK) or ''
-
-        elif accion in ('verificar_otp', 'reenviar'):
-            limpiar_pending(request.session)
-            error = 'Sesión de verificación expirada. Ingresa de nuevo.'
-            paso = 'credenciales'
-
+        eid, msg = verificar_codigo_web(request.POST.get('codigo') or '')
+        if eid:
+            est = Estudiante.objects.filter(pk=eid, activo=True).first()
+            if est:
+                request.session[APRENDE_EST_SESSION_KEY] = est.pk
+                request.session.cycle_key()
+                return redirect(next_url)
+            error = 'No encontramos tu cuenta de estudiante.'
         else:
-            # Identificar: cédula + teléfono → enviar OTP
-            limpiar_pending(request.session)
-            cedula = re.sub(r'[\s\.\-]', '', request.POST.get('cedula', '').strip())
-            tel = normalizar_telefono(request.POST.get('telefono', ''))
-            est = Estudiante.objects.filter(cedula=cedula, activo=True).first()
-            if est and _telefonos_coinciden(est.telefono, tel):
-                ok, msg = emitir_otp(est)
-                if ok:
-                    request.session[SESSION_PENDING_ID] = est.pk
-                    telefono_mask = enmascarar_telefono(est.telefono)
-                    request.session[SESSION_PENDING_MASK] = telefono_mask
-                    paso = 'otp'
-                else:
-                    error = msg
-                    paso = 'credenciales'
-            else:
-                error = (
-                    'Número de documento o teléfono no coinciden. Use el mismo teléfono WhatsApp '
-                    'registrado (puede escribirlo con o sin 57).'
-                )
-                paso = 'credenciales'
+            error = msg
 
-    elif request.GET.get('reset'):
-        limpiar_pending(request.session)
-        paso = 'credenciales'
-        telefono_mask = ''
-    elif request.session.get(SESSION_PENDING_ID):
-        paso = 'otp'
-        telefono_mask = request.session.get(SESSION_PENDING_MASK) or ''
+    from core.host_isolation import absolute_path
 
     return render(request, 'aprende/estudiante_login.html', {
         'error': error,
-        'paso': paso,
-        'telefono_mask': telefono_mask,
         'next': next_url,
+        'studio_correo_url': absolute_path(
+            'studio',
+            '/studio/cuenta/login/?next=/studio/ir-a-aprende/',
+            request,
+        ),
     })
 
 

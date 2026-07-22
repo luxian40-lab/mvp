@@ -12,7 +12,6 @@ from portal.models import PortalUsuario
 
 @override_settings(
     SECURE_SSL_REDIRECT=False,
-    APRENDE_LOGIN_OTP_COOLDOWN=0,
     ALLOWED_HOSTS=['testserver', 'localhost', '127.0.0.1', 'aprende.eki.technology', 'aula.eki.technology'],
     STORAGES={
         'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
@@ -51,24 +50,19 @@ class AprendeWebTests(TestCase):
         PortalUsuario.objects.create(user=self.user, organizacion=self.cliente, rol='profesor')
 
     def _login_estudiante(self, telefono='573009999002', cedula='web1'):
-        """Login completo con OTP (WhatsApp mockeado)."""
+        """Simula código emitido tras escribir *aula* en WhatsApp."""
         from django.core.cache import cache
         from unittest.mock import patch
+        from aprende.acceso_whatsapp import emitir_acceso_desde_whatsapp
 
-        with patch('aprende.login_otp.enviar_codigo_whatsapp', return_value=(True, '')):
-            r = self.http.post('/aprende/estudiante/login/', {
-                'cedula': cedula,
-                'telefono': telefono,
-                'accion': 'identificar',
-            })
-        self.assertEqual(r.status_code, 200, msg=getattr(r, 'content', b'')[:200])
-        self.assertContains(r, 'digo de acceso')
-        data = cache.get(f'aprende_login_otp:v1:{self.est.pk}')
-        self.assertIsNotNone(data, 'OTP no guardado en cache')
-        r2 = self.http.post('/aprende/estudiante/login/', {
-            'accion': 'verificar_otp',
-            'codigo': data['codigo'],
-        })
+        with patch('studio.aprende_bridge.url_handoff_aprende', return_value='https://aprende.eki.technology/aprende/handoff/?t=x'):
+            msg = emitir_acceso_desde_whatsapp(self.est)
+        import re
+        m = re.search(r'\*(\d{6})\*', msg)
+        self.assertIsNotNone(m, msg=msg)
+        codigo = m.group(1)
+        self.assertEqual(cache.get(f'aprende_wa_acceso:v1:{codigo}'), self.est.pk)
+        r2 = self.http.post('/aprende/estudiante/login/', {'codigo': codigo})
         self.assertEqual(r2.status_code, 302)
         return r2
 
@@ -84,30 +78,28 @@ class AprendeWebTests(TestCase):
         self.assertEqual(r3.status_code, 200)
         self.assertContains(r3, 'Hola desde la web')
 
-    def test_estudiante_login_telefono_sin_57(self):
-        self._login_estudiante(telefono='3009999002')
+    def test_estudiante_login_codigo_whatsapp(self):
+        self._login_estudiante()
         r = self.http.get('/aprende/estudiante/')
         self.assertEqual(r.status_code, 200)
 
-    def test_estudiante_login_otp_incorrecto_no_entra(self):
-        from unittest.mock import patch
-
-        with patch('aprende.login_otp.enviar_codigo_whatsapp', return_value=(True, '')):
-            r0 = self.http.post('/aprende/estudiante/login/', {
-                'cedula': 'web1',
-                'telefono': '573009999002',
-                'accion': 'identificar',
-            })
-        self.assertEqual(r0.status_code, 200)
-        self.assertContains(r0, 'digo de acceso')
-        r = self.http.post('/aprende/estudiante/login/', {
-            'accion': 'verificar_otp',
-            'codigo': '000000',
-        })
+    def test_estudiante_login_codigo_invalido_no_entra(self):
+        r = self.http.post('/aprende/estudiante/login/', {'codigo': '000000'})
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'incorrecto')
+        self.assertContains(r, 'inv')
         r2 = self.http.get('/aprende/estudiante/')
         self.assertEqual(r2.status_code, 302)
+
+    def test_mensaje_aula_emite_acceso(self):
+        from aprende.acceso_whatsapp import mensaje_pide_acceso_aula, emitir_acceso_desde_whatsapp
+        from unittest.mock import patch
+        self.assertTrue(mensaje_pide_acceso_aula('aula'))
+        self.assertTrue(mensaje_pide_acceso_aula('Entrar al aula'))
+        self.assertFalse(mensaje_pide_acceso_aula('listo'))
+        with patch('studio.aprende_bridge.url_handoff_aprende', return_value='https://x/h?t=1'):
+            txt = emitir_acceso_desde_whatsapp(self.est)
+        self.assertIn('eki Aprende', txt)
+        self.assertIn('https://x/h?t=1', txt)
 
     def test_profesor_ve_cursos(self):
         self.http.post('/aprende/profesor/login/', {'username': 'prof_ap', 'password': 'pass'})

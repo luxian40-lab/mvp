@@ -4029,6 +4029,34 @@ def _procesar_twilio_webhook(post_data):
             msg_lower = msg_body.strip().lower()
             logger.info(f"📍 ACTIVO handler: msg='{msg_lower}', onboarding={estudiante.estado_onboarding}")
 
+            # Acceso web Aprende: el alumno escribe *aula* (respuesta inbound = ventana WA abierta)
+            try:
+                from aprende.acceso_whatsapp import emitir_acceso_desde_whatsapp, mensaje_pide_acceso_aula
+                if mensaje_pide_acceso_aula(msg_body):
+                    texto_respuesta = emitir_acceso_desde_whatsapp(estudiante)
+                    try:
+                        from twilio.rest import Client as TwilioClient
+                        account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                        auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                        twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
+                        client_tw = TwilioClient(account_sid, auth_token)
+                        destino = f'whatsapp:{msg_from}' if not msg_from.startswith('whatsapp:') else msg_from
+                        client_tw.messages.create(
+                            body=texto_respuesta,
+                            from_=str(twilio_number).strip(),
+                            to=str(destino).strip(),
+                        )
+                        WhatsappLog.objects.create(
+                            telefono=telefono_limpio,
+                            mensaje=texto_respuesta[:500],
+                            tipo='SENT',
+                        )
+                    except Exception as e:
+                        logger.error('❌ Error enviando acceso aula WA: %s', e)
+                    return
+            except Exception:
+                logger.exception('Acceso aula WhatsApp omitido')
+
             if estado_chat == 'ACTIVO':
                 try:
                     from formulario.routing import debe_usar_agente_formulario
