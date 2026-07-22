@@ -1389,6 +1389,10 @@
                 <span class="link-icon"><svg><use href="#i-bars"/></svg></span>
                 <span class="link-text">Precios</span>
             </a>
+            <a href="{% url 'portal_nat_ops' %}" class="sidebar-link {% if '/portal/nat/ops' in request.path %}active{% endif %}" title="Operación Nat — preguntas y recomendaciones">
+                <span class="link-icon"><svg><use href="#i-funnel"/></svg></span>
+                <span class="link-text">Operación</span>
+            </a>
             <div class="nav-label">Soporte</div>
             <a href="/portal/feedback/" class="sidebar-link {% if '/portal/feedback' in request.path %}active{% endif %}" title="Enviar feedback">
                 <span class="link-icon"><svg><use href="#i-edit"/></svg></span>
@@ -1507,6 +1511,10 @@
                 <a href="{% url 'portal_precios' %}" class="sidebar-link {% if '/portal/precios' in request.path %}active{% endif %}" title="Lista de precios SKU">
                     <span class="link-icon"><svg><use href="#i-bars"/></svg></span>
                     <span class="link-text">Precios</span>
+                </a>
+                <a href="{% url 'portal_nat_ops' %}" class="sidebar-link {% if '/portal/nat/ops' in request.path %}active{% endif %}" title="Operación Nat">
+                    <span class="link-icon"><svg><use href="#i-funnel"/></svg></span>
+                    <span class="link-text">Operación</span>
                 </a>
                 <a href="/portal/nat/" class="sidebar-link {% if request.path == '/portal/nat/' %}active{% endif %}" title="Métricas Agente Nat">
                     <span class="link-icon"><svg><use href="#i-bulb"/></svg></span>

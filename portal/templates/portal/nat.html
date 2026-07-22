@@ -26,6 +26,7 @@
         <a class="btn" href="{% url 'portal_catalogo_crear' %}">+ Producto</a>
         <a class="btn btn-outline" href="{% url 'portal_precios_crear' %}">+ Precio SKU</a>
         <a class="btn btn-outline" href="{% url 'portal_biblioteca_crear' %}">+ Conocimiento</a>
+        <a class="btn btn-outline" href="{% url 'portal_nat_ops' %}">Operación</a>
         <a class="btn btn-outline" href="/portal/pqrs/">Ver PQRS{% if pqrs_pendientes %} ({{ pqrs_pendientes }}){% endif %}</a>
     </div>
 </section>
@@ -38,7 +39,25 @@
 </div>
 {% endif %}
 
-{% if checklist_pendientes %}
+{% if not listo_operar and bloqueantes_nat %}
+<section class="panel" style="margin-bottom:24px;border-left:4px solid #c92a2a;">
+    <h2>Nat avisará que falta base</h2>
+    <p class="muted" style="margin:0 0 12px;">Sin estos ítems, la agrónoma no puede recomendar ni cotizar con su oferta:</p>
+    <ul style="list-style:none;margin:0;padding:0;display:grid;gap:10px;">
+        {% for item in bloqueantes_nat %}
+        <li style="display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--borde,#e0d8e8);border-radius:8px;border-left:4px solid #c92a2a;">
+            <span>
+                <strong>{{ item.titulo }}</strong><br>
+                <span class="muted" style="font-size:0.9rem;">{{ item.detalle }}</span>
+            </span>
+            {% if item.url %}
+            <a class="btn" href="{{ item.url }}" style="white-space:nowrap;">Resolver</a>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+</section>
+{% elif checklist_pendientes %}
 <section class="panel" style="margin-bottom:24px;border-left:4px solid #e67700;">
     <h2>Pendiente para que Nat rinda</h2>
     <p class="muted" style="margin:0 0 12px;">{{ checklist_ok }} de {{ checklist_total }} listos. Complete lo que falta:</p>
@@ -59,7 +78,7 @@
 {% elif checklist_nat %}
 <section class="panel" style="margin-bottom:24px;border-left:4px solid #35A647;">
     <h2>Nat listo</h2>
-    <p class="muted" style="margin:0;">Checklist completo ({{ checklist_ok }}/{{ checklist_total }}). Siga actualizando productos y conocimiento.</p>
+    <p class="muted" style="margin:0;">Checklist operativo completo ({{ checklist_ok }}/{{ checklist_total }}). <a href="{% url 'portal_nat_ops' %}">Ver operación</a>.</p>
 </section>
 {% endif %}
 

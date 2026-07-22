@@ -1,0 +1,146 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Operación Nat | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <p class="muted" style="margin:0 0 6px;"><a href="{% url 'portal_nat' %}">Inicio Nat</a> / Operación</p>
+        <h1>Operación Nat</h1>
+        <p class="muted">Qué preguntan los productores y qué productos se mencionan en las respuestas (últimos {{ dias }} días).</p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <form method="get" style="display:flex;gap:8px;align-items:center;margin:0;">
+            <label class="muted">Días
+                <select name="dias" onchange="this.form.submit()" style="margin-left:6px;padding:6px 10px;border-radius:8px;border:1px solid var(--borde);">
+                    <option value="7" {% if dias == 7 %}selected{% endif %}>7</option>
+                    <option value="30" {% if dias == 30 %}selected{% endif %}>30</option>
+                    <option value="90" {% if dias == 90 %}selected{% endif %}>90</option>
+                </select>
+            </label>
+        </form>
+        <a class="btn btn-outline" href="{% url 'portal_nat_ops_export' %}?dias={{ dias }}">Descargar Excel</a>
+    </div>
+</div>
+
+{% if not listo_operar %}
+<section class="panel" style="margin-bottom:24px;border-left:4px solid #c92a2a;">
+    <h2>Nat no está lista para operar</h2>
+    <p class="muted" style="margin:0 0 10px;">Sin catálogo, precios o conocimiento, Nat avisará que falta base. Complete:</p>
+    <ul style="margin:0;padding-left:1.2rem;">
+        {% for a in avisos_nat %}
+        <li>{{ a }}</li>
+        {% endfor %}
+    </ul>
+    <p style="margin:12px 0 0;"><a class="btn" href="{% url 'portal_nat' %}">Ir al checklist</a></p>
+</section>
+{% else %}
+<section class="panel" style="margin-bottom:24px;border-left:4px solid #35A647;">
+    <p style="margin:0;"><strong>Listo para operar.</strong> Línea, catálogo, precios y conocimiento mínimos OK.</p>
+</section>
+{% endif %}
+
+<section class="cards-grid" style="margin-bottom:24px;">
+    <article class="card">
+        <div class="metric-number">{{ sesiones_periodo }}</div>
+        <div class="metric-label">Conversaciones ({{ dias }}d)</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ catalogo_total }}</div>
+        <div class="metric-label">Productos activos</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ precios_total }}</div>
+        <div class="metric-label">Precios SKU</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ hitl_pendientes }}</div>
+        <div class="metric-label">HITL pendientes</div>
+    </article>
+    <article class="card">
+        <div class="metric-number">{{ pqrs_periodo }}</div>
+        <div class="metric-label">PQRS (periodo)</div>
+    </article>
+</section>
+
+<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px;margin-bottom:24px;">
+    <article class="panel">
+        <h2>Cultivos mencionados</h2>
+        <p class="muted" style="font-size:13px;margin:0 0 10px;">Desde contexto agro de las sesiones.</p>
+        <table>
+            <thead><tr><th>Cultivo</th><th>N</th></tr></thead>
+            <tbody>
+                {% for c in top_cultivos %}
+                <tr><td>{{ c.nombre }}</td><td>{{ c.n }}</td></tr>
+                {% empty %}
+                <tr><td colspan="2" class="muted">Sin datos de cultivo aún.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </article>
+    <article class="panel">
+        <h2>Problemas / síntomas</h2>
+        <table>
+            <thead><tr><th>Problema</th><th>N</th></tr></thead>
+            <tbody>
+                {% for p in top_problemas %}
+                <tr><td>{{ p.nombre }}</td><td>{{ p.n }}</td></tr>
+                {% empty %}
+                <tr><td colspan="2" class="muted">Sin datos de problema aún.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </article>
+    <article class="panel">
+        <h2>Productos recomendados</h2>
+        <p class="muted" style="font-size:13px;margin:0 0 10px;">Detectados por nombre en respuestas de Nat (aproximado).</p>
+        <table>
+            <thead><tr><th>Producto</th><th>Menciones</th></tr></thead>
+            <tbody>
+                {% for r in recomendaciones_detectadas %}
+                <tr><td>{{ r.producto }}</td><td>{{ r.menciones }}</td></tr>
+                {% empty %}
+                <tr><td colspan="2" class="muted">Sin menciones de su catálogo en el periodo.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </article>
+</section>
+
+<section class="panel" style="margin-bottom:24px;">
+    <h2>Últimas preguntas</h2>
+    <table>
+        <thead><tr><th>Fecha</th><th>Teléfono</th><th>Turnos</th><th>Pregunta</th></tr></thead>
+        <tbody>
+            {% for p in preguntas_recientes %}
+            <tr>
+                <td>{{ p.fecha|date:"d/m/Y H:i" }}</td>
+                <td>{{ p.telefono }}</td>
+                <td>{{ p.turnos }}</td>
+                <td>{{ p.pregunta }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="muted">Sin conversaciones en este periodo.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<section class="panel">
+    <h2>Candidatas HITL (preguntas difíciles)</h2>
+    <table>
+        <thead><tr><th>Fecha</th><th>Estado</th><th>Pregunta</th></tr></thead>
+        <tbody>
+            {% for h in hitl_preguntas %}
+            <tr>
+                <td>{{ h.fecha_creacion|date:"d/m/Y" }}</td>
+                <td>{{ h.estado }}</td>
+                <td>{{ h.pregunta|truncatechars:100 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="muted">Sin candidatas en el periodo.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

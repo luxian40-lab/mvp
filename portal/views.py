@@ -441,6 +441,50 @@ def portal_nat(request):
 
 @portal_login_required
 @requiere_modulo('nat')
+def portal_nat_ops(request):
+    from .nat_service import reporte_ops_nat
+
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    try:
+        dias = int(request.GET.get('dias') or 30)
+    except (TypeError, ValueError):
+        dias = 30
+    data = reporte_ops_nat(org, dias=dias)
+    return render(request, 'portal/nat_ops.html', {
+        'org': org,
+        **data,
+    })
+
+
+@portal_login_required
+@requiere_modulo('nat')
+def portal_nat_ops_export(request):
+    from django.http import HttpResponse
+
+    from .nat_service import exportar_ops_nat_excel
+
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    try:
+        dias = int(request.GET.get('dias') or 30)
+    except (TypeError, ValueError):
+        dias = 30
+    buf = exportar_ops_nat_excel(org, dias=dias)
+    resp = HttpResponse(
+        buf.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    resp['Content-Disposition'] = f'attachment; filename="nat-ops-{org.pk}-{dias}d.xlsx"'
+    return resp
+
+
+@portal_login_required
+@requiere_modulo('nat')
 @requiere_portal_admin
 def portal_nat_documentos(request):
     return redirect('/portal/biblioteca/')
