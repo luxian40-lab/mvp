@@ -38,22 +38,55 @@ def _modulo_actual_numero(prog) -> int:
 
 
 def _pct_float(cantidad: int, total: int, places: int = 3) -> float:
-    """Porcentaje con decimales fijos (nunca se redondea a 0.0 si hay conteo > 0)."""
+    """Porcentaje con hasta 3 decimales."""
     if total <= 0:
         return 0.0
     return round((cantidad / total) * 100.0, places)
 
 
 def _pct_label(valor: float, places: int = 3) -> str:
-    """Etiqueta ES: 12,500 / 0,001."""
-    return f'{valor:.{places}f}'.replace('.', ',')
+    """
+    Etiqueta ES tipo 1,0 … 1,888:
+    al menos 1 decimal, hasta 3, sin ceros de relleno a la derecha.
+    """
+    raw = f'{float(valor):.{places}f}'.rstrip('0')
+    if raw.endswith('.'):
+        raw += '0'
+    if '.' not in raw:
+        raw += '.0'
+    return raw.replace('.', ',')
 
 
-def _bar_pct(cantidad: int, max_cantidad: int) -> float:
-    """Ancho relativo al bucket más poblado (la barra crece/encoge con la distribución)."""
-    if max_cantidad <= 0 or cantidad <= 0:
+def _bar_pct(cantidad: int, total: int) -> float:
+    """Ancho = proporción de estudiantes del total (la barra crece con esa cantidad)."""
+    if total <= 0 or cantidad <= 0:
         return 0.0
-    return round((cantidad / max_cantidad) * 100.0, 3)
+    return round((cantidad / total) * 100.0, 3)
+
+
+def _axis_bounds(valores: list[int | float]) -> tuple[float, float]:
+    """
+    Márgenes del eje según la data (no fijar 0,0→100).
+    Rango flotante alrededor de los conteos, p.ej. ~1,0 … 1,888.
+    """
+    nums = [float(v) for v in valores if v is not None]
+    if not nums:
+        return 0.0, 1.0
+    hi = max(nums)
+    positivos = [v for v in nums if v > 0]
+    if hi <= 0:
+        return 0.0, 1.0
+    lo = min(positivos) if positivos else 0.0
+    span = max(hi - lo, hi * 0.15, 0.5)
+    # Un poco de aire arriba/abajo; si el mínimo es > 0, no clavar el eje en 0.
+    ymin = max(0.0, lo - span * 0.35) if lo > 0 else 0.0
+    ymax = hi + span * 0.45
+    # Evitar eje plano cuando todos valen igual
+    if ymax - ymin < 0.5:
+        mid = (ymin + ymax) / 2.0 or hi
+        ymin = max(0.0, mid - 0.5)
+        ymax = mid + 0.888
+    return round(ymin, 3), round(ymax, 3)
 
 
 def embudo_avance_por_curso(
@@ -156,6 +189,9 @@ def embudo_posicion_hoy_por_curso(
         default=0,
     )
 
+    chart_labels = ['Sin iniciar']
+    chart_values = [sin_iniciar]
+
     pasos = []
     for mod in modulos:
         en_modulo = por_modulo.get(float(mod.numero), 0)
@@ -167,9 +203,15 @@ def embudo_posicion_hoy_por_curso(
             'estudiantes': en_modulo,
             'pct': pct,
             'pct_label': _pct_label(pct),
-            'bar_pct': _bar_pct(en_modulo, max_bucket),
+            'bar_pct': _bar_pct(en_modulo, total),
             'drop_pct': None,
         })
+        chart_labels.append(f'M{mod.numero}')
+        chart_values.append(en_modulo)
+
+    chart_labels.append('Completaron')
+    chart_values.append(completados)
+    axis_min, axis_max = _axis_bounds(chart_values)
 
     sin_pct = _pct_float(sin_iniciar, total)
     comp_pct = _pct_float(completados, total)
@@ -181,14 +223,20 @@ def embudo_posicion_hoy_por_curso(
         'completados': completados,
         'completados_pct': comp_pct,
         'completados_pct_label': _pct_label(comp_pct),
-        'completados_bar_pct': _bar_pct(completados, max_bucket),
+        'completados_bar_pct': _bar_pct(completados, total),
         'sin_iniciar': sin_iniciar,
         'sin_iniciar_pct': sin_pct,
         'sin_iniciar_pct_label': _pct_label(sin_pct),
-        'sin_iniciar_bar_pct': _bar_pct(sin_iniciar, max_bucket),
+        'sin_iniciar_bar_pct': _bar_pct(sin_iniciar, total),
         'max_bucket': max_bucket,
         'pasos': pasos,
         'modo': 'hoy',
+        'chart': {
+            'labels': chart_labels,
+            'values': chart_values,
+            'axis_min': axis_min,
+            'axis_max': axis_max,
+        },
     }
 
 

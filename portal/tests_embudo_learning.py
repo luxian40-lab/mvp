@@ -3,7 +3,11 @@
 from django.test import TestCase
 
 from core.models import Cliente, Curso, Estudiante, Modulo, ModuloCompletado, ProgresoEstudiante
-from portal.curso_flujo_service import embudo_avance_por_curso, embudo_posicion_hoy_por_curso
+from portal.curso_flujo_service import (
+    _pct_label,
+    embudo_avance_por_curso,
+    embudo_posicion_hoy_por_curso,
+)
 
 
 class EmbudoLearningTests(TestCase):
@@ -64,11 +68,16 @@ class EmbudoLearningTests(TestCase):
             sum(by_n.values()) + data['sin_iniciar'] + data['completados'],
             data['total_inscritos'],
         )
-        # % con 3 decimales; barras relativas al bucket máximo (aquí 1 → 100%)
+        # % tipo 1,0 … 1,888; barras = % del total de inscritos
         self.assertEqual(data['sin_iniciar_pct'], 25.0)
-        self.assertEqual(data['sin_iniciar_pct_label'], '25,000')
-        self.assertEqual(data['sin_iniciar_bar_pct'], 100.0)
+        self.assertEqual(data['sin_iniciar_pct_label'], '25,0')
+        self.assertEqual(data['sin_iniciar_bar_pct'], 25.0)
         self.assertEqual(data['max_bucket'], 1)
         m3 = next(p for p in data['pasos'] if float(p['numero']) == 3.0)
-        self.assertEqual(m3['pct_label'], '0,000')
+        self.assertEqual(m3['pct_label'], '0,0')
         self.assertEqual(m3['bar_pct'], 0.0)
+        self.assertIn('chart', data)
+        self.assertEqual(data['chart']['values'], [1, 1, 1, 0, 1])
+        self.assertGreater(data['chart']['axis_max'], data['chart']['axis_min'])
+        self.assertEqual(_pct_label(1.888), '1,888')
+        self.assertEqual(_pct_label(1.0), '1,0')
