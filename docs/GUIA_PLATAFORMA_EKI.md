@@ -2,7 +2,7 @@
 
 Documento de referencia para el equipo de producto, operaciones, contenido y desarrollo. Explica **qué hace eki**, **cómo se conectan las piezas**, **cómo operar cada superficie** y **cómo configurar cursos** para WhatsApp y aula virtual.
 
-**Última actualización:** 21 julio 2026 (aislamiento host admin/app/studio/aprende + handoff Studio→Aprende)  
+**Última actualización:** 21 julio 2026 (OTP WhatsApp en Aprende; verificación certificados en `certificados.eki.technology`; PQRS aislado del curso; multi-curso B2B)  
 **Entorno producción:** AWS Elastic Beanstalk `eki-prod-final`  
 **Repositorio:** monolito Django (`mvp_project/`)  
 **Lectura CTO:** el producto en prod ya no es solo “LMS + WhatsApp”; es un monolito operativo con portal B2B de coordinación (**Centro de Éxito** en retención), aula/Studio, gamificación, GEI y Nat comercial (clima Open-Meteo en §24). La sección **25** cubre seguridad frente a inyecciones.
@@ -50,20 +50,21 @@ Documento de referencia para el equipo de producto, operaciones, contenido y des
 
 ---
 
-## Estado del producto al 20 julio 2026 (resumen ejecutivo)
+## Estado del producto al 21 julio 2026 (resumen ejecutivo)
 
 Lo que un coordinador o un inversor debe entender **hoy**, sin leer todo el documento:
 
 | Superficie | Qué está vivo en producción |
 |------------|-----------------------------|
-| **WhatsApp** | Canal pedagógico principal: onboarding, *listo*, drip, evaluaciones, certificados, PQRS, campañas B2B sin menú 1-2-3. |
-| **Portal** (`app.eki.technology`) | Coordinación B2B: **Inicio** operativo, métricas, gamificación, branding, modo claro/oscuro (morado ~80 %, verde/azul ~10 %), **Guía EKI**. **Centro de Éxito** (`/portal/retencion/`): score 🟢🟡🔴, predicción de terminar, mapa abandono (módulo + paso/media), embudo vivo, curva, cohortes, WhatsApp Health, vs promedio eki, recomendaciones y **consultor de retención** (agente aparte de Nat). Telemetría `EstudianteEventoAprendizaje` (migr. 0122). Productos opcionales: GEI, Nat, empleabilidad. |
-| **Aula** (`aprende.eki.technology`) | Estudio, tareas, biblioteca, perfil, ranking por grupo con **podio SVG** (sin emoji). Docente: cursos, ranking, asistencia Excel. |
-| **Studio** (`studio.eki.technology`) | Catálogo, inscripción, checkout **Wompi** (pago → inscripción en Aprende). |
+| **WhatsApp** | Canal pedagógico principal: onboarding, *listo*, drip, evaluaciones, certificados, PQRS con contexto (sin avanzar el curso), campañas B2B. **Multi-curso:** si el estudiante tiene 2+ cursos activos del mismo cliente, menú numerado; si tiene 1, avanza directo. |
+| **Portal** (`app.eki.technology`) | Coordinación B2B: **Inicio** operativo, métricas, gamificación, branding, modo claro/oscuro (morado eki), **Guía EKI**. **Centro de Éxito** (`/portal/retencion/`). Productos opcionales: GEI, Nat, empleabilidad. |
+| **Aula** (`aprende.eki.technology`) | Estudio, tareas, biblioteca, perfil, ranking. Login estudiante: **cédula + WhatsApp + OTP** (código al celular). Docente: cursos, ranking, asistencia Excel. |
+| **Studio** (`studio.eki.technology`) | Catálogo, inscripción, checkout **Wompi** → handoff firmado a Aprende. |
+| **Certificados públicos** | `certificados.eki.technology/verificar-certificado/<codigo>/` (ya no Netlify). Paleta morada eki. |
 | **Admin** (`admin.eki.technology`) | Consola maestra de contenido, clientes, campañas, drip, certificados. |
-| **Infra** | EB `eki-prod-final`, RDS, S3, Celery+Redis, Cloudflare. Deploy manual con `scripts/eb_deploy_main.ps1` (no auto-deploy por push). **No** subir de plataforma EB sin decisión explícita (hubo regresión en un upgrade previo). |
+| **Infra** | EB `eki-prod-final`, RDS, S3, Celery+Redis, Cloudflare. Deploy manual con `scripts/eb_deploy_main.ps1`. |
 
-**Identidad visual vigente:** portal = Plus Jakarta Sans + morado `#9A6CAC` / profundo `#5F3A6E`; aula = tipografía serif académica + teal institucional en tokens; Studio = identidad propia (cálida). Favicons distintos: portal (personas eki), aula (cuaderno).
+**Identidad visual vigente:** portal/Studio/Aprende = morado eki `#9A6CAC` / `#7a4e8e` / profundo `#5F3A6E`. Favicons distintos: portal (personas), aula (cuaderno).
 
 **Qué no es eki todavía:** app móvil nativa, LMS con SCORM completo, ni un SOC/pentest continuo documentado como proceso (ver §25). Nat ya consulta clima vía Open-Meteo (§24). El Centro de Éxito **sí** está en prod (heurística v1 + telemetría); aún no ejecuta automatizaciones Twilio ni predicción ML.
 
@@ -199,7 +200,9 @@ Archivo: `mvp_project/urls.py`
 | `/studio/` | eki Studio (catálogo e inscripción) |
 | `/webhook/whatsapp/` | Webhook Twilio educativo |
 | `/api/` | API LXP (integrations) |
-| `/verificar-certificado/<codigo>/` | Verificación pública PDF |
+| `/verificar-certificado/<codigo>/` | Verificación pública (HTML) |
+| `/verificar/?code=` | Compat. formato antiguo → redirect |
+| `certificados.eki.technology` | Host público de QR (CNAME → EB) |
 
 **Redirección por subdominio** (`root_redirect`):
 
@@ -250,7 +253,7 @@ El portal **no reemplaza** al admin eki: es la cara visible del cliente sobre su
 
 **Quién:**
 
-- **Estudiante:** cédula + teléfono WhatsApp (sin contraseña nueva).
+- **Estudiante:** cédula + WhatsApp + OTP (código al celular), o handoff desde Studio con correo.
 - **Docente:** usuario del portal con rol profesor o admin de la organización.
 
 **Para qué (solo estudio):**
@@ -552,7 +555,8 @@ Se envía:
 - Integrado en saludo global y `selector_curso.py`.
 
 **Antes:** estudiante elegía curso con `1`, `2`, `3`.  
-**Ahora (B2B):** el curso lo define la campaña; el estudiante solo avanza.
+**Ahora (B2B):** el curso lo define la campaña; el estudiante solo avanza.  
+**Multi-curso (julio 2026):** un mismo cliente puede tener N cursos; un estudiante puede tener N `ProgresoEstudiante`. Si hay **2+ cursos activos**, WhatsApp muestra menú numerado; si hay **1**, no pide menú.
 
 ### 6.8 Otros intents frecuentes
 
@@ -560,9 +564,11 @@ Se envía:
 |------------------|--------|
 | `progreso` | Resumen de avance |
 | `certificado` | Estado / envío certificado |
-| `ayuda` | Menú de soporte |
-| `pqrs` | Agente PQRS |
-| Dígitos 1-3 | Solo sandbox / no-B2B legacy |
+| `ayuda` | Soporte / PQRS con contexto |
+| `pqrs` | Agente PQRS (`core/pqrs_agent.py`) |
+| Dígitos 1-3 | Menú multi-curso o sandbox legacy |
+
+**PQRS vs curso (julio 2026):** el agente puede corregir datos, explicar progreso, reenviar módulo (solo lectura, **sin** avanzar `paso_actual`) o escalar. No secuestra `listo`/`continuar`: al volver al curso se pausa el ticket. Si pedagogía tiene el turno (eval / Darío / facilitadora), PQRS cede.
 
 ---
 
@@ -660,7 +666,7 @@ Dominio: `aprende.eki.technology`. App Django: `aprende/`. Complemento de WhatsA
 | Ruta | Descripción |
 |------|-------------|
 | `/aprende/` | Landing: acceso estudiante vs docente |
-| `/aprende/estudiante/login/` | Login cédula + teléfono |
+| `/aprende/estudiante/login/` | Login cédula + WhatsApp + **OTP** |
 | `/aprende/estudiante/` | **Mis cursos** (sin catálogo) |
 | `/aprende/estudiante/curso/<id>/` | Pestaña **Módulos** del curso |
 | `/aprende/estudiante/curso/<id>/tareas/` | Pestaña **Tareas** del curso |
@@ -688,12 +694,21 @@ Dominio: `aprende.eki.technology`. App Django: `aprende/`. Complemento de WhatsA
 
 ### 9.2 Autenticación estudiante
 
-1. POST cédula (limpia) + teléfono.
-2. `normalizar_telefono` + `variantes_telefono` comparan con `Estudiante.telefono`.
-3. Sesión: `request.session['aprende_estudiante_id']` (clave `APRENDE_EST_SESSION_KEY` en settings).
-4. Middleware `aprende/middleware.py` expone `request.aprende_estudiante`.
+**Flujo B2B (julio 2026):**
 
-**No hay contraseña:** la posesión del WhatsApp es el segundo factor. La misma sesión sirve si el estudiante se autenticó en Studio.
+1. POST cédula (limpia) + teléfono WhatsApp.
+2. `normalizar_telefono` + variantes comparan con `Estudiante.telefono`.
+3. Si coinciden, eki envía un **código de 6 dígitos por WhatsApp** (`aprende/login_otp.py` + Twilio).
+4. El estudiante ingresa el OTP (TTL ~10 min, reintento con cooldown, tope por hora).
+5. Sesión: `request.session['aprende_estudiante_id']` + `session.cycle_key()` al entrar.
+6. Middleware `aprende/middleware.py` expone `request.aprende_estudiante`.
+7. `?next=` solo acepta rutas bajo `/aprende/` (anti open-redirect).
+
+**Por qué OTP:** cédula + teléfono solos son conocimiento filtrable (listas B2B). El OTP prueba **posesión del WhatsApp registrado**.
+
+**Alternativa correo:** `?modo=correo` redirige a Studio (`CuentaAula` email/password) → handoff firmado `/aprende/handoff/?t=…` (sesión **por host**, no cookie compartida `.eki.technology`).
+
+**Docente:** usuario/contraseña del portal (`authenticate`).
 
 ### 9.3 Diseño visual (julio 2026)
 
@@ -993,7 +1008,12 @@ Admin gamificación permite corregir puntos y resetear rachas (soporte a coordin
 
 ### 13.3 Verificación pública
 
-URL: `/verificar-certificado/<codigo>/` — cualquier persona valida autenticidad.
+- **URL canónica del QR:** `https://certificados.eki.technology/verificar-certificado/<codigo>/`
+- Base configurable: `CERTIFICADO_VERIFICACION_BASE_URL` / `CERTIFICADOS_PUBLIC_URL` (no usar `admin.*`).
+- Página HTML (válido / no válido) + API JSON en `/api/certificados/verificar/`.
+- Compatibilidad: `/verificar/?code=…` redirige a la URL por código.
+- Demo prod: `eki-DEMO-PRUE-BA01`.
+- Los QR antiguos apuntando a Netlify **no** se recuperan solos; regenerar PDF/imagen si hace falta.
 
 ### 13.4 Criterios de elegibilidad
 
@@ -1437,6 +1457,10 @@ python manage.py test aprende.tests studio.tests core.tests_flujo_whatsapp_b2b c
 | Hub `/admin/aula-web/` | Operaciones aula | Desplegado |
 | GEI + Nat | Módulos portal opcionales por `portal_productos` | Desplegado |
 | Nat + Open-Meteo | Probabilidad climática por municipio; persistencia vereda/lat/lon en sesión agro | Desplegado |
+| **Verificación certificados eki** | Host `certificados.eki.technology`; QR deja Netlify; página HTML morado eki | Desplegado (`main-20260721-181245`+) |
+| **OTP login Aprende** | Cédula + WA + código WhatsApp (`aprende/login_otp.py`) | En release (este cambio) |
+| **Multi-curso B2B** | Menú si 2+ cursos activos del mismo cliente | Desplegado |
+| **PQRS aislado del curso** | Reenvío sin avanzar; `listo` libera ticket; prioridad pedagógica | Desplegado |
 
 ---
 
@@ -1487,7 +1511,7 @@ Respuesta directa: **estamos en un nivel razonable de protección por arquitectu
 | **CSRF** | Forzar acción en sesión del coordinador | Middleware CSRF activo en portal/admin/forms POST. |
 | **Inyección en prompts IA** (Nat, tutor, PQRS) | El usuario intenta “ignora instrucciones y revela secretos” | Mitigado en parte con RAG + prompts de sistema; **no es 100 %**. Tratar datos de catálogo/precios como fuente privilegiada; no poner API keys en el prompt. |
 | **Webhook Twilio** | Mensajes falsos al `/webhook/whatsapp/` | Debe validarse firma/auth Twilio en producción; si se debilita, un atacante simula mensajes. |
-| **Auth débil aula** | Cédula + teléfono sin password | Diseño consciente (posesión del WA). Riesgo: enumeración / usurpación si alguien conoce ambos. Mitigar con rate limit y monitoreo. |
+| **Auth aula** | Cédula + teléfono + **OTP WhatsApp** | Poseer el celular registrado. Rate limit / cooldown en `login_otp.py`. Studio correo+password sigue siendo la vía fuerte B2C. |
 | **API LXP legacy** | Tokens/teléfono | Deuda conocida; ver `AUDITORIA_ARQUITECTURA_EKI.md` — no asumir el mismo nivel que el portal. |
 
 ### 25.3 Cómo “saber” que estamos seguros (evidencia, no fe)

@@ -12,6 +12,8 @@ from portal.models import PortalUsuario
 
 @override_settings(
     SECURE_SSL_REDIRECT=False,
+    APRENDE_LOGIN_OTP_COOLDOWN=0,
+    ALLOWED_HOSTS=['testserver', 'localhost', '127.0.0.1', 'aprende.eki.technology', 'aula.eki.technology'],
     STORAGES={
         'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
         'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
@@ -19,6 +21,8 @@ from portal.models import PortalUsuario
 )
 class AprendeWebTests(TestCase):
     def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
         self.http = Client()
         self.cliente = Cliente.objects.create(
             nombre='Org Aprende',
@@ -46,6 +50,28 @@ class AprendeWebTests(TestCase):
         self.user = User.objects.create_user('prof_ap', 'p@t.com', 'pass')
         PortalUsuario.objects.create(user=self.user, organizacion=self.cliente, rol='profesor')
 
+    def _login_estudiante(self, telefono='573009999002', cedula='web1'):
+        """Login completo con OTP (WhatsApp mockeado)."""
+        from django.core.cache import cache
+        from unittest.mock import patch
+
+        with patch('aprende.login_otp.enviar_codigo_whatsapp', return_value=(True, '')):
+            r = self.http.post('/aprende/estudiante/login/', {
+                'cedula': cedula,
+                'telefono': telefono,
+                'accion': 'identificar',
+            })
+        self.assertEqual(r.status_code, 200, msg=getattr(r, 'content', b'')[:200])
+        self.assertContains(r, 'digo de acceso')
+        data = cache.get(f'aprende_login_otp:v1:{self.est.pk}')
+        self.assertIsNotNone(data, 'OTP no guardado en cache')
+        r2 = self.http.post('/aprende/estudiante/login/', {
+            'accion': 'verificar_otp',
+            'codigo': data['codigo'],
+        })
+        self.assertEqual(r2.status_code, 302)
+        return r2
+
     def test_inicio_carga(self):
         r = self.http.get('/aprende/')
         self.assertEqual(r.status_code, 200)
@@ -53,21 +79,35 @@ class AprendeWebTests(TestCase):
         self.assertNotContains(r, 'Aula virtual')
 
     def test_estudiante_login_y_ve_modulo(self):
-        r = self.http.post('/aprende/estudiante/login/', {
-            'cedula': 'web1',
-            'telefono': '573009999002',
-        })
-        self.assertEqual(r.status_code, 302)
-        r2 = self.http.get(f'/aprende/estudiante/modulo/{self.modulo.id}/')
-        self.assertEqual(r2.status_code, 200)
-        self.assertContains(r2, 'Hola desde la web')
+        self._login_estudiante()
+        r3 = self.http.get(f'/aprende/estudiante/modulo/{self.modulo.id}/')
+        self.assertEqual(r3.status_code, 200)
+        self.assertContains(r3, 'Hola desde la web')
 
     def test_estudiante_login_telefono_sin_57(self):
+        self._login_estudiante(telefono='3009999002')
+        r = self.http.get('/aprende/estudiante/')
+        self.assertEqual(r.status_code, 200)
+
+    def test_estudiante_login_otp_incorrecto_no_entra(self):
+        from unittest.mock import patch
+
+        with patch('aprende.login_otp.enviar_codigo_whatsapp', return_value=(True, '')):
+            r0 = self.http.post('/aprende/estudiante/login/', {
+                'cedula': 'web1',
+                'telefono': '573009999002',
+                'accion': 'identificar',
+            })
+        self.assertEqual(r0.status_code, 200)
+        self.assertContains(r0, 'digo de acceso')
         r = self.http.post('/aprende/estudiante/login/', {
-            'cedula': 'web1',
-            'telefono': '3009999002',
+            'accion': 'verificar_otp',
+            'codigo': '000000',
         })
-        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'incorrecto')
+        r2 = self.http.get('/aprende/estudiante/')
+        self.assertEqual(r2.status_code, 302)
 
     def test_profesor_ve_cursos(self):
         self.http.post('/aprende/profesor/login/', {'username': 'prof_ap', 'password': 'pass'})
@@ -117,10 +157,7 @@ class AprendeWebTests(TestCase):
         })
         self.assertEqual(r.status_code, 302)
         tarea = TareaCurso.objects.get(titulo='Informe final')
-        self.http.post('/aprende/estudiante/login/', {
-            'cedula': 'web1',
-            'telefono': '3009999002',
-        })
+        self._login_estudiante(telefono="3009999002")
         archivo = SimpleUploadedFile('tarea.pdf', b'%PDF-1.4 test', content_type='application/pdf')
         r2 = self.http.post(f'/aprende/estudiante/tarea/{tarea.id}/', {
             'archivo': archivo,
@@ -164,10 +201,7 @@ class AprendeWebTests(TestCase):
             modulo=self.modulo,
             habilitado_desde=timezone.now() - timedelta(hours=1),
         )
-        self.http.post('/aprende/estudiante/login/', {
-            'cedula': 'web1',
-            'telefono': '3009999002',
-        })
+        self._login_estudiante(telefono="3009999002")
         r = self.http.get(f'/aprende/estudiante/curso/{self.curso.id}/')
         self.assertContains(r, 'Intro')
         self.assertNotContains(r, 'Modulo 2')
@@ -178,10 +212,7 @@ class AprendeWebTests(TestCase):
         m2 = Modulo.objects.create(
             curso=self.curso, numero=2, titulo='Futuro', descripcion='', contenido='No aún',
         )
-        self.http.post('/aprende/estudiante/login/', {
-            'cedula': 'web1',
-            'telefono': '3009999002',
-        })
+        self._login_estudiante(telefono="3009999002")
         r = self.http.get(f'/aprende/estudiante/curso/{self.curso.id}/')
         self.assertContains(r, 'Intro')
         self.assertNotContains(r, 'Futuro')
@@ -204,10 +235,7 @@ class AprendeWebTests(TestCase):
             url_externa='https://eki-produccion.s3.us-east-2.amazonaws.com/media/test.jpg',
             activo=True,
         )
-        self.http.post('/aprende/estudiante/login/', {
-            'cedula': 'web1',
-            'telefono': '3009999002',
-        })
+        self._login_estudiante(telefono="3009999002")
         r = self.http.get('/aprende/estudiante/biblioteca/')
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Biblioteca de recursos')
@@ -243,10 +271,7 @@ class AprendeWebTests(TestCase):
             tipo=PasoModulo.TIPO_CONTENIDO,
             contenido='Solo texto, sin media.',
         )
-        self.http.post('/aprende/estudiante/login/', {
-            'cedula': 'web1',
-            'telefono': '3009999002',
-        })
+        self._login_estudiante(telefono="3009999002")
         r = self.http.get('/aprende/estudiante/biblioteca/')
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Video intro micro')
@@ -267,10 +292,7 @@ class AprendeWebTests(TestCase):
             contenido='Contenido del micro paso.',
             media_url='https://www.youtube.com/watch?v=dQw4w9WgXcQ',
         )
-        self.http.post('/aprende/estudiante/login/', {
-            'cedula': 'web1',
-            'telefono': '3009999002',
-        })
+        self._login_estudiante(telefono="3009999002")
         r = self.http.get(f'/aprende/estudiante/modulo/{self.modulo.id}/')
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Fundamentos')
@@ -297,10 +319,7 @@ class AprendeWebTests(TestCase):
         progreso.fecha_ultimo_avance = timezone.now()
         progreso.save(update_fields=['modulo_actual', 'fecha_ultimo_avance'])
 
-        self.http.post('/aprende/estudiante/login/', {
-            'cedula': 'web1',
-            'telefono': '3009999002',
-        })
+        self._login_estudiante(telefono="3009999002")
         r = self.http.get(f'/aprende/estudiante/curso/{self.curso.id}/')
         self.assertContains(r, 'Intro')
         self.assertNotContains(r, 'Bloqueado drip')
@@ -314,10 +333,7 @@ class AprendeWebTests(TestCase):
         perfil.puntos_totales = 120
         perfil.nivel = 3
         perfil.save(update_fields=['puntos_totales', 'nivel'])
-        self.http.post('/aprende/estudiante/login/', {
-            'cedula': 'web1',
-            'telefono': '3009999002',
-        })
+        self._login_estudiante(telefono="3009999002")
         r = self.http.get('/aprende/estudiante/perfil/')
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, '120')
@@ -338,10 +354,7 @@ class AprendeWebTests(TestCase):
 
     def test_estudiante_pagina_tareas_sin_subida_en_modulo(self):
         TareaCurso.objects.create(curso=self.curso, titulo='Entrega 1', instrucciones='Sube PDF')
-        self.http.post('/aprende/estudiante/login/', {
-            'cedula': 'web1',
-            'telefono': '3009999002',
-        })
+        self._login_estudiante(telefono="3009999002")
         r = self.http.get('/aprende/estudiante/tareas/')
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Entrega 1')
@@ -370,10 +383,7 @@ class AprendeWebTests(TestCase):
         p2.puntos_totales = 200
         p2.save(update_fields=['puntos_totales'])
 
-        self.http.post('/aprende/estudiante/login/', {
-            'cedula': 'web1',
-            'telefono': '3009999002',
-        })
+        self._login_estudiante(telefono="3009999002")
         r = self.http.get('/aprende/estudiante/perfil/')
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Grupo Norte')
@@ -382,10 +392,7 @@ class AprendeWebTests(TestCase):
 
     def test_curso_pestanas_modulos_y_tareas(self):
         TareaCurso.objects.create(curso=self.curso, titulo='Tarea curso', instrucciones='x')
-        self.http.post('/aprende/estudiante/login/', {
-            'cedula': 'web1',
-            'telefono': '3009999002',
-        })
+        self._login_estudiante(telefono="3009999002")
         r = self.http.get(f'/aprende/estudiante/curso/{self.curso.id}/')
         self.assertContains(r, 'Módulos')
         self.assertContains(r, 'Tareas')
@@ -416,10 +423,7 @@ class AprendeWebTests(TestCase):
         p2.puntos_totales = 120
         p2.save(update_fields=['puntos_totales'])
 
-        self.http.post('/aprende/estudiante/login/', {
-            'cedula': 'web1',
-            'telefono': '3009999002',
-        })
+        self._login_estudiante(telefono="3009999002")
         r = self.http.get(f'/aprende/estudiante/curso/{self.curso.id}/ranking/')
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Ranking del curso')

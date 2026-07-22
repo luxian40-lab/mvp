@@ -109,11 +109,21 @@ def handoff_desde_studio(request):
 
 def estudiante_login(request):
     """
-    Aula = documento + WhatsApp (programas B2B) o handoff desde Studio.
-    La cuenta correo vive solo en Studio (sesiones separadas por host).
+    Aula B2B: cédula + WhatsApp identifican; OTP por WhatsApp prueba posesión.
+    Cuenta correo: handoff desde Studio (sesiones separadas por host).
     """
+    from aprende.login_otp import (
+        SESSION_PENDING_ID,
+        SESSION_PENDING_MASK,
+        emitir_otp,
+        enmascarar_telefono,
+        limpiar_pending,
+        next_aprende_seguro,
+        verificar_otp,
+    )
+
     if getattr(request, 'aprende_estudiante', None):
-        return redirect(request.GET.get('next') or '/aprende/estudiante/')
+        return redirect(next_aprende_seguro(request.GET.get('next')))
 
     modo = (request.POST.get('modo') or request.GET.get('modo') or '').strip().lower()
     if modo == 'correo' or request.GET.get('from') == 'correo':
@@ -121,25 +131,95 @@ def estudiante_login(request):
 
         from core.host_isolation import absolute_path
 
-        next_url = request.GET.get('next') or '/aprende/estudiante/'
+        next_url = next_aprende_seguro(request.GET.get('next'))
         studio_next = quote(f'/studio/ir-a-aprende/?next={next_url}')
         return redirect(absolute_path('studio', f'/studio/cuenta/login/?next={studio_next}', request))
 
     error = None
+    paso = 'credenciales'
+    telefono_mask = request.session.get(SESSION_PENDING_MASK) or ''
+    next_url = next_aprende_seguro(
+        request.POST.get('next') or request.GET.get('next')
+    )
+
     if request.method == 'POST':
-        cedula = re.sub(r'[\s\.\-]', '', request.POST.get('cedula', '').strip())
-        tel = normalizar_telefono(request.POST.get('telefono', ''))
-        est = Estudiante.objects.filter(cedula=cedula, activo=True).first()
-        if est and _telefonos_coinciden(est.telefono, tel):
-            request.session[APRENDE_EST_SESSION_KEY] = est.pk
-            return redirect(request.GET.get('next') or '/aprende/estudiante/')
-        error = (
-            'Número de documento o teléfono no coinciden. Use el mismo teléfono WhatsApp '
-            'registrado (puede escribirlo con o sin 57).'
-        )
+        accion = (request.POST.get('accion') or 'identificar').strip().lower()
+        pending_id = request.session.get(SESSION_PENDING_ID)
+
+        if accion == 'verificar_otp' and pending_id:
+            ok, msg = verificar_otp(int(pending_id), request.POST.get('codigo') or '')
+            if ok:
+                est = Estudiante.objects.filter(pk=pending_id, activo=True).first()
+                limpiar_pending(request.session)
+                if est:
+                    request.session[APRENDE_EST_SESSION_KEY] = est.pk
+                    request.session.cycle_key()
+                    return redirect(next_url)
+                error = 'No encontramos tu cuenta de estudiante.'
+                paso = 'credenciales'
+            else:
+                error = msg
+                paso = 'otp'
+                telefono_mask = request.session.get(SESSION_PENDING_MASK) or ''
+
+        elif accion == 'reenviar' and pending_id:
+            est = Estudiante.objects.filter(pk=pending_id, activo=True).first()
+            if not est:
+                limpiar_pending(request.session)
+                error = 'Sesión de verificación expirada. Ingresa de nuevo.'
+                paso = 'credenciales'
+            else:
+                ok, msg = emitir_otp(est)
+                if ok:
+                    paso = 'otp'
+                    telefono_mask = enmascarar_telefono(est.telefono)
+                    request.session[SESSION_PENDING_MASK] = telefono_mask
+                else:
+                    error = msg
+                    paso = 'otp'
+                    telefono_mask = request.session.get(SESSION_PENDING_MASK) or ''
+
+        elif accion in ('verificar_otp', 'reenviar'):
+            limpiar_pending(request.session)
+            error = 'Sesión de verificación expirada. Ingresa de nuevo.'
+            paso = 'credenciales'
+
+        else:
+            # Identificar: cédula + teléfono → enviar OTP
+            limpiar_pending(request.session)
+            cedula = re.sub(r'[\s\.\-]', '', request.POST.get('cedula', '').strip())
+            tel = normalizar_telefono(request.POST.get('telefono', ''))
+            est = Estudiante.objects.filter(cedula=cedula, activo=True).first()
+            if est and _telefonos_coinciden(est.telefono, tel):
+                ok, msg = emitir_otp(est)
+                if ok:
+                    request.session[SESSION_PENDING_ID] = est.pk
+                    telefono_mask = enmascarar_telefono(est.telefono)
+                    request.session[SESSION_PENDING_MASK] = telefono_mask
+                    paso = 'otp'
+                else:
+                    error = msg
+                    paso = 'credenciales'
+            else:
+                error = (
+                    'Número de documento o teléfono no coinciden. Use el mismo teléfono WhatsApp '
+                    'registrado (puede escribirlo con o sin 57).'
+                )
+                paso = 'credenciales'
+
+    elif request.GET.get('reset'):
+        limpiar_pending(request.session)
+        paso = 'credenciales'
+        telefono_mask = ''
+    elif request.session.get(SESSION_PENDING_ID):
+        paso = 'otp'
+        telefono_mask = request.session.get(SESSION_PENDING_MASK) or ''
 
     return render(request, 'aprende/estudiante_login.html', {
         'error': error,
+        'paso': paso,
+        'telefono_mask': telefono_mask,
+        'next': next_url,
     })
 
 
