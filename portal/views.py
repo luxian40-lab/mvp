@@ -1824,3 +1824,64 @@ def portal_precios_editar(request, item_id: int):
         'error': error,
     })
 
+
+@portal_login_required
+@requiere_modulo('nat')
+def portal_catalogo_plantilla(request):
+    from django.http import HttpResponse
+
+    from .nat_catalogo_service import generar_plantilla_excel_nat
+
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    buf = generar_plantilla_excel_nat()
+    resp = HttpResponse(
+        buf.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    resp['Content-Disposition'] = 'attachment; filename="plantilla-nat-productos-precios.xlsx"'
+    return resp
+
+
+@portal_login_required
+@requiere_modulo('nat')
+def portal_catalogo_importar(request):
+    from .nat_catalogo_service import importar_excel_nat
+
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    error = None
+    resultado = None
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo')
+        if not archivo:
+            error = 'Seleccione un archivo Excel (.xlsx).'
+        elif not archivo.name.lower().endswith(('.xlsx', '.xlsm')):
+            error = 'Solo se aceptan archivos .xlsx'
+        else:
+            try:
+                resultado = importar_excel_nat(org, archivo)
+                request.session['catalogo_flash'] = (
+                    f"Importación: productos +{resultado['productos_creados']}/"
+                    f"~{resultado['productos_actualizados']}, "
+                    f"precios +{resultado['precios_creados']}/"
+                    f"~{resultado['precios_actualizados']}. "
+                    f"Errores: {resultado['productos_errores'] + resultado['precios_errores']}."
+                )
+                if not resultado['detalle']:
+                    return redirect('/portal/catalogo/')
+            except ValueError as exc:
+                error = str(exc)
+            except Exception as exc:
+                error = f'No se pudo leer el Excel: {exc}'
+
+    return render(request, 'portal/catalogo_importar.html', {
+        'org': org,
+        'error': error,
+        'resultado': resultado,
+    })
+

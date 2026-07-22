@@ -11,8 +11,10 @@
             Las recomendaciones técnicas van en <a href="{% url 'portal_catalogo' %}">Catálogo</a>.
         </p>
     </div>
-    <div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <a class="btn" href="{% url 'portal_precios_crear' %}">+ Nuevo SKU</a>
+        <a class="btn btn-outline" href="{% url 'portal_catalogo_importar' %}">Importar Excel</a>
+        <a class="btn btn-outline" href="{% url 'portal_catalogo_plantilla' %}">Plantilla</a>
     </div>
 </div>
 

@@ -25,6 +25,7 @@
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
         <a class="btn" href="{% url 'portal_catalogo_crear' %}">+ Producto</a>
         <a class="btn btn-outline" href="{% url 'portal_precios_crear' %}">+ Precio SKU</a>
+        <a class="btn btn-outline" href="{% url 'portal_catalogo_importar' %}">Importar Excel</a>
         <a class="btn btn-outline" href="{% url 'portal_biblioteca_crear' %}">+ Conocimiento</a>
         <a class="btn btn-outline" href="{% url 'portal_nat_ops' %}">Operación</a>
         <a class="btn btn-outline" href="/portal/pqrs/">Ver PQRS{% if pqrs_pendientes %} ({{ pqrs_pendientes }}){% endif %}</a>

@@ -11,8 +11,10 @@
             La lista oficial de precios SKU está en <a href="{% url 'portal_precios' %}">Precios</a>.
         </p>
     </div>
-    <div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <a class="btn" href="{% url 'portal_catalogo_crear' %}">+ Nuevo producto</a>
+        <a class="btn btn-outline" href="{% url 'portal_catalogo_importar' %}">Importar Excel</a>
+        <a class="btn btn-outline" href="{% url 'portal_catalogo_plantilla' %}">Plantilla</a>
     </div>
 </div>
 
