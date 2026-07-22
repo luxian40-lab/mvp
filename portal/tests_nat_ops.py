@@ -35,7 +35,8 @@ class NatOpsFaseCTests(TestCase):
         self.assertEqual(items['precios']['nivel'], 'bad')
 
     def test_checklist_ok_con_minimos(self):
-        self.org.numero_whatsapp_nat = '573001112233'
+        # Sin número propio: sandbox Twilio no debe bloquear.
+        self.org.numero_whatsapp_nat = ''
         self.org.save(update_fields=['numero_whatsapp_nat'])
         ProductoCatalogo.objects.create(
             cliente=self.org,
@@ -64,11 +65,18 @@ class NatOpsFaseCTests(TestCase):
         )
         items = {i['clave']: i for i in checklist_preparacion_nat(self.org)}
         self.assertTrue(items['linea']['ok'])
+        self.assertFalse(items['linea']['bloqueante'])
         self.assertTrue(items['catalogo']['ok'])
         self.assertTrue(items['precios']['ok'])
         self.assertTrue(items['biblioteca']['ok'])
         bloqueantes = [i for i in items.values() if i.get('bloqueante') and not i['ok']]
         self.assertEqual(bloqueantes, [])
+
+    def test_linea_sin_numero_no_bloquea_con_sandbox(self):
+        items = {i['clave']: i for i in checklist_preparacion_nat(self.org)}
+        self.assertTrue(items['linea']['ok'])
+        self.assertFalse(items['linea']['bloqueante'])
+        self.assertEqual(items['linea']['nivel'], 'warn')
 
     def test_reporte_detecta_pregunta_y_recomendacion(self):
         ProductoCatalogo.objects.create(

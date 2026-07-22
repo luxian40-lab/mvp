@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from portal.models import PortalUsuario
 
-ROLES_PORTAL = frozenset({'admin', 'profesor', 'viewer'})
+ROLES_PORTAL = frozenset({'admin', 'profesor', 'viewer', 'eki_ops'})
 ROLES_AULA_DOCENTE = frozenset({'admin', 'profesor'})
+ROL_EKI_OPS = 'eki_ops'
 
 
 def portal_usuario_de_user(user) -> PortalUsuario | None:

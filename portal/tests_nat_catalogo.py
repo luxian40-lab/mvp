@@ -85,6 +85,43 @@ class PortalNatCatalogoTests(TestCase):
         self.assertContains(r, 'ORG-1')
         self.assertNotContains(r, 'GEN-1')
 
+    def test_crear_precio_con_stock(self):
+        r = self.http.post('/portal/precios/nuevo/', {
+            'sku': 'UREA-50',
+            'nombre': 'Urea 50kg',
+            'precio': '98000',
+            'stock': '12',
+            'moneda': 'COP',
+            'activo': '1',
+        })
+        self.assertEqual(r.status_code, 302)
+        item = ProductoComercial.objects.get(cliente=self.org, sku='UREA-50')
+        self.assertEqual(item.stock, 12)
+
+    def test_crear_producto_con_sku_y_foto(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        # PNG 1x1 mínimo
+        png = (
+            b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01'
+            b'\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00'
+            b'\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05'
+            b'\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82'
+        )
+        foto = SimpleUploadedFile('prod.png', png, content_type='image/png')
+        r = self.http.post('/portal/catalogo/nuevo/', {
+            'nombre': 'Bioestimulante Y',
+            'sku': 'BIO-Y-1L',
+            'descripcion': 'Estimula raíz',
+            'problema_que_resuelve': 'Estrés hídrico',
+            'activo': '1',
+            'imagen': foto,
+        })
+        self.assertEqual(r.status_code, 302)
+        item = ProductoCatalogo.objects.get(cliente=self.org, nombre='Bioestimulante Y')
+        self.assertEqual(item.sku, 'BIO-Y-1L')
+        self.assertTrue(bool(item.imagen))
+
     def test_org_sin_nat_redirige(self):
         org_cursos = Cliente.objects.create(
             nombre='Solo Cursos',

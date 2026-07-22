@@ -62,12 +62,19 @@ from .timeline_service import timeline_organizacion
 from .models import PortalFeedback, PortalUsuario
 from .rag_curso_service import crear_documento_curso, listar_documentos_curso_org
 from .gei_factores import filas_factores_portal
+from .tenancy import scoped_to_org
 
 
 def _portal_org(request):
     if not getattr(request, 'portal_usuario', None):
         return None
     return request.portal_usuario.organizacion
+
+
+def _estudiantes_org(org):
+    return scoped_to_org(Estudiante.objects.all(), org).annotate(
+        cursos_count=Count('progresos__curso', distinct=True),
+    ).order_by('nombre')
 
 
 def portal_login_required(view_func):
@@ -167,6 +174,9 @@ def dashboard(request):
     org = _portal_org(request)
     if not org:
         return redirect('/portal/login/')
+    from .authz import es_eki_ops
+    if es_eki_ops(request):
+        return redirect('/portal/ops/')
     if portal_solo_nat(org):
         return redirect(portal_home_url(org))
 
@@ -553,9 +563,7 @@ def estudiantes(request):
     if not org:
         return redirect('/portal/login/')
 
-    lista = Estudiante.objects.filter(cliente=org).annotate(
-        cursos_count=Count('progresos__curso', distinct=True),
-    ).order_by('nombre')
+    lista = _estudiantes_org(org)
     cursos, grupos = _filtros_portal_cursos_grupos(org)
     return render(request, 'portal/estudiantes.html', {
         'org': org,
@@ -730,7 +738,7 @@ def cursos_lista(request):
     if not org:
         return redirect('/portal/login/')
 
-    lista = Curso.objects.filter(cliente=org).annotate(
+    lista = scoped_to_org(Curso.objects.all(), org).annotate(
         modulos_count=Count('modulos', distinct=True),
         estudiantes_count=Count('progresoestudiante__estudiante', distinct=True),
     ).order_by('orden')
@@ -1710,7 +1718,7 @@ def portal_catalogo_crear(request):
     error = None
     if request.method == 'POST':
         try:
-            crear_catalogo(org, request.POST)
+            crear_catalogo(org, request.POST, files=request.FILES)
             request.session['catalogo_flash'] = 'Producto agregado al catálogo de recomendaciones.'
             return redirect('/portal/catalogo/')
         except ValueError as exc:
@@ -1738,7 +1746,7 @@ def portal_catalogo_editar(request, item_id: int):
     error = None
     if request.method == 'POST':
         try:
-            actualizar_catalogo(item, request.POST)
+            actualizar_catalogo(item, request.POST, files=request.FILES)
             request.session['catalogo_flash'] = f'«{item.nombre}» actualizado.'
             return redirect('/portal/catalogo/')
         except ValueError as exc:

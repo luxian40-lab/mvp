@@ -648,9 +648,21 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 _est_cur = Estudiante.objects.select_related('cliente').get(id=estudiante_id_menu)
                 cursos_activos = cursos_visibles_para_estudiante(_est_cur)
             except Estudiante.DoesNotExist:
-                cursos_activos = Curso.objects.filter(activo=True).order_by('orden', 'nombre')
+                from django.db.models import Count
+                cursos_activos = (
+                    Curso.objects.filter(activo=True)
+                    .annotate(_n_modulos=Count('modulos'))
+                    .filter(_n_modulos__gt=0)
+                    .order_by('orden', 'nombre')
+                )
         else:
-            cursos_activos = Curso.objects.filter(activo=True).order_by('orden', 'nombre')
+            from django.db.models import Count
+            cursos_activos = (
+                Curso.objects.filter(activo=True)
+                .annotate(_n_modulos=Count('modulos'))
+                .filter(_n_modulos__gt=0)
+                .order_by('orden', 'nombre')
+            )
 
         if not cursos_activos.exists():
             return "No hay cursos disponibles en este momento. ⚠️"
@@ -864,7 +876,13 @@ O escribe "menú" para ver todas las opciones."""
             except Estudiante.DoesNotExist:
                 pass
         if cursos_activos is None:
-            cursos_activos = Curso.objects.filter(activo=True).order_by('orden', 'nombre')
+            from django.db.models import Count
+            cursos_activos = (
+                Curso.objects.filter(activo=True)
+                .annotate(_n_modulos=Count('modulos'))
+                .filter(_n_modulos__gt=0)
+                .order_by('orden', 'nombre')
+            )
 
         if not cursos_activos.exists():
             return "No hay cursos disponibles en este momento. ⚠️"

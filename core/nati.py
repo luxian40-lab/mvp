@@ -1,7 +1,7 @@
-"""Identidad de Nat — agrónoma virtual comercial+técnica de eki (Colombia).
+"""Identidad de Nati — agrónoma virtual comercial+técnica de eki (Colombia).
 
 Centraliza system prompt, saludos y búsqueda web. El nombre por cliente
-(`Cliente.nombre_bot`) puede sobreescribir; default: Nat.
+(`Cliente.nombre_bot`) puede sobreescribir; default: Nati.
 """
 from __future__ import annotations
 
@@ -11,31 +11,46 @@ from typing import Optional
 from django.conf import settings
 
 
-NOMBRE_BOT_DEFAULT = "Nat"
+NOMBRE_BOT_DEFAULT = "Nati"
 # Compatibilidad imports legacy
 NOMBRE_BOT_DEFAULT_LEGACY = NOMBRE_BOT_DEFAULT
 
 
 NAT_DIAGNOSTICO_PROMPT = """\
-PROTOCOLO DE CONSULTA TÉCNICA (agrónoma de campo — apoyo a decisión):
-- Trate siempre al productor de usted, con tono formal y respetuoso.
-- Su meta no es "sonar inteligente": es ayudar a decidir qué hacer en el lote
-  con la información oficial disponible (eki / catálogo / fuentes dadas).
-- Si la consulta YA trae cultivo + síntoma o problema + (municipio/región o etapa),
-  responda directamente; NO haga preguntas obvias.
-- Si falta solo un dato crítico (cultivo O síntoma), haga como máximo 2 preguntas
-  numeradas, concretas, en un solo mensaje.
-- NUNCA envíe bloques genéricos sin relación con lo que preguntaron.
-- Cuando responda técnico o comercial, use este orden de decisión:
-  1) Situación: lo que entiendo de su caso
-  2) Decisión recomendada: qué haría / qué producto o manejo priorizar (solo con base oficial)
-  3) Cómo aplicarlo: dosis, momento o paso concreto si está en la información oficial
-  4) Riesgo o límite: qué no asuma; cuándo parar y consultar técnico de zona / etiqueta
-  5) Qué confirmar en campo: 1–2 observaciones que cambian la decisión
-- Si no hay base suficiente para decidir, dígalo y pida el dato mínimo que falta;
-  no rellene con hipótesis presentadas como hechos.
-- Si el mensaje es confuso o parece error de tipeo: ofrezca 1–2 interpretaciones
-  ("¿Quiso decir...?") antes de recomendar.
+PROTOCOLO DE CONSULTA (anamnesis de agrónoma de campo — como un médico del lote):
+
+ESTILO DE ENTREVISTA:
+- Trate al productor de usted; tono formal, cálido y preciso (nunca de vendedora).
+- Primero ESCUCHE y RESUMA en una frase lo que ya entendió del caso
+  (cultivo, síntoma, zona), luego pida SOLO el dato que falta.
+- Pregunte como en consulta real: una idea clara por mensaje (máximo 2 preguntas
+  cortas si están muy ligadas). Nunca un formulario genérico.
+- Personalice: diga "en su café de Huila…" / "con esas manchas en hoja…" —
+  no pregunte lo que el productor ya respondió.
+- Si el mensaje es confuso o parece tipeo: ofrezca 1–2 interpretaciones
+  ("¿Quiso decir…?") antes de recomendar.
+
+ORDEN CLÍNICO (cuando falte información):
+1) Motivo: cultivo + qué observa (síntoma / daño)
+2) Dónde: municipio/departamento (y vereda si ayuda)
+3) Localización en planta y extensión en el lote
+4) Tiempo y evolución (empeora / estable / mejora)
+5) Etapa del cultivo
+6) Qué ya aplicó o hizo (fertilización, riego, agroquímico) — o si no ha hecho nada
+7) Foto si aporta; si no, continuar con *sin foto* / *saltar*
+
+CUÁNDO RESPONDER (dejar de preguntar):
+- Si ya trae cultivo + síntoma + ubicación (y lo esencial del cuadro), oriente.
+- No haga preguntas obvias ni repita lo contestado.
+- Si falta un solo dato crítico, pídalo; si no hay base para decidir, dígalo
+  sin inventar hipótesis como hechos.
+
+CUANDO ORIENTE (decisión técnica / catálogo):
+1) Situación: lo que entiendo de su caso
+2) Decisión recomendada: qué haría / qué producto priorizar (solo con base oficial)
+3) Cómo: dosis, momento o paso concreto si está en la información oficial
+4) Riesgo o límite: qué no asuma; cuándo consultar técnico de zona / etiqueta
+5) Qué confirmar en campo: 1–2 observaciones que cambian la decisión
 """
 
 
@@ -46,6 +61,7 @@ IDENTIDAD INNEGOCIABLE (nunca la abandone):
 - Usted es SIEMPRE agrónoma técnica primero. NUNCA deje de serlo para sonar comercial,
   persuasiva o "de marketing". La venta es consecuencia de un buen criterio agronómico,
   no al revés.
+- Actúa como en una visita de campo: diagnostica con preguntas útiles, luego decide.
 - Priorice precisión técnica: cultivo, etapa, síntoma, manejo, dosis, momento, riesgo.
   Si no tiene base suficiente, dígalo; no invente ni rellene con generalidades.
 - Tono: usted; formal, claro, humano, sin exceso de emojis. No suena a vendedora.
@@ -140,7 +156,7 @@ def obtener_contexto_productos(cliente) -> str:
         return ''
 
     try:
-        from core.models import ProductoCatalogo
+        from core.models import ProductoCatalogo, ProductoComercial
 
         productos = ProductoCatalogo.objects.filter(
             cliente=cliente,
@@ -150,9 +166,22 @@ def obtener_contexto_productos(cliente) -> str:
         if not productos.exists():
             return ''
 
+        skus = [p.sku.strip() for p in productos if (p.sku or '').strip()]
+        stock_por_sku: dict[str, int] = {}
+        if skus:
+            for pc in ProductoComercial.objects.filter(
+                cliente=cliente,
+                activo=True,
+                sku__in=skus,
+            ).only('sku', 'stock'):
+                if pc.stock is not None:
+                    stock_por_sku[pc.sku.strip().lower()] = int(pc.stock)
+
         lineas = ['CATÁLOGO DE PRODUCTOS DISPONIBLES PARA RECOMENDAR:\n']
         for p in productos:
             bloque = f'Producto: {p.nombre}'
+            if p.sku:
+                bloque += f'\nSKU: {p.sku}'
             if p.categoria:
                 bloque += f'\nCategoría: {p.categoria}'
             if p.cultivos_objetivo:
@@ -168,6 +197,14 @@ def obtener_contexto_productos(cliente) -> str:
                 bloque += f'\nPrecio: {precio_fmt} COP'
                 if p.unidad:
                     bloque += f' por {p.unidad}'
+            sku_key = (p.sku or '').strip().lower()
+            if sku_key and sku_key in stock_por_sku:
+                bloque += f'\nStock disponible: {stock_por_sku[sku_key]}'
+            if p.imagen:
+                try:
+                    bloque += f'\nFoto: {p.imagen.url}'
+                except Exception:
+                    pass
             if p.url_producto:
                 bloque += f'\nComprar: {p.url_producto}'
             bloque += '\n---'
@@ -193,12 +230,15 @@ CÓMO RECOMENDAR PRODUCTOS (sigue este orden siempre):
    Formato exacto para WhatsApp:
 
    📦 [Nombre del producto]
+   SKU: [si aparece en el catálogo]
    Sirve para: [problema específico del agricultor]
    Dosis: [dosis exacta del catálogo]
    Precio: $[precio] COP por [unidad]
+   Stock: [solo si el catálogo trae stock; si es 0 diga que no hay disponibilidad]
    Comprar acá: [url_producto]
 
-   Cierra siempre con: "Verifique el precio final en el link."
+   Cierra siempre con: "Verifique el precio final en el punto de venta."
+   No invente stock ni diga que hay foto si no viene en el catálogo.
 
 REGLAS COMERCIALES (nunca las incumplas):
 - Solo recomiendas productos que aparecen en el catálogo de arriba.
@@ -300,20 +340,23 @@ def armar_saludo_inicial(cliente=None) -> str:
     org_txt = f' de *{cliente.nombre}*' if cliente else ''
     return (
         f"Buenos días. Soy {nombre}, agrónoma virtual de eki{org_txt}.\n\n"
-        "Le acompaño en consultas técnicas de su cultivo: nutrición, plagas, "
-        "enfermedades, manejo integrado y, cuando corresponda, orientación de catálogo.\n\n"
-        "Indíqueme, por favor, su cultivo y qué necesita resolver."
+        "Le atiendo como en una consulta de campo: primero entiendo su lote "
+        "(cultivo, lo que observa, zona) y luego le oriento con criterio técnico"
+        " y, si aplica, con el catálogo.\n\n"
+        "Cuénteme: ¿qué cultivo tiene y qué le preocupa hoy en las plantas?"
     )
 
 
 def armar_saludo_menu(cliente=None) -> str:
-    """Mensaje del bot comercial cuando el productor escribe 'menu' o 'listo'."""
+    """Reinicio de orientación Nati (keywords propias: asesoria / reiniciar).
+
+    No usa listo/continuar/menu: esas son del bot educativo de cursos.
+    """
     nombre = obtener_nombre_bot(cliente)
     return (
         f"{nombre} — Agrónoma virtual eki\n\n"
-        "Quedo atenta para orientarle en manejo técnico de su cultivo y, "
-        "si usted lo solicita, en información de catálogo.\n"
-        "Indíqueme su cultivo y la consulta."
+        "Quedo atenta para una consulta de campo: cultivo, síntoma y zona.\n"
+        "Indíqueme qué está viendo en el lote y le oriento paso a paso."
     )
 
 

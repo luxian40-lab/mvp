@@ -62,7 +62,7 @@ class ProductoCatalogoInline(admin.TabularInline):
     model = ProductoCatalogo
     extra = 0
     fields = (
-        'nombre', 'categoria', 'cultivos_objetivo',
+        'nombre', 'sku', 'categoria', 'cultivos_objetivo',
         'precio_cop', 'unidad', 'url_producto', 'activo',
     )
     show_change_link = True
@@ -435,12 +435,15 @@ class ClienteAdmin(admin.ModelAdmin):
         return format_html('<span style="color:#999;">0</span>')
     cursos_asignados.short_description = "📚 Cursos"
 
-    actions = ['copiar_todos_cursos_a_analytics_pruebas']
+    actions = [
+        'copiar_todos_cursos_a_analytics_pruebas',
+        'copiar_conocimiento_nati_desde_agronexo',
+    ]
 
     @admin.action(description='📋 Copiar todos los cursos → Analytics (Pruebas)')
     def copiar_todos_cursos_a_analytics_pruebas(self, request, queryset):
         from core.copiar_cursos import (
-            ClienteAnalyticsNoEncontrado,
+            ClienteOrigenNoEncontrado,
             copiar_cursos_a_pruebas,
             obtener_cliente_analytics_origen,
         )
@@ -467,5 +470,39 @@ class ClienteAdmin(admin.ModelAdmin):
             f'✅ {result.total_copiados} curso(s) copiados a {result.destino.nombre}. '
             f'Omitidos (ya existían): {len(result.omitidos)}.',
         )
+
+    @admin.action(description='🌿 Nati: copiar conocimiento desde Agronexo / general')
+    def copiar_conocimiento_nati_desde_agronexo(self, request, queryset):
+        """
+        Seleccione el/los clientes DESTINO. Copia biblioteca + RAG comercial
+        desde Agronexo y documentos generales (cliente vacío), sin re-subir archivos.
+        """
+        from core.copiar_conocimiento_nati import (
+            FuenteConocimientoNoEncontrada,
+            copiar_conocimiento_a_cliente,
+        )
+
+        if not queryset.exists():
+            self.message_user(request, 'Seleccione al menos un cliente destino.', level='error')
+            return
+        ok = 0
+        for destino in queryset:
+            try:
+                r = copiar_conocimiento_a_cliente(destino)
+            except FuenteConocimientoNoEncontrada as e:
+                self.message_user(request, f'{destino.nombre}: {e}', level='error')
+                continue
+            ok += 1
+            self.message_user(
+                request,
+                f'✅ {destino.nombre}: bib +{r.bib_copiados} (omit {r.bib_omitidos}), '
+                f'RAG +{r.rag_copiados} (omit {r.rag_omitidos}). Indexación en cola.',
+            )
+        if ok == 0:
+            self.message_user(
+                request,
+                'Ninguna copia realizada. Suba docs a Agronexo o como RAG general (cliente vacío).',
+                level='warning',
+            )
 
 

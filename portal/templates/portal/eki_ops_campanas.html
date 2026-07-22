@@ -1,0 +1,141 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Ops · Campañas | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <h1>Campañas WhatsApp</h1>
+        <p class="muted">Crear y lanzar campañas de curso (plantilla Twilio) por organización.</p>
+    </div>
+</div>
+
+{% if messages %}
+<section style="margin-bottom:16px;">
+    {% for message in messages %}
+    <div class="alert {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">{{ message }}</div>
+    {% endfor %}
+</section>
+{% endif %}
+
+<section class="panel" style="margin-bottom:20px;">
+    <form method="get" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
+        <label>
+            <strong>Organización</strong>
+            <select name="org" style="display:block;margin-top:6px;padding:8px;border:1px solid var(--borde);border-radius:8px;min-width:220px;">
+                <option value="">Todas</option>
+                {% for o in orgs %}
+                <option value="{{ o.id }}" {% if filtro_org == o.id %}selected{% endif %}>{{ o.nombre }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <button class="btn btn-outline" type="submit">Filtrar</button>
+    </form>
+</section>
+
+<section class="panel" style="margin-bottom:24px;">
+    <h2 style="margin-top:0;">Nueva campaña</h2>
+    <form method="post" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;align-items:end;">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="crear">
+        <label>
+            <strong>Organización *</strong>
+            <select name="cliente_id" required style="width:100%;margin-top:6px;padding:8px;border:1px solid var(--borde);border-radius:8px;">
+                <option value="">Elegir…</option>
+                {% for o in orgs %}
+                <option value="{{ o.id }}" {% if filtro_org == o.id %}selected{% endif %}>{{ o.nombre }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <strong>Nombre *</strong>
+            <input name="nombre" required maxlength="100" style="width:100%;margin-top:6px;padding:8px;border:1px solid var(--borde);border-radius:8px;">
+        </label>
+        <label>
+            <strong>Content SID Twilio</strong>
+            <input name="template_twilio_id" placeholder="HX…" style="width:100%;margin-top:6px;padding:8px;border:1px solid var(--borde);border-radius:8px;">
+        </label>
+        <label>
+            <strong>O plantilla aprobada</strong>
+            <select name="plantilla_id" style="width:100%;margin-top:6px;padding:8px;border:1px solid var(--borde);border-radius:8px;">
+                <option value="">—</option>
+                {% for p in plantillas %}
+                <option value="{{ p.id }}">{{ p.nombre_interno|default:p.twilio_template_nombre|default:p.id }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <strong>Audiencia</strong>
+            <select name="tipo_audiencia" id="ops-tipo-aud" style="width:100%;margin-top:6px;padding:8px;border:1px solid var(--borde);border-radius:8px;">
+                <option value="grupo">Grupo</option>
+                <option value="todos">Todos los activos de la org</option>
+            </select>
+        </label>
+        <label>
+            <strong>Grupo</strong>
+            <select name="grupo_id" style="width:100%;margin-top:6px;padding:8px;border:1px solid var(--borde);border-radius:8px;">
+                <option value="">—</option>
+                {% for g in grupos %}
+                <option value="{{ g.id }}">{{ g.cliente.nombre }} · {{ g.nombre }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label style="display:flex;gap:8px;align-items:center;padding-top:22px;">
+            <input type="checkbox" name="es_campana_curso" value="1">
+            <span>Inicio de curso (habeas → onboarding)</span>
+        </label>
+        <label>
+            <strong>Curso destino</strong>
+            <select name="curso_id" style="width:100%;margin-top:6px;padding:8px;border:1px solid var(--borde);border-radius:8px;">
+                <option value="">—</option>
+                {% for c in cursos %}
+                <option value="{{ c.id }}">{{ c.cliente.nombre }} · {{ c.nombre }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <button class="btn" type="submit">Crear campaña</button>
+    </form>
+</section>
+
+<section class="panel">
+    <table>
+        <thead>
+            <tr>
+                <th>Organización</th>
+                <th>Nombre</th>
+                <th>Destinatarios</th>
+                <th>Estado</th>
+                <th>Enviados</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in campanas %}
+            {% with c=item.obj %}
+            <tr>
+                <td class="muted">{{ c.cliente.nombre|default:"—" }}</td>
+                <td>
+                    <strong>{{ c.nombre }}</strong>
+                    {% if c.es_campana_curso %}<div class="muted" style="font-size:11px;">Inicio curso{% if c.curso_destino %}: {{ c.curso_destino.nombre }}{% endif %}</div>{% endif %}
+                </td>
+                <td>{{ item.dest_count }}{% if c.tipo_audiencia == 'grupo' and c.grupo %} · {{ c.grupo.nombre }}{% endif %}</td>
+                <td>{% if c.ejecutada %}<span class="status status-resuelta">Ejecutada</span>{% else %}<span class="status status-pendiente">Pendiente</span>{% endif %}</td>
+                <td>{{ c.total_enviados }}</td>
+                <td>
+                    <form method="post" style="display:inline;" onsubmit="return confirm('¿Lanzar envío WhatsApp real a {{ item.dest_count }} destinatarios?');">
+                        {% csrf_token %}
+                        <input type="hidden" name="accion" value="lanzar">
+                        <input type="hidden" name="campana_id" value="{{ c.id }}">
+                        {% if filtro_org %}<input type="hidden" name="org" value="{{ filtro_org }}">{% endif %}
+                        <button class="btn btn-outline" type="submit" style="padding:6px 10px;font-size:12px;">Lanzar</button>
+                    </form>
+                </td>
+            </tr>
+            {% endwith %}
+            {% empty %}
+            <tr><td colspan="6" class="muted">Sin campañas. Cree una arriba.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

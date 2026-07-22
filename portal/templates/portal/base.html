@@ -1371,7 +1371,29 @@
         </div>
         <div class="sidebar-powered">eki <em>portal</em><span>Clientes</span></div>
         <nav>
-            {% if portal_solo_nat %}
+            {% if portal_es_eki_ops %}
+            <div class="nav-label">Equipo eki · Ops</div>
+            <a href="{% url 'portal_eki_ops' %}" class="sidebar-link {% if request.path == '/portal/ops/' or '/portal/ops/metricas' in request.path %}active{% endif %}" title="Métricas de todas las organizaciones">
+                <span class="link-icon"><svg><use href="#i-bars"/></svg></span>
+                <span class="link-text">Métricas</span>
+            </a>
+            <a href="{% url 'portal_eki_ops_cursos' %}" class="sidebar-link {% if '/portal/ops/cursos' in request.path %}active{% endif %}" title="Editor de cursos, contenido y microcontenidos">
+                <span class="link-icon"><svg><use href="#i-book"/></svg></span>
+                <span class="link-text">Cursos</span>
+            </a>
+            <a href="{% url 'portal_eki_ops_estudiantes' %}" class="sidebar-link {% if '/portal/ops/estudiantes' in request.path %}active{% endif %}" title="Estudiantes de todas las organizaciones">
+                <span class="link-icon"><svg><use href="#i-users"/></svg></span>
+                <span class="link-text">Estudiantes</span>
+            </a>
+            <a href="{% url 'portal_eki_ops_grupos' %}" class="sidebar-link {% if '/portal/ops/grupos' in request.path %}active{% endif %}" title="Grupos de estudiantes">
+                <span class="link-icon"><svg><use href="#i-users"/></svg></span>
+                <span class="link-text">Grupos</span>
+            </a>
+            <a href="{% url 'portal_eki_ops_campanas' %}" class="sidebar-link {% if '/portal/ops/campanas' in request.path %}active{% endif %}" title="Crear y lanzar campañas WhatsApp">
+                <span class="link-icon"><svg><use href="#i-megaphone"/></svg></span>
+                <span class="link-text">Campañas</span>
+            </a>
+            {% elif portal_solo_nat %}
             <div class="nav-label">Mi negocio · Nat</div>
             <a href="{% url 'portal_nat' %}" class="sidebar-link {% if request.path == '/portal/nat/' %}active{% endif %}" title="Inicio — hub Nat">
                 <span class="link-icon"><svg><use href="#i-home"/></svg></span>
@@ -1565,7 +1587,9 @@
             <div style="min-width:0;">
             <div class="topbar-title">{{ org.nombre }}</div>
             <div class="topbar-meta">
-                {% if portal_solo_nat %}
+                {% if portal_es_eki_ops %}
+                    <span>Operación interna eki · todas las organizaciones</span>
+                {% elif portal_solo_nat %}
                     {% if org.portal_subtitulo %}<span class="prog">{{ org.portal_subtitulo }}</span>
                     <span class="sep"></span>{% endif %}
                     <span>Agrónoma WhatsApp · Nat</span>
@@ -1605,7 +1629,7 @@
                 <div class="user-menu__panel" role="menu" aria-labelledby="user-menu-btn">
                     <div class="user-menu__head">
                         <strong>{{ portal_user_nombre }}</strong>
-                        <span>{% if portal_es_admin %}Administrador{% elif portal_solo_lectura %}Solo lectura{% else %}Equipo{% endif %} · {{ org.nombre|truncatechars:24 }}</span>
+                        <span>{% if portal_es_eki_ops %}Equipo eki · Ops{% elif portal_es_admin %}Administrador{% elif portal_solo_lectura %}Solo lectura{% else %}Equipo{% endif %} · {{ org.nombre|truncatechars:24 }}</span>
                     </div>
                     {% if portal_es_admin %}
                     <a href="/portal/perfil/" class="user-menu__item" role="menuitem">

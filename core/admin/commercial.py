@@ -565,16 +565,19 @@ class ProductoCatalogoAdmin(admin.ModelAdmin):
     """Recomendaciones Nat (dosis, link, problema). No es la lista de precios SKU."""
 
     list_display = (
-        'nombre', 'cliente', 'categoria',
+        'nombre', 'sku', 'cliente', 'categoria',
         'cultivos_objetivo', 'precio_cop', 'unidad', 'activo',
     )
     list_filter = ('cliente', 'categoria', 'activo')
-    search_fields = ('nombre', 'descripcion', 'problema_que_resuelve', 'ingrediente_activo')
+    search_fields = ('nombre', 'sku', 'descripcion', 'problema_que_resuelve', 'ingrediente_activo')
     list_editable = ('activo',)
     readonly_fields = ('fecha_actualizacion',)
     fieldsets = (
         ('Identificación', {
-            'fields': ('cliente', 'nombre', 'categoria', 'cultivos_objetivo', 'activo'),
+            'fields': ('cliente', 'nombre', 'sku', 'categoria', 'cultivos_objetivo', 'activo'),
+        }),
+        ('Foto', {
+            'fields': ('imagen',),
         }),
         ('Información técnica', {
             'fields': ('descripcion', 'problema_que_resuelve', 'ingrediente_activo', 'dosis'),
@@ -606,7 +609,7 @@ class ProductoComercialAdmin(admin.ModelAdmin):
 
     change_list_template = 'admin/productocomercial_changelist.html'
     list_display = (
-        'sku', 'nombre', 'presentacion', 'precio', 'moneda',
+        'sku', 'nombre', 'presentacion', 'stock', 'precio', 'moneda',
         'cliente', 'categoria', 'activo', 'fecha_actualizacion',
     )
     list_filter = ('activo', 'cliente', 'categoria', 'moneda')

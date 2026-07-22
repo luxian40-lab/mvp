@@ -7,8 +7,8 @@
     <div>
         <h1>Lista de precios (SKU)</h1>
         <p class="muted">
-            Precios oficiales que Nat consulta cuando preguntan cuánto cuesta un producto.
-            Las recomendaciones técnicas van en <a href="{% url 'portal_catalogo' %}">Catálogo</a>.
+            Precios oficiales y stock por SKU que Nat consulta al cotizar.
+            Las recomendaciones técnicas y la foto van en <a href="{% url 'portal_catalogo' %}">Catálogo</a>.
         </p>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -40,6 +40,7 @@
                 <th>SKU</th>
                 <th>Nombre</th>
                 <th>Presentación</th>
+                <th>Stock</th>
                 <th>Precio</th>
                 <th>Estado</th>
                 <th></th>
@@ -54,12 +55,13 @@
                     {% if item.categoria %}<div class="muted" style="font-size:12px;">{{ item.categoria }}</div>{% endif %}
                 </td>
                 <td>{{ item.presentacion|default:item.unidad|default:"—" }}</td>
+                <td>{% if item.stock != None %}{{ item.stock }}{% else %}—{% endif %}</td>
                 <td>{{ item.moneda }} {{ item.precio }}</td>
                 <td>{% if item.activo %}<span style="color:#2f9e44;">Activo</span>{% else %}<span class="muted">Inactivo</span>{% endif %}</td>
                 <td><a href="{% url 'portal_precios_editar' item.id %}">Editar</a></td>
             </tr>
             {% empty %}
-            <tr><td colspan="6" class="muted">Sin precios. Agregue SKUs para que Nat responda consultas de precio.</td></tr>
+            <tr><td colspan="7" class="muted">Sin precios. Agregue SKUs para que Nat responda consultas de precio.</td></tr>
             {% endfor %}
         </tbody>
     </table>

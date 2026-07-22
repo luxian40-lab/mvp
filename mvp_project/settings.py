@@ -959,8 +959,13 @@ if DEBUG and not EMAIL_HOST_USER:
 # ==========================================
 # CELERY - Procesamiento asíncrono
 # ==========================================
-CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+# REDIS_URL: alias opcional (ElastiCache). Si existe y no hay CELERY_BROKER_URL, se usa.
+_redis_url = (os.environ.get('REDIS_URL') or '').strip()
+_celery_broker = (os.environ.get('CELERY_BROKER_URL') or '').strip() or _redis_url or 'redis://localhost:6379/0'
+_celery_backend = (os.environ.get('CELERY_RESULT_BACKEND') or '').strip() or _celery_broker
+
+CELERY_BROKER_URL = _celery_broker
+CELERY_RESULT_BACKEND = _celery_backend
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
@@ -971,6 +976,19 @@ CELERY_TASK_TIME_LIMIT = int(os.environ.get('CELERY_TASK_TIME_LIMIT', '3600'))
 CELERY_TASK_SOFT_TIME_LIMIT = int(os.environ.get('CELERY_TASK_SOFT_TIME_LIMIT', '3300'))
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # Para distribución justa de tareas
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# ElastiCache con TLS (rediss://…)
+if CELERY_BROKER_URL.startswith('rediss://'):
+    import ssl as _ssl
+
+    _ssl_opts = {'ssl_cert_reqs': _ssl.CERT_REQUIRED}
+    if os.environ.get('CELERY_BROKER_SSL_CERT_REQS', '').strip().lower() in ('none', 'optional'):
+        _ssl_opts = {'ssl_cert_reqs': _ssl.CERT_NONE}
+    CELERY_BROKER_USE_SSL = _ssl_opts
+    CELERY_REDIS_BACKEND_USE_SSL = dict(_ssl_opts)
+
+# Chroma local (dev). En prod: settings_production.CHROMA_DB_DIR / env.
+CHROMA_DB_DIR = os.environ.get('CHROMA_DB_DIR') or str(BASE_DIR / 'chroma_db')
 
 # Cola dedicada para indexación PDF/RAG (worker_rag en Procfile EB).
 # Las tareas pesadas no bloquean campañas, emails ni webhooks.

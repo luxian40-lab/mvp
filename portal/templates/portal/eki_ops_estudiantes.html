@@ -1,0 +1,61 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Ops · Estudiantes | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <h1>Estudiantes — todas las organizaciones</h1>
+        <p class="muted">Vista interna equipo eki. Filtre por organización.</p>
+    </div>
+</div>
+
+<section class="panel" style="margin-bottom:20px;">
+    <form method="get" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
+        <label>
+            <strong>Organización</strong>
+            <select name="org" style="display:block;margin-top:6px;padding:8px;border:1px solid var(--borde);border-radius:8px;min-width:220px;">
+                <option value="">Todas</option>
+                {% for o in orgs %}
+                <option value="{{ o.id }}" {% if filtro_org == o.id %}selected{% endif %}>{{ o.nombre }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <button class="btn btn-outline" type="submit">Filtrar</button>
+    </form>
+</section>
+
+<section class="panel">
+    <table>
+        <thead>
+            <tr>
+                <th>Organización</th>
+                <th>Nombre</th>
+                <th>Teléfono</th>
+                <th>Estado</th>
+                <th>Cursos</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in estudiantes %}
+            <tr>
+                <td class="muted">{{ e.cliente.nombre }}</td>
+                <td><strong>{{ e.nombre }}</strong></td>
+                <td>{{ e.telefono }}</td>
+                <td>
+                    {% if e.activo %}
+                    <span class="status status-resuelta">Activo</span>
+                    {% else %}
+                    <span class="status status-cerrada">Inactivo</span>
+                    {% endif %}
+                </td>
+                <td>{{ e.cursos_count }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="muted">Sin estudiantes.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <p class="muted" style="margin-top:12px;font-size:12px;">Máximo 500 filas. Use el filtro de organización para afinar.</p>
+</section>
+{% endblock %}

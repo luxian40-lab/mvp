@@ -3,10 +3,19 @@ from __future__ import annotations
 
 from decimal import Decimal, InvalidOperation
 
+from django.core.files.uploadedfile import UploadedFile
 from django.db import IntegrityError
 from django.db.models import Q
 
 from core.models import ProductoCatalogo, ProductoComercial
+
+_MAX_IMAGEN_BYTES = 5 * 1024 * 1024
+_IMAGEN_CONTENT_TYPES = {
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/webp',
+}
 
 
 def _txt(data, key: str, default: str = '') -> str:
@@ -29,6 +38,19 @@ def _decimal_or_none(raw, *, required: bool = False, label: str = 'Precio'):
         raise ValueError(f'{label} no es un número válido.') from exc
 
 
+def _int_or_none(raw, *, label: str = 'Stock'):
+    s = (raw or '').strip()
+    if not s:
+        return None
+    try:
+        val = int(float(s.replace(',', '.')))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f'{label} debe ser un número entero.') from exc
+    if val < 0:
+        raise ValueError(f'{label} no puede ser negativo.')
+    return val
+
+
 def _date_or_none(raw: str):
     from datetime import datetime
 
@@ -41,12 +63,27 @@ def _date_or_none(raw: str):
         raise ValueError('Fecha inválida (use AAAA-MM-DD).') from exc
 
 
+def _validar_imagen(archivo: UploadedFile | None) -> UploadedFile | None:
+    if not archivo:
+        return None
+    name = (getattr(archivo, 'name', '') or '').lower()
+    ctype = (getattr(archivo, 'content_type', '') or '').lower()
+    if ctype not in _IMAGEN_CONTENT_TYPES and not name.endswith(('.jpg', '.jpeg', '.png', '.webp')):
+        raise ValueError('La foto debe ser JPG, PNG o WebP.')
+    size = getattr(archivo, 'size', None)
+    if size is not None and size > _MAX_IMAGEN_BYTES:
+        raise ValueError('La foto no puede superar 5 MB.')
+    return archivo
+
+
 def listar_catalogo(org, *, q: str = '', solo_activos: bool = False):
     qs = ProductoCatalogo.objects.filter(cliente_id=org.pk)
     if solo_activos:
         qs = qs.filter(activo=True)
     if q:
-        qs = qs.filter(Q(nombre__icontains=q) | Q(categoria__icontains=q))
+        qs = qs.filter(
+            Q(nombre__icontains=q) | Q(categoria__icontains=q) | Q(sku__icontains=q)
+        )
     return qs.order_by('categoria', 'nombre')
 
 
@@ -62,7 +99,7 @@ def listar_precios(org, *, q: str = '', solo_activos: bool = False):
     return qs.order_by('nombre', 'sku')
 
 
-def crear_catalogo(org, data) -> ProductoCatalogo:
+def crear_catalogo(org, data, files=None) -> ProductoCatalogo:
     nombre = _txt(data, 'nombre')
     if not nombre:
         raise ValueError('El nombre es obligatorio.')
@@ -73,9 +110,11 @@ def crear_catalogo(org, data) -> ProductoCatalogo:
     if not problema:
         raise ValueError('Indique qué problemas resuelve (Nat lo usa para recomendar).')
 
+    imagen = _validar_imagen((files or {}).get('imagen') if files else None)
     obj = ProductoCatalogo(
         cliente=org,
         nombre=nombre,
+        sku=_txt(data, 'sku'),
         descripcion=descripcion,
         problema_que_resuelve=problema,
         ingrediente_activo=_txt(data, 'ingrediente_activo'),
@@ -87,6 +126,8 @@ def crear_catalogo(org, data) -> ProductoCatalogo:
         url_producto=_txt(data, 'url_producto'),
         activo=_bool_activo(data),
     )
+    if imagen:
+        obj.imagen = imagen
     try:
         obj.save()
     except IntegrityError as exc:
@@ -94,7 +135,7 @@ def crear_catalogo(org, data) -> ProductoCatalogo:
     return obj
 
 
-def actualizar_catalogo(obj: ProductoCatalogo, data) -> ProductoCatalogo:
+def actualizar_catalogo(obj: ProductoCatalogo, data, files=None) -> ProductoCatalogo:
     nombre = _txt(data, 'nombre')
     if not nombre:
         raise ValueError('El nombre es obligatorio.')
@@ -106,6 +147,7 @@ def actualizar_catalogo(obj: ProductoCatalogo, data) -> ProductoCatalogo:
         raise ValueError('Indique qué problemas resuelve.')
 
     obj.nombre = nombre
+    obj.sku = _txt(data, 'sku')
     obj.descripcion = descripcion
     obj.problema_que_resuelve = problema
     obj.ingrediente_activo = _txt(data, 'ingrediente_activo')
@@ -116,6 +158,16 @@ def actualizar_catalogo(obj: ProductoCatalogo, data) -> ProductoCatalogo:
     obj.unidad = _txt(data, 'unidad')
     obj.url_producto = _txt(data, 'url_producto')
     obj.activo = _bool_activo(data)
+
+    if str(data.get('quitar_imagen') or '').lower() in ('1', 'true', 'on', 'yes'):
+        if obj.imagen:
+            obj.imagen.delete(save=False)
+        obj.imagen = None
+    else:
+        imagen = _validar_imagen((files or {}).get('imagen') if files else None)
+        if imagen:
+            obj.imagen = imagen
+
     try:
         obj.save()
     except IntegrityError as exc:
@@ -138,6 +190,7 @@ def crear_precio(org, data) -> ProductoComercial:
         nombre=nombre,
         presentacion=_txt(data, 'presentacion'),
         unidad=_txt(data, 'unidad'),
+        stock=_int_or_none(data.get('stock')),
         precio=precio,
         moneda=_txt(data, 'moneda', 'COP') or 'COP',
         categoria=_txt(data, 'categoria'),
@@ -166,6 +219,7 @@ def actualizar_precio(obj: ProductoComercial, data) -> ProductoComercial:
     obj.nombre = nombre
     obj.presentacion = _txt(data, 'presentacion')
     obj.unidad = _txt(data, 'unidad')
+    obj.stock = _int_or_none(data.get('stock'))
     obj.precio = precio
     obj.moneda = _txt(data, 'moneda', 'COP') or 'COP'
     obj.categoria = _txt(data, 'categoria')
@@ -201,6 +255,9 @@ _ALIASES_PRODUCTO = {
     'nombre': 'nombre',
     'producto': 'nombre',
     'nombre_producto': 'nombre',
+    'sku': 'sku',
+    'codigo': 'sku',
+    'codigo_sku': 'sku',
     'descripcion': 'descripcion',
     'descripcion_para_que_sirve': 'descripcion',
     'problema_que_resuelve': 'problema_que_resuelve',
@@ -232,6 +289,10 @@ _ALIASES_PRECIO = {
     'producto': 'nombre',
     'presentacion': 'presentacion',
     'unidad': 'unidad',
+    'stock': 'stock',
+    'existencia': 'stock',
+    'inventario': 'stock',
+    'cantidad': 'stock',
     'precio': 'precio',
     'precio_cop': 'precio',
     'moneda': 'moneda',
@@ -281,13 +342,14 @@ def generar_plantilla_excel_nat() -> BytesIO:
     ws_p = wb.active
     ws_p.title = 'Productos'
     headers_p = [
-        'nombre', 'descripcion', 'problema_que_resuelve', 'ingrediente_activo',
+        'nombre', 'sku', 'descripcion', 'problema_que_resuelve', 'ingrediente_activo',
         'categoria', 'cultivos_objetivo', 'dosis', 'precio_cop', 'unidad',
         'url_producto', 'activo',
     ]
     ws_p.append(headers_p)
     ws_p.append([
         'Fungicida Café Plus',
+        'FUNG-CAFE-500G',
         'Fungicida sistémico para control de roya en café.',
         'Roya del cafeto, manchas foliares, hongos en hojas.',
         'Triazol ejemplo',
@@ -306,7 +368,7 @@ def generar_plantilla_excel_nat() -> BytesIO:
 
     ws_r = wb.create_sheet('Precios')
     headers_r = [
-        'sku', 'nombre', 'presentacion', 'unidad', 'precio', 'moneda',
+        'sku', 'nombre', 'presentacion', 'unidad', 'stock', 'precio', 'moneda',
         'categoria', 'notas', 'vigencia_desde', 'vigencia_hasta', 'activo',
     ]
     ws_r.append(headers_r)
@@ -315,6 +377,7 @@ def generar_plantilla_excel_nat() -> BytesIO:
         'Fungicida Café Plus 500g',
         'frasco 500 g',
         'unidad',
+        '24',
         '125000',
         'COP',
         'fungicida',
@@ -334,6 +397,9 @@ def generar_plantilla_excel_nat() -> BytesIO:
     ws_help.append(['3. Suba el archivo en Portal → Productos o Precios → Importar Excel.'])
     ws_help.append(['4. Si el nombre (productos) o SKU (precios) ya existe, se actualiza.'])
     ws_help.append(['5. activo: 1 = sí, 0 = no.'])
+    ws_help.append(['6. sku en Productos: opcional; si coincide con Precios, une ficha + stock.'])
+    ws_help.append(['7. stock en Precios: unidades en bodega (opcional).'])
+    ws_help.append(['8. La foto del producto se sube en el portal (no por Excel).'])
     ws_help.append(['Columnas obligatorias Productos: nombre, descripcion, problema_que_resuelve'])
     ws_help.append(['Columnas obligatorias Precios: sku, nombre, precio'])
 

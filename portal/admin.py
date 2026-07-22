@@ -200,7 +200,12 @@ class PortalUsuarioAdminBase(admin.ModelAdmin):
 
     @admin.display(description='Rol')
     def rol_badge(self, obj):
-        colors = {'admin': '#7a4e8e', 'profesor': '#0d9488', 'viewer': '#64748b'}
+        colors = {
+            'admin': '#7a4e8e',
+            'profesor': '#0d9488',
+            'viewer': '#64748b',
+            'eki_ops': '#5F3A6E',
+        }
         color = colors.get(obj.rol, '#64748b')
         return format_html(
             '<span style="background:{}22;color:{};padding:2px 8px;border-radius:6px;font-size:0.8rem;">{}</span>',
@@ -209,6 +214,8 @@ class PortalUsuarioAdminBase(admin.ModelAdmin):
 
     @admin.display(description='Aula web')
     def aula_web(self, obj):
+        if obj.rol == 'eki_ops':
+            return format_html('<a href="/portal/ops/" target="_blank">Ops ↗</a>')
         if obj.rol in ('admin', 'profesor'):
             return format_html('<a href="/aprende/profesor/login/" target="_blank">Entrar ↗</a>')
         return '—'

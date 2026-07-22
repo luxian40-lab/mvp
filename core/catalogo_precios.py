@@ -127,14 +127,15 @@ def formatear_contexto_precios(productos) -> str:
 
     lineas = [
         "LISTA DE PRECIOS OFICIAL (PostgreSQL — use SOLO estas cifras; no invente ni redondee):",
-        "SKU | Producto | Presentación | Precio | Unidad | Notas",
+        "SKU | Producto | Presentación | Precio | Unidad | Stock | Notas",
     ]
     for p in productos:
         cliente_txt = p.cliente.nombre if p.cliente_id else "General"
         notas = (p.notas or "").strip().replace("\n", " ")[:120]
+        stock_txt = str(p.stock) if p.stock is not None else "—"
         lineas.append(
             f"{p.sku} | {p.nombre} | {p.presentacion or '—'} | "
             f"{_fmt_precio(p.precio, p.moneda)} | {p.unidad or '—'} | "
-            f"[{cliente_txt}] {notas}".strip()
+            f"{stock_txt} | [{cliente_txt}] {notas}".strip()
         )
     return "\n".join(lineas)

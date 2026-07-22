@@ -154,9 +154,11 @@ def establecer_password_admin(
 
 
 def destino_post_autenticacion(portal_usuario: PortalUsuario) -> str:
-    """Profesores van al aula; el resto al home del portal B2B."""
+    """Profesores van al aula; eki_ops al hub ops; el resto al home B2B."""
     if portal_usuario.rol == 'profesor':
         return '/aprende/profesor/'
+    if portal_usuario.rol == 'eki_ops':
+        return '/portal/ops/'
     from .capabilities import portal_home_url
 
     return portal_home_url(portal_usuario.organizacion)

@@ -463,11 +463,6 @@ class SelectorCursoPasosTests(TestCase):
             nombre='Chooser',
             telefono='5730011998877',
         )
-        ProgresoEstudiante.objects.create(
-            estudiante=self.est,
-            curso=self.curso,
-            modulo_actual=self.m1,
-        )
 
     def test_selector_solo_numero_con_pasos_entrega_paso_no_legacy(self):
         from core.models import PasoModulo
@@ -628,6 +623,8 @@ class ModoEntregaExplicitoTests(TestCase):
         from core.selector_curso import continuar_curso_seleccionado
 
         self.assertEqual(self.m1.modo_entrega, Modulo.MODO_ENTREGA_AUTO)
+        # Primera inscripción (sin progreso previo) debe entregar el micro, no solo CTA.
+        ProgresoEstudiante.objects.filter(estudiante=self.est, curso=self.curso).delete()
         s1 = _seccion(self.m1, 1)
         PasoModulo.objects.create(
             modulo=self.m1,
@@ -780,7 +777,8 @@ class SectionBatchTests(TestCase):
         self.assertEqual(self.prog.paso_actual_modulo, 3)
         self.assertIn('c1', msg)
         self.assertIn('c2', msg)
-        self.assertIn('siguiente módulo', msg.lower())
+        self.assertIn('siguiente', msg.lower())
+        self.assertIn('listo', msg.lower())
 
     def test_dos_secciones_titulos_un_listo_por_seccion(self):
         """Aunque secciones_por_listo sea 2, solo se entrega una sección; el segundo *listo* abre la otra."""
@@ -817,7 +815,8 @@ class SectionBatchTests(TestCase):
         msg2 = entregar_bloque_secciones_desde_paso(self.prog, self.mod, 2)
         self.assertNotIn('Bloque Beta', msg2)
         self.assertIn('dos', msg2)
-        self.assertIn('siguiente módulo', msg2.lower())
+        self.assertIn('siguiente', msg2.lower())
+        self.assertIn('listo', msg2.lower())
         self.prog.refresh_from_db()
         self.assertEqual(self.prog.paso_actual_modulo, 3)
 
@@ -851,7 +850,8 @@ class SectionBatchTests(TestCase):
         msg2 = entregar_bloque_secciones_desde_paso(self.prog, self.mod, 2)
         self.assertIn('dos', msg2)
         self.assertNotIn('📑 *Bloque 2*', msg2)
-        self.assertIn('siguiente módulo', msg2.lower())
+        self.assertIn('siguiente', msg2.lower())
+        self.assertIn('listo', msg2.lower())
         self.prog.refresh_from_db()
         self.assertEqual(self.prog.paso_actual_modulo, 3)
 
@@ -1114,6 +1114,7 @@ class CheckpointIgnoraDripFinModulo1Tests(TestCase):
             contenido='legacy',
             duracion_dias=7,
             modo_entrega=Modulo.MODO_ENTREGA_PASOS,
+            facilitador_checkpoint=Modulo.FACILITADOR_CP_SI,
         )
         self.m2 = Modulo.objects.create(
             curso=self.curso,

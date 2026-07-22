@@ -128,6 +128,14 @@ def portal_home_url(org) -> str:
     return '/portal/dashboard/'
 
 
+def portal_home_url_para_usuario(pu) -> str:
+    """Home según rol: eki_ops → /portal/ops/; resto según org."""
+    if pu and getattr(pu, 'rol', None) == 'eki_ops':
+        return '/portal/ops/'
+    org = getattr(pu, 'organizacion', None) if pu else None
+    return portal_home_url(org) if org else '/portal/login/'
+
+
 def categorias_pqrs_portal(org) -> list[str] | None:
     """Unión de categorías PQRS según módulos activos; None = sin filtrar."""
     mods = modulos_portal(org)

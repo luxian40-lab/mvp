@@ -8,6 +8,7 @@ class PortalUsuario(models.Model):
         ('admin', 'Administrador (portal clientes)'),
         ('profesor', 'Profesor (solo aula web /aprende/)'),
         ('viewer', 'Solo lectura (portal clientes)'),
+        ('eki_ops', 'Equipo eki (ops)'),
     ]
 
     user = models.OneToOneField(

@@ -353,19 +353,29 @@ MIDDLEWARE.append('django.middleware.gzip.GZipMiddleware')
 
 # ============================================
 # CHROMA DB — persistir fuera de /var/app/current (sobrevive deploys EB)
+# Preferir EFS montado + CHROMA_DB_DIR=/mnt/efs/chroma_data (ver docs/RUNBOOK_REDIS_CHROMA.md)
 # ============================================
 CHROMA_DB_DIR = os.environ.get('CHROMA_DB_DIR', '/var/app/chroma_data')
 
 # ============================================
 # CELERY + REDIS (Elastic Beanstalk)
 # ============================================
-# Worker y beat del Procfile usan Redis en localhost (.ebextensions/03_redis.config).
-# CELERY_TASK_ALWAYS_EAGER=True (env EB): .delay() en el proceso web corre en línea;
-# beat sigue necesitando Redis para campañas programadas y reenganche drip (8:00).
-if _ON_ELASTIC_BEANSTALK and not os.environ.get('CELERY_BROKER_URL'):
-    _REDIS_LOCAL = 'redis://127.0.0.1:6379/0'
-    CELERY_BROKER_URL = _REDIS_LOCAL
-    CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND') or _REDIS_LOCAL
+# Preferido: CELERY_BROKER_URL o REDIS_URL → ElastiCache (fuera de la caja).
+# Sin ElastiCache / sin env: mismo fallback histórico → redis://127.0.0.1:6379/0
+# Ver mvp_project.infra_redis + docs/RUNBOOK_REDIS_CHROMA.md
+from mvp_project.infra_redis import env_truthy_local_redis, resolve_eb_celery_redis
+
+_broker_env = (os.environ.get('CELERY_BROKER_URL') or os.environ.get('REDIS_URL') or '').strip()
+_use_local_redis = env_truthy_local_redis(os.environ.get('USE_LOCAL_REDIS'))
+_broker_resolved, _backend_resolved, _redis_mode = resolve_eb_celery_redis(
+    broker_env=_broker_env,
+    result_backend_env=os.environ.get('CELERY_RESULT_BACKEND') or '',
+    use_local_redis=_use_local_redis,
+    on_elastic_beanstalk=_ON_ELASTIC_BEANSTALK,
+)
+if _redis_mode != 'unchanged':
+    CELERY_BROKER_URL = _broker_resolved
+    CELERY_RESULT_BACKEND = _backend_resolved
 
 # ============================================
 # FORZAR BACKEND DE ARCHIVOS S3 EN PRODUCCIÓN

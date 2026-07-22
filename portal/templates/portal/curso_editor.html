@@ -1,0 +1,76 @@
+{% extends 'portal/base.html' %}
+{% load static %}
+
+{% block title %}Ops · Editor de cursos | Portal eki{% endblock %}
+
+{% block extra_head %}
+<style>
+.ce { display:grid; grid-template-columns:minmax(240px,300px) 1fr; gap:16px; min-height:70vh; }
+@media (max-width:900px){ .ce{ grid-template-columns:1fr; } }
+.ce-panel{ background:var(--surface); border:1px solid var(--borde); border-radius:12px; padding:14px; overflow:auto; }
+.ce-panel h2{ font-size:0.95rem; margin:0 0 10px; }
+.ce-row{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; align-items:center; }
+.ce-row select,.ce-row input,.ce-row textarea,.ce-field input,.ce-field select,.ce-field textarea{
+  width:100%; padding:8px 10px; border:1px solid var(--borde); border-radius:8px; font:inherit; background:var(--fondo);
+  color:var(--texto);
+}
+.ce-list{ list-style:none; margin:0; padding:0; }
+.ce-list li{ margin:0 0 4px; }
+.ce-list button{
+  width:100%; text-align:left; border:1px solid transparent; background:transparent; padding:8px 10px;
+  border-radius:8px; cursor:pointer; font:inherit; color:var(--texto);
+}
+.ce-list button:hover,.ce-list button.active{ background:var(--accent-soft); border-color:var(--borde); }
+.ce-sec{ border:1px solid var(--borde); border-radius:10px; margin-bottom:12px; overflow:hidden; }
+.ce-sec__head{ display:flex; justify-content:space-between; gap:8px; align-items:center; padding:10px 12px; background:rgba(0,0,0,.03); cursor:pointer; }
+.ce-sec__body{ padding:10px 12px; display:none; }
+.ce-sec.open .ce-sec__body{ display:block; }
+.ce-paso{ border:1px dashed var(--borde); border-radius:8px; padding:10px; margin-bottom:8px; }
+.ce-paso__bar{ display:flex; justify-content:space-between; gap:8px; align-items:center; margin-bottom:8px; font-size:13px; }
+.ce-field{ margin-bottom:8px; }
+.ce-field label{ display:block; font-size:12px; font-weight:600; margin-bottom:4px; color:var(--texto-muted); }
+.ce-actions{ display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+.ce-toast{ position:fixed; bottom:20px; right:20px; background:#2f9e44; color:#fff; padding:10px 14px; border-radius:8px; display:none; z-index:50; }
+.ce-toast.err{ background:#e03131; }
+.ce-empty{ color:var(--texto-muted); font-size:14px; padding:12px 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <h1>Editor de cursos</h1>
+        <p class="muted">Cursos, contenido completo del módulo (sin microcontenidos) y bloques/pasos. Pensado para el equipo eki.</p>
+    </div>
+    <a class="btn btn-outline" href="{% url 'portal_eki_ops' %}">← Métricas</a>
+</div>
+
+<div class="ce" id="curso-editor"
+     data-csrf="{{ csrf_token }}"
+     data-api-orgs="{% url 'portal_ops_api_orgs' %}"
+     data-api-cursos="{% url 'portal_ops_api_cursos' %}">
+  <aside class="ce-panel">
+    <h2>Organización</h2>
+    <div class="ce-row">
+      <select id="ce-org"></select>
+    </div>
+    <h2>Cursos</h2>
+    <div class="ce-row">
+      <input id="ce-curso-nombre" type="text" placeholder="Nombre del curso nuevo" maxlength="200">
+      <button type="button" class="btn" id="ce-curso-crear">+ Curso</button>
+    </div>
+    <ul class="ce-list" id="ce-cursos"></ul>
+    <h2 style="margin-top:16px;">Módulos</h2>
+    <div class="ce-row">
+      <input id="ce-mod-titulo" type="text" placeholder="Título del módulo" maxlength="200">
+      <button type="button" class="btn btn-outline" id="ce-mod-crear">+ Módulo</button>
+    </div>
+    <ul class="ce-list" id="ce-modulos"></ul>
+  </aside>
+  <section class="ce-panel" id="ce-detalle">
+    <p class="ce-empty">Seleccione un módulo para editar bloques y microcontenidos.</p>
+  </section>
+</div>
+<div class="ce-toast" id="ce-toast"></div>
+<script src="{% static 'portal/curso_editor.js' %}" defer></script>
+{% endblock %}

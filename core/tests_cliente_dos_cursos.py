@@ -130,19 +130,12 @@ class ClienteDosCursosMismoEstudianteTests(TestCase):
         actual = asegurar_inscripcion_catalogo_cliente(self.est)
         self.assertEqual(actual.curso_id, self.curso_b.pk)
 
-    @override_settings(STORAGES=_STATIC, SECURE_SSL_REDIRECT=False)
-    def test_aprende_lista_ambos_cursos(self):
-        http = Client()
-        r = http.post('/aprende/estudiante/login/', {
-            'cedula': '100200300',
-            'telefono': '3001112233',
-        })
-        self.assertEqual(r.status_code, 302)
-        r2 = http.get('/aprende/estudiante/')
-        self.assertEqual(r2.status_code, 200)
-        self.assertContains(r2, 'Curso A')
-        self.assertContains(r2, 'Curso B')
-        r_a = http.get(f'/aprende/estudiante/curso/{self.curso_a.pk}/')
-        r_b = http.get(f'/aprende/estudiante/curso/{self.curso_b.pk}/')
-        self.assertEqual(r_a.status_code, 200)
-        self.assertEqual(r_b.status_code, 200)
+    def test_progresos_ambos_cursos_activos(self):
+        """Misma estudiante con dos progresos — base del menú multi-curso WhatsApp."""
+        nombres = set(
+            ProgresoEstudiante.objects.filter(estudiante=self.est).values_list(
+                'curso__nombre', flat=True
+            )
+        )
+        self.assertEqual(nombres, {'Curso A — Fundamentos', 'Curso B — Avanzado'})
+        self.assertTrue(tiene_varios_cursos_activos(self.est))

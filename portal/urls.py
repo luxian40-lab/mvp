@@ -1,5 +1,7 @@
 from django.urls import path
 from . import views
+from . import views_eki_ops
+from . import curso_editor_api
 
 
 urlpatterns = [
@@ -7,6 +9,23 @@ urlpatterns = [
     path('logout/', views.portal_logout, name='portal_logout'),
     path('primer-acceso/', views.portal_primer_acceso, name='portal_primer_acceso'),
     path('dashboard/', views.dashboard, name='portal_dashboard'),
+    path('ops/', views_eki_ops.portal_eki_ops, name='portal_eki_ops'),
+    path('ops/metricas/', views_eki_ops.portal_eki_ops_metricas, name='portal_eki_ops_metricas'),
+    path('ops/metricas/exportar/', views_eki_ops.portal_eki_ops_metricas_export, name='portal_eki_ops_metricas_export'),
+    path('ops/cursos/', views_eki_ops.portal_eki_ops_cursos, name='portal_eki_ops_cursos'),
+    path('ops/estudiantes/', views_eki_ops.portal_eki_ops_estudiantes, name='portal_eki_ops_estudiantes'),
+    path('ops/grupos/', views_eki_ops.portal_eki_ops_grupos, name='portal_eki_ops_grupos'),
+    path('ops/campanas/', views_eki_ops.portal_eki_ops_campanas, name='portal_eki_ops_campanas'),
+    path('ops/api/orgs/', curso_editor_api.api_orgs, name='portal_ops_api_orgs'),
+    path('ops/api/cursos/', curso_editor_api.api_cursos, name='portal_ops_api_cursos'),
+    path('ops/api/cursos/<int:curso_id>/', curso_editor_api.api_curso_detalle, name='portal_ops_api_curso'),
+    path('ops/api/cursos/<int:curso_id>/modulos/', curso_editor_api.api_modulos_crear, name='portal_ops_api_modulos_crear'),
+    path('ops/api/modulos/<int:modulo_id>/', curso_editor_api.api_modulo_detalle, name='portal_ops_api_modulo'),
+    path('ops/api/modulos/<int:modulo_id>/secciones/', curso_editor_api.api_secciones_crear, name='portal_ops_api_secciones_crear'),
+    path('ops/api/modulos/<int:modulo_id>/reordenar-pasos/', curso_editor_api.api_reordenar_pasos, name='portal_ops_api_reordenar'),
+    path('ops/api/secciones/<int:seccion_id>/', curso_editor_api.api_seccion_detalle, name='portal_ops_api_seccion'),
+    path('ops/api/secciones/<int:seccion_id>/pasos/', curso_editor_api.api_pasos_crear, name='portal_ops_api_pasos_crear'),
+    path('ops/api/pasos/<int:paso_id>/', curso_editor_api.api_paso_detalle, name='portal_ops_api_paso'),
     path('metricas/', views.metricas_empresa, name='portal_metricas'),
     path('retencion/', views.portal_retencion, name='portal_retencion'),
     path('retencion/agente/', views.portal_retencion_agente, name='portal_retencion_agente'),

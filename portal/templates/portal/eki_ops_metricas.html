@@ -1,0 +1,79 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Ops · Métricas | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <h1>Métricas — todas las organizaciones</h1>
+        <p class="muted">Vista interna equipo eki. KPIs ligeros por cliente (inscritos, avance, certificados).</p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <a class="btn" href="{% url 'portal_eki_ops_metricas_export' %}{% if filtro_org %}?org={{ filtro_org }}{% endif %}">Descargar Excel</a>
+        <a class="btn btn-outline" href="{% url 'portal_eki_ops_cursos' %}">Editor de cursos</a>
+    </div>
+</div>
+
+<section class="panel" style="margin-bottom:20px;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;">
+        <div><div class="muted" style="font-size:12px;">Orgs</div><strong style="font-size:1.4rem;">{{ totales.orgs }}</strong></div>
+        <div><div class="muted" style="font-size:12px;">Inscritos</div><strong style="font-size:1.4rem;">{{ totales.inscritos }}</strong></div>
+        <div><div class="muted" style="font-size:12px;">Finalizados</div><strong style="font-size:1.4rem;">{{ totales.finalizados }}</strong></div>
+        <div><div class="muted" style="font-size:12px;">En curso</div><strong style="font-size:1.4rem;">{{ totales.en_curso }}</strong></div>
+        <div><div class="muted" style="font-size:12px;">Avance</div><strong style="font-size:1.4rem;">{{ totales.avance_pct }}%</strong></div>
+        <div><div class="muted" style="font-size:12px;">Certificados</div><strong style="font-size:1.4rem;">{{ totales.certificados }}</strong></div>
+    </div>
+</section>
+
+<section class="panel" style="margin-bottom:20px;">
+    <form method="get" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
+        <label>
+            <strong>Organización</strong>
+            <select name="org" style="display:block;margin-top:6px;padding:8px;border:1px solid var(--borde);border-radius:8px;min-width:220px;">
+                <option value="">Todas</option>
+                {% for o in orgs %}
+                <option value="{{ o.id }}" {% if filtro_org == o.id %}selected{% endif %}>{{ o.nombre }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <button class="btn btn-outline" type="submit">Filtrar</button>
+    </form>
+</section>
+
+<section class="panel">
+    <table>
+        <thead>
+            <tr>
+                <th>Organización</th>
+                <th>Productos</th>
+                <th>Cursos</th>
+                <th>Estudiantes</th>
+                <th>Inscritos</th>
+                <th>Finalizados</th>
+                <th>En curso</th>
+                <th>Sin iniciar</th>
+                <th>Avance</th>
+                <th>Certificados</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for f in filas %}
+            <tr>
+                <td><strong>{{ f.org_nombre }}</strong></td>
+                <td class="muted">{{ f.portal_productos|default:"—" }}</td>
+                <td>{{ f.cursos }}</td>
+                <td>{{ f.estudiantes }}</td>
+                <td>{{ f.inscritos }}</td>
+                <td>{{ f.finalizados }}</td>
+                <td>{{ f.en_curso }}</td>
+                <td>{{ f.no_iniciados }}</td>
+                <td>{{ f.avance_pct }}%</td>
+                <td>{{ f.certificados }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="10" class="muted">Sin organizaciones activas.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

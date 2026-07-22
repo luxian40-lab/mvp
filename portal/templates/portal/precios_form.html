@@ -31,6 +31,10 @@
             <label><strong>Unidad de venta</strong>
                 <input type="text" name="unidad" maxlength="40" placeholder="bulto, kg, litro" value="{% if item %}{{ item.unidad }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
             </label>
+            <label><strong>Stock disponible</strong>
+                <input type="number" name="stock" min="0" step="1" inputmode="numeric" placeholder="Opcional" value="{% if item and item.stock != None %}{{ item.stock }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+                <span class="muted" style="font-size:12px;">Unidades en bodega. Vacío = Nat no habla de inventario.</span>
+            </label>
             <label><strong>Precio *</strong>
                 <input type="text" name="precio" required inputmode="decimal" value="{% if item %}{{ item.precio }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
             </label>

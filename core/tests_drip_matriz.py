@@ -131,6 +131,7 @@ class DripMatrizAdminTests(TestCase):
             'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
             'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
         },
+        SECURE_SSL_REDIRECT=False,
     )
     def test_matriz_visible_con_curso_y_modulo(self):
         self.http.login(username='admin_matriz', password='pass')
@@ -149,6 +150,7 @@ class DripMatrizAdminTests(TestCase):
             'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
             'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
         },
+        SECURE_SSL_REDIRECT=False,
     )
     def test_guardar_matriz_habilita_seleccionados(self):
         self.http.login(username='admin_matriz', password='pass')
@@ -179,6 +181,7 @@ class DripMatrizAdminTests(TestCase):
             'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
             'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
         },
+        SECURE_SSL_REDIRECT=False,
     )
     def test_guardar_tabla_avanzada_habilitado_desde(self):
         HabilitacionModuloEstudiante.objects.create(

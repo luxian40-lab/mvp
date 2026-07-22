@@ -7,7 +7,7 @@
     <div>
         <p class="muted" style="margin:0 0 6px;"><a href="{% url 'portal_catalogo' %}">Catálogo</a> / {% if item %}Editar{% else %}Nuevo{% endif %}</p>
         <h1>{% if item %}{{ item.nombre }}{% else %}Nuevo producto{% endif %}</h1>
-        <p class="muted">Describa bien los problemas que resuelve: Nat usa ese texto para hacer match con la consulta del agricultor.</p>
+        <p class="muted">Describa bien los problemas que resuelve: Nat usa ese texto para hacer match con la consulta del agricultor. Si pone el mismo SKU que en Precios, une ficha + stock.</p>
     </div>
 </div>
 
@@ -16,11 +16,27 @@
 {% endif %}
 
 <section class="panel">
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;">
             <label style="grid-column:1/-1;"><strong>Nombre *</strong>
                 <input type="text" name="nombre" required maxlength="200" value="{% if item %}{{ item.nombre }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label><strong>SKU / código</strong>
+                <input type="text" name="sku" maxlength="80" placeholder="FUNG-X-1L" value="{% if item %}{{ item.sku }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+                <span class="muted" style="font-size:12px;">Opcional; debe coincidir con Precios para stock.</span>
+            </label>
+            <label style="grid-column:1/-1;"><strong>Foto del producto</strong>
+                {% if item and item.imagen %}
+                <div style="margin:8px 0;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+                    <img src="{{ item.imagen.url }}" alt="{{ item.nombre }}" style="width:88px;height:88px;object-fit:cover;border-radius:10px;border:1px solid var(--borde);">
+                    <label style="display:flex;align-items:center;gap:8px;font-size:14px;">
+                        <input type="checkbox" name="quitar_imagen" value="1"> Quitar foto actual
+                    </label>
+                </div>
+                {% endif %}
+                <input type="file" name="imagen" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;background:var(--card);">
+                <span class="muted" style="font-size:12px;">JPG, PNG o WebP · máx. 5 MB</span>
             </label>
             <label style="grid-column:1/-1;"><strong>Descripción *</strong>
                 <textarea name="descripcion" required rows="3" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">{% if item %}{{ item.descripcion }}{% endif %}</textarea>

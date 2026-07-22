@@ -7,8 +7,8 @@
     <div>
         <h1>Catálogo de recomendaciones</h1>
         <p class="muted">
-            Productos que Nat sugiere al agricultor (para qué sirve, problemas que resuelve, dosis).
-            La lista oficial de precios SKU está en <a href="{% url 'portal_precios' %}">Precios</a>.
+            Productos que Nat sugiere al agricultor (para qué sirve, problemas que resuelve, dosis, foto).
+            La lista oficial de precios / stock SKU está en <a href="{% url 'portal_precios' %}">Precios</a>.
         </p>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -37,7 +37,9 @@
     <table>
         <thead>
             <tr>
+                <th></th>
                 <th>Producto</th>
+                <th>SKU</th>
                 <th>Categoría</th>
                 <th>Cultivos</th>
                 <th>Precio ref.</th>
@@ -48,12 +50,20 @@
         <tbody>
             {% for item in items %}
             <tr>
+                <td style="width:52px;">
+                    {% if item.imagen %}
+                    <img src="{{ item.imagen.url }}" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid var(--borde);">
+                    {% else %}
+                    <span class="muted" style="font-size:11px;">—</span>
+                    {% endif %}
+                </td>
                 <td>
                     <strong>{{ item.nombre }}</strong>
                     {% if item.ingrediente_activo %}
                     <div class="muted" style="font-size:12px;">{{ item.ingrediente_activo }}</div>
                     {% endif %}
                 </td>
+                <td>{% if item.sku %}<code>{{ item.sku }}</code>{% else %}—{% endif %}</td>
                 <td>{{ item.categoria|default:"—" }}</td>
                 <td>{{ item.cultivos_objetivo|default:"—" }}</td>
                 <td>{% if item.precio_cop %}${{ item.precio_cop|floatformat:0 }}{% else %}—{% endif %}</td>
@@ -61,7 +71,7 @@
                 <td><a href="{% url 'portal_catalogo_editar' item.id %}">Editar</a></td>
             </tr>
             {% empty %}
-            <tr><td colspan="6" class="muted">Sin productos. Agregue el primero para que Nat pueda recomendar.</td></tr>
+            <tr><td colspan="8" class="muted">Sin productos. Agregue el primero para que Nat pueda recomendar.</td></tr>
             {% endfor %}
         </tbody>
     </table>

@@ -892,9 +892,16 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
         pass
 
     routing = None
+    # Nat NO usa keywords de cursos (listo/continuar). Solo escapes propios.
     if es_saludo:
         texto_respuesta = armar_saludo_inicial(cliente_nati)
-    elif msg_normalizado in ['listo', 'continuar', 'menu', 'menú']:
+    elif msg_normalizado in ['asesoria', 'asesoría', 'reiniciar', 'ayuda nat']:
+        try:
+            from core.nat_diagnostico import reiniciar_diagnostico
+
+            reiniciar_diagnostico(ctx_agro)
+        except Exception:
+            pass
         texto_respuesta = armar_saludo_menu(cliente_nati)
     else:
         diagnostico_vision = ''
@@ -1077,7 +1084,7 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
 
     if (
         not es_saludo
-        and msg_normalizado not in ['listo', 'continuar', 'menu', 'menú']
+        and msg_normalizado not in ['asesoria', 'asesoría', 'reiniciar', 'ayuda nat']
         and routing is not None
         and routing.modo in ('tecnico', 'catalogo', 'ambiguo')
     ):

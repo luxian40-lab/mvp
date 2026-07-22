@@ -48,19 +48,28 @@ def cursos_visibles_para_estudiante(estudiante):
     Si tiene cliente: cursos con ese cliente; si no hay ninguno, el curso destino de una
     campaña del cliente hacia este estudiante (Curso.cliente puede ser nulo).
     Si no tiene cliente: todos los cursos activos (sandbox / legacy).
+
+    Excluye cursos sin módulos (p. ej. seed solo-QR) para no romper selección por número.
     """
+    from django.db.models import Count
+
     from .models import Curso
+
+    def _con_modulos(qs):
+        return qs.annotate(_n_modulos=Count('modulos')).filter(_n_modulos__gt=0)
 
     org = getattr(estudiante, 'cliente', None)
     if org:
-        directos = Curso.objects.filter(cliente=org, activo=True).order_by('orden', 'nombre')
+        directos = _con_modulos(
+            Curso.objects.filter(cliente=org, activo=True)
+        ).order_by('orden', 'nombre')
         if directos.exists():
             return directos
         promo = _curso_desde_campana_cliente(estudiante, org)
-        if promo:
+        if promo and promo.modulos.exists():
             return Curso.objects.filter(pk=promo.pk, activo=True)
         return Curso.objects.none()
-    return Curso.objects.filter(activo=True).order_by('orden', 'nombre')
+    return _con_modulos(Curso.objects.filter(activo=True)).order_by('orden', 'nombre')
 
 
 def asegurar_inscripcion_catalogo_cliente(estudiante):
@@ -134,6 +143,8 @@ def resolver_curso_post_confirmacion(estudiante):
     Tras confirmar datos (B2B): qué curso iniciar.
     Progreso incompleto coherente → catálogo cliente=org → curso de campaña → (solo sin org) primer curso activo global.
     """
+    from django.db.models import Count
+
     from .models import Curso, ProgresoEstudiante
 
     org = getattr(estudiante, 'cliente', None)
@@ -152,6 +163,8 @@ def resolver_curso_post_confirmacion(estudiante):
     if org:
         curso = (
             Curso.objects.filter(cliente=org, activo=True)
+            .annotate(_n_modulos=Count('modulos'))
+            .filter(_n_modulos__gt=0)
             .order_by('orden', 'nombre')
             .first()
         )
@@ -162,7 +175,13 @@ def resolver_curso_post_confirmacion(estudiante):
             return curso
         return None
 
-    return Curso.objects.filter(activo=True).order_by('orden', 'nombre').first()
+    return (
+        Curso.objects.filter(activo=True)
+        .annotate(_n_modulos=Count('modulos'))
+        .filter(_n_modulos__gt=0)
+        .order_by('orden', 'nombre')
+        .first()
+    )
 
 
 def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_original: str):
@@ -282,20 +301,33 @@ def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_
                     "✅ Ya recibiste todo el material de esta unidad.\n\n"
                     "Escribe *listo* para registrar tu avance y seguir 👇"
                 )
+
+            _hdr_sel = (
+                f"✅ {'Iniciando' if creado else 'Retomando'} *{curso_seleccionado.emoji or '📚'} "
+                f"{curso_seleccionado.nombre}*\n\n"
+                f"📍 Módulo actual: {modulo_actual.numero}. {modulo_actual.titulo}\n"
+                f"📈 Avance: {avance}%\n\n"
+            )
+            _pfx = _prefijo_agentes_primera_inscripcion_selector()
+            _persist_curso_foco()
+
+            # Primera inscripción: entregar el microcontenido (no solo el CTA).
+            if creado:
+                from .module_steps import entregar_bloque_secciones_desde_paso
+
+                idx_ent = progreso.paso_actual_modulo or 1
+                if idx_ent < 1:
+                    idx_ent = 1
+                bloque = entregar_bloque_secciones_desde_paso(
+                    progreso, modulo_actual, idx_ent
+                )
+                inner = bloque[len('[MULTI_MSG]') :] if bloque.startswith('[MULTI_MSG]') else bloque
+                parts = [p for p in inner.split('[SEP]') if p]
+                return '[MULTI_MSG]' + '[SEP]'.join(_pfx + [_hdr_sel] + parts)
+
             _rem_sel = mensaje_recordatorio_paso_actual(progreso, modulo_actual)
             if _rem_sel:
-                _hdr_sel = (
-                    f"✅ {'Iniciando' if creado else 'Retomando'} *{curso_seleccionado.emoji or '📚'} "
-                    f"{curso_seleccionado.nombre}*\n\n"
-                    f"📍 Módulo actual: {modulo_actual.numero}. {modulo_actual.titulo}\n"
-                    f"📈 Avance: {avance}%\n\n"
-                )
-                _inner_sel = _rem_sel[len('[MULTI_MSG]') :]
-                _persist_curso_foco()
-                _pfx = _prefijo_agentes_primera_inscripcion_selector()
-                if _pfx:
-                    _inner_parts = [p for p in _inner_sel.split('[SEP]') if p]
-                    return '[MULTI_MSG]' + '[SEP]'.join(_pfx + [_hdr_sel] + _inner_parts)
+                _inner_sel = _rem_sel[len('[MULTI_MSG]') :] if _rem_sel.startswith('[MULTI_MSG]') else _rem_sel
                 return '[MULTI_MSG]' + _hdr_sel + '[SEP]' + _inner_sel
 
         respuesta = f"""✅ {'Iniciando' if creado else 'Retomando'} *{curso_seleccionado.emoji or '📚'} {curso_seleccionado.nombre}*

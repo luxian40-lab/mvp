@@ -1999,6 +1999,12 @@ class ProductoComercial(models.Model):
         verbose_name='Unidad de venta',
         help_text='Ej: bulto, kg, litro.',
     )
+    stock = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name='Stock disponible',
+        help_text='Unidades en bodega (opcional). Vacío = no se reporta inventario.',
+    )
     precio = models.DecimalField(
         max_digits=14,
         decimal_places=2,
@@ -2052,6 +2058,20 @@ class ProductoCatalogo(models.Model):
         verbose_name='Cliente',
     )
     nombre = models.CharField(max_length=200, verbose_name='Nombre del producto')
+    sku = models.CharField(
+        max_length=80,
+        blank=True,
+        default='',
+        verbose_name='SKU / código',
+        help_text='Opcional. Si coincide con un SKU de Precios, Nat une ficha + precio + stock.',
+    )
+    imagen = models.ImageField(
+        upload_to='nat/productos/%Y/%m/',
+        blank=True,
+        null=True,
+        verbose_name='Foto del producto',
+        help_text='Imagen del empaque o presentación (JPG/PNG/WebP). Se guarda en S3 en producción.',
+    )
     descripcion = models.TextField(
         verbose_name='Descripción',
         help_text='Para qué sirve el producto',

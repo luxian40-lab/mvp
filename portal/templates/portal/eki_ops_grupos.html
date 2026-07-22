@@ -1,0 +1,53 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Ops · Grupos | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <h1>Grupos — todas las organizaciones</h1>
+        <p class="muted">Grupos de estudiantes para envíos masivos y campañas.</p>
+    </div>
+</div>
+
+<section class="panel" style="margin-bottom:20px;">
+    <form method="get" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
+        <label>
+            <strong>Organización</strong>
+            <select name="org" style="display:block;margin-top:6px;padding:8px;border:1px solid var(--borde);border-radius:8px;min-width:220px;">
+                <option value="">Todas</option>
+                {% for o in orgs %}
+                <option value="{{ o.id }}" {% if filtro_org == o.id %}selected{% endif %}>{{ o.nombre }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <button class="btn btn-outline" type="submit">Filtrar</button>
+        <a class="btn" href="{% url 'portal_eki_ops_campanas' %}{% if filtro_org %}?org={{ filtro_org }}{% endif %}">Ir a campañas</a>
+    </form>
+</section>
+
+<section class="panel">
+    <table>
+        <thead>
+            <tr>
+                <th>Organización</th>
+                <th>Grupo</th>
+                <th>Estudiantes</th>
+                <th>Activo</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for g in grupos %}
+            <tr>
+                <td class="muted">{{ g.cliente.nombre }}</td>
+                <td><strong>{{ g.nombre }}</strong></td>
+                <td>{{ g.n_est }}</td>
+                <td>{% if g.activo %}Sí{% else %}No{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="muted">Sin grupos.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

@@ -24,9 +24,10 @@ _PATRONES = {
         re.I,
     ),
     'problema': re.compile(
-        r'\b(roya|broca|mancha|plaga|gusano|trips|ácaro|acaro|chocolate|'
+        r'\b(roya|broca|manchas?|plagas?|gusanos?|trips|ácaros?|acaros?|chocolate|'
         r'deficiencia|clorosis|sequ[ií]a|humedad|hongos?|mildiu|oidio|'
-        r'nutrici[oó]n|fertiliz|abono|nitr[oó]geno|f[oó]sforo|potasio)\b',
+        r'nutrici[oó]n|fertiliz|abono|nitr[oó]geno|f[oó]sforo|potasio|'
+        r'no\s+crece|no\s+crecen|brote\s+negro|marchit|amarill)\b',
         re.I,
     ),
     'clima': re.compile(
@@ -95,13 +96,34 @@ def _extraer_municipio_texto(texto: str) -> str:
         texto or '',
         re.I,
     )
-    if not m:
-        return ''
-    primero = m.group(1)
-    segundo = m.group(2) or ''
-    if segundo and segundo.lower() not in _STOP_EN and segundo[:1].isupper():
-        return f'{primero.title()} {segundo.title()}'[:80]
-    return primero.title()[:80]
+    if m:
+        primero = m.group(1)
+        segundo = m.group(2) or ''
+        if segundo and segundo.lower() not in _STOP_EN and segundo[:1].isupper():
+            return f'{primero.title()} {segundo.title()}'[:80]
+        return primero.title()[:80]
+    # "Boyacá Guateque", "Caldas Chinchiná" (depto + municipio sin "en")
+    m2 = re.search(
+        r'\b('
+        r'boyac[aá]|cundinamarca|antioquia|santander|tolima|huila|nari[nñ]o|'
+        r'caldas|risaralda|quind[ií]o|meta|valle|cauca|cordoba|c[oó]rdoba|magdalena|'
+        r'caquet[aá]|putumayo|choc[oó]|cesar|sucre|atl[aá]ntico|atlantico'
+        r')\s+([A-Za-zÁÉÍÓÚáéíóúÑñ]{3,})\b',
+        texto or '',
+        re.I,
+    )
+    if m2:
+        return m2.group(2).title()[:80]
+    # Municipio suelto cuando el mensaje es corto y parece ubicación
+    if len((texto or '').split()) <= 3:
+        m3 = re.search(r'\b([A-Za-zÁÉÍÓÚáéíóúÑñ]{4,})\b', texto or '')
+        if m3 and m3.group(1).lower() not in _STOP_EN:
+            cand = m3.group(1).title()
+            if cand.lower() not in {
+                'boyaca', 'boyacá', 'caldas', 'tolima', 'huila', 'primero', 'clima',
+            }:
+                return cand[:80]
+    return ''
 
 
 def _extraer_vereda(texto: str) -> str:
@@ -185,7 +207,7 @@ def actualizar_contexto_desde_mensaje(sesion, mensaje: str) -> 'ContextoAgroSess
 
 
 def formatear_bloque_contexto_para_prompt(ctx) -> str:
-    """Bloque obligatorio en el prompt de Nat."""
+    """Bloque obligatorio en el prompt de Nati (incluye anamnesis clínica)."""
     if not ctx:
         return ''
     d = ctx.to_dict() if hasattr(ctx, 'to_dict') else {}
@@ -208,16 +230,37 @@ def formatear_bloque_contexto_para_prompt(ctx) -> str:
     lat, lon = d.get('latitud'), d.get('longitud')
     if lat is not None and lon is not None:
         lineas.append(f'- Coordenadas guardadas: {lat}, {lon}')
+
+    meta = getattr(ctx, 'metadata', None) or {}
+    if isinstance(meta, dict):
+        anamnesis = [
+            ('extension_afectada', 'Extensión / parte afectada'),
+            ('tiempo_problema', 'Tiempo y evolución'),
+            ('manejo_previo', 'Manejo previo reportado'),
+            ('fertilizacion_reciente', 'Fertilización / manejo reciente'),
+        ]
+        vistos = set()
+        for key, lbl in anamnesis:
+            val = (meta.get(key) or '').strip()
+            if not val or key in vistos:
+                continue
+            # Evitar duplicar manejo_previo y fertilizacion_reciente si son iguales
+            if key == 'fertilizacion_reciente' and val == (meta.get('manejo_previo') or '').strip():
+                continue
+            lineas.append(f'- {lbl}: {val}')
+            vistos.add(key)
+
     if not lineas:
         return (
-            'CONTEXTO AGRONÓMICO: parcial. Si falta cultivo o síntoma principal, '
-            'formule como máximo 2 preguntas concretas antes de recomendar.'
+            'CONTEXTO AGRONÓMICO: parcial. Haga anamnesis breve (estilo consulta de campo): '
+            'como máximo 2 preguntas concretas personalizadas antes de recomendar.'
         )
     pct = d.get('completitud_pct', ctx.completitud_pct() if ctx else 0)
     return (
         f'CONTEXTO AGRONÓMICO ESTRUCTURADO (completitud {pct}%):\n'
         + '\n'.join(lineas)
-        + '\n\nUsa este contexto explícitamente. No des recomendaciones genéricas fuera de él.'
+        + '\n\nUsa este contexto explícitamente (anamnesis de campo). '
+        'No des recomendaciones genéricas fuera de él.'
     )
 
 

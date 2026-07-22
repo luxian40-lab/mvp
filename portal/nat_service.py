@@ -14,13 +14,20 @@ MIN_CHARS_DESCRIPCION = 15
 
 def checklist_preparacion_nat(org) -> list[dict]:
     """
-    Semáforo operativo endurecido.
-    Sin línea / catálogo / precios / conocimiento indexado → Nat no está lista
-    (nivel bad). Calidad débil del catálogo → warn.
+    Semáforo operativo Nati.
+    Catálogo / precios / conocimiento indexado siguen siendo bloqueantes.
+    Línea WhatsApp propia NO es bloqueante mientras se use sandbox Twilio.
     """
+    from django.conf import settings
+
+    from core.bot_comercial_routing import _sandbox_number
     from core.models import BibliotecaConocimiento, DocumentoRAGComercial, ProductoCatalogo, ProductoComercial
 
     linea = (getattr(org, 'numero_whatsapp_nat', '') or '').strip()
+    # Mientras usemos sandbox Twilio no exigimos número propio por org.
+    sandbox_ok = bool(_sandbox_number()) or bool(
+        getattr(settings, 'BOT_COMERCIAL_FORCE_ROUTING', False)
+    )
     catalogo_qs = ProductoCatalogo.objects.filter(cliente_id=org.pk, activo=True)
     catalogo_n = catalogo_qs.count()
     catalogo_ok_calidad = sum(
@@ -42,19 +49,32 @@ def checklist_preparacion_nat(org) -> list[dict]:
     ).count()
     tiene_conocimiento = bib_idx > 0 or rag_legacy > 0
 
+    if linea:
+        linea_detalle = f'Configurada: {linea}. Debe coincidir con el To de Twilio.'
+        linea_nivel = 'ok'
+    elif sandbox_ok:
+        linea_detalle = (
+            'Sin número propio: operando con sandbox Twilio. '
+            'Cuando pasen a número Meta de producción, configure la línea en Perfil.'
+        )
+        linea_nivel = 'warn'
+    else:
+        linea_detalle = (
+            'Sin línea WhatsApp ni sandbox: los mensajes pueden ir al bot educativo. '
+            'Pida a eki configurarla.'
+        )
+        linea_nivel = 'bad'
+
     items = [
         {
             'clave': 'linea',
-            'ok': bool(linea),
-            'nivel': 'ok' if linea else 'bad',
-            'bloqueante': True,
-            'titulo': 'Línea WhatsApp Nat',
-            'detalle': (
-                f'Configurada: {linea}. Debe coincidir con el To de Twilio.'
-                if linea
-                else 'Sin línea: los mensajes pueden ir al bot educativo. Pida a eki configurarla.'
-            ),
-            'url': '/portal/perfil/' if not linea else None,
+            # No bloqueante: sandbox Twilio basta por ahora.
+            'ok': bool(linea) or sandbox_ok,
+            'nivel': linea_nivel,
+            'bloqueante': False,
+            'titulo': 'Línea WhatsApp Nati',
+            'detalle': linea_detalle,
+            'url': '/portal/perfil/' if not linea and not sandbox_ok else None,
         },
         {
             'clave': 'catalogo',
@@ -65,7 +85,7 @@ def checklist_preparacion_nat(org) -> list[dict]:
             'detalle': (
                 f'{catalogo_n} producto(s) activos.'
                 if catalogo_n
-                else 'Sin catálogo: Nat no puede recomendar su oferta (avisará que falta portafolio).'
+                else 'Sin catálogo: Nati no puede recomendar su oferta (avisará que falta portafolio).'
             ),
             'url': '/portal/catalogo/nuevo/' if catalogo_n == 0 else '/portal/catalogo/',
         },
@@ -96,7 +116,7 @@ def checklist_preparacion_nat(org) -> list[dict]:
             'detalle': (
                 f'{precios_n} ítem(s) de precio oficial.'
                 if precios_n
-                else 'Sin precios: Nat avisará que no hay lista oficial cuando pregunten costo.'
+                else 'Sin precios: Nati avisará que no hay lista oficial cuando pregunten costo.'
             ),
             'url': '/portal/precios/nuevo/' if precios_n == 0 else '/portal/precios/',
         },
@@ -122,7 +142,7 @@ def checklist_preparacion_nat(org) -> list[dict]:
             'detalle': (
                 'Todos los documentos de biblioteca están indexados o pendientes.'
                 if bib_err == 0
-                else f'{bib_err} documento(s) con error de indexación: Nat no los usará hasta corregirlos.'
+                else f'{bib_err} documento(s) con error de indexación: Nati no los usará hasta corregirlos.'
             ),
             'url': '/portal/biblioteca/' if bib_err else None,
         },
