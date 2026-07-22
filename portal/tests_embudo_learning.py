@@ -1,9 +1,9 @@
-"""Tests embudo Learning Analytics (avance por módulo)."""
+"""Tests embudo Learning Analytics (posición hoy + histórico portal)."""
 
 from django.test import TestCase
 
 from core.models import Cliente, Curso, Estudiante, Modulo, ModuloCompletado, ProgresoEstudiante
-from portal.curso_flujo_service import embudo_avance_por_curso
+from portal.curso_flujo_service import embudo_avance_por_curso, embudo_posicion_hoy_por_curso
 
 
 class EmbudoLearningTests(TestCase):
@@ -28,22 +28,39 @@ class EmbudoLearningTests(TestCase):
         e1 = est('e1', '573001000001', 'A')
         e2 = est('e2', '573001000002', 'B')
         e3 = est('e3', '573001000003', 'C')
+        e4 = est('e4', '573001000004', 'D')
         ProgresoEstudiante.objects.create(estudiante=e1, curso=self.curso, modulo_actual=self.m1)
         p2 = ProgresoEstudiante.objects.create(estudiante=e2, curso=self.curso, modulo_actual=self.m2)
         ModuloCompletado.objects.create(progreso=p2, modulo=self.m1)
-        p3 = ProgresoEstudiante.objects.create(
+        ProgresoEstudiante.objects.create(
             estudiante=e3, curso=self.curso, modulo_actual=self.m3, completado=True,
         )
-        ModuloCompletado.objects.create(progreso=p3, modulo=self.m1)
-        ModuloCompletado.objects.create(progreso=p3, modulo=self.m2)
-        ModuloCompletado.objects.create(progreso=p3, modulo=self.m3)
+        ProgresoEstudiante.objects.create(estudiante=e4, curso=self.curso)  # sin iniciar
 
-    def test_embudo_cuentas_por_modulo(self):
+    def test_embudo_historico_acumulado(self):
         data = embudo_avance_por_curso(curso_id=self.curso.id, cliente_id=self.org.id)
         self.assertIsNotNone(data)
-        self.assertEqual(data['total_inscritos'], 3)
+        self.assertEqual(data['total_inscritos'], 4)
         by_n = {float(p['numero']): p['estudiantes'] for p in data['pasos']}
+        # e1 en M1, e2 alcanzó M2, e3 completó (cuenta en todos), e4 sin iniciar
         self.assertEqual(by_n[1.0], 3)
         self.assertEqual(by_n[2.0], 2)
         self.assertEqual(by_n[3.0], 1)
         self.assertEqual(data['completados'], 1)
+
+    def test_embudo_posicion_hoy(self):
+        data = embudo_posicion_hoy_por_curso(curso_id=self.curso.id, cliente_id=self.org.id)
+        self.assertIsNotNone(data)
+        self.assertEqual(data['modo'], 'hoy')
+        self.assertEqual(data['total_inscritos'], 4)
+        self.assertEqual(data['sin_iniciar'], 1)
+        self.assertEqual(data['completados'], 1)
+        by_n = {float(p['numero']): p['estudiantes'] for p in data['pasos']}
+        self.assertEqual(by_n[1.0], 1)
+        self.assertEqual(by_n[2.0], 1)
+        self.assertEqual(by_n[3.0], 0)  # el de M3 ya está en completados
+        # 1+1+0 + sin_iniciar 1 + completados 1 = 4
+        self.assertEqual(
+            sum(by_n.values()) + data['sin_iniciar'] + data['completados'],
+            data['total_inscritos'],
+        )

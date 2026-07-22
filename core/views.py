@@ -567,9 +567,9 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
     }
 
     if learning_section == 'embudo' and curso_id:
-        from portal.curso_flujo_service import embudo_avance_por_curso
+        from portal.curso_flujo_service import embudo_posicion_hoy_por_curso
 
-        context['embudo_learning'] = embudo_avance_por_curso(
+        context['embudo_learning'] = embudo_posicion_hoy_por_curso(
             curso_id=curso_id,
             cliente_id=cliente_id,
             grupo_id=grupo_id,
