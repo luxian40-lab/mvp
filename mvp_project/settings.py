@@ -282,6 +282,7 @@ JAZZMIN_SETTINGS = {
         {"name": "Estudiantes", "url": "/admin/core/estudiante/", "new_window": False},
         {"name": "Ajustar avance", "url": "/admin/ajustar-avance/", "new_window": False},
         {"name": "Cobertura", "url": "/admin/cobertura/", "new_window": False},
+        {"name": "Infra", "url": "/admin/infra/", "new_window": False},
         {"name": "Manual", "url": "/admin/instrucciones/", "new_window": False},
     ],
 
@@ -417,6 +418,12 @@ JAZZMIN_SETTINGS = {
                 "url": "/admin/ai-ops/eventos/",
                 "icon": "fas fa-microchip",
                 "permissions": ["core.view_eventoia"],
+            },
+            {
+                "name": "Infra Redis/DB/S3",
+                "url": "/admin/infra/",
+                "icon": "fas fa-heartbeat",
+                "permissions": ["core.view_cliente"],
             },
         ],
         "agents_edu": [

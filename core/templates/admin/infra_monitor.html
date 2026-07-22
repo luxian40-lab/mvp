@@ -1,0 +1,187 @@
+{% extends "admin/base_site.html" %}
+{% block title %}Infra — cuándo crecer{% endblock %}
+
+{% block extrastyle %}
+<style>
+  .infra-wrap { padding: 20px 24px 40px; max-width: 1180px; margin: 0 auto; }
+  .infra-wrap h1 { margin: 0 0 6px; font-size: 1.55rem; }
+  .infra-sub { color: #666; margin: 0 0 16px; max-width: 52rem; }
+  .infra-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .infra-card { background: #fff; border: 1px solid #e9ecef; border-radius: 10px; padding: 14px 16px; }
+  .infra-card h2 { margin: 0 0 8px; font-size: 1rem; }
+  .ok { color: #2b8a3e; font-weight: 700; }
+  .watch { color: #e67700; font-weight: 700; }
+  .act, .bad { color: #c92a2a; font-weight: 700; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; word-break: break-all; }
+  .meta { font-size: 0.86rem; color: #495057; line-height: 1.45; }
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; background: #e7f5ff; color: #1864ab; }
+  .pill-ok { background: #d3f9d8; color: #2b8a3e; }
+  .pill-watch { background: #fff3bf; color: #e67700; }
+  .pill-act { background: #ffe3e3; color: #c92a2a; }
+  .pill-type { background: #212529; color: #fff; margin-right: 6px; }
+  .warn-box { margin-top: 14px; padding: 12px 14px; background: #fff9db; border: 1px solid #ffe066; border-radius: 8px; font-size: 0.88rem; }
+  .overall { margin: 0 0 16px; padding: 12px 14px; border-radius: 10px; font-weight: 700; }
+  .overall.ok { background: #d3f9d8; color: #2b8a3e; }
+  .overall.watch { background: #fff3bf; color: #e67700; }
+  .overall.act { background: #ffe3e3; color: #c92a2a; }
+  .bar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom: 14px; }
+  .bar button { background:#212529; color:#fff; border:none; padding:8px 14px; border-radius:6px; font-weight:600; cursor:pointer; }
+  #live-dot { width:8px; height:8px; border-radius:50%; background:#2b8a3e; display:inline-block; }
+  .pb { margin-top: 18px; background:#fff; border:1px solid #e9ecef; border-radius:12px; padding:16px 18px; }
+  .pb h3 { margin: 0 0 8px; font-size: 1.1rem; }
+  .pb-verdict { margin: 0 0 12px; }
+  .pb table { width:100%; border-collapse: collapse; font-size: 0.84rem; margin: 8px 0 14px; }
+  .pb th, .pb td { text-align:left; padding: 6px 8px; border-top: 1px solid #eee; vertical-align: top; }
+  .pb th { width: 28%; color:#868e96; font-weight:600; }
+  .action { border: 1px solid #dee2e6; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; background:#f8f9fa; }
+  .action h4 { margin: 0 0 8px; font-size: 0.92rem; }
+  .action dl { margin: 0; display: grid; grid-template-columns: 110px 1fr; gap: 4px 10px; font-size: 0.84rem; }
+  .action dt { color:#868e96; font-weight:600; }
+  .action dd { margin: 0; color:#343a40; }
+  .cw { font-size: 0.82rem; color:#495057; margin: 8px 0 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="infra-wrap">
+  <h1>Monitoreo infra — cuándo crecer</h1>
+  <p class="infra-sub">
+    Estado en vivo (Redis / DB / S3) + playbooks: en cada recurso dice si hoy
+    <strong>no tocar</strong>, <strong>vigilar</strong>, o <strong>cambiar instancia / ElastiCache / EFS / etc.</strong>
+    Poll cada 30s. CPU detallada de RDS/EC2 sigue en CloudWatch AWS.
+  </p>
+
+  <div id="overall" class="overall ok">Cargando…</div>
+
+  <div class="bar">
+    <span><span id="live-dot"></span> En vivo</span>
+    <span class="pill" id="age">—</span>
+    <button type="button" id="btn-refresh">Actualizar ahora</button>
+  </div>
+
+  <div class="infra-grid" id="cards">
+    <div class="infra-card" id="card-redis"><h2>Redis / Celery</h2><div class="meta">Cargando…</div></div>
+    <div class="infra-card" id="card-db"><h2>Base de datos</h2><div class="meta">Cargando…</div></div>
+    <div class="infra-card" id="card-s3"><h2>S3</h2><div class="meta">Cargando…</div></div>
+  </div>
+
+  <div class="warn-box" id="impact"></div>
+  <div id="playbooks"></div>
+</div>
+
+<script>
+(function () {
+  const apiUrl = "{% url 'admin_infra_monitor_api' %}";
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function statusClass(st) {
+    if (st === 'act') return 'act';
+    if (st === 'watch') return 'watch';
+    return 'ok';
+  }
+
+  function pillClass(st) {
+    if (st === 'act') return 'pill pill-act';
+    if (st === 'watch') return 'pill pill-watch';
+    return 'pill pill-ok';
+  }
+
+  function render(data) {
+    const r = data.redis || {};
+    const d = data.db || {};
+    const s = data.s3 || {};
+    const overall = data.overall || 'ok';
+    const ol = document.getElementById('overall');
+    ol.className = 'overall ' + statusClass(overall);
+    ol.textContent = data.overall_label || overall;
+
+    document.getElementById('card-redis').innerHTML =
+      '<h2>Redis / Celery</h2><div class="meta">' +
+      '<div>Estado: <span class="' + (r.ok ? 'ok' : 'bad') + '">' + (r.ok ? 'OK' : 'FALLA') + '</span></div>' +
+      '<div>Modo: <strong>' + esc(r.mode) + '</strong></div>' +
+      '<div>Latencia: ' + esc(r.latency_ms != null ? r.latency_ms + ' ms' : '—') + '</div>' +
+      '<div class="mono">' + esc(r.broker) + '</div>' +
+      (r.error ? '<div class="bad">' + esc(r.error) + '</div>' : '') +
+      '</div>';
+
+    document.getElementById('card-db').innerHTML =
+      '<h2>Base de datos (RDS)</h2><div class="meta">' +
+      '<div>Estado: <span class="' + (d.ok ? 'ok' : 'bad') + '">' + (d.ok ? 'OK' : 'FALLA') + '</span></div>' +
+      '<div>Tamaño vivo: <strong>' + esc(d.size_human || '—') + '</strong>' +
+      (d.used_pct_of_allocated != null ? ' (' + esc(d.used_pct_of_allocated) + '% del allocated)' : '') +
+      '</div>' +
+      '<div>Latencia query: ' + esc(d.latency_ms != null ? d.latency_ms + ' ms' : '—') + '</div>' +
+      '<div class="mono">' + esc(d.engine) + '</div>' +
+      (d.note ? '<div>' + esc(d.note) + '</div>' : '') +
+      (d.error ? '<div class="bad">' + esc(d.error) + '</div>' : '') +
+      '</div>';
+
+    document.getElementById('card-s3').innerHTML =
+      '<h2>S3</h2><div class="meta">' +
+      '<div>Estado: <span class="' + (s.ok ? 'ok' : 'watch') + '">' + (s.ok ? 'alcanzable' : 'no verificado') + '</span></div>' +
+      '<div class="mono">' + esc(s.bucket) + ' · ' + esc(s.region) + '</div>' +
+      '<div>Baseline uso: ~' + esc(s.baseline_used_gb) + ' GB</div>' +
+      '<div>' + esc(s.note || '') + '</div>' +
+      (s.error ? '<div class="bad">' + esc(s.error) + '</div>' : '') +
+      '</div>';
+
+    document.getElementById('age').textContent =
+      (data.cached ? 'caché' : 'fresco') + ' · poll ' + (data.poll_hint_seconds || 30) + 's';
+    document.getElementById('impact').textContent = data.impact || '';
+
+    const pbs = data.playbooks || [];
+    let html = '';
+    pbs.forEach(function (pb) {
+      const v = pb.verdict || {};
+      const st = v.status || 'ok';
+      html += '<section class="pb">';
+      html += '<h3>' + esc(pb.title) + '</h3>';
+      html += '<div class="pb-verdict"><span class="' + pillClass(st) + '">' + esc(v.label || st) + '</span></div>';
+      if (v.reasons && v.reasons.length) {
+        html += '<ul class="meta">' + v.reasons.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>';
+      }
+      const cur = pb.current || {};
+      html += '<table><tbody>';
+      Object.keys(cur).forEach(function (k) {
+        html += '<tr><th>' + esc(k) + '</th><td class="mono">' + esc(cur[k]) + '</td></tr>';
+      });
+      html += '</tbody></table>';
+
+      (pb.actions || []).forEach(function (a) {
+        html += '<div class="action">';
+        html += '<h4><span class="pill pill-type">' + esc(a.action_type) + '</span> ' + esc(a.do) + '</h4>';
+        html += '<dl>';
+        html += '<dt>Cuándo</dt><dd>' + esc(a.when) + '</dd>';
+        html += '<dt>Specs</dt><dd>' + esc(a.specs) + '</dd>';
+        html += '<dt>Costo approx</dt><dd>' + esc(a.approx_cost) + '</dd>';
+        html += '<dt>Cómo</dt><dd>' + esc(a.how) + '</dd>';
+        html += '</dl></div>';
+      });
+
+      if (pb.cloudwatch_checks && pb.cloudwatch_checks.length) {
+        html += '<p class="cw"><strong>CloudWatch:</strong> ' + esc(pb.cloudwatch_checks.join(' · ')) + '</p>';
+      }
+      html += '</section>';
+    });
+    document.getElementById('playbooks').innerHTML = html;
+  }
+
+  function load(force) {
+    fetch(force ? apiUrl + '?force=1' : apiUrl, { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(render)
+      .catch(function () {
+        document.getElementById('age').textContent = 'error de red';
+      });
+  }
+
+  document.getElementById('btn-refresh').addEventListener('click', function () { load(true); });
+  load(false);
+  setInterval(function () { load(false); }, 30000);
+})();
+</script>
+{% endblock %}
