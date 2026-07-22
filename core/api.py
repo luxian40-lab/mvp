@@ -431,7 +431,7 @@ def _integracion_auth_error(request):
     return None
 
 
-def _integracion_parse_filtros(request, permitir_curso=False):
+def _integracion_parse_filtros(request, permitir_curso=False, requerir_cliente=False):
     cliente_id_raw = (request.GET.get('cliente_id') or '').strip()
     curso_id_raw = (request.GET.get('curso_id') or '').strip()
     fecha_raw = (request.GET.get('fecha') or '').strip()
@@ -444,6 +444,8 @@ def _integracion_parse_filtros(request, permitir_curso=False):
             cliente_id = int(cliente_id_raw)
         except ValueError:
             return None, JsonResponse({'success': False, 'error': 'cliente_id debe ser numérico'}, status=400)
+    elif requerir_cliente:
+        return None, JsonResponse({'success': False, 'error': 'cliente_id es obligatorio'}, status=400)
 
     curso_id = None
     if permitir_curso and curso_id_raw:
@@ -741,6 +743,8 @@ def api_integracion_educativa_metricas(request):
 def _integracion_resumen_gei(cliente_id=None, curso_id=None, fecha_desde=None, fecha_hasta=None):
     """Resumen agregado de FichaGEI para el endpoint LXP.
 
+    Sin cliente_id no se agregan fichas de todos los tenants (aislamiento).
+
     Si la app `formulario` no está disponible o no hay tablas, devuelve un
     dict vacío con disponible=False (no rompe el endpoint principal).
     """
@@ -749,12 +753,15 @@ def _integracion_resumen_gei(cliente_id=None, curso_id=None, fecha_desde=None, f
     except Exception:
         return {'disponible': False}
 
+    if cliente_id is None:
+        return {
+            'disponible': False,
+            'error': 'cliente_id es obligatorio para resumen GEI',
+        }
+
     try:
-        f_q = FichaGEI.objects.all()
-        s_q = SesionFormulario.objects.all()
-        if cliente_id is not None:
-            f_q = f_q.filter(cliente_id=cliente_id)
-            s_q = s_q.filter(estudiante__cliente_id=cliente_id)
+        f_q = FichaGEI.objects.filter(cliente_id=cliente_id)
+        s_q = SesionFormulario.objects.filter(estudiante__cliente_id=cliente_id)
         if curso_id is not None:
             f_q = f_q.filter(curso_id=curso_id)
             s_q = s_q.filter(formulario__curso_id=curso_id)
@@ -857,7 +864,9 @@ def api_integracion_gei_detalle(request):
     if auth_error:
         return _integracion_apply_cors(request, auth_error)
 
-    filtros, parse_error = _integracion_parse_filtros(request, permitir_curso=True)
+    filtros, parse_error = _integracion_parse_filtros(
+        request, permitir_curso=True, requerir_cliente=True,
+    )
     if parse_error:
         return _integracion_apply_cors(request, parse_error)
 
@@ -879,9 +888,9 @@ def api_integracion_gei_detalle(request):
         page_size = 50
     page_size = max(1, min(page_size, 200))
 
-    qs = FichaGEI.objects.select_related('estudiante', 'cliente', 'curso')
-    if filtros['cliente_id'] is not None:
-        qs = qs.filter(cliente_id=filtros['cliente_id'])
+    qs = FichaGEI.objects.select_related('estudiante', 'cliente', 'curso').filter(
+        cliente_id=filtros['cliente_id'],
+    )
     if filtros['curso_id'] is not None:
         qs = qs.filter(curso_id=filtros['curso_id'])
     qs = qs.filter(
@@ -954,7 +963,9 @@ def api_integracion_gei_exportar(request):
     if auth_error:
         return _integracion_apply_cors(request, auth_error)
 
-    filtros, parse_error = _integracion_parse_filtros(request, permitir_curso=True)
+    filtros, parse_error = _integracion_parse_filtros(
+        request, permitir_curso=True, requerir_cliente=True,
+    )
     if parse_error:
         return _integracion_apply_cors(request, parse_error)
 
@@ -975,9 +986,9 @@ def api_integracion_gei_exportar(request):
             JsonResponse({'success': False, 'error': 'openpyxl no disponible en el servidor'}, status=500),
         )
 
-    qs = FichaGEI.objects.select_related('estudiante', 'cliente', 'curso')
-    if filtros['cliente_id'] is not None:
-        qs = qs.filter(cliente_id=filtros['cliente_id'])
+    qs = FichaGEI.objects.select_related('estudiante', 'cliente', 'curso').filter(
+        cliente_id=filtros['cliente_id'],
+    )
     if filtros['curso_id'] is not None:
         qs = qs.filter(curso_id=filtros['curso_id'])
     qs = qs.filter(

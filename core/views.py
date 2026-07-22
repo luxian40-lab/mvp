@@ -2401,6 +2401,23 @@ def _procesar_twilio_webhook(post_data):
                 enviar_whatsapp_twilio(msg_from, texto_respuesta)
                 return
 
+            # GEI / formulario activo: tiene prioridad sobre *hola*/*menú*/retomar B2B.
+            # Si no, "hola" (keyword retomar) saltaba la ficha y dejaba la sesión pegada.
+            try:
+                from formulario.routing import debe_usar_agente_formulario
+                if estado_chat == 'ACTIVO' and debe_usar_agente_formulario(estudiante):
+                    from formulario.agent import manejar_mensaje_formulario
+                    texto_respuesta = manejar_mensaje_formulario(estudiante, msg_body)
+                    enviar_whatsapp_twilio(msg_from, texto_respuesta)
+                    WhatsappLog.objects.create(
+                        telefono=telefono_limpio,
+                        mensaje=(texto_respuesta or '')[:500],
+                        tipo='SENT',
+                    )
+                    return
+            except Exception:
+                logger.exception('Agente formulario GEI (prioridad temprana) omitido')
+
             from .flujo_whatsapp_b2b import (
                 es_estudiante_b2b,
                 es_keyword_retomar,

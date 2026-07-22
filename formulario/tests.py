@@ -860,11 +860,53 @@ def test_balance_gei_modulo5_sin_modulo_siguiente():
     tf = TipoFormulario.objects.create(
         nombre='GEI Balance M5', curso=cur, modulo=m5, activo=True,
     )
+    # es_formulario_balance_gei detecta el flujo por campo_destino=tiene_bosque
     FlujoPregunta.objects.create(
-        formulario=tf, orden=0, campo_destino='combustible_litros',
-        pregunta_texto='¿Cuántos litros?', tipo_dato='float',
+        formulario=tf, orden=0, campo_destino='tiene_bosque',
+        pregunta_texto='¿Tiene bosque?', tipo_dato='bool',
     )
     p = ProgresoEstudiante.objects.create(estudiante=e, curso=cur, modulo_actual=m5)
     msg = intentar_iniciar_formulario_al_completar_modulo(e, p, m5, None)
     assert msg and 'balance gei' in msg.lower()
     assert SesionFormulario.objects.filter(estudiante=e, completado=False).exists()
+
+
+def test_cancelar_sesion_formulario_cierra_todas():
+    c = ClienteFactory()
+    e = EstudianteFactory(cliente=c)
+    cur = CursoFactory(tiene_formulario_gei=True)
+    m0 = ModuloFactory(curso=cur, numero=1)
+    tf = TipoFormulario.objects.create(nombre='A', curso=cur, modulo=m0)
+    FlujoPregunta.objects.create(
+        formulario=tf, orden=0, campo_destino='area_ha',
+        pregunta_texto='Área?', tipo_dato='float',
+    )
+    ficha = FichaGEI.objects.create(estudiante=e, curso=cur, cliente=c)
+    SesionFormulario.objects.create(
+        estudiante=e, formulario=tf, paso_actual=0, ficha=ficha, completado=False,
+    )
+    SesionFormulario.objects.create(
+        estudiante=e, formulario=tf, paso_actual=0, ficha=ficha, completado=False,
+    )
+    msg = manejar_mensaje_formulario(e, 'cancelar')
+    assert 'pausa' in msg.lower()
+    assert not SesionFormulario.objects.filter(estudiante=e, completado=False).exists()
+
+
+def test_iniciar_sesion_cierra_duplicados_previos():
+    c = ClienteFactory()
+    e = EstudianteFactory(cliente=c)
+    cur = CursoFactory(tiene_formulario_gei=True)
+    m0 = ModuloFactory(curso=cur, numero=1)
+    tf = TipoFormulario.objects.create(nombre='A', curso=cur, modulo=m0)
+    FlujoPregunta.objects.create(
+        formulario=tf, orden=0, campo_destino='area_ha',
+        pregunta_texto='Área?', tipo_dato='float',
+    )
+    ficha = FichaGEI.objects.create(estudiante=e, curso=cur, cliente=c)
+    SesionFormulario.objects.create(
+        estudiante=e, formulario=tf, paso_actual=0, ficha=ficha, completado=False,
+    )
+    msg = iniciar_sesion_formulario(e, tf)
+    assert 'primera parte' in msg.lower() or 'pregunta' in msg.lower()
+    assert SesionFormulario.objects.filter(estudiante=e, completado=False).count() == 1

@@ -59,11 +59,22 @@ def parse_filtros_gei(request, org) -> dict:
 
 
 def queryset_fichas_org(org, filtros: dict):
+    from django.db.models import Q
+
     from formulario.models import FichaGEI
 
-    qs = FichaGEI.objects.filter(cliente_id=org.pk).select_related(
+    # Incluye fichas con cliente denormalizado O estudiante de la org
+    # (cubre huérfanas cliente=NULL creadas antes de fijar FK).
+    qs = FichaGEI.objects.filter(
+        Q(cliente_id=org.pk) | Q(estudiante__cliente_id=org.pk)
+    ).select_related(
         'estudiante', 'curso', 'resultado',
     )
+    # Autoreparar huérfanas visibles para esta org
+    FichaGEI.objects.filter(
+        cliente__isnull=True, estudiante__cliente_id=org.pk
+    ).update(cliente_id=org.pk)
+
     if filtros.get('curso_id'):
         qs = qs.filter(curso_id=filtros['curso_id'])
     qs = qs.filter(

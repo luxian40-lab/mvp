@@ -261,10 +261,18 @@ def dashboard(request):
 
 def _resumen_gei_portal(org):
     try:
+        from django.db.models import Q
+
         from formulario.models import FichaGEI
     except ImportError:
         return None
-    qs = FichaGEI.objects.filter(cliente_id=org.pk)
+    # Autoreparar huérfanas visibles
+    FichaGEI.objects.filter(
+        cliente__isnull=True, estudiante__cliente_id=org.pk
+    ).update(cliente_id=org.pk)
+    qs = FichaGEI.objects.filter(
+        Q(cliente_id=org.pk) | Q(estudiante__cliente_id=org.pk)
+    )
     total = qs.count()
     if not total:
         return {'total': 0, 'completas': 0, 'promedio_pct': 0}
@@ -321,14 +329,21 @@ def portal_gei_detalle(request, ficha_id):
         return redirect('/portal/login/')
 
     try:
+        from django.db.models import Q
+
         from formulario.models import FichaGEI
     except ImportError:
         return redirect('/portal/gei/')
 
+    FichaGEI.objects.filter(
+        cliente__isnull=True, estudiante__cliente_id=org.pk, pk=ficha_id
+    ).update(cliente_id=org.pk)
+
     ficha = get_object_or_404(
-        FichaGEI.objects.select_related('estudiante', 'curso', 'resultado'),
+        FichaGEI.objects.select_related('estudiante', 'curso', 'resultado').filter(
+            Q(cliente_id=org.pk) | Q(estudiante__cliente_id=org.pk)
+        ),
         pk=ficha_id,
-        cliente_id=org.pk,
     )
     resultado = getattr(ficha, 'resultado', None)
     variables = []

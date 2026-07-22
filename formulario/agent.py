@@ -262,6 +262,12 @@ def iniciar_sesion_formulario(
             curso=tipo_formulario.curso,
         )
 
+    # Cerrar sesiones abiertas previas del mismo estudiante (evita quedar atrapado
+    # con una sesión vieja tras un webhook duplicado).
+    SesionFormulario.objects.filter(
+        estudiante=estudiante, completado=False
+    ).update(completado=True, fecha_update=timezone.now())
+
     SesionFormulario.objects.create(
         estudiante=estudiante,
         formulario=tipo_formulario,
@@ -285,6 +291,27 @@ def iniciar_sesion_formulario(
         )
     p0 = pasos[0]
     return intro + _formatear_pregunta(1, len(pasos), p0)
+
+
+def _abandonar_sesion_formulario(sesion: SesionFormulario) -> str:
+    """Cierra sesión abierta sin completar ficha; reanuda curso si había módulo siguiente."""
+    # Cerrar TODAS las sesiones abiertas del estudiante (evita duplicados pegados).
+    SesionFormulario.objects.filter(
+        estudiante_id=sesion.estudiante_id, completado=False
+    ).update(completado=True, fecha_update=timezone.now())
+    if sesion.progreso_id and sesion.modulo_siguiente_id:
+        p = sesion.progreso
+        p.modulo_actual = sesion.modulo_siguiente
+        from core.module_steps import reset_progreso_pasos_modulo
+        reset_progreso_pasos_modulo(p, save=False)
+        p.fecha_ultimo_avance = timezone.now()
+        p.save()
+    return (
+        "De acuerdo, dejamos el formulario de la finca *en pausa*. "
+        "Sus datos parciales quedan guardados.\n\n"
+        "Escriba *listo* para seguir el curso. "
+        "Para retomar el formulario más adelante, avance de nuevo al módulo correspondiente."
+    )
 
 
 def _cerrar_sesion(sesion: SesionFormulario, pasos: list[FlujoPregunta]) -> str:
@@ -350,6 +377,17 @@ def manejar_mensaje_formulario(estudiante, texto_mensaje: str) -> str:
     )
     if not sesion:
         return "No hay un formulario activo. Escriba *menú* para continuar, por favor. "
+
+    # Escape: evita quedar atrapado si abandonó la ficha a mitad.
+    tescape = (texto_mensaje or "").strip().lower()
+    if tescape in (
+        "saltar",
+        "saltar formulario",
+        "cancelar",
+        "cancelar formulario",
+        "omitir formulario",
+    ):
+        return _abandonar_sesion_formulario(sesion)
 
     form = sesion.formulario
     pasos = _pasos_ordenados(form)

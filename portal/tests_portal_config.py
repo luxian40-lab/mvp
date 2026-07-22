@@ -1,5 +1,5 @@
 from django.contrib.auth.models import User
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 
 from core.models import Cliente, Curso, Modulo
 from formulario.models import FlujoPregunta, TipoFormulario
@@ -8,6 +8,7 @@ from portal.middleware import PORTAL_SESSION_KEY
 from portal.models import PortalUsuario
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class PortalGeiNatConfigTests(TestCase):
     def setUp(self):
         self.org_gei = Cliente.objects.create(

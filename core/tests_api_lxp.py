@@ -133,6 +133,20 @@ def test_gei_detalle_paginado_y_auth():
 
 
 @override_settings(INTEGRACION_API_KEY=API_KEY_TEST, SECURE_SSL_REDIRECT=False)
+def test_gei_detalle_requiere_cliente_id():
+    client = Client()
+    today = timezone.localdate().isoformat()
+    resp = _client_get(
+        client,
+        f"/api/integracion/gei/detalle/?desde={today}&hasta={today}",
+        HTTP_AUTHORIZATION=f"Bearer {API_KEY_TEST}",
+    )
+    assert resp.status_code == 400
+    body = json.loads(resp.content.decode("utf-8"))
+    assert "cliente_id" in (body.get("error") or "").lower()
+
+
+@override_settings(INTEGRACION_API_KEY=API_KEY_TEST, SECURE_SSL_REDIRECT=False)
 def test_gei_exportar_xlsx_content_type():
     pytest.importorskip("openpyxl")
 
