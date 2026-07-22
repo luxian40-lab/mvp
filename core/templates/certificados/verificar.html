@@ -1,203 +1,164 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1c2a24">
   <title>{% if valido %}Certificado válido{% else %}Certificado no válido{% endif %} · eki</title>
+  <link rel="icon" href="{% static 'favicons/certificados.svg' %}" type="image/svg+xml">
+  <link rel="icon" href="{% static 'favicons/certificados-32.png' %}" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="{% static 'favicons/certificados-180.png' %}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,600;7..72,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      /* Paleta oficial eki */
-      --purple: #9A6CAC;
-      --purple-mid: #855698;
-      --purple-brand: #7a4e8e;
-      --purple-deep: #5F3A6E;
-      --purple-deeper: #3d2750;
-      --bg-deep: #201325;
-      --bg: #2a1f33;
-      --panel: #352540;
-      --ink: #FAFAFC;
-      --muted: #C4ACCE;
-      --accent: var(--purple);
-      --accent-dim: rgba(154, 108, 172, 0.18);
-      --coral: #ff7a6e;
-      --coral-dim: rgba(255, 122, 110, 0.14);
-      --gold: #e0c878;
-      --line: rgba(250, 250, 252, 0.12);
+      --ink: #1c2a24;
+      --ink-soft: #3d4a44;
+      --paper: #f6f1e8;
+      --paper-2: #efe8dc;
+      --line: rgba(28, 42, 36, 0.12);
+      --seal: #2f6f5e;
+      --seal-soft: rgba(47, 111, 94, 0.12);
+      --bad: #9b3b32;
+      --bad-soft: rgba(155, 59, 50, 0.1);
+      --muted: #6a756f;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       min-height: 100vh;
-      font-family: "Instrument Sans", system-ui, sans-serif;
+      font-family: Manrope, system-ui, sans-serif;
       color: var(--ink);
       background:
-        radial-gradient(ellipse 80% 55% at 50% -5%, rgba(154, 108, 172, 0.28), transparent 55%),
-        radial-gradient(ellipse 50% 40% at 100% 100%, rgba(95, 58, 110, 0.45), transparent 50%),
-        linear-gradient(165deg, #623d70 0%, var(--purple-deep) 42%, var(--bg-deep) 100%);
+        linear-gradient(180deg, #dfe8e3 0%, #c9d5ce 48%, #b7c4bc 100%);
       display: grid;
       place-items: center;
-      padding: 2rem 1rem 2.5rem;
-      overflow-x: hidden;
+      padding: 2rem 1rem 2.75rem;
     }
     body::before {
       content: "";
       position: fixed;
       inset: 0;
       pointer-events: none;
-      opacity: 0.35;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.45'/%3E%3C/svg%3E");
-      mix-blend-mode: soft-light;
+      opacity: 0.22;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
     }
     .stage {
-      width: min(440px, 100%);
+      width: min(460px, 100%);
       position: relative;
-      animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+      animation: rise 0.55s ease-out both;
     }
     @keyframes rise {
-      from { opacity: 0; transform: translateY(18px); }
+      from { opacity: 0; transform: translateY(12px); }
       to { opacity: 1; transform: translateY(0); }
     }
-    .brand-row {
+    .mast {
       display: flex;
-      align-items: baseline;
+      align-items: flex-end;
       justify-content: space-between;
       gap: 1rem;
-      margin-bottom: 1.1rem;
-      padding: 0 0.15rem;
+      margin-bottom: 1rem;
+      padding: 0 0.2rem;
     }
     .brand {
-      font-family: Newsreader, Georgia, serif;
-      font-size: clamp(2rem, 6vw, 2.35rem);
-      font-weight: 600;
-      letter-spacing: -0.03em;
+      font-family: Literata, Georgia, serif;
+      font-size: clamp(2.1rem, 7vw, 2.55rem);
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      line-height: 0.95;
       margin: 0;
-      line-height: 1;
+      color: var(--ink);
     }
-    .brand span {
-      color: var(--purple);
+    .brand em {
+      font-style: normal;
+      color: var(--seal);
     }
-    .brand-tag {
-      font-size: 0.72rem;
+    .mast-label {
+      font-size: 0.7rem;
       font-weight: 600;
-      letter-spacing: 0.12em;
+      letter-spacing: 0.16em;
       text-transform: uppercase;
-      color: var(--muted);
+      color: var(--ink-soft);
+      padding-bottom: 0.35rem;
     }
-    .sheet {
+    .card {
       position: relative;
       background:
-        linear-gradient(145deg, rgba(255,255,255,0.07) 0%, transparent 42%),
-        var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 4px 22px 22px 4px;
-      padding: 1.65rem 1.4rem 1.35rem;
+        linear-gradient(180deg, #faf7f1 0%, var(--paper) 55%, var(--paper-2) 100%);
+      border: 1px solid rgba(28, 42, 36, 0.16);
+      border-radius: 2px;
+      padding: 2rem 1.55rem 1.5rem;
       box-shadow:
-        0 0 0 1px rgba(154, 108, 172, 0.12),
-        0 28px 70px rgba(32, 19, 37, 0.55);
-      overflow: hidden;
+        0 1px 0 rgba(255,255,255,0.65) inset,
+        0 18px 40px rgba(28, 42, 36, 0.14);
     }
-    .sheet::before {
+    .card::before,
+    .card::after {
       content: "";
       position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 4px;
-      background: linear-gradient(180deg, var(--purple), var(--gold));
-    }
-    .sheet::after {
-      content: "eki";
-      position: absolute;
-      right: -0.15rem;
-      bottom: -0.55rem;
-      font-family: Newsreader, Georgia, serif;
-      font-size: 7.5rem;
-      font-weight: 600;
-      line-height: 1;
-      color: rgba(238, 246, 242, 0.03);
+      width: 14px;
+      height: 14px;
+      border: 1.5px solid rgba(47, 111, 94, 0.45);
       pointer-events: none;
-      user-select: none;
-      letter-spacing: -0.04em;
     }
-    .seal {
-      position: absolute;
-      top: 1.15rem;
-      right: 1.15rem;
-      width: 64px;
-      height: 64px;
-      border-radius: 50%;
-      display: grid;
-      place-items: center;
-      font-size: 0.58rem;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      text-align: center;
-      line-height: 1.15;
-      border: 1.5px dashed currentColor;
-      animation: seal-in 0.9s 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
-    }
-    .seal.ok {
-      color: var(--purple);
-      background: var(--accent-dim);
-      box-shadow: 0 0 24px rgba(154, 108, 172, 0.28);
-    }
-    .seal.bad {
-      color: var(--coral);
-      background: var(--coral-dim);
-    }
-    @keyframes seal-in {
-      from { opacity: 0; transform: scale(0.7) rotate(-12deg); }
-      to { opacity: 1; transform: scale(1) rotate(0); }
-    }
-    .kicker {
-      display: inline-block;
+    .card::before { top: 10px; left: 10px; border-right: 0; border-bottom: 0; }
+    .card::after { bottom: 10px; right: 10px; border-left: 0; border-top: 0; }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
       font-size: 0.72rem;
       font-weight: 700;
-      letter-spacing: 0.14em;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
-      color: var(--purple);
-      margin: 0 0 0.65rem;
-      padding-right: 4.5rem;
+      margin: 0 0 1rem;
+      padding: 0.35rem 0.7rem;
+      border-radius: 999px;
     }
+    .status.ok {
+      color: var(--seal);
+      background: var(--seal-soft);
+    }
+    .status.bad {
+      color: var(--bad);
+      background: var(--bad-soft);
+    }
+    .status svg { width: 14px; height: 14px; flex-shrink: 0; }
     h1 {
-      font-family: Newsreader, Georgia, serif;
-      font-size: clamp(1.55rem, 5vw, 1.85rem);
+      font-family: Literata, Georgia, serif;
+      font-size: clamp(1.55rem, 5vw, 1.9rem);
       font-weight: 600;
-      margin: 0 0 0.45rem;
+      margin: 0 0 0.5rem;
       line-height: 1.2;
       letter-spacing: -0.02em;
-      max-width: 16ch;
+      color: var(--ink);
     }
-    .sub {
+    .lede {
+      margin: 0 0 1.4rem;
       color: var(--muted);
       font-size: 0.95rem;
-      margin: 0 0 1.35rem;
-      line-height: 1.5;
-      max-width: 34ch;
+      line-height: 1.55;
+      max-width: 36ch;
     }
     .meta {
-      display: grid;
-      gap: 0;
       margin: 0;
       border-top: 1px solid var(--line);
     }
     .meta > div {
       display: grid;
-      grid-template-columns: 7.5rem 1fr;
+      grid-template-columns: 6.5rem 1fr;
       gap: 0.75rem;
-      padding: 0.85rem 0;
+      padding: 0.8rem 0;
       border-bottom: 1px solid var(--line);
       align-items: baseline;
     }
     .meta dt {
       margin: 0;
-      font-size: 0.7rem;
-      font-weight: 600;
-      letter-spacing: 0.08em;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
       color: var(--muted);
     }
@@ -205,108 +166,106 @@
       margin: 0;
       font-size: 0.98rem;
       font-weight: 600;
+      color: var(--ink);
       word-break: break-word;
     }
     .code {
       font-family: ui-monospace, "Cascadia Code", Menlo, monospace;
-      font-size: 0.88rem;
-      letter-spacing: 0.04em;
-      color: var(--purple);
+      font-size: 0.86rem;
+      letter-spacing: 0.03em;
+      color: var(--seal);
     }
-    .actions {
-      margin-top: 1.25rem;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.65rem;
-      align-items: center;
-    }
+    .actions { margin-top: 1.25rem; }
     a.btn {
       display: inline-flex;
       align-items: center;
       gap: 0.4rem;
-      color: #fff;
-      background: var(--purple-brand);
       text-decoration: none;
+      color: #f6f1e8;
+      background: var(--ink);
       font-weight: 700;
       font-size: 0.88rem;
-      padding: 0.65rem 1.1rem;
-      border-radius: 999px;
-      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+      padding: 0.7rem 1.15rem;
+      border-radius: 2px;
+      transition: background 0.15s ease, transform 0.15s ease;
     }
     a.btn:hover {
+      background: var(--seal);
       transform: translateY(-1px);
-      background: var(--purple-mid);
-      box-shadow: 0 8px 24px rgba(122, 78, 142, 0.4);
     }
     form.check {
       display: flex;
       gap: 0.5rem;
       width: 100%;
-      margin-top: 0.35rem;
+      margin-top: 0.25rem;
     }
     form.check input[type=text] {
       flex: 1;
       min-width: 0;
       border: 1px solid var(--line);
-      background: rgba(0, 0, 0, 0.28);
+      background: #fff;
       color: var(--ink);
-      border-radius: 12px;
-      padding: 0.7rem 0.9rem;
+      border-radius: 2px;
+      padding: 0.7rem 0.85rem;
       font: inherit;
       outline: none;
     }
     form.check input:focus {
-      border-color: rgba(154, 108, 172, 0.55);
-      box-shadow: 0 0 0 3px rgba(122, 78, 142, 0.2);
+      border-color: var(--seal);
+      box-shadow: 0 0 0 3px var(--seal-soft);
     }
     form.check button {
       border: 0;
-      border-radius: 12px;
-      background: var(--purple-brand);
-      color: #fff;
+      border-radius: 2px;
+      background: var(--ink);
+      color: #f6f1e8;
       font-weight: 700;
       font-size: 0.88rem;
       padding: 0 1rem;
       cursor: pointer;
       white-space: nowrap;
     }
-    form.check button:hover { background: var(--purple-mid); }
+    form.check button:hover { background: var(--seal); }
     .foot {
-      margin-top: 1.25rem;
+      margin-top: 1.2rem;
       color: var(--muted);
       font-size: 0.78rem;
       line-height: 1.45;
     }
-    .ribbon {
+    .mark {
       position: absolute;
-      top: 0;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 72%;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, var(--purple), var(--gold), transparent);
-      opacity: 0.7;
-      animation: glow 2.4s ease-in-out infinite alternate;
+      top: 1.35rem;
+      right: 1.35rem;
+      width: 56px;
+      height: 56px;
+      animation: seal 0.7s 0.15s ease-out both;
     }
-    @keyframes glow {
-      from { opacity: 0.35; filter: blur(0); }
-      to { opacity: 0.85; filter: blur(0.5px); }
+    @keyframes seal {
+      from { opacity: 0; transform: scale(0.85); }
+      to { opacity: 1; transform: scale(1); }
     }
   </style>
 </head>
 <body>
   <div class="stage">
-    <div class="brand-row">
-      <p class="brand">e<span>ki</span></p>
-      <span class="brand-tag">Verificación</span>
-    </div>
-    <div class="sheet">
-      <div class="ribbon" aria-hidden="true"></div>
+    <header class="mast">
+      <p class="brand">e<em>ki</em></p>
+      <span class="mast-label">Certificados</span>
+    </header>
+
+    <article class="card">
       {% if valido %}
-        <div class="seal ok" aria-hidden="true">Válido<br>· eki ·</div>
-        <p class="kicker">Registro auténtico</p>
+        <svg class="mark" viewBox="0 0 56 56" aria-hidden="true">
+          <circle cx="28" cy="28" r="26" fill="#2f6f5e"/>
+          <circle cx="28" cy="28" r="20" fill="none" stroke="#f6f1e8" stroke-width="1.5"/>
+          <path d="M18 28.5l6.2 6.2L38.5 20" fill="none" stroke="#f6f1e8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <p class="status ok">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.2l3.2 3.2L13 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Válido
+        </p>
         <h1>{{ estudiante }}</h1>
-        <p class="sub">Completó el programa. Este documento está inscrito en el registro público de eki.</p>
+        <p class="lede">Completó el programa. Este documento figura en el registro público de eki.</p>
         <dl class="meta">
           <div>
             <dt>Curso</dt>
@@ -329,17 +288,20 @@
             <dd class="code">{{ codigo }}</dd>
           </div>
         </dl>
+        {% if pdf_url %}
         <div class="actions">
-          {% if pdf_url %}
-            <a class="btn" href="{{ pdf_url }}" target="_blank" rel="noopener">Abrir PDF</a>
-          {% endif %}
+          <a class="btn" href="{{ pdf_url }}" target="_blank" rel="noopener">Abrir PDF</a>
         </div>
-        <p class="foot">Verificación pública · Escaneado desde el QR del certificado</p>
+        {% endif %}
+        <p class="foot">Verificación pública · QR del certificado</p>
       {% else %}
-        <div class="seal bad" aria-hidden="true">No<br>válido</div>
-        <p class="kicker">Sin coincidencia</p>
+        <svg class="mark" viewBox="0 0 56 56" aria-hidden="true">
+          <circle cx="28" cy="28" r="26" fill="#9b3b32"/>
+          <path d="M20 20l16 16M36 20L20 36" fill="none" stroke="#f6f1e8" stroke-width="2.6" stroke-linecap="round"/>
+        </svg>
+        <p class="status bad">No válido</p>
         <h1>No está en el registro</h1>
-        <p class="sub">{{ mensaje|default:"El código no existe, no fue emitido, o está mal escrito." }}</p>
+        <p class="lede">{{ mensaje|default:"El código no existe, no fue emitido, o está mal escrito." }}</p>
         {% if codigo %}
         <dl class="meta">
           <div>
@@ -354,7 +316,7 @@
         </form>
         <p class="foot">Si cree que es un error, contacte a quien emitió el certificado.</p>
       {% endif %}
-    </div>
+    </article>
   </div>
 </body>
 </html>
