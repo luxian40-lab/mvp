@@ -358,19 +358,41 @@
         {% else %}
         <div class="section">
             <div class="section-title">{{ embudo_learning.curso.nombre }}{% if embudo_learning.organizacion %} · {{ embudo_learning.organizacion.nombre }}{% endif %}</div>
-            <p style="font-size:0.85rem;color:var(--eki-muted);margin:-4px 0 16px;">Snapshot a día de hoy. La gráfica morada escala y se anima según cuántos estudiantes hay en cada etapa.</p>
+            <p style="font-size:0.85rem;color:var(--eki-muted);margin:-4px 0 16px;">Snapshot a día de hoy: cada estudiante activo cuenta solo donde está ahora. Las barras reflejan la proporción de estudiantes; los % van como 1,0 … 1,888.</p>
             <div class="metrics-grid" style="margin-bottom:20px;">
                 <div class="m-card blue"><span class="m-label">Inscritos</span><span class="m-value">{{ embudo_learning.total_inscritos }}</span></div>
                 <div class="m-card green"><span class="m-label">Completaron</span><span class="m-value">{{ embudo_learning.completados }}</span></div>
                 <div class="m-card orange"><span class="m-label">Sin iniciar</span><span class="m-value">{{ embudo_learning.sin_iniciar }}</span></div>
             </div>
-            {% if embudo_learning.chart %}
-            {{ embudo_learning.chart|json_script:"embudo-learning-chart" }}
-            <div class="chart-card" style="margin-bottom:8px;max-width:920px;">
-                <h3 style="margin:0 0 12px;font-size:0.95rem;">Estudiantes por etapa (hoy)</h3>
-                <canvas id="chartEmbudoLearning" aria-label="Embudo estudiantes por etapa"></canvas>
+            {% if embudo_learning.pasos %}
+            <div class="la-funnel">
+                <div class="la-funnel-row">
+                    <div class="la-funnel-label"><strong>Sin iniciar</strong></div>
+                    <div class="la-funnel-meta">{{ embudo_learning.sin_iniciar }} est. ({{ embudo_learning.sin_iniciar_pct_label }}%)</div>
+                    <div class="la-funnel-track" role="presentation">
+                        <div class="la-funnel-fill{% if embudo_learning.sin_iniciar_bar_pct %} is-nonzero{% endif %}" style="width: {{ embudo_learning.sin_iniciar_bar_pct }}%;"></div>
+                    </div>
+                </div>
+                {% for paso in embudo_learning.pasos %}
+                <div class="la-funnel-row">
+                    <div class="la-funnel-label">
+                        <strong>En M{{ paso.numero }}</strong> — {{ paso.titulo }}
+                    </div>
+                    <div class="la-funnel-meta">{{ paso.estudiantes }} est. ({{ paso.pct_label }}%)</div>
+                    <div class="la-funnel-track" role="presentation">
+                        <div class="la-funnel-fill{% if paso.bar_pct %} is-nonzero{% endif %}" style="width: {{ paso.bar_pct }}%;"></div>
+                    </div>
+                </div>
+                {% endfor %}
+                <div class="la-funnel-row">
+                    <div class="la-funnel-label"><strong>Completaron</strong></div>
+                    <div class="la-funnel-meta">{{ embudo_learning.completados }} est. ({{ embudo_learning.completados_pct_label }}%)</div>
+                    <div class="la-funnel-track" role="presentation">
+                        <div class="la-funnel-fill{% if embudo_learning.completados_bar_pct %} is-nonzero{% endif %}" style="width: {{ embudo_learning.completados_bar_pct }}%;"></div>
+                    </div>
+                </div>
             </div>
-            {% elif not embudo_learning.pasos %}
+            {% else %}
             <p style="color:var(--eki-muted);">Este curso aún no tiene módulos.</p>
             {% endif %}
         </div>
@@ -890,7 +912,7 @@ function switchTab(tabName, btn) {
 }
 
 const analyticsEndpoint = (dashboardConfig && dashboardConfig.dataset.analyticsEndpoint) || '/admin/analytics/api/';
-let chartMeDona = null, chartMeBarras = null, chartMeEstados = null, chartMeTemporal = null, chartMeModulos = null, chartNatiTemporal = null, chartEmbudoLearning = null;
+let chartMeDona = null, chartMeBarras = null, chartMeEstados = null, chartMeTemporal = null, chartMeModulos = null, chartNatiTemporal = null;
 const EKI_TEAL = '#0f6e6a';
 const EKI_TEAL_LIGHT = '#5a9e9a';
 const EKI_TEAL_SOFT = '#e6f2f1';
@@ -1077,89 +1099,6 @@ function ensureChart(ref, canvasId, config) {
     ref.options = config.options;
     ref.update();
     return ref;
-}
-
-function formatEsFloatTick(v) {
-    const n = Number(v);
-    if (!isFinite(n)) return '';
-    let s = n.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
-    if (s.indexOf('.') === -1) s += '.0';
-    return s.replace('.', ',');
-}
-
-function initEmbudoLearningChart() {
-    const node = document.getElementById('embudo-learning-chart');
-    const canvas = document.getElementById('chartEmbudoLearning');
-    if (!node || !canvas || typeof Chart === 'undefined') return;
-    let data;
-    try { data = JSON.parse(node.textContent || '{}'); } catch (e) { return; }
-    const labels = data.labels || [];
-    const values = data.values || [];
-    const pctLabels = data.pct_labels || [];
-    const axisMin = (data.axis_min != null) ? data.axis_min : 0;
-    const axisMax = (data.axis_max != null) ? data.axis_max : Math.max.apply(null, values.concat([1]));
-    const maxVal = Math.max.apply(null, values.concat([0.0001]));
-    const colors = values.map(function(v) {
-        const t = Math.max(0.35, Math.min(1, v / maxVal));
-        return 'rgba(122, 78, 142, ' + (0.45 + t * 0.55).toFixed(2) + ')';
-    });
-    canvas.style.height = Math.max(220, labels.length * 42) + 'px';
-    if (chartEmbudoLearning) {
-        chartEmbudoLearning.destroy();
-        chartEmbudoLearning = null;
-    }
-    chartEmbudoLearning = new Chart(canvas, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Estudiantes',
-                data: values,
-                backgroundColor: colors,
-                borderColor: '#5F3A6E',
-                borderWidth: 1,
-                borderRadius: 8,
-                barThickness: 22
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            indexAxis: 'y',
-            animation: {
-                duration: 900,
-                easing: 'easeOutQuart'
-            },
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: function(ctx) {
-                            const i = ctx.dataIndex;
-                            const v = ctx.parsed.x;
-                            const pct = pctLabels[i] != null ? pctLabels[i] : formatEsFloatTick(v);
-                            return ' ' + formatEsFloatTick(v) + ' est. (' + pct + '%)';
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    min: axisMin,
-                    max: axisMax,
-                    ticks: {
-                        callback: function(v) { return formatEsFloatTick(v); }
-                    },
-                    title: { display: true, text: 'Estudiantes', color: '#868e96', font: { size: 11 } },
-                    grid: { color: 'rgba(122,78,142,0.10)' }
-                },
-                y: {
-                    ticks: { font: { size: 11 } },
-                    grid: { display: false }
-                }
-            }
-        }
-    });
 }
 
 function renderModuloDistribucion(items, cursoSeleccionado) {
@@ -1399,7 +1338,6 @@ function iniciarAutoRefreshResumen() {
         if (section === 'metricas_empresa') {
             cargarGruposMetricasEmpresa().then(function() { cargarMetricasEmpresa(); });
         }
-        if (section === 'embudo') initEmbudoLearningChart();
     }
     const meCliente = document.getElementById('me-cliente');
     if (meCliente) {

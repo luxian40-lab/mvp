@@ -64,31 +64,6 @@ def _bar_pct(cantidad: int, total: int) -> float:
     return round((cantidad / total) * 100.0, 3)
 
 
-def _axis_bounds(valores: list[int | float]) -> tuple[float, float]:
-    """
-    Márgenes del eje según la data (no fijar 0,0→100).
-    Rango flotante alrededor de los conteos, p.ej. ~1,0 … 1,888.
-    """
-    nums = [float(v) for v in valores if v is not None]
-    if not nums:
-        return 0.0, 1.0
-    hi = max(nums)
-    positivos = [v for v in nums if v > 0]
-    if hi <= 0:
-        return 0.0, 1.0
-    lo = min(positivos) if positivos else 0.0
-    span = max(hi - lo, hi * 0.15, 0.5)
-    # Un poco de aire arriba/abajo; si el mínimo es > 0, no clavar el eje en 0.
-    ymin = max(0.0, lo - span * 0.35) if lo > 0 else 0.0
-    ymax = hi + span * 0.45
-    # Evitar eje plano cuando todos valen igual
-    if ymax - ymin < 0.5:
-        mid = (ymin + ymax) / 2.0 or hi
-        ymin = max(0.0, mid - 0.5)
-        ymax = mid + 0.888
-    return round(ymin, 3), round(ymax, 3)
-
-
 def embudo_avance_por_curso(
     *,
     curso_id: int,
@@ -189,10 +164,6 @@ def embudo_posicion_hoy_por_curso(
         default=0,
     )
 
-    chart_labels = ['Sin iniciar']
-    chart_values = [float(sin_iniciar)]
-    chart_pct_labels = [_pct_label(_pct_float(sin_iniciar, total))]
-
     pasos = []
     for mod in modulos:
         en_modulo = por_modulo.get(float(mod.numero), 0)
@@ -207,14 +178,6 @@ def embudo_posicion_hoy_por_curso(
             'bar_pct': _bar_pct(en_modulo, total),
             'drop_pct': None,
         })
-        chart_labels.append(f'M{mod.numero} — {mod.titulo}'[:42])
-        chart_values.append(float(en_modulo))
-        chart_pct_labels.append(_pct_label(pct))
-
-    chart_labels.append('Completaron')
-    chart_values.append(float(completados))
-    chart_pct_labels.append(_pct_label(_pct_float(completados, total)))
-    axis_min, axis_max = _axis_bounds(chart_values)
 
     sin_pct = _pct_float(sin_iniciar, total)
     comp_pct = _pct_float(completados, total)
@@ -234,13 +197,6 @@ def embudo_posicion_hoy_por_curso(
         'max_bucket': max_bucket,
         'pasos': pasos,
         'modo': 'hoy',
-        'chart': {
-            'labels': chart_labels,
-            'values': chart_values,
-            'pct_labels': chart_pct_labels,
-            'axis_min': axis_min,
-            'axis_max': axis_max,
-        },
     }
 
 
