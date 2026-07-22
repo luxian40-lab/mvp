@@ -1134,34 +1134,41 @@ Te inscribiste en: *{curso.nombre}*
         
         # ═══════════════════════════════════════════════════════════════
         # ANTI-DUPLICADO v1.9.1: Prevenir que dos workers entreguen
-        # el mismo módulo simultáneamente (race condition con Gunicorn)
+        # el mismo módulo simultáneamente (race condition con Gunicorn).
+        # Bypass: llamadas internas post-evaluación de microcontenidos
+        # (_bypass_anti_duplicado) — el alumno acaba de responder A/B, no es doble *listo*.
         # ═══════════════════════════════════════════════════════════════
         import time as _time
         from django.db import transaction
-        
-        _dedup_ok = False
-        try:
-            with transaction.atomic():
-                est_lock = Estudiante.objects.select_for_update().get(id=estudiante_id)
-                ctx_lock = est_lock.contexto_temporal or {}
-                last_leccion = ctx_lock.get('_ts_leccion', 0)
-                now_ts = _time.time()
-                
-                if now_ts - last_leccion < 45:
-                    print(f"⏳ [ANTI-DUPLICADO] continuar_leccion bloqueado: última entrega hace {now_ts - last_leccion:.1f}s", flush=True)
-                else:
-                    ctx_lock['_ts_leccion'] = now_ts
-                    est_lock.contexto_temporal = ctx_lock
-                    est_lock.save(update_fields=['contexto_temporal'])
-                    _dedup_ok = True
-        except Exception as e:
-            print(f"⚠️ [ANTI-DUPLICADO] Error en lock: {e}", flush=True)
-            _dedup_ok = True  # En caso de error, permitir (fail-open)
-        
+
+        _dedup_ok = bool(kwargs.get('_bypass_anti_duplicado'))
+        if not _dedup_ok:
+            try:
+                with transaction.atomic():
+                    est_lock = Estudiante.objects.select_for_update().get(id=estudiante_id)
+                    ctx_lock = est_lock.contexto_temporal or {}
+                    last_leccion = ctx_lock.get('_ts_leccion', 0)
+                    now_ts = _time.time()
+
+                    if now_ts - last_leccion < 45:
+                        print(
+                            f"⏳ [ANTI-DUPLICADO] continuar_leccion bloqueado: "
+                            f"última entrega hace {now_ts - last_leccion:.1f}s",
+                            flush=True,
+                        )
+                    else:
+                        ctx_lock['_ts_leccion'] = now_ts
+                        est_lock.contexto_temporal = ctx_lock
+                        est_lock.save(update_fields=['contexto_temporal'])
+                        _dedup_ok = True
+            except Exception as e:
+                print(f"⚠️ [ANTI-DUPLICADO] Error en lock: {e}", flush=True)
+                _dedup_ok = True  # En caso de error, permitir (fail-open)
+
         if not _dedup_ok:
             return "⏳ Tu módulo se está cargando, espera unos segundos y vuelve a escribir *listo*."
         # ═══════════════════════════════════════════════════════════════
-        
+
         estudiante = Estudiante.objects.get(id=estudiante_id)
 
         try:
@@ -1234,16 +1241,20 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 estudiante.contexto_temporal = _ctx_foco or None
                 estudiante.save(update_fields=['contexto_temporal'])
 
-        # Varios cursos activos pero en pausa drip en alguno: no pedir "elige curso"; seguir solo ese curso
+        # Varios cursos activos: solo forzar curso en drip si TODOS están bloqueados.
+        # Si hay al menos uno libre (p. ej. mid-pasos), no hijackear el *listo*.
         if progresos_activos.count() > 1:
             from .drip_schedule import drip_bloquea_siguiente_modulo
 
             _bloqueados_drip = []
+            _libres_drip = []
             for _p in progresos_activos:
                 _m = _p.modulo_actual
                 if _m and drip_bloquea_siguiente_modulo(_p, _m):
                     _bloqueados_drip.append(_p)
-            if _bloqueados_drip:
+                else:
+                    _libres_drip.append(_p)
+            if _bloqueados_drip and not _libres_drip:
                 _bloqueados_drip.sort(
                     key=lambda p: p.fecha_ultimo_avance.timestamp() if p.fecha_ultimo_avance else 0.0,
                     reverse=True,
@@ -1394,7 +1405,11 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             _saltar_pasos = kwargs.get('_saltar_bloque_pasos_internos')
 
             if _n_pasos > 0 and not _saltar_pasos:
-                idx_p = progreso.paso_actual_modulo
+                idx_p = progreso.paso_actual_modulo or 1
+                if idx_p < 1:
+                    idx_p = 1
+                    progreso.paso_actual_modulo = 1
+                    progreso.save(update_fields=['paso_actual_modulo'])
                 if idx_p <= _n_pasos:
                     try:
                         logger.info(
@@ -1408,11 +1423,24 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                         )
                     except ValueError:
                         logger.warning(
-                            "⚠️ [pasos] índice inválido | est=%s idx=%s",
+                            "⚠️ [pasos] índice inválido | est=%s idx=%s — se reintenta desde 1",
                             estudiante.id,
                             idx_p,
                             exc_info=True,
                         )
+                        try:
+                            from .module_steps import reset_progreso_pasos_modulo
+
+                            reset_progreso_pasos_modulo(progreso, save=True)
+                            return entregar_bloque_secciones_desde_paso(
+                                progreso, modulo_actual, 1
+                            )
+                        except ValueError:
+                            logger.warning(
+                                "⚠️ [pasos] reintento idx=1 también falló | est=%s",
+                                estudiante.id,
+                                exc_info=True,
+                            )
 
             # Mini examen (PreguntaModulo): legacy sin pasos, o tras completar todos los pasos activos
             from .pregunta_handler import tiene_pregunta_modulo, obtener_pregunta_modulo, formatear_pregunta, guardar_contexto_pregunta

@@ -75,6 +75,7 @@ def _respuesta_cola_tras_avanzar_eval_opc(
             estudiante_id=estudiante.id,
             mensaje_original='listo',
             _saltar_bloque_pasos_internos=True,
+            _bypass_anti_duplicado=True,
         )
         if es_acierto:
             head = head_override or (paso.feedback_correcto or '').strip() or '✅ ¡Muy bien! Seguimos.'

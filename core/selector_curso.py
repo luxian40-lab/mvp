@@ -171,7 +171,7 @@ def resolver_curso_post_confirmacion(estudiante):
         if curso:
             return curso
         curso = _curso_desde_campana_cliente(estudiante, org)
-        if curso:
+        if curso and curso.modulos.exists():
             return curso
         return None
 
@@ -311,13 +311,23 @@ def continuar_curso_seleccionado(estudiante_id: int, indice_curso: int, mensaje_
             _pfx = _prefijo_agentes_primera_inscripcion_selector()
             _persist_curso_foco()
 
-            # Primera inscripción: entregar el microcontenido (no solo el CTA).
-            if creado:
+            # Entregar micros si es alta nueva O si nunca avanzó material en este módulo
+            # (progreso pre-creado por asegurar_inscripcion / B2B).
+            from .models import ModuloCompletado
+
+            idx_ent = progreso.paso_actual_modulo or 1
+            if idx_ent < 1:
+                idx_ent = 1
+            nunca_recibio_material = (
+                idx_ent <= 1
+                and not progreso.esperando_respuesta_evaluacion_paso
+                and not ModuloCompletado.objects.filter(
+                    progreso=progreso, modulo=modulo_actual
+                ).exists()
+            )
+            if creado or nunca_recibio_material:
                 from .module_steps import entregar_bloque_secciones_desde_paso
 
-                idx_ent = progreso.paso_actual_modulo or 1
-                if idx_ent < 1:
-                    idx_ent = 1
                 bloque = entregar_bloque_secciones_desde_paso(
                     progreso, modulo_actual, idx_ent
                 )

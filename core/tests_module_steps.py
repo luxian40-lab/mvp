@@ -9,6 +9,7 @@ from django.utils import timezone
 from core.admin import PasoModuloInline
 
 from core.models import (
+    Cliente,
     Curso,
     Estudiante,
     Modulo,
@@ -550,6 +551,8 @@ class SelectorCursoAgentesPrimeraVezTests(TestCase):
         r = continuar_curso_seleccionado(self.est.id, 1, '1')
         self.assertIn('Retomando', r)
         self.assertNotIn('Facilitadora Claudia', r)
+        # Progreso pre-creado sin material entregado: debe mandar micros, no solo CTA.
+        self.assertIn('Contenido solo paso 1', r)
 
 
 class ModoEntregaExplicitoTests(TestCase):
@@ -1483,3 +1486,159 @@ class ModuloContenidoVsMicrocontenidosTests(TestCase):
 
         with self.assertRaises(ValidationError):
             validar_contenido_modulo('', self.mod, pasos_formset=_FakeFormSet())
+
+
+class AntiDuplicadoPostEvalPasosTests(TestCase):
+    """Tras eval final de micros, continuar_leccion interno no debe caer en anti-duplicado 45s."""
+
+    def setUp(self):
+        self.curso = Curso.objects.create(
+            nombre='Curso anti-dup',
+            descripcion='d',
+            dias_espera_entre_modulos=0,
+            usar_agentes_ia=False,
+        )
+        self.m1 = Modulo.objects.create(
+            curso=self.curso,
+            numero=1,
+            titulo='M1',
+            descripcion='d',
+            contenido='legacy',
+            duracion_dias=7,
+            modo_entrega=Modulo.MODO_ENTREGA_PASOS,
+        )
+        self.m2 = Modulo.objects.create(
+            curso=self.curso,
+            numero=2,
+            titulo='M2',
+            descripcion='d',
+            contenido='sig',
+            duracion_dias=7,
+        )
+        self.est = Estudiante.objects.create(
+            cedula='55667788',
+            nombre='Anti Dup',
+            telefono='5730099112233',
+        )
+        self.prog = ProgresoEstudiante.objects.create(
+            estudiante=self.est,
+            curso=self.curso,
+            modulo_actual=self.m1,
+        )
+
+    def test_cola_post_eval_no_devuelve_cargando(self):
+        import time
+
+        from core.models import PasoModulo
+        from core.module_steps import _respuesta_cola_tras_avanzar_eval_opc
+
+        s1 = _seccion(self.m1, 1, 'S')
+        PasoModulo.objects.create(
+            modulo=self.m1,
+            seccion=s1,
+            orden=1,
+            titulo='Eval',
+            tipo=PasoModulo.TIPO_EVAL_OPC,
+            contenido='Q',
+            opciones_json={'A': '1', 'B': '2', 'correcta': 'B'},
+            feedback_correcto='Bien hecho',
+        )
+        # Simula que hace segundos se entregó material (*listo*).
+        self.est.contexto_temporal = {'_ts_leccion': time.time()}
+        self.est.save(update_fields=['contexto_temporal'])
+        self.prog.paso_actual_modulo = 2
+        self.prog.esperando_respuesta_evaluacion_paso = False
+        self.prog.save(update_fields=['paso_actual_modulo', 'esperando_respuesta_evaluacion_paso'])
+
+        paso = self.m1.pasos.first()
+        r = _respuesta_cola_tras_avanzar_eval_opc(
+            self.est, self.prog, paso, n=1, es_acierto=True,
+        )
+        self.assertNotIn('se está cargando', (r or '').lower())
+        self.assertIn('Bien hecho', r)
+
+
+class MultiCursoDripNoHijackPasosTests(TestCase):
+    """Si un curso está en drip y otro mid-pasos, *listo* no debe atrapar en el drip."""
+
+    def setUp(self):
+        from django.utils import timezone
+        from datetime import timedelta
+
+        self.org = Cliente.objects.create(
+            nombre='Org Multi',
+            contacto_principal='C',
+            email='multi@t.com',
+            telefono='573008887766',
+            activo=True,
+        )
+        self.curso_a = Curso.objects.create(
+            nombre='Curso A drip',
+            cliente=self.org,
+            activo=True,
+            dias_espera_entre_modulos=7,
+        )
+        self.curso_b = Curso.objects.create(
+            nombre='Curso B pasos',
+            cliente=self.org,
+            activo=True,
+            dias_espera_entre_modulos=0,
+        )
+        self.ma1 = Modulo.objects.create(
+            curso=self.curso_a, numero=1, titulo='A1', contenido='a1', duracion_dias=7,
+        )
+        self.ma2 = Modulo.objects.create(
+            curso=self.curso_a, numero=2, titulo='A2', contenido='a2', duracion_dias=7,
+        )
+        self.mb1 = Modulo.objects.create(
+            curso=self.curso_b, numero=1, titulo='B1', contenido='b1',
+            modo_entrega=Modulo.MODO_ENTREGA_PASOS, duracion_dias=7,
+        )
+        self.est = Estudiante.objects.create(
+            cedula='99887766',
+            nombre='Multi Hijack',
+            telefono='5730077665544',
+            cliente=self.org,
+        )
+        self.prog_a = ProgresoEstudiante.objects.create(
+            estudiante=self.est,
+            curso=self.curso_a,
+            modulo_actual=self.ma1,
+            fecha_ultimo_avance=timezone.now() - timedelta(hours=1),
+        )
+        from core.models import ModuloCompletado
+        ModuloCompletado.objects.create(progreso=self.prog_a, modulo=self.ma1)
+        self.prog_a.modulo_actual = self.ma2
+        self.prog_a.save(update_fields=['modulo_actual'])
+
+        self.prog_b = ProgresoEstudiante.objects.create(
+            estudiante=self.est,
+            curso=self.curso_b,
+            modulo_actual=self.mb1,
+        )
+
+    def test_listo_muestra_menu_si_hay_curso_libre(self):
+        from core.models import PasoModulo
+        from core.response_templates import get_response_for_intent
+
+        s1 = _seccion(self.mb1, 1)
+        PasoModulo.objects.create(
+            modulo=self.mb1,
+            seccion=s1,
+            orden=1,
+            titulo='Micro B',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='Material curso B',
+        )
+        r = get_response_for_intent(
+            'continuar_leccion',
+            self.est.nombre,
+            estudiante_id=self.est.id,
+            mensaje_original='listo',
+        )
+        low = (r or '').lower()
+        self.assertNotIn('próxima lección se desbloquea', low)
+        self.assertTrue(
+            'varios cursos' in low or 'material curso b' in low or 'curso b' in low,
+            msg=r[:400],
+        )
