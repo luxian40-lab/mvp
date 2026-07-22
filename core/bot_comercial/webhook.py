@@ -884,15 +884,13 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                 tiene_imagen=bool(diagnostico_vision),
             )
             if pregunta_diag and vision_util:
-                # Foto útil a mitad de anamnesis: no botar el análisis
+                # Foto útil + dato pendiente: análisis + pregunta, sin rótulo extra
                 texto_respuesta = (
-                    f"{diagnostico_vision.strip()}\n\n"
-                    f"Para afinar la orientación:\n{pregunta_diag.strip()}"
+                    f"{diagnostico_vision.strip()}\n\n{pregunta_diag.strip()}"
                 )
             elif pregunta_diag:
                 texto_respuesta = pregunta_diag
             elif vision_util and not (msg_body or '').strip():
-                # Solo foto, anamnesis completa → devolver visión directa si no hay LLM path
                 pass
         except Exception:
             pass

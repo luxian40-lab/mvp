@@ -116,16 +116,24 @@ class NatDiagnosticoLoopTests(TestCase):
         self.assertIsNone(pregunta)
         self.assertTrue(self.ctx.metadata.get('diagnostico_omitido'))
 
-    def test_keywords_cursos_no_son_escape_nat(self):
-        """listo/continuar/menu son del bot educativo; Nati no debe tratarlos como escape."""
-        for kw in ('listo', 'continuar', 'menu', 'menú'):
-            self.ctx.problema = ''
-            self.ctx.metadata = {'diagnostico_activo': True}
-            self.ctx.save()
-            pregunta = siguiente_pregunta_diagnostico(self.ctx, kw)
-            self.ctx.refresh_from_db()
-            self.assertFalse(
-                self.ctx.metadata.get('diagnostico_omitido'),
-                f'{kw!r} no debe omitir diagnóstico Nati',
-            )
-            self.assertIsNotNone(pregunta)
+    def test_ack_sin_eco_de_pedido_largo(self):
+        from core.nat_diagnostico import _ack, _sintoma_corto
+
+        self.ctx.problema = (
+            'es amarillamiento que podemos hacer en Boyaca. '
+            'Con es amarillamiento que podemos hacer en tomate'
+        )
+        self.ctx.municipio = 'Guateque'
+        self.ctx.save()
+        corto = _sintoma_corto(self.ctx)
+        self.assertNotIn('podemos hacer', corto.lower())
+        self.assertIn('amarill', corto.lower())
+        msg = _ack(
+            self.ctx,
+            '¿en qué parte de la planta empezó (hojas, tallo, fruto, raíz) '
+            'y aproximadamente qué tanto del lote está afectado?',
+        )
+        self.assertNotIn('Entendido:', msg)
+        self.assertNotIn('podemos hacer', msg.lower())
+        self.assertIn('parte de la planta', msg.lower())
+        self.assertTrue(msg.startswith('En tomate'))

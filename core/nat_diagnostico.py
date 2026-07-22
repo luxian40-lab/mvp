@@ -107,28 +107,43 @@ def _lugar_txt(ctx) -> str:
 
 
 def _sintoma_corto(ctx) -> str:
+    """Etiqueta corta de síntoma; evita ecoear frases largas o pedidos de ayuda."""
     p = (ctx.problema or '').strip()
     if not p:
         return 'lo que describe'
-    return p[:80] if len(p) <= 80 else (p[:77] + '…')
+    low = p.lower()
+    # Pedidos tipo "qué podemos hacer" no son el síntoma
+    if any(
+        x in low
+        for x in (
+            'podemos', 'qué hacer', 'que hacer', 'que hago', 'ayuda',
+            'cómo', 'como ', 'recomien', 'qué me', 'que me',
+        )
+    ):
+        m = _PATRON_SINTOMA.search(p)
+        if m:
+            start = max(0, m.start() - 2)
+            end = min(len(p), m.end() + 12)
+            chunk = re.sub(r'\s+', ' ', p[start:end]).strip(' ,.;:')
+            if chunk:
+                return chunk[:40]
+        return 'lo que describe'
+    if len(p) <= 40:
+        return p
+    return p[:37] + '…'
 
 
 def _ack(ctx, frase: str) -> str:
-    """Reconoce lo ya sabido (estilo médico) y pide el siguiente dato."""
+    """Ancla breve (cultivo/zona) + pregunta. Sin ecoear el mensaje completo."""
+    frase = (frase or '').strip()
     cultivo = (ctx.cultivo or '').strip()
-    problema = (ctx.problema or '').strip()
     lugar_ok = bool((ctx.municipio or '').strip() or (ctx.region or '').strip())
-    if cultivo and problema and lugar_ok:
-        return (
-            f'Entendido: {_cultivo_txt(ctx)} con {_sintoma_corto(ctx)} '
-            f'en {_lugar_txt(ctx)}. {frase}'
-        ).strip()
-    if cultivo and problema:
-        return f'Entendido: {_cultivo_txt(ctx)} con {_sintoma_corto(ctx)}. {frase}'.strip()
+    if cultivo and lugar_ok:
+        return f'En {_cultivo_txt(ctx)} ({_lugar_txt(ctx)}): {frase}'.strip()
     if cultivo:
-        return f'Perfecto, cultivo de {_cultivo_txt(ctx)}. {frase}'.strip()
-    if problema:
-        return f'Anoto lo que observa: {_sintoma_corto(ctx)}. {frase}'.strip()
+        return f'En {_cultivo_txt(ctx)}: {frase}'.strip()
+    if (ctx.problema or '').strip():
+        return f'Sobre {_sintoma_corto(ctx)}: {frase}'.strip()
     return frase
 
 
@@ -329,7 +344,6 @@ def siguiente_pregunta_diagnostico(ctx, mensaje: str, *, tiene_imagen: bool = Fa
             'extension_afectada',
             _ack(
                 ctx,
-                f'Con {_sintoma_corto(ctx)} en {_cultivo_txt(ctx)}: '
                 '¿en qué parte de la planta empezó (hojas, tallo, fruto, raíz) '
                 'y aproximadamente qué tanto del lote está afectado?',
             ),
