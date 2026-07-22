@@ -313,16 +313,17 @@
             </section>
 
             <section id="nati">
-                <h2>Nati — bot comercial y catálogo</h2>
-                <p>Canal comercial separado del educativo. Panel: <a href="/admin/bot-comercial/">/admin/bot-comercial/</a>.</p>
+                <h2>Nat — bot comercial y catálogo</h2>
+                <p>Canal comercial separado del educativo. Panel: <a href="/admin/bot-comercial/">/admin/bot-comercial/</a>. Portal: Biblioteca + Agente Nat.</p>
                 <ul>
-                    <li><strong>RAG comercial:</strong> documentos en <code>DocumentoRAGComercial</code>; subida masiva desde admin.</li>
-                    <li><strong>Catálogo multi-cliente:</strong> <code>ProductoCatalogo</code> (precio, unidad, keywords, cliente). Comando: <code>python manage.py cargar_catalogo --archivo ruta.xlsx --cliente-id ID</code>.</li>
-                    <li><strong>Prospectos B2B:</strong> importación y seguimiento en <code>ProspectoB2B</code>.</li>
+                    <li><strong>Conocimiento (preferido):</strong> Portal → <strong>Biblioteca</strong> (`BibliotecaConocimiento`). Indexa el mismo Chroma que el RAG comercial.</li>
+                    <li><strong>RAG legacy (admin):</strong> <code>DocumentoRAGComercial</code> — mantener para corpus ya cargado; material nuevo → Biblioteca.</li>
+                    <li><strong>Catálogo de recomendaciones:</strong> <code>ProductoCatalogo</code> (dosis, link, problema). Comando: <code>python manage.py cargar_catalogo --archivo ruta.xlsx --cliente-id ID</code>.</li>
+                    <li><strong>Lista de precios SKU:</strong> <code>ProductoComercial</code> (import Excel/JSON) — distinto del catálogo de recomendaciones.</li>
+                    <li><strong>Línea WhatsApp:</strong> <code>Cliente.numero_whatsapp_nat</code> debe coincidir con el To de Twilio o el mensaje irá al bot educativo.</li>
                     <li><strong>Knowledge Studio:</strong> revisión de candidatos RAG desde conversaciones.</li>
-                    <li>Identidad y límites del agente en <code>core/nati.py</code> (no inventar diagnósticos; remitir a técnico cuando corresponda).</li>
+                    <li>Identidad y límites en <code>core/nati.py</code> (prompt Nat; no es el tutor del curso).</li>
                 </ul>
-                <p><code>ProductoComercial</code> (precios import) es distinto del catálogo Nat orientado a recomendación por WhatsApp.</p>
             </section>
 
             <section id="gei">

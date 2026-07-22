@@ -898,7 +898,7 @@ Son **módulos opcionales** del portal B2B. Se activan por organización en Admi
 | **Nombre** | **Nat** (configurable por cliente: `nombre_bot` en Admin → Cliente, ej. Nat, Nati, Aliada) |
 | **Para qué sirve** | Atender por WhatsApp a **productores o clientes finales** con asesoría agrícola y **recomendación de productos** del catálogo de la organización (insumos, servicios, etc.). |
 | **Canal** | **WhatsApp en línea comercial** distinta a la de cursos: cada organización puede tener su `numero_whatsapp_nat`. El webhook identifica al cliente por el número destino (`To`). |
-| **Cómo responde** | IA + **RAG** sobre documentos comerciales subidos + **catálogo de productos** (`ProductoCatalogo`: nombre, problema que resuelve, dosis, precio, link de compra). Extrae contexto agronómico (cultivo, plaga, región) de la conversación. |
+| **Cómo responde** | IA + **RAG** (Biblioteca portal preferida; `DocumentoRAGComercial` legacy en admin) + **ProductoCatalogo** (recomendaciones) + **ProductoComercial** (lista de precios SKU). Extrae contexto agronómico (cultivo, plaga, región). El webhook enruta por `To`: línea global, sandbox o `Cliente.numero_whatsapp_nat`. |
 | **Qué ve el coordinador** | Portal → **Agente Nat**: sesiones activas, productos en catálogo, conversaciones recientes, escalamientos **HITL** (preguntas candidatas a validar como conocimiento), enlace a PQRS comercial. |
 | **Diferencia con el tutor del curso** | El tutor enseña el **módulo** del programa formativo. Nat **vende y asesora** sobre el portafolio comercial del cliente; no sustituye el avance del curso salvo que el productor use solo la línea comercial. |
 | **Admin** | `core/admin/commercial.py` — catálogo, documentos RAG, sesiones comerciales, metas. |
@@ -1151,8 +1151,8 @@ Archivos: `core/telemetria.py`, `core/signals_telemetria.py`, migración `0122_e
 
 ### 16.3 IA generativa
 
-- **Tutor del curso** (estudiante en formación): respuestas en flujo de módulo, RAG educativo (`core/nati.py` — nombre histórico del módulo; no confundir con Nat comercial).
-- **Nat comercial** (línea WhatsApp comercial): asesoría + catálogo + RAG de documentos (`core/views.py` webhook comercial, `core/nat_router.py`).
+- **Tutor del curso** (estudiante en formación): respuestas en flujo de módulo, RAG educativo (`DocumentoRAG` / agentes edu).
+- **Nat comercial** (línea WhatsApp comercial): asesoría + catálogo + RAG de documentos (`core/views.py` webhook comercial, `core/nat_router.py`). Identidad/prompt en `core/nati.py` (nombre histórico del módulo; **no** es el tutor).
 - **Consultor de retención** (portal Centro de Éxito): `portal/agente_retencion.py` — OpenAI o reglas; **no** es Nat.
 - **PQRS:** `core/pqrs_agent.py`.
 - **Formulario GEI:** agente secuencial sin RAG (`formulario/agent.py`).

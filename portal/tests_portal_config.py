@@ -94,9 +94,13 @@ class PortalGeiNatConfigTests(TestCase):
         self.assertEqual(paso.pregunta_texto, 'Nombre de la finca, por favor')
 
     def test_nat_documentos_pagina(self):
-        r = self.http_admin_nat.get('/portal/nat/documentos/')
+        r = self.http_admin_nat.get('/portal/nat/documentos/', follow=True)
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'Base de conocimiento Nat')
+        self.assertTrue(
+            any('/portal/biblioteca/' in u for u, _c in r.redirect_chain)
+            or r.request['PATH_INFO'].startswith('/portal/biblioteca'),
+            msg=f'redirect_chain={r.redirect_chain} path={r.request.get("PATH_INFO")}',
+        )
 
     def test_nat_sin_modulo_cursos_redirige(self):
         r = self.http_admin_nat.get('/portal/cursos/')

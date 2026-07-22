@@ -562,6 +562,8 @@ class DocumentoRAGAdmin(admin.ModelAdmin):
 
 @admin.register(ProductoCatalogo)
 class ProductoCatalogoAdmin(admin.ModelAdmin):
+    """Recomendaciones Nat (dosis, link, problema). No es la lista de precios SKU."""
+
     list_display = (
         'nombre', 'cliente', 'categoria',
         'cultivos_objetivo', 'precio_cop', 'unidad', 'activo',
@@ -600,7 +602,7 @@ class ProductoCatalogoAdmin(admin.ModelAdmin):
 
 @admin.register(ProductoComercial)
 class ProductoComercialAdmin(admin.ModelAdmin):
-    """💰 Catálogo de precios estructurado para Nat (Postgres)."""
+    """Lista de precios SKU para Nat (consultas de precio). Distinto de ProductoCatalogo (recomendaciones)."""
 
     change_list_template = 'admin/productocomercial_changelist.html'
     list_display = (
@@ -732,7 +734,7 @@ class ProductoComercialAdmin(admin.ModelAdmin):
 
 
 class DocumentoRAGComercialAdmin(admin.ModelAdmin):
-    """🛒 Documentos del RAG comercial (aislado del educativo)."""
+    """Legacy RAG comercial (admin). Preferir Portal → Biblioteca para material nuevo."""
 
     form = DocumentoRAGComercialAdminForm
     change_list_template = 'admin/documentoragcomercial_changelist.html'

@@ -120,13 +120,15 @@ flowchart TB
 
 Orden de enriquecimiento del contexto antes de llamar al LLM:
 
-1. **Precios en Postgres** — si la consulta parece catálogo (`core/catalogo_precios.py`), busca en `ProductoCatalogo` y formatea bloque de precios.
-2. **RAG comercial (ChromaDB)** — `rag_comercial_manager.obtener_contexto_varios_clientes()`:
+1. **Precios en Postgres** — si la consulta parece catálogo (`core/catalogo_precios.py`), busca en **`ProductoComercial`** (lista oficial SKU/vigencia) y formatea el bloque de precios. *No* confundir con `ProductoCatalogo` (recomendaciones con dosis/link).
+2. **RAG comercial (ChromaDB)** — `rag_comercial_manager.obtener_contexto_varios_clientes()` (chunks de Biblioteca y/o `DocumentoRAGComercial`):
    - Scopes: IDs de cliente de la sesión + `BOT_COMERCIAL_CLIENTE_ID` + **`0` (documentos generales)**.
    - Canal virtual: `comercial_{canal}` (default `comercial_bot_comercial`).
    - Top-K chunks semánticos por pregunta; umbral de similitud `BOT_COMERCIAL_RAG_MIN_SIMILARITY` (default 0.52).
-3. **Fallback lectura directa de archivos** — si Chroma no devuelve nada: lee PDF/DOCX/XLSX de `DocumentoRAGComercial` indexados (`BOT_COMERCIAL_RAG_FILE_FALLBACK`).
-4. **Catálogo en system prompt** — `obtener_contexto_productos()` incluye productos activos del cliente en el system prompt con reglas estrictas anti-alucinación de precios/links.
+3. **Fallback lectura directa de archivos** — si Chroma no devuelve nada: lee PDF/DOCX/XLSX solo de **`DocumentoRAGComercial`** (`BOT_COMERCIAL_RAG_FILE_FALLBACK`). La Biblioteca no entra en este fallback de archivo.
+4. **Catálogo en system prompt** — `obtener_contexto_productos()` incluye `ProductoCatalogo` activos del cliente (recomendaciones) con reglas anti-alucinación.
+
+**Enrutado WhatsApp:** el webhook compartido trata como Nat el `To` igual a `BOT_COMERCIAL_WHATSAPP_NUMBER`, sandbox, o cualquier `Cliente.numero_whatsapp_nat` activo (`core/bot_comercial_routing.py`).
 
 ### 3.7 Routing de modelo (`core/nat_router.py`)
 
@@ -379,11 +381,11 @@ Pregunta productor → Nat extrae cultivo/tema
 
 ## 11. Checklist operativo — poner Nat en marcha
 
-1. Crear **Cliente** con `numero_whatsapp_nat` y módulo portal `nat`.
-2. Configurar Twilio: webhook → `/webhook/ia-bot-comercial/`.
-3. Variables EB: `OPENAI_API_KEY`, `BOT_COMERCIAL_WHATSAPP_NUMBER`, `BOT_COMERCIAL_CLIENTE_ID`.
-4. Subir **DocumentoRAGComercial** (fichas técnicas, listas precio) → acción re-indexar.
-5. Cargar **ProductoCatalogo** (nombre, dosis, precio, URL).
+1. Crear **Cliente** con `numero_whatsapp_nat` (debe coincidir con el To de Twilio) y módulo portal `nat`.
+2. Configurar Twilio: webhook compartido `/webhook/whatsapp/` **o** dedicado `/webhook/ia-bot-comercial/`.
+3. Variables EB: `OPENAI_API_KEY`, `BOT_COMERCIAL_WHATSAPP_NUMBER`, `BOT_COMERCIAL_CLIENTE_ID` (fallback).
+4. Preferir **Portal → Biblioteca** para conocimiento nuevo (indexa al mismo Chroma). `DocumentoRAGComercial` en admin = legacy.
+5. Cargar **ProductoCatalogo** (recomendaciones) y, si aplica, **ProductoComercial** (lista de precios SKU).
 6. Probar: saludo → consulta técnica → consulta precio → foto plaga.
 7. Revisar **Knowledge Studio** semanalmente si HITL está activo.
 

@@ -288,7 +288,8 @@ class Cliente(models.Model):
         verbose_name='Número WhatsApp Nat (línea comercial)',
         help_text=(
             'Número Twilio al que escribe el productor para hablar con Nat (solo dígitos, ej: 573001234567). '
-            'Cada organización puede tener su propia línea; el webhook identifica el cliente por este número (campo To). '
+            'Debe coincidir exactamente con el campo To del webhook; si no, el mensaje irá al bot educativo. '
+            'Cada organización puede tener su propia línea. '
             'Distinto del número de campañas educativas y del BOT_COMERCIAL_CLIENTE_ID global.'
         ),
     )
