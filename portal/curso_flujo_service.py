@@ -190,7 +190,8 @@ def embudo_posicion_hoy_por_curso(
     )
 
     chart_labels = ['Sin iniciar']
-    chart_values = [sin_iniciar]
+    chart_values = [float(sin_iniciar)]
+    chart_pct_labels = [_pct_label(_pct_float(sin_iniciar, total))]
 
     pasos = []
     for mod in modulos:
@@ -206,11 +207,13 @@ def embudo_posicion_hoy_por_curso(
             'bar_pct': _bar_pct(en_modulo, total),
             'drop_pct': None,
         })
-        chart_labels.append(f'M{mod.numero}')
-        chart_values.append(en_modulo)
+        chart_labels.append(f'M{mod.numero} — {mod.titulo}'[:42])
+        chart_values.append(float(en_modulo))
+        chart_pct_labels.append(_pct_label(pct))
 
     chart_labels.append('Completaron')
-    chart_values.append(completados)
+    chart_values.append(float(completados))
+    chart_pct_labels.append(_pct_label(_pct_float(completados, total)))
     axis_min, axis_max = _axis_bounds(chart_values)
 
     sin_pct = _pct_float(sin_iniciar, total)
@@ -234,6 +237,7 @@ def embudo_posicion_hoy_por_curso(
         'chart': {
             'labels': chart_labels,
             'values': chart_values,
+            'pct_labels': chart_pct_labels,
             'axis_min': axis_min,
             'axis_max': axis_max,
         },
