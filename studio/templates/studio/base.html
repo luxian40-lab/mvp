@@ -151,6 +151,40 @@
 
         .st-nav a.st-nav--cta:hover { background: var(--st-accent-deep); color: #fff; }
 
+        .st-nav a.st-nav-cart {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            width: 2.35rem;
+            height: 2.35rem;
+            padding: 0;
+            border-radius: 999px;
+        }
+
+        .st-nav a.st-nav-cart svg {
+            width: 1.2rem;
+            height: 1.2rem;
+            display: block;
+        }
+
+        .st-nav-cart__badge {
+            position: absolute;
+            top: 0.1rem;
+            right: 0.05rem;
+            min-width: 1.05rem;
+            height: 1.05rem;
+            padding: 0 0.28rem;
+            border-radius: 999px;
+            background: var(--st-accent);
+            color: #fff;
+            font-size: 0.65rem;
+            font-weight: 700;
+            line-height: 1.05rem;
+            text-align: center;
+            box-shadow: 0 0 0 2px var(--st-paper, #faf8f4);
+        }
+
         .st-nav-toggle {
             display: none;
             background: transparent;
@@ -851,6 +885,18 @@
                 font-size: 0.9rem;
             }
             .st-nav a.st-nav--cta { margin-left: 0; }
+            .st-nav a.st-nav-cart {
+                width: auto;
+                height: auto;
+                justify-content: flex-start;
+                gap: 0.55rem;
+                padding: 0.75rem 0.85rem;
+                border-radius: var(--st-radius);
+            }
+            .st-nav-cart__badge {
+                position: static;
+                box-shadow: none;
+            }
 
             .st-main {
                 padding: 1.25rem max(1rem, env(safe-area-inset-right)) 3rem max(1rem, env(safe-area-inset-left));
@@ -931,8 +977,17 @@
     <nav class="st-nav" id="st-nav">
         <a href="{% url 'studio_catalogo' %}">Cursos</a>
         <a href="{% url 'studio_creador' %}">Soy creador</a>
-        <a href="{% url 'studio_carrito' %}">Carrito{% if carrito_count %} ({{ carrito_count }}){% endif %}</a>
         {% if cuenta or estudiante %}
+        {% if cuenta %}
+        <a href="{% url 'studio_carrito' %}" class="st-nav-cart" aria-label="Carrito{% if carrito_count %} ({{ carrito_count }}){% endif %}" title="Carrito">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="9" cy="20" r="1.35"/>
+                <circle cx="18" cy="20" r="1.35"/>
+                <path d="M3 4h2l2.2 11.2a1.6 1.6 0 0 0 1.6 1.3h8.7a1.6 1.6 0 0 0 1.55-1.2L21 8H7"/>
+            </svg>
+            {% if carrito_count %}<span class="st-nav-cart__badge">{{ carrito_count }}</span>{% endif %}
+        </a>
+        {% endif %}
         <a href="/studio/ir-a-aprende/" class="st-nav--cta">Ir al aula</a>
         <a href="{% url 'studio_cuenta_logout' %}">Salir</a>
         {% else %}
