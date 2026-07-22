@@ -64,3 +64,11 @@ class EmbudoLearningTests(TestCase):
             sum(by_n.values()) + data['sin_iniciar'] + data['completados'],
             data['total_inscritos'],
         )
+        # % con 3 decimales; barras relativas al bucket máximo (aquí 1 → 100%)
+        self.assertEqual(data['sin_iniciar_pct'], 25.0)
+        self.assertEqual(data['sin_iniciar_pct_label'], '25,000')
+        self.assertEqual(data['sin_iniciar_bar_pct'], 100.0)
+        self.assertEqual(data['max_bucket'], 1)
+        m3 = next(p for p in data['pasos'] if float(p['numero']) == 3.0)
+        self.assertEqual(m3['pct_label'], '0,000')
+        self.assertEqual(m3['bar_pct'], 0.0)

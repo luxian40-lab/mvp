@@ -111,7 +111,8 @@
     .la-funnel-drop { font-size: 0.78rem; color: var(--eki-warning); font-weight: 600; }
     .la-funnel-meta { font-size: 0.82rem; color: var(--eki-muted); margin-bottom: 6px; }
     .la-funnel-track { height: 28px; background: #f1f3f5; border-radius: 8px; overflow: hidden; border: 1px solid var(--eki-border); }
-    .la-funnel-fill { height: 100%; background: linear-gradient(90deg, #7a4e8e, #9a6cac); border-radius: 7px; min-width: 2px; transition: width 0.35s ease; }
+    .la-funnel-fill { height: 100%; background: linear-gradient(90deg, #7a4e8e, #9a6cac); border-radius: 7px; min-width: 0; transition: width 0.35s ease; }
+    .la-funnel-fill.is-nonzero { min-width: 4px; }
     .mod-dist-card { background: #fff; border: 1px solid var(--eki-border); border-radius: var(--eki-radius); padding: 14px 16px; border-left: 4px solid var(--eki-primary); }
     .mod-dist-label { font-size: 0.82rem; font-weight: 700; color: var(--eki-text); margin-bottom: 6px; line-height: 1.3; }
     .mod-dist-count { font-size: 1.35rem; font-weight: 800; color: var(--eki-primary); }
@@ -357,7 +358,7 @@
         {% else %}
         <div class="section">
             <div class="section-title">{{ embudo_learning.curso.nombre }}{% if embudo_learning.organizacion %} · {{ embudo_learning.organizacion.nombre }}{% endif %}</div>
-            <p style="font-size:0.85rem;color:var(--eki-muted);margin:-4px 0 16px;">Snapshot a día de hoy: cada estudiante activo cuenta solo en el módulo donde está ahora (no es histórico acumulado).</p>
+            <p style="font-size:0.85rem;color:var(--eki-muted);margin:-4px 0 16px;">Snapshot a día de hoy: cada estudiante activo cuenta solo donde está ahora. Las barras se escalan al grupo más grande; el % del total va con 3 decimales.</p>
             <div class="metrics-grid" style="margin-bottom:20px;">
                 <div class="m-card blue"><span class="m-label">Inscritos</span><span class="m-value">{{ embudo_learning.total_inscritos }}</span></div>
                 <div class="m-card green"><span class="m-label">Completaron</span><span class="m-value">{{ embudo_learning.completados }}</span></div>
@@ -365,35 +366,31 @@
             </div>
             {% if embudo_learning.pasos %}
             <div class="la-funnel">
-                {% if embudo_learning.sin_iniciar %}
                 <div class="la-funnel-row">
                     <div class="la-funnel-label"><strong>Sin iniciar</strong></div>
-                    <div class="la-funnel-meta">{{ embudo_learning.sin_iniciar }} est. ({{ embudo_learning.sin_iniciar_pct }}%)</div>
+                    <div class="la-funnel-meta">{{ embudo_learning.sin_iniciar }} est. ({{ embudo_learning.sin_iniciar_pct_label }}%)</div>
                     <div class="la-funnel-track" role="presentation">
-                        <div class="la-funnel-fill" style="width: {{ embudo_learning.sin_iniciar_pct }}%;"></div>
+                        <div class="la-funnel-fill{% if embudo_learning.sin_iniciar_bar_pct %} is-nonzero{% endif %}" style="width: {{ embudo_learning.sin_iniciar_bar_pct }}%;"></div>
                     </div>
                 </div>
-                {% endif %}
                 {% for paso in embudo_learning.pasos %}
                 <div class="la-funnel-row">
                     <div class="la-funnel-label">
                         <strong>En M{{ paso.numero }}</strong> — {{ paso.titulo }}
                     </div>
-                    <div class="la-funnel-meta">{{ paso.estudiantes }} est. ({{ paso.pct }}%)</div>
+                    <div class="la-funnel-meta">{{ paso.estudiantes }} est. ({{ paso.pct_label }}%)</div>
                     <div class="la-funnel-track" role="presentation">
-                        <div class="la-funnel-fill" style="width: {{ paso.pct }}%;"></div>
+                        <div class="la-funnel-fill{% if paso.bar_pct %} is-nonzero{% endif %}" style="width: {{ paso.bar_pct }}%;"></div>
                     </div>
                 </div>
                 {% endfor %}
-                {% if embudo_learning.completados %}
                 <div class="la-funnel-row">
                     <div class="la-funnel-label"><strong>Completaron</strong></div>
-                    <div class="la-funnel-meta">{{ embudo_learning.completados }} est. ({{ embudo_learning.completados_pct }}%)</div>
+                    <div class="la-funnel-meta">{{ embudo_learning.completados }} est. ({{ embudo_learning.completados_pct_label }}%)</div>
                     <div class="la-funnel-track" role="presentation">
-                        <div class="la-funnel-fill" style="width: {{ embudo_learning.completados_pct }}%;"></div>
+                        <div class="la-funnel-fill{% if embudo_learning.completados_bar_pct %} is-nonzero{% endif %}" style="width: {{ embudo_learning.completados_bar_pct }}%;"></div>
                     </div>
                 </div>
-                {% endif %}
             </div>
             {% else %}
             <p style="color:var(--eki-muted);">Este curso aún no tiene módulos.</p>

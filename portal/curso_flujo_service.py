@@ -37,6 +37,25 @@ def _modulo_actual_numero(prog) -> int:
     return int(max_modulo_alcanzado(prog) or 0)
 
 
+def _pct_float(cantidad: int, total: int, places: int = 3) -> float:
+    """Porcentaje con decimales fijos (nunca se redondea a 0.0 si hay conteo > 0)."""
+    if total <= 0:
+        return 0.0
+    return round((cantidad / total) * 100.0, places)
+
+
+def _pct_label(valor: float, places: int = 3) -> str:
+    """Etiqueta ES: 12,500 / 0,001."""
+    return f'{valor:.{places}f}'.replace('.', ',')
+
+
+def _bar_pct(cantidad: int, max_cantidad: int) -> float:
+    """Ancho relativo al bucket más poblado (la barra crece/encoge con la distribución)."""
+    if max_cantidad <= 0 or cantidad <= 0:
+        return 0.0
+    return round((cantidad / max_cantidad) * 100.0, 3)
+
+
 def embudo_avance_por_curso(
     *,
     curso_id: int,
@@ -132,26 +151,42 @@ def embudo_posicion_hoy_por_curso(
             # Módulo huérfano / número no en catálogo → tratar como sin iniciar visible
             sin_iniciar += 1
 
+    max_bucket = max(
+        [sin_iniciar, completados] + [por_modulo.get(float(m.numero), 0) for m in modulos],
+        default=0,
+    )
+
     pasos = []
     for mod in modulos:
         en_modulo = por_modulo.get(float(mod.numero), 0)
+        pct = _pct_float(en_modulo, total)
         pasos.append({
             'modulo': mod,
             'numero': mod.numero,
             'titulo': mod.titulo,
             'estudiantes': en_modulo,
-            'pct': round(en_modulo / total * 100, 1) if total else 0.0,
+            'pct': pct,
+            'pct_label': _pct_label(pct),
+            'bar_pct': _bar_pct(en_modulo, max_bucket),
             'drop_pct': None,
         })
+
+    sin_pct = _pct_float(sin_iniciar, total)
+    comp_pct = _pct_float(completados, total)
 
     return {
         'curso': curso,
         'organizacion': curso.cliente,
         'total_inscritos': total,
         'completados': completados,
-        'completados_pct': round(completados / total * 100, 1) if total else 0.0,
+        'completados_pct': comp_pct,
+        'completados_pct_label': _pct_label(comp_pct),
+        'completados_bar_pct': _bar_pct(completados, max_bucket),
         'sin_iniciar': sin_iniciar,
-        'sin_iniciar_pct': round(sin_iniciar / total * 100, 1) if total else 0.0,
+        'sin_iniciar_pct': sin_pct,
+        'sin_iniciar_pct_label': _pct_label(sin_pct),
+        'sin_iniciar_bar_pct': _bar_pct(sin_iniciar, max_bucket),
+        'max_bucket': max_bucket,
         'pasos': pasos,
         'modo': 'hoy',
     }
