@@ -1,0 +1,65 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Lista de precios | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <h1>Lista de precios (SKU)</h1>
+        <p class="muted">
+            Precios oficiales que Nat consulta cuando preguntan cuánto cuesta un producto.
+            Las recomendaciones técnicas van en <a href="{% url 'portal_catalogo' %}">Catálogo</a>.
+        </p>
+    </div>
+    <div>
+        <a class="btn" href="{% url 'portal_precios_crear' %}">+ Nuevo SKU</a>
+    </div>
+</div>
+
+{% if flash %}
+<section class="panel" style="margin-bottom:16px;border-left:4px solid var(--accent);"><p style="margin:0;">{{ flash }}</p></section>
+{% endif %}
+
+<section class="panel" style="margin-bottom:20px;">
+    <form method="get" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
+        <label>
+            <strong>Buscar</strong>
+            <input type="search" name="q" value="{{ filtro_q }}" placeholder="SKU, nombre o categoría…" style="margin-top:6px;padding:8px;border:1px solid var(--borde);border-radius:8px;">
+        </label>
+        <button class="btn btn-outline" type="submit">Filtrar</button>
+    </form>
+</section>
+
+<section class="panel">
+    <h2>{{ total }} ítem{{ total|pluralize:"s" }}</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>SKU</th>
+                <th>Nombre</th>
+                <th>Presentación</th>
+                <th>Precio</th>
+                <th>Estado</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td><code>{{ item.sku }}</code></td>
+                <td>
+                    <strong>{{ item.nombre }}</strong>
+                    {% if item.categoria %}<div class="muted" style="font-size:12px;">{{ item.categoria }}</div>{% endif %}
+                </td>
+                <td>{{ item.presentacion|default:item.unidad|default:"—" }}</td>
+                <td>{{ item.moneda }} {{ item.precio }}</td>
+                <td>{% if item.activo %}<span style="color:#2f9e44;">Activo</span>{% else %}<span class="muted">Inactivo</span>{% endif %}</td>
+                <td><a href="{% url 'portal_precios_editar' item.id %}">Editar</a></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="muted">Sin precios. Agregue SKUs para que Nat responda consultas de precio.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

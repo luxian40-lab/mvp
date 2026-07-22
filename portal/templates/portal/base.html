@@ -1377,6 +1377,14 @@
                 <span class="link-icon"><svg><use href="#i-book"/></svg></span>
                 <span class="link-text">Biblioteca</span>
             </a>
+            <a href="{% url 'portal_catalogo' %}" class="sidebar-link {% if '/portal/catalogo' in request.path %}active{% endif %}" title="Catálogo de recomendaciones">
+                <span class="link-icon"><svg><use href="#i-bulb"/></svg></span>
+                <span class="link-text">Productos</span>
+            </a>
+            <a href="{% url 'portal_precios' %}" class="sidebar-link {% if '/portal/precios' in request.path %}active{% endif %}" title="Lista de precios SKU">
+                <span class="link-icon"><svg><use href="#i-bars"/></svg></span>
+                <span class="link-text">Precios</span>
+            </a>
             {% if portal_es_admin %}
             <div class="nav-label">Cuenta</div>
             <a href="/portal/perfil/" class="sidebar-link {% if request.path == '/portal/perfil/' %}active{% endif %}" title="Perfil de empresa">
@@ -1477,6 +1485,14 @@
                 <a href="{% url 'portal_biblioteca' %}" class="sidebar-link {% if '/portal/biblioteca' in request.path %}active{% endif %}" title="Biblioteca de conocimiento">
                     <span class="link-icon"><svg><use href="#i-book"/></svg></span>
                     <span class="link-text">Biblioteca</span>
+                </a>
+                <a href="{% url 'portal_catalogo' %}" class="sidebar-link {% if '/portal/catalogo' in request.path %}active{% endif %}" title="Catálogo de recomendaciones">
+                    <span class="link-icon"><svg><use href="#i-bulb"/></svg></span>
+                    <span class="link-text">Productos</span>
+                </a>
+                <a href="{% url 'portal_precios' %}" class="sidebar-link {% if '/portal/precios' in request.path %}active{% endif %}" title="Lista de precios SKU">
+                    <span class="link-icon"><svg><use href="#i-bars"/></svg></span>
+                    <span class="link-text">Precios</span>
                 </a>
                 <a href="/portal/nat/" class="sidebar-link {% if request.path == '/portal/nat/' %}active{% endif %}" title="Métricas Agente Nat">
                     <span class="link-icon"><svg><use href="#i-bulb"/></svg></span>

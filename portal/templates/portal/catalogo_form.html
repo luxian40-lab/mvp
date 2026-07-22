@@ -1,0 +1,63 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}{% if item %}Editar{% else %}Nuevo{% endif %} producto | Catálogo{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <p class="muted" style="margin:0 0 6px;"><a href="{% url 'portal_catalogo' %}">Catálogo</a> / {% if item %}Editar{% else %}Nuevo{% endif %}</p>
+        <h1>{% if item %}{{ item.nombre }}{% else %}Nuevo producto{% endif %}</h1>
+        <p class="muted">Describa bien los problemas que resuelve: Nat usa ese texto para hacer match con la consulta del agricultor.</p>
+    </div>
+</div>
+
+{% if error %}
+<section class="panel" style="margin-bottom:16px;border-left:4px solid #e03131;"><p>{{ error }}</p></section>
+{% endif %}
+
+<section class="panel">
+    <form method="post">
+        {% csrf_token %}
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;">
+            <label style="grid-column:1/-1;"><strong>Nombre *</strong>
+                <input type="text" name="nombre" required maxlength="200" value="{% if item %}{{ item.nombre }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label style="grid-column:1/-1;"><strong>Descripción *</strong>
+                <textarea name="descripcion" required rows="3" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">{% if item %}{{ item.descripcion }}{% endif %}</textarea>
+            </label>
+            <label style="grid-column:1/-1;"><strong>Problemas que resuelve *</strong>
+                <textarea name="problema_que_resuelve" required rows="4" placeholder="Ej: roya, manchas amarillas, deficiencia de nitrógeno…" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">{% if item %}{{ item.problema_que_resuelve }}{% endif %}</textarea>
+            </label>
+            <label><strong>Ingrediente activo</strong>
+                <input type="text" name="ingrediente_activo" maxlength="200" value="{% if item %}{{ item.ingrediente_activo }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label><strong>Categoría</strong>
+                <input type="text" name="categoria" maxlength="100" placeholder="fungicida, fertilizante…" value="{% if item %}{{ item.categoria }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label><strong>Cultivos objetivo</strong>
+                <input type="text" name="cultivos_objetivo" maxlength="300" placeholder="café, maíz…" value="{% if item %}{{ item.cultivos_objetivo }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label><strong>Dosis recomendada</strong>
+                <input type="text" name="dosis" maxlength="200" value="{% if item %}{{ item.dosis }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label><strong>Precio referencia (COP)</strong>
+                <input type="text" name="precio_cop" inputmode="decimal" placeholder="Opcional; la lista oficial va en Precios" value="{% if item and item.precio_cop %}{{ item.precio_cop }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label><strong>Unidad de venta</strong>
+                <input type="text" name="unidad" maxlength="50" value="{% if item %}{{ item.unidad }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label style="grid-column:1/-1;"><strong>Link del producto</strong>
+                <input type="url" name="url_producto" value="{% if item %}{{ item.url_producto }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+                <input type="checkbox" name="activo" value="1" {% if not item or item.activo %}checked{% endif %}>
+                <strong>Activo</strong> (visible para Nat)
+            </label>
+        </div>
+        <div style="margin-top:22px;display:flex;gap:12px;flex-wrap:wrap;">
+            <button class="btn" type="submit">Guardar</button>
+            <a class="btn btn-outline" href="{% url 'portal_catalogo' %}">Cancelar</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

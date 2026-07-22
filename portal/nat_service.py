@@ -45,7 +45,7 @@ def checklist_preparacion_nat(org) -> list[dict]:
             'detalle': (
                 f'{catalogo_n} producto(s) en ProductoCatalogo (dosis, link, problema).'
                 if catalogo_n
-                else 'Sin ProductoCatalogo: Nat recomienda poco o inventa menos con base.'
+                else 'Sin ProductoCatalogo: cargue productos en Portal → Productos.'
             ),
         },
         {
@@ -56,7 +56,7 @@ def checklist_preparacion_nat(org) -> list[dict]:
             'detalle': (
                 f'{precios_n} ítem(s) en ProductoComercial (consultas de precio).'
                 if precios_n
-                else 'Sin ProductoComercial: las preguntas de precio no tendrán lista oficial.'
+                else 'Sin ProductoComercial: cargue SKUs en Portal → Precios.'
             ),
         },
         {

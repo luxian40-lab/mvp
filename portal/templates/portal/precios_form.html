@@ -1,0 +1,63 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}{% if item %}Editar{% else %}Nuevo{% endif %} precio | Lista SKU{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <p class="muted" style="margin:0 0 6px;"><a href="{% url 'portal_precios' %}">Precios</a> / {% if item %}Editar{% else %}Nuevo{% endif %}</p>
+        <h1>{% if item %}{{ item.sku }}{% else %}Nuevo SKU{% endif %}</h1>
+        <p class="muted">Precio de referencia para venta en punto físico. Nat no cobra en línea.</p>
+    </div>
+</div>
+
+{% if error %}
+<section class="panel" style="margin-bottom:16px;border-left:4px solid #e03131;"><p>{{ error }}</p></section>
+{% endif %}
+
+<section class="panel">
+    <form method="post">
+        {% csrf_token %}
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;">
+            <label><strong>SKU / código *</strong>
+                <input type="text" name="sku" required maxlength="80" placeholder="UREA-46-50KG" value="{% if item %}{{ item.sku }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label><strong>Nombre *</strong>
+                <input type="text" name="nombre" required maxlength="200" value="{% if item %}{{ item.nombre }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label><strong>Presentación</strong>
+                <input type="text" name="presentacion" maxlength="120" placeholder="bulto 50 kg" value="{% if item %}{{ item.presentacion }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label><strong>Unidad de venta</strong>
+                <input type="text" name="unidad" maxlength="40" placeholder="bulto, kg, litro" value="{% if item %}{{ item.unidad }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label><strong>Precio *</strong>
+                <input type="text" name="precio" required inputmode="decimal" value="{% if item %}{{ item.precio }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label><strong>Moneda</strong>
+                <input type="text" name="moneda" maxlength="8" value="{% if item %}{{ item.moneda }}{% else %}COP{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label><strong>Categoría</strong>
+                <input type="text" name="categoria" maxlength="80" value="{% if item %}{{ item.categoria }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label><strong>Vigente desde</strong>
+                <input type="date" name="vigencia_desde" value="{% if item and item.vigencia_desde %}{{ item.vigencia_desde|date:'Y-m-d' }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label><strong>Vigente hasta</strong>
+                <input type="date" name="vigencia_hasta" value="{% if item and item.vigencia_hasta %}{{ item.vigencia_hasta|date:'Y-m-d' }}{% endif %}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;">
+            </label>
+            <label style="grid-column:1/-1;"><strong>Notas comerciales</strong>
+                <textarea name="notas" rows="3" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">{% if item %}{{ item.notas }}{% endif %}</textarea>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+                <input type="checkbox" name="activo" value="1" {% if not item or item.activo %}checked{% endif %}>
+                <strong>Activo</strong> (consultable por Nat)
+            </label>
+        </div>
+        <div style="margin-top:22px;display:flex;gap:12px;flex-wrap:wrap;">
+            <button class="btn" type="submit">Guardar</button>
+            <a class="btn btn-outline" href="{% url 'portal_precios' %}">Cancelar</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Catálogo de recomendaciones | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <h1>Catálogo de recomendaciones</h1>
+        <p class="muted">
+            Productos que Nat sugiere al agricultor (para qué sirve, problemas que resuelve, dosis).
+            La lista oficial de precios SKU está en <a href="{% url 'portal_precios' %}">Precios</a>.
+        </p>
+    </div>
+    <div>
+        <a class="btn" href="{% url 'portal_catalogo_crear' %}">+ Nuevo producto</a>
+    </div>
+</div>
+
+{% if flash %}
+<section class="panel" style="margin-bottom:16px;border-left:4px solid var(--accent);"><p style="margin:0;">{{ flash }}</p></section>
+{% endif %}
+
+<section class="panel" style="margin-bottom:20px;">
+    <form method="get" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
+        <label>
+            <strong>Buscar</strong>
+            <input type="search" name="q" value="{{ filtro_q }}" placeholder="Nombre o categoría…" style="margin-top:6px;padding:8px;border:1px solid var(--borde);border-radius:8px;">
+        </label>
+        <button class="btn btn-outline" type="submit">Filtrar</button>
+    </form>
+</section>
+
+<section class="panel">
+    <h2>{{ total }} producto{{ total|pluralize:"s" }}</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Categoría</th>
+                <th>Cultivos</th>
+                <th>Precio ref.</th>
+                <th>Estado</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>
+                    <strong>{{ item.nombre }}</strong>
+                    {% if item.ingrediente_activo %}
+                    <div class="muted" style="font-size:12px;">{{ item.ingrediente_activo }}</div>
+                    {% endif %}
+                </td>
+                <td>{{ item.categoria|default:"—" }}</td>
+                <td>{{ item.cultivos_objetivo|default:"—" }}</td>
+                <td>{% if item.precio_cop %}${{ item.precio_cop|floatformat:0 }}{% else %}—{% endif %}</td>
+                <td>{% if item.activo %}<span style="color:#2f9e44;">Activo</span>{% else %}<span class="muted">Inactivo</span>{% endif %}</td>
+                <td><a href="{% url 'portal_catalogo_editar' item.id %}">Editar</a></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="muted">Sin productos. Agregue el primero para que Nat pueda recomendar.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

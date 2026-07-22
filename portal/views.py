@@ -1629,3 +1629,154 @@ def portal_biblioteca_subida_masiva(request):
         'categorias': BibliotecaConocimiento.CATEGORIA_CHOICES,
     })
 
+
+# ── Catálogo de recomendaciones + lista de precios (Nat) ───────────────────
+
+
+@portal_login_required
+@requiere_modulo('nat')
+def portal_catalogo(request):
+    from .nat_catalogo_service import listar_catalogo
+
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    q = (request.GET.get('q') or '').strip()
+    items = listar_catalogo(org, q=q)
+    flash = request.session.pop('catalogo_flash', None)
+    return render(request, 'portal/catalogo.html', {
+        'org': org,
+        'items': items,
+        'filtro_q': q,
+        'total': items.count(),
+        'flash': flash,
+    })
+
+
+@portal_login_required
+@requiere_modulo('nat')
+def portal_catalogo_crear(request):
+    from .nat_catalogo_service import crear_catalogo
+
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    error = None
+    if request.method == 'POST':
+        try:
+            crear_catalogo(org, request.POST)
+            request.session['catalogo_flash'] = 'Producto agregado al catálogo de recomendaciones.'
+            return redirect('/portal/catalogo/')
+        except ValueError as exc:
+            error = str(exc)
+
+    return render(request, 'portal/catalogo_form.html', {
+        'org': org,
+        'item': None,
+        'error': error,
+    })
+
+
+@portal_login_required
+@requiere_modulo('nat')
+def portal_catalogo_editar(request, item_id: int):
+    from core.models import ProductoCatalogo
+
+    from .nat_catalogo_service import actualizar_catalogo
+
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    item = get_object_or_404(ProductoCatalogo, pk=item_id, cliente=org)
+    error = None
+    if request.method == 'POST':
+        try:
+            actualizar_catalogo(item, request.POST)
+            request.session['catalogo_flash'] = f'«{item.nombre}» actualizado.'
+            return redirect('/portal/catalogo/')
+        except ValueError as exc:
+            error = str(exc)
+
+    return render(request, 'portal/catalogo_form.html', {
+        'org': org,
+        'item': item,
+        'error': error,
+    })
+
+
+@portal_login_required
+@requiere_modulo('nat')
+def portal_precios(request):
+    from .nat_catalogo_service import listar_precios
+
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    q = (request.GET.get('q') or '').strip()
+    items = listar_precios(org, q=q)
+    flash = request.session.pop('precios_flash', None)
+    return render(request, 'portal/precios.html', {
+        'org': org,
+        'items': items,
+        'filtro_q': q,
+        'total': items.count(),
+        'flash': flash,
+    })
+
+
+@portal_login_required
+@requiere_modulo('nat')
+def portal_precios_crear(request):
+    from .nat_catalogo_service import crear_precio
+
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    error = None
+    if request.method == 'POST':
+        try:
+            crear_precio(org, request.POST)
+            request.session['precios_flash'] = 'SKU agregado a la lista de precios.'
+            return redirect('/portal/precios/')
+        except ValueError as exc:
+            error = str(exc)
+
+    return render(request, 'portal/precios_form.html', {
+        'org': org,
+        'item': None,
+        'error': error,
+    })
+
+
+@portal_login_required
+@requiere_modulo('nat')
+def portal_precios_editar(request, item_id: int):
+    from core.models import ProductoComercial
+
+    from .nat_catalogo_service import actualizar_precio
+
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    item = get_object_or_404(ProductoComercial, pk=item_id, cliente=org)
+    error = None
+    if request.method == 'POST':
+        try:
+            actualizar_precio(item, request.POST)
+            request.session['precios_flash'] = f'«{item.sku}» actualizado.'
+            return redirect('/portal/precios/')
+        except ValueError as exc:
+            error = str(exc)
+
+    return render(request, 'portal/precios_form.html', {
+        'org': org,
+        'item': item,
+        'error': error,
+    })
+

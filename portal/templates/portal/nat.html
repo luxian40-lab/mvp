@@ -6,12 +6,14 @@
 <div class="page-title">
     <div>
         <h1>Agente comercial (Nat)</h1>
-        <p class="muted">Conversaciones, catálogo de recomendaciones y escalamientos. El conocimiento nuevo se carga en <a href="/portal/biblioteca/">Biblioteca</a>.</p>
+        <p class="muted">Conversaciones, catálogo de recomendaciones y escalamientos. El conocimiento nuevo se carga en <a href="/portal/biblioteca/">Biblioteca</a>; productos y precios en <a href="{% url 'portal_catalogo' %}">Productos</a> y <a href="{% url 'portal_precios' %}">Precios</a>.</p>
         {% if linea_nat %}<p class="muted">Línea WhatsApp Nat: <strong>{{ linea_nat }}</strong></p>{% endif %}
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <a class="btn" href="{% url 'portal_catalogo' %}">Productos</a>
+        <a class="btn btn-outline" href="{% url 'portal_precios' %}">Precios</a>
         {% if portal_es_admin %}
-            <a class="btn" href="/portal/biblioteca/">Biblioteca de conocimiento</a>
+            <a class="btn btn-outline" href="/portal/biblioteca/">Biblioteca</a>
         {% endif %}
         <a class="btn btn-outline" href="/portal/pqrs/">PQRS comercial</a>
     </div>
@@ -61,7 +63,7 @@
 <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px;margin-bottom:24px;">
     <article class="panel">
         <h2>Catálogo de recomendaciones</h2>
-        <p class="muted" style="margin:0 0 12px;font-size:13px;">ProductoCatalogo: lo que Nat sugiere (dosis, link). Los precios oficiales de lista están en Admin → Productos comerciales.</p>
+        <p class="muted" style="margin:0 0 12px;font-size:13px;">Lo que Nat sugiere (dosis, link). Gestione en <a href="{% url 'portal_catalogo' %}">Productos</a>. Precios oficiales en <a href="{% url 'portal_precios' %}">Precios</a>.</p>
         <table>
             <thead><tr><th>Producto</th><th>Categoría</th><th>Precio ref.</th></tr></thead>
             <tbody>
@@ -72,7 +74,7 @@
                         <td>{% if p.precio_cop %}${{ p.precio_cop|floatformat:0 }}{% else %}—{% endif %}</td>
                     </tr>
                 {% empty %}
-                    <tr><td colspan="3" class="muted">Sin productos configurados.</td></tr>
+                    <tr><td colspan="3" class="muted">Sin productos. <a href="{% url 'portal_catalogo_crear' %}">Agregar el primero</a>.</td></tr>
                 {% endfor %}
             </tbody>
         </table>

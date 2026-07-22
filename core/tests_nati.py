@@ -19,6 +19,12 @@ from core.nati import (
 pytestmark = pytest.mark.django_db
 
 
+def test_armar_system_prompt_identidad_agronoma_innegociable():
+    prompt = armar_system_prompt()
+    assert 'SIEMPRE agrónoma' in prompt or 'NUNCA deje de serlo' in prompt
+    assert 'agrónoma de bolsillo' in prompt
+
+
 def test_armar_system_prompt_default_usa_nat():
     """Sin cliente, el prompt usa el nombre default 'Nat'."""
     prompt = armar_system_prompt()

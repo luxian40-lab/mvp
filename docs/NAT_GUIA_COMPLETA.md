@@ -31,14 +31,96 @@ Documento de referencia para operación, producto e integraciones. **Nat** es el
 | **Nombre** | Nat (configurable por cliente: `Cliente.nombre_bot`) |
 | **Canal** | WhatsApp comercial vía Twilio |
 | **Usuario** | Productor o cliente final de una organización B2B (cooperativa, distribuidor, etc.) |
-| **Objetivo** | Asesoría agrícola + recomendación de productos del **catálogo de la organización** |
-| **No hace** | No avanza módulos de curso; no sustituye el flujo educativo salvo que el productor use solo la línea comercial |
+| **Objetivo** | Ser **agrónoma de bolsillo**: asesoría de campo amplia + recomendación del portafolio del negocio + precio de referencia; la venta se cierra en físico |
+| **No hace** | No avanza módulos de curso; no cobra online; no sustituye técnico de zona en casos graves |
 
-**En una frase:** Nat es la agrónoma virtual por WhatsApp que combina conversación libre, documentos técnicos indexados (RAG), catálogo de productos y — opcionalmente — validación humana del conocimiento (HITL).
+**En una frase:** Nat es la **agrónoma de bolsillo** por WhatsApp: acompaña al productor en campo (no solo plagas), recomienda del portafolio del negocio cuando aplica, dice precio de referencia y deja la venta en físico al negocio.
+
+---
+
+## 1.1 Reglas de producto — agrónomo de bolsillo (clientes solo-Nat)
+
+### Identidad innegociable
+
+**Nat NUNCA deja de ser agrónoma.** Es técnica, precisa y de buen criterio en campo.
+La recomendación de producto y el precio son **consecuencia** del diagnóstico/manejo,
+no el objetivo principal. Si suena a vendedora o a marketing, está mal calibrada.
+
+### Separación de clientes
+
+| Tipo | Qué es | Lógica |
+|------|--------|--------|
+| **Cliente LMS / cursos** | Formación + WhatsApp educativo (+ opcional GEI, etc.) | Módulos, `listo`, aula, certificados |
+| **Cliente solo-Nat** | Negocio (tienda, cooperativa, distribuidor) que usa Nat como canal de asesoría→venta | `portal_productos=nat` (o principal `nat`); **sin** lógica de avance de curso |
+
+No mezclar mentalmente: el mismo monolito sirve ambos, pero el **contrato de producto** es distinto.
+
+### Qué debe hacer Nat (modo bolsillo)
+
+1. **Asesoría amplia:** nutrición, riego, siembra, poda, cosecha, prevención, clima, manejo rutinario — no solo “qué está dañado”.
+2. **Diagnóstico cuando hay problema:** cultivo + ubicación + síntoma (+ foto si ayuda) → orientación de manejo.
+3. **Receta / recomendación comercial:** solo productos del **catálogo del negocio** (`ProductoCatalogo`), con dosis/uso si están en la ficha.
+4. **Precio:** cuando pregunten o cuando cierre recomendación, usar **lista oficial** (`ProductoComercial`) o precio de catálogo si es la única fuente; siempre como **referencia** (sujeto a stock/región).
+5. **Cierre de venta:** Nat **no cobra**. Empuja a comprar en el punto físico / canal del negocio (“pase por la tienda / pregunte por X”).
+
+### Qué no debe hacer
+
+- Dejar de ser agrónoma (tono comercial vacío, empujar producto sin criterio técnico).
+- Inventar productos, dosis o precios que no estén en catálogo / docs / lista.
+- Hablar de cursos eki salvo que el productor lo pida.
+- Sustituir al técnico de zona en casos graves o uso indebido de agroquímicos (remitir a etiqueta + técnico).
+
+### Flujo ideal (negocio → productor)
+
+```text
+Consulta de campo (cualquier tema agro)
+    → Nat asesora con base (biblioteca + RAG + contexto)
+    → Si cabe producto del negocio: recomienda 1–3 opciones del catálogo
+    → Dice precio de referencia
+    → Invita a comprar en físico / con el asesor del negocio
+```
+
+---
+
+## 1.2 Cómo alimentar a Nat (más efectivo que “todo a general”)
+
+Subir todo a **cliente_id = 0 / general** diluye el RAG: Nat recupera trozos irrelevantes y alucina más. Mejor **capas**:
+
+| Capa | Para qué | Dónde | Esfuerzo |
+|------|----------|-------|----------|
+| **A. Por organización** | Fichas, listas y protocolos **de ese negocio** | Biblioteca portal del cliente (o RAG con `cliente=` esa org) | Medio — el que más mejora ventas |
+| **B. Catálogo** | Qué vender / dosis / link | `ProductoCatalogo` | Bajo-medio — **imprescindible** para “recetar” |
+| **C. Precios** | Cotizaciones SKU | `ProductoComercial` (Excel) | Bajo — **imprescindible** para “cuánto cuesta” |
+| **D. FAQ manual / HITL** | Preguntas reales de productores, respuestas validadas | Biblioteca tipo FAQ + Knowledge Studio | Medio — alta precisión |
+| **E. General eki (id=0)** | Cartillas transversales (MIP genérico, BPA…) | RAG/Biblioteca sin cliente o cliente 0 | Solo lo **realmente** común |
+| **F. Agrosavia / clima** | Refuerzo en vivo si RAG local flaco | Ya en pipeline | Casi cero carga manual |
+
+### Orden práctico (menos trabajo, más efecto)
+
+1. **Catálogo + precios** del negocio (sin eso no hay “agrónomo que vende”).
+2. **10–30 FAQs** del día a día (lo que más preguntan en mostrador) → Biblioteca FAQ, cultivadas y con `cultivo`/`problema` si aplica.
+3. **Fichas de los 20 productos top** (PDF o texto corto) → Biblioteca, categoría `productos`, **cliente = org**.
+4. Solo después: manuales largos / corpus general. Los tomos enormes en “general” cuestan indexar y aportan poco si no están etiquetados.
+
+### Manual vs automático
+
+- **Manual (recomendado al inicio):** Biblioteca + catálogo + precios por org. Control total, menos ruido.
+- **Semi-auto:** subida masiva PDF a Biblioteca de la org + reindexar; revisar estado `indexado` / errores.
+- **HITL:** Nat propone candidatas → humano aprueba en Knowledge Studio → vuelve al RAG (calidad alta, ritmo semanal).
+- **No ideal:** un solo saco “general” con todos los PDFs de todos los clientes.
+
+### Checklist mínimo “Nat vende bien”
+
+- [ ] `numero_whatsapp_nat` correcto  
+- [ ] `ProductoCatalogo` con los productos que el negocio quiere empujar  
+- [ ] `ProductoComercial` si cotizan por SKU  
+- [ ] Biblioteca **de esa org** con FAQ + fichas top (no solo general)  
+- [ ] Probar en WhatsApp: saludo → duda rutinaria → plaga → “cuánto cuesta X”
 
 ---
 
 ## 2. Arquitectura general
+
 
 ```mermaid
 flowchart TB
