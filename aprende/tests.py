@@ -99,6 +99,7 @@ class AprendeWebTests(TestCase):
         with patch('studio.aprende_bridge.url_handoff_aprende', return_value='https://x/h?t=1'):
             txt = emitir_acceso_desde_whatsapp(self.est)
         self.assertIn('eki Aprende', txt)
+        self.assertIn('listo', txt.lower())
         self.assertIn('https://x/h?t=1', txt)
 
     def test_profesor_ve_cursos(self):

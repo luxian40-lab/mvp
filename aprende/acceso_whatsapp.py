@@ -72,6 +72,7 @@ def emitir_acceso_desde_whatsapp(estudiante) -> str:
         f"🔗 {url}\n\n"
         f"Si abres el aula en otro dispositivo, usa el código: *{codigo}*\n"
         f"(válido {mins} min)\n\n"
+        "Cuando quieras seguir el curso por WhatsApp, escribe *listo*.\n\n"
         "No compartas el enlace ni el código."
     )
 
