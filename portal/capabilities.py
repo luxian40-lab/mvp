@@ -84,11 +84,13 @@ def modulos_portal(org) -> dict[str, bool]:
     Módulos activos en el portal.
     Si `portal_productos` tiene valores (ej. "cursos,gei"), manda sobre tipo_proyecto.
     Si está vacío, usa solo el tipo de producto principal.
+    GEI operativo solo se fuerza cuando el contrato ya incluye cursos o gei
+    (nunca en orgs solo-Nat).
     """
     explicit = _parse_portal_productos(getattr(org, 'portal_productos', '') or '')
     if explicit:
         result = {m: m in explicit for m in MODULOS_VALIDOS}
-        if org_tiene_gei_operativo(org):
+        if ('cursos' in explicit or 'gei' in explicit) and org_tiene_gei_operativo(org):
             result['gei'] = True
         return result
 
@@ -99,20 +101,25 @@ def modulos_portal(org) -> dict[str, bool]:
         'nat': principal == 'nat',
         'empleabilidad': False,
     }
-    if org_tiene_gei_operativo(org):
+    if principal in ('cursos', 'gei') and org_tiene_gei_operativo(org):
         result['gei'] = True
     return result
 
 
+def productos_contratados(org) -> set[str]:
+    """Módulos del contrato (sin auto-activar GEI por fichas legacy)."""
+    explicit = _parse_portal_productos(getattr(org, 'portal_productos', '') or '')
+    if explicit:
+        return explicit
+    principal = (getattr(org, 'tipo_proyecto', None) or 'cursos').lower()
+    if principal in MODULOS_VALIDOS:
+        return {principal}
+    return {'cursos'}
+
+
 def portal_solo_nat(org) -> bool:
-    """Organización con contrato únicamente Nat (Knowledge Hub)."""
-    mods = modulos_portal(org)
-    return (
-        mods.get('nat')
-        and not mods.get('cursos')
-        and not mods.get('gei')
-        and not mods.get('empleabilidad')
-    )
+    """Organización con contrato únicamente Nat (sin cursos/GEI/empleabilidad)."""
+    return productos_contratados(org) == {'nat'}
 
 
 def portal_home_url(org) -> str:

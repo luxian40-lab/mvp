@@ -101,6 +101,11 @@ class PortalSoloNatTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Acciones rápidas')
         self.assertContains(r, 'Mi negocio')
+        self.assertContains(r, 'Agrónoma WhatsApp')
+        self.assertNotContains(r, 'Centro de Éxito')
+        self.assertNotContains(r, 'href="/portal/cursos/"')
+        self.assertNotContains(r, 'href="/portal/estudiantes/"')
+        self.assertNotContains(r, 'Seguimiento del programa')
 
     def test_biblioteca_carga(self):
         self.http.post('/portal/login/', {'username': 'admin_nat', 'password': 'pass'})

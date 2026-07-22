@@ -95,7 +95,7 @@
             </div>
 
             <div class="perfil-field">
-                <label for="portal_subtitulo">Subtítulo del programa</label>
+                <label for="portal_subtitulo">{% if portal_solo_nat %}Subtítulo comercial{% else %}Subtítulo del programa{% endif %}</label>
                 <input type="text" id="portal_subtitulo" name="portal_subtitulo" value="{{ org.portal_subtitulo }}" maxlength="200"
                     placeholder="Ej: Programa de aceleración empresarial 2026">
                 <p class="hint">Aparece debajo del nombre de su organización en el portal.</p>

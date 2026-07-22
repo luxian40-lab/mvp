@@ -218,6 +218,31 @@ class PortalModulosTests(TestCase):
         self.assertTrue(m['cursos'])
         self.assertTrue(m['gei'])
 
+    def test_nat_only_no_fuerza_gei_ni_cursos(self):
+        from core.models import Curso
+        from portal.capabilities import portal_solo_nat
+
+        c = Cliente.objects.create(
+            nombre='Solo Nat legacy GEI',
+            contacto_principal='X',
+            email='natonly@test.com',
+            telefono='573009990095',
+            activo=True,
+            tipo_proyecto='nat',
+            portal_productos='nat',
+        )
+        Curso.objects.create(
+            cliente=c,
+            nombre='Curso fantasma GEI',
+            activo=True,
+            tiene_formulario_gei=True,
+        )
+        m = modulos_portal(c)
+        self.assertTrue(m['nat'])
+        self.assertFalse(m['cursos'])
+        self.assertFalse(m['gei'])
+        self.assertTrue(portal_solo_nat(c))
+
 
 class PortalViewerGeiTests(TestCase):
     def setUp(self):

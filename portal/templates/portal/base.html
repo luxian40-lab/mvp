@@ -1314,7 +1314,7 @@
     </script>
     {% block extra_head %}{% endblock %}
 </head>
-<body data-portal-path="{{ request.path }}">
+<body data-portal-path="{{ request.path }}"{% if portal_solo_nat %} data-portal-solo-nat="1"{% endif %}>
 <script>if (document.documentElement.classList.contains('sidebar-collapsed-pending')) { document.body.classList.add('sidebar-collapsed'); }</script>
     <svg width="0" height="0" style="position:absolute" aria-hidden="true">
         <defs>
@@ -1557,6 +1557,11 @@
             <div style="min-width:0;">
             <div class="topbar-title">{{ org.nombre }}</div>
             <div class="topbar-meta">
+                {% if portal_solo_nat %}
+                    {% if org.portal_subtitulo %}<span class="prog">{{ org.portal_subtitulo }}</span>
+                    <span class="sep"></span>{% endif %}
+                    <span>Agrónoma WhatsApp · Nat</span>
+                {% else %}
                 {% if org.portal_subtitulo %}<span class="prog">{{ org.portal_subtitulo }}</span>{% endif %}
                 {% if portal_header_stats %}
                     {% if org.portal_subtitulo %}<span class="sep"></span>{% endif %}
@@ -1569,6 +1574,7 @@
                     <span class="stat-info"><strong>{{ portal_header_stats.certificados }}</strong> certificados</span>
                 {% elif not org.portal_subtitulo %}
                     <span>Seguimiento del programa</span>
+                {% endif %}
                 {% endif %}
             </div>
             </div>
@@ -1626,8 +1632,8 @@
             <div class="eki-help__head">
                 <img class="eki-help__icon eki-help__icon--sm" src="{% static 'favicons/aprende-32.png' %}" width="22" height="22" alt="" aria-hidden="true">
                 <div>
-                    <strong>Guía EKI</strong>
-                    <span>Le acompaña en cada pantalla</span>
+                    <strong>{% if portal_solo_nat %}Guía Nat{% else %}Guía EKI{% endif %}</strong>
+                    <span>{% if portal_solo_nat %}Su hub comercial{% else %}Le acompaña en cada pantalla{% endif %}</span>
                 </div>
             </div>
             <div class="eki-help__body">
@@ -1642,9 +1648,9 @@
                 <button type="button" class="btn-help btn-help-dismiss" id="eki-help-dismiss">No volver a mostrar aquí</button>
             </div>
         </div>
-        <button type="button" class="eki-help__toggle" id="eki-help-toggle" aria-expanded="false" aria-controls="eki-help-panel" title="Guía EKI">
+        <button type="button" class="eki-help__toggle" id="eki-help-toggle" aria-expanded="false" aria-controls="eki-help-panel" title="{% if portal_solo_nat %}Guía Nat{% else %}Guía EKI{% endif %}">
             <span class="eki-help-btn-inner">
-                <span class="eki-help__bubble">Guía EKI</span>
+                <span class="eki-help__bubble">{% if portal_solo_nat %}Guía Nat{% else %}Guía EKI{% endif %}</span>
                 <img class="eki-help__icon" src="{% static 'favicons/aprende-32.png' %}" width="28" height="28" alt="" aria-hidden="true">
             </span>
         </button>

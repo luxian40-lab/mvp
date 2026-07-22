@@ -7,6 +7,7 @@
 
     var STORAGE_PREFIX = 'eki-portal-help-';
     var path = (document.body.getAttribute('data-portal-path') || window.location.pathname || '').replace(/\/+$/, '') || '/';
+    var soloNat = document.body.getAttribute('data-portal-solo-nat') === '1';
 
     var PAGES = [
         {
@@ -201,7 +202,7 @@
         },
         {
             id: 'gei',
-            test: function (p) { return p.indexOf('/portal/gei') === 0; },
+            test: function (p) { return !soloNat && p.indexOf('/portal/gei') === 0; },
             steps: [
                 {
                     title: 'Inventario GEI',
@@ -214,14 +215,50 @@
             test: function (p) { return p.indexOf('/portal/nat') === 0; },
             steps: [
                 {
-                    title: 'Agente Nat',
-                    text: 'Métricas del agente comercial Nat: PQRS, documentos y actividad de su línea WhatsApp comercial.'
+                    title: soloNat ? 'Hub de su negocio' : 'Agente Nat',
+                    text: soloNat
+                        ? 'Desde aquí carga productos, precios y conocimiento. Nat asesora por WhatsApp y refiere su oferta (venta en punto físico).'
+                        : 'Métricas de Nat: conversaciones, catálogo, precios y PQRS de su línea WhatsApp.'
+                },
+                {
+                    title: 'Checklist',
+                    text: 'Complete productos, precios y biblioteca para que Nat responda con base y no invente.'
+                }
+            ]
+        },
+        {
+            id: 'biblioteca',
+            test: function (p) { return p.indexOf('/portal/biblioteca') === 0; },
+            steps: [
+                {
+                    title: 'Biblioteca',
+                    text: 'Documentos y FAQs que alimentan a Nat. Publique e indexe material técnico de su marca.'
+                }
+            ]
+        },
+        {
+            id: 'catalogo',
+            test: function (p) { return p.indexOf('/portal/catalogo') === 0; },
+            steps: [
+                {
+                    title: 'Productos',
+                    text: 'Catálogo de recomendaciones: para qué sirve cada producto y qué problemas resuelve en campo.'
+                }
+            ]
+        },
+        {
+            id: 'precios',
+            test: function (p) { return p.indexOf('/portal/precios') === 0; },
+            steps: [
+                {
+                    title: 'Precios SKU',
+                    text: 'Lista oficial de precios que Nat consulta cuando preguntan cuánto cuesta un producto.'
                 }
             ]
         },
         {
             id: 'empleabilidad',
-            test: function (p) { return p === '/portal/empleabilidad'; },
+            test: function (p) { return !soloNat && p === '/portal/empleabilidad'; },
             steps: [
                 {
                     title: 'Empleabilidad',
@@ -232,7 +269,12 @@
         {
             id: 'default',
             test: function () { return true; },
-            steps: [
+            steps: soloNat ? [
+                {
+                    title: 'Portal Nat',
+                    text: 'Menú: Inicio, Biblioteca, Productos, Precios y PQRS. No hay cursos ni certificados: este portal es solo para su agrónoma comercial.'
+                }
+            ] : [
                 {
                     title: 'Portal clientes eki',
                     text: 'Use el menú lateral para navegar. Pulse este botón cuando necesite una guía de la pantalla actual.'
@@ -243,7 +285,11 @@
 
     function resolvePage() {
         for (var i = 0; i < PAGES.length; i++) {
-            if (PAGES[i].id !== 'default' && PAGES[i].test(path)) {
+            if (PAGES[i].id === 'default') continue;
+            if (soloNat && /dashboard|metricas|reportes|timeline|gamificacion|certificados|estudiantes|cursos/.test(PAGES[i].id)) {
+                continue;
+            }
+            if (PAGES[i].test(path)) {
                 return PAGES[i];
             }
         }
