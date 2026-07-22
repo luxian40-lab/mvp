@@ -1460,7 +1460,8 @@ python manage.py test aprende.tests studio.tests core.tests_flujo_whatsapp_b2b c
 | GEI + Nat | Módulos portal opcionales por `portal_productos` | Desplegado |
 | Nat + Open-Meteo | Probabilidad climática por municipio; persistencia vereda/lat/lon en sesión agro | Desplegado |
 | **Verificación certificados eki** | Host `certificados.eki.technology`; QR deja Netlify; página HTML morado eki | Desplegado (`main-20260721-181245`+) |
-| **OTP login Aprende** | ~~OTP saliente~~ → acceso inbound *aula* + handoff/código | Desplegado (corregido) |
+| **Learning Analytics** | Reportes B2B, métricas empresa, **embudo por módulo** (M1→M2→…) en admin dashboard | Desplegado |
+
 | **Multi-curso B2B** | Menú si 2+ cursos activos del mismo cliente | Desplegado |
 | **PQRS aislado del curso** | Reenvío sin avanzar; `listo` libera ticket; prioridad pedagógica | Desplegado |
 

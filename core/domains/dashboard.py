@@ -4,7 +4,7 @@ Parte 1 — modelo de dashboards unificados.
 | Tab canónico | Etiqueta UI           | Contenido legacy                    |
 |--------------|-----------------------|-------------------------------------|
 | executive    | Executive             | KPIs, semáforos, health (resumen)   |
-| learning     | Learning Analytics    | Reportes B2B, métricas empresa, GEI |
+| learning     | Learning Analytics    | Reportes B2B, métricas, embudo módulos, GEI |
 | ai_ops       | AI Operations         | Bot, Twilio, activaciones IA, RAG   |
 | commercial   | Commercial CRM        | Nati, prospectos, campañas          |
 | retencion    | Centro de Éxito       | Riesgo, mapa, embudo, consultor     |
@@ -22,7 +22,7 @@ DASHBOARD_TABS: dict[str, dict] = {
         'label': 'Learning Analytics',
         'panel_id': None,
         'legacy_aliases': ['reportes', 'metricas_empresa'],
-        'sections': ['reportes', 'metricas_empresa', 'gei'],
+        'sections': ['reportes', 'metricas_empresa', 'embudo', 'gei'],
         'default_section': 'reportes',
     },
     'ai_ops': {
@@ -38,13 +38,14 @@ DASHBOARD_TABS: dict[str, dict] = {
     'retencion': {
         'label': 'Retención',
         'panel_id': 'tab-retencion',
-        'legacy_aliases': ['retention', 'embudo'],
+        'legacy_aliases': ['retention'],
     },
 }
 
 LEARNING_SECTION_PANELS = {
     'reportes': 'tab-reportes',
     'metricas_empresa': 'tab-metricas_empresa',
+    'embudo': 'tab-embudo-learning',
 }
 
 LEGACY_DASHBOARD_REDIRECTS: dict[str, dict[str, str]] = {

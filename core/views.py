@@ -91,6 +91,7 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
             'estudiantes_detalle': [],
             'tickets_soporte': [],
             'eventos_ia_recientes': [],
+            'embudo_learning': None,
             'resumen_payload_json': '{}',
             'chart_labels': '[]',
             'chart_values': '[]',
@@ -562,7 +563,17 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
         'eventos_ia_recientes': eventos_ia_recientes,
         'retencion_data': None,
         'cursos_retencion': Curso.objects.none(),
+        'embudo_learning': None,
     }
+
+    if learning_section == 'embudo' and curso_id:
+        from portal.curso_flujo_service import embudo_avance_por_curso
+
+        context['embudo_learning'] = embudo_avance_por_curso(
+            curso_id=curso_id,
+            cliente_id=cliente_id,
+            grupo_id=grupo_id,
+        )
 
     return context, resumen_payload
 
