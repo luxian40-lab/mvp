@@ -11,7 +11,7 @@
   <link rel="apple-touch-icon" href="{% static 'favicons/certificados-180.png' %}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,600;7..72,700&family=Manrope:wght@400;500;600;700&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,600;7..72,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --purple: #9A6CAC;
@@ -30,9 +30,7 @@
       --bad-soft: rgba(201, 42, 42, 0.1);
       --muted: #7a6884;
       --on-dark: #FAFAFC;
-      --on-dark-muted: #C4ACCE;
-      --font-brand: "Montserrat", Arial, sans-serif;
-    }
+      --on-dark-muted: #C4ACCE;    }
     * { box-sizing: border-box; }
     body {
       margin: 0;
@@ -66,18 +64,15 @@
     }
     .brand {
       margin: 0;
-      line-height: 1;
+      line-height: 0;
+      display: inline-flex;
+      align-items: center;
     }
-    .brand .eki-logo {
+    .brand img {
       display: block;
-      font-family: var(--font-brand);
-      font-size: clamp(2.6rem, 10vw, 3.35rem);
-      font-weight: 900;
-      letter-spacing: -0.07em;
-      text-transform: lowercase;
-      color: #fff;
-      text-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
-      line-height: 0.9;
+      height: clamp(2.75rem, 10vw, 3.4rem);
+      width: auto;
+      filter: drop-shadow(0 4px 14px rgba(32, 19, 37, 0.4));
     }
     .mast-label {
       font-size: 0.7rem;
@@ -268,7 +263,15 @@
 <body>
   <div class="stage">
     <header class="mast">
-      <p class="brand"><span class="eki-logo">eki</span></p>
+      <p class="brand">
+        <img
+          src="{% static 'certificados/eki-wordmark-2x.png' %}"
+          alt="eki"
+          width="216"
+          height="128"
+          decoding="async"
+        >
+      </p>
       <span class="mast-label">Certificados</span>
     </header>
 
