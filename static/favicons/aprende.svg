@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="eki aprende">
-  <circle cx="16" cy="16" r="16" fill="#0f6e6a"/>
-  <path d="M7.5 10v12.5l8.5-2.4 8.5 2.4V10L16 12.3 7.5 10z" fill="none" stroke="#ecfdf5" stroke-width="1.9" stroke-linejoin="round"/>
-  <path d="M16 12.2v10.2" stroke="#99f6e4" stroke-width="1.6" stroke-linecap="round"/>
+  <rect width="32" height="32" rx="8" fill="#9A6CAC"/>
+  <path d="M8 11.5v9l8-2.2 8 2.2v-9L16 13.6 8 11.5z" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/>
+  <path d="M16 13.5v9" stroke="#F2EBF7" stroke-width="1.5" stroke-linecap="round"/>
 </svg>

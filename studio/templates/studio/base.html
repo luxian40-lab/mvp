@@ -3,43 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#9A6CAC">
     <title>{% block title %}eki Studio{% endblock %}</title>
     {% load static %}
     <link rel="icon" href="{% static 'favicons/studio.svg' %}" type="image/svg+xml" sizes="any">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         :root {
-            --st-ink: #2a1f33;
-            --st-ink-soft: #4a3d55;
-            --st-muted: #7a6d88;
-            --st-bg: #f4f2f7;
-            --st-bg-deep: #ebe7f0;
-            --st-surface: #fbfafc;
-            --st-line: rgba(122, 78, 142, 0.16);
-            --st-accent: #7a4e8e;
-            --st-accent-deep: #5f3a70;
+            /* Identidad eki.com.co */
+            --st-p: #9A6CAC;
+            --st-p2: #7A4E8E;
+            --st-p3: #5C3370;
+            --st-pd: #2A1240;
+            --st-pl: #F2EBF7;
+            --st-pb: #F9F5FC;
+            --st-band: #F4F2F7;
+            --st-blue: #3C7BBF;
+            --st-blue2: #2D6099;
+            --st-bg: #ffffff;
+            --st-bg-elev: #F9F5FC;
+            --st-surface: #ffffff;
+            --st-ink: #2A1240;
+            --st-ink-soft: #4A4A4A;
+            --st-muted: #777777;
+            --st-line: rgba(154, 108, 172, 0.18);
+            --st-accent: #9A6CAC;
+            --st-accent-hot: #7A4E8E;
             --st-accent-soft: rgba(154, 108, 172, 0.16);
-            --st-ok: #166534;
-            --st-ok-bg: #ecfdf5;
-            --st-err: #991b1b;
-            --st-err-bg: #fef2f2;
-            --st-radius: 6px;
-            --header-h: 64px;
-            --font-display: "Bricolage Grotesque", Georgia, serif;
-            --font-sans: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
+            --st-ok: #1f8a55;
+            --st-ok-bg: rgba(31, 138, 85, 0.1);
+            --st-err: #c0392b;
+            --st-err-bg: rgba(192, 57, 43, 0.1);
+            --st-radius: 16px;
+            --st-radius-sm: 10px;
+            --header-h: 58px;
+            --font-display: "Montserrat", Arial, sans-serif;
+            --font-sans: "Montserrat", Arial, sans-serif;
             --ease: cubic-bezier(0.22, 1, 0.36, 1);
+            --max: 1120px;
         }
 
         *, *::before, *::after { box-sizing: border-box; }
-
-        html {
-            scroll-behavior: smooth;
-            -webkit-text-size-adjust: 100%;
-            overflow-x: clip;
-        }
-
+        html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; overflow-x: clip; }
         img, video, iframe { max-width: 100%; }
 
         body {
@@ -48,33 +55,31 @@
             min-height: 100dvh;
             font-family: var(--font-sans);
             font-size: 0.95rem;
-            line-height: 1.6;
-            color: var(--st-ink);
+            line-height: 1.55;
+            color: var(--st-ink-soft);
             background:
-                radial-gradient(ellipse 80% 50% at 10% -20%, rgba(154, 108, 172, 0.18), transparent 55%),
-                radial-gradient(ellipse 60% 40% at 100% 0%, rgba(122, 78, 142, 0.08), transparent 50%),
-                linear-gradient(180deg, var(--st-bg) 0%, var(--st-bg-deep) 100%);
+                radial-gradient(circle at 10% 18%, rgba(154, 108, 172, 0.12) 0%, transparent 34%),
+                radial-gradient(circle at 82% -10%, rgba(60, 123, 191, 0.1) 0%, transparent 38%),
+                var(--st-bg);
             display: flex;
             flex-direction: column;
             -webkit-font-smoothing: antialiased;
             overflow-x: clip;
         }
 
+        body > * { position: relative; z-index: 1; }
+
         @keyframes st-rise {
             from { opacity: 0; transform: translateY(18px); }
             to { opacity: 1; transform: translateY(0); }
         }
-
-        @keyframes st-fade {
-            from { opacity: 0; }
-            to { opacity: 1; }
+        @keyframes st-fade { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes st-drift {
+            0%, 100% { transform: scale(1.02); }
+            50% { transform: scale(1.06); }
         }
 
-        @keyframes st-ken {
-            from { transform: scale(1.06); }
-            to { transform: scale(1); }
-        }
-
+        /* —— Header (como eki.com.co) —— */
         .st-header {
             position: sticky;
             top: 0;
@@ -84,41 +89,42 @@
             justify-content: space-between;
             gap: 0.75rem;
             flex-wrap: wrap;
-            padding: 0 max(1rem, env(safe-area-inset-right)) 0 max(1rem, env(safe-area-inset-left));
+            padding: 0 max(1.25rem, env(safe-area-inset-right)) 0 max(1.5rem, env(safe-area-inset-left));
             min-height: var(--header-h);
-            background: rgba(250, 248, 244, 0.92);
-            backdrop-filter: blur(14px);
-            border-bottom: 1px solid var(--st-line);
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
         }
 
         .st-brand {
             display: flex;
             flex-direction: column;
             text-decoration: none;
-            color: var(--st-ink);
+            color: var(--st-pd);
             line-height: 1;
-            animation: st-fade 0.6s var(--ease) both;
             min-width: 0;
             flex: 1 1 auto;
+            animation: st-fade 0.5s var(--ease) both;
         }
 
         .st-brand-word {
             font-family: var(--font-display);
-            font-size: 1.55rem;
-            font-weight: 800;
+            font-size: 1.35rem;
+            font-weight: 900;
             letter-spacing: -0.04em;
             text-transform: lowercase;
+            color: var(--st-pd);
         }
 
         .st-brand-word em {
             font-style: normal;
-            color: var(--st-accent);
+            color: var(--st-p);
         }
 
         .st-brand-sub {
-            font-size: 0.62rem;
-            font-weight: 600;
-            letter-spacing: 0.14em;
+            font-size: 0.58rem;
+            font-weight: 700;
+            letter-spacing: 0.16em;
             text-transform: uppercase;
             color: var(--st-muted);
             margin-top: 0.28rem;
@@ -129,27 +135,35 @@
             align-items: center;
             gap: 0.15rem;
             flex-wrap: wrap;
+            justify-content: flex-end;
         }
 
         .st-nav a {
-            color: var(--st-ink-soft);
+            color: #111;
             text-decoration: none;
-            font-size: 0.8125rem;
-            font-weight: 600;
-            padding: 0.45rem 0.8rem;
-            border-radius: var(--st-radius);
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 0.45rem 0.7rem;
+            border-radius: 999px;
             transition: color 0.15s, background 0.15s;
         }
 
-        .st-nav a:hover { color: var(--st-ink); background: rgba(20, 17, 15, 0.05); }
+        .st-nav a:hover { color: var(--st-p); background: var(--st-pl); }
 
         .st-nav a.st-nav--cta {
-            background: var(--st-ink);
+            background: var(--st-p);
             color: #fff;
-            margin-left: 0.35rem;
+            margin-left: 0.25rem;
+            border: 2px solid var(--st-p);
         }
 
-        .st-nav a.st-nav--cta:hover { background: var(--st-accent-deep); color: #fff; }
+        .st-nav a.st-nav--cta:hover {
+            background: var(--st-p2);
+            border-color: var(--st-p2);
+            color: #fff;
+        }
 
         .st-nav a.st-nav-cart {
             display: inline-flex;
@@ -159,40 +173,35 @@
             width: 2.35rem;
             height: 2.35rem;
             padding: 0;
-            border-radius: 999px;
+            letter-spacing: 0;
         }
 
-        .st-nav a.st-nav-cart svg {
-            width: 1.2rem;
-            height: 1.2rem;
-            display: block;
-        }
+        .st-nav a.st-nav-cart svg { width: 1.1rem; height: 1.1rem; display: block; }
 
         .st-nav-cart__badge {
             position: absolute;
-            top: 0.1rem;
-            right: 0.05rem;
+            top: 0.05rem;
+            right: 0;
             min-width: 1.05rem;
             height: 1.05rem;
             padding: 0 0.28rem;
             border-radius: 999px;
-            background: var(--st-accent);
+            background: var(--st-blue);
             color: #fff;
-            font-size: 0.65rem;
-            font-weight: 700;
+            font-size: 0.62rem;
+            font-weight: 800;
             line-height: 1.05rem;
             text-align: center;
-            box-shadow: 0 0 0 2px var(--st-paper, #faf8f4);
         }
 
         .st-nav-toggle {
             display: none;
             background: transparent;
             border: 1px solid var(--st-line);
-            border-radius: var(--st-radius);
+            border-radius: var(--st-radius-sm);
             padding: 0.4rem 0.55rem;
             cursor: pointer;
-            color: var(--st-ink);
+            color: var(--st-pd);
             line-height: 1;
         }
 
@@ -210,36 +219,32 @@
         .st-nav-toggle:focus-visible,
         .st-field input:focus-visible,
         .st-field textarea:focus-visible {
-            outline: 2px solid var(--st-accent);
+            outline: 2px solid var(--st-p);
             outline-offset: 2px;
         }
 
         .st-main {
             flex: 1;
             width: 100%;
-            max-width: 1100px;
+            max-width: var(--max);
             margin: 0 auto;
             padding: 2rem 1.35rem 4rem;
         }
 
-        .st-main--flush {
-            max-width: none;
-            padding: 0;
-        }
-
+        .st-main--flush { max-width: none; padding: 0; }
         .st-main--flush > .st-alert {
-            max-width: 1100px;
+            max-width: var(--max);
             margin: 1rem auto;
             padding-left: 1.35rem;
             padding-right: 1.35rem;
         }
 
-        /* —— Full-bleed hero —— */
+        /* —— Hero territorio (eki.com.co) —— */
         .st-hero-bleed {
             position: relative;
-            min-height: min(92vh, 720px);
+            min-height: min(88vh, 680px);
             display: flex;
-            align-items: flex-end;
+            align-items: center;
             color: #fff;
             overflow: hidden;
             isolation: isolate;
@@ -250,9 +255,11 @@
             inset: 0;
             z-index: -2;
             background:
-                url("https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1800&q=80")
+                url("https://www.eki.com.co/assets/imageneki.jpg")
                 center / cover no-repeat;
-            animation: st-ken 18s var(--ease) both;
+            animation: st-drift 28s var(--ease) infinite alternate;
+            filter: saturate(0.78) brightness(0.95);
+            transform: scale(1.02);
         }
 
         .st-hero-bleed__shade {
@@ -260,68 +267,80 @@
             inset: 0;
             z-index: -1;
             background:
-                linear-gradient(105deg, rgba(20, 17, 15, 0.88) 0%, rgba(42, 31, 51, 0.62) 48%, rgba(122, 78, 142, 0.35) 100%),
-                linear-gradient(0deg, rgba(20, 17, 15, 0.75) 0%, transparent 45%);
+                linear-gradient(120deg, rgba(5, 10, 25, 0.55) 0%, rgba(5, 10, 25, 0.35) 45%, rgba(42, 18, 64, 0.42) 100%);
         }
 
         .st-hero-bleed__inner {
             width: 100%;
-            max-width: 1100px;
+            max-width: var(--max);
             margin: 0 auto;
             padding: 4.5rem 1.5rem 3.5rem;
-            animation: st-rise 0.9s var(--ease) 0.1s both;
+            animation: st-rise 0.9s var(--ease) 0.05s both;
         }
 
         .st-hero-bleed .st-brand-hero {
             font-family: var(--font-display);
-            font-size: clamp(3.2rem, 10vw, 6.5rem);
-            font-weight: 800;
+            font-size: clamp(3.2rem, 12vw, 5.6rem);
+            font-weight: 900;
             letter-spacing: -0.05em;
             line-height: 0.92;
             margin: 0 0 1rem;
             text-transform: lowercase;
+            text-shadow: 0 14px 40px rgba(0, 0, 0, 0.22);
         }
 
-        .st-hero-bleed .st-brand-hero span { color: #9a6cac; }
+        .st-hero-bleed .st-brand-hero span {
+            color: rgba(255, 255, 255, 0.55);
+        }
 
         .st-hero-bleed h1 {
             font-family: var(--font-display);
-            font-size: clamp(1.35rem, 3.2vw, 1.85rem);
-            font-weight: 600;
-            letter-spacing: -0.02em;
-            line-height: 1.25;
-            margin: 0 0 0.75rem;
-            max-width: 22ch;
+            font-size: clamp(1.55rem, 4vw, 2.55rem);
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            line-height: 1.05;
+            margin: 0 0 0.85rem;
+            max-width: 14ch;
             color: #fff;
+            text-transform: uppercase;
+            text-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .st-hero-bleed h1 em {
+            font-style: normal;
+            display: block;
+            color: rgba(255, 255, 255, 0.52);
         }
 
         .st-hero-bleed .st-lead {
-            color: rgba(255, 255, 255, 0.82);
+            color: rgba(255, 255, 255, 0.88);
             max-width: 38ch;
-            margin: 0 0 1.5rem;
-            font-size: 1.05rem;
+            margin: 0 0 1.6rem;
+            font-size: 1rem;
+            line-height: 1.65;
+            font-weight: 500;
         }
 
         .st-page-intro {
             margin-bottom: 2rem;
-            animation: st-rise 0.7s var(--ease) both;
+            animation: st-rise 0.65s var(--ease) both;
         }
 
         .st-page-intro h1 {
             font-family: var(--font-display);
-            font-size: clamp(1.75rem, 4vw, 2.5rem);
-            font-weight: 700;
-            letter-spacing: -0.03em;
-            line-height: 1.15;
-            margin: 0 0 0.5rem;
-            color: var(--st-ink);
+            font-size: clamp(1.85rem, 4.5vw, 2.75rem);
+            font-weight: 900;
+            letter-spacing: -0.04em;
+            line-height: 1.05;
+            margin: 0 0 0.55rem;
+            color: var(--st-pd);
         }
 
         .st-lead {
             color: var(--st-ink-soft);
             max-width: 48ch;
             margin: 0 0 1.25rem;
-            font-size: 1.02rem;
+            font-size: 1rem;
             line-height: 1.65;
         }
 
@@ -329,33 +348,33 @@
 
         h2, .st-h2 {
             font-family: var(--font-display);
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            line-height: 1.2;
-            color: var(--st-ink);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            line-height: 1.15;
+            color: var(--st-pd);
             margin: 0 0 0.65rem;
         }
 
-        .st-h2 { font-size: 1.2rem; }
+        .st-h2 { font-size: 1.25rem; }
 
         .st-section {
-            max-width: 1100px;
+            max-width: var(--max);
             margin: 0 auto;
             padding: 3.5rem 1.5rem;
         }
 
         .st-section--band {
-            background: rgba(20, 17, 15, 0.03);
+            background: var(--st-band);
             border-top: 1px solid var(--st-line);
             border-bottom: 1px solid var(--st-line);
         }
 
         .st-section-label {
-            font-size: 0.72rem;
-            font-weight: 700;
-            letter-spacing: 0.16em;
+            font-size: 0.68rem;
+            font-weight: 800;
+            letter-spacing: 0.18em;
             text-transform: uppercase;
-            color: var(--st-accent);
+            color: var(--st-p);
             margin: 0 0 0.75rem;
         }
 
@@ -370,37 +389,45 @@
             align-items: center;
             justify-content: center;
             gap: 0.4rem;
-            padding: 0.7rem 1.25rem;
-            border-radius: var(--st-radius);
+            padding: 0.72rem 1.35rem;
+            border-radius: 999px;
             font-family: var(--font-sans);
             font-weight: 700;
-            font-size: 0.875rem;
-            letter-spacing: 0.01em;
+            font-size: 0.72rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
             text-decoration: none;
             border: none;
             cursor: pointer;
-            transition: background 0.2s var(--ease), color 0.2s, transform 0.15s var(--ease), border-color 0.2s;
+            transition: transform 0.15s var(--ease), background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
         }
 
         .st-btn:active { transform: scale(0.98); }
 
         .st-btn--primary {
-            background: var(--st-accent);
+            background: var(--st-p);
             color: #fff;
+            border: 2px solid var(--st-p);
+            box-shadow: 0 10px 24px rgba(154, 108, 172, 0.28);
         }
 
-        .st-btn--primary:hover { background: var(--st-accent-deep); }
+        .st-btn--primary:hover {
+            background: var(--st-p2);
+            border-color: var(--st-p2);
+            box-shadow: 0 14px 28px rgba(122, 78, 142, 0.32);
+        }
 
         .st-btn--dark {
-            background: var(--st-ink);
+            background: var(--st-blue);
             color: #fff;
+            border: 2px solid var(--st-blue);
         }
 
-        .st-btn--dark:hover { background: #2a2420; }
+        .st-btn--dark:hover { background: var(--st-blue2); border-color: var(--st-blue2); }
 
         .st-btn--ghost {
             background: transparent;
-            border: 1px solid rgba(255, 255, 255, 0.45);
+            border: 2px solid rgba(255, 255, 255, 0.7);
             color: #fff;
         }
 
@@ -410,23 +437,21 @@
         }
 
         .st-btn--ghost-ink {
-            background: transparent;
-            border: 1px solid var(--st-line);
-            color: var(--st-ink);
+            background: #fff;
+            border: 2px solid var(--st-blue);
+            color: var(--st-blue);
         }
 
         .st-btn--ghost-ink:hover {
-            border-color: var(--st-ink);
-            background: rgba(20, 17, 15, 0.04);
+            background: rgba(60, 123, 191, 0.08);
         }
 
         .st-btn--block { width: 100%; }
-        .st-btn--sm { padding: 0.45rem 0.9rem; font-size: 0.8rem; }
+        .st-btn--sm { padding: 0.55rem 1rem; font-size: 0.68rem; }
 
-        /* Course rows — interaction containers */
         .st-course-list {
             display: grid;
-            gap: 1rem;
+            gap: 1.15rem;
         }
 
         @media (min-width: 720px) {
@@ -441,11 +466,13 @@
             display: flex;
             flex-direction: column;
             background: var(--st-surface);
-            border: 1px solid var(--st-line);
+            border: 1px solid rgba(154, 108, 172, 0.15);
             border-radius: var(--st-radius);
-            padding: 1.35rem 1.4rem 1.25rem;
-            transition: border-color 0.2s var(--ease), transform 0.25s var(--ease);
-            animation: st-rise 0.65s var(--ease) both;
+            padding: 0;
+            overflow: hidden;
+            box-shadow: 0 8px 18px rgba(22, 20, 70, 0.06);
+            transition: transform 0.25s var(--ease), border-color 0.2s, box-shadow 0.25s;
+            animation: st-rise 0.6s var(--ease) both;
         }
 
         .st-course:nth-child(2) { animation-delay: 0.06s; }
@@ -453,33 +480,68 @@
         .st-course:nth-child(4) { animation-delay: 0.18s; }
 
         .st-course:hover {
-            border-color: rgba(122, 78, 142, 0.45);
-            transform: translateY(-3px);
+            transform: translateY(-4px);
+            border-color: rgba(154, 108, 172, 0.35);
+            box-shadow: 0 16px 36px rgba(42, 18, 64, 0.12);
+        }
+
+        .st-course__cover {
+            height: 132px;
+            background:
+                linear-gradient(145deg, #9A6CAC 0%, #7A4E8E 55%, #3C7BBF 120%);
+            position: relative;
+        }
+
+        .st-course:nth-child(2n) .st-course__cover {
+            background: linear-gradient(145deg, #7A4E8E 0%, #5C3370 50%, #2D6099 120%);
+        }
+
+        .st-course:nth-child(3n) .st-course__cover {
+            background: linear-gradient(160deg, #B58BC6 0%, #9A6CAC 45%, #7A4E8E 100%);
+        }
+
+        .st-course__cover-mark {
+            position: absolute;
+            left: 1rem;
+            bottom: 0.85rem;
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: 0.68rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .st-course__body {
+            padding: 1.15rem 1.2rem 1.2rem;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
         }
 
         .st-course__org {
-            font-size: 0.7rem;
-            font-weight: 700;
-            letter-spacing: 0.1em;
+            font-size: 0.65rem;
+            font-weight: 800;
+            letter-spacing: 0.12em;
             text-transform: uppercase;
-            color: var(--st-accent);
-            margin: 0 0 0.4rem;
+            color: var(--st-p);
+            margin: 0 0 0.35rem;
         }
 
         .st-course__title {
             font-family: var(--font-display);
-            font-size: 1.2rem;
-            font-weight: 700;
+            font-size: 1.1rem;
+            font-weight: 800;
             letter-spacing: -0.02em;
-            margin: 0 0 0.5rem;
-            color: var(--st-ink);
+            margin: 0 0 0.45rem;
+            color: var(--st-pd);
             line-height: 1.2;
         }
 
         .st-course__desc {
             flex: 1;
             margin: 0 0 1rem;
-            font-size: 0.875rem;
+            font-size: 0.86rem;
             color: var(--st-muted);
             line-height: 1.55;
         }
@@ -496,12 +558,54 @@
 
         .st-price {
             font-family: var(--font-display);
-            font-weight: 700;
-            font-size: 1.05rem;
-            color: var(--st-ink);
+            font-weight: 800;
+            font-size: 1rem;
+            color: var(--st-pd);
         }
 
         .st-price--free { color: var(--st-ok); }
+
+        .st-trust {
+            display: grid;
+            gap: 0.85rem;
+            grid-template-columns: 1fr;
+            max-width: var(--max);
+            margin: -2rem auto 0;
+            padding: 0 1.5rem 0.5rem;
+            position: relative;
+            z-index: 2;
+        }
+
+        @media (min-width: 720px) {
+            .st-trust { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        .st-trust__item {
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid rgba(154, 108, 172, 0.16);
+            border-radius: var(--st-radius);
+            padding: 1.05rem 1.15rem;
+            box-shadow: 0 10px 24px rgba(42, 18, 64, 0.08);
+            animation: st-rise 0.65s var(--ease) both;
+        }
+
+        .st-trust__item:nth-child(2) { animation-delay: 0.08s; }
+        .st-trust__item:nth-child(3) { animation-delay: 0.14s; }
+
+        .st-trust__item strong {
+            display: block;
+            font-family: var(--font-display);
+            font-size: 0.95rem;
+            font-weight: 800;
+            margin-bottom: 0.3rem;
+            color: var(--st-pd);
+        }
+
+        .st-trust__item span {
+            font-size: 0.82rem;
+            color: var(--st-muted);
+            line-height: 1.5;
+        }
 
         .st-split {
             display: grid;
@@ -521,9 +625,10 @@
         }
 
         .st-steps li {
-            padding-left: 3rem;
+            padding-left: 3.25rem;
             position: relative;
-            animation: st-rise 0.7s var(--ease) both;
+            animation: st-rise 0.65s var(--ease) both;
+            color: var(--st-ink-soft);
         }
 
         .st-steps li:nth-child(2) { animation-delay: 0.08s; }
@@ -534,18 +639,27 @@
             position: absolute;
             left: 0;
             top: 0;
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 50%;
+            background: var(--st-p);
+            color: #fff;
             font-family: var(--font-display);
-            font-weight: 800;
-            font-size: 1.35rem;
-            color: var(--st-accent);
-            letter-spacing: -0.03em;
+            font-weight: 900;
+            font-size: 0.72rem;
+            letter-spacing: 0;
+            display: grid;
+            place-items: center;
+            box-shadow: 0 10px 22px rgba(154, 108, 172, 0.28);
         }
 
         .st-steps strong {
             display: block;
             font-family: var(--font-display);
-            font-size: 1.1rem;
+            font-size: 1rem;
+            font-weight: 800;
             margin-bottom: 0.25rem;
+            color: var(--st-pd);
         }
 
         .st-panel {
@@ -553,7 +667,8 @@
             border: 1px solid var(--st-line);
             border-radius: var(--st-radius);
             padding: 1.75rem 1.5rem;
-            animation: st-rise 0.65s var(--ease) both;
+            box-shadow: 0 8px 18px rgba(22, 20, 70, 0.05);
+            animation: st-rise 0.6s var(--ease) both;
         }
 
         .st-login-wrap {
@@ -561,14 +676,13 @@
             margin: 1.5rem auto 2rem;
         }
 
-        /* —— Login: idea Portal (marca + formulario), identidad Studio —— */
         .st-login-screen {
             display: grid;
-            grid-template-columns: minmax(0, 1.15fr) minmax(300px, 420px);
+            grid-template-columns: minmax(0, 1.15fr) minmax(300px, 440px);
             min-height: calc(100vh - var(--header-h));
-            margin: calc(-2rem) calc(-1.35rem) -4rem;
+            margin: 0;
             background: var(--st-bg);
-            animation: st-rise 0.55s var(--ease) both;
+            animation: st-rise 0.5s var(--ease) both;
         }
 
         .st-main--flush .st-login-screen { margin: 0; }
@@ -578,46 +692,46 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: flex-end;
             padding: clamp(2rem, 5vw, 3.5rem);
             color: #fff;
             background:
-                radial-gradient(ellipse 85% 65% at 15% 15%, rgba(154, 108, 172, 0.4), transparent 55%),
-                radial-gradient(ellipse 55% 45% at 95% 85%, rgba(95, 58, 112, 0.5), transparent 50%),
-                linear-gradient(145deg, #2a1f33 0%, #5f3a70 52%, #1a1520 100%);
+                linear-gradient(160deg, rgba(42, 18, 64, 0.72), rgba(122, 78, 142, 0.78)),
+                url("https://www.eki.com.co/assets/imageneki.jpg") center / cover no-repeat;
         }
 
         .st-login-visual__logo {
-            margin: 0 0 1.75rem;
+            margin: 0 0 1.5rem;
             font-family: var(--font-display);
-            font-size: clamp(1.35rem, 2.8vw, 1.65rem);
-            font-weight: 800;
-            letter-spacing: -0.03em;
+            font-size: clamp(1.45rem, 3vw, 1.8rem);
+            font-weight: 900;
+            letter-spacing: -0.04em;
             text-transform: lowercase;
             line-height: 1;
         }
 
         .st-login-visual__logo em {
             font-style: normal;
-            color: #cbb8d8;
+            color: rgba(255, 255, 255, 0.62);
         }
 
         .st-login-visual h2 {
             font-family: var(--font-display);
-            font-size: clamp(1.5rem, 3.2vw, 2.05rem);
-            font-weight: 700;
+            font-size: clamp(1.45rem, 3.2vw, 2.1rem);
+            font-weight: 900;
             letter-spacing: -0.03em;
-            line-height: 1.2;
+            line-height: 1.1;
             color: #fff;
             margin: 0 0 0.75rem;
-            max-width: 16ch;
+            max-width: 14ch;
+            text-transform: uppercase;
         }
 
         .st-login-visual p {
             margin: 0;
-            color: rgba(255, 255, 255, 0.78);
+            color: rgba(255, 255, 255, 0.82);
             max-width: 34ch;
-            font-size: 0.98rem;
+            font-size: 0.95rem;
             line-height: 1.55;
         }
 
@@ -626,7 +740,7 @@
             align-items: center;
             justify-content: center;
             padding: clamp(1.5rem, 4vw, 2.5rem);
-            background: var(--st-surface);
+            background: var(--st-pb);
             border-left: 1px solid var(--st-line);
         }
 
@@ -637,36 +751,33 @@
 
         .st-login-card h1 {
             font-family: var(--font-display);
-            font-size: clamp(1.35rem, 2.2vw, 1.55rem);
-            font-weight: 700;
+            font-size: clamp(1.4rem, 2.4vw, 1.65rem);
+            font-weight: 900;
             letter-spacing: -0.03em;
             margin: 0 0 0.4rem;
-            color: var(--st-ink);
+            color: var(--st-pd);
         }
 
         .st-login-card .st-muted {
             margin: 0 0 1.4rem;
-            color: var(--st-muted);
             display: block;
             font-size: 0.9rem;
         }
-
-        .st-login-card .st-field label { color: var(--st-ink-soft); }
 
         .st-field-icon {
             display: flex;
             align-items: center;
             gap: 0.55rem;
             background: #fff;
-            border-radius: var(--st-radius);
-            padding: 0 0.75rem;
-            min-height: 44px;
-            border: 1px solid var(--st-line);
+            border-radius: 999px;
+            padding: 0 0.9rem;
+            min-height: 46px;
+            border: 1px solid rgba(154, 108, 172, 0.28);
             transition: box-shadow 0.15s, border-color 0.15s;
         }
 
         .st-field-icon:focus-within {
-            border-color: var(--st-accent);
+            border-color: var(--st-p);
             box-shadow: 0 0 0 3px var(--st-accent-soft);
         }
 
@@ -679,12 +790,12 @@
             background: transparent;
             font: inherit;
             font-size: 0.92rem;
-            color: var(--st-ink);
+            color: var(--st-pd);
             padding: 0.65rem 0;
             min-width: 0;
         }
 
-        .st-field-icon input::placeholder { color: #a89bb5; }
+        .st-field-icon input::placeholder { color: #9a9a9a; }
 
         .st-toggle-pass {
             border: 0;
@@ -696,12 +807,12 @@
             place-items: center;
         }
 
-        .st-toggle-pass:hover { color: var(--st-accent-deep); }
+        .st-toggle-pass:hover { color: var(--st-p); }
         .st-toggle-pass svg { width: 16px; height: 16px; }
 
         .st-login-card .st-btn--primary {
             width: 100%;
-            min-height: 44px;
+            min-height: 46px;
             margin-top: 0.35rem;
         }
 
@@ -715,19 +826,18 @@
         }
 
         .st-login-card__footer a {
-            color: var(--st-accent);
-            font-weight: 600;
+            color: var(--st-p2);
+            font-weight: 700;
             text-decoration: none;
         }
 
-        .st-login-card__footer a:hover { color: var(--st-accent-deep); text-decoration: underline; }
+        .st-login-card__footer a:hover { text-decoration: underline; }
 
         @media (max-width: 860px) {
             .st-login-screen { grid-template-columns: 1fr; min-height: auto; }
             .st-login-visual {
                 min-height: 30vh;
                 min-height: 30dvh;
-                justify-content: flex-end;
                 padding-bottom: 1.75rem;
             }
             .st-login-visual h2 { max-width: none; font-size: 1.4rem; }
@@ -741,25 +851,25 @@
 
         .st-alert {
             padding: 0.75rem 1rem;
-            border-radius: var(--st-radius);
+            border-radius: var(--st-radius-sm);
             margin-bottom: 1rem;
             font-size: 0.875rem;
             border: 1px solid;
         }
 
-        .st-alert--ok { background: var(--st-ok-bg); border-color: #86efac; color: var(--st-ok); }
-        .st-alert--error { background: var(--st-err-bg); border-color: #fecaca; color: var(--st-err); }
+        .st-alert--ok { background: var(--st-ok-bg); border-color: rgba(31, 138, 85, 0.3); color: var(--st-ok); }
+        .st-alert--error { background: var(--st-err-bg); border-color: rgba(192, 57, 43, 0.28); color: var(--st-err); }
 
         .st-field { margin-bottom: 1rem; }
 
         .st-field label {
             display: block;
-            font-weight: 600;
-            font-size: 0.78rem;
-            letter-spacing: 0.04em;
+            font-weight: 700;
+            font-size: 0.68rem;
+            letter-spacing: 0.1em;
             text-transform: uppercase;
             margin-bottom: 0.35rem;
-            color: var(--st-ink-soft);
+            color: var(--st-p2);
         }
 
         .st-field input,
@@ -767,12 +877,12 @@
         .st-panel input,
         .st-panel textarea {
             width: 100%;
-            padding: 0.65rem 0.85rem;
-            border: 1px solid var(--st-line);
-            border-radius: var(--st-radius);
+            padding: 0.7rem 0.9rem;
+            border: 1px solid rgba(154, 108, 172, 0.28);
+            border-radius: var(--st-radius-sm);
             font: inherit;
             background: #fff;
-            color: var(--st-ink);
+            color: var(--st-pd);
             transition: border-color 0.15s, box-shadow 0.15s;
         }
 
@@ -781,14 +891,11 @@
         .st-panel input:focus,
         .st-panel textarea:focus {
             outline: none;
-            border-color: var(--st-accent);
+            border-color: var(--st-p);
             box-shadow: 0 0 0 3px var(--st-accent-soft);
         }
 
-        .st-empty {
-            text-align: left;
-            padding: 2rem 0;
-        }
+        .st-empty { text-align: left; padding: 2rem 0; }
 
         .st-pub-list {
             list-style: none;
@@ -809,11 +916,11 @@
             margin-top: auto;
             padding: 2rem 1.5rem;
             border-top: 1px solid var(--st-line);
-            background: rgba(250, 248, 244, 0.7);
+            background: var(--st-band);
         }
 
         .st-footer-inner {
-            max-width: 1100px;
+            max-width: var(--max);
             margin: 0 auto;
             display: flex;
             flex-wrap: wrap;
@@ -823,13 +930,15 @@
         }
 
         .st-footer a {
-            color: var(--st-ink);
-            font-weight: 600;
+            color: var(--st-pd);
+            font-weight: 700;
             text-decoration: none;
-            font-size: 0.85rem;
+            font-size: 0.78rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
         }
 
-        .st-footer a:hover { color: var(--st-accent); }
+        .st-footer a:hover { color: var(--st-p); }
 
         .st-footer-links {
             display: flex;
@@ -843,7 +952,7 @@
             color: var(--st-muted);
         }
 
-        .st-footer p a { color: var(--st-accent); }
+        .st-footer p a { color: var(--st-p); text-transform: none; letter-spacing: 0; }
 
         .st-cart-row {
             display: flex;
@@ -856,9 +965,8 @@
 
         @media (max-width: 720px) {
             :root { --header-h: 56px; }
-
             .st-brand-sub { display: none; }
-            .st-brand-word { font-size: 1.35rem; }
+            .st-brand-word { font-size: 1.25rem; }
 
             .st-nav-toggle {
                 display: block;
@@ -876,13 +984,14 @@
                 align-items: stretch;
                 gap: 0.15rem;
                 padding: 0.35rem 0 0.85rem;
-                border-top: 1px solid var(--st-line);
+                border-top: 1px solid rgba(0, 0, 0, 0.08);
             }
             .st-nav.is-open { display: flex; }
             .st-nav a {
                 text-align: left;
                 padding: 0.75rem 0.85rem;
-                font-size: 0.9rem;
+                font-size: 0.78rem;
+                border-radius: var(--st-radius-sm);
             }
             .st-nav a.st-nav--cta { margin-left: 0; }
             .st-nav a.st-nav-cart {
@@ -891,69 +1000,43 @@
                 justify-content: flex-start;
                 gap: 0.55rem;
                 padding: 0.75rem 0.85rem;
-                border-radius: var(--st-radius);
             }
-            .st-nav-cart__badge {
-                position: static;
-                box-shadow: none;
-            }
+            .st-nav-cart__badge { position: static; }
 
             .st-main {
                 padding: 1.25rem max(1rem, env(safe-area-inset-right)) 3rem max(1rem, env(safe-area-inset-left));
             }
 
-            .st-hero-bleed {
-                min-height: min(72dvh, 500px);
-            }
+            .st-hero-bleed { min-height: min(78dvh, 560px); }
             .st-hero-bleed .st-brand-hero {
-                font-size: clamp(2.6rem, 15vw, 4rem);
+                font-size: clamp(2.8rem, 15vw, 4rem);
                 word-break: break-word;
             }
             .st-hero-bleed__inner {
                 padding: 2.75rem max(1rem, env(safe-area-inset-right)) 2.25rem max(1rem, env(safe-area-inset-left));
             }
-            .st-hero-actions {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            .st-hero-actions .st-btn {
-                width: 100%;
-                min-height: 44px;
-            }
+            .st-hero-actions { flex-direction: column; align-items: stretch; }
+            .st-hero-actions .st-btn { width: 100%; min-height: 46px; }
 
             .st-section {
                 padding: 2.25rem max(1rem, env(safe-area-inset-right)) 2.5rem max(1rem, env(safe-area-inset-left));
             }
 
+            .st-trust {
+                margin-top: -1.25rem;
+                padding-left: max(1rem, env(safe-area-inset-left));
+                padding-right: max(1rem, env(safe-area-inset-right));
+            }
+
             .st-panel { padding: 1.25rem 1rem; }
-            .st-course { padding: 1.15rem 1rem; }
             .st-course:hover { transform: none; }
-
-            .st-course__meta {
-                flex-wrap: wrap;
-                align-items: flex-start;
-            }
-
-            .st-cart-row {
-                flex-wrap: wrap;
-                align-items: flex-start;
-            }
-
-            .st-login-wrap {
-                max-width: none;
-                margin: 0.75rem 0 1.5rem;
-            }
-
-            .st-login-card { max-width: none; }
-            .st-login-form-col { padding: 1.35rem 1.1rem 2rem; }
+            .st-course__meta { flex-wrap: wrap; }
+            .st-cart-row { flex-wrap: wrap; align-items: flex-start; }
 
             .st-footer {
                 padding: 1.5rem max(1rem, env(safe-area-inset-right)) calc(1.5rem + env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
             }
-            .st-footer-inner {
-                flex-direction: column;
-                align-items: flex-start;
-            }
+            .st-footer-inner { flex-direction: column; align-items: flex-start; }
 
             .st-btn { min-height: 42px; }
             .st-field input,
@@ -969,14 +1052,14 @@
 <header class="st-header">
     <a class="st-brand" href="{% url 'studio_inicio' %}">
         <span class="st-brand-word">eki <em>studio</em></span>
-        <span class="st-brand-sub">Marketplace de formación</span>
+        <span class="st-brand-sub">educación con equidad</span>
     </a>
     <button type="button" class="st-nav-toggle" id="st-nav-toggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="st-nav">
         <span></span><span></span><span></span>
     </button>
     <nav class="st-nav" id="st-nav">
-        <a href="{% url 'studio_catalogo' %}">Cursos</a>
-        <a href="{% url 'studio_creador' %}">Soy creador</a>
+        <a href="{% url 'studio_catalogo' %}">Explorar</a>
+        <a href="{% url 'studio_creador' %}">Crear</a>
         {% if cuenta or estudiante %}
         {% if cuenta %}
         <a href="{% url 'studio_carrito' %}" class="st-nav-cart" aria-label="Carrito{% if carrito_count %} ({{ carrito_count }}){% endif %}" title="Carrito">
@@ -988,11 +1071,11 @@
             {% if carrito_count %}<span class="st-nav-cart__badge">{{ carrito_count }}</span>{% endif %}
         </a>
         {% endif %}
-        <a href="/studio/ir-a-aprende/" class="st-nav--cta">Ir al aula</a>
+        <a href="/studio/ir-a-aprende/" class="st-nav--cta">Estudiar</a>
         <a href="{% url 'studio_cuenta_logout' %}">Salir</a>
         {% else %}
         <a href="{% url 'studio_cuenta_login' %}">Ingresar</a>
-        <a href="{% url 'studio_cuenta_registro' %}" class="st-nav--cta">Crear cuenta</a>
+        <a href="{% url 'studio_cuenta_registro' %}" class="st-nav--cta">Unirme</a>
         {% endif %}
     </nav>
 </header>
@@ -1007,11 +1090,12 @@
 <footer class="st-footer">
     <div class="st-footer-inner">
         <div class="st-footer-links">
-            <a href="{% url 'studio_catalogo' %}">Catálogo</a>
-            <a href="{% url 'studio_creador' %}">Publicar curso</a>
-            <a href="/aprende/">Aprende</a>
+            <a href="{% url 'studio_catalogo' %}">Explorar</a>
+            <a href="{% url 'studio_creador' %}">Publicar</a>
+            <a href="/aprende/">Estudiar</a>
+            <a href="https://www.eki.com.co/" rel="noopener" target="_blank">eki.com.co</a>
         </div>
-        <p>eki Studio · marketplace de cursos · el aula y las tareas viven en <a href="/aprende/">Aprende</a></p>
+        <p>eki <strong style="color:var(--st-p);font-family:var(--font-display);">studio</strong> · educación con equidad para el territorio</p>
     </div>
 </footer>
 <script>

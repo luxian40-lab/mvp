@@ -3,7 +3,7 @@
 {% block content %}
 <header class="st-page-intro">
     <h1>{{ creador.nombre_publico }}</h1>
-    <p class="st-lead">Publica cursos, define el precio en COP y los estudiantes pagan con Wompi.</p>
+    <p class="st-lead">Publica el alta comercial (nombre y precio). El contenido completo lo armamos contigo en eki.</p>
 </header>
 
 {% if error %}
@@ -13,7 +13,10 @@
 <div class="st-split">
     <div class="st-panel">
         <h2 class="st-h2">Publicar curso</h2>
-        <p class="st-muted" style="margin-bottom:1rem;">Tú defines el valor. 0 = gratuito. Tras el pago, el estudiante estudia en Aprende.</p>
+        <p class="st-muted" style="margin-bottom:1rem;">
+            Esto crea el programa en el catálogo y un primer módulo base.
+            Videos, evaluaciones y el resto se cargan después con el equipo eki (no es un editor LMS completo aún).
+        </p>
         <form method="post">
             {% csrf_token %}
             <input type="hidden" name="accion" value="crear">
