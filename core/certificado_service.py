@@ -106,9 +106,9 @@ def png_buffer_a_pdf(png_buffer):
     from reportlab.pdfgen import canvas
 
     png_buffer.seek(0)
-    with Image.open(png_buffer) as img:
+    raw = png_buffer.read()
+    with Image.open(BytesIO(raw)) as img:
         w_px, h_px = img.size
-        # Escala a puntos PDF (72 dpi nominal); máximo ancho carta landscape ~792
         max_w, max_h = 1100, 850
         scale = min(max_w / float(w_px), max_h / float(h_px), 1.0)
         page_w = max(1, int(w_px * scale))
@@ -116,8 +116,15 @@ def png_buffer_a_pdf(png_buffer):
 
     out = BytesIO()
     c = canvas.Canvas(out, pagesize=(page_w, page_h))
-    png_buffer.seek(0)
-    c.drawImage(ImageReader(png_buffer), 0, 0, width=page_w, height=page_h, preserveAspectRatio=True, mask='auto')
+    c.drawImage(
+        ImageReader(BytesIO(raw)),
+        0,
+        0,
+        width=page_w,
+        height=page_h,
+        preserveAspectRatio=True,
+        mask='auto',
+    )
     c.showPage()
     c.save()
     out.seek(0)
@@ -163,10 +170,13 @@ def _guardar_cert_s3(certificado, img_buffer, label=""):
     Sube PNG (+ PDF derivado) a S3 via boto3 DIRECTO y actualiza el modelo.
     Retorna True si el PNG se guardó.
     """
+    from io import BytesIO
+
     filename = f"certificado_{certificado.codigo_verificacion}.png"
     img_buffer.seek(0)
-    digest = hash_sha256_buffer(img_buffer)
-    s3_key, public_url = _subir_imagen_s3_directo(img_buffer, filename)
+    raw = img_buffer.read()
+    digest = hash_sha256_buffer(BytesIO(raw))
+    s3_key, public_url = _subir_imagen_s3_directo(BytesIO(raw), filename)
     if not s3_key:
         return False
 
@@ -177,7 +187,7 @@ def _guardar_cert_s3(certificado, img_buffer, label=""):
         certificado.organizacion_emisora = org[:200]
 
     try:
-        pdf_buf = png_buffer_a_pdf(img_buffer)
+        pdf_buf = png_buffer_a_pdf(BytesIO(raw))
         pdf_name = f"certificado_{certificado.codigo_verificacion}.pdf"
         pdf_key, _ = _subir_bytes_s3_directo(pdf_buf, pdf_name, content_type='application/pdf')
         if pdf_key:
