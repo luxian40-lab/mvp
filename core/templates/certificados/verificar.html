@@ -11,7 +11,7 @@
   <link rel="apple-touch-icon" href="{% static 'favicons/certificados-180.png' %}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,600;7..72,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,600;7..72,700&family=Manrope:wght@400;500;600;700&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
   <style>
     :root {
       --purple: #9A6CAC;
@@ -31,6 +31,7 @@
       --muted: #7a6884;
       --on-dark: #FAFAFC;
       --on-dark-muted: #C4ACCE;
+      --font-brand: "Montserrat", Arial, sans-serif;
     }
     * { box-sizing: border-box; }
     body {
@@ -60,28 +61,31 @@
       align-items: flex-end;
       justify-content: space-between;
       gap: 1rem;
-      margin-bottom: 1rem;
-      padding: 0 0.2rem;
+      margin-bottom: 1.15rem;
+      padding: 0 0.15rem;
     }
     .brand {
       margin: 0;
-      line-height: 0;
-      display: inline-flex;
-      align-items: center;
+      line-height: 1;
     }
-    .brand img {
+    .brand .eki-logo {
       display: block;
-      height: clamp(2.35rem, 8vw, 2.85rem);
-      width: auto;
-      filter: drop-shadow(0 2px 10px rgba(32, 19, 37, 0.35));
+      font-family: var(--font-brand);
+      font-size: clamp(2.6rem, 10vw, 3.35rem);
+      font-weight: 900;
+      letter-spacing: -0.07em;
+      text-transform: lowercase;
+      color: #fff;
+      text-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+      line-height: 0.9;
     }
     .mast-label {
       font-size: 0.7rem;
-      font-weight: 600;
+      font-weight: 700;
       letter-spacing: 0.16em;
       text-transform: uppercase;
       color: var(--on-dark-muted);
-      padding-bottom: 0.35rem;
+      padding-bottom: 0.45rem;
     }
     .card {
       position: relative;
@@ -264,15 +268,7 @@
 <body>
   <div class="stage">
     <header class="mast">
-      <p class="brand">
-        <img
-          src="{% static 'certificados/eki-wordmark-2x.png' %}"
-          alt="eki"
-          width="216"
-          height="128"
-          decoding="async"
-        >
-      </p>
+      <p class="brand"><span class="eki-logo">eki</span></p>
       <span class="mast-label">Certificados</span>
     </header>
 

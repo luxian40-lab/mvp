@@ -8,7 +8,7 @@
     <link rel="icon" href="{% static 'favicons/studio.svg' %}" type="image/svg+xml" sizes="any">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --st-ink: #2a1f33;
@@ -18,8 +18,8 @@
             --st-bg-deep: #ebe7f0;
             --st-surface: #fbfafc;
             --st-line: rgba(122, 78, 142, 0.16);
-            --st-accent: #7a4e8e;
-            --st-accent-deep: #5f3a70;
+            --st-accent: #9A6CAC;
+            --st-accent-deep: #7A4E8E;
             --st-accent-soft: rgba(154, 108, 172, 0.16);
             --st-ok: #166534;
             --st-ok-bg: #ecfdf5;
@@ -27,6 +27,7 @@
             --st-err-bg: #fef2f2;
             --st-radius: 6px;
             --header-h: 64px;
+            --font-brand: "Montserrat", Arial, sans-serif; /* solo la palabra eki */
             --font-display: "Bricolage Grotesque", Georgia, serif;
             --font-sans: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
             --ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -108,10 +109,27 @@
             font-weight: 800;
             letter-spacing: -0.04em;
             text-transform: lowercase;
+            display: inline-flex;
+            align-items: baseline;
+            gap: 0.35rem;
         }
 
-        .st-brand-word em {
+        .st-brand-word .eki-logo,
+        .st-brand-hero .eki-logo,
+        .st-login-visual__logo .eki-logo {
+            font-family: var(--font-brand);
+            font-weight: 900;
+            letter-spacing: -0.06em;
+            text-transform: lowercase;
+            color: var(--st-accent-deep);
+        }
+
+        .st-brand-hero .eki-logo { color: #fff; }
+
+        .st-brand-word em,
+        .st-login-visual__logo em {
             font-style: normal;
+            font-family: var(--font-display);
             color: var(--st-accent);
         }
 
@@ -144,12 +162,12 @@
         .st-nav a:hover { color: var(--st-ink); background: rgba(20, 17, 15, 0.05); }
 
         .st-nav a.st-nav--cta {
-            background: var(--st-ink);
+            background: var(--st-accent-deep);
             color: #fff;
             margin-left: 0.35rem;
         }
 
-        .st-nav a.st-nav--cta:hover { background: var(--st-accent-deep); color: #fff; }
+        .st-nav a.st-nav--cta:hover { background: #5F3A6E; color: #fff; }
 
         .st-nav a.st-nav-cart {
             display: inline-flex;
@@ -260,8 +278,8 @@
             inset: 0;
             z-index: -1;
             background:
-                linear-gradient(105deg, rgba(20, 17, 15, 0.88) 0%, rgba(42, 31, 51, 0.62) 48%, rgba(122, 78, 142, 0.35) 100%),
-                linear-gradient(0deg, rgba(20, 17, 15, 0.75) 0%, transparent 45%);
+                linear-gradient(105deg, rgba(42, 18, 64, 0.82) 0%, rgba(61, 39, 80, 0.55) 48%, rgba(154, 108, 172, 0.38) 100%),
+                linear-gradient(0deg, rgba(42, 18, 64, 0.72) 0%, transparent 45%);
         }
 
         .st-hero-bleed__inner {
@@ -277,6 +295,10 @@
             font-size: clamp(3.2rem, 10vw, 6.5rem);
             font-weight: 800;
             letter-spacing: -0.05em;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 0.2em 0.28em;
             line-height: 0.92;
             margin: 0 0 1rem;
             text-transform: lowercase;
@@ -596,6 +618,8 @@
             text-transform: lowercase;
             line-height: 1;
         }
+
+        .st-login-visual__logo .eki-logo { color: #fff; }
 
         .st-login-visual__logo em {
             font-style: normal;
@@ -968,8 +992,8 @@
 <body>
 <header class="st-header">
     <a class="st-brand" href="{% url 'studio_inicio' %}">
-        <span class="st-brand-word">eki <em>studio</em></span>
-        <span class="st-brand-sub">Marketplace de formación</span>
+        <span class="st-brand-word"><span class="eki-logo">eki</span> <em>studio</em></span>
+        <span class="st-brand-sub">Formación que llega al territorio</span>
     </a>
     <button type="button" class="st-nav-toggle" id="st-nav-toggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="st-nav">
         <span></span><span></span><span></span>
@@ -1011,7 +1035,7 @@
             <a href="{% url 'studio_creador' %}">Publicar curso</a>
             <a href="/aprende/">Aprende</a>
         </div>
-        <p>eki Studio · marketplace de cursos · el aula y las tareas viven en <a href="/aprende/">Aprende</a></p>
+        <p>eki Studio · vitrina de cursos · el aula vive en <a href="/aprende/">Aprende</a></p>
     </div>
 </footer>
 <script>
