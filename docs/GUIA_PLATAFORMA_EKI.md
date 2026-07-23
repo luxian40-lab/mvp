@@ -2,20 +2,22 @@
 
 Documento de referencia para el equipo de producto, operaciones, contenido y desarrollo. Explica **qué hace eki**, **cómo se conectan las piezas**, **cómo operar cada superficie** y **cómo configurar cursos** para WhatsApp y aula virtual.
 
-**Última actualización:** 21 julio 2026 (acceso Aprende vía *aula* en WhatsApp, no OTP saliente; certificados en `certificados.eki.technology`; PQRS aislado; multi-curso B2B)  
+**Última actualización:** 22 julio 2026  
 **Entorno producción:** AWS Elastic Beanstalk `eki-prod-final`  
 **Repositorio:** monolito Django (`mvp_project/`)  
-**Lectura CTO:** el producto en prod ya no es solo “LMS + WhatsApp”; es un monolito operativo con portal B2B de coordinación (**Centro de Éxito** en retención), aula/Studio, gamificación, GEI y Nat comercial (clima Open-Meteo en §24). La sección **25** cubre seguridad frente a inyecciones.
+**Lectura CTO:** el producto en prod es un monolito operativo: WhatsApp pedagógico + portal B2B (**Centro de Éxito** con reenganche WA automático), certificados funder-grade (PNG+PDF+hash), media con reintento/recuperación, aula/Studio, gamificación, GEI y Nat comercial. La sección **25** cubre seguridad; el documento hermano `docs/EKI_PRODUCTO_PROFUNDO.md` explica cada módulo en profundidad (por qué existe, fallos, pruebas, refactor, pitch).
 
 **Documentos relacionados:**
 
 | Documento | Para qué sirve |
 |-----------|----------------|
+| `docs/EKI_PRODUCTO_PROFUNDO.md` | Entender eki a detalle: por qué / si falla / cómo probar / refactor / pitch por módulo |
 | `docs/AUDITORIA_ARQUITECTURA_EKI.md` | Deuda técnica, archivos críticos, seguridad P0–P3 |
 | `docs/CHECKLIST_PRE_DEPLOY.md` | Comandos y smoke tests antes de cada deploy |
 | `docs/EKI_STUDIO.md` | Catálogo, inscripción y DNS de eki Studio |
 | `docs/INSTRUCTIVO_EKI_RECOLECCION_GEI.md` | Recolección de datos GEI por WhatsApp, fichas y export |
 | `docs/INFRAESTRUCTURA_EKI_PARA_CLOUDFLARE.md` | DNS, EB, variables `EKI_ALLOWED_HOSTS` |
+| `docs/NAT_GUIA_COMPLETA.md` | Nat comercial en profundidad |
 
 ---
 
@@ -48,25 +50,27 @@ Documento de referencia para el equipo de producto, operaciones, contenido y des
 24. [CTO — Clima Open-Meteo para Nat](#24-cto--clima-open-meteo-para-nat)
 25. [CTO — Seguridad frente a inyección de datos](#25-cto--seguridad-frente-a-inyección-de-datos)
 
+> **Entender el producto a fondo** (por qué / fallos / pruebas / refactor / pitch): [`docs/EKI_PRODUCTO_PROFUNDO.md`](EKI_PRODUCTO_PROFUNDO.md).
+
 ---
 
-## Estado del producto al 21 julio 2026 (resumen ejecutivo)
+## Estado del producto al 22 julio 2026 (resumen ejecutivo)
 
 Lo que un coordinador o un inversor debe entender **hoy**, sin leer todo el documento:
 
 | Superficie | Qué está vivo en producción |
 |------------|-----------------------------|
-| **WhatsApp** | Canal pedagógico principal: onboarding, *listo*, drip, evaluaciones, certificados, PQRS con contexto (sin avanzar el curso), campañas B2B. **Multi-curso:** si el estudiante tiene 2+ cursos activos del mismo cliente, menú numerado; si tiene 1, avanza directo. |
-| **Portal** (`app.eki.technology`) | Coordinación B2B: **Inicio** operativo, métricas, gamificación, branding, modo claro/oscuro (morado eki), **Guía EKI**. **Centro de Éxito** (`/portal/retencion/`). Productos opcionales: GEI, Nat, empleabilidad. |
-| **Aula** (`aprende.eki.technology`) | Estudio, tareas, biblioteca, perfil, ranking. Login: escribir ***aula*** por WhatsApp → enlace/código (no OTP saliente en frío). Docente: cursos, ranking, asistencia Excel. |
+| **WhatsApp** | Canal pedagógico principal: onboarding, *listo*, drip, evaluaciones **A–D no saltables con listo**, certificados, PQRS con contexto (sin avanzar el curso), campañas B2B. **Multi-curso:** 2+ cursos activos → menú; 1 → avance directo. **Media:** reintento auto ante 63019 + *reenvía video* sin perder avance. |
+| **Portal** (`app.eki.technology`) | Coordinación B2B: Inicio, métricas, gamificación, branding, **Guía EKI**, **Centro de Éxito**, **Suscripción** (vence/cupos), **Recuperar contraseña**, certificados (verify + PDF + CSV). Productos opcionales: GEI, Nat, empleabilidad. |
+| **Aula** (`aprende.eki.technology`) | Estudio, tareas, biblioteca, perfil, ranking. Login: escribir ***aula*** por WhatsApp → enlace/código (no OTP saliente en frío). |
 | **Studio** (`studio.eki.technology`) | Catálogo, inscripción, checkout **Wompi** → handoff firmado a Aprende. |
-| **Certificados públicos** | `certificados.eki.technology/verificar-certificado/<codigo>/` (ya no Netlify). Paleta morada eki. |
-| **Admin** (`admin.eki.technology`) | Consola maestra de contenido, clientes, campañas, drip, certificados. |
-| **Infra** | EB `eki-prod-final`, RDS, S3, Celery+Redis, Cloudflare. Deploy manual con `scripts/eb_deploy_main.ps1`. |
+| **Certificados públicos** | `certificados.eki.technology/verificar-certificado/<codigo>/` — org, documento enmascarado, horas, SHA-256, **Descargar PDF**. WhatsApp sigue enviando PNG. |
+| **Admin** (`admin.eki.technology`) | Consola maestra de contenido, clientes, campañas, drip, certificados; avisos 3G al subir media. |
+| **Infra** | EB `eki-prod-final`, RDS, S3, Celery+Redis (reenganche drip 08:00 + inactivos 09:00), Cloudflare. |
 
-**Identidad visual vigente:** portal/Studio/Aprende = morado eki `#9A6CAC` / `#7a4e8e` / profundo `#5F3A6E`. Favicons distintos: portal (personas), aula (cuaderno).
+**Identidad visual vigente:** portal/Studio/Aprende = morado eki `#9A6CAC` / `#7a4e8e` / profundo `#5F3A6E`. Favicons distintos: portal (personas), aula (cuaderno), certificados.
 
-**Qué no es eki todavía:** app móvil nativa, LMS con SCORM completo, ni un SOC/pentest continuo documentado como proceso (ver §25). Nat ya consulta clima vía Open-Meteo (§24). El Centro de Éxito **sí** está en prod (heurística v1 + telemetría); aún no ejecuta automatizaciones Twilio ni predicción ML.
+**Qué no es eki todavía:** app móvil nativa, LMS SCORM completo, drip/whitelist self-serve completo en portal (sigue admin eki), emitir/anular masivo de certificados desde portal, predicción ML de retención. El Centro de Éxito **sí** muestra riesgo y **sí** dispara reenganche WA automático por inactividad (Celery); las “automatizaciones” del panel siguen siendo en parte sugeridas + la tarea diaria de inactivos.
 
 ---
 
@@ -520,7 +524,9 @@ Mensaje entrante (hola)
 - Completa módulo y pasa al siguiente (si drip lo permite).
 - En B2B reemplaza al menú numérico 1-2-3.
 
-Implementación: intent `continuar_leccion` en `response_templates.py` + `module_steps.py`.
+**Excepción P0 (julio 2026):** si hay una evaluación **A–D abierta** (`esperando_respuesta_evaluacion_paso`), *listo* **no** avanza. El sistema pide una letra A–D. Así el certificado conserva peso ante quien paga: no se puede “saltar” la pregunta con listo.
+
+Implementación: intent `continuar_leccion` + `module_steps.py` (`mensaje_eval_exige_letra_ad`).
 
 ### 6.4 Módulo CON microcontenidos
 
@@ -541,9 +547,19 @@ Se envía:
 
 ### 6.6 Evaluaciones y gamificación
 
-- **Opciones A–D:** se comparan con `respuesta_correcta`; feedback inmediato.
+- **Opciones A–D:** se comparan con `respuesta_correcta`; feedback inmediato; **no saltables con listo** (ver §6.3).
+- Tras respuesta incorrecta, el CTA pide otra letra A–D (no *listo*).
 - **Pregunta abierta / reto:** puede disparar revisión o puntos manuales.
 - Puntos o notas según `Cliente.modo_gamificacion` (`core/gamificacion_modo.py`).
+
+### 6.6b Recuperación de media (campo)
+
+Si el video/adjunto no llega (3G, Twilio 63019/63021):
+
+1. **Automático:** status callback → reintento 1–2 veces del mismo MediaUrl (`core/media_entrega.py`). No se envían links S3 en el cuerpo.
+2. **Manual:** el productor escribe *reenvía video* / *no me llegó el video* → `core/media_recuperacion.py` reenvía el material del módulo **sin avanzar** el progreso.
+3. Estado de paquete: `MediaPaqueteEntrega` (`pendiente` → `enviado` → `fallido` → `recuperado`).
+4. Política 3G (aviso en admin al subir, no bloqueo duro): ~25 MB video / 10 MB audio / 5 MB imagen.
 
 ### 6.7 Flujo B2B (sin menú 1-2-3)
 
@@ -832,7 +848,9 @@ Tras inscripción en Studio, redirección o enlace a **Mis cursos** en el aula. 
 
 - Usuario Django + modelo `PortalUsuario`.
 - Sesión: `portal_usuario_id`.
-- `SuscripcionMiddleware` bloquea acceso si `Cliente` tiene suscripción vencida.
+- `SuscripcionMiddleware` bloquea acceso si `Cliente` tiene suscripción vencida (excepto login, recuperar, página vencida).
+- **Recuperar contraseña** (julio 2026): `/portal/recuperar/` → email con token Django → confirmar. Requiere `User.email`. Código: `portal/password_reset.py`.
+- Primer acceso: `/portal/primer-acceso/` si `debe_cambiar_credenciales`.
 
 ### 10.2 Productos por cliente
 
@@ -849,23 +867,26 @@ Tras inscripción en Studio, redirección o enlace a **Mis cursos** en el aula. 
 
 - **Inicio** (`/portal/dashboard/`): estado del programa, “requiere atención hoy”, comparativa mensual, actividad reciente. Nombre de menú: **Inicio** (no “Dashboard”).
 - **Estudiantes:** búsqueda, timeline, export Excel.
-- **Cursos:** progreso por módulo, vista flujo (`curso_flujo_service.py`).
+- **Cursos:** progreso por módulo, vista flujo (`curso_flujo_service.py`) — lectura; abrir semana/whitelist sigue en admin eki.
 - **Campañas:** historial y detalle.
 - **Conversaciones:** inbox WhatsApp simplificado.
 - **GEI** (`/portal/gei/`): inventario de emisiones, completitud de fichas, gráficos, export — si el cliente tiene producto `gei`.
 - **Nat** (`/portal/nat/`): sesiones comerciales, catálogo de productos, escalamientos HITL — si el cliente tiene producto `nat`.
 - **Empleabilidad:** mapas y métricas (`portal/empleabilidad_metricas.py`).
-- **Certificados:** estado de envíos.
+- **Certificados:** listado + verificar + descargar + **Exportar CSV**.
+- **Suscripción** (`/portal/suscripcion/`): vence, días restantes, cupos, renovar WA, % media fallida.
 - **Centro de Éxito** (`/portal/retencion/` — menú lateral **Centro de Éxito**): responde ¿quién está en riesgo?, ¿por qué abandona?, ¿qué hacer hoy?
   - Semáforo de riesgo 🟢🟡🔴 + conteos (no listas de miles).
   - Explicación por estudiante + probabilidad estimada de terminar.
   - Mapa de abandono por módulo y, con telemetría, por paso/media.
   - Embudo vivo + embudo clásico, curva día 1–30, cohortes mensuales.
-  - WhatsApp Health, vs promedio eki, recomendaciones y reglas de automatización *sugeridas*.
+  - WhatsApp Health, vs promedio eki, recomendaciones.
+  - **Reenganche WA automático** (Celery 09:00 inactivos) — ver §17.
   - **Consultor de retención** (`POST /portal/retencion/agente/`): agente del portal, **aparte de Nat**.
   - Ver detalle en [§15](#15-retención-y-centro-de-éxito-del-programa).
 - **Gamificación:** ranking y métricas de puntos/notas.
 - **Perfil organización:** branding (`portal/branding.py`).
+- **Usuarios:** cupos (consulta); seats nuevos vía eki/admin.
 - **Guía EKI:** FAB + panel de ayuda por ruta (partials `help_assistant_script.html`).
 - **Tema:** toggle claro/oscuro con tokens de marca (fills morados estables; acentos verde/azul en stats y estados).
 
@@ -1001,23 +1022,33 @@ Admin gamificación permite corregir puntos y resetear rachas (soporte a coordin
 - `core/certificado_service.py` — cursos virtuales WhatsApp.
 - `core/certificado_presencial_service.py` — eventos presenciales.
 - Plantillas en `PlantillaCertificado` con modo diseño configurable.
+- **Artefactos (julio 2026):** siempre **PNG** (WhatsApp) + **PDF** derivado + **SHA-256** del PNG. Organización emisora = `Cliente.nombre` (no el contacto).
+- Menciones tipo “Con Distinción…” **desactivadas** en verify/WA.
 
 ### 13.2 Envío
 
-- Admin `/admin/envio-certificados/`.
-- Twilio envía PDF o enlace según plantilla.
+- Admin `/admin/envio-certificados/` o automático al completar.
+- WhatsApp envía **imagen PNG** (Twilio media); el PDF es para descarga/verify/portal.
+- Smoke: `python manage.py smoke_certificado_envio --telefono 57… --force`.
 - Auditoría: `auditar_certificados_twilio` management command.
 
 ### 13.3 Verificación pública
 
 - **URL canónica del QR:** `https://certificados.eki.technology/verificar-certificado/<codigo>/`
 - Base configurable: `CERTIFICADO_VERIFICACION_BASE_URL` / `CERTIFICADOS_PUBLIC_URL` (no usar `admin.*`).
-- Página HTML (válido / no válido) + API JSON en `/api/certificados/verificar/`.
+- Página HTML (válido / no válido / anulado) + API JSON en `/api/certificados/verificar/`.
+- Metadatos: estudiante, curso, **organización**, documento enmascarado, fechas, horas estimadas, código, **integridad SHA-256**, botones **Descargar PDF** / Ver imagen.
+- Descarga: `/descargar-certificado/<codigo>/`.
 - Compatibilidad: `/verificar/?code=…` redirige a la URL por código.
 - Demo prod: `eki-DEMO-PRUE-BA01`.
 - Los QR antiguos apuntando a Netlify **no** se recuperan solos; regenerar PDF/imagen si hace falta.
 
-### 13.4 Criterios de elegibilidad
+### 13.4 Portal B2B
+
+- `/portal/certificados/` — listado, filtrar por curso, verificar, descargar, **Exportar CSV**.
+- Emitir/anular masivo desde portal = bonus futuro (hoy ops/admin).
+
+### 13.5 Criterios de elegibilidad
 
 Típicamente: curso completado + nota mínima si gamificación activa + módulos requeridos completados (`nota_minima_certificado` en cliente/curso).
 
@@ -1100,7 +1131,7 @@ Señales (heurística v1): días sin actividad, no abrió módulo, % completado 
 | Cohortes | Por mes de inscripción: tasa fin. y deserción + insight |
 | Vs promedio eki | % certificación del filtro vs promedio anonimizado plataforma |
 | WhatsApp Health | Hora/días favoritos, tiempo respuesta, muestras alto riesgo |
-| Automatizaciones | Reglas *si → entonces* sugeridas (ejecución auto = siguiente fase) |
+| Automatizaciones | Reglas *si → entonces* sugeridas + **reenganche inactivos diario** (Celery 09:00, WhatsApp real) |
 
 ### 15.5 Implementación
 
@@ -1110,8 +1141,9 @@ Señales (heurística v1): días sin actividad, no abrió módulo, % completado 
 - Portal: `/portal/retencion/` · agente: `/portal/retencion/agente/`
 - Plantilla: `portal/templates/portal/retencion.html`
 - Tests: `portal/tests_retencion.py`
+- Reenganche auto: `core/tasks.reenganche_inactivos_diario` + `detectar_estudiantes_inactivos`
 
-Pendiente de producto: ejecutar automatizaciones (Twilio) según reglas; ML de predicción.
+Pendiente de producto: más reglas de automatización desde el panel; ML de predicción. El reenganche por inactividad **ya envía WhatsApp**.
 
 ### 15.6 Telemetría de aprendizaje
 
@@ -1124,7 +1156,7 @@ Modelo `EstudianteEventoAprendizaje` + `core/telemetria.registrar_evento()`.
 | `evaluacion_respondida` | Eval de paso OK / mini-examen módulo |
 | `modulo_iniciado` | Primer bloque del módulo (idx=1) |
 | `modulo_completado` | Signal `post_save` de `ModuloCompletado` (created) |
-| `recordatorio_enviado` | Celery `reenganche_drip_content_diario` |
+| `recordatorio_enviado` | Celery drip **e** reenganche inactivos |
 | `recordatorio_respondido` | Tras un `listo` si había recordatorio reciente |
 | `media_entregada` / `media_fallida` | Callback status Twilio |
 
@@ -1138,16 +1170,19 @@ Archivos: `core/telemetria.py`, `core/signals_telemetria.py`, migración `0122_e
 
 ### 16.1 Twilio WhatsApp
 
-- Envío: `core/whatsapp_service.py`.
+- Envío: `core/utils.enviar_whatsapp_twilio` / `core/whatsapp_service.py`.
 - Plantillas Content API para mensajes HSM aprobados.
-- Media: URLs públicas o presigned S3 (evita error 63019).
-- Variables de entorno: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`.
+- Media: URLs regionales S3 + prep (`core/twilio_media.py`); status callback → reintento auto (`core/media_entrega.py`).
+- Errores típicos campo: **63019 / 63021 / 63005** → reintento; si agota, *reenvía video*.
+- Variables: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, `TWILIO_STATUS_CALLBACK_URL`.
+- Reenganche: `DIAS_INACTIVIDAD_REENGANCHE` (default 7), `REENGANCHE_INACTIVOS_LIMITE`, `REENGANCHE_INACTIVOS_COOLDOWN_DIAS`, `MEDIA_REINTENTOS_AUTO` (default 2).
 
 ### 16.2 AWS S3
 
 - Bucket: `eki-produccion`, región `us-east-2`.
 - `DEFAULT_FILE_STORAGE = storages.backends.s3boto3.S3Boto3Storage` en producción.
-- Rutas típicas: `modulos/`, `videos/lecciones/`, `aprende/entregas/`, `estudiantes/avatars/`.
+- Rutas típicas: `modulos/`, `videos/lecciones/`, `certificados/generados/`, `aprende/entregas/`, `estudiantes/avatars/`.
+- Certificados suben con boto3 directo (ACL public-read) para que Twilio pueda GET.
 
 ### 16.3 IA generativa
 
@@ -1181,8 +1216,12 @@ beat: celery -A mvp_project beat
 | Tarea | Frecuencia | Función |
 |-------|------------|---------|
 | `enviar_campanas_programadas` | 5 min | Campañas con fecha |
-| `reenganche_drip_content_diario` | Diario | Recordatorios drip |
+| `reenganche_drip_content_diario` | Diario **08:00** | Recordatorios cuando el drip ya liberó el siguiente módulo |
+| `reenganche_inactivos_diario` | Diario **09:00** | Centro de Éxito: sin WA entrante X días → WhatsApp *listo* (`[REENGANCHE_INACTIVIDAD]`) |
 | `procesar_twilio_webhook_async` | Bajo demanda | Webhook no bloqueante |
+| `generar_certificado_async` | Bajo demanda | Generación de diploma en background |
+
+Horario en `mvp_project/celery.py`.
 
 ### 17.3 Cuándo importa
 
@@ -1356,9 +1395,21 @@ python manage.py test aprende.tests studio.tests core.tests_flujo_whatsapp_b2b c
 
 - [ ] Onboarding completo
 - [ ] listo entrega sección esperada
-- [ ] Evaluación registra respuesta
+- [ ] Evaluación A–D: *listo* solo **no** avanza; letra sí
+- [ ] Respuesta incorrecta pide otra letra (no listo)
 - [ ] Drip bloquea con mensaje de fecha
-- [ ] B2B no muestra menú 1-2-3
+- [ ] *reenvía video* reenvía media sin avanzar módulo
+- [ ] B2B un curso: no menú; multi-curso: menú numerado
+- [ ] Certificado: PNG en WA + verify con Descargar PDF
+- [ ] Portal: `/portal/recuperar/` carga; `/portal/suscripcion/` muestra cupos
+
+### 20.6 Scripts smoke útiles
+
+| Script / comando | Qué prueba |
+|------------------|------------|
+| `scripts/smoke_gei_curso_sesion.py` | Sesión GEI en curso |
+| `scripts/smoke_nat_producto_flujo.py` | Nat + media producto |
+| `manage.py smoke_certificado_envio --telefono 57…` | Emisión + envío WA diploma |
 
 ---
 
@@ -1375,8 +1426,14 @@ python manage.py test aprende.tests studio.tests core.tests_flujo_whatsapp_b2b c
 ### “WhatsApp no envía video/PDF”
 
 1. URL pública accesible (Content-Type correcto).
-2. Si es S3, verificar presigned URL en logs.
-3. Twilio error 63019 = media download failed → revisar `ArchivoModulo.get_url_para_envio()`.
+2. Si es S3, verificar URL regional `s3.us-east-2` en logs.
+3. Twilio error **63019/63021** = media download failed → el sistema reintenta solo; si falla, el estudiante escribe *reenvía video*.
+4. Revisar peso/codec (aviso 3G en admin): videos muy pesados fallan en campo.
+5. `ArchivoModulo.get_url_para_envio()` / `core/twilio_media.py`.
+
+### “El video no llegó pero el curso avanzó”
+
+No debería: *reenvía video* **no** avanza progreso. Si avanzó con *listo* sin ver el video, es comportamiento esperado de *listo* (confirmación de comprensión); reenviar media con la frase de recuperación.
 
 ### “Login aula falla”
 
@@ -1423,18 +1480,20 @@ python manage.py test aprende.tests studio.tests core.tests_flujo_whatsapp_b2b c
 | **Drip** | Liberación progresiva de módulos en el tiempo |
 | **Microcontenido / Paso** | Unidad mínima dentro de una sección (`PasoModulo`) |
 | **Sección** | Bloque de pasos liberado con un *listo* |
-| **listo** | Palabra clave de avance del estudiante |
+| **listo** | Palabra clave de avance del estudiante (excepto en eval A–D abierta) |
+| **reenvía video** | Pedido de recuperación de media sin avanzar el módulo |
+| **MediaPaqueteEntrega** | Estado de un adjunto WA: enviado / fallido / recuperado |
 | **curso_destino** | Curso asignado por una campaña |
 | **Progreso** | Registro `ProgresoEstudiante` de avance en un curso |
 | **ArchivoModulo** | Adjunto multimedia a nivel módulo |
 | **Portal** | `app.eki.technology` para coordinadores |
-| **Centro de Éxito** | Panel de retención en portal (`/portal/retencion/`): score 🟢🟡🔴, mapa abandono, embudo, curva, cohortes, WhatsApp Health y consultor IA/reglas. Ver [§15](#15-retención-y-centro-de-éxito-del-programa). |
-| **Telemetría de aprendizaje** | Eventos `EstudianteEventoAprendizaje` (listo, contenido, módulo, recordatorios, media Twilio) que alimentan el mapa por paso del Centro de Éxito |
+| **Centro de Éxito** | Panel de retención + reenganche WA inactivos. Ver [§15](#15-retención-y-centro-de-éxito-del-programa). |
+| **Telemetría de aprendizaje** | Eventos `EstudianteEventoAprendizaje` que alimentan el mapa por paso del Centro de Éxito |
 | **Aula** | `aprende.eki.technology` — estudio, tareas, ranking, biblioteca |
 | **eki Studio** | `studio.eki.technology` — catálogo e inscripción |
 | **Grupo** | `GrupoEstudiantes` — cohorte para campañas y ranking |
-| **GEI** | **Gases de Efecto Invernadero.** Módulo de recolección de datos de finca por WhatsApp (`FichaGEI`), cálculo de balance de emisiones y panel en portal. Ver [§10.5](#105-qué-es-gei-qué-es-nat). |
-| **Nat** | **Agente comercial** por WhatsApp: asesoría agrícola, catálogo de productos y RAG comercial por organización. Distinto del tutor educativo del curso y del consultor de retención del portal. Ver [§10.5](#105-qué-es-gei-qué-es-nat). |
+| **GEI** | Gases de Efecto Invernadero — fichas de finca por WhatsApp. Ver [§10.5](#105-qué-es-gei-qué-es-nat). |
+| **Nat** | Agente comercial WhatsApp (catálogo + asesoría + clima). Ver [§10.5](#105-qué-es-gei-qué-es-nat). |
 
 ---
 
@@ -1461,9 +1520,17 @@ python manage.py test aprende.tests studio.tests core.tests_flujo_whatsapp_b2b c
 | Nat + Open-Meteo | Probabilidad climática por municipio; persistencia vereda/lat/lon en sesión agro | Desplegado |
 | **Verificación certificados eki** | Host `certificados.eki.technology`; QR deja Netlify; página HTML morado eki | Desplegado (`main-20260721-181245`+) |
 | **Learning Analytics** | Reportes B2B, métricas empresa, **embudo por módulo** (snapshot hoy: dónde está cada estudiante) en admin dashboard | Desplegado |
-
 | **Multi-curso B2B** | Menú si 2+ cursos activos del mismo cliente | Desplegado |
 | **PQRS aislado del curso** | Reenvío sin avanzar; `listo` libera ticket; prioridad pedagógica | Desplegado |
+| **Eval A–D no saltables** | *listo* no cierra evaluación abierta; CTA pide letra | Desplegado (22 jul 2026) |
+| **Media: reintento + reenvía video** | Callback 63019 → retry; frase de campo sin avanzar; `MediaPaqueteEntrega` | Desplegado (`ops-20260722-media-portal`) |
+| **Reenganche inactivos WA** | Celery 09:00: X días sin entrante → WhatsApp *listo* | Desplegado |
+| **Certificados PDF + hash + CSV portal** | PNG+PDF+SHA-256; verify con descarga; portal export | Desplegado |
+| **Portal recuperar contraseña** | `/portal/recuperar/` por email | Desplegado |
+| **Portal suscripción visible** | Vence, cupos, % media fallida | Desplegado |
+| **Nat foto + packshot** | Visión de cultivo + envío de imagen de producto | Desplegado |
+
+> Para el **por qué** de cada pieza y cómo defenderla ante un inversor o entrevista técnica, ver `docs/EKI_PRODUCTO_PROFUNDO.md`.
 
 ---
 
