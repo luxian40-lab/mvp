@@ -5,7 +5,7 @@
 {% block content %}
 <div class="page-title">
     <h1>Certificados emitidos</h1>
-    <p class="muted">Solo lectura — certificados de estudiantes de su organización.</p>
+    <p class="muted">Registro de su organización — verificar, descargar y exportar para financiadores.</p>
 </div>
 
 <form method="get" class="panel" style="margin-bottom:1.25rem;display:flex;flex-wrap:wrap;gap:12px;align-items:end;">
@@ -19,6 +19,7 @@
         </select>
     </label>
     <button type="submit" class="btn btn-primary">Filtrar</button>
+    <a class="btn btn-secondary" href="?export=csv{% if filtro_curso %}&amp;curso={{ filtro_curso }}{% endif %}">Exportar CSV</a>
 </form>
 
 <div class="flujo-stats" style="display:flex;gap:1rem;margin-bottom:1rem;">
@@ -48,15 +49,19 @@
                 <td style="padding:10px 8px;font-family:monospace;font-size:12px;">{{ cert.codigo_verificacion }}</td>
                 <td style="padding:10px 8px;">{% if cert.fecha_emision %}{{ cert.fecha_emision|date:"d/m/Y" }}{% else %}—{% endif %}</td>
                 <td style="padding:10px 8px;">
-                    {% if cert.emitido %}
+                    {% if cert.anulado %}
+                    <span class="status status-cerrada">Anulado</span>
+                    {% elif cert.emitido %}
                     <span class="status status-resuelta">Emitido</span>
                     {% else %}
                     <span class="status status-cerrada">Pendiente</span>
                     {% endif %}
                 </td>
-                <td style="padding:10px 8px;">
-                    {% if cert.emitido %}
+                <td style="padding:10px 8px;white-space:nowrap;">
+                    {% if cert.emitido and not cert.anulado %}
                     <a href="{{ cert.obtener_url_verificacion }}" target="_blank" rel="noopener">Verificar</a>
+                    ·
+                    <a href="/descargar-certificado/{{ cert.codigo_verificacion }}/" rel="noopener">Descargar</a>
                     {% endif %}
                 </td>
             </tr>
@@ -68,7 +73,7 @@
         </tbody>
     </table>
     {% if certificados|length >= 500 %}
-    <p class="muted" style="margin-top:12px;font-size:13px;">Mostrando los 500 más recientes. Use el filtro por curso para acotar.</p>
+    <p class="muted" style="margin-top:12px;font-size:13px;">Mostrando los 500 más recientes. Use el filtro por curso o Exportar CSV para el listado completo.</p>
     {% endif %}
 </section>
 {% endblock %}

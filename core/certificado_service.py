@@ -41,42 +41,191 @@ def _get_s3_client():
     )
 
 
-def _subir_imagen_s3_directo(buffer, filename):
+def _subir_bytes_s3_directo(buffer, filename, content_type='image/png'):
     """
-    Sube imagen de certificado a S3 usando boto3 DIRECTAMENTE.
+    Sube bytes de certificado a S3 usando boto3 DIRECTAMENTE.
     NO usa Django S3Boto3Storage (que no guardaba bien).
-    
+
     Returns:
         (s3_key, public_url) o (None, None) si falla
     """
     bucket = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'eki-produccion')
     s3_key = f"{S3_CERT_PREFIX}/{filename}"
-    
+
     try:
         s3_client = _get_s3_client()
         buffer.seek(0)
-        
+
         s3_client.upload_fileobj(
             buffer,
             bucket,
             s3_key,
             ExtraArgs={
-                'ContentType': 'image/png',
+                'ContentType': content_type,
                 'ContentDisposition': 'inline',
                 'ACL': 'public-read',
             }
         )
-        
-        # Verificar que el archivo existe (HEAD)
+
         s3_client.head_object(Bucket=bucket, Key=s3_key)
-        
+
         public_url = f"https://{bucket}.s3.{S3_REGION}.amazonaws.com/{s3_key}"
         logger.info(f"✅ Certificado SUBIDO DIRECTO a S3: {s3_key} -> {public_url}")
         return s3_key, public_url
-        
+
     except Exception as e:
         logger.error(f"❌ Error subiendo certificado a S3: {e}", exc_info=True)
         return None, None
+
+
+def _subir_imagen_s3_directo(buffer, filename):
+    """Compat: sube PNG del diploma."""
+    return _subir_bytes_s3_directo(buffer, filename, content_type='image/png')
+
+
+def hash_sha256_buffer(buffer) -> str:
+    """SHA-256 hex del contenido actual del buffer (sin alterar posición final)."""
+    import hashlib
+
+    pos = buffer.tell()
+    buffer.seek(0)
+    digest = hashlib.sha256(buffer.read()).hexdigest()
+    buffer.seek(pos)
+    return digest
+
+
+def png_buffer_a_pdf(png_buffer):
+    """
+    Convierte un PNG (BytesIO) a PDF de una página con el diploma a tamaño real.
+    WhatsApp sigue usando PNG; el PDF es el artefacto descargable/verificable.
+    """
+    from io import BytesIO
+
+    from PIL import Image
+    from reportlab.lib.utils import ImageReader
+    from reportlab.pdfgen import canvas
+
+    png_buffer.seek(0)
+    with Image.open(png_buffer) as img:
+        w_px, h_px = img.size
+        # Escala a puntos PDF (72 dpi nominal); máximo ancho carta landscape ~792
+        max_w, max_h = 1100, 850
+        scale = min(max_w / float(w_px), max_h / float(h_px), 1.0)
+        page_w = max(1, int(w_px * scale))
+        page_h = max(1, int(h_px * scale))
+
+    out = BytesIO()
+    c = canvas.Canvas(out, pagesize=(page_w, page_h))
+    png_buffer.seek(0)
+    c.drawImage(ImageReader(png_buffer), 0, 0, width=page_w, height=page_h, preserveAspectRatio=True, mask='auto')
+    c.showPage()
+    c.save()
+    out.seek(0)
+    return out
+
+
+def organizacion_emisora_de(certificado) -> str:
+    """Nombre de organización para diploma y verificación (cliente.nombre, no contacto)."""
+    est = getattr(certificado, 'estudiante', None)
+    cliente = getattr(est, 'cliente', None) if est else None
+    if cliente:
+        nombre = (getattr(cliente, 'nombre', None) or '').strip()
+        if nombre:
+            return nombre
+    snap = (getattr(certificado, 'organizacion_emisora', None) or '').strip()
+    return snap or 'eki'
+
+
+def url_publica_s3_key(s3_key: str | None) -> str | None:
+    if not s3_key:
+        return None
+    bucket = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'eki-produccion')
+    return f"https://{bucket}.s3.{S3_REGION}.amazonaws.com/{s3_key}"
+
+
+def obtener_url_pdf_certificado(certificado) -> str | None:
+    if not certificado.archivo_pdf:
+        return None
+    try:
+        name = str(certificado.archivo_pdf.name)
+        if name.startswith('http'):
+            return name
+        # Keys directas en S3 (mismo patrón que imagen)
+        if name.startswith(S3_CERT_PREFIX) or name.startswith('Certificados'):
+            return url_publica_s3_key(name)
+        return certificado.archivo_pdf.url
+    except Exception:
+        return url_publica_s3_key(str(certificado.archivo_pdf.name))
+
+
+def _guardar_cert_s3(certificado, img_buffer, label=""):
+    """
+    Sube PNG (+ PDF derivado) a S3 via boto3 DIRECTO y actualiza el modelo.
+    Retorna True si el PNG se guardó.
+    """
+    filename = f"certificado_{certificado.codigo_verificacion}.png"
+    img_buffer.seek(0)
+    digest = hash_sha256_buffer(img_buffer)
+    s3_key, public_url = _subir_imagen_s3_directo(img_buffer, filename)
+    if not s3_key:
+        return False
+
+    certificado.archivo_imagen.name = s3_key
+    certificado.hash_sha256 = digest
+    org = organizacion_emisora_de(certificado)
+    if org:
+        certificado.organizacion_emisora = org[:200]
+
+    try:
+        pdf_buf = png_buffer_a_pdf(img_buffer)
+        pdf_name = f"certificado_{certificado.codigo_verificacion}.pdf"
+        pdf_key, _ = _subir_bytes_s3_directo(pdf_buf, pdf_name, content_type='application/pdf')
+        if pdf_key:
+            certificado.archivo_pdf.name = pdf_key
+        else:
+            logger.warning('⚠️ PDF no subió a S3 para %s (PNG sí)', certificado.codigo_verificacion)
+    except Exception as e:
+        logger.warning('⚠️ No se pudo generar/subir PDF para %s: %s', certificado.codigo_verificacion, e)
+
+    logger.info(f"✅ {label}: S3 key={s3_key}, URL={public_url}, hash={digest[:12]}…")
+    return True
+
+
+def asegurar_pdf_certificado(certificado) -> bool:
+    """
+    Si hay PNG en S3 y falta PDF/hash, regenera PDF (y hash) sin tocar el PNG.
+    """
+    if not certificado.archivo_imagen:
+        return False
+    if certificado.archivo_pdf and certificado.hash_sha256:
+        return True
+
+    from io import BytesIO
+
+    bucket = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'eki-produccion')
+    s3_key = str(certificado.archivo_imagen.name)
+    try:
+        s3 = _get_s3_client()
+        obj = s3.get_object(Bucket=bucket, Key=s3_key)
+        raw = obj['Body'].read()
+        buf = BytesIO(raw)
+        if not certificado.hash_sha256:
+            certificado.hash_sha256 = hash_sha256_buffer(buf)
+        if not certificado.organizacion_emisora:
+            certificado.organizacion_emisora = organizacion_emisora_de(certificado)[:200]
+        if not certificado.archivo_pdf:
+            pdf_buf = png_buffer_a_pdf(buf)
+            pdf_name = f"certificado_{certificado.codigo_verificacion}.pdf"
+            pdf_key, _ = _subir_bytes_s3_directo(pdf_buf, pdf_name, content_type='application/pdf')
+            if pdf_key:
+                certificado.archivo_pdf.name = pdf_key
+        certificado.save(update_fields=[
+            'hash_sha256', 'organizacion_emisora', 'archivo_pdf', 'actualizado_en',
+        ])
+        return bool(certificado.archivo_pdf)
+    except Exception as e:
+        logger.warning('asegurar_pdf_certificado falló (%s): %s', certificado.codigo_verificacion, e)
+        return False
 
 
 def obtener_url_certificado_twilio(certificado):
@@ -212,22 +361,6 @@ def _generar_certificado_simple(plantilla_url, nombre_estudiante, cedula, org_no
     return buf
 
 
-def _guardar_cert_s3(certificado, img_buffer, label=""):
-    """
-    Sube el buffer de imagen a S3 via boto3 DIRECTO y actualiza el modelo.
-    Retorna True si éxito.
-    """
-    filename = f"certificado_{certificado.codigo_verificacion}.png"
-    img_buffer.seek(0)
-    s3_key, public_url = _subir_imagen_s3_directo(img_buffer, filename)
-    if s3_key:
-        # Guardar el S3 key en el campo archivo_imagen (para referencia)
-        certificado.archivo_imagen.name = s3_key
-        logger.info(f"✅ {label}: S3 key={s3_key}, URL={public_url}")
-        return True
-    return False
-
-
 def resolver_plantilla_certificado(estudiante, curso, plantilla_id=None):
     """
     Elige la plantilla que se usará al generar el certificado.
@@ -295,7 +428,8 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
       2) FALLBACK SIMPLE: texto sobre imagen sin marcadores (SIEMPRE funciona)
       3) Imagen blanca desde cero con Pillow
     
-    GARANTÍA: Siempre genera archivo_imagen (PNG). Nunca cae a PDF.
+    GARANTÍA: Siempre genera archivo_imagen (PNG) para WhatsApp.
+    Además genera PDF derivado + hash SHA-256 para verificación/descarga.
     """
     # Si ya tiene imagen verificable en S3 y no es force, no regenerar
     if certificado.archivo_imagen and not force:
@@ -306,6 +440,7 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
             s3_client = _get_s3_client()
             s3_client.head_object(Bucket=bucket, Key=s3_key)
             logger.info(f"Certificado {certificado.codigo_verificacion} ya tiene imagen VERIFICADA en S3")
+            asegurar_pdf_certificado(certificado)
             return True
         except Exception:
             logger.warning(f"⚠️ Certificado {certificado.codigo_verificacion} tenía imagen pero NO EXISTE en S3, regenerando...")
@@ -325,9 +460,7 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
             )
         
         url_verificacion = certificado.obtener_url_verificacion()
-        # EMPRESA marker = contacto_principal (representante), no nombre de empresa
-        _cliente = certificado.estudiante.cliente if (certificado.estudiante and certificado.estudiante.cliente) else None
-        org_nombre = getattr(_cliente, 'contacto_principal', '') or (getattr(_cliente, 'nombre', '') if _cliente else 'eki')
+        org_nombre = organizacion_emisora_de(certificado)
         nombre_est = certificado.estudiante.nombre
         cedula_est = certificado.estudiante.cedula or ''
         
@@ -902,29 +1035,75 @@ def verificar_certificado_publico(codigo_verificacion):
         dict con información del certificado o None si no existe
     """
     from .models_certificados import Certificado
+    from django.urls import reverse
     
     try:
         certificado = Certificado.objects.select_related(
             'estudiante',
+            'estudiante__cliente',
             'curso',
         ).get(
             codigo_verificacion__iexact=(codigo_verificacion or '').strip(),
             emitido=True,
         )
-        
+
+        if certificado.anulado:
+            return {
+                'valido': False,
+                'anulado': True,
+                'codigo': certificado.codigo_verificacion,
+                'error': 'Certificado anulado',
+                'motivo_anulacion': certificado.motivo_anulacion or '',
+            }
+
+        # Backfill PDF/hash si hace falta (best-effort; no bloquea verificación)
+        try:
+            asegurar_pdf_certificado(certificado)
+            certificado.refresh_from_db()
+        except Exception:
+            pass
+
+        pdf_url = obtener_url_pdf_certificado(certificado)
+        imagen_url = (
+            obtener_url_certificado_twilio(certificado)
+            if certificado.archivo_imagen
+            else None
+        )
+        # Enlace estable de descarga (vista Django) — siempre en certs emitidos
+        try:
+            descarga_path = reverse(
+                'descargar_certificado',
+                kwargs={'codigo_verificacion': certificado.codigo_verificacion},
+            )
+        except Exception:
+            descarga_path = f"/descargar-certificado/{certificado.codigo_verificacion}/"
+
+        org = (
+            (certificado.organizacion_emisora or '').strip()
+            or organizacion_emisora_de(certificado)
+        )
+        horas = certificado.horas_estimadas_curso()
+        semanas = getattr(certificado.curso, 'duracion_semanas', None)
+
         return {
             'valido': True,
             'codigo': certificado.codigo_verificacion,
             'estudiante': certificado.estudiante.nombre,
+            'cedula_enmascarada': certificado.cedula_enmascarada(),
             'curso': certificado.curso.nombre,
+            'organizacion': org,
             'calificacion': float(certificado.calificacion_final),
             'mencion': certificado.obtener_mencion(),
             'fecha_inicio': certificado.fecha_inicio,
             'fecha_completado': certificado.fecha_completado,
             'fecha_emision': certificado.fecha_emision,
             'duracion_dias': certificado.duracion_curso(),
-            'pdf_url': certificado.archivo_pdf.url if certificado.archivo_pdf else None,
-            'imagen_url': obtener_url_certificado_twilio(certificado) if certificado.archivo_imagen else None
+            'duracion_semanas': semanas,
+            'horas_estimadas': horas,
+            'hash_sha256': certificado.hash_sha256 or '',
+            'pdf_url': pdf_url or descarga_path,
+            'imagen_url': imagen_url,
+            'descarga_url': descarga_path,
         }
         
     except Certificado.DoesNotExist:

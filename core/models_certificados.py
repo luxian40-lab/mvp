@@ -86,6 +86,26 @@ class Certificado(models.Model):
         null=True,
         blank=True
     )
+
+    # Integridad / due diligence
+    hash_sha256 = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        help_text='SHA-256 del PNG del diploma (integridad del artefacto)',
+    )
+    organizacion_emisora = models.CharField(
+        max_length=200,
+        blank=True,
+        default='',
+        help_text='Snapshot del nombre de la organización al emitir',
+    )
+    anulado = models.BooleanField(
+        default=False,
+        help_text='Si está anulado, la verificación pública lo marca no válido',
+    )
+    fecha_anulacion = models.DateTimeField(null=True, blank=True)
+    motivo_anulacion = models.CharField(max_length=255, blank=True, default='')
     
     # Timestamps
     creado_en = models.DateTimeField(auto_now_add=True)
@@ -158,6 +178,26 @@ class Certificado(models.Model):
         if self.fecha_inicio and self.fecha_completado:
             return (self.fecha_completado - self.fecha_inicio).days
         return 0
+
+    def cedula_enmascarada(self):
+        """Cédula parcial para verificación pública (****1234)."""
+        raw = (getattr(self.estudiante, 'cedula', None) or '').strip()
+        if not raw:
+            return ''
+        if len(raw) <= 4:
+            return '*' * len(raw)
+        return ('*' * (len(raw) - 4)) + raw[-4:]
+
+    def horas_estimadas_curso(self):
+        """Horas estimadas a partir de duracion_semanas del curso (≈4 h/semana)."""
+        semanas = getattr(self.curso, 'duracion_semanas', None) or 0
+        try:
+            semanas = int(semanas)
+        except (TypeError, ValueError):
+            semanas = 0
+        if semanas <= 0:
+            return None
+        return semanas * 4
 
 
 class PlantillaCertificado(models.Model):

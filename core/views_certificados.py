@@ -8,7 +8,13 @@ from django.http import HttpResponse, Http404, FileResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from .models_certificados import Certificado
-from .certificado_service import verificar_certificado_publico
+from .certificado_service import (
+    asegurar_pdf_certificado,
+    generar_y_guardar_certificado,
+    obtener_url_certificado_twilio,
+    obtener_url_pdf_certificado,
+    verificar_certificado_publico,
+)
 import logging
 import os
 
@@ -42,6 +48,8 @@ def _ctx_verificacion(codigo: str, data: dict) -> dict:
             'valido': False,
             'codigo': codigo,
             'mensaje': data.get('error') or 'Certificado no encontrado o no válido',
+            'anulado': bool(data.get('anulado')),
+            'motivo_anulacion': data.get('motivo_anulacion') or '',
         }
     fecha = data.get('fecha_emision')
     fecha_txt = ''
@@ -50,15 +58,30 @@ def _ctx_verificacion(codigo: str, data: dict) -> dict:
             fecha_txt = fecha.strftime('%d/%m/%Y')
         except Exception:
             fecha_txt = str(fecha)[:10]
+    fecha_comp = data.get('fecha_completado')
+    fecha_comp_txt = ''
+    if fecha_comp:
+        try:
+            fecha_comp_txt = fecha_comp.strftime('%d/%m/%Y')
+        except Exception:
+            fecha_comp_txt = str(fecha_comp)[:10]
     return {
         'valido': True,
         'codigo': data.get('codigo') or codigo,
         'estudiante': data.get('estudiante') or '',
+        'cedula_enmascarada': data.get('cedula_enmascarada') or '',
         'curso': data.get('curso') or '',
+        'organizacion': data.get('organizacion') or '',
         'mencion': data.get('mencion') or '',
         'fecha_emision': fecha_txt,
+        'fecha_completado': fecha_comp_txt,
         'calificacion': data.get('calificacion'),
-        'pdf_url': data.get('pdf_url'),
+        'horas_estimadas': data.get('horas_estimadas'),
+        'duracion_semanas': data.get('duracion_semanas'),
+        'hash_sha256': data.get('hash_sha256') or '',
+        'pdf_url': data.get('pdf_url') or data.get('descarga_url'),
+        'imagen_url': data.get('imagen_url'),
+        'descarga_url': data.get('descarga_url') or data.get('pdf_url'),
     }
 
 
@@ -95,8 +118,8 @@ def verificar_certificado_query_view(request):
 
 def descargar_certificado_view(request, codigo_verificacion):
     """
-    Vista para descargar el PDF del certificado
-    Accesible sin autenticación (enlace público)
+    Descarga el PDF del certificado (o PNG si aún no hay PDF).
+    Accesible sin autenticación (enlace público del QR / verify).
     """
     try:
         certificado = get_object_or_404(
@@ -104,36 +127,69 @@ def descargar_certificado_view(request, codigo_verificacion):
             codigo_verificacion__iexact=(codigo_verificacion or '').strip(),
             emitido=True,
         )
-
-        if not certificado.archivo_pdf:
-            from .certificado_service import generar_y_guardar_certificado
-            generar_y_guardar_certificado(certificado)
-            certificado.refresh_from_db()
-
-        if not certificado.archivo_pdf:
+        if certificado.anulado:
             return render(
                 request,
                 'certificados/verificar.html',
                 {
                     'valido': False,
-                    'codigo': codigo_verificacion.upper(),
-                    'mensaje': 'El certificado existe pero el PDF aún no está disponible.',
+                    'codigo': (codigo_verificacion or '').upper(),
+                    'mensaje': 'Este certificado fue anulado y no se puede descargar.',
+                    'anulado': True,
                 },
-                status=404,
+                status=410,
             )
 
-        try:
-            path = certificado.archivo_pdf.path
-            if os.path.exists(path):
-                return FileResponse(
-                    open(path, 'rb'),
-                    as_attachment=True,
-                    filename=f'certificado_{codigo_verificacion}.pdf',
-                )
-        except Exception:
-            pass
+        if not certificado.archivo_pdf:
+            if not certificado.archivo_imagen:
+                generar_y_guardar_certificado(certificado)
+                certificado.refresh_from_db()
+            else:
+                asegurar_pdf_certificado(certificado)
+                certificado.refresh_from_db()
 
-        return redirect(certificado.archivo_pdf.url)
+        # Preferir PDF
+        if certificado.archivo_pdf:
+            try:
+                path = certificado.archivo_pdf.path
+                if os.path.exists(path):
+                    return FileResponse(
+                        open(path, 'rb'),
+                        as_attachment=True,
+                        filename=f'certificado_{codigo_verificacion}.pdf',
+                    )
+            except Exception:
+                pass
+            pdf_url = obtener_url_pdf_certificado(certificado)
+            if pdf_url:
+                return redirect(pdf_url)
+
+        # Fallback: imagen PNG (WhatsApp artifact)
+        if certificado.archivo_imagen:
+            try:
+                path = certificado.archivo_imagen.path
+                if os.path.exists(path):
+                    return FileResponse(
+                        open(path, 'rb'),
+                        as_attachment=True,
+                        filename=f'certificado_{codigo_verificacion}.png',
+                    )
+            except Exception:
+                pass
+            img_url = obtener_url_certificado_twilio(certificado)
+            if img_url:
+                return redirect(img_url)
+
+        return render(
+            request,
+            'certificados/verificar.html',
+            {
+                'valido': False,
+                'codigo': (codigo_verificacion or '').upper(),
+                'mensaje': 'El certificado existe pero el archivo aún no está disponible.',
+            },
+            status=404,
+        )
 
     except Http404:
         return render(
@@ -141,7 +197,7 @@ def descargar_certificado_view(request, codigo_verificacion):
             'certificados/verificar.html',
             {
                 'valido': False,
-                'codigo': codigo_verificacion.upper(),
+                'codigo': (codigo_verificacion or '').upper(),
                 'mensaje': 'Certificado no encontrado o no emitido',
             },
             status=404,
@@ -153,7 +209,7 @@ def descargar_certificado_view(request, codigo_verificacion):
             'certificados/verificar.html',
             {
                 'valido': False,
-                'codigo': codigo_verificacion.upper(),
+                'codigo': (codigo_verificacion or '').upper(),
                 'mensaje': 'Error al acceder al certificado',
             },
             status=500,
@@ -194,6 +250,7 @@ def verificar_certificado_json_view(request):
             'curso': '',
             'fecha_emision': None,
             'mensaje_error': data.get('error', 'Certificado no encontrado'),
+            'anulado': bool(data.get('anulado')),
         }, status=404)
         return _aplicar_cors_certificados(resp, request)
 
@@ -204,7 +261,16 @@ def verificar_certificado_json_view(request):
         'valido': True,
         'codigo': data.get('codigo', code),
         'nombre_estudiante': data.get('estudiante', ''),
+        'cedula_enmascarada': data.get('cedula_enmascarada', ''),
         'curso': data.get('curso', ''),
+        'organizacion': data.get('organizacion', ''),
+        'mencion': data.get('mencion') or '',
+        'calificacion': data.get('calificacion'),
+        'horas_estimadas': data.get('horas_estimadas'),
+        'hash_sha256': data.get('hash_sha256') or '',
+        'pdf_url': data.get('pdf_url'),
+        'imagen_url': data.get('imagen_url'),
+        'descarga_url': data.get('descarga_url'),
         'fecha_emision': fecha_emision_iso,
         'mensaje_error': '',
     })

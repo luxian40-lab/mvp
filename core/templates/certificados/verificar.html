@@ -294,10 +294,34 @@
             <dt>Curso</dt>
             <dd>{{ curso }}</dd>
           </div>
+          {% if organizacion %}
+          <div>
+            <dt>Organización</dt>
+            <dd>{{ organizacion }}</dd>
+          </div>
+          {% endif %}
+          {% if cedula_enmascarada %}
+          <div>
+            <dt>Documento</dt>
+            <dd class="code">{{ cedula_enmascarada }}</dd>
+          </div>
+          {% endif %}
           {% if fecha_emision %}
           <div>
             <dt>Emitido</dt>
             <dd>{{ fecha_emision }}</dd>
+          </div>
+          {% endif %}
+          {% if fecha_completado %}
+          <div>
+            <dt>Completado</dt>
+            <dd>{{ fecha_completado }}</dd>
+          </div>
+          {% endif %}
+          {% if horas_estimadas %}
+          <div>
+            <dt>Horas est.</dt>
+            <dd>{{ horas_estimadas }} h{% if duracion_semanas %} ({{ duracion_semanas }} sem.){% endif %}</dd>
           </div>
           {% endif %}
           {% if mencion %}
@@ -310,13 +334,24 @@
             <dt>Código</dt>
             <dd class="code">{{ codigo }}</dd>
           </div>
+          {% if hash_sha256 %}
+          <div>
+            <dt>Integridad</dt>
+            <dd class="code" style="font-size:0.72rem;word-break:break-all;">SHA-256 {{ hash_sha256 }}</dd>
+          </div>
+          {% endif %}
         </dl>
-        {% if pdf_url %}
-        <div class="actions">
-          <a class="btn" href="{{ pdf_url }}" target="_blank" rel="noopener">Abrir PDF</a>
+        {% if descarga_url or pdf_url or imagen_url %}
+        <div class="actions" style="display:flex;flex-wrap:wrap;gap:0.6rem;">
+          {% if descarga_url or pdf_url %}
+          <a class="btn" href="{{ descarga_url|default:pdf_url }}" rel="noopener">Descargar PDF</a>
+          {% endif %}
+          {% if imagen_url %}
+          <a class="btn" href="{{ imagen_url }}" target="_blank" rel="noopener" style="background:transparent;color:var(--purple-brand);box-shadow:inset 0 0 0 2px var(--purple-brand);">Ver imagen</a>
+          {% endif %}
         </div>
         {% endif %}
-        <p class="foot">Este documento figura en el registro público de eki.</p>
+        <p class="foot">{% if organizacion %}Emitido con eki para {{ organizacion }}. {% endif %}Este documento figura en el registro público de eki.</p>
       {% else %}
         <svg class="mark" viewBox="0 0 56 56" aria-hidden="true">
           <circle cx="28" cy="28" r="26" fill="#c92a2a"/>

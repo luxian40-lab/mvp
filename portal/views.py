@@ -787,7 +787,7 @@ def portal_curso_flujo(request, curso_id: int):
 @portal_login_required
 @requiere_modulo('cursos')
 def portal_certificados(request):
-    """Listado de certificados emitidos por la organización (solo lectura)."""
+    """Listado de certificados emitidos por la organización (+ export CSV)."""
     org = _portal_org(request)
     if not org:
         return redirect('/portal/login/')
@@ -805,6 +805,39 @@ def portal_certificados(request):
     )
     if curso_id:
         qs = qs.filter(curso_id=curso_id)
+
+    if (request.GET.get('export') or '').lower() == 'csv':
+        import csv
+        from django.http import HttpResponse
+
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = 'attachment; filename="certificados_portal.csv"'
+        response.write('\ufeff')  # BOM Excel
+        writer = csv.writer(response)
+        writer.writerow([
+            'estudiante', 'cedula', 'curso', 'codigo', 'emitido', 'anulado',
+            'fecha_emision', 'calificacion', 'mencion', 'organizacion',
+            'hash_sha256', 'url_verificacion', 'url_descarga',
+        ])
+        for cert in qs.filter(emitido=True)[:5000]:
+            writer.writerow([
+                cert.estudiante.nombre,
+                cert.estudiante.cedula or '',
+                cert.curso.nombre if cert.curso else '',
+                cert.codigo_verificacion,
+                'si' if cert.emitido else 'no',
+                'si' if getattr(cert, 'anulado', False) else 'no',
+                cert.fecha_emision.strftime('%Y-%m-%d %H:%M') if cert.fecha_emision else '',
+                float(cert.calificacion_final) if cert.calificacion_final is not None else '',
+                cert.obtener_mencion() or '',
+                (cert.organizacion_emisora or org.nombre or ''),
+                getattr(cert, 'hash_sha256', '') or '',
+                cert.obtener_url_verificacion(),
+                request.build_absolute_uri(
+                    f'/descargar-certificado/{cert.codigo_verificacion}/'
+                ),
+            ])
+        return response
 
     total_emitidos = qs.filter(emitido=True).count()
     return render(request, 'portal/certificados.html', {
