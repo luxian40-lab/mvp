@@ -1,18 +1,14 @@
 {% extends "studio/base.html" %}
-{% block title %}Crear | eki Studio{% endblock %}
+{% block title %}Soy creador | eki Studio{% endblock %}
 {% block content %}
 <header class="st-page-intro">
-    <p class="st-section-label">Creadores</p>
-    <h1>Publica en Studio</h1>
-    <p class="st-lead">
-        Abre tu programa al catálogo: nombre, historia y precio.
-        El contenido profundo lo armamos contigo con eki — aquí habilitas la oferta comercial.
-    </p>
+    <h1>Publica y enseña</h1>
+    <p class="st-lead">Crea tu perfil, publica cursos y cobra con Wompi. Los estudiantes estudian en Aprende.</p>
     <div class="st-hero-actions">
         {% if creador_perfil %}
         <a href="{% url 'studio_creador_panel' %}" class="st-btn st-btn--primary">Mi panel</a>
         {% else %}
-        <a href="{% url 'studio_creador_registro' %}" class="st-btn st-btn--primary">Quiero crear</a>
+        <a href="{% url 'studio_creador_registro' %}" class="st-btn st-btn--primary">Registrarme como creador</a>
         {% endif %}
         <a href="{% url 'studio_catalogo' %}" class="st-btn st-btn--ghost-ink">Ver catálogo</a>
     </div>
@@ -22,15 +18,15 @@
     <ol class="st-steps">
         <li data-step="01">
             <strong>Regístrate</strong>
-            <span class="st-muted">Correo y contraseña. Entras como creador.</span>
+            <span class="st-muted">Nombre, correo y contraseña. Listo para publicar.</span>
         </li>
         <li data-step="02">
-            <strong>Publica el programa</strong>
-            <span class="st-muted">Título, descripción y precio COP (0 = gratis).</span>
+            <strong>Publica</strong>
+            <span class="st-muted">Curso, descripción y precio en COP.</span>
         </li>
         <li data-step="03">
-            <strong>Cobra y conecta</strong>
-            <span class="st-muted">Wompi cobra; el estudiante abre el aula con un clic.</span>
+            <strong>Cobra</strong>
+            <span class="st-muted">Wompi valida el pago y el estudiante entra al aula.</span>
         </li>
     </ol>
 </section>

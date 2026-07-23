@@ -4,44 +4,44 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#9A6CAC">
+  <meta name="theme-color" content="#5F3A6E">
   <title>{% if valido %}Certificado válido{% else %}Certificado no válido{% endif %} · eki</title>
   <link rel="icon" href="{% static 'favicons/certificados.svg' %}" type="image/svg+xml">
   <link rel="icon" href="{% static 'favicons/certificados-32.png' %}" type="image/png" sizes="32x32">
   <link rel="apple-touch-icon" href="{% static 'favicons/certificados-180.png' %}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,600;7..72,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --p: #9A6CAC;
-      --p2: #7A4E8E;
-      --pd: #2A1240;
-      --pl: #F2EBF7;
-      --pb: #F9F5FC;
-      --band: #F4F2F7;
-      --blue: #3C7BBF;
-      --ink: #2A1240;
-      --ink-soft: #4A4A4A;
-      --paper: #ffffff;
-      --line: rgba(154, 108, 172, 0.18);
+      --purple: #9A6CAC;
+      --purple-mid: #855698;
+      --purple-brand: #7a4e8e;
+      --purple-deep: #5F3A6E;
+      --purple-deeper: #3d2750;
+      --ink: #2a1f33;
+      --ink-soft: #5c4a66;
+      --paper: #faf8fc;
+      --paper-2: #f3eef7;
+      --line: rgba(95, 58, 110, 0.14);
       --accent-soft: rgba(154, 108, 172, 0.14);
-      --bad: #c0392b;
-      --bad-soft: rgba(192, 57, 43, 0.1);
-      --muted: #777777;
-      --ok: #1f8a55;
-      --font: "Montserrat", Arial, sans-serif;
+      --gold: #c9a84a;
+      --bad: #c92a2a;
+      --bad-soft: rgba(201, 42, 42, 0.1);
+      --muted: #7a6884;
+      --on-dark: #FAFAFC;
+      --on-dark-muted: #C4ACCE;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       min-height: 100vh;
-      font-family: var(--font);
-      color: var(--ink-soft);
+      font-family: Manrope, system-ui, sans-serif;
+      color: var(--on-dark);
       background:
-        radial-gradient(circle at 10% 18%, rgba(154, 108, 172, 0.14) 0%, transparent 34%),
-        radial-gradient(circle at 82% -10%, rgba(60, 123, 191, 0.12) 0%, transparent 38%),
-        var(--band);
+        radial-gradient(ellipse 90% 60% at 50% -10%, rgba(154, 108, 172, 0.35), transparent 55%),
+        radial-gradient(ellipse 50% 45% at 100% 100%, rgba(95, 58, 110, 0.5), transparent 50%),
+        linear-gradient(165deg, #623d70 0%, var(--purple-deep) 45%, var(--purple-deeper) 100%);
       display: grid;
       place-items: center;
       padding: 2rem 1rem 2.75rem;
@@ -71,25 +71,30 @@
     }
     .brand img {
       display: block;
-      height: clamp(2.2rem, 8vw, 2.6rem);
+      height: clamp(2.35rem, 8vw, 2.85rem);
       width: auto;
+      filter: drop-shadow(0 2px 10px rgba(32, 19, 37, 0.35));
     }
     .mast-label {
-      font-size: 0.65rem;
-      font-weight: 800;
+      font-size: 0.7rem;
+      font-weight: 600;
       letter-spacing: 0.16em;
       text-transform: uppercase;
-      color: var(--p);
+      color: var(--on-dark-muted);
       padding-bottom: 0.35rem;
     }
     .card {
       position: relative;
-      background: var(--paper);
-      border: 1px solid rgba(154, 108, 172, 0.16);
-      border-radius: 16px;
+      background:
+        linear-gradient(180deg, #fff 0%, var(--paper) 50%, var(--paper-2) 100%);
+      border: 1px solid rgba(154, 108, 172, 0.22);
+      border-radius: 2px 18px 18px 2px;
       padding: 2rem 1.55rem 1.5rem 1.65rem;
       color: var(--ink);
-      box-shadow: 0 12px 32px rgba(42, 18, 64, 0.1);
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.8) inset,
+        0 0 0 1px rgba(154, 108, 172, 0.08),
+        0 22px 50px rgba(32, 19, 37, 0.45);
       overflow: hidden;
     }
     .card::before {
@@ -99,22 +104,34 @@
       top: 0;
       bottom: 0;
       width: 4px;
-      background: linear-gradient(180deg, var(--p), var(--blue));
+      background: linear-gradient(180deg, var(--purple), var(--gold));
+    }
+    .card::after {
+      content: "";
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 14px;
+      height: 14px;
+      border: 1.5px solid rgba(122, 78, 142, 0.35);
+      border-left: 0;
+      border-bottom: 0;
+      pointer-events: none;
     }
     .status {
       display: inline-flex;
       align-items: center;
       gap: 0.45rem;
-      font-size: 0.68rem;
-      font-weight: 800;
+      font-size: 0.72rem;
+      font-weight: 700;
       letter-spacing: 0.12em;
       text-transform: uppercase;
       margin: 0 0 1rem;
-      padding: 0.35rem 0.75rem;
+      padding: 0.35rem 0.7rem;
       border-radius: 999px;
     }
     .status.ok {
-      color: var(--p2);
+      color: var(--purple-brand);
       background: var(--accent-soft);
     }
     .status.bad {
@@ -123,13 +140,13 @@
     }
     .status svg { width: 14px; height: 14px; flex-shrink: 0; }
     h1 {
-      font-family: var(--font);
-      font-size: clamp(1.45rem, 5vw, 1.85rem);
-      font-weight: 900;
+      font-family: Literata, Georgia, serif;
+      font-size: clamp(1.55rem, 5vw, 1.9rem);
+      font-weight: 600;
       margin: 0 0 0.5rem;
-      line-height: 1.15;
-      letter-spacing: -0.03em;
-      color: var(--pd);
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      color: var(--ink);
       max-width: 18ch;
     }
     .lede {
@@ -139,7 +156,6 @@
       line-height: 1.55;
       max-width: 36ch;
     }
-    .lede em { font-style: normal; color: var(--p2); font-weight: 700; }
     .meta {
       margin: 0;
       border-top: 1px solid var(--line);
@@ -154,25 +170,24 @@
     }
     .meta dt {
       margin: 0;
-      font-size: 0.65rem;
-      font-weight: 800;
+      font-size: 0.68rem;
+      font-weight: 700;
       letter-spacing: 0.1em;
       text-transform: uppercase;
       color: var(--muted);
     }
     .meta dd {
       margin: 0;
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: var(--pd);
+      font-size: 0.98rem;
+      font-weight: 600;
+      color: var(--ink);
       word-break: break-word;
     }
     .code {
       font-family: ui-monospace, "Cascadia Code", Menlo, monospace;
       font-size: 0.86rem;
       letter-spacing: 0.03em;
-      color: var(--p2);
-      font-weight: 600;
+      color: var(--purple-brand);
     }
     .actions { margin-top: 1.25rem; }
     a.btn {
@@ -181,30 +196,17 @@
       gap: 0.4rem;
       text-decoration: none;
       color: #fff;
-      background: var(--p);
+      background: var(--purple-brand);
       font-weight: 700;
-      font-size: 0.72rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      padding: 0.72rem 1.2rem;
+      font-size: 0.88rem;
+      padding: 0.7rem 1.15rem;
       border-radius: 999px;
-      border: 2px solid var(--p);
       transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
     }
     a.btn:hover {
-      background: var(--p2);
-      border-color: var(--p2);
+      background: var(--purple-mid);
       transform: translateY(-1px);
-      box-shadow: 0 10px 22px rgba(154, 108, 172, 0.28);
-    }
-    a.btn--ghost {
-      background: transparent;
-      color: var(--p2);
-      box-shadow: none;
-    }
-    a.btn--ghost:hover {
-      background: var(--pl);
-      box-shadow: none;
+      box-shadow: 0 8px 22px rgba(122, 78, 142, 0.35);
     }
     form.check {
       display: flex;
@@ -215,33 +217,30 @@
     form.check input[type=text] {
       flex: 1;
       min-width: 0;
-      border: 1px solid rgba(154, 108, 172, 0.28);
+      border: 1px solid var(--line);
       background: #fff;
-      color: var(--pd);
-      border-radius: 999px;
-      padding: 0.7rem 1rem;
+      color: var(--ink);
+      border-radius: 10px;
+      padding: 0.7rem 0.85rem;
       font: inherit;
       outline: none;
     }
     form.check input:focus {
-      border-color: var(--p);
+      border-color: var(--purple);
       box-shadow: 0 0 0 3px var(--accent-soft);
     }
     form.check button {
-      border: 2px solid var(--p);
-      border-radius: 999px;
-      background: var(--p);
+      border: 0;
+      border-radius: 10px;
+      background: var(--purple-brand);
       color: #fff;
-      font-family: var(--font);
       font-weight: 700;
-      font-size: 0.72rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      padding: 0 1.1rem;
+      font-size: 0.88rem;
+      padding: 0 1rem;
       cursor: pointer;
       white-space: nowrap;
     }
-    form.check button:hover { background: var(--p2); border-color: var(--p2); }
+    form.check button:hover { background: var(--purple-mid); }
     .foot {
       margin-top: 1.2rem;
       color: var(--muted);
@@ -260,18 +259,6 @@
       from { opacity: 0; transform: scale(0.85); }
       to { opacity: 1; transform: scale(1); }
     }
-    .site-link {
-      display: block;
-      margin-top: 1rem;
-      text-align: center;
-      font-size: 0.68rem;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--p);
-      text-decoration: none;
-    }
-    .site-link:hover { color: var(--p2); }
   </style>
 </head>
 <body>
@@ -292,9 +279,9 @@
     <article class="card">
       {% if valido %}
         <svg class="mark" viewBox="0 0 56 56" aria-hidden="true">
-          <circle cx="28" cy="28" r="26" fill="#9A6CAC"/>
-          <circle cx="28" cy="28" r="20" fill="none" stroke="#F2EBF7" stroke-width="1.5"/>
-          <path d="M18 28.5l6.2 6.2L38.5 20" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="28" cy="28" r="26" fill="#7a4e8e"/>
+          <circle cx="28" cy="28" r="20" fill="none" stroke="#f6f1e8" stroke-width="1.5"/>
+          <path d="M18 28.5l6.2 6.2L38.5 20" fill="none" stroke="#f6f1e8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
         <p class="status ok">
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.2l3.2 3.2L13 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -354,15 +341,15 @@
           <a class="btn" href="{{ descarga_url|default:pdf_url }}" rel="noopener">Descargar PDF</a>
           {% endif %}
           {% if imagen_url %}
-          <a class="btn btn--ghost" href="{{ imagen_url }}" target="_blank" rel="noopener">Ver imagen</a>
+          <a class="btn" href="{{ imagen_url }}" target="_blank" rel="noopener" style="background:transparent;color:var(--purple-brand);box-shadow:inset 0 0 0 2px var(--purple-brand);">Ver imagen</a>
           {% endif %}
         </div>
         {% endif %}
-        <p class="foot">{% if organizacion %}Emitido con eki para {{ organizacion }}. {% endif %}Educación con equidad · registro público de eki.</p>
+        <p class="foot">{% if organizacion %}Emitido con eki para {{ organizacion }}. {% endif %}Este documento figura en el registro público de eki.</p>
       {% else %}
         <svg class="mark" viewBox="0 0 56 56" aria-hidden="true">
-          <circle cx="28" cy="28" r="26" fill="#c0392b"/>
-          <path d="M20 20l16 16M36 20L20 36" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>
+          <circle cx="28" cy="28" r="26" fill="#c92a2a"/>
+          <path d="M20 20l16 16M36 20L20 36" fill="none" stroke="#f6f1e8" stroke-width="2.6" stroke-linecap="round"/>
         </svg>
         <p class="status bad">No válido</p>
         <h1>No está en el registro</h1>
@@ -382,7 +369,6 @@
         <p class="foot">Si cree que es un error, contacte a quien emitió el certificado.</p>
       {% endif %}
     </article>
-    <a class="site-link" href="https://www.eki.com.co/" rel="noopener" target="_blank">eki.com.co</a>
   </div>
 </body>
 </html>

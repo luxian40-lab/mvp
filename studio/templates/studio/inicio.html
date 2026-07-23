@@ -1,88 +1,58 @@
 {% extends "studio/base.html" %}
-{% block title %}eki Studio — Educación con equidad{% endblock %}
+{% block title %}eki Studio — Cursos y creadores{% endblock %}
 {% block main_class %} st-main--flush{% endblock %}
 {% block content %}
 <section class="st-hero-bleed" aria-label="eki Studio">
-    <div class="st-hero-bleed__media" role="img" aria-label="Territorio rural Colombia"></div>
+    <div class="st-hero-bleed__media" role="img" aria-label="Personas aprendiendo en equipo"></div>
     <div class="st-hero-bleed__shade"></div>
     <div class="st-hero-bleed__inner">
         <p class="st-brand-hero">eki <span>studio</span></p>
-        <h1>Educación con <em>equidad</em></h1>
-        <p class="st-lead">Catálogo abierto de programas para el territorio: publica, cobra y lleva el aprendizaje a donde más se necesita.</p>
+        <h1>Descubre cursos. Comparte lo que sabes.</h1>
+        <p class="st-lead">Marketplace de creadores: compra o publica programas. El estudio y las entregas suceden en Aprende (aula + WhatsApp).</p>
         <div class="st-hero-actions">
-            <a href="{% url 'studio_catalogo' %}" class="st-btn st-btn--primary">Explorar programas</a>
-            <a href="{% url 'studio_creador' %}" class="st-btn st-btn--ghost">Soy creador</a>
+            <a href="{% url 'studio_catalogo' %}" class="st-btn st-btn--primary">Explorar cursos</a>
+            <a href="{% url 'studio_creador' %}" class="st-btn st-btn--ghost">Quiero enseñar</a>
         </div>
     </div>
 </section>
 
-<div class="st-trust" aria-label="Por qué Studio">
-    <div class="st-trust__item">
-        <strong>Para creadores</strong>
-        <span>Publica tu programa, define precio en COP y cobra con Wompi — pensado para formación rural y comunitaria.</span>
-    </div>
-    <div class="st-trust__item">
-        <strong>Para estudiantes</strong>
-        <span>Descubre cursos con impacto real en territorio: agro, liderazgo, sostenibilidad y más.</span>
-    </div>
-    <div class="st-trust__item">
-        <strong>Luego estudias</strong>
-        <span>Un clic abre el aula eki. Studio es la puerta; el acompañamiento continúa en la plataforma.</span>
-    </div>
-</div>
-
 <section class="st-section">
-    <p class="st-section-label">Cómo lo hacemos</p>
-    <h2 class="st-h2" style="font-size:clamp(1.55rem,3.5vw,2.1rem);max-width:18ch;margin-bottom:1.75rem;">
-        Tres pasos para transformar
+    <p class="st-section-label">Cómo funciona</p>
+    <h2 class="st-h2" style="font-size:clamp(1.4rem,3vw,1.85rem);max-width:20ch;margin-bottom:1.75rem;">
+        Una vitrina. El aula es aparte.
     </h2>
     <ol class="st-steps">
         <li data-step="01">
-            <strong>Explora</strong>
-            <span class="st-muted">Catálogo con programas, precio y creador a la vista.</span>
+            <strong>Elige en Studio</strong>
+            <span class="st-muted">Catálogo abierto: cursos de organizaciones y creadores, gratis o con pago Wompi.</span>
         </li>
         <li data-step="02">
-            <strong>Inscribe o compra</strong>
-            <span class="st-muted">Gratis o con Wompi. Carrito si quieres varios.</span>
+            <strong>Estudia en Aprende</strong>
+            <span class="st-muted">Ahí está el aula: lecciones, tareas y avance — junto a WhatsApp, con lógica distinta a Studio.</span>
         </li>
         <li data-step="03">
-            <strong>Empieza a estudiar</strong>
-            <span class="st-muted">«Estudiar» abre el aula. Certificados y seguimiento viven ahí y en WhatsApp.</span>
+            <strong>Enseña y cobra</strong>
+            <span class="st-muted">Publica tu curso, fija el precio en COP y llega a más estudiantes.</span>
         </li>
     </ol>
 </section>
 
 {% if destacados %}
 <section class="st-section st-section--band">
-    <p class="st-section-label">Impacto real</p>
-    <h2 class="st-h2" style="font-size:clamp(1.4rem,3vw,1.85rem);margin-bottom:1.5rem;">Programas para entrar hoy</h2>
+    <p class="st-section-label">Destacados</p>
+    <h2 class="st-h2" style="font-size:clamp(1.35rem,3vw,1.7rem);margin-bottom:1.5rem;">Programas para empezar hoy</h2>
     <div class="st-course-list st-course-list--3">
         {% for c in destacados %}
         <article class="st-course">
-            <div class="st-course__cover"><span class="st-course__cover-mark">studio</span></div>
-            <div class="st-course__body">
-                <p class="st-course__org">{% if c.cliente %}{{ c.cliente.nombre }}{% else %}eki{% endif %}</p>
-                <h3 class="st-course__title">{{ c.nombre }}</h3>
-                <p class="st-course__desc">{{ c.descripcion|truncatewords:20 }}</p>
-                <div class="st-course__meta">
-                    <span>{{ c.total_lecciones }} lección{{ c.total_lecciones|pluralize:"es" }}</span>
-                </div>
-                <a href="{% url 'studio_catalogo' %}" class="st-btn st-btn--primary st-btn--sm st-btn--block">Ver en catálogo</a>
+            <p class="st-course__org">{% if c.cliente %}{{ c.cliente.nombre }}{% else %}eki{% endif %}</p>
+            <h3 class="st-course__title">{{ c.nombre }}</h3>
+            <p class="st-course__desc">{{ c.descripcion|truncatewords:22 }}</p>
+            <div class="st-course__meta">
+                <span>{{ c.total_lecciones }} lección{{ c.total_lecciones|pluralize:"es" }}</span>
             </div>
+            <a href="{% url 'studio_catalogo' %}" class="st-btn st-btn--ghost-ink st-btn--sm st-btn--block">Ver en catálogo</a>
         </article>
         {% endfor %}
-    </div>
-</section>
-{% else %}
-<section class="st-section st-section--band">
-    <p class="st-section-label">Catálogo</p>
-    <h2 class="st-h2" style="font-size:clamp(1.4rem,3vw,1.85rem);margin-bottom:0.75rem;">El catálogo se está armando</h2>
-    <p class="st-muted" style="max-width:42ch;margin-bottom:1.25rem;">
-        Explora programas publicados o abre el tuyo como creador — formación con sentido para el territorio.
-    </p>
-    <div class="st-hero-actions">
-        <a href="{% url 'studio_catalogo' %}" class="st-btn st-btn--primary">Explorar</a>
-        <a href="{% url 'studio_creador' %}" class="st-btn st-btn--ghost-ink">Crear</a>
     </div>
 </section>
 {% endif %}
