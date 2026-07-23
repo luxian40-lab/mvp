@@ -115,7 +115,7 @@ def test_verificar_publico_metadatos_y_anulado():
     assert data['cedula_enmascarada'].endswith('3210')
     assert data['horas_estimadas'] == 16
     assert data['hash_sha256'] == 'a' * 64
-    assert data['mencion']  # ≥95 → distinción
+    assert not data.get('mencion')
     assert data.get('descarga_url')
 
     cert.anulado = True

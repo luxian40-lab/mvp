@@ -159,19 +159,10 @@ class Certificado(models.Model):
     
     def obtener_mencion(self):
         """
-        Retorna mención especial según calificación
-        Similar a Coursera: With Distinction, etc.
+        Menciones por nota desactivadas (no se muestran en verify, WA ni diploma).
+        Se mantiene el método por compatibilidad con admin/reportes.
         """
-        if self.calificacion_final >= 95:
-            return "Con Distinción Sobresaliente"
-        elif self.calificacion_final >= 90:
-            return "Con Distinción"
-        elif self.calificacion_final >= 85:
-            return "Con Honor"
-        elif self.calificacion_final >= 80:
-            return "Con Mérito"
-        else:
-            return None
+        return None
     
     def duracion_curso(self):
         """Retorna duración del curso en días"""
