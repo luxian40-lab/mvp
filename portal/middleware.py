@@ -9,6 +9,7 @@ _PATHS_SIN_SESION = (
     '/portal/login',
     '/portal/logout',
     '/portal/suscripcion-vencida',
+    '/portal/recuperar',
 )
 
 _PATHS_SIN_PRIMER_ACCESO = (
@@ -16,6 +17,7 @@ _PATHS_SIN_PRIMER_ACCESO = (
     '/portal/logout',
     '/portal/primer-acceso',
     '/portal/suscripcion-vencida',
+    '/portal/recuperar',
 )
 
 

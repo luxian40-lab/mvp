@@ -1431,6 +1431,10 @@
                 <span class="link-icon"><svg><use href="#i-building"/></svg></span>
                 <span class="link-text">Perfil de empresa</span>
             </a>
+            <a href="/portal/suscripcion/" class="sidebar-link {% if request.path == '/portal/suscripcion/' %}active{% endif %}" title="Suscripción y cupos">
+                <span class="link-icon"><svg><use href="#i-bars"/></svg></span>
+                <span class="link-text">Suscripción{% if portal_dias_restantes is not None and portal_dias_restantes <= 14 and portal_dias_restantes >= 0 %} · {{ portal_dias_restantes }}d{% endif %}</span>
+            </a>
             <a href="/portal/usuarios/" class="sidebar-link {% if '/portal/usuarios' in request.path %}active{% endif %}" title="Usuarios del equipo">
                 <span class="link-icon"><svg><use href="#i-user-cog"/></svg></span>
                 <span class="link-text">Usuarios</span>
@@ -1567,6 +1571,10 @@
                     <span class="link-icon"><svg><use href="#i-building"/></svg></span>
                     <span class="link-text">Perfil de empresa</span>
                 </a>
+                <a href="/portal/suscripcion/" class="sidebar-link {% if request.path == '/portal/suscripcion/' %}active{% endif %}" title="Suscripción y cupos">
+                    <span class="link-icon"><svg><use href="#i-bars"/></svg></span>
+                    <span class="link-text">Suscripción{% if portal_dias_restantes is not None and portal_dias_restantes <= 14 and portal_dias_restantes >= 0 %} · {{ portal_dias_restantes }}d{% endif %}</span>
+                </a>
                 <a href="/portal/usuarios/" class="sidebar-link {% if '/portal/usuarios' in request.path %}active{% endif %}" title="Usuarios del equipo">
                     <span class="link-icon"><svg><use href="#i-user-cog"/></svg></span>
                     <span class="link-text">Usuarios</span>
@@ -1635,6 +1643,10 @@
                     <a href="/portal/perfil/" class="user-menu__item" role="menuitem">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="3" width="15" height="18" rx="1.2"/><path d="M9 8h1M14 8h1M9 12h1M14 12h1M9 16h1M14 16h1"/></svg>
                         Perfil de empresa
+                    </a>
+                    <a href="/portal/suscripcion/" class="user-menu__item" role="menuitem">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+                        Suscripción y cupos
                     </a>
                     <a href="/portal/usuarios/" class="user-menu__item" role="menuitem">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.3 20c0-3.4 3-5.8 6.7-5.8s6.7 2.4 6.7 5.8"/></svg>

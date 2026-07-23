@@ -675,7 +675,7 @@
                         <input type="checkbox" name="remember" value="1">
                         Recordarme
                     </label>
-                    <button type="button" class="link-muted" id="forgot-btn">¿Olvidaste tu contraseña?</button>
+                    <a href="/portal/recuperar/" class="link-muted">¿Olvidaste tu contraseña?</a>
                 </div>
 
                 <button type="submit" class="btn-primary">
@@ -706,12 +706,6 @@
                 if (!hint) return;
                 hint.textContent = msg;
                 hint.classList.add('is-on');
-            }
-            var forgot = document.getElementById('forgot-btn');
-            if (forgot) {
-                forgot.addEventListener('click', function () {
-                    showHint('Para restablecer su contraseña, contacte a su administrador eki.');
-                });
             }
         })();
     </script>

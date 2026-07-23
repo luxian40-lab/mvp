@@ -1295,6 +1295,46 @@ def suscripcion_vencida(request):
 
 
 @portal_login_required
+def portal_suscripcion(request):
+    """Estado de suscripción, vencimiento y cupos (producto cerrado)."""
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+    from .provision import cupos_restantes, cupos_totales, cupos_usados
+    from datetime import date
+
+    hoy = date.today()
+    fin = org.fecha_fin_suscripcion
+    dias = None
+    if fin:
+        dias = (fin - hoy).days
+    whatsapp_soporte = limpiar_numero_whatsapp(
+        getattr(settings, 'PORTAL_WHATSAPP_SOPORTE', '')
+        or getattr(settings, 'TWILIO_PHONE_NUMBER', '')
+        or '573103844274'
+    )
+    media_ops = None
+    try:
+        from core.media_entrega import metricas_media_cliente
+        media_ops = metricas_media_cliente(org, dias=30)
+    except Exception:
+        media_ops = None
+
+    return render(request, 'portal/suscripcion.html', {
+        'org': org,
+        'suscripcion_activa': org.suscripcion_activa,
+        'fecha_inicio': org.fecha_inicio_suscripcion,
+        'fecha_fin': fin,
+        'dias_restantes': dias,
+        'cupos_usados': cupos_usados(org),
+        'cupos_totales': cupos_totales(org),
+        'cupos_restantes': cupos_restantes(org),
+        'whatsapp_soporte': whatsapp_soporte,
+        'media_ops': media_ops,
+    })
+
+
+@portal_login_required
 def pqrs_lista(request):
     org = _portal_org(request)
     if not org:

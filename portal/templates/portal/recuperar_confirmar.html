@@ -1,0 +1,41 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nueva contraseña | eki portal</title>
+  {% include 'portal/partials/favicon_co.html' %}
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { margin:0; min-height:100vh; font-family:'Plus Jakarta Sans',system-ui,sans-serif; background:#FAFAFC; color:#1F1F28;
+      display:grid; place-items:center; padding:24px; }
+    .card { width:min(420px,100%); background:#fff; border-radius:16px; padding:28px 24px; box-shadow:0 18px 40px rgba(31,31,40,.08); }
+    h1 { margin:0 0 8px; font-size:1.35rem; }
+    p { color:#6C6C7A; font-size:.95rem; }
+    label { display:block; font-size:.8rem; font-weight:600; margin:16px 0 6px; }
+    input { width:100%; box-sizing:border-box; padding:12px 14px; border:1px solid rgba(31,31,40,.12); border-radius:10px; font:inherit; }
+    button { margin-top:18px; width:100%; border:0; border-radius:10px; padding:12px; background:#7a4e8e; color:#fff; font-weight:700; cursor:pointer; }
+    .err { color:#c92a2a; font-size:.9rem; }
+    a { color:#7a4e8e; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Nueva contraseña</h1>
+    {% if error %}<p class="err">{{ error }}</p>{% endif %}
+    {% if valido %}
+    <form method="post">
+      {% csrf_token %}
+      <label for="password1">Contraseña nueva</label>
+      <input id="password1" name="password1" type="password" required minlength="8" autocomplete="new-password">
+      <label for="password2">Confirmar</label>
+      <input id="password2" name="password2" type="password" required minlength="8" autocomplete="new-password">
+      <button type="submit">Guardar</button>
+    </form>
+    {% else %}
+    <p><a href="/portal/recuperar/">Solicitar un enlace nuevo</a></p>
+    {% endif %}
+  </div>
+</body>
+</html>

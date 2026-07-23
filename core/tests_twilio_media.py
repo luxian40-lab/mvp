@@ -70,7 +70,7 @@ class TwilioMediaHelpersTests(SimpleTestCase):
 
 
 class TwilioMediaCallbackFallbackTests(TestCase):
-    def test_callback_63021_no_envia_enlace_s3(self):
+    def test_callback_63021_reintenta_media_sin_link_s3_en_texto(self):
         from unittest.mock import patch
 
         from core.views import _registrar_estado_twilio_callback
@@ -84,14 +84,19 @@ class TwilioMediaCallbackFallbackTests(TestCase):
             estado='SENT',
         )
         with patch('core.utils.enviar_whatsapp_twilio') as send_mock:
-            _registrar_estado_twilio_callback({
-                'MessageSid': log.mensaje_id,
-                'MessageStatus': 'undelivered',
-                'ErrorCode': '63021',
-                'ErrorMessage': 'Channel invalid content error',
-            })
-            send_mock.assert_not_called()
+            send_mock.return_value = {'success': True, 'mensaje_id': 'MMnew'}
+            with patch('core.twilio_media.preparar_url_media_whatsapp', side_effect=lambda u: u):
+                _registrar_estado_twilio_callback({
+                    'MessageSid': log.mensaje_id,
+                    'MessageStatus': 'undelivered',
+                    'ErrorCode': '63021',
+                    'ErrorMessage': 'Channel invalid content error',
+                })
+            send_mock.assert_called_once()
+            body = send_mock.call_args.kwargs.get('texto') or send_mock.call_args[0][1]
+            self.assertNotIn('amazonaws.com', body)
 
         log.refresh_from_db()
         self.assertEqual(log.estado, 'UNDELIVERED')
         self.assertIn('63021', log.error_detalle or '')
+        self.assertIn('RETRY:1', log.error_detalle or '')

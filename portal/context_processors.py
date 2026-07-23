@@ -83,6 +83,11 @@ def portal_organizacion(request):
     header_stats = None if es_eki_ops else (_resumen_header_org(org) if mods_cursos else None)
 
     from .capabilities import portal_home_url_para_usuario
+    from .provision import cupos_restantes, cupos_totales, cupos_usados
+    from datetime import date
+
+    fin = org.fecha_fin_suscripcion
+    dias_restantes = (fin - date.today()).days if fin else None
 
     return {
         'org': org,
@@ -106,4 +111,10 @@ def portal_organizacion(request):
         'portal_branding_completo': branding_ok if not es_eki_ops else True,
         'portal_branding_pasos': [] if es_eki_ops else pasos_branding(org),
         'portal_branding_pendientes': 0 if es_eki_ops else sum(1 for p in pasos_branding(org) if not p['done']),
+        'portal_suscripcion_activa': org.suscripcion_activa,
+        'portal_fecha_fin_suscripcion': fin,
+        'portal_dias_restantes': dias_restantes,
+        'portal_cupos_usados': cupos_usados(org),
+        'portal_cupos_totales': cupos_totales(org),
+        'portal_cupos_restantes': cupos_restantes(org),
     }

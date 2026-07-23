@@ -1552,19 +1552,23 @@ def _escape_twiml(text):
 
 def _reenviar_media_fallida_como_enlace(log, error_code: str = '') -> None:
     """
-    Política: no reenviar archivos como link S3 por WhatsApp.
-    Solo deja trazabilidad del fallo (63021/63019/…).
+    Ante 63019/63021/63005: reintento automático del mismo MediaUrl (1–2 veces).
+    No envía links S3 en el cuerpo. Si agota reintentos, queda estado fallido
+    y el productor puede pedir *reenvía video*.
     """
+    from .media_entrega import reintentar_media_desde_log
     from .twilio_media import es_error_media_twilio
 
     if not es_error_media_twilio(error_code):
         return
-    logger.warning(
-        '📎 Media undelivered/failed (sin fallback enlace S3) | sid=%s code=%s tel=%s',
-        getattr(log, 'mensaje_id', ''),
-        error_code,
-        getattr(log, 'telefono', ''),
-    )
+    ok = reintentar_media_desde_log(log, error_code)
+    if not ok:
+        logger.warning(
+            '📎 Media undelivered/failed tras reintento(s) | sid=%s code=%s tel=%s',
+            getattr(log, 'mensaje_id', ''),
+            error_code,
+            getattr(log, 'telefono', ''),
+        )
 
 
 def _registrar_estado_twilio_callback(post_data):
@@ -3188,6 +3192,53 @@ def _procesar_twilio_webhook(post_data):
                         return
                 except Exception:
                     logger.exception('PQRS gate curso omitido')
+
+                # 🎥 Reenvío de video/material (sin avanzar curso) — antes de eval/listo
+                if estado_chat == 'ACTIVO':
+                    try:
+                        from .media_recuperacion import intentar_reenvio_media_curso
+                        from .utils import enviar_whatsapp_twilio as _enviar_reenvio
+                        from .twilio_media import mensaje_log_con_media
+                        import re as _re_rx
+
+                        _resp_reenvio = intentar_reenvio_media_curso(estudiante, msg_body)
+                        if _resp_reenvio:
+                            logger.info('🎥 Reenvío media curso | est=%s', estudiante.id)
+                            raw = _resp_reenvio
+                            if raw.startswith('[MULTI_MSG]'):
+                                partes = raw.replace('[MULTI_MSG]', '', 1).split('[SEP]')
+                            else:
+                                partes = [raw]
+                            for parte in partes:
+                                parte_texto = (parte or '').strip()
+                                if not parte_texto:
+                                    continue
+                                delay_m = _re_rx.match(r'^\[DELAY:(\d+)\]$', parte_texto)
+                                if delay_m:
+                                    import time as _t_delay
+                                    _t_delay.sleep(int(delay_m.group(1)))
+                                    continue
+                                parte_media = None
+                                mm = _re_rx.search(r'\[MEDIA:(.*?)\]', parte_texto)
+                                if mm:
+                                    parte_media = (mm.group(1) or '').strip()
+                                    parte_texto = parte_texto.replace(mm.group(0), '').strip()
+                                cuerpo = parte_texto or (' ' if parte_media else '')
+                                _enviar_reenvio(
+                                    msg_from,
+                                    cuerpo,
+                                    media_url=parte_media,
+                                    texto_log=mensaje_log_con_media(cuerpo, parte_media),
+                                )
+                            WhatsappLog.objects.create(
+                                telefono=telefono_limpio,
+                                mensaje=(_resp_reenvio or '')[:500],
+                                tipo='SENT',
+                                agente_usado='REENVIAR_MEDIA',
+                            )
+                            return
+                    except Exception:
+                        logger.exception('Reenvío media curso omitido')
 
                 # 📚 Paso módulo: evaluación / reto — antes del gate "solo listo" (A, texto libre, etc.)
                 if estado_chat == 'ACTIVO':

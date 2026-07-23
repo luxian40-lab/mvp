@@ -3233,6 +3233,7 @@ from .models_extras import (
     ArchivoModulo, GrupoWhatsApp, InvitacionGrupo,
     MensajePush, EnvioMensajePush,
 )
+from .models_media_entrega import MediaPaqueteEntrega
 
 # ========== CAMPAÑAS ÚNICAS (SÍ/NO) ==========
 class CampanaUnica(models.Model):

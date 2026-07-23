@@ -2,12 +2,19 @@ from django.urls import path
 from . import views
 from . import views_eki_ops
 from . import curso_editor_api
+from . import password_reset
 
 
 urlpatterns = [
     path('login/', views.portal_login, name='portal_login'),
     path('logout/', views.portal_logout, name='portal_logout'),
     path('primer-acceso/', views.portal_primer_acceso, name='portal_primer_acceso'),
+    path('recuperar/', password_reset.portal_recuperar, name='portal_recuperar'),
+    path(
+        'recuperar/<uidb64>/<token>/',
+        password_reset.portal_recuperar_confirmar,
+        name='portal_recuperar_confirmar',
+    ),
     path('dashboard/', views.dashboard, name='portal_dashboard'),
     path('ops/', views_eki_ops.portal_eki_ops, name='portal_eki_ops'),
     path('ops/metricas/', views_eki_ops.portal_eki_ops_metricas, name='portal_eki_ops_metricas'),
@@ -77,5 +84,6 @@ urlpatterns = [
     path('pqrs/', views.pqrs_lista, name='portal_pqrs'),
     path('pqrs/<int:pqrs_id>/', views.pqrs_detalle, name='portal_pqrs_detalle'),
     path('perfil/', views.perfil_organizacion, name='portal_perfil'),
+    path('suscripcion/', views.portal_suscripcion, name='portal_suscripcion'),
     path('suscripcion-vencida/', views.suscripcion_vencida, name='portal_vencida'),
 ]

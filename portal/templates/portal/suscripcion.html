@@ -1,0 +1,73 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Suscripción | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1>Suscripción</h1>
+    <p class="muted">Estado del plan, vencimiento y cupos de su organización.</p>
+</div>
+
+<section class="panel" style="margin-bottom:1.25rem;">
+    <div style="display:flex;flex-wrap:wrap;gap:1.5rem;">
+        <div>
+            <span class="metric-label">Estado</span>
+            <div style="font-size:1.25rem;font-weight:700;">
+                {% if suscripcion_activa %}
+                <span class="status status-resuelta">Activa</span>
+                {% else %}
+                <span class="status status-cerrada">Inactiva / vencida</span>
+                {% endif %}
+            </div>
+        </div>
+        <div>
+            <span class="metric-label">Vence</span>
+            <div style="font-size:1.15rem;font-weight:600;">
+                {% if fecha_fin %}{{ fecha_fin|date:"d/m/Y" }}{% else %}Sin fecha de fin{% endif %}
+            </div>
+            {% if dias_restantes is not None %}
+            <p class="muted" style="margin:4px 0 0;font-size:13px;">
+                {% if dias_restantes < 0 %}Vencida hace {{ dias_restantes|cut:"-" }} días
+                {% elif dias_restantes == 0 %}Vence hoy
+                {% else %}{{ dias_restantes }} días restantes{% endif %}
+            </p>
+            {% endif %}
+        </div>
+        <div>
+            <span class="metric-label">Cupos portal</span>
+            <div style="font-size:1.15rem;font-weight:600;">{{ cupos_usados }} / {{ cupos_totales }}</div>
+            <p class="muted" style="margin:4px 0 0;font-size:13px;">{{ cupos_restantes }} disponibles</p>
+        </div>
+    </div>
+    {% if dias_restantes is not None and dias_restantes <= 14 and dias_restantes >= 0 %}
+    <p style="margin-top:1rem;padding:12px;background:rgba(154,108,172,.12);border-radius:8px;">
+        Su plan vence pronto. Para renovar o ampliar cupos,
+        <a href="https://wa.me/{{ whatsapp_soporte }}?text=Hola%20eki%2C%20quiero%20renovar%20la%20suscripci%C3%B3n%20de%20{{ org.nombre|urlencode }}" target="_blank" rel="noopener">escriba por WhatsApp</a>.
+    </p>
+    {% endif %}
+    <p style="margin-top:1rem;">
+        <a class="btn btn-primary" href="https://wa.me/{{ whatsapp_soporte }}?text=Hola%20eki%2C%20quiero%20renovar%20o%20ampliar%20cupos%20—%20{{ org.nombre|urlencode }}" target="_blank" rel="noopener">Renovar / ampliar cupos</a>
+        <a class="btn btn-secondary" href="/portal/usuarios/" style="margin-left:8px;">Ver usuarios</a>
+    </p>
+</section>
+
+{% if media_ops %}
+<section class="panel">
+    <h2 style="margin-top:0;font-size:1.05rem;">Media WhatsApp (últimos {{ media_ops.dias }} días)</h2>
+    <p class="muted" style="font-size:13px;">Adjuntos con trazabilidad de entrega. Un % alto de fallo sugiere comprimir videos para 3G.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:1.25rem;margin-top:12px;">
+        <div><span class="metric-label">Con media</span><strong style="display:block;font-size:1.2rem;">{{ media_ops.con_media }}</strong></div>
+        <div><span class="metric-label">Entregados</span><strong style="display:block;font-size:1.2rem;">{{ media_ops.entregados }}</strong></div>
+        <div><span class="metric-label">Fallidos</span><strong style="display:block;font-size:1.2rem;">{{ media_ops.fallidos }}</strong></div>
+        <div><span class="metric-label">% fallo</span><strong style="display:block;font-size:1.2rem;">{{ media_ops.pct_fallo }}%</strong></div>
+    </div>
+    {% if media_ops.por_error %}
+    <ul style="margin-top:12px;font-size:13px;" class="muted">
+        {% for e in media_ops.por_error %}
+        <li>{{ e.codigo }}: {{ e.n }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</section>
+{% endif %}
+{% endblock %}

@@ -393,6 +393,30 @@ class ArchivoModuloAdmin(admin.ModelAdmin):
     
     actions = ['enviar_video_whatsapp_action', 'marcar_disponible_offline', 'marcar_no_disponible_offline']
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        try:
+            from core.media_entrega import avisos_formato_3g
+
+            size = None
+            name = ''
+            ctype = ''
+            if obj.archivo:
+                name = getattr(obj.archivo, 'name', '') or ''
+                try:
+                    size = obj.archivo.size
+                except Exception:
+                    size = None
+            avisos = avisos_formato_3g(
+                nombre_archivo=name or (obj.titulo or ''),
+                size_bytes=size,
+                content_type=ctype or (obj.tipo or ''),
+            )
+            for a in avisos:
+                self.message_user(request, f'⚠️ 3G: {a}', level='warning')
+        except Exception:
+            pass
+
     @admin.action(description='📤 Enviar video por WhatsApp')
     def enviar_video_whatsapp_action(self, request, queryset):
         from core.whatsapp_service import enviar_video_whatsapp
