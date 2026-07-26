@@ -1,0 +1,160 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Sandbox {{ ficha.estudiante.nombre }} | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <p class="muted" style="margin:0 0 6px;"><a href="/portal/gei/sandbox/">Sandbox GEI</a> / {{ ficha.estudiante.nombre }}</p>
+        <h1>{{ ficha.estudiante.nombre }}</h1>
+        <p class="muted">Complete la ficha de ensayo. El balance se recalcula al guardar.</p>
+    </div>
+    <span class="status status-{% if ficha.completitud_pct >= 80 %}resuelta{% elif ficha.completitud_pct >= 40 %}en_proceso{% else %}pendiente{% endif %}">
+        {{ ficha.completitud_pct }}% completitud
+    </span>
+</div>
+
+{% if ok %}
+<section class="panel" style="margin-bottom:16px;border-left:4px solid #1f8a55;">
+    <p style="margin:0;">Ficha guardada y balance recalculado.</p>
+</section>
+{% endif %}
+{% if errores %}
+<section class="panel" style="margin-bottom:16px;border-left:4px solid #c0392b;">
+    <ul style="margin:0;padding-left:1.2rem;">
+        {% for e in errores %}<li>{{ e }}</li>{% endfor %}
+    </ul>
+</section>
+{% endif %}
+
+<section class="panel" style="margin-bottom:24px;border-left:4px solid var(--accent);">
+    <h2>Resultado y margen de error</h2>
+    <div class="cards-grid" style="margin-bottom:0;">
+        <article class="card">
+            <div class="metric-number" style="font-size:20px;">{% if resumen.balance is not None %}{{ resumen.balance|floatformat:3 }}{% else %}—{% endif %}</div>
+            <div class="metric-label">Balance calculado (t CO₂e/año)</div>
+        </article>
+        <article class="card">
+            <div class="metric-number" style="font-size:20px;">{% if resumen.referencia is not None %}{{ resumen.referencia|floatformat:3 }}{% else %}—{% endif %}</div>
+            <div class="metric-label">Referencia (t CO₂e/año)</div>
+        </article>
+        <article class="card">
+            <div class="metric-number" style="font-size:20px;">{% if resumen.margen_error_pct is not None %}{{ resumen.margen_error_pct|floatformat:1 }}%{% else %}—{% endif %}</div>
+            <div class="metric-label">Margen de error</div>
+        </article>
+        <article class="card">
+            <div class="metric-number" style="font-size:20px;">{{ resumen.evaluacion }}</div>
+            <div class="metric-label">Evaluación</div>
+        </article>
+    </div>
+    {% if resultado and resultado.em_total_kg is not None %}
+    <p class="muted" style="margin-top:12px;">
+        Emisiones {{ resultado.em_total_kg|floatformat:1 }} kg · Remoción bosque
+        {{ resultado.rem_bosque_kg|floatformat:1|default:"0" }} kg
+    </p>
+    {% endif %}
+</section>
+
+<form method="post" class="panel">
+    {% csrf_token %}
+    <h2>Datos de inventario (sandbox)</h2>
+    <fieldset {% if not puede_editar %}disabled{% endif %} style="border:0;padding:0;margin:0;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;">
+            <label><strong>Nombre finca</strong>
+                <input name="nombre_finca" value="{{ ficha.nombre_finca }}" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
+            </label>
+            <label><strong>Área (ha)</strong>
+                <input name="area_ha" value="{{ ficha.area_ha|default_if_none:'' }}" inputmode="decimal" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
+            </label>
+            <label><strong>Plantas</strong>
+                <input name="num_plantas" value="{{ ficha.num_plantas|default_if_none:'' }}" inputmode="numeric" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
+            </label>
+            <label><strong>Tipo fertilizante</strong>
+                <select name="tipo_fertilizante" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
+                    {% for val,label in tipos_fertilizante %}
+                    <option value="{{ val }}" {% if ficha.tipo_fertilizante == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label><strong>Fertilizante (kg)</strong>
+                <input name="fertilizante_kg" value="{{ ficha.fertilizante_kg|default_if_none:'' }}" inputmode="decimal" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
+            </label>
+            <label><strong>% N</strong>
+                <input name="concentracion_n_pct" value="{{ ficha.concentracion_n_pct|default_if_none:'' }}" inputmode="decimal" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
+            </label>
+            <label><strong>Producción (kg)</strong>
+                <input name="produccion_kg" value="{{ ficha.produccion_kg|default_if_none:'' }}" inputmode="decimal" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
+            </label>
+            <label><strong>Energía (kWh)</strong>
+                <input name="energia_kwh" value="{{ ficha.energia_kwh|default_if_none:'' }}" inputmode="decimal" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
+            </label>
+            <label><strong>Año datos energía</strong>
+                <input name="anio_datos_energia" value="{{ ficha.anio_datos_energia|default_if_none:'' }}" inputmode="numeric" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
+            </label>
+            <label><strong>Tipo combustible</strong>
+                <select name="tipo_combustible" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
+                    {% for val,label in tipos_combustible %}
+                    <option value="{{ val }}" {% if ficha.tipo_combustible == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label><strong>Combustible (gal)</strong>
+                <input name="combustible_gal" value="{{ ficha.combustible_gal|default_if_none:'' }}" inputmode="decimal" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
+            </label>
+            <label><strong>Residuos (t)</strong>
+                <input name="residuos_ton" value="{{ ficha.residuos_ton|default_if_none:'' }}" inputmode="decimal" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
+            </label>
+            <label><strong>Manejo residuos</strong>
+                <select name="manejo_residuos" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
+                    {% for val,label in manejos_residuos %}
+                    <option value="{{ val }}" {% if ficha.manejo_residuos == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label><strong>Tipo cultivo</strong>
+                <select name="tipo_cultivo" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
+                    {% for val,label in tipos_cultivo %}
+                    <option value="{{ val }}" {% if ficha.tipo_cultivo == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label><strong>Alta mecanización</strong>
+                <select name="alta_mecanizacion" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
+                    <option value="" {% if ficha.alta_mecanizacion is None %}selected{% endif %}>—</option>
+                    <option value="si" {% if ficha.alta_mecanizacion == True %}selected{% endif %}>Sí</option>
+                    <option value="no" {% if ficha.alta_mecanizacion == False %}selected{% endif %}>No</option>
+                </select>
+            </label>
+            <label><strong>Usa enmiendas (cal)</strong>
+                <select name="usa_enmiendas_cal" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
+                    <option value="" {% if ficha.usa_enmiendas_cal is None %}selected{% endif %}>—</option>
+                    <option value="si" {% if ficha.usa_enmiendas_cal == True %}selected{% endif %}>Sí</option>
+                    <option value="no" {% if ficha.usa_enmiendas_cal == False %}selected{% endif %}>No</option>
+                </select>
+            </label>
+            <label><strong>¿Tiene bosque?</strong>
+                <select name="tiene_bosque" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
+                    <option value="" {% if ficha.tiene_bosque is None %}selected{% endif %}>—</option>
+                    <option value="si" {% if ficha.tiene_bosque == True %}selected{% endif %}>Sí</option>
+                    <option value="no" {% if ficha.tiene_bosque == False %}selected{% endif %}>No</option>
+                </select>
+            </label>
+            <label><strong>Área bosque (ha)</strong>
+                <input name="area_bosque_ha" value="{{ ficha.area_bosque_ha|default_if_none:'' }}" inputmode="decimal" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
+            </label>
+            <label><strong>Referencia balance (t CO₂e/año)</strong>
+                <input name="referencia_balance_tco2e" value="{{ ficha.referencia_balance_tco2e|default_if_none:'' }}" inputmode="decimal" style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--borde);border-radius:8px;font:inherit;">
+                <small class="muted">Valor esperado para medir margen de error.</small>
+            </label>
+        </div>
+    </fieldset>
+    {% if puede_editar %}
+    <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn" type="submit">Guardar y recalcular</button>
+        <a class="btn btn-outline" href="/portal/gei/sandbox/">Volver al sandbox</a>
+    </div>
+    {% else %}
+    <p class="muted" style="margin-top:16px;">Solo lectura. Un administrador o profesor puede editar.</p>
+    {% endif %}
+</form>
+{% endblock %}

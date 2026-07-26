@@ -77,6 +77,13 @@ def queryset_fichas_org(org, filtros: dict):
 
     if filtros.get('curso_id'):
         qs = qs.filter(curso_id=filtros['curso_id'])
+    # Inventario operativo: excluye sandbox salvo que se pida explícito
+    if filtros.get('incluir_sandbox'):
+        pass
+    elif filtros.get('solo_sandbox'):
+        qs = qs.filter(es_sandbox=True)
+    else:
+        qs = qs.filter(es_sandbox=False)
     qs = qs.filter(
         fecha_inicio__date__gte=filtros['desde'],
         fecha_inicio__date__lte=filtros['hasta'],

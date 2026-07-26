@@ -49,6 +49,13 @@ from .exports import (
 )
 from .gei_exports import respuesta_excel_fichas_gei
 from .gei_service import analitica_gei, parse_filtros_gei
+from .gei_sandbox import (
+    GEI_SANDBOX_CUPOS_DEFAULT,
+    aplicar_post_sandbox,
+    asegurar_cupos_sandbox,
+    queryset_sandbox_org,
+    resumen_slot,
+)
 from .nat_service import analitica_nat
 from .middleware import PORTAL_SESSION_KEY
 from .utils import limpiar_numero_whatsapp, enviar_whatsapp_respuesta
@@ -319,6 +326,78 @@ def portal_gei_exportar(request):
     filtros = parse_filtros_gei(request, org)
     slug = (org.nombre or 'org')[:24].replace(' ', '_')
     return respuesta_excel_fichas_gei(org, filtros, nombre_archivo=f'gei_{slug}.xlsx')
+
+
+@portal_login_required
+@requiere_modulo('gei')
+def portal_gei_sandbox(request):
+    """Cupos de ensayo GEI: editar ficha completa y ver margen de error vs referencia."""
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    puede_editar = puede_editar_config_gei_portal(request.portal_usuario)
+    if request.method == 'POST' and puede_editar and request.POST.get('accion') == 'asegurar':
+        asegurar_cupos_sandbox(org, cupos=GEI_SANDBOX_CUPOS_DEFAULT)
+        return redirect('/portal/gei/sandbox/')
+
+    slots = [resumen_slot(f) for f in queryset_sandbox_org(org)]
+    if len(slots) < GEI_SANDBOX_CUPOS_DEFAULT and puede_editar:
+        # Auto-provisiona la primera vez que entra un admin/profesor
+        asegurar_cupos_sandbox(org, cupos=GEI_SANDBOX_CUPOS_DEFAULT)
+        slots = [resumen_slot(f) for f in queryset_sandbox_org(org)]
+
+    return render(request, 'portal/gei_sandbox.html', {
+        'org': org,
+        'slots': slots,
+        'cupos': GEI_SANDBOX_CUPOS_DEFAULT,
+        'puede_editar': puede_editar,
+    })
+
+
+@portal_login_required
+@requiere_modulo('gei')
+def portal_gei_sandbox_editar(request, ficha_id):
+    from django.db.models import Q
+
+    from formulario.models import FichaGEI
+
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    ficha = get_object_or_404(
+        FichaGEI.objects.select_related('estudiante', 'curso', 'resultado').filter(
+            es_sandbox=True,
+        ).filter(Q(cliente_id=org.pk) | Q(estudiante__cliente_id=org.pk)),
+        pk=ficha_id,
+    )
+    puede_editar = puede_editar_config_gei_portal(request.portal_usuario)
+    ok = False
+    errores = []
+
+    if request.method == 'POST' and puede_editar:
+        errores = aplicar_post_sandbox(ficha, request.POST)
+        if not errores:
+            ficha.refresh_from_db()
+            ok = True
+    elif request.method == 'POST':
+        errores = ['Solo administrador o profesor del portal pueden guardar el sandbox.']
+
+    resumen = resumen_slot(ficha)
+    return render(request, 'portal/gei_sandbox_editar.html', {
+        'org': org,
+        'ficha': ficha,
+        'resultado': getattr(ficha, 'resultado', None),
+        'resumen': resumen,
+        'puede_editar': puede_editar,
+        'ok': ok,
+        'errores': errores,
+        'tipos_combustible': FichaGEI.TIPO_COMBUSTIBLE,
+        'tipos_fertilizante': FichaGEI.TIPO_FERTILIZANTE,
+        'tipos_cultivo': FichaGEI.TIPO_CULTIVO,
+        'manejos_residuos': FichaGEI.MANEJO_RESIDUOS,
+    })
 
 
 @portal_login_required

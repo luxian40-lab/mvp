@@ -211,6 +211,19 @@ class FichaGEI(models.Model):
         null=True, blank=True, verbose_name="Área de bosque o cobertura (ha)"
     )
 
+    es_sandbox = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name="Sandbox (prueba)",
+        help_text="Ficha de ensayo en portal: no mezcla con inventario operativo.",
+    )
+    referencia_balance_tco2e = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name="Referencia balance (t CO₂e/año)",
+        help_text="Valor esperado para comparar y medir margen de error en sandbox.",
+    )
+
     fecha_inicio = models.DateTimeField(auto_now_add=True)
     fecha_update = models.DateTimeField(auto_now=True)
 

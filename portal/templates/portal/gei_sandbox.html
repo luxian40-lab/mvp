@@ -1,0 +1,67 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Sandbox GEI | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <div>
+        <p class="muted" style="margin:0 0 6px;"><a href="/portal/gei/">Inventario GEI</a> / Sandbox</p>
+        <h1>Sandbox GEI</h1>
+        <p class="muted">
+            Hasta {{ cupos }} espacios de ensayo: complete la ficha, obtenga el cálculo de CO₂e
+            y compare con una referencia para ver el margen de error. No se mezcla con el inventario real.
+        </p>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;">
+        <a class="btn btn-outline" href="/portal/gei/">Volver al inventario</a>
+        {% if puede_editar %}
+        <form method="post" style="margin:0;">
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="asegurar">
+            <button class="btn" type="submit">Preparar {{ cupos }} cupos</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+{% if not slots %}
+<section class="panel">
+    <p class="muted">Aún no hay cupos sandbox. {% if puede_editar %}Pulse «Preparar cupos».{% else %}Pida a un administrador del portal que los cree.{% endif %}</p>
+</section>
+{% else %}
+<section class="panel">
+    <table>
+        <thead>
+            <tr>
+                <th>Cupo</th>
+                <th>Finca</th>
+                <th>Completitud</th>
+                <th>Balance (t CO₂e)</th>
+                <th>Referencia</th>
+                <th>Margen error</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in slots %}
+            <tr>
+                <td>{{ s.ficha.estudiante.nombre }}</td>
+                <td>{{ s.ficha.nombre_finca|default:"—" }}</td>
+                <td>{{ s.completitud }}%</td>
+                <td>{% if s.balance is not None %}{{ s.balance|floatformat:3 }}{% else %}—{% endif %}</td>
+                <td>{% if s.referencia is not None %}{{ s.referencia|floatformat:3 }}{% else %}—{% endif %}</td>
+                <td>
+                    {% if s.margen_error_pct is not None %}
+                        {{ s.margen_error_pct|floatformat:1 }}%
+                    {% else %}
+                        <span class="muted">Sin referencia</span>
+                    {% endif %}
+                </td>
+                <td><a href="{% url 'portal_gei_sandbox_editar' s.ficha.id %}">Editar / medir</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endif %}
+{% endblock %}
