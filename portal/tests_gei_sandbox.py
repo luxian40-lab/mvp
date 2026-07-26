@@ -76,6 +76,29 @@ class GeiExcelExportTests(TestCase):
         )
         self.assertTrue(resp.content[:2] == b'PK')
 
+    def test_desglose_paso_a_paso_fertilizante(self):
+        from formulario.calculadora import persistir_resultado_gei
+        from portal.gei_desglose import desglose_calculo_ficha
+
+        self.ficha.combustible_gal = 7
+        self.ficha.tipo_combustible = 'diesel'
+        self.ficha.residuos_ton = 1
+        self.ficha.manejo_residuos = 'compost'
+        self.ficha.tiene_bosque = False
+        self.ficha.referencia_balance_tco2e = 1.0
+        self.ficha.save()
+        persistir_resultado_gei(self.ficha)
+
+        d = desglose_calculo_ficha(self.ficha)
+        self.assertEqual(len(d['pasos']), 6)
+        fert = d['pasos'][0]
+        self.assertEqual(fert['estado'], 'ok')
+        self.assertIsNotNone(fert['resultado_kg'])
+        self.assertTrue(any('kg N' in x for x in fert['lineas']))
+        self.assertIsNotNone(d['balance_tco2e'])
+        self.assertIsNotNone(d['margen_error_pct'])
+        self.assertEqual(d['margen_objetivo_pct'], 5.0)
+
     def test_sumatoria_inventario_incluye_entradas_y_emisiones(self):
         from formulario.calculadora import persistir_resultado_gei
         from portal.gei_service import analitica_gei

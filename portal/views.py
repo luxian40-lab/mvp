@@ -414,6 +414,8 @@ def portal_gei_detalle(request, ficha_id):
     except ImportError:
         return redirect('/portal/gei/')
 
+    from portal.gei_desglose import desglose_calculo_ficha
+
     FichaGEI.objects.filter(
         cliente__isnull=True, estudiante__cliente_id=org.pk, pk=ficha_id
     ).update(cliente_id=org.pk)
@@ -424,21 +426,56 @@ def portal_gei_detalle(request, ficha_id):
         ),
         pk=ficha_id,
     )
+    puede_editar = puede_editar_config_gei_portal(request.portal_usuario)
+    ref_ok = False
+    ref_errores: list[str] = []
+
+    if request.method == 'POST' and puede_editar and request.POST.get('accion') == 'guardar_referencia':
+        raw = (request.POST.get('referencia_balance_tco2e') or '').strip()
+        if raw == '':
+            ficha.referencia_balance_tco2e = None
+            ficha.save(update_fields=['referencia_balance_tco2e', 'fecha_update'])
+            ref_ok = True
+        else:
+            try:
+                ficha.referencia_balance_tco2e = float(raw.replace(',', '.'))
+                ficha.save(update_fields=['referencia_balance_tco2e', 'fecha_update'])
+                ref_ok = True
+            except ValueError:
+                ref_errores.append('Referencia inválida: use un número (t CO₂e/año).')
+        ficha.refresh_from_db()
+
     resultado = getattr(ficha, 'resultado', None)
+    desglose = desglose_calculo_ficha(ficha)
     variables = []
     for campo, label in (
         ('nombre_finca', 'Finca'),
         ('area_ha', 'Área (ha)'),
         ('num_plantas', 'Plantas'),
+        ('tipo_fertilizante', 'Tipo fertilizante'),
         ('fertilizante_kg', 'Fertilizante (kg)'),
         ('concentracion_n_pct', '% N'),
+        ('tipo_combustible', 'Tipo combustible'),
         ('combustible_gal', 'Combustible (gal)'),
         ('energia_kwh', 'Energía (kWh)'),
+        ('anio_datos_energia', 'Año energía'),
         ('residuos_ton', 'Residuos (ton)'),
+        ('manejo_residuos', 'Manejo residuos'),
         ('produccion_kg', 'Producción (kg)'),
+        ('tiene_bosque', '¿Tiene bosque?'),
         ('area_bosque_ha', 'Bosque (ha)'),
     ):
         val = getattr(ficha, campo, None)
+        if campo == 'tiene_bosque':
+            if val is True:
+                val = 'Sí'
+            elif val is False:
+                val = 'No'
+            else:
+                val = '—'
+        elif campo in ('tipo_fertilizante', 'tipo_combustible', 'manejo_residuos') and val:
+            getter = getattr(ficha, f'get_{campo}_display', None)
+            val = getter() if callable(getter) else val
         variables.append({'label': label, 'valor': val if val not in (None, '') else '—'})
 
     return render(request, 'portal/gei_detalle.html', {
@@ -446,6 +483,10 @@ def portal_gei_detalle(request, ficha_id):
         'ficha': ficha,
         'resultado': resultado,
         'variables': variables,
+        'desglose': desglose,
+        'puede_editar': puede_editar,
+        'ref_ok': ref_ok,
+        'ref_errores': ref_errores,
     })
 
 

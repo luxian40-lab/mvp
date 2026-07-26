@@ -51,7 +51,10 @@
     <p class="muted" style="margin-top:12px;">
         Emisiones {{ resultado.em_total_kg|floatformat:1 }} kg · Remoción bosque
         {{ resultado.rem_bosque_kg|floatformat:1|default:"0" }} kg
+        · <a href="/portal/gei/{{ ficha.id }}/">Ver cálculo paso a paso</a>
     </p>
+    {% else %}
+    <p class="muted" style="margin-top:12px;"><a href="/portal/gei/{{ ficha.id }}/">Ver cálculo paso a paso</a></p>
     {% endif %}
 </section>
 

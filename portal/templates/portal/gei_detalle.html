@@ -14,37 +14,123 @@
     </span>
 </div>
 
-{% if resultado %}
+{% if ref_ok %}
+<section class="panel" style="margin-bottom:16px;border-left:4px solid #1f8a55;">
+    <p style="margin:0;">Referencia guardada. El margen se recalcula con el balance actual.</p>
+</section>
+{% endif %}
+{% if ref_errores %}
+<section class="panel" style="margin-bottom:16px;border-left:4px solid #c0392b;">
+    <ul style="margin:0;padding-left:1.2rem;">{% for e in ref_errores %}<li>{{ e }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+{% if desglose %}
 <section class="panel" style="margin-bottom:24px;border-left:4px solid var(--accent);">
-    <h2>Resultado CO₂ (balance)</h2>
+    <h2>Margen vs referencia (objetivo ≤ {{ desglose.margen_objetivo_pct|floatformat:0 }}%)</h2>
+    <div class="cards-grid" style="margin-bottom:12px;">
+        <article class="card">
+            <div class="metric-number" style="font-size:20px;">{% if desglose.balance_tco2e is not None %}{{ desglose.balance_tco2e|floatformat:3 }}{% else %}—{% endif %}</div>
+            <div class="metric-label">Balance calculado (t CO₂e/año)</div>
+        </article>
+        <article class="card">
+            <div class="metric-number" style="font-size:20px;">{% if desglose.referencia_tco2e is not None %}{{ desglose.referencia_tco2e|floatformat:3 }}{% else %}—{% endif %}</div>
+            <div class="metric-label">Referencia (t CO₂e/año)</div>
+        </article>
+        <article class="card">
+            <div class="metric-number" style="font-size:20px;{% if desglose.margen_error_pct is not None %}{% if desglose.margen_ok %}color:#1f8a55;{% else %}color:#c0392b;{% endif %}{% endif %}">
+                {% if desglose.margen_error_pct is not None %}{{ desglose.margen_error_pct|floatformat:2 }}%{% else %}—{% endif %}
+            </div>
+            <div class="metric-label">
+                Margen de error
+                {% if desglose.margen_error_pct is not None %}
+                    · {% if desglose.margen_ok %}dentro de meta{% else %}sobre 5%{% endif %}
+                {% endif %}
+            </div>
+        </article>
+        <article class="card">
+            <div class="metric-number" style="font-size:20px;">{% if desglose.emisiones_total_kg is not None %}{{ desglose.emisiones_total_kg|floatformat:1 }}{% else %}—{% endif %}</div>
+            <div class="metric-label">Σ Emisiones (kg CO₂e)</div>
+        </article>
+    </div>
+    {% if puede_editar %}
+    <form method="post" style="display:flex;flex-wrap:wrap;gap:12px;align-items:end;">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="guardar_referencia">
+        <label style="flex:1;min-width:200px;">
+            <strong>Referencia esperada (t CO₂e/año)</strong>
+            <input name="referencia_balance_tco2e" value="{% if ficha.referencia_balance_tco2e is not None %}{{ ficha.referencia_balance_tco2e }}{% endif %}"
+                   inputmode="decimal" placeholder="Ej. 2.45"
+                   style="width:100%;margin-top:6px;border:1px solid var(--borde);border-radius:8px;padding:10px;font:inherit;">
+        </label>
+        <button class="btn" type="submit">Guardar referencia</button>
+    </form>
+    <p class="muted" style="margin:8px 0 0;">Compare contra un valor de laboratorio/auditoría para ver en qué paso se desvía (meta: margen ≤ 5%).</p>
+    {% elif not desglose.referencia_tco2e %}
+    <p class="muted" style="margin:0;">Un admin/profesor puede cargar la referencia para medir el margen de error.</p>
+    {% endif %}
+</section>
+
+<section class="panel" style="margin-bottom:24px;">
+    <h2>Cálculo paso a paso</h2>
+    <p class="muted" style="margin-top:0;">Desde los datos de esta ficha hasta el balance neto. Revise el aporte % de cada fuente para localizar desviaciones.</p>
+    {% for paso in desglose.pasos %}
+    <article style="margin-bottom:18px;padding:14px 16px;border:1px solid var(--borde);border-radius:10px;border-left:4px solid {% if paso.estado == 'ok' %}#1f8a55{% elif paso.estado == 'faltante' %}#c0392b{% else %}var(--borde){% endif %};">
+        <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:baseline;">
+            <h3 style="margin:0;font-size:1rem;">{{ paso.n }}. {{ paso.titulo }}</h3>
+            <div style="font-variant-numeric:tabular-nums;">
+                {% if paso.resultado_t is not None %}
+                    <strong>{{ paso.resultado_t|floatformat:3 }}</strong> {{ paso.unidad }}
+                {% elif paso.resultado_kg is not None %}
+                    <strong>{{ paso.resultado_kg|floatformat:2 }}</strong> {{ paso.unidad }}
+                {% else %}
+                    <span class="muted">Pendiente</span>
+                {% endif %}
+                {% if paso.aporte_pct is not None %}
+                    <span class="muted"> · {{ paso.aporte_pct|floatformat:1 }}% de emisiones</span>
+                {% endif %}
+            </div>
+        </div>
+        <ol style="margin:10px 0 0;padding-left:1.2rem;color:var(--texto-muted, #64748b);">
+            {% for linea in paso.lineas %}
+            <li style="margin-bottom:4px;">{{ linea }}</li>
+            {% endfor %}
+        </ol>
+    </article>
+    {% endfor %}
+    {% if desglose.faltantes %}
+    <p class="muted" style="margin:0;">Pasos incompletos: {{ desglose.faltantes|join:", " }}.</p>
+    {% endif %}
+</section>
+{% endif %}
+
+{% if resultado %}
+<section class="panel" style="margin-bottom:24px;">
+    <h2>Resultado persistido</h2>
     <div class="cards-grid" style="margin-bottom:0;">
         <article class="card">
-            <div class="metric-number" style="font-size:20px;">{{ resultado.em_total_kg|floatformat:1|default:"—" }}</div>
-            <div class="metric-label">Emisiones totales (kg CO₂e)</div>
+            <div class="metric-number" style="font-size:20px;">{{ resultado.em_fertilizante_kg|floatformat:1|default:"—" }}</div>
+            <div class="metric-label">Em. fertilizante (kg)</div>
         </article>
         <article class="card">
-            <div class="metric-number" style="font-size:20px;">{{ resultado.rem_bosque_kg|floatformat:1|default:"—" }}</div>
-            <div class="metric-label">Remoción bosque (kg)</div>
+            <div class="metric-number" style="font-size:20px;">{{ resultado.em_combustible_kg|floatformat:1|default:"—" }}</div>
+            <div class="metric-label">Em. combustible (kg)</div>
         </article>
         <article class="card">
-            <div class="metric-number" style="font-size:20px;">{{ resultado.balance_neto_tco2e|floatformat:2|default:"—" }}</div>
-            <div class="metric-label">Balance neto (t CO₂e/año)</div>
+            <div class="metric-number" style="font-size:20px;">{{ resultado.em_energia_kg|floatformat:1|default:"—" }}</div>
+            <div class="metric-label">Em. energía (kg)</div>
         </article>
         <article class="card">
-            <div class="metric-number" style="font-size:20px;">{{ resultado.get_evaluacion_display|default:"—" }}</div>
-            <div class="metric-label">Evaluación café</div>
+            <div class="metric-number" style="font-size:20px;">{{ resultado.em_residuos_kg|floatformat:1|default:"—" }}</div>
+            <div class="metric-label">Em. residuos (kg)</div>
         </article>
     </div>
     {% if resultado.intensidad_kg_co2e_por_kg %}
-        <p class="muted" style="margin-top:12px;">Intensidad: {{ resultado.intensidad_kg_co2e_por_kg|floatformat:3 }} kg CO₂e / kg producto</p>
+        <p class="muted" style="margin-top:12px;">Intensidad: {{ resultado.intensidad_kg_co2e_por_kg|floatformat:3 }} kg CO₂e / kg producto · {{ resultado.get_evaluacion_display|default:"" }}</p>
     {% endif %}
     {% if resultado.nota_cobertura %}
         <p class="muted" style="margin-top:8px;">{{ resultado.nota_cobertura }}</p>
     {% endif %}
-</section>
-{% else %}
-<section class="panel" style="margin-bottom:24px;">
-    <p class="muted">Aún no hay cálculo de balance para esta ficha (complete más variables o espere el recálculo automático).</p>
 </section>
 {% endif %}
 
@@ -63,5 +149,8 @@
     <h2>Productor</h2>
     <p><strong>{{ ficha.estudiante.nombre }}</strong> · {{ ficha.estudiante.telefono }} · {{ ficha.estudiante.cedula }}</p>
     <p class="muted">Actualizado {{ ficha.fecha_update|date:"d/m/Y H:i" }}</p>
+    {% if ficha.es_sandbox %}
+    <p class="muted"><a href="/portal/gei/sandbox/{{ ficha.id }}/">Abrir en Sandbox para editar datos</a></p>
+    {% endif %}
 </section>
 {% endblock %}
