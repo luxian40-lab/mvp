@@ -76,6 +76,34 @@ class GeiExcelExportTests(TestCase):
         )
         self.assertTrue(resp.content[:2] == b'PK')
 
+    def test_sumatoria_inventario_incluye_entradas_y_emisiones(self):
+        from formulario.calculadora import persistir_resultado_gei
+        from portal.gei_service import analitica_gei
+
+        self.ficha.combustible_gal = 10
+        self.ficha.tipo_combustible = 'diesel'
+        self.ficha.residuos_ton = 1
+        self.ficha.manejo_residuos = 'compost'
+        self.ficha.tiene_bosque = False
+        self.ficha.save()
+        persistir_resultado_gei(self.ficha)
+
+        class FakeReq:
+            GET = {}
+
+        data = analitica_gei(self.org, parse_filtros_gei(FakeReq(), self.org))
+        self.assertTrue(data['gei_ok'])
+        row = data['productores'][0]
+        self.assertEqual(row['area_ha'], 2.5)
+        self.assertEqual(row['fertilizante_kg'], 100.0)
+        self.assertIsNotNone(row['balance_tco2e'])
+        s = data['sumatoria']
+        self.assertEqual(s['fichas_en_suma'], 1)
+        self.assertEqual(s['area_ha'], 2.5)
+        self.assertEqual(s['fertilizante_kg'], 100.0)
+        self.assertIsNotNone(s['em_total_kg'])
+        self.assertIsNotNone(s['balance_tco2e'])
+
     def test_inventario_excluye_sandbox(self):
         sb_est = Estudiante.objects.create(
             cliente=self.org, nombre='Sandbox GEI 01', cedula='SANDBOX-X', telefono='573009999001',

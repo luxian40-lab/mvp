@@ -91,6 +91,68 @@ def queryset_fichas_org(org, filtros: dict):
     return qs.order_by('-fecha_update')
 
 
+def _num(valor) -> float | None:
+    if valor is None or valor == '':
+        return None
+    try:
+        return float(valor)
+    except (TypeError, ValueError):
+        return None
+
+
+def _sumar(valores: list[float | None]) -> float | None:
+    nums = [v for v in valores if v is not None]
+    if not nums:
+        return None
+    return round(sum(nums), 3)
+
+
+def _fila_productor_gei(f) -> dict:
+    """Fila de inventario + resultado para la tabla del portal."""
+    pct = f.completitud_pct
+    estado_label, estado_key = _ficha_estado(pct)
+    res = getattr(f, 'resultado', None)
+    return {
+        'ficha_id': f.id,
+        'productor': getattr(f.estudiante, 'nombre', '—') if f.estudiante_id else '—',
+        'telefono': getattr(f.estudiante, 'telefono', '—') if f.estudiante_id else '—',
+        'finca': f.nombre_finca or '—',
+        'curso': f.curso.nombre if f.curso_id else '—',
+        'completitud_pct': pct,
+        'estado_label': estado_label,
+        'estado_key': estado_key,
+        'area_ha': _num(f.area_ha),
+        'fertilizante_kg': _num(f.fertilizante_kg),
+        'combustible_gal': _num(f.combustible_gal),
+        'energia_kwh': _num(f.energia_kwh),
+        'residuos_ton': _num(f.residuos_ton),
+        'produccion_kg': _num(f.produccion_kg),
+        'area_bosque_ha': _num(f.area_bosque_ha),
+        'em_fertilizante_kg': _num(getattr(res, 'em_fertilizante_kg', None)) if res else None,
+        'em_combustible_kg': _num(getattr(res, 'em_combustible_kg', None)) if res else None,
+        'em_energia_kg': _num(getattr(res, 'em_energia_kg', None)) if res else None,
+        'em_residuos_kg': _num(getattr(res, 'em_residuos_kg', None)) if res else None,
+        'em_total_kg': _num(getattr(res, 'em_total_kg', None)) if res else None,
+        'rem_bosque_kg': _num(getattr(res, 'rem_bosque_kg', None)) if res else None,
+        'balance_tco2e': _num(getattr(res, 'balance_neto_tco2e', None)) if res else None,
+    }
+
+
+def _sumatoria_inventario(filas: list[dict]) -> dict:
+    """Totales del periodo filtrado (todas las fichas, no solo la página)."""
+    claves = (
+        'area_ha', 'fertilizante_kg', 'combustible_gal', 'energia_kwh',
+        'residuos_ton', 'produccion_kg', 'area_bosque_ha',
+        'em_fertilizante_kg', 'em_combustible_kg', 'em_energia_kg', 'em_residuos_kg',
+        'em_total_kg', 'rem_bosque_kg', 'balance_tco2e',
+    )
+    totales = {k: _sumar([row.get(k) for row in filas]) for k in claves}
+    con_balance = sum(1 for row in filas if row.get('balance_tco2e') is not None)
+    totales['fichas_en_suma'] = len(filas)
+    totales['fichas_con_balance'] = con_balance
+    return totales
+
+
 def analitica_gei(org, filtros: dict, *, page: int = 1, page_size: int = 25) -> dict:
     try:
         from formulario.models import FichaGEI  # noqa: F401
@@ -149,28 +211,12 @@ def analitica_gei(org, filtros: dict, *, page: int = 1, page_size: int = 25) -> 
         for k, v in distribucion.items()
     ]
 
+    filas_todas = [_fila_productor_gei(f) for f in fichas_list]
+    sumatoria = _sumatoria_inventario(filas_todas)
+
     page = max(1, page)
     inicio = (page - 1) * page_size
-    productores = []
-    for f in fichas_list[inicio:inicio + page_size]:
-        pct = f.completitud_pct
-        estado_label, estado_key = _ficha_estado(pct)
-        productores.append({
-            'ficha_id': f.id,
-            'productor': getattr(f.estudiante, 'nombre', '—') if f.estudiante_id else '—',
-            'telefono': getattr(f.estudiante, 'telefono', '—') if f.estudiante_id else '—',
-            'finca': f.nombre_finca or '—',
-            'curso': f.curso.nombre if f.curso_id else '—',
-            'completitud_pct': pct,
-            'estado_label': estado_label,
-            'estado_key': estado_key,
-            'balance_tco2e': (
-                f.resultado.balance_neto_tco2e
-                if getattr(f, 'resultado', None) and f.resultado.balance_neto_tco2e is not None
-                else None
-            ),
-        })
-
+    productores = filas_todas[inicio:inicio + page_size]
     total_paginas = max(1, (len(fichas_list) + page_size - 1) // page_size)
 
     return {
@@ -184,6 +230,7 @@ def analitica_gei(org, filtros: dict, *, page: int = 1, page_size: int = 25) -> 
         'completitud_variables': completitud_variables,
         'distribucion_view': distribucion_view,
         'productores': productores,
+        'sumatoria': sumatoria,
         'page': page,
         'total_paginas': total_paginas,
         'page_anterior': page - 1 if page > 1 else None,
