@@ -184,12 +184,14 @@ def decidir_routing_nat(
     ctx_agro=None,
     diagnostico_vision: str = '',
     es_saludo: bool = False,
+    sin_catalogo_productos: bool = False,
 ) -> NatRoutingDecision:
     """
     Elige modelo OpenAI y si conviene web complementaria.
 
     GPT-5 (premium) cuando hace falta lectura precisa de RAG, razonamiento técnico
     o mensaje ambiguo/complejo — no solo plagas.
+    Plan B: sin catálogo de productos, fuerza web en consultas técnicas.
     """
     modelo_chat = _cfg('BOT_COMERCIAL_OPENAI_MODEL', 'gpt-5-mini')
     modelo_premium = _cfg('BOT_COMERCIAL_MODEL_TECNICO', 'gpt-5')
@@ -241,6 +243,9 @@ def decidir_routing_nat(
             usar_web = True
         elif rag_debil and modo in ('tecnico', 'catalogo'):
             usar_web = True
+        # Plan B: sin productos cargados, buscar respaldo web en casos técnicos
+        elif sin_catalogo_productos and modo in ('tecnico', 'catalogo', 'ambiguo'):
+            usar_web = True
 
     escala_premium = False
     razon = 'conversacion_standard'
@@ -262,6 +267,12 @@ def decidir_routing_nat(
         razon = 'tecnico_rag_indexado'
 
     modelo = modelo_premium if escala_premium else modelo_chat
+
+    if sin_catalogo_productos and usar_web and modo in ('tecnico', 'catalogo', 'ambiguo'):
+        if razon in ('conversacion_standard',):
+            razon = 'plan_b_sin_catalogo_web'
+        elif 'plan_b' not in razon:
+            razon = f'{razon}+plan_b_web'
 
     return NatRoutingDecision(
         modelo=modelo,

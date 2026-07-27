@@ -48,9 +48,11 @@ CUÁNDO RESPONDER (dejar de preguntar):
 
 CUANDO ORIENTE (decisión técnica / catálogo):
 1) Situación: lo que entiendo de su caso
-2) Decisión recomendada: qué haría / qué producto priorizar (solo con base oficial)
-3) Cómo: dosis, momento o paso concreto si está en la información oficial
-4) Riesgo o límite: qué no asuma; cuándo consultar técnico de zona / etiqueta
+2) Decisión recomendada: qué haría / qué priorizar (producto del catálogo si encaja;
+   si no hay, Plan B: manejo cultural + tipo de principio activo / fórmula orientativa
+   con base oficial o web técnica Colombia — sin inventar marcas ni precios)
+3) Cómo: dosis o paso concreto solo si está en información oficial / etiqueta / fuente dada
+4) Riesgo o límite: qué no asuma; cuándo consultar técnico de zona / etiqueta ICA
 5) Qué confirmar en campo: 1–2 observaciones que cambian la decisión
 """
 
@@ -240,23 +242,61 @@ CÓMO RECOMENDAR PRODUCTOS (sigue este orden siempre):
    el sistema enviará la foto del empaque en un mensaje aparte.
 
 REGLAS COMERCIALES (nunca las incumplas):
-- Solo recomiendas productos que aparecen en el catálogo de arriba.
-- Si no tienes un producto específico para ese problema, indíquelo con claridad
-  y invite a consultar el catálogo completo de la organización del productor.
-- NUNCA inventes precios, dosis ni links aunque conozcas el producto.
+- Solo recomiendas productos COMERCIALES (nombre de marca, precio, link) que
+  aparecen en el catálogo de arriba.
+- Si no tienes un producto del catálogo que encaje con el problema: dilo con claridad
+  y active PLAN B (abajo). No invente marcas, precios ni links.
+- NUNCA inventes precios, dosis de marca ni links aunque conozcas el producto.
 - Si el problema requiere visita técnica presencial, dilo ANTES de cualquier producto.
-- No menciones productos de otras marcas o proveedores.
+- No menciones productos de otras marcas o proveedores ajenos al catálogo.
 - Después de recomendar, haz UNA pregunta útil (ej: hectáreas para calcular cantidad).
 - Si el productor envió foto: use las POSIBLES causas del análisis visual; no cierre
   diagnóstico. El productor decide el manejo con esa orientación.
+
+PLAN B (sin producto del catálogo que sirva para ESTE caso):
+1. Manejo cultural / preventivo concreto para el cultivo y síntoma.
+2. Tipo de solución orientativa: clase (fungicida / insecticida / fertilizante) y,
+   si hay base en el contexto o en FUENTES WEB, principio activo o fórmula genérica
+   (ej. "cobre", "azufre", "NPK X-Y-Z") — NO nombre comercial inventado.
+3. Dosis solo si aparece en la fuente oficial/web del contexto; si no, diga
+   "según etiqueta del producto registrado ICA que consiga en su zona".
+4. Invite a cargar o consultar el catálogo de su organización cuando exista ficha.
 """
 
 _NAT_SIN_CATALOGO = """
 
-No tienes productos específicos para recomendar en este momento.
-Si el productor necesita insumos, invítalo a consultar con su proveedor local
-o al equipo técnico de su organización.
+PLAN B — SIN CATÁLOGO DE PRODUCTOS CARGADO:
+
+No hay fichas comerciales de esta organización para recomendar por nombre/precio/link.
+Aun así usted DEBE orientar al productor (no se quede solo en "consulte a su proveedor").
+
+Haga esto, en orden:
+1) Diagnóstico técnico breve del caso (cultivo + síntoma + zona si se conocen).
+2) Qué hacer YA en campo: manejo cultural, riego, higiene, monitoreo (acciones concretas).
+3) Orientación de insumo (sin inventar marca):
+   - Clase de producto que suele usarse (ej. fungicida de contacto, insecticida biológico).
+   - Principio activo o fórmula genérica SOLO si aparece en INFORMACIÓN OFICIAL DE EKI
+     o en el bloque FUENTES WEB / Agrosavia del contexto.
+   - Si no hay fuente: diga el tipo de manejo y que pregunte en el agrotienda local
+     por un producto registrado ICA para ese cultivo/problema; no invente nombres.
+4) Límites: no invente precios, dosis de marca ni links. Remita a etiqueta ICA y
+   técnico de zona si el riesgo es alto o el cuadro es grave.
+5) Cierre con 1 pregunta útil (extensión del lote, foto, o qué ya aplicó).
+
+Si el contexto trae FUENTES WEB o Agrosavia, úselas y menciónelas como respaldo
+("según orientación técnica / fuentes Colombia"), sin copiar párrafos largos.
 """
+
+
+def org_tiene_catalogo_productos(cliente) -> bool:
+    """True si la org tiene al menos un ProductoCatalogo activo."""
+    if not cliente:
+        return False
+    try:
+        from core.models import ProductoCatalogo
+        return ProductoCatalogo.objects.filter(cliente=cliente, activo=True).exists()
+    except Exception:
+        return False
 
 
 def armar_instruccion_modo(modo: str = 'conversacion', escala_premium: bool = False) -> str:
@@ -265,6 +305,8 @@ def armar_instruccion_modo(modo: str = 'conversacion', escala_premium: bool = Fa
         return (
             "MODO DECISIÓN TÉCNICA: Lea INFORMACIÓN OFICIAL DE EKI fragmento por fragmento. "
             "Use solo datos que aparezcan ahí (producto, dosis, precio, nombre). "
+            "Si no hay producto de catálogo para el caso: aplique PLAN B "
+            "(manejo + principio activo/fórmula solo con base en contexto o FUENTES WEB). "
             "Estructure: situación → decisión → cómo → riesgo/límite → qué confirmar en campo. "
             "Si un dato no está en el contexto, no lo suponga; diga qué falta para decidir.\n"
         )

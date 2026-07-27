@@ -50,6 +50,26 @@ class NatRouterTests(SimpleTestCase):
         BOT_COMERCIAL_OPENAI_MODEL='gpt-5-mini',
         BOT_COMERCIAL_MODEL_TECNICO='gpt-5',
         BOT_COMERCIAL_ROUTER_USE_NANO=False,
+        BOT_COMERCIAL_WEB_FALLBACK_ENABLED=True,
+        BOT_COMERCIAL_RAG_MIN_SIMILARITY=0.5,
+    )
+    def test_plan_b_sin_catalogo_fuerza_web_aunque_haya_rag(self):
+        """Sin productos cargados: Plan B busca web aunque RAG tenga algo débil."""
+        d = decidir_routing_nat(
+            'mancha en tomate hojas de abajo Guateque',
+            rag_chunks=[{'similitud': 0.55, 'fuente': 'nota.pdf'}],
+            tiene_rag_texto=True,
+            contexto_rag_chars=400,
+            sin_catalogo_productos=True,
+        )
+        self.assertEqual(d.modo, 'tecnico')
+        self.assertTrue(d.usar_web)
+        self.assertIn('plan_b', d.razon)
+
+    @override_settings(
+        BOT_COMERCIAL_OPENAI_MODEL='gpt-5-mini',
+        BOT_COMERCIAL_MODEL_TECNICO='gpt-5',
+        BOT_COMERCIAL_ROUTER_USE_NANO=False,
     )
     def test_precio_con_rag_escala_premium(self):
         d = decidir_routing_nat(

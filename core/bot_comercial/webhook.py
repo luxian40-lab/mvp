@@ -1007,6 +1007,7 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                 )
 
             from core.nat_router import decidir_routing_nat
+            from core.nati import org_tiene_catalogo_productos
 
             routing = decidir_routing_nat(
                 consulta,
@@ -1015,6 +1016,7 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                 contexto_rag_chars=len(contexto_rag or ''),
                 ctx_agro=ctx_agro,
                 diagnostico_vision=diagnostico_vision,
+                sin_catalogo_productos=not org_tiene_catalogo_productos(cliente_nati),
             )
             logger.info(
                 "🧭 Nat routing | modelo=%s modo=%s razon=%s web=%s sim=%s",
