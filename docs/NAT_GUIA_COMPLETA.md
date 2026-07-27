@@ -60,13 +60,14 @@ No mezclar mentalmente: el mismo monolito sirve ambos, pero el **contrato de pro
 1. **Asesoría amplia:** nutrición, riego, siembra, poda, cosecha, prevención, clima, manejo rutinario — no solo “qué está dañado”.
 2. **Diagnóstico cuando hay problema:** cultivo + ubicación + síntoma (+ foto si ayuda) → orientación de manejo.
 3. **Receta / recomendación comercial:** solo productos del **catálogo del negocio** (`ProductoCatalogo`), con dosis/uso si están en la ficha.
-4. **Precio:** cuando pregunten o cuando cierre recomendación, usar **lista oficial** (`ProductoComercial`) o precio de catálogo si es la única fuente; siempre como **referencia** (sujeto a stock/región).
-5. **Cierre de venta:** Nat **no cobra**. Empuja a comprar en el punto físico / canal del negocio (“pase por la tienda / pregunte por X”).
+4. **Plan B (sin catálogo o sin ficha que encaje):** no se queda en “consulte a su proveedor”. Orienta con manejo cultural + clase de insumo / principio activo o fórmula genérica **solo** con base en biblioteca, Agrosavia o **web técnica Colombia** (ICA/Agrosavia). **No inventa marcas, precios ni links.**
+5. **Precio:** cuando pregunten o cuando cierre recomendación comercial, usar **lista oficial** (`ProductoComercial`) o precio de catálogo; siempre como **referencia** (sujeto a stock/región).
+6. **Cierre de venta:** Nat **no cobra**. Empuja a comprar en el punto físico / canal del negocio (“pase por la tienda / pregunte por X”) cuando hay producto del catálogo.
 
 ### Qué no debe hacer
 
 - Dejar de ser agrónoma (tono comercial vacío, empujar producto sin criterio técnico).
-- Inventar productos, dosis o precios que no estén en catálogo / docs / lista.
+- Inventar productos, dosis o precios que no estén en catálogo / docs / lista / fuentes web del contexto.
 - Hablar de cursos eki salvo que el productor lo pida.
 - Sustituir al técnico de zona en casos graves o uso indebido de agroquímicos (remitir a etiqueta + técnico).
 
@@ -76,8 +77,10 @@ No mezclar mentalmente: el mismo monolito sirve ambos, pero el **contrato de pro
 Consulta de campo (cualquier tema agro)
     → Nat asesora con base (biblioteca + RAG + contexto)
     → Si cabe producto del negocio: recomienda 1–3 opciones del catálogo
-    → Dice precio de referencia
-    → Invita a comprar en físico / con el asesor del negocio
+    → Dice precio de referencia e invita a comprar en físico
+    → Si NO hay catálogo / no hay ficha que encaje (Plan B):
+         manejo concreto + tipo/principio activo (fuentes oficiales/web)
+         → remite a agrotienda local / etiqueta ICA
 ```
 
 ---
@@ -109,13 +112,30 @@ Subir todo a **cliente_id = 0 / general** diluye el RAG: Nat recupera trozos irr
 - **HITL:** Nat propone candidatas → humano aprueba en Knowledge Studio → vuelve al RAG (calidad alta, ritmo semanal).
 - **No ideal:** un solo saco “general” con todos los PDFs de todos los clientes.
 
-### Checklist mínimo “Nat vende bien”
+### Checklist mínimo “Nat atiende bien”
 
 - [ ] `numero_whatsapp_nat` correcto  
-- [ ] `ProductoCatalogo` con los productos que el negocio quiere empujar  
+- [ ] `ProductoCatalogo` con los productos que el negocio quiere empujar (**opcional al inicio**: sin catálogo aplica Plan B)  
 - [ ] `ProductoComercial` si cotizan por SKU  
 - [ ] Biblioteca **de esa org** con FAQ + fichas top (no solo general)  
-- [ ] Probar en WhatsApp: saludo → duda rutinaria → plaga → “cuánto cuesta X”
+- [ ] Probar en WhatsApp: saludo → duda rutinaria → plaga/mancha → “cuánto cuesta X”  
+- [ ] Probar Plan B: org **sin** productos → debe orientar manejo/fórmula (no solo “vaya al proveedor”)
+
+### 1.3 Plan B — sin productos en catálogo
+
+Cuando `ProductoCatalogo` está vacío (o ninguna ficha encaja con el caso), Nat **no se calla comercialmente**:
+
+| Paso | Qué hace |
+|------|----------|
+| 1 | Diagnóstico breve (cultivo + síntoma + zona) |
+| 2 | Manejo cultural / preventivo concreto |
+| 3 | Orientación de insumo **sin marca inventada**: clase + principio activo/fórmula solo si hay base en RAG, Agrosavia o FUENTES WEB |
+| 4 | Si no hay fuente: tipo de manejo + remisión a agrotienda / producto registrado ICA |
+| 5 | Activa búsqueda web complementaria en consultas técnicas (`nat_router` + `buscar_en_web_colombia`) |
+
+**Código:** `core/nati.py` (`_NAT_SIN_CATALOGO`, Plan B en reglas de catálogo), `core/nat_router.py` (`sin_catalogo_productos` → `usar_web`), webhook comercial.
+
+**Prueba local:** `scripts/smoke_nat_mancha_tomate.py` (anamnesis mancha/tomate + con/sin catálogo).
 
 ---
 
@@ -315,11 +335,12 @@ Configurar en Twilio Console para el número comercial de cada cliente (o númer
 
 ## 7. Reglas de comportamiento (producto)
 
-1. **Prioridad de verdad:** documentos RAG oficiales de la organización > catálogo Postgres > web complementaria.
-2. **No inventar:** dosis, precios, nombres de producto fuera del contexto.
+1. **Prioridad de verdad:** documentos RAG oficiales de la organización > catálogo Postgres > Agrosavia live > web complementaria.
+2. **No inventar:** dosis de marca, precios, nombres comerciales fuera del contexto.
 3. **Tono:** formal (*usted*), agrónoma de campo, vocabulario rural colombiano.
-4. **Comercial:** solo recomienda productos del `ProductoCatalogo` del cliente activo.
-5. **No mencionar** RAG, embeddings ni sistemas internos al productor.
+4. **Comercial:** recomienda por nombre/precio/link **solo** productos del `ProductoCatalogo` del cliente activo.
+5. **Plan B:** sin catálogo (o sin ficha que encaje) → manejo + principio activo/fórmula genérica con fuentes; sin inventar marcas.
+6. **No mencionar** RAG, embeddings ni sistemas internos al productor.
 
 ---
 

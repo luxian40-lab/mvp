@@ -919,12 +919,12 @@ Son **módulos opcionales** del portal B2B. Se activan por organización en Admi
 | **Nombre** | **Nat** (configurable por cliente: `nombre_bot` en Admin → Cliente, ej. Nat, Nati, Aliada) |
 | **Para qué sirve** | Atender por WhatsApp a **productores o clientes finales** con asesoría agrícola y **recomendación de productos** del catálogo de la organización (insumos, servicios, etc.). |
 | **Canal** | **WhatsApp en línea comercial** distinta a la de cursos: cada organización puede tener su `numero_whatsapp_nat`. El webhook identifica al cliente por el número destino (`To`). |
-| **Cómo responde** | IA + **RAG** (Biblioteca portal preferida; `DocumentoRAGComercial` legacy en admin) + **ProductoCatalogo** (recomendaciones) + **ProductoComercial** (lista de precios SKU). Extrae contexto agronómico (cultivo, plaga, región). El webhook enruta por `To`: línea global, sandbox o `Cliente.numero_whatsapp_nat`. |
+| **Cómo responde** | IA + **RAG** (Biblioteca portal; `DocumentoRAGComercial` legacy) + **ProductoCatalogo** (recomendaciones comerciales) + **ProductoComercial** (precios SKU). Extrae contexto agronómico (cultivo, plaga, región). **Plan B:** si la org no tiene catálogo (o ninguna ficha encaja), orienta con manejo + principio activo/fórmula genérica usando biblioteca, Agrosavia o **web técnica Colombia** — sin inventar marcas ni precios. El webhook enruta por `To`: línea global, sandbox o `Cliente.numero_whatsapp_nat`. |
 | **Qué ve el coordinador** | Portal → **Agente Nat**: sesiones activas, productos en catálogo, conversaciones recientes, escalamientos **HITL** (preguntas candidatas a validar como conocimiento), enlace a PQRS comercial. |
-| **Diferencia con el tutor del curso** | El tutor enseña el **módulo** del programa formativo. Nat **vende y asesora** sobre el portafolio comercial del cliente; no sustituye el avance del curso salvo que el productor use solo la línea comercial. |
+| **Diferencia con el tutor del curso** | El tutor enseña el **módulo** del programa formativo. Nat **asesora y, si hay catálogo, recomienda** el portafolio comercial; sin catálogo aplica Plan B (orientación técnica + web). |
 | **Admin** | `core/admin/commercial.py` — catálogo, documentos RAG, sesiones comerciales, metas. |
 
-**En una frase:** Nat es el **vendedor-asistente por WhatsApp** de la organización: conversación libre, catálogo y documentos, con panel en el portal para operación comercial.
+**En una frase:** Nat es la **agrónoma de bolsillo por WhatsApp** de la organización: conversación libre, catálogo cuando existe, y Plan B (manejo/fórmula + web) cuando aún no hay productos cargados.
 
 #### Comparación rápida
 
