@@ -58,8 +58,12 @@ def _consulta_catalogo_comercial(pregunta: str) -> bool:
 class RAGComercialManager:
     """Gestiona RAG comercial por cliente + canal."""
 
+    # Evita acumular clientes Chroma (embeddings) hasta OOM en el worker web.
+    _MAX_INSTANCIAS = 3
+
     def __init__(self):
         self._instancias: dict = {}
+        self._orden_keys: list = []
 
     @property
     def disponible(self) -> bool:
@@ -75,19 +79,30 @@ class RAGComercialManager:
         # Scope virtual para separar almacenamiento comercial de cursos.
         return f"comercial_{self._normalizar_canal(canal)}"
 
+    def _evict_si_necesario(self) -> None:
+        while len(self._instancias) >= self._MAX_INSTANCIAS and self._orden_keys:
+            vieja = self._orden_keys.pop(0)
+            self._instancias.pop(vieja, None)
+
     def obtener_rag(self, cliente_id: int, canal: str = 'bot_comercial') -> Optional['RAGClienteCurso']:
         if not self.disponible:
             return None
 
         scope = self._virtual_scope(canal)
         key = f"cli_{cliente_id}_{scope}"
-        if key not in self._instancias:
-            try:
-                # Reuso del backend Chroma existente con scope virtual (no curso real).
-                self._instancias[key] = RAGClienteCurso(cliente_id, scope)
-            except Exception as e:
-                logger.error(f"[RAGComercial] Error creando instancia {key}: {e}")
-                return None
+        if key in self._instancias:
+            if key in self._orden_keys:
+                self._orden_keys.remove(key)
+            self._orden_keys.append(key)
+            return self._instancias[key]
+        try:
+            self._evict_si_necesario()
+            # Reuso del backend Chroma existente con scope virtual (no curso real).
+            self._instancias[key] = RAGClienteCurso(cliente_id, scope)
+            self._orden_keys.append(key)
+        except Exception as e:
+            logger.error(f"[RAGComercial] Error creando instancia {key}: {e}")
+            return None
         return self._instancias[key]
 
     def obtener_contexto_para_bot(

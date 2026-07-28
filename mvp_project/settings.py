@@ -82,6 +82,10 @@ MIDDLEWARE = [
 WOMPI_PUBLIC_KEY = os.environ.get('WOMPI_PUBLIC_KEY', '')
 WOMPI_PRIVATE_KEY = os.environ.get('WOMPI_PRIVATE_KEY', '')
 WOMPI_INTEGRITY_SECRET = os.environ.get('WOMPI_INTEGRITY_SECRET', '')
+# Pruebas Studio: permite «Simular pago» aunque haya llaves Wompi (solo si lo activas en EB).
+STUDIO_ALLOW_PAYMENT_SIMULATION = os.environ.get(
+    'STUDIO_ALLOW_PAYMENT_SIMULATION', ''
+).strip().lower() in ('1', 'true', 'yes', 'on')
 
 ROOT_URLCONF = 'mvp_project.urls'
 
@@ -618,6 +622,21 @@ TWILIO_TEMPLATE_INVITACION_GRUPO = os.environ.get('TWILIO_TEMPLATE_INVITACION_GR
 # Content SID (HSM) para recordatorio cuando se desbloquea un módulo con drip. Vacío = mensaje de texto en sesión.
 # Requiere Celery Beat con la tarea reenganche_drip_content_diario (ver mvp_project/celery.py, 8:00).
 TWILIO_TEMPLATE_DRIP_REENGANCHE = os.environ.get('TWILIO_TEMPLATE_DRIP_REENGANCHE', '')
+# Centro de Éxito: días sin WhatsApp entrante para reenganche automático
+try:
+    DIAS_INACTIVIDAD_REENGANCHE = int(os.environ.get('DIAS_INACTIVIDAD_REENGANCHE', '7') or 7)
+except (TypeError, ValueError):
+    DIAS_INACTIVIDAD_REENGANCHE = 7
+try:
+    REENGANCHE_INACTIVOS_LIMITE = int(os.environ.get('REENGANCHE_INACTIVOS_LIMITE', '40') or 40)
+except (TypeError, ValueError):
+    REENGANCHE_INACTIVOS_LIMITE = 40
+try:
+    REENGANCHE_INACTIVOS_COOLDOWN_DIAS = int(
+        os.environ.get('REENGANCHE_INACTIVOS_COOLDOWN_DIAS', '5') or 5
+    )
+except (TypeError, ValueError):
+    REENGANCHE_INACTIVOS_COOLDOWN_DIAS = 5
 
 # ==========================================
 # 🤖 OPENAI API
@@ -676,15 +695,15 @@ except (TypeError, ValueError):
     NAT_OPEN_METEO_CACHE_SECONDS = 3600
 # Cuánto texto RAG inyectar al prompt del bot comercial (menor = menos latencia).
 try:
-    BOT_COMERCIAL_RAG_TOP_K = int(os.environ.get('BOT_COMERCIAL_RAG_TOP_K', '9'))
+    BOT_COMERCIAL_RAG_TOP_K = int(os.environ.get('BOT_COMERCIAL_RAG_TOP_K', '4'))
 except (TypeError, ValueError):
-    BOT_COMERCIAL_RAG_TOP_K = 9
-BOT_COMERCIAL_RAG_TOP_K = max(3, min(BOT_COMERCIAL_RAG_TOP_K, 20))
+    BOT_COMERCIAL_RAG_TOP_K = 4
+BOT_COMERCIAL_RAG_TOP_K = max(2, min(BOT_COMERCIAL_RAG_TOP_K, 12))
 try:
-    BOT_COMERCIAL_RAG_MAX_CHARS = int(os.environ.get('BOT_COMERCIAL_RAG_MAX_CHARS', '2500'))
+    BOT_COMERCIAL_RAG_MAX_CHARS = int(os.environ.get('BOT_COMERCIAL_RAG_MAX_CHARS', '1200'))
 except (TypeError, ValueError):
-    BOT_COMERCIAL_RAG_MAX_CHARS = 2500
-BOT_COMERCIAL_RAG_MAX_CHARS = max(400, min(BOT_COMERCIAL_RAG_MAX_CHARS, 4000))
+    BOT_COMERCIAL_RAG_MAX_CHARS = 1200
+BOT_COMERCIAL_RAG_MAX_CHARS = max(400, min(BOT_COMERCIAL_RAG_MAX_CHARS, 2500))
 # Fallback leyendo Excel/PDF en webhook; con t3.medium defaults más altos (bajar vía env si hace falta).
 BOT_COMERCIAL_RAG_FILE_FALLBACK = os.environ.get('BOT_COMERCIAL_RAG_FILE_FALLBACK', 'true').strip().lower() in (
     '1', 'true', 'yes', 'on',
