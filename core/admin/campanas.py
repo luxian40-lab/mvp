@@ -347,10 +347,10 @@ class EnlaceFormularioExternoAdmin(admin.ModelAdmin):
             return 'Guarde primero para ver el script de ejemplo.'
         campo = obj.campo_identificador
         campos_txt = {
-            'cedula': 'solo cédula (si se equivoca, no habilita a nadie; si coincide con otra persona, riesgo)',
+            'cedula': 'solo documento/ID (cédula, DUI, CURP, DNI…)',
             'telefono': 'teléfono WhatsApp del curso',
-            'cedula_y_telefono': 'cédula + teléfono WhatsApp (recomendado: ambos deben coincidir)',
-            'cedula_y_nombre': 'cédula + nombre completo (el nombre debe parecerse al registro)',
+            'cedula_y_telefono': 'documento + teléfono WhatsApp (recomendado: ambos deben coincidir)',
+            'cedula_y_nombre': 'documento + nombre completo (el nombre debe parecerse al registro)',
         }.get(campo, campo)
         payload_ej = {
             'cedula': '{"cedula": cedula}',
@@ -371,8 +371,8 @@ class EnlaceFormularioExternoAdmin(admin.ModelAdmin):
             '  var cedula = "", telefono = "", nombre = "";\n'
             '  e.response.getItemResponses().forEach(function(r) {{\n'
             '    var t = r.getItem().getTitle().toLowerCase();\n'
-            '    if (t.indexOf("cedula") >= 0 || t.indexOf("documento") >= 0 || t.indexOf("identificacion") >= 0)\n'
-            '      cedula = String(r.getResponse()).replace(/\\D/g, "");\n'
+            '    if (t.indexOf("cedula") >= 0 || t.indexOf("documento") >= 0 || t.indexOf("identificacion") >= 0 || t.indexOf("dui") >= 0 || t.indexOf("curp") >= 0 || t.indexOf("dni") >= 0)\n'
+            '      cedula = String(r.getResponse()).replace(/[\\s.\\-]/g, "").toUpperCase();\n'
             '  if (t.indexOf("whatsapp") >= 0 || t.indexOf("telefono") >= 0 || t.indexOf("celular") >= 0)\n'
             '      telefono = String(r.getResponse()).replace(/\\D/g, "");\n'
             '    if (t.indexOf("nombre") >= 0)\n'

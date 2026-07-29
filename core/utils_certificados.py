@@ -30,7 +30,7 @@ MARCADOR_NOMBRE  = (128, 128, 128)  # Gris puro para nombre
 MARCADOR_CEDULA  = (255, 0, 0)      # Rojo puro para cédula
 MARCADOR_QR      = (0, 0, 255)      # Azul puro para QR
 TOLERANCIA_COLOR = 18               # Tolerancia reducida para detectar solo marcadores puros
-TAMAÑO_QR_DEFAULT = 190             # 200 − 5 px por cada lado
+TAMAÑO_QR_DEFAULT = 130             # Antes 190; más compacto en plantillas
 
 # --- RUTA DE FUENTES ---
 FONTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')

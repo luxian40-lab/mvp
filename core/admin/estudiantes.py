@@ -156,6 +156,12 @@ class EstudianteAdmin(admin.ModelAdmin):
                 inscritos = 0
                 errores = []
                 
+                from core.documento_identidad import (
+                    normalizar_numero_documento,
+                    normalizar_tipo_documento,
+                )
+                from core.utils_telefono import normalizar_telefono
+
                 def _normalizar_celda(val):
                     if val is None:
                         return ''
@@ -171,41 +177,63 @@ class EstudianteAdmin(admin.ModelAdmin):
                     if not val:
                         return ''
                     return re.sub(r'\s+', ' ', val.strip().lower())
-                
-                def _normalizar_telefono(raw):
-                    tel = re.sub(r'\D', '', raw)
-                    if tel.startswith('57') and len(tel) == 12:
-                        return tel
-                    if len(tel) == 10 and tel.startswith('3'):
-                        return '57' + tel
-                    if len(tel) == 7 or len(tel) == 10:
-                        return '57' + tel
-                    return tel
+
+                # Detectar si la fila 1 es encabezado con "Tipo documento"
+                primera = [_normalizar_celda(c).lower() for c in (next(ws.iter_rows(min_row=1, max_row=1, values_only=True), []) or [])]
+                tiene_tipo_col = bool(primera) and (
+                    'tipo' in (primera[0] or '')
+                    or (primera[0] or '') in ('tipo documento', 'tipo_documento', 'tipodocumento')
+                )
+                data_start = 2 if (primera and (
+                    'cedula' in (primera[0] if not tiene_tipo_col else (primera[1] if len(primera) > 1 else ''))
+                    or 'documento' in ' '.join(primera[:3])
+                    or 'nombre' in ' '.join(primera[:4])
+                )) else 2
+                # Si no hay tipocol pero header legacy empieza por Cédula, data_start=2; filas de datos igual
                 
                 GENEROS_VALIDOS = {'m': 'M', 'f': 'F', 'o': 'O', 'masculino': 'M', 'femenino': 'F',
                                    'otro': 'O', 'hombre': 'M', 'mujer': 'F', 'nr': 'NR', 'no reporta': 'NR'}
                 
-                for idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+                for idx, row in enumerate(ws.iter_rows(min_row=data_start, values_only=True), start=data_start):
                     if not row or all(cell is None or str(cell).strip() == '' for cell in row[:3]):
                         continue
                     
                     try:
-                        cedula = _normalizar_celda(row[0]) if len(row) > 0 else ''
-                        nombre = _normalizar_celda(row[1]) if len(row) > 1 else ''
-                        telefono_raw = _normalizar_celda(row[2]) if len(row) > 2 else ''
-                        municipio = _limpiar_texto(_normalizar_celda(row[3])) if len(row) > 3 else ''
-                        departamento = _limpiar_texto(_normalizar_celda(row[4])) if len(row) > 4 else ''
-                        genero_raw = _limpiar_texto(_normalizar_celda(row[5])) if len(row) > 5 else ''
-                        edad_raw = _normalizar_celda(row[6]) if len(row) > 6 else ''
-                        curso_nombre = _normalizar_celda(row[7]) if len(row) > 7 else ''
-                        cliente_nombre = _normalizar_celda(row[8]) if len(row) > 8 else ''
+                        if tiene_tipo_col:
+                            tipo_raw = _normalizar_celda(row[0]) if len(row) > 0 else ''
+                            cedula = _normalizar_celda(row[1]) if len(row) > 1 else ''
+                            nombre = _normalizar_celda(row[2]) if len(row) > 2 else ''
+                            telefono_raw = _normalizar_celda(row[3]) if len(row) > 3 else ''
+                            municipio = _limpiar_texto(_normalizar_celda(row[4])) if len(row) > 4 else ''
+                            departamento = _limpiar_texto(_normalizar_celda(row[5])) if len(row) > 5 else ''
+                            genero_raw = _limpiar_texto(_normalizar_celda(row[6])) if len(row) > 6 else ''
+                            edad_raw = _normalizar_celda(row[7]) if len(row) > 7 else ''
+                            curso_nombre = _normalizar_celda(row[8]) if len(row) > 8 else ''
+                            cliente_nombre = _normalizar_celda(row[9]) if len(row) > 9 else ''
+                        else:
+                            tipo_raw = ''
+                            cedula = _normalizar_celda(row[0]) if len(row) > 0 else ''
+                            nombre = _normalizar_celda(row[1]) if len(row) > 1 else ''
+                            telefono_raw = _normalizar_celda(row[2]) if len(row) > 2 else ''
+                            municipio = _limpiar_texto(_normalizar_celda(row[3])) if len(row) > 3 else ''
+                            departamento = _limpiar_texto(_normalizar_celda(row[4])) if len(row) > 4 else ''
+                            genero_raw = _limpiar_texto(_normalizar_celda(row[5])) if len(row) > 5 else ''
+                            edad_raw = _normalizar_celda(row[6]) if len(row) > 6 else ''
+                            curso_nombre = _normalizar_celda(row[7]) if len(row) > 7 else ''
+                            cliente_nombre = _normalizar_celda(row[8]) if len(row) > 8 else ''
+                            # Columna opcional J = tipo documento (plantillas LatAm antiguas)
+                            if len(row) > 9 and _normalizar_celda(row[9]):
+                                tipo_raw = _normalizar_celda(row[9])
                     except IndexError:
                         errores.append(f"Fila {idx}: Columnas insuficientes")
                         continue
                     
+                    tipo_documento = normalizar_tipo_documento(tipo_raw or 'CC')
+                    cedula = normalizar_numero_documento(cedula)
+                    
                     # Validar obligatorios mínimos
                     campos_faltantes = []
-                    if not cedula: campos_faltantes.append('Cédula')
+                    if not cedula: campos_faltantes.append('Documento')
                     if not nombre: campos_faltantes.append('Nombre')
                     if not telefono_raw: campos_faltantes.append('Teléfono')
                     
@@ -213,10 +241,24 @@ class EstudianteAdmin(admin.ModelAdmin):
                         errores.append(f"Fila {idx}: Faltan: {', '.join(campos_faltantes)}")
                         continue
                     
-                    telefono = _normalizar_telefono(telefono_raw)
+                    telefono = normalizar_telefono(telefono_raw)
                     if not telefono or len(telefono) < 10:
-                        errores.append(f"Fila {idx}: Teléfono inválido '{telefono_raw}'")
+                        errores.append(
+                            f"Fila {idx}: Teléfono inválido '{telefono_raw}'. "
+                            f"Use código de país (ej: 503… El Salvador, 52… México, 57… Colombia)."
+                        )
                         continue
+                    # Evitar asumir Colombia en números LatAm cortos
+                    if len(re.sub(r'\D', '', telefono_raw)) == 10 and not telefono_raw.strip().startswith('+') and not telefono.startswith('57'):
+                        # 10 dígitos sin + y no normalizado a 57 → exigir código país explícito
+                        raw_digits = re.sub(r'\D', '', telefono_raw)
+                        if not raw_digits.startswith(('52', '503', '502', '504', '505', '506', '507', '51', '56', '54', '57', '58')):
+                            if not (len(raw_digits) == 10 and raw_digits.startswith('3')):
+                                errores.append(
+                                    f"Fila {idx}: Teléfono '{telefono_raw}' sin código de país. "
+                                    f"Ej: 50361234567 (SV), 5215512345678 (MX), 573001234567 (CO)."
+                                )
+                                continue
                     
                     genero = GENEROS_VALIDOS.get(genero_raw, '') if genero_raw else ''
                     if not genero:
@@ -250,7 +292,7 @@ class EstudianteAdmin(admin.ModelAdmin):
                                 'departamento': departamento,
                                 'genero': genero,
                                 'edad': edad,
-                                'tipo_documento': 'CC',
+                                'tipo_documento': tipo_documento,
                                 'estado_onboarding': 'completado',
                                 'estado_chat': 'ACTIVO',
                                 'acepto_terminos': True,
@@ -932,8 +974,11 @@ class EstudianteAdmin(admin.ModelAdmin):
         ws = wb.active
         ws.title = "Plantilla Estudiantes"
         
-        # Encabezados mejorados (9 columnas, 7 obligatorias)
-        headers = ['Cédula', 'Nombre Completo', 'Teléfono', 'Municipio', 'Departamento', 'Género', 'Edad', 'Curso', 'Cliente']
+        # Encabezados LatAm: Tipo documento + Documento (+ columnas previas)
+        headers = [
+            'Tipo documento', 'Documento', 'Nombre Completo', 'Teléfono',
+            'Municipio', 'Departamento', 'Género', 'Edad', 'Curso', 'Cliente',
+        ]
         ws.append(headers)
         
         # Estilo de encabezados
@@ -953,34 +998,40 @@ class EstudianteAdmin(admin.ModelAdmin):
             cell.border = border
         
         # Comentarios con instrucciones
-        ws['A1'].comment = Comment("📝 Cédula sin puntos ni espacios\nEjemplo: 1234567890", "eki")
-        ws['B1'].comment = Comment("👤 Nombre completo del estudiante\nEjemplo: Juan Pérez García", "eki")
-        ws['C1'].comment = Comment("📱 WhatsApp con código de país\nEjemplo: 573001234567 o 3001234567", "eki")
-        ws['D1'].comment = Comment("🏙️ Municipio del estudiante (obligatorio)\nEjemplo: Manizales", "eki")
-        ws['E1'].comment = Comment("🗺️ Departamento del estudiante (obligatorio)\nEjemplo: Caldas", "eki")
-        ws['F1'].comment = Comment("👫 Género del estudiante (obligatorio)\nValores: masculino, femenino, otro, no reporta", "eki")
-        ws['G1'].comment = Comment("🎂 Edad del estudiante (obligatorio)\nEjemplo: 35", "eki")
-        ws['H1'].comment = Comment("📚 Nombre del curso (opcional)\nEjemplo: Curso de Café\nDeja vacío si no aplica", "eki")
-        ws['I1'].comment = Comment("🏢 Nombre del cliente (opcional)\nEjemplo: FNC\nDeja vacío si no aplica", "eki")
+        ws['A1'].comment = Comment(
+            "Tipo: CC, TI, CE, DUI (SV), CURP/INE (MX), DNI, RUT (CL), DPI (GT), CI, PP, OTRO",
+            "eki",
+        )
+        ws['B1'].comment = Comment(
+            "Número/ID sin puntos ni espacios. Puede tener letras (CURP, RUT).",
+            "eki",
+        )
+        ws['C1'].comment = Comment("Nombre completo del estudiante", "eki")
+        ws['D1'].comment = Comment(
+            "WhatsApp CON código de país.\n"
+            "CO: 573001234567 | SV: 50371234567 | MX: 5215512345678",
+            "eki",
+        )
+        ws['E1'].comment = Comment("Municipio / ciudad", "eki")
+        ws['F1'].comment = Comment("Departamento / estado / provincia", "eki")
+        ws['G1'].comment = Comment("Género: masculino, femenino, otro, no reporta", "eki")
+        ws['H1'].comment = Comment("Edad en años", "eki")
+        ws['I1'].comment = Comment("Nombre del curso (opcional)", "eki")
+        ws['J1'].comment = Comment("Nombre del cliente/org (opcional)", "eki")
         
         # Obtener cursos y clientes para validación
         cursos = Curso.objects.filter(activo=True).order_by('nombre')
         clientes = Cliente.objects.filter(activo=True).order_by('nombre')
         
         # Agregar ejemplos con datos reales
-        if cursos.exists() and clientes.exists():
-            curso_ejemplo = cursos.first().nombre
-            cliente_ejemplo = clientes.first().nombre
-            ws.append(['1234567890', 'Juan Pérez García', '573001234567', 'Manizales', 'Caldas', 'masculino', 35, curso_ejemplo, cliente_ejemplo])
-            ws.append(['9876543210', 'María López Rodríguez', '3109876543', 'Bogotá', 'Cundinamarca', 'femenino', 28, curso_ejemplo, cliente_ejemplo])
-            ws.append(['5555555555', 'Pedro Gómez Hernández', '3201234567', 'Medellín', 'Antioquia', 'otro', 52, '', ''])
-        else:
-            ws.append(['1234567890', 'Juan Pérez García', '573001234567', 'Manizales', 'Caldas', 'masculino', 35, 'Curso de Café', 'FNC'])
-            ws.append(['9876543210', 'María López Rodríguez', '3109876543', 'Bogotá', 'Cundinamarca', 'femenino', 28, 'Curso de Aguacate', 'Fedecacao'])
-            ws.append(['5555555555', 'Pedro Gómez Hernández', '3201234567', 'Medellín', 'Antioquia', 'otro', 52, '', ''])
+        curso_ejemplo = cursos.first().nombre if cursos.exists() else 'Curso de Café'
+        cliente_ejemplo = clientes.first().nombre if clientes.exists() else 'FNC'
+        ws.append(['CC', '1234567890', 'Juan Pérez García', '573001234567', 'Manizales', 'Caldas', 'masculino', 35, curso_ejemplo, cliente_ejemplo])
+        ws.append(['DUI', '012345678', 'Ana Martínez', '50371234567', 'San Salvador', 'San Salvador', 'femenino', 28, curso_ejemplo, cliente_ejemplo])
+        ws.append(['CURP', 'PEGJ850101HDFRRN09', 'José Pérez', '5215512345678', 'CDMX', 'Ciudad de México', 'masculino', 40, '', ''])
         
         # Fila vacía para empezar
-        ws.append(['', '', '', '', '', '', '', '', ''])
+        ws.append(['', '', '', '', '', '', '', '', '', ''])
         
         # Estilo para ejemplos
         example_fill = PatternFill(start_color="FFF9E6", end_color="FFF9E6", fill_type="solid")
@@ -990,15 +1041,16 @@ class EstudianteAdmin(admin.ModelAdmin):
                 cell.font = Font(italic=True, color="666666", size=10)
         
         # Ajustar anchos
-        ws.column_dimensions['A'].width = 18
-        ws.column_dimensions['B'].width = 35
-        ws.column_dimensions['C'].width = 18
-        ws.column_dimensions['D'].width = 20
+        ws.column_dimensions['A'].width = 14
+        ws.column_dimensions['B'].width = 22
+        ws.column_dimensions['C'].width = 35
+        ws.column_dimensions['D'].width = 18
         ws.column_dimensions['E'].width = 20
-        ws.column_dimensions['F'].width = 16
-        ws.column_dimensions['G'].width = 10
-        ws.column_dimensions['H'].width = 30
-        ws.column_dimensions['I'].width = 25
+        ws.column_dimensions['F'].width = 20
+        ws.column_dimensions['G'].width = 16
+        ws.column_dimensions['H'].width = 10
+        ws.column_dimensions['I'].width = 28
+        ws.column_dimensions['J'].width = 22
         
         # Crear hoja con listas de valores disponibles
         ws_ref = wb.create_sheet("Valores Disponibles")
@@ -1018,51 +1070,29 @@ class EstudianteAdmin(admin.ModelAdmin):
         # Agregar hoja de instrucciones
         ws_inst = wb.create_sheet("Instrucciones")
         instrucciones = [
-            ["📋 GUÍA RÁPIDA - IMPORTAR ESTUDIANTES A eki"],
+            ["GUÍA RÁPIDA - IMPORTAR ESTUDIANTES A eki (LatAm)"],
             [""],
-            ["✅ CAMPOS OBLIGATORIOS (7):"],
-            ["   • Cédula: Sin puntos ni espacios (Ej: 1234567890)"],
+            ["CAMPOS OBLIGATORIOS:"],
+            ["   • Tipo documento: CC, DUI (SV), CURP/INE (MX), DNI, RUT, DPI, CI, PP, OTRO"],
+            ["   • Documento: número/ID (puede tener letras, ej. CURP)"],
             ["   • Nombre: Nombre completo del estudiante"],
-            ["   • Teléfono: Con código 57 o sin él (Ej: 573001234567 o 3001234567)"],
-            ["   • Municipio: Ciudad o municipio (Ej: Manizales)"],
-            ["   • Departamento: Departamento (Ej: Caldas)"],
-            ["   • Género: masculino, femenino, otro o no reporta"],
-            ["   • Edad: Edad en años (Ej: 35)"],
+            ["   • Teléfono: WhatsApp CON código de país (503 SV, 52 MX, 57 CO)"],
+            ["   • Municipio / Departamento / Género / Edad"],
             [""],
-            ["📝 CAMPOS OPCIONALES (2):"],
-            ["   • Curso: Nombre del curso a inscribir (ver hoja 'Valores Disponibles')"],
-            ["   • Cliente: Organización del estudiante (ver hoja 'Valores Disponibles')"],
+            ["CAMPOS OPCIONALES:"],
+            ["   • Curso / Cliente: ver hoja 'Valores Disponibles'"],
             [""],
-            ["💡 TIPS:"],
-            ["   1. Si dejas vacío 'Curso', el estudiante NO se inscribirá automáticamente"],
-            ["   2. Si dejas vacío 'Cliente', el estudiante quedará sin organización"],
-            ["   3. Los nombres de Curso y Cliente deben coincidir EXACTAMENTE con los disponibles"],
-            ["   4. Copia y pega desde la hoja 'Valores Disponibles' para evitar errores"],
-            ["   5. Los 7 primeros campos son OBLIGATORIOS — filas incompletas serán rechazadas"],
-            ["   6. Los textos se normalizan automáticamente a minúsculas"],
+            ["COMPATIBILIDAD:"],
+            ["   • Plantillas viejas (sin columna Tipo) siguen funcionando → se asume CC"],
+            ["   • No uses números de 10 dígitos sin código país fuera de Colombia"],
             [""],
-            ["📊 PROCESO:"],
-            ["   1. Completa la hoja 'Plantilla Estudiantes' con tus datos"],
-            ["   2. Guarda el archivo Excel"],
-            ["   3. Ve a eki Admin → Estudiantes → Botón 'Importar desde Excel'"],
-            ["   4. Sube el archivo y confirma"],
-            ["   5. ¡Listo! El sistema procesará automáticamente"],
+            ["EE.UU.: plantillas Marketing WhatsApp están bloqueadas por Meta (+1)."],
             [""],
-            ["✨ EJEMPLOS:"],
+            ["PROCESO:"],
+            ["   1. Completa 'Plantilla Estudiantes'"],
+            ["   2. Admin → Estudiantes → Importar desde Excel"],
             [""],
-            ["   Cédula      | Nombre              | Teléfono      | Municipio   | Departamento  | Género    | Edad | Curso             | Cliente"],
-            ["   1234567890  | Juan Pérez García   | 573001234567  | Manizales   | Caldas        | masculino | 35   | Curso de Café     | FNC"],
-            ["   9876543210  | María López         | 3109876543    | Bogotá      | Cundinamarca  | femenino  | 28   | Curso de Aguacate | Fedecacao"],
-            ["   5555555555  | Pedro Gómez         | 3201234567    | Medellín    | Antioquia     | otro      | 52   |                   |"],
-            [""],
-            ["⚠️ ERRORES COMUNES:"],
-            ["   • Cédula duplicada: Cada cédula debe ser única"],
-            ["   • Teléfono duplicado: Cada teléfono debe ser único"],
-            ["   • Curso inexistente: Verifica en 'Valores Disponibles'"],
-            ["   • Campos obligatorios vacíos: Los 7 primeros campos son requeridos"],
-            ["   • Filas vacías: No dejes filas vacías entre estudiantes"],
-            [""],
-            ["📞 Soporte: contacto@eki.com | WhatsApp: +57 300 123 4567"],
+            ["ERRORES COMUNES: documento o teléfono duplicado; curso/cliente inexistente"],
         ]
         
         for row_data in instrucciones:

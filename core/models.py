@@ -10,6 +10,8 @@ import openpyxl # <--- Nueva librería
 import os
 from django.db import IntegrityError
 
+from core.documento_identidad import TIPO_DOCUMENTO_CHOICES
+
 # 0. TEMA DE CAMPAÑA (para organizar plantillas y campañas)
 class TemaCampana(models.Model):
     """Temas/etiquetas para organizar plantillas y campañas (ej: café, aguacate, maíz)"""
@@ -509,13 +511,8 @@ class MetaMetricaNati(models.Model):
 
 # 1. ESTUDIANTE
 class Estudiante(models.Model):
-    TIPO_DOCUMENTO_CHOICES = [
-        ('CC', 'Cédula de Ciudadanía'),
-        ('TI', 'Tarjeta de Identidad'),
-        ('CE', 'Cédula de Extranjería'),
-        ('PP', 'Pasaporte'),
-    ]
-    
+    TIPO_DOCUMENTO_CHOICES = TIPO_DOCUMENTO_CHOICES
+
     RANGO_EDAD_CHOICES = [
         ('18-30', '18 a 30 años'),
         ('31-50', '31 a 50 años'),
@@ -548,17 +545,17 @@ class Estudiante(models.Model):
     ]
     
     tipo_documento = models.CharField(
-        max_length=2,
+        max_length=8,
         choices=TIPO_DOCUMENTO_CHOICES,
         default='CC',
         verbose_name='Tipo de Documento',
-        help_text='Tipo de documento de identificación'
+        help_text='Tipo de documento (CC Colombia, DUI El Salvador, CURP/INE México, DNI, RUT, etc.)'
     )
     cedula = models.CharField(
-        max_length=20,
+        max_length=32,
         unique=True,
         verbose_name='Número de Documento',
-        help_text='Número de identificación único (limpio, sin puntos ni espacios)'
+        help_text='Número/ID único (cédula, DUI, CURP, DNI…). Sin puntos ni espacios; puede incluir letras.'
     )
     nombre = models.CharField(max_length=100, verbose_name='Nombre Completo')
     telefono = models.CharField(max_length=20, unique=True, verbose_name='Teléfono WhatsApp')
@@ -691,19 +688,19 @@ class Estudiante(models.Model):
         self.cliente = value
 
     def clean(self):
-        # Limpieza de teléfono
-        numero = re.sub(r'\D', '', str(self.telefono))
-        if len(numero) == 10: numero = f"57{numero}"
-        
-        # Validación
-        if not (10 <= len(numero) <= 15):
-            pass 
-        self.telefono = numero
-        
-        # Limpieza de cédula (sanitización B2B)
-        if self.cedula and not self.cedula.startswith('TEMP_'):
-            self.cedula = re.sub(r'[\s\.\-]', '', str(self.cedula))
-        
+        from core.documento_identidad import (
+            normalizar_numero_documento,
+            normalizar_tipo_documento,
+        )
+        from core.utils_telefono import normalizar_telefono
+
+        # Teléfono: solo dígitos; 57 automático solo si parece móvil CO (10 dígitos que empiezan en 3).
+        self.telefono = normalizar_telefono(self.telefono)
+
+        self.tipo_documento = normalizar_tipo_documento(self.tipo_documento)
+        if self.cedula and not str(self.cedula).startswith('TEMP_'):
+            self.cedula = normalizar_numero_documento(self.cedula)
+
         # Capitalizar nombre
         if self.nombre and self.nombre != 'Usuario':
             self.nombre = self.nombre.strip().title()
@@ -732,8 +729,8 @@ class Estudiante(models.Model):
             models.Index(fields=['telefono']),
         ]
 
-    def __str__(self): 
-        return f"{self.nombre} (CC: {self.cedula})"
+    def __str__(self):
+        return f"{self.nombre} ({self.tipo_documento}: {self.cedula})"
 
 # 2. PLANTILLA
 class Plantilla(models.Model):

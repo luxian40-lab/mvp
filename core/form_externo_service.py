@@ -7,12 +7,29 @@ import unicodedata
 
 from django.db import transaction
 
+from core.documento_identidad import normalizar_numero_documento
 from core.models import Estudiante, HabilitacionModuloEstudiante, Modulo
 from core.models_extras import EnlaceFormularioExterno, RegistroFormularioExterno
 
 
 def _solo_digitos(valor: str) -> str:
     return re.sub(r'\D', '', str(valor or ''))
+
+
+def _buscar_por_cedula(qs, cedula_raw: str) -> Estudiante | None:
+    cedula = normalizar_numero_documento(cedula_raw)
+    if not cedula:
+        return None
+    est = qs.filter(cedula__iexact=cedula).first()
+    if est:
+        return est
+    # Compat: cédulas numéricas con/sin formato
+    digits = _solo_digitos(cedula)
+    if digits and digits == cedula:
+        for est in qs.filter(cedula__isnull=False).only('id', 'cedula'):
+            if _solo_digitos(est.cedula) == digits:
+                return est
+    return None
 
 
 def _normalizar_nombre(valor: str) -> str:
@@ -42,22 +59,6 @@ def _telefonos_coinciden(a: str, b: str) -> bool:
     if da == db:
         return True
     return da.endswith(db[-10:]) or db.endswith(da[-10:])
-
-
-def _buscar_por_cedula(qs, cedula_raw: str) -> Estudiante | None:
-    cedula = (cedula_raw or '').replace(' ', '')
-    if not cedula:
-        return None
-    est = qs.filter(cedula=cedula).first()
-    if est:
-        return est
-    digits = _solo_digitos(cedula)
-    if not digits:
-        return None
-    for est in qs.filter(cedula__isnull=False):
-        if _solo_digitos(est.cedula) == digits:
-            return est
-    return None
 
 
 def _buscar_por_telefono(qs, telefono_raw: str) -> Estudiante | None:
