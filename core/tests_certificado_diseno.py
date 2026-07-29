@@ -241,3 +241,70 @@ def test_admin_estudiantes_preview_json():
     data = response.json()
     assert len(data['estudiantes']) == 1
     assert data['estudiantes'][0]['nombre'] == 'Ana Json'
+
+
+@pytest.mark.django_db
+def test_obtener_url_plantilla_prioriza_archivo_sobre_url_vieja():
+    """Al subir archivo nuevo, no debe ganar la URL antigua pegada en el campo."""
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    png = _png_bytes()
+    plantilla = PlantillaCertificado(
+        nombre='Sync URL',
+        modo_plantilla='imagen',
+        url_plantilla_imagen='https://eki-produccion.s3.us-east-2.amazonaws.com/vieja/plantilla_antigua.png',
+    )
+    plantilla.archivo_plantilla_imagen = SimpleUploadedFile(
+        'plantilla_nueva.png', png, content_type='image/png',
+    )
+    plantilla.save()
+    plantilla.refresh_from_db()
+
+    efectiva = plantilla.obtener_url_plantilla_imagen()
+    assert efectiva
+    assert 'vieja/plantilla_antigua' not in efectiva
+    assert plantilla.url_plantilla_imagen == efectiva
+    assert 'plantilla_nueva' in (plantilla.archivo_plantilla_imagen.name or '')
+
+
+@pytest.mark.django_db
+def test_reemplazo_archivo_actualiza_url_segunda_vez():
+    """QA: segunda subida debe dejar de apuntar a la key de la primera."""
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    from core.certificado_preview import _resolver_fuente_imagen
+
+    p = PlantillaCertificado(
+        nombre='Replace twice',
+        modo_plantilla='imagen',
+        url_plantilla_imagen='https://eki-produccion.s3.us-east-2.amazonaws.com/vieja/old.png',
+    )
+    p.archivo_plantilla_imagen = SimpleUploadedFile(
+        'v1.png', _png_bytes(), content_type='image/png',
+    )
+    p.save()
+    p.refresh_from_db()
+    url1 = p.url_plantilla_imagen
+    name1 = p.archivo_plantilla_imagen.name
+
+    p.archivo_plantilla_imagen = SimpleUploadedFile(
+        'v2.png', _png_bytes(), content_type='image/png',
+    )
+    # Simula formulario admin que reenvía URL vieja
+    p.url_plantilla_imagen = url1
+    p.save()
+    p.refresh_from_db()
+
+    assert p.archivo_plantilla_imagen.name != name1
+    assert 'v2' in (plantilla_name := (p.archivo_plantilla_imagen.name or ''))
+    assert p.obtener_url_plantilla_imagen() == p.url_plantilla_imagen
+    assert url1 != p.url_plantilla_imagen
+    assert 'vieja/old' not in (p.url_plantilla_imagen or '')
+
+    kind, src = _resolver_fuente_imagen(p)
+    assert kind in ('url', 'bytes')
+    if kind == 'url':
+        assert 'vieja/old' not in str(src)
+        assert src == p.archivo_plantilla_imagen.url
+    else:
+        assert isinstance(src, (bytes, bytearray)) and len(src) > 50

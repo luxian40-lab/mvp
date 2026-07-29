@@ -32,7 +32,8 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
                 3. Exporta como <strong>PNG o JPG</strong><br>
                 4. Sube la imagen aqui o pega la URL de S3<br><br>
                 <strong>💡 Cada curso puede tener su propia plantilla.</strong> Al actualizar la plantilla, los certificados existentes se regeneran automaticamente.<br>
-                <strong>⚠️ Al pegar URL:</strong> Asegurate de pegar solo UNA vez la URL completa (https://...).
+                <strong>⚠️ Al pegar URL:</strong> Asegurate de pegar solo UNA vez la URL completa (https://...).<br>
+                <strong>🔄 Si subes un archivo nuevo:</strong> ese archivo tiene prioridad y la URL se actualiza sola (antes quedaba la URL vieja y no se veía el cambio).
             </div>''')
         }),
         ('📄 PDF Personalizado (Avanzado)', {

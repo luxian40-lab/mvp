@@ -271,7 +271,10 @@ class PlantillaCertificado(models.Model):
         max_length=500,
         null=True,
         blank=True,
-        help_text="🔗 URL directa a una imagen de plantilla (PNG/JPG). Usa esto si prefieres alojar la imagen externamente."
+        help_text=(
+            "🔗 URL directa (PNG/JPG). Si también subes archivo, el archivo manda: "
+            "al guardar se actualiza esta URL a la del archivo nuevo en S3."
+        ),
     )
     
     # 🎨 OPCIÓN 2: DISEÑO PERSONALIZADO CON eki (Si no subes PDF)
@@ -398,10 +401,40 @@ class PlantillaCertificado(models.Model):
                 })
             self.url_plantilla_imagen = url
         
-        # Si se sube archivo Y hay URL, preferir archivo (limpiar URL para evitar conflicto)
-        if self.archivo_plantilla_imagen and self.url_plantilla_imagen:
-            # Ambos presentes: archivo tiene prioridad, pero dejar URL como backup
-            pass
+        # Si hay archivo y URL, el archivo tiene prioridad en runtime
+        # (ver obtener_url_plantilla_imagen / save sincroniza la URL).
+
+    def obtener_url_plantilla_imagen(self) -> str | None:
+        """
+        URL efectiva de la plantilla imagen.
+
+        Prioridad: archivo subido (S3) > url pegada.
+        Evita que una URL antigua en el campo de texto ignore un archivo nuevo.
+        """
+        if self.archivo_plantilla_imagen:
+            try:
+                u = (self.archivo_plantilla_imagen.url or '').strip()
+                if u:
+                    return u
+            except Exception:
+                pass
+        u = (self.url_plantilla_imagen or '').strip()
+        return u or None
+
+    def _sincronizar_url_desde_archivo(self) -> None:
+        """Tras subir/reemplazar archivo, alinea url_plantilla_imagen con la key nueva en S3."""
+        if not self.pk or not self.archivo_plantilla_imagen:
+            return
+        try:
+            new_url = (self.archivo_plantilla_imagen.url or '').strip()
+        except Exception:
+            return
+        if not new_url:
+            return
+        if (self.url_plantilla_imagen or '').strip() == new_url:
+            return
+        type(self).objects.filter(pk=self.pk).update(url_plantilla_imagen=new_url)
+        self.url_plantilla_imagen = new_url
 
     def save(self, *args, **kwargs):
         # Ejecutar validacion de URL
@@ -413,6 +446,7 @@ class PlantillaCertificado(models.Model):
         if self.por_defecto:
             PlantillaCertificado.objects.filter(por_defecto=True).exclude(pk=self.pk).update(por_defecto=False)
         super().save(*args, **kwargs)
+        self._sincronizar_url_desde_archivo()
     
     def usa_pdf_personalizado(self):
         """Verifica si esta plantilla usa un PDF personalizado"""

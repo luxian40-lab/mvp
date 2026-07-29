@@ -494,15 +494,9 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
         # =====================================================
         plantilla_url_db = None
         if plantilla and modo == 'imagen':
-            if plantilla.url_plantilla_imagen:
-                plantilla_url_db = plantilla.url_plantilla_imagen
-                logger.info(f"📋 Usando url_plantilla_imagen: {plantilla_url_db}")
-            elif plantilla.archivo_plantilla_imagen:
-                try:
-                    plantilla_url_db = plantilla.archivo_plantilla_imagen.url
-                    logger.info(f"📋 Usando archivo_plantilla_imagen.url: {plantilla_url_db}")
-                except Exception:
-                    pass
+            plantilla_url_db = plantilla.obtener_url_plantilla_imagen()
+            if plantilla_url_db:
+                logger.info(f"📋 Usando plantilla imagen: {plantilla_url_db}")
 
         if not generado and plantilla_url_db:
             try:

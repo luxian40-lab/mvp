@@ -68,24 +68,23 @@ def _resolver_fuente_imagen(plantilla, uploaded_img=None) -> tuple[str | None, s
         if data:
             return 'bytes', data
 
+    # Archivo subido gana sobre URL pegada (evita plantilla antigua en S3)
+    archivo = getattr(plantilla, 'archivo_plantilla_imagen', None)
+    if archivo:
+        try:
+            archivo_url = archivo.url
+            if archivo_url and str(archivo_url).startswith('http'):
+                return 'url', archivo_url
+        except Exception:
+            pass
+        data = _leer_bytes_archivo(archivo)
+        if data:
+            return 'bytes', data
+
     url = (getattr(plantilla, 'url_plantilla_imagen', None) or '').strip()
     if url:
         return 'url', url
 
-    archivo = getattr(plantilla, 'archivo_plantilla_imagen', None)
-    if not archivo:
-        return None, None
-
-    try:
-        archivo_url = archivo.url
-        if archivo_url and str(archivo_url).startswith('http'):
-            return 'url', archivo_url
-    except Exception:
-        pass
-
-    data = _leer_bytes_archivo(archivo)
-    if data:
-        return 'bytes', data
     return None, None
 
 

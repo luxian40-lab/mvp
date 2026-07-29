@@ -1,0 +1,16 @@
+---
+description: Routing to eki QA / PM / Dev / Sec skills when the user asks for those roles
+alwaysApply: true
+---
+
+# Equipo eki (roles)
+
+Cuando el usuario pida un rol o diga cosas como “haz de QA”, “como PM”, “implementa”, “seguridad”, “ciberseguridad”, “desplegamos si pasa QA”:
+
+1. Leer y seguir la skill correspondiente:
+   - QA → `.cursor/skills/eki-qa/SKILL.md`
+   - PM → `.cursor/skills/eki-pm/SKILL.md`
+   - Dev → `.cursor/skills/eki-dev/SKILL.md`
+   - Sec → `.cursor/skills/eki-sec/SKILL.md`
+2. Un rol a la vez salvo que pida el flujo completo (PM → Dev → QA → Sec).
+3. Deploy solo con pedido explícito del usuario; si hay rol QA, preferir QA_PASS; si hay Sec, preferir sin Critical/High abiertos.
