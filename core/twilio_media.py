@@ -23,6 +23,23 @@ def es_error_media_twilio(err) -> bool:
     return any(code in s for code in CODIGOS_FALLA_MEDIA_TWILIO)
 
 
+def _encode_s3_key_path(key: str) -> str:
+    """
+    Codifica key S3 para URL pública.
+
+    Usa unquote_plus: en prod muchas keys/URLs tienen '+' donde el objeto real
+    tiene espacio (p.ej. '2.2.+Presupuesto' → 404; '%20' → 200).
+    """
+    from urllib.parse import quote, unquote_plus
+
+    parts = []
+    for part in (key or '').lstrip('/').split('/'):
+        if not part:
+            continue
+        parts.append(quote(unquote_plus(part), safe=''))
+    return '/'.join(parts)
+
+
 def normalizar_media_url_s3(url: Optional[str]) -> Optional[str]:
     """
     URL pública regional (us-east-2) para MediaUrl de Twilio.
@@ -37,15 +54,12 @@ def normalizar_media_url_s3(url: Optional[str]) -> Optional[str]:
     if not clean:
         return None
 
-    from urllib.parse import quote, unquote
-
     lower = clean.lower()
     firmada = 'x-amz-signature' in lower or 'x-amz-algorithm' in lower
     if 'amazonaws.com' in lower or 'eki-produccion' in lower:
         key = _s3_key_desde_url(clean)
         if key:
-            # Codificar path segment-wise (espacios en nombres de archivo)
-            encoded = '/'.join(quote(unquote(part), safe='') for part in key.split('/'))
+            encoded = _encode_s3_key_path(key)
             return f'https://eki-produccion.s3.us-east-2.amazonaws.com/{encoded}'
         if firmada:
             # Sin key parseable: mejor no tocar host (firma intacta)
@@ -225,11 +239,12 @@ def _es_url_video_mp4(url: str) -> bool:
 
 
 def _s3_key_desde_url(url: str) -> Optional[str]:
-    from urllib.parse import unquote, urlparse
+    from urllib.parse import unquote_plus, urlparse
 
     p = urlparse(url)
     host = (p.netloc or '').lower()
-    path = unquote(p.path or '').lstrip('/')
+    # unquote_plus: '+' en path → espacio (misencoding frecuente en catálogo)
+    path = unquote_plus(p.path or '').lstrip('/')
     if not path:
         return None
     if 'eki-produccion' in host or 'amazonaws.com' in host:
@@ -240,7 +255,8 @@ def _s3_key_desde_url(url: str) -> Optional[str]:
 
 
 def _public_s3_url(key: str) -> str:
-    return f'https://eki-produccion.s3.us-east-2.amazonaws.com/{key.lstrip("/")}'
+    encoded = _encode_s3_key_path(key.lstrip('/'))
+    return f'https://eki-produccion.s3.us-east-2.amazonaws.com/{encoded}'
 
 
 def _subir_bytes_s3(key: str, data: bytes, content_type: str) -> Optional[str]:
@@ -338,19 +354,156 @@ def mp4_bitstream_ilegible(data: bytes) -> bool:
                 pass
 
 
+def _ext_media(url: str) -> str:
+    path = (url or '').split('?', 1)[0].lower()
+    if '.' not in path:
+        return ''
+    return path.rsplit('.', 1)[-1]
+
+
+# MIME que WhatsApp/Twilio aceptan de forma fiable (audio/mp3 → 63019).
+_CONTENT_TYPE_WHATSAPP = {
+    'mp3': 'audio/mpeg',
+    'mpeg': 'audio/mpeg',
+    'ogg': 'audio/ogg',
+    'opus': 'audio/ogg',
+    'm4a': 'audio/mp4',
+    'aac': 'audio/aac',
+    'wav': 'audio/wav',
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'png': 'image/png',
+    'gif': 'image/gif',
+    'webp': 'image/webp',
+    'pdf': 'application/pdf',
+    'mp4': 'video/mp4',
+    'm4v': 'video/mp4',
+}
+
+
+def _content_type_deseado(url: str) -> Optional[str]:
+    return _CONTENT_TYPE_WHATSAPP.get(_ext_media(url))
+
+
+def _es_url_audio_o_imagen(url: str) -> bool:
+    ext = _ext_media(url)
+    return ext in {
+        'mp3', 'mpeg', 'ogg', 'opus', 'm4a', 'aac', 'wav',
+        'jpg', 'jpeg', 'png', 'gif', 'webp',
+    }
+
+
+def _head_s3_content_type(key: str) -> Optional[str]:
+    try:
+        import boto3
+        from botocore.config import Config
+
+        client = boto3.client(
+            's3',
+            config=Config(signature_version='s3v4', region_name='us-east-2'),
+        )
+        meta = client.head_object(Bucket='eki-produccion', Key=key)
+        return (meta.get('ContentType') or '').split(';', 1)[0].strip().lower() or None
+    except Exception:
+        return None
+
+
+def _copiar_s3_con_content_type(src_key: str, dst_key: str, content_type: str) -> Optional[str]:
+    """Copia objeto en S3 con Content-Type correcto (sin re-descargar bytes)."""
+    try:
+        import boto3
+        from botocore.config import Config
+
+        client = boto3.client(
+            's3',
+            config=Config(signature_version='s3v4', region_name='us-east-2'),
+        )
+        put_kw = {
+            'Bucket': 'eki-produccion',
+            'CopySource': {'Bucket': 'eki-produccion', 'Key': src_key},
+            'Key': dst_key,
+            'ContentType': content_type,
+            'MetadataDirective': 'REPLACE',
+        }
+        try:
+            client.copy_object(**put_kw, ACL='public-read')
+        except Exception:
+            client.copy_object(**put_kw)
+        logger.info(
+            '📎 Media republicada con Content-Type=%s | %s → %s',
+            content_type,
+            src_key[:80],
+            dst_key,
+        )
+        return _public_s3_url(dst_key)
+    except Exception as exc:
+        logger.warning('No se pudo copiar media con Content-Type: %s', exc)
+        return None
+
+
+def _asegurar_content_type_whatsapp(url: str) -> str:
+    """
+    Si el objeto S3 tiene MIME incorrecto (p.ej. audio/mp3), copia a
+    media/whatsapp_ready/ con el tipo que WhatsApp acepta. Lazy: no toca el catálogo.
+    """
+    desired = _content_type_deseado(url)
+    if not desired:
+        return url
+    src_key = _s3_key_desde_url(url)
+    if not src_key:
+        return url
+    if src_key.startswith('media/whatsapp_ready/'):
+        return url
+
+    actual = _head_s3_content_type(src_key)
+    if actual == desired:
+        return url
+
+    import hashlib
+
+    ext = _ext_media(url) or 'bin'
+    # Normalizar jpeg → jpg en caché
+    if ext == 'jpeg':
+        ext = 'jpg'
+    digest = hashlib.sha1(src_key.encode('utf-8')).hexdigest()[:20]
+    cache_key = f'media/whatsapp_ready/{digest}.{ext}'
+
+    # Cache hit
+    cached_ct = _head_s3_content_type(cache_key)
+    if cached_ct == desired:
+        logger.info('📎 Usando media whatsapp_ready en caché | %s', cache_key)
+        return _public_s3_url(cache_key)
+
+    uploaded = _copiar_s3_con_content_type(src_key, cache_key, desired)
+    if uploaded:
+        return uploaded
+
+    # Fallback: download + put
+    raw = _descargar_bytes(url)
+    if raw:
+        uploaded = _subir_bytes_s3(cache_key, raw, desired)
+        if uploaded:
+            return uploaded
+    return url
+
+
 def preparar_url_media_whatsapp(url: Optional[str]) -> Optional[str]:
     """
     Prepara URL para MediaUrl de Twilio/WhatsApp.
     - Normaliza a URL pública regional (nunca firma rota).
     - Si es MP4 sin faststart (moov al final), remux y re-sube a S3.
     - Si el bitstream está corrupto, retorna None (solo enlace de texto; evita 63021).
-    - Audio/imagen/PDF: sin cambios de contenedor (no romper audio).
+    - Audio/imagen: corrige Content-Type vía copia lazy a whatsapp_ready (audio/mp3 → 63019).
     """
     clean = normalizar_media_url_s3(url)
     if not clean:
         return None
     if url_no_es_media_directo(clean):
         return clean
+
+    if _es_url_audio_o_imagen(clean):
+        return _asegurar_content_type_whatsapp(clean)
+
     if not _es_url_video_mp4(clean):
         return clean
 

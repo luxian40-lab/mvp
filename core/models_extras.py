@@ -434,7 +434,7 @@ class ArchivoModulo(models.Model):
         3. None si no hay URL disponible
         """
         import logging
-        from urllib.parse import quote, unquote
+        from urllib.parse import quote, unquote_plus
 
         from core.twilio_media import normalizar_media_url_s3
 
@@ -444,9 +444,11 @@ class ArchivoModulo(models.Model):
             u = (url_or_key or '').strip()
             if not u:
                 return None
-            # Key cruda (sin http)
+            # Key cruda (sin http): '+' → espacio (misencoding frecuente)
             if '://' not in u:
-                encoded = '/'.join(quote(unquote(part), safe='') for part in u.lstrip('/').split('/'))
+                encoded = '/'.join(
+                    quote(unquote_plus(part), safe='') for part in u.lstrip('/').split('/') if part
+                )
                 return f'https://eki-produccion.s3.us-east-2.amazonaws.com/{encoded}'
             return normalizar_media_url_s3(u)
         

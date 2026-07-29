@@ -47,6 +47,18 @@ class TwilioMediaHelpersTests(SimpleTestCase):
         self.assertIn('%20', out)
         self.assertIn('s3.us-east-2.amazonaws.com', out)
 
+    def test_normalizar_plus_como_espacio(self):
+        """Catálogo con '+' / %2B donde el objeto S3 tiene espacio → %20."""
+        u = 'https://eki-produccion.s3.amazonaws.com/c1/VIDEOS_FINANZAS/2.2.+Presupuesto.jpg.jpeg'
+        out = normalizar_media_url_s3(u)
+        self.assertIn('2.2.%20Presupuesto', out)
+        self.assertNotIn('%2B', out)
+
+        u2 = 'https://eki-produccion.s3.us-east-2.amazonaws.com/c1/VIDEOS_FINANZAS/2.2.%2BPresupuesto.jpg.jpeg'
+        out2 = normalizar_media_url_s3(u2)
+        self.assertIn('2.2.%20Presupuesto', out2)
+        self.assertNotIn('%2B', out2)
+
     def test_youtube_no_directo(self):
         self.assertTrue(url_no_es_media_directo('https://www.youtube.com/watch?v=abc'))
         self.assertFalse(url_no_es_media_directo('https://eki-produccion.s3.us-east-2.amazonaws.com/x.mp4'))
