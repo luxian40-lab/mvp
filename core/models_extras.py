@@ -424,40 +424,51 @@ class ArchivoModulo(models.Model):
         """
         Devuelve la URL que debe enviarse por WhatsApp (Twilio media_url).
         Twilio requiere URLs públicamente accesibles con Content-Type correcto.
-        Usa presigned URLs de S3 para evitar error 63019 (Media download failed).
+
+        Preferimos URL pública regional (us-east-2). Las presigned + rewrite de host
+        invalidaban la firma y producían 63019.
         
         Prioridad:
-        1. url_externa si existe y es pública (si es S3 → presigned)
-        2. archivo.url (S3 → presigned)
+        1. url_externa (S3 → pública regional)
+        2. archivo.url (S3 → pública regional)
         3. None si no hay URL disponible
         """
         import logging
+        from urllib.parse import quote, unquote
+
+        from core.twilio_media import normalizar_media_url_s3
+
         logger = logging.getLogger(__name__)
+
+        def _publica_desde_cualquier(url_or_key: str) -> str | None:
+            u = (url_or_key or '').strip()
+            if not u:
+                return None
+            # Key cruda (sin http)
+            if '://' not in u:
+                encoded = '/'.join(quote(unquote(part), safe='') for part in u.lstrip('/').split('/'))
+                return f'https://eki-produccion.s3.us-east-2.amazonaws.com/{encoded}'
+            return normalizar_media_url_s3(u)
         
-        # Prioridad 1: URL externa pública (ya validada al guardar)
+        # Prioridad 1: URL externa pública
         if getattr(self, 'url_externa', None):
-            url = self.url_externa
-            # Si es S3, convertir a presigned URL
-            if 'eki-produccion.s3' in url or 's3.amazonaws.com' in url:
-                presigned = self._generar_presigned_url(url)
-                if presigned:
-                    return presigned
-            return url
+            url = _publica_desde_cualquier(self.url_externa)
+            if url:
+                return url
+            return self.url_externa
         
         # Prioridad 2: Archivo subido (generalmente en S3)
         if getattr(self, 'archivo', None) and self.archivo:
             try:
-                # Generar presigned URL directamente desde la key del archivo
                 key = self.archivo.name.lstrip('/')
-                presigned = self._generar_presigned_url_desde_key(key)
-                if presigned:
-                    return presigned
+                publica = _publica_desde_cualquier(key)
+                if publica:
+                    return publica
                 
-                # Fallback: URL directa
+                # Fallback: URL directa del storage
                 archivo_url = self.archivo.url
                 if 'amazonaws.com' in archivo_url or archivo_url.startswith('http'):
-                    return archivo_url
-                # Si es URL relativa, construir URL completa
+                    return normalizar_media_url_s3(archivo_url) or archivo_url
                 from django.conf import settings
                 base_url = getattr(settings, 'BASE_URL', 'https://eki-prod-final.eba-32krwxas.us-east-2.elasticbeanstalk.com')
                 return f"{base_url}{archivo_url}"

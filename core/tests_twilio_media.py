@@ -27,6 +27,26 @@ class TwilioMediaHelpersTests(SimpleTestCase):
         out = normalizar_media_url_s3(u)
         self.assertIn('s3.us-east-2.amazonaws.com', out)
 
+    def test_normalizar_no_rompe_firma_convertir_a_publica(self):
+        """URL firmada → pública regional (sin query X-Amz). Evita 63019."""
+        firmada = (
+            'https://eki-produccion.s3.amazonaws.com/c1/VIDEOS_FINANZAS/Modulo_0.mp4'
+            '?response-content-type=video%2Fmp4&X-Amz-Algorithm=AWS4-HMAC-SHA256'
+            '&X-Amz-Signature=abc123'
+        )
+        out = normalizar_media_url_s3(firmada)
+        self.assertEqual(
+            out,
+            'https://eki-produccion.s3.us-east-2.amazonaws.com/c1/VIDEOS_FINANZAS/Modulo_0.mp4',
+        )
+        self.assertNotIn('X-Amz-', out)
+
+    def test_normalizar_encode_espacios(self):
+        u = 'https://eki-produccion.s3.amazonaws.com/c1/VIDEOS_FINANZAS/2.2. Presupuesto.jpg.jpeg'
+        out = normalizar_media_url_s3(u)
+        self.assertIn('%20', out)
+        self.assertIn('s3.us-east-2.amazonaws.com', out)
+
     def test_youtube_no_directo(self):
         self.assertTrue(url_no_es_media_directo('https://www.youtube.com/watch?v=abc'))
         self.assertFalse(url_no_es_media_directo('https://eki-produccion.s3.us-east-2.amazonaws.com/x.mp4'))

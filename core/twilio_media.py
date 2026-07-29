@@ -25,16 +25,36 @@ def es_error_media_twilio(err) -> bool:
 
 def normalizar_media_url_s3(url: Optional[str]) -> Optional[str]:
     """
-    URL pública regional (us-east-2). Evita redirects .s3.amazonaws.com → región
-    que suelen terminar en 63019/63021.
+    URL pública regional (us-east-2) para MediaUrl de Twilio.
+
+    Importante: NO reescribir el host de una URL firmada (X-Amz-*) — eso invalida
+    la firma (403) y Twilio responde 63019. Si viene firmada, se convierte a URL
+    pública regional del objeto.
     """
     if not url:
         return None
     clean = str(url).strip()
     if not clean:
         return None
-    if 'amazonaws.com' in clean and '.s3.amazonaws.com/' in clean and '.s3.us-east-2.amazonaws.com/' not in clean:
-        clean = clean.replace('.s3.amazonaws.com/', '.s3.us-east-2.amazonaws.com/')
+
+    from urllib.parse import quote, unquote
+
+    lower = clean.lower()
+    firmada = 'x-amz-signature' in lower or 'x-amz-algorithm' in lower
+    if 'amazonaws.com' in lower or 'eki-produccion' in lower:
+        key = _s3_key_desde_url(clean)
+        if key:
+            # Codificar path segment-wise (espacios en nombres de archivo)
+            encoded = '/'.join(quote(unquote(part), safe='') for part in key.split('/'))
+            return f'https://eki-produccion.s3.us-east-2.amazonaws.com/{encoded}'
+        if firmada:
+            # Sin key parseable: mejor no tocar host (firma intacta)
+            return clean
+        if '.s3.amazonaws.com/' in clean and '.s3.us-east-2.amazonaws.com/' not in clean:
+            clean = clean.replace('.s3.amazonaws.com/', '.s3.us-east-2.amazonaws.com/')
+            # Quitar query de firma si quedó basura
+            if '?' in clean and 'x-amz-' in clean.lower():
+                clean = clean.split('?', 1)[0]
     return clean
 
 
@@ -321,7 +341,7 @@ def mp4_bitstream_ilegible(data: bytes) -> bool:
 def preparar_url_media_whatsapp(url: Optional[str]) -> Optional[str]:
     """
     Prepara URL para MediaUrl de Twilio/WhatsApp.
-    - Normaliza S3 regional.
+    - Normaliza a URL pública regional (nunca firma rota).
     - Si es MP4 sin faststart (moov al final), remux y re-sube a S3.
     - Si el bitstream está corrupto, retorna None (solo enlace de texto; evita 63021).
     - Audio/imagen/PDF: sin cambios de contenedor (no romper audio).
@@ -340,7 +360,9 @@ def preparar_url_media_whatsapp(url: Optional[str]) -> Optional[str]:
 
     import hashlib
 
-    digest = hashlib.sha1(clean.encode('utf-8')).hexdigest()[:20]
+    # Digest por key S3 (estable), no por URL firmada (cambia cada envío).
+    key_src = _s3_key_desde_url(clean) or clean
+    digest = hashlib.sha1(key_src.encode('utf-8')).hexdigest()[:20]
     cache_key = f'media/whatsapp_ready/{digest}.mp4'
     cached_url = _public_s3_url(cache_key)
 

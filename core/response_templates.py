@@ -389,7 +389,7 @@ def _generar_presigned_url_s3(key, expires_in=3600):
 def obtener_video_url(leccion_o_modulo):
     """
     Genera URL del video accesible por Twilio.
-    Usa presigned URLs de S3 para evitar error 63019 (Media download failed).
+    Usa URL pública regional S3 (presigned + rewrite de host causaba 63019).
     
     Args:
         leccion_o_modulo: Instancia de Leccion o Modulo con video_archivo o video_url
@@ -397,30 +397,26 @@ def obtener_video_url(leccion_o_modulo):
     Returns:
         str: URL completa del video o None
     """
-    # Prioridad 1: Archivo subido a S3 → presigned URL
+    from core.twilio_media import normalizar_media_url_s3
+
+    # Prioridad 1: Archivo subido a S3 → pública regional
     if hasattr(leccion_o_modulo, 'video_archivo') and leccion_o_modulo.video_archivo:
         key = leccion_o_modulo.video_archivo.name.lstrip('/')
-        return _generar_presigned_url_s3(key)
+        return normalizar_media_url_s3(f'https://eki-produccion.s3.us-east-2.amazonaws.com/{key}')
 
     # Prioridad 2: URL externa (YouTube/Vimeo/directa)
     if hasattr(leccion_o_modulo, 'video_url') and leccion_o_modulo.video_url:
         url = leccion_o_modulo.video_url
-        # Si es una URL directa de S3, convertirla a presigned
-        if 'eki-produccion.s3' in url:
-            from urllib.parse import unquote_plus
-            key = unquote_plus(url.split('.amazonaws.com/')[-1].split('?')[0])
-            return _generar_presigned_url_s3(key)
+        if 'eki-produccion.s3' in url or 'amazonaws.com' in url:
+            return normalizar_media_url_s3(url) or url
         return url
 
     # Prioridad 3: Método personalizado del modelo
     if hasattr(leccion_o_modulo, 'get_video_url_publica'):
         url = leccion_o_modulo.get_video_url_publica()
         if url:
-            # Si es S3, convertir a presigned
-            if 'eki-produccion.s3' in url:
-                from urllib.parse import unquote_plus
-                key = unquote_plus(url.split('.amazonaws.com/')[-1].split('?')[0])
-                return _generar_presigned_url_s3(key)
+            if 'eki-produccion.s3' in url or 'amazonaws.com' in url:
+                return normalizar_media_url_s3(url) or url
             return url
 
     return None
