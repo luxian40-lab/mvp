@@ -6,7 +6,7 @@ from django.utils.translation import gettext_lazy as _
 
 
 def _eki_admin_styles(request):
-    return [static("admin/css/eki_admin_unfold.css")]
+    return static("admin/css/eki_admin_unfold.css")
 
 
 UNFOLD = {
