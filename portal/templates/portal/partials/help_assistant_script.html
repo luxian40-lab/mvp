@@ -6,6 +6,9 @@
     'use strict';
 
     var STORAGE_PREFIX = 'eki-portal-help-';
+    /** Una sola auto-apertura en la vida del navegador; luego solo a demanda. */
+    var GLOBAL_SEEN_KEY = STORAGE_PREFIX + 'global-auto-seen';
+    var GLOBAL_DISMISS_KEY = STORAGE_PREFIX + 'global-dismissed';
     var path = (document.body.getAttribute('data-portal-path') || window.location.pathname || '').replace(/\/+$/, '') || '/';
     var soloNat = document.body.getAttribute('data-portal-solo-nat') === '1';
 
@@ -300,8 +303,28 @@
         return STORAGE_PREFIX + pageId + '-' + suffix;
     }
 
-    function isDismissed(pageId) {
-        return localStorage.getItem(storageKey(pageId, 'dismissed')) === '1';
+    function isGloballyDismissed() {
+        return localStorage.getItem(GLOBAL_DISMISS_KEY) === '1';
+    }
+
+    function hasSeenAutoOpen() {
+        return localStorage.getItem(GLOBAL_SEEN_KEY) === '1';
+    }
+
+    function markAutoSeen() {
+        localStorage.setItem(GLOBAL_SEEN_KEY, '1');
+    }
+
+    function pageHintKey(pageId) {
+        return storageKey(pageId, 'hint-seen');
+    }
+
+    function hasSeenPageHint(pageId) {
+        return localStorage.getItem(pageHintKey(pageId)) === '1';
+    }
+
+    function markPageHintSeen(pageId) {
+        localStorage.setItem(pageHintKey(pageId), '1');
     }
 
     var root = document.getElementById('eki-help');
@@ -318,6 +341,7 @@
     var btnClose = document.getElementById('eki-help-close');
     var btnDismiss = document.getElementById('eki-help-dismiss');
     var dotsEl = document.getElementById('eki-help-dots');
+    var bubbleEl = root.querySelector('.eki-help__bubble');
 
     function renderDots() {
         if (!dotsEl) return;
@@ -371,13 +395,35 @@
         }
     }
 
-    function dismissPage() {
-        localStorage.setItem(storageKey(page.id, 'dismissed'), '1');
+    function dismissGlobally() {
+        localStorage.setItem(GLOBAL_DISMISS_KEY, '1');
+        markAutoSeen();
+        clearHintBadge();
         closePanel();
+    }
+
+    function showHintBadge() {
+        if (!btnToggle || isGloballyDismissed()) return;
+        if (hasSeenPageHint(page.id)) return;
+        root.classList.add('has-hint');
+        if (bubbleEl) {
+            bubbleEl.hidden = false;
+            bubbleEl.textContent = 'Guía de esta pantalla';
+        }
+        markPageHintSeen(page.id);
+        window.setTimeout(clearHintBadge, 6000);
+    }
+
+    function clearHintBadge() {
+        root.classList.remove('has-hint');
+        if (bubbleEl && !root.classList.contains('is-open')) {
+            bubbleEl.textContent = soloNat ? 'Guía Nat' : 'Guía EKI';
+        }
     }
 
     if (btnToggle) {
         btnToggle.addEventListener('click', function () {
+            clearHintBadge();
             if (panel && panel.hidden) {
                 stepIndex = 0;
                 openPanel();
@@ -388,7 +434,10 @@
     }
     if (btnNext) btnNext.addEventListener('click', nextStep);
     if (btnClose) btnClose.addEventListener('click', closePanel);
-    if (btnDismiss) btnDismiss.addEventListener('click', dismissPage);
+    if (btnDismiss) {
+        btnDismiss.textContent = 'No volver a mostrar automáticamente';
+        btnDismiss.addEventListener('click', dismissGlobally);
+    }
 
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape' && root.classList.contains('is-open')) {
@@ -396,10 +445,20 @@
         }
     });
 
-    if (!isDismissed(page.id)) {
+    // Migración suave: si ya había dismissed por página, no auto-abrir más.
+    var legacyDismissed = localStorage.getItem(storageKey(page.id, 'dismissed')) === '1';
+    if (legacyDismissed && !hasSeenAutoOpen()) {
+        markAutoSeen();
+    }
+
+    if (!isGloballyDismissed() && !hasSeenAutoOpen()) {
         window.setTimeout(function () {
+            markAutoSeen();
             openPanel();
         }, 900);
+    } else if (!isGloballyDismissed() && hasSeenAutoOpen()) {
+        // Pantalla nueva: tip discreto en el FAB, sin abrir el panel.
+        window.setTimeout(showHintBadge, 700);
     }
 })();
 </script>

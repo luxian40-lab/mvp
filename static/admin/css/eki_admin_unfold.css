@@ -1,0 +1,14 @@
+/**
+ * Tema mínimo eki sobre Unfold (sin selectores Jazzmin/AdminLTE).
+ * Morado de marca: #9A6CAC / #7a4e8e / #5F3A6E
+ */
+:root {
+  --eki-admin-accent: #9A6CAC;
+  --eki-admin-accent-deep: #5F3A6E;
+}
+
+/* Tipografía un poco más compacta en changelists densos */
+.unfold-content table td,
+.unfold-content table th {
+  font-size: 0.875rem;
+}

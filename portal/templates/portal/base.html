@@ -838,6 +838,18 @@
             to { opacity: 1; transform: scale(1) translateX(0); }
         }
         .eki-help.is-open .eki-help__bubble { display: none; }
+        .eki-help.has-hint .eki-help__toggle {
+            box-shadow: 0 0 0 3px rgba(154, 108, 172, 0.35);
+            animation: eki-help-hint-pulse 1.4s ease-in-out 2;
+        }
+        .eki-help.has-hint .eki-help__bubble {
+            background: var(--accent);
+            color: #fff;
+        }
+        @keyframes eki-help-hint-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.06); }
+        }
         .eki-help__panel {
             position: absolute;
             right: 0;
@@ -1693,7 +1705,7 @@
             <div class="eki-help__actions">
                 <button type="button" class="btn-help btn-help-primary" id="eki-help-next">Siguiente</button>
                 <button type="button" class="btn-help btn-help-ghost" id="eki-help-close">Cerrar</button>
-                <button type="button" class="btn-help btn-help-dismiss" id="eki-help-dismiss">No volver a mostrar aquí</button>
+                <button type="button" class="btn-help btn-help-dismiss" id="eki-help-dismiss">No volver a mostrar automáticamente</button>
             </div>
         </div>
         <button type="button" class="eki-help__toggle" id="eki-help-toggle" aria-expanded="false" aria-controls="eki-help-panel" title="{% if portal_solo_nat %}Guía Nat{% else %}Guía EKI{% endif %}">

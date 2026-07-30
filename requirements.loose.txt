@@ -27,7 +27,7 @@ Deprecated
 distro
 dj-database-url
 Django
-django-jazzmin
+django-unfold
 django-storages
 et_xmlfile
 fabric
