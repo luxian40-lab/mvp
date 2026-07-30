@@ -33,7 +33,7 @@ Django==5.2.9
 factory-boy>=3.3.0
 pytest>=8.0.0
 pytest-django>=4.8.0
-django-unfold==0.102.0
+django-unfold==0.91.0
 django-storages==1.14.6
 et_xmlfile==2.0.0
 fastavro==1.12.1
