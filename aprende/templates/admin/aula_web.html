@@ -1,4 +1,11 @@
 {% extends "admin/base_site.html" %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Inicio</a>
+    &rsaquo; Aula Web
+</div>
+{% endblock %}
+
 {% load i18n static %}
 
 {% block title %}{{ titulo }} | {{ site_title }}{% endblock %}
@@ -46,6 +53,8 @@
 {% endblock %}
 
 {% block content %}
+<p class="eki-ops-back-wrap"><a class="eki-ops-back" href="{% url 'admin:index' %}">← Volver al admin</a></p>
+
 <div class="aw-page">
     <h1>{{ titulo }}</h1>
     <p class="aw-intro">

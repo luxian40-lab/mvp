@@ -58,9 +58,14 @@ UNFOLD = {
                         "link": "/admin/dashboard/?tab=retencion",
                     },
                     {
-                        "title": _("Estudiantes"),
-                        "icon": "people",
-                        "link": reverse_lazy("admin:core_estudiante_changelist"),
+                        "title": _("Clientes"),
+                        "icon": "apartment",
+                        "link": reverse_lazy("admin:core_cliente_changelist"),
+                    },
+                    {
+                        "title": _("Nuevo cliente"),
+                        "icon": "add_business",
+                        "link": reverse_lazy("admin:core_cliente_add"),
                     },
                     {
                         "title": _("Cursos"),
@@ -68,9 +73,24 @@ UNFOLD = {
                         "link": reverse_lazy("admin:core_curso_changelist"),
                     },
                     {
-                        "title": _("Clientes"),
-                        "icon": "apartment",
-                        "link": reverse_lazy("admin:core_cliente_changelist"),
+                        "title": _("Nuevo curso"),
+                        "icon": "post_add",
+                        "link": reverse_lazy("admin:core_curso_add"),
+                    },
+                    {
+                        "title": _("Módulos"),
+                        "icon": "layers",
+                        "link": reverse_lazy("admin:core_modulo_changelist"),
+                    },
+                    {
+                        "title": _("Nuevo módulo"),
+                        "icon": "note_add",
+                        "link": reverse_lazy("admin:core_modulo_add"),
+                    },
+                    {
+                        "title": _("Estudiantes"),
+                        "icon": "people",
+                        "link": reverse_lazy("admin:core_estudiante_changelist"),
                     },
                     {
                         "title": _("Ajustar avance"),

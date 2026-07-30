@@ -1,0 +1,18 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{# Base para pantallas ops custom bajo Unfold: siempre hay forma de volver. #}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; {% block eki_ops_crumb %}Ops{% endblock %}
+</div>
+{% endblock %}
+
+{% block content %}
+<p class="eki-ops-back-wrap">
+    <a class="eki-ops-back" href="{% url 'admin:index' %}">← Volver al admin</a>
+    {% block eki_ops_extra_nav %}{% endblock %}
+</p>
+{% block eki_ops_content %}{% endblock %}
+{% endblock %}

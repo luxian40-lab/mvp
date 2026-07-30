@@ -1,8 +1,17 @@
 {% extends "admin/base_site.html" %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Inicio</a>
+    &rsaquo; Bot Comercial
+</div>
+{% endblock %}
+
 
 {% block title %}Bot Comercial IA{% endblock %}
 
 {% block content %}
+<p class="eki-ops-back-wrap"><a class="eki-ops-back" href="{% url 'admin:index' %}">← Volver al admin</a></p>
+
 <div style="max-width: 980px; margin: 20px auto; background: #fff; border-radius: 10px; padding: 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
     <h1 style="margin-top: 0;">Bot Comercial IA</h1>
     <p>Panel operativo del webhook dedicado para ventas e información comercial por WhatsApp.</p>

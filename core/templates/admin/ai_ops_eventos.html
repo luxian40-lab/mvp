@@ -1,4 +1,11 @@
 {% extends "admin/base_site.html" %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Inicio</a>
+    &rsaquo; Ai Ops Eventos
+</div>
+{% endblock %}
+
 {% block title %}Eventos IA — AI Operations{% endblock %}
 
 {% block extrastyle %}
@@ -22,6 +29,8 @@
 {% endblock %}
 
 {% block content %}
+<p class="eki-ops-back-wrap"><a class="eki-ops-back" href="{% url 'admin:index' %}">← Volver al admin</a></p>
+
 <div class="ops-wrap">
     <div class="ops-header">
         <div>

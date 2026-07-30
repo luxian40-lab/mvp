@@ -3,6 +3,15 @@ Admin completo: Estudiantes, Plantillas, Campañas, EnvioLog, Sistema Educativo
 CON función de envío directo desde Plantillas Y gestión de cursos/módulos/exámenes
 """
 from django.contrib import admin
+from unfold.admin import ModelAdmin as UnfoldModelAdmin
+from unfold.admin import StackedInline as UnfoldStackedInline
+from unfold.admin import TabularInline as UnfoldTabularInline
+
+# Unfold debe envolver ModelAdmin/Inlines para que add/change forms y el botón
+# «Añadir» funcionen bien (Jazzmin ya no está).
+admin.ModelAdmin = UnfoldModelAdmin
+admin.TabularInline = UnfoldTabularInline
+admin.StackedInline = UnfoldStackedInline
 from django import forms
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError

@@ -7,8 +7,29 @@
   --eki-admin-accent-deep: #5F3A6E;
 }
 
-/* Tipografía un poco más compacta en changelists densos */
 .unfold-content table td,
 .unfold-content table th {
   font-size: 0.875rem;
+}
+
+.eki-ops-back-wrap {
+  margin: 0 0 0.75rem;
+}
+.eki-ops-back,
+.dash-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--eki-admin-accent);
+  text-decoration: none;
+}
+.dash-back {
+  margin-bottom: 0.65rem;
+}
+.eki-ops-back:hover,
+.dash-back:hover {
+  color: var(--eki-admin-accent-deep);
+  text-decoration: underline;
 }

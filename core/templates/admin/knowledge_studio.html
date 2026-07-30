@@ -1,4 +1,11 @@
 {% extends "admin/base_site.html" %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Inicio</a>
+    &rsaquo; Knowledge Studio
+</div>
+{% endblock %}
+
 {% block title %}Knowledge Studio — eki{% endblock %}
 {% block extrastyle %}
 <style>
@@ -23,6 +30,8 @@
 </style>
 {% endblock %}
 {% block content %}
+<p class="eki-ops-back-wrap"><a class="eki-ops-back" href="{% url 'admin:index' %}">← Volver al admin</a></p>
+
 <div class="ks-wrap">
     <div class="ks-header">
         <p><a href="{% url 'dashboard_unificado' %}?tab=commercial">← Dashboard Commercial CRM</a></p>

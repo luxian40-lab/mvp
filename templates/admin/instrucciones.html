@@ -1,4 +1,11 @@
 {% extends "admin/base_site.html" %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Inicio</a>
+    &rsaquo; Instrucciones
+</div>
+{% endblock %}
+
 {% load static %}
 
 {% block title %}Manual operativo — eki{% endblock %}
@@ -127,6 +134,8 @@
 {% endblock %}
 
 {% block content %}
+<p class="eki-ops-back-wrap"><a class="eki-ops-back" href="{% url 'admin:index' %}">← Volver al admin</a></p>
+
 <div class="manual-wrap">
 
     <header class="manual-hero">

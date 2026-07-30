@@ -3,6 +3,13 @@
 
 {% block title %}Dashboard - Eki{% endblock %}
 
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Inicio</a>
+    &rsaquo; Dashboard
+</div>
+{% endblock %}
+
 {% block extrastyle %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <style>
@@ -24,6 +31,12 @@
     .dash-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
     .dash-header h1 { font-size: 1.75rem; font-weight: 700; color: var(--eki-text); margin: 0; }
     .dash-header .dash-ts { font-size: 0.85rem; color: var(--eki-muted); }
+    .dash-back {
+        display: inline-flex; align-items: center; gap: 6px;
+        font-size: 0.9rem; font-weight: 600; color: var(--eki-primary);
+        text-decoration: none; margin-bottom: 10px;
+    }
+    .dash-back:hover { text-decoration: underline; color: #5F3A6E; }
 
     /* === Tabs === */
     .tab-nav {
@@ -138,6 +151,7 @@
 
 {% block content %}
 <div class="dash-wrap">
+    <a class="dash-back" href="{% url 'admin:index' %}">← Volver al admin</a>
     <div class="dash-header">
         <h1>Dashboard Eki</h1>
         <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">

@@ -1,4 +1,11 @@
 {% extends "admin/base_site.html" %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Inicio</a>
+    &rsaquo; Infra Monitor
+</div>
+{% endblock %}
+
 {% block title %}Infra — cuándo crecer{% endblock %}
 
 {% block extrastyle %}
@@ -43,6 +50,8 @@
 {% endblock %}
 
 {% block content %}
+<p class="eki-ops-back-wrap"><a class="eki-ops-back" href="{% url 'admin:index' %}">← Volver al admin</a></p>
+
 <div class="infra-wrap">
   <h1>Monitoreo infra — cuándo crecer</h1>
   <p class="infra-sub">
