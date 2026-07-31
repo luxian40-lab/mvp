@@ -16,6 +16,11 @@ def _eki_admin_styles(request):
     return static("admin/css/eki_admin_unfold.css")
 
 
+def environment_callback(request):
+    """Badge esquina superior (estilo demo Unfold)."""
+    return ["PRODUCCIÓN", "danger"]
+
+
 UNFOLD = {
     "SITE_TITLE": "eki",
     "SITE_HEADER": "eki",
@@ -23,20 +28,51 @@ UNFOLD = {
     "SITE_SYMBOL": "school",
     "SHOW_HISTORY": True,
     "SHOW_VIEW_ON_SITE": False,
-    "BORDER_RADIUS": "0.5rem",
+    "SHOW_BACK_BUTTON": True,
+    "THEME": "light",
+    "BORDER_RADIUS": "12px",
+    "ENVIRONMENT": "mvp_project.unfold_admin.environment_callback",
+    # Personalización nativa Unfold (dropdown marca / atajos).
+    "SITE_DROPDOWN": [
+        {
+            "icon": "dashboard",
+            "title": _("Dashboard"),
+            "link": "/admin/dashboard/",
+        },
+        {
+            "icon": "trending_up",
+            "title": _("Centro de Éxito"),
+            "link": "/admin/dashboard/?tab=retencion",
+        },
+        {
+            "icon": "school",
+            "title": _("Cursos"),
+            "link": reverse_lazy("admin:core_curso_changelist"),
+        },
+        {
+            "icon": "campaign",
+            "title": _("Campañas"),
+            "link": reverse_lazy("admin:core_campana_changelist"),
+        },
+        {
+            "icon": "help",
+            "title": _("Manual"),
+            "link": "/admin/instrucciones/",
+        },
+    ],
     "STYLES": [_eki_admin_styles],
     "COLORS": {
         "base": {
             "50": "#faf9fb",
-            "100": "#f7f5f9",
-            "200": "#ebe7f0",
+            "100": "#f4f2f7",
+            "200": "#e8e4ef",
             "300": "#d4cde0",
             "400": "#a89bb8",
             "500": "#7a6d88",
             "600": "#5a4f68",
             "700": "#3f3649",
             "800": "#2a1f33",
-            "900": "#1a1625",
+            "900": "#1e1b24",
             "950": "#120e18",
         },
         "primary": {
@@ -51,6 +87,14 @@ UNFOLD = {
             "800": "#4a2d56",
             "900": "#3a2344",
             "950": "#24162b",
+        },
+        "font": {
+            "subtle-light": "var(--color-base-500)",
+            "subtle-dark": "var(--color-base-400)",
+            "default-light": "var(--color-base-700)",
+            "default-dark": "var(--color-base-300)",
+            "important-light": "var(--color-base-900)",
+            "important-dark": "var(--color-base-100)",
         },
     },
     "SIDEBAR": {

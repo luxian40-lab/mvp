@@ -1,171 +1,138 @@
 /**
- * Tema eki sobre Unfold — panel CLARO y legible.
- * Marca: #9A6CAC / #7a4e8e / #5F3A6E
- * Scope: solo admin (no portal/app).
+ * eki × Unfold — capa LIGERA sobre el tema nativo.
+ * Personalización real = UNFOLD (THEME, COLORS, BORDER_RADIUS, ENVIRONMENT, SITE_DROPDOWN).
+ * Este CSS solo alinea hub + dashboards custom; no pinta el sidebar ni pelea con Unfold.
  */
 :root {
-  --eki-admin-accent: #9A6CAC;
-  --eki-admin-accent-deep: #5F3A6E;
-  --eki-admin-text: #1a1625;
-  --eki-admin-muted: #4b4458;
-  --eki-admin-bg: #f7f5f9;
-  --eki-admin-surface: #ffffff;
-  --eki-admin-line: rgba(95, 58, 110, 0.14);
-  color-scheme: light;
+  --eki-accent: #9A6CAC;
+  --eki-accent-deep: #7A4E8E;
+  --eki-accent-soft: rgba(154, 108, 172, 0.12);
+  --eki-radius: 12px;
 }
 
-/* Forzar shell claro (Unfold a veces hereda dark del SO) */
-html,
-html.dark,
-html[data-theme="dark"],
-html body,
-html body.dark {
-  color-scheme: light !important;
-  background-color: var(--eki-admin-bg) !important;
+/* Hub inicio (templates/admin/index.html) → cards Unfold */
+.eki-admin-hub {
+  margin-bottom: 1.75rem;
+}
+.eki-hub-kicker {
+  font-size: 1.65rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #1e1b24;
+  margin: 0 0 0.35rem;
+  font-family: inherit;
+}
+.eki-hub-intro {
+  margin: 0 0 1.25rem;
+  color: #6b6575;
+  font-size: 0.9rem;
+}
+.eki-hub-cols {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+@media (max-width: 900px) {
+  .eki-hub-cols { grid-template-columns: 1fr; }
+}
+.eki-hub-col {
+  background: #fff;
+  border: 1px solid rgba(30, 27, 36, 0.08);
+  border-radius: var(--eki-radius);
+  padding: 1rem 1.1rem 1.15rem;
+  box-shadow: 0 1px 2px rgba(30, 27, 36, 0.04);
+}
+.eki-hub-col h2 {
+  margin: 0 0 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b6575;
+  border: none;
+  padding: 0;
+}
+.eki-hub-col a {
+  display: block;
+  padding: 0.55rem 0.65rem;
+  margin: 0 -0.35rem;
+  border-radius: 8px;
+  color: #1e1b24;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 550;
+}
+.eki-hub-col a:hover {
+  background: var(--eki-accent-soft);
+  color: var(--eki-accent-deep);
+}
+.eki-hub-col a span {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #6b6575;
+  margin-top: 0.1rem;
+}
+.eki-admin-all-models {
+  margin-top: 1.25rem;
+  border: 1px solid rgba(30, 27, 36, 0.08);
+  border-radius: var(--eki-radius);
+  background: #fff;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 1px 2px rgba(30, 27, 36, 0.04);
+}
+.eki-admin-all-models > summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #3f3a48;
 }
 
-html body,
-html body .unfold-content,
-html body main,
-html body [class*="bg-base"],
-html body [class*="bg-white"],
-html body .grow {
-  background-color: var(--eki-admin-bg) !important;
-  color: var(--eki-admin-text) !important;
-}
-
-/* Tipografía: más grande, más contraste */
-html body,
-html body .unfold-content,
-html body [class*="text-font"] {
-  font-size: 15.5px !important;
-  line-height: 1.55 !important;
-  color: var(--eki-admin-text) !important;
-  -webkit-font-smoothing: antialiased;
-  font-weight: 450;
-}
-
-html body nav,
-html body aside,
-html body .simplebar-content,
-html body [class*="bg-gray"],
-html body aside [class*="bg-"] {
-  font-size: 14.5px !important;
-  line-height: 1.45 !important;
-  color: #f8f5fb !important;
-  background-color: #5F3A6E !important;
-}
-
-html body aside a,
-html body nav a,
-html body aside span {
-  color: #f3eef7 !important;
-  opacity: 1 !important;
-}
-
-html body aside a:hover,
-html body nav a:hover {
-  color: #ffffff !important;
-  background-color: rgba(255, 255, 255, 0.12) !important;
-}
-
-html body h1,
-html body h2,
-html body h3 {
-  color: var(--eki-admin-text) !important;
-  font-weight: 700 !important;
-  letter-spacing: -0.01em;
-}
-
-html body table td,
-html body table th,
-.unfold-content table td,
-.unfold-content table th {
-  font-size: 0.95rem !important;
-  line-height: 1.5 !important;
-  color: var(--eki-admin-text) !important;
-  background-color: var(--eki-admin-surface) !important;
-}
-
-html body label,
-html body .help,
-html body .form-row,
-html body input,
-html body select,
-html body textarea {
-  font-size: 0.95rem !important;
-  color: var(--eki-admin-text) !important;
-}
-
-html body input,
-html body select,
-html body textarea,
-html body .border {
-  background-color: var(--eki-admin-surface) !important;
-  border-color: var(--eki-admin-line) !important;
-}
-
-html body .help,
-html body .helptext {
-  color: var(--eki-admin-muted) !important;
-  font-size: 0.875rem !important;
-}
-
-/* Navegación ops */
-.eki-ops-back-wrap {
-  margin: 0 0 0.85rem;
-}
+/* Ops back links */
+.eki-ops-back-wrap { margin: 0 0 0.75rem; }
 .eki-ops-back,
 .dash-back {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.95rem;
-  font-weight: 650;
-  color: var(--eki-admin-accent);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--eki-accent-deep);
   text-decoration: none;
 }
-.dash-back {
-  margin-bottom: 0.65rem;
-}
+.dash-back { margin-bottom: 0.55rem; }
 .eki-ops-back:hover,
-.dash-back:hover {
-  color: var(--eki-admin-accent-deep);
-  text-decoration: underline;
-}
+.dash-back:hover { text-decoration: underline; }
 
-/*
- * Dashboard: dentro del content Unfold (sidebar visible).
- */
+/* Dashboards custom: mismos datos, look Unfold */
 html body .dash-wrap,
 .dash-wrap {
   min-height: 0 !important;
   max-width: 100% !important;
   margin: 0 !important;
-  padding: 8px 4px 24px !important;
+  padding: 0 0 1.5rem !important;
   background: transparent !important;
 }
-.dash-header h1 {
-  font-size: 1.45rem !important;
-  color: var(--eki-admin-accent-deep) !important;
-}
-.dash-header .dash-ts,
-.m-card .m-label,
-.m-card .m-sub {
-  color: var(--eki-admin-muted) !important;
+.m-card,
+.chart-card,
+.sem-card,
+.mod-dist-card {
+  border-radius: var(--eki-radius) !important;
+  border: 1px solid rgba(30, 27, 36, 0.08) !important;
+  box-shadow: 0 1px 3px rgba(30, 27, 36, 0.05) !important;
 }
 .tab-btn.active {
-  color: var(--eki-admin-accent-deep) !important;
-  border-bottom-color: var(--eki-admin-accent) !important;
+  color: var(--eki-accent-deep) !important;
+  border-bottom-color: var(--eki-accent) !important;
 }
 .filters-bar button,
 .btn-excel {
-  background: var(--eki-admin-accent) !important;
+  background: var(--eki-accent) !important;
+  border-radius: 8px !important;
 }
 
-/* Módulos: bloques más legibles en Unfold */
+/* Módulos: sin pelear con Unfold, solo acento */
 #seccionmodulo_set-group,
 #pasomodulo_set-group {
-  background: #ffffff !important;
-  color: var(--eki-admin-text) !important;
+  border-radius: var(--eki-radius);
 }

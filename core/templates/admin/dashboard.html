@@ -14,42 +14,47 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <style>
     :root {
-        --eki-primary: #0f6e6a;
-        --eki-primary-soft: #e6f2f1;
+        --eki-primary: #9A6CAC;
+        --eki-primary-soft: rgba(154, 108, 172, 0.12);
         --eki-success: #2f9e44;
         --eki-warning: #f59f00;
         --eki-danger: #e03131;
         --eki-info: #1c7ed6;
-        --eki-bg: #f1f3f5;
+        --eki-bg: transparent;
         --eki-card: #ffffff;
-        --eki-text: #212529;
-        --eki-muted: #868e96;
-        --eki-border: #dee2e6;
-        --eki-radius: 10px;
+        --eki-text: #1e1b24;
+        --eki-muted: #6b6575;
+        --eki-border: rgba(30, 27, 36, 0.08);
+        --eki-radius: 12px;
     }
-    .dash-wrap { padding: 16px 8px 24px; max-width: 100%; margin: 0; background: transparent; min-height: 0; }
+    .dash-wrap { padding: 4px 0 24px; max-width: 100%; margin: 0; background: transparent; min-height: 0; }
     .dash-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
-    .dash-header h1 { font-size: 1.75rem; font-weight: 700; color: var(--eki-text); margin: 0; }
+    .dash-header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.03em; color: var(--eki-text); margin: 0; }
     .dash-header .dash-ts { font-size: 0.85rem; color: var(--eki-muted); }
     .dash-back {
         display: inline-flex; align-items: center; gap: 6px;
-        font-size: 0.9rem; font-weight: 600; color: var(--eki-primary);
+        font-size: 0.875rem; font-weight: 600; color: var(--eki-primary);
         text-decoration: none; margin-bottom: 10px;
     }
-    .dash-back:hover { text-decoration: underline; color: #5F3A6E; }
+    .dash-back:hover { text-decoration: underline; color: #7A4E8E; }
 
-    /* === Tabs === */
+    /* === Tabs (pill estilo Unfold) === */
     .tab-nav {
         display: flex;
         flex-wrap: wrap;
-        gap: 0;
-        border-bottom: 2px solid var(--eki-border);
+        gap: 0.35rem;
+        border-bottom: none;
         margin-bottom: 24px;
         overflow-x: auto;
+        padding: 0.25rem;
+        background: rgba(30, 27, 36, 0.04);
+        border-radius: 999px;
+        width: fit-content;
+        max-width: 100%;
     }
-    .tab-btn { padding: 12px 24px; font-size: 0.95rem; font-weight: 600; color: var(--eki-muted); cursor: pointer; border: none; background: none; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
-    .tab-btn:hover { color: var(--eki-primary); }
-    .tab-btn.active { color: var(--eki-primary); border-bottom-color: var(--eki-primary); }
+    .tab-btn { padding: 0.55rem 1.1rem; font-size: 0.875rem; font-weight: 600; color: var(--eki-muted); cursor: pointer; border: none; background: none; border-bottom: none; margin-bottom: 0; border-radius: 999px; transition: all 0.15s; }
+    .tab-btn:hover { color: #7A4E8E; background: rgba(154, 108, 172, 0.08); }
+    .tab-btn.active { color: #7A4E8E; background: #fff; box-shadow: 0 1px 2px rgba(30, 27, 36, 0.08); }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
@@ -61,7 +66,7 @@
     .btn-excel:hover { opacity: 0.9; color: #fff; text-decoration: none; }
 
     .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px; }
-    .m-card { background: var(--eki-card); padding: 20px; border-radius: var(--eki-radius); box-shadow: 0 1px 4px rgba(0,0,0,0.06); border-left: 4px solid var(--eki-primary); display: flex; flex-direction: column; gap: 4px; }
+    .m-card { background: var(--eki-card); padding: 20px; border-radius: var(--eki-radius); box-shadow: 0 1px 3px rgba(30,27,36,0.05); border: 1px solid var(--eki-border); border-left: 4px solid var(--eki-primary); display: flex; flex-direction: column; gap: 4px; }
     .m-card.green { border-left-color: var(--eki-success); }
     .m-card.orange { border-left-color: var(--eki-warning); }
     .m-card.red { border-left-color: var(--eki-danger); }
