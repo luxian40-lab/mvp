@@ -30,9 +30,21 @@ def enviar_plantilla_twilio(telefono: str, content_sid: str, variables: dict = N
     try:
         account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID')
         auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN')
-        twilio_number = str(getattr(settings, 'TWILIO_WHATSAPP_NUMBER', 'whatsapp:+573202948806')).strip()
-        print(f"DEBUG TWILIO FROM (enviar_plantillas.py): '{twilio_number}'")
-        
+        # Misma regla que utils: PHONE vacío no debe dejar From en sandbox/None.
+        twilio_number = (
+            getattr(settings, 'TWILIO_PHONE_NUMBER', None)
+            or getattr(settings, 'TWILIO_WHATSAPP_NUMBER', None)
+            or 'whatsapp:+573202948806'
+        )
+        twilio_number = str(twilio_number).strip()
+        if not twilio_number.startswith('whatsapp:'):
+            if not twilio_number.startswith('+'):
+                twilio_number = f'+{twilio_number}'
+            twilio_number = f'whatsapp:{twilio_number}'
+        # Sandbox local no inicia conversación real a números CO.
+        if '14155238886' in twilio_number:
+            twilio_number = 'whatsapp:+573202948806'
+        logger.info("TWILIO FROM (plantilla): %s", twilio_number)
         if not account_sid or not auth_token:
             return {'success': False, 'mensaje_id': None, 'response': 'Credenciales no configuradas'}
         

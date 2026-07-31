@@ -1,27 +1,127 @@
 /**
- * Tema mínimo eki sobre Unfold (sin selectores Jazzmin/AdminLTE).
- * Morado de marca: #9A6CAC / #7a4e8e / #5F3A6E
+ * Tema eki sobre Unfold — panel CLARO y legible.
+ * Marca: #9A6CAC / #7a4e8e / #5F3A6E
+ * Scope: solo admin (no portal/app).
  */
 :root {
   --eki-admin-accent: #9A6CAC;
   --eki-admin-accent-deep: #5F3A6E;
+  --eki-admin-text: #1a1625;
+  --eki-admin-muted: #4b4458;
+  --eki-admin-bg: #f7f5f9;
+  --eki-admin-surface: #ffffff;
+  --eki-admin-line: rgba(95, 58, 110, 0.14);
+  color-scheme: light;
 }
 
+/* Forzar shell claro (Unfold a veces hereda dark del SO) */
+html,
+html.dark,
+html[data-theme="dark"],
+html body,
+html body.dark {
+  color-scheme: light !important;
+  background-color: var(--eki-admin-bg) !important;
+}
+
+html body,
+html body .unfold-content,
+html body main,
+html body [class*="bg-base"],
+html body [class*="bg-white"],
+html body .grow {
+  background-color: var(--eki-admin-bg) !important;
+  color: var(--eki-admin-text) !important;
+}
+
+/* Tipografía: más grande, más contraste */
+html body,
+html body .unfold-content,
+html body [class*="text-font"] {
+  font-size: 15.5px !important;
+  line-height: 1.55 !important;
+  color: var(--eki-admin-text) !important;
+  -webkit-font-smoothing: antialiased;
+  font-weight: 450;
+}
+
+html body nav,
+html body aside,
+html body .simplebar-content,
+html body [class*="bg-gray"],
+html body aside [class*="bg-"] {
+  font-size: 14.5px !important;
+  line-height: 1.45 !important;
+  color: #f8f5fb !important;
+  background-color: #5F3A6E !important;
+}
+
+html body aside a,
+html body nav a,
+html body aside span {
+  color: #f3eef7 !important;
+  opacity: 1 !important;
+}
+
+html body aside a:hover,
+html body nav a:hover {
+  color: #ffffff !important;
+  background-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+html body h1,
+html body h2,
+html body h3 {
+  color: var(--eki-admin-text) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em;
+}
+
+html body table td,
+html body table th,
 .unfold-content table td,
 .unfold-content table th {
-  font-size: 0.875rem;
+  font-size: 0.95rem !important;
+  line-height: 1.5 !important;
+  color: var(--eki-admin-text) !important;
+  background-color: var(--eki-admin-surface) !important;
 }
 
+html body label,
+html body .help,
+html body .form-row,
+html body input,
+html body select,
+html body textarea {
+  font-size: 0.95rem !important;
+  color: var(--eki-admin-text) !important;
+}
+
+html body input,
+html body select,
+html body textarea,
+html body .border {
+  background-color: var(--eki-admin-surface) !important;
+  border-color: var(--eki-admin-line) !important;
+}
+
+html body .help,
+html body .helptext {
+  color: var(--eki-admin-muted) !important;
+  font-size: 0.875rem !important;
+}
+
+/* Navegación ops */
 .eki-ops-back-wrap {
-  margin: 0 0 0.75rem;
+  margin: 0 0 0.85rem;
 }
 .eki-ops-back,
 .dash-back {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: 0.95rem;
+  font-weight: 650;
   color: var(--eki-admin-accent);
   text-decoration: none;
 }
@@ -32,4 +132,40 @@
 .dash-back:hover {
   color: var(--eki-admin-accent-deep);
   text-decoration: underline;
+}
+
+/*
+ * Dashboard: dentro del content Unfold (sidebar visible).
+ */
+html body .dash-wrap,
+.dash-wrap {
+  min-height: 0 !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 8px 4px 24px !important;
+  background: transparent !important;
+}
+.dash-header h1 {
+  font-size: 1.45rem !important;
+  color: var(--eki-admin-accent-deep) !important;
+}
+.dash-header .dash-ts,
+.m-card .m-label,
+.m-card .m-sub {
+  color: var(--eki-admin-muted) !important;
+}
+.tab-btn.active {
+  color: var(--eki-admin-accent-deep) !important;
+  border-bottom-color: var(--eki-admin-accent) !important;
+}
+.filters-bar button,
+.btn-excel {
+  background: var(--eki-admin-accent) !important;
+}
+
+/* Módulos: bloques más legibles en Unfold */
+#seccionmodulo_set-group,
+#pasomodulo_set-group {
+  background: #ffffff !important;
+  color: var(--eki-admin-text) !important;
 }

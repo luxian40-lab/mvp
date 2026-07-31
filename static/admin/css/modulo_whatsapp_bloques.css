@@ -1,33 +1,50 @@
-/* Agrupa visualmente Secciones + Microcontenidos en la pantalla de Módulo (admin / Jazzmin). */
+/* Agrupa Secciones + Microcontenidos en Módulo (admin Unfold — claro). */
 #seccionmodulo_set-group,
 #pasomodulo_set-group {
-  border: 2px solid #14b8a6;
+  border: 2px solid #9A6CAC;
   border-radius: 12px;
-  padding: 12px 14px 16px;
+  padding: 14px 16px 18px;
   margin-bottom: 1.35rem;
-  background: linear-gradient(180deg, rgba(20, 184, 166, 0.07) 0%, #fff 48px);
-  box-shadow: 0 1px 2px rgba(15, 118, 110, 0.06);
+  background: linear-gradient(180deg, rgba(154, 108, 172, 0.1) 0%, #ffffff 52px);
+  box-shadow: 0 1px 3px rgba(95, 58, 110, 0.08);
+  color: #1a1625;
 }
 
 #seccionmodulo_set-group .inline-related h2,
 #pasomodulo_set-group .inline-related h2,
 #seccionmodulo_set-group > h2,
 #pasomodulo_set-group > h2 {
-  border-bottom: 1px solid rgba(20, 184, 166, 0.35);
+  border-bottom: 1px solid rgba(154, 108, 172, 0.35);
   padding-bottom: 8px;
   margin-bottom: 10px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #5F3A6E;
 }
 
 #pasomodulo_set-group {
-  border-color: #0e7490;
-  background: linear-gradient(180deg, rgba(14, 116, 144, 0.07) 0%, #fff 48px);
+  border-color: #7a4e8e;
+  background: linear-gradient(180deg, rgba(122, 78, 142, 0.1) 0%, #ffffff 52px);
 }
 
 #pasomodulo_set-group::before {
   content: "Cada microcontenido debe elegir una sección de la pestaña «Secciones».";
   display: block;
-  font-size: 12px;
-  color: #0f766e;
-  margin: 0 0 10px 2px;
-  font-weight: 600;
+  font-size: 13px;
+  color: #5F3A6E;
+  margin: 0 0 12px 2px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+#seccionmodulo_set-group table,
+#pasomodulo_set-group table,
+#seccionmodulo_set-group td,
+#pasomodulo_set-group td,
+#seccionmodulo_set-group th,
+#pasomodulo_set-group th,
+#seccionmodulo_set-group label,
+#pasomodulo_set-group label {
+  color: #1a1625 !important;
+  font-size: 0.95rem;
 }

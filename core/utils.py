@@ -201,9 +201,18 @@ def enviar_whatsapp_twilio(
 
         account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', None)
         auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', None)
-        default_from = getattr(settings, 'TWILIO_PHONE_NUMBER', '573202948806')
-        from_candidate = from_number if from_number else default_from
-        twilio_number = str(formatear_numero_whatsapp(from_candidate)).strip()
+        # getattr(..., default) NO aplica si la setting existe y es None/''.
+        default_from = (
+            from_number
+            or getattr(settings, 'TWILIO_PHONE_NUMBER', None)
+            or getattr(settings, 'TWILIO_WHATSAPP_NUMBER', None)
+            or 'whatsapp:+573202948806'
+        )
+        twilio_number = formatear_numero_whatsapp(default_from)
+        if not twilio_number:
+            logger.error("TWILIO From inválido (PHONE/WHATSAPP vacíos)")
+            return {'success': False, 'mensaje_id': None, 'response': 'Twilio From number not set'}
+        twilio_number = str(twilio_number).strip()
         logger.info(f"[TWILIO] Account SID: {'...' + account_sid[-4:] if account_sid else None}")
         logger.info(f"[TWILIO] Auth Token: {'configured' if auth_token else 'MISSING'}")
         logger.info(f"[TWILIO] WhatsApp Number: '{twilio_number}'")
@@ -213,7 +222,10 @@ def enviar_whatsapp_twilio(
             return {'success': False, 'mensaje_id': None, 'response': 'Twilio credentials not set'}
 
         # Blindar el número destinatario contra error 21212
-        telefono = str(formatear_numero_whatsapp(telefono)).strip()
+        telefono = formatear_numero_whatsapp(telefono)
+        if not telefono:
+            return {'success': False, 'mensaje_id': None, 'response': 'Invalid destination phone'}
+        telefono = str(telefono).strip()
 
         # S3 URLs: usar URL pública directa (bucket tiene ACL public-read)
         # NO generar presigned URL — causa 63019 por redirect de región

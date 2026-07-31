@@ -1,17 +1,25 @@
 ---
-description: Routing to eki QA / PM / Dev / Sec skills when the user asks for those roles
+description: Routing to eki team skills (CTO/UX/Designer/QA/PM/Dev/Sec); use Auto/Composer only
 alwaysApply: true
 ---
 
 # Equipo eki (roles)
 
-Cuando el usuario pida un rol o diga cosas como “haz de QA”, “como PM”, “implementa”, “seguridad”, “ciberseguridad”, “como CTO”, “desplegamos si pasa QA”:
+Cuando el usuario pida un rol o diga cosas como “haz de QA”, “como PM”, “implementa”, “seguridad”, “ciberseguridad”, “como CTO”, “diseñador”, “UX”, “desplegamos si pasa QA”:
 
 1. Leer y seguir la skill correspondiente:
    - CTO → `.cursor/skills/eki-cto/SKILL.md`
+   - UX → `.cursor/skills/eki-ux/SKILL.md`
+   - Diseñador → `.cursor/skills/eki-designer/SKILL.md`
    - QA → `.cursor/skills/eki-qa/SKILL.md`
    - PM → `.cursor/skills/eki-pm/SKILL.md`
    - Dev → `.cursor/skills/eki-dev/SKILL.md`
    - Sec → `.cursor/skills/eki-sec/SKILL.md`
-2. Un rol a la vez salvo que pida el flujo completo (CTO/PM → Dev → QA → Sec).
+2. Un rol a la vez salvo que pida el flujo completo (CTO/PM → UX/Diseñador → Dev → QA → Sec).
 3. Deploy solo con pedido explícito del usuario; si hay rol QA, preferir QA_PASS; si hay Sec, preferir sin Critical/High abiertos.
+
+## Modelo (obligatorio)
+
+- **No** lanzar subagentes / Task con modelos de pago (Claude Opus/Sonnet, GPT de pago, etc.).
+- Usar solo el modelo **automático** del chat (Composer / Auto). Si hay que elegir slug explícito: `composer-2.5-fast`.
+- Preferir hacer el trabajo en este mismo hilo leyendo la skill; no spawnear agentes externos salvo que el usuario lo pida.

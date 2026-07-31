@@ -8,19 +8,24 @@
     <div class="st-hero-bleed__inner">
         <p class="st-brand-hero"><span class="eki-logo">eki</span> <span>studio</span></p>
         <h1>Cursos para el territorio. Creadores con voz.</h1>
-        <p class="st-lead">Vitrina de programas: compra o publica. El aula, las tareas y WhatsApp viven en Aprende.</p>
+        <p class="st-lead">Elige un curso aquí. Estudias en Aprende (aula). WhatsApp es otro canal — Studio es solo la vitrina.</p>
         <div class="st-hero-actions">
             <a href="{% url 'studio_catalogo' %}" class="st-btn st-btn--primary">Explorar cursos</a>
-            <a href="{% url 'studio_creador' %}" class="st-btn st-btn--ghost">Quiero enseñar</a>
+            <a href="{% url 'studio_creador' %}" class="st-btn st-btn--ghost">Publicar como creador</a>
         </div>
     </div>
 </section>
 
 <section class="st-section">
     <p class="st-section-label">Cómo funciona</p>
-    <h2 class="st-h2" style="font-size:clamp(1.4rem,3vw,1.85rem);max-width:20ch;margin-bottom:1.75rem;">
+    <h2 class="st-h2" style="font-size:clamp(1.4rem,3vw,1.85rem);max-width:22ch;margin-bottom:1rem;">
         Una vitrina. El aula es aparte.
     </h2>
+    <div class="st-route" style="display:grid;gap:0.75rem;margin:0 0 1.75rem;padding:1rem 1.15rem;background:#fff;border:1px solid rgba(122,78,142,0.14);border-radius:8px;max-width:42rem;">
+        <div><strong style="display:block;margin-bottom:0.15rem;">Studio</strong><span class="st-muted">Catálogo y compra/publicación.</span></div>
+        <div><strong style="display:block;margin-bottom:0.15rem;">Aprende</strong><span class="st-muted">Aula, lecciones y tareas.</span></div>
+        <div><strong style="display:block;margin-bottom:0.15rem;">WhatsApp</strong><span class="st-muted">Canal educativo aparte — no se gestiona aquí.</span></div>
+    </div>
     <ol class="st-steps">
         <li data-step="01">
             <strong>Elige en Studio</strong>
@@ -28,7 +33,7 @@
         </li>
         <li data-step="02">
             <strong>Estudia en Aprende</strong>
-            <span class="st-muted">Ahí está el aula: lecciones, tareas y avance — junto a WhatsApp, con lógica distinta a Studio.</span>
+            <span class="st-muted">Ahí está el aula: lecciones, tareas y avance.</span>
         </li>
         <li data-step="03">
             <strong>Enseña y cobra</strong>
