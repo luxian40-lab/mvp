@@ -12,11 +12,11 @@
     margin-bottom: 0.35rem;
 }
 .eki-paso-block {
-    padding: 0.85rem 0;
+    padding: 1rem 0;
     border-bottom: 1px solid var(--eki-border);
 }
 .eki-paso-block:last-child { border-bottom: none; }
-.eki-media-block { margin: 0.75rem 0 0.25rem; }
+.eki-media-block { margin: 0.85rem 0 0.35rem; }
 .eki-media-caption {
     font-size: 0.8125rem;
     font-weight: 600;
@@ -54,45 +54,46 @@
     padding: 0.75rem;
 }
 .eki-media-frame--audio audio { width: 100%; }
-.eki-aviso-consulta {
-    font-size: 0.78rem;
-    color: var(--eki-muted);
-    margin-top: 0.5rem;
-}
 {% endblock %}
 {% block content %}
 {% include "aprende/partials/estudiante_breadcrumb.html" with modulo=modulo %}
+<article class="eki-lesson">
 <div class="eki-page-head">
     <span class="eki-kicker">Módulo {{ modulo.numero }}</span>
     <h1>{{ modulo.titulo }}</h1>
     {% if modulo.descripcion %}<p class="eki-lead">{{ modulo.descripcion }}</p>{% endif %}
 </div>
 
-<p class="eki-aviso-consulta">El material de este módulo es de consulta en línea. No está habilitada la descarga desde el aula.</p>
+<aside class="eki-wa-bridge" aria-label="Avance en WhatsApp">
+    <strong>Consulta aquí · avanza en WhatsApp</strong>
+    <span>Lee y mira el material en el aula. Cuando termines el módulo en campo, escribe <strong>*listo*</strong> al bot del programa.</span>
+</aside>
+
+<p class="eki-aviso-consulta">Solo consulta en línea: la descarga no está habilitada desde el aula.</p>
 
 {% if video_media %}
-<div class="eki-card" style="padding:0;overflow:hidden;margin-bottom:1.25rem;">
+<div class="eki-card eki-lesson-media" style="padding:0;overflow:hidden;margin-bottom:1.25rem;">
     {% include "aprende/partials/media_viewer.html" with medias=video_medias %}
 </div>
 {% endif %}
 
 {% if modulo.contenido and not tiene_micro %}
-<div class="eki-card eki-card--bar" style="margin-bottom:1.25rem;">
+<div class="eki-card eki-card--bar eki-lesson-block">
     <h2 class="eki-h2">Contenido</h2>
     <div class="eki-article">{{ modulo.contenido|linebreaksbr }}</div>
 </div>
 {% endif %}
 
 {% for sec in secciones %}
-<div class="eki-card" style="margin-bottom:1.25rem;">
-    <h2 class="eki-h2">{{ sec.titulo }}</h2>
+<section class="eki-card eki-lesson-block" aria-labelledby="sec-{{ forloop.counter }}">
+    <h2 class="eki-h2" id="sec-{{ forloop.counter }}">{{ sec.titulo }}</h2>
     {% for paso in sec.pasos %}
     <div class="eki-paso-block">
         <p class="eki-paso-meta">Paso {{ paso.orden }} · {{ paso.tipo_etiqueta }}</p>
         {% if paso.solo_whatsapp %}
         <p class="eki-muted" style="margin:0;">
             {% if paso.es_entrega %}
-            Esta entrega se gestiona en la pestaña <a href="{% url 'aprende_estudiante_tareas' %}">Tareas</a>.
+            Esta entrega se gestiona en <a href="{% url 'aprende_estudiante_tareas' %}">Tareas</a>.
             {% else %}
             Esta actividad se completa por WhatsApp con el mismo número registrado.
             {% endif %}
@@ -107,21 +108,23 @@
         {% endif %}
     </div>
     {% endfor %}
-</div>
+</section>
 {% endfor %}
 
 {% if pdf_media %}
-<div class="eki-card" style="margin-bottom:1.25rem;">
+<div class="eki-card eki-lesson-block">
     <h2 class="eki-h2">Documento de apoyo</h2>
     {% include "aprende/partials/media_viewer.html" with medias=pdf_medias %}
 </div>
 {% endif %}
 
 {% if archivos_media %}
-<div class="eki-card" style="margin-bottom:1.25rem;">
+<div class="eki-card eki-lesson-block">
     <h2 class="eki-h2">Material multimedia</h2>
     {% include "aprende/partials/media_viewer.html" with medias=archivos_media %}
 </div>
 {% endif %}
 
+{% include "aprende/partials/quiz_modulo.html" %}
+</article>
 {% endblock %}

@@ -172,8 +172,10 @@
 </div>
 
 {% if not secciones %}
-<div class="eki-card">
-    <p class="eki-muted">Aún no hay material disponible en sus cursos. Los recursos aparecerán conforme avance en el programa.</p>
+<div class="eki-card eki-empty">
+    <h2>Biblioteca vacía</h2>
+    <p class="eki-muted">Cuando avances módulos (en el aula o con <strong>*listo*</strong> en WhatsApp), el material liberado aparece aquí para consultar.</p>
+    <a href="{% url 'aprende_estudiante_cursos' %}" class="eki-btn eki-btn--ghost eki-btn--sm">Ir a mis cursos</a>
 </div>
 {% else %}
 <p class="eki-muted" style="margin-bottom:1rem;">{{ total }} recurso(s) en {{ secciones|length }} curso(s)</p>

@@ -1,5 +1,15 @@
-<a href="{% url 'aprende_estudiante_cursos' %}">Mis cursos</a>
-<a href="{% url 'aprende_estudiante_tareas' %}">Tareas</a>
-<a href="{% url 'aprende_estudiante_biblioteca' %}">Biblioteca</a>
-<a href="{% url 'aprende_estudiante_perfil' %}">Mi perfil</a>
-<a href="{% url 'aprende_estudiante_logout' %}">Salir</a>
+{% with n=request.resolver_match.url_name|default:'' %}
+<a href="{% url 'aprende_estudiante_cursos' %}"
+   class="{% if n == 'aprende_estudiante_cursos' or n == 'aprende_estudiante_curso' or n == 'aprende_estudiante_modulo' or n == 'aprende_estudiante_curso_ranking' %}is-active{% endif %}"
+   {% if n == 'aprende_estudiante_cursos' %}aria-current="page"{% endif %}>Mis cursos</a>
+<a href="{% url 'aprende_estudiante_tareas' %}"
+   class="{% if 'tarea' in n %}is-active{% endif %}"
+   {% if n == 'aprende_estudiante_tareas' %}aria-current="page"{% endif %}>Tareas</a>
+<a href="{% url 'aprende_estudiante_biblioteca' %}"
+   class="{% if n == 'aprende_estudiante_biblioteca' %}is-active{% endif %}"
+   {% if n == 'aprende_estudiante_biblioteca' %}aria-current="page"{% endif %}>Biblioteca</a>
+<a href="{% url 'aprende_estudiante_perfil' %}"
+   class="{% if n == 'aprende_estudiante_perfil' %}is-active{% endif %}"
+   {% if n == 'aprende_estudiante_perfil' %}aria-current="page"{% endif %}>Mi perfil</a>
+<a href="{% url 'aprende_estudiante_logout' %}" class="eki-nav__exit">Salir</a>
+{% endwith %}

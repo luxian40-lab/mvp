@@ -1,0 +1,47 @@
+{% if quiz_items %}
+<section class="eki-card eki-lesson-block eki-quiz" aria-labelledby="quiz-title">
+    <h2 class="eki-h2" id="quiz-title">Práctica del módulo</h2>
+    <p class="eki-muted" style="margin:-0.35rem 0 1rem;">
+        Responde aquí para reforzar. <strong>No sustituye</strong> el avance por WhatsApp (*listo*).
+    </p>
+
+    {% if quiz_intento %}
+    <div class="eki-status-banner {% if quiz_intento.aprobado %}eki-status-banner--ok{% else %}eki-status-banner--todo{% endif %}" role="status">
+        <span class="eki-status {% if quiz_intento.aprobado %}eki-status--ok{% else %}eki-status--todo{% endif %}">
+            {% if quiz_intento.aprobado %}Aprobado{% else %}A reforzar{% endif %}
+        </span>
+        <strong>{{ quiz_intento.correctas }}/{{ quiz_intento.total }}</strong>
+        <p>Último intento · puedes volver a enviar.</p>
+    </div>
+    {% endif %}
+
+    {% if quiz_detalle %}
+    <ul class="eki-quiz-review">
+        {% for d in quiz_detalle %}
+        <li class="{% if d.correcta %}is-ok{% else %}is-bad{% endif %}">
+            <p class="eki-quiz-q">{{ d.pregunta.pregunta }}</p>
+            <p class="eki-muted">Tu respuesta: {{ d.respuesta }}{% if not d.correcta %} · correcta: {{ d.letra_ok }}{% endif %}</p>
+            {% if d.explicacion %}<p class="eki-quiz-explain">{{ d.explicacion }}</p>{% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    <form method="post" class="eki-quiz-form">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="quiz_modulo">
+        {% for item in quiz_items %}
+        <fieldset class="eki-quiz-item">
+            <legend>{{ forloop.counter }}. {{ item.pregunta.pregunta }}</legend>
+            {% for letra, texto in item.opciones %}
+            <label class="eki-quiz-opt">
+                <input type="radio" name="q_{{ item.pregunta.id }}" value="{{ letra }}" required>
+                <span><strong>{{ letra }}.</strong> {{ texto }}</span>
+            </label>
+            {% endfor %}
+        </fieldset>
+        {% endfor %}
+        <button type="submit" class="eki-btn eki-btn--primary">Enviar práctica</button>
+    </form>
+</section>
+{% endif %}

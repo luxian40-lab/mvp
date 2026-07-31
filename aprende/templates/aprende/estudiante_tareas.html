@@ -3,9 +3,9 @@
 {% block nav %}{% include "aprende/estudiante_nav.html" %}{% endblock %}
 {% block content %}
 <div class="eki-page-head">
-    <span class="eki-kicker">Entregas académicas</span>
+    <span class="eki-kicker">Entregas</span>
     <h1>Tareas</h1>
-    <p class="eki-lead">Aquí entrega el trabajo que asigne su docente. Suba archivos; ellos o el equipo eki los calificarán de 1 a 5.</p>
+    <p class="eki-lead">Sube el archivo que pide tu docente. Tres estados: pendiente, entregada o calificada.</p>
 </div>
 
 {% include "aprende/partials/tareas_guia_estudiante.html" %}
@@ -13,34 +13,46 @@
 {% if not secciones %}
 <div class="eki-card eki-empty">
     <h2>Sin tareas por ahora</h2>
-    <p class="eki-muted">Aparecerán cuando su docente las publique en sus cursos.</p>
+    <p class="eki-muted">Cuando tu docente publique una, aparece aquí. Mientras, puedes seguir módulos o escribir <strong>*aula*</strong> si necesitas volver a entrar.</p>
     <a href="{% url 'aprende_estudiante_cursos' %}" class="eki-btn eki-btn--ghost eki-btn--sm">Volver a mis cursos</a>
 </div>
 {% else %}
-{% for sec in secciones %}
-<div class="eki-card" style="margin-bottom:1.25rem;">
-    <h2 class="eki-h2">{{ sec.curso.nombre }}</h2>
-    <ul class="eki-list">
-        {% for item in sec.tareas_list %}
-        <li class="eki-list-item">
-            <span class="eki-list-num">T</span>
-            <div style="flex:1;min-width:0;">
-                <a href="{% url 'aprende_estudiante_tarea' item.tarea.id %}">{{ item.tarea.titulo }}</a>
-                {% if item.tarea.modulo %}
-                <p class="eki-muted" style="margin:0.2rem 0 0;font-size:0.8rem;">Módulo {{ item.tarea.modulo.numero }}</p>
-                {% endif %}
-                {% if item.entrega and item.entrega.calificada %}
-                <p class="eki-muted" style="margin:0.25rem 0 0;">Nota: <strong>{{ item.entrega.nota }}/5</strong></p>
-                {% elif item.entrega %}
-                <p class="eki-muted" style="margin:0.25rem 0 0;">Entregada — pendiente de calificación</p>
-                {% else %}
-                <p class="eki-muted" style="margin:0.25rem 0 0;">Pendiente de entrega</p>
-                {% endif %}
-            </div>
-        </li>
-        {% endfor %}
-    </ul>
-</div>
-{% endfor %}
+    {% for sec in secciones %}
+    <section class="eki-card eki-task-group" aria-labelledby="curso-tareas-{{ forloop.counter }}">
+        <h2 class="eki-h2" id="curso-tareas-{{ forloop.counter }}">{{ sec.curso.nombre }}</h2>
+        <ul class="eki-list eki-task-list">
+            {% for item in sec.tareas_list %}
+            <li class="eki-list-item eki-task-row">
+                <span class="eki-list-num" aria-hidden="true">T</span>
+                <div class="eki-task-row__body">
+                    <div class="eki-task-row__head">
+                        <a href="{% url 'aprende_estudiante_tarea' item.tarea.id %}">{{ item.tarea.titulo }}</a>
+                        {% if item.entrega and item.entrega.calificada %}
+                        <span class="eki-status eki-status--ok">Calificada</span>
+                        {% elif item.entrega %}
+                        <span class="eki-status eki-status--wait">Entregada</span>
+                        {% else %}
+                        <span class="eki-status eki-status--todo">Pendiente</span>
+                        {% endif %}
+                    </div>
+                    {% if item.tarea.modulo %}
+                    <p class="eki-muted eki-task-row__meta">Módulo {{ item.tarea.modulo.numero }}</p>
+                    {% endif %}
+                    {% if item.entrega and item.entrega.calificada %}
+                    <p class="eki-task-row__meta">Nota <strong>{{ item.entrega.nota }}/5</strong></p>
+                    {% elif item.entrega %}
+                    <p class="eki-muted eki-task-row__meta">Esperando calificación del docente</p>
+                    {% else %}
+                    <p class="eki-muted eki-task-row__meta">Aún sin archivo</p>
+                    {% endif %}
+                </div>
+                <a class="eki-btn eki-btn--ghost eki-btn--sm eki-task-row__cta" href="{% url 'aprende_estudiante_tarea' item.tarea.id %}">
+                    {% if item.entrega and item.entrega.calificada %}Ver{% elif item.entrega %}Revisar{% else %}Entregar{% endif %}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endfor %}
 {% endif %}
 {% endblock %}

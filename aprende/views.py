@@ -157,14 +157,26 @@ def estudiante_logout(request):
 @requiere_estudiante_aprende
 def estudiante_cursos(request):
     est = request.aprende_estudiante
-    progresos = (
+    progresos = list(
         ProgresoEstudiante.objects.filter(estudiante=est, curso__activo=True)
         .select_related('curso', 'modulo_actual')
         .order_by('curso__nombre')
     )
+    # “Continuar”: prioriza curso en progreso con módulo actual (puente con WhatsApp).
+    continuar = None
+    for p in progresos:
+        if not p.completado and p.modulo_actual_id:
+            continuar = p
+            break
+    if continuar is None:
+        for p in progresos:
+            if not p.completado:
+                continuar = p
+                break
     return render(request, 'aprende/estudiante_cursos.html', {
         'estudiante': est,
         'progresos': progresos,
+        'continuar': continuar,
     })
 @requiere_estudiante_aprende
 def estudiante_curso(request, curso_id: int):
@@ -264,6 +276,13 @@ def estudiante_tareas(request):
 
 @requiere_estudiante_aprende
 def estudiante_modulo(request, modulo_id: int):
+    from aprende.quiz_aula_service import (
+        calificar_desde_post,
+        intento_previo,
+        opciones_pregunta,
+        preguntas_activas,
+    )
+
     est = request.aprende_estudiante
     modulo = get_object_or_404(
         Modulo.objects.select_related('curso'),
@@ -279,6 +298,28 @@ def estudiante_modulo(request, modulo_id: int):
         messages.error(request, 'Este módulo aún no está disponible para ti.')
         return redirect('aprende_estudiante_curso', curso_id=modulo.curso_id)
 
+    quiz_detalle = None
+    quiz_intento = intento_previo(est, modulo)
+    if request.method == 'POST' and (request.POST.get('accion') or '') == 'quiz_modulo':
+        resultado = calificar_desde_post(est, modulo, request.POST)
+        if isinstance(resultado, str):
+            messages.error(request, resultado)
+        else:
+            quiz_intento = resultado.intento
+            quiz_detalle = resultado.detalle
+            if resultado.intento.aprobado:
+                messages.success(
+                    request,
+                    f'Práctica aprobada: {resultado.intento.correctas}/{resultado.intento.total}. '
+                    'Para avanzar el curso en campo, escribe *listo* en WhatsApp.',
+                )
+            else:
+                messages.warning(
+                    request,
+                    f'Resultado: {resultado.intento.correctas}/{resultado.intento.total}. '
+                    'Puedes reintentar. El avance del programa sigue con *listo* en WhatsApp.',
+                )
+
     archivos_media = archivos_multimedia_modulo(modulo)
     secciones = secciones_contenido_aula(modulo)
     tiene_micro = modulo_tiene_microcontenidos(modulo)
@@ -288,6 +329,11 @@ def estudiante_modulo(request, modulo_id: int):
         media_desde_url('Documento del módulo', modulo.archivo_pdf_url, 'pdf')
         if modulo.archivo_pdf_url else None
     )
+    preguntas = preguntas_activas(modulo)
+    quiz_items = [
+        {'pregunta': p, 'opciones': opciones_pregunta(p)}
+        for p in preguntas
+    ]
 
     return render(request, 'aprende/estudiante_modulo.html', {
         'estudiante': est,
@@ -299,6 +345,9 @@ def estudiante_modulo(request, modulo_id: int):
         'video_medias': [video_media] if video_media else [],
         'pdf_media': pdf_media,
         'pdf_medias': [pdf_media] if pdf_media else [],
+        'quiz_items': quiz_items,
+        'quiz_intento': quiz_intento,
+        'quiz_detalle': quiz_detalle,
     })
 
 

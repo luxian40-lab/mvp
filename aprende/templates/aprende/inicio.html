@@ -1,22 +1,48 @@
 {% extends "aprende/base.html" %}
 {% block title %}eki aprende{% endblock %}
+{% block nav %}<a href="{% url 'aprende_estudiante_login' %}">Ingresar</a>{% endblock %}
 {% block main_class %}eki-main--flush{% endblock %}
 {% block content %}
 <section class="eki-hero-bleed" aria-label="eki aprende">
-    <div class="eki-hero-bleed__media" role="img" aria-label="Aula en formación"></div>
+    <div class="eki-hero-bleed__media" role="img" aria-label="Formación cerca del territorio"></div>
     <div class="eki-hero-bleed__shade"></div>
     <div class="eki-hero-bleed__inner">
         <p class="eki-brand-hero"><span class="eki-logo">eki</span> <span>aprende</span></p>
-        <h1>Tu aula, cerca del campo</h1>
-        <p class="eki-lead">Lecciones, tareas y avance — con WhatsApp como puente al territorio.</p>
+        <h1>El aula que camina contigo</h1>
+        <p class="eki-lead">Estudia y entrega aquí. En el campo, WhatsApp te abre la puerta y te hace avanzar.</p>
         <div class="eki-hero-actions">
-            <a class="eki-btn eki-btn--on-dark" href="{% url 'aprende_estudiante_login' %}">Ingresar</a>
+            <a class="eki-btn eki-btn--on-dark" href="{% url 'aprende_estudiante_login' %}">Entrar al aula</a>
+            <a class="eki-btn eki-btn--ghost-light" href="#como-entrar">Cómo entro</a>
         </div>
     </div>
 </section>
 
-<section class="eki-section">
-    <p class="eki-landing-promise">Espacio para estudiar y entregar: contenido de tu organización, progreso claro y sesión protegida.</p>
+<section class="eki-section eki-section--entry" id="como-entrar" aria-labelledby="como-entrar-title">
+    <h2 id="como-entrar-title" class="eki-section-heading">Una sola llave: WhatsApp</h2>
+    <p class="eki-section-lead">No inventamos otra contraseña. El bot del programa te autentica y te deja dentro.</p>
+    <ol class="eki-entry-steps">
+        <li>
+            <span class="eki-entry-steps__n">1</span>
+            <div>
+                <strong>Escribe <em>*aula*</em></strong>
+                <p>En el WhatsApp del curso, con el mismo número inscrito.</p>
+            </div>
+        </li>
+        <li>
+            <span class="eki-entry-steps__n">2</span>
+            <div>
+                <strong>Recibe enlace o código</strong>
+                <p>Un toque te deja adentro; si no, pegas el código de 6 dígitos.</p>
+            </div>
+        </li>
+        <li>
+            <span class="eki-entry-steps__n">3</span>
+            <div>
+                <strong>Estudia · entrega · avanza</strong>
+                <p>Aquí el material y las tareas. En chat, <em>*listo*</em> mueve el módulo.</p>
+            </div>
+        </li>
+    </ol>
     <p class="eki-landing-note">
         ¿Docente o coordinador? <a href="{% url 'aprende_profesor_login' %}">Acceso docente</a>
     </p>

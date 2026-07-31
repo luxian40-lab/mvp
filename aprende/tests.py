@@ -69,14 +69,57 @@ class AprendeWebTests(TestCase):
     def test_inicio_carga(self):
         r = self.http.get('/aprende/')
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'Aprende')
+        self.assertContains(r, 'aprende')
+        self.assertContains(r, '*aula*')
+        self.assertContains(r, 'Cómo entro')
         self.assertNotContains(r, 'Aula virtual')
+
+    def test_login_estudiante_celebra_whatsapp(self):
+        r = self.http.get('/aprende/estudiante/login/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Autenticación WhatsApp')
+        self.assertContains(r, 'Código de WhatsApp')
+        self.assertContains(r, 'name="codigo"')
+        self.assertContains(r, '*aula*')
 
     def test_estudiante_login_y_ve_modulo(self):
         self._login_estudiante()
         r3 = self.http.get(f'/aprende/estudiante/modulo/{self.modulo.id}/')
         self.assertEqual(r3.status_code, 200)
         self.assertContains(r3, 'Hola desde la web')
+
+    def test_quiz_web_modulo_practica(self):
+        from core.models import PreguntaModulo
+        PreguntaModulo.objects.create(
+            modulo=self.modulo,
+            pregunta='¿Color de eki?',
+            opcion_a='Morado',
+            opcion_b='Rojo',
+            respuesta_correcta='A',
+            explicacion='Marca eki',
+            activa=True,
+        )
+        self._login_estudiante()
+        r = self.http.get(f'/aprende/estudiante/modulo/{self.modulo.id}/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Práctica del módulo')
+        self.assertContains(r, '¿Color de eki?')
+        r2 = self.http.post(f'/aprende/estudiante/modulo/{self.modulo.id}/', {
+            'accion': 'quiz_modulo',
+            f'q_{PreguntaModulo.objects.get(modulo=self.modulo).id}': 'A',
+        })
+        self.assertEqual(r2.status_code, 200)
+        self.assertContains(r2, 'Aprobado')
+        from aprende.models import IntentoQuizModulo
+        it = IntentoQuizModulo.objects.get(estudiante=self.est, modulo=self.modulo)
+        self.assertTrue(it.aprobado)
+        self.assertEqual(it.correctas, 1)
+
+    def test_media_h5p_clasifica(self):
+        from aprende.media_aula import clasificar_media_url, media_desde_url
+        self.assertEqual(clasificar_media_url('https://h5p.org/h5p/embed/123'), 'h5p')
+        m = media_desde_url('Interactivo', 'https://example.org/h5p/embed/9')
+        self.assertEqual(m.tipo, 'h5p')
 
     def test_estudiante_login_codigo_whatsapp(self):
         self._login_estudiante()
@@ -351,9 +394,11 @@ class AprendeWebTests(TestCase):
         r = self.http.get('/aprende/estudiante/tareas/')
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Entrega 1')
+        self.assertContains(r, 'Pendiente')
         r2 = self.http.get(f'/aprende/estudiante/modulo/{self.modulo.id}/')
         self.assertEqual(r2.status_code, 200)
         self.assertNotContains(r2, 'Subir documento')
+        self.assertContains(r2, '*listo*')
 
     def test_ranking_grupo_en_perfil(self):
         from core.gamificacion import PerfilGamificacion

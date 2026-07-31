@@ -11,6 +11,7 @@ TIPO_VIDEO = 'video'
 TIPO_IMAGEN = 'imagen'
 TIPO_AUDIO = 'audio'
 TIPO_PDF = 'pdf'
+TIPO_H5P = 'h5p'
 TIPO_EMBED = 'embed'
 
 
@@ -20,6 +21,11 @@ class MediaAula:
     url: str
     tipo: str
     youtube_id: str | None = None
+
+
+def es_url_h5p(url: str) -> bool:
+    u = (url or '').lower()
+    return 'h5p.org' in u or '/h5p/' in u or 'h5p.com' in u
 
 
 def youtube_embed_id(url: str) -> str | None:
@@ -47,6 +53,9 @@ def clasificar_media_url(url: str, tipo_hint: str = '') -> str:
 
     if youtube_embed_id(url):
         return TIPO_YOUTUBE
+
+    if es_url_h5p(url) or hint in ('h5p', 'interactivo'):
+        return TIPO_H5P
 
     path = urlparse(url).path.lower()
     if path.endswith(('.mp4', '.webm', '.mov', '.m4v')):

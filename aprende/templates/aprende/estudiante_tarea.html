@@ -5,41 +5,44 @@
 {% block content %}
 {% include "aprende/partials/estudiante_breadcrumb.html" with tarea=tarea %}
 <div class="eki-page-head">
-    <span class="eki-badge">Tarea</span>
+    <span class="eki-kicker">Tarea</span>
     <h1>{{ tarea.titulo }}</h1>
     {% if tarea.modulo %}
-    <p class="eki-muted">Lección {{ tarea.modulo.numero }}: {{ tarea.modulo.titulo }}</p>
+    <p class="eki-muted">Módulo {{ tarea.modulo.numero }}: {{ tarea.modulo.titulo }}</p>
     {% endif %}
     {% if tarea.fecha_limite %}
     <p class="eki-muted">Fecha límite: {{ tarea.fecha_limite|date:"d/m/Y H:i" }}</p>
     {% endif %}
 </div>
 
-{% if not entrega or not entrega.calificada %}
-<div class="eki-card" style="margin-bottom:1rem;background:var(--eki-bg);">
-    <p class="eki-muted" style="margin:0;font-size:0.875rem;">
-        <strong>Paso 1:</strong> Lea las instrucciones.
-        <strong>Paso 2:</strong> Suba su archivo abajo.
-        <strong>Paso 3:</strong> Espere la calificación (1–5) de su docente o del equipo eki.
-    </p>
+{% if entrega and entrega.calificada %}
+<div class="eki-status-banner eki-status-banner--ok" role="status">
+    <span class="eki-status eki-status--ok">Calificada</span>
+    <strong>{{ entrega.nota }} / 5</strong>
+    {% if entrega.comentario_profesor %}<p>{{ entrega.comentario_profesor }}</p>{% endif %}
+</div>
+{% elif entrega %}
+<div class="eki-status-banner eki-status-banner--wait" role="status">
+    <span class="eki-status eki-status--wait">Entregada</span>
+    <p>Archivo recibido. Tu docente o el equipo eki calificarán de 1 a 5.</p>
+</div>
+{% else %}
+<div class="eki-status-banner eki-status-banner--todo" role="status">
+    <span class="eki-status eki-status--todo">Pendiente</span>
+    <p>Lee las instrucciones y sube tu archivo abajo.</p>
 </div>
 {% endif %}
 
 {% if tarea.instrucciones %}
 <div class="eki-card" style="margin-bottom:1rem;">
     <h2 class="eki-h2">Instrucciones</h2>
-    <p style="white-space:pre-wrap;margin:0;">{{ tarea.instrucciones }}</p>
+    <div class="eki-article">{{ tarea.instrucciones|linebreaksbr }}</div>
 </div>
 {% endif %}
 
 {% if entrega and entrega.calificada %}
-<div class="eki-card" style="margin-bottom:1rem;border-color:#22c55e;">
-    <h2 class="eki-h2">Calificación</h2>
-    <p style="font-size:1.5rem;font-weight:700;color:var(--eki-purple);margin:0 0 0.5rem;">{{ entrega.nota }} / 5</p>
-    {% if entrega.comentario_profesor %}
-    <p class="eki-muted" style="white-space:pre-wrap;margin:0;">{{ entrega.comentario_profesor }}</p>
-    {% endif %}
-    <p class="eki-muted" style="font-size:0.8rem;margin:0.75rem 0 0;">Entregado: {{ entrega.nombre_archivo|default:entrega.archivo.name }}</p>
+<div class="eki-card" style="margin-bottom:1rem;">
+    <p class="eki-muted" style="margin:0;font-size:0.85rem;">Entregado: {{ entrega.nombre_archivo|default:entrega.archivo.name }}</p>
 </div>
 {% endif %}
 

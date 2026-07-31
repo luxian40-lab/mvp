@@ -15,8 +15,9 @@
 {% include "aprende/partials/estudiante_curso_tabs.html" %}
 
 {% if not ranking.activo %}
-<div class="eki-card">
-    <p class="eki-muted">La gamificación no está activa para tu organización.</p>
+<div class="eki-card eki-empty">
+    <h2>Ranking no activo</h2>
+    <p class="eki-muted">La gamificación no está activa para tu organización. Sigue avanzando con <strong>*listo*</strong> en WhatsApp y tus módulos aquí.</p>
 </div>
 {% else %}
 {% include "aprende/partials/ranking_grupo.html" %}

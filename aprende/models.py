@@ -154,3 +154,32 @@ class DocumentoEstudianteAula(models.Model):
 
     def __str__(self):
         return f'{self.estudiante.nombre} — {self.titulo}'
+
+
+class IntentoQuizModulo(models.Model):
+    """Intento de práctica (quiz web) sobre PreguntaModulo del módulo."""
+
+    estudiante = models.ForeignKey(
+        Estudiante,
+        on_delete=models.CASCADE,
+        related_name='intentos_quiz_aula',
+    )
+    modulo = models.ForeignKey(
+        Modulo,
+        on_delete=models.CASCADE,
+        related_name='intentos_quiz_aula',
+    )
+    respuestas = models.JSONField(default=dict, blank=True)
+    correctas = models.PositiveSmallIntegerField(default=0)
+    total = models.PositiveSmallIntegerField(default=0)
+    aprobado = models.BooleanField(default=False)
+    fecha = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [('estudiante', 'modulo')]
+        ordering = ['-fecha']
+        verbose_name = 'Intento quiz (aula)'
+        verbose_name_plural = 'Intentos quiz (aula)'
+
+    def __str__(self):
+        return f'{self.estudiante_id} · módulo {self.modulo_id} · {self.correctas}/{self.total}'

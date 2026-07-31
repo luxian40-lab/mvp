@@ -1,0 +1,16 @@
+---
+description: Aprende como producto LMS — refs Moodle/Canvas + diseño M3/Carbon/Primer/Mobbin/Tabler
+globs: aprende/**/*,docs/EKI_APRENDE_REFERENCES.md,docs/EKI_STUDIO.md
+alwaysApply: false
+---
+
+# eki Aprende — producto
+
+Al trabajar en Aprende / aula:
+
+1. Leer `.cursor/skills/eki-aprende/SKILL.md` y `docs/EKI_APRENDE_REFERENCES.md`.
+2. Visual top 5: Material 3, IBM Carbon, GitHub Primer, Mobbin, Tabler.
+3. Dominio LMS: Moodle / Open edX / Canvas / H5P como inspiración de capacidades — stack = Django HTML/CSS eki.
+4. No fusionar con Studio, admin Unfold ni WhatsApp.
+5. Marca eki (`#9A6CAC` / `#7A4E8E`); móvil primero; empty/loading states.
+6. Deploy solo con pedido explícito.

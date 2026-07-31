@@ -4,7 +4,7 @@
 {% block content %}
 {% include "aprende/partials/estudiante_breadcrumb.html" with progreso=progreso %}
 <div class="eki-page-head">
-    <span class="eki-kicker">Programa de formación</span>
+    <span class="eki-kicker">Ruta de aprendizaje</span>
     <h1>{{ progreso.curso.nombre }}</h1>
     {% if progreso.curso.descripcion %}
     <p class="eki-lead">{{ progreso.curso.descripcion|truncatewords:32 }}</p>
@@ -13,24 +13,30 @@
 
 {% include "aprende/partials/estudiante_curso_tabs.html" %}
 
-<div class="eki-card">
-    <h2 class="eki-h2">Módulos</h2>
-    <ul class="eki-list">
-        {% for m in modulos %}
-        <li class="eki-list-item">
-            <span class="eki-list-num">{{ m.numero }}</span>
-            <div style="flex:1;min-width:0;">
-                <a href="{% url 'aprende_estudiante_modulo' m.id %}">{{ m.titulo }}</a>
-                {% if m.descripcion %}
-                <p class="eki-muted" style="margin:0.25rem 0 0;">{{ m.descripcion|truncatewords:14 }}</p>
-                {% endif %}
-            </div>
-        </li>
-        {% empty %}
-        <li class="eki-list-item">
-            <p class="eki-muted" style="margin:0;">No hay módulos publicados en este curso.</p>
-        </li>
-        {% endfor %}
-    </ul>
+{% if modulos %}
+<ol class="eki-path" aria-label="Ruta del curso">
+    {% for m in modulos %}
+    <li class="eki-path__step{% if progreso.modulo_actual_id == m.id and not progreso.completado %} is-current{% endif %}">
+        <span class="eki-path__n">{{ m.numero }}</span>
+        <div class="eki-path__body">
+            <a href="{% url 'aprende_estudiante_modulo' m.id %}">{{ m.titulo }}</a>
+            {% if progreso.modulo_actual_id == m.id and not progreso.completado %}
+            <span class="eki-status eki-status--wait">Actual</span>
+            {% endif %}
+            {% if m.descripcion %}
+            <p class="eki-muted">{{ m.descripcion|truncatewords:14 }}</p>
+            {% endif %}
+        </div>
+    </li>
+    {% endfor %}
+</ol>
+<p class="eki-muted" style="margin-top:1rem;font-size:0.85rem;">
+    En campo avanza con <strong>*listo*</strong> en WhatsApp. Aquí consultas y practicas.
+</p>
+{% else %}
+<div class="eki-card eki-empty">
+    <h2>Sin módulos publicados</h2>
+    <p class="eki-muted">Cuando tu organización publique lecciones, la ruta aparecerá aquí.</p>
 </div>
+{% endif %}
 {% endblock %}
