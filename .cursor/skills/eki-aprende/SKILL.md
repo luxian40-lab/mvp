@@ -33,9 +33,9 @@ Canon: `docs/EKI_APRENDE_REFERENCES.md`.
 Marca eki: `#9A6CAC` / `#7A4E8E`. Tipografía: **Covered By Your Grace** (`eki`) + **Expletus Sans** (UI).
 
 Héroes (no reutilizar entre productos):
-- Estudiante → arte rural `static/portal/login-rural-bg.png`
-- Docente → gradebook CSS (tabla calificaciones), **sin** rural ni personaje
-- Studio → vitrina marketplace propia; **nunca** Unsplash ni rural de Aprende
+- Estudiante → `static/aprende/hero-estudiante.png` (escritorio + laptop/móvil)
+- Docente → `static/aprende/hero-docente.png` (escritorio maestro), **sin** foto de estudiante
+- Studio → `static/studio/hero-gallery.png` (galería creativa); **nunca** Unsplash ni héroes de Aprende
 
 ## Dominio LMS (inspiración, no clonar)
 

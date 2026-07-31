@@ -254,7 +254,7 @@
             padding-right: 1.35rem;
         }
 
-        /* —— Hero vitrina (marketplace) — sin foto Unsplash ni arte rural de Aprende —— */
+        /* —— Hero galería Studio (foto de marca; no Aprende ni Unsplash) —— */
         .st-hero-bleed {
             position: relative;
             min-height: min(88vh, 700px);
@@ -268,24 +268,11 @@
 
         .st-hero-bleed__media {
             position: absolute;
-            inset: 0;
+            inset: -3% -5%;
             z-index: -2;
             background:
-                radial-gradient(ellipse 50% 45% at 82% 28%, rgba(154, 108, 172, 0.5), transparent 60%),
-                radial-gradient(ellipse 35% 30% at 8% 75%, rgba(122, 78, 142, 0.32), transparent 55%),
-                linear-gradient(148deg, #1e1428 0%, #3a264c 40%, #160f1f 100%);
-        }
-
-        .st-hero-bleed__media::before {
-            content: "";
-            position: absolute;
-            inset: 0;
-            opacity: 0.35;
-            background-image:
-                linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-            background-size: 48px 48px;
-            mask-image: radial-gradient(ellipse 70% 60% at 75% 35%, #000 20%, transparent 75%);
+                url("{% static 'studio/hero-gallery.png' %}") center 42% / cover no-repeat;
+            animation: st-ken 24s var(--ease) both;
         }
 
         .st-hero-bleed__shade {
@@ -293,93 +280,8 @@
             inset: 0;
             z-index: -1;
             background:
-                linear-gradient(105deg, rgba(22, 15, 31, 0.94) 0%, rgba(22, 15, 31, 0.5) 46%, rgba(22, 15, 31, 0.12) 100%),
-                linear-gradient(0deg, rgba(22, 15, 31, 0.92) 0%, transparent 52%);
-        }
-
-        /* Estantería de cursos (CSS/HTML) — identidad Studio */
-        .st-vitrina {
-            position: absolute;
-            right: clamp(1rem, 6vw, 5rem);
-            top: 50%;
-            transform: translateY(-52%);
-            width: min(42vw, 380px);
-            height: min(58vh, 420px);
-            z-index: 0;
-            pointer-events: none;
-        }
-
-        .st-vitrina__card {
-            position: absolute;
-            width: 72%;
-            padding: 1rem 1.1rem 1.15rem;
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            box-shadow: 0 22px 44px rgba(0, 0, 0, 0.32);
-            color: #fff;
-            display: grid;
-            gap: 0.35rem;
-            animation: st-float 7s var(--ease) infinite alternate;
-        }
-
-        .st-vitrina__card strong {
-            font-family: var(--font-display);
-            font-size: 1.05rem;
-            font-weight: 600;
-            letter-spacing: -0.02em;
-            line-height: 1.25;
-        }
-
-        .st-vitrina__card em {
-            font-style: normal;
-            font-size: 0.78rem;
-            color: rgba(255, 255, 255, 0.65);
-        }
-
-        .st-vitrina__tag {
-            display: inline-block;
-            width: fit-content;
-            font-size: 0.62rem;
-            font-weight: 700;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            color: #e8d8f0;
-            opacity: 0.9;
-        }
-
-        .st-vitrina__tag--paid { color: #f0d78a; }
-
-        .st-vitrina__card--a {
-            right: 0;
-            top: 8%;
-            transform: rotate(5deg);
-            background: linear-gradient(145deg, rgba(154, 108, 172, 0.45), rgba(61, 39, 80, 0.75));
-            animation-delay: 0s;
-        }
-
-        .st-vitrina__card--b {
-            left: 0;
-            top: 34%;
-            width: 78%;
-            transform: rotate(-7deg);
-            background: linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(42, 26, 56, 0.85));
-            animation-delay: 0.8s;
-        }
-
-        .st-vitrina__card--c {
-            right: 6%;
-            bottom: 4%;
-            width: 70%;
-            transform: rotate(3deg);
-            background: linear-gradient(145deg, rgba(122, 78, 142, 0.5), rgba(26, 18, 36, 0.8));
-            animation-delay: 1.4s;
-        }
-
-        @keyframes st-float {
-            from { translate: 0 0; }
-            to { translate: 0 -10px; }
+                linear-gradient(105deg, rgba(22, 15, 31, 0.92) 0%, rgba(22, 15, 31, 0.48) 48%, rgba(22, 15, 31, 0.18) 100%),
+                linear-gradient(0deg, rgba(22, 15, 31, 0.9) 0%, transparent 55%);
         }
 
         .st-hero-bleed__inner {
@@ -715,38 +617,27 @@
             justify-content: center;
             padding: clamp(2rem, 5vw, 3.5rem);
             color: #fff;
-            background:
-                radial-gradient(ellipse 70% 55% at 85% 20%, rgba(154, 108, 172, 0.35), transparent 55%),
-                linear-gradient(155deg, #1a1224 0%, #3d2750 55%, #241832 100%);
+            background: #160f1f;
         }
 
         .st-login-visual::before {
             content: "";
             position: absolute;
-            right: 8%;
-            top: 16%;
-            width: min(170px, 38%);
-            height: min(210px, 42%);
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            background: linear-gradient(145deg, rgba(154, 108, 172, 0.35), rgba(255, 255, 255, 0.08));
-            transform: rotate(6deg);
-            box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
+            inset: -6% -8%;
+            background: url("{% static 'studio/hero-gallery.png' %}") center 40% / cover no-repeat;
+            opacity: 0.55;
             pointer-events: none;
+            z-index: 0;
         }
 
         .st-login-visual::after {
             content: "";
             position: absolute;
-            right: 22%;
-            top: 36%;
-            width: min(140px, 32%);
-            height: min(170px, 34%);
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            background: rgba(255, 255, 255, 0.07);
-            transform: rotate(-8deg);
+            inset: 0;
+            background:
+                linear-gradient(115deg, rgba(22, 15, 31, 0.88) 0%, rgba(22, 15, 31, 0.45) 55%, rgba(22, 15, 31, 0.25) 100%);
             pointer-events: none;
+            z-index: 0;
         }
 
         .st-login-visual__logo {
@@ -1076,20 +967,10 @@
             .st-hero-bleed {
                 min-height: min(72dvh, 520px);
             }
-            .st-vitrina {
-                width: min(46vw, 180px);
-                height: 200px;
-                right: 0.5rem;
-                top: 36%;
-                opacity: 0.85;
+            .st-hero-bleed__media {
+                inset: -6% -8%;
+                background-position: center 35%;
             }
-            .st-vitrina__card {
-                padding: 0.65rem 0.7rem;
-                animation: none;
-            }
-            .st-vitrina__card strong { font-size: 0.78rem; }
-            .st-vitrina__card em { font-size: 0.62rem; }
-            .st-vitrina__card--c { display: none; }
             .st-hero-bleed .st-brand-hero {
                 font-size: clamp(2.6rem, 15vw, 4rem);
                 word-break: break-word;

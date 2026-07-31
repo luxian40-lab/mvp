@@ -52,7 +52,8 @@
             --font-sans: "Expletus Sans", "Segoe UI", system-ui, sans-serif;
             --font-read: "Expletus Sans", "Segoe UI", sans-serif;
             --ease: cubic-bezier(0.22, 1, 0.36, 1);
-            --eki-hero-art: url("{% static 'portal/login-rural-bg.png' %}");
+            --eki-hero-art: url("{% static 'aprende/hero-estudiante.png' %}");
+            --eki-hero-docente: url("{% static 'aprende/hero-docente.png' %}");
         }
 
         *, *::before, *::after { box-sizing: border-box; }
@@ -240,7 +241,7 @@
             padding-right: 1.5rem;
         }
 
-        /* —— Full-bleed landing hero (arte rural de marca) —— */
+        /* —— Full-bleed landing hero (escritorio estudiante de marca) —— */
         .eki-hero-bleed {
             position: relative;
             min-height: min(88vh, 640px);
@@ -254,10 +255,10 @@
 
         .eki-hero-bleed__media {
             position: absolute;
-            inset: -2% -4%;
+            inset: -4% -6%;
             z-index: -2;
-            background: var(--eki-hero-art) center 42% / cover no-repeat;
-            opacity: 0.72;
+            background: var(--eki-hero-art) center 38% / cover no-repeat;
+            opacity: 0.9;
             animation: eki-ken 22s var(--ease) both;
         }
 
@@ -266,8 +267,8 @@
             inset: 0;
             z-index: -1;
             background:
-                linear-gradient(105deg, rgba(26, 18, 36, 0.82) 0%, rgba(61, 39, 80, 0.55) 48%, rgba(122, 78, 142, 0.28) 100%),
-                linear-gradient(0deg, rgba(26, 18, 36, 0.92) 0%, transparent 55%);
+                linear-gradient(105deg, rgba(26, 18, 36, 0.88) 0%, rgba(26, 18, 36, 0.42) 46%, rgba(26, 18, 36, 0.12) 100%),
+                linear-gradient(0deg, rgba(26, 18, 36, 0.9) 0%, transparent 52%);
         }
 
         .eki-hero-bleed__inner {
@@ -754,123 +755,25 @@
 
         .eki-login-visual__media {
             position: absolute;
-            inset: -3% -5%;
+            inset: -5% -8%;
             z-index: -2;
-            background: var(--eki-hero-art) center 40% / cover no-repeat;
-            opacity: 0.68;
+            background: var(--eki-hero-art) center 36% / cover no-repeat;
+            opacity: 0.88;
             animation: eki-ken 22s var(--ease) both;
         }
 
         .eki-login-visual__media--estudiante {
             background-image: var(--eki-hero-art);
+            background-position: center 32%;
         }
 
-        /* Docente: panel gradebook (LMS), sin rural ni personaje de estudiante */
+        /* Docente: foto escritorio propia (no reutilizar estudiante ni rural) */
         .eki-login-visual__media--docente {
-            background-image:
-                radial-gradient(ellipse 70% 55% at 90% 10%, rgba(154, 108, 172, 0.28), transparent 55%),
-                linear-gradient(160deg, #2a1a38 0%, #3d2750 48%, #1a1224 100%);
-            opacity: 1;
-            animation: none;
-            inset: 0;
-        }
-
-        .eki-gradebook {
-            position: absolute;
-            right: clamp(1rem, 3.5vw, 2.25rem);
-            top: 42%;
-            transform: translateY(-50%);
-            z-index: 1;
-            width: min(56%, 300px);
-            pointer-events: none;
-            background: rgba(255, 255, 255, 0.97);
-            border: 1px solid rgba(255, 255, 255, 0.35);
-            border-radius: 10px;
-            padding: 0.85rem 0.9rem 0.95rem;
-            box-shadow:
-                0 28px 56px rgba(0, 0, 0, 0.35),
-                0 0 0 1px rgba(154, 108, 172, 0.12);
-            color: #2a1f33;
-        }
-
-        .eki-gradebook__head {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            gap: 0.5rem;
-            margin-bottom: 0.65rem;
-            padding-bottom: 0.55rem;
-            border-bottom: 1px solid rgba(122, 78, 142, 0.16);
-        }
-
-        .eki-gradebook__course {
-            font-size: 0.68rem;
-            font-weight: 700;
-            letter-spacing: 0.02em;
-            color: #3d2750;
-        }
-
-        .eki-gradebook__stat {
-            font-size: 0.62rem;
-            font-weight: 600;
-            color: #7a4e8e;
-            white-space: nowrap;
-        }
-
-        .eki-gradebook__table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.72rem;
-        }
-
-        .eki-gradebook__table th {
-            text-align: left;
-            font-size: 0.58rem;
-            font-weight: 700;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: #7a6884;
-            padding: 0 0.2rem 0.4rem;
-        }
-
-        .eki-gradebook__table td {
-            padding: 0.38rem 0.2rem;
-            border-top: 1px solid rgba(122, 78, 142, 0.1);
-            color: #3d3148;
-        }
-
-        .eki-gradebook__score {
-            font-weight: 700;
-            color: #5f3a6e;
-            text-align: right;
-        }
-
-        .eki-gradebook__wait {
-            text-align: right;
-            color: #a090b0;
-            font-weight: 600;
-        }
-
-        .eki-gradebook__bars {
-            display: grid;
-            gap: 0.35rem;
-            margin-top: 0.75rem;
-            padding-top: 0.65rem;
-            border-top: 1px solid rgba(122, 78, 142, 0.12);
-        }
-
-        .eki-gradebook__bar {
-            height: 5px;
-            border-radius: 2px;
-            background: rgba(122, 78, 142, 0.12);
-            overflow: hidden;
-        }
-
-        .eki-gradebook__bar i {
-            display: block;
-            height: 100%;
-            border-radius: 2px;
-            background: linear-gradient(90deg, #7a4e8e, #9a6cac);
+            background-image: var(--eki-hero-docente);
+            background-position: center 40%;
+            opacity: 0.92;
+            animation: eki-ken 22s var(--ease) both;
+            inset: -5% -8%;
         }
 
         .eki-login-visual--docente {
@@ -880,8 +783,8 @@
 
         .eki-login-visual--docente .eki-login-visual__shade {
             background:
-                linear-gradient(105deg, rgba(26, 18, 36, 0.92) 0%, rgba(26, 18, 36, 0.45) 48%, rgba(26, 18, 36, 0.15) 100%),
-                linear-gradient(0deg, rgba(26, 18, 36, 0.9) 0%, transparent 50%);
+                linear-gradient(105deg, rgba(26, 18, 36, 0.9) 0%, rgba(26, 18, 36, 0.45) 48%, rgba(26, 18, 36, 0.12) 100%),
+                linear-gradient(0deg, rgba(26, 18, 36, 0.88) 0%, transparent 50%);
         }
 
         .eki-login-visual--docente .eki-login-visual__logo,
@@ -1092,14 +995,6 @@
             .eki-login-visual--docente {
                 min-height: 44vh;
             }
-            .eki-gradebook {
-                width: min(52%, 220px);
-                right: 0.65rem;
-                top: 38%;
-                padding: 0.65rem 0.7rem;
-            }
-            .eki-gradebook__table { font-size: 0.65rem; }
-            .eki-gradebook__bars { display: none; }
             .eki-login-form {
                 border-left: 0;
                 border-top: 1px solid var(--eki-border);

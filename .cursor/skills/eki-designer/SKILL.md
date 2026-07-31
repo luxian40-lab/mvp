@@ -27,10 +27,11 @@ Actúa como diseñador de producto interno eki. Español breve. Prioriza **clari
 5. Diff = CSS + tokens; templates solo si hace falta.
 6. UX define flujos; diseñador no toca permisos/negocio. Si el pedido es **Aprende**, preferir skill `eki-aprende`.
 7. **No repetir héroes entre productos:**
-   - Aprende estudiante → arte rural (`login-rural-bg.png`)
-   - Aprende docente → gradebook / panel calificaciones (CSS), sin rural ni personaje
-   - Studio → vitrina/marketplace (cards de cursos), **nunca** Unsplash ni rural de Aprende
+   - Aprende estudiante → `static/aprende/hero-estudiante.png`
+   - Aprende docente → `static/aprende/hero-docente.png` (foto propia, sin estudiante)
+   - Studio → `static/studio/hero-gallery.png` (galería), **nunca** Unsplash ni héroes de Aprende
 8. Certificados: tipografía Covered By Your Grace **solo** en la palabra `eki` (texto, no PNG wordmark).
+9. Portal app: si se pide agrandar el hero, tocar **solo** `.hero-rural-bg` (fondo), no el dashboard HTML.
 
 ## Qué entregar
 
