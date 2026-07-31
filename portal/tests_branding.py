@@ -119,14 +119,11 @@ class FaviconSurfacesTests(SimpleTestCase):
         self.assertTrue((root / 'portal-32.png').is_file())
         self.assertTrue((root / 'aprende.png').is_file())
         self.assertTrue((root / 'aprende-32.png').is_file())
-        # Admin / studio siguen en SVG con colores distintos.
-        import re
-        colors = {}
-        for name in ('admin', 'studio'):
-            svg = (root / f'{name}.svg').read_text(encoding='utf-8')
-            m = re.search(r'fill="(#[0-9a-fA-F]{6})"', svg)
-            self.assertIsNotNone(m, name)
-            colors[name] = m.group(1).lower()
-        self.assertEqual(colors['admin'], '#0f172a')
-        self.assertEqual(colors['studio'], '#c2410c')
-        self.assertNotEqual(colors['admin'], colors['studio'])
+        # Admin / studio: iconos PNG de marca (distintos entre sí).
+        self.assertTrue((root / 'admin.png').is_file())
+        self.assertTrue((root / 'admin-32.png').is_file())
+        self.assertTrue((root / 'studio.png').is_file())
+        self.assertTrue((root / 'studio-32.png').is_file())
+        admin_bytes = (root / 'admin-32.png').read_bytes()
+        studio_bytes = (root / 'studio-32.png').read_bytes()
+        self.assertNotEqual(admin_bytes, studio_bytes)

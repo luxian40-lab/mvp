@@ -35,7 +35,9 @@ Marca eki: `#9A6CAC` / `#7A4E8E`. Tipografía: **Covered By Your Grace** (`eki`)
 Héroes (no reutilizar entre productos):
 - Estudiante → `static/aprende/hero-estudiante.png` (escritorio + laptop/móvil)
 - Docente → `static/aprende/hero-docente.png` (escritorio maestro), **sin** foto de estudiante
+- Landing pública → `static/aprende/hero-aula.png` (aula grupal; no escritorio solitario)
 - Studio → `static/studio/hero-gallery.png` (galería creativa); **nunca** Unsplash ni héroes de Aprende
+- Preview WhatsApp `*aula*` → `static/aprende/og-aprende-v2.png` (1200×630, URL versionada)
 
 ## Dominio LMS (inspiración, no clonar)
 

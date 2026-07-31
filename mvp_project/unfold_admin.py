@@ -29,10 +29,35 @@ UNFOLD = {
     "SHOW_HISTORY": True,
     "SHOW_VIEW_ON_SITE": False,
     "SHOW_BACK_BUTTON": True,
-    "THEME": "light",
+    # Sin THEME forzado → switcher light/dark/auto (sidebar usuario + barra superior vía userlinks override).
+    # Paletas/COLORS = branding eki en código; no hay skins Jazzmin.
     "BORDER_RADIUS": "12px",
     "ENVIRONMENT": "mvp_project.unfold_admin.environment_callback",
-    # Personalización nativa Unfold (dropdown marca / atajos).
+    "SITE_FAVICONS": [
+        {
+            "rel": "icon",
+            "sizes": "32x32",
+            "type": "image/png",
+            "href": lambda request: static("favicons/admin-32.png"),
+        },
+        {
+            "rel": "icon",
+            "sizes": "48x48",
+            "type": "image/png",
+            "href": lambda request: static("favicons/admin-48.png"),
+        },
+        {
+            "rel": "icon",
+            "type": "image/png",
+            "href": lambda request: static("favicons/admin.png"),
+        },
+        {
+            "rel": "apple-touch-icon",
+            "sizes": "180x180",
+            "href": lambda request: static("favicons/admin-180.png"),
+        },
+    ],
+    # Dropdown marca (esquina superior): atajos ops. Apariencia light/dark/auto = switcher nativo Unfold.
     "SITE_DROPDOWN": [
         {
             "icon": "dashboard",
@@ -55,6 +80,18 @@ UNFOLD = {
             "link": reverse_lazy("admin:core_campana_changelist"),
         },
         {
+            "icon": "storefront",
+            "title": _("Studio (vitrina)"),
+            "link": "https://studio.eki.technology/studio/",
+            "attrs": {"target": "_blank"},
+        },
+        {
+            "icon": "menu_book",
+            "title": _("Aprende (aula)"),
+            "link": "https://aprende.eki.technology/aprende/",
+            "attrs": {"target": "_blank"},
+        },
+        {
             "icon": "help",
             "title": _("Manual"),
             "link": "/admin/instrucciones/",
@@ -62,18 +99,19 @@ UNFOLD = {
     ],
     "STYLES": [_eki_admin_styles],
     "COLORS": {
+        # base un poco más gris → las cajas blancas se leen (antes casi se fundían).
         "base": {
-            "50": "#faf9fb",
-            "100": "#f4f2f7",
-            "200": "#e8e4ef",
-            "300": "#d4cde0",
-            "400": "#a89bb8",
-            "500": "#7a6d88",
-            "600": "#5a4f68",
-            "700": "#3f3649",
-            "800": "#2a1f33",
-            "900": "#1e1b24",
-            "950": "#120e18",
+            "50": "#f0eef3",
+            "100": "#e8e4ef",
+            "200": "#d9d3e3",
+            "300": "#c4bbd0",
+            "400": "#9a8eaa",
+            "500": "#6f647c",
+            "600": "#52485c",
+            "700": "#3a3344",
+            "800": "#2a2433",
+            "900": "#1c1822",
+            "950": "#110e16",
         },
         "primary": {
             "50": "#f8f4fa",

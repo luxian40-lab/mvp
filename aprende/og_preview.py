@@ -25,8 +25,11 @@ def es_crawler_vista_previa(request) -> bool:
 
 
 def url_og_image_aprende(request=None) -> str:
-    """URL absoluta HTTPS de la imagen OG (1200×630) para WhatsApp."""
-    path = staticfiles_storage.url('aprende/og-aprende.png')
+    """URL absoluta HTTPS de la imagen OG (1200×630) para WhatsApp.
+
+    Nombre versionado (v2) para forzar re-fetch cuando WhatsApp cachea la preview.
+    """
+    path = staticfiles_storage.url('aprende/og-aprende-v2.png')
     if path.startswith('http'):
         return path
     return absolute_path('aprende', path, request=request)

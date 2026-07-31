@@ -83,7 +83,7 @@ class AprendeWebTests(TestCase):
         self.assertContains(r, 'name="codigo"')
         self.assertContains(r, '*aula*')
         self.assertContains(r, 'og:image')
-        self.assertContains(r, 'og-aprende')
+        self.assertContains(r, 'og-aprende-v2')
 
     def test_handoff_crawler_whatsapp_no_consume_token(self):
         from studio.aprende_bridge import crear_token_handoff

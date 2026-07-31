@@ -29,9 +29,12 @@ Actúa como diseñador de producto interno eki. Español breve. Prioriza **clari
 7. **No repetir héroes entre productos:**
    - Aprende estudiante → `static/aprende/hero-estudiante.png`
    - Aprende docente → `static/aprende/hero-docente.png` (foto propia, sin estudiante)
+   - Aprende landing → `static/aprende/hero-aula.png` (aula grupal)
    - Studio → `static/studio/hero-gallery.png` (galería), **nunca** Unsplash ni héroes de Aprende
 8. Certificados: tipografía Covered By Your Grace **solo** en la palabra `eki` (texto, no PNG wordmark).
 9. Portal app: si se pide agrandar el hero, tocar **solo** `.hero-rural-bg` (fondo), no el dashboard HTML.
+10. Favicons: Studio = icono verde marca; Admin (`eki.technology`) = icono morado marca.
+11. OG WhatsApp `*aula*`: `og-aprende-v2.png` nítido 1200×630; versionar URL para romper caché de WA.
 
 ## Qué entregar
 
