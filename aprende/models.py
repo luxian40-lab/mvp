@@ -183,3 +183,22 @@ class IntentoQuizModulo(models.Model):
 
     def __str__(self):
         return f'{self.estudiante_id} · módulo {self.modulo_id} · {self.correctas}/{self.total}'
+
+
+class CodigoAccesoAprende(models.Model):
+    """OTP de 6 dígitos emitido tras *aula* (compartido entre workers; no LocMem)."""
+
+    codigo = models.CharField(max_length=6, unique=True, db_index=True)
+    estudiante = models.ForeignKey(
+        Estudiante,
+        on_delete=models.CASCADE,
+        related_name='codigos_acceso_aprende',
+    )
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Código acceso Aprende'
+        verbose_name_plural = 'Códigos acceso Aprende'
+
+    def __str__(self):
+        return f'{self.codigo} → est={self.estudiante_id}'

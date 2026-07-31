@@ -61,7 +61,8 @@ class AprendeWebTests(TestCase):
         m = re.search(r'\*(\d{6})\*', msg)
         self.assertIsNotNone(m, msg=msg)
         codigo = m.group(1)
-        self.assertEqual(cache.get(f'aprende_wa_acceso:v1:{codigo}'), self.est.pk)
+        from aprende.models import CodigoAccesoAprende
+        self.assertTrue(CodigoAccesoAprende.objects.filter(codigo=codigo, estudiante=self.est).exists())
         r2 = self.http.post('/aprende/estudiante/login/', {'codigo': codigo})
         self.assertEqual(r2.status_code, 302)
         return r2
@@ -87,6 +88,17 @@ class AprendeWebTests(TestCase):
         r3 = self.http.get(f'/aprende/estudiante/modulo/{self.modulo.id}/')
         self.assertEqual(r3.status_code, 200)
         self.assertContains(r3, 'Hola desde la web')
+
+    def test_estudiante_home_continuar_y_puente_wa(self):
+        self._login_estudiante()
+        r = self.http.get('/aprende/estudiante/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Continuar')
+        self.assertContains(r, 'Seguir módulo')
+        self.assertContains(r, 'WhatsApp + Aprende')
+        self.assertContains(r, '*aula*')
+        self.assertContains(r, 'is-active')
+        self.assertContains(r, self.curso.nombre)
 
     def test_quiz_web_modulo_practica(self):
         from core.models import PreguntaModulo
