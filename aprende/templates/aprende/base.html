@@ -5,6 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}eki aprende{% endblock %}</title>
     {% load static %}
+    <meta name="description" content="{% block meta_description %}Tu aula cerca del territorio. Entra con WhatsApp (*aula*) o tu código.{% endblock %}">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="eki aprende">
+    <meta property="og:title" content="{% block og_title %}eki aprende{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Tu aula cerca del territorio. Entra con WhatsApp (*aula*) o tu código.{% endblock %}">
+    <meta property="og:url" content="{{ aprende_og_url|default:request.build_absolute_uri }}">
+    {% if aprende_og_image %}
+    <meta property="og:image" content="{{ aprende_og_image }}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="{{ aprende_og_image }}">
+    {% endif %}
+    <link rel="icon" href="{% static 'favicons/aprende.svg' %}" type="image/svg+xml">
+    <link rel="icon" href="{% static 'favicons/aprende-48.png' %}" type="image/png" sizes="48x48">
     <link rel="icon" href="{% static 'favicons/aprende-32.png' %}" type="image/png" sizes="32x32">
     <link rel="icon" href="{% static 'favicons/aprende.png' %}" type="image/png" sizes="any">
     <link rel="apple-touch-icon" href="{% static 'favicons/aprende-180.png' %}">
@@ -745,9 +761,46 @@
             animation: eki-ken 22s var(--ease) both;
         }
 
-        .eki-login-visual__media--estudiante,
-        .eki-login-visual__media--docente {
+        .eki-login-visual__media--estudiante {
             background-image: var(--eki-hero-art);
+        }
+
+        .eki-login-visual__media--docente {
+            /* Fondo distinto al estudiante: bruma púrpura, no paisaje rural */
+            background-image:
+                radial-gradient(ellipse 70% 55% at 70% 30%, rgba(154, 108, 172, 0.45), transparent 60%),
+                radial-gradient(ellipse 50% 40% at 20% 80%, rgba(122, 78, 142, 0.35), transparent 55%),
+                linear-gradient(160deg, #2a1a3a 0%, #1a1224 55%, #3d2750 100%);
+            opacity: 1;
+            animation: none;
+        }
+
+        .eki-login-visual__char {
+            position: absolute;
+            right: clamp(-8%, -2vw, 0);
+            bottom: 0;
+            z-index: 0;
+            height: min(82%, 560px);
+            width: auto;
+            max-width: 58%;
+            object-fit: contain;
+            object-position: bottom right;
+            pointer-events: none;
+            user-select: none;
+            filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.35));
+        }
+
+        .eki-login-visual--docente .eki-login-visual__shade {
+            background:
+                linear-gradient(105deg, rgba(26, 18, 36, 0.88) 0%, rgba(26, 18, 36, 0.45) 42%, rgba(26, 18, 36, 0.15) 100%),
+                linear-gradient(0deg, rgba(26, 18, 36, 0.75) 0%, transparent 50%);
+        }
+
+        .eki-login-visual--docente .eki-login-visual__logo,
+        .eki-login-visual--docente h2,
+        .eki-login-visual--docente > p,
+        .eki-login-visual--docente .eki-wa-pill {
+            z-index: 2;
         }
 
         .eki-login-visual__shade {
@@ -926,6 +979,14 @@
                 padding-bottom: 1.75rem;
             }
             .eki-login-visual h2 { max-width: none; font-size: 1.45rem; }
+            .eki-login-visual__char {
+                height: min(88%, 280px);
+                max-width: 46%;
+                opacity: 0.92;
+            }
+            .eki-login-visual--docente {
+                min-height: 38vh;
+            }
             .eki-login-form {
                 border-left: 0;
                 border-top: 1px solid var(--eki-border);

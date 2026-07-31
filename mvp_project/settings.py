@@ -103,6 +103,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'portal.context_processors.pqrs_pendientes',
                 'portal.context_processors.portal_organizacion',
+                'aprende.context_processors.aprende_social',
             ],
         },
     },

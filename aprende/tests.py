@@ -82,6 +82,23 @@ class AprendeWebTests(TestCase):
         self.assertContains(r, 'Código de WhatsApp')
         self.assertContains(r, 'name="codigo"')
         self.assertContains(r, '*aula*')
+        self.assertContains(r, 'og:image')
+        self.assertContains(r, 'og-aprende')
+
+    def test_handoff_crawler_whatsapp_no_consume_token(self):
+        from studio.aprende_bridge import crear_token_handoff
+        token = crear_token_handoff(estudiante_id=self.est.pk)
+        r = self.http.get(
+            f'/aprende/handoff/?t={token}',
+            HTTP_USER_AGENT='WhatsApp/2.0',
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'og:image')
+        self.assertContains(r, 'eki aprende')
+        # Token sigue válido: humano puede usarlo
+        r2 = self.http.get(f'/aprende/handoff/?t={token}')
+        self.assertEqual(r2.status_code, 302)
+        self.assertIn('/aprende/estudiante/', r2['Location'])
 
     def test_estudiante_login_y_ve_modulo(self):
         self._login_estudiante()

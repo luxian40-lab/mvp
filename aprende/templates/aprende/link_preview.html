@@ -1,0 +1,30 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ og_title }}</title>
+    <meta name="description" content="{{ og_description }}">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="eki aprende">
+    <meta property="og:title" content="{{ og_title }}">
+    <meta property="og:description" content="{{ og_description }}">
+    <meta property="og:url" content="{{ og_url }}">
+    <meta property="og:image" content="{{ og_image }}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ og_title }}">
+    <meta name="twitter:description" content="{{ og_description }}">
+    <meta name="twitter:image" content="{{ og_image }}">
+    <link rel="icon" href="{% static 'favicons/aprende.svg' %}" type="image/svg+xml">
+</head>
+<body style="margin:0;font-family:system-ui,sans-serif;background:#1a1224;color:#fff;min-height:100vh;display:grid;place-items:center;">
+    <main style="max-width:28rem;padding:2rem;text-align:center;">
+        <p style="font-size:2rem;margin:0 0 0.5rem;"><strong>eki</strong> aprende</p>
+        <p style="opacity:0.85;margin:0;">{{ og_description }}</p>
+    </main>
+</body>
+</html>

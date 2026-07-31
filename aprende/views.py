@@ -76,10 +76,23 @@ def inicio(request):
 
 
 def handoff_desde_studio(request):
-    """Recibe token firmado de Studio y abre sesión solo en Aprende."""
+    """Recibe token firmado de Studio/WhatsApp y abre sesión solo en Aprende.
+
+    Los crawlers de vista previa (WhatsApp, etc.) reciben HTML con Open Graph
+    y no consumen el token.
+    """
     from django.core import signing
 
+    from aprende.og_preview import es_crawler_vista_previa, url_og_image_aprende
     from studio.aprende_bridge import consumir_token_handoff
+
+    if es_crawler_vista_previa(request):
+        return render(request, 'aprende/link_preview.html', {
+            'og_title': 'eki aprende',
+            'og_description': 'Tu aula cerca del territorio. Entra con el enlace o el código de WhatsApp.',
+            'og_image': url_og_image_aprende(request),
+            'og_url': request.build_absolute_uri('/aprende/'),
+        })
 
     token = (request.GET.get('t') or '').strip()
     if not token:
