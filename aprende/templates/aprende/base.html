@@ -765,42 +765,147 @@
             background-image: var(--eki-hero-art);
         }
 
+        /* Docente: panel gradebook (LMS), sin rural ni personaje de estudiante */
         .eki-login-visual__media--docente {
-            /* Fondo distinto al estudiante: bruma púrpura, no paisaje rural */
             background-image:
-                radial-gradient(ellipse 70% 55% at 70% 30%, rgba(154, 108, 172, 0.45), transparent 60%),
-                radial-gradient(ellipse 50% 40% at 20% 80%, rgba(122, 78, 142, 0.35), transparent 55%),
-                linear-gradient(160deg, #2a1a3a 0%, #1a1224 55%, #3d2750 100%);
+                radial-gradient(ellipse 70% 55% at 90% 10%, rgba(154, 108, 172, 0.28), transparent 55%),
+                linear-gradient(160deg, #2a1a38 0%, #3d2750 48%, #1a1224 100%);
             opacity: 1;
             animation: none;
+            inset: 0;
         }
 
-        .eki-login-visual__char {
+        .eki-gradebook {
             position: absolute;
-            right: clamp(-8%, -2vw, 0);
-            bottom: 0;
-            z-index: 0;
-            height: min(82%, 560px);
-            width: auto;
-            max-width: 58%;
-            object-fit: contain;
-            object-position: bottom right;
+            right: clamp(1rem, 3.5vw, 2.25rem);
+            top: 42%;
+            transform: translateY(-50%);
+            z-index: 1;
+            width: min(56%, 300px);
             pointer-events: none;
-            user-select: none;
-            filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.35));
+            background: rgba(255, 255, 255, 0.97);
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            border-radius: 10px;
+            padding: 0.85rem 0.9rem 0.95rem;
+            box-shadow:
+                0 28px 56px rgba(0, 0, 0, 0.35),
+                0 0 0 1px rgba(154, 108, 172, 0.12);
+            color: #2a1f33;
+        }
+
+        .eki-gradebook__head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 0.5rem;
+            margin-bottom: 0.65rem;
+            padding-bottom: 0.55rem;
+            border-bottom: 1px solid rgba(122, 78, 142, 0.16);
+        }
+
+        .eki-gradebook__course {
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: #3d2750;
+        }
+
+        .eki-gradebook__stat {
+            font-size: 0.62rem;
+            font-weight: 600;
+            color: #7a4e8e;
+            white-space: nowrap;
+        }
+
+        .eki-gradebook__table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.72rem;
+        }
+
+        .eki-gradebook__table th {
+            text-align: left;
+            font-size: 0.58rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #7a6884;
+            padding: 0 0.2rem 0.4rem;
+        }
+
+        .eki-gradebook__table td {
+            padding: 0.38rem 0.2rem;
+            border-top: 1px solid rgba(122, 78, 142, 0.1);
+            color: #3d3148;
+        }
+
+        .eki-gradebook__score {
+            font-weight: 700;
+            color: #5f3a6e;
+            text-align: right;
+        }
+
+        .eki-gradebook__wait {
+            text-align: right;
+            color: #a090b0;
+            font-weight: 600;
+        }
+
+        .eki-gradebook__bars {
+            display: grid;
+            gap: 0.35rem;
+            margin-top: 0.75rem;
+            padding-top: 0.65rem;
+            border-top: 1px solid rgba(122, 78, 142, 0.12);
+        }
+
+        .eki-gradebook__bar {
+            height: 5px;
+            border-radius: 2px;
+            background: rgba(122, 78, 142, 0.12);
+            overflow: hidden;
+        }
+
+        .eki-gradebook__bar i {
+            display: block;
+            height: 100%;
+            border-radius: 2px;
+            background: linear-gradient(90deg, #7a4e8e, #9a6cac);
+        }
+
+        .eki-login-visual--docente {
+            color: #fff;
+            justify-content: flex-end;
         }
 
         .eki-login-visual--docente .eki-login-visual__shade {
             background:
-                linear-gradient(105deg, rgba(26, 18, 36, 0.88) 0%, rgba(26, 18, 36, 0.45) 42%, rgba(26, 18, 36, 0.15) 100%),
-                linear-gradient(0deg, rgba(26, 18, 36, 0.75) 0%, transparent 50%);
+                linear-gradient(105deg, rgba(26, 18, 36, 0.92) 0%, rgba(26, 18, 36, 0.45) 48%, rgba(26, 18, 36, 0.15) 100%),
+                linear-gradient(0deg, rgba(26, 18, 36, 0.9) 0%, transparent 50%);
         }
 
         .eki-login-visual--docente .eki-login-visual__logo,
         .eki-login-visual--docente h2,
-        .eki-login-visual--docente > p,
-        .eki-login-visual--docente .eki-wa-pill {
+        .eki-login-visual--docente > p {
+            position: relative;
             z-index: 2;
+            color: #fff;
+        }
+
+        .eki-login-visual--docente .eki-login-visual__logo .eki-logo {
+            color: #fff;
+        }
+
+        .eki-login-visual--docente .eki-login-visual__logo em {
+            color: #cbb8d8;
+        }
+
+        .eki-login-visual--docente > p {
+            color: rgba(255, 255, 255, 0.78);
+        }
+
+        .eki-login-visual--docente .eki-login-visual__logo {
+            margin-bottom: auto;
         }
 
         .eki-login-visual__shade {
@@ -985,8 +1090,16 @@
                 opacity: 0.92;
             }
             .eki-login-visual--docente {
-                min-height: 38vh;
+                min-height: 44vh;
             }
+            .eki-gradebook {
+                width: min(52%, 220px);
+                right: 0.65rem;
+                top: 38%;
+                padding: 0.65rem 0.7rem;
+            }
+            .eki-gradebook__table { font-size: 0.65rem; }
+            .eki-gradebook__bars { display: none; }
             .eki-login-form {
                 border-left: 0;
                 border-top: 1px solid var(--eki-border);

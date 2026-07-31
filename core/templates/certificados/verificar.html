@@ -11,7 +11,7 @@
   <link rel="apple-touch-icon" href="{% static 'favicons/certificados-180.png' %}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,600;7..72,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Covered+By+Your+Grace&family=Expletus+Sans:wght@400;500;600;700&family=Literata:opsz,wght@7..72,500;7..72,600;7..72,700&display=swap" rel="stylesheet">
   <style>
     :root {
       --purple: #9A6CAC;
@@ -30,12 +30,16 @@
       --bad-soft: rgba(201, 42, 42, 0.1);
       --muted: #7a6884;
       --on-dark: #FAFAFC;
-      --on-dark-muted: #C4ACCE;    }
+      --on-dark-muted: #C4ACCE;
+      --font-brand: "Covered By Your Grace", cursive;
+      --font-ui: "Expletus Sans", system-ui, sans-serif;
+      --font-read: Literata, Georgia, serif;
+    }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       min-height: 100vh;
-      font-family: Manrope, system-ui, sans-serif;
+      font-family: var(--font-ui);
       color: var(--on-dark);
       background:
         radial-gradient(ellipse 90% 60% at 50% -10%, rgba(154, 108, 172, 0.35), transparent 55%),
@@ -64,15 +68,19 @@
     }
     .brand {
       margin: 0;
-      line-height: 0;
+      line-height: 1;
       display: inline-flex;
-      align-items: center;
+      align-items: baseline;
     }
-    .brand img {
-      display: block;
-      height: clamp(2.75rem, 10vw, 3.4rem);
-      width: auto;
-      filter: drop-shadow(0 4px 14px rgba(32, 19, 37, 0.4));
+    .brand .eki-logo {
+      font-family: var(--font-brand);
+      font-weight: 400;
+      font-size: clamp(2.6rem, 9vw, 3.35rem);
+      letter-spacing: 0.02em;
+      color: #fff;
+      text-transform: lowercase;
+      line-height: 0.9;
+      text-shadow: 0 4px 14px rgba(32, 19, 37, 0.4);
     }
     .mast-label {
       font-size: 0.7rem;
@@ -81,6 +89,7 @@
       text-transform: uppercase;
       color: var(--on-dark-muted);
       padding-bottom: 0.45rem;
+      font-family: var(--font-ui);
     }
     .card {
       position: relative;
@@ -139,7 +148,7 @@
     }
     .status svg { width: 14px; height: 14px; flex-shrink: 0; }
     h1 {
-      font-family: Literata, Georgia, serif;
+      font-family: var(--font-read);
       font-size: clamp(1.55rem, 5vw, 1.9rem);
       font-weight: 600;
       margin: 0 0 0.5rem;
@@ -263,15 +272,7 @@
 <body>
   <div class="stage">
     <header class="mast">
-      <p class="brand">
-        <img
-          src="{% static 'certificados/eki-wordmark-2x.png' %}"
-          alt="eki"
-          width="216"
-          height="128"
-          decoding="async"
-        >
-      </p>
+      <p class="brand"><span class="eki-logo">eki</span></p>
       <span class="mast-label">Certificados</span>
     </header>
 
@@ -317,10 +318,10 @@
             <dd>{{ fecha_completado }}</dd>
           </div>
           {% endif %}
-          {% if horas_estimadas %}
+          {% if duracion_semanas %}
           <div>
-            <dt>Horas est.</dt>
-            <dd>{{ horas_estimadas }} h{% if duracion_semanas %} ({{ duracion_semanas }} sem.){% endif %}</dd>
+            <dt>Duración</dt>
+            <dd>{{ duracion_semanas }} semana{{ duracion_semanas|pluralize:"s" }}</dd>
           </div>
           {% endif %}
           <div>

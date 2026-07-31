@@ -8,7 +8,7 @@
     <link rel="icon" href="{% static 'favicons/studio.svg' %}" type="image/svg+xml" sizes="any">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Covered+By+Your+Grace&family=Expletus+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
     <style>
         :root {
             --st-ink: #1f1528;
@@ -27,9 +27,9 @@
             --st-err-bg: #fef2f2;
             --st-radius: 8px;
             --header-h: 64px;
-            --font-brand: "Montserrat", Arial, sans-serif; /* solo la palabra eki */
-            --font-display: "Bricolage Grotesque", Georgia, serif;
-            --font-sans: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
+            --font-brand: "Covered By Your Grace", cursive; /* solo la palabra eki */
+            --font-display: "Expletus Sans", "Segoe UI", sans-serif;
+            --font-sans: "Expletus Sans", "Segoe UI", system-ui, sans-serif;
             --ease: cubic-bezier(0.22, 1, 0.36, 1);
         }
 
@@ -106,22 +106,24 @@
         .st-brand-word {
             font-family: var(--font-display);
             font-size: 1.55rem;
-            font-weight: 800;
-            letter-spacing: -0.04em;
+            font-weight: 600;
+            letter-spacing: -0.02em;
             text-transform: lowercase;
             display: inline-flex;
             align-items: baseline;
-            gap: 0.35rem;
+            gap: 0.4rem;
         }
 
         .st-brand-word .eki-logo,
         .st-brand-hero .eki-logo,
         .st-login-visual__logo .eki-logo {
             font-family: var(--font-brand);
-            font-weight: 900;
-            letter-spacing: -0.06em;
+            font-weight: 400;
+            letter-spacing: 0.02em;
             text-transform: lowercase;
             color: var(--st-accent-deep);
+            font-size: 1.35em;
+            line-height: 0.85;
         }
 
         .st-brand-hero .eki-logo { color: #fff; }
@@ -252,15 +254,16 @@
             padding-right: 1.35rem;
         }
 
-        /* —— Full-bleed hero —— */
+        /* —— Hero vitrina (marketplace) — sin foto Unsplash ni arte rural de Aprende —— */
         .st-hero-bleed {
             position: relative;
-            min-height: min(92vh, 720px);
+            min-height: min(88vh, 700px);
             display: flex;
             align-items: flex-end;
             color: #fff;
             overflow: hidden;
             isolation: isolate;
+            background: #160f1f;
         }
 
         .st-hero-bleed__media {
@@ -268,9 +271,21 @@
             inset: 0;
             z-index: -2;
             background:
-                url("https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1800&q=80")
-                center / cover no-repeat;
-            animation: st-ken 18s var(--ease) both;
+                radial-gradient(ellipse 50% 45% at 82% 28%, rgba(154, 108, 172, 0.5), transparent 60%),
+                radial-gradient(ellipse 35% 30% at 8% 75%, rgba(122, 78, 142, 0.32), transparent 55%),
+                linear-gradient(148deg, #1e1428 0%, #3a264c 40%, #160f1f 100%);
+        }
+
+        .st-hero-bleed__media::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            opacity: 0.35;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+            background-size: 48px 48px;
+            mask-image: radial-gradient(ellipse 70% 60% at 75% 35%, #000 20%, transparent 75%);
         }
 
         .st-hero-bleed__shade {
@@ -278,11 +293,98 @@
             inset: 0;
             z-index: -1;
             background:
-                linear-gradient(105deg, rgba(42, 18, 64, 0.82) 0%, rgba(61, 39, 80, 0.55) 48%, rgba(154, 108, 172, 0.38) 100%),
-                linear-gradient(0deg, rgba(42, 18, 64, 0.72) 0%, transparent 45%);
+                linear-gradient(105deg, rgba(22, 15, 31, 0.94) 0%, rgba(22, 15, 31, 0.5) 46%, rgba(22, 15, 31, 0.12) 100%),
+                linear-gradient(0deg, rgba(22, 15, 31, 0.92) 0%, transparent 52%);
+        }
+
+        /* Estantería de cursos (CSS/HTML) — identidad Studio */
+        .st-vitrina {
+            position: absolute;
+            right: clamp(1rem, 6vw, 5rem);
+            top: 50%;
+            transform: translateY(-52%);
+            width: min(42vw, 380px);
+            height: min(58vh, 420px);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .st-vitrina__card {
+            position: absolute;
+            width: 72%;
+            padding: 1rem 1.1rem 1.15rem;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 22px 44px rgba(0, 0, 0, 0.32);
+            color: #fff;
+            display: grid;
+            gap: 0.35rem;
+            animation: st-float 7s var(--ease) infinite alternate;
+        }
+
+        .st-vitrina__card strong {
+            font-family: var(--font-display);
+            font-size: 1.05rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            line-height: 1.25;
+        }
+
+        .st-vitrina__card em {
+            font-style: normal;
+            font-size: 0.78rem;
+            color: rgba(255, 255, 255, 0.65);
+        }
+
+        .st-vitrina__tag {
+            display: inline-block;
+            width: fit-content;
+            font-size: 0.62rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #e8d8f0;
+            opacity: 0.9;
+        }
+
+        .st-vitrina__tag--paid { color: #f0d78a; }
+
+        .st-vitrina__card--a {
+            right: 0;
+            top: 8%;
+            transform: rotate(5deg);
+            background: linear-gradient(145deg, rgba(154, 108, 172, 0.45), rgba(61, 39, 80, 0.75));
+            animation-delay: 0s;
+        }
+
+        .st-vitrina__card--b {
+            left: 0;
+            top: 34%;
+            width: 78%;
+            transform: rotate(-7deg);
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(42, 26, 56, 0.85));
+            animation-delay: 0.8s;
+        }
+
+        .st-vitrina__card--c {
+            right: 6%;
+            bottom: 4%;
+            width: 70%;
+            transform: rotate(3deg);
+            background: linear-gradient(145deg, rgba(122, 78, 142, 0.5), rgba(26, 18, 36, 0.8));
+            animation-delay: 1.4s;
+        }
+
+        @keyframes st-float {
+            from { translate: 0 0; }
+            to { translate: 0 -10px; }
         }
 
         .st-hero-bleed__inner {
+            position: relative;
+            z-index: 1;
             width: 100%;
             max-width: 1100px;
             margin: 0 auto;
@@ -292,36 +394,46 @@
 
         .st-hero-bleed .st-brand-hero {
             font-family: var(--font-display);
-            font-size: clamp(3.2rem, 10vw, 6.5rem);
-            font-weight: 800;
-            letter-spacing: -0.05em;
+            font-size: clamp(2.8rem, 8vw, 5.2rem);
+            font-weight: 600;
+            letter-spacing: -0.03em;
             display: flex;
             flex-wrap: wrap;
             align-items: baseline;
-            gap: 0.2em 0.28em;
-            line-height: 0.92;
+            gap: 0.15em 0.32em;
             margin: 0 0 1rem;
+            line-height: 0.95;
             text-transform: lowercase;
         }
 
-        .st-hero-bleed .st-brand-hero span { color: #9a6cac; }
+        .st-hero-bleed .st-brand-hero .eki-logo {
+            font-size: 1.15em;
+            color: #fff;
+        }
+
+        .st-hero-bleed .st-brand-hero span {
+            font-family: var(--font-display);
+            font-weight: 500;
+            color: #cbb8d8;
+        }
 
         .st-hero-bleed h1 {
             font-family: var(--font-display);
-            font-size: clamp(1.35rem, 3.2vw, 1.85rem);
-            font-weight: 600;
-            letter-spacing: -0.02em;
-            line-height: 1.25;
+            font-size: clamp(1.2rem, 2.6vw, 1.55rem);
+            font-weight: 500;
+            letter-spacing: -0.01em;
+            line-height: 1.35;
             margin: 0 0 0.75rem;
-            max-width: 22ch;
+            max-width: 28ch;
             color: #fff;
         }
 
         .st-hero-bleed .st-lead {
-            color: rgba(255, 255, 255, 0.82);
-            max-width: 38ch;
+            color: rgba(255, 255, 255, 0.78);
+            max-width: 42ch;
             margin: 0 0 1.5rem;
-            font-size: 1.05rem;
+            font-size: 1rem;
+            font-weight: 400;
         }
 
         .st-page-intro {
@@ -604,37 +716,70 @@
             padding: clamp(2rem, 5vw, 3.5rem);
             color: #fff;
             background:
-                radial-gradient(ellipse 85% 65% at 15% 15%, rgba(154, 108, 172, 0.4), transparent 55%),
-                radial-gradient(ellipse 55% 45% at 95% 85%, rgba(95, 58, 112, 0.5), transparent 50%),
-                linear-gradient(145deg, #2a1f33 0%, #5f3a70 52%, #1a1520 100%);
+                radial-gradient(ellipse 70% 55% at 85% 20%, rgba(154, 108, 172, 0.35), transparent 55%),
+                linear-gradient(155deg, #1a1224 0%, #3d2750 55%, #241832 100%);
+        }
+
+        .st-login-visual::before {
+            content: "";
+            position: absolute;
+            right: 8%;
+            top: 16%;
+            width: min(170px, 38%);
+            height: min(210px, 42%);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            background: linear-gradient(145deg, rgba(154, 108, 172, 0.35), rgba(255, 255, 255, 0.08));
+            transform: rotate(6deg);
+            box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
+            pointer-events: none;
+        }
+
+        .st-login-visual::after {
+            content: "";
+            position: absolute;
+            right: 22%;
+            top: 36%;
+            width: min(140px, 32%);
+            height: min(170px, 34%);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.07);
+            transform: rotate(-8deg);
+            pointer-events: none;
         }
 
         .st-login-visual__logo {
             margin: 0 0 1.75rem;
             font-family: var(--font-display);
-            font-size: clamp(1.35rem, 2.8vw, 1.65rem);
-            font-weight: 800;
-            letter-spacing: -0.03em;
+            font-size: clamp(1.45rem, 2.8vw, 1.75rem);
+            font-weight: 600;
+            letter-spacing: -0.02em;
             text-transform: lowercase;
             line-height: 1;
+            position: relative;
+            z-index: 1;
         }
 
         .st-login-visual__logo .eki-logo { color: #fff; }
 
         .st-login-visual__logo em {
             font-style: normal;
+            font-weight: 500;
             color: #cbb8d8;
         }
 
         .st-login-visual h2 {
             font-family: var(--font-display);
-            font-size: clamp(1.5rem, 3.2vw, 2.05rem);
-            font-weight: 700;
-            letter-spacing: -0.03em;
+            font-size: clamp(1.45rem, 3vw, 1.95rem);
+            font-weight: 600;
+            letter-spacing: -0.02em;
             line-height: 1.2;
             color: #fff;
             margin: 0 0 0.75rem;
             max-width: 16ch;
+            position: relative;
+            z-index: 1;
         }
 
         .st-login-visual p {
@@ -643,6 +788,8 @@
             max-width: 34ch;
             font-size: 0.98rem;
             line-height: 1.55;
+            position: relative;
+            z-index: 1;
         }
 
         .st-login-form-col {
@@ -927,8 +1074,22 @@
             }
 
             .st-hero-bleed {
-                min-height: min(72dvh, 500px);
+                min-height: min(72dvh, 520px);
             }
+            .st-vitrina {
+                width: min(46vw, 180px);
+                height: 200px;
+                right: 0.5rem;
+                top: 36%;
+                opacity: 0.85;
+            }
+            .st-vitrina__card {
+                padding: 0.65rem 0.7rem;
+                animation: none;
+            }
+            .st-vitrina__card strong { font-size: 0.78rem; }
+            .st-vitrina__card em { font-size: 0.62rem; }
+            .st-vitrina__card--c { display: none; }
             .st-hero-bleed .st-brand-hero {
                 font-size: clamp(2.6rem, 15vw, 4rem);
                 word-break: break-word;

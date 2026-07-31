@@ -3,12 +3,29 @@
 {% block main_class %} st-main--flush{% endblock %}
 {% block content %}
 <section class="st-hero-bleed" aria-label="eki Studio">
-    <div class="st-hero-bleed__media" role="img" aria-label="Personas aprendiendo en equipo"></div>
-    <div class="st-hero-bleed__shade"></div>
+    <div class="st-hero-bleed__media" aria-hidden="true"></div>
+    <div class="st-hero-bleed__shade" aria-hidden="true"></div>
+    <div class="st-vitrina" aria-hidden="true">
+        <article class="st-vitrina__card st-vitrina__card--a">
+            <span class="st-vitrina__tag">Gratis</span>
+            <strong>Cuidado del agua</strong>
+            <em>8 lecciones · campo</em>
+        </article>
+        <article class="st-vitrina__card st-vitrina__card--b">
+            <span class="st-vitrina__tag st-vitrina__tag--paid">Wompi</span>
+            <strong>Emprendimiento rural</strong>
+            <em>12 lecciones · COP</em>
+        </article>
+        <article class="st-vitrina__card st-vitrina__card--c">
+            <span class="st-vitrina__tag">Destacado</span>
+            <strong>Salud comunitaria</strong>
+            <em>6 lecciones · certificado</em>
+        </article>
+    </div>
     <div class="st-hero-bleed__inner">
         <p class="st-brand-hero"><span class="eki-logo">eki</span> <span>studio</span></p>
-        <h1>Cursos para el territorio. Creadores con voz.</h1>
-        <p class="st-lead">Elige un curso aquí. Estudias en Aprende (aula). WhatsApp es otro canal — Studio es solo la vitrina.</p>
+        <h1>La vitrina de cursos para el territorio</h1>
+        <p class="st-lead">Elige o publica aquí. El aula es Aprende; WhatsApp es el canal de campo. Studio es catálogo y creadores.</p>
         <div class="st-hero-actions">
             <a href="{% url 'studio_catalogo' %}" class="st-btn st-btn--primary">Explorar cursos</a>
             <a href="{% url 'studio_creador' %}" class="st-btn st-btn--ghost">Publicar como creador</a>

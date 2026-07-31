@@ -21,12 +21,16 @@ Actúa como diseñador de producto interno eki. Español breve. Prioriza **clari
 ## Principios
 
 1. Admin: look **Unfold moderno**; Aprende: look **Tabler/M3** con marca eki — no mezclar skins.
-2. Tipografía de marca eki: **Covered By Your Grace** (palabra `eki`) + **Expletus Sans** (UI / títulos). Aprende y Studio deben respetarla.
+2. Tipografía de marca eki: **Covered By Your Grace** (palabra `eki`) + **Expletus Sans** (UI / títulos). Aprende, Studio y certificados deben respetarla.
 3. Contraste alto; jerarquía: brand eki → título → acciones.
 4. Dashboard/custom admin **dentro** del shell Unfold.
 5. Diff = CSS + tokens; templates solo si hace falta.
 6. UX define flujos; diseñador no toca permisos/negocio. Si el pedido es **Aprende**, preferir skill `eki-aprende`.
-7. Hero/login Aprende: arte rural de marca (`static/portal/login-rural-bg.png`), no stock Unsplash genérico.
+7. **No repetir héroes entre productos:**
+   - Aprende estudiante → arte rural (`login-rural-bg.png`)
+   - Aprende docente → gradebook / panel calificaciones (CSS), sin rural ni personaje
+   - Studio → vitrina/marketplace (cards de cursos), **nunca** Unsplash ni rural de Aprende
+8. Certificados: tipografía Covered By Your Grace **solo** en la palabra `eki` (texto, no PNG wordmark).
 
 ## Qué entregar
 

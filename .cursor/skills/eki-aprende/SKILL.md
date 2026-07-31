@@ -30,7 +30,12 @@ Canon: `docs/EKI_APRENDE_REFERENCES.md`.
 4. https://mobbin.com/  
 5. https://github.com/tabler/tabler  
 
-Marca eki: `#9A6CAC` / `#7A4E8E`. Tipografía: **Covered By Your Grace** (`eki`) + **Expletus Sans** (UI). Arte rural: `static/portal/login-rural-bg.png`. Móvil primero.
+Marca eki: `#9A6CAC` / `#7A4E8E`. Tipografía: **Covered By Your Grace** (`eki`) + **Expletus Sans** (UI).
+
+Héroes (no reutilizar entre productos):
+- Estudiante → arte rural `static/portal/login-rural-bg.png`
+- Docente → gradebook CSS (tabla calificaciones), **sin** rural ni personaje
+- Studio → vitrina marketplace propia; **nunca** Unsplash ni rural de Aprende
 
 ## Dominio LMS (inspiración, no clonar)
 
