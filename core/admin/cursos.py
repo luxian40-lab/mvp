@@ -1,8 +1,38 @@
 from core.admin._common import *  # noqa: F401,F403
+from core.orden_bloques import intercambiar_orden
 
 # ==========================================
 # SISTEMA EDUCATIVO - ADMINISTRACIÓN
 # ==========================================
+
+
+def _botones_mover_bloque(obj, kind: str):
+    """Enlaces ↑↓ nativos (Unfold): solo si el registro ya tiene PK."""
+    if not obj or not obj.pk or not getattr(obj, 'modulo_id', None):
+        return format_html(
+            '<span style="color:#94a3b8;font-size:12px;">Guarde para reordenar</span>'
+        )
+    up = reverse(
+        'admin:core_modulo_mover_bloque',
+        args=[obj.modulo_id, kind, obj.pk, 'up'],
+    )
+    down = reverse(
+        'admin:core_modulo_mover_bloque',
+        args=[obj.modulo_id, kind, obj.pk, 'down'],
+    )
+    return format_html(
+        '<span class="eki-orden-btns" style="display:inline-flex;gap:4px;align-items:center;">'
+        '<a class="button" href="{}" title="Subir" style="padding:2px 8px;min-width:2rem;text-align:center;">↑</a>'
+        '<a class="button" href="{}" title="Bajar" style="padding:2px 8px;min-width:2rem;text-align:center;">↓</a>'
+        '<span style="color:#6b6575;font-size:12px;margin-left:4px;">#{}</span>'
+        '</span>',
+        up,
+        down,
+        obj.orden,
+    )
+
+
+
 
 class ModuloInline(admin.TabularInline):
     """Módulos dentro del curso"""
@@ -287,8 +317,12 @@ class SeccionModuloInline(admin.TabularInline):
     verbose_name = 'Bloque'
     # Texto corto: Jazzmin usa esto en pestañas + ancla #slug-tab; títulos largos rompen el cambio de pestaña.
     verbose_name_plural = 'Secciones'
-    fields = ('orden', 'activa', 'titulo', 'resumen_pasos')
-    readonly_fields = ('resumen_pasos',)
+    fields = ('mover_orden', 'orden', 'activa', 'titulo', 'resumen_pasos')
+    readonly_fields = ('mover_orden', 'resumen_pasos')
+
+    @admin.display(description='Orden')
+    def mover_orden(self, obj):
+        return _botones_mover_bloque(obj, 'seccion')
 
     @admin.display(description='Pasos activos')
     def resumen_pasos(self, obj):
@@ -416,7 +450,10 @@ class PasoModuloInline(admin.StackedInline):
     verbose_name_plural = 'Microcontenidos'
     fieldsets = (
         (None, {
-            'fields': ('orden', 'seccion', 'activo', 'requiere_listo_para_avanzar', 'tipo'),
+            'fields': (
+                'mover_orden', 'orden', 'seccion', 'activo',
+                'requiere_listo_para_avanzar', 'tipo',
+            ),
         }),
         ('Texto y multimedia (WhatsApp)', {
             'fields': ('titulo', 'contenido', 'media_url', 'media_file_upload'),
@@ -441,11 +478,16 @@ class PasoModuloInline(admin.StackedInline):
             'classes': ('collapse',),
         }),
     )
+    readonly_fields = ('mover_orden',)
     formfield_overrides = {
         models.TextField: {
             'widget': forms.Textarea(attrs={'rows': 3, 'cols': 50, 'style': 'min-width:280px;'}),
         },
     }
+
+    @admin.display(description='Mover')
+    def mover_orden(self, obj):
+        return _botones_mover_bloque(obj, 'paso')
 
     def get_formset(self, request, obj=None, **kwargs):
         self._modulo_inline_parent = obj
@@ -470,11 +512,10 @@ class ArchivoModuloInline(admin.StackedInline):
     show_change_link = True
     verbose_name = 'Archivo'
     verbose_name_plural = 'Multimedia'
-    readonly_fields = ('preview_multimedia',)
-    
+
     fieldsets = (
         (None, {
-            'fields': ('tipo', 'titulo', 'descripcion'),
+            'fields': ('mover_orden', 'tipo', 'titulo', 'descripcion'),
             'description': (
                 '👉 Paso 1: Selecciona el TIPO de archivo (video, imagen, infografía, pdf, audio).<br>'
                 '💡 <b>TODOS los tipos se envían como adjunto por WhatsApp</b> — videos, imágenes, '
@@ -496,7 +537,12 @@ class ArchivoModuloInline(admin.StackedInline):
             'classes': ('collapse',)
         }),
     )
-    
+    readonly_fields = ('preview_multimedia', 'mover_orden')
+
+    @admin.display(description='Mover')
+    def mover_orden(self, obj):
+        return _botones_mover_bloque(obj, 'archivo')
+
     def preview_multimedia(self, obj):
         """Vista previa del archivo multimedia"""
         if not obj.archivo:
@@ -509,9 +555,9 @@ class ArchivoModuloInline(admin.StackedInline):
                     obj.url_externa, obj.url_externa
                 )
             return format_html('<span style="color:#999;font-style:italic;">⚠️ Sin archivo subido</span>')
-        
+
         url = obj.archivo.url
-        
+
         if obj.tipo == 'imagen':
             return format_html(
                 '<div style="text-align:center;background:#f9fafb;padding:16px;border-radius:8px;border:2px solid #e5e7eb;">'
@@ -520,28 +566,30 @@ class ArchivoModuloInline(admin.StackedInline):
                 '</div>',
                 url
             )
-        elif obj.tipo == 'video':
+        if obj.tipo == 'video':
             return format_html(
                 '<div style="background:#f9fafb;padding:16px;border-radius:8px;border:2px solid #e5e7eb;">'
                 '<video controls style="max-width:100%;border-radius:6px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">'
                 '<source src="{}" type="video/mp4">'
                 'Tu navegador no soporta video HTML5.'
                 '</video>'
-                '<p style="margin-top:12px;color:#6b7280;font-size:12px;">🎥 Video cargado - URL: <code style="background:#e5e7eb;padding:2px 6px;border-radius:4px;font-size:11px;">{}</code></p>'
+                '<p style="margin-top:12px;color:#6b7280;font-size:12px;">🎥 Video cargado - URL: '
+                '<code style="background:#e5e7eb;padding:2px 6px;border-radius:4px;font-size:11px;">{}</code></p>'
                 '</div>',
                 url, url
             )
-        elif obj.tipo == 'pdf':
+        if obj.tipo == 'pdf':
             return format_html(
                 '<div style="background:#fef2f2;padding:14px;border-radius:6px;border-left:4px solid #dc2626;">'
-                '<a href="{}" target="_blank" style="background:#dc2626;color:white;padding:10px 20px;text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold;">'
+                '<a href="{}" target="_blank" style="background:#dc2626;color:white;padding:10px 20px;'
+                'text-decoration:none;border-radius:6px;display:inline-block;font-weight:bold;">'
                 '📄 Abrir PDF en Nueva Pestaña'
                 '</a>'
                 '<p style="margin-top:10px;color:#991b1b;font-size:12px;">Archivo: {}</p>'
                 '</div>',
                 url, obj.archivo.name
             )
-        elif obj.tipo == 'audio':
+        if obj.tipo == 'audio':
             return format_html(
                 '<div style="background:#f9fafb;padding:16px;border-radius:8px;border:2px solid #e5e7eb;">'
                 '<audio controls style="width:100%;">'
@@ -552,14 +600,13 @@ class ArchivoModuloInline(admin.StackedInline):
                 '</div>',
                 url
             )
-        else:
-            return format_html(
-                '<div style="background:#f0fdf4;padding:14px;border-radius:6px;border-left:4px solid #16a34a;">'
-                '<a href="{}" target="_blank" style="color:#16a34a;font-weight:bold;">📎 Ver Archivo</a>'
-                '<p style="margin-top:8px;color:#166534;font-size:12px;">{}</p>'
-                '</div>',
-                url, obj.archivo.name
-            )
+        return format_html(
+            '<div style="background:#f0fdf4;padding:14px;border-radius:6px;border-left:4px solid #16a34a;">'
+            '<a href="{}" target="_blank" style="color:#16a34a;font-weight:bold;">📎 Ver Archivo</a>'
+            '<p style="margin-top:8px;color:#166534;font-size:12px;">{}</p>'
+            '</div>',
+            url, obj.archivo.name
+        )
     preview_multimedia.short_description = "Vista Previa"
 
 
@@ -591,6 +638,51 @@ class ModuloAdmin(admin.ModelAdmin):
     readonly_fields = ('guia_microcontenidos_whatsapp',)
     inlines = [SeccionModuloInline, PasoModuloInline, ArchivoModuloInline, PreguntaModuloInline]
     actions = ['enviar_archivos_multimedia', 'ver_archivos_multimedia', 'renumerar_modulos']
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                '<int:modulo_id>/mover/<str:kind>/<int:obj_id>/<str:direction>/',
+                self.admin_site.admin_view(self.mover_bloque_view),
+                name='core_modulo_mover_bloque',
+            ),
+            path(
+                '<int:modulo_id>/mover/<str:kind>/<int:obj_id>/<str:direction>',
+                self.admin_site.admin_view(self.mover_bloque_view),
+            ),
+        ]
+        return custom + urls
+
+    def mover_bloque_view(self, request, modulo_id, kind, obj_id, direction):
+        """↑↓ de secciones / pasos / multimedia sin salir del change del módulo."""
+        from core.models import ArchivoModulo
+
+        if not self.has_change_permission(request):
+            raise PermissionDenied
+
+        kind_map = {
+            'seccion': SeccionModulo,
+            'paso': PasoModulo,
+            'archivo': ArchivoModulo,
+        }
+        model = kind_map.get(kind)
+        if model is None or direction not in ('up', 'down'):
+            messages.error(request, 'Movimiento no válido.')
+            return redirect('admin:core_modulo_change', modulo_id)
+
+        try:
+            modulo = Modulo.objects.get(pk=modulo_id)
+            obj = model.objects.get(pk=obj_id, modulo_id=modulo.pk)
+        except (Modulo.DoesNotExist, model.DoesNotExist):
+            messages.error(request, 'Bloque no encontrado.')
+            return redirect('admin:core_modulo_changelist')
+
+        if intercambiar_orden(obj, direction):
+            messages.success(request, 'Orden actualizado.')
+        else:
+            messages.info(request, 'Ya está al extremo; no hay cambio.')
+        return redirect('admin:core_modulo_change', modulo_id)
 
     def get_inline_instances(self, request, obj=None):
         """Módulo nuevo: Microcontenidos aparecen tras el 1.er guardado (necesitan PK + sección)."""
@@ -628,8 +720,8 @@ class ModuloAdmin(admin.ModelAdmin):
             '<div style="background:linear-gradient(180deg,#ecfdf5 0%,#f8fafc 100%);'
             'border:1px solid #6ee7b7;border-radius:10px;padding:16px 18px;margin:0 0 4px 0;'
             'max-width:920px;">'
-            '<p style="margin:0 0 10px 0;font-size:14px;color:#065f46;font-weight:600;">'
-            'Flujo recomendado (modo <em>Pasos</em> o <em>Automático</em> con pasos activos)'
+            '<p style="margin:0 0 10px 0;font-size:14px;color:#5F3A6E;font-weight:600;">'
+            'Flujo: Secciones → Microcontenidos → Multimedia. Use ↑↓ para reordenar bloques.'
             '</p>'
             '<table style="width:100%;border-collapse:collapse;font-size:13px;color:#334155;">'
             '<tr style="vertical-align:top;">'
