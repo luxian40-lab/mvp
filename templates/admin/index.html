@@ -1,10 +1,13 @@
 ﻿{% extends "admin/index.html" %}
 {% load i18n %}
+{% load eki_admin %}
 
 {% block content %}
 <section class="eki-admin-hub">
-    <p class="eki-hub-kicker">eki</p>
-    <p class="eki-hub-intro">Operaciones. Tres caminos; el catálogo completo queda abajo.</p>
+    <header class="eki-hub-hello">
+        <h1 class="eki-hub-hello__title">{% eki_admin_saludo %} 👋</h1>
+        <p class="eki-hub-hello__sub">Aquí tienes un resumen de lo más importante de hoy.</p>
+    </header>
     <div class="eki-hub-cols">
         <div class="eki-hub-col">
             <h2>Operar</h2>

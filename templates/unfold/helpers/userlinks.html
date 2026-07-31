@@ -1,0 +1,19 @@
+{% load i18n static unfold %}
+{% load eki_admin %}
+
+<div class="flex flex-row gap-3 items-center ml-auto eki-header-right">
+    {% eki_health_strip %}
+
+    {# Switcher visible en la barra superior (Unfold lo mete por defecto solo en el menú del usuario del sidebar). #}
+    {% include "unfold/helpers/theme_switch_dropdown.html" %}
+
+    {% if environment %}
+        {% include "unfold/helpers/label.html" with text=environment.0 type=environment.1 %}
+    {% endif %}
+
+    {% action_list %}
+
+    {% if nav_global_side %}
+        {{ nav_global_side }}
+    {% endif %}
+</div>

@@ -34,6 +34,9 @@ class InfraMonitorAdminTests(TestCase):
         self.assertIn('s3', data)
         self.assertIn('playbooks', data)
         self.assertIn('overall', data)
+        self.assertIn('advisor', data)
+        self.assertIn('items', data['advisor'])
+        self.assertIn('summary', data['advisor'])
 
     def test_snapshot_tiene_claves(self):
         snap = snapshot_infra(force=True)
@@ -41,6 +44,9 @@ class InfraMonitorAdminTests(TestCase):
         self.assertEqual(snap['poll_hint_seconds'], 30)
         self.assertIn('playbooks', snap)
         self.assertIn('overall', snap)
+        self.assertIn('advisor', snap)
+        self.assertEqual(snap['advisor']['kind'], 'rules')
+        self.assertIn(snap['advisor']['level'], ('ok', 'watch', 'act'))
         ids = {p['id'] for p in snap['playbooks']}
         self.assertTrue({'rds', 'redis', 's3', 'eb', 'chroma'}.issubset(ids))
         for pb in snap['playbooks']:
@@ -52,3 +58,43 @@ class InfraMonitorAdminTests(TestCase):
                 self.assertIn('when', a)
                 self.assertIn('do', a)
                 self.assertIn('specs', a)
+
+    def test_advisor_recomienda_si_redis_cae(self):
+        from core.infra_monitor import build_infra_advisor
+
+        playbooks = [{
+            'id': 'redis',
+            'title': 'Redis',
+            'verdict': {'status': 'act', 'label': 'ACTUAR', 'reasons': ['down']},
+            'actions': [
+                {'action_type': 'NO_HACER_NADA', 'do': 'nada', 'when': '', 'how': '', 'approx_cost': ''},
+                {'action_type': 'REINICIAR_LOCAL', 'do': 'restart', 'when': 'fail', 'how': 'ssh', 'approx_cost': '0'},
+            ],
+        }]
+        adv = build_infra_advisor(playbooks, 'act')
+        self.assertTrue(adv['needs_action'])
+        self.assertEqual(len(adv['items']), 1)
+        self.assertEqual(adv['items'][0]['next']['action_type'], 'REINICIAR_LOCAL')
+
+    def test_header_health_strip_tiene_chips(self):
+        from core.infra_monitor import header_health_strip
+
+        chips = header_health_strip(force=True)
+        labels = [c['label'] for c in chips]
+        self.assertEqual(
+            labels,
+            ['Meta', 'WhatsApp', 'Celery', 'Redis', 'S3', 'PostgreSQL'],
+        )
+        for c in chips:
+            self.assertIn('ok', c)
+            self.assertIn('hint', c)
+
+    def test_admin_index_muestra_saludo(self):
+        self.staff.first_name = 'Andreina'
+        self.staff.save(update_fields=['first_name'])
+        self.http.login(username='infra_staff', password='pass')
+        r = self.http.get('/admin/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Andreina')
+        self.assertContains(r, 'eki-hub-hello')
+        self.assertContains(r, 'eki-health')

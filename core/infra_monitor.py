@@ -561,6 +561,159 @@ def _playbooks(redis_s: dict, db: dict, s3: dict) -> list[dict[str, Any]]:
     ]
 
 
+def _recommended_action(pb: dict[str, Any], status: str) -> dict[str, Any] | None:
+    """Elige el primer paso operativo (no NO_HACER_NADA) del playbook."""
+    preferred_by_id = {
+        'rds': ('SOLO_DISCO', 'CAMBIAR_INSTANCIA', 'MULTI_AZ', 'READ_REPLICA'),
+        'redis': ('REINICIAR_LOCAL', 'ELASTICACHE'),
+        's3': ('LIFECYCLE', 'CLOUDFRONT'),
+        'eb': ('SUBIR_TAMANO_EC2', 'ESCALAR_A_2_INSTANCIAS'),
+        'chroma': ('EFS',),
+    }
+    actions = [a for a in (pb.get('actions') or []) if a.get('action_type') != 'NO_HACER_NADA']
+    if not actions:
+        return None
+    order = preferred_by_id.get(pb.get('id') or '', ())
+    by_type = {a.get('action_type'): a for a in actions}
+    for t in order:
+        if t in by_type:
+            # En watch no empujar ESCALAR/MULTI_AZ como “hazlo ya”
+            if status == 'watch' and t in ('ESCALAR_A_2_INSTANCIAS', 'MULTI_AZ', 'READ_REPLICA', 'ELASTICACHE'):
+                continue
+            return by_type[t]
+    return actions[0]
+
+
+def build_infra_advisor(playbooks: list[dict[str, Any]], overall: str) -> dict[str, Any]:
+    """
+    “Agente” operativo determinista (no LLM): resume qué vigilar / actuar
+    a partir de los veredictos ya calculados.
+    """
+    items: list[dict[str, Any]] = []
+    for pb in playbooks:
+        v = pb.get('verdict') or {}
+        st = v.get('status') or 'ok'
+        if st == 'ok':
+            continue
+        nxt = _recommended_action(pb, st)
+        items.append({
+            'id': pb.get('id'),
+            'title': pb.get('title'),
+            'status': st,
+            'label': v.get('label') or st,
+            'reasons': list(v.get('reasons') or [])[:4],
+            'next': {
+                'action_type': nxt.get('action_type'),
+                'do': nxt.get('do'),
+                'when': nxt.get('when'),
+                'how': nxt.get('how'),
+                'approx_cost': nxt.get('approx_cost'),
+            } if nxt else None,
+        })
+
+    if overall == 'act':
+        summary = 'Hay al menos un recurso en ACTUAR. Revisa los pasos de abajo antes de tocar AWS.'
+    elif overall == 'watch':
+        summary = 'Hay señales para vigilar. Aún no obliga upgrade; revisa CloudWatch si persisten.'
+    else:
+        summary = 'Todo en verde según umbrales locales. No hace falta cambiar instancias hoy.'
+
+    return {
+        'level': overall,
+        'needs_action': overall == 'act',
+        'needs_attention': overall in ('act', 'watch'),
+        'summary': summary,
+        'items': items,
+        'cta_path': '/admin/infra/',
+        'kind': 'rules',  # no LLM
+    }
+
+
+NOTIFY_CACHE_KEY = 'eki_infra_advisor_last_level'
+NOTIFY_COOLDOWN_KEY = 'eki_infra_advisor_last_mail_ts'
+NOTIFY_COOLDOWN_SECONDS = 6 * 3600
+
+
+def maybe_notify_infra_act(snapshot: dict[str, Any]) -> dict[str, Any]:
+    """
+    Si overall pasa a 'act', avisa a staff por email (máx. 1 cada 6h).
+    No envía WhatsApp. Silencioso si no hay ADMINS / email.
+    """
+    result = {'sent': False, 'skipped': True, 'reason': 'ok_or_watch'}
+    overall = snapshot.get('overall') or 'ok'
+    try:
+        prev = cache.get(NOTIFY_CACHE_KEY)
+    except Exception:
+        prev = None
+
+    try:
+        cache.set(NOTIFY_CACHE_KEY, overall, 24 * 3600)
+    except Exception:
+        pass
+
+    if overall != 'act':
+        return result
+
+    if prev == 'act':
+        result['reason'] = 'still_act'
+        return result
+
+    try:
+        last_ts = float(cache.get(NOTIFY_COOLDOWN_KEY) or 0)
+    except Exception:
+        last_ts = 0.0
+    now = time.time()
+    if last_ts and (now - last_ts) < NOTIFY_COOLDOWN_SECONDS:
+        result['reason'] = 'cooldown'
+        return result
+
+    advisor = snapshot.get('advisor') or {}
+    lines = [advisor.get('summary') or 'Infra requiere acción.', '']
+    for it in advisor.get('items') or []:
+        if it.get('status') != 'act':
+            continue
+        lines.append(f"• {it.get('title')}: {it.get('label')}")
+        nxt = it.get('next') or {}
+        if nxt.get('do'):
+            lines.append(f"  → {nxt.get('action_type')}: {nxt.get('do')}")
+        for r in (it.get('reasons') or [])[:2]:
+            lines.append(f"  - {r}")
+        lines.append('')
+    lines.append('Panel: /admin/infra/')
+
+    from django.conf import settings as dj_settings
+    from django.core.mail import mail_admins
+
+    recipients = getattr(dj_settings, 'ADMINS', None) or []
+    extra = (getattr(dj_settings, 'INFRA_ALERT_EMAILS', '') or '').strip()
+    if not recipients and not extra:
+        result['reason'] = 'no_recipients'
+        return result
+
+    subject = '[eki infra] ACTUAR — revisión necesaria'
+    body = '\n'.join(lines)
+    try:
+        if recipients:
+            mail_admins(subject, body, fail_silently=True)
+        if extra:
+            from django.core.mail import send_mail
+            send_mail(
+                subject,
+                body,
+                getattr(dj_settings, 'DEFAULT_FROM_EMAIL', None),
+                [e.strip() for e in extra.split(',') if e.strip()],
+                fail_silently=True,
+            )
+        try:
+            cache.set(NOTIFY_COOLDOWN_KEY, now, NOTIFY_COOLDOWN_SECONDS)
+        except Exception:
+            pass
+        result = {'sent': True, 'skipped': False, 'reason': 'transition_to_act'}
+    except Exception as exc:
+        result = {'sent': False, 'skipped': True, 'reason': str(exc)[:120]}
+    return result
+
+
 def snapshot_infra(*, force: bool = False) -> dict[str, Any]:
     if not force:
         cached = _cache_get()
@@ -583,6 +736,8 @@ def snapshot_infra(*, force: bool = False) -> dict[str, Any]:
         if st == 'watch' and overall == 'ok':
             overall = 'watch'
 
+    advisor = build_infra_advisor(playbooks, overall)
+
     payload = {
         'ts': time.time(),
         'cached': False,
@@ -597,12 +752,128 @@ def snapshot_infra(*, force: bool = False) -> dict[str, Any]:
         's3': s3,
         'baseline': BASELINE,
         'playbooks': playbooks,
+        'advisor': advisor,
         'poll_hint_seconds': 30,
         'impact': (
             'Polling cada 30s con caché 20s es seguro para staff. '
-            'No uses refresh <5s. CPU de RDS/EC2 en detalle sigue en CloudWatch AWS '
-            '(este panel no reemplaza alarmas).'
+            'El advisor es por reglas (umbrales), no un LLM. '
+            'CPU de RDS/EC2 en detalle sigue en CloudWatch AWS.'
         ),
     }
     _cache_set(payload)
     return payload
+
+
+HEADER_HEALTH_CACHE_KEY = 'eki_header_health_v1'
+HEADER_HEALTH_CACHE_SECONDS = 25
+
+
+def _celery_workers_ok() -> dict[str, Any]:
+    """Ping corto a workers; eager = ok en local/tests."""
+    out: dict[str, Any] = {'ok': False, 'mode': 'unknown'}
+    try:
+        if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
+            out['ok'] = True
+            out['mode'] = 'eager'
+            return out
+        from mvp_project.celery import app as celery_app
+
+        insp = celery_app.control.inspect(timeout=0.35)
+        pong = insp.ping() if insp is not None else None
+        out['ok'] = bool(pong)
+        out['mode'] = 'workers' if pong else 'no_workers'
+        if pong:
+            out['workers'] = len(pong)
+    except Exception as exc:
+        out['error'] = str(exc)[:80]
+    return out
+
+
+def _meta_configured() -> dict[str, Any]:
+    token = (getattr(settings, 'WHATSAPP_TOKEN', None) or '').strip()
+    phone = (getattr(settings, 'WHATSAPP_PHONE_ID', None) or '').strip()
+    ok = bool(token and phone)
+    return {
+        'ok': ok,
+        'hint': 'Token + Phone ID Meta' if ok else 'Falta WHATSAPP_TOKEN o WHATSAPP_PHONE_ID',
+    }
+
+
+def _whatsapp_configured() -> dict[str, Any]:
+    sid = (getattr(settings, 'TWILIO_ACCOUNT_SID', None) or '').strip()
+    token = (getattr(settings, 'TWILIO_AUTH_TOKEN', None) or '').strip()
+    number = (
+        (getattr(settings, 'TWILIO_WHATSAPP_NUMBER', None) or '')
+        or (getattr(settings, 'TWILIO_PHONE_NUMBER', None) or '')
+    ).strip()
+    ok = bool(sid and token and number)
+    return {
+        'ok': ok,
+        'hint': 'Twilio WhatsApp listo' if ok else 'Falta SID, token o número Twilio',
+    }
+
+
+def header_health_strip(*, force: bool = False) -> list[dict[str, Any]]:
+    """Chips ligeros para la barra Unfold: Meta, WhatsApp, Celery, Redis, S3, PostgreSQL."""
+    if not force:
+        try:
+            cached = cache.get(HEADER_HEALTH_CACHE_KEY)
+            if cached:
+                return cached
+        except Exception:
+            pass
+
+    snap = snapshot_infra(force=False)
+    redis_ok = bool((snap.get('redis') or {}).get('ok'))
+    db_ok = bool((snap.get('db') or {}).get('ok'))
+    s3_ok = bool((snap.get('s3') or {}).get('ok'))
+    celery = _celery_workers_ok()
+    meta = _meta_configured()
+    wa = _whatsapp_configured()
+
+    chips = [
+        {
+            'id': 'meta',
+            'label': 'Meta',
+            'ok': meta['ok'],
+            'hint': meta['hint'],
+        },
+        {
+            'id': 'whatsapp',
+            'label': 'WhatsApp',
+            'ok': wa['ok'],
+            'hint': wa['hint'],
+        },
+        {
+            'id': 'celery',
+            'label': 'Celery',
+            'ok': celery['ok'],
+            'hint': (
+                f"Celery {celery.get('mode', '')}"
+                + (f" ({celery.get('workers')} workers)" if celery.get('workers') else '')
+            ).strip(),
+        },
+        {
+            'id': 'redis',
+            'label': 'Redis',
+            'ok': redis_ok,
+            'hint': 'Redis OK' if redis_ok else 'Redis no responde',
+        },
+        {
+            'id': 's3',
+            'label': 'S3',
+            'ok': s3_ok,
+            'hint': 'S3 OK' if s3_ok else 'S3 no responde',
+        },
+        {
+            'id': 'postgres',
+            'label': 'PostgreSQL',
+            'ok': db_ok,
+            'hint': 'PostgreSQL OK' if db_ok else 'Base de datos no responde',
+        },
+    ]
+    try:
+        cache.set(HEADER_HEALTH_CACHE_KEY, chips, HEADER_HEALTH_CACHE_SECONDS)
+    except Exception:
+        pass
+    return chips

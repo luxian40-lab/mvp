@@ -26,6 +26,10 @@ UNFOLD = {
     "SITE_HEADER": "eki",
     "SITE_SUBHEADER": "Panel de operaciones",
     "SITE_SYMBOL": "school",
+    "SITE_ICON": {
+        "light": lambda request: static("favicons/admin-32.png"),
+        "dark": lambda request: static("favicons/admin-32.png"),
+    },
     "SHOW_HISTORY": True,
     "SHOW_VIEW_ON_SITE": False,
     "SHOW_BACK_BUTTON": True,

@@ -1,0 +1,12 @@
+{% if chips %}
+<a class="eki-health" href="{{ infra_url }}" title="Monitoreo de infraestructura">
+    <span class="eki-health__label">Producción</span>
+    <span class="eki-health__chips">
+        {% for c in chips %}
+        <span class="eki-health__chip{% if not c.ok %} eki-health__chip--bad{% endif %}" title="{{ c.hint }}">
+            <span class="eki-health__dot" aria-hidden="true"></span>{{ c.label }}
+        </span>
+        {% endfor %}
+    </span>
+</a>
+{% endif %}

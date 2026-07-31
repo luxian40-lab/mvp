@@ -1,46 +1,118 @@
 /**
  * eki × Unfold — capa LIGERA sobre el tema nativo.
- * Personalización real = UNFOLD (THEME, COLORS, BORDER_RADIUS, ENVIRONMENT, SITE_DROPDOWN).
- * Este CSS solo alinea hub + dashboards custom; no pinta el sidebar ni pelea con Unfold.
+ * Personalización real = UNFOLD (COLORS, BORDER_RADIUS, ENVIRONMENT, SITE_DROPDOWN).
+ * Este CSS alinea hub + dashboards + hace visibles fieldsets/inlines (cajas).
  */
 :root {
   --eki-accent: #9A6CAC;
   --eki-accent-deep: #7A4E8E;
   --eki-accent-soft: rgba(154, 108, 172, 0.12);
   --eki-radius: 12px;
+  --eki-box-border: rgba(30, 27, 36, 0.16);
+  --eki-box-bg: #ffffff;
 }
 
 /* Hub inicio (templates/admin/index.html) → cards Unfold */
 .eki-admin-hub {
   margin-bottom: 1.75rem;
 }
-.eki-hub-kicker {
-  font-size: 1.65rem;
-  font-weight: 700;
+.eki-hub-hello {
+  margin: 0 0 1.35rem;
+}
+.eki-hub-hello__title {
+  margin: 0 0 0.35rem;
+  font-size: clamp(1.45rem, 2.4vw, 1.85rem);
+  font-weight: 750;
   letter-spacing: -0.03em;
   color: #1e1b24;
-  margin: 0 0 0.35rem;
-  font-family: inherit;
+  line-height: 1.2;
 }
-.eki-hub-intro {
-  margin: 0 0 1.25rem;
+.eki-hub-hello__sub {
+  margin: 0;
   color: #6b6575;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
 }
+html.dark .eki-hub-hello__title { color: #f4f2f7; }
+html.dark .eki-hub-hello__sub { color: #a89eb0; }
+html.dark .eki-health__chip { color: #e8e2ef; }
+html.dark .eki-health__label { color: #9a90a8; }
 .eki-hub-cols {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
+}
+
+/* Health strip — barra superior Unfold */
+.eki-header-right {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.eki-health {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  text-decoration: none;
+  padding: 0.15rem 0.35rem;
+  border-radius: 8px;
+  max-width: min(52vw, 420px);
+}
+.eki-health:hover {
+  background: rgba(154, 108, 172, 0.08);
+}
+.eki-health__label {
+  font-size: 0.62rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8a8494;
+  line-height: 1;
+}
+.eki-health__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
+}
+.eki-health__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  font-size: 0.72rem;
+  font-weight: 550;
+  color: #3d3648;
+  white-space: nowrap;
+}
+.eki-health__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+  flex-shrink: 0;
+}
+.eki-health__chip--bad {
+  color: #9a3412;
+}
+.eki-health__chip--bad .eki-health__dot {
+  background: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+@media (max-width: 1100px) {
+  .eki-health__chips { gap: 0.3rem 0.45rem; }
+  .eki-health__chip { font-size: 0.65rem; }
+}
+@media (max-width: 820px) {
+  .eki-health { display: none; } /* móvil: no saturar header; detalle en /admin/infra/ */
 }
 @media (max-width: 900px) {
   .eki-hub-cols { grid-template-columns: 1fr; }
 }
 .eki-hub-col {
   background: #fff;
-  border: 1px solid rgba(30, 27, 36, 0.08);
+  border: 1px solid var(--eki-box-border);
   border-radius: var(--eki-radius);
   padding: 1rem 1.1rem 1.15rem;
-  box-shadow: 0 1px 2px rgba(30, 27, 36, 0.04);
+  box-shadow: 0 1px 3px rgba(30, 27, 36, 0.06);
 }
 .eki-hub-col h2 {
   margin: 0 0 0.75rem;
@@ -75,11 +147,11 @@
 }
 .eki-admin-all-models {
   margin-top: 1.25rem;
-  border: 1px solid rgba(30, 27, 36, 0.08);
+  border: 1px solid var(--eki-box-border);
   border-radius: var(--eki-radius);
   background: #fff;
   padding: 0.75rem 1rem;
-  box-shadow: 0 1px 2px rgba(30, 27, 36, 0.04);
+  box-shadow: 0 1px 3px rgba(30, 27, 36, 0.06);
 }
 .eki-admin-all-models > summary {
   cursor: pointer;
@@ -118,8 +190,8 @@ html body .dash-wrap,
 .sem-card,
 .mod-dist-card {
   border-radius: var(--eki-radius) !important;
-  border: 1px solid rgba(30, 27, 36, 0.08) !important;
-  box-shadow: 0 1px 3px rgba(30, 27, 36, 0.05) !important;
+  border: 1px solid var(--eki-box-border) !important;
+  box-shadow: 0 1px 3px rgba(30, 27, 36, 0.06) !important;
 }
 .tab-btn.active {
   color: var(--eki-accent-deep) !important;
@@ -131,7 +203,39 @@ html body .dash-wrap,
   border-radius: 8px !important;
 }
 
-/* Módulos: sin pelear con Unfold, solo acento */
+/*
+ * Cajas de formulario visibles (fieldsets/inlines “invisibles” → borde real + fondo blanco).
+ */
+html body .change-form fieldset,
+html body form fieldset,
+html body .inline-group,
+html body [id$="-group"] {
+  border: 1px solid var(--eki-box-border) !important;
+  border-radius: var(--eki-radius) !important;
+  background: var(--eki-box-bg) !important;
+  box-shadow: 0 1px 2px rgba(30, 27, 36, 0.04);
+}
+
+html body .change-form fieldset > h2,
+html body .inline-group > h2,
+html body [id$="-group"] > h2 {
+  font-weight: 700 !important;
+  color: #2a1f33 !important;
+}
+
+html body input[type="text"],
+html body input[type="number"],
+html body input[type="email"],
+html body input[type="url"],
+html body input[type="password"],
+html body select,
+html body textarea {
+  border-color: rgba(30, 27, 36, 0.2) !important;
+}
+
+/* Módulos: acento (detalle fuerte en modulo_whatsapp_bloques.css) */
+#secciones-group,
+#pasos-group,
 #seccionmodulo_set-group,
 #pasomodulo_set-group {
   border-radius: var(--eki-radius);
