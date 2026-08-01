@@ -17,9 +17,13 @@ from .geo_catalogo import (
 
 def estudiantes_cobertura_queryset(org, curso_id: int | None = None):
     """
+    org=None: todos los estudiantes activos (mapa global admin).
     curso_id: un curso concreto.
-    None: participantes inscritos en al menos un curso activo del cliente (todos los cursos).
+    None + org: participantes inscritos en al menos un curso activo del cliente.
     """
+    if org is None:
+        return Estudiante.objects.filter(activo=True)
+
     qs = Estudiante.objects.filter(cliente=org, activo=True)
     if curso_id:
         qs = qs.filter(
@@ -77,11 +81,17 @@ def resumen_cobertura_geografica(
     curso_id: int | None = None,
     *,
     include_por_curso: bool = True,
+    include_puntos: bool = True,
 ) -> dict[str, Any]:
-    """Resumen territorial + mapa municipal (coroplético por municipio)."""
+    """Resumen territorial + mapa municipal (coroplético por municipio).
+
+    Con org=None agrega todos los estudiantes activos (sin filtrar por cliente).
+    """
     qs = estudiantes_cobertura_queryset(org, curso_id)
     est_ids = list(qs.values_list('id', flat=True))
-    cursos_est = _cursos_por_estudiante(org, est_ids) if not curso_id else {}
+    cursos_est = (
+        _cursos_por_estudiante(org, est_ids) if org is not None and not curso_id else {}
+    )
 
     total = len(est_ids)
     con_depto = 0
@@ -132,20 +142,21 @@ def resumen_cobertura_geografica(
             if len(bucket['nombres']) < 12:
                 bucket['nombres'].append(est.nombre)
 
-        puntos.append({
-            'estudiante_id': est.id,
-            'nombre': est.nombre,
-            'departamento': dept or None,
-            'departamento_clave': c_dept or None,
-            'municipio': muni or None,
-            'municipio_clave': c_muni or None,
-            'region': (est.region or '').strip() or None,
-            'cursos': cursos_est.get(est.id, []),
-            'mapeado': ubic.nivel == 'municipio',
-            'metodo': ubic.metodo,
-            'lat': lat,
-            'lng': lng,
-        })
+        if include_puntos:
+            puntos.append({
+                'estudiante_id': est.id,
+                'nombre': est.nombre,
+                'departamento': dept or None,
+                'departamento_clave': c_dept or None,
+                'municipio': muni or None,
+                'municipio_clave': c_muni or None,
+                'region': (est.region or '').strip() or None,
+                'cursos': cursos_est.get(est.id, []),
+                'mapeado': ubic.nivel == 'municipio',
+                'metodo': ubic.metodo,
+                'lat': lat,
+                'lng': lng,
+            })
 
     por_departamento = [
         {
@@ -189,11 +200,19 @@ def resumen_cobertura_geografica(
         key=lambda x: -x['cantidad'],
     )
 
-    cursos_activos = Curso.objects.filter(cliente=org, activo=True).count()
-    por_curso = resumen_por_curso(org) if include_por_curso and cursos_activos >= 1 else []
+    if org is None:
+        cursos_activos = Curso.objects.filter(activo=True).count()
+        por_curso = []
+        filtro = 'global_todos_estudiantes'
+    else:
+        cursos_activos = Curso.objects.filter(cliente=org, activo=True).count()
+        por_curso = (
+            resumen_por_curso(org) if include_por_curso and cursos_activos >= 1 else []
+        )
+        filtro = 'curso' if curso_id else 'todos_cursos'
 
     return {
-        'filtro': 'curso' if curso_id else 'todos_cursos',
+        'filtro': filtro,
         'curso_id': curso_id,
         'total_estudiantes': total,
         'con_departamento': con_depto,

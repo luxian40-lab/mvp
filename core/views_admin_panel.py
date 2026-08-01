@@ -1,4 +1,4 @@
-"""Panel ejecutivo del admin (vista tipo command center / imagen 2)."""
+"""Panel ejecutivo = Inicio del admin (/admin/)."""
 from __future__ import annotations
 
 from datetime import timedelta
@@ -6,7 +6,7 @@ from typing import Any
 
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import Count
-from django.shortcuts import render
+from django.shortcuts import redirect
 from django.utils import timezone
 from django.utils.timesince import timesince
 
@@ -50,7 +50,7 @@ def _avg_avance_pct() -> float:
 
 
 def build_panel_snapshot() -> dict[str, Any]:
-    """KPIs y bloques del Panel con datos reales (sin inventar badges)."""
+    """KPIs y bloques del Panel (Inicio) con datos reales."""
     now = timezone.now()
     hoy = timezone.localdate()
     ayer = hoy - timedelta(days=1)
@@ -72,14 +72,18 @@ def build_panel_snapshot() -> dict[str, Any]:
 
     campanas_enviadas = Campana.objects.filter(ejecutada=True).count()
     campanas_7d = Campana.objects.filter(ejecutada=True, fecha_creacion__gte=hace_7).count()
-
     avance = _avg_avance_pct()
-
     empresas = Cliente.objects.filter(activo=True).count()
     empresas_ayer = Cliente.objects.filter(
         activo=True, fecha_registro__date__lte=ayer
     ).count()
 
+    mapa = {
+        'total_estudiantes': est_activos,
+        'departamentos_distintos': 0,
+        'municipios_distintos': 0,
+        'con_municipio_mapeado': 0,
+    }
     dept_rows = list(
         Estudiante.objects.filter(activo=True)
         .exclude(departamento__isnull=True)
@@ -105,7 +109,8 @@ def build_panel_snapshot() -> dict[str, Any]:
         .distinct()
         .count()
     )
-
+    mapa['departamentos_distintos'] = depts_con_estudiantes
+    # municipios / mapeados: el mapa Leaflet los carga vía API global (async)
     actividad = []
     try:
         from core.models import EventoIA
@@ -158,12 +163,15 @@ def build_panel_snapshot() -> dict[str, Any]:
                 'url': '/admin/core/estudiante/',
             }
         )
-    if depts_con_estudiantes and depts_con_estudiantes < 10:
+    if depts_con_estudiantes:
         insights.append(
             {
                 'nivel': 'info',
-                'texto': f'Cobertura territorial: {depts_con_estudiantes} departamentos con estudiantes.',
-                'cta': 'Ver cobertura',
+                'texto': (
+                    f'Cobertura territorial: {depts_con_estudiantes} departamentos '
+                    f'con estudiantes activos (mapa global abajo).'
+                ),
+                'cta': 'Ampliar cobertura',
                 'url': '/admin/cobertura/',
             }
         )
@@ -233,36 +241,12 @@ def build_panel_snapshot() -> dict[str, Any]:
     ]
 
     acciones = [
-        {
-            'label': 'Nuevo curso',
-            'url': '/admin/core/curso/add/',
-            'icon': 'school',
-        },
-        {
-            'label': 'Nueva campaña',
-            'url': '/admin/core/campana/add/',
-            'icon': 'campaign',
-        },
-        {
-            'label': 'Nueva empresa',
-            'url': '/admin/core/cliente/add/',
-            'icon': 'apartment',
-        },
-        {
-            'label': 'Emitir certificados',
-            'url': '/admin/envio-certificados/',
-            'icon': 'verified',
-        },
-        {
-            'label': 'Dashboard',
-            'url': '/admin/dashboard/',
-            'icon': 'dashboard',
-        },
-        {
-            'label': 'Logs IA',
-            'url': '/admin/ai-ops/eventos/',
-            'icon': 'psychology',
-        },
+        {'label': 'Nuevo curso', 'url': '/admin/core/curso/add/', 'icon': 'school'},
+        {'label': 'Nueva campaña', 'url': '/admin/core/campana/add/', 'icon': 'campaign'},
+        {'label': 'Nueva empresa', 'url': '/admin/core/cliente/add/', 'icon': 'apartment'},
+        {'label': 'Emitir certificados', 'url': '/admin/envio-certificados/', 'icon': 'verified'},
+        {'label': 'Dashboard', 'url': '/admin/dashboard/', 'icon': 'dashboard'},
+        {'label': 'Logs IA', 'url': '/admin/ai-ops/eventos/', 'icon': 'psychology'},
     ]
 
     atajos = [
@@ -272,7 +256,7 @@ def build_panel_snapshot() -> dict[str, Any]:
         {'label': 'Certificados', 'url': '/admin/envio-certificados/', 'icon': 'verified'},
         {'label': 'Reportes', 'url': '/admin/dashboard/', 'icon': 'bar_chart'},
         {'label': 'Infra', 'url': '/admin/infra/', 'icon': 'monitor_heart'},
-        {'label': 'Logs IA', 'url': '/admin/ai-ops/eventos/', 'icon': 'memory'},
+        {'label': 'Estudiantes', 'url': '/admin/core/estudiante/', 'icon': 'group'},
     ]
 
     return {
@@ -312,6 +296,7 @@ def build_panel_snapshot() -> dict[str, Any]:
             },
         ],
         'cobertura': cobertura,
+        'mapa': mapa,
         'depts_activos': depts_con_estudiantes,
         'depts_meta': 32,
         'actividad': actividad,
@@ -325,12 +310,5 @@ def build_panel_snapshot() -> dict[str, Any]:
 
 @staff_member_required
 def admin_panel_view(request):
-    snap = build_panel_snapshot()
-    return render(
-        request,
-        'admin/panel.html',
-        {
-            'title': 'Panel',
-            'snap': snap,
-        },
-    )
+    """Compat: el Panel vive en Inicio (/admin/)."""
+    return redirect('admin:index')

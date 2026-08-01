@@ -58,6 +58,14 @@ def eki_fecha_hoy() -> str:
     return f"{now.day} de {_MESES_ES[now.month]} de {now.year}"
 
 
+@register.simple_tag
+def eki_panel_snap():
+    """Snapshot del Panel ejecutivo para Inicio (/admin/)."""
+    from core.views_admin_panel import build_panel_snapshot
+
+    return build_panel_snapshot()
+
+
 @register.inclusion_tag("admin/partials/eki_health_strip.html", takes_context=True)
 def eki_health_strip(context):
     """Chips de salud en la barra superior Unfold."""

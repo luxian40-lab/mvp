@@ -1,20 +1,23 @@
 ﻿{% extends "admin/index.html" %}
-{% load i18n %}
-{% load eki_admin %}
+{% load i18n static eki_admin %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+{% endblock %}
 
 {% block content %}
-<section class="eki-admin-hub">
-    <header class="eki-hub-hello">
-        <div class="eki-hub-hello__text">
-            <h1 class="eki-hub-hello__title">{% eki_admin_saludo %} 👋</h1>
-            <p class="eki-hub-hello__sub">Aquí tienes un resumen de lo más importante de hoy.</p>
-        </div>
-        <time class="eki-hub-cal" datetime="{% now 'Y-m-d' %}">
-            <span class="material-symbols-outlined" aria-hidden="true">calendar_today</span>
-            <span>{% eki_fecha_hoy %}</span>
-        </time>
-    </header>
-    <div class="eki-hub-cols">
+{% eki_panel_snap as snap %}
+{% include "admin/partials/eki_panel_exec.html" with snap=snap %}
+
+<details class="eki-admin-ops-fold">
+    <summary>Operar · Medir · Configurar</summary>
+    <div class="eki-hub-cols" style="margin-top:0.85rem;">
         <div class="eki-hub-col">
             <h2>Operar</h2>
             <a href="{% url 'admin:core_estudiante_changelist' %}">Estudiantes<span>Participantes y avance</span></a>
@@ -26,10 +29,9 @@
         </div>
         <div class="eki-hub-col">
             <h2>Medir</h2>
-            <a href="{% url 'admin_panel' %}">Panel<span>Resumen ejecutivo · KPIs y territorio</span></a>
             <a href="{% url 'dashboard_unificado' %}">Dashboard<span>Executive · Learning · Ops</span></a>
             <a href="{% url 'dashboard_unificado' %}?tab=retencion">Centro de Éxito<span>Riesgo, mapa y consultor</span></a>
-            <a href="{% url 'admin_cobertura_mapa' %}">Cobertura<span>Mapa territorial</span></a>
+            <a href="{% url 'admin_cobertura_mapa' %}">Cobertura detallada<span>Por organización</span></a>
             <a href="{% url 'admin:core_cliente_changelist' %}">Clientes<span>Organizaciones B2B</span></a>
         </div>
         <div class="eki-hub-col">
@@ -40,7 +42,7 @@
             <a href="{% url 'instrucciones' %}">Manual<span>Guía operativa</span></a>
         </div>
     </div>
-</section>
+</details>
 
 <details class="eki-admin-all-models">
     <summary>Todos los módulos del sistema</summary>
@@ -48,4 +50,50 @@
         {{ block.super }}
     </div>
 </details>
+
+<script>
+(function () {
+  if (typeof L === 'undefined') return;
+  var el = document.getElementById('mapa-panel-inicio');
+  if (!el) return;
+  function colorMuni(cantidad, maxCant) {
+    if (!maxCant || !cantidad) return '#f1f5f9';
+    var t = Math.min(1, cantidad / maxCant);
+    return 'rgb(' + Math.round(243 + (155 - 243) * t) + ',' +
+      Math.round(234 + (103 - 234) * t) + ',' +
+      Math.round(247 + (177 - 247) * t) + ')';
+  }
+  var map = L.map(el, { scrollWheelZoom: false }).setView([4.57, -74.29], 5.5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 12,
+    attribution: '&copy; OSM'
+  }).addTo(map);
+  Promise.all([
+    fetch('/admin/cobertura/datos.json?global=1', { credentials: 'same-origin' }).then(function (r) { return r.json(); }),
+    fetch('/admin/cobertura/municipios.geojson', { credentials: 'same-origin' }).then(function (r) { return r.json(); })
+  ]).then(function (res) {
+    var datos = res[0], geo = res[1];
+    var porMuni = datos.por_municipio_clave || {};
+    var maxM = datos.max_municipio || 0;
+    L.geoJSON(geo, {
+      style: function (f) {
+        var n = porMuni[f.properties.CLAVE] || 0;
+        return { fillColor: colorMuni(n, maxM), weight: 0.4, color: '#cbd5e1', fillOpacity: n ? 0.9 : 0.15 };
+      },
+      onEachFeature: function (f, layer) {
+        var n = porMuni[f.properties.CLAVE] || 0;
+        if (n) {
+          layer.bindPopup('<strong>' + f.properties.MPIO_CNMBR + '</strong><br>' + n + ' estudiante(s)');
+        }
+      }
+    }).addTo(map);
+    setTimeout(function () { map.invalidateSize(); }, 200);
+  }).catch(function () {
+    var msg = document.getElementById('mapa-panel-inicio-msg');
+    if (!msg) return;
+    msg.hidden = false;
+    msg.textContent = 'No se pudo cargar el mapa de cobertura.';
+  });
+})();
+</script>
 {% endblock %}

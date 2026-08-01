@@ -30,6 +30,8 @@ class UnfoldAdminSmokeTests(TestCase):
         body = r.content.decode("utf-8", errors="ignore").lower()
         self.assertNotIn("jazzmin", body)
         self.assertTrue("unfold" in body or "eki" in body)
+        self.assertIn("actividad en el territorio", body)
+        self.assertIn("mapa-panel-inicio", body)
 
     def test_estudiante_changelist_ok(self):
         r = self._get("/admin/core/estudiante/")
@@ -51,9 +53,6 @@ class UnfoldAdminSmokeTests(TestCase):
         r = self._get("/admin/infra/")
         self.assertEqual(r.status_code, 200)
 
-    def test_panel_ejecutivo_ok(self):
-        r = self._get("/admin/panel/")
-        self.assertEqual(r.status_code, 200)
-        body = r.content.decode("utf-8", errors="ignore").lower()
-        self.assertIn("estudiantes activos", body)
-        self.assertIn("espacios de trabajo", body)
+    def test_panel_redirige_a_inicio(self):
+        r = self.client.get("/admin/panel/", follow=False)
+        self.assertIn(r.status_code, (301, 302))

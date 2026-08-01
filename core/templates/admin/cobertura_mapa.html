@@ -29,7 +29,7 @@
     <header class="eki-cobertura-header">
         <div>
             <h1>Cobertura territorial</h1>
-            <p class="sub">Vista global: todos los cursos con inscritos de la organización.</p>
+            <p class="sub">{% if es_global %}Todos los estudiantes activos (todas las organizaciones).{% else %}Vista de la organización seleccionada.{% endif %}</p>
         </div>
         {% if org %}
         <a class="eki-btn eki-btn-ghost" href="{% url 'admin_drip_estudiantes' %}?cliente={{ org.id }}">Módulos por estudiante</a>
@@ -39,8 +39,8 @@
     <form method="get" class="eki-filtros">
         <div class="field">
             <label for="cliente">Organización</label>
-            <select name="cliente" id="cliente" required>
-                <option value="">— Elija —</option>
+            <select name="cliente" id="cliente">
+                <option value="" {% if not org %}selected{% endif %}>— Todas (global) —</option>
                 {% for c in clientes %}
                 <option value="{{ c.id }}" {% if org and org.id == c.id %}selected{% endif %}>{{ c.nombre }}</option>
                 {% endfor %}
@@ -49,15 +49,14 @@
         <button type="submit" class="eki-btn eki-btn-primary">Ver cobertura</button>
         {% if org %}
         <a class="eki-btn eki-btn-ghost" href="{% url 'admin:core_cliente_change' org.id %}">Ficha cliente</a>
+        <a class="eki-btn eki-btn-ghost" href="{% url 'admin_cobertura_mapa' %}">Volver a global</a>
         {% endif %}
     </form>
 
-    {% if not org %}
-    <p class="sub">Elija una organización para cargar el mapa global.</p>
-    {% elif resumen %}
+    {% if resumen %}
 
     <div class="eki-banner-global">
-        <strong>Global</strong> — {{ resumen.total_estudiantes }} participantes
+        <strong>{% if es_global %}Global{% else %}Organización{% endif %}</strong> — {{ resumen.total_estudiantes }} participantes
         · {{ resumen.municipios_distintos }} municipios
         · {{ resumen.departamentos_distintos }} departamentos
         · {{ resumen.con_municipio_mapeado }} en mapa DANE
@@ -138,7 +137,7 @@
     {% endif %}
 </div>
 
-{% if org and resumen %}
+{% if resumen %}
 <script>
 (function () {
     var labels = {{ chart_labels|safe }};
@@ -155,7 +154,7 @@
 <script>
 (function () {
     if (typeof L === 'undefined') return;
-    var q = 'cliente=' + encodeURIComponent('{{ org.id }}');
+    var q = {% if org %}'cliente=' + encodeURIComponent('{{ org.id }}'){% else %}'global=1'{% endif %};
     function colorMuni(cantidad, maxCant) {
         if (!maxCant || !cantidad) return '#f1f5f9';
         var t = Math.min(1, cantidad / maxCant);
