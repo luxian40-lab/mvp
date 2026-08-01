@@ -51,8 +51,10 @@ from core.views_retencion_admin import retencion_admin_agente, retencion_admin_v
 from aprende.views_admin import aula_web_admin_view
 from core.views_infra_admin import infra_monitor_api, infra_monitor_view
 from core.views_copiar_curso import copiar_curso_cliente_view
+from core.views_admin_panel import admin_panel_view
 
 urlpatterns = [
+    path('admin/panel/', admin_panel_view, name='admin_panel'),
     path('admin/dashboard/', dashboard_unificado, name='dashboard_unificado'),
     path(
         'admin/dashboard/resumen-data/',

@@ -1,0 +1,166 @@
+{% extends "admin/eki_ops_base.html" %}
+{% load i18n eki_admin %}
+
+{% block eki_ops_crumb %}Panel{% endblock %}
+
+{% block eki_ops_extra_nav %}
+<span class="eki-ops-sep">·</span>
+<a class="eki-ops-back" href="{% url 'dashboard_unificado' %}">Dashboard</a>
+{% endblock %}
+
+{% block eki_ops_content %}
+<section class="eki-panel-exec">
+  <header class="eki-panel-exec__hello">
+    <div>
+      <h1 class="eki-panel-exec__title">{% eki_admin_saludo %} 👋</h1>
+      <p class="eki-panel-exec__sub">Este es el resumen de tu operación hoy.</p>
+    </div>
+    <time class="eki-hub-cal" datetime="{% now 'Y-m-d' %}">
+      <span class="material-symbols-outlined" aria-hidden="true">calendar_today</span>
+      <span>{% eki_fecha_hoy %}</span>
+    </time>
+  </header>
+
+  <div class="eki-panel-kpis">
+    {% for k in snap.kpis %}
+    <article class="eki-panel-kpi eki-panel-kpi--{{ k.tone|default:'purple' }}">
+      <div class="eki-panel-kpi__label">{{ k.label }}</div>
+      <div class="eki-panel-kpi__value">{{ k.value }}</div>
+      <div class="eki-panel-kpi__delta">
+        {% if k.delta != None %}
+          {% if k.delta >= 0 %}+{% endif %}{{ k.delta }}% vs. ayer
+        {% elif k.note %}
+          {{ k.note }}
+        {% else %}
+          &nbsp;
+        {% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+
+  {% if snap.acciones %}
+  <div class="eki-panel-acciones" aria-label="Acciones rápidas">
+    {% for a in snap.acciones %}
+    <a class="eki-panel-accion" href="{{ a.url }}">
+      <span class="material-symbols-outlined" aria-hidden="true">{{ a.icon }}</span>
+      {{ a.label }}
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="eki-panel-mid">
+    <section class="eki-panel-card eki-panel-map">
+      <div class="eki-panel-card__head">
+        <h2>Actividad en el territorio</h2>
+        <a href="{% url 'admin_cobertura_mapa' %}">Abrir mapa →</a>
+      </div>
+      <p class="eki-panel-map__stat">
+        Departamentos activos
+        <strong>{{ snap.depts_activos }}/{{ snap.depts_meta }}</strong>
+      </p>
+      {% if snap.cobertura %}
+      <ul class="eki-panel-bars">
+        {% for d in snap.cobertura %}
+        <li>
+          <span class="eki-panel-bars__name">{{ d.nombre }}</span>
+          <span class="eki-panel-bars__track" aria-hidden="true">
+            <span class="eki-panel-bars__fill" style="width: {{ d.pct }}%"></span>
+          </span>
+          <span class="eki-panel-bars__n">{{ d.n }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="eki-panel-empty">Sin departamentos con estudiantes activos aún.</p>
+      {% endif %}
+      <div class="eki-panel-map__legend" aria-hidden="true">
+        <span><i class="dot hi"></i> Alta</span>
+        <span><i class="dot mid"></i> Media</span>
+        <span><i class="dot lo"></i> Baja</span>
+      </div>
+    </section>
+
+    <section class="eki-panel-card eki-panel-feed">
+      <div class="eki-panel-card__head">
+        <h2>Actividad reciente</h2>
+        <a href="{% url 'ai_ops_eventos' %}">Ver todo</a>
+      </div>
+      {% if snap.actividad %}
+      <ul class="eki-panel-timeline">
+        {% for ev in snap.actividad %}
+        <li>
+          <span class="eki-panel-timeline__dot" aria-hidden="true"></span>
+          <div>
+            <p>{{ ev.texto }}</p>
+            <time>{{ ev.relativo|default:ev.cuando }}</time>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="eki-panel-empty">Sin eventos recientes.</p>
+      {% endif %}
+    </section>
+
+    <section class="eki-panel-card eki-panel-insights">
+      <div class="eki-panel-card__head">
+        <h2>Señales eki <span class="eki-panel-badge">Ops</span></h2>
+      </div>
+      <p class="eki-panel-insights__intro">Lo que conviene mirar hoy (datos reales, sin inventar).</p>
+      {% if snap.insights %}
+      <ul class="eki-panel-insight-list">
+        {% for ins in snap.insights %}
+        <li class="eki-panel-insight eki-panel-insight--{{ ins.nivel }}">
+          <p>{{ ins.texto }}</p>
+          {% if ins.url %}<a href="{{ ins.url }}">{{ ins.cta }} →</a>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="eki-panel-empty">Sin alertas destacadas ahora.</p>
+      {% endif %}
+      <a class="eki-panel-insights__footer" href="{% url 'dashboard_unificado' %}?tab=retencion">Ir al Centro de Éxito →</a>
+    </section>
+  </div>
+
+  <section class="eki-panel-espacios-wrap">
+    <div class="eki-panel-card__head eki-panel-espacios-wrap__head">
+      <div>
+        <h2>Espacios de trabajo</h2>
+        <p>Gestiona y accede a cada producto de eki</p>
+      </div>
+    </div>
+    <div class="eki-panel-espacios">
+      {% for e in snap.espacios %}
+      <article class="eki-panel-espacio eki-panel-espacio--{{ e.tone }}">
+        <h3>{{ e.nombre }}</h3>
+        <p>{{ e.desc }}</p>
+        <dl>
+          {% for m in e.metrics %}
+          <div>
+            <dt>{{ m.label }}</dt>
+            <dd>{{ m.value }}</dd>
+          </div>
+          {% endfor %}
+        </dl>
+        <a href="{{ e.url }}" {% if e.external %}target="_blank" rel="noopener"{% endif %}>
+          Entrar al espacio →
+        </a>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <nav class="eki-panel-atajos" aria-label="Accesos rápidos">
+    <span class="eki-panel-atajos__label">Accesos rápidos por área</span>
+    {% for a in snap.atajos %}
+    <a href="{{ a.url }}">
+      <span class="material-symbols-outlined" aria-hidden="true">{{ a.icon }}</span>
+      {{ a.label }}
+    </a>
+    {% endfor %}
+  </nav>
+</section>
+{% endblock %}

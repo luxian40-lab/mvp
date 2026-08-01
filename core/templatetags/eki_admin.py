@@ -31,6 +31,33 @@ def eki_admin_saludo(context) -> str:
     return franja
 
 
+_MESES_ES = (
+    "",
+    "enero",
+    "febrero",
+    "marzo",
+    "abril",
+    "mayo",
+    "junio",
+    "julio",
+    "agosto",
+    "septiembre",
+    "octubre",
+    "noviembre",
+    "diciembre",
+)
+
+
+@register.simple_tag
+def eki_fecha_hoy() -> str:
+    """Fecha larga en español para el chip de calendario del hub."""
+    try:
+        now = timezone.localtime()
+    except Exception:
+        now = timezone.now()
+    return f"{now.day} de {_MESES_ES[now.month]} de {now.year}"
+
+
 @register.inclusion_tag("admin/partials/eki_health_strip.html", takes_context=True)
 def eki_health_strip(context):
     """Chips de salud en la barra superior Unfold."""

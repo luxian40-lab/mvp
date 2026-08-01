@@ -764,7 +764,7 @@ def snapshot_infra(*, force: bool = False) -> dict[str, Any]:
     return payload
 
 
-HEADER_HEALTH_CACHE_KEY = 'eki_header_health_v1'
+HEADER_HEALTH_CACHE_KEY = 'eki_header_health_v2'
 HEADER_HEALTH_CACHE_SECONDS = 25
 
 
@@ -814,7 +814,11 @@ def _whatsapp_configured() -> dict[str, Any]:
 
 
 def header_health_strip(*, force: bool = False) -> list[dict[str, Any]]:
-    """Chips ligeros para la barra Unfold: Meta, WhatsApp, Celery, Redis, S3, PostgreSQL."""
+    """Chips ligeros para la barra Unfold: WhatsApp, Celery, Redis, S3, PostgreSQL.
+
+    Meta Cloud API queda fuera del strip hasta que haya credenciales/probe estables
+    (evita rojo permanente en nav cuando Twilio es el canal activo).
+    """
     if not force:
         try:
             cached = cache.get(HEADER_HEALTH_CACHE_KEY)
@@ -828,16 +832,9 @@ def header_health_strip(*, force: bool = False) -> list[dict[str, Any]]:
     db_ok = bool((snap.get('db') or {}).get('ok'))
     s3_ok = bool((snap.get('s3') or {}).get('ok'))
     celery = _celery_workers_ok()
-    meta = _meta_configured()
     wa = _whatsapp_configured()
 
     chips = [
-        {
-            'id': 'meta',
-            'label': 'Meta',
-            'ok': meta['ok'],
-            'hint': meta['hint'],
-        },
         {
             'id': 'whatsapp',
             'label': 'WhatsApp',

@@ -4,6 +4,11 @@
 <div class="flex flex-row gap-3 items-center ml-auto eki-header-right">
     {% eki_health_strip %}
 
+    <a class="eki-header-bell" href="{% url 'instrucciones' %}#ops" title="Avisos operativos" aria-label="Notificaciones">
+        <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
+        {# Contador real = sprint siguiente; UI lista sin inventar alertas falsas #}
+    </a>
+
     {# Switcher visible en la barra superior (Unfold lo mete por defecto solo en el menú del usuario del sidebar). #}
     {% include "unfold/helpers/theme_switch_dropdown.html" %}
 

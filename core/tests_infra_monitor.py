@@ -83,7 +83,7 @@ class InfraMonitorAdminTests(TestCase):
         labels = [c['label'] for c in chips]
         self.assertEqual(
             labels,
-            ['Meta', 'WhatsApp', 'Celery', 'Redis', 'S3', 'PostgreSQL'],
+            ['WhatsApp', 'Celery', 'Redis', 'S3', 'PostgreSQL'],
         )
         for c in chips:
             self.assertIn('ok', c)

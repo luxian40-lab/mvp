@@ -64,6 +64,11 @@ UNFOLD = {
     # Dropdown marca (esquina superior): atajos ops. Apariencia light/dark/auto = switcher nativo Unfold.
     "SITE_DROPDOWN": [
         {
+            "icon": "monitoring",
+            "title": _("Panel"),
+            "link": "/admin/panel/",
+        },
+        {
             "icon": "dashboard",
             "title": _("Dashboard"),
             "link": "/admin/dashboard/",
@@ -155,6 +160,11 @@ UNFOLD = {
                         "title": _("Inicio"),
                         "icon": "home",
                         "link": reverse_lazy("admin:index"),
+                    },
+                    {
+                        "title": _("Panel"),
+                        "icon": "monitoring",
+                        "link": "/admin/panel/",
                     },
                     {
                         "title": _("Dashboard"),

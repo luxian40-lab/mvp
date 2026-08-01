@@ -50,3 +50,10 @@ class UnfoldAdminSmokeTests(TestCase):
     def test_infra_custom_ok(self):
         r = self._get("/admin/infra/")
         self.assertEqual(r.status_code, 200)
+
+    def test_panel_ejecutivo_ok(self):
+        r = self._get("/admin/panel/")
+        self.assertEqual(r.status_code, 200)
+        body = r.content.decode("utf-8", errors="ignore").lower()
+        self.assertIn("estudiantes activos", body)
+        self.assertIn("espacios de trabajo", body)

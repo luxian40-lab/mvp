@@ -5,8 +5,14 @@
 {% block content %}
 <section class="eki-admin-hub">
     <header class="eki-hub-hello">
-        <h1 class="eki-hub-hello__title">{% eki_admin_saludo %} 👋</h1>
-        <p class="eki-hub-hello__sub">Aquí tienes un resumen de lo más importante de hoy.</p>
+        <div class="eki-hub-hello__text">
+            <h1 class="eki-hub-hello__title">{% eki_admin_saludo %} 👋</h1>
+            <p class="eki-hub-hello__sub">Aquí tienes un resumen de lo más importante de hoy.</p>
+        </div>
+        <time class="eki-hub-cal" datetime="{% now 'Y-m-d' %}">
+            <span class="material-symbols-outlined" aria-hidden="true">calendar_today</span>
+            <span>{% eki_fecha_hoy %}</span>
+        </time>
     </header>
     <div class="eki-hub-cols">
         <div class="eki-hub-col">
@@ -20,6 +26,7 @@
         </div>
         <div class="eki-hub-col">
             <h2>Medir</h2>
+            <a href="{% url 'admin_panel' %}">Panel<span>Resumen ejecutivo · KPIs y territorio</span></a>
             <a href="{% url 'dashboard_unificado' %}">Dashboard<span>Executive · Learning · Ops</span></a>
             <a href="{% url 'dashboard_unificado' %}?tab=retencion">Centro de Éxito<span>Riesgo, mapa y consultor</span></a>
             <a href="{% url 'admin_cobertura_mapa' %}">Cobertura<span>Mapa territorial</span></a>
