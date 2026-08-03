@@ -1,11 +1,12 @@
 """
 🎓 Generador de Certificados con Detección de Marcadores Visuales (RGB)
 Usa numpy + Pillow para detectar marcadores de color en la plantilla
-y posicionar dinámicamente: Nombre, Cédula y QR.
+y posicionar dinámicamente: Nombre, Cédula, Fecha (opcional) y QR.
 
 Marcadores de color:
   - ⚪ Gris (128, 128, 128) → Nombre del estudiante
   - 🔴 Rojo (255, 0, 0) → Cédula (documento)
+  - 🟡 Amarillo (255, 255, 0) → Fecha de emisión (opcional)
   - 🔵 Azul (0, 0, 255) → Código QR de verificación
 
 Adaptado para Django + AWS S3 (sin guardar en disco local).
@@ -19,18 +20,24 @@ import qrcode
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 from django.conf import settings
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
 # --- CONFIGURACIÓN DE MARCADORES RGB ---
 # ⚪ Gris (128,128,128) → Nombre del estudiante
 # 🔴 Rojo (255,0,0) → Cédula (documento)
+# 🟡 Amarillo (255,255,0) → Fecha de emisión (opcional)
 # 🔵 Azul (0,0,255) → Código QR de verificación
 MARCADOR_NOMBRE  = (128, 128, 128)  # Gris puro para nombre
 MARCADOR_CEDULA  = (255, 0, 0)      # Rojo puro para cédula
+MARCADOR_FECHA   = (255, 255, 0)    # Amarillo puro para fecha
 MARCADOR_QR      = (0, 0, 255)      # Azul puro para QR
 TOLERANCIA_COLOR = 18               # Tolerancia reducida para detectar solo marcadores puros
 TAMAÑO_QR_DEFAULT = 130             # Antes 190; más compacto en plantillas
+FUENTE_NOMBRE_DEFAULT = 56          # Antes 80; nombres largos caben mejor
+FUENTE_CEDULA_DEFAULT = 30          # Antes 40
+FUENTE_FECHA_DEFAULT = 26
 
 # --- RUTA DE FUENTES ---
 FONTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
@@ -138,8 +145,10 @@ def generar_certificado_marcadores(
     cedula_estudiante,
     url_verificacion,
     organizacion_nombre=None,
-    fuente_nombre_size=80,
-    fuente_cedula_size=40,
+    fecha_emision=None,
+    fuente_nombre_size=FUENTE_NOMBRE_DEFAULT,
+    fuente_cedula_size=FUENTE_CEDULA_DEFAULT,
+    fuente_fecha_size=FUENTE_FECHA_DEFAULT,
     tamaño_qr=TAMAÑO_QR_DEFAULT,
     ajuste_qr_y=20,
 ):
@@ -152,8 +161,10 @@ def generar_certificado_marcadores(
         cedula_estudiante: Número de documento
         url_verificacion: URL para el código QR
         organizacion_nombre: Nombre de la organización (opcional)
+        fecha_emision: Fecha a estampar si hay marcador amarillo (default: hoy)
         fuente_nombre_size: Tamaño de fuente para el nombre
         fuente_cedula_size: Tamaño de fuente para la cédula
+        fuente_fecha_size: Tamaño de fuente para la fecha
         tamaño_qr: Tamaño del QR en píxeles
         ajuste_qr_y: Ajuste vertical del QR respecto al marcador
     
@@ -178,12 +189,14 @@ def generar_certificado_marcadores(
     # 2. Cargar fuentes
     fuente_nombre = cargar_fuente('GreatVibes-Regular.ttf', fuente_nombre_size)
     fuente_cedula = cargar_fuente('GreatVibes-Regular.ttf', fuente_cedula_size)
+    fuente_fecha = cargar_fuente('GreatVibes-Regular.ttf', fuente_fecha_size)
     
     # 3. Detectar marcadores RGB
     np_img = np.array(plantilla)
     
     pos_nombre = encontrar_marcador(np_img, MARCADOR_NOMBRE)
     pos_cedula = encontrar_marcador(np_img, MARCADOR_CEDULA)
+    pos_fecha = encontrar_marcador(np_img, MARCADOR_FECHA)
     pos_qr = encontrar_marcador(np_img, MARCADOR_QR)
     
     if pos_nombre is None:
@@ -193,10 +206,13 @@ def generar_certificado_marcadores(
     if pos_qr is None:
         raise ValueError("No se encontró el marcador de QR (Azul RGB 0,0,255) en la plantilla.")
     
-    logger.info(f"📍 Marcadores detectados - Nombre: {pos_nombre}, Cédula: {pos_cedula}, QR: {pos_qr}")
+    logger.info(
+        f"📍 Marcadores detectados - Nombre: {pos_nombre}, Cédula: {pos_cedula}, "
+        f"Fecha: {pos_fecha}, QR: {pos_qr}"
+    )
     
     # 4. Borrar marcadores (reemplazar con color local del fondo)
-    todos_marcadores = [pos_nombre, pos_cedula, pos_qr]
+    todos_marcadores = [pos_nombre, pos_cedula, pos_fecha, pos_qr]
     for pos in todos_marcadores:
         if pos is not None:
             x, y = pos
@@ -225,6 +241,26 @@ def generar_certificado_marcadores(
         fill="black",
         anchor="ms"  # Middle-baseline: centra horizontal, baseline en el marcador
     )
+
+    # 6b. Estampar FECHA si hay marcador amarillo (hoy por defecto)
+    if pos_fecha is not None:
+        if not fecha_emision:
+            fecha_emision = timezone.localdate()
+        if hasattr(fecha_emision, 'strftime'):
+            texto_fecha = fecha_emision.strftime('%d/%m/%Y')
+        else:
+            texto_fecha = str(fecha_emision)
+        draw.text(
+            (pos_fecha[0], pos_fecha[1]),
+            texto_fecha,
+            font=fuente_fecha,
+            fill="black",
+            anchor="ms",
+        )
+        logger.info(
+            f"📅 Fecha '{texto_fecha}' estampada en ({pos_fecha[0]}, {pos_fecha[1]}) "
+            f"font_size={fuente_fecha_size}"
+        )
     
     # 7. Generar y pegar QR (centrado en el marcador con ajuste)
     qr_img = qrcode.make(url_verificacion)

@@ -321,12 +321,14 @@ def _generar_certificado_simple(plantilla_url, nombre_estudiante, cedula, org_no
     # Cargar fuentes
     fonts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
     try:
-        fuente_nombre = ImageFont.truetype(os.path.join(fonts_dir, 'GreatVibes-Regular.ttf'), 80)
-        fuente_detalle = ImageFont.truetype(os.path.join(fonts_dir, 'GreatVibes-Regular.ttf'), 40)
+        fuente_nombre = ImageFont.truetype(os.path.join(fonts_dir, 'GreatVibes-Regular.ttf'), 56)
+        fuente_detalle = ImageFont.truetype(os.path.join(fonts_dir, 'GreatVibes-Regular.ttf'), 30)
+        fuente_fecha = ImageFont.truetype(os.path.join(fonts_dir, 'GreatVibes-Regular.ttf'), 26)
     except (IOError, OSError):
         logger.warning("⚠️ Fuente GreatVibes no encontrada, usando default")
         fuente_nombre = ImageFont.load_default()
         fuente_detalle = ImageFont.load_default()
+        fuente_fecha = fuente_detalle
     
     # Escribir NOMBRE centrado al 45% de la altura
     nombre_cap = nombre_estudiante.strip().title()
@@ -355,6 +357,16 @@ def _generar_certificado_simple(plantilla_url, nombre_estudiante, cedula, org_no
             ((ancho - w_o) // 2, int(alto * 0.62)),
             org_nombre, font=fuente_detalle, fill="black"
         )
+
+    # Fecha de hoy centrada al 68%
+    from django.utils import timezone as _tz
+    fecha_txt = _tz.localdate().strftime('%d/%m/%Y')
+    bbox_f = draw.textbbox((0, 0), fecha_txt, font=fuente_fecha)
+    w_f = bbox_f[2] - bbox_f[0]
+    draw.text(
+        ((ancho - w_f) // 2, int(alto * 0.68)),
+        fecha_txt, font=fuente_fecha, fill="black"
+    )
     
     # QR en esquina inferior derecha
     try:
@@ -507,6 +519,9 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
                     cedula_estudiante=cedula_est,
                     url_verificacion=url_verificacion,
                     organizacion_nombre=org_nombre,
+                    fecha_emision=getattr(certificado, 'fecha_emision', None)
+                    or getattr(certificado, 'fecha_completado', None)
+                    or timezone.localdate(),
                 )
                 if img_buffer:
                     generado = _guardar_cert_s3(certificado, img_buffer, "P0 Marcadores+DB")
@@ -526,6 +541,9 @@ def generar_y_guardar_certificado(certificado, plantilla=None, force=False):
                         cedula_estudiante=cedula_est,
                         url_verificacion=url_verificacion,
                         organizacion_nombre=org_nombre,
+                        fecha_emision=getattr(certificado, 'fecha_emision', None)
+                        or getattr(certificado, 'fecha_completado', None)
+                        or timezone.localdate(),
                     )
                     if img_buffer:
                         generado = _guardar_cert_s3(certificado, img_buffer, f"P1 Marcadores+Default({url_template[-20:]})")

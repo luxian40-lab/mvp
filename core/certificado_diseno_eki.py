@@ -50,10 +50,10 @@ def _abrir_imagen_campo(file_field):
 def _cargar_fuentes():
     fonts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
     candidatas = [
-        (os.path.join(fonts_dir, 'GreatVibes-Regular.ttf'), 56, 28, 22, 18),
-        ('arial.ttf', 42, 22, 18, 14),
-        ('C:\\Windows\\Fonts\\arial.ttf', 42, 22, 18, 14),
-        ('C:\\Windows\\Fonts\\arialbd.ttf', 42, 22, 18, 14),
+        (os.path.join(fonts_dir, 'GreatVibes-Regular.ttf'), 56, 24, 22, 18),
+        ('arial.ttf', 42, 20, 18, 14),
+        ('C:\\Windows\\Fonts\\arial.ttf', 42, 20, 18, 14),
+        ('C:\\Windows\\Fonts\\arialbd.ttf', 42, 20, 18, 14),
     ]
     for path, s1, s2, s3, s4 in candidatas:
         try:
