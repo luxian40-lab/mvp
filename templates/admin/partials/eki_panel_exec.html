@@ -20,6 +20,7 @@
       <div class="eki-panel-kpi__delta">
         {% if k.delta != None %}
           {% if k.delta >= 0 %}+{% endif %}{{ k.delta }}% vs. ayer
+          {% if k.note %}<span class="eki-panel-kpi__note"> · {{ k.note }}</span>{% endif %}
         {% elif k.note %}
           {{ k.note }}
         {% else %}
@@ -47,9 +48,14 @@
         <h2>Actividad en el territorio</h2>
         <a href="{% url 'admin_cobertura_mapa' %}">Ampliar →</a>
       </div>
-      <p class="eki-panel-map__stat">
-        Todos los clientes · Departamentos activos
-        <strong>{{ snap.depts_activos }}/{{ snap.depts_meta }}</strong>
+      <p class="eki-panel-map__stat" id="mapa-panel-stats">
+        Todos los clientes · Depts
+        <strong id="mapa-stat-depts">{{ snap.depts_activos }}/{{ snap.depts_meta }}</strong>
+        · Municipios
+        <strong id="mapa-stat-munis">{{ snap.mapa.municipios_distintos|default:0 }}</strong>
+        · En mapa
+        <strong id="mapa-stat-mapped">{{ snap.mapa.con_municipio_mapeado|default:0 }}</strong>
+        <span class="eki-panel-map__fresh" id="mapa-stat-fresh"></span>
       </p>
       <div id="mapa-panel-inicio" class="eki-panel-map__canvas" aria-label="Mapa Colombia — todos los estudiantes"></div>
       <p id="mapa-panel-inicio-msg" class="eki-panel-map__err" hidden></p>

@@ -164,9 +164,22 @@ def manejar_onboarding_natural(estudiante: Estudiante, mensaje: str) -> tuple:
 
     # Paso 5: Municipio/ciudad
     if (not estudiante.municipio or estudiante.estado_onboarding == 'esperando_municipio'):
-        municipio, _ = detectar_municipio_en_texto(mensaje)
+        municipio, depto = detectar_municipio_en_texto(mensaje)
         if municipio:
             estudiante.municipio = municipio
+            if depto:
+                estudiante.departamento = depto
+            try:
+                from portal.geo_catalogo import aplicar_ubicacion_dane
+
+                aplicar_ubicacion_dane(
+                    estudiante,
+                    municipio=municipio,
+                    departamento=depto or (estudiante.departamento or ''),
+                    save=False,
+                )
+            except Exception:
+                pass
             estudiante.estado_onboarding = 'esperando_ubicacion_detalle'
             estudiante.save()
             return (False, "¿Puedes darme un detalle adicional de tu ubicación? (vereda, barrio, etc.)")

@@ -69,12 +69,20 @@
     attribution: '&copy; OSM'
   }).addTo(map);
   Promise.all([
-    fetch('/admin/cobertura/datos.json?global=1', { credentials: 'same-origin' }).then(function (r) { return r.json(); }),
+    fetch('/admin/cobertura/datos.json?global=1&force=1', { credentials: 'same-origin' }).then(function (r) { return r.json(); }),
     fetch('/admin/cobertura/municipios.geojson', { credentials: 'same-origin' }).then(function (r) { return r.json(); })
   ]).then(function (res) {
     var datos = res[0], geo = res[1];
     var porMuni = datos.por_municipio_clave || {};
     var maxM = datos.max_municipio || 0;
+    var deptsEl = document.getElementById('mapa-stat-depts');
+    var munisEl = document.getElementById('mapa-stat-munis');
+    var mappedEl = document.getElementById('mapa-stat-mapped');
+    var freshEl = document.getElementById('mapa-stat-fresh');
+    if (deptsEl) deptsEl.textContent = (datos.departamentos_distintos || 0) + '/32';
+    if (munisEl) munisEl.textContent = String(datos.municipios_distintos || 0);
+    if (mappedEl) mappedEl.textContent = String(datos.con_municipio_mapeado || 0);
+    if (freshEl) freshEl.textContent = ' · actualizado ahora';
     L.geoJSON(geo, {
       style: function (f) {
         var n = porMuni[f.properties.CLAVE] || 0;

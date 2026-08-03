@@ -74,6 +74,14 @@ class Command(BaseCommand):
                 est.municipio = nuevo_m
                 est.save(update_fields=['departamento', 'municipio'])
 
+        if apply and actualizados:
+            try:
+                from django.core.cache import cache
+
+                cache.delete('eki_cobertura_global_v2')
+            except Exception:
+                pass
+
         modo = 'APLICADO' if apply else 'SIMULACIÓN'
         self.stdout.write(self.style.SUCCESS(f'\n[{modo}] Revisados: {total}'))
         self.stdout.write(f'  Municipio reconocido: {mapeados}')

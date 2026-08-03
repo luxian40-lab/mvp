@@ -5,13 +5,14 @@ from datetime import timedelta
 from typing import Any
 
 from django.contrib.admin.views.decorators import staff_member_required
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.utils.timesince import timesince
 
 from core.infra_monitor import header_health_strip
 from core.models import Campana, Cliente, Curso, Estudiante, ProgresoEstudiante
+from core.views_cobertura_admin import get_cobertura_global
 
 
 def _pct_delta(hoy: int, ayer: int) -> int | None:
@@ -58,6 +59,18 @@ def build_panel_snapshot() -> dict[str, Any]:
 
     est_activos = Estudiante.objects.filter(activo=True).count()
     est_ayer = Estudiante.objects.filter(activo=True, fecha_registro__date__lte=ayer).count()
+    activos_7d = (
+        Estudiante.objects.filter(activo=True)
+        .filter(
+            Q(progresos__fecha_ultimo_avance__gte=hace_7)
+            | Q(
+                mensajes_whatsapp__tipo='INCOMING',
+                mensajes_whatsapp__fecha__gte=hace_7,
+            )
+        )
+        .distinct()
+        .count()
+    )
 
     try:
         from core.models_certificados import Certificado
@@ -66,9 +79,13 @@ def build_panel_snapshot() -> dict[str, Any]:
         certs_ayer = Certificado.objects.filter(
             emitido=True, fecha_emision__date__lte=ayer
         ).count()
+        certs_7d = Certificado.objects.filter(
+            emitido=True, fecha_emision__gte=hace_7
+        ).count()
     except Exception:
         certs = 0
         certs_ayer = 0
+        certs_7d = 0
 
     campanas_enviadas = Campana.objects.filter(ejecutada=True).count()
     campanas_7d = Campana.objects.filter(ejecutada=True, fecha_creacion__gte=hace_7).count()
@@ -78,39 +95,55 @@ def build_panel_snapshot() -> dict[str, Any]:
         activo=True, fecha_registro__date__lte=ayer
     ).count()
 
+    # Misma fuente que el mapa Leaflet (cache 45s)
     mapa = {
         'total_estudiantes': est_activos,
         'departamentos_distintos': 0,
         'municipios_distintos': 0,
         'con_municipio_mapeado': 0,
+        'generated_at': '',
     }
-    dept_rows = list(
-        Estudiante.objects.filter(activo=True)
-        .exclude(departamento__isnull=True)
-        .exclude(departamento='')
-        .values('departamento')
-        .annotate(n=Count('id'))
-        .order_by('-n')[:8]
-    )
-    max_dept = max((d['n'] for d in dept_rows), default=1)
-    cobertura = [
-        {
-            'nombre': d['departamento'],
-            'n': d['n'],
-            'pct': int(round(d['n'] / max_dept * 100)),
+    cobertura = []
+    depts_con_estudiantes = 0
+    try:
+        geo = get_cobertura_global(force=False)
+        mapa = {
+            'total_estudiantes': geo.get('total_estudiantes') or est_activos,
+            'departamentos_distintos': geo.get('departamentos_distintos') or 0,
+            'municipios_distintos': geo.get('municipios_distintos') or 0,
+            'con_municipio_mapeado': geo.get('con_municipio_mapeado') or 0,
+            'generated_at': geo.get('generated_at') or '',
         }
-        for d in dept_rows
-    ]
-    depts_con_estudiantes = (
-        Estudiante.objects.filter(activo=True)
-        .exclude(departamento__isnull=True)
-        .exclude(departamento='')
-        .values('departamento')
-        .distinct()
-        .count()
-    )
-    mapa['departamentos_distintos'] = depts_con_estudiantes
-    # municipios / mapeados: el mapa Leaflet los carga vía API global (async)
+        top = geo.get('por_departamento') or []
+        max_n = top[0]['cantidad'] if top else 1
+        cobertura = [
+            {
+                'nombre': d['departamento'],
+                'n': d['cantidad'],
+                'pct': int(round(d['cantidad'] / max_n * 100)) if max_n else 0,
+            }
+            for d in top[:8]
+        ]
+        depts_con_estudiantes = mapa['departamentos_distintos']
+    except Exception:
+        dept_rows = list(
+            Estudiante.objects.filter(activo=True)
+            .exclude(departamento__isnull=True)
+            .exclude(departamento='')
+            .values('departamento')
+            .annotate(n=Count('id'))
+            .order_by('-n')[:8]
+        )
+        max_dept = max((d['n'] for d in dept_rows), default=1)
+        cobertura = [
+            {
+                'nombre': d['departamento'],
+                'n': d['n'],
+                'pct': int(round(d['n'] / max_dept * 100)),
+            }
+            for d in dept_rows
+        ]
+        depts_con_estudiantes = len(dept_rows)
     actividad = []
     try:
         from core.models import EventoIA
@@ -163,16 +196,29 @@ def build_panel_snapshot() -> dict[str, Any]:
                 'url': '/admin/core/estudiante/',
             }
         )
-    if depts_con_estudiantes:
+    if depts_con_estudiantes or mapa.get('con_municipio_mapeado'):
         insights.append(
             {
                 'nivel': 'info',
                 'texto': (
-                    f'Cobertura territorial: {depts_con_estudiantes} departamentos '
-                    f'con estudiantes activos (mapa global abajo).'
+                    f'Mapa live: {mapa.get("con_municipio_mapeado", 0)} estudiantes '
+                    f'en mapa · {mapa.get("municipios_distintos", 0)} municipios · '
+                    f'{depts_con_estudiantes} departamentos.'
                 ),
                 'cta': 'Ampliar cobertura',
                 'url': '/admin/cobertura/',
+            }
+        )
+    else:
+        insights.append(
+            {
+                'nivel': 'warn',
+                'texto': (
+                    'Pocos estudiantes con municipio/departamento DANE. '
+                    'Sin geo el mapa queda vacío aunque haya activos.'
+                ),
+                'cta': 'Ver estudiantes',
+                'url': '/admin/core/estudiante/',
             }
         )
     if cursos_activos:
@@ -265,12 +311,14 @@ def build_panel_snapshot() -> dict[str, Any]:
                 'label': 'Estudiantes activos',
                 'value': est_activos,
                 'delta': _pct_delta(est_activos, est_ayer),
+                'note': f'{activos_7d} con actividad en 7 días',
                 'tone': 'purple',
             },
             {
                 'label': 'Certificados emitidos',
                 'value': certs,
                 'delta': _pct_delta(certs, certs_ayer),
+                'note': f'{certs_7d} en 7 días' if certs_7d else None,
                 'tone': 'green',
             },
             {
@@ -297,6 +345,7 @@ def build_panel_snapshot() -> dict[str, Any]:
         ],
         'cobertura': cobertura,
         'mapa': mapa,
+        'activos_7d': activos_7d,
         'depts_activos': depts_con_estudiantes,
         'depts_meta': 32,
         'actividad': actividad,

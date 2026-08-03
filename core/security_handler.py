@@ -345,6 +345,12 @@ def verificar_terminos(estudiante, mensaje_texto):
             estudiante.tipo_documento = tipo_doc
             estudiante.cedula = cedula
             estudiante.estado_onboarding = 'completado'
+            try:
+                from portal.geo_catalogo import aplicar_ubicacion_dane
+
+                aplicar_ubicacion_dane(estudiante, municipio=municipio, save=False)
+            except Exception:
+                pass
             estudiante.save()
             
             logger.info(f"✅ Onboarding completado: {nombre} de {municipio} - {tipo_doc}: {cedula}")

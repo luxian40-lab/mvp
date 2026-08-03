@@ -204,6 +204,46 @@ def resolver_ubicacion(
     )
 
 
+def aplicar_ubicacion_dane(
+    estudiante,
+    municipio: str | None = None,
+    departamento: str | None = None,
+    *,
+    save: bool = False,
+) -> bool:
+    """Normaliza municipio/departamento del estudiante con catálogo DANE.
+
+    Returns True si cambió algún campo (y opcionalmente guarda).
+    """
+    raw_m = (municipio if municipio is not None else (estudiante.municipio or '')).strip()
+    raw_d = (
+        departamento if departamento is not None else (estudiante.departamento or '')
+    ).strip()
+    if not raw_m and not raw_d:
+        return False
+
+    ubic = resolver_ubicacion(raw_m, raw_d)
+    nuevo_m = ubic.municipio or raw_m
+    nuevo_d = ubic.departamento or raw_d
+    changed = (
+        (estudiante.municipio or '').strip() != (nuevo_m or '').strip()
+        or (estudiante.departamento or '').strip() != (nuevo_d or '').strip()
+    )
+    if not changed:
+        return False
+    estudiante.municipio = nuevo_m
+    estudiante.departamento = nuevo_d
+    if save:
+        estudiante.save(update_fields=['municipio', 'departamento'])
+        try:
+            from django.core.cache import cache
+
+            cache.delete('eki_cobertura_global_v2')
+        except Exception:
+            pass
+    return True
+
+
 def centroide_municipio(municipio: str, departamento: str) -> tuple[float, float] | None:
     res = resolver_ubicacion(municipio, departamento, permitir_aproximado=True)
     if res.nivel != 'municipio' or not res.clave_municipio:

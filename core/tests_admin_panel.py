@@ -36,6 +36,7 @@ class PanelViewTests(TestCase):
         self.assertEqual(len(snap["kpis"]), 5)
         self.assertIn("espacios", snap)
         self.assertIn("mapa", snap)
+        self.assertIn("activos_7d", snap)
         self.assertIn("atajos", snap)
 
     def test_panel_redirige_a_inicio(self):
@@ -50,10 +51,12 @@ class PanelViewTests(TestCase):
         self.assertContains(r, "mapa-panel-inicio")
         self.assertContains(r, "Espacios de trabajo")
         self.assertContains(r, "global=1")
+        self.assertContains(r, "force=1")
 
     def test_cobertura_api_global(self):
-        r = self.client.get("/admin/cobertura/datos.json?global=1", follow=True)
+        r = self.client.get("/admin/cobertura/datos.json?global=1&force=1", follow=True)
         self.assertEqual(r.status_code, 200)
         data = r.json()
         self.assertIn("por_municipio_clave", data)
         self.assertEqual(data.get("filtro"), "global_todos_estudiantes")
+        self.assertIn("generated_at", data)

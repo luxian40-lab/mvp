@@ -398,11 +398,16 @@ html.dark .eki-panel-kpi__value { color: #f4f2f7; }
   background: #e8e4ef;
   z-index: 0;
 }
-.eki-panel-map__err {
-  margin: 0.5rem 0 0;
-  font-size: 0.8rem;
-  color: #b91c1c;
+.eki-panel-map__fresh {
+  font-size: 0.72rem;
+  color: #16a34a;
+  font-weight: 550;
 }
+.eki-panel-kpi__note {
+  font-weight: 450;
+  color: #8a8494;
+}
+
 .eki-admin-ops-fold {
   margin: 1.25rem 0 0;
   border: 1px solid var(--eki-box-border);

@@ -13,6 +13,33 @@ from core.models import Cliente, Curso
 from portal.cobertura_geo import resumen_cobertura_geografica
 from portal.geo_catalogo import ruta_geojson_municipios
 
+COBERTURA_GLOBAL_CACHE_KEY = 'eki_cobertura_global_v2'
+COBERTURA_GLOBAL_CACHE_SECONDS = 45
+
+
+def get_cobertura_global(*, force: bool = False) -> dict:
+    """Resumen territorial de todos los estudiantes activos (cache corto)."""
+    from django.core.cache import cache
+    from django.utils import timezone
+
+    if not force:
+        try:
+            cached = cache.get(COBERTURA_GLOBAL_CACHE_KEY)
+            if cached:
+                return cached
+        except Exception:
+            pass
+
+    data = resumen_cobertura_geografica(
+        None, None, include_por_curso=False, include_puntos=False
+    )
+    data['generated_at'] = timezone.now().isoformat()
+    try:
+        cache.set(COBERTURA_GLOBAL_CACHE_KEY, data, COBERTURA_GLOBAL_CACHE_SECONDS)
+    except Exception:
+        pass
+    return data
+
 
 def _cliente_desde_request(request) -> Cliente | None:
     raw = request.GET.get('cliente') or request.GET.get('cliente_id')
@@ -70,22 +97,11 @@ def cobertura_admin_view(request):
 @staff_member_required
 def cobertura_admin_api(request):
     """JSON de cobertura. Sin cliente (o ?global=1) → todos los estudiantes activos."""
-    from django.core.cache import cache
-
     org = _cliente_desde_request(request)
     global_flag = (request.GET.get('global') or '').strip() in ('1', 'true', 'yes')
+    force = (request.GET.get('force') or '').strip() in ('1', 'true', 'yes')
     if org is None or global_flag:
-        cached = cache.get('eki_cobertura_global_v1')
-        if cached:
-            return JsonResponse(cached)
-        data = resumen_cobertura_geografica(
-            None, None, include_por_curso=False, include_puntos=False
-        )
-        try:
-            cache.set('eki_cobertura_global_v1', data, 60)
-        except Exception:
-            pass
-        return JsonResponse(data)
+        return JsonResponse(get_cobertura_global(force=force))
     return JsonResponse(
         resumen_cobertura_geografica(org, None, include_puntos=False)
     )
