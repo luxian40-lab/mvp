@@ -3117,6 +3117,7 @@ def _procesar_twilio_webhook(post_data):
                 'esperando_respuesta_progreso',      # María
                 'esperando_respuesta_modulo',         # Evaluación módulo
                 'esperando_respuesta_pregunta_abierta_final',  # Respuesta final calificada por facilitadora
+                'esperando_codigo_empleabilidad',     # Radar: código de aliado (no gate *listo*)
             ]
             if estudiante.estado_onboarding in estados_agente:
                 logger.info(f"🤖 Agente activo ({estudiante.estado_onboarding}) — bypassing gate listo")
@@ -3734,7 +3735,9 @@ def _procesar_twilio_webhook(post_data):
                 if mision_id:
                     mision = MisionEmpleabilidad.objects.filter(id=mision_id, estudiante=estudiante).first()
 
-                if aliado and msg_body.strip().lower() == str(aliado.codigo_secreto).strip().lower():
+                codigo_ingresado = msg_body.strip().lower()
+                codigo_esperado = str(aliado.codigo_secreto).strip().lower() if aliado else ''
+                if aliado and codigo_ingresado == codigo_esperado:
                     perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=estudiante)
                     puntos_cfg = int(getattr(estudiante.cliente, 'empleabilidad_puntos_validacion', 30) or 30)
                     perfil.agregar_puntos(puntos_cfg, f"Radar Empleabilidad: {aliado.nombre_empresa}")
@@ -3773,6 +3776,13 @@ def _procesar_twilio_webhook(post_data):
                         "✅ Ya notificamos al equipo para iniciar el proceso de empleabilidad."
                     )
                     estudiante.estado_onboarding = 'curso_finalizado'
+                elif codigo_ingresado in ('listo', 'continuar'):
+                    texto_respuesta = (
+                        "📍 Estás en el *radar de empleabilidad*.\n\n"
+                        "No uses *listo* aquí: envía el *código secreto* del punto "
+                        "(el que te indiquemos en la prueba / en la entrada)."
+                    )
+                    estudiante.estado_onboarding = 'esperando_codigo_empleabilidad'
                 else:
                     if mision and mision.estado == 'descubierta':
                         mision.estado = 'reclamada'
