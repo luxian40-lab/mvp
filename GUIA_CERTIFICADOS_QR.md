@@ -1,6 +1,26 @@
 """
 🎨 Guía: Usar Diseños de Canva en Certificados EKI
 
+MARCADORES RGB (plantilla imagen — obligatorio en prod)
+=======================================================
+
+En Canva/Photoshop coloca manchas de color PURO (relleno sólido, sin degradado):
+
+  ⬜ GRIS     RGB (128, 128, 128)  → NOMBRE del estudiante
+  🟥 ROJO     RGB (255,   0,   0)  → CÉDULA / documento
+  🟨 AMARILLO RGB (255, 255,   0)  → FECHA de emisión (hoy; opcional)
+  🟦 AZUL     RGB (0,     0, 255)  → CÓDIGO QR de verificación
+
+Tamaños automáticos al generar:
+  - Nombre ~56 px
+  - Cédula ~30 px
+  - Fecha  ~26 px
+  - QR     130×130 px
+
+Código: core/utils_certificados.py
+Admin: Learning → Plantillas de certificado (caja verde de instrucciones + vista previa)
+
+
 CÓMO FUNCIONA EL SISTEMA ACTUAL (Sin subir nada):
 ================================================
 
@@ -36,18 +56,20 @@ Paso 1: Diseña en Canva
 │ - Colores de marca                       │
 │ - Elementos gráficos                     │
 │                                          │
-│ [Deja ESPACIO VACÍO para texto dinámico]│
+│ [Deja ESPACIO VACÍO + marcadores RGB]   │
 │                                          │
 └─────────────────────────────────────────┘
 
 Paso 2: Descarga de Canva
-- Formato: PNG
+- Formato: PNG (mejor para colores exactos de marcadores)
 - Calidad: Alta (300 DPI)
 - Tamaño: A4 Horizontal (297mm x 210mm)
 
 Paso 3: Sube al Admin de Django
-1. Ve a: http://eki-prod-final.../admin/core/plantillacertificado/
+1. Ve a: Admin → Plantillas de certificado
 2. Click en "Agregar Plantilla de Certificado"
+3. Modo = Imagen; sube PNG con los 3–4 marcadores (amarillo = fecha opcional)
+4. Usa la vista previa a la derecha (estudiante real o demo)
 3. Sube tu PNG de Canva en "imagen_fondo"
 4. Configura las posiciones del texto (X, Y):
    - nombre_x: 400 (centro horizontal)

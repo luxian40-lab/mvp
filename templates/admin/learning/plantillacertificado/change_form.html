@@ -82,7 +82,7 @@
     <input type="hidden" id="certPlantillaPk" value="{% if original %}{{ original.pk }}{% endif %}">
     <aside class="cert-preview-panel" aria-label="Vista previa del certificado">
         <h3>Vista previa</h3>
-        <p>Sube la plantilla y elige un estudiante real (o demo) para ver nombre, cédula y QR.</p>
+        <p>Sube la plantilla con marcadores RGB: gris=nombre, rojo=cédula, amarillo=fecha (opcional), azul=QR. Elige un estudiante real (o demo) para previsualizar.</p>
         <label for="certEstudiantePreview" style="display:block;font-size:12px;margin-bottom:8px;color:#334155;">
             Estudiante de prueba
             <select id="certEstudiantePreview" style="display:block;width:100%;margin-top:4px;padding:6px 8px;border-radius:6px;border:1px solid #cbd5e1;">

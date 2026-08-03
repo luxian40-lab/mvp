@@ -646,6 +646,100 @@ html.dark .eki-panel-timeline p { color: #efe8f5; }
 }
 .eki-panel-insights__footer:hover { text-decoration: underline; }
 
+/* Vista Ecosistema (grafo SVG mínimo) */
+.eki-panel-eco {
+  margin-bottom: 1.15rem;
+}
+.eki-panel-eco__intro {
+  margin: -0.35rem 0 0.75rem;
+  font-size: 0.8rem;
+  color: #6b6575;
+}
+html.dark .eki-panel-eco__intro { color: #b7afc4; }
+.eki-panel-eco__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(12rem, 0.75fr);
+  gap: 0.85rem;
+  align-items: center;
+}
+@media (max-width: 900px) {
+  .eki-panel-eco__body { grid-template-columns: 1fr; }
+}
+.eki-panel-eco__svg {
+  width: 100%;
+  height: auto;
+  max-height: 240px;
+  display: block;
+  background: rgba(154, 108, 172, 0.04);
+  border-radius: 10px;
+}
+html.dark .eki-panel-eco__svg {
+  background: rgba(255, 255, 255, 0.03);
+}
+.eki-panel-eco__edge {
+  stroke: rgba(95, 58, 110, 0.28);
+  stroke-width: 2;
+}
+html.dark .eki-panel-eco__edge { stroke: rgba(216, 208, 226, 0.28); }
+.eki-panel-eco__node-link { cursor: pointer; }
+.eki-panel-eco__node {
+  fill: #fff;
+  stroke: #9A6CAC;
+  stroke-width: 2.5;
+}
+.eki-panel-eco__node--ok { stroke: #16a34a; }
+.eki-panel-eco__node--warn { stroke: #d97706; }
+.eki-panel-eco__node--empty { stroke: #94a3b8; fill: #f8fafc; }
+html.dark .eki-panel-eco__node { fill: #2a2433; }
+html.dark .eki-panel-eco__node--empty { fill: #1e1b24; stroke: #64748b; }
+.eki-panel-eco__label {
+  font-size: 11px;
+  font-weight: 700;
+  fill: #3d3648;
+  pointer-events: none;
+}
+html.dark .eki-panel-eco__label { fill: #e8e2ef; }
+.eki-panel-eco__legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+.eki-panel-eco__leg a {
+  display: grid;
+  grid-template-columns: 8px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 0.45rem;
+  row-gap: 0.05rem;
+  text-decoration: none;
+  color: inherit;
+  padding: 0.3rem 0.35rem;
+  border-radius: 6px;
+}
+.eki-panel-eco__leg a:hover { background: rgba(154, 108, 172, 0.08); }
+.eki-panel-eco__dot {
+  grid-row: 1 / span 2;
+  align-self: center;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+.eki-panel-eco__leg--ok .eki-panel-eco__dot { background: #16a34a; }
+.eki-panel-eco__leg--warn .eki-panel-eco__dot { background: #d97706; }
+.eki-panel-eco__leg--empty .eki-panel-eco__dot { background: #94a3b8; }
+.eki-panel-eco__leg strong {
+  font-size: 0.78rem;
+  color: #1e1b24;
+}
+.eki-panel-eco__leg span {
+  font-size: 0.72rem;
+  color: #6b6575;
+}
+html.dark .eki-panel-eco__leg strong { color: #f4f2f7; }
+html.dark .eki-panel-eco__leg span { color: #b7afc4; }
+
 .eki-panel-espacios-wrap { margin-bottom: 1rem; }
 .eki-panel-espacios-wrap__head {
   margin-bottom: 0.75rem;

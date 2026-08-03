@@ -50,6 +50,117 @@ def _avg_avance_pct() -> float:
     return sum((d / t) * 100.0 for d, t in rows) / len(rows)
 
 
+def _nodo_status(ok: bool, warn: bool = False) -> str:
+    if warn:
+        return 'warn'
+    return 'ok' if ok else 'empty'
+
+
+def _build_ecosistema(
+    *,
+    cursos_activos: int,
+    est_activos: int,
+    empresas: int,
+    campanas_enviadas: int,
+    campanas_7d: int,
+    certs: int,
+    avance: float,
+    eventos_ia: int,
+    sin_progreso: int,
+) -> dict[str, Any]:
+    """
+    Grafo fijo del ecosistema eki para el home.
+    Nodos con contador/estado y aristas fijas (sin motor de grafos).
+    """
+    nodos = [
+        {
+            'id': 'studio',
+            'label': 'Studio',
+            'value': f'{cursos_activos} cursos' if cursos_activos else 'Sin datos',
+            'status': _nodo_status(cursos_activos > 0),
+            'url': 'https://studio.eki.technology/studio/',
+            'external': True,
+            'x': 70,
+            'y': 48,
+        },
+        {
+            'id': 'aprende',
+            'label': 'Aprende',
+            'value': f'{est_activos} est.' if est_activos else 'Sin datos',
+            'status': _nodo_status(est_activos > 0, warn=sin_progreso >= 5),
+            'url': 'https://aprende.eki.technology/aprende/',
+            'external': True,
+            'x': 210,
+            'y': 48,
+        },
+        {
+            'id': 'empresas',
+            'label': 'Empresas',
+            'value': f'{empresas} activas' if empresas else 'Sin datos',
+            'status': _nodo_status(empresas > 0),
+            'url': '/admin/core/cliente/',
+            'external': False,
+            'x': 350,
+            'y': 48,
+        },
+        {
+            'id': 'campanas',
+            'label': 'Campañas',
+            'value': (
+                f'{campanas_enviadas} enviadas'
+                if campanas_enviadas
+                else 'Sin datos'
+            ),
+            'status': _nodo_status(campanas_enviadas > 0, warn=campanas_enviadas > 0 and campanas_7d == 0),
+            'url': '/admin/core/campana/',
+            'external': False,
+            'x': 490,
+            'y': 48,
+        },
+        {
+            'id': 'ia',
+            'label': 'IA',
+            'value': f'{eventos_ia} eventos' if eventos_ia else 'Sin datos',
+            'status': _nodo_status(eventos_ia > 0),
+            'url': '/admin/ai-ops/eventos/',
+            'external': False,
+            'x': 140,
+            'y': 168,
+        },
+        {
+            'id': 'impacto',
+            'label': 'Impacto',
+            'value': (
+                f'{certs} certs · {int(round(avance))}%'
+                if certs or avance
+                else 'Sin datos'
+            ),
+            'status': _nodo_status(certs > 0 or avance > 0, warn=avance > 0 and avance < 30),
+            'url': '/admin/dashboard/?tab=retencion',
+            'external': False,
+            'x': 400,
+            'y': 168,
+        },
+    ]
+    # Aristas: Studio→Aprende→Empresas→Campañas→Impacto; Studio/Aprende→IA; Empresas→Impacto
+    edges = [
+        ('studio', 'aprende'),
+        ('aprende', 'empresas'),
+        ('empresas', 'campanas'),
+        ('campanas', 'impacto'),
+        ('studio', 'ia'),
+        ('aprende', 'ia'),
+        ('empresas', 'impacto'),
+        ('ia', 'impacto'),
+    ]
+    by_id = {n['id']: n for n in nodos}
+    aristas = []
+    for a, b in edges:
+        na, nb = by_id[a], by_id[b]
+        aristas.append({'x1': na['x'], 'y1': na['y'], 'x2': nb['x'], 'y2': nb['y']})
+    return {'nodos': nodos, 'aristas': aristas}
+
+
 def build_panel_snapshot() -> dict[str, Any]:
     """KPIs y bloques del Panel (Inicio) con datos reales."""
     now = timezone.now()
@@ -305,6 +416,18 @@ def build_panel_snapshot() -> dict[str, Any]:
         {'label': 'Estudiantes', 'url': '/admin/core/estudiante/', 'icon': 'group'},
     ]
 
+    ecosistema = _build_ecosistema(
+        cursos_activos=cursos_activos,
+        est_activos=est_activos,
+        empresas=empresas,
+        campanas_enviadas=campanas_enviadas,
+        campanas_7d=campanas_7d,
+        certs=certs,
+        avance=float(avance or 0),
+        eventos_ia=len(actividad),
+        sin_progreso=sin_progreso,
+    )
+
     return {
         'kpis': [
             {
@@ -353,6 +476,7 @@ def build_panel_snapshot() -> dict[str, Any]:
         'espacios': espacios,
         'acciones': acciones,
         'atajos': atajos,
+        'ecosistema': ecosistema,
         'health': header_health_strip(force=False),
     }
 

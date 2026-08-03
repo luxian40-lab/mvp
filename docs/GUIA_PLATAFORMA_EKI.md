@@ -15,6 +15,8 @@ Documento de referencia para el equipo de producto, operaciones, contenido y des
 | `docs/AUDITORIA_ARQUITECTURA_EKI.md` | Deuda técnica, archivos críticos, seguridad P0–P3 |
 | `docs/CHECKLIST_PRE_DEPLOY.md` | Comandos y smoke tests antes de cada deploy |
 | `docs/EKI_STUDIO.md` | Catálogo, inscripción y DNS de eki Studio |
+| `docs/EKI_APRENDE_REFERENCES.md` | Aprende como producto LMS: Moodle/Canvas + diseño M3/Carbon/Primer/Mobbin/Tabler |
+| `docs/EKI_UNFOLD_ADMIN.md` | Admin Unfold: docs oficiales y guía de cambios solo admin |
 | `docs/INSTRUCTIVO_EKI_RECOLECCION_GEI.md` | Recolección de datos GEI por WhatsApp, fichas y export |
 | `docs/INFRAESTRUCTURA_EKI_PARA_CLOUDFLARE.md` | DNS, EB, variables `EKI_ALLOWED_HOSTS` |
 | `docs/NAT_GUIA_COMPLETA.md` | Nat comercial en profundidad |
@@ -1024,6 +1026,20 @@ Admin gamificación permite corregir puntos y resetear rachas (soporte a coordin
 - Plantillas en `PlantillaCertificado` con modo diseño configurable.
 - **Artefactos (julio 2026):** siempre **PNG** (WhatsApp) + **PDF** derivado + **SHA-256** del PNG. Organización emisora = `Cliente.nombre` (no el contacto).
 - Menciones tipo “Con Distinción…” **desactivadas** en verify/WA.
+
+#### Plantilla imagen con marcadores RGB (modo `imagen`)
+
+En Canva/Photoshop coloca manchas de **color puro** (sin degradado):
+
+| Color | RGB | Dato |
+|-------|-----|------|
+| Gris | `(128,128,128)` | Nombre |
+| Rojo | `(255,0,0)` | Cédula |
+| Amarillo | `(255,255,0)` | Fecha de emisión (hoy; **opcional**) |
+| Azul | `(0,0,255)` | QR de verificación |
+
+Tamaños automáticos: nombre ~56px · cédula ~30px · fecha ~26px · QR 130px.  
+Código: `core/utils_certificados.py`. Instrucciones también en Admin → Plantillas de certificado. Manual ampliado: `GUIA_CERTIFICADOS_QR.md`.
 
 ### 13.2 Envío
 

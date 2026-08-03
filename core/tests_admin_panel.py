@@ -38,6 +38,12 @@ class PanelViewTests(TestCase):
         self.assertIn("mapa", snap)
         self.assertIn("activos_7d", snap)
         self.assertIn("atajos", snap)
+        self.assertIn("ecosistema", snap)
+        eco = snap["ecosistema"]
+        self.assertEqual(len(eco["nodos"]), 6)
+        self.assertTrue(eco["aristas"])
+        ids = {n["id"] for n in eco["nodos"]}
+        self.assertEqual(ids, {"studio", "aprende", "empresas", "campanas", "ia", "impacto"})
 
     def test_panel_redirige_a_inicio(self):
         r = self.client.get("/admin/panel/", follow=False)
@@ -50,6 +56,8 @@ class PanelViewTests(TestCase):
         self.assertContains(r, "Actividad en el territorio")
         self.assertContains(r, "mapa-panel-inicio")
         self.assertContains(r, "Espacios de trabajo")
+        self.assertContains(r, "Vista Ecosistema")
+        self.assertContains(r, "eki-panel-eco")
         self.assertContains(r, "global=1")
         self.assertContains(r, "force=1")
 

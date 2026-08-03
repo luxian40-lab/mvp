@@ -23,17 +23,19 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
         ('🖼️ Imagen del Certificado (S3)', {
             'fields': ('formato_certificado', 'archivo_plantilla_imagen', 'url_plantilla_imagen'),
             'description': mark_safe('''<div style="background:#e8f5e9;padding:15px;border-radius:8px;border-left:4px solid #4CAF50;margin:10px 0;">
-                <strong>✅ COMO PREPARAR TU PLANTILLA DE CERTIFICADO</strong><br><br>
+                <strong>✅ CÓMO PREPARAR TU PLANTILLA DE CERTIFICADO</strong><br><br>
                 1. Diseña tu certificado en Canva, Word, Photoshop, etc.<br>
-                2. Coloca <strong>3 marcadores de color</strong> donde quieras la informacion:<br>
-                &nbsp;&nbsp;&nbsp;⬜ <strong>GRIS</strong> (128,128,128) = Donde ira el <strong>NOMBRE</strong> del estudiante<br>
-                &nbsp;&nbsp;&nbsp;🟥 <strong>ROJO</strong> (255,0,0) = Donde ira la <strong>CEDULA</strong><br>
-                &nbsp;&nbsp;&nbsp;🟦 <strong>AZUL</strong> (0,0,255) = Donde ira el <strong>CODIGO QR</strong><br>
-                3. Exporta como <strong>PNG o JPG</strong><br>
-                4. Sube la imagen aqui o pega la URL de S3<br><br>
-                <strong>💡 Cada curso puede tener su propia plantilla.</strong> Al actualizar la plantilla, los certificados existentes se regeneran automaticamente.<br>
-                <strong>⚠️ Al pegar URL:</strong> Asegurate de pegar solo UNA vez la URL completa (https://...).<br>
-                <strong>🔄 Si subes un archivo nuevo:</strong> ese archivo tiene prioridad y la URL se actualiza sola (antes quedaba la URL vieja y no se veía el cambio).
+                2. Coloca <strong>marcadores de color PURO</strong> (relleno sólido, sin degradado) donde quieras cada dato:<br>
+                &nbsp;&nbsp;&nbsp;⬜ <strong>GRIS</strong> RGB (128,128,128) = <strong>NOMBRE</strong> del estudiante<br>
+                &nbsp;&nbsp;&nbsp;🟥 <strong>ROJO</strong> RGB (255,0,0) = <strong>CÉDULA</strong> / documento<br>
+                &nbsp;&nbsp;&nbsp;🟨 <strong>AMARILLO</strong> RGB (255,255,0) = <strong>FECHA</strong> de emisión (hoy; opcional)<br>
+                &nbsp;&nbsp;&nbsp;🟦 <strong>AZUL</strong> RGB (0,0,255) = <strong>CÓDIGO QR</strong> de verificación<br>
+                3. Exporta como <strong>PNG o JPG</strong> (mejor PNG para colores exactos)<br>
+                4. Sube la imagen aquí o pega la URL de S3<br><br>
+                <strong>📐 Tamaños de texto (automáticos):</strong> nombre ~56px · cédula ~30px · fecha ~26px · QR 130px.<br>
+                <strong>💡 Cada curso puede tener su propia plantilla.</strong> Al actualizar, los certificados nuevos usan el diseño actualizado.<br>
+                <strong>⚠️ URL:</strong> pega solo UNA vez la URL completa (https://…).<br>
+                <strong>🔄 Archivo nuevo:</strong> el archivo tiene prioridad y actualiza la URL sola.
             </div>''')
         }),
         ('📄 PDF Personalizado (Avanzado)', {

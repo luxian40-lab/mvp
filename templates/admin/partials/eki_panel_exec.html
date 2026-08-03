@@ -107,7 +107,41 @@
       {% endif %}
       <a class="eki-panel-insights__footer" href="{% url 'dashboard_unificado' %}?tab=retencion">Ir al Centro de Éxito →</a>
     </section>
-  </div>
+    </div>
+
+  {% if snap.ecosistema %}
+  <section class="eki-panel-card eki-panel-eco" aria-label="Vista ecosistema eki">
+    <div class="eki-panel-card__head">
+      <h2>Vista Ecosistema</h2>
+      <a href="{% url 'dashboard_unificado' %}?tab=retencion">Centro de Éxito →</a>
+    </div>
+    <p class="eki-panel-eco__intro">Relaciones entre productos. Clic en un nodo para entrar.</p>
+    <div class="eki-panel-eco__body">
+      <svg class="eki-panel-eco__svg" viewBox="0 0 560 220" role="img" aria-label="Grafo ecosistema eki">
+        {% for e in snap.ecosistema.aristas %}
+        <line class="eki-panel-eco__edge" x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}" />
+        {% endfor %}
+        {% for n in snap.ecosistema.nodos %}
+        <a href="{{ n.url }}" {% if n.external %}target="_blank" rel="noopener"{% endif %} class="eki-panel-eco__node-link">
+          <circle class="eki-panel-eco__node eki-panel-eco__node--{{ n.status }}" cx="{{ n.x }}" cy="{{ n.y }}" r="22" />
+          <text class="eki-panel-eco__label" x="{{ n.x }}" y="{{ n.y }}" dy="0.35em" text-anchor="middle">{{ n.label }}</text>
+        </a>
+        {% endfor %}
+      </svg>
+      <ul class="eki-panel-eco__legend">
+        {% for n in snap.ecosistema.nodos %}
+        <li class="eki-panel-eco__leg eki-panel-eco__leg--{{ n.status }}">
+          <a href="{{ n.url }}" {% if n.external %}target="_blank" rel="noopener"{% endif %}>
+            <span class="eki-panel-eco__dot" aria-hidden="true"></span>
+            <strong>{{ n.label }}</strong>
+            <span>{{ n.value }}</span>
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </section>
+  {% endif %}
 
   <section class="eki-panel-espacios-wrap">
     <div class="eki-panel-card__head eki-panel-espacios-wrap__head">
