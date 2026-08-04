@@ -1,86 +1,384 @@
-{% extends "admin/base_site.html" %}
-{% block breadcrumbs %}
-<div class="breadcrumbs">
-    <a href="{% url 'admin:index' %}">Inicio</a>
-    &rsaquo; Infra Monitor
-</div>
-{% endblock %}
+{% extends "admin/eki_ops_base.html" %}
 
-{% block title %}Infra — cuándo crecer{% endblock %}
+{% block eki_ops_crumb %}Infra{% endblock %}
+{% block title %}Infra — cuándo crecer · eki{% endblock %}
 
 {% block extrastyle %}
+{{ block.super }}
 <style>
-  .infra-wrap { padding: 20px 24px 40px; max-width: 1180px; margin: 0 auto; }
-  .infra-wrap h1 { margin: 0 0 6px; font-size: 1.55rem; }
-  .infra-sub { color: #666; margin: 0 0 16px; max-width: 52rem; }
-  .infra-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
-  .infra-card { background: #fff; border: 1px solid #e9ecef; border-radius: 10px; padding: 14px 16px; }
-  .infra-card h2 { margin: 0 0 8px; font-size: 1rem; }
-  .ok { color: #2b8a3e; font-weight: 700; }
-  .watch { color: #e67700; font-weight: 700; }
-  .act, .bad { color: #c92a2a; font-weight: 700; }
-  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; word-break: break-all; }
-  .meta { font-size: 0.86rem; color: #495057; line-height: 1.45; }
-  .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; background: #e7f5ff; color: #1864ab; }
-  .pill-ok { background: #d3f9d8; color: #2b8a3e; }
-  .pill-watch { background: #fff3bf; color: #e67700; }
-  .pill-act { background: #ffe3e3; color: #c92a2a; }
-  .pill-type { background: #212529; color: #fff; margin-right: 6px; }
-  .warn-box { margin-top: 14px; padding: 12px 14px; background: #fff9db; border: 1px solid #ffe066; border-radius: 8px; font-size: 0.88rem; }
-  .overall { margin: 0 0 16px; padding: 12px 14px; border-radius: 10px; font-weight: 700; }
-  .overall.ok { background: #d3f9d8; color: #2b8a3e; }
-  .overall.watch { background: #fff3bf; color: #e67700; }
-  .overall.act { background: #ffe3e3; color: #c92a2a; }
-  .bar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom: 14px; }
-  .bar button { background:#212529; color:#fff; border:none; padding:8px 14px; border-radius:6px; font-weight:600; cursor:pointer; }
-  #live-dot { width:8px; height:8px; border-radius:50%; background:#2b8a3e; display:inline-block; }
-  .pb { margin-top: 18px; background:#fff; border:1px solid #e9ecef; border-radius:12px; padding:16px 18px; }
-  .pb h3 { margin: 0 0 8px; font-size: 1.1rem; }
-  .pb-verdict { margin: 0 0 12px; }
-  .pb table { width:100%; border-collapse: collapse; font-size: 0.84rem; margin: 8px 0 14px; }
-  .pb th, .pb td { text-align:left; padding: 6px 8px; border-top: 1px solid #eee; vertical-align: top; }
-  .pb th { width: 28%; color:#868e96; font-weight:600; }
-  .action { border: 1px solid #dee2e6; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; background:#f8f9fa; }
-  .action h4 { margin: 0 0 8px; font-size: 0.92rem; }
-  .action dl { margin: 0; display: grid; grid-template-columns: 110px 1fr; gap: 4px 10px; font-size: 0.84rem; }
-  .action dt { color:#868e96; font-weight:600; }
-  .action dd { margin: 0; color:#343a40; }
-  .cw { font-size: 0.82rem; color:#495057; margin: 8px 0 0; }
+  .infra {
+    --infra-ink: #1e1b24;
+    --infra-muted: #6b6575;
+    --infra-line: rgba(30, 27, 36, 0.12);
+    --infra-ok: #166534;
+    --infra-ok-bg: #ecfdf5;
+    --infra-watch: #b45309;
+    --infra-watch-bg: #fffbeb;
+    --infra-act: #b91c1c;
+    --infra-act-bg: #fef2f2;
+    --infra-accent: #9A6CAC;
+    --infra-accent-deep: #7A4E8E;
+    --infra-card: #fff;
+    max-width: 1120px;
+  }
+  .infra__head { margin: 0 0 1.25rem; }
+  .infra__head h1 {
+    margin: 0 0 0.35rem;
+    font-size: 1.55rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--infra-ink);
+  }
+  .infra__sub {
+    margin: 0;
+    color: var(--infra-muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    max-width: 46rem;
+  }
+  .infra__overall {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1rem;
+    margin: 0 0 1.25rem;
+    padding: 0.9rem 1.1rem;
+    border-radius: 12px;
+    border: 1px solid var(--infra-line);
+    background: var(--infra-card);
+    font-weight: 650;
+    color: var(--infra-ink);
+  }
+  .infra__overall.is-ok { background: var(--infra-ok-bg); border-color: rgba(22, 101, 52, 0.2); color: var(--infra-ok); }
+  .infra__overall.is-watch { background: var(--infra-watch-bg); border-color: rgba(180, 83, 9, 0.25); color: var(--infra-watch); }
+  .infra__overall.is-act { background: var(--infra-act-bg); border-color: rgba(185, 28, 28, 0.25); color: var(--infra-act); }
+
+  .infra__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem 1rem;
+    margin: 0 0 1.25rem;
+  }
+  .infra__live {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--infra-muted);
+  }
+  .infra__dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--infra-ok);
+    box-shadow: 0 0 0 0 rgba(22, 101, 52, 0.45);
+    animation: infra-pulse 1.8s ease-out infinite;
+  }
+  @keyframes infra-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(22, 101, 52, 0.45); }
+    70% { box-shadow: 0 0 0 10px rgba(22, 101, 52, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(22, 101, 52, 0); }
+  }
+  .infra__pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    background: rgba(154, 108, 172, 0.12);
+    color: var(--infra-accent-deep);
+  }
+  .infra__pill.is-ok { background: var(--infra-ok-bg); color: var(--infra-ok); }
+  .infra__pill.is-watch { background: var(--infra-watch-bg); color: var(--infra-watch); }
+  .infra__pill.is-act { background: var(--infra-act-bg); color: var(--infra-act); }
+  .infra__pill.is-type { background: #1e1b24; color: #fff; }
+  .infra__btn {
+    appearance: none;
+    border: 1px solid var(--infra-line);
+    background: #fff;
+    color: var(--infra-ink);
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 650;
+    padding: 0.45rem 0.9rem;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  .infra__btn:hover { border-color: rgba(154, 108, 172, 0.45); color: var(--infra-accent-deep); }
+  .infra__btn--primary {
+    background: var(--infra-accent-deep);
+    border-color: transparent;
+    color: #fff;
+  }
+  .infra__btn--primary:hover { background: #5F3A6E; color: #fff; }
+
+  .infra__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+  @media (max-width: 900px) {
+    .infra__grid { grid-template-columns: 1fr; }
+  }
+  .infra-card {
+    background: var(--infra-card);
+    border: 1px solid var(--infra-line);
+    border-radius: 12px;
+    padding: 1rem 1.1rem 1.05rem;
+    box-shadow: 0 1px 3px rgba(30, 27, 36, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    min-height: 210px;
+  }
+  .infra-card__top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .infra-card h2 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--infra-ink);
+    letter-spacing: -0.01em;
+  }
+  .infra-card__meta {
+    font-size: 0.84rem;
+    color: var(--infra-muted);
+    line-height: 1.45;
+    display: grid;
+    gap: 0.25rem;
+  }
+  .infra-card__meta strong { color: var(--infra-ink); font-weight: 650; }
+  .infra-card__mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.72rem;
+    word-break: break-all;
+    color: #52485c;
+  }
+  .infra-card__ok { color: var(--infra-ok); font-weight: 700; }
+  .infra-card__bad { color: var(--infra-act); font-weight: 700; }
+
+  /* Cardiograma */
+  .infra-ecg {
+    margin-top: auto;
+    border-radius: 10px;
+    background:
+      linear-gradient(rgba(154, 108, 172, 0.06) 1px, transparent 1px) 0 0 / 100% 12px,
+      linear-gradient(90deg, rgba(154, 108, 172, 0.06) 1px, transparent 1px) 0 0 / 16px 100%,
+      #f7f5f9;
+    border: 1px solid rgba(154, 108, 172, 0.18);
+    overflow: hidden;
+    height: 64px;
+    position: relative;
+  }
+  .infra-ecg svg { display: block; width: 100%; height: 64px; }
+  .infra-ecg__label {
+    position: absolute;
+    top: 6px;
+    left: 8px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(122, 78, 142, 0.75);
+    pointer-events: none;
+  }
+
+  .infra__impact {
+    margin: 0 0 1.25rem;
+    padding: 0.85rem 1rem;
+    border-radius: 12px;
+    background: var(--infra-watch-bg);
+    border: 1px solid rgba(180, 83, 9, 0.22);
+    color: #78350f;
+    font-size: 0.88rem;
+    line-height: 1.45;
+  }
+  .infra__impact:empty { display: none; }
+
+  .infra-pb {
+    background: var(--infra-card);
+    border: 1px solid var(--infra-line);
+    border-radius: 12px;
+    padding: 1rem 1.15rem 1.1rem;
+    margin-bottom: 0.85rem;
+    box-shadow: 0 1px 2px rgba(30, 27, 36, 0.04);
+  }
+  .infra-pb h3 {
+    margin: 0 0 0.55rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--infra-ink);
+  }
+  .infra-pb ul {
+    margin: 0.4rem 0 0.75rem;
+    padding-left: 1.1rem;
+    color: var(--infra-muted);
+    font-size: 0.86rem;
+  }
+  .infra-pb table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    margin: 0.35rem 0 0.85rem;
+  }
+  .infra-pb th, .infra-pb td {
+    text-align: left;
+    padding: 0.4rem 0.5rem;
+    border-top: 1px solid var(--infra-line);
+    vertical-align: top;
+  }
+  .infra-pb th { width: 28%; color: var(--infra-muted); font-weight: 600; }
+  .infra-action {
+    border: 1px solid var(--infra-line);
+    border-radius: 10px;
+    padding: 0.75rem 0.9rem;
+    margin-bottom: 0.55rem;
+    background: #faf9fb;
+  }
+  .infra-action h4 { margin: 0 0 0.45rem; font-size: 0.88rem; font-weight: 700; color: var(--infra-ink); }
+  .infra-action dl {
+    margin: 0;
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 0.25rem 0.65rem;
+    font-size: 0.82rem;
+  }
+  .infra-action dt { color: var(--infra-muted); font-weight: 600; }
+  .infra-action dd { margin: 0; color: var(--infra-ink); }
+  .infra-cw {
+    margin: 0.55rem 0 0;
+    font-size: 0.8rem;
+    color: var(--infra-muted);
+  }
+
+  /* Advisor — “qué hacer ahora” */
+  .infra-advisor {
+    margin: 0 0 1.25rem;
+    padding: 1rem 1.15rem 1.05rem;
+    border-radius: 12px;
+    border: 1px solid var(--infra-line);
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(30, 27, 36, 0.06);
+  }
+  .infra-advisor.is-ok { border-color: rgba(22, 101, 52, 0.22); background: var(--infra-ok-bg); }
+  .infra-advisor.is-watch { border-color: rgba(180, 83, 9, 0.28); background: var(--infra-watch-bg); }
+  .infra-advisor.is-act { border-color: rgba(185, 28, 28, 0.28); background: var(--infra-act-bg); }
+  .infra-advisor__kicker {
+    margin: 0 0 0.35rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--infra-muted);
+  }
+  .infra-advisor__title {
+    margin: 0 0 0.45rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--infra-ink);
+    letter-spacing: -0.02em;
+  }
+  .infra-advisor__summary {
+    margin: 0 0 0.85rem;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: var(--infra-ink);
+  }
+  .infra-advisor__list { display: grid; gap: 0.65rem; }
+  .infra-advisor__item {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid var(--infra-line);
+    border-radius: 10px;
+    padding: 0.7rem 0.85rem;
+  }
+  .infra-advisor__item h3 {
+    margin: 0 0 0.35rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--infra-ink);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .infra-advisor__next {
+    margin: 0.45rem 0 0;
+    font-size: 0.82rem;
+    line-height: 1.4;
+    color: var(--infra-ink);
+  }
+  .infra-advisor__next strong { color: var(--infra-accent-deep); }
+  .infra-advisor__note {
+    margin: 0.75rem 0 0;
+    font-size: 0.75rem;
+    color: var(--infra-muted);
+  }
 </style>
 {% endblock %}
 
-{% block content %}
-<p class="eki-ops-back-wrap"><a class="eki-ops-back" href="{% url 'admin:index' %}">← Volver al admin</a></p>
+{% block eki_ops_content %}
+<div class="infra" id="infra-root">
+  <header class="infra__head">
+    <h1>Monitoreo infra — cuándo crecer</h1>
+    <p class="infra__sub">
+      Redis / Celery, RDS y S3 en vivo en Unfold. Cardiograma de latencia +
+      <strong>advisor por reglas</strong> (qué vigilar / actuar). No es un LLM:
+      umbrales + playbooks. Aviso email a staff solo si el estado pasa a ACTUAR.
+    </p>
+  </header>
 
-<div class="infra-wrap">
-  <h1>Monitoreo infra — cuándo crecer</h1>
-  <p class="infra-sub">
-    Estado en vivo (Redis / DB / S3) + playbooks: en cada recurso dice si hoy
-    <strong>no tocar</strong>, <strong>vigilar</strong>, o <strong>cambiar instancia / ElastiCache / EFS / etc.</strong>
-    Poll cada 30s. CPU detallada de RDS/EC2 sigue en CloudWatch AWS.
-  </p>
+  <div id="advisor" class="infra-advisor is-ok" hidden></div>
 
-  <div id="overall" class="overall ok">Cargando…</div>
+  <div id="overall" class="infra__overall">Cargando…</div>
 
-  <div class="bar">
-    <span><span id="live-dot"></span> En vivo</span>
-    <span class="pill" id="age">—</span>
-    <button type="button" id="btn-refresh">Actualizar ahora</button>
+  <div class="infra__toolbar">
+    <span class="infra__live"><span class="infra__dot" aria-hidden="true"></span> En vivo</span>
+    <span class="infra__pill" id="age">—</span>
+    <button type="button" class="infra__btn infra__btn--primary" id="btn-refresh">Actualizar ahora</button>
   </div>
 
-  <div class="infra-grid" id="cards">
-    <div class="infra-card" id="card-redis"><h2>Redis / Celery</h2><div class="meta">Cargando…</div></div>
-    <div class="infra-card" id="card-db"><h2>Base de datos</h2><div class="meta">Cargando…</div></div>
-    <div class="infra-card" id="card-s3"><h2>S3</h2><div class="meta">Cargando…</div></div>
+  <div class="infra__grid" id="cards">
+    <article class="infra-card" id="card-redis">
+      <div class="infra-card__top"><h2>Redis / Celery</h2><span class="infra__pill" id="pill-redis">—</span></div>
+      <div class="infra-card__meta" id="meta-redis">Cargando…</div>
+      <div class="infra-ecg" aria-hidden="true">
+        <span class="infra-ecg__label">latencia</span>
+        <svg id="ecg-redis" viewBox="0 0 300 64" preserveAspectRatio="none"></svg>
+      </div>
+    </article>
+    <article class="infra-card" id="card-db">
+      <div class="infra-card__top"><h2>Base de datos (RDS)</h2><span class="infra__pill" id="pill-db">—</span></div>
+      <div class="infra-card__meta" id="meta-db">Cargando…</div>
+      <div class="infra-ecg" aria-hidden="true">
+        <span class="infra-ecg__label">latencia</span>
+        <svg id="ecg-db" viewBox="0 0 300 64" preserveAspectRatio="none"></svg>
+      </div>
+    </article>
+    <article class="infra-card" id="card-s3">
+      <div class="infra-card__top"><h2>S3</h2><span class="infra__pill" id="pill-s3">—</span></div>
+      <div class="infra-card__meta" id="meta-s3">Cargando…</div>
+      <div class="infra-ecg" aria-hidden="true">
+        <span class="infra-ecg__label">salud</span>
+        <svg id="ecg-s3" viewBox="0 0 300 64" preserveAspectRatio="none"></svg>
+      </div>
+    </article>
   </div>
 
-  <div class="warn-box" id="impact"></div>
+  <div class="infra__impact" id="impact"></div>
   <div id="playbooks"></div>
 </div>
 
 <script>
 (function () {
   const apiUrl = "{% url 'admin_infra_monitor_api' %}";
+  const HISTORY = { redis: [], db: [], s3: [] };
+  const MAX_POINTS = 36;
 
   function esc(s) {
     return String(s == null ? '' : s)
@@ -88,55 +386,131 @@
   }
 
   function statusClass(st) {
-    if (st === 'act') return 'act';
-    if (st === 'watch') return 'watch';
-    return 'ok';
+    if (st === 'act') return 'is-act';
+    if (st === 'watch') return 'is-watch';
+    return 'is-ok';
   }
 
-  function pillClass(st) {
-    if (st === 'act') return 'pill pill-act';
-    if (st === 'watch') return 'pill pill-watch';
-    return 'pill pill-ok';
+  function pushHist(key, value) {
+    const arr = HISTORY[key];
+    arr.push(value == null || isNaN(value) ? null : Number(value));
+    if (arr.length > MAX_POINTS) arr.shift();
+  }
+
+  function drawEcg(svgId, series, stroke) {
+    const svg = document.getElementById(svgId);
+    if (!svg) return;
+    const w = 300, h = 64, pad = 6;
+    const vals = series.filter(function (v) { return v != null && !isNaN(v); });
+    let path = '';
+    if (!vals.length) {
+      path = 'M0,' + (h / 2) + ' L' + w + ',' + (h / 2);
+    } else {
+      const min = Math.min.apply(null, vals.concat([0]));
+      const max = Math.max.apply(null, vals.concat([1]));
+      const span = Math.max(max - min, 1);
+      const n = series.length;
+      const pts = [];
+      for (let i = 0; i < n; i++) {
+        const v = series[i];
+        const x = n === 1 ? w / 2 : (i / (n - 1)) * w;
+        let y = h / 2;
+        if (v != null && !isNaN(v)) {
+          y = pad + (1 - ((v - min) / span)) * (h - pad * 2);
+        }
+        pts.push(x.toFixed(1) + ',' + y.toFixed(1));
+      }
+      path = 'M' + pts.join(' L');
+    }
+    svg.innerHTML =
+      '<path d="' + path + '" fill="none" stroke="' + stroke + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+  }
+
+  function renderAdvisor(data) {
+    const box = document.getElementById('advisor');
+    const adv = data.advisor || {};
+    const level = adv.level || data.overall || 'ok';
+    box.hidden = false;
+    box.className = 'infra-advisor ' + statusClass(level);
+    let html = '<p class="infra-advisor__kicker">Advisor operativo</p>';
+    html += '<p class="infra-advisor__title">' + esc(data.overall_label || level) + '</p>';
+    html += '<p class="infra-advisor__summary">' + esc(adv.summary || '') + '</p>';
+    const items = adv.items || [];
+    if (items.length) {
+      html += '<div class="infra-advisor__list">';
+      items.forEach(function (it) {
+        html += '<article class="infra-advisor__item">';
+        html += '<h3><span class="infra__pill ' + statusClass(it.status) + '">' + esc(it.status) + '</span> ' + esc(it.title) + '</h3>';
+        html += '<div class="infra-card__meta">' + esc(it.label || '') + '</div>';
+        if (it.reasons && it.reasons.length) {
+          html += '<ul class="meta" style="margin:0.35rem 0 0;padding-left:1.1rem;font-size:0.82rem;color:#6b6575;">' +
+            it.reasons.map(function (r) { return '<li>' + esc(r) + '</li>'; }).join('') + '</ul>';
+        }
+        if (it.next && it.next.do) {
+          html += '<p class="infra-advisor__next"><strong>' + esc(it.next.action_type) + '</strong> — ' +
+            esc(it.next.do) + '</p>';
+          if (it.next.how) {
+            html += '<p class="infra-advisor__next" style="color:#6b6575;">Cómo: ' + esc(it.next.how) + '</p>';
+          }
+        }
+        html += '</article>';
+      });
+      html += '</div>';
+    } else {
+      html += '<p class="infra-advisor__note">Sin ítems en watch/act. Los playbooks abajo siguen disponibles como referencia.</p>';
+    }
+    html += '<p class="infra-advisor__note">Reglas locales · email solo al pasar a ACTUAR (máx. cada 6 h) · CloudWatch sigue siendo la fuente fina de CPU.</p>';
+    box.innerHTML = html;
   }
 
   function render(data) {
+    renderAdvisor(data);
     const r = data.redis || {};
     const d = data.db || {};
     const s = data.s3 || {};
     const overall = data.overall || 'ok';
     const ol = document.getElementById('overall');
-    ol.className = 'overall ' + statusClass(overall);
+    ol.className = 'infra__overall ' + statusClass(overall);
     ol.textContent = data.overall_label || overall;
 
-    document.getElementById('card-redis').innerHTML =
-      '<h2>Redis / Celery</h2><div class="meta">' +
-      '<div>Estado: <span class="' + (r.ok ? 'ok' : 'bad') + '">' + (r.ok ? 'OK' : 'FALLA') + '</span></div>' +
+    const redisOk = !!r.ok;
+    const dbOk = !!d.ok;
+    const s3Ok = !!s.ok;
+
+    document.getElementById('pill-redis').className = 'infra__pill ' + (redisOk ? 'is-ok' : 'is-act');
+    document.getElementById('pill-redis').textContent = redisOk ? 'OK' : 'FALLA';
+    document.getElementById('pill-db').className = 'infra__pill ' + (dbOk ? 'is-ok' : 'is-act');
+    document.getElementById('pill-db').textContent = dbOk ? 'OK' : 'FALLA';
+    document.getElementById('pill-s3').className = 'infra__pill ' + (s3Ok ? 'is-ok' : 'is-watch');
+    document.getElementById('pill-s3').textContent = s3Ok ? 'OK' : 'watch';
+
+    document.getElementById('meta-redis').innerHTML =
       '<div>Modo: <strong>' + esc(r.mode) + '</strong></div>' +
-      '<div>Latencia: ' + esc(r.latency_ms != null ? r.latency_ms + ' ms' : '—') + '</div>' +
-      '<div class="mono">' + esc(r.broker) + '</div>' +
-      (r.error ? '<div class="bad">' + esc(r.error) + '</div>' : '') +
-      '</div>';
+      '<div>Latencia: <strong>' + esc(r.latency_ms != null ? r.latency_ms + ' ms' : '—') + '</strong></div>' +
+      '<div class="infra-card__mono">' + esc(r.broker) + '</div>' +
+      (r.error ? '<div class="infra-card__bad">' + esc(r.error) + '</div>' : '');
 
-    document.getElementById('card-db').innerHTML =
-      '<h2>Base de datos (RDS)</h2><div class="meta">' +
-      '<div>Estado: <span class="' + (d.ok ? 'ok' : 'bad') + '">' + (d.ok ? 'OK' : 'FALLA') + '</span></div>' +
+    document.getElementById('meta-db').innerHTML =
       '<div>Tamaño vivo: <strong>' + esc(d.size_human || '—') + '</strong>' +
-      (d.used_pct_of_allocated != null ? ' (' + esc(d.used_pct_of_allocated) + '% del allocated)' : '') +
+      (d.used_pct_of_allocated != null ? ' (' + esc(d.used_pct_of_allocated) + '% allocated)' : '') +
       '</div>' +
-      '<div>Latencia query: ' + esc(d.latency_ms != null ? d.latency_ms + ' ms' : '—') + '</div>' +
-      '<div class="mono">' + esc(d.engine) + '</div>' +
+      '<div>Latencia query: <strong>' + esc(d.latency_ms != null ? d.latency_ms + ' ms' : '—') + '</strong></div>' +
+      '<div class="infra-card__mono">' + esc(d.engine) + '</div>' +
       (d.note ? '<div>' + esc(d.note) + '</div>' : '') +
-      (d.error ? '<div class="bad">' + esc(d.error) + '</div>' : '') +
-      '</div>';
+      (d.error ? '<div class="infra-card__bad">' + esc(d.error) + '</div>' : '');
 
-    document.getElementById('card-s3').innerHTML =
-      '<h2>S3</h2><div class="meta">' +
-      '<div>Estado: <span class="' + (s.ok ? 'ok' : 'watch') + '">' + (s.ok ? 'alcanzable' : 'no verificado') + '</span></div>' +
-      '<div class="mono">' + esc(s.bucket) + ' · ' + esc(s.region) + '</div>' +
-      '<div>Baseline uso: ~' + esc(s.baseline_used_gb) + ' GB</div>' +
+    document.getElementById('meta-s3').innerHTML =
+      '<div class="infra-card__mono">' + esc(s.bucket) + ' · ' + esc(s.region) + '</div>' +
+      '<div>Baseline uso: ~<strong>' + esc(s.baseline_used_gb) + ' GB</strong></div>' +
       '<div>' + esc(s.note || '') + '</div>' +
-      (s.error ? '<div class="bad">' + esc(s.error) + '</div>' : '') +
-      '</div>';
+      (s.error ? '<div class="infra-card__bad">' + esc(s.error) + '</div>' : '');
+
+    pushHist('redis', r.latency_ms);
+    pushHist('db', d.latency_ms);
+    pushHist('s3', s3Ok ? 1 : 0);
+    drawEcg('ecg-redis', HISTORY.redis, '#7A4E8E');
+    drawEcg('ecg-db', HISTORY.db, '#9A6CAC');
+    drawEcg('ecg-s3', HISTORY.s3, s3Ok ? '#166534' : '#b45309');
 
     document.getElementById('age').textContent =
       (data.cached ? 'caché' : 'fresco') + ' · poll ' + (data.poll_hint_seconds || 30) + 's';
@@ -147,22 +521,22 @@
     pbs.forEach(function (pb) {
       const v = pb.verdict || {};
       const st = v.status || 'ok';
-      html += '<section class="pb">';
+      html += '<section class="infra-pb">';
       html += '<h3>' + esc(pb.title) + '</h3>';
-      html += '<div class="pb-verdict"><span class="' + pillClass(st) + '">' + esc(v.label || st) + '</span></div>';
+      html += '<div><span class="infra__pill ' + statusClass(st) + '">' + esc(v.label || st) + '</span></div>';
       if (v.reasons && v.reasons.length) {
-        html += '<ul class="meta">' + v.reasons.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>';
+        html += '<ul>' + v.reasons.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>';
       }
       const cur = pb.current || {};
       html += '<table><tbody>';
       Object.keys(cur).forEach(function (k) {
-        html += '<tr><th>' + esc(k) + '</th><td class="mono">' + esc(cur[k]) + '</td></tr>';
+        html += '<tr><th>' + esc(k) + '</th><td class="infra-card__mono">' + esc(cur[k]) + '</td></tr>';
       });
       html += '</tbody></table>';
 
       (pb.actions || []).forEach(function (a) {
-        html += '<div class="action">';
-        html += '<h4><span class="pill pill-type">' + esc(a.action_type) + '</span> ' + esc(a.do) + '</h4>';
+        html += '<div class="infra-action">';
+        html += '<h4><span class="infra__pill is-type">' + esc(a.action_type) + '</span> ' + esc(a.do) + '</h4>';
         html += '<dl>';
         html += '<dt>Cuándo</dt><dd>' + esc(a.when) + '</dd>';
         html += '<dt>Specs</dt><dd>' + esc(a.specs) + '</dd>';
@@ -172,7 +546,7 @@
       });
 
       if (pb.cloudwatch_checks && pb.cloudwatch_checks.length) {
-        html += '<p class="cw"><strong>CloudWatch:</strong> ' + esc(pb.cloudwatch_checks.join(' · ')) + '</p>';
+        html += '<p class="infra-cw"><strong>CloudWatch:</strong> ' + esc(pb.cloudwatch_checks.join(' · ')) + '</p>';
       }
       html += '</section>';
     });
