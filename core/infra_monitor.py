@@ -30,6 +30,23 @@ BASELINE = {
     'region': 'us-east-2',
 }
 
+# Capacidad operativa documentada (1 instancia t3.medium + Redis local + RDS micro).
+# Estimaciones conservadoras; re-medir con `manage.py medir_capacidad_eki`.
+CAPACITY_LIMITS = {
+    'estudiantes_activos_db_comodo': 5_000,
+    'estudiantes_activos_db_techo': 15_000,
+    'mensajes_wa_concurrentes_comodo': 30,
+    'mensajes_wa_concurrentes_techo': 80,
+    'gunicorn_workers_estimado': 3,
+    'celery_concurrency_estimado': 2,
+    'campana_destinatarios_comodo': 500,
+    'campana_destinatarios_techo': 2_000,
+    'nota': (
+        'Comodo = sin saturar t3.medium actual. Techo = riesgo de cola/timeout; '
+        'activar WEBHOOK_CELERY_ASYNC=true y/o 2ª instancia EB / ElastiCache.'
+    ),
+}
+
 
 def _cache_get():
     try:
@@ -751,6 +768,7 @@ def snapshot_infra(*, force: bool = False) -> dict[str, Any]:
         'db': db,
         's3': s3,
         'baseline': BASELINE,
+        'capacity_limits': CAPACITY_LIMITS,
         'playbooks': playbooks,
         'advisor': advisor,
         'poll_hint_seconds': 30,

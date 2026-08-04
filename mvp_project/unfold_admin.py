@@ -183,6 +183,11 @@ UNFOLD = {
                         "link": "/admin/dashboard/?tab=retencion",
                     },
                     {
+                        "title": _("Calendario campañas"),
+                        "icon": "event",
+                        "link": "/admin/calendario/",
+                    },
+                    {
                         "title": _("Manual"),
                         "icon": "help",
                         "link": "/admin/instrucciones/",
@@ -204,6 +209,16 @@ UNFOLD = {
                         "title": _("Cobertura"),
                         "icon": "map",
                         "link": "/admin/cobertura/",
+                    },
+                    {
+                        "title": _("Push recordatorios"),
+                        "icon": "notifications_active",
+                        "link": "/admin/push-estudiantes/",
+                    },
+                    {
+                        "title": _("Mensajes push (CRUD)"),
+                        "icon": "campaign",
+                        "link": reverse_lazy("admin:core_mensajepush_changelist"),
                     },
                     {
                         "title": _("Envío certificados"),

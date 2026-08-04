@@ -508,15 +508,15 @@ def embudo_vivo(
 
     pasos = [
         paso(
-            'Inscritos',
+            'Inscripciones (filtro)',
             inscritos,
-            definicion='Progresos en el filtro actual (org/curso/grupo/fechas).',
+            definicion='Filas de progreso con los filtros actuales (org/curso/grupo/fechas). Una persona en 2 cursos cuenta 2.',
             fuente='progreso',
         ),
         paso(
-            'Entraron hoy (WhatsApp)',
+            'Activos hoy (WhatsApp)',
             entraron_hoy,
-            definicion='Al menos un mensaje entrante o actividad registrada hoy.',
+            definicion='Escribieron o tuvieron actividad registrada hoy (día calendario). No significa «empezaron el curso hoy».',
             fuente='whatsapp',
             prev_cant=inscritos,
         ),
@@ -524,9 +524,9 @@ def embudo_vivo(
             'Recibieron contenido',
             recibieron_contenido if telemetria_ok else abrieron_modulo,
             definicion=(
-                'Telemetría: evento contenido_enviado (personas distintas).'
+                'Personas con evento contenido_enviado (telemetría).'
                 if telemetria_ok
-                else 'Sin telemetría de envío aún: proxy = abrieron módulo / tienen avance.'
+                else 'Sin telemetría de envío: proxy = abrieron módulo / tienen avance.'
             ),
             fuente='telemetria' if telemetria_ok else 'progreso_proxy',
             prev_cant=inscritos,
@@ -535,8 +535,8 @@ def embudo_vivo(
             'Escribieron listo',
             escribieron_listo,
             definicion=(
-                'Telemetría: evento listo_recibido (personas distintas). '
-                'Si es 0 y el curso es antiguo, puede faltar telemetría histórica.'
+                'Personas con evento listo_recibido. Si es 0 en cursos antiguos, puede faltar telemetría histórica '
+                '(no use n_mods como sustituto).'
             ),
             fuente='telemetria',
             prev_cant=recibieron_contenido if telemetria_ok and recibieron_contenido else inscritos,
@@ -544,21 +544,21 @@ def embudo_vivo(
         paso(
             'Respondieron evaluación',
             pasaron_eval,
-            definicion='Telemetría: evento evaluacion_respondida (personas distintas).',
+            definicion='Personas con evento evaluacion_respondida.',
             fuente='telemetria',
             prev_cant=escribieron_listo if escribieron_listo else inscritos,
         ),
         paso(
-            'Continuaron (2+ módulos)',
+            'Avanzaron 2+ módulos',
             continuaron,
-            definicion='Completaron ≥2 módulos o el curso entero.',
+            definicion='Completaron ≥2 módulos o el curso entero (dato de progreso).',
             fuente='progreso',
             prev_cant=inscritos,
         ),
         paso(
             'Finalizaron curso',
             finalizaron,
-            definicion='Progreso marcado completado=True.',
+            definicion='Progreso con completado=True.',
             fuente='progreso',
             prev_cant=inscritos,
         ),

@@ -331,6 +331,14 @@
       <strong>advisor por reglas</strong> (qué vigilar / actuar). No es un LLM:
       umbrales + playbooks. Aviso email a staff solo si el estado pasa a ACTUAR.
     </p>
+    <p class="infra__sub" id="capacity-limits" style="margin-top:0.65rem;">
+      <strong>Límites actuales (1× t3.medium):</strong>
+      estudiantes cómodo ≤5 000 / techo ~15 000 ·
+      WA concurrente cómodo ~30 / techo ~80 ·
+      campaña cómoda ≤500 / techo ~2 000 destinatarios.
+      Medir: <code>python manage.py medir_capacidad_eki</code>.
+      Con picos: <code>WEBHOOK_CELERY_ASYNC=true</code> o 2ª instancia / ElastiCache.
+    </p>
   </header>
 
   <div id="advisor" class="infra-advisor is-ok" hidden></div>

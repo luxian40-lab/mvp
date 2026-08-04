@@ -126,160 +126,171 @@
         </div>
     </section>
 
-    {# —— 2. DÓNDE CAEN —— #}
-    <section class="ce-block ce-block--donde" aria-labelledby="ce-donde-title">
-        <header class="ce-block__head">
-            <h3 id="ce-donde-title" class="ce-block__title">2 · Dónde caen</h3>
-            <p class="ce-block__sub">Mapa de abandono y embudo del curso (un solo relato)</p>
-        </header>
-
-        <section class="panel" style="margin-bottom:20px;">
-            <h2 style="margin-top:0;">Mapa de abandono por módulo</h2>
-            {% if data.requiere_curso_para_modulos %}
-            <p class="muted">Seleccione un curso para ver el mapa módulo a módulo.</p>
-            {% elif data.mapa_abandono %}
-            <p class="muted" style="margin-top:0;">Ancho = personas que completaron el módulo y no el siguiente.</p>
-            {% for m in data.mapa_abandono %}
-            <div class="ret-map-row">
-                <div class="ret-map-row__head">
-                    <span><strong>M{{ m.modulo_numero }}</strong> · {{ m.titulo }}
-                        <span class="muted">({{ m.completaron }} completaron)</span>
-                    </span>
-                    {% if m.caidas %}
-                    <span style="color:var(--ce-danger);font-weight:700;">desertan {{ m.caidas }} · {{ m.tasa_pct }}%</span>
-                    {% else %}
-                    <span class="muted">sin caída medida</span>
-                    {% endif %}
-                </div>
-                <div class="ret-map-row__track">
-                    <div class="ret-map-row__bar" data-width="{{ m.barra_pct }}" style="width:{{ m.barra_pct }}%;"></div>
-                </div>
-            </div>
-            {% endfor %}
-            {% if data.mapa_abandono_pasos %}
-            <h3 style="font-size:0.95rem;margin-top:18px;">Por paso / media (telemetría)</h3>
-            <p class="muted" style="margin-top:0;">Quiénes recibieron el paso y no avanzaron.</p>
-            {% for m in data.mapa_abandono_pasos %}
-            <div class="ret-map-row">
-                <div class="ret-map-row__head">
-                    <span>
-                        <strong>M{{ m.modulo_numero }} · paso {{ m.paso_orden }}</strong>
-                        {% if m.tiene_media %}<span class="ret-pill ret-pill--medio">media</span>{% endif %}
-                        · {{ m.titulo }}
-                    </span>
-                    <span style="color:var(--ce-danger);font-weight:700;">
-                        desertan {{ m.caidas }} · {{ m.tasa_pct }}%
-                        <span class="muted">(env {{ m.enviados }} / avanz {{ m.avanzaron }})</span>
-                    </span>
-                </div>
-                <div class="ret-map-row__track">
-                    <div class="ret-map-row__bar" data-width="{{ m.barra_pct }}" style="width:{{ m.barra_pct }}%;"></div>
-                </div>
-            </div>
-            {% endfor %}
-            {% endif %}
-            {% else %}
-            <p class="muted">Sin datos de módulos para estos filtros.</p>
-            {% endif %}
-        </section>
-
-        <div class="ret-two" style="margin-bottom:0;">
-            <section class="panel" style="margin:0;">
-                <h2 style="margin-top:0;">Actividad (WhatsApp + listo)</h2>
+    {# —— 2. DÓNDE CAEN (colapsable, como Más datos) —— #}
+    <details class="ce-block ce-block--mas ce-block--donde" id="ce-donde-caen">
+        <summary class="ce-block__summary">
+            <span class="ce-block__title">2 · Dónde caen</span>
+            <span class="ce-block__sub">Mapa de abandono por módulo · pulse para abrir</span>
+        </summary>
+        <div class="ce-block__body">
+            <section class="panel" style="margin-bottom:0;">
+                <h2 style="margin-top:0;">Mapa de abandono</h2>
                 <p class="muted" style="margin-top:0;">
-                    Personas distintas. <strong>Listo</strong> = telemetría <code>listo_recibido</code>, no un proxy de módulos.
-                    Si un paso va en 0 en cursos viejos, puede faltar telemetría histórica.
-                </p>
-                <ul class="ret-funnel">
-                    {% for paso in data.embudo_vivo %}
-                    <li class="ret-funnel__step">
-                        {% if not forloop.first and paso.pct_desde_anterior != None %}
-                        <div class="ret-funnel__drop">
-                            {% if paso.pct_desde_anterior >= 80 %}
-                            <span class="ret-funnel__chip ret-funnel__chip--keep">{{ paso.pct_desde_anterior }}% vs anterior</span>
-                            {% elif paso.pct_desde_anterior >= 50 %}
-                            <span class="ret-funnel__chip ret-funnel__chip--warn">{{ paso.pct_desde_anterior }}% vs anterior</span>
-                            {% else %}
-                            <span class="ret-funnel__chip ret-funnel__chip--drop">{{ paso.pct_desde_anterior }}% vs anterior</span>
-                            {% endif %}
-                        </div>
-                        {% endif %}
-                        <div class="ret-funnel__head">
-                            <span class="ret-funnel__name">
-                                {{ paso.etiqueta }}
-                                {% if paso.definicion %}<small>{{ paso.definicion }}</small>{% endif %}
-                            </span>
-                            <span class="ret-funnel__count">{{ paso.cantidad }} <span>· {{ paso.pct_del_total }}%</span></span>
-                        </div>
-                        <div class="ret-funnel__track">
-                            <div
-                                class="ret-funnel__bar"
-                                data-width="{{ paso.pct_del_total }}"
-                                style="width:{{ paso.pct_del_total }}%;"
-                            >{{ paso.pct_del_total }}%</div>
-                        </div>
-                    </li>
-                    {% empty %}
-                    <li class="muted">Sin datos de actividad.</li>
-                    {% endfor %}
-                </ul>
-            </section>
-
-            <section class="panel" style="margin:0;">
-                <h2 style="margin-top:0;">Embudo del curso</h2>
-                <p class="muted" style="margin-top:0;">
-                    Onboarding → módulos → certificado (acumulado).
-                    {% if data.curso %}<strong>{{ data.curso.nombre }}</strong>.{% endif %}
-                    Cada barra = % de inscritos.
+                    Quiénes completaron un módulo y <strong>no</strong> el siguiente.
+                    Ancho de barra = tamaño de esa caída. Elija un curso en los filtros.
                 </p>
                 {% if data.requiere_curso_para_modulos %}
-                <p class="muted">Seleccione un curso para ver módulos M1…Mn.</p>
-                {% endif %}
-                <ul class="ret-funnel">
-                    {% for paso in data.embudo %}
-                    <li class="ret-funnel__step">
-                        {% if not forloop.first and paso.pct_desde_anterior != None %}
-                        <div class="ret-funnel__drop">
-                            {% if paso.pct_desde_anterior >= 80 %}
-                            <span class="ret-funnel__chip ret-funnel__chip--keep">{{ paso.pct_desde_anterior }}% continúan</span>
-                            {% elif paso.pct_desde_anterior >= 50 %}
-                            <span class="ret-funnel__chip ret-funnel__chip--warn">{{ paso.pct_desde_anterior }}% continúan</span>
-                            {% else %}
-                            <span class="ret-funnel__chip ret-funnel__chip--drop">solo {{ paso.pct_desde_anterior }}%</span>
-                            {% endif %}
-                        </div>
+                <p class="muted">Seleccione un curso para ver el mapa módulo a módulo.</p>
+                {% elif data.mapa_abandono %}
+                {% for m in data.mapa_abandono %}
+                <div class="ret-map-row">
+                    <div class="ret-map-row__head">
+                        <span><strong>M{{ m.modulo_numero }}</strong> · {{ m.titulo }}
+                            <span class="muted">({{ m.completaron }} completaron)</span>
+                        </span>
+                        {% if m.caidas %}
+                        <span style="color:var(--ce-danger);font-weight:700;">desertan {{ m.caidas }} · {{ m.tasa_pct }}%</span>
+                        {% else %}
+                        <span class="muted">sin caída medida</span>
                         {% endif %}
-                        <div class="ret-funnel__head">
-                            <span class="ret-funnel__name">
-                                {{ paso.etiqueta }}
-                                {% if paso.titulo %}<small>{{ paso.titulo }}</small>{% endif %}
-                            </span>
-                            <span class="ret-funnel__count">{{ paso.cantidad }} <span>· {{ paso.pct_del_total }}%</span></span>
-                        </div>
-                        <div class="ret-funnel__track">
-                            <div
-                                class="ret-funnel__bar"
-                                data-width="{{ paso.pct_del_total }}"
-                                style="width:{{ paso.pct_del_total }}%;"
-                            >{{ paso.pct_del_total }}%</div>
-                        </div>
-                    </li>
-                    {% empty %}
-                    <li class="muted">Sin inscripciones.</li>
-                    {% endfor %}
-                </ul>
+                    </div>
+                    <div class="ret-map-row__track">
+                        <div class="ret-map-row__bar" data-width="{{ m.barra_pct }}" style="width:{{ m.barra_pct }}%;"></div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% if data.mapa_abandono_pasos %}
+                <h3 style="font-size:0.95rem;margin-top:18px;">Por paso / media (telemetría)</h3>
+                <p class="muted" style="margin-top:0;">Quiénes recibieron el paso y no avanzaron.</p>
+                {% for m in data.mapa_abandono_pasos %}
+                <div class="ret-map-row">
+                    <div class="ret-map-row__head">
+                        <span>
+                            <strong>M{{ m.modulo_numero }} · paso {{ m.paso_orden }}</strong>
+                            {% if m.tiene_media %}<span class="ret-pill ret-pill--medio">media</span>{% endif %}
+                            · {{ m.titulo }}
+                        </span>
+                        <span style="color:var(--ce-danger);font-weight:700;">
+                            desertan {{ m.caidas }} · {{ m.tasa_pct }}%
+                            <span class="muted">(env {{ m.enviados }} / avanz {{ m.avanzaron }})</span>
+                        </span>
+                    </div>
+                    <div class="ret-map-row__track">
+                        <div class="ret-map-row__bar" data-width="{{ m.barra_pct }}" style="width:{{ m.barra_pct }}%;"></div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+                {% else %}
+                <p class="muted">Sin datos de módulos para estos filtros.</p>
+                {% endif %}
             </section>
         </div>
-    </section>
+    </details>
 
-    {# —— 3. MÁS DATOS —— #}
+    {# —— 3. MÁS DATOS (incluye embudos detallados, opcionales) —— #}
     <details class="ce-block ce-block--mas" id="ce-mas-datos">
         <summary class="ce-block__summary">
             <span class="ce-block__title">3 · Más datos</span>
-            <span class="ce-block__sub">Cohortes, curva, WhatsApp Health, vs eki · opcional</span>
+            <span class="ce-block__sub">Embudos, cohortes, curva, WhatsApp Health · opcional</span>
         </summary>
 
         <div class="ce-block__body">
+            <div class="ret-two" style="margin-bottom:20px;">
+                <section class="panel" style="margin:0;">
+                    <h2 style="margin-top:0;">Actividad del día a día</h2>
+                    <p class="muted" style="margin-top:0;">
+                        Conteos de <strong>personas distintas</strong> (no conversión estricta).
+                        La barra = % sobre inscritos del filtro. El chip = % respecto al paso de arriba
+                        (si pasa de 100%, los eventos no están anidados — no lo lea como “más gente”).
+                    </p>
+                    <ul class="ret-funnel">
+                        {% for paso in data.embudo_vivo %}
+                        <li class="ret-funnel__step">
+                            {% if not forloop.first and paso.pct_desde_anterior != None %}
+                            <div class="ret-funnel__drop">
+                                {% if paso.pct_desde_anterior > 100 %}
+                                <span class="ret-funnel__chip ret-funnel__chip--warn">conteos no anidados</span>
+                                {% elif paso.pct_desde_anterior >= 80 %}
+                                <span class="ret-funnel__chip ret-funnel__chip--keep">{{ paso.pct_desde_anterior }}% del paso anterior</span>
+                                {% elif paso.pct_desde_anterior >= 50 %}
+                                <span class="ret-funnel__chip ret-funnel__chip--warn">{{ paso.pct_desde_anterior }}% del paso anterior</span>
+                                {% else %}
+                                <span class="ret-funnel__chip ret-funnel__chip--drop">{{ paso.pct_desde_anterior }}% del paso anterior</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            <div class="ret-funnel__head">
+                                <span class="ret-funnel__name">
+                                    {{ paso.etiqueta }}
+                                    {% if paso.fuente == 'telemetria' %}<span class="ret-pill">telemetría</span>{% elif paso.fuente == 'progreso_proxy' %}<span class="ret-pill ret-pill--medio">proxy</span>{% endif %}
+                                    {% if paso.definicion %}<small>{{ paso.definicion }}</small>{% endif %}
+                                </span>
+                                <span class="ret-funnel__count">{{ paso.cantidad }} <span>· {{ paso.pct_del_total }}% inscritos</span></span>
+                            </div>
+                            <div class="ret-funnel__track">
+                                <div
+                                    class="ret-funnel__bar"
+                                    data-width="{{ paso.pct_del_total }}"
+                                    style="width:{{ paso.pct_del_total }}%;"
+                                >{{ paso.pct_del_total }}%</div>
+                            </div>
+                        </li>
+                        {% empty %}
+                        <li class="muted">Sin datos de actividad.</li>
+                        {% endfor %}
+                    </ul>
+                </section>
+
+                <section class="panel" style="margin:0;">
+                    <h2 style="margin-top:0;">Embudo acumulado del curso</h2>
+                    <p class="muted" style="margin-top:0;">
+                        Histórico: cuántos <em>alguna vez</em> llegaron a cada hito.
+                        <strong>No</strong> es “dónde está cada persona hoy” (eso es Learning → Embudo por módulo).
+                        {% if data.curso %} Curso: <strong>{{ data.curso.nombre }}</strong>.{% endif %}
+                        Barra = % de inscritos. Chip = % respecto al hito anterior.
+                    </p>
+                    {% if data.requiere_curso_para_modulos %}
+                    <p class="muted">Seleccione un curso para ver módulos M1…Mn.</p>
+                    {% endif %}
+                    <ul class="ret-funnel">
+                        {% for paso in data.embudo %}
+                        <li class="ret-funnel__step">
+                            {% if not forloop.first and paso.pct_desde_anterior != None %}
+                            <div class="ret-funnel__drop">
+                                {% if paso.pct_desde_anterior > 100 %}
+                                <span class="ret-funnel__chip ret-funnel__chip--warn">módulos no estrictamente secuenciales</span>
+                                {% elif paso.pct_desde_anterior >= 80 %}
+                                <span class="ret-funnel__chip ret-funnel__chip--keep">{{ paso.pct_desde_anterior }}% del hito anterior</span>
+                                {% elif paso.pct_desde_anterior >= 50 %}
+                                <span class="ret-funnel__chip ret-funnel__chip--warn">{{ paso.pct_desde_anterior }}% del hito anterior</span>
+                                {% else %}
+                                <span class="ret-funnel__chip ret-funnel__chip--drop">{{ paso.pct_desde_anterior }}% del hito anterior</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            <div class="ret-funnel__head">
+                                <span class="ret-funnel__name">
+                                    {{ paso.etiqueta }}
+                                    {% if paso.titulo %}<small>{{ paso.titulo }}</small>{% endif %}
+                                </span>
+                                <span class="ret-funnel__count">{{ paso.cantidad }} <span>· {{ paso.pct_del_total }}% inscritos</span></span>
+                            </div>
+                            <div class="ret-funnel__track">
+                                <div
+                                    class="ret-funnel__bar"
+                                    data-width="{{ paso.pct_del_total }}"
+                                    style="width:{{ paso.pct_del_total }}%;"
+                                >{{ paso.pct_del_total }}%</div>
+                            </div>
+                        </li>
+                        {% empty %}
+                        <li class="muted">Sin inscripciones.</li>
+                        {% endfor %}
+                    </ul>
+                </section>
+            </div>
+
             <div class="ret-two" style="margin-bottom:20px;">
                 <section class="panel" style="margin:0;">
                     <h2 style="margin-top:0;">Curva de retención</h2>

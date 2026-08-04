@@ -327,7 +327,12 @@ def _analitica_retencion_portal_uncached(
     modulo_abandono = _modulo_mayor_abandono(progreso_qs, curso)
 
     embudo: list[dict] = [
-        {'tipo': 'paso', 'etiqueta': 'Inscritos', 'cantidad': inscritos, 'pct_desde_anterior': None},
+        {
+            'tipo': 'paso',
+            'etiqueta': 'Inscripciones (filtro)',
+            'cantidad': inscritos,
+            'pct_desde_anterior': None,
+        },
         {
             'tipo': 'paso',
             'etiqueta': 'Aceptaron datos (onboarding)',

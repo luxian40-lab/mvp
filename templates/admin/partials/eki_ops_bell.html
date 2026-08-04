@@ -1,0 +1,62 @@
+{% load i18n %}
+<div class="eki-ops-bell" data-eki-bell>
+    <button type="button" class="eki-header-bell" aria-expanded="false" aria-haspopup="true"
+            title="Avisos: campañas y push" aria-label="Notificaciones operativas"
+            id="eki-ops-bell-btn">
+        <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
+        {% if pendientes %}
+        <span class="eki-ops-bell__badge" aria-label="{{ pendientes }} pendientes">{{ pendientes }}</span>
+        {% endif %}
+    </button>
+    <div class="eki-ops-bell__panel" id="eki-ops-bell-panel" hidden>
+        <p class="eki-ops-bell__title">Avisos operativos</p>
+        {% if pendientes %}
+        <a href="{{ calendario_url }}">{{ pendientes }} campaña(s) programada(s) en 7 días</a>
+        {% else %}
+        <p class="eki-ops-bell__empty">Sin campañas programadas próximas.</p>
+        {% endif %}
+        <a href="{{ push_url }}">Push recordatorios (inactivos / Twilio)</a>
+        <a href="{{ calendario_url }}">Abrir calendario de campañas</a>
+    </div>
+</div>
+<style>
+.eki-ops-bell { position: relative; }
+.eki-header-bell {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 2.25rem; height: 2.25rem; border: 0; background: transparent; cursor: pointer;
+  color: inherit; border-radius: 999px;
+}
+.eki-header-bell:hover { background: rgba(154, 108, 172, 0.12); }
+.eki-ops-bell__badge {
+  position: absolute; top: 2px; right: 2px; min-width: 1rem; height: 1rem; padding: 0 4px;
+  border-radius: 999px; background: #9A6CAC; color: #fff; font-size: 10px; font-weight: 700;
+  line-height: 1rem; text-align: center;
+}
+.eki-ops-bell__panel {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 50;
+  min-width: 260px; padding: 0.75rem 0.85rem; border-radius: 12px;
+  background: #fff; border: 1px solid rgba(30,27,36,0.12);
+  box-shadow: 0 8px 24px rgba(30,27,36,0.12);
+  display: flex; flex-direction: column; gap: 0.45rem;
+}
+.eki-ops-bell__title { margin: 0 0 0.25rem; font-size: 0.78rem; font-weight: 700; color: #6b6575; text-transform: uppercase; letter-spacing: 0.04em; }
+.eki-ops-bell__panel a { font-size: 0.88rem; color: #7A4E8E; text-decoration: none; font-weight: 600; }
+.eki-ops-bell__panel a:hover { text-decoration: underline; }
+.eki-ops-bell__empty { margin: 0; font-size: 0.85rem; color: #6b6575; }
+</style>
+<script>
+(function(){
+  var btn = document.getElementById('eki-ops-bell-btn');
+  var panel = document.getElementById('eki-ops-bell-panel');
+  if (!btn || !panel) return;
+  btn.addEventListener('click', function(e){
+    e.preventDefault(); e.stopPropagation();
+    var open = panel.hasAttribute('hidden');
+    if (open) { panel.removeAttribute('hidden'); btn.setAttribute('aria-expanded','true'); }
+    else { panel.setAttribute('hidden',''); btn.setAttribute('aria-expanded','false'); }
+  });
+  document.addEventListener('click', function(){
+    panel.setAttribute('hidden',''); btn.setAttribute('aria-expanded','false');
+  });
+})();
+</script>

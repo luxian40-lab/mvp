@@ -7,33 +7,56 @@
 {{ block.super }}
 <link rel="stylesheet" href="{% static 'admin/css/cobertura_eki.css' %}">
 <style>
-.push-page { padding: 1.25rem 1.5rem 2.5rem; max-width: 1200px; }
-.push-alert { padding: 0.75rem 1rem; border-radius: 10px; margin-bottom: 1rem; font-size: 0.875rem; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
-.push-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.15rem 1.25rem; }
+.push-page { padding: 1.25rem 1.5rem 2.5rem; max-width: 1100px; }
+.push-hero {
+    margin: 0 0 1.25rem; padding: 1.25rem 1.35rem; border-radius: 16px;
+    background: linear-gradient(135deg, rgba(154,108,172,0.14) 0%, rgba(95,58,110,0.08) 100%);
+    border: 1px solid rgba(154,108,172,0.22);
+}
+.push-hero h1 { margin: 0 0 0.35rem; font-size: 1.45rem; font-weight: 700; letter-spacing: -0.02em; color: #1e1b24; }
+.push-hero .sub { margin: 0; color: #6b6575; font-size: 0.92rem; line-height: 1.45; max-width: 40rem; }
+.push-alert {
+    padding: 0.75rem 1rem; border-radius: 12px; margin-bottom: 1rem; font-size: 0.875rem;
+    background: rgba(154,108,172,0.1); border: 1px solid rgba(154,108,172,0.25); color: #5F3A6E;
+}
+.push-panel {
+    background: #fff; border: 1px solid rgba(30,27,36,0.1); border-radius: 16px;
+    padding: 1.25rem 1.35rem; box-shadow: 0 1px 0 rgba(30,27,36,0.04);
+}
 .push-toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem 0.75rem; align-items: center; margin-bottom: 0.75rem; }
 .push-toolbar input[type="search"] {
-    flex: 1; min-width: 200px; padding: 0.45rem 0.65rem;
-    border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.875rem;
+    flex: 1; min-width: 200px; padding: 0.5rem 0.75rem;
+    border: 1px solid rgba(30,27,36,0.12); border-radius: 10px; font-size: 0.875rem;
 }
-.push-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0.5rem; max-height: 420px; overflow-y: auto; margin-top: 0.5rem; }
+.push-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0.55rem; max-height: 420px; overflow-y: auto; margin-top: 0.5rem; }
 .push-item {
-    display: flex; gap: 0.5rem; padding: 0.55rem 0.65rem;
-    border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; font-size: 0.875rem; cursor: pointer;
+    display: flex; gap: 0.55rem; padding: 0.65rem 0.75rem;
+    border: 1px solid rgba(30,27,36,0.1); border-radius: 12px; background: #faf9fb; font-size: 0.875rem; cursor: pointer;
+    transition: border-color .15s, background .15s;
 }
-.push-item:has(input:checked) { background: #eff6ff; border-color: #bfdbfe; }
-.push-item .meta { color: #64748b; font-size: 0.78rem; }
-.push-contador { font-size: 0.85rem; color: #475569; margin-top: 0.5rem; }
+.push-item:hover { border-color: rgba(154,108,172,0.45); }
+.push-item:has(input:checked) { background: rgba(154,108,172,0.12); border-color: #9A6CAC; }
+.push-item .meta { color: #6b6575; font-size: 0.78rem; }
+.push-contador { font-size: 0.85rem; color: #6b6575; margin-top: 0.65rem; font-weight: 600; }
+.push-hint { font-size: 0.82rem; color: #6b6575; margin: 0 0 1rem; }
+.push-hint code { font-size: 0.78em; background: rgba(30,27,36,0.06); padding: 1px 5px; border-radius: 4px; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="eki-cobertura push-page">
-    <header class="eki-cobertura-header">
-        <div>
-            <h1>{{ titulo }}</h1>
-            <p class="sub">Elija <strong>cliente</strong>, marque <strong>uno por uno</strong> quién recibe el recordatorio y envíe. No reinicia el curso: responden <em>listo</em>.</p>
-        </div>
+    <header class="push-hero">
+        <h1>{{ titulo }}</h1>
+        <p class="sub">
+            Recordatorios WhatsApp con plantilla Twilio (HX…) sin reiniciar el curso.
+            Ideal tras ~7 días sin avance: el estudiante responde <em>listo</em> y continúa.
+        </p>
     </header>
+    <p class="push-hint">
+        Atajo menú: <strong>Core → Push recordatorios</strong>.
+        CRUD de mensajes: <a href="{% url 'admin:core_mensajepush_changelist' %}">Mensajes push</a>.
+        Cada mensaje necesita <code>twilio_content_sid</code> o plantilla con SID aprobado.
+    </p>
 
     <form method="get" class="eki-filtros">
         <div class="field">

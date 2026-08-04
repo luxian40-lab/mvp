@@ -77,3 +77,30 @@ def eki_health_strip(context):
     except Exception:
         chips = []
     return {"chips": chips, "infra_url": "/admin/infra/"}
+
+
+@register.inclusion_tag("admin/partials/eki_ops_bell.html", takes_context=True)
+def eki_ops_bell(context):
+    """Campanita: campañas programadas pendientes (próximas 7 días)."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    n = 0
+    try:
+        from core.models import Campana
+
+        ahora = timezone.now()
+        n = Campana.objects.filter(
+            ejecutada=False,
+            fecha_programada__isnull=False,
+            fecha_programada__gte=ahora,
+            fecha_programada__lte=ahora + timedelta(days=7),
+        ).count()
+    except Exception:
+        n = 0
+    return {
+        "pendientes": n,
+        "calendario_url": "/admin/calendario/",
+        "push_url": "/admin/push-estudiantes/",
+    }

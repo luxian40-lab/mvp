@@ -161,6 +161,7 @@
                 <li><a href="#nati">Nati y comercial</a></li>
                 <li><a href="#gei">GEI y formularios</a></li>
                 <li><a href="#metricas">Métricas y reportes</a></li>
+                <li><a href="#push">Push y reenganche</a></li>
                 <li><a href="#certificados">Certificados y gamificación</a></li>
                 <li><a href="#ia">Herramientas IA</a></li>
                 <li><a href="#produccion">Producción AWS</a></li>
@@ -427,6 +428,8 @@
                 <h3>Certificados</h3>
                 <ul>
                     <li>Plantillas en <code>PlantillaCertificado</code> (imagen/PDF de fondo, colores, textos).</li>
+                    <li><strong>Default bueno:</strong> modo <code>diseno_eki</code> (Pillow). Evitar fallback S3 «simple».</li>
+                    <li>Asegurar default: <code>python manage.py asegurar_plantilla_certificado_default</code></li>
                     <li>Generación al completar curso; envío por WhatsApp con URL pública (S3).</li>
                     <li>Verificación pública por código/QR según configuración del certificado.</li>
                 </ul>
@@ -448,6 +451,20 @@
                 </table>
             </section>
 
+            <section id="push">
+                <h2>Push y reenganche WhatsApp</h2>
+                <p>
+                    <strong>MensajePush</strong> envía recordatorios con plantilla Twilio (Content SID HX…)
+                    <em>sin reiniciar</em> el progreso. Casos típicos: 7+ días sin avance → el estudiante responde <em>listo</em>.
+                </p>
+                <ul>
+                    <li>Atajo Unfold: <strong>Core (atajos) → Push recordatorios</strong> → <code>/admin/push-estudiantes/</code></li>
+                    <li>CRUD: <a href="/admin/core/mensajepush/">Mensajes push</a> (SID Twilio o plantilla vinculada)</li>
+                    <li>Campanita superior: campañas programadas (7 días) + enlace a Push</li>
+                    <li>Calendario: <a href="/admin/calendario/">/admin/calendario/</a></li>
+                </ul>
+            </section>
+
             <section id="produccion">
                 <h2>Producción AWS</h2>
                 <ul>
@@ -457,6 +474,17 @@
                     <li><strong>Despliegue:</strong> <code>eb deploy eki-prod-final --label nombre-version</code> desde la raíz del proyecto.</li>
                     <li><strong>Variables:</strong> credenciales AWS, Twilio, OpenAI y BD en entorno EB (no commitear <code>.env</code>).</li>
                 </ul>
+                <h3>Límites de capacidad (1 instancia t3.medium)</h3>
+                <table>
+                    <thead><tr><th>Métrica</th><th>Cómodo</th><th>Techo</th></tr></thead>
+                    <tbody>
+                        <tr><td>Estudiantes activos en DB</td><td>≤ 5 000</td><td>~15 000</td></tr>
+                        <tr><td>Mensajes WA concurrentes</td><td>~30</td><td>~80</td></tr>
+                        <tr><td>Destinatarios por campaña</td><td>≤ 500</td><td>~2 000</td></tr>
+                    </tbody>
+                </table>
+                <p>Medir: <code>python manage.py medir_capacidad_eki</code>. Panel: <a href="/admin/infra/">/admin/infra/</a>.
+                   Picos: <code>WEBHOOK_CELERY_ASYNC=true</code> o escalar EB / ElastiCache.</p>
                 <div class="callout-warn">
                     Tras cambios en <code>STORAGES</code> o multimedia, suba un archivo de prueba y confirme en Twilio que la URL es pública antes de campañas masivas con imagen.
                 </div>
