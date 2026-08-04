@@ -16,15 +16,16 @@ Mismo backend Django, mismo deploy en Elastic Beanstalk (`eki-prod-final`), ruta
 3. Registro / login: correo + contraseña (o WhatsApp B2B legacy)
 4. Inscribe curso (gratis o pago Wompi) → ProgresoEstudiante
 Tras pagar o inscribirte en **Studio**, el enlace **Ir al aula** abre un *handoff* firmado
-hacia `aprende.eki.technology` (sesiones **no** compartidas entre subdominios).
+hacia `aprende.eki.technology` (sesiones **no** compartidas entre subdominios; token con `via=studio`).
 
 ## Cuentas web (`CuentaAula`)
 
 Separado de `Estudiante` (WhatsApp) y de `PortalUsuario` (staff B2B).
 
 - **Login / registro con correo:** solo en Studio → `/studio/cuenta/login/` y `/studio/cuenta/registro/`
-- **Aula** (`/aprende/estudiante/login/`): solo cédula + teléfono WhatsApp (programa ya inscrito)
+- **Aula B2B** (`/aprende/estudiante/login/`): código/enlace tras `*aula*` en WhatsApp (`via=whatsapp`)
 - **No hay cookie compartida** entre Studio y Aprende. El paso al aula usa `/studio/ir-a-aprende/` → `/aprende/handoff/`
+- En el host `aprende.*`, sesión estudiante y sesión docente **no** coexisten (ver `aprende/session_auth.py`)
 
 Cada cuenta web crea un `Estudiante` vinculado (progreso, puntos, ranking).
 

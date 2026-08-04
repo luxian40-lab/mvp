@@ -19,6 +19,12 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content="{{ aprende_og_image }}">
     {% endif %}
+    <meta name="theme-color" content="#7A4E8E">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="eki aprende">
+    <link rel="manifest" href="{% url 'aprende_manifest' %}">
     <link rel="icon" href="{% static 'favicons/aprende.svg' %}" type="image/svg+xml">
     <link rel="icon" href="{% static 'favicons/aprende-48.png' %}" type="image/png" sizes="48x48">
     <link rel="icon" href="{% static 'favicons/aprende-32.png' %}" type="image/png" sizes="32x32">
@@ -1807,5 +1813,11 @@
     })();
     </script>
     {% block extra_js %}{% endblock %}
+    {% include 'aprende/partials/ayuda_aula.html' %}
+    <script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('{% url "aprende_sw" %}', { scope: '/aprende/' }).catch(function () {});
+    }
+    </script>
 </body>
 </html>

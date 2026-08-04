@@ -82,7 +82,8 @@ class PortalBrandingOnboardingTests(TestCase):
         r_login = Client().get('/portal/login/')
         self.assertEqual(r_login.status_code, 200)
         self.assertContains(r_login, 'favicons/portal')
-        self.assertContains(r_login, 'image/png')
+        self.assertContains(r_login, 'theme-color')
+        self.assertContains(r_login, 'image/svg+xml')
 
     def test_login_hero_premium_saas(self):
         r_login = Client().get('/portal/login/')

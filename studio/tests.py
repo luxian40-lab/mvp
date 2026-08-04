@@ -305,6 +305,7 @@ class StudioTests(TestCase):
         self.assertEqual(r3.status_code, 200)
         self.assertContains(r3, 'Mis cursos')
         self.assertTrue(self.http.session.get('aprende_estudiante_id'))
+        self.assertEqual(self.http.session.get('aprende_auth_via'), 'studio')
 
     def test_registro_studio_no_saca_sesion_admin(self):
         from django.contrib.auth.models import User

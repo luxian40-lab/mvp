@@ -712,23 +712,33 @@ Dominio: `aprende.eki.technology`. App Django: `aprende/`. Complemento de WhatsA
 
 ### 9.2 Autenticación estudiante
 
-**Flujo B2B (julio 2026) — sin OTP saliente en frío:**
+**Contrato (no mezclar puertas ni roles en la misma cookie de `aprende.*`):**
+
+| Puerta | Quién | Cómo entra | Sesión |
+|--------|-------|------------|--------|
+| **B2B WhatsApp** | Alumno de programa org | Escribe `*aula*` → enlace handoff (`via=whatsapp`) o código 6 dígitos | `aprende_estudiante_id` + `aprende_auth_via=whatsapp` |
+| **Studio** | Cuenta correo (`CuentaAula`) | Login Studio → `/studio/ir-a-aprende/` → handoff (`via=studio`) | misma clave estudiante, `aprende_auth_via=studio` |
+| **Docente** | Portal B2B | `/aprende/profesor/login/` | `portal_usuario_id` (limpia la de estudiante) |
+
+Al abrir una puerta de estudiante se **borra** la sesión docente en ese host, y al revés. Studio y Aprende **no** comparten cookie entre hosts.
+
+**Flujo B2B — sin OTP saliente en frío:**
 
 WhatsApp Business no entrega mensajes de texto libre si el alumno no ha escrito reciente (ventana 24h / plantilla Meta). Por eso **no** enviamos un código desde la web.
 
 1. El estudiante escribe ***aula*** (o *aprende*, *entrar al aula*) al WhatsApp del programa.
 2. eki responde **en esa conversación** con:
-   - enlace firmado `/aprende/handoff/?t=…` (un clic), y
+   - enlace firmado `/aprende/handoff/?t=…` (`via=whatsapp`, un clic), y
    - código de 6 dígitos (~10 min) por si entra en otro dispositivo.
 3. Web `/aprende/estudiante/login/`: pegar el código **o** abrir el enlace.
-4. Sesión: `aprende_estudiante_id` + `session.cycle_key()`.
+4. Sesión: `iniciar_sesion_estudiante` → `cycle_key()` + limpia `portal_usuario_id`.
 5. `?next=` solo bajo `/aprende/`.
 
-Código: `aprende/acceso_whatsapp.py` + hook en `core/views.py` (estudiante ACTIVO).
+Código: `aprende/acceso_whatsapp.py`, `aprende/session_auth.py`, hook en `core/views.py` (estudiante ACTIVO).
 
-**Alternativa correo:** Studio (`CuentaAula`) → handoff firmado (sesiones por host).
+**Alternativa correo:** Studio (`CuentaAula`) → handoff firmado `via=studio`.
 
-**Docente:** usuario/contraseña del portal.
+**Docente:** usuario/contraseña del portal; limpia sesión estudiante.
 
 ### 9.3 Diseño visual (julio 2026)
 

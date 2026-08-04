@@ -4,6 +4,8 @@ from . import views
 
 urlpatterns = [
     path('', views.inicio, name='aprende_inicio'),
+    path('manifest.webmanifest', views.manifest_webmanifest, name='aprende_manifest'),
+    path('sw.js', views.service_worker, name='aprende_sw'),
     path('handoff/', views.handoff_desde_studio, name='aprende_handoff'),
     path('estudiante/login/', views.estudiante_login, name='aprende_estudiante_login'),
     path('estudiante/logout/', views.estudiante_logout, name='aprende_estudiante_logout'),

@@ -1,0 +1,31 @@
+{
+  "name": "eki aprende",
+  "short_name": "aprende",
+  "description": "Tu aula cerca del territorio",
+  "start_url": "/aprende/",
+  "scope": "/aprende/",
+  "display": "standalone",
+  "background_color": "#7A4E8E",
+  "theme_color": "#7A4E8E",
+  "lang": "es-CO",
+  "icons": [
+    {
+      "src": "/static/favicons/aprende-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/favicons/aprende.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/favicons/aprende.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -162,6 +162,71 @@ class AprendeWebTests(TestCase):
         r2 = self.http.get('/aprende/estudiante/')
         self.assertEqual(r2.status_code, 302)
 
+    @override_settings(APRENDE_OTP_MAX_ATTEMPTS=3, APRENDE_OTP_LOCKOUT_SECONDS=600)
+    def test_otp_lockout_tras_fallos(self):
+        from django.core.cache import cache
+
+        cache.clear()
+        for _ in range(3):
+            r = self.http.post('/aprende/estudiante/login/', {'codigo': '000000'})
+            self.assertEqual(r.status_code, 200)
+        r_lock = self.http.post('/aprende/estudiante/login/', {'codigo': '000000'})
+        self.assertEqual(r_lock.status_code, 200)
+        self.assertContains(r_lock, 'Demasiados intentos')
+
+    def test_pwa_manifest_y_sw(self):
+        r = self.http.get('/aprende/manifest.webmanifest')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('application/manifest+json', r['Content-Type'])
+        data = r.json()
+        self.assertEqual(data.get('name'), 'eki aprende')
+        self.assertEqual(data.get('start_url'), '/aprende/')
+        self.assertTrue(data.get('icons'))
+        r_sw = self.http.get('/aprende/sw.js')
+        self.assertEqual(r_sw.status_code, 200)
+        self.assertIn('skipWaiting', r_sw.content.decode('utf-8'))
+
+    def test_ayuda_y_theme_color_en_base(self):
+        r = self.http.get('/aprende/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'theme-color')
+        self.assertContains(r, 'eki-aula-help')
+        self.assertContains(r, 'Guía del aula')
+        self.assertContains(r, 'manifest.webmanifest')
+
+    def test_auth_contrato_otp_limpia_docente(self):
+        """Login estudiante WhatsApp limpia portal_usuario_id en el mismo host."""
+        from portal.middleware import PORTAL_SESSION_KEY
+
+        self.http.post('/aprende/profesor/login/', {'username': 'prof_ap', 'password': 'pass'})
+        self.assertTrue(self.http.session.get(PORTAL_SESSION_KEY))
+        self._login_estudiante()
+        self.assertTrue(self.http.session.get('aprende_estudiante_id'))
+        self.assertEqual(self.http.session.get('aprende_auth_via'), 'whatsapp')
+        self.assertFalse(self.http.session.get(PORTAL_SESSION_KEY))
+
+    def test_auth_contrato_docente_limpia_estudiante(self):
+        from portal.middleware import PORTAL_SESSION_KEY
+
+        self._login_estudiante()
+        self.assertTrue(self.http.session.get('aprende_estudiante_id'))
+        self.http.post('/aprende/profesor/login/', {'username': 'prof_ap', 'password': 'pass'})
+        self.assertTrue(self.http.session.get(PORTAL_SESSION_KEY))
+        self.assertFalse(self.http.session.get('aprende_estudiante_id'))
+        self.assertFalse(self.http.session.get('aprende_auth_via'))
+
+    def test_handoff_whatsapp_via_en_token(self):
+        from studio.aprende_bridge import crear_token_handoff, consumir_token_handoff
+
+        token = crear_token_handoff(estudiante_id=self.est.pk, via='whatsapp')
+        eid, nxt, via = consumir_token_handoff(token)
+        self.assertEqual(eid, self.est.pk)
+        self.assertEqual(via, 'whatsapp')
+        self.assertTrue(nxt.startswith('/aprende/'))
+        r = self.http.get(f'/aprende/handoff/?t={token}')
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(self.http.session.get('aprende_auth_via'), 'whatsapp')
+
     def test_mensaje_aula_emite_acceso(self):
         from aprende.acceso_whatsapp import mensaje_pide_acceso_aula, emitir_acceso_desde_whatsapp
         from unittest.mock import patch

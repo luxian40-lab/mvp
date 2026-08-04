@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="eki admin">
   <rect width="32" height="32" rx="4" fill="#0f172a"/>
   <rect x="0" y="0" width="4" height="32" fill="#14b8a6"/>
-  <path d="M10 9.5h13v2.7H14.6v2H18.2v2.4H14.6V22.5H10V9.5z" fill="#f8fafc"/>
+  <path d="M11 9.5h12v2.6H15.2v2.1H18.6v2.4H15.2V22.5H11V9.5z" fill="#f8fafc"/>
 </svg>

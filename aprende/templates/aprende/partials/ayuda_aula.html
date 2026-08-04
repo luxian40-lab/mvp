@@ -1,0 +1,149 @@
+{% load static %}
+{# Guía corta in-aula (sin IA). #}
+<style>
+.eki-aula-help {
+  position: fixed;
+  right: 16px;
+  bottom: 18px;
+  z-index: 60;
+  font-family: 'Expletus Sans', system-ui, sans-serif;
+}
+.eki-aula-help__toggle {
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 999px;
+  background: var(--eki-purple, #7A4E8E);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(61, 39, 80, 0.28);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.eki-aula-help__toggle:focus-visible {
+  outline: 2px solid #E8D5F0;
+  outline-offset: 3px;
+}
+.eki-aula-help__panel {
+  position: absolute;
+  right: 0;
+  bottom: 58px;
+  width: min(320px, calc(100vw - 28px));
+  background: #fff;
+  color: #2a1f33;
+  border-radius: 16px;
+  box-shadow: 0 18px 40px rgba(42, 31, 51, 0.22);
+  overflow: hidden;
+}
+.eki-aula-help__head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, #7A4E8E, #5F3A6E);
+  color: #fff;
+}
+.eki-aula-help__head strong { display: block; font-size: 14px; }
+.eki-aula-help__head span { font-size: 11px; opacity: 0.9; }
+.eki-aula-help__body { padding: 14px 16px 8px; }
+.eki-aula-help__title { margin: 0 0 6px; font-size: 16px; }
+.eki-aula-help__text { margin: 0; font-size: 13px; line-height: 1.45; color: #4a3f55; }
+.eki-aula-help__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 14px 14px;
+}
+.eki-aula-help__actions button {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.eki-aula-help__btn-primary { background: #7A4E8E; color: #fff; }
+.eki-aula-help__btn-ghost { background: transparent; color: #5c5168; }
+@media (max-width: 720px) {
+  .eki-aula-help { bottom: 72px; right: 12px; }
+}
+</style>
+<div class="eki-aula-help" id="eki-aula-help" aria-live="polite">
+  <div class="eki-aula-help__panel" id="eki-aula-help-panel" hidden>
+    <div class="eki-aula-help__head">
+      <img src="{% static 'favicons/aprende-32.png' %}" width="22" height="22" alt="" aria-hidden="true">
+      <div>
+        <strong>Guía del aula</strong>
+        <span>Pasos cortos para esta pantalla</span>
+      </div>
+    </div>
+    <div class="eki-aula-help__body">
+      <h2 class="eki-aula-help__title" id="eki-aula-help-title"></h2>
+      <p class="eki-aula-help__text" id="eki-aula-help-text"></p>
+    </div>
+    <div class="eki-aula-help__actions">
+      <button type="button" class="eki-aula-help__btn-primary" id="eki-aula-help-next">Siguiente</button>
+      <button type="button" class="eki-aula-help__btn-ghost" id="eki-aula-help-close">Cerrar</button>
+    </div>
+  </div>
+  <button type="button" class="eki-aula-help__toggle" id="eki-aula-help-toggle" aria-expanded="false" aria-controls="eki-aula-help-panel" title="Guía del aula">?</button>
+</div>
+<script>
+(function () {
+  var path = (window.location.pathname || '').replace(/\/+$/, '') || '/aprende';
+  var steps = [
+    { title: 'Tu aula web', text: 'Aquí revisas cursos, módulos y tareas. El avance por WhatsApp (*listo*) y el aula se complementan.' }
+  ];
+  if (path.indexOf('/aprende/estudiante/login') === 0) {
+    steps = [
+      { title: 'Entrar con WhatsApp', text: 'Escribe *aula* al bot del programa. Te llega un enlace o un código de 6 dígitos.' },
+      { title: 'Código', text: 'Si abriste el aula en otro celular, pega aquí el código. No lo compartas.' }
+    ];
+  } else if (path.indexOf('/aprende/estudiante/curso') === 0 && path.indexOf('/tareas') > 0) {
+    steps = [
+      { title: 'Tareas del curso', text: 'Revisa pendientes y entregas. Si hay fecha límite, prioriza esas primero.' }
+    ];
+  } else if (path.indexOf('/aprende/estudiante/modulo') === 0) {
+    steps = [
+      { title: 'Módulo', text: 'Lee o mira el material. Cuando termines en WhatsApp, escribe *listo* para avanzar.' }
+    ];
+  } else if (path.indexOf('/aprende/estudiante/tarea') === 0) {
+    steps = [
+      { title: 'Entregar tarea', text: 'Sube tu archivo o respuesta y confirma. El docente la verá en el aula.' }
+    ];
+  } else if (path.indexOf('/aprende/estudiante') === 0) {
+    steps = [
+      { title: 'Mis cursos', text: 'Entra al curso para ver módulos, tareas, biblioteca y ranking.' },
+      { title: 'Continuar', text: 'Si ves “Continuar”, te lleva al módulo donde ibas con WhatsApp.' }
+    ];
+  } else if (path.indexOf('/aprende/profesor') === 0) {
+    steps = [
+      { title: 'Vista docente', text: 'Gestiona módulos, tareas, asistencia y calificaciones de tu organización.' }
+    ];
+  }
+
+  var i = 0;
+  var panel = document.getElementById('eki-aula-help-panel');
+  var title = document.getElementById('eki-aula-help-title');
+  var text = document.getElementById('eki-aula-help-text');
+  var btn = document.getElementById('eki-aula-help-toggle');
+  var next = document.getElementById('eki-aula-help-next');
+  var closeBtn = document.getElementById('eki-aula-help-close');
+
+  function render() {
+    var s = steps[i] || steps[0];
+    title.textContent = s.title;
+    text.textContent = s.text;
+    next.style.display = i < steps.length - 1 ? '' : 'none';
+  }
+  function openHelp(open) {
+    panel.hidden = !open;
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) render();
+  }
+  btn.addEventListener('click', function () { openHelp(panel.hidden); });
+  closeBtn.addEventListener('click', function () { openHelp(false); });
+  next.addEventListener('click', function () {
+    if (i < steps.length - 1) { i += 1; render(); }
+  });
+})();
+</script>

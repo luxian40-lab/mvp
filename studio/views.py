@@ -91,7 +91,16 @@ def _redirigir_a_aprende(request, next_path: str):
         eid = est.pk
     else:
         return redirect('/studio/cuenta/login/?next=/studio/ir-a-aprende/')
-    return redirect(url_handoff_aprende(estudiante_id=eid, next_path=next_path, request=request))
+    from aprende.session_auth import VIA_STUDIO
+
+    return redirect(
+        url_handoff_aprende(
+            estudiante_id=eid,
+            next_path=next_path,
+            request=request,
+            via=VIA_STUDIO,
+        )
+    )
 
 
 def ir_a_aprende(request):

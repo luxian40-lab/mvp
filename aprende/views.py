@@ -33,7 +33,6 @@ from .lesson_service import (
     secciones_modulo_aula as secciones_gestion_aula,
 )
 from .media_aula import media_desde_url
-from .middleware import APRENDE_EST_SESSION_KEY
 from .models import EntregaTarea, TareaCurso
 from .perfil_service import actualizar_perfil_aula, resumen_perfil_aula
 from .calificacion_aula_service import (
@@ -84,6 +83,7 @@ def handoff_desde_studio(request):
     from django.core import signing
 
     from aprende.og_preview import es_crawler_vista_previa, url_og_image_aprende
+    from aprende.session_auth import VIA_WHATSAPP, iniciar_sesion_estudiante
     from studio.aprende_bridge import consumir_token_handoff
 
     if es_crawler_vista_previa(request):
@@ -99,9 +99,13 @@ def handoff_desde_studio(request):
         messages.error(request, 'Enlace de acceso inválido o incompleto.')
         return redirect('/aprende/estudiante/login/')
     try:
-        eid, next_path = consumir_token_handoff(token)
+        eid, next_path, via = consumir_token_handoff(token)
     except (signing.BadSignature, signing.SignatureExpired, KeyError, TypeError, ValueError):
-        messages.error(request, 'El enlace de acceso expiró o no es válido. Vuelve a entrar desde Studio.')
+        messages.error(
+            request,
+            'El enlace de acceso expiró o no es válido. '
+            'Escribe *aula* por WhatsApp o vuelve a entrar desde Studio.',
+        )
         return redirect('/aprende/estudiante/login/')
 
     est = Estudiante.objects.filter(pk=eid, activo=True).first()
@@ -109,7 +113,7 @@ def handoff_desde_studio(request):
         messages.error(request, 'No encontramos tu cuenta de estudiante.')
         return redirect('/aprende/estudiante/login/')
 
-    request.session[APRENDE_EST_SESSION_KEY] = est.pk
+    iniciar_sesion_estudiante(request, est.pk, via=via or VIA_WHATSAPP)
     return redirect(next_path)
 
 
@@ -119,7 +123,11 @@ def estudiante_login(request):
     escribe *aula* por WhatsApp (respuesta inbound). No hay OTP saliente en frío.
     Cuenta correo: Studio → handoff.
     """
-    from aprende.acceso_whatsapp import next_aprende_seguro, verificar_codigo_web
+    from aprende.acceso_whatsapp import (
+        client_ip_from_request,
+        next_aprende_seguro,
+        verificar_codigo_web,
+    )
 
     if getattr(request, 'aprende_estudiante', None):
         return redirect(next_aprende_seguro(request.GET.get('next')))
@@ -138,12 +146,14 @@ def estudiante_login(request):
     next_url = next_aprende_seguro(request.POST.get('next') or request.GET.get('next'))
 
     if request.method == 'POST':
-        eid, msg = verificar_codigo_web(request.POST.get('codigo') or '')
+        from aprende.session_auth import VIA_WHATSAPP, iniciar_sesion_estudiante
+
+        ip = client_ip_from_request(request)
+        eid, msg = verificar_codigo_web(request.POST.get('codigo') or '', ip=ip)
         if eid:
             est = Estudiante.objects.filter(pk=eid, activo=True).first()
             if est:
-                request.session[APRENDE_EST_SESSION_KEY] = est.pk
-                request.session.cycle_key()
+                iniciar_sesion_estudiante(request, est.pk, via=VIA_WHATSAPP)
                 return redirect(next_url)
             error = 'No encontramos tu cuenta de estudiante.'
         else:
@@ -163,7 +173,9 @@ def estudiante_login(request):
 
 
 def estudiante_logout(request):
-    request.session.pop(APRENDE_EST_SESSION_KEY, None)
+    from aprende.session_auth import cerrar_sesion_estudiante
+
+    cerrar_sesion_estudiante(request)
     return redirect('/aprende/')
 
 
@@ -432,7 +444,11 @@ def profesor_login(request):
                 user.is_staff = False
                 user.is_superuser = False
                 user.save(update_fields=['is_staff', 'is_superuser'])
+            from aprende.session_auth import limpiar_estudiante_al_entrar_docente
+
+            limpiar_estudiante_al_entrar_docente(request)
             iniciar_sesion_portal(request, pu)
+            request.session.cycle_key()
             if pu.debe_cambiar_credenciales:
                 return redirect('/portal/primer-acceso/')
             return redirect('/aprende/profesor/')
@@ -755,4 +771,59 @@ def profesor_curso_ranking(request, curso_id: int):
         'profesor_tab': 'ranking',
         **contexto_modo_calificacion(org),
     })
+
+
+def manifest_webmanifest(request):
+    """PWA manifest (instalar en celular). Sin offline de cursos."""
+    from django.contrib.staticfiles.storage import staticfiles_storage
+    from django.http import JsonResponse
+
+    icons = [
+        {
+            'src': staticfiles_storage.url('favicons/aprende-192.png'),
+            'sizes': '192x192',
+            'type': 'image/png',
+            'purpose': 'any',
+        },
+        {
+            'src': staticfiles_storage.url('favicons/aprende.png'),
+            'sizes': '512x512',
+            'type': 'image/png',
+            'purpose': 'any',
+        },
+        {
+            'src': staticfiles_storage.url('favicons/aprende.svg'),
+            'sizes': 'any',
+            'type': 'image/svg+xml',
+            'purpose': 'any',
+        },
+    ]
+    data = {
+        'name': 'eki aprende',
+        'short_name': 'aprende',
+        'description': 'Tu aula cerca del territorio',
+        'start_url': '/aprende/',
+        'scope': '/aprende/',
+        'display': 'standalone',
+        'background_color': '#7A4E8E',
+        'theme_color': '#7A4E8E',
+        'lang': 'es-CO',
+        'icons': icons,
+    }
+    resp = JsonResponse(data)
+    resp['Content-Type'] = 'application/manifest+json'
+    return resp
+
+
+def service_worker(request):
+    """SW mínimo en /aprende/sw.js para poder instalar (sin caché de lecciones)."""
+    body = (
+        "/* eki aprende PWA mínima: install only */\n"
+        "self.addEventListener('install', function (e) { self.skipWaiting(); });\n"
+        "self.addEventListener('activate', function (e) { e.waitUntil(self.clients.claim()); });\n"
+    )
+    resp = HttpResponse(body, content_type='application/javascript')
+    resp['Service-Worker-Allowed'] = '/aprende/'
+    resp['Cache-Control'] = 'no-cache'
+    return resp
 
