@@ -13,44 +13,38 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
     list_per_page = 50
     
     fieldsets = (
-        ('📝 Información Básica', {
+        ('Datos', {
+            'classes': ['tab'],
             'fields': ('nombre', 'descripcion', 'curso', 'cliente', 'modo_plantilla', 'activa', 'por_defecto'),
-            'description': mark_safe('''<div style="background:#e3f2fd;padding:12px;border-radius:8px;border-left:4px solid #2196F3;margin:10px 0;">
-                <strong>📌 IMPORTANTE:</strong> Selecciona el <strong>Curso</strong> para que el certificado se genere automáticamente al completar ese curso.<br>
-                Si no seleccionas curso, se usará solo si está marcada como "Por defecto".
-            </div>''')
+            'description': (
+                'Elige el modo (Imagen / Diseño eki / PDF). '
+                'Asocia un curso para emisión automática al completar; '
+                'sin curso solo aplica si está «Por defecto».'
+            ),
         }),
-        ('🖼️ Imagen del Certificado (S3)', {
+        ('Imagen (marcadores)', {
+            'classes': ['tab'],
             'fields': ('formato_certificado', 'archivo_plantilla_imagen', 'url_plantilla_imagen'),
-            'description': mark_safe('''<div style="background:#e8f5e9;padding:15px;border-radius:8px;border-left:4px solid #4CAF50;margin:10px 0;">
-                <strong>✅ CÓMO PREPARAR TU PLANTILLA DE CERTIFICADO</strong><br><br>
-                1. Diseña tu certificado en Canva, Word, Photoshop, etc.<br>
-                2. Coloca <strong>marcadores de color PURO</strong> (relleno sólido, sin degradado) donde quieras cada dato:<br>
-                &nbsp;&nbsp;&nbsp;⬜ <strong>GRIS</strong> RGB (128,128,128) = <strong>NOMBRE</strong> del estudiante<br>
-                &nbsp;&nbsp;&nbsp;🟥 <strong>ROJO</strong> RGB (255,0,0) = <strong>CÉDULA</strong> / documento<br>
-                &nbsp;&nbsp;&nbsp;🟨 <strong>AMARILLO</strong> RGB (255,255,0) = <strong>FECHA</strong> de emisión (hoy; opcional)<br>
-                &nbsp;&nbsp;&nbsp;🟦 <strong>AZUL</strong> RGB (0,0,255) = <strong>CÓDIGO QR</strong> de verificación<br>
-                3. Exporta como <strong>PNG o JPG</strong> (mejor PNG para colores exactos)<br>
-                4. Sube la imagen aquí o pega la URL de S3<br><br>
-                <strong>📐 Tamaños de texto (automáticos):</strong> nombre ~56px · cédula ~30px · fecha ~26px · QR 130px.<br>
-                <strong>💡 Cada curso puede tener su propia plantilla.</strong> Al actualizar, los certificados nuevos usan el diseño actualizado.<br>
-                <strong>⚠️ URL:</strong> pega solo UNA vez la URL completa (https://…).<br>
-                <strong>🔄 Archivo nuevo:</strong> el archivo tiene prioridad y actualiza la URL sola.
-            </div>''')
+            'description': (
+                'Modo Imagen: PNG/JPG con relleno sólido — '
+                'GRIS (128,128,128)=nombre, ROJO (255,0,0)=cédula, '
+                'AMARILLO (255,255,0)=fecha, AZUL (0,0,255)=QR. '
+                'Sube archivo o pega URL S3 (una sola vez).'
+            ),
         }),
-        ('📄 PDF Personalizado (Avanzado)', {
+        ('Diseno eki', {
+            'classes': ['tab'],
+            'fields': (
+                'imagen_fondo', 'logo_institucion',
+                'color_primario', 'color_secundario',
+                'texto_superior', 'texto_certificado',
+            ),
+            'description': 'Modo Diseño eki: colores y textos. La vista previa muestra un ejemplo.',
+        }),
+        ('PDF', {
+            'classes': ['tab'],
             'fields': ('archivo_plantilla_pdf', 'variable_nombre', 'variable_curso', 'variable_fecha'),
-            'classes': ('collapse',),
-            'description': mark_safe('''<div style="background:#f5f5f5;padding:10px;border-radius:8px;margin:10px 0;">
-                <em>Opcional: sube un PDF con variables {nombre}, {curso}, {fecha}</em>
-            </div>''')
-        }),
-        ('🎨 Diseño eki', {
-            'fields': ('imagen_fondo', 'logo_institucion', 'color_primario', 'color_secundario', 'texto_superior', 'texto_certificado'),
-            'description': mark_safe('''<div style="background:#ede9fe;padding:12px;border-radius:8px;border-left:4px solid #7c3aed;margin:8px 0;">
-                Use este modo cuando quiera armar el certificado con colores y textos de eki.
-                La vista previa a la derecha muestra un ejemplo con nombre de prueba.
-            </div>'''),
+            'description': 'Modo PDF: plantilla con variables {nombre}, {curso}, {fecha}.',
         }),
     )
 
@@ -429,14 +423,19 @@ class CertificadoAdmin(admin.ModelAdmin):
     enviado_whatsapp_badge.short_description = "📲 WhatsApp"
     
     def plantilla_link(self, obj):
-        """Link directo para ver plantillas de certificados"""
+        """Link a plantillas de certificados (app learning)."""
+        from django.urls import reverse
+
         count = PlantillaCertificado.objects.filter(cliente=obj.estudiante.cliente).count()
         if count == 0:
             count = PlantillaCertificado.objects.filter(cliente__isnull=True).count()
-        
+        url = reverse('admin:learning_plantillacertificado_changelist')
         return format_html(
-            '<a href="/admin/core/plantillacertificado/" style="background:#673ab7;color:white;padding:6px 12px;border-radius:12px;text-decoration:none;font-size:11px;font-weight:600;">🎨 {} Plantillas</a>',
-            count
+            '<a href="{}" style="background:#673ab7;color:white;padding:6px 12px;'
+            'border-radius:12px;text-decoration:none;font-size:11px;font-weight:600;">'
+            '{} plantillas</a>',
+            url,
+            count,
         )
     plantilla_link.short_description = "Plantillas"
     

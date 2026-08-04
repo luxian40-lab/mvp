@@ -82,7 +82,7 @@
     <input type="hidden" id="certPlantillaPk" value="{% if original %}{{ original.pk }}{% endif %}">
     <aside class="cert-preview-panel" aria-label="Vista previa del certificado">
         <h3>Vista previa</h3>
-        <p>Sube la plantilla con marcadores RGB: gris=nombre, rojo=cédula, amarillo=fecha (opcional), azul=QR. Elige un estudiante real (o demo) para previsualizar.</p>
+        <p>Pestañas: Datos (elige el modo) → Imagen / Diseño eki / PDF. Marcadores RGB en modo Imagen: gris=nombre, rojo=cédula, amarillo=fecha, azul=QR. Elige estudiante real o demo.</p>
         <label for="certEstudiantePreview" style="display:block;font-size:12px;margin-bottom:8px;color:#334155;">
             Estudiante de prueba
             <select id="certEstudiantePreview" style="display:block;width:100%;margin-top:4px;padding:6px 8px;border-radius:6px;border:1px solid #cbd5e1;">
@@ -262,10 +262,40 @@
         if (el) el.addEventListener('change', schedulePreview);
     });
     if (btn) btn.addEventListener('click', refreshPreview);
+
+    function syncModoTab() {
+        var modo = fieldValue('modo_plantilla') || 'imagen';
+        var slug = {
+            imagen: 'imagen-marcadores',
+            diseno_eki: 'diseno-eki',
+            pdf: 'pdf'
+        }[modo] || 'imagen-marcadores';
+        try {
+            document.querySelectorAll('[x-data]').forEach(function (el) {
+                var stack = el._x_dataStack;
+                if (stack && stack[0] && typeof stack[0].activeFieldsetTab !== 'undefined') {
+                    stack[0].activeFieldsetTab = slug;
+                }
+            });
+        } catch (e) { /* ignore */ }
+        var link = document.querySelector('a[href="#' + slug + '"], button[data-tab="' + slug + '"]');
+        if (link) link.click();
+    }
+
+    var modoEl = document.getElementById('id_modo_plantilla');
+    if (modoEl) {
+        modoEl.addEventListener('change', function () {
+            syncModoTab();
+            schedulePreview();
+        });
+    }
+
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function () { setTimeout(refreshPreview, 600); });
+        document.addEventListener('DOMContentLoaded', function () {
+            setTimeout(function () { syncModoTab(); refreshPreview(); }, 600);
+        });
     } else {
-        setTimeout(refreshPreview, 600);
+        setTimeout(function () { syncModoTab(); refreshPreview(); }, 600);
     }
 })();
 </script>

@@ -12,49 +12,51 @@ class CampanaAdmin(admin.ModelAdmin):
     inlines = [EnvioProgramadoInline]
     
     fieldsets = (
-        ('📝 Información Básica', {
+        ('Datos', {
+            'classes': ['tab'],
             'fields': ('nombre', 'cliente'),
-            'description': 'Configura el nombre y cliente de la campaña'
+            'description': 'Nombre interno y cliente de la campaña.',
         }),
-        ('📨 Template de Twilio (Content SID)', {
+        ('Mensaje Twilio', {
+            'classes': ['tab'],
             'fields': ('template_twilio_id',),
-            'description': mark_safe('''<div style="background:#e8f5e9;padding:15px;border-radius:8px;border-left:4px solid #4CAF50;">
-                <strong>✅ Método recomendado:</strong> Pega el Content SID de Twilio directamente (ej: HX1234...).<br>
-                Crea tu template en <a href="https://console.twilio.com/us1/develop/sms/content-editor" target="_blank" style="color:#2196F3;">Twilio Content Editor</a>.
-            </div>''')
+            'description': (
+                'Recomendado: Content SID de Twilio (HX…). '
+                'Consola: https://console.twilio.com/us1/develop/sms/content-editor'
+            ),
         }),
-        ('🚀 Campaña de Inicio de Curso', {
+        ('Inicio de curso', {
+            'classes': ['tab'],
             'fields': ('es_campana_curso', 'curso_destino'),
-            'description': mark_safe('''<div style="background:#fff3e0;padding:15px;border-radius:8px;border-left:4px solid #ff9800;">
-                <strong>📚 Si esta es una campaña para iniciar un curso:</strong><br>
-                1. Marca "Es campaña de inicio de curso"<br>
-                2. Selecciona el curso destino<br>
-                3. Al enviar, los estudiantes entrarán al flujo: Habeas Data → Verificación → Curso
-            </div>''')
+            'description': (
+                'Si es inicio de curso: marca la casilla, elige el curso. '
+                'Al enviar, el estudiante entra a Habeas → verificación → curso.'
+            ),
         }),
-        ('📄 Plantilla Django (Alternativa)', {
+        ('Plantilla eki (alternativa)', {
+            'classes': ['tab'],
             'fields': ('plantilla',),
-            'classes': ('collapse',),
-            'description': 'Solo si NO usas Content SID directo. Requiere plantilla creada en eki.'
+            'description': 'Solo si no usas Content SID directo. Requiere plantilla aprobada en eki.',
         }),
-        ('👥 Audiencia', {
+        ('Audiencia', {
+            'classes': ['tab'],
             'fields': ('tipo_audiencia', 'grupo', 'grupo_estudiantes_preview', 'destinatarios'),
-            'description': mark_safe('✨ <strong>Individual:</strong> Selecciona estudiantes específicos | <strong>Grupo:</strong> Envía a todo un grupo')
+            'description': 'Individual = estudiantes elegidos. Grupo = todos los del grupo.',
         }),
-        ('⏰ Programación (Opcional)', {
+        ('Programar', {
+            'classes': ['tab'],
             'fields': ('fecha_programada',),
-            'description': '📅 Si seleccionas una fecha, el envío se realizará automáticamente en ese momento',
-            'classes': ('collapse',)
+            'description': 'Opcional: envío automático en esa fecha/hora.',
         }),
-        ('📂 Importar desde Excel (Opcional)', {
+        ('Excel', {
+            'classes': ['tab'],
             'fields': ('archivo_excel',),
-            'description': 'Sube un Excel con columnas A (Nombre) y B (Teléfono)',
-            'classes': ('collapse',)
+            'description': 'Opcional: columnas A (Nombre) y B (Teléfono).',
         }),
-        ('📊 Estadísticas', {
+        ('Estadisticas', {
+            'classes': ['tab'],
             'fields': ('total_enviados', 'respuestas_si', 'respuestas_no'),
-            'classes': ('collapse',),
-            'description': 'Estadísticas de envío y respuestas'
+            'description': 'Contadores de envío y respuestas.',
         }),
     )
     
@@ -63,7 +65,7 @@ class CampanaAdmin(admin.ModelAdmin):
         if obj.cliente:
             return obj.cliente.nombre
         return format_html('<span style="color:#999;font-style:italic;">Sin cliente</span>')
-    cliente_nombre.short_description = "🏢 Cliente"
+    cliente_nombre.short_description = "Cliente"
 
     def get_readonly_fields(self, request, obj=None):
         return tuple(super().get_readonly_fields(request, obj)) + ('grupo_estudiantes_preview',)

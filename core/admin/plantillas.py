@@ -11,37 +11,28 @@ class PlantillaDashboardAdmin(admin.ModelAdmin):
     actions = ['crear_template_en_twilio', 'sincronizar_templates_twilio']
 
     fieldsets = (
-        ('📝 Información Básica', {
+        ('Datos', {
+            'classes': ['tab'],
             'fields': ('nombre_interno', 'categoria', 'activa'),
-            'description': 'Configura el nombre y categoría de la plantilla'
+            'description': 'Nombre interno y categoría de la plantilla.',
         }),
-        ('🎨 Personalización Visual', {
+        ('Emoji', {
+            'classes': ['tab'],
             'fields': ('emoji',),
-            'description': mark_safe('''<div style="background:#f5f5f5;padding:15px;border-radius:8px;margin-top:10px;">
-                <strong>💡 El emoji se autocompletará según la categoría seleccionada arriba</strong><br><br>
-                <strong>Categorías disponibles:</strong><br>
-                🌾 Cultivos • 🐄 Ganadería • 🌱 General Agrícola • 📚 Educación • 💼 Gestión<br><br>
-                <em>Puedes cambiar el emoji manualmente si lo deseas</em>
-            </div>''')
+            'description': 'Opcional. Se puede autocompletar según la categoría.',
         }),
-        ('📄 Contenido del Mensaje', {
+        ('Mensaje', {
+            'classes': ['tab'],
             'fields': ('cuerpo_mensaje',),
-            'description': 'Escribe el mensaje. Usa {nombre} para personalizar con el nombre del estudiante.'
+            'description': 'Texto del mensaje. Usa {nombre} para personalizar.',
         }),
-        ('� Twilio (Opcional - Para Casos Avanzados)', {
+        ('Twilio', {
+            'classes': ['tab'],
             'fields': ('twilio_template_sid', 'twilio_template_nombre', 'aprobada_twilio'),
-            'description': mark_safe('''<div style="background:#fff3e0;padding:15px;border-radius:8px;border-left:4px solid #ff9800;">
-                <strong>⚠️ IMPORTANTE: Para campañas con Content Templates</strong><br><br>
-                <strong>Flujo correcto:</strong>
-                <ol style="margin:10px 0;">
-                    <li>🔵 Ve a <a href="https://console.twilio.com/us1/develop/sms/content-editor" target="_blank" style="color:#2196F3;">Twilio Content Editor</a></li>
-                    <li>📝 Crea tu plantilla de WhatsApp y obtén el <strong>Content SID</strong> (ej: HX1234...)</li>
-                    <li>⚙️ Configura el SID arriba y marca como "Aprobada en Twilio"</li>
-                    <li>✅ Las campañas usarán este template automáticamente</li>
-                </ol>
-                <em>💡 Si no configuras esto, las campañas usarán envío directo (sin template).</em>
-            </div>'''),
-            'classes': ('collapse',)
+            'description': (
+                'Para campañas con Content Template: crea el template en Twilio Content Editor, '
+                'pega el Content SID (HX…) y marca como aprobada.'
+            ),
         }),
     )
 
