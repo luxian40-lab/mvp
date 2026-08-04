@@ -60,108 +60,198 @@ def _build_ecosistema(
     *,
     cursos_activos: int,
     est_activos: int,
+    activos_7d: int,
     empresas: int,
     campanas_enviadas: int,
     campanas_7d: int,
     certs: int,
     avance: float,
     eventos_ia: int,
+    eventos_ia_total: int,
     sin_progreso: int,
 ) -> dict[str, Any]:
     """
-    Grafo fijo del ecosistema eki para el home.
-    Nodos con contador/estado y aristas fijas (sin motor de grafos).
+    Hub visual del ecosistema eki (Inicio).
+
+    Regla de producto: Studio NO se conecta a Aprende (productos separados).
+    Campo WhatsApp es el ancla operativo. Contadores con etiquetas honestas.
     """
     nodos = [
         {
             'id': 'studio',
             'label': 'Studio',
+            'metric_label': 'Cursos admin (proxy)',
             'value': f'{cursos_activos} cursos' if cursos_activos else 'Sin datos',
             'status': _nodo_status(cursos_activos > 0),
             'url': 'https://studio.eki.technology/studio/',
             'external': True,
-            'x': 70,
-            'y': 48,
+            'icon': 'palette',
+            'x': 10,
+            'y': 18,
+            'z': 8,
+            'island': True,
         },
         {
             'id': 'aprende',
             'label': 'Aprende',
-            'value': f'{est_activos} est.' if est_activos else 'Sin datos',
-            'status': _nodo_status(est_activos > 0, warn=sin_progreso >= 5),
+            'metric_label': 'Aula web',
+            'value': 'Entrar al aula',
+            'status': 'ok',
             'url': 'https://aprende.eki.technology/aprende/',
             'external': True,
-            'x': 210,
-            'y': 48,
+            'icon': 'menu_book',
+            'x': 28,
+            'y': 22,
+            'z': 18,
+            'island': False,
+        },
+        {
+            'id': 'campo',
+            'label': 'Campo',
+            'metric_label': 'Estudiantes WA activos',
+            'value': (
+                f'{est_activos} · {activos_7d} en 7d'
+                if est_activos
+                else 'Sin datos'
+            ),
+            'status': _nodo_status(est_activos > 0, warn=sin_progreso >= 5),
+            'url': '/admin/core/estudiante/',
+            'external': False,
+            'icon': 'sms',
+            'x': 50,
+            'y': 44,
+            'z': 48,
+            'island': False,
+            'anchor': True,
         },
         {
             'id': 'empresas',
             'label': 'Empresas',
+            'metric_label': 'Clientes B2B',
             'value': f'{empresas} activas' if empresas else 'Sin datos',
             'status': _nodo_status(empresas > 0),
             'url': '/admin/core/cliente/',
             'external': False,
-            'x': 350,
-            'y': 48,
+            'icon': 'apartment',
+            'x': 72,
+            'y': 20,
+            'z': 16,
+            'island': False,
         },
         {
             'id': 'campanas',
             'label': 'Campañas',
+            'metric_label': 'Envíos ejecutados',
             'value': (
-                f'{campanas_enviadas} enviadas'
+                f'{campanas_enviadas} · {campanas_7d} en 7d'
                 if campanas_enviadas
                 else 'Sin datos'
             ),
-            'status': _nodo_status(campanas_enviadas > 0, warn=campanas_enviadas > 0 and campanas_7d == 0),
+            'status': _nodo_status(
+                campanas_enviadas > 0,
+                warn=campanas_enviadas > 0 and campanas_7d == 0,
+            ),
             'url': '/admin/core/campana/',
             'external': False,
-            'x': 490,
-            'y': 48,
+            'icon': 'campaign',
+            'x': 88,
+            'y': 46,
+            'z': 22,
+            'island': False,
         },
         {
             'id': 'ia',
             'label': 'IA',
-            'value': f'{eventos_ia} eventos' if eventos_ia else 'Sin datos',
-            'status': _nodo_status(eventos_ia > 0),
+            'metric_label': 'Eventos recientes',
+            'value': (
+                f'{eventos_ia} en feed'
+                + (f' · {eventos_ia_total} total' if eventos_ia_total > eventos_ia else '')
+                if eventos_ia or eventos_ia_total
+                else 'Sin datos'
+            ),
+            'status': _nodo_status(eventos_ia > 0 or eventos_ia_total > 0),
             'url': '/admin/ai-ops/eventos/',
             'external': False,
-            'x': 140,
-            'y': 168,
+            'icon': 'psychology',
+            'x': 30,
+            'y': 78,
+            'z': 12,
+            'island': False,
         },
         {
             'id': 'impacto',
             'label': 'Impacto',
+            'metric_label': 'Certs · avance (muestra)',
             'value': (
                 f'{certs} certs · {int(round(avance))}%'
                 if certs or avance
                 else 'Sin datos'
             ),
-            'status': _nodo_status(certs > 0 or avance > 0, warn=avance > 0 and avance < 30),
+            'status': _nodo_status(
+                certs > 0 or avance > 0,
+                warn=avance > 0 and avance < 30,
+            ),
             'url': '/admin/dashboard/?tab=retencion',
             'external': False,
-            'x': 400,
-            'y': 168,
+            'icon': 'verified',
+            'x': 72,
+            'y': 78,
+            'z': 20,
+            'island': False,
         },
     ]
-    # Aristas: Studio→Aprende→Empresas→Campañas→Impacto; Studio/Aprende→IA; Empresas→Impacto
+    # Studio aislado a propósito: sin aristas a Aprende ni al resto.
     edges = [
-        ('studio', 'aprende'),
-        ('aprende', 'empresas'),
-        ('empresas', 'campanas'),
-        ('campanas', 'impacto'),
-        ('studio', 'ia'),
+        ('campo', 'aprende'),
+        ('campo', 'campanas'),
+        ('campo', 'empresas'),
+        ('campo', 'impacto'),
         ('aprende', 'ia'),
+        ('empresas', 'campanas'),
         ('empresas', 'impacto'),
+        ('campanas', 'impacto'),
         ('ia', 'impacto'),
     ]
     by_id = {n['id']: n for n in nodos}
     aristas = []
     for a, b in edges:
+        if a == 'studio' or b == 'studio':
+            continue
+        if {a, b} == {'studio', 'aprende'}:
+            continue
         na, nb = by_id[a], by_id[b]
-        aristas.append({'x1': na['x'], 'y1': na['y'], 'x2': nb['x'], 'y2': nb['y']})
-    return {'nodos': nodos, 'aristas': aristas}
+        aristas.append(
+            {
+                'from': a,
+                'to': b,
+                'x1': na['x'],
+                'y1': na['y'],
+                'x2': nb['x'],
+                'y2': nb['y'],
+            }
+        )
+    return {
+        'nodos': nodos,
+        'aristas': aristas,
+        'nota': 'Studio es independiente de Aprende: sin enlace entre ambos.',
+    }
 
 
-def build_panel_snapshot() -> dict[str, Any]:
+def build_panel_snapshot(*, force: bool = False) -> dict[str, Any]:
+    """KPIs y bloques del Panel (Inicio). Cache corto para no pesar /admin/."""
+    from django.core.cache import cache
+
+    cache_key = 'admin_panel_snapshot_v3'
+    if not force:
+        cached = cache.get(cache_key)
+        if cached:
+            return cached
+    snap = _build_panel_snapshot_uncached()
+    cache.set(cache_key, snap, 45)
+    return snap
+
+
+def _build_panel_snapshot_uncached() -> dict[str, Any]:
     """KPIs y bloques del Panel (Inicio) con datos reales."""
     now = timezone.now()
     hoy = timezone.localdate()
@@ -344,32 +434,6 @@ def build_panel_snapshot() -> dict[str, Any]:
 
     espacios = [
         {
-            'key': 'aprende',
-            'nombre': 'Aprende',
-            'desc': 'Aula web y avance de estudiantes',
-            'metrics': [
-                {'label': 'Cursos', 'value': cursos_activos},
-                {'label': 'Estudiantes', 'value': est_activos},
-                {'label': 'Avance', 'value': f'{int(round(avance))}%'},
-            ],
-            'url': 'https://aprende.eki.technology/aprende/',
-            'tone': 'green',
-            'external': True,
-        },
-        {
-            'key': 'studio',
-            'nombre': 'Studio',
-            'desc': 'Catálogo, creadores y checkout',
-            'metrics': [
-                {'label': 'Cursos', 'value': cursos_activos},
-                {'label': 'Activos', 'value': cursos_activos},
-                {'label': 'Vitrina', 'value': 'Live'},
-            ],
-            'url': 'https://studio.eki.technology/studio/',
-            'tone': 'purple',
-            'external': True,
-        },
-        {
             'key': 'portal',
             'nombre': 'Portal',
             'desc': 'Coordinadores B2B y programas',
@@ -401,70 +465,96 @@ def build_panel_snapshot() -> dict[str, Any]:
         {'label': 'Nuevo curso', 'url': '/admin/core/curso/add/', 'icon': 'school'},
         {'label': 'Nueva campaña', 'url': '/admin/core/campana/add/', 'icon': 'campaign'},
         {'label': 'Nueva empresa', 'url': '/admin/core/cliente/add/', 'icon': 'apartment'},
-        {'label': 'Emitir certificados', 'url': '/admin/envio-certificados/', 'icon': 'verified'},
-        {'label': 'Dashboard', 'url': '/admin/dashboard/', 'icon': 'dashboard'},
-        {'label': 'Logs IA', 'url': '/admin/ai-ops/eventos/', 'icon': 'psychology'},
-    ]
-
-    atajos = [
-        {'label': 'Ajustar avance', 'url': '/admin/ajustar-avance/', 'icon': 'tune'},
-        {'label': 'Conversaciones', 'url': '/admin/conversaciones/', 'icon': 'chat'},
-        {'label': 'Push WhatsApp', 'url': '/admin/push-estudiantes/', 'icon': 'send'},
         {'label': 'Certificados', 'url': '/admin/envio-certificados/', 'icon': 'verified'},
-        {'label': 'Reportes', 'url': '/admin/dashboard/', 'icon': 'bar_chart'},
-        {'label': 'Infra', 'url': '/admin/infra/', 'icon': 'monitor_heart'},
         {'label': 'Estudiantes', 'url': '/admin/core/estudiante/', 'icon': 'group'},
+        {'label': 'Conversaciones', 'url': '/admin/conversaciones/', 'icon': 'chat'},
+        {'label': 'Dashboard', 'url': '/admin/dashboard/', 'icon': 'dashboard'},
+        {'label': 'Infra', 'url': '/admin/infra/', 'icon': 'monitor_heart'},
     ]
+    # Atajos fusionados en acciones (una sola fila de CTAs).
+    atajos = []
+
+    eventos_ia_total = 0
+    try:
+        from core.models import EventoIA
+
+        eventos_ia_total = EventoIA.objects.count()
+    except Exception:
+        pass
 
     ecosistema = _build_ecosistema(
         cursos_activos=cursos_activos,
         est_activos=est_activos,
+        activos_7d=activos_7d,
         empresas=empresas,
         campanas_enviadas=campanas_enviadas,
         campanas_7d=campanas_7d,
         certs=certs,
         avance=float(avance or 0),
         eventos_ia=len(actividad),
+        eventos_ia_total=eventos_ia_total,
         sin_progreso=sin_progreso,
     )
 
+    def _kpi(label, value, *, delta=None, note=None, tone='purple'):
+        item = {
+            'label': label,
+            'value': value,
+            'delta': delta,
+            'note': note,
+            'tone': tone,
+        }
+        if delta is None:
+            item['delta_dir'] = 'flat'
+        elif delta > 0:
+            item['delta_dir'] = 'up'
+        elif delta < 0:
+            item['delta_dir'] = 'down'
+        else:
+            item['delta_dir'] = 'flat'
+        return item
+
     return {
         'kpis': [
-            {
-                'label': 'Estudiantes activos',
-                'value': est_activos,
-                'delta': _pct_delta(est_activos, est_ayer),
-                'note': f'{activos_7d} con actividad en 7 días',
-                'tone': 'purple',
-            },
-            {
-                'label': 'Certificados emitidos',
-                'value': certs,
-                'delta': _pct_delta(certs, certs_ayer),
-                'note': f'{certs_7d} en 7 días' if certs_7d else None,
-                'tone': 'green',
-            },
-            {
-                'label': 'Campañas enviadas',
-                'value': campanas_enviadas,
-                'delta': None,
-                'note': f'{campanas_7d} en 7 días' if campanas_7d else None,
-                'tone': 'blue',
-            },
-            {
-                'label': 'Avance promedio',
-                'value': f'{int(round(float(avance or 0)))}%',
-                'delta': None,
-                'tone': 'purple',
-            },
-            {
-                'label': 'Empresas activas',
-                'value': empresas,
-                'delta': _pct_delta(empresas, empresas_ayer)
-                if empresas != empresas_ayer
-                else None,
-                'tone': 'gold',
-            },
+            _kpi(
+                'Estudiantes activos',
+                est_activos,
+                delta=_pct_delta(est_activos, est_ayer),
+                note=f'{activos_7d} activos 7d',
+                tone='purple',
+            ),
+            _kpi(
+                'Certificados',
+                certs,
+                delta=_pct_delta(certs, certs_ayer),
+                note=f'{certs_7d} en 7d' if certs_7d else None,
+                tone='green',
+            ),
+            _kpi(
+                'Campañas',
+                campanas_enviadas,
+                delta=None,
+                note=f'{campanas_7d} en 7d' if campanas_7d else 'Sin envíos 7d',
+                tone='blue',
+            ),
+            _kpi(
+                'Avance medio',
+                f'{int(round(float(avance or 0)))}%',
+                delta=None,
+                note='Muestra',
+                tone='purple',
+            ),
+            _kpi(
+                'Empresas',
+                empresas,
+                delta=(
+                    _pct_delta(empresas, empresas_ayer)
+                    if empresas != empresas_ayer
+                    else None
+                ),
+                note=None,
+                tone='gold',
+            ),
         ],
         'cobertura': cobertura,
         'mapa': mapa,
@@ -478,6 +568,7 @@ def build_panel_snapshot() -> dict[str, Any]:
         'atajos': atajos,
         'ecosistema': ecosistema,
         'health': header_health_strip(force=False),
+        'actualizado': timezone.localtime(now).strftime('%H:%M'),
     }
 
 
