@@ -104,11 +104,19 @@ class ClienteAdmin(admin.ModelAdmin):
         HabilitacionModuloDripClienteInline,
         ProductoCatalogoInline,
     ]
-    list_display = ('nombre', 'contacto_principal', 'email', 'numero_meta_badge', 'estudiantes_activos', 'cursos_asignados', 'activo', 'fecha_registro')
-    list_filter = ('activo', 'enviar_certificados_email', 'fecha_registro')
+    # Listado ops: A–Z por nombre; columnas densas fuera (meta/fecha → ficha).
+    list_display = (
+        'nombre',
+        'activo',
+        'estudiantes_activos',
+        'cursos_asignados',
+        'contacto_principal',
+        'email',
+    )
+    list_filter = ('activo',)
     search_fields = ('nombre', 'nit', 'contacto_principal', 'email')
     list_per_page = 50
-    ordering = ('-fecha_registro',)
+    ordering = ('nombre',)
     readonly_fields = (
         'portal_usuarios_acciones',
         'cobertura_y_drip_acciones',

@@ -6,11 +6,26 @@ class EstudianteAdmin(admin.ModelAdmin):
     """Gestión de estudiantes/campesinos"""
     change_form_template = 'admin/core/estudiante/change_form.html'
     inlines = [HabilitacionModuloEstudianteInline]
-    list_display = ('cedula_formateada', 'nombre', 'telefono_formateado', 'municipio', 'departamento', 'genero', 'edad', 'cliente_nombre', 'grupos_display', 'cursos_inscritos', 'activo', 'fecha_registro')
-    list_filter = ('activo', 'cliente', 'genero', 'departamento', 'fecha_registro', CursosEstudianteFilter, GruposEstudianteFilter)
+    # Listado ops: agrupar por cliente + nombre; geo/género → ficha o filtros.
+    list_display = (
+        'nombre',
+        'cedula_formateada',
+        'telefono_formateado',
+        'cliente_nombre',
+        'activo',
+        'cursos_inscritos',
+    )
+    list_filter = (
+        'cliente',
+        'activo',
+        CursosEstudianteFilter,
+        GruposEstudianteFilter,
+        'departamento',
+    )
     search_fields = ('nombre', 'cedula', 'telefono', 'cliente__nombre')
+    list_select_related = ('cliente',)
     list_per_page = 50
-    ordering = ('-fecha_registro',)
+    ordering = ('cliente__nombre', 'nombre')
     actions = [
         'enviar_mensaje_masivo',
         'enviar_anuncio_grupal',
@@ -100,6 +115,7 @@ class EstudianteAdmin(admin.ModelAdmin):
             return obj.cliente.nombre
         return format_html('<span style="color:#999;">Sin cliente</span>')
     cliente_nombre.short_description = "🏢 Cliente"
+    cliente_nombre.admin_order_field = 'cliente__nombre'
     
     def grupos_display(self, obj):
         """Muestra los grupos a los que pertenece el estudiante"""
