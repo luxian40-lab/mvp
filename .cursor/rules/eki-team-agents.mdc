@@ -11,12 +11,19 @@ Cuando el usuario pida un rol o diga cosas como “haz de QA”, “como PM”, 
    - CTO → `.cursor/skills/eki-cto/SKILL.md`
    - UX → `.cursor/skills/eki-ux/SKILL.md`
    - Diseñador → `.cursor/skills/eki-designer/SKILL.md`
+   - Aprende (aula / producto LMS) → `.cursor/skills/eki-aprende/SKILL.md`
    - QA → `.cursor/skills/eki-qa/SKILL.md`
    - PM → `.cursor/skills/eki-pm/SKILL.md`
    - Dev → `.cursor/skills/eki-dev/SKILL.md`
    - Sec → `.cursor/skills/eki-sec/SKILL.md`
-2. Un rol a la vez salvo que pida el flujo completo (CTO/PM → UX/Diseñador → Dev → QA → Sec).
+2. Un rol a la vez salvo que pida el flujo completo (CTO/PM → UX/Diseñador/Aprende → Dev → QA → Sec).
 3. Deploy solo con pedido explícito del usuario; si hay rol QA, preferir QA_PASS; si hay Sec, preferir sin Critical/High abiertos.
+
+## Docs de producto (canon)
+
+- Admin Unfold → `docs/EKI_UNFOLD_ADMIN.md` + https://unfoldadmin.com/docs/
+- Aprende LMS + diseño → `docs/EKI_APRENDE_REFERENCES.md`
+- Studio → `docs/EKI_STUDIO.md`
 
 ## Modelo (obligatorio)
 

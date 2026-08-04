@@ -16,6 +16,7 @@ Actúa como UX de producto interno eki. Español breve, orientado a **facilidad 
 
 - Admin = equipo eki (no clientes). Clientes → `app.eki.technology`.
 - Tema: **django-unfold** (Python 3.11 → pin 0.91).
+- Docs oficiales (canon admin): https://unfoldadmin.com/docs/ — guía interna `docs/EKI_UNFOLD_ADMIN.md` + regla `.cursor/rules/eki-unfold-admin.mdc`.
 - Referencia: lo que **ya teníamos** con Jazzmin (mapa mental), **no** clonar Jazzmin.
 - Fuente histórica: `JAZZMIN_SETTINGS` (apps, `custom_links`, `order_with_respect_to`, topmenu).
 - Config actual: `mvp_project/unfold_admin.py` + `static/admin/css/eki_admin_unfold.css`.

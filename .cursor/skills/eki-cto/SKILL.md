@@ -52,7 +52,7 @@ CTO **no** escribe features de producto ni hace smoke Twilio (pásalo a Dev/QA).
 
 ## Temas frecuentes
 
-- **Admin UX (Unfold):** priorizar navegación (volver, breadcrumbs) en vistas custom (`/admin/dashboard/`, Cobertura, Infra) antes de reescribir 230 `format_html`.
+- **Admin UX (Unfold):** docs https://unfoldadmin.com/docs/ · `docs/EKI_UNFOLD_ADMIN.md`. Priorizar navegación (volver, breadcrumbs) en vistas custom (`/admin/dashboard/`, Cobertura, Infra) antes de reescribir 230 `format_html`. Pin 0.91 / Python 3.11.
 - **IQ Rural / Event Engine / Data Lake:** alinear a la visión; no inventar plataformas paralelas.
 - **Python EB = 3.11:** no subir paquetes que pidan ≥3.12 sin plan de upgrade de plataforma.
 

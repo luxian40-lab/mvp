@@ -1,0 +1,38 @@
+---
+description: Unfold admin docs canon — mejoras solo al admin eki (no portal/studio/WhatsApp)
+globs: mvp_project/unfold_admin.py,static/admin/**/*,templates/admin/**/*,templates/unfold/**/*,core/templates/admin/**/*,core/admin/**/*.py,aprende/templates/admin/**/*
+alwaysApply: false
+---
+
+# eki × django-unfold (solo admin)
+
+Fuente oficial (obligatoria al cambiar el admin):
+
+- Docs: https://unfoldadmin.com/docs/
+- Settings: https://unfoldadmin.com/docs/configuration/settings/
+- Custom pages: https://unfoldadmin.com/docs/configuration/custom-pages/
+- Dashboard / components: ver índice en docs (Card, Chart, Table, Tracker…)
+- Demo: https://demo.unfoldadmin.com/
+
+Referencia interna del repo: `docs/EKI_UNFOLD_ADMIN.md`.
+
+## Alcance
+
+- **Sí:** `admin.eki.technology`, `UNFOLD` en `mvp_project/unfold_admin.py`, CSS `static/admin/css/eki_admin_unfold.css`, templates `admin/` / `unfold/`, `core/admin/*`, pantallas ops bajo `/admin/…`.
+- **No** desde esta regla: WhatsApp/`module_steps`, portal `app.`, Studio, Aprende (aula), Celery de producto.
+
+## Principios
+
+1. Pin Unfold compatible con **Python 3.11** de EB (`django-unfold` 0.91.x). No subir a versiones que pidan ≥3.12 sin plan de plataforma.
+2. ModelAdmin / Inlines vía `unfold.admin` (ya cableado en `core/admin/_common.py`).
+3. Pantallas custom: `{% extends "admin/eki_ops_base.html" %}` o `admin/base_site.html` de Unfold — sidebar + Volver siempre.
+4. Theming = `COLORS` / `BORDER_RADIUS` / switcher light·dark·auto. **No** skins Jazzmin. Studio plugin comercial de Unfold ≠ nuestro “eki Studio”.
+5. Preferir componentes/docs Unfold antes de reinventar HTML suelto; si hay CSS propio, tokens eki (`#9A6CAC` / `#7A4E8E`) y cajas visibles.
+6. Diff mínimo; no mezclar WIP Celery/`module_steps` en deploys de UI admin.
+
+## Checklist antes de cerrar un cambio admin
+
+- [ ] ¿Sigue el mapa mental apps → modelos → Añadir (sin “Nuevo…” sueltos en sidebar)?
+- [ ] ¿Legible en light (contraste, bordes de fieldsets/inlines)?
+- [ ] ¿Smoke local o test admin existente (`core.tests_unfold_*`, `core.tests_infra_monitor`, …)?
+- [ ] ¿Deploy solo si el usuario lo pide?
