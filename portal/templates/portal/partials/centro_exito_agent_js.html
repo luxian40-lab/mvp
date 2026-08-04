@@ -6,72 +6,19 @@
     function animateBars(sel) {
         root.querySelectorAll(sel).forEach(function (bar, i) {
             var w = parseFloat(bar.getAttribute('data-width') || '0');
-            if (w < 12 && bar.classList.contains('ret-funnel__bar')) bar.style.color = 'transparent';
-            window.setTimeout(function () { bar.style.width = w + '%'; }, 80 + i * 90);
+            if (!w && w !== 0) return;
+            if (!bar.style.width || bar.style.width === '0px' || bar.style.width === '0%') {
+                bar.style.width = '0%';
+                window.setTimeout(function () { bar.style.width = w + '%'; }, 40 + i * 40);
+            }
+            if (w < 12 && bar.classList.contains('ret-funnel__bar')) {
+                bar.style.color = 'transparent';
+            }
         });
     }
     animateBars('.ret-funnel__bar[data-width]');
     animateBars('.ret-map-row__bar[data-width]');
 
-    var log = document.getElementById('ret-agent-log');
-    var form = document.getElementById('ret-agent-form');
-    var input = document.getElementById('ret-agent-input');
-    var csrf = form ? form.querySelector('[name=csrfmiddlewaretoken]') : null;
-    var agenteUrl = root.getAttribute('data-agente-url') || '/portal/retencion/agente/';
-    var clienteId = root.getAttribute('data-cliente') || '';
-
-    function addMsg(text, who) {
-        if (!log) return;
-        var d = document.createElement('div');
-        d.className = 'ret-agent__msg ret-agent__msg--' + who;
-        d.textContent = text;
-        log.appendChild(d);
-        log.scrollTop = log.scrollHeight;
-    }
-
-    function ask(pregunta) {
-        if (!pregunta) return;
-        addMsg(pregunta, 'user');
-        if (input) input.value = '';
-        addMsg('Analizando…', 'bot');
-        var pending = log.lastChild;
-        fetch(agenteUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrf ? csrf.value : ''
-            },
-            body: JSON.stringify({
-                pregunta: pregunta,
-                cliente: clienteId || (document.getElementById('ret-filtro-cliente') || {}).value || '',
-                curso: (document.getElementById('ret-filtro-curso') || {}).value || '',
-                grupo: (document.getElementById('ret-filtro-grupo') || {}).value || '',
-                desde: (document.getElementById('ret-filtro-desde') || {}).value || '',
-                hasta: (document.getElementById('ret-filtro-hasta') || {}).value || ''
-            })
-        }).then(function (r) { return r.json(); }).then(function (data) {
-            if (pending) pending.remove();
-            var txt = data.respuesta || data.error || 'Sin respuesta.';
-            if (data.fuente === 'reglas') txt += '\n\n(Fuente: reglas con datos del programa; configure OPENAI_API_KEY para IA generativa.)';
-            else if (data.fuente === 'ia') txt += '\n\n(Fuente: consultor IA de retención.)';
-            addMsg(txt, 'bot');
-        }).catch(function () {
-            if (pending) pending.remove();
-            addMsg('No se pudo consultar el agente. Intente de nuevo.', 'bot');
-        });
-    }
-
-    if (form) {
-        form.addEventListener('submit', function (e) {
-            e.preventDefault();
-            ask((input && input.value || '').trim());
-        });
-    }
-    root.querySelectorAll('.ret-agent__chip').forEach(function (btn) {
-        btn.addEventListener('click', function () { ask(btn.getAttribute('data-q')); });
-    });
-
-    // Exponer para el dashboard admin (switchTab).
     window.animateCentroExitoBars = function () {
         animateBars('.ret-funnel__bar[data-width]');
         animateBars('.ret-map-row__bar[data-width]');

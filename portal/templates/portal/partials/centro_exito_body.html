@@ -1,5 +1,6 @@
 {# Panel Centro de Éxito — requiere `data` (= analitica_retencion_portal).
-   Opcional: ce_surface ('portal'|'admin'), ce_agente_url, ce_cliente_id #}
+   Opcional: ce_surface ('portal'|'admin'), ce_agente_url, ce_cliente_id
+   Narrativa: 1) Hoy  2) Dónde caen  3) Más datos #}
 {% with surface=ce_surface|default:'portal' %}
 <div
     class="centro-exito"
@@ -10,127 +11,109 @@
 >
     <h2 class="ce-title">Centro de Éxito del Programa</h2>
     <p class="ce-lead">
-        ¿Quién está en riesgo? ¿Por qué abandona? ¿Qué hacer hoy?
+        ¿Quién está en riesgo? ¿Dónde caen? ¿Qué hacer hoy?
         Ventana de actividad: <strong>{{ data.dias_activo }} días</strong>.
     </p>
 
-    {% with r=data.riesgo.resumen %}
-    <section class="ret-risk-grid">
-        <article class="ret-risk-card ret-risk-card--alto">
-            <div class="ret-risk-card__label">Riesgo alto</div>
-            <div class="ret-risk-card__n">{{ r.alto }}</div>
-            <p class="ret-risk-card__hint">Prioridad de contacto hoy</p>
-        </article>
-        <article class="ret-risk-card ret-risk-card--medio">
-            <div class="ret-risk-card__label">Riesgo medio</div>
-            <div class="ret-risk-card__n">{{ r.medio }}</div>
-            <p class="ret-risk-card__hint">Vigilar esta semana</p>
-        </article>
-        <article class="ret-risk-card ret-risk-card--bajo">
-            <div class="ret-risk-card__label">Riesgo bajo</div>
-            <div class="ret-risk-card__n">{{ r.bajo }}</div>
-            <p class="ret-risk-card__hint">
-                {% if r.probabilidad_promedio != None %}
-                Prob. promedio terminar: {{ r.probabilidad_promedio }}%
-                {% else %}En curso con buen ritmo{% endif %}
-            </p>
-        </article>
-    </section>
-    {% endwith %}
+    {# —— 1. HOY —— #}
+    <section class="ce-block ce-block--hoy" aria-labelledby="ce-hoy-title">
+        <header class="ce-block__head">
+            <h3 id="ce-hoy-title" class="ce-block__title">1 · Hoy</h3>
+            <p class="ce-block__sub">Prioridad de contacto y pulso del grupo</p>
+        </header>
 
-    {% with k=data.kpis %}
-    <section class="cards-grid" style="margin-bottom:24px;">
-        <article class="card">
-            <div class="metric-number">{{ k.inscritos }}</div>
-            <div class="metric-label">Inscritos</div>
-        </article>
-        <article class="card">
-            <div class="metric-number">{{ k.activos }}</div>
-            <div class="metric-label">Activos</div>
-            <p class="ret-kpi-hint">{{ k.pct_activos }}% · {{ data.dias_activo }} días</p>
-        </article>
-        <article class="card">
-            <div class="metric-number">{{ k.certificados }}</div>
-            <div class="metric-label">Certificados</div>
-            <p class="ret-kpi-hint">{{ k.pct_certificacion }}% de inscritos</p>
-        </article>
-        <article class="card">
-            <div class="metric-number">{% if data.riesgo.resumen.probabilidad_promedio != None %}{{ data.riesgo.resumen.probabilidad_promedio }}%{% else %}—{% endif %}</div>
-            <div class="metric-label">Prob. terminar (est.)</div>
-            <p class="ret-kpi-hint">Promedio del grupo en curso</p>
-        </article>
-    </section>
-    {% endwith %}
-
-    <div class="ret-two" style="margin-bottom:24px;">
-        <section class="panel" style="margin:0;">
-            <h2 style="margin-top:0;">Personas en riesgo alto</h2>
-            <p class="muted" style="margin-top:0;">Score + explicación. Quién contactar hoy.</p>
-            {% for s in data.riesgo.alto %}
-            <article class="ret-student">
-                <div class="ret-student__top">
-                    <div>
-                        <span class="ret-student__name">{{ s.nombre }}</span>
-                        <span class="ret-pill ret-pill--alto">score {{ s.score }}</span>
-                        <span class="ret-student__meta">· terminar {{ s.probabilidad_terminar }}%</span>
-                    </div>
-                    {% if surface == 'admin' %}
-                    <a class="ret-student__meta" href="/admin/core/estudiante/{{ s.estudiante_id }}/change/">Ver en admin</a>
-                    {% else %}
-                    <a class="ret-student__meta" href="/portal/estudiantes/{{ s.estudiante_id }}/">Ver ficha</a>
+        {% with r=data.riesgo.resumen k=data.kpis %}
+        <section class="ret-risk-grid">
+            <article class="ret-risk-card ret-risk-card--alto">
+                <div class="ret-risk-card__label">Riesgo alto</div>
+                <div class="ret-risk-card__n">{{ r.alto }}</div>
+                <p class="ret-risk-card__hint">Contactar hoy</p>
+            </article>
+            <article class="ret-risk-card ret-risk-card--medio">
+                <div class="ret-risk-card__label">Riesgo medio</div>
+                <div class="ret-risk-card__n">{{ r.medio }}</div>
+                <p class="ret-risk-card__hint">Vigilar esta semana</p>
+            </article>
+            <article class="ret-risk-card ret-risk-card--bajo">
+                <div class="ret-risk-card__label">En buen ritmo</div>
+                <div class="ret-risk-card__n">{{ r.bajo }}</div>
+                <p class="ret-risk-card__hint">
+                    {{ k.activos }} activos · {{ k.pct_activos }}%
+                    {% if r.probabilidad_promedio != None %}
+                    · prob. terminar {{ r.probabilidad_promedio }}%
                     {% endif %}
-                </div>
-                <ul class="ret-student__why">
-                    {% for razon in s.razones %}<li>{{ razon }}</li>{% endfor %}
-                </ul>
-                <p class="ret-student__rec"><strong>Recomendación:</strong> {{ s.recomendacion }}</p>
+                </p>
             </article>
-            {% empty %}
-            <p class="muted">Nadie en riesgo alto con estos filtros. Bien.</p>
-            {% endfor %}
-
-            {% if data.riesgo.medio %}
-            <h3 style="margin-top:28px;font-size:1rem;">Riesgo medio (muestra)</h3>
-            {% for s in data.riesgo.medio %}
-            <article class="ret-student">
-                <div class="ret-student__top">
-                    <div>
-                        <span class="ret-student__name">{{ s.nombre }}</span>
-                        <span class="ret-pill ret-pill--medio">score {{ s.score }}</span>
-                        <span class="ret-student__meta">· terminar {{ s.probabilidad_terminar }}%</span>
-                    </div>
-                </div>
-                <ul class="ret-student__why">
-                    {% for razon in s.razones %}<li>{{ razon }}</li>{% endfor %}
-                </ul>
-            </article>
-            {% endfor %}
-            {% endif %}
         </section>
 
-        <div style="display:flex;flex-direction:column;gap:20px;">
-            <section class="panel ret-agent" style="margin:0;">
-                <div class="ret-agent__head">
-                    <h2>Consultor de retención</h2>
-                    <p class="muted" style="margin:0;font-size:13px;">Agente del Centro de Éxito — aparte de Nat comercial.</p>
-                </div>
-                <div class="ret-agent__body">
-                    <div class="ret-agent__chips">
-                        <button type="button" class="ret-agent__chip" data-q="¿Quiénes están en riesgo alto y por qué?">¿Quiénes en riesgo?</button>
-                        <button type="button" class="ret-agent__chip" data-q="¿Por qué abandonan en este programa?">¿Por qué abandonan?</button>
-                        <button type="button" class="ret-agent__chip" data-q="¿Qué debo hacer hoy para mejorar la retención?">¿Qué hacer hoy?</button>
+        <section class="ce-kpi-strip" aria-label="Pulso del programa">
+            <div class="ce-kpi-strip__item">
+                <strong>{{ k.inscritos }}</strong>
+                <span>Inscritos</span>
+            </div>
+            <div class="ce-kpi-strip__item">
+                <strong>{{ k.certificados }}</strong>
+                <span>Certificados ({{ k.pct_certificacion }}%)</span>
+            </div>
+            <div class="ce-kpi-strip__item">
+                <strong>{% if r.probabilidad_promedio != None %}{{ r.probabilidad_promedio }}%{% else %}—{% endif %}</strong>
+                <span>Prob. terminar (est.)</span>
+            </div>
+        </section>
+        {% endwith %}
+
+        <div class="ret-two" style="margin-bottom:0;">
+            <section class="panel" style="margin:0;">
+                <h2 style="margin-top:0;">Personas en riesgo alto</h2>
+                <p class="muted" style="margin-top:0;">Quién contactar hoy · score + por qué.</p>
+                {% for s in data.riesgo.alto %}
+                <article class="ret-student">
+                    <div class="ret-student__top">
+                        <div>
+                            <span class="ret-student__name">{{ s.nombre }}</span>
+                            <span class="ret-pill ret-pill--alto">score {{ s.score }}</span>
+                            <span class="ret-student__meta">· terminar {{ s.probabilidad_terminar }}%</span>
+                        </div>
+                        {% if surface == 'admin' %}
+                        <a class="ret-student__meta" href="/admin/core/estudiante/{{ s.estudiante_id }}/change/">Ver en admin</a>
+                        {% else %}
+                        <a class="ret-student__meta" href="/portal/estudiantes/{{ s.estudiante_id }}/">Ver ficha</a>
+                        {% endif %}
                     </div>
-                    <div class="ret-agent__log" id="ret-agent-log" aria-live="polite"></div>
-                    <form class="ret-agent__form" id="ret-agent-form">
-                        {% csrf_token %}
-                        <input type="text" id="ret-agent-input" placeholder="Ej. ¿Por qué desertan en el módulo 3?" maxlength="500" autocomplete="off">
-                        <button class="btn" type="submit">Preguntar</button>
-                    </form>
-                </div>
+                    <ul class="ret-student__why">
+                        {% for razon in s.razones %}<li>{{ razon }}</li>{% endfor %}
+                    </ul>
+                    <p class="ret-student__rec"><strong>Recomendación:</strong> {{ s.recomendacion }}</p>
+                </article>
+                {% empty %}
+                <p class="muted">Nadie en riesgo alto con estos filtros. Bien.</p>
+                {% endfor %}
+
+                {% if data.riesgo.medio %}
+                <h3 style="margin-top:28px;font-size:1rem;">Riesgo medio (muestra)</h3>
+                {% for s in data.riesgo.medio %}
+                <article class="ret-student">
+                    <div class="ret-student__top">
+                        <div>
+                            <span class="ret-student__name">{{ s.nombre }}</span>
+                            <span class="ret-pill ret-pill--medio">score {{ s.score }}</span>
+                            <span class="ret-student__meta">· terminar {{ s.probabilidad_terminar }}%</span>
+                        </div>
+                        {% if surface == 'admin' %}
+                        <a class="ret-student__meta" href="/admin/core/estudiante/{{ s.estudiante_id }}/change/">Ver</a>
+                        {% else %}
+                        <a class="ret-student__meta" href="/portal/estudiantes/{{ s.estudiante_id }}/">Ver</a>
+                        {% endif %}
+                    </div>
+                    <p class="ret-student__rec"><strong>Recomendación:</strong> {{ s.recomendacion }}</p>
+                </article>
+                {% endfor %}
+                {% endif %}
             </section>
 
             <section class="panel" style="margin:0;">
                 <h2 style="margin-top:0;">Recomendaciones</h2>
+                <p class="muted" style="margin-top:0;">Qué hacer hoy según el riesgo y el mapa de abandono.</p>
                 {% for rec in data.recomendaciones %}
                 <div class="ret-rec {% if rec.prioridad == 'alta' %}ret-rec--alta{% elif rec.prioridad == 'media' %}ret-rec--media{% endif %}">
                     <h3>{{ rec.titulo }}</h3>
@@ -141,64 +124,89 @@
                 {% endfor %}
             </section>
         </div>
-    </div>
-
-    <section class="panel" style="margin-bottom:24px;">
-        <h2 style="margin-top:0;">Mapa de abandono por módulo</h2>
-        {% if data.requiere_curso_para_modulos %}
-        <p class="muted">Seleccione un <strong>curso</strong> para ver en qué módulo desertan.</p>
-        {% elif data.mapa_abandono %}
-        <p class="muted" style="margin-top:0;">Ancho = personas que completaron el módulo y no el siguiente.</p>
-        {% for m in data.mapa_abandono %}
-        <div class="ret-map-row">
-            <div class="ret-map-row__head">
-                <span><strong>M{{ m.modulo_numero }}</strong> · {{ m.titulo }}
-                    <span class="muted">({{ m.completaron }} completaron)</span>
-                </span>
-                {% if m.caidas %}
-                <span style="color:var(--ce-danger);font-weight:700;">desertan {{ m.caidas }} · {{ m.tasa_pct }}%</span>
-                {% else %}
-                <span class="muted">sin caída medida</span>
-                {% endif %}
-            </div>
-            <div class="ret-map-row__track">
-                <div class="ret-map-row__bar" data-width="{{ m.barra_pct }}"></div>
-            </div>
-        </div>
-        {% endfor %}
-        {% else %}
-        <p class="muted">Sin datos de módulos para este filtro.</p>
-        {% endif %}
-
-        {% if data.mapa_abandono_pasos %}
-        <h3 style="font-size:1rem;margin-top:28px;">Por paso / media (telemetría)</h3>
-        <p class="muted" style="margin-top:0;">Quiénes recibieron el paso y no avanzaron (listo/evaluación).</p>
-        {% for m in data.mapa_abandono_pasos %}
-        <div class="ret-map-row">
-            <div class="ret-map-row__head">
-                <span>
-                    <strong>M{{ m.modulo_numero }} · paso {{ m.paso_orden }}</strong>
-                    {% if m.tiene_media %}<span class="ret-pill ret-pill--medio">media</span>{% endif %}
-                    · {{ m.titulo }}
-                </span>
-                <span style="color:var(--ce-danger);font-weight:700;">
-                    desertan {{ m.caidas }} · {{ m.tasa_pct }}%
-                    <span class="muted">(env {{ m.enviados }} / avanz {{ m.avanzaron }})</span>
-                </span>
-            </div>
-            <div class="ret-map-row__track">
-                <div class="ret-map-row__bar" data-width="{{ m.barra_pct }}"></div>
-            </div>
-        </div>
-        {% endfor %}
-        {% endif %}
     </section>
 
-    <div class="ret-two" style="margin-bottom:24px;">
+    {# —— 2. DÓNDE CAEN —— #}
+    <section class="ce-block ce-block--donde" aria-labelledby="ce-donde-title">
+        <header class="ce-block__head">
+            <h3 id="ce-donde-title" class="ce-block__title">2 · Dónde caen</h3>
+            <p class="ce-block__sub">Mapa de abandono y embudo del curso (un solo relato)</p>
+        </header>
+
+        <section class="panel" style="margin-bottom:20px;">
+            <h2 style="margin-top:0;">Mapa de abandono por módulo</h2>
+            {% if data.requiere_curso_para_modulos %}
+            <p class="muted">Seleccione un curso para ver el mapa módulo a módulo.</p>
+            {% elif data.mapa_abandono %}
+            <p class="muted" style="margin-top:0;">Ancho = personas que completaron el módulo y no el siguiente.</p>
+            {% for m in data.mapa_abandono %}
+            <div class="ret-map-row">
+                <div class="ret-map-row__head">
+                    <span><strong>M{{ m.modulo_numero }}</strong> · {{ m.titulo }}
+                        <span class="muted">({{ m.completaron }} completaron)</span>
+                    </span>
+                    {% if m.caidas %}
+                    <span style="color:var(--ce-danger);font-weight:700;">desertan {{ m.caidas }} · {{ m.tasa_pct }}%</span>
+                    {% else %}
+                    <span class="muted">sin caída medida</span>
+                    {% endif %}
+                </div>
+                <div class="ret-map-row__track">
+                    <div class="ret-map-row__bar" data-width="{{ m.barra_pct }}" style="width:{{ m.barra_pct }}%;"></div>
+                </div>
+            </div>
+            {% endfor %}
+            {% if data.mapa_abandono_pasos %}
+            <h3 style="font-size:0.95rem;margin-top:18px;">Por paso / media (telemetría)</h3>
+            <p class="muted" style="margin-top:0;">Quiénes recibieron el paso y no avanzaron.</p>
+            {% for m in data.mapa_abandono_pasos %}
+            <div class="ret-map-row">
+                <div class="ret-map-row__head">
+                    <span>
+                        <strong>M{{ m.modulo_numero }} · paso {{ m.paso_orden }}</strong>
+                        {% if m.tiene_media %}<span class="ret-pill ret-pill--medio">media</span>{% endif %}
+                        · {{ m.titulo }}
+                    </span>
+                    <span style="color:var(--ce-danger);font-weight:700;">
+                        desertan {{ m.caidas }} · {{ m.tasa_pct }}%
+                        <span class="muted">(env {{ m.enviados }} / avanz {{ m.avanzaron }})</span>
+                    </span>
+                </div>
+                <div class="ret-map-row__track">
+                    <div class="ret-map-row__bar" data-width="{{ m.barra_pct }}" style="width:{{ m.barra_pct }}%;"></div>
+                </div>
+            </div>
+            {% endfor %}
+            {% endif %}
+            {% else %}
+            <p class="muted">Sin datos de módulos para estos filtros.</p>
+            {% endif %}
+        </section>
+
         <section class="panel" style="margin:0;">
-            <h2 style="margin-top:0;">Embudo vivo</h2>
-            <ul class="ret-funnel">
+            <h2 style="margin-top:0;">Embudo del curso</h2>
+            <p class="muted" style="margin-top:0;">
+                Onboarding → módulos → certificado.
+                {% if data.curso %}<strong>{{ data.curso.nombre }}</strong>.{% endif %}
+                Cada barra = % del total de inscritos.
+            </p>
+            {% if data.requiere_curso_para_modulos %}
+            <p class="muted">Seleccione un curso para ver módulos M1…Mn.</p>
+            {% endif %}
+
+            {% if data.embudo_vivo %}
+            <div class="ce-vivo-strip" aria-label="Señal de actividad reciente">
+                <span class="ce-vivo-strip__label">Actividad reciente</span>
                 {% for paso in data.embudo_vivo %}
+                <span class="ce-vivo-chip">
+                    <strong>{{ paso.cantidad }}</strong> {{ paso.etiqueta }}
+                </span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <ul class="ret-funnel">
+                {% for paso in data.embudo %}
                 <li class="ret-funnel__step">
                     {% if not forloop.first and paso.pct_desde_anterior != None %}
                     <div class="ret-funnel__drop">
@@ -212,164 +220,149 @@
                     </div>
                     {% endif %}
                     <div class="ret-funnel__head">
-                        <span class="ret-funnel__name">{{ paso.etiqueta }}</span>
+                        <span class="ret-funnel__name">
+                            {{ paso.etiqueta }}
+                            {% if paso.titulo %}<small>{{ paso.titulo }}</small>{% endif %}
+                        </span>
                         <span class="ret-funnel__count">{{ paso.cantidad }} <span>· {{ paso.pct_del_total }}%</span></span>
                     </div>
                     <div class="ret-funnel__track">
-                        <div class="ret-funnel__bar" data-width="{{ paso.pct_del_total }}">{{ paso.pct_del_total }}%</div>
+                        <div
+                            class="ret-funnel__bar"
+                            data-width="{{ paso.pct_del_total }}"
+                            style="width:{{ paso.pct_del_total }}%;"
+                        >{{ paso.pct_del_total }}%</div>
                     </div>
                 </li>
+                {% empty %}
+                <li class="muted">Sin inscripciones.</li>
                 {% endfor %}
             </ul>
         </section>
+    </section>
 
-        <div style="display:flex;flex-direction:column;gap:20px;">
-            <section class="panel" style="margin:0;">
-                <h2 style="margin-top:0;">Curva de retención</h2>
-                <div class="ret-curve">
-                    {% for p in data.curva_abandono %}
-                    <div class="ret-curve__day">
-                        <div class="ret-curve__pct">{% if p.retenidos_pct != None %}{{ p.retenidos_pct }}%{% else %}—{% endif %}</div>
-                        <div class="ret-curve__label">Día {{ p.dia }}</div>
-                        <div class="ret-curve__label">n={{ p.base }}</div>
+    {# —— 3. MÁS DATOS —— #}
+    <details class="ce-block ce-block--mas" id="ce-mas-datos">
+        <summary class="ce-block__summary">
+            <span class="ce-block__title">3 · Más datos</span>
+            <span class="ce-block__sub">Cohortes, curva, WhatsApp Health, vs eki · opcional</span>
+        </summary>
+
+        <div class="ce-block__body">
+            <div class="ret-two" style="margin-bottom:20px;">
+                <section class="panel" style="margin:0;">
+                    <h2 style="margin-top:0;">Curva de retención</h2>
+                    <div class="ret-curve">
+                        {% for p in data.curva_abandono %}
+                        <div class="ret-curve__day">
+                            <div class="ret-curve__pct">{% if p.retenidos_pct != None %}{{ p.retenidos_pct }}%{% else %}—{% endif %}</div>
+                            <div class="ret-curve__label">Día {{ p.dia }}</div>
+                            <div class="ret-curve__label">n={{ p.base }}</div>
+                        </div>
+                        {% empty %}
+                        <p class="muted">Sin curva para estos filtros.</p>
+                        {% endfor %}
                     </div>
+                </section>
+
+                <section class="panel" style="margin:0;">
+                    <h2 style="margin-top:0;">Vs promedio eki</h2>
+                    {% with c=data.comparativa_eki %}
+                    <div class="ret-compare">
+                        <div class="ret-compare__box">
+                            <div class="muted" style="font-size:12px;">{{ c.etiqueta_tu }}</div>
+                            <div class="ret-compare__n">{{ c.tu_pct }}%</div>
+                            <div class="muted" style="font-size:12px;">certificación</div>
+                        </div>
+                        <div class="ret-compare__box ret-compare__box--eki">
+                            <div class="muted" style="font-size:12px;">Promedio eki</div>
+                            <div class="ret-compare__n">{% if c.eki_pct != None %}{{ c.eki_pct }}%{% else %}—{% endif %}</div>
+                            <div class="muted" style="font-size:12px;">{% if c.disponible %}anonimizado plataforma{% else %}sin muestra aún{% endif %}</div>
+                        </div>
+                    </div>
+                    {% endwith %}
+                </section>
+            </div>
+
+            <div class="ret-two" style="margin-bottom:20px;">
+                <section class="panel" style="margin:0;">
+                    <h2 style="margin-top:0;">Cohortes (por mes de inscripción)</h2>
+                    {% if data.cohortes.insight %}
+                    <p class="ret-alert-modulo" style="margin-bottom:16px;">{{ data.cohortes.insight }}</p>
+                    {% endif %}
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Mes</th>
+                                    <th>Inscritos</th>
+                                    <th>Completados</th>
+                                    <th>Tasa fin.</th>
+                                    <th>Deserción*</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for m in data.cohortes.meses %}
+                                <tr>
+                                    <td>{{ m.etiqueta }}</td>
+                                    <td>{{ m.inscritos }}</td>
+                                    <td>{{ m.completados }}</td>
+                                    <td>{{ m.tasa_completado_pct }}%</td>
+                                    <td>{{ m.tasa_desercion_pct }}%</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="5" class="muted">Sin cohortes en el rango.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="muted" style="font-size:12px;margin-bottom:0;">*Inactivos ≥14 días sin completar, sobre inscritos del mes.</p>
+                </section>
+
+                <section class="panel ret-wa" style="margin:0;">
+                    <h2 style="margin-top:0;">WhatsApp Health</h2>
+                    {% with w=data.whatsapp_health %}
+                    <dl>
+                        <dt>Hora favorita</dt>
+                        <dd>{{ w.hora_favorita_programa|default:"—" }}</dd>
+                        <dt>Días favoritos</dt>
+                        <dd>{% if w.dias_favoritos_programa %}{{ w.dias_favoritos_programa|join:", " }}{% else %}—{% endif %}</dd>
+                        <dt>Resp. promedio</dt>
+                        <dd>{% if w.tiempo_promedio_respuesta_h != None %}{{ w.tiempo_promedio_respuesta_h }} h{% else %}—{% endif %}</dd>
+                        <dt>Último msg (mediana)</dt>
+                        <dd>{% if w.mediana_dias_ultimo_mensaje != None %}hace {{ w.mediana_dias_ultimo_mensaje }} d{% else %}—{% endif %}</dd>
+                    </dl>
+                    {% if w.muestras_alto_riesgo %}
+                    <h3 style="font-size:0.95rem;margin-top:18px;">Alto riesgo · horario</h3>
+                    {% for m in w.muestras_alto_riesgo %}
+                    <p style="font-size:13px;margin:8px 0;">
+                        <strong>{{ m.nombre }}</strong>
+                        · último {% if m.dias_ultimo_mensaje != None %}hace {{ m.dias_ultimo_mensaje }} d{% else %}sin msg{% endif %}
+                        {% if m.hora_favorita %} · suele {{ m.hora_favorita }}{% endif %}
+                        {% if m.dias_favoritos %} · {{ m.dias_favoritos|join:", " }}{% endif %}
+                    </p>
+                    {% endfor %}
+                    {% endif %}
+                    {% endwith %}
+                </section>
+            </div>
+
+            <section class="panel" style="margin:0;">
+                <h2 style="margin-top:0;">Automatizaciones (vista previa)</h2>
+                <p class="muted">Reglas sugeridas — la ejecución automática llega en una iteración siguiente.</p>
+                <div class="ret-auto">
+                    {% for a in data.automatizaciones %}
+                    <div class="ret-auto__card">
+                        <div><strong>Si</strong> {{ a.si }}</div>
+                        <div class="ret-auto__arrow">→</div>
+                        <div><strong>Entonces</strong> {{ a.entonces }}</div>
+                    </div>
+                    {% empty %}
+                    <p class="muted">Sin reglas sugeridas ahora.</p>
                     {% endfor %}
                 </div>
             </section>
-
-            <section class="panel" style="margin:0;">
-                <h2 style="margin-top:0;">Vs promedio eki</h2>
-                {% with c=data.comparativa_eki %}
-                <div class="ret-compare">
-                    <div class="ret-compare__box">
-                        <div class="muted" style="font-size:12px;">{{ c.etiqueta_tu }}</div>
-                        <div class="ret-compare__n">{{ c.tu_pct }}%</div>
-                        <div class="muted" style="font-size:12px;">certificación</div>
-                    </div>
-                    <div class="ret-compare__box ret-compare__box--eki">
-                        <div class="muted" style="font-size:12px;">Promedio eki</div>
-                        <div class="ret-compare__n">{% if c.eki_pct != None %}{{ c.eki_pct }}%{% else %}—{% endif %}</div>
-                        <div class="muted" style="font-size:12px;">{% if c.disponible %}anonimizado plataforma{% else %}sin muestra aún{% endif %}</div>
-                    </div>
-                </div>
-                {% endwith %}
-            </section>
         </div>
-    </div>
-
-    <div class="ret-two" style="margin-bottom:24px;">
-        <section class="panel" style="margin:0;">
-            <h2 style="margin-top:0;">Cohortes (por mes de inscripción)</h2>
-            {% if data.cohortes.insight %}
-            <p class="ret-alert-modulo" style="margin-bottom:16px;">{{ data.cohortes.insight }}</p>
-            {% endif %}
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Mes</th>
-                            <th>Inscritos</th>
-                            <th>Completados</th>
-                            <th>Tasa fin.</th>
-                            <th>Deserción*</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for m in data.cohortes.meses %}
-                        <tr>
-                            <td>{{ m.etiqueta }}</td>
-                            <td>{{ m.inscritos }}</td>
-                            <td>{{ m.completados }}</td>
-                            <td>{{ m.tasa_completado_pct }}%</td>
-                            <td>{{ m.tasa_desercion_pct }}%</td>
-                        </tr>
-                        {% empty %}
-                        <tr><td colspan="5" class="muted">Sin cohortes en el rango.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            <p class="muted" style="font-size:12px;margin-bottom:0;">*Inactivos ≥14 días sin completar, sobre inscritos del mes.</p>
-        </section>
-
-        <section class="panel ret-wa" style="margin:0;">
-            <h2 style="margin-top:0;">WhatsApp Health</h2>
-            {% with w=data.whatsapp_health %}
-            <dl>
-                <dt>Hora favorita</dt>
-                <dd>{{ w.hora_favorita_programa|default:"—" }}</dd>
-                <dt>Días favoritos</dt>
-                <dd>{% if w.dias_favoritos_programa %}{{ w.dias_favoritos_programa|join:", " }}{% else %}—{% endif %}</dd>
-                <dt>Resp. promedio</dt>
-                <dd>{% if w.tiempo_promedio_respuesta_h != None %}{{ w.tiempo_promedio_respuesta_h }} h{% else %}—{% endif %}</dd>
-                <dt>Último msg (mediana)</dt>
-                <dd>{% if w.mediana_dias_ultimo_mensaje != None %}hace {{ w.mediana_dias_ultimo_mensaje }} d{% else %}—{% endif %}</dd>
-            </dl>
-            {% if w.muestras_alto_riesgo %}
-            <h3 style="font-size:0.95rem;margin-top:18px;">Alto riesgo · horario</h3>
-            {% for m in w.muestras_alto_riesgo %}
-            <p style="font-size:13px;margin:8px 0;">
-                <strong>{{ m.nombre }}</strong>
-                · último {% if m.dias_ultimo_mensaje != None %}hace {{ m.dias_ultimo_mensaje }} d{% else %}sin msg{% endif %}
-                {% if m.hora_favorita %} · suele {{ m.hora_favorita }}{% endif %}
-                {% if m.dias_favoritos %} · {{ m.dias_favoritos|join:", " }}{% endif %}
-            </p>
-            {% endfor %}
-            {% endif %}
-            {% endwith %}
-        </section>
-    </div>
-
-    <section class="panel" style="margin-bottom:24px;">
-        <h2 style="margin-top:0;">Automatizaciones inteligentes</h2>
-        <p class="muted">Reglas sugeridas a partir del riesgo (ejecución automática = siguiente iteración).</p>
-        <div class="ret-auto">
-            {% for a in data.automatizaciones %}
-            <div class="ret-auto__card">
-                <div><strong>Si</strong> {{ a.si }}</div>
-                <div class="ret-auto__arrow">→</div>
-                <div><strong>Entonces</strong> {{ a.entonces }}</div>
-            </div>
-            {% endfor %}
-        </div>
-    </section>
-
-    <section class="panel">
-        <h2 style="margin-top:0;">Embudo clásico (onboarding → módulos → certificado)</h2>
-        {% if data.requiere_curso_para_modulos %}
-        <p class="muted">Seleccione un curso para ver módulos M1…Mn.</p>
-        {% elif data.curso %}
-        <p class="muted">Curso: <strong>{{ data.curso.nombre }}</strong></p>
-        {% endif %}
-        <ul class="ret-funnel">
-            {% for paso in data.embudo %}
-            <li class="ret-funnel__step">
-                {% if not forloop.first and paso.pct_desde_anterior != None %}
-                <div class="ret-funnel__drop">
-                    {% if paso.pct_desde_anterior >= 80 %}
-                    <span class="ret-funnel__chip ret-funnel__chip--keep">{{ paso.pct_desde_anterior }}% continúan</span>
-                    {% elif paso.pct_desde_anterior >= 50 %}
-                    <span class="ret-funnel__chip ret-funnel__chip--warn">{{ paso.pct_desde_anterior }}% continúan</span>
-                    {% else %}
-                    <span class="ret-funnel__chip ret-funnel__chip--drop">solo {{ paso.pct_desde_anterior }}%</span>
-                    {% endif %}
-                </div>
-                {% endif %}
-                <div class="ret-funnel__head">
-                    <span class="ret-funnel__name">
-                        {{ paso.etiqueta }}
-                        {% if paso.titulo %}<small>{{ paso.titulo }}</small>{% endif %}
-                    </span>
-                    <span class="ret-funnel__count">{{ paso.cantidad }} <span>· {{ paso.pct_del_total }}%</span></span>
-                </div>
-                <div class="ret-funnel__track">
-                    <div class="ret-funnel__bar" data-width="{{ paso.pct_del_total }}">{{ paso.pct_del_total }}%</div>
-                </div>
-            </li>
-            {% empty %}
-            <li class="muted">Sin inscripciones.</li>
-            {% endfor %}
-        </ul>
-    </section>
+    </details>
 </div>
 {% endwith %}

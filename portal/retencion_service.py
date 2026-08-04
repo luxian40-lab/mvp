@@ -193,19 +193,25 @@ def _modulo_mayor_abandono(progreso_qs, curso) -> dict | None:
 
 
 def _tiempo_promedio_modulo_dias(progreso_qs) -> float | None:
+    """Promedio de días entre módulos completados (1 query, sin N+1)."""
+    from collections import defaultdict
+
     from core.models import ModuloCompletado
 
     progreso_ids = list(progreso_qs.values_list('pk', flat=True)[:3000])
     if not progreso_ids:
         return None
 
+    by_prog: dict[int, list] = defaultdict(list)
+    for pid, fecha in (
+        ModuloCompletado.objects.filter(progreso_id__in=progreso_ids)
+        .order_by('progreso_id', 'fecha_completado')
+        .values_list('progreso_id', 'fecha_completado')
+    ):
+        by_prog[pid].append(fecha)
+
     deltas: list[float] = []
-    for pid in progreso_ids:
-        fechas = list(
-            ModuloCompletado.objects.filter(progreso_id=pid)
-            .order_by('fecha_completado')
-            .values_list('fecha_completado', flat=True)
-        )
+    for fechas in by_prog.values():
         for i in range(1, len(fechas)):
             delta = (fechas[i] - fechas[i - 1]).total_seconds() / 86400
             if 0 < delta < 365:
@@ -216,6 +222,39 @@ def _tiempo_promedio_modulo_dias(progreso_qs) -> float | None:
 
 
 def analitica_retencion_portal(
+    org,
+    *,
+    curso_id: int | None = None,
+    grupo_id: int | None = None,
+    desde: str | None = None,
+    hasta: str | None = None,
+    dias_activo: int = DIAS_ESTUDIANTE_ACTIVO,
+    force: bool = False,
+) -> dict[str, Any]:
+    """Snapshot Centro de Éxito. Cache corto para no recalcular WA/scores en cada hit."""
+    from django.core.cache import cache
+
+    cache_key = (
+        f'ce:ret:v2:{getattr(org, "pk", org)}:{curso_id or 0}:{grupo_id or 0}:'
+        f'{desde or ""}:{hasta or ""}:{dias_activo}'
+    )
+    if not force:
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+    data = _analitica_retencion_portal_uncached(
+        org,
+        curso_id=curso_id,
+        grupo_id=grupo_id,
+        desde=desde,
+        hasta=hasta,
+        dias_activo=dias_activo,
+    )
+    cache.set(cache_key, data, 90)
+    return data
+
+
+def _analitica_retencion_portal_uncached(
     org,
     *,
     curso_id: int | None = None,

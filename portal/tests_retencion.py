@@ -76,13 +76,13 @@ class RetencionServiceTests(TestCase):
         )
 
     def test_kpis_inscritos_activos_inactivos(self):
-        data = analitica_retencion_portal(self.cliente, curso_id=self.curso.pk)
+        data = analitica_retencion_portal(self.cliente, curso_id=self.curso.pk, force=True)
         self.assertEqual(data['kpis']['inscritos'], 3)
         self.assertEqual(data['kpis']['activos'], 1)
         self.assertEqual(data['kpis']['inactivos'], 2)
 
     def test_embudo_modulos_y_abandono(self):
-        data = analitica_retencion_portal(self.cliente, curso_id=self.curso.pk)
+        data = analitica_retencion_portal(self.cliente, curso_id=self.curso.pk, force=True)
         modulos_embudo = [p for p in data['embudo'] if p.get('tipo') == 'modulo']
         self.assertEqual(len(modulos_embudo), 2)
         self.assertEqual(modulos_embudo[0]['cantidad'], 2)
@@ -98,11 +98,11 @@ class RetencionServiceTests(TestCase):
             fecha_inicio=timezone.localdate(),
             emitido=True,
         )
-        data = analitica_retencion_portal(self.cliente, curso_id=self.curso.pk)
+        data = analitica_retencion_portal(self.cliente, curso_id=self.curso.pk, force=True)
         self.assertEqual(data['kpis']['certificados'], 1)
 
     def test_score_riesgo_y_mapa(self):
-        data = analitica_retencion_portal(self.cliente, curso_id=self.curso.pk)
+        data = analitica_retencion_portal(self.cliente, curso_id=self.curso.pk, force=True)
         self.assertIn('riesgo', data)
         self.assertGreaterEqual(data['riesgo']['resumen']['alto'], 1)
         # Sin avance + muchos días sin actividad → alto
@@ -123,7 +123,7 @@ class RetencionServiceTests(TestCase):
         self.assertEqual(_nivel_riesgo(70), 'alto')
 
     def test_agente_reglas(self):
-        data = analitica_retencion_portal(self.cliente, curso_id=self.curso.pk)
+        data = analitica_retencion_portal(self.cliente, curso_id=self.curso.pk, force=True)
         with self.settings(OPENAI_API_KEY=''):
             out = responder_agente_retencion('¿Quiénes están en riesgo alto?', data)
         self.assertEqual(out['fuente'], 'reglas')

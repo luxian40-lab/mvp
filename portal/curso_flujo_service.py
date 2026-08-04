@@ -44,24 +44,20 @@ def _pct_float(cantidad: int, total: int, places: int = 3) -> float:
     return round((cantidad / total) * 100.0, places)
 
 
-def _pct_label(valor: float, places: int = 3) -> str:
-    """
-    Etiqueta ES tipo 1,0 … 1,888:
-    al menos 1 decimal, hasta 3, sin ceros de relleno a la derecha.
-    """
-    raw = f'{float(valor):.{places}f}'.rstrip('0')
-    if raw.endswith('.'):
-        raw += '0'
-    if '.' not in raw:
-        raw += '.0'
+def _pct_label(valor: float, places: int = 1) -> str:
+    """Etiqueta ES legible: 12% o 12,5% (máx. 1 decimal)."""
+    v = round(float(valor), places)
+    if places <= 0 or abs(v - round(v)) < 1e-9:
+        return str(int(round(v)))
+    raw = f'{v:.{places}f}'.rstrip('0').rstrip('.')
     return raw.replace('.', ',')
 
 
 def _bar_pct(cantidad: int, total: int) -> float:
-    """Ancho = proporción de estudiantes del total (la barra crece con esa cantidad)."""
+    """Ancho = % de inscritos en ese bucket (0–100)."""
     if total <= 0 or cantidad <= 0:
         return 0.0
-    return round((cantidad / total) * 100.0, 3)
+    return round((cantidad / total) * 100.0, 1)
 
 
 def embudo_avance_por_curso(

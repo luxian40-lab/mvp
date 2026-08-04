@@ -328,7 +328,7 @@ def calcular_metricas_empresa(
     modulo_hasta_numero: int | None = None,
     usar_drip_calendario: bool = True,
 ) -> dict[str, Any]:
-    from core.drip_schedule import avance_sobre_modulos, modulos_para_metricas
+    from core.drip_schedule import modulos_para_metricas
     from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante, WhatsappLog
     from core.models_extras import GrupoEstudiantes
 
@@ -375,17 +375,50 @@ def calcular_metricas_empresa(
     en_curso = progreso_q.filter(completado=False, n_mods__gt=0).count()
     no_iniciados = progreso_q.filter(completado=False, n_mods=0).count()
 
-    avance_sum = 0
-    avance_drip_sum = 0
-    for p in progreso_q.select_related("estudiante", "curso")[:5000]:
-        avance_sum += p.porcentaje_avance()
+    # Avance sin N+1: annotate n_mods + mapa total módulos por curso;
+    # drip usa un prefetch de ModuloCompletado (1 query).
+    from collections import defaultdict
+
+    from core.models import Modulo, ModuloCompletado
+
+    progresos = list(progreso_q.select_related("estudiante", "curso")[:5000])
+    curso_ids = {p.curso_id for p in progresos if p.curso_id}
+    total_mods_por_curso: dict[int, int] = {}
+    mods_ordenados_por_curso: dict[int, list] = defaultdict(list)
+    if curso_ids:
+        for m in Modulo.objects.filter(curso_id__in=curso_ids).order_by("curso_id", "numero"):
+            mods_ordenados_por_curso[m.curso_id].append(m)
+        for cid, mods in mods_ordenados_por_curso.items():
+            total_mods_por_curso[cid] = len(mods)
+
+    prog_ids = [p.pk for p in progresos]
+    comps_por_prog: dict[int, set[int]] = defaultdict(set)
+    if prog_ids:
+        for pid, mid in ModuloCompletado.objects.filter(
+            progreso_id__in=prog_ids
+        ).values_list("progreso_id", "modulo_id"):
+            comps_por_prog[pid].add(mid)
+
+    avance_sum = 0.0
+    avance_drip_sum = 0.0
+    for p in progresos:
+        tm = total_mods_por_curso.get(p.curso_id, 0)
+        nm = getattr(p, "n_mods", 0) or 0
+        avance_sum += (100.0 * nm / tm) if tm else 0.0
+
         mods_drip = modulos_para_metricas(
             p.estudiante,
             p.curso,
             modulo_hasta_numero=modulo_hasta_numero,
             usar_drip_calendario=usar_drip_calendario,
         )
-        _, _, pct_drip = avance_sobre_modulos(p, mods_drip)
+        total_drip = len(mods_drip)
+        if not total_drip:
+            pct_drip = 0
+        else:
+            ids = {m.id for m in mods_drip}
+            comps = len(ids & comps_por_prog.get(p.pk, set()))
+            pct_drip = round(comps / total_drip * 100)
         avance_drip_sum += pct_drip
     prom_avance = round(avance_sum / total_inscritos, 1) if total_inscritos else 0.0
     prom_avance_drip = round(avance_drip_sum / total_inscritos, 1) if total_inscritos else 0.0
