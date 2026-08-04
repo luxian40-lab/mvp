@@ -3752,8 +3752,9 @@ def _procesar_twilio_webhook(post_data):
                         mision.fecha_completada = timezone.now()
                         mision.save(update_fields=['estado', 'codigo_validado', 'puntos_otorgados', 'fecha_completada'])
 
-                    from .tasks import enviar_email_org_admin_async
                     try:
+                        from .tasks import enviar_email_org_admin_async
+
                         asunto = f"Match empleabilidad: {estudiante.nombre} - {aliado.nombre_empresa}"
                         mensaje_html = (
                             f"<p>El estudiante <strong>{estudiante.nombre}</strong> "
