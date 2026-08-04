@@ -32,13 +32,17 @@ S3_REGION = "us-east-2"
 
 
 def _get_s3_client():
-    """Obtiene cliente boto3 S3 con signature v4"""
-    return boto3.client(
-        's3',
-        aws_access_key_id=getattr(settings, 'AWS_ACCESS_KEY_ID', None),
-        aws_secret_access_key=getattr(settings, 'AWS_SECRET_ACCESS_KEY', None),
-        config=BotoConfig(signature_version='s3v4', region_name=S3_REGION)
-    )
+    """Cliente S3: usa Access Key de settings si hay; si no, rol IAM de la instancia EB."""
+    kwargs = {
+        'config': BotoConfig(signature_version='s3v4', region_name=S3_REGION),
+        'region_name': S3_REGION,
+    }
+    key = (getattr(settings, 'AWS_ACCESS_KEY_ID', None) or '').strip() or None
+    secret = (getattr(settings, 'AWS_SECRET_ACCESS_KEY', None) or '').strip() or None
+    if key and secret:
+        kwargs['aws_access_key_id'] = key
+        kwargs['aws_secret_access_key'] = secret
+    return boto3.client('s3', **kwargs)
 
 
 def _subir_bytes_s3_directo(buffer, filename, content_type='image/png'):
