@@ -23,8 +23,8 @@ hacia `aprende.eki.technology` (sesiones **no** compartidas entre subdominios; t
 Separado de `Estudiante` (WhatsApp) y de `PortalUsuario` (staff B2B).
 
 - **Login / registro con correo:** solo en Studio → `/studio/cuenta/login/` y `/studio/cuenta/registro/`
-- **Aula B2B** (`/aprende/estudiante/login/`): código/enlace tras `*aula*` en WhatsApp (`via=whatsapp`)
-- **No hay cookie compartida** entre Studio y Aprende. El paso al aula usa `/studio/ir-a-aprende/` → `/aprende/handoff/`
+- **Aula B2B** (`/aprende/estudiante/login/`): **solo código** tras `*aula*` en WhatsApp (`via=whatsapp`). Sin handoff Studio.
+- **No hay cookie compartida** entre Studio y Aprende. El paso Studio→aula usa `/studio/ir-a-aprende/` → `/aprende/handoff/` (`via=studio`).
 - En el host `aprende.*`, sesión estudiante y sesión docente **no** coexisten (ver `aprende/session_auth.py`)
 
 Cada cuenta web crea un `Estudiante` vinculado (progreso, puntos, ranking).

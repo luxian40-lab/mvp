@@ -52,14 +52,14 @@ class AprendeWebTests(TestCase):
     def _login_estudiante(self, telefono='573009999002', cedula='web1'):
         """Simula código emitido tras escribir *aula* en WhatsApp."""
         from django.core.cache import cache
-        from unittest.mock import patch
         from aprende.acceso_whatsapp import emitir_acceso_desde_whatsapp
 
-        with patch('studio.aprende_bridge.url_handoff_aprende', return_value='https://aprende.eki.technology/aprende/handoff/?t=x'):
-            msg = emitir_acceso_desde_whatsapp(self.est)
+        msg = emitir_acceso_desde_whatsapp(self.est)
         import re
         m = re.search(r'\*(\d{6})\*', msg)
         self.assertIsNotNone(m, msg=msg)
+        self.assertIn('/aprende/estudiante/login/', msg)
+        self.assertNotIn('/aprende/handoff/', msg)
         codigo = m.group(1)
         from aprende.models import CodigoAccesoAprende
         self.assertTrue(CodigoAccesoAprende.objects.filter(codigo=codigo, estudiante=self.est).exists())
@@ -215,29 +215,32 @@ class AprendeWebTests(TestCase):
         self.assertFalse(self.http.session.get('aprende_estudiante_id'))
         self.assertFalse(self.http.session.get('aprende_auth_via'))
 
-    def test_handoff_whatsapp_via_en_token(self):
-        from studio.aprende_bridge import crear_token_handoff, consumir_token_handoff
+    def test_handoff_whatsapp_via_rechazado(self):
+        """Tokens con via=whatsapp no abren sesión (handoff solo Studio)."""
+        from django.core import signing
+        from studio.aprende_bridge import HANDOFF_SALT
 
-        token = crear_token_handoff(estudiante_id=self.est.pk, via='whatsapp')
-        eid, nxt, via = consumir_token_handoff(token)
-        self.assertEqual(eid, self.est.pk)
-        self.assertEqual(via, 'whatsapp')
-        self.assertTrue(nxt.startswith('/aprende/'))
+        token = signing.dumps(
+            {'eid': int(self.est.pk), 'next': '/aprende/estudiante/', 'via': 'whatsapp'},
+            salt=HANDOFF_SALT,
+            compress=True,
+        )
         r = self.http.get(f'/aprende/handoff/?t={token}')
         self.assertEqual(r.status_code, 302)
-        self.assertEqual(self.http.session.get('aprende_auth_via'), 'whatsapp')
+        self.assertIn('/aprende/estudiante/login/', r.url)
+        self.assertFalse(self.http.session.get('aprende_estudiante_id'))
 
     def test_mensaje_aula_emite_acceso(self):
         from aprende.acceso_whatsapp import mensaje_pide_acceso_aula, emitir_acceso_desde_whatsapp
-        from unittest.mock import patch
         self.assertTrue(mensaje_pide_acceso_aula('aula'))
         self.assertTrue(mensaje_pide_acceso_aula('Entrar al aula'))
         self.assertFalse(mensaje_pide_acceso_aula('listo'))
-        with patch('studio.aprende_bridge.url_handoff_aprende', return_value='https://x/h?t=1'):
-            txt = emitir_acceso_desde_whatsapp(self.est)
+        txt = emitir_acceso_desde_whatsapp(self.est)
         self.assertIn('eki Aprende', txt)
         self.assertIn('listo', txt.lower())
-        self.assertIn('https://x/h?t=1', txt)
+        self.assertIn('/aprende/estudiante/login/', txt)
+        self.assertNotIn('/aprende/handoff/', txt)
+        self.assertRegex(txt, r'\*\d{6}\*')
 
     def test_profesor_ve_cursos(self):
         self.http.post('/aprende/profesor/login/', {'username': 'prof_ap', 'password': 'pass'})

@@ -716,11 +716,11 @@ Dominio: `aprende.eki.technology`. App Django: `aprende/`. Complemento de WhatsA
 
 | Puerta | Quién | Cómo entra | Sesión |
 |--------|-------|------------|--------|
-| **B2B WhatsApp** | Alumno de programa org | Escribe `*aula*` → enlace handoff (`via=whatsapp`) o código 6 dígitos | `aprende_estudiante_id` + `aprende_auth_via=whatsapp` |
+| **B2B WhatsApp** | Alumno de programa org | Escribe `*aula*` → **solo código** 6 dígitos → login Aprende | `aprende_estudiante_id` + `aprende_auth_via=whatsapp` |
 | **Studio** | Cuenta correo (`CuentaAula`) | Login Studio → `/studio/ir-a-aprende/` → handoff (`via=studio`) | misma clave estudiante, `aprende_auth_via=studio` |
 | **Docente** | Portal B2B | `/aprende/profesor/login/` | `portal_usuario_id` (limpia la de estudiante) |
 
-Al abrir una puerta de estudiante se **borra** la sesión docente en ese host, y al revés. Studio y Aprende **no** comparten cookie entre hosts.
+WhatsApp **no** usa el handoff de Studio. Son puertas separadas.
 
 **Flujo B2B — sin OTP saliente en frío:**
 
@@ -728,15 +728,15 @@ WhatsApp Business no entrega mensajes de texto libre si el alumno no ha escrito 
 
 1. El estudiante escribe ***aula*** (o *aprende*, *entrar al aula*) al WhatsApp del programa.
 2. eki responde **en esa conversación** con:
-   - enlace firmado `/aprende/handoff/?t=…` (`via=whatsapp`, un clic), y
-   - código de 6 dígitos (~10 min) por si entra en otro dispositivo.
-3. Web `/aprende/estudiante/login/`: pegar el código **o** abrir el enlace.
+   - URL de login `/aprende/estudiante/login/`, y
+   - código de 6 dígitos (~10 min).
+3. Web `/aprende/estudiante/login/`: pegar el código.
 4. Sesión: `iniciar_sesion_estudiante` → `cycle_key()` + limpia `portal_usuario_id`.
 5. `?next=` solo bajo `/aprende/`.
 
 Código: `aprende/acceso_whatsapp.py`, `aprende/session_auth.py`, hook en `core/views.py` (estudiante ACTIVO).
 
-**Alternativa correo:** Studio (`CuentaAula`) → handoff firmado `via=studio`.
+**Alternativa correo:** Studio (`CuentaAula`) → handoff firmado `via=studio` (`studio/aprende_bridge.py`). **No mezclar con WhatsApp.**
 
 **Docente:** usuario/contraseña del portal; limpia sesión estudiante.
 

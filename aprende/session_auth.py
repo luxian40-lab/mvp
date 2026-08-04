@@ -1,8 +1,8 @@
 """Contrato de sesión Aprende: no mezclar estudiante y docente en la misma cookie.
 
 Puertas de estudiante (misma clave de sesión, origen etiquetado):
-- whatsapp — *aula* → código OTP o enlace handoff emitido por el bot
-- studio   — CuentaAula → /studio/ir-a-aprende/ → handoff firmado
+- whatsapp — *aula* → solo código OTP de 6 dígitos (sin handoff Studio)
+- studio   — CuentaAula → /studio/ir-a-aprende/ → handoff firmado (solo Studio)
 
 Docente usa PORTAL_SESSION_KEY (portal B2B). Al abrir una puerta se limpia la otra.
 Hosts distintos (studio.* vs aprende.*) ya no comparten cookie; esto cubre el mismo host.

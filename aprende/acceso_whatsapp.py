@@ -118,11 +118,11 @@ def generar_codigo() -> str:
 
 
 def emitir_acceso_desde_whatsapp(estudiante) -> str:
-    """Genera código + enlace handoff. Solo llamar tras mensaje inbound del alumno."""
+    """Genera solo código OTP + URL de login Aprende (sin handoff de Studio)."""
     from django.core.cache import cache
 
     from aprende.models import CodigoAccesoAprende
-    from studio.aprende_bridge import url_handoff_aprende
+    from core.host_isolation import absolute_path
 
     emit_key = f'aprende_otp_emit:{int(estudiante.pk)}'
     emit_n = int(cache.get(emit_key, 0) or 0)
@@ -146,22 +146,16 @@ def emitir_acceso_desde_whatsapp(estudiante) -> str:
         codigo = generar_codigo()
 
     CodigoAccesoAprende.objects.create(codigo=codigo, estudiante=estudiante)
-    from aprende.session_auth import VIA_WHATSAPP
-
-    url = url_handoff_aprende(
-        estudiante_id=int(estudiante.pk),
-        next_path='/aprende/estudiante/',
-        via=VIA_WHATSAPP,
-    )
+    login_url = absolute_path('aprende', '/aprende/estudiante/login/')
     nombre = (estudiante.nombre or '').split()[0] or 'Hola'
     mins = max(1, _ttl() // 60)
     return (
         f"{nombre}, aquí tienes acceso a *eki Aprende*:\n\n"
-        f"🔗 {url}\n\n"
-        f"Si abres el aula en otro dispositivo, usa el código: *{codigo}*\n"
+        f"1) Abre: {login_url}\n"
+        f"2) Ingresa el código: *{codigo}*\n"
         f"(válido {mins} min)\n\n"
         "Cuando quieras seguir el curso por WhatsApp, escribe *listo*.\n\n"
-        "No compartas el enlace ni el código."
+        "No compartas el código."
     )
 
 

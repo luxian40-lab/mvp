@@ -75,21 +75,21 @@ def inicio(request):
 
 
 def handoff_desde_studio(request):
-    """Recibe token firmado de Studio/WhatsApp y abre sesión solo en Aprende.
+    """Recibe token firmado solo de Studio (CuentaAula) y abre sesión en Aprende.
 
-    Los crawlers de vista previa (WhatsApp, etc.) reciben HTML con Open Graph
-    y no consumen el token.
+    WhatsApp B2B no usa este puente: entra con código tras *aula*.
+    Los crawlers de vista previa reciben HTML con Open Graph y no consumen el token.
     """
     from django.core import signing
 
     from aprende.og_preview import es_crawler_vista_previa, url_og_image_aprende
-    from aprende.session_auth import VIA_WHATSAPP, iniciar_sesion_estudiante
+    from aprende.session_auth import VIA_STUDIO, iniciar_sesion_estudiante
     from studio.aprende_bridge import consumir_token_handoff
 
     if es_crawler_vista_previa(request):
         return render(request, 'aprende/link_preview.html', {
             'og_title': 'eki aprende',
-            'og_description': 'Tu aula cerca del territorio. Entra con el enlace o el código de WhatsApp.',
+            'og_description': 'Tu aula cerca del territorio. Entra desde Studio o con tu código de WhatsApp.',
             'og_image': url_og_image_aprende(request),
             'og_url': request.build_absolute_uri('/aprende/'),
         })
@@ -103,8 +103,8 @@ def handoff_desde_studio(request):
     except (signing.BadSignature, signing.SignatureExpired, KeyError, TypeError, ValueError):
         messages.error(
             request,
-            'El enlace de acceso expiró o no es válido. '
-            'Escribe *aula* por WhatsApp o vuelve a entrar desde Studio.',
+            'El enlace de Studio expiró o no es válido. Vuelve a entrar desde Studio. '
+            'Si estudias por WhatsApp, escribe *aula* y usa el código.',
         )
         return redirect('/aprende/estudiante/login/')
 
@@ -113,7 +113,7 @@ def handoff_desde_studio(request):
         messages.error(request, 'No encontramos tu cuenta de estudiante.')
         return redirect('/aprende/estudiante/login/')
 
-    iniciar_sesion_estudiante(request, est.pk, via=via or VIA_WHATSAPP)
+    iniciar_sesion_estudiante(request, est.pk, via=via or VIA_STUDIO)
     return redirect(next_path)
 
 
