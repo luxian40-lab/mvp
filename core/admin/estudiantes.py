@@ -6,14 +6,13 @@ class EstudianteAdmin(admin.ModelAdmin):
     """Gestión de estudiantes/campesinos"""
     change_form_template = 'admin/core/estudiante/change_form.html'
     inlines = [HabilitacionModuloEstudianteInline]
-    # Listado ops: agrupar por cliente + nombre; geo/género → ficha o filtros.
+    # Listado limpio P1: 5 columnas operativas (cursos → ficha / filtros).
     list_display = (
         'nombre',
         'cedula_formateada',
         'telefono_formateado',
         'cliente_nombre',
         'activo',
-        'cursos_inscritos',
     )
     list_filter = (
         'cliente',
@@ -26,14 +25,15 @@ class EstudianteAdmin(admin.ModelAdmin):
     list_select_related = ('cliente',)
     list_per_page = 50
     ordering = ('cliente__nombre', 'nombre')
+    # Primero ops de datos; WhatsApp al final del menú Acciones.
     actions = [
+        'asignar_a_grupo_accion',
+        'asignar_cliente_masivo',
+        'exportar_estudiantes_por_curso',
+        'exportar_plantilla_importacion',
         'enviar_mensaje_masivo',
         'enviar_anuncio_grupal',
         'invitar_a_grupo_whatsapp',
-        'exportar_estudiantes_por_curso',
-        'exportar_plantilla_importacion',
-        'asignar_a_grupo_accion',
-        'asignar_cliente_masivo',
         'eliminar_estudiantes_seguro',
     ]
     
@@ -43,28 +43,26 @@ class EstudianteAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Identificación y contacto', {
             'fields': ('tipo_documento', 'cedula', 'nombre', 'telefono', 'cliente', 'activo'),
-            'description': 'Documento único; teléfono WhatsApp y organización del campesino.',
+            'description': 'Documento único; teléfono WhatsApp y organización.',
         }),
         ('Ubicación y perfil', {
+            'classes': ('collapse',),
             'fields': ('municipio', 'departamento', 'ubicacion_detalle', 'genero', 'edad', 'rango_edad'),
         }),
-        ('Módulos drip (lista)', {
-            'fields': (),
-            'description': (
-                'Si el cliente tiene activo «Módulos solo por lista», agregue en la tabla inferior '
-                'cada combinación curso + módulo que este estudiante puede abrir.'
-            ),
-        }),
         ('Cursos inscritos', {
+            'classes': ('collapse',),
             'fields': ('mostrar_cursos_inscritos',),
+            'description': (
+                'Si el cliente usa drip «solo por lista», habilite módulos en la pestaña inferior.'
+            ),
         }),
     )
     readonly_fields = ('mostrar_cursos_inscritos',)
     
     def cedula_formateada(self, obj):
-        """Muestra cédula con formato y tipo"""
+        """Muestra cédula con tipo (sin emoji en listado)."""
         return format_html(
-            '<strong style="color:#2196F3;">🪪 {} {}</strong>',
+            '<span style="font-variant-numeric:tabular-nums;">{} {}</span>',
             obj.tipo_documento,
             obj.cedula
         )
@@ -107,14 +105,14 @@ class EstudianteAdmin(admin.ModelAdmin):
     def telefono_formateado(self, obj):
         """Muestra teléfono con formato WhatsApp"""
         return f"+{obj.telefono}"
-    telefono_formateado.short_description = "📱 WhatsApp"
+    telefono_formateado.short_description = "WhatsApp"
     
     def cliente_nombre(self, obj):
         """Muestra el cliente al que pertenece"""
         if obj.cliente:
             return obj.cliente.nombre
         return format_html('<span style="color:#999;">Sin cliente</span>')
-    cliente_nombre.short_description = "🏢 Cliente"
+    cliente_nombre.short_description = "Organización"
     cliente_nombre.admin_order_field = 'cliente__nombre'
     
     def grupos_display(self, obj):
@@ -141,8 +139,8 @@ class EstudianteAdmin(admin.ModelAdmin):
         from django.urls import path
         urls = super().get_urls()
         custom_urls = [
-            path('importar/', self.admin_site.admin_view(self.importar_estudiantes_view), name='importar_estudiantes'),
-            path('exportar-plantilla/', self.admin_site.admin_view(self.exportar_plantilla_importacion), name='exportar_plantilla_importacion'),
+            path('importar/', self.admin_site.admin_view(self.importar_estudiantes_view), name='core_estudiante_importar'),
+            path('exportar-plantilla/', self.admin_site.admin_view(self.exportar_plantilla_importacion), name='core_estudiante_exportar_plantilla'),
         ]
         return custom_urls + urls
     

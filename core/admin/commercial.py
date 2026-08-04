@@ -329,8 +329,11 @@ def _encolar_o_indexar_rag_doc(request, modeladmin, model_class_name: str, obj, 
 
                 def _bg():
                     try:
-                        doc = DocumentoRAGComercial.objects.filter(pk=pk).first()
-                        if doc and doc.archivo:
+                        from django.apps import apps
+
+                        Model = apps.get_model('core', model_class_name)
+                        doc = Model.objects.filter(pk=pk).first()
+                        if doc and getattr(doc, 'archivo', None):
                             doc.indexar()
                     except Exception:
                         logger.exception('[RAG] Indexación background falló %s id=%s', model_class_name, pk)
@@ -506,43 +509,32 @@ class DocumentoRAGAdmin(admin.ModelAdmin):
 
     @admin.action(description='🤖 Indexar documentos seleccionados en RAG')
     def indexar_seleccionados(self, request, queryset):
-        ok, err, queued = 0, 0, 0
-        eager = getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False)
+        queued = 0
         for doc in queryset.filter(estado='pendiente'):
-            if not eager:
-                _enqueue_indexar_rag_task('DocumentoRAG', doc.pk)
-                queued += 1
+            if not doc.archivo:
                 continue
-            n = doc.indexar()
-            if n > 0:
-                ok += 1
-            else:
-                err += 1
-        msg = []
-        if queued:
-            msg.append(f'{queued} en cola (segundo plano)')
-        if ok or err:
-            msg.append(f'{ok} indexados en línea' + (f', {err} con error' if err else ''))
-        self.message_user(request, '✅ ' + '. '.join(msg) if msg else 'Nada que indexar.')
+            _encolar_o_indexar_rag_doc(request, self, 'DocumentoRAG', doc, show_index_message=False)
+            queued += 1
+        self.message_user(
+            request,
+            f'✅ {queued} en cola (segundo plano). Actualice el listado en unos minutos.'
+            if queued else 'Nada que indexar.',
+        )
 
     @admin.action(description='🔄 Re-indexar documentos seleccionados')
     def reindexar_seleccionados(self, request, queryset):
-        ok, queued = 0, 0
-        eager = getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False)
+        queued = 0
         for doc in queryset:
             doc.estado = 'pendiente'
             doc.save(update_fields=['estado'])
-            if not eager:
-                _enqueue_indexar_rag_task('DocumentoRAG', doc.pk)
-                queued += 1
+            if not doc.archivo:
                 continue
-            n = doc.indexar()
-            if n > 0:
-                ok += 1
-        parts = [f'{ok} re-indexados en línea'] if ok else []
-        if queued:
-            parts.append(f'{queued} en cola')
-        self.message_user(request, '✅ ' + ', '.join(parts) if parts else 'Listo.')
+            _encolar_o_indexar_rag_doc(request, self, 'DocumentoRAG', doc, show_index_message=False)
+            queued += 1
+        self.message_user(
+            request,
+            f'✅ {queued} re-indexaciones en cola (segundo plano).' if queued else 'Listo.',
+        )
 
     @admin.action(description='🗑️ Eliminar del RAG (sin borrar archivo)')
     def eliminar_del_rag(self, request, queryset):
@@ -1020,43 +1012,36 @@ class DocumentoRAGComercialAdmin(admin.ModelAdmin):
 
     @admin.action(description='🤖 Indexar documentos comerciales seleccionados')
     def indexar_seleccionados(self, request, queryset):
-        ok, err, queued = 0, 0, 0
-        eager = getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False)
+        queued = 0
         for doc in queryset.filter(estado='pendiente'):
-            if not eager:
-                _enqueue_indexar_rag_task('DocumentoRAGComercial', doc.pk)
-                queued += 1
+            if not doc.archivo:
                 continue
-            n = doc.indexar()
-            if n > 0:
-                ok += 1
-            else:
-                err += 1
-        msg = []
-        if queued:
-            msg.append(f'{queued} en cola (segundo plano)')
-        if ok or err:
-            msg.append(f'{ok} indexados en línea' + (f', {err} con error' if err else ''))
-        self.message_user(request, '✅ ' + '. '.join(msg) if msg else 'Nada que indexar.')
+            _encolar_o_indexar_rag_doc(
+                request, self, 'DocumentoRAGComercial', doc, show_index_message=False,
+            )
+            queued += 1
+        self.message_user(
+            request,
+            f'✅ {queued} en cola (segundo plano). Actualice el listado en unos minutos.'
+            if queued else 'Nada que indexar.',
+        )
 
     @admin.action(description='🔄 Re-indexar documentos comerciales seleccionados')
     def reindexar_seleccionados(self, request, queryset):
-        ok, queued = 0, 0
-        eager = getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False)
+        queued = 0
         for doc in queryset:
             doc.estado = 'pendiente'
             doc.save(update_fields=['estado'])
-            if not eager:
-                _enqueue_indexar_rag_task('DocumentoRAGComercial', doc.pk)
-                queued += 1
+            if not doc.archivo:
                 continue
-            n = doc.indexar()
-            if n > 0:
-                ok += 1
-        parts = [f'{ok} re-indexados en línea'] if ok else []
-        if queued:
-            parts.append(f'{queued} en cola')
-        self.message_user(request, '✅ ' + ', '.join(parts) if parts else 'Listo.')
+            _encolar_o_indexar_rag_doc(
+                request, self, 'DocumentoRAGComercial', doc, show_index_message=False,
+            )
+            queued += 1
+        self.message_user(
+            request,
+            f'✅ {queued} re-indexaciones en cola (segundo plano).' if queued else 'Listo.',
+        )
 
     @admin.action(description='📥 Importar precios a catálogo (Excel → Postgres)')
     def importar_precios_a_catalogo(self, request, queryset):

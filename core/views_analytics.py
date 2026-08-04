@@ -394,8 +394,19 @@ def api_metricas_json(request):
         hasta = request.GET.get('hasta') or request.GET.get('fecha_fin')
         modulo_hasta = request.GET.get('modulo_hasta') or request.GET.get('modulo_hasta_numero')
         usar_drip = request.GET.get('usar_drip_calendario', '1')
+        # Lazy: tabla por estudiante solo con detalle=1 (gráficas/KPIs van primero).
+        detalle_raw = (request.GET.get('detalle') or '0').strip().lower()
+        incluir_detalle = detalle_raw in ('1', 'true', 'yes', 'si', 'sí')
 
         cid = int(cliente_id) if cliente_id and str(cliente_id).isdigit() else None
+        if not cid:
+            return JsonResponse(
+                {
+                    'error': 'Seleccione una organización (cliente_id).',
+                    'schema': 'metricas_empresa_v1',
+                },
+                status=400,
+            )
         cu_id = int(curso_id) if curso_id and str(curso_id).isdigit() else None
         gid = int(grupo_id) if grupo_id and str(grupo_id).isdigit() else None
         mod_hasta = int(modulo_hasta) if modulo_hasta and str(modulo_hasta).isdigit() else None
@@ -409,6 +420,7 @@ def api_metricas_json(request):
             hasta=hasta,
             modulo_hasta_numero=mod_hasta,
             usar_drip_calendario=drip_on,
+            incluir_progreso_detalle=incluir_detalle,
         )
         payload['schema'] = 'metricas_empresa_v1'
         return JsonResponse(payload)

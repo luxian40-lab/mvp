@@ -45,7 +45,7 @@ class TestAnalyticsEmpresasGrupo(TestCase):
         user = User.objects.create_superuser('staff_g', 's@e.com', 'x')
         c = Client()
         c.force_login(user)
-        resp = c.get(f'/admin/analytics/api/grupos/?cliente_id={self.cliente.id}')
+        resp = c.get(f'/admin/analytics/api/grupos/?cliente_id={self.cliente.id}', follow=True)
         self.assertEqual(resp.status_code, 200)
         body = resp.json()
         ids = {g['id'] for g in body['grupos']}

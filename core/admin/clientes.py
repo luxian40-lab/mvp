@@ -5,22 +5,21 @@ class ConfiguracionDripClienteInline(admin.TabularInline):
     """Override de días entre módulos por curso (misma fila = un curso por cliente)."""
     model = ConfiguracionDripCliente
     extra = 0
+    tab = True
     fields = ('curso', 'dias_espera_entre_modulos', 'activo')
     autocomplete_fields = ('curso',)
     verbose_name = 'Drip curso'
-    verbose_name_plural = '⏱️ Ritmo drip por curso (override)'
+    verbose_name_plural = 'Ritmo drip por curso'
 
 
 class HabilitacionModuloEstudianteInline(admin.TabularInline):
     model = HabilitacionModuloEstudiante
     extra = 1
+    tab = True
     fields = ('curso', 'modulo', 'habilitado_desde', 'activo', 'notas')
     autocomplete_fields = ('curso', 'modulo')
     verbose_name = 'Módulo individual'
-    verbose_name_plural = (
-        'Módulos habilitados solo para este estudiante '
-        '(requiere «solo por lista» activo en el cliente)'
-    )
+    verbose_name_plural = 'Módulos habilitados (drip por lista)'
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == 'curso' and request.resolver_match:
@@ -52,30 +51,34 @@ class HabilitacionModuloDripClienteInline(admin.TabularInline):
     """Fecha/hora en que un módulo del curso se habilita para este cliente (sustituye la fecha global del módulo)."""
     model = HabilitacionModuloDripCliente
     extra = 0
+    tab = True
     fields = ('curso', 'modulo', 'habilitado_desde', 'activo')
     autocomplete_fields = ('curso', 'modulo')
     verbose_name = 'Calendario módulo'
-    verbose_name_plural = '📅 Habilitación de módulos por calendario'
+    verbose_name_plural = 'Calendario de módulos'
 
 
 class ProductoCatalogoInline(admin.TabularInline):
     model = ProductoCatalogo
     extra = 0
+    tab = True
     fields = (
         'nombre', 'sku', 'categoria', 'cultivos_objetivo',
         'precio_cop', 'unidad', 'url_producto', 'activo',
     )
     show_change_link = True
+    verbose_name_plural = 'Catálogo de productos (Nat)'
 
 
 class PortalUsuarioInline(admin.TabularInline):
     model = PortalUsuario
     extra = 0
+    tab = True
     fields = ('user', 'rol', 'debe_cambiar_credenciales', 'password_temporal', 'portal_user_link')
     readonly_fields = ('password_temporal', 'portal_user_link')
     autocomplete_fields = ('user',)
     verbose_name = 'Usuario del portal'
-    verbose_name_plural = 'Usuarios del portal (solo lectura de temporales aquí)'
+    verbose_name_plural = 'Usuarios del portal'
 
     def portal_user_link(self, obj):
         if not obj or not obj.user_id:
@@ -147,18 +150,19 @@ class ClienteAdmin(admin.ModelAdmin):
                 'portal_subtitulo',
                 'portal_usuarios_acciones',
                 'whatsapp_numero',
-                'twilio_account_sid',
-                'twilio_auth_token',
-                'twilio_whatsapp_from',
             ),
             'description': (
                 'Acceso web, branding y cupos. Solo eki crea usuarios portal (nunca staff). '
-                'Logo y subtítulo también en <code>/portal/perfil/</code> (rol admin).'
+                'Credenciales Twilio van en «WhatsApp y legal» (colapsado).'
             ),
         }),
-        ('WhatsApp, legal y grupo', {
+        ('WhatsApp y legal', {
+            'classes': ('collapse',),
             'fields': (
                 'numero_whatsapp_autorizado',
+                'twilio_account_sid',
+                'twilio_auth_token',
+                'twilio_whatsapp_from',
                 'enlace_habeas_data',
                 'content_sid_habeas_data_twilio',
                 'modo_avance_modulo',
@@ -166,11 +170,11 @@ class ClienteAdmin(admin.ModelAdmin):
                 'enlace_grupo_whatsapp',
             ),
             'description': (
-                'Número autorizado en Meta Business; política de datos (Habeas) y plantilla Twilio propia; '
-                'avance por texto o botón «Listo» al cerrar cada módulo; enlace de invitación al grupo.'
+                'Secretos Twilio, número Meta, Habeas y avance «Listo». Solo abrir si vas a configurar canal.'
             ),
         }),
         ('Certificados, drip y gamificación', {
+            'classes': ('collapse',),
             'fields': (
                 'enviar_certificados_email',
                 'exigir_nota_minima_certificado',
@@ -181,11 +185,11 @@ class ClienteAdmin(admin.ModelAdmin):
                 'usar_gamificacion',
             ),
             'description': (
-                'Certificados por email y nota mínima; drip por estudiante (ver tablas al final); '
-                'modo puntos o calificación 1–5.'
+                'Certificados, drip por lista y modo de puntos. Calendario drip en pestaña al final.'
             ),
         }),
         ('Ventanas por fechas', {
+            'classes': ('collapse',),
             'fields': (
                 'habilitar_pregunta_abierta_final',
                 'fecha_inicio_pregunta_abierta_final',
@@ -194,11 +198,9 @@ class ClienteAdmin(admin.ModelAdmin):
                 'fecha_inicio_gamificacion_proximidad',
                 'fecha_fin_gamificacion_proximidad',
             ),
-            'description': (
-                'Cuándo se activa la pregunta abierta final y el radar de empleabilidad por proximidad.'
-            ),
         }),
-        ('Empleabilidad, IA y bot comercial', {
+        ('Empleabilidad, IA y Nat', {
+            'classes': ('collapse',),
             'fields': (
                 'empleabilidad_kpis_resumen',
                 'empleabilidad_exploracion_activa',
@@ -212,9 +214,7 @@ class ClienteAdmin(admin.ModelAdmin):
                 'system_prompt_extra',
             ),
             'description': (
-                'KPIs de exploración territorial (retención, misiones, oportunidades georreferenciadas). '
-                'Exploración WhatsApp, nombres de agentes educativos y bot Nat/comercial. '
-                'Catálogo e inlines al final del formulario.'
+                'Exploración territorial, nombres de agentes y prompt Nat. Catálogo en pestaña al final.'
             ),
         }),
     )

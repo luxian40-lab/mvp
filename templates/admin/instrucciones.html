@@ -151,6 +151,7 @@
             <h2>Contenido</h2>
             <ul>
                 <li><a href="#novedades">Novedades</a></li>
+                <li><a href="#equipo-agentes">Equipo de agentes eki</a></li>
                 <li><a href="#arquitectura">Arquitectura</a></li>
                 <li><a href="#accesos">Accesos rápidos</a></li>
                 <li><a href="#clientes">Clientes y portal B2B</a></li>
@@ -183,9 +184,50 @@
                 </ul>
             </section>
 
+            <section id="equipo-agentes">
+                <h2>Equipo de agentes eki (Cursor)</h2>
+                <p>En el chat de Cursor puedes pedir un rol («haz de PM», «como QA», «implementa», «SRE»…).
+                    Cada uno lee su skill en <code>.cursor/skills/eki-*/SKILL.md</code>. Un rol a la vez, salvo flujo completo
+                    (PM/CTO → UX/Diseñador/Data → Dev → QA → Sec/SRE). Deploy solo con pedido explícito.</p>
+                <table>
+                    <thead><tr><th>Agente</th><th>Cuándo invocarlo</th><th>Qué decide / entrega</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>PM</strong></td><td>Priorizar, scope, deploy sí/no</td><td>P0/P1, criterios de aceptación, GO/NO-GO</td></tr>
+                        <tr><td><strong>CTO</strong></td><td>Arquitectura, Unfold, deuda estructural</td><td>Decisión técnica sin reescribir el monolito</td></tr>
+                        <tr><td><strong>UX</strong></td><td>Usabilidad admin Unfold, menús, flujos ops</td><td>Facilidad operativa (equipo eki, no clientes)</td></tr>
+                        <tr><td><strong>Diseñador</strong></td><td>Tipografía, color, look &amp; feel</td><td>Marca eki (#9A6CAC) + claridad visual</td></tr>
+                        <tr><td><strong>Dev</strong></td><td>Implementar tras plan PM</td><td>Diff mínimo Django/Twilio/S3 + tests</td></tr>
+                        <tr><td><strong>QA</strong></td><td>Smoke WhatsApp, media, cursos</td><td>PASS/FAIL; no desplegar si está rojo</td></tr>
+                        <tr><td><strong>Sec</strong></td><td>Webhooks, secretos, PII, auth</td><td>Critical/High antes de deploy</td></tr>
+                        <tr><td><strong>Data</strong></td><td>Métricas, embudos, KPIs que no cuadran</td><td>Definiciones honestas (listo ≠ proxy n_mods)</td></tr>
+                        <tr><td><strong>Ops / CS</strong></td><td>Centro de Éxito, retención</td><td>Playbook: a quién contactar hoy</td></tr>
+                        <tr><td><strong>Growth</strong></td><td>Nat, campañas, pipeline B2B</td><td>KPIs comerciales separados de Learning</td></tr>
+                        <tr><td><strong>Content</strong></td><td>Cursos, módulos, drip, abandono</td><td>Diseño instruccional campo/WhatsApp</td></tr>
+                        <tr><td><strong>Legal</strong></td><td>Habeas, PII, copy sensible</td><td>Checklist; no sustituye abogado</td></tr>
+                        <tr><td><strong>SRE / Infra</strong></td><td>Celery, EB, S3, cuelgues, latencia</td><td>Estabilidad: colas async, health, rollback</td></tr>
+                        <tr><td><strong>Aprende</strong></td><td>Aula LMS (aprende.eki.technology)</td><td>Producto aula ≠ Studio ≠ admin</td></tr>
+                    </tbody>
+                </table>
+                <div class="callout">
+                    <strong>Recomendación UX + Diseñador (altas):</strong>
+                    Cliente = alta manual (ficha). Estudiante = Alta individual <em>o</em> Excel LatAm.
+                    No mezclar Excel de estudiantes con catálogo comercial.
+                </div>
+                <div class="callout-ok">
+                    <strong>Recomendación Data + SRE:</strong>
+                    Métricas empresa exige organización; KPIs primero, tabla detalle lazy.
+                    Subidas Nat/RAG deben encolar indexación (Celery/hilo), nunca bloquear el admin.
+                </div>
+                <div class="callout">
+                    <strong>Growth (Nat estrella):</strong>
+                    Knowledge Studio + Biblioteca Nat + métricas Commercial CRM.
+                    Separar lectura/respuesta Nat del avance de cursos.
+                </div>
+            </section>
+
             <section id="arquitectura">
                 <h2>Arquitectura del sistema</h2>
-                <p>eki es una plataforma Django desplegada en AWS Elastic Beanstalk. El canal principal con productores y estudiantes es <strong>WhatsApp (Twilio)</strong>. El equipo interno opera desde <strong>Jazzmin</strong> (<code>/admin/</code>).</p>
+                <p>eki es una plataforma Django desplegada en AWS Elastic Beanstalk. El canal principal con productores y estudiantes es <strong>WhatsApp (Twilio)</strong>. El equipo interno opera desde <strong>Unfold</strong> (<code>/admin/</code>).</p>
 
                 <h3>Aplicaciones principales</h3>
                 <table>
@@ -214,7 +256,7 @@
                     <div><strong>Este manual</strong><br><a href="/admin/instrucciones/">/admin/instrucciones/</a></div>
                     <div><strong>Dashboard unificado</strong><br><a href="/admin/dashboard/">/admin/dashboard/</a></div>
                     <div><strong>Conversaciones</strong><br><a href="/admin/conversaciones/">/admin/conversaciones/</a></div>
-                    <div><strong>Importar estudiantes</strong><br><a href="/admin/importar-estudiantes/">/admin/importar-estudiantes/</a></div>
+                    <div><strong>Importar estudiantes</strong><br><a href="{% url 'admin:core_estudiante_importar' %}">Estudiantes → Importar Excel</a></div>
                     <div><strong>Panel GEI</strong><br><a href="/admin/gei/panel/">/admin/gei/panel/</a></div>
                     <div><strong>Bot comercial / Nati</strong><br><a href="/admin/bot-comercial/">/admin/bot-comercial/</a></div>
                     <div><strong>Knowledge Studio</strong><br><a href="/admin/knowledge-studio/">/admin/knowledge-studio/</a></div>
@@ -227,6 +269,13 @@
 
             <section id="clientes">
                 <h2>Clientes (organizaciones) y portal B2B</h2>
+
+                <h3>Alta de Cliente</h3>
+                <div class="callout">
+                    <strong>Solo alta manual:</strong> Admin → Clientes → <em>Añadir</em>.
+                    No hay importador Excel de organizaciones (a propósito: cada cliente lleva portal, tipo de producto y suscripción).
+                    Tras crear el cliente, cree usuarios portal desde la misma ficha.
+                </div>
 
                 <h3>Modelo Cliente</h3>
                 <p>Cada organización contratante es un registro <strong>Cliente</strong>: cursos propios, estudiantes, grupos, plantillas, suscripción y (opcional) credenciales Twilio propias para multi-tenant futuro.</p>
@@ -252,7 +301,12 @@
                 <h2>Estudiantes y grupos</h2>
 
                 <h3>Alta y actualización masiva</h3>
-                <p>En <strong>Estudiantes</strong> use el botón <strong>Importar Estudiantes Excel</strong> o <code>/admin/importar-estudiantes/</code>.</p>
+                <p><strong>Alta manual:</strong> Admin → Estudiantes → <em>Añadir</em> (cédula, nombre, teléfono WhatsApp, cliente).</p>
+                <p><strong>Excel (recomendado para cohortes):</strong> listado Estudiantes → botón
+                    <strong>Importar Estudiantes Excel</strong>
+                    (<a href="{% url 'admin:core_estudiante_importar' %}">abrir importador</a>).
+                    La ruta antigua <code>/admin/importar-estudiantes/</code> redirige aquí (importador LatAm).</p>
+                <p>Plantilla: acción <strong>Exportar plantilla importación</strong> en la lista de estudiantes.</p>
                 <table>
                     <thead><tr><th>Columna</th><th>Obligatorio</th><th>Notas</th></tr></thead>
                     <tbody>
@@ -263,7 +317,6 @@
                         <tr><td>Curso (H), Cliente (I)</td><td>No</td><td>Si se indica curso, crea inscripción (<code>ProgresoEstudiante</code>).</td></tr>
                     </tbody>
                 </table>
-                <p>Plantilla descargable: acción <strong>Exportar plantilla importación</strong> en la lista de estudiantes.</p>
 
                 <h3>Grupos de estudiantes</h3>
                 <div class="callout-ok">
@@ -351,8 +404,13 @@
                 <h2>Métricas y reportes</h2>
 
                 <h3>Dashboard interno</h3>
-                <p><a href="/admin/dashboard/">/admin/dashboard/</a> — pestañas operativas y <strong>Reportes B2B</strong>: filtro por cliente, curso, <strong>grupo</strong>, fechas, módulo hasta N; export Excel; estado de avance (sin avance, en curso, completado).</p>
-                <p>Métricas ampliadas y GEI en detalle: redirección a rutas <code>/admin/dashboard-metrics/</code> y API <code>/admin/analytics/api/</code>.</p>
+                <p><a href="/admin/dashboard/">/admin/dashboard/</a> — Learning Analytics:</p>
+                <ul>
+                    <li><strong>Reportes B2B</strong> — un panel (org + estudiantes) + Excel.</li>
+                    <li><strong>Métricas por Empresa</strong> — elija organización; KPIs/gráficas primero, detalle estudiantes lazy.</li>
+                    <li><strong>Embudo por módulo</strong> — posición hoy (un bucket por persona).</li>
+                </ul>
+                <p>API: <code>/admin/analytics/api/?tipo=metricas_empresa&amp;cliente_id=…</code> (+ <code>detalle=1</code> para la tabla).</p>
 
                 <h3>Metas KPI</h3>
                 <ul>

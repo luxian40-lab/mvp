@@ -58,3 +58,10 @@ def test_metricas_empresa_estados_progreso():
     assert "finalizacion" in data["semaforos"]
     assert len(data.get("progreso_estudiantes", [])) == 2
     assert any("M" in row.get("modulo_actual", "") or row["estado"] == "Completado" for row in data["progreso_estudiantes"])
+
+    slim = calcular_metricas_empresa(
+        cliente_id=cliente.id, curso_id=curso.id, incluir_progreso_detalle=False,
+    )
+    assert slim["resumen"]["total_inscritos"] == 2
+    assert slim.get("progreso_estudiantes") == []
+    assert slim.get("detalle_incluido") is False

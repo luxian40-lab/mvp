@@ -3,8 +3,8 @@
 
 {% block object-tools-items %}
     <li>
-        <a href="{% url 'importar_estudiantes' %}" class="addlink" style="background:#4CAF50;color:white;padding:8px 15px;border-radius:4px;text-decoration:none;">
-            📤 Importar Estudiantes Excel
+        <a href="{% url 'admin:core_estudiante_importar' %}" class="addlink">
+            Importar Excel
         </a>
     </li>
     {{ block.super }}

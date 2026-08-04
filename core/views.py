@@ -586,7 +586,16 @@ def dashboard_unificado(request):
     Métricas reales: cursos, clientes, estudiantes, certificados, gamificación,
     WhatsApp, IA, y progreso educativo.
     """
-    context, resumen_payload = _construir_dashboard_unificado_contexto(request, incluir_detalle=True)
+    from core.domains.dashboard import resolve_dashboard_tab, resolve_learning_section
+
+    _tab = resolve_dashboard_tab(request.GET.get('tab'))
+    _section = resolve_learning_section(_tab, request.GET.get('section'))
+    _exportando = (request.GET.get('exportar') or '').strip().lower() == 'excel'
+    # Detalle pesado (tablas estudiante/org) solo en Reportes B2B o export Excel.
+    context, resumen_payload = _construir_dashboard_unificado_contexto(
+        request,
+        incluir_detalle=_exportando or (_tab == 'learning' and _section == 'reportes'),
+    )
 
     # --- Excel export (todas las pestañas + datos de gráficos) ---
     if request.GET.get('exportar') == 'excel':
@@ -1009,189 +1018,11 @@ def importar_prospectos(request):
 # ---------- Vista de importación de estudiantes ----------
 @staff_member_required
 def importar_estudiantes(request):
-    """Vista para importar estudiantes desde un archivo Excel.
-    Campos obligatorios: Cédula | Nombre | Teléfono.
-    Campos opcionales: Municipio | Departamento | Género | Edad | Curso | Cliente.
-    """
-    context = {}
-    
-    if request.method == 'POST':
-        archivo = request.FILES.get('archivo_excel')
-        
-        if not archivo:
-            context['error'] = "Por favor selecciona un archivo Excel"
-            return render(request, 'admin/importar_estudiantes.html', context)
-        
-        try:
-            if not archivo.name.endswith(('.xlsx', '.xls')):
-                context['error'] = 'El archivo debe ser .xlsx o .xls'
-                return render(request, 'admin/importar_estudiantes.html', context)
-            
-            wb = openpyxl.load_workbook(archivo, data_only=True)
-            ws = wb.active
-            
-            estudiantes_creados = 0
-            estudiantes_actualizados = 0
-            inscritos = 0
-            errores = []
-            
-            import re
-            from django.db import IntegrityError
-            
-            def _normalizar_celda(val):
-                """Convierte celdas Excel a string limpio (int/float → str sin decimales)."""
-                if val is None:
-                    return ''
-                if isinstance(val, float):
-                    if val == int(val):
-                        return str(int(val))
-                    return str(val)
-                if isinstance(val, int):
-                    return str(val)
-                return str(val).strip()
-            
-            def _limpiar_texto(val):
-                """Limpia texto: strip, lower, elimina espacios dobles."""
-                if not val:
-                    return ''
-                return re.sub(r'\s+', ' ', val.strip().lower())
-            
-            def _normalizar_telefono(raw):
-                """Normaliza teléfono colombiano: solo dígitos, prefijo 57."""
-                tel = re.sub(r'\D', '', raw)
-                if tel.startswith('57') and len(tel) == 12:
-                    return tel
-                if len(tel) == 10 and tel.startswith('3'):
-                    return '57' + tel
-                if len(tel) == 7 or len(tel) == 10:
-                    return '57' + tel
-                return tel
-            
-            GENEROS_VALIDOS = {'m': 'M', 'f': 'F', 'o': 'O', 'masculino': 'M', 'femenino': 'F', 
-                               'otro': 'O', 'hombre': 'M', 'mujer': 'F', 'nr': 'NR', 'no reporta': 'NR'}
-            
-            # Columnas esperadas: A=Cédula | B=Nombre | C=Teléfono | D=Municipio | E=Departamento | F=Género | G=Edad | H=Curso | I=Cliente
-            for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
-                if not row or all(cell is None or str(cell).strip() == '' for cell in row[:3]):
-                    continue
-                
-                try:
-                    cedula = _normalizar_celda(row[0]) if len(row) > 0 else ''
-                    nombre = _normalizar_celda(row[1]) if len(row) > 1 else ''
-                    telefono_raw = _normalizar_celda(row[2]) if len(row) > 2 else ''
-                    municipio = _limpiar_texto(_normalizar_celda(row[3])) if len(row) > 3 else ''
-                    departamento = _limpiar_texto(_normalizar_celda(row[4])) if len(row) > 4 else ''
-                    genero_raw = _limpiar_texto(_normalizar_celda(row[5])) if len(row) > 5 else ''
-                    edad_raw = _normalizar_celda(row[6]) if len(row) > 6 else ''
-                    curso_nombre = _normalizar_celda(row[7]) if len(row) > 7 else ''
-                    cliente_nombre = _normalizar_celda(row[8]) if len(row) > 8 else ''
-                    
-                    # Validar campos obligatorios mínimos (Cédula, Nombre, Teléfono)
-                    campos_faltantes = []
-                    if not cedula: campos_faltantes.append('Cédula')
-                    if not nombre: campos_faltantes.append('Nombre')
-                    if not telefono_raw: campos_faltantes.append('Teléfono')
-                    
-                    if campos_faltantes:
-                        errores.append(f"Fila {row_idx}: Faltan campos obligatorios: {', '.join(campos_faltantes)}")
-                        continue
-                    
-                    # Normalizar teléfono
-                    telefono = _normalizar_telefono(telefono_raw)
-                    if not telefono or len(telefono) < 10:
-                        errores.append(f"Fila {row_idx}: Teléfono inválido '{telefono_raw}'")
-                        continue
-                    
-                    # Normalizar género (opcional, default NR)
-                    genero = GENEROS_VALIDOS.get(genero_raw, '') if genero_raw else ''
-                    if not genero:
-                        genero = 'NR'
-                    
-                    # Validar edad (opcional)
-                    edad = None
-                    if edad_raw:
-                        try:
-                            edad_str = re.sub(r'\D', '', str(edad_raw))
-                            if edad_str:
-                                edad = int(edad_str)
-                                if edad < 1 or edad > 120:
-                                    errores.append(f"Fila {row_idx}: Edad '{edad_raw}' fuera de rango (1-120)")
-                                    continue
-                        except (ValueError, TypeError):
-                            errores.append(f"Fila {row_idx}: Edad '{edad_raw}' no es un número válido")
-                            continue
-                    
-                    # Buscar cliente
-                    cliente = None
-                    if cliente_nombre:
-                        try:
-                            cliente = Cliente.objects.get(nombre__iexact=cliente_nombre.strip())
-                        except Cliente.DoesNotExist:
-                            errores.append(f"Fila {row_idx}: Cliente '{cliente_nombre}' no encontrado")
-                    
-                    # Crear o actualizar por CÉDULA (clave única)
-                    defaults = {
-                        'nombre': nombre.strip().title(),
-                        'telefono': telefono,
-                        'municipio': municipio,
-                        'departamento': departamento,
-                        'genero': genero,
-                        'edad': edad,
-                        'tipo_documento': 'CC',
-                        'estado_onboarding': 'completado',
-                        'estado_chat': 'ACTIVO',
-                        'acepto_terminos': True,
-                        'activo': True,
-                    }
-                    if cliente:
-                        defaults['cliente'] = cliente
-                    
-                    try:
-                        estudiante, creado = Estudiante.objects.update_or_create(
-                            cedula=cedula,
-                            defaults=defaults
-                        )
-                        if creado:
-                            estudiantes_creados += 1
-                        else:
-                            estudiantes_actualizados += 1
-                    except IntegrityError as e:
-                        if 'telefono' in str(e).lower():
-                            errores.append(f"Fila {row_idx}: Teléfono '{telefono}' ya registrado para otro estudiante")
-                        else:
-                            errores.append(f"Fila {row_idx}: Error de integridad - {str(e)}")
-                        continue
-                    
-                    # Inscribir en curso si se especificó
-                    if curso_nombre:
-                        try:
-                            curso = Curso.objects.get(nombre__iexact=curso_nombre.strip())
-                            progreso, prog_creado = ProgresoEstudiante.objects.get_or_create(
-                                estudiante=estudiante,
-                                curso=curso,
-                                defaults={'progreso': 0, 'completado': False}
-                            )
-                            if prog_creado:
-                                inscritos += 1
-                        except Curso.DoesNotExist:
-                            errores.append(f"Fila {row_idx}: Curso '{curso_nombre}' no encontrado")
-                
-                except Exception as e:
-                    errores.append(f"Fila {row_idx}: {str(e)}")
-            
-            context['exito'] = True
-            context['creados'] = estudiantes_creados
-            context['actualizados'] = estudiantes_actualizados
-            context['inscritos'] = inscritos
-            context['total'] = estudiantes_creados + estudiantes_actualizados
-            
-            if errores:
-                context['advertencias'] = errores[:20]
-        
-        except Exception as e:
-            context['error'] = f'Error al procesar el archivo: {str(e)}'
-    
-    return render(request, 'admin/importar_estudiantes.html', context)
+    """Compat: redirige al importador LatAm del ModelAdmin (fuente de verdad)."""
+    from django.shortcuts import redirect
+
+    return redirect('admin:core_estudiante_importar')
+
 
 
 # ---------- Vista de descarga de reportes ----------

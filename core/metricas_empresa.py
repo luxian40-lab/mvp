@@ -327,6 +327,7 @@ def calcular_metricas_empresa(
     hasta: str | None = None,
     modulo_hasta_numero: int | None = None,
     usar_drip_calendario: bool = True,
+    incluir_progreso_detalle: bool = True,
 ) -> dict[str, Any]:
     from core.drip_schedule import modulos_para_metricas
     from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante, WhatsappLog
@@ -620,11 +621,16 @@ def calcular_metricas_empresa(
             ],
             "temporal": series_temporal,
         },
-        "progreso_estudiantes": listar_progreso_estudiantes(
-            progreso_q,
-            modulo_hasta_numero=modulo_hasta_numero,
-            usar_drip_calendario=usar_drip_calendario,
+        "progreso_estudiantes": (
+            listar_progreso_estudiantes(
+                progreso_q,
+                modulo_hasta_numero=modulo_hasta_numero,
+                usar_drip_calendario=usar_drip_calendario,
+            )
+            if incluir_progreso_detalle
+            else []
         ),
+        "detalle_incluido": bool(incluir_progreso_detalle),
         "distribucion_modulos": calcular_distribucion_por_modulo(progreso_q, curso),
     }
 

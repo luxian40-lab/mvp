@@ -329,8 +329,26 @@
             <a href="?exportar=excel&tab=learning&section=reportes{% if cliente_filtro %}&cliente={{ cliente_filtro }}{% endif %}{% if curso_filtro %}&curso={{ curso_filtro }}{% endif %}{% if grupo_filtro %}&grupo={{ grupo_filtro }}{% endif %}{% if municipio_filtro %}&municipio={{ municipio_filtro|urlencode }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}" class="btn-excel">📥 Descargar Excel</a>
         </form>
 
+        <p class="la-funnel-help" style="margin-top:0;">
+            Un solo reporte B2B: resumen por organización (arriba) y detalle de personas (abajo).
+            Para semáforos KPI de <em>una</em> empresa use <strong>Métricas por Empresa</strong>;
+            para ver en qué módulo está cada persona hoy, <strong>Embudo por módulo</strong>.
+        </p>
+
         <div class="section">
-            <div class="section-title">Detalle por Estudiante</div>
+            <div class="section-title">Reporte B2B</div>
+            <h3 style="font-size:0.95rem;margin:0 0 10px;color:var(--eki-muted);">Por organización</h3>
+            <table class="eki-table" style="margin-bottom:22px;">
+                <thead><tr><th>Organización</th><th>Cursos</th><th>Estudiantes</th><th>Uso Audio</th><th>Uso IA</th><th>Completados</th></tr></thead>
+                <tbody>
+                    {% for cl in clientes_detalle %}
+                    <tr><td>{{ cl.nombre }}</td><td>{{ cl.cursos }}</td><td>{{ cl.estudiantes }}</td><td>{{ cl.uso_audio }}</td><td>{{ cl.uso_ia }}</td><td>{{ cl.cursos_completados }}</td></tr>
+                    {% empty %}
+                    <tr><td colspan="6" style="text-align:center;color:#aaa;">Sin organizaciones en el filtro</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <h3 style="font-size:0.95rem;margin:0 0 10px;color:var(--eki-muted);">Por estudiante (máx. 200 del filtro)</h3>
             <table class="eki-table">
                 <thead><tr><th>Nombre</th><th>Cédula</th><th>Teléfono</th><th>Organización</th><th>Municipio</th><th>Grupo(s)</th><th>Curso</th><th>Módulo actual</th><th>Módulos</th><th>Estado</th><th>Avance</th><th>Puntos</th></tr></thead>
                 <tbody>
@@ -350,21 +368,7 @@
                         <td>{{ est.puntos }}</td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="12" style="text-align:center;color:#aaa;">Sin datos</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <div class="section">
-            <div class="section-title">Detalle por Organización</div>
-            <table class="eki-table">
-                <thead><tr><th>Organización</th><th>Cursos</th><th>Estudiantes</th><th>Uso Audio</th><th>Uso IA</th><th>Completados</th></tr></thead>
-                <tbody>
-                    {% for cl in clientes_detalle %}
-                    <tr><td>{{ cl.nombre }}</td><td>{{ cl.cursos }}</td><td>{{ cl.estudiantes }}</td><td>{{ cl.uso_audio }}</td><td>{{ cl.uso_ia }}</td><td>{{ cl.cursos_completados }}</td></tr>
-                    {% empty %}
-                    <tr><td colspan="6" style="text-align:center;color:#aaa;">Sin organizaciones</td></tr>
+                    <tr><td colspan="12" style="text-align:center;color:#aaa;">Sin datos — aplique filtros o exporte Excel</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -553,9 +557,9 @@
 
         <p id="me-drip-contexto" style="font-size:0.85rem;color:var(--eki-muted);margin:-8px 0 16px;"></p>
         <p class="la-funnel-help" style="margin-top:0;">
-            Semáforos y tablas de la <strong>empresa</strong> filtrada.
-            Elige organización (obligatorio) y curso para ver en qué módulo va cada cohorte.
-            Para ver <em>dónde está cada persona hoy</em> (un bucket por estudiante), usa la pestaña
+            Semáforos y tablas de <strong>una organización</strong> (obligatorio elegirla).
+            Primero cargan KPIs y gráficas; la tabla de estudiantes llega después (lazy).
+            Para ver <em>dónde está cada persona hoy</em> (un bucket por estudiante), use
             <strong>Embudo por módulo</strong>.
         </p>
 
@@ -1276,7 +1280,19 @@ async function cargarMetricasEmpresa() {
     const cu = document.getElementById('me-curso')?.value;
     const d1 = document.getElementById('me-desde')?.value;
     const d2 = document.getElementById('me-hasta')?.value;
-    if (cid) params.set('cliente_id', cid);
+    if (!cid) {
+        if (loading) loading.style.display = 'none';
+        if (errEl) {
+            errEl.textContent = 'Seleccione una organización para cargar métricas.';
+            errEl.style.display = 'block';
+        }
+        const tbody = document.querySelector('#me-tabla-progreso tbody');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#aaa;">Elija organización y pulse Actualizar</td></tr>';
+        }
+        return;
+    }
+    params.set('cliente_id', cid);
     if (gid) params.set('grupo_id', gid);
     if (cu) params.set('curso_id', cu);
     const modH = document.getElementById('me-modulo-hasta')?.value;
@@ -1286,25 +1302,45 @@ async function cargarMetricasEmpresa() {
     syncUrlMetricasEmpresa();
 
     try {
+        // 1) KPIs + gráficas (sin tabla de estudiantes)
         const rEdu = await fetch(analyticsEndpoint + '?tipo=metricas_empresa&' + params.toString(), { credentials: 'same-origin' });
-        if (!rEdu.ok) throw new Error('API educativa ' + rEdu.status);
+        if (!rEdu.ok) {
+            let msg = 'API educativa ' + rEdu.status;
+            try {
+                const errBody = await rEdu.json();
+                if (errBody && errBody.error) msg = errBody.error;
+            } catch (e) {}
+            throw new Error(msg);
+        }
         const edu = await rEdu.json();
         renderMeCardsEdu(edu);
         fillMetasForm(edu.metas);
-        renderMeTablaProgreso(edu.progreso_estudiantes || []);
         renderModuloDistribucion(edu.distribucion_modulos || [], !!cu);
         const dripCtx = document.getElementById('me-drip-contexto');
         if (dripCtx && edu.drip) {
             dripCtx.textContent = (edu.drip.filtro_cohorte ? edu.drip.filtro_cohorte + '. ' : '') +
                 (edu.drip.etiqueta_denominador || '') +
                 ' (' + (edu.drip.modulos_en_denominador || '—') + ' módulos en base)';
-            const modH = document.getElementById('me-modulo-hasta')?.value;
             const leg = document.getElementById('me-avance-legend');
             const col = document.getElementById('me-col-avance-filtro');
             if (leg) leg.textContent = modH ? ('Cohorte ≥ M' + modH + ' · avance M1–M' + modH) : 'Avance drip = módulos disponibles hoy';
             if (col) col.textContent = modH ? ('Avance M1–M' + modH) : 'Avance drip';
         }
         pintarGraficasEmpresa(edu);
+
+        const tbody = document.querySelector('#me-tabla-progreso tbody');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#868e96;">Cargando detalle de estudiantes…</td></tr>';
+        }
+        // 2) Tabla detalle (lazy)
+        params.set('detalle', '1');
+        const rDet = await fetch(analyticsEndpoint + '?tipo=metricas_empresa&' + params.toString(), { credentials: 'same-origin' });
+        if (rDet.ok) {
+            const det = await rDet.json();
+            renderMeTablaProgreso(det.progreso_estudiantes || []);
+        } else {
+            renderMeTablaProgreso([]);
+        }
     } catch (e) {
         if (errEl) { errEl.textContent = 'No se pudieron cargar las métricas: ' + e.message; errEl.style.display = 'block'; }
     } finally {

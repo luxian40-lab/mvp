@@ -121,10 +121,21 @@ class PreguntaAbiertaFinalInline(admin.TabularInline):
 class CursoAdmin(admin.ModelAdmin):
     """Administración de cursos"""
     change_form_template = 'admin/core/curso/change_form.html'
-    list_display = ('nombre', 'cliente_nombre', 'total_modulos_display', 'docs_rag_count', 'duracion_semanas', 'ver_modulos_link', 'activo', 'visible_en_studio', 'visible_en_aula', 'tiene_formulario_gei', 'usar_agentes_ia', 'orden')
-    list_filter = ('activo', 'visible_en_studio', 'visible_en_aula', 'cliente', 'usar_gamificacion', 'usar_agentes_ia', 'habilitar_pregunta_abierta_final', 'tiene_formulario_gei')
+    # Listado limpio P1: ≤6 columnas (RAG/GEI/IA/orden → ficha o acciones).
+    list_display = (
+        'nombre',
+        'cliente_nombre',
+        'total_modulos_display',
+        'activo',
+        'visible_en_aula',
+        'visible_en_studio',
+    )
+    list_filter = (
+        'activo', 'visible_en_studio', 'visible_en_aula', 'cliente',
+        'usar_gamificacion', 'usar_agentes_ia', 'tiene_formulario_gei',
+    )
     search_fields = ('nombre', 'descripcion', 'cliente__nombre')
-    list_editable = ('orden',)
+    list_editable = ()
     inlines = [ModuloInline, DocumentoRAGInline, PreguntaAbiertaFinalInline]
     actions = [
         'ver_todos_modulos', 'indexar_documentos_rag', 'indexar_contenido_modulos',
@@ -134,9 +145,13 @@ class CursoAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Datos del curso', {
-            'fields': ('nombre', 'descripcion', 'cliente', 'duracion_semanas', 'activo', 'visible_en_studio', 'visible_en_aula', 'orden'),
+            'fields': (
+                'nombre', 'descripcion', 'cliente', 'duracion_semanas',
+                'activo', 'visible_en_studio', 'visible_en_aula', 'orden',
+            ),
         }),
         ('Ritmo drip y acceso', {
+            'classes': ('collapse',),
             'fields': (
                 'dias_espera_entre_modulos',
                 'usar_gamificacion',
@@ -149,6 +164,7 @@ class CursoAdmin(admin.ModelAdmin):
             ),
         }),
         ('IA y retos', {
+            'classes': ('collapse',),
             'fields': (
                 'usar_agentes_ia',
                 'nombre_agente_tutor',
@@ -161,6 +177,7 @@ class CursoAdmin(admin.ModelAdmin):
             ),
         }),
         ('GEI y WhatsApp', {
+            'classes': ('collapse',),
             'fields': ('tiene_formulario_gei', 'enlace_grupo_whatsapp'),
             'description': mark_safe(
                 '<p>Recolección GEI al completar el módulo disparador (Formulario → Tipos de formulario). '
@@ -174,12 +191,12 @@ class CursoAdmin(admin.ModelAdmin):
         if obj.cliente:
             return obj.cliente.nombre
         return format_html('<span style="color:#999;font-style:italic;">General (eki)</span>')
-    cliente_nombre.short_description = "🏢 Cliente"
+    cliente_nombre.short_description = "Organización"
     
     def total_modulos_display(self, obj):
         count = obj.modulos.count()
         return format_html(
-            '<span style="background:#e3f2fd;padding:4px 8px;border-radius:4px;">{} módulos</span>',
+            '<span style="font-variant-numeric:tabular-nums;">{}</span>',
             count
         )
     total_modulos_display.short_description = "Módulos"
@@ -215,20 +232,25 @@ class CursoAdmin(admin.ModelAdmin):
 
     @admin.action(description='🤖 Indexar documentos RAG de cursos seleccionados')
     def indexar_documentos_rag(self, request, queryset):
-        """Indexa todos los documentos RAG pendientes de los cursos seleccionados."""
-        total_indexados = 0
-        errores = 0
+        """Encola indexación RAG (nunca bloquea el request HTTP)."""
+        from core.admin.commercial import _encolar_o_indexar_rag_doc
+
+        queued = 0
         for curso in queryset:
             for doc in curso.documentos_rag.filter(estado__in=['pendiente', 'error']):
-                n = doc.indexar()
-                if n > 0:
-                    total_indexados += 1
-                else:
-                    errores += 1
-        msg = f"✅ {total_indexados} documentos indexados correctamente."
-        if errores:
-            msg += f" ⚠️ {errores} con errores."
-        self.message_user(request, msg)
+                if not doc.archivo:
+                    continue
+                doc.estado = 'pendiente'
+                doc.save(update_fields=['estado'])
+                _encolar_o_indexar_rag_doc(
+                    request, self, 'DocumentoRAG', doc, show_index_message=False,
+                )
+                queued += 1
+        self.message_user(
+            request,
+            f'✅ {queued} documentos en cola (segundo plano).'
+            if queued else 'Nada pendiente que indexar.',
+        )
 
     @admin.action(description='📝 Indexar contenido de módulos en RAG')
     def indexar_contenido_modulos(self, request, queryset):
@@ -241,19 +263,19 @@ class CursoAdmin(admin.ModelAdmin):
         self.message_user(request, f"✅ {total} chunks indexados desde contenido de módulos.")
 
     def save_formset(self, request, form, formset, change):
-        """Al guardar DocumentoRAG inline, auto-indexar."""
+        """Al guardar DocumentoRAG inline, encolar indexación (no bloquear request)."""
+        from core.admin.commercial import _encolar_o_indexar_rag_doc
+
         instances = formset.save(commit=False)
         for instance in instances:
             if isinstance(instance, DocumentoRAG):
                 if not instance.subido_por_id:
                     instance.subido_por = request.user
                 instance.save()
-                # Auto-indexar documentos nuevos (Celery tras commit; evita 504 en admin)
                 if instance.estado == 'pendiente' and instance.archivo:
-                    if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
-                        instance.indexar()
-                    else:
-                        _enqueue_indexar_rag_task('DocumentoRAG', instance.pk)
+                    _encolar_o_indexar_rag_doc(
+                        request, self, 'DocumentoRAG', instance, show_index_message=False,
+                    )
             else:
                 instance.save()
         formset.save_m2m()

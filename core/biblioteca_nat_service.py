@@ -242,12 +242,13 @@ def encolar_indexacion(item_id: int, *, countdown: int = 0) -> None:
                 )
         except Exception:
             logger.exception('[BibliotecaNat] Fallo encolando indexación id=%s', item_id)
+            # No indexar sync en el request (cuelga nginx/ALB). Dejar pendiente para reintento.
             try:
-                item = BibliotecaConocimiento.objects.filter(pk=item_id).first()
-                if item:
-                    indexar_item(item)
+                BibliotecaConocimiento.objects.filter(pk=item_id).update(
+                    estado_indexacion='pendiente',
+                )
             except Exception:
-                logger.exception('[BibliotecaNat] Fallback sync falló id=%s', item_id)
+                logger.exception('[BibliotecaNat] No se pudo marcar pendiente id=%s', item_id)
 
     transaction.on_commit(_run)
 
