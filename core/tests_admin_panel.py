@@ -34,13 +34,18 @@ class PanelSnapshotHelpersTests(SimpleTestCase):
         self.assertNotIn(('studio', 'aprende'), pairs)
         self.assertNotIn(('aprende', 'studio'), pairs)
         for a, b in pairs:
-            self.assertNotEqual(a, 'studio')
-            self.assertNotEqual(b, 'studio')
+            self.assertNotIn(a, ('studio', 'infra'))
+            self.assertNotIn(b, ('studio', 'infra'))
         studio = next(n for n in eco['nodos'] if n['id'] == 'studio')
         self.assertTrue(studio.get('island'))
         self.assertIn('proxy', studio['metric_label'].lower())
         campo = next(n for n in eco['nodos'] if n['id'] == 'campo')
         self.assertTrue(campo.get('anchor'))
+        self.assertIn('portal', ids)
+        self.assertIn('nat', ids)
+        self.assertIn('certs', ids)
+        self.assertIn('infra', ids)
+        self.assertEqual(len(eco['nodos']), 11)
 
 
 @override_settings(
@@ -75,12 +80,24 @@ class PanelViewTests(TestCase):
         self.assertIn("ecosistema", snap)
         self.assertIn("actualizado", snap)
         eco = snap["ecosistema"]
-        self.assertEqual(len(eco["nodos"]), 7)
+        self.assertEqual(len(eco["nodos"]), 11)
         self.assertTrue(eco["aristas"])
         ids = {n["id"] for n in eco["nodos"]}
         self.assertEqual(
             ids,
-            {"studio", "aprende", "campo", "empresas", "campanas", "ia", "impacto"},
+            {
+                "studio",
+                "aprende",
+                "portal",
+                "campo",
+                "empresas",
+                "campanas",
+                "nat",
+                "ia",
+                "certs",
+                "impacto",
+                "infra",
+            },
         )
         pairs = {(e["from"], e["to"]) for e in eco["aristas"]}
         self.assertNotIn(("studio", "aprende"), pairs)
@@ -101,7 +118,7 @@ class PanelViewTests(TestCase):
         self.assertContains(r, "data-eki-eco-graph")
         self.assertContains(r, "data-eco-id")
         self.assertContains(r, "eki_eco_graph.js")
-        self.assertContains(r, "Studio es independiente de Aprende")
+        self.assertContains(r, "Studio e Infra flotan aparte")
         self.assertContains(r, "global=1")
         self.assertContains(r, "force=1")
 

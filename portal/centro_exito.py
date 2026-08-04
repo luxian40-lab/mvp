@@ -432,62 +432,138 @@ def cohortes_mensuales(progreso_qs, ultima_act: dict) -> list[dict]:
     return {'meses': orden[-6:], 'insight': insight}
 
 
-def embudo_vivo(progreso_qs, ultima_act: dict) -> list[dict]:
-    """Pasos más finos: entraron hoy → leyeron → … → finalizaron."""
+def embudo_vivo(
+    progreso_qs,
+    ultima_act: dict,
+    wa_stats: dict | None = None,
+) -> list[dict]:
+    """
+    Actividad real del programa (no proxies inventados).
+
+    Fuentes:
+    - WA / ultima_act → entraron hoy
+    - Telemetría EstudianteEventoAprendizaje → contenido, listo, evaluación
+    - Progreso → continuaron / finalizaron
+    """
+    from core.models import EstudianteEventoAprendizaje
+
     now = timezone.now()
     hoy0 = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    wa_stats = wa_stats or {}
 
-    inscritos = 0
+    eids = list(progreso_qs.values_list('estudiante_id', flat=True))
+    inscritos = len(eids)
+    eid_set = set(eids)
+
     entraron_hoy = 0
-    leyeron = 0
-    respondieron = 0
-    listo = 0
-    evaluacion = 0
+    for eid in eid_set:
+        ult = ultima_act.get(eid)
+        wa = wa_stats.get(eid) or {}
+        incoming = wa.get('ultimo_incoming')
+        ref = incoming or ult
+        if ref and ref >= hoy0:
+            entraron_hoy += 1
+
+    def _distintos(tipo: str) -> int:
+        if not eid_set:
+            return 0
+        return (
+            EstudianteEventoAprendizaje.objects.filter(
+                estudiante_id__in=eid_set,
+                tipo=tipo,
+            )
+            .values('estudiante_id')
+            .distinct()
+            .count()
+        )
+
+    recibieron_contenido = _distintos(EstudianteEventoAprendizaje.TIPO_CONTENIDO_ENVIADO)
+    escribieron_listo = _distintos(EstudianteEventoAprendizaje.TIPO_LISTO_RECIBIDO)
+    pasaron_eval = _distintos(EstudianteEventoAprendizaje.TIPO_EVALUACION_RESPONDIDA)
+
+    # Fallback honesto si aún no hay telemetría: no inventar listo vía n_mods.
+    telemetria_ok = (recibieron_contenido + escribieron_listo + pasaron_eval) > 0
+    abrieron_modulo = 0
     continuaron = 0
     finalizaron = 0
-
     for p in progreso_qs:
-        inscritos += 1
-        eid = p.estudiante_id
-        ult = ultima_act.get(eid) or p.fecha_ultimo_avance
         n_mods = getattr(p, 'n_mods', 0) or 0
-        if ult and ult >= hoy0:
-            entraron_hoy += 1
         if p.modulo_actual_id or n_mods > 0 or p.fecha_ultimo_avance:
-            leyeron += 1
-        if n_mods > 0 or p.esperando_respuesta_evaluacion_paso:
-            respondieron += 1
-        if n_mods > 0 or (getattr(p, 'paso_actual_modulo', 1) or 1) > 1:
-            listo += 1
-        if n_mods > 0:
-            evaluacion += 1
+            abrieron_modulo += 1
         if n_mods >= 2 or p.completado:
             continuaron += 1
         if p.completado:
             finalizaron += 1
 
-    pasos = [
-        ('Inscritos', inscritos),
-        ('Entraron hoy', entraron_hoy),
-        ('Leyeron / abrieron módulo', leyeron),
-        ('Respondieron / interactuaron', respondieron),
-        ('Escribieron listo / avanzaron', listo),
-        ('Pasaron evaluación (módulo)', evaluacion),
-        ('Continuaron (2+ módulos)', continuaron),
-        ('Finalizaron', finalizaron),
-    ]
-    out = []
-    prev = None
-    for etiqueta, cant in pasos:
-        pct_ant = round(cant / prev * 100, 1) if prev else None
-        out.append({
+    def paso(etiqueta, cant, *, definicion, fuente, prev_cant=None):
+        pct_ant = round(cant / prev_cant * 100, 1) if prev_cant else None
+        return {
             'etiqueta': etiqueta,
             'cantidad': cant,
             'pct_desde_anterior': pct_ant,
             'pct_del_total': round(cant / inscritos * 100, 1) if inscritos else 0.0,
-        })
-        prev = cant if cant else prev
-    return out
+            'definicion': definicion,
+            'fuente': fuente,
+        }
+
+    pasos = [
+        paso(
+            'Inscritos',
+            inscritos,
+            definicion='Progresos en el filtro actual (org/curso/grupo/fechas).',
+            fuente='progreso',
+        ),
+        paso(
+            'Entraron hoy (WhatsApp)',
+            entraron_hoy,
+            definicion='Al menos un mensaje entrante o actividad registrada hoy.',
+            fuente='whatsapp',
+            prev_cant=inscritos,
+        ),
+        paso(
+            'Recibieron contenido',
+            recibieron_contenido if telemetria_ok else abrieron_modulo,
+            definicion=(
+                'Telemetría: evento contenido_enviado (personas distintas).'
+                if telemetria_ok
+                else 'Sin telemetría de envío aún: proxy = abrieron módulo / tienen avance.'
+            ),
+            fuente='telemetria' if telemetria_ok else 'progreso_proxy',
+            prev_cant=inscritos,
+        ),
+        paso(
+            'Escribieron listo',
+            escribieron_listo,
+            definicion=(
+                'Telemetría: evento listo_recibido (personas distintas). '
+                'Si es 0 y el curso es antiguo, puede faltar telemetría histórica.'
+            ),
+            fuente='telemetria',
+            prev_cant=recibieron_contenido if telemetria_ok and recibieron_contenido else inscritos,
+        ),
+        paso(
+            'Respondieron evaluación',
+            pasaron_eval,
+            definicion='Telemetría: evento evaluacion_respondida (personas distintas).',
+            fuente='telemetria',
+            prev_cant=escribieron_listo if escribieron_listo else inscritos,
+        ),
+        paso(
+            'Continuaron (2+ módulos)',
+            continuaron,
+            definicion='Completaron ≥2 módulos o el curso entero.',
+            fuente='progreso',
+            prev_cant=inscritos,
+        ),
+        paso(
+            'Finalizaron curso',
+            finalizaron,
+            definicion='Progreso marcado completado=True.',
+            fuente='progreso',
+            prev_cant=inscritos,
+        ),
+    ]
+    return pasos
 
 
 def whatsapp_health_agregado(wa_stats: dict[int, dict], filas_riesgo: list[dict]) -> dict:

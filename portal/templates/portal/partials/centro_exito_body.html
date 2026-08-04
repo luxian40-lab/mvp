@@ -183,62 +183,93 @@
             {% endif %}
         </section>
 
-        <section class="panel" style="margin:0;">
-            <h2 style="margin-top:0;">Embudo del curso</h2>
-            <p class="muted" style="margin-top:0;">
-                Onboarding → módulos → certificado.
-                {% if data.curso %}<strong>{{ data.curso.nombre }}</strong>.{% endif %}
-                Cada barra = % del total de inscritos.
-            </p>
-            {% if data.requiere_curso_para_modulos %}
-            <p class="muted">Seleccione un curso para ver módulos M1…Mn.</p>
-            {% endif %}
-
-            {% if data.embudo_vivo %}
-            <div class="ce-vivo-strip" aria-label="Señal de actividad reciente">
-                <span class="ce-vivo-strip__label">Actividad reciente</span>
-                {% for paso in data.embudo_vivo %}
-                <span class="ce-vivo-chip">
-                    <strong>{{ paso.cantidad }}</strong> {{ paso.etiqueta }}
-                </span>
-                {% endfor %}
-            </div>
-            {% endif %}
-
-            <ul class="ret-funnel">
-                {% for paso in data.embudo %}
-                <li class="ret-funnel__step">
-                    {% if not forloop.first and paso.pct_desde_anterior != None %}
-                    <div class="ret-funnel__drop">
-                        {% if paso.pct_desde_anterior >= 80 %}
-                        <span class="ret-funnel__chip ret-funnel__chip--keep">{{ paso.pct_desde_anterior }}% continúan</span>
-                        {% elif paso.pct_desde_anterior >= 50 %}
-                        <span class="ret-funnel__chip ret-funnel__chip--warn">{{ paso.pct_desde_anterior }}% continúan</span>
-                        {% else %}
-                        <span class="ret-funnel__chip ret-funnel__chip--drop">solo {{ paso.pct_desde_anterior }}%</span>
+        <div class="ret-two" style="margin-bottom:0;">
+            <section class="panel" style="margin:0;">
+                <h2 style="margin-top:0;">Actividad (WhatsApp + listo)</h2>
+                <p class="muted" style="margin-top:0;">
+                    Personas distintas. <strong>Listo</strong> = telemetría <code>listo_recibido</code>, no un proxy de módulos.
+                    Si un paso va en 0 en cursos viejos, puede faltar telemetría histórica.
+                </p>
+                <ul class="ret-funnel">
+                    {% for paso in data.embudo_vivo %}
+                    <li class="ret-funnel__step">
+                        {% if not forloop.first and paso.pct_desde_anterior != None %}
+                        <div class="ret-funnel__drop">
+                            {% if paso.pct_desde_anterior >= 80 %}
+                            <span class="ret-funnel__chip ret-funnel__chip--keep">{{ paso.pct_desde_anterior }}% vs anterior</span>
+                            {% elif paso.pct_desde_anterior >= 50 %}
+                            <span class="ret-funnel__chip ret-funnel__chip--warn">{{ paso.pct_desde_anterior }}% vs anterior</span>
+                            {% else %}
+                            <span class="ret-funnel__chip ret-funnel__chip--drop">{{ paso.pct_desde_anterior }}% vs anterior</span>
+                            {% endif %}
+                        </div>
                         {% endif %}
-                    </div>
-                    {% endif %}
-                    <div class="ret-funnel__head">
-                        <span class="ret-funnel__name">
-                            {{ paso.etiqueta }}
-                            {% if paso.titulo %}<small>{{ paso.titulo }}</small>{% endif %}
-                        </span>
-                        <span class="ret-funnel__count">{{ paso.cantidad }} <span>· {{ paso.pct_del_total }}%</span></span>
-                    </div>
-                    <div class="ret-funnel__track">
-                        <div
-                            class="ret-funnel__bar"
-                            data-width="{{ paso.pct_del_total }}"
-                            style="width:{{ paso.pct_del_total }}%;"
-                        >{{ paso.pct_del_total }}%</div>
-                    </div>
-                </li>
-                {% empty %}
-                <li class="muted">Sin inscripciones.</li>
-                {% endfor %}
-            </ul>
-        </section>
+                        <div class="ret-funnel__head">
+                            <span class="ret-funnel__name">
+                                {{ paso.etiqueta }}
+                                {% if paso.definicion %}<small>{{ paso.definicion }}</small>{% endif %}
+                            </span>
+                            <span class="ret-funnel__count">{{ paso.cantidad }} <span>· {{ paso.pct_del_total }}%</span></span>
+                        </div>
+                        <div class="ret-funnel__track">
+                            <div
+                                class="ret-funnel__bar"
+                                data-width="{{ paso.pct_del_total }}"
+                                style="width:{{ paso.pct_del_total }}%;"
+                            >{{ paso.pct_del_total }}%</div>
+                        </div>
+                    </li>
+                    {% empty %}
+                    <li class="muted">Sin datos de actividad.</li>
+                    {% endfor %}
+                </ul>
+            </section>
+
+            <section class="panel" style="margin:0;">
+                <h2 style="margin-top:0;">Embudo del curso</h2>
+                <p class="muted" style="margin-top:0;">
+                    Onboarding → módulos → certificado (acumulado).
+                    {% if data.curso %}<strong>{{ data.curso.nombre }}</strong>.{% endif %}
+                    Cada barra = % de inscritos.
+                </p>
+                {% if data.requiere_curso_para_modulos %}
+                <p class="muted">Seleccione un curso para ver módulos M1…Mn.</p>
+                {% endif %}
+                <ul class="ret-funnel">
+                    {% for paso in data.embudo %}
+                    <li class="ret-funnel__step">
+                        {% if not forloop.first and paso.pct_desde_anterior != None %}
+                        <div class="ret-funnel__drop">
+                            {% if paso.pct_desde_anterior >= 80 %}
+                            <span class="ret-funnel__chip ret-funnel__chip--keep">{{ paso.pct_desde_anterior }}% continúan</span>
+                            {% elif paso.pct_desde_anterior >= 50 %}
+                            <span class="ret-funnel__chip ret-funnel__chip--warn">{{ paso.pct_desde_anterior }}% continúan</span>
+                            {% else %}
+                            <span class="ret-funnel__chip ret-funnel__chip--drop">solo {{ paso.pct_desde_anterior }}%</span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        <div class="ret-funnel__head">
+                            <span class="ret-funnel__name">
+                                {{ paso.etiqueta }}
+                                {% if paso.titulo %}<small>{{ paso.titulo }}</small>{% endif %}
+                            </span>
+                            <span class="ret-funnel__count">{{ paso.cantidad }} <span>· {{ paso.pct_del_total }}%</span></span>
+                        </div>
+                        <div class="ret-funnel__track">
+                            <div
+                                class="ret-funnel__bar"
+                                data-width="{{ paso.pct_del_total }}"
+                                style="width:{{ paso.pct_del_total }}%;"
+                            >{{ paso.pct_del_total }}%</div>
+                        </div>
+                    </li>
+                    {% empty %}
+                    <li class="muted">Sin inscripciones.</li>
+                    {% endfor %}
+                </ul>
+            </section>
+        </div>
     </section>
 
     {# —— 3. MÁS DATOS —— #}

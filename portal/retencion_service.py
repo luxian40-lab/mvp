@@ -235,7 +235,7 @@ def analitica_retencion_portal(
     from django.core.cache import cache
 
     cache_key = (
-        f'ce:ret:v2:{getattr(org, "pk", org)}:{curso_id or 0}:{grupo_id or 0}:'
+        f'ce:ret:v3:{getattr(org, "pk", org)}:{curso_id or 0}:{grupo_id or 0}:'
         f'{desde or ""}:{hasta or ""}:{dias_activo}'
     )
     if not force:
@@ -389,7 +389,7 @@ def _analitica_retencion_portal_uncached(
     mapa_pasos = centro_exito.mapa_abandono_pasos(progreso_qs, curso)
     curva = centro_exito.curva_abandono(progreso_qs, ultima_act)
     cohortes = centro_exito.cohortes_mensuales(progreso_qs, ultima_act)
-    vivo = centro_exito.embudo_vivo(progreso_qs, ultima_act)
+    vivo = centro_exito.embudo_vivo(progreso_qs, ultima_act, wa_stats=wa_stats)
     comparativa = centro_exito.comparativa_eki(
         org, curso_id=curso_id, pct_certificacion=pct_certificacion,
     )

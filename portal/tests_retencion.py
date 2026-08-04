@@ -114,6 +114,9 @@ class RetencionServiceTests(TestCase):
         self.assertGreaterEqual(habeas['probabilidad_terminar'], 5)
         self.assertTrue(data['mapa_abandono'])
         self.assertTrue(data['embudo_vivo'])
+        listo = next(p for p in data['embudo_vivo'] if 'listo' in p['etiqueta'].lower())
+        self.assertEqual(listo['fuente'], 'telemetria')
+        self.assertIn('definicion', listo)
         self.assertTrue(data['curva_abandono'])
         self.assertTrue(data['recomendaciones'])
 

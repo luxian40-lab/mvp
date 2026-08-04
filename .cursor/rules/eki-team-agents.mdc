@@ -1,11 +1,11 @@
 ---
-description: Routing to eki team skills (CTO/UX/Designer/QA/PM/Dev/Sec); use Auto/Composer only
+description: Routing to eki team skills (CTO/UX/Designer/QA/PM/Dev/Sec/Data/Ops/Growth/Content/Legal/SRE); use Auto/Composer only
 alwaysApply: true
 ---
 
 # Equipo eki (roles)
 
-Cuando el usuario pida un rol o diga cosas como “haz de QA”, “como PM”, “implementa”, “seguridad”, “ciberseguridad”, “como CTO”, “diseñador”, “UX”, “desplegamos si pasa QA”:
+Cuando el usuario pida un rol o diga cosas como “haz de QA”, “como PM”, “implementa”, “seguridad”, “ciberseguridad”, “como CTO”, “diseñador”, “UX”, “Data”, “Ops”, “Growth”, “Content”, “Legal”, “SRE”, “desplegamos si pasa QA”:
 
 1. Leer y seguir la skill correspondiente:
    - CTO → `.cursor/skills/eki-cto/SKILL.md`
@@ -16,7 +16,13 @@ Cuando el usuario pida un rol o diga cosas como “haz de QA”, “como PM”, 
    - PM → `.cursor/skills/eki-pm/SKILL.md`
    - Dev → `.cursor/skills/eki-dev/SKILL.md`
    - Sec → `.cursor/skills/eki-sec/SKILL.md`
-2. Un rol a la vez salvo que pida el flujo completo (CTO/PM → UX/Diseñador/Aprende → Dev → QA → Sec).
+   - Data / Analytics → `.cursor/skills/eki-data/SKILL.md`
+   - Ops / CS → `.cursor/skills/eki-ops/SKILL.md`
+   - Growth / Commercial → `.cursor/skills/eki-growth/SKILL.md`
+   - Content / Pedagógico → `.cursor/skills/eki-content/SKILL.md`
+   - Legal / Compliance → `.cursor/skills/eki-legal/SKILL.md`
+   - SRE / Infra → `.cursor/skills/eki-sre/SKILL.md`
+2. Un rol a la vez salvo que pida el flujo completo (CTO/PM → UX/Diseñador/Data → Dev → QA → Sec/SRE).
 3. Deploy solo con pedido explícito del usuario; si hay rol QA, preferir QA_PASS; si hay Sec, preferir sin Critical/High abiertos.
 
 ## Docs de producto (canon)

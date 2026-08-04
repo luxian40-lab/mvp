@@ -86,8 +86,8 @@ def _build_ecosistema(
             'url': 'https://studio.eki.technology/studio/',
             'external': True,
             'icon': 'palette',
-            'x': 10,
-            'y': 18,
+            'x': 8,
+            'y': 14,
             'z': 8,
             'island': True,
         },
@@ -100,9 +100,23 @@ def _build_ecosistema(
             'url': 'https://aprende.eki.technology/aprende/',
             'external': True,
             'icon': 'menu_book',
-            'x': 28,
-            'y': 22,
+            'x': 26,
+            'y': 26,
             'z': 18,
+            'island': False,
+        },
+        {
+            'id': 'portal',
+            'label': 'Portal',
+            'metric_label': 'Clientes B2B',
+            'value': f'{empresas} orgs' if empresas else 'Entrar',
+            'status': _nodo_status(empresas > 0),
+            'url': 'https://app.eki.technology/portal/',
+            'external': True,
+            'icon': 'storefront',
+            'x': 42,
+            'y': 12,
+            'z': 14,
             'island': False,
         },
         {
@@ -119,7 +133,7 @@ def _build_ecosistema(
             'external': False,
             'icon': 'sms',
             'x': 50,
-            'y': 44,
+            'y': 46,
             'z': 48,
             'island': False,
             'anchor': True,
@@ -127,14 +141,14 @@ def _build_ecosistema(
         {
             'id': 'empresas',
             'label': 'Empresas',
-            'metric_label': 'Clientes B2B',
+            'metric_label': 'Clientes admin',
             'value': f'{empresas} activas' if empresas else 'Sin datos',
             'status': _nodo_status(empresas > 0),
             'url': '/admin/core/cliente/',
             'external': False,
             'icon': 'apartment',
-            'x': 72,
-            'y': 20,
+            'x': 70,
+            'y': 16,
             'z': 16,
             'island': False,
         },
@@ -154,9 +168,23 @@ def _build_ecosistema(
             'url': '/admin/core/campana/',
             'external': False,
             'icon': 'campaign',
-            'x': 88,
-            'y': 46,
+            'x': 90,
+            'y': 34,
             'z': 22,
+            'island': False,
+        },
+        {
+            'id': 'nat',
+            'label': 'Nat',
+            'metric_label': 'Bot comercial',
+            'value': 'CRM / Knowledge',
+            'status': 'ok',
+            'url': '/admin/dashboard/?tab=commercial',
+            'external': False,
+            'icon': 'handshake',
+            'x': 90,
+            'y': 62,
+            'z': 18,
             'island': False,
         },
         {
@@ -173,19 +201,33 @@ def _build_ecosistema(
             'url': '/admin/ai-ops/eventos/',
             'external': False,
             'icon': 'psychology',
-            'x': 30,
-            'y': 78,
+            'x': 26,
+            'y': 74,
             'z': 12,
             'island': False,
         },
         {
+            'id': 'certs',
+            'label': 'Certificados',
+            'metric_label': 'Emitidos',
+            'value': f'{certs} emitidos' if certs else 'Sin datos',
+            'status': _nodo_status(certs > 0),
+            'url': '/admin/envio-certificados/',
+            'external': False,
+            'icon': 'workspace_premium',
+            'x': 54,
+            'y': 78,
+            'z': 16,
+            'island': False,
+        },
+        {
             'id': 'impacto',
-            'label': 'Impacto',
-            'metric_label': 'Certs · avance (muestra)',
+            'label': 'Éxito',
+            'metric_label': 'Centro · avance',
             'value': (
-                f'{certs} certs · {int(round(avance))}%'
-                if certs or avance
-                else 'Sin datos'
+                f'{int(round(avance))}% avance'
+                if avance
+                else 'Retención'
             ),
             'status': _nodo_status(
                 certs > 0 or avance > 0,
@@ -193,29 +235,48 @@ def _build_ecosistema(
             ),
             'url': '/admin/dashboard/?tab=retencion',
             'external': False,
-            'icon': 'verified',
-            'x': 72,
-            'y': 78,
+            'icon': 'trending_up',
+            'x': 74,
+            'y': 80,
             'z': 20,
             'island': False,
         },
+        {
+            'id': 'infra',
+            'label': 'Infra',
+            'metric_label': 'Salud plataforma',
+            'value': 'Monitor',
+            'status': 'ok',
+            'url': '/admin/infra/',
+            'external': False,
+            'icon': 'monitor_heart',
+            'x': 8,
+            'y': 78,
+            'z': 6,
+            'island': True,
+        },
     ]
-    # Studio aislado a propósito: sin aristas a Aprende ni al resto.
+    # Studio e Infra aislados: sin aristas. Studio ↛ Aprende.
     edges = [
         ('campo', 'aprende'),
-        ('campo', 'campanas'),
+        ('campo', 'portal'),
         ('campo', 'empresas'),
+        ('campo', 'campanas'),
+        ('campo', 'certs'),
         ('campo', 'impacto'),
         ('aprende', 'ia'),
+        ('portal', 'empresas'),
         ('empresas', 'campanas'),
+        ('campanas', 'nat'),
         ('empresas', 'impacto'),
-        ('campanas', 'impacto'),
+        ('certs', 'impacto'),
         ('ia', 'impacto'),
+        ('nat', 'impacto'),
     ]
     by_id = {n['id']: n for n in nodos}
     aristas = []
     for a, b in edges:
-        if a == 'studio' or b == 'studio':
+        if a in ('studio', 'infra') or b in ('studio', 'infra'):
             continue
         if {a, b} == {'studio', 'aprende'}:
             continue
@@ -233,7 +294,11 @@ def _build_ecosistema(
     return {
         'nodos': nodos,
         'aristas': aristas,
-        'nota': 'Studio es independiente de Aprende: sin enlace entre ambos.',
+        'nota': (
+            'Studio e Infra flotan aparte. '
+            'Studio no se conecta a Aprende. '
+            'Campo WhatsApp es el centro operativo.'
+        ),
     }
 
 
@@ -241,7 +306,7 @@ def build_panel_snapshot(*, force: bool = False) -> dict[str, Any]:
     """KPIs y bloques del Panel (Inicio). Cache corto para no pesar /admin/."""
     from django.core.cache import cache
 
-    cache_key = 'admin_panel_snapshot_v3'
+    cache_key = 'admin_panel_snapshot_v4'
     if not force:
         cached = cache.get(cache_key)
         if cached:
