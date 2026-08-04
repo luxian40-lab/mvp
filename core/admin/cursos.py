@@ -1,9 +1,16 @@
 from core.admin._common import *  # noqa: F401,F403
-from core.orden_bloques import intercambiar_orden
+from core.orden_bloques import (
+    intercambiar_orden,
+    preparar_ordenes_temporales,
+    renumerar_orden_1_based,
+)
 
 # ==========================================
 # SISTEMA EDUCATIVO - ADMINISTRACIÓN
 # ==========================================
+
+# Alta de módulo: 1 sección + N microcontenidos vacíos (inactivos hasta completar).
+MODULO_ALTA_PASOS_PLANTILLA = 3
 
 
 def _botones_mover_bloque(obj, kind: str):
@@ -30,6 +37,42 @@ def _botones_mover_bloque(obj, kind: str):
         down,
         obj.orden,
     )
+
+
+def sembrar_plantilla_modulo(modulo, *, n_pasos: int = MODULO_ALTA_PASOS_PLANTILLA) -> dict:
+    """
+    Tras el alta: garantiza 1 sección y N microcontenidos vacíos (activo=False).
+    No pisa secciones/pasos que el operador ya haya cargado en el mismo POST.
+    """
+    created = {'seccion': False, 'pasos': 0}
+    if not modulo or not modulo.pk:
+        return created
+
+    seccion = modulo.secciones.order_by('orden', 'id').first()
+    if seccion is None:
+        seccion = SeccionModulo.objects.create(
+            modulo=modulo,
+            orden=1,
+            titulo='Bloque 1',
+            activa=True,
+        )
+        created['seccion'] = True
+
+    if modulo.pasos.exists():
+        return created
+
+    for i in range(1, max(1, int(n_pasos)) + 1):
+        PasoModulo.objects.create(
+            modulo=modulo,
+            seccion=seccion,
+            orden=i,
+            titulo=f'Microcontenido {i}',
+            contenido='',
+            activo=False,
+            requiere_listo_para_avanzar=True,
+        )
+        created['pasos'] += 1
+    return created
 
 
 
@@ -282,23 +325,22 @@ class PreguntaModuloInline(admin.StackedInline):
     """Preguntas de validación del módulo (Mini examen)"""
     model = PreguntaModulo
     extra = 0
+    tab = True
     can_delete = True
     show_change_link = True
     verbose_name = 'Pregunta'
-    verbose_name_plural = 'Mini examen'
+    verbose_name_plural = 'Examen'
 
     fieldsets = (
         ('Pregunta', {
             'fields': ('pregunta',),
             'description': (
-                'Se envía <strong>cuando el estudiante ya recorrió todos los microcontenidos activos</strong> '
-                '(no durante el flujo de *listo* intermedio). '
-                'Si la dejás <strong>activa</strong>, debe contestar bien para cerrar el módulo y seguir '
-                '(igual que el comportamiento sin pasos internos). '
-                '<br>Esto es <em>independiente</em> de las evaluaciones por letras en cada microcontenido (que frenan el avance dentro del drip).'
+                'Se envía cuando el estudiante ya recorrió todos los microcontenidos activos '
+                '(no durante *listo* intermedio). Independiente de las evaluaciones por letras '
+                'dentro de cada microcontenido.'
             ),
         }),
-        ('Opciones de Respuesta', {
+        ('Opciones de respuesta', {
             'fields': ('opcion_a', 'opcion_b', 'opcion_c', 'opcion_d', 'respuesta_correcta')
         }),
         ('Estado', {
@@ -308,15 +350,17 @@ class PreguntaModuloInline(admin.StackedInline):
 
 
 class SeccionModuloInline(admin.TabularInline):
-    """Agrupa pasos en el admin; el título de la sección no se envía por WhatsApp."""
+    """Estructura: bloques que agrupan microcontenidos (título no se envía por WhatsApp)."""
     model = SeccionModulo
-    extra = 1
+    extra = 0
+    tab = True
     can_delete = True
     ordering = ('orden', 'id')
+    ordering_field = 'orden'
+    hide_ordering_field = True
     show_change_link = True
     verbose_name = 'Bloque'
-    # Texto corto: Jazzmin usa esto en pestañas + ancla #slug-tab; títulos largos rompen el cambio de pestaña.
-    verbose_name_plural = 'Secciones'
+    verbose_name_plural = 'Estructura'
     fields = ('mover_orden', 'orden', 'activa', 'titulo', 'resumen_pasos')
     readonly_fields = ('mover_orden', 'resumen_pasos')
 
@@ -403,25 +447,37 @@ class ModuloAdminForm(forms.ModelForm):
         from core.module_steps import cuenta_microcontenidos_modulo
 
         self.fields['contenido'].required = False
+        if 'modo_entrega' in self.fields:
+            self.fields['modo_entrega'].help_text = (
+                'Recomendado: «Por pasos con listo». Legacy envía todo el módulo de una vez '
+                'e ignora microcontenidos. Automático hereda según haya pasos o no.'
+            )
         n_micro = cuenta_microcontenidos_modulo(self.instance)
-        if n_micro > 0:
+        if not self.instance.pk:
+            self.fields['contenido'].help_text = (
+                'Opcional al crear: se siembra una plantilla (Estructura + Microcontenidos). '
+                'Complete el texto en cada paso; use este campo solo en modo Legacy.'
+            )
+        elif n_micro > 0:
             self.fields['contenido'].help_text = (
                 f'Opcional: este módulo ya tiene {n_micro} microcontenido(s). '
-                'Puede dejar este campo vacío; el estudiante recibe el texto de cada paso '
-                'en la pestaña «Microcontenidos». Solo úselo en modo Legacy o como intro extra.'
+                'El estudiante recibe el texto de cada paso en «Microcontenidos». '
+                'Solo úselo en modo Legacy o como intro extra.'
             )
         else:
             self.fields['contenido'].help_text = (
-                'Obligatorio solo si aún no hay microcontenidos. Tras crear secciones y pasos '
-                'en «Microcontenidos» (cada uno con sección), puede vaciar este campo.'
+                'Obligatorio solo si aún no hay microcontenidos. Tras crear estructura y pasos, '
+                'puede vaciar este campo.'
             )
 
     def clean_contenido(self):
         from core.module_steps import validar_contenido_modulo
 
         contenido = self.cleaned_data.get('contenido', '')
+        # Alta: plantilla de pasos se siembra en save_related; no exigir texto aquí.
         if not self.instance.pk:
-            validar_contenido_modulo(contenido, self.instance)
+            return contenido
+        validar_contenido_modulo(contenido, self.instance)
         return contenido
 
 
@@ -442,9 +498,12 @@ class PasoModuloInline(admin.StackedInline):
     model = PasoModulo
     form = PasoModuloForm
     formset = PasoModuloInlineFormSet
-    extra = 1
+    extra = 0
+    tab = True
     can_delete = True
     ordering = ('orden', 'id')
+    ordering_field = 'orden'
+    hide_ordering_field = True
     show_change_link = True
     verbose_name = 'Paso'
     verbose_name_plural = 'Microcontenidos'
@@ -458,9 +517,8 @@ class PasoModuloInline(admin.StackedInline):
         ('Texto y multimedia (WhatsApp)', {
             'fields': ('titulo', 'contenido', 'media_url', 'media_file_upload'),
             'description': (
-                'El título es referencia interna. Lo que recibe el estudiante va en «Contenido». '
-                'Puedes pegar una URL o subir archivo desde tu PC. Si subes archivo, se guarda en S3 '
-                'en producción y se completa Media URL automáticamente.'
+                'Título = referencia interna. El estudiante recibe «Contenido» + media. '
+                'Pegá una URL o subí archivo (en prod se guarda en S3 y completa Media URL).'
             ),
         }),
         ('Evaluación tipo opciones', {
@@ -505,36 +563,35 @@ class PasoModuloInline(admin.StackedInline):
 
 
 class ArchivoModuloInline(admin.StackedInline):
-    """Archivos multimedia del módulo (imágenes, videos, infografías, PDFs)"""
+    """Multimedia a nivel módulo (Legacy / complemento). Preferir media en cada microcontenido."""
     model = ArchivoModulo
-    extra = 1
+    extra = 0
+    tab = True
     can_delete = True
+    ordering = ('orden', 'id')
+    ordering_field = 'orden'
+    hide_ordering_field = True
     show_change_link = True
     verbose_name = 'Archivo'
-    verbose_name_plural = 'Multimedia'
+    verbose_name_plural = 'Multimedia legacy'
 
     fieldsets = (
         (None, {
             'fields': ('mover_orden', 'tipo', 'titulo', 'descripcion'),
             'description': (
-                '👉 Paso 1: Selecciona el TIPO de archivo (video, imagen, infografía, pdf, audio).<br>'
-                '💡 <b>TODOS los tipos se envían como adjunto por WhatsApp</b> — videos, imágenes, '
-                'infografías, PDFs y audios se entregan automáticamente al estudiante.<br>'
-                '📎 Puedes agregar MÚLTIPLES archivos por módulo — todos se enviarán en orden.'
-            )
+                'Uso secundario: envío del módulo completo (modo Legacy) o archivos extra. '
+                'Para el flujo por *listo*, preferí media en cada fila de Microcontenidos.'
+            ),
         }),
-        ('📤 Subir Archivo o URL', {
+        ('Archivo o URL', {
             'fields': ('archivo', 'preview_multimedia', 'url_externa'),
-            'description': '''
-            👉 Paso 2: Elige UNA opción:
-            • SUBIR ARCHIVO: Sube desde tu PC (se guardará en S3 automáticamente)
-            • URL EXTERNA: Pega link de YouTube, Vimeo, Google Drive, etc.
-            ⚠️ IMPORTANTE: Verifica que la URL sea pública y accesible. URLs privadas no se podrán enviar.
-            '''
+            'description': (
+                'Subí un archivo (S3 en producción) o pegá una URL pública (YouTube, Drive, etc.).'
+            ),
         }),
         ('Configuración', {
             'fields': ('disponible_offline', 'orden', 'activo'),
-            'classes': ('collapse',)
+            'classes': ('collapse',),
         }),
     )
     readonly_fields = ('preview_multimedia', 'mover_orden')
@@ -618,23 +675,23 @@ class ModuloAdmin(admin.ModelAdmin):
         css = {
             'all': ('admin/css/modulo_whatsapp_bloques.css',),
         }
+        js = ('admin/js/eki_modulo_jump.js',)
 
+    # Listado ops: curso + número; preview largo → ficha del módulo.
     list_display = (
         'numero_titulo',
         'curso',
-        'duracion_dias',
         'modo_entrega_badge',
         'pasos_activos_count',
         'examen_badge',
         'archivos_link',
-        'tiene_pregunta',
-        'contenido_preview',
         'ver_curso_link',
     )
-    list_filter = ('curso', 'examen_obligatorio', 'modo_entrega')
-    search_fields = ('titulo', 'descripcion', 'contenido')
+    list_filter = ('curso', 'modo_entrega', 'examen_obligatorio')
+    search_fields = ('titulo', 'descripcion', 'curso__nombre')
+    list_select_related = ('curso', 'curso__cliente')
     list_per_page = 50
-    ordering = ['curso', 'numero']
+    ordering = ['curso__nombre', 'numero']
     readonly_fields = ('guia_microcontenidos_whatsapp',)
     inlines = [SeccionModuloInline, PasoModuloInline, ArchivoModuloInline, PreguntaModuloInline]
     actions = ['enviar_archivos_multimedia', 'ver_archivos_multimedia', 'renumerar_modulos']
@@ -693,15 +750,43 @@ class ModuloAdmin(admin.ModelAdmin):
             instances.append(inline_class(self.model, self.admin_site))
         return instances
 
+    def get_changeform_initial_data(self, request):
+        data = super().get_changeform_initial_data(request)
+        data.setdefault('modo_entrega', Modulo.MODO_ENTREGA_PASOS)
+        return data
+
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+        if change:
+            return
+        created = sembrar_plantilla_modulo(form.instance)
+        if not (created['seccion'] or created['pasos']):
+            return
+        bits = []
+        if created['seccion']:
+            bits.append('1 bloque de estructura')
+        if created['pasos']:
+            bits.append(
+                f'{created["pasos"]} microcontenido(s) vacío(s) (inactivos)'
+            )
+        self.message_user(
+            request,
+            (
+                'Plantilla lista: ' + ' + '.join(bits) + '. '
+                'Active y complete el texto en la pestaña Microcontenidos.'
+            ),
+            level=messages.INFO,
+        )
+
     def response_add(self, request, obj, post_url_continue=None):
-        """Tras crear, abrir el módulo para agregar Microcontenidos (no estaban en el alta)."""
+        """Tras crear, abrir el módulo (plantilla ya sembrada) para completar Microcontenidos."""
         if '_addanother' in request.POST:
             return super().response_add(request, obj, post_url_continue)
         self.message_user(
             request,
             (
-                'Módulo creado. Abajo ya puede usar «Secciones» y «Microcontenidos» '
-                '(cada paso debe elegir una sección).'
+                'Módulo creado. Use las pestañas Estructura → Microcontenidos. '
+                'Cada paso debe tener sección; active los microcontenidos cuando el texto esté listo.'
             ),
             level=messages.SUCCESS,
         )
@@ -710,110 +795,100 @@ class ModuloAdmin(admin.ModelAdmin):
     def ver_curso_link(self, obj):
         """Link directo al curso padre"""
         url = reverse('admin:core_curso_change', args=[obj.curso.id])
-        return format_html('<a href="{}" style="color:#2196F3;">📚 Ver Curso</a>', url)
+        return format_html('<a href="{}" style="color:#2196F3;">Ver curso</a>', url)
     ver_curso_link.short_description = "Curso"
 
     @admin.display(description='')
     def guia_microcontenidos_whatsapp(self, obj):
-        """Panel de ayuda visual (no persiste en BD)."""
+        """Guía corta + detalle colapsable (la barra sticky la inyecta JS)."""
         return format_html(
-            '<div style="background:linear-gradient(180deg,#ecfdf5 0%,#f8fafc 100%);'
-            'border:1px solid #6ee7b7;border-radius:10px;padding:16px 18px;margin:0 0 4px 0;'
-            'max-width:920px;">'
-            '<p style="margin:0 0 10px 0;font-size:14px;color:#5F3A6E;font-weight:600;">'
-            'Flujo: Secciones → Microcontenidos → Multimedia. Use ↑↓ para reordenar bloques.'
+            '<div class="eki-modulo-guia">'
+            '<p style="margin:0 0 0.5rem;font-size:0.9rem;font-weight:650;color:#5F3A6E;">'
+            'Flujo: Datos → Estructura → Microcontenidos. Media va en cada paso; '
+            'Multimedia legacy es secundario. Arrastre las cajas o use ↑↓ para reordenar.'
             '</p>'
-            '<table style="width:100%;border-collapse:collapse;font-size:13px;color:#334155;">'
-            '<tr style="vertical-align:top;">'
-            '<td style="width:34%;padding:8px 10px;background:#fff;border-radius:8px;border:1px solid #e2e8f0;">'
-            '<strong style="color:#0f766e;">① Secciones</strong> (cuadro de abajo)<br>'
-            '<span style="font-size:12px;line-height:1.45;">Cada fila es un <b>bloque</b>. '
-            'El <b>orden</b> define el recorrido. El <b>título</b> es solo para el equipo (no se envía por WhatsApp); '
-            'el texto al estudiante va en cada microcontenido.</span>'
-            '</td>'
-            '<td style="width:34%;padding:8px 10px;background:#fff;border-radius:8px;border:1px solid #e2e8f0;">'
-            '<strong style="color:#0369a1;">② Microcontenidos</strong><br>'
-            '<span style="font-size:12px;line-height:1.45;">Cada paso debe enlazarse a una '
-            '<b>sección</b> del paso anterior. Podés poner muchos pasos dentro del mismo bloque. '
-            'El estudiante avanza con <b>*listo*</b> según el ajuste del siguiente bloque.</span>'
-            '</td>'
-            '<td style="width:32%;padding:8px 10px;background:#fff;border-radius:8px;border:1px solid #e2e8f0;">'
-            '<strong style="color:#a16207;">③ Campo «Secciones por *listo*»</strong><br>'
-            '<span style="font-size:12px;line-height:1.45;">Número entero <b>1–5</b>: cuántos '
-            'bloques (filas de secciones consecutivas) se mandan en cada <b>*listo*</b>. Con <b>1</b> '
-            'equivale a un bloque por *listo*; con <b>2</b> manda dos bloques seguidos, etc.</span>'
-            '</td>'
-            '</tr></table>'
-            '<p style="margin:12px 0 0 0;font-size:12px;color:#64748b;line-height:1.55;border-top:1px solid #e2e8f0;padding-top:10px;">'
-            '<strong style="color:#334155;">Preguntas y bloqueo de avance</strong><br>'
-            '• <strong>Dentro del drip</strong>: en «Evaluación (opciones)», la pregunta va en «Contenido» y las alternativas en A–D + letra correcta; '
-            'el estudiante <strong>no sigue</strong> hasta responder bien (o cumplir reto/entrega según el tipo).<br>'
-            '• <strong>Mini examen</strong> (pestaña más abajo): va <em>al final</em>, cuando ya terminó todos los pasos; si está activa, exige la respuesta correcta para '
-            'dar por cerrado el módulo (independiente del JSON de cada paso).<br>'
-            '• <strong>Módulo nuevo</strong>: guardá una vez con las filas de Secciones; al reabrir el registro cargás Microcontenidos y el desplegable «sección» solo lista bloques de este módulo.'
-            '</p>'
-            '<p style="margin:10px 0 0 0;font-size:12px;color:#64748b;line-height:1.5;">'
-            'Modo <b>Legacy</b>: ignora estos pasos y envía el texto del módulo completo. '
-            'Mini examen y multimedia siguen en sus pestañas.'
-            '</p>'
+            '<details>'
+            '<summary>Ayuda rápida</summary>'
+            '<p>1) En <b>Estructura</b> defina bloques (secciones). '
+            '2) En <b>Microcontenidos</b> complete texto/media y active. '
+            '3) Modo Legacy ignora microcontenidos y usa el texto del módulo.</p>'
+            '</details>'
             '</div>'
         )
-    
+
+    def save_formset(self, request, form, formset, change):
+        """Drag Unfold escribe orden 0..n; UniqueConstraint (modulo, orden) exige temp + renúmero 1..n."""
+        models_con_unique = (SeccionModulo, PasoModulo)
+        if formset.model in models_con_unique and form.instance.pk:
+            with transaction.atomic():
+                preparar_ordenes_temporales(formset.model, form.instance.pk)
+                super().save_formset(request, form, formset, change)
+                renumerar_orden_1_based(formset.model, form.instance.pk)
+            return
+        super().save_formset(request, form, formset, change)
+
     fieldsets = (
         (
-            'Guia WhatsApp',
+            'Datos',
             {
-                'fields': ('guia_microcontenidos_whatsapp',),
-                'classes': ('wide',),
+                'classes': ['tab'],
+                'fields': (
+                    'guia_microcontenidos_whatsapp',
+                    'curso',
+                    'numero',
+                    'titulo',
+                    'descripcion',
+                ),
                 'description': (
-                    'Orden: 1) cree el módulo y al menos una <strong>Sección</strong>, '
-                    '2) <strong>Guarde</strong> — se abre la edición con '
-                    '<strong>Microcontenidos</strong>, '
-                    '3) haga click en la pestaña Microcontenidos y complete el paso '
-                    '(elija la sección). '
-                    'En el alta desde cero Microcontenidos aparece solo después de guardar.'
+                    'Número de módulo: entero ≥ 0 (0 = bienvenida; luego 1, 2, 3…). '
+                    'Use las pestañas superiores para Estructura y Microcontenidos.'
                 ),
             },
         ),
-        ('Informacion del modulo', {
-            'fields': ('curso', 'numero', 'titulo', 'descripcion'),
-            'description': (
-                '<strong>Número del módulo:</strong> entero <strong>≥ 0</strong> (0 = bienvenida u onboarding; '
-                'luego 1, 2, 3…). El curso ordena por este número. '
-                'Sin decimales en este campo.'
-            ),
-        }),
-        ('Contenido educativo', {
-            'fields': ('contenido',),
-            'description': (
-                'Texto del módulo completo (principal en modo <b>Legacy</b>). '
-                'Si ya tiene pasos en <b>Microcontenidos</b>, este campo es <b>opcional</b> '
-                'y puede quedar vacío. Solo es obligatorio cuando el módulo no tiene pasos.'
-            ),
-        }),
-        ('Examen obligatorio', {
-            'fields': ('examen_obligatorio', 'puntaje_minimo_aprobacion'),
-            'description': 'Si activas "Examen Obligatorio", el estudiante NO podrá avanzar al siguiente módulo hasta aprobar',
-        }),
-        ('Entrega y checkpoint IA', {
-            'fields': ('modo_entrega', 'secciones_por_listo', 'facilitador_checkpoint'),
-            'description': (
-                '<div style="font-size:13px;line-height:1.5;color:#334155;">'
-                '<strong>Modo de entrega:</strong> Pasos / Automático / Legacy (este último ignora la tabla de microcontenidos). '
-                '<strong>Secciones por *listo*:</strong> cuántos bloques consecutivos (según el orden de secciones) salen en cada «listo». '
-                '<strong>Checkpoint facilitadora:</strong> solo si el curso usa agentes IA; aplica al <em>cerrar</em> este módulo.'
-                '</div>'
-            ),
-        }),
-        ('Duracion y calendario', {
-            'fields': ('duracion_dias', 'habilitado_desde'),
-            'description': (
-                'Multimedia del módulo: usá la tabla <strong>Multimedia</strong> más abajo '
-                '(videos, imágenes, PDFs, etc.). '
-                '<strong>Disponible desde</strong>: opcional; bloquea el envío de este módulo hasta esa fecha para todos los estudiantes, '
-                'salvo que en el <em>Cliente</em> exista una habilitación distinta para el mismo módulo.'
-            ),
-        }),
+        (
+            'Entrega',
+            {
+                'classes': ['tab'],
+                'fields': ('modo_entrega', 'secciones_por_listo', 'facilitador_checkpoint'),
+                'description': (
+                    'Por pasos = flujo *listo* (recomendado). Legacy = módulo completo de una vez. '
+                    'Secciones por *listo*: cuántos bloques salen juntos. '
+                    'Checkpoint facilitadora: solo con agentes IA al cerrar el módulo.'
+                ),
+            },
+        ),
+        (
+            'Texto legacy',
+            {
+                'classes': ['tab'],
+                'fields': ('contenido',),
+                'description': (
+                    'Principal solo en modo Legacy. Con microcontenidos, deje vacío.'
+                ),
+            },
+        ),
+        (
+            'Examen',
+            {
+                'classes': ['tab'],
+                'fields': ('examen_obligatorio', 'puntaje_minimo_aprobacion'),
+                'description': (
+                    'Si el examen es obligatorio, el estudiante no avanza al siguiente módulo '
+                    'hasta aprobar.'
+                ),
+            },
+        ),
+        (
+            'Calendario',
+            {
+                'classes': ['tab'],
+                'fields': ('duracion_dias', 'habilitado_desde'),
+                'description': (
+                    'Disponible desde: opcional; bloquea el envío hasta esa fecha '
+                    '(salvo habilitación distinta en Cliente).'
+                ),
+            },
+        ),
     )
     
     def modo_entrega_badge(self, obj):

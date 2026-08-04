@@ -1,15 +1,47 @@
-/* Agrupa Secciones + Microcontenidos en Módulo (admin Unfold — claro). */
+/* Agrupa Secciones + Microcontenidos en Módulo (admin Unfold — cajas visibles). */
+#secciones-group,
+#pasos-group,
+#archivos_multimedia-group,
+#preguntas-group,
 #seccionmodulo_set-group,
-#pasomodulo_set-group {
-  border: 2px solid #9A6CAC;
-  border-radius: 12px;
-  padding: 14px 16px 18px;
-  margin-bottom: 1.35rem;
-  background: linear-gradient(180deg, rgba(154, 108, 172, 0.1) 0%, #ffffff 52px);
-  box-shadow: 0 1px 3px rgba(95, 58, 110, 0.08);
+#pasomodulo_set-group,
+#archivomodulo_set-group,
+#preguntamodulo_set-group {
+  border: 2px solid #9A6CAC !important;
+  border-radius: 12px !important;
+  padding: 14px 16px 18px !important;
+  margin-bottom: 1.35rem !important;
+  background: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(95, 58, 110, 0.1) !important;
   color: #1a1625;
+  scroll-margin-top: 72px;
 }
 
+#pasos-group,
+#pasomodulo_set-group {
+  border-color: #7A4E8E !important;
+  background: linear-gradient(180deg, rgba(122, 78, 142, 0.08) 0%, #ffffff 48px) !important;
+}
+
+#secciones-group,
+#seccionmodulo_set-group {
+  background: linear-gradient(180deg, rgba(154, 108, 172, 0.08) 0%, #ffffff 48px) !important;
+}
+
+#archivos_multimedia-group,
+#archivomodulo_set-group {
+  border-color: #6b6575 !important;
+}
+
+#preguntas-group,
+#preguntamodulo_set-group {
+  border-color: #5F3A6E !important;
+}
+
+#secciones-group .inline-related h2,
+#pasos-group .inline-related h2,
+#secciones-group > h2,
+#pasos-group > h2,
 #seccionmodulo_set-group .inline-related h2,
 #pasomodulo_set-group .inline-related h2,
 #seccionmodulo_set-group > h2,
@@ -22,13 +54,9 @@
   color: #5F3A6E;
 }
 
-#pasomodulo_set-group {
-  border-color: #7a4e8e;
-  background: linear-gradient(180deg, rgba(122, 78, 142, 0.1) 0%, #ffffff 52px);
-}
-
+#pasos-group::before,
 #pasomodulo_set-group::before {
-  content: "Cada microcontenido debe elegir una sección de la pestaña «Secciones».";
+  content: "Cada microcontenido elige una sección (Estructura). Active el paso cuando el texto esté listo. Arrastre el asa o use ↑↓.";
   display: block;
   font-size: 13px;
   color: #5F3A6E;
@@ -37,6 +65,14 @@
   line-height: 1.45;
 }
 
+#secciones-group table,
+#pasos-group table,
+#secciones-group td,
+#pasos-group td,
+#secciones-group th,
+#pasos-group th,
+#secciones-group label,
+#pasos-group label,
 #seccionmodulo_set-group table,
 #pasomodulo_set-group table,
 #seccionmodulo_set-group td,
@@ -47,4 +83,77 @@
 #pasomodulo_set-group label {
   color: #1a1625 !important;
   font-size: 0.95rem;
+}
+
+/* Sticky jump — Unfold-native soft pills */
+.eki-modulo-jump {
+  position: sticky;
+  /* Debajo del header Unfold (~64px); no pelear z-index con tabs/sidebar */
+  top: 4.5rem;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 1rem;
+  padding: 0.55rem 0.75rem;
+  background: rgba(248, 247, 250, 0.98);
+  border: 1px solid rgba(30, 27, 36, 0.14);
+  border-radius: 999px;
+  box-shadow: 0 1px 3px rgba(30, 27, 36, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.eki-modulo-jump__label {
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b6575;
+  margin: 0 0.35rem 0 0.15rem;
+}
+
+.eki-modulo-jump__btn {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #3f3a48;
+  background: #fff;
+  border: 1px solid rgba(30, 27, 36, 0.14);
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  line-height: 1.3;
+}
+
+.eki-modulo-jump__btn:hover {
+  background: rgba(154, 108, 172, 0.12);
+  color: #7A4E8E;
+  border-color: rgba(154, 108, 172, 0.45);
+}
+
+.eki-modulo-guia {
+  max-width: 920px;
+  margin: 0 0 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #fff;
+  border: 1px solid rgba(154, 108, 172, 0.35);
+  border-radius: 12px;
+  color: #1e1b24;
+}
+
+.eki-modulo-guia summary {
+  cursor: pointer;
+  font-weight: 650;
+  color: #5F3A6E;
+  font-size: 0.9rem;
+}
+
+.eki-modulo-guia p {
+  margin: 0.65rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #6b6575;
 }
