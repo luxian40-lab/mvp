@@ -1,28 +1,7 @@
 from core.admin._common import *  # noqa: F401,F403
 
-# ==========================================
-# PERSONALIZACIÓN DEL INDEX DEL ADMIN
-# ==========================================
-from django.contrib.admin import AdminSite
-from django.urls import reverse
-from django.utils.html import format_html
-
-# Sobrescribir el template del index para agregar enlaces personalizados
-def index_view(self, request, extra_context=None):
-    """Vista personalizada del index del admin con enlaces a conversaciones"""
-    extra_context = extra_context or {}
-    
-    # Agregar enlace a conversaciones en el contexto
-    extra_context['conversaciones_url'] = reverse('conversaciones')
-    extra_context['dashboard_url'] = reverse('dashboard_unificado')
-    extra_context['dashboard_control_url'] = reverse('dashboard_unificado')  # Para compatibilidad con template
-    extra_context['dashboard_analytics_url'] = reverse('dashboard_analytics')
-    
-    return AdminSite.index(self, request, extra_context)
-
-# Aplicar la vista personalizada
-admin.site.index = index_view.__get__(admin.site, AdminSite)
-
+# El Panel de Inicio (/admin/) se inyecta vía UNFOLD DASHBOARD_CALLBACK
+# (core.views_admin_panel.unfold_dashboard_callback). Ya no se monkeypatchea AdminSite.index.
 
 # ========================================
 # 🎮 GAMIFICACIÓN

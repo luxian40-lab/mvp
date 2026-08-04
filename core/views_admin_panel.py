@@ -572,6 +572,25 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
     }
 
 
+def unfold_dashboard_callback(request, context):
+    """
+    Unfold DASHBOARD_CALLBACK nativo: inyecta el Panel ejecutivo en /admin/.
+    Reemplaza el monkeypatch de AdminSite.index + el tag eki_panel_snap.
+    """
+    from django.urls import reverse
+
+    context.update(
+        {
+            'snap': build_panel_snapshot(),
+            'conversaciones_url': reverse('conversaciones'),
+            'dashboard_url': reverse('dashboard_unificado'),
+            'dashboard_control_url': reverse('dashboard_unificado'),
+            'dashboard_analytics_url': reverse('dashboard_analytics'),
+        }
+    )
+    return context
+
+
 @staff_member_required
 def admin_panel_view(request):
     """Compat: el Panel vive en Inicio (/admin/)."""

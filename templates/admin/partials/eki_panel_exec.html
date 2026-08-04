@@ -122,9 +122,9 @@
     <p class="eki-panel-eco__intro">
       Campo WhatsApp es el centro operativo.
       Studio flota aparte — no se conecta a Aprende.
-      Clic en un nodo para entrar.
+      Arrastra nodos para reorganizar · clic corto para entrar.
     </p>
-    <div class="eki-panel-eco__stage">
+    <div class="eki-panel-eco__stage" data-eki-eco-graph>
       <div class="eki-panel-eco__floor" aria-hidden="true"></div>
       <div class="eki-panel-eco__scene">
         <svg class="eki-panel-eco__wires" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -137,6 +137,7 @@
           </defs>
           {% for e in snap.ecosistema.aristas %}
           <line class="eki-panel-eco__wire"
+                data-from="{{ e.from }}" data-to="{{ e.to }}"
                 x1="{{ e.x1 }}" y1="{{ e.y1 }}"
                 x2="{{ e.x2 }}" y2="{{ e.y2 }}" />
           {% endfor %}
@@ -145,8 +146,10 @@
         <a href="{{ n.url }}"
            {% if n.external %}target="_blank" rel="noopener"{% endif %}
            class="eki-panel-eco__orb eki-panel-eco__orb--{{ n.status }}{% if n.anchor %} eki-panel-eco__orb--anchor{% endif %}{% if n.island %} eki-panel-eco__orb--island{% endif %}"
+           data-eco-id="{{ n.id }}" data-eco-x="{{ n.x }}" data-eco-y="{{ n.y }}"
            style="left:{{ n.x }}%;top:{{ n.y }}%;--z:{{ n.z|default:0 }}px"
-           title="{{ n.label }} · {{ n.metric_label }}">
+           title="{{ n.label }} · {{ n.metric_label }} · arrastra para mover"
+           draggable="false">
           <span class="eki-panel-eco__orb-glow" aria-hidden="true"></span>
           <span class="eki-panel-eco__orb-core">
             <span class="material-symbols-outlined eki-panel-eco__orb-icon" aria-hidden="true">{{ n.icon|default:"circle" }}</span>
@@ -157,6 +160,7 @@
         </a>
         {% endfor %}
       </div>
+      <button type="button" class="eki-panel-eco__reset" data-eco-reset>Restablecer layout</button>
     </div>
     {% if snap.ecosistema.nota %}
     <p class="eki-panel-eco__nota">{{ snap.ecosistema.nota }}</p>

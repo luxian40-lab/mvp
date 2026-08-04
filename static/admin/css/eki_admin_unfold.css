@@ -751,6 +751,11 @@ html:not(.dark) .eki-panel-eco__floor {
   transform-style: preserve-3d;
   transform: rotateX(14deg) rotateY(-8deg) translateZ(0);
   animation: eki-eco-drift 16s ease-in-out infinite alternate;
+  touch-action: none;
+}
+.eki-panel-eco__scene--dragging {
+  animation: none;
+  cursor: grabbing;
 }
 @keyframes eki-eco-drift {
   from { transform: rotateX(12deg) rotateY(-10deg) translateZ(0); }
@@ -758,6 +763,29 @@ html:not(.dark) .eki-panel-eco__floor {
 }
 @media (prefers-reduced-motion: reduce) {
   .eki-panel-eco__scene { animation: none; }
+}
+.eki-panel-eco__reset {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.65rem;
+  z-index: 6;
+  border: 1px solid rgba(154, 108, 172, 0.35);
+  background: rgba(255, 255, 255, 0.82);
+  color: #5F3A6E;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+html.dark .eki-panel-eco__reset {
+  background: rgba(30, 27, 36, 0.85);
+  color: #e8dff0;
+  border-color: rgba(154, 108, 172, 0.45);
+}
+.eki-panel-eco__reset:hover {
+  background: rgba(154, 108, 172, 0.12);
 }
 
 .eki-panel-eco__wires {
@@ -785,12 +813,26 @@ html:not(.dark) .eki-panel-eco__floor {
   transform: translate3d(-50%, -50%, var(--z, 0px));
   text-decoration: none;
   color: inherit;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
   transition: transform 0.25s ease, filter 0.25s ease;
 }
 .eki-panel-eco__orb:hover {
   transform: translate3d(-50%, -50%, calc(var(--z, 0px) + 28px)) scale(1.06);
   filter: brightness(1.08);
   z-index: 5;
+}
+.eki-panel-eco__orb--dragging {
+  cursor: grabbing;
+  z-index: 8;
+  transition: none;
+  filter: brightness(1.1);
+  transform: translate3d(-50%, -50%, calc(var(--z, 0px) + 36px)) scale(1.08);
+}
+.eki-panel-eco__orb--dragging:hover {
+  transform: translate3d(-50%, -50%, calc(var(--z, 0px) + 36px)) scale(1.08);
 }
 .eki-panel-eco__orb--anchor { width: 9rem; z-index: 3; }
 .eki-panel-eco__orb--island { opacity: 0.95; }

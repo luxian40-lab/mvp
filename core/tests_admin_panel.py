@@ -98,9 +98,21 @@ class PanelViewTests(TestCase):
         self.assertContains(r, "Más espacios")
         self.assertContains(r, "Ecosistema eki")
         self.assertContains(r, "eki-panel-eco--lux")
+        self.assertContains(r, "data-eki-eco-graph")
+        self.assertContains(r, "data-eco-id")
+        self.assertContains(r, "eki_eco_graph.js")
         self.assertContains(r, "Studio es independiente de Aprende")
         self.assertContains(r, "global=1")
         self.assertContains(r, "force=1")
+
+    def test_unfold_dashboard_callback_inyecta_snap(self):
+        from core.views_admin_panel import unfold_dashboard_callback
+
+        ctx = unfold_dashboard_callback(None, {})
+        self.assertIn("snap", ctx)
+        self.assertIn("kpis", ctx["snap"])
+        self.assertIn("conversaciones_url", ctx)
+        self.assertIn("dashboard_url", ctx)
 
     def test_cobertura_api_global(self):
         r = self.client.get("/admin/cobertura/datos.json?global=1&force=1", follow=True)

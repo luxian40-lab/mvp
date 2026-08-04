@@ -12,7 +12,7 @@
 {% endblock %}
 
 {% block content %}
-{% eki_panel_snap as snap %}
+{% if not snap %}{% eki_panel_snap as snap %}{% endif %}
 {% include "admin/partials/eki_panel_exec.html" with snap=snap %}
 
 <details class="eki-admin-ops-fold">

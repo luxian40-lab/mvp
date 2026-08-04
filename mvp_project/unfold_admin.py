@@ -16,6 +16,10 @@ def _eki_admin_styles(request):
     return static("admin/css/eki_admin_unfold.css")
 
 
+def _eki_eco_graph_script(request):
+    return static("admin/js/eki_eco_graph.js")
+
+
 def environment_callback(request):
     """Badge esquina superior (estilo demo Unfold)."""
     return ["PRODUCCIÓN", "danger"]
@@ -37,6 +41,7 @@ UNFOLD = {
     # Paletas/COLORS = branding eki en código; no hay skins Jazzmin.
     "BORDER_RADIUS": "12px",
     "ENVIRONMENT": "mvp_project.unfold_admin.environment_callback",
+    "DASHBOARD_CALLBACK": "core.views_admin_panel.unfold_dashboard_callback",
     "SITE_FAVICONS": [
         {
             "rel": "icon",
@@ -112,6 +117,7 @@ UNFOLD = {
         },
     ],
     "STYLES": [_eki_admin_styles],
+    "SCRIPTS": [_eki_eco_graph_script],
     "COLORS": {
         # base un poco más gris → las cajas blancas se leen (antes casi se fundían).
         "base": {
