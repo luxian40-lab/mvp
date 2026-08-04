@@ -584,6 +584,14 @@ class Estudiante(models.Model):
         verbose_name='Ubicación Detalle',
         help_text='Vereda, barrio o información adicional de ubicación'
     )
+    territory_id = models.CharField(
+        max_length=10,
+        blank=True,
+        default='',
+        db_index=True,
+        verbose_name='Territory ID (DIVIPOLA)',
+        help_text='Código DIVIPOLA de 5 dígitos del municipio canónico. Vacío si no resuelto.',
+    )
     
     # DATOS DEMOGRÁFICOS
     GENERO_CHOICES = [

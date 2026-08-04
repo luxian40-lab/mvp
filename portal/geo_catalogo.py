@@ -50,6 +50,44 @@ class UbicacionResuelta:
     clave_municipio: str
     nivel: Literal['municipio', 'departamento', 'ninguno']
     metodo: Literal['exacto', 'alias', 'aproximado', 'solo_departamento', 'ninguno']
+    territory_id: str = ''
+    confianza: float = 0.0
+
+
+@lru_cache(maxsize=1)
+def _divipola_por_clave() -> dict[str, dict]:
+    path = DATA_DIR / 'divipola_municipios.json'
+    if not path.is_file():
+        return {}
+    return json.loads(path.read_text(encoding='utf-8'))
+
+
+def codigo_divipola_para_clave(clave_municipio: str) -> str:
+    """Devuelve código DIVIPOLA (5 dígitos) para clave MUNI|DEPTO del catálogo."""
+    if not clave_municipio:
+        return ''
+    row = _divipola_por_clave().get(clave_municipio) or {}
+    code = str(row.get('codigo') or '').strip()
+    return code.zfill(5) if code.isdigit() else code
+
+
+def _con_divipola(ubic: UbicacionResuelta) -> UbicacionResuelta:
+    tid = ''
+    conf = 0.0
+    if ubic.nivel == 'municipio' and ubic.clave_municipio:
+        tid = codigo_divipola_para_clave(ubic.clave_municipio)
+        if tid:
+            conf = {'exacto': 1.0, 'alias': 0.95, 'aproximado': 0.8}.get(ubic.metodo, 0.7)
+    return UbicacionResuelta(
+        departamento=ubic.departamento,
+        municipio=ubic.municipio,
+        clave_departamento=ubic.clave_departamento,
+        clave_municipio=ubic.clave_municipio,
+        nivel=ubic.nivel,
+        metodo=ubic.metodo,
+        territory_id=tid,
+        confianza=conf,
+    )
 
 
 def normalizar_clave_geo(texto: str) -> str:
@@ -122,7 +160,7 @@ def resolver_ubicacion(
     *,
     permitir_aproximado: bool = True,
 ) -> UbicacionResuelta:
-    """Resuelve texto libre contra catálogo DANE (~1122 municipios)."""
+    """Resuelve texto libre contra catálogo DANE (~1122 municipios) + DIVIPOLA."""
     raw_m = (municipio or '').strip()
     raw_d = (departamento or '').strip()
     m_corr, d_corr = MUNICIPIO_DEPTO_CORRECCION.get(
@@ -136,14 +174,14 @@ def resolver_ubicacion(
     def _desde_clave(clave: str, metodo: Literal['exacto', 'alias', 'aproximado', 'solo_departamento']) -> UbicacionResuelta:
         row = por_clave[clave]
         d_key = clave.split('|', 1)[1]
-        return UbicacionResuelta(
+        return _con_divipola(UbicacionResuelta(
             departamento=row.get('departamento') or _titulo(d_key),
             municipio=row.get('municipio') or _titulo(clave.split('|', 1)[0]),
             clave_departamento=d_key,
             clave_municipio=clave,
             nivel='municipio',
             metodo=metodo,
-        )
+        ))
 
     intentos_muni = []
     if raw_m:
@@ -180,6 +218,8 @@ def resolver_ubicacion(
             clave_municipio='',
             nivel='departamento',
             metodo='solo_departamento',
+            territory_id='',
+            confianza=0.4,
         )
 
     if permitir_aproximado and raw_d:
@@ -192,6 +232,8 @@ def resolver_ubicacion(
                 clave_municipio='',
                 nivel='departamento',
                 metodo='aproximado',
+                territory_id='',
+                confianza=0.3,
             )
 
     return UbicacionResuelta(
@@ -201,6 +243,8 @@ def resolver_ubicacion(
         clave_municipio='',
         nivel='ninguno',
         metodo='ninguno',
+        territory_id='',
+        confianza=0.0,
     )
 
 
@@ -225,16 +269,24 @@ def aplicar_ubicacion_dane(
     ubic = resolver_ubicacion(raw_m, raw_d)
     nuevo_m = ubic.municipio or raw_m
     nuevo_d = ubic.departamento or raw_d
+    nuevo_tid = (ubic.territory_id or '').strip()
+    old_tid = (getattr(estudiante, 'territory_id', '') or '').strip()
     changed = (
         (estudiante.municipio or '').strip() != (nuevo_m or '').strip()
         or (estudiante.departamento or '').strip() != (nuevo_d or '').strip()
+        or old_tid != nuevo_tid
     )
     if not changed:
         return False
     estudiante.municipio = nuevo_m
     estudiante.departamento = nuevo_d
+    if hasattr(estudiante, 'territory_id'):
+        estudiante.territory_id = nuevo_tid
     if save:
-        estudiante.save(update_fields=['municipio', 'departamento'])
+        fields = ['municipio', 'departamento']
+        if hasattr(estudiante, 'territory_id'):
+            fields.append('territory_id')
+        estudiante.save(update_fields=fields)
         try:
             from django.core.cache import cache
 

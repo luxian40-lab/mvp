@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from django.core.management import call_command
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from io import StringIO
 
 from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante
@@ -16,6 +16,7 @@ from portal.middleware import PORTAL_SESSION_KEY
 from portal.models import PortalUsuario
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class CoberturaGeoTests(TestCase):
     def test_centroide_medellin(self):
         c = centroide_municipio('Medellín', 'Antioquia')
@@ -70,6 +71,7 @@ class CoberturaGeoTests(TestCase):
         self.assertIn('MEDELLIN|ANTIOQUIA', data['por_municipio_clave'])
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class PortalCoberturaMapTests(TestCase):
     def setUp(self):
         self.org = Cliente.objects.create(
@@ -142,3 +144,4 @@ class NormalizarUbicacionesCommandTests(TestCase):
         est.refresh_from_db()
         self.assertEqual(est.municipio, 'Medellin')
         self.assertEqual(est.departamento, 'Antioquia')
+        self.assertEqual(est.territory_id, '05001')
