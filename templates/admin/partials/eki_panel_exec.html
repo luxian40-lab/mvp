@@ -4,6 +4,7 @@
   <header class="eki-panel-exec__hello">
     <div>
       <h1 class="eki-panel-exec__title">{% eki_admin_saludo %}</h1>
+      <p class="eki-panel-exec__motto">{% eki_admin_frase_motivadora %}</p>
       <p class="eki-panel-exec__sub">Operación en vivo · actualizado {{ snap.actualizado|default:"—" }}</p>
     </div>
     <time class="eki-hub-cal" datetime="{% now 'Y-m-d' %}">
@@ -120,9 +121,8 @@
       <a href="{% url 'dashboard_unificado' %}?tab=retencion">Centro de Éxito →</a>
     </div>
     <p class="eki-panel-eco__intro">
-      Campo WhatsApp es el centro.
-      Studio e Infra flotan aparte · Studio no conecta a Aprende.
-      Arrastra nodos · clic corto para entrar.
+      Campo WhatsApp es el centro. Studio e Infra flotan aparte · Studio no conecta a Aprende.
+      Arrastra nodos o el fondo del escenario · clic corto para entrar · Restablecer layout abajo.
     </p>
     <div class="eki-panel-eco__stage" data-eki-eco-graph>
       <div class="eki-panel-eco__floor" aria-hidden="true"></div>

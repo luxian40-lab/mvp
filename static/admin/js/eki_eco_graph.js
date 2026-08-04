@@ -1,9 +1,9 @@
 /**
- * Ecosistema eki — nodos arrastrables con aristas en vivo.
- * Posiciones en % del scene; persistencia localStorage por usuario.
+ * Ecosistema eki — nodos arrastrables + pan del escenario.
+ * Posiciones en % del scene; persistencia localStorage.
  */
 (function () {
-  var STORAGE_KEY = 'eki_eco_layout_v1';
+  var STORAGE_KEY = 'eki_eco_layout_v2';
   var DRAG_THRESHOLD = 6;
 
   function clamp(n, min, max) {
@@ -13,7 +13,10 @@
   function loadLayout() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : {};
+      if (raw) return JSON.parse(raw);
+      // migrar layout v1 si existe
+      var legacy = localStorage.getItem('eki_eco_layout_v1');
+      return legacy ? JSON.parse(legacy) : {};
     } catch (e) {
       return {};
     }
@@ -42,6 +45,9 @@
         orb.style.top = layout[id].y + '%';
       }
     });
+    if (layout._pan && typeof layout._pan.x === 'number') {
+      scene.style.translate = layout._pan.x + 'px ' + (layout._pan.y || 0) + 'px';
+    }
 
     function posOf(id) {
       var el = scene.querySelector('.eki-panel-eco__orb[data-eco-id="' + id + '"]');
@@ -71,15 +77,81 @@
       resetBtn.addEventListener('click', function (ev) {
         ev.preventDefault();
         localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem('eki_eco_layout_v1');
         orbs.forEach(function (orb) {
           var dx = orb.getAttribute('data-eco-x');
           var dy = orb.getAttribute('data-eco-y');
           if (dx != null) orb.style.left = dx + '%';
           if (dy != null) orb.style.top = dy + '%';
         });
+        scene.style.translate = '';
+        layout = {};
         redrawWires();
       });
     }
+
+    // Pan del escenario completo (fondo)
+    (function bindPan() {
+      var panning = false;
+      var moved = false;
+      var startX = 0;
+      var startY = 0;
+      var originX = 0;
+      var originY = 0;
+      var pointerId = null;
+
+      function parsePan() {
+        var t = scene.style.translate || '0px 0px';
+        var parts = t.replace(/px/g, '').trim().split(/\s+/);
+        return { x: parseFloat(parts[0]) || 0, y: parseFloat(parts[1]) || 0 };
+      }
+
+      root.addEventListener('pointerdown', function (ev) {
+        if (ev.button != null && ev.button !== 0) return;
+        if (ev.target.closest && ev.target.closest('.eki-panel-eco__orb')) return;
+        if (ev.target.closest && ev.target.closest('[data-eco-reset]')) return;
+        panning = true;
+        moved = false;
+        pointerId = ev.pointerId;
+        startX = ev.clientX;
+        startY = ev.clientY;
+        var p = parsePan();
+        originX = p.x;
+        originY = p.y;
+        root.classList.add('eki-panel-eco__stage--panning');
+        scene.classList.add('eki-panel-eco__scene--dragging');
+        try { root.setPointerCapture(ev.pointerId); } catch (e) {}
+      });
+
+      root.addEventListener('pointermove', function (ev) {
+        if (!panning || (pointerId != null && ev.pointerId !== pointerId)) return;
+        var dx = ev.clientX - startX;
+        var dy = ev.clientY - startY;
+        if (!moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+        moved = true;
+        ev.preventDefault();
+        var nx = clamp(originX + dx, -120, 120);
+        var ny = clamp(originY + dy, -80, 80);
+        scene.style.translate = nx + 'px ' + ny + 'px';
+      });
+
+      function endPan(ev) {
+        if (!panning) return;
+        if (pointerId != null && ev.pointerId !== pointerId) return;
+        panning = false;
+        root.classList.remove('eki-panel-eco__stage--panning');
+        scene.classList.remove('eki-panel-eco__scene--dragging');
+        try { root.releasePointerCapture(ev.pointerId); } catch (e) {}
+        if (moved) {
+          var p = parsePan();
+          layout._pan = { x: p.x, y: p.y };
+          saveLayout(layout);
+        }
+        pointerId = null;
+      }
+      root.addEventListener('pointerup', endPan);
+      root.addEventListener('pointercancel', endPan);
+    })();
 
     orbs.forEach(function (orb) {
       var dragging = false;
@@ -115,8 +187,8 @@
         ev.preventDefault();
         var rect = scene.getBoundingClientRect();
         if (!rect.width || !rect.height) return;
-        var nx = clamp(originLeft + (dx / rect.width) * 100, 6, 94);
-        var ny = clamp(originTop + (dy / rect.height) * 100, 8, 92);
+        var nx = clamp(originLeft + (dx / rect.width) * 100, 4, 96);
+        var ny = clamp(originTop + (dy / rect.height) * 100, 6, 94);
         orb.style.left = nx + '%';
         orb.style.top = ny + '%';
         redrawWires();

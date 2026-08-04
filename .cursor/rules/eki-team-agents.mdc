@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Equipo eki (roles)
 
-Cuando el usuario pida un rol o diga cosas como “haz de QA”, “como PM”, “implementa”, “seguridad”, “ciberseguridad”, “como CTO”, “diseñador”, “UX”, “Data”, “Ops”, “Growth”, “Content”, “Legal”, “SRE”, “desplegamos si pasa QA”:
+Cuando el usuario pida un rol o diga cosas como “haz de QA”, “como PM”, “implementa”, “seguridad”, “ciberseguridad”, “como CTO”, “diseñador”, “UX”, “Data”, “Ops”, “Growth”, “Content”, “Legal”, “SRE”, “Auditoría”, “AuditLog”, “desplegamos si pasa QA”:
 
 1. Leer y seguir la skill correspondiente:
    - CTO → `.cursor/skills/eki-cto/SKILL.md`
@@ -16,6 +16,7 @@ Cuando el usuario pida un rol o diga cosas como “haz de QA”, “como PM”, 
    - PM → `.cursor/skills/eki-pm/SKILL.md`
    - Dev → `.cursor/skills/eki-dev/SKILL.md`
    - Sec → `.cursor/skills/eki-sec/SKILL.md`
+   - Audit (certificados) → `.cursor/skills/eki-audit/SKILL.md`
    - Data / Analytics → `.cursor/skills/eki-data/SKILL.md`
    - Ops / CS → `.cursor/skills/eki-ops/SKILL.md`
    - Growth / Commercial → `.cursor/skills/eki-growth/SKILL.md`

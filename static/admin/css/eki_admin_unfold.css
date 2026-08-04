@@ -310,12 +310,22 @@ html body textarea {
   color: #1e1b24;
   line-height: 1.2;
 }
+.eki-panel-exec__motto {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #7A4E8E;
+  line-height: 1.4;
+  max-width: 36rem;
+  font-style: italic;
+}
 .eki-panel-exec__sub {
   margin: 0;
   color: #6b6575;
   font-size: 0.95rem;
 }
 html.dark .eki-panel-exec__title { color: #f4f2f7; }
+html.dark .eki-panel-exec__motto { color: #c4a5d4; }
 html.dark .eki-panel-exec__sub { color: #a89eb0; }
 
 .eki-panel-kpis {
@@ -690,7 +700,7 @@ html.dark .eki-panel-timeline p { color: #efe8f5; }
 /* Ecosistema hub — look 3D de lujo (CSS perspective, sin WebGL) */
 .eki-panel-eco {
   margin-bottom: 1.15rem;
-  overflow: hidden;
+  overflow: visible;
 }
 .eki-panel-eco__intro {
   margin: -0.35rem 0 0.85rem;
@@ -711,9 +721,10 @@ html.dark .eki-panel-eco__nota { color: #c4a5d4; }
 .eki-panel-eco__stage {
   position: relative;
   perspective: 1400px;
-  min-height: 400px;
+  min-height: 540px;
   border-radius: 18px;
   overflow: hidden;
+  cursor: grab;
   background:
     radial-gradient(ellipse 80% 60% at 50% 40%, rgba(154, 108, 172, 0.22), transparent 70%),
     radial-gradient(ellipse 50% 40% at 15% 20%, rgba(95, 58, 110, 0.18), transparent 55%),
@@ -731,6 +742,7 @@ html:not(.dark) .eki-panel-eco__stage {
     inset 0 1px 0 rgba(255, 255, 255, 0.8),
     0 14px 36px rgba(95, 58, 110, 0.12);
 }
+.eki-panel-eco__stage--panning { cursor: grabbing; }
 .eki-panel-eco__floor {
   position: absolute;
   left: 8%;
@@ -747,9 +759,9 @@ html:not(.dark) .eki-panel-eco__floor {
 }
 .eki-panel-eco__scene {
   position: relative;
-  height: 400px;
+  height: 540px;
   transform-style: preserve-3d;
-  transform: rotateX(14deg) rotateY(-8deg) translateZ(0);
+  transform: rotateX(10deg) rotateY(-6deg) translateZ(0);
   animation: eki-eco-drift 16s ease-in-out infinite alternate;
   touch-action: none;
 }
@@ -758,11 +770,15 @@ html:not(.dark) .eki-panel-eco__floor {
   cursor: grabbing;
 }
 @keyframes eki-eco-drift {
-  from { transform: rotateX(12deg) rotateY(-10deg) translateZ(0); }
-  to { transform: rotateX(16deg) rotateY(-4deg) translateZ(6px); }
+  from { transform: rotateX(8deg) rotateY(-8deg) translateZ(0); }
+  to { transform: rotateX(12deg) rotateY(-3deg) translateZ(4px); }
 }
 @media (prefers-reduced-motion: reduce) {
   .eki-panel-eco__scene { animation: none; }
+}
+@media (max-width: 720px) {
+  .eki-panel-eco__stage { min-height: 480px; }
+  .eki-panel-eco__scene { height: 480px; }
 }
 .eki-panel-eco__reset {
   position: absolute;
@@ -809,7 +825,7 @@ html.dark .eki-panel-eco__reset {
 .eki-panel-eco__orb {
   position: absolute;
   z-index: 2;
-  width: 7.6rem;
+  width: 8.4rem;
   transform: translate3d(-50%, -50%, var(--z, 0px));
   text-decoration: none;
   color: inherit;
@@ -834,7 +850,7 @@ html.dark .eki-panel-eco__reset {
 .eki-panel-eco__orb--dragging:hover {
   transform: translate3d(-50%, -50%, calc(var(--z, 0px) + 36px)) scale(1.08);
 }
-.eki-panel-eco__orb--anchor { width: 9rem; z-index: 3; }
+.eki-panel-eco__orb--anchor { width: 10rem; z-index: 3; }
 .eki-panel-eco__orb--island { opacity: 0.95; }
 .eki-panel-eco__orb-glow {
   position: absolute;
