@@ -1,9 +1,69 @@
 from core.admin._common import *  # noqa: F401,F403
 from core.admin.clientes import HabilitacionModuloEstudianteInline
+from django import forms
+from django.db.models import Q
+
+
+class CursoInscribirChoiceField(forms.ModelMultipleChoiceField):
+    def label_from_instance(self, obj):
+        org = obj.cliente.nombre if getattr(obj, 'cliente_id', None) else 'General'
+        modo = 'Clases · Aprende' if obj.es_modo_clases() else 'Módulos · WhatsApp'
+        return f'{obj.nombre}  —  {org} ({modo})'
+
+
+class EstudianteAdminForm(forms.ModelForm):
+    """Alta/edición: permite elegir curso(s) a inscribir sin pasar por Excel."""
+
+    cursos_a_inscribir = CursoInscribirChoiceField(
+        queryset=Curso.objects.none(),
+        required=False,
+        label='Inscribir en curso(s)',
+        help_text=(
+            'Opcional. Al guardar se crea el progreso. '
+            'Si eligió Cliente, se listan sobre todo los cursos de esa org.'
+        ),
+        widget=forms.CheckboxSelectMultiple,
+    )
+
+    class Meta:
+        model = Estudiante
+        fields = (
+            'tipo_documento', 'cedula', 'nombre', 'telefono', 'cliente', 'activo',
+            'municipio', 'departamento', 'ubicacion_detalle', 'genero', 'edad', 'rango_edad',
+        )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        qs = (
+            Curso.objects.filter(activo=True)
+            .select_related('cliente')
+            .order_by('cliente__nombre', 'nombre')
+        )
+        cliente_id = None
+        if self.data.get('cliente'):
+            try:
+                cliente_id = int(self.data.get('cliente'))
+            except (TypeError, ValueError):
+                cliente_id = None
+        elif self.instance and self.instance.pk and self.instance.cliente_id:
+            cliente_id = self.instance.cliente_id
+        if cliente_id:
+            qs = qs.filter(Q(cliente_id=cliente_id) | Q(cliente__isnull=True))
+        if self.instance and self.instance.pk:
+            ya = ProgresoEstudiante.objects.filter(
+                estudiante=self.instance,
+            ).values_list('curso_id', flat=True)
+            qs = qs.exclude(pk__in=ya)
+            self.fields['cursos_a_inscribir'].help_text = (
+                'Marque cursos nuevos. Los ya inscritos aparecen en la lista de abajo.'
+            )
+        self.fields['cursos_a_inscribir'].queryset = qs
+
 
 @admin.register(Estudiante)
 class EstudianteAdmin(admin.ModelAdmin):
     """Gestión de estudiantes/campesinos"""
+    form = EstudianteAdminForm
     change_form_template = 'admin/core/estudiante/change_form.html'
     inlines = [HabilitacionModuloEstudianteInline]
     # Listado limpio P1: 5 columnas operativas (cursos → ficha / filtros).
@@ -45,19 +105,62 @@ class EstudianteAdmin(admin.ModelAdmin):
             'fields': ('tipo_documento', 'cedula', 'nombre', 'telefono', 'cliente', 'activo'),
             'description': 'Documento único; teléfono WhatsApp y organización.',
         }),
+        ('Inscripción a curso', {
+            'fields': ('cursos_a_inscribir', 'mostrar_cursos_inscritos'),
+            'description': (
+                'Elija el curso aquí al crear o editar (ej. Cenipalma — Clases Aprende). '
+                'Para muchos alumnos use Importar Excel (columna Curso).'
+            ),
+        }),
         ('Ubicación y perfil', {
             'classes': ('collapse',),
             'fields': ('municipio', 'departamento', 'ubicacion_detalle', 'genero', 'edad', 'rango_edad'),
         }),
-        ('Cursos inscritos', {
-            'classes': ('collapse',),
-            'fields': ('mostrar_cursos_inscritos',),
-            'description': (
-                'Si el cliente usa drip «solo por lista», habilite módulos en la pestaña inferior.'
-            ),
-        }),
     )
     readonly_fields = ('mostrar_cursos_inscritos',)
+
+    def get_fieldsets(self, request, obj=None):
+        if obj is None:
+            return (
+                ('Identificación y contacto', {
+                    'fields': ('tipo_documento', 'cedula', 'nombre', 'telefono', 'cliente', 'activo'),
+                    'description': 'Documento único; teléfono WhatsApp y organización.',
+                }),
+                ('Inscripción a curso', {
+                    'fields': ('cursos_a_inscribir',),
+                    'description': (
+                        'Marque el curso al que entra este estudiante. '
+                        'Si eligió Cliente arriba, verá los cursos de esa org.'
+                    ),
+                }),
+                ('Ubicación y perfil', {
+                    'classes': ('collapse',),
+                    'fields': (
+                        'municipio', 'departamento', 'ubicacion_detalle',
+                        'genero', 'edad', 'rango_edad',
+                    ),
+                }),
+            )
+        return self.fieldsets
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        cursos = form.cleaned_data.get('cursos_a_inscribir')
+        if not cursos:
+            return
+        from core.inscripcion_curso import inscribir_estudiante_en_curso
+
+        nuevos = 0
+        for curso in cursos:
+            _prog, creado = inscribir_estudiante_en_curso(obj, curso)
+            if creado:
+                nuevos += 1
+        if nuevos:
+            self.message_user(
+                request,
+                f'Inscrito en {nuevos} curso(s).',
+                level=messages.SUCCESS,
+            )
     
     def cedula_formateada(self, obj):
         """Muestra cédula con tipo (sin emoji en listado)."""
