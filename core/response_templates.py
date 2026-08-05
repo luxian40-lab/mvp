@@ -1237,6 +1237,34 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 estudiante.contexto_temporal = _ctx_foco or None
                 estudiante.save(update_fields=['contexto_temporal'])
 
+        # 10x / modo Clases: *listo* no avanza por WA; el estudio es en Aprende.
+        progresos_activos = progresos_activos.select_related('curso')
+        if progresos_activos.count() == 1:
+            _p_clases = progresos_activos.first()
+            _c_clases = getattr(_p_clases, 'curso', None)
+            if _c_clases is not None and getattr(_c_clases, 'es_modo_clases', lambda: False)():
+                return (
+                    f"📚 *{_c_clases.nombre}* se estudia en *Aprende* "
+                    "(clases y biblioteca), no con *listo* por WhatsApp.\n\n"
+                    "Escribe *aula* para entrar, o abre:\n"
+                    "https://aprende.eki.technology/aprende/estudiante/login/\n\n"
+                    "Si también tienes un curso por WhatsApp, escribe *menú*."
+                )
+        elif progresos_activos.count() > 1:
+            _solo_clases = all(
+                getattr(p.curso, 'es_modo_clases', lambda: False)()
+                for p in progresos_activos
+                if p.curso_id
+            )
+            if _solo_clases:
+                _noms = ', '.join(f"*{p.curso.nombre}*" for p in progresos_activos[:3] if p.curso_id)
+                return (
+                    f"📚 Tus cursos ({_noms}) se estudian en *Aprende*, "
+                    "no con *listo* aquí.\n\n"
+                    "Escribe *aula* o entra a:\n"
+                    "https://aprende.eki.technology/aprende/estudiante/login/"
+                )
+
         # Varios cursos activos: solo forzar curso en drip si TODOS están bloqueados.
         # Si hay al menos uno libre (p. ej. mid-pasos), no hijackear el *listo*.
         if progresos_activos.count() > 1:
@@ -1295,6 +1323,14 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             return """Aún no tienes un curso asignado. 📚
 
 Tu organización te asignará un curso pronto. Si crees que es un error, escribe *ayuda* para contactar soporte."""
+
+        if progreso.curso_id and getattr(progreso.curso, 'es_modo_clases', lambda: False)():
+            return (
+                f"📚 *{progreso.curso.nombre}* se estudia en *Aprende* "
+                "(clases y biblioteca), no con *listo* por WhatsApp.\n\n"
+                "Escribe *aula* para entrar, o abre:\n"
+                "https://aprende.eki.technology/aprende/estudiante/login/"
+            )
         
         _ctx_sesion_asistente = estudiante.contexto_temporal or {}
         if (

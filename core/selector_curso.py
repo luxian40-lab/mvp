@@ -366,6 +366,16 @@ Cuando termines, escribe: *"listo"*"""
     palabras_completar = ['listo', 'siguiente', 'ok', 'dale', 'avanzar', 'sigue', 'continuar']
 
     if any(palabra in mensaje_lower for palabra in palabras_completar):
+        # 10x / Clases: no avanzar por WA
+        if getattr(curso_seleccionado, 'es_modo_clases', lambda: False)():
+            _persist_curso_foco()
+            return (
+                f"📚 *{curso_seleccionado.nombre}* se estudia en *Aprende* "
+                "(clases y biblioteca), no con *listo* por WhatsApp.\n\n"
+                "Escribe *aula* para entrar, o abre:\n"
+                "https://aprende.eki.technology/aprende/estudiante/login/"
+            )
+
         _blk_listo = mensaje_bloqueo_avance_siguiente_modulo(
             estudiante, progreso, modulo_actual
         )
