@@ -307,18 +307,26 @@
                     <strong>Importar Estudiantes Excel</strong>
                     (<a href="{% url 'admin:core_estudiante_importar' %}">abrir importador</a>).
                     La ruta antigua <code>/admin/importar-estudiantes/</code> redirige aquí (importador LatAm).</p>
-                <p>Plantilla: acción <strong>Exportar plantilla importación</strong> en la lista de estudiantes.</p>
+                <p>Plantilla: acción <strong>Exportar plantilla importación</strong> en la lista de estudiantes
+                    (o desde el <a href="{% url 'admin:core_estudiante_importar' %}">importador</a>).</p>
                 <table>
-                    <thead><tr><th>Columna</th><th>Obligatorio</th><th>Notas</th></tr></thead>
+                    <thead><tr><th>Col</th><th>Campo</th><th>Obligatorio</th><th>Ejemplo / notas</th></tr></thead>
                     <tbody>
-                        <tr><td>Tipo documento (A), Documento (B)</td><td>Sí</td><td>CC/TI/… y número sin puntos. (Plantillas viejas: Cédula sola en A también se acepta.)</td></tr>
-                        <tr><td>Nombre completo (C)</td><td>Sí</td><td>Nombre completo.</td></tr>
-                        <tr><td>Teléfono (D)</td><td>Sí</td><td>WhatsApp con país: <code>573001234567</code>.</td></tr>
-                        <tr><td>Municipio, Departamento, Género, Edad (E–H)</td><td>Recomendado</td><td>Género: masculino/femenino/otro/no reporta.</td></tr>
-                        <tr><td>Curso (I)</td><td>No*</td><td>Nombre <strong>exacto</strong> del curso (ej. <code>Cenipalma — Clases Aprende</code>). Crea inscripción.</td></tr>
-                        <tr><td>Cliente (J)</td><td>No*</td><td>Nombre exacto de la org (ej. <code>Cenipalma</code>). *Requerido para reportes B2B limpios.</td></tr>
+                        <tr><td>A</td><td>Tipo documento</td><td>Sí</td><td>Solo el tipo: <code>CC</code>, <code>TI</code>, <code>CE</code>, <code>DUI</code>, <code>CURP</code>, <code>DNI</code>, <code>RUT</code>, <code>PP</code>, <code>OTRO</code>. <em>No el número.</em></td></tr>
+                        <tr><td>B</td><td>Documento</td><td>Sí</td><td>Número/ID sin puntos. Ej: <code>1020304050</code></td></tr>
+                        <tr><td>C</td><td>Nombre Completo</td><td>Sí</td><td>Ej: <code>Ana Pérez García</code></td></tr>
+                        <tr><td>D</td><td>Teléfono</td><td>Sí</td><td>WhatsApp con país: <code>573001234567</code></td></tr>
+                        <tr><td>E</td><td>Municipio</td><td>Recomendado</td><td>Ej: Bogotá</td></tr>
+                        <tr><td>F</td><td>Departamento</td><td>Recomendado</td><td>Ej: Cundinamarca</td></tr>
+                        <tr><td>G</td><td>Género</td><td>Recomendado</td><td><code>masculino</code> / <code>femenino</code> / <code>otro</code> / <code>no reporta</code></td></tr>
+                        <tr><td>H</td><td>Edad</td><td>Recomendado</td><td>Entero, ej: <code>35</code></td></tr>
+                        <tr><td>I</td><td>Curso</td><td>No*</td><td>Nombre <strong>exacto</strong> (ej. <code>Cenipalma — Clases Aprende</code>). Crea inscripción.</td></tr>
+                        <tr><td>J</td><td>Cliente</td><td>No*</td><td>Nombre exacto de la org (ej. <code>Cenipalma</code>). *Recomendado para B2B.</td></tr>
                     </tbody>
                 </table>
+                <p><strong>Ejemplo de fila:</strong>
+                    <code>CC | 1020304050 | Juan Pérez | 573001234567 | Manizales | Caldas | masculino | 35 | Cenipalma — Clases Aprende | Cenipalma</code></p>
+                <p style="font-size:0.95em;color:#555;">Plantillas viejas (A = solo cédula numérica, sin columna Tipo) siguen aceptándose.</p>
 
                 <h3>Grupos de estudiantes</h3>
                 <div class="callout-ok">

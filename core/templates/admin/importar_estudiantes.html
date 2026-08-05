@@ -4,18 +4,18 @@
 {% block title %}Importar Estudiantes{% endblock %}
 
 {% block content %}
-<div style="max-width:800px;margin:40px auto;padding:20px;">
-    <h1>📤 Importar Estudiantes desde Excel</h1>
+<div style="max-width:920px;margin:40px auto;padding:20px;">
+    <h1>Importar Estudiantes desde Excel</h1>
     
     {% if error %}
         <div style="background:#ffebee;color:#c62828;padding:15px;border-radius:8px;margin:20px 0;">
-            <strong>❌ Error:</strong> {{ error }}
+            <strong>Error:</strong> {{ error }}
         </div>
     {% endif %}
     
     {% if exito %}
         <div style="background:#e8f5e9;color:#2e7d32;padding:20px;border-radius:8px;margin:20px 0;">
-            <h3>✅ Importación Exitosa</h3>
+            <h3>Importación exitosa</h3>
             <ul style="margin:10px 0;padding-left:20px;">
                 <li><strong>Estudiantes creados:</strong> {{ creados }}</li>
                 <li><strong>Estudiantes actualizados:</strong> {{ actualizados }}</li>
@@ -23,7 +23,7 @@
                 <li><strong>Total procesados:</strong> {{ total }}</li>
             </ul>
             {% if advertencias %}
-                <p><strong>⚠️ Advertencias:</strong></p>
+                <p><strong>Advertencias:</strong></p>
                 <ul style="font-size:13px;">
                     {% for adv in advertencias %}
                         <li>{{ adv }}</li>
@@ -39,74 +39,100 @@
             {% csrf_token %}
             
             <div style="background:#e3f2fd;padding:20px;border-radius:8px;margin-bottom:20px;">
-                <h3>📋 Formato del Archivo Excel</h3>
-                <p>El archivo debe tener las siguientes columnas (en este orden):</p>
-                <table style="width:100%;border-collapse:collapse;margin-top:10px;">
+                <h3 style="margin-top:0;">Formato del Excel (plantilla actual)</h3>
+                <p style="margin:0 0 12px;">
+                    Descargue la plantilla desde la lista de Estudiantes →
+                    <strong>Exportar plantilla importación</strong>.
+                    Primera fila = encabezados. Columnas en este orden:
+                </p>
+                <table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:14px;">
                     <thead>
                         <tr style="background:#1976d2;color:white;">
-                            <th style="padding:10px;text-align:left;">Columna</th>
-                            <th style="padding:10px;text-align:left;">Descripción</th>
+                            <th style="padding:10px;text-align:left;">Col</th>
+                            <th style="padding:10px;text-align:left;">Campo</th>
                             <th style="padding:10px;text-align:left;">Obligatorio</th>
+                            <th style="padding:10px;text-align:left;">Ejemplo / notas</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr style="border-bottom:1px solid #ddd;">
+                        <tr style="border-bottom:1px solid #ddd;background:#fff;">
                             <td style="padding:10px;"><strong>A</strong></td>
-                            <td style="padding:10px;">Cédula / Documento de identidad</td>
-                            <td style="padding:10px;">✅ Obligatorio</td>
+                            <td style="padding:10px;"><strong>Tipo documento</strong></td>
+                            <td style="padding:10px;">Sí</td>
+                            <td style="padding:10px;">Solo el tipo: <code>CC</code>, <code>TI</code>, <code>CE</code>, <code>DUI</code>, <code>CURP</code>, <code>DNI</code>, <code>RUT</code>, <code>PP</code>, <code>OTRO</code>… <em>No ponga el número aquí.</em></td>
                         </tr>
-                        <tr style="border-bottom:1px solid #ddd;">
+                        <tr style="border-bottom:1px solid #ddd;background:#f8fafc;">
                             <td style="padding:10px;"><strong>B</strong></td>
-                            <td style="padding:10px;">Nombre completo del estudiante</td>
-                            <td style="padding:10px;">✅ Obligatorio</td>
+                            <td style="padding:10px;"><strong>Documento</strong></td>
+                            <td style="padding:10px;">Sí</td>
+                            <td style="padding:10px;">Número/ID sin puntos ni espacios. Ej: <code>1020304050</code></td>
                         </tr>
-                        <tr style="border-bottom:1px solid #ddd;">
+                        <tr style="border-bottom:1px solid #ddd;background:#fff;">
                             <td style="padding:10px;"><strong>C</strong></td>
-                            <td style="padding:10px;">Teléfono (ej: 3001234567 o 573001234567)</td>
-                            <td style="padding:10px;">✅ Obligatorio</td>
+                            <td style="padding:10px;"><strong>Nombre Completo</strong></td>
+                            <td style="padding:10px;">Sí</td>
+                            <td style="padding:10px;">Ej: <code>Ana Pérez García</code></td>
                         </tr>
-                        <tr style="border-bottom:1px solid #ddd;">
+                        <tr style="border-bottom:1px solid #ddd;background:#f8fafc;">
                             <td style="padding:10px;"><strong>D</strong></td>
-                            <td style="padding:10px;">Municipio</td>
-                            <td style="padding:10px;">Opcional</td>
+                            <td style="padding:10px;"><strong>Teléfono</strong></td>
+                            <td style="padding:10px;">Sí</td>
+                            <td style="padding:10px;">WhatsApp con país. CO: <code>573001234567</code></td>
                         </tr>
-                        <tr style="border-bottom:1px solid #ddd;">
+                        <tr style="border-bottom:1px solid #ddd;background:#fff;">
                             <td style="padding:10px;"><strong>E</strong></td>
-                            <td style="padding:10px;">Departamento</td>
-                            <td style="padding:10px;">Opcional</td>
+                            <td style="padding:10px;">Municipio</td>
+                            <td style="padding:10px;">Recomendado</td>
+                            <td style="padding:10px;">Ej: Bogotá</td>
                         </tr>
-                        <tr style="border-bottom:1px solid #ddd;">
+                        <tr style="border-bottom:1px solid #ddd;background:#f8fafc;">
                             <td style="padding:10px;"><strong>F</strong></td>
-                            <td style="padding:10px;">Género (masculino / femenino / otro / no reporta)</td>
-                            <td style="padding:10px;">Opcional (default: NR)</td>
+                            <td style="padding:10px;">Departamento</td>
+                            <td style="padding:10px;">Recomendado</td>
+                            <td style="padding:10px;">Ej: Cundinamarca</td>
                         </tr>
-                        <tr style="border-bottom:1px solid #ddd;">
+                        <tr style="border-bottom:1px solid #ddd;background:#fff;">
                             <td style="padding:10px;"><strong>G</strong></td>
-                            <td style="padding:10px;">Edad (número entero, ej: 35)</td>
-                            <td style="padding:10px;">Opcional</td>
+                            <td style="padding:10px;">Género</td>
+                            <td style="padding:10px;">Recomendado</td>
+                            <td style="padding:10px;"><code>masculino</code> / <code>femenino</code> / <code>otro</code> / <code>no reporta</code></td>
                         </tr>
-                        <tr style="border-bottom:1px solid #ddd;">
+                        <tr style="border-bottom:1px solid #ddd;background:#f8fafc;">
                             <td style="padding:10px;"><strong>H</strong></td>
-                            <td style="padding:10px;">Nombre del Curso (para inscripción automática)</td>
-                            <td style="padding:10px;">Opcional</td>
+                            <td style="padding:10px;">Edad</td>
+                            <td style="padding:10px;">Recomendado</td>
+                            <td style="padding:10px;">Número entero, ej: <code>35</code></td>
                         </tr>
-                        <tr style="border-bottom:1px solid #ddd;">
+                        <tr style="border-bottom:1px solid #ddd;background:#fff;">
                             <td style="padding:10px;"><strong>I</strong></td>
-                            <td style="padding:10px;">Nombre del Cliente / Empresa</td>
-                            <td style="padding:10px;">Opcional</td>
+                            <td style="padding:10px;">Curso</td>
+                            <td style="padding:10px;">No*</td>
+                            <td style="padding:10px;">Nombre <strong>exacto</strong>. Ej: <code>Cenipalma — Clases Aprende</code> (crea inscripción)</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #ddd;background:#f8fafc;">
+                            <td style="padding:10px;"><strong>J</strong></td>
+                            <td style="padding:10px;">Cliente</td>
+                            <td style="padding:10px;">No*</td>
+                            <td style="padding:10px;">Nombre exacto de la org. Ej: <code>Cenipalma</code> (recomendado para B2B)</td>
                         </tr>
                     </tbody>
                 </table>
-                <p style="margin-top:15px;font-size:13px;color:#666;">
-                    <strong>Nota:</strong> La primera fila debe contener los encabezados. 
-                    El teléfono se normaliza automáticamente a formato colombiano (57...).
-                    Puede usar la plantilla descargable desde la lista de estudiantes.
+
+                <p style="margin:16px 0 8px;"><strong>Ejemplo de fila:</strong></p>
+                <pre style="background:#fff;border:1px solid #bbdefb;border-radius:6px;padding:12px;overflow-x:auto;font-size:12px;margin:0;">CC | 1020304050 | Juan Pérez García | 573001234567 | Manizales | Caldas | masculino | 35 | Cenipalma — Clases Aprende | Cenipalma</pre>
+
+                <p style="margin-top:14px;font-size:13px;color:#555;">
+                    *Curso y Cliente no son obligatorios para crear la persona, pero si quiere inscripción + reportes por org, llénelos.
+                    Excel viejo (A = solo cédula numérica, sin columna Tipo) sigue aceptándose.
+                </p>
+                <p style="margin:8px 0 0;">
+                    <a href="{% url 'admin:core_estudiante_exportar_plantilla' %}">Descargar plantilla Excel ahora</a>
                 </p>
             </div>
             
             <div style="margin:20px 0;">
                 <label for="archivo_excel" style="display:block;margin-bottom:10px;font-weight:bold;">
-                    Seleccionar Archivo Excel (.xlsx o .xls)
+                    Seleccionar archivo Excel (.xlsx o .xls)
                 </label>
                 <input type="file" name="archivo_excel" id="archivo_excel" accept=".xlsx,.xls" required
                        style="padding:10px;border:2px dashed #1976d2;border-radius:8px;width:100%;background:#f5f5f5;">
@@ -114,7 +140,7 @@
             
             <div style="margin-top:30px;">
                 <button type="submit" style="background:#4CAF50;color:white;padding:12px 30px;border:none;border-radius:4px;cursor:pointer;font-size:16px;font-weight:bold;">
-                    📤 Importar Estudiantes
+                    Importar Estudiantes
                 </button>
                 <a href="{% url 'admin:core_estudiante_changelist' %}" style="margin-left:15px;color:#666;text-decoration:none;">
                     Cancelar
