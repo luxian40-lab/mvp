@@ -25,12 +25,14 @@ class CampanaAdmin(admin.ModelAdmin):
                 'Consola: https://console.twilio.com/us1/develop/sms/content-editor'
             ),
         }),
-        ('Inicio de curso', {
+        ('Inicio de curso / aviso Aprende', {
             'classes': ['tab'],
             'fields': ('es_campana_curso', 'curso_destino'),
             'description': (
-                'Si es inicio de curso: marca la casilla, elige el curso. '
-                'Al enviar, el estudiante entra a Habeas → verificación → curso.'
+                '<strong>Curso 10x / Clases (informativo):</strong> deje «inicio de curso» en NO, '
+                'elija el curso 10x y ponga el Content SID del aviso. Inscribe en Aprende sin Habeas/*listo*. '
+                '<br><strong>Curso WhatsApp clásico:</strong> marque inicio = SÍ + curso destino '
+                '(Habeas → verificación → avance con *listo*).'
             ),
         }),
         ('Plantilla eki (alternativa)', {

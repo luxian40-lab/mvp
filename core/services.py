@@ -64,20 +64,21 @@ def ejecutar_campana_servicio(campana):
     
     for estudiante in destinatarios:
         try:
-            # Si es campaña de curso, poner al estudiante en flujo de onboarding
+            curso_dest = getattr(campana, 'curso_destino', None)
+            # Inscripción siempre que haya curso destino (10x aviso o WA clásico).
+            if curso_dest is not None:
+                from core.inscripcion_curso import inscribir_estudiante_en_curso
+
+                inscribir_estudiante_en_curso(estudiante, curso_dest)
+
+            # Solo el flujo clásico reinicia Habeas / onboarding.
             if getattr(campana, 'es_campana_curso', False):
                 estudiante.estado_chat = 'ESPERANDO_HABEAS_DATA'
                 estudiante.acepto_terminos = False
                 estudiante.estado_onboarding = 'nuevo'
-                estudiante.save()
-                # Si hay curso destino, crear progreso
-                if getattr(campana, 'curso_destino', None):
-                    from .models import ProgresoEstudiante
-                    ProgresoEstudiante.objects.get_or_create(
-                        estudiante=estudiante,
-                        curso=campana.curso_destino,
-                        defaults={'completado': False}
-                    )
+                estudiante.save(
+                    update_fields=['estado_chat', 'acepto_terminos', 'estado_onboarding']
+                )
             
             if content_sid:
                 # Envío con Content Template de Twilio

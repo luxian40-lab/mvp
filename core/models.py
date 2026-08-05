@@ -969,8 +969,13 @@ class Campana(models.Model):
     # CAMPAÑA DE CURSO: Al ejecutar, pone estudiantes en flujo habeas data → curso
     es_campana_curso = models.BooleanField(
         default=False,
-        verbose_name="¿Es campaña de inicio de curso?",
-        help_text="Si está activado, al enviar la campaña los estudiantes entrarán al flujo de habeas data → verificación → curso."
+        verbose_name="¿Es campaña de inicio de curso (WhatsApp + habeas)?",
+        help_text=(
+            'SÍ: reinicia onboarding (Habeas → verificación → *listo*). '
+            'Para cursos normales por WhatsApp. '
+            'NO: solo aviso (ideal 10x / modo Clases). Si hay «Curso destino», '
+            'igual se inscribe en Aprende sin tocar Habeas.'
+        ),
     )
     curso_destino = models.ForeignKey(
         'Curso',
@@ -979,7 +984,11 @@ class Campana(models.Model):
         blank=True,
         related_name='campanas_curso',
         verbose_name='Curso destino',
-        help_text='Curso al que se inscribirán los estudiantes al completar el onboarding de esta campaña.'
+        help_text=(
+            'Al enviar, inscribe al estudiante en este curso (ProgresoEstudiante). '
+            'Con «inicio de curso» = SÍ también reinicia Habeas. '
+            'Con inicio = NO (10x): solo inscripción + plantilla de aviso.'
+        ),
     )
     
     # NUEVO: Tipo de audiencia (individual o grupo)
