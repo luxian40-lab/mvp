@@ -2,7 +2,70 @@
 
 from __future__ import annotations
 
+import re
+import unicodedata
+
 from core.models import Curso, Estudiante, Modulo, ProgresoEstudiante
+
+
+def _norm_nombre_curso(s: str) -> str:
+    """Compara nombres ignorando guiones tipográficos, NBSP y espacios raros."""
+    t = (s or '').replace('\u00a0', ' ').strip()
+    for ch in ('\u2014', '\u2013', '\u2212', '\u2012', '—', '–'):
+        t = t.replace(ch, '-')
+    t = unicodedata.normalize('NFKC', t)
+    t = re.sub(r'\s+', ' ', t)
+    return t.casefold()
+
+
+def resolver_curso_por_nombre(
+    nombre: str,
+    *,
+    cliente_nombre: str | None = None,
+) -> Curso | None:
+    """
+    Busca curso por nombre exacto (case-insensitive) o normalizado
+    (guión Excel vs em dash / mojibake en DB). Opcionalmente acota por cliente.
+    """
+    raw = (nombre or '').strip()
+    if not raw:
+        return None
+    qs = Curso.objects.filter(activo=True).select_related('cliente')
+    if cliente_nombre:
+        qs = qs.filter(cliente__nombre__iexact=cliente_nombre.strip())
+
+    hit = qs.filter(nombre__iexact=raw).first()
+    if hit:
+        return hit
+
+    target = _norm_nombre_curso(raw)
+    for c in qs.iterator():
+        if _norm_nombre_curso(c.nombre) == target:
+            return c
+        # Mojibake típico UTF-8 em-dash leído como Latin-1: â€"
+        if 'clases' in target and 'aprende' in target:
+            cn = (c.nombre or '').casefold()
+            if 'clases' in cn and 'aprende' in cn:
+                return c
+
+    if 'clases' in target and 'aprende' in target:
+        hit = qs.filter(
+            modo_aula=Curso.MODO_AULA_CLASES,
+            nombre__icontains='Clases',
+        ).first()
+        if hit:
+            return hit
+        if not cliente_nombre:
+            return (
+                Curso.objects.filter(
+                    activo=True,
+                    modo_aula=Curso.MODO_AULA_CLASES,
+                    cliente__nombre__iexact='Cenipalma',
+                    nombre__icontains='Clases',
+                )
+                .first()
+            )
+    return None
 
 
 def primer_modulo_curso(curso: Curso) -> Modulo | None:

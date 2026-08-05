@@ -147,6 +147,8 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = 'DENY'
+# YouTube embeds: Error 153 si Referrer-Policy oculta el Referer (p.ej. same-origin)
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 
 
 # ============================================
@@ -337,8 +339,9 @@ for template_engine in TEMPLATES:
         ]
 
 # Optimizaciones adicionales
-DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
-FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 110 * 1024 * 1024  # 110 MB — clases video Aprende ≤100 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB en RAM; el resto a disco temp
+
 
 # Sesiones en base de datos (más estable que cache para login)
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'

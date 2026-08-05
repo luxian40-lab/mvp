@@ -138,20 +138,12 @@
 
         .eki-brand {
             display: flex;
-            align-items: center;
+            align-items: baseline;
             gap: 0.65rem;
             text-decoration: none;
             color: #fff;
             min-width: 0;
             flex: 1 1 auto;
-        }
-
-        .eki-brand-mark {
-            width: 1.9rem;
-            height: 1.9rem;
-            flex-shrink: 0;
-            display: block;
-            object-fit: contain;
         }
 
         .eki-brand-word {
@@ -330,13 +322,8 @@
             color: #fff;
             display: flex;
             flex-wrap: wrap;
-            align-items: center;
+            align-items: baseline;
             gap: 0.15em 0.32em;
-        }
-
-        .eki-hero-bleed .eki-brand-hero .eki-brand-mark {
-            width: 0.85em;
-            height: 0.85em;
         }
 
         .eki-hero-bleed .eki-brand-hero .eki-logo {
@@ -875,14 +862,6 @@
             letter-spacing: -0.02em;
             line-height: 1;
             text-transform: lowercase;
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-        }
-
-        .eki-login-visual__logo .eki-brand-mark {
-            width: 1.15em;
-            height: 1.15em;
         }
 
         .eki-login-visual__logo .eki-logo {
@@ -1778,7 +1757,6 @@
 
     <header class="eki-header">
         <a href="/aprende/" class="eki-brand">
-            <img class="eki-brand-mark" src="{% static 'aprende/img/eki-mark-white.svg' %}" width="32" height="32" alt="" decoding="async">
             <div class="eki-brand-word"><span class="eki-logo">eki</span> <em>aprende</em></div>
             <div class="eki-brand-text">
                 <span>aula · territorio · WhatsApp</span>

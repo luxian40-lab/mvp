@@ -430,7 +430,7 @@ class AprendeWebTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Fundamentos')
         self.assertContains(r, 'Contenido del micro paso')
-        self.assertContains(r, 'youtube.com/embed/')
+        self.assertContains(r, 'youtube-nocookie.com/embed/')
         self.assertContains(r, 'consulta en línea')
         self.assertNotContains(r, 'Descargar documento')
 
@@ -569,8 +569,11 @@ class AprendeWebTests(TestCase):
         self.assertContains(r, 'Te faltan')
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class AprendeProfesorAuthTests(TestCase):
-    """Portal B2B y aula docente comparten sesión; is_staff no debe bloquear."""
+    """Portal B2B y aula docente comparten sesión; is_staff no debe bloquear.
+    Superuser sí se bloquea (no mezclar con admin).
+    """
 
     def setUp(self):
         self.http = Client()
@@ -599,6 +602,9 @@ class AprendeProfesorAuthTests(TestCase):
             'username': 'coord_admin',
             'password': 'pass1234',
         })
+        self.assertIn(r.status_code, (301, 302))
+        if r.status_code == 301:
+            r = self.http.get(r['Location'].replace('https://testserver', '').replace('http://testserver', ''))
         self.assertEqual(r.status_code, 302)
         self.assertEqual(r.url, '/aprende/profesor/')
         r2 = self.http.get('/aprende/profesor/')
@@ -618,6 +624,16 @@ class AprendeProfesorAuthTests(TestCase):
         })
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Administrador o Profesor')
+
+    def test_superuser_no_entra_profesor_login(self):
+        su = User.objects.create_superuser('su_luisa', 'su@t.com', 'pass1234')
+        PortalUsuario.objects.create(user=su, organizacion=self.cliente, rol='admin')
+        r = self.http.post('/aprende/profesor/login/', {
+            'username': 'su_luisa',
+            'password': 'pass1234',
+        })
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'superadmin')
 
 
 @override_settings(

@@ -37,6 +37,8 @@ if not DEBUG:
     X_FRAME_OPTIONS = 'DENY'
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_BROWSER_XSS_FILTER = True
+    # YouTube embeds requieren Referer (Error 153 si same-origin/no-referrer)
+    SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 
 # 3. APLICACIONES INSTALADAS
 INSTALLED_APPS = [

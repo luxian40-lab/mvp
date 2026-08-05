@@ -5,11 +5,12 @@
     {% if m.tipo == 'youtube' and m.youtube_id %}
     <div class="eki-media-frame eki-video-wrap">
         <iframe
-            src="https://www.youtube.com/embed/{{ m.youtube_id }}?rel=0&modestbranding=1"
+            src="https://www.youtube-nocookie.com/embed/{{ m.youtube_id }}?rel=0&modestbranding=1"
             title="{{ m.titulo }}"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowfullscreen
             loading="lazy"
+            referrerpolicy="strict-origin-when-cross-origin"
         ></iframe>
     </div>
     {% elif m.tipo == 'video' %}

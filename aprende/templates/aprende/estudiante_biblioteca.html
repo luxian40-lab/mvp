@@ -239,7 +239,8 @@
     function renderMedia(tipo, url, youtubeId) {
         if (tipo === 'youtube' && youtubeId) {
             return '<div class="eki-media-block"><div class="eki-media-frame eki-video-wrap">' +
-                '<iframe src="https://www.youtube.com/embed/' + esc(youtubeId) + '?rel=0" ' +
+                '<iframe src="https://www.youtube-nocookie.com/embed/' + esc(youtubeId) + '?rel=0" ' +
+                'referrerpolicy="strict-origin-when-cross-origin" ' +
                 'allowfullscreen loading="lazy"></iframe></div></div>';
         }
         if (tipo === 'video') {

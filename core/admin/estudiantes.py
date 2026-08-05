@@ -426,16 +426,25 @@ class EstudianteAdmin(admin.ModelAdmin):
                         
                         if curso_nombre:
                             try:
-                                curso = Curso.objects.get(nombre__iexact=curso_nombre.strip())
-                                from core.inscripcion_curso import inscribir_estudiante_en_curso
-
-                                _progreso, creado_prog = inscribir_estudiante_en_curso(
-                                    estudiante, curso,
+                                from core.inscripcion_curso import (
+                                    inscribir_estudiante_en_curso,
+                                    resolver_curso_por_nombre,
                                 )
-                                if creado_prog:
-                                    inscritos += 1
-                            except Curso.DoesNotExist:
-                                errores.append(f"Fila {idx}: Curso '{curso_nombre}' no encontrado")
+
+                                curso = resolver_curso_por_nombre(
+                                    curso_nombre,
+                                    cliente_nombre=cliente_nombre or None,
+                                )
+                                if curso is None:
+                                    errores.append(
+                                        f"Fila {idx}: Curso '{curso_nombre}' no encontrado"
+                                    )
+                                else:
+                                    _progreso, creado_prog = inscribir_estudiante_en_curso(
+                                        estudiante, curso,
+                                    )
+                                    if creado_prog:
+                                        inscritos += 1
                             except Exception as exc_insc:
                                 errores.append(f"Fila {idx}: Inscripción curso — {exc_insc}")
                     
