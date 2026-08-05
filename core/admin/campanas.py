@@ -29,8 +29,9 @@ class CampanaAdmin(admin.ModelAdmin):
             'classes': ['tab'],
             'fields': ('es_campana_curso', 'curso_destino'),
             'description': (
-                '<strong>Curso 10x / Clases (informativo):</strong> deje «inicio de curso» en NO, '
-                'elija el curso 10x y ponga el Content SID del aviso. Inscribe en Aprende sin Habeas/*listo*. '
+                '<strong>Curso Clases / Aprende (informativo):</strong> deje «inicio de curso» en NO, '
+                'elija el curso de clases (ej. Cenipalma — Clases Aprende) y ponga el Content SID del aviso. '
+                'Inscribe en Aprende sin Habeas/*listo*. '
                 '<br><strong>Curso WhatsApp clásico:</strong> marque inicio = SÍ + curso destino '
                 '(Habeas → verificación → avance con *listo*).'
             ),

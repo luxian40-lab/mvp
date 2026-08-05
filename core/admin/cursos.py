@@ -125,13 +125,13 @@ class CursoAdmin(admin.ModelAdmin):
     list_display = (
         'nombre',
         'cliente_nombre',
+        'experiencia_display',
         'total_modulos_display',
         'activo',
-        'modo_aula',
         'visible_en_studio',
     )
     list_filter = (
-        'activo', 'visible_en_studio', 'visible_en_aula', 'modo_aula', 'cliente',
+        'activo', 'modo_aula', 'visible_en_studio', 'visible_en_aula', 'cliente',
         'usar_gamificacion', 'usar_agentes_ia', 'tiene_formulario_gei',
     )
     search_fields = ('nombre', 'descripcion', 'cliente__nombre')
@@ -150,13 +150,15 @@ class CursoAdmin(admin.ModelAdmin):
                 'activo', 'visible_en_studio', 'visible_en_aula', 'modo_aula', 'orden',
             ),
             'description': mark_safe(
-                '<p><strong>Cómo elegir el proceso del curso</strong></p>'
+                '<p><strong>Cómo elegir el proceso del curso</strong> '
+                '(campo <em>Experiencia en aula</em> — también se ve en el listado)</p>'
                 '<ul style="margin:0.4rem 0 0;padding-left:1.2rem;">'
                 '<li><strong>Módulos (WhatsApp + avance)</strong> — flujo clásico con *listo*, '
                 'puntos/ranking si la org los tiene activos.</li>'
-                '<li><strong>Clases / biblioteca</strong> — curso C / 10x informativo: Aprende = hub, '
-                'Biblioteca = «mis clases», <em>sin gamificación ni retos IA</em> '
-                '(se apagan solos al guardar).</li>'
+                '<li><strong>Clases / biblioteca</strong> — informativo en Aprende: '
+                'Biblioteca = «mis clases», <em>sin gamificación ni *listo* por WA</em> '
+                '(se apagan solos al guardar). Use un nombre claro para la lista Excel '
+                '(ej. «Cenipalma — Clases Aprende»).</li>'
                 '</ul>'
             ),
         }),
@@ -202,6 +204,18 @@ class CursoAdmin(admin.ModelAdmin):
             return obj.cliente.nombre
         return format_html('<span style="color:#999;font-style:italic;">General (eki)</span>')
     cliente_nombre.short_description = "Organización"
+
+    @admin.display(description='Experiencia', ordering='modo_aula')
+    def experiencia_display(self, obj):
+        if obj.es_modo_clases():
+            return format_html(
+                '<span style="background:#efe8f5;color:#5F3A6E;padding:3px 8px;'
+                'border-radius:6px;font-size:11px;font-weight:700;">Clases · Aprende</span>'
+            )
+        return format_html(
+            '<span style="background:#e8f0fe;color:#1a56a0;padding:3px 8px;'
+            'border-radius:6px;font-size:11px;font-weight:700;">Módulos · WhatsApp</span>'
+        )
     
     def total_modulos_display(self, obj):
         count = obj.modulos.count()

@@ -1,5 +1,5 @@
 """
-Seed Cenipalma: org + 2 cursos WhatsApp + curso 10x (modo clases) + grupos + inscripción.
+Seed Cenipalma: org + 2 cursos WhatsApp + curso Clases Aprende + grupos + inscripción.
 
 Uso:
   python manage.py setup_cenipalma_piloto --telefono 3026480629
@@ -17,10 +17,16 @@ from core.models_extras import GrupoEstudiantes
 CLIENTE_NOMBRE = 'Cenipalma'
 CURSO_WA_1 = 'Cenipalma WA — Curso 1'
 CURSO_WA_2 = 'Cenipalma WA — Curso 2'
-CURSO_10X = 'Cenipalma 10x — clases Aprende'
+# Nombre público (no usar "10x" en listados/Excel).
+CURSO_CLASES = 'Cenipalma — Clases Aprende'
+CURSO_CLASES_ALIASES = (
+    CURSO_CLASES,
+    'Cenipalma 10x — clases Aprende',
+    'Cenipalma 10x',
+)
 GRUPO_WA_1 = 'Cenipalma · Cohorte WA 1'
 GRUPO_WA_2 = 'Cenipalma · Cohorte WA 2'
-GRUPO_10X = 'Cenipalma · 10x Aprende'
+GRUPO_CLASES = 'Cenipalma · Clases Aprende'
 
 
 def _normalizar_tel(raw: str) -> str:
@@ -61,24 +67,37 @@ def _ensure_curso_wa(cliente: Cliente, nombre: str, orden: int) -> tuple[Curso, 
     return curso, mod
 
 
-def _ensure_curso_10x(cliente: Cliente) -> tuple[Curso, Modulo]:
-    curso, _ = Curso.objects.get_or_create(
-        cliente=cliente,
-        nombre=CURSO_10X,
-        defaults={
-            'descripcion': (
-                'Curso informativo 10x: contenido en Aprende (Clases / Biblioteca). '
-                'WhatsApp solo avisos.'
+def _ensure_curso_clases(cliente: Cliente) -> tuple[Curso, Modulo]:
+    curso = None
+    for nombre in CURSO_CLASES_ALIASES:
+        curso = Curso.objects.filter(cliente=cliente, nombre=nombre).first()
+        if curso:
+            break
+    if curso is None:
+        curso = Curso.objects.create(
+            cliente=cliente,
+            nombre=CURSO_CLASES,
+            descripcion=(
+                'Curso informativo Cenipalma: contenido en Aprende (Clases / Biblioteca). '
+                'WhatsApp solo avisos — sin *listo*.'
             ),
-            'activo': True,
-            'usar_agentes_ia': False,
-            'dias_espera_entre_modulos': 0,
-            'modo_aula': Curso.MODO_AULA_CLASES,
-            'usar_gamificacion': False,
-            'orden': 10,
-        },
-    )
+            activo=True,
+            usar_agentes_ia=False,
+            dias_espera_entre_modulos=0,
+            modo_aula=Curso.MODO_AULA_CLASES,
+            usar_gamificacion=False,
+            orden=10,
+        )
     updates = []
+    if curso.nombre != CURSO_CLASES:
+        curso.nombre = CURSO_CLASES
+        updates.append('nombre')
+    if (curso.descripcion or '').find('Aprende') < 0 or '10x' in (curso.descripcion or ''):
+        curso.descripcion = (
+            'Curso informativo Cenipalma: contenido en Aprende (Clases / Biblioteca). '
+            'WhatsApp solo avisos — sin *listo*.'
+        )
+        updates.append('descripcion')
     if curso.modo_aula != Curso.MODO_AULA_CLASES:
         curso.modo_aula = Curso.MODO_AULA_CLASES
         updates.append('modo_aula')
@@ -94,9 +113,9 @@ def _ensure_curso_10x(cliente: Cliente) -> tuple[Curso, Modulo]:
         curso=curso,
         numero=1,
         defaults={
-            'titulo': 'Clase 1 — bienvenida 10x',
-            'descripcion': 'Primera clase del 10x en Aprende.',
-            'contenido': 'Bienvenida al 10x. Mira el material en Biblioteca.',
+            'titulo': 'Clase 1 — bienvenida',
+            'descripcion': 'Primera clase en Aprende.',
+            'contenido': 'Bienvenida. Mira el material en Biblioteca (Mis clases).',
             'video_url': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
             'modo_entrega': 'legacy',
         },
@@ -105,6 +124,16 @@ def _ensure_curso_10x(cliente: Cliente) -> tuple[Curso, Modulo]:
 
 
 def _ensure_grupo(cliente: Cliente, nombre: str, curso: Curso | None = None) -> GrupoEstudiantes:
+    # Renombrar grupo legacy 10x si existe
+    if nombre == GRUPO_CLASES:
+        legacy = GrupoEstudiantes.objects.filter(
+            cliente=cliente, nombre='Cenipalma · 10x Aprende'
+        ).first()
+        if legacy and not GrupoEstudiantes.objects.filter(
+            cliente=cliente, nombre=GRUPO_CLASES
+        ).exists():
+            legacy.nombre = GRUPO_CLASES
+            legacy.save(update_fields=['nombre'])
     g, _ = GrupoEstudiantes.objects.get_or_create(
         cliente=cliente,
         nombre=nombre,
@@ -120,7 +149,7 @@ def _ensure_grupo(cliente: Cliente, nombre: str, curso: Curso | None = None) -> 
 
 
 class Command(BaseCommand):
-    help = 'Seed Cenipalma: 2 cursos WA + 10x clases + 3 grupos + inscripción de prueba.'
+    help = 'Seed Cenipalma: 2 cursos WA + Clases Aprende + 3 grupos + estudiante de prueba.'
 
     def add_arguments(self, parser):
         parser.add_argument('--telefono', type=str, default='3026480629')
@@ -155,15 +184,15 @@ class Command(BaseCommand):
 
         c1, m1 = _ensure_curso_wa(cliente, CURSO_WA_1, orden=1)
         c2, m2 = _ensure_curso_wa(cliente, CURSO_WA_2, orden=2)
-        c10, m10 = _ensure_curso_10x(cliente)
+        c10, m10 = _ensure_curso_clases(cliente)
         self.stdout.write(
             f"Cursos: WA1={c1.id} (mod {m1.id}) · WA2={c2.id} (mod {m2.id}) · "
-            f"10x={c10.id} modo={c10.modo_aula} (clase {m10.id})"
+            f"clases={c10.id} «{c10.nombre}» modo={c10.modo_aula} (clase {m10.id})"
         )
 
         g1 = _ensure_grupo(cliente, GRUPO_WA_1, c1)
         g2 = _ensure_grupo(cliente, GRUPO_WA_2, c2)
-        g10 = _ensure_grupo(cliente, GRUPO_10X, c10)
+        g10 = _ensure_grupo(cliente, GRUPO_CLASES, c10)
         self.stdout.write(f"Grupos: {g1.id}/{g1.nombre} · {g2.id}/{g2.nombre} · {g10.id}/{g10.nombre}")
 
         est = Estudiante.objects.filter(telefono=tel).first()

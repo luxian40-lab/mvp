@@ -333,15 +333,17 @@ class EstudianteAdmin(admin.ModelAdmin):
                         if curso_nombre:
                             try:
                                 curso = Curso.objects.get(nombre__iexact=curso_nombre.strip())
-                                progreso, creado_prog = ProgresoEstudiante.objects.get_or_create(
-                                    estudiante=estudiante,
-                                    curso=curso,
-                                    defaults={'progreso': 0, 'completado': False}
+                                from core.inscripcion_curso import inscribir_estudiante_en_curso
+
+                                _progreso, creado_prog = inscribir_estudiante_en_curso(
+                                    estudiante, curso,
                                 )
                                 if creado_prog:
                                     inscritos += 1
                             except Curso.DoesNotExist:
                                 errores.append(f"Fila {idx}: Curso '{curso_nombre}' no encontrado")
+                            except Exception as exc_insc:
+                                errores.append(f"Fila {idx}: Inscripción curso — {exc_insc}")
                     
                     except Exception as e:
                         errores.append(f"Fila {idx}: {str(e)}")
@@ -1030,8 +1032,16 @@ class EstudianteAdmin(admin.ModelAdmin):
         ws['F1'].comment = Comment("Departamento / estado / provincia", "eki")
         ws['G1'].comment = Comment("Género: masculino, femenino, otro, no reporta", "eki")
         ws['H1'].comment = Comment("Edad en años", "eki")
-        ws['I1'].comment = Comment("Nombre del curso (opcional)", "eki")
-        ws['J1'].comment = Comment("Nombre del cliente/org (opcional)", "eki")
+        ws['I1'].comment = Comment(
+            "Nombre EXACTO del curso (hoja Valores Disponibles).\n"
+            "Ej. Cenipalma — Clases Aprende\n"
+            "Si es Clases·Aprende, estudia en aula (sin *listo* por WA).",
+            "eki",
+        )
+        ws['J1'].comment = Comment(
+            "Nombre EXACTO del Cliente/org (ej. Cenipalma).",
+            "eki",
+        )
         
         # Obtener cursos y clientes para validación
         cursos = Curso.objects.filter(activo=True).order_by('nombre')

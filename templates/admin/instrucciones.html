@@ -311,11 +311,12 @@
                 <table>
                     <thead><tr><th>Columna</th><th>Obligatorio</th><th>Notas</th></tr></thead>
                     <tbody>
-                        <tr><td>Cédula (A)</td><td>Sí</td><td>Sin puntos ni espacios.</td></tr>
-                        <tr><td>Nombre (B)</td><td>Sí</td><td>Nombre completo.</td></tr>
-                        <tr><td>Teléfono (C)</td><td>Sí</td><td>WhatsApp: <code>573001234567</code> o celular 10 dígitos (se normaliza a 57).</td></tr>
-                        <tr><td>Municipio, Departamento, Género, Edad</td><td>Recomendado</td><td>Género: masculino/femenino/otro/no reporta.</td></tr>
-                        <tr><td>Curso (H), Cliente (I)</td><td>No</td><td>Si se indica curso, crea inscripción (<code>ProgresoEstudiante</code>).</td></tr>
+                        <tr><td>Tipo documento (A), Documento (B)</td><td>Sí</td><td>CC/TI/… y número sin puntos. (Plantillas viejas: Cédula sola en A también se acepta.)</td></tr>
+                        <tr><td>Nombre completo (C)</td><td>Sí</td><td>Nombre completo.</td></tr>
+                        <tr><td>Teléfono (D)</td><td>Sí</td><td>WhatsApp con país: <code>573001234567</code>.</td></tr>
+                        <tr><td>Municipio, Departamento, Género, Edad (E–H)</td><td>Recomendado</td><td>Género: masculino/femenino/otro/no reporta.</td></tr>
+                        <tr><td>Curso (I)</td><td>No*</td><td>Nombre <strong>exacto</strong> del curso (ej. <code>Cenipalma — Clases Aprende</code>). Crea inscripción.</td></tr>
+                        <tr><td>Cliente (J)</td><td>No*</td><td>Nombre exacto de la org (ej. <code>Cenipalma</code>). *Requerido para reportes B2B limpios.</td></tr>
                     </tbody>
                 </table>
 

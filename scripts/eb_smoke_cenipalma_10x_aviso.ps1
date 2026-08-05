@@ -1,4 +1,4 @@
-# Prueba Cenipalma 10x: inscribe + grupo + aviso HX (sin Habeas/*listo*).
+# Prueba Cenipalma Clases Aprende: inscribe + grupo + aviso HX (sin Habeas/*listo*).
 # Uso:
 #   .\scripts\eb_smoke_cenipalma_10x_aviso.ps1
 #   .\scripts\eb_smoke_cenipalma_10x_aviso.ps1 -EnviarWhatsApp
@@ -31,8 +31,27 @@ print('tel=', tel, 'sid=', sid, 'enviar=', enviar)
 
 cli = Cliente.objects.filter(nombre='Cenipalma').first()
 assert cli, 'FAIL: Cliente Cenipalma no existe (corra setup_cenipalma_piloto)'
-curso = Curso.objects.filter(cliente=cli, nombre__icontains='10x').order_by('id').last()
-assert curso, 'FAIL: curso 10x no encontrado'
+
+nombres = (
+    'Cenipalma — Clases Aprende',
+    'Cenipalma 10x — clases Aprende',
+    'Cenipalma 10x',
+)
+curso = None
+for n in nombres:
+    curso = Curso.objects.filter(cliente=cli, nombre=n).first()
+    if curso:
+        break
+if curso is None:
+    curso = (
+        Curso.objects.filter(cliente=cli, modo_aula='clases').order_by('id').last()
+        or Curso.objects.filter(cliente=cli, nombre__icontains='10x').order_by('id').last()
+    )
+assert curso, 'FAIL: curso Clases Aprende no encontrado'
+if curso.nombre != 'Cenipalma — Clases Aprende':
+    curso.nombre = 'Cenipalma — Clases Aprende'
+    curso.save(update_fields=['nombre'])
+    print('curso renombrado a', curso.nombre)
 assert getattr(curso, 'modo_aula', '') == 'clases', f'FAIL: modo_aula={curso.modo_aula}'
 print('cliente', cli.id, 'curso', curso.id, curso.nombre, 'modo', curso.modo_aula)
 
@@ -57,9 +76,15 @@ print('estudiante', est.id, est.nombre)
 prog, creado = inscribir_estudiante_en_curso(est, curso)
 print('progreso', prog.id, 'nuevo' if creado else 'existente')
 
+g_nombre = 'Cenipalma · Clases Aprende'
+legacy_g = GrupoEstudiantes.objects.filter(cliente=cli, nombre='Cenipalma · 10x Aprende').first()
+if legacy_g and not GrupoEstudiantes.objects.filter(cliente=cli, nombre=g_nombre).exists():
+    legacy_g.nombre = g_nombre
+    legacy_g.save(update_fields=['nombre'])
+    print('grupo renombrado a', g_nombre)
 g, _ = GrupoEstudiantes.objects.get_or_create(
     cliente=cli,
-    nombre='Cenipalma · 10x Aprende',
+    nombre=g_nombre,
     defaults={'emoji': '👥', 'activo': True},
 )
 g.estudiantes.add(est)
@@ -67,8 +92,14 @@ if not g.cursos.filter(pk=curso.pk).exists():
     g.cursos.add(curso)
 print('grupo', g.id, g.nombre)
 
+camp_nombre = 'Cenipalma Clases — aviso inicio (piloto)'
+camp = Campana.objects.filter(cliente=cli, nombre='Cenipalma 10x — aviso inicio (piloto)').first()
+if camp and camp.nombre != camp_nombre:
+    camp.nombre = camp_nombre
+    camp.save(update_fields=['nombre'])
+    print('campana renombrada')
 camp, cc = Campana.objects.get_or_create(
-    nombre='Cenipalma 10x — aviso inicio (piloto)',
+    nombre=camp_nombre,
     cliente=cli,
     defaults={
         'template_twilio_id': sid,
@@ -108,7 +139,7 @@ if enviar:
 else:
     print('wa_skip (usa -EnviarWhatsApp)')
 
-print('QA_PASS cenipalma_10x_aviso')
+print('QA_PASS cenipalma_clases_aviso')
 print('Ops futuro: Campañas →', camp.nombre, '→ audiencia = grupo', g.nombre)
 print('Aprende: https://aprende.eki.technology/aprende/estudiante/login/ (*aula*)')
 "@
@@ -123,11 +154,11 @@ done
 export USE_S3=True
 cd /var/app/current && source /var/app/venv/*/bin/activate
 export PYTHONPATH=/var/app/current
-echo $pyB64 | base64 -d > /tmp/smoke_cenipalma_10x.py
-python /tmp/smoke_cenipalma_10x.py
+echo $pyB64 | base64 -d > /tmp/smoke_cenipalma_clases.py
+python /tmp/smoke_cenipalma_clases.py
 "@ -replace "`r`n", "`n"
 
 $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($bash))
-Write-Host "[INFO] Smoke Cenipalma 10x en $Environment tel=$digits enviar=$EnviarWhatsApp" -ForegroundColor Cyan
+Write-Host "[INFO] Smoke Cenipalma Clases en $Environment tel=$digits enviar=$EnviarWhatsApp" -ForegroundColor Cyan
 & eb ssh $Environment --command "echo $b64 | base64 -d | bash"
 if ($LASTEXITCODE -ne 0) { throw "smoke failed" }
