@@ -331,10 +331,10 @@ class Cliente(models.Model):
     wallpaper_aula_url = models.URLField(
         max_length=500,
         blank=True,
-        verbose_name='Wallpaper aula (Aprende)',
+        verbose_name='URL del wallpaper (Aprende)',
         help_text=(
-            'Fondo de la sesión estudiante en Aprende. JPG/WebP recomendado ≤ 2 MB, '
-            'ancho ≥ 1600px. Vacío = fondo eki por defecto.'
+            'Se completa sola al subir el archivo en admin. '
+            'JPG/WebP ≤ 2 MB, ancho ≥ 1600px. Vacío = fondo eki por defecto.'
         ),
     )
     portal_subtitulo = models.CharField(

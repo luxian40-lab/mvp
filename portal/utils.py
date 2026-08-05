@@ -6,6 +6,8 @@ from django.utils.text import get_valid_filename
 
 LOGO_TIPOS_PERMITIDOS = {'image/jpeg', 'image/png', 'image/webp', 'image/gif'}
 LOGO_MAX_BYTES = 5 * 1024 * 1024
+WALLPAPER_TIPOS_PERMITIDOS = {'image/jpeg', 'image/png', 'image/webp'}
+WALLPAPER_MAX_BYTES = 2 * 1024 * 1024
 
 
 def limpiar_numero_whatsapp(numero):
@@ -25,6 +27,27 @@ def guardar_logo_organizacion(uploaded_file, cliente_id: int) -> str:
     now = timezone.now()
     filename = get_valid_filename(uploaded_file.name)
     path = f'portal/logos/{now:%Y/%m}/cliente_{cliente_id}_{now:%Y%m%d%H%M%S}_{filename}'
+    saved_path = default_storage.save(path, uploaded_file)
+    return default_storage.url(saved_path)
+
+
+def guardar_wallpaper_aula(uploaded_file, cliente_id: int) -> str:
+    """Fondo Aprende estudiante — JPG/PNG/WebP ≤ 2 MB."""
+    from django.core.files.storage import default_storage
+
+    content_type = (getattr(uploaded_file, 'content_type', '') or '').lower()
+    name = (getattr(uploaded_file, 'name', '') or '').lower()
+    ok_tipo = content_type in WALLPAPER_TIPOS_PERMITIDOS or name.endswith(
+        ('.jpg', '.jpeg', '.png', '.webp')
+    )
+    if not ok_tipo:
+        raise ValueError('Wallpaper: solo JPG, PNG o WebP.')
+    if uploaded_file.size > WALLPAPER_MAX_BYTES:
+        raise ValueError('El wallpaper no puede superar 2 MB.')
+
+    now = timezone.now()
+    filename = get_valid_filename(uploaded_file.name)
+    path = f'portal/wallpapers/{now:%Y/%m}/cliente_{cliente_id}_{now:%Y%m%d%H%M%S}_{filename}'
     saved_path = default_storage.save(path, uploaded_file)
     return default_storage.url(saved_path)
 

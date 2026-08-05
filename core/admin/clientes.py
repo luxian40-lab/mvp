@@ -125,6 +125,7 @@ class ClienteAdmin(admin.ModelAdmin):
         'cobertura_y_drip_acciones',
         'empleabilidad_kpis_resumen',
         'usar_gamificacion',
+        'wallpaper_preview',
     )
     
     fieldsets = (
@@ -137,6 +138,26 @@ class ClienteAdmin(admin.ModelAdmin):
                 'telefono',
                 'activo',
                 'notas_internas',
+            ),
+        }),
+        ('Aula Aprende — fondo de estudiantes', {
+            'fields': (
+                'wallpaper_archivo',
+                'wallpaper_aula_url',
+                'quitar_wallpaper',
+                'wallpaper_preview',
+            ),
+            'description': mark_safe(
+                '<p><strong>Cómo poner el fondo de Aprende (ej. Cenipalma)</strong></p>'
+                '<ol style="margin:0.35rem 0 0;padding-left:1.25rem;">'
+                '<li>En <em>Subir imagen de fondo</em>, elija el JPG/PNG/WebP (máx. 2 MB).</li>'
+                '<li>Pulse <strong>Guardar</strong> abajo.</li>'
+                '<li>La vista previa aparece aquí; el estudiante lo ve al entrar a '
+                '<a href="https://aprende.eki.technology/aprende/estudiante/login/" '
+                'target="_blank" rel="noopener">Aprende</a> (sesión logueada).</li>'
+                '</ol>'
+                '<p style="margin:0.5rem 0 0;">No hace falta pegar URL si sube el archivo. '
+                'El fondo es por <strong>organización</strong> (Cliente), no por curso.</p>'
             ),
         }),
         ('Portal B2B', {
@@ -265,6 +286,22 @@ class ClienteAdmin(admin.ModelAdmin):
             portal_url,
         )
     portal_usuarios_acciones.short_description = 'Accesos portal'
+
+    def wallpaper_preview(self, obj):
+        url = (getattr(obj, 'wallpaper_aula_url', None) or '').strip() if obj else ''
+        if not url:
+            return mark_safe(
+                '<span style="color:#888;">Sin wallpaper. Suba una imagen arriba y guarde.</span>'
+            )
+        return format_html(
+            '<p style="margin:0 0 8px;"><img src="{}" alt="Wallpaper Aprende" '
+            'style="max-width:min(480px,100%);max-height:140px;border-radius:8px;'
+            'border:1px solid #ddd;object-fit:cover;background:#f6f4f8;"/></p>'
+            '<p style="margin:0;font-size:12px;color:#666;word-break:break-all;">{}</p>',
+            url,
+            url,
+        )
+    wallpaper_preview.short_description = 'Vista previa actual'
 
     def cobertura_y_drip_acciones(self, obj):
         if not obj or not obj.pk:

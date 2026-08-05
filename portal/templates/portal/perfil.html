@@ -101,6 +101,22 @@
                 <p class="hint">Aparece debajo del nombre de su organización en el portal.</p>
             </div>
 
+            <div class="perfil-field">
+                <label for="wallpaper_archivo">1) Subir wallpaper (fondo Aprende)</label>
+                <input type="file" id="wallpaper_archivo" name="wallpaper_archivo" accept="image/jpeg,image/png,image/webp">
+                <p class="hint">JPG/PNG/WebP, máx. 2 MB. Lo ven los estudiantes al entrar al aula. También se puede subir desde Admin eki → Cliente.</p>
+            </div>
+            <div class="perfil-field">
+                <label for="wallpaper_aula_url">2) O pegar URL (opcional)</label>
+                <input type="url" id="wallpaper_aula_url" name="wallpaper_aula_url" value="{{ org.wallpaper_aula_url }}" placeholder="https://…">
+            </div>
+            {% if org.wallpaper_aula_url %}
+            <div class="perfil-field">
+                <label><input type="checkbox" name="quitar_wallpaper" value="1"> Quitar wallpaper (fondo eki por defecto)</label>
+                <p class="hint"><img src="{{ org.wallpaper_aula_url }}" alt="Wallpaper actual" style="max-width:100%;max-height:120px;border-radius:8px;object-fit:cover;"></p>
+            </div>
+            {% endif %}
+
             <button type="submit" class="btn">Guardar cambios</button>
         </form>
         {% else %}
