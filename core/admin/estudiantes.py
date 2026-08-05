@@ -175,6 +175,10 @@ class EstudianteAdmin(admin.ModelAdmin):
                     normalizar_tipo_documento,
                 )
                 from core.excel_celdas import celda_excel_a_texto
+                from core.import_estudiantes_excel import (
+                    extraer_fila_estudiante,
+                    mapear_columnas_estudiante,
+                )
                 from core.utils_telefono import normalizar_telefono
 
                 def _normalizar_celda(val):
@@ -185,18 +189,20 @@ class EstudianteAdmin(admin.ModelAdmin):
                         return ''
                     return re.sub(r'\s+', ' ', val.strip().lower())
 
-                # Detectar si la fila 1 es encabezado con "Tipo documento"
+                # Detectar encabezados (por nombre de columna, no solo posición)
                 primera = [_normalizar_celda(c).lower() for c in (next(ws.iter_rows(min_row=1, max_row=1, values_only=True), []) or [])]
+                colmap = mapear_columnas_estudiante(primera)
                 tiene_tipo_col = bool(primera) and (
                     'tipo' in (primera[0] or '')
                     or (primera[0] or '') in ('tipo documento', 'tipo_documento', 'tipodocumento')
                 )
                 data_start = 2 if (primera and (
                     'cedula' in (primera[0] if not tiene_tipo_col else (primera[1] if len(primera) > 1 else ''))
-                    or 'documento' in ' '.join(primera[:3])
-                    or 'nombre' in ' '.join(primera[:4])
+                    or 'documento' in ' '.join(primera[:4])
+                    or 'nombre' in ' '.join(primera[:5])
+                    or 'tel' in ' '.join(primera[:5])
+                    or colmap is not None
                 )) else 2
-                # Si no hay tipocol pero header legacy empieza por Cédula, data_start=2; filas de datos igual
                 
                 GENEROS_VALIDOS = {'m': 'M', 'f': 'F', 'o': 'O', 'masculino': 'M', 'femenino': 'F',
                                    'otro': 'O', 'hombre': 'M', 'mujer': 'F', 'nr': 'NR', 'no reporta': 'NR'}
@@ -206,31 +212,17 @@ class EstudianteAdmin(admin.ModelAdmin):
                         continue
                     
                     try:
-                        if tiene_tipo_col:
-                            tipo_raw = _normalizar_celda(row[0]) if len(row) > 0 else ''
-                            cedula = _normalizar_celda(row[1]) if len(row) > 1 else ''
-                            nombre = _normalizar_celda(row[2]) if len(row) > 2 else ''
-                            telefono_raw = _normalizar_celda(row[3]) if len(row) > 3 else ''
-                            municipio = _limpiar_texto(_normalizar_celda(row[4])) if len(row) > 4 else ''
-                            departamento = _limpiar_texto(_normalizar_celda(row[5])) if len(row) > 5 else ''
-                            genero_raw = _limpiar_texto(_normalizar_celda(row[6])) if len(row) > 6 else ''
-                            edad_raw = _normalizar_celda(row[7]) if len(row) > 7 else ''
-                            curso_nombre = _normalizar_celda(row[8]) if len(row) > 8 else ''
-                            cliente_nombre = _normalizar_celda(row[9]) if len(row) > 9 else ''
-                        else:
-                            tipo_raw = ''
-                            cedula = _normalizar_celda(row[0]) if len(row) > 0 else ''
-                            nombre = _normalizar_celda(row[1]) if len(row) > 1 else ''
-                            telefono_raw = _normalizar_celda(row[2]) if len(row) > 2 else ''
-                            municipio = _limpiar_texto(_normalizar_celda(row[3])) if len(row) > 3 else ''
-                            departamento = _limpiar_texto(_normalizar_celda(row[4])) if len(row) > 4 else ''
-                            genero_raw = _limpiar_texto(_normalizar_celda(row[5])) if len(row) > 5 else ''
-                            edad_raw = _normalizar_celda(row[6]) if len(row) > 6 else ''
-                            curso_nombre = _normalizar_celda(row[7]) if len(row) > 7 else ''
-                            cliente_nombre = _normalizar_celda(row[8]) if len(row) > 8 else ''
-                            # Columna opcional J = tipo documento (plantillas LatAm antiguas)
-                            if len(row) > 9 and _normalizar_celda(row[9]):
-                                tipo_raw = _normalizar_celda(row[9])
+                        campos = extraer_fila_estudiante(row, colmap, tiene_tipo_col)
+                        tipo_raw = campos['tipo_raw']
+                        cedula = campos['cedula']
+                        nombre = campos['nombre']
+                        telefono_raw = campos['telefono_raw']
+                        municipio = _limpiar_texto(campos['municipio'])
+                        departamento = _limpiar_texto(campos['departamento'])
+                        genero_raw = _limpiar_texto(campos['genero_raw'])
+                        edad_raw = campos['edad_raw']
+                        curso_nombre = campos['curso_nombre']
+                        cliente_nombre = campos['cliente_nombre']
                     except IndexError:
                         errores.append(f"Fila {idx}: Columnas insuficientes")
                         continue
@@ -248,14 +240,15 @@ class EstudianteAdmin(admin.ModelAdmin):
                         errores.append(f"Fila {idx}: Faltan: {', '.join(campos_faltantes)}")
                         continue
                     
-                    telefono = normalizar_telefono(telefono_raw)
+                    telefono = campos['telefono_normalizado'] or normalizar_telefono(telefono_raw)
                     digits_only = re.sub(r'\D', '', telefono_raw or '')
                     if not telefono or len(telefono) < 10:
                         errores.append(
                             f"Fila {idx}: Teléfono inválido '{telefono_raw}' "
                             f"(leído como '{telefono or digits_only or 'vacío'}'). "
-                            f"En Excel formatee la columna D como Texto y use "
-                            f"573001234567 (12 dígitos CO) o el código de país."
+                            f"Revise el orden: A=Tipo, B=Documento, C=Nombre, D=Teléfono "
+                            f"(ej. 573001234567). Si Nombre y Teléfono están al revés, "
+                            f"corríjalos o use la plantilla del admin."
                         )
                         continue
                     # Evitar asumir Colombia en números LatAm cortos
