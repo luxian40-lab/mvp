@@ -174,18 +174,11 @@ class EstudianteAdmin(admin.ModelAdmin):
                     normalizar_numero_documento,
                     normalizar_tipo_documento,
                 )
+                from core.excel_celdas import celda_excel_a_texto
                 from core.utils_telefono import normalizar_telefono
 
                 def _normalizar_celda(val):
-                    if val is None:
-                        return ''
-                    if isinstance(val, float):
-                        if val == int(val):
-                            return str(int(val))
-                        return str(val)
-                    if isinstance(val, int):
-                        return str(val)
-                    return str(val).strip()
+                    return celda_excel_a_texto(val)
                 
                 def _limpiar_texto(val):
                     if not val:
@@ -256,16 +249,19 @@ class EstudianteAdmin(admin.ModelAdmin):
                         continue
                     
                     telefono = normalizar_telefono(telefono_raw)
+                    digits_only = re.sub(r'\D', '', telefono_raw or '')
                     if not telefono or len(telefono) < 10:
                         errores.append(
-                            f"Fila {idx}: Teléfono inválido '{telefono_raw}'. "
-                            f"Use código de país (ej: 503… El Salvador, 52… México, 57… Colombia)."
+                            f"Fila {idx}: Teléfono inválido '{telefono_raw}' "
+                            f"(leído como '{telefono or digits_only or 'vacío'}'). "
+                            f"En Excel formatee la columna D como Texto y use "
+                            f"573001234567 (12 dígitos CO) o el código de país."
                         )
                         continue
                     # Evitar asumir Colombia en números LatAm cortos
-                    if len(re.sub(r'\D', '', telefono_raw)) == 10 and not telefono_raw.strip().startswith('+') and not telefono.startswith('57'):
+                    if len(digits_only) == 10 and not str(telefono_raw).strip().startswith('+') and not telefono.startswith('57'):
                         # 10 dígitos sin + y no normalizado a 57 → exigir código país explícito
-                        raw_digits = re.sub(r'\D', '', telefono_raw)
+                        raw_digits = digits_only
                         if not raw_digits.startswith(('52', '503', '502', '504', '505', '506', '507', '51', '56', '54', '57', '58')):
                             if not (len(raw_digits) == 10 and raw_digits.startswith('3')):
                                 errores.append(
@@ -325,7 +321,10 @@ class EstudianteAdmin(admin.ModelAdmin):
                                 actualizados += 1
                         except IntegrityError as e:
                             if 'telefono' in str(e).lower():
-                                errores.append(f"Fila {idx}: Teléfono '{telefono}' ya existe para otro estudiante")
+                                errores.append(
+                                    f"Fila {idx}: El teléfono '{telefono}' ya está en otro estudiante. "
+                                    f"Use otro número o actualice ese registro (misma cédula)."
+                                )
                             else:
                                 errores.append(f"Fila {idx}: Error de integridad - {str(e)}")
                             continue
@@ -1025,6 +1024,7 @@ class EstudianteAdmin(admin.ModelAdmin):
         ws['C1'].comment = Comment("Nombre completo del estudiante", "eki")
         ws['D1'].comment = Comment(
             "WhatsApp CON código de país.\n"
+            "IMPORTANTE: formatee la columna como TEXTO (no número).\n"
             "CO: 573001234567 | SV: 50371234567 | MX: 5215512345678",
             "eki",
         )
@@ -1047,7 +1047,7 @@ class EstudianteAdmin(admin.ModelAdmin):
         cursos = Curso.objects.filter(activo=True).order_by('nombre')
         clientes = Cliente.objects.filter(activo=True).order_by('nombre')
         
-        # Agregar ejemplos con datos reales
+        # Agregar ejemplos con datos reales (teléfono como TEXTO para evitar notación científica)
         curso_ejemplo = cursos.first().nombre if cursos.exists() else 'Curso de Café'
         cliente_ejemplo = clientes.first().nombre if clientes.exists() else 'FNC'
         ws.append(['CC', '1234567890', 'Juan Pérez García', '573001234567', 'Manizales', 'Caldas', 'masculino', 35, curso_ejemplo, cliente_ejemplo])
@@ -1056,6 +1056,16 @@ class EstudianteAdmin(admin.ModelAdmin):
         
         # Fila vacía para empezar
         ws.append(['', '', '', '', '', '', '', '', '', ''])
+
+        # Forzar Texto en Documento (B) y Teléfono (D)
+        from openpyxl.styles.numbers import FORMAT_TEXT
+        for r in range(2, 202):
+            ws[f'B{r}'].number_format = FORMAT_TEXT
+            ws[f'D{r}'].number_format = FORMAT_TEXT
+            for col in ('B', 'D'):
+                v = ws[f'{col}{r}'].value
+                if v is not None and v != '':
+                    ws[f'{col}{r}'].value = str(v)
         
         # Estilo para ejemplos
         example_fill = PatternFill(start_color="FFF9E6", end_color="FFF9E6", fill_type="solid")
@@ -1100,7 +1110,7 @@ class EstudianteAdmin(admin.ModelAdmin):
             ["   • Tipo documento: CC, DUI (SV), CURP/INE (MX), DNI, RUT, DPI, CI, PP, OTRO"],
             ["   • Documento: número/ID (puede tener letras, ej. CURP)"],
             ["   • Nombre: Nombre completo del estudiante"],
-            ["   • Teléfono: WhatsApp CON código de país (503 SV, 52 MX, 57 CO)"],
+            ["   • Teléfono: columna D en TEXTO. Ej CO: 573001234567 (no notación científica)"],
             ["   • Municipio / Departamento / Género / Edad"],
             [""],
             ["CAMPOS OPCIONALES:"],
