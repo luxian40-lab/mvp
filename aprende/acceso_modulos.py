@@ -48,15 +48,18 @@ def modulos_visibles_aula(
         cliente and getattr(cliente, 'drip_modulos_solo_estudiantes_listados', False)
     )
     tope_avance = max_modulo_alcanzado(progreso) if progreso else 0
+    # Curso C / 10x: todas las clases visibles (Biblioteca = hub; sin *listo*).
+    liberar_todas = bool(getattr(curso, 'es_modo_clases', lambda: False)())
 
     visibles: list[Modulo] = []
     for modulo in Modulo.objects.filter(curso=curso).order_by('numero'):
         if not modulo_disponible_por_calendario(estudiante, modulo):
             continue
-        if not lista_explicita and modulo.numero > tope_avance:
-            continue
-        if _oculto_por_drip_entre_modulos(progreso, modulo):
-            continue
+        if not liberar_todas:
+            if not lista_explicita and modulo.numero > tope_avance:
+                continue
+            if _oculto_por_drip_entre_modulos(progreso, modulo):
+                continue
         visibles.append(modulo)
     return visibles
 

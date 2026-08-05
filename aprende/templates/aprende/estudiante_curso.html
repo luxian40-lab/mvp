@@ -4,23 +4,39 @@
 {% block content %}
 {% include "aprende/partials/estudiante_breadcrumb.html" with progreso=progreso %}
 <div class="eki-page-head">
+    {% if progreso.curso.es_modo_clases %}
+    <span class="eki-kicker">Clases en aula</span>
+    <h1>{{ progreso.curso.nombre }}</h1>
+    {% if progreso.curso.descripcion %}
+    <p class="eki-lead">{{ progreso.curso.descripcion|truncatewords:32 }}</p>
+    {% endif %}
+    {% else %}
     <span class="eki-kicker">Ruta de aprendizaje</span>
     <h1>{{ progreso.curso.nombre }}</h1>
     {% if progreso.curso.descripcion %}
     <p class="eki-lead">{{ progreso.curso.descripcion|truncatewords:32 }}</p>
     {% endif %}
+    {% endif %}
 </div>
 
 {% include "aprende/partials/estudiante_curso_tabs.html" %}
 
+{% if progreso.curso.es_modo_clases %}
+<aside class="eki-wa-bridge" aria-label="Biblioteca">
+    <strong>Biblioteca · mis clases guardadas</strong>
+    <span>Aquí ves el listado. El material (videos, PDFs) vive en Biblioteca para consultarlo cuando quieras.</span>
+    <a class="eki-btn eki-btn--primary eki-btn--sm" style="margin-top:0.65rem;" href="{% url 'aprende_estudiante_biblioteca' %}">Ir a Biblioteca</a>
+</aside>
+{% endif %}
+
 {% if modulos %}
-<ol class="eki-path" aria-label="Ruta del curso">
+<ol class="eki-path" aria-label="{% if progreso.curso.es_modo_clases %}Clases del curso{% else %}Ruta del curso{% endif %}">
     {% for m in modulos %}
-    <li class="eki-path__step{% if progreso.modulo_actual_id == m.id and not progreso.completado %} is-current{% endif %}">
+    <li class="eki-path__step{% if progreso.modulo_actual_id == m.id and not progreso.completado and not progreso.curso.es_modo_clases %} is-current{% endif %}">
         <span class="eki-path__n">{{ m.numero }}</span>
         <div class="eki-path__body">
             <a href="{% url 'aprende_estudiante_modulo' m.id %}">{{ m.titulo }}</a>
-            {% if progreso.modulo_actual_id == m.id and not progreso.completado %}
+            {% if not progreso.curso.es_modo_clases and progreso.modulo_actual_id == m.id and not progreso.completado %}
             <span class="eki-status eki-status--wait">Actual</span>
             {% endif %}
             {% if m.descripcion %}
@@ -30,13 +46,24 @@
     </li>
     {% endfor %}
 </ol>
+{% if progreso.curso.es_modo_clases %}
+<p class="eki-muted" style="margin-top:1rem;font-size:0.85rem;">
+    Abre cada clase cuando quieras. Los recursos quedan en <a href="{% url 'aprende_estudiante_biblioteca' %}">Biblioteca</a>.
+</p>
+{% else %}
 <p class="eki-muted" style="margin-top:1rem;font-size:0.85rem;">
     En campo avanza con <strong>*listo*</strong> en WhatsApp. Aquí consultas y practicas.
 </p>
+{% endif %}
 {% else %}
 <div class="eki-card eki-empty">
+    {% if progreso.curso.es_modo_clases %}
+    <h2>Sin clases publicadas</h2>
+    <p class="eki-muted">Cuando tu organización publique clases, aparecerán aquí y en Biblioteca.</p>
+    {% else %}
     <h2>Sin módulos publicados</h2>
     <p class="eki-muted">Cuando tu organización publique lecciones, la ruta aparecerá aquí.</p>
+    {% endif %}
 </div>
 {% endif %}
 {% endblock %}

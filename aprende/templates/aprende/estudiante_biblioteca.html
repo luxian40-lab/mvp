@@ -163,18 +163,32 @@
 {% endblock %}
 {% block content %}
 <div class="eki-page-head">
+    {% if aprende_tiene_modo_clases %}
+    <span class="eki-kicker">Mis clases guardadas</span>
+    <h1>Biblioteca</h1>
+    <p class="eki-lead">
+        Aquí están tus clases: fotos, videos y documentos en miniatura.
+        Pulse un cuadro para ver el material. Solo consulta en línea.
+    </p>
+    {% else %}
     <span class="eki-kicker">Repositorio de material</span>
     <h1>Biblioteca de recursos</h1>
     <p class="eki-lead">
         Fotos y videos de sus módulos en miniatura. Pulse un cuadro para ver el material completo.
         Solo consulta en línea: la descarga no está habilitada desde el aula.
     </p>
+    {% endif %}
 </div>
 
 {% if not secciones %}
 <div class="eki-card eki-empty">
+    {% if aprende_tiene_modo_clases %}
+    <h2>Aún no hay clases en Biblioteca</h2>
+    <p class="eki-muted">Cuando tu organización publique material, aparecerá aquí para consultarlo.</p>
+    {% else %}
     <h2>Biblioteca vacía</h2>
     <p class="eki-muted">Cuando avances módulos (en el aula o con <strong>*listo*</strong> en WhatsApp), el material liberado aparece aquí para consultar.</p>
+    {% endif %}
     <a href="{% url 'aprende_estudiante_cursos' %}" class="eki-btn eki-btn--ghost eki-btn--sm">Ir a mis cursos</a>
 </div>
 {% else %}
@@ -185,10 +199,10 @@
     {% for bloque in sec.modulos %}
     <div class="eki-bib-modulo">
         <div class="eki-bib-modulo-head">
-            <span class="eki-bib-modulo-num">Módulo {{ bloque.modulo.numero }}</span>
+            <span class="eki-bib-modulo-num">{% if sec.curso.es_modo_clases %}Clase{% else %}Módulo{% endif %} {{ bloque.modulo.numero }}</span>
             <strong>{{ bloque.modulo.titulo }}</strong>
         </div>
-        <div class="eki-bib-grid" role="list" aria-label="Recursos del módulo {{ bloque.modulo.numero }}">
+        <div class="eki-bib-grid" role="list" aria-label="Recursos de {% if sec.curso.es_modo_clases %}clase{% else %}módulo{% endif %} {{ bloque.modulo.numero }}">
             {% for item in bloque.items %}
             {% include "aprende/partials/biblioteca_media_thumb.html" %}
             {% endfor %}

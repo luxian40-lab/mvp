@@ -5,15 +5,28 @@
 <div class="eki-page-head">
     <span class="eki-kicker">eki aprende</span>
     <h1>Hola, {{ estudiante.nombre }}</h1>
+    {% if aprende_tiene_modo_clases and not aprende_tiene_modo_modulos %}
+    <p class="eki-lead">Tu aula de clases. El material queda en <a href="{% url 'aprende_estudiante_biblioteca' %}">Mis clases</a> (Biblioteca) para consultarlo cuando quieras.</p>
+    {% elif aprende_tiene_modo_clases %}
+    <p class="eki-lead">Cursos con avance por WhatsApp (*listo*) y clases en Biblioteca. Abre cada curso según el formato.</p>
+    {% else %}
     <p class="eki-lead">Tu aula para estudiar y entregar. El avance en el territorio sigue por WhatsApp (*listo*).</p>
+    {% endif %}
 </div>
 
+{% if not aprende_tiene_modo_clases or aprende_tiene_modo_modulos %}
 <aside class="eki-wa-bridge" aria-label="Puente WhatsApp">
     <strong>WhatsApp + Aprende</strong>
-    <span>En el chat escribes *aula* para entrar y *listo* para avanzar módulos. Aquí revisas contenido, tareas y biblioteca.</span>
+    <span>En el chat escribes *aula* para entrar{% if aprende_tiene_modo_modulos %} y *listo* para avanzar módulos{% endif %}. Aquí revisas contenido, tareas y biblioteca.</span>
 </aside>
+{% else %}
+<aside class="eki-wa-bridge" aria-label="Biblioteca">
+    <strong>Mis clases guardadas</strong>
+    <span>WhatsApp solo avisa. El contenido vive aquí en Aprende — empieza por <a href="{% url 'aprende_estudiante_biblioteca' %}">Biblioteca</a>.</span>
+</aside>
+{% endif %}
 
-{% if continuar %}
+{% if continuar and not continuar.curso.es_modo_clases %}
 <section class="eki-home-continue" aria-label="Continuar aprendizaje">
     <div class="eki-home-continue__body">
         <p class="eki-kicker" style="margin:0 0 0.35rem;">Continuar</p>
@@ -34,6 +47,18 @@
         <a class="eki-btn eki-btn--ghost" href="{% url 'aprende_estudiante_curso' continuar.curso.id %}">Ver curso</a>
     </div>
 </section>
+{% elif continuar and continuar.curso.es_modo_clases %}
+<section class="eki-home-continue" aria-label="Tus clases">
+    <div class="eki-home-continue__body">
+        <p class="eki-kicker" style="margin:0 0 0.35rem;">Tus clases</p>
+        <h2 class="eki-h2" style="margin:0 0 0.35rem;">{{ continuar.curso.nombre }}</h2>
+        <p class="eki-muted" style="margin:0;">Consulta el material en Biblioteca o abre el listado de clases.</p>
+    </div>
+    <div class="eki-home-continue__actions">
+        <a class="eki-btn eki-btn--primary" href="{% url 'aprende_estudiante_biblioteca' %}">Mis clases</a>
+        <a class="eki-btn eki-btn--ghost" href="{% url 'aprende_estudiante_curso' continuar.curso.id %}">Ver clases</a>
+    </div>
+</section>
 {% endif %}
 
 {% if progresos %}
@@ -41,31 +66,32 @@
     <h2 class="eki-h2">Mis cursos</h2>
     <div class="eki-grid-2">
         {% for p in progresos %}
-        <a href="{% url 'aprende_estudiante_curso' p.curso.id %}" class="eki-card eki-card--bar eki-card--interactive{% if continuar and p.id == continuar.id %} eki-card--focus{% endif %}">
+        <a href="{% if p.curso.es_modo_clases %}{% url 'aprende_estudiante_biblioteca' %}{% else %}{% url 'aprende_estudiante_curso' p.curso.id %}{% endif %}" class="eki-card eki-card--bar eki-card--interactive{% if continuar and p.id == continuar.id %} eki-card--focus{% endif %}">
             <h3 class="eki-card__title">{{ p.curso.nombre }}</h3>
-            {% if p.completado %}
+            {% if p.curso.es_modo_clases %}
+            <p class="eki-muted">Clases en Biblioteca</p>
+            <span class="eki-btn eki-btn--ghost eki-btn--sm eki-card__cta">Abrir mis clases</span>
+            {% elif p.completado %}
             <p class="eki-muted"><span class="eki-badge eki-badge--ok">Completado</span></p>
             <div class="eki-progress"><div class="eki-progress-bar" data-width="100"></div></div>
+            <span class="eki-btn eki-btn--ghost eki-btn--sm eki-card__cta">Revisar</span>
             {% elif p.modulo_actual %}
             <p class="eki-muted">Módulo {{ p.modulo_actual.numero }} · {{ p.porcentaje_avance }}%</p>
             <div class="eki-progress"><div class="eki-progress-bar" data-width="{{ p.porcentaje_avance }}"></div></div>
+            <span class="eki-btn eki-btn--ghost eki-btn--sm eki-card__cta">Continuar</span>
             {% else %}
             <p class="eki-muted">Sin iniciar en aula</p>
             <div class="eki-progress"><div class="eki-progress-bar" data-width="4"></div></div>
+            <span class="eki-btn eki-btn--ghost eki-btn--sm eki-card__cta">Continuar</span>
             {% endif %}
-            <span class="eki-btn eki-btn--ghost eki-btn--sm eki-card__cta">{% if p.completado %}Revisar{% else %}Continuar{% endif %}</span>
         </a>
         {% endfor %}
     </div>
 </section>
-<p class="eki-muted eki-home-foot">
-    Entregas y notas → <a href="{% url 'aprende_estudiante_tareas' %}">Tareas</a>.
-    Material liberado → <a href="{% url 'aprende_estudiante_biblioteca' %}">Biblioteca</a>.
-</p>
 {% else %}
 <div class="eki-card eki-empty">
-    <h2>Sin cursos todavía</h2>
-    <p class="eki-muted">Cuando tu organización te inscriba, aparecen aquí. Si ya estudias por WhatsApp, escribe <strong>*aula*</strong> al número del programa para abrir esta sesión.</p>
+    <h2>Sin cursos aún</h2>
+    <p class="eki-muted">Cuando tu organización te inscriba, aparecerán aquí.</p>
 </div>
 {% endif %}
 {% endblock %}

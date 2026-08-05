@@ -18,7 +18,7 @@
 </div>
 
 <div class="eki-card">
-    <h2 class="eki-h2">Módulos del curso</h2>
+    <h2 class="eki-h2">{% if curso.es_modo_clases %}Clases del curso{% else %}Módulos del curso{% endif %}</h2>
     <ul class="eki-list">
         {% for m in modulos %}
         <li class="eki-list-item">
@@ -30,7 +30,11 @@
         </li>
         {% empty %}
         <li class="eki-list-item">
+            {% if curso.es_modo_clases %}
+            <p class="eki-muted" style="margin:0;">Aún no hay clases. Crea la primera.</p>
+            {% else %}
             <p class="eki-muted" style="margin:0;">Aún no hay módulos. Crea la primera lección.</p>
+            {% endif %}
         </li>
         {% endfor %}
     </ul>

@@ -27,6 +27,11 @@ class GrupoEstudiantesAdmin(admin.ModelAdmin):
     fieldsets = (
         ('📋 Información del Grupo', {
             'fields': ('nombre', 'emoji', 'descripcion', 'cliente', 'activo'),
+            'description': (
+                'Un cliente (ej. Cenipalma) puede tener varios grupos: cohorte WA 1, '
+                'cohorte WA 2, 10x Aprende, etc. Asigne siempre la organización; '
+                'así Analítica y campañas filtran limpio por cliente → grupo.'
+            ),
         }),
         ('👥 Miembros del grupo', {
             'fields': ('panel_gestion_miembros',),
@@ -38,8 +43,42 @@ class GrupoEstudiantesAdmin(admin.ModelAdmin):
         ('📚 Cursos asociados (opcional)', {
             'fields': ('cursos',),
             'classes': ('collapse',),
+            'description': (
+                'Solo se listan cursos de la misma organización (y cursos generales). '
+                'Guarde el grupo con cliente antes de asociar cursos.'
+            ),
         }),
     )
+
+    def get_changeform_initial_data(self, request):
+        initial = super().get_changeform_initial_data(request)
+        cli = request.GET.get('cliente')
+        if cli:
+            initial['cliente'] = cli
+        return initial
+
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        if db_field.name == 'cursos':
+            from django.db.models import Q
+            from core.models import Curso
+
+            object_id = (request.resolver_match.kwargs or {}).get('object_id')
+            cliente_id = None
+            if object_id:
+                g = GrupoEstudiantes.objects.filter(pk=object_id).only('cliente_id').first()
+                if g:
+                    cliente_id = g.cliente_id
+            if not cliente_id:
+                raw = request.POST.get('cliente') or request.GET.get('cliente')
+                try:
+                    cliente_id = int(raw) if raw else None
+                except (TypeError, ValueError):
+                    cliente_id = None
+            qs = Curso.objects.filter(activo=True).order_by('nombre')
+            if cliente_id:
+                qs = qs.filter(Q(cliente_id=cliente_id) | Q(cliente__isnull=True))
+            kwargs['queryset'] = qs
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
 
     def get_urls(self):
         from django.urls import path

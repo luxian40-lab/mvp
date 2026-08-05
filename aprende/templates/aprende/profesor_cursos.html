@@ -17,7 +17,7 @@
     {% for c in cursos %}
     <a href="{% url 'aprende_profesor_curso' c.id %}" class="eki-card eki-card--interactive" style="text-decoration:none;color:inherit;">
         <h2>{{ c.nombre }}</h2>
-        <p class="eki-muted">Gestionar módulos y archivos</p>
+        <p class="eki-muted">{% if c.es_modo_clases %}Gestionar clases y archivos{% else %}Gestionar módulos y archivos{% endif %}</p>
         <span class="eki-btn eki-btn--ghost eki-btn--sm" style="margin-top:0.75rem;">Abrir →</span>
     </a>
     {% endfor %}

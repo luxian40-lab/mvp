@@ -127,11 +127,11 @@ class CursoAdmin(admin.ModelAdmin):
         'cliente_nombre',
         'total_modulos_display',
         'activo',
-        'visible_en_aula',
+        'modo_aula',
         'visible_en_studio',
     )
     list_filter = (
-        'activo', 'visible_en_studio', 'visible_en_aula', 'cliente',
+        'activo', 'visible_en_studio', 'visible_en_aula', 'modo_aula', 'cliente',
         'usar_gamificacion', 'usar_agentes_ia', 'tiene_formulario_gei',
     )
     search_fields = ('nombre', 'descripcion', 'cliente__nombre')
@@ -147,7 +147,17 @@ class CursoAdmin(admin.ModelAdmin):
         ('Datos del curso', {
             'fields': (
                 'nombre', 'descripcion', 'cliente', 'duracion_semanas',
-                'activo', 'visible_en_studio', 'visible_en_aula', 'orden',
+                'activo', 'visible_en_studio', 'visible_en_aula', 'modo_aula', 'orden',
+            ),
+            'description': mark_safe(
+                '<p><strong>Cómo elegir el proceso del curso</strong></p>'
+                '<ul style="margin:0.4rem 0 0;padding-left:1.2rem;">'
+                '<li><strong>Módulos (WhatsApp + avance)</strong> — flujo clásico con *listo*, '
+                'puntos/ranking si la org los tiene activos.</li>'
+                '<li><strong>Clases / biblioteca</strong> — curso C / 10x informativo: Aprende = hub, '
+                'Biblioteca = «mis clases», <em>sin gamificación ni retos IA</em> '
+                '(se apagan solos al guardar).</li>'
+                '</ul>'
             ),
         }),
         ('Ritmo drip y acceso', {

@@ -1,5 +1,11 @@
 <nav class="eki-tabs" aria-label="Secciones del curso">
+    {% if progreso.curso.es_modo_clases %}
+    <a href="{% url 'aprende_estudiante_curso' progreso.curso.id %}" class="eki-tab{% if curso_tab == 'modulos' %} eki-tab--active{% endif %}"{% if curso_tab == 'modulos' %} aria-current="page"{% endif %}>Clases</a>
+    <a href="{% url 'aprende_estudiante_curso_tareas' progreso.curso.id %}" class="eki-tab{% if curso_tab == 'tareas' %} eki-tab--active{% endif %}"{% if curso_tab == 'tareas' %} aria-current="page"{% endif %}>Tareas</a>
+    <a href="{% url 'aprende_estudiante_biblioteca' %}" class="eki-tab">Biblioteca · mis clases</a>
+    {% else %}
     <a href="{% url 'aprende_estudiante_curso' progreso.curso.id %}" class="eki-tab{% if curso_tab == 'modulos' %} eki-tab--active{% endif %}"{% if curso_tab == 'modulos' %} aria-current="page"{% endif %}>Módulos</a>
     <a href="{% url 'aprende_estudiante_curso_tareas' progreso.curso.id %}" class="eki-tab{% if curso_tab == 'tareas' %} eki-tab--active{% endif %}"{% if curso_tab == 'tareas' %} aria-current="page"{% endif %}>Tareas</a>
     <a href="{% url 'aprende_estudiante_curso_ranking' progreso.curso.id %}" class="eki-tab{% if curso_tab == 'ranking' %} eki-tab--active{% endif %}"{% if curso_tab == 'ranking' %} aria-current="page"{% endif %}>Ranking</a>
+    {% endif %}
 </nav>

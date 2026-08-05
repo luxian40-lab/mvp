@@ -53,9 +53,11 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
         cursos_all = Curso.objects.filter(activo=True).order_by('orden', 'nombre')
         if cliente_id:
             cursos_all = cursos_all.filter(cliente_id=cliente_id)
+            if curso_id and not cursos_all.filter(pk=curso_id).exists():
+                curso_id = None
         grupos_qs = GrupoEstudiantes.objects.all().order_by('nombre')
         if cliente_id:
-            grupos_qs = grupos_qs.filter(Q(cliente_id=cliente_id) | Q(cliente__isnull=True))
+            grupos_qs = grupos_qs.filter(cliente_id=cliente_id)
 
         retencion_data = None
         if cliente_id:
@@ -128,7 +130,12 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
         return context, {}
 
     clientes_all = Cliente.objects.all().order_by('nombre')
+    # Con organización elegida: solo cursos de esa org (no el catálogo completo).
     cursos_all = Curso.objects.all().order_by('nombre')
+    if cliente_id:
+        cursos_all = cursos_all.filter(cliente_id=cliente_id)
+        if curso_id and not cursos_all.filter(pk=curso_id).exists():
+            curso_id = None
 
     estudiantes_q = Estudiante.objects.filter(activo=True)
     if cliente_id:
@@ -458,7 +465,7 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
 
     grupos_qs = GrupoEstudiantes.objects.all().order_by('nombre')
     if cliente_id:
-        grupos_qs = grupos_qs.filter(Q(cliente_id=cliente_id) | Q(cliente__isnull=True))
+        grupos_qs = grupos_qs.filter(cliente_id=cliente_id)
 
     resumen_payload = {
         'success': True,
@@ -591,11 +598,13 @@ def dashboard_unificado(request):
     _tab = resolve_dashboard_tab(request.GET.get('tab'))
     _section = resolve_learning_section(_tab, request.GET.get('section'))
     _exportando = (request.GET.get('exportar') or '').strip().lower() == 'excel'
-    # Detalle pesado (tablas estudiante/org) solo en Reportes B2B o export Excel.
+    # Detalle pesado solo con ?detalle=1 o Excel (antes: siempre en Reportes → Analítica lenta).
+    _quiere_detalle = (request.GET.get('detalle') or '').strip() in ('1', 'true', 'si', 'sí')
     context, resumen_payload = _construir_dashboard_unificado_contexto(
         request,
-        incluir_detalle=_exportando or (_tab == 'learning' and _section == 'reportes'),
+        incluir_detalle=_exportando or _quiere_detalle,
     )
+    context['detalle_cargado'] = bool(_exportando or _quiere_detalle)
 
     # --- Excel export (todas las pestañas + datos de gráficos) ---
     if request.GET.get('exportar') == 'excel':

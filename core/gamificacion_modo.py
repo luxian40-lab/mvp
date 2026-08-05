@@ -159,6 +159,8 @@ def ranking_calificaciones_cliente(cliente, curso_id: int | None = None, limite:
 
 
 def gamificacion_otorga_puntos(cliente, curso=None) -> bool:
+    if curso is not None and getattr(curso, 'es_modo_clases', lambda: False)():
+        return False
     if not modo_usa_puntos(cliente):
         return False
     if curso is not None and getattr(curso, 'usar_gamificacion', False):

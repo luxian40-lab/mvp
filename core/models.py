@@ -328,6 +328,15 @@ class Cliente(models.Model):
         verbose_name='Logo (portal)',
         help_text='URL pública del logo de la organización. Visible en el portal B2B.',
     )
+    wallpaper_aula_url = models.URLField(
+        max_length=500,
+        blank=True,
+        verbose_name='Wallpaper aula (Aprende)',
+        help_text=(
+            'Fondo de la sesión estudiante en Aprende. JPG/WebP recomendado ≤ 2 MB, '
+            'ancho ≥ 1600px. Vacío = fondo eki por defecto.'
+        ),
+    )
     portal_subtitulo = models.CharField(
         max_length=200,
         blank=True,
@@ -1321,6 +1330,24 @@ class Curso(models.Model):
         ),
     )
 
+    MODO_AULA_MODULOS = 'modulos'
+    MODO_AULA_CLASES = 'clases'
+    MODO_AULA_CHOICES = [
+        (MODO_AULA_MODULOS, 'Módulos (WhatsApp + avance)'),
+        (MODO_AULA_CLASES, 'Clases / biblioteca (sin avance WA)'),
+    ]
+    modo_aula = models.CharField(
+        max_length=20,
+        choices=MODO_AULA_CHOICES,
+        default=MODO_AULA_MODULOS,
+        verbose_name='Experiencia en aula',
+        help_text=(
+            'Clases: en Aprende se habla de «Clases», Biblioteca es el hub '
+            '(«mis clases guardadas») y no se menciona avance ni *listo*. '
+            'Ideal para curso C / 10x informativo.'
+        ),
+    )
+
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -1330,6 +1357,21 @@ class Curso(models.Model):
 
     def __str__(self):
         return f"{self.emoji} {self.nombre}"
+
+    def es_modo_clases(self) -> bool:
+        return (self.modo_aula or self.MODO_AULA_MODULOS) == self.MODO_AULA_CLASES
+
+    def save(self, *args, **kwargs):
+        # Curso C / informativo: sin puntos, ranking ni retos IA.
+        if self.es_modo_clases():
+            self.usar_gamificacion = False
+            self.usar_agentes_ia = False
+            uf = kwargs.get('update_fields')
+            if uf is not None:
+                kwargs['update_fields'] = list(
+                    set(uf) | {'usar_gamificacion', 'usar_agentes_ia'}
+                )
+        super().save(*args, **kwargs)
 
     def total_modulos(self):
         return self.modulos.count()

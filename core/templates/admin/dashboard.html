@@ -170,22 +170,28 @@
 
 {% block content %}
 <div class="dash-wrap">
-    <a class="dash-back" href="{% url 'admin:index' %}">← Volver al admin</a>
+    <a class="dash-back" href="{% url 'admin:index' %}">← Volver a Inicio</a>
     <div class="dash-header">
-        <h1>Dashboard Eki</h1>
+        <div>
+            <h1>Analítica eki</h1>
+            <p class="dash-ts" style="margin:6px 0 0;max-width:42rem;line-height:1.4;">
+                Inicio = pulso del día. Aquí = profundidad por dominio.
+                Elige la pestaña según la pregunta (cursos, retención, Nat o Twilio).
+            </p>
+        </div>
         <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-            <span class="dash-ts">Datos en tiempo real</span>
-            <a href="?tab=ai_ops" style="font-size:0.88rem;font-weight:600;color:var(--eki-primary);">AI Operations (Twilio, bot, activaciones IA) →</a>
+            <a href="{% url 'conversaciones' %}" style="font-size:0.88rem;font-weight:600;color:var(--eki-primary);">Conversaciones WA →</a>
+            <a href="?tab=commercial" style="font-size:0.88rem;font-weight:600;color:var(--eki-primary);">Nat →</a>
         </div>
     </div>
 
     <!-- ===== DASHBOARDS CANÓNICOS ===== -->
     <div class="tab-nav">
-        <button class="tab-btn {% if tab_actual == 'executive' %}active{% endif %}" data-tab="executive" onclick="switchTab('executive', this)">Executive</button>
-        <button class="tab-btn {% if tab_actual == 'learning' %}active{% endif %}" data-tab="learning" onclick="switchTab('learning', this)">Learning Analytics</button>
-        <button class="tab-btn {% if tab_actual == 'ai_ops' %}active{% endif %}" data-tab="ai_ops" onclick="switchTab('ai_ops', this)">AI Operations</button>
-        <button class="tab-btn {% if tab_actual == 'commercial' %}active{% endif %}" data-tab="commercial" onclick="switchTab('commercial', this)">Commercial CRM</button>
-        <button type="button" class="tab-btn {% if tab_actual == 'retencion' %}active{% endif %}" data-tab="retencion" onclick="switchTab('retencion', this)">Centro de Éxito</button>
+        <button class="tab-btn {% if tab_actual == 'learning' %}active{% endif %}" data-tab="learning" onclick="switchTab('learning', this)" title="Reportes B2B, métricas, embudo">Cursos y avance</button>
+        <button type="button" class="tab-btn {% if tab_actual == 'retencion' %}active{% endif %}" data-tab="retencion" onclick="switchTab('retencion', this)" title="Riesgo y mapa de caídas">Centro de Éxito</button>
+        <button class="tab-btn {% if tab_actual == 'commercial' %}active{% endif %}" data-tab="commercial" onclick="switchTab('commercial', this)" title="Nat y campañas">Nat / comercial</button>
+        <button class="tab-btn {% if tab_actual == 'ai_ops' %}active{% endif %}" data-tab="ai_ops" onclick="switchTab('ai_ops', this)" title="Twilio y activaciones IA">IA y Twilio</button>
+        <button class="tab-btn {% if tab_actual == 'executive' %}active{% endif %}" data-tab="executive" onclick="switchTab('executive', this)" title="KPIs filtrables y Excel">Pulso (filtros)</button>
     </div>
     <div id="learning-sub-nav" class="sub-tab-nav {% if tab_actual == 'learning' %}visible{% endif %}">
         <button type="button" class="sub-tab-btn {% if learning_section == 'reportes' %}active{% endif %}" data-section="reportes" onclick="switchLearningSection('reportes', this)">Reportes B2B</button>
@@ -320,8 +326,8 @@
             <input type="hidden" name="tab" value="learning">
             <input type="hidden" name="section" value="reportes">
             <div><label>Organización</label><select name="cliente"><option value="">Todos</option>{% for c in clientes %}<option value="{{ c.id }}" {% if c.id == cliente_filtro %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
-            <div><label>Curso</label><select name="curso"><option value="">Todos</option>{% for c in cursos %}<option value="{{ c.id }}" {% if c.id == curso_filtro %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
-            <div><label>Grupo</label><select name="grupo"><option value="">Todos</option>{% for g in grupos %}<option value="{{ g.id }}" {% if grupo_filtro == g.id %}selected{% endif %}>{{ g.emoji }} {{ g.nombre }}</option>{% endfor %}</select></div>
+            <div><label>Curso</label><select name="curso"><option value="">Todos{% if cliente_filtro %} (de esta org){% endif %}</option>{% for c in cursos %}<option value="{{ c.id }}" {% if c.id == curso_filtro %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
+            <div><label>Grupo</label><select name="grupo"><option value="">Todos{% if cliente_filtro %} (de esta org){% endif %}</option>{% for g in grupos %}<option value="{{ g.id }}" {% if grupo_filtro == g.id %}selected{% endif %}>{{ g.emoji }} {{ g.nombre }}</option>{% endfor %}</select></div>
             <div><label>Municipio</label><select name="municipio"><option value="">Todos</option>{% for m in municipios %}<option value="{{ m }}" {% if m == municipio_filtro %}selected{% endif %}>{{ m }}</option>{% endfor %}</select></div>
             <div><label>Desde</label><input type="date" name="fecha_inicio" value="{{ fecha_inicio }}"></div>
             <div><label>Hasta</label><input type="date" name="fecha_fin" value="{{ fecha_fin }}"></div>
@@ -330,13 +336,28 @@
         </form>
 
         <p class="la-funnel-help" style="margin-top:0;">
-            Un solo reporte B2B: resumen por organización (arriba) y detalle de personas (abajo).
-            Para semáforos KPI de <em>una</em> empresa use <strong>Métricas por Empresa</strong>;
-            para ver en qué módulo está cada persona hoy, <strong>Embudo por módulo</strong>.
+            Vista rápida: filtros + KPIs. Las tablas por organización/persona son pesadas:
+            cárgalas solo cuando las necesites (o descarga Excel).
+            Semáforos de una empresa → <strong>Métricas por Empresa</strong>;
+            posición hoy → <strong>Embudo por módulo</strong>.
         </p>
 
         <div class="section">
             <div class="section-title">Reporte B2B</div>
+            {% if not detalle_cargado %}
+            <div style="padding:18px 16px;border:1px dashed rgba(30,27,36,0.15);border-radius:12px;background:#faf8fc;margin-bottom:12px;">
+                <p style="margin:0 0 12px;color:var(--eki-muted);font-size:0.9rem;">
+                    Tablas de detalle <strong>no cargadas</strong> (así Analítica abre rápido).
+                </p>
+                <a class="btn-excel" style="background:var(--eki-primary);"
+                   href="?tab=learning&amp;section=reportes&amp;detalle=1{% if cliente_filtro %}&amp;cliente={{ cliente_filtro }}{% endif %}{% if curso_filtro %}&amp;curso={{ curso_filtro }}{% endif %}{% if grupo_filtro %}&amp;grupo={{ grupo_filtro }}{% endif %}{% if municipio_filtro %}&amp;municipio={{ municipio_filtro|urlencode }}{% endif %}{% if fecha_inicio %}&amp;fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&amp;fecha_fin={{ fecha_fin }}{% endif %}">
+                    Cargar tablas (org + estudiantes)
+                </a>
+            </div>
+            {% else %}
+            <p style="margin:0 0 10px;font-size:0.85rem;">
+                <a href="?tab=learning&amp;section=reportes{% if cliente_filtro %}&amp;cliente={{ cliente_filtro }}{% endif %}{% if curso_filtro %}&amp;curso={{ curso_filtro }}{% endif %}{% if grupo_filtro %}&amp;grupo={{ grupo_filtro }}{% endif %}{% if municipio_filtro %}&amp;municipio={{ municipio_filtro|urlencode }}{% endif %}{% if fecha_inicio %}&amp;fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&amp;fecha_fin={{ fecha_fin }}{% endif %}" style="color:var(--eki-primary);font-weight:600;">← Vista rápida (sin tablas)</a>
+            </p>
             <h3 style="font-size:0.95rem;margin:0 0 10px;color:var(--eki-muted);">Por organización</h3>
             <table class="eki-table" style="margin-bottom:22px;">
                 <thead><tr><th>Organización</th><th>Cursos</th><th>Estudiantes</th><th>Uso Audio</th><th>Uso IA</th><th>Completados</th></tr></thead>
@@ -372,6 +393,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+            {% endif %}
         </div>
     </div>
 
@@ -1436,6 +1458,19 @@ function iniciarAutoRefreshResumen() {
     }
     if (tab === 'commercial') cargarMetricasNati();
     if (tab === 'retencion') animateRetencionBars();
+
+    // Organización → refrescar: cursos/grupos del filtro deben ser solo de esa org.
+    document.querySelectorAll('.filters-bar select[name="cliente"]').forEach(function (sel) {
+        sel.addEventListener('change', function () {
+            var form = sel.form;
+            if (!form) return;
+            var curso = form.querySelector('select[name="curso"]');
+            var grupo = form.querySelector('select[name="grupo"]');
+            if (curso) curso.value = '';
+            if (grupo) grupo.value = '';
+            form.submit();
+        });
+    });
 })();
 </script>
 {% endblock %}

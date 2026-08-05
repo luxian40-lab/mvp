@@ -2,5 +2,7 @@
     <a href="{% url 'aprende_profesor_curso' curso.id %}" class="eki-tab{% if profesor_tab == 'contenido' %} eki-tab--active{% endif %}"{% if profesor_tab == 'contenido' %} aria-current="page"{% endif %}>Contenido</a>
     <a href="{% url 'aprende_profesor_asistencia' curso.id %}" class="eki-tab{% if profesor_tab == 'asistencia' %} eki-tab--active{% endif %}"{% if profesor_tab == 'asistencia' %} aria-current="page"{% endif %}>Asistencia</a>
     <a href="{% url 'aprende_profesor_calificaciones' curso.id %}" class="eki-tab{% if profesor_tab == 'calificaciones' %} eki-tab--active{% endif %}"{% if profesor_tab == 'calificaciones' %} aria-current="page"{% endif %}>Calificaciones</a>
+    {% if not curso.es_modo_clases %}
     <a href="{% url 'aprende_profesor_ranking' curso.id %}" class="eki-tab{% if profesor_tab == 'ranking' %} eki-tab--active{% endif %}"{% if profesor_tab == 'ranking' %} aria-current="page"{% endif %}>Ranking</a>
+    {% endif %}
 </nav>

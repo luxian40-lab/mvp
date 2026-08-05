@@ -6,8 +6,8 @@
    class="{% if 'tarea' in n %}is-active{% endif %}"
    {% if n == 'aprende_estudiante_tareas' %}aria-current="page"{% endif %}>Tareas</a>
 <a href="{% url 'aprende_estudiante_biblioteca' %}"
-   class="{% if n == 'aprende_estudiante_biblioteca' %}is-active{% endif %}"
-   {% if n == 'aprende_estudiante_biblioteca' %}aria-current="page"{% endif %}>Biblioteca</a>
+   class="{% if n == 'aprende_estudiante_biblioteca' %}is-active{% endif %}{% if aprende_tiene_modo_clases %} eki-nav__primary{% endif %}"
+   {% if n == 'aprende_estudiante_biblioteca' %}aria-current="page"{% endif %}>{% if aprende_tiene_modo_clases %}Mis clases{% else %}Biblioteca{% endif %}</a>
 <a href="{% url 'aprende_estudiante_perfil' %}"
    class="{% if n == 'aprende_estudiante_perfil' %}is-active{% endif %}"
    {% if n == 'aprende_estudiante_perfil' %}aria-current="page"{% endif %}>Mi perfil</a>
