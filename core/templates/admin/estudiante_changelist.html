@@ -3,6 +3,11 @@
 
 {% block object-tools-items %}
     <li>
+        <a href="{% url 'admin:core_estudiante_exportar_plantilla' %}" class="addlink">
+            Descargar plantilla Excel
+        </a>
+    </li>
+    <li>
         <a href="{% url 'admin:core_estudiante_importar' %}" class="addlink">
             Importar Excel
         </a>

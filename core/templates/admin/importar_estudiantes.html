@@ -38,12 +38,20 @@
         <form method="post" enctype="multipart/form-data" style="margin-top:30px;">
             {% csrf_token %}
             
+            <div style="background:#e8f5e9;padding:16px 20px;border-radius:8px;margin-bottom:16px;border:1px solid #c8e6c9;">
+                <p style="margin:0 0 10px;font-size:15px;">
+                    <strong>Paso 1 — Descargue la plantilla</strong>, llénela (una fila por estudiante) y súbala abajo.
+                </p>
+                <a href="{% url 'admin:core_estudiante_exportar_plantilla' %}"
+                   style="display:inline-block;background:#2e7d32;color:#fff;padding:12px 22px;border-radius:6px;text-decoration:none;font-weight:700;">
+                    Descargar plantilla Excel (.xlsx)
+                </a>
+            </div>
+
             <div style="background:#e3f2fd;padding:20px;border-radius:8px;margin-bottom:20px;">
                 <h3 style="margin-top:0;">Formato del Excel (plantilla actual)</h3>
                 <p style="margin:0 0 12px;">
-                    Descargue la plantilla desde la lista de Estudiantes →
-                    <strong>Exportar plantilla importación</strong>.
-                    Primera fila = encabezados. Columnas en este orden:
+                    Use la plantilla descargada (encabezados ya van bien). Columnas:
                 </p>
                 <table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:14px;">
                     <thead>
@@ -125,9 +133,6 @@
                     *Curso y Cliente no son obligatorios para crear la persona, pero si quiere inscripción + reportes por org, llénelos.
                     Excel viejo (A = solo cédula numérica, sin columna Tipo) sigue aceptándose.
                     <strong>Teléfono:</strong> columna D como <em>Texto</em> (si Excel la deja como número, a veces sale 5,73E+11 y falla).
-                </p>
-                <p style="margin:8px 0 0;">
-                    <a href="{% url 'admin:core_estudiante_exportar_plantilla' %}">Descargar plantilla Excel ahora</a>
                 </p>
             </div>
             

@@ -90,7 +90,6 @@ class EstudianteAdmin(admin.ModelAdmin):
         'asignar_a_grupo_accion',
         'asignar_cliente_masivo',
         'exportar_estudiantes_por_curso',
-        'exportar_plantilla_importacion',
         'enviar_mensaje_masivo',
         'enviar_anuncio_grupal',
         'invitar_a_grupo_whatsapp',
