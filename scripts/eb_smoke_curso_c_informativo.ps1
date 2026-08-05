@@ -169,7 +169,7 @@ done
 export USE_S3=True
 cd /var/app/current && source /var/app/venv/*/bin/activate
 export PYTHONPATH=/var/app/current
-python manage.py migrate core 0129 --noinput || python manage.py migrate --noinput
+python manage.py migrate core 0130 --noinput || python manage.py migrate --noinput
 echo $pyB64 | base64 -d > /tmp/smoke_curso_c.py
 python /tmp/smoke_curso_c.py
 "@ -replace "`r`n", "`n"
