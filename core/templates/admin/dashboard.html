@@ -82,9 +82,59 @@
     .chart-card { background: var(--eki-card); padding: 20px; border-radius: var(--eki-radius); box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
     .chart-card h3 { font-size: 0.95rem; font-weight: 600; color: var(--eki-text); margin: 0 0 14px 0; }
     .eki-table { width: 100%; border-collapse: collapse; background: var(--eki-card); border-radius: var(--eki-radius); overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-    .eki-table th { background: #f8f9fa; font-size: 0.8rem; font-weight: 600; color: var(--eki-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: left; }
+    /* Cabeceras: más contraste (gris-sobre-gris no se leía) + un poco más de aire */
+    .eki-table th {
+        background: #e8e4ee;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #3d3748;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        padding: 14px 14px 12px;
+        text-align: left;
+        border-bottom: 1px solid rgba(61, 55, 72, 0.12);
+    }
+    .eki-table th.sortable {
+        cursor: pointer;
+        user-select: none;
+        white-space: nowrap;
+    }
+    .eki-table th.sortable:hover { color: #5F3A6E; background: #dfd8ea; }
+    .eki-table th.sortable[aria-sort="ascending"]::after { content: " ↑"; font-weight: 700; }
+    .eki-table th.sortable[aria-sort="descending"]::after { content: " ↓"; font-weight: 700; }
     .eki-table td { padding: 10px 14px; border-top: 1px solid var(--eki-border); font-size: 0.9rem; color: var(--eki-text); }
     .eki-table tr:hover td { background: #f8f9fa; }
+    .b2b-estudiantes-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 14px;
+        margin: 15px 0 12px;
+    }
+    .b2b-estudiantes-toolbar h3 {
+        font-size: 0.95rem;
+        margin: 0;
+        color: #3d3748;
+        font-weight: 700;
+        flex: 1 1 auto;
+    }
+    .b2b-estudiantes-toolbar label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #5a5463;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .b2b-estudiantes-toolbar select {
+        padding: 6px 10px;
+        border: 1px solid var(--eki-border);
+        border-radius: 6px;
+        font-size: 0.85rem;
+        background: #fff;
+        color: var(--eki-text);
+    }
+    #tabla-estudiantes-b2b-wrap { margin-top: 0; }
     .ranking-list { list-style: none; padding: 0; margin: 0; }
     .ranking-list li { display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--eki-border); }
     .ranking-list li:last-child { border-bottom: none; }
@@ -358,7 +408,7 @@
             <p style="margin:0 0 10px;font-size:0.85rem;">
                 <a href="?tab=learning&amp;section=reportes{% if cliente_filtro %}&amp;cliente={{ cliente_filtro }}{% endif %}{% if curso_filtro %}&amp;curso={{ curso_filtro }}{% endif %}{% if grupo_filtro %}&amp;grupo={{ grupo_filtro }}{% endif %}{% if municipio_filtro %}&amp;municipio={{ municipio_filtro|urlencode }}{% endif %}{% if fecha_inicio %}&amp;fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&amp;fecha_fin={{ fecha_fin }}{% endif %}" style="color:var(--eki-primary);font-weight:600;">← Vista rápida (sin tablas)</a>
             </p>
-            <h3 style="font-size:0.95rem;margin:0 0 10px;color:var(--eki-muted);">Por organización</h3>
+            <h3 style="font-size:0.95rem;margin:15px 0 10px;color:#3d3748;font-weight:700;">Por organización</h3>
             <table class="eki-table" style="margin-bottom:22px;">
                 <thead><tr><th>Organización</th><th>Cursos</th><th>Estudiantes</th><th>Uso Audio</th><th>Uso IA</th><th>Completados</th></tr></thead>
                 <tbody>
@@ -369,30 +419,58 @@
                     {% endfor %}
                 </tbody>
             </table>
-            <h3 style="font-size:0.95rem;margin:0 0 10px;color:var(--eki-muted);">Por estudiante (máx. 200 del filtro)</h3>
-            <table class="eki-table">
-                <thead><tr><th>Nombre</th><th>Cédula</th><th>Teléfono</th><th>Organización</th><th>Municipio</th><th>Grupo(s)</th><th>Curso</th><th>Módulo actual</th><th>Módulos</th><th>Estado</th><th>Avance</th><th>Puntos</th></tr></thead>
+            <div class="b2b-estudiantes-toolbar">
+                <h3>Por estudiante (máx. 200 del filtro)</h3>
+                <label>Ordenar
+                    <select id="b2b-orden-estudiantes" aria-label="Ordenar tabla de estudiantes">
+                        <option value="nombre">A–Z nombre</option>
+                        <option value="modulo">Módulo actual</option>
+                        <option value="avance">Avance %</option>
+                        <option value="grupo">Grupo(s)</option>
+                        <option value="curso">Curso</option>
+                    </select>
+                </label>
+            </div>
+            <div id="tabla-estudiantes-b2b-wrap">
+            <table class="eki-table" id="tabla-estudiantes-b2b">
+                <thead>
+                    <tr>
+                        <th class="sortable" data-sort="nombre" data-type="text" scope="col" title="Clic para ordenar">Nombre</th>
+                        <th scope="col">Cédula</th>
+                        <th scope="col">Teléfono</th>
+                        <th class="sortable" data-sort="organizacion" data-type="text" scope="col" title="Clic para ordenar">Organización</th>
+                        <th scope="col">Municipio</th>
+                        <th class="sortable" data-sort="grupo" data-type="text" scope="col" title="Clic para ordenar">Grupo(s)</th>
+                        <th class="sortable" data-sort="curso" data-type="text" scope="col" title="Clic para ordenar">Curso</th>
+                        <th class="sortable" data-sort="modulo" data-type="text" scope="col" title="Clic para ordenar">Módulo actual</th>
+                        <th scope="col">Módulos</th>
+                        <th class="sortable" data-sort="estado" data-type="text" scope="col" title="Clic para ordenar">Estado</th>
+                        <th class="sortable" data-sort="avance" data-type="num" scope="col" title="Clic para ordenar">Avance</th>
+                        <th class="sortable" data-sort="puntos" data-type="num" scope="col" title="Clic para ordenar">Puntos</th>
+                    </tr>
+                </thead>
                 <tbody>
                     {% for est in estudiantes_detalle %}
                     <tr>
-                        <td>{{ est.nombre }}</td>
+                        <td data-col="nombre">{{ est.nombre }}</td>
                         <td>{{ est.cedula }}</td>
                         <td>{{ est.telefono }}</td>
-                        <td>{{ est.organizacion }}</td>
+                        <td data-col="organizacion">{{ est.organizacion }}</td>
                         <td>{{ est.municipio }}</td>
-                        <td>{{ est.grupos }}</td>
-                        <td>{{ est.curso }}</td>
-                        <td>{{ est.modulo_actual|default:"-" }}</td>
+                        <td data-col="grupo">{{ est.grupos }}</td>
+                        <td data-col="curso">{{ est.curso }}</td>
+                        <td data-col="modulo">{{ est.modulo_actual|default:"-" }}</td>
                         <td>{{ est.modulos_completados|default:"-" }}</td>
-                        <td>{{ est.estado_avance }}</td>
-                        <td>{{ est.avance }}%</td>
-                        <td>{{ est.puntos }}</td>
+                        <td data-col="estado">{{ est.estado_avance }}</td>
+                        <td data-col="avance" data-value="{{ est.avance }}">{{ est.avance }}%</td>
+                        <td data-col="puntos" data-value="{{ est.puntos }}">{{ est.puntos }}</td>
                     </tr>
                     {% empty %}
                     <tr><td colspan="12" style="text-align:center;color:#aaa;">Sin datos — aplique filtros o exporte Excel</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
             {% endif %}
         </div>
     </div>
@@ -1471,6 +1549,74 @@ function iniciarAutoRefreshResumen() {
             form.submit();
         });
     });
+
+    // Reportes B2B: ordenar tabla por estudiante (clic en cabecera o select).
+    (function initB2BEstudiantesSort() {
+        var table = document.getElementById('tabla-estudiantes-b2b');
+        if (!table) return;
+        var tbody = table.tBodies[0];
+        if (!tbody) return;
+        var select = document.getElementById('b2b-orden-estudiantes');
+        var currentKey = 'nombre';
+        var currentDir = 'asc';
+
+        function cellVal(row, key, type) {
+            var cell = row.querySelector('[data-col="' + key + '"]');
+            if (!cell) return '';
+            if (type === 'num') {
+                var raw = cell.getAttribute('data-value');
+                if (raw == null || raw === '') raw = (cell.textContent || '').replace(/[^\d.-]/g, '');
+                var n = parseFloat(raw);
+                return isNaN(n) ? 0 : n;
+            }
+            return (cell.textContent || '').trim().toLocaleLowerCase('es');
+        }
+
+        function sortBy(key, type, dir) {
+            var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+            if (!rows.length || rows[0].querySelectorAll('td').length < 2) return;
+            var mult = dir === 'desc' ? -1 : 1;
+            rows.sort(function (a, b) {
+                var va = cellVal(a, key, type);
+                var vb = cellVal(b, key, type);
+                if (type === 'num') return (va - vb) * mult;
+                if (va < vb) return -1 * mult;
+                if (va > vb) return 1 * mult;
+                return 0;
+            });
+            rows.forEach(function (r) { tbody.appendChild(r); });
+            table.querySelectorAll('th.sortable').forEach(function (th) {
+                th.removeAttribute('aria-sort');
+                if (th.getAttribute('data-sort') === key) {
+                    th.setAttribute('aria-sort', dir === 'desc' ? 'descending' : 'ascending');
+                }
+            });
+            currentKey = key;
+            currentDir = dir;
+            if (select) {
+                var opt = select.querySelector('option[value="' + key + '"]');
+                if (opt) select.value = key;
+            }
+        }
+
+        table.querySelectorAll('th.sortable').forEach(function (th) {
+            th.addEventListener('click', function () {
+                var key = th.getAttribute('data-sort');
+                var type = th.getAttribute('data-type') || 'text';
+                var dir = (currentKey === key && currentDir === 'asc') ? 'desc' : 'asc';
+                sortBy(key, type, dir);
+            });
+        });
+        if (select) {
+            select.addEventListener('change', function () {
+                var key = select.value;
+                var th = table.querySelector('th.sortable[data-sort="' + key + '"]');
+                var type = th ? (th.getAttribute('data-type') || 'text') : 'text';
+                sortBy(key, type, key === 'avance' || key === 'puntos' ? 'desc' : 'asc');
+            });
+        }
+        sortBy('nombre', 'text', 'asc');
+    })();
 })();
 </script>
 {% endblock %}
