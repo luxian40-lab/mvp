@@ -2211,10 +2211,10 @@ class Modulo(models.Model):
     contenido = models.TextField(
         blank=True,
         default='',
-        help_text=(
-            'Contenido del módulo completo (Legacy). Obligatorio solo sin microcontenidos; '
-            'con pasos en Microcontenidos puede quedar vacío.'
-        ),
+            help_text=(
+                'Texto legacy del módulo completo. Opcional si usa Clase, '
+                'Estructura/Materiales o microcontenidos.'
+            ),
     )
 
     # 🎥 SOPORTE DE VIDEOS Y MULTIMEDIA
@@ -2369,6 +2369,9 @@ class Modulo(models.Model):
         from .module_steps import validar_contenido_modulo
 
         super().clean()
+        # Admin ModuloAdminForm ya validó con Clase/Estructura/POST; evitar doble fail.
+        if getattr(self, '_eki_skip_contenido_model_clean', False):
+            return
         try:
             validar_contenido_modulo(self.contenido or '', self)
         except ValidationError as exc:
@@ -2454,6 +2457,16 @@ class PasoModulo(models.Model):
         help_text=(
             'URL pública del archivo (S3). Si usa «Subir archivo desde PC», se completa al Guardar. '
             'Debe verse un enlace https://… aquí; si queda vacío, el video no se enviará por WhatsApp.'
+        ),
+    )
+    media_wa_apto = models.BooleanField(
+        null=True,
+        blank=True,
+        default=None,
+        verbose_name='Apto WhatsApp',
+        help_text=(
+            'True si el último upload de video pasó compresión/gate WA (~16MB, H.264). '
+            'Vacío = legado / desconocido. No reprocesa videos antiguos solos.'
         ),
     )
     eval_opcion_a = models.TextField(blank=True, default='', verbose_name='Opción A')

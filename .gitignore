@@ -24,6 +24,9 @@ venv/
 .env.local
 .env.production
 .env.render
+.luisa_admin_credentials.txt
+*_admin_credentials.txt
+
 
 # Archivos de prueba
 prueba_*.py

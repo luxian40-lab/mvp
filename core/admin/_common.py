@@ -69,7 +69,19 @@ logger = logging.getLogger(__name__)
 
 
 def guardar_upload_admin_media(uploaded_file, *, carpeta='admin_media', prefix='media'):
-    """Guarda un upload del admin en el storage activo y devuelve su URL pública."""
+    """Guarda un upload del admin en el storage activo y devuelve su URL pública.
+
+    MP4: comprime/optimiza para WhatsApp; si tras eso supera ~16MB, rechaza (sin Twilio).
+    Devuelve ``(url, meta)`` no — mantiene str URL. Meta de aptitud en form vía
+    ``guardar_upload_admin_media_resultado``.
+    """
+    return guardar_upload_admin_media_resultado(uploaded_file, carpeta=carpeta, prefix=prefix)['url']
+
+
+def guardar_upload_admin_media_resultado(
+    uploaded_file, *, carpeta='admin_media', prefix='media'
+) -> dict:
+    """Como ``guardar_upload_admin_media`` pero con ``{url, media_wa_apto, bytes, razon}``."""
     from django.core.files.base import ContentFile
     from django.core.files.storage import default_storage
     from django.utils.text import get_valid_filename
@@ -78,18 +90,55 @@ def guardar_upload_admin_media(uploaded_file, *, carpeta='admin_media', prefix='
     filename = get_valid_filename(uploaded_file.name)
     raw = uploaded_file.read()
     name_l = (filename or '').lower()
-    # No remuxeamos aquí: un remux mal aplicado puede corromper el MP4.
-    # WhatsApp: se prepara (faststart) al enviar. Rechazar MP4 ilegibles (causa 63021).
+    media_wa_apto = None
+    razon = ''
+    # MP4: validar + optimizar para WhatsApp (63021: moov al final / High profile).
     if name_l.endswith(('.mp4', '.m4v', '.mov')):
-        if len(raw) > 12 and b'ftyp' not in raw[:64]:
+        # Rechazar siempre basura corta / sin ftyp (EB a menudo no tiene ffprobe).
+        if len(raw) < 12 or b'ftyp' not in raw[:64]:
             raise ValidationError(
                 f'El video "{filename}" no es un MP4 válido (cabecera incorrecta). '
                 'Exporte de nuevo como H.264 + AAC (.mp4) e intente otra vez.'
             )
         _validar_video_decodificable(raw, filename)
+        try:
+            from core.twilio_media import (
+                WHATSAPP_VIDEO_MAX_BYTES,
+                evaluar_mp4_listo_whatsapp,
+                optimizar_mp4_bytes_whatsapp,
+            )
+
+            raw = optimizar_mp4_bytes_whatsapp(raw) or raw
+            gate = evaluar_mp4_listo_whatsapp(raw)
+            media_wa_apto = bool(gate.get('apto'))
+            razon = gate.get('razon') or ''
+            if not gate.get('apto'):
+                mb = (gate.get('bytes') or len(raw)) / (1024 * 1024)
+                raise ValidationError(
+                    f'El video "{filename}" no queda apto para WhatsApp tras comprimir '
+                    f'({mb:.1f} MB, {razon}). Meta/Twilio suelen fallar sobre '
+                    f'{WHATSAPP_VIDEO_MAX_BYTES // (1024 * 1024)} MB o con codec inválido. '
+                    'Acórtelo o baje calidad e intente de nuevo.'
+                )
+            # Path estable wa_safe para uploads nuevos aptos
+            stem = filename.rsplit('.', 1)[0]
+            filename = f'{stem}_h264_main_faststart.mp4'
+            carpeta = f'{carpeta.rstrip("/")}/wa_safe'
+        except ValidationError:
+            raise
+        except Exception as exc:
+            logger.warning('Optimización WhatsApp omitida | %s | %s', filename, exc)
+            media_wa_apto = None
+            razon = f'opt_omitida:{exc}'
     path = f'{carpeta}/{now:%Y/%m}/{prefix}_{now:%Y%m%d%H%M%S}_{filename}'
     saved_path = default_storage.save(path, ContentFile(raw))
-    return default_storage.url(saved_path)
+    url = default_storage.url(saved_path)
+    return {
+        'url': url,
+        'media_wa_apto': media_wa_apto,
+        'bytes': len(raw),
+        'razon': razon,
+    }
 
 
 def _validar_video_decodificable(raw: bytes, filename: str) -> None:

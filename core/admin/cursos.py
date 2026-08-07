@@ -4,6 +4,8 @@ from core.orden_bloques import (
     preparar_ordenes_temporales,
     renumerar_orden_1_based,
 )
+from unfold.decorators import action
+from unfold.widgets import UnfoldAdminFileFieldWidget
 
 # ==========================================
 # SISTEMA EDUCATIVO - ADMINISTRACIÓN
@@ -43,17 +45,27 @@ def sembrar_plantilla_modulo(modulo, *, n_pasos: int = MODULO_ALTA_PASOS_PLANTIL
     """
     Tras el alta: garantiza 1 sección y N microcontenidos vacíos (activo=False).
     No pisa secciones/pasos que el operador ya haya cargado en el mismo POST.
+    Cursos modo clases: 1 solo paso, sin exigir *listo*.
     """
     created = {'seccion': False, 'pasos': 0}
     if not modulo or not modulo.pk:
         return created
 
+    curso = getattr(modulo, 'curso', None)
+    modo_clases = bool(curso and getattr(curso, 'es_modo_clases', lambda: False)())
+    if modo_clases:
+        n_pasos = 1
+
     seccion = modulo.secciones.order_by('orden', 'id').first()
     if seccion is None:
+        if modo_clases:
+            titulo_sec = (modulo.titulo or '').strip() or 'Clase'
+        else:
+            titulo_sec = 'Bloque 1'
         seccion = SeccionModulo.objects.create(
             modulo=modulo,
             orden=1,
-            titulo='Bloque 1',
+            titulo=titulo_sec[:200],
             activa=True,
         )
         created['seccion'] = True
@@ -66,13 +78,156 @@ def sembrar_plantilla_modulo(modulo, *, n_pasos: int = MODULO_ALTA_PASOS_PLANTIL
             modulo=modulo,
             seccion=seccion,
             orden=i,
-            titulo=f'Microcontenido {i}',
+            titulo=('Bienvenida' if modo_clases and i == 1 else f'Microcontenido {i}'),
             contenido='',
             activo=False,
-            requiere_listo_para_avanzar=True,
+            requiere_listo_para_avanzar=not modo_clases,
         )
         created['pasos'] += 1
     return created
+
+
+def asegurar_seccion_y_primer_paso(modulo) -> tuple:
+    """Garantiza 1 sección + 1er paso (no borra pasos extra)."""
+    seccion = modulo.secciones.order_by('orden', 'id').first()
+    if seccion is None:
+        titulo_sec = (modulo.titulo or '').strip() or f'Clase {modulo.numero}'
+        seccion = SeccionModulo.objects.create(
+            modulo=modulo,
+            orden=1,
+            titulo=titulo_sec[:200],
+            activa=True,
+        )
+    elif not (seccion.titulo or '').strip():
+        seccion.titulo = ((modulo.titulo or '').strip() or f'Clase {modulo.numero}')[:200]
+        seccion.save(update_fields=['titulo'])
+
+    paso = modulo.pasos.order_by('orden', 'id').first()
+    curso = getattr(modulo, 'curso', None)
+    modo_clases = bool(curso and getattr(curso, 'es_modo_clases', lambda: False)())
+    if paso is None:
+        paso = PasoModulo.objects.create(
+            modulo=modulo,
+            seccion=seccion,
+            orden=1,
+            titulo='Bienvenida',
+            contenido='',
+            activo=False,
+            requiere_listo_para_avanzar=not modo_clases,
+        )
+    elif paso.seccion_id != seccion.id:
+        paso.seccion = seccion
+        paso.save(update_fields=['seccion'])
+    return seccion, paso
+
+
+def aplicar_clase_simple_desde_form(form, formsets=None) -> PasoModulo | None:
+    """
+    Sincroniza pestaña Clase → 1er PasoModulo (texto / media / activo).
+    Solo campos Clase realmente editados. Si Materiales guardó el 1er paso
+    en el mismo POST, no pisar su contenido (bug Agrosavia / varios micros).
+    """
+    modulo = form.instance
+    if not modulo or not modulo.pk:
+        return None
+    if not _form_toco_clase_simple(form):
+        return None
+    cd = getattr(form, 'cleaned_data', None) or {}
+    changed = getattr(form, 'changed_data', None)
+    strict = changed is not None
+    seccion, paso = asegurar_seccion_y_primer_paso(modulo)
+
+    inline_guardo_contenido = _formsets_guardaron_contenido_paso(formsets, paso)
+
+    update_fields = []
+    texto = (cd.get('clase_texto') or '').strip()
+    tocar_texto = (
+        (strict and 'clase_texto' in changed)
+        or (not strict and bool(texto))
+    )
+    if tocar_texto and not inline_guardo_contenido:
+        if texto != (paso.contenido or ''):
+            paso.contenido = texto
+            update_fields.append('contenido')
+
+    titulo_paso = (cd.get('titulo') or modulo.titulo or '').strip() or 'Bienvenida'
+    if not (paso.titulo or '').strip() or paso.titulo.startswith('Microcontenido'):
+        paso.titulo = titulo_paso[:200]
+        update_fields.append('titulo')
+
+    pending = getattr(form, '_clase_pending_media_url', None)
+    url_manual = (cd.get('clase_url') or '').strip()
+    tocar_url = bool(pending) or (
+        (strict and 'clase_url' in changed and url_manual)
+        or (not strict and url_manual)
+    )
+    new_url = (pending or url_manual or '').strip()
+    if tocar_url and new_url and new_url != (paso.media_url or ''):
+        paso.media_url = new_url
+        update_fields.append('media_url')
+
+    tocar_activo = (
+        (strict and 'clase_activo' in changed)
+        or (not strict and 'clase_activo' in cd)
+    )
+    if tocar_activo:
+        activo = bool(cd.get('clase_activo'))
+        if activo != bool(paso.activo):
+            paso.activo = activo
+            update_fields.append('activo')
+
+    if seccion.titulo != ((modulo.titulo or '').strip() or seccion.titulo):
+        seccion.titulo = ((modulo.titulo or '').strip() or seccion.titulo)[:200]
+        seccion.save(update_fields=['titulo'])
+
+    if update_fields:
+        paso.save(update_fields=list(dict.fromkeys(update_fields)))
+    return paso if update_fields else None
+
+
+def _formsets_guardaron_contenido_paso(formsets, paso) -> bool:
+    """True si el inline Materiales envió contenido para el mismo paso en este POST."""
+    if not formsets or not paso:
+        return False
+    for fs in formsets:
+        if getattr(fs, 'model', None) is not PasoModulo:
+            continue
+        for f in fs.forms:
+            cleaned = getattr(f, 'cleaned_data', None) or {}
+            if cleaned.get('DELETE'):
+                continue
+            inst = getattr(f, 'instance', None)
+            if inst is None:
+                continue
+            same_pk = getattr(inst, 'pk', None) and inst.pk == paso.pk
+            if not same_pk:
+                continue
+            changed = getattr(f, 'changed_data', None)
+            if changed is not None and 'contenido' in changed:
+                return True
+            if (cleaned.get('contenido') or '').strip() and f.has_changed():
+                return True
+    return False
+
+
+def _form_toco_clase_simple(form) -> bool:
+    """True si el POST/form tocó Clase (evita overwrite Materiales en Guardar genérico)."""
+    if getattr(form, '_clase_pending_media_url', None):
+        return True
+    cd = getattr(form, 'cleaned_data', None) or {}
+    if cd.get('clase_archivo') or (cd.get('clase_url') or '').strip():
+        return True
+    changed = getattr(form, 'changed_data', None)
+    if changed is not None:
+        return any(
+            name in changed
+            for name in ('clase_texto', 'clase_archivo', 'clase_url', 'clase_activo')
+        )
+    if (cd.get('clase_texto') or '').strip():
+        return True
+    if cd.get('clase_activo') is True:
+        return True
+    return False
 
 
 
@@ -138,7 +293,8 @@ class CursoAdmin(admin.ModelAdmin):
     list_editable = ()
     inlines = [ModuloInline, DocumentoRAGInline, PreguntaAbiertaFinalInline]
     actions = [
-        'ver_todos_modulos', 'indexar_documentos_rag', 'indexar_contenido_modulos',
+        'ver_todos_modulos', 'añadir_clase_rapida',
+        'indexar_documentos_rag', 'indexar_contenido_modulos',
         'activar_cursos', 'desactivar_cursos', 'copiar_a_otro_cliente', 'copiar_a_analytics_pruebas',
     ]
     # change_list_template = 'admin/curso_changelist.html'  # Eliminado para usar el template estándar de Django
@@ -158,7 +314,7 @@ class CursoAdmin(admin.ModelAdmin):
                 '<li><strong>Clases / biblioteca</strong> — informativo en Aprende: '
                 'Biblioteca = «mis clases», <em>sin gamificación ni *listo* por WA</em> '
                 '(se apagan solos al guardar). Use un nombre claro para la lista Excel '
-                '(ej. «Cenipalma — Clases Aprende»).</li>'
+                '(ej. «Cenipalma - Clases Aprende», guión simple).</li>'
                 '</ul>'
             ),
         }),
@@ -317,6 +473,54 @@ class CursoAdmin(admin.ModelAdmin):
         curso_ids = ','.join(str(c.id) for c in queryset)
         return redirect(f'/admin/core/modulo/?curso__id__in={curso_ids}')
 
+    @admin.action(description='➕ Añadir clase rápida (abre editor Clase)')
+    def añadir_clase_rapida(self, request, queryset):
+        """Crea módulo + sección + 1 paso vacío y abre pestaña Clase."""
+        if queryset.count() != 1:
+            self.message_user(
+                request,
+                'Seleccione un solo curso para añadir la clase.',
+                level=messages.ERROR,
+            )
+            return
+        curso = queryset.first()
+        last = curso.modulos.order_by('-numero').first()
+        numero = (last.numero + 1) if last else 1
+        modo_clases = curso.es_modo_clases()
+        with transaction.atomic():
+            modulo = Modulo.objects.create(
+                curso=curso,
+                numero=numero,
+                titulo=f'Clase {numero}',
+                descripcion='',
+                contenido='',
+                duracion_dias=7,
+                modo_entrega=(
+                    Modulo.MODO_ENTREGA_LEGACY if modo_clases else Modulo.MODO_ENTREGA_PASOS
+                ),
+            )
+            sec = SeccionModulo.objects.create(
+                modulo=modulo,
+                orden=1,
+                titulo=f'Clase {numero}',
+                activa=True,
+            )
+            PasoModulo.objects.create(
+                modulo=modulo,
+                seccion=sec,
+                orden=1,
+                titulo='Bienvenida',
+                contenido='',
+                activo=False,
+                requiere_listo_para_avanzar=not modo_clases,
+            )
+        self.message_user(
+            request,
+            f'Clase {numero} creada. Suba el archivo en la pestaña Clase y active.',
+            level=messages.SUCCESS,
+        )
+        return redirect('admin:core_modulo_change', modulo.pk)
+
     @admin.action(description='✅ Activar cursos seleccionados')
     def activar_cursos(self, request, queryset):
         count = queryset.update(activo=True)
@@ -380,11 +584,7 @@ class PreguntaModuloInline(admin.StackedInline):
     fieldsets = (
         ('Pregunta', {
             'fields': ('pregunta',),
-            'description': (
-                'Se envía cuando el estudiante ya recorrió todos los microcontenidos activos '
-                '(no durante *listo* intermedio). Independiente de las evaluaciones por letras '
-                'dentro de cada microcontenido.'
-            ),
+            'description': 'Opcional. Solo si el módulo tiene mini examen al final.',
         }),
         ('Opciones de respuesta', {
             'fields': ('opcion_a', 'opcion_b', 'opcion_c', 'opcion_d', 'respuesta_correcta')
@@ -395,9 +595,124 @@ class PreguntaModuloInline(admin.StackedInline):
     )
 
 
+class SeccionModuloForm(forms.ModelForm):
+    """
+    Orden oculto por Unfold: filas nuevas llegan sin orden → «campo obligatorio»
+    invisible + UniqueConstraint → no guarda el bloque. Igual patrón que Pasos.
+    """
+
+    class Meta:
+        model = SeccionModulo
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if 'orden' in self.fields:
+            self.fields['orden'].required = False
+            self.fields['orden'].widget = forms.HiddenInput()
+        if 'titulo' in self.fields:
+            self.fields['titulo'].help_text = 'Nombre interno del bloque (no se envía por WhatsApp).'
+
+    def _get_validation_exclusions(self):
+        exclude = super()._get_validation_exclusions()
+        exclude.add('orden')
+        return exclude
+
+    def clean_orden(self):
+        try:
+            idx = int(str(self.prefix or '0').rsplit('-', 1)[-1])
+        except (TypeError, ValueError):
+            idx = 0
+        raw = None
+        if self.data is not None:
+            raw = self.data.get(self.add_prefix('orden'))
+        if self.instance and self.instance.pk:
+            if raw not in (None, '') and str(raw).strip().lstrip('-').isdigit():
+                return int(str(raw).strip())
+            if self.instance.orden:
+                return self.instance.orden
+            return idx + 1
+        return 900000 + idx
+
+    def validate_unique(self):
+        exclude = self._get_validation_exclusions()
+        try:
+            self.instance.validate_unique(exclude=exclude)
+        except ValidationError as e:
+            self._update_errors(e)
+
+    def has_changed(self):
+        """Fila «Agregar Bloque» vacía no debe invalidar el guardado."""
+        if getattr(self, 'empty_permitted', False) and not (self.instance and self.instance.pk):
+            if self.data and (self.data.get(self.add_prefix('titulo')) or '').strip():
+                return True
+            if self.data and self.data.get(self.add_prefix('DELETE')):
+                return True
+            return False
+        return super().has_changed()
+
+    def clean(self):
+        cleaned = super().clean()
+        if not cleaned.get('orden'):
+            cleaned['orden'] = self.clean_orden() if 'orden' in self.fields else 1
+        return cleaned
+
+
+class SeccionModuloInlineFormSet(BaseInlineFormSet):
+    def add_fields(self, form, index):
+        super().add_fields(form, index)
+        if 'orden' in form.fields:
+            form.fields['orden'].required = False
+            form.fields['orden'].widget = forms.HiddenInput()
+            if index is not None and not form.initial.get('orden') and not getattr(form.instance, 'orden', None):
+                form.fields['orden'].initial = 900000 + index
+
+    def validate_unique(self):
+        return
+
+    def clean(self):
+        super().clean()
+        seen = set()
+        for i, form in enumerate(self.forms):
+            if not hasattr(form, 'cleaned_data') or form.cleaned_data is None:
+                continue
+            if form.cleaned_data.get('DELETE'):
+                continue
+            o = form.cleaned_data.get('orden')
+            if o is None or o in seen:
+                o = 900000 + i
+                form.cleaned_data['orden'] = o
+            seen.add(o)
+        summaries = []
+        for i, form in enumerate(self.forms, start=1):
+            if not form.errors:
+                continue
+            if getattr(form, 'empty_permitted', False) and not form.has_changed():
+                continue
+            titulo = ''
+            if getattr(form, 'cleaned_data', None):
+                titulo = (form.cleaned_data.get('titulo') or '').strip()
+            if not titulo and form.data:
+                titulo = (form.data.get(form.add_prefix('titulo')) or '').strip()
+            label = f'«{titulo}»' if titulo else f'#{i}'
+            bits = []
+            for field, errs in form.errors.items():
+                field_label = field
+                if field in form.fields:
+                    field_label = str(form.fields[field].label or field)
+                for e in errs:
+                    bits.append(f'{field_label}: {e}')
+            if bits:
+                summaries.append(f'Bloque {label}: ' + ' · '.join(bits))
+        if summaries:
+            raise ValidationError(summaries)
+
+
 class SeccionModuloInline(admin.TabularInline):
     """Estructura: bloques que agrupan microcontenidos (título no se envía por WhatsApp)."""
     model = SeccionModulo
+    form = SeccionModuloForm
+    formset = SeccionModuloInlineFormSet
     extra = 0
     tab = True
     can_delete = True
@@ -414,28 +729,32 @@ class SeccionModuloInline(admin.TabularInline):
     def mover_orden(self, obj):
         return _botones_mover_bloque(obj, 'seccion')
 
-    @admin.display(description='Pasos activos')
+    @admin.display(description='Materiales')
     def resumen_pasos(self, obj):
         if not obj or not obj.pk:
             return format_html(
-                '<span style="color:#94a3b8;font-size:12px;">—</span>'
+                '<span style="color:#94a3b8;font-size:12px;">Guarde para ver</span>'
             )
         n = obj.pasos.filter(activo=True).count()
         return format_html(
             '<span style="font-weight:600;color:#0f766e;">{}</span>'
-            '<span style="color:#64748b;font-size:11px;"> en esta sección</span>',
+            '<span style="color:#64748b;font-size:11px;"> activo(s)</span>',
             n,
         )
 
 
 class PasoModuloForm(forms.ModelForm):
     media_file_upload = forms.FileField(
-        label='Subir archivo desde PC',
+        label='Subir desde el PC',
         required=False,
         help_text=(
-            'Opcional. Si subes un archivo aquí, se guarda en el storage configurado '
-            '(S3 en producción) y se copia su URL pública a “Media url”.'
+            'Elija PDF, imagen, audio o video. Al Guardar se sube a S3. '
+            'Si el guardado falla, vuelva a elegir el archivo.'
         ),
+        widget=UnfoldAdminFileFieldWidget(attrs={
+            'class': 'eki-paso-file-input',
+            'accept': 'video/*,image/*,application/pdf,audio/*',
+        }),
     )
 
     class Meta:
@@ -444,6 +763,43 @@ class PasoModuloForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if 'orden' in self.fields:
+            # Unfold hide_ordering_field + collapse dejan orden vacío en pasos NUEVOS
+            # → "Este campo es obligatorio" y el archivo NUNCA se guarda en S3.
+            self.fields['orden'].required = False
+            self.fields['orden'].widget = forms.HiddenInput()
+            if not self.is_bound and not (self.initial.get('orden') or getattr(self.instance, 'orden', None)):
+                try:
+                    idx = int(str(self.prefix or '0').rsplit('-', 1)[-1])
+                    self.fields['orden'].initial = idx + 1
+                except (TypeError, ValueError):
+                    self.fields['orden'].initial = 1
+        if 'seccion' in self.fields:
+            self.fields['seccion'].help_text = (
+                'Obligatorio en cada paso. Si la lista está vacía: Estructura → crear bloque → Guardar.'
+            )
+            self.fields['seccion'].error_messages = {
+                **getattr(self.fields['seccion'], 'error_messages', {}),
+                'required': 'Elija una sección (bloque). Cree una en Estructura si aún no hay.',
+            }
+        if 'contenido' in self.fields:
+            self.fields['contenido'].help_text = (
+                'Texto que ve el estudiante (opcional si solo sube archivo).'
+            )
+        if 'media_url' in self.fields:
+            self.fields['media_url'].label = 'URL en S3 (se completa al Guardar)'
+            self.fields['media_url'].required = False
+            self.fields['media_url'].help_text = (
+                'Tras Guardar con «Subir desde el PC» debe aparecer https://eki-produccion… '
+                'No escriba el nombre del archivo aquí.'
+            )
+            self.fields['media_url'].error_messages = {
+                **getattr(self.fields['media_url'], 'error_messages', {}),
+                'invalid': (
+                    'URL inválida. Deje vacío y use «Subir desde el PC», '
+                    'o pegue https://… completo.'
+                ),
+            }
         inst = self.instance
         if inst and inst.pk and getattr(inst, 'tipo', None) == PasoModulo.TIPO_EVAL_OPC:
             data = inst.opciones_json
@@ -457,26 +813,133 @@ class PasoModuloForm(forms.ModelForm):
                     if val:
                         self.initial[fname] = str(val)
 
-    def save(self, commit=True):
-        instance = super().save(commit=False)
-        uploaded_file = self.cleaned_data.get('media_file_upload')
-        if uploaded_file:
-            modulo_id = instance.modulo_id or 'sin_modulo'
-            instance.media_url = guardar_upload_admin_media(
+    def _get_validation_exclusions(self):
+        """
+        Excluir orden: UniqueConstraint (modulo, orden) corre en full_clean →
+        validate_constraints (Django 5.2) ANTES de save_formset renumerar.
+        Sin esto: «dato duplicado para orden» al agregar micros o al drag.
+        """
+        exclude = super()._get_validation_exclusions()
+        exclude.add('orden')
+        return exclude
+
+    def clean_orden(self):
+        """
+        Orden: Unfold/drag a menudo manda vacíos o duplicados en filas nuevas.
+        - Existente: respeta POST (drag) o el valor en BD.
+        - Nuevo: orden temporal único; ModuloAdmin.save_formset renumerar_orden_1_based.
+        """
+        try:
+            idx = int(str(self.prefix or '0').rsplit('-', 1)[-1])
+        except (TypeError, ValueError):
+            idx = 0
+
+        raw = None
+        if self.data is not None:
+            raw = self.data.get(self.add_prefix('orden'))
+
+        if self.instance and self.instance.pk:
+            if raw not in (None, '') and str(raw).strip().lstrip('-').isdigit():
+                return int(str(raw).strip())
+            if self.instance.orden:
+                return self.instance.orden
+            return idx + 1
+
+        # Alta: no usar 1..n (choca UniqueConstraint con pasos ya guardados).
+        return 900000 + idx
+
+    def validate_unique(self):
+        """orden ya va en exclusions; renumerar_orden_1_based al guardar."""
+        exclude = self._get_validation_exclusions()
+        try:
+            self.instance.validate_unique(exclude=exclude)
+        except ValidationError as e:
+            self._update_errors(e)
+
+    def has_changed(self):
+        """Filas extra vacías no deben fallar solo por tipo=contenido por defecto."""
+        if getattr(self, 'empty_permitted', False) and not (self.instance and self.instance.pk):
+            if self._empty_extra_row_has_user_input():
+                return True
+            return False
+        return super().has_changed()
+
+    def _empty_extra_row_has_user_input(self) -> bool:
+        if self.files:
+            upload_name = self.add_prefix('media_file_upload')
+            if self.files.get(upload_name):
+                return True
+        data = self.data
+        if not data:
+            return False
+        if data.get(self.add_prefix('DELETE')):
+            return True
+        for name in ('seccion', 'titulo', 'contenido', 'media_url'):
+            raw = data.get(self.add_prefix(name))
+            if raw is None:
+                continue
+            if str(raw).strip():
+                return True
+        return False
+
+    def clean_media_url(self):
+        url = (self.cleaned_data.get('media_url') or '').strip()
+        if not url:
+            return ''
+        if '://' not in url:
+            raise ValidationError(
+                'No use el nombre del archivo aquí. Deje vacío y use «Subir desde el PC», '
+                'o pegue una URL https:// completa.'
+            )
+        return url
+
+    def clean(self):
+        cleaned = super().clean()
+        self._pending_media_url = None
+        self._pending_media_wa_apto = None
+        if not cleaned.get('orden'):
+            cleaned['orden'] = self.clean_orden() if 'orden' in self.fields else 1
+        uploaded_file = cleaned.get('media_file_upload')
+        if not uploaded_file:
+            return cleaned
+        # Si aún hay errores de otros campos, no subir a S3 (evita huérfanos).
+        if self.errors:
+            return cleaned
+        modulo_id = getattr(self.instance, 'modulo_id', None) or 'sin_modulo'
+        try:
+            from core.admin._common import guardar_upload_admin_media_resultado
+
+            resultado = guardar_upload_admin_media_resultado(
                 uploaded_file,
                 carpeta='modulos/pasos',
                 prefix=f'modulo_{modulo_id}',
             )
-            if not (instance.media_url or '').strip():
-                raise ValidationError(
-                    {
-                        'media_file_upload': (
-                            'El archivo se subió pero no se obtuvo URL pública. '
-                            'Reintente o pegue la URL en «Media url».'
-                        )
-                    }
-                )
+            url = resultado.get('url')
+            self._pending_media_wa_apto = resultado.get('media_wa_apto')
+        except ValidationError as exc:
+            msgs = getattr(exc, 'messages', None) or [str(exc)]
+            self.add_error('media_file_upload', msgs[0] if len(msgs) == 1 else msgs)
+            return cleaned
+        if not (url or '').strip():
+            self.add_error(
+                'media_file_upload',
+                'El archivo se subió pero no se obtuvo URL pública. '
+                'Reintente o pegue la URL en «URL en S3».',
+            )
+            return cleaned
+        self._pending_media_url = url
+        return cleaned
 
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        pending = getattr(self, '_pending_media_url', None)
+        if pending:
+            instance.media_url = pending
+            apto = getattr(self, '_pending_media_wa_apto', None)
+            if apto is not None:
+                instance.media_wa_apto = bool(apto)
+        if not instance.orden:
+            instance.orden = 1
         if commit:
             instance.save()
             self.save_m2m()
@@ -484,6 +947,44 @@ class PasoModuloForm(forms.ModelForm):
 
 
 class ModuloAdminForm(forms.ModelForm):
+    """Form módulo + pestaña Clase simple (escribe el 1er PasoModulo)."""
+
+    clase_texto = forms.CharField(
+        label='Texto de la clase',
+        required=False,
+        widget=forms.Textarea(attrs={'rows': 4, 'style': 'min-width:280px;width:100%;'}),
+        help_text='Lo que ve el estudiante (opcional si solo sube archivo/video).',
+    )
+    clase_archivo = forms.FileField(
+        label='Subir material desde el PC',
+        required=False,
+        help_text=(
+            'PDF, imagen, audio o video. Al Guardar se sube a S3. '
+            'Si el guardado falla, vuelva a elegir el archivo.'
+        ),
+        widget=UnfoldAdminFileFieldWidget(attrs={
+            'class': 'eki-paso-file-input eki-clase-file-input',
+            'accept': 'video/*,image/*,application/pdf,audio/*',
+        }),
+    )
+    clase_url = forms.CharField(
+        label='O pegar URL https (opcional)',
+        required=False,
+        help_text='Solo si ya tiene un enlace público. No escriba video.mp4 a secas.',
+        widget=forms.URLInput(attrs={'placeholder': 'https://…', 'style': 'width:100%;max-width:40rem;'}),
+    )
+    clase_activo = forms.BooleanField(
+        label='Clase visible / activa',
+        required=False,
+        help_text='Márquelo cuando el material esté listo para estudiantes.',
+    )
+    clase_media_actual = forms.CharField(
+        label='Material guardado',
+        required=False,
+        disabled=True,
+        help_text='Se completa solo tras Guardar con archivo o URL.',
+    )
+
     class Meta:
         model = Modulo
         fields = '__all__'
@@ -491,6 +992,9 @@ class ModuloAdminForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         from core.module_steps import cuenta_microcontenidos_modulo
+
+        # Form valida contenido con Clase/Estructura; no repetir en Modulo.clean.
+        self.instance._eki_skip_contenido_model_clean = True
 
         self.fields['contenido'].required = False
         if 'modo_entrega' in self.fields:
@@ -501,42 +1005,224 @@ class ModuloAdminForm(forms.ModelForm):
         n_micro = cuenta_microcontenidos_modulo(self.instance)
         if not self.instance.pk:
             self.fields['contenido'].help_text = (
-                'Opcional al crear: se siembra una plantilla (Estructura + Microcontenidos). '
-                'Complete el texto en cada paso; use este campo solo en modo Legacy.'
+                'Opcional. Prefiera la pestaña Clase (texto + archivo). '
+                'Este campo es solo para modo Legacy.'
             )
         elif n_micro > 0:
             self.fields['contenido'].help_text = (
                 f'Opcional: este módulo ya tiene {n_micro} microcontenido(s). '
-                'El estudiante recibe el texto de cada paso en «Microcontenidos». '
-                'Solo úselo en modo Legacy o como intro extra.'
+                'Use pestaña Clase o Avanzado · Microcontenidos.'
             )
         else:
             self.fields['contenido'].help_text = (
-                'Obligatorio solo si aún no hay microcontenidos. Tras crear estructura y pasos, '
-                'puede vaciar este campo.'
+                'Obligatorio solo si aún no hay microcontenidos. Use la pestaña Clase.'
             )
+
+        paso = None
+        if self.instance and self.instance.pk:
+            paso = self.instance.pasos.order_by('orden', 'id').first()
+        if paso:
+            self.fields['clase_texto'].initial = paso.contenido or ''
+            self.fields['clase_activo'].initial = bool(paso.activo)
+            self.fields['clase_url'].initial = ''
+            media = (paso.media_url or '').strip()
+            self.fields['clase_media_actual'].initial = media or '(sin archivo aún)'
+        else:
+            self.fields['clase_activo'].initial = False
+            self.fields['clase_media_actual'].initial = '(sin archivo aún)'
+
+        curso = None
+        if self.instance and getattr(self.instance, 'curso_id', None):
+            curso = getattr(self.instance, 'curso', None)
+        prefer_simple = True
+        if curso is not None:
+            prefer_simple = curso.es_modo_clases() or (
+                self.instance.pk and self.instance.pasos.count() <= 1
+            )
+        elif not (self.instance and self.instance.pk):
+            prefer_simple = True
+        self.prefer_clase_simple = prefer_simple
+
+    def clean_clase_url(self):
+        url = (self.cleaned_data.get('clase_url') or '').strip()
+        if not url:
+            return ''
+        if '://' not in url:
+            raise ValidationError(
+                'URL inválida. Deje vacío y use «Subir material», o pegue https://… completo.'
+            )
+        return url
+
+    def clean(self):
+        cleaned = super().clean()
+        self._clase_pending_media_url = None
+        uploaded = cleaned.get('clase_archivo')
+        if not uploaded:
+            return cleaned
+        # No subir a S3 si ya hay errores de otros campos (evita huérfanos).
+        if self.errors:
+            return cleaned
+        modulo_id = getattr(self.instance, 'pk', None) or 'nuevo'
+        try:
+            url = guardar_upload_admin_media(
+                uploaded,
+                carpeta='modulos/pasos',
+                prefix=f'modulo_{modulo_id}',
+            )
+        except ValidationError as exc:
+            msgs = getattr(exc, 'messages', None) or [str(exc)]
+            self.add_error('clase_archivo', msgs[0] if len(msgs) == 1 else msgs)
+            return cleaned
+        if not (url or '').strip():
+            self.add_error(
+                'clase_archivo',
+                'No se obtuvo URL pública. Reintente o pegue https:// en «O pegar URL».',
+            )
+            return cleaned
+        self._clase_pending_media_url = url
+        return cleaned
 
     def clean_contenido(self):
         from core.module_steps import validar_contenido_modulo
 
         contenido = self.cleaned_data.get('contenido', '')
-        # Alta: plantilla de pasos se siembra en save_related; no exigir texto aquí.
         if not self.instance.pk:
             return contenido
-        validar_contenido_modulo(contenido, self.instance)
+        tiene_clase = bool(
+            (self.cleaned_data.get('clase_texto') or '').strip()
+            or self.cleaned_data.get('clase_archivo')
+            or (self.cleaned_data.get('clase_url') or '').strip()
+            or getattr(self, '_clase_pending_media_url', None)
+        )
+        validar_contenido_modulo(
+            contenido,
+            self.instance,
+            tiene_clase_simple=tiene_clase,
+            data=self.data,
+        )
         return contenido
 
 
 class PasoModuloInlineFormSet(BaseInlineFormSet):
+    def add_fields(self, form, index):
+        super().add_fields(form, index)
+        if 'orden' in form.fields:
+            form.fields['orden'].required = False
+            form.fields['orden'].widget = forms.HiddenInput()
+            if index is not None and not form.initial.get('orden') and not getattr(form.instance, 'orden', None):
+                # Temporal; clean_orden / save_formset normalizan.
+                form.fields['orden'].initial = 900000 + index
+
+    def validate_unique(self):
+        """Evita «dato duplicado para orden» entre filas; save_formset renumerar_orden_1_based."""
+        return
+
     def clean(self):
         super().clean()
         from core.module_steps import validar_contenido_modulo
 
+        # Asegura ordenes distintos en cleaned_data (por si Unfold mandó duplicados).
+        seen = set()
+        for i, form in enumerate(self.forms):
+            if not hasattr(form, 'cleaned_data') or form.cleaned_data is None:
+                continue
+            if form.cleaned_data.get('DELETE'):
+                continue
+            o = form.cleaned_data.get('orden')
+            if o is None or o in seen:
+                o = 900000 + i
+                form.cleaned_data['orden'] = o
+            seen.add(o)
+
+        # Errores por fila: sección vacía ya marca el campo; reforzamos mensaje de grupo.
+        for form in self.forms:
+            if not hasattr(form, 'cleaned_data') or form.cleaned_data is None:
+                continue
+            if form.cleaned_data.get('DELETE'):
+                continue
+            if form.errors.get('seccion'):
+                continue
+            if not form.cleaned_data.get('seccion') and (
+                form.cleaned_data.get('titulo')
+                or form.cleaned_data.get('contenido')
+                or form.cleaned_data.get('media_file_upload')
+                or form.cleaned_data.get('media_url')
+            ):
+                form.add_error(
+                    'seccion',
+                    'Elija una sección. Si no hay opciones: pestaña Estructura → crear bloque → Guardar.',
+                )
+
+        # Anti-intercalado (Module Builder WA): simular orden final de filas no borradas.
+        from types import SimpleNamespace
+
+        from core.module_structure import (
+            detectar_secciones_intercaladas,
+            mensaje_error_intercalado,
+        )
+
+        simulados = []
+        for form in self.forms:
+            if not hasattr(form, 'cleaned_data') or form.cleaned_data is None:
+                continue
+            if form.cleaned_data.get('DELETE'):
+                continue
+            sec = form.cleaned_data.get('seccion')
+            if not sec:
+                continue
+            simulados.append(
+                SimpleNamespace(
+                    seccion_id=getattr(sec, 'pk', sec),
+                    orden=form.cleaned_data.get('orden') or 0,
+                    pk=getattr(form.instance, 'pk', None),
+                )
+            )
+        simulados.sort(key=lambda x: (x.orden, x.pk or 0))
+        hall = detectar_secciones_intercaladas(simulados)
+        if hall:
+            raise ValidationError(mensaje_error_intercalado(hall))
+
+        summaries = []
+        for i, form in enumerate(self.forms, start=1):
+            if not form.errors:
+                continue
+            if getattr(form, 'empty_permitted', False) and not form.has_changed():
+                continue
+            titulo = ''
+            if getattr(form, 'cleaned_data', None):
+                titulo = (form.cleaned_data.get('titulo') or '').strip()
+            if not titulo and form.data:
+                titulo = (form.data.get(form.add_prefix('titulo')) or '').strip()
+            label = f'«{titulo}»' if titulo else f'#{i}'
+            bits = []
+            for field, errs in form.errors.items():
+                field_label = field
+                if field in form.fields:
+                    field_label = str(form.fields[field].label or field)
+                for e in errs:
+                    bits.append(f'{field_label}: {e}')
+            if bits:
+                summaries.append(f'Microcontenido {label}: ' + ' · '.join(bits))
+
         contenido = (self.data.get('contenido') or '').strip()
+        tiene_clase = bool(
+            (self.data.get('clase_texto') or '').strip()
+            or (self.data.get('clase_url') or '').strip()
+            or (self.files and self.files.get('clase_archivo'))
+        )
         try:
-            validar_contenido_modulo(contenido, self.instance, pasos_formset=self)
+            validar_contenido_modulo(
+                contenido,
+                self.instance,
+                pasos_formset=self,
+                tiene_clase_simple=tiene_clase,
+                data=self.data,
+            )
         except ValidationError as exc:
-            raise ValidationError(exc.messages) from exc
+            summaries.extend(list(exc.messages))
+
+        if summaries:
+            raise ValidationError(summaries)
 
 
 class PasoModuloInline(admin.StackedInline):
@@ -551,38 +1237,41 @@ class PasoModuloInline(admin.StackedInline):
     ordering_field = 'orden'
     hide_ordering_field = True
     show_change_link = True
-    verbose_name = 'Paso'
-    verbose_name_plural = 'Microcontenidos'
+    verbose_name = 'Material'
+    verbose_name_plural = 'Materiales'
     fieldsets = (
-        (None, {
+        ('Material', {
             'fields': (
-                'mover_orden', 'orden', 'seccion', 'activo',
-                'requiere_listo_para_avanzar', 'tipo',
+                'mover_orden', 'orden', 'seccion', 'titulo', 'contenido',
+                'media_file_upload', 'media_url', 'media_wa_apto', 'activo',
             ),
-        }),
-        ('Texto y multimedia (WhatsApp)', {
-            'fields': ('titulo', 'contenido', 'media_url', 'media_file_upload'),
             'description': (
-                'Título = referencia interna. El estudiante recibe «Contenido» + media. '
-                'Pegá una URL o subí archivo (en prod se guarda en S3 y completa Media URL).'
+                '1) Elija bloque  2) Suba archivo  3) Active  4) Guarde. '
+                'Video: se comprime a WA-safe; si no queda apto (&gt;16MB), el Guardar falla. '
+                '«Apto WhatsApp» se completa solo en uploads nuevos.'
             ),
         }),
-        ('Evaluación tipo opciones', {
+        ('WhatsApp (*listo* / tipo)', {
+            'fields': ('tipo', 'requiere_listo_para_avanzar'),
+            'classes': ('collapse',),
+        }),
+        ('Evaluación A–D', {
             'fields': (
                 'eval_opcion_a', 'eval_opcion_b', 'eval_opcion_c', 'eval_opcion_d',
                 'respuesta_correcta',
             ),
+            'classes': ('collapse',),
         }),
         ('Retroalimentación', {
             'fields': ('feedback_correcto', 'feedback_incorrecto'),
             'classes': ('collapse',),
         }),
-        ('Avanzado / legado', {
+        ('JSON legado', {
             'fields': ('opciones_json',),
             'classes': ('collapse',),
         }),
     )
-    readonly_fields = ('mover_orden',)
+    readonly_fields = ('mover_orden', 'media_wa_apto')
     formfield_overrides = {
         models.TextField: {
             'widget': forms.Textarea(attrs={'rows': 3, 'cols': 50, 'style': 'min-width:280px;'}),
@@ -619,21 +1308,15 @@ class ArchivoModuloInline(admin.StackedInline):
     hide_ordering_field = True
     show_change_link = True
     verbose_name = 'Archivo'
-    verbose_name_plural = 'Multimedia legacy'
+    verbose_name_plural = 'Media (legacy)'
 
     fieldsets = (
         (None, {
             'fields': ('mover_orden', 'tipo', 'titulo', 'descripcion'),
-            'description': (
-                'Uso secundario: envío del módulo completo (modo Legacy) o archivos extra. '
-                'Para el flujo por *listo*, preferí media en cada fila de Microcontenidos.'
-            ),
+            'description': 'Opcional. Preferir subir en Clase o en Materiales.',
         }),
         ('Archivo o URL', {
             'fields': ('archivo', 'preview_multimedia', 'url_externa'),
-            'description': (
-                'Subí un archivo (S3 en producción) o pegá una URL pública (YouTube, Drive, etc.).'
-            ),
         }),
         ('Configuración', {
             'fields': ('disponible_offline', 'orden', 'activo'),
@@ -727,6 +1410,7 @@ class ModuloAdmin(admin.ModelAdmin):
     list_display = (
         'numero_titulo',
         'curso',
+        'module_builder_link',
         'modo_entrega_badge',
         'pasos_activos_count',
         'examen_badge',
@@ -741,6 +1425,7 @@ class ModuloAdmin(admin.ModelAdmin):
     readonly_fields = ('guia_microcontenidos_whatsapp',)
     inlines = [SeccionModuloInline, PasoModuloInline, ArchivoModuloInline, PreguntaModuloInline]
     actions = ['enviar_archivos_multimedia', 'ver_archivos_multimedia', 'renumerar_modulos']
+    actions_detail = ['abrir_module_builder']
 
     def get_urls(self):
         urls = super().get_urls()
@@ -756,6 +1441,40 @@ class ModuloAdmin(admin.ModelAdmin):
             ),
         ]
         return custom + urls
+
+    @action(
+        description='Module Builder',
+        url_path='abrir-module-builder',
+        icon='view_timeline',
+    )
+    def abrir_module_builder(self, request, object_id):
+        """Botón arriba del change form → canvas Module Builder."""
+        from core.module_builder import module_builder_habilitado
+
+        if not module_builder_habilitado(request):
+            messages.error(
+                request,
+                'Module Builder desactivado. Active EKI_MODULE_BUILDER_BETA=1 '
+                'o use ?builder=1 como superusuario.',
+            )
+            return redirect(f'/admin/core/modulo/{object_id}/change/')
+        return redirect('admin_module_builder', modulo_id=int(object_id))
+
+    def has_abrir_module_builder_permission(self, request, object_id=None):
+        from core.module_builder import module_builder_habilitado
+
+        return bool(request.user.is_staff and module_builder_habilitado(request))
+
+    def module_builder_link(self, obj):
+        from core.module_builder import module_builder_habilitado
+
+        if not obj or not obj.pk or not module_builder_habilitado(None):
+            return '—'
+        return format_html(
+            '<a href="/admin/module-builder/{}/" style="font-weight:700;color:#7A4E8E;">Builder</a>',
+            obj.pk,
+        )
+    module_builder_link.short_description = 'Builder'
 
     def mover_bloque_view(self, request, modulo_id, kind, obj_id, direction):
         """↑↓ de secciones / pasos / multimedia sin salir del change del módulo."""
@@ -803,37 +1522,38 @@ class ModuloAdmin(admin.ModelAdmin):
 
     def save_related(self, request, form, formsets, change):
         super().save_related(request, form, formsets, change)
-        if change:
-            return
-        created = sembrar_plantilla_modulo(form.instance)
-        if not (created['seccion'] or created['pasos']):
-            return
-        bits = []
-        if created['seccion']:
-            bits.append('1 bloque de estructura')
-        if created['pasos']:
-            bits.append(
-                f'{created["pasos"]} microcontenido(s) vacío(s) (inactivos)'
+        if not change:
+            created = sembrar_plantilla_modulo(form.instance)
+            if created['seccion'] or created['pasos']:
+                bits = []
+                if created['seccion']:
+                    bits.append('1 bloque')
+                if created['pasos']:
+                    bits.append(f'{created["pasos"]} micro(s)')
+                self.message_user(
+                    request,
+                    'Plantilla: ' + ' + '.join(bits) + '. Complete la pestaña Clase (archivo + activar).',
+                    level=messages.INFO,
+                )
+        paso = aplicar_clase_simple_desde_form(form, formsets=formsets)
+        if paso and (
+            getattr(form, '_clase_pending_media_url', None)
+            or (form.cleaned_data.get('clase_url') or '').strip()
+        ):
+            self.message_user(
+                request,
+                f'Material de clase listo. URL: {paso.media_url[:120]}'
+                + ('…' if len(paso.media_url or '') > 120 else ''),
+                level=messages.SUCCESS,
             )
-        self.message_user(
-            request,
-            (
-                'Plantilla lista: ' + ' + '.join(bits) + '. '
-                'Active y complete el texto en la pestaña Microcontenidos.'
-            ),
-            level=messages.INFO,
-        )
 
     def response_add(self, request, obj, post_url_continue=None):
-        """Tras crear, abrir el módulo (plantilla ya sembrada) para completar Microcontenidos."""
+        """Tras crear, abrir el módulo en pestaña Clase."""
         if '_addanother' in request.POST:
             return super().response_add(request, obj, post_url_continue)
         self.message_user(
             request,
-            (
-                'Módulo creado. Use las pestañas Estructura → Microcontenidos. '
-                'Cada paso debe tener sección; active los microcontenidos cuando el texto esté listo.'
-            ),
+            'Módulo creado. En pestaña Clase: texto + subir archivo → Activar → Guardar.',
             level=messages.SUCCESS,
         )
         return redirect('admin:core_modulo_change', obj.pk)
@@ -846,20 +1566,36 @@ class ModuloAdmin(admin.ModelAdmin):
 
     @admin.display(description='')
     def guia_microcontenidos_whatsapp(self, obj):
-        """Guía corta + detalle colapsable (la barra sticky la inyecta JS)."""
+        """Guía Clase simple + prefs para JS (tab por defecto) + link Module Builder."""
+        from core.module_builder import module_builder_habilitado
+
+        prefer = '1'
+        modo_clases = '0'
+        builder_html = ''
+        if obj and obj.pk and obj.curso_id:
+            modo_clases = '1' if obj.curso.es_modo_clases() else '0'
+            prefer = '1' if (obj.curso.es_modo_clases() or obj.pasos.count() <= 1) else '0'
+            # request no disponible aquí; usamos settings (DEBUG/local ON).
+            if module_builder_habilitado(None):
+                builder_html = (
+                    f'<p class="eki-modulo-guia__line">'
+                    f'<a href="/admin/module-builder/{obj.pk}/" style="font-weight:700;color:#7A4E8E;">'
+                    f'→ Abrir Module Builder (secciones + micros)</a>'
+                    f' · beta local. Edita <b>Materiales / pasos WA</b> (no borra drip ni '
+                    f'«Disponible desde»). El texto legacy de Más opciones no se reescribe solo.</p>'
+                )
         return format_html(
-            '<div class="eki-modulo-guia">'
-            '<p style="margin:0 0 0.5rem;font-size:0.9rem;font-weight:650;color:#5F3A6E;">'
-            'Flujo: Datos → Estructura → Microcontenidos. Media va en cada paso; '
-            'Multimedia legacy es secundario. Arrastre las cajas o use ↑↓ para reordenar.'
+            '<div class="eki-modulo-guia" id="eki-modulo-prefs" '
+            'data-default-tab="clase" data-prefer-simple="{}" data-modo-clases="{}">'
+            '{}'
+            '<p class="eki-modulo-guia__line">'
+            '<b>Subir:</b> elija archivo → Active → <b>Guardar</b>. '
+            'Varios materiales: pestañas Estructura + Materiales (el drag se mantiene).'
             '</p>'
-            '<details>'
-            '<summary>Ayuda rápida</summary>'
-            '<p>1) En <b>Estructura</b> defina bloques (secciones). '
-            '2) En <b>Microcontenidos</b> complete texto/media y active. '
-            '3) Modo Legacy ignora microcontenidos y usa el texto del módulo.</p>'
-            '</details>'
-            '</div>'
+            '</div>',
+            prefer,
+            modo_clases,
+            mark_safe(builder_html),
         )
 
     def save_formset(self, request, form, formset, change):
@@ -875,7 +1611,7 @@ class ModuloAdmin(admin.ModelAdmin):
 
     fieldsets = (
         (
-            'Datos',
+            'Clase',
             {
                 'classes': ['tab'],
                 'fields': (
@@ -883,55 +1619,36 @@ class ModuloAdmin(admin.ModelAdmin):
                     'curso',
                     'numero',
                     'titulo',
+                    'clase_texto',
+                    'clase_archivo',
+                    'clase_url',
+                    'clase_media_actual',
+                    'clase_activo',
+                ),
+                'description': (
+                    'Flujo recomendado para Aprende / clases. '
+                    'No pegue el nombre del archivo; use Subir material.'
+                ),
+            },
+        ),
+        (
+            'Más opciones',
+            {
+                'classes': ['tab'],
+                'fields': (
                     'descripcion',
+                    'modo_entrega',
+                    'secciones_por_listo',
+                    'facilitador_checkpoint',
+                    'contenido',
+                    'examen_obligatorio',
+                    'puntaje_minimo_aprobacion',
+                    'duracion_dias',
+                    'habilitado_desde',
                 ),
                 'description': (
-                    'Número de módulo: entero ≥ 0 (0 = bienvenida; luego 1, 2, 3…). '
-                    'Use las pestañas superiores para Estructura y Microcontenidos.'
-                ),
-            },
-        ),
-        (
-            'Entrega',
-            {
-                'classes': ['tab'],
-                'fields': ('modo_entrega', 'secciones_por_listo', 'facilitador_checkpoint'),
-                'description': (
-                    'Por pasos = flujo *listo* (recomendado). Legacy = módulo completo de una vez. '
-                    'Secciones por *listo*: cuántos bloques salen juntos. '
-                    'Checkpoint facilitadora: solo con agentes IA al cerrar el módulo.'
-                ),
-            },
-        ),
-        (
-            'Texto legacy',
-            {
-                'classes': ['tab'],
-                'fields': ('contenido',),
-                'description': (
-                    'Principal solo en modo Legacy. Con microcontenidos, deje vacío.'
-                ),
-            },
-        ),
-        (
-            'Examen',
-            {
-                'classes': ['tab'],
-                'fields': ('examen_obligatorio', 'puntaje_minimo_aprobacion'),
-                'description': (
-                    'Si el examen es obligatorio, el estudiante no avanza al siguiente módulo '
-                    'hasta aprobar.'
-                ),
-            },
-        ),
-        (
-            'Calendario',
-            {
-                'classes': ['tab'],
-                'fields': ('duracion_dias', 'habilitado_desde'),
-                'description': (
-                    'Disponible desde: opcional; bloquea el envío hasta esa fecha '
-                    '(salvo habilitación distinta en Cliente).'
+                    'Entrega WhatsApp, texto legacy (solo si no usa Clase/Materiales), '
+                    'examen y calendario.'
                 ),
             },
         ),

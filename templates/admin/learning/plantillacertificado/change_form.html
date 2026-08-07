@@ -82,7 +82,16 @@
     <input type="hidden" id="certPlantillaPk" value="{% if original %}{{ original.pk }}{% endif %}">
     <aside class="cert-preview-panel" aria-label="Vista previa del certificado">
         <h3>Vista previa</h3>
-        <p>Pestañas: Datos (elige el modo) → Imagen / Diseño eki / PDF. Marcadores RGB en modo Imagen: gris=nombre, rojo=cédula, amarillo=fecha, azul=QR. Elige estudiante real o demo.</p>
+        <div style="margin:0 0 10px;padding:8px 10px;border-radius:8px;background:#f1eef6;border:1px solid #e0d6ea;font-size:12px;color:#3d3550;line-height:1.45;">
+            <strong>Marcadores disponibles</strong>
+            <div style="margin-top:6px;display:grid;gap:4px;">
+                <span><code>[Nombre]</code> · Nombre del estudiante (gris)</span>
+                <span><code>[Cédula]</code> · Documento (rojo)</span>
+                <span><code>[Fecha]</code> · Fecha de certificación (amarillo)</span>
+                <span><code>[QR]</code> · Código de verificación (azul)</span>
+            </div>
+        </div>
+        <p>Pestañas: Datos → Plantilla / Diseño eki / PDF. Elige estudiante real o demo.</p>
         <label for="certEstudiantePreview" style="display:block;font-size:12px;margin-bottom:8px;color:#334155;">
             Estudiante de prueba
             <select id="certEstudiantePreview" style="display:block;width:100%;margin-top:4px;padding:6px 8px;border-radius:6px;border:1px solid #cbd5e1;">
@@ -98,17 +107,20 @@
         </div>
         <div class="cert-preview-actions">
             <button type="button" id="certPreviewRefresh">Actualizar vista previa</button>
+            <button type="button" id="certPreviewDownload" style="background:#7A4E8E;">Generar certificado de prueba</button>
         </div>
     </aside>
 </div>
 <script>
 (function () {
     const previewUrl = '{% url "admin:learning_plantillacertificado_preview" %}';
+    const downloadUrl = '{% url "admin:learning_plantillacertificado_prueba_descarga" %}';
     const estudiantesUrl = '{% url "admin:learning_plantillacertificado_estudiantes_preview" %}';
     const selectEst = document.getElementById('certEstudiantePreview');
     const img = document.getElementById('certPreviewImg');
     const placeholder = document.getElementById('certPreviewPlaceholder');
     const btn = document.getElementById('certPreviewRefresh');
+    const btnDl = document.getElementById('certPreviewDownload');
     let timer = null;
 
     function getCsrfToken() {
@@ -167,7 +179,7 @@
         return false;
     }
 
-    function refreshPreview() {
+    function buildPreviewFormData() {
         const fd = new FormData();
         const csrf = getCsrfToken();
         if (csrf) {
@@ -195,6 +207,12 @@
         if (logoFile && logoFile.files && logoFile.files[0]) {
             fd.append('logo_institucion', logoFile.files[0]);
         }
+        return fd;
+    }
+
+    function refreshPreview() {
+        const fd = buildPreviewFormData();
+        const csrf = getCsrfToken();
 
         placeholder.textContent = 'Generando vista previa...';
         placeholder.style.display = 'block';
@@ -217,6 +235,33 @@
             showPreviewBlob(blob);
         }).catch(function () {
             showFallbackImage();
+        });
+    }
+
+    function downloadPrueba() {
+        const fd = buildPreviewFormData();
+        const csrf = getCsrfToken();
+        fetch(downloadUrl, {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin',
+            headers: csrf ? { 'X-CSRFToken': csrf } : {},
+        }).then(function (r) {
+            if (!r.ok) {
+                return r.text().then(function (txt) {
+                    throw new Error(txt || ('HTTP ' + r.status));
+                });
+            }
+            return r.blob();
+        }).then(function (blob) {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'certificado_prueba.png';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }).catch(function (err) {
+            alert('No se pudo generar la prueba: ' + (err && err.message ? err.message : 'error'));
         });
     }
 
@@ -262,14 +307,15 @@
         if (el) el.addEventListener('change', schedulePreview);
     });
     if (btn) btn.addEventListener('click', refreshPreview);
+    if (btnDl) btnDl.addEventListener('click', downloadPrueba);
 
     function syncModoTab() {
         var modo = fieldValue('modo_plantilla') || 'imagen';
         var slug = {
-            imagen: 'imagen-marcadores',
+            imagen: 'plantilla',
             diseno_eki: 'diseno-eki',
             pdf: 'pdf'
-        }[modo] || 'imagen-marcadores';
+        }[modo] || 'plantilla';
         try {
             document.querySelectorAll('[x-data]').forEach(function (el) {
                 var stack = el._x_dataStack;

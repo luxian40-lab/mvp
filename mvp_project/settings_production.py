@@ -49,6 +49,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ?: (security.W018) DEBUG debe ser False en producción
 DEBUG = False
 
+# Module Builder: OFF en prod salvo EKI_MODULE_BUILDER_BETA=1
+_EKI_MB = os.environ.get('EKI_MODULE_BUILDER_BETA', '').strip().lower()
+EKI_MODULE_BUILDER_BETA = _EKI_MB in ('1', 'true', 'yes', 'on')
+
 # ?: (security.W009) SECRET_KEY debe ser largo y aleatorio
 # Generar nueva clave con: python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-CAMBIAR-EN-PRODUCCION')

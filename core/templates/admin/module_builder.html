@@ -1,0 +1,165 @@
+{% extends "admin/eki_ops_base.html" %}
+{% load static %}
+
+{% block eki_ops_crumb %}Module Builder{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/module_builder.css' %}?v=6">
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" defer></script>
+<script src="{% static 'admin/js/module_builder.js' %}?v=6" defer></script>
+{% endblock %}
+
+{% block eki_ops_extra_nav %}
+<span class="eki-mb-nav">
+  <a class="eki-ops-back" href="{{ change_url }}">← Admin clásico del módulo</a>
+  {% if curso %}<a class="eki-ops-back" href="/admin/core/curso/{{ curso.id }}/change/">Curso</a>{% endif %}
+</span>
+{% endblock %}
+
+{% block eki_ops_content %}
+<div class="eki-mb-shell">
+<div class="eki-mb">
+  <header class="eki-mb__hero">
+    <div class="eki-mb__hero-mark" aria-hidden="true"></div>
+    <div>
+      <p class="eki-mb__eyebrow">Module Builder WA · beta</p>
+      <h1 class="eki-mb__title">Módulo {{ modulo.numero }}: {{ modulo.titulo }}</h1>
+      <p class="eki-mb__sub">{{ curso.nombre }}{% if curso.cliente %} · {{ curso.cliente.nombre }}{% endif %}</p>
+      <p class="eki-mb__hint">
+        Arrastra con <strong>⋮⋮</strong> (micros solo dentro de su sección; secciones enteras).
+        Un <strong>*listo*</strong> = una sección. Sin envío WhatsApp.
+        Tonos del admin: icono <strong>palette</strong> en la barra superior (junto a Light/Dark).
+      </p>
+      <p class="eki-mb__access">
+        <strong>Cómo entrar:</strong> listado Módulos → columna <strong>Builder</strong>,
+        o ficha del módulo → botón <strong>Module Builder</strong> arriba,
+        o el enlace en la guía de la pestaña Clase.
+        Aquí editas secciones + micros. Drip / fechas / agentes siguen en admin clásico.
+      </p>
+    </div>
+  </header>
+
+  {% if diag.intercalado %}
+  <div class="eki-mb__alert eki-mb__alert--bad" role="alert">
+    <strong>Estructura intercalada</strong> — {{ diag.mensaje }}
+  </div>
+  {% else %}
+  <div class="eki-mb__alert eki-mb__alert--ok">
+    Estructura OK · {{ diag.n_secciones }} sección(es) · {{ diag.n_micros }} micro(s) activos
+  </div>
+  {% endif %}
+
+  <div id="eki-mb-sections" class="eki-mb__sections">
+  {% for bloque in arbol %}
+  <section class="eki-mb__sec" data-seccion="{{ bloque.seccion.id }}">
+    <div class="eki-mb__sec-head">
+      <div class="eki-mb__sec-head-main">
+        <span class="eki-mb__drag-handle eki-mb__drag-handle--sec" title="Arrastrar sección" aria-label="Arrastrar sección">⋮⋮</span>
+        <div>
+          <h2 class="eki-mb__sec-title">{{ bloque.seccion.titulo|default:"(sin título)" }}</h2>
+          <p class="eki-mb__sec-meta">{{ bloque.n_micros }} contenido{{ bloque.n_micros|pluralize:"s" }} · orden sec. {{ bloque.seccion.orden }}</p>
+        </div>
+      </div>
+    </div>
+
+    <ul class="eki-mb__list" data-seccion="{{ bloque.seccion.id }}">
+      {% for m in bloque.micros %}
+      <li class="eki-mb__row" data-paso="{{ m.id }}">
+        <span class="eki-mb__drag-handle eki-mb__drag-handle--micro" title="Arrastrar micro" aria-label="Arrastrar micro">⋮⋮</span>
+        <div class="eki-mb__row-move">
+          <form method="post" class="eki-mb__inline-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="move_micro">
+            <input type="hidden" name="paso_id" value="{{ m.id }}">
+            <input type="hidden" name="direction" value="up">
+            <button type="submit" title="Subir" class="eki-mb__icon-btn">↑</button>
+          </form>
+          <form method="post" class="eki-mb__inline-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="move_micro">
+            <input type="hidden" name="paso_id" value="{{ m.id }}">
+            <input type="hidden" name="direction" value="down">
+            <button type="submit" title="Bajar" class="eki-mb__icon-btn">↓</button>
+          </form>
+        </div>
+
+        {% if m.preview_kind == "image" %}
+        <div class="eki-mb__thumb" title="Imagen">
+          <img src="{{ m.media_url }}" alt="" loading="lazy" referrerpolicy="no-referrer">
+        </div>
+        {% elif m.preview_kind == "video" %}
+        <div class="eki-mb__thumb eki-mb__thumb--video" title="Video">
+          <video muted preload="metadata" playsinline src="{{ m.media_url }}#t=0.1"></video>
+        </div>
+        {% elif m.preview_kind == "file" %}
+        <div class="eki-mb__thumb eki-mb__thumb--file" title="Archivo"><span class="eki-mb__thumb-glyph">PDF</span></div>
+        {% else %}
+        <div class="eki-mb__thumb eki-mb__thumb--text" title="Texto"><span class="eki-mb__thumb-glyph">Aa</span></div>
+        {% endif %}
+
+        <div class="eki-mb__row-body">
+          <p class="eki-mb__row-title">
+            {% if m.titulo %}{{ m.titulo|truncatechars:80 }}
+            {% elif m.contenido %}{{ m.contenido|truncatechars:80 }}
+            {% else %}(sin título){% endif %}
+          </p>
+          <p class="eki-mb__row-meta">
+            orden {{ m.orden }}
+            {% if m.preview_kind == "video" %} · video
+            {% elif m.preview_kind == "image" %} · imagen
+            {% elif m.preview_kind == "file" %} · archivo
+            {% else %} · texto{% endif %}
+            {% if m.media_url %}
+              {% if m.media_wa_apto == True %}<span class="eki-mb__badge eki-mb__badge--ok">apto WA</span>
+              {% elif m.media_wa_apto == False %}<span class="eki-mb__badge eki-mb__badge--bad">no apto</span>
+              {% elif m.preview_kind == "video" %}<span class="eki-mb__badge">legado</span>{% endif %}
+            {% endif %}
+          </p>
+        </div>
+        <span class="eki-mb__status {% if m.activo %}eki-mb__status--on{% endif %}" title="{% if m.activo %}Activo{% else %}Inactivo{% endif %}"></span>
+        <form method="post" class="eki-mb__inline-form" onsubmit="return confirm('¿Desactivar este micro?');">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="deactivate_micro">
+          <input type="hidden" name="paso_id" value="{{ m.id }}">
+          <button type="submit" class="eki-mb__icon-btn eki-mb__icon-btn--danger" title="Desactivar">✕</button>
+        </form>
+      </li>
+      {% empty %}
+      <li class="eki-mb__empty">Sin micros en esta sección. Añada contenido abajo.</li>
+      {% endfor %}
+    </ul>
+
+    <form method="post" enctype="multipart/form-data" class="eki-mb__add-micro">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_micro">
+      <input type="hidden" name="seccion_id" value="{{ bloque.seccion.id }}">
+      <p class="eki-mb__form-label">+ Añadir contenido a esta sección</p>
+      <input type="text" name="titulo" placeholder="Título interno (opcional)" class="eki-mb__input">
+      <textarea name="contenido" rows="2" placeholder="Texto al estudiante (opcional si sube video/imagen)" class="eki-mb__input"></textarea>
+      <input type="file" name="media_file" accept="video/mp4,video/*,image/*" class="eki-mb__input">
+      <button type="submit" class="eki-mb__btn eki-mb__btn--primary">+ Añadir contenido</button>
+    </form>
+  </section>
+  {% empty %}
+  <p class="eki-mb__empty">Aún no hay secciones. Cree la primera abajo.</p>
+  {% endfor %}
+  </div>
+
+  {% if huerfanos %}
+  <div class="eki-mb__alert eki-mb__alert--bad">
+    Hay {{ huerfanos|length }} micro(s) sin sección activa. Revise el admin clásico.
+  </div>
+  {% endif %}
+
+  <div class="eki-mb__footer-actions">
+    <form method="post" class="eki-mb__add-sec">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_seccion">
+      <input type="text" name="titulo" placeholder="Nombre de la nueva sección" class="eki-mb__input" required>
+      <button type="submit" class="eki-mb__btn eki-mb__btn--outline">+ Añadir sección</button>
+    </form>
+  </div>
+</div>
+</div>
+{% endblock %}

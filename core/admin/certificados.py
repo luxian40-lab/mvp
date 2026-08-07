@@ -1,4 +1,5 @@
 from core.admin._common import *  # noqa: F401,F403
+from unfold.decorators import action
 
 # ========================================
 # 📜 CERTIFICADOS DIGITALES
@@ -7,10 +8,20 @@ from core.admin._common import *  # noqa: F401,F403
 class PlantillaCertificadoAdmin(admin.ModelAdmin):
     """Plantillas de Certificados — imagen S3 o diseño eki con vista previa"""
     change_form_template = 'admin/learning/plantillacertificado/change_form.html'
-    list_display = ('nombre', 'curso_info', 'cliente_info', 'tipo_plantilla', 'por_defecto', 'activa')
+    list_display = (
+        'miniatura_lista',
+        'nombre',
+        'usada_en_display',
+        'cliente_info',
+        'tipo_plantilla',
+        'por_defecto',
+        'activa',
+    )
     list_filter = ('activa', 'por_defecto', 'modo_plantilla', 'cliente', 'curso')
     search_fields = ('nombre', 'descripcion', 'cliente__nombre', 'curso__nombre')
     list_per_page = 50
+    actions = ['duplicar_plantillas_certificado']
+    actions_detail = ['duplicar_plantilla_certificado_detail']
     
     fieldsets = (
         ('Datos', {
@@ -22,24 +33,24 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
                 'sin curso solo aplica si está «Por defecto».'
             ),
         }),
-        ('Imagen (marcadores)', {
+        ('Plantilla', {
             'classes': ['tab'],
             'fields': ('formato_certificado', 'archivo_plantilla_imagen', 'url_plantilla_imagen'),
             'description': (
-                'Modo Imagen: PNG/JPG con relleno sólido — '
+                'Imagen + marcadores: PNG/JPG con relleno sólido — '
                 'GRIS (128,128,128)=nombre, ROJO (255,0,0)=cédula, '
                 'AMARILLO (255,255,0)=fecha, AZUL (0,0,255)=QR. '
                 'Sube archivo o pega URL S3 (una sola vez).'
             ),
         }),
-        ('Diseno eki', {
+        ('Diseño eki', {
             'classes': ['tab'],
             'fields': (
                 'imagen_fondo', 'logo_institucion',
                 'color_primario', 'color_secundario',
                 'texto_superior', 'texto_certificado',
             ),
-            'description': 'Modo Diseño eki: colores y textos. La vista previa muestra un ejemplo.',
+            'description': 'Elementos adicionales de eki: colores y textos. La vista previa muestra un ejemplo.',
         }),
         ('PDF', {
             'classes': ['tab'],
@@ -60,6 +71,11 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
                 'estudiantes-preview/',
                 self.admin_site.admin_view(self.estudiantes_preview_view),
                 name='learning_plantillacertificado_estudiantes_preview',
+            ),
+            path(
+                'prueba-descarga/',
+                self.admin_site.admin_view(self.prueba_descarga_view),
+                name='learning_plantillacertificado_prueba_descarga',
             ),
         ]
         return custom + urls
@@ -125,6 +141,52 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
             logging.getLogger(__name__).exception('Vista previa certificado falló')
             return HttpResponse(str(exc), status=500)
 
+    def prueba_descarga_view(self, request):
+        """Misma generación que preview, pero como descarga (Generar prueba)."""
+        from django.http import HttpResponse
+        from core.certificado_preview import generar_preview_certificado, plantilla_desde_request
+        from core.models import Estudiante
+
+        if request.method != 'POST':
+            return HttpResponse(status=405)
+
+        nombre = cedula = org = url = None
+        est_id_raw = request.POST.get('estudiante_preview')
+        if str(est_id_raw or '').isdigit():
+            est = (
+                Estudiante.objects.filter(pk=int(est_id_raw), activo=True)
+                .select_related('cliente')
+                .first()
+            )
+            if est:
+                nombre = est.nombre
+                cedula = est.cedula or ''
+                org = est.cliente.nombre if est.cliente else None
+                url = 'https://certificados.eki.technology/verificar-certificado/PREVIEW/'
+
+        try:
+            plantilla = plantilla_desde_request(request.POST)
+            buf = generar_preview_certificado(
+                plantilla,
+                post_data=request.POST,
+                files=request.FILES,
+                nombre_estudiante=nombre,
+                cedula_estudiante=cedula,
+                organizacion_nombre=org,
+                url_verificacion=url,
+            )
+            if not buf:
+                return HttpResponse('No se pudo generar', status=500)
+            resp = HttpResponse(buf.getvalue(), content_type='image/png')
+            resp['Content-Disposition'] = 'attachment; filename="certificado_prueba.png"'
+            return resp
+        except ValueError as exc:
+            return HttpResponse(str(exc), status=400)
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).exception('Descarga prueba certificado falló')
+            return HttpResponse(str(exc), status=500)
+
     def change_view(self, request, object_id, form_url='', extra_context=None):
         from django.urls import reverse
 
@@ -144,6 +206,9 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
         extra_context['estudiantes_preview_url'] = reverse(
             'admin:learning_plantillacertificado_estudiantes_preview',
         )
+        extra_context['prueba_descarga_url'] = reverse(
+            'admin:learning_plantillacertificado_prueba_descarga',
+        )
         return super().change_view(request, object_id, form_url, extra_context=extra_context)
     
     def get_form(self, request, obj=None, **kwargs):
@@ -153,6 +218,83 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
         form.base_fields['color_secundario'].widget = ColorPickerWidget()
         return form
     
+    def miniatura_lista(self, obj):
+        """Thumbnail en listado (biblioteca de plantillas)."""
+        url = ''
+        try:
+            url = (obj.obtener_url_plantilla_imagen() or '').strip()
+        except Exception:
+            url = (obj.url_plantilla_imagen or '').strip()
+        if not url and getattr(obj, 'imagen_fondo', None):
+            try:
+                url = (obj.imagen_fondo.url or '').strip()
+            except Exception:
+                url = ''
+        if url:
+            return format_html(
+                '<img src="{}" alt="" width="48" height="36" '
+                'style="object-fit:cover;border-radius:6px;border:1px solid #dde3ea;background:#f1f5f9;" '
+                'loading="lazy" referrerpolicy="no-referrer" />',
+                url,
+            )
+        return format_html(
+            '<span style="display:inline-flex;width:48px;height:36px;align-items:center;'
+            'justify-content:center;border-radius:6px;background:#efeaf4;color:#7A4E8E;'
+            'font-size:11px;font-weight:700;">CERT</span>'
+        )
+    miniatura_lista.short_description = ''
+
+    def usada_en_display(self, obj):
+        """Cuántos cursos usan esta plantilla (FK curso + predeterminada)."""
+        if obj.curso_id:
+            return format_html(
+                '<span style="font-weight:650;">1 curso</span>'
+                '<div style="font-size:11px;color:#6b6575;margin-top:2px;">{}</div>',
+                obj.curso.nombre,
+            )
+        if obj.por_defecto:
+            return format_html(
+                '<span style="font-weight:650;">Predeterminada</span>'
+                '<div style="font-size:11px;color:#6b6575;margin-top:2px;">Sin curso fijo</div>'
+            )
+        return format_html(
+            '<span style="color:#999;">0 cursos</span>'
+        )
+    usada_en_display.short_description = 'Usada en'
+
+    @admin.action(description='Duplicar plantilla(s) seleccionada(s)')
+    def duplicar_plantillas_certificado(self, request, queryset):
+        n = 0
+        for plantilla in queryset:
+            self._clonar_plantilla_certificado(plantilla)
+            n += 1
+        self.message_user(request, f'{n} plantilla(s) duplicada(s).', level=messages.SUCCESS)
+
+    @action(description='Duplicar', url_path='duplicar-cert', icon='content_copy')
+    def duplicar_plantilla_certificado_detail(self, request, object_id):
+        obj = self.get_object(request, object_id)
+        if not obj:
+            messages.error(request, 'Plantilla no encontrada.')
+            return redirect('admin:learning_plantillacertificado_changelist')
+        nueva = self._clonar_plantilla_certificado(obj)
+        messages.success(request, f'Duplicada como «{nueva.nombre}».')
+        return redirect('admin:learning_plantillacertificado_change', nueva.pk)
+
+    def has_duplicar_plantilla_certificado_detail_permission(self, request, object_id=None):
+        return request.user.is_staff
+
+    def _clonar_plantilla_certificado(self, plantilla):
+        """Copia la plantilla; no marca por_defecto la copia."""
+        from core.models_certificados import PlantillaCertificado
+
+        src = PlantillaCertificado.objects.get(pk=plantilla.pk)
+        src.pk = None
+        src.id = None
+        src.nombre = f'{(plantilla.nombre or "Plantilla").strip()} (copia)'[:200]
+        src.por_defecto = False
+        src.save()
+        return src
+
     def curso_info(self, obj):
         """Muestra el curso asignado"""
         if obj.curso:

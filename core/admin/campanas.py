@@ -4,6 +4,7 @@ from core.admin.estudiantes import EnvioProgramadoInline
 @admin.register(Campana)
 class CampanaAdmin(admin.ModelAdmin):
     """Gestión de campañas masivas"""
+    change_form_template = 'admin/core/campana/change_form.html'
     list_display = ('nombre', 'cliente_nombre', 'tipo_audiencia_display', 'categoria_badge', 'plantilla_estado', 'estado_visual', 'conteo_destinatarios', 'programada_display', 'fecha_creacion')
     list_filter = ('ejecutada', 'cliente', 'categoria', 'tipo_audiencia', 'fecha_creacion', 'plantilla__aprobada_twilio')
     search_fields = ('nombre', 'cliente__nombre')
@@ -15,14 +16,15 @@ class CampanaAdmin(admin.ModelAdmin):
         ('Datos', {
             'classes': ['tab'],
             'fields': ('nombre', 'cliente'),
-            'description': 'Nombre interno y cliente de la campaña.',
+            'description': 'Nombre interno y organización de este lanzamiento.',
         }),
-        ('Mensaje Twilio', {
+        ('Mensaje inicial', {
             'classes': ['tab'],
             'fields': ('template_twilio_id',),
             'description': (
-                'Recomendado: Content SID de Twilio (HX…). '
-                'Consola: https://console.twilio.com/us1/develop/sms/content-editor'
+                'Mensaje de bienvenida / inicio que recibe el estudiante por WhatsApp. '
+                'Internamente usa Content SID (HX…). '
+                'Consola Twilio: https://console.twilio.com/us1/develop/sms/content-editor'
             ),
         }),
         ('Inicio de curso / aviso Aprende', {
@@ -36,15 +38,15 @@ class CampanaAdmin(admin.ModelAdmin):
                 '(Habeas → verificación → avance con *listo*).'
             ),
         }),
-        ('Plantilla eki (alternativa)', {
+        ('Plantilla', {
             'classes': ['tab'],
             'fields': ('plantilla',),
-            'description': 'Solo si no usas Content SID directo. Requiere plantilla aprobada en eki.',
+            'description': 'Diseño del mensaje en eki (alternativa al Content SID directo). Requiere plantilla aprobada.',
         }),
         ('Audiencia', {
             'classes': ['tab'],
             'fields': ('tipo_audiencia', 'grupo', 'grupo_estudiantes_preview', 'destinatarios'),
-            'description': 'Individual = estudiantes elegidos. Grupo = todos los del grupo.',
+            'description': 'Participantes: individual = elegidos. Grupo = todos los del grupo.',
         }),
         ('Programar', {
             'classes': ['tab'],
@@ -56,12 +58,26 @@ class CampanaAdmin(admin.ModelAdmin):
             'fields': ('archivo_excel',),
             'description': 'Opcional: columnas A (Nombre) y B (Teléfono).',
         }),
-        ('Estadisticas', {
+        ('Resultados', {
             'classes': ['tab'],
             'fields': ('total_enviados', 'respuestas_si', 'respuestas_no'),
             'description': 'Contadores de envío y respuestas.',
         }),
     )
+
+    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        participantes = '—'
+        if object_id:
+            obj = self.get_object(request, object_id)
+            if obj:
+                if getattr(obj, 'tipo_audiencia', None) == 'grupo' and obj.grupo_id:
+                    participantes = f'{obj.grupo.estudiantes.filter(activo=True).count()} estudiantes'
+                else:
+                    n = obj.destinatarios.filter(activo=True).count()
+                    participantes = f'{n} estudiante(s)' if n else 'Sin destinatarios'
+        extra_context['eki_camp_participantes'] = participantes
+        return super().changeform_view(request, object_id, form_url, extra_context=extra_context)
     
     def cliente_nombre(self, obj):
         """Muestra el cliente de la campaña"""

@@ -14,6 +14,17 @@ if env_file.exists():
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-mvp-clave-secreta-cambiar-en-produccion')
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'  # False en producción
 
+# Module Builder WA (admin módulos).
+# settings.py (local): ON por defecto — aunque .env traiga DJANGO_DEBUG=False.
+# settings_production.py: OFF salvo EKI_MODULE_BUILDER_BETA=1.
+_EKI_MB = os.environ.get('EKI_MODULE_BUILDER_BETA', '').strip().lower()
+if _EKI_MB in ('0', 'false', 'no', 'off'):
+    EKI_MODULE_BUILDER_BETA = False
+elif _EKI_MB in ('1', 'true', 'yes', 'on'):
+    EKI_MODULE_BUILDER_BETA = True
+else:
+    EKI_MODULE_BUILDER_BETA = True
+
 # ALLOWED_HOSTS: acepta múltiples dominios separados por coma
 # testserver: httpx de pytest-django / django.test Client
 allowed_hosts_str = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver,eki-mvp.onrender.com,eki-prod-docker.eba-84g5zn3s.us-east-2.elasticbeanstalk.com')

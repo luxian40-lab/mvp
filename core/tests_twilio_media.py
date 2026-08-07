@@ -10,6 +10,7 @@ from core.twilio_media import (
     media_requiere_enlace_previo,
     mensaje_log_con_media,
     normalizar_media_url_s3,
+    optimizar_mp4_bytes_whatsapp,
     url_no_es_media_directo,
 )
 
@@ -99,6 +100,20 @@ class TwilioMediaHelpersTests(SimpleTestCase):
         self.assertFalse(mp4_necesita_faststart(fixed))
         # moov debe ir antes de mdat
         self.assertLess(fixed.find(b'moov'), fixed.find(b'mdat'))
+
+    def test_optimizar_mp4_sin_ffmpeg_hace_remux(self):
+        from unittest.mock import patch
+
+        from core.twilio_media import mp4_necesita_faststart
+
+        ftyp = (20).to_bytes(4, 'big') + b'ftyp' + b'isom' + b'\x00' * 8
+        mdat = (12).to_bytes(4, 'big') + b'mdat' + b'XXXX'
+        moov = (12).to_bytes(4, 'big') + b'moov' + b'YYYY'
+        raw = ftyp + mdat + moov
+        with patch('shutil.which', return_value=None):
+            out = optimizar_mp4_bytes_whatsapp(raw)
+        self.assertFalse(mp4_necesita_faststart(out))
+        self.assertLess(out.find(b'moov'), out.find(b'mdat'))
 
 
 class TwilioMediaCallbackFallbackTests(TestCase):

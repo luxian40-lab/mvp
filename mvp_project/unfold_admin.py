@@ -16,8 +16,16 @@ def _eki_admin_styles(request):
     return static("admin/css/eki_admin_unfold.css")
 
 
+def _eki_admin_tones_styles(request):
+    return static("admin/css/eki_admin_tones.css")
+
+
 def _eki_eco_graph_script(request):
     return static("admin/js/eki_eco_graph.js")
+
+
+def _eki_admin_tones_script(request):
+    return static("admin/js/eki_admin_tones.js")
 
 
 def environment_callback(request):
@@ -79,14 +87,19 @@ UNFOLD = {
             "link": reverse_lazy("admin:index"),
         },
         {
-            "icon": "dashboard",
-            "title": _("Dashboard"),
+            "icon": "analytics",
+            "title": _("Analítica"),
             "link": "/admin/dashboard/",
         },
         {
             "icon": "trending_up",
             "title": _("Centro de Éxito"),
             "link": "/admin/dashboard/?tab=retencion",
+        },
+        {
+            "icon": "forum",
+            "title": _("Conversaciones"),
+            "link": "/admin/conversaciones/",
         },
         {
             "icon": "school",
@@ -116,8 +129,8 @@ UNFOLD = {
             "link": "/admin/instrucciones/",
         },
     ],
-    "STYLES": [_eki_admin_styles],
-    "SCRIPTS": [_eki_eco_graph_script],
+    "STYLES": [_eki_admin_styles, _eki_admin_tones_styles],
+    "SCRIPTS": [_eki_eco_graph_script, _eki_admin_tones_script],
     "COLORS": {
         # base un poco más gris → las cajas blancas se leen (antes casi se fundían).
         "base": {
@@ -173,14 +186,19 @@ UNFOLD = {
                         "link": reverse_lazy("admin:index"),
                     },
                     {
-                        "title": _("Dashboard"),
-                        "icon": "dashboard",
+                        "title": _("Analítica"),
+                        "icon": "analytics",
                         "link": "/admin/dashboard/",
                     },
                     {
                         "title": _("Centro de Éxito"),
                         "icon": "trending_up",
                         "link": "/admin/dashboard/?tab=retencion",
+                    },
+                    {
+                        "title": _("Conversaciones"),
+                        "icon": "forum",
+                        "link": "/admin/conversaciones/",
                     },
                     {
                         "title": _("Calendario campañas"),

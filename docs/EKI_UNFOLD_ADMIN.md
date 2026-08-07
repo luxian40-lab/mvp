@@ -33,6 +33,7 @@ Regla Cursor (auto al tocar archivos admin): `.cursor/rules/eki-unfold-admin.mdc
 | Jump sticky módulos | `static/admin/js/eki_modulo_jump.js` |
 | CSS módulo WhatsApp bloques | `static/admin/css/modulo_whatsapp_bloques.css` |
 | Alta módulo (plantilla) | `sembrar_plantilla_modulo` en `core/admin/cursos.py` — 1 bloque + N microcontenidos inactivos; default modo Pasos; inlines con `tab=True` (Estructura / Microcontenidos / Multimedia legacy / Examen) |
+| **Module Builder WA** | `/admin/module-builder/<id>/` · flag `EKI_MODULE_BUILDER_BETA` · `docs/MODULE_BUILDER_WA.md` |
 | Drag orden inlines | `ordering_field = "orden"` en Secciones/Pasos/Multimedia; `save_formset` + `core/orden_bloques.py` (temp + renúmero 1..n). ↑↓ siguen como respaldo |
 | Base ops (Volver + shell) | `templates/admin/eki_ops_base.html` |
 | Switcher tema en header | `templates/unfold/helpers/userlinks.html` |

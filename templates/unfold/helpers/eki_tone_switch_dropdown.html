@@ -1,0 +1,44 @@
+{% load i18n %}
+
+{# Tonos eki (mañana/tarde/noche) en el nav — junto al switcher Light/Dark de Unfold. #}
+<div class="relative" x-data="{ openEkiTone: false }">
+    <a class="block cursor-pointer h-[18px] leading-none hover:text-base-700 dark:hover:text-base-200"
+       title="{% trans 'Tono' %}"
+       x-on:click="openEkiTone = !openEkiTone"
+       aria-haspopup="true"
+       x-bind:aria-expanded="openEkiTone">
+        <span class="material-symbols-outlined">palette</span>
+    </a>
+
+    <nav class="absolute bg-white border border-base-200 flex flex-col leading-none py-1 -right-2 rounded-default shadow-lg top-7 w-44 z-50 dark:bg-base-800 dark:border-base-700"
+         x-cloak
+         x-show="openEkiTone"
+         x-transition
+         x-on:click.outside="openEkiTone = false"
+         aria-label="{% trans 'Tono del admin' %}">
+        <a class="eki-tone-btn cursor-pointer flex flex-row mx-1 px-3 py-1.5 rounded-default hover:bg-base-100 hover:text-base-700 dark:hover:bg-base-700 dark:hover:text-base-200"
+           href="#"
+           data-tone="manana"
+           role="menuitem"
+           x-on:click.prevent="window.ekiSetAdminTone && window.ekiSetAdminTone('manana'); openEkiTone = false">
+            <span class="material-symbols-outlined mr-2">wb_twilight</span>
+            <span class="leading-none self-center">{% trans "Mañana" %}</span>
+        </a>
+        <a class="eki-tone-btn cursor-pointer flex flex-row mx-1 px-3 py-1.5 rounded-default hover:bg-base-100 hover:text-base-700 dark:hover:bg-base-700 dark:hover:text-base-200"
+           href="#"
+           data-tone="tarde"
+           role="menuitem"
+           x-on:click.prevent="window.ekiSetAdminTone && window.ekiSetAdminTone('tarde'); openEkiTone = false">
+            <span class="material-symbols-outlined mr-2">light_mode</span>
+            <span class="leading-none self-center">{% trans "Tarde" %}</span>
+        </a>
+        <a class="eki-tone-btn cursor-pointer flex flex-row mx-1 px-3 py-1.5 rounded-default hover:bg-base-100 hover:text-base-700 dark:hover:bg-base-700 dark:hover:text-base-200"
+           href="#"
+           data-tone="noche"
+           role="menuitem"
+           x-on:click.prevent="window.ekiSetAdminTone && window.ekiSetAdminTone('noche'); openEkiTone = false">
+            <span class="material-symbols-outlined mr-2">dark_mode</span>
+            <span class="leading-none self-center">{% trans "Noche" %}</span>
+        </a>
+    </nav>
+</div>

@@ -1,4 +1,4 @@
-/* Agrupa Secciones + Microcontenidos en Módulo (admin Unfold — cajas visibles). */
+/* Módulo admin: bloques claros, sin ruido visual. Drag Unfold se mantiene. */
 #secciones-group,
 #pasos-group,
 #archivos_multimedia-group,
@@ -7,35 +7,33 @@
 #pasomodulo_set-group,
 #archivomodulo_set-group,
 #preguntamodulo_set-group {
-  border: 2px solid #9A6CAC !important;
-  border-radius: 12px !important;
-  padding: 14px 16px 18px !important;
-  margin-bottom: 1.35rem !important;
+  border: 1px solid rgba(154, 108, 172, 0.35) !important;
+  border-radius: 10px !important;
+  padding: 12px 14px 16px !important;
+  margin-bottom: 1.1rem !important;
   background: #ffffff !important;
-  box-shadow: 0 2px 8px rgba(95, 58, 110, 0.1) !important;
+  box-shadow: none !important;
   color: #1a1625;
   scroll-margin-top: 72px;
 }
 
 #pasos-group,
 #pasomodulo_set-group {
-  border-color: #7A4E8E !important;
-  background: linear-gradient(180deg, rgba(122, 78, 142, 0.08) 0%, #ffffff 48px) !important;
+  border-color: rgba(122, 78, 142, 0.4) !important;
+  background: #faf8fc !important;
 }
 
 #secciones-group,
 #seccionmodulo_set-group {
-  background: linear-gradient(180deg, rgba(154, 108, 172, 0.08) 0%, #ffffff 48px) !important;
+  background: #fbfafc !important;
 }
 
 #archivos_multimedia-group,
-#archivomodulo_set-group {
-  border-color: #6b6575 !important;
-}
-
+#archivomodulo_set-group,
 #preguntas-group,
 #preguntamodulo_set-group {
-  border-color: #5F3A6E !important;
+  border-color: rgba(107, 101, 117, 0.35) !important;
+  opacity: 0.96;
 }
 
 #secciones-group .inline-related h2,
@@ -46,24 +44,138 @@
 #pasomodulo_set-group .inline-related h2,
 #seccionmodulo_set-group > h2,
 #pasomodulo_set-group > h2 {
-  border-bottom: 1px solid rgba(154, 108, 172, 0.35);
-  padding-bottom: 8px;
-  margin-bottom: 10px;
-  font-size: 1.05rem;
-  font-weight: 700;
+  border-bottom: 1px solid rgba(154, 108, 172, 0.25);
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+  font-size: 1rem;
+  font-weight: 650;
   color: #5F3A6E;
+}
+
+.eki-modulo-guia__line {
+  margin: 0 0 0.65rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #5F3A6E;
+  line-height: 1.4;
+}
+
+.eki-modulo-jump__btn--primary {
+  background: rgba(122, 78, 142, 0.14) !important;
+  color: #5F3A6E !important;
+  border-color: rgba(122, 78, 142, 0.45) !important;
+  font-weight: 700 !important;
 }
 
 #pasos-group::before,
 #pasomodulo_set-group::before {
-  content: "Cada microcontenido elige una sección (Estructura). Active el paso cuando el texto esté listo. Arrastre el asa o use ↑↓.";
+  content: "Bloque → archivo → Activar → Guardar. Drag para reordenar.";
   display: block;
-  font-size: 13px;
+  font-size: 12px;
   color: #5F3A6E;
-  margin: 0 0 12px 2px;
-  font-weight: 650;
+  margin: 0 0 10px 2px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+#secciones-group::before,
+#seccionmodulo_set-group::before {
+  content: "Bloques del módulo. Escriba el título y Guarde (drag queda activo).";
+  display: block;
+  font-size: 12px;
+  color: #5F3A6E;
+  margin: 0 0 10px 2px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* Zona de upload: Unfold file widget + acento eki (no pelear con input nativo). */
+.field-media_file_upload,
+.form-row.field-media_file_upload,
+.field-clase_archivo,
+.form-row.field-clase_archivo {
+  margin: 0.75rem 0 1rem !important;
+  padding: 0.75rem !important;
+  background: rgba(122, 78, 142, 0.06);
+  border: 1px dashed rgba(122, 78, 142, 0.45);
+  border-radius: 12px;
+}
+
+html.dark .field-media_file_upload,
+html.dark .form-row.field-media_file_upload,
+html.dark .field-clase_archivo,
+html.dark .form-row.field-clase_archivo {
+  background: rgba(154, 108, 172, 0.12);
+  border-color: rgba(154, 108, 172, 0.4);
+}
+
+/* Banner superior con errores reales (inyectado por JS) */
+.eki-modulo-error-banner {
+  display: block;
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-left: 4px solid #dc2626;
+  border-radius: 10px;
+  color: #7f1d1d;
+  font-size: 0.9rem;
+  font-weight: 600;
   line-height: 1.45;
 }
+
+.eki-modulo-error-banner ul {
+  margin: 0.4rem 0 0;
+  padding-left: 1.1rem;
+  font-weight: 500;
+}
+
+.eki-modulo-error-banner li {
+  margin: 0.2rem 0;
+}
+
+#pasos-group .form-row,
+#pasomodulo_set-group .form-row,
+#pasos-group .inline-related,
+#pasomodulo_set-group .inline-related {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+#pasos-group .errorlist,
+#pasomodulo_set-group .errorlist,
+#secciones-group .errorlist,
+#seccionmodulo_set-group .errorlist,
+#pasos-group ul.errorlist,
+#pasomodulo_set-group ul.errorlist {
+  display: block !important;
+  margin: 0.35rem 0 0.5rem !important;
+  padding: 0.5rem 0.75rem !important;
+  background: #fef2f2 !important;
+  border: 1px solid #fca5a5 !important;
+  border-radius: 8px !important;
+  color: #991b1b !important;
+  font-weight: 650 !important;
+  font-size: 0.875rem !important;
+  list-style: disc inside !important;
+}
+
+/* Badge en pestaña Unfold con error */
+#tabs-items a.eki-tab-has-error {
+  color: #b91c1c !important;
+  font-weight: 700 !important;
+}
+
+#tabs-items a .eki-tab-error-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-left: 0.35rem;
+  border-radius: 999px;
+  background: #dc2626;
+  vertical-align: middle;
+}
+
 
 #secciones-group table,
 #pasos-group table,

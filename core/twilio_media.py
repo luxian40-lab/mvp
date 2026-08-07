@@ -354,6 +354,145 @@ def mp4_bitstream_ilegible(data: bytes) -> bool:
                 pass
 
 
+# Límite práctico Meta/WhatsApp para video por MediaUrl (~16 MB).
+WHATSAPP_VIDEO_MAX_BYTES = 16 * 1024 * 1024
+
+
+def _ffmpeg_encode_wa(
+    data: bytes,
+    *,
+    max_width: int = 720,
+    crf: int = 26,
+    audio_bitrate: str = '96k',
+) -> Optional[bytes]:
+    """Un pase ffmpeg H.264 Main + AAC + faststart. None si falla o no hay ffmpeg."""
+    import os
+    import shutil
+    import subprocess
+    import tempfile
+
+    if not data or not shutil.which('ffmpeg'):
+        return None
+    src = dst = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as tmp_in:
+            tmp_in.write(data)
+            src = tmp_in.name
+        fd, dst = tempfile.mkstemp(suffix='.mp4')
+        os.close(fd)
+        vf = f"scale='if(gt(iw,{max_width}),{max_width},iw)':-2"
+        cmd = [
+            'ffmpeg', '-y', '-i', src,
+            '-c:v', 'libx264', '-profile:v', 'main', '-level', '3.1',
+            '-pix_fmt', 'yuv420p',
+            '-vf', vf,
+            '-preset', 'fast', '-crf', str(crf),
+            '-c:a', 'aac', '-b:a', audio_bitrate, '-ac', '1', '-ar', '44100',
+            '-movflags', '+faststart',
+            dst,
+        ]
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        if r.returncode == 0 and os.path.getsize(dst) > 64:
+            with open(dst, 'rb') as f:
+                return f.read()
+        logger.warning(
+            '🎬 ffmpeg encode falló (rc=%s w=%s crf=%s) | %s',
+            r.returncode,
+            max_width,
+            crf,
+            (r.stderr or '')[-200:],
+        )
+        return None
+    except Exception as exc:
+        logger.warning('🎬 ffmpeg encode error | %s', exc)
+        return None
+    finally:
+        for p in (src, dst):
+            if p:
+                try:
+                    os.unlink(p)
+                except OSError:
+                    pass
+
+
+def optimizar_mp4_bytes_whatsapp(
+    data: bytes,
+    *,
+    max_bytes: int = WHATSAPP_VIDEO_MAX_BYTES,
+) -> bytes:
+    """
+    Prepara bytes MP4 para MediaUrl WhatsApp (evita 63021 + tamaño).
+    - Con ffmpeg: H.264 Main + AAC + faststart; si sigue > max_bytes, comprime más.
+    - Sin ffmpeg: solo remux moov al inicio (no cambia codec).
+    """
+    if not data:
+        return data
+
+    out = _ffmpeg_encode_wa(data, max_width=720, crf=26)
+    if out is None:
+        if mp4_necesita_faststart(data):
+            return remux_mp4_faststart(data)
+        return data
+
+    if len(out) > max_bytes:
+        harder = _ffmpeg_encode_wa(data, max_width=640, crf=28, audio_bitrate='64k')
+        if harder and len(harder) < len(out):
+            out = harder
+            logger.info('🎬 MP4 re-comprimido 640/crf28 | out=%s', len(out))
+    if len(out) > max_bytes:
+        harder = _ffmpeg_encode_wa(data, max_width=480, crf=32, audio_bitrate='48k')
+        if harder and len(harder) < len(out):
+            out = harder
+            logger.info('🎬 MP4 re-comprimido 480/crf32 | out=%s', len(out))
+
+    logger.info('🎬 MP4 optimizado ffmpeg | in=%s out=%s', len(data), len(out))
+    return out
+
+
+def evaluar_mp4_listo_whatsapp(
+    data: bytes,
+    *,
+    max_bytes: int = WHATSAPP_VIDEO_MAX_BYTES,
+) -> dict:
+    """
+    Gate local (sin Twilio): ¿el MP4 es razonable para MediaUrl?
+    Retorna ``{apto, bytes, razon, necesita_faststart}``.
+    """
+    if not data or len(data) < 12 or b'ftyp' not in data[:64]:
+        return {
+            'apto': False,
+            'bytes': len(data or b''),
+            'razon': 'cabecera_mp4_invalida',
+            'necesita_faststart': False,
+        }
+    size = len(data)
+    needs_fs = False
+    try:
+        needs_fs = mp4_necesita_faststart(data)
+    except Exception:
+        needs_fs = False
+    if size > max_bytes:
+        return {
+            'apto': False,
+            'bytes': size,
+            'razon': f'supera_{max_bytes}_bytes',
+            'necesita_faststart': needs_fs,
+        }
+    if mp4_bitstream_ilegible(data):
+        return {
+            'apto': False,
+            'bytes': size,
+            'razon': 'bitstream_ilegible',
+            'necesita_faststart': needs_fs,
+        }
+    return {
+        'apto': True,
+        'bytes': size,
+        'razon': 'ok' if not needs_fs else 'ok_con_faststart_recomendado',
+        'necesita_faststart': needs_fs,
+    }
+
+
 def _ext_media(url: str) -> str:
     path = (url or '').split('?', 1)[0].lower()
     if '.' not in path:

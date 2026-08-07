@@ -6,8 +6,9 @@
 
     {% eki_ops_bell %}
 
-    {# Switcher visible en la barra superior (Unfold lo mete por defecto solo en el menú del usuario del sidebar). #}
+    {# Switcher Light/Dark/System (Unfold) + tonos eki Mañana/Tarde/Noche #}
     {% include "unfold/helpers/theme_switch_dropdown.html" %}
+    {% include "unfold/helpers/eki_tone_switch_dropdown.html" %}
 
     {% if environment %}
         {% include "unfold/helpers/label.html" with text=environment.0 type=environment.1 %}

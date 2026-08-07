@@ -40,8 +40,11 @@ class AdminCampanaCertTabsTests(TestCase):
     def test_campana_fieldsets_tabs_sin_emoji(self):
         titles = self._fieldset_titles(CampanaAdmin, Campana)
         self.assertIn('Datos', titles)
-        self.assertIn('Mensaje Twilio', titles)
+        self.assertIn('Mensaje inicial', titles)
+        self.assertIn('Plantilla', titles)
+        self.assertIn('Resultados', titles)
         self.assertIn('Audiencia', titles)
+        self.assertNotIn('Mensaje Twilio', titles)
         self.assertTrue(all('📝' not in (t or '') and '🚀' not in (t or '') for t in titles))
         for name, opts in CampanaAdmin.fieldsets:
             self.assertIn('tab', opts.get('classes', []))
@@ -57,7 +60,7 @@ class AdminCampanaCertTabsTests(TestCase):
         titles = self._fieldset_titles(PlantillaCertificadoAdmin, PlantillaCertificado)
         self.assertEqual(
             titles,
-            ['Datos', 'Imagen (marcadores)', 'Diseno eki', 'PDF'],
+            ['Datos', 'Plantilla', 'Diseño eki', 'PDF'],
         )
         for name, opts in PlantillaCertificadoAdmin.fieldsets:
             self.assertIn('tab', opts.get('classes', []))
@@ -89,8 +92,11 @@ class AdminCampanaCertTabsTests(TestCase):
         r = self.client.get(reverse('admin:core_campana_change', args=[camp.pk]))
         self.assertEqual(r.status_code, 200)
         body = r.content.decode('utf-8')
-        self.assertIn('Mensaje Twilio', body)
+        self.assertIn('Mensaje inicial', body)
+        self.assertIn('eki-camp-ficha', body)
+        self.assertIn('Lanzamiento', body)
         self.assertNotIn('📨 Template de Twilio', body)
+        self.assertNotIn('Mensaje Twilio', body)
 
     def test_plantilla_certificado_change_form_200(self):
         plant = PlantillaCertificado.objects.create(
@@ -106,5 +112,40 @@ class AdminCampanaCertTabsTests(TestCase):
         )
         self.assertEqual(r.status_code, 200)
         body = r.content.decode('utf-8')
-        self.assertIn('Imagen (marcadores)', body)
+        self.assertIn('Plantilla', body)
         self.assertIn('Vista previa', body)
+        self.assertIn('Generar certificado de prueba', body)
+        self.assertIn('Marcadores disponibles', body)
+
+    def test_plantilla_certificado_lista_miniatura_y_usada_en(self):
+        plant = PlantillaCertificado.objects.create(
+            nombre='Plant Lista',
+            curso=self.curso,
+            cliente=self.cliente,
+            modo_plantilla='imagen',
+            activa=True,
+        )
+        adm = PlantillaCertificadoAdmin(PlantillaCertificado, site)
+        usada = str(adm.usada_en_display(plant))
+        self.assertIn('1 curso', usada)
+        mini = str(adm.miniatura_lista(plant))
+        self.assertTrue('img' in mini or 'CERT' in mini)
+
+    def test_duplicar_plantilla_certificado(self):
+        plant = PlantillaCertificado.objects.create(
+            nombre='Original Cert',
+            curso=self.curso,
+            cliente=self.cliente,
+            modo_plantilla='imagen',
+            activa=True,
+            por_defecto=True,
+        )
+        adm = PlantillaCertificadoAdmin(PlantillaCertificado, site)
+        copia = adm._clonar_plantilla_certificado(plant)
+        self.assertNotEqual(copia.pk, plant.pk)
+        self.assertIn('(copia)', copia.nombre)
+        self.assertFalse(copia.por_defecto)
+        self.assertEqual(
+            PlantillaCertificado.objects.filter(nombre__startswith='Original Cert').count(),
+            2,
+        )

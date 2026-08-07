@@ -1,0 +1,105 @@
+/**
+ * Tonos admin completo — mañana (cielo), tarde (lavanda eki), noche (ojos).
+ * Control: dropdown palette en el nav (userlinks). Aplica html[data-eki-tone=…].
+ */
+
+.eki-tone-btn[aria-pressed="true"] {
+  color: var(--eki-accent-deep, #7A4E8E);
+}
+
+/* ========== MAÑANA: cielo fresco (azul), claramente distinto de tarde ========== */
+html[data-eki-tone="manana"] {
+  color-scheme: light;
+  --eki-accent: #3d7ea6;
+  --eki-accent-deep: #2a5f7d;
+  --eki-accent-soft: rgba(61, 126, 166, 0.14);
+  --eki-box-border: rgba(30, 60, 90, 0.14);
+  --eki-box-bg: #ffffff;
+}
+
+html[data-eki-tone="manana"] body,
+html[data-eki-tone="manana"] #main,
+html[data-eki-tone="manana"] .bg-base-50,
+html[data-eki-tone="manana"] [class*="bg-base-50"] {
+  --tw-bg-opacity: 1;
+}
+
+html[data-eki-tone="manana"] body {
+  background: #e7f2f8 !important;
+}
+
+html[data-eki-tone="manana"] a:not(.button):not([class*="bg-"]),
+html[data-eki-tone="manana"] .text-primary-600,
+html[data-eki-tone="manana"] .eki-ops-back {
+  color: #2a5f7d;
+}
+
+html[data-eki-tone="manana"] .border-primary-600,
+html[data-eki-tone="manana"] .bg-primary-600 {
+  border-color: #3d7ea6;
+}
+
+html[data-eki-tone="manana"] .bg-primary-600,
+html[data-eki-tone="manana"] .bg-primary-500 {
+  background-color: #3d7ea6 !important;
+}
+
+html[data-eki-tone="manana"] .eki-hub-hello__title {
+  color: #1a3344;
+}
+
+html[data-eki-tone="manana"] .eki-hub-cal {
+  border-color: rgba(42, 95, 125, 0.2);
+  color: #2a5f7d;
+}
+
+html[data-eki-tone="manana"] .eki-hub-cal .material-symbols-outlined {
+  color: #3d7ea6;
+}
+
+/* ========== TARDE: lavanda eki (marca) ========== */
+html[data-eki-tone="tarde"] {
+  color-scheme: light;
+  --eki-accent: #9A6CAC;
+  --eki-accent-deep: #7A4E8E;
+  --eki-accent-soft: rgba(154, 108, 172, 0.12);
+  --eki-box-border: rgba(30, 27, 36, 0.16);
+  --eki-box-bg: #ffffff;
+}
+
+html[data-eki-tone="tarde"] body {
+  background: #f0eef3 !important;
+}
+
+/* ========== NOCHE: carbón cálido, bajo azul (ojos) ========== */
+html[data-eki-tone="noche"] {
+  color-scheme: dark;
+  --eki-accent: #b89bc4;
+  --eki-accent-deep: #c9b3d4;
+  --eki-accent-soft: rgba(184, 155, 196, 0.16);
+  --eki-box-border: rgba(230, 226, 234, 0.12);
+  --eki-box-bg: #26232b;
+}
+
+html[data-eki-tone="noche"] body {
+  background: #1c1a1f !important;
+  color: #e6e2ea;
+}
+
+html[data-eki-tone="noche"] .eki-hub-hello__title {
+  color: #e6e2ea;
+}
+
+html[data-eki-tone="noche"] .eki-hub-hello__sub {
+  color: #a59eb0;
+}
+
+html[data-eki-tone="noche"] .eki-hub-cal {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #e8e2ef;
+}
+
+html[data-eki-tone="noche"] .eki-header-bell {
+  color: #cbb8d8;
+}
