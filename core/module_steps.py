@@ -169,6 +169,36 @@ def cuenta_microcontenidos_modulo(modulo: Optional[Modulo]) -> int:
     return PasoModulo.objects.filter(modulo=modulo).count()
 
 
+def cuenta_secciones_modulo(modulo: Optional[Modulo]) -> int:
+    if not modulo or not getattr(modulo, 'pk', None):
+        return 0
+    from .models import SeccionModulo
+
+    return SeccionModulo.objects.filter(modulo=modulo).count()
+
+
+def cuenta_secciones_en_post(data) -> int:
+    """Bloques en el POST (Estructura) aún no persistidos."""
+    if not data:
+        return 0
+    for prefix in ('secciones', 'seccionmodulo_set'):
+        raw_total = data.get(f'{prefix}-TOTAL_FORMS')
+        if raw_total is None:
+            continue
+        try:
+            total = int(raw_total)
+        except (TypeError, ValueError):
+            continue
+        n = 0
+        for i in range(total):
+            if data.get(f'{prefix}-{i}-DELETE'):
+                continue
+            if data.get(f'{prefix}-{i}-id') or (data.get(f'{prefix}-{i}-titulo') or '').strip():
+                n += 1
+        return n
+    return 0
+
+
 def _paso_form_cuenta_como_microcontenido(cleaned_data: dict) -> bool:
     if not cleaned_data or cleaned_data.get('DELETE'):
         return False
@@ -239,9 +269,41 @@ def cuenta_microcontenidos_efectivos(modulo: Optional[Modulo], *, pasos_formset=
     return cuenta_microcontenidos_modulo(modulo)
 
 
-def modulo_requiere_contenido_texto(modulo: Optional[Modulo], *, pasos_formset=None) -> bool:
-    """True si Modulo.contenido es obligatorio (sin filas de microcontenido)."""
-    return cuenta_microcontenidos_efectivos(modulo, pasos_formset=pasos_formset) == 0
+def _post_tiene_clase_simple(data, files=None) -> bool:
+    """Pestaña Clase del admin: texto, archivo o URL sustituyen contenido legacy."""
+    if data:
+        if (data.get('clase_texto') or '').strip():
+            return True
+        if (data.get('clase_url') or '').strip():
+            return True
+    if files and files.get('clase_archivo'):
+        return True
+    return False
+
+
+def modulo_requiere_contenido_texto(
+    modulo: Optional[Modulo],
+    *,
+    pasos_formset=None,
+    tiene_clase_simple: bool = False,
+    data=None,
+) -> bool:
+    """
+    True solo si no hay NINGUNA fuente de material:
+    - microcontenidos (BD o formset)
+    - bloques/secciones (BD o POST de Estructura)
+    - pestaña Clase (texto/archivo/URL)
+    Evita el choque «contenido obligatorio» al guardar Estructura/Materiales/Clase.
+    """
+    if tiene_clase_simple or _post_tiene_clase_simple(data):
+        return False
+    if cuenta_microcontenidos_efectivos(modulo, pasos_formset=pasos_formset) > 0:
+        return False
+    if cuenta_secciones_modulo(modulo) > 0:
+        return False
+    if cuenta_secciones_en_post(data) > 0:
+        return False
+    return True
 
 
 def validar_contenido_modulo(
@@ -249,13 +311,22 @@ def validar_contenido_modulo(
     modulo: Optional[Modulo],
     *,
     pasos_formset=None,
+    tiene_clase_simple: bool = False,
+    data=None,
 ) -> None:
     from django.core.exceptions import ValidationError
 
-    if modulo_requiere_contenido_texto(modulo, pasos_formset=pasos_formset):
+    if modulo_requiere_contenido_texto(
+        modulo,
+        pasos_formset=pasos_formset,
+        tiene_clase_simple=tiene_clase_simple,
+        data=data,
+    ):
         if not (contenido or '').strip():
             raise ValidationError(
-                'El contenido del módulo es obligatorio cuando no hay microcontenidos configurados.'
+                'Falta material: use la pestaña Clase (texto/archivo), '
+                'o cree un bloque en Estructura y un material, '
+                'o complete el texto legacy en «Más opciones».'
             )
 
 
@@ -439,7 +510,18 @@ def partes_mensaje_paso(paso: PasoModulo, curso) -> list[str]:
         bloque_media = parte_mensaje_con_media(url, body)
         after = tail.strip()
     else:
-        bloque_media = parte_mensaje_con_media(url, MENSAJE_CAPTION_SOLO_MEDIA)
+        # Media sin texto: caption con título de sección/módulo (no solo genérico).
+        contexto = (
+            (getattr(paso, 'titulo', None) or '').strip()
+            or (getattr(getattr(paso, 'seccion', None), 'titulo', None) or '').strip()
+            or (getattr(getattr(paso, 'modulo', None), 'titulo', None) or '').strip()
+        )
+        cap = (
+            f'📖 {contexto}\n\n{MENSAJE_CAPTION_SOLO_MEDIA}'
+            if contexto
+            else MENSAJE_CAPTION_SOLO_MEDIA
+        )
+        bloque_media = parte_mensaje_con_media(url, cap)
         after = tail.strip()
     partes: list[str] = [bloque_media, '[DELAY:5]']
     if after:
@@ -495,25 +577,63 @@ def _batch_pasos_desde_indice(modulo: Modulo, qs: list, idx: int) -> list:
     except ValueError:
         return [start]
     allowed_sec = set(sec_order[i0 : i0 + k])
+    # Importante: no cortar al primer paso de otra sección. En admin el `orden` global
+    # puede intercalarse (video sec A, video sec B, texto sec A) y el texto de A
+    # quedaba sin enviarse nunca.
     batch = []
     for p in qs[idx - 1 :]:
         if p.seccion_id not in allowed_sec:
-            break
+            continue
         batch.append(p)
         if p.es_evaluacion:
             break
+    # Dentro de la sección: textos antes que media-sola (mejor UX: bienvenida → video).
+    if batch and not any(p.es_evaluacion for p in batch):
+        def _prio_envio(p):
+            has_txt = bool((p.contenido or '').strip())
+            has_media = bool((p.media_url or '').strip())
+            if has_txt and not has_media:
+                return (0, p.orden, p.id)
+            if has_txt and has_media:
+                return (1, p.orden, p.id)
+            return (2, p.orden, p.id)
+
+        batch = sorted(batch, key=_prio_envio)
     # Evaluación como primer paso de la siguiente sección: mismo envío que el bloque actual
     # (si no, solo salía el enunciado y el CTA de *listo* sin opciones A–D).
     if batch and not batch[-1].es_evaluacion:
         try:
-            pos = qs.index(batch[-1])
+            pos = max(qs.index(p) for p in batch)
         except ValueError:
             pos = -1
         if 0 <= pos < len(qs) - 1:
             nxt = qs[pos + 1]
-            if nxt.es_evaluacion:
+            if nxt.es_evaluacion and nxt not in batch:
                 batch.append(nxt)
     return batch
+
+
+def _siguiente_idx_tras_bloque(qs: list, idx: int, batch: list) -> int:
+    """Índice 1-based del próximo paso tras cerrar las secciones del batch.
+
+    Con ``orden`` intercalado (A, B, A, B) el lote ya envió *toda* la sección A
+    (pasos tempranos y tardíos). Al cerrar B no debemos reabrir A: si no, el
+    alumno ve la bienvenida / textos de A otra vez.
+    """
+    n = len(qs)
+    if not batch:
+        return min(idx + 1, n + 1)
+    secs_cerradas = {p.seccion_id for p in batch if p.seccion_id}
+    # Secciones ya recorridas antes de este lote (pasos con índice < idx).
+    secs_previas = {p.seccion_id for p in qs[: idx - 1] if p.seccion_id}
+    omitir = secs_cerradas | secs_previas
+    for i, p in enumerate(qs, 1):
+        if p.seccion_id in omitir:
+            continue
+        if i < idx:
+            continue
+        return i
+    return n + 1
 
 
 def _urls_y_captions_multimedia_modulo(modulo: Modulo) -> list[tuple[str, str | None]]:
@@ -654,12 +774,13 @@ def entregar_bloque_secciones_desde_paso(
         )
         partes.extend(partes_mensaje_paso(paso, curso))
     last_paso = batch_orig[-1]
-    last_idx = qs.index(last_paso) + 1
+    next_idx = _siguiente_idx_tras_bloque(qs, idx, batch_orig)
 
     if last_paso.es_evaluacion:
         progreso.esperando_respuesta_evaluacion_paso = True
         progreso.paso_evaluacion_paso = last_paso
-        progreso.paso_actual_modulo = last_idx
+        # Quedarse en el índice de la evaluación dentro de qs
+        progreso.paso_actual_modulo = qs.index(last_paso) + 1
         progreso.save(
             update_fields=[
                 'esperando_respuesta_evaluacion_paso',
@@ -672,10 +793,10 @@ def entregar_bloque_secciones_desde_paso(
             progreso.estudiante_id,
             progreso.id,
             last_paso.id,
-            last_idx,
+            progreso.paso_actual_modulo,
         )
     else:
-        progreso.paso_actual_modulo = last_idx + 1
+        progreso.paso_actual_modulo = next_idx
         progreso.esperando_respuesta_evaluacion_paso = False
         progreso.paso_evaluacion_paso = None
         progreso.save(
@@ -693,10 +814,10 @@ def entregar_bloque_secciones_desde_paso(
             otro_bloque = False
             if 1 <= sig_idx <= len(qs):
                 try:
-                    sec_cerrada = batch_orig[-1].seccion_id
+                    secs_cerradas = {p.seccion_id for p in batch_orig if p.seccion_id}
                     next_sec_id = qs[sig_idx - 1].seccion_id
                     otro_bloque = bool(
-                        sec_cerrada and next_sec_id and next_sec_id != sec_cerrada
+                        secs_cerradas and next_sec_id and next_sec_id not in secs_cerradas
                     )
                 except (IndexError, AttributeError):
                     otro_bloque = False

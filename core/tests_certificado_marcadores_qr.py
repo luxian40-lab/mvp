@@ -49,7 +49,10 @@ def _plantilla_con_marcadores(*, con_fecha=True, size=(600, 420)):
 class CertificadoMarcadoresQrTests(SimpleTestCase):
     def test_defaults_nombre_y_cedula_mas_pequenos(self):
         self.assertLessEqual(FUENTE_NOMBRE_DEFAULT, 60)
-        self.assertLessEqual(FUENTE_CEDULA_DEFAULT, 32)
+        self.assertEqual(FUENTE_CEDULA_DEFAULT, 33)
+        from core.utils_certificados import FUENTE_FECHA_DEFAULT
+
+        self.assertEqual(FUENTE_FECHA_DEFAULT, 29)
 
     def test_encontrar_marcadores_en_plantilla(self):
         raw = _plantilla_con_marcadores(con_fecha=True)

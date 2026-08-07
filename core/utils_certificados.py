@@ -36,8 +36,8 @@ MARCADOR_QR      = (0, 0, 255)      # Azul puro para QR
 TOLERANCIA_COLOR = 18               # Tolerancia reducida para detectar solo marcadores puros
 TAMAÑO_QR_DEFAULT = 130             # Antes 190; más compacto en plantillas
 FUENTE_NOMBRE_DEFAULT = 56          # Antes 80; nombres largos caben mejor
-FUENTE_CEDULA_DEFAULT = 30          # Antes 40
-FUENTE_FECHA_DEFAULT = 26
+FUENTE_CEDULA_DEFAULT = 33          # +3 px (antes 30; histórico 40)
+FUENTE_FECHA_DEFAULT = 29           # +3 px (antes 26)
 
 # --- RUTA DE FUENTES ---
 FONTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')

@@ -783,6 +783,98 @@ class SectionBatchTests(TestCase):
         self.assertIn('siguiente', msg.lower())
         self.assertIn('listo', msg.lower())
 
+    def test_seccion_con_orden_intercalado_incluye_texto_tardio(self):
+        """Agrosavia-like: video sec A, media sec B, texto sec A → el texto A va en el 1er *listo*."""
+        sa = _seccion(self.mod, 1, titulo='Bloque A')
+        sb = _seccion(self.mod, 2, titulo='Bloque B')
+        PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=sa,
+            orden=1,
+            titulo='vidA',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='',
+            media_url='https://cdn.example/a.mp4',
+        )
+        PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=sb,
+            orden=2,
+            titulo='vidB',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='',
+            media_url='https://cdn.example/b.mp4',
+        )
+        PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=sa,
+            orden=3,
+            titulo='txtA',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='BIENVENIDA_MODULO_A',
+        )
+        reset_progreso_pasos_modulo(self.prog, save=True)
+        msg1 = entregar_bloque_secciones_desde_paso(self.prog, self.mod, 1)
+        self.prog.refresh_from_db()
+        self.assertIn('BIENVENIDA_MODULO_A', msg1)
+        self.assertIn('cdn.example/a.mp4', msg1)
+        self.assertNotIn('cdn.example/b.mp4', msg1)
+        # Texto de A antes que el video de A
+        self.assertLess(msg1.find('BIENVENIDA_MODULO_A'), msg1.find('cdn.example/a.mp4'))
+        # Siguiente *listo* debe abrir sección B (índice del primer paso B)
+        self.assertEqual(self.prog.paso_actual_modulo, 2)
+        msg2 = entregar_bloque_secciones_desde_paso(
+            self.prog, self.mod, self.prog.paso_actual_modulo
+        )
+        self.assertIn('cdn.example/b.mp4', msg2)
+        self.assertNotIn('BIENVENIDA_MODULO_A', msg2)
+        # Tras B no se reabre A aunque queden índices “hueco” de A ya enviados
+        self.prog.refresh_from_db()
+        self.assertGreater(self.prog.paso_actual_modulo, 3)
+
+    def test_intercalado_no_reenvia_seccion_ya_cerrada(self):
+        """Agrosavia mod1: A,B,B,A,B → 2 *listo*; no repetir textos de A/B."""
+        sa = _seccion(self.mod, 1, titulo='Bloque A')
+        sb = _seccion(self.mod, 2, titulo='Bloque B')
+        PasoModulo.objects.create(
+            modulo=self.mod, seccion=sa, orden=1, titulo='vidA',
+            tipo=PasoModulo.TIPO_CONTENIDO, contenido='',
+            media_url='https://cdn.example/a.mp4',
+        )
+        PasoModulo.objects.create(
+            modulo=self.mod, seccion=sb, orden=2, titulo='vidB1',
+            tipo=PasoModulo.TIPO_CONTENIDO, contenido='',
+            media_url='https://cdn.example/b1.mp4',
+        )
+        PasoModulo.objects.create(
+            modulo=self.mod, seccion=sb, orden=3, titulo='vidB2',
+            tipo=PasoModulo.TIPO_CONTENIDO, contenido='',
+            media_url='https://cdn.example/b2.mp4',
+        )
+        PasoModulo.objects.create(
+            modulo=self.mod, seccion=sa, orden=4, titulo='txtA',
+            tipo=PasoModulo.TIPO_CONTENIDO, contenido='BIENVENIDA_A',
+        )
+        PasoModulo.objects.create(
+            modulo=self.mod, seccion=sb, orden=5, titulo='txtB',
+            tipo=PasoModulo.TIPO_CONTENIDO, contenido='SENALES_B',
+        )
+        reset_progreso_pasos_modulo(self.prog, save=True)
+        msg1 = entregar_bloque_secciones_desde_paso(self.prog, self.mod, 1)
+        self.prog.refresh_from_db()
+        self.assertIn('BIENVENIDA_A', msg1)
+        self.assertIn('cdn.example/a.mp4', msg1)
+        self.assertEqual(self.prog.paso_actual_modulo, 2)
+        msg2 = entregar_bloque_secciones_desde_paso(
+            self.prog, self.mod, self.prog.paso_actual_modulo
+        )
+        self.prog.refresh_from_db()
+        self.assertIn('SENALES_B', msg2)
+        self.assertIn('cdn.example/b1.mp4', msg2)
+        self.assertNotIn('BIENVENIDA_A', msg2)
+        # Fin de módulo: no quedar en índice 4/5 para reenviar A o B
+        self.assertEqual(self.prog.paso_actual_modulo, 6)
+
     def test_dos_secciones_titulos_un_listo_por_seccion(self):
         """Aunque secciones_por_listo sea 2, solo se entrega una sección; el segundo *listo* abre la otra."""
         sa = _seccion(self.mod, 1, titulo='Bloque Alfa')
@@ -1460,9 +1552,8 @@ class ModuloContenidoVsMicrocontenidosTests(TestCase):
         # No debe lanzar: hay microcontenido persistido
         validar_contenido_modulo('', self.mod, pasos_formset=_FakeFormSet())
 
-    def test_formset_borrar_ultimo_paso_exige_contenido(self):
-        from django.core.exceptions import ValidationError
-
+    def test_formset_borrar_ultimo_paso_con_seccion_permite_vacio(self):
+        """Con bloque en Estructura, borrar el último material no exige texto legacy."""
         from core.module_steps import validar_contenido_modulo
 
         s1 = _seccion(self.mod, 1)
@@ -1484,8 +1575,37 @@ class ModuloContenidoVsMicrocontenidosTests(TestCase):
         class _FakeFormSet:
             forms = [_FakeForm()]
 
-        with self.assertRaises(ValidationError):
-            validar_contenido_modulo('', self.mod, pasos_formset=_FakeFormSet())
+        validar_contenido_modulo('', self.mod, pasos_formset=_FakeFormSet())
+
+    def test_solo_seccion_sin_contenido_legacy_ok(self):
+        from core.module_steps import validar_contenido_modulo
+
+        _seccion(self.mod, 1)
+        validar_contenido_modulo('', self.mod)
+
+    def test_clase_simple_en_post_sin_contenido_ok(self):
+        from core.module_steps import validar_contenido_modulo
+
+        validar_contenido_modulo(
+            '',
+            self.mod,
+            data={'clase_texto': 'Hola clase', 'contenido': ''},
+        )
+
+    def test_seccion_nueva_en_post_sin_contenido_ok(self):
+        from core.module_steps import validar_contenido_modulo
+
+        validar_contenido_modulo(
+            '',
+            self.mod,
+            data={
+                'contenido': '',
+                'secciones-TOTAL_FORMS': '1',
+                'secciones-INITIAL_FORMS': '0',
+                'secciones-0-titulo': 'Bloque nuevo',
+                'secciones-0-activa': 'on',
+            },
+        )
 
 
 class AntiDuplicadoPostEvalPasosTests(TestCase):

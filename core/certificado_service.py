@@ -326,8 +326,8 @@ def _generar_certificado_simple(plantilla_url, nombre_estudiante, cedula, org_no
     fonts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
     try:
         fuente_nombre = ImageFont.truetype(os.path.join(fonts_dir, 'GreatVibes-Regular.ttf'), 56)
-        fuente_detalle = ImageFont.truetype(os.path.join(fonts_dir, 'GreatVibes-Regular.ttf'), 30)
-        fuente_fecha = ImageFont.truetype(os.path.join(fonts_dir, 'GreatVibes-Regular.ttf'), 26)
+        fuente_detalle = ImageFont.truetype(os.path.join(fonts_dir, 'GreatVibes-Regular.ttf'), 33)
+        fuente_fecha = ImageFont.truetype(os.path.join(fonts_dir, 'GreatVibes-Regular.ttf'), 29)
     except (IOError, OSError):
         logger.warning("⚠️ Fuente GreatVibes no encontrada, usando default")
         fuente_nombre = ImageFont.load_default()
