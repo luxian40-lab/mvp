@@ -1449,26 +1449,38 @@ class ModuloAdmin(admin.ModelAdmin):
     )
     def abrir_module_builder(self, request, object_id):
         """Botón arriba del change form → canvas Module Builder."""
-        from core.module_builder import module_builder_habilitado
+        from core.module_builder import module_builder_habilitado_para_curso
 
-        if not module_builder_habilitado(request):
+        modulo = Modulo.objects.select_related('curso').filter(pk=object_id).first()
+        curso = modulo.curso if modulo else None
+        if not module_builder_habilitado_para_curso(curso, request):
             messages.error(
                 request,
-                'Module Builder desactivado. Active EKI_MODULE_BUILDER_BETA=1 '
-                'o use ?builder=1 como superusuario.',
+                'Module Builder desactivado para este curso. Active EKI_MODULE_BUILDER_BETA=1, '
+                'use ?builder=1 como superusuario, o añada el curso a EKI_MODULE_BUILDER_CURSOS.',
             )
             return redirect(f'/admin/core/modulo/{object_id}/change/')
         return redirect('admin_module_builder', modulo_id=int(object_id))
 
     def has_abrir_module_builder_permission(self, request, object_id=None):
-        from core.module_builder import module_builder_habilitado
+        from core.module_builder import (
+            module_builder_habilitado,
+            module_builder_habilitado_para_curso,
+        )
 
-        return bool(request.user.is_staff and module_builder_habilitado(request))
+        if not request.user.is_staff:
+            return False
+        if object_id:
+            modulo = Modulo.objects.select_related('curso').filter(pk=object_id).first()
+            curso = modulo.curso if modulo else None
+            return module_builder_habilitado_para_curso(curso, request)
+        return module_builder_habilitado(request)
 
     def module_builder_link(self, obj):
-        from core.module_builder import module_builder_habilitado
+        from core.module_builder import module_builder_habilitado_para_curso
 
-        if not obj or not obj.pk or not module_builder_habilitado(None):
+        curso = getattr(obj, 'curso', None) if obj else None
+        if not obj or not obj.pk or not module_builder_habilitado_para_curso(curso):
             return '—'
         return format_html(
             '<a href="/admin/module-builder/{}/" style="font-weight:700;color:#7A4E8E;">Builder</a>',

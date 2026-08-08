@@ -25,6 +25,42 @@ def module_builder_habilitado(request=None) -> bool:
     return False
 
 
+def _tokens_cursos_builder() -> list[str]:
+    """Allowlist de cursos con Builder encendido (aunque el flag global esté OFF)."""
+    raw = getattr(settings, 'EKI_MODULE_BUILDER_CURSOS', '') or ''
+    return [t.strip().lower() for t in str(raw).split(',') if t.strip()]
+
+
+def curso_en_allowlist_builder(curso) -> bool:
+    """
+    True si el curso está en EKI_MODULE_BUILDER_CURSOS.
+    Cada token se compara contra el id exacto o como subcadena del nombre.
+    """
+    if curso is None:
+        return False
+    tokens = _tokens_cursos_builder()
+    if not tokens:
+        return False
+    nombre = (getattr(curso, 'nombre', '') or '').strip().lower()
+    cid = str(getattr(curso, 'id', '') or '')
+    for tok in tokens:
+        if tok.isdigit() and tok == cid:
+            return True
+        if tok and not tok.isdigit() and tok in nombre:
+            return True
+    return False
+
+
+def module_builder_habilitado_para_curso(curso, request=None) -> bool:
+    """
+    Builder disponible si el flag global está ON, el superusuario fuerza ?builder=1,
+    o el curso está en la allowlist por curso (piloto en prod sin encender todo).
+    """
+    if module_builder_habilitado(request):
+        return True
+    return curso_en_allowlist_builder(curso)
+
+
 def media_preview_kind(url: str) -> str:
     """Clasifica URL para miniatura en el builder: image|video|file|text."""
     u = (url or '').strip().lower().split('?', 1)[0]

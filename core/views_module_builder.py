@@ -16,7 +16,7 @@ from core.module_builder import (
     arbol_modulo,
     desactivar_micro,
     diagnostico_estructura,
-    module_builder_habilitado,
+    module_builder_habilitado_para_curso,
     mover_micro,
     reordenar_micros_en_seccion,
     reordenar_secciones,
@@ -26,24 +26,25 @@ from core.models import Modulo, PasoModulo, SeccionModulo
 logger = logging.getLogger(__name__)
 
 
-def _require_builder(request):
+def _require_builder(request, curso=None):
     if not request.user.is_staff:
         raise PermissionDenied
-    if not module_builder_habilitado(request):
+    if not module_builder_habilitado_para_curso(curso, request):
         raise PermissionDenied(
-            'Module Builder beta desactivado. '
-            'Active EKI_MODULE_BUILDER_BETA=1 o use ?builder=1 como superusuario.'
+            'Module Builder beta desactivado para este curso. '
+            'Active EKI_MODULE_BUILDER_BETA=1, use ?builder=1 como superusuario, '
+            'o añada el curso a EKI_MODULE_BUILDER_CURSOS.'
         )
 
 
 @staff_member_required
 @require_http_methods(['GET', 'POST'])
 def module_builder_view(request, modulo_id: int):
-    _require_builder(request)
     modulo = get_object_or_404(
         Modulo.objects.select_related('curso', 'curso__cliente'),
         pk=modulo_id,
     )
+    _require_builder(request, modulo.curso)
 
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()

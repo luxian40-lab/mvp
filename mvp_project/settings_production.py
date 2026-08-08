@@ -53,6 +53,12 @@ DEBUG = False
 _EKI_MB = os.environ.get('EKI_MODULE_BUILDER_BETA', '').strip().lower()
 EKI_MODULE_BUILDER_BETA = _EKI_MB in ('1', 'true', 'yes', 'on')
 
+# Piloto por curso: Builder ON solo para estos cursos aunque el flag global esté OFF.
+# Default: "Impulso Joven Rural". Override con env EKI_MODULE_BUILDER_CURSOS (coma-sep).
+EKI_MODULE_BUILDER_CURSOS = os.environ.get(
+    'EKI_MODULE_BUILDER_CURSOS', 'impulso joven rural'
+)
+
 # ?: (security.W009) SECRET_KEY debe ser largo y aleatorio
 # Generar nueva clave con: python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-CAMBIAR-EN-PRODUCCION')

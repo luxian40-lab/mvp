@@ -6,8 +6,7 @@
 
     {% eki_ops_bell %}
 
-    {# Switcher Light/Dark/System (Unfold) + tonos eki Mañana/Tarde/Noche #}
-    {% include "unfold/helpers/theme_switch_dropdown.html" %}
+    {# Un solo control de apariencia: tonos eki (Mañana/Tarde/Noche). Noche = modo oscuro. #}
     {% include "unfold/helpers/eki_tone_switch_dropdown.html" %}
 
     {% if environment %}

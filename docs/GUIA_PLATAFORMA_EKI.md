@@ -2,9 +2,10 @@
 
 Documento de referencia para el equipo de producto, operaciones, contenido y desarrollo. Explica **qué hace eki**, **cómo se conectan las piezas**, **cómo operar cada superficie** y **cómo configurar cursos** para WhatsApp y aula virtual.
 
-**Última actualización:** 22 julio 2026  
+**Última actualización:** 7 agosto 2026  
 **Entorno producción:** AWS Elastic Beanstalk `eki-prod-final`  
 **Repositorio:** monolito Django (`mvp_project/`)  
+**Último deploy relevante:** `main-20260807-185849` — UX admin de campañas/certificados + **Module Builder WA** (código en prod, **flag OFF**) + tonos admin. Detalle en [§11.5](#115-novedades-admin-agosto-2026).  
 **Lectura CTO:** el producto en prod es un monolito operativo: WhatsApp pedagógico + portal B2B (**Centro de Éxito** con reenganche WA automático), certificados funder-grade (PNG+PDF+hash), media con reintento/recuperación, aula/Studio, gamificación, GEI y Nat comercial. La sección **25** cubre seguridad; el documento hermano `docs/EKI_PRODUCTO_PROFUNDO.md` explica cada módulo en profundidad (por qué existe, fallos, pruebas, refactor, pitch).
 
 **Documentos relacionados:**
@@ -136,7 +137,7 @@ Admin configura
 | CDN / TLS | Cloudflare |
 | Mensajería | Twilio WhatsApp API (+ Meta Cloud API opcional) |
 | IA | OpenAI / Google Gemini (tutor educativo, PQRS, Nat comercial, formulario GEI) |
-| Admin UI | Django Admin + Jazzmin |
+| Admin UI | Django Admin + **Unfold** (tema eki) — ver `docs/EKI_UNFOLD_ADMIN.md` |
 
 ### 2.2 Aplicaciones Django
 
@@ -200,7 +201,7 @@ Archivo: `mvp_project/urls.py`
 | Ruta | Destino |
 |------|---------|
 | `/health/` | Health check para EB |
-| `/admin/` | Django Admin (Jazzmin) |
+| `/admin/` | Django Admin (Unfold) |
 | `/portal/` | App portal B2B |
 | `/aprende/` | Aula virtual (estudio) |
 | `/studio/` | eki Studio (catálogo e inscripción) |
@@ -671,6 +672,18 @@ Cuando una campaña asigna `curso_destino`:
 3. Si el curso tiene `visible_en_studio=True`, el estudiante puede inscribirse en Studio y estudiar en `/aprende/`.
 4. Si solo tiene progreso por campaña (B2B típico), entra directo al aula con **Mis cursos** sin pasar por Studio.
 
+### 8.5 UX admin de campaña (agosto 2026)
+
+El motor de envío no cambió; se ajustó el **lenguaje de producto** para que el admin “lance un curso” en vez de “configurar Twilio” (`core/admin/campanas.py`):
+
+| Antes (técnico) | Ahora (producto) |
+|-----------------|------------------|
+| Mensaje Twilio | **Mensaje inicial** (bienvenida/arranque; internamente Content SID `HX…`) |
+| Plantilla eki (alternativa) | **Plantilla** |
+| Estadísticas | **Resultados** |
+
+Además, arriba del change form aparece una **ficha resumen del lanzamiento** (`templates/admin/core/campana/change_form.html`): organización, curso, participantes, mensaje inicial, programación y estado (Borrador / Programada / Enviada). Así el operador siempre sabe qué lanzamiento edita, esté en la pestaña que esté.
+
 ---
 
 ## 9. Aula virtual (aprende)
@@ -978,9 +991,9 @@ Tras refactor junio 2026, el monolito `core/admin.py` se dividió en:
 | `/admin/envio-certificados/` | Cola certificados |
 | `/admin/conversaciones/` | Inbox staff |
 
-### 11.3 Jazzmin
+### 11.3 Unfold (tema admin)
 
-Tema visual del admin en `mvp_project/settings.py` → `JAZZMIN_SETTINGS`, `custom_links` para atajos (grupos, aula).
+Tema visual del admin con **Unfold** (`mvp_project/unfold_admin.py` → dict `UNFOLD`): navegación, tabs de fieldsets, `actions_detail`, estilos/scripts eki inyectados (`STYLES` / `SCRIPTS`). Doc oficial y guía de cambios solo-admin: `docs/EKI_UNFOLD_ADMIN.md`.
 
 ### 11.4 Flujo recomendado para equipo de contenido
 
@@ -990,6 +1003,21 @@ Tema visual del admin en `mvp_project/settings.py` → `JAZZMIN_SETTINGS`, `cust
 4. Probar con estudiante de prueba en WhatsApp.
 5. Verificar en `aprende.eki.technology` con mismo estudiante.
 6. Ajustar drip antes de abrir cohorte real.
+
+### 11.5 Novedades admin (agosto 2026)
+
+Deploy `main-20260807-185849`. Cambios **solo de admin/UX**; el motor pedagógico, drip, campañas y certificados emitidos no cambian.
+
+**Module Builder WA** — página custom `/admin/module-builder/<id>/` para armar **secciones + microcontenidos** de un módulo de forma visual (miniaturas de media, drag con “rieles”: los micros se reordenan solo dentro de su sección y las secciones enteras entre sí; anti-intercalado validado en servidor). Comparte login, modelos y auth del admin; Unfold deja de dictar el look de esa pantalla.
+
+- Flag `EKI_MODULE_BUILDER_BETA`: **local ON**, **prod OFF** salvo env `=1` (o `?builder=1` como superusuario). Por eso los cursos vivos siguen en el admin clásico y el Builder no reescribe módulos existentes.
+- Entradas: columna **Builder** en el listado de Módulos, botón **Module Builder** en la ficha del módulo, y enlace en la guía de la pestaña Clase.
+- Drip / fechas / agentes **siguen en el admin clásico** — el Builder solo ordena contenido.
+- Código: `core/views_module_builder.py`, `core/module_builder.py`, `core/templates/admin/module_builder.html`, `static/admin/{css,js}/module_builder.*`. Doc: `docs/MODULE_BUILDER_WA.md`.
+
+**Tonos del admin** (Mañana / Tarde / Noche) — dropdown `palette` en la barra superior (junto a Light/Dark). Aplica a todo Unfold vía `html[data-eki-tone]`, persiste en `localStorage`. Noche = carbón cálido pensado para descanso visual. Código: `templates/unfold/helpers/eki_tone_switch_dropdown.html`, `static/admin/css/eki_admin_tones.css`, `static/admin/js/eki_admin_tones.js`.
+
+**Campañas** y **Certificados** — ver [§8.5](#85-ux-admin-de-campaña-agosto-2026) y [§13.4b](#134b-biblioteca-de-plantillas-en-admin-agosto-2026).
 
 ---
 
@@ -1073,6 +1101,18 @@ Código: `core/utils_certificados.py`. Instrucciones también en Admin → Plant
 
 - `/portal/certificados/` — listado, filtrar por curso, verificar, descargar, **Exportar CSV**.
 - Emitir/anular masivo desde portal = bonus futuro (hoy ops/admin).
+
+### 13.4b Biblioteca de plantillas en admin (agosto 2026)
+
+`PlantillaCertificadoAdmin` (`core/admin/certificados.py`) se acerca a una **biblioteca**, sin rehacer el editor (que conserva la vista previa lateral):
+
+- **Miniatura** del certificado en el listado (reconocer una plantilla de un vistazo).
+- **Usada en X cursos** — visibilidad de impacto antes de editar/eliminar.
+- **Duplicar** — acción de lista + botón en detalle (`actions_detail` Unfold); la copia no queda marcada como predeterminada.
+- **Generar certificado de prueba** — descarga PNG con datos demo o de un estudiante real (ruta `prueba-descarga/`), para validar el archivo final y no solo la vista previa.
+- Marcadores explicados con caja clara (`[Nombre]`, `[Cédula]`, `[Fecha]`, `[QR]`) además del mapa de colores RGB.
+
+Distinción conceptual reforzada: **plantilla** (diseño reutilizable) ≠ **certificado emitido** (documento de un estudiante con QR/verificación).
 
 ### 13.5 Criterios de elegibilidad
 
@@ -1555,6 +1595,10 @@ No debería: *reenvía video* **no** avanza progreso. Si avanzó con *listo* sin
 | **Portal recuperar contraseña** | `/portal/recuperar/` por email | Desplegado |
 | **Portal suscripción visible** | Vence, cupos, % media fallida | Desplegado |
 | **Nat foto + packshot** | Visión de cultivo + envío de imagen de producto | Desplegado |
+| **UX admin campañas** | Copy de producto (Mensaje inicial / Plantilla / Resultados) + ficha resumen del lanzamiento | Desplegado (`main-20260807-185849`) |
+| **Biblioteca certificados** | Miniatura + “Usada en X cursos” + Duplicar + Generar prueba (descarga) | Desplegado (`main-20260807-185849`) |
+| **Tonos admin** | Mañana / Tarde / Noche en el nav (`palette`), aplican a todo Unfold | Desplegado (`main-20260807-185849`) |
+| **Module Builder WA** | Secciones + micros con drag por rieles + miniaturas; página custom en admin | En prod **OFF** (`EKI_MODULE_BUILDER_BETA`); piloto por flag |
 
 > Para el **por qué** de cada pieza y cómo defenderla ante un inversor o entrevista técnica, ver `docs/EKI_PRODUCTO_PROFUNDO.md`.
 

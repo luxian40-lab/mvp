@@ -209,6 +209,33 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
         extra_context['prueba_descarga_url'] = reverse(
             'admin:learning_plantillacertificado_prueba_descarga',
         )
+        # Banda superior tipo mockup: miniatura + "usada en" + formato.
+        if object_id:
+            obj = self.get_object(request, object_id)
+            if obj:
+                thumb = ''
+                try:
+                    thumb = (obj.obtener_url_plantilla_imagen() or '').strip()
+                except Exception:
+                    thumb = (getattr(obj, 'url_plantilla_imagen', '') or '').strip()
+                if not thumb and getattr(obj, 'imagen_fondo', None):
+                    try:
+                        thumb = (obj.imagen_fondo.url or '').strip()
+                    except Exception:
+                        thumb = ''
+                if obj.curso_id:
+                    usada_en = f'Usada en 1 curso · {obj.curso.nombre}'
+                elif obj.por_defecto:
+                    usada_en = 'Predeterminada · sin curso fijo'
+                else:
+                    usada_en = 'Usada en 0 cursos'
+                try:
+                    formato = obj.get_modo_plantilla_display()
+                except Exception:
+                    formato = getattr(obj, 'modo_plantilla', '') or ''
+                extra_context['eki_cert_thumb'] = thumb
+                extra_context['eki_cert_usada_en'] = usada_en
+                extra_context['eki_cert_formato'] = formato
         return super().change_view(request, object_id, form_url, extra_context=extra_context)
     
     def get_form(self, request, obj=None, **kwargs):

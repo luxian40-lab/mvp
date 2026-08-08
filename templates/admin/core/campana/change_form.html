@@ -60,6 +60,54 @@
     background: #fff3e0;
     color: #e65100;
   }
+
+  /* Preview WhatsApp del mensaje inicial (mockup). */
+  .eki-camp-wa {
+    max-width: 340px;
+    margin: 0 0 1.1rem;
+    border: 1px solid rgba(30, 27, 36, 0.12);
+    border-radius: 14px;
+    overflow: hidden;
+    background: #e9e4ee;
+    box-shadow: 0 8px 24px rgba(122, 78, 142, 0.08);
+  }
+  .eki-camp-wa__head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; background: #f4f1f7; border-bottom: 1px solid rgba(30,27,36,0.08);
+  }
+  .eki-camp-wa__avatar {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: #7A4E8E; color: #fff; font-size: 12px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .eki-camp-wa__name { font-size: 12px; font-weight: 700; color: #1e1b24; }
+  .eki-camp-wa__sub { font-size: 10px; color: #6b6575; }
+  .eki-camp-wa__body { padding: 12px; }
+  .eki-camp-wa__bubble {
+    background: #fff; border-radius: 10px; padding: 9px 11px;
+    font-size: 12.5px; color: #1e1b24; line-height: 1.4;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  }
+  .eki-camp-wa__cta {
+    margin-top: 6px; text-align: center; font-size: 12px; font-weight: 700; color: #7A4E8E;
+  }
+  html.dark .eki-camp-wa__bubble, html[data-theme="dark"] .eki-camp-wa__bubble { background: #26232b; color: #e8e2ef; }
+
+  /* Tarjetas de ayuda inferiores (mockup). */
+  .eki-camp-tips {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 0.75rem; margin: 1.2rem 0 0;
+  }
+  .eki-camp-tip {
+    border: 1px solid rgba(30, 27, 36, 0.12); border-radius: 12px;
+    padding: 0.8rem 0.9rem; background: #fff;
+  }
+  html.dark .eki-camp-tip, html[data-theme="dark"] .eki-camp-tip,
+  html[data-eki-tone="noche"] .eki-camp-tip { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.12); }
+  .eki-camp-tip__title { font-size: 0.82rem; font-weight: 700; color: #1e1b24; margin: 0 0 0.35rem; }
+  html.dark .eki-camp-tip__title, html[data-theme="dark"] .eki-camp-tip__title { color: #e8e2ef; }
+  .eki-camp-tip__body { font-size: 0.76rem; color: #6b6575; line-height: 1.4; }
+  .eki-camp-tip__body ul { margin: 0; padding-left: 1rem; }
 </style>
 {% endblock %}
 
@@ -121,5 +169,55 @@
   </div>
 </div>
 {% endif %}
+
+{% if original and original.curso_destino %}
+<div class="eki-camp-wa" aria-label="Vista previa del mensaje inicial">
+  <div class="eki-camp-wa__head">
+    <span class="eki-camp-wa__avatar">{% if original.cliente %}{{ original.cliente.nombre|slice:":1"|upper }}{% else %}e{% endif %}</span>
+    <div>
+      <div class="eki-camp-wa__name">{% if original.cliente %}{{ original.cliente.nombre }}{% else %}eki{% endif %}</div>
+      <div class="eki-camp-wa__sub">Cuenta empresarial · WhatsApp</div>
+    </div>
+  </div>
+  <div class="eki-camp-wa__body">
+    <div class="eki-camp-wa__bubble">
+      ¡Hola! 👋<br>
+      Te damos la bienvenida al curso <strong>{{ original.curso_destino.nombre }}</strong>.<br>
+      A través de este curso aprenderás nuevas herramientas y técnicas.<br>
+      ¿Listo para comenzar? 👉 Presiona el botón para iniciar.
+      <div class="eki-camp-wa__cta">🚀 Comenzar curso</div>
+    </div>
+    <p style="margin:8px 0 0;font-size:11px;color:#6b6575;">
+      Vista aproximada. El mensaje real lo define el Content SID / plantilla configurada.
+    </p>
+  </div>
+</div>
+{% endif %}
+
 {{ block.super }}
+
+<div class="eki-camp-tips" aria-label="Ayuda para lanzar la campaña">
+  <div class="eki-camp-tip">
+    <p class="eki-camp-tip__title">¿Qué es una campaña?</p>
+    <div class="eki-camp-tip__body">Es el envío e inicio de un curso a un grupo de estudiantes por WhatsApp. La campaña orquesta organización, audiencia, mensaje y curso.</div>
+  </div>
+  <div class="eki-camp-tip">
+    <p class="eki-camp-tip__title">Recomendaciones</p>
+    <div class="eki-camp-tip__body">
+      <ul>
+        <li>Revisa el mensaje antes de enviar.</li>
+        <li>Asegúrate de la audiencia correcta.</li>
+        <li>Programa en el mejor horario.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="eki-camp-tip">
+    <p class="eki-camp-tip__title">Horarios recomendados</p>
+    <div class="eki-camp-tip__body">Días laborables · 8:00–10:00 AM y 2:00–4:00 PM suelen tener mejor respuesta.</div>
+  </div>
+  <div class="eki-camp-tip">
+    <p class="eki-camp-tip__title">¿Necesitas ayuda?</p>
+    <div class="eki-camp-tip__body">Consulta la Guía EKI o el documento de plataforma para lanzar campañas exitosas paso a paso.</div>
+  </div>
+</div>
 {% endblock %}

@@ -25,6 +25,12 @@ elif _EKI_MB in ('1', 'true', 'yes', 'on'):
 else:
     EKI_MODULE_BUILDER_BETA = True
 
+# Allowlist de cursos con Builder ON aunque el flag global esté OFF (piloto por curso).
+# Tokens separados por coma: id exacto del curso o subcadena del nombre (case-insensitive).
+EKI_MODULE_BUILDER_CURSOS = os.environ.get(
+    'EKI_MODULE_BUILDER_CURSOS', 'impulso joven rural'
+)
+
 # ALLOWED_HOSTS: acepta múltiples dominios separados por coma
 # testserver: httpx de pytest-django / django.test Client
 allowed_hosts_str = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver,eki-mvp.onrender.com,eki-prod-docker.eba-84g5zn3s.us-east-2.elasticbeanstalk.com')

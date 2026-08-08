@@ -16,25 +16,25 @@
     .cert-preview-panel {
         position: sticky;
         top: 72px;
-        background: #f8fafc;
-        border: 1px solid #dbe3ea;
+        background: #faf8fc;
+        border: 1px solid #e0d6ea;
         border-radius: 12px;
         padding: 14px;
-        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+        box-shadow: 0 8px 24px rgba(122, 78, 142, 0.08);
     }
     .cert-preview-panel h3 {
         margin: 0 0 8px;
         font-size: 15px;
-        color: #0f172a;
+        color: #3d3550;
     }
     .cert-preview-panel p {
         margin: 0 0 12px;
         font-size: 12px;
-        color: #64748b;
+        color: #6b6575;
         line-height: 1.45;
     }
     .cert-preview-frame {
-        background: #e2e8f0;
+        background: #efeaf4;
         border-radius: 8px;
         min-height: 220px;
         display: flex;
@@ -49,7 +49,7 @@
         border-radius: 6px;
     }
     .cert-preview-placeholder {
-        color: #64748b;
+        color: #6b6575;
         font-size: 13px;
         text-align: center;
         padding: 24px 12px;
@@ -61,7 +61,7 @@
         flex-wrap: wrap;
     }
     .cert-preview-actions button {
-        background: #0f766e;
+        background: #7A4E8E;
         color: #fff;
         border: none;
         border-radius: 8px;
@@ -69,20 +69,85 @@
         font-size: 12px;
         cursor: pointer;
     }
-    .cert-preview-actions button:hover { background: #0d9488; }
+    .cert-preview-actions button:hover { background: #653c78; }
+    .cert-marker-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; }
+    .cert-chip {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 700;
+        background: #fff; border: 1px solid rgba(30,27,36,0.10); color: #3d3550;
+    }
+    .cert-chip::before { content: ""; width: 9px; height: 9px; border-radius: 50%; }
+    .cert-chip--name::before { background: #808080; }
+    .cert-chip--id::before { background: #e11d1d; }
+    .cert-chip--date::before { background: #eab308; }
+    .cert-chip--qr::before { background: #2563eb; }
+    /* Banda superior tipo biblioteca de certificados (mockup). */
+    .eki-cert-band {
+        display: flex; align-items: center; gap: 14px;
+        margin: 0 0 16px; padding: 12px 14px;
+        border: 1px solid #e0d6ea; border-radius: 12px; background: #faf8fc;
+    }
+    .eki-cert-band__thumb {
+        width: 64px; height: 46px; border-radius: 8px; object-fit: cover;
+        background: #efeaf4; border: 1px solid rgba(30,27,36,0.10); flex: 0 0 auto;
+    }
+    .eki-cert-band__thumb--ph {
+        display: inline-flex; align-items: center; justify-content: center;
+        color: #7A4E8E; font-weight: 700; font-size: 12px;
+    }
+    .eki-cert-band__title { font-size: 1.02rem; font-weight: 700; color: #1e1b24; line-height: 1.25; }
+    .eki-cert-band__meta { font-size: 12px; color: #6b6575; margin-top: 3px; }
+    .eki-cert-badge {
+        display: inline-block; padding: 2px 9px; border-radius: 999px;
+        font-size: 11px; font-weight: 700; margin-left: 6px; vertical-align: middle;
+        background: #efeaf4; color: #7A4E8E;
+    }
+    .eki-cert-badge--ok { background: #e5f6ea; color: #1f7a3a; }
+    html.dark .eki-cert-band, html[data-theme="dark"] .eki-cert-band,
+    html[data-eki-tone="noche"] .eki-cert-band {
+        background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.12);
+    }
+    html.dark .eki-cert-band__title, html[data-theme="dark"] .eki-cert-band__title,
+    html[data-eki-tone="noche"] .eki-cert-band__title { color: #e8e2ef; }
     fieldset.module.collapse { display: block !important; height: auto !important; }
 </style>
 {% endblock %}
 
 {% block field_sets %}
+{% if original %}
+<div class="eki-cert-band" aria-label="Resumen de la plantilla de certificado">
+    {% if eki_cert_thumb %}
+    <img class="eki-cert-band__thumb" src="{{ eki_cert_thumb }}" alt="" loading="lazy" referrerpolicy="no-referrer">
+    {% else %}
+    <span class="eki-cert-band__thumb eki-cert-band__thumb--ph">CERT</span>
+    {% endif %}
+    <div style="min-width:0;">
+        <div class="eki-cert-band__title">
+            {{ original.nombre }}
+            {% if original.activa %}<span class="eki-cert-badge eki-cert-badge--ok">Activa</span>{% else %}<span class="eki-cert-badge">Inactiva</span>{% endif %}
+            {% if original.por_defecto %}<span class="eki-cert-badge">Predeterminada</span>{% endif %}
+        </div>
+        <div class="eki-cert-band__meta">
+            {{ eki_cert_usada_en }}{% if eki_cert_formato %} · {{ eki_cert_formato }}{% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
 <div class="cert-admin-layout">
     <div class="cert-admin-form">
         {{ block.super }}
     </div>
     <input type="hidden" id="certPlantillaPk" value="{% if original %}{{ original.pk }}{% endif %}">
     <aside class="cert-preview-panel" aria-label="Vista previa del certificado">
-        <h3>Vista previa</h3>
-        <div style="margin:0 0 10px;padding:8px 10px;border-radius:8px;background:#f1eef6;border:1px solid #e0d6ea;font-size:12px;color:#3d3550;line-height:1.45;">
+        <h3>Vista previa del certificado</h3>
+        <p style="margin:0 0 6px;">Así se verá el certificado con datos de ejemplo.</p>
+        <div class="cert-marker-chips">
+            <span class="cert-chip cert-chip--name">Nombre</span>
+            <span class="cert-chip cert-chip--id">Cédula</span>
+            <span class="cert-chip cert-chip--date">Fecha</span>
+            <span class="cert-chip cert-chip--qr">QR</span>
+        </div>
+        <div style="margin:8px 0 10px;padding:8px 10px;border-radius:8px;background:#f1eef6;border:1px solid #e0d6ea;font-size:12px;color:#3d3550;line-height:1.45;">
             <strong>Marcadores disponibles</strong>
             <div style="margin-top:6px;display:grid;gap:4px;">
                 <span><code>[Nombre]</code> · Nombre del estudiante (gris)</span>

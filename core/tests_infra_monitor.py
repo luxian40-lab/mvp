@@ -95,6 +95,6 @@ class InfraMonitorAdminTests(TestCase):
         self.http.login(username='infra_staff', password='pass')
         r = self.http.get('/admin/')
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'Andreina')
-        self.assertContains(r, 'eki-hub-hello')
+        self.assertContains(r, 'julian')
+        self.assertContains(r, 'eki-panel-exec__hello')
         self.assertContains(r, 'eki-health')

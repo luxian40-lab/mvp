@@ -109,6 +109,7 @@ class ClienteAdmin(admin.ModelAdmin):
     ]
     # Listado ops: A–Z por nombre; columnas densas fuera (meta/fecha → ficha).
     list_display = (
+        'logo_thumb',
         'nombre',
         'activo',
         'estudiantes_activos',
@@ -250,6 +251,30 @@ class ClienteAdmin(admin.ModelAdmin):
             ),
         ]
         return custom_urls + urls
+
+    def logo_thumb(self, obj):
+        """Foto/logo de la organización en el listado. Fallback: inicial en círculo."""
+        url = (getattr(obj, 'logo_url', None) or '').strip() if obj else ''
+        if url:
+            return format_html(
+                '<img src="{}" alt="" loading="lazy" referrerpolicy="no-referrer" '
+                'style="width:34px;height:34px;border-radius:8px;object-fit:cover;'
+                'background:#f0eef4;border:1px solid rgba(30,27,36,0.12);" '
+                'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">'
+                '<span style="display:none;width:34px;height:34px;border-radius:8px;'
+                'align-items:center;justify-content:center;font-weight:700;color:#7A4E8E;'
+                'background:#efeaf4;border:1px solid rgba(30,27,36,0.12);">{}</span>',
+                url,
+                (obj.nombre or '?').strip()[:1].upper(),
+            )
+        inicial = (getattr(obj, 'nombre', '') or '?').strip()[:1].upper()
+        return format_html(
+            '<span style="display:inline-flex;width:34px;height:34px;border-radius:8px;'
+            'align-items:center;justify-content:center;font-weight:700;color:#7A4E8E;'
+            'background:#efeaf4;border:1px solid rgba(30,27,36,0.12);">{}</span>',
+            inicial,
+        )
+    logo_thumb.short_description = ''
 
     def portal_usuarios_acciones(self, obj):
         if not obj or not obj.pk:
