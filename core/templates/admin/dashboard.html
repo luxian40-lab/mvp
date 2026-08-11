@@ -1,5 +1,5 @@
 {% extends "admin/base_site.html" %}
-{% load static %}
+{% load static l10n %}
 
 {% block title %}Dashboard - Eki{% endblock %}
 
@@ -199,12 +199,14 @@
         background: rgba(154, 108, 172, 0.10); border: 1px solid rgba(30, 27, 36, 0.08);
     }
     .la-funnel-fill {
-        height: 100%; width: 0; min-width: 0; border-radius: 12px;
+        height: 100%; width: 0%; min-width: 0; border-radius: 12px;
         background: linear-gradient(135deg, #9A6CAC 0%, #7A4E8E 100%);
         display: flex; align-items: center; padding: 0 14px; box-sizing: border-box;
         color: #fff; font-size: 12.5px; font-weight: 700; white-space: nowrap;
         transition: width 0.45s ease;
+        max-width: 100%;
     }
+    /* min-width solo para caber el %; el ancho real lo marca style/data-width (número con punto). */
     .la-funnel-fill.is-nonzero { min-width: 2.75rem; }
     .la-funnel-fill--base { background: linear-gradient(135deg, #2a9d8f 0%, #7A4E8E 100%); }
     .la-funnel-row:nth-child(3n+2) .la-funnel-fill:not(.la-funnel-fill--base):not(.la-funnel-fill--done) {
@@ -541,8 +543,8 @@
                     <div class="la-funnel-track" role="presentation">
                         <div
                             class="la-funnel-fill la-funnel-fill--base{% if embudo_learning.inscritos_bar_pct %} is-nonzero{% endif %}"
-                            style="width: {{ embudo_learning.inscritos_bar_pct }}%;"
-                            data-width="{{ embudo_learning.inscritos_bar_pct }}"
+                            style="width: {{ embudo_learning.inscritos_bar_pct|unlocalize }}%;"
+                            data-width="{{ embudo_learning.inscritos_bar_pct|unlocalize }}"
                         >{% if embudo_learning.inscritos_bar_pct %}{{ embudo_learning.inscritos_pct_label }}%{% endif %}</div>
                     </div>
                 </div>
@@ -554,8 +556,8 @@
                     <div class="la-funnel-track" role="presentation">
                         <div
                             class="la-funnel-fill{% if embudo_learning.sin_iniciar_bar_pct %} is-nonzero{% endif %}"
-                            style="width: {{ embudo_learning.sin_iniciar_bar_pct }}%;"
-                            data-width="{{ embudo_learning.sin_iniciar_bar_pct }}"
+                            style="width: {{ embudo_learning.sin_iniciar_bar_pct|unlocalize }}%;"
+                            data-width="{{ embudo_learning.sin_iniciar_bar_pct|unlocalize }}"
                         >{% if embudo_learning.sin_iniciar_bar_pct %}{{ embudo_learning.sin_iniciar_pct_label }}%{% endif %}</div>
                     </div>
                 </div>
@@ -569,8 +571,8 @@
                     <div class="la-funnel-track" role="presentation">
                         <div
                             class="la-funnel-fill{% if paso.bar_pct %} is-nonzero{% endif %}"
-                            style="width: {{ paso.bar_pct }}%;"
-                            data-width="{{ paso.bar_pct }}"
+                            style="width: {{ paso.bar_pct|unlocalize }}%;"
+                            data-width="{{ paso.bar_pct|unlocalize }}"
                         >{% if paso.bar_pct %}{{ paso.pct_label }}%{% endif %}</div>
                     </div>
                 </div>
@@ -583,8 +585,8 @@
                     <div class="la-funnel-track" role="presentation">
                         <div
                             class="la-funnel-fill la-funnel-fill--done{% if embudo_learning.completados_bar_pct %} is-nonzero{% endif %}"
-                            style="width: {{ embudo_learning.completados_bar_pct }}%;"
-                            data-width="{{ embudo_learning.completados_bar_pct }}"
+                            style="width: {{ embudo_learning.completados_bar_pct|unlocalize }}%;"
+                            data-width="{{ embudo_learning.completados_bar_pct|unlocalize }}"
                         >{% if embudo_learning.completados_bar_pct %}{{ embudo_learning.completados_pct_label }}%{% endif %}</div>
                     </div>
                 </div>
@@ -1076,6 +1078,26 @@ function animateRetencionBars() {
         }
         bar.classList.add('is-ready');
     });
+}
+
+function animateLearningEmbudoBars() {
+    // Fuerza width desde data-width (parseFloat tolera "48,0" si algún locale se cuela).
+    document.querySelectorAll('#tab-embudo-learning .la-funnel-fill[data-width]').forEach(function (bar, i) {
+        var raw = (bar.getAttribute('data-width') || '0').toString().replace(',', '.');
+        var w = parseFloat(raw);
+        if (isNaN(w) || w < 0) w = 0;
+        if (w > 100) w = 100;
+        bar.style.width = '0%';
+        window.setTimeout(function () {
+            bar.style.width = w + '%';
+            bar.classList.add('is-ready');
+        }, 30 + i * 25);
+    });
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', animateLearningEmbudoBars);
+} else {
+    animateLearningEmbudoBars();
 }
 
 function switchTab(tabName, btn) {

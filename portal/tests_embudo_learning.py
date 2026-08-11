@@ -81,3 +81,21 @@ class EmbudoLearningTests(TestCase):
         self.assertEqual(_pct_label(1.888), '1,9')
         self.assertEqual(_pct_label(1.0), '1')
         self.assertNotIn('chart', data)
+
+    def test_embudo_width_css_no_usa_coma_es_co(self):
+        """Regresión: es-co localiza 25.0 → '25,0'; CSS width: 25,0% es inválido."""
+        from django.template import Context, Template
+        from django.test import override_settings
+        from django.utils import translation
+
+        tpl = Template(
+            '{% load l10n %}'
+            '<div style="width: {{ bar_pct }}%;"></div>'
+            '<div style="width: {{ bar_pct|unlocalize }}%;"></div>'
+        )
+        with override_settings(LANGUAGE_CODE='es-co'):
+            with translation.override('es-co'):
+                html = tpl.render(Context({'bar_pct': 25.0}))
+        # Sin unlocalize → coma (roto). Con unlocalize → punto (válido).
+        self.assertIn('width: 25,0%;', html)
+        self.assertIn('width: 25.0%;', html)
