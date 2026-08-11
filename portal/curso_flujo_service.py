@@ -182,6 +182,8 @@ def embudo_posicion_hoy_por_curso(
         'curso': curso,
         'organizacion': curso.cliente,
         'total_inscritos': total,
+        'inscritos_bar_pct': 100.0 if total > 0 else 0.0,
+        'inscritos_pct_label': '100' if total > 0 else '0',
         'completados': completados,
         'completados_pct': comp_pct,
         'completados_pct_label': _pct_label(comp_pct),

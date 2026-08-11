@@ -57,6 +57,8 @@ class EmbudoLearningTests(TestCase):
         self.assertIsNotNone(data)
         self.assertEqual(data['modo'], 'hoy')
         self.assertEqual(data['total_inscritos'], 4)
+        self.assertEqual(data['inscritos_bar_pct'], 100.0)
+        self.assertEqual(data['inscritos_pct_label'], '100')
         self.assertEqual(data['sin_iniciar'], 1)
         self.assertEqual(data['completados'], 1)
         by_n = {float(p['numero']): p['estudiantes'] for p in data['pasos']}
