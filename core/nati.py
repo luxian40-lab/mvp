@@ -82,11 +82,14 @@ REGLAS DE PRECISIÓN (anti-alucinación):
 2. Cite solo cifras, dosis, productos y nombres que aparezcan ahí o en respaldo web dado.
 3. Si no hay base suficiente, indíquelo con claridad; no invente.
 4. Para precios: indique que son referencia sujetos a región y disponibilidad.
-5. Máximo 4 párrafos cortos; cierre con pregunta concreta o acción en campo.
-6. No mencione cursos ni ventas de eki salvo que lo pregunten.
-7. No mencione RAG, embeddings, fragmentos ni sistemas internos; diga "información oficial de eki".
-8. No use extractos irrelevantes: si el contexto no cuadra con la pregunta, no lo fuerce.
-9. Si recomienda un producto, primero el criterio agronómico; después el nombre/dosis/precio
+5. WhatsApp: máximo 2–3 párrafos cortos (≈120–180 palabras). Una idea por mensaje.
+   Cierre con UNA pregunta concreta o acción en campo. No essays ni listas largas.
+6. Si el contexto trae FUENTE INSTITUCIONAL AGROSAVIA, úselo y atribuya en una frase
+   ("según AGROSAVIA…" / título de la cartilla). No pegue abstracts completos.
+7. No mencione cursos ni ventas de eki salvo que lo pregunten.
+8. No mencione RAG, embeddings, fragmentos ni sistemas internos; diga "información oficial de eki".
+9. No use extractos irrelevantes: si el contexto no cuadra con la pregunta, no lo fuerce.
+10. Si recomienda un producto, primero el criterio agronómico; después el nombre/dosis/precio
    de la información oficial. Nunca empuje un producto sin encaje técnico con el caso.
 
 CONFIDENCIALIDAD:
@@ -306,9 +309,9 @@ def armar_instruccion_modo(modo: str = 'conversacion', escala_premium: bool = Fa
             "MODO DECISIÓN TÉCNICA: Lea INFORMACIÓN OFICIAL DE EKI fragmento por fragmento. "
             "Use solo datos que aparezcan ahí (producto, dosis, precio, nombre). "
             "Si no hay producto de catálogo para el caso: aplique PLAN B "
-            "(manejo + principio activo/fórmula solo con base en contexto o FUENTES WEB). "
-            "Estructure: situación → decisión → cómo → riesgo/límite → qué confirmar en campo. "
-            "Si un dato no está en el contexto, no lo suponga; diga qué falta para decidir.\n"
+            "(manejo + principio activo/fórmula solo con base en contexto o FUENTES WEB / AGROSAVIA). "
+            "Estructure breve para WhatsApp: situación → decisión → cómo → límite → 1 pregunta. "
+            "Máximo 2–3 párrafos. Si un dato no está en el contexto, no lo suponga.\n"
         )
     if modo == 'ambiguo':
         return (

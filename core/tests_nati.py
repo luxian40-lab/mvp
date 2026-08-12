@@ -172,6 +172,12 @@ def test_prompt_base_tiene_regla_anti_eki():
     assert "plataforma" in prompt.lower()
 
 
+def test_prompt_whatsapp_corto_y_cita_agrosavia():
+    prompt = armar_system_prompt()
+    assert 'WhatsApp' in prompt or '2–3 párrafos' in prompt or '2-3 párrafos' in prompt
+    assert 'AGROSAVIA' in prompt
+
+
 def test_bot_comercial_sin_cliente_usa_default_nati(settings):
     """Sin cliente, el bot comercial sigue inyectando el prompt base de Nati."""
     pytest.importorskip("openai")

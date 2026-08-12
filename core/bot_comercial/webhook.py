@@ -426,6 +426,7 @@ def _bot_comercial_respuesta_catalogo(
     routing=None,
     rag_chunks=None,
     ctx_agro=None,
+    agrosavia_meta=None,
 ) -> str:
     """Genera respuesta técnica/comercial estricta basada en contexto RAG (sin alucinaciones).
 
@@ -506,7 +507,10 @@ def _bot_comercial_respuesta_catalogo(
             "Si la consulta parece error de tipeo, ofrezca 1–2 interpretaciones plausibles "
             "con '¿Quiso decir...?' antes de conclusiones fuertes.\n"
             "Si INFORMACIÓN OFICIAL incluye listas Excel (producto, precio, dosis), "
-            "use solo esas cifras; si no aparecen, no las invente."
+            "use solo esas cifras; si no aparecen, no las invente.\n"
+            "FORMATO WHATSAPP: máximo 2–3 párrafos cortos; una idea por mensaje; "
+            "sin ensayos ni listas largas. Si hay FUENTE INSTITUCIONAL AGROSAVIA, "
+            "atribuya en una frase (según AGROSAVIA / título); no pegue el abstract."
         )
         if sesion_comercial is not None:
             # Memoria en SesionComercial; no duplicar WhatsappLog en el prompt.
@@ -529,10 +533,10 @@ def _bot_comercial_respuesta_catalogo(
         modelo = routing.modelo
         temperatura = 0.1 if routing.escala_premium else 0.15
         try:
-            max_out = int(getattr(settings, 'BOT_COMERCIAL_OPENAI_MAX_TOKENS', 650) or 650)
+            max_out = int(getattr(settings, 'BOT_COMERCIAL_OPENAI_MAX_TOKENS', 420) or 420)
         except (TypeError, ValueError):
-            max_out = 650
-        max_out = max(400, min(max_out, 1200))
+            max_out = 420
+        max_out = max(280, min(max_out, 700))
         from core.openai_compat import chat_completion_token_kwargs
         completion = client.chat.completions.create(
             model=modelo,
@@ -546,7 +550,7 @@ def _bot_comercial_respuesta_catalogo(
                 model=modelo,
                 messages=messages,
                 **chat_completion_token_kwargs(
-                    modelo, max(max_out, 900), temperatura, reasoning_effort='minimal',
+                    modelo, max(max_out, 500), temperatura, reasoning_effort='minimal',
                 ),
             )
             texto = (completion.choices[0].message.content or '').strip()
@@ -555,6 +559,25 @@ def _bot_comercial_respuesta_catalogo(
         try:
             from core.eventos_ia import emit_ia_agent_triggered
 
+            meta_evt = {
+                'tiene_rag': bool(contexto_rag),
+                'tiene_web': bool(contexto_web),
+                'routing_modo': routing.modo,
+                'routing_razon': routing.razon,
+                'escala_premium': routing.escala_premium,
+                'rag_max_similitud': routing.rag_max_similitud,
+            }
+            if isinstance(agrosavia_meta, dict):
+                meta_evt.update({
+                    k: agrosavia_meta.get(k)
+                    for k in (
+                        'agrosavia_usada',
+                        'agrosavia_items',
+                        'agrosavia_chars',
+                        'agrosavia_consultada',
+                    )
+                    if k in agrosavia_meta
+                })
             emit_ia_agent_triggered(
                 cliente=cliente,
                 agente='nati',
@@ -565,14 +588,7 @@ def _bot_comercial_respuesta_catalogo(
                 tokens_in=getattr(usage, 'prompt_tokens', None) if usage else None,
                 tokens_out=getattr(usage, 'completion_tokens', None) if usage else None,
                 canal='whatsapp_comercial',
-                metadata={
-                    'tiene_rag': bool(contexto_rag),
-                    'tiene_web': bool(contexto_web),
-                    'routing_modo': routing.modo,
-                    'routing_razon': routing.razon,
-                    'escala_premium': routing.escala_premium,
-                    'rag_max_similitud': routing.rag_max_similitud,
-                },
+                metadata=meta_evt,
             )
         except Exception:
             pass
@@ -994,20 +1010,17 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                 except Exception:
                     logger.exception("Nat RAG fallback documental falló")
 
+            agrosavia_meta = {}
             try:
-                from core.agrosavia_connector import buscar_agrosavia, formatear_contexto_agrosavia
+                from core.agrosavia_connector import enriquecer_contexto_con_agrosavia
 
-                if len(contexto_rag or '') < 500:
-                    ctx_agrosavia = formatear_contexto_agrosavia(buscar_agrosavia(consulta, size=2))
-                    if ctx_agrosavia:
-                        contexto_rag = (
-                            f"{contexto_rag}\n\n{ctx_agrosavia}".strip()
-                            if contexto_rag
-                            else ctx_agrosavia
-                        )
-                        logger.info("🌾 AGROSAVIA live | chars=%s", len(ctx_agrosavia))
+                contexto_rag, agrosavia_meta = enriquecer_contexto_con_agrosavia(
+                    consulta,
+                    contexto_rag or '',
+                )
             except Exception:
-                pass
+                logger.exception('Nat Agrosavia live falló; se continúa sin esa fuente')
+                agrosavia_meta = {}
 
             if contexto_precios_db:
                 contexto_rag = (
@@ -1059,6 +1072,7 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                 routing=routing,
                 rag_chunks=rag_chunks,
                 ctx_agro=ctx_agro,
+                agrosavia_meta=agrosavia_meta,
             )
 
     if (

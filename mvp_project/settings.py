@@ -309,6 +309,22 @@ WHATSAPP_VERIFY_TOKEN = os.environ.get('WHATSAPP_VERIFY_TOKEN', 'eki_webhook_ver
 # URL completa POST para callbacks de estado (delivered/read/failed). Ej: https://tudominio.com/webhook/whatsapp/
 TWILIO_STATUS_CALLBACK_URL = os.environ.get('TWILIO_STATUS_CALLBACK_URL', '').strip()
 
+# Firma Twilio (HMAC) en webhooks. Env explícito gana; si no: True en prod, False en DEBUG/tests.
+_twilio_validate_sig = os.environ.get('TWILIO_VALIDATE_SIGNATURE', '').strip().lower()
+_is_testing_runtime = (
+    'test' in sys.argv
+    or 'pytest' in ' '.join(sys.argv).lower()
+    or os.environ.get('DJANGO_TEST') == '1'
+)
+if _twilio_validate_sig in ('1', 'true', 'yes', 'on'):
+    TWILIO_VALIDATE_SIGNATURE = True
+elif _twilio_validate_sig in ('0', 'false', 'no', 'off'):
+    TWILIO_VALIDATE_SIGNATURE = False
+else:
+    TWILIO_VALIDATE_SIGNATURE = (not DEBUG) and (not _is_testing_runtime)
+# Base pública (https://host) si el ALB/proxy firma una URL distinta a build_absolute_uri()
+TWILIO_WEBHOOK_PUBLIC_URL = os.environ.get('TWILIO_WEBHOOK_PUBLIC_URL', '').strip()
+
 # 📢 Templates de Twilio para envío masivo (deben estar aprobados)
 TWILIO_TEMPLATE_ANUNCIO_GRUPAL = os.environ.get('TWILIO_TEMPLATE_ANUNCIO_GRUPAL', '')  # Content SID del template de anuncios
 TWILIO_TEMPLATE_INVITACION_GRUPO = os.environ.get('TWILIO_TEMPLATE_INVITACION_GRUPO', '')  # Content SID del template de invitación
@@ -369,11 +385,31 @@ try:
     RAG_INDEX_TASK_STAGGER_SECONDS = int(os.environ.get('RAG_INDEX_TASK_STAGGER_SECONDS', '12'))
 except (TypeError, ValueError):
     RAG_INDEX_TASK_STAGGER_SECONDS = 12
-# Límite de tokens de salida del chat (menor = respuesta más rápida y barata).
+# Límite de tokens de salida del chat (menor = respuesta WhatsApp más corta y barata).
 try:
-    BOT_COMERCIAL_OPENAI_MAX_TOKENS = int(os.environ.get('BOT_COMERCIAL_OPENAI_MAX_TOKENS', '650'))
+    BOT_COMERCIAL_OPENAI_MAX_TOKENS = int(os.environ.get('BOT_COMERCIAL_OPENAI_MAX_TOKENS', '420'))
 except (TypeError, ValueError):
-    BOT_COMERCIAL_OPENAI_MAX_TOKENS = 650
+    BOT_COMERCIAL_OPENAI_MAX_TOKENS = 420
+# Agrosavia live (repo público) — P0: enriquecer cuando RAG es corto o consulta agro.
+BOT_COMERCIAL_AGROSAVIA_ENABLED = os.environ.get(
+    'BOT_COMERCIAL_AGROSAVIA_ENABLED', 'true'
+).strip().lower() in ('1', 'true', 'yes', 'on')
+try:
+    BOT_COMERCIAL_AGROSAVIA_MIN_RAG_CHARS = int(
+        os.environ.get('BOT_COMERCIAL_AGROSAVIA_MIN_RAG_CHARS', '1400')
+    )
+except (TypeError, ValueError):
+    BOT_COMERCIAL_AGROSAVIA_MIN_RAG_CHARS = 1400
+try:
+    BOT_COMERCIAL_AGROSAVIA_SIZE = int(os.environ.get('BOT_COMERCIAL_AGROSAVIA_SIZE', '3'))
+except (TypeError, ValueError):
+    BOT_COMERCIAL_AGROSAVIA_SIZE = 3
+try:
+    BOT_COMERCIAL_AGROSAVIA_MAX_CHARS = int(
+        os.environ.get('BOT_COMERCIAL_AGROSAVIA_MAX_CHARS', '2200')
+    )
+except (TypeError, ValueError):
+    BOT_COMERCIAL_AGROSAVIA_MAX_CHARS = 2200
 # Nat + Open-Meteo: probabilidad climática por municipio (WhatsApp)
 NAT_OPEN_METEO_ENABLED = os.environ.get('NAT_OPEN_METEO_ENABLED', 'true').strip().lower() in (
     '1', 'true', 'yes', 'on',
@@ -471,6 +507,22 @@ try:
     INTEGRACION_API_MAX_DIAS = int(os.environ.get('INTEGRACION_API_MAX_DIAS', '31'))
 except (TypeError, ValueError):
     INTEGRACION_API_MAX_DIAS = 31
+# API key obligatoria en prod: si la key está vacía no abrir la puerta.
+_integracion_require = os.environ.get('INTEGRACION_API_REQUIRE_KEY', '').strip().lower()
+if _integracion_require in ('1', 'true', 'yes', 'on'):
+    INTEGRACION_API_REQUIRE_KEY = True
+elif _integracion_require in ('0', 'false', 'no', 'off'):
+    INTEGRACION_API_REQUIRE_KEY = False
+else:
+    INTEGRACION_API_REQUIRE_KEY = (not DEBUG) and (not _is_testing_runtime)
+try:
+    INTEGRACION_API_RATE_LIMIT = int(os.environ.get('INTEGRACION_API_RATE_LIMIT', '120') or 120)
+except (TypeError, ValueError):
+    INTEGRACION_API_RATE_LIMIT = 120
+try:
+    INTEGRACION_API_RATE_PERIOD = int(os.environ.get('INTEGRACION_API_RATE_PERIOD', '60') or 60)
+except (TypeError, ValueError):
+    INTEGRACION_API_RATE_PERIOD = 60
 
 # ==========================================
 # 🤖 GOOGLE GEMINI API
