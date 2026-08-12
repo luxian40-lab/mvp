@@ -232,3 +232,71 @@ def test_exportar_metricas_excel_por_grupo():
     assert "spreadsheetml" in resp.headers.get("Content-Type", "")
     cd = resp.headers.get("Content-Disposition", "").lower()
     assert "grupo_piloto" in cd
+
+
+@override_settings(
+    INTEGRACION_API_KEY='',
+    INTEGRACION_API_REQUIRE_KEY=True,
+    SECURE_SSL_REDIRECT=False,
+)
+def test_api_key_vacia_con_require_key_503():
+    """En prod, key vacía no abre la puerta."""
+    client = Client()
+    resp = _client_get(client, '/api/integracion/educativa/metricas/')
+    assert resp.status_code == 503
+    body = json.loads(resp.content.decode('utf-8'))
+    assert body.get('success') is False
+
+
+@override_settings(
+    INTEGRACION_API_KEY=API_KEY_TEST,
+    INTEGRACION_API_REQUIRE_KEY=True,
+    SECURE_SSL_REDIRECT=False,
+)
+def test_api_estudiante_sin_key_401():
+    client = Client()
+    resp = _client_get(client, '/api/estudiante/573009990001/')
+    assert resp.status_code == 401
+
+
+@override_settings(
+    INTEGRACION_API_KEY=API_KEY_TEST,
+    INTEGRACION_API_REQUIRE_KEY=True,
+    SECURE_SSL_REDIRECT=False,
+)
+def test_api_estudiante_con_key_ok():
+    cliente = Cliente.objects.create(
+        nombre='ACME Est',
+        contacto_principal='C',
+        email='est@example.com',
+        telefono='573001110099',
+    )
+    estudiante = _crear_estudiante(cliente=cliente, idx=99)
+    client = Client()
+    resp = _client_get(
+        client,
+        f'/api/estudiante/{estudiante.telefono}/',
+        HTTP_AUTHORIZATION=f'Bearer {API_KEY_TEST}',
+    )
+    assert resp.status_code == 200
+    body = json.loads(resp.content.decode('utf-8'))
+    assert body.get('success') is True
+
+
+@override_settings(
+    INTEGRACION_API_KEY=API_KEY_TEST,
+    INTEGRACION_API_REQUIRE_KEY=True,
+    INTEGRACION_API_RATE_LIMIT=2,
+    INTEGRACION_API_RATE_PERIOD=60,
+    SECURE_SSL_REDIRECT=False,
+)
+def test_api_lxp_rate_limit_429(settings):
+    from django.core.cache import cache
+
+    cache.clear()
+    client = Client()
+    headers = {'HTTP_AUTHORIZATION': f'Bearer {API_KEY_TEST}'}
+    assert _client_get(client, '/api/integracion/educativa/metricas/?cliente_id=1', **headers).status_code in (200, 400)
+    assert _client_get(client, '/api/integracion/educativa/metricas/?cliente_id=1', **headers).status_code in (200, 400)
+    resp = _client_get(client, '/api/integracion/educativa/metricas/?cliente_id=1', **headers)
+    assert resp.status_code == 429

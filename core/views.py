@@ -1233,6 +1233,18 @@ def whatsapp_webhook(request):
         print("🔵 WEBHOOK RECIBIÓ POST", flush=True)
         logger.info("🔵 WEBHOOK RECIBIÓ POST")
 
+        # Raw body → firma Twilio (HMAC/compare_digest) antes de procesar inbound Twilio.
+        # Meta Cloud API (JSON con entry) no usa X-Twilio-Signature.
+        from core.twilio_webhook_security import (
+            looks_like_meta_whatsapp_payload,
+            validate_twilio_request,
+        )
+        raw_body = request.body
+        if not looks_like_meta_whatsapp_payload(raw_body):
+            denied = validate_twilio_request(request)
+            if denied is not None:
+                return denied
+
         def _es_destino_bot_comercial(data):
             from core.bot_comercial_routing import es_destino_bot_comercial
             return es_destino_bot_comercial(data)
@@ -1365,6 +1377,12 @@ def bot_comercial_webhook(request):
     """Webhook dedicado para el número de WhatsApp del bot comercial."""
     if request.method != 'POST':
         return HttpResponse('Method Not Allowed', status=405)
+
+    from core.twilio_webhook_security import validate_twilio_request
+
+    denied = validate_twilio_request(request)
+    if denied is not None:
+        return denied
 
     try:
         try:

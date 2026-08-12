@@ -49,6 +49,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ?: (security.W018) DEBUG debe ser False en producción
 DEBUG = False
 
+# P0 seguridad: re-evaluar tras forzar DEBUG=False (settings base pudo calcular con DEBUG=True).
+# Env explícito sigue ganando (TWILIO_VALIDATE_SIGNATURE / INTEGRACION_API_REQUIRE_KEY).
+_twilio_vs_prod = os.environ.get('TWILIO_VALIDATE_SIGNATURE', '').strip().lower()
+if _twilio_vs_prod in ('0', 'false', 'no', 'off'):
+    TWILIO_VALIDATE_SIGNATURE = False
+else:
+    TWILIO_VALIDATE_SIGNATURE = True
+
+_integracion_req_prod = os.environ.get('INTEGRACION_API_REQUIRE_KEY', '').strip().lower()
+if _integracion_req_prod in ('0', 'false', 'no', 'off'):
+    INTEGRACION_API_REQUIRE_KEY = False
+else:
+    INTEGRACION_API_REQUIRE_KEY = True
+
 # Module Builder: OFF en prod salvo EKI_MODULE_BUILDER_BETA=1
 _EKI_MB = os.environ.get('EKI_MODULE_BUILDER_BETA', '').strip().lower()
 EKI_MODULE_BUILDER_BETA = _EKI_MB in ('1', 'true', 'yes', 'on')

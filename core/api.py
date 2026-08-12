@@ -68,6 +68,9 @@ def api_estudiante(request, telefono):
     GET /api/estudiante/{telefono}/
     Devuelve información del estudiante.
     """
+    auth_error = _integracion_guard(request)
+    if auth_error is not None:
+        return auth_error
     try:
         logger.info(
             "api_estudiante_requested",
@@ -96,6 +99,9 @@ def api_estudiante_progreso(request, telefono):
     GET /api/estudiante/{telefono}/progreso/
     Devuelve progreso del estudiante en cursos/módulos.
     """
+    auth_error = _integracion_guard(request)
+    if auth_error is not None:
+        return auth_error
     try:
         logger.info(
             "api_estudiante_progreso_requested",
@@ -126,6 +132,9 @@ def api_estudiante_siguiente_tarea(request, telefono):
     GET /api/estudiante/{telefono}/siguiente-tarea/
     Devuelve la siguiente tarea del estudiante.
     """
+    auth_error = _integracion_guard(request)
+    if auth_error is not None:
+        return auth_error
     try:
         logger.info(
             "api_estudiante_siguiente_tarea_requested",
@@ -153,6 +162,9 @@ def api_estudiante_siguiente_tarea(request, telefono):
 @require_http_methods(["GET"])
 def api_empleabilidad_oportunidades(request):
     """GET /api/empleabilidad/oportunidades/?telefono=...&latitud=...&longitud=..."""
+    auth_error = _integracion_guard(request)
+    if auth_error is not None:
+        return auth_error
     telefono = (request.GET.get('telefono', '') or '').strip()
     latitud_raw = request.GET.get('latitud')
     longitud_raw = request.GET.get('longitud')
@@ -212,6 +224,9 @@ def api_empleabilidad_oportunidades(request):
 @require_http_methods(["POST"])
 def api_empleabilidad_claim(request):
     """POST /api/empleabilidad/claim/ con {telefono, aliado_id, latitud, longitud}."""
+    auth_error = _integracion_guard(request)
+    if auth_error is not None:
+        return auth_error
     try:
         body = json.loads(request.body.decode('utf-8') or '{}')
     except Exception:
@@ -271,6 +286,9 @@ def api_empleabilidad_claim(request):
 @require_http_methods(["POST"])
 def api_empleabilidad_completar(request):
     """POST /api/empleabilidad/completar/ con {telefono, mision_id, codigo}."""
+    auth_error = _integracion_guard(request)
+    if auth_error is not None:
+        return auth_error
     try:
         body = json.loads(request.body.decode('utf-8') or '{}')
     except Exception:
@@ -317,6 +335,9 @@ def api_empleabilidad_completar(request):
 @require_http_methods(["POST"])
 def api_empleabilidad_flujo(request):
     """POST /api/empleabilidad/flujo/ con {mision_id, estado_flujo}."""
+    auth_error = _integracion_guard(request)
+    if auth_error is not None:
+        return auth_error
     try:
         body = json.loads(request.body.decode('utf-8') or '{}')
     except Exception:
@@ -358,6 +379,9 @@ def api_empleabilidad_flujo(request):
 @require_http_methods(["GET"])
 def api_empleabilidad_resumen(request):
     """GET /api/empleabilidad/resumen/?cliente_id=..."""
+    auth_error = _integracion_guard(request)
+    if auth_error is not None:
+        return auth_error
     cliente_id = request.GET.get('cliente_id')
     qs = MisionEmpleabilidad.objects.all()
     if cliente_id:
@@ -414,9 +438,56 @@ def _integracion_apply_cors(request, resp):
     return resp
 
 
+def _client_ip(request):
+    xff = (request.META.get('HTTP_X_FORWARDED_FOR') or '').strip()
+    if xff:
+        return xff.split(',')[0].strip()
+    return (request.META.get('REMOTE_ADDR') or '').strip() or 'unknown'
+
+
+def _integracion_rate_limit_error(request):
+    """Rate limit básico por IP (mismo patrón cache que RateLimitMiddleware)."""
+    from django.core.cache import cache
+
+    limit = int(getattr(settings, 'INTEGRACION_API_RATE_LIMIT', 120) or 120)
+    period = int(getattr(settings, 'INTEGRACION_API_RATE_PERIOD', 60) or 60)
+    if limit <= 0:
+        return None
+
+    ip = _client_ip(request)
+    cache_key = f'integracion_api_rate:{ip}'
+    count = cache.get(cache_key, 0)
+    if count >= limit:
+        logger.warning('integracion_api_rate_limited ip=%s', ip)
+        return JsonResponse(
+            {'success': False, 'error': 'Rate limit excedido'},
+            status=429,
+        )
+    cache.set(cache_key, count + 1, period)
+    return None
+
+
 def _integracion_auth_error(request):
+    """
+    Auth API LXP/integración.
+    - En prod (REQUIRE_KEY): key vacía → 503 (no abrir puerta).
+    - Key presente: Bearer / X-API-Key / ?api_key= con compare_digest.
+    - Rate limit por IP tras pasar auth (o al exigir key).
+    """
+    rate_error = _integracion_rate_limit_error(request)
+    if rate_error is not None:
+        return rate_error
+
     expected_key = str(getattr(settings, 'INTEGRACION_API_KEY', '') or '').strip()
+    require_key = bool(getattr(settings, 'INTEGRACION_API_REQUIRE_KEY', False))
+
     if not expected_key:
+        if require_key:
+            logger.error('INTEGRACION_API_KEY vacía con INTEGRACION_API_REQUIRE_KEY activo')
+            return JsonResponse(
+                {'success': False, 'error': 'API no configurada'},
+                status=503,
+            )
         return None
 
     auth_header = (request.headers.get('Authorization', '') or '').strip()
@@ -429,6 +500,11 @@ def _integracion_auth_error(request):
     if not provided or not hmac.compare_digest(provided, expected_key):
         return JsonResponse({'success': False, 'error': 'No autorizado'}, status=401)
     return None
+
+
+def _integracion_guard(request):
+    """Auth + rate limit; usar al inicio de endpoints LXP."""
+    return _integracion_auth_error(request)
 
 
 def _integracion_parse_filtros(request, permitir_curso=False, requerir_cliente=False):
