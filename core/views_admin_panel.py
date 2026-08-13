@@ -311,7 +311,7 @@ def _build_ecosistema(
         'nodos': nodos,
         'aristas': aristas,
         'nota': (
-            'Studio e Infra flotan aparte. '
+            'Studio e Infra sin conexiones. '
             'Studio no se conecta a Aprende. '
             'Campo WhatsApp es el centro operativo.'
         ),

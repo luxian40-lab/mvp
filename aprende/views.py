@@ -50,7 +50,14 @@ from .calificacion_aula_service import (
     slug_archivo_asistencia,
 )
 from .ranking_service import ranking_curso_profesor, resumen_ranking_aula
-from .tarea_service import actualizar_tarea, calificar_entrega, crear_tarea, eliminar_tarea, guardar_entrega
+from .tarea_service import (
+    actualizar_tarea,
+    calificar_entrega,
+    crear_tarea,
+    eliminar_tarea,
+    guardar_entrega,
+    guardar_respuesta_post_calificacion,
+)
 from .tareas_aula_service import tareas_agrupadas_estudiante, tareas_por_curso
 
 
@@ -360,6 +367,15 @@ def estudiante_tarea(request, tarea_id: int):
 
     entrega = EntregaTarea.objects.filter(tarea=tarea, estudiante=est).first()
     if request.method == 'POST':
+        accion = (request.POST.get('accion') or '').strip()
+        if accion == 'respuesta' and entrega and entrega.calificada:
+            error = guardar_respuesta_post_calificacion(request, entrega)
+            if error:
+                messages.error(request, error)
+            else:
+                messages.success(request, 'Comentario enviado al profesor.')
+            return redirect('aprende_estudiante_tarea', tarea_id=tarea.pk)
+
         entrega, error = guardar_entrega(request, tarea, est)
         if error:
             messages.error(request, error)
@@ -487,6 +503,14 @@ def estudiante_perfil(request):
             return redirect('aprende_estudiante_perfil')
 
     ranking = resumen_ranking_aula(est)
+    progreso_rank = (
+        ProgresoEstudiante.objects.filter(estudiante=est, curso__activo=True)
+        .select_related('curso')
+        .order_by('curso__orden', 'curso__nombre')
+        .first()
+    )
+    if progreso_rank:
+        ranking = resumen_ranking_aula(est, progreso_rank.curso)
 
     return render(request, 'aprende/estudiante_perfil.html', {
         'estudiante': est,

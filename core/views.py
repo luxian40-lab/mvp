@@ -1910,10 +1910,17 @@ def _procesar_twilio_webhook(post_data):
         logger.debug(f"Status callback procesado: {message_status}")
         return
     
-    # FILTRO 2: Ignorar si no hay Body ni Media (status callback sin MessageStatus)
+    # FILTRO 2: Ignorar si no hay Body ni Media ni botón (status callback sin MessageStatus)
     raw_body = post_data.get('Body', '')
     raw_media = int(post_data.get('NumMedia', 0))
-    if not raw_body and raw_media == 0 and not post_data.get('From', ''):
+    raw_btn = (
+        post_data.get('ButtonPayload')
+        or post_data.get('ButtonText')
+        or post_data.get('ListId')
+        or post_data.get('ListTitle')
+        or ''
+    )
+    if not raw_body and raw_media == 0 and not raw_btn and not post_data.get('From', ''):
         logger.debug("Webhook vacio ignorado (sin Body ni Media)")
         return
     
@@ -1922,6 +1929,10 @@ def _procesar_twilio_webhook(post_data):
         
         # Twilio envía datos en formato form-data
         msg_body = post_data.get('Body', '')
+        # Quick reply / botones Content: a veces Body vacío y solo ButtonPayload/Text
+        from .habeas_respuestas import texto_desde_webhook_twilio
+
+        msg_body = texto_desde_webhook_twilio(post_data, msg_body)
         msg_from = post_data.get('From', '')  # whatsapp:+573001234567
         msg_to = post_data.get('To', '')      # whatsapp:+14155238886
         msg_sid = post_data.get('MessageSid', f'twilio_{timezone.now().timestamp()}')
@@ -2306,38 +2317,18 @@ def _procesar_twilio_webhook(post_data):
         # --- BARRERA 1: HABEAS DATA ---
         if estado_chat == 'ESPERANDO_HABEAS_DATA':
             if not (estudiante.contexto_temporal or {}).get('cert_envio_pendiente'):
-                msg_lower = msg_body.strip().lower()
-                keywords_acepto = ['acepto', 'sí', 'si', 'aceptar', 'ok', 'yes', 'acepto', 'de acuerdo']
-                keywords_no = ['no acepto', 'no', 'rechazo', 'rechazar']
+                from .habeas_respuestas import aplicar_respuesta_habeas
 
-                if any(k in msg_lower for k in keywords_acepto):
-                    estudiante.acepto_terminos = True
-                    estudiante.fecha_aceptacion_terminos = timezone.now()
-                    estudiante.estado_chat = 'ESPERANDO_CEDULA'
-                    estudiante.save()
+                resultado_habeas = aplicar_respuesta_habeas(estudiante, msg_body)
+                accion = resultado_habeas.get('accion')
+                texto_respuesta = resultado_habeas.get('texto')
 
-                    texto_respuesta = (
-                        "✅ *¡Gracias por aceptar!*\n\n"
-                        "Para verificar tu identidad, por favor escribe "
-                        "tu *número de cédula* (solo los números, sin puntos ni espacios).\n\n"
-                        "👉 Ejemplo: 1234567890"
-                    )
-                elif any(k in msg_lower for k in keywords_no):
-                    texto_respuesta = (
-                        "😔 Entendemos tu decisión.\n\n"
-                        "Sin la aceptación de la política de datos no podemos "
-                        "activar tu cuenta en la plataforma.\n\n"
-                        "Si cambias de opinión, escríbenos en cualquier momento. 🌱"
-                    )
-                else:
-                    # Enviar primero template Twilio (cliente > global > fallback eki).
-                    # Si falla, degradar a texto plano con URL para no bloquear onboarding.
+                if accion == 'reenviar_plantilla':
                     from .whatsapp_service import enviar_habeas_data
                     resultado_tpl = enviar_habeas_data(msg_from, cliente=estudiante.cliente)
                     if resultado_tpl.get('success'):
                         return
 
-                    # Fallback texto: mostrar URL efectiva del cliente.
                     from .security_handler import _url_politica_datos_cliente
                     url_politica = _url_politica_datos_cliente(estudiante=estudiante)
                     texto_respuesta = (

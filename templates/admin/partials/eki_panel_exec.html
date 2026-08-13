@@ -115,26 +115,18 @@
     </div>
 
   {% if snap.ecosistema %}
-  <section class="eki-panel-card eki-panel-eco eki-panel-eco--lux" aria-label="Hub ecosistema eki">
+  <section class="eki-panel-card eki-panel-eco" aria-label="Mapa ecosistema eki">
     <div class="eki-panel-card__head">
       <h2>Ecosistema eki</h2>
       <a href="{% url 'dashboard_unificado' %}?tab=retencion">Centro de Éxito →</a>
     </div>
     <p class="eki-panel-eco__intro">
-      Campo WhatsApp es el centro. Studio e Infra flotan aparte · Studio no conecta a Aprende.
-      Arrastra nodos o el fondo · rueda para zoom · clic corto para entrar · Restablecer layout abajo.
+      Campo WhatsApp es el centro operativo. Studio y Aprende son productos aparte (sin enlace entre sí).
+      Clic en un nodo para entrar · arrastrar para reordenar.
     </p>
     <div class="eki-panel-eco__stage" data-eki-eco-graph>
-      <div class="eki-panel-eco__floor" aria-hidden="true"></div>
       <div class="eki-panel-eco__scene">
         <svg class="eki-panel-eco__wires" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-          <defs>
-            <linearGradient id="ekiEcoWire" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#9A6CAC" stop-opacity="0.15"/>
-              <stop offset="50%" stop-color="#7A4E8E" stop-opacity="0.55"/>
-              <stop offset="100%" stop-color="#5F3A6E" stop-opacity="0.2"/>
-            </linearGradient>
-          </defs>
           {% for e in snap.ecosistema.aristas %}
           <path class="eki-panel-eco__wire"
                 data-from="{{ e.from }}" data-to="{{ e.to }}"
@@ -146,10 +138,9 @@
            {% if n.external %}target="_blank" rel="noopener"{% endif %}
            class="eki-panel-eco__orb eki-panel-eco__orb--{{ n.status }}{% if n.anchor %} eki-panel-eco__orb--anchor{% endif %}{% if n.island %} eki-panel-eco__orb--island{% endif %}"
            data-eco-id="{{ n.id }}" data-eco-x="{{ n.x }}" data-eco-y="{{ n.y }}"
-           style="left:{{ n.x }}%;top:{{ n.y }}%;--z:{{ n.z|default:0 }}px"
-           title="{{ n.label }} · {{ n.metric_label }} · arrastra para mover"
+           style="left:{{ n.x }}%;top:{{ n.y }}%"
+           title="{{ n.label }} · {{ n.metric_label }}"
            draggable="false">
-          <span class="eki-panel-eco__orb-glow" aria-hidden="true"></span>
           <span class="eki-panel-eco__orb-core">
             <span class="material-symbols-outlined eki-panel-eco__orb-icon" aria-hidden="true">{{ n.icon|default:"circle" }}</span>
             <strong>{{ n.label }}</strong>
@@ -159,24 +150,11 @@
         </a>
         {% endfor %}
       </div>
-      <button type="button" class="eki-panel-eco__reset" data-eco-reset>Restablecer layout</button>
+      <button type="button" class="eki-panel-eco__reset" data-eco-reset>Restablecer</button>
     </div>
     {% if snap.ecosistema.nota %}
     <p class="eki-panel-eco__nota">{{ snap.ecosistema.nota }}</p>
     {% endif %}
-    <ul class="eki-panel-eco__legend eki-panel-eco__legend--lux">
-      {% for n in snap.ecosistema.nodos %}
-      <li class="eki-panel-eco__leg eki-panel-eco__leg--{{ n.status }}{% if n.island %} eki-panel-eco__leg--island{% endif %}">
-        <a href="{{ n.url }}" {% if n.external %}target="_blank" rel="noopener"{% endif %}>
-          <span class="eki-panel-eco__dot" aria-hidden="true"></span>
-          <div>
-            <strong>{{ n.label }}</strong>
-            <span>{{ n.metric_label }} · {{ n.value }}</span>
-          </div>
-        </a>
-      </li>
-      {% endfor %}
-    </ul>
   </section>
   {% endif %}
 
@@ -184,7 +162,7 @@
     <div class="eki-panel-card__head eki-panel-espacios-wrap__head">
       <div>
         <h2>Más espacios</h2>
-        <p>Portal B2B y retención — Studio y Aprende viven en el hub de arriba</p>
+        <p>Portal B2B y retención — Studio y Aprende se abren desde el mapa (productos separados)</p>
       </div>
     </div>
     <div class="eki-panel-espacios eki-panel-espacios--compact">

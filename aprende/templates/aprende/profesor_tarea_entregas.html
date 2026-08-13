@@ -32,7 +32,10 @@
                     <strong>{{ e.estudiante.nombre }}</strong>
                     <div class="eki-muted" style="font-size:0.8rem;">Doc. {{ e.estudiante.cedula }} · {{ e.fecha_entrega|date:"d/m/Y H:i" }}</div>
                     {% if e.comentario_estudiante %}
-                    <p class="eki-muted" style="white-space:pre-wrap;margin:0.35rem 0 0;font-size:0.82rem;"><em>Estudiante:</em> {{ e.comentario_estudiante }}</p>
+                    <p class="eki-muted" style="white-space:pre-wrap;margin:0.35rem 0 0;font-size:0.82rem;"><em>Al entregar:</em> {{ e.comentario_estudiante }}</p>
+                    {% endif %}
+                    {% if e.respuesta_estudiante %}
+                    <p style="white-space:pre-wrap;margin:0.35rem 0 0;font-size:0.85rem;color:var(--eki-ink);"><em>Respuesta tras nota:</em> {{ e.respuesta_estudiante }}</p>
                     {% endif %}
                     {% if e.calificada %}<span class="eki-status eki-status--ok">Calificada</span>{% else %}<span class="eki-status eki-status--wait">Por calificar</span>{% endif %}
                 </td>

@@ -1,4 +1,4 @@
-{% if ranking.activo and ranking.grupo and ranking.filas %}
+{% if ranking.activo and ranking.filas %}
 {% include "aprende/partials/ranking_icons.svg.html" %}
 <div class="eki-ranking-wrap{% if ranking.modo == 'puntos' %} eki-ranking-wrap--live{% endif %}">
     {% if ranking.modo == 'puntos' %}
@@ -7,8 +7,11 @@
             <svg viewBox="0 0 24 24"><use href="#eki-ico-trophy"/></svg>
         </div>
         <div>
-            <p class="eki-ranking-banner__title">¡Compite con tu grupo!</p>
-            <p class="eki-ranking-banner__sub">Los mismos puntos que ganas en WhatsApp (evaluaciones, retos y actividades) cuentan aquí.</p>
+            <p class="eki-ranking-banner__title">Ranking del curso</p>
+            <p class="eki-ranking-banner__sub">
+                Orden por puntos de gamificación (WhatsApp + actividades del aula).
+                Si el curso no usa WhatsApp, el ranking por notas (asistencia + tareas) es el adecuado.
+            </p>
         </div>
     </div>
     {% elif ranking.modo == 'calificacion' %}
@@ -18,17 +21,19 @@
         </div>
         <div>
             <p class="eki-ranking-banner__title">Ranking por notas</p>
-            <p class="eki-ranking-banner__sub">Promedio 1–5: asistencia del curso (−0,2 por falta) y tareas calificadas.</p>
+            <p class="eki-ranking-banner__sub">
+                Promedio 1–5 del curso: asistencia (−0,2 por falta) + tareas calificadas.
+                No depende de mensajes por WhatsApp.
+            </p>
         </div>
     </div>
     {% endif %}
 
     <div class="eki-ranking-head">
         <div>
-            <h2 class="eki-h2" style="margin:0;">Ranking del grupo</h2>
+            <h2 class="eki-h2" style="margin:0;">Clasificación general</h2>
             <p class="eki-muted" style="margin:0.35rem 0 0;font-size:0.85rem;">
-                {{ ranking.grupo.nombre }}
-                {% if ranking.curso %} · {{ ranking.curso.nombre }}{% endif %}
+                Todo el curso{% if ranking.curso %} · {{ ranking.curso.nombre }}{% endif %}
             </p>
         </div>
         {% if ranking.mi_posicion %}
@@ -43,11 +48,11 @@
     </div>
 
     {% if ranking.modo == 'calificacion' %}
-    <p class="eki-muted" style="font-size:0.8rem;margin:0 0 1rem;">Por promedio de evaluaciones en este curso.</p>
+    <p class="eki-muted" style="font-size:0.8rem;margin:0 0 1rem;">Por promedio ponderado de evaluaciones en este curso.</p>
     {% elif ranking.modo == 'puntos' and ranking.puntos_para_subir %}
-    <p class="eki-ranking-chase">Te faltan <strong>{{ ranking.puntos_para_subir }} pts</strong> para subir al puesto #{{ ranking.mi_posicion|add:"-1" }}. Responde en WhatsApp y entrega tus tareas.</p>
+    <p class="eki-ranking-chase">Te faltan <strong>{{ ranking.puntos_para_subir }} pts</strong> para subir al puesto #{{ ranking.mi_posicion|add:"-1" }}.</p>
     {% elif ranking.modo == 'puntos' and ranking.mi_posicion == 1 %}
-    <p class="eki-ranking-chase">¡Vas primero! Mantén el ritmo en WhatsApp y en tus tareas del curso.</p>
+    <p class="eki-ranking-chase">¡Vas primero! Mantén el ritmo en tus actividades.</p>
     {% endif %}
 
     {% include "aprende/partials/ranking_podium.html" with top3=ranking.top3 modo=ranking.modo highlight_id=estudiante.id only %}
@@ -95,14 +100,20 @@
     </table>
     {% endif %}
 </div>
-{% elif ranking.activo and ranking.modo == 'sin_grupo' %}
+{% elif ranking.activo and ranking.modo == 'sin_curso' %}
 <div class="eki-card">
     <h2 class="eki-h2">Ranking</h2>
-    <p class="eki-muted">Aún no estás en un grupo de estudiantes. Tu coordinador te asignará uno para competir con tus compañeros.</p>
+    <p class="eki-muted">Entra a un curso para ver la clasificación general.</p>
 </div>
 {% elif ranking.activo and not ranking.filas %}
 <div class="eki-card">
-    <h2 class="eki-h2">Ranking — {{ ranking.grupo.nombre }}</h2>
-    <p class="eki-muted">Participa en WhatsApp y completa evaluaciones para sumar puntos. ¡El ranking se actualiza con cada actividad!</p>
+    <h2 class="eki-h2">Ranking del curso</h2>
+    <p class="eki-muted">
+        {% if ranking.modo == 'calificacion' %}
+        Aún no hay notas (asistencia o tareas). Cuando el docente califique, aparecerás aquí.
+        {% else %}
+        Aún no hay puntos en este curso. Completa actividades para aparecer en la tabla.
+        {% endif %}
+    </p>
 </div>
 {% endif %}

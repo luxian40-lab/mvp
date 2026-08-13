@@ -3,7 +3,7 @@
  * Posiciones en % del scene; persistencia localStorage.
  */
 (function () {
-  var STORAGE_KEY = 'eki_eco_layout_v3';
+  var STORAGE_KEY = 'eki_eco_layout_v4';
   var DRAG_THRESHOLD = 6;
 
   function clamp(n, min, max) {
@@ -100,6 +100,7 @@
       resetBtn.addEventListener('click', function (ev) {
         ev.preventDefault();
         localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem('eki_eco_layout_v3');
         localStorage.removeItem('eki_eco_layout_v2');
         localStorage.removeItem('eki_eco_layout_v1');
         orbs.forEach(function (orb) {

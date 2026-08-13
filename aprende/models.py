@@ -55,6 +55,11 @@ class EntregaTarea(models.Model):
     archivo = models.FileField(upload_to='aprende/entregas/%Y/%m/')
     nombre_archivo = models.CharField(max_length=255, blank=True)
     comentario_estudiante = models.TextField(blank=True)
+    respuesta_estudiante = models.TextField(
+        blank=True,
+        help_text='Comentario del estudiante después de ver la calificación del profesor.',
+    )
+    fecha_respuesta_estudiante = models.DateTimeField(null=True, blank=True)
     fecha_entrega = models.DateTimeField(auto_now=True)
     nota = models.IntegerField(
         null=True,

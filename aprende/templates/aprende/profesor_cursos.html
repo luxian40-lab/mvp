@@ -10,22 +10,36 @@
     <span class="eki-badge">Profesor</span>
     <h1>{{ organizacion.nombre }}</h1>
     <p class="eki-lead">Elige un curso para editar lecciones y subir material a tus estudiantes.</p>
+    <p class="eki-muted" style="margin-top:0.75rem;max-width:36rem;">
+        Aquí solo se editan cursos ya creados. Para <strong>agregar un curso nuevo</strong>, usa el
+        <a href="{{ admin_curso_add_url }}" target="_blank" rel="noopener">admin eki → Cursos → Añadir</a>
+        (cuenta staff).
+    </p>
 </div>
 
 {% if cursos %}
 <div class="eki-grid-2">
     {% for c in cursos %}
-    <a href="{% url 'aprende_profesor_curso' c.id %}" class="eki-card eki-card--interactive" style="text-decoration:none;color:inherit;">
-        <h2>{{ c.nombre }}</h2>
-        <p class="eki-muted">{% if c.es_modo_clases %}Gestionar clases y archivos{% else %}Gestionar módulos y archivos{% endif %}</p>
-        <span class="eki-btn eki-btn--ghost eki-btn--sm" style="margin-top:0.75rem;">Abrir →</span>
-    </a>
+    <article class="eki-card" style="color:inherit;">
+        <a href="{% url 'aprende_profesor_curso' c.id %}" style="text-decoration:none;color:inherit;">
+            <h2>{{ c.nombre }}</h2>
+            <p class="eki-muted">{% if c.es_modo_clases %}Gestionar clases y archivos{% else %}Gestionar módulos y archivos{% endif %}</p>
+        </a>
+        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.85rem;">
+            <a class="eki-btn eki-btn--ghost eki-btn--sm" href="{% url 'aprende_profesor_curso' c.id %}">Abrir →</a>
+            <a class="eki-btn eki-btn--ghost eki-btn--sm" href="{% url 'aprende_profesor_ranking' c.id %}">Ranking</a>
+            <a class="eki-btn eki-btn--ghost eki-btn--sm" href="{% url 'aprende_profesor_calificaciones' c.id %}">Notas</a>
+        </div>
+    </article>
     {% endfor %}
 </div>
 {% else %}
 <div class="eki-card" style="text-align:center;padding:2rem;">
     <h2>Sin cursos activos</h2>
-    <p class="eki-muted">Crea cursos en el admin eki o pide apoyo a tu coordinador.</p>
+    <p class="eki-muted">Aprende no crea cursos: se crean en el admin eki y luego aparecen aquí.</p>
+    <p style="margin-top:1rem;">
+        <a class="eki-btn" href="{{ admin_curso_add_url }}" target="_blank" rel="noopener">Crear curso en admin →</a>
+    </p>
 </div>
 {% endif %}
 {% endblock %}

@@ -102,6 +102,24 @@ def guardar_entrega(request, tarea: TareaCurso, estudiante) -> tuple[EntregaTare
     return entrega, None
 
 
+def guardar_respuesta_post_calificacion(
+    request,
+    entrega: EntregaTarea,
+) -> str | None:
+    """Permite al estudiante comentar tras ver la nota del profesor (sin cambiar la entrega)."""
+    if not entrega.calificada:
+        return 'La tarea aún no está calificada.'
+    texto = (request.POST.get('respuesta') or request.POST.get('comentario') or '').strip()
+    if not texto:
+        return 'Escribe un comentario para tu profesor.'
+    if len(texto) > 2000:
+        return 'El comentario es demasiado largo (máx. 2000 caracteres).'
+    entrega.respuesta_estudiante = texto
+    entrega.fecha_respuesta_estudiante = timezone.now()
+    entrega.save(update_fields=['respuesta_estudiante', 'fecha_respuesta_estudiante'])
+    return None
+
+
 def calificar_entrega(request, entrega: EntregaTarea) -> str | None:
     raw_nota = request.POST.get('nota', '').strip()
     if not raw_nota:

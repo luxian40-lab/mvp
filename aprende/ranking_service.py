@@ -1,4 +1,4 @@
-"""Ranking de gamificación en el aula (por grupo de estudiantes)."""
+"""Ranking de gamificación en el aula (general del curso; helpers por grupo quedan por si se reactivan)."""
 
 from __future__ import annotations
 
@@ -84,8 +84,41 @@ def _etiquetas_filas(filas: list[dict], modo: str) -> list[dict]:
     return filas
 
 
+def _filas_puntos_curso(curso: Curso, *, limite: int = 100) -> list[dict]:
+    from core.models import ProgresoEstudiante
+
+    ids = list(
+        ProgresoEstudiante.objects.filter(curso=curso, estudiante__activo=True)
+        .values_list('estudiante_id', flat=True)
+        .distinct()
+    )
+    perfiles = {
+        p.estudiante_id: p
+        for p in PerfilGamificacion.objects.filter(estudiante_id__in=ids).select_related('estudiante')
+    }
+    nombres = {
+        e['pk']: e['nombre']
+        for e in Estudiante.objects.filter(pk__in=ids).values('pk', 'nombre')
+    }
+    filas_raw = []
+    for eid in ids:
+        perfil = perfiles.get(eid)
+        filas_raw.append({
+            'estudiante_id': eid,
+            'nombre': nombres.get(eid, '—'),
+            'puntos': perfil.puntos_totales if perfil else 0,
+            'nivel': perfil.nivel if perfil else 1,
+            'racha': perfil.racha_dias_actual if perfil else 0,
+        })
+    filas_raw.sort(key=lambda r: (-r['puntos'], -r['nivel'], r['nombre'].lower()))
+    out: list[dict] = []
+    for pos, row in enumerate(filas_raw[:limite], start=1):
+        out.append({**row, 'posicion': pos})
+    return out
+
+
 def ranking_curso_profesor(cliente, curso: Curso, *, limite: int = 100) -> dict:
-    """Ranking del curso completo para la vista del profesor (sin foco en un estudiante)."""
+    """Un solo ranking general del curso (sin tablas por grupo, por ahora)."""
     if not gamificacion_activa(cliente):
         return {
             'activo': False,
@@ -93,62 +126,20 @@ def ranking_curso_profesor(cliente, curso: Curso, *, limite: int = 100) -> dict:
             'filas': [],
             'top3': [],
             'modo': 'desactivado',
+            'ambito': 'curso',
             'curso': curso,
             'grupos': [],
         }
 
-    grupos = list(
-        GrupoEstudiantes.objects.filter(activo=True, cursos=curso)
-        .order_by('nombre')
-    )
-    if not grupos:
-        grupos = list(
-            GrupoEstudiantes.objects.filter(
-                activo=True,
-                estudiantes__cliente=cliente,
-                estudiantes__activo=True,
-            )
-            .distinct()
-            .order_by('nombre')[:20]
-        )
-
     if modo_usa_calificacion(cliente):
         modo = 'calificacion'
-        filas_global = ranking_calificaciones_cliente(cliente, curso_id=curso.pk, limite=limite)
-        filas = _etiquetas_filas(filas_global, modo)
+        filas = _etiquetas_filas(
+            ranking_calificaciones_cliente(cliente, curso_id=curso.pk, limite=limite),
+            modo,
+        )
     elif modo_usa_puntos(cliente):
         modo = 'puntos'
-        # Unir puntos de todos los estudiantes activos del curso vía progresos / org
-        from core.models import ProgresoEstudiante
-
-        ids = list(
-            ProgresoEstudiante.objects.filter(curso=curso, estudiante__activo=True)
-            .values_list('estudiante_id', flat=True)
-            .distinct()
-        )
-        perfiles = {
-            p.estudiante_id: p
-            for p in PerfilGamificacion.objects.filter(estudiante_id__in=ids).select_related('estudiante')
-        }
-        filas_raw = []
-        nombres = {
-            e['pk']: e['nombre']
-            for e in Estudiante.objects.filter(pk__in=ids).values('pk', 'nombre')
-        }
-        for eid in ids:
-            perfil = perfiles.get(eid)
-            filas_raw.append({
-                'estudiante_id': eid,
-                'nombre': nombres.get(eid, '—'),
-                'puntos': perfil.puntos_totales if perfil else 0,
-                'nivel': perfil.nivel if perfil else 1,
-                'racha': perfil.racha_dias_actual if perfil else 0,
-            })
-        filas_raw.sort(key=lambda r: (-r['puntos'], -r['nivel'], r['nombre'].lower()))
-        filas = []
-        for pos, row in enumerate(filas_raw[:limite], start=1):
-            filas.append({**row, 'posicion': pos})
-        filas = _etiquetas_filas(filas, modo)
+        filas = _etiquetas_filas(_filas_puntos_curso(curso, limite=limite), modo)
     else:
         return {
             'activo': False,
@@ -156,18 +147,10 @@ def ranking_curso_profesor(cliente, curso: Curso, *, limite: int = 100) -> dict:
             'filas': [],
             'top3': [],
             'modo': 'desactivado',
+            'ambito': 'curso',
             'curso': curso,
-            'grupos': grupos,
+            'grupos': [],
         }
-
-    grupos_detalle = []
-    for g in grupos:
-        if modo == 'calificacion':
-            gf = ranking_calificacion_grupo(g, cliente, curso_id=curso.pk, limite=50)
-        else:
-            gf = ranking_puntos_grupo(g, limite=50)
-        gf = _etiquetas_filas(gf, modo)
-        grupos_detalle.append({'grupo': g, 'filas': gf, 'top3': gf[:3]})
 
     return {
         'activo': True,
@@ -175,8 +158,10 @@ def ranking_curso_profesor(cliente, curso: Curso, *, limite: int = 100) -> dict:
         'filas': filas,
         'top3': filas[:3],
         'modo': modo,
+        'ambito': 'curso',
         'curso': curso,
-        'grupos': grupos_detalle,
+        # Por ahora no mostramos ranking por grupo (sigue disponible en helpers).
+        'grupos': [],
         'mi_posicion': None,
         'mi_puntos': None,
         'lider_puntos': filas[0].get('puntos', 0) if filas and modo == 'puntos' else None,
@@ -188,6 +173,12 @@ def resumen_ranking_aula(
     estudiante: Estudiante,
     curso: Curso | None = None,
 ) -> dict:
+    """
+    Ranking del aula para el estudiante.
+
+    Por ahora: un solo ranking **general del curso** (no por grupo).
+    Sin curso: vacío (la UI de ranking vive en la pestaña del curso).
+    """
     cliente = getattr(estudiante, 'cliente', None)
     if not gamificacion_activa(cliente):
         return {
@@ -195,28 +186,39 @@ def resumen_ranking_aula(
             'grupo': None,
             'filas': [],
             'modo': 'desactivado',
+            'ambito': 'curso',
             'mi_posicion': None,
+            'curso': curso,
         }
 
-    grupo = _grupo_para_ranking(estudiante, curso)
-    if not grupo:
+    if curso is None:
         return {
             'activo': True,
             'grupo': None,
             'filas': [],
-            'modo': 'sin_grupo',
+            'top3': [],
+            'modo': 'sin_curso',
+            'ambito': 'curso',
             'mi_posicion': None,
+            'curso': None,
         }
 
     if modo_usa_calificacion(cliente):
-        filas = ranking_calificacion_grupo(grupo, cliente, curso_id=curso.pk if curso else None)
         modo = 'calificacion'
+        filas = ranking_calificaciones_cliente(cliente, curso_id=curso.pk, limite=100)
     elif modo_usa_puntos(cliente):
-        filas = ranking_puntos_grupo(grupo)
         modo = 'puntos'
+        filas = _filas_puntos_curso(curso, limite=100)
     else:
-        filas = []
-        modo = 'desactivado'
+        return {
+            'activo': False,
+            'grupo': None,
+            'filas': [],
+            'modo': 'desactivado',
+            'ambito': 'curso',
+            'mi_posicion': None,
+            'curso': curso,
+        }
 
     filas = _etiquetas_filas(filas, modo)
 
@@ -235,10 +237,11 @@ def resumen_ranking_aula(
 
     return {
         'activo': True,
-        'grupo': grupo,
+        'grupo': None,
         'filas': filas,
         'top3': filas[:3],
         'modo': modo,
+        'ambito': 'curso',
         'mi_posicion': mi_posicion,
         'mi_puntos': mi_puntos,
         'lider_puntos': lider_puntos,

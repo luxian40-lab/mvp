@@ -184,12 +184,13 @@
     <div class="eki-lb__head">
         <div>
             <p class="eki-lb__kicker">Clasificación</p>
-            <h2 class="eki-lb__title">Ranking de estudiantes</h2>
+            <h2 class="eki-lb__title">Ranking general del curso</h2>
             <p class="eki-lb__meta">
                 {% if ranking.modo == 'calificacion' %}
-                Por promedio ponderado de notas del curso.
+                Clasificación general del curso por promedio ponderado de notas
+                (asistencia + tareas). No depende de WhatsApp.
                 {% elif ranking.modo == 'puntos' %}
-                Por puntos de gamificación (WhatsApp + actividades).
+                Clasificación general del curso por puntos de gamificación.
                 {% else %}
                 Vista del ranking del curso.
                 {% endif %}

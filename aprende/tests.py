@@ -383,6 +383,35 @@ class AprendeWebTests(TestCase):
         self.assertEqual(entrega.nota, 4)
         self.assertEqual(entrega.comentario_profesor, 'Buen trabajo')
 
+    def test_estudiante_comenta_despues_de_calificacion(self):
+        tarea = TareaCurso.objects.create(curso=self.curso, titulo='T2', instrucciones='x')
+        archivo = SimpleUploadedFile('t2.pdf', b'%PDF', content_type='application/pdf')
+        entrega = EntregaTarea.objects.create(
+            tarea=tarea,
+            estudiante=self.est,
+            archivo=archivo,
+            nombre_archivo='t2.pdf',
+            comentario_estudiante='Al entregar',
+            nota=5,
+            comentario_profesor='Excelente',
+        )
+        self._login_estudiante(telefono="3009999002")
+        r = self.http.post(f'/aprende/estudiante/tarea/{tarea.id}/', {
+            'accion': 'respuesta',
+            'respuesta': 'Gracias profe, lo reviso',
+        })
+        self.assertEqual(r.status_code, 302)
+        entrega.refresh_from_db()
+        self.assertEqual(entrega.respuesta_estudiante, 'Gracias profe, lo reviso')
+        self.assertEqual(entrega.nota, 5)
+        r2 = self.http.get(f'/aprende/estudiante/tarea/{tarea.id}/')
+        self.assertContains(r2, 'Comentar la calificación')
+        self.assertContains(r2, 'Gracias profe, lo reviso')
+        self.http.post('/aprende/profesor/login/', {'username': 'prof_ap', 'password': 'pass'})
+        r3 = self.http.get(f'/aprende/profesor/tarea/{tarea.id}/entregas/')
+        self.assertContains(r3, 'Respuesta tras nota')
+        self.assertContains(r3, 'Gracias profe, lo reviso')
+
     def test_aula_solo_modulos_habilitados_por_admin(self):
         from datetime import timedelta
 
@@ -564,7 +593,7 @@ class AprendeWebTests(TestCase):
         self.assertNotContains(r2, 'Subir documento')
         self.assertContains(r2, '*listo*')
 
-    def test_ranking_grupo_en_perfil(self):
+    def test_ranking_general_en_perfil(self):
         from core.gamificacion import PerfilGamificacion
         from core.models_extras import GrupoEstudiantes
 
@@ -575,6 +604,7 @@ class AprendeWebTests(TestCase):
             cliente=self.cliente,
             activo=True,
         )
+        ProgresoEstudiante.objects.get_or_create(estudiante=est2, curso=self.curso)
         grupo = GrupoEstudiantes.objects.create(nombre='Grupo Norte', cliente=self.cliente, activo=True)
         grupo.estudiantes.add(self.est, est2)
         grupo.cursos.add(self.curso)
@@ -588,7 +618,8 @@ class AprendeWebTests(TestCase):
         self._login_estudiante(telefono="3009999002")
         r = self.http.get('/aprende/estudiante/perfil/')
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'Grupo Norte')
+        self.assertContains(r, 'Clasificación general')
+        self.assertNotContains(r, 'Grupo Norte')
         self.assertContains(r, 'Compañero')
         self.assertContains(r, 'Tú')
 
@@ -603,7 +634,7 @@ class AprendeWebTests(TestCase):
         self.assertEqual(r2.status_code, 200)
         self.assertContains(r2, 'Tarea curso')
 
-    def test_ranking_curso_por_grupo(self):
+    def test_ranking_curso_general(self):
         from core.gamificacion import PerfilGamificacion
         from core.models_extras import GrupoEstudiantes
 
@@ -614,6 +645,8 @@ class AprendeWebTests(TestCase):
             cliente=self.cliente,
             activo=True,
         )
+        ProgresoEstudiante.objects.get_or_create(estudiante=est2, curso=self.curso)
+        # Grupo existe pero el ranking mostrado es general del curso.
         grupo = GrupoEstudiantes.objects.create(nombre='Grupo Curso', cliente=self.cliente, activo=True)
         grupo.estudiantes.add(self.est, est2)
         grupo.cursos.add(self.curso)
@@ -629,7 +662,8 @@ class AprendeWebTests(TestCase):
         r = self.http.get(f'/aprende/estudiante/curso/{self.curso.id}/ranking/')
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Ranking del curso')
-        self.assertContains(r, 'Grupo Curso')
+        self.assertContains(r, 'Clasificación general')
+        self.assertNotContains(r, 'Ranking del grupo')
         self.assertContains(r, 'Líder Grupo')
         self.assertContains(r, 'eki-leaderboard-score__num">120')
         self.assertContains(r, 'Tu puesto')
@@ -797,7 +831,7 @@ class AprendeProfesorGestionTests(TestCase):
     def test_profesor_ve_ranking_del_curso(self):
         r = self.http.get(f'/aprende/profesor/curso/{self.curso.id}/ranking/')
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'Ranking de estudiantes')
+        self.assertContains(r, 'Ranking general del curso')
         self.assertContains(r, f'/aprende/profesor/curso/{self.curso.id}/ranking/')
         # CSS debe ir en <style> (extra_css), no como texto suelto antes del page-head
         html = r.content.decode('utf-8')
@@ -805,6 +839,11 @@ class AprendeProfesorGestionTests(TestCase):
         self.assertIn('.eki-lb', head)
         self.assertNotIn('.eki-lb {', body)
         self.assertContains(r, 'eki-lb-board')
+
+        r_list = self.http.get('/aprende/profesor/')
+        self.assertEqual(r_list.status_code, 200)
+        self.assertContains(r_list, f'/aprende/profesor/curso/{self.curso.id}/ranking/')
+        self.assertContains(r_list, 'Ranking')
 
     def test_borrar_asistencia_del_dia(self):
         from aprende.models import AsistenciaAula

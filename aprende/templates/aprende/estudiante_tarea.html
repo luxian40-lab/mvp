@@ -43,9 +43,25 @@
 {% if entrega and entrega.calificada %}
 <div class="eki-card" style="margin-bottom:1rem;">
     <p class="eki-muted" style="margin:0;font-size:0.85rem;">Entregado: {{ entrega.nombre_archivo|default:entrega.archivo.name }}</p>
+    {% if entrega.comentario_estudiante %}
+    <p style="margin:0.75rem 0 0;font-size:0.9rem;"><strong>Tu nota al entregar:</strong> {{ entrega.comentario_estudiante }}</p>
+    {% endif %}
 </div>
-{% endif %}
 
+<form method="post" class="eki-card">
+    {% csrf_token %}
+    <input type="hidden" name="accion" value="respuesta">
+    <h2 class="eki-h2">Comentar la calificación</h2>
+    <p class="eki-muted" style="margin:-0.25rem 0 1rem;">
+        Opcional. Puedes dejar un mensaje para tu profesor después de ver la nota (sin cambiar el archivo ni la calificación).
+    </p>
+    <div class="eki-field">
+        <label for="respuesta">Tu comentario</label>
+        <textarea name="respuesta" id="respuesta" rows="3" maxlength="2000" placeholder="Gracias, duda, o aclaración…">{{ entrega.respuesta_estudiante|default:'' }}</textarea>
+    </div>
+    <button type="submit" class="eki-btn eki-btn--primary">{% if entrega.respuesta_estudiante %}Actualizar comentario{% else %}Enviar comentario{% endif %}</button>
+</form>
+{% else %}
 <form method="post" enctype="multipart/form-data" class="eki-card">
     {% csrf_token %}
     <h2 class="eki-h2">{% if entrega %}Actualizar entrega{% else %}Subir tarea{% endif %}</h2>
@@ -54,24 +70,20 @@
     <div class="eki-field">
         <label for="archivo">Archivo</label>
         <div class="eki-file">
-            <input type="file" name="archivo" id="archivo" {% if not entrega %}required{% endif %} {% if entrega and entrega.calificada %}disabled{% endif %} accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.jpg,.jpeg,.png">
+            <input type="file" name="archivo" id="archivo" {% if not entrega %}required{% endif %} accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.jpg,.jpeg,.png">
             <span class="eki-file-name" id="archivo-nombre" aria-live="polite"></span>
         </div>
-        {% if entrega and not entrega.calificada %}
+        {% if entrega %}
         <p class="eki-muted" style="font-size:0.8rem;margin:0.35rem 0 0;">Archivo actual: {{ entrega.nombre_archivo|default:entrega.archivo.name }}</p>
         {% endif %}
     </div>
     <div class="eki-field">
         <label for="comentario">Comentario (opcional)</label>
-        <textarea name="comentario" id="comentario" rows="3" placeholder="Notas para el profesor…" {% if entrega and entrega.calificada %}disabled{% endif %}>{{ entrega.comentario_estudiante|default:'' }}</textarea>
+        <textarea name="comentario" id="comentario" rows="3" placeholder="Notas para el profesor…">{{ entrega.comentario_estudiante|default:'' }}</textarea>
     </div>
-
-    {% if not entrega or not entrega.calificada %}
     <button type="submit" class="eki-btn eki-btn--primary">{% if entrega %}Reenviar tarea{% else %}Entregar tarea{% endif %}</button>
-    {% else %}
-    <p class="eki-muted">Ya fue calificada. Si necesitas corregir, habla con tu profesor.</p>
-    {% endif %}
 </form>
+{% endif %}
 {% endblock %}
 {% block extra_js %}
 <script>
