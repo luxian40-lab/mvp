@@ -1,0 +1,69 @@
+{% extends "admin/eki_ops_base.html" %}
+
+{% block eki_ops_crumb %}Curso nuevo{% endblock %}
+
+{% block eki_ops_content %}
+<div class="eki-cn" style="max-width:560px;margin:0 auto;">
+  <header style="margin-bottom:1.25rem;">
+    <p style="margin:0 0 .35rem;font-size:.75rem;letter-spacing:.04em;text-transform:uppercase;color:#7A4E8E;font-weight:700;">Asistente</p>
+    <h1 style="margin:0 0 .4rem;font-size:1.55rem;">Curso nuevo</h1>
+    <p style="margin:0;color:#5c5668;font-size:.95rem;">
+      Nombre + organización + cuántos módulos. Luego abre el <strong>Module Builder</strong>
+      del primero para armar secciones y micros.
+    </p>
+  </header>
+
+  <form method="post" class="eki-cn__form" style="display:flex;flex-direction:column;gap:.85rem;background:#fff;border:1px solid rgba(30,27,36,.12);border-radius:12px;padding:1.25rem;">
+    {% csrf_token %}
+    <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.88rem;font-weight:600;">
+      Nombre del curso
+      <input type="text" name="nombre" value="{{ form.nombre }}" required maxlength="200"
+             placeholder="Ej. Impulso Joven Rural — cohort 3"
+             style="padding:.55rem .7rem;border-radius:8px;border:1px solid #ccc;font:inherit;font-weight:400;">
+    </label>
+
+    <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.88rem;font-weight:600;">
+      Descripción (opcional)
+      <textarea name="descripcion" rows="2" placeholder="Para qué es este curso"
+                style="padding:.55rem .7rem;border-radius:8px;border:1px solid #ccc;font:inherit;font-weight:400;">{{ form.descripcion }}</textarea>
+    </label>
+
+    <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.88rem;font-weight:600;">
+      Organización
+      <select name="cliente_id" style="padding:.55rem .7rem;border-radius:8px;border:1px solid #ccc;font:inherit;font-weight:400;">
+        <option value="">General (eki)</option>
+        {% for c in clientes %}
+        <option value="{{ c.id }}" {% if form.cliente_id == c.id|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.88rem;font-weight:600;">
+      Experiencia
+      <select name="modo_aula" style="padding:.55rem .7rem;border-radius:8px;border:1px solid #ccc;font:inherit;font-weight:400;">
+        {% for val, label in modo_choices %}
+        <option value="{{ val }}" {% if form.modo_aula == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.88rem;font-weight:600;">
+      Módulos iniciales (1–20)
+      <input type="number" name="n_modulos" min="1" max="20" value="{{ form.n_modulos }}" required
+             style="padding:.55rem .7rem;border-radius:8px;border:1px solid #ccc;font:inherit;font-weight:400;max-width:8rem;">
+    </label>
+
+    <div style="display:flex;flex-wrap:wrap;gap:.6rem;margin-top:.4rem;">
+      <button type="submit" style="background:#7A4E8E;color:#fff;border:0;border-radius:8px;padding:.6rem 1.1rem;font-weight:700;cursor:pointer;">
+        Crear y abrir Builder
+      </button>
+      <a href="{% url 'admin:core_curso_changelist' %}" style="align-self:center;color:#5c5668;font-size:.9rem;">Cancelar</a>
+    </div>
+  </form>
+
+  <p style="margin:1rem 0 0;font-size:.82rem;color:#5c5668;">
+    Alternativa con IA: <a href="/admin/crear-curso-ia/">Crear curso IA</a>.
+    Admin denso: <a href="{% url 'admin:core_curso_add' %}">Añadir curso clásico</a>.
+  </p>
+</div>
+{% endblock %}

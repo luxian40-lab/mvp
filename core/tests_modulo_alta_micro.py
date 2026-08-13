@@ -58,7 +58,15 @@ class ModuloAltaMicrocontenidosTests(TestCase):
         names_edit = [type(i).__name__ for i in self.admin.get_inline_instances(req, mod)]
         self.assertIn('PasoModuloInline', names_edit)
 
-    def test_response_add_redirige_a_edicion(self):
+    def _req_post_messages(self, path='/admin/core/modulo/add/', data=None):
+        req = self.rf.post(path, data or {})
+        req.user = self.user
+        setattr(req, 'session', 'session')
+        setattr(req, '_messages', FallbackStorage(req))
+        return req
+
+    @override_settings(EKI_MODULE_BUILDER_BETA=False, EKI_MODULE_BUILDER_CURSOS='')
+    def test_response_add_redirige_a_edicion_sin_builder(self):
         mod = Modulo.objects.create(
             curso=self.curso,
             numero=2,
@@ -66,11 +74,55 @@ class ModuloAltaMicrocontenidosTests(TestCase):
             descripcion='d',
             contenido='Contenido suficiente para validación de módulo.',
         )
-        req = self.rf.post('/admin/core/modulo/add/', {})
-        req.user = self.user
-        setattr(req, 'session', 'session')
-        setattr(req, '_messages', FallbackStorage(req))
-        resp = self.admin.response_add(req, mod)
+        resp = self.admin.response_add(self._req_post_messages(), mod)
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, reverse('admin:core_modulo_change', args=[mod.pk]))
+
+    @override_settings(EKI_MODULE_BUILDER_BETA=False, EKI_MODULE_BUILDER_CURSOS='*')
+    def test_response_add_redirige_a_builder(self):
+        mod = Modulo.objects.create(
+            curso=self.curso,
+            numero=3,
+            titulo='Creado Builder',
+            descripcion='d',
+            contenido='Contenido suficiente para validación de módulo.',
+        )
+        resp = self.admin.response_add(self._req_post_messages(), mod)
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, reverse('admin_module_builder', kwargs={'modulo_id': mod.pk}))
+
+    @override_settings(EKI_MODULE_BUILDER_BETA=False, EKI_MODULE_BUILDER_CURSOS='*')
+    def test_response_change_redirige_a_builder(self):
+        mod = Modulo.objects.create(
+            curso=self.curso,
+            numero=4,
+            titulo='Edit Builder',
+            descripcion='d',
+            contenido='Contenido suficiente para validación de módulo.',
+        )
+        resp = self.admin.response_change(
+            self._req_post_messages(f'/admin/core/modulo/{mod.pk}/change/'),
+            mod,
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, reverse('admin_module_builder', kwargs={'modulo_id': mod.pk}))
+
+    @override_settings(EKI_MODULE_BUILDER_BETA=False, EKI_MODULE_BUILDER_CURSOS='*')
+    def test_response_change_continue_no_fuerza_builder(self):
+        mod = Modulo.objects.create(
+            curso=self.curso,
+            numero=5,
+            titulo='Continue',
+            descripcion='d',
+            contenido='Contenido suficiente para validación de módulo.',
+        )
+        resp = self.admin.response_change(
+            self._req_post_messages(
+                f'/admin/core/modulo/{mod.pk}/change/',
+                {'_continue': '1'},
+            ),
+            mod,
+        )
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(resp.url, reverse('admin:core_modulo_change', args=[mod.pk]))
 
@@ -125,7 +177,7 @@ class ModuloAltaMicrocontenidosTests(TestCase):
             )
 
     def test_edicion_muestra_micro_y_tabs_estructura(self):
-        """Tras guardar, Microcontenidos y pestañas Unfold (Estructura / Microcontenidos)."""
+        """Tras guardar, pestañas Unfold Clase / Estructura / Materiales."""
         mod = Modulo.objects.create(
             curso=self.curso,
             numero=3,
@@ -144,8 +196,10 @@ class ModuloAltaMicrocontenidosTests(TestCase):
         self.assertIn('href="#secciones"', body)
         self.assertIn('href="#pasos"', body)
         self.assertIn('Estructura', body)
-        self.assertIn('Microcontenidos', body)
-        self.assertIn('Multimedia legacy', body)
+        self.assertIn('Materiales', body)
+        self.assertIn('Media (legacy)', body)
+        self.assertIn('Clase', body)
+        self.assertIn('clase_archivo', body)
         # Sin anclas Jazzmin con tildes rotas
         self.assertNotIn('href="#guía', body)
         self.assertNotIn('href="#duración', body)

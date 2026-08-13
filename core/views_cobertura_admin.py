@@ -66,7 +66,7 @@ def _curso_id_desde_request(request, org: Cliente | None) -> int | None:
 
 @staff_member_required
 def cobertura_admin_view(request):
-    clientes = Cliente.objects.filter(activo=True).order_by('nombre')
+    clientes = list(Cliente.objects.filter(activo=True).order_by('nombre'))
     org = _cliente_desde_request(request)
     cursos = Curso.objects.filter(cliente=org, activo=True).order_by('orden', 'nombre') if org else Curso.objects.none()
     # Sin cliente → cobertura global (todos los estudiantes activos)
@@ -82,9 +82,19 @@ def cobertura_admin_view(request):
         )
         chart_values = json.dumps([d['cantidad'] for d in resumen['por_departamento'][:12]])
 
+    # Acceso rápido: orgs con más estudiantes primero (tope 24 chips)
+    from django.db.models import Count
+
+    clientes_rapidos = list(
+        Cliente.objects.filter(activo=True)
+        .annotate(n_est=Count('estudiantes', distinct=True))
+        .order_by('-n_est', 'nombre')[:24]
+    )
+
     return render(request, 'admin/cobertura_mapa.html', {
         'titulo': 'Cobertura territorial' + ('' if org else ' (global)'),
         'clientes': clientes,
+        'clientes_rapidos': clientes_rapidos,
         'org': org,
         'cursos': cursos,
         'resumen': resumen,

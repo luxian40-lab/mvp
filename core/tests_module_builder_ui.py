@@ -50,6 +50,17 @@ class ModuleBuilderLogicTests(TestCase):
         self.assertEqual(huerfanos, [])
         self.assertEqual(arbol[0]['micros'][0].preview_kind, 'text')
 
+    def test_arbol_incluye_borradores_inactivos(self):
+        from core.admin.cursos import sembrar_plantilla_modulo
+
+        sembrar_plantilla_modulo(self.mod)
+        arbol, _ = arbol_modulo(self.mod, incluir_inactivos=True)
+        self.assertGreaterEqual(len(arbol), 1)
+        self.assertGreaterEqual(arbol[0]['n_micros'], 1)
+        self.assertFalse(arbol[0]['micros'][0].activo)
+        arbol_act, _ = arbol_modulo(self.mod, incluir_inactivos=False)
+        self.assertEqual(arbol_act[0]['n_micros'], 0)
+
     def test_media_preview_kind(self):
         self.assertEqual(media_preview_kind(''), 'text')
         self.assertEqual(media_preview_kind('https://x/a.PNG?v=1'), 'image')
@@ -166,11 +177,107 @@ class ModuleBuilderViewTests(TestCase):
         r = self.client.get(f'/admin/module-builder/{self.mod.id}/', secure=True)
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'eki-mb__drag-handle')
-        self.assertContains(r, 'Cómo entrar')
-        self.assertContains(r, 'palette')
+        self.assertContains(r, 'Guardar')
+        self.assertContains(r, 'Module Builder')
 
-    @override_settings(EKI_MODULE_BUILDER_BETA=False, SECURE_SSL_REDIRECT=False)
+    @override_settings(
+        EKI_MODULE_BUILDER_BETA=True,
+        SECURE_SSL_REDIRECT=False,
+        STORAGES={
+            'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+            'staticfiles': {
+                'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+            },
+        },
+    )
+    def test_post_add_micro_texto_y_rechazo_vacio(self):
+        self.client.force_login(self.staff)
+        sa = agregar_seccion(self.mod, 'A')
+        r_bad = self.client.post(
+            f'/admin/module-builder/{self.mod.id}/',
+            {'action': 'add_micro', 'seccion_id': str(sa.id), 'contenido': '   '},
+            secure=True,
+            follow=True,
+        )
+        self.assertEqual(r_bad.status_code, 200)
+        self.assertContains(r_bad, 'Escriba texto o suba un archivo')
+        self.assertEqual(
+            PasoModulo.objects.filter(modulo=self.mod, activo=True).count(), 0
+        )
+
+        r_ok = self.client.post(
+            f'/admin/module-builder/{self.mod.id}/',
+            {
+                'action': 'add_micro',
+                'seccion_id': str(sa.id),
+                'titulo': 'Intro',
+                'contenido': 'Hola estudiante',
+            },
+            secure=True,
+            follow=True,
+        )
+        self.assertEqual(r_ok.status_code, 200)
+        self.assertContains(r_ok, 'Microcontenido añadido')
+        self.assertTrue(
+            PasoModulo.objects.filter(
+                modulo=self.mod, contenido='Hola estudiante', activo=True
+            ).exists()
+        )
+
+    @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
+    def test_post_update_micro_guarda_texto_inicial(self):
+        self.client.force_login(self.staff)
+        from core.admin.cursos import sembrar_plantilla_modulo
+        from core.module_builder import actualizar_micro
+
+        sembrar_plantilla_modulo(self.mod)
+        paso = PasoModulo.objects.filter(modulo=self.mod).order_by('orden').first()
+        self.assertFalse(paso.activo)
+        r = self.client.post(
+            f'/admin/module-builder/{self.mod.id}/',
+            {
+                'action': 'update_micro',
+                'paso_id': str(paso.id),
+                'titulo': 'Bienvenida',
+                'contenido': 'Texto guardado en builder',
+                'activo': '1',
+            },
+            secure=True,
+            follow=True,
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Micro guardado')
+        paso.refresh_from_db()
+        self.assertEqual(paso.contenido, 'Texto guardado en builder')
+        self.assertTrue(paso.activo)
+
+        with self.assertRaises(ValueError):
+            actualizar_micro(paso, contenido='', activo=True)
+
+    @override_settings(
+        EKI_MODULE_BUILDER_BETA=False,
+        EKI_MODULE_BUILDER_CURSOS='',
+        SECURE_SSL_REDIRECT=False,
+    )
     def test_builder_denied_when_flag_off(self):
         self.client.force_login(self.staff)
         r = self.client.get(f'/admin/module-builder/{self.mod.id}/', secure=True)
         self.assertEqual(r.status_code, 403)
+
+    @override_settings(
+        EKI_MODULE_BUILDER_BETA=False,
+        EKI_MODULE_BUILDER_CURSOS='',
+        SECURE_SSL_REDIRECT=False,
+    )
+    def test_post_preserva_builder_query(self):
+        self.client.force_login(self.staff)
+        r = self.client.post(
+            f'/admin/module-builder/{self.mod.id}/?builder=1',
+            {'action': 'add_seccion', 'titulo': 'Sec', 'builder': '1'},
+            secure=True,
+        )
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('builder=1', r.url)
+        self.assertTrue(
+            SeccionModulo.objects.filter(modulo=self.mod, titulo='Sec').exists()
+        )

@@ -761,7 +761,9 @@ html:not(.dark) .eki-panel-eco__floor {
   position: relative;
   height: 540px;
   transform-style: preserve-3d;
-  transform: rotateX(10deg) rotateY(-6deg) translateZ(0);
+  --eki-eco-zoom: 1;
+  transform: rotateX(10deg) rotateY(-6deg) translateZ(0) scale(var(--eki-eco-zoom, 1));
+  transform-origin: 50% 45%;
   animation: eki-eco-drift 16s ease-in-out infinite alternate;
   touch-action: none;
 }
@@ -770,8 +772,8 @@ html:not(.dark) .eki-panel-eco__floor {
   cursor: grabbing;
 }
 @keyframes eki-eco-drift {
-  from { transform: rotateX(8deg) rotateY(-8deg) translateZ(0); }
-  to { transform: rotateX(12deg) rotateY(-3deg) translateZ(4px); }
+  from { transform: rotateX(8deg) rotateY(-8deg) translateZ(0) scale(var(--eki-eco-zoom, 1)); }
+  to { transform: rotateX(12deg) rotateY(-3deg) translateZ(4px) scale(var(--eki-eco-zoom, 1)); }
 }
 @media (prefers-reduced-motion: reduce) {
   .eki-panel-eco__scene { animation: none; }
@@ -815,11 +817,19 @@ html.dark .eki-panel-eco__reset {
 }
 .eki-panel-eco__wire {
   stroke: url(#ekiEcoWire);
-  stroke-width: 0.45;
+  stroke-width: 0.55;
   stroke-linecap: round;
   fill: none;
-  opacity: 0.9;
+  opacity: 0.95;
   filter: drop-shadow(0 0 3px rgba(154, 108, 172, 0.45));
+  stroke-dasharray: 1.2 0.35;
+  animation: eki-eco-flow 8s linear infinite;
+}
+@keyframes eki-eco-flow {
+  to { stroke-dashoffset: -16; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .eki-panel-eco__wire { animation: none; stroke-dasharray: none; }
 }
 
 .eki-panel-eco__orb {

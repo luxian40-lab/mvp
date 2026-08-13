@@ -53,6 +53,18 @@
         {% endif %}
     </form>
 
+    {% if clientes_rapidos %}
+    <div class="eki-cobertura-chips" role="navigation" aria-label="Acceso rápido por organización">
+      <span class="eki-cobertura-chips__label">Acceso rápido</span>
+      <a class="eki-cobertura-chip {% if not org %}is-active{% endif %}" href="{% url 'admin_cobertura_mapa' %}">Global</a>
+      {% for c in clientes_rapidos %}
+      <a class="eki-cobertura-chip {% if org and org.id == c.id %}is-active{% endif %}"
+         href="{% url 'admin_cobertura_mapa' %}?cliente={{ c.id }}"
+         title="{{ c.n_est }} participante(s)">{{ c.nombre }}{% if c.n_est %} · {{ c.n_est }}{% endif %}</a>
+      {% endfor %}
+    </div>
+    {% endif %}
+
     {% if resumen %}
 
     <div class="eki-banner-global">

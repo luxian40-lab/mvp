@@ -107,6 +107,11 @@ UNFOLD = {
             "link": reverse_lazy("admin:core_curso_changelist"),
         },
         {
+            "icon": "add_circle",
+            "title": _("Curso nuevo"),
+            "link": "/admin/curso-nuevo/",
+        },
+        {
             "icon": "campaign",
             "title": _("Campañas"),
             "link": reverse_lazy("admin:core_campana_changelist"),
@@ -291,6 +296,11 @@ UNFOLD = {
                         "title": _("Panel GEI"),
                         "icon": "eco",
                         "link": "/admin/gei/panel/",
+                    },
+                    {
+                        "title": _("Curso nuevo"),
+                        "icon": "add_circle",
+                        "link": "/admin/curso-nuevo/",
                     },
                     {
                         "title": _("Crear curso IA"),

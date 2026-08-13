@@ -14,5 +14,18 @@
     <a class="eki-ops-back" href="{% url 'admin:index' %}">← Volver al admin</a>
     {% block eki_ops_extra_nav %}{% endblock %}
 </p>
+{% if messages %}
+<ul class="eki-ops-messages" role="status">
+  {% for message in messages %}
+  <li class="eki-ops-msg eki-ops-msg--{{ message.tags|default:'info' }}">{{ message }}</li>
+  {% endfor %}
+</ul>
+<style>
+.eki-ops-messages{list-style:none;margin:0 0 1rem;padding:0;max-width:880px}
+.eki-ops-msg{padding:.65rem .9rem;border-radius:8px;margin:0 0 .4rem;font-size:.92rem}
+.eki-ops-msg--success,.eki-ops-msg--info{background:#e5f6ea;color:#1f7a3a;border:1px solid #b7e0c2}
+.eki-ops-msg--error,.eki-ops-msg--warning{background:#fdf2f2;color:#8a2424;border:1px solid #f0c0c0}
+</style>
+{% endif %}
 {% block eki_ops_content %}{% endblock %}
 {% endblock %}

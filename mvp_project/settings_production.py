@@ -63,14 +63,15 @@ if _integracion_req_prod in ('0', 'false', 'no', 'off'):
 else:
     INTEGRACION_API_REQUIRE_KEY = True
 
-# Module Builder: OFF en prod salvo EKI_MODULE_BUILDER_BETA=1
+# Module Builder: allowlist `*` = todos los cursos (A+B ago 2026).
+# Flag global sigue opt-in vía EKI_MODULE_BUILDER_BETA=1 (o superuser ?builder=1).
 _EKI_MB = os.environ.get('EKI_MODULE_BUILDER_BETA', '').strip().lower()
 EKI_MODULE_BUILDER_BETA = _EKI_MB in ('1', 'true', 'yes', 'on')
 
-# Piloto por curso: Builder ON solo para estos cursos aunque el flag global esté OFF.
-# Default: "Impulso Joven Rural". Override con env EKI_MODULE_BUILDER_CURSOS (coma-sep).
+# Default `*`: Builder visible en todos los cursos aunque beta esté OFF.
+# Restringir con env, ej. EKI_MODULE_BUILDER_CURSOS=impulso joven rural,cenipalma
 EKI_MODULE_BUILDER_CURSOS = os.environ.get(
-    'EKI_MODULE_BUILDER_CURSOS', 'impulso joven rural'
+    'EKI_MODULE_BUILDER_CURSOS', '*'
 )
 
 # ?: (security.W009) SECRET_KEY debe ser largo y aleatorio

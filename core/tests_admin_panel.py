@@ -45,7 +45,8 @@ class PanelSnapshotHelpersTests(SimpleTestCase):
         self.assertIn('nat', ids)
         self.assertIn('certs', ids)
         self.assertIn('infra', ids)
-        self.assertEqual(len(eco['nodos']), 11)
+        self.assertEqual(len(eco['nodos']), 12)
+        self.assertIn('cobertura', ids)
 
 
 @override_settings(
@@ -80,7 +81,7 @@ class PanelViewTests(TestCase):
         self.assertIn("ecosistema", snap)
         self.assertIn("actualizado", snap)
         eco = snap["ecosistema"]
-        self.assertEqual(len(eco["nodos"]), 11)
+        self.assertEqual(len(eco["nodos"]), 12)
         self.assertTrue(eco["aristas"])
         ids = {n["id"] for n in eco["nodos"]}
         self.assertEqual(
@@ -97,6 +98,7 @@ class PanelViewTests(TestCase):
                 "certs",
                 "impacto",
                 "infra",
+                "cobertura",
             },
         )
         pairs = {(e["from"], e["to"]) for e in eco["aristas"]}

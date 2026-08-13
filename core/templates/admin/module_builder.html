@@ -5,9 +5,9 @@
 
 {% block extrahead %}
 {{ block.super }}
-<link rel="stylesheet" href="{% static 'admin/css/module_builder.css' %}?v=6">
+<link rel="stylesheet" href="{% static 'admin/css/module_builder.css' %}?v=7">
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" defer></script>
-<script src="{% static 'admin/js/module_builder.js' %}?v=6" defer></script>
+<script src="{% static 'admin/js/module_builder.js' %}?v=7" defer></script>
 {% endblock %}
 
 {% block eki_ops_extra_nav %}
@@ -29,16 +29,17 @@
       <p class="eki-mb__hint">
         Arrastra con <strong>⋮⋮</strong> (micros solo dentro de su sección; secciones enteras).
         Un <strong>*listo*</strong> = una sección. Sin envío WhatsApp.
-        Tonos del admin: icono <strong>palette</strong> en la barra superior (junto a Light/Dark).
-      </p>
-      <p class="eki-mb__access">
-        <strong>Cómo entrar:</strong> listado Módulos → columna <strong>Builder</strong>,
-        o ficha del módulo → botón <strong>Module Builder</strong> arriba,
-        o el enlace en la guía de la pestaña Clase.
-        Aquí editas secciones + micros. Drip / fechas / agentes siguen en admin clásico.
+        <strong>Guarde texto</strong> en cada micro con el botón Guardar; active cuando esté listo.
       </p>
     </div>
   </header>
+
+  {% if n_borradores %}
+  <div class="eki-mb__alert eki-mb__alert--warn" role="status">
+    Hay <strong>{{ n_borradores }}</strong> micro(s) en borrador (inactivos).
+    Escriba el texto → <strong>Guardar</strong> → marque <strong>Activo</strong> para WhatsApp.
+  </div>
+  {% endif %}
 
   {% if diag.intercalado %}
   <div class="eki-mb__alert eki-mb__alert--bad" role="alert">
@@ -47,6 +48,7 @@
   {% else %}
   <div class="eki-mb__alert eki-mb__alert--ok">
     Estructura OK · {{ diag.n_secciones }} sección(es) · {{ diag.n_micros }} micro(s) activos
+    {% if n_borradores %} · {{ n_borradores }} borrador(es){% endif %}
   </div>
   {% endif %}
 
@@ -65,11 +67,12 @@
 
     <ul class="eki-mb__list" data-seccion="{{ bloque.seccion.id }}">
       {% for m in bloque.micros %}
-      <li class="eki-mb__row" data-paso="{{ m.id }}">
+      <li class="eki-mb__row {% if not m.activo %}eki-mb__row--draft{% endif %}" data-paso="{{ m.id }}">
         <span class="eki-mb__drag-handle eki-mb__drag-handle--micro" title="Arrastrar micro" aria-label="Arrastrar micro">⋮⋮</span>
         <div class="eki-mb__row-move">
           <form method="post" class="eki-mb__inline-form">
             {% csrf_token %}
+            {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
             <input type="hidden" name="action" value="move_micro">
             <input type="hidden" name="paso_id" value="{{ m.id }}">
             <input type="hidden" name="direction" value="up">
@@ -77,6 +80,7 @@
           </form>
           <form method="post" class="eki-mb__inline-form">
             {% csrf_token %}
+            {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
             <input type="hidden" name="action" value="move_micro">
             <input type="hidden" name="paso_id" value="{{ m.id }}">
             <input type="hidden" name="direction" value="down">
@@ -99,27 +103,31 @@
         {% endif %}
 
         <div class="eki-mb__row-body">
-          <p class="eki-mb__row-title">
-            {% if m.titulo %}{{ m.titulo|truncatechars:80 }}
-            {% elif m.contenido %}{{ m.contenido|truncatechars:80 }}
-            {% else %}(sin título){% endif %}
-          </p>
-          <p class="eki-mb__row-meta">
-            orden {{ m.orden }}
-            {% if m.preview_kind == "video" %} · video
-            {% elif m.preview_kind == "image" %} · imagen
-            {% elif m.preview_kind == "file" %} · archivo
-            {% else %} · texto{% endif %}
-            {% if m.media_url %}
-              {% if m.media_wa_apto == True %}<span class="eki-mb__badge eki-mb__badge--ok">apto WA</span>
-              {% elif m.media_wa_apto == False %}<span class="eki-mb__badge eki-mb__badge--bad">no apto</span>
-              {% elif m.preview_kind == "video" %}<span class="eki-mb__badge">legado</span>{% endif %}
-            {% endif %}
-          </p>
+          <form method="post" class="eki-mb__edit-micro">
+            {% csrf_token %}
+            {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
+            <input type="hidden" name="action" value="update_micro">
+            <input type="hidden" name="paso_id" value="{{ m.id }}">
+            <input type="text" name="titulo" value="{{ m.titulo }}" placeholder="Título interno" class="eki-mb__input eki-mb__input--compact">
+            <textarea name="contenido" rows="2" placeholder="Texto al estudiante" class="eki-mb__input">{{ m.contenido }}</textarea>
+            <div class="eki-mb__edit-actions">
+              <label class="eki-mb__check">
+                <input type="checkbox" name="activo" value="1" {% if m.activo %}checked{% endif %}>
+                Activo (WhatsApp)
+              </label>
+              {% if not m.activo %}<span class="eki-mb__badge">borrador</span>{% endif %}
+              {% if m.media_url %}
+                {% if m.media_wa_apto == True %}<span class="eki-mb__badge eki-mb__badge--ok">apto WA</span>
+                {% elif m.media_wa_apto == False %}<span class="eki-mb__badge eki-mb__badge--bad">no apto</span>{% endif %}
+              {% endif %}
+              <button type="submit" class="eki-mb__btn eki-mb__btn--primary eki-mb__btn--sm">Guardar</button>
+            </div>
+          </form>
         </div>
         <span class="eki-mb__status {% if m.activo %}eki-mb__status--on{% endif %}" title="{% if m.activo %}Activo{% else %}Inactivo{% endif %}"></span>
         <form method="post" class="eki-mb__inline-form" onsubmit="return confirm('¿Desactivar este micro?');">
           {% csrf_token %}
+          {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
           <input type="hidden" name="action" value="deactivate_micro">
           <input type="hidden" name="paso_id" value="{{ m.id }}">
           <button type="submit" class="eki-mb__icon-btn eki-mb__icon-btn--danger" title="Desactivar">✕</button>
@@ -132,6 +140,7 @@
 
     <form method="post" enctype="multipart/form-data" class="eki-mb__add-micro">
       {% csrf_token %}
+      {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
       <input type="hidden" name="action" value="add_micro">
       <input type="hidden" name="seccion_id" value="{{ bloque.seccion.id }}">
       <p class="eki-mb__form-label">+ Añadir contenido a esta sección</p>
@@ -155,6 +164,7 @@
   <div class="eki-mb__footer-actions">
     <form method="post" class="eki-mb__add-sec">
       {% csrf_token %}
+      {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
       <input type="hidden" name="action" value="add_seccion">
       <input type="text" name="titulo" placeholder="Nombre de la nueva sección" class="eki-mb__input" required>
       <button type="submit" class="eki-mb__btn eki-mb__btn--outline">+ Añadir sección</button>

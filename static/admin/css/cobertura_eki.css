@@ -34,6 +34,51 @@
     font-size: 0.9rem;
 }
 
+.eki-cobertura-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
+    margin: 0 0 1.15rem;
+    padding: 0.65rem 0.75rem;
+    background: #f3eef7;
+    border: 1px solid #e2d6ec;
+    border-radius: 10px;
+}
+.eki-cobertura-chips__label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #7A4E8E;
+    margin-right: 0.35rem;
+}
+.eki-cobertura-chip {
+    display: inline-flex;
+    align-items: center;
+    max-width: 14rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0.28rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+    color: #5F3A6E;
+    background: #fff;
+    border: 1px solid #d4c4e0;
+}
+.eki-cobertura-chip:hover {
+    border-color: #9A6CAC;
+    background: #faf7fc;
+}
+.eki-cobertura-chip.is-active {
+    background: #7A4E8E;
+    border-color: #7A4E8E;
+    color: #fff;
+}
+
 .eki-filtros {
     display: flex;
     flex-wrap: wrap;

@@ -114,8 +114,8 @@ class ClienteAdmin(admin.ModelAdmin):
         'activo',
         'estudiantes_activos',
         'cursos_asignados',
+        'mapa_cobertura_rapido',
         'contacto_principal',
-        'email',
     )
     list_filter = ('activo',)
     search_fields = ('nombre', 'nit', 'contacto_principal', 'email')
@@ -358,6 +358,16 @@ class ClienteAdmin(admin.ModelAdmin):
         )
 
     cobertura_y_drip_acciones.short_description = 'Mapa y listas'
+
+    @admin.display(description='Cobertura')
+    def mapa_cobertura_rapido(self, obj):
+        if not obj or not obj.pk:
+            return '—'
+        url = reverse('admin_cobertura_mapa') + f'?cliente={obj.pk}'
+        return format_html(
+            '<a href="{}" style="font-weight:600;color:#7A4E8E;">Mapa →</a>',
+            url,
+        )
 
     def empleabilidad_kpis_resumen(self, obj):
         if not obj or not obj.pk:

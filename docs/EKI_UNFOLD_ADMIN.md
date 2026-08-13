@@ -33,8 +33,8 @@ Regla Cursor (auto al tocar archivos admin): `.cursor/rules/eki-unfold-admin.mdc
 | Jump sticky módulos | `static/admin/js/eki_modulo_jump.js` |
 | CSS módulo WhatsApp bloques | `static/admin/css/modulo_whatsapp_bloques.css` |
 | Alta módulo (plantilla) | `sembrar_plantilla_modulo` en `core/admin/cursos.py` — 1 bloque + N microcontenidos inactivos; default modo Pasos; inlines con `tab=True` (Estructura / Microcontenidos / Multimedia legacy / Examen) |
-| **Module Builder WA** | `/admin/module-builder/<id>/` · flag `EKI_MODULE_BUILDER_BETA` (local ON, **prod OFF** salvo env `=1`) · vista `core/views_module_builder.py`, lógica `core/module_builder.py`, template `core/templates/admin/module_builder.html`, CSS/JS `static/admin/{css,js}/module_builder.*` · `docs/MODULE_BUILDER_WA.md` |
-| Entradas al Builder | Columna **Builder** en listado Módulos + botón detalle **Module Builder** (`actions_detail` Unfold en `ModuloAdmin`) + enlace en guía pestaña Clase |
+| **Module Builder WA** | `/admin/module-builder/<id>/` · flag `EKI_MODULE_BUILDER_BETA` (local ON; prod OFF salvo `=1`) · allowlist `EKI_MODULE_BUILDER_CURSOS` default `*` · vista `core/views_module_builder.py`, lógica `core/module_builder.py`, template `core/templates/admin/module_builder.html`, CSS/JS `static/admin/{css,js}/module_builder.*` · `docs/MODULE_BUILDER_WA.md` |
+| Entradas al Builder | Columna **Builder** + botón detalle + enlace guía Clase + **redirect tras crear/guardar módulo** |
 | Drag Builder (rieles) | SortableJS: micros solo dentro de su sección + reordenar secciones enteras; POST `reorder_micros` / `reorder_secciones`; valida anti-intercalado (`core/module_structure.py`). ↑↓ como respaldo |
 | Drag orden inlines (clásico) | `ordering_field = "orden"` en Secciones/Pasos/Multimedia; `save_formset` + `core/orden_bloques.py` (temp + renúmero 1..n). ↑↓ siguen como respaldo |
 | **Tonos admin** (Mañana/Tarde/Noche) | Dropdown `palette` en el nav: `templates/unfold/helpers/eki_tone_switch_dropdown.html`; estilos `static/admin/css/eki_admin_tones.css`; lógica `static/admin/js/eki_admin_tones.js` (`html[data-eki-tone]`, persiste `localStorage`). Noche = carbón cálido (ojos) |
@@ -74,9 +74,9 @@ Desplegado a `eki-prod-final` (Health Green, `/health/` 200). Sin migración de 
 
 - **Campañas** — lenguaje de producto (Mensaje inicial / Plantilla / Participantes / Resultados) + ficha resumen del lanzamiento arriba del change form. Mismo motor de envío (Content SID / Twilio interno).
 - **Certificados** — biblioteca: miniatura en lista, “Usada en X cursos”, Duplicar y Generar certificado de prueba (descarga). Preview lateral intacto; se distingue **plantilla** (diseño) de **certificado emitido**.
-- **Module Builder WA** — código en prod pero **OFF** (`EKI_MODULE_BUILDER_BETA` no seteado ⇒ `False` en `settings_production`). Los módulos vivos siguen en el admin clásico; el Builder no reescribe cursos existentes. Añade drag con rieles + miniaturas de media.
+- **Module Builder WA** — allowlist prod default `*` (todos los cursos) aunque `EKI_MODULE_BUILDER_BETA` siga OFF. Tras crear/guardar módulo se abre el Builder. El admin clásico sigue disponible. Drag con rieles + miniaturas de media.
 - **Tonos admin** — Mañana / Tarde / Noche en el nav (icono `palette`), aplican a todo Unfold; Noche pensado para descanso visual.
 
-**Encender el Builder en prod (piloto):** setear env `EKI_MODULE_BUILDER_BETA=1` en EB, o `?builder=1` como superusuario. Recomendado solo tras QA en 1–2 módulos no críticos.
+**Restringir Builder en prod:** `EKI_MODULE_BUILDER_CURSOS=impulso joven rural` (coma-sep) o allowlist vacía + beta OFF. Superusuario: `?builder=1`.
 
-Última actualización: 2026-08-07.
+Última actualización: 2026-08-12.

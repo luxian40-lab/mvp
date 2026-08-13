@@ -53,6 +53,7 @@ from core.views_infra_admin import infra_monitor_api, infra_monitor_view
 from core.views_copiar_curso import copiar_curso_cliente_view
 from core.views_admin_panel import admin_panel_view
 from core.views_module_builder import module_builder_view
+from core.views_curso_nuevo import curso_nuevo_wizard
 
 urlpatterns = [
     path('admin/panel/', admin_panel_view, name='admin_panel'),
@@ -119,5 +120,10 @@ urlpatterns = [
         'admin/module-builder/<int:modulo_id>/',
         module_builder_view,
         name='admin_module_builder',
+    ),
+    path(
+        'admin/curso-nuevo/',
+        curso_nuevo_wizard,
+        name='admin_curso_nuevo',
     ),
 ]

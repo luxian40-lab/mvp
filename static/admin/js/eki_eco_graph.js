@@ -1,9 +1,9 @@
 /**
- * Ecosistema eki — nodos arrastrables + pan del escenario.
+ * Ecosistema eki — nodos arrastrables + pan + zoom + cables curvos.
  * Posiciones en % del scene; persistencia localStorage.
  */
 (function () {
-  var STORAGE_KEY = 'eki_eco_layout_v2';
+  var STORAGE_KEY = 'eki_eco_layout_v3';
   var DRAG_THRESHOLD = 6;
 
   function clamp(n, min, max) {
@@ -14,8 +14,8 @@
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
       if (raw) return JSON.parse(raw);
-      // migrar layout v1 si existe
-      var legacy = localStorage.getItem('eki_eco_layout_v1');
+      var legacy = localStorage.getItem('eki_eco_layout_v2')
+        || localStorage.getItem('eki_eco_layout_v1');
       return legacy ? JSON.parse(legacy) : {};
     } catch (e) {
       return {};
@@ -28,6 +28,21 @@
     } catch (e) { /* ignore quota */ }
   }
 
+  function curvePath(a, b) {
+    var mx = (a.x + b.x) / 2;
+    var my = (a.y + b.y) / 2;
+    var dx = b.x - a.x;
+    var dy = b.y - a.y;
+    var len = Math.hypot(dx, dy) || 1;
+    // Perpendicular bulge toward centroide (50,50) feel
+    var nx = -dy / len;
+    var ny = dx / len;
+    var bulge = clamp(len * 0.18, 4, 14);
+    var cx = mx + nx * bulge;
+    var cy = my + ny * bulge;
+    return 'M ' + a.x + ' ' + a.y + ' Q ' + cx + ' ' + cy + ' ' + b.x + ' ' + b.y;
+  }
+
   function init(root) {
     var scene = root.querySelector('.eki-panel-eco__scene');
     var svg = root.querySelector('.eki-panel-eco__wires');
@@ -38,6 +53,9 @@
     if (!orbs.length) return;
 
     var layout = loadLayout();
+    var scale = (layout._zoom && typeof layout._zoom === 'number') ? layout._zoom : 1;
+    scale = clamp(scale, 0.72, 1.35);
+
     orbs.forEach(function (orb) {
       var id = orb.getAttribute('data-eco-id');
       if (layout[id] && typeof layout[id].x === 'number' && typeof layout[id].y === 'number') {
@@ -48,6 +66,7 @@
     if (layout._pan && typeof layout._pan.x === 'number') {
       scene.style.translate = layout._pan.x + 'px ' + (layout._pan.y || 0) + 'px';
     }
+    scene.style.setProperty('--eki-eco-zoom', String(scale));
 
     function posOf(id) {
       var el = scene.querySelector('.eki-panel-eco__orb[data-eco-id="' + id + '"]');
@@ -63,10 +82,14 @@
         var a = posOf(line.getAttribute('data-from'));
         var b = posOf(line.getAttribute('data-to'));
         if (!a || !b) return;
-        line.setAttribute('x1', a.x);
-        line.setAttribute('y1', a.y);
-        line.setAttribute('x2', b.x);
-        line.setAttribute('y2', b.y);
+        if (line.tagName && line.tagName.toLowerCase() === 'path') {
+          line.setAttribute('d', curvePath(a, b));
+        } else {
+          line.setAttribute('x1', a.x);
+          line.setAttribute('y1', a.y);
+          line.setAttribute('x2', b.x);
+          line.setAttribute('y2', b.y);
+        }
       });
     }
 
@@ -77,6 +100,7 @@
       resetBtn.addEventListener('click', function (ev) {
         ev.preventDefault();
         localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem('eki_eco_layout_v2');
         localStorage.removeItem('eki_eco_layout_v1');
         orbs.forEach(function (orb) {
           var dx = orb.getAttribute('data-eco-x');
@@ -85,10 +109,23 @@
           if (dy != null) orb.style.top = dy + '%';
         });
         scene.style.translate = '';
+        scale = 1;
+        scene.style.setProperty('--eki-eco-zoom', '1');
         layout = {};
         redrawWires();
       });
     }
+
+    // Zoom con rueda (Ctrl opcional no requerido — el stage lo captura)
+    root.addEventListener('wheel', function (ev) {
+      if (!root.contains(ev.target)) return;
+      ev.preventDefault();
+      var delta = ev.deltaY > 0 ? -0.06 : 0.06;
+      scale = clamp(scale + delta, 0.72, 1.35);
+      scene.style.setProperty('--eki-eco-zoom', String(scale));
+      layout._zoom = scale;
+      saveLayout(layout);
+    }, { passive: false });
 
     // Pan del escenario completo (fondo)
     (function bindPan() {
@@ -130,8 +167,8 @@
         if (!moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
         moved = true;
         ev.preventDefault();
-        var nx = clamp(originX + dx, -120, 120);
-        var ny = clamp(originY + dy, -80, 80);
+        var nx = clamp(originX + dx, -160, 160);
+        var ny = clamp(originY + dy, -110, 110);
         scene.style.translate = nx + 'px ' + ny + 'px';
       });
 

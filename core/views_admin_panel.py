@@ -255,6 +255,20 @@ def _build_ecosistema(
             'z': 6,
             'island': True,
         },
+        {
+            'id': 'cobertura',
+            'label': 'Cobertura',
+            'metric_label': 'Mapa territorial',
+            'value': f'{empresas} orgs' if empresas else 'Ver mapa',
+            'status': _nodo_status(est_activos > 0 or empresas > 0),
+            'url': '/admin/cobertura/',
+            'external': False,
+            'icon': 'map',
+            'x': 12,
+            'y': 48,
+            'z': 14,
+            'island': False,
+        },
     ]
     # Studio e Infra aislados: sin aristas. Studio ↛ Aprende.
     edges = [
@@ -264,6 +278,8 @@ def _build_ecosistema(
         ('campo', 'campanas'),
         ('campo', 'certs'),
         ('campo', 'impacto'),
+        ('campo', 'cobertura'),
+        ('cobertura', 'empresas'),
         ('aprende', 'ia'),
         ('portal', 'empresas'),
         ('empresas', 'campanas'),
@@ -306,7 +322,7 @@ def build_panel_snapshot(*, force: bool = False) -> dict[str, Any]:
     """KPIs y bloques del Panel (Inicio). Cache corto para no pesar /admin/."""
     from django.core.cache import cache
 
-    cache_key = 'admin_panel_snapshot_v4'
+    cache_key = 'admin_panel_snapshot_v5'
     if not force:
         cached = cache.get(cache_key)
         if cached:

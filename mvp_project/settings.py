@@ -17,6 +17,7 @@ DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'  # False en producción
 # Module Builder WA (admin módulos).
 # settings.py (local): ON por defecto — aunque .env traiga DJANGO_DEBUG=False.
 # settings_production.py: OFF salvo EKI_MODULE_BUILDER_BETA=1.
+# Allowlist: `*` = todos los cursos (aunque beta OFF).
 _EKI_MB = os.environ.get('EKI_MODULE_BUILDER_BETA', '').strip().lower()
 if _EKI_MB in ('0', 'false', 'no', 'off'):
     EKI_MODULE_BUILDER_BETA = False
@@ -26,9 +27,9 @@ else:
     EKI_MODULE_BUILDER_BETA = True
 
 # Allowlist de cursos con Builder ON aunque el flag global esté OFF (piloto por curso).
-# Tokens separados por coma: id exacto del curso o subcadena del nombre (case-insensitive).
+# Tokens: id, subcadena de nombre, o `*` / `all` = todos.
 EKI_MODULE_BUILDER_CURSOS = os.environ.get(
-    'EKI_MODULE_BUILDER_CURSOS', 'impulso joven rural'
+    'EKI_MODULE_BUILDER_CURSOS', '*'
 )
 
 # ALLOWED_HOSTS: acepta múltiples dominios separados por coma

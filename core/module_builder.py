@@ -34,19 +34,21 @@ def _tokens_cursos_builder() -> list[str]:
 def curso_en_allowlist_builder(curso) -> bool:
     """
     True si el curso está en EKI_MODULE_BUILDER_CURSOS.
-    Cada token se compara contra el id exacto o como subcadena del nombre.
+    Tokens: id exacto, subcadena del nombre, o `*` / `all` = todos los cursos.
     """
     if curso is None:
         return False
     tokens = _tokens_cursos_builder()
     if not tokens:
         return False
+    if any(tok in ('*', 'all', 'todos') for tok in tokens):
+        return True
     nombre = (getattr(curso, 'nombre', '') or '').strip().lower()
     cid = str(getattr(curso, 'id', '') or '')
     for tok in tokens:
         if tok.isdigit() and tok == cid:
             return True
-        if tok and not tok.isdigit() and tok in nombre:
+        if tok and not tok.isdigit() and tok not in ('*', 'all', 'todos') and tok in nombre:
             return True
     return False
 
@@ -73,16 +75,19 @@ def media_preview_kind(url: str) -> str:
     return 'file'
 
 
-def arbol_modulo(modulo) -> tuple[list[dict], list]:
-    """Árbol secciones → micros para la UI builder."""
+def arbol_modulo(modulo, *, incluir_inactivos: bool = True) -> tuple[list[dict], list]:
+    """
+    Árbol secciones → micros para la UI builder.
+    Por defecto incluye borradores (activo=False) de la plantilla de alta;
+    si no, la UI decía «Sin micros» aunque hubiera 3 pasos vacíos.
+    """
     secciones = list(
         SeccionModulo.objects.filter(modulo=modulo, activa=True).order_by('orden', 'id')
     )
-    pasos = list(
-        PasoModulo.objects.filter(modulo=modulo, activo=True)
-        .select_related('seccion')
-        .order_by('orden', 'id')
-    )
+    qs = PasoModulo.objects.filter(modulo=modulo).select_related('seccion')
+    if not incluir_inactivos:
+        qs = qs.filter(activo=True)
+    pasos = list(qs.order_by('orden', 'id'))
     by_sec: dict[int, list] = {s.id: [] for s in secciones}
     huerfanos = []
     for p in pasos:
@@ -131,6 +136,34 @@ def _renumerar_pasos(pasos_en_orden: list[PasoModulo]) -> None:
             PasoModulo.objects.filter(pk=p.pk).update(orden=base + i)
         for i, p in enumerate(pasos_en_orden, start=1):
             PasoModulo.objects.filter(pk=p.pk).update(orden=i)
+
+
+def actualizar_micro(
+    paso: PasoModulo,
+    *,
+    titulo: str | None = None,
+    contenido: str | None = None,
+    activo: bool | None = None,
+) -> PasoModulo:
+    """Actualiza texto/título/activo de un micro (guardado inicial en Builder)."""
+    fields = []
+    if titulo is not None:
+        paso.titulo = (titulo or '').strip()[:200]
+        fields.append('titulo')
+    if contenido is not None:
+        paso.contenido = (contenido or '').strip()
+        fields.append('contenido')
+    if activo is not None:
+        paso.activo = bool(activo)
+        fields.append('activo')
+    if not fields:
+        return paso
+    if paso.activo and not (paso.contenido or '').strip() and not (paso.media_url or '').strip():
+        raise ValueError(
+            'Para activar el micro escriba texto o suba media (admin clásico / + contenido).'
+        )
+    paso.save(update_fields=fields)
+    return paso
 
 
 def agregar_micro(

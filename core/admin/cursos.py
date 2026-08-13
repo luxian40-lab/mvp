@@ -1560,15 +1560,41 @@ class ModuloAdmin(admin.ModelAdmin):
             )
 
     def response_add(self, request, obj, post_url_continue=None):
-        """Tras crear, abrir el módulo en pestaña Clase."""
+        """Tras crear: Module Builder si está habilitado; si no, ficha Clase."""
         if '_addanother' in request.POST:
             return super().response_add(request, obj, post_url_continue)
+        from core.module_builder import module_builder_habilitado_para_curso
+
+        if module_builder_habilitado_para_curso(getattr(obj, 'curso', None), request):
+            self.message_user(
+                request,
+                'Módulo creado. Arme secciones y micros en el Module Builder.',
+                level=messages.SUCCESS,
+            )
+            return redirect('admin_module_builder', modulo_id=obj.pk)
         self.message_user(
             request,
             'Módulo creado. En pestaña Clase: texto + subir archivo → Activar → Guardar.',
             level=messages.SUCCESS,
         )
         return redirect('admin:core_modulo_change', obj.pk)
+
+    def response_change(self, request, obj):
+        """Tras guardar: ir al Module Builder (camino fácil A+B)."""
+        if '_addanother' in request.POST:
+            return super().response_change(request, obj)
+        if '_continue' in request.POST:
+            return super().response_change(request, obj)
+        from core.module_builder import module_builder_habilitado_para_curso
+
+        if module_builder_habilitado_para_curso(getattr(obj, 'curso', None), request):
+            self.message_user(
+                request,
+                'Guardado. Puede seguir en el Module Builder.',
+                level=messages.SUCCESS,
+            )
+            return redirect('admin_module_builder', modulo_id=obj.pk)
+        return super().response_change(request, obj)
 
     def ver_curso_link(self, obj):
         """Link directo al curso padre"""
@@ -1579,7 +1605,7 @@ class ModuloAdmin(admin.ModelAdmin):
     @admin.display(description='')
     def guia_microcontenidos_whatsapp(self, obj):
         """Guía Clase simple + prefs para JS (tab por defecto) + link Module Builder."""
-        from core.module_builder import module_builder_habilitado
+        from core.module_builder import module_builder_habilitado_para_curso
 
         prefer = '1'
         modo_clases = '0'
@@ -1587,14 +1613,13 @@ class ModuloAdmin(admin.ModelAdmin):
         if obj and obj.pk and obj.curso_id:
             modo_clases = '1' if obj.curso.es_modo_clases() else '0'
             prefer = '1' if (obj.curso.es_modo_clases() or obj.pasos.count() <= 1) else '0'
-            # request no disponible aquí; usamos settings (DEBUG/local ON).
-            if module_builder_habilitado(None):
+            if module_builder_habilitado_para_curso(obj.curso, None):
                 builder_html = (
                     f'<p class="eki-modulo-guia__line">'
                     f'<a href="/admin/module-builder/{obj.pk}/" style="font-weight:700;color:#7A4E8E;">'
                     f'→ Abrir Module Builder (secciones + micros)</a>'
-                    f' · beta local. Edita <b>Materiales / pasos WA</b> (no borra drip ni '
-                    f'«Disponible desde»). El texto legacy de Más opciones no se reescribe solo.</p>'
+                    f' · camino recomendado. Edita <b>Materiales / pasos WA</b> (no borra drip ni '
+                    f'«Disponible desde»). El admin clásico sigue abajo si lo necesita.</p>'
                 )
         return format_html(
             '<div class="eki-modulo-guia" id="eki-modulo-prefs" '

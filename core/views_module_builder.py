@@ -8,9 +8,11 @@ from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
 from core.module_builder import (
+    actualizar_micro,
     agregar_micro,
     agregar_seccion,
     arbol_modulo,
@@ -35,6 +37,14 @@ def _require_builder(request, curso=None):
             'Active EKI_MODULE_BUILDER_BETA=1, use ?builder=1 como superusuario, '
             'o añada el curso a EKI_MODULE_BUILDER_CURSOS.'
         )
+
+
+def _redirect_builder(request, modulo_id: int):
+    """302 al Builder preservando ?builder=1 (bypass superusuario)."""
+    url = reverse('admin_module_builder', kwargs={'modulo_id': modulo_id})
+    if request.GET.get('builder') == '1' or request.POST.get('builder') == '1':
+        return redirect(f'{url}?builder=1')
+    return redirect(url)
 
 
 @staff_member_required
@@ -83,6 +93,20 @@ def module_builder_view(request, modulo_id: int):
                         media_wa_apto=media_wa_apto,
                     )
                     messages.success(request, 'Microcontenido añadido.')
+            elif action == 'update_micro':
+                paso_id = int(request.POST.get('paso_id') or 0)
+                paso = get_object_or_404(PasoModulo, pk=paso_id, modulo=modulo)
+                titulo = request.POST.get('titulo')
+                contenido = request.POST.get('contenido')
+                # Checkbox: ausente = desactivar (el form de edición siempre lo contempla).
+                activo = (request.POST.get('activo') or '') in ('1', 'on', 'true', 'True')
+                actualizar_micro(
+                    paso,
+                    titulo=titulo if titulo is not None else None,
+                    contenido=contenido if contenido is not None else None,
+                    activo=activo,
+                )
+                messages.success(request, 'Micro guardado.')
             elif action == 'move_micro':
                 paso_id = int(request.POST.get('paso_id') or 0)
                 direction = (request.POST.get('direction') or '').strip()
@@ -117,10 +141,16 @@ def module_builder_view(request, modulo_id: int):
         except Exception as exc:
             logger.exception('module_builder POST')
             messages.error(request, f'Error: {exc}')
-        return redirect('admin_module_builder', modulo_id=modulo.id)
+        return _redirect_builder(request, modulo.id)
 
-    arbol, huerfanos = arbol_modulo(modulo)
+    arbol, huerfanos = arbol_modulo(modulo, incluir_inactivos=True)
     diag = diagnostico_estructura(modulo)
+    n_borradores = sum(
+        1
+        for b in arbol
+        for m in b.get('micros') or []
+        if not getattr(m, 'activo', True)
+    )
     ctx = {
         'title': f'Builder · Módulo {modulo.numero}',
         'modulo': modulo,
@@ -128,7 +158,11 @@ def module_builder_view(request, modulo_id: int):
         'arbol': arbol,
         'huerfanos': huerfanos,
         'diag': diag,
+        'n_borradores': n_borradores,
         'builder_on': True,
+        'builder_qs': '?builder=1' if (
+            request.GET.get('builder') == '1' or request.POST.get('builder') == '1'
+        ) else '',
         'change_url': f'/admin/core/modulo/{modulo.id}/change/',
     }
     return render(request, 'admin/module_builder.html', ctx)

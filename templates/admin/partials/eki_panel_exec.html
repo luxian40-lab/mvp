@@ -122,7 +122,7 @@
     </div>
     <p class="eki-panel-eco__intro">
       Campo WhatsApp es el centro. Studio e Infra flotan aparte · Studio no conecta a Aprende.
-      Arrastra nodos o el fondo del escenario · clic corto para entrar · Restablecer layout abajo.
+      Arrastra nodos o el fondo · rueda para zoom · clic corto para entrar · Restablecer layout abajo.
     </p>
     <div class="eki-panel-eco__stage" data-eki-eco-graph>
       <div class="eki-panel-eco__floor" aria-hidden="true"></div>
@@ -136,10 +136,9 @@
             </linearGradient>
           </defs>
           {% for e in snap.ecosistema.aristas %}
-          <line class="eki-panel-eco__wire"
+          <path class="eki-panel-eco__wire"
                 data-from="{{ e.from }}" data-to="{{ e.to }}"
-                x1="{{ e.x1 }}" y1="{{ e.y1 }}"
-                x2="{{ e.x2 }}" y2="{{ e.y2 }}" />
+                d="M {{ e.x1 }} {{ e.y1 }} L {{ e.x2 }} {{ e.y2 }}" />
           {% endfor %}
         </svg>
         {% for n in snap.ecosistema.nodos %}

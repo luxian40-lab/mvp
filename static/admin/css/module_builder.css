@@ -171,6 +171,48 @@ html[data-eki-tone="noche"] .eki-mb-shell {
   color: var(--eki-mb-bad) !important;
 }
 
+.eki-mb__alert--warn {
+  background: #fff8e8 !important;
+  border: 1px solid #e8d4a0;
+  color: #6b5200 !important;
+}
+
+.eki-mb__row--draft {
+  background: #fffdf5 !important;
+}
+
+.eki-mb__edit-micro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.eki-mb__input--compact {
+  font-size: 0.85rem;
+}
+
+.eki-mb__edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.eki-mb__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  color: var(--eki-mb-muted);
+  cursor: pointer;
+}
+
+.eki-mb__btn--sm {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.82rem;
+}
+
 .eki-mb__sections {
   display: flex;
   flex-direction: column;

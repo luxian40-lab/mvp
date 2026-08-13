@@ -71,7 +71,25 @@ class ModuleStructureDbTests(TestCase):
         self.assertTrue(hall)
 
 
+class AllowlistBuilderTests(SimpleTestCase):
+    def test_asterisco_habilita_cualquier_curso(self):
+        from core.module_builder import curso_en_allowlist_builder
+
+        curso = SimpleNamespace(id=99, nombre='Cualquiera')
+        with self.settings(EKI_MODULE_BUILDER_CURSOS='*'):
+            self.assertTrue(curso_en_allowlist_builder(curso))
+        with self.settings(EKI_MODULE_BUILDER_CURSOS='all'):
+            self.assertTrue(curso_en_allowlist_builder(curso))
+        with self.settings(EKI_MODULE_BUILDER_CURSOS=''):
+            self.assertFalse(curso_en_allowlist_builder(curso))
+        with self.settings(EKI_MODULE_BUILDER_CURSOS='impulso'):
+            self.assertFalse(curso_en_allowlist_builder(curso))
+            curso2 = SimpleNamespace(id=1, nombre='Impulso Joven Rural')
+            self.assertTrue(curso_en_allowlist_builder(curso2))
+
+
 class EvaluarMp4WhatsappTests(SimpleTestCase):
+
     def test_cabecera_invalida(self):
         r = evaluar_mp4_listo_whatsapp(b'nope')
         self.assertFalse(r['apto'])
