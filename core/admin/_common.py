@@ -29,6 +29,7 @@ import openpyxl
 from django.http import HttpResponse
 from ..models import (
     Estudiante, WhatsappLog, Plantilla, Campana, EnvioLog, Linea,
+    MediaPaqueteEntrega,
     Curso, ConfiguracionDripCliente, HabilitacionModuloDripCliente, HabilitacionModuloEstudiante,
     Modulo, SeccionModulo, PasoModulo, ProgresoEstudiante, ModuloCompletado,
     Examen, PreguntaExamen, ResultadoExamen, Cliente,

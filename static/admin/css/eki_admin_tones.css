@@ -1,13 +1,14 @@
 /**
- * Tonos admin completo — mañana (cielo), tarde (lavanda eki), noche (ojos).
- * Control: dropdown palette en el nav (userlinks). Aplica html[data-eki-tone=…].
+ * Tonos admin — Cielo (azul), Marca (lavanda eki), Oscuro (carbón).
+ * UI labels: Cielo / Marca / Oscuro. Keys internas: manana / tarde / noche.
+ * Control: dropdown palette en el nav. Aplica html[data-eki-tone=…].
  */
 
 .eki-tone-btn[aria-pressed="true"] {
   color: var(--eki-accent-deep, #7A4E8E);
 }
 
-/* ========== MAÑANA: cielo fresco (azul), claramente distinto de tarde ========== */
+/* ========== CIELO: azul operativo (key: manana) ========== */
 html[data-eki-tone="manana"] {
   color-scheme: light;
   --eki-accent: #3d7ea6;
@@ -57,7 +58,7 @@ html[data-eki-tone="manana"] .eki-hub-cal .material-symbols-outlined {
   color: #3d7ea6;
 }
 
-/* ========== TARDE: lavanda eki (marca) ========== */
+/* ========== MARCA: lavanda eki (key: tarde) ========== */
 html[data-eki-tone="tarde"] {
   color-scheme: light;
   --eki-accent: #9A6CAC;
@@ -71,7 +72,7 @@ html[data-eki-tone="tarde"] body {
   background: #f0eef3 !important;
 }
 
-/* ========== NOCHE: carbón cálido, bajo azul (ojos) ========== */
+/* ========== OSCURO: carbón (key: noche) ========== */
 html[data-eki-tone="noche"] {
   color-scheme: dark;
   --eki-accent: #b89bc4;

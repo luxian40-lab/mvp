@@ -53,6 +53,14 @@ class UnfoldAdminSmokeTests(TestCase):
         r = self._get("/admin/infra/")
         self.assertEqual(r.status_code, 200)
 
+    def test_whatsapplog_changelist_ok(self):
+        r = self._get("/admin/core/whatsapplog/")
+        self.assertEqual(r.status_code, 200)
+
+    def test_media_paquete_changelist_ok(self):
+        r = self._get("/admin/core/mediapaqueteentrega/")
+        self.assertEqual(r.status_code, 200)
+
     def test_panel_redirige_a_inicio(self):
         r = self.client.get("/admin/panel/", follow=False)
         self.assertIn(r.status_code, (301, 302))

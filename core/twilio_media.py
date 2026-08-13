@@ -10,7 +10,30 @@ logger = logging.getLogger(__name__)
 # Fallos de adjunto: sync (excepciona create) o async (status callback undelivered).
 CODIGOS_FALLA_MEDIA_TWILIO = frozenset({'63019', '63021', '63005'})
 
+# Códigos frecuentes para triage ops (admin WhatsappLog). Orden = prioridad de match.
+CODIGOS_ERROR_TWILIO_OPS = (
+    '63019',  # URL/MIME/download media
+    '63021',  # codec/formato video
+    '63005',  # canal rechazó contenido
+    '21610',  # opt-out / stop
+    '63016',  # fuera de ventana 24h / plantilla
+)
+
 _MEDIA_MARKER_RE = re.compile(r'\[MEDIA:(.+?)\]', re.DOTALL)
+
+
+def codigo_error_twilio_desde_detalle(detalle: Optional[str]) -> str:
+    """
+    Extrae código Twilio conocido de error_detalle.
+    Vacío si no hay detalle; 'otro' si hay texto sin código de la lista ops.
+    """
+    s = (detalle or '').strip()
+    if not s:
+        return ''
+    for code in CODIGOS_ERROR_TWILIO_OPS:
+        if code in s:
+            return code
+    return 'otro'
 
 
 def es_error_media_twilio(err) -> bool:

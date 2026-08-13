@@ -1,15 +1,27 @@
 /**
- * Tonos admin eki (mañana / tarde / noche) — en el nav (palette).
+ * Apariencia admin eki — Cielo / Marca / Oscuro (keys: manana / tarde / noche).
  * Persistencia: localStorage eki-admin-tone
  */
 (function () {
   var KEY = 'eki-admin-tone';
   var TONES = ['manana', 'tarde', 'noche'];
+  var LEGACY = {
+    cielo: 'manana',
+    marca: 'tarde',
+    oscuro: 'noche',
+    manana: 'manana',
+    tarde: 'tarde',
+    noche: 'noche',
+  };
 
   function migrateLegacy() {
     try {
       if (!localStorage.getItem(KEY) && localStorage.getItem('eki-mb-tone')) {
         localStorage.setItem(KEY, localStorage.getItem('eki-mb-tone'));
+      }
+      var cur = localStorage.getItem(KEY);
+      if (cur && LEGACY[cur]) {
+        localStorage.setItem(KEY, LEGACY[cur]);
       }
     } catch (e) {}
   }
@@ -24,15 +36,16 @@
   }
 
   function applyTone(tone) {
+    tone = LEGACY[tone] || tone;
     if (TONES.indexOf(tone) < 0) tone = 'tarde';
     document.documentElement.setAttribute('data-eki-tone', tone);
     try {
       localStorage.setItem(KEY, tone);
     } catch (e) {}
 
-    var noche = tone === 'noche';
+    var oscuro = tone === 'noche';
     try {
-      if (noche) {
+      if (oscuro) {
         document.documentElement.classList.add('dark');
         document.documentElement.setAttribute('data-theme', 'dark');
       } else {
@@ -58,6 +71,7 @@
     var saved = 'tarde';
     try {
       saved = localStorage.getItem(KEY) || 'tarde';
+      saved = LEGACY[saved] || saved;
     } catch (e) {}
     applyTone(saved);
   }

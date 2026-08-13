@@ -531,22 +531,99 @@ class EnvioLogAdmin(admin.ModelAdmin):
     estado_badge.short_description = "Estado"
 
 
+class CodigoTwilioWhatsappFilter(admin.SimpleListFilter):
+    """Filtra WhatsappLog por código Twilio en error_detalle (ops triage)."""
+
+    title = 'Código Twilio'
+    parameter_name = 'codigo_twilio'
+
+    def __init__(self, request, params, model, model_admin):
+        self._request = request
+        super().__init__(request, params, model, model_admin)
+
+    def lookups(self, request, model_admin):
+        from core.twilio_media import CODIGOS_ERROR_TWILIO_OPS
+
+        labels = {
+            '63019': '63019 media URL/MIME',
+            '63021': '63021 video codec',
+            '63005': '63005 canal rechazó',
+            '21610': '21610 opt-out',
+            '63016': '63016 ventana 24h',
+        }
+        items = [(c, labels.get(c, c)) for c in CODIGOS_ERROR_TWILIO_OPS]
+        items.extend([
+            ('otro', 'Otro (con detalle)'),
+            ('vacio', 'Sin error_detalle'),
+            ('fallos', 'Fallos entrega (UNDELIVERED/FAILED/ERROR)'),
+        ])
+        return items
+
+    def _valor(self):
+        val = self.value()
+        if val:
+            return val
+        req = getattr(self, '_request', None)
+        if req is not None:
+            return (req.GET.get(self.parameter_name) or '').strip() or None
+        return None
+
+    def queryset(self, request, queryset):
+        from django.db.models import Q
+
+        from core.twilio_media import CODIGOS_ERROR_TWILIO_OPS
+
+        val = self._valor()
+        if not val:
+            return queryset
+        if val == 'fallos':
+            return queryset.filter(estado__in=('UNDELIVERED', 'FAILED', 'ERROR'))
+        if val == 'vacio':
+            return queryset.filter(Q(error_detalle__isnull=True) | Q(error_detalle=''))
+        if val == 'otro':
+            qs = queryset.exclude(Q(error_detalle__isnull=True) | Q(error_detalle=''))
+            for code in CODIGOS_ERROR_TWILIO_OPS:
+                qs = qs.exclude(error_detalle__contains=code)
+            return qs
+        if val in CODIGOS_ERROR_TWILIO_OPS:
+            return queryset.filter(error_detalle__contains=val)
+        return queryset
+
+
 @admin.register(WhatsappLog)
 class WhatsappLogAdmin(admin.ModelAdmin):
     """Registro de todas las conversaciones del chatbot"""
-    list_display = ('fecha', 'estudiante_nombre', 'telefono_corto', 'tipo_badge', 'mensaje_preview', 'estado_badge', 'estado_visual', 'actividad_badge')
-    list_filter = ('tipo', 'estado', 'fecha', 'estudiante__activo', 'agente_usado')
-    search_fields = ('telefono', 'mensaje', 'mensaje_id', 'estudiante__nombre')  # ✅ Búsqueda por nombre
+    list_display = (
+        'fecha',
+        'estudiante_nombre',
+        'telefono_corto',
+        'tipo_badge',
+        'mensaje_preview',
+        'estado_badge',
+        'codigo_twilio_col',
+        'error_preview',
+        'estado_visual',
+        'actividad_badge',
+    )
+    list_filter = (
+        CodigoTwilioWhatsappFilter,
+        'tipo',
+        'estado',
+        'fecha',
+        'estudiante__activo',
+        'agente_usado',
+    )
+    search_fields = ('telefono', 'mensaje', 'mensaje_id', 'estudiante__nombre', 'error_detalle')
     date_hierarchy = 'fecha'
     list_per_page = 100
     ordering = ('-fecha',)
-    readonly_fields = ('fecha', 'mensaje_id', 'estudiante')
+    readonly_fields = ('fecha', 'mensaje_id', 'estudiante', 'error_detalle')
     actions = ['exportar_conversaciones_excel', 'exportar_conversaciones_csv', 'marcar_como_procesado']
-    autocomplete_fields = ['estudiante']  # ✅ Autocompletar estudiante
-    
+    autocomplete_fields = ['estudiante']
+
     fieldsets = (
         ('Información del Mensaje', {
-            'fields': ('telefono', 'estudiante', 'tipo', 'mensaje', 'estado')
+            'fields': ('telefono', 'estudiante', 'tipo', 'mensaje', 'estado', 'error_detalle')
         }),
         ('Metadatos', {
             'fields': ('mensaje_id', 'fecha'),
@@ -583,30 +660,64 @@ class WhatsappLogAdmin(admin.ModelAdmin):
         texto = obj.mensaje[:60] + "..." if len(obj.mensaje) > 60 else obj.mensaje
         return texto
     mensaje_preview.short_description = "💬 Mensaje"
-    
+
+    def codigo_twilio_col(self, obj):
+        from core.twilio_media import codigo_error_twilio_desde_detalle
+
+        code = codigo_error_twilio_desde_detalle(obj.error_detalle)
+        if not code:
+            return '—'
+        if code == 'otro':
+            return format_html('<span style="color:#666;">otro</span>')
+        color = '#c62828' if code in ('63019', '63021', '63005', '21610', '63016') else '#666'
+        return format_html(
+            '<span style="font-family:monospace;font-weight:600;color:{};">{}</span>',
+            color,
+            code,
+        )
+    codigo_twilio_col.short_description = 'Código'
+
+    def error_preview(self, obj):
+        det = (obj.error_detalle or '').strip()
+        if not det:
+            return '—'
+        short = det[:48] + ('…' if len(det) > 48 else '')
+        return format_html('<span title="{}">{}</span>', det[:500], short)
+    error_preview.short_description = 'Error'
+
     def estado_badge(self, obj):
-        """Badge visual para estado"""
+        """Badge visual para estado (incluye callbacks Twilio)."""
+        estado = (obj.estado or '').upper()
         colores = {
             'RECIBIDO': '#4caf50',
+            'RECEIVED': '#4caf50',
             'SENT': '#2196f3',
+            'QUEUED': '#ff9800',
+            'SENDING': '#ff9800',
             'PENDING': '#ff9800',
-            'ERROR': '#f44336'
+            'DELIVERED': '#2e7d32',
+            'READ': '#1b5e20',
+            'UNDELIVERED': '#f44336',
+            'FAILED': '#c62828',
+            'ERROR': '#f44336',
         }
-        color = colores.get(obj.estado, '#999')
+        color = colores.get(estado, '#999')
         return format_html(
             '<span style="background:{};color:white;padding:3px 8px;border-radius:12px;font-size:11px;">{}</span>',
-            color, obj.estado
+            color, obj.estado or '—'
         )
     estado_badge.short_description = "Estado"
-    
+
     def estado_visual(self, obj):
         """Indicador visual de éxito/error"""
-        if obj.estado == 'SENT' or obj.estado == 'RECIBIDO':
+        estado = (obj.estado or '').upper()
+        if estado in ('DELIVERED', 'READ', 'RECEIVED', 'RECIBIDO'):
             return format_html('<span style="font-size:18px;color:#4caf50;">✅</span>')
-        elif obj.estado == 'ERROR':
+        if estado in ('UNDELIVERED', 'FAILED', 'ERROR'):
             return format_html('<span style="font-size:18px;color:#f44336;">❌</span>')
-        else:
+        if estado in ('SENT', 'QUEUED', 'SENDING', 'PENDING'):
             return format_html('<span style="font-size:18px;color:#ff9800;">⏳</span>')
+        return format_html('<span style="font-size:18px;color:#999;">·</span>')
     estado_visual.short_description = "✓"
     
     def actividad_badge(self, obj):
@@ -644,7 +755,7 @@ class WhatsappLogAdmin(admin.ModelAdmin):
         ws.title = "Conversaciones"
         
         # Encabezados
-        headers = ['Fecha', 'Teléfono', 'Tipo', 'Mensaje', 'Estado', 'ID Mensaje']
+        headers = ['Fecha', 'Teléfono', 'Tipo', 'Mensaje', 'Estado', 'ID Mensaje', 'Error detalle']
         ws.append(headers)
         
         # Estilo
@@ -663,7 +774,8 @@ class WhatsappLogAdmin(admin.ModelAdmin):
                 log.tipo,
                 log.mensaje[:500],  # Limitar tamaño
                 log.estado,
-                log.mensaje_id or 'N/A'
+                log.mensaje_id or 'N/A',
+                (log.error_detalle or '')[:500],
             ])
         
         # Ajustar anchos
@@ -673,6 +785,7 @@ class WhatsappLogAdmin(admin.ModelAdmin):
         ws.column_dimensions['D'].width = 60
         ws.column_dimensions['E'].width = 12
         ws.column_dimensions['F'].width = 35
+        ws.column_dimensions['G'].width = 40
         
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -694,7 +807,7 @@ class WhatsappLogAdmin(admin.ModelAdmin):
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         
         writer = csv.writer(response)
-        writer.writerow(['Fecha', 'Teléfono', 'Tipo', 'Mensaje', 'Estado', 'ID Mensaje'])
+        writer.writerow(['Fecha', 'Teléfono', 'Tipo', 'Mensaje', 'Estado', 'ID Mensaje', 'Error detalle'])
         
         for log in queryset.order_by('fecha'):
             writer.writerow([
@@ -703,7 +816,8 @@ class WhatsappLogAdmin(admin.ModelAdmin):
                 log.tipo,
                 log.mensaje[:500],
                 log.estado,
-                log.mensaje_id or 'N/A'
+                log.mensaje_id or 'N/A',
+                (log.error_detalle or '')[:500],
             ])
         
         return response
@@ -718,5 +832,72 @@ class WhatsappLogAdmin(admin.ModelAdmin):
 
 # Personalizar el admin site
 admin.site.site_header = "eki - Chatbot Agro 🌱"
+
+
+@admin.register(MediaPaqueteEntrega)
+class MediaPaqueteEntregaAdmin(admin.ModelAdmin):
+    """Paquetes media WhatsApp recuperables (fallidos / reintentos)."""
+
+    list_display = (
+        'actualizado_en',
+        'telefono_corto',
+        'estado_badge',
+        'error_code',
+        'intentos',
+        'curso',
+        'modulo',
+        'whatsapp_log_link',
+    )
+    list_filter = ('estado', 'error_code', 'actualizado_en')
+    search_fields = ('telefono', 'media_url', 'error_code', 'whatsapp_log__mensaje_id')
+    readonly_fields = (
+        'estudiante',
+        'telefono',
+        'curso',
+        'modulo',
+        'whatsapp_log',
+        'media_url',
+        'estado',
+        'intentos',
+        'error_code',
+        'creado_en',
+        'actualizado_en',
+    )
+    date_hierarchy = 'actualizado_en'
+    list_per_page = 50
+    ordering = ('-actualizado_en',)
+    autocomplete_fields = ['estudiante', 'curso', 'modulo']
+
+    def has_add_permission(self, request):
+        return False
+
+    def telefono_corto(self, obj):
+        tel = obj.telefono or ''
+        if len(tel) < 4:
+            return tel or '—'
+        return f'...{tel[-4:]}'
+    telefono_corto.short_description = 'Tel'
+
+    def estado_badge(self, obj):
+        colores = {
+            'pendiente': '#ff9800',
+            'enviado': '#2196f3',
+            'fallido': '#f44336',
+            'recuperado': '#2e7d32',
+        }
+        color = colores.get(obj.estado, '#999')
+        return format_html(
+            '<span style="background:{};color:white;padding:3px 8px;border-radius:12px;font-size:11px;">{}</span>',
+            color,
+            obj.get_estado_display(),
+        )
+    estado_badge.short_description = 'Estado'
+
+    def whatsapp_log_link(self, obj):
+        if not obj.whatsapp_log_id:
+            return '—'
+        url = reverse('admin:core_whatsapplog_change', args=[obj.whatsapp_log_id])
+        return format_html('<a href="{}">#{}</a>', url, obj.whatsapp_log_id)
+    whatsapp_log_link.short_description = 'WhatsappLog'
 
 

@@ -4,6 +4,7 @@ from django.test import SimpleTestCase, TestCase
 from core.models import WhatsappLog
 from core.twilio_media import (
     cuerpo_con_enlace_archivo,
+    codigo_error_twilio_desde_detalle,
     es_error_media_twilio,
     es_url_s3_o_firmada,
     extraer_media_url_de_mensaje,
@@ -22,6 +23,16 @@ class TwilioMediaHelpersTests(SimpleTestCase):
         self.assertTrue(es_error_media_twilio('63005 Channel rejected'))
         self.assertFalse(es_error_media_twilio(21211))
         self.assertFalse(es_error_media_twilio('ok'))
+
+    def test_codigo_error_twilio_desde_detalle(self):
+        self.assertEqual(codigo_error_twilio_desde_detalle(''), '')
+        self.assertEqual(codigo_error_twilio_desde_detalle(None), '')
+        self.assertEqual(
+            codigo_error_twilio_desde_detalle('63019 Media failed to download'),
+            '63019',
+        )
+        self.assertEqual(codigo_error_twilio_desde_detalle('opt-out 21610'), '21610')
+        self.assertEqual(codigo_error_twilio_desde_detalle('algo raro sin codigo'), 'otro')
 
     def test_normalizar_s3_regional(self):
         u = 'https://eki-produccion.s3.amazonaws.com/media/a.mp4'

@@ -631,6 +631,20 @@
         </div>
 
         <div class="section">
+            <div class="section-title">Fallos WhatsApp (triage)</div>
+            <p style="color:#666;font-size:0.85rem;margin:-8px 0 12px;">
+                Status callback Twilio ya guarda <code>UNDELIVERED</code>/<code>FAILED</code> y <code>error_detalle</code>.
+                Usá estos atajos para localizar sin mezclar con el inbox.
+            </p>
+            <p style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;">
+                <a class="btn-excel" href="{% url 'admin:core_whatsapplog_changelist' %}?codigo_twilio=fallos">Fallos entrega →</a>
+                <a class="btn-excel" href="{% url 'admin:core_whatsapplog_changelist' %}?codigo_twilio=63019">63019 media →</a>
+                <a class="btn-excel" href="{% url 'admin:core_whatsapplog_changelist' %}?codigo_twilio=63021">63021 video →</a>
+                <a class="btn-excel" href="{% url 'admin:core_mediapaqueteentrega_changelist' %}?estado__exact=fallido">Paquetes media fallidos →</a>
+            </p>
+        </div>
+
+        <div class="section">
             <div class="section-title">
                 Eventos IA recientes
                 <a href="{% url 'ai_ops_eventos' %}" style="float:right;font-size:0.85rem;font-weight:600;">Ver todos →</a>

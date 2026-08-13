@@ -5,12 +5,13 @@ alwaysApply: true
 
 # Equipo eki (roles)
 
-Cuando el usuario pida un rol o diga cosas como “haz de QA”, “como PM”, “implementa”, “seguridad”, “ciberseguridad”, “como CTO”, “diseñador”, “UX”, “Data”, “Ops”, “Growth”, “Content”, “Legal”, “SRE”, “Auditoría”, “AuditLog”, “desplegamos si pasa QA”:
+Cuando el usuario pida un rol o diga cosas como “haz de QA”, “como PM”, “implementa”, “seguridad”, “ciberseguridad”, “como CTO”, “diseñador”, “UX”, “Nat”, “Nati”, “bot comercial”, “Data”, “Ops”, “Growth”, “Content”, “Legal”, “SRE”, “Auditoría”, “AuditLog”, “desplegamos si pasa QA”:
 
 1. Leer y seguir la skill correspondiente:
    - CTO → `.cursor/skills/eki-cto/SKILL.md`
    - UX → `.cursor/skills/eki-ux/SKILL.md`
    - Diseñador → `.cursor/skills/eki-designer/SKILL.md`
+   - Nat (agrónoma / bot comercial) → `.cursor/skills/eki-nat/SKILL.md`
    - Aprende (aula / producto LMS) → `.cursor/skills/eki-aprende/SKILL.md`
    - QA → `.cursor/skills/eki-qa/SKILL.md`
    - PM → `.cursor/skills/eki-pm/SKILL.md`
@@ -29,8 +30,14 @@ Cuando el usuario pida un rol o diga cosas como “haz de QA”, “como PM”, 
 ## Docs de producto (canon)
 
 - Admin Unfold → `docs/EKI_UNFOLD_ADMIN.md` + https://unfoldadmin.com/docs/
+- **Inicio admin** → `templates/admin/partials/eki_panel_exec.html` + tonos Cielo/Marca/Oscuro (`eki_admin_tones`; Diseñador/UX `reference.md`)
 - Aprende LMS + diseño → `docs/EKI_APRENDE_REFERENCES.md`
 - Studio → `docs/EKI_STUDIO.md`
+- Nat → `docs/NAT_GUIA_COMPLETA.md` + skill `eki-nat`
+- UX admin → `.cursor/skills/eki-ux/SKILL.md` + `reference.md` (Unfold ModelAdmin + Carbon dashboards)
+- Diseñador → `.cursor/skills/eki-designer/SKILL.md` + `reference.md` (tokens `#9A6CAC` / tipografías)
+- Twilio Content variables → https://www.twilio.com/docs/content/using-variables-with-content-api
+- Webhooks → raw body → HMAC → `hmac.compare_digest` (nunca `==`)
 
 ## Modelo (obligatorio)
 
