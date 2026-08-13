@@ -68,6 +68,9 @@ class CampanaAdmin(admin.ModelAdmin):
     def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
         extra_context = extra_context or {}
         participantes = '—'
+        extra_context['eki_camp_audiencia'] = None
+        extra_context['eki_camp_envios'] = None
+        extra_context['eki_camp_export_fallidos_url'] = None
         if object_id:
             obj = self.get_object(request, object_id)
             if obj:
@@ -76,8 +79,50 @@ class CampanaAdmin(admin.ModelAdmin):
                 else:
                     n = obj.destinatarios.filter(activo=True).count()
                     participantes = f'{n} estudiante(s)' if n else 'Sin destinatarios'
+                try:
+                    from core.campana_resultados import (
+                        revisar_audiencia_campana,
+                        resumen_envios_campana,
+                    )
+                    from django.urls import reverse
+
+                    extra_context['eki_camp_audiencia'] = revisar_audiencia_campana(obj)
+                    extra_context['eki_camp_envios'] = resumen_envios_campana(obj)
+                    extra_context['eki_camp_export_fallidos_url'] = reverse(
+                        'admin:core_campana_export_fallidos',
+                        args=[obj.pk],
+                    )
+                except Exception:
+                    pass
         extra_context['eki_camp_participantes'] = participantes
         return super().changeform_view(request, object_id, form_url, extra_context=extra_context)
+
+    def get_urls(self):
+        from django.urls import path
+
+        urls = super().get_urls()
+        custom = [
+            path(
+                '<path:object_id>/exportar-fallidos/',
+                self.admin_site.admin_view(self.export_fallidos_view),
+                name='core_campana_export_fallidos',
+            ),
+        ]
+        return custom + urls
+
+    def export_fallidos_view(self, request, object_id):
+        from django.http import HttpResponse
+        from django.shortcuts import get_object_or_404
+
+        from core.campana_resultados import csv_fallidos_campana
+        from core.models import Campana
+
+        campana = get_object_or_404(Campana, pk=object_id)
+        csv_data = csv_fallidos_campana(campana)
+        resp = HttpResponse(csv_data, content_type='text/csv; charset=utf-8')
+        safe = ''.join(c if c.isalnum() or c in '-_' else '_' for c in (campana.nombre or 'campana'))[:40]
+        resp['Content-Disposition'] = f'attachment; filename="fallidos_{safe}.csv"'
+        return resp
     
     def cliente_nombre(self, obj):
         """Muestra el cliente de la campaña"""
@@ -230,7 +275,22 @@ class CampanaAdmin(admin.ModelAdmin):
                     level=messages.WARNING
                 )
                 continue
-            
+
+            try:
+                from core.campana_resultados import revisar_audiencia_campana
+
+                aud = revisar_audiencia_campana(campana)
+                if aud['n_error']:
+                    self.message_user(
+                        request,
+                        f"⚠️ '{campana.nombre}': {aud['n_error']} teléfono(s) dudoso(s) "
+                        f"(faltan dígitos o código de país). Abra la campaña para ver el detalle; "
+                        f"el envío continúa con el resto.",
+                        level=messages.WARNING,
+                    )
+            except Exception:
+                pass
+
             try:
                 modo = encolar_ejecutar_campana(campana.id)
                 detalle_modo = 'Celery' if modo == 'celery' else 'proceso en background'

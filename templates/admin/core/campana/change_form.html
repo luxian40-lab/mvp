@@ -161,6 +161,83 @@
     </div>
   </div>
 </div>
+
+{% if eki_camp_audiencia %}
+<div class="eki-camp-ficha" aria-label="Revisión de teléfonos" style="margin-top:0.5rem;">
+  <div class="eki-camp-ficha__cell">
+    <span class="eki-camp-ficha__label">Teléfonos OK</span>
+    <div class="eki-camp-ficha__value">
+      <span class="eki-camp-ficha__badge eki-camp-ficha__badge--ok">{{ eki_camp_audiencia.n_ok }}</span>
+    </div>
+  </div>
+  <div class="eki-camp-ficha__cell">
+    <span class="eki-camp-ficha__label">Revisar</span>
+    <div class="eki-camp-ficha__value">
+      <span class="eki-camp-ficha__badge eki-camp-ficha__badge--warn">{{ eki_camp_audiencia.n_warn }}</span>
+    </div>
+  </div>
+  <div class="eki-camp-ficha__cell">
+    <span class="eki-camp-ficha__label">Corregir</span>
+    <div class="eki-camp-ficha__value">
+      <span class="eki-camp-ficha__badge" style="background:#ffebee;color:#c62828;">{{ eki_camp_audiencia.n_error }}</span>
+    </div>
+  </div>
+  <div class="eki-camp-ficha__cell" style="grid-column:1/-1;">
+    <span class="eki-camp-ficha__label">Nota</span>
+    <div class="eki-camp-ficha__value" style="font-weight:500;font-size:0.8rem;color:#6b6575;">
+      Colombia: 10 dígitos (ej. 310…) o 57…. Exterior: con código de país (MX 52, PE 51, ES 34, US 1…).
+      {% if eki_camp_audiencia.error %}
+        <ul style="margin:0.4rem 0 0;padding-left:1.1rem;">
+          {% for row in eki_camp_audiencia.error|slice:":8" %}
+          <li>{{ row.nombre }} · {{ row.telefono }} — {{ row.mensaje }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if eki_camp_envios and eki_camp_envios.total_logs %}
+<div class="eki-camp-ficha" aria-label="Resultado del envío" style="margin-top:0.5rem;">
+  <div class="eki-camp-ficha__cell">
+    <span class="eki-camp-ficha__label">Llegó / enviado</span>
+    <div class="eki-camp-ficha__value">
+      <span class="eki-camp-ficha__badge eki-camp-ficha__badge--ok">{{ eki_camp_envios.n_ok }}</span>
+    </div>
+  </div>
+  <div class="eki-camp-ficha__cell">
+    <span class="eki-camp-ficha__label">No llegó</span>
+    <div class="eki-camp-ficha__value">
+      <span class="eki-camp-ficha__badge" style="background:#ffebee;color:#c62828;">{{ eki_camp_envios.n_fail }}</span>
+    </div>
+  </div>
+  <div class="eki-camp-ficha__cell">
+    <span class="eki-camp-ficha__label">Otros</span>
+    <div class="eki-camp-ficha__value">{{ eki_camp_envios.n_other }}</div>
+  </div>
+  {% if eki_camp_export_fallidos_url %}
+  <div class="eki-camp-ficha__cell">
+    <span class="eki-camp-ficha__label">Exportar</span>
+    <div class="eki-camp-ficha__value">
+      <a href="{{ eki_camp_export_fallidos_url }}">Descargar fallidos (CSV)</a>
+    </div>
+  </div>
+  {% endif %}
+  {% if eki_camp_envios.fail_sample %}
+  <div class="eki-camp-ficha__cell" style="grid-column:1/-1;">
+    <span class="eki-camp-ficha__label">Quién no recibió</span>
+    <div class="eki-camp-ficha__value" style="font-weight:500;font-size:0.8rem;">
+      <ul style="margin:0;padding-left:1.1rem;">
+        {% for row in eki_camp_envios.fail_sample|slice:":12" %}
+        <li>{{ row.nombre }} · {{ row.telefono }} — {{ row.motivo }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
 {% else %}
 <div class="eki-camp-ficha" aria-label="Nueva campaña">
   <div class="eki-camp-ficha__cell">
@@ -205,9 +282,9 @@
     <p class="eki-camp-tip__title">Recomendaciones</p>
     <div class="eki-camp-tip__body">
       <ul>
-        <li>Revisa el mensaje antes de enviar.</li>
-        <li>Asegúrate de la audiencia correcta.</li>
-        <li>Programa en el mejor horario.</li>
+        <li>Revisa teléfonos OK / Corregir arriba.</li>
+        <li>Exterior: siempre con código de país.</li>
+        <li>Tras enviar: mira «No llegó» y el CSV.</li>
       </ul>
     </div>
   </div>

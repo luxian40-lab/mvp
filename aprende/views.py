@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate
 from django.db.models import Count, Q
@@ -119,14 +120,21 @@ def handoff_desde_studio(request):
 
 def estudiante_login(request):
     """
-    Acceso aula B2B: el código/enlace se emite solo cuando el estudiante
-    escribe *aula* por WhatsApp (respuesta inbound). No hay OTP saliente en frío.
+    Acceso aula B2B:
+    - Código OTP tras *aula* (WhatsApp) → crear clave si falta / entrar.
+    - Documento + contraseña (si ya creó clave).
+    - Olvidé clave → *aula* de nuevo (recuperar).
     Cuenta correo: Studio → handoff.
     """
     from aprende.acceso_whatsapp import (
         client_ip_from_request,
         next_aprende_seguro,
         verificar_codigo_web,
+    )
+    from aprende.credencial_service import (
+        autenticar_documento_clave,
+        marcar_pending_clave,
+        tiene_clave,
     )
 
     if getattr(request, 'aprende_estudiante', None):
@@ -144,31 +152,108 @@ def estudiante_login(request):
 
     error = None
     next_url = next_aprende_seguro(request.POST.get('next') or request.GET.get('next'))
+    tab = (request.POST.get('tab') or request.GET.get('tab') or 'codigo').strip().lower()
+    if tab not in ('codigo', 'clave', 'olvide'):
+        tab = 'codigo'
+    recuperar = tab == 'olvide' or request.GET.get('recuperar') == '1'
 
     if request.method == 'POST':
         from aprende.session_auth import VIA_WHATSAPP, iniciar_sesion_estudiante
 
-        ip = client_ip_from_request(request)
-        eid, msg = verificar_codigo_web(request.POST.get('codigo') or '', ip=ip)
-        if eid:
-            est = Estudiante.objects.filter(pk=eid, activo=True).first()
+        accion = (request.POST.get('accion') or 'codigo').strip().lower()
+        if accion == 'clave':
+            tab = 'clave'
+            est, msg = autenticar_documento_clave(
+                request.POST.get('documento') or '',
+                request.POST.get('password') or '',
+            )
             if est:
                 iniciar_sesion_estudiante(request, est.pk, via=VIA_WHATSAPP)
                 return redirect(next_url)
-            error = 'No encontramos tu cuenta de estudiante.'
-        else:
             error = msg
+        else:
+            tab = 'codigo' if not recuperar else 'olvide'
+            ip = client_ip_from_request(request)
+            eid, msg = verificar_codigo_web(request.POST.get('codigo') or '', ip=ip)
+            if eid:
+                est = Estudiante.objects.filter(pk=eid, activo=True).first()
+                if est:
+                    if recuperar or not tiene_clave(est):
+                        marcar_pending_clave(
+                            request,
+                            est.pk,
+                            recuperar=bool(recuperar),
+                        )
+                        from urllib.parse import urlencode
+                        q = urlencode({'next': next_url})
+                        return redirect(f'/aprende/estudiante/clave/?{q}')
+                    iniciar_sesion_estudiante(request, est.pk, via=VIA_WHATSAPP)
+                    return redirect(next_url)
+                error = 'No encontramos tu cuenta de estudiante.'
+            else:
+                error = msg
 
     from core.host_isolation import absolute_path
 
     return render(request, 'aprende/estudiante_login.html', {
         'error': error,
         'next': next_url,
+        'tab': tab,
         'studio_correo_url': absolute_path(
             'studio',
             '/studio/cuenta/login/?next=/studio/ir-a-aprende/',
             request,
         ),
+    })
+
+
+def estudiante_crear_clave(request):
+    """Tras OTP de *aula*: crear o restablecer contraseña del aula."""
+    from aprende.acceso_whatsapp import next_aprende_seguro
+    from aprende.credencial_service import (
+        consumir_pending_clave,
+        limpiar_pending_clave,
+        guardar_clave,
+        quiere_recuperar,
+        tiene_clave,
+    )
+    from aprende.session_auth import VIA_WHATSAPP, iniciar_sesion_estudiante
+
+    next_url = next_aprende_seguro(request.POST.get('next') or request.GET.get('next'))
+    eid = consumir_pending_clave(request)
+    if not eid:
+        return redirect('/aprende/estudiante/login/?tab=olvide')
+
+    est = Estudiante.objects.filter(pk=eid, activo=True).first()
+    if not est:
+        limpiar_pending_clave(request)
+        return redirect('/aprende/estudiante/login/')
+
+    error = None
+    # es_reset se calcula al render; variable previa no usada
+    if request.method == 'POST':
+        from aprende.credencial_service import marcar_pending_clave
+
+        marcar_pending_clave(request, eid, recuperar=quiere_recuperar(request) or tiene_clave(est))
+
+        p1 = request.POST.get('password') or ''
+        p2 = request.POST.get('password2') or ''
+        if p1 != p2:
+            error = 'Las contraseñas no coinciden.'
+        else:
+            ok, msg = guardar_clave(est, p1)
+            if not ok:
+                error = msg
+            else:
+                limpiar_pending_clave(request)
+                iniciar_sesion_estudiante(request, est.pk, via=VIA_WHATSAPP)
+                return redirect(next_url)
+
+    return render(request, 'aprende/estudiante_crear_clave.html', {
+        'error': error,
+        'next': next_url,
+        'estudiante_nombre': (est.nombre or '').split()[0] or 'Hola',
+        'es_reset': quiere_recuperar(request),
     })
 
 
@@ -439,11 +524,12 @@ def profesor_login(request):
                 f'Tu usuario tiene rol «{pu.get_rol_display()}». '
                 'Solo Administrador o Profesor pueden entrar al aula docente.'
             )
+        elif user.is_superuser:
+            error = (
+                'Esta cuenta es superadmin de eki. '
+                'Entrá en admin.eki.technology — no uses esa contraseña en Aprende.'
+            )
         else:
-            if user.is_staff or user.is_superuser:
-                user.is_staff = False
-                user.is_superuser = False
-                user.save(update_fields=['is_staff', 'is_superuser'])
             from aprende.session_auth import limpiar_estudiante_al_entrar_docente
 
             limpiar_estudiante_al_entrar_docente(request)
@@ -465,9 +551,11 @@ def profesor_logout(request):
 def profesor_cursos(request):
     org = _org_profesor(request)
     cursos = Curso.objects.filter(cliente=org, activo=True).order_by('orden', 'nombre')
+    admin_base = getattr(settings, 'ADMIN_PUBLIC_URL', 'https://admin.eki.technology').rstrip('/')
     return render(request, 'aprende/profesor_cursos.html', {
         'organizacion': org,
         'cursos': cursos,
+        'admin_curso_add_url': f'{admin_base}/admin/core/curso/add/',
     })
 
 

@@ -271,6 +271,7 @@ class EstudianteAdmin(admin.ModelAdmin):
                 actualizados = 0
                 inscritos = 0
                 errores = []
+                avisos = []
                 
                 from core.documento_identidad import (
                     normalizar_numero_documento,
@@ -281,7 +282,7 @@ class EstudianteAdmin(admin.ModelAdmin):
                     extraer_fila_estudiante,
                     mapear_columnas_estudiante,
                 )
-                from core.utils_telefono import normalizar_telefono
+                from core.utils_telefono import normalizar_telefono, validar_telefono_whatsapp
 
                 def _normalizar_celda(val):
                     return celda_excel_a_texto(val)
@@ -343,27 +344,13 @@ class EstudianteAdmin(admin.ModelAdmin):
                         continue
                     
                     telefono = campos['telefono_normalizado'] or normalizar_telefono(telefono_raw)
-                    digits_only = re.sub(r'\D', '', telefono_raw or '')
-                    if not telefono or len(telefono) < 10:
-                        errores.append(
-                            f"Fila {idx}: Teléfono inválido '{telefono_raw}' "
-                            f"(leído como '{telefono or digits_only or 'vacío'}'). "
-                            f"Revise el orden: A=Tipo, B=Documento, C=Nombre, D=Teléfono "
-                            f"(ej. 573001234567). Si Nombre y Teléfono están al revés, "
-                            f"corríjalos o use la plantilla del admin."
-                        )
+                    check = validar_telefono_whatsapp(telefono_raw)
+                    if not check['ok']:
+                        errores.append(f"Fila {idx}: {check['mensaje']}")
                         continue
-                    # Evitar asumir Colombia en números LatAm cortos
-                    if len(digits_only) == 10 and not str(telefono_raw).strip().startswith('+') and not telefono.startswith('57'):
-                        # 10 dígitos sin + y no normalizado a 57 → exigir código país explícito
-                        raw_digits = digits_only
-                        if not raw_digits.startswith(('52', '503', '502', '504', '505', '506', '507', '51', '56', '54', '57', '58')):
-                            if not (len(raw_digits) == 10 and raw_digits.startswith('3')):
-                                errores.append(
-                                    f"Fila {idx}: Teléfono '{telefono_raw}' sin código de país. "
-                                    f"Ej: 50361234567 (SV), 5215512345678 (MX), 573001234567 (CO)."
-                                )
-                                continue
+                    telefono = check['telefono'] or telefono
+                    if check['severity'] == 'warn':
+                        avisos.append(f"Fila {idx}: {check['mensaje']}")
                     
                     genero = GENEROS_VALIDOS.get(genero_raw, '') if genero_raw else ''
                     if not genero:
@@ -461,6 +448,10 @@ class EstudianteAdmin(admin.ModelAdmin):
                     messages.warning(request, f"⚠️ {len(errores)} error(es)")
                     for error in errores[:5]:
                         messages.warning(request, error)
+                if avisos:
+                    messages.info(request, f"ℹ️ {len(avisos)} aviso(s) de teléfono (se guardaron igual)")
+                    for aviso in avisos[:5]:
+                        messages.info(request, aviso)
                 
                 return redirect('admin:core_estudiante_changelist')
             

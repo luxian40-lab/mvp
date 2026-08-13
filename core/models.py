@@ -1195,30 +1195,35 @@ def procesar_excel_campana(sender, instance, created, **kwargs):
     # Si hay un archivo y no hay destinatarios, intentamos cargarlo
     if instance.archivo_excel and instance.destinatarios.count() == 0:
         try:
+            from core.excel_celdas import celda_excel_a_texto
+            from core.utils_telefono import validar_telefono_whatsapp
+
             file_path = instance.archivo_excel.path
             if os.path.exists(file_path):
                 wb = openpyxl.load_workbook(file_path)
                 sheet = wb.active
                 # Esperamos: columna A = Nombre, columna B = Telefono
                 for row in sheet.iter_rows(min_row=2, values_only=True):
-                    if not row: 
+                    if not row:
                         continue
-                    nombre = str(row[0]).strip() if row[0] is not None else ''
-                    telefono = str(row[1]).strip() if len(row) > 1 and row[1] is not None else ''
-                    if not telefono:
+                    nombre = celda_excel_a_texto(row[0]) if row[0] is not None else ''
+                    telefono_raw = celda_excel_a_texto(row[1]) if len(row) > 1 and row[1] is not None else ''
+                    if not telefono_raw:
                         continue
-                    # Normalizamos y creamos/obtenemos estudiante
+                    check = validar_telefono_whatsapp(telefono_raw)
+                    if not check['ok']:
+                        continue
+                    telefono_clean = check['telefono']
                     try:
-                        estudiante, created_est = Estudiante.objects.get_or_create(telefono=telefono, defaults={'nombre': nombre})
+                        estudiante, _created_est = Estudiante.objects.get_or_create(
+                            telefono=telefono_clean,
+                            defaults={'nombre': nombre or telefono_clean},
+                        )
                     except IntegrityError:
-                        # Si falla por formato, intentamos limpiar y reintentar
-                        telefono_clean = re.sub(r'\D', '', telefono)
-                        if len(telefono_clean) == 10:
-                            telefono_clean = f"57{telefono_clean}"
-                        estudiante, created_est = Estudiante.objects.get_or_create(telefono=telefono_clean, defaults={'nombre': nombre})
-                    # Añadimos a destinatarios
+                        estudiante = Estudiante.objects.filter(telefono=telefono_clean).first()
+                        if not estudiante:
+                            continue
                     instance.destinatarios.add(estudiante)
-                # Guardar para asegurar M2M
                 instance.save()
         except Exception:
             # Si falla la lectura del excel no queremos romper el flujo de guardado

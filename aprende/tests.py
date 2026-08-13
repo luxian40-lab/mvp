@@ -49,10 +49,10 @@ class AprendeWebTests(TestCase):
         self.user = User.objects.create_user('prof_ap', 'p@t.com', 'pass')
         PortalUsuario.objects.create(user=self.user, organizacion=self.cliente, rol='profesor')
 
-    def _login_estudiante(self, telefono='573009999002', cedula='web1'):
-        """Simula código emitido tras escribir *aula* en WhatsApp."""
-        from django.core.cache import cache
+    def _login_estudiante(self, telefono='573009999002', cedula='web1', password='clave123'):
+        """Simula *aula* → OTP → crear clave (si falta) → sesión."""
         from aprende.acceso_whatsapp import emitir_acceso_desde_whatsapp
+        from aprende.credencial_service import tiene_clave
 
         msg = emitir_acceso_desde_whatsapp(self.est)
         import re
@@ -60,11 +60,20 @@ class AprendeWebTests(TestCase):
         self.assertIsNotNone(m, msg=msg)
         self.assertIn('/aprende/estudiante/login/', msg)
         self.assertNotIn('/aprende/handoff/', msg)
+        self.assertIn('contraseña', msg.lower())
         codigo = m.group(1)
         from aprende.models import CodigoAccesoAprende
         self.assertTrue(CodigoAccesoAprende.objects.filter(codigo=codigo, estudiante=self.est).exists())
-        r2 = self.http.post('/aprende/estudiante/login/', {'codigo': codigo})
+        r2 = self.http.post('/aprende/estudiante/login/', {'codigo': codigo, 'accion': 'codigo'})
         self.assertEqual(r2.status_code, 302)
+        if not tiene_clave(self.est):
+            self.assertIn('/aprende/estudiante/clave/', r2['Location'])
+            r3 = self.http.post('/aprende/estudiante/clave/', {
+                'password': password,
+                'password2': password,
+            })
+            self.assertEqual(r3.status_code, 302)
+            return r3
         return r2
 
     def test_inicio_carga(self):
@@ -78,12 +87,70 @@ class AprendeWebTests(TestCase):
     def test_login_estudiante_celebra_whatsapp(self):
         r = self.http.get('/aprende/estudiante/login/')
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'Autenticación WhatsApp')
-        self.assertContains(r, 'Código de WhatsApp')
+        self.assertContains(r, 'Código')
         self.assertContains(r, 'name="codigo"')
         self.assertContains(r, '*aula*')
+        self.assertContains(r, 'Documento + clave')
+        self.assertContains(r, 'Olvidé')
         self.assertContains(r, 'og:image')
         self.assertContains(r, 'og-aprende-v3')
+
+    def test_sin_clave_otp_pide_crear_password(self):
+        from aprende.acceso_whatsapp import emitir_acceso_desde_whatsapp
+        import re
+        msg = emitir_acceso_desde_whatsapp(self.est)
+        codigo = re.search(r'\*(\d{6})\*', msg).group(1)
+        r = self.http.post('/aprende/estudiante/login/', {'codigo': codigo, 'accion': 'codigo'})
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/aprende/estudiante/clave/', r['Location'])
+        r2 = self.http.get('/aprende/estudiante/clave/')
+        self.assertEqual(r2.status_code, 200)
+        self.assertContains(r2, 'Crea tu contraseña')
+        r3 = self.http.post('/aprende/estudiante/clave/', {
+            'password': 'secreta1',
+            'password2': 'secreta1',
+        })
+        self.assertEqual(r3.status_code, 302)
+        from aprende.credencial_service import tiene_clave
+        self.assertTrue(tiene_clave(self.est))
+        # Re-login con documento + clave
+        self.http.get('/aprende/estudiante/logout/')
+        r4 = self.http.post('/aprende/estudiante/login/', {
+            'accion': 'clave',
+            'documento': 'web1',
+            'password': 'secreta1',
+        })
+        self.assertEqual(r4.status_code, 302)
+        r5 = self.http.get('/aprende/estudiante/')
+        self.assertEqual(r5.status_code, 200)
+
+    def test_olvide_clave_via_otp_reset(self):
+        from aprende.credencial_service import guardar_clave
+        guardar_clave(self.est, 'vieja123')
+        from aprende.acceso_whatsapp import emitir_acceso_desde_whatsapp
+        import re
+        codigo = re.search(r'\*(\d{6})\*', emitir_acceso_desde_whatsapp(self.est)).group(1)
+        r = self.http.post('/aprende/estudiante/login/', {
+            'codigo': codigo,
+            'accion': 'codigo',
+            'tab': 'olvide',
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/clave/', r['Location'])
+        r2 = self.http.post('/aprende/estudiante/clave/', {
+            'password': 'nueva456',
+            'password2': 'nueva456',
+        })
+        self.assertEqual(r2.status_code, 302)
+        self.http.get('/aprende/estudiante/logout/')
+        bad = self.http.post('/aprende/estudiante/login/', {
+            'accion': 'clave', 'documento': 'web1', 'password': 'vieja123',
+        })
+        self.assertEqual(bad.status_code, 200)
+        ok = self.http.post('/aprende/estudiante/login/', {
+            'accion': 'clave', 'documento': 'web1', 'password': 'nueva456',
+        })
+        self.assertEqual(ok.status_code, 302)
 
     def test_handoff_crawler_whatsapp_no_consume_token(self):
         from studio.aprende_bridge import crear_token_handoff

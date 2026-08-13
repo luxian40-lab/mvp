@@ -8,6 +8,7 @@ urlpatterns = [
     path('sw.js', views.service_worker, name='aprende_sw'),
     path('handoff/', views.handoff_desde_studio, name='aprende_handoff'),
     path('estudiante/login/', views.estudiante_login, name='aprende_estudiante_login'),
+    path('estudiante/clave/', views.estudiante_crear_clave, name='aprende_estudiante_clave'),
     path('estudiante/logout/', views.estudiante_logout, name='aprende_estudiante_logout'),
     path('estudiante/', views.estudiante_cursos, name='aprende_estudiante_cursos'),
     path('estudiante/tareas/', views.estudiante_tareas, name='aprende_estudiante_tareas'),

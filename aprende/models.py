@@ -202,3 +202,33 @@ class CodigoAccesoAprende(models.Model):
 
     def __str__(self):
         return f'{self.codigo} → est={self.estudiante_id}'
+
+
+class CredencialAprendeEstudiante(models.Model):
+    """Contraseña del aula (hasheada). Alta/reset solo tras OTP de *aula*."""
+
+    estudiante = models.OneToOneField(
+        Estudiante,
+        on_delete=models.CASCADE,
+        related_name='credencial_aprende',
+    )
+    password_hash = models.CharField(max_length=128)
+    actualizado = models.DateTimeField(auto_now=True)
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Credencial Aprende'
+        verbose_name_plural = 'Credenciales Aprende'
+
+    def __str__(self):
+        return f'clave·est={self.estudiante_id}'
+
+    def set_password(self, raw: str) -> None:
+        from django.contrib.auth.hashers import make_password
+
+        self.password_hash = make_password(raw)
+
+    def check_password(self, raw: str) -> bool:
+        from django.contrib.auth.hashers import check_password
+
+        return check_password(raw or '', self.password_hash)
