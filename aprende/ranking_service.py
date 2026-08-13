@@ -5,8 +5,8 @@ from __future__ import annotations
 from core.gamificacion import PerfilGamificacion
 from core.gamificacion_modo import (
     gamificacion_activa,
-    modo_usa_calificacion,
-    modo_usa_puntos,
+    curso_usa_calificacion,
+    curso_usa_puntos,
     ranking_calificaciones_cliente,
 )
 from core.models import Curso, Estudiante
@@ -119,7 +119,10 @@ def _filas_puntos_curso(curso: Curso, *, limite: int = 100) -> list[dict]:
 
 def ranking_curso_profesor(cliente, curso: Curso, *, limite: int = 100) -> dict:
     """Un solo ranking general del curso (sin tablas por grupo, por ahora)."""
-    if not gamificacion_activa(cliente):
+    ranking_activo = gamificacion_activa(cliente) or (
+        curso is not None and getattr(curso, 'es_modo_clases', lambda: False)()
+    )
+    if not ranking_activo:
         return {
             'activo': False,
             'grupo': None,
@@ -131,13 +134,13 @@ def ranking_curso_profesor(cliente, curso: Curso, *, limite: int = 100) -> dict:
             'grupos': [],
         }
 
-    if modo_usa_calificacion(cliente):
+    if curso_usa_calificacion(cliente, curso):
         modo = 'calificacion'
         filas = _etiquetas_filas(
             ranking_calificaciones_cliente(cliente, curso_id=curso.pk, limite=limite),
             modo,
         )
-    elif modo_usa_puntos(cliente):
+    elif curso_usa_puntos(cliente, curso):
         modo = 'puntos'
         filas = _etiquetas_filas(_filas_puntos_curso(curso, limite=limite), modo)
     else:
@@ -180,7 +183,10 @@ def resumen_ranking_aula(
     Sin curso: vacío (la UI de ranking vive en la pestaña del curso).
     """
     cliente = getattr(estudiante, 'cliente', None)
-    if not gamificacion_activa(cliente):
+    ranking_activo = gamificacion_activa(cliente) or (
+        curso is not None and getattr(curso, 'es_modo_clases', lambda: False)()
+    )
+    if not ranking_activo:
         return {
             'activo': False,
             'grupo': None,
@@ -203,10 +209,10 @@ def resumen_ranking_aula(
             'curso': None,
         }
 
-    if modo_usa_calificacion(cliente):
+    if curso_usa_calificacion(cliente, curso):
         modo = 'calificacion'
         filas = ranking_calificaciones_cliente(cliente, curso_id=curso.pk, limite=100)
-    elif modo_usa_puntos(cliente):
+    elif curso_usa_puntos(cliente, curso):
         modo = 'puntos'
         filas = _filas_puntos_curso(curso, limite=100)
     else:

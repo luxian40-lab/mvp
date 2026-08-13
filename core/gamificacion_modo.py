@@ -38,6 +38,25 @@ def modo_usa_calificacion(cliente) -> bool:
     return get_modo_gamificacion(cliente) == MODO_CALIFICACION
 
 
+def curso_usa_calificacion(cliente, curso=None) -> bool:
+    """
+    Ranking/asistencia por nota 1–5.
+
+    Regla de producto: cursos en modo *Clases* siempre van por nota
+    (aunque la org use puntos para WhatsApp).
+    """
+    if curso is not None and getattr(curso, 'es_modo_clases', lambda: False)():
+        return True
+    return modo_usa_calificacion(cliente)
+
+
+def curso_usa_puntos(cliente, curso=None) -> bool:
+    """Puntos solo en cursos tipo módulos/WhatsApp cuando la org está en modo puntos."""
+    if curso is not None and getattr(curso, 'es_modo_clases', lambda: False)():
+        return False
+    return modo_usa_puntos(cliente)
+
+
 def sincronizar_usar_gamificacion(cliente) -> None:
     if cliente is None:
         return

@@ -789,7 +789,7 @@ def profesor_curso_asistencia(request, curso_id: int):
         'hay_registro': hay_registro,
         'dias_marcados': dias_marcados,
         'profesor_tab': 'asistencia',
-        **contexto_modo_calificacion(org),
+        **contexto_modo_calificacion(org, curso),
     })
 
 
@@ -868,7 +868,7 @@ def profesor_curso_calificaciones(request, curso_id: int):
         'curso': curso,
         'filas': filas,
         'profesor_tab': 'calificaciones',
-        **contexto_modo_calificacion(org),
+        **contexto_modo_calificacion(org, curso),
     })
 
 
@@ -881,7 +881,7 @@ def profesor_curso_ranking(request, curso_id: int):
         'curso': curso,
         'ranking': ranking,
         'profesor_tab': 'ranking',
-        **contexto_modo_calificacion(org),
+        **contexto_modo_calificacion(org, curso),
     })
 
 

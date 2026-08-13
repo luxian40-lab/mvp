@@ -11,8 +11,8 @@ from django.utils.dateparse import parse_date
 from core.gamificacion import EvaluacionNotaGamificacion, PerfilGamificacion
 from core.gamificacion_modo import (
     gamificacion_activa,
-    modo_usa_calificacion,
-    modo_usa_puntos,
+    curso_usa_calificacion,
+    curso_usa_puntos,
     registrar_nota_gamificacion,
     resumen_calificaciones_estudiante,
 )
@@ -79,7 +79,7 @@ def recalcular_nota_asistencia_estudiante(curso: Curso, estudiante: Estudiante) 
     Borra notas por-día legacy y escribe el agregado.
     """
     cliente = curso.cliente
-    if not cliente or not modo_usa_calificacion(cliente):
+    if not cliente or not curso_usa_calificacion(cliente, curso):
         return None
 
     EvaluacionNotaGamificacion.objects.filter(
@@ -119,10 +119,10 @@ def _sync_asistencia_gamificacion(asistencia: AsistenciaAula) -> None:
     cliente = asistencia.curso.cliente
     if not cliente:
         return
-    if modo_usa_calificacion(cliente):
+    if curso_usa_calificacion(cliente, asistencia.curso):
         recalcular_nota_asistencia_estudiante(asistencia.curso, asistencia.estudiante)
         return
-    if modo_usa_puntos(cliente) and asistencia.presente:
+    if curso_usa_puntos(cliente, asistencia.curso) and asistencia.presente:
         perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=asistencia.estudiante)
         motivo = _detalle_asistencia(asistencia.fecha)
         if not perfil.transacciones.filter(razon=motivo).exists():
@@ -141,7 +141,7 @@ def sincronizar_nota_tarea_entrega(entrega: EntregaTarea) -> None:
         return
 
     cliente = entrega.tarea.curso.cliente
-    if not cliente or not modo_usa_calificacion(cliente):
+    if not cliente or not curso_usa_calificacion(cliente, entrega.tarea.curso):
         return
 
     detalle = f'Tarea: {entrega.tarea.titulo}'[:200]
@@ -202,7 +202,7 @@ def borrar_asistencia_sesion(curso: Curso, fecha: date) -> int:
     AsistenciaAula.objects.filter(curso=curso, fecha=fecha).delete()
 
     cliente = curso.cliente
-    if cliente and modo_usa_calificacion(cliente):
+    if cliente and curso_usa_calificacion(cliente, curso):
         # Legacy por-día + agregado: se reescribe en el recálculo.
         for est in Estudiante.objects.filter(pk__in=afectados):
             recalcular_nota_asistencia_estudiante(curso, est)
@@ -212,7 +212,7 @@ def borrar_asistencia_sesion(curso: Curso, fecha: date) -> int:
             tipo='asistencia',
             detalle=detalle,
         ).delete()
-    elif cliente and modo_usa_puntos(cliente):
+    elif cliente and curso_usa_puntos(cliente, curso):
         razon = f'Manual: {detalle}'
         for tx in TransaccionPuntos.objects.filter(razon=razon).select_related('perfil'):
             perfil = tx.perfil
@@ -426,9 +426,11 @@ def registrar_nota_manual_curso(
     }
 
 
-def contexto_modo_calificacion(org) -> dict:
+def contexto_modo_calificacion(org, curso=None) -> dict:
     return {
-        'gamif_activa': gamificacion_activa(org),
-        'usa_calificacion': modo_usa_calificacion(org),
-        'usa_puntos': modo_usa_puntos(org),
+        'gamif_activa': gamificacion_activa(org) or (
+            bool(curso) and getattr(curso, 'es_modo_clases', lambda: False)()
+        ),
+        'usa_calificacion': curso_usa_calificacion(org, curso),
+        'usa_puntos': curso_usa_puntos(org, curso),
     }
