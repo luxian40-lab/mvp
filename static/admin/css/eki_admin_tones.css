@@ -1,7 +1,8 @@
 /**
  * Tonos admin — Cielo (azul), Marca (lavanda eki), Oscuro (carbón).
- * UI labels: Cielo / Marca / Oscuro. Keys internas: manana / tarde / noche.
- * Control: dropdown palette en el nav. Aplica html[data-eki-tone=…].
+ * Keys: manana / tarde / noche.
+ * Cielo DEBE diferenciarse de Marca: reescribe --color-primary-* de Unfold
+ * (si no, todo el chrome queda morado y los skins se ven iguales).
  */
 
 .eki-tone-btn[aria-pressed="true"] {
@@ -11,54 +12,100 @@
 /* ========== CIELO: azul operativo (key: manana) ========== */
 html[data-eki-tone="manana"] {
   color-scheme: light;
-  --eki-accent: #3d7ea6;
-  --eki-accent-deep: #2a5f7d;
-  --eki-accent-soft: rgba(61, 126, 166, 0.14);
-  --eki-box-border: rgba(30, 60, 90, 0.14);
+  --eki-accent: #2b7bb8;
+  --eki-accent-deep: #1a5a8a;
+  --eki-accent-soft: rgba(43, 123, 184, 0.16);
+  --eki-box-border: rgba(20, 70, 110, 0.18);
   --eki-box-bg: #ffffff;
+
+  /* Unfold Tailwind primary → azul (antes quedaba morado UNFOLD) */
+  --color-primary-50: #eef6fb;
+  --color-primary-100: #d6ebf6;
+  --color-primary-200: #aed7ed;
+  --color-primary-300: #7ab8db;
+  --color-primary-400: #4a96c4;
+  --color-primary-500: #2b7bb8;
+  --color-primary-600: #1f6499;
+  --color-primary-700: #1a5a8a;
+  --color-primary-800: #154a70;
+  --color-primary-900: #103a58;
+  --color-primary-950: #0a2438;
+
+  /* Fondo página: cielo frío, no lavanda */
+  --color-base-50: #dceef8;
+  --color-base-100: #c8e3f2;
+  --color-base-200: #a8d0e6;
 }
 
 html[data-eki-tone="manana"] body,
 html[data-eki-tone="manana"] #main,
-html[data-eki-tone="manana"] .bg-base-50,
-html[data-eki-tone="manana"] [class*="bg-base-50"] {
-  --tw-bg-opacity: 1;
-}
-
-html[data-eki-tone="manana"] body {
-  background: #e7f2f8 !important;
+html[data-eki-tone="manana"] .bg-base-50 {
+  background-color: #dceef8 !important;
 }
 
 html[data-eki-tone="manana"] a:not(.button):not([class*="bg-"]),
+html[data-eki-tone="manana"] .text-primary-500,
 html[data-eki-tone="manana"] .text-primary-600,
+html[data-eki-tone="manana"] .text-primary-700,
 html[data-eki-tone="manana"] .eki-ops-back {
-  color: #2a5f7d;
+  color: #1a5a8a !important;
 }
 
 html[data-eki-tone="manana"] .border-primary-600,
-html[data-eki-tone="manana"] .bg-primary-600 {
-  border-color: #3d7ea6;
+html[data-eki-tone="manana"] .border-primary-500 {
+  border-color: #2b7bb8 !important;
 }
 
 html[data-eki-tone="manana"] .bg-primary-600,
-html[data-eki-tone="manana"] .bg-primary-500 {
-  background-color: #3d7ea6 !important;
+html[data-eki-tone="manana"] .bg-primary-500,
+html[data-eki-tone="manana"] .bg-primary-700 {
+  background-color: #2b7bb8 !important;
 }
 
-html[data-eki-tone="manana"] .eki-hub-hello__title {
-  color: #1a3344;
+html[data-eki-tone="manana"] .hover\:bg-primary-700:hover,
+html[data-eki-tone="manana"] .hover\:bg-primary-600:hover {
+  background-color: #1a5a8a !important;
+}
+
+html[data-eki-tone="manana"] .eki-hub-hello__title,
+html[data-eki-tone="manana"] .eki-panel-exec__title {
+  color: #0f2f45 !important;
 }
 
 html[data-eki-tone="manana"] .eki-hub-cal {
-  border-color: rgba(42, 95, 125, 0.2);
-  color: #2a5f7d;
+  background: #fff;
+  border-color: rgba(26, 90, 138, 0.28);
+  color: #1a5a8a;
 }
 
 html[data-eki-tone="manana"] .eki-hub-cal .material-symbols-outlined {
-  color: #3d7ea6;
+  color: #2b7bb8;
 }
 
-/* ========== MARCA: lavanda eki (key: tarde) ========== */
+html[data-eki-tone="manana"] .eki-header-bell:hover {
+  background: rgba(43, 123, 184, 0.12);
+  color: #1a5a8a;
+}
+
+html[data-eki-tone="manana"] .eki-panel-kpi {
+  border-top-color: #2b7bb8;
+}
+
+html[data-eki-tone="manana"] .eki-panel-kpi--purple {
+  border-top-color: #2b7bb8;
+}
+
+html[data-eki-tone="manana"] .eki-panel-accion,
+html[data-eki-tone="manana"] .eki-hub-col a:hover {
+  border-color: rgba(43, 123, 184, 0.35);
+}
+
+/* Barra activa / chips: azul */
+html[data-eki-tone="manana"] [class*="bg-primary"] {
+  --tw-bg-opacity: 1;
+}
+
+/* ========== MARCA: lavanda eki (key: tarde) — default ========== */
 html[data-eki-tone="tarde"] {
   color-scheme: light;
   --eki-accent: #9A6CAC;
@@ -66,10 +113,37 @@ html[data-eki-tone="tarde"] {
   --eki-accent-soft: rgba(154, 108, 172, 0.12);
   --eki-box-border: rgba(30, 27, 36, 0.16);
   --eki-box-bg: #ffffff;
+
+  --color-primary-50: #f8f4fa;
+  --color-primary-100: #f0e8f4;
+  --color-primary-200: #e0d0e8;
+  --color-primary-300: #c9aed4;
+  --color-primary-400: #b08cbe;
+  --color-primary-500: #9A6CAC;
+  --color-primary-600: #7a4e8e;
+  --color-primary-700: #5F3A6E;
+  --color-primary-800: #4a2d56;
+  --color-primary-900: #3a2344;
+  --color-primary-950: #24162b;
+
+  --color-base-50: #f0eef3;
+  --color-base-100: #e8e4ef;
+  --color-base-200: #d9d3e3;
 }
 
-html[data-eki-tone="tarde"] body {
-  background: #f0eef3 !important;
+html[data-eki-tone="tarde"] body,
+html[data-eki-tone="tarde"] #main,
+html[data-eki-tone="tarde"] .bg-base-50 {
+  background-color: #f0eef3 !important;
+}
+
+html[data-eki-tone="tarde"] .eki-hub-hello__title,
+html[data-eki-tone="tarde"] .eki-panel-exec__title {
+  color: #1e1b24;
+}
+
+html[data-eki-tone="tarde"] .eki-panel-kpi--purple {
+  border-top-color: #9A6CAC;
 }
 
 /* ========== OSCURO: carbón (key: noche) ========== */
@@ -80,18 +154,34 @@ html[data-eki-tone="noche"] {
   --eki-accent-soft: rgba(184, 155, 196, 0.16);
   --eki-box-border: rgba(230, 226, 234, 0.12);
   --eki-box-bg: #26232b;
+
+  --color-primary-50: #2a2433;
+  --color-primary-100: #3a3344;
+  --color-primary-200: #52485c;
+  --color-primary-300: #7a6b8a;
+  --color-primary-400: #9a85aa;
+  --color-primary-500: #b89bc4;
+  --color-primary-600: #c9b3d4;
+  --color-primary-700: #d8c8e0;
+  --color-primary-800: #e6dcec;
+  --color-primary-900: #f0eaf4;
+  --color-primary-950: #f8f4fa;
 }
 
-html[data-eki-tone="noche"] body {
+html[data-eki-tone="noche"] body,
+html[data-eki-tone="noche"] #main {
   background: #1c1a1f !important;
   color: #e6e2ea;
 }
 
-html[data-eki-tone="noche"] .eki-hub-hello__title {
+html[data-eki-tone="noche"] .eki-hub-hello__title,
+html[data-eki-tone="noche"] .eki-panel-exec__title {
   color: #e6e2ea;
 }
 
-html[data-eki-tone="noche"] .eki-hub-hello__sub {
+html[data-eki-tone="noche"] .eki-hub-hello__sub,
+html[data-eki-tone="noche"] .eki-panel-exec__motto,
+html[data-eki-tone="noche"] .eki-panel-exec__sub {
   color: #a59eb0;
 }
 

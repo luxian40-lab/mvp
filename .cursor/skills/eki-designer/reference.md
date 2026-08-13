@@ -35,9 +35,11 @@ Estado actual (canon UI):
 
 | Label UI | Key CSS | Skin |
 |----------|---------|------|
-| **Cielo** | `manana` | Azul operativo |
-| **Marca** | `tarde` (default) | Lavanda eki `#9A6CAC` |
+| **Cielo** | `manana` | Azul operativo: reescribe `--color-primary-*` Unfold + fondo `#dceef8` |
+| **Marca** | `tarde` (default) | Lavanda eki `#9A6CAC` + fondo `#f0eef3` |
 | **Oscuro** | `noche` | Carbón + Unfold `dark` |
+
+Cielo ≠ Marca: si Cielo no pisa `--color-primary-*`, Unfold queda morado y los dos skins se ven iguales.
 
 Saludo Inicio: formal por **hora local** (`Buenos días/tardes/noches, {nombre}`); subtítulo operativo (no frases motivacionales casuales). Ver `core/templatetags/eki_admin.py`.
 
