@@ -11,6 +11,16 @@
             <p class="eki-ranking-banner__sub">Los mismos puntos que ganas en WhatsApp (evaluaciones, retos y actividades) cuentan aquí.</p>
         </div>
     </div>
+    {% elif ranking.modo == 'calificacion' %}
+    <div class="eki-ranking-banner" role="status">
+        <div class="eki-ranking-banner__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><use href="#eki-ico-trophy"/></svg>
+        </div>
+        <div>
+            <p class="eki-ranking-banner__title">Ranking por notas</p>
+            <p class="eki-ranking-banner__sub">Promedio 1–5: asistencia del curso (−0,2 por falta) y tareas calificadas.</p>
+        </div>
+    </div>
     {% endif %}
 
     <div class="eki-ranking-head">

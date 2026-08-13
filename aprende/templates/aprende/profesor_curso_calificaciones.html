@@ -16,7 +16,9 @@
 <div class="eki-card" style="margin-top:1rem;">
     <h2 class="eki-h2">Calificaciones del curso</h2>
     <p class="eki-muted" style="margin:-0.35rem 0 1rem;">
-        Promedio ponderado: asistencia (peso 1), tareas, retos y notas manuales. Puede corregir notas o sumar evaluaciones.
+        Promedio ponderado (1–5): <strong>asistencia del curso</strong>
+        (parte en 5; −0,2 por falta; piso 1) + tareas + notas manuales.
+        Ranking del curso ordena por ese promedio.
     </p>
 
     {% if not usa_calificacion %}
@@ -47,7 +49,15 @@
                         <strong>{{ f.estudiante.nombre }}</strong>
                         <div class="eki-muted" style="font-size:0.8rem;">{{ f.estudiante.cedula|default:"—" }}</div>
                     </td>
-                    <td>{{ f.asistencia.presentes }}/{{ f.asistencia.total }} sesiones</td>
+                    <td>
+                        {{ f.asistencia.presentes }}/{{ f.asistencia.total }} sesiones
+                        {% if f.asistencia.nota != None %}
+                        <div class="eki-muted" style="font-size:0.8rem;">
+                            Nota {{ f.asistencia.nota|floatformat:1 }}/5
+                            {% if f.asistencia.faltas %} · {{ f.asistencia.faltas }} falta{{ f.asistencia.faltas|pluralize:"s" }}{% endif %}
+                        </div>
+                        {% endif %}
+                    </td>
                     <td>
                         {% for e in f.entregas %}
                         <div style="font-size:0.85rem;">{{ e.tarea.titulo }}: <strong>{{ e.nota }}/5</strong></div>

@@ -9,7 +9,13 @@
 <div class="eki-page-head">
     <span class="eki-kicker">Competencia sana</span>
     <h1>Ranking del curso</h1>
-    <p class="eki-lead">Nombre y puntaje de tu grupo. Los puntos vienen de WhatsApp y de tu participación en el curso.</p>
+    <p class="eki-lead">
+        {% if ranking.modo == 'calificacion' %}
+        Orden por <strong>promedio de notas</strong> (asistencia del curso + tareas). Asistencia parte en 5 y baja 0,2 por cada falta.
+        {% else %}
+        Nombre y puntaje de tu grupo. Los puntos vienen de WhatsApp y de tu participación en el curso.
+        {% endif %}
+    </p>
 </div>
 
 {% include "aprende/partials/estudiante_curso_tabs.html" %}
@@ -17,7 +23,13 @@
 {% if not ranking.activo %}
 <div class="eki-card eki-empty">
     <h2>Ranking no activo</h2>
-    <p class="eki-muted">La gamificación no está activa para tu organización. Sigue avanzando con <strong>*listo*</strong> en WhatsApp y tus módulos aquí.</p>
+    <p class="eki-muted">
+        {% if progreso.curso.es_modo_clases %}
+        La organización debe usar modo <strong>Calificación 1–5</strong> para ranking en programas de clases (asistencia + tareas).
+        {% else %}
+        La gamificación no está activa para tu organización. Sigue avanzando con <strong>*listo*</strong> en WhatsApp y tus módulos aquí.
+        {% endif %}
+    </p>
 </div>
 {% else %}
 {% include "aprende/partials/ranking_grupo.html" %}

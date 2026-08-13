@@ -21,8 +21,10 @@ from core.models import Curso, Estudiante, ProgresoEstudiante
 from .models import AsistenciaAula, EntregaTarea, TareaCurso
 
 PESO_ASISTENCIA = Decimal('1')
-NOTA_PRESENTE = Decimal('5')
-NOTA_AUSENTE = Decimal('1')
+PASO_FALTA = Decimal('0.2')
+NOTA_ASISTENCIA_MAX = Decimal('5')
+NOTA_ASISTENCIA_MIN = Decimal('1')
+DETALLE_ASISTENCIA_CURSO = 'Asistencia del curso'
 
 
 def estudiantes_inscritos_curso(curso: Curso):
@@ -37,42 +39,94 @@ def estudiantes_inscritos_curso(curso: Curso):
     )
 
 
+def nota_asistencia_desde_faltas(faltas: int) -> Decimal:
+    """
+    Nota cerrada 1–5: parte en 5 y resta 0,2 por falta (piso 1).
+    0 faltas→5 · 1→4,8 · 5→4,0 · 20+→1.
+    """
+    n = int(faltas or 0)
+    if n < 0:
+        n = 0
+    raw = NOTA_ASISTENCIA_MAX - (Decimal(n) * PASO_FALTA)
+    if raw < NOTA_ASISTENCIA_MIN:
+        raw = NOTA_ASISTENCIA_MIN
+    return raw.quantize(Decimal('0.1'))
+
+
 def _detalle_asistencia(fecha: date) -> str:
     return f'Asistencia {fecha.isoformat()}'
 
 
-def _sync_asistencia_gamificacion(asistencia: AsistenciaAula) -> None:
-    """Asistencia cuenta como 1 punto de peso en el promedio (modo calificación)."""
-    cliente = asistencia.curso.cliente
-    if not cliente or not modo_usa_calificacion(cliente):
-        if cliente and modo_usa_puntos(cliente) and asistencia.presente:
-            perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=asistencia.estudiante)
-            motivo = _detalle_asistencia(asistencia.fecha)
-            if not perfil.transacciones.filter(razon=motivo).exists():
-                perfil.ajustar_puntos_manual(1, motivo)
-        return
+def resumen_asistencia_estudiante(curso: Curso, estudiante_id: int) -> dict:
+    agg = AsistenciaAula.objects.filter(curso=curso, estudiante_id=estudiante_id).aggregate(
+        total=Count('id'),
+        presentes=Count('id', filter=F('presente')),
+    )
+    total = int(agg['total'] or 0)
+    presentes = int(agg['presentes'] or 0)
+    faltas = max(0, total - presentes)
+    return {
+        'total': total,
+        'presentes': presentes,
+        'faltas': faltas,
+        'nota': nota_asistencia_desde_faltas(faltas) if total else None,
+    }
 
-    detalle = _detalle_asistencia(asistencia.fecha)
-    nota = NOTA_PRESENTE if asistencia.presente else NOTA_AUSENTE
-    prev = EvaluacionNotaGamificacion.objects.filter(
-        estudiante=asistencia.estudiante,
-        curso=asistencia.curso,
+
+def recalcular_nota_asistencia_estudiante(curso: Curso, estudiante: Estudiante) -> Decimal | None:
+    """
+    Una sola nota de asistencia por estudiante/curso (modo calificación).
+    Borra notas por-día legacy y escribe el agregado.
+    """
+    cliente = curso.cliente
+    if not cliente or not modo_usa_calificacion(cliente):
+        return None
+
+    EvaluacionNotaGamificacion.objects.filter(
+        estudiante=estudiante,
+        curso=curso,
         tipo='asistencia',
-        detalle=detalle,
-    ).first()
-    if prev:
-        prev.nota = nota
-        prev.peso = PESO_ASISTENCIA
-        prev.save(update_fields=['nota', 'peso'])
-    else:
-        registrar_nota_gamificacion(
-            asistencia.estudiante,
-            nota,
-            'asistencia',
-            curso=asistencia.curso,
-            detalle=detalle,
-            peso=PESO_ASISTENCIA,
-        )
+    ).delete()
+
+    asist = resumen_asistencia_estudiante(curso, estudiante.pk)
+    total = int(asist['total'] or 0)
+    if total <= 0:
+        return None
+
+    nota = asist['nota']
+    registrar_nota_gamificacion(
+        estudiante,
+        nota,
+        'asistencia',
+        curso=curso,
+        detalle=DETALLE_ASISTENCIA_CURSO,
+        peso=PESO_ASISTENCIA,
+    )
+    return nota
+
+
+def recalcular_notas_asistencia_curso(curso: Curso) -> int:
+    """Recalcula asistencia agregada para todos los inscritos. Devuelve # con nota."""
+    n = 0
+    for est in estudiantes_inscritos_curso(curso):
+        if recalcular_nota_asistencia_estudiante(curso, est) is not None:
+            n += 1
+    return n
+
+
+def _sync_asistencia_gamificacion(asistencia: AsistenciaAula) -> None:
+    """Tras marcar un día: puntos (+1 si presente) o recalcular nota agregada 1–5."""
+    cliente = asistencia.curso.cliente
+    if not cliente:
+        return
+    if modo_usa_calificacion(cliente):
+        recalcular_nota_asistencia_estudiante(asistencia.curso, asistencia.estudiante)
+        return
+    if modo_usa_puntos(cliente) and asistencia.presente:
+        perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=asistencia.estudiante)
+        motivo = _detalle_asistencia(asistencia.fecha)
+        if not perfil.transacciones.filter(razon=motivo).exists():
+            perfil.ajustar_puntos_manual(1, motivo)
 
 
 def sincronizar_nota_tarea_entrega(entrega: EntregaTarea) -> None:
@@ -133,17 +187,26 @@ def guardar_asistencia_sesion(request, curso: Curso, fecha: date, presente_ids: 
 
 def borrar_asistencia_sesion(curso: Curso, fecha: date) -> int:
     """
-    Elimina el registro de asistencia de ese día (y notas/puntos ligados a esa sesión).
+    Elimina el registro de asistencia de ese día y recalcula la nota agregada.
     Útil cuando el profesor cargó mal la fecha o los presentes.
     """
     from core.gamificacion import TransaccionPuntos
 
     detalle = _detalle_asistencia(fecha)
-    n = AsistenciaAula.objects.filter(curso=curso, fecha=fecha).count()
+    afectados = list(
+        AsistenciaAula.objects.filter(curso=curso, fecha=fecha).values_list(
+            'estudiante_id', flat=True
+        )
+    )
+    n = len(afectados)
     AsistenciaAula.objects.filter(curso=curso, fecha=fecha).delete()
 
     cliente = curso.cliente
     if cliente and modo_usa_calificacion(cliente):
+        # Legacy por-día + agregado: se reescribe en el recálculo.
+        for est in Estudiante.objects.filter(pk__in=afectados):
+            recalcular_nota_asistencia_estudiante(curso, est)
+        # Si nadie quedó con sesiones, limpia huérfanos de esa fecha legacy.
         EvaluacionNotaGamificacion.objects.filter(
             curso=curso,
             tipo='asistencia',
@@ -175,17 +238,6 @@ def filas_asistencia_curso(curso: Curso, fecha: date) -> list[dict]:
             'registrado': reg is not None,
         })
     return filas
-
-
-def resumen_asistencia_estudiante(curso: Curso, estudiante_id: int) -> dict:
-    agg = AsistenciaAula.objects.filter(curso=curso, estudiante_id=estudiante_id).aggregate(
-        total=Count('id'),
-        presentes=Count('id', filter=F('presente')),
-    )
-    return {
-        'total': agg['total'] or 0,
-        'presentes': agg['presentes'] or 0,
-    }
 
 
 def filas_calificacion_curso(curso: Curso) -> list[dict]:
