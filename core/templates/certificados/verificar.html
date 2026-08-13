@@ -5,7 +5,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#5F3A6E">
-  <title>{% if valido %}Certificado válido{% else %}Certificado no válido{% endif %} · eki</title>
+  <title>{% if inicio %}Verificar certificado{% elif valido %}Certificado válido{% else %}Certificado no válido{% endif %} · eki</title>
+  {% if valido %}
+  <meta property="og:title" content="{{ titulo_hero }} · Certificado eki">
+  <meta property="og:description" content="{% if organizacion %}Emitido por {{ organizacion }} · {% endif %}{{ curso }}">
+  {% if imagen_url %}<meta property="og:image" content="{{ imagen_url }}">{% endif %}
+  <meta name="twitter:card" content="summary_large_image">
+  {% endif %}
   <link rel="icon" href="{% static 'favicons/certificados.svg' %}" type="image/svg+xml">
   <link rel="icon" href="{% static 'favicons/certificados-32.png' %}" type="image/png" sizes="32x32">
   <link rel="apple-touch-icon" href="{% static 'favicons/certificados-180.png' %}">
@@ -146,6 +152,10 @@
       color: var(--bad);
       background: var(--bad-soft);
     }
+    .status.home {
+      color: var(--purple-brand);
+      background: var(--accent-soft);
+    }
     .status svg { width: 14px; height: 14px; flex-shrink: 0; }
     h1 {
       font-family: var(--font-read);
@@ -157,12 +167,28 @@
       color: var(--ink);
       max-width: 18ch;
     }
+    h1.hero-m { font-size: clamp(1.35rem, 4.2vw, 1.65rem); max-width: 22ch; }
+    h1.hero-l { font-size: clamp(1.55rem, 5vw, 1.9rem); max-width: 18ch; }
+    h1.hero-xl {
+      font-size: clamp(1.9rem, 6.5vw, 2.45rem);
+      max-width: 14ch;
+      letter-spacing: -0.03em;
+    }
     .lede {
       margin: 0 0 1.4rem;
       color: var(--muted);
       font-size: 0.95rem;
       line-height: 1.55;
       max-width: 36ch;
+    }
+    .diploma {
+      display: block;
+      width: 100%;
+      border-radius: 10px;
+      margin: 0 0 1.15rem;
+      border: 1px solid var(--line);
+      box-shadow: 0 8px 20px rgba(95, 58, 110, 0.12);
+      background: #efeaf4;
     }
     .meta {
       margin: 0;
@@ -215,6 +241,15 @@
       background: var(--purple-mid);
       transform: translateY(-1px);
       box-shadow: 0 8px 22px rgba(122, 78, 142, 0.35);
+    }
+    a.btn-ghost {
+      background: transparent;
+      color: var(--purple-brand);
+      box-shadow: inset 0 0 0 2px var(--purple-brand);
+    }
+    a.btn-ghost:hover {
+      background: var(--accent-soft);
+      box-shadow: inset 0 0 0 2px var(--purple-brand);
     }
     form.check {
       display: flex;
@@ -277,7 +312,16 @@
     </header>
 
     <article class="card">
-      {% if valido %}
+      {% if inicio %}
+        <p class="status home">Verificar</p>
+        <h1>Verificar un certificado</h1>
+        <p class="lede">Pegue el código del diploma (o escanee el QR). Confirmamos si está en el registro público de eki.</p>
+        <form class="check" method="get" action="{% url 'verificar_certificado_query' %}">
+          <input type="text" name="code" placeholder="eki-XXXX-XXXX-XXXX" required autocomplete="off" spellcheck="false" autofocus>
+          <button type="submit">Verificar</button>
+        </form>
+        <p class="foot">Los certificados emitidos por eki incluyen un enlace único de verificación.</p>
+      {% elif valido %}
         <svg class="mark" viewBox="0 0 56 56" aria-hidden="true">
           <circle cx="28" cy="28" r="26" fill="#7a4e8e"/>
           <circle cx="28" cy="28" r="20" fill="none" stroke="#f6f1e8" stroke-width="1.5"/>
@@ -287,14 +331,35 @@
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.2l3.2 3.2L13 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
           Válido
         </p>
-        <h1>{{ estudiante }}</h1>
-        <p class="lede">Completó el programa <em>{{ curso }}</em>.</p>
+        <h1 class="hero-{{ ui_tamano|default:'l' }}">{{ titulo_hero }}</h1>
+        {% if ui_hero == 'curso' %}
+        <p class="lede">{% if estudiante %}Completó el programa · {{ estudiante }}.{% else %}Programa verificado.{% endif %}</p>
+        {% elif ui_hero == 'organizacion' %}
+        <p class="lede">{% if estudiante and curso %}{{ estudiante }} completó <em>{{ curso }}</em>.{% elif curso %}Completó el programa <em>{{ curso }}</em>.{% else %}Certificado verificado.{% endif %}</p>
+        {% else %}
+        <p class="lede">{% if curso %}Completó el programa <em>{{ curso }}</em>.{% else %}Certificado verificado.{% endif %}</p>
+        {% endif %}
+
+        {% if ui_mostrar_diploma and imagen_url %}
+        <a href="{{ imagen_url }}" target="_blank" rel="noopener">
+          <img class="diploma" src="{{ imagen_url }}" alt="Diploma de {{ estudiante }}" loading="lazy" referrerpolicy="no-referrer">
+        </a>
+        {% endif %}
+
         <dl class="meta">
+          {% if ui_hero != 'curso' %}
           <div>
             <dt>Curso</dt>
             <dd>{{ curso }}</dd>
           </div>
-          {% if organizacion %}
+          {% endif %}
+          {% if ui_hero != 'estudiante' and estudiante %}
+          <div>
+            <dt>Estudiante</dt>
+            <dd>{{ estudiante }}</dd>
+          </div>
+          {% endif %}
+          {% if organizacion and ui_hero != 'organizacion' %}
           <div>
             <dt>Organización</dt>
             <dd>{{ organizacion }}</dd>
@@ -328,7 +393,7 @@
             <dt>Código</dt>
             <dd class="code">{{ codigo }}</dd>
           </div>
-          {% if hash_sha256 %}
+          {% if ui_mostrar_hash and hash_sha256 %}
           <div>
             <dt>Integridad</dt>
             <dd class="code" style="font-size:0.72rem;word-break:break-all;">SHA-256 {{ hash_sha256 }}</dd>
@@ -341,7 +406,7 @@
           <a class="btn" href="{{ descarga_url|default:pdf_url }}" rel="noopener">Descargar PDF</a>
           {% endif %}
           {% if imagen_url %}
-          <a class="btn" href="{{ imagen_url }}" target="_blank" rel="noopener" style="background:transparent;color:var(--purple-brand);box-shadow:inset 0 0 0 2px var(--purple-brand);">Ver imagen</a>
+          <a class="btn btn-ghost" href="{{ imagen_url }}" target="_blank" rel="noopener">Ver imagen</a>
           {% endif %}
         </div>
         {% endif %}

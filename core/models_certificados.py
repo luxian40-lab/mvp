@@ -339,7 +339,43 @@ class PlantillaCertificado(models.Model):
         default=False,
         help_text="Plantilla por defecto para nuevos certificados"
     )
-    
+
+    # Página pública certificados.eki.technology (ficha de verificación)
+    VERIFICACION_HERO_CHOICES = [
+        ('estudiante', 'Nombre del estudiante'),
+        ('curso', 'Nombre del curso'),
+        ('organizacion', 'Organización'),
+    ]
+    VERIFICACION_TAMANO_CHOICES = [
+        ('m', 'Normal'),
+        ('l', 'Grande'),
+        ('xl', 'Muy grande'),
+    ]
+    verificacion_hero = models.CharField(
+        max_length=20,
+        choices=VERIFICACION_HERO_CHOICES,
+        default='estudiante',
+        verbose_name='Destacar en la ficha',
+        help_text='Qué título va más grande en certificados.eki.technology al verificar.',
+    )
+    verificacion_tamano_hero = models.CharField(
+        max_length=4,
+        choices=VERIFICACION_TAMANO_CHOICES,
+        default='l',
+        verbose_name='Tamaño del título',
+        help_text='Tamaño tipográfico del elemento destacado.',
+    )
+    verificacion_mostrar_diploma = models.BooleanField(
+        default=True,
+        verbose_name='Mostrar miniatura del diploma',
+        help_text='Si hay imagen del certificado emitido, mostrarla en la ficha pública.',
+    )
+    verificacion_mostrar_hash = models.BooleanField(
+        default=True,
+        verbose_name='Mostrar SHA-256',
+        help_text='Mostrar el hash de integridad en la ficha (más técnico).',
+    )
+
     # Timestamps
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)

@@ -46,6 +46,7 @@ def _ctx_verificacion(codigo: str, data: dict) -> dict:
     if not data.get('valido'):
         return {
             'valido': False,
+            'inicio': False,
             'codigo': codigo,
             'mensaje': data.get('error') or 'Certificado no encontrado o no válido',
             'anulado': bool(data.get('anulado')),
@@ -65,13 +66,27 @@ def _ctx_verificacion(codigo: str, data: dict) -> dict:
             fecha_comp_txt = fecha_comp.strftime('%d/%m/%Y')
         except Exception:
             fecha_comp_txt = str(fecha_comp)[:10]
+
+    hero = data.get('ui_hero') or 'estudiante'
+    tamano = data.get('ui_tamano') or 'l'
+    estudiante = data.get('estudiante') or ''
+    curso = data.get('curso') or ''
+    organizacion = data.get('organizacion') or ''
+    if hero == 'curso':
+        titulo = curso or estudiante
+    elif hero == 'organizacion':
+        titulo = organizacion or estudiante
+    else:
+        titulo = estudiante
+
     return {
         'valido': True,
+        'inicio': False,
         'codigo': data.get('codigo') or codigo,
-        'estudiante': data.get('estudiante') or '',
+        'estudiante': estudiante,
         'cedula_enmascarada': data.get('cedula_enmascarada') or '',
-        'curso': data.get('curso') or '',
-        'organizacion': data.get('organizacion') or '',
+        'curso': curso,
+        'organizacion': organizacion,
         'mencion': data.get('mencion') or '',
         'fecha_emision': fecha_txt,
         'fecha_completado': fecha_comp_txt,
@@ -82,6 +97,11 @@ def _ctx_verificacion(codigo: str, data: dict) -> dict:
         'pdf_url': data.get('pdf_url') or data.get('descarga_url'),
         'imagen_url': data.get('imagen_url'),
         'descarga_url': data.get('descarga_url') or data.get('pdf_url'),
+        'ui_hero': hero,
+        'ui_tamano': tamano,
+        'ui_mostrar_diploma': bool(data.get('ui_mostrar_diploma', True)),
+        'ui_mostrar_hash': bool(data.get('ui_mostrar_hash', True)),
+        'titulo_hero': titulo,
     }
 
 
@@ -110,6 +130,7 @@ def verificar_certificado_query_view(request):
         'certificados/verificar.html',
         {
             'valido': False,
+            'inicio': True,
             'codigo': '',
             'mensaje': 'Ingrese el código del certificado para verificarlo.',
         },

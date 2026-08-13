@@ -1068,6 +1068,7 @@ def verificar_certificado_publico(codigo_verificacion):
             'estudiante',
             'estudiante__cliente',
             'curso',
+            'curso__cliente',
         ).get(
             codigo_verificacion__iexact=(codigo_verificacion or '').strip(),
             emitido=True,
@@ -1111,6 +1112,8 @@ def verificar_certificado_publico(codigo_verificacion):
         horas = certificado.horas_estimadas_curso()
         semanas = getattr(certificado.curso, 'duracion_semanas', None)
 
+        ui = _ui_verificacion_desde_plantilla(certificado)
+
         return {
             'valido': True,
             'codigo': certificado.codigo_verificacion,
@@ -1130,6 +1133,7 @@ def verificar_certificado_publico(codigo_verificacion):
             'pdf_url': pdf_url or descarga_path,
             'imagen_url': imagen_url,
             'descarga_url': descarga_path,
+            **ui,
         }
         
     except Certificado.DoesNotExist:
@@ -1143,3 +1147,68 @@ def verificar_certificado_publico(codigo_verificacion):
             'valido': False,
             'error': 'Error al verificar el certificado'
         }
+
+
+def _plantilla_para_certificado(certificado):
+    """Resuelve plantilla: curso → cliente → por defecto."""
+    from .models_certificados import PlantillaCertificado
+
+    curso = getattr(certificado, 'curso', None)
+    if curso and curso.pk:
+        p = (
+            PlantillaCertificado.objects.filter(curso_id=curso.pk, activa=True)
+            .order_by('-por_defecto', '-id')
+            .first()
+        )
+        if p:
+            return p
+    cliente_id = None
+    if curso and getattr(curso, 'cliente_id', None):
+        cliente_id = curso.cliente_id
+    est = getattr(certificado, 'estudiante', None)
+    if not cliente_id and est:
+        cliente_id = getattr(est, 'cliente_id', None)
+    if cliente_id:
+        p = (
+            PlantillaCertificado.objects.filter(
+                cliente_id=cliente_id, curso__isnull=True, activa=True
+            )
+            .order_by('-por_defecto', '-id')
+            .first()
+        )
+        if p:
+            return p
+    return (
+        PlantillaCertificado.objects.filter(por_defecto=True, activa=True)
+        .order_by('-id')
+        .first()
+        or PlantillaCertificado.objects.filter(activa=True).order_by('-por_defecto', '-id').first()
+    )
+
+
+def _ui_verificacion_desde_plantilla(certificado) -> dict:
+    """Preferencias de ficha pública (admin → plantilla)."""
+    defaults = {
+        'ui_hero': 'estudiante',
+        'ui_tamano': 'l',
+        'ui_mostrar_diploma': True,
+        'ui_mostrar_hash': True,
+    }
+    try:
+        p = _plantilla_para_certificado(certificado)
+    except Exception:
+        return defaults
+    if not p:
+        return defaults
+    hero = (getattr(p, 'verificacion_hero', None) or 'estudiante').strip()
+    if hero not in ('estudiante', 'curso', 'organizacion'):
+        hero = 'estudiante'
+    tamano = (getattr(p, 'verificacion_tamano_hero', None) or 'l').strip()
+    if tamano not in ('m', 'l', 'xl'):
+        tamano = 'l'
+    return {
+        'ui_hero': hero,
+        'ui_tamano': tamano,
+        'ui_mostrar_diploma': bool(getattr(p, 'verificacion_mostrar_diploma', True)),
+        'ui_mostrar_hash': bool(getattr(p, 'verificacion_mostrar_hash', True)),
+    }

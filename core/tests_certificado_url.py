@@ -101,3 +101,65 @@ def test_pagina_verificar_certificado_valido_e_invalido():
     r3 = http.get("/verificar/?code=eki-TEST-VALI-D001")
     assert r3.status_code == 302
     assert "verificar-certificado" in r3["Location"]
+
+    r_home = http.get("/verificar/")
+    assert r_home.status_code == 200
+    assert b"Verificar un certificado" in r_home.content
+    assert b"No est" not in r_home.content or b"Verificar un certificado" in r_home.content
+
+
+@pytest.mark.django_db
+@override_settings(
+    STORAGES={
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    },
+    SECURE_SSL_REDIRECT=False,
+)
+def test_ficha_publica_respeta_hero_y_tamano_plantilla():
+    from core.models_certificados import PlantillaCertificado
+
+    cliente = Cliente.objects.create(
+        nombre="Org Hero",
+        nit="900000000-2",
+        contacto_principal="A",
+        email="h@b.co",
+        telefono="573009990021",
+        activo=True,
+    )
+    curso = Curso.objects.create(nombre="Curso Destacado", cliente=cliente, activo=True)
+    PlantillaCertificado.objects.create(
+        nombre="Plantilla Hero Curso",
+        curso=curso,
+        cliente=cliente,
+        modo_plantilla='diseno_eki',
+        activa=True,
+        verificacion_hero='curso',
+        verificacion_tamano_hero='xl',
+        verificacion_mostrar_hash=False,
+    )
+    est = Estudiante.objects.create(
+        cedula="333333333",
+        nombre="Luis Hero",
+        telefono="573009990022",
+        cliente=cliente,
+        estado_chat="ACTIVO",
+        acepto_terminos=True,
+        activo=True,
+    )
+    Certificado.objects.create(
+        estudiante=est,
+        curso=curso,
+        calificacion_final=95,
+        fecha_inicio="2026-01-01",
+        fecha_completado="2026-02-01",
+        emitido=True,
+        fecha_emision=timezone.now(),
+        codigo_verificacion="eki-TEST-HERO-0001",
+    )
+    r = Client().get("/verificar-certificado/eki-TEST-HERO-0001/")
+    assert r.status_code == 200
+    assert b"hero-xl" in r.content
+    assert b"Curso Destacado" in r.content
+    # Título hero = curso; el nombre del estudiante sigue en meta/lede
+    assert b"<h1 class=\"hero-xl\">Curso Destacado</h1>" in r.content

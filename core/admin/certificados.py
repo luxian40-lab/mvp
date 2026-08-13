@@ -57,6 +57,25 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
             'fields': ('archivo_plantilla_pdf', 'variable_nombre', 'variable_curso', 'variable_fecha'),
             'description': 'Modo PDF: plantilla con variables {nombre}, {curso}, {fecha}.',
         }),
+        ('Página pública', {
+            'classes': ['tab'],
+            'fields': (
+                'verificacion_hero',
+                'verificacion_tamano_hero',
+                'verificacion_mostrar_diploma',
+                'verificacion_mostrar_hash',
+            ),
+            'description': mark_safe(
+                '<p>Cómo se ve la ficha en '
+                '<a href="https://certificados.eki.technology/verificar/" target="_blank" rel="noopener">'
+                'certificados.eki.technology</a> al escanear el QR.</p>'
+                '<ul style="margin:0.35rem 0 0;padding-left:1.2rem;">'
+                '<li><strong>Destacar</strong> — qué va como título grande (nombre, curso u org).</li>'
+                '<li><strong>Tamaño</strong> — normal / grande / muy grande.</li>'
+                '<li><strong>Miniatura</strong> — muestra el diploma emitido en la ficha.</li>'
+                '</ul>'
+            ),
+        }),
     )
 
     def get_urls(self):
