@@ -65,8 +65,14 @@ class MediaPaqueteEntrega(models.Model):
         verbose_name_plural = 'Paquetes media WhatsApp'
         ordering = ['-actualizado_en']
         indexes = [
-            models.Index(fields=['telefono', 'estado']),
-            models.Index(fields=['estado', '-actualizado_en']),
+            models.Index(
+                fields=['telefono', 'estado'],
+                name='core_mediap_telefon_8a1c2d_idx',
+            ),
+            models.Index(
+                fields=['estado', '-actualizado_en'],
+                name='core_mediap_estado_9b2e3f_idx',
+            ),
         ]
 
     def __str__(self):

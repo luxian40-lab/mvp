@@ -255,10 +255,20 @@ class StudioTests(TestCase):
         self.assertTrue(ProgresoEstudiante.objects.filter(curso=c2).exists())
 
     def test_aula_sin_catalogo(self):
-        self.http.post('/aprende/estudiante/login/', {
-            'modo': 'whatsapp',
-            'cedula': 'st1',
-            'telefono': '3009999011',
+        import re
+
+        from aprende.acceso_whatsapp import emitir_acceso_desde_whatsapp
+
+        codigo = re.search(r'\*(\d{6})\*', emitir_acceso_desde_whatsapp(self.est)).group(1)
+        acceso = self.http.post('/aprende/estudiante/login/', {
+            'accion': 'codigo',
+            'codigo': codigo,
+        })
+        self.assertEqual(acceso.status_code, 302)
+        self.assertIn('/aprende/estudiante/clave/', acceso['Location'])
+        self.http.post('/aprende/estudiante/clave/', {
+            'password': 'clave1234',
+            'password2': 'clave1234',
         })
         r = self.http.get('/aprende/estudiante/')
         self.assertEqual(r.status_code, 200)

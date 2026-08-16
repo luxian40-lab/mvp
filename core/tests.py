@@ -212,7 +212,7 @@ class DripGeoGamificacionTests(TestCase):
 
 		self.assertEqual(habilitado_desde_efectivo(estudiante, modulo_2), antes)
 
-	def test_continuar_leccion_no_lista_cursos_si_drip_en_uno(self):
+	def test_continuar_leccion_lista_cursos_si_otro_esta_disponible(self):
 		estudiante = self._crear_estudiante('22')
 		curso_a, mod_a1, _ = self._crear_curso_y_modulos('Curso A Drip', dias_espera=7)
 		curso_b, mod_b1, _ = self._crear_curso_y_modulos('Curso B Libre', dias_espera=0)
@@ -234,7 +234,10 @@ class DripGeoGamificacionTests(TestCase):
 			estudiante_id=estudiante.id,
 			mensaje_original='continuar',
 		)
-		self.assertNotIn('Tienes varios cursos activos', respuesta)
+		# Un curso bloqueado no debe ocultar otro que sí puede continuarse.
+		self.assertIn('Tienes varios cursos activos', respuesta)
+		self.assertIn('Curso A Drip', respuesta)
+		self.assertIn('Curso B Libre', respuesta)
 
 	def test_selector_curso_drip_al_elegir_por_numero(self):
 		estudiante = self._crear_estudiante('21')

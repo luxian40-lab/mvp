@@ -13,6 +13,7 @@ from portal.middleware import PORTAL_SESSION_KEY
 from portal.models import PortalUsuario
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class PortalPerfilTests(TestCase):
     def setUp(self):
         self.cliente = Cliente.objects.create(
@@ -59,6 +60,7 @@ class PortalPerfilTests(TestCase):
         self.assertEqual(self.cliente.portal_subtitulo, 'Programa 2026')
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class PortalExportDetalleTests(TestCase):
     def setUp(self):
         self.cliente = Cliente.objects.create(
@@ -244,6 +246,7 @@ class PortalModulosTests(TestCase):
         self.assertTrue(portal_solo_nat(c))
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class PortalViewerGeiTests(TestCase):
     def setUp(self):
         self.cliente = Cliente.objects.create(
@@ -313,6 +316,7 @@ class PortalMetricasReorganizacionTests(TestCase):
         self.assertNotContains(r, '¿Cuál debería ser mi siguiente acción?')
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class PortalCertificadosFlujoTests(TestCase):
     def setUp(self):
         self.cliente = Cliente.objects.create(
