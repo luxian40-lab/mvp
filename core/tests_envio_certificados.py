@@ -11,7 +11,7 @@ from core.certificado_presencial_service import (
     filas_estudiantes_certificado,
     resolver_twilio_content_sid,
 )
-from core.models import Cliente, Curso, Estudiante, Modulo, Plantilla, ProgresoEstudiante
+from core.models import Cliente, Curso, Estudiante, Modulo, ModuloCompletado, Plantilla, ProgresoEstudiante
 from core.models_certificados import Certificado
 
 
@@ -237,6 +237,132 @@ class EnvioCertificadosServiceTests(TestCase):
         mock_envia.assert_called_once()
         self.est.refresh_from_db()
         self.assertNotIn('cert_envio_pendiente', (self.est.contexto_temporal or {}))
+
+
+class CerrarCursoAlDiplomaTests(TestCase):
+    """Regla escalable: penúltimo o último módulo + diploma = curso finalizado."""
+
+    def setUp(self):
+        self.cliente = Cliente.objects.create(
+            nombre='Org Cierre', contacto_principal='A', email='cierre@test.com',
+            telefono='573003333331', activo=True,
+        )
+        self.curso = Curso.objects.create(nombre='Crea Cierre', cliente=self.cliente, activo=True)
+        self.m7 = Modulo.objects.create(curso=self.curso, numero=7, titulo='M7', descripcion='d', contenido='c')
+        self.m8 = Modulo.objects.create(curso=self.curso, numero=8, titulo='Proyecto', descripcion='d', contenido='c')
+        self.m9 = Modulo.objects.create(curso=self.curso, numero=9, titulo='Felicitaciones', descripcion='d', contenido='c')
+        self.est = Estudiante.objects.create(
+            cedula='cierre1', nombre='Lina Cierre', telefono='573003333332',
+            cliente=self.cliente, activo=True, estado_chat='ACTIVO',
+        )
+
+    def _progreso(self, modulo):
+        return ProgresoEstudiante.objects.create(
+            estudiante=self.est, curso=self.curso, modulo_actual=modulo, completado=False,
+        )
+
+    def test_penultimo_cierra_al_llegar_diploma(self):
+        from django.utils import timezone
+
+        from core.views import _intentar_responder_envio_certificado
+
+        self._progreso(self.m8)
+        hoy = timezone.now().date()
+        cert = Certificado.objects.create(
+            estudiante=self.est, curso=self.curso,
+            calificacion_final=100, fecha_inicio=hoy, fecha_completado=hoy,
+            emitido=True, archivo_imagen='certificados/generados/cierre.png',
+        )
+        self.est.contexto_temporal = {
+            'cert_envio_pendiente': {
+                'certificado_id': cert.id,
+                'curso_id': self.curso.id,
+                'cerrar_avance': True,
+            },
+        }
+        self.est.save(update_fields=['contexto_temporal'])
+
+        with patch('core.certificado_service.enviar_certificado_whatsapp', return_value=True):
+            self.assertTrue(
+                _intentar_responder_envio_certificado(self.est, 'OK', self.est.telefono, self.est.telefono),
+            )
+
+        prog = ProgresoEstudiante.objects.get(estudiante=self.est, curso=self.curso)
+        self.assertTrue(prog.completado)
+        self.assertEqual(prog.modulo_actual_id, self.m9.id)
+        nums = set(
+            ModuloCompletado.objects.filter(progreso=prog).values_list('modulo__numero', flat=True)
+        )
+        self.assertEqual(nums, {8, 9})
+        self.assertFalse(ModuloCompletado.objects.filter(progreso=prog, modulo=self.m7).exists())
+
+    def test_modulo_intermedio_no_cierra(self):
+        from django.utils import timezone
+
+        from core.views import _intentar_responder_envio_certificado
+
+        self._progreso(self.m7)
+        hoy = timezone.now().date()
+        cert = Certificado.objects.create(
+            estudiante=self.est, curso=self.curso,
+            calificacion_final=100, fecha_inicio=hoy, fecha_completado=hoy,
+            emitido=True, archivo_imagen='certificados/generados/cierre.png',
+        )
+        self.est.contexto_temporal = {
+            'cert_envio_pendiente': {
+                'certificado_id': cert.id,
+                'curso_id': self.curso.id,
+                'cerrar_avance': True,
+            },
+        }
+        self.est.save(update_fields=['contexto_temporal'])
+
+        with patch('core.certificado_service.enviar_certificado_whatsapp', return_value=True):
+            _intentar_responder_envio_certificado(self.est, 'OK', self.est.telefono, self.est.telefono)
+
+        prog = ProgresoEstudiante.objects.get(estudiante=self.est, curso=self.curso)
+        self.assertFalse(prog.completado)
+        self.assertEqual(prog.modulo_actual_id, self.m7.id)
+
+    def test_sin_flag_no_cierra(self):
+        from django.utils import timezone
+
+        from core.views import _intentar_responder_envio_certificado
+
+        self._progreso(self.m8)
+        hoy = timezone.now().date()
+        cert = Certificado.objects.create(
+            estudiante=self.est, curso=self.curso,
+            calificacion_final=100, fecha_inicio=hoy, fecha_completado=hoy,
+            emitido=True, archivo_imagen='certificados/generados/cierre.png',
+        )
+        self.est.contexto_temporal = {
+            'cert_envio_pendiente': {'certificado_id': cert.id, 'curso_id': self.curso.id},
+        }
+        self.est.save(update_fields=['contexto_temporal'])
+
+        with patch('core.certificado_service.enviar_certificado_whatsapp', return_value=True):
+            _intentar_responder_envio_certificado(self.est, 'OK', self.est.telefono, self.est.telefono)
+
+        prog = ProgresoEstudiante.objects.get(estudiante=self.est, curso=self.curso)
+        self.assertFalse(prog.completado)
+
+    @patch('core.certificado_presencial_service.enviar_certificado_whatsapp', return_value=True)
+    @patch('core.certificado_presencial_service.generar_y_guardar_certificado', return_value=True)
+    def test_envio_directo_cierra_ultimo_modulo(self, _gen, _wa):
+        from core.certificado_presencial_service import enviar_certificados_seleccion
+
+        self._progreso(self.m9)
+        resumen = enviar_certificados_seleccion(
+            {self.est.id},
+            self.curso,
+            emitir_certificado=True,
+            enviar_whatsapp_certificado=True,
+            cerrar_avance=True,
+        )
+        self.assertEqual(resumen['cursos_cerrados'], 1)
+        prog = ProgresoEstudiante.objects.get(estudiante=self.est, curso=self.curso)
+        self.assertTrue(prog.completado)
 
 
 class EnvioCertificadosAdminTests(TestCase):

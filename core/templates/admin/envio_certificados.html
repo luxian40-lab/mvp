@@ -36,7 +36,7 @@
     <header class="eki-cobertura-header">
         <div>
             <h1>{{ titulo }}</h1>
-            <p class="sub">Elija el <strong>curso del certificado</strong>, marque estudiantes (de este cliente u otro) y envíe. No afecta cursos digitales en curso.</p>
+            <p class="sub">Elija el <strong>curso del certificado</strong>, marque estudiantes y envíe. Si están en el <strong>penúltimo o último módulo</strong> de ese curso, al llegar el diploma se marca el curso como finalizado (embudo). No afecta otros cursos.</p>
         </div>
     </header>
 
@@ -86,9 +86,13 @@
     {% if curso %}
 
     <div class="ec-alert">
-        Solo los <strong>marcados</strong> reciben envío. Si el estudiante es de <strong>otro cliente</strong> o tiene curso digital activo,
-        igual puede recibir este certificado — <em>no se reinicia</em> su avance WhatsApp.
+        Solo los <strong>marcados</strong> reciben envío. Si el estudiante es de <strong>otro cliente</strong> o tiene otro curso digital activo,
+        igual puede recibir este certificado — <em>no se reinicia</em> ese otro avance.
         <br><strong>WhatsApp masivo:</strong> fuera de ventana 24 h use <em>plantilla Twilio aprobada</em> (no confundir con la plantilla PDF del diploma).
+        {% if ultimo_numero is not None %}
+        <br><strong>Cierre de avance:</strong> en este curso el último módulo es <strong>M{{ ultimo_numero }}</strong>{% if penultimo_numero is not None %} y el penúltimo <strong>M{{ penultimo_numero }}</strong>{% endif %}.
+        {{ filas_en_cierre }} persona(s) de esta lista están en ese tramo: al llegar el diploma se cierran módulos restantes + curso completado.
+        {% endif %}
     </div>
 
     <div class="ec-panel">
@@ -268,9 +272,14 @@
         <div class="ec-opciones">
             <label><span><input type="checkbox" name="emitir_certificado" checked> Generar certificado</span></label>
             <label><span><input type="checkbox" name="enviar_certificado_wa" checked> Enviar diploma WhatsApp</span></label>
+            <label><span><input type="checkbox" name="cerrar_avance" checked> Cerrar curso si está en penúltimo o último módulo</span></label>
             <label>Calificación % <input type="number" name="calificacion" value="100" min="0" max="100" style="width:5rem;padding:0.35rem;border-radius:6px;border:1px solid #e2e8f0;"></label>
             <label><span><input type="checkbox" name="regenerar"> Regenerar si existe</span></label>
         </div>
+        <p class="ec-meta" style="margin:0.5rem 0 0;">
+            El cierre ocurre <strong>cuando llega el diploma</strong> (el estudiante responde a la plantilla), no al mandar el aviso.
+            Quien va en módulos anteriores no se marca como finalizado.
+        </p>
 
         <div class="ec-toolbar" style="margin-top:1rem;">
             <button type="button" class="eki-btn eki-btn-ghost" id="ec-todos">Marcar todos visibles</button>
@@ -295,6 +304,13 @@
                     <span class="ec-meta">{{ fila.estudiante.cedula }} · {{ fila.estudiante.telefono }}</span>
                     {% if fila.otro_cliente %}
                     <br><span class="ec-meta" style="color:#b45309;">🏢 Cliente: {{ fila.cliente_nombre }}</span>
+                    {% endif %}
+                    {% if fila.curso_completado %}
+                    <br><span class="ec-meta" style="color:#15803d;">✓ Curso ya finalizado</span>
+                    {% elif fila.en_tramo_cierre %}
+                    <br><span class="ec-meta" style="color:#0f766e;">🏁 En M{{ fila.modulo_actual_numero }} (penúltimo/último) — el diploma cierra el curso</span>
+                    {% elif fila.modulo_actual_numero is not None %}
+                    <br><span class="ec-meta">Avance actual: módulo {{ fila.modulo_actual_numero }}</span>
                     {% endif %}
                     {% if fila.emitido %}<br><span class="ec-meta">✓ Certificado ya emitido{% if fila.enviado_whatsapp %} · enviado WA{% else %} · <strong style="color:#b45309;">WA pendiente</strong>{% endif %}</span>{% endif %}
                     {% if fila.cursos_digitales_activos %}

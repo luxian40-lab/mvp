@@ -18,6 +18,7 @@ from core.certificado_presencial_service import (
     enviar_whatsapp_certificados_existentes,
     filas_estudiantes_certificado,
     info_plantilla_curso,
+    numeros_cierre_curso,
     plantillas_twilio_whatsapp,
     resolver_twilio_content_sid,
 )
@@ -145,6 +146,13 @@ def _twilio_params_desde_post(request) -> dict:
     }
 
 
+def _cerrar_avance_desde_post(request) -> bool:
+    """Checkbox: cerrar curso si está en penúltimo o último módulo. Default ON."""
+    if request.method != 'POST':
+        return True
+    return request.POST.get('cerrar_avance') == 'on'
+
+
 def _mensaje_previo_desde_post(request) -> str:
     if request.POST.get('usar_mensaje_previo') != 'on':
         return ''
@@ -194,6 +202,12 @@ def envio_certificados_view(request):
             plantilla_info = info_plantilla_curso(cliente, curso, plantilla_id)
         except Curso.DoesNotExist:
             messages.error(request, 'Curso no válido.')
+
+    penultimo_numero = ultimo_numero = None
+    filas_en_cierre = 0
+    if curso:
+        penultimo_numero, ultimo_numero = numeros_cierre_curso(curso)
+        filas_en_cierre = sum(1 for f in filas if f.get('en_tramo_cierre'))
 
     if request.method == 'POST' and curso:
         action = request.POST.get('action')
@@ -283,6 +297,7 @@ def envio_certificados_view(request):
                 regenerar_si_existe=request.POST.get('regenerar') == 'on',
                 plantilla=_plantilla_desde_post(request),
                 permitir_otro_cliente=True,
+                cerrar_avance=_cerrar_avance_desde_post(request),
             )
             messages.success(
                 request,
@@ -336,6 +351,7 @@ def envio_certificados_view(request):
                 regenerar_si_existe=request.POST.get('regenerar') == 'on',
                 plantilla=_plantilla_desde_post(request),
                 permitir_otro_cliente=True,
+                cerrar_avance=_cerrar_avance_desde_post(request),
             )
             messages.success(
                 request,
@@ -345,8 +361,10 @@ def envio_certificados_view(request):
                 f'{resumen["creados"]} cert. nuevos, '
                 f'{resumen["existentes"]} ya existían, '
                 f'{resumen["certificados_enviados"]} diploma(s) directos por WhatsApp, '
+                f'{resumen.get("cursos_cerrados", 0)} curso(s) cerrado(s) al entregar, '
                 f'{resumen["errores"]} error(es). '
-                'Tras la plantilla, el diploma llega cuando el estudiante responde cualquier mensaje.',
+                'Tras la plantilla, el diploma llega cuando el estudiante responde. '
+                'Si está en el penúltimo o último módulo, el avance se cierra al llegar el diploma.',
             )
             return _redirect(
                 cliente.id, curso_id=curso.id, grupo_id=grupo_id,
@@ -380,6 +398,7 @@ def envio_certificados_view(request):
                 twilio_content_sid_previo=twilio['twilio_content_sid_previo'] or None,
                 twilio_content_sid_diploma=twilio['twilio_content_sid_diploma'] or None,
                 permitir_otro_cliente=True,
+                cerrar_avance=_cerrar_avance_desde_post(request),
             )
             messages.success(
                 request,
@@ -411,4 +430,7 @@ def envio_certificados_view(request):
         'mensaje_previo_default': MENSAJE_PREVIO_DEFAULT,
         'guia_marcadores_html': GUIA_MARCADORES_HTML,
         'plantillas_twilio': plantillas_twilio_whatsapp(),
+        'penultimo_numero': penultimo_numero,
+        'ultimo_numero': ultimo_numero,
+        'filas_en_cierre': filas_en_cierre,
     })

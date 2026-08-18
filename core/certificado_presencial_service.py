@@ -13,7 +13,7 @@ from core.certificado_service import (
     plantillas_selectables_para_curso,
     resolver_plantilla_certificado,
 )
-from core.models import Cliente, Curso, Estudiante, Plantilla, ProgresoEstudiante
+from core.models import Cliente, Curso, Estudiante, Modulo, ModuloCompletado, Plantilla, ProgresoEstudiante
 from core.models_certificados import Certificado, PlantillaCertificado
 
 
@@ -50,6 +50,8 @@ def marcar_cert_envio_pendiente(
     estudiante: Estudiante,
     certificado: Certificado,
     curso: Curso,
+    *,
+    cerrar_avance: bool = False,
 ) -> None:
     """Marca certificado para envío tras respuesta del estudiante (abre ventana WhatsApp)."""
     ctx = estudiante.contexto_temporal or {}
@@ -57,6 +59,7 @@ def marcar_cert_envio_pendiente(
         'certificado_id': certificado.id,
         'curso_id': curso.id,
         'ts': timezone.now().isoformat(),
+        'cerrar_avance': bool(cerrar_avance),
     }
     estudiante.contexto_temporal = ctx
     estudiante.save(update_fields=['contexto_temporal'])
@@ -101,6 +104,69 @@ def enviar_previo_whatsapp(
     cuerpo = cuerpo.replace('{cedula}', estudiante.cedula or '')
     cuerpo = cuerpo.replace('{curso}', curso.nombre or '')
     return enviar_whatsapp_twilio(telefono=estudiante.telefono, texto=cuerpo)
+
+
+def numeros_cierre_curso(curso: Curso) -> tuple[int | None, int | None]:
+    """Penúltimo y último número de módulo del curso (cualquier curso)."""
+    nums = list(
+        Modulo.objects.filter(curso=curso).order_by('numero', 'id').values_list('numero', flat=True)
+    )
+    if not nums:
+        return None, None
+    ultimo = nums[-1]
+    penultimo = nums[-2] if len(nums) >= 2 else None
+    return penultimo, ultimo
+
+
+def progreso_en_tramo_cierre(progreso: ProgresoEstudiante | None, curso: Curso) -> bool:
+    """True si el puntero está en el penúltimo o último módulo de este curso."""
+    if not progreso or progreso.completado or not progreso.modulo_actual_id:
+        return False
+    penultimo, ultimo = numeros_cierre_curso(curso)
+    if ultimo is None:
+        return False
+    actual = getattr(progreso.modulo_actual, 'numero', None)
+    if actual is None:
+        return False
+    return actual == ultimo or (penultimo is not None and actual == penultimo)
+
+
+@transaction.atomic
+def cerrar_curso_si_tramo_final(estudiante: Estudiante, curso: Curso) -> str:
+    """
+    Si el estudiante está en el penúltimo o último módulo de *este* curso,
+    completa los módulos desde el actual hasta el último y marca el curso finalizado.
+
+    No inventa módulos anteriores ni toca otros cursos.
+    Returns: cerrado | omitido | ya_completo
+    """
+    progreso = (
+        ProgresoEstudiante.objects.select_related('modulo_actual')
+        .filter(estudiante=estudiante, curso=curso)
+        .first()
+    )
+    if not progreso:
+        return 'omitido'
+    if progreso.completado:
+        return 'ya_completo'
+    if not progreso_en_tramo_cierre(progreso, curso):
+        return 'omitido'
+
+    mods = list(Modulo.objects.filter(curso=curso).order_by('numero', 'id'))
+    if not mods:
+        return 'omitido'
+    actual_num = progreso.modulo_actual.numero
+    ultimo = mods[-1]
+    for modulo in mods:
+        if modulo.numero < actual_num:
+            continue
+        ModuloCompletado.objects.get_or_create(progreso=progreso, modulo=modulo)
+
+    progreso.modulo_actual = ultimo
+    progreso.completado = True
+    progreso.fecha_completado = timezone.now()
+    progreso.save(update_fields=['modulo_actual', 'completado', 'fecha_completado'])
+    return 'cerrado'
 
 
 def _cursos_digitales_activos_por_estudiante(
@@ -163,14 +229,20 @@ def filas_estudiantes_certificado(
         .select_related('cliente')
         .order_by('nombre')
     )
-    digitales = _cursos_digitales_activos_por_estudiante(
-        [e.id for e in estudiantes],
-        curso.id,
-    )
+    est_ids = [e.id for e in estudiantes]
+    digitales = _cursos_digitales_activos_por_estudiante(est_ids, curso.id)
+    progresos = {
+        p.estudiante_id: p
+        for p in ProgresoEstudiante.objects.filter(
+            curso=curso, estudiante_id__in=est_ids,
+        ).select_related('modulo_actual')
+    }
+    penultimo, ultimo = numeros_cierre_curso(curso)
     filas = []
     for est in estudiantes:
         cert = certs.get(est.id)
         otro = bool(est.cliente_id and est.cliente_id != cliente.id)
+        prog = progresos.get(est.id)
         filas.append({
             'estudiante': est,
             'certificado': cert,
@@ -180,6 +252,13 @@ def filas_estudiantes_certificado(
             'cursos_digitales_activos': digitales.get(est.id, []),
             'otro_cliente': otro,
             'cliente_nombre': est.cliente.nombre if est.cliente else '',
+            'en_tramo_cierre': progreso_en_tramo_cierre(prog, curso),
+            'modulo_actual_numero': (
+                prog.modulo_actual.numero if prog and prog.modulo_actual_id else None
+            ),
+            'curso_completado': bool(prog and prog.completado),
+            'penultimo_numero': penultimo,
+            'ultimo_numero': ultimo,
         })
     return filas
 
@@ -399,6 +478,7 @@ def enviar_plantilla_inicial_certificado(
     regenerar_si_existe: bool = False,
     plantilla: PlantillaCertificado | None = None,
     permitir_otro_cliente: bool = True,
+    cerrar_avance: bool = False,
 ) -> dict:
     """
     Flujo presencial recomendado SIN tocar la automatización de cursos:
@@ -408,6 +488,7 @@ def enviar_plantilla_inicial_certificado(
 
     Cuando el estudiante responde OK/número, el webhook libera el certificado
     (la ventana de 24 h ya quedó abierta). NO usa 'listo' para no chocar con cursos.
+    Si cerrar_avance y está en penúltimo/último módulo, el curso se cierra al entregar.
     """
     from django.utils import timezone
 
@@ -472,7 +553,9 @@ def enviar_plantilla_inicial_certificado(
                 continue
             resumen['plantillas_enviadas'] += 1
 
-            marcar_cert_envio_pendiente(est, cert, curso)
+            marcar_cert_envio_pendiente(
+                est, cert, curso, cerrar_avance=cerrar_avance,
+            )
             resumen['pendientes'] += 1
         except Exception:
             resumen['errores'] += 1
@@ -491,6 +574,7 @@ def enviar_whatsapp_certificados_existentes(
     twilio_content_sid_previo: str | None = None,
     twilio_content_sid_diploma: str | None = None,
     permitir_otro_cliente: bool = True,
+    cerrar_avance: bool = False,
 ) -> dict:
     """Reenvía por WhatsApp certificados ya emitidos (sin regenerar PDF)."""
     enviados = errores = omitidos = previos = 0
@@ -520,7 +604,9 @@ def enviar_whatsapp_certificados_existentes(
                 )
                 if ok_prev.get('success'):
                     previos += 1
-                    marcar_cert_envio_pendiente(est, cert, curso)
+                    marcar_cert_envio_pendiente(
+                        est, cert, curso, cerrar_avance=cerrar_avance,
+                    )
                     continue
                 errores += 1
                 continue
@@ -533,6 +619,8 @@ def enviar_whatsapp_certificados_existentes(
                 tras_plantilla_previo=bool(sid_previo or texto_previo),
             ):
                 enviados += 1
+                if cerrar_avance:
+                    cerrar_curso_si_tramo_final(est, curso)
             else:
                 errores += 1
         except Exception:
@@ -563,10 +651,15 @@ def enviar_certificados_seleccion(
     regenerar_si_existe: bool = False,
     plantilla: PlantillaCertificado | None = None,
     permitir_otro_cliente: bool = True,
+    cerrar_avance: bool = False,
 ) -> dict:
     """
     Flujo tipo campaña + certificado para los marcados.
-    No toca ProgresoEstudiante ni onboarding.
+    No toca onboarding ni cursos distintos al del certificado.
+
+    Si cerrar_avance=True y el estudiante está en el penúltimo o último módulo
+    de *este* curso, el progreso se cierra cuando el diploma llega (tras respuesta
+    o envío directo).
 
     Modo ideal: twilio_content_sid_media → plantilla aprobada con imagen del
     certificado en el header (un solo mensaje, sin previo ni ventana de 24 h).
@@ -583,6 +676,7 @@ def enviar_certificados_seleccion(
         'regenerados': 0,
         'certificados_enviados': 0,
         'pendientes_respuesta': 0,
+        'cursos_cerrados': 0,
         'omitidos': 0,
         'errores': 0,
     }
@@ -639,7 +733,9 @@ def enviar_certificados_seleccion(
                     continue
 
                 if enviar_whatsapp_certificado and cert and cert.emitido:
-                    marcar_cert_envio_pendiente(est, cert, curso)
+                    marcar_cert_envio_pendiente(
+                        est, cert, curso, cerrar_avance=cerrar_avance,
+                    )
                     if cert.enviado_whatsapp:
                         cert.enviado_whatsapp = False
                         cert.fecha_envio = None
@@ -656,6 +752,10 @@ def enviar_certificados_seleccion(
                     tras_plantilla_previo=usar_previo,
                 ):
                     resumen['certificados_enviados'] += 1
+                    if cerrar_avance:
+                        estado_cierre = cerrar_curso_si_tramo_final(est, curso)
+                        if estado_cierre == 'cerrado':
+                            resumen['cursos_cerrados'] += 1
                 else:
                     resumen['errores'] += 1
             elif enviar_whatsapp_certificado and emitir_certificado:

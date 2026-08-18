@@ -7,6 +7,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. "$PSScriptRoot\_eb_env_prod_bash.ps1"
 $digits = ($Telefono -replace '\D', '')
 if ($digits.Length -eq 10 -and $digits.StartsWith('3')) { $digits = "57$digits" }
 $sendWa = if ($EnviarWhatsApp) { 'True' } else { 'False' }
@@ -161,12 +162,7 @@ print('Curso esperado: Curso C — clases Aprende (piloto)')
 
 $pyB64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($py))
 $bash = @"
-export ELASTIC_BEANSTALK=true
-GC=/opt/elasticbeanstalk/bin/get-config
-for key in DB_NAME DB_USER DB_PASSWORD DB_HOST DB_PORT TWILIO_ACCOUNT_SID TWILIO_AUTH_TOKEN TWILIO_WHATSAPP_NUMBER TWILIO_PHONE_NUMBER TWILIO_WHATSAPP_FROM OPENAI_API_KEY AWS_STORAGE_BUCKET_NAME AWS_S3_REGION_NAME AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY; do
-  export "`$key=`"`$(`$GC environment -k `$key 2>/dev/null)`""
-done
-export USE_S3=True
+$(Get-EbEnvProdBash)
 cd /var/app/current && source /var/app/venv/*/bin/activate
 export PYTHONPATH=/var/app/current
 python manage.py migrate core 0130 --noinput || python manage.py migrate --noinput

@@ -1864,7 +1864,10 @@ def _intentar_responder_envio_certificado(estudiante, msg_body, telefono_limpio,
     cert_id = pend.get('certificado_id')
     from .models_certificados import Certificado
     from .certificado_service import enviar_certificado_whatsapp
-    from .certificado_presencial_service import limpiar_cert_envio_pendiente
+    from .certificado_presencial_service import (
+        cerrar_curso_si_tramo_final,
+        limpiar_cert_envio_pendiente,
+    )
 
     cert = (
         Certificado.objects.filter(id=cert_id, emitido=True)
@@ -1883,6 +1886,8 @@ def _intentar_responder_envio_certificado(estudiante, msg_body, telefono_limpio,
 
     if ok:
         limpiar_cert_envio_pendiente(estudiante)
+        if pend.get('cerrar_avance'):
+            cerrar_curso_si_tramo_final(estudiante, cert.curso)
         logger.info(
             '🎓 Certificado %s entregado tras respuesta de est=%s',
             cert.codigo_verificacion,
