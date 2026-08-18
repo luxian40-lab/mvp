@@ -34,6 +34,17 @@ class AdminListadosOrdenTests(SimpleTestCase):
         self.assertNotIn('twilio_auth_token', by_title['Portal B2B']['fields'])
         self.assertIn('twilio_auth_token', by_title['WhatsApp y legal']['fields'])
 
+    def test_cliente_logo_thumb_usa_clase_css(self):
+        adm = ClienteAdmin(Cliente, site)
+        org = Cliente(nombre='Cenipalma', logo_url='')
+        html = str(adm.logo_thumb(org))
+        self.assertIn('eki-id-thumb-list', html)
+        self.assertIn('C', html)
+        org.logo_url = 'https://example.com/l.png'
+        html = str(adm.logo_thumb(org))
+        self.assertIn('eki-id-thumb-list', html)
+        self.assertIn('https://example.com/l.png', html)
+
     def test_estudiante_orden_y_columnas(self):
         adm = EstudianteAdmin(Estudiante, site)
         self.assertEqual(adm.ordering, ('cliente__nombre', 'nombre'))

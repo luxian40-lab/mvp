@@ -6,3 +6,63 @@
     Abajo, por pestañas: usuarios portal · drip · calendario · catálogo Nat.
 </p>
 {% endblock %}
+
+{% block field_sets %}
+{% if original %}
+<div class="eki-id-band" aria-label="Resumen del cliente">
+    {% if eki_org_logo %}
+    <img class="eki-id-band__thumb eki-id-band__thumb--sq" src="{{ eki_org_logo }}" alt="" loading="lazy" referrerpolicy="no-referrer">
+    {% else %}
+    <span class="eki-id-band__thumb eki-id-band__thumb--sq eki-id-band__thumb--ph">{{ eki_org_inicial }}</span>
+    {% endif %}
+    <div class="eki-id-band__body">
+        <div class="eki-id-band__title">
+            {{ original.nombre }}
+            {% if original.activo %}
+            <span class="eki-id-badge eki-id-badge--ok">Activo</span>
+            {% else %}
+            <span class="eki-id-badge eki-id-badge--off">Inactivo</span>
+            {% endif %}
+            {% if eki_org_tipo %}<span class="eki-id-badge">{{ eki_org_tipo }}</span>{% endif %}
+        </div>
+        <div class="eki-id-band__meta">
+            {% if original.contacto_principal %}{{ original.contacto_principal }}{% endif %}
+            {% if original.email %}{% if original.contacto_principal %} · {% endif %}{{ original.email }}{% endif %}
+            {% if original.nit %}{% if original.contacto_principal or original.email %} · {% endif %}NIT {{ original.nit }}{% endif %}
+            {% if not original.contacto_principal and not original.email and not original.nit %}Organización B2B{% endif %}
+        </div>
+    </div>
+</div>
+<div class="eki-id-layout">
+    <div class="eki-id-layout__form">
+        {{ block.super }}
+    </div>
+    <aside class="eki-id-preview" aria-label="Identidad visual del cliente">
+        <h3>Así se ve</h3>
+        <p>Logo del portal y fondo de Aprende. Se actualizan al guardar.</p>
+        <div class="eki-id-preview__block">
+            <span class="eki-id-preview__label">Logo (portal)</span>
+            <div class="eki-id-preview__frame">
+                {% if eki_org_logo %}
+                <img src="{{ eki_org_logo }}" alt="Logo {{ original.nombre }}" loading="lazy" referrerpolicy="no-referrer">
+                {% else %}
+                <span class="eki-id-preview__ph">Sin logo. Pega la URL en Portal B2B.</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="eki-id-preview__block">
+            <span class="eki-id-preview__label">Fondo Aprende</span>
+            <div class="eki-id-preview__frame eki-id-preview__frame--wide">
+                {% if eki_org_wallpaper %}
+                <img src="{{ eki_org_wallpaper }}" alt="Wallpaper Aprende {{ original.nombre }}" loading="lazy" referrerpolicy="no-referrer">
+                {% else %}
+                <span class="eki-id-preview__ph">Sin fondo. Súbelo en Aula Aprende.</span>
+                {% endif %}
+            </div>
+        </div>
+    </aside>
+</div>
+{% else %}
+{{ block.super }}
+{% endif %}
+{% endblock %}

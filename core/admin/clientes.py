@@ -252,26 +252,31 @@ class ClienteAdmin(admin.ModelAdmin):
         ]
         return custom_urls + urls
 
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        obj = self.get_object(request, object_id)
+        if obj:
+            extra_context['eki_org_logo'] = (getattr(obj, 'logo_url', None) or '').strip()
+            extra_context['eki_org_wallpaper'] = (getattr(obj, 'wallpaper_aula_url', None) or '').strip()
+            extra_context['eki_org_inicial'] = (obj.nombre or '?').strip()[:1].upper()
+            extra_context['eki_org_tipo'] = obj.get_tipo_proyecto_display()
+        return super().change_view(request, object_id, form_url, extra_context=extra_context)
+
     def logo_thumb(self, obj):
-        """Foto/logo de la organización en el listado. Fallback: inicial en círculo."""
+        """Foto/logo de la organización en el listado. Fallback: inicial."""
         url = (getattr(obj, 'logo_url', None) or '').strip() if obj else ''
+        inicial = (getattr(obj, 'nombre', '') or '?').strip()[:1].upper()
         if url:
             return format_html(
-                '<img src="{}" alt="" loading="lazy" referrerpolicy="no-referrer" '
-                'style="width:34px;height:34px;border-radius:8px;object-fit:cover;'
-                'background:#f0eef4;border:1px solid rgba(30,27,36,0.12);" '
-                'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">'
-                '<span style="display:none;width:34px;height:34px;border-radius:8px;'
-                'align-items:center;justify-content:center;font-weight:700;color:#7A4E8E;'
-                'background:#efeaf4;border:1px solid rgba(30,27,36,0.12);">{}</span>',
+                '<img class="eki-id-thumb-list" src="{}" alt="" loading="lazy" '
+                'referrerpolicy="no-referrer" '
+                'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'inline-flex\';">'
+                '<span class="eki-id-thumb-list eki-id-thumb-list--ph" style="display:none;">{}</span>',
                 url,
-                (obj.nombre or '?').strip()[:1].upper(),
+                inicial,
             )
-        inicial = (getattr(obj, 'nombre', '') or '?').strip()[:1].upper()
         return format_html(
-            '<span style="display:inline-flex;width:34px;height:34px;border-radius:8px;'
-            'align-items:center;justify-content:center;font-weight:700;color:#7A4E8E;'
-            'background:#efeaf4;border:1px solid rgba(30,27,36,0.12);">{}</span>',
+            '<span class="eki-id-thumb-list eki-id-thumb-list--ph">{}</span>',
             inicial,
         )
     logo_thumb.short_description = ''

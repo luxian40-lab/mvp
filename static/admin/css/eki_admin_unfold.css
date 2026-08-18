@@ -1029,3 +1029,180 @@ html.dark .eki-panel-atajos a { color: #d8d0e2; }
 }
 .eki-panel-atajos .material-symbols-outlined { font-size: 1rem; }
 
+/* Identidad visual (ficha Cliente / plantilla certificado): banda tipo lista + preview. */
+.eki-id-band {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--eki-box-border);
+  border-radius: var(--eki-radius);
+  background: #faf8fc;
+}
+.eki-id-band__thumb {
+  width: 64px;
+  height: 46px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #efeaf4;
+  border: 1px solid rgba(30, 27, 36, 0.10);
+  flex: 0 0 auto;
+}
+.eki-id-band__thumb--sq {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  background: #fff;
+  padding: 4px;
+}
+.eki-id-band__thumb--ph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--eki-accent-deep);
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+.eki-id-band__body { min-width: 0; }
+.eki-id-band__title {
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: #1e1b24;
+  line-height: 1.25;
+}
+.eki-id-band__meta {
+  font-size: 12px;
+  color: #6b6575;
+  margin-top: 3px;
+}
+.eki-id-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 6px;
+  vertical-align: middle;
+  background: #efeaf4;
+  color: var(--eki-accent-deep);
+}
+.eki-id-badge--ok { background: #e5f6ea; color: #1f7a3a; }
+.eki-id-badge--off { background: #f4f4f5; color: #6b6575; }
+
+.eki-id-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 20px;
+  align-items: start;
+}
+.eki-id-preview {
+  position: sticky;
+  top: 72px;
+  background: #faf8fc;
+  border: 1px solid var(--eki-box-border);
+  border-radius: var(--eki-radius);
+  padding: 14px;
+  box-shadow: 0 8px 24px rgba(122, 78, 142, 0.08);
+}
+.eki-id-preview h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  color: #3d3550;
+}
+.eki-id-preview p {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: #6b6575;
+  line-height: 1.45;
+}
+.eki-id-preview__block { margin-bottom: 14px; }
+.eki-id-preview__block:last-child { margin-bottom: 0; }
+.eki-id-preview__label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b6575;
+  margin-bottom: 6px;
+}
+.eki-id-preview__frame {
+  background: #efeaf4;
+  border-radius: 8px;
+  min-height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid rgba(30, 27, 36, 0.08);
+}
+.eki-id-preview__frame--wide { min-height: 140px; }
+.eki-id-preview__frame img {
+  width: 100%;
+  height: auto;
+  max-height: 160px;
+  object-fit: contain;
+  display: block;
+  background: #fff;
+}
+.eki-id-preview__frame--wide img {
+  max-height: 160px;
+  object-fit: cover;
+}
+.eki-id-preview__ph {
+  color: #6b6575;
+  font-size: 13px;
+  text-align: center;
+  padding: 20px 12px;
+}
+
+.eki-id-thumb-list {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #efeaf4;
+  border: 1px solid rgba(30, 27, 36, 0.12);
+  display: inline-block;
+  vertical-align: middle;
+}
+.eki-id-thumb-list--ph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--eki-accent-deep);
+}
+
+@media (max-width: 1100px) {
+  .eki-id-layout { grid-template-columns: 1fr; }
+  .eki-id-preview { order: -1; position: static; }
+}
+
+html.dark .eki-id-band,
+html[data-theme="dark"] .eki-id-band,
+html[data-eki-tone="noche"] .eki-id-band,
+html.dark .eki-id-preview,
+html[data-theme="dark"] .eki-id-preview,
+html[data-eki-tone="noche"] .eki-id-preview {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+html.dark .eki-id-band__title,
+html[data-theme="dark"] .eki-id-band__title,
+html[data-eki-tone="noche"] .eki-id-band__title,
+html.dark .eki-id-preview h3,
+html[data-theme="dark"] .eki-id-preview h3,
+html[data-eki-tone="noche"] .eki-id-preview h3 {
+  color: #e8e2ef;
+}
+html.dark .eki-id-preview__frame,
+html[data-theme="dark"] .eki-id-preview__frame,
+html[data-eki-tone="noche"] .eki-id-preview__frame,
+html.dark .eki-id-band__thumb,
+html[data-theme="dark"] .eki-id-band__thumb,
+html[data-eki-tone="noche"] .eki-id-band__thumb {
+  background: rgba(255, 255, 255, 0.06);
+}
+
