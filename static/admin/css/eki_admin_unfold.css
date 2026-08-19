@@ -1064,6 +1064,17 @@ html.dark .eki-panel-atajos a { color: #d8d0e2; }
   font-weight: 700;
   font-size: 1.05rem;
 }
+.eki-id-band__org-logo {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid rgba(30, 27, 36, 0.10);
+  vertical-align: middle;
+  margin-right: 6px;
+}
+.eki-id-preview__frame--cert { min-height: 220px; }
 .eki-id-band__body { min-width: 0; }
 .eki-id-band__title {
   font-size: 1.02rem;

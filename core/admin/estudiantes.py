@@ -245,7 +245,16 @@ class EstudianteAdmin(admin.ModelAdmin):
             path('exportar-plantilla/', self.admin_site.admin_view(self.exportar_plantilla_importacion), name='core_estudiante_exportar_plantilla'),
         ]
         return custom_urls + urls
-    
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        obj = self.get_object(request, object_id)
+        if obj:
+            from portal.branding import contexto_identidad_org
+            extra_context.update(contexto_identidad_org(getattr(obj, 'cliente', None)))
+            extra_context['eki_est_inicial'] = (obj.nombre or '?').strip()[:1].upper()
+        return super().change_view(request, object_id, form_url, extra_context=extra_context)
+
     def importar_estudiantes_view(self, request):
         """Vista para importar estudiantes desde Excel.
         Campos obligatorios: Cédula | Nombre | Teléfono.

@@ -25,13 +25,23 @@
     padding: 10px 12px; border: 1px solid var(--borde); border-radius: 8px; box-sizing: border-box;
 }
 .perfil-field .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.perfil-section-title { font-size: 1.05rem; margin: 0 0 8px; }
+.perfil-section-lead { margin: 0 0 16px; font-size: 13px; }
 .perfil-preview-box {
     background: var(--sidebar); border-radius: 12px; padding: 16px;
 }
-.perfil-preview-topbar {
-    background: var(--card); border: 1px solid var(--borde); border-radius: 8px;
-    padding: 10px 12px; margin-top: 12px; font-size: 12px;
+.perfil-preview-block { margin-bottom: 18px; }
+.perfil-preview-block:last-of-type { margin-bottom: 0; }
+.perfil-preview-label {
+    display: block; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 8px;
 }
+.perfil-preview-frame {
+    background: var(--card); border: 1px solid var(--borde); border-radius: 8px;
+    min-height: 88px; display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.perfil-preview-frame img { width: 100%; max-height: 140px; object-fit: cover; display: block; }
+.perfil-preview-ph { font-size: 13px; color: var(--muted); padding: 20px 12px; text-align: center; }
 .perfil-badge-ok {
     display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
     background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0;
@@ -47,12 +57,12 @@
 <div class="page-title">
     <div>
         <h1>Perfil de la organización</h1>
-        <p class="muted">Personalice cómo ve su equipo el <strong>portal clientes</strong>: logo y subtítulo en la barra lateral.</p>
+        <p class="muted">Logo y subtítulo en el <strong>portal</strong>. El wallpaper es solo el fondo del <strong>aula Aprende</strong>.</p>
     </div>
     {% if branding_completo %}
-        <span class="perfil-badge-ok">Identidad completa</span>
+        <span class="perfil-badge-ok">Identidad del portal completa</span>
     {% else %}
-        <span class="perfil-badge-pending">Configuración pendiente</span>
+        <span class="perfil-badge-pending">Falta logo o subtítulo del portal</span>
     {% endif %}
 </div>
 
@@ -65,55 +75,69 @@
 
 <div class="perfil-layout">
     <section class="panel">
-        <h2>Configuración de marca</h2>
-        <ul class="perfil-checklist" aria-label="Pasos de configuración">
-            {% for paso in branding_pasos %}
-            <li>
-                <span class="perfil-check {% if paso.done %}done{% else %}pending{% endif %}" aria-hidden="true">{% if paso.done %}✓{% else %}!{% endif %}</span>
-                <div>
-                    <strong>{{ paso.label }}</strong>
-                    <div class="muted" style="font-size:12px;margin-top:2px;">{{ paso.hint }}</div>
-                </div>
-            </li>
-            {% endfor %}
-        </ul>
-
         {% if puede_editar %}
         <form method="post" enctype="multipart/form-data" id="perfil-form">
             {% csrf_token %}
+
+            <h2 class="perfil-section-title">Portal clientes</h2>
+            <p class="muted perfil-section-lead">Así lo ve su equipo en la barra lateral e Inicio. No cambia el aula.</p>
+            <ul class="perfil-checklist" aria-label="Pasos del portal">
+                {% for paso in branding_pasos %}
+                {% if paso.grupo == 'portal' %}
+                <li>
+                    <span class="perfil-check {% if paso.done %}done{% else %}pending{% endif %}" aria-hidden="true">{% if paso.done %}✓{% else %}!{% endif %}</span>
+                    <div>
+                        <strong>{{ paso.label }}</strong>
+                        <div class="muted" style="font-size:12px;margin-top:2px;">{{ paso.hint }}</div>
+                    </div>
+                </li>
+                {% endif %}
+                {% endfor %}
+            </ul>
 
             <div class="perfil-field">
                 <label for="logo_archivo">Subir logo</label>
                 <input type="file" id="logo_archivo" name="logo_archivo" accept="image/jpeg,image/png,image/webp,image/gif">
                 <p class="hint">PNG, JPG o WebP. Máximo 5 MB. Recomendado: fondo transparente o blanco.</p>
             </div>
-
             <div class="perfil-field">
                 <label for="logo_url">O pegar URL del logo</label>
                 <input type="url" id="logo_url" name="logo_url" value="{{ org.logo_url }}" placeholder="https://...">
-                <p class="hint">Si ya tiene el logo en internet, pegue el enlace directo a la imagen.</p>
             </div>
-
             <div class="perfil-field">
                 <label for="portal_subtitulo">{% if portal_solo_nat %}Subtítulo comercial{% else %}Subtítulo del programa{% endif %}</label>
                 <input type="text" id="portal_subtitulo" name="portal_subtitulo" value="{{ org.portal_subtitulo }}" maxlength="200"
                     placeholder="Ej: Programa de aceleración empresarial 2026">
-                <p class="hint">Aparece debajo del nombre de su organización en el portal.</p>
+                <p class="hint">Aparece debajo del nombre en la barra y como título de Inicio.</p>
             </div>
 
+            <h2 class="perfil-section-title">Aula Aprende</h2>
+            <p class="muted perfil-section-lead">Fondo que ven los estudiantes al entrar al aula. No es el fondo de este portal.</p>
+            <ul class="perfil-checklist" aria-label="Pasos de Aprende">
+                {% for paso in branding_pasos %}
+                {% if paso.grupo == 'aprende' %}
+                <li>
+                    <span class="perfil-check {% if paso.done %}done{% else %}pending{% endif %}" aria-hidden="true">{% if paso.done %}✓{% else %}!{% endif %}</span>
+                    <div>
+                        <strong>{{ paso.label }}</strong>
+                        <div class="muted" style="font-size:12px;margin-top:2px;">{{ paso.hint }}</div>
+                    </div>
+                </li>
+                {% endif %}
+                {% endfor %}
+            </ul>
             <div class="perfil-field">
-                <label for="wallpaper_archivo">1) Subir wallpaper (fondo Aprende)</label>
+                <label for="wallpaper_archivo">Subir wallpaper (fondo Aprende)</label>
                 <input type="file" id="wallpaper_archivo" name="wallpaper_archivo" accept="image/jpeg,image/png,image/webp">
-                <p class="hint">JPG/PNG/WebP, máx. 2 MB. Lo ven los estudiantes al entrar al aula. También se puede subir desde Admin eki → Cliente.</p>
+                <p class="hint">JPG/PNG/WebP, máx. 2 MB. También se puede subir desde Admin eki → Cliente.</p>
             </div>
             <div class="perfil-field">
-                <label for="wallpaper_aula_url">2) O pegar URL (opcional)</label>
+                <label for="wallpaper_aula_url">O pegar URL (opcional)</label>
                 <input type="url" id="wallpaper_aula_url" name="wallpaper_aula_url" value="{{ org.wallpaper_aula_url }}" placeholder="https://…">
             </div>
             {% if org.wallpaper_aula_url %}
             <div class="perfil-field">
                 <label><input type="checkbox" name="quitar_wallpaper" value="1"> Quitar wallpaper (fondo eki por defecto)</label>
-                <p class="hint"><img src="{{ org.wallpaper_aula_url }}" alt="Wallpaper actual" style="max-width:100%;max-height:120px;border-radius:8px;object-fit:cover;"></p>
             </div>
             {% endif %}
 
@@ -137,32 +161,40 @@
     </section>
 
     <aside class="panel">
-        <h2>Vista previa en vivo</h2>
-        <p class="muted" style="margin-bottom:16px;">Así lo verán los coordinadores de su organización.</p>
+        <h2>Así se ve</h2>
+        <p class="muted" style="margin-bottom:16px;">Dos superficies distintas: barra del portal y fondo del aula.</p>
 
-        <div class="perfil-preview-box">
-            <div style="display:flex;align-items:center;gap:12px;" id="preview-sidebar">
-                <img id="preview-logo-img" src="{{ org.logo_url }}" alt=""
-                    style="width:44px;height:44px;border-radius:10px;object-fit:contain;background:#fff;padding:4px;{% if not org.logo_url %}display:none{% endif %}">
-                <div id="preview-logo-fallback"
-                    style="width:44px;height:44px;border-radius:10px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;{% if org.logo_url %}display:none{% endif %}">{{ org_iniciales }}</div>
-                <div>
-                    <div style="color:#f8fafc;font-weight:600;font-size:14px;">{{ org.nombre }}</div>
-                    <div id="preview-subtitulo" style="color:#94a3b8;font-size:11px;margin-top:2px;">
-                        {{ org.portal_subtitulo|default:"Portal empresarial" }}
+        <div class="perfil-preview-block">
+            <span class="perfil-preview-label">Logo (barra del portal)</span>
+            <div class="perfil-preview-box">
+                <div style="display:flex;align-items:center;gap:12px;" id="preview-sidebar">
+                    <img id="preview-logo-img" src="{{ org.logo_url }}" alt=""
+                        style="width:44px;height:44px;border-radius:10px;object-fit:contain;background:#fff;padding:4px;{% if not org.logo_url %}display:none{% endif %}">
+                    <div id="preview-logo-fallback"
+                        style="width:44px;height:44px;border-radius:10px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;{% if org.logo_url %}display:none{% endif %}">{{ org_iniciales }}</div>
+                    <div>
+                        <div style="color:#f8fafc;font-weight:600;font-size:14px;">{{ org.nombre }}</div>
+                        <div id="preview-subtitulo" style="color:#94a3b8;font-size:11px;margin-top:2px;">
+                            {{ org.portal_subtitulo|default:"Portal clientes" }}
+                        </div>
                     </div>
-                </div>
-            </div>
-            <div class="perfil-preview-topbar">
-                <div style="font-weight:600;color:var(--texto);">{{ org.nombre }}</div>
-                <div id="preview-topbar-meta" class="muted" style="margin-top:4px;">
-                    {{ org.portal_subtitulo|default:"Seguimiento y métricas de su organización" }}
                 </div>
             </div>
         </div>
 
+        <div class="perfil-preview-block">
+            <span class="perfil-preview-label">Fondo Aprende (aula)</span>
+            <div class="perfil-preview-frame" id="preview-wallpaper-frame">
+                {% if org.wallpaper_aula_url %}
+                <img id="preview-wallpaper-img" src="{{ org.wallpaper_aula_url }}" alt="Fondo Aprende">
+                {% else %}
+                <span class="perfil-preview-ph" id="preview-wallpaper-ph">Sin fondo de aula. Los estudiantes verán el fondo eki.</span>
+                {% endif %}
+            </div>
+        </div>
+
         <p class="muted" style="margin-top:14px;font-size:12px;line-height:1.5;">
-            El nombre legal lo gestiona el equipo eki. Aquí solo personaliza la presentación del portal clientes para su equipo interno.
+            El nombre legal lo gestiona el equipo eki. El wallpaper no pinta este portal.
         </p>
     </aside>
 </div>
@@ -173,16 +205,16 @@
     var subtitulo = document.getElementById('portal_subtitulo');
     var logoUrl = document.getElementById('logo_url');
     var logoFile = document.getElementById('logo_archivo');
+    var wallpaperUrl = document.getElementById('wallpaper_aula_url');
+    var wallpaperFile = document.getElementById('wallpaper_archivo');
     var previewSub = document.getElementById('preview-subtitulo');
-    var previewTop = document.getElementById('preview-topbar-meta');
     var previewImg = document.getElementById('preview-logo-img');
     var previewFallback = document.getElementById('preview-logo-fallback');
+    var wallFrame = document.getElementById('preview-wallpaper-frame');
 
     function updateSubtitulo() {
-        var val = (subtitulo && subtitulo.value.trim()) || 'Portal empresarial';
-        var top = (subtitulo && subtitulo.value.trim()) || 'Seguimiento y métricas de su organización';
+        var val = (subtitulo && subtitulo.value.trim()) || 'Portal clientes';
         if (previewSub) previewSub.textContent = val;
-        if (previewTop) previewTop.textContent = top;
     }
 
     function showLogoPreview(url) {
@@ -202,18 +234,41 @@
         if (previewFallback) previewFallback.style.display = 'none';
     }
 
-    if (subtitulo) {
-        subtitulo.addEventListener('input', updateSubtitulo);
+    function showWallpaper(url) {
+        if (!wallFrame) return;
+        wallFrame.textContent = '';
+        if (!url) {
+            var ph = document.createElement('span');
+            ph.className = 'perfil-preview-ph';
+            ph.textContent = 'Sin fondo de aula. Los estudiantes verán el fondo eki.';
+            wallFrame.appendChild(ph);
+            return;
+        }
+        var img = document.createElement('img');
+        img.id = 'preview-wallpaper-img';
+        img.alt = 'Fondo Aprende';
+        img.src = url;
+        wallFrame.appendChild(img);
     }
-    if (logoUrl) {
-        logoUrl.addEventListener('input', function () { showLogoPreview(logoUrl.value.trim()); });
-    }
+
+    if (subtitulo) subtitulo.addEventListener('input', updateSubtitulo);
+    if (logoUrl) logoUrl.addEventListener('input', function () { showLogoPreview(logoUrl.value.trim()); });
     if (logoFile) {
         logoFile.addEventListener('change', function () {
             var f = logoFile.files && logoFile.files[0];
             if (!f) return;
             var reader = new FileReader();
             reader.onload = function (e) { showLogoPreview(e.target.result); };
+            reader.readAsDataURL(f);
+        });
+    }
+    if (wallpaperUrl) wallpaperUrl.addEventListener('input', function () { showWallpaper(wallpaperUrl.value.trim()); });
+    if (wallpaperFile) {
+        wallpaperFile.addEventListener('change', function () {
+            var f = wallpaperFile.files && wallpaperFile.files[0];
+            if (!f) return;
+            var reader = new FileReader();
+            reader.onload = function (e) { showWallpaper(e.target.result); };
             reader.readAsDataURL(f);
         });
     }

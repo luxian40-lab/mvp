@@ -6,3 +6,29 @@
     Pestaña inferior: módulos habilitados (solo si el cliente usa drip por lista).
 </p>
 {% endblock %}
+
+{% block field_sets %}
+{% if original %}
+<div class="eki-id-band" aria-label="Resumen del estudiante">
+    <span class="eki-id-band__thumb eki-id-band__thumb--sq eki-id-band__thumb--ph">{{ eki_est_inicial }}</span>
+    <div class="eki-id-band__body">
+        <div class="eki-id-band__title">
+            {{ original.nombre }}
+            {% if original.activo %}
+            <span class="eki-id-badge eki-id-badge--ok">Activo</span>
+            {% else %}
+            <span class="eki-id-badge eki-id-badge--off">Inactivo</span>
+            {% endif %}
+        </div>
+        <div class="eki-id-band__meta">
+            {% if eki_org_logo %}
+            <img class="eki-id-band__org-logo" src="{{ eki_org_logo }}" alt="" loading="lazy" referrerpolicy="no-referrer">
+            {% endif %}
+            {% if eki_org_nombre %}{{ eki_org_nombre }}{% else %}Sin organización{% endif %}
+            {% if original.telefono %} · {{ original.telefono }}{% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{{ block.super }}
+{% endblock %}

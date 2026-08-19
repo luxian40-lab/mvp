@@ -21,6 +21,37 @@
     background: transparent;
     box-shadow: none;
 }
+.dash-hero--org {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+.dash-hero__logo,
+.dash-hero__ph {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    flex: 0 0 auto;
+    border: 1px solid var(--borde);
+    background: #fff;
+}
+.dash-hero__logo { object-fit: contain; padding: 4px; }
+.dash-hero__ph {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    color: var(--purple-deep, #5F3A6E);
+    background: rgba(154, 108, 172, 0.12);
+}
+.dash-hero__kicker {
+    margin: 0 0 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--purple);
+}
 .dash-hero h1 { margin: 0; font-size: clamp(1.7rem, 2.6vw, 2.1rem); letter-spacing: -0.04em; font-weight: 800; color: var(--ink); }
 .dash-hero .muted { max-width: 40rem; margin-top: 0.55rem; font-size: 0.98rem; }
 html[data-theme="dark"] .card-link:hover .card,
@@ -142,9 +173,17 @@ html[data-theme="dark"] .ops-card { background: var(--blanco); }
 {% endblock %}
 
 {% block content %}
-<div class="dash-hero">
-    <h1>Inicio</h1>
-    <p class="muted">Bienvenido nuevamente. Aquí encontrará el estado general de su programa y lo que requiere su atención hoy.</p>
+<div class="dash-hero dash-hero--org">
+    {% if org.logo_url %}
+    <img class="dash-hero__logo" src="{{ org.logo_url }}" alt="" loading="lazy" referrerpolicy="no-referrer">
+    {% else %}
+    <span class="dash-hero__ph" aria-hidden="true">{{ org_iniciales }}</span>
+    {% endif %}
+    <div>
+        <p class="dash-hero__kicker">{{ org.nombre }}</p>
+        <h1>{% if org.portal_subtitulo %}{{ org.portal_subtitulo }}{% else %}Inicio{% endif %}</h1>
+        <p class="muted">Bienvenido nuevamente. Aquí encontrará el estado general de su programa y lo que requiere su atención hoy.</p>
+    </div>
 </div>
 
 {% if portal_es_admin and not portal_branding_completo %}

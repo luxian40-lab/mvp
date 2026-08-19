@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from core.models import Cliente
+from core.models import Cliente, Curso, Estudiante
 
 
 @override_settings(
@@ -61,3 +61,64 @@ class ClienteFichaIdentidadTests(TestCase):
         self.assertIn('eki-id-band__thumb--ph', body)
         self.assertIn('Sin logo', body)
         self.assertIn('Sin fondo', body)
+
+
+@override_settings(
+    SECURE_SSL_REDIRECT=False,
+    STORAGES={
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    },
+)
+class EstudianteCursoFichaIdentidadTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_superuser('ficha_est', 'e@t.com', 'pass12345')
+        self.cliente = Cliente.objects.create(
+            nombre='Alitic Ficha',
+            contacto_principal='A',
+            email='org2@test.com',
+            telefono='573001110045',
+            activo=True,
+            logo_url='https://example.com/logo-alitic.png',
+            fecha_fin_suscripcion='2099-12-31',
+        )
+        self.curso = Curso.objects.create(
+            nombre='Crea y Vende',
+            descripcion='d',
+            cliente=self.cliente,
+            activo=True,
+            modo_aula=Curso.MODO_AULA_MODULOS,
+        )
+        self.est = Estudiante.objects.create(
+            cedula='estficha1',
+            nombre='Cristina González',
+            telefono='573001110099',
+            cliente=self.cliente,
+            activo=True,
+        )
+
+    def test_ficha_estudiante_banda_org_sin_preview(self):
+        self.client.force_login(self.user)
+        r = self.client.get(reverse('admin:core_estudiante_change', args=[self.est.pk]))
+        self.assertEqual(r.status_code, 200)
+        body = r.content.decode('utf-8')
+        self.assertIn('eki-id-band', body)
+        self.assertIn('Cristina González', body)
+        self.assertIn('Alitic Ficha', body)
+        self.assertIn('573001110099', body)
+        self.assertIn('https://example.com/logo-alitic.png', body)
+        self.assertNotIn('Así se ve', body)
+        self.assertNotIn('eki-id-preview', body)
+
+    def test_ficha_curso_banda_org_sin_preview(self):
+        self.client.force_login(self.user)
+        r = self.client.get(reverse('admin:core_curso_change', args=[self.curso.pk]))
+        self.assertEqual(r.status_code, 200)
+        body = r.content.decode('utf-8')
+        self.assertIn('eki-id-band', body)
+        self.assertIn('Crea y Vende', body)
+        self.assertIn('Alitic Ficha', body)
+        self.assertIn('Módulos (WhatsApp + avance)', body)
+        self.assertNotIn('Así se ve', body)
+        self.assertNotIn('eki-id-preview', body)
+

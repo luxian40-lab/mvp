@@ -361,6 +361,15 @@ class CursoAdmin(admin.ModelAdmin):
         return format_html('<span style="color:#999;font-style:italic;">General (eki)</span>')
     cliente_nombre.short_description = "Organización"
 
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        obj = self.get_object(request, object_id)
+        if obj:
+            from portal.branding import contexto_identidad_org
+            extra_context.update(contexto_identidad_org(getattr(obj, 'cliente', None)))
+            extra_context['eki_curso_experiencia'] = obj.get_modo_aula_display()
+        return super().change_view(request, object_id, form_url, extra_context=extra_context)
+
     @admin.display(description='Experiencia', ordering='modo_aula')
     def experiencia_display(self, obj):
         if obj.es_modo_clases():

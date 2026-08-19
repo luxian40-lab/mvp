@@ -110,7 +110,9 @@ def portal_organizacion(request):
         'portal_home_url': portal_home_url_para_usuario(pu),
         'portal_branding_completo': branding_ok if not es_eki_ops else True,
         'portal_branding_pasos': [] if es_eki_ops else pasos_branding(org),
-        'portal_branding_pendientes': 0 if es_eki_ops else sum(1 for p in pasos_branding(org) if not p['done']),
+        'portal_branding_pendientes': 0 if es_eki_ops else sum(
+            1 for p in pasos_branding(org) if p.get('grupo') == 'portal' and not p['done']
+        ),
         'portal_suscripcion_activa': org.suscripcion_activa,
         'portal_fecha_fin_suscripcion': fin,
         'portal_dias_restantes': dias_restantes,

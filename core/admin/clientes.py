@@ -256,9 +256,8 @@ class ClienteAdmin(admin.ModelAdmin):
         extra_context = extra_context or {}
         obj = self.get_object(request, object_id)
         if obj:
-            extra_context['eki_org_logo'] = (getattr(obj, 'logo_url', None) or '').strip()
-            extra_context['eki_org_wallpaper'] = (getattr(obj, 'wallpaper_aula_url', None) or '').strip()
-            extra_context['eki_org_inicial'] = (obj.nombre or '?').strip()[:1].upper()
+            from portal.branding import contexto_identidad_org
+            extra_context.update(contexto_identidad_org(obj))
             extra_context['eki_org_tipo'] = obj.get_tipo_proyecto_display()
         return super().change_view(request, object_id, form_url, extra_context=extra_context)
 

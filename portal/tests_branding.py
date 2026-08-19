@@ -13,7 +13,10 @@ class PortalBrandingHelpersTests(TestCase):
     def test_branding_incompleto_sin_logo_ni_subtitulo(self):
         org = Cliente(nombre='X', logo_url='', portal_subtitulo='')
         self.assertFalse(branding_portal_completo(org))
-        self.assertEqual(len(pasos_branding(org)), 2)
+        self.assertEqual(len(pasos_branding(org)), 3)
+        grupos = {p['id']: p['grupo'] for p in pasos_branding(org)}
+        self.assertEqual(grupos['logo'], 'portal')
+        self.assertEqual(grupos['wallpaper'], 'aprende')
 
     def test_branding_completo(self):
         org = Cliente(
@@ -60,13 +63,17 @@ class PortalBrandingOnboardingTests(TestCase):
         self.cliente.save()
         r = self.http.get('/portal/dashboard/')
         self.assertEqual(r.status_code, 200)
-        self.assertNotContains(r, 'Complete la identidad')
+        self.assertContains(r, 'Mi programa')
+        self.assertContains(r, 'Coop Brand')
+        self.assertContains(r, 'dash-hero--org')
 
     def test_portal_identidad_visual(self):
         r = self.http.get('/portal/dashboard/')
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'Plus+Jakarta+Sans')
         self.assertContains(r, 'eki <em>portal</em>')
+        self.assertContains(r, 'Coop Brand')
+        self.assertContains(r, 'dash-hero--org')
         self.assertContains(r, 'Inicio')
         self.assertNotContains(r, 'Fraunces')
         self.assertNotContains(r, 'family=Sora')
@@ -75,8 +82,11 @@ class PortalBrandingOnboardingTests(TestCase):
     def test_perfil_muestra_checklist(self):
         r = self.http.get('/portal/perfil/')
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'Configuración de marca')
-        self.assertContains(r, 'Vista previa en vivo')
+        self.assertContains(r, 'Portal clientes')
+        self.assertContains(r, 'Así se ve')
+        self.assertContains(r, 'Fondo Aprende')
+        self.assertContains(r, 'Aula Aprende')
+        self.assertNotContains(r, 'Vista previa en vivo')
 
     def test_favicon_portal_distinto(self):
         r_login = Client().get('/portal/login/')
@@ -127,4 +137,8 @@ class FaviconSurfacesTests(SimpleTestCase):
         self.assertTrue((root / 'studio-32.png').is_file())
         admin_bytes = (root / 'admin-32.png').read_bytes()
         studio_bytes = (root / 'studio-32.png').read_bytes()
+        portal_bytes = (root / 'portal-32.png').read_bytes()
+        aprende_bytes = (root / 'aprende-32.png').read_bytes()
         self.assertNotEqual(admin_bytes, studio_bytes)
+        self.assertNotEqual(portal_bytes, aprende_bytes)
+        self.assertNotEqual(admin_bytes, portal_bytes)
