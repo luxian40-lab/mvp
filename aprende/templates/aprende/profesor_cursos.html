@@ -29,6 +29,7 @@
             <a class="eki-btn eki-btn--ghost eki-btn--sm" href="{% url 'aprende_profesor_curso' c.id %}">Abrir →</a>
             <a class="eki-btn eki-btn--ghost eki-btn--sm" href="{% url 'aprende_profesor_ranking' c.id %}">Ranking</a>
             <a class="eki-btn eki-btn--ghost eki-btn--sm" href="{% url 'aprende_profesor_calificaciones' c.id %}">Notas</a>
+            <a class="eki-btn eki-btn--primary eki-btn--sm" href="{% url 'aprende_profesor_curso_vista_estudiante' c.id %}" target="_blank" rel="noopener">Vista estudiante ↗</a>
         </div>
     </article>
     {% endfor %}

@@ -379,8 +379,15 @@ class CursoAdmin(admin.ModelAdmin):
                 curso=obj,
                 completado=True,
             ).count()
+            from core.modulo_publicacion import resumen_publicacion_curso, total_modulos_publicados_wa
+
             extra_context['eki_curso_stats'] = {
                 'modulos': obj.modulos.count(),
+                'modulos_publicados': (
+                    total_modulos_publicados_wa(obj)
+                    if not obj.es_modo_clases()
+                    else obj.modulos.count()
+                ),
                 'inscritos': inscritos,
                 'completados': completados,
                 'pct_completados': (
@@ -389,6 +396,7 @@ class CursoAdmin(admin.ModelAdmin):
                     else 0
                 ),
             }
+            extra_context['eki_modulos_publicacion'] = resumen_publicacion_curso(obj)
             ultima = (
                 Campana.objects.filter(curso_destino=obj)
                 .order_by('-fecha_creacion')
@@ -1055,6 +1063,12 @@ class ModuloAdminForm(forms.ModelForm):
                 'Opcional. Prefiera la pestaña Clase (texto + archivo). '
                 'Este campo es solo para modo Legacy.'
             )
+            if 'publicado_wa' in self.fields:
+                self.fields['publicado_wa'].initial = False
+                self.fields['publicado_wa'].help_text = (
+                    'Dejelo desmarcado (borrador) hasta que el checklist esté verde; '
+                    'luego use «Publicar módulo» en la ficha del curso.'
+                )
         elif n_micro > 0:
             self.fields['contenido'].help_text = (
                 f'Opcional: este módulo ya tiene {n_micro} microcontenido(s). '
@@ -1458,12 +1472,13 @@ class ModuloAdmin(admin.ModelAdmin):
     list_display = (
         'numero_titulo',
         'curso',
+        'publicado_wa_badge',
         'module_builder_link',
         'modo_entrega_badge',
         'pasos_activos_count',
         'examen_badge',
     )
-    list_filter = ('curso', 'modo_entrega', 'examen_obligatorio')
+    list_filter = ('curso', 'publicado_wa', 'modo_entrega', 'examen_obligatorio')
     search_fields = ('titulo', 'descripcion', 'curso__nombre')
     list_select_related = ('curso', 'curso__cliente')
     list_per_page = 50
@@ -1477,6 +1492,11 @@ class ModuloAdmin(admin.ModelAdmin):
         urls = super().get_urls()
         custom = [
             path(
+                '<int:modulo_id>/publicar/',
+                self.admin_site.admin_view(self.publicar_modulo_view),
+                name='core_modulo_publicar',
+            ),
+            path(
                 '<int:modulo_id>/mover/<str:kind>/<int:obj_id>/<str:direction>/',
                 self.admin_site.admin_view(self.mover_bloque_view),
                 name='core_modulo_mover_bloque',
@@ -1487,6 +1507,41 @@ class ModuloAdmin(admin.ModelAdmin):
             ),
         ]
         return custom + urls
+
+    def publicar_modulo_view(self, request, modulo_id):
+        from core.modulo_publicacion import publicar_modulo_wa
+
+        modulo = Modulo.objects.select_related('curso').filter(pk=modulo_id).first()
+        if not modulo:
+            messages.error(request, 'Módulo no encontrado.')
+            return redirect('admin:core_modulo_changelist')
+        if not request.user.has_perm('core.change_modulo'):
+            messages.error(request, 'Sin permiso para publicar módulos.')
+            return redirect('admin:core_modulo_change', modulo_id)
+        ok, errores = publicar_modulo_wa(modulo)
+        if ok:
+            messages.success(
+                request,
+                f'Módulo {modulo.numero} («{modulo.titulo}») publicado para WhatsApp.',
+            )
+        else:
+            messages.error(
+                request,
+                'No se pudo publicar: ' + '; '.join(errores[:3]),
+            )
+        return redirect('admin:core_modulo_change', modulo_id)
+
+    def publicado_wa_badge(self, obj):
+        if obj.publicado_wa:
+            return format_html(
+                '<span style="background:#e8f5e9;color:#2e7d32;padding:3px 10px;'
+                'border-radius:12px;font-size:11px;font-weight:700;">🟢 Publicado</span>'
+            )
+        return format_html(
+            '<span style="background:#fff3e0;color:#e65100;padding:3px 10px;'
+            'border-radius:12px;font-size:11px;font-weight:700;">🔴 Borrador</span>'
+        )
+    publicado_wa_badge.short_description = 'Campo WA'
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
         extra_context = extra_context or {}
@@ -1512,6 +1567,16 @@ class ModuloAdmin(admin.ModelAdmin):
                 modulo=obj,
                 activo=True,
             ).count()
+            from core.modulo_publicacion import evaluar_checklist_publicacion_detalle
+
+            chk = evaluar_checklist_publicacion_detalle(obj)
+            extra_context['eki_mod_publicacion'] = {
+                'publicado': bool(obj.publicado_wa),
+                'checklist_ok': chk.ok,
+                'errores': chk.errores,
+                'avisos': chk.avisos,
+                'publicar_url': reverse('admin:core_modulo_publicar', args=[obj.pk]),
+            }
         return super().change_view(request, object_id, form_url, extra_context=extra_context)
 
     @action(
@@ -1754,6 +1819,7 @@ class ModuloAdmin(admin.ModelAdmin):
                     'puntaje_minimo_aprobacion',
                     'duracion_dias',
                     'habilitado_desde',
+                    'publicado_wa',
                 ),
                 'description': (
                     'Entrega WhatsApp, texto legacy (solo si no usa Clase/Materiales), '

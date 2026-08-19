@@ -107,15 +107,10 @@ def enviar_previo_whatsapp(
 
 
 def numeros_cierre_curso(curso: Curso) -> tuple[int | None, int | None]:
-    """Penúltimo y último número de módulo del curso (cualquier curso)."""
-    nums = list(
-        Modulo.objects.filter(curso=curso).order_by('numero', 'id').values_list('numero', flat=True)
-    )
-    if not nums:
-        return None, None
-    ultimo = nums[-1]
-    penultimo = nums[-2] if len(nums) >= 2 else None
-    return penultimo, ultimo
+    """Penúltimo y último número de módulo publicado WA del curso."""
+    from core.modulo_publicacion import numeros_cierre_curso_publicados
+
+    return numeros_cierre_curso_publicados(curso)
 
 
 def progreso_en_tramo_cierre(progreso: ProgresoEstudiante | None, curso: Curso) -> bool:
@@ -152,7 +147,9 @@ def cerrar_curso_si_tramo_final(estudiante: Estudiante, curso: Curso) -> str:
     if not progreso_en_tramo_cierre(progreso, curso):
         return 'omitido'
 
-    mods = list(Modulo.objects.filter(curso=curso).order_by('numero', 'id'))
+    from core.modulo_publicacion import modulos_publicados_wa_qs
+
+    mods = list(modulos_publicados_wa_qs(curso).order_by('numero', 'id'))
     if not mods:
         return 'omitido'
     actual_num = progreso.modulo_actual.numero

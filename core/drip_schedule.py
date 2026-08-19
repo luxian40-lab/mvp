@@ -52,11 +52,9 @@ def fecha_desbloqueo_drip(fecha_ultimo_avance, dias_espera: int):
 def _siguiente_modulo_orden(curso, modulo_actual) -> Modulo | None:
     if modulo_actual is None or curso is None:
         return None
-    return (
-        curso.modulos.filter(numero__gt=modulo_actual.numero)
-        .order_by('numero')
-        .first()
-    )
+    from .modulo_publicacion import siguiente_modulo_publicado_wa
+
+    return siguiente_modulo_publicado_wa(curso, modulo_actual)
 
 
 def estudiante_autorizado_en_modulo(estudiante: Estudiante | None, modulo: Modulo | None) -> bool:
@@ -234,8 +232,11 @@ def modulos_para_metricas(
     Módulos que cuentan como «disponibles» para calcular avance en dashboards.
     - modulo_hasta_numero: solo M1..MN (simula drip liberado hasta esa semana).
     - usar_drip_calendario: excluye módulos cuya habilitado_desde aún no llega.
+    - Solo módulos publicados WA (cursos modo clases: todos).
     """
-    mods = modulos_curso_ordenados(curso)
+    from .modulo_publicacion import modulos_publicados_wa
+
+    mods = modulos_publicados_wa(curso)
     if modulo_hasta_numero is not None:
         mods = [m for m in mods if m.numero <= modulo_hasta_numero]
     if usar_drip_calendario:

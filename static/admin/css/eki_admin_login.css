@@ -332,3 +332,20 @@ html[data-eki-tone="tarde"] .eki-ops-login__bar {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-6px); }
 }
+
+/* v3 minimal: foco en tarjeta login (menos ruido visual) */
+.eki-ops-login--minimal .eki-ops-login__orbit,
+.eki-ops-login--minimal .eki-ops-login__kpis {
+  display: none;
+}
+
+.eki-ops-login--minimal .eki-ops-login__backdrop {
+  background:
+    radial-gradient(ellipse 60% 45% at 50% 38%, rgba(154, 108, 172, 0.1), transparent 65%),
+    linear-gradient(180deg, #1a1520 0%, #110e16 100%);
+}
+
+.eki-ops-login--minimal .eki-ops-login__card {
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+  max-width: 26rem;
+}

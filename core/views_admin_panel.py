@@ -618,6 +618,38 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
     except Exception:
         pass
 
+    try:
+        from core.models import Modulo
+
+        n_mod_borrador = Modulo.objects.filter(
+            publicado_wa=False,
+            curso__activo=True,
+        ).exclude(curso__modo_aula=Curso.MODO_AULA_CLASES).count()
+        if n_mod_borrador >= 1:
+            acciones.insert(
+                0,
+                {
+                    'label': f'Módulos borrador ({n_mod_borrador})',
+                    'url': '/admin/core/modulo/?publicado_wa__exact=0',
+                    'icon': 'visibility_off',
+                    'destacada': True,
+                },
+            )
+            insights.insert(
+                0,
+                {
+                    'nivel': 'warn',
+                    'texto': (
+                        f'{n_mod_borrador} módulo(s) en borrador: '
+                        'el campo no los envía hasta Publicar.'
+                    ),
+                    'cta': 'Ver borradores',
+                    'url': '/admin/core/modulo/?publicado_wa__exact=0',
+                },
+            )
+    except Exception:
+        pass
+
     acciones.extend([
         {'label': 'Nuevo curso', 'url': '/admin/core/curso/add/', 'icon': 'school'},
         {'label': 'Nueva campaña', 'url': '/admin/core/campana/add/', 'icon': 'campaign'},

@@ -35,6 +35,11 @@
 {% endblock %}
 
 {% block content %}
+<p class="eki-ops-back-wrap">
+    <a class="eki-ops-back" href="{% url 'admin:index' %}">← Inicio</a>
+    <a class="eki-ops-back" href="{% url 'admin:learning_certificado_changelist' %}" style="margin-left:0.75rem;">Certificados emitidos</a>
+    <a class="eki-ops-back" href="{% url 'instrucciones' %}#certificados" style="margin-left:0.75rem;">Manual</a>
+</p>
 <div class="eki-cobertura ec-page">
     <header class="eki-cobertura-header">
         <div>
@@ -65,7 +70,28 @@
                 {% endif %}
             </div>
         </div>
+        {% if eki_cert_resumen.pendientes_wa %}
+        <div class="eki-id-band__actions">
+            <span class="eki-id-badge eki-id-badge--warn">{{ eki_cert_resumen.pendientes_wa }} pend. WA</span>
+        </div>
+        {% endif %}
     </div>
+    {% if curso and eki_cert_resumen.total %}
+    <nav class="ec-cert-wizard" aria-label="Pasos envío certificados">
+        <ol>
+            <li class="done"><span>1</span> Org + curso</li>
+            <li class="active"><span>2</span> Marcar estudiantes</li>
+            <li><span>3</span> Enviar WA / diploma</li>
+        </ol>
+    </nav>
+    <style>
+    .ec-cert-wizard ol { display:flex; gap:0.5rem; list-style:none; padding:0; margin:0 0 1rem; flex-wrap:wrap; }
+    .ec-cert-wizard li { flex:1; min-width:140px; padding:0.5rem 0.65rem; border-radius:10px; border:1px dashed #d8b4e0; font-size:0.78rem; font-weight:600; opacity:0.7; }
+    .ec-cert-wizard li span { display:inline-flex; width:1.2rem; height:1.2rem; align-items:center; justify-content:center; border-radius:999px; background:#efeaf4; margin-right:0.3rem; font-size:0.68rem; }
+    .ec-cert-wizard li.done { opacity:1; background:#e5f6ea; border-color:#b7e0c2; border-style:solid; }
+    .ec-cert-wizard li.active { opacity:1; background:#f3eaf7; border-color:#9A6CAC; border-style:solid; }
+    </style>
+    {% endif %}
     {% endif %}
 
     <form method="get" class="eki-filtros">

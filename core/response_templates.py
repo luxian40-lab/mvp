@@ -1337,6 +1337,81 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             _ctx_sesion_asistente.get('tipo') == 'asistente_dario'
             and estudiante.estado_onboarding == 'esperando_respuesta_asistente'
         ):
+            # *listo* / *continuar* → pasar a Claudia (mismo contrato que el webhook).
+            # Antes solo se reenviaba el nudge y el alumno veía el mismo mensaje muchas veces.
+            if _es_mensaje_listo_avance_curso(mensaje_original or ''):
+                from .tutor_ia_modulo import (
+                    cargar_modulos_reto,
+                    generar_reto_facilitador,
+                    listar_modulos_cobertura_reto,
+                )
+                from .models import Modulo as ModuloRetoCtx
+
+                progreso_id = _ctx_sesion_asistente.get('progreso_id') or progreso.id
+                modulos_reto_ids = list(_ctx_sesion_asistente.get('modulos_reto_ids') or [])
+                try:
+                    progreso_reto = ProgresoEstudiante.objects.get(id=progreso_id)
+                except ProgresoEstudiante.DoesNotExist:
+                    progreso_reto = progreso
+                modulos_reto = cargar_modulos_reto(
+                    modulos_reto_ids, progreso_reto.curso_id if progreso_reto else None
+                )
+                if not modulos_reto and progreso_reto and _ctx_sesion_asistente.get('modulo_id'):
+                    _mchk = ModuloRetoCtx.objects.filter(
+                        id=_ctx_sesion_asistente['modulo_id'],
+                        curso_id=progreso_reto.curso_id,
+                    ).first()
+                    if _mchk:
+                        modulos_reto = listar_modulos_cobertura_reto(_mchk, progreso_reto.curso)
+                        modulos_reto_ids = [m.id for m in modulos_reto]
+                if modulos_reto and progreso_reto:
+                    _cliente = (
+                        estudiante.cliente
+                        if getattr(estudiante, 'cliente_id', None)
+                        else None
+                    )
+                    nombre_tutor = (
+                        (
+                            _cliente.nombre_agente_tutor
+                            if _cliente and getattr(_cliente, 'nombre_agente_tutor', None)
+                            else ''
+                        )
+                        or progreso_reto.curso.nombre_agente_tutor
+                        or 'Claudia'
+                    )
+                    reto = generar_reto_facilitador(
+                        modulos_reto,
+                        progreso_reto.curso.nombre,
+                        estudiante_nombre=estudiante.nombre or 'Estudiante',
+                        preguntas_ejemplo=progreso_reto.curso.preguntas_ejemplo_ia or '',
+                    )
+                    _prev_ts = _ctx_sesion_asistente.get('_ts_leccion', 0)
+                    estudiante.contexto_temporal = {
+                        'tipo': 'reto_facilitador',
+                        'modulos_reto_ids': modulos_reto_ids,
+                        'reto_texto': reto,
+                        'progreso_id': progreso_id,
+                        'es_final': _ctx_sesion_asistente.get('es_reto_final', False),
+                        '_ts_leccion': _prev_ts,
+                    }
+                    estudiante.estado_onboarding = 'esperando_respuesta_reto'
+                    estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
+                    logger.info(
+                        "continuar_leccion: Darío→Claudia por *listo* | estudiante_id=%s",
+                        estudiante.id,
+                    )
+                    return (
+                        f"📋 *{nombre_tutor}*\n\n"
+                        f"{reto}\n\n"
+                        "✍️ _Escriba o envíe un audio con su respuesta._"
+                    )
+                estudiante.estado_onboarding = 'completado'
+                estudiante.contexto_temporal = None
+                estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])
+                return (
+                    "Seguimos con tu curso. Escribí *listo* para continuar "
+                    "o *ayuda* si necesitás soporte."
+                )
             logger.info(
                 "continuar_leccion: ya hay sesión activa con el compañero | estudiante_id=%s",
                 estudiante.id,
@@ -1527,15 +1602,26 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             
             perfil.refresh_from_db()
             subio_nivel = perfil.nivel > nivel_antes
-            
-            siguiente_modulo = progreso.curso.modulos.filter(
-                numero__gt=modulo_actual.numero
-            ).order_by('numero').first()
+
+            from .modulo_publicacion import (
+                mensaje_bloqueo_sin_siguiente_publicado,
+                siguiente_modulo_publicado_wa,
+                total_modulos_publicados_wa,
+            )
+
+            _blk_pub = mensaje_bloqueo_sin_siguiente_publicado(
+                estudiante, progreso, modulo_actual
+            )
+            if _blk_pub:
+                from .avance_whatsapp import adaptar_mensaje_drip_bloqueo
+                return adaptar_mensaje_drip_bloqueo(_blk_pub, estudiante)
+
+            siguiente_modulo = siguiente_modulo_publicado_wa(progreso.curso, modulo_actual)
             
             if siguiente_modulo:
                 from .drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
 
-                total_modulos = progreso.curso.modulos.count()
+                total_modulos = total_modulos_publicados_wa(progreso.curso)
                 usar_ia_curso = bool(getattr(progreso.curso, 'usar_agentes_ia', True))
                 decision_cp = evaluar_checkpoint_reto_ia(
                     modulo_actual,
@@ -2077,8 +2163,11 @@ Escribe "ver cursos" para empezar."""
 Tu organización te asignará un curso pronto. Si crees que es un error, escribe *ayuda* para contactar soporte."""
         
         # Verificar que haya completado todos los módulos
-        total_modulos = progreso.curso.modulos.count()
-        modulos_completados = progreso.modulos_completados.count()
+        from .modulo_publicacion import modulos_publicados_wa_qs, total_modulos_publicados_wa
+
+        total_modulos = total_modulos_publicados_wa(progreso.curso)
+        pub_ids = set(modulos_publicados_wa_qs(progreso.curso).values_list('id', flat=True))
+        modulos_completados = progreso.modulos_completados.filter(modulo_id__in=pub_ids).count()
         
         if modulos_completados < total_modulos:
             return f"""⚠️ Aún no puedes tomar el examen.

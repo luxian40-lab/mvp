@@ -166,38 +166,59 @@
 <script>
 (function () {
     if (typeof L === 'undefined') return;
+    var el = document.getElementById('mapa-cobertura');
+    if (!el) return;
     var q = {% if org %}'cliente=' + encodeURIComponent('{{ org.id }}'){% else %}'global=1'{% endif %};
     function colorMuni(cantidad, maxCant) {
         if (!maxCant || !cantidad) return '#f1f5f9';
         var t = Math.min(1, cantidad / maxCant);
         return 'rgb(' + Math.round(243 + (155 - 243) * t) + ',' + Math.round(234 + (103 - 234) * t) + ',' + Math.round(247 + (177 - 247) * t) + ')';
     }
-    var map = L.map('mapa-cobertura', { scrollWheelZoom: true }).setView([4.57, -74.29], 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 14, attribution: '&copy; OSM' }).addTo(map);
-    Promise.all([
-        fetch('/admin/cobertura/datos.json?' + q, { credentials: 'same-origin' }).then(function (r) { return r.json(); }),
-        fetch('/admin/cobertura/municipios.geojson', { credentials: 'same-origin' }).then(function (r) { return r.json(); })
-    ]).then(function (res) {
-        var datos = res[0], geo = res[1], porMuni = datos.por_municipio_clave || {}, maxM = datos.max_municipio || 0;
-        L.geoJSON(geo, {
-            style: function (f) {
-                var n = porMuni[f.properties.CLAVE] || 0;
-                return { fillColor: colorMuni(n, maxM), weight: 0.5, color: '#cbd5e1', fillOpacity: n ? 0.9 : 0.2 };
-            },
-            onEachFeature: function (f, layer) {
-                var n = porMuni[f.properties.CLAVE] || 0;
-                if (n) layer.bindPopup('<strong>' + f.properties.MPIO_CNMBR + '</strong><br>' + n + ' participante(s)');
-            }
+    function bootMap() {
+        var map = L.map(el, { scrollWheelZoom: true }).setView([4.57, -74.29], 5.5);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 14,
+            attribution: '&copy; OSM'
         }).addTo(map);
-        (datos.puntos || []).filter(function (p) { return p.lat != null; }).forEach(function (p) {
-            L.circleMarker([p.lat, p.lng], { radius: 5, color: '#7d4f94', fillColor: '#9b67b1', fillOpacity: 0.9, weight: 1 })
-                .addTo(map).bindPopup('<strong>' + p.nombre + '</strong><br>' + (p.municipio || ''));
+        Promise.all([
+            fetch('/admin/cobertura/datos.json?' + q, { credentials: 'same-origin' }).then(function (r) { return r.json(); }),
+            fetch('/admin/cobertura/municipios.geojson', { credentials: 'same-origin' }).then(function (r) { return r.json(); })
+        ]).then(function (res) {
+            var datos = res[0], geo = res[1], porMuni = datos.por_municipio_clave || {}, maxM = datos.max_municipio || 0;
+            var layer = L.geoJSON(geo, {
+                style: function (f) {
+                    var n = porMuni[f.properties.CLAVE] || 0;
+                    return { fillColor: colorMuni(n, maxM), weight: 0.5, color: '#cbd5e1', fillOpacity: n ? 0.9 : 0.2 };
+                },
+                onEachFeature: function (f, lyr) {
+                    var n = porMuni[f.properties.CLAVE] || 0;
+                    if (n) lyr.bindPopup('<strong>' + f.properties.MPIO_CNMBR + '</strong><br>' + n + ' participante(s)');
+                }
+            }).addTo(map);
+            (datos.puntos || []).filter(function (p) { return p.lat != null; }).forEach(function (p) {
+                L.circleMarker([p.lat, p.lng], { radius: 5, color: '#7d4f94', fillColor: '#9b67b1', fillOpacity: 0.9, weight: 1 })
+                    .addTo(map).bindPopup('<strong>' + p.nombre + '</strong><br>' + (p.municipio || ''));
+            });
+            try {
+                map.fitBounds(layer.getBounds(), { padding: [24, 24], maxZoom: 7 });
+            } catch (e) {
+                map.setView([4.57, -74.29], 5.5);
+            }
+            setTimeout(function () { map.invalidateSize(); }, 150);
+            window.addEventListener('resize', function () { map.invalidateSize(); });
+        }).catch(function () {
+            var msgEl = document.getElementById('mapa-cobertura-msg');
+            if (msgEl) {
+                msgEl.style.display = 'block';
+                msgEl.textContent = 'Error cargando mapa.';
+            }
         });
-    }).catch(function () {
-        var el = document.getElementById('mapa-cobertura-msg');
-        el.style.display = 'block';
-        el.textContent = 'Error cargando mapa.';
-    });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bootMap);
+    } else {
+        setTimeout(bootMap, 0);
+    }
 })();
 </script>
 {% endif %}

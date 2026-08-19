@@ -4216,19 +4216,33 @@ def _procesar_twilio_webhook(post_data):
                         # No adelantar modulo_actual hasta que desbloquee el siguiente módulo.
                         if progreso:
                             modulo_cerrado = progreso.modulo_actual
+                            from .modulo_publicacion import (
+                                mensaje_bloqueo_sin_siguiente_publicado,
+                                siguiente_modulo_publicado_wa,
+                            )
+
+                            _blk_pub_reto = mensaje_bloqueo_sin_siguiente_publicado(
+                                estudiante, progreso, modulo_cerrado
+                            )
                             _blk_tras_reto = mensaje_bloqueo_avance_siguiente_modulo(
                                 estudiante, progreso, modulo_cerrado
                             )
-                            if _blk_tras_reto:
+                            if _blk_pub_reto:
+                                estudiante.contexto_temporal = _base_ctx
+                                estudiante.save(
+                                    update_fields=['contexto_temporal', 'estado_onboarding']
+                                )
+                                texto_respuesta = f"{msg_eval}\n\n{_blk_pub_reto}"
+                            elif _blk_tras_reto:
                                 estudiante.contexto_temporal = _base_ctx
                                 estudiante.save(
                                     update_fields=['contexto_temporal', 'estado_onboarding']
                                 )
                                 texto_respuesta = f"{msg_eval}\n\n{_blk_tras_reto}"
                             else:
-                                siguiente = progreso.curso.modulos.filter(
-                                    numero__gt=progreso.modulo_actual.numero
-                                ).order_by('numero').first()
+                                siguiente = siguiente_modulo_publicado_wa(
+                                    progreso.curso, progreso.modulo_actual
+                                )
                                 if siguiente:
                                     progreso.modulo_actual = siguiente
                                     from .module_steps import reset_progreso_pasos_modulo
@@ -4600,17 +4614,30 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                 # Fall through to Twilio API send
                         
                             else:
-                                # Buscar siguiente módulo
-                                siguiente_modulo = progreso.curso.modulos.filter(
-                                    numero__gt=modulo_actual.numero
-                                ).order_by('numero').first()
+                                from .modulo_publicacion import (
+                                    mensaje_bloqueo_sin_siguiente_publicado,
+                                    siguiente_modulo_publicado_wa,
+                                    total_modulos_publicados_wa,
+                                )
+
                                 drip_bloqueado = False
+                                _blk_pub_v = mensaje_bloqueo_sin_siguiente_publicado(
+                                    estudiante, progreso, modulo_actual
+                                )
+                                if _blk_pub_v:
+                                    texto_respuesta = f"{mensaje_respuesta}\n\n{_blk_pub_v}"
+                                    drip_bloqueado = True
+                                    siguiente_modulo = None
+                                else:
+                                    siguiente_modulo = siguiente_modulo_publicado_wa(
+                                        progreso.curso, modulo_actual
+                                    )
 
                                 if siguiente_modulo:
                                     from .drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
                                     from .helpers_examenes import evaluar_checkpoint_reto_ia
 
-                                    total_modulos = progreso.curso.modulos.count()
+                                    total_modulos = total_modulos_publicados_wa(progreso.curso)
                                     usar_agentes_ia_curso = bool(
                                         getattr(progreso.curso, 'usar_agentes_ia', True)
                                     )

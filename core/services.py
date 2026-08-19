@@ -16,6 +16,13 @@ def ejecutar_campana_servicio(campana):
       - template_twilio_id: Envío directo con Content Template de Twilio
       - plantilla Django: Envío con texto personalizado (cuerpo_mensaje)
     """
+    if getattr(campana, 'es_campana_curso', False) and getattr(campana, 'curso_destino', None):
+        from core.modulo_publicacion import curso_listo_para_campana_wa
+
+        ok, msg = curso_listo_para_campana_wa(campana.curso_destino)
+        if not ok:
+            raise ValueError(msg)
+
     # Determinar destinatarios según tipo de audiencia
     if hasattr(campana, 'tipo_audiencia') and campana.tipo_audiencia == 'grupo' and campana.grupo:
         destinatarios = campana.grupo.estudiantes.filter(activo=True)

@@ -1,4 +1,5 @@
 {% extends "admin/eki_collapsible_change_form.html" %}
+{% load static %}
 
 {% block eki_inlines_intro %}
 <p class="eki-inlines-intro">
@@ -37,6 +38,37 @@
     </div>
     {% endif %}
 </div>
+
+{% if eki_mod_publicacion and original.curso and not original.curso.es_modo_clases %}
+<link rel="stylesheet" href="{% static 'admin/css/eki_modulos_publicacion.css' %}">
+<div class="eki-pub-panel eki-pub-panel--mod" aria-label="Publicación WhatsApp">
+    <div class="eki-pub-panel__head">
+        <h3 class="eki-pub-panel__title">¿Listo para el campo?</h3>
+        <p class="eki-pub-panel__sub">
+            {% if eki_mod_publicacion.publicado %}
+            🟢 <strong>Publicado</strong> — el bot puede enviar este módulo.
+            {% elif eki_mod_publicacion.checklist_ok %}
+            🟡 Contenido OK — falta pulsar <strong>Publicar</strong>.
+            {% else %}
+            🔴 <strong>Borrador</strong> — completá el checklist antes de publicar.
+            {% endif %}
+        </p>
+    </div>
+    <ul class="eki-pub-checklist">
+        {% for err in eki_mod_publicacion.errores %}
+        <li class="eki-pub-check eki-pub-check--fail">✗ {{ err }}</li>
+        {% empty %}
+        <li class="eki-pub-check eki-pub-check--ok">✓ Contenido mínimo presente</li>
+        {% endfor %}
+        {% for av in eki_mod_publicacion.avisos %}
+        <li class="eki-pub-check eki-pub-check--warn">⚠ {{ av }}</li>
+        {% endfor %}
+    </ul>
+    {% if not eki_mod_publicacion.publicado %}
+    <a class="eki-pub-row__btn eki-pub-row__btn--lg" href="{{ eki_mod_publicacion.publicar_url }}">Publicar módulo ▶</a>
+    {% endif %}
+</div>
+{% endif %}
 {% endif %}
 {{ block.super }}
 {% endblock %}

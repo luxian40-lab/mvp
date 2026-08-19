@@ -57,54 +57,67 @@
 <script>
 (function () {
   if (typeof L === 'undefined') return;
-  var el = document.getElementById('mapa-panel-inicio');
-  if (!el) return;
-  function colorMuni(cantidad, maxCant) {
-    if (!maxCant || !cantidad) return '#f1f5f9';
-    var t = Math.min(1, cantidad / maxCant);
-    return 'rgb(' + Math.round(243 + (155 - 243) * t) + ',' +
-      Math.round(234 + (103 - 234) * t) + ',' +
-      Math.round(247 + (177 - 247) * t) + ')';
-  }
-  var map = L.map(el, { scrollWheelZoom: false }).setView([4.57, -74.29], 5.5);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 12,
-    attribution: '&copy; OSM'
-  }).addTo(map);
-  Promise.all([
-    fetch('/admin/cobertura/datos.json?global=1&force=1', { credentials: 'same-origin' }).then(function (r) { return r.json(); }),
-    fetch('/admin/cobertura/municipios.geojson', { credentials: 'same-origin' }).then(function (r) { return r.json(); })
-  ]).then(function (res) {
-    var datos = res[0], geo = res[1];
-    var porMuni = datos.por_municipio_clave || {};
-    var maxM = datos.max_municipio || 0;
-    var deptsEl = document.getElementById('mapa-stat-depts');
-    var munisEl = document.getElementById('mapa-stat-munis');
-    var mappedEl = document.getElementById('mapa-stat-mapped');
-    var freshEl = document.getElementById('mapa-stat-fresh');
-    if (deptsEl) deptsEl.textContent = (datos.departamentos_distintos || 0) + '/32';
-    if (munisEl) munisEl.textContent = String(datos.municipios_distintos || 0);
-    if (mappedEl) mappedEl.textContent = String(datos.con_municipio_mapeado || 0);
-    if (freshEl) freshEl.textContent = ' · actualizado ahora';
-    L.geoJSON(geo, {
-      style: function (f) {
-        var n = porMuni[f.properties.CLAVE] || 0;
-        return { fillColor: colorMuni(n, maxM), weight: 0.4, color: '#cbd5e1', fillOpacity: n ? 0.9 : 0.15 };
-      },
-      onEachFeature: function (f, layer) {
-        var n = porMuni[f.properties.CLAVE] || 0;
-        if (n) {
-          layer.bindPopup('<strong>' + f.properties.MPIO_CNMBR + '</strong><br>' + n + ' estudiante(s)');
-        }
-      }
+  function bootPanelMap() {
+    var el = document.getElementById('mapa-panel-inicio');
+    if (!el) return;
+    function colorMuni(cantidad, maxCant) {
+      if (!maxCant || !cantidad) return '#f1f5f9';
+      var t = Math.min(1, cantidad / maxCant);
+      return 'rgb(' + Math.round(243 + (155 - 243) * t) + ',' +
+        Math.round(234 + (103 - 234) * t) + ',' +
+        Math.round(247 + (177 - 247) * t) + ')';
+    }
+    var map = L.map(el, { scrollWheelZoom: false }).setView([4.57, -74.29], 5.5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 12,
+      attribution: '&copy; OSM'
     }).addTo(map);
-    setTimeout(function () { map.invalidateSize(); }, 200);
-  }).catch(function () {
-    var msg = document.getElementById('mapa-panel-inicio-msg');
-    if (!msg) return;
-    msg.hidden = false;
-    msg.textContent = 'No se pudo cargar el mapa de cobertura.';
-  });
+    Promise.all([
+      fetch('/admin/cobertura/datos.json?global=1&force=1', { credentials: 'same-origin' }).then(function (r) { return r.json(); }),
+      fetch('/admin/cobertura/municipios.geojson', { credentials: 'same-origin' }).then(function (r) { return r.json(); })
+    ]).then(function (res) {
+      var datos = res[0], geo = res[1];
+      var porMuni = datos.por_municipio_clave || {};
+      var maxM = datos.max_municipio || 0;
+      var deptsEl = document.getElementById('mapa-stat-depts');
+      var munisEl = document.getElementById('mapa-stat-munis');
+      var mappedEl = document.getElementById('mapa-stat-mapped');
+      var freshEl = document.getElementById('mapa-stat-fresh');
+      if (deptsEl) deptsEl.textContent = (datos.departamentos_distintos || 0) + '/32';
+      if (munisEl) munisEl.textContent = String(datos.municipios_distintos || 0);
+      if (mappedEl) mappedEl.textContent = String(datos.con_municipio_mapeado || 0);
+      if (freshEl) freshEl.textContent = ' · actualizado ahora';
+      var layer = L.geoJSON(geo, {
+        style: function (f) {
+          var n = porMuni[f.properties.CLAVE] || 0;
+          return { fillColor: colorMuni(n, maxM), weight: 0.4, color: '#cbd5e1', fillOpacity: n ? 0.9 : 0.15 };
+        },
+        onEachFeature: function (f, layer) {
+          var n = porMuni[f.properties.CLAVE] || 0;
+          if (n) {
+            layer.bindPopup('<strong>' + f.properties.MPIO_CNMBR + '</strong><br>' + n + ' estudiante(s)');
+          }
+        }
+      }).addTo(map);
+      try {
+        map.fitBounds(layer.getBounds(), { padding: [16, 16], maxZoom: 6 });
+      } catch (e) {
+        map.setView([4.57, -74.29], 5.5);
+      }
+      setTimeout(function () { map.invalidateSize(); }, 150);
+      window.addEventListener('resize', function () { map.invalidateSize(); });
+    }).catch(function () {
+      var msg = document.getElementById('mapa-panel-inicio-msg');
+      if (!msg) return;
+      msg.hidden = false;
+      msg.textContent = 'No se pudo cargar el mapa de cobertura.';
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootPanelMap);
+  } else {
+    bootPanelMap();
+  }
 })();
 </script>
 {% endblock %}

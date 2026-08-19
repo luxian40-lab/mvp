@@ -36,7 +36,9 @@ def reenganche_drip_content_diario():
             dias_drip = dias_espera_efectivos(progreso.estudiante, progreso.curso)
             if dias_drip <= 0:
                 continue
-            siguiente = progreso.curso.modulos.filter(numero__gt=progreso.modulo_actual.numero).order_by('numero').first()
+            from core.modulo_publicacion import siguiente_modulo_publicado_wa
+
+            siguiente = siguiente_modulo_publicado_wa(progreso.curso, progreso.modulo_actual)
             if not siguiente:
                 continue
 

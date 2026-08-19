@@ -2368,6 +2368,15 @@ class Modulo(models.Model):
 
     duracion_dias = models.IntegerField(default=7, help_text="Días estimados para completar")
 
+    publicado_wa = models.BooleanField(
+        default=True,
+        verbose_name='Publicado para WhatsApp',
+        help_text=(
+            'Si está activo, el bot puede enviar este módulo al avanzar. '
+            'Los módulos nuevos en admin empiezan en borrador hasta publicar.'
+        ),
+    )
+
     def clean(self):
         from django.core.exceptions import ValidationError
 
@@ -2574,11 +2583,14 @@ class ProgresoEstudiante(models.Model):
         return f"{self.estudiante.nombre} - {self.curso.nombre}"
 
     def porcentaje_avance(self):
-        """Calcula el porcentaje de avance en el curso"""
-        total_modulos = self.curso.modulos.count()
+        """Calcula el porcentaje de avance en el curso (denominador = módulos publicados WA)."""
+        from .modulo_publicacion import modulos_publicados_wa_qs
+
+        total_modulos = modulos_publicados_wa_qs(self.curso).count()
         if total_modulos == 0:
             return 0
-        modulos_completados = self.modulos_completados.count()
+        pub_ids = set(modulos_publicados_wa_qs(self.curso).values_list('id', flat=True))
+        modulos_completados = self.modulos_completados.filter(modulo_id__in=pub_ids).count()
         return int((modulos_completados / total_modulos) * 100)
 
 

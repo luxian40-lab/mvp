@@ -10,11 +10,11 @@
 
 {% block extrastyle %}
     {{ block.super }}
-    <link rel="stylesheet" href="{% static 'admin/css/eki_admin_login.css' %}?v=2">
+    <link rel="stylesheet" href="{% static 'admin/css/eki_admin_login.css' %}?v=3">
 {% endblock %}
 
 {% block base %}
-<div class="eki-ops-login" aria-hidden="false">
+<div class="eki-ops-login eki-ops-login--minimal" aria-hidden="false">
     {# Fondo: pulso ops (no hero marketing tipo portal) #}
     <div class="eki-ops-login__backdrop" aria-hidden="true">
         <div class="eki-ops-login__grid"></div>

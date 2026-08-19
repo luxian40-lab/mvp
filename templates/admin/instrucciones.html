@@ -51,6 +51,16 @@
             <strong>Media rota (63019)</strong>
             <span>WhatsappLog → columna Chat</span>
         </a>
+        <a class="eki-manual-guide" href="/admin/instrucciones/#publicacion-wa">
+            <span class="material-symbols-outlined eki-manual-guide__icon">publish</span>
+            <strong>Publicar módulo WA</strong>
+            <span>Semáforo en curso · borrador → campo</span>
+        </a>
+        <a class="eki-manual-guide" href="/admin/cobertura/">
+            <span class="material-symbols-outlined eki-manual-guide__icon">map</span>
+            <strong>Mapa cobertura</strong>
+            <span>Territorio · municipios DANE</span>
+        </a>
         <a class="eki-manual-guide" href="/admin/instrucciones/#atajos">
             <span class="material-symbols-outlined eki-manual-guide__icon">keyboard_command_key</span>
             <strong>Command palette</strong>
@@ -68,6 +78,7 @@
                 <li><a href="#clientes">Clientes B2B</a></li>
                 <li><a href="#estudiantes">Estudiantes</a></li>
                 <li><a href="#cursos">Cursos y Module Builder</a></li>
+                <li><a href="#publicacion-wa">Publicar módulos WA</a></li>
                 <li><a href="#campanas">Campañas post-envío</a></li>
                 <li><a href="#whatsapp">WhatsApp / WhatsappLog</a></li>
                 <li><a href="#certificados">Certificados</a></li>
@@ -88,7 +99,9 @@
                     <li><strong>Command palette</strong> enriquecida: teléfono → conversación, códigos Twilio, certificados pendientes.</li>
                     <li><strong>WhatsappLog triage:</strong> filtros 63019/63021, «Solo hoy», link <em>Chat</em> al inbox.</li>
                     <li><strong>Estudiantes:</strong> filtro «sin progreso», inscripción masiva a curso, export CSV ligero.</li>
-                    <li><strong>Login staff</strong> = consola ops (no portal B2B).</li>
+                    <li><strong>Login staff</strong> = consola ops (tarjeta simple v3).</li>
+                    <li><strong>Publicación WA:</strong> semáforo en ficha curso, borrador/publicado, gate en campo.</li>
+                    <li><strong>Inicio:</strong> chip «Módulos borrador» si hay contenido sin publicar.</li>
                 </ul>
             </section>
 
@@ -164,6 +177,20 @@
                 <div class="eki-callout eki-callout--warn">
                     Video WA: H.264+AAC. Error <strong>63021</strong> = codec; <strong>63019</strong> = URL/MIME.
                 </div>
+            </section>
+
+            <section id="publicacion-wa">
+                <h2>Publicar módulos WhatsApp</h2>
+                <ol class="eki-manual-steps">
+                    <li>Abra la <strong>ficha del curso</strong> → panel «Módulos para WhatsApp» (semáforos).</li>
+                    <li>Cada módulo nuevo empieza en <strong>borrador</strong> (no se envía al campo).</li>
+                    <li>Complete Module Builder → checklist verde → <strong>Publicar ▶</strong>.</li>
+                    <li>Si el estudiante escribe <em>listo</em> y el siguiente está en borrador, recibe mensaje de espera (no error Twilio).</li>
+                </ol>
+                <div class="eki-callout eki-callout--info">
+                    Cursos <strong>Clases / Aprende</strong> (Capital Humano, etc.) no usan esta puerta: el avance es en aula.
+                </div>
+                <p>Atajo listado: <a href="/admin/core/modulo/?publicado_wa__exact=0">Módulos en borrador</a></p>
             </section>
 
             <section id="campanas">

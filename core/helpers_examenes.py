@@ -74,9 +74,11 @@ def obtener_siguiente_modulo(estudiante, curso):
         curso=curso
     )
     
-    # Si no tiene módulo actual, retornar el primero
+    from .modulo_publicacion import modulos_publicados_wa_qs
+
+    # Si no tiene módulo actual, retornar el primero publicado
     if not progreso.modulo_actual:
-        primer_modulo = curso.modulos.filter(activo=True).order_by('numero').first()
+        primer_modulo = modulos_publicados_wa_qs(curso).order_by('numero').first()
         return primer_modulo
     
     modulo_actual = progreso.modulo_actual
@@ -88,9 +90,8 @@ def obtener_siguiente_modulo(estudiante, curso):
         # Debe repetir el módulo actual
         return modulo_actual
     
-    # Buscar el siguiente módulo
-    siguiente_modulo = curso.modulos.filter(
-        activo=True,
+    # Buscar el siguiente módulo publicado
+    siguiente_modulo = modulos_publicados_wa_qs(curso).filter(
         numero__gt=modulo_actual.numero
     ).order_by('numero').first()
 

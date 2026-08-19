@@ -1,4 +1,5 @@
 {% extends "admin/eki_collapsible_change_form.html" %}
+{% load static %}
 
 {% block object-tools-items %}
     {{ block.super }}
@@ -40,6 +41,9 @@
             {% if eki_org_nombre %}{{ eki_org_nombre }}{% else %}General (eki){% endif %}
             {% if eki_curso_stats %}
             · {{ eki_curso_stats.modulos }} módulo(s)
+            {% if eki_modulos_publicacion.usa_wa %}
+            · {{ eki_curso_stats.modulos_publicados }} publicado(s) WA
+            {% endif %}
             · {{ eki_curso_stats.inscritos }} inscrito(s)
             {% if eki_curso_stats.completados %} · {{ eki_curso_stats.completados }} completado(s){% endif %}
             {% if eki_curso_stats.inscritos and eki_curso_stats.pct_completados is not None %}
@@ -66,6 +70,43 @@
     </div>
     {% endif %}
 </div>
+
+{% if eki_modulos_publicacion.usa_wa and eki_modulos_publicacion.filas %}
+<link rel="stylesheet" href="{% static 'admin/css/eki_modulos_publicacion.css' %}">
+<div class="eki-pub-panel" aria-label="Estado módulos WhatsApp">
+    <div class="eki-pub-panel__head">
+        <h3 class="eki-pub-panel__title">Módulos para WhatsApp</h3>
+        <p class="eki-pub-panel__sub">
+            🟢 {{ eki_modulos_publicacion.publicados }} publicados
+            · 🔴 {{ eki_modulos_publicacion.borradores }} borrador(es)
+            {% if not eki_modulos_publicacion.listo_campana %}
+            · <strong class="eki-pub-warn">⚠ {{ eki_modulos_publicacion.msg_campana }}</strong>
+            {% endif %}
+        </p>
+    </div>
+    <ul class="eki-pub-list">
+        {% for fila in eki_modulos_publicacion.filas %}
+        <li class="eki-pub-row {% if fila.publicado %}eki-pub-row--ok{% else %}eki-pub-row--draft{% endif %}">
+            <span class="eki-pub-row__num">M{{ fila.modulo.numero }}</span>
+            <span class="eki-pub-row__title">{{ fila.modulo.titulo|truncatechars:48 }}</span>
+            <span class="eki-pub-row__badge">
+                {% if fila.publicado %}🟢 Publicado{% else %}🔴 Borrador{% endif %}
+            </span>
+            <span class="eki-pub-row__checks">
+                {% if fila.checklist_ok %}✓ Contenido OK{% else %}✗ {{ fila.errores.0|truncatechars:40 }}{% endif %}
+            </span>
+            <a class="eki-pub-row__link" href="{% url 'admin:core_modulo_change' fila.modulo.pk %}">Editar</a>
+            {% if not fila.publicado and fila.checklist_ok %}
+            <a class="eki-pub-row__btn" href="{% url 'admin:core_modulo_publicar' fila.modulo.pk %}">Publicar ▶</a>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    <p class="eki-pub-panel__hint">El estudiante nunca ve error técnico: si el siguiente módulo está en borrador, recibe el mismo mensaje de espera que el drip.</p>
+</div>
+{% elif eki_modulos_publicacion.usa_wa == False %}
+<p class="eki-pub-panel__hint eki-pub-panel__hint--clases">Curso modo Clases / Aprende: la publicación WA no aplica (avance en aula).</p>
+{% endif %}
 {% endif %}
 {{ block.super }}
 {% endblock %}
