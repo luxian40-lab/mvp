@@ -196,6 +196,7 @@ def construir_contexto_inbox(
     estudiante_id: int | None = None,
     telefono: str | None = None,
     page: int = 1,
+    busqueda: str | None = None,
     org_fijo: Cliente | None = None,
     mostrar_filtro_clientes: bool = True,
 ) -> dict:
@@ -206,6 +207,16 @@ def construir_contexto_inbox(
 
     est_por_tel = _estudiantes_por_telefono()
     contactos = _construir_contactos(est_por_tel, cliente_filtro_id)
+    q_raw = (busqueda or '').strip()
+    if q_raw:
+        q_low = q_raw.lower()
+        contactos = [
+            c for c in contactos
+            if q_low in (c.get('nombre') or '').lower()
+            or q_low in (c.get('telefono') or '')
+            or q_low in (c.get('telefono_display') or '')
+            or q_low in (c.get('cliente_nombre') or '').lower()
+        ]
     grupos_cliente = _agrupar_por_cliente(contactos)
 
     estudiante_seleccionado = None
@@ -257,4 +268,5 @@ def construir_contexto_inbox(
         'contacto_seleccionado': contacto_seleccionado,
         'mensajes': mensajes,
         'page_obj': page_obj,
+        'busqueda': q_raw,
     }

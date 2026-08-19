@@ -586,6 +586,38 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
             }
         )
 
+    try:
+        from core.models_certificados import Certificado
+
+        certs_pend_wa = Certificado.objects.filter(
+            emitido=True,
+            enviado_whatsapp=False,
+        ).count()
+        if certs_pend_wa >= 1:
+            acciones.insert(
+                0,
+                {
+                    'label': f'Certs pend. WA ({certs_pend_wa})',
+                    'url': '/admin/envio-certificados/',
+                    'icon': 'workspace_premium',
+                    'destacada': True,
+                },
+            )
+            insights.insert(
+                0,
+                {
+                    'nivel': 'warn',
+                    'texto': (
+                        f'{certs_pend_wa} certificado(s) emitido(s) '
+                        'sin envío por WhatsApp.'
+                    ),
+                    'cta': 'Envío certificados',
+                    'url': '/admin/envio-certificados/',
+                },
+            )
+    except Exception:
+        pass
+
     acciones.extend([
         {'label': 'Nuevo curso', 'url': '/admin/core/curso/add/', 'icon': 'school'},
         {'label': 'Nueva campaña', 'url': '/admin/core/campana/add/', 'icon': 'campaign'},

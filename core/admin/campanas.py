@@ -568,6 +568,23 @@ class EnvioLogAdmin(admin.ModelAdmin):
     estado_badge.short_description = "Estado"
 
 
+class WhatsappLogHoyFilter(admin.SimpleListFilter):
+    """Mensajes del día (triage rápido)."""
+
+    title = 'Hoy'
+    parameter_name = 'hoy'
+
+    def lookups(self, request, model_admin):
+        return [('1', 'Solo hoy')]
+
+    def queryset(self, request, queryset):
+        if self.value() == '1':
+            from django.utils import timezone
+
+            return queryset.filter(fecha__date=timezone.localdate())
+        return queryset
+
+
 class CodigoTwilioWhatsappFilter(admin.SimpleListFilter):
     """Filtra WhatsappLog por código Twilio en error_detalle (ops triage)."""
 
@@ -634,21 +651,17 @@ class WhatsappLogAdmin(admin.ModelAdmin):
         'fecha',
         'estudiante_nombre',
         'telefono_corto',
-        'tipo_badge',
-        'mensaje_preview',
-        'estado_badge',
         'codigo_twilio_col',
-        'error_preview',
-        'estado_visual',
-        'actividad_badge',
+        'estado_badge',
+        'conversacion_link',
     )
     list_filter = (
         CodigoTwilioWhatsappFilter,
+        WhatsappLogHoyFilter,
         'tipo',
         'estado',
         'fecha',
         'estudiante__activo',
-        'agente_usado',
     )
     search_fields = ('telefono', 'mensaje', 'mensaje_id', 'estudiante__nombre', 'error_detalle')
     date_hierarchy = 'fecha'
@@ -680,6 +693,21 @@ class WhatsappLogAdmin(admin.ModelAdmin):
         """Muestra solo los últimos 4 dígitos"""
         return f"...{obj.telefono[-4:]}"
     telefono_corto.short_description = "📱"
+
+    def conversacion_link(self, obj):
+        from django.urls import reverse
+
+        tel = (obj.telefono or '').strip()
+        if not tel:
+            return '—'
+        url = reverse('conversaciones') + f'?telefono={tel}'
+        if obj.estudiante_id:
+            url = reverse('conversaciones') + f'?estudiante={obj.estudiante_id}'
+        return format_html(
+            '<a href="{}" style="font-weight:600;color:#7A4E8E;">Chat</a>',
+            url,
+        )
+    conversacion_link.short_description = 'Inbox'
     
     def tipo_badge(self, obj):
         """Badge visual para tipo de mensaje"""

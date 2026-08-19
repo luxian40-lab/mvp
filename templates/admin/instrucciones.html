@@ -1,558 +1,243 @@
-{% extends "admin/base_site.html" %}
-{% block breadcrumbs %}
-<div class="breadcrumbs">
-    <a href="{% url 'admin:index' %}">Inicio</a>
-    &rsaquo; Instrucciones
-</div>
-{% endblock %}
-
+{% extends "admin/eki_ops_base.html" %}
 {% load static %}
 
 {% block title %}Manual operativo — eki{% endblock %}
 
-{% block extrahead %}
-<style>
-    :root {
-        --eki-primary: #1565c0;
-        --eki-primary-dark: #0d47a1;
-        --eki-bg: #f4f6f8;
-        --eki-border: #dde3ea;
-        --eki-text: #1a2b3c;
-        --eki-muted: #5c6b7a;
-    }
-    .manual-wrap {
-        max-width: 1100px;
-        margin: 0 auto 48px;
-        padding: 24px 20px;
-        color: var(--eki-text);
-        font-size: 15px;
-        line-height: 1.65;
-    }
-    .manual-hero {
-        background: linear-gradient(135deg, var(--eki-primary) 0%, #3949ab 100%);
-        color: #fff;
-        border-radius: 10px;
-        padding: 32px 28px;
-        margin-bottom: 28px;
-    }
-    .manual-hero h1 { margin: 0 0 8px; font-size: 1.85rem; font-weight: 600; }
-    .manual-hero p { margin: 4px 0; opacity: 0.92; }
-    .manual-meta { font-size: 0.88rem; opacity: 0.85; margin-top: 12px; }
-    .manual-layout {
-        display: grid;
-        grid-template-columns: 240px 1fr;
-        gap: 28px;
-        align-items: start;
-    }
-    @media (max-width: 900px) {
-        .manual-layout { grid-template-columns: 1fr; }
-        .manual-toc { position: static !important; }
-    }
-    .manual-toc {
-        position: sticky;
-        top: 16px;
-        background: #fff;
-        border: 1px solid var(--eki-border);
-        border-radius: 8px;
-        padding: 16px;
-        font-size: 0.9rem;
-    }
-    .manual-toc h2 { font-size: 0.95rem; margin: 0 0 12px; color: var(--eki-primary); }
-    .manual-toc ul { list-style: none; padding: 0; margin: 0; }
-    .manual-toc li { margin-bottom: 6px; }
-    .manual-toc a { color: var(--eki-primary); text-decoration: none; }
-    .manual-toc a:hover { text-decoration: underline; }
-    .manual-body section {
-        background: #fff;
-        border: 1px solid var(--eki-border);
-        border-radius: 8px;
-        padding: 22px 24px;
-        margin-bottom: 20px;
-        scroll-margin-top: 72px;
-    }
-    .manual-body h2 {
-        font-size: 1.35rem;
-        margin: 0 0 16px;
-        padding-bottom: 10px;
-        border-bottom: 2px solid var(--eki-primary);
-        color: var(--eki-primary-dark);
-        font-weight: 600;
-    }
-    .manual-body h3 {
-        font-size: 1.05rem;
-        margin: 20px 0 10px;
-        color: var(--eki-text);
-    }
-    .manual-body h4 { font-size: 0.98rem; margin: 14px 0 8px; }
-    .manual-body ul, .manual-body ol { padding-left: 1.25rem; }
-    .manual-body li { margin-bottom: 6px; }
-    .manual-body code {
-        background: #eef2f7;
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-size: 0.88em;
-    }
-    .manual-body table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.92rem;
-        margin: 12px 0;
-    }
-    .manual-body th, .manual-body td {
-        border: 1px solid var(--eki-border);
-        padding: 8px 10px;
-        text-align: left;
-    }
-    .manual-body th { background: var(--eki-bg); font-weight: 600; }
-    .callout {
-        border-left: 4px solid var(--eki-primary);
-        background: #e8f0fe;
-        padding: 12px 14px;
-        border-radius: 0 6px 6px 0;
-        margin: 14px 0;
-        font-size: 0.94rem;
-    }
-    .callout-warn {
-        border-left-color: #ed6c02;
-        background: #fff8e1;
-    }
-    .callout-ok {
-        border-left-color: #2e7d32;
-        background: #e8f5e9;
-    }
-    .url-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px 16px;
-        font-size: 0.92rem;
-    }
-    @media (max-width: 700px) { .url-grid { grid-template-columns: 1fr; } }
-    .url-grid a { word-break: break-all; }
-    .changelog { font-size: 0.92rem; }
-    .changelog li { margin-bottom: 4px; }
-</style>
+{% block eki_ops_crumb %}Manual{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/eki_admin_manual.css' %}">
 {% endblock %}
 
-{% block content %}
-<p class="eki-ops-back-wrap"><a class="eki-ops-back" href="{% url 'admin:index' %}">← Volver al admin</a></p>
+{% block eki_ops_content %}
+<div class="eki-manual" id="eki-manual-root">
 
-<div class="manual-wrap">
-
-    <header class="manual-hero">
-        <h1>Manual operativo eki</h1>
-        <p>Educación agrícola y servicios B2B por WhatsApp, con administración central en Django.</p>
-        <p class="manual-meta">Versión unificada · Junio 2026 · Producción:
-            <a href="http://eki-prod-final.eba-32krwxas.us-east-2.elasticbeanstalk.com/admin/" style="color:#fff;">eki-prod-final</a>
-        </p>
+    <header class="eki-manual-hero">
+        <div>
+            <h1>Manual operativo eki</h1>
+            <p>Consola staff (Unfold) · WhatsApp · portal B2B · certificados · Nat.</p>
+            <p class="eki-manual-hero__meta">Actualizado agosto 2026 · Prod: <a href="https://admin.eki.technology/admin/">admin.eki.technology</a></p>
+        </div>
+        <div class="eki-manual-search">
+            <label for="eki-manual-filter" class="sr-only">Buscar en el manual</label>
+            <input type="search" id="eki-manual-filter" placeholder="Buscar sección…" autocomplete="off">
+        </div>
     </header>
 
-    <div class="manual-layout">
-        <nav class="manual-toc" aria-label="Contenido">
+    <div class="eki-manual-guides" aria-label="Guías rápidas">
+        <a class="eki-manual-guide" href="/admin/core/estudiante/importar/">
+            <span class="material-symbols-outlined eki-manual-guide__icon">upload_file</span>
+            <strong>Importar cohorte</strong>
+            <span>Excel LatAm → estudiantes + curso opcional</span>
+        </a>
+        <a class="eki-manual-guide" href="/admin/core/campana/add/">
+            <span class="material-symbols-outlined eki-manual-guide__icon">campaign</span>
+            <strong>Lanzar campaña</strong>
+            <span>Audiencia · plantilla HX · calendario</span>
+        </a>
+        <a class="eki-manual-guide" href="/admin/conversaciones/">
+            <span class="material-symbols-outlined eki-manual-guide__icon">forum</span>
+            <strong>Ver conversación</strong>
+            <span>Inbox WA · buscar teléfono arriba</span>
+        </a>
+        <a class="eki-manual-guide" href="/admin/envio-certificados/">
+            <span class="material-symbols-outlined eki-manual-guide__icon">verified</span>
+            <strong>Enviar certificados</strong>
+            <span>Por org/curso · pendientes en Inicio</span>
+        </a>
+        <a class="eki-manual-guide" href="/admin/core/whatsapplog/?codigo_twilio=63019">
+            <span class="material-symbols-outlined eki-manual-guide__icon">bug_report</span>
+            <strong>Media rota (63019)</strong>
+            <span>WhatsappLog → columna Chat</span>
+        </a>
+        <a class="eki-manual-guide" href="/admin/instrucciones/#atajos">
+            <span class="material-symbols-outlined eki-manual-guide__icon">keyboard_command_key</span>
+            <strong>Command palette</strong>
+            <span><span class="eki-manual-kbd">Ctrl</span>+<span class="eki-manual-kbd">K</span> · teléfono, manual, fallidos</span>
+        </a>
+    </div>
+
+    <div class="eki-manual-layout">
+        <nav class="eki-manual-toc" aria-label="Contenido">
             <h2>Contenido</h2>
             <ul>
-                <li><a href="#novedades">Novedades</a></li>
-                <li><a href="#equipo-agentes">Equipo de agentes eki</a></li>
-                <li><a href="#arquitectura">Arquitectura</a></li>
-                <li><a href="#accesos">Accesos rápidos</a></li>
-                <li><a href="#clientes">Clientes y portal B2B</a></li>
-                <li><a href="#estudiantes">Estudiantes y grupos</a></li>
-                <li><a href="#cursos">Cursos y contenido</a></li>
-                <li><a href="#whatsapp">WhatsApp y envíos</a></li>
-                <li><a href="#nati">Nati y comercial</a></li>
-                <li><a href="#gei">GEI y formularios</a></li>
-                <li><a href="#metricas">Métricas y reportes</a></li>
-                <li><a href="#push">Push y reenganche</a></li>
-                <li><a href="#certificados">Certificados y gamificación</a></li>
-                <li><a href="#ia">Herramientas IA</a></li>
-                <li><a href="#produccion">Producción AWS</a></li>
-                <li><a href="#estudiante-flujo">Flujo del estudiante</a></li>
-                <li><a href="#soporte">Soporte y PQRS</a></li>
+                <li><a href="#novedades">Novedades admin</a></li>
+                <li><a href="#atajos">Atajos y command palette</a></li>
+                <li><a href="#flujo-ops">Flujo Captar → Enseñar → Retener</a></li>
+                <li><a href="#clientes">Clientes B2B</a></li>
+                <li><a href="#estudiantes">Estudiantes</a></li>
+                <li><a href="#cursos">Cursos y Module Builder</a></li>
+                <li><a href="#campanas">Campañas post-envío</a></li>
+                <li><a href="#whatsapp">WhatsApp / WhatsappLog</a></li>
+                <li><a href="#certificados">Certificados</a></li>
+                <li><a href="#conversaciones">Conversaciones</a></li>
+                <li><a href="#infra">Infra y salud</a></li>
                 <li><a href="#faq">FAQ</a></li>
             </ul>
         </nav>
 
-        <div class="manual-body">
+        <div class="eki-manual-body">
 
             <section id="novedades">
-                <h2>Novedades recientes</h2>
-                <ul class="changelog">
-                    <li><strong>Grupos de estudiantes:</strong> ya no se usa el selector doble del admin. Use <em>Gestionar miembros</em> (lista, Excel) o Estudiantes → acción masiva «Asignar a un grupo».</li>
-                    <li><strong>Multimedia:</strong> en microcontenidos, envíos programados y campañas B2B puede subir archivo desde PC; en producción se guarda en S3 y se completa la URL. El campo URL manual se mantiene.</li>
-                    <li><strong>Portal empresas:</strong> clientes entran por <code>/portal/login/</code> (sesión separada del admin Jazzmin). Roles <code>admin</code> y <code>viewer</code>; reporte B2B con gráficas y metas KPI.</li>
-                    <li><strong>Mensajes push:</strong> recordatorios de curso vía <code>MensajePush</code> sin reiniciar progreso; el estudiante responde <em>listo</em> para continuar.</li>
-                    <li><strong>Nat / catálogo:</strong> productos por cliente en <code>ProductoCatalogo</code>; carga con <code>manage.py cargar_catalogo</code>.</li>
-                    <li><strong>GEI:</strong> recolección en dos bloques (contexto + balance); panel en <code>/admin/gei/panel/</code>.</li>
+                <h2>Novedades admin (2026)</h2>
+                <ul>
+                    <li><strong>Unfold</strong> reemplaza Jazzmin: tonos Mañana/Tarde/Noche, Inicio con KPIs y acciones contextuales.</li>
+                    <li><strong>Puentes en fichas:</strong> Curso, Cliente, Estudiante, Módulo y Campaña muestran resumen + botones (módulos, Builder, chat, fallidos).</li>
+                    <li><strong>Menú por flujo:</strong> Captar · Enseñar · Retener (sidebar) además del catálogo Django.</li>
+                    <li><strong>Command palette</strong> enriquecida: teléfono → conversación, códigos Twilio, certificados pendientes.</li>
+                    <li><strong>WhatsappLog triage:</strong> filtros 63019/63021, «Solo hoy», link <em>Chat</em> al inbox.</li>
+                    <li><strong>Estudiantes:</strong> filtro «sin progreso», inscripción masiva a curso, export CSV ligero.</li>
+                    <li><strong>Login staff</strong> = consola ops (no portal B2B).</li>
                 </ul>
             </section>
 
-            <section id="equipo-agentes">
-                <h2>Equipo de agentes eki (Cursor)</h2>
-                <p>En el chat de Cursor puedes pedir un rol («haz de PM», «como QA», «implementa», «SRE»…).
-                    Cada uno lee su skill en <code>.cursor/skills/eki-*/SKILL.md</code>. Un rol a la vez, salvo flujo completo
-                    (PM/CTO → UX/Diseñador/Data → Dev → QA → Sec/SRE). Deploy solo con pedido explícito.</p>
+            <section id="atajos">
+                <h2>Atajos y command palette</h2>
+                <p>Pulse <span class="eki-manual-kbd">Ctrl</span>+<span class="eki-manual-kbd">K</span> (Mac: <span class="eki-manual-kbd">⌘</span>+<span class="eki-manual-kbd">K</span>) en cualquier pantalla admin.</p>
                 <table>
-                    <thead><tr><th>Agente</th><th>Cuándo invocarlo</th><th>Qué decide / entrega</th></tr></thead>
+                    <thead><tr><th>Escriba…</th><th>Va a…</th></tr></thead>
                     <tbody>
-                        <tr><td><strong>PM</strong></td><td>Priorizar, scope, deploy sí/no</td><td>P0/P1, criterios de aceptación, GO/NO-GO</td></tr>
-                        <tr><td><strong>CTO</strong></td><td>Arquitectura, Unfold, deuda estructural</td><td>Decisión técnica sin reescribir el monolito</td></tr>
-                        <tr><td><strong>UX</strong></td><td>Usabilidad admin Unfold, menús, flujos ops</td><td>Facilidad operativa (equipo eki, no clientes)</td></tr>
-                        <tr><td><strong>Diseñador</strong></td><td>Tipografía, color, look &amp; feel</td><td>Marca eki (#9A6CAC) + claridad visual</td></tr>
-                        <tr><td><strong>Dev</strong></td><td>Implementar tras plan PM</td><td>Diff mínimo Django/Twilio/S3 + tests</td></tr>
-                        <tr><td><strong>QA</strong></td><td>Smoke WhatsApp, media, cursos</td><td>PASS/FAIL; no desplegar si está rojo</td></tr>
-                        <tr><td><strong>Sec</strong></td><td>Webhooks, secretos, PII, auth</td><td>Critical/High antes de deploy</td></tr>
-                        <tr><td><strong>Data</strong></td><td>Métricas, embudos, KPIs que no cuadran</td><td>Definiciones honestas (listo ≠ proxy n_mods)</td></tr>
-                        <tr><td><strong>Ops / CS</strong></td><td>Centro de Éxito, retención</td><td>Playbook: a quién contactar hoy</td></tr>
-                        <tr><td><strong>Growth</strong></td><td>Nat, campañas, pipeline B2B</td><td>KPIs comerciales separados de Learning</td></tr>
-                        <tr><td><strong>Content</strong></td><td>Cursos, módulos, drip, abandono</td><td>Diseño instruccional campo/WhatsApp</td></tr>
-                        <tr><td><strong>Legal</strong></td><td>Habeas, PII, copy sensible</td><td>Checklist; no sustituye abogado</td></tr>
-                        <tr><td><strong>SRE / Infra</strong></td><td>Celery, EB, S3, cuelgues, latencia</td><td>Estabilidad: colas async, health, rollback</td></tr>
-                        <tr><td><strong>Aprende</strong></td><td>Aula LMS (aprende.eki.technology)</td><td>Producto aula ≠ Studio ≠ admin</td></tr>
+                        <tr><td><code>manual</code></td><td>Este documento</td></tr>
+                        <tr><td><code>57300…</code> (teléfono)</td><td>Conversación + ficha estudiante</td></tr>
+                        <tr><td><code>fallidos</code></td><td>EnvioLog FALLIDO</td></tr>
+                        <tr><td><code>63019</code></td><td>WhatsappLog error media</td></tr>
+                        <tr><td><code>sin progreso</code></td><td>Estudiantes activos sin avance</td></tr>
+                        <tr><td><code>certificado</code></td><td>Envío masivo certificados</td></tr>
                     </tbody>
                 </table>
-                <div class="callout">
-                    <strong>Recomendación UX + Diseñador (altas):</strong>
-                    Cliente = alta manual (ficha). Estudiante = Alta individual <em>o</em> Excel LatAm.
-                    No mezclar Excel de estudiantes con catálogo comercial.
-                </div>
-                <div class="callout-ok">
-                    <strong>Recomendación Data + SRE:</strong>
-                    Métricas empresa exige organización; KPIs primero, tabla detalle lazy.
-                    Subidas Nat/RAG deben encolar indexación (Celery/hilo), nunca bloquear el admin.
-                </div>
-                <div class="callout">
-                    <strong>Growth (Nat estrella):</strong>
-                    Knowledge Studio + Biblioteca Nat + métricas Commercial CRM.
-                    Separar lectura/respuesta Nat del avance de cursos.
-                </div>
-            </section>
-
-            <section id="arquitectura">
-                <h2>Arquitectura del sistema</h2>
-                <p>eki es una plataforma Django desplegada en AWS Elastic Beanstalk. El canal principal con productores y estudiantes es <strong>WhatsApp (Twilio)</strong>. El equipo interno opera desde <strong>Unfold</strong> (<code>/admin/</code>).</p>
-
-                <h3>Aplicaciones principales</h3>
-                <table>
-                    <thead><tr><th>Módulo</th><th>Función</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>core</code></td><td>Estudiantes, clientes, cursos, módulos, progreso, campañas, plantillas, webhook WhatsApp, certificados base.</td></tr>
-                        <tr><td><code>portal</code></td><td>Portal web B2B para organizaciones (dashboard, métricas, PQRS). Sin React/Angular.</td></tr>
-                        <tr><td><code>formulario</code></td><td>Ficha GEI, sesiones y pasos de formulario en WhatsApp.</td></tr>
-                        <tr><td><code>agents_commercial</code></td><td>Prospectos B2B, RAG comercial, campañas Nat, Knowledge Studio.</td></tr>
-                        <tr><td><code>agents_edu</code></td><td>Documentos RAG del tutor educativo.</td></tr>
-                        <tr><td><code>learning</code></td><td>Exámenes, gamificación, certificados (proxies admin).</td></tr>
-                        <tr><td><code>analytics</code></td><td>Metas por empresa, eventos IA.</td></tr>
-                    </tbody>
-                </table>
-
-                <div class="callout">
-                    <strong>Separación de accesos:</strong> el personal eki usa <code>/admin/</code> (usuarios <code>is_staff=True</code>).
-                    Las organizaciones cliente usan <code>/portal/login/</code> con <code>PortalUsuario</code> (<code>is_staff=False</code>). Las sesiones no se pisan entre sí.
-                </div>
-            </section>
-
-            <section id="accesos">
-                <h2>Accesos rápidos</h2>
-                <div class="url-grid">
-                    <div><strong>Admin principal</strong><br><a href="/admin/">/admin/</a></div>
-                    <div><strong>Este manual</strong><br><a href="/admin/instrucciones/">/admin/instrucciones/</a></div>
-                    <div><strong>Dashboard unificado</strong><br><a href="/admin/dashboard/">/admin/dashboard/</a></div>
+                <div class="eki-url-grid">
+                    <div><strong>Inicio</strong><br><a href="/admin/">/admin/</a></div>
+                    <div><strong>Dashboard</strong><br><a href="/admin/dashboard/">/admin/dashboard/</a></div>
                     <div><strong>Conversaciones</strong><br><a href="/admin/conversaciones/">/admin/conversaciones/</a></div>
-                    <div><strong>Importar estudiantes</strong><br><a href="{% url 'admin:core_estudiante_importar' %}">Estudiantes → Importar Excel</a></div>
-                    <div><strong>Panel GEI</strong><br><a href="/admin/gei/panel/">/admin/gei/panel/</a></div>
-                    <div><strong>Bot comercial / Nati</strong><br><a href="/admin/bot-comercial/">/admin/bot-comercial/</a></div>
-                    <div><strong>Knowledge Studio</strong><br><a href="/admin/knowledge-studio/">/admin/knowledge-studio/</a></div>
-                    <div><strong>Crear curso con IA</strong><br><a href="/admin/crear-curso-ia/">/admin/crear-curso-ia/</a></div>
-                    <div><strong>AI Ops (eventos)</strong><br><a href="/admin/ai-ops/eventos/">/admin/ai-ops/eventos/</a></div>
-                    <div><strong>Portal clientes</strong><br><a href="/portal/login/">/portal/login/</a></div>
-                    <div><strong>Health check</strong><br><a href="/health/">/health/</a></div>
+                    <div><strong>Infra</strong><br><a href="/admin/infra/">/admin/infra/</a></div>
+                </div>
+            </section>
+
+            <section id="flujo-ops">
+                <h2>Flujo operativo: Captar → Enseñar → Retener</h2>
+                <ol class="eki-manual-steps">
+                    <li><strong>Captar:</strong> Cliente (org) → usuarios portal → Nat/catálogo si aplica.</li>
+                    <li><strong>Enseñar:</strong> Curso → módulos (Module Builder) → campaña o drip WA.</li>
+                    <li><strong>Retener:</strong> Centro de Éxito · conversaciones · push · certificados · WhatsappLog.</li>
+                </ol>
+                <div class="eki-callout">
+                    El <strong>portal</strong> (<code>/portal/login/</code>) es solo para coordinadores B2B.
+                    El admin es solo staff eki (<code>is_staff</code>).
                 </div>
             </section>
 
             <section id="clientes">
-                <h2>Clientes (organizaciones) y portal B2B</h2>
-
-                <h3>Alta de Cliente</h3>
-                <div class="callout">
-                    <strong>Solo alta manual:</strong> Admin → Clientes → <em>Añadir</em>.
-                    No hay importador Excel de organizaciones (a propósito: cada cliente lleva portal, tipo de producto y suscripción).
-                    Tras crear el cliente, cree usuarios portal desde la misma ficha.
-                </div>
-
-                <h3>Modelo Cliente</h3>
-                <p>Cada organización contratante es un registro <strong>Cliente</strong>: cursos propios, estudiantes, grupos, plantillas, suscripción y (opcional) credenciales Twilio propias para multi-tenant futuro.</p>
+                <h2>Clientes (organizaciones)</h2>
+                <p>Alta <strong>manual</strong>: Clientes → Añadir. Desde la ficha: cupos portal, drip por curso, catálogo Nat, wallpaper Aprende.</p>
+                <p>La banda <em>Operación B2B</em> muestra contadores y <strong>último mensaje WA</strong> de la org (muestra reciente).</p>
                 <ul>
-                    <li><strong>Tipo de producto:</strong> <code>cursos</code>, <code>gei</code> o <code>nat</code> — define qué ve el cliente en el portal.</li>
-                    <li><strong>Suscripción:</strong> <code>fecha_fin_suscripcion</code> y <code>activo</code>; si vence, el portal redirige a suscripción vencida.</li>
-                    <li><strong>Usuarios portal:</strong> desde el detalle del cliente puede crear usuario, contraseña y rol (<code>admin</code> / <code>viewer</code>) sin salir del admin.</li>
+                    <li>Tipo producto: <code>cursos</code> · <code>gei</code> · <code>nat</code></li>
+                    <li>Suscripción: <code>fecha_fin_suscripcion</code> — comando <code>verificar_suscripciones</code></li>
                 </ul>
-
-                <h3>Portal empresas (<code>/portal/</code>)</h3>
-                <table>
-                    <thead><tr><th>Rol</th><th>Permisos</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>admin</code></td><td>Dashboard, métricas B2B, estudiantes, cursos, PQRS, responder por WhatsApp, configurar metas KPI.</td></tr>
-                        <tr><td><code>viewer</code></td><td>Misma consulta; no responde PQRS ni edita metas.</td></tr>
-                    </tbody>
-                </table>
-                <p>Vistas: login, dashboard, reporte B2B (embudo, semáforos, filtros por curso/grupo/fechas), estudiantes, cursos, listado y detalle PQRS.</p>
-                <p>Comando para desactivar clientes vencidos: <code>python manage.py verificar_suscripciones</code> (programar en cron/EB si aplica).</p>
             </section>
 
             <section id="estudiantes">
-                <h2>Estudiantes y grupos</h2>
-
-                <h3>Alta y actualización masiva</h3>
-                <p><strong>Alta manual:</strong> Admin → Estudiantes → <em>Añadir</em> (cédula, nombre, teléfono WhatsApp, cliente).</p>
-                <p><strong>Excel (recomendado para cohortes):</strong> listado Estudiantes → botón
-                    <strong>Importar Estudiantes Excel</strong>
-                    (<a href="{% url 'admin:core_estudiante_importar' %}">abrir importador</a>).
-                    La ruta antigua <code>/admin/importar-estudiantes/</code> redirige aquí (importador LatAm).</p>
-                <p>Plantilla: acción <strong>Exportar plantilla importación</strong> en la lista de estudiantes
-                    (o desde el <a href="{% url 'admin:core_estudiante_importar' %}">importador</a>).</p>
+                <h2>Estudiantes</h2>
+                <h3>Alta</h3>
+                <ul>
+                    <li>Individual: ficha → curso en «Inscripción a curso».</li>
+                    <li>Masiva: <a href="{% url 'admin:core_estudiante_importar' %}">Importar Excel</a> (columna Curso opcional).</li>
+                    <li>Acción <strong>Inscribir en curso (masivo)</strong> en listado filtrado.</li>
+                </ul>
+                <h3>Acciones útiles</h3>
                 <table>
-                    <thead><tr><th>Col</th><th>Campo</th><th>Obligatorio</th><th>Ejemplo / notas</th></tr></thead>
+                    <thead><tr><th>Acción</th><th>Uso</th></tr></thead>
                     <tbody>
-                        <tr><td>A</td><td>Tipo documento</td><td>Sí</td><td>Solo el tipo: <code>CC</code>, <code>TI</code>, <code>CE</code>, <code>DUI</code>, <code>CURP</code>, <code>DNI</code>, <code>RUT</code>, <code>PP</code>, <code>OTRO</code>. <em>No el número.</em></td></tr>
-                        <tr><td>B</td><td>Documento</td><td>Sí</td><td>Número/ID sin puntos. Ej: <code>1020304050</code></td></tr>
-                        <tr><td>C</td><td>Nombre Completo</td><td>Sí</td><td>Ej: <code>Ana Pérez García</code></td></tr>
-                        <tr><td>D</td><td>Teléfono</td><td>Sí</td><td>WhatsApp con país: <code>573001234567</code></td></tr>
-                        <tr><td>E</td><td>Municipio</td><td>Recomendado</td><td>Ej: Bogotá</td></tr>
-                        <tr><td>F</td><td>Departamento</td><td>Recomendado</td><td>Ej: Cundinamarca</td></tr>
-                        <tr><td>G</td><td>Género</td><td>Recomendado</td><td><code>masculino</code> / <code>femenino</code> / <code>otro</code> / <code>no reporta</code></td></tr>
-                        <tr><td>H</td><td>Edad</td><td>Recomendado</td><td>Entero, ej: <code>35</code></td></tr>
-                        <tr><td>I</td><td>Curso</td><td>No*</td><td>Nombre <strong>exacto</strong> (ej. <code>Cenipalma — Clases Aprende</code>). Crea inscripción.</td></tr>
-                        <tr><td>J</td><td>Cliente</td><td>No*</td><td>Nombre exacto de la org (ej. <code>Cenipalma</code>). *Recomendado para B2B.</td></tr>
+                        <tr><td>Asignar a grupo</td><td>Cohortes para campañas</td></tr>
+                        <tr><td>Escoger cliente masivo</td><td>Corregir org B2B</td></tr>
+                        <tr><td>Exportar selección CSV</td><td>Listado filtrado rápido</td></tr>
+                        <tr><td>Filtro sin progreso</td><td><code>?eki_progreso=sin</code> o insight Inicio</td></tr>
                     </tbody>
                 </table>
-                <p><strong>Ejemplo de fila:</strong>
-                    <code>CC | 1020304050 | Juan Pérez | 573001234567 | Manizales | Caldas | masculino | 35 | Cenipalma — Clases Aprende | Cenipalma</code></p>
-                <p style="font-size:0.95em;color:#555;">Plantillas viejas (A = solo cédula numérica, sin columna Tipo) siguen aceptándose.</p>
-
-                <h3>Grupos de estudiantes</h3>
-                <div class="callout-ok">
-                    <strong>Forma recomendada:</strong> Admin → Grupos → botón <strong>Gestionar</strong> → pegar cédulas/teléfonos o subir el mismo Excel (columna A o C).
-                </div>
-                <p><strong>Alternativa para muchos registros:</strong> lista Estudiantes → filtrar → marcar filas → acción <strong>Asignar estudiantes a un grupo</strong> (grupo existente o crear uno nuevo).</p>
-                <p>Asocie <strong>cursos</strong> al grupo cuando las campañas o reportes deban limitarse a ese catálogo. El cliente del grupo filtra la búsqueda al agregar miembros.</p>
-
-                <h3>Acciones útiles en Estudiantes</h3>
-                <ul>
-                    <li><strong>Megáfono:</strong> mensaje libre a seleccionados.</li>
-                    <li><strong>Asignar cliente masivo</strong> y <strong>eliminar estudiantes seguro</strong> (revisa dependencias).</li>
-                    <li><strong>Invitar a grupo WhatsApp</strong> si el cliente tiene enlace configurado.</li>
-                </ul>
             </section>
 
             <section id="cursos">
-                <h2>Cursos, módulos y contenido</h2>
-
-                <h3>Estructura</h3>
-                <ul>
-                    <li><strong>Curso</strong> → <strong>Módulos</strong> (orden, drip entre módulos, examen obligatorio).</li>
-                    <li><strong>Microcontenidos (<code>PasoModulo</code>):</strong> pasos dentro del módulo; texto, evaluación, multimedia.</li>
-                    <li><strong>Drip:</strong> entre módulos puede haber espera por fecha; con varios cursos activos el bot prioriza el curso en pausa.</li>
-                </ul>
-
-                <h3>Multimedia</h3>
-                <ul>
-                    <li>Campo <code>media_url</code>: URL pública (S3, CDN u otro). Sigue siendo la opción principal para enlaces ya publicados.</li>
-                    <li><strong>Subir archivo desde PC</strong> en admin (microcontenidos, envíos programados, campañas B2B): guarda en storage activo; en producción usa S3 (<code>STORAGES['default']</code> en Django 5.2).</li>
-                    <li>Twilio exige URL accesible para imágenes/audio/video; si falla envío, revise logs Twilio (error 63019 = no pudo descargar media).</li>
-                </ul>
-
-                <h3>Crear curso con IA</h3>
-                <p><a href="/admin/crear-curso-ia/">/admin/crear-curso-ia/</a> — sube documento base, genera borrador, vista previa y publicación. Puede regenerar secciones con instrucciones puntuales.</p>
-            </section>
-
-            <section id="whatsapp">
-                <h2>WhatsApp, plantillas, campañas y push</h2>
-
-                <h3>Plantillas (<code>Plantilla</code>)</h3>
-                <p>Mensajes reutilizables; variable <code>{nombre}</code>. Para Twilio Content Templates: crear template en admin, obtener <code>Content SID</code> (HX…), marcar aprobada cuando Meta/Twilio lo autorice.</p>
-
-                <h3>Campañas (<code>Campana</code>)</h3>
-                <ul>
-                    <li>Audiencia <strong>individual</strong> (destinatarios elegidos) o <strong>grupo</strong> (todos los activos del <code>GrupoEstudiantes</code>).</li>
-                    <li>Calendario: <a href="/admin/calendario/">/admin/calendario/</a></li>
-                    <li>Historial de envíos en <code>EnvioLog</code> (modelo oculto en menú; accesible por búsqueda si hace falta).</li>
-                </ul>
-
-                <h3>Mensajes push (<code>MensajePush</code>)</h3>
-                <p>Recordatorios que <strong>no reinician</strong> el curso. Tipos: inscrito sin iniciar, avance, módulo disponible, personalizado. Texto con <code>{nombre}</code> y <code>{curso}</code>; opcional Content SID o plantilla Django. Acción admin: <strong>Enviar push a audiencia</strong>.</p>
-
-                <h3>Habeas data</h3>
-                <p><code>ConfiguracionGlobal</code> y plantilla por <code>Cliente</code> para consentimiento inicial. El webhook aplica verificación de documento y términos antes del flujo educativo.</p>
-            </section>
-
-            <section id="nati">
-                <h2>Nat — bot comercial y catálogo</h2>
-                <p>Canal comercial separado del educativo. Panel: <a href="/admin/bot-comercial/">/admin/bot-comercial/</a>. Portal: Biblioteca + Agente Nat.</p>
-                <ul>
-                    <li><strong>Conocimiento (preferido):</strong> Portal → <strong>Biblioteca</strong> (`BibliotecaConocimiento`). Indexa el mismo Chroma que el RAG comercial.</li>
-                    <li><strong>RAG legacy (admin):</strong> <code>DocumentoRAGComercial</code> — mantener para corpus ya cargado; material nuevo → Biblioteca.</li>
-                    <li><strong>Catálogo de recomendaciones:</strong> <code>ProductoCatalogo</code> (dosis, link, problema). Comando: <code>python manage.py cargar_catalogo --archivo ruta.xlsx --cliente-id ID</code>.</li>
-                    <li><strong>Lista de precios SKU:</strong> <code>ProductoComercial</code> (import Excel/JSON) — distinto del catálogo de recomendaciones.</li>
-                    <li><strong>Línea WhatsApp:</strong> <code>Cliente.numero_whatsapp_nat</code> debe coincidir con el To de Twilio o el mensaje irá al bot educativo.</li>
-                    <li><strong>Knowledge Studio:</strong> revisión de candidatos RAG desde conversaciones.</li>
-                    <li>Identidad y límites en <code>core/nati.py</code> (prompt Nat; no es el tutor del curso).</li>
-                </ul>
-            </section>
-
-            <section id="gei">
-                <h2>GEI — inventario y formularios</h2>
-                <p>Recolección de datos de finca por WhatsApp mediante <strong>agente de formulario</strong> (prioridad sobre el tutor mientras haya <code>SesionFormulario</code> activa).</p>
-                <ul>
-                    <li>Configuración: Admin → Formulario → tipos de formulario y pasos (<code>FlujoPregunta</code> → campos en <code>FichaGEI</code>).</li>
-                    <li>Dos bloques operativos: contexto (M4) y balance (M5); cálculo en <code>formulario/calculadora.py</code>, resultado en <code>ResultadoGEI</code>.</li>
-                    <li>Panel métricas: <a href="/admin/gei/panel/">/admin/gei/panel/</a></li>
-                    <li>Documentación técnica extendida: <code>docs/INSTRUCTIVO_EKI_RECOLECCION_GEI.md</code> en el repositorio.</li>
-                </ul>
-                <p>Sembrar flujos: <code>python manage.py sembrar_flujos_gei_automatico --reset</code> (solo en entornos controlados).</p>
-            </section>
-
-            <section id="metricas">
-                <h2>Métricas y reportes</h2>
-
-                <h3>Dashboard interno</h3>
-                <p><a href="/admin/dashboard/">/admin/dashboard/</a> — Learning Analytics:</p>
-                <ul>
-                    <li><strong>Reportes B2B</strong> — un panel (org + estudiantes) + Excel.</li>
-                    <li><strong>Métricas por Empresa</strong> — elija organización; KPIs/gráficas primero, detalle estudiantes lazy.</li>
-                    <li><strong>Embudo por módulo</strong> — posición hoy (un bucket por persona).</li>
-                </ul>
-                <p>API: <code>/admin/analytics/api/?tipo=metricas_empresa&amp;cliente_id=…</code> (+ <code>detalle=1</code> para la tabla).</p>
-
-                <h3>Metas KPI</h3>
-                <ul>
-                    <li>Interno: <code>MetaMetricaEmpresa</code> (analytics) o desde portal si el cliente es <code>admin</code>.</li>
-                    <li>Nat: <code>MetaMetricaNati</code> en agents_commercial.</li>
-                </ul>
-
-                <h3>Portal cliente</h3>
-                <p>Reporte B2B con embudo educativo, barras de estado, semáforos y tabla de estudiantes; mismos filtros conceptuales que el dashboard, sin métricas operativas internas (p. ej. volumen bruto de mensajes enviados como gráfico principal).</p>
-            </section>
-
-            <section id="certificados">
-                <h2>Certificados y gamificación</h2>
-                <h3>Certificados</h3>
-                <ul>
-                    <li>Plantillas en <code>PlantillaCertificado</code> (imagen/PDF de fondo, colores, textos).</li>
-                    <li><strong>Default bueno:</strong> modo <code>diseno_eki</code> (Pillow). Evitar fallback S3 «simple».</li>
-                    <li>Asegurar default: <code>python manage.py asegurar_plantilla_certificado_default</code></li>
-                    <li>Generación al completar curso; envío por WhatsApp con URL pública (S3).</li>
-                    <li>Verificación pública por código/QR según configuración del certificado.</li>
-                </ul>
-                <h3>Gamificación (learning)</h3>
-                <p>Badges, puntos, recompensas y canjes si el curso tiene <code>usar_gamificacion</code>. Perfil en <code>PerfilGamificacion</code>.</p>
-            </section>
-
-            <section id="ia">
-                <h2>Herramientas IA</h2>
-                <table>
-                    <thead><tr><th>Herramienta</th><th>Uso</th></tr></thead>
-                    <tbody>
-                        <tr><td>Tutor educativo (RAG)</td><td><code>DocumentoRAG</code> por curso; respuestas en webhook con contexto del módulo.</td></tr>
-                        <tr><td>Crear curso IA</td><td>Generación de estructura y contenidos desde PDF/texto.</td></tr>
-                        <tr><td>Facilitador / retos</td><td>Preguntas dinámicas en módulos; sanitización de marcas en texto generado.</td></tr>
-                        <tr><td>AI Ops</td><td>Trazas y replay de eventos IA para auditoría.</td></tr>
-                        <tr><td>Parseo formulario GEI</td><td>IA opcional por paso para cantidades en lenguaje coloquiano.</td></tr>
-                    </tbody>
-                </table>
-            </section>
-
-            <section id="push">
-                <h2>Push y reenganche WhatsApp</h2>
-                <p>
-                    <strong>MensajePush</strong> envía recordatorios con plantilla Twilio (Content SID HX…)
-                    <em>sin reiniciar</em> el progreso. Casos típicos: 7+ días sin avance → el estudiante responde <em>listo</em>.
-                </p>
-                <ul>
-                    <li>Atajo Unfold: <strong>Core (atajos) → Push recordatorios</strong> → <code>/admin/push-estudiantes/</code></li>
-                    <li>CRUD: <a href="/admin/core/mensajepush/">Mensajes push</a> (SID Twilio o plantilla vinculada)</li>
-                    <li>Campanita superior: campañas programadas (7 días) + enlace a Push</li>
-                    <li>Calendario: <a href="/admin/calendario/">/admin/calendario/</a></li>
-                </ul>
-            </section>
-
-            <section id="produccion">
-                <h2>Producción AWS</h2>
-                <ul>
-                    <li><strong>Entorno:</strong> Elastic Beanstalk <code>eki-prod-final</code> (Python 3.11, us-east-2).</li>
-                    <li><strong>Base de datos:</strong> PostgreSQL (RDS); migraciones en deploy vía hooks/Procfile.</li>
-                    <li><strong>Archivos:</strong> S3 bucket <code>eki-produccion</code>; estáticos con WhiteNoise.</li>
-                    <li><strong>Despliegue:</strong> <code>eb deploy eki-prod-final --label nombre-version</code> desde la raíz del proyecto.</li>
-                    <li><strong>Variables:</strong> credenciales AWS, Twilio, OpenAI y BD en entorno EB (no commitear <code>.env</code>).</li>
-                </ul>
-                <h3>Límites de capacidad (1 instancia t3.medium)</h3>
-                <table>
-                    <thead><tr><th>Métrica</th><th>Cómodo</th><th>Techo</th></tr></thead>
-                    <tbody>
-                        <tr><td>Estudiantes activos en DB</td><td>≤ 5 000</td><td>~15 000</td></tr>
-                        <tr><td>Mensajes WA concurrentes</td><td>~30</td><td>~80</td></tr>
-                        <tr><td>Destinatarios por campaña</td><td>≤ 500</td><td>~2 000</td></tr>
-                    </tbody>
-                </table>
-                <p>Medir: <code>python manage.py medir_capacidad_eki</code>. Panel: <a href="/admin/infra/">/admin/infra/</a>.
-                   Picos: <code>WEBHOOK_CELERY_ASYNC=true</code> o escalar EB / ElastiCache.</p>
-                <div class="callout-warn">
-                    Tras cambios en <code>STORAGES</code> o multimedia, suba un archivo de prueba y confirme en Twilio que la URL es pública antes de campañas masivas con imagen.
+                <h2>Cursos y Module Builder</h2>
+                <p>Ficha curso: módulos, inscritos, % completados, botones <em>Ver módulos</em> y <em>Module Builder</em>.</p>
+                <p>Listado módulos: columna <strong>Builder</strong>; micros en <strong>Borrador</strong> si no hay pasos activos.</p>
+                <div class="eki-callout eki-callout--warn">
+                    Video WA: H.264+AAC. Error <strong>63021</strong> = codec; <strong>63019</strong> = URL/MIME.
                 </div>
             </section>
 
-            <section id="estudiante-flujo">
-                <h2>Flujo del estudiante (WhatsApp educativo)</h2>
-                <ol>
-                    <li>Primer contacto → habeas / términos → validación de documento.</li>
-                    <li>Onboarding completado → menú o selección de curso (si hay varios).</li>
-                    <li>Contenido por módulo y pasos; comando <strong>listo</strong> avanza (respetando examen obligatorio y drip).</li>
-                    <li>Formulario GEI intercepta si hay sesión activa.</li>
-                    <li>Examen final y certificado al completar.</li>
-                    <li><strong>corregir datos</strong> — actualizar nombre, municipio o documento sin cerrar PQRS.</li>
+            <section id="campanas">
+                <h2>Campañas — wizard post-envío</h2>
+                <ol class="eki-manual-steps">
+                    <li>Ejecutar campaña (plantilla HX aprobada, audiencia validada).</li>
+                    <li>En la ficha: paso <strong>Revisar fallidos</strong> → tabla EnvioLog.</li>
+                    <li><strong>CSV fallidos</strong> → corregir teléfonos → reenvío puntual o nueva campaña.</li>
                 </ol>
-                <h3>Comandos frecuentes</h3>
-                <table>
-                    <thead><tr><th>Texto del estudiante</th><th>Efecto</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>listo</code></td><td>Avanzar paso/módulo según reglas del curso.</td></tr>
-                        <tr><td><code>menu</code> / opciones del bot</td><td>Menú principal; puede cambiar de curso si no hay drip bloqueando.</td></tr>
-                        <tr><td><code>ver cursos</code></td><td>Listar cursos disponibles.</td></tr>
-                        <tr><td><code>examen</code></td><td>Iniciar examen cuando corresponda.</td></tr>
-                        <tr><td><code>corregir datos</code></td><td>Flujo de corrección de datos personales.</td></tr>
-                        <tr><td>PQRS / soporte</td><td>Registro en <code>SolicitudSoporte</code>; visible en portal del cliente.</td></tr>
-                    </tbody>
-                </table>
+                <p>Calendario: <a href="/admin/calendario/">/admin/calendario/</a></p>
             </section>
 
-            <section id="soporte">
-                <h2>Soporte, PQRS y conversaciones</h2>
+            <section id="whatsapp">
+                <h2>WhatsApp y WhatsappLog</h2>
+                <p><strong>WhatsappLog</strong> = auditoría técnica (estados Twilio, errores).</p>
                 <ul>
-                    <li><strong>SolicitudSoporte:</strong> registro principal; categorías ampliadas (educación, GEI, Nat, etc.).</li>
-                    <li><strong>Portal:</strong> cliente <code>admin</code> responde por WhatsApp desde detalle PQRS.</li>
-                    <li><strong>Conversaciones:</strong> <a href="/admin/conversaciones/">/admin/conversaciones/</a> — historial por teléfono, filtro por cliente.</li>
-                    <li><strong>WhatsappLog:</strong> auditoría de mensajes entrantes/salientes.</li>
+                    <li>Filtro <em>Código Twilio</em>: 63019, 63021, 63005, opt-out…</li>
+                    <li>Filtro <em>Solo hoy</em> para triage diario.</li>
+                    <li>Columna <em>Chat</em> → inbox (mismo hilo que Conversaciones).</li>
                 </ul>
+                <p>Plantillas Content: SID <code>HX…</code>, variables <code>{{1}}</code> secuenciales con samples.</p>
+            </section>
+
+            <section id="certificados">
+                <h2>Certificados</h2>
+                <p>Herramienta: <a href="/admin/envio-certificados/">/admin/envio-certificados/</a> por org y curso.</p>
+                <p><strong>Inicio</strong> avisa si hay certificados emitidos sin envío WA (<em>Certs pend. WA</em>).</p>
+                <p>Modo recomendado: plantilla <code>diseno_eki</code> (Pillow). Comando: <code>asegurar_plantilla_certificado_default</code>.</p>
+            </section>
+
+            <section id="conversaciones">
+                <h2>Conversaciones (inbox)</h2>
+                <p>Pantalla completa: filtro por org, búsqueda por <strong>teléfono o nombre</strong> en la barra superior.</p>
+                <p>Desde ficha estudiante: <em>Ver conversación</em>. Nat usa número comercial aparte — no mezclar.</p>
+            </section>
+
+            <section id="infra">
+                <h2>Infra y salud</h2>
+                <p>Chips en la barra admin (junto al usuario): Celery, S3, health EB. Detalle: <a href="/admin/infra/">/admin/infra/</a>.</p>
+                <p>Health público: <a href="/health/">/health/</a> · Deploy: EB <code>eki-prod-final</code> (Python 3.11).</p>
             </section>
 
             <section id="faq">
-                <h2>Preguntas frecuentes</h2>
-
-                <h4>¿Por qué no llega la imagen por WhatsApp?</h4>
-                <p>La URL debe ser pública y descargable por Twilio. Confirme que el archivo está en S3 (no en disco local del servidor) y pruebe la URL en el navegador.</p>
-
-                <h4>¿Cómo re-inscribir estudiantes que no avanzaron?</h4>
-                <p>Exporte el grupo filtrando avance en Reportes B2B, quite miembros del grupo si aplica, elimine o reinicie según política, y vuelva a importar o asigne al grupo. Use <code>MensajePush</code> para recordatorio sin borrar progreso si solo necesita reactivar.</p>
-
-                <h4>¿El portal cierra mi sesión de admin?</h4>
-                <p>No, desde junio 2026 el portal usa sesión propia (<code>portal_usuario_id</code>), independiente de Jazzmin.</p>
-
-                <h4>¿Dónde está la documentación GEI larga?</h4>
-                <p>En el repositorio: <code>docs/INSTRUCTIVO_EKI_RECOLECCION_GEI.md</code>. Este manual cubre operación diaria; ese archivo cubre el diseño del formulario paso a paso.</p>
-
-                <h4>¿Cómo cargo el catálogo de Nat?</h4>
-                <p><code>python manage.py cargar_catalogo --archivo precios.xlsx --cliente-id ID</code> — columnas según comando <code>--help</code>.</p>
+                <h2>FAQ</h2>
+                <h4>¿No llega imagen/video por WA?</h4>
+                <p>URL pública S3, MIME correcto (<code>audio/mpeg</code>). WhatsappLog → código 63019/63021.</p>
+                <h4>¿Portal y admin comparten sesión?</h4>
+                <p>No. Portal usa <code>PortalUsuario</code>; admin usa usuario Django staff.</p>
+                <h4>¿Dónde está la doc GEI larga?</h4>
+                <p>Repo: <code>docs/INSTRUCTIVO_EKI_RECOLECCION_GEI.md</code></p>
             </section>
 
+            <p id="eki-manual-no-match" class="eki-manual-empty" hidden>Ninguna sección coincide con la búsqueda.</p>
         </div>
     </div>
 </div>
+
+<script>
+(function () {
+  var input = document.getElementById('eki-manual-filter');
+  if (!input) return;
+  var sections = document.querySelectorAll('.eki-manual-body section');
+  var empty = document.getElementById('eki-manual-no-match');
+  input.addEventListener('input', function () {
+    var q = (input.value || '').trim().toLowerCase();
+    var visible = 0;
+    sections.forEach(function (sec) {
+      var text = (sec.textContent || '').toLowerCase();
+      var show = !q || text.indexOf(q) !== -1 || (sec.id && sec.id.indexOf(q) !== -1);
+      sec.hidden = !show;
+      if (show) visible++;
+    });
+    if (empty) empty.hidden = visible > 0 || !q;
+  });
+})();
+</script>
 {% endblock %}

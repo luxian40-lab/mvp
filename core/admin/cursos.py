@@ -374,13 +374,20 @@ class CursoAdmin(admin.ModelAdmin):
 
             extra_context.update(contexto_identidad_org(getattr(obj, 'cliente', None)))
             extra_context['eki_curso_experiencia'] = obj.get_modo_aula_display()
+            inscritos = ProgresoEstudiante.objects.filter(curso=obj).count()
+            completados = ProgresoEstudiante.objects.filter(
+                curso=obj,
+                completado=True,
+            ).count()
             extra_context['eki_curso_stats'] = {
                 'modulos': obj.modulos.count(),
-                'inscritos': ProgresoEstudiante.objects.filter(curso=obj).count(),
-                'completados': ProgresoEstudiante.objects.filter(
-                    curso=obj,
-                    completado=True,
-                ).count(),
+                'inscritos': inscritos,
+                'completados': completados,
+                'pct_completados': (
+                    int(round(completados / inscritos * 100))
+                    if inscritos
+                    else 0
+                ),
             }
             ultima = (
                 Campana.objects.filter(curso_destino=obj)
@@ -1765,6 +1772,10 @@ class ModuloAdmin(admin.ModelAdmin):
 
     def pasos_activos_count(self, obj):
         count = obj.pasos.filter(activo=True, seccion__activa=True).count()
+        if count == 0:
+            return format_html(
+                '<span style="color:#e65100;font-weight:700;">Borrador</span>'
+            )
         if obj.modo_entrega == 'pasos' and count == 0:
             return format_html(
                 '<span style="color:#c62828;font-weight:bold;">'

@@ -42,6 +42,9 @@
             · {{ eki_curso_stats.modulos }} módulo(s)
             · {{ eki_curso_stats.inscritos }} inscrito(s)
             {% if eki_curso_stats.completados %} · {{ eki_curso_stats.completados }} completado(s){% endif %}
+            {% if eki_curso_stats.inscritos and eki_curso_stats.pct_completados is not None %}
+            · {{ eki_curso_stats.pct_completados }}% completados
+            {% endif %}
             {% endif %}
             {% if eki_curso_ultima_campana %}
             · Última campaña: {{ eki_curso_ultima_campana.nombre|truncatechars:40 }}

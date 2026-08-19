@@ -5509,6 +5509,7 @@ def conversaciones_view(request):
         cliente_filtro_id=cliente_filtro_id,
         estudiante_id=estudiante_id,
         telefono=(request.GET.get("telefono") or "").strip() or None,
+        busqueda=(request.GET.get("q") or "").strip() or None,
         page=page,
     )
     context.update({

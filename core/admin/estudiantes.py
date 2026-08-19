@@ -91,7 +91,9 @@ class EstudianteAdmin(admin.ModelAdmin):
     actions = [
         'asignar_a_grupo_accion',
         'asignar_cliente_masivo',
+        'inscribir_curso_masivo',
         'exportar_estudiantes_por_curso',
+        'exportar_seleccion_ligera',
         'enviar_mensaje_masivo',
         'enviar_anuncio_grupal',
         'invitar_a_grupo_whatsapp',
@@ -1426,6 +1428,71 @@ class EstudianteAdmin(admin.ModelAdmin):
                 'title': 'Escoger cliente — asignación masiva',
             },
         )
+
+    @admin.action(description='📚 Inscribir en curso (masivo)')
+    def inscribir_curso_masivo(self, request, queryset):
+        """Inscribe estudiantes seleccionados en un curso (sin Excel)."""
+        from core.inscripcion_curso import inscribir_estudiante_en_curso
+
+        if 'aplicar' in request.POST:
+            curso_id = (request.POST.get('curso_id') or '').strip()
+            if not curso_id:
+                self.message_user(request, 'Seleccione un curso.', level=messages.ERROR)
+                return redirect('admin:core_estudiante_changelist')
+            curso = Curso.objects.filter(pk=curso_id, activo=True).first()
+            if not curso:
+                self.message_user(request, 'Curso no válido.', level=messages.ERROR)
+                return redirect('admin:core_estudiante_changelist')
+            ids = request.POST.getlist(helpers.ACTION_CHECKBOX_NAME)
+            qs = Estudiante.objects.filter(id__in=ids)
+            creados = 0
+            for est in qs:
+                _prog, creado = inscribir_estudiante_en_curso(est, curso)
+                if creado:
+                    creados += 1
+            self.message_user(
+                request,
+                f'Inscripción en «{curso.nombre}»: {creados} nuevo(s), '
+                f'{qs.count() - creados} ya inscrito(s).',
+                level=messages.SUCCESS,
+            )
+            return redirect('admin:core_estudiante_changelist')
+
+        cursos = Curso.objects.filter(activo=True).order_by('nombre')
+        return render(
+            request,
+            'admin/inscribir_curso_masivo.html',
+            {
+                'estudiantes': queryset,
+                'total_estudiantes': queryset.count(),
+                'cursos': cursos,
+                'action_checkbox_name': helpers.ACTION_CHECKBOX_NAME,
+                'title': 'Inscribir en curso — masivo',
+            },
+        )
+
+    @admin.action(description='📋 Exportar selección (CSV ligero)')
+    def exportar_seleccion_ligera(self, request, queryset):
+        """Exporta filas visibles/seleccionadas sin hoja de progreso pesada."""
+        import csv
+        from django.http import HttpResponse
+        from datetime import datetime
+
+        resp = HttpResponse(content_type='text/csv; charset=utf-8')
+        resp['Content-Disposition'] = (
+            f'attachment; filename="estudiantes_{datetime.now():%Y%m%d_%H%M%S}.csv"'
+        )
+        w = csv.writer(resp)
+        w.writerow(['nombre', 'cedula', 'telefono', 'cliente', 'activo'])
+        for est in queryset.select_related('cliente'):
+            w.writerow([
+                est.nombre,
+                est.cedula,
+                est.telefono,
+                est.cliente.nombre if est.cliente_id else '',
+                'si' if est.activo else 'no',
+            ])
+        return resp
 
     def asignar_a_grupo_accion(self, request, queryset):
         """Asigna múltiples estudiantes a un grupo (existente o nuevo)"""

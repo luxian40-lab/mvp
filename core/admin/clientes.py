@@ -274,6 +274,22 @@ class ClienteAdmin(admin.ModelAdmin):
                 .order_by('-fecha_creacion')
                 .first()
             )
+            from core.models import WhatsappLog
+
+            tel_list = list(
+                Estudiante.objects.filter(cliente=obj)
+                .exclude(telefono='')
+                .values_list('telefono', flat=True)[:500]
+            )
+            ultimo_wa = None
+            if tel_list:
+                ultimo_wa = (
+                    WhatsappLog.objects.filter(telefono__in=tel_list)
+                    .order_by('-fecha')
+                    .values('fecha', 'telefono', 'mensaje', 'tipo')
+                    .first()
+                )
+            extra_context['eki_cli_ultima_wa'] = ultimo_wa
         return super().change_view(request, object_id, form_url, extra_context=extra_context)
 
     def logo_thumb(self, obj):

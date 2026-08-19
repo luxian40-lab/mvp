@@ -173,13 +173,17 @@ UNFOLD = {
             "important-dark": "var(--color-base-100)",
         },
     },
+    "COMMAND": {
+        "search_callback": "core.admin_command_search.eki_command_search_callback",
+        "search_models": True,
+        "show_history": True,
+    },
     "SIDEBAR": {
         "show_search": True,
         "command_search": True,
         # Catálogo de apps/modelos (equivalente al sidebar Jazzmin por app).
         "show_all_applications": True,
         "navigation": [
-            # Antes: topmenu Jazzmin (Inicio, Dashboard, Centro de Éxito…).
             {
                 "title": _("Operación"),
                 "separator": True,
@@ -191,19 +195,63 @@ UNFOLD = {
                         "link": reverse_lazy("admin:index"),
                     },
                     {
+                        "title": _("Manual"),
+                        "icon": "menu_book",
+                        "link": "/admin/instrucciones/",
+                    },
+                    {
                         "title": _("Analítica"),
                         "icon": "analytics",
                         "link": "/admin/dashboard/",
                     },
                     {
-                        "title": _("Centro de Éxito"),
-                        "icon": "trending_up",
-                        "link": "/admin/dashboard/?tab=retencion",
-                    },
-                    {
                         "title": _("Conversaciones"),
                         "icon": "forum",
                         "link": "/admin/conversaciones/",
+                    },
+                ],
+            },
+            {
+                "title": _("Captar"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Clientes"),
+                        "icon": "apartment",
+                        "link": reverse_lazy("admin:core_cliente_changelist"),
+                    },
+                    {
+                        "title": _("Bot comercial / Nat"),
+                        "icon": "smart_toy",
+                        "link": "/admin/bot-comercial/",
+                    },
+                    {
+                        "title": _("Knowledge Studio"),
+                        "icon": "lightbulb",
+                        "link": "/admin/knowledge-studio/",
+                    },
+                ],
+            },
+            {
+                "title": _("Enseñar"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Cursos"),
+                        "icon": "school",
+                        "link": reverse_lazy("admin:core_curso_changelist"),
+                    },
+                    {
+                        "title": _("Módulos"),
+                        "icon": "view_timeline",
+                        "link": reverse_lazy("admin:core_modulo_changelist"),
+                    },
+                    {
+                        "title": _("Campañas"),
+                        "icon": "campaign",
+                        "link": reverse_lazy("admin:core_campana_changelist"),
                     },
                     {
                         "title": _("Calendario campañas"),
@@ -211,9 +259,36 @@ UNFOLD = {
                         "link": "/admin/calendario/",
                     },
                     {
-                        "title": _("Manual"),
-                        "icon": "help",
-                        "link": "/admin/instrucciones/",
+                        "title": _("Push recordatorios"),
+                        "icon": "notifications_active",
+                        "link": "/admin/push-estudiantes/",
+                    },
+                ],
+            },
+            {
+                "title": _("Retener"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Estudiantes"),
+                        "icon": "group",
+                        "link": reverse_lazy("admin:core_estudiante_changelist"),
+                    },
+                    {
+                        "title": _("Centro de Éxito"),
+                        "icon": "trending_up",
+                        "link": "/admin/dashboard/?tab=retencion",
+                    },
+                    {
+                        "title": _("Envío certificados"),
+                        "icon": "verified",
+                        "link": "/admin/envio-certificados/",
+                    },
+                    {
+                        "title": _("WhatsappLog"),
+                        "icon": "history",
+                        "link": reverse_lazy("admin:core_whatsapplog_changelist"),
                     },
                 ],
             },
@@ -234,37 +309,9 @@ UNFOLD = {
                         "link": "/admin/cobertura/",
                     },
                     {
-                        "title": _("Push recordatorios"),
-                        "icon": "notifications_active",
-                        "link": "/admin/push-estudiantes/",
-                    },
-                    {
                         "title": _("Mensajes push (CRUD)"),
                         "icon": "campaign",
                         "link": reverse_lazy("admin:core_mensajepush_changelist"),
-                    },
-                    {
-                        "title": _("Envío certificados"),
-                        "icon": "verified",
-                        "link": "/admin/envio-certificados/",
-                    },
-                ],
-            },
-            # custom_links → agents_commercial
-            {
-                "title": _("Comercial / Nat"),
-                "separator": True,
-                "collapsible": True,
-                "items": [
-                    {
-                        "title": _("Bot comercial"),
-                        "icon": "smart_toy",
-                        "link": "/admin/bot-comercial/",
-                    },
-                    {
-                        "title": _("Knowledge Studio"),
-                        "icon": "lightbulb",
-                        "link": "/admin/knowledge-studio/",
                     },
                 ],
             },

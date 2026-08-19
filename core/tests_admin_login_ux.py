@@ -15,12 +15,12 @@ class AdminLoginBrandingTests(TestCase):
         r = self.client.get('/admin/login/', follow=True)
         self.assertEqual(r.status_code, 200)
         body = r.content.decode('utf-8')
-        self.assertIn('eki-login-shell', body)
-        self.assertIn('eki-login-brand', body)
-        self.assertIn('Panel de operaciones', body)
-        self.assertIn('Iniciar sesión', body)
+        self.assertIn('eki-ops-login', body)
+        self.assertIn('Consola de operaciones', body)
+        self.assertIn('Entrar a la consola', body)
         self.assertNotIn('Welcome back to', body)
         self.assertNotIn('Return to site', body)
+        self.assertNotIn('eki-login-shell', body)
 
     def test_login_post_csrf_ok(self):
         r = self.client.get('/admin/login/', follow=True)

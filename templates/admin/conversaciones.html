@@ -69,7 +69,12 @@
         <strong>Conversaciones</strong>
         <span class="hint">Inbox WhatsApp · filtrá por org · no mezclar con Nat (número comercial aparte).</span>
     </div>
-    <div style="display:flex;gap:14px;">
+    <div style="display:flex;gap:14px;align-items:center;">
+        <form method="get" action="/admin/conversaciones/" style="display:flex;gap:6px;">
+            {% if cliente_filtro %}<input type="hidden" name="cliente" value="{{ cliente_filtro }}">{% endif %}
+            <input type="search" name="q" value="{{ busqueda|default:'' }}" placeholder="Teléfono o nombre" style="padding:4px 8px;border-radius:6px;border:1px solid rgba(154,108,172,0.35);font-size:0.82rem;min-width:10rem;">
+            <button type="submit" style="font-size:0.78rem;padding:4px 10px;border-radius:6px;border:0;background:#9A6CAC;color:#fff;cursor:pointer;">Buscar</button>
+        </form>
         <a href="/admin/dashboard/?tab=commercial">Nat</a>
         <a href="/admin/dashboard/?tab=retencion">Centro de Éxito</a>
     </div>

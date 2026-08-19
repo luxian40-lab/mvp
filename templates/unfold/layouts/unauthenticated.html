@@ -10,38 +10,40 @@
 
 {% block extrastyle %}
     {{ block.super }}
-    <link rel="stylesheet" href="{% static 'admin/css/eki_admin_login.css' %}">
+    <link rel="stylesheet" href="{% static 'admin/css/eki_admin_login.css' %}?v=2">
 {% endblock %}
 
 {% block base %}
-<div class="eki-login-shell">
-    <aside class="eki-login-hero" aria-hidden="true">
-        <div class="eki-login-hero__inner">
-            <p class="eki-login-hero__eyebrow">Operaciones internas</p>
-            <h2 class="eki-login-hero__title">Campo, cursos y campañas en un solo lugar.</h2>
-            <p class="eki-login-hero__sub">
-                WhatsApp · estudiantes · certificados · Module Builder.
-                Solo personal autorizado eki.
-            </p>
-            <ul class="eki-login-hero__bullets">
-                <li>Panel ejecutivo y alertas del día</li>
-                <li>Conversaciones y Centro de Éxito</li>
-                <li>Curso → módulo → envío sin salir del admin</li>
-            </ul>
+<div class="eki-ops-login" aria-hidden="false">
+    {# Fondo: pulso ops (no hero marketing tipo portal) #}
+    <div class="eki-ops-login__backdrop" aria-hidden="true">
+        <div class="eki-ops-login__grid"></div>
+        <div class="eki-ops-login__orbit">
+            <span class="eki-ops-node eki-ops-node--campo"><i class="material-symbols-outlined">chat</i>Campo</span>
+            <span class="eki-ops-node eki-ops-node--camp"><i class="material-symbols-outlined">campaign</i>Campañas</span>
+            <span class="eki-ops-node eki-ops-node--cert"><i class="material-symbols-outlined">verified</i>Certificados</span>
+            <span class="eki-ops-node eki-ops-node--map"><i class="material-symbols-outlined">map</i>Territorio</span>
         </div>
-    </aside>
+        <div class="eki-ops-login__kpis">
+            <span class="eki-ops-kpi"><em>Estudiantes</em><strong>—</strong></span>
+            <span class="eki-ops-kpi"><em>Cursos</em><strong>—</strong></span>
+            <span class="eki-ops-kpi"><em>Alertas</em><strong>—</strong></span>
+        </div>
+    </div>
 
-    <main class="eki-login-main">
-        <header class="eki-login-top">
+    <div class="eki-ops-login__bar">
+        <span class="eki-ops-login__badge">STAFF ONLY</span>
+        <div class="eki-ops-login__toggles">
             {% include "unfold/helpers/eki_tone_switch_dropdown.html" %}
             {% include "unfold/helpers/theme_switch_dropdown.html" %}
-        </header>
+        </div>
+    </div>
 
-        <div class="eki-login-card">
+    <main class="eki-ops-login__main">
+        <div class="eki-ops-login__card">
             {% block content %}{% endblock %}
         </div>
-
-        <p class="eki-login-foot">© eki · acceso restringido a staff</p>
+        <p class="eki-ops-login__foot">Consola interna · no compartir credenciales</p>
     </main>
 </div>
 {% endblock %}

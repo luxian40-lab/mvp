@@ -43,6 +43,14 @@
         <li><strong>{{ eki_cli_stats.cursos }}</strong> cursos activos</li>
         <li><strong>{{ eki_cli_stats.campanas }}</strong> campaña(s)</li>
     </ul>
+    {% if eki_cli_ultima_wa %}
+    <p class="eki-puente-wa">
+        <span class="eki-puente-wa__label">Último WA org</span>
+        …{{ eki_cli_ultima_wa.telefono|slice:"-4:" }}
+        · {{ eki_cli_ultima_wa.fecha|date:"d/m/Y H:i" }}
+        · {{ eki_cli_ultima_wa.mensaje|truncatechars:60 }}
+    </p>
+    {% endif %}
     {% if eki_cli_ultima_campana %}
     <p class="eki-puente-wa">
         <span class="eki-puente-wa__label">Última campaña</span>
