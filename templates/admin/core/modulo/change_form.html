@@ -1,0 +1,42 @@
+{% extends "admin/eki_collapsible_change_form.html" %}
+
+{% block eki_inlines_intro %}
+<p class="eki-inlines-intro">
+    Arriba: datos del módulo. Use <strong>Module Builder</strong> para armar secciones y micros.
+    Abajo: bloques, pasos, multimedia y preguntas.
+</p>
+{% endblock %}
+
+{% block field_sets %}
+{% if original %}
+<div class="eki-id-band" aria-label="Resumen del módulo">
+    {% if eki_org_logo %}
+    <img class="eki-id-band__thumb eki-id-band__thumb--sq" src="{{ eki_org_logo }}" alt="" loading="lazy" referrerpolicy="no-referrer">
+    {% else %}
+    <span class="eki-id-band__thumb eki-id-band__thumb--sq eki-id-band__thumb--ph">{{ eki_mod_inicial }}</span>
+    {% endif %}
+    <div class="eki-id-band__body">
+        <div class="eki-id-band__title">
+            Módulo {{ original.numero }} · {{ original.titulo }}
+            {% if original.examen_obligatorio %}
+            <span class="eki-id-badge">Examen</span>
+            {% endif %}
+        </div>
+        <div class="eki-id-band__meta">
+            {% if original.curso %}{{ original.curso.nombre }}{% else %}Sin curso{% endif %}
+            {% if eki_org_nombre %} · {{ eki_org_nombre }}{% endif %}
+            {% if eki_mod_pasos is not None %} · {{ eki_mod_pasos }} micro(s) activo(s){% endif %}
+        </div>
+    </div>
+    {% if eki_mod_builder_ok %}
+    <div class="eki-id-band__actions">
+        <a class="eki-puente-btn" href="{{ eki_mod_builder_url }}">
+            <span class="material-symbols-outlined" aria-hidden="true">view_timeline</span>
+            Abrir Module Builder
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+{{ block.super }}
+{% endblock %}

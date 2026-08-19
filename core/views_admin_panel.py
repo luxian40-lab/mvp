@@ -322,7 +322,7 @@ def build_panel_snapshot(*, force: bool = False) -> dict[str, Any]:
     """KPIs y bloques del Panel (Inicio). Cache corto para no pesar /admin/."""
     from django.core.cache import cache
 
-    cache_key = 'admin_panel_snapshot_v5'
+    cache_key = 'admin_panel_snapshot_v6'
     if not force:
         cached = cache.get(cache_key)
         if cached:
@@ -542,7 +542,51 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
         },
     ]
 
-    acciones = [
+    acciones = []
+    try:
+        from core.models import EnvioLog
+
+        n_fallos = EnvioLog.objects.filter(
+            estado__in=('FALLIDO', 'ERROR', 'FAILED'),
+            fecha_envio__gte=hace_7,
+        ).count()
+        if n_fallos >= 1:
+            acciones.append(
+                {
+                    'label': f'Envíos fallidos ({n_fallos})',
+                    'url': '/admin/core/enviolog/?estado__exact=FALLIDO',
+                    'icon': 'error',
+                    'destacada': True,
+                }
+            )
+    except Exception:
+        pass
+
+    campanas_hoy = Campana.objects.filter(
+        ejecutada=False,
+        fecha_programada__date=hoy,
+    ).count()
+    if campanas_hoy:
+        acciones.append(
+            {
+                'label': f'Campañas hoy ({campanas_hoy})',
+                'url': '/admin/core/campana/',
+                'icon': 'schedule',
+                'destacada': True,
+            }
+        )
+
+    if sin_progreso >= 5:
+        acciones.append(
+            {
+                'label': f'Sin progreso ({sin_progreso})',
+                'url': '/admin/core/estudiante/',
+                'icon': 'person_off',
+                'destacada': True,
+            }
+        )
+
+    acciones.extend([
         {'label': 'Nuevo curso', 'url': '/admin/core/curso/add/', 'icon': 'school'},
         {'label': 'Nueva campaña', 'url': '/admin/core/campana/add/', 'icon': 'campaign'},
         {'label': 'Nueva empresa', 'url': '/admin/core/cliente/add/', 'icon': 'apartment'},
@@ -551,7 +595,7 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
         {'label': 'Conversaciones', 'url': '/admin/conversaciones/', 'icon': 'chat'},
         {'label': 'Dashboard', 'url': '/admin/dashboard/', 'icon': 'dashboard'},
         {'label': 'Infra', 'url': '/admin/infra/', 'icon': 'monitor_heart'},
-    ]
+    ])
     # Atajos fusionados en acciones (una sola fila de CTAs).
     atajos = []
 

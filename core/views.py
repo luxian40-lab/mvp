@@ -5517,6 +5517,22 @@ def conversaciones_view(request):
         "inbox_volver_label": "Panel admin",
         "inbox_modo": "admin",
     })
+    if estudiante_id:
+        from django.urls import reverse
+
+        context["inbox_volver_url"] = reverse(
+            "admin:core_estudiante_change",
+            args=[estudiante_id],
+        )
+        context["inbox_volver_label"] = "Ficha estudiante"
+    elif cliente_filtro_id:
+        from django.urls import reverse
+
+        context["inbox_volver_url"] = reverse(
+            "admin:core_cliente_change",
+            args=[cliente_filtro_id],
+        )
+        context["inbox_volver_label"] = "Ficha cliente"
     return render(request, "admin/conversaciones.html", context)
 
 

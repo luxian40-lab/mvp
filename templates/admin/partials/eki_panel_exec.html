@@ -39,7 +39,7 @@
   {% if snap.acciones %}
   <div class="eki-panel-acciones" aria-label="Acciones rápidas">
     {% for a in snap.acciones %}
-    <a class="eki-panel-accion" href="{{ a.url }}">
+    <a class="eki-panel-accion{% if a.destacada %} eki-panel-accion--alert{% endif %}" href="{{ a.url }}">
       <span class="material-symbols-outlined" aria-hidden="true">{{ a.icon }}</span>
       {{ a.label }}
     </a>

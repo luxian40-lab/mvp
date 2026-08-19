@@ -63,10 +63,9 @@ if _integracion_req_prod in ('0', 'false', 'no', 'off'):
 else:
     INTEGRACION_API_REQUIRE_KEY = True
 
-# Module Builder: allowlist `*` = todos los cursos (A+B ago 2026).
-# Flag global sigue opt-in vía EKI_MODULE_BUILDER_BETA=1 (o superuser ?builder=1).
-_EKI_MB = os.environ.get('EKI_MODULE_BUILDER_BETA', '').strip().lower()
-EKI_MODULE_BUILDER_BETA = _EKI_MB in ('1', 'true', 'yes', 'on')
+# Module Builder: ON por defecto en prod; desactivar con EKI_MODULE_BUILDER_BETA=0.
+_EKI_MB = os.environ.get('EKI_MODULE_BUILDER_BETA', '1').strip().lower()
+EKI_MODULE_BUILDER_BETA = _EKI_MB not in ('0', 'false', 'no', 'off')
 
 # Default `*`: Builder visible en todos los cursos aunque beta esté OFF.
 # Restringir con env, ej. EKI_MODULE_BUILDER_CURSOS=impulso joven rural,cenipalma

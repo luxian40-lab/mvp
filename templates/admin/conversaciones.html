@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Conversaciones WhatsApp | eki</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicons/admin.svg">
     <style>
         html, body {
             margin: 0;
@@ -11,15 +12,50 @@
             height: 100%;
             background: #d1d7db;
             overflow: hidden;
+            font-family: system-ui, sans-serif;
+        }
+        .wa-admin-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 8px 14px;
+            background: #1e1b24;
+            color: #f8fafc;
+            flex-shrink: 0;
+        }
+        .wa-admin-top a {
+            color: #c4b5d4;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .wa-admin-top a:hover { color: #fff; }
+        .wa-admin-top strong { font-size: 0.95rem; letter-spacing: -0.02em; }
+        .wa-admin-top .hint {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            max-width: 28rem;
         }
         .wa-admin-shell {
-            height: 100vh;
+            height: calc(100vh - 44px);
             padding: 4px;
             box-sizing: border-box;
         }
     </style>
 </head>
 <body>
+<header class="wa-admin-top">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <a href="{{ inbox_volver_url|default:'/admin/' }}">← {{ inbox_volver_label|default:'Inicio' }}</a>
+        <strong>Conversaciones</strong>
+        <span class="hint">Inbox WhatsApp · filtrá por org · no mezclar con Nat (número comercial aparte).</span>
+    </div>
+    <div style="display:flex;gap:14px;">
+        <a href="/admin/dashboard/?tab=commercial">Nat</a>
+        <a href="/admin/dashboard/?tab=retencion">Centro de Éxito</a>
+    </div>
+</header>
 <div class="wa-admin-shell">
     {% include "conversaciones/whatsapp_inbox.html" %}
 </div>

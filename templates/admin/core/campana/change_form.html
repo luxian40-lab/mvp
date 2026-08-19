@@ -113,7 +113,32 @@
 
 {% block field_sets %}
 {% if original %}
-<div class="eki-camp-ficha" aria-label="Resumen del lanzamiento">
+<div class="eki-id-band" aria-label="Resumen de la campaña">
+    {% if eki_org_logo %}
+    <img class="eki-id-band__thumb eki-id-band__thumb--sq" src="{{ eki_org_logo }}" alt="" loading="lazy" referrerpolicy="no-referrer">
+    {% else %}
+    <span class="eki-id-band__thumb eki-id-band__thumb--sq eki-id-band__thumb--ph">{{ eki_camp_inicial|default:"C" }}</span>
+    {% endif %}
+    <div class="eki-id-band__body">
+        <div class="eki-id-band__title">
+            {{ original.nombre }}
+            {% if original.ejecutada %}
+            <span class="eki-id-badge eki-id-badge--ok">Enviada</span>
+            {% elif original.fecha_programada %}
+            <span class="eki-id-badge">Programada</span>
+            {% else %}
+            <span class="eki-id-badge eki-id-badge--off">Borrador</span>
+            {% endif %}
+        </div>
+        <div class="eki-id-band__meta">
+            {% if eki_org_nombre %}{{ eki_org_nombre }}{% elif original.cliente %}{{ original.cliente.nombre }}{% else %}Sin organización{% endif %}
+            {% if original.curso_destino %} · {{ original.curso_destino.nombre }}{% endif %}
+            · {{ eki_camp_participantes }}
+        </div>
+    </div>
+</div>
+
+<div class="eki-camp-ficha" aria-label="Detalle del lanzamiento">
   <div class="eki-camp-ficha__cell">
     <span class="eki-camp-ficha__label">Lanzamiento</span>
     <div class="eki-camp-ficha__value">{{ original.nombre }}</div>

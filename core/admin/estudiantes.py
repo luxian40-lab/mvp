@@ -250,9 +250,47 @@ class EstudianteAdmin(admin.ModelAdmin):
         extra_context = extra_context or {}
         obj = self.get_object(request, object_id)
         if obj:
+            from django.urls import reverse
+
+            from core.models import ProgresoEstudiante, WhatsappLog
             from portal.branding import contexto_identidad_org
+
             extra_context.update(contexto_identidad_org(getattr(obj, 'cliente', None)))
             extra_context['eki_est_inicial'] = (obj.nombre or '?').strip()[:1].upper()
+            progresos = (
+                ProgresoEstudiante.objects.filter(estudiante=obj)
+                .select_related('curso', 'modulo_actual')
+                .order_by('-fecha_ultimo_avance', '-fecha_inicio')[:6]
+            )
+            extra_context['eki_est_progresos'] = [
+                {
+                    'curso': p.curso.nombre if p.curso_id else '—',
+                    'pct': int(round(p.porcentaje_avance() or 0)),
+                    'modulo': (
+                        f'M{p.modulo_actual.numero}'
+                        if p.modulo_actual_id and p.modulo_actual
+                        else '—'
+                    ),
+                    'completado': p.completado,
+                }
+                for p in progresos
+            ]
+            ultimo = (
+                WhatsappLog.objects.filter(telefono=obj.telefono)
+                .order_by('-fecha')
+                .first()
+            )
+            if ultimo is None and obj.pk:
+                ultimo = (
+                    WhatsappLog.objects.filter(estudiante_id=obj.pk)
+                    .order_by('-fecha')
+                    .first()
+                )
+            extra_context['eki_est_ultimo_wa'] = ultimo
+            extra_context['eki_est_conv_url'] = (
+                reverse('conversaciones')
+                + f'?estudiante={obj.pk}'
+            )
         return super().change_view(request, object_id, form_url, extra_context=extra_context)
 
     def importar_estudiantes_view(self, request):

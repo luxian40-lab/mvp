@@ -1409,13 +1409,14 @@ class ArchivoModuloInline(admin.StackedInline):
 class ModuloAdmin(admin.ModelAdmin):
     """Administración de módulos"""
     form = ModuloAdminForm
+    change_form_template = 'admin/core/modulo/change_form.html'
     class Media:
         css = {
             'all': ('admin/css/modulo_whatsapp_bloques.css',),
         }
         js = ('admin/js/eki_modulo_jump.js',)
 
-    # Listado ops: curso + número; preview largo → ficha del módulo.
+    # Listado ops: ≤6 columnas; detalle → ficha del módulo.
     list_display = (
         'numero_titulo',
         'curso',
@@ -1423,8 +1424,6 @@ class ModuloAdmin(admin.ModelAdmin):
         'modo_entrega_badge',
         'pasos_activos_count',
         'examen_badge',
-        'archivos_link',
-        'ver_curso_link',
     )
     list_filter = ('curso', 'modo_entrega', 'examen_obligatorio')
     search_fields = ('titulo', 'descripcion', 'curso__nombre')
@@ -1450,6 +1449,32 @@ class ModuloAdmin(admin.ModelAdmin):
             ),
         ]
         return custom + urls
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        obj = self.get_object(request, object_id)
+        if obj:
+            from django.urls import reverse
+
+            from core.module_builder import module_builder_habilitado_para_curso
+            from portal.branding import contexto_identidad_org
+
+            curso = getattr(obj, 'curso', None)
+            extra_context.update(contexto_identidad_org(getattr(curso, 'cliente', None)))
+            extra_context['eki_mod_inicial'] = str(getattr(obj, 'numero', '') or 'M')[:1]
+            extra_context['eki_mod_builder_url'] = reverse(
+                'admin_module_builder',
+                args=[obj.pk],
+            )
+            extra_context['eki_mod_builder_ok'] = module_builder_habilitado_para_curso(
+                curso,
+                request,
+            )
+            extra_context['eki_mod_pasos'] = PasoModulo.objects.filter(
+                modulo=obj,
+                activo=True,
+            ).count()
+        return super().change_view(request, object_id, form_url, extra_context=extra_context)
 
     @action(
         description='Module Builder',

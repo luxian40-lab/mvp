@@ -29,6 +29,42 @@
         </div>
     </div>
 </div>
+{% if eki_est_conv_url %}
+<div class="eki-puente-panel" aria-label="Progreso y conversación WhatsApp">
+    <div class="eki-puente-panel__head">
+        <h3>Progreso y WhatsApp</h3>
+        <a class="eki-puente-link" href="{{ eki_est_conv_url }}">Ver conversación →</a>
+    </div>
+    {% if eki_est_progresos %}
+    <ul class="eki-puente-list">
+        {% for p in eki_est_progresos %}
+        <li>
+            <strong>{{ p.curso }}</strong>
+            · {{ p.pct }}%
+            {% if p.modulo != "—" %} · {{ p.modulo }}{% endif %}
+            {% if p.completado %}<span class="eki-id-badge eki-id-badge--ok">Completado</span>{% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="eki-puente-empty">Sin progreso registrado en cursos.</p>
+    {% endif %}
+    {% if eki_est_ultimo_wa %}
+    <p class="eki-puente-wa">
+        <span class="eki-puente-wa__label">Último WhatsApp</span>
+        <span class="eki-puente-wa__tipo">{{ eki_est_ultimo_wa.get_tipo_display|default:eki_est_ultimo_wa.tipo }}</span>
+        · {{ eki_est_ultimo_wa.fecha|date:"d/m/Y H:i" }}
+        {% if eki_est_ultimo_wa.mensaje %}
+        — {{ eki_est_ultimo_wa.mensaje|truncatechars:120 }}
+        {% elif eki_est_ultimo_wa.es_audio %}
+        — 🎤 Audio
+        {% endif %}
+    </p>
+    {% else %}
+    <p class="eki-puente-empty">Sin mensajes WhatsApp registrados.</p>
+    {% endif %}
+</div>
+{% endif %}
 {% endif %}
 {{ block.super }}
 {% endblock %}

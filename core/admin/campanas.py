@@ -5,7 +5,15 @@ from core.admin.estudiantes import EnvioProgramadoInline
 class CampanaAdmin(admin.ModelAdmin):
     """Gestión de campañas masivas"""
     change_form_template = 'admin/core/campana/change_form.html'
-    list_display = ('nombre', 'cliente_nombre', 'tipo_audiencia_display', 'categoria_badge', 'plantilla_estado', 'estado_visual', 'conteo_destinatarios', 'programada_display', 'fecha_creacion')
+    # Listado ops: ≤6 columnas; plantilla/audiencia → ficha.
+    list_display = (
+        'nombre',
+        'cliente_nombre',
+        'estado_visual',
+        'conteo_destinatarios',
+        'programada_display',
+        'fecha_creacion',
+    )
     list_filter = ('ejecutada', 'cliente', 'categoria', 'tipo_audiencia', 'fecha_creacion', 'plantilla__aprobada_twilio')
     search_fields = ('nombre', 'cliente__nombre')
     filter_horizontal = ('destinatarios',)
@@ -74,6 +82,10 @@ class CampanaAdmin(admin.ModelAdmin):
         if object_id:
             obj = self.get_object(request, object_id)
             if obj:
+                from portal.branding import contexto_identidad_org
+
+                extra_context.update(contexto_identidad_org(getattr(obj, 'cliente', None)))
+                extra_context['eki_camp_inicial'] = (obj.nombre or 'C').strip()[:1].upper()
                 if getattr(obj, 'tipo_audiencia', None) == 'grupo' and obj.grupo_id:
                     participantes = f'{obj.grupo.estudiantes.filter(activo=True).count()} estudiantes'
                 else:
