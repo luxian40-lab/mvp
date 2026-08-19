@@ -228,6 +228,37 @@ class CursosEstudianteFilter(admin.SimpleListFilter):
         return queryset
 
 
+class CursoListoCampanaFilter(admin.SimpleListFilter):
+    """Cursos WA con M1 publicado y checklist OK (listos para campaña)."""
+    title = 'Listo para campaña WA'
+    parameter_name = 'eki_listo_campana'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('si', '✅ Listo (M1 publicado + media OK)'),
+            ('no', '⚠ No listo'),
+        ]
+
+    def queryset(self, request, queryset):
+        from core.modulo_publicacion import cursos_listos_para_campana_ids, curso_listo_para_campana_wa
+
+        val = self.value()
+        if not val:
+            return queryset
+        base = queryset.exclude(modo_aula=Curso.MODO_AULA_CLASES)
+        if val == 'si':
+            ids = cursos_listos_para_campana_ids()
+            return base.filter(pk__in=ids)
+        if val == 'no':
+            ids_ok = set(cursos_listos_para_campana_ids())
+            pks = [
+                c.pk for c in base
+                if c.pk not in ids_ok and not curso_listo_para_campana_wa(c)[0]
+            ]
+            return base.filter(pk__in=pks)
+        return queryset
+
+
 class GruposEstudianteFilter(admin.SimpleListFilter):
     """Filtro para ver estudiantes por grupo"""
     title = '👥 Grupo asignado'

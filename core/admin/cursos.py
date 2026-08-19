@@ -288,6 +288,7 @@ class CursoAdmin(admin.ModelAdmin):
     list_filter = (
         'activo', 'modo_aula', 'visible_en_studio', 'visible_en_aula', 'cliente',
         'usar_gamificacion', 'usar_agentes_ia', 'tiene_formulario_gei',
+        CursoListoCampanaFilter,
     )
     search_fields = ('nombre', 'descripcion', 'cliente__nombre')
     list_editable = ()
@@ -296,6 +297,7 @@ class CursoAdmin(admin.ModelAdmin):
         'ver_todos_modulos', 'añadir_clase_rapida',
         'indexar_documentos_rag', 'indexar_contenido_modulos',
         'activar_cursos', 'desactivar_cursos', 'copiar_a_otro_cliente', 'copiar_a_analytics_pruebas',
+        'publicar_modulos_seleccionados',
     ]
     # change_list_template = 'admin/curso_changelist.html'  # Eliminado para usar el template estándar de Django
     
@@ -361,6 +363,59 @@ class CursoAdmin(admin.ModelAdmin):
         return format_html('<span style="color:#999;font-style:italic;">General (eki)</span>')
     cliente_nombre.short_description = "Organización"
 
+    def add_view(self, request, form_url='', extra_context=None):
+        return redirect('admin_curso_nuevo')
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                '<int:curso_id>/publicar-modulos/',
+                self.admin_site.admin_view(self.publicar_modulos_curso_view),
+                name='core_curso_publicar_modulos',
+            ),
+        ]
+        return custom + urls
+
+    @admin.action(description='Publicar módulos listos (checklist OK)')
+    def publicar_modulos_seleccionados(self, request, queryset):
+        from core.modulo_publicacion import publicar_modulos_bulk
+
+        total = 0
+        errores: list[str] = []
+        for curso in queryset:
+            n, errs = publicar_modulos_bulk(curso, usuario=request.user)
+            total += n
+            errores.extend(errs[:3])
+        if total:
+            messages.success(request, f'{total} módulo(s) publicados para WhatsApp.')
+        if errores:
+            messages.warning(
+                request,
+                'Algunos no se publicaron: ' + '; '.join(errores[:5]),
+            )
+        if not total and not errores:
+            messages.info(request, 'No había módulos borrador listos para publicar.')
+
+    def publicar_modulos_curso_view(self, request, curso_id):
+        from core.modulo_publicacion import publicar_modulos_bulk
+
+        curso = Curso.objects.filter(pk=curso_id).first()
+        if not curso:
+            messages.error(request, 'Curso no encontrado.')
+            return redirect('admin:core_curso_changelist')
+        if not request.user.has_perm('core.change_modulo'):
+            messages.error(request, 'Sin permiso.')
+            return redirect('admin:core_curso_change', curso_id)
+        n, errs = publicar_modulos_bulk(curso, usuario=request.user)
+        if n:
+            messages.success(request, f'{n} módulo(s) publicados en «{curso.nombre}».')
+        if errs:
+            messages.warning(request, '; '.join(errs[:5]))
+        if not n and not errs:
+            messages.info(request, 'No hay módulos borrador listos.')
+        return redirect('admin:core_curso_change', curso_id)
+
     def change_view(self, request, object_id, form_url='', extra_context=None):
         extra_context = extra_context or {}
         obj = self.get_object(request, object_id)
@@ -414,6 +469,11 @@ class CursoAdmin(admin.ModelAdmin):
                     'admin_module_builder',
                     args=[first_mod.pk],
                 )
+            extra_context['eki_curso_publicar_modulos_url'] = reverse(
+                'admin:core_curso_publicar_modulos',
+                args=[obj.pk],
+            )
+            extra_context['eki_curso_wizard_url'] = reverse('admin_curso_nuevo')
         return super().change_view(request, object_id, form_url, extra_context=extra_context)
 
     @admin.display(description='Experiencia', ordering='modo_aula')
@@ -1304,7 +1364,7 @@ class PasoModuloInline(admin.StackedInline):
         ('Material', {
             'fields': (
                 'mover_orden', 'orden', 'seccion', 'titulo', 'contenido',
-                'media_file_upload', 'media_url', 'media_wa_apto', 'activo',
+                'media_file_upload', 'media_url', 'media_wa_semaforo', 'media_wa_apto', 'activo',
             ),
             'description': (
                 '1) Elija bloque  2) Suba archivo  3) Active  4) Guarde. '
@@ -1332,7 +1392,7 @@ class PasoModuloInline(admin.StackedInline):
             'classes': ('collapse',),
         }),
     )
-    readonly_fields = ('mover_orden', 'media_wa_apto')
+    readonly_fields = ('mover_orden', 'media_wa_semaforo', 'media_wa_apto')
     formfield_overrides = {
         models.TextField: {
             'widget': forms.Textarea(attrs={'rows': 3, 'cols': 50, 'style': 'min-width:280px;'}),
@@ -1342,6 +1402,28 @@ class PasoModuloInline(admin.StackedInline):
     @admin.display(description='Mover')
     def mover_orden(self, obj):
         return _botones_mover_bloque(obj, 'paso')
+
+    @admin.display(description='Media WA')
+    def media_wa_semaforo(self, obj):
+        from core.modulo_publicacion import estado_media_paso
+
+        if not obj or not obj.pk:
+            return '—'
+        _code, label = estado_media_paso(obj)
+        colors = {
+            'ok': ('#e8f5e9', '#2e7d32'),
+            'warn': ('#fff8e1', '#f57f17'),
+            'fail': ('#ffebee', '#c62828'),
+            'na': ('#f5f5f5', '#757575'),
+        }
+        bg, fg = colors.get(_code, colors['na'])
+        return format_html(
+            '<span style="background:{};color:{};padding:2px 8px;border-radius:8px;'
+            'font-size:11px;font-weight:600;">{}</span>',
+            bg,
+            fg,
+            label,
+        )
 
     def get_formset(self, request, obj=None, **kwargs):
         self._modulo_inline_parent = obj
@@ -1497,6 +1579,11 @@ class ModuloAdmin(admin.ModelAdmin):
                 name='core_modulo_publicar',
             ),
             path(
+                '<int:modulo_id>/validar-qa/',
+                self.admin_site.admin_view(self.validar_qa_modulo_view),
+                name='core_modulo_validar_qa',
+            ),
+            path(
                 '<int:modulo_id>/mover/<str:kind>/<int:obj_id>/<str:direction>/',
                 self.admin_site.admin_view(self.mover_bloque_view),
                 name='core_modulo_mover_bloque',
@@ -1518,7 +1605,7 @@ class ModuloAdmin(admin.ModelAdmin):
         if not request.user.has_perm('core.change_modulo'):
             messages.error(request, 'Sin permiso para publicar módulos.')
             return redirect('admin:core_modulo_change', modulo_id)
-        ok, errores = publicar_modulo_wa(modulo)
+        ok, errores = publicar_modulo_wa(modulo, usuario=request.user)
         if ok:
             messages.success(
                 request,
@@ -1528,6 +1615,40 @@ class ModuloAdmin(admin.ModelAdmin):
             messages.error(
                 request,
                 'No se pudo publicar: ' + '; '.join(errores[:3]),
+            )
+        return redirect('admin:core_modulo_change', modulo_id)
+
+    def validar_qa_modulo_view(self, request, modulo_id):
+        from core.modulo_publicacion import (
+            snapshot_modulo_publicacion,
+            validar_modulo_qa,
+        )
+        from core.models import ModuloPublicacionEvent
+
+        modulo = Modulo.objects.select_related('curso').filter(pk=modulo_id).first()
+        if not modulo:
+            messages.error(request, 'Módulo no encontrado.')
+            return redirect('admin:core_modulo_changelist')
+        snap = snapshot_modulo_publicacion(modulo)
+        qa = validar_modulo_qa(modulo, head_urls=True)
+        ModuloPublicacionEvent.objects.create(
+            modulo=modulo,
+            usuario=request.user,
+            accion=ModuloPublicacionEvent.ACCION_QA,
+            snapshot_antes=snap,
+            snapshot_despues=snap,
+            diff_resumen=qa.errores + qa.avisos or ['QA OK — listo para publicar.'],
+        )
+        if qa.ok:
+            messages.success(
+                request,
+                'QA pre-publicar: OK. '
+                + (f'Avisos: {"; ".join(qa.avisos[:2])}' if qa.avisos else ''),
+            )
+        else:
+            messages.error(
+                request,
+                'QA pre-publicar: ' + '; '.join(qa.errores[:4]),
             )
         return redirect('admin:core_modulo_change', modulo_id)
 
@@ -1576,7 +1697,13 @@ class ModuloAdmin(admin.ModelAdmin):
                 'errores': chk.errores,
                 'avisos': chk.avisos,
                 'publicar_url': reverse('admin:core_modulo_publicar', args=[obj.pk]),
+                'validar_qa_url': reverse('admin:core_modulo_validar_qa', args=[obj.pk]),
             }
+            from core.models import ModuloPublicacionEvent
+
+            extra_context['eki_mod_pub_eventos'] = list(
+                ModuloPublicacionEvent.objects.filter(modulo=obj).select_related('usuario')[:8]
+            )
         return super().change_view(request, object_id, form_url, extra_context=extra_context)
 
     @action(

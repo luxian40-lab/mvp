@@ -31,16 +31,24 @@ def _relativo(dt) -> str:
 
 
 def _avg_avance_pct() -> float:
-    """% promedio de avance (muestra acotada; evita Avg sobre property)."""
+    """% promedio de avance (denominador = módulos publicados WA)."""
+    from core.modulo_publicacion import modulos_publicados_wa_qs
+
     qs = (
         ProgresoEstudiante.objects.annotate(
             done=Count('modulos_completados', distinct=True),
-            total=Count('curso__modulos', distinct=True),
         )
-        .filter(total__gt=0)
-        .values_list('done', 'total')[:400]
+        .select_related('curso')
+        .filter(curso__isnull=False)[:400]
     )
-    rows = list(qs)
+    rows: list[tuple[int, int]] = []
+    for prog in qs:
+        total = modulos_publicados_wa_qs(prog.curso).count()
+        if total <= 0:
+            continue
+        pub_ids = set(modulos_publicados_wa_qs(prog.curso).values_list('id', flat=True))
+        done = prog.modulos_completados.filter(modulo_id__in=pub_ids).count()
+        rows.append((done, total))
     if not rows:
         total_p = ProgresoEstudiante.objects.count()
         if not total_p:
@@ -650,6 +658,37 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
     except Exception:
         pass
 
+    try:
+        from core.modulo_publicacion import campanas_programadas_con_borradores
+
+        for item in campanas_programadas_con_borradores()[:5]:
+            fp = item['fecha_programada']
+            when = fp.strftime('%d/%m %H:%M') if fp else '—'
+            acciones.insert(
+                0,
+                {
+                    'label': f'Campaña · {item["n_borradores"]} borrador(es)',
+                    'url': f'/admin/core/campana/{item["campana_id"]}/change/',
+                    'icon': 'event_busy',
+                    'destacada': True,
+                },
+            )
+            insights.insert(
+                0,
+                {
+                    'nivel': 'warn',
+                    'texto': (
+                        f'«{item["campana_nombre"]}» programada {when} '
+                        f'con {item["n_borradores"]} módulo(s) borrador en '
+                        f'«{item["curso_nombre"]}».'
+                    ),
+                    'cta': 'Revisar campaña',
+                    'url': f'/admin/core/campana/{item["campana_id"]}/change/',
+                },
+            )
+    except Exception:
+        pass
+
     acciones.extend([
         {'label': 'Nuevo curso', 'url': '/admin/core/curso/add/', 'icon': 'school'},
         {'label': 'Nueva campaña', 'url': '/admin/core/campana/add/', 'icon': 'campaign'},
@@ -730,7 +769,7 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
                 'Avance medio',
                 f'{int(round(float(avance or 0)))}%',
                 delta=None,
-                note='Muestra',
+                note='Solo módulos publicados WA',
                 tone='purple',
             ),
             _kpi(

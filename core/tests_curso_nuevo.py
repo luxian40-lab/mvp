@@ -46,6 +46,8 @@ class CursoNuevoWizardTests(TestCase):
         curso = Curso.objects.get(nombre='Curso Wizard QA')
         mods = list(curso.modulos.order_by('numero'))
         self.assertEqual(len(mods), 2)
+        self.assertFalse(mods[0].publicado_wa)
+        self.assertFalse(mods[1].publicado_wa)
         self.assertEqual(
             r.url,
             reverse('admin_module_builder', kwargs={'modulo_id': mods[0].pk}),

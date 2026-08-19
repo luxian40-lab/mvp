@@ -107,6 +107,27 @@ class CampanaAdmin(admin.ModelAdmin):
                     )
                 except Exception:
                     pass
+                extra_context['eki_camp_borradores'] = None
+                if (
+                    obj.fecha_programada
+                    and not obj.ejecutada
+                    and obj.es_campana_curso
+                    and obj.curso_destino_id
+                ):
+                    curso = obj.curso_destino
+                    if curso and not curso.es_modo_clases():
+                        from core.models import Modulo
+
+                        n_b = Modulo.objects.filter(
+                            curso=curso,
+                            publicado_wa=False,
+                        ).count()
+                        if n_b:
+                            extra_context['eki_camp_borradores'] = {
+                                'n': n_b,
+                                'curso_nombre': curso.nombre,
+                                'fecha': obj.fecha_programada,
+                            }
         extra_context['eki_camp_participantes'] = participantes
         return super().changeform_view(request, object_id, form_url, extra_context=extra_context)
 

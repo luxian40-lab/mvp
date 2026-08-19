@@ -67,6 +67,16 @@ class CommandSearchTests(TestCase):
         manual = eki_command_search_callback(R(), 'manual')
         self.assertTrue(any('instrucciones' in r.link for r in manual))
 
+        borrador = eki_command_search_callback(R(), 'borrador')
+        self.assertTrue(any('publicado_wa' in r.link for r in borrador))
+
+    def test_admin_search_endpoint_ok(self):
+        self.client.force_login(self.user)
+        r = self.client.get(reverse('admin:search') + '?s=manual')
+        self.assertEqual(r.status_code, 200)
+        body = r.content.decode('utf-8')
+        self.assertIn('command-results-list', body)
+
 
 @override_settings(SECURE_SSL_REDIRECT=False)
 class AdminOnda3Tests(TestCase):

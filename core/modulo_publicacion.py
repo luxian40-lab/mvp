@@ -224,7 +224,13 @@ def evaluar_checklist_publicacion_detalle(modulo: Modulo | None) -> ChecklistPub
     return ChecklistPublicacion(ok=not errores, errores=errores, avisos=avisos)
 
 
-def publicar_modulo_wa(modulo: Modulo) -> tuple[bool, list[str]]:
+def publicar_modulo_wa(
+    modulo: Modulo,
+    *,
+    usuario=None,
+    registrar_evento: bool = True,
+) -> tuple[bool, list[str]]:
+    snapshot_antes = snapshot_modulo_publicacion(modulo) if registrar_evento else {}
     ok, errores = evaluar_checklist_publicacion(modulo)
     if not ok:
         return False, errores
@@ -232,7 +238,269 @@ def publicar_modulo_wa(modulo: Modulo) -> tuple[bool, list[str]]:
         return True, []
     modulo.publicado_wa = True
     modulo.save(update_fields=['publicado_wa'])
+    if registrar_evento:
+        snapshot_despues = snapshot_modulo_publicacion(modulo)
+        diff = diff_snapshots(snapshot_antes, snapshot_despues)
+        _registrar_evento_publicacion(
+            modulo,
+            usuario=usuario,
+            accion='publicar',
+            snapshot_antes=snapshot_antes,
+            snapshot_despues=snapshot_despues,
+            diff_resumen=diff,
+        )
     return True, []
+
+
+def estado_media_paso(paso) -> tuple[str, str]:
+    """
+    Semáforo pre-63019 para un paso.
+    Returns (codigo, etiqueta): ok | warn | fail | na
+    """
+    url = (getattr(paso, 'media_url', None) or '').strip()
+    if not url:
+        return 'na', '—'
+    low = url.lower().split('?')[0]
+    if not low.endswith(('.mp4', '.m4v', '.mov', '.mp3', '.m4a', '.ogg', '.wav', '.jpg', '.jpeg', '.png', '.webp', '.pdf')):
+        return 'na', 'Sin media WA'
+    apto = getattr(paso, 'media_wa_apto', None)
+    if apto is False:
+        return 'fail', '🔴 No apto WA'
+    if apto is True:
+        return 'ok', '🟢 Apto WA'
+    if low.endswith(('.mp4', '.m4v', '.mov')):
+        return 'warn', '🟡 Sin verificar'
+    return 'ok', '🟢 URL media'
+
+
+def _head_url_ok(url: str, timeout: float = 4.0) -> bool | None:
+    """True=OK, False=404/error, None=skip (local sin red)."""
+    if not url or url.startswith('/'):
+        return None
+    try:
+        import urllib.request
+
+        req = urllib.request.Request(
+            url,
+            method='HEAD',
+            headers={'User-Agent': 'eki-qa-publicacion/1.0'},
+        )
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return 200 <= resp.status < 400
+    except Exception:
+        return False
+
+
+def validar_modulo_qa(
+    modulo: Modulo | None,
+    *,
+    head_urls: bool = False,
+) -> ChecklistPublicacion:
+    """Checklist + opcional HEAD S3/URL antes de publicar."""
+    base = evaluar_checklist_publicacion_detalle(modulo)
+    if modulo is None or not head_urls:
+        return base
+    from .module_steps import pasos_activos_qs
+
+    for paso in pasos_activos_qs(modulo):
+        url = (paso.media_url or '').strip()
+        if not url:
+            continue
+        low = url.lower().split('?')[0]
+        if not low.endswith(('.mp4', '.m4v', '.mov', '.mp3', '.m4a', '.jpg', '.jpeg', '.png', '.pdf')):
+            continue
+        head = _head_url_ok(url)
+        if head is False:
+            base.errores.append(
+                f'Media paso {paso.orden or paso.pk}: URL no responde (HEAD).'
+            )
+        elif head is None:
+            base.avisos.append(
+                f'Media paso {paso.orden or paso.pk}: HEAD omitido (URL relativa/local).'
+            )
+    base.ok = not base.errores
+    return base
+
+
+def snapshot_modulo_publicacion(modulo: Modulo | None) -> dict:
+    if modulo is None:
+        return {}
+    from .module_steps import pasos_activos_qs
+
+    pasos = []
+    for p in pasos_activos_qs(modulo).order_by('orden', 'id'):
+        pasos.append(
+            {
+                'id': p.pk,
+                'orden': p.orden,
+                'titulo': (p.titulo or '')[:120],
+                'media_url': (p.media_url or '')[:200],
+                'media_wa_apto': p.media_wa_apto,
+                'activo': p.activo,
+            }
+        )
+    return {
+        'modulo_id': modulo.pk,
+        'numero': modulo.numero,
+        'titulo': modulo.titulo,
+        'publicado_wa': bool(modulo.publicado_wa),
+        'n_pasos_activos': len(pasos),
+        'pasos': pasos,
+    }
+
+
+def diff_snapshots(antes: dict, despues: dict) -> list[str]:
+    if not antes:
+        return ['Primera publicación del módulo.']
+    cambios: list[str] = []
+    if antes.get('publicado_wa') != despues.get('publicado_wa'):
+        cambios.append(
+            'Estado WA: '
+            f"{'publicado' if despues.get('publicado_wa') else 'borrador'}"
+        )
+    n_antes = antes.get('n_pasos_activos', 0)
+    n_des = despues.get('n_pasos_activos', 0)
+    if n_antes != n_des:
+        cambios.append(f'Pasos activos: {n_antes} → {n_des}')
+    ids_antes = {p['id']: p for p in antes.get('pasos', [])}
+    ids_des = {p['id']: p for p in despues.get('pasos', [])}
+    for pid, p in ids_des.items():
+        prev = ids_antes.get(pid)
+        if not prev:
+            cambios.append(f'+ Paso {p.get("orden")}: {(p.get("titulo") or "")[:40]}')
+            continue
+        if prev.get('media_url') != p.get('media_url'):
+            cambios.append(f'~ Media paso {p.get("orden")} actualizada')
+        if prev.get('media_wa_apto') != p.get('media_wa_apto'):
+            cambios.append(
+                f'~ Apto WA paso {p.get("orden")}: '
+                f'{prev.get("media_wa_apto")} → {p.get("media_wa_apto")}'
+            )
+    for pid, p in ids_antes.items():
+        if pid not in ids_des:
+            cambios.append(f'- Paso {p.get("orden")} removido/inactivo')
+    if not cambios:
+        cambios.append('Sin cambios detectados en snapshot (re-publicación).')
+    return cambios[:20]
+
+
+def _registrar_evento_publicacion(
+    modulo: Modulo,
+    *,
+    usuario,
+    accion: str,
+    snapshot_antes: dict,
+    snapshot_despues: dict,
+    diff_resumen: list[str],
+) -> None:
+    from .models import ModuloPublicacionEvent
+
+    ModuloPublicacionEvent.objects.create(
+        modulo=modulo,
+        usuario=usuario,
+        accion=accion,
+        snapshot_antes=snapshot_antes,
+        snapshot_despues=snapshot_despues,
+        diff_resumen=diff_resumen,
+    )
+
+
+def publicar_modulos_bulk(
+    curso: Curso | None,
+    modulos_ids: list[int] | None = None,
+    *,
+    usuario=None,
+) -> tuple[int, list[str]]:
+    """Publica módulos que pasen checklist. Returns (publicados, errores)."""
+    if curso is None:
+        return 0, ['Curso inválido.']
+    qs = curso.modulos.filter(publicado_wa=False).order_by('numero', 'id')
+    if modulos_ids:
+        qs = qs.filter(pk__in=modulos_ids)
+    publicados = 0
+    errores: list[str] = []
+    for mod in qs:
+        ok, errs = publicar_modulo_wa(mod, usuario=usuario)
+        if ok:
+            publicados += 1
+        else:
+            errores.append(f'M{mod.numero}: {errs[0] if errs else "error"}')
+    return publicados, errores
+
+
+def cursos_listos_para_campana_ids() -> list[int]:
+    """IDs de cursos WA con M1 publicado y checklist OK."""
+    from .models import Curso
+
+    ids = []
+    for curso in Curso.objects.filter(activo=True).exclude(modo_aula=Curso.MODO_AULA_CLASES):
+        ok, _ = curso_listo_para_campana_wa(curso)
+        if ok:
+            ids.append(curso.pk)
+    return ids
+
+
+def campanas_programadas_con_borradores() -> list[dict]:
+    """Campañas futuras cuyo curso destino tiene módulos borrador."""
+    from django.utils import timezone
+
+    from .models import Campana, Modulo
+
+    ahora = timezone.now()
+    out = []
+    qs = (
+        Campana.objects.filter(
+            ejecutada=False,
+            fecha_programada__gte=ahora,
+            es_campana_curso=True,
+            curso_destino__isnull=False,
+        )
+        .select_related('curso_destino', 'cliente')
+        .order_by('fecha_programada')[:20]
+    )
+    for camp in qs:
+        curso = camp.curso_destino
+        if curso is None or curso.es_modo_clases():
+            continue
+        n_borr = Modulo.objects.filter(curso=curso, publicado_wa=False).count()
+        if n_borr < 1:
+            continue
+        out.append(
+            {
+                'campana_id': camp.pk,
+                'campana_nombre': camp.nombre,
+                'curso_id': curso.pk,
+                'curso_nombre': curso.nombre,
+                'fecha_programada': camp.fecha_programada,
+                'n_borradores': n_borr,
+            }
+        )
+    return out
+
+
+def notificar_borrador_curso_activo(modulo: Modulo) -> None:
+    """Slack si curso con inscritos recibe módulo borrador nuevo."""
+    from django.core.cache import cache
+
+    from .models import ProgresoEstudiante
+    from .ops_slack import notify_slack_ops
+
+    curso = getattr(modulo, 'curso', None)
+    if curso is None or modulo.publicado_wa or curso.es_modo_clases():
+        return
+    inscritos = ProgresoEstudiante.objects.filter(curso=curso).count()
+    if inscritos < 1:
+        return
+    key = f'eki_slack_borrador_curso_{curso.pk}'
+    if cache.get(key):
+        return
+    cache.set(key, 1, timeout=6 * 3600)
+    notify_slack_ops(
+        f'Curso *{curso.nombre}* ({inscritos} inscrito(s)): '
+        f'nuevo módulo M{modulo.numero} en *borrador* WA.\n'
+        f'Admin: /admin/core/curso/{curso.pk}/change/',
+        title='eki · módulo borrador en curso activo',
+    )
 
 
 def resumen_publicacion_curso(curso: Curso | None) -> dict:

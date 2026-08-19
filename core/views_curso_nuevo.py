@@ -83,6 +83,7 @@ def curso_nuevo_wizard(request):
                         descripcion=f'Módulo {i} de {nombre}',
                         contenido='',
                         modo_entrega=Modulo.MODO_ENTREGA_PASOS,
+                        publicado_wa=False,
                     )
                     sembrar_plantilla_modulo(mod)
                     if primer_mod is None:

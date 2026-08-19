@@ -1,5 +1,6 @@
 from django.db import models
 from django.db.models import Q
+from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
@@ -2545,6 +2546,42 @@ class PasoModulo(models.Model):
             if d:
                 self.opciones_json = d
         super().save(*args, **kwargs)
+
+
+class ModuloPublicacionEvent(models.Model):
+    """Historial de publicación / QA de módulo WA (diff resumido)."""
+
+    ACCION_PUBLICAR = 'publicar'
+    ACCION_QA = 'qa_validar'
+    ACCION_CHOICES = (
+        (ACCION_PUBLICAR, 'Publicar'),
+        (ACCION_QA, 'QA pre-publicar'),
+    )
+
+    modulo = models.ForeignKey(
+        'Modulo',
+        on_delete=models.CASCADE,
+        related_name='eventos_publicacion',
+    )
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    accion = models.CharField(max_length=20, choices=ACCION_CHOICES, default=ACCION_PUBLICAR)
+    snapshot_antes = models.JSONField(default=dict, blank=True)
+    snapshot_despues = models.JSONField(default=dict, blank=True)
+    diff_resumen = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = 'Evento publicación módulo'
+        verbose_name_plural = 'Eventos publicación módulo'
+        ordering = ('-created_at',)
+
+    def __str__(self):
+        return f'{self.get_accion_display()} · M{self.modulo_id} · {self.created_at:%Y-%m-%d %H:%M}'
 
 
 class ProgresoEstudiante(models.Model):

@@ -103,6 +103,11 @@
         {% endfor %}
     </ul>
     <p class="eki-pub-panel__hint">El estudiante nunca ve error técnico: si el siguiente módulo está en borrador, recibe el mismo mensaje de espera que el drip.</p>
+    <p class="eki-pub-panel__actions">
+        <a class="eki-pub-row__btn eki-pub-row__btn--ghost" href="{{ eki_curso_publicar_modulos_url }}">
+            Publicar todos los listos ▶
+        </a>
+    </p>
 </div>
 {% elif eki_modulos_publicacion.usa_wa == False %}
 <p class="eki-pub-panel__hint eki-pub-panel__hint--clases">Curso modo Clases / Aprende: la publicación WA no aplica (avance en aula).</p>

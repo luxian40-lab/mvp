@@ -326,6 +326,9 @@ else:
 # Base pública (https://host) si el ALB/proxy firma una URL distinta a build_absolute_uri()
 TWILIO_WEBHOOK_PUBLIC_URL = os.environ.get('TWILIO_WEBHOOK_PUBLIC_URL', '').strip()
 
+# Slack ops (alertas módulos borrador, campañas). Vacío = desactivado.
+EKI_SLACK_OPS_WEBHOOK = os.environ.get('EKI_SLACK_OPS_WEBHOOK', '').strip()
+
 # 📢 Templates de Twilio para envío masivo (deben estar aprobados)
 TWILIO_TEMPLATE_ANUNCIO_GRUPAL = os.environ.get('TWILIO_TEMPLATE_ANUNCIO_GRUPAL', '')  # Content SID del template de anuncios
 TWILIO_TEMPLATE_INVITACION_GRUPO = os.environ.get('TWILIO_TEMPLATE_INVITACION_GRUPO', '')  # Content SID del template de invitación

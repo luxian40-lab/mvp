@@ -5,6 +5,27 @@ from django.urls import reverse
 
 from unfold.dataclasses import SearchResult
 
+# Modelos ops seguros para búsqueda en command palette (evita escanear Aprende/GEI
+# completo y errores 500 por modelos con search_fields rotos o tablas pesadas).
+EKI_COMMAND_SEARCH_MODELS: tuple[str, ...] = (
+    'core.Estudiante',
+    'core.Cliente',
+    'core.Curso',
+    'core.Modulo',
+    'core.Campana',
+    'core.WhatsappLog',
+    'core.EnvioLog',
+    'core.Certificado',
+    'core.PlantillaCertificado',
+    'core.Plantilla',
+    'core.SolicitudSoporte',
+)
+
+
+def eki_searchable_models(request) -> list[str]:
+    """Lista acotada para UNFOLD['COMMAND']['search_models'] (callback Unfold)."""
+    return list(EKI_COMMAND_SEARCH_MODELS)
+
 
 def _result(title: str, description: str, link: str, icon: str = 'link') -> SearchResult:
     return SearchResult(title=title, description=description, link=link, icon=icon)
@@ -73,6 +94,24 @@ def eki_command_search_callback(request, search_term: str) -> list[SearchResult]
             'Programación de envíos',
             '/admin/calendario/',
             'event',
+        )),
+        (('borrador', 'borradores', 'modulo borrador', 'módulo borrador'), _result(
+            'Módulos borrador (WA)',
+            'Sin publicado_wa · revisar antes de campaña',
+            '/admin/core/modulo/?publicado_wa__exact=0',
+            'draft',
+        )),
+        (('publicar', 'publicacion wa', 'publicación wa'), _result(
+            'Publicación WA · manual',
+            'Guía §Publicación WA en Manual operativo',
+            '/admin/instrucciones/#publicacion-wa',
+            'publish',
+        )),
+        (('cobertura', 'mapa cobertura'), _result(
+            'Mapa de cobertura',
+            'Estudiantes con ubicación en mapa',
+            '/admin/cobertura/',
+            'map',
         )),
     ]
     for keys, item in shortcuts:

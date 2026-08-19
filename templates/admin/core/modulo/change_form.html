@@ -65,9 +65,26 @@
         {% endfor %}
     </ul>
     {% if not eki_mod_publicacion.publicado %}
+    <a class="eki-pub-row__btn eki-pub-row__btn--ghost" href="{{ eki_mod_publicacion.validar_qa_url }}">Validar QA (HEAD S3) ✓</a>
     <a class="eki-pub-row__btn eki-pub-row__btn--lg" href="{{ eki_mod_publicacion.publicar_url }}">Publicar módulo ▶</a>
     {% endif %}
 </div>
+{% if eki_mod_pub_eventos %}
+<div class="eki-pub-panel eki-pub-panel--mod" aria-label="Historial publicación">
+    <div class="eki-pub-panel__head">
+        <h3 class="eki-pub-panel__title">Historial publicación / QA</h3>
+    </div>
+    <ul class="eki-pub-list">
+        {% for ev in eki_mod_pub_eventos %}
+        <li class="eki-pub-row">
+            <span class="eki-pub-row__badge">{{ ev.get_accion_display }}</span>
+            <span class="eki-pub-row__title">{{ ev.created_at|date:"d/m/Y H:i" }}</span>
+            <span class="eki-pub-row__checks">{{ ev.diff_resumen.0|default:"—" }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
 {% endif %}
 {% endif %}
 {{ block.super }}

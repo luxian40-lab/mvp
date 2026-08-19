@@ -25,3 +25,4 @@ class CoreConfig(AppConfig):
         # Telemetría Centro de Éxito (eventos de aprendizaje)
         import core.signals_telemetria
 
+        import core.signals_publicacion_wa  # Slack borrador en curso activo

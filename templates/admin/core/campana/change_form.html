@@ -149,6 +149,17 @@
     {% endif %}
 </div>
 
+{% if eki_camp_borradores %}
+<div class="eki-pub-panel" style="margin:0 0 1rem;border-color:#f57f17;background:#fff8e1;">
+    <p class="eki-pub-panel__sub" style="margin:0;">
+        <strong>⚠ Campaña programada ({{ eki_camp_borradores.fecha|date:"d/m/Y H:i" }})</strong>
+        — el curso «{{ eki_camp_borradores.curso_nombre }}» tiene
+        {{ eki_camp_borradores.n }} módulo(s) en borrador WA.
+        <a href="/admin/core/modulo/?curso__id__exact={{ original.curso_destino_id }}&publicado_wa__exact=0">Revisar borradores</a>
+    </p>
+</div>
+{% endif %}
+
 <div class="eki-camp-ficha" aria-label="Detalle del lanzamiento">
   <div class="eki-camp-ficha__cell">
     <span class="eki-camp-ficha__label">Lanzamiento</span>
