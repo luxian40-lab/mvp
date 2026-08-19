@@ -82,6 +82,22 @@ _EB_CNAME = os.environ.get(
     'EB_CNAME_HOST',
     'eki-prod-final.eba-32krwxas.us-east-2.elasticbeanstalk.com',
 )
+_EKI_CSRF_CANONICAL = [
+    'https://admin.eki.technology',
+    'https://app.eki.technology',
+    'https://aprende.eki.technology',
+    'https://aula.eki.technology',
+    'https://studio.eki.technology',
+    'https://certificados.eki.technology',
+    'https://eki.technology',
+    f'https://{_EB_CNAME}',
+    f'http://{_EB_CNAME}',
+]
+_csrf_env = os.environ.get('CSRF_TRUSTED_ORIGINS', '').strip()
+_csrf_from_env = [o.strip() for o in _csrf_env.split(',') if o.strip()] if _csrf_env else []
+# Siempre incluir orígenes eki + EB (evita 403 CSRF si falta env en EB).
+CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(_csrf_from_env + _EKI_CSRF_CANONICAL))
+
 _explicit_hosts = os.environ.get('EKI_ALLOWED_HOSTS', '').strip()
 if _explicit_hosts:
     ALLOWED_HOSTS = [h.strip() for h in _explicit_hosts.split(',') if h.strip()]
@@ -102,10 +118,6 @@ else:
             ALLOWED_HOSTS.extend(extra_hosts)
         if 'certificados.eki.technology' not in ALLOWED_HOSTS:
             ALLOWED_HOSTS.append('certificados.eki.technology')
-
-_csrf_env = os.environ.get('CSRF_TRUSTED_ORIGINS', '').strip()
-if _csrf_env:
-    CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_env.split(',') if o.strip()]
 
 # ============================================
 # SSL/HTTPS - Resolución de Warnings
@@ -164,7 +176,8 @@ EKI_DISABLE_HOST_ISOLATION = os.environ.get('EKI_DISABLE_HOST_ISOLATION', '').lo
 # ?: (security.W016) CSRF cookies seguras
 if not _behind_cloudflare:
     CSRF_COOKIE_SECURE = False
-CSRF_COOKIE_HTTPONLY = True
+# HttpOnly=False: Unfold/HTMX y module_builder leen csrftoken de document.cookie.
+CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = 'Lax'
 
 # Otros headers de seguridad
