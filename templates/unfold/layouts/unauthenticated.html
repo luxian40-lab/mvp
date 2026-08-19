@@ -1,0 +1,47 @@
+{% extends 'unfold/layouts/skeleton.html' %}
+
+{% load i18n static unfold %}
+
+{% block bodyclass %}{{ block.super }} eki-admin-login{% endblock %}
+
+{% block nav-global %}{% endblock %}
+
+{% block content_title %}{% endblock %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'admin/css/eki_admin_login.css' %}">
+{% endblock %}
+
+{% block base %}
+<div class="eki-login-shell">
+    <aside class="eki-login-hero" aria-hidden="true">
+        <div class="eki-login-hero__inner">
+            <p class="eki-login-hero__eyebrow">Operaciones internas</p>
+            <h2 class="eki-login-hero__title">Campo, cursos y campañas en un solo lugar.</h2>
+            <p class="eki-login-hero__sub">
+                WhatsApp · estudiantes · certificados · Module Builder.
+                Solo personal autorizado eki.
+            </p>
+            <ul class="eki-login-hero__bullets">
+                <li>Panel ejecutivo y alertas del día</li>
+                <li>Conversaciones y Centro de Éxito</li>
+                <li>Curso → módulo → envío sin salir del admin</li>
+            </ul>
+        </div>
+    </aside>
+
+    <main class="eki-login-main">
+        <header class="eki-login-top">
+            {% include "unfold/helpers/eki_tone_switch_dropdown.html" %}
+            {% include "unfold/helpers/theme_switch_dropdown.html" %}
+        </header>
+
+        <div class="eki-login-card">
+            {% block content %}{% endblock %}
+        </div>
+
+        <p class="eki-login-foot">© eki · acceso restringido a staff</p>
+    </main>
+</div>
+{% endblock %}
