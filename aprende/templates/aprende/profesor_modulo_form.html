@@ -2,6 +2,9 @@
 {% block title %}{% if modulo %}Editar{% else %}Nueva{% endif %} lección | Aprende{% endblock %}
 {% block nav %}
 <a href="{% if modulo %}{% url 'aprende_profesor_curso' modulo.curso_id %}{% else %}{% url 'aprende_profesor_curso' curso.id %}{% endif %}">← Volver al curso</a>
+{% if modulo %}
+<a href="{% url 'aprende_profesor_modulo_vista_estudiante' modulo.id %}">Ver como estudiante</a>
+{% endif %}
 {% endblock %}
 {% block main_class %}eki-main--wide{% endblock %}
 {% block content %}
@@ -9,6 +12,13 @@
     <span class="eki-badge">{% if modulo %}Editar lección{% else %}Nueva lección{% endif %}</span>
     <h1>{% if modulo %}{{ modulo.titulo }}{% else %}Crear lección{% endif %}</h1>
     <p class="eki-lead">Defina la lección y sus bloques (secciones). El estudiante verá el contenido agrupado por bloque.</p>
+    {% if modulo %}
+    <p style="margin-top:0.75rem;">
+        <a href="{% url 'aprende_profesor_modulo_vista_estudiante' modulo.id %}" class="eki-btn eki-btn--ghost eki-btn--sm">
+            Vista previa — como la ve el estudiante
+        </a>
+    </p>
+    {% endif %}
 </div>
 
 <form method="post" enctype="multipart/form-data" class="eki-card">
@@ -51,21 +61,39 @@
         <label for="contenido">Contenido de la lección</label>
         <textarea name="contenido" id="contenido" rows="8" placeholder="Texto principal. Si dejó bloques y esto vacío, se genera un borrador con esos títulos.">{{ modulo.contenido|default:'' }}</textarea>
     </div>
+
+    <p class="eki-section-title">Video y documentos principales</p>
+    <p class="eki-muted" style="margin:-0.5rem 0 1rem;font-size:0.85rem;">
+        Campos clásicos (un video y un PDF destacados). Para <strong>varios</strong> enlaces o archivos, use las secciones de abajo.
+    </p>
     <div class="eki-field">
-        <label for="video_url">URL de video (YouTube o MP4)</label>
+        <label for="video_url">URL de video principal (YouTube o MP4)</label>
         <input type="url" name="video_url" id="video_url" value="{{ modulo.video_url|default:'' }}" placeholder="https://youtube.com/watch?v=…">
     </div>
     <div class="eki-field">
-        <label for="archivo_pdf_url">URL PDF externo (opcional)</label>
+        <label for="archivo_pdf_url">URL PDF principal (opcional)</label>
         <input type="url" name="archivo_pdf_url" id="archivo_pdf_url" value="{{ modulo.archivo_pdf_url|default:'' }}" placeholder="https://…">
     </div>
 
-    <p class="eki-section-title">Subir archivo a almacenamiento</p>
-    <p class="eki-muted" style="margin:-0.5rem 0 1rem;">PDF, video, imagen o audio — mismo almacén que WhatsApp.</p>
+    <div class="eki-field">
+        <label for="recursos_externos">Más enlaces (YouTube, PDF, imágenes…)</label>
+        <p class="eki-muted" style="margin:0 0 0.45rem;font-size:0.85rem;">
+            Una línea = un recurso nuevo al guardar. Solo URL, o <code>tipo|url|título</code>
+            (tipo: video, pdf, imagen, audio). Ejemplo:
+            <code>video|https://youtube.com/watch?v=…|Clase 2</code>
+        </p>
+        <textarea name="recursos_externos" id="recursos_externos" rows="4" placeholder="https://youtube.com/watch?v=…&#10;https://ejemplo.com/guia.pdf&#10;pdf|https://…|Guía complementaria"></textarea>
+    </div>
+
+    <p class="eki-section-title">Subir archivos a almacenamiento</p>
+    <p class="eki-muted" style="margin:-0.5rem 0 1rem;">
+        PDF/imagen/audio ≤ 25 MB. <strong>Video MP4 ≤ 100 MB</strong> (recomendado ≤ 50 MB en celular).
+        Puede seleccionar <strong>varios archivos</strong> a la vez (mismo tipo).
+    </p>
 
     <div class="eki-grid-2" style="gap:1rem;">
         <div class="eki-field">
-            <label for="titulo_archivo">Título del archivo</label>
+            <label for="titulo_archivo">Título base (opcional)</label>
             <input type="text" name="titulo_archivo" id="titulo_archivo" placeholder="Guía de la lección">
         </div>
         <div class="eki-field">
@@ -79,24 +107,31 @@
         </div>
     </div>
     <div class="eki-field">
-        <label for="archivo_subir">Archivo</label>
-        <input type="file" name="archivo_subir" id="archivo_subir" accept="video/*,image/*,application/pdf,audio/*">
+        <label for="archivo_subir">Archivos</label>
+        <input type="file" name="archivo_subir" id="archivo_subir" multiple accept="video/*,image/*,application/pdf,audio/*">
     </div>
+
+    {% if archivos %}
+    <div class="eki-field">
+        <label>Archivos en esta lección</label>
+        <ul class="eki-list" style="margin:0.35rem 0 0;">
+            {% for a in archivos %}
+            <li class="eki-list-item">
+                <label style="display:flex;align-items:flex-start;gap:0.5rem;cursor:pointer;">
+                    <input type="checkbox" name="eliminar_archivo" value="{{ a.id }}" style="margin-top:0.2rem;">
+                    <span>
+                        <span class="eki-material-tag">{{ a.get_tipo_display }}</span>
+                        {{ a.titulo }}
+                        {% if a.url_externa %}<span class="eki-muted">· enlace</span>{% endif %}
+                    </span>
+                </label>
+            </li>
+            {% endfor %}
+        </ul>
+        <p class="eki-muted" style="margin:0.35rem 0 0;font-size:0.82rem;">Marque los que desea quitar al guardar.</p>
+    </div>
+    {% endif %}
 
     <button type="submit" class="eki-btn eki-btn--primary">Guardar lección</button>
 </form>
-
-{% if archivos %}
-<div class="eki-card" style="margin-top:1.25rem;">
-    <h2 class="eki-h2">Archivos en esta lección</h2>
-    <ul class="eki-list">
-        {% for a in archivos %}
-        <li class="eki-list-item">
-            <span class="eki-material-tag">DOC</span>
-            <span>{{ a.titulo }} — <span class="eki-muted">{{ a.get_tipo_display }}</span></span>
-        </li>
-        {% endfor %}
-    </ul>
-</div>
-{% endif %}
 {% endblock %}

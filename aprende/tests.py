@@ -383,6 +383,71 @@ class AprendeWebTests(TestCase):
         self.assertEqual(entrega.nota, 4)
         self.assertEqual(entrega.comentario_profesor, 'Buen trabajo')
 
+    def test_profesor_vista_estudiante_modulo(self):
+        self.http.post('/aprende/profesor/login/', {'username': 'prof_ap', 'password': 'pass'})
+        r = self.http.get(f'/aprende/profesor/modulo/{self.modulo.id}/vista-estudiante/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Vista previa del profesor')
+        self.assertContains(r, 'Hola desde la web')
+        r_edit = self.http.get(f'/aprende/profesor/modulo/{self.modulo.id}/')
+        self.assertContains(r_edit, 'Ver como estudiante')
+
+    def test_profesor_califica_entregas_lote(self):
+        tarea = TareaCurso.objects.create(curso=self.curso, titulo='T lote', instrucciones='x')
+        est2 = Estudiante.objects.create(
+            cedula='web2',
+            nombre='Est Dos',
+            telefono='573009999003',
+            cliente=self.cliente,
+            activo=True,
+        )
+        ProgresoEstudiante.objects.create(estudiante=est2, curso=self.curso, modulo_actual=self.modulo)
+        e1 = EntregaTarea.objects.create(
+            tarea=tarea,
+            estudiante=self.est,
+            archivo=SimpleUploadedFile('a.pdf', b'%PDF', content_type='application/pdf'),
+            nombre_archivo='a.pdf',
+        )
+        e2 = EntregaTarea.objects.create(
+            tarea=tarea,
+            estudiante=est2,
+            archivo=SimpleUploadedFile('b.pdf', b'%PDF', content_type='application/pdf'),
+            nombre_archivo='b.pdf',
+        )
+        self.http.post('/aprende/profesor/login/', {'username': 'prof_ap', 'password': 'pass'})
+        r = self.http.post(f'/aprende/profesor/tarea/{tarea.id}/entregas/', {
+            'accion': 'lote',
+            f'nota_{e1.id}': '5',
+            f'comentario_{e1.id}': 'Excelente',
+            f'nota_{e2.id}': '3',
+            f'comentario_{e2.id}': 'Mejorar',
+        })
+        self.assertEqual(r.status_code, 302)
+        e1.refresh_from_db()
+        e2.refresh_from_db()
+        self.assertEqual(e1.nota, 5)
+        self.assertEqual(e2.nota, 3)
+        self.assertEqual(e1.comentario_profesor, 'Excelente')
+
+    def test_profesor_agrega_multiples_recursos_modulo(self):
+        from core.models_extras import ArchivoModulo
+
+        self.http.post('/aprende/profesor/login/', {'username': 'prof_ap', 'password': 'pass'})
+        r = self.http.post(f'/aprende/profesor/modulo/{self.modulo.id}/', {
+            'titulo': self.modulo.titulo,
+            'descripcion': self.modulo.descripcion,
+            'contenido': self.modulo.contenido,
+            'recursos_externos': (
+                'https://www.youtube.com/watch?v=dQw4w9WgXcQ\n'
+                'pdf|https://example.com/guia.pdf|Guía extra'
+            ),
+        })
+        self.assertEqual(r.status_code, 302)
+        archivos = ArchivoModulo.objects.filter(modulo=self.modulo, activo=True)
+        self.assertEqual(archivos.count(), 2)
+        tipos = set(archivos.values_list('tipo', flat=True))
+        self.assertEqual(tipos, {'video', 'pdf'})
+
     def test_estudiante_comenta_despues_de_calificacion(self):
         tarea = TareaCurso.objects.create(curso=self.curso, titulo='T2', instrucciones='x')
         archivo = SimpleUploadedFile('t2.pdf', b'%PDF', content_type='application/pdf')

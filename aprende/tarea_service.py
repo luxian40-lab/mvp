@@ -120,23 +120,70 @@ def guardar_respuesta_post_calificacion(
     return None
 
 
-def calificar_entrega(request, entrega: EntregaTarea) -> str | None:
-    raw_nota = request.POST.get('nota', '').strip()
-    if not raw_nota:
-        return 'Indica una nota del 1 al 5.'
+def _parse_nota(raw: str) -> tuple[int | None, str | None]:
+    raw = (raw or '').strip()
+    if not raw:
+        return None, None
     try:
-        nota = int(raw_nota)
+        nota = int(raw)
     except ValueError:
-        return 'La nota debe ser un número del 1 al 5.'
+        return None, 'La nota debe ser un número del 1 al 5.'
     if not 1 <= nota <= 5:
-        return 'La nota debe estar entre 1 y 5.'
+        return None, 'La nota debe estar entre 1 y 5.'
+    return nota, None
+
+
+def _aplicar_calificacion_entrega(
+    entrega: EntregaTarea,
+    nota: int,
+    comentario: str,
+    calificador,
+) -> None:
     entrega.nota = nota
-    entrega.comentario_profesor = request.POST.get('comentario_profesor', '').strip()
+    entrega.comentario_profesor = comentario
     entrega.fecha_calificacion = timezone.now()
-    pu = getattr(request, 'portal_usuario', None)
-    entrega.calificado_por = pu.user if pu else None
+    entrega.calificado_por = calificador
     entrega.save()
     from .calificacion_aula_service import sincronizar_nota_tarea_entrega
 
     sincronizar_nota_tarea_entrega(entrega)
+
+
+def calificar_entrega(request, entrega: EntregaTarea) -> str | None:
+    nota, err = _parse_nota(request.POST.get('nota', ''))
+    if err:
+        return err
+    if nota is None:
+        return 'Indica una nota del 1 al 5.'
+    pu = getattr(request, 'portal_usuario', None)
+    _aplicar_calificacion_entrega(
+        entrega,
+        nota,
+        request.POST.get('comentario_profesor', '').strip(),
+        pu.user if pu else None,
+    )
     return None
+
+
+def calificar_entregas_lote(request, entregas) -> tuple[int, str | None]:
+    """Califica varias entregas en un solo envío (nota_<id>, comentario_<id>)."""
+    guardadas = 0
+    pu = getattr(request, 'portal_usuario', None)
+    calificador = pu.user if pu else None
+    for entrega in entregas:
+        raw = request.POST.get(f'nota_{entrega.id}', '')
+        nota, err = _parse_nota(raw)
+        if err:
+            return guardadas, err
+        if nota is None:
+            continue
+        _aplicar_calificacion_entrega(
+            entrega,
+            nota,
+            request.POST.get(f'comentario_{entrega.id}', '').strip(),
+            calificador,
+        )
+        guardadas += 1
+    if guardadas == 0:
+        return 0, 'Indica al menos una nota para guardar.'
+    return guardadas, None

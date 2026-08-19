@@ -131,3 +131,54 @@ def secciones_modulo_aula(modulo: Modulo) -> list[SeccionAula]:
 
 def modulo_tiene_microcontenidos(modulo: Modulo) -> bool:
     return PasoModulo.objects.filter(modulo=modulo, activo=True, seccion__activa=True).exists()
+
+
+def contexto_render_modulo_estudiante(
+    modulo: Modulo,
+    *,
+    estudiante=None,
+    quiz_intento=None,
+    quiz_detalle=None,
+) -> dict:
+    """Contexto compartido entre vista estudiante y vista previa del profesor."""
+    from aprende.quiz_aula_service import intento_previo, opciones_pregunta, preguntas_activas
+
+    archivos_media = archivos_multimedia_modulo(modulo)
+    secciones = secciones_modulo_aula(modulo)
+    tiene_micro = modulo_tiene_microcontenidos(modulo)
+    video_url = (
+        modulo.get_video_url_publica()
+        if modulo.video_url or modulo.video_archivo
+        else modulo.video_url
+    )
+    video_media = (
+        media_desde_url(f'Video — {modulo.titulo}', video_url or '', 'video')
+        if video_url
+        else None
+    )
+    pdf_media = (
+        media_desde_url('Documento del módulo', modulo.archivo_pdf_url, 'pdf')
+        if modulo.archivo_pdf_url
+        else None
+    )
+    if estudiante is not None and quiz_intento is None:
+        quiz_intento = intento_previo(estudiante, modulo)
+    preguntas = preguntas_activas(modulo)
+    quiz_items = [
+        {'pregunta': p, 'opciones': opciones_pregunta(p)}
+        for p in preguntas
+    ]
+    return {
+        'estudiante': estudiante,
+        'modulo': modulo,
+        'secciones': secciones,
+        'tiene_micro': tiene_micro,
+        'archivos_media': archivos_media,
+        'video_media': video_media,
+        'video_medias': [video_media] if video_media else [],
+        'pdf_media': pdf_media,
+        'pdf_medias': [pdf_media] if pdf_media else [],
+        'quiz_items': quiz_items,
+        'quiz_intento': quiz_intento,
+        'quiz_detalle': quiz_detalle,
+    }

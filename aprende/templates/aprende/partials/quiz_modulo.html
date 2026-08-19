@@ -27,6 +27,9 @@
     </ul>
     {% endif %}
 
+    {% if vista_previa_profesor %}
+    <p class="eki-muted" style="margin:0;">En el aula el estudiante responde la práctica aquí.</p>
+    {% else %}
     <form method="post" class="eki-quiz-form">
         {% csrf_token %}
         <input type="hidden" name="accion" value="quiz_modulo">
@@ -43,5 +46,6 @@
         {% endfor %}
         <button type="submit" class="eki-btn eki-btn--primary">Enviar práctica</button>
     </form>
+    {% endif %}
 </section>
 {% endif %}

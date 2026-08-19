@@ -23,17 +23,13 @@ from .acceso_modulos import (
 )
 from .auth import es_profesor_aprende, requiere_estudiante_aprende, requiere_profesor_aprende
 from .biblioteca_service import biblioteca_agrupada_por_curso_modulo
-from .contenido_modulo_service import (
-    archivos_multimedia_modulo,
-    modulo_tiene_microcontenidos,
-    secciones_modulo_aula as secciones_contenido_aula,
-)
+from .contenido_modulo_service import contexto_render_modulo_estudiante
 from .lesson_service import (
     actualizar_modulo_aula,
     crear_modulo_aula,
     secciones_modulo_aula as secciones_gestion_aula,
 )
-from .media_aula import media_desde_url
+
 from .models import EntregaTarea, TareaCurso
 from .perfil_service import actualizar_perfil_aula, resumen_perfil_aula
 from .calificacion_aula_service import (
@@ -53,6 +49,7 @@ from .ranking_service import ranking_curso_profesor, resumen_ranking_aula
 from .tarea_service import (
     actualizar_tarea,
     calificar_entrega,
+    calificar_entregas_lote,
     crear_tarea,
     eliminar_tarea,
     guardar_entrega,
@@ -402,12 +399,7 @@ def estudiante_tareas(request):
 
 @requiere_estudiante_aprende
 def estudiante_modulo(request, modulo_id: int):
-    from aprende.quiz_aula_service import (
-        calificar_desde_post,
-        intento_previo,
-        opciones_pregunta,
-        preguntas_activas,
-    )
+    from aprende.quiz_aula_service import calificar_desde_post
 
     est = request.aprende_estudiante
     modulo = get_object_or_404(
@@ -425,7 +417,7 @@ def estudiante_modulo(request, modulo_id: int):
         return redirect('aprende_estudiante_curso', curso_id=modulo.curso_id)
 
     quiz_detalle = None
-    quiz_intento = intento_previo(est, modulo)
+    quiz_intento = None
     if request.method == 'POST' and (request.POST.get('accion') or '') == 'quiz_modulo':
         resultado = calificar_desde_post(est, modulo, request.POST)
         if isinstance(resultado, str):
@@ -446,35 +438,32 @@ def estudiante_modulo(request, modulo_id: int):
                     'Puedes reintentar. El avance del programa sigue con *listo* en WhatsApp.',
                 )
 
-    archivos_media = archivos_multimedia_modulo(modulo)
-    secciones = secciones_contenido_aula(modulo)
-    tiene_micro = modulo_tiene_microcontenidos(modulo)
-    video_url = modulo.get_video_url_publica() if modulo.video_url or modulo.video_archivo else modulo.video_url
-    video_media = media_desde_url(f'Video — {modulo.titulo}', video_url or '', 'video') if video_url else None
-    pdf_media = (
-        media_desde_url('Documento del módulo', modulo.archivo_pdf_url, 'pdf')
-        if modulo.archivo_pdf_url else None
+    ctx = contexto_render_modulo_estudiante(
+        modulo,
+        estudiante=est,
+        quiz_intento=quiz_intento,
+        quiz_detalle=quiz_detalle,
     )
-    preguntas = preguntas_activas(modulo)
-    quiz_items = [
-        {'pregunta': p, 'opciones': opciones_pregunta(p)}
-        for p in preguntas
-    ]
+    return render(request, 'aprende/estudiante_modulo.html', ctx)
 
-    return render(request, 'aprende/estudiante_modulo.html', {
-        'estudiante': est,
-        'modulo': modulo,
-        'secciones': secciones,
-        'tiene_micro': tiene_micro,
-        'archivos_media': archivos_media,
-        'video_media': video_media,
-        'video_medias': [video_media] if video_media else [],
-        'pdf_media': pdf_media,
-        'pdf_medias': [pdf_media] if pdf_media else [],
-        'quiz_items': quiz_items,
-        'quiz_intento': quiz_intento,
-        'quiz_detalle': quiz_detalle,
+
+@requiere_profesor_aprende
+def profesor_modulo_vista_estudiante(request, modulo_id: int):
+    """Vista previa de la lección tal como la ve el estudiante (sin restricción drip)."""
+    from django.urls import reverse
+
+    org = _org_profesor(request)
+    modulo = get_object_or_404(
+        Modulo.objects.select_related('curso'),
+        pk=modulo_id,
+        curso__cliente=org,
+    )
+    ctx = contexto_render_modulo_estudiante(modulo)
+    ctx.update({
+        'vista_previa_profesor': True,
+        'volver_profesor_url': reverse('aprende_profesor_modulo_editar', args=[modulo.pk]),
     })
+    return render(request, 'aprende/estudiante_modulo.html', ctx)
 
 
 @requiere_estudiante_aprende
@@ -693,16 +682,30 @@ def profesor_tarea_entregas(request, tarea_id: int):
     )
 
     if request.method == 'POST':
-        entrega_id = request.POST.get('entrega_id')
-        entrega = entregas.filter(pk=entrega_id).first()
-        if not entrega:
-            messages.error(request, 'Entrega no encontrada.')
-        else:
-            error = calificar_entrega(request, entrega)
+        accion = request.POST.get('accion', 'individual')
+        if accion == 'lote':
+            guardadas, error = calificar_entregas_lote(request, entregas)
             if error:
                 messages.error(request, error)
             else:
-                messages.success(request, f'Calificación guardada para {entrega.estudiante.nombre}.')
+                messages.success(
+                    request,
+                    f'Se guardaron {guardadas} calificación{"es" if guardadas != 1 else ""}.',
+                )
+        else:
+            entrega_id = request.POST.get('entrega_id')
+            entrega = entregas.filter(pk=entrega_id).first()
+            if not entrega:
+                messages.error(request, 'Entrega no encontrada.')
+            else:
+                error = calificar_entrega(request, entrega)
+                if error:
+                    messages.error(request, error)
+                else:
+                    messages.success(
+                        request,
+                        f'Calificación guardada para {entrega.estudiante.nombre}.',
+                    )
         return redirect('aprende_profesor_tarea_entregas', tarea_id=tarea.pk)
 
     return render(request, 'aprende/profesor_tarea_entregas.html', {

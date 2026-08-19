@@ -9,64 +9,70 @@
 <div class="eki-page-head">
     <span class="eki-kicker">Calificar entregas</span>
     <h1>{{ tarea.titulo }}</h1>
-    <p class="eki-lead">Revise el archivo, asigne nota 1–5 y deje retroalimentación. El estudiante lo ve en Aprende → Tareas.</p>
+    <p class="eki-lead">Asigne notas 1–5 y retroalimentación. Puede calificar varias entregas a la vez y guardar todas.</p>
     <p class="eki-muted">{{ entregas|length }} entrega{{ entregas|length|pluralize:"s" }}</p>
 </div>
 
 {% if entregas %}
-<div class="eki-table-wrap eki-table-wrap--cards">
-    <table class="eki-table eki-table--entregas">
-        <thead>
-            <tr>
-                <th>Estudiante</th>
-                <th>Archivo</th>
-                <th>Nota</th>
-                <th>Retroalimentación</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for e in entregas %}
-            <tr>
-                <td data-label="Estudiante">
-                    <strong>{{ e.estudiante.nombre }}</strong>
-                    <div class="eki-muted" style="font-size:0.8rem;">Doc. {{ e.estudiante.cedula }} · {{ e.fecha_entrega|date:"d/m/Y H:i" }}</div>
-                    {% if e.comentario_estudiante %}
-                    <p class="eki-muted" style="white-space:pre-wrap;margin:0.35rem 0 0;font-size:0.82rem;"><em>Al entregar:</em> {{ e.comentario_estudiante }}</p>
-                    {% endif %}
-                    {% if e.respuesta_estudiante %}
-                    <p style="white-space:pre-wrap;margin:0.35rem 0 0;font-size:0.85rem;color:var(--eki-ink);"><em>Respuesta tras nota:</em> {{ e.respuesta_estudiante }}</p>
-                    {% endif %}
-                    {% if e.calificada %}<span class="eki-status eki-status--ok">Calificada</span>{% else %}<span class="eki-status eki-status--wait">Por calificar</span>{% endif %}
-                </td>
-                <td data-label="Archivo">
-                    <a href="{{ e.archivo.url }}" target="_blank" rel="noopener" class="eki-btn eki-btn--ghost eki-btn--sm">
-                        {{ e.nombre_archivo|default:"Descargar" }}
-                    </a>
-                </td>
-                <td colspan="3" data-label="Calificar">
-                    <form method="post" class="eki-inline-grade">
-                        {% csrf_token %}
-                        <input type="hidden" name="entrega_id" value="{{ e.id }}">
+<form method="post" class="eki-card" style="padding:0;overflow:hidden;">
+    {% csrf_token %}
+    <input type="hidden" name="accion" value="lote">
+    <div class="eki-table-wrap eki-table-wrap--cards">
+        <table class="eki-table eki-table--entregas">
+            <thead>
+                <tr>
+                    <th>Estudiante</th>
+                    <th>Archivo</th>
+                    <th>Nota</th>
+                    <th>Retroalimentación</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in entregas %}
+                <tr>
+                    <td data-label="Estudiante">
+                        <strong>{{ e.estudiante.nombre }}</strong>
+                        <div class="eki-muted" style="font-size:0.8rem;">Doc. {{ e.estudiante.cedula }} · {{ e.fecha_entrega|date:"d/m/Y H:i" }}</div>
+                        {% if e.comentario_estudiante %}
+                        <p class="eki-muted" style="white-space:pre-wrap;margin:0.35rem 0 0;font-size:0.82rem;"><em>Al entregar:</em> {{ e.comentario_estudiante }}</p>
+                        {% endif %}
+                        {% if e.respuesta_estudiante %}
+                        <p style="white-space:pre-wrap;margin:0.35rem 0 0;font-size:0.85rem;color:var(--eki-ink);"><em>Respuesta tras nota:</em> {{ e.respuesta_estudiante }}</p>
+                        {% endif %}
+                        {% if e.calificada %}<span class="eki-status eki-status--ok">Calificada</span>{% else %}<span class="eki-status eki-status--wait">Por calificar</span>{% endif %}
+                    </td>
+                    <td data-label="Archivo">
+                        <a href="{{ e.archivo.url }}" target="_blank" rel="noopener" class="eki-btn eki-btn--ghost eki-btn--sm">
+                            {{ e.nombre_archivo|default:"Descargar" }}
+                        </a>
+                    </td>
+                    <td data-label="Nota">
                         <label class="eki-sr-only" for="nota-{{ e.id }}">Nota</label>
-                        <select name="nota" id="nota-{{ e.id }}" required>
-                            <option value="">Nota</option>
+                        <select name="nota_{{ e.id }}" id="nota-{{ e.id }}">
+                            <option value="">—</option>
                             <option value="1" {% if e.nota == 1 %}selected{% endif %}>1</option>
                             <option value="2" {% if e.nota == 2 %}selected{% endif %}>2</option>
                             <option value="3" {% if e.nota == 3 %}selected{% endif %}>3</option>
                             <option value="4" {% if e.nota == 4 %}selected{% endif %}>4</option>
                             <option value="5" {% if e.nota == 5 %}selected{% endif %}>5</option>
                         </select>
+                    </td>
+                    <td data-label="Retroalimentación">
                         <label class="eki-sr-only" for="comentario-{{ e.id }}">Retroalimentación</label>
-                        <input type="text" name="comentario_profesor" id="comentario-{{ e.id }}" value="{{ e.comentario_profesor }}" placeholder="Comentario">
-                        <button type="submit" class="eki-btn eki-btn--primary eki-btn--sm">Guardar</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+                        <input type="text" name="comentario_{{ e.id }}" id="comentario-{{ e.id }}" value="{{ e.comentario_profesor }}" placeholder="Comentario">
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div style="padding:1rem 1.25rem;border-top:1px solid var(--eki-border);">
+        <p class="eki-muted" style="margin:0 0 0.75rem;font-size:0.85rem;">
+            Solo se guardan filas con nota seleccionada. Deje en blanco las que no quiera cambiar ahora.
+        </p>
+        <button type="submit" class="eki-btn eki-btn--primary">Guardar calificaciones seleccionadas</button>
+    </div>
+</form>
 {% else %}
 <div class="eki-card eki-empty">
     <h2>Sin entregas aún</h2>

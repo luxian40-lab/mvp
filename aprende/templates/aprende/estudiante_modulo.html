@@ -1,7 +1,14 @@
 {% extends "aprende/base.html" %}
 {% block title %}{{ modulo.titulo }} | eki{% endblock %}
 {% block body_class %}page-lesson{% endblock %}
-{% block nav %}{% include "aprende/estudiante_nav.html" %}{% endblock %}
+{% block nav %}
+{% if vista_previa_profesor %}
+<a href="{{ volver_profesor_url }}">← Volver a editar</a>
+<a href="{% url 'aprende_profesor_curso' modulo.curso_id %}">Curso</a>
+{% else %}
+{% include "aprende/estudiante_nav.html" %}
+{% endif %}
+{% endblock %}
 {% block extra_css %}
 .eki-paso-meta {
     font-size: 0.68rem;
@@ -56,7 +63,14 @@
 .eki-media-frame--audio audio { width: 100%; }
 {% endblock %}
 {% block content %}
+{% if vista_previa_profesor %}
+<div class="eki-status-banner eki-status-banner--todo" role="status" style="margin-bottom:1rem;">
+    <strong>Vista previa del profesor</strong>
+    <p style="margin:0.25rem 0 0;">Así ve el estudiante esta lección. El quiz y WhatsApp no aplican en esta vista.</p>
+</div>
+{% else %}
 {% include "aprende/partials/estudiante_breadcrumb.html" with modulo=modulo %}
+{% endif %}
 <article class="eki-lesson">
 <div class="eki-page-head">
     <span class="eki-kicker">Módulo {{ modulo.numero }}</span>
@@ -64,12 +78,13 @@
     {% if modulo.descripcion %}<p class="eki-lead">{{ modulo.descripcion }}</p>{% endif %}
 </div>
 
+{% if not vista_previa_profesor %}
 <aside class="eki-wa-bridge" aria-label="Avance en WhatsApp">
     <strong>Consulta aquí · avanza en WhatsApp</strong>
     <span>Lee y mira el material en el aula. Cuando termines el módulo en campo, escribe <strong>*listo*</strong> al bot del programa.</span>
 </aside>
-
 <p class="eki-aviso-consulta">Solo consulta en línea: la descarga no está habilitada desde el aula.</p>
+{% endif %}
 
 {% if video_media %}
 <div class="eki-card eki-lesson-media" style="padding:0;overflow:hidden;margin-bottom:1.25rem;">
