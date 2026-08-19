@@ -50,8 +50,9 @@ class AdminListadosOrdenTests(SimpleTestCase):
         self.assertEqual(adm.ordering, ('cliente__nombre', 'nombre'))
         self.assertEqual(adm.list_filter[0], 'cliente')
         self.assertIn('cliente_nombre', adm.list_display)
+        self.assertIn('conversacion_link', adm.list_display)
         self.assertNotIn('cursos_inscritos', adm.list_display)
-        self.assertEqual(len(adm.list_display), 5)
+        self.assertEqual(len(adm.list_display), 6)
         self.assertNotIn('municipio', adm.list_display)
         self.assertNotIn('fecha_registro', adm.list_display)
         self.assertEqual(adm.list_select_related, ('cliente',))
@@ -74,3 +75,12 @@ class AdminListadosOrdenTests(SimpleTestCase):
         self.assertNotIn('contenido_preview', adm.list_display)
         self.assertNotIn('tiene_pregunta', adm.list_display)
         self.assertIn('curso', adm.list_select_related)
+
+    def test_campana_listado_logo_y_seis_columnas(self):
+        from core.admin.campanas import CampanaAdmin
+        from core.models import Campana
+
+        adm = CampanaAdmin(Campana, site)
+        self.assertLessEqual(len(adm.list_display), 6)
+        self.assertIn('logo_thumb', adm.list_display)
+        self.assertIn('nombre', adm.list_display)

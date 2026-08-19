@@ -5,15 +5,16 @@ from core.admin.estudiantes import EnvioProgramadoInline
 class CampanaAdmin(admin.ModelAdmin):
     """Gestión de campañas masivas"""
     change_form_template = 'admin/core/campana/change_form.html'
-    # Listado ops: ≤6 columnas; plantilla/audiencia → ficha.
+    # Listado ops: ≤6 columnas; logo org + estado operativo.
     list_display = (
+        'logo_thumb',
         'nombre',
-        'cliente_nombre',
         'estado_visual',
         'conteo_destinatarios',
         'programada_display',
         'fecha_creacion',
     )
+    list_select_related = ('cliente',)
     list_filter = ('ejecutada', 'cliente', 'categoria', 'tipo_audiencia', 'fecha_creacion', 'plantilla__aprobada_twilio')
     search_fields = ('nombre', 'cliente__nombre')
     filter_horizontal = ('destinatarios',)
@@ -135,7 +136,31 @@ class CampanaAdmin(admin.ModelAdmin):
         safe = ''.join(c if c.isalnum() or c in '-_' else '_' for c in (campana.nombre or 'campana'))[:40]
         resp['Content-Disposition'] = f'attachment; filename="fallidos_{safe}.csv"'
         return resp
-    
+
+    def logo_thumb(self, obj):
+        """Logo de la organización (mismo patrón que Cliente)."""
+        cli = getattr(obj, 'cliente', None) if obj else None
+        url = (getattr(cli, 'logo_url', None) or '').strip() if cli else ''
+        inicial = (
+            (getattr(cli, 'nombre', None) or getattr(obj, 'nombre', '') or '?')
+            .strip()[:1]
+            .upper()
+        )
+        if url:
+            return format_html(
+                '<img class="eki-id-thumb-list" src="{}" alt="" loading="lazy" '
+                'referrerpolicy="no-referrer" '
+                'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'inline-flex\';">'
+                '<span class="eki-id-thumb-list eki-id-thumb-list--ph" style="display:none;">{}</span>',
+                url,
+                inicial,
+            )
+        return format_html(
+            '<span class="eki-id-thumb-list eki-id-thumb-list--ph">{}</span>',
+            inicial,
+        )
+    logo_thumb.short_description = ''
+
     def cliente_nombre(self, obj):
         """Muestra el cliente de la campaña"""
         if obj.cliente:

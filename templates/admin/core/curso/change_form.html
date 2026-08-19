@@ -38,8 +38,30 @@
         </div>
         <div class="eki-id-band__meta">
             {% if eki_org_nombre %}{{ eki_org_nombre }}{% else %}General (eki){% endif %}
+            {% if eki_curso_stats %}
+            · {{ eki_curso_stats.modulos }} módulo(s)
+            · {{ eki_curso_stats.inscritos }} inscrito(s)
+            {% if eki_curso_stats.completados %} · {{ eki_curso_stats.completados }} completado(s){% endif %}
+            {% endif %}
+            {% if eki_curso_ultima_campana %}
+            · Última campaña: {{ eki_curso_ultima_campana.nombre|truncatechars:40 }}
+            {% endif %}
         </div>
     </div>
+    {% if eki_curso_modulos_url %}
+    <div class="eki-id-band__actions">
+        <a class="eki-puente-btn eki-puente-btn--ghost" href="{{ eki_curso_modulos_url }}">
+            <span class="material-symbols-outlined" aria-hidden="true">view_list</span>
+            Ver módulos
+        </a>
+        {% if eki_curso_builder_url %}
+        <a class="eki-puente-btn" href="{{ eki_curso_builder_url }}">
+            <span class="material-symbols-outlined" aria-hidden="true">view_timeline</span>
+            Module Builder
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 {% endif %}
 {{ block.super }}

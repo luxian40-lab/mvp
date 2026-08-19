@@ -1,7 +1,17 @@
 {% extends "admin/base_site.html" %}
-{% load i18n %}
+{% load i18n static %}
 
 {# Base para pantallas ops custom bajo Unfold: siempre hay forma de volver. #}
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/eki_admin_tones.css' %}">
+{% endblock %}
+
+{% block extrajs %}
+{{ block.super }}
+<script src="{% static 'admin/js/eki_admin_tones.js' %}" defer></script>
+{% endblock %}
+
 {% block breadcrumbs %}
 <div class="breadcrumbs">
     <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>

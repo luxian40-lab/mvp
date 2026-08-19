@@ -475,7 +475,7 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
                 'nivel': 'warn',
                 'texto': f'{sin_progreso} estudiantes activos sin progreso de curso.',
                 'cta': 'Ver estudiantes',
-                'url': '/admin/core/estudiante/',
+                'url': '/admin/core/estudiante/?eki_progreso=sin',
             }
         )
     if depts_con_estudiantes or mapa.get('con_municipio_mapeado'):
@@ -580,7 +580,7 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
         acciones.append(
             {
                 'label': f'Sin progreso ({sin_progreso})',
-                'url': '/admin/core/estudiante/',
+                'url': '/admin/core/estudiante/?eki_progreso=sin',
                 'icon': 'person_off',
                 'destacada': True,
             }

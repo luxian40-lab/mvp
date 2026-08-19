@@ -72,11 +72,13 @@ class EstudianteAdmin(admin.ModelAdmin):
         'cedula_formateada',
         'telefono_formateado',
         'cliente_nombre',
+        'conversacion_link',
         'activo',
     )
     list_filter = (
         'cliente',
         'activo',
+        EstudianteSinProgresoFilter,
         CursosEstudianteFilter,
         GruposEstudianteFilter,
         'departamento',
@@ -216,7 +218,17 @@ class EstudianteAdmin(admin.ModelAdmin):
         return format_html('<span style="color:#999;">Sin cliente</span>')
     cliente_nombre.short_description = "Organización"
     cliente_nombre.admin_order_field = 'cliente__nombre'
-    
+
+    def conversacion_link(self, obj):
+        if not obj or not obj.pk:
+            return '—'
+        url = reverse('conversaciones') + f'?estudiante={obj.pk}'
+        return format_html(
+            '<a href="{}" style="font-weight:700;color:#7A4E8E;">Chat</a>',
+            url,
+        )
+    conversacion_link.short_description = 'WA'
+
     def grupos_display(self, obj):
         """Muestra los grupos a los que pertenece el estudiante"""
         grupos = obj.grupos.all()

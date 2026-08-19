@@ -5,8 +5,11 @@
 
 {% block extrastyle %}
 {{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/eki_admin_tones.css' %}">
 <link rel="stylesheet" href="{% static 'admin/css/cobertura_eki.css' %}">
+<link rel="stylesheet" href="{% static 'admin/css/eki_admin_unfold.css' %}">
 <style>
+.ec-cert-band { margin-bottom: 1rem; }
 .ec-page { padding: 1.25rem 1.5rem 2.5rem; max-width: 1200px; }
 .ec-alert { padding: 0.75rem 1rem; border-radius: 10px; margin-bottom: 1rem; font-size: 0.875rem; background: #f3eaf7; border: 1px solid #d8b4e0; color: #5b3d6b; }
 .ec-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.15rem 1.25rem; margin-bottom: 1rem; }
@@ -39,6 +42,31 @@
             <p class="sub">Elija el <strong>curso del certificado</strong>, marque estudiantes y envíe. Si están en el <strong>penúltimo o último módulo</strong> de ese curso, al llegar el diploma se marca el curso como finalizado (embudo). No afecta otros cursos.</p>
         </div>
     </header>
+
+    {% if eki_cert_resumen %}
+    <div class="eki-id-band ec-cert-band" aria-label="Resumen certificados">
+        {% if eki_cert_resumen.eki_org_logo %}
+        <img class="eki-id-band__thumb eki-id-band__thumb--sq" src="{{ eki_cert_resumen.eki_org_logo }}" alt="" loading="lazy" referrerpolicy="no-referrer">
+        {% else %}
+        <span class="eki-id-band__thumb eki-id-band__thumb--sq eki-id-band__thumb--ph">{{ eki_cert_resumen.eki_org_inicial|default:"C" }}</span>
+        {% endif %}
+        <div class="eki-id-band__body">
+            <div class="eki-id-band__title">
+                {% if eki_cert_resumen.curso %}{{ eki_cert_resumen.curso.nombre }}{% else %}Certificados{% endif %}
+                {% if eki_cert_resumen.total %}<span class="eki-id-badge">{{ eki_cert_resumen.total }} en lista</span>{% endif %}
+            </div>
+            <div class="eki-id-band__meta">
+                {{ eki_cert_resumen.cliente.nombre }}
+                {% if eki_cert_resumen.emitidos is not None %}
+                · {{ eki_cert_resumen.emitidos }} emitido(s)
+                · {{ eki_cert_resumen.sin_cert }} sin cert
+                · {{ eki_cert_resumen.pendientes_wa }} pend. WA
+                {% if eki_cert_resumen.en_cierre %} · {{ eki_cert_resumen.en_cierre }} en cierre{% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <form method="get" class="eki-filtros">
         <div class="field">

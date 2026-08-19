@@ -167,3 +167,81 @@ class AdminPanelAccionesContextualesTests(TestCase):
         self.assertTrue(any('Campañas hoy' in lb for lb in labels))
         alertas = [a for a in snap['acciones'] if a.get('destacada')]
         self.assertGreaterEqual(len(alertas), 2)
+
+
+@override_settings(
+    SECURE_SSL_REDIRECT=False,
+    EKI_MODULE_BUILDER_BETA=True,
+    STORAGES={
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    },
+)
+class AdminOnda2MejorasTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_superuser('onda2', 'o@t.com', 'pass12345')
+        self.cliente = Cliente.objects.create(
+            nombre='Org Onda2',
+            contacto_principal='Ops',
+            email='o@test.com',
+            telefono='573001110060',
+            activo=True,
+            fecha_fin_suscripcion='2099-12-31',
+        )
+        self.curso = Curso.objects.create(
+            nombre='Curso Ops',
+            descripcion='d',
+            cliente=self.cliente,
+            activo=True,
+        )
+        Modulo.objects.create(curso=self.curso, numero=1, titulo='M1', descripcion='d')
+        self.est = Estudiante.objects.create(
+            cedula='onda2',
+            nombre='Est Onda2',
+            telefono='573001110061',
+            cliente=self.cliente,
+            activo=True,
+        )
+
+    def test_ficha_curso_puente_modulos(self):
+        self.client.force_login(self.user)
+        r = self.client.get(reverse('admin:core_curso_change', args=[self.curso.pk]))
+        body = r.content.decode('utf-8')
+        self.assertIn('Ver módulos', body)
+        self.assertIn('Module Builder', body)
+        self.assertIn('1 módulo', body)
+
+    def test_ficha_cliente_contadores(self):
+        self.client.force_login(self.user)
+        r = self.client.get(reverse('admin:core_cliente_change', args=[self.cliente.pk]))
+        body = r.content.decode('utf-8')
+        self.assertIn('eki-puente-panel--stats', body)
+        self.assertIn('estudiantes activos', body)
+
+    def test_listado_estudiante_link_chat(self):
+        self.client.force_login(self.user)
+        r = self.client.get(reverse('admin:core_estudiante_changelist'))
+        body = r.content.decode('utf-8')
+        self.assertIn('Chat', body)
+        self.assertIn(f'?estudiante={self.est.pk}', body)
+
+    def test_filtro_sin_progreso(self):
+        self.client.force_login(self.user)
+        r = self.client.get(
+            reverse('admin:core_estudiante_changelist') + '?eki_progreso=sin',
+        )
+        self.assertEqual(r.status_code, 200)
+        body = r.content.decode('utf-8')
+        self.assertIn('Est Onda2', body)
+
+    def test_envio_certificados_banda(self):
+        self.client.force_login(self.user)
+        url = (
+            reverse('admin_envio_certificados')
+            + f'?cliente={self.cliente.pk}&curso={self.curso.pk}'
+        )
+        r = self.client.get(url)
+        self.assertEqual(r.status_code, 200)
+        body = r.content.decode('utf-8')
+        self.assertIn('eki-id-band', body)
+        self.assertIn('Curso Ops', body)

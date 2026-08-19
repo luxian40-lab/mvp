@@ -455,7 +455,42 @@ html.dark .eki-panel-kpi__note { color: #a89eb0; }
   background: #6a4580;
   color: #fff;
 }
+.eki-puente-btn--ghost {
+  background: #fff;
+  color: var(--eki-accent-deep);
+  border-color: rgba(154, 108, 172, 0.35);
+}
+.eki-puente-btn--ghost:hover {
+  background: var(--eki-accent-soft);
+  color: var(--eki-accent-deep);
+}
+.eki-puente-btn--warn {
+  background: #fff3e0;
+  color: #b45309;
+  border-color: rgba(230, 81, 0, 0.35);
+}
+.eki-puente-btn--warn:hover {
+  background: #ffe8cc;
+  color: #92400e;
+}
 .eki-puente-btn .material-symbols-outlined { font-size: 1.05rem; }
+
+.eki-puente-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1.1rem;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+  font-size: 0.82rem;
+  color: #3d3550;
+}
+.eki-puente-stats strong {
+  font-size: 1rem;
+  color: var(--eki-accent-deep);
+  margin-right: 2px;
+}
+.eki-puente-panel--stats { background: #faf8fc; }
 
 .eki-puente-panel {
   margin: 0 0 16px;

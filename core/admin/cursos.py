@@ -365,9 +365,40 @@ class CursoAdmin(admin.ModelAdmin):
         extra_context = extra_context or {}
         obj = self.get_object(request, object_id)
         if obj:
+            from django.db.models import Count
+            from django.urls import reverse
+
+            from core.models import Campana, Curso, Estudiante, ProgresoEstudiante
+            from core.module_builder import module_builder_habilitado_para_curso
             from portal.branding import contexto_identidad_org
+
             extra_context.update(contexto_identidad_org(getattr(obj, 'cliente', None)))
             extra_context['eki_curso_experiencia'] = obj.get_modo_aula_display()
+            extra_context['eki_curso_stats'] = {
+                'modulos': obj.modulos.count(),
+                'inscritos': ProgresoEstudiante.objects.filter(curso=obj).count(),
+                'completados': ProgresoEstudiante.objects.filter(
+                    curso=obj,
+                    completado=True,
+                ).count(),
+            }
+            ultima = (
+                Campana.objects.filter(curso_destino=obj)
+                .order_by('-fecha_creacion')
+                .first()
+            )
+            extra_context['eki_curso_ultima_campana'] = ultima
+            extra_context['eki_curso_modulos_url'] = (
+                reverse('admin:core_modulo_changelist')
+                + f'?curso__id__exact={obj.pk}'
+            )
+            first_mod = obj.modulos.order_by('numero').first()
+            extra_context['eki_curso_builder_url'] = None
+            if first_mod and module_builder_habilitado_para_curso(obj, request):
+                extra_context['eki_curso_builder_url'] = reverse(
+                    'admin_module_builder',
+                    args=[first_mod.pk],
+                )
         return super().change_view(request, object_id, form_url, extra_context=extra_context)
 
     @admin.display(description='Experiencia', ordering='modo_aula')

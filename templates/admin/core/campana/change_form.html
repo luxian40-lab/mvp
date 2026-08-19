@@ -136,6 +136,17 @@
             · {{ eki_camp_participantes }}
         </div>
     </div>
+    {% if eki_camp_envios and eki_camp_envios.n_fail %}
+    <div class="eki-id-band__actions">
+        <a class="eki-puente-btn eki-puente-btn--warn" href="#eki-camp-fallidos">
+            <span class="material-symbols-outlined" aria-hidden="true">error</span>
+            Ir a fallidos ({{ eki_camp_envios.n_fail }})
+        </a>
+        {% if eki_camp_export_fallidos_url %}
+        <a class="eki-puente-btn eki-puente-btn--ghost" href="{{ eki_camp_export_fallidos_url }}">CSV</a>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 
 <div class="eki-camp-ficha" aria-label="Detalle del lanzamiento">
@@ -224,7 +235,7 @@
 {% endif %}
 
 {% if eki_camp_envios and eki_camp_envios.total_logs %}
-<div class="eki-camp-ficha" aria-label="Resultado del envío" style="margin-top:0.5rem;">
+<div class="eki-camp-ficha" id="eki-camp-fallidos" aria-label="Resultado del envío" style="margin-top:0.5rem;">
   <div class="eki-camp-ficha__cell">
     <span class="eki-camp-ficha__label">Llegó / enviado</span>
     <div class="eki-camp-ficha__value">

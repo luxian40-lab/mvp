@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Conversaciones WhatsApp | eki</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicons/admin.svg">
+    <link rel="stylesheet" href="/static/admin/css/eki_admin_tones.css">
+    <link rel="stylesheet" href="/static/admin/css/eki_admin_unfold.css">
+    <script src="/static/admin/js/eki_admin_tones.js" defer></script>
     <style>
         html, body {
             margin: 0;
@@ -23,6 +26,21 @@
             background: #1e1b24;
             color: #f8fafc;
             flex-shrink: 0;
+            border-bottom: 1px solid rgba(154, 108, 172, 0.35);
+        }
+        html[data-eki-tone="manana"] .wa-admin-top {
+            background: #eef6fc;
+            color: #1e3a5f;
+            border-bottom-color: rgba(56, 130, 180, 0.25);
+        }
+        html[data-eki-tone="manana"] .wa-admin-top a { color: #2563eb; }
+        html[data-eki-tone="tarde"] .wa-admin-top {
+            background: #2a2433;
+            border-bottom-color: rgba(154, 108, 172, 0.45);
+        }
+        html[data-eki-tone="noche"] .wa-admin-top {
+            background: #121018;
+            border-bottom-color: rgba(255, 255, 255, 0.08);
         }
         .wa-admin-top a {
             color: #c4b5d4;

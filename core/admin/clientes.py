@@ -256,9 +256,24 @@ class ClienteAdmin(admin.ModelAdmin):
         extra_context = extra_context or {}
         obj = self.get_object(request, object_id)
         if obj:
+            from core.models import Campana, Curso, Estudiante
             from portal.branding import contexto_identidad_org
+
             extra_context.update(contexto_identidad_org(obj))
             extra_context['eki_org_tipo'] = obj.get_tipo_proyecto_display()
+            extra_context['eki_cli_stats'] = {
+                'estudiantes': Estudiante.objects.filter(
+                    cliente=obj,
+                    activo=True,
+                ).count(),
+                'cursos': Curso.objects.filter(cliente=obj, activo=True).count(),
+                'campanas': Campana.objects.filter(cliente=obj).count(),
+            }
+            extra_context['eki_cli_ultima_campana'] = (
+                Campana.objects.filter(cliente=obj)
+                .order_by('-fecha_creacion')
+                .first()
+            )
         return super().change_view(request, object_id, form_url, extra_context=extra_context)
 
     def logo_thumb(self, obj):

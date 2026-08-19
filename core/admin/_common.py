@@ -247,3 +247,21 @@ class GruposEstudianteFilter(admin.SimpleListFilter):
             # Estudiantes en el grupo específico
             return queryset.filter(grupos__id=self.value()).distinct()
         return queryset
+
+
+class EstudianteSinProgresoFilter(admin.SimpleListFilter):
+    """Estudiantes activos sin ningún ProgresoEstudiante."""
+    title = 'Avance en cursos'
+    parameter_name = 'eki_progreso'
+
+    def lookups(self, request, model_admin):
+        return [('sin', 'Sin progreso')]
+
+    def queryset(self, request, queryset):
+        if self.value() == 'sin':
+            return (
+                queryset.filter(activo=True)
+                .annotate(_np=Count('progresos'))
+                .filter(_np=0)
+            )
+        return queryset

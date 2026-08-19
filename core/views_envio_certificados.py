@@ -433,4 +433,29 @@ def envio_certificados_view(request):
         'penultimo_numero': penultimo_numero,
         'ultimo_numero': ultimo_numero,
         'filas_en_cierre': filas_en_cierre,
+        'eki_cert_resumen': _resumen_certificados_ui(cliente, curso, filas, filas_en_cierre),
     })
+
+
+def _resumen_certificados_ui(cliente, curso, filas, filas_en_cierre):
+    """Banda operativa en envío masivo de certificados."""
+    if not cliente:
+        return None
+    from portal.branding import contexto_identidad_org
+
+    out = {'cliente': cliente, **contexto_identidad_org(cliente)}
+    if not curso or not filas:
+        out.update({'curso': curso, 'total': 0})
+        return out
+    out.update({
+        'curso': curso,
+        'total': len(filas),
+        'emitidos': sum(1 for f in filas if f.get('emitido')),
+        'sin_cert': sum(1 for f in filas if not f.get('tiene_certificado')),
+        'pendientes_wa': sum(
+            1 for f in filas
+            if f.get('tiene_certificado') and not f.get('enviado_whatsapp')
+        ),
+        'en_cierre': filas_en_cierre,
+    })
+    return out

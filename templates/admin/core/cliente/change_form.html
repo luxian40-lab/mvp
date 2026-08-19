@@ -33,6 +33,25 @@
         </div>
     </div>
 </div>
+{% if eki_cli_stats %}
+<div class="eki-puente-panel eki-puente-panel--stats" aria-label="Resumen operativo de la organización">
+    <div class="eki-puente-panel__head">
+        <h3>Operación B2B</h3>
+    </div>
+    <ul class="eki-puente-stats">
+        <li><strong>{{ eki_cli_stats.estudiantes }}</strong> estudiantes activos</li>
+        <li><strong>{{ eki_cli_stats.cursos }}</strong> cursos activos</li>
+        <li><strong>{{ eki_cli_stats.campanas }}</strong> campaña(s)</li>
+    </ul>
+    {% if eki_cli_ultima_campana %}
+    <p class="eki-puente-wa">
+        <span class="eki-puente-wa__label">Última campaña</span>
+        {{ eki_cli_ultima_campana.nombre }}
+        · {{ eki_cli_ultima_campana.fecha_creacion|date:"d/m/Y" }}
+    </p>
+    {% endif %}
+</div>
+{% endif %}
 <div class="eki-id-layout">
     <div class="eki-id-layout__form">
         {{ block.super }}
