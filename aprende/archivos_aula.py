@@ -30,6 +30,18 @@ def validar_archivo_entrega(archivo) -> None:
         raise ValidationError(f'El archivo no puede superar {MAX_ARCHIVO_MB} MB.')
 
 
+def inferir_tipo_archivo_subido(archivo) -> str:
+    """Tipo ArchivoModulo según extensión del archivo subido."""
+    ext = os.path.splitext(archivo.name)[1].lower()
+    if ext in EXTENSIONES_VIDEO:
+        return 'video'
+    if ext in ('.jpg', '.jpeg', '.png', '.gif', '.webp'):
+        return 'imagen'
+    if ext in ('.mp3', '.wav', '.ogg', '.m4a'):
+        return 'audio'
+    return 'pdf'
+
+
 def validar_archivo_clase_profesor(archivo, *, tipo_hint: str = '') -> None:
     """
     Archivo de lección (PDF/imagen/audio/video) subido por el profesor.

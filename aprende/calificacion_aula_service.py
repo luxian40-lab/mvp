@@ -379,6 +379,101 @@ def generar_excel_asistencia_curso(curso: Curso, fechas: list[date] | None = Non
     return buffer.getvalue()
 
 
+    buffer = BytesIO()
+    wb.save(buffer)
+    return buffer.getvalue()
+
+
+def matriz_tareas_calificacion_curso(curso: Curso) -> tuple[list[TareaCurso], list[dict]]:
+    """Estudiantes × tareas activas con entrega (si existe)."""
+    tareas = list(
+        TareaCurso.objects.filter(curso=curso, activa=True).order_by('titulo', 'id')
+    )
+    entregas = EntregaTarea.objects.filter(tarea__curso=curso).select_related('tarea', 'estudiante')
+    entrega_map = {(e.estudiante_id, e.tarea_id): e for e in entregas}
+    filas = []
+    for est in estudiantes_inscritos_curso(curso):
+        celdas = []
+        for t in tareas:
+            celdas.append({
+                'tarea': t,
+                'entrega': entrega_map.get((est.pk, t.pk)),
+            })
+        filas.append({'estudiante': est, 'celdas': celdas})
+    return tareas, filas
+
+
+def calificar_matriz_tareas_curso(request, curso: Curso) -> tuple[int, str | None]:
+    """Guarda notas desde matriz (nota_<estudiante_id>_<tarea_id>)."""
+    from aprende.tarea_service import _aplicar_calificacion_entrega, _parse_nota
+
+    guardadas = 0
+    pu = getattr(request, 'portal_usuario', None)
+    calificador = pu.user if pu else None
+    entregas = EntregaTarea.objects.filter(tarea__curso=curso).select_related('tarea', 'estudiante')
+    for entrega in entregas:
+        raw = request.POST.get(f'nota_{entrega.estudiante_id}_{entrega.tarea_id}', '')
+        nota, err = _parse_nota(raw)
+        if err:
+            return guardadas, err
+        if nota is None:
+            continue
+        _aplicar_calificacion_entrega(
+            entrega,
+            nota,
+            request.POST.get(
+                f'comentario_{entrega.estudiante_id}_{entrega.tarea_id}', '',
+            ).strip(),
+            calificador,
+        )
+        guardadas += 1
+    if guardadas == 0:
+        return 0, 'Indica al menos una nota para guardar.'
+    return guardadas, None
+
+
+def generar_excel_calificaciones_curso(curso: Curso) -> bytes:
+    """Excel: filas estudiantes, columnas tareas + promedio."""
+    from io import BytesIO
+
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+
+    tareas, filas = matriz_tareas_calificacion_curso(curso)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Calificaciones'
+
+    headers = ['Estudiante', 'Documento'] + [t.titulo[:40] for t in tareas] + ['Promedio']
+    ws.append(headers)
+    header_fill = PatternFill(start_color='9A6CAC', end_color='9A6CAC', fill_type='solid')
+    header_font = Font(bold=True, color='FFFFFF', size=11)
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', wrap_text=True)
+
+    for fila in filas:
+        est = fila['estudiante']
+        notas: list = []
+        for celda in fila['celdas']:
+            e = celda['entrega']
+            notas.append(e.nota if e and e.nota is not None else '')
+        resumen = resumen_calificaciones_estudiante(est, curso_id=curso.pk)
+        prom = resumen['promedio']
+        prom_txt = float(prom) if prom is not None else ''
+        ws.append([est.nombre or '', est.cedula or '', *notas, prom_txt])
+
+    ws.column_dimensions['A'].width = 32
+    ws.column_dimensions['B'].width = 16
+    for i in range(3, 3 + len(tareas) + 1):
+        ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = 14
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    return buffer.getvalue()
+
+
 def actualizar_nota_evaluacion(eval_id: int, curso: Curso, nota_raw: str) -> EvaluacionNotaGamificacion:
     try:
         nota = Decimal(str(nota_raw).replace(',', '.'))

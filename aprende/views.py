@@ -12,7 +12,6 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from core.models import Curso, Modulo, ProgresoEstudiante, Estudiante
-from core.models_extras import ArchivoModulo
 from portal.middleware import PORTAL_SESSION_KEY
 from portal.models import PortalUsuario
 
@@ -26,6 +25,7 @@ from .biblioteca_service import biblioteca_agrupada_por_curso_modulo
 from .contenido_modulo_service import contexto_render_modulo_estudiante
 from .lesson_service import (
     actualizar_modulo_aula,
+    archivos_leccion_profesor,
     crear_modulo_aula,
     secciones_modulo_aula as secciones_gestion_aula,
 )
@@ -35,12 +35,15 @@ from .perfil_service import actualizar_perfil_aula, resumen_perfil_aula
 from .calificacion_aula_service import (
     actualizar_nota_evaluacion,
     borrar_asistencia_sesion,
+    calificar_matriz_tareas_curso,
     contexto_modo_calificacion,
     fechas_asistencia_marcadas,
     filas_asistencia_curso,
     filas_calificacion_curso,
     generar_excel_asistencia_curso,
+    generar_excel_calificaciones_curso,
     guardar_asistencia_sesion,
+    matriz_tareas_calificacion_curso,
     parse_fecha_asistencia,
     registrar_nota_manual_curso,
     slug_archivo_asistencia,
@@ -466,6 +469,49 @@ def profesor_modulo_vista_estudiante(request, modulo_id: int):
     return render(request, 'aprende/estudiante_modulo.html', ctx)
 
 
+@requiere_profesor_aprende
+def profesor_curso_vista_estudiante(request, curso_id: int):
+    """Vista previa del curso: listado de módulos sin restricción drip."""
+    from django.urls import reverse
+
+    org = _org_profesor(request)
+    curso = get_object_or_404(Curso, pk=curso_id, cliente=org, activo=True)
+    modulos = list(Modulo.objects.filter(curso=curso).order_by('numero'))
+    progreso = type('ProgresoPreview', (), {
+        'curso': curso,
+        'completado': False,
+        'modulo_actual_id': modulos[0].pk if modulos else None,
+    })()
+    return render(request, 'aprende/estudiante_curso.html', {
+        'estudiante': None,
+        'progreso': progreso,
+        'modulos': modulos,
+        'curso_tab': 'modulos',
+        'vista_previa_profesor': True,
+        'volver_profesor_url': reverse('aprende_profesor_curso', args=[curso.pk]),
+    })
+
+
+@requiere_profesor_aprende
+def profesor_tarea_vista_estudiante(request, tarea_id: int):
+    """Vista previa de la tarea tal como la ve el estudiante (sin enviar)."""
+    from django.urls import reverse
+
+    org = _org_profesor(request)
+    tarea = get_object_or_404(
+        TareaCurso.objects.select_related('curso', 'modulo'),
+        pk=tarea_id,
+        curso__cliente=org,
+    )
+    return render(request, 'aprende/estudiante_tarea.html', {
+        'estudiante': None,
+        'tarea': tarea,
+        'entrega': None,
+        'vista_previa_profesor': True,
+        'volver_profesor_url': reverse('aprende_profesor_tarea_editar', args=[tarea.pk]),
+    })
+
+
 @requiere_estudiante_aprende
 def estudiante_biblioteca(request):
     est = request.aprende_estudiante
@@ -620,11 +666,11 @@ def profesor_modulo_nuevo(request, curso_id: int):
 def profesor_modulo_editar(request, modulo_id: int):
     org = _org_profesor(request)
     modulo = get_object_or_404(Modulo.objects.select_related('curso'), pk=modulo_id, curso__cliente=org)
-    archivos = ArchivoModulo.objects.filter(modulo=modulo, activo=True).order_by('orden')
     secciones = list(secciones_gestion_aula(modulo))
 
     if request.method == 'POST':
         error = actualizar_modulo_aula(request, modulo)
+        archivos = archivos_leccion_profesor(modulo)
         if error:
             messages.error(request, error)
             return render(request, 'aprende/profesor_modulo_form.html', {
@@ -640,7 +686,7 @@ def profesor_modulo_editar(request, modulo_id: int):
     return render(request, 'aprende/profesor_modulo_form.html', {
         'curso': modulo.curso,
         'modulo': modulo,
-        'archivos': archivos,
+        'archivos': archivos_leccion_profesor(modulo),
         'secciones': secciones,
         'bloques_rapidos': '',
     })
@@ -708,9 +754,13 @@ def profesor_tarea_entregas(request, tarea_id: int):
                     )
         return redirect('aprende_profesor_tarea_entregas', tarea_id=tarea.pk)
 
+    pendientes = sum(1 for e in entregas if not e.calificada)
+    calificadas = entregas.count() - pendientes
     return render(request, 'aprende/profesor_tarea_entregas.html', {
         'tarea': tarea,
         'entregas': entregas,
+        'pendientes': pendientes,
+        'calificadas': calificadas,
     })
 
 
@@ -842,7 +892,16 @@ def profesor_curso_calificaciones(request, curso_id: int):
     if request.method == 'POST':
         accion = request.POST.get('accion', '')
         try:
-            if accion == 'editar_eval':
+            if accion == 'matriz_lote':
+                guardadas, error = calificar_matriz_tareas_curso(request, curso)
+                if error:
+                    messages.error(request, error)
+                else:
+                    messages.success(
+                        request,
+                        f'Se guardaron {guardadas} calificación{"es" if guardadas != 1 else ""} de tareas.',
+                    )
+            elif accion == 'editar_eval':
                 ev = actualizar_nota_evaluacion(
                     int(request.POST.get('eval_id', 0)),
                     curso,
@@ -867,12 +926,33 @@ def profesor_curso_calificaciones(request, curso_id: int):
         return redirect('aprende_profesor_calificaciones', curso_id=curso.pk)
 
     filas = filas_calificacion_curso(curso)
+    tareas_matriz, filas_matriz = matriz_tareas_calificacion_curso(curso)
     return render(request, 'aprende/profesor_curso_calificaciones.html', {
         'curso': curso,
         'filas': filas,
+        'tareas_matriz': tareas_matriz,
+        'filas_matriz': filas_matriz,
         'profesor_tab': 'calificaciones',
         **contexto_modo_calificacion(org, curso),
     })
+
+
+@requiere_profesor_aprende
+def profesor_curso_calificaciones_excel(request, curso_id: int):
+    org = _org_profesor(request)
+    curso = get_object_or_404(Curso, pk=curso_id, cliente=org, activo=True)
+    try:
+        contenido = generar_excel_calificaciones_curso(curso)
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return redirect('aprende_profesor_calificaciones', curso_id=curso.pk)
+    nombre = f'calificaciones_{slug_archivo_asistencia(curso.nombre)}.xlsx'
+    response = HttpResponse(
+        contenido,
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = f'attachment; filename="{nombre}"'
+    return response
 
 
 @requiere_profesor_aprende

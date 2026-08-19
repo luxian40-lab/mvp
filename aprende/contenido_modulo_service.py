@@ -141,26 +141,16 @@ def contexto_render_modulo_estudiante(
     quiz_detalle=None,
 ) -> dict:
     """Contexto compartido entre vista estudiante y vista previa del profesor."""
+    from aprende.lesson_service import migrar_recursos_legacy_modulo
     from aprende.quiz_aula_service import intento_previo, opciones_pregunta, preguntas_activas
 
-    archivos_media = archivos_multimedia_modulo(modulo)
+    migrar_recursos_legacy_modulo(modulo)
+    todos = archivos_multimedia_modulo(modulo)
+    video_medias = [m for m in todos if m.tipo in ('youtube', 'video')]
+    pdf_medias = [m for m in todos if m.tipo == 'pdf']
+    archivos_media = [m for m in todos if m.tipo not in ('youtube', 'video', 'pdf')]
     secciones = secciones_modulo_aula(modulo)
     tiene_micro = modulo_tiene_microcontenidos(modulo)
-    video_url = (
-        modulo.get_video_url_publica()
-        if modulo.video_url or modulo.video_archivo
-        else modulo.video_url
-    )
-    video_media = (
-        media_desde_url(f'Video — {modulo.titulo}', video_url or '', 'video')
-        if video_url
-        else None
-    )
-    pdf_media = (
-        media_desde_url('Documento del módulo', modulo.archivo_pdf_url, 'pdf')
-        if modulo.archivo_pdf_url
-        else None
-    )
     if estudiante is not None and quiz_intento is None:
         quiz_intento = intento_previo(estudiante, modulo)
     preguntas = preguntas_activas(modulo)
@@ -174,10 +164,10 @@ def contexto_render_modulo_estudiante(
         'secciones': secciones,
         'tiene_micro': tiene_micro,
         'archivos_media': archivos_media,
-        'video_media': video_media,
-        'video_medias': [video_media] if video_media else [],
-        'pdf_media': pdf_media,
-        'pdf_medias': [pdf_media] if pdf_media else [],
+        'video_media': video_medias[0] if video_medias else None,
+        'video_medias': video_medias,
+        'pdf_media': pdf_medias[0] if pdf_medias else None,
+        'pdf_medias': pdf_medias,
         'quiz_items': quiz_items,
         'quiz_intento': quiz_intento,
         'quiz_detalle': quiz_detalle,

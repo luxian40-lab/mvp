@@ -46,6 +46,7 @@
         <button type="submit" class="eki-btn eki-btn--primary">{% if tarea %}Guardar cambios{% else %}Publicar tarea{% endif %}</button>
         {% if tarea %}
         <a href="{% url 'aprende_profesor_tarea_entregas' tarea.id %}" class="eki-btn eki-btn--ghost">Ver entregas</a>
+        <a href="{% url 'aprende_profesor_tarea_vista_estudiante' tarea.id %}" class="eki-btn eki-btn--ghost">Vista estudiante</a>
         {% endif %}
     </div>
 </form>

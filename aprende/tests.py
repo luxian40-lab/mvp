@@ -437,16 +437,56 @@ class AprendeWebTests(TestCase):
             'titulo': self.modulo.titulo,
             'descripcion': self.modulo.descripcion,
             'contenido': self.modulo.contenido,
-            'recursos_externos': (
-                'https://www.youtube.com/watch?v=dQw4w9WgXcQ\n'
-                'pdf|https://example.com/guia.pdf|Guía extra'
-            ),
+            'enlace_tipo_nuevo': ['video', 'pdf'],
+            'enlace_url_nuevo': [
+                'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+                'https://example.com/guia.pdf',
+            ],
+            'enlace_titulo_nuevo': ['Video clase', 'Guía extra'],
         })
         self.assertEqual(r.status_code, 302)
         archivos = ArchivoModulo.objects.filter(modulo=self.modulo, activo=True)
         self.assertEqual(archivos.count(), 2)
         tipos = set(archivos.values_list('tipo', flat=True))
         self.assertEqual(tipos, {'video', 'pdf'})
+
+    def test_migracion_legacy_video_pdf_a_archivo_modulo(self):
+        from core.models_extras import ArchivoModulo
+
+        self.modulo.video_url = 'https://www.youtube.com/watch?v=abc12345678'
+        self.modulo.archivo_pdf_url = 'https://example.com/doc.pdf'
+        self.modulo.save()
+        self.http.post('/aprende/profesor/login/', {'username': 'prof_ap', 'password': 'pass'})
+        r = self.http.get(f'/aprende/profesor/modulo/{self.modulo.id}/')
+        self.assertEqual(r.status_code, 200)
+        self.modulo.refresh_from_db()
+        self.assertIsNone(self.modulo.video_url)
+        self.assertIsNone(self.modulo.archivo_pdf_url)
+        self.assertEqual(ArchivoModulo.objects.filter(modulo=self.modulo, activo=True).count(), 2)
+
+    def test_profesor_vista_curso_estudiante(self):
+        self.http.post('/aprende/profesor/login/', {'username': 'prof_ap', 'password': 'pass'})
+        r = self.http.get(f'/aprende/profesor/curso/{self.curso.id}/vista-estudiante/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Vista previa del profesor')
+        self.assertContains(r, 'Intro')
+
+    def test_pdf_muestra_abrir_nueva_pestana(self):
+        from core.models_extras import ArchivoModulo
+
+        ArchivoModulo.objects.bulk_create([
+            ArchivoModulo(
+                modulo=self.modulo,
+                tipo='pdf',
+                titulo='Guía',
+                url_externa='https://example.com/guia.pdf',
+                orden=1,
+                activo=True,
+            ),
+        ])
+        self._login_estudiante(telefono="3009999002")
+        r = self.http.get(f'/aprende/estudiante/modulo/{self.modulo.id}/')
+        self.assertContains(r, 'Abrir PDF en otra pestaña')
 
     def test_estudiante_comenta_despues_de_calificacion(self):
         tarea = TareaCurso.objects.create(curso=self.curso, titulo='T2', instrucciones='x')

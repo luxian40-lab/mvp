@@ -24,21 +24,12 @@ def _infer_tipo_url(url: str) -> str:
     return 'pdf'
 
 
-def _parse_linea_recurso_externo(line: str) -> tuple[str, str, str] | None:
-    line = line.strip()
-    if not line or line.startswith('#'):
-        return None
-    if '|' in line:
-        parts = [p.strip() for p in line.split('|', 2)]
-        if len(parts) == 3:
-            tipo, url, titulo = parts
-            if tipo not in dict(ArchivoModulo.TIPOS):
-                tipo = _infer_tipo_url(url)
-            return tipo, url, titulo[:200] or url[:200]
-        if len(parts) == 2:
-            url, titulo = parts
-            return _infer_tipo_url(url), url, titulo[:200] or url[:200]
-    return _infer_tipo_url(line), line, line[:200]
+def url_publica_archivo_modulo(archivo: ArchivoModulo) -> str | None:
+    if archivo.url_externa:
+        return archivo.url_externa
+    if archivo.archivo:
+        return archivo.archivo.url
+    return None
 
 
 def _orden_max_archivos(modulo: Modulo) -> int:
@@ -49,29 +40,110 @@ def _orden_max_archivos(modulo: Modulo) -> int:
     )
 
 
-def guardar_recursos_externos_modulo(post, modulo: Modulo) -> str | None:
-    """Agrega enlaces (YouTube, PDF, etc.) como ArchivoModulo vía bulk_create."""
-    raw = post.get('recursos_externos', '')
-    parsed: list[tuple[str, str, str]] = []
-    for line in raw.splitlines():
-        item = _parse_linea_recurso_externo(line)
-        if item:
-            parsed.append(item)
-    if not parsed:
-        return None
+def migrar_recursos_legacy_modulo(modulo: Modulo) -> bool:
+    """Mueve video_url / archivo_pdf_url del módulo a ArchivoModulo y limpia legacy."""
+    changed = False
     max_orden = _orden_max_archivos(modulo)
-    to_create = [
-        ArchivoModulo(
-            modulo=modulo,
-            tipo=tipo,
-            titulo=titulo,
-            url_externa=url,
-            orden=max_orden + i + 1,
-            activo=True,
-        )
-        for i, (tipo, url, titulo) in enumerate(parsed)
+    update_fields: list[str] = []
+
+    if modulo.video_url:
+        url = modulo.video_url.strip()
+        if url and not ArchivoModulo.objects.filter(
+            modulo=modulo, url_externa=url, activo=True,
+        ).exists():
+            max_orden += 1
+            ArchivoModulo.objects.bulk_create([
+                ArchivoModulo(
+                    modulo=modulo,
+                    tipo='video',
+                    titulo=f'Video — {modulo.titulo}'[:200],
+                    url_externa=url,
+                    orden=max_orden,
+                    activo=True,
+                ),
+            ])
+        modulo.video_url = None
+        update_fields.append('video_url')
+        changed = True
+
+    if modulo.archivo_pdf_url:
+        url = modulo.archivo_pdf_url.strip()
+        if url and not ArchivoModulo.objects.filter(
+            modulo=modulo, url_externa=url, activo=True,
+        ).exists():
+            max_orden += 1
+            ArchivoModulo.objects.bulk_create([
+                ArchivoModulo(
+                    modulo=modulo,
+                    tipo='pdf',
+                    titulo='Documento de apoyo',
+                    url_externa=url,
+                    orden=max_orden,
+                    activo=True,
+                ),
+            ])
+        modulo.archivo_pdf_url = None
+        update_fields.append('archivo_pdf_url')
+        changed = True
+
+    if update_fields:
+        modulo.save(update_fields=update_fields)
+    return changed
+
+
+def archivos_leccion_profesor(modulo: Modulo) -> list[dict]:
+    """Lista recursos activos con URL pública (migra legacy si aplica)."""
+    migrar_recursos_legacy_modulo(modulo)
+    return [
+        {
+            'archivo': a,
+            'url': url_publica_archivo_modulo(a),
+        }
+        for a in ArchivoModulo.objects.filter(modulo=modulo, activo=True).order_by('orden', 'id')
     ]
-    ArchivoModulo.objects.bulk_create(to_create)
+
+
+def actualizar_metadatos_archivos_modulo(post, modulo: Modulo) -> None:
+    archivos = list(ArchivoModulo.objects.filter(modulo=modulo, activo=True))
+    for a in archivos:
+        titulo = post.get(f'titulo_archivo_{a.id}', '').strip()
+        if titulo:
+            a.titulo = titulo[:200]
+        orden_raw = post.get(f'orden_archivo_{a.id}', '').strip()
+        if orden_raw.isdigit():
+            a.orden = int(orden_raw)
+    if archivos:
+        ArchivoModulo.objects.bulk_update(archivos, ['titulo', 'orden'])
+
+
+def guardar_enlaces_nuevos_modulo(post, modulo: Modulo) -> str | None:
+    tipos = post.getlist('enlace_tipo_nuevo')
+    urls = post.getlist('enlace_url_nuevo')
+    titulos = post.getlist('enlace_titulo_nuevo')
+    to_create: list[ArchivoModulo] = []
+    max_orden = _orden_max_archivos(modulo)
+    idx = 0
+    for i, url in enumerate(urls):
+        url = (url or '').strip()
+        if not url:
+            continue
+        tipo = (tipos[i] if i < len(tipos) else '').strip()
+        if tipo not in dict(ArchivoModulo.TIPOS):
+            tipo = _infer_tipo_url(url)
+        titulo = (titulos[i] if i < len(titulos) else '').strip() or url[:200]
+        idx += 1
+        to_create.append(
+            ArchivoModulo(
+                modulo=modulo,
+                tipo=tipo,
+                titulo=titulo[:200],
+                url_externa=url,
+                orden=max_orden + idx,
+                activo=True,
+            )
+        )
+    if to_create:
+        ArchivoModulo.objects.bulk_create(to_create)
     return None
 
 
@@ -82,17 +154,15 @@ def eliminar_archivos_modulo(post, modulo: Modulo) -> None:
 
 
 def guardar_archivos_subidos_modulo(request, modulo: Modulo) -> str | None:
+    from aprende.archivos_aula import inferir_tipo_archivo_subido, validar_archivo_clase_profesor
+
     files = request.FILES.getlist('archivo_subir')
     if not files:
         return None
-    tipo = request.POST.get('tipo_archivo', 'pdf')
-    if tipo not in dict(ArchivoModulo.TIPOS):
-        tipo = 'pdf'
     titulo_base = request.POST.get('titulo_archivo', '').strip()
-    from aprende.archivos_aula import validar_archivo_clase_profesor
-
     max_orden = _orden_max_archivos(modulo)
     for i, archivo in enumerate(files):
+        tipo = inferir_tipo_archivo_subido(archivo)
         try:
             validar_archivo_clase_profesor(archivo, tipo_hint=tipo)
         except ValidationError as exc:
@@ -116,13 +186,10 @@ def _campos_leccion_desde_post(post) -> dict:
         'titulo': post.get('titulo', '').strip() or 'Nueva lección',
         'descripcion': post.get('descripcion', '').strip(),
         'contenido': post.get('contenido', '').strip(),
-        'video_url': post.get('video_url', '').strip() or None,
-        'archivo_pdf_url': post.get('archivo_pdf_url', '').strip() or None,
     }
 
 
 def _contenido_con_bloques(contenido: str, bloques_raw: str) -> str:
-    """Si no hay contenido pero sí bloques, arma borrador con los títulos."""
     contenido = (contenido or '').strip()
     if contenido:
         return contenido
@@ -144,11 +211,25 @@ def secciones_modulo_aula(modulo: Modulo):
 
 
 def _aplicar_adjuntos_modulo(request, modulo: Modulo) -> str | None:
+    actualizar_metadatos_archivos_modulo(request.POST, modulo)
     eliminar_archivos_modulo(request.POST, modulo)
-    err = guardar_recursos_externos_modulo(request.POST, modulo)
+    err = guardar_enlaces_nuevos_modulo(request.POST, modulo)
     if err:
         return err
     return guardar_archivos_subidos_modulo(request, modulo)
+
+
+def _validar_archivos_antes_crear(request) -> str | None:
+    from aprende.archivos_aula import inferir_tipo_archivo_subido, validar_archivo_clase_profesor
+
+    for archivo in request.FILES.getlist('archivo_subir'):
+        try:
+            validar_archivo_clase_profesor(
+                archivo, tipo_hint=inferir_tipo_archivo_subido(archivo),
+            )
+        except ValidationError as exc:
+            return exc.messages[0]
+    return None
 
 
 def crear_modulo_aula(request, curso: Curso) -> tuple[Modulo | None, str | None]:
@@ -160,16 +241,9 @@ def crear_modulo_aula(request, curso: Curso) -> tuple[Modulo | None, str | None]
     except ValidationError as exc:
         return None, exc.messages[0]
 
-    files = request.FILES.getlist('archivo_subir')
-    if files:
-        from aprende.archivos_aula import validar_archivo_clase_profesor
-
-        tipo = request.POST.get('tipo_archivo', 'pdf')
-        for archivo in files:
-            try:
-                validar_archivo_clase_profesor(archivo, tipo_hint=tipo)
-            except ValidationError as exc:
-                return None, exc.messages[0]
+    err = _validar_archivos_antes_crear(request)
+    if err:
+        return None, err
 
     max_num = Modulo.objects.filter(curso=curso).aggregate(m=Max('numero'))['m'] or 0
     modulo = Modulo.objects.create(
@@ -187,8 +261,6 @@ def actualizar_modulo_aula(request, modulo: Modulo) -> str | None:
     bloques_raw = request.POST.get('bloques_rapidos', '')
     contenido = request.POST.get('contenido', '').strip()
     modulo.contenido = _contenido_con_bloques(contenido, bloques_raw) or contenido
-    modulo.video_url = request.POST.get('video_url', '').strip() or None
-    modulo.archivo_pdf_url = request.POST.get('archivo_pdf_url', '').strip() or None
 
     try:
         validar_contenido_modulo(modulo.contenido, modulo)

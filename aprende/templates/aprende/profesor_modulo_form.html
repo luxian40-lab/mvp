@@ -11,7 +11,7 @@
 <div class="eki-page-head">
     <span class="eki-badge">{% if modulo %}Editar lección{% else %}Nueva lección{% endif %}</span>
     <h1>{% if modulo %}{{ modulo.titulo }}{% else %}Crear lección{% endif %}</h1>
-    <p class="eki-lead">Defina la lección y sus bloques (secciones). El estudiante verá el contenido agrupado por bloque.</p>
+    <p class="eki-lead">Videos, PDFs y archivos se gestionan en un solo listado. El estudiante los ve en la lección y en Biblioteca.</p>
     {% if modulo %}
     <p style="margin-top:0.75rem;">
         <a href="{% url 'aprende_profesor_modulo_vista_estudiante' modulo.id %}" class="eki-btn eki-btn--ghost eki-btn--sm">
@@ -21,7 +21,7 @@
     {% endif %}
 </div>
 
-<form method="post" enctype="multipart/form-data" class="eki-card">
+<form method="post" enctype="multipart/form-data" class="eki-card" id="form-leccion">
     {% csrf_token %}
 
     <div class="eki-field">
@@ -40,9 +40,8 @@
             {% for s in secciones %}
             <li class="eki-list-item">
                 <span class="eki-material-tag">{{ s.orden }}</span>
-                    <span>{{ s.titulo|default:"(sin título)" }}
-                    <span class="eki-muted">· {{ s.pasos.all|length }} paso{{ s.pasos.all|length|pluralize }}</span>
-                </span>
+                <span>{{ s.titulo|default:"(sin título)" }}
+                <span class="eki-muted">· {{ s.pasos.all|length }} paso{{ s.pasos.all|length|pluralize }}</span></span>
             </li>
             {% endfor %}
         </ul>
@@ -51,60 +50,48 @@
 
     <div class="eki-field">
         <label for="bloques_rapidos">{% if modulo %}Agregar bloques{% else %}Bloques del recorrido{% endif %}</label>
-        <p class="eki-muted" style="margin:0 0 0.45rem;font-size:0.85rem;">
-            Una línea = un bloque. {% if modulo %}Solo se agregan los nuevos; no se borran los existentes.{% else %}Se crean al guardar la lección.{% endif %}
-        </p>
-        <textarea name="bloques_rapidos" id="bloques_rapidos" rows="5" placeholder="Introducción&#10;Práctica en campo&#10;Cierre">{{ bloques_rapidos }}</textarea>
+        <textarea name="bloques_rapidos" id="bloques_rapidos" rows="4" placeholder="Introducción&#10;Práctica en campo&#10;Cierre">{{ bloques_rapidos }}</textarea>
     </div>
 
     <div class="eki-field">
         <label for="contenido">Contenido de la lección</label>
-        <textarea name="contenido" id="contenido" rows="8" placeholder="Texto principal. Si dejó bloques y esto vacío, se genera un borrador con esos títulos.">{{ modulo.contenido|default:'' }}</textarea>
+        <textarea name="contenido" id="contenido" rows="8" placeholder="Texto principal de la clase.">{{ modulo.contenido|default:'' }}</textarea>
     </div>
 
-    <p class="eki-section-title">Video y documentos principales</p>
+    <p class="eki-section-title">Enlaces (YouTube, PDF, imágenes…)</p>
+    <div id="enlaces-nuevos" class="eki-enlace-rows">
+        <div class="eki-enlace-row eki-grid-2" style="gap:0.65rem;align-items:end;margin-bottom:0.65rem;">
+            <div class="eki-field" style="margin:0;">
+                <label>Tipo</label>
+                <select name="enlace_tipo_nuevo">
+                    <option value="video">Video</option>
+                    <option value="pdf">PDF</option>
+                    <option value="imagen">Imagen</option>
+                    <option value="audio">Audio</option>
+                </select>
+            </div>
+            <div class="eki-field" style="margin:0;">
+                <label>URL</label>
+                <input type="url" name="enlace_url_nuevo" placeholder="https://youtube.com/… o PDF">
+            </div>
+            <div class="eki-field" style="margin:0;">
+                <label>Título</label>
+                <input type="text" name="enlace_titulo_nuevo" placeholder="Nombre visible">
+            </div>
+            <div>
+                <button type="button" class="eki-btn eki-btn--ghost eki-btn--sm eki-quitar-enlace" hidden>Quitar</button>
+            </div>
+        </div>
+    </div>
+    <button type="button" class="eki-btn eki-btn--ghost eki-btn--sm" id="btn-add-enlace" style="margin-bottom:1.25rem;">+ Agregar enlace</button>
+
+    <p class="eki-section-title">Subir archivos</p>
     <p class="eki-muted" style="margin:-0.5rem 0 1rem;font-size:0.85rem;">
-        Campos clásicos (un video y un PDF destacados). Para <strong>varios</strong> enlaces o archivos, use las secciones de abajo.
+        Puede subir varios a la vez (PDF, imagen, audio, video). El tipo se detecta por extensión.
     </p>
     <div class="eki-field">
-        <label for="video_url">URL de video principal (YouTube o MP4)</label>
-        <input type="url" name="video_url" id="video_url" value="{{ modulo.video_url|default:'' }}" placeholder="https://youtube.com/watch?v=…">
-    </div>
-    <div class="eki-field">
-        <label for="archivo_pdf_url">URL PDF principal (opcional)</label>
-        <input type="url" name="archivo_pdf_url" id="archivo_pdf_url" value="{{ modulo.archivo_pdf_url|default:'' }}" placeholder="https://…">
-    </div>
-
-    <div class="eki-field">
-        <label for="recursos_externos">Más enlaces (YouTube, PDF, imágenes…)</label>
-        <p class="eki-muted" style="margin:0 0 0.45rem;font-size:0.85rem;">
-            Una línea = un recurso nuevo al guardar. Solo URL, o <code>tipo|url|título</code>
-            (tipo: video, pdf, imagen, audio). Ejemplo:
-            <code>video|https://youtube.com/watch?v=…|Clase 2</code>
-        </p>
-        <textarea name="recursos_externos" id="recursos_externos" rows="4" placeholder="https://youtube.com/watch?v=…&#10;https://ejemplo.com/guia.pdf&#10;pdf|https://…|Guía complementaria"></textarea>
-    </div>
-
-    <p class="eki-section-title">Subir archivos a almacenamiento</p>
-    <p class="eki-muted" style="margin:-0.5rem 0 1rem;">
-        PDF/imagen/audio ≤ 25 MB. <strong>Video MP4 ≤ 100 MB</strong> (recomendado ≤ 50 MB en celular).
-        Puede seleccionar <strong>varios archivos</strong> a la vez (mismo tipo).
-    </p>
-
-    <div class="eki-grid-2" style="gap:1rem;">
-        <div class="eki-field">
-            <label for="titulo_archivo">Título base (opcional)</label>
-            <input type="text" name="titulo_archivo" id="titulo_archivo" placeholder="Guía de la lección">
-        </div>
-        <div class="eki-field">
-            <label for="tipo_archivo">Tipo</label>
-            <select name="tipo_archivo" id="tipo_archivo">
-                <option value="pdf">PDF</option>
-                <option value="video">Video</option>
-                <option value="imagen">Imagen</option>
-                <option value="audio">Audio</option>
-            </select>
-        </div>
+        <label for="titulo_archivo">Título base (opcional)</label>
+        <input type="text" name="titulo_archivo" id="titulo_archivo" placeholder="Guía de la lección">
     </div>
     <div class="eki-field">
         <label for="archivo_subir">Archivos</label>
@@ -112,26 +99,83 @@
     </div>
 
     {% if archivos %}
-    <div class="eki-field">
-        <label>Archivos en esta lección</label>
-        <ul class="eki-list" style="margin:0.35rem 0 0;">
-            {% for a in archivos %}
-            <li class="eki-list-item">
-                <label style="display:flex;align-items:flex-start;gap:0.5rem;cursor:pointer;">
-                    <input type="checkbox" name="eliminar_archivo" value="{{ a.id }}" style="margin-top:0.2rem;">
-                    <span>
-                        <span class="eki-material-tag">{{ a.get_tipo_display }}</span>
-                        {{ a.titulo }}
-                        {% if a.url_externa %}<span class="eki-muted">· enlace</span>{% endif %}
-                    </span>
+    <p class="eki-section-title">Recursos en esta lección</p>
+    <p class="eki-muted" style="margin:-0.5rem 0 0.75rem;font-size:0.85rem;">Renombre, reordene o marque para quitar al guardar.</p>
+    <ul class="eki-list" style="margin:0;">
+        {% for item in archivos %}
+        {% with a=item.archivo %}
+        <li class="eki-list-item" style="flex-direction:column;align-items:stretch;gap:0.5rem;padding:0.75rem 0;">
+            <div class="eki-grid-2" style="gap:0.65rem;align-items:end;">
+                <div class="eki-field" style="margin:0;">
+                    <label for="titulo-archivo-{{ a.id }}">Título</label>
+                    <input type="text" name="titulo_archivo_{{ a.id }}" id="titulo-archivo-{{ a.id }}" value="{{ a.titulo }}">
+                </div>
+                <div class="eki-field" style="margin:0;max-width:5rem;">
+                    <label for="orden-archivo-{{ a.id }}">Orden</label>
+                    <input type="number" name="orden_archivo_{{ a.id }}" id="orden-archivo-{{ a.id }}" value="{{ a.orden }}" min="1" step="1" class="eki-orden-archivo">
+                </div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;font-size:0.85rem;">
+                <span class="eki-material-tag">{{ a.get_tipo_display }}</span>
+                {% if item.url %}
+                <a href="{{ item.url }}" target="_blank" rel="noopener" class="eki-btn eki-btn--ghost eki-btn--sm">Abrir enlace</a>
+                {% endif %}
+                <button type="button" class="eki-btn eki-btn--ghost eki-btn--sm eki-mover-archivo" data-dir="-1">↑ Subir</button>
+                <button type="button" class="eki-btn eki-btn--ghost eki-btn--sm eki-mover-archivo" data-dir="1">↓ Bajar</button>
+                <label style="margin-left:auto;display:flex;align-items:center;gap:0.35rem;cursor:pointer;">
+                    <input type="checkbox" name="eliminar_archivo" value="{{ a.id }}"> Quitar
                 </label>
-            </li>
-            {% endfor %}
-        </ul>
-        <p class="eki-muted" style="margin:0.35rem 0 0;font-size:0.82rem;">Marque los que desea quitar al guardar.</p>
-    </div>
+            </div>
+        </li>
+        {% endwith %}
+        {% endfor %}
+    </ul>
     {% endif %}
 
-    <button type="submit" class="eki-btn eki-btn--primary">Guardar lección</button>
+    <button type="submit" class="eki-btn eki-btn--primary" style="margin-top:1.25rem;">Guardar lección</button>
 </form>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+    var container = document.getElementById('enlaces-nuevos');
+    var btnAdd = document.getElementById('btn-add-enlace');
+    if (!container || !btnAdd) return;
+
+    function wireRow(row) {
+        var btn = row.querySelector('.eki-quitar-enlace');
+        if (btn) {
+            btn.hidden = container.querySelectorAll('.eki-enlace-row').length <= 1;
+            btn.onclick = function () {
+                if (container.querySelectorAll('.eki-enlace-row').length > 1) row.remove();
+                wireAll();
+            };
+        }
+    }
+    function wireAll() {
+        container.querySelectorAll('.eki-enlace-row').forEach(wireRow);
+    }
+    btnAdd.addEventListener('click', function () {
+        var first = container.querySelector('.eki-enlace-row');
+        if (!first) return;
+        var clone = first.cloneNode(true);
+        clone.querySelectorAll('input').forEach(function (el) { el.value = ''; });
+        clone.querySelectorAll('select').forEach(function (el) { el.selectedIndex = 0; });
+        container.appendChild(clone);
+        wireAll();
+    });
+    wireAll();
+
+    document.querySelectorAll('.eki-mover-archivo').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var li = btn.closest('li');
+            var input = li.querySelector('.eki-orden-archivo');
+            if (!input) return;
+            var v = parseInt(input.value, 10) || 1;
+            var dir = parseInt(btn.getAttribute('data-dir'), 10);
+            input.value = Math.max(1, v + dir);
+        });
+    });
+})();
+</script>
 {% endblock %}

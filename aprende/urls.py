@@ -28,10 +28,25 @@ urlpatterns = [
     path('profesor/tarea/<int:tarea_id>/editar/', views.profesor_tarea_editar, name='aprende_profesor_tarea_editar'),
     path('profesor/tarea/<int:tarea_id>/eliminar/', views.profesor_tarea_eliminar, name='aprende_profesor_tarea_eliminar'),
     path('profesor/tarea/<int:tarea_id>/entregas/', views.profesor_tarea_entregas, name='aprende_profesor_tarea_entregas'),
+    path(
+        'profesor/tarea/<int:tarea_id>/vista-estudiante/',
+        views.profesor_tarea_vista_estudiante,
+        name='aprende_profesor_tarea_vista_estudiante',
+    ),
     path('profesor/curso/<int:curso_id>/asistencia/', views.profesor_curso_asistencia, name='aprende_profesor_asistencia'),
     path('profesor/curso/<int:curso_id>/asistencia/excel/', views.profesor_curso_asistencia_excel, name='aprende_profesor_asistencia_excel'),
     path('profesor/curso/<int:curso_id>/calificaciones/', views.profesor_curso_calificaciones, name='aprende_profesor_calificaciones'),
+    path(
+        'profesor/curso/<int:curso_id>/calificaciones/excel/',
+        views.profesor_curso_calificaciones_excel,
+        name='aprende_profesor_calificaciones_excel',
+    ),
     path('profesor/curso/<int:curso_id>/ranking/', views.profesor_curso_ranking, name='aprende_profesor_ranking'),
+    path(
+        'profesor/curso/<int:curso_id>/vista-estudiante/',
+        views.profesor_curso_vista_estudiante,
+        name='aprende_profesor_curso_vista_estudiante',
+    ),
     path('profesor/modulo/<int:modulo_id>/', views.profesor_modulo_editar, name='aprende_profesor_modulo_editar'),
     path(
         'profesor/modulo/<int:modulo_id>/vista-estudiante/',

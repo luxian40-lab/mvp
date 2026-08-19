@@ -13,7 +13,59 @@
 
 {% include "aprende/partials/profesor_curso_tabs.html" %}
 
+{% if tareas_matriz %}
 <div class="eki-card" style="margin-top:1rem;">
+    <div style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;margin-bottom:1rem;">
+        <h2 class="eki-h2" style="margin:0;flex:1;">Matriz tareas × estudiantes</h2>
+        <a href="{% url 'aprende_profesor_calificaciones_excel' curso.id %}" class="eki-btn eki-btn--ghost eki-btn--sm">Descargar Excel</a>
+    </div>
+    <p class="eki-muted" style="margin:-0.35rem 0 1rem;font-size:0.85rem;">
+        Una celda por entrega existente. Deje en blanco las que no quiera cambiar. Guarde todas a la vez.
+    </p>
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="matriz_lote">
+        <div class="eki-table-wrap" style="overflow-x:auto;">
+            <table class="eki-table" style="font-size:0.82rem;">
+                <thead>
+                    <tr>
+                        <th style="min-width:10rem;">Estudiante</th>
+                        {% for t in tareas_matriz %}
+                        <th style="min-width:6rem;" title="{{ t.titulo }}">{{ t.titulo|truncatechars:18 }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fila in filas_matriz %}
+                    <tr>
+                        <td><strong>{{ fila.estudiante.nombre }}</strong></td>
+                        {% for celda in fila.celdas %}
+                        <td>
+                            {% if celda.entrega %}
+                            <select name="nota_{{ fila.estudiante.id }}_{{ celda.tarea.id }}" style="width:3.2rem;padding:0.2rem;">
+                                <option value="">—</option>
+                                <option value="1" {% if celda.entrega.nota == 1 %}selected{% endif %}>1</option>
+                                <option value="2" {% if celda.entrega.nota == 2 %}selected{% endif %}>2</option>
+                                <option value="3" {% if celda.entrega.nota == 3 %}selected{% endif %}>3</option>
+                                <option value="4" {% if celda.entrega.nota == 4 %}selected{% endif %}>4</option>
+                                <option value="5" {% if celda.entrega.nota == 5 %}selected{% endif %}>5</option>
+                            </select>
+                            {% else %}
+                            <span class="eki-muted">—</span>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <button type="submit" class="eki-btn eki-btn--primary" style="margin-top:1rem;">Guardar notas de la matriz</button>
+    </form>
+</div>
+{% endif %}
+
+<div class="eki-card" style="margin-top:1.25rem;">
     <h2 class="eki-h2">Calificaciones del curso</h2>
     <p class="eki-muted" style="margin:-0.35rem 0 1rem;">
         Promedio ponderado (1–5): <strong>asistencia del curso</strong>

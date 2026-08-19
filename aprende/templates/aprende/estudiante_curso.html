@@ -1,8 +1,21 @@
 {% extends "aprende/base.html" %}
 {% block title %}{{ progreso.curso.nombre }} | Aprende{% endblock %}
-{% block nav %}{% include "aprende/estudiante_nav.html" %}{% endblock %}
+{% block nav %}
+{% if vista_previa_profesor %}
+<a href="{{ volver_profesor_url }}">← Volver al curso</a>
+{% else %}
+{% include "aprende/estudiante_nav.html" %}
+{% endif %}
+{% endblock %}
 {% block content %}
+{% if vista_previa_profesor %}
+<div class="eki-status-banner eki-status-banner--todo" role="status" style="margin-bottom:1rem;">
+    <strong>Vista previa del profesor — curso completo</strong>
+    <p style="margin:0.25rem 0 0;">Todos los módulos visibles (sin drip). Así ve el estudiante el listado.</p>
+</div>
+{% else %}
 {% include "aprende/partials/estudiante_breadcrumb.html" with progreso=progreso %}
+{% endif %}
 <div class="eki-page-head">
     {% if progreso.curso.es_modo_clases %}
     <span class="eki-kicker">Clases en aula</span>
@@ -19,7 +32,9 @@
     {% endif %}
 </div>
 
+{% if not vista_previa_profesor %}
 {% include "aprende/partials/estudiante_curso_tabs.html" %}
+{% endif %}
 
 {% if progreso.curso.es_modo_clases %}
 <aside class="eki-wa-bridge" aria-label="Biblioteca">
@@ -35,7 +50,11 @@
     <li class="eki-path__step{% if progreso.modulo_actual_id == m.id and not progreso.completado and not progreso.curso.es_modo_clases %} is-current{% endif %}">
         <span class="eki-path__n">{{ m.numero }}</span>
         <div class="eki-path__body">
+            {% if vista_previa_profesor %}
+            <a href="{% url 'aprende_profesor_modulo_vista_estudiante' m.id %}">{{ m.titulo }}</a>
+            {% else %}
             <a href="{% url 'aprende_estudiante_modulo' m.id %}">{{ m.titulo }}</a>
+            {% endif %}
             {% if not progreso.curso.es_modo_clases and progreso.modulo_actual_id == m.id and not progreso.completado %}
             <span class="eki-status eki-status--wait">Actual</span>
             {% endif %}

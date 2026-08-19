@@ -1,9 +1,23 @@
 {% extends "aprende/base.html" %}
 {% block title %}{{ tarea.titulo }} | Tarea{% endblock %}
-{% block nav %}{% include "aprende/estudiante_nav.html" %}{% endblock %}
+{% block nav %}
+{% if vista_previa_profesor %}
+<a href="{{ volver_profesor_url }}">← Volver a editar</a>
+<a href="{% url 'aprende_profesor_curso' tarea.curso_id %}">Curso</a>
+{% else %}
+{% include "aprende/estudiante_nav.html" %}
+{% endif %}
+{% endblock %}
 {% block main_class %}eki-main--wide{% endblock %}
 {% block content %}
+{% if vista_previa_profesor %}
+<div class="eki-status-banner eki-status-banner--todo" role="status" style="margin-bottom:1rem;">
+    <strong>Vista previa del profesor — tarea</strong>
+    <p style="margin:0.25rem 0 0;">Así ve el estudiante instrucciones y formulario (sin enviar).</p>
+</div>
+{% else %}
 {% include "aprende/partials/estudiante_breadcrumb.html" with tarea=tarea %}
+{% endif %}
 <div class="eki-page-head">
     <span class="eki-kicker">Tarea</span>
     <h1>{{ tarea.titulo }}</h1>
@@ -65,12 +79,16 @@
 <form method="post" enctype="multipart/form-data" class="eki-card">
     {% csrf_token %}
     <h2 class="eki-h2">{% if entrega %}Actualizar entrega{% else %}Subir tarea{% endif %}</h2>
+    {% if vista_previa_profesor %}
+    <p class="eki-muted">Vista previa: el estudiante elige archivo y pulsa entregar.</p>
+    {% else %}
     <p class="eki-muted" style="margin:-0.25rem 0 1rem;">PDF, Word, Excel, imagen o ZIP (máx. 25 MB).</p>
+    {% endif %}
 
     <div class="eki-field">
         <label for="archivo">Archivo</label>
         <div class="eki-file">
-            <input type="file" name="archivo" id="archivo" {% if not entrega %}required{% endif %} accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.jpg,.jpeg,.png">
+            <input type="file" name="archivo" id="archivo" {% if not entrega and not vista_previa_profesor %}required{% endif %} accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.jpg,.jpeg,.png" {% if vista_previa_profesor %}disabled{% endif %}>
             <span class="eki-file-name" id="archivo-nombre" aria-live="polite"></span>
         </div>
         {% if entrega %}
@@ -79,9 +97,9 @@
     </div>
     <div class="eki-field">
         <label for="comentario">Comentario (opcional)</label>
-        <textarea name="comentario" id="comentario" rows="3" placeholder="Notas para el profesor…">{{ entrega.comentario_estudiante|default:'' }}</textarea>
+        <textarea name="comentario" id="comentario" rows="3" placeholder="Notas para el profesor…" {% if vista_previa_profesor %}disabled{% endif %}>{{ entrega.comentario_estudiante|default:'' }}</textarea>
     </div>
-    <button type="submit" class="eki-btn eki-btn--primary">{% if entrega %}Reenviar tarea{% else %}Entregar tarea{% endif %}</button>
+    <button type="submit" class="eki-btn eki-btn--primary" {% if vista_previa_profesor %}disabled{% endif %}>{% if entrega %}Reenviar tarea{% else %}Entregar tarea{% endif %}</button>
 </form>
 {% endif %}
 {% endblock %}

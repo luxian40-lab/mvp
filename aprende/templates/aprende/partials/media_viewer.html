@@ -1,7 +1,14 @@
-{% comment %}Visualización en línea — sin enlaces ni UI de descarga.{% endcomment %}
+{% comment %}Visualización en línea. PDFs: opción abrir en pestaña nueva.{% endcomment %}
 {% for m in medias %}
 <div class="eki-media-block" oncontextmenu="return false;">
-    <p class="eki-media-caption">{{ m.titulo }}</p>
+    <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0.5rem;margin-bottom:0.4rem;">
+        <p class="eki-media-caption" style="margin:0;">{{ m.titulo }}</p>
+        {% if m.tipo == 'pdf' and m.url %}
+        <a href="{{ m.url }}" target="_blank" rel="noopener" class="eki-btn eki-btn--ghost eki-btn--sm">
+            Abrir PDF en otra pestaña
+        </a>
+        {% endif %}
+    </div>
     {% if m.tipo == 'youtube' and m.youtube_id %}
     <div class="eki-media-frame eki-video-wrap">
         <iframe
@@ -31,7 +38,6 @@
     </div>
     {% elif m.tipo == 'pdf' %}
     <div class="eki-media-frame eki-media-frame--pdf">
-        {# toolbar=0 oculta botones de descarga del visor embebido #}
         <iframe src="{{ m.url }}#toolbar=0&navpanes=0&scrollbar=0" title="{{ m.titulo }}" loading="lazy"></iframe>
     </div>
     {% elif m.tipo == 'h5p' %}
