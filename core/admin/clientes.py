@@ -126,6 +126,7 @@ class ClienteAdmin(admin.ModelAdmin):
         'cobertura_y_drip_acciones',
         'empleabilidad_kpis_resumen',
         'usar_gamificacion',
+        'logo_preview',
         'wallpaper_preview',
     )
     
@@ -161,21 +162,25 @@ class ClienteAdmin(admin.ModelAdmin):
                 'El fondo es por <strong>organización</strong> (Cliente), no por curso.</p>'
             ),
         }),
-        ('Portal B2B', {
+        ('Portal B2B — logo y acceso', {
             'fields': (
+                'logo_archivo',
+                'logo_url',
+                'quitar_logo',
+                'logo_preview',
                 'tipo_proyecto',
                 'portal_modulos',
                 'cupos_portal',
                 'fecha_inicio_suscripcion',
                 'fecha_fin_suscripcion',
-                'logo_url',
                 'portal_subtitulo',
                 'portal_usuarios_acciones',
                 'whatsapp_numero',
             ),
-            'description': (
-                'Acceso web, branding y cupos. Solo eki crea usuarios portal (nunca staff). '
-                'Credenciales Twilio van en «WhatsApp y legal» (colapsado).'
+            'description': mark_safe(
+                '<p><strong>Logo:</strong> suba el archivo (recomendado) o pegue URL. '
+                'Visible en portal B2B, listados admin y fichas curso/estudiante.</p>'
+                '<p>Acceso web y cupos. Credenciales Twilio en «WhatsApp y legal».</p>'
             ),
         }),
         ('WhatsApp y legal', {
@@ -346,6 +351,22 @@ class ClienteAdmin(admin.ModelAdmin):
             portal_url,
         )
     portal_usuarios_acciones.short_description = 'Accesos portal'
+
+    def logo_preview(self, obj):
+        url = (getattr(obj, 'logo_url', None) or '').strip() if obj else ''
+        if not url:
+            return mark_safe(
+                '<span style="color:#888;">Sin logo. Suba una imagen arriba y guarde.</span>'
+            )
+        return format_html(
+            '<p style="margin:0 0 8px;"><img src="{}" alt="Logo organización" '
+            'style="max-width:120px;max-height:120px;border-radius:8px;'
+            'border:1px solid #ddd;object-fit:contain;background:#fff;padding:4px;"/></p>'
+            '<p style="margin:0;font-size:12px;color:#666;word-break:break-all;">{}</p>',
+            url,
+            url,
+        )
+    logo_preview.short_description = 'Vista previa logo'
 
     def wallpaper_preview(self, obj):
         url = (getattr(obj, 'wallpaper_aula_url', None) or '').strip() if obj else ''

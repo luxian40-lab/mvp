@@ -45,9 +45,24 @@ class ClientePortalAdminForm(forms.ModelForm):
             attrs={'accept': 'image/jpeg,image/png,image/webp'}
         ),
     )
+    logo_archivo = forms.FileField(
+        required=False,
+        label='Subir logo (recomendado)',
+        help_text=(
+            'Elija PNG/JPG/WebP/GIF → Guardar. Se sube a S3 y se ve en portal B2B, '
+            'admin y fichas de curso/estudiante. Máx. 5 MB.'
+        ),
+        widget=forms.ClearableFileInput(
+            attrs={'accept': 'image/jpeg,image/png,image/webp,image/gif'}
+        ),
+    )
     quitar_wallpaper = forms.BooleanField(
         required=False,
         label='Quitar wallpaper (volver al fondo eki por defecto)',
+    )
+    quitar_logo = forms.BooleanField(
+        required=False,
+        label='Quitar logo (volver a inicial del nombre)',
     )
 
     class Meta:
@@ -73,6 +88,29 @@ class ClientePortalAdminForm(forms.ModelForm):
                 'la URL se completa sola al guardar.'
             )
             self.fields['wallpaper_aula_url'].required = False
+        if 'logo_url' in self.fields:
+            self.fields['logo_url'].label = 'O pegar URL del logo (opcional)'
+            self.fields['logo_url'].help_text = (
+                'Alternativa al archivo. Si sube logo arriba, esta URL se reemplaza al guardar.'
+            )
+            self.fields['logo_url'].required = False
+
+    def clean_logo_archivo(self):
+        f = self.cleaned_data.get('logo_archivo')
+        if not f:
+            return f
+        from portal.utils import LOGO_MAX_BYTES, LOGO_TIPOS_PERMITIDOS
+
+        ct = (getattr(f, 'content_type', '') or '').lower()
+        name = (getattr(f, 'name', '') or '').lower()
+        ok = ct in LOGO_TIPOS_PERMITIDOS or name.endswith(
+            ('.jpg', '.jpeg', '.png', '.webp', '.gif')
+        )
+        if not ok:
+            raise forms.ValidationError('Solo JPG, PNG, WebP o GIF.')
+        if f.size > LOGO_MAX_BYTES:
+            raise forms.ValidationError('Máximo 5 MB.')
+        return f
 
     def clean_wallpaper_archivo(self):
         f = self.cleaned_data.get('wallpaper_archivo')
@@ -92,26 +130,41 @@ class ClientePortalAdminForm(forms.ModelForm):
         return f
 
     def save(self, commit=True):
-        from portal.utils import guardar_wallpaper_aula
+        from portal.utils import guardar_logo_organizacion, guardar_wallpaper_aula
 
         obj = super().save(commit=False)
         mods = self.cleaned_data.get('portal_modulos') or []
         obj.portal_productos = ','.join(mods) if mods else ''
 
-        uploaded = self.cleaned_data.get('wallpaper_archivo')
-        quitar = self.cleaned_data.get('quitar_wallpaper')
+        uploaded_wall = self.cleaned_data.get('wallpaper_archivo')
+        quitar_wall = self.cleaned_data.get('quitar_wallpaper')
+        uploaded_logo = self.cleaned_data.get('logo_archivo')
+        quitar_logo = self.cleaned_data.get('quitar_logo')
 
         if commit:
             obj.save()
             self.save_m2m()
-            if quitar:
+            update_fields: list[str] = []
+            if quitar_logo:
+                if obj.logo_url:
+                    obj.logo_url = ''
+                    update_fields.append('logo_url')
+            elif uploaded_logo:
+                try:
+                    obj.logo_url = guardar_logo_organizacion(uploaded_logo, obj.pk)
+                except ValueError as exc:
+                    raise forms.ValidationError({'logo_archivo': str(exc)}) from exc
+                update_fields.append('logo_url')
+            if quitar_wall:
                 if obj.wallpaper_aula_url:
                     obj.wallpaper_aula_url = ''
-                    obj.save(update_fields=['wallpaper_aula_url'])
-            elif uploaded:
+                    update_fields.append('wallpaper_aula_url')
+            elif uploaded_wall:
                 try:
-                    obj.wallpaper_aula_url = guardar_wallpaper_aula(uploaded, obj.pk)
+                    obj.wallpaper_aula_url = guardar_wallpaper_aula(uploaded_wall, obj.pk)
                 except ValueError as exc:
                     raise forms.ValidationError({'wallpaper_archivo': str(exc)}) from exc
-                obj.save(update_fields=['wallpaper_aula_url'])
+                update_fields.append('wallpaper_aula_url')
+            if update_fields:
+                obj.save(update_fields=list(dict.fromkeys(update_fields)))
         return obj
