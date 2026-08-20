@@ -487,8 +487,16 @@ class AprendeWebTests(TestCase):
         self._login_estudiante(telefono="3009999002")
         r = self.http.get(f'/aprende/estudiante/modulo/{self.modulo.id}/')
         self.assertContains(r, 'Abrir PDF en otra pestaña')
+        self.assertContains(r, 'Descargar PDF')
 
-    def test_estudiante_comenta_despues_de_calificacion(self):
+    def test_media_aula_permite_descarga_archivos_subidos(self):
+        from aprende.media_aula import media_desde_url
+
+        pdf = media_desde_url('Guía', 'https://cdn.example.com/doc.pdf', 'pdf')
+        yt = media_desde_url('Video', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'video')
+        self.assertTrue(pdf.permite_descarga)
+        self.assertFalse(yt.permite_descarga)
+        self.assertEqual(pdf.nombre_descarga, 'doc.pdf')
         tarea = TareaCurso.objects.create(curso=self.curso, titulo='T2', instrucciones='x')
         archivo = SimpleUploadedFile('t2.pdf', b'%PDF', content_type='application/pdf')
         entrega = EntregaTarea.objects.create(
@@ -632,8 +640,7 @@ class AprendeWebTests(TestCase):
         self.assertContains(r, 'Fundamentos')
         self.assertContains(r, 'Contenido del micro paso')
         self.assertContains(r, 'youtube-nocookie.com/embed/')
-        self.assertContains(r, 'consulta en línea')
-        self.assertNotContains(r, 'Descargar documento')
+        self.assertNotContains(r, 'Descargar PDF')
 
     def test_aula_oculta_modulo_con_drip_tras_completar_anterior(self):
         from datetime import timedelta

@@ -1,0 +1,10 @@
+{% comment %}Descarga directa (PDF, imagen, audio, video subidos). YouTube/H5P: no aplica.{% endcomment %}
+{% if m.permite_descarga %}
+<a href="{{ m.url }}"
+   class="eki-btn eki-btn--ghost eki-btn--sm"
+   download="{{ m.nombre_descarga }}"
+   target="_blank"
+   rel="noopener">
+    Descargar{% if m.tipo == 'pdf' %} PDF{% endif %}
+</a>
+{% endif %}

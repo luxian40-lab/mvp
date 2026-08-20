@@ -14,6 +14,25 @@ from portal.utils import guardar_logo_organizacion, guardar_wallpaper_aula
 pytestmark = pytest.mark.django_db
 
 
+def _cliente_admin_post_base(cli: Cliente) -> dict:
+    return {
+        'nombre': cli.nombre,
+        'contacto_principal': cli.contacto_principal,
+        'email': cli.email,
+        'telefono': cli.telefono,
+        'activo': 'on',
+        'tipo_proyecto': cli.tipo_proyecto or 'cursos',
+        'modo_gamificacion': cli.modo_gamificacion or 'puntos',
+        'cupos_portal': str(cli.cupos_portal or 5),
+        'modo_avance_modulo': cli.modo_avance_modulo or 'texto',
+        'nota_minima_certificado': str(cli.nota_minima_certificado or 3),
+        'empleabilidad_radio_metros': str(cli.empleabilidad_radio_metros or 800),
+        'empleabilidad_cooldown_horas': str(cli.empleabilidad_cooldown_horas or 24),
+        'empleabilidad_max_misiones_dia': str(cli.empleabilidad_max_misiones_dia or 3),
+        'empleabilidad_puntos_validacion': str(cli.empleabilidad_puntos_validacion or 30),
+    }
+
+
 def _png_bytes() -> bytes:
     return (
         b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01'
@@ -72,44 +91,78 @@ def test_guardar_logo_organizacion_escribe_url(tmp_path, settings):
     assert 'logo-org' in url
 
 
-@override_settings(
-    SECURE_SSL_REDIRECT=False,
-    STORAGES={
-        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
-        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
-    },
-    MEDIA_ROOT='/tmp/eki_test_media_logo',
-)
-def test_admin_cliente_subir_logo_actualiza_logo_url(tmp_path, settings):
-    settings.MEDIA_ROOT = str(tmp_path)
-    User = get_user_model()
-    User.objects.create_superuser('logoadmin', 'l@e.co', 'pass')
+def test_cliente_admin_save_model_sube_logo(tmp_path, settings):
+    from django.contrib.admin.sites import AdminSite
+    from django.test import RequestFactory
+
+    from core.admin.clientes import ClienteAdmin
+
+    settings.STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+            'OPTIONS': {'location': str(tmp_path)},
+        },
+        'staticfiles': {
+            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        },
+    }
+    settings.MEDIA_URL = '/media/'
     cli = Cliente.objects.create(
-        nombre='Org Logo Upload',
+        nombre='Org SaveModel',
         contacto_principal='C',
-        email='lu@example.com',
-        telefono='573009990004',
+        email='sm@example.com',
+        telefono='573009990006',
     )
-    http = Client()
-    assert http.login(username='logoadmin', password='pass')
-    r = http.post(
-        f'/admin/core/cliente/{cli.pk}/change/',
-        {
-            'nombre': cli.nombre,
-            'contacto_principal': cli.contacto_principal,
-            'email': cli.email,
-            'telefono': cli.telefono,
-            'activo': 'on',
-            'tipo_proyecto': 'cursos',
-            'modo_gamificacion': 'puntos',
-            'cupos_portal': '5',
+    form = ClientePortalAdminForm(
+        data={**_cliente_admin_post_base(cli)},
+        files={
             'logo_archivo': SimpleUploadedFile(
-                'marca.png', _png_bytes(), content_type='image/png',
+                'sm-logo.png', _png_bytes(), content_type='image/png',
             ),
         },
-        HTTP_HOST='127.0.0.1',
+        instance=cli,
     )
-    assert r.status_code == 302, r.content[:500]
+    assert form.is_valid(), form.errors
+    obj = form.save(commit=False)
+    admin = ClienteAdmin(Cliente, AdminSite())
+    admin.save_model(RequestFactory().post('/'), obj, form, change=True)
+    cli.refresh_from_db()
+    assert cli.logo_url
+    assert 'logos' in cli.logo_url
+
+
+def test_form_save_commit_false_sube_logo(tmp_path, settings):
+    settings.STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+            'OPTIONS': {'location': str(tmp_path)},
+        },
+        'staticfiles': {
+            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        },
+    }
+    settings.MEDIA_URL = '/media/'
+    cli = Cliente.objects.create(
+        nombre='Org CommitFalse',
+        contacto_principal='C',
+        email='cf@example.com',
+        telefono='573009990005',
+    )
+    form = ClientePortalAdminForm(
+        data={
+            **_cliente_admin_post_base(cli),
+        },
+        files={
+            'logo_archivo': SimpleUploadedFile(
+                'cf-logo.png', _png_bytes(), content_type='image/png',
+            ),
+        },
+        instance=cli,
+    )
+    assert form.is_valid(), form.errors
+    obj = form.save(commit=False)
+    assert not obj.logo_url
+    form.sync_media_fields(obj)
     cli.refresh_from_db()
     assert cli.logo_url
     assert 'logos' in cli.logo_url

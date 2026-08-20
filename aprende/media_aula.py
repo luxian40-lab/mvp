@@ -1,10 +1,12 @@
-"""Clasificación y metadatos de multimedia para el aula (solo visualización)."""
+"""Clasificación y metadatos de multimedia para el aula."""
 
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
+
+from django.utils.text import slugify
 
 TIPO_YOUTUBE = 'youtube'
 TIPO_VIDEO = 'video'
@@ -14,6 +16,14 @@ TIPO_PDF = 'pdf'
 TIPO_H5P = 'h5p'
 TIPO_EMBED = 'embed'
 
+TIPOS_DESCARGABLES = frozenset({TIPO_PDF, TIPO_IMAGEN, TIPO_AUDIO, TIPO_VIDEO})
+_EXTENSION_POR_TIPO = {
+    TIPO_PDF: 'pdf',
+    TIPO_IMAGEN: 'jpg',
+    TIPO_AUDIO: 'mp3',
+    TIPO_VIDEO: 'mp4',
+}
+
 
 @dataclass
 class MediaAula:
@@ -21,6 +31,29 @@ class MediaAula:
     url: str
     tipo: str
     youtube_id: str | None = None
+
+    @property
+    def permite_descarga(self) -> bool:
+        if self.tipo in (TIPO_YOUTUBE, TIPO_H5P):
+            return False
+        if self.tipo in TIPOS_DESCARGABLES:
+            return bool((self.url or '').strip())
+        if self.tipo == TIPO_EMBED:
+            path = urlparse(self.url).path.lower()
+            return path.endswith(
+                ('.pdf', '.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp3', '.mp4', '.webm', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx')
+            )
+        return False
+
+    @property
+    def nombre_descarga(self) -> str:
+        path = unquote(urlparse(self.url).path or '')
+        base = path.rsplit('/', 1)[-1] if path else ''
+        if base and '.' in base:
+            return base[:180]
+        ext = _EXTENSION_POR_TIPO.get(self.tipo, 'bin')
+        slug = slugify(self.titulo)[:72] or 'material'
+        return f'{slug}.{ext}'
 
 
 def es_url_h5p(url: str) -> bool:

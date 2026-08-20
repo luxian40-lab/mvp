@@ -130,41 +130,46 @@ class ClientePortalAdminForm(forms.ModelForm):
         return f
 
     def save(self, commit=True):
-        from portal.utils import guardar_logo_organizacion, guardar_wallpaper_aula
-
         obj = super().save(commit=False)
         mods = self.cleaned_data.get('portal_modulos') or []
         obj.portal_productos = ','.join(mods) if mods else ''
+
+        if commit:
+            obj.save()
+            self.save_m2m()
+            if obj.pk:
+                self.sync_media_fields(obj)
+        return obj
+
+    def sync_media_fields(self, obj):
+        """Logo/wallpaper: el admin llama save(commit=False); requiere pk."""
+        from portal.utils import guardar_logo_organizacion, guardar_wallpaper_aula
 
         uploaded_wall = self.cleaned_data.get('wallpaper_archivo')
         quitar_wall = self.cleaned_data.get('quitar_wallpaper')
         uploaded_logo = self.cleaned_data.get('logo_archivo')
         quitar_logo = self.cleaned_data.get('quitar_logo')
 
-        if commit:
-            obj.save()
-            self.save_m2m()
-            update_fields: list[str] = []
-            if quitar_logo:
-                if obj.logo_url:
-                    obj.logo_url = ''
-                    update_fields.append('logo_url')
-            elif uploaded_logo:
-                try:
-                    obj.logo_url = guardar_logo_organizacion(uploaded_logo, obj.pk)
-                except ValueError as exc:
-                    raise forms.ValidationError({'logo_archivo': str(exc)}) from exc
+        update_fields: list[str] = []
+        if quitar_logo:
+            if obj.logo_url:
+                obj.logo_url = ''
                 update_fields.append('logo_url')
-            if quitar_wall:
-                if obj.wallpaper_aula_url:
-                    obj.wallpaper_aula_url = ''
-                    update_fields.append('wallpaper_aula_url')
-            elif uploaded_wall:
-                try:
-                    obj.wallpaper_aula_url = guardar_wallpaper_aula(uploaded_wall, obj.pk)
-                except ValueError as exc:
-                    raise forms.ValidationError({'wallpaper_archivo': str(exc)}) from exc
+        elif uploaded_logo:
+            try:
+                obj.logo_url = guardar_logo_organizacion(uploaded_logo, obj.pk)
+            except ValueError as exc:
+                raise forms.ValidationError({'logo_archivo': str(exc)}) from exc
+            update_fields.append('logo_url')
+        if quitar_wall:
+            if obj.wallpaper_aula_url:
+                obj.wallpaper_aula_url = ''
                 update_fields.append('wallpaper_aula_url')
-            if update_fields:
-                obj.save(update_fields=list(dict.fromkeys(update_fields)))
-        return obj
+        elif uploaded_wall:
+            try:
+                obj.wallpaper_aula_url = guardar_wallpaper_aula(uploaded_wall, obj.pk)
+            except ValueError as exc:
+                raise forms.ValidationError({'wallpaper_archivo': str(exc)}) from exc
+            update_fields.append('wallpaper_aula_url')
+        if update_fields:
+            obj.save(update_fields=list(dict.fromkeys(update_fields)))

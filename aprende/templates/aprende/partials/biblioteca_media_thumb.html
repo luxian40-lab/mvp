@@ -8,6 +8,7 @@
         data-bib-titulo="{{ item.titulo }}"
         data-bib-tipo="{{ m.tipo }}"
         data-bib-url="{{ m.url }}"
+        data-bib-filename="{{ m.nombre_descarga }}"
         {% if m.youtube_id %}data-bib-youtube="{{ m.youtube_id }}"{% endif %}>
     {% if m.tipo == 'youtube' and m.youtube_id %}
     <img src="https://img.youtube.com/vi/{{ m.youtube_id }}/default.jpg" alt="" width="35" height="35" loading="lazy" draggable="false">

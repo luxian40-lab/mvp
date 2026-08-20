@@ -119,6 +119,13 @@
     padding: 1.25rem 1.35rem 1.35rem;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
 }
+.eki-bib-lightbox__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+    flex-shrink: 0;
+}
 .eki-bib-lightbox__head {
     display: flex;
     justify-content: space-between;
@@ -168,14 +175,14 @@
     <h1>Biblioteca</h1>
     <p class="eki-lead">
         Aquí están tus clases: fotos, videos y documentos en miniatura.
-        Pulse un cuadro para ver el material. Solo consulta en línea.
+        Pulse un cuadro para ver el material o descargarlo.
     </p>
     {% else %}
     <span class="eki-kicker">Repositorio de material</span>
     <h1>Biblioteca de recursos</h1>
     <p class="eki-lead">
-        Fotos y videos de sus módulos en miniatura. Pulse un cuadro para ver el material completo.
-        Solo consulta en línea: la descarga no está habilitada desde el aula.
+        Fotos, videos y documentos de sus módulos en miniatura. Pulse un cuadro para ver el material
+        o use <strong>Descargar</strong> para guardarlo en el dispositivo (PDF, imágenes, audio y video).
     </p>
     {% endif %}
 </div>
@@ -217,7 +224,10 @@
     <div class="eki-bib-lightbox__panel" role="dialog" aria-modal="true" aria-labelledby="eki-bib-lightbox-title">
         <div class="eki-bib-lightbox__head">
             <h2 id="eki-bib-lightbox-title" class="eki-bib-lightbox__title"></h2>
-            <button type="button" class="eki-bib-lightbox__close" id="eki-bib-lightbox-close">Cerrar</button>
+            <div class="eki-bib-lightbox__actions">
+                <a id="eki-bib-lightbox-download" class="eki-btn eki-btn--ghost eki-btn--sm" href="#" download hidden>Descargar</a>
+                <button type="button" class="eki-bib-lightbox__close" id="eki-bib-lightbox-close">Cerrar</button>
+            </div>
         </div>
         <div class="eki-bib-lightbox__body" id="eki-bib-lightbox-body"></div>
     </div>
@@ -230,7 +240,14 @@
     var body = document.getElementById('eki-bib-lightbox-body');
     var titleEl = document.getElementById('eki-bib-lightbox-title');
     var closeBtn = document.getElementById('eki-bib-lightbox-close');
+    var downloadBtn = document.getElementById('eki-bib-lightbox-download');
     if (!box || !body) return;
+
+    var TIPOS_DESCARGA = { pdf: 1, imagen: 1, audio: 1, video: 1 };
+
+    function puedeDescargar(tipo) {
+        return !!TIPOS_DESCARGA[tipo];
+    }
 
     function esc(s) {
         return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
@@ -245,16 +262,16 @@
         }
         if (tipo === 'video') {
             return '<div class="eki-media-block"><div class="eki-media-frame eki-video-wrap">' +
-                '<video controls controlsList="nodownload" playsinline preload="metadata">' +
+                '<video controls playsinline preload="metadata">' +
                 '<source src="' + esc(url) + '"></video></div></div>';
         }
         if (tipo === 'imagen') {
             return '<div class="eki-media-block"><figure class="eki-media-frame eki-media-frame--image">' +
-                '<img src="' + esc(url) + '" alt="" draggable="false"></figure></div>';
+                '<img src="' + esc(url) + '" alt=""></figure></div>';
         }
         if (tipo === 'audio') {
             return '<div class="eki-media-block"><div class="eki-media-frame eki-media-frame--audio">' +
-                '<audio controls controlsList="nodownload" preload="metadata">' +
+                '<audio controls preload="metadata">' +
                 '<source src="' + esc(url) + '"></audio></div></div>';
         }
         if (tipo === 'pdf') {
@@ -266,12 +283,24 @@
     }
 
     function openLightbox(btn) {
+        var tipo = btn.getAttribute('data-bib-tipo');
+        var url = btn.getAttribute('data-bib-url') || '';
         titleEl.textContent = btn.getAttribute('data-bib-titulo') || 'Material';
         body.innerHTML = renderMedia(
-            btn.getAttribute('data-bib-tipo'),
-            btn.getAttribute('data-bib-url'),
+            tipo,
+            url,
             btn.getAttribute('data-bib-youtube')
         );
+        if (downloadBtn) {
+            if (puedeDescargar(tipo) && url) {
+                downloadBtn.href = url;
+                downloadBtn.download = btn.getAttribute('data-bib-filename') || 'material';
+                downloadBtn.hidden = false;
+            } else {
+                downloadBtn.hidden = true;
+                downloadBtn.removeAttribute('href');
+            }
+        }
         box.hidden = false;
         box.setAttribute('aria-hidden', 'false');
         box.classList.add('is-open');

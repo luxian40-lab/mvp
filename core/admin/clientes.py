@@ -101,6 +101,12 @@ class ClienteAdmin(admin.ModelAdmin):
         kwargs['form'] = ClientePortalAdminForm
         return super().get_form(request, obj, **kwargs)
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        sync = getattr(form, 'sync_media_fields', None)
+        if sync and obj.pk:
+            sync(obj)
+
     inlines = [
         PortalUsuarioInline,
         ConfiguracionDripClienteInline,

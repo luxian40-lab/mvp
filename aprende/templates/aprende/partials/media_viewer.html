@@ -1,13 +1,16 @@
-{% comment %}Visualización en línea. PDFs: opción abrir en pestaña nueva.{% endcomment %}
+{% comment %}Visualización en línea + descarga de archivos subidos.{% endcomment %}
 {% for m in medias %}
-<div class="eki-media-block" oncontextmenu="return false;">
+<div class="eki-media-block">
     <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0.5rem;margin-bottom:0.4rem;">
         <p class="eki-media-caption" style="margin:0;">{{ m.titulo }}</p>
-        {% if m.tipo == 'pdf' and m.url %}
-        <a href="{{ m.url }}" target="_blank" rel="noopener" class="eki-btn eki-btn--ghost eki-btn--sm">
-            Abrir PDF en otra pestaña
-        </a>
-        {% endif %}
+        <div style="display:flex;flex-wrap:wrap;gap:0.35rem;align-items:center;">
+            {% if m.tipo == 'pdf' and m.url %}
+            <a href="{{ m.url }}" target="_blank" rel="noopener" class="eki-btn eki-btn--ghost eki-btn--sm">
+                Abrir PDF en otra pestaña
+            </a>
+            {% endif %}
+            {% include "aprende/partials/media_download_btn.html" %}
+        </div>
     </div>
     {% if m.tipo == 'youtube' and m.youtube_id %}
     <div class="eki-media-frame eki-video-wrap">
@@ -22,17 +25,17 @@
     </div>
     {% elif m.tipo == 'video' %}
     <div class="eki-media-frame eki-video-wrap">
-        <video controls controlsList="nodownload noplaybackrate noremoteplayback" disablePictureInPicture playsinline preload="metadata" oncontextmenu="return false;">
+        <video controls playsinline preload="metadata">
             <source src="{{ m.url }}">
         </video>
     </div>
     {% elif m.tipo == 'imagen' %}
-    <figure class="eki-media-frame eki-media-frame--image" oncontextmenu="return false;">
-        <img src="{{ m.url }}" alt="{{ m.titulo }}" loading="lazy" draggable="false">
+    <figure class="eki-media-frame eki-media-frame--image">
+        <img src="{{ m.url }}" alt="{{ m.titulo }}" loading="lazy">
     </figure>
     {% elif m.tipo == 'audio' %}
     <div class="eki-media-frame eki-media-frame--audio">
-        <audio controls controlsList="nodownload noremoteplayback" preload="metadata" oncontextmenu="return false;">
+        <audio controls preload="metadata">
             <source src="{{ m.url }}">
         </audio>
     </div>
