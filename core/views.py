@@ -2025,6 +2025,27 @@ def _procesar_twilio_webhook(post_data):
             estudiante = Estudiante.objects.select_related('cliente').get(telefono=telefono_limpio)
             logger.info(f"Estudiante encontrado: {estudiante.nombre} (ID: {estudiante.id})")
 
+            # Carrusel demo: taps Content (desc_*/info_*/in_*) también si ya es Estudiante
+            # (p. ej. smoke en 3026480629). No intercepta listo ni menú LMS.
+            try:
+                from .catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
+
+                _btn_demo = (
+                    post_data.get('ButtonPayload')
+                    or post_data.get('ButtonText')
+                    or ''
+                )
+                if intentar_flujo_prospecto_carrusel(
+                    telefono=telefono_limpio,
+                    msg_from=msg_from,
+                    msg_body=msg_body,
+                    button_payload=str(_btn_demo),
+                    solo_botones=True,
+                ):
+                    return
+            except Exception as _e_demo:
+                logger.warning('Carrusel demo (estudiante) omitido: %s', _e_demo)
+
             # Respuesta campaña única (Sí/No, Asistiré/No asistiré) — antes del flujo del curso
             try:
                 from .campana_respuestas import intentar_registrar_respuesta_campana_unica
@@ -2102,12 +2123,35 @@ def _procesar_twilio_webhook(post_data):
         except Estudiante.DoesNotExist:
             # Verificar si ya es un prospecto B2B existente
             from .models import ProspectoB2B
+            from .catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
+
             prospecto = None
             try:
                 prospecto = ProspectoB2B.objects.get(telefono=telefono_limpio)
             except ProspectoB2B.DoesNotExist:
                 pass
-            
+
+            btn_payload = (
+                post_data.get('ButtonPayload')
+                or post_data.get('ButtonText')
+                or ''
+            )
+            if intentar_flujo_prospecto_carrusel(
+                telefono=telefono_limpio,
+                msg_from=msg_from,
+                msg_body=msg_body,
+                button_payload=str(btn_payload),
+            ):
+                if not prospecto:
+                    ProspectoB2B.objects.get_or_create(
+                        telefono=telefono_limpio,
+                        defaults={
+                            'mensaje_original': (msg_body or btn_payload or 'carrusel_demo')[:500],
+                            'origen': 'whatsapp_bot',
+                        },
+                    )
+                return
+
             msg_lower = msg_body.strip().lower()
             
             if prospecto:
@@ -2163,6 +2207,23 @@ def _procesar_twilio_webhook(post_data):
                         "📧 comunidad.educativa@eki.com.co\n\n"
                         "Incluye tu nombre completo y número de cédula para que podamos ayudarte."
                     )
+                elif msg_lower in ['2', 'web', 'sitio', 'visitar sitio web', 'www.eki.com.co']:
+                    texto_respuesta = (
+                        "🌐 Conoce más en *www.eki.com.co*\n\n"
+                        "Si quiere ver programas de ejemplo, escriba *4*.\n"
+                        "Si es empresa, escriba *1*."
+                    )
+                elif msg_lower in ['4', 'programas', 'programa', 'catalogo', 'catálogo']:
+                    if intentar_flujo_prospecto_carrusel(
+                        telefono=telefono_limpio,
+                        msg_from=msg_from,
+                        msg_body='programas',
+                        button_payload='',
+                    ):
+                        return
+                    from .whatsapp_service import enviar_mensaje_ventas
+                    enviar_mensaje_ventas(msg_from)
+                    return
                 else:
                     from .whatsapp_service import enviar_mensaje_ventas
                     enviar_mensaje_ventas(msg_from)
@@ -2182,12 +2243,20 @@ def _procesar_twilio_webhook(post_data):
                 return
             
             else:
-                # Nuevo prospecto - crear y enviar mensaje de ventas
+                # Nuevo prospecto - crear y enviar mensaje de ventas (o carrusel si keyword)
                 ProspectoB2B.objects.create(
                     telefono=telefono_limpio,
                     mensaje_original=msg_body,
                     origen='whatsapp_bot'
                 )
+                if intentar_flujo_prospecto_carrusel(
+                    telefono=telefono_limpio,
+                    msg_from=msg_from,
+                    msg_body=msg_body,
+                    button_payload=str(btn_payload),
+                ):
+                    logger.info(f"🏢 Nuevo prospecto + carrusel demo: {telefono_limpio}")
+                    return
                 from .whatsapp_service import enviar_mensaje_ventas
                 enviar_mensaje_ventas(msg_from)
                 logger.info(f"🏢 Nuevo prospecto B2B capturado: {telefono_limpio}")
@@ -3962,7 +4031,8 @@ def _procesar_twilio_webhook(post_data):
                             modulos_reto,
                             progreso.curso.nombre,
                             estudiante_nombre=estudiante.nombre or "Estudiante",
-                            preguntas_ejemplo=progreso.curso.preguntas_ejemplo_ia or ""
+                            curso=progreso.curso,
+                            modulo_checkpoint=modulos_reto[-1] if modulos_reto else None,
                         )
                         _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
                         estudiante.contexto_temporal = {
@@ -4427,7 +4497,8 @@ def _procesar_twilio_webhook(post_data):
                         modulos_reto,
                         progreso_r.curso.nombre,
                         estudiante_nombre=estudiante.nombre or "Estudiante",
-                        preguntas_ejemplo=progreso_r.curso.preguntas_ejemplo_ia or ""
+                        curso=progreso_r.curso,
+                        modulo_checkpoint=modulos_reto[-1] if modulos_reto else None,
                     )
                     _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
                     estudiante.contexto_temporal = {
