@@ -1,7 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="eki certificados">
-  <rect width="32" height="32" rx="7" fill="#5F3A6E"/>
-  <rect x="7" y="6" width="16" height="14" rx="1.5" fill="#FAFAFC"/>
-  <path d="M10 10h10M10 13.2h7M10 16.4h5" stroke="#7a4e8e" stroke-width="1.6" stroke-linecap="round"/>
-  <circle cx="21" cy="21" r="6" fill="#9A6CAC"/>
-  <circle cx="21" cy="21" r="3.5" fill="none" stroke="#FAFAFC" stroke-width="1.3"/>
+  <rect width="32" height="32" rx="7" fill="#581c87"/>
+  <rect x="5" y="6" width="15" height="16" rx="1.5" fill="#fafafc"/>
+  <path d="M8 11h9M8 14.5h7M8 18h5" stroke="#9A6CAC" stroke-width="1.6" stroke-linecap="round"/>
+  <circle cx="22" cy="20" r="7" fill="#eab308"/>
+  <circle cx="22" cy="20" r="3.5" fill="none" stroke="#fafafc" stroke-width="1.5"/>
+  <path d="M20 26 l-2 5 3-1.5 3 1.5 -2-5" fill="#9A6CAC"/>
 </svg>

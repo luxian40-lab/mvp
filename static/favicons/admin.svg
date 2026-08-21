@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="eki admin">
   <rect width="32" height="32" rx="4" fill="#0f172a"/>
-  <rect x="0" y="0" width="4" height="32" fill="#14b8a6"/>
-  <path d="M11 9.5h12v2.6H15.2v2.1H18.6v2.4H15.2V22.5H11V9.5z" fill="#f8fafc"/>
+  <polygon points="16,5 26,10.5 26,21.5 16,27 6,21.5 6,10.5" fill="#1e293b" stroke="#2dd4bf" stroke-width="1.6"/>
+  <path d="M12 10.5h8v2.2h-5.2v2H17v2.2h-2.2v5.1H12V10.5z" fill="#f8fafc"/>
+  <rect x="12" y="15.2" width="5" height="2" fill="#2dd4bf"/>
 </svg>

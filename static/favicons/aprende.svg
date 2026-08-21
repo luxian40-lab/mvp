@@ -1,6 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="eki aprende">
-  <rect width="32" height="32" rx="8" fill="#7A4E8E"/>
-  <rect x="9" y="6" width="15" height="20" rx="2.2" fill="none" stroke="#FFFFFF" stroke-width="2.6"/>
-  <path d="M9 11H6.2M9 15.5H6.2M9 20H6.2M9 24H6.2" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/>
-  <circle cx="16.5" cy="14" r="3.2" fill="#E8D5F0"/>
+  <rect width="32" height="32" rx="7" fill="#1e40af"/>
+  <path d="M16 8 L7 12 v12 l9-4 9 4 V12 Z" fill="none"/>
+  <path d="M16 8 L7 12 v12 l9-4 Z" fill="#ffffff"/>
+  <path d="M16 8 L25 12 v12 l-9-4 Z" fill="#93c5fd"/>
+  <line x1="16" y1="8" x2="16" y2="20" stroke="#1e40af" stroke-width="1.8"/>
+  <circle cx="16" cy="15" r="2.4" fill="#1e40af"/>
 </svg>
