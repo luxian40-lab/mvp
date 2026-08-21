@@ -377,6 +377,90 @@ def mp4_bitstream_ilegible(data: bytes) -> bool:
                 pass
 
 
+def probe_mp4_codecs(data: bytes) -> dict:
+    """
+    ffprobe: codecs de video/audio.
+    Retorna ``{video, audio, ok_wa}`` donde ok_wa = H.264 + (AAC o sin audio).
+    """
+    import json
+    import os
+    import shutil
+    import subprocess
+    import tempfile
+
+    out = {'video': '', 'audio': '', 'ok_wa': False, 'profile': ''}
+    if not data or not shutil.which('ffprobe'):
+        return out
+    path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as tmp:
+            tmp.write(data)
+            path = tmp.name
+        r = subprocess.run(
+            [
+                'ffprobe', '-v', 'quiet', '-print_format', 'json',
+                '-show_streams', path,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if r.returncode != 0:
+            return out
+        payload = json.loads(r.stdout or '{}')
+        vcodec = acodec = ''
+        profile = ''
+        for st in payload.get('streams') or []:
+            if st.get('codec_type') == 'video' and not vcodec:
+                vcodec = (st.get('codec_name') or '').lower()
+                profile = (st.get('profile') or '').lower()
+            elif st.get('codec_type') == 'audio' and not acodec:
+                acodec = (st.get('codec_name') or '').lower()
+        out['video'] = vcodec
+        out['audio'] = acodec
+        out['profile'] = profile
+        # WhatsApp: H.264 Baseline/Main (+ AAC). High / sin profile usable → re-encode.
+        profile_ok = bool(profile) and any(
+            p in profile for p in ('baseline', 'main', 'constrained')
+        )
+        # level -99 / profile vacío = bitstream incompleto (ffprobe mentiroso → 63021)
+        level_ok = True
+        for st in payload.get('streams') or []:
+            if st.get('codec_type') == 'video':
+                lvl = st.get('level')
+                if lvl is not None and int(lvl) < 0:
+                    level_ok = False
+                break
+        out['ok_wa'] = (
+            vcodec in ('h264', 'avc1', 'avc')
+            and profile_ok
+            and level_ok
+            and (not acodec or acodec in ('aac', 'mp4a'))
+        )
+        return out
+    except Exception as exc:
+        logger.warning('ffprobe codecs: %s', exc)
+        return out
+    finally:
+        if path:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+
+
+def mp4_necesita_reencode_whatsapp(data: bytes) -> bool:
+    """True si conviene re-encode H.264/AAC (codec no WA, ilegible)."""
+    if not data:
+        return False
+    if mp4_bitstream_ilegible(data):
+        return True
+    codecs = probe_mp4_codecs(data)
+    if codecs.get('video'):
+        return not bool(codecs.get('ok_wa'))
+    return False
+
+
 # Límite práctico Meta/WhatsApp para video por MediaUrl (~16 MB).
 WHATSAPP_VIDEO_MAX_BYTES = 16 * 1024 * 1024
 
@@ -405,7 +489,11 @@ def _ffmpeg_encode_wa(
         os.close(fd)
         vf = f"scale='if(gt(iw,{max_width}),{max_width},iw)':-2"
         cmd = [
-            'ffmpeg', '-y', '-i', src,
+            'ffmpeg', '-y',
+            '-err_detect', 'ignore_err',
+            '-fflags', '+genpts+igndts+discardcorrupt',
+            '-i', src,
+            '-map', '0:v:0', '-map', '0:a:0?',
             '-c:v', 'libx264', '-profile:v', 'main', '-level', '3.1',
             '-pix_fmt', 'yuv420p',
             '-vf', vf,
@@ -418,12 +506,32 @@ def _ffmpeg_encode_wa(
         if r.returncode == 0 and os.path.getsize(dst) > 64:
             with open(dst, 'rb') as f:
                 return f.read()
+        # Fallback: video sin audio (AAC roto es causa frecuente de 63021).
+        cmd_an = [
+            'ffmpeg', '-y',
+            '-err_detect', 'ignore_err',
+            '-fflags', '+genpts+igndts+discardcorrupt',
+            '-i', src,
+            '-map', '0:v:0', '-an',
+            '-c:v', 'libx264', '-profile:v', 'main', '-level', '3.1',
+            '-pix_fmt', 'yuv420p',
+            '-vf', vf,
+            '-preset', 'fast', '-crf', str(crf),
+            '-movflags', '+faststart',
+            dst,
+        ]
+        r2 = subprocess.run(cmd_an, capture_output=True, text=True, timeout=600)
+        if r2.returncode == 0 and os.path.getsize(dst) > 64:
+            with open(dst, 'rb') as f:
+                logger.info('🎬 ffmpeg encode WA sin audio (AAC origen ilegible)')
+                return f.read()
         logger.warning(
-            '🎬 ffmpeg encode falló (rc=%s w=%s crf=%s) | %s',
+            '🎬 ffmpeg encode falló (rc=%s/%s w=%s crf=%s) | %s',
             r.returncode,
+            r2.returncode,
             max_width,
             crf,
-            (r.stderr or '')[-200:],
+            (r2.stderr or r.stderr or '')[-200:],
         )
         return None
     except Exception as exc:
@@ -506,6 +614,14 @@ def evaluar_mp4_listo_whatsapp(
             'apto': False,
             'bytes': size,
             'razon': 'bitstream_ilegible',
+            'necesita_faststart': needs_fs,
+        }
+    codecs = probe_mp4_codecs(data)
+    if codecs.get('video') and not codecs.get('ok_wa'):
+        return {
+            'apto': False,
+            'bytes': size,
+            'razon': f"codec_no_wa_v={codecs.get('video')}_a={codecs.get('audio')}",
             'necesita_faststart': needs_fs,
         }
     return {
@@ -653,8 +769,9 @@ def preparar_url_media_whatsapp(url: Optional[str]) -> Optional[str]:
     """
     Prepara URL para MediaUrl de Twilio/WhatsApp.
     - Normaliza a URL pública regional (nunca firma rota).
-    - Si es MP4 sin faststart (moov al final), remux y re-sube a S3.
-    - Si el bitstream está corrupto, retorna None (solo enlace de texto; evita 63021).
+    - Video MP4: si codecs no son H.264 Main/Baseline + AAC (o bitstream roto /
+      moov al final), re-encode con ffmpeg y sube a media/whatsapp_ready/*_wa_h264.mp4.
+    - Si el bitstream no se puede reparar, retorna None (solo enlace de texto; evita 63021).
     - Audio/imagen: corrige Content-Type vía copia lazy a whatsapp_ready (audio/mp3 → 63019).
     """
     clean = normalizar_media_url_s3(url)
@@ -676,9 +793,10 @@ def preparar_url_media_whatsapp(url: Optional[str]) -> Optional[str]:
     import hashlib
 
     # Digest por key S3 (estable), no por URL firmada (cambia cada envío).
+    # Sufijo _wa_h264: no reutilizar caché vieja de solo-remux (podía ser HEVC → 63021).
     key_src = _s3_key_desde_url(clean) or clean
     digest = hashlib.sha1(key_src.encode('utf-8')).hexdigest()[:20]
-    cache_key = f'media/whatsapp_ready/{digest}.mp4'
+    cache_key = f'media/whatsapp_ready/{digest}_wa_h264.mp4'
     cached_url = _public_s3_url(cache_key)
 
     # ¿Existe ya en S3?
@@ -691,7 +809,7 @@ def preparar_url_media_whatsapp(url: Optional[str]) -> Optional[str]:
             config=Config(signature_version='s3v4', region_name='us-east-2'),
         )
         client.head_object(Bucket='eki-produccion', Key=cache_key)
-        logger.info('🎬 Usando MP4 faststart en caché | %s', cache_key)
+        logger.info('🎬 Usando MP4 H.264/AAC en caché | %s', cache_key)
         return cached_url
     except Exception:
         pass
@@ -700,18 +818,43 @@ def preparar_url_media_whatsapp(url: Optional[str]) -> Optional[str]:
     if not raw:
         return clean
     if mp4_bitstream_ilegible(raw):
+        # Intentar re-encode antes de rendirse
+        fixed_try = optimizar_mp4_bytes_whatsapp(raw)
+        if fixed_try and not mp4_bitstream_ilegible(fixed_try):
+            uploaded = _subir_bytes_s3(cache_key, fixed_try, 'video/mp4')
+            if uploaded:
+                return uploaded
         logger.warning(
             '🎬 MP4 ilegible (no adjuntar; solo enlace) | bytes=%s url=%s',
             len(raw),
             clean[:120],
         )
         return None
-    if not mp4_necesita_faststart(raw):
-        logger.info('🎬 MP4 ya es faststart; sin remux | bytes=%s', len(raw))
-        return clean
 
-    fixed = remux_mp4_faststart(raw)
-    uploaded = _subir_bytes_s3(cache_key, fixed, 'video/mp4')
-    if uploaded:
-        return uploaded
+    needs_encode = mp4_necesita_reencode_whatsapp(raw)
+    needs_fs = False
+    try:
+        needs_fs = mp4_necesita_faststart(raw)
+    except Exception:
+        needs_fs = False
+
+    if needs_encode or needs_fs:
+        fixed = optimizar_mp4_bytes_whatsapp(raw)
+        if fixed and fixed is not raw:
+            uploaded = _subir_bytes_s3(cache_key, fixed, 'video/mp4')
+            if uploaded:
+                logger.info(
+                    '🎬 MP4 preparado WA (encode/remux) | in=%s out=%s key=%s',
+                    len(raw),
+                    len(fixed),
+                    cache_key,
+                )
+                return uploaded
+        if needs_fs and not needs_encode:
+            remuxed = remux_mp4_faststart(raw)
+            uploaded = _subir_bytes_s3(cache_key, remuxed, 'video/mp4')
+            if uploaded:
+                return uploaded
+
+    logger.info('🎬 MP4 ya apto WA; sin re-encode | bytes=%s', len(raw))
     return clean

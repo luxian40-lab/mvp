@@ -112,6 +112,17 @@ class TwilioMediaHelpersTests(SimpleTestCase):
         # moov debe ir antes de mdat
         self.assertLess(fixed.find(b'moov'), fixed.find(b'mdat'))
 
+    def test_probe_codecs_empty_without_ffprobe(self):
+        from unittest.mock import patch
+
+        from core.twilio_media import probe_mp4_codecs
+
+        with patch('shutil.which', return_value=None):
+            self.assertEqual(
+                probe_mp4_codecs(b'x'),
+                {'video': '', 'audio': '', 'ok_wa': False, 'profile': ''},
+            )
+
     def test_optimizar_mp4_sin_ffmpeg_hace_remux(self):
         from unittest.mock import patch
 

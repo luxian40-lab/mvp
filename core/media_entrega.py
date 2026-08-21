@@ -54,6 +54,79 @@ def marcar_reintento_en_log(log, n: int, error_code: str = '') -> None:
     log.save(update_fields=['error_detalle'])
 
 
+def _ya_notificado_ops(log) -> bool:
+    return 'NOTIFIED_OPS' in (getattr(log, 'error_detalle', None) or '')
+
+
+def _marcar_notificado_ops(log) -> None:
+    prev = (log.error_detalle or '').strip()
+    if 'NOTIFIED_OPS' in prev:
+        return
+    log.error_detalle = (f'{prev} | NOTIFIED_OPS'.strip(' |'))[:2000]
+    log.save(update_fields=['error_detalle'])
+
+
+def notificar_fallo_media_ops(log, error_code: str = '', intentos: int = 0) -> None:
+    """
+    Alerta ops (Slack + email) cuando media WhatsApp queda fallida tras reintentos.
+    Idempotente por WhatsappLog (marcador NOTIFIED_OPS).
+    """
+    if _ya_notificado_ops(log):
+        return
+
+    from core.twilio_media import extraer_media_url_de_mensaje
+
+    tel = (getattr(log, 'telefono', None) or '').strip()
+    sid = (getattr(log, 'mensaje_id', None) or '').strip()
+    code = str(error_code or '').strip()
+    media_url = extraer_media_url_de_mensaje(getattr(log, 'mensaje', '') or '') or ''
+    media_corta = (media_url[:120] + '…') if len(media_url) > 120 else media_url
+
+    titulo = f'Media WA fallida {code or "?"} · {tel or "sin tel"}'
+    cuerpo = (
+        f'Teléfono: {tel}\n'
+        f'Código Twilio: {code}\n'
+        f'Intentos auto: {intentos}\n'
+        f'MessageSid: {sid}\n'
+        f'Media: {media_corta or "(sin URL en log)"}\n'
+        f'Admin triage: /admin/core/whatsapplog/?codigo_twilio={code or "fallos"}\n'
+        f'Paquetes: /admin/core/mediapaqueteentrega/?estado__exact=fallido\n'
+        f'63021 = codec/formato video (H.264+AAC). 63019 = URL/MIME/download.'
+    )
+
+    try:
+        from core.ops_slack import notify_slack_ops
+
+        notify_slack_ops(cuerpo, title=titulo)
+    except Exception as exc:
+        logger.warning('Slack media-fail notify: %s', exc)
+
+    try:
+        from django.conf import settings
+        from django.core.mail import send_mail
+
+        destino = (
+            getattr(settings, 'EMAIL_SOPORTE', None)
+            or getattr(settings, 'DEFAULT_FROM_EMAIL', None)
+            or ''
+        )
+        if destino and getattr(settings, 'EKI_MEDIA_FAIL_EMAIL', True):
+            send_mail(
+                subject=f'[eki ops] {titulo}',
+                message=cuerpo,
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', None),
+                recipient_list=[destino] if isinstance(destino, str) else list(destino),
+                fail_silently=True,
+            )
+    except Exception as exc:
+        logger.warning('Email media-fail notify: %s', exc)
+
+    try:
+        _marcar_notificado_ops(log)
+    except Exception:
+        pass
+
+
 def reintentar_media_desde_log(log, error_code: str = '') -> bool:
     """
     Reenvía el mismo adjunto 1–MAX veces tras fallo async de Twilio.
@@ -79,12 +152,14 @@ def reintentar_media_desde_log(log, error_code: str = '') -> bool:
             ya,
         )
         _upsert_paquete_desde_log(log, estado='fallido', error_code=error_code, intentos=ya)
+        notificar_fallo_media_ops(log, error_code=error_code, intentos=ya)
         return False
 
     media_url = extraer_media_url_de_mensaje(getattr(log, 'mensaje', '') or '')
     if not media_url:
         logger.warning('📎 Media fallida sin [MEDIA:] en log sid=%s', getattr(log, 'mensaje_id', ''))
         _upsert_paquete_desde_log(log, estado='fallido', error_code=error_code, intentos=ya)
+        notificar_fallo_media_ops(log, error_code=error_code, intentos=ya)
         return False
 
     n = ya + 1
@@ -126,10 +201,13 @@ def reintentar_media_desde_log(log, error_code: str = '') -> bool:
             _upsert_paquete_desde_log(
                 log, estado='fallido', error_code=error_code, intentos=n,
             )
+            if n >= max_r:
+                notificar_fallo_media_ops(log, error_code=error_code, intentos=n)
         return ok
     except Exception as e:
         logger.error('📎 Error reintento media: %s', e, exc_info=True)
         _upsert_paquete_desde_log(log, estado='fallido', error_code=error_code, intentos=n)
+        notificar_fallo_media_ops(log, error_code=error_code, intentos=n)
         return False
 
 
