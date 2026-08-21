@@ -1,6 +1,7 @@
 import json
 
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth import authenticate
 from django.db.models import Count
 from django.http import FileResponse, JsonResponse
@@ -117,17 +118,19 @@ def portal_login(request):
         from .provision import destino_post_autenticacion
 
         pu = portal_usuario_de_user(user) if user else None
-        if puede_acceder_portal(pu):
-            # Nunca dejar staff colado en cuentas portal
-            if user.is_staff or user.is_superuser:
-                user.is_staff = False
-                user.is_superuser = False
-                user.save(update_fields=['is_staff', 'is_superuser'])
+        if user and user.is_superuser:
+            # Nunca degradar ni mezclar: superadmin solo en admin.*
+            error = (
+                'Esta cuenta es superadmin de eki. '
+                'Entrá en admin.eki.technology — no uses esa contraseña en el portal.'
+            )
+        elif puede_acceder_portal(pu):
             iniciar_sesion_portal(request, pu)
             if pu.debe_cambiar_credenciales:
                 return redirect('/portal/primer-acceso/')
             return redirect(destino_post_autenticacion(pu))
-        error = 'Credenciales incorrectas o usuario sin acceso al portal.'
+        else:
+            error = 'Credenciales incorrectas o usuario sin acceso al portal.'
     return render(request, 'portal/login.html', {'error': error})
 
 
@@ -1456,29 +1459,70 @@ def portal_suscripcion(request):
 
 @portal_login_required
 def pqrs_lista(request):
+    from datetime import timedelta
+
+    from django.db.models import Case, IntegerField, Value, When
+    from django.utils import timezone
+
+    from portal.dashboard_ops import PQRS_URGENTE_HORAS
+
     org = _portal_org(request)
     if not org:
         return redirect('/portal/login/')
 
+    ahora = timezone.now()
+    umbral_urgente = ahora - timedelta(hours=PQRS_URGENTE_HORAS)
+
     pqrs = SolicitudSoporte.objects.filter(
         estudiante__cliente=org,
     ).select_related('estudiante')
-    pqrs = _filtrar_pqrs_por_tipo_proyecto(pqrs, org).order_by('-fecha_solicitud')
+    pqrs = _filtrar_pqrs_por_tipo_proyecto(pqrs, org)
 
     estado = request.GET.get('estado', '')
-    if estado:
+    if estado == 'urgente':
+        pqrs = pqrs.filter(estado='pendiente', fecha_solicitud__lte=umbral_urgente)
+    elif estado:
         pqrs = pqrs.filter(estado=estado)
 
-    total_pendientes = _filtrar_pqrs_por_tipo_proyecto(
+    # Next best action: pendientes/en atención primero; dentro, los más viejos primero.
+    pqrs = pqrs.annotate(
+        _prio=Case(
+            When(estado='pendiente', then=Value(0)),
+            When(estado='en_atencion', then=Value(1)),
+            default=Value(2),
+            output_field=IntegerField(),
+        ),
+    ).order_by('_prio', 'fecha_solicitud')
+
+    filas = []
+    for item in pqrs[:200]:
+        delta = ahora - item.fecha_solicitud if item.fecha_solicitud else timedelta(0)
+        horas = max(0, int(delta.total_seconds() // 3600))
+        es_urgente = (
+            item.estado == 'pendiente'
+            and item.fecha_solicitud is not None
+            and item.fecha_solicitud <= umbral_urgente
+        )
+        filas.append({
+            'item': item,
+            'horas_espera': horas,
+            'es_urgente': es_urgente,
+        })
+
+    base_pend = _filtrar_pqrs_por_tipo_proyecto(
         SolicitudSoporte.objects.filter(estudiante__cliente=org, estado='pendiente'),
         org,
-    ).count()
+    )
+    total_pendientes = base_pend.count()
+    total_urgentes = base_pend.filter(fecha_solicitud__lte=umbral_urgente).count()
 
     return render(request, 'portal/pqrs_lista.html', {
         'org': org,
-        'pqrs': pqrs,
+        'pqrs_filas': filas,
         'estado_filtro': estado,
         'total_pendientes': total_pendientes,
+        'total_urgentes': total_urgentes,
+        'pqrs_urgente_horas': PQRS_URGENTE_HORAS,
     })
 
 
@@ -1523,6 +1567,54 @@ def pqrs_detalle(request, pqrs_id):
 
 
 @portal_login_required
+def faq_organizacion_lista(request):
+    """FAQ institucionales del cliente para el agente PQRS (no contenido del curso)."""
+    from core.models import FaqOrganizacion
+
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    puede_editar = request.portal_usuario.rol == 'admin'
+    faqs = FaqOrganizacion.objects.filter(cliente=org).order_by('orden', 'pregunta')
+
+    if request.method == 'POST' and puede_editar:
+        accion = (request.POST.get('accion') or '').strip()
+        if accion == 'crear':
+            pregunta = (request.POST.get('pregunta') or '').strip()[:300]
+            respuesta = (request.POST.get('respuesta') or '').strip()
+            claves = (request.POST.get('palabras_clave') or '').strip()[:400]
+            if pregunta and respuesta:
+                FaqOrganizacion.objects.create(
+                    cliente=org,
+                    pregunta=pregunta,
+                    respuesta=respuesta,
+                    palabras_clave=claves,
+                )
+                messages.success(request, 'FAQ guardada. El agente PQRS ya puede usarla.')
+            else:
+                messages.error(request, 'Indique pregunta y respuesta.')
+        elif accion == 'toggle':
+            faq = get_object_or_404(FaqOrganizacion, pk=request.POST.get('faq_id'), cliente=org)
+            faq.activo = not faq.activo
+            faq.save(update_fields=['activo', 'fecha_actualizacion'])
+            messages.success(request, 'FAQ actualizada.')
+        elif accion == 'eliminar':
+            faq = get_object_or_404(FaqOrganizacion, pk=request.POST.get('faq_id'), cliente=org)
+            faq.delete()
+            messages.success(request, 'FAQ eliminada.')
+        return redirect('portal_faq_organizacion')
+
+    return render(request, 'portal/faq_organizacion.html', {
+        'org': org,
+        'faqs': faqs,
+        'puede_editar': puede_editar,
+        'contacto_preview': org.contacto_soporte_texto
+        or 'Complete contacto/email/WhatsApp en Perfil de empresa.',
+    })
+
+
+@portal_login_required
 def perfil_organizacion(request):
     org = _portal_org(request)
     if not org:
@@ -1533,23 +1625,33 @@ def perfil_organizacion(request):
     mensaje_error = None
 
     if request.method == 'POST' and puede_editar:
-        from .utils import guardar_logo_organizacion
+        from .utils import guardar_logo_organizacion, guardar_wallpaper_aula
 
         org.portal_subtitulo = (request.POST.get('portal_subtitulo') or '').strip()[:200]
         logo_url_manual = (request.POST.get('logo_url') or '').strip()
+        wallpaper_url_manual = (request.POST.get('wallpaper_aula_url') or '').strip()
         archivo = request.FILES.get('logo_archivo')
+        wallpaper_archivo = request.FILES.get('wallpaper_archivo')
+        quitar_wallpaper = (request.POST.get('quitar_wallpaper') or '').strip() == '1'
 
+        update_fields = ['logo_url', 'portal_subtitulo', 'wallpaper_aula_url']
         try:
             if archivo:
                 org.logo_url = guardar_logo_organizacion(archivo, org.pk)
             elif logo_url_manual:
                 org.logo_url = logo_url_manual
-            org.save(update_fields=['logo_url', 'portal_subtitulo'])
+            if quitar_wallpaper:
+                org.wallpaper_aula_url = ''
+            elif wallpaper_archivo:
+                org.wallpaper_aula_url = guardar_wallpaper_aula(wallpaper_archivo, org.pk)
+            elif wallpaper_url_manual:
+                org.wallpaper_aula_url = wallpaper_url_manual
+            org.save(update_fields=update_fields)
             mensaje_ok = 'Perfil de la organización actualizado.'
         except ValueError as exc:
             mensaje_error = str(exc)
         except Exception:
-            mensaje_error = 'No se pudo guardar el logo. Intente de nuevo o use una URL.'
+            mensaje_error = 'No se pudo guardar el branding. Intente de nuevo o use una URL.'
 
     elif request.method == 'POST' and not puede_editar:
         mensaje_error = 'Solo los administradores del portal pueden editar el perfil.'

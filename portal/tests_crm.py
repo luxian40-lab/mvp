@@ -78,8 +78,44 @@ class PortalCrmTests(TestCase):
 
         ops = operacion_del_dia(self.cliente)
         self.assertEqual(ops['sin_avance'], 1)
+        self.assertIn('pqrs_urgentes', ops)
+        self.assertEqual(ops['pqrs_urgentes'], 0)
         self.assertNotIn('resumen', ops)
         self.assertNotIn('ultimos_mensajes', ops)
+
+    def test_pqrs_urgentes_y_lista_orden(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from core.models import SolicitudSoporte
+        from portal.dashboard_ops import operacion_del_dia
+
+        viejo = SolicitudSoporte.objects.create(
+            estudiante=self.est,
+            mensaje_original='No me llega el video desde ayer',
+            estado='pendiente',
+            categoria='tecnico',
+        )
+        SolicitudSoporte.objects.filter(pk=viejo.pk).update(
+            fecha_solicitud=timezone.now() - timedelta(hours=30),
+        )
+        ops = operacion_del_dia(self.cliente)
+        self.assertEqual(ops['pqrs_pendientes'], 1)
+        self.assertEqual(ops['pqrs_urgentes'], 1)
+
+        # Con filtro de módulos (como el dashboard real)
+        from portal.capabilities import categorias_pqrs_portal
+
+        ops2 = operacion_del_dia(self.cliente, categorias_pqrs=categorias_pqrs_portal(self.cliente))
+        self.assertEqual(ops2['pqrs_urgentes'], 1)
+
+        self._login('crm_admin')
+        r = self.http.get('/portal/pqrs/?estado=urgente')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Urgentes')
+        self.assertContains(r, 'No me llega el video')
+        self.assertContains(r, '30h')
 
     def test_timeline_page(self):
         self._login('crm_admin')

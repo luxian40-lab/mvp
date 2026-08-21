@@ -85,6 +85,7 @@ urlpatterns = [
     path('certificados/', views.portal_certificados, name='portal_certificados'),
     path('pqrs/', views.pqrs_lista, name='portal_pqrs'),
     path('pqrs/<int:pqrs_id>/', views.pqrs_detalle, name='portal_pqrs_detalle'),
+    path('faq-organizacion/', views.faq_organizacion_lista, name='portal_faq_organizacion'),
     path('perfil/', views.perfil_organizacion, name='portal_perfil'),
     path('suscripcion/', views.portal_suscripcion, name='portal_suscripcion'),
     path('suscripcion-vencida/', views.suscripcion_vencida, name='portal_vencida'),

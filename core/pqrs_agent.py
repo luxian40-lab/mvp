@@ -34,7 +34,7 @@ REGLAS DURAS:
 - Tono: formal (usted), cálido y conciso. Máximo 3 párrafos cortos.
 - Use el CONTEXTO DEL ESTUDIANTE (curso, módulo, avance, datos). No invente datos.
 - Máximo 2 preguntas de clarificación por ticket.
-- Categorías: acceso | contenido | tecnico | otro
+- Categorías: acceso | contenido | tecnico | organizacion | otro
 - ACCIONES permitidas (campo "accion"):
   - ninguna: solo responder / orientar
   - corregir_datos: nombre, municipio o cédula (si conoce el valor use campo_correccion + valor_nuevo; si no, deje valor vacío para abrir menú)
@@ -42,6 +42,8 @@ REGLAS DURAS:
   - reenviar_modulo: el sistema reenviará el material del módulo actual sin avanzar
   - escalar: no puede resolver; equipo humano
 - PERMITIDO: corregir nombre/municipio/cédula, explicar progreso/drip, reenviar módulo, retomar con *listo*.
+- Si la duda es de la ORGANIZACIÓN (bonos, pagos, RH, convenio, horarios laborales) y hay FAQ en el contexto → use esa respuesta; categoria=organizacion; escalar=false.
+- Si es de la organización y NO hay FAQ → categoria=organizacion, accion=escalar, escalar=true; en respuesta_whatsapp derive al contacto de la organización (está en el contexto).
 - PROHIBIDO (fuera_de_alcance=true): cambiar teléfono u organización; marcar progreso completado; saltar drip; dar respuestas de examen.
 - Si pregunta CONTENIDO ACADÉMICO (agronomía, dosis, etc.) → consulta_contenido_curso=true (no enseñe la materia).
 - Si puede resolver con una acción, escalar=false.
@@ -51,7 +53,7 @@ REGLAS DURAS:
 
 Devuelva SIEMPRE JSON válido:
 {{
-  "categoria": "acceso|contenido|tecnico|otro",
+  "categoria": "acceso|contenido|tecnico|organizacion|otro",
   "respuesta_whatsapp": "texto para el estudiante",
   "escalar": true|false,
   "accion": "ninguna|corregir_datos|explicar_progreso|reenviar_modulo|escalar",
@@ -64,7 +66,7 @@ Devuelva SIEMPRE JSON válido:
 }}
 """
 
-CATEGORIAS_VALIDAS = {"acceso", "contenido", "tecnico", "otro"}
+CATEGORIAS_VALIDAS = {"acceso", "contenido", "tecnico", "organizacion", "otro"}
 
 _AYUDA_EXACTAS = frozenset({
     'ayuda', 'help', 'soporte', 'ticket', 'problema', 'pqrs', 'queja', 'reclamo', 'solicitud',
@@ -155,6 +157,27 @@ def construir_contexto_estudiante(estudiante) -> str:
                 f"mod={mod.numero if mod else '—'} "
                 f"titulo={mod.titulo if mod else '—'} drip_bloquea={drip}"
             )
+
+    # Último fallo de envío WA (media/Twilio) — útil cuando el estudiante dice "no me llega".
+    try:
+        from core.models import WhatsappLog
+
+        tel = (estudiante.telefono or '').strip()
+        if tel:
+            fallido = (
+                WhatsappLog.objects.filter(telefono=tel, tipo='SENT', estado='ERROR')
+                .order_by('-fecha')
+                .only('fecha', 'error_detalle', 'mensaje')
+                .first()
+            )
+            if fallido:
+                detalle = (fallido.error_detalle or fallido.mensaje or '')[:180]
+                lineas.append(
+                    f"- Ultimo_error_envio_WA: {fallido.fecha.isoformat()} | {detalle or 'sin detalle'}"
+                )
+    except Exception:
+        logger.debug('[PQRS] No se pudo cargar ultimo error WA', exc_info=True)
+
     return '\n'.join(lineas)
 
 
@@ -194,6 +217,34 @@ def _escalar_por_limite_preguntas(solicitud) -> dict[str, Any]:
         'escalar': True,
         'accion': 'escalar',
         'nota_interna': 'Escalado por falta de claridad tras 2 intentos de clarificación.',
+        'hacer_pregunta_clarificacion': False,
+        'fuera_de_alcance': False,
+        'consulta_contenido_curso': False,
+    }
+
+
+def _resultado_faq_organizacion(faq) -> dict[str, Any]:
+    return {
+        'categoria': 'organizacion',
+        'respuesta_whatsapp': _asegurar_cierre((faq.respuesta or '').strip()),
+        'escalar': False,
+        'accion': 'ninguna',
+        'nota_interna': f'FAQ organización id={faq.pk}: {faq.pregunta[:80]}',
+        'hacer_pregunta_clarificacion': False,
+        'fuera_de_alcance': False,
+        'consulta_contenido_curso': False,
+    }
+
+
+def _resultado_derivar_organizacion(cliente) -> dict[str, Any]:
+    from core.faq_organizacion import texto_contacto_organizacion
+
+    return {
+        'categoria': 'organizacion',
+        'respuesta_whatsapp': _asegurar_cierre(texto_contacto_organizacion(cliente)),
+        'escalar': True,
+        'accion': 'escalar',
+        'nota_interna': 'Consulta de organización sin FAQ — derivado a contacto / coordinador.',
         'hacer_pregunta_clarificacion': False,
         'fuera_de_alcance': False,
         'consulta_contenido_curso': False,
@@ -364,10 +415,20 @@ def respuesta_ayuda_con_ticket_abierto(estudiante, mensaje: str) -> Optional[str
 
 
 def _contexto_completo(solicitud) -> str:
+    from core.faq_organizacion import listar_faqs_para_contexto
+
     est = getattr(solicitud, 'estudiante', None)
     partes = []
     if est:
         partes.append(construir_contexto_estudiante(est))
+        cliente = getattr(est, 'cliente', None)
+        if cliente:
+            contacto = (getattr(cliente, 'contacto_soporte_texto', None) or '').strip()
+            if contacto:
+                partes.append(f'CONTACTO OFICIAL DE LA ORGANIZACIÓN:\n{contacto}')
+            faq_ctx = listar_faqs_para_contexto(cliente)
+            if faq_ctx:
+                partes.append(faq_ctx)
     partes.append(_historial_conversacion(solicitud))
     return '\n\n'.join(partes)
 
@@ -383,6 +444,11 @@ def _enriquecer_con_acciones(solicitud, resultado: dict[str, Any]) -> dict[str, 
 
 def procesar_pqrs_automatico(solicitud_soporte) -> dict[str, Any]:
     """Primera respuesta del agente tras crear la solicitud."""
+    from core.faq_organizacion import (
+        buscar_faq_organizacion,
+        parece_consulta_organizacion,
+    )
+
     mensaje = (getattr(solicitud_soporte, 'mensaje_original', '') or '').strip()
     if not mensaje:
         return _fallback_escalar('Mensaje vacío en la solicitud')
@@ -390,6 +456,14 @@ def procesar_pqrs_automatico(solicitud_soporte) -> dict[str, Any]:
         return _resultado_fuera_alcance()
     if _detectar_consulta_contenido(mensaje):
         return _enriquecer_con_acciones(solicitud_soporte, _resultado_contenido_curso())
+
+    est = getattr(solicitud_soporte, 'estudiante', None)
+    cliente = getattr(est, 'cliente', None) if est else None
+    faq, _score = buscar_faq_organizacion(cliente, mensaje)
+    if faq:
+        return _resultado_faq_organizacion(faq)
+    if parece_consulta_organizacion(mensaje):
+        return _resultado_derivar_organizacion(cliente)
 
     # Heurística sin LLM: "progreso" / "avance" / reenviar
     t = _normalizar_texto_whatsapp(mensaje)
@@ -456,6 +530,16 @@ def procesar_seguimiento_pqrs(solicitud_soporte, mensaje_estudiante: str) -> dic
         return _resultado_fuera_alcance()
     if _detectar_consulta_contenido(mensaje):
         return _enriquecer_con_acciones(solicitud_soporte, _resultado_contenido_curso())
+
+    from core.faq_organizacion import buscar_faq_organizacion, parece_consulta_organizacion
+
+    est = getattr(solicitud_soporte, 'estudiante', None)
+    cliente = getattr(est, 'cliente', None) if est else None
+    faq, _score = buscar_faq_organizacion(cliente, mensaje)
+    if faq:
+        return _resultado_faq_organizacion(faq)
+    if parece_consulta_organizacion(mensaje):
+        return _resultado_derivar_organizacion(cliente)
 
     raw = _llamar_openai_pqrs(
         mensaje,
@@ -569,6 +653,10 @@ def aplicar_resultado_pqrs(solicitud_soporte, resultado: dict[str, Any]) -> None
     if accion in {'explicar_progreso', 'reenviar_modulo', 'corregir_datos'}:
         escalar = False
     elif categoria in {'tecnico', 'otro'} and accion in {'ninguna', 'escalar'}:
+        escalar = True
+    elif categoria == 'organizacion' and accion in {'ninguna', 'escalar'} and not (
+        resultado.get('respuesta_whatsapp') or ''
+    ).strip():
         escalar = True
     if fuera:
         escalar = True

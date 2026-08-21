@@ -5,14 +5,24 @@
 {% block content %}
 <div class="page-title">
     <h1>PQRS</h1>
-    {% if total_pendientes > 0 %}
+    {% if total_urgentes > 0 %}
+        <span class="badge" style="background:#b45309;">{{ total_urgentes }} urgentes (+{{ pqrs_urgente_horas }}h)</span>
+    {% elif total_pendientes > 0 %}
         <span class="badge">{{ total_pendientes }} pendientes</span>
     {% endif %}
 </div>
 
+{% if total_urgentes > 0 and estado_filtro != 'urgente' %}
+<p class="muted" style="margin:0 0 14px;">
+    Hay tickets escalados por el agente sin respuesta humana.
+    <a href="/portal/pqrs/?estado=urgente"><strong>Ver urgentes primero →</strong></a>
+</p>
+{% endif %}
+
 <section class="panel">
     <div style="margin-bottom:18px;">
         <a class="pill {% if not estado_filtro %}active{% endif %}" href="/portal/pqrs/">Todos</a>
+        <a class="pill {% if estado_filtro == 'urgente' %}active{% endif %}" href="/portal/pqrs/?estado=urgente">Urgentes</a>
         <a class="pill {% if estado_filtro == 'pendiente' %}active{% endif %}" href="/portal/pqrs/?estado=pendiente">Pendientes</a>
         <a class="pill {% if estado_filtro == 'en_atencion' %}active{% endif %}" href="/portal/pqrs/?estado=en_atencion">En proceso</a>
         <a class="pill {% if estado_filtro == 'resuelta' %}active{% endif %}" href="/portal/pqrs/?estado=resuelta">Resueltas</a>
@@ -24,24 +34,36 @@
                 <th>Estudiante</th>
                 <th>Tipo/Categoría</th>
                 <th>Mensaje</th>
+                <th>Espera</th>
                 <th>Fecha</th>
                 <th>Estado</th>
                 <th>Acción</th>
             </tr>
         </thead>
         <tbody>
-            {% for item in pqrs %}
-                <tr>
+            {% for fila in pqrs_filas %}
+                {% with item=fila.item %}
+                <tr{% if fila.es_urgente %} style="background:#fff7ed;"{% endif %}>
                     <td>{{ item.estudiante.nombre }}</td>
                     <td>{{ item.get_tipo_solicitud_display }}<br><span class="muted">{{ item.get_categoria_display }}</span></td>
                     <td>{{ item.mensaje_original|truncatechars:80 }}</td>
+                    <td>
+                        {% if fila.es_urgente %}
+                        <strong style="color:#b45309;">{{ fila.horas_espera }}h</strong>
+                        {% elif item.estado == 'pendiente' or item.estado == 'en_atencion' %}
+                        {{ fila.horas_espera }}h
+                        {% else %}
+                        <span class="muted">—</span>
+                        {% endif %}
+                    </td>
                     <td>{{ item.fecha_solicitud|date:"d/m/Y H:i" }}</td>
                     <td><span class="status status-{{ item.estado }}">{{ item.get_estado_display }}</span></td>
                     <td><a class="btn btn-secondary" href="/portal/pqrs/{{ item.id }}/">Ver</a></td>
                 </tr>
+                {% endwith %}
             {% empty %}
                 <tr>
-                    <td colspan="6" class="muted">No hay solicitudes de tus estudiantes aún.</td>
+                    <td colspan="7" class="muted">No hay solicitudes de tus estudiantes aún.</td>
                 </tr>
             {% endfor %}
         </tbody>

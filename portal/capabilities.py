@@ -15,6 +15,8 @@ CATEGORIAS_POR_TIPO_PROYECTO = {
         'solicitud_certificado',
         'contenido',
         'acceso',
+        'tecnico',
+        'organizacion',
         'otro',
         '',
     ],

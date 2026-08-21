@@ -277,11 +277,11 @@ html[data-theme="dark"] .ops-card { background: var(--blanco); }
                 <span class="ops-card__hint">Empezaron pero se detuvieron. Candidatos a reenganche.</span>
             </div>
         </a>
-        <a href="/portal/pqrs/?estado=pendiente" class="card-link">
-            <div class="ops-card ops-card--info">
-                <span class="ops-card__num">{{ ops.pqrs_pendientes }}</span>
-                <span class="ops-card__label">PQRS pendientes</span>
-                <span class="ops-card__hint">Solicitudes de sus participantes por responder.</span>
+        <a href="/portal/pqrs/?estado={% if ops.pqrs_urgentes %}urgente{% else %}pendiente{% endif %}" class="card-link">
+            <div class="ops-card {% if ops.pqrs_urgentes %}ops-card--warn{% else %}ops-card--info{% endif %}">
+                <span class="ops-card__num">{% if ops.pqrs_urgentes %}{{ ops.pqrs_urgentes }}{% else %}{{ ops.pqrs_pendientes }}{% endif %}</span>
+                <span class="ops-card__label">{% if ops.pqrs_urgentes %}PQRS urgentes (+24h){% else %}PQRS pendientes{% endif %}</span>
+                <span class="ops-card__hint">{% if ops.pqrs_urgentes %}Escalados por el agente sin respuesta humana. Atienda primero.{% else %}Solicitudes de sus participantes por responder.{% endif %}</span>
             </div>
         </a>
         <a href="/portal/certificados/" class="card-link">

@@ -408,6 +408,24 @@ class Cliente(models.Model):
     def __str__(self):
         return self.nombre
 
+    @property
+    def contacto_soporte_texto(self) -> str:
+        """Líneas de contacto para derivar consultas de la organización (PQRS)."""
+        partes = []
+        nombre = (self.contacto_principal or '').strip()
+        if nombre:
+            partes.append(f'Contacto: {nombre}')
+        email = (self.email or '').strip()
+        if email:
+            partes.append(f'Correo: {email}')
+        wa = (self.whatsapp_numero or '').strip()
+        if wa:
+            partes.append(f'WhatsApp: {wa}')
+        tel = (self.telefono or '').strip()
+        if tel and tel != wa:
+            partes.append(f'Teléfono: {tel}')
+        return '\n'.join(partes) if partes else ''
+
     def save(self, *args, **kwargs):
         from core.gamificacion_modo import sincronizar_usar_gamificacion
 
@@ -429,6 +447,45 @@ class Cliente(models.Model):
     def total_cursos(self):
         """Retorna total de cursos asignados al cliente"""
         return self.cursos.count()
+
+
+class FaqOrganizacion(models.Model):
+    """FAQ institucional del cliente para PQRS (no es contenido del curso ni Nat)."""
+
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.CASCADE,
+        related_name='faqs_organizacion',
+        verbose_name='Organización',
+    )
+    pregunta = models.CharField(
+        max_length=300,
+        verbose_name='Pregunta',
+        help_text='Cómo la haría el estudiante (ej. ¿Cuándo pagan el bono?).',
+    )
+    respuesta = models.TextField(
+        verbose_name='Respuesta',
+        help_text='Texto que el agente envía por WhatsApp si hay coincidencia.',
+    )
+    palabras_clave = models.CharField(
+        max_length=400,
+        blank=True,
+        default='',
+        verbose_name='Palabras clave',
+        help_text='Opcional, separadas por coma (bono, pago, nómina). Mejoran el match.',
+    )
+    activo = models.BooleanField(default=True, verbose_name='Activo')
+    orden = models.PositiveSmallIntegerField(default=0, verbose_name='Orden')
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'FAQ de organización'
+        verbose_name_plural = 'FAQ de organización (PQRS)'
+        ordering = ['orden', 'pregunta']
+
+    def __str__(self):
+        return f'{self.cliente_id}: {self.pregunta[:60]}'
 
 
 class MetaMetricaEmpresa(models.Model):
@@ -3178,6 +3235,7 @@ class SolicitudSoporte(models.Model):
         ('acceso', '🔑 Acceso (login, cédula, número)'),
         ('contenido', '📚 Contenido (módulo, video, examen)'),
         ('tecnico', '🛠️ Técnico (errores del sistema)'),
+        ('organizacion', '🏢 Organización / cliente (no curso)'),
         ('duda_modulo', 'Duda de módulo'),
         ('problema_acceso', 'Problema de acceso'),
         ('solicitud_certificado', 'Solicitud de certificado'),

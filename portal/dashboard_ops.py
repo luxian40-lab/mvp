@@ -98,11 +98,16 @@ def comparativa_periodos(org) -> dict:
     }
 
 
+# Tickets PQRS sin humano > este umbral = "urgente" (next best action coordinador).
+PQRS_URGENTE_HORAS = 24
+
+
 def operacion_del_dia(org, *, categorias_pqrs=None) -> dict:
     """Acciones pendientes del día (aggregates SQL, sin N+1 ni inbox WhatsApp)."""
     hoy = timezone.localdate()
     semana = hoy - timedelta(days=7)
     hace_30 = hoy - timedelta(days=30)
+    umbral_urgente = timezone.now() - timedelta(hours=PQRS_URGENTE_HORAS)
 
     pqrs_q = SolicitudSoporte.objects.filter(estudiante__cliente=org, estado='pendiente')
     if categorias_pqrs is not None:
@@ -121,6 +126,7 @@ def operacion_del_dia(org, *, categorias_pqrs=None) -> dict:
 
     return {
         'pqrs_pendientes': pqrs_q.count(),
+        'pqrs_urgentes': pqrs_q.filter(fecha_solicitud__lte=umbral_urgente).count(),
         'certificados_semana': Certificado.objects.filter(
             estudiante__cliente=org, emitido=True,
             fecha_emision__date__gte=semana,
@@ -164,7 +170,10 @@ def narrativa_estado_programa(ops: dict | None, comparativa: dict | None, resume
         pendientes.append(f'{sin_avance} aún no inician')
     if inactivos:
         pendientes.append(f'{inactivos} llevan 30+ días sin actividad')
-    if pqrs:
+    pqrs_urg = int(ops.get('pqrs_urgentes') or 0)
+    if pqrs_urg:
+        pendientes.append(f'{pqrs_urg} PQRS urgentes (+{PQRS_URGENTE_HORAS}h sin respuesta)')
+    elif pqrs:
         pendientes.append(f'{pqrs} PQRS por atender')
 
     # Titular honesto según el pulso real del programa.

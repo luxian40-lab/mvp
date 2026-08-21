@@ -1,4 +1,6 @@
 from core.admin._common import *  # noqa: F401,F403
+from core.models import FaqOrganizacion
+
 
 # ========== CLIENTE (NUEVO) ==========
 class ConfiguracionDripClienteInline(admin.TabularInline):
@@ -70,6 +72,15 @@ class ProductoCatalogoInline(admin.TabularInline):
     verbose_name_plural = 'Catálogo de productos (Nat)'
 
 
+class FaqOrganizacionInline(admin.TabularInline):
+    model = FaqOrganizacion
+    extra = 0
+    tab = True
+    fields = ('pregunta', 'respuesta', 'palabras_clave', 'orden', 'activo')
+    verbose_name = 'FAQ organización'
+    verbose_name_plural = 'FAQ organización (PQRS — no curso)'
+
+
 class PortalUsuarioInline(admin.TabularInline):
     model = PortalUsuario
     extra = 0
@@ -109,6 +120,7 @@ class ClienteAdmin(admin.ModelAdmin):
 
     inlines = [
         PortalUsuarioInline,
+        FaqOrganizacionInline,
         ConfiguracionDripClienteInline,
         HabilitacionModuloDripClienteInline,
         ProductoCatalogoInline,

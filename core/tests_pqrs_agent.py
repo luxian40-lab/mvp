@@ -256,6 +256,21 @@ class TestContextoYAccionesPQRS(TestCase):
         self.assertIn('Ibagué', ctx)
         self.assertIn(self.est.cedula, ctx)
 
+    def test_construir_contexto_incluye_ultimo_error_wa(self):
+        from core.models import WhatsappLog
+        from core.pqrs_agent import construir_contexto_estudiante
+
+        WhatsappLog.objects.create(
+            telefono=self.est.telefono,
+            mensaje='video modulo',
+            tipo='SENT',
+            estado='ERROR',
+            error_detalle='63019 Unable to download media',
+        )
+        ctx = construir_contexto_estudiante(self.est)
+        self.assertIn('Ultimo_error_envio_WA', ctx)
+        self.assertIn('63019', ctx)
+
     def test_accion_explicar_progreso(self):
         solicitud = SolicitudSoporte.objects.create(
             estudiante=self.est,

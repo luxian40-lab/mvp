@@ -1,0 +1,85 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}FAQ organización | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1>FAQ de la organización</h1>
+    <p class="muted">Respuestas que el agente PQRS usa cuando el estudiante pregunta cosas de su empresa (bonos, pagos, RH), no del curso.</p>
+</div>
+
+<section class="panel" style="margin-bottom:18px;">
+    <h2>Contacto oficial (opción 2)</h2>
+    <p class="muted" style="margin-top:0;">Si no hay FAQ que coincida, el agente deriva con estos datos (Perfil de empresa):</p>
+    <pre class="soft-box" style="white-space:pre-wrap;font-family:inherit;">{{ contacto_preview }}</pre>
+    {% if puede_editar %}
+    <a class="btn btn-outline" href="/portal/perfil/">Editar perfil / contacto</a>
+    {% endif %}
+</section>
+
+{% if puede_editar %}
+<section class="panel" style="margin-bottom:18px;">
+    <h2>Nueva FAQ</h2>
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="accion" value="crear">
+        <p>
+            <label>Pregunta</label><br>
+            <input type="text" name="pregunta" maxlength="300" required style="width:100%;max-width:640px;" placeholder="¿Cuándo pagan el bono de transporte?">
+        </p>
+        <p>
+            <label>Respuesta (WhatsApp)</label><br>
+            <textarea name="respuesta" rows="4" required style="width:100%;max-width:640px;" placeholder="El bono se paga el último viernes de cada mes…"></textarea>
+        </p>
+        <p>
+            <label>Palabras clave (opcional, separadas por coma)</label><br>
+            <input type="text" name="palabras_clave" maxlength="400" style="width:100%;max-width:640px;" placeholder="bono, transporte, pago">
+        </p>
+        <button type="submit" class="btn">Guardar FAQ</button>
+    </form>
+</section>
+{% endif %}
+
+<section class="panel">
+    <h2>FAQs activas ({{ faqs|length }})</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Pregunta</th>
+                <th>Respuesta</th>
+                <th>Claves</th>
+                <th>Estado</th>
+                {% if puede_editar %}<th>Acciones</th>{% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for f in faqs %}
+            <tr>
+                <td>{{ f.pregunta }}</td>
+                <td>{{ f.respuesta|truncatechars:120 }}</td>
+                <td class="muted">{{ f.palabras_clave|default:"—" }}</td>
+                <td>{% if f.activo %}<span class="status status-ok">Activa</span>{% else %}<span class="status status-pendiente">Off</span>{% endif %}</td>
+                {% if puede_editar %}
+                <td style="white-space:nowrap;">
+                    <form method="post" style="display:inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="accion" value="toggle">
+                        <input type="hidden" name="faq_id" value="{{ f.id }}">
+                        <button type="submit" class="btn btn-ghost">{% if f.activo %}Desactivar{% else %}Activar{% endif %}</button>
+                    </form>
+                    <form method="post" style="display:inline;" onsubmit="return confirm('¿Eliminar esta FAQ?');">
+                        {% csrf_token %}
+                        <input type="hidden" name="accion" value="eliminar">
+                        <input type="hidden" name="faq_id" value="{{ f.id }}">
+                        <button type="submit" class="btn btn-ghost">Eliminar</button>
+                    </form>
+                </td>
+                {% endif %}
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="muted">Aún no hay FAQs. Agregue las 5–10 preguntas más frecuentes de su organización.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}
