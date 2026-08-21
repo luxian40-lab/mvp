@@ -602,6 +602,13 @@ def evaluar_mp4_listo_whatsapp(
         needs_fs = mp4_necesita_faststart(data)
     except Exception:
         needs_fs = False
+    if size < 64 * 1024:
+        return {
+            'apto': False,
+            'bytes': size,
+            'razon': 'archivo_demasiado_corto',
+            'necesita_faststart': needs_fs,
+        }
     if size > max_bytes:
         return {
             'apto': False,
@@ -617,7 +624,22 @@ def evaluar_mp4_listo_whatsapp(
             'necesita_faststart': needs_fs,
         }
     codecs = probe_mp4_codecs(data)
-    if codecs.get('video') and not codecs.get('ok_wa'):
+    if shutil_which_ffprobe():
+        if not codecs.get('video'):
+            return {
+                'apto': False,
+                'bytes': size,
+                'razon': 'sin_pista_video_ffprobe',
+                'necesita_faststart': needs_fs,
+            }
+        if not codecs.get('ok_wa'):
+            return {
+                'apto': False,
+                'bytes': size,
+                'razon': f"codec_no_wa_v={codecs.get('video')}_a={codecs.get('audio')}_p={codecs.get('profile')}",
+                'necesita_faststart': needs_fs,
+            }
+    elif codecs.get('video') and not codecs.get('ok_wa'):
         return {
             'apto': False,
             'bytes': size,
@@ -630,6 +652,11 @@ def evaluar_mp4_listo_whatsapp(
         'razon': 'ok' if not needs_fs else 'ok_con_faststart_recomendado',
         'necesita_faststart': needs_fs,
     }
+
+
+def shutil_which_ffprobe() -> bool:
+    import shutil
+    return bool(shutil.which('ffprobe'))
 
 
 def _ext_media(url: str) -> str:
