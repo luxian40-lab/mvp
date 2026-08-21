@@ -284,6 +284,15 @@ class Cliente(models.Model):
         verbose_name='Instrucciones extra para el Bot Comercial',
         help_text='Instrucciones específicas de este cliente que se concatenan al system prompt de Nat. Útil para tono, productos prioritarios o restricciones por marca.'
     )
+    desactivar_llm_comercial = models.BooleanField(
+        default=False,
+        verbose_name='Kill switch LLM (eki.ia)',
+        help_text=(
+            'Si está marcado, eki.ia/Nat no llama al modelo de lenguaje: responde con '
+            'catálogo, biblioteca/RAG y mensajes fijos (Plan B). Útil en incidente o costo. '
+            'También existe el interruptor global EKI_IA_LLM_DISABLED en el servidor.'
+        ),
+    )
     numero_whatsapp_nat = models.CharField(
         max_length=20,
         blank=True,

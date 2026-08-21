@@ -454,6 +454,16 @@ BOT_COMERCIAL_RAG_FALLBACK_XLSX_ROWS = max(120, min(BOT_COMERCIAL_RAG_FALLBACK_X
 # Modelo para búsqueda web (Responses API).
 BOT_COMERCIAL_WEB_SEARCH_MODEL = os.environ.get('BOT_COMERCIAL_WEB_SEARCH_MODEL', 'gpt-5-mini').strip()
 BOT_COMERCIAL_FORCE_ROUTING = os.environ.get('BOT_COMERCIAL_FORCE_ROUTING', 'false').strip().lower() in ['1', 'true', 'yes', 'on']
+# Kill switch eki.ia (Nat): no llama LLM; responde con reglas + catálogo/RAG.
+# Alias EKI_NAT_LLM_DISABLED por compat. Por org: Cliente.desactivar_llm_comercial.
+_EKI_IA_LLM_DISABLED_RAW = (
+    os.environ.get('EKI_IA_LLM_DISABLED')
+    or os.environ.get('EKI_NAT_LLM_DISABLED')
+    or 'false'
+)
+EKI_IA_LLM_DISABLED = str(_EKI_IA_LLM_DISABLED_RAW).strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 BOT_COMERCIAL_WEB_FALLBACK_ENABLED = os.environ.get('BOT_COMERCIAL_WEB_FALLBACK_ENABLED', 'true').strip().lower() in ['1', 'true', 'yes', 'on']
 try:
     BOT_COMERCIAL_WEB_FALLBACK_TIMEOUT = float(os.environ.get('BOT_COMERCIAL_WEB_FALLBACK_TIMEOUT', '6'))

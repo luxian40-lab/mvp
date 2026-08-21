@@ -414,6 +414,64 @@ def _contexto_fallback_web_agro(pregunta: str, max_chars: int = 1800) -> str:
     )
 
 
+def _bot_comercial_respuesta_sin_llm(
+    pregunta: str,
+    contexto_rag: str,
+    contexto_web: str = '',
+    cliente=None,
+) -> str:
+    """Respuesta degradada: reglas + texto RAG/web, sin llamar al LLM."""
+    contexto_base = contexto_rag or contexto_web
+    tiene_rag = bool(contexto_rag)
+    if not contexto_base:
+        return _bot_comercial_sin_contexto_natural(pregunta, cliente=cliente)
+
+    if tiene_rag:
+        encabezado = "Con base en la información oficial de eki:"
+        cierre = "Si aplica cotización, compárteme cantidad, municipio y cultivo."
+    else:
+        encabezado = (
+            "Aún no tengo información oficial de eki suficiente para resolver eso. "
+            "Le comparto un respaldo técnico general:"
+        )
+        cierre = (
+            "Si ya tiene ficha técnica o precios del producto, le pido que los hagamos "
+            "llegar al equipo de eki para darle una recomendación exacta por cultivo y necesidad."
+        )
+
+    return (
+        f"{encabezado}\n\n"
+        f"{contexto_base[:1200]}\n\n"
+        f"{cierre}"
+    )
+
+
+def _emit_kill_switch_evento(pregunta: str, respuesta: str, cliente=None) -> None:
+    try:
+        from core.eki_ia_kill_switch import motivo_kill_switch
+        from core.eventos_ia import emit_evento
+        from core.models import EventoIA
+
+        motivo = motivo_kill_switch(cliente=cliente)
+        emit_evento(
+            EventoIA.TIPO_IA_AGENT_TRIGGERED,
+            cliente=cliente,
+            agente='eki.ia',
+            canal='whatsapp_comercial',
+            regla_aplicada=motivo,
+            modelo='',
+            latencia_ms=0,
+            input_preview=pregunta,
+            output_preview=respuesta,
+            metadata={
+                'kill_switch': True,
+                'llm_llamado': False,
+            },
+        )
+    except Exception:
+        pass
+
+
 def _bot_comercial_respuesta_catalogo(
     pregunta: str,
     contexto_rag: str,
@@ -433,31 +491,17 @@ def _bot_comercial_respuesta_catalogo(
     Si se pasa `cliente` (instancia de `core.Cliente`), se usa su `system_prompt_extra`
     y `nombre_bot` para personalizar la identidad de Nat.
     """
+    from core.eki_ia_kill_switch import eki_ia_llm_kill_activo
+
     api_key = getattr(settings, 'OPENAI_API_KEY', '')
-    contexto_base = contexto_rag or contexto_web
-    tiene_rag = bool(contexto_rag)
-    if not api_key:
-        if not contexto_base:
-            return _bot_comercial_sin_contexto_natural(pregunta, cliente=cliente)
-
-        if tiene_rag:
-            encabezado = "Con base en la información oficial de eki:"
-            cierre = "Si aplica cotización, compárteme cantidad, municipio y cultivo."
-        else:
-            encabezado = (
-                "Aún no tengo información oficial de eki suficiente para resolver eso. "
-                "Le comparto un respaldo técnico general:"
-            )
-            cierre = (
-                "Si ya tiene ficha técnica o precios del producto, le pido que los hagamos "
-                "llegar al equipo de eki para darle una recomendación exacta por cultivo y necesidad."
-            )
-
-        return (
-            f"{encabezado}\n\n"
-            f"{contexto_base[:1200]}\n\n"
-            f"{cierre}"
+    kill = eki_ia_llm_kill_activo(cliente=cliente)
+    if kill or not api_key:
+        texto = _bot_comercial_respuesta_sin_llm(
+            pregunta, contexto_rag, contexto_web=contexto_web, cliente=cliente,
         )
+        if kill:
+            _emit_kill_switch_evento(pregunta, texto, cliente=cliente)
+        return texto
 
     try:
         from openai import OpenAI
@@ -1053,7 +1097,9 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
             if routing.usar_web and not contexto_web:
                 from core.nati import buscar_en_web_colombia
 
-                contexto_web = buscar_en_web_colombia(consulta) or _contexto_fallback_web_agro(
+                contexto_web = buscar_en_web_colombia(
+                    consulta, cliente=cliente_nati,
+                ) or _contexto_fallback_web_agro(
                     pregunta=consulta,
                     max_chars=1800,
                 )

@@ -423,12 +423,17 @@ def armar_messages_para_openai(
     return messages
 
 
-def buscar_en_web_colombia(query: str, max_fuentes: int = 3) -> str:
+def buscar_en_web_colombia(query: str, max_fuentes: int = 3, cliente=None) -> str:
     """
     Fallback web para Nati con prioridad Colombia.
     Usa OpenAI tools web_search cuando está disponible.
     """
     if not bool(getattr(settings, "BOT_COMERCIAL_WEB_FALLBACK_ENABLED", True)):
+        return ""
+
+    from core.eki_ia_kill_switch import eki_ia_llm_kill_activo
+
+    if eki_ia_llm_kill_activo(cliente=cliente):
         return ""
 
     api_key = (getattr(settings, "OPENAI_API_KEY", None) or "").strip()

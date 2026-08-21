@@ -257,9 +257,11 @@ class ClienteAdmin(admin.ModelAdmin):
                 'nombre_agente_asistente',
                 'nombre_bot',
                 'system_prompt_extra',
+                'desactivar_llm_comercial',
             ),
             'description': (
-                'Exploración territorial, nombres de agentes y prompt Nat. Catálogo en pestaña al final.'
+                'Exploración territorial, nombres de agentes y prompt Nat. '
+                'Kill switch LLM: corta eki.ia sin redeploy. Catálogo en pestaña al final.'
             ),
         }),
     )

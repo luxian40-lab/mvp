@@ -96,6 +96,7 @@ def diagnosticar_imagen_cultivo(media_url: str, media_type: str, cliente=None) -
         return ''
 
     from core.ai_capabilities import resolver_ai_capability
+    from core.eki_ia_kill_switch import eki_ia_llm_kill_activo
 
     # Visión Nat es parte del producto: no bloquear si el override está off.
     # Solo registramos para ops; el productor siempre recibe análisis si hay foto.
@@ -103,6 +104,13 @@ def diagnosticar_imagen_cultivo(media_url: str, media_type: str, cliente=None) -
         logger.info(
             'Nat visión: diagnostico_agro off en org=%s — se analiza igual (feature producto)',
             getattr(cliente, 'id', None),
+        )
+
+    if eki_ia_llm_kill_activo(cliente=cliente):
+        return (
+            "Recibí su foto. El análisis visual automático está temporalmente "
+            "en modo seguro (sin IA). Describa cultivo, síntomas y zona, "
+            "y le oriento con la información oficial disponible."
         )
 
     api_key = getattr(settings, 'OPENAI_API_KEY', '')
