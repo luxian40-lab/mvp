@@ -99,6 +99,19 @@ def eki_panel_snap():
     return build_panel_snapshot()
 
 
+@register.inclusion_tag("admin/partials/eki_twilio_nav.html", takes_context=True)
+def eki_twilio_nav(context):
+    """Gasto/saldo Twilio visible en la barra superior (no el pill Unfold)."""
+    from core.twilio_balance import twilio_balance_badge
+
+    texto, tono = 'Twilio', 'info'
+    try:
+        texto, tono = twilio_balance_badge()
+    except Exception:
+        texto, tono = 'Twilio saldo no leído', 'danger'
+    return {"texto": texto, "tono": tono}
+
+
 @register.inclusion_tag("admin/partials/eki_health_strip.html", takes_context=True)
 def eki_health_strip(context):
     """Chips de salud en la barra superior Unfold."""

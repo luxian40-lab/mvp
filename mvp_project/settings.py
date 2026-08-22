@@ -267,7 +267,7 @@ STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
 # WhiteNoise para servir archivos estáticos en producción
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_STORAGE = 'mvp_project.staticfiles_storage.EkiManifestStaticFilesStorage'
 
 # Middlewares de seguridad para producción
 csrf_origins_str = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000,https://eki-mvp.onrender.com')
@@ -613,7 +613,7 @@ if USE_S3:
             'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
         },
         'staticfiles': {
-            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+            'BACKEND': 'mvp_project.staticfiles_storage.EkiManifestStaticFilesStorage',
         },
     }
     MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'

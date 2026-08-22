@@ -91,6 +91,11 @@ UNFOLD = {
             "link": reverse_lazy("admin:index"),
         },
         {
+            "icon": "psychology",
+            "title": _("Copiloto ops"),
+            "link": "/admin/copiloto/",
+        },
+        {
             "icon": "analytics",
             "title": _("Analítica"),
             "link": "/admin/dashboard/",
@@ -326,6 +331,11 @@ UNFOLD = {
                 "separator": True,
                 "collapsible": True,
                 "items": [
+                    {
+                        "title": _("Copiloto ops"),
+                        "icon": "psychology",
+                        "link": "/admin/copiloto/",
+                    },
                     {
                         "title": _("AI Ops"),
                         "icon": "memory",

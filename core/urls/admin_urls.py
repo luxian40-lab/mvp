@@ -52,10 +52,12 @@ from aprende.views_admin import aula_web_admin_view
 from core.views_infra_admin import infra_monitor_api, infra_monitor_view
 from core.views_copiar_curso import copiar_curso_cliente_view
 from core.views_admin_panel import admin_panel_view
+from core.views_copiloto_admin import copiloto_ops_view
 from core.views_module_builder import module_builder_view
 from core.views_curso_nuevo import curso_nuevo_wizard
 
 urlpatterns = [
+    path('admin/copiloto/', copiloto_ops_view, name='copiloto_ops'),
     path('admin/panel/', admin_panel_view, name='admin_panel'),
     path('admin/dashboard/', dashboard_unificado, name='dashboard_unificado'),
     path(

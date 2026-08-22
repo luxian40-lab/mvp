@@ -286,7 +286,7 @@ STATIC_URL = '/static/'
 
 # WhiteNoise para servir archivos estáticos con compresión
 MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_STORAGE = 'mvp_project.staticfiles_storage.EkiManifestStaticFilesStorage'
 
 # Configuración de WhiteNoise optimizada
 WHITENOISE_MAX_AGE = 31536000  # 1 año de cache

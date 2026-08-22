@@ -2,16 +2,14 @@
 {% load eki_admin %}
 
 <div class="flex flex-row gap-3 items-center ml-auto eki-header-right">
+    {% eki_twilio_nav %}
+
     {% eki_health_strip %}
 
     {% eki_ops_bell %}
 
     {# Un solo control de apariencia: Cielo / Marca / Oscuro. Oscuro = modo dark Unfold. #}
     {% include "unfold/helpers/eki_tone_switch_dropdown.html" %}
-
-    {% if environment %}
-        {% include "unfold/helpers/label.html" with text=environment.0 type=environment.1 %}
-    {% endif %}
 
     {% action_list %}
 

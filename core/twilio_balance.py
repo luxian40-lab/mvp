@@ -1,4 +1,4 @@
-"""Saldo Twilio para el badge del admin (cacheado; nunca lanza)."""
+"""Saldo y gasto Twilio para la barra del admin (cacheado; nunca lanza)."""
 from __future__ import annotations
 
 import logging
@@ -25,21 +25,40 @@ def twilio_balance_badge() -> tuple[str, str]:
     return label, tone
 
 
+def _fmt_money(amount: float, cur: str) -> str:
+    cur = (cur or 'USD').upper()
+    if cur == 'USD':
+        return f'${amount:,.2f}'
+    return f'{amount:,.2f} {cur}'
+
+
 def _fetch_badge() -> tuple[str, str]:
     sid = (getattr(settings, 'TWILIO_ACCOUNT_SID', None) or '').strip()
     token = (getattr(settings, 'TWILIO_AUTH_TOKEN', None) or '').strip()
     if not sid or not token:
-        return 'PRODUCCIÓN', 'danger'
+        return 'Twilio sin credenciales', 'danger'
     try:
         from twilio.rest import Client
 
-        bal = Client(sid, token).api.v2010.balance.fetch()
+        client = Client(sid, token)
+        bal = client.api.v2010.balance.fetch()
         amount = float(bal.balance)
         cur = (bal.currency or 'USD').upper()
-        if cur == 'USD':
-            texto = f'Twilio ${amount:,.0f}'
+        queda = _fmt_money(amount, cur)
+
+        gastado = None
+        try:
+            rows = client.usage.records.this_month.list(category='totalprice', limit=1)
+            if rows:
+                gastado = float(rows[0].price)
+        except Exception:
+            logger.info('Twilio usage this_month no disponible', exc_info=True)
+
+        if gastado is not None:
+            texto = f'Twilio { _fmt_money(gastado, cur) } este mes · {queda} queda'
         else:
-            texto = f'Twilio {amount:,.0f} {cur}'
+            texto = f'Twilio {queda} queda'
+
         if amount < 15:
             tone = 'danger'
         elif amount < 40:
@@ -49,4 +68,4 @@ def _fetch_badge() -> tuple[str, str]:
         return texto, tone
     except Exception:
         logger.warning('No se pudo leer saldo Twilio', exc_info=True)
-        return 'PRODUCCIÓN', 'danger'
+        return 'Twilio saldo no leído', 'danger'

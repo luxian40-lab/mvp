@@ -94,6 +94,46 @@ html.dark .eki-health__label { color: #9a90a8; }
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+.eki-twilio-nav {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  text-decoration: none;
+  white-space: nowrap;
+  border: 1px solid rgba(154, 108, 172, 0.35);
+  background: #f4eef7;
+  color: #3d2a46;
+}
+.eki-twilio-nav:hover { filter: brightness(0.97); }
+.eki-twilio-nav--info {
+  background: #e8f1fb;
+  border-color: #9bb8d9;
+  color: #1e3a5f;
+}
+.eki-twilio-nav--warning {
+  background: #fff4e5;
+  border-color: #e0b36a;
+  color: #6a3e00;
+}
+.eki-twilio-nav--danger {
+  background: #fdecea;
+  border-color: #e8a0a0;
+  color: #7a1f1f;
+}
+html.dark .eki-twilio-nav {
+  background: rgba(154, 108, 172, 0.18);
+  border-color: rgba(220, 190, 230, 0.35);
+  color: #f3e9f7;
+}
+html.dark .eki-twilio-nav--info { background: rgba(80, 140, 200, 0.22); color: #d6e8fb; }
+html.dark .eki-twilio-nav--warning { background: rgba(200, 140, 40, 0.22); color: #ffe8c2; }
+html.dark .eki-twilio-nav--danger { background: rgba(180, 50, 50, 0.28); color: #ffd0d0; }
 .eki-health {
   display: inline-flex;
   flex-direction: column;

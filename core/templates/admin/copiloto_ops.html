@@ -1,0 +1,36 @@
+{% extends "admin/eki_ops_base.html" %}
+{% block eki_ops_crumb %}Copiloto ops{% endblock %}
+{% block title %}Copiloto ops — eki{% endblock %}
+
+{% block eki_ops_content %}
+<div class="ops-wrap" style="max-width:880px;padding:8px 0 40px">
+  <h1 style="margin:0 0 .35rem;font-size:1.45rem">Copiloto ops</h1>
+  <p style="color:#5c5666;margin:0 0 1.2rem">Para ti: fallos WA, campañas, Twilio, demo. No es Nat.</p>
+
+  <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem">
+    {% for s in sugeridas %}
+    <a class="button" href="?q={{ s|urlencode }}" style="font-size:.85rem">{{ s }}</a>
+    {% endfor %}
+  </div>
+
+  <form method="post" style="margin-bottom:1.25rem">
+    {% csrf_token %}
+    <textarea name="pregunta" rows="3" style="width:100%;padding:.7rem;border-radius:10px;border:1px solid #d4cde0" placeholder="Ej. ¿A quién le falló el video hoy?">{{ pregunta }}</textarea>
+    <p><button type="submit" class="default" style="margin-top:.5rem">Preguntar</button></p>
+  </form>
+
+  {% if resultado %}
+  <section style="background:#f7f4fa;border:1px solid #e4dceb;border-radius:12px;padding:1rem 1.1rem;margin-bottom:1.2rem;white-space:pre-wrap">{{ resultado.respuesta }}</section>
+  <p style="font-size:.78rem;color:#888">Fuente: {{ resultado.fuente }}</p>
+  {% endif %}
+
+  <h2 style="font-size:1rem;margin:1.5rem 0 .5rem">Pulso ahora</h2>
+  <ul style="line-height:1.7">
+    <li>WhatsApp {{ snap.ventana_horas }} h: {{ snap.wa_enviados }} envíos · {{ snap.wa_fallos }} fallos (63021={{ snap.n_63021 }}, 63019={{ snap.n_63019 }})</li>
+    <li>{{ snap.twilio_badge }}</li>
+    <li>ffmpeg: {{ snap.ffmpeg }}</li>
+    <li>Demo Riendas curso: {{ snap.demo_riendas_curso_id }}</li>
+    <li>Campañas sin enviar: {{ snap.campanas_sin_enviar|length }}</li>
+  </ul>
+</div>
+{% endblock %}
