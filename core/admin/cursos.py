@@ -278,12 +278,12 @@ class CursoAdmin(admin.ModelAdmin):
     change_form_template = 'admin/core/curso/change_form.html'
     # Listado limpio P1: ≤6 columnas (RAG/GEI/IA/orden → ficha o acciones).
     list_display = (
+        'logo_org',
         'nombre',
         'cliente_nombre',
         'experiencia_display',
         'total_modulos_display',
         'activo',
-        'visible_en_studio',
     )
     list_filter = (
         'activo', 'modo_aula', 'visible_en_studio', 'visible_en_aula', 'cliente',
@@ -342,7 +342,9 @@ class CursoAdmin(admin.ModelAdmin):
                 'preguntas_ejemplo_ia',
             ),
             'description': mark_safe(
-                '<p>Retos Darío/Claudia, nombres de agentes (override) y preguntas ejemplo para el tutor.</p>'
+                '<p><strong>Retos Darío → Claudia:</strong> la guía del curso orienta tono y '
+                'tipo de pregunta. En cada <em>módulo checkpoint</em> puede fijar '
+                '<em>Tipo de reto</em> + <em>Guía del reto</em> (manda sobre este campo).</p>'
                 '<p>Si los nombres van vacíos, se usan los del Cliente o los por defecto.</p>'
             ),
         }),
@@ -362,6 +364,15 @@ class CursoAdmin(admin.ModelAdmin):
             return obj.cliente.nombre
         return format_html('<span style="color:#999;font-style:italic;">General (eki)</span>')
     cliente_nombre.short_description = "Organización"
+
+    def logo_org(self, obj):
+        from core.admin.clientes import ClienteAdmin
+
+        cli = getattr(obj, 'cliente', None)
+        if not cli:
+            return '—'
+        return ClienteAdmin.logo_thumb(self, cli)
+    logo_org.short_description = ''
 
     def add_view(self, request, form_url='', extra_context=None):
         return redirect('admin_curso_nuevo')
@@ -1941,6 +1952,8 @@ class ModuloAdmin(admin.ModelAdmin):
                     'modo_entrega',
                     'secciones_por_listo',
                     'facilitador_checkpoint',
+                    'tipo_reto_ia',
+                    'reto_guia_ia',
                     'contenido',
                     'examen_obligatorio',
                     'puntaje_minimo_aprobacion',
@@ -1949,8 +1962,8 @@ class ModuloAdmin(admin.ModelAdmin):
                     'publicado_wa',
                 ),
                 'description': (
-                    'Entrega WhatsApp, texto legacy (solo si no usa Clase/Materiales), '
-                    'examen y calendario.'
+                    'Entrega WhatsApp, checkpoint Darío/Claudia (tipo + guía del reto de este módulo), '
+                    'texto legacy (solo si no usa Clase/Materiales), examen y calendario.'
                 ),
             },
         ),

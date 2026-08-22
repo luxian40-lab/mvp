@@ -318,8 +318,16 @@ class ClienteAdmin(admin.ModelAdmin):
         return super().change_view(request, object_id, form_url, extra_context=extra_context)
 
     def logo_thumb(self, obj):
-        """Foto/logo de la organización en el listado. Fallback: inicial."""
+        """Foto/logo de la organización en el listado. Fallback: mapa estático o inicial."""
+        from django.templatetags.static import static
+
+        from core.client_logos import logo_estatico_para_nombre
+
         url = (getattr(obj, 'logo_url', None) or '').strip() if obj else ''
+        if not url and obj:
+            rel = logo_estatico_para_nombre(getattr(obj, 'nombre', ''))
+            if rel:
+                url = static(rel)
         inicial = (getattr(obj, 'nombre', '') or '?').strip()[:1].upper()
         if url:
             return format_html(
