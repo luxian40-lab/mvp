@@ -92,3 +92,110 @@ class CatalogoDemoCarouselV2Tests(TestCase):
             )
         self.assertTrue(ok)
         self.assertIn('Agrosavia', mock_send.call_args[0][1])
+
+    @override_settings(EKI_DEMO_CAROUSEL_ENABLED=True)
+    def test_in_riendas_sin_curso_sigue_cta(self):
+        from core.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
+
+        with patch('core.utils.enviar_whatsapp_twilio') as mock_send:
+            mock_send.return_value = {'success': True}
+            ok = intentar_flujo_prospecto_carrusel(
+                telefono='573009990010',
+                msg_from='whatsapp:+573009990010',
+                msg_body='',
+                button_payload='in_riendas',
+            )
+        self.assertTrue(ok)
+        self.assertEqual(mock_send.call_args[0][1], TEXTO_CTA_RIENDAS)
+
+    @override_settings(EKI_DEMO_CAROUSEL_ENABLED=True)
+    def test_in_riendas_crea_estudiante_y_habeas(self):
+        from core.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
+        from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante
+
+        cli = Cliente.objects.create(
+            nombre='eki Demo',
+            nit='900888777-1',
+            activo=True,
+            contacto_principal='eki',
+            email='demo@eki.co',
+            telefono='573000000000',
+        )
+        curso = Curso.objects.create(
+            nombre='Demo · Tome las riendas',
+            descripcion='Copia demo',
+            cliente=cli,
+            activo=True,
+        )
+        with override_settings(EKI_DEMO_RIENDAS_CURSO_ID=str(curso.id)):
+            with patch('core.utils.enviar_whatsapp_twilio') as mock_txt, patch(
+                'core.whatsapp_service.enviar_habeas_data'
+            ) as mock_hab:
+                mock_txt.return_value = {'success': True}
+                mock_hab.return_value = {'success': True}
+                ok = intentar_flujo_prospecto_carrusel(
+                    telefono='573009990011',
+                    msg_from='whatsapp:+573009990011',
+                    msg_body='',
+                    button_payload='in_riendas',
+                )
+        self.assertTrue(ok)
+        est = Estudiante.objects.get(telefono='573009990011')
+        self.assertEqual(est.cliente_id, cli.id)
+        self.assertEqual(est.estado_chat, 'ESPERANDO_HABEAS_DATA')
+        self.assertTrue(
+            ProgresoEstudiante.objects.filter(estudiante=est, curso=curso).exists()
+        )
+        mock_hab.assert_called_once()
+
+    @override_settings(EKI_DEMO_CAROUSEL_ENABLED=True)
+    def test_in_riendas_no_roba_estudiante_otro_cliente(self):
+        from core.catalogo_demo_carousel import intentar_flujo_prospecto_carrusel
+        from core.models import Cliente, Curso, Estudiante
+
+        otro = Cliente.objects.create(
+            nombre='Org paga',
+            nit='800111222-3',
+            activo=True,
+            contacto_principal='x',
+            email='x@eki.co',
+            telefono='57300',
+        )
+        demo = Cliente.objects.create(
+            nombre='eki Demo',
+            nit='900888777-2',
+            activo=True,
+            contacto_principal='eki',
+            email='demo@eki.co',
+            telefono='57300',
+        )
+        curso = Curso.objects.create(
+            nombre='Demo · Tome las riendas',
+            descripcion='Copia demo',
+            cliente=demo,
+            activo=True,
+        )
+        Estudiante.objects.create(
+            nombre='Ya inscrito',
+            cedula='1088001',
+            telefono='573009990012',
+            cliente=otro,
+            activo=True,
+        )
+        with override_settings(EKI_DEMO_RIENDAS_CURSO_ID=str(curso.id)):
+            with patch('core.utils.enviar_whatsapp_twilio') as mock_txt, patch(
+                'core.whatsapp_service.enviar_habeas_data'
+            ) as mock_hab:
+                mock_txt.return_value = {'success': True}
+                ok = intentar_flujo_prospecto_carrusel(
+                    telefono='573009990012',
+                    msg_from='whatsapp:+573009990012',
+                    msg_body='',
+                    button_payload='in_riendas',
+                )
+        self.assertTrue(ok)
+        mock_hab.assert_not_called()
+        self.assertIn('ya está en un curso', mock_txt.call_args[0][1].lower())
+        self.assertEqual(
+            Estudiante.objects.get(telefono='573009990012').cliente_id, otro.id
+        )

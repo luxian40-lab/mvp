@@ -212,6 +212,109 @@ def respuesta_por_payload(payload: str) -> str:
     return TEXTO_FALLBACK_LISTA
 
 
+def _digitos_telefono(raw: str) -> str:
+    import re
+
+    d = re.sub(r'\D', '', raw or '')
+    if len(d) == 10:
+        d = f'57{d}'
+    return d
+
+
+def curso_demo_riendas():
+    """Copia de Riendas para la demo pública. None = no arrancar curso."""
+    raw = str(getattr(settings, 'EKI_DEMO_RIENDAS_CURSO_ID', '') or '').strip()
+    if not raw.isdigit():
+        return None
+    from core.models import Curso
+
+    return (
+        Curso.objects.filter(pk=int(raw), activo=True)
+        .select_related('cliente')
+        .first()
+    )
+
+
+def arrancar_demo_riendas(*, telefono: str, dest_wa: str) -> bool:
+    """
+    Inscribe en la copia demo de Riendas y manda Habeas.
+    Si no hay curso configurado, manda el CTA de *1* + correo.
+    """
+    from core.utils import enviar_whatsapp_twilio
+    from core.whatsapp_service import enviar_habeas_data
+
+    dest = dest_wa or telefono
+    curso = curso_demo_riendas()
+    if curso is None:
+        enviar_whatsapp_twilio(dest, TEXTO_CTA_RIENDAS)
+        return True
+
+    from core.inscripcion_curso import inscribir_estudiante_en_curso
+    from core.models import Estudiante, ProspectoB2B
+
+    tel = _digitos_telefono(telefono) or _digitos_telefono(dest)
+    if not tel:
+        enviar_whatsapp_twilio(dest, TEXTO_CTA_RIENDAS)
+        return True
+
+    est = Estudiante.objects.filter(telefono=tel).select_related('cliente').first()
+    if est is not None:
+        mismo_cliente = (
+            est.cliente_id
+            and curso.cliente_id
+            and est.cliente_id == curso.cliente_id
+        )
+        if not mismo_cliente:
+            enviar_whatsapp_twilio(
+                dest,
+                'Usted ya está en un curso eki. Esta demo pública es para números nuevos.\n\n'
+                'Si quiere ver la página: https://eki.com.co/programas/tome-las-riendas',
+            )
+            return True
+        inscribir_estudiante_en_curso(est, curso)
+        if not est.acepto_terminos:
+            est.estado_chat = 'ESPERANDO_HABEAS_DATA'
+            est.save(update_fields=['estado_chat'])
+            enviar_habeas_data(tel, cliente=est.cliente)
+            return True
+        enviar_whatsapp_twilio(
+            dest,
+            'Ya está en la demo *Tome las riendas*. Escriba *listo* para continuar.',
+        )
+        return True
+
+    nombre = 'Participante demo'
+    try:
+        p = ProspectoB2B.objects.filter(telefono=tel).first()
+        if p and (getattr(p, 'nombre_contacto', None) or '').strip():
+            nombre = p.nombre_contacto.strip()[:100]
+    except Exception:
+        logger.exception('Demo Riendas: no se pudo leer prospecto')
+
+    cedula = f'DEM{tel}'[:32]
+    if Estudiante.objects.filter(cedula=cedula).exists():
+        cedula = f'D{tel[-15:]}'[:32]
+
+    est = Estudiante.objects.create(
+        nombre=nombre,
+        cedula=cedula,
+        telefono=tel,
+        cliente=curso.cliente,
+        activo=True,
+        acepto_terminos=False,
+        estado_chat='ESPERANDO_HABEAS_DATA',
+        estado_onboarding='nuevo',
+    )
+    inscribir_estudiante_en_curso(est, curso)
+    enviar_whatsapp_twilio(
+        dest,
+        'Vamos con la demo *Tome las riendas de su dinero*. '
+        'Primero el tratamiento de datos; si acepta, después escriba *listo*.',
+    )
+    enviar_habeas_data(tel, cliente=curso.cliente)
+    return True
+
+
 def respuesta_por_texto(texto: str) -> str | None:
     t = (texto or '').strip().lower().replace('*', '').strip()
     if t in KEYWORDS_SEGUIR_RIENDAS or t == 'riendas':
@@ -282,10 +385,24 @@ def intentar_flujo_prospecto_carrusel(
         if es_payload_carrusel(body_raw):
             payload = body_raw
 
+    if payload in {'in_riendas', 'demo_riendas'}:
+        return arrancar_demo_riendas(
+            telefono=telefono,
+            dest_wa=msg_from or telefono,
+        )
+
     if es_payload_carrusel(payload):
         from core.utils import enviar_whatsapp_twilio
         enviar_whatsapp_twilio(msg_from or telefono, respuesta_por_payload(payload))
         return True
+
+    t_body = (msg_body or '').strip().lower().replace('*', '').strip()
+    if t_body in KEYWORDS_SEGUIR_RIENDAS or t_body == 'riendas':
+        if not solo_botones:
+            return arrancar_demo_riendas(
+                telefono=telefono,
+                dest_wa=msg_from or telefono,
+            )
 
     texto_card = respuesta_por_texto(msg_body)
     if texto_card:

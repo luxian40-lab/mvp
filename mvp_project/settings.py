@@ -328,6 +328,10 @@ TWILIO_WEBHOOK_PUBLIC_URL = os.environ.get('TWILIO_WEBHOOK_PUBLIC_URL', '').stri
 
 # Slack ops (alertas módulos borrador, campañas). Vacío = desactivado.
 EKI_SLACK_OPS_WEBHOOK = os.environ.get('EKI_SLACK_OPS_WEBHOOK', '').strip()
+# Email a EMAIL_SOPORTE cuando media WA queda fallida tras reintentos (63019/63021).
+EKI_MEDIA_FAIL_EMAIL = os.environ.get('EKI_MEDIA_FAIL_EMAIL', 'true').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
 
 # 📢 Templates de Twilio para envío masivo (deben estar aprobados)
 TWILIO_TEMPLATE_ANUNCIO_GRUPAL = os.environ.get('TWILIO_TEMPLATE_ANUNCIO_GRUPAL', '')  # Content SID del template de anuncios
@@ -464,6 +468,15 @@ _EKI_IA_LLM_DISABLED_RAW = (
 EKI_IA_LLM_DISABLED = str(_EKI_IA_LLM_DISABLED_RAW).strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
+# Carrusel demo programas (solo prospectos). Vacío = fallback texto hasta HX aprobado.
+EKI_DEMO_CAROUSEL_ENABLED = os.environ.get(
+    'EKI_DEMO_CAROUSEL_ENABLED', 'true'
+).strip().lower() in ('1', 'true', 'yes', 'on')
+EKI_DEMO_CAROUSEL_CONTENT_SID = os.environ.get(
+    'EKI_DEMO_CAROUSEL_CONTENT_SID', ''
+).strip()
+# Curso copia de «Tome las riendas» (cliente eki Demo). Vacío = Quiero demo solo manda CTA.
+EKI_DEMO_RIENDAS_CURSO_ID = os.environ.get('EKI_DEMO_RIENDAS_CURSO_ID', '').strip()
 BOT_COMERCIAL_WEB_FALLBACK_ENABLED = os.environ.get('BOT_COMERCIAL_WEB_FALLBACK_ENABLED', 'true').strip().lower() in ['1', 'true', 'yes', 'on']
 try:
     BOT_COMERCIAL_WEB_FALLBACK_TIMEOUT = float(os.environ.get('BOT_COMERCIAL_WEB_FALLBACK_TIMEOUT', '6'))
