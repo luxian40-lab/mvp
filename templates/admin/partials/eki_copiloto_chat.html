@@ -1,0 +1,33 @@
+{% load i18n %}
+<button type="button" class="eki-copiloto-fab" id="eki-copiloto-open"
+        title="Copiloto ops" aria-controls="eki-copiloto-drawer" aria-expanded="false">
+    <span class="material-symbols-outlined" aria-hidden="true">forum</span>
+    <span class="eki-copiloto-fab__txt">Copiloto</span>
+</button>
+
+<aside class="eki-copiloto-drawer" id="eki-copiloto-drawer" hidden>
+    <header class="eki-copiloto-drawer__head">
+        <div>
+            <strong>Copiloto ops</strong>
+            <p>Fallos WA, campañas, Twilio. No es Nat.</p>
+        </div>
+        <button type="button" class="eki-copiloto-drawer__close" id="eki-copiloto-close" aria-label="Cerrar chat">×</button>
+    </header>
+    <div class="eki-copiloto-chips">
+        {% for s in sugeridas %}
+        <button type="button" class="eki-copiloto-chip" data-q="{{ s }}">{{ s }}</button>
+        {% endfor %}
+    </div>
+    <div class="eki-copiloto-msgs" id="eki-copiloto-msgs">
+        {% for m in historial %}
+        <div class="eki-copiloto-msg eki-copiloto-msg--{{ m.role }}">{{ m.text }}</div>
+        {% empty %}
+        <div class="eki-copiloto-msg eki-copiloto-msg--assistant">Hola. Pregúnteme qué falló hoy, campañas o saldo Twilio. Me quedo aquí mientras navega el admin.</div>
+        {% endfor %}
+    </div>
+    <form class="eki-copiloto-form" id="eki-copiloto-form">
+        {% csrf_token %}
+        <textarea name="pregunta" id="eki-copiloto-input" rows="2" placeholder="Escriba aquí…" required></textarea>
+        <button type="submit">Enviar</button>
+    </form>
+</aside>

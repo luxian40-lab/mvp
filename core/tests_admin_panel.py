@@ -38,15 +38,16 @@ class PanelSnapshotHelpersTests(SimpleTestCase):
             self.assertNotIn(b, ('studio', 'infra'))
         studio = next(n for n in eco['nodos'] if n['id'] == 'studio')
         self.assertTrue(studio.get('island'))
-        self.assertIn('proxy', studio['metric_label'].lower())
+        self.assertIn('proxy', studio['value'].lower())
         campo = next(n for n in eco['nodos'] if n['id'] == 'campo')
         self.assertTrue(campo.get('anchor'))
         self.assertIn('portal', ids)
         self.assertIn('nat', ids)
         self.assertIn('certs', ids)
         self.assertIn('infra', ids)
-        self.assertEqual(len(eco['nodos']), 12)
+        self.assertEqual(len(eco['nodos']), 13)
         self.assertIn('cobertura', ids)
+        self.assertIn('twilio', ids)
 
 
 @override_settings(
@@ -81,7 +82,7 @@ class PanelViewTests(TestCase):
         self.assertIn("ecosistema", snap)
         self.assertIn("actualizado", snap)
         eco = snap["ecosistema"]
-        self.assertEqual(len(eco["nodos"]), 12)
+        self.assertEqual(len(eco["nodos"]), 13)
         self.assertTrue(eco["aristas"])
         ids = {n["id"] for n in eco["nodos"]}
         self.assertEqual(
@@ -99,6 +100,7 @@ class PanelViewTests(TestCase):
                 "impacto",
                 "infra",
                 "cobertura",
+                "twilio",
             },
         )
         pairs = {(e["from"], e["to"]) for e in eco["aristas"]}

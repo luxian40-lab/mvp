@@ -35,10 +35,40 @@ class CopilotoOpsTests(TestCase):
         self.assertIn('envíos', out['respuesta'].lower())
 
     @override_settings(SECURE_SSL_REDIRECT=False)
-    def test_view_staff(self):
+    def test_view_staff_redirige_a_inicio(self):
         User = get_user_model()
         u = User.objects.create_user('ops', password='x', is_staff=True, is_superuser=True)
         self.client.force_login(u)
         r = self.client.get(reverse('copiloto_ops'))
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/admin/?copiloto=1', r.url)
+
+    @override_settings(
+        SECURE_SSL_REDIRECT=False,
+        TWILIO_ACCOUNT_SID='',
+        TWILIO_AUTH_TOKEN='',
+        OPENAI_API_KEY='',
+    )
+    def test_ask_json(self):
+        User = get_user_model()
+        u = User.objects.create_user('ops2', password='x', is_staff=True, is_superuser=True)
+        self.client.force_login(u)
+        r = self.client.post(
+            reverse('copiloto_ask'),
+            data='{"pregunta":"¿Qué falló?"}',
+            content_type='application/json',
+        )
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, 'Copiloto ops')
+        payload = r.json()
+        self.assertTrue(payload['ok'])
+        self.assertIn('envíos', payload['respuesta'].lower())
+
+    @override_settings(SECURE_SSL_REDIRECT=False)
+    def test_header_tiene_chat(self):
+        User = get_user_model()
+        User.objects.create_user('ops3', password='x', is_staff=True, is_superuser=True)
+        self.client.force_login(User.objects.get(username='ops3'))
+        r = self.client.get('/admin/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'eki-copiloto-drawer')
+        self.assertContains(r, 'eki_copiloto_chat.js')

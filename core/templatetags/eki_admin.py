@@ -112,6 +112,21 @@ def eki_twilio_nav(context):
     return {"texto": texto, "tono": tono}
 
 
+@register.inclusion_tag("admin/partials/eki_copiloto_chat.html", takes_context=True)
+def eki_copiloto_chat(context):
+    """Chat flotante del copiloto ops (header, no pestaña)."""
+    from core.views_copiloto_admin import SUGERIDAS, _historial
+
+    request = context.get("request")
+    hist = []
+    if request is not None:
+        try:
+            hist = _historial(request)
+        except Exception:
+            hist = []
+    return {"sugeridas": SUGERIDAS, "historial": hist}
+
+
 @register.inclusion_tag("admin/partials/eki_health_strip.html", takes_context=True)
 def eki_health_strip(context):
     """Chips de salud en la barra superior Unfold."""

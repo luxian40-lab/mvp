@@ -29,6 +29,10 @@ def _eki_admin_tones_script(request):
     return static_safe("admin/js/eki_admin_tones.js")
 
 
+def _eki_copiloto_script(request):
+    return static_safe("admin/js/eki_copiloto_chat.js")
+
+
 def environment_callback(request):
     """Badge esquina superior: saldo Twilio (cache 15 min) o PRODUCCIÓN."""
     from core.twilio_balance import twilio_balance_badge
@@ -91,11 +95,6 @@ UNFOLD = {
             "link": reverse_lazy("admin:index"),
         },
         {
-            "icon": "psychology",
-            "title": _("Copiloto ops"),
-            "link": "/admin/copiloto/",
-        },
-        {
             "icon": "analytics",
             "title": _("Analítica"),
             "link": "/admin/dashboard/",
@@ -144,7 +143,7 @@ UNFOLD = {
         },
     ],
     "STYLES": [_eki_admin_styles, _eki_admin_tones_styles],
-    "SCRIPTS": [_eki_eco_graph_script, _eki_admin_tones_script],
+    "SCRIPTS": [_eki_eco_graph_script, _eki_admin_tones_script, _eki_copiloto_script],
     "COLORS": {
         # base un poco más gris → las cajas blancas se leen (antes casi se fundían).
         "base": {
@@ -331,11 +330,6 @@ UNFOLD = {
                 "separator": True,
                 "collapsible": True,
                 "items": [
-                    {
-                        "title": _("Copiloto ops"),
-                        "icon": "psychology",
-                        "link": "/admin/copiloto/",
-                    },
                     {
                         "title": _("AI Ops"),
                         "icon": "memory",

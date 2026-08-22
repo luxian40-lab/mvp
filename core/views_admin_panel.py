@@ -77,6 +77,12 @@ def _build_ecosistema(
     eventos_ia: int,
     eventos_ia_total: int,
     sin_progreso: int,
+    wa_24h: int = 0,
+    wa_fallos_24h: int = 0,
+    n_63021: int = 0,
+    prospectos: int = 0,
+    munis: int = 0,
+    twilio_txt: str = '',
 ) -> dict[str, Any]:
     """
     Hub visual del ecosistema eki (Inicio).
@@ -88,8 +94,9 @@ def _build_ecosistema(
         {
             'id': 'studio',
             'label': 'Studio',
-            'metric_label': 'Cursos admin (proxy)',
-            'value': f'{cursos_activos} cursos' if cursos_activos else 'Sin datos',
+            'metric_label': 'Vitrina comercial',
+            'value': f'{cursos_activos} cursos en admin (proxy, no LMS Studio)',
+            'detail': 'Producto aparte · sin cable a Aprende',
             'status': _nodo_status(cursos_activos > 0),
             'url': 'https://studio.eki.technology/studio/',
             'external': True,
@@ -102,8 +109,13 @@ def _build_ecosistema(
         {
             'id': 'aprende',
             'label': 'Aprende',
-            'metric_label': 'Aula web',
-            'value': 'Entrar al aula',
+            'metric_label': 'Aula LMS',
+            'value': (
+                f'{est_activos} estudiantes con ficha'
+                if est_activos
+                else 'Sin fichas aún'
+            ),
+            'detail': 'Producto aparte · entra por aprende.eki',
             'status': 'ok',
             'url': 'https://aprende.eki.technology/aprende/',
             'external': True,
@@ -116,8 +128,9 @@ def _build_ecosistema(
         {
             'id': 'portal',
             'label': 'Portal',
-            'metric_label': 'Clientes B2B',
-            'value': f'{empresas} orgs' if empresas else 'Entrar',
+            'metric_label': 'B2B app.eki',
+            'value': f'{empresas} orgs activas' if empresas else 'Sin orgs',
+            'detail': 'Mismos clientes que admin',
             'status': _nodo_status(empresas > 0),
             'url': 'https://app.eki.technology/portal/',
             'external': True,
@@ -130,11 +143,16 @@ def _build_ecosistema(
         {
             'id': 'campo',
             'label': 'Campo',
-            'metric_label': 'Estudiantes WA activos',
+            'metric_label': 'WhatsApp operativo',
             'value': (
-                f'{est_activos} · {activos_7d} en 7d'
+                f'{est_activos} activos · {activos_7d} con señal 7d'
                 if est_activos
-                else 'Sin datos'
+                else 'Sin estudiantes'
+            ),
+            'detail': (
+                f'{wa_24h} envíos 24h'
+                + (f' · {wa_fallos_24h} fallos' if wa_fallos_24h else '')
+                + (f' · {n_63021}×63021' if n_63021 else '')
             ),
             'status': _nodo_status(est_activos > 0, warn=sin_progreso >= 5),
             'url': '/admin/core/estudiante/',
@@ -149,8 +167,9 @@ def _build_ecosistema(
         {
             'id': 'empresas',
             'label': 'Empresas',
-            'metric_label': 'Clientes admin',
+            'metric_label': 'Fichas Cliente',
             'value': f'{empresas} activas' if empresas else 'Sin datos',
+            'detail': 'Orgs que pagan / operan cohortes',
             'status': _nodo_status(empresas > 0),
             'url': '/admin/core/cliente/',
             'external': False,
@@ -163,12 +182,13 @@ def _build_ecosistema(
         {
             'id': 'campanas',
             'label': 'Campañas',
-            'metric_label': 'Envíos ejecutados',
+            'metric_label': 'Lanzamientos',
             'value': (
-                f'{campanas_enviadas} · {campanas_7d} en 7d'
+                f'{campanas_enviadas} ejecutadas · {campanas_7d} en 7d'
                 if campanas_enviadas
-                else 'Sin datos'
+                else 'Ninguna ejecutada'
             ),
+            'detail': 'HSM / Content SID',
             'status': _nodo_status(
                 campanas_enviadas > 0,
                 warn=campanas_enviadas > 0 and campanas_7d == 0,
@@ -185,7 +205,12 @@ def _build_ecosistema(
             'id': 'nat',
             'label': 'Nat',
             'metric_label': 'Bot comercial',
-            'value': 'CRM / Knowledge',
+            'value': (
+                f'{prospectos} prospectos B2B'
+                if prospectos
+                else 'Knowledge / CRM'
+            ),
+            'detail': 'No es el copiloto ops del admin',
             'status': 'ok',
             'url': '/admin/dashboard/?tab=commercial',
             'external': False,
@@ -203,8 +228,9 @@ def _build_ecosistema(
                 f'{eventos_ia} en feed'
                 + (f' · {eventos_ia_total} total' if eventos_ia_total > eventos_ia else '')
                 if eventos_ia or eventos_ia_total
-                else 'Sin datos'
+                else 'Sin eventos'
             ),
+            'detail': 'Señales territoriales / tutor',
             'status': _nodo_status(eventos_ia > 0 or eventos_ia_total > 0),
             'url': '/admin/ai-ops/eventos/',
             'external': False,
@@ -218,7 +244,8 @@ def _build_ecosistema(
             'id': 'certs',
             'label': 'Certificados',
             'metric_label': 'Emitidos',
-            'value': f'{certs} emitidos' if certs else 'Sin datos',
+            'value': f'{certs} emitidos' if certs else 'Sin certificados',
+            'detail': 'Auditoría en Sistema',
             'status': _nodo_status(certs > 0),
             'url': '/admin/envio-certificados/',
             'external': False,
@@ -233,10 +260,11 @@ def _build_ecosistema(
             'label': 'Éxito',
             'metric_label': 'Centro · avance',
             'value': (
-                f'{int(round(avance))}% avance'
+                f'{int(round(avance))}% avance medio'
                 if avance
                 else 'Retención'
             ),
+            'detail': f'{sin_progreso} sin progreso' if sin_progreso else 'Cohortes en marcha',
             'status': _nodo_status(
                 certs > 0 or avance > 0,
                 warn=avance > 0 and avance < 30,
@@ -262,12 +290,36 @@ def _build_ecosistema(
             'y': 78,
             'z': 6,
             'island': True,
+            'detail': 'Celery · Redis · S3 · EB',
+        },
+        {
+            'id': 'twilio',
+            'label': 'Twilio',
+            'metric_label': 'Canal WhatsApp',
+            'value': (twilio_txt or 'Saldo').replace('Twilio ', ''),
+            'status': _nodo_status(
+                bool(wa_24h or est_activos),
+                warn=wa_fallos_24h > 0 or n_63021 > 0,
+            ),
+            'url': '/admin/copiloto/',
+            'external': False,
+            'icon': 'cell_tower',
+            'x': 72,
+            'y': 48,
+            'z': 28,
+            'island': False,
+            'detail': f'{wa_24h} msgs 24h' + (f' · {n_63021} videos rechazados' if n_63021 else ''),
         },
         {
             'id': 'cobertura',
             'label': 'Cobertura',
-            'metric_label': 'Mapa territorial',
-            'value': f'{empresas} orgs' if empresas else 'Ver mapa',
+            'metric_label': 'Colombia',
+            'value': (
+                f'{munis} municipios con gente'
+                if munis
+                else (f'{empresas} orgs' if empresas else 'Ver mapa')
+            ),
+            'detail': 'Mismo mapa de arriba',
             'status': _nodo_status(est_activos > 0 or empresas > 0),
             'url': '/admin/cobertura/',
             'external': False,
@@ -280,6 +332,8 @@ def _build_ecosistema(
     ]
     # Studio e Infra aislados: sin aristas. Studio ↛ Aprende.
     edges = [
+        ('campo', 'twilio'),
+        ('campanas', 'twilio'),
         ('campo', 'aprende'),
         ('campo', 'portal'),
         ('campo', 'empresas'),
@@ -319,9 +373,8 @@ def _build_ecosistema(
         'nodos': nodos,
         'aristas': aristas,
         'nota': (
-            'Studio e Infra sin conexiones. '
-            'Studio no se conecta a Aprende. '
-            'Campo WhatsApp es el centro operativo.'
+            'Números del admin ahora: estudiantes, envíos WA 24h, campañas, certificados, '
+            'mapa y saldo Twilio. Studio e Infra siguen sin cables (productos / monitor).'
         ),
     }
 
@@ -330,7 +383,7 @@ def build_panel_snapshot(*, force: bool = False) -> dict[str, Any]:
     """KPIs y bloques del Panel (Inicio). Cache corto para no pesar /admin/."""
     from django.core.cache import cache
 
-    cache_key = 'admin_panel_snapshot_v6'
+    cache_key = 'admin_panel_snapshot_v7'
     if not force:
         cached = cache.get(cache_key)
         if cached:
@@ -710,6 +763,39 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
     except Exception:
         pass
 
+    wa_24h = 0
+    wa_fallos_24h = 0
+    n_63021 = 0
+    prospectos = 0
+    twilio_txt = ''
+    try:
+        from core.models import WhatsappLog
+
+        desde_24 = now - timedelta(hours=24)
+        logs = WhatsappLog.objects.filter(tipo='SENT', fecha__gte=desde_24)
+        wa_24h = logs.count()
+        fallos = logs.filter(
+            Q(estado__iexact='undelivered')
+            | Q(estado__iexact='failed')
+            | Q(error_detalle__icontains='63021')
+        )
+        wa_fallos_24h = fallos.count()
+        n_63021 = fallos.filter(error_detalle__icontains='63021').count()
+    except Exception:
+        pass
+    try:
+        from core.models import ProspectoB2B
+
+        prospectos = ProspectoB2B.objects.count()
+    except Exception:
+        pass
+    try:
+        from core.twilio_balance import twilio_balance_badge
+
+        twilio_txt, _tono = twilio_balance_badge()
+    except Exception:
+        twilio_txt = ''
+
     ecosistema = _build_ecosistema(
         cursos_activos=cursos_activos,
         est_activos=est_activos,
@@ -722,6 +808,12 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
         eventos_ia=len(actividad),
         eventos_ia_total=eventos_ia_total,
         sin_progreso=sin_progreso,
+        wa_24h=wa_24h,
+        wa_fallos_24h=wa_fallos_24h,
+        n_63021=n_63021,
+        prospectos=prospectos,
+        munis=int(mapa.get('municipios_distintos') or 0),
+        twilio_txt=twilio_txt,
     )
 
     def _kpi(label, value, *, delta=None, note=None, tone='purple'):

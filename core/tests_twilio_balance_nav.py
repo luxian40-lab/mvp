@@ -32,14 +32,19 @@ class TwilioBalanceBadgeTests(SimpleTestCase):
 
     @override_settings(TWILIO_ACCOUNT_SID='ACxx', TWILIO_AUTH_TOKEN='tok')
     def test_saldo_usd(self):
-        fake = MagicMock()
-        fake.balance = '87.40'
-        fake.currency = 'USD'
-        usage = MagicMock()
-        usage.price = '12.35'
-        with patch('twilio.rest.Client') as mock_c:
-            mock_c.return_value.api.v2010.balance.fetch.return_value = fake
-            mock_c.return_value.usage.records.this_month.list.return_value = [usage]
+        bal = b'{"balance":"87.40","currency":"USD"}'
+        usage = b'{"usage_records":[{"price":"12.35"}]}'
+
+        def fake_open(req, timeout=8):
+            url = req.full_url if hasattr(req, 'full_url') else str(req)
+            body = usage if 'Usage' in url else bal
+            resp = MagicMock()
+            resp.read.return_value = body
+            resp.__enter__.return_value = resp
+            resp.__exit__.return_value = False
+            return resp
+
+        with patch('core.twilio_balance.urlopen', side_effect=fake_open):
             texto, tono = twilio_balance_badge()
         self.assertEqual(texto, 'Twilio $12.35 este mes · $87.40 queda')
         self.assertEqual(tono, 'info')

@@ -121,10 +121,11 @@
       <a href="{% url 'dashboard_unificado' %}?tab=retencion">Centro de Éxito →</a>
     </div>
     <p class="eki-panel-eco__intro">
-      Campo WhatsApp es el centro operativo. Studio y Aprende son productos aparte (sin enlace entre sí).
-      Clic en un nodo para entrar · arrastrar para reordenar.
+      Cada burbuja usa cifras del admin ahora (WA 24h, orgs, certificados, Twilio).
+      Studio y Aprende son productos aparte. Clic entra · arrastrar reordena · rueda zoom.
     </p>
     <div class="eki-panel-eco__stage" data-eki-eco-graph>
+      <div class="eki-panel-eco__floor" aria-hidden="true"></div>
       <div class="eki-panel-eco__scene">
         <svg class="eki-panel-eco__wires" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           {% for e in snap.ecosistema.aristas %}
@@ -137,15 +138,17 @@
         <a href="{{ n.url }}"
            {% if n.external %}target="_blank" rel="noopener"{% endif %}
            class="eki-panel-eco__orb eki-panel-eco__orb--{{ n.status }}{% if n.anchor %} eki-panel-eco__orb--anchor{% endif %}{% if n.island %} eki-panel-eco__orb--island{% endif %}"
-           data-eco-id="{{ n.id }}" data-eco-x="{{ n.x }}" data-eco-y="{{ n.y }}"
-           style="left:{{ n.x }}%;top:{{ n.y }}%"
-           title="{{ n.label }} · {{ n.metric_label }}"
+           data-eco-id="{{ n.id }}" data-eco-x="{{ n.x }}" data-eco-y="{{ n.y }}" data-eco-z="{{ n.z|default:12 }}"
+           style="left:{{ n.x }}%;top:{{ n.y }}%;--eco-z:{{ n.z|default:12 }}"
+           title="{{ n.label }} · {{ n.metric_label }} · {{ n.value }}"
            draggable="false">
+          <span class="eki-panel-eco__orb-glow" aria-hidden="true"></span>
           <span class="eki-panel-eco__orb-core">
             <span class="material-symbols-outlined eki-panel-eco__orb-icon" aria-hidden="true">{{ n.icon|default:"circle" }}</span>
             <strong>{{ n.label }}</strong>
             <em>{{ n.metric_label }}</em>
             <span class="eki-panel-eco__orb-val">{{ n.value }}</span>
+            {% if n.detail %}<small class="eki-panel-eco__orb-detail">{{ n.detail }}</small>{% endif %}
           </span>
         </a>
         {% endfor %}
