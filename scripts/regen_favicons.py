@@ -1,4 +1,7 @@
-"""Regenera favicons eki: SVG + PNG nítidos (sin wordmark a 16–48px)."""
+"""Regenera favicons eki: marcas DISTINTAS por producto (no clones genéricos).
+
+Cada superficie tiene forma + color propios legibles a 32px.
+"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -7,23 +10,26 @@ from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[1] / "static" / "favicons"
 
-ADMIN_BG = (15, 23, 42)
-ADMIN_ACCENT = (20, 184, 166)
-ADMIN_FG = (248, 250, 252)
+# Paletas — portal≠aprende (antes ambos morados y se leían iguales)
+ADMIN_BG = (154, 108, 172)  # #9A6CAC marca eki
+ADMIN_FG = (250, 247, 252)
+ADMIN_DEEP = (90, 58, 110)
 
 PORTAL_BG = (122, 78, 142)
-PORTAL_FG = (244, 242, 247)
+PORTAL_FG = (250, 247, 252)
+PORTAL_ACCENT = (232, 213, 240)
 
-APRENDE_BG = (122, 78, 142)
+APRENDE_BG = (30, 64, 175)  # índigo — aula, distinto del portal
 APRENDE_FG = (255, 255, 255)
-APRENDE_DOT = (232, 213, 240)
+APRENDE_ACCENT = (147, 197, 253)
 
-STUDIO_BG = (21, 128, 61)
+STUDIO_BG = (22, 101, 52)
 STUDIO_FG = (255, 247, 237)
 STUDIO_ACCENT = (253, 186, 116)
 
-CERT_BG = (95, 58, 110)
+CERT_BG = (88, 28, 135)
 CERT_FG = (250, 250, 252)
+CERT_GOLD = (234, 179, 8)
 CERT_ACCENT = (154, 108, 172)
 
 
@@ -32,101 +38,128 @@ def _round_rect(draw, xy, r, fill):
 
 
 def draw_admin(draw: ImageDraw.ImageDraw, s: int):
-    r = max(2, s // 8)
+    """Marca eki: E blanca sobre morado de marca (no hex, no manito)."""
+    r = max(4, s // 6)
     _round_rect(draw, (0, 0, s - 1, s - 1), r, ADMIN_BG)
-    bar_w = max(2, s // 8)
-    draw.rectangle((0, 0, bar_w - 1, s - 1), fill=ADMIN_ACCENT)
-    x0 = int(s * 0.34)
-    y0 = int(s * 0.28)
-    w = int(s * 0.42)
-    h = int(s * 0.44)
     t = max(2, s // 10)
-    draw.rectangle((x0, y0, x0 + w, y0 + t), fill=ADMIN_FG)
-    draw.rectangle((x0, y0, x0 + t, y0 + h), fill=ADMIN_FG)
-    draw.rectangle((x0, y0 + h // 2 - t // 2, x0 + int(w * 0.72), y0 + h // 2 + t // 2), fill=ADMIN_FG)
-    draw.rectangle((x0, y0 + h - t, x0 + w, y0 + h), fill=ADMIN_FG)
+    x0 = int(s * 0.28)
+    x1 = int(s * 0.72)
+    y0 = int(s * 0.26)
+    y1 = int(s * 0.74)
+    mid = int(s * 0.50)
+    draw.rectangle((x0, y0, x0 + t, y1), fill=ADMIN_FG)
+    draw.rectangle((x0, y0, x1, y0 + t), fill=ADMIN_FG)
+    draw.rectangle((x0, mid - t // 2, int(s * 0.62), mid + t // 2), fill=ADMIN_FG)
+    draw.rectangle((x0, y1 - t, x1, y1), fill=ADMIN_FG)
 
 
 def draw_portal(draw: ImageDraw.ImageDraw, s: int):
-    """Dos figuras claras (32px): sin wordmark ni tres siluetas apretadas."""
-    r = max(3, s // 5)
+    """Edificio B2B / org — no siluetas genéricas de 'personas'."""
+    r = max(3, s // 6)
     _round_rect(draw, (0, 0, s - 1, s - 1), r, PORTAL_BG)
-    head_r = max(3, int(s * 0.14))
-    for cx_f, cy_f in ((0.34, 0.34), (0.66, 0.34)):
-        cx, cy = int(s * cx_f), int(s * cy_f)
-        draw.ellipse((cx - head_r, cy - head_r, cx + head_r, cy + head_r), fill=PORTAL_FG)
-        tw, th = int(s * 0.18), int(s * 0.28)
-        ty = cy + head_r + max(1, s // 28)
-        draw.rounded_rectangle(
-            (cx - tw, ty, cx + tw, ty + th),
-            radius=max(2, s // 14),
-            fill=PORTAL_FG,
-        )
+    # edificio
+    bx0, by0 = int(s * 0.28), int(s * 0.30)
+    bx1, by1 = int(s * 0.72), int(s * 0.78)
+    draw.rounded_rectangle((bx0, by0, bx1, by1), radius=max(2, s // 20), fill=PORTAL_FG)
+    # ventanas 2x3
+    ww, wh = max(2, int(s * 0.08)), max(2, int(s * 0.08))
+    for row in range(3):
+        for col in range(2):
+            x = bx0 + int(s * 0.10) + col * int(s * 0.18)
+            y = by0 + int(s * 0.10) + row * int(s * 0.14)
+            draw.rectangle((x, y, x + ww, y + wh), fill=PORTAL_BG)
+    # puerta
+    dw = int(s * 0.12)
+    draw.rectangle(
+        (cx := s // 2 - dw // 2, int(s * 0.62), cx + dw, by1),
+        fill=PORTAL_BG,
+    )
+    # acento techo
+    draw.polygon(
+        [(bx0 - 2, by0), (s // 2, int(s * 0.18)), (bx1 + 2, by0)],
+        fill=PORTAL_ACCENT,
+    )
 
 
 def draw_aprende(draw: ImageDraw.ImageDraw, s: int):
-    r = max(3, s // 5)
+    """Libro abierto índigo — aula, no portal."""
+    r = max(3, s // 6)
     _round_rect(draw, (0, 0, s - 1, s - 1), r, APRENDE_BG)
-    x0, y0 = int(s * 0.28), int(s * 0.18)
-    x1, y1 = int(s * 0.78), int(s * 0.82)
-    draw.rounded_rectangle(
-        (x0, y0, x1, y1),
-        radius=max(2, s // 16),
-        outline=APRENDE_FG,
-        width=max(2, s // 12),
+    mid = s // 2
+    y0, y1 = int(s * 0.28), int(s * 0.72)
+    # tapa izq / der
+    draw.polygon(
+        [(mid, y0), (int(s * 0.18), int(s * 0.36)), (int(s * 0.18), y1), (mid, int(s * 0.64))],
+        fill=APRENDE_FG,
     )
-    for i in range(4):
-        yy = int(y0 + (y1 - y0) * (0.18 + i * 0.2))
-        draw.line((x0, yy, int(s * 0.18), yy), fill=APRENDE_FG, width=max(2, s // 14))
-    cr = max(2, int(s * 0.10))
-    cx, cy = int(s * 0.52), int(s * 0.44)
-    draw.ellipse((cx - cr, cy - cr, cx + cr, cy + cr), fill=APRENDE_DOT)
+    draw.polygon(
+        [(mid, y0), (int(s * 0.82), int(s * 0.36)), (int(s * 0.82), y1), (mid, int(s * 0.64))],
+        fill=APRENDE_ACCENT,
+    )
+    draw.line([(mid, y0), (mid, int(s * 0.64))], fill=APRENDE_BG, width=max(2, s // 16))
+    # marca de página
+    draw.ellipse(
+        (int(s * 0.42), int(s * 0.40), int(s * 0.58), int(s * 0.56)),
+        fill=APRENDE_BG,
+    )
 
 
 def draw_studio(draw: ImageDraw.ImageDraw, s: int):
+    """Objetivo/cámara verde — vitrina creativa."""
     r = max(2, s // 10)
     _round_rect(draw, (0, 0, s - 1, s - 1), r, STUDIO_BG)
-    m = max(2, s // 12)
+    # cuerpo cámara
     draw.rounded_rectangle(
-        (int(s * 0.22), int(s * 0.22), int(s * 0.78), int(s * 0.78)),
+        (int(s * 0.18), int(s * 0.34), int(s * 0.82), int(s * 0.72)),
         radius=max(2, s // 14),
-        outline=STUDIO_FG,
-        width=m,
+        fill=STUDIO_FG,
     )
-    draw.ellipse(
-        (int(s * 0.55), int(s * 0.32), int(s * 0.70), int(s * 0.47)),
+    # flash
+    draw.rounded_rectangle(
+        (int(s * 0.28), int(s * 0.24), int(s * 0.48), int(s * 0.36)),
+        radius=max(1, s // 20),
         fill=STUDIO_ACCENT,
     )
-    pts = [
-        (int(s * 0.28), int(s * 0.70)),
-        (int(s * 0.42), int(s * 0.48)),
-        (int(s * 0.55), int(s * 0.62)),
-        (int(s * 0.68), int(s * 0.45)),
-        (int(s * 0.78), int(s * 0.70)),
-    ]
-    draw.polygon(pts, fill=STUDIO_FG)
+    # lente
+    cx, cy = int(s * 0.52), int(s * 0.53)
+    cr = int(s * 0.16)
+    draw.ellipse((cx - cr, cy - cr, cx + cr, cy + cr), fill=STUDIO_BG)
+    ir = int(cr * 0.45)
+    draw.ellipse((cx - ir, cy - ir, cx + ir, cy + ir), fill=STUDIO_ACCENT)
 
 
 def draw_cert(draw: ImageDraw.ImageDraw, s: int):
-    r = max(3, s // 5)
+    """Sello + diploma — verificación pública."""
+    r = max(3, s // 6)
     _round_rect(draw, (0, 0, s - 1, s - 1), r, CERT_BG)
+    # diploma
     draw.rounded_rectangle(
-        (int(s * 0.22), int(s * 0.18), int(s * 0.72), int(s * 0.62)),
-        radius=max(2, s // 16),
+        (int(s * 0.18), int(s * 0.20), int(s * 0.62), int(s * 0.68)),
+        radius=max(2, s // 18),
         fill=CERT_FG,
     )
-    for i, w in enumerate((0.70, 0.55, 0.45)):
-        y = int(s * (0.30 + i * 0.10))
+    for i, w in enumerate((0.55, 0.42, 0.32)):
+        y = int(s * (0.32 + i * 0.10))
         draw.line(
-            (int(s * 0.30), y, int(s * (0.30 + w * 0.35)), y),
+            (int(s * 0.26), y, int(s * (0.26 + w * 0.5)), y),
             fill=CERT_ACCENT,
-            width=max(2, s // 16),
+            width=max(2, s // 18),
         )
-    cr = max(4, int(s * 0.18))
-    cx, cy = int(s * 0.68), int(s * 0.68)
-    draw.ellipse((cx - cr, cy - cr, cx + cr, cy + cr), fill=CERT_ACCENT)
-    ir = max(2, int(cr * 0.55))
-    draw.ellipse((cx - ir, cy - ir, cx + ir, cy + ir), outline=CERT_FG, width=max(1, s // 20))
+    # sello dorado
+    cr = max(5, int(s * 0.20))
+    cx, cy = int(s * 0.68), int(s * 0.62)
+    draw.ellipse((cx - cr, cy - cr, cx + cr, cy + cr), fill=CERT_GOLD)
+    ir = max(2, int(cr * 0.45))
+    draw.ellipse((cx - ir, cy - ir, cx + ir, cy + ir), outline=CERT_FG, width=max(2, s // 18))
+    # cinta
+    draw.polygon(
+        [(cx - 3, cy + cr - 2), (cx - 8, int(s * 0.88)), (cx, cy + cr + 2)],
+        fill=CERT_ACCENT,
+    )
+    draw.polygon(
+        [(cx + 3, cy + cr - 2), (cx + 8, int(s * 0.88)), (cx, cy + cr + 2)],
+        fill=CERT_GOLD,
+    )
 
 
 DRAWERS = {
@@ -138,45 +171,50 @@ DRAWERS = {
 }
 
 SVGS = {
-    "admin": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="eki admin">
-  <rect width="32" height="32" rx="4" fill="#0f172a"/>
-  <rect x="0" y="0" width="4" height="32" fill="#14b8a6"/>
-  <path d="M11 9.5h12v2.6H15.2v2.1H18.6v2.4H15.2V22.5H11V9.5z" fill="#f8fafc"/>
+    "admin": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="eki">
+  <rect width="32" height="32" rx="7" fill="#9A6CAC"/>
+  <path d="M9 8.5h14v3H13.2v2.2H20v3H13.2V23.5H9V8.5z" fill="#FAF7FC"/>
 </svg>
 """,
     "portal": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="eki portal">
-  <rect width="32" height="32" rx="9" fill="#7a4e8e"/>
-  <circle cx="12" cy="11" r="4" fill="#f4f2f7"/>
-  <circle cx="20" cy="11" r="4" fill="#f4f2f7"/>
-  <path d="M6 24c1.4-4 3.8-6 6-6s4.6 2 6 6" fill="#f4f2f7"/>
-  <path d="M14 24c1.4-4 3.8-6 6-6s4.6 2 6 6" fill="#f4f2f7"/>
+  <rect width="32" height="32" rx="7" fill="#7a4e8e"/>
+  <polygon points="6,12 16,6 26,12" fill="#e8d5f0"/>
+  <rect x="9" y="12" width="14" height="14" rx="1.5" fill="#faf7fc"/>
+  <rect x="12" y="15" width="3" height="3" fill="#7a4e8e"/>
+  <rect x="17" y="15" width="3" height="3" fill="#7a4e8e"/>
+  <rect x="12" y="20" width="3" height="3" fill="#7a4e8e"/>
+  <rect x="17" y="20" width="3" height="3" fill="#7a4e8e"/>
+  <rect x="14" y="22" width="4" height="4" fill="#7a4e8e"/>
 </svg>
 """,
     "aprende": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="eki aprende">
-  <rect width="32" height="32" rx="8" fill="#7A4E8E"/>
-  <rect x="9" y="6" width="15" height="20" rx="2.2" fill="none" stroke="#FFFFFF" stroke-width="2.6"/>
-  <path d="M9 11H6.2M9 15.5H6.2M9 20H6.2M9 24H6.2" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/>
-  <circle cx="16.5" cy="14" r="3.2" fill="#E8D5F0"/>
+  <rect width="32" height="32" rx="7" fill="#1e40af"/>
+  <path d="M16 8 L7 12 v12 l9-4 9 4 V12 Z" fill="none"/>
+  <path d="M16 8 L7 12 v12 l9-4 Z" fill="#ffffff"/>
+  <path d="M16 8 L25 12 v12 l-9-4 Z" fill="#93c5fd"/>
+  <line x1="16" y1="8" x2="16" y2="20" stroke="#1e40af" stroke-width="1.8"/>
+  <circle cx="16" cy="15" r="2.4" fill="#1e40af"/>
 </svg>
 """,
     "studio": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="eki studio">
-  <rect width="32" height="32" rx="3" fill="#15803d"/>
-  <rect x="7" y="7" width="18" height="18" rx="2" fill="none" stroke="#fff7ed" stroke-width="2.4"/>
-  <circle cx="20" cy="13" r="2.4" fill="#fdba74"/>
-  <path d="M9 23l5-8 4 5 3-5 5 8H9z" fill="#fff7ed"/>
+  <rect width="32" height="32" rx="4" fill="#166534"/>
+  <rect x="5" y="11" width="22" height="14" rx="2.5" fill="#fff7ed"/>
+  <rect x="8" y="7" width="8" height="5" rx="1.2" fill="#fdba74"/>
+  <circle cx="16" cy="18" r="5.5" fill="#166534"/>
+  <circle cx="16" cy="18" r="2.6" fill="#fdba74"/>
 </svg>
 """,
     "certificados": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="eki certificados">
-  <rect width="32" height="32" rx="7" fill="#5F3A6E"/>
-  <rect x="7" y="6" width="16" height="14" rx="1.5" fill="#FAFAFC"/>
-  <path d="M10 10h10M10 13.2h7M10 16.4h5" stroke="#7a4e8e" stroke-width="1.6" stroke-linecap="round"/>
-  <circle cx="21" cy="21" r="6" fill="#9A6CAC"/>
-  <circle cx="21" cy="21" r="3.5" fill="none" stroke="#FAFAFC" stroke-width="1.3"/>
+  <rect width="32" height="32" rx="7" fill="#581c87"/>
+  <rect x="5" y="6" width="15" height="16" rx="1.5" fill="#fafafc"/>
+  <path d="M8 11h9M8 14.5h7M8 18h5" stroke="#9A6CAC" stroke-width="1.6" stroke-linecap="round"/>
+  <circle cx="22" cy="20" r="7" fill="#eab308"/>
+  <circle cx="22" cy="20" r="3.5" fill="none" stroke="#fafafc" stroke-width="1.5"/>
+  <path d="M20 26 l-2 5 3-1.5 3 1.5 -2-5" fill="#9A6CAC"/>
 </svg>
 """,
 }
 
-# master PNG size por superficie
 MASTER_SIZE = {
     "admin": 192,
     "studio": 192,

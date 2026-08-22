@@ -45,7 +45,7 @@ UNFOLD = {
     "SITE_TITLE": "eki",
     "SITE_HEADER": "eki",
     "SITE_SUBHEADER": "Panel de operaciones",
-    "SITE_SYMBOL": "school",
+    "SITE_SYMBOL": "",
     "SITE_ICON": {
         "light": lambda request: static_safe("favicons/admin-32.png"),
         "dark": lambda request: static_safe("favicons/admin-32.png"),

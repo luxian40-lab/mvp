@@ -27,8 +27,9 @@ class CopilotoOpsTests(TestCase):
         snap = snapshot_ops(horas=24)
         self.assertGreaterEqual(snap['n_63021'], 1)
         self.assertEqual(snap['ejemplos_fallos'][0]['tel'], '…2233')
-        self.assertIn('entorno', snap)
-        self.assertIn('top_codigos_error', snap)
+        self.assertIn('programas_vitrina', snap)
+        self.assertEqual(len(snap['programas_vitrina']), 5)
+        self.assertIn('63021', snap['codigos_twilio'])
 
     @override_settings(TWILIO_ACCOUNT_SID='', TWILIO_AUTH_TOKEN='', OPENAI_API_KEY='')
     def test_reglas_sin_openai(self):
@@ -36,6 +37,12 @@ class CopilotoOpsTests(TestCase):
         self.assertEqual(out['fuente'], 'reglas')
         self.assertIn('envíos', out['respuesta'].lower())
         self.assertIn('producción', out['respuesta'].lower())
+
+    @override_settings(TWILIO_ACCOUNT_SID='', TWILIO_AUTH_TOKEN='', OPENAI_API_KEY='')
+    def test_reglas_programas_y_codigo(self):
+        out = responder_copiloto('¿Qué programas hay? 63021')
+        self.assertIn('riendas', out['respuesta'].lower())
+        self.assertIn('63021', out['respuesta'])
 
     @override_settings(SECURE_SSL_REDIRECT=False)
     def test_view_staff_redirige_a_inicio(self):

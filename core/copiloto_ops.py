@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 CANON_OPS = """Hechos fijos (no los contradigas):
 - Este chat es el copiloto OPS del admin Unfold. No es Nat (bot comercial agro) ni eki.ia del aula.
 - Producción EB = eki-prod-final, región us-east-2, S3 eki-produccion. Un número WhatsApp sirve vitrina comercial + LMS.
-- 63021 = WhatsApp rechazó el video (codec/perfil). Recodificar H.264 Main+AAC + faststart; remux no basta. Si el bitstream está roto hay que re-subir master.
-- 63019 = Twilio no pudo bajar el media (URL/host/ACL).
+- Diccionario de códigos Twilio/WhatsApp está en el JSON (codigos_twilio). Úsalo: 63021 video, 63019 descarga media, 63016 ventana 24h, 63049 plantilla/variables, 21610 opt-out.
+- Programas vitrina (eki.com.co) están en el JSON programas_vitrina. Solo Tome las riendas es demo hoy; el resto es informativo (Ver más / Solo info).
 - Campañas HSM: variables {{1}}… secuenciales; no mandar plantilla a medias.
 - Demo Riendas: env EKI_DEMO_RIENDAS_CURSO_ID. Carrusel: EKI_DEMO_CAROUSEL_CONTENT_SID.
 - media_wa_apto=False en un paso = video que el gate marcó no apto.
@@ -28,10 +28,63 @@ CANON_OPS = """Hechos fijos (no los contradigas):
 
 SYSTEM_PROMPT = """Eres el copiloto de operaciones de eki. Hablas con el fundador/ops en español de Colombia, breve.
 """ + CANON_OPS + """
-Usa el JSON de pulso (producción vs local, fallos, infra, campañas) y el historial corto.
-Prioriza: ¿estamos en producción?, qué falló en WA, Twilio, ffmpeg, demo, campañas en borrador.
+Usa el JSON de pulso, códigos Twilio y programas. Si preguntan por un código (63021, etc.) explícalo y di qué hacer.
+Si preguntan programas / vitrina / carrusel / Riendas, usa programas_vitrina (no inventes más cursos).
+Prioriza: producción, fallos WA con código, Twilio, demo, campañas.
 Máximo 14 líneas. Accionable.
 """
+
+CODIGOS_TWILIO = {
+    '63021': 'WhatsApp rechazó el video (codec/perfil). Recodificar H.264 Main+AAC + faststart; no basta remux. Master roto → re-subir.',
+    '63019': 'Twilio no pudo descargar el archivo (URL, host, ACL o MIME). Revisar S3 público / Content-Type.',
+    '63005': 'El canal rechazó el contenido (formato o política).',
+    '63016': 'Fuera de la ventana de 24 h: hace falta plantilla HSM aprobada.',
+    '63049': 'Plantilla / variables: SID o {{1}}{{2}} no calzan con lo aprobado.',
+    '63032': 'Límite o calidad de media (tamaño/bitrate). Bajar de 16 MB.',
+    '21610': 'El usuario se salió (opt-out / stop). No reenviar marketing.',
+    '21211': 'Número inválido o mal formateado.',
+    '21614': 'No es un número móvil válido de WhatsApp.',
+    '21617': 'Cuerpo vacío o no permitido para ese tipo de mensaje.',
+    '20003': 'Auth Twilio (SID/token).',
+}
+
+PROGRAMAS_VITRINA = [
+    {
+        'nombre': 'Emprendimiento agro rural',
+        'rol': 'vitrina',
+        'url': 'https://eki.com.co/programas/emprendimiento-agro-rural',
+        'payload': 'info_emprendimiento',
+        'nota': 'De producto a negocio rural ordenado. No MBA.',
+    },
+    {
+        'nombre': 'Maquinaria y herramientas agro',
+        'rol': 'vitrina',
+        'url': 'https://eki.com.co/programas/maquinaria-herramientas-agro',
+        'payload': 'info_maquinaria',
+        'nota': 'Uso, seguridad, alquilar vs comprar. No tienda.',
+    },
+    {
+        'nombre': 'Comercialización y ventas',
+        'rol': 'vitrina',
+        'url': 'https://eki.com.co/programas/comercializacion-ventas',
+        'payload': 'info_comercializacion',
+        'nota': 'Cliente, precio, no regalar margen.',
+    },
+    {
+        'nombre': 'Agricultura digital e IA',
+        'rol': 'vitrina',
+        'url': 'https://eki.com.co/programas/agricultura-digital-ia',
+        'payload': 'info_agrodigital',
+        'nota': 'Qué del celular sí sirve en finca. No “la IA siembra sola”.',
+    },
+    {
+        'nombre': 'Tome las riendas de su dinero',
+        'rol': 'demo',
+        'url': 'https://eki.com.co/programas/tome-las-riendas',
+        'payload': 'in_riendas',
+        'nota': 'Única demo viva hoy. Plata de la casa/oficio por WhatsApp (*listo*).',
+    },
+]
 
 
 def _mask_tel(tel: str) -> str:
@@ -164,6 +217,8 @@ def snapshot_ops(*, horas: int = 24) -> dict[str, Any]:
         'demo_riendas_curso_id': demo_id or '(vacío)',
         'carrusel_content_sid': (carousel_sid[:8] + '…') if len(carousel_sid) > 10 else (carousel_sid or '(vacío)'),
         'infra_chips': infra,
+        'codigos_twilio': CODIGOS_TWILIO,
+        'programas_vitrina': PROGRAMAS_VITRINA,
     }
 
 
@@ -195,6 +250,20 @@ def _respuesta_reglas(pregunta: str, ctx: dict[str, Any]) -> str:
     if ctx.get('n_63019'):
         lineas.append('63019 = Twilio no pudo descargar el archivo (URL/ACL).')
     q = (pregunta or '').lower()
+    if any(c in q for c in CODIGOS_TWILIO):
+        for code, meaning in CODIGOS_TWILIO.items():
+            if code in q:
+                lineas.append(f'{code}: {meaning}')
+    if any(w in q for w in ('programa', 'vitrina', 'carrusel', 'riendas', 'emprendimiento')):
+        demos = [p for p in PROGRAMAS_VITRINA if p['rol'] == 'demo']
+        vitrina = [p for p in PROGRAMAS_VITRINA if p['rol'] == 'vitrina']
+        lineas.append(
+            'Programas: demo = '
+            + demos[0]['nombre']
+            + '. Vitrina: '
+            + ', '.join(p['nombre'] for p in vitrina)
+            + '.'
+        )
     if 'campaña' in q or 'borrador' in q:
         lineas.append('No ejecute una campaña sin Content SID aprobado y variables {{1}}/{{2}} listas.')
     infra = ctx.get('infra_chips') or []

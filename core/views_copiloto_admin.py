@@ -15,9 +15,9 @@ MAX_TURNS = 24
 
 SUGERIDAS = (
     '¿Qué falló en WhatsApp hoy?',
-    '¿Hay campañas sin enviar?',
+    '¿Qué es un 63021?',
+    '¿Qué programas hay en la vitrina?',
     '¿Cómo va el saldo Twilio?',
-    '¿La demo Riendas está cableada?',
 )
 
 
