@@ -30,7 +30,10 @@ def url_og_image_aprende(request=None) -> str:
     JPEG versionado (v3): tipografía grande + contraste alto para sobrevivir
     la compresión agresiva del preview de WhatsApp. Cambiar versión = romper caché.
     """
-    path = staticfiles_storage.url('aprende/og-aprende-v3.jpg')
+    try:
+        path = staticfiles_storage.url('aprende/og-aprende-v3.jpg')
+    except ValueError:
+        path = '/static/aprende/og-aprende-v3.jpg'
     if path.startswith('http'):
         return path
     return absolute_path('aprende', path, request=request)

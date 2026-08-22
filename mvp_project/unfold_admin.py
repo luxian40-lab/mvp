@@ -7,30 +7,34 @@ Porta la experiencia que teníamos en Jazzmin a Unfold:
 No es un clon visual de Jazzmin: es el mismo mapa mental en el shell Unfold.
 """
 
-from django.templatetags.static import static
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 
+from mvp_project.static_safe import static_safe
+
 
 def _eki_admin_styles(request):
-    return static("admin/css/eki_admin_unfold.css")
+    return static_safe("admin/css/eki_admin_unfold.css")
 
 
 def _eki_admin_tones_styles(request):
-    return static("admin/css/eki_admin_tones.css")
+    return static_safe("admin/css/eki_admin_tones.css")
 
 
 def _eki_eco_graph_script(request):
-    return static("admin/js/eki_eco_graph.js")
+    return static_safe("admin/js/eki_eco_graph.js")
 
 
 def _eki_admin_tones_script(request):
-    return static("admin/js/eki_admin_tones.js")
+    return static_safe("admin/js/eki_admin_tones.js")
 
 
 def environment_callback(request):
-    """Badge esquina superior (estilo demo Unfold)."""
-    return ["PRODUCCIÓN", "danger"]
+    """Badge esquina superior: saldo Twilio (cache 15 min) o PRODUCCIÓN."""
+    from core.twilio_balance import twilio_balance_badge
+
+    texto, tono = twilio_balance_badge()
+    return [texto, tono]
 
 
 UNFOLD = {
@@ -39,8 +43,8 @@ UNFOLD = {
     "SITE_SUBHEADER": "Panel de operaciones",
     "SITE_SYMBOL": "school",
     "SITE_ICON": {
-        "light": lambda request: static("favicons/admin-32.png"),
-        "dark": lambda request: static("favicons/admin-32.png"),
+        "light": lambda request: static_safe("favicons/admin-32.png"),
+        "dark": lambda request: static_safe("favicons/admin-32.png"),
     },
     "SHOW_HISTORY": True,
     "SHOW_VIEW_ON_SITE": False,
@@ -54,29 +58,29 @@ UNFOLD = {
         {
             "rel": "icon",
             "type": "image/svg+xml",
-            "href": lambda request: static("favicons/admin.svg"),
+            "href": lambda request: static_safe("favicons/admin.svg"),
         },
         {
             "rel": "icon",
             "sizes": "32x32",
             "type": "image/png",
-            "href": lambda request: static("favicons/admin-32.png"),
+            "href": lambda request: static_safe("favicons/admin-32.png"),
         },
         {
             "rel": "icon",
             "sizes": "48x48",
             "type": "image/png",
-            "href": lambda request: static("favicons/admin-48.png"),
+            "href": lambda request: static_safe("favicons/admin-48.png"),
         },
         {
             "rel": "icon",
             "type": "image/png",
-            "href": lambda request: static("favicons/admin.png"),
+            "href": lambda request: static_safe("favicons/admin.png"),
         },
         {
             "rel": "apple-touch-icon",
             "sizes": "180x180",
-            "href": lambda request: static("favicons/admin-180.png"),
+            "href": lambda request: static_safe("favicons/admin-180.png"),
         },
     ],
     # Dropdown marca (esquina superior): atajos ops. Apariencia light/dark/auto = switcher nativo Unfold.
