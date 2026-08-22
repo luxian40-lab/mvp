@@ -49,8 +49,8 @@ def copiloto_ask_view(request):
     if not pregunta:
         return JsonResponse({'ok': False, 'error': 'Escriba una pregunta.'}, status=400)
 
-    out = responder_copiloto(pregunta)
     hist = _historial(request)
+    out = responder_copiloto(pregunta, historial=hist)
     hist.append({'role': 'user', 'text': pregunta})
     hist.append(
         {
