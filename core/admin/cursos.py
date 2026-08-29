@@ -286,10 +286,10 @@ class CursoAdmin(admin.ModelAdmin):
         'activo',
     )
     list_filter = (
-        'activo', 'modo_aula', 'visible_en_studio', 'visible_en_aula', 'cliente',
-        'usar_gamificacion', 'usar_agentes_ia', 'tiene_formulario_gei',
+        'cliente', 'activo', 'modo_aula', 'visible_en_aula',
         CursoListoCampanaFilter,
     )
+    autocomplete_fields = ('cliente',)
     search_fields = ('nombre', 'descripcion', 'cliente__nombre')
     list_editable = ()
     inlines = [ModuloInline, DocumentoRAGInline, PreguntaAbiertaFinalInline]
@@ -1487,6 +1487,17 @@ class ArchivoModuloInline(admin.StackedInline):
         """Vista previa del archivo multimedia"""
         if not obj.archivo:
             if obj.url_externa:
+                if obj.tipo == 'enlace_externo':
+                    return format_html(
+                        '<div style="background:#f5f3ff;padding:14px;border-radius:6px;border-left:4px solid #7A4E8E;">'
+                        '<strong>🔗 Enlace externo</strong><br>'
+                        '<a href="{}" target="_blank" rel="noopener" style="background:#7A4E8E;color:white;'
+                        'padding:10px 18px;text-decoration:none;border-radius:6px;display:inline-block;'
+                        'font-weight:bold;margin-top:8px;">Abrir en otra pestaña ↗</a>'
+                        '<p style="margin-top:10px;color:#5b4d66;font-size:12px;word-break:break-all;">{}</p>'
+                        '</div>',
+                        obj.url_externa, obj.url_externa,
+                    )
                 return format_html(
                     '<div style="background:#e0f2fe;padding:12px;border-radius:6px;border-left:4px solid #0284c7;">'
                     '<strong>🔗 URL Externa:</strong><br>'
@@ -1561,23 +1572,24 @@ class ModuloAdmin(admin.ModelAdmin):
         }
         js = ('admin/js/eki_modulo_jump.js',)
 
-    # Listado ops: ≤6 columnas; detalle → ficha del módulo.
+    # Listado: org primero para no abrir el curso a ciegas. ≤6 columnas.
     list_display = (
         'numero_titulo',
+        'org_nombre',
         'curso',
         'publicado_wa_badge',
         'module_builder_link',
-        'modo_entrega_badge',
         'pasos_activos_count',
-        'examen_badge',
     )
-    list_filter = ('curso', 'publicado_wa', 'modo_entrega', 'examen_obligatorio')
-    search_fields = ('titulo', 'descripcion', 'curso__nombre')
+    list_filter = ('curso__cliente', 'publicado_wa', 'modo_entrega')
+    list_filter_submit = True
+    search_fields = ('titulo', 'descripcion', 'curso__nombre', 'curso__cliente__nombre')
     list_select_related = ('curso', 'curso__cliente')
     list_per_page = 50
     ordering = ['curso__nombre', 'numero']
+    autocomplete_fields = ('curso',)
     readonly_fields = ('guia_microcontenidos_whatsapp',)
-    inlines = [SeccionModuloInline, PasoModuloInline, ArchivoModuloInline, PreguntaModuloInline]
+    inlines = [SeccionModuloInline, PasoModuloInline]
     actions = ['enviar_archivos_multimedia', 'ver_archivos_multimedia', 'renumerar_modulos']
     actions_detail = ['abrir_module_builder']
 
@@ -1893,8 +1905,10 @@ class ModuloAdmin(admin.ModelAdmin):
                     f'<p class="eki-modulo-guia__line">'
                     f'<a href="/admin/module-builder/{obj.pk}/" style="font-weight:700;color:#7A4E8E;">'
                     f'→ Abrir Module Builder (secciones + micros)</a>'
-                    f' · camino recomendado. Edita <b>Materiales / pasos WA</b> (no borra drip ni '
-                    f'«Disponible desde»). El admin clásico sigue abajo si lo necesita.</p>'
+                    f' · camino recomendado. Mini examen y media extra: Module Builder. '
+                    f'Media legacy: '
+                    f'<a href="/admin/core/archivomodulo/?modulo__id__exact={obj.pk}">listado de archivos</a>. '
+                    f'El clásico abajo es solo bloques y materiales.</p>'
                 )
         return format_html(
             '<div class="eki-modulo-guia" id="eki-modulo-prefs" '
@@ -1995,6 +2009,11 @@ class ModuloAdmin(admin.ModelAdmin):
     def numero_titulo(self, obj):
         return f"Módulo {obj.numero}: {obj.titulo}"
     numero_titulo.short_description = "Módulo"
+
+    @admin.display(description='Organización', ordering='curso__cliente__nombre')
+    def org_nombre(self, obj):
+        cli = getattr(obj.curso, 'cliente', None) if obj.curso_id else None
+        return cli.nombre if cli else '—'
     
     def examen_badge(self, obj):
         if obj.examen_obligatorio:
@@ -2186,7 +2205,10 @@ class PreguntaExamenAdmin(admin.ModelAdmin):
 @admin.register(ProgresoEstudiante)
 class ProgresoEstudianteAdmin(admin.ModelAdmin):
     """Seguimiento del progreso de estudiantes"""
-    list_display = ('estudiante', 'curso', 'barra_progreso', 'modulo_actual', 'completado_badge', 'certificado_status', 'fecha_ultimo_avance', 'fecha_inicio')
+    list_display = (
+        'estudiante', 'curso', 'barra_progreso', 'modulo_actual',
+        'completado_badge', 'fecha_ultimo_avance',
+    )
     list_filter = ('completado', 'curso', 'fecha_inicio')
     search_fields = ('estudiante__nombre', 'estudiante__telefono', 'curso__nombre')
     readonly_fields = ('fecha_inicio', 'porcentaje_avance', 'info_certificado')

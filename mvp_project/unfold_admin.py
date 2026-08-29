@@ -47,8 +47,8 @@ UNFOLD = {
     "SITE_SUBHEADER": "Panel de operaciones",
     "SITE_SYMBOL": "",
     "SITE_ICON": {
-        "light": lambda request: static_safe("favicons/admin-32.png"),
-        "dark": lambda request: static_safe("favicons/admin-32.png"),
+        "light": lambda request: static_safe("favicons/admin.svg"),
+        "dark": lambda request: static_safe("favicons/admin.svg"),
     },
     "SHOW_HISTORY": True,
     "SHOW_VIEW_ON_SITE": False,
@@ -61,6 +61,11 @@ UNFOLD = {
     "SITE_FAVICONS": [
         {
             "rel": "icon",
+            "type": "image/svg+xml",
+            "href": lambda request: static_safe("favicons/admin.svg"),
+        },
+        {
+            "rel": "icon",
             "sizes": "32x32",
             "type": "image/png",
             "href": lambda request: static_safe("favicons/admin-32.png"),
@@ -70,11 +75,6 @@ UNFOLD = {
             "sizes": "48x48",
             "type": "image/png",
             "href": lambda request: static_safe("favicons/admin-48.png"),
-        },
-        {
-            "rel": "icon",
-            "type": "image/png",
-            "href": lambda request: static_safe("favicons/admin.png"),
         },
         {
             "rel": "apple-touch-icon",

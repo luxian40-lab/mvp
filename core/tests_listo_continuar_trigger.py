@@ -240,6 +240,28 @@ class DaríoHandoffContinuarTests(TestCase):
                 self.assertIn('Reto de prueba', texto)
                 self.assertNotIn('No entendí', texto)
 
+    @patch('core.tutor_ia_modulo.generar_reto_facilitador', return_value='Reto via intent')
+    @patch('core.tutor_ia_modulo.cargar_modulos_reto')
+    def test_continuar_leccion_intent_listo_pasa_a_claudia(self, mock_cargar, _mock_reto):
+        """Regresión: get_response_for_intent no debe spamear el nudge de Darío."""
+        from core.response_templates import get_response_for_intent
+
+        mock_cargar.return_value = [self.mod]
+        self.est.estado_onboarding = 'esperando_respuesta_asistente'
+        self.est.contexto_temporal = self._ctx_dario()
+        self.est.save()
+        r = get_response_for_intent(
+            'continuar_leccion',
+            self.est.nombre,
+            estudiante_id=self.est.id,
+            mensaje_original='listo',
+            _bypass_anti_duplicado=True,
+        )
+        self.est.refresh_from_db()
+        self.assertEqual(self.est.estado_onboarding, 'esperando_respuesta_reto')
+        self.assertIn('Reto via intent', r)
+        self.assertNotIn('Sigues con tu compañero', r)
+
 
 class FacilitadoraNoSaltaConListoTests(TestCase):
     """Regresión prod: listo no debe forzar completado ni saltar la facilitadora."""

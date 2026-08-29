@@ -11,7 +11,7 @@ description: >-
 
 Actúa como agente de **Aprende** (`aprende.eki.technology`): convertirlo en producto LMS usable, no solo pantallas sueltas. Español breve.
 
-Canon: `docs/EKI_APRENDE_REFERENCES.md`.
+Canon: `docs/EKI_APRENDE_REFERENCES.md` + skill `eki-designer` (tokens) + `eki-ux` (si el flujo cruza admin).
 
 ## Separación de productos
 

@@ -77,6 +77,8 @@ class PanelViewTests(TestCase):
         self.assertTrue(snap.get("acciones"))
         self.assertTrue(all("delta_dir" in k for k in snap["kpis"]))
         self.assertIn("mapa", snap)
+        self.assertIn("alertas", snap)
+        self.assertTrue(snap["alertas"])
         self.assertIn("activos_7d", snap)
         self.assertIn("atajos", snap)
         self.assertIn("ecosistema", snap)

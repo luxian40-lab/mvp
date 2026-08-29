@@ -417,6 +417,22 @@ if _redis_mode != 'unchanged':
     CELERY_BROKER_URL = _broker_resolved
     CELERY_RESULT_BACKEND = _backend_resolved
 
+# Nat no debe ocupar el worker Gunicorn (WORKER TIMEOUT ~180s).
+NAT_WEBHOOK_CELERY_ASYNC = os.environ.get('NAT_WEBHOOK_CELERY_ASYNC', 'True').lower() in (
+    '1', 'true', 'yes', 'on',
+)
+PUBLICAR_MODULO_HEAD_QA = os.environ.get('PUBLICAR_MODULO_HEAD_QA', 'True').lower() in (
+    '1', 'true', 'yes', 'on',
+)
+PUBLICAR_MODULO_REQUIRE_MEDIA_QA = os.environ.get(
+    'PUBLICAR_MODULO_REQUIRE_MEDIA_QA', 'True'
+).lower() in ('1', 'true', 'yes', 'on')
+
+# Chroma en webhook Nat bloquea t3.medium (240s+). Fallback documental + LLM hasta reactivar.
+BOT_COMERCIAL_RAG_VECTORIAL = os.environ.get('BOT_COMERCIAL_RAG_VECTORIAL', 'False').lower() in (
+    '1', 'true', 'yes', 'on',
+)
+
 # ============================================
 # FORZAR BACKEND DE ARCHIVOS S3 EN PRODUCCIÓN
 # ============================================

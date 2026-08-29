@@ -217,9 +217,18 @@ def evaluar_checklist_publicacion_detalle(modulo: Modulo | None) -> ChecklistPub
                 '(revisá codec o subí versión wa_safe).'
             )
         elif paso.media_wa_apto is None and low.endswith(('.mp4', '.m4v', '.mov')):
-            avisos.append(
+            from django.conf import settings as dj_settings
+
+            msg = (
                 f'Video paso {paso.orden or paso.pk}: aptitud WA sin verificar (recomendado auditar).'
             )
+            if getattr(dj_settings, 'PUBLICAR_MODULO_REQUIRE_MEDIA_QA', False):
+                errores.append(
+                    f'Video paso {paso.orden or paso.pk}: no publicar hasta QA media '
+                    '(media_wa_apto vacío).'
+                )
+            else:
+                avisos.append(msg)
 
     return ChecklistPublicacion(ok=not errores, errores=errores, avisos=avisos)
 
@@ -231,9 +240,12 @@ def publicar_modulo_wa(
     registrar_evento: bool = True,
 ) -> tuple[bool, list[str]]:
     snapshot_antes = snapshot_modulo_publicacion(modulo) if registrar_evento else {}
-    ok, errores = evaluar_checklist_publicacion(modulo)
-    if not ok:
-        return False, errores
+    from django.conf import settings as dj_settings
+
+    head = bool(getattr(dj_settings, 'PUBLICAR_MODULO_HEAD_QA', False))
+    qa = validar_modulo_qa(modulo, head_urls=head)
+    if not qa.ok:
+        return False, qa.errores
     if modulo.publicado_wa:
         return True, []
     modulo.publicado_wa = True

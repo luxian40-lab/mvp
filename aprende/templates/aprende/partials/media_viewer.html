@@ -54,6 +54,16 @@
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation"
         ></iframe>
     </div>
+    {% elif m.tipo == 'enlace_externo' %}
+    <div class="eki-media-frame eki-media-frame--link" style="background:var(--eki-surface, #faf8fc);padding:1.25rem;border:1px solid var(--eki-border, #e8e0ee);">
+        <p class="eki-muted" style="margin:0 0 0.75rem;font-size:0.875rem;">
+            Recurso en otro sitio. Se abre en una pestaña nueva (formulario, plataforma, herramienta externa).
+        </p>
+        <a href="{{ m.url }}" target="_blank" rel="noopener noreferrer" class="eki-btn eki-btn--primary">
+            Abrir enlace externo ↗
+        </a>
+        <p style="margin:0.65rem 0 0;font-size:0.75rem;color:var(--eki-muted);word-break:break-all;">{{ m.url }}</p>
+    </div>
     {% else %}
     <div class="eki-media-frame eki-media-frame--embed">
         <iframe src="{{ m.url }}" title="{{ m.titulo }}" loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>

@@ -111,6 +111,62 @@ def procesar_respuesta_estudiante(self, estudiante_id, mensaje, media_url=None):
         raise self.retry(exc=exc)
 
 
+def _nat_avisar_timeout_whatsapp(post_data: dict) -> None:
+    """Avisa al usuario si Celery mató la tarea Nat por tiempo."""
+    try:
+        from core.utils import enviar_whatsapp_twilio
+
+        raw_from = (post_data.get('From') or '').strip()
+        tel = raw_from.replace('whatsapp:', '').strip()
+        if not tel:
+            return
+        import re
+        tel = re.sub(r'\D', '', tel)
+        if len(tel) == 10:
+            tel = f'57{tel}'
+        enviar_whatsapp_twilio(
+            tel,
+            '🌾 Estoy revisando su consulta. En un momento le respondo; '
+            'si prefiere, reenvíe la pregunta en un mensaje más corto.',
+        )
+    except Exception:
+        logger.exception('[Celery] Nat no pudo avisar timeout por WhatsApp')
+
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=8, soft_time_limit=240, time_limit=300)
+def procesar_bot_comercial_webhook_async(self, post_data: dict, forzar_canal: bool = False):
+    """
+    Nat / RAG / LLM fuera del webhook HTTP (evita WORKER TIMEOUT de Gunicorn).
+    Activar con NAT_WEBHOOK_CELERY_ASYNC=true (prod: settings_production).
+    soft/hard limits altos: Chroma+LLM en prod ya rozó ~180s.
+    """
+    try:
+        from core.bot_comercial.webhook import _procesar_bot_comercial_twilio_webhook
+
+        logger.info(
+            "[Celery] Webhook Nat | sid=%s | forzar=%s",
+            post_data.get('MessageSid', ''),
+            forzar_canal,
+        )
+        return _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=forzar_canal)
+    except Exception as exc:
+        from celery.exceptions import SoftTimeLimitExceeded
+
+        if isinstance(exc, SoftTimeLimitExceeded):
+            _nat_avisar_timeout_whatsapp(post_data)
+            return None
+        try:
+            from billiard.exceptions import TimeLimitExceeded as BilliardTimeLimitExceeded
+        except ImportError:
+            BilliardTimeLimitExceeded = type(None)
+        if isinstance(exc, BilliardTimeLimitExceeded):
+            logger.error("[Celery] Nat TimeLimitExceeded (hard) | sid=%s", post_data.get('MessageSid', ''))
+            _nat_avisar_timeout_whatsapp(post_data)
+            return None
+        logger.error("[Celery] Error webhook Nat async: %s", exc)
+        raise self.retry(exc=exc)
+
+
 @shared_task(bind=True, max_retries=2, default_retry_delay=5)
 def procesar_twilio_webhook_async(self, post_data: dict):
     """

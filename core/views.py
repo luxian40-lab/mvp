@@ -1211,6 +1211,33 @@ def _encolar_twilio_edu_si_async(post_data) -> bool:
     return True
 
 
+def _encolar_bot_comercial_si_async(post_data, *, forzar_canal: bool = False) -> bool:
+    """Encola Nat (RAG/LLM) en Celery si NAT_WEBHOOK_CELERY_ASYNC=true."""
+    if not getattr(settings, 'NAT_WEBHOOK_CELERY_ASYNC', False):
+        return False
+    if _es_status_callback_twilio(post_data):
+        return False
+    from core.tasks import procesar_bot_comercial_webhook_async
+
+    try:
+        procesar_bot_comercial_webhook_async.delay(
+            _twilio_post_plano(post_data),
+            forzar_canal=forzar_canal,
+        )
+    except Exception:
+        logger.exception(
+            "❌ No se pudo encolar Nat (Redis/Celery) | sid=%s — fallback síncrono",
+            post_data.get('MessageSid', ''),
+        )
+        return False
+    logger.info(
+        "📤 Webhook Nat encolado en Celery | sid=%s | forzar=%s",
+        post_data.get('MessageSid', ''),
+        forzar_canal,
+    )
+    return True
+
+
 # ---------- Webhook para WhatsApp Cloud API ----------
 @csrf_exempt
 def whatsapp_webhook(request):
@@ -1276,7 +1303,8 @@ def whatsapp_webhook(request):
                     )
                     if _es_destino_bot_comercial(payload):
                         logger.info("🧭 Router webhook: Twilio destino comercial/agro detectado (JSON)")
-                        _procesar_bot_comercial_twilio_webhook(payload)
+                        if not _encolar_bot_comercial_si_async(payload):
+                            _procesar_bot_comercial_twilio_webhook(payload)
                     else:
                         logger.info("🧭 Router webhook: Twilio destino educativo detectado (JSON)")
                         if not _encolar_twilio_edu_si_async(payload):
@@ -1299,7 +1327,8 @@ def whatsapp_webhook(request):
             )
             if _es_destino_bot_comercial(request.POST):
                 logger.info("🧭 Router webhook: Twilio destino comercial/agro detectado (Form-Data)")
-                _procesar_bot_comercial_twilio_webhook(request.POST)
+                if not _encolar_bot_comercial_si_async(request.POST):
+                    _procesar_bot_comercial_twilio_webhook(request.POST)
                 twilio_result = None
             else:
                 logger.info("🧭 Router webhook: Twilio destino educativo detectado (Form-Data)")
@@ -1387,11 +1416,11 @@ def bot_comercial_webhook(request):
     try:
         try:
             payload = json.loads(request.body.decode('utf-8'))
-            # Endpoint dedicado: siempre procesa como bot comercial/agro
-            _procesar_bot_comercial_twilio_webhook(payload, forzar_canal=True)
+            if not _encolar_bot_comercial_si_async(payload, forzar_canal=True):
+                _procesar_bot_comercial_twilio_webhook(payload, forzar_canal=True)
         except json.JSONDecodeError:
-            # Endpoint dedicado: siempre procesa como bot comercial/agro
-            _procesar_bot_comercial_twilio_webhook(request.POST, forzar_canal=True)
+            if not _encolar_bot_comercial_si_async(request.POST, forzar_canal=True):
+                _procesar_bot_comercial_twilio_webhook(request.POST, forzar_canal=True)
         return HttpResponse('OK')
     except Exception as e:
         logger.error(f"❌ Error webhook bot comercial: {e}")

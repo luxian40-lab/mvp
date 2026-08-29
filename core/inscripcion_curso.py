@@ -48,11 +48,13 @@ def resolver_curso_por_nombre(
             if 'clases' in cn and 'aprende' in cn:
                 return c
 
-    if 'clases' in target and 'aprende' in target:
-        hit = qs.filter(
-            modo_aula=Curso.MODO_AULA_CLASES,
-            nombre__icontains='Clases',
-        ).first()
+    # Clases Aprende / Capital humano 10x: un curso modo clases por cliente.
+    if (
+        ('clases' in target and 'aprende' in target)
+        or 'capital humano' in target
+        or ('10x' in target and 'cenipalma' in target)
+    ):
+        hit = qs.filter(modo_aula=Curso.MODO_AULA_CLASES).order_by('id').last()
         if hit:
             return hit
         if not cliente_nombre:
@@ -61,9 +63,9 @@ def resolver_curso_por_nombre(
                     activo=True,
                     modo_aula=Curso.MODO_AULA_CLASES,
                     cliente__nombre__iexact='Cenipalma',
-                    nombre__icontains='Clases',
                 )
-                .first()
+                .order_by('id')
+                .last()
             )
     return None
 

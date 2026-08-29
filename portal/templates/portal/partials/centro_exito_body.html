@@ -11,7 +11,8 @@
 >
     <h2 class="ce-title">Centro de Éxito del Programa</h2>
     <p class="ce-lead">
-        ¿Quién está en riesgo? ¿Dónde caen? ¿Qué hacer hoy?
+        Ritual de 15 minutos (sin Excel): 1) riesgo alto → abrir ficha,
+        2) WhatsApp desde el atajo, 3) anotar en la ficha qué se dijo.
         Ventana de actividad: <strong>{{ data.dias_activo }} días</strong>.
     </p>
 
@@ -79,6 +80,9 @@
                         {% else %}
                         <a class="ret-student__meta" href="/portal/estudiantes/{{ s.estudiante_id }}/">Ver ficha</a>
                         {% endif %}
+                        {% if s.wa_url %}
+                        <a class="ret-student__meta" href="{{ s.wa_url }}" target="_blank" rel="noopener">WhatsApp</a>
+                        {% endif %}
                     </div>
                     <ul class="ret-student__why">
                         {% for razon in s.razones %}<li>{{ razon }}</li>{% endfor %}
@@ -103,6 +107,9 @@
                         <a class="ret-student__meta" href="/admin/core/estudiante/{{ s.estudiante_id }}/change/">Ver</a>
                         {% else %}
                         <a class="ret-student__meta" href="/portal/estudiantes/{{ s.estudiante_id }}/">Ver</a>
+                        {% endif %}
+                        {% if s.wa_url %}
+                        <a class="ret-student__meta" href="{{ s.wa_url }}" target="_blank" rel="noopener">WA</a>
                         {% endif %}
                     </div>
                     <p class="ret-student__rec"><strong>Recomendación:</strong> {{ s.recomendacion }}</p>

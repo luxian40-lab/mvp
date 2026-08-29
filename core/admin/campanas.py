@@ -31,9 +31,9 @@ class CampanaAdmin(admin.ModelAdmin):
             'classes': ['tab'],
             'fields': ('template_twilio_id',),
             'description': (
-                'Mensaje de bienvenida / inicio que recibe el estudiante por WhatsApp. '
-                'Internamente usa Content SID (HX…). '
-                'Consola Twilio: https://console.twilio.com/us1/develop/sms/content-editor'
+                'Content SID (HX…). La burbuja de arriba lee Twilio Content API '
+                '(texto, botones, {{1}}), no el texto local de eki. '
+                'Consola: https://console.twilio.com/us1/develop/sms/content-editor'
             ),
         }),
         ('Inicio de curso / aviso Aprende', {
@@ -50,7 +50,10 @@ class CampanaAdmin(admin.ModelAdmin):
         ('Plantilla', {
             'classes': ['tab'],
             'fields': ('plantilla',),
-            'description': 'Diseño del mensaje en eki (alternativa al Content SID directo). Requiere plantilla aprobada.',
+            'description': (
+                'Ficha eki (nombre, borrador). Si hay Content SID en Mensaje inicial, '
+                'WhatsApp usa el HX, no el cuerpo_mensaje local.'
+            ),
         }),
         ('Audiencia', {
             'classes': ['tab'],
@@ -128,6 +131,23 @@ class CampanaAdmin(admin.ModelAdmin):
                                 'curso_nombre': curso.nombre,
                                 'fecha': obj.fecha_programada,
                             }
+                extra_context['eki_hx_preview'] = None
+                extra_context['eki_hx_preview_html'] = ''
+                try:
+                    from core.twilio_content_preview import (
+                        content_sid_de_campana,
+                        fetch_content_preview,
+                        preview_html,
+                    )
+
+                    hx = content_sid_de_campana(obj)
+                    extra_context['eki_hx_sid'] = hx
+                    if hx:
+                        preview = fetch_content_preview(hx)
+                        extra_context['eki_hx_preview'] = preview
+                        extra_context['eki_hx_preview_html'] = preview_html(preview)
+                except Exception:
+                    extra_context['eki_hx_sid'] = ''
         extra_context['eki_camp_participantes'] = participantes
         return super().changeform_view(request, object_id, form_url, extra_context=extra_context)
 

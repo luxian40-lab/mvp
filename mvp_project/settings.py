@@ -441,6 +441,13 @@ try:
 except (TypeError, ValueError):
     BOT_COMERCIAL_RAG_MAX_CHARS = 1200
 BOT_COMERCIAL_RAG_MAX_CHARS = max(400, min(BOT_COMERCIAL_RAG_MAX_CHARS, 2500))
+try:
+    BOT_COMERCIAL_RAG_QUERY_TIMEOUT = int(os.environ.get('BOT_COMERCIAL_RAG_QUERY_TIMEOUT', '55'))
+except (TypeError, ValueError):
+    BOT_COMERCIAL_RAG_QUERY_TIMEOUT = 55
+BOT_COMERCIAL_RAG_QUERY_TIMEOUT = max(20, min(BOT_COMERCIAL_RAG_QUERY_TIMEOUT, 120))
+# Chroma vectorial en webhook Nat: off en prod hasta estabilizar (fallback documental + LLM).
+BOT_COMERCIAL_RAG_VECTORIAL = os.environ.get('BOT_COMERCIAL_RAG_VECTORIAL', 'True') == 'True'
 # Fallback leyendo Excel/PDF en webhook; con t3.medium defaults más altos (bajar vía env si hace falta).
 BOT_COMERCIAL_RAG_FILE_FALLBACK = os.environ.get('BOT_COMERCIAL_RAG_FILE_FALLBACK', 'true').strip().lower() in (
     '1', 'true', 'yes', 'on',
@@ -819,6 +826,11 @@ CELERY_TASK_EAGER_PROPAGATES = True
 
 # Webhook WhatsApp educativo en Celery (libera Gunicorn). Desactivado por defecto.
 WEBHOOK_CELERY_ASYNC = os.environ.get('WEBHOOK_CELERY_ASYNC', 'False') == 'True'
+# Nat / bot comercial: RAG+LLM fuera del request. Off en tests/dev; on en settings_production.
+NAT_WEBHOOK_CELERY_ASYNC = os.environ.get('NAT_WEBHOOK_CELERY_ASYNC', 'False') == 'True'
+# Publicar módulo: HEAD a URLs de media + exigir media_wa_apto en videos.
+PUBLICAR_MODULO_HEAD_QA = os.environ.get('PUBLICAR_MODULO_HEAD_QA', 'False') == 'True'
+PUBLICAR_MODULO_REQUIRE_MEDIA_QA = os.environ.get('PUBLICAR_MODULO_REQUIRE_MEDIA_QA', 'False') == 'True'
 
 # Formulario GEI — envío automático del balance por WhatsApp al completar un módulo del curso
 GEI_MODULO_NUMERO_WHATSAPP_RESULTADO = int(os.environ.get('GEI_MODULO_NUMERO_WHATSAPP_RESULTADO', '5') or '5')

@@ -49,28 +49,41 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 if (-not $NoHealthCheck) {
-    # Resolve CNAME from eb status output and hit /health/
     $statusText = eb status $Environment
     $cnameLine = $statusText | Select-String -Pattern "CNAME:\s*(.+)$"
     if ($cnameLine) {
         $cname = $cnameLine.Matches[0].Groups[1].Value.Trim()
         $healthUrl = "http://$cname/health/"
         Info "Smoke test: $healthUrl"
-        try {
-            $resp = Invoke-WebRequest -Uri $healthUrl -Method GET -TimeoutSec 20
-            if ($resp.StatusCode -eq 200) {
-                Ok "Health check OK (200)"
-            } else {
-                Fail "Health check returned $($resp.StatusCode)"
+        $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
+        if ($curl) {
+            & curl.exe -sS -A "eki-deploy-smoke" -o NUL -w "%{http_code}" --max-time 20 $healthUrl | ForEach-Object {
+                if ($_ -eq "200") { Ok "Health check OK (200)" }
+                else { Fail "Health check returned $_"; exit 1 }
+            }
+        } else {
+            try {
+                $resp = Invoke-WebRequest -Uri $healthUrl -Method GET -TimeoutSec 20 -UseBasicParsing
+                if ($resp.StatusCode -eq 200) { Ok "Health check OK (200)" }
+                else { Fail "Health check returned $($resp.StatusCode)"; exit 1 }
+            } catch {
+                Fail "Health check failed: $($_.Exception.Message)"
                 exit 1
             }
-        } catch {
-            Fail "Health check failed: $($_.Exception.Message)"
-            exit 1
         }
     } else {
         Fail "Could not resolve CNAME from eb status"
         exit 1
+    }
+
+    $py = ".\.venv\Scripts\python.exe"
+    if (Test-Path $py) {
+        Info "Post-deploy Nat/Celery remote smoke..."
+        & $py scripts/smoke_nat_celery.py --remote $Environment
+        if ($LASTEXITCODE -eq 0) { Ok "smoke_nat_celery remote passed" }
+        else { Fail "smoke_nat_celery remote failed (worker sin ping o tarea Nat no registrada)"; exit 1 }
+    } else {
+        Warn "Skip remote Nat/Celery smoke (no .venv python)"
     }
 }
 

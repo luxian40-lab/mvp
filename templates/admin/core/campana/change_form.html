@@ -90,7 +90,17 @@
   }
   .eki-camp-wa__cta {
     margin-top: 6px; text-align: center; font-size: 12px; font-weight: 700; color: #7A4E8E;
+    border: 1px solid rgba(122, 78, 142, 0.35); border-radius: 8px; padding: 6px 8px;
+    background: #faf8fc;
   }
+  .eki-hx-var {
+    background: #efeaf4; color: #5F3A6E; font-weight: 700; padding: 0 3px; border-radius: 4px;
+  }
+  .eki-hx-meta, .eki-hx-miss, .eki-hx-sample-label { font-size: 11px; color: #6b6575; margin: 8px 0 0; }
+  .eki-hx-miss { color: #c62828; }
+  .eki-hx-vars { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
+  .eki-hx-chip { font-size: 10px; background: #efeaf4; padding: 2px 6px; border-radius: 6px; }
+  .eki-camp-wa__bubble--sample { margin-top: 8px; opacity: 0.92; }
   html.dark .eki-camp-wa__bubble, html[data-theme="dark"] .eki-camp-wa__bubble { background: #26232b; color: #e8e2ef; }
 
   /* Tarjetas de ayuda inferiores (mockup). */
@@ -309,26 +319,23 @@
 </div>
 {% endif %}
 
-{% if original and original.curso_destino %}
-<div class="eki-camp-wa" aria-label="Vista previa del mensaje inicial">
+{% if original %}
+<div class="eki-camp-wa" aria-label="Vista previa Twilio Content">
   <div class="eki-camp-wa__head">
     <span class="eki-camp-wa__avatar">{% if original.cliente %}{{ original.cliente.nombre|slice:":1"|upper }}{% else %}e{% endif %}</span>
     <div>
       <div class="eki-camp-wa__name">{% if original.cliente %}{{ original.cliente.nombre }}{% else %}eki{% endif %}</div>
-      <div class="eki-camp-wa__sub">Cuenta empresarial · WhatsApp</div>
+      <div class="eki-camp-wa__sub">
+        {% if eki_hx_preview and eki_hx_preview.ok %}Plantilla Twilio · {{ eki_hx_sid }}{% else %}WhatsApp · falta SID o no se pudo leer Twilio{% endif %}
+      </div>
     </div>
   </div>
   <div class="eki-camp-wa__body">
-    <div class="eki-camp-wa__bubble">
-      ¡Hola! 👋<br>
-      Te damos la bienvenida al curso <strong>{{ original.curso_destino.nombre }}</strong>.<br>
-      A través de este curso aprenderás nuevas herramientas y técnicas.<br>
-      ¿Listo para comenzar? 👉 Presiona el botón para iniciar.
-      <div class="eki-camp-wa__cta">🚀 Comenzar curso</div>
-    </div>
-    <p style="margin:8px 0 0;font-size:11px;color:#6b6575;">
-      Vista aproximada. El mensaje real lo define el Content SID / plantilla configurada.
-    </p>
+    {% if eki_hx_preview_html %}
+      {{ eki_hx_preview_html }}
+    {% else %}
+      <p class="eki-hx-miss">Configure el Content SID en Mensaje inicial (o una plantilla con HX…). El mock de bienvenida ya no se muestra: no era el HSM real.</p>
+    {% endif %}
   </div>
 </div>
 {% endif %}

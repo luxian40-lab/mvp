@@ -976,6 +976,80 @@ html.dark .eki-panel-timeline p { color: #efe8f5; }
 }
 .eki-panel-insights__footer:hover { text-decoration: underline; }
 
+.eki-panel-alertas {
+  margin-bottom: 1rem;
+  padding: 1rem 1.1rem 0.85rem;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(154, 108, 172, 0.06), rgba(255, 255, 255, 0.92));
+  border: 1px solid rgba(154, 108, 172, 0.14);
+}
+html.dark .eki-panel-alertas {
+  background: linear-gradient(135deg, rgba(154, 108, 172, 0.12), rgba(30, 24, 36, 0.85));
+  border-color: rgba(180, 140, 200, 0.18);
+}
+.eki-panel-alertas__hint {
+  font-size: 0.75rem;
+  color: #8b8494;
+  font-weight: 600;
+}
+.eki-panel-alerta-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+.eki-panel-alerta {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+}
+.eki-panel-alerta__icon {
+  font-size: 1.35rem;
+  margin-top: 0.1rem;
+  flex-shrink: 0;
+}
+.eki-panel-alerta__body strong {
+  display: block;
+  font-size: 0.88rem;
+  margin-bottom: 0.15rem;
+}
+.eki-panel-alerta__body p {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #5c5568;
+}
+html.dark .eki-panel-alerta__body p { color: #c8bfd4; }
+.eki-panel-alerta__body a {
+  display: inline-block;
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+.eki-panel-alerta--fail {
+  background: rgba(220, 38, 38, 0.07);
+  border-color: rgba(220, 38, 38, 0.18);
+}
+.eki-panel-alerta--fail .eki-panel-alerta__icon { color: #dc2626; }
+.eki-panel-alerta--fail a { color: #b91c1c; }
+.eki-panel-alerta--warn {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+.eki-panel-alerta--warn .eki-panel-alerta__icon { color: #d97706; }
+.eki-panel-alerta--warn a { color: #b45309; }
+.eki-panel-alerta--ok {
+  background: rgba(34, 197, 94, 0.07);
+  border-color: rgba(34, 197, 94, 0.16);
+}
+.eki-panel-alerta--ok .eki-panel-alerta__icon { color: #16a34a; }
+.eki-panel-alerta--ok a { color: #15803d; }
+
 /* Ecosistema hub — escenario 3D ligero + datos reales */
 .eki-panel-eco {
   margin-bottom: 1.15rem;
@@ -1551,5 +1625,32 @@ html.dark .eki-puente-panel__head h3,
 html[data-theme="dark"] .eki-puente-panel__head h3,
 html[data-eki-tone="noche"] .eki-puente-panel__head h3 {
   color: #e8e2ef;
+}
+
+/* Icono de marca: glifo morado, sin recuadro negro ni invert en dark. */
+img[src*="favicons/admin"] {
+  background: transparent !important;
+  filter: none !important;
+  object-fit: contain;
+}
+html.dark img[src*="favicons/admin"],
+html[data-theme="dark"] img[src*="favicons/admin"],
+html[data-eki-tone="noche"] img[src*="favicons/admin"] {
+  filter: none !important;
+}
+
+.eki-hx-var {
+  background: #efeaf4;
+  color: #5F3A6E;
+  font-weight: 700;
+  padding: 0 3px;
+  border-radius: 4px;
+}
+.eki-hx-miss { color: #c62828; font-size: 13px; }
+.eki-hx-chip {
+  font-size: 11px;
+  background: #efeaf4;
+  padding: 2px 6px;
+  border-radius: 6px;
 }
 

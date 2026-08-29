@@ -7,8 +7,11 @@ import os
 from celery import Celery
 from celery.schedules import crontab
 
-# Establecer settings de Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mvp_project.settings')
+# En EB el web usa settings_production; el worker debe igual (NAT_WEBHOOK / Redis).
+if os.environ.get('AWS_EXECUTION_ENV') or os.path.exists('/var/app/current'):
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mvp_project.settings_production')
+else:
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mvp_project.settings')
 
 app = Celery('eki_mvp')
 

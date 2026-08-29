@@ -110,6 +110,7 @@ class RetencionServiceTests(TestCase):
         habeas = next((a for a in todos if a['nombre'] == 'Sin Habeas'), None)
         self.assertIsNotNone(habeas)
         self.assertEqual(habeas['nivel'], RIESGO_ALTO)
+        self.assertTrue(habeas.get('wa_url', '').startswith('https://wa.me/'))
         self.assertTrue(habeas['razones'])
         self.assertGreaterEqual(habeas['probabilidad_terminar'], 5)
         self.assertTrue(data['mapa_abandono'])

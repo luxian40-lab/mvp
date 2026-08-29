@@ -379,11 +379,107 @@ def _build_ecosistema(
     }
 
 
+def _build_alertas_ops(
+    *,
+    now,
+    wa_fallos_24h: int,
+    n_63019: int,
+    n_63021: int,
+) -> list[dict[str, Any]]:
+    """Tarjetas de alerta operativa para Inicio (63019, media en riesgo, infra)."""
+    alertas: list[dict[str, Any]] = []
+
+    if wa_fallos_24h >= 1:
+        detalle = []
+        if n_63019:
+            detalle.append(f'{n_63019}×63019')
+        if n_63021:
+            detalle.append(f'{n_63021}×63021')
+        extra = f' ({", ".join(detalle)})' if detalle else ''
+        alertas.append(
+            {
+                'nivel': 'fail' if (n_63019 or n_63021) else 'warn',
+                'titulo': f'WhatsApp fallidos 24h: {wa_fallos_24h}{extra}',
+                'texto': 'Revisar descarga media (63019) o codec video (63021).',
+                'cta': 'Ver historial WA',
+                'url': '/admin/core/whatsapplog/?error_detalle__icontains=63019',
+                'icon': 'error',
+            }
+        )
+
+    try:
+        from core.media_wa_audit import contar_media_en_riesgo
+
+        media = contar_media_en_riesgo(solo_activos=True)
+        total = int(media.get('total') or 0)
+        if total >= 1:
+            n_fail = int(media.get('fail') or 0)
+            n_warn = int(media.get('warn') or 0)
+            top = media.get('top_cursos') or []
+            nombres = ', '.join(
+                (t.get('curso_nombre') or '')[:28] for t in top[:3]
+            )
+            if nombres and len(top) > 3:
+                nombres += '…'
+            alertas.append(
+                {
+                    'nivel': 'fail' if n_fail else 'warn',
+                    'titulo': f'Media en riesgo: {total} paso(s)',
+                    'texto': (
+                        f'No apto: {n_fail} · sin verificar: {n_warn}.'
+                        + (f' Cursos: {nombres}.' if nombres else '')
+                    ),
+                    'cta': 'Module Builder',
+                    'url': (
+                        f'/admin/module-builder/{top[0]["modulo_id"]}/'
+                        if top
+                        else '/admin/core/curso/'
+                    ),
+                    'icon': 'videocam_off',
+                }
+            )
+    except Exception:
+        pass
+
+    try:
+        from core.infra_monitor import header_health_strip
+
+        strip = header_health_strip(force=False)
+        bad = [s for s in strip if (s.get('tone') or '') in ('warn', 'fail', 'red', 'yellow')]
+        if bad:
+            alertas.append(
+                {
+                    'nivel': 'warn',
+                    'titulo': f'Infra: {len(bad)} señal(es)',
+                    'texto': ' · '.join((b.get('label') or b.get('title') or '—')[:40] for b in bad[:3]),
+                    'cta': 'Monitor infra',
+                    'url': '/admin/infra/',
+                    'icon': 'monitor_heart',
+                }
+            )
+    except Exception:
+        pass
+
+    if not alertas:
+        alertas.append(
+            {
+                'nivel': 'ok',
+                'titulo': 'Sin alertas críticas',
+                'texto': 'WA 24h, media publicada e infra en verde según umbrales actuales.',
+                'cta': 'Dashboard ops',
+                'url': '/admin/dashboard/',
+                'icon': 'check_circle',
+            }
+        )
+
+    return alertas
+
+
 def build_panel_snapshot(*, force: bool = False) -> dict[str, Any]:
     """KPIs y bloques del Panel (Inicio). Cache corto para no pesar /admin/."""
     from django.core.cache import cache
 
-    cache_key = 'admin_panel_snapshot_v7'
+    cache_key = 'admin_panel_snapshot_v8'
     if not force:
         cached = cache.get(cache_key)
         if cached:
@@ -766,6 +862,7 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
     wa_24h = 0
     wa_fallos_24h = 0
     n_63021 = 0
+    n_63019 = 0
     prospectos = 0
     twilio_txt = ''
     try:
@@ -778,9 +875,11 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
             Q(estado__iexact='undelivered')
             | Q(estado__iexact='failed')
             | Q(error_detalle__icontains='63021')
+            | Q(error_detalle__icontains='63019')
         )
         wa_fallos_24h = fallos.count()
         n_63021 = fallos.filter(error_detalle__icontains='63021').count()
+        n_63019 = fallos.filter(error_detalle__icontains='63019').count()
     except Exception:
         pass
     try:
@@ -795,6 +894,13 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
         twilio_txt, _tono = twilio_balance_badge()
     except Exception:
         twilio_txt = ''
+
+    alertas = _build_alertas_ops(
+        now=now,
+        wa_fallos_24h=wa_fallos_24h,
+        n_63019=n_63019,
+        n_63021=n_63021,
+    )
 
     ecosistema = _build_ecosistema(
         cursos_activos=cursos_activos,
@@ -883,6 +989,7 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
         'depts_meta': 32,
         'actividad': actividad,
         'insights': insights,
+        'alertas': alertas,
         'espacios': espacios,
         'acciones': acciones,
         'atajos': atajos,

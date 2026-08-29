@@ -1,4 +1,6 @@
 """Admin UX: Campaña tabs + PlantillaCertificado link learning."""
+from unittest.mock import patch
+
 from django.contrib.admin.sites import site
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
@@ -51,17 +53,20 @@ class AdminCampanaCertTabsTests(TestCase):
 
     def test_plantilla_mensaje_fieldsets_tabs(self):
         titles = self._fieldset_titles(PlantillaDashboardAdmin, Plantilla)
-        self.assertIn('Datos', titles)
-        self.assertIn('Twilio', titles)
-        for name, opts in PlantillaDashboardAdmin.fieldsets:
-            self.assertIn('tab', opts.get('classes', []))
+        self.assertEqual(titles[0], 'Datos')
+        self.assertIn('HSM Twilio', titles)
+        self.assertIn('Borrador interno', titles)
+        self.assertNotIn('Mensaje', titles)
+        self.assertNotIn('Twilio', titles)
+        self.assertIn('twilio_preview_live', PlantillaDashboardAdmin.readonly_fields)
+        by_title = {fs[0]: fs[1] for fs in PlantillaDashboardAdmin.fieldsets}
+        self.assertNotIn('classes', by_title['Datos'])
+        self.assertIn('tab', by_title['HSM Twilio'].get('classes', ()))
+        self.assertIn('cuerpo_mensaje', by_title['Borrador interno']['fields'])
 
     def test_plantilla_certificado_fieldsets_por_modo(self):
         titles = self._fieldset_titles(PlantillaCertificadoAdmin, PlantillaCertificado)
-        self.assertEqual(
-            titles,
-            ['Datos', 'Plantilla', 'Diseño eki', 'PDF'],
-        )
+        self.assertEqual(titles[:4], ['Datos', 'Plantilla', 'Diseño eki', 'PDF'])
         for name, opts in PlantillaCertificadoAdmin.fieldsets:
             self.assertIn('tab', opts.get('classes', []))
 
@@ -88,13 +93,29 @@ class AdminCampanaCertTabsTests(TestCase):
             cliente=self.cliente,
             template_twilio_id='HXtestfake000000000000000000000',
         )
+        fake = {
+            'ok': True,
+            'sid': camp.template_twilio_id,
+            'name': 'eki_test',
+            'language': 'es',
+            'kind': 'twilio/quick-reply',
+            'body': 'Hola {{1}}, bienvenida real',
+            'buttons': [{'title': 'Empezar', 'kind': 'reply'}],
+            'variables': {'1': 'Luxia'},
+            'approval': 'approved',
+            'error': '',
+        }
         self.client.force_login(self.user)
-        r = self.client.get(reverse('admin:core_campana_change', args=[camp.pk]))
+        with patch('core.twilio_content_preview.fetch_content_preview', return_value=fake):
+            r = self.client.get(reverse('admin:core_campana_change', args=[camp.pk]))
         self.assertEqual(r.status_code, 200)
         body = r.content.decode('utf-8')
         self.assertIn('Mensaje inicial', body)
         self.assertIn('eki-camp-ficha', body)
         self.assertIn('Lanzamiento', body)
+        self.assertIn('bienvenida real', body)
+        self.assertIn('Empezar', body)
+        self.assertNotIn('🚀 Comenzar curso', body)
         self.assertNotIn('📨 Template de Twilio', body)
         self.assertNotIn('Mensaje Twilio', body)
 

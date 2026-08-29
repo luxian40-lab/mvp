@@ -14,7 +14,7 @@ class GrupoEstudiantesAdmin(admin.ModelAdmin):
     list_display = (
         'nombre_completo', 'cliente_nombre', 'cantidad_estudiantes',
         'gestionar_miembros_link', 'cursos_asociados_display',
-        'whatsapp_grupos_link', 'invitaciones_link', 'fecha_creacion',
+        'whatsapp_grupos_link',
     )
     list_filter = ('cliente', 'activo', 'fecha_creacion')
     search_fields = ('nombre', 'descripcion', 'cliente__nombre')

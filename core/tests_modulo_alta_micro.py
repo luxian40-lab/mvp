@@ -197,7 +197,7 @@ class ModuloAltaMicrocontenidosTests(TestCase):
         self.assertIn('href="#pasos"', body)
         self.assertIn('Estructura', body)
         self.assertIn('Materiales', body)
-        self.assertIn('Media (legacy)', body)
+        self.assertNotIn('Media (legacy)', body)
         self.assertIn('Clase', body)
         self.assertIn('clase_archivo', body)
         # Sin anclas Jazzmin con tildes rotas

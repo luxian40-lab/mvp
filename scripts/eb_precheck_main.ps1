@@ -37,6 +37,10 @@ if ($branch -ne "main") {
 $gitStatus = git status --porcelain
 if ($gitStatus) {
     Warn "Working tree has local changes. Commit/stash before deploy."
+    $dirtyNoise = ($gitStatus | Select-String -Pattern '(^|\s)(tmp/|test_media_drag/|scripts/_qa_)')
+    if ($dirtyNoise) {
+        Warn "Dirty tree includes tmp/, test_media_drag/ or scripts/_qa_ - do not ship QA scratch with the bundle."
+    }
 } else {
     Ok "Working tree is clean"
 }
@@ -53,12 +57,18 @@ if (Test-Path ".gitignore") {
     Fail ".gitignore not found"
 }
 
-# 4) Django checks
+# 4) Django checks + Nat/Celery smoke
 if (-not (Test-Path $PythonPath)) {
     Warn "Python path not found: $PythonPath (skipping manage.py check)"
 } else {
     & $PythonPath manage.py check --deploy
     if ($LASTEXITCODE -eq 0) { Ok "manage.py check --deploy passed" } else { Fail "manage.py check --deploy failed" }
+
+    & $PythonPath -m pytest core/tests_smoke_nat_celery.py core/tests_twilio_webhook_security.py core/tests_smoke_claudia_calificacion.py -q --tb=line
+    if ($LASTEXITCODE -eq 0) { Ok "Nat/Celery pytest passed" } else { Fail "Nat/Celery pytest failed" }
+
+    & $PythonPath scripts/smoke_nat_celery.py
+    if ($LASTEXITCODE -eq 0) { Ok "smoke_nat_celery.py local passed" } else { Fail "smoke_nat_celery.py local failed" }
 }
 
 # 5) EB connectivity

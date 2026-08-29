@@ -278,6 +278,12 @@
             return '<div class="eki-media-block"><div class="eki-media-frame eki-media-frame--pdf">' +
                 '<iframe src="' + esc(url) + '#toolbar=0&navpanes=0" loading="lazy"></iframe></div></div>';
         }
+        if (tipo === 'enlace_externo') {
+            return '<div class="eki-media-block"><div class="eki-media-frame eki-media-frame--link" style="padding:1.25rem;text-align:center;">' +
+                '<p class="eki-muted" style="margin:0 0 0.75rem;">Este recurso está en otro sitio.</p>' +
+                '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer" class="eki-btn eki-btn--primary">Abrir enlace externo ↗</a>' +
+                '</div></div>';
+        }
         return '<div class="eki-media-block"><div class="eki-media-frame eki-media-frame--embed">' +
             '<iframe src="' + esc(url) + '" loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe></div></div>';
     }

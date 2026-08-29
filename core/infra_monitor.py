@@ -43,7 +43,7 @@ CAPACITY_LIMITS = {
     'campana_destinatarios_techo': 2_000,
     'nota': (
         'Comodo = sin saturar t3.medium actual. Techo = riesgo de cola/timeout; '
-        'activar WEBHOOK_CELERY_ASYNC=true y/o 2ª instancia EB / ElastiCache.'
+        'activar WEBHOOK_CELERY_ASYNC=true, NAT_WEBHOOK_CELERY_ASYNC=true y/o 2ª instancia EB / ElastiCache.'
     ),
 }
 

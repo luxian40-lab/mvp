@@ -16,6 +16,32 @@ from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
+
+def _call_with_timeout(func, timeout_sec: int, label: str = 'op'):
+    """Evita que Chroma/LLM bloqueen el worker Celery hasta SIGKILL.
+
+    IMPORTANTE: no usar ``with ThreadPoolExecutor`` — en timeout hace shutdown(wait=True)
+    y el worker queda colgado 240s+ igual que sin timeout (bug visto en prod).
+    """
+    import concurrent.futures
+
+    if timeout_sec <= 0:
+        return func()
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    fut = pool.submit(func)
+    try:
+        return fut.result(timeout=timeout_sec)
+    except concurrent.futures.TimeoutError:
+        logger.warning('Nat %s: timeout %ss — se usa fallback (thread huérfano)', label, timeout_sec)
+        pool.shutdown(wait=False, cancel_futures=True)
+        return None
+    except Exception:
+        pool.shutdown(wait=False, cancel_futures=True)
+        raise
+    else:
+        pool.shutdown(wait=False, cancel_futures=True)
+
+
 from core.models import Cliente, WhatsappLog
 from core.utils import enviar_whatsapp_twilio
 
@@ -982,7 +1008,9 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                         cliente_ids_consulta,
                     )
 
-            if rag_comercial_manager.disponible:
+            if rag_comercial_manager.disponible and getattr(
+                settings, 'BOT_COMERCIAL_RAG_VECTORIAL', True
+            ):
                 canales_consulta = []
                 for c in [canal_rag, 'bot_comercial']:
                     if c and c not in canales_consulta:
@@ -996,7 +1024,13 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                     top_k = 4
                 top_k = max(2, min(top_k, 12))
 
-                try:
+                rag_timeout = int(
+                    getattr(settings, 'BOT_COMERCIAL_RAG_QUERY_TIMEOUT', 55) or 55
+                )
+                rag_timeout = max(20, min(rag_timeout, 120))
+
+                def _buscar_rag_vectorial():
+                    ctx, chunks = '', []
                     for canal in canales_consulta:
                         rag_result = rag_comercial_manager.obtener_contexto_varios_clientes(
                             cliente_ids_consulta,
@@ -1006,12 +1040,12 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                             top_k_por_scope=top_k,
                             retornar_chunks=True,
                         )
-                        contexto_rag, rag_chunks = rag_result
-                        if contexto_rag:
+                        ctx, chunks = rag_result
+                        if ctx:
                             logger.info(
                                 "🧠 RAG comercial unificado | canal=%s | contexto_chars=%s | clientes=%s",
                                 canal,
-                                len(contexto_rag),
+                                len(ctx),
                                 cliente_ids_consulta,
                             )
                             try:
@@ -1021,14 +1055,24 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
                                     pregunta=consulta,
                                     cliente=cliente_nati,
                                     canal='whatsapp_comercial',
-                                    chunks_count=len(rag_chunks),
-                                    contexto_chars=len(contexto_rag),
-                                    chunks=rag_chunks,
+                                    chunks_count=len(chunks),
+                                    contexto_chars=len(ctx),
+                                    chunks=chunks,
                                     metadata={'origen': 'rag_comercial', 'canal_rag': canal},
                                 )
                             except Exception:
                                 pass
                             break
+                    return ctx, chunks
+
+                try:
+                    rag_result = _call_with_timeout(
+                        _buscar_rag_vectorial, rag_timeout, 'RAG vectorial',
+                    )
+                    if rag_result is None:
+                        contexto_rag, rag_chunks = '', []
+                    else:
+                        contexto_rag, rag_chunks = rag_result
                 except Exception:
                     logger.exception(
                         "Nat RAG vectorial falló; se continúa con fallback liviano (evitar SIGKILL)"

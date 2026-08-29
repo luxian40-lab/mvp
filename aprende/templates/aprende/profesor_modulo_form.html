@@ -58,7 +58,7 @@
         <textarea name="contenido" id="contenido" rows="8" placeholder="Texto principal de la clase.">{{ modulo.contenido|default:'' }}</textarea>
     </div>
 
-    <p class="eki-section-title">Enlaces (YouTube, PDF, imágenes…)</p>
+    <p class="eki-section-title">Enlaces (YouTube, PDF, enlace externo…)</p>
     <div id="enlaces-nuevos" class="eki-enlace-rows">
         <div class="eki-enlace-row eki-grid-2" style="gap:0.65rem;align-items:end;margin-bottom:0.65rem;">
             <div class="eki-field" style="margin:0;">
@@ -68,11 +68,12 @@
                     <option value="pdf">PDF</option>
                     <option value="imagen">Imagen</option>
                     <option value="audio">Audio</option>
+                    <option value="enlace_externo">Enlace externo</option>
                 </select>
             </div>
             <div class="eki-field" style="margin:0;">
                 <label>URL</label>
-                <input type="url" name="enlace_url_nuevo" placeholder="https://youtube.com/… o PDF">
+                <input type="url" name="enlace_url_nuevo" placeholder="https://… (YouTube, PDF o sitio externo)">
             </div>
             <div class="eki-field" style="margin:0;">
                 <label>Título</label>

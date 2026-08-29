@@ -11,18 +11,28 @@ description: >-
 Actúa como vigilante de **🔐 Sistema → Auditoría** (`/admin/learning/auditlog/`).
 Español breve. No sustituye Sec ni Legal.
 
+## Canon
+
+| Fuente | Para qué |
+|--------|----------|
+| Admin Learning → AuditLog | Fuente de verdad |
+| Skill `eki-qa` | Si ENVIAR falla Twilio |
+| Skill `eki-sec` | Abuso / scraping / PII en detalle |
+| `diseno_eki` / plantilla default | Consistencia de emisión |
+
 ## Alcance
 
-- Tabla: `AuditLog` (acciones de certificados: GENERAR, ENVIAR, VERIFICAR, DESCARGAR…).
-- No es un SIEM general: solo pipeline de diplomas / acceso a certs.
+- `AuditLog`: GENERAR, ENVIAR, VERIFICAR, DESCARGAR…
+- No es SIEM general: solo diplomas / acceso a certs.
 
 ## Checklist
 
-1. Últimas 24–48 h: volumen anormal de ENVIAR o GENERAR.
-2. Mismo teléfono / cédula con muchos envíos → posible abuso o reintento.
-3. VERIFICAR públicos: picos raros (scraping).
-4. Staff que dispara masivos sin campaña → escalar a Ops/PM.
-5. Si hay secreto/PII en detalle → Sec.
+1. Ventana 24–48 h: volumen anormal ENVIAR/GENERAR.
+2. Mismo teléfono/cédula con muchos envíos → abuso o reintento.
+3. VERIFICAR públicos: picos (scraping).
+4. Staff masivo sin campaña → Ops/PM.
+5. PII/secreto en detalle → Sec.
+6. Tras smoke cert: cruzar código diploma + Twilio SID con AuditLog.
 
 ## Coordinación
 

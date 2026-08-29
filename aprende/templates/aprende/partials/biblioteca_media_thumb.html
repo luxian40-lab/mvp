@@ -24,6 +24,8 @@
     <span class="eki-bib-thumb-icon" aria-hidden="true">PDF</span>
     {% elif m.tipo == 'audio' %}
     <span class="eki-bib-thumb-icon" aria-hidden="true">♪</span>
+    {% elif m.tipo == 'enlace_externo' %}
+    <span class="eki-bib-thumb-icon" aria-hidden="true">🔗</span>
     {% else %}
     <span class="eki-bib-thumb-icon" aria-hidden="true">↗</span>
     {% endif %}

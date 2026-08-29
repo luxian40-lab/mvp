@@ -4,6 +4,7 @@ v1.9.8g: Facilitador(a) con ABR + Asistente Darío
 """
 
 import logging
+import re
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -26,10 +27,11 @@ REGLAS OBLIGATORIAS:
 3. Lenguaje sencillo, cercano al contexto rural/urbano que corresponda al curso.
 4. El reto debe plantearse de forma clara y fácil de comprender (situación concreta, sin ambigüedades).
 5. Máximo 2 emojis al final.
-6. CERO alucinación: solo temas que aparezcan en MÓDULOS / RAG / nombre del curso. PROHIBIDO mezclar plagas, cultivos o finanzas si los módulos no hablan de eso.
-7. Termina con: "Escriba o envíe un audio con su respuesta."
-8. Sin tecnicismos innecesarios ni tono de examen.
-9. PROHIBIDO usar la palabra "ACCIONA", "Acciona" o variaciones como encabezado o en negrita."""
+6. CERO alucinación: solo temas que aparezcan en MÓDULOS / RAG / nombre del curso / GUÍA DEL MÓDULO. PROHIBIDO mezclar plagas, cultivos o finanzas si los módulos no hablan de eso.
+7. Si hay GUÍA DEL MÓDULO, obedezca esa guía antes que ejemplos genéricos o de otros programas.
+8. Termina con: "Escriba o envíe un audio con su respuesta."
+9. Sin tecnicismos innecesarios ni tono de examen.
+10. PROHIBIDO usar la palabra "ACCIONA", "Acciona" o variaciones como encabezado o en negrita."""
 
 
 PROMPT_FACILITADOR_EVALUACION = """Eres la Facilitadora Claudia, evaluadora de eki con metodología ABR.
@@ -61,7 +63,14 @@ REGLAS:
 - Diga explícitamente qué parte respondió bien y qué parte faltó.
 - Debe citar evidencia de la respuesta del participante (palabras/acciones mencionadas por él/ella).
 - Si la respuesta es general, dígalo literalmente y pida precisión concreta en "qué, cuánto, cuándo, con qué".
-- Evalúe según el dominio de los módulos (presupuesto, ahorro, metas, campo, u otro): no exija conceptos que no estén en el material."""
+- Evalúe según el dominio de los módulos (presupuesto, ahorro, metas, campo, u otro): no exija conceptos que no estén en el material.
+
+ESCALA OBLIGATORIA (no regalar puntos; varíe según evidencia real):
+- "no sé", vacío, "bueno", "ok", "sí" sin contenido técnico: máximo 2/10 total.
+- 1–2 frases vagas sin diagnóstico ni acción concreta: máximo 4/10.
+- Respuesta parcial (solo diagnóstico o solo acción): 5–7/10 según calidad.
+- Respuesta completa con qué/cuánto/cuándo anclada al curso: 7–10/10.
+- Nunca repita la misma retroalimentación genérica si la evidencia cambió."""
 
 
 PROMPT_FACILITADOR_EVALUACION_NOTAS = """Eres la Facilitadora Claudia, evaluadora de eki con metodología ABR.
@@ -85,7 +94,12 @@ REGLAS:
 - Sea empático y honesto; cite evidencia de la respuesta del participante.
 - Ayude al participante a resolver el reto de una manera clara y fácil de comprender: use pasos simples, ejemplos concretos y lenguaje directo.
 - PROHIBIDO hacer preguntas de seguimiento.
-- NO mencione puntos ni ranking."""
+- NO mencione puntos ni ranking.
+
+ESCALA OBLIGATORIA (nota 1–5; no regalar):
+- "no sé", vacío, "bueno", "ok" sin sustancia: nota máxima 1.5/5.
+- Vago sin qué/cuánto/cuándo: máximo 2.5/5.
+- Parcial: 3–3.5/5. Completa y anclada al curso: 4–5/5."""
 
 
 # =====================================================
@@ -203,8 +217,98 @@ def descripcion_rango_modulos_reto_esp(modulos_reto) -> str:
     return f'los módulos {lo} a {hi}'
 
 
-def generar_reto_facilitador(modulos_cubiertos, curso_nombre, estudiante_nombre="Estudiante",
-                              preguntas_ejemplo="") -> str:
+# Plantillas de formato para Claudia (tipo_reto_ia en el módulo checkpoint).
+_INSTRUCCION_TIPO_RETO = {
+    'situacion_decision': (
+        "FORMATO OBLIGATORIO DEL RETO: situación cotidiana breve + UNA pregunta de decisión "
+        "práctica (qué haría / qué priorizaría y por qué), anclada solo a los módulos listados."
+    ),
+    'diagnostico': (
+        "FORMATO OBLIGATORIO DEL RETO: situación con un síntoma o problema observado + UNA pregunta "
+        "de diagnóstico (qué revisaría primero y cómo lo comprobaría)."
+    ),
+    'plan_accion': (
+        "FORMATO OBLIGATORIO DEL RETO: situación real + UNA pregunta que pida un plan concreto "
+        "para esta semana (qué, cuándo, con qué recursos)."
+    ),
+    'aplicacion_practica': (
+        "FORMATO OBLIGATORIO DEL RETO: invite a aplicar lo aprendido a su finca, hogar o trabajo "
+        "con UNA sola pregunta (qué cambiaría mañana y cómo lo mediría)."
+    ),
+    'reflexion': (
+        "FORMATO OBLIGATORIO DEL RETO: UNA pregunta de reflexión breve (qué aprendió y cómo lo "
+        "usaría), sin tono de examen ni listas."
+    ),
+}
+
+
+def _resumen_micros_modulo(modulo, limite: int = 4) -> str:
+    """Títulos de pasos activos para anclar el reto al módulo, no a otro dominio."""
+    if modulo is None:
+        return ''
+    try:
+        from .module_steps import pasos_activos_qs
+
+        qs = pasos_activos_qs(modulo).order_by('orden', 'id')[:limite]
+    except Exception:
+        return ''
+    lineas = []
+    for p in qs:
+        t = (getattr(p, 'titulo', None) or '').strip()
+        if not t:
+            t = (getattr(p, 'contenido', None) or '').strip()[:80]
+        if t:
+            lineas.append(f"  · {t}")
+    if not lineas:
+        return ''
+    num = getattr(modulo, 'numero', '?')
+    return f"MICROLECCIONES DEL MÓDULO {num} (use este vocabulario):\n" + '\n'.join(lineas)
+
+
+def armar_guia_reto_para_prompt(curso=None, modulo_checkpoint=None) -> tuple[str, str]:
+    """
+    Une guía del módulo checkpoint (prioridad) + guía del curso.
+    Devuelve (texto_para_prompt, tipo_reto_key).
+    """
+    partes: list[str] = []
+    tipo = ''
+    if modulo_checkpoint is not None:
+        tipo = (getattr(modulo_checkpoint, 'tipo_reto_ia', None) or '').strip()
+        if not tipo:
+            tipo = modulo_checkpoint.TIPO_RETO_APLICACION
+        guia_m = (getattr(modulo_checkpoint, 'reto_guia_ia', None) or '').strip()
+        if guia_m:
+            num = getattr(modulo_checkpoint, 'numero', '?')
+            partes.append(
+                f"GUÍA DEL MÓDULO CHECKPOINT {num} (prioridad absoluta; adaptar sin inventar otro tema):\n"
+                f"{_quitar_encabezado_acciona(guia_m)}"
+            )
+        micros = _resumen_micros_modulo(modulo_checkpoint)
+        if micros:
+            partes.append(micros)
+    curso_ej = ''
+    if curso is not None:
+        curso_ej = (getattr(curso, 'preguntas_ejemplo_ia', None) or '').strip()
+    if curso_ej:
+        label = (
+            'GUÍA DEL CURSO (complemento; la del módulo manda si hay conflicto)'
+            if partes
+            else 'PREGUNTAS/RETOS EJEMPLO DEL INSTRUCTOR (prioridad absoluta; adaptar al curso)'
+        )
+        partes.append(f"{label}:\n{_quitar_encabezado_acciona(curso_ej)}")
+    return '\n\n'.join(partes), tipo
+
+
+def generar_reto_facilitador(
+    modulos_cubiertos,
+    curso_nombre,
+    estudiante_nombre="Estudiante",
+    preguntas_ejemplo="",
+    *,
+    curso=None,
+    modulo_checkpoint=None,
+    tipo_reto="",
+) -> str:
     """
     Facilitadora Claudia genera un RETO ABR que cubre los módulos indicados.
     Se llama después de que Darío termina (módulos 3 y 5).
@@ -213,7 +317,10 @@ def generar_reto_facilitador(modulos_cubiertos, curso_nombre, estudiante_nombre=
         modulos_cubiertos: lista de instancias Modulo que cubre el reto
         curso_nombre: nombre del curso
         estudiante_nombre: nombre del estudiante
-        preguntas_ejemplo: preguntas de ejemplo del admin
+        preguntas_ejemplo: texto ya compuesto (opcional si se pasa curso/módulo)
+        curso: instancia Curso (para armar guía si preguntas_ejemplo vacío)
+        modulo_checkpoint: módulo que disparó el checkpoint (tipo + guía propias)
+        tipo_reto: clave de plantilla; si vacío se toma del módulo checkpoint
 
     Returns:
         str: mensaje con el reto
@@ -221,6 +328,16 @@ def generar_reto_facilitador(modulos_cubiertos, curso_nombre, estudiante_nombre=
     client = _get_client()
     if not client:
         return _fallback_reto(modulos_cubiertos, curso_nombre)
+
+    if not modulo_checkpoint and modulos_cubiertos:
+        modulo_checkpoint = modulos_cubiertos[-1]
+    if curso is None and modulos_cubiertos:
+        curso = getattr(modulos_cubiertos[0], 'curso', None)
+
+    guia_compuesta, tipo_desde_mod = armar_guia_reto_para_prompt(curso, modulo_checkpoint)
+    if guia_compuesta:
+        preguntas_ejemplo = guia_compuesta
+    tipo_reto = (tipo_reto or tipo_desde_mod or '').strip()
 
     if preguntas_ejemplo:
         preguntas_ejemplo = _quitar_encabezado_acciona(str(preguntas_ejemplo).strip())
@@ -242,31 +359,29 @@ def generar_reto_facilitador(modulos_cubiertos, curso_nombre, estudiante_nombre=
     contexto_rag = ""
     try:
         from .rag_manager import rag_manager
-        curso = modulos_cubiertos[0].curso if modulos_cubiertos else None
-        if curso:
-            cliente_id = curso.cliente_id if curso.cliente_id else 0
+        curso_rag = curso or (modulos_cubiertos[0].curso if modulos_cubiertos else None)
+        if curso_rag:
+            cliente_id = curso_rag.cliente_id if curso_rag.cliente_id else 0
             contexto_rag = rag_manager.obtener_contexto_para_ia(
                 cliente_id=cliente_id,
-                curso_id=curso.id,
+                curso_id=curso_rag.id,
                 pregunta=pregunta_rag,
                 max_chars=1200
             )
             logger.info(
-                "[reto] RAG curso_id=%s curso=%s modulos=%s chars=%s",
-                curso.id,
+                "[reto] RAG curso_id=%s curso=%s modulos=%s chars=%s tipo=%s",
+                curso_rag.id,
                 curso_nombre[:60],
                 [m.id for m in modulos_cubiertos],
                 len(contexto_rag or ""),
+                tipo_reto or '-',
             )
     except Exception as e:
         logger.warning(f"[RAG] Error en reto facilitador: {e}")
 
     ejemplo_txt = ""
     if preguntas_ejemplo:
-        ejemplo_txt = (
-            f"\nPREGUNTAS/RETOS EJEMPLO DEL INSTRUCTOR (prioridad absoluta; adaptar al curso "
-            f"«{curso_nombre}» y a los módulos listados, sin inventar otro tema):\n{preguntas_ejemplo}\n"
-        )
+        ejemplo_txt = f"\n{preguntas_ejemplo}\n"
 
     max_modulo = max((getattr(m, "numero", 0) or 0) for m in modulos_cubiertos) if modulos_cubiertos else 0
     if max_modulo <= 3:
@@ -281,6 +396,10 @@ def generar_reto_facilitador(modulos_cubiertos, curso_nombre, estudiante_nombre=
             "Genere UN reto: situación cotidiana coherente con los módulos listados + UNA pregunta integrada "
             "(qué revisaría o priorizaría y qué haría en la práctica), siempre en el dominio de este curso."
         )
+
+    tipo_txt = _INSTRUCCION_TIPO_RETO.get(tipo_reto, '')
+    if tipo_txt:
+        instruccion_pregunta = f"{tipo_txt}\n{instruccion_pregunta}"
 
     prompt_usuario = f"""OBLIGATORIO:
 - Curso actual (no mezclar con otros): *{curso_nombre}*
@@ -351,7 +470,7 @@ def evaluar_reto_facilitador(modulos_cubiertos, respuesta_estudiante, reto_origi
 
     client = _get_client()
     if not client:
-        return 7, _fallback_evaluacion_reto()
+        return 0, _fallback_evaluacion_reto(estudiante_nombre)
 
     nombre_curso = (curso_nombre or "").strip()
     if not nombre_curso and modulos_cubiertos:
@@ -422,7 +541,7 @@ Evalúe según la rúbrica y el dominio de este curso. Dé retroalimentación y 
         return puntaje, feedback
     except Exception as e:
         logger.error(f"❌ Error evaluación reto: {e}")
-        return 7, _fallback_evaluacion_reto()
+        return 0, _fallback_evaluacion_reto(estudiante_nombre)
 
 
 def generar_respuesta_asistente(modulos_cubiertos, pregunta_estudiante,
@@ -514,24 +633,20 @@ def _fallback_reto(modulos_cubiertos, curso_nombre):
     )
 
 
-def _fallback_evaluacion_reto():
-    """Evaluación de reto sin IA."""
+def _fallback_evaluacion_reto(estudiante_nombre: str = "Estudiante"):
+    """Sin IA disponible: no regalar puntos; pedir reintento."""
     return (
-        "✅ Gracias por su respuesta al reto.\n\n"
-        "Usted planteó intención de actuar, eso suma en enfoque. "
-        "Faltó mayor precisión técnica en dos partes: "
-        "(1) diagnóstico (qué señales mediría y en qué cantidad), "
-        "(2) control (qué acción específica aplicaría y en qué momento).\n\n"
-        "Puntaje total: 7/10\n"
-        "Desglose: Enfoque 2/3 | Fundamentación 3/4 | Claridad 2/3\n"
-        "Diagnóstico: parcial | Acción/Control: parcial\n\n"
-        "Va por buen camino; con más detalle su respuesta sube de nivel."
+        f"{estudiante_nombre}, en este momento no pude evaluar su respuesta por un problema técnico.\n\n"
+        "Por favor envíe de nuevo su respuesta al reto (puede ser más breve). "
+        "En este intento *no se registró puntaje*.\n\n"
+        "Disculpe la molestia. 🌱"
     )
 
 
 def _es_respuesta_sin_contenido_reto(respuesta: str) -> bool:
-    """Detecta respuestas vacías o explícitamente sin contenido (ej. 'no sé')."""
+    """Detecta respuestas vacías o explícitamente sin contenido (ej. 'no sé', 'bueno')."""
     r = (respuesta or "").strip().lower()
+    r = re.sub(r'\s+', ' ', r)
     if not r:
         return True
     expresiones_directas = {
@@ -546,11 +661,30 @@ def _es_respuesta_sin_contenido_reto(respuesta: str) -> bool:
         "no sabría",
         "n/a",
         "na",
+        "bueno",
+        "ok",
+        "okay",
+        "vale",
+        "listo",
+        "gracias",
+        "si",
+        "sí",
+        "bien",
+        "dale",
+        "perfecto",
+        "esta bien",
+        "está bien",
     }
     if r in expresiones_directas:
         return True
-    # Variantes cortas tipo "pues no sé profe"
-    if ("no se" in r or "no sé" in r) and len(r) <= 40:
+    # Variantes cortas tipo "pues no sé profe" o "bueno profe"
+    if len(r) <= 40 and (
+        "no se" in r or "no sé" in r or re.match(r'^(bueno|ok|vale|bien|si|sí)\b', r)
+    ):
+        return True
+    # Muy corta sin verbos de acción ni sustantivos técnicos (≤3 palabras genéricas)
+    palabras = r.split()
+    if len(palabras) <= 2 and all(p in expresiones_directas for p in palabras):
         return True
     return False
 

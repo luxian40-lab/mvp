@@ -15,6 +15,7 @@ TIPO_AUDIO = 'audio'
 TIPO_PDF = 'pdf'
 TIPO_H5P = 'h5p'
 TIPO_EMBED = 'embed'
+TIPO_ENLACE_EXTERNO = 'enlace_externo'
 
 TIPOS_DESCARGABLES = frozenset({TIPO_PDF, TIPO_IMAGEN, TIPO_AUDIO, TIPO_VIDEO})
 _EXTENSION_POR_TIPO = {
@@ -83,6 +84,8 @@ def clasificar_media_url(url: str, tipo_hint: str = '') -> str:
         return TIPO_AUDIO
     if hint == 'pdf':
         return TIPO_PDF
+    if hint == 'enlace_externo':
+        return TIPO_ENLACE_EXTERNO
 
     if youtube_embed_id(url):
         return TIPO_YOUTUBE

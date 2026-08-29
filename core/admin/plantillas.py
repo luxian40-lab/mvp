@@ -9,29 +9,32 @@ class PlantillaDashboardAdmin(admin.ModelAdmin):
     search_fields = ('nombre_interno', 'cuerpo_mensaje', 'twilio_template_sid')
     list_per_page = 50
     actions = ['crear_template_en_twilio', 'sincronizar_templates_twilio']
+    readonly_fields = ('twilio_preview_live',)
 
     fieldsets = (
         ('Datos', {
-            'classes': ['tab'],
             'fields': ('nombre_interno', 'categoria', 'activa'),
-            'description': 'Nombre interno y categoría de la plantilla.',
+            'description': 'Nombre interno. Lo que sale por WhatsApp está en la pestaña HSM Twilio.',
         }),
-        ('Emoji', {
+        ('HSM Twilio', {
             'classes': ['tab'],
-            'fields': ('emoji',),
-            'description': 'Opcional. Se puede autocompletar según la categoría.',
-        }),
-        ('Mensaje', {
-            'classes': ['tab'],
-            'fields': ('cuerpo_mensaje',),
-            'description': 'Texto del mensaje. Usa {nombre} para personalizar.',
-        }),
-        ('Twilio', {
-            'classes': ['tab'],
-            'fields': ('twilio_template_sid', 'twilio_template_nombre', 'aprobada_twilio'),
+            'fields': (
+                'twilio_template_sid',
+                'twilio_template_nombre',
+                'aprobada_twilio',
+                'twilio_preview_live',
+            ),
             'description': (
-                'Para campañas con Content Template: crea el template en Twilio Content Editor, '
-                'pega el Content SID (HX…) y marca como aprobada.'
+                'Esto es lo que Meta/Twilio envían (Content SID HX…). '
+                'La burbuja se lee de la API; el texto de «Borrador interno» no se usa si hay SID.'
+            ),
+        }),
+        ('Borrador interno', {
+            'classes': ['tab'],
+            'fields': ('cuerpo_mensaje', 'emoji'),
+            'description': (
+                'NO es la plantilla de WhatsApp. Solo notas / fallback si la campaña '
+                'no tiene HX y se envía texto libre en ventana 24 h. No fiarse para HSM.'
             ),
         }),
     )
@@ -45,13 +48,30 @@ class PlantillaDashboardAdmin(admin.ModelAdmin):
     categoria_display.short_description = "Categoría"
     
     def estado_template(self, obj):
-        if obj.twilio_template_sid and obj.aprobada_twilio:
-            return format_html('<span style="background:#4caf50;color:white;padding:4px 8px;border-radius:12px;font-size:11px;">✅ TWILIO</span>')
-        elif obj.twilio_template_sid and not obj.aprobada_twilio:
-            return format_html('<span style="background:#ff9800;color:white;padding:4px 8px;border-radius:12px;font-size:11px;">⏳ PENDIENTE</span>')
-        else:
-            return format_html('<span style="background:#2196f3;color:white;padding:4px 8px;border-radius:12px;font-size:11px;">📱 DIRECTO</span>')
-    estado_template.short_description = "Estado"
+        sid = (obj.twilio_template_sid or '').strip()
+        if sid and obj.aprobada_twilio:
+            return format_html(
+                '<span style="background:#4caf50;color:white;padding:4px 8px;border-radius:12px;font-size:11px;">HSM</span>'
+            )
+        if sid:
+            return format_html(
+                '<span style="background:#ff9800;color:white;padding:4px 8px;border-radius:12px;font-size:11px;">HX sin tilde</span>'
+            )
+        return format_html(
+            '<span style="background:#eceff1;color:#455a64;padding:4px 8px;border-radius:12px;font-size:11px;">Borrador</span>'
+        )
+    estado_template.short_description = "WhatsApp"
+
+    def twilio_preview_live(self, obj):
+        from core.twilio_content_preview import fetch_content_preview, preview_html
+
+        sid = (getattr(obj, 'twilio_template_sid', None) or '').strip()
+        if not sid:
+            return format_html(
+                '<p class="eki-hx-miss">Sin Content SID. El texto local no es lo que envía WhatsApp.</p>'
+            )
+        return preview_html(fetch_content_preview(sid))
+    twilio_preview_live.short_description = 'Plantilla real (Twilio)'
     
     def total_plantillas(self, obj):
         count = obj.plantillas.count()

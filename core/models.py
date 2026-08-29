@@ -1355,12 +1355,17 @@ class Curso(models.Model):
         help_text='Nombre personalizado para la agente asistente (por defecto: María). Ej: Laura, Andrea'
     )
     
-    # PREGUNTAS EJEMPLO PARA IA — alimentadas por admin
+    # PREGUNTAS EJEMPLO PARA IA — alimentadas por admin (reto Claudia + recuperación)
     preguntas_ejemplo_ia = models.TextField(
         blank=True,
         default='',
-        verbose_name='Preguntas ejemplo para IA',
-        help_text='Preguntas ejemplo que la IA usará como referencia para generar la pregunta final de recuperación. Una pregunta por línea.'
+        verbose_name='Guía de retos / preguntas para IA (curso)',
+        help_text=(
+            'Guía a Claudia (facilitadora) y a la pregunta de recuperación: tono, tipo de '
+            'situación y 1–3 ejemplos. Una idea por línea. '
+            'Si un módulo checkpoint tiene su propia guía/tipo de reto, esa manda y esta '
+            'queda como complemento del curso.'
+        ),
     )
     dias_espera_entre_modulos = models.IntegerField(
         default=0,
@@ -2409,6 +2414,42 @@ class Modulo(models.Model):
         help_text=(
             'Solo aplica si el curso tiene agentes IA activos. Define si al terminar este módulo '
             'entra el flujo Darío/facilitadora o se salta, independiente del número de módulo.'
+        ),
+    )
+
+    TIPO_RETO_HEREDAR = ''
+    TIPO_RETO_SITUACION = 'situacion_decision'
+    TIPO_RETO_DIAGNOSTICO = 'diagnostico'
+    TIPO_RETO_PLAN = 'plan_accion'
+    TIPO_RETO_APLICACION = 'aplicacion_practica'
+    TIPO_RETO_REFLEXION = 'reflexion'
+    TIPO_RETO_IA_CHOICES = [
+        (TIPO_RETO_HEREDAR, 'Heredar / sin plantilla (solo guía de texto)'),
+        (TIPO_RETO_SITUACION, 'Situación + decisión práctica'),
+        (TIPO_RETO_DIAGNOSTICO, 'Diagnóstico (qué ve / qué verificaría)'),
+        (TIPO_RETO_PLAN, 'Plan de acción (qué haría esta semana)'),
+        (TIPO_RETO_APLICACION, 'Aplicación a su finca/trabajo'),
+        (TIPO_RETO_REFLEXION, 'Reflexión breve (qué aprendió y cómo lo usa)'),
+    ]
+    tipo_reto_ia = models.CharField(
+        max_length=32,
+        choices=TIPO_RETO_IA_CHOICES,
+        blank=True,
+        default=TIPO_RETO_HEREDAR,
+        verbose_name='Tipo de reto Claudia (este módulo)',
+        help_text=(
+            'Solo importa si este módulo dispara checkpoint (facilitadora). '
+            'Plantilla del formato de la pregunta. Vacío = sin plantilla fija.'
+        ),
+    )
+    reto_guia_ia = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Guía del reto (este módulo)',
+        help_text=(
+            'Instrucciones y/o ejemplos para Claudia al cerrar ESTE módulo. '
+            'Prioridad sobre la guía del curso. Ej: «Situación de caja semanal; '
+            'una sola pregunta; que diga qué gasto cortaría primero».'
         ),
     )
 

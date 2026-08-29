@@ -138,6 +138,37 @@ def test_bot_comercial_webhook_firma_valida_ok(mock_proc):
     TWILIO_VALIDATE_SIGNATURE=True,
     TWILIO_AUTH_TOKEN=AUTH_TOKEN,
     SECURE_SSL_REDIRECT=False,
+    NAT_WEBHOOK_CELERY_ASYNC=True,
+)
+@patch('core.views._procesar_bot_comercial_twilio_webhook')
+@patch('core.tasks.procesar_bot_comercial_webhook_async.delay')
+def test_bot_comercial_webhook_encola_celery(mock_delay, mock_proc):
+    client = Client()
+    data = {
+        'From': 'whatsapp:+573001112233',
+        'To': 'whatsapp:+14155238886',
+        'Body': 'pregunta larga de nat',
+        'MessageSid': 'SMnatasync',
+    }
+    url = 'https://testserver/webhook/ia-bot-comercial/'
+    sig = _sign(url, data)
+    resp = client.post(
+        '/webhook/ia-bot-comercial/',
+        data=data,
+        secure=True,
+        HTTP_HOST='testserver',
+        HTTP_X_TWILIO_SIGNATURE=sig,
+    )
+    assert resp.status_code == 200
+    mock_delay.assert_called_once()
+    mock_proc.assert_not_called()
+
+
+@pytest.mark.django_db
+@override_settings(
+    TWILIO_VALIDATE_SIGNATURE=True,
+    TWILIO_AUTH_TOKEN=AUTH_TOKEN,
+    SECURE_SSL_REDIRECT=False,
 )
 @patch('core.views._procesar_meta_webhook')
 def test_meta_json_sin_firma_twilio_pasa(mock_meta):

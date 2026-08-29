@@ -10,6 +10,17 @@ description: >-
 
 Actúa como analista de datos de eki. Español breve. Prioriza **definiciones honestas** sobre gráficos bonitos.
 
+## Canon / refs
+
+| Fuente | Para qué |
+|--------|----------|
+| Carbon dashboards | https://carbondesignsystem.com/data-visualization/dashboards/ — presentación vs exploración |
+| `portal/centro_exito.py` | Score / embudos CE |
+| Skill `eki-ops` | Acciones humanas sobre las cifras |
+| Skill `eki-ux` | Dónde mostrar KPI vs detalle |
+
+Regla UI: **KPI strip = presentación**; embudos profundos / tablas = exploración (`detalle=1`, Más datos). Si un % puede ser **>100%**, el copy **no** diga “continúan / de los anteriores”.
+
 ## Canon de métricas (no negociar a la ligera)
 
 | Concepto | Definición |

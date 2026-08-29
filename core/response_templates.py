@@ -1383,7 +1383,8 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                         modulos_reto,
                         progreso_reto.curso.nombre,
                         estudiante_nombre=estudiante.nombre or 'Estudiante',
-                        preguntas_ejemplo=progreso_reto.curso.preguntas_ejemplo_ia or '',
+                        curso=progreso_reto.curso,
+                        modulo_checkpoint=modulos_reto[-1] if modulos_reto else None,
                     )
                     _prev_ts = _ctx_sesion_asistente.get('_ts_leccion', 0)
                     estudiante.contexto_temporal = {

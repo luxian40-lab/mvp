@@ -212,10 +212,34 @@ class AprendeWebTests(TestCase):
         self.assertEqual(it.correctas, 1)
 
     def test_media_h5p_clasifica(self):
-        from aprende.media_aula import clasificar_media_url, media_desde_url
+        from aprende.media_aula import clasificar_media_url, media_desde_url, TIPO_ENLACE_EXTERNO
         self.assertEqual(clasificar_media_url('https://h5p.org/h5p/embed/123'), 'h5p')
         m = media_desde_url('Interactivo', 'https://example.org/h5p/embed/9')
         self.assertEqual(m.tipo, 'h5p')
+        self.assertEqual(
+            clasificar_media_url('https://forms.google.com/x', 'enlace_externo'),
+            TIPO_ENLACE_EXTERNO,
+        )
+        ext = media_desde_url('Formulario GEI', 'https://forms.google.com/x', 'enlace_externo')
+        self.assertEqual(ext.tipo, TIPO_ENLACE_EXTERNO)
+
+    def test_enlace_externo_en_leccion_estudiante(self):
+        from core.models_extras import ArchivoModulo
+
+        ArchivoModulo.objects.create(
+            modulo=self.modulo,
+            tipo='enlace_externo',
+            titulo='Simulador campo',
+            url_externa='https://example.org/simulador',
+            orden=1,
+            activo=True,
+        )
+        self._login_estudiante()
+        r = self.http.get(f'/aprende/estudiante/modulo/{self.modulo.id}/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Enlaces externos')
+        self.assertContains(r, 'Abrir enlace externo')
+        self.assertContains(r, 'https://example.org/simulador')
 
     def test_estudiante_login_codigo_whatsapp(self):
         self._login_estudiante()

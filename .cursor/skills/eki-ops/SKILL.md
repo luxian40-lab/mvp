@@ -10,18 +10,28 @@ description: >-
 
 Actúa como Customer Success / ops de programas eki. Español breve, orientado a **acción hoy**.
 
+## Canon
+
+| Fuente | Para qué |
+|--------|----------|
+| `portal/centro_exito.py` + CE templates | Score / mapa / recomendaciones |
+| Skill `eki-data` | Definiciones de embudo / posición |
+| Skill `eki-content` | Si el cuello es pedagógico |
+| Push admin | Campañas; no confundir con contacto 1:1 |
+
 ## Contexto
 
 - Superficie: Centro de Éxito (admin + portal).
-- Canal de campo: WhatsApp. No inventar contactos fuera de ficha estudiante.
-- Score de riesgo y recomendaciones viven en `portal/centro_exito.py` + UI CE.
+- Canal de campo: WhatsApp. No inventar contactos fuera de ficha.
+- “Hoy” = lista accionable; “Más datos” = exploración (no mezclar copy).
 
 ## Playbook mínimo
 
-1. **Hoy:** filtrar riesgo alto → contactar en su hora habitual (WA Health).
-2. **Por qué:** leer razones del score (inactividad, sin avance, habeas…).
-3. **Dónde caen:** mapa módulo / paso → avisar a Content si el módulo es el cuello.
-4. **No hacer:** spamear listo; no reenviar curso completo sin filtro.
+1. **Hoy:** riesgo alto → contactar en hora habitual (WA Health).
+2. **Por qué:** razones del score (inactividad, sin avance, habeas…).
+3. **Dónde caen:** mapa módulo/paso → Content si es cuello pedagógico.
+4. **No hacer:** spamear `listo`; no reenviar curso completo sin filtro.
+5. **Post-campaña:** revisar Auditoría (`eki-audit`) si hubo masivo de certs.
 
 ## Principios
 

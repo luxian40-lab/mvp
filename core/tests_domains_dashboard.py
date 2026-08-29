@@ -1,7 +1,7 @@
 """Tests Parte 0 (dominios) y Parte 1 (dashboard canónico)."""
 
 from django.contrib.auth import get_user_model
-from django.test import Client, SimpleTestCase, TestCase
+from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from core.domains.analytics.metricas import calcular_semaforo
@@ -39,7 +39,9 @@ class DashboardTabResolverTests(SimpleTestCase):
         self.assertEqual(resolve_dashboard_tab('auditoria'), 'ai_ops')
         self.assertEqual(resolve_dashboard_tab('metricas_nati'), 'commercial')
         self.assertEqual(resolve_dashboard_tab('retencion'), 'retencion')
-        self.assertEqual(resolve_dashboard_tab('embudo'), 'retencion')
+        self.assertEqual(resolve_dashboard_tab('embudo'), 'learning')
+        self.assertEqual(resolve_dashboard_tab(None), 'learning')
+        self.assertEqual(resolve_dashboard_tab(''), 'learning')
 
     def test_learning_section_desde_tab_legacy(self):
         self.assertEqual(resolve_learning_section('reportes', None), 'reportes')
@@ -50,6 +52,7 @@ class DashboardTabResolverTests(SimpleTestCase):
         self.assertEqual(API_TIPO_ALIASES['commercial'], 'metricas_nati')
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class LegacyDashboardRedirectTests(TestCase):
     def setUp(self):
         user_model = get_user_model()

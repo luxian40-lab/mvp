@@ -1,8 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="eki">
-  <!-- Marca eki (icono de personas). PNG es la fuente; este SVG es fallback simple. -->
-  <rect width="32" height="32" rx="8" fill="#111111"/>
-  <path fill="#9A6CAC" d="M8 24c0-6 3.2-10 8-10s8 4 8 10v2H8v-2z"/>
-  <circle cx="12.2" cy="11.2" r="2.1" fill="#9A6CAC"/>
-  <circle cx="16" cy="9.2" r="2.4" fill="#9A6CAC"/>
-  <circle cx="19.8" cy="12.2" r="1.9" fill="#9A6CAC"/>
+  <circle cx="10" cy="12.2" r="3.1" fill="#9A6CAC"/>
+  <circle cx="16" cy="9.4" r="3.6" fill="#9A6CAC"/>
+  <circle cx="22" cy="12.4" r="2.8" fill="#9A6CAC"/>
+  <path fill="#9A6CAC" d="M4.2 26.5c0-5.2 2.6-8.6 6.2-8.6 1.4 0 2.6.5 3.6 1.4C15 17.6 16.4 16.8 18 16.8c4.2 0 7.2 3.6 7.2 8.7v1.2H4.2v-1.2z"/>
 </svg>

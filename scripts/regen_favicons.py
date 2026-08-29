@@ -38,19 +38,25 @@ def _round_rect(draw, xy, r, fill):
 
 
 def draw_admin(draw: ImageDraw.ImageDraw, s: int):
-    """Marca eki: E blanca sobre morado de marca (no hex, no manito)."""
-    r = max(4, s // 6)
-    _round_rect(draw, (0, 0, s - 1, s - 1), r, ADMIN_BG)
-    t = max(2, s // 10)
-    x0 = int(s * 0.28)
-    x1 = int(s * 0.72)
-    y0 = int(s * 0.26)
-    y1 = int(s * 0.74)
-    mid = int(s * 0.50)
-    draw.rectangle((x0, y0, x0 + t, y1), fill=ADMIN_FG)
-    draw.rectangle((x0, y0, x1, y0 + t), fill=ADMIN_FG)
-    draw.rectangle((x0, mid - t // 2, int(s * 0.62), mid + t // 2), fill=ADMIN_FG)
-    draw.rectangle((x0, y1 - t, x1, y1), fill=ADMIN_FG)
+    """Marca eki: tres siluetas en morado, fondo transparente (no recuadro negro)."""
+    fill = ADMIN_BG
+
+    def head(cx, cy, r):
+        draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=fill)
+
+    def torso(cx, top, half_w, h):
+        draw.rounded_rectangle(
+            (cx - half_w, top, cx + half_w, top + h),
+            radius=max(2, half_w // 2),
+            fill=fill,
+        )
+
+    head(int(s * 0.50), int(s * 0.28), int(s * 0.11))
+    head(int(s * 0.26), int(s * 0.36), int(s * 0.09))
+    head(int(s * 0.74), int(s * 0.36), int(s * 0.09))
+    torso(int(s * 0.50), int(s * 0.40), int(s * 0.20), int(s * 0.52))
+    torso(int(s * 0.24), int(s * 0.48), int(s * 0.15), int(s * 0.44))
+    torso(int(s * 0.76), int(s * 0.48), int(s * 0.15), int(s * 0.44))
 
 
 def draw_portal(draw: ImageDraw.ImageDraw, s: int):
@@ -172,8 +178,10 @@ DRAWERS = {
 
 SVGS = {
     "admin": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="eki">
-  <rect width="32" height="32" rx="7" fill="#9A6CAC"/>
-  <path d="M9 8.5h14v3H13.2v2.2H20v3H13.2V23.5H9V8.5z" fill="#FAF7FC"/>
+  <circle cx="10" cy="12.2" r="3.1" fill="#9A6CAC"/>
+  <circle cx="16" cy="9.4" r="3.6" fill="#9A6CAC"/>
+  <circle cx="22" cy="12.4" r="2.8" fill="#9A6CAC"/>
+  <path fill="#9A6CAC" d="M4.2 26.5c0-5.2 2.6-8.6 6.2-8.6 1.4 0 2.6.5 3.6 1.4C15 17.6 16.4 16.8 18 16.8c4.2 0 7.2 3.6 7.2 8.7v1.2H4.2v-1.2z"/>
 </svg>
 """,
     "portal": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="eki portal">

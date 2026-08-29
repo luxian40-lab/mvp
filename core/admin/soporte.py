@@ -12,7 +12,10 @@ class SolicitudSoporteAdmin(admin.ModelAdmin):
     """
     change_list_template = 'admin/core/solicitudsoporte/change_list.html'
     change_form_template = 'admin/core/solicitudsoporte/change_form.html'
-    list_display = ('tipo_badge', 'estudiante_info', 'asunto_o_keyword', 'categoria_badge', 'estado_badge', 'prioridad_badge', 'fecha_solicitud', 'tiempo_espera', 'atendido_por_info')
+    list_display = (
+        'tipo_badge', 'estudiante_info', 'asunto_o_keyword',
+        'estado_badge', 'prioridad_badge', 'fecha_solicitud',
+    )
     list_filter = ('tipo_solicitud', 'categoria', 'resuelto_por_agente', 'estado', 'prioridad', 'keyword_usada', 'fecha_solicitud')
     search_fields = ('estudiante__nombre', 'estudiante__telefono', 'mensaje_original', 'asunto', 'respuesta')
     readonly_fields = (

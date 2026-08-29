@@ -47,6 +47,27 @@
   </div>
   {% endif %}
 
+  {% if snap.alertas %}
+  <section class="eki-panel-alertas" aria-label="Alertas operativas">
+    <div class="eki-panel-card__head">
+      <h2>Alertas operativas <span class="eki-panel-badge">Ops</span></h2>
+      <span class="eki-panel-alertas__hint">WA · media · infra — 24h</span>
+    </div>
+    <ul class="eki-panel-alerta-list">
+      {% for al in snap.alertas %}
+      <li class="eki-panel-alerta eki-panel-alerta--{{ al.nivel }}">
+        <span class="material-symbols-outlined eki-panel-alerta__icon" aria-hidden="true">{{ al.icon|default:"notifications" }}</span>
+        <div class="eki-panel-alerta__body">
+          <strong>{{ al.titulo }}</strong>
+          <p>{{ al.texto }}</p>
+          {% if al.url %}<a href="{{ al.url }}">{{ al.cta }} →</a>{% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
   <div class="eki-panel-mid">
     <section class="eki-panel-card eki-panel-map">
       <div class="eki-panel-card__head">

@@ -67,7 +67,8 @@ CURSO_FIELDS = [
 MODULO_FIELDS = [
     'numero', 'titulo', 'descripcion', 'contenido', 'duracion_dias',
     'habilitado_desde', 'examen_obligatorio', 'modo_entrega', 'video_url',
-    'puntaje_minimo_aprobacion', 'facilitador_checkpoint', 'secciones_por_listo',
+    'puntaje_minimo_aprobacion', 'facilitador_checkpoint', 'tipo_reto_ia', 'reto_guia_ia',
+    'secciones_por_listo',
     'video_resolucion', 'imagen_portada_url', 'archivo_pdf_url',
 ]
 

@@ -39,6 +39,18 @@ def _pct_completado(n_mods: int, total_mods: int) -> float:
     return round(min(100.0, 100.0 * n_mods / total_mods), 1)
 
 
+def wa_me_desde_telefono(telefono: str) -> str:
+    digits = ''.join(ch for ch in (telefono or '') if ch.isdigit())
+    if len(digits) < 10:
+        return ''
+    return f'https://wa.me/{digits}'
+
+
+def _contacto_fila(est) -> dict[str, str]:
+    tel = (getattr(est, 'telefono', None) or '').strip()
+    return {'telefono': tel, 'wa_url': wa_me_desde_telefono(tel)}
+
+
 def _wa_stats_por_estudiante(
     progreso_qs,
     telefonos: set[str],
@@ -147,6 +159,7 @@ def calcular_scores_riesgo(
                 'estudiante_id': eid,
                 'nombre': est.nombre or est.cedula or f'#{eid}',
                 'cedula': est.cedula or '',
+                **_contacto_fila(est),
                 'curso_id': p.curso_id,
                 'curso_nombre': getattr(p.curso, 'nombre', '') or '',
                 'score': 0,
@@ -263,6 +276,7 @@ def calcular_scores_riesgo(
             'estudiante_id': eid,
             'nombre': est.nombre or est.cedula or f'#{eid}',
             'cedula': est.cedula or '',
+            **_contacto_fila(est),
             'curso_id': p.curso_id,
             'curso_nombre': getattr(p.curso, 'nombre', '') or '',
             'score': score,

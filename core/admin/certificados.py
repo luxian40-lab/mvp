@@ -13,7 +13,6 @@ class PlantillaCertificadoAdmin(admin.ModelAdmin):
         'nombre',
         'usada_en_display',
         'cliente_info',
-        'tipo_plantilla',
         'por_defecto',
         'activa',
     )

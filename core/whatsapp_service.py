@@ -231,7 +231,7 @@ def enviar_lista_cursos(telefono, estudiante):
 def enviar_mensaje_ventas(telefono):
     """
     Fase 0: Mensaje para usuarios no registrados.
-    Envía texto plano con 3 opciones de menú.
+    Envía texto plano con opciones de menú (incl. 4 = carrusel programas demo).
     """
     msg = (
         "🚜 ¡Hola! Soy eki, la plataforma educativa por WhatsApp "
@@ -245,7 +245,9 @@ def enviar_mensaje_ventas(telefono):
         "   www.eki.com.co\n\n"
         "3️⃣ 🙋‍♂️ *Soy estudiante (Ayuda)*\n"
         "   Si cambiaste de número o necesitas ayuda\n\n"
-        "👉 Escribe el número de tu opción"
+        "4️⃣ 📚 *Ver programas (demo)*\n"
+        "   Carrusel: ejemplos + demo *Tome las riendas*\n\n"
+        "👉 Escribe el *número* de tu opción (1, 2, 3 o 4)"
     )
     
     from .utils import enviar_whatsapp_twilio

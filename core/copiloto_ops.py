@@ -21,8 +21,12 @@ CANON_OPS = """Hechos fijos (no los contradigas):
 - Diccionario de códigos Twilio/WhatsApp está en el JSON (codigos_twilio). Úsalo: 63021 video, 63019 descarga media, 63016 ventana 24h, 63049 plantilla/variables, 21610 opt-out.
 - Programas vitrina (eki.com.co) están en el JSON programas_vitrina. Solo Tome las riendas es demo hoy; el resto es informativo (Ver más / Solo info).
 - Campañas HSM: variables {{1}}… secuenciales; no mandar plantilla a medias.
+- Preview de campaña/plantilla: la burbuja del admin lee Twilio Content API (HX…). NO es el mock «Hola, bienvenida al curso». NO fiarse de cuerpo_mensaje (eso es borrador interno / fallback 24h).
+- Ficha Plantilla: pestaña «HSM Twilio» = SID + body/botones reales. Pestaña «Borrador interno» = texto Django, no es WhatsApp si hay HX.
+- Cliente: mapa y drip están en la ficha (pestañas), no en el listado. Módulos: examen/media extra en Module Builder, no en el clásico.
 - Demo Riendas: env EKI_DEMO_RIENDAS_CURSO_ID. Carrusel: EKI_DEMO_CAROUSEL_CONTENT_SID.
-- media_wa_apto=False en un paso = video que el gate marcó no apto.
+- media_wa_apto=False en un paso = video que el gate marcó no apto. Publicar en prod exige QA media (HEAD + apto).
+- Nat (bot comercial): inbound a Celery (NAT_WEBHOOK_CELERY_ASYNC); el webhook HTTP solo encola.
 - No inventes SIDs, teléfonos ni deploys. Si no está en el JSON, dilo.
 """
 
@@ -30,6 +34,7 @@ SYSTEM_PROMPT = """Eres el copiloto de operaciones de eki. Hablas con el fundado
 """ + CANON_OPS + """
 Usa el JSON de pulso, códigos Twilio y programas. Si preguntan por un código (63021, etc.) explícalo y di qué hacer.
 Si preguntan programas / vitrina / carrusel / Riendas, usa programas_vitrina (no inventes más cursos).
+Si preguntan preview, HSM, plantilla de campaña o cuerpo_mensaje, usa admin_hsm del JSON.
 Prioriza: producción, fallos WA con código, Twilio, demo, campañas.
 Máximo 14 líneas. Accionable.
 """
@@ -46,6 +51,22 @@ CODIGOS_TWILIO = {
     '21614': 'No es un número móvil válido de WhatsApp.',
     '21617': 'Cuerpo vacío o no permitido para ese tipo de mensaje.',
     '20003': 'Auth Twilio (SID/token).',
+}
+
+ADMIN_HSM = {
+    'preview_campana': (
+        'La burbuja en /admin/core/campana/ lee Content API con el HX '
+        '(template_twilio_id o plantilla.twilio_template_sid). Cache ~5 min. '
+        'No es un envío real ni un simulador de Meta.'
+    ),
+    'no_usar': 'cuerpo_mensaje local y el mock de bienvenida (ya retirado).',
+    'ficha_plantilla': (
+        'HSM Twilio = SID + preview real. Borrador interno = notas/fallback 24h. '
+        'Listado: HSM / HX sin tilde / Borrador (nunca «DIRECTO» como si fuera el canal).'
+    ),
+    'ops_cliente_modulo': (
+        'Mapa y drip: ficha Cliente. Examen de módulo: Module Builder.'
+    ),
 }
 
 PROGRAMAS_VITRINA = [
@@ -219,6 +240,7 @@ def snapshot_ops(*, horas: int = 24) -> dict[str, Any]:
         'infra_chips': infra,
         'codigos_twilio': CODIGOS_TWILIO,
         'programas_vitrina': PROGRAMAS_VITRINA,
+        'admin_hsm': ADMIN_HSM,
     }
 
 
@@ -266,6 +288,10 @@ def _respuesta_reglas(pregunta: str, ctx: dict[str, Any]) -> str:
         )
     if 'campaña' in q or 'borrador' in q:
         lineas.append('No ejecute una campaña sin Content SID aprobado y variables {{1}}/{{2}} listas.')
+    if any(w in q for w in ('preview', 'hsm', 'cuerpo_mensaje', 'plantilla', 'burbuja', 'mock')):
+        hsm = ctx.get('admin_hsm') or ADMIN_HSM
+        lineas.append(hsm.get('preview_campana', ''))
+        lineas.append('No fiarse de cuerpo_mensaje: es borrador interno, no el HSM.')
     infra = ctx.get('infra_chips') or []
     malos = [c.get('label') for c in infra if c.get('ok') is False]
     if malos:

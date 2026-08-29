@@ -16,6 +16,7 @@ Cuando el usuario pida un rol o diga cosas como “haz de QA”, “como PM”, 
    - QA → `.cursor/skills/eki-qa/SKILL.md`
    - PM → `.cursor/skills/eki-pm/SKILL.md`
    - Dev → `.cursor/skills/eki-dev/SKILL.md`
+   - Dev 2 (rama paralela / Course Engine / TTS) → `.cursor/skills/eki-dev-2/SKILL.md`
    - Sec → `.cursor/skills/eki-sec/SKILL.md`
    - Audit (certificados) → `.cursor/skills/eki-audit/SKILL.md`
    - Data / Analytics → `.cursor/skills/eki-data/SKILL.md`

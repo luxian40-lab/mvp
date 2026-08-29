@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from core.models import Modulo, PasoModulo, SeccionModulo
 from core.models_extras import ArchivoModulo
 
-from .media_aula import MediaAula, media_desde_url
+from aprende.media_aula import MediaAula, media_desde_url, TIPO_ENLACE_EXTERNO
 
 
 @dataclass
@@ -148,7 +148,11 @@ def contexto_render_modulo_estudiante(
     todos = archivos_multimedia_modulo(modulo)
     video_medias = [m for m in todos if m.tipo in ('youtube', 'video')]
     pdf_medias = [m for m in todos if m.tipo == 'pdf']
-    archivos_media = [m for m in todos if m.tipo not in ('youtube', 'video', 'pdf')]
+    enlace_medias = [m for m in todos if m.tipo == TIPO_ENLACE_EXTERNO]
+    archivos_media = [
+        m for m in todos
+        if m.tipo not in ('youtube', 'video', 'pdf', TIPO_ENLACE_EXTERNO)
+    ]
     secciones = secciones_modulo_aula(modulo)
     tiene_micro = modulo_tiene_microcontenidos(modulo)
     if estudiante is not None and quiz_intento is None:
@@ -168,6 +172,7 @@ def contexto_render_modulo_estudiante(
         'video_medias': video_medias,
         'pdf_media': pdf_medias[0] if pdf_medias else None,
         'pdf_medias': pdf_medias,
+        'enlace_medias': enlace_medias,
         'quiz_items': quiz_items,
         'quiz_intento': quiz_intento,
         'quiz_detalle': quiz_detalle,

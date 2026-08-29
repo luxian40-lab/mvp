@@ -234,6 +234,23 @@ def construir_mensaje_evaluacion_reto(
 
     msg = f"📋 *{nombre_tutor}*\n\n{feedback}\n\n"
 
+    puntaje_cero = (
+        (modo == MODO_CALIFICACION and float(puntaje_o_nota or 0) <= 0)
+        or (modo != MODO_CALIFICACION and int(puntaje_o_nota or 0) <= 0)
+    )
+    if puntaje_cero:
+        msg += linea_resultado_reto_whatsapp(
+            modo=modo,
+            puntaje_10=None,
+            nota_5=None,
+            puntos_ganados=None,
+            puntos_totales=None,
+            promedio_notas=None,
+            barra_progreso=barra,
+            porcentaje=porcentaje,
+        )
+        return msg
+
     if modo == MODO_CALIFICACION:
         nota = float(puntaje_o_nota)
         registrar_nota_gamificacion(

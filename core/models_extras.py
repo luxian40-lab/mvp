@@ -396,13 +396,18 @@ class ArchivoModulo(models.Model):
             return False
 
     def save(self, *args, **kwargs):
-        # Validar url_externa antes de guardar
         if self.url_externa:
-            self.log_evento(f"Intentando validar URL externa: {self.url_externa}")
-            if not self.validar_url_publica(self.url_externa):
-                self.log_evento(f"ERROR: URL pública inválida o sin Content-Type: {self.url_externa}")
-                raise ValueError(f'La URL pública no es válida o no tiene Content-Type: {self.url_externa}')
-            self.log_evento(f"URL pública válida: {self.url_externa}")
+            u = self.url_externa.strip()
+            if self.tipo == 'enlace_externo':
+                if not u.startswith(('http://', 'https://')):
+                    raise ValueError('El enlace externo debe comenzar con http:// o https://')
+                self.log_evento(f"Enlace externo (sin validación media): {u}")
+            else:
+                self.log_evento(f"Intentando validar URL externa: {u}")
+                if not self.validar_url_publica(u):
+                    self.log_evento(f"ERROR: URL pública inválida o sin Content-Type: {u}")
+                    raise ValueError(f'La URL pública no es válida o no tiene Content-Type: {u}')
+                self.log_evento(f"URL pública válida: {u}")
         else:
             self.log_evento("Guardando archivo sin url_externa (usando archivo subido)")
         super().save(*args, **kwargs)
@@ -532,6 +537,7 @@ class ArchivoModulo(models.Model):
         ('infografia', 'Infografía'),
         ('pdf', 'Documento PDF'),
         ('audio', 'Audio'),
+        ('enlace_externo', 'Enlace externo'),
     ]
     
     modulo = models.ForeignKey(
@@ -568,7 +574,10 @@ class ArchivoModulo(models.Model):
         blank=True,
         null=True,
         verbose_name='O usar URL Externa',
-        help_text='Alternativa: Pega enlace de YouTube, Google Drive, Imgur, etc. (solo si NO subes archivo)'
+        help_text=(
+            'YouTube, PDF en la nube, etc. — o solo URL si el tipo es «Enlace externo» '
+            '(formulario, Moodle, sitio web; se abre en otra pestaña).'
+        ),
     )
     
     # Opciones

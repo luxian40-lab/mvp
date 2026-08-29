@@ -133,6 +133,16 @@
 </div>
 {% endif %}
 
+{% if enlace_medias %}
+<div class="eki-card eki-lesson-block">
+    <h2 class="eki-h2">Enlaces externos</h2>
+    <p class="eki-muted" style="margin:-0.35rem 0 0.75rem;font-size:0.875rem;">
+        Material alojado fuera del aula (formularios, simuladores, otras plataformas).
+    </p>
+    {% include "aprende/partials/media_viewer.html" with medias=enlace_medias %}
+</div>
+{% endif %}
+
 {% if archivos_media %}
 <div class="eki-card eki-lesson-block">
     <h2 class="eki-h2">Material multimedia</h2>

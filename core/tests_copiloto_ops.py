@@ -30,6 +30,8 @@ class CopilotoOpsTests(TestCase):
         self.assertIn('programas_vitrina', snap)
         self.assertEqual(len(snap['programas_vitrina']), 5)
         self.assertIn('63021', snap['codigos_twilio'])
+        self.assertIn('admin_hsm', snap)
+        self.assertIn('cuerpo_mensaje', snap['admin_hsm']['no_usar'])
 
     @override_settings(TWILIO_ACCOUNT_SID='', TWILIO_AUTH_TOKEN='', OPENAI_API_KEY='')
     def test_reglas_sin_openai(self):
@@ -43,6 +45,12 @@ class CopilotoOpsTests(TestCase):
         out = responder_copiloto('¿Qué programas hay? 63021')
         self.assertIn('riendas', out['respuesta'].lower())
         self.assertIn('63021', out['respuesta'])
+
+    @override_settings(TWILIO_ACCOUNT_SID='', TWILIO_AUTH_TOKEN='', OPENAI_API_KEY='')
+    def test_reglas_preview_hsm(self):
+        out = responder_copiloto('¿La preview de plantilla es el HSM?')
+        self.assertIn('content api', out['respuesta'].lower())
+        self.assertIn('cuerpo_mensaje', out['respuesta'].lower())
 
     @override_settings(SECURE_SSL_REDIRECT=False)
     def test_view_staff_redirige_a_inicio(self):

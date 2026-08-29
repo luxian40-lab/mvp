@@ -1,5 +1,5 @@
 """Publicación WA: gate runtime, porcentajes, retos, campaña."""
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from core.helpers_examenes import evaluar_checkpoint_reto_ia
 from core.models import (
@@ -64,6 +64,25 @@ class ModuloPublicacionHelpersTests(TestCase):
         self.assertTrue(ok, errs)
         self.m2.refresh_from_db()
         self.assertTrue(self.m2.publicado_wa)
+
+    def test_publicar_bloquea_media_no_apto(self):
+        self.m2.pasos.update(
+            media_url='https://cdn.example.com/clip.mp4',
+            media_wa_apto=False,
+        )
+        ok, errs = publicar_modulo_wa(self.m2)
+        self.assertFalse(ok)
+        self.assertTrue(any('apto' in e.lower() for e in errs))
+
+    @override_settings(PUBLICAR_MODULO_REQUIRE_MEDIA_QA=True, PUBLICAR_MODULO_HEAD_QA=False)
+    def test_publicar_bloquea_video_sin_qa(self):
+        self.m2.pasos.update(
+            media_url='https://cdn.example.com/clip.mp4',
+            media_wa_apto=None,
+        )
+        ok, errs = publicar_modulo_wa(self.m2)
+        self.assertFalse(ok)
+        self.assertTrue(any('QA media' in e for e in errs))
 
     def test_campana_bloqueada_si_m1_no_publicado(self):
         self.m1.publicado_wa = False

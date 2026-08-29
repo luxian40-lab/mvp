@@ -1,44 +1,57 @@
 """
 Parte 1 — modelo de dashboards unificados.
 
-| Tab canónico | Etiqueta UI           | Contenido legacy                    |
-|--------------|-----------------------|-------------------------------------|
-| executive    | Executive             | KPIs, semáforos, health (resumen)   |
-| learning     | Learning Analytics    | Reportes B2B, métricas, embudo módulos, GEI |
-| ai_ops       | AI Operations         | Bot, Twilio, activaciones IA, RAG   |
-| commercial   | Commercial CRM        | Nati, prospectos, campañas          |
-| retencion    | Centro de Éxito       | Riesgo, mapa, embudo, consultor     |
+Visión de producto (Inicio ≠ Analítica):
+- /admin/ (Inicio) = pulso del día + atajos + grafo ecosistema.
+- /admin/dashboard/ = analítica profunda por dominio (default: Learning).
+- Tab executive = filtros/Excel del pulso (no duplicar Inicio; acceso secundario).
+
+| Tab canónico | Etiqueta UI           | Para qué sirve                              |
+|--------------|-----------------------|---------------------------------------------|
+| learning     | Cursos y avance       | Reportes B2B, métricas org, embudo, GEI     |
+| retencion    | Centro de Éxito       | Riesgo, mapa caídas, consultor              |
+| commercial   | Nat / comercial       | Nat, prospectos, campañas                   |
+| ai_ops       | IA y Twilio           | Bot, Twilio, activaciones, RAG              |
+| executive    | Pulso (filtros)       | KPIs filtrables + Excel (detalle Inicio)    |
 """
 
 from __future__ import annotations
 
+# Default al abrir /admin/dashboard/ sin ?tab= → Learning (no solapa Inicio).
+DASHBOARD_DEFAULT_TAB = 'learning'
+
 DASHBOARD_TABS: dict[str, dict] = {
     'executive': {
-        'label': 'Executive',
+        'label': 'Pulso (filtros)',
         'panel_id': 'tab-resumen',
         'legacy_aliases': ['resumen'],
+        'blurb': 'KPIs filtrables y Excel. El resumen del día vive en Inicio.',
     },
     'learning': {
-        'label': 'Learning Analytics',
+        'label': 'Cursos y avance',
         'panel_id': None,
-        'legacy_aliases': ['reportes', 'metricas_empresa'],
+        'legacy_aliases': ['reportes', 'metricas_empresa', 'embudo'],
         'sections': ['reportes', 'metricas_empresa', 'embudo', 'gei'],
         'default_section': 'reportes',
+        'blurb': 'Reportes B2B, semáforos por empresa, embudo por módulo.',
     },
     'ai_ops': {
-        'label': 'AI Operations',
+        'label': 'IA y Twilio',
         'panel_id': 'tab-auditoria',
         'legacy_aliases': ['auditoria'],
+        'blurb': 'Salud del bot, entregas Twilio y activaciones IA.',
     },
     'commercial': {
-        'label': 'Commercial CRM',
+        'label': 'Nat / comercial',
         'panel_id': 'tab-metricas_nati',
         'legacy_aliases': ['metricas_nati'],
+        'blurb': 'Sesiones Nat, catálogo y señal comercial.',
     },
     'retencion': {
-        'label': 'Retención',
+        'label': 'Centro de Éxito',
         'panel_id': 'tab-retencion',
         'legacy_aliases': ['retention'],
+        'blurb': 'Quién contactar hoy, mapa de caídas, consultor.',
     },
 }
 
@@ -63,11 +76,11 @@ API_TIPO_ALIASES = {
 
 
 def resolve_dashboard_tab(tab: str | None) -> str:
-    raw = (tab or 'executive').strip().lower()
+    raw = (tab or DASHBOARD_DEFAULT_TAB).strip().lower()
     for canonical, meta in DASHBOARD_TABS.items():
         if raw == canonical or raw in meta.get('legacy_aliases', []):
             return canonical
-    return 'executive'
+    return DASHBOARD_DEFAULT_TAB
 
 
 def resolve_learning_section(tab: str | None, section: str | None) -> str:

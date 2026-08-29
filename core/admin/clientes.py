@@ -126,13 +126,13 @@ class ClienteAdmin(admin.ModelAdmin):
         ProductoCatalogoInline,
     ]
     # Listado ops: A–Z por nombre; columnas densas fuera (meta/fecha → ficha).
+    compressed_fields = True
     list_display = (
         'logo_thumb',
         'nombre',
         'activo',
         'estudiantes_activos',
         'cursos_asignados',
-        'mapa_cobertura_rapido',
         'contacto_principal',
     )
     list_filter = ('activo',)
@@ -146,10 +146,11 @@ class ClienteAdmin(admin.ModelAdmin):
         'usar_gamificacion',
         'logo_preview',
         'wallpaper_preview',
+        'mapa_cobertura_rapido',
     )
     
     fieldsets = (
-        ('Datos del cliente', {
+        ('Datos y logo', {
             'fields': (
                 'nombre',
                 'nit',
@@ -157,35 +158,21 @@ class ClienteAdmin(admin.ModelAdmin):
                 'email',
                 'telefono',
                 'activo',
-                'notas_internas',
-            ),
-        }),
-        ('Aula Aprende — fondo de estudiantes', {
-            'fields': (
-                'wallpaper_archivo',
-                'wallpaper_aula_url',
-                'quitar_wallpaper',
-                'wallpaper_preview',
-            ),
-            'description': mark_safe(
-                '<p><strong>Cómo poner el fondo de Aprende (ej. Cenipalma)</strong></p>'
-                '<ol style="margin:0.35rem 0 0;padding-left:1.25rem;">'
-                '<li>En <em>Subir imagen de fondo</em>, elija el JPG/PNG/WebP (máx. 2 MB).</li>'
-                '<li>Pulse <strong>Guardar</strong> abajo.</li>'
-                '<li>La vista previa aparece aquí; el estudiante lo ve al entrar a '
-                '<a href="https://aprende.eki.technology/aprende/estudiante/login/" '
-                'target="_blank" rel="noopener">Aprende</a> (sesión logueada).</li>'
-                '</ol>'
-                '<p style="margin:0.5rem 0 0;">No hace falta pegar URL si sube el archivo. '
-                'El fondo es por <strong>organización</strong> (Cliente), no por curso.</p>'
-            ),
-        }),
-        ('Portal B2B — logo y acceso', {
-            'fields': (
                 'logo_archivo',
                 'logo_url',
                 'quitar_logo',
                 'logo_preview',
+                'mapa_cobertura_rapido',
+                'notas_internas',
+            ),
+            'description': mark_safe(
+                '<p>Identidad de la organización. El logo se ve en portal, listados y fichas. '
+                'Fondo de Aprende, drip y Nat van en pestañas.</p>'
+            ),
+        }),
+        ('Portal y acceso', {
+            'classes': ['tab'],
+            'fields': (
                 'tipo_proyecto',
                 'portal_modulos',
                 'cupos_portal',
@@ -195,14 +182,23 @@ class ClienteAdmin(admin.ModelAdmin):
                 'portal_usuarios_acciones',
                 'whatsapp_numero',
             ),
+            'description': 'Cupos B2B y subtítulo. Usuarios portal en pestaña de inlines.',
+        }),
+        ('Aula Aprende', {
+            'classes': ['tab'],
+            'fields': (
+                'wallpaper_archivo',
+                'wallpaper_aula_url',
+                'quitar_wallpaper',
+                'wallpaper_preview',
+            ),
             'description': mark_safe(
-                '<p><strong>Logo:</strong> suba el archivo (recomendado) o pegue URL. '
-                'Visible en portal B2B, listados admin y fichas curso/estudiante.</p>'
-                '<p>Acceso web y cupos. Credenciales Twilio en «WhatsApp y legal».</p>'
+                '<p>Fondo del aula (por organización, no por curso). '
+                'Suba JPG/WebP ≤ 2 MB y pulse Guardar.</p>'
             ),
         }),
         ('WhatsApp y legal', {
-            'classes': ('collapse',),
+            'classes': ['tab'],
             'fields': (
                 'numero_whatsapp_autorizado',
                 'twilio_account_sid',
@@ -215,11 +211,11 @@ class ClienteAdmin(admin.ModelAdmin):
                 'enlace_grupo_whatsapp',
             ),
             'description': (
-                'Secretos Twilio, número Meta, Habeas y avance «Listo». Solo abrir si vas a configurar canal.'
+                'Secretos Twilio, Habeas y avance «Listo». Solo si configura el canal.'
             ),
         }),
-        ('Certificados, drip y gamificación', {
-            'classes': ('collapse',),
+        ('Certificados y drip', {
+            'classes': ['tab'],
             'fields': (
                 'enviar_certificados_email',
                 'exigir_nota_minima_certificado',
@@ -229,12 +225,10 @@ class ClienteAdmin(admin.ModelAdmin):
                 'modo_gamificacion',
                 'usar_gamificacion',
             ),
-            'description': (
-                'Certificados, drip por lista y modo de puntos. Calendario drip en pestaña al final.'
-            ),
+            'description': 'Calendario drip y ritmo por curso: pestañas de inlines abajo.',
         }),
         ('Ventanas por fechas', {
-            'classes': ('collapse',),
+            'classes': ['tab'],
             'fields': (
                 'habilitar_pregunta_abierta_final',
                 'fecha_inicio_pregunta_abierta_final',
@@ -244,8 +238,8 @@ class ClienteAdmin(admin.ModelAdmin):
                 'fecha_fin_gamificacion_proximidad',
             ),
         }),
-        ('Empleabilidad, IA y Nat', {
-            'classes': ('collapse',),
+        ('Nat e IA', {
+            'classes': ['tab'],
             'fields': (
                 'empleabilidad_kpis_resumen',
                 'empleabilidad_exploracion_activa',
@@ -260,8 +254,7 @@ class ClienteAdmin(admin.ModelAdmin):
                 'desactivar_llm_comercial',
             ),
             'description': (
-                'Exploración territorial, nombres de agentes y prompt Nat. '
-                'Kill switch LLM: corta eki.ia sin redeploy. Catálogo en pestaña al final.'
+                'Nat / eki.ia y exploración. Catálogo de productos: pestaña de inlines.'
             ),
         }),
     )
@@ -477,7 +470,7 @@ class ClienteAdmin(admin.ModelAdmin):
             portal_note = (
                 '<p style="margin:10px 0 0;color:#b45309;font-size:13px;">'
                 'El módulo <strong>Empleabilidad territorial</strong> no está activo en el portal. '
-                'Márquelo en «Módulos visibles en portal» (sección Portal B2B).'
+                'Márquelo en «Módulos visibles en portal» (pestaña Portal y acceso).'
                 '</p>'
             )
 
