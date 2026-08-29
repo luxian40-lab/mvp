@@ -361,6 +361,22 @@ except (TypeError, ValueError):
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 
 # ==========================================
+# 🎬 COURSE ENGINE (feat/course-engine — local-first, no prod por defecto)
+# ==========================================
+COURSE_ENGINE_ENABLED = os.environ.get('COURSE_ENGINE_ENABLED', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
+COURSE_ENGINE_TTS_PROVIDER = os.environ.get('COURSE_ENGINE_TTS_PROVIDER', 'elevenlabs').strip().lower()
+COURSE_ENGINE_TTS_FALLBACK_OPENAI = os.environ.get('COURSE_ENGINE_TTS_FALLBACK_OPENAI', 'true').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
+COURSE_ENGINE_LOCAL_DIR = os.environ.get('COURSE_ENGINE_LOCAL_DIR', '')
+# ElevenLabs — voz natural ES: crear/clonar voz en elevenlabs.io → Voice Library
+ELEVENLABS_API_KEY = os.environ.get('ELEVENLABS_API_KEY')
+ELEVENLABS_VOICE_ID = os.environ.get('ELEVENLABS_VOICE_ID', '')
+ELEVENLABS_MODEL_ID = os.environ.get('ELEVENLABS_MODEL_ID', 'eleven_multilingual_v2')
+
+# ==========================================
 # 🌾 BOT COMERCIAL IA (Nodo Comercial)
 # ==========================================
 BOT_COMERCIAL_CLIENTE_ID = os.environ.get('BOT_COMERCIAL_CLIENTE_ID', '0')
