@@ -10,6 +10,7 @@ from typing import Optional
 from django.conf import settings
 
 from core.course_engine.budget import COST_IMAGE_USD
+from core.course_engine.prompt_context import prompt_imagen_escena
 from core.course_engine.types import Scene, SceneType
 from core.twilio_media import _subir_bytes_s3
 
@@ -33,16 +34,18 @@ def _quality_for_model(model: str) -> str:
     return 'medium'
 
 
-def _prompt_escena(escena: Scene) -> str:
-    base = (escena.notas_visuales or escena.titulo or 'Ilustración educativa rural').strip()
-    if escena.tipo == SceneType.DIAGRAMA:
-        return (
-            f'Diagrama educativo simple, estilo infografía clara, fondo blanco, '
-            f'sin texto ilegible, para WhatsApp rural: {base}'
-        )
-    return (
-        f'Ilustración educativa realista, campo rural latinoamericano, '
-        f'luz natural, sin marcas de agua, sin texto en imagen: {base}'
+def _prompt_escena(
+    escena: Scene,
+    *,
+    titulo_leccion: str = '',
+    objetivo: str = '',
+    brief: str = '',
+) -> str:
+    return prompt_imagen_escena(
+        escena,
+        titulo_leccion=titulo_leccion,
+        objetivo=objetivo,
+        brief=brief,
     )
 
 
@@ -50,10 +53,18 @@ def generar_imagen_escena(
     escena: Scene,
     run_dir: Path,
     *,
+    titulo_leccion: str = '',
+    objetivo: str = '',
+    brief: str = '',
     openai_client=None,
     subir_s3: bool = True,
 ) -> Optional[ImageResult]:
-    prompt = _prompt_escena(escena)
+    prompt = _prompt_escena(
+        escena,
+        titulo_leccion=titulo_leccion,
+        objetivo=objetivo,
+        brief=brief,
+    )
     ph = hashlib.sha256(prompt.encode('utf-8')).hexdigest()[:12]
     out_dir = run_dir / 'images'
     out_dir.mkdir(parents=True, exist_ok=True)

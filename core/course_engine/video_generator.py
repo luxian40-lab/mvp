@@ -31,6 +31,7 @@ from core.course_engine.image_service import generar_imagen_escena
 from core.course_engine.lesson import generar_leccion
 from core.course_engine.local_store import guardar_run, local_runs_root
 from core.course_engine.rag_source import obtener_contexto_rag_empresa, resumen_documentos_curso
+from core.course_engine.prompt_context import prompt_runway_escena
 from core.course_engine.runway_service import generar_video_desde_imagen, runway_disponible
 from core.course_engine.storyboard import generar_storyboard
 from core.course_engine.tts import generar_narracion_archivo, ultimo_error_tts
@@ -64,6 +65,9 @@ class CourseVideoGenerator:
         dry_run: bool = False,
         modulo_id: Optional[int] = None,
         voice_id: Optional[str] = None,
+        run_id: Optional[str] = None,
+        _lesson=None,
+        _analysis=None,
     ) -> VideoGenerateResult:
         voice_label = ''
         if modulo_id:
@@ -79,7 +83,7 @@ class CourseVideoGenerator:
                 if not brief.strip():
                     brief = (modulo.titulo or modulo.descripcion or '')[:500]
 
-        run_id = uuid.uuid4().hex[:12]
+        run_id = (run_id or uuid.uuid4().hex[:12])[:12]
         run_dir = local_runs_root() / run_id
         run = CourseEngineRun(
             run_id=run_id,
@@ -91,27 +95,38 @@ class CourseVideoGenerator:
         if voice_label:
             result.pasos.append(f'Voz: {voice_label}')
         result.pasos.append(f'Tier: {tier}')
-        result.pasos.append('Analizando leccion...')
 
-        rag_ctx, rag_ok = obtener_contexto_rag_empresa(cliente_id, curso_id, brief)
-        if not rag_ok:
-            fb = resumen_documentos_curso(curso_id)
-            if fb:
-                rag_ctx = fb
+        if _lesson is not None:
+            lesson = _lesson
+            run.lesson = lesson
+            result.pasos.append('Leccion (bundle compartida)...')
+            analysis = _analysis if _analysis is not None else analizar_leccion(lesson, modelo=modelo)
+            if not analysis:
+                run.errors.append('Falló analizador')
+                guardar_run(run)
+                return result
+            run.analysis = analysis
+        else:
+            result.pasos.append('Analizando leccion...')
+            rag_ctx, rag_ok = obtener_contexto_rag_empresa(cliente_id, curso_id, brief)
+            if not rag_ok:
+                fb = resumen_documentos_curso(curso_id)
+                if fb:
+                    rag_ctx = fb
 
-        lesson = generar_leccion(brief, rag_ctx, modelo=modelo)
-        if not lesson:
-            run.errors.append('Falló generación de lección')
-            guardar_run(run)
-            return result
-        run.lesson = lesson
+            lesson = generar_leccion(brief, rag_ctx, modelo=modelo)
+            if not lesson:
+                run.errors.append('Falló generación de lección')
+                guardar_run(run)
+                return result
+            run.lesson = lesson
 
-        analysis = analizar_leccion(lesson, modelo=modelo)
-        if not analysis:
-            run.errors.append('Falló analizador')
-            guardar_run(run)
-            return result
-        run.analysis = analysis
+            analysis = analizar_leccion(lesson, modelo=modelo)
+            if not analysis:
+                run.errors.append('Falló analizador')
+                guardar_run(run)
+                return result
+            run.analysis = analysis
 
         result.pasos.append('Creando storyboard...')
         sb = generar_storyboard(lesson, analysis, modelo=modelo, tier=tier)
@@ -149,11 +164,19 @@ class CourseVideoGenerator:
         img_by_orden: dict[int, Path] = {}
         img_meta_by_orden: dict[int, dict] = {}
         runway_by_orden: dict[int, Path] = {}
+        lesson_title = (run.lesson.titulo if run.lesson else '') or (sb.titulo_leccion if sb else '')
+        lesson_objetivo = (sb.objetivo if sb else '') or brief
 
         for escena in sb.escenas:
             if escena.tipo in _SKIP_IMAGE:
                 continue
-            img_res = generar_imagen_escena(escena, run_dir)
+            img_res = generar_imagen_escena(
+                escena,
+                run_dir,
+                titulo_leccion=lesson_title,
+                objetivo=lesson_objetivo,
+                brief=brief,
+            )
             if not img_res:
                 run.errors.append(f'Imagen fallo escena {escena.orden} — abortado (fail-fast)')
                 guardar_run(run)
@@ -173,22 +196,27 @@ class CourseVideoGenerator:
                 if not img_path:
                     run.errors.append(f'video_ia escena {escena.orden} sin keyframe')
                     continue
-                img_meta = img_meta_by_orden.get(escena.orden, {})
-                prompt = (escena.notas_visuales or escena.titulo or escena.guion or '').strip()
+                prompt = prompt_runway_escena(
+                    escena,
+                    titulo_leccion=lesson_title,
+                    objetivo=lesson_objetivo,
+                    brief=brief,
+                    storyboard=sb,
+                )
                 rv = generar_video_desde_imagen(
                     prompt=prompt,
                     run_dir=run_dir,
                     escena_orden=escena.orden,
                     local_image=img_path,
-                    image_url=img_meta.get('image_url'),
                 )
                 if rv:
                     runway_by_orden[escena.orden] = rv.local_path
                     costo_real += rv.cost_usd
                     img_meta_by_orden.setdefault(escena.orden, {})['runway_local'] = str(rv.local_path)
                     img_meta_by_orden[escena.orden]['runway_model'] = rv.model
+                    img_meta_by_orden[escena.orden]['runway_prompt'] = prompt[:500]
                 else:
-                    run.errors.append(f'Runway fallo escena {escena.orden} — usa imagen_zoom')
+                    run.errors.append(f'Runway fallo escena {escena.orden} — fallback imagen_zoom')
 
         result.pasos.append('Generando audio y clips...')
         for escena in sb.escenas:
@@ -216,6 +244,7 @@ class CourseVideoGenerator:
                     video_path=runway_by_orden[escena.orden],
                     audio_path=audio_path,
                     salida=clip_out,
+                    duracion_objetivo=escena.duracion_seg,
                 ):
                     clips.append(clip_out)
                     meta['clip'] = str(clip_out)
@@ -224,12 +253,17 @@ class CourseVideoGenerator:
                     run.errors.append(f'Clip video_ia ffmpeg fallo escena {escena.orden}')
             elif img_path:
                 clip_out = clips_dir / f'escena_{escena.orden:02d}.mp4'
+                overlay = ''
+                if escena.tipo in {SceneType.TEXTO, SceneType.RESUMEN}:
+                    overlay = guion
+                clip_tipo = SceneType.IMAGEN_ZOOM if escena.tipo == SceneType.VIDEO_IA else escena.tipo
                 if construir_clip_escena(
                     imagen_path=img_path,
                     audio_path=audio_path,
-                    tipo=escena.tipo,
+                    tipo=clip_tipo,
                     duracion_objetivo=escena.duracion_seg,
                     salida=clip_out,
+                    overlay_text=overlay,
                 ):
                     clips.append(clip_out)
                     meta['clip'] = str(clip_out)

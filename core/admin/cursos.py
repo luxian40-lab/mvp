@@ -1,5 +1,9 @@
 from core.admin._common import *  # noqa: F401,F403
-from core.admin.forms_course_engine import CourseEngineVoiceMixin, CursoCourseEngineForm
+from core.admin.forms_course_engine import (
+    CursoCourseEngineForm,
+    autofill_voice_label,
+    configure_course_engine_voice_field,
+)
 from core.orden_bloques import (
     intercambiar_orden,
     preparar_ordenes_temporales,
@@ -362,19 +366,21 @@ class CursoAdmin(admin.ModelAdmin):
         ('Course Engine (video IA)', {
             'classes': ('collapse',),
             'fields': (
+                'course_engine_format',
+                'course_engine_podcast_minutos',
                 'course_engine_tier',
-                'course_engine_voz_catalogo',
                 'course_engine_voice_id',
                 'course_engine_voice_label',
                 'course_engine_voz_preview',
             ),
             'description': mark_safe(
-                '<p><strong>Tier y voz default</strong> para generar micro-videos de modulos.</p>'
+                '<p><strong>Formato</strong> = cómo se segmenta cada módulo (pasos WA): '
+                'solo video, video+infografía, o mixto con podcast.</p>'
+                '<p><strong>Tier</strong> = calidad/costo del MP4 (Runway en estándar/premium). '
+                '<strong>Podcast (min)</strong> aplica solo en <em>Mixto completo</em>.</p>'
                 '<ul style="margin:0.4rem 0 0;padding-left:1.2rem;">'
-                '<li><strong>Voice ID</strong> = ID ElevenLabs (biblioteca o voz clonada del cliente). '
-                'Copiarlo en <a href="https://elevenlabs.io/app/voice-library" target="_blank">Voice Library</a> '
-                'o tras clonar voz en ElevenLabs.</li>'
-                '<li>Cada modulo puede override tier/voz en su ficha.</li>'
+                '<li>CLI bundle: <code>course_engine_generate_bundle --modulo-id N</code></li>'
+                '<li><strong>Voice ID</strong> = ElevenLabs (biblioteca o clon cliente).</li>'
                 '</ul>'
             ),
         }),
@@ -534,6 +540,12 @@ class CursoAdmin(admin.ModelAdmin):
             )
             extra_context['eki_curso_wizard_url'] = reverse('admin_curso_nuevo')
         return super().change_view(request, object_id, form_url, extra_context=extra_context)
+
+    def get_form(self, request, obj=None, change=False, **kwargs):
+        # Formulario custom con campos extra; no restringir por fieldsets planos.
+        kwargs.pop('fields', None)
+        kwargs.pop('exclude', None)
+        return CursoCourseEngineForm
 
     @admin.display(description='Experiencia', ordering='modo_aula')
     def experiencia_display(self, obj):
@@ -1120,7 +1132,7 @@ class PasoModuloForm(forms.ModelForm):
         return instance
 
 
-class ModuloAdminForm(CourseEngineVoiceMixin, forms.ModelForm):
+class ModuloAdminForm(forms.ModelForm):
     """Form módulo + pestaña Clase simple (escribe el 1er PasoModulo)."""
 
     clase_texto = forms.CharField(
@@ -1222,6 +1234,7 @@ class ModuloAdminForm(CourseEngineVoiceMixin, forms.ModelForm):
         elif not (self.instance and self.instance.pk):
             prefer_simple = True
         self.prefer_clase_simple = prefer_simple
+        configure_course_engine_voice_field(self, heredar=True)
 
     def clean_clase_url(self):
         url = (self.cleaned_data.get('clase_url') or '').strip()
@@ -1235,6 +1248,7 @@ class ModuloAdminForm(CourseEngineVoiceMixin, forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
+        autofill_voice_label(cleaned)
         self._clase_pending_media_url = None
         uploaded = cleaned.get('clase_archivo')
         if not uploaded:
@@ -1803,6 +1817,11 @@ class ModuloAdmin(admin.ModelAdmin):
             )
         return super().change_view(request, object_id, form_url, extra_context=extra_context)
 
+    def get_form(self, request, obj=None, change=False, **kwargs):
+        kwargs.pop('fields', None)
+        kwargs.pop('exclude', None)
+        return ModuloAdminForm
+
     @action(
         description='Module Builder',
         url_path='abrir-module-builder',
@@ -2037,7 +2056,6 @@ class ModuloAdmin(admin.ModelAdmin):
                 'classes': ['tab'],
                 'fields': (
                     'course_engine_tier',
-                    'course_engine_voz_catalogo',
                     'course_engine_voice_id',
                     'course_engine_voice_label',
                     'course_engine_voz_preview',

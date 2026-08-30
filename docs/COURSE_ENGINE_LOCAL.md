@@ -1,8 +1,104 @@
-# Course Engine — pipeline local (rama `feat/course-engine`)
+# Course Engine — manual ops + costos (prod)
 
-**No mergear a `main` hasta QA local completo.**
+**Estado (2026-08-29):** pipeline validado en prod (admin curso, voces, Runway, MP4 S3). Rama `feat/course-engine` desplegada en `eki-prod-final`.
 
-## Flujo
+**Curso mixto (10 módulos, video + infografía + podcast + RAG):** ver [`COURSE_ENGINE_CURSO_MIXTO.md`](COURSE_ENGINE_CURSO_MIXTO.md).
+
+## Microcontenidos — qué dejar en el manual
+
+En eki hay **dos sentidos** de microcontenido:
+
+| Tipo | Qué es | Dónde vive |
+|------|--------|------------|
+| **PasoModulo (WA)** | Texto + media que el estudiante recibe con *listo* | Admin → Módulo → Estructura / Module Builder |
+| **Video Course Engine** | MP4 corto (~20–50 s) generado por IA (lección → storyboard → assets) | S3 `media/course_engine/videos/<run_id>.mp4` |
+
+**Flujo manual recomendado (hoy):**
+
+1. **Curso** → pestaña *Course Engine (video IA)* → tier + voz default.
+2. **Módulo** → override tier/voz si hace falta (vacío = hereda curso).
+3. **QA voz** → *Escuchar muestra (~5 s)* — solo al configurar; cada clic consume ElevenLabs.
+4. **Generar video** (CLI hoy; botón admin + Celery en slice futuro):
+   ```powershell
+   python manage.py course_engine_generate_video ^
+     --cliente-id 1 --curso-id 22 --modulo-id 45 ^
+     --tier premium
+   ```
+   Con `--modulo-id` el brief sale del título/descripción del módulo y hereda tier/voz.
+5. **Publicar como microcontenido WA:** copiar URL S3 del MP4 al **PasoModulo** correspondiente (campo media / URL) o subir el archivo en la pestaña Clase. Mismo criterio que cualquier video de módulo: HTTPS público, ≤16 MB para WhatsApp.
+6. **Checklist antes de publicar módulo:** contenido OK, media accesible, drip, voz coherente con marca del cliente.
+
+**Regla ops:** no generar video en lote sin QA humano del MP4. Un run = un microcontenido candidato.
+
+### Tiers (curso y módulo)
+
+| Tier | Duración aprox. | Runway | Tope costo est. (código) | Cuándo usar |
+|------|-----------------|--------|--------------------------|-------------|
+| **economico** | 20–30 s | No | ~$2 | Contenido masivo, sin clip animado |
+| **estandar** | 25–35 s | 1 clip (~4 s) | ~$5 | Balance costo / impacto visual |
+| **premium** | 35–50 s | hasta 3 clips | ~$15 | Demos, clientes B2B, piezas estrella |
+
+### Voces (catálogo eki)
+
+Maria, Sofia, Carlos, Andrés — dropdown en admin. Default global: `ELEVENLABS_VOICE_ID` en EB. Clon cliente: pegar Voice ID de ElevenLabs en curso/módulo.
+
+---
+
+## Costos — qué cobra y qué no
+
+### Gratis (sin llamada API)
+
+- Abrir/guardar curso o módulo en admin.
+- Elegir tier, voz, tier por módulo.
+- Variables EB configuradas (keys sin uso).
+
+### Cobra al usar
+
+| Acción | Proveedor | Orden de magnitud |
+|--------|-----------|-------------------|
+| Escuchar muestra (~5 s) | ElevenLabs | Centavos por clic |
+| Links «Probar catálogo» (×4 voces) | ElevenLabs | 1 llamada por voz y clic |
+| Storyboard + lección | OpenAI (gpt-4o-mini) | ~$0.02 por video |
+| Imagen por escena | OpenAI (gpt-image-1) | ~$0.04 × N escenas |
+| Narración por escena | ElevenLabs | ~$0.15 / 1 000 caracteres de guion |
+| Clip Runway (4 s, gen4_turbo) | Runway | ~$0.20 por clip (estimado interno) |
+
+**Estimados por corrida completa (referencia real aug-2026):**
+
+| Run | Tema | Tier | Costo est. | Notas |
+|-----|------|------|------------|-------|
+| `005f1a665318` | Aguacate Hass | premium | ~$0.56 | 1 Runway |
+| `6681ef74059c` | Cacao fino | premium | ~$0.47 | 1 Runway, contexto mejorado |
+
+Los topes en `budget.py` evitan desbordes; Runway solo en tier estándar/premium.
+
+### A futuro — control de costos a escala
+
+Cuando haya **muchas generaciones / mes**, revisar:
+
+1. **Dashboard** — modelos `CourseGenerationRun` (slice pendiente): run_id, tier, costo_est, costo_real, cliente, curso, módulo.
+2. **Presupuesto por cliente** — tope mensual USD en contrato B2B antes de habilitar tier premium.
+3. **Caché TTS** — misma voz + mismo texto = no repetir ElevenLabs (muestras QA).
+4. **Batch nocturno** — Celery con cola y límite de concurrencia Runway (evita picos de créditos).
+5. **Alertas** — si costo_real > tope tier o fallos Runway > N %, aviso Ops.
+
+Hasta entonces: registrar manualmente run_id + URL S3 en hoja de control del curso o ticket interno.
+
+---
+
+## Contexto Runway e imágenes (fix 2026-08-29)
+
+Problemas resueltos en prod:
+
+- Prompts con **lección + brief + guion** (`prompt_context.py`) — Runway ya no “inventa” agricultura genérica.
+- Escenas **texto/resumen**: fondo sin letras + overlay ffmpeg con el guion real.
+- Keyframe **local** a Runway (más fiel que URL S3).
+- Clip Runway en **loop** hasta cubrir narración.
+- Si Runway falla → fallback ken-burns sobre la imagen del storyboard.
+
+---
+
+## Flujo técnico
 
 ```
 RAG EMPRESA (DocumentoRAG + Chroma)
@@ -75,50 +171,52 @@ Veredicto esperado: `QA_PASS muestra voz` + URL MP3 `audio/mpeg` ≤16 MB.
 
 Modelo recomendado: `eleven_multilingual_v2` (español rural/claro).
 
-## Comandos local
+## Comandos local / ops
 
 ```powershell
-git checkout feat/course-engine
+# Paquete mixto (respeta course_engine_format del curso)
+python manage.py course_engine_generate_bundle ^
+  --cliente-id 1 --curso-id 22 --modulo-id 45
 
-# Solo narración (probar voz)
-python manage.py generate_tts_smoke --texto "Bienvenido al módulo de riego eficiente."
+# Override formato / dry-run costo
+python manage.py course_engine_generate_bundle ^
+  --cliente-id 1 --curso-id 22 --modulo-id 45 ^
+  --formato mixto_completo --tier estandar --dry-run
 
-# Pipeline completo hasta assets (sin prod)
-python manage.py course_engine_local_run ^
-  --cliente-id 1 ^
-  --curso-id 22 ^
-  --brief "Lección introductoria sobre riego en café" ^
-  --hasta assets
-
-# Solo storyboard (sin gastar ElevenLabs)
-python manage.py course_engine_local_run --cliente-id 1 --curso-id 22 --brief "..." --hasta storyboard --sin-audio
+# Solo video MP4 (legacy)
+python manage.py course_engine_generate_video ^
+  --cliente-id 1 --curso-id 22 --modulo-id 45 --tier estandar
 ```
 
-Salida: `tmp/course_engine/runs/<run_id>/run.json` + `assets/` + `compose/manifest.json`
+Salida: `tmp/course_engine/runs/<run_id>/run.json` + `compose/video_final.mp4` + URL S3 si `USE_S3=True`.
 
-## Módulos
+## Módulos (código)
 
 | Archivo | Rol |
 |---------|-----|
+| `video_generator.py` | Orquestador MP4 completo |
+| `prompt_context.py` | Prompts con contexto lección (Runway + imágenes) |
+| `runway_service.py` | Runway image→video / text→video |
+| `budget.py` | Topes por tier + estimados USD |
+| `clip_builder.py` | ffmpeg clips + overlay texto |
+| `voice_config.py` | Catálogo 4 voces + herencia curso→módulo |
 | `rag_source.py` | Contexto DocumentoRAG vía `rag_manager` |
 | `lesson.py` | OpenAI → borrador lección |
-| `analyzer.py` | Análisis pedagógico |
 | `storyboard.py` | Escenas automáticas |
-| `tts.py` | **ElevenLabs** (+ fallback OpenAI) |
-| `assets.py` | Narración S3 + stubs visuales |
-| `compose.py` | Manifest ffmpeg (video final pendiente) |
-| `pipeline.py` | Orquestador |
+| `tts.py` | ElevenLabs (+ fallback OpenAI) |
+| `image_service.py` | gpt-image-1 por escena |
 
 ## Pendiente (siguientes slices)
 
 - [x] Imágenes: `gpt-image-1` por escena
-- [x] ffmpeg concat (audio + slides + zoom)
+- [x] ffmpeg concat (audio + slides + zoom + Runway loop)
 - [x] `CourseVideoGenerator` → MP4 local + S3
-- [x] **Runway** (`runway_service.py`) — tier `estandar`/`premium`, escenas `video_ia`
-- [ ] Modelos DB `CourseGenerationRun` / `MediaAsset`
-- [ ] Admin UI Module Builder
-- [ ] Celery async
-- [ ] Deploy prod solo con `COURSE_ENGINE_ENABLED=true` + QA_PASS
+- [x] **Runway** — tier `estandar`/`premium`, escenas `video_ia`
+- [x] Admin voces + preview QA + EB env vars
+- [x] Prompts contextuales + overlay texto
+- [ ] Modelos DB `CourseGenerationRun` / historial costos
+- [ ] Admin botón «Generar video» + Celery async
+- [ ] Publicar MP4 → PasoModulo en un clic
 
 ## Runway — video IA (4–10 s)
 

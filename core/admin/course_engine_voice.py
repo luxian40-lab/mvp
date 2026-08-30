@@ -102,17 +102,19 @@ def html_boton_preview_voz(*, preview_url: str, voice_id: str | None, label: str
         'style="margin-bottom:0.5rem;display:inline-block;">Escuchar muestra (~5 s)</a>',
         preview_url,
     )
-    catalogo_bits = []
+    catalogo_html = ''
     if curso_or_modulo_id is not None:
         base = preview_url.split('?')[0]
-        for v in catalogo_voces():
-            u = f"{base}?voice_id={v['id']}"
-            catalogo_bits.append(format_html(
-                '<a href="{}" target="_blank" rel="noopener" style="margin-right:8px;font-size:12px;">{}</a>',
-                u,
-                v['label'],
-            ))
-    catalogo_html = format_html('<p style="margin:0.35rem 0 0;font-size:12px;">Probar catalogo: {}</p>', format_html_join('', catalogo_bits)) if catalogo_bits else ''
+        voices = catalogo_voces()
+        if voices:
+            catalogo_html = format_html(
+                '<p style="margin:0.35rem 0 0;font-size:12px;">Probar catalogo: {}</p>',
+                format_html_join(
+                    '',
+                    '<a href="{}" target="_blank" rel="noopener" style="margin-right:8px;font-size:12px;">{}</a>',
+                    ((f"{base}?voice_id={v['id']}", v['label']) for v in voices),
+                ),
+            )
 
     return format_html(
         '{}'

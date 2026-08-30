@@ -27,6 +27,10 @@ Reglas:
 - narracion = voz off (ElevenLabs); texto = solo pantalla.
 - video_ia solo si el concepto lo exige (máx 1 escena).
 - 5–10 escenas total; guiones cortos (WhatsApp rural).
+- CRITICO: todo el contenido (guion, notas_visuales, titulo) debe ser especifico al tema de la leccion.
+  NO uses definiciones genericas de agricultura ni texto de relleno ajeno al brief.
+- Para tipo texto: guion = frase corta exacta del tema (max 15 palabras); notas_visuales = fondo visual concreto del cultivo/tema.
+- notas_visuales debe describir QUE SE VE (cultivo, accion, lugar), no definiciones enciclopedicas.
 
 Responde JSON: { "titulo_leccion", "objetivo", "escenas": [...] }
 """

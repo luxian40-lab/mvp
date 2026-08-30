@@ -82,3 +82,21 @@ class VoicePreviewTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'voice_test')
         self.assertContains(resp, 'audio/mpeg')
+
+    def test_admin_curso_change_form_ok(self):
+        User = get_user_model()
+        user = User.objects.create_superuser('qa_change', 'qa_change@test.com', 'pass')
+        cliente = Cliente.objects.create(nombre='Org change')
+        curso = Curso.objects.create(
+            nombre='Curso change QA',
+            descripcion='d',
+            cliente=cliente,
+            course_engine_voice_id='Wb1wmVQjMx9g2QSIOTPI',
+        )
+        client = Client()
+        client.force_login(user)
+        url = reverse('admin:core_curso_change', args=[curso.pk])
+        resp = client.get(url, follow=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'course_engine_voice_id')
+        self.assertContains(resp, 'Course Engine')

@@ -56,14 +56,15 @@ def _headers() -> dict[str, str]:
 
 
 def _image_uri(*, local_path: Optional[Path] = None, public_url: Optional[str] = None) -> str:
-    if public_url and public_url.startswith('https://'):
-        return public_url
+    # Local primero: más fiable que URL S3 si Runway no puede fetch o hay latencia.
     if local_path and local_path.is_file():
         raw = local_path.read_bytes()
         if len(raw) > 5 * 1024 * 1024:
             raise ValueError(f'Imagen demasiado grande para data URI Runway: {local_path}')
         b64 = base64.b64encode(raw).decode('ascii')
         return f'data:image/png;base64,{b64}'
+    if public_url and public_url.startswith('https://'):
+        return public_url
     raise ValueError('Se requiere imagen local o URL HTTPS publica')
 
 

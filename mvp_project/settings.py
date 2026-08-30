@@ -375,6 +375,15 @@ COURSE_ENGINE_LOCAL_DIR = os.environ.get('COURSE_ENGINE_LOCAL_DIR', '')
 ELEVENLABS_API_KEY = os.environ.get('ELEVENLABS_API_KEY')
 ELEVENLABS_VOICE_ID = os.environ.get('ELEVENLABS_VOICE_ID', '')
 ELEVENLABS_MODEL_ID = os.environ.get('ELEVENLABS_MODEL_ID', 'eleven_multilingual_v2')
+# Video: frases cortas por escena. Podcast: monólogo 2–4 min (mismo default; override en EB).
+ELEVENLABS_MODEL_ID_VIDEO = os.environ.get(
+    'ELEVENLABS_MODEL_ID_VIDEO',
+    os.environ.get('ELEVENLABS_MODEL_ID', 'eleven_multilingual_v2'),
+)
+ELEVENLABS_MODEL_ID_PODCAST = os.environ.get(
+    'ELEVENLABS_MODEL_ID_PODCAST',
+    os.environ.get('ELEVENLABS_MODEL_ID', 'eleven_multilingual_v2'),
+)
 COURSE_ENGINE_DRY_RUN = os.environ.get('COURSE_ENGINE_DRY_RUN', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )

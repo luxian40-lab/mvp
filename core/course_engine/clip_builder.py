@@ -45,6 +45,46 @@ def _vf_for_scene(tipo: SceneType, duration: float) -> str:
     return f"scale={_W}:{_H}:force_original_aspect_ratio=decrease,pad={_W}:{_H}:(ow-iw)/2:(oh-ih)/2"
 
 
+def _escape_drawtext(text: str) -> str:
+    """Escape para filtro drawtext de ffmpeg."""
+    t = (text or '').strip().replace('\n', ' ')
+    for ch, rep in (('\\', '\\\\'), ("'", "\\'"), (':', '\\:'), ('%', '\\%')):
+        t = t.replace(ch, rep)
+    return t
+
+
+def _wrap_text(text: str, max_chars: int = 42) -> list[str]:
+    words = (text or '').split()
+    lines: list[str] = []
+    cur: list[str] = []
+    for w in words:
+        trial = ' '.join(cur + [w])
+        if len(trial) > max_chars and cur:
+            lines.append(' '.join(cur))
+            cur = [w]
+        else:
+            cur.append(w)
+    if cur:
+        lines.append(' '.join(cur))
+    return lines[:4]
+
+
+def _vf_text_overlay(base_vf: str, overlay_text: str) -> str:
+    lines = _wrap_text(overlay_text)
+    if not lines:
+        return base_vf
+    y0 = 520 - (len(lines) * 28)
+    filters = [base_vf]
+    for i, line in enumerate(lines):
+        esc = _escape_drawtext(line)
+        y = y0 + i * 56
+        filters.append(
+            f"drawtext=text='{esc}':fontcolor=white:fontsize=34:borderw=2:bordercolor=black@0.85:"
+            f"x=(w-text_w)/2:y={y}"
+        )
+    return ','.join(filters)
+
+
 def construir_clip_escena(
     *,
     imagen_path: Path,
@@ -52,6 +92,7 @@ def construir_clip_escena(
     tipo: SceneType,
     duracion_objetivo: float,
     salida: Path,
+    overlay_text: str = '',
 ) -> bool:
     if not imagen_path.is_file():
         logger.error('Imagen no existe: %s', imagen_path)
@@ -62,6 +103,8 @@ def construir_clip_escena(
         dur = max(duracion_objetivo, _audio_duration_sec(audio_path))
 
     vf = _vf_for_scene(tipo, dur)
+    if overlay_text.strip() and tipo in {SceneType.TEXTO, SceneType.RESUMEN}:
+        vf = _vf_text_overlay(vf, overlay_text)
     salida.parent.mkdir(parents=True, exist_ok=True)
 
     cmd = [
@@ -96,17 +139,22 @@ def construir_clip_desde_video_ia(
     video_path: Path,
     audio_path: Optional[Path],
     salida: Path,
+    duracion_objetivo: float = 0.0,
 ) -> bool:
-    """Combina clip Runway + narracion ElevenLabs."""
+    """Combina clip Runway + narracion; extiende video si el audio es más largo."""
     if not video_path.is_file():
         logger.error('Video IA no existe: %s', video_path)
         return False
 
+    audio_dur = _audio_duration_sec(audio_path) if audio_path and audio_path.is_file() else 0.0
+    target_dur = max(duracion_objetivo, audio_dur, 1.0)
+
     salida.parent.mkdir(parents=True, exist_ok=True)
-    cmd = ['ffmpeg', '-y', '-i', str(video_path)]
+    cmd = ['ffmpeg', '-y', '-stream_loop', '-1', '-i', str(video_path)]
     if audio_path and audio_path.is_file():
         cmd.extend(['-i', str(audio_path)])
         cmd.extend([
+            '-t', str(target_dur),
             '-map', '0:v:0', '-map', '1:a:0',
             '-c:v', 'libx264', '-preset', 'fast', '-pix_fmt', 'yuv420p',
             '-c:a', 'aac', '-b:a', '128k', '-ar', '44100',
@@ -114,6 +162,7 @@ def construir_clip_desde_video_ia(
         ])
     else:
         cmd.extend([
+            '-t', str(target_dur),
             '-c:v', 'libx264', '-preset', 'fast', '-pix_fmt', 'yuv420p',
             '-movflags', '+faststart', str(salida),
         ])

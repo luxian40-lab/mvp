@@ -80,6 +80,8 @@ def generar_narracion(
     *,
     provider: Optional[TtsProviderName] = None,
     voice: Optional[str] = None,
+    model_id: Optional[str] = None,
+    voice_profile: Literal['video', 'podcast'] = 'video',
 ) -> Optional[TtsResult]:
     """
     Narración outbound → S3 (audio/mpeg).
@@ -95,7 +97,9 @@ def generar_narracion(
     prov = provider or _provider_default()
     result = None
     if prov == 'elevenlabs':
-        result = _tts_elevenlabs(clean, voice=voice)
+        result = _tts_elevenlabs(
+            clean, voice=voice, model_id=model_id, voice_profile=voice_profile,
+        )
     else:
         result = _tts_openai(clean, voice=voice or 'nova')
 
@@ -112,6 +116,8 @@ def generar_narracion_archivo(
     *,
     provider: Optional[TtsProviderName] = None,
     voice: Optional[str] = None,
+    model_id: Optional[str] = None,
+    voice_profile: Literal['video', 'podcast'] = 'video',
 ) -> Optional[TtsResult]:
     """TTS → archivo local MP3 (+ S3 si está configurado)."""
     _set_tts_error(None)
@@ -123,7 +129,10 @@ def generar_narracion_archivo(
     prov = provider or _provider_default()
 
     if prov == 'elevenlabs':
-        result = _tts_elevenlabs(clean, voice=voice, local_copy=dest)
+        result = _tts_elevenlabs(
+            clean, voice=voice, local_copy=dest,
+            model_id=model_id, voice_profile=voice_profile,
+        )
     else:
         result = _tts_openai(clean, voice=voice or 'nova', local_copy=dest)
 
@@ -162,10 +171,41 @@ def _upload_mp3(
     )
 
 
-def _tts_elevenlabs(texto: str, *, voice: Optional[str] = None, local_copy: Optional[Path] = None) -> Optional[TtsResult]:
+def _voice_settings(profile: Literal['video', 'podcast']) -> dict:
+    if profile == 'podcast':
+        return {
+            'stability': 0.55,
+            'similarity_boost': 0.80,
+            'style': 0.12,
+            'use_speaker_boost': True,
+        }
+    return {
+        'stability': 0.45,
+        'similarity_boost': 0.75,
+        'style': 0.0,
+        'use_speaker_boost': True,
+    }
+
+
+def _resolve_elevenlabs_model(model_id: Optional[str], voice_profile: Literal['video', 'podcast']) -> str:
+    if model_id:
+        return model_id
+    if voice_profile == 'podcast':
+        return getattr(settings, 'ELEVENLABS_MODEL_ID_PODCAST', 'eleven_multilingual_v2')
+    return getattr(settings, 'ELEVENLABS_MODEL_ID_VIDEO', 'eleven_multilingual_v2')
+
+
+def _tts_elevenlabs(
+    texto: str,
+    *,
+    voice: Optional[str] = None,
+    local_copy: Optional[Path] = None,
+    model_id: Optional[str] = None,
+    voice_profile: Literal['video', 'podcast'] = 'video',
+) -> Optional[TtsResult]:
     api_key = getattr(settings, 'ELEVENLABS_API_KEY', None)
     voice_id = voice or getattr(settings, 'ELEVENLABS_VOICE_ID', None)
-    model_id = getattr(settings, 'ELEVENLABS_MODEL_ID', 'eleven_multilingual_v2')
+    model_id = _resolve_elevenlabs_model(model_id, voice_profile)
 
     if not api_key or not voice_id:
         logger.warning('ElevenLabs: falta ELEVENLABS_API_KEY o ELEVENLABS_VOICE_ID')
@@ -188,12 +228,7 @@ def _tts_elevenlabs(texto: str, *, voice: Optional[str] = None, local_copy: Opti
             json={
                 'text': texto,
                 'model_id': model_id,
-                'voice_settings': {
-                    'stability': 0.45,
-                    'similarity_boost': 0.75,
-                    'style': 0.0,
-                    'use_speaker_boost': True,
-                },
+                'voice_settings': _voice_settings(voice_profile),
             },
             timeout=120.0,
         )

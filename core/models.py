@@ -1402,6 +1402,24 @@ class Curso(models.Model):
         verbose_name='Nombre visible de la voz',
         help_text='Etiqueta ops: «Voz Maria», «Agronomo cliente Cenipalma», etc.',
     )
+    course_engine_format = models.CharField(
+        max_length=24,
+        choices=[
+            ('solo_video', 'Solo video MP4 (1 paso WA)'),
+            ('video_infografia', 'Video + infografía PNG (2 pasos)'),
+            ('mixto_completo', 'Mixto completo: video + infografía + podcast (3 pasos)'),
+            ('mixto_ligero', 'Ligero: video económico sin podcast ni PNG suelta'),
+        ],
+        default='video_infografia',
+        verbose_name='Formato Course Engine (segmentación)',
+        help_text='Cómo se segmenta cada módulo al generar contenido IA (pasos WhatsApp).',
+    )
+    course_engine_podcast_minutos = models.PositiveSmallIntegerField(
+        choices=[(2, '2 min'), (3, '3 min'), (4, '4 min')],
+        default=2,
+        verbose_name='Podcast (minutos)',
+        help_text='Duración objetivo del podcast en formato mixto_completo.',
+    )
 
     # Activador del formulario GEI sin tocar TipoFormulario.
     tiene_formulario_gei = models.BooleanField(

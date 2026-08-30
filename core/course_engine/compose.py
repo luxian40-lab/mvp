@@ -56,14 +56,25 @@ def componer_video_local(
 
 def subir_video_s3(local_path: Path, run_id: str) -> Optional[str]:
     """Sube MP4 final a S3 cuando exista archivo local."""
+    return subir_asset_s3(local_path, run_id, ext='mp4', content_type='video/mp4', subpath='videos')
+
+
+def subir_asset_s3(
+    local_path: Path,
+    run_id: str,
+    *,
+    ext: str,
+    content_type: str,
+    subpath: str,
+) -> Optional[str]:
     if not local_path.is_file():
         return None
     try:
         from core.twilio_media import _subir_bytes_s3
 
         data = local_path.read_bytes()
-        key = f'media/course_engine/videos/{run_id}.mp4'
-        return _subir_bytes_s3(key, data, 'video/mp4')
+        key = f'media/course_engine/{subpath}/{run_id}.{ext}'
+        return _subir_bytes_s3(key, data, content_type)
     except Exception as exc:
-        logger.exception('subir_video_s3: %s', exc)
+        logger.exception('subir_asset_s3: %s', exc)
         return None
