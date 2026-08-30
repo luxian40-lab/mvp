@@ -91,6 +91,41 @@ def construir_clip_escena(
         return False
 
 
+def construir_clip_desde_video_ia(
+    *,
+    video_path: Path,
+    audio_path: Optional[Path],
+    salida: Path,
+) -> bool:
+    """Combina clip Runway + narracion ElevenLabs."""
+    if not video_path.is_file():
+        logger.error('Video IA no existe: %s', video_path)
+        return False
+
+    salida.parent.mkdir(parents=True, exist_ok=True)
+    cmd = ['ffmpeg', '-y', '-i', str(video_path)]
+    if audio_path and audio_path.is_file():
+        cmd.extend(['-i', str(audio_path)])
+        cmd.extend([
+            '-map', '0:v:0', '-map', '1:a:0',
+            '-c:v', 'libx264', '-preset', 'fast', '-pix_fmt', 'yuv420p',
+            '-c:a', 'aac', '-b:a', '128k', '-ar', '44100',
+            '-movflags', '+faststart', '-shortest', str(salida),
+        ])
+    else:
+        cmd.extend([
+            '-c:v', 'libx264', '-preset', 'fast', '-pix_fmt', 'yuv420p',
+            '-movflags', '+faststart', str(salida),
+        ])
+
+    try:
+        subprocess.run(cmd, capture_output=True, text=True, timeout=180, check=True)
+        return salida.is_file() and salida.stat().st_size > 0
+    except subprocess.CalledProcessError as exc:
+        logger.error('ffmpeg video_ia: %s', exc.stderr[:500])
+        return False
+
+
 def concatenar_clips(clips: list[Path], salida: Path) -> bool:
     if not clips:
         return False

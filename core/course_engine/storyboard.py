@@ -41,9 +41,9 @@ def generar_storyboard(
     openai_client=None,
 ) -> Optional[Storyboard]:
     if openai_client is None:
-        from core.utils_ia import validar_modelo_ia_disponible
+        from core.course_engine.openai_guard import validar_openai_disponible
 
-        validar_modelo_ia_disponible(modelo)
+        validar_openai_disponible(modelo)
 
     payload = {
         'leccion': lesson.to_dict(),

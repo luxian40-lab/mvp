@@ -2,7 +2,7 @@
 """Smoke TTS — ElevenLabs (default) u OpenAI."""
 from django.core.management.base import BaseCommand
 
-from core.course_engine.tts import generar_narracion
+from core.course_engine.tts import generar_narracion, ultimo_error_tts
 
 
 class Command(BaseCommand):
@@ -32,7 +32,8 @@ class Command(BaseCommand):
 
         result = generar_narracion(options['texto'], **kwargs)
         if not result:
-            self.stderr.write(self.style.ERROR('TTS falló — revisar API keys y logs'))
+            detail = ultimo_error_tts() or 'revisar API keys y logs'
+            self.stderr.write(self.style.ERROR(f'TTS falló — {detail}'))
             raise SystemExit(1)
 
         self.stdout.write(self.style.SUCCESS(f'TTS OK ({result.provider})'))

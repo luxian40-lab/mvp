@@ -1,9 +1,10 @@
-"""Presupuesto por tier — topes de costo y escenas (Fase 2A sin Runway)."""
+"""Presupuesto por tier — topes de costo y escenas."""
 from __future__ import annotations
 
 import enum
 from dataclasses import dataclass
 
+from core.course_engine.runway_service import runway_disponible
 from core.course_engine.types import Scene, SceneType, Storyboard
 
 
@@ -46,10 +47,11 @@ TIER_LIMITS: dict[VideoTier, TierLimits] = {
     ),
 }
 
-# Estimados USD (Fase 2A — sin Runway)
+# Estimados USD
 COST_IMAGE_USD = 0.04
 COST_STORYBOARD_USD = 0.02
 COST_TTS_PER_1K_CHARS = 0.15  # aprox ElevenLabs; conservador
+COST_VIDEO_IA_USD = 0.20  # ~4s gen4_turbo
 
 
 def limits_for(tier: str | VideoTier) -> TierLimits:
@@ -65,9 +67,11 @@ def estimar_costo_storyboard(storyboard: Storyboard) -> float:
         or s.tipo == SceneType.VIDEO_IA
     )
     chars = sum(len(s.guion or '') for s in storyboard.escenas)
+    n_video_ia = sum(1 for s in storyboard.escenas if s.tipo == SceneType.VIDEO_IA)
     return (
         COST_STORYBOARD_USD
         + n_images * COST_IMAGE_USD
+        + n_video_ia * COST_VIDEO_IA_USD
         + (chars / 1000.0) * COST_TTS_PER_1K_CHARS
     )
 
@@ -87,12 +91,12 @@ def aplicar_limites_storyboard(storyboard: Storyboard, tier: str | VideoTier) ->
                 tipo = SceneType.IMAGEN_ZOOM
                 meta['degradado_desde'] = 'video_ia'
                 meta['motivo'] = 'tier_sin_video_ia'
-            else:
-                video_ia_count += 1
-                # Fase 2A: aún no hay Runway — degradar siempre
+            elif not runway_disponible():
                 tipo = SceneType.IMAGEN_ZOOM
                 meta['degradado_desde'] = 'video_ia'
-                meta['motivo'] = 'fase_2a_sin_runway'
+                meta['motivo'] = 'runway_no_configurado'
+            else:
+                video_ia_count += 1
         nuevas.append(
             Scene(
                 orden=esc.orden,
@@ -141,3 +145,46 @@ def validar_presupuesto(storyboard: Storyboard, tier: str | VideoTier) -> tuple[
     if costo > lim.max_usd:
         return False, costo, f'Costo estimado ${costo:.2f} > tope ${lim.max_usd:.2f}'
     return True, costo, 'ok'
+
+
+def promover_escena_runway(storyboard: Storyboard, tier: str | VideoTier) -> Storyboard:
+    """Garantiza 1 escena video_ia en tier estandar/premium si Runway esta activo."""
+    lim = limits_for(tier)
+    if lim.max_video_ia < 1 or not runway_disponible():
+        return storyboard
+    if any(s.tipo == SceneType.VIDEO_IA for s in storyboard.escenas):
+        return storyboard
+
+    candidatas = [
+        s for s in storyboard.escenas
+        if s.tipo in {SceneType.IMAGEN, SceneType.IMAGEN_ZOOM, SceneType.DIAGRAMA}
+    ]
+    if not candidatas:
+        return storyboard
+
+    target = candidatas[1] if len(candidatas) > 1 else candidatas[0]
+    nuevas: list[Scene] = []
+    for esc in storyboard.escenas:
+        if esc.orden == target.orden:
+            meta = dict(esc.metadata)
+            meta['promovido_a_video_ia'] = True
+            nuevas.append(
+                Scene(
+                    orden=esc.orden,
+                    tipo=SceneType.VIDEO_IA,
+                    titulo=esc.titulo,
+                    guion=esc.guion,
+                    duracion_seg=esc.duracion_seg,
+                    notas_visuales=esc.notas_visuales,
+                    metadata=meta,
+                )
+            )
+        else:
+            nuevas.append(esc)
+
+    return Storyboard(
+        titulo_leccion=storyboard.titulo_leccion,
+        objetivo=storyboard.objetivo,
+        escenas=nuevas,
+        modelo_ia=storyboard.modelo_ia,
+    )

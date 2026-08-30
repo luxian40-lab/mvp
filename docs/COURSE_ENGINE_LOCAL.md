@@ -47,7 +47,31 @@ COURSE_ENGINE_ENABLED=true
 1. [ElevenLabs Voice Library](https://elevenlabs.io/voice-library) → filtrar español.
 2. Probar voces con acento neutro/latino (no `nova` de OpenAI).
 3. Opcional: **Voice Cloning** con muestra de voz eki (30s–1min).
-4. Copiar **Voice ID** → `ELEVENLABS_VOICE_ID`.
+4. Copiar **Voice ID** → `ELEVENLABS_VOICE_ID` (global) o **Curso / Modulo → ElevenLabs Voice ID** (por cliente / voz clonada).
+
+### Voz clonada del cliente
+
+1. Cliente graba muestras en [ElevenLabs Voice Lab](https://elevenlabs.io/app/voice-lab) (Instant / Professional clone).
+2. Copiar **Voice ID** de esa voz (mismo formato que biblioteca: `Wb1wmVQjMx9g2QSIOTPI`).
+3. Pegar en **Curso → Course Engine → Voice ID** (todo el curso) o **Modulo → Course Engine** (solo ese modulo).
+4. Etiqueta visible: «Agronomo Cenipalma» para que ops sepa cual es.
+
+## QA — muestra de voz
+
+```powershell
+# Por curso (Voice ID del curso o .env)
+python manage.py course_engine_voice_preview --curso-id 22
+
+# Por modulo
+python manage.py course_engine_voice_preview --modulo-id 45
+
+# Voice ID directo (voz clonada cliente)
+python manage.py course_engine_voice_preview --voice-id Ux2YbCNfurnKHnzlBHGX --label "Agronomo cliente"
+```
+
+Admin: **Curso / Modulo → Course Engine → Escuchar muestra (~5 s)** (pestaña colapsada en curso).
+
+Veredicto esperado: `QA_PASS muestra voz` + URL MP3 `audio/mpeg` ≤16 MB.
 
 Modelo recomendado: `eleven_multilingual_v2` (español rural/claro).
 
@@ -87,12 +111,41 @@ Salida: `tmp/course_engine/runs/<run_id>/run.json` + `assets/` + `compose/manife
 
 ## Pendiente (siguientes slices)
 
-- [ ] Imágenes: DALL-E / Stable Diffusion por escena
-- [ ] `video_ia`: integración proveedor (Runway/Pika — evaluar costo)
-- [ ] ffmpeg concat real (audio + slides)
+- [x] Imágenes: `gpt-image-1` por escena
+- [x] ffmpeg concat (audio + slides + zoom)
+- [x] `CourseVideoGenerator` → MP4 local + S3
+- [x] **Runway** (`runway_service.py`) — tier `estandar`/`premium`, escenas `video_ia`
 - [ ] Modelos DB `CourseGenerationRun` / `MediaAsset`
 - [ ] Admin UI Module Builder
+- [ ] Celery async
 - [ ] Deploy prod solo con `COURSE_ENGINE_ENABLED=true` + QA_PASS
+
+## Runway — video IA (4–10 s)
+
+1. Cuenta en [dev.runwayml.com](https://dev.runwayml.com) → API Keys
+2. En `.env`:
+   ```
+   RUNWAY_API_KEY=key_...
+   RUNWAY_IMAGE_TO_VIDEO_MODEL=gen4_turbo   # mas barato con keyframe
+   RUNWAY_DURATION_SEC=4
+   ```
+3. Smoke (sin pipeline completo):
+   ```powershell
+   python manage.py course_engine_runway_smoke --use-last-run --duration 4
+   python manage.py course_engine_runway_smoke --texto "Campo de cafe al amanecer" --duration 4
+   ```
+4. Video completo con 1 escena `video_ia` → tier `estandar`:
+   ```powershell
+   python manage.py course_engine_generate_video --cliente-id 1 --curso-id 22 --brief "Broca del cafe" --tier estandar
+   ```
+
+| Modelo Runway | Modo | Costo aprox | Cuándo |
+|---------------|------|-------------|--------|
+| `gen4_turbo` | image→video | ~5 cr/s | **Default eki** — keyframe + movimiento |
+| `gen4.5` | text→video | ~12 cr/s | Smoke sin imagen |
+| `veo3.1_fast` | text/image | ~10–15 cr/s | Mayor calidad, mas caro |
+
+Alternativas futuras: Replicate (SVD), Fal.ai — evaluar si Runway supera presupuesto.
 
 ## Rama git
 

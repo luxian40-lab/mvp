@@ -1373,6 +1373,36 @@ class Curso(models.Model):
         help_text='0 = flujo libre. >0 bloquea avance hasta cumplir días entre módulos. Para el mismo curso en varias empresas con ritmos distintos, usar Configuración drip en el admin del Cliente.'
     )
 
+    # Course Engine — defaults del curso (modulo puede override)
+    course_engine_tier = models.CharField(
+        max_length=20,
+        choices=[
+            ('economico', 'Economico (~20-30 s, sin Runway)'),
+            ('estandar', 'Estandar (~25-35 s, 1 clip Runway)'),
+            ('premium', 'Premium (~35-50 s, hasta 3 clips Runway)'),
+        ],
+        default='economico',
+        verbose_name='Tier video IA (default curso)',
+        help_text='Tier por defecto al generar micro-videos de modulos. Cada modulo puede override.',
+    )
+    course_engine_voice_id = models.CharField(
+        max_length=80,
+        blank=True,
+        default='',
+        verbose_name='ElevenLabs Voice ID',
+        help_text=(
+            'ID de voz ElevenLabs (biblioteca o voz clonada del cliente). '
+            'Ej. Wb1wmVQjMx9g2QSIOTPI. Si vacio, usa ELEVENLABS_VOICE_ID del entorno.'
+        ),
+    )
+    course_engine_voice_label = models.CharField(
+        max_length=120,
+        blank=True,
+        default='',
+        verbose_name='Nombre visible de la voz',
+        help_text='Etiqueta ops: «Voz Maria», «Agronomo cliente Cenipalma», etc.',
+    )
+
     # Activador del formulario GEI sin tocar TipoFormulario.
     tiene_formulario_gei = models.BooleanField(
         default=False,
@@ -2323,6 +2353,42 @@ class Modulo(models.Model):
         null=True,
         help_text="URL de la imagen de portada del módulo"
     )
+
+    # Course Engine — override opcional (hereda del curso si vacio)
+    course_engine_tier = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        choices=[
+            ('', '— Heredar del curso —'),
+            ('economico', 'Economico (~20-30 s, sin Runway)'),
+            ('estandar', 'Estandar (~25-35 s, 1 clip Runway)'),
+            ('premium', 'Premium (~35-50 s, hasta 3 clips Runway)'),
+        ],
+        verbose_name='Tier video IA (modulo)',
+        help_text='Vacío = usa tier del curso. Use estandar/premium solo en modulos hero.',
+    )
+    course_engine_voice_id = models.CharField(
+        max_length=80,
+        blank=True,
+        default='',
+        verbose_name='ElevenLabs Voice ID (modulo)',
+        help_text='Override del curso. Util para voz clonada del cliente en un modulo concreto.',
+    )
+    course_engine_voice_label = models.CharField(
+        max_length=120,
+        blank=True,
+        default='',
+        verbose_name='Nombre visible de la voz (modulo)',
+    )
+
+    def get_course_engine_tier(self) -> str:
+        from core.course_engine.voice_config import resolver_tier_modulo
+        return resolver_tier_modulo(self)
+
+    def get_course_engine_voice_id(self) -> str | None:
+        from core.course_engine.voice_config import resolver_voice_id_modulo
+        return resolver_voice_id_modulo(self)
 
     def get_video_url_publica(self):
         """

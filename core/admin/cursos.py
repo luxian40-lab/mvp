@@ -1,4 +1,5 @@
 from core.admin._common import *  # noqa: F401,F403
+from core.admin.forms_course_engine import CourseEngineVoiceMixin, CursoCourseEngineForm
 from core.orden_bloques import (
     intercambiar_orden,
     preparar_ordenes_temporales,
@@ -275,6 +276,7 @@ class PreguntaAbiertaFinalInline(admin.TabularInline):
 @admin.register(Curso)
 class CursoAdmin(admin.ModelAdmin):
     """Administración de cursos"""
+    form = CursoCourseEngineForm
     change_form_template = 'admin/core/curso/change_form.html'
     # Listado limpio P1: ≤6 columnas (RAG/GEI/IA/orden → ficha o acciones).
     list_display = (
@@ -293,6 +295,7 @@ class CursoAdmin(admin.ModelAdmin):
     search_fields = ('nombre', 'descripcion', 'cliente__nombre')
     list_editable = ()
     inlines = [ModuloInline, DocumentoRAGInline, PreguntaAbiertaFinalInline]
+    readonly_fields = ('course_engine_voz_preview',)
     actions = [
         'ver_todos_modulos', 'añadir_clase_rapida',
         'indexar_documentos_rag', 'indexar_contenido_modulos',
@@ -356,6 +359,25 @@ class CursoAdmin(admin.ModelAdmin):
                 '<a href="/admin/gei/panel/" target="_blank">Panel GEI</a></p>'
             ),
         }),
+        ('Course Engine (video IA)', {
+            'classes': ('collapse',),
+            'fields': (
+                'course_engine_tier',
+                'course_engine_voz_catalogo',
+                'course_engine_voice_id',
+                'course_engine_voice_label',
+                'course_engine_voz_preview',
+            ),
+            'description': mark_safe(
+                '<p><strong>Tier y voz default</strong> para generar micro-videos de modulos.</p>'
+                '<ul style="margin:0.4rem 0 0;padding-left:1.2rem;">'
+                '<li><strong>Voice ID</strong> = ID ElevenLabs (biblioteca o voz clonada del cliente). '
+                'Copiarlo en <a href="https://elevenlabs.io/app/voice-library" target="_blank">Voice Library</a> '
+                'o tras clonar voz en ElevenLabs.</li>'
+                '<li>Cada modulo puede override tier/voz en su ficha.</li>'
+                '</ul>'
+            ),
+        }),
     )
     
     def cliente_nombre(self, obj):
@@ -381,12 +403,38 @@ class CursoAdmin(admin.ModelAdmin):
         urls = super().get_urls()
         custom = [
             path(
+                '<int:curso_id>/preview-voz/',
+                self.admin_site.admin_view(self.preview_voz_curso_view),
+                name='core_curso_preview_voz',
+            ),
+            path(
                 '<int:curso_id>/publicar-modulos/',
                 self.admin_site.admin_view(self.publicar_modulos_curso_view),
                 name='core_curso_publicar_modulos',
             ),
         ]
         return custom + urls
+
+    def preview_voz_curso_view(self, request, curso_id):
+        from core.admin.course_engine_voice import preview_voz_curso_view
+        return preview_voz_curso_view(request, curso_id)
+
+    def course_engine_voz_preview(self, obj):
+        from django.urls import reverse
+
+        from core.admin.course_engine_voice import html_boton_preview_voz
+        from core.course_engine.voice_config import resolver_voice_id_curso
+
+        if not obj or not obj.pk:
+            return mark_safe('<p style="color:#666;margin:0;">Guarde el curso para probar la voz.</p>')
+        url = reverse('admin:core_curso_preview_voz', args=[obj.pk])
+        vid = resolver_voice_id_curso(obj)
+        label = (obj.course_engine_voice_label or '').strip() or 'Voz del curso'
+        return html_boton_preview_voz(
+            preview_url=url, voice_id=vid, label=label,
+            curso_or_modulo_id=obj.pk, es_modulo=False,
+        )
+    course_engine_voz_preview.short_description = 'Prueba QA'
 
     @admin.action(description='Publicar módulos listos (checklist OK)')
     def publicar_modulos_seleccionados(self, request, queryset):
@@ -1072,7 +1120,7 @@ class PasoModuloForm(forms.ModelForm):
         return instance
 
 
-class ModuloAdminForm(forms.ModelForm):
+class ModuloAdminForm(CourseEngineVoiceMixin, forms.ModelForm):
     """Form módulo + pestaña Clase simple (escribe el 1er PasoModulo)."""
 
     clase_texto = forms.CharField(
@@ -1588,7 +1636,7 @@ class ModuloAdmin(admin.ModelAdmin):
     list_per_page = 50
     ordering = ['curso__nombre', 'numero']
     autocomplete_fields = ('curso',)
-    readonly_fields = ('guia_microcontenidos_whatsapp',)
+    readonly_fields = ('guia_microcontenidos_whatsapp', 'course_engine_voz_preview')
     inlines = [SeccionModuloInline, PasoModuloInline]
     actions = ['enviar_archivos_multimedia', 'ver_archivos_multimedia', 'renumerar_modulos']
     actions_detail = ['abrir_module_builder']
@@ -1596,6 +1644,11 @@ class ModuloAdmin(admin.ModelAdmin):
     def get_urls(self):
         urls = super().get_urls()
         custom = [
+            path(
+                '<int:modulo_id>/preview-voz/',
+                self.admin_site.admin_view(self.preview_voz_modulo_view),
+                name='core_modulo_preview_voz',
+            ),
             path(
                 '<int:modulo_id>/publicar/',
                 self.admin_site.admin_view(self.publicar_modulo_view),
@@ -1617,6 +1670,27 @@ class ModuloAdmin(admin.ModelAdmin):
             ),
         ]
         return custom + urls
+
+    def preview_voz_modulo_view(self, request, modulo_id):
+        from core.admin.course_engine_voice import preview_voz_modulo_view
+        return preview_voz_modulo_view(request, modulo_id)
+
+    def course_engine_voz_preview(self, obj):
+        from django.urls import reverse
+
+        from core.admin.course_engine_voice import html_boton_preview_voz
+        from core.course_engine.voice_config import resolver_voice_label_modulo
+
+        if not obj or not obj.pk:
+            return mark_safe('<p style="color:#666;margin:0;">Guarde el modulo para probar la voz.</p>')
+        url = reverse('admin:core_modulo_preview_voz', args=[obj.pk])
+        vid = obj.get_course_engine_voice_id()
+        label = resolver_voice_label_modulo(obj)
+        return html_boton_preview_voz(
+            preview_url=url, voice_id=vid, label=label,
+            curso_or_modulo_id=obj.pk, es_modulo=True,
+        )
+    course_engine_voz_preview.short_description = 'Prueba QA'
 
     def publicar_modulo_view(self, request, modulo_id):
         from core.modulo_publicacion import publicar_modulo_wa
@@ -1954,6 +2028,25 @@ class ModuloAdmin(admin.ModelAdmin):
                 'description': (
                     'Flujo recomendado para Aprende / clases. '
                     'No pegue el nombre del archivo; use Subir material.'
+                ),
+            },
+        ),
+        (
+            'Course Engine',
+            {
+                'classes': ['tab'],
+                'fields': (
+                    'course_engine_tier',
+                    'course_engine_voz_catalogo',
+                    'course_engine_voice_id',
+                    'course_engine_voice_label',
+                    'course_engine_voz_preview',
+                    'video_url',
+                    'video_archivo',
+                ),
+                'description': (
+                    'Tier/voz para generar micro-video del modulo. Vacio = hereda del curso. '
+                    'Voice ID = ElevenLabs (voz clonada del cliente o biblioteca).'
                 ),
             },
         ),

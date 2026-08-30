@@ -18,14 +18,20 @@ from core.course_engine.budget import (
     VideoTier,
     aplicar_limites_storyboard,
     estimar_costo_storyboard,
+    promover_escena_runway,
     validar_presupuesto,
 )
-from core.course_engine.clip_builder import concatenar_clips, construir_clip_escena
+from core.course_engine.clip_builder import (
+    concatenar_clips,
+    construir_clip_desde_video_ia,
+    construir_clip_escena,
+)
 from core.course_engine.compose import subir_video_s3
 from core.course_engine.image_service import generar_imagen_escena
 from core.course_engine.lesson import generar_leccion
 from core.course_engine.local_store import guardar_run, local_runs_root
 from core.course_engine.rag_source import obtener_contexto_rag_empresa, resumen_documentos_curso
+from core.course_engine.runway_service import generar_video_desde_imagen, runway_disponible
 from core.course_engine.storyboard import generar_storyboard
 from core.course_engine.tts import generar_narracion_archivo, ultimo_error_tts
 from core.course_engine.types import CourseEngineRun, SceneType
@@ -56,7 +62,23 @@ class CourseVideoGenerator:
         tier: str = 'economico',
         modelo: str = 'gpt-4o-mini',
         dry_run: bool = False,
+        modulo_id: Optional[int] = None,
+        voice_id: Optional[str] = None,
     ) -> VideoGenerateResult:
+        voice_label = ''
+        if modulo_id:
+            from core.models import Modulo
+            from core.course_engine.voice_config import config_modulo
+
+            modulo = Modulo.objects.select_related('curso').filter(pk=modulo_id).first()
+            if modulo:
+                cfg = config_modulo(modulo)
+                tier = cfg['tier']
+                voice_id = voice_id or cfg['voice_id']
+                voice_label = cfg['voice_label']
+                if not brief.strip():
+                    brief = (modulo.titulo or modulo.descripcion or '')[:500]
+
         run_id = uuid.uuid4().hex[:12]
         run_dir = local_runs_root() / run_id
         run = CourseEngineRun(
@@ -66,7 +88,10 @@ class CourseVideoGenerator:
             brief=brief.strip(),
         )
         result = VideoGenerateResult(run=run)
-        result.pasos.append('Analizando lección…')
+        if voice_label:
+            result.pasos.append(f'Voz: {voice_label}')
+        result.pasos.append(f'Tier: {tier}')
+        result.pasos.append('Analizando leccion...')
 
         rag_ctx, rag_ok = obtener_contexto_rag_empresa(cliente_id, curso_id, brief)
         if not rag_ok:
@@ -88,7 +113,7 @@ class CourseVideoGenerator:
             return result
         run.analysis = analysis
 
-        result.pasos.append('Creando storyboard…')
+        result.pasos.append('Creando storyboard...')
         sb = generar_storyboard(lesson, analysis, modelo=modelo, tier=tier)
         if not sb:
             run.errors.append('Falló storyboard')
@@ -96,6 +121,7 @@ class CourseVideoGenerator:
             return result
 
         sb = aplicar_limites_storyboard(sb, tier)
+        sb = promover_escena_runway(sb, tier)
         ok, costo_est, msg = validar_presupuesto(sb, tier)
         result.costo_estimado_usd = costo_est
         if not ok:
@@ -115,33 +141,67 @@ class CourseVideoGenerator:
             guardar_run(run)
             return result
 
-        result.pasos.append('Generando recursos…')
+        result.pasos.append('Generando imagenes...')
         costo_real = 0.0
         clips_dir = run_dir / 'clips'
         clips: list[Path] = []
         escenas_out = []
+        img_by_orden: dict[int, Path] = {}
+        img_meta_by_orden: dict[int, dict] = {}
+        runway_by_orden: dict[int, Path] = {}
 
         for escena in sb.escenas:
+            if escena.tipo in _SKIP_IMAGE:
+                continue
+            img_res = generar_imagen_escena(escena, run_dir)
+            if not img_res:
+                run.errors.append(f'Imagen fallo escena {escena.orden} — abortado (fail-fast)')
+                guardar_run(run)
+                return result
+            img_by_orden[escena.orden] = img_res.local_path
+            costo_real += img_res.cost_usd
+            meta = {'image_local': str(img_res.local_path)}
+            if img_res.url:
+                meta['image_url'] = img_res.url
+            img_meta_by_orden[escena.orden] = meta
+
+        if runway_disponible():
+            for escena in sb.escenas:
+                if escena.tipo != SceneType.VIDEO_IA:
+                    continue
+                img_path = img_by_orden.get(escena.orden)
+                if not img_path:
+                    run.errors.append(f'video_ia escena {escena.orden} sin keyframe')
+                    continue
+                img_meta = img_meta_by_orden.get(escena.orden, {})
+                prompt = (escena.notas_visuales or escena.titulo or escena.guion or '').strip()
+                rv = generar_video_desde_imagen(
+                    prompt=prompt,
+                    run_dir=run_dir,
+                    escena_orden=escena.orden,
+                    local_image=img_path,
+                    image_url=img_meta.get('image_url'),
+                )
+                if rv:
+                    runway_by_orden[escena.orden] = rv.local_path
+                    costo_real += rv.cost_usd
+                    img_meta_by_orden.setdefault(escena.orden, {})['runway_local'] = str(rv.local_path)
+                    img_meta_by_orden[escena.orden]['runway_model'] = rv.model
+                else:
+                    run.errors.append(f'Runway fallo escena {escena.orden} — usa imagen_zoom')
+
+        result.pasos.append('Generando audio y clips...')
+        for escena in sb.escenas:
             meta = dict(escena.metadata)
-            img_path: Optional[Path] = None
+            meta.update(img_meta_by_orden.get(escena.orden, {}))
+            img_path: Optional[Path] = img_by_orden.get(escena.orden)
             audio_path: Optional[Path] = None
             asset_url = escena.asset_url
-
-            if escena.tipo not in _SKIP_IMAGE:
-                img_res = generar_imagen_escena(escena, run_dir)
-                if img_res:
-                    img_path = img_res.local_path
-                    costo_real += img_res.cost_usd
-                    meta['image_local'] = str(img_path)
-                    if img_res.url:
-                        meta['image_url'] = img_res.url
-                else:
-                    run.errors.append(f'Imagen falló escena {escena.orden}')
 
             guion = (escena.guion or escena.titulo or '').strip()
             if guion:
                 audio_dest = run_dir / 'audio' / f'escena_{escena.orden:02d}.mp3'
-                tts = generar_narracion_archivo(guion, audio_dest)
+                tts = generar_narracion_archivo(guion, audio_dest, voice=voice_id)
                 if tts:
                     audio_path = audio_dest
                     meta['tts_provider'] = tts.provider
@@ -150,7 +210,19 @@ class CourseVideoGenerator:
                     err = ultimo_error_tts() or 'TTS falló'
                     run.errors.append(f'Audio escena {escena.orden}: {err}')
 
-            if img_path:
+            if runway_by_orden.get(escena.orden):
+                clip_out = clips_dir / f'escena_{escena.orden:02d}.mp4'
+                if construir_clip_desde_video_ia(
+                    video_path=runway_by_orden[escena.orden],
+                    audio_path=audio_path,
+                    salida=clip_out,
+                ):
+                    clips.append(clip_out)
+                    meta['clip'] = str(clip_out)
+                    meta['video_ia'] = True
+                else:
+                    run.errors.append(f'Clip video_ia ffmpeg fallo escena {escena.orden}')
+            elif img_path:
                 clip_out = clips_dir / f'escena_{escena.orden:02d}.mp4'
                 if construir_clip_escena(
                     imagen_path=img_path,
@@ -197,7 +269,7 @@ class CourseVideoGenerator:
             guardar_run(run)
             return result
 
-        result.pasos.append('Componiendo video…')
+        result.pasos.append('Componiendo video...')
         final_local = run_dir / 'compose' / 'video_final.mp4'
         if not concatenar_clips(clips, final_local):
             run.errors.append('Concat ffmpeg falló')
@@ -208,10 +280,10 @@ class CourseVideoGenerator:
         url = subir_video_s3(final_local, run_id)
         if url:
             run.video_url = url
-            result.pasos.append('✓ Video listo')
+            result.pasos.append('OK Video listo')
         else:
-            run.errors.append('MP4 local OK pero falló upload S3')
-            result.pasos.append('✓ Video local (S3 pendiente)')
+            run.errors.append('MP4 local OK pero fallo upload S3')
+            result.pasos.append('OK Video local (S3 pendiente)')
 
         guardar_run(run)
         result.run = run

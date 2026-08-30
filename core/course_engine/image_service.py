@@ -26,6 +26,13 @@ class ImageResult:
     cost_usd: float
 
 
+def _quality_for_model(model: str) -> str:
+    """gpt-image-1: low|medium|high|auto; dall-e-3: standard|hd."""
+    if 'dall-e' in model.lower():
+        return 'standard'
+    return 'medium'
+
+
 def _prompt_escena(escena: Scene) -> str:
     base = (escena.notas_visuales or escena.titulo or 'Ilustración educativa rural').strip()
     if escena.tipo == SceneType.DIAGRAMA:
@@ -61,20 +68,31 @@ def generar_imagen_escena(
 
             openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
-        resp = openai_client.images.generate(
-            model='dall-e-3',
-            prompt=prompt[:4000],
-            size='1024x1024',
-            quality='standard',
-            n=1,
-            response_format='b64_json',
-        )
-        import base64
+        model = getattr(settings, 'COURSE_ENGINE_IMAGE_MODEL', 'gpt-image-1')
+        quality = getattr(settings, 'COURSE_ENGINE_IMAGE_QUALITY', '') or _quality_for_model(model)
+        kwargs = {
+            'model': model,
+            'prompt': prompt[:4000],
+            'size': '1024x1024',
+            'n': 1,
+        }
+        if quality:
+            kwargs['quality'] = quality
+        resp = openai_client.images.generate(**kwargs)
+        item = resp.data[0]
+        data = None
+        if getattr(item, 'b64_json', None):
+            import base64
 
-        b64 = resp.data[0].b64_json
-        if not b64:
+            data = base64.b64decode(item.b64_json)
+        elif getattr(item, 'url', None):
+            import httpx
+
+            dl = httpx.get(item.url, timeout=90, follow_redirects=True)
+            dl.raise_for_status()
+            data = dl.content
+        if not data:
             return None
-        data = base64.b64decode(b64)
         local_path.write_bytes(data)
     except Exception as exc:
         logger.exception('DALL-E escena %s: %s', escena.orden, exc)

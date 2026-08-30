@@ -20,9 +20,10 @@ def analizar_leccion(
     modelo: str = DEFAULT_MODEL,
     openai_client=None,
 ) -> Optional[LessonAnalysis]:
-    from core.utils_ia import validar_modelo_ia_disponible
+    if openai_client is None:
+        from core.course_engine.openai_guard import validar_openai_disponible
 
-    validar_modelo_ia_disponible(modelo)
+        validar_openai_disponible(modelo)
 
     system = (
         'Analiza la lección para video microlearning WhatsApp (≤3 min ideal). '

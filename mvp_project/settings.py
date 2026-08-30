@@ -379,6 +379,22 @@ COURSE_ENGINE_DRY_RUN = os.environ.get('COURSE_ENGINE_DRY_RUN', 'false').strip()
     '1', 'true', 'yes', 'on',
 )
 COURSE_ENGINE_MAX_USD_PER_RUN = float(os.environ.get('COURSE_ENGINE_MAX_USD_PER_RUN', '2') or 2)
+COURSE_ENGINE_IMAGE_MODEL = os.environ.get('COURSE_ENGINE_IMAGE_MODEL', 'gpt-image-1')
+COURSE_ENGINE_IMAGE_QUALITY = os.environ.get('COURSE_ENGINE_IMAGE_QUALITY', '')
+# Runway Dev — video IA (tier estandar/premium)
+RUNWAY_API_KEY = os.environ.get('RUNWAY_API_KEY', '')
+RUNWAY_IMAGE_TO_VIDEO_MODEL = os.environ.get('RUNWAY_IMAGE_TO_VIDEO_MODEL', 'gen4_turbo')
+RUNWAY_TEXT_TO_VIDEO_MODEL = os.environ.get('RUNWAY_TEXT_TO_VIDEO_MODEL', 'gen4.5')
+RUNWAY_DURATION_SEC = int(os.environ.get('RUNWAY_DURATION_SEC', '4') or 4)
+RUNWAY_RATIO = os.environ.get('RUNWAY_RATIO', '1280:720')
+# Catalogo voces eki (JSON en EB) — default 2F+2M en voice_config.DEFAULT_VOICES
+try:
+    import json as _json
+
+    _voices_json = os.environ.get('COURSE_ENGINE_VOICES_JSON', '').strip()
+    COURSE_ENGINE_VOICES = _json.loads(_voices_json) if _voices_json else []
+except (TypeError, ValueError):
+    COURSE_ENGINE_VOICES = []
 
 # ==========================================
 # 🌾 BOT COMERCIAL IA (Nodo Comercial)
