@@ -5,6 +5,7 @@ import hashlib
 import logging
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal, Optional
 
 from django.conf import settings
@@ -12,6 +13,8 @@ from django.conf import settings
 from core.twilio_media import _subir_bytes_s3
 
 logger = logging.getLogger(__name__)
+
+_last_tts_error: Optional[str] = None
 
 MAX_TTS_CHARS = 4096
 S3_PREFIX = 'media/course_engine/tts'
@@ -27,6 +30,7 @@ class TtsResult:
     provider: str
     voice: str
     text_hash: str
+    local_path: Optional[str] = None
 
 
 def _text_hash(texto: str, provider: str, voice: str) -> str:
@@ -48,6 +52,29 @@ def _provider_default() -> TtsProviderName:
     return 'openai' if p == 'openai' else 'elevenlabs'
 
 
+def ultimo_error_tts() -> Optional[str]:
+    """Detalle del último fallo TTS (para smoke / ops)."""
+    return _last_tts_error
+
+
+def _set_tts_error(msg: Optional[str]) -> None:
+    global _last_tts_error
+    _last_tts_error = msg
+
+
+def _mensaje_error_elevenlabs(resp) -> str:
+    try:
+        body = resp.json()
+        detail = body.get('detail') or body
+        if isinstance(detail, dict):
+            code = detail.get('code') or detail.get('type') or 'error'
+            message = detail.get('message') or str(detail)
+            return f'ElevenLabs {code}: {message}'
+        return f'ElevenLabs HTTP {resp.status_code}: {detail}'
+    except Exception:
+        return f'ElevenLabs HTTP {resp.status_code}'
+
+
 def generar_narracion(
     texto: str,
     *,
@@ -60,6 +87,7 @@ def generar_narracion(
     Default: ElevenLabs (voz natural ES). Fallback: OpenAI TTS si ElevenLabs falla
     y COURSE_ENGINE_TTS_FALLBACK_OPENAI=true.
     """
+    _set_tts_error(None)
     clean = _sanitize(texto)
     if not clean:
         return None
@@ -78,23 +106,63 @@ def generar_narracion(
     return result
 
 
-def _upload_mp3(key: str, data: bytes, provider: str, voice: str, text_hash: str) -> Optional[TtsResult]:
+def generar_narracion_archivo(
+    texto: str,
+    dest: Path,
+    *,
+    provider: Optional[TtsProviderName] = None,
+    voice: Optional[str] = None,
+) -> Optional[TtsResult]:
+    """TTS → archivo local MP3 (+ S3 si está configurado)."""
+    _set_tts_error(None)
+    clean = _sanitize(texto)
+    if not clean:
+        return None
+
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    prov = provider or _provider_default()
+
+    if prov == 'elevenlabs':
+        result = _tts_elevenlabs(clean, voice=voice, local_copy=dest)
+    else:
+        result = _tts_openai(clean, voice=voice or 'nova', local_copy=dest)
+
+    if result is None and prov == 'elevenlabs' and getattr(settings, 'COURSE_ENGINE_TTS_FALLBACK_OPENAI', True):
+        result = _tts_openai(clean, voice='nova', local_copy=dest)
+    return result
+
+
+def _upload_mp3(
+    key: str,
+    data: bytes,
+    provider: str,
+    voice: str,
+    text_hash: str,
+    *,
+    local_copy: Optional[Path] = None,
+) -> Optional[TtsResult]:
     if not data or len(data) > 16 * 1024 * 1024:
         return None
+    local_str = None
+    if local_copy:
+        local_copy.parent.mkdir(parents=True, exist_ok=True)
+        local_copy.write_bytes(data)
+        local_str = str(local_copy)
     url = _subir_bytes_s3(key, data, 'audio/mpeg')
-    if not url:
+    if not url and not local_str:
         return None
     return TtsResult(
-        url=url,
+        url=url or '',
         s3_key=key,
         bytes_size=len(data),
         provider=provider,
         voice=voice,
         text_hash=text_hash,
+        local_path=local_str,
     )
 
 
-def _tts_elevenlabs(texto: str, *, voice: Optional[str] = None) -> Optional[TtsResult]:
+def _tts_elevenlabs(texto: str, *, voice: Optional[str] = None, local_copy: Optional[Path] = None) -> Optional[TtsResult]:
     api_key = getattr(settings, 'ELEVENLABS_API_KEY', None)
     voice_id = voice or getattr(settings, 'ELEVENLABS_VOICE_ID', None)
     model_id = getattr(settings, 'ELEVENLABS_MODEL_ID', 'eleven_multilingual_v2')
@@ -129,14 +197,19 @@ def _tts_elevenlabs(texto: str, *, voice: Optional[str] = None) -> Optional[TtsR
             },
             timeout=120.0,
         )
-        resp.raise_for_status()
-        return _upload_mp3(key, resp.content, 'elevenlabs', voice_id, th)
+        if resp.status_code >= 400:
+            err = _mensaje_error_elevenlabs(resp)
+            _set_tts_error(err)
+            logger.error(err)
+            return None
+        return _upload_mp3(key, resp.content, 'elevenlabs', voice_id, th, local_copy=local_copy)
     except Exception as exc:
+        _set_tts_error(str(exc))
         logger.exception('ElevenLabs TTS: %s', exc)
         return None
 
 
-def _tts_openai(texto: str, *, voice: str = 'nova') -> Optional[TtsResult]:
+def _tts_openai(texto: str, *, voice: str = 'nova', local_copy: Optional[Path] = None) -> Optional[TtsResult]:
     api_key = getattr(settings, 'OPENAI_API_KEY', None)
     if not api_key:
         return None
@@ -156,7 +229,7 @@ def _tts_openai(texto: str, *, voice: str = 'nova') -> Optional[TtsResult]:
             input=texto,
             response_format='mp3',
         )
-        return _upload_mp3(key, response.content, 'openai', v, th)
+        return _upload_mp3(key, response.content, 'openai', v, th, local_copy=local_copy)
     except Exception as exc:
         logger.exception('OpenAI TTS: %s', exc)
         return None

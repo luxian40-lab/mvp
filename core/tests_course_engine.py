@@ -18,6 +18,7 @@ class ElevenLabsTtsTests(SimpleTestCase):
     def test_genera_y_sube_via_elevenlabs(self):
         fake_url = 'https://eki-produccion.s3.us-east-2.amazonaws.com/media/course_engine/tts/abc.mp3'
         mock_resp = MagicMock()
+        mock_resp.status_code = 200
         mock_resp.content = b'\xff\xfb' + b'0' * 50
         mock_resp.raise_for_status = MagicMock()
 

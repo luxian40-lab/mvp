@@ -375,6 +375,10 @@ COURSE_ENGINE_LOCAL_DIR = os.environ.get('COURSE_ENGINE_LOCAL_DIR', '')
 ELEVENLABS_API_KEY = os.environ.get('ELEVENLABS_API_KEY')
 ELEVENLABS_VOICE_ID = os.environ.get('ELEVENLABS_VOICE_ID', '')
 ELEVENLABS_MODEL_ID = os.environ.get('ELEVENLABS_MODEL_ID', 'eleven_multilingual_v2')
+COURSE_ENGINE_DRY_RUN = os.environ.get('COURSE_ENGINE_DRY_RUN', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
+COURSE_ENGINE_MAX_USD_PER_RUN = float(os.environ.get('COURSE_ENGINE_MAX_USD_PER_RUN', '2') or 2)
 
 # ==========================================
 # 🌾 BOT COMERCIAL IA (Nodo Comercial)

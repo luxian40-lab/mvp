@@ -37,6 +37,7 @@ def generar_storyboard(
     analysis: LessonAnalysis,
     *,
     modelo: str = DEFAULT_MODEL,
+    tier: str = 'economico',
     openai_client=None,
 ) -> Optional[Storyboard]:
     if openai_client is None:
@@ -47,6 +48,13 @@ def generar_storyboard(
     payload = {
         'leccion': lesson.to_dict(),
         'analisis': analysis.to_dict(),
+        'tier': tier,
+        'reglas_video': (
+            'Cada escena visual debe incluir guion (narración) y notas_visuales (qué mostrar). '
+            'NO uses video_ia en tier economico — usa imagen_zoom en su lugar. '
+            'Prioriza imagen y diagrama; zoom antes que video. '
+            'Duración total objetivo ~60-90 segundos.'
+        ),
     }
 
     try:
