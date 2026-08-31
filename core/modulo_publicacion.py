@@ -366,6 +366,39 @@ def listar_problemas_media_modulo(modulo) -> list[dict]:
     return out
 
 
+def estado_upload_ui_paso(paso) -> dict:
+    """Estado visible en Builder: idle|uploading|processing|ready|failed + label + css."""
+    from core.media_encode_async import estado_encode_paso
+
+    url = (getattr(paso, 'media_url', None) or '').strip()
+    if paso and getattr(paso, 'pk', None):
+        enc = estado_encode_paso(paso.pk)
+        if enc:
+            st = enc.get('status')
+            if st in ('pending', 'running'):
+                return {
+                    'code': 'processing',
+                    'label': 'Procesando video… (~1–3 min)',
+                    'css': 'warn',
+                }
+            if st == 'error':
+                err = (enc.get('error') or 'Error al procesar video')[:120]
+                return {'code': 'failed', 'label': err, 'css': 'fail'}
+    prob = detalle_problema_media_paso(paso) if url else None
+    if prob:
+        css = 'fail' if prob.get('codigo') == 'fail' else 'warn'
+        return {'code': prob['codigo'], 'label': prob['detalle'], 'css': css}
+    if url and getattr(paso, 'media_wa_apto', None) is True:
+        return {'code': 'ready', 'label': 'Listo para WhatsApp', 'css': 'ok'}
+    if url and getattr(paso, 'media_wa_apto', None) is False:
+        return {
+            'code': 'failed',
+            'label': 'No apto WA — borrá URL, Guardá, subí MP4 H.264+AAC',
+            'css': 'fail',
+        }
+    return {'code': 'idle', 'label': '', 'css': 'na'}
+
+
 def _mensaje_checklist_media_paso(paso, *, prefijo: str = '') -> str:
     prob = detalle_problema_media_paso(paso)
     if prob:

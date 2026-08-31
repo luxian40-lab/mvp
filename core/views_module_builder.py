@@ -107,6 +107,76 @@ def module_builder_view(request, modulo_id: int):
                         messages.info(request, mensaje_upload_media(resultado))
                     else:
                         messages.success(request, 'Microcontenido añadido.')
+            elif action == 'save_modulo':
+                paso_ids: set[int] = set()
+                for key in request.POST:
+                    if not key.startswith('paso_'):
+                        continue
+                    parts = key.split('_', 2)
+                    if len(parts) >= 2 and parts[1].isdigit():
+                        paso_ids.add(int(parts[1]))
+                guardados = 0
+                for pid in sorted(paso_ids):
+                    paso = PasoModulo.objects.filter(pk=pid, modulo=modulo).first()
+                    if not paso:
+                        continue
+                    titulo = request.POST.get(f'paso_{pid}_titulo')
+                    contenido = request.POST.get(f'paso_{pid}_contenido')
+                    activo_raw = request.POST.get(f'paso_{pid}_activo')
+                    activo = activo_raw in ('1', 'on', 'true', 'True')
+                    media_url_clear = request.POST.get(f'paso_{pid}_clear_media') == '1'
+                    update_fields = {}
+                    if titulo is not None:
+                        update_fields['titulo'] = titulo
+                    if contenido is not None:
+                        update_fields['contenido'] = contenido
+                    update_fields['activo'] = activo
+                    actualizar_micro(paso, **update_fields)
+                    if media_url_clear and (paso.media_url or '').strip():
+                        paso.media_url = ''
+                        paso.media_wa_apto = None
+                        paso.save(update_fields=['media_url', 'media_wa_apto'])
+                        from core.media_encode_async import limpiar_estado_encode_paso
+
+                        limpiar_estado_encode_paso(paso.pk)
+                    guardados += 1
+                if guardados:
+                    messages.success(request, f'Módulo guardado ({guardados} micro(s) actualizados).')
+                else:
+                    messages.info(request, 'Nada que guardar.')
+            elif action == 'replace_media':
+                paso_id = int(request.POST.get('paso_id') or 0)
+                paso = get_object_or_404(PasoModulo, pk=paso_id, modulo=modulo)
+                uploaded = request.FILES.get('media_file')
+                if not uploaded:
+                    messages.error(request, 'Elegí un archivo para subir.')
+                else:
+                    from core.admin._common import guardar_upload_admin_media_resultado
+                    from core.media_encode_async import (
+                        aplicar_resultado_upload_async,
+                        limpiar_estado_encode_paso,
+                        mensaje_upload_media,
+                    )
+
+                    limpiar_estado_encode_paso(paso.pk)
+                    resultado = guardar_upload_admin_media_resultado(
+                        uploaded,
+                        carpeta='modulos/pasos',
+                        prefix=f'modulo_{modulo.id}',
+                    )
+                    paso.media_url = resultado['url']
+                    paso.media_wa_apto = resultado.get('media_wa_apto')
+                    paso.save(update_fields=['media_url', 'media_wa_apto'])
+                    if resultado.get('async_encode'):
+                        aplicar_resultado_upload_async(
+                            resultado,
+                            paso.pk,
+                            carpeta=resultado.get('carpeta') or 'modulos/pasos',
+                            prefix=resultado.get('prefix') or f'modulo_{modulo.id}',
+                        )
+                        messages.info(request, mensaje_upload_media(resultado))
+                    else:
+                        messages.success(request, 'Archivo subido y guardado.')
             elif action == 'update_micro':
                 paso_id = int(request.POST.get('paso_id') or 0)
                 paso = get_object_or_404(PasoModulo, pk=paso_id, modulo=modulo)
@@ -162,6 +232,8 @@ def module_builder_view(request, modulo_id: int):
     from core.modulo_publicacion import listar_problemas_media_modulo
 
     media_problemas = listar_problemas_media_modulo(modulo)
+    publicar_url = reverse('admin:core_modulo_publicar', args=[modulo.pk])
+    legacy_url = reverse('admin:core_modulo_change', args=[modulo.pk]) + '?legacy=1'
     n_borradores = sum(
         1
         for b in arbol
@@ -177,6 +249,10 @@ def module_builder_view(request, modulo_id: int):
         'diag': diag,
         'n_borradores': n_borradores,
         'media_problemas': media_problemas,
+        'n_media_problemas': len(media_problemas),
+        'publicar_url': publicar_url,
+        'legacy_url': legacy_url,
+        'modulo_publicado_wa': bool(modulo.publicado_wa),
         'builder_on': True,
         'builder_qs': '?builder=1' if (
             request.GET.get('builder') == '1' or request.POST.get('builder') == '1'

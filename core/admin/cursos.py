@@ -1816,6 +1816,13 @@ class ModuloAdmin(admin.ModelAdmin):
     publicado_wa_badge.short_description = 'Campo WA'
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
+        if request.method == 'GET' and request.GET.get('legacy') != '1':
+            obj = self.get_object(request, object_id)
+            if obj:
+                from core.module_builder import module_builder_habilitado_para_curso
+
+                if module_builder_habilitado_para_curso(getattr(obj, 'curso', None), request):
+                    return redirect('admin_module_builder', modulo_id=obj.pk)
         extra_context = extra_context or {}
         obj = self.get_object(request, object_id)
         if obj:

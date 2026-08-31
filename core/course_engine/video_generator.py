@@ -66,6 +66,9 @@ class CourseVideoGenerator:
         modulo_id: Optional[int] = None,
         voice_id: Optional[str] = None,
         run_id: Optional[str] = None,
+        visual_style: str = '',
+        runway_duration_sec: Optional[int] = None,
+        micro_realista: bool = False,
         _lesson=None,
         _analysis=None,
     ) -> VideoGenerateResult:
@@ -95,6 +98,22 @@ class CourseVideoGenerator:
         if voice_label:
             result.pasos.append(f'Voz: {voice_label}')
         result.pasos.append(f'Tier: {tier}')
+
+        estilo = (visual_style or getattr(settings, 'COURSE_ENGINE_VISUAL_STYLE', '') or '').strip()
+        runway_dur = runway_duration_sec or int(getattr(settings, 'RUNWAY_DURATION_SEC', 4) or 4)
+        runway_dur = max(2, min(10, int(runway_dur)))
+
+        if micro_realista:
+            return self._generar_micro_realista(
+                result=result,
+                run=run,
+                run_dir=run_dir,
+                brief=brief.strip(),
+                voice_id=voice_id,
+                estilo=estilo or 'documental',
+                runway_dur=runway_dur,
+                dry_run=dry_run,
+            )
 
         if _lesson is not None:
             lesson = _lesson
@@ -176,6 +195,7 @@ class CourseVideoGenerator:
                 titulo_leccion=lesson_title,
                 objetivo=lesson_objetivo,
                 brief=brief,
+                estilo=estilo,
             )
             if not img_res:
                 run.errors.append(f'Imagen fallo escena {escena.orden} — abortado (fail-fast)')
@@ -202,12 +222,16 @@ class CourseVideoGenerator:
                     objetivo=lesson_objetivo,
                     brief=brief,
                     storyboard=sb,
+                    estilo=estilo,
                 )
+                rw_model = 'gen4_turbo' if estilo == 'documental' else None
                 rv = generar_video_desde_imagen(
                     prompt=prompt,
                     run_dir=run_dir,
                     escena_orden=escena.orden,
                     local_image=img_path,
+                    duration_sec=runway_dur,
+                    model=rw_model,
                 )
                 if rv:
                     runway_by_orden[escena.orden] = rv.local_path
@@ -321,4 +345,121 @@ class CourseVideoGenerator:
 
         guardar_run(run)
         result.run = run
+        return result
+
+    def _generar_micro_realista(
+        self,
+        *,
+        result: VideoGenerateResult,
+        run: CourseEngineRun,
+        run_dir: Path,
+        brief: str,
+        voice_id: Optional[str],
+        estilo: str,
+        runway_dur: int,
+        dry_run: bool,
+    ) -> VideoGenerateResult:
+        """Un clip corto: keyframe foto documental + Runway + ElevenLabs."""
+        from core.course_engine.keyframe_documental import generar_keyframe_documental
+        from core.course_engine.visual_style import prompt_runway_documental
+
+        if not brief.strip():
+            run.errors.append('Modo micro-realista requiere --brief o --modulo-id')
+            guardar_run(run)
+            return result
+
+        result.pasos.append(
+            f'Micro clip realista {runway_dur}s · estilo {estilo} · Runway + ElevenLabs'
+        )
+        result.costo_estimado_usd = 0.35 + (runway_dur * 0.05)
+
+        if dry_run:
+            result.pasos.append(f'Dry-run OK — est. ${result.costo_estimado_usd:.2f}')
+            guardar_run(run)
+            return result
+
+        if getattr(settings, 'COURSE_ENGINE_DRY_RUN', False):
+            run.errors.append('COURSE_ENGINE_DRY_RUN=true — abortado antes de APIs de pago')
+            guardar_run(run)
+            return result
+
+        if not runway_disponible():
+            run.errors.append('RUNWAY_API_KEY no configurada')
+            guardar_run(run)
+            return result
+
+        run_dir.mkdir(parents=True, exist_ok=True)
+        costo = 0.0
+
+        result.pasos.append('Keyframe documental (OpenAI)...')
+        img_path = generar_keyframe_documental(run_dir, tema=brief)
+        if not img_path:
+            run.errors.append('Keyframe documental falló — revisa OPENAI_API_KEY')
+            guardar_run(run)
+            return result
+        costo += 0.04
+
+        result.pasos.append(f'Runway image-to-video {runway_dur}s (gen4_turbo)...')
+        rw_prompt = prompt_runway_documental(tema=brief)
+        rv = generar_video_desde_imagen(
+            prompt=rw_prompt,
+            run_dir=run_dir,
+            escena_orden=1,
+            local_image=img_path,
+            duration_sec=runway_dur,
+            model='gen4_turbo',
+        )
+        if not rv:
+            run.errors.append('Runway falló — revisa logs')
+            guardar_run(run)
+            return result
+        costo += rv.cost_usd
+
+        guion = brief.strip()
+        words = guion.split()
+        if len(words) > 16:
+            guion = ' '.join(words[:16]).rstrip(',;:') + '.'
+
+        audio_path: Optional[Path] = None
+        if guion:
+            result.pasos.append('ElevenLabs narración corta...')
+            audio_dest = run_dir / 'audio' / 'micro.mp3'
+            audio_dest.parent.mkdir(parents=True, exist_ok=True)
+            tts = generar_narracion_archivo(guion, audio_dest, voice=voice_id)
+            if tts:
+                audio_path = audio_dest
+                costo += 0.05
+            else:
+                err = ultimo_error_tts() or 'TTS falló'
+                run.errors.append(f'ElevenLabs: {err}')
+
+        clip_out = run_dir / 'clips' / 'micro_realista.mp4'
+        clip_out.parent.mkdir(parents=True, exist_ok=True)
+        if not construir_clip_desde_video_ia(
+            video_path=rv.local_path,
+            audio_path=audio_path,
+            salida=clip_out,
+            duracion_objetivo=float(runway_dur),
+        ):
+            run.errors.append('ffmpeg no pudo armar el clip')
+            guardar_run(run)
+            return result
+
+        final_local = run_dir / 'compose' / 'video_final.mp4'
+        final_local.parent.mkdir(parents=True, exist_ok=True)
+        if not concatenar_clips([clip_out], final_local):
+            run.errors.append('ffmpeg concat falló')
+            guardar_run(run)
+            return result
+
+        result.costo_real_usd = costo
+        result.video_local = final_local
+        url = subir_video_s3(final_local, run.run_id)
+        if url:
+            run.video_url = url
+            result.pasos.append('OK Video listo')
+        else:
+            result.pasos.append('OK Video local (S3 pendiente)')
+
+        guardar_run(run)
         return result

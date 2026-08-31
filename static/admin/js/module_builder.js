@@ -1,7 +1,5 @@
 /**
- * Module Builder WA — drag con rieles (SortableJS).
- * Tonos = admin completo (eki_admin_tones.js).
- * Riel: micros no cruzan de sección; secciones se reordenan enteras.
+ * Module Builder WA — drag, guardar módulo, estado dirty, scroll a problemas.
  */
 (function () {
   function csrfToken() {
@@ -43,6 +41,95 @@
       .filter(Boolean);
   }
 
+  function initDirty(shell) {
+    var stateEl = document.getElementById('eki-mb-save-state');
+    var saveBtn = document.getElementById('eki-mb-save-all');
+    var pubLink = document.getElementById('eki-mb-publicar');
+    var dirty = false;
+
+    function setState(label, isDirty) {
+      dirty = !!isDirty;
+      if (stateEl) stateEl.textContent = label;
+      if (saveBtn) saveBtn.disabled = !dirty && label === 'Guardado';
+      if (pubLink && dirty) pubLink.classList.add('eki-mb-sticky__pub--disabled');
+    }
+
+    shell.querySelectorAll('.eki-mb-track-dirty').forEach(function (el) {
+      el.addEventListener('input', function () {
+        setState('Sin guardar', true);
+      });
+      el.addEventListener('change', function () {
+        setState('Sin guardar', true);
+      });
+    });
+
+    window.addEventListener('beforeunload', function (e) {
+      if (!dirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    });
+
+    if (saveBtn) {
+      saveBtn.addEventListener('click', function () {
+        setState('Guardando…', false);
+        var body = new URLSearchParams();
+        body.set('action', 'save_modulo');
+        body.set('csrfmiddlewaretoken', csrfToken());
+        if (shell.querySelector('[name=builder]')) {
+          body.set('builder', '1');
+        }
+        shell.querySelectorAll('[name^="paso_"]').forEach(function (el) {
+          if (el.type === 'checkbox') {
+            if (el.checked) body.set(el.name, el.value || '1');
+          } else if (el.type !== 'file') {
+            body.set(el.name, el.value);
+          }
+        });
+        fetch(window.location.pathname + window.location.search, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': csrfToken(),
+          },
+          credentials: 'same-origin',
+          body: body.toString(),
+        })
+          .then(function (r) {
+            if (r.redirected) {
+              window.location.href = r.url;
+              return;
+            }
+            if (r.ok) {
+              window.location.reload();
+              return;
+            }
+            throw new Error('HTTP ' + r.status);
+          })
+          .catch(function () {
+            setState('Error al guardar', true);
+            window.alert('No se pudo guardar. Reintente.');
+          });
+      });
+    }
+
+    setState('Sin cambios', false);
+  }
+
+  function initProbLinks(shell) {
+    shell.querySelectorAll('.eki-mb__prob-link').forEach(function (a) {
+      a.addEventListener('click', function (ev) {
+        var target = document.querySelector(a.getAttribute('href'));
+        if (!target) return;
+        ev.preventDefault();
+        target.classList.add('eki-mb__row--highlight');
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(function () {
+          target.classList.remove('eki-mb__row--highlight');
+        }, 2200);
+      });
+    });
+  }
+
   function initDrag(shell) {
     if (typeof Sortable === 'undefined') return;
 
@@ -81,9 +168,11 @@
   }
 
   function boot() {
-    var shell = document.querySelector('.eki-mb-shell');
+    var shell = document.getElementById('eki-mb-shell') || document.querySelector('.eki-mb-shell');
     if (!shell) return;
     initDrag(shell);
+    initDirty(shell);
+    initProbLinks(shell);
   }
 
   if (document.readyState === 'loading') {

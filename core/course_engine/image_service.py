@@ -40,12 +40,14 @@ def _prompt_escena(
     titulo_leccion: str = '',
     objetivo: str = '',
     brief: str = '',
+    estilo: str = '',
 ) -> str:
     return prompt_imagen_escena(
         escena,
         titulo_leccion=titulo_leccion,
         objetivo=objetivo,
         brief=brief,
+        estilo=estilo,
     )
 
 
@@ -56,6 +58,7 @@ def generar_imagen_escena(
     titulo_leccion: str = '',
     objetivo: str = '',
     brief: str = '',
+    estilo: str = '',
     openai_client=None,
     subir_s3: bool = True,
 ) -> Optional[ImageResult]:
@@ -64,6 +67,7 @@ def generar_imagen_escena(
         titulo_leccion=titulo_leccion,
         objetivo=objetivo,
         brief=brief,
+        estilo=estilo,
     )
     ph = hashlib.sha256(prompt.encode('utf-8')).hexdigest()[:12]
     out_dir = run_dir / 'images'

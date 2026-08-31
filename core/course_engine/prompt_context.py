@@ -31,17 +31,29 @@ def prompt_imagen_escena(
     titulo_leccion: str = '',
     objetivo: str = '',
     brief: str = '',
+    estilo: str = '',
 ) -> str:
+    from django.conf import settings
+
+    from core.course_engine.visual_style import PERFIL_DOCUMENTAL, sufijo_imagen_documental
+
+    estilo = estilo or getattr(settings, 'COURSE_ENGINE_VISUAL_STYLE', '') or ''
     ctx = contexto_leccion(titulo_leccion=titulo_leccion, objetivo=objetivo, brief=brief)
     visual = (escena.notas_visuales or escena.titulo or 'Ilustración educativa rural').strip()
     tema = (escena.titulo or '').strip()
+    doc_suffix = sufijo_imagen_documental() if estilo == PERFIL_DOCUMENTAL else ''
 
     if escena.tipo in {SceneType.TEXTO, SceneType.RESUMEN}:
-        return (
+        base = (
             f'Fotografía realista de fondo para microlearning agrícola latinoamericano. '
+            if estilo == PERFIL_DOCUMENTAL
+            else f'Fotografía realista de fondo para microlearning agrícola latinoamericano. '
+        )
+        return (
+            f'{base}'
             f'{ctx}. Tema de escena: {tema}. '
             f'Escena visual (sin palabras, sin letras, sin subtítulos en la imagen): {visual}. '
-            f'El texto en pantalla se añade después — imagen solo fondo limpio.'
+            f'El texto en pantalla se añade después — imagen solo fondo limpio.{doc_suffix}'
         )
 
     if escena.tipo == SceneType.DIAGRAMA:
@@ -52,6 +64,11 @@ def prompt_imagen_escena(
 
     guion = _clip(escena.guion, 120)
     extra = f' Relacionado con: {guion}.' if guion else ''
+    if estilo == PERFIL_DOCUMENTAL:
+        return (
+            f'Fotografía documental profesional, campo rural latinoamericano, luz natural. '
+            f'{ctx}. Escena: {tema}. {visual}.{extra}{doc_suffix}'
+        )
     return (
         f'Ilustración educativa realista, campo rural latinoamericano, luz natural. '
         f'{ctx}. Escena: {tema}. {visual}.{extra} '
@@ -66,7 +83,17 @@ def prompt_runway_escena(
     objetivo: str = '',
     brief: str = '',
     storyboard: Storyboard | None = None,
+    estilo: str = '',
 ) -> str:
+    from django.conf import settings
+
+    from core.course_engine.visual_style import PERFIL_DOCUMENTAL, prompt_runway_documental
+
+    estilo = estilo or getattr(settings, 'COURSE_ENGINE_VISUAL_STYLE', '') or ''
+    if estilo == PERFIL_DOCUMENTAL:
+        tema = (escena.titulo or brief or titulo_leccion or '').strip()
+        return prompt_runway_documental(tema=tema)
+
     ctx = contexto_leccion(titulo_leccion=titulo_leccion, objetivo=objetivo, brief=brief)
     visual = (escena.notas_visuales or escena.titulo or '').strip()
     guion = _clip(escena.guion, 200)

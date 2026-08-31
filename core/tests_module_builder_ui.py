@@ -281,3 +281,67 @@ class ModuleBuilderViewTests(TestCase):
         self.assertTrue(
             SeccionModulo.objects.filter(modulo=self.mod, titulo='Sec').exists()
         )
+
+    @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
+    def test_post_save_modulo_batch(self):
+        self.client.force_login(self.staff)
+        sa = agregar_seccion(self.mod, 'A')
+        p1 = agregar_micro(self.mod, sa, titulo='T1', contenido='c1')
+        p2 = agregar_micro(self.mod, sa, titulo='T2', contenido='c2')
+        r = self.client.post(
+            f'/admin/module-builder/{self.mod.id}/',
+            {
+                'action': 'save_modulo',
+                f'paso_{p1.id}_titulo': 'Nuevo T1',
+                f'paso_{p1.id}_contenido': 'Nuevo c1',
+                f'paso_{p1.id}_activo': '1',
+                f'paso_{p2.id}_titulo': 'T2',
+                f'paso_{p2.id}_contenido': 'c2 inactivo',
+            },
+            secure=True,
+            follow=True,
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Módulo guardado')
+        p1.refresh_from_db()
+        p2.refresh_from_db()
+        self.assertEqual(p1.titulo, 'Nuevo T1')
+        self.assertEqual(p1.contenido, 'Nuevo c1')
+        self.assertTrue(p1.activo)
+        self.assertFalse(p2.activo)
+
+    @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
+    def test_modulo_change_redirects_to_builder(self):
+        from django.urls import reverse
+
+        self.client.force_login(self.staff)
+        url = reverse('admin:core_modulo_change', args=[self.mod.pk])
+        r = self.client.get(url, secure=True)
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/admin/module-builder/', r.url)
+
+    @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
+    def test_modulo_change_legacy_stays_admin(self):
+        from django.urls import reverse
+
+        self.client.force_login(self.staff)
+        url = reverse('admin:core_modulo_change', args=[self.mod.pk]) + '?legacy=1'
+        r = self.client.get(url, secure=True)
+        self.assertEqual(r.status_code, 200)
+
+    @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
+    def test_builder_v8_sticky_save_and_problems(self):
+        self.client.force_login(self.staff)
+        sa = agregar_seccion(self.mod, 'Hechos')
+        agregar_micro(
+            self.mod,
+            sa,
+            titulo='Clip',
+            contenido='x',
+            media_url='https://x/v.mp4',
+        )
+        r = self.client.get(f'/admin/module-builder/{self.mod.id}/', secure=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'eki-mb-save-all')
+        self.assertContains(r, 'eki-mb-sticky')
+        self.assertContains(r, 'replace_media')

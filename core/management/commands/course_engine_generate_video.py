@@ -31,12 +31,36 @@ class Command(BaseCommand):
             action='store_true',
             help='Solo storyboard + costo estimado (sin APIs de pago)',
         )
+        parser.add_argument(
+            '--profile',
+            type=str,
+            default='default',
+            choices=['default', 'documental'],
+            help='documental = foto real + Runway gen4_turbo (menos look IA)',
+        )
+        parser.add_argument(
+            '--runway-duration',
+            type=int,
+            default=5,
+            help='Segundos Runway por clip (2-10, default 5)',
+        )
+        parser.add_argument(
+            '--micro-realista',
+            action='store_true',
+            help='Solo 1 clip corto: keyframe documental + Runway + ElevenLabs (muy real)',
+        )
 
     def handle(self, *args, **options):
         brief = options['brief']
         if not brief.strip() and not options['modulo_id']:
             self.stderr.write(self.style.ERROR('Pasa --brief o --modulo-id'))
             raise SystemExit(1)
+
+        visual_style = (options.get('profile') or 'default').strip()
+        if visual_style == 'default':
+            visual_style = ''
+        if options.get('micro_realista') and not visual_style:
+            visual_style = 'documental'
 
         gen = CourseVideoGenerator()
         out = gen.generar(
@@ -48,6 +72,9 @@ class Command(BaseCommand):
             dry_run=options['dry_run'],
             modulo_id=options['modulo_id'],
             voice_id=options['voice_id'] or None,
+            visual_style=visual_style,
+            runway_duration_sec=options['runway_duration'],
+            micro_realista=options['micro_realista'],
         )
 
         for paso in out.pasos:
