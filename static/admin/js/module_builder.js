@@ -3,7 +3,7 @@
  */
 (function () {
   function csrfToken() {
-    var el = document.querySelector('[name=csrfmiddlewaretoken]');
+    var el = document.getElementById('eki-mb-csrf') || document.querySelector('[name=csrfmiddlewaretoken]');
     if (el && el.value) return el.value;
     var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
     return m ? decodeURIComponent(m[1]) : '';
@@ -41,17 +41,63 @@
       .filter(Boolean);
   }
 
+  function collectPasoFields(shell, body, pasoId) {
+    var prefix = pasoId ? 'paso_' + pasoId + '_' : 'paso_';
+    shell.querySelectorAll('[name^="' + prefix + '"]').forEach(function (el) {
+      if (el.type === 'checkbox') {
+        if (el.checked) body.set(el.name, el.value || '1');
+      } else if (el.type !== 'file') {
+        body.set(el.name, el.value);
+      }
+    });
+  }
+
+  function postSave(shell, options) {
+    options = options || {};
+    var body = new URLSearchParams();
+    body.set('action', options.action || 'save_modulo');
+    body.set('csrfmiddlewaretoken', csrfToken());
+    if (document.getElementById('eki-mb-builder-flag')) {
+      body.set('builder', '1');
+    }
+    if (options.pasoId) {
+      body.set('paso_id', String(options.pasoId));
+      collectPasoFields(shell, body, options.pasoId);
+    } else {
+      collectPasoFields(shell, body, null);
+    }
+    return fetch(window.location.pathname + window.location.search, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-CSRFToken': csrfToken(),
+      },
+      credentials: 'same-origin',
+      body: body.toString(),
+    });
+  }
+
   function initDirty(shell) {
-    var stateEl = document.getElementById('eki-mb-save-state');
-    var saveBtn = document.getElementById('eki-mb-save-all');
+    var stateEls = [
+      document.getElementById('eki-mb-save-state'),
+      document.getElementById('eki-mb-save-state-top'),
+    ].filter(Boolean);
+    var saveBtns = shell.querySelectorAll('.eki-mb-save-trigger');
     var pubLink = document.getElementById('eki-mb-publicar');
     var dirty = false;
 
     function setState(label, isDirty) {
       dirty = !!isDirty;
-      if (stateEl) stateEl.textContent = label;
-      if (saveBtn) saveBtn.disabled = !dirty && label === 'Guardado';
-      if (pubLink && dirty) pubLink.classList.add('eki-mb-sticky__pub--disabled');
+      stateEls.forEach(function (el) {
+        el.textContent = label;
+      });
+      saveBtns.forEach(function (btn) {
+        btn.disabled = !dirty && label === 'Guardado';
+      });
+      if (pubLink) {
+        if (dirty) pubLink.classList.add('eki-mb-sticky__pub--disabled');
+        else pubLink.classList.remove('eki-mb-sticky__pub--disabled');
+      }
     }
 
     shell.querySelectorAll('.eki-mb-track-dirty').forEach(function (el) {
@@ -69,31 +115,38 @@
       e.returnValue = '';
     });
 
-    if (saveBtn) {
-      saveBtn.addEventListener('click', function () {
-        setState('Guardando…', false);
-        var body = new URLSearchParams();
-        body.set('action', 'save_modulo');
-        body.set('csrfmiddlewaretoken', csrfToken());
-        if (shell.querySelector('[name=builder]')) {
-          body.set('builder', '1');
-        }
-        shell.querySelectorAll('[name^="paso_"]').forEach(function (el) {
-          if (el.type === 'checkbox') {
-            if (el.checked) body.set(el.name, el.value || '1');
-          } else if (el.type !== 'file') {
-            body.set(el.name, el.value);
+    function runSave(options) {
+      setState('Guardando…', false);
+      postSave(shell, options)
+        .then(function (r) {
+          if (r.redirected) {
+            window.location.href = r.url;
+            return;
           }
-        });
-        fetch(window.location.pathname + window.location.search, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRFToken': csrfToken(),
-          },
-          credentials: 'same-origin',
-          body: body.toString(),
+          if (r.ok) {
+            window.location.reload();
+            return;
+          }
+          throw new Error('HTTP ' + r.status);
         })
+        .catch(function () {
+          setState('Error al guardar', true);
+          window.alert('No se pudo guardar. Reintente.');
+        });
+    }
+
+    saveBtns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        runSave({ action: 'save_modulo' });
+      });
+    });
+
+    shell.querySelectorAll('.eki-mb-save-one').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var pid = btn.getAttribute('data-paso-id');
+        if (!pid) return;
+        btn.disabled = true;
+        postSave(shell, { action: 'save_modulo', pasoId: pid })
           .then(function (r) {
             if (r.redirected) {
               window.location.href = r.url;
@@ -106,11 +159,11 @@
             throw new Error('HTTP ' + r.status);
           })
           .catch(function () {
-            setState('Error al guardar', true);
-            window.alert('No se pudo guardar. Reintente.');
+            btn.disabled = false;
+            window.alert('No se pudo guardar este micro. Reintente.');
           });
       });
-    }
+    });
 
     setState('Sin cambios', false);
   }

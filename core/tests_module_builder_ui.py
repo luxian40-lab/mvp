@@ -343,5 +343,7 @@ class ModuleBuilderViewTests(TestCase):
         r = self.client.get(f'/admin/module-builder/{self.mod.id}/', secure=True)
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'eki-mb-save-all')
+        self.assertContains(r, 'eki-mb-save-top')
+        self.assertContains(r, 'Guardar este micro')
         self.assertContains(r, 'eki-mb-sticky')
         self.assertContains(r, 'replace_media')

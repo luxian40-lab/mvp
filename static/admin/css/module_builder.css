@@ -66,12 +66,40 @@ html[data-eki-tone="noche"] .eki-mb-shell {
   display: flex;
   gap: 1rem;
   align-items: flex-start;
+  flex-wrap: wrap;
   margin-bottom: 1rem;
   padding: 1.1rem 1.2rem;
   border-radius: 14px;
   background: var(--eki-mb-card) !important;
   border: 1px solid var(--eki-mb-line);
   box-shadow: 0 1px 2px rgba(30, 27, 36, 0.04);
+}
+
+.eki-mb__hero-text {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.eki-mb__hero-actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+  min-width: 10.5rem;
+  margin-left: auto;
+}
+
+.eki-mb__save-state {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--eki-mb-muted);
+  text-align: center;
+}
+
+.eki-mb-save-trigger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .eki-mb__hero-mark {
@@ -231,15 +259,18 @@ html[data-eki-tone="noche"] .eki-mb-shell {
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 120;
+  z-index: 10050;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.65rem 1rem;
-  padding: 0.65rem 1.25rem;
-  background: rgba(255, 255, 255, 0.96);
-  border-top: 1px solid var(--eki-mb-line);
-  box-shadow: 0 -4px 20px rgba(30, 27, 36, 0.08);
+  padding: 0.75rem 1.25rem;
+  padding-left: max(1.25rem, env(safe-area-inset-left));
+  padding-right: max(1.25rem, env(safe-area-inset-right));
+  background: rgba(255, 255, 255, 0.98);
+  border-top: 2px solid var(--eki-mb-accent);
+  box-shadow: 0 -6px 24px rgba(30, 27, 36, 0.12);
 }
 
 .eki-mb-sticky__state {
@@ -670,5 +701,9 @@ html[data-eki-tone="noche"] body:has(.eki-mb-shell) .breadcrumbs a {
   }
   .eki-mb__hero {
     flex-direction: column;
+  }
+  .eki-mb__hero-actions {
+    width: 100%;
+    margin-left: 0;
   }
 }

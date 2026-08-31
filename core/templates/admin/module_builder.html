@@ -5,9 +5,9 @@
 
 {% block extrahead %}
 {{ block.super }}
-<link rel="stylesheet" href="{% static 'admin/css/module_builder.css' %}?v=8">
+<link rel="stylesheet" href="{% static 'admin/css/module_builder.css' %}?v=9">
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" defer></script>
-<script src="{% static 'admin/js/module_builder.js' %}?v=8" defer></script>
+<script src="{% static 'admin/js/module_builder.js' %}?v=9" defer></script>
 {% endblock %}
 
 {% block eki_ops_extra_nav %}
@@ -22,17 +22,25 @@
      data-publicar-url="{{ publicar_url }}"
      data-n-problemas="{{ n_media_problemas }}"
      data-publicado="{% if modulo_publicado_wa %}1{% else %}0{% endif %}">
+<input type="hidden" name="csrfmiddlewaretoken" id="eki-mb-csrf" value="{{ csrf_token }}">
+{% if builder_qs %}<input type="hidden" name="builder" value="1" id="eki-mb-builder-flag">{% endif %}
 <div class="eki-mb">
   <header class="eki-mb__hero">
     <div class="eki-mb__hero-mark" aria-hidden="true"></div>
-    <div>
+    <div class="eki-mb__hero-text">
       <p class="eki-mb__eyebrow">Module Builder · camino principal</p>
       <h1 class="eki-mb__title">Módulo {{ modulo.numero }}: {{ modulo.titulo }}</h1>
       <p class="eki-mb__sub">{{ curso.nombre }}{% if curso.cliente %} · {{ curso.cliente.nombre }}{% endif %}</p>
       <p class="eki-mb__hint">
-        Editá texto y archivos abajo → <strong>Guardar módulo</strong> (barra inferior).
+        Editá texto abajo → <strong>Guardar módulo</strong> (arriba o barra inferior).
         Video: subí MP4 → «Procesando…» → refrescá en 1–3 min → verde.
       </p>
+    </div>
+    <div class="eki-mb__hero-actions" role="toolbar" aria-label="Guardar módulo">
+      <span class="eki-mb__save-state" id="eki-mb-save-state-top">Sin cambios</span>
+      <button type="button" class="eki-mb__btn eki-mb__btn--primary eki-mb-save-trigger" id="eki-mb-save-top">
+        Guardar módulo
+      </button>
     </div>
   </header>
 
@@ -146,6 +154,9 @@
                 <input type="checkbox" name="paso_{{ m.id }}_activo" value="1" {% if m.activo %}checked{% endif %} class="eki-mb-track-dirty">
                 Activo (WhatsApp)
               </label>
+              <button type="button" class="eki-mb__btn eki-mb__btn--outline eki-mb__btn--sm eki-mb-save-one" data-paso-id="{{ m.id }}">
+                Guardar este micro
+              </button>
               {% if not m.activo %}<span class="eki-mb__badge">borrador</span>{% endif %}
               {% if m.media_upload_ui.label %}
               <span class="eki-mb__badge eki-mb__badge--{{ m.media_upload_ui.css }}">{{ m.media_upload_ui.label|truncatechars:55 }}</span>
@@ -206,7 +217,7 @@
   {% if n_media_problemas %}
   <a href="#eki-mb-problemas" class="eki-mb-sticky__warn">{{ n_media_problemas }} media roja{{ n_media_problemas|pluralize:"s" }}</a>
   {% endif %}
-  <button type="button" class="eki-mb__btn eki-mb__btn--primary" id="eki-mb-save-all">Guardar módulo</button>
+  <button type="button" class="eki-mb__btn eki-mb__btn--primary eki-mb-save-trigger" id="eki-mb-save-all">Guardar módulo</button>
   {% if not modulo_publicado_wa %}
   <a href="{{ publicar_url }}" class="eki-mb__btn eki-mb__btn--outline eki-mb-sticky__pub" id="eki-mb-publicar">Publicar ▶</a>
   {% else %}
