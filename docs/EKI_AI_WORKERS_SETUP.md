@@ -20,9 +20,33 @@ VPC prod: `vpc-0ceabc228a1ed992a` · SG EB: `sg-09fbce3fd0cb2a913`
 
 ---
 
-## Paso 1 — ElastiCache Redis (consola AWS)
+## Paso 1 — ElastiCache Redis (script automático)
 
-Usuario IAM `eki-S3-produccion` **no tiene** permisos ElastiCache → crear con cuenta admin o IAM con `elasticache:*`.
+**Recomendado — un solo comando** (tras adjuntar IAM policy, ver abajo):
+
+```powershell
+.\scripts\provision_eki_ai_stack.ps1
+```
+
+Dry-run (solo muestra comandos):
+
+```powershell
+.\scripts\provision_eki_ai_stack.ps1 -DryRun
+```
+
+### IAM (una vez)
+
+Usuario `eki-S3-produccion` necesita permisos ElastiCache. Adjuntar en IAM:
+
+`scripts/iam/eki-elasticache-provision-policy.json`
+
+O ejecutar con perfil admin:
+
+```powershell
+.\scripts\provision_eki_ai_stack.ps1 -AwsProfile TU-PERFIL-ADMIN
+```
+
+### Manual (consola AWS) — solo si el script falla por permisos
 
 1. **ElastiCache** → Redis → Create
 2. Nombre: `eki-celery-prod`
@@ -58,13 +82,9 @@ python scripts/smoke_nat_celery.py --remote eki-prod-final
 
 ## Paso 3 — Crear env `eki-ai-workers`
 
-Desde repo (PowerShell):
+El script `provision_eki_ai_stack.ps1` hace **clone de prod** + `t3.small` + deploy.
 
-```powershell
-.\scripts\provision_eki_ai_workers.ps1
-```
-
-O manual:
+Manual alternativo:
 
 ```powershell
 eb create eki-ai-workers `
