@@ -854,11 +854,14 @@ CHROMA_DB_DIR = os.environ.get('CHROMA_DB_DIR') or str(BASE_DIR / 'chroma_db')
 CELERY_TASK_QUEUES = {
     'celery': {'exchange': 'celery', 'routing_key': 'celery'},
     'rag_index': {'exchange': 'rag_index', 'routing_key': 'rag_index'},
+    'media_encode': {'exchange': 'media_encode', 'routing_key': 'media_encode'},
+    'course_engine': {'exchange': 'course_engine', 'routing_key': 'course_engine'},
 }
 CELERY_TASK_ROUTES = {
     'core.tasks.indexar_biblioteca_nat_por_id': {'queue': 'rag_index'},
     'core.tasks.indexar_documento_rag_por_id': {'queue': 'rag_index'},
     'core.tasks.procesar_zip_rag_comercial': {'queue': 'rag_index'},
+    'core.tasks.encode_paso_modulo_media': {'queue': 'media_encode'},
 }
 try:
     RAG_WORKER_CONCURRENCY = int(os.environ.get('RAG_WORKER_CONCURRENCY', '1'))
