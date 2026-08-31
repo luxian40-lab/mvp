@@ -1506,11 +1506,12 @@ class PasoModuloInline(admin.StackedInline):
 
     @admin.display(description='Media WA')
     def media_wa_semaforo(self, obj):
-        from core.modulo_publicacion import estado_media_paso
+        from core.modulo_publicacion import detalle_problema_media_paso, estado_media_paso
 
         if not obj or not obj.pk:
             return '—'
         _code, label = estado_media_paso(obj)
+        prob = detalle_problema_media_paso(obj)
         colors = {
             'ok': ('#e8f5e9', '#2e7d32'),
             'warn': ('#fff8e1', '#f57f17'),
@@ -1518,12 +1519,23 @@ class PasoModuloInline(admin.StackedInline):
             'na': ('#f5f5f5', '#757575'),
         }
         bg, fg = colors.get(_code, colors['na'])
+        detalle_html = ''
+        if prob and prob.get('detalle'):
+            detalle_html = format_html(
+                '<br><span style="font-size:10px;font-weight:500;color:{};max-width:18rem;'
+                'display:inline-block;line-height:1.3;">#{} «{}» — {}</span>',
+                fg,
+                prob.get('orden', ''),
+                prob.get('titulo', '')[:40],
+                prob.get('detalle', '')[:120],
+            )
         return format_html(
             '<span style="background:{};color:{};padding:2px 8px;border-radius:8px;'
-            'font-size:11px;font-weight:600;">{}</span>',
+            'font-size:11px;font-weight:600;">{}</span>{}',
             bg,
             fg,
             label,
+            detalle_html,
         )
 
     def get_formset(self, request, obj=None, **kwargs):
@@ -1827,9 +1839,13 @@ class ModuloAdmin(admin.ModelAdmin):
                 modulo=obj,
                 activo=True,
             ).count()
-            from core.modulo_publicacion import evaluar_checklist_publicacion_detalle
+            from core.modulo_publicacion import (
+                evaluar_checklist_publicacion_detalle,
+                listar_problemas_media_modulo,
+            )
 
             chk = evaluar_checklist_publicacion_detalle(obj)
+            media_problemas = listar_problemas_media_modulo(obj)
             extra_context['eki_mod_publicacion'] = {
                 'publicado': bool(obj.publicado_wa),
                 'checklist_ok': chk.ok,
@@ -1838,6 +1854,7 @@ class ModuloAdmin(admin.ModelAdmin):
                 'publicar_url': reverse('admin:core_modulo_publicar', args=[obj.pk]),
                 'validar_qa_url': reverse('admin:core_modulo_validar_qa', args=[obj.pk]),
             }
+            extra_context['eki_mod_media_problemas'] = media_problemas
             from core.models import ModuloPublicacionEvent
 
             extra_context['eki_mod_pub_eventos'] = list(

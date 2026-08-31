@@ -34,6 +34,17 @@
     </div>
   </header>
 
+  {% if media_problemas %}
+  <div class="eki-mb__alert eki-mb__alert--bad" role="alert">
+    <strong>{{ media_problemas|length }} media con problema</strong>
+    <ul class="eki-mb__prob-list">
+      {% for p in media_problemas %}
+      <li><strong>#{{ p.orden }} «{{ p.titulo }}»</strong>{% if p.seccion %} · {{ p.seccion }}{% endif %} — {{ p.detalle }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
   {% if n_borradores %}
   <div class="eki-mb__alert eki-mb__alert--warn" role="status">
     Hay <strong>{{ n_borradores }}</strong> micro(s) en borrador (inactivos).
@@ -117,8 +128,10 @@
               </label>
               {% if not m.activo %}<span class="eki-mb__badge">borrador</span>{% endif %}
               {% if m.media_url %}
-                {% if m.media_wa_apto == True %}<span class="eki-mb__badge eki-mb__badge--ok">apto WA</span>
-                {% elif m.media_wa_apto == False %}<span class="eki-mb__badge eki-mb__badge--bad">no apto</span>{% endif %}
+                {% if m.media_problema %}
+                <span class="eki-mb__badge eki-mb__badge--bad" title="{{ m.media_problema.detalle }}">{{ m.media_problema.detalle|truncatechars:50 }}</span>
+                {% elif m.media_wa_apto == True %}<span class="eki-mb__badge eki-mb__badge--ok">apto WA</span>
+                {% elif m.media_wa_apto == False %}<span class="eki-mb__badge eki-mb__badge--bad">no apto WA</span>{% endif %}
               {% endif %}
               <button type="submit" class="eki-mb__btn eki-mb__btn--primary eki-mb__btn--sm">Guardar</button>
             </div>

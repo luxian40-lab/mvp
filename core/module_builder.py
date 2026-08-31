@@ -92,6 +92,9 @@ def arbol_modulo(modulo, *, incluir_inactivos: bool = True) -> tuple[list[dict],
     huerfanos = []
     for p in pasos:
         p.preview_kind = media_preview_kind(p.media_url or '')
+        from core.modulo_publicacion import detalle_problema_media_paso
+
+        p.media_problema = detalle_problema_media_paso(p)
         if p.seccion_id in by_sec:
             by_sec[p.seccion_id].append(p)
         else:

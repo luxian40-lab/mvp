@@ -211,22 +211,26 @@ def evaluar_checklist_publicacion_detalle(modulo: Modulo | None) -> ChecklistPub
         low = url.lower().split('?')[0]
         if not low.endswith(('.mp4', '.m4v', '.mov', '.mp3', '.m4a', '.ogg', '.wav')):
             continue
+        prob = detalle_problema_media_paso(paso)
+        if prob:
+            line = f"{prob['accion']}: {prob['detalle']}"
+            if prob['codigo'] == 'fail':
+                errores.append(line)
+            else:
+                avisos.append(line)
+            continue
         if paso.media_wa_apto is False:
-            errores.append(
-                f'Video/audio del paso {paso.orden or paso.pk} no es apto para WhatsApp '
-                '(revisá codec o subí versión wa_safe).'
-            )
+            errores.append(_mensaje_checklist_media_paso(paso))
         elif paso.media_wa_apto is None and low.endswith(('.mp4', '.m4v', '.mov')):
             from django.conf import settings as dj_settings
 
+            tit = (paso.titulo or '').strip() or 'sin título'
             msg = (
-                f'Video paso {paso.orden or paso.pk}: aptitud WA sin verificar (recomendado auditar).'
+                f'#{paso.orden or paso.pk} «{tit}» (Materiales): '
+                f'aptitud WA sin verificar (recomendado auditar).'
             )
             if getattr(dj_settings, 'PUBLICAR_MODULO_REQUIRE_MEDIA_QA', False):
-                errores.append(
-                    f'Video paso {paso.orden or paso.pk}: no publicar hasta QA media '
-                    '(media_wa_apto vacío).'
-                )
+                errores.append(msg)
             else:
                 avisos.append(msg)
 
@@ -294,6 +298,82 @@ def estado_media_paso(paso) -> tuple[str, str]:
     if low.endswith(('.mp4', '.m4v', '.mov')):
         return 'warn', '🟡 Sin verificar'
     return 'ok', '🟢 URL media'
+
+
+def detalle_problema_media_paso(paso) -> dict | None:
+    """
+    Detalle accionable si el paso tiene media WA en warn/fail.
+    None = OK o sin media audiovisual relevante.
+    """
+    url = (getattr(paso, 'media_url', None) or '').strip()
+    if not url:
+        return None
+    low = url.lower().split('?')[0]
+    if not low.endswith(('.mp4', '.m4v', '.mov', '.mp3', '.m4a', '.ogg', '.wav')):
+        return None
+
+    code, label = estado_media_paso(paso)
+    if code in ('ok', 'na'):
+        return None
+
+    detalle = label.replace('🔴 ', '').replace('🟡 ', '')
+    if paso.pk:
+        from core.media_encode_async import estado_encode_paso
+
+        enc = estado_encode_paso(paso.pk)
+        if enc and enc.get('error'):
+            detalle = str(enc['error'])[:220]
+    elif getattr(paso, 'media_wa_apto', None) is False:
+        detalle = (
+            'Video no apto para WhatsApp (codec dañado, >16 MB o bitstream ilegible). '
+            'Borre la URL en Materiales → Guarde → suba MP4 H.264+AAC nuevo.'
+        )
+
+    seccion = ''
+    sec_obj = getattr(paso, 'seccion', None)
+    if sec_obj is not None:
+        seccion = (getattr(sec_obj, 'titulo', None) or '').strip()
+
+    titulo = (getattr(paso, 'titulo', None) or '').strip() or f'Micro {paso.orden or paso.pk}'
+    orden = getattr(paso, 'orden', None) or paso.pk
+
+    return {
+        'paso_id': paso.pk,
+        'orden': orden,
+        'titulo': titulo,
+        'seccion': seccion,
+        'codigo': code,
+        'etiqueta': label,
+        'detalle': detalle,
+        'accion': (
+            'Pestaña Materiales → fila #' + str(orden) + ' «' + titulo + '»'
+            + (f' · bloque «{seccion}»' if seccion else '')
+        ),
+    }
+
+
+def listar_problemas_media_modulo(modulo) -> list[dict]:
+    """Pasos activos con media WA en amarillo/rojo, ordenados por orden."""
+    from .module_steps import pasos_activos_qs
+
+    if modulo is None:
+        return []
+    out: list[dict] = []
+    for paso in pasos_activos_qs(modulo).select_related('seccion').order_by('orden', 'id'):
+        prob = detalle_problema_media_paso(paso)
+        if prob:
+            out.append(prob)
+    return out
+
+
+def _mensaje_checklist_media_paso(paso, *, prefijo: str = '') -> str:
+    prob = detalle_problema_media_paso(paso)
+    if prob:
+        return prefijo + prob['accion'] + ': ' + prob['detalle']
+    tit = (paso.titulo or '').strip() or 'sin título'
+    return (
+        f'{prefijo}#{paso.orden or paso.pk} «{tit}»: video/audio no apto para WhatsApp.'
+    )
 
 
 def _head_url_ok(url: str, timeout: float = 4.0) -> bool | None:

@@ -177,6 +177,13 @@ html[data-eki-tone="noche"] .eki-mb-shell {
   color: #6b5200 !important;
 }
 
+.eki-mb__prob-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.15rem;
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
 .eki-mb__row--draft {
   background: #fffdf5 !important;
 }

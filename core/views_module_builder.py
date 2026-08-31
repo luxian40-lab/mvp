@@ -159,6 +159,9 @@ def module_builder_view(request, modulo_id: int):
 
     arbol, huerfanos = arbol_modulo(modulo, incluir_inactivos=True)
     diag = diagnostico_estructura(modulo)
+    from core.modulo_publicacion import listar_problemas_media_modulo
+
+    media_problemas = listar_problemas_media_modulo(modulo)
     n_borradores = sum(
         1
         for b in arbol
@@ -173,6 +176,7 @@ def module_builder_view(request, modulo_id: int):
         'huerfanos': huerfanos,
         'diag': diag,
         'n_borradores': n_borradores,
+        'media_problemas': media_problemas,
         'builder_on': True,
         'builder_qs': '?builder=1' if (
             request.GET.get('builder') == '1' or request.POST.get('builder') == '1'

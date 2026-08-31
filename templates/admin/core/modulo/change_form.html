@@ -55,6 +55,31 @@
             {% endif %}
         </p>
     </div>
+    {% if eki_mod_media_problemas %}
+    <div class="eki-pub-panel eki-pub-panel--media" aria-label="Media con problemas">
+        <div class="eki-pub-panel__head">
+            <h3 class="eki-pub-panel__title">⚠ Media con problemas ({{ eki_mod_media_problemas|length }})</h3>
+            <p class="eki-pub-panel__sub">
+                Cada fila indica <strong>qué micro</strong> falla y por qué. Ir a pestaña
+                <strong>Materiales</strong> y buscar por <strong>#orden</strong> y título.
+            </p>
+        </div>
+        <ul class="eki-media-prob-list">
+            {% for p in eki_mod_media_problemas %}
+            <li class="eki-media-prob eki-media-prob--{{ p.codigo }}">
+                <div class="eki-media-prob__head">
+                    <span class="eki-media-prob__orden">#{{ p.orden }}</span>
+                    <strong class="eki-media-prob__titulo">«{{ p.titulo }}»</strong>
+                    {% if p.seccion %}<span class="eki-media-prob__sec">· {{ p.seccion }}</span>{% endif %}
+                    <span class="eki-media-prob__badge">{{ p.etiqueta }}</span>
+                </div>
+                <p class="eki-media-prob__detalle">{{ p.detalle }}</p>
+                <p class="eki-media-prob__accion">{{ p.accion }}</p>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
     <ul class="eki-pub-checklist">
         {% for err in eki_mod_publicacion.errores %}
         <li class="eki-pub-check eki-pub-check--fail">✗ {{ err }}</li>

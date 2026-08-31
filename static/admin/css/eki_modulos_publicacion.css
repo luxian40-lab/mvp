@@ -131,6 +131,83 @@
   color: #e65100;
 }
 
+.eki-pub-panel--media {
+  border-color: #ffcdd2;
+  background: linear-gradient(180deg, #fff5f5 0%, #fff 100%);
+  max-width: 42rem;
+}
+
+.eki-media-prob-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.eki-media-prob {
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #e0dce8;
+  background: #fff;
+}
+
+.eki-media-prob--fail {
+  border-color: #ef9a9a;
+  background: #ffebee;
+}
+
+.eki-media-prob--warn {
+  border-color: #ffe082;
+  background: #fff8e1;
+}
+
+.eki-media-prob__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+  align-items: baseline;
+  font-size: 0.88rem;
+}
+
+.eki-media-prob__orden {
+  font-weight: 800;
+  color: #7a4e8e;
+}
+
+.eki-media-prob__titulo {
+  color: #3d2a4a;
+}
+
+.eki-media-prob__sec {
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.eki-media-prob__badge {
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.eki-media-prob__detalle {
+  margin: 0.4rem 0 0;
+  font-size: 0.84rem;
+  color: #c62828;
+  line-height: 1.35;
+}
+
+.eki-media-prob--warn .eki-media-prob__detalle {
+  color: #e65100;
+}
+
+.eki-media-prob__accion {
+  margin: 0.25rem 0 0;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
 @media (max-width: 900px) {
   .eki-pub-row {
     grid-template-columns: 1fr 1fr;
