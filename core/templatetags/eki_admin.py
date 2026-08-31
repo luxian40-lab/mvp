@@ -112,6 +112,26 @@ def eki_twilio_nav(context):
     return {"texto": texto, "tono": tono}
 
 
+@register.inclusion_tag("admin/partials/eki_course_engine_costs_nav.html", takes_context=True)
+def eki_course_engine_costs_nav(context):
+    """Costos API Course Engine en módulos publicados (nav superior)."""
+    from core.course_engine.costs_nav import course_engine_costs_badge
+
+    texto, tono = 'IA cursos', 'info'
+    tooltip = 'Costo API Course Engine en módulos publicados WA (cache 15 min)'
+    snap = None
+    try:
+        texto, tono, snap = course_engine_costs_badge()
+        if snap:
+            tooltip = (
+                f'{snap.n_con_media} módulo(s) con media IA publicada · '
+                f'${snap.medidos_usd:.2f} medidos · ${snap.estimados_usd:.2f} estimados'
+            )
+    except Exception:
+        texto, tono = 'IA cursos no leído', 'danger'
+    return {"texto": texto, "tono": tono, "tooltip": tooltip}
+
+
 @register.inclusion_tag("admin/partials/eki_copiloto_chat.html", takes_context=True)
 def eki_copiloto_chat(context):
     """Chat flotante del copiloto ops (header, no pestaña)."""

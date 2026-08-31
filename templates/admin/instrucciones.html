@@ -78,6 +78,7 @@
                 <li><a href="#clientes">Clientes B2B</a></li>
                 <li><a href="#estudiantes">Estudiantes</a></li>
                 <li><a href="#cursos">Cursos y Module Builder</a></li>
+                <li><a href="#course-engine">Course Engine (costos IA)</a></li>
                 <li><a href="#publicacion-wa">Publicar módulos WA</a></li>
                 <li><a href="#campanas">Campañas post-envío</a></li>
                 <li><a href="#whatsapp">WhatsApp / WhatsappLog</a></li>
@@ -177,6 +178,17 @@
                 <div class="eki-callout eki-callout--warn">
                     Video WA: H.264+AAC. Error <strong>63021</strong> = codec; <strong>63019</strong> = URL/MIME.
                 </div>
+            </section>
+
+            <section id="course-engine">
+                <h2>Course Engine — costos API (nav superior)</h2>
+                <p>El chip <strong>IA cursos</strong> junto a Twilio suma el costo de microcontenidos generados por Course Engine en <strong>módulos ya publicados</strong> (media en S3 con prefijo <code>course_engine/</code>).</p>
+                <ul>
+                    <li>Si existe <code>bundle_manifest.json</code> del run, usa costo <strong>real</strong> medido.</li>
+                    <li>Si no, estima según formato y tier del curso (video / infografía / podcast).</li>
+                    <li>Se actualiza cada <strong>15 min</strong> (cache).</li>
+                </ul>
+                <p>Generar bundle: <code>python manage.py course_engine_generate_bundle --modulo-id N</code> · Manual técnico en repo: <code>docs/COURSE_ENGINE_LOCAL.md</code>.</p>
             </section>
 
             <section id="publicacion-wa">
