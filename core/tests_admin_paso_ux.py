@@ -87,7 +87,12 @@ class PasoModuloAdminUxTests(TestCase):
         d[f'{self.prefix}-0-seccion'] = ''
         fs = self.FormSet(d, instance=self.mod)
         self.assertFalse(fs.is_valid())
-        joined = ' '.join(str(e) for e in fs.non_form_errors())
+        joined = ' '.join(
+            str(e)
+            for form in fs.forms
+            for errs in form.errors.values()
+            for e in errs
+        ) + ' '.join(str(e) for e in fs.non_form_errors())
         self.assertIn('sección', joined.lower())
 
     def test_media_url_nombre_archivo_mensaje_claro(self):
@@ -243,6 +248,38 @@ class PasoModuloAdminUxTests(TestCase):
             .values_list('orden', flat=True)
         )
         self.assertEqual(ordenes, [1, 2, 3, 4, 5])
+
+    def test_borrar_media_url_resetea_apto_wa(self):
+        """Regresión M8: borrar URL debe quitar rojo (media_wa_apto=False pegado)."""
+        from django.forms import inlineformset_factory
+        from core.admin.cursos import PasoModuloForm, PasoModuloInlineFormSet
+        from core.media_encode_async import media_encode_paso_key
+
+        self.paso.media_url = 'https://eki-produccion.s3.us-east-2.amazonaws.com/roto.mp4'
+        self.paso.media_wa_apto = False
+        self.paso.save(update_fields=['media_url', 'media_wa_apto'])
+        p = self.prefix
+        d = self._base()
+        d[f'{p}-0-media_url'] = ''
+        FormSet = inlineformset_factory(
+            Modulo, PasoModulo, form=PasoModuloForm, formset=PasoModuloInlineFormSet,
+            extra=0, can_delete=True, fk_name='modulo',
+        )
+        fs = FormSet(d, instance=self.mod, prefix=p)
+        self.assertTrue(fs.is_valid(), list(fs.non_form_errors()) + [dict(f.errors) for f in fs.forms])
+        paso = fs.save()[0]
+        self.assertEqual(paso.media_url, '')
+        self.assertIsNone(paso.media_wa_apto)
+
+    def test_formset_no_duplica_errores_campo_en_non_form(self):
+        d = self._base()
+        d[f'{self.prefix}-0-media_url'] = 'archivo.mp4'
+        fs = self.FormSet(d, instance=self.mod)
+        self.assertFalse(fs.is_valid())
+        self.assertEqual(len(fs.non_form_errors()), 0)
+        self.assertTrue(any(fs.forms[0].errors.get('media_url')))
+
+
 class SeccionModuloAdminUxTests(TestCase):
     """Regresión: bloques nuevos no guardaban (orden oculto / duplicado)."""
 

@@ -79,59 +79,80 @@ def guardar_upload_admin_media(uploaded_file, *, carpeta='admin_media', prefix='
     return guardar_upload_admin_media_resultado(uploaded_file, carpeta=carpeta, prefix=prefix)['url']
 
 
-def guardar_upload_admin_media_resultado(
-    uploaded_file, *, carpeta='admin_media', prefix='media'
+def _procesar_mp4_bytes_whatsapp(raw: bytes, filename: str, *, carpeta: str) -> tuple[bytes, str, str, dict]:
+    """
+    Encode/remux MP4 para WhatsApp.
+    Returns (bytes, filename, carpeta_destino, gate_dict). Raises ValidationError si no apto.
+    """
+    from core.twilio_media import (
+        WHATSAPP_VIDEO_MAX_BYTES,
+        evaluar_mp4_listo_whatsapp,
+        optimizar_mp4_bytes_whatsapp,
+        remux_mp4_faststart,
+    )
+
+    gate_pre = evaluar_mp4_listo_whatsapp(raw)
+    dest_carpeta = carpeta
+    if gate_pre.get('apto'):
+        if gate_pre.get('necesita_faststart'):
+            raw = remux_mp4_faststart(raw) or raw
+        gate = evaluar_mp4_listo_whatsapp(raw)
+    else:
+        raw = optimizar_mp4_bytes_whatsapp(raw) or raw
+        gate = evaluar_mp4_listo_whatsapp(raw)
+        stem = filename.rsplit('.', 1)[0]
+        filename = f'{stem}_h264_main_faststart.mp4'
+        dest_carpeta = f'{carpeta.rstrip("/")}/wa_safe'
+    if not gate.get('apto'):
+        mb = (gate.get('bytes') or len(raw)) / (1024 * 1024)
+        razon = gate.get('razon') or ''
+        raise ValidationError(
+            f'El video "{filename}" no queda apto para WhatsApp tras comprimir '
+            f'({mb:.1f} MB, {razon}). Meta/Twilio suelen fallar sobre '
+            f'{WHATSAPP_VIDEO_MAX_BYTES // (1024 * 1024)} MB o con codec inválido. '
+            'Acórtelo o baje calidad e intente de nuevo.'
+        )
+    return raw, filename, dest_carpeta, gate
+
+
+def guardar_bytes_admin_media_resultado(
+    raw: bytes,
+    filename: str,
+    *,
+    carpeta: str = 'admin_media',
+    prefix: str = 'media',
+    validar_video: bool = True,
 ) -> dict:
-    """Como ``guardar_upload_admin_media`` pero con ``{url, media_wa_apto, bytes, razon}``."""
+    """Guarda bytes en S3 con encode WA síncrono (worker Celery / tests)."""
     from django.core.files.base import ContentFile
     from django.core.files.storage import default_storage
     from django.utils.text import get_valid_filename
 
-    now = timezone.now()
-    filename = get_valid_filename(uploaded_file.name)
-    raw = uploaded_file.read()
+    filename = get_valid_filename(filename)
     name_l = (filename or '').lower()
     media_wa_apto = None
     razon = ''
-    # MP4: validar + optimizar para WhatsApp (63021: moov al final / High profile).
+    dest_carpeta = carpeta
     if name_l.endswith(('.mp4', '.m4v', '.mov')):
-        # Rechazar siempre basura corta / sin ftyp (EB a menudo no tiene ffprobe).
-        if len(raw) < 12 or b'ftyp' not in raw[:64]:
-            raise ValidationError(
-                f'El video "{filename}" no es un MP4 válido (cabecera incorrecta). '
-                'Exporte de nuevo como H.264 + AAC (.mp4) e intente otra vez.'
-            )
-        _validar_video_decodificable(raw, filename)
-        try:
-            from core.twilio_media import (
-                WHATSAPP_VIDEO_MAX_BYTES,
-                evaluar_mp4_listo_whatsapp,
-                optimizar_mp4_bytes_whatsapp,
-            )
+        from core.media_encode_async import validar_cabecera_mp4_rapida
 
-            raw = optimizar_mp4_bytes_whatsapp(raw) or raw
-            gate = evaluar_mp4_listo_whatsapp(raw)
+        validar_cabecera_mp4_rapida(raw, filename)
+        if validar_video:
+            _validar_video_decodificable(raw, filename)
+        try:
+            raw, filename, dest_carpeta, gate = _procesar_mp4_bytes_whatsapp(
+                raw, filename, carpeta=carpeta
+            )
             media_wa_apto = bool(gate.get('apto'))
             razon = gate.get('razon') or ''
-            if not gate.get('apto'):
-                mb = (gate.get('bytes') or len(raw)) / (1024 * 1024)
-                raise ValidationError(
-                    f'El video "{filename}" no queda apto para WhatsApp tras comprimir '
-                    f'({mb:.1f} MB, {razon}). Meta/Twilio suelen fallar sobre '
-                    f'{WHATSAPP_VIDEO_MAX_BYTES // (1024 * 1024)} MB o con codec inválido. '
-                    'Acórtelo o baje calidad e intente de nuevo.'
-                )
-            # Path estable wa_safe para uploads nuevos aptos
-            stem = filename.rsplit('.', 1)[0]
-            filename = f'{stem}_h264_main_faststart.mp4'
-            carpeta = f'{carpeta.rstrip("/")}/wa_safe'
         except ValidationError:
             raise
         except Exception as exc:
             logger.warning('Optimización WhatsApp omitida | %s | %s', filename, exc)
             media_wa_apto = None
             razon = f'opt_omitida:{exc}'
-    path = f'{carpeta}/{now:%Y/%m}/{prefix}_{now:%Y%m%d%H%M%S}_{filename}'
+    now = timezone.now()
+    path = f'{dest_carpeta}/{now:%Y/%m}/{prefix}_{now:%Y%m%d%H%M%S}_{filename}'
     saved_path = default_storage.save(path, ContentFile(raw))
     url = default_storage.url(saved_path)
     return {
@@ -140,6 +161,45 @@ def guardar_upload_admin_media_resultado(
         'bytes': len(raw),
         'razon': razon,
     }
+
+
+def guardar_upload_admin_media_resultado(
+    uploaded_file, *, carpeta='admin_media', prefix='media'
+) -> dict:
+    """Como ``guardar_upload_admin_media`` pero con ``{url, media_wa_apto, bytes, razon}``."""
+    from django.utils.text import get_valid_filename
+
+    from core.media_encode_async import (
+        es_extension_video,
+        nuevo_job_id,
+        subir_video_incoming,
+        use_async_media_encode,
+        validar_cabecera_mp4_rapida,
+    )
+
+    filename = get_valid_filename(uploaded_file.name)
+    raw = uploaded_file.read()
+    if es_extension_video(filename) and use_async_media_encode():
+        validar_cabecera_mp4_rapida(raw, filename)
+        temp_path, temp_url = subir_video_incoming(
+            raw, filename, carpeta=carpeta, prefix=prefix
+        )
+        job_id = nuevo_job_id()
+        return {
+            'url': temp_url,
+            'media_wa_apto': None,
+            'bytes': len(raw),
+            'razon': 'async_pending',
+            'async_encode': True,
+            'job_id': job_id,
+            'temp_s3_path': temp_path,
+            'filename': filename,
+            'carpeta': carpeta,
+            'prefix': prefix,
+        }
+    return guardar_bytes_admin_media_resultado(
+        raw, filename, carpeta=carpeta, prefix=prefix
+    )
 
 
 def _validar_video_decodificable(raw: bytes, filename: str) -> None:

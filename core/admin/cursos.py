@@ -162,14 +162,35 @@ def aplicar_clase_simple_desde_form(form, formsets=None) -> PasoModulo | None:
 
     pending = getattr(form, '_clase_pending_media_url', None)
     url_manual = (cd.get('clase_url') or '').strip()
-    tocar_url = bool(pending) or (
-        (strict and 'clase_url' in changed and url_manual)
-        or (not strict and url_manual)
+    url_field_changed = changed is not None and 'clase_url' in changed
+    async_res = getattr(form, '_clase_pending_media_async', None)
+    tocar_url = (
+        bool(pending)
+        or bool(async_res)
+        or url_field_changed
+        or getattr(form, '_clase_reset_media_wa', False)
+        or (not strict and bool(url_manual))
     )
+    if async_res and not pending:
+        pending = async_res.get('url')
     new_url = (pending or url_manual or '').strip()
     if tocar_url and new_url and new_url != (paso.media_url or ''):
         paso.media_url = new_url
         update_fields.append('media_url')
+        if async_res is not None:
+            paso.media_wa_apto = None
+            update_fields.append('media_wa_apto')
+        elif getattr(form, '_clase_pending_media_wa_apto', None) is not None:
+            paso.media_wa_apto = bool(form._clase_pending_media_wa_apto)
+            update_fields.append('media_wa_apto')
+    elif tocar_url and not new_url and (paso.media_url or '').strip():
+        paso.media_url = ''
+        paso.media_wa_apto = None
+        update_fields.extend(['media_url', 'media_wa_apto'])
+        if paso.pk:
+            from core.media_encode_async import limpiar_estado_encode_paso
+
+            limpiar_estado_encode_paso(paso.pk)
 
     tocar_activo = (
         (strict and 'clase_activo' in changed)
@@ -218,6 +239,8 @@ def _formsets_guardaron_contenido_paso(formsets, paso) -> bool:
 def _form_toco_clase_simple(form) -> bool:
     """True si el POST/form tocó Clase (evita overwrite Materiales en Guardar genérico)."""
     if getattr(form, '_clase_pending_media_url', None):
+        return True
+    if getattr(form, '_clase_pending_media_async', None):
         return True
     cd = getattr(form, 'cleaned_data', None) or {}
     if cd.get('clase_archivo') or (cd.get('clase_url') or '').strip():
@@ -869,29 +892,6 @@ class SeccionModuloInlineFormSet(BaseInlineFormSet):
                 o = 900000 + i
                 form.cleaned_data['orden'] = o
             seen.add(o)
-        summaries = []
-        for i, form in enumerate(self.forms, start=1):
-            if not form.errors:
-                continue
-            if getattr(form, 'empty_permitted', False) and not form.has_changed():
-                continue
-            titulo = ''
-            if getattr(form, 'cleaned_data', None):
-                titulo = (form.cleaned_data.get('titulo') or '').strip()
-            if not titulo and form.data:
-                titulo = (form.data.get(form.add_prefix('titulo')) or '').strip()
-            label = f'«{titulo}»' if titulo else f'#{i}'
-            bits = []
-            for field, errs in form.errors.items():
-                field_label = field
-                if field in form.fields:
-                    field_label = str(form.fields[field].label or field)
-                for e in errs:
-                    bits.append(f'{field_label}: {e}')
-            if bits:
-                summaries.append(f'Bloque {label}: ' + ' · '.join(bits))
-        if summaries:
-            raise ValidationError(summaries)
 
 
 class SeccionModuloInline(admin.TabularInline):
@@ -1083,10 +1083,22 @@ class PasoModuloForm(forms.ModelForm):
         cleaned = super().clean()
         self._pending_media_url = None
         self._pending_media_wa_apto = None
+        self._pending_media_async = None
+        self._reset_media_wa = False
         if not cleaned.get('orden'):
             cleaned['orden'] = self.clean_orden() if 'orden' in self.fields else 1
         uploaded_file = cleaned.get('media_file_upload')
+        if uploaded_file and self.instance.pk:
+            from core.media_encode_async import limpiar_estado_encode_paso
+
+            limpiar_estado_encode_paso(self.instance.pk)
         if not uploaded_file:
+            url_form = (cleaned.get('media_url') or '').strip()
+            prev_url = (getattr(self.instance, 'media_url', None) or '').strip()
+            if not url_form and prev_url:
+                self._reset_media_wa = True
+            elif url_form and url_form != prev_url and not uploaded_file:
+                self._reset_media_wa = True
             return cleaned
         # Si aún hay errores de otros campos, no subir a S3 (evita huérfanos).
         if self.errors:
@@ -1102,6 +1114,8 @@ class PasoModuloForm(forms.ModelForm):
             )
             url = resultado.get('url')
             self._pending_media_wa_apto = resultado.get('media_wa_apto')
+            if resultado.get('async_encode'):
+                self._pending_media_async = resultado
         except ValidationError as exc:
             msgs = getattr(exc, 'messages', None) or [str(exc)]
             self.add_error('media_file_upload', msgs[0] if len(msgs) == 1 else msgs)
@@ -1124,11 +1138,29 @@ class PasoModuloForm(forms.ModelForm):
             apto = getattr(self, '_pending_media_wa_apto', None)
             if apto is not None:
                 instance.media_wa_apto = bool(apto)
+            elif pending:
+                instance.media_wa_apto = None
+        elif getattr(self, '_reset_media_wa', False):
+            instance.media_wa_apto = None
         if not instance.orden:
             instance.orden = 1
         if commit:
             instance.save()
             self.save_m2m()
+            if getattr(self, '_reset_media_wa', False) and instance.pk:
+                from core.media_encode_async import limpiar_estado_encode_paso
+
+                limpiar_estado_encode_paso(instance.pk)
+            async_res = getattr(self, '_pending_media_async', None)
+            if async_res and instance.pk:
+                from core.media_encode_async import aplicar_resultado_upload_async
+
+                aplicar_resultado_upload_async(
+                    async_res,
+                    instance.pk,
+                    carpeta=async_res.get('carpeta') or 'modulos/pasos',
+                    prefix=async_res.get('prefix') or f'modulo_{instance.modulo_id}',
+                )
         return instance
 
 
@@ -1250,19 +1282,36 @@ class ModuloAdminForm(forms.ModelForm):
         cleaned = super().clean()
         autofill_voice_label(cleaned)
         self._clase_pending_media_url = None
+        self._clase_pending_media_async = None
+        self._clase_reset_media_wa = False
         uploaded = cleaned.get('clase_archivo')
         if not uploaded:
+            url_form = (cleaned.get('clase_url') or '').strip()
+            prev_url = ''
+            if self.instance.pk:
+                _, paso_clase = asegurar_seccion_y_primer_paso(self.instance)
+                prev_url = (paso_clase.media_url or '').strip()
+            if not url_form and prev_url:
+                self._clase_reset_media_wa = True
             return cleaned
         # No subir a S3 si ya hay errores de otros campos (evita huérfanos).
         if self.errors:
             return cleaned
         modulo_id = getattr(self.instance, 'pk', None) or 'nuevo'
         try:
-            url = guardar_upload_admin_media(
+            from core.admin._common import guardar_upload_admin_media_resultado
+
+            resultado = guardar_upload_admin_media_resultado(
                 uploaded,
                 carpeta='modulos/pasos',
                 prefix=f'modulo_{modulo_id}',
             )
+            url = resultado.get('url')
+            if resultado.get('async_encode'):
+                self._clase_pending_media_async = resultado
+                self._clase_pending_media_wa_apto = None
+            else:
+                self._clase_pending_media_wa_apto = resultado.get('media_wa_apto')
         except ValidationError as exc:
             msgs = getattr(exc, 'messages', None) or [str(exc)]
             self.add_error('clase_archivo', msgs[0] if len(msgs) == 1 else msgs)
@@ -1377,27 +1426,6 @@ class PasoModuloInlineFormSet(BaseInlineFormSet):
             raise ValidationError(mensaje_error_intercalado(hall))
 
         summaries = []
-        for i, form in enumerate(self.forms, start=1):
-            if not form.errors:
-                continue
-            if getattr(form, 'empty_permitted', False) and not form.has_changed():
-                continue
-            titulo = ''
-            if getattr(form, 'cleaned_data', None):
-                titulo = (form.cleaned_data.get('titulo') or '').strip()
-            if not titulo and form.data:
-                titulo = (form.data.get(form.add_prefix('titulo')) or '').strip()
-            label = f'«{titulo}»' if titulo else f'#{i}'
-            bits = []
-            for field, errs in form.errors.items():
-                field_label = field
-                if field in form.fields:
-                    field_label = str(form.fields[field].label or field)
-                for e in errs:
-                    bits.append(f'{field_label}: {e}')
-            if bits:
-                summaries.append(f'Microcontenido {label}: ' + ' · '.join(bits))
-
         contenido = (self.data.get('contenido') or '').strip()
         tiene_clase = bool(
             (self.data.get('clase_texto') or '').strip()
@@ -1441,8 +1469,8 @@ class PasoModuloInline(admin.StackedInline):
             ),
             'description': (
                 '1) Elija bloque  2) Suba archivo  3) Active  4) Guarde. '
-                'Video: se comprime a WA-safe; si no queda apto (&gt;16MB), el Guardar falla. '
-                '«Apto WhatsApp» se completa solo en uploads nuevos.'
+                'Video rojo: borre la URL, Guarde, y suba un MP4 nuevo (H.264+AAC). '
+                'El encode corre en segundo plano; refresque para ver el semáforo verde.'
             ),
         }),
         ('WhatsApp (*listo* / tipo)', {
@@ -1928,7 +1956,25 @@ class ModuloAdmin(admin.ModelAdmin):
                     level=messages.INFO,
                 )
         paso = aplicar_clase_simple_desde_form(form, formsets=formsets)
-        if paso and (
+        async_res = getattr(form, '_clase_pending_media_async', None)
+        if paso and async_res:
+            from core.media_encode_async import (
+                aplicar_resultado_upload_async,
+                mensaje_upload_media,
+            )
+
+            aplicar_resultado_upload_async(
+                async_res,
+                paso.pk,
+                carpeta=async_res.get('carpeta') or 'modulos/pasos',
+                prefix=async_res.get('prefix') or f'modulo_{form.instance.pk}',
+            )
+            self.message_user(
+                request,
+                mensaje_upload_media(async_res),
+                level=messages.INFO,
+            )
+        elif paso and (
             getattr(form, '_clase_pending_media_url', None)
             or (form.cleaned_data.get('clase_url') or '').strip()
         ):
@@ -2025,6 +2071,21 @@ class ModuloAdmin(admin.ModelAdmin):
                 preparar_ordenes_temporales(formset.model, form.instance.pk)
                 super().save_formset(request, form, formset, change)
                 renumerar_orden_1_based(formset.model, form.instance.pk)
+            if formset.model is PasoModulo:
+                n_async = 0
+                from core.media_encode_async import mensaje_upload_media
+
+                for f in formset.forms:
+                    async_res = getattr(f, '_pending_media_async', None)
+                    if not async_res or not getattr(f.instance, 'pk', None):
+                        continue
+                    n_async += 1
+                if n_async:
+                    self.message_user(
+                        request,
+                        mensaje_upload_media({'async_encode': True}),
+                        level=messages.INFO,
+                    )
             return
         super().save_formset(request, form, formset, change)
 

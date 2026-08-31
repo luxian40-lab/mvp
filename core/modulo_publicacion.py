@@ -272,6 +272,17 @@ def estado_media_paso(paso) -> tuple[str, str]:
     url = (getattr(paso, 'media_url', None) or '').strip()
     if not url:
         return 'na', '—'
+    if paso and getattr(paso, 'pk', None):
+        from core.media_encode_async import estado_encode_paso
+
+        enc = estado_encode_paso(paso.pk)
+        if enc:
+            st = enc.get('status')
+            if st in ('pending', 'running'):
+                return 'warn', '🟡 Procesando video…'
+            if st == 'error':
+                err = (enc.get('error') or 'encode falló')[:48]
+                return 'fail', f'🔴 {err}'
     low = url.lower().split('?')[0]
     if not low.endswith(('.mp4', '.m4v', '.mov', '.mp3', '.m4a', '.ogg', '.wav', '.jpg', '.jpeg', '.png', '.webp', '.pdf')):
         return 'na', 'Sin media WA'

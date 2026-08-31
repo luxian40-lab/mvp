@@ -610,3 +610,89 @@ def generar_curso_ia_async(self, job_id: str, texto: str, modelo: str):
         logger.exception('[Celery] generar_curso_ia_async job=%s', job_id)
         cache.set(key, {'status': 'error', 'error': str(exc)}, 3600)
         return {'status': 'error', 'error': str(exc)}
+
+
+@shared_task(bind=True, max_retries=1, default_retry_delay=60, soft_time_limit=900, time_limit=1200)
+def encode_paso_modulo_media(
+    self,
+    job_id: str,
+    paso_id: int,
+    temp_s3_path: str,
+    filename: str,
+    carpeta: str,
+    prefix: str,
+):
+    """
+    Descarga MP4 incoming, ffmpeg en worker, actualiza PasoModulo (evita 504 en Gunicorn).
+    """
+    from django.core.exceptions import ValidationError
+    from django.core.files.storage import default_storage
+
+    from core.admin._common import guardar_bytes_admin_media_resultado
+    from core.media_encode_async import _set_encode_state, _clear_encode_state
+    from core.models import PasoModulo
+
+    _set_encode_state(job_id=job_id, paso_id=paso_id, status='running')
+    try:
+        paso = PasoModulo.objects.get(pk=paso_id)
+    except PasoModulo.DoesNotExist:
+        logger.warning('[Celery][MediaEncode] paso_id=%s no existe', paso_id)
+        _clear_encode_state(job_id=job_id, paso_id=paso_id)
+        return {'error': 'paso_not_found'}
+
+    try:
+        with default_storage.open(temp_s3_path, 'rb') as fh:
+            raw = fh.read()
+        resultado = guardar_bytes_admin_media_resultado(
+            raw,
+            filename,
+            carpeta=carpeta,
+            prefix=prefix,
+            validar_video=True,
+        )
+        paso.media_url = resultado['url']
+        apto = resultado.get('media_wa_apto')
+        paso.media_wa_apto = bool(apto) if apto is not None else None
+        paso.save(update_fields=['media_url', 'media_wa_apto'])
+        try:
+            default_storage.delete(temp_s3_path)
+        except Exception:
+            logger.debug('[Celery][MediaEncode] no se pudo borrar incoming %s', temp_s3_path)
+        _clear_encode_state(job_id=job_id, paso_id=paso_id)
+        logger.info(
+            '[Celery][MediaEncode] paso_id=%s apto=%s bytes=%s',
+            paso_id,
+            paso.media_wa_apto,
+            resultado.get('bytes'),
+        )
+        return {'status': 'ok', 'paso_id': paso_id, 'apto': paso.media_wa_apto}
+    except ValidationError as exc:
+        err = str(exc)
+        if hasattr(exc, 'messages'):
+            msgs = getattr(exc, 'messages', None)
+            if msgs:
+                err = msgs[0] if len(msgs) == 1 else ', '.join(msgs)
+        logger.warning('[Celery][MediaEncode] paso_id=%s validation: %s', paso_id, err)
+        _set_encode_state(job_id=job_id, paso_id=paso_id, status='error', error=err)
+        try:
+            paso.refresh_from_db()
+            paso.media_wa_apto = False
+            paso.save(update_fields=['media_wa_apto'])
+        except Exception:
+            pass
+        return {'status': 'error', 'error': err}
+    except Exception as exc:
+        logger.exception('[Celery][MediaEncode] paso_id=%s job=%s', paso_id, job_id)
+        err = str(exc)
+        if hasattr(exc, 'messages'):
+            msgs = getattr(exc, 'messages', None)
+            if msgs:
+                err = msgs[0] if len(msgs) == 1 else ', '.join(msgs)
+        _set_encode_state(job_id=job_id, paso_id=paso_id, status='error', error=err)
+        try:
+            paso.refresh_from_db()
+            paso.media_wa_apto = False
+            paso.save(update_fields=['media_wa_apto'])
+        except Exception:
+            pass
+        raise self.retry(exc=exc)

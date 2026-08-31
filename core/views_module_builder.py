@@ -70,9 +70,14 @@ def module_builder_view(request, modulo_id: int):
                 contenido = (request.POST.get('contenido') or '').strip()
                 media_url = ''
                 media_wa_apto = None
+                resultado = None
                 uploaded = request.FILES.get('media_file')
                 if uploaded:
                     from core.admin._common import guardar_upload_admin_media_resultado
+                    from core.media_encode_async import (
+                        aplicar_resultado_upload_async,
+                        mensaje_upload_media,
+                    )
 
                     resultado = guardar_upload_admin_media_resultado(
                         uploaded,
@@ -84,7 +89,7 @@ def module_builder_view(request, modulo_id: int):
                 if not contenido and not media_url:
                     messages.error(request, 'Escriba texto o suba un archivo.')
                 else:
-                    agregar_micro(
+                    paso = agregar_micro(
                         modulo,
                         seccion,
                         titulo=titulo,
@@ -92,7 +97,16 @@ def module_builder_view(request, modulo_id: int):
                         media_url=media_url,
                         media_wa_apto=media_wa_apto,
                     )
-                    messages.success(request, 'Microcontenido añadido.')
+                    if uploaded and resultado.get('async_encode'):
+                        aplicar_resultado_upload_async(
+                            resultado,
+                            paso.pk,
+                            carpeta=resultado.get('carpeta') or 'modulos/pasos',
+                            prefix=resultado.get('prefix') or f'modulo_{modulo.id}',
+                        )
+                        messages.info(request, mensaje_upload_media(resultado))
+                    else:
+                        messages.success(request, 'Microcontenido añadido.')
             elif action == 'update_micro':
                 paso_id = int(request.POST.get('paso_id') or 0)
                 paso = get_object_or_404(PasoModulo, pk=paso_id, modulo=modulo)
