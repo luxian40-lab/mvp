@@ -5,9 +5,9 @@
 
 {% block extrahead %}
 {{ block.super }}
-<link rel="stylesheet" href="{% static 'admin/css/module_builder.css' %}?v=9">
+<link rel="stylesheet" href="{% static 'admin/css/module_builder.css' %}?v=10">
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" defer></script>
-<script src="{% static 'admin/js/module_builder.js' %}?v=9" defer></script>
+<script src="{% static 'admin/js/module_builder.js' %}?v=10" defer></script>
 {% endblock %}
 
 {% block eki_ops_extra_nav %}
@@ -160,6 +160,9 @@
               {% if not m.activo %}<span class="eki-mb__badge">borrador</span>{% endif %}
               {% if m.media_upload_ui.label %}
               <span class="eki-mb__badge eki-mb__badge--{{ m.media_upload_ui.css }}">{{ m.media_upload_ui.label|truncatechars:55 }}</span>
+              {% if m.media_upload_ui.code == 'processing' %}
+              <button type="button" class="eki-mb__btn eki-mb__btn--outline eki-mb__btn--sm eki-mb-refresh-state">Refrescar estado</button>
+              {% endif %}
               {% endif %}
             </div>
           </div>

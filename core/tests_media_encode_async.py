@@ -88,6 +88,29 @@ class EstadoMediaProcesandoTests(TestCase):
         self.assertEqual(code, 'warn')
         self.assertIn('Procesando', label)
 
+    def test_reconcilia_cache_stale_cuando_url_ya_no_incoming(self):
+        cache.set(
+            media_encode_paso_key(self.paso.pk),
+            {'status': 'pending', 'paso_id': self.paso.pk},
+            60,
+        )
+        self.paso.media_url = 'https://s3/modulos/pasos/2026/final.mp4'
+        self.paso.media_wa_apto = True
+        self.paso.save(update_fields=['media_url', 'media_wa_apto'])
+        enc = estado_encode_paso(self.paso.pk, paso=self.paso)
+        self.assertIsNone(enc)
+        self.assertIsNone(cache.get(media_encode_paso_key(self.paso.pk)))
+
+    def test_incoming_y_no_apto_es_error_sin_cache(self):
+        self.paso.media_wa_apto = False
+        self.paso.save(update_fields=['media_wa_apto'])
+        enc = estado_encode_paso(self.paso.pk, paso=self.paso)
+        self.assertEqual(enc.get('status'), 'error')
+
+    def test_incoming_sin_apto_sin_cache_es_pending(self):
+        enc = estado_encode_paso(self.paso.pk, paso=self.paso)
+        self.assertEqual(enc.get('status'), 'pending')
+
     @patch('core.media_encode_async.encolar_encode_paso_modulo')
     def test_encolar_setea_cache(self, mock_encolar):
         resultado = {

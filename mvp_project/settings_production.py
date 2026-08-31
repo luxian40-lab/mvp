@@ -352,16 +352,31 @@ if 'SENDGRID_API_KEY' in os.environ:
 # PERFORMANCE - Producción
 # ============================================
 
-# Cache en memoria local (sin Redis)
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
-        'OPTIONS': {
-            'MAX_ENTRIES': 1000,
+# Cache: Redis compartido web+workers si hay broker (evita LocMem stale en encode video).
+_redis_for_cache = (
+    (os.environ.get('REDIS_CACHE_URL') or os.environ.get('REDIS_URL') or os.environ.get('CELERY_BROKER_URL') or '')
+    .strip()
+)
+if _redis_for_cache:
+    _cache_loc = _redis_for_cache
+    if _cache_loc.endswith('/0'):
+        _cache_loc = _cache_loc[:-1] + '1'
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': _cache_loc,
         }
     }
-}
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-snowflake',
+            'OPTIONS': {
+                'MAX_ENTRIES': 1000,
+            },
+        }
+    }
 
 # Templates en caché
 for template_engine in TEMPLATES:

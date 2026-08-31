@@ -116,17 +116,62 @@ def aplicar_resultado_upload_async(
     return True
 
 
-def estado_encode_paso(paso_id: int) -> dict | None:
+def es_url_media_incoming(url: str) -> bool:
+    return '/incoming/' in (url or '').strip().lower()
+
+
+def estado_encode_paso(paso_id: int, *, paso=None) -> dict | None:
+    """
+    Estado encode async. Reconcilia con PasoModulo cuando el cache LocMem
+    del web no ve lo que escribió el worker Celery (prod EB).
+    """
     if not paso_id:
         return None
-    return cache.get(media_encode_paso_key(paso_id))
+
+    if paso is None:
+        from core.models import PasoModulo
+
+        paso = PasoModulo.objects.filter(pk=paso_id).only('media_url', 'media_wa_apto').first()
+
+    enc = cache.get(media_encode_paso_key(paso_id))
+    if paso is None:
+        return enc
+
+    url = (getattr(paso, 'media_url', None) or '').strip()
+    incoming = es_url_media_incoming(url)
+    apto = getattr(paso, 'media_wa_apto', None)
+
+    if enc:
+        st = enc.get('status')
+        if st in ('pending', 'running'):
+            if not incoming and apto is not None:
+                limpiar_estado_encode_paso(paso_id)
+                return None
+            if incoming and apto is False:
+                limpiar_estado_encode_paso(paso_id)
+                err = (enc.get('error') or '').strip() or (
+                    'Video no apto para WhatsApp. Exporte MP4 H.264+AAC ≤16 MB e intente de nuevo.'
+                )
+                return {'status': 'error', 'paso_id': paso_id, 'error': err[:500]}
+        return enc
+
+    if incoming and apto is False:
+        return {
+            'status': 'error',
+            'paso_id': paso_id,
+            'error': 'Video no apto para WhatsApp. Exporte MP4 H.264+AAC ≤16 MB e intente de nuevo.',
+        }
+    if incoming and apto is None:
+        return {'status': 'pending', 'paso_id': paso_id}
+
+    return None
 
 
 def mensaje_upload_media(resultado: dict) -> str:
     if resultado.get('async_encode'):
         return (
-            'Procesando video… El encode corre en segundo plano. '
-            'El semáforo pasará a verde cuando termine (refresque la página).'
+            'Video recibido. Procesando en segundo plano (1–3 min): ffmpeg + optimización WhatsApp. '
+            'Refrescá la página (F5) para ver el semáforo en verde o el error concreto.'
         )
     url = (resultado.get('url') or '')[:120]
     suffix = '…' if len(resultado.get('url') or '') > 120 else ''

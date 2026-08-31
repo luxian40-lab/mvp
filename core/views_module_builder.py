@@ -97,14 +97,19 @@ def module_builder_view(request, modulo_id: int):
                         media_url=media_url,
                         media_wa_apto=media_wa_apto,
                     )
-                    if uploaded and resultado.get('async_encode'):
+                    if uploaded and resultado and resultado.get('async_encode'):
                         aplicar_resultado_upload_async(
                             resultado,
                             paso.pk,
                             carpeta=resultado.get('carpeta') or 'modulos/pasos',
                             prefix=resultado.get('prefix') or f'modulo_{modulo.id}',
                         )
-                        messages.info(request, mensaje_upload_media(resultado))
+                        messages.info(
+                            request,
+                            f'Micro #{paso.orden}: {mensaje_upload_media(resultado)}',
+                        )
+                    elif uploaded:
+                        messages.success(request, f'Micro #{paso.orden}: archivo subido.')
                     else:
                         messages.success(request, 'Microcontenido añadido.')
             elif action == 'save_modulo':
@@ -174,9 +179,16 @@ def module_builder_view(request, modulo_id: int):
                             carpeta=resultado.get('carpeta') or 'modulos/pasos',
                             prefix=resultado.get('prefix') or f'modulo_{modulo.id}',
                         )
-                        messages.info(request, mensaje_upload_media(resultado))
+                        messages.info(
+                            request,
+                            f'Micro #{paso.orden} «{(paso.titulo or "").strip() or paso.pk}»: '
+                            f'{mensaje_upload_media(resultado)}',
+                        )
                     else:
-                        messages.success(request, 'Archivo subido y guardado.')
+                        messages.success(
+                            request,
+                            f'Micro #{paso.orden}: archivo subido y listo para WhatsApp.',
+                        )
             elif action == 'update_micro':
                 paso_id = int(request.POST.get('paso_id') or 0)
                 paso = get_object_or_404(PasoModulo, pk=paso_id, modulo=modulo)

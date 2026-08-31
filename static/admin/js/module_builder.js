@@ -220,12 +220,33 @@
     });
   }
 
+  function initEncodePoll(shell) {
+    shell.querySelectorAll('.eki-mb-refresh-state').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        window.location.reload();
+      });
+    });
+    var processing = shell.querySelector('.eki-mb__badge--warn');
+    if (!processing || processing.textContent.indexOf('Procesando') === -1) return;
+    var polls = 0;
+    var maxPolls = 8;
+    var timer = window.setInterval(function () {
+      polls += 1;
+      if (polls >= maxPolls) {
+        window.clearInterval(timer);
+        return;
+      }
+      window.location.reload();
+    }, 45000);
+  }
+
   function boot() {
     var shell = document.getElementById('eki-mb-shell') || document.querySelector('.eki-mb-shell');
     if (!shell) return;
     initDrag(shell);
     initDirty(shell);
     initProbLinks(shell);
+    initEncodePoll(shell);
   }
 
   if (document.readyState === 'loading') {
