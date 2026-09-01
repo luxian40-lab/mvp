@@ -75,6 +75,45 @@ def media_preview_kind(url: str) -> str:
     return 'file'
 
 
+def paso_builder_ui(paso) -> dict:
+    """
+    Metadatos visuales del mock Builder v2: tipo (video/mensaje/quiz/lectura) y entrega.
+    Solo presentación; no cambia lógica WA.
+    """
+    from .models import PasoModulo
+
+    tipo = getattr(paso, 'tipo', None) or PasoModulo.TIPO_CONTENIDO
+    pk = media_preview_kind(getattr(paso, 'media_url', '') or '')
+
+    if tipo in (PasoModulo.TIPO_EVAL_OPC, PasoModulo.TIPO_EVAL_ABIERTA, PasoModulo.TIPO_RETO):
+        step_type = 'quiz'
+    elif pk == 'video':
+        step_type = 'video'
+    elif pk == 'file':
+        step_type = 'lectura'
+    elif pk == 'image':
+        step_type = 'lectura'
+    elif (getattr(paso, 'contenido', '') or '').strip() and not (getattr(paso, 'media_url', '') or '').strip():
+        step_type = 'mensaje' if getattr(paso, 'requiere_listo_para_avanzar', True) else 'lectura'
+    else:
+        step_type = 'mensaje' if getattr(paso, 'requiere_listo_para_avanzar', True) else 'lectura'
+
+    entrega = 'manual' if getattr(paso, 'requiere_listo_para_avanzar', True) else 'automatico'
+    labels = {
+        'video': 'Video',
+        'mensaje': 'Mensaje WA',
+        'quiz': 'Quiz',
+        'lectura': 'Lectura',
+    }
+    return {
+        'step_type': step_type,
+        'type_label': labels.get(step_type, 'Contenido'),
+        'type_css': f'type-{step_type}',
+        'entrega': entrega,
+        'entrega_label': 'Espera respuesta' if entrega == 'manual' else 'Automático',
+    }
+
+
 def arbol_modulo(modulo, *, incluir_inactivos: bool = True) -> tuple[list[dict], list]:
     """
     Árbol secciones → micros para la UI builder.
@@ -96,6 +135,7 @@ def arbol_modulo(modulo, *, incluir_inactivos: bool = True) -> tuple[list[dict],
 
         p.media_problema = detalle_problema_media_paso(p)
         p.media_upload_ui = estado_upload_ui_paso(p)
+        p.builder_ui = paso_builder_ui(p)
         if p.seccion_id in by_sec:
             by_sec[p.seccion_id].append(p)
         else:
@@ -354,6 +394,61 @@ def reordenar_secciones(modulo, seccion_ids: list[int]) -> None:
 def desactivar_micro(paso: PasoModulo) -> None:
     paso.activo = False
     paso.save(update_fields=['activo'])
+
+
+def duplicar_micro(paso: PasoModulo) -> PasoModulo:
+    """Inserta una copia del micro justo después del original (borrador por defecto)."""
+    with transaction.atomic():
+        pasos = list(
+            PasoModulo.objects.filter(modulo_id=paso.modulo_id)
+            .select_related('seccion')
+            .order_by('orden', 'id')
+        )
+        idx = next(i for i, p in enumerate(pasos) if p.pk == paso.pk)
+        titulo_base = (paso.titulo or '').strip() or f'Paso {paso.orden}'
+        copia = PasoModulo(
+            modulo=paso.modulo,
+            seccion=paso.seccion,
+            orden=999999,
+            titulo=f'{titulo_base} (copia)'[:200],
+            tipo=paso.tipo,
+            contenido=paso.contenido,
+            media_url=paso.media_url,
+            media_wa_apto=paso.media_wa_apto,
+            eval_opcion_a=paso.eval_opcion_a,
+            eval_opcion_b=paso.eval_opcion_b,
+            eval_opcion_c=paso.eval_opcion_c,
+            eval_opcion_d=paso.eval_opcion_d,
+            opciones_json=paso.opciones_json,
+            respuesta_correcta=paso.respuesta_correcta,
+            feedback_correcto=paso.feedback_correcto,
+            feedback_incorrecto=paso.feedback_incorrecto,
+            activo=False,
+            requiere_listo_para_avanzar=paso.requiere_listo_para_avanzar,
+        )
+        pasos.insert(idx + 1, copia)
+        base = (
+            PasoModulo.objects.filter(modulo=paso.modulo).aggregate(m=Max('orden')).get('m') or 0
+        ) + 1000
+        for i, p in enumerate(pasos):
+            p.orden = base + i
+            if p.pk:
+                PasoModulo.objects.filter(pk=p.pk).update(orden=p.orden)
+            else:
+                p.save()
+        for i, p in enumerate(pasos, start=1):
+            PasoModulo.objects.filter(pk=p.pk).update(orden=i)
+            p.orden = i
+        hall = detectar_secciones_intercaladas(
+            list(
+                PasoModulo.objects.filter(modulo=paso.modulo_id, activo=True).order_by(
+                    'orden', 'id'
+                )
+            )
+        )
+        if hall:
+            raise ValueError(mensaje_error_intercalado(hall))
+        return copia
 
 
 def diagnostico_estructura(modulo) -> dict:

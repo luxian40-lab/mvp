@@ -18,11 +18,14 @@ from core.twilio_media import (
 )
 
 
-def _mp4_toy():
+def _mp4_toy(*, min_bytes: int = 64 * 1024):
     ftyp = (20).to_bytes(4, 'big') + b'ftyp' + b'isom' + b'\x00' * 8
     mdat = (12).to_bytes(4, 'big') + b'mdat' + b'XXXX'
     moov = (12).to_bytes(4, 'big') + b'moov' + b'YYYY'
-    return ftyp + mdat + moov
+    raw = ftyp + mdat + moov
+    if len(raw) < min_bytes:
+        raw += b'\x00' * (min_bytes - len(raw))
+    return raw
 
 
 class ModuleStructureTests(SimpleTestCase):
@@ -103,10 +106,11 @@ class EvaluarMp4WhatsappTests(SimpleTestCase):
         self.assertFalse(r['apto'])
         self.assertIn('supera_', r['razon'])
 
+    @patch('core.twilio_media.probe_mp4_codecs', return_value={'video': 'h264', 'audio': 'aac', 'ok_wa': True})
     @patch('core.twilio_media.mp4_bitstream_ilegible', return_value=False)
-    def test_toy_apto_si_no_ilegible(self, _mock):
+    def test_toy_apto_si_no_ilegible(self, _mock_ileg, _mock_probe):
         r = evaluar_mp4_listo_whatsapp(_mp4_toy())
-        self.assertTrue(r['apto'])
+        self.assertTrue(r['apto'], msg=r.get('razon'))
         self.assertLessEqual(r['bytes'], WHATSAPP_VIDEO_MAX_BYTES)
 
 

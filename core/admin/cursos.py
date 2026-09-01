@@ -1268,6 +1268,39 @@ class ModuloAdminForm(forms.ModelForm):
         self.prefer_clase_simple = prefer_simple
         configure_course_engine_voice_field(self, heredar=True)
 
+        if 'habilitado_desde' in self.fields:
+            from core.module_builder_config import formato_habilitado_desde_input
+
+            self.fields['habilitado_desde'].widget = forms.DateTimeInput(
+                attrs={'type': 'datetime-local', 'class': 'vDateField'},
+                format='%Y-%m-%dT%H:%M',
+            )
+            self.fields['habilitado_desde'].input_formats = [
+                '%Y-%m-%dT%H:%M',
+                '%Y-%m-%dT%H:%M:%S',
+                '%Y-%m-%d %H:%M:%S',
+            ]
+            if self.instance and self.instance.pk and self.instance.habilitado_desde:
+                self.initial.setdefault(
+                    'habilitado_desde',
+                    formato_habilitado_desde_input(self.instance.habilitado_desde),
+                )
+
+    def clean_habilitado_desde(self):
+        from core.module_builder_config import parsear_habilitado_desde
+
+        val = self.cleaned_data.get('habilitado_desde')
+        if val is None or val == '':
+            return None
+        if hasattr(val, 'hour'):
+            return val
+        parsed = parsear_habilitado_desde(str(val))
+        if parsed is None:
+            raise ValidationError(
+                'Fecha drip inválida. Use el selector de fecha y hora (formato AAAA-MM-DD HH:MM).'
+            )
+        return parsed
+
     def clean_clase_url(self):
         url = (self.cleaned_data.get('clase_url') or '').strip()
         if not url:
@@ -1816,7 +1849,8 @@ class ModuloAdmin(admin.ModelAdmin):
     publicado_wa_badge.short_description = 'Campo WA'
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
-        if request.method == 'GET' and request.GET.get('legacy') != '1':
+        avanzado = request.GET.get('avanzado') == '1' or request.GET.get('legacy') == '1'
+        if request.method == 'GET' and not avanzado:
             obj = self.get_object(request, object_id)
             if obj:
                 from core.module_builder import module_builder_habilitado_para_curso

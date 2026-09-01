@@ -1,231 +1,710 @@
 {% extends "admin/eki_ops_base.html" %}
+
 {% load static %}
+
+
 
 {% block eki_ops_crumb %}Module Builder{% endblock %}
 
+
+
 {% block extrahead %}
+
 {{ block.super }}
-<link rel="stylesheet" href="{% static 'admin/css/module_builder.css' %}?v=10">
+
+<link rel="stylesheet" href="{% static 'admin/css/module_builder.css' %}?v=23">
+
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" defer></script>
-<script src="{% static 'admin/js/module_builder.js' %}?v=10" defer></script>
+
+<script src="{% static 'admin/js/module_builder.js' %}?v=23" defer></script>
+
 {% endblock %}
+
+
 
 {% block eki_ops_extra_nav %}
+
 <span class="eki-mb-nav">
-  <a class="eki-ops-back" href="{{ legacy_url }}">Admin avanzado (legacy)</a>
+
+  <a class="eki-ops-back" href="{{ avanzado_url }}">Configuración avanzada</a>
+
   {% if curso %}<a class="eki-ops-back" href="/admin/core/curso/{{ curso.id }}/change/">Curso</a>{% endif %}
+
 </span>
+
 {% endblock %}
+
+
 
 {% block eki_ops_content %}
+
 <div class="eki-mb-shell" id="eki-mb-shell"
+
      data-publicar-url="{{ publicar_url }}"
+
      data-n-problemas="{{ n_media_problemas }}"
+
      data-publicado="{% if modulo_publicado_wa %}1{% else %}0{% endif %}">
+
 <input type="hidden" name="csrfmiddlewaretoken" id="eki-mb-csrf" value="{{ csrf_token }}">
+
 {% if builder_qs %}<input type="hidden" name="builder" value="1" id="eki-mb-builder-flag">{% endif %}
+
 <div class="eki-mb">
+
   <header class="eki-mb__hero">
+
     <div class="eki-mb__hero-mark" aria-hidden="true"></div>
+
     <div class="eki-mb__hero-text">
+
       <p class="eki-mb__eyebrow">Module Builder · camino principal</p>
-      <h1 class="eki-mb__title">Módulo {{ modulo.numero }}: {{ modulo.titulo }}</h1>
+
+      <h1 class="eki-mb__title">Módulo {{ modulo.numero }}</h1>
+
+      <label class="eki-mb__field-label eki-mb__field-label--inline" for="eki-mb-modulo-titulo">Nombre del módulo</label>
+
+      <input type="text" id="eki-mb-modulo-titulo" name="modulo_titulo" value="{{ modulo.titulo }}" maxlength="200" required class="eki-mb__input eki-mb__input--title eki-mb-track-dirty">
+
       <p class="eki-mb__sub">{{ curso.nombre }}{% if curso.cliente %} · {{ curso.cliente.nombre }}{% endif %}</p>
+
       <p class="eki-mb__hint">
-        Editá texto abajo → <strong>Guardar módulo</strong> (arriba o barra inferior).
-        Video: subí MP4 → «Procesando…» → refrescá en 1–3 min → verde.
+
+        <strong>Un solo Guardar módulo</strong> persiste nombre, secciones, entrega y todos los micros.
+
+        <strong>Archivos:</strong> usá <strong>+ Añadir contenido</strong> o <strong>Subir archivo</strong> (no van en Guardar).
+
+        <a href="#eki-mb-general">Ir a General y drip</a> · Drip por cliente, Course Engine, quizzes y media legacy →
+
+        <a href="{{ avanzado_url }}">Configuración avanzada</a>.
+
       </p>
+
     </div>
+
     <div class="eki-mb__hero-actions" role="toolbar" aria-label="Guardar módulo">
+
       <span class="eki-mb__save-state" id="eki-mb-save-state-top">Sin cambios</span>
+
       <button type="button" class="eki-mb__btn eki-mb__btn--primary eki-mb-save-trigger" id="eki-mb-save-top">
+
         Guardar módulo
+
       </button>
+
     </div>
+
   </header>
 
+
+
   {% if media_problemas %}
+
   <div class="eki-mb__alert eki-mb__alert--bad" role="alert" id="eki-mb-problemas">
+
     <strong>{{ media_problemas|length }} media con problema</strong>
+
     <ul class="eki-mb__prob-list">
+
       {% for p in media_problemas %}
+
       <li>
+
         <a href="#paso-{{ p.paso_id }}" class="eki-mb__prob-link">
+
           <strong>#{{ p.orden }} «{{ p.titulo }}»</strong>{% if p.seccion %} · {{ p.seccion }}{% endif %}
+
         </a>
+
         — {{ p.detalle }}
+
       </li>
+
       {% endfor %}
+
     </ul>
+
   </div>
+
   {% endif %}
+
+
 
   {% if n_borradores %}
+
   <div class="eki-mb__alert eki-mb__alert--warn" role="status">
+
     Hay <strong>{{ n_borradores }}</strong> micro(s) en borrador (inactivos).
+
   </div>
+
   {% endif %}
+
+
 
   {% if diag.intercalado %}
+
   <div class="eki-mb__alert eki-mb__alert--bad" role="alert">
+
     <strong>Estructura intercalada</strong> — {{ diag.mensaje }}
+
   </div>
+
   {% else %}
+
   <div class="eki-mb__alert eki-mb__alert--ok">
+
     Estructura OK · {{ diag.n_secciones }} sección(es) · {{ diag.n_micros }} micro(s) activos
+
     {% if n_borradores %} · {{ n_borradores }} borrador(es){% endif %}
+
   </div>
+
   {% endif %}
 
-  <div id="eki-mb-sections" class="eki-mb__sections">
-  {% for bloque in arbol %}
-  <section class="eki-mb__sec" data-seccion="{{ bloque.seccion.id }}">
-    <div class="eki-mb__sec-head">
-      <div class="eki-mb__sec-head-main">
-        <span class="eki-mb__drag-handle eki-mb__drag-handle--sec" title="Arrastrar sección">⋮⋮</span>
-        <div>
-          <h2 class="eki-mb__sec-title">{{ bloque.seccion.titulo|default:"(sin título)" }}</h2>
-          <p class="eki-mb__sec-meta">{{ bloque.n_micros }} contenido{{ bloque.n_micros|pluralize:"s" }} · orden sec. {{ bloque.seccion.orden }}</p>
-        </div>
-      </div>
-    </div>
 
-    <ul class="eki-mb__list" data-seccion="{{ bloque.seccion.id }}">
-      {% for m in bloque.micros %}
-      <li class="eki-mb__row {% if not m.activo %}eki-mb__row--draft{% endif %}" id="paso-{{ m.id }}" data-paso="{{ m.id }}">
-        <span class="eki-mb__drag-handle eki-mb__drag-handle--micro" title="Arrastrar micro">⋮⋮</span>
-        <div class="eki-mb__row-move">
-          <form method="post" class="eki-mb__inline-form">
-            {% csrf_token %}
-            {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
-            <input type="hidden" name="action" value="move_micro">
-            <input type="hidden" name="paso_id" value="{{ m.id }}">
-            <input type="hidden" name="direction" value="up">
-            <button type="submit" title="Subir" class="eki-mb__icon-btn">↑</button>
-          </form>
-          <form method="post" class="eki-mb__inline-form">
-            {% csrf_token %}
-            {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
-            <input type="hidden" name="action" value="move_micro">
-            <input type="hidden" name="paso_id" value="{{ m.id }}">
-            <input type="hidden" name="direction" value="down">
-            <button type="submit" title="Bajar" class="eki-mb__icon-btn">↓</button>
-          </form>
-        </div>
 
-        {% if m.preview_kind == "image" %}
-        <div class="eki-mb__thumb" title="Imagen">
-          <img src="{{ m.media_url }}" alt="" loading="lazy" referrerpolicy="no-referrer">
+  <details class="eki-mb__general" id="eki-mb-general"{% if general_abierto %} open{% endif %}>
+
+    <summary class="eki-mb__general-summary">General, entrega y calendario (drip)</summary>
+
+    <div class="eki-mb__general-body">
+
+      <section class="eki-mb__drip-block" aria-labelledby="eki-mb-drip-heading">
+        <h3 class="eki-mb__drip-heading" id="eki-mb-drip-heading">Calendario y drip</h3>
+
+        <label class="eki-mb__field-label" for="eki-mb-habilitado-fecha">Disponible desde (calendario global)</label>
+
+        <div class="eki-mb__calendario" id="eki-mb-calendario">
+          <input type="date" id="eki-mb-habilitado-fecha" value="{{ habilitado_desde_fecha }}" class="eki-mb__input eki-mb__input--compact eki-mb-track-dirty" aria-label="Fecha disponible desde">
+          <input type="time" id="eki-mb-habilitado-hora" value="{{ habilitado_desde_hora }}" step="60" class="eki-mb__input eki-mb__input--compact eki-mb-track-dirty" aria-label="Hora disponible desde"{% if not habilitado_desde_fecha %} disabled{% endif %}>
+          <button type="button" class="eki-mb__btn eki-mb__btn--ghost eki-mb__calendario-clear" id="eki-mb-habilitado-clear" title="Quitar fecha">Limpiar</button>
+          <input type="hidden" id="eki-mb-habilitado" name="modulo_habilitado_desde" value="{{ habilitado_desde_value }}">
         </div>
-        {% elif m.preview_kind == "video" %}
-        <div class="eki-mb__thumb eki-mb__thumb--video" title="Video">
-          <video muted preload="metadata" playsinline src="{{ m.media_url }}#t=0.1"></video>
-        </div>
-        {% elif m.preview_kind == "file" %}
-        <div class="eki-mb__thumb eki-mb__thumb--file" title="Archivo"><span class="eki-mb__thumb-glyph">PDF</span></div>
+        <p class="eki-mb__field-hint">Opcional. Antes de esta fecha y hora ningún estudiante recibe este módulo al avanzar desde el anterior. Use <strong>Guardar módulo</strong> para aplicar.</p>
+        {% if modulo.habilitado_desde %}
+        <p class="eki-mb__drip-saved" id="eki-mb-drip-saved" role="status">
+          Drip guardado: <strong>{{ habilitado_desde_fecha }}</strong> a las <strong>{{ habilitado_desde_hora }}</strong>
+        </p>
         {% else %}
-        <div class="eki-mb__thumb eki-mb__thumb--text" title="Texto"><span class="eki-mb__thumb-glyph">Aa</span></div>
+        <p class="eki-mb__drip-saved eki-mb__drip-saved--empty" id="eki-mb-drip-saved" role="status" hidden>Sin fecha drip programada.</p>
         {% endif %}
 
-        <div class="eki-mb__row-body">
-          <div class="eki-mb__edit-micro" data-paso-id="{{ m.id }}">
-            <span class="eki-mb__paso-label">#{{ m.orden }} · id {{ m.id }}</span>
-            <input type="text" name="paso_{{ m.id }}_titulo" value="{{ m.titulo }}" placeholder="Título interno" class="eki-mb__input eki-mb__input--compact eki-mb-track-dirty">
-            <textarea name="paso_{{ m.id }}_contenido" rows="2" placeholder="Texto al estudiante" class="eki-mb__input eki-mb-track-dirty">{{ m.contenido }}</textarea>
-            {% if m.media_url %}
-            <p class="eki-mb__media-url" title="{{ m.media_url }}">URL: {{ m.media_url|truncatechars:72 }}</p>
-            <label class="eki-mb__check eki-mb__check--danger">
-              <input type="checkbox" name="paso_{{ m.id }}_clear_media" value="1" class="eki-mb-track-dirty">
-              Borrar media (URL) al guardar
-            </label>
-            {% endif %}
-            <form method="post" enctype="multipart/form-data" class="eki-mb__upload-replace">
-              {% csrf_token %}
-              {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
-              <input type="hidden" name="action" value="replace_media">
-              <input type="hidden" name="paso_id" value="{{ m.id }}">
-              <label class="eki-mb__upload-label">Reemplazar archivo
-                <input type="file" name="media_file" accept="video/mp4,video/*,image/*,application/pdf" class="eki-mb__input">
-              </label>
-              <button type="submit" class="eki-mb__btn eki-mb__btn--outline eki-mb__btn--sm">Subir</button>
-            </form>
-            <div class="eki-mb__edit-actions">
-              <label class="eki-mb__check">
-                <input type="checkbox" name="paso_{{ m.id }}_activo" value="1" {% if m.activo %}checked{% endif %} class="eki-mb-track-dirty">
-                Activo (WhatsApp)
-              </label>
-              <button type="button" class="eki-mb__btn eki-mb__btn--outline eki-mb__btn--sm eki-mb-save-one" data-paso-id="{{ m.id }}">
-                Guardar este micro
-              </button>
-              {% if not m.activo %}<span class="eki-mb__badge">borrador</span>{% endif %}
-              {% if m.media_upload_ui.label %}
-              <span class="eki-mb__badge eki-mb__badge--{{ m.media_upload_ui.css }}">{{ m.media_upload_ui.label|truncatechars:55 }}</span>
-              {% if m.media_upload_ui.code == 'processing' %}
-              <button type="button" class="eki-mb__btn eki-mb__btn--outline eki-mb__btn--sm eki-mb-refresh-state">Refrescar estado</button>
+        <dl class="eki-mb__drip-meta">
+          <div>
+            <dt>Ritmo entre módulos (curso)</dt>
+            <dd>
+              {% if curso_dias_espera %}
+                {{ curso_dias_espera }} día(s) después de *listo*
+              {% else %}
+                Inmediato con *listo*
               {% endif %}
+              {% if curso_admin_url %}
+                · <a href="{{ curso_admin_url }}">Editar en curso</a>
               {% endif %}
-            </div>
+            </dd>
           </div>
+          {% if habilitacion_cliente %}
+          <div>
+            <dt>Drip por empresa (activo)</dt>
+            <dd>{{ habilitacion_cliente.habilitado_desde|date:"d/m/Y H:i" }} · sustituye el calendario global para ese cliente</dd>
+          </div>
+          {% endif %}
+        </dl>
+
+        <p class="eki-mb__drip-links">
+          {% if cliente_admin_url %}
+          <a href="{{ cliente_admin_url }}">Habilitación por cliente</a>
+          ·
+          {% endif %}
+          <a href="{{ drip_estudiantes_url }}">Drip por estudiante</a>
+          ·
+          <a href="{{ avanzado_url }}#más-opciones">Más opciones (avanzado)</a>
+        </p>
+      </section>
+
+      <div class="eki-mb__general-grid">
+
+        <label class="eki-mb__field-label" for="eki-mb-descripcion">Descripción breve</label>
+
+        <textarea id="eki-mb-descripcion" name="modulo_descripcion" rows="2" class="eki-mb__input eki-mb-track-dirty">{{ modulo.descripcion }}</textarea>
+
+
+
+        <label class="eki-mb__field-label" for="eki-mb-modo-entrega">Modo de entrega</label>
+
+        <select id="eki-mb-modo-entrega" name="modulo_modo_entrega" class="eki-mb__input eki-mb-track-dirty">
+
+          {% for val, label in modo_entrega_choices %}
+
+          <option value="{{ val }}" {% if modulo.modo_entrega == val %}selected{% endif %}>{{ label }}</option>
+
+          {% endfor %}
+
+        </select>
+
+
+
+        <label class="eki-mb__field-label" for="eki-mb-duracion">Duración estimada (días)</label>
+
+        <input type="number" id="eki-mb-duracion" name="modulo_duracion_dias" min="0" value="{{ modulo.duracion_dias }}" class="eki-mb__input eki-mb-track-dirty eki-mb__input--compact">
+
+
+
+        <label class="eki-mb__field-label" for="eki-mb-facilitador">Checkpoint facilitadora</label>
+
+        <select id="eki-mb-facilitador" name="modulo_facilitador_checkpoint" class="eki-mb__input eki-mb-track-dirty">
+
+          {% for val, label in facilitador_checkpoint_choices %}
+
+          <option value="{{ val }}" {% if modulo.facilitador_checkpoint == val %}selected{% endif %}>{{ label }}</option>
+
+          {% endfor %}
+
+        </select>
+
+
+
+        <label class="eki-mb__check eki-mb__check--block">
+
+          <input type="checkbox" name="modulo_publicado_wa" value="1" {% if modulo.publicado_wa %}checked{% endif %} class="eki-mb-track-dirty">
+
+          Publicado para WhatsApp
+
+        </label>
+
+
+
+        <label class="eki-mb__check eki-mb__check--block">
+
+          <input type="checkbox" name="modulo_examen_obligatorio" value="1" {% if modulo.examen_obligatorio %}checked{% endif %} class="eki-mb-track-dirty">
+
+          Examen obligatorio para avanzar
+
+        </label>
+
+
+
+        <label class="eki-mb__field-label" for="eki-mb-puntaje">Puntaje mínimo (%)</label>
+
+        <input type="number" id="eki-mb-puntaje" name="modulo_puntaje_minimo_aprobacion" min="0" max="100" value="{{ modulo.puntaje_minimo_aprobacion }}" class="eki-mb__input eki-mb-track-dirty eki-mb__input--compact">
+
+      </div>
+
+      <p class="eki-mb__general-links">
+
+        <a href="{{ avanzado_url }}#course-engine">Course Engine</a> ·
+
+        <a href="{{ avanzado_url }}">Pasos quiz / evaluación</a> ·
+
+        <a href="{{ archivos_url }}">Media legacy</a>
+
+      </p>
+
+    </div>
+
+  </details>
+
+
+
+  <div class="eki-mb-layout">
+
+  <div class="eki-mb-workspace">
+
+  <div id="eki-mb-sections" class="eki-mb__sections">
+
+  {% for bloque in arbol %}
+
+  <section class="eki-mb__sec" data-seccion="{{ bloque.seccion.id }}">
+
+    <div class="eki-mb__sec-head">
+
+      <div class="eki-mb__sec-head-main">
+
+        <span class="eki-mb__drag-handle eki-mb__drag-handle--sec" title="Arrastrar sección">⋮⋮</span>
+
+        <div>
+
+          <label class="eki-mb__field-label eki-mb__field-label--inline" for="seccion-{{ bloque.seccion.id }}-titulo">Sección</label>
+
+          <input type="text" id="seccion-{{ bloque.seccion.id }}-titulo" name="seccion_{{ bloque.seccion.id }}_titulo" value="{{ bloque.seccion.titulo }}" placeholder="Nombre de la sección" class="eki-mb__input eki-mb__input--compact eki-mb-track-dirty" maxlength="200">
+
+          <p class="eki-mb__sec-meta">{{ bloque.n_micros }} paso{{ bloque.n_micros|pluralize:"s" }} · orden sec. {{ bloque.seccion.orden }}</p>
+
         </div>
-        <span class="eki-mb__status {% if m.activo %}eki-mb__status--on{% endif %}" title="{% if m.activo %}Activo{% else %}Inactivo{% endif %}"></span>
-        <form method="post" class="eki-mb__inline-form" onsubmit="return confirm('¿Desactivar este micro?');">
-          {% csrf_token %}
-          {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
-          <input type="hidden" name="action" value="deactivate_micro">
-          <input type="hidden" name="paso_id" value="{{ m.id }}">
-          <button type="submit" class="eki-mb__icon-btn eki-mb__icon-btn--danger" title="Desactivar">✕</button>
-        </form>
+
+      </div>
+
+    </div>
+
+
+
+    <ul class="eki-mb__list" data-seccion="{{ bloque.seccion.id }}">
+
+      {% for m in bloque.micros %}
+
+      <li class="eki-mb__row {% if not m.activo %}eki-mb__row--draft{% endif %}" id="paso-{{ m.id }}" data-paso="{{ m.id }}" data-step-type="{{ m.builder_ui.step_type }}">
+
+        <span class="eki-mb__drag-handle eki-mb__drag-handle--micro" title="Arrastrar paso">⋮⋮</span>
+
+        <span class="eki-mb__step-num" aria-hidden="true">{{ m.orden }}</span>
+
+        <span class="eki-mb__type-icon eki-mb__type-icon--{{ m.builder_ui.step_type }}" title="{{ m.builder_ui.type_label }}" aria-hidden="true"></span>
+
+
+
+        <button type="button" class="eki-mb__row-select" data-paso-select="{{ m.id }}" aria-label="Editar paso {{ m.orden }}">
+
+          <span class="eki-mb__row-title">{{ m.titulo|default:"(sin título)"|truncatechars:80 }}</span>
+          {% if m.contenido %}
+          <span class="eki-mb__row-preview">{{ m.contenido|truncatechars:100 }}</span>
+          {% elif m.media_url %}
+          <span class="eki-mb__row-preview eki-mb__row-preview--muted">Archivo adjunto (PDF, imagen o video)</span>
+          {% endif %}
+          <span class="eki-mb__row-chips">
+
+            <span class="eki-mb__type-chip eki-mb__type-chip--{{ m.builder_ui.step_type }}">{{ m.builder_ui.type_label }}</span>
+
+            <span class="eki-mb__entrega-chip eki-mb__entrega-chip--{{ m.builder_ui.entrega }}">{{ m.builder_ui.entrega_label }}</span>
+
+            {% if not m.activo %}<span class="eki-mb__badge">borrador</span>{% endif %}
+
+            {% if m.media_upload_ui.label %}
+
+            <span class="eki-mb__badge eki-mb__badge--{{ m.media_upload_ui.css }}">{{ m.media_upload_ui.label|truncatechars:40 }}</span>
+
+            {% endif %}
+
+          </span>
+
+        </button>
+
+
+
+        <div class="eki-mb__row-quick">
+
+          <form method="post" class="eki-mb__inline-form">
+
+            {% csrf_token %}
+
+            {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
+
+            <input type="hidden" name="action" value="duplicate_micro">
+
+            <input type="hidden" name="paso_id" value="{{ m.id }}">
+
+            <button type="submit" class="eki-mb__icon-btn" title="Duplicar paso">⎘</button>
+
+          </form>
+
+          <form method="post" class="eki-mb__inline-form" onsubmit="return confirm('¿Desactivar este micro?');">
+
+            {% csrf_token %}
+
+            {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
+
+            <input type="hidden" name="action" value="deactivate_micro">
+
+            <input type="hidden" name="paso_id" value="{{ m.id }}">
+
+            <button type="submit" class="eki-mb__icon-btn eki-mb__icon-btn--danger" title="Desactivar">✕</button>
+
+          </form>
+
+          <span class="eki-mb__status {% if m.activo %}eki-mb__status--on{% endif %}" title="{% if m.activo %}Activo{% else %}Inactivo{% endif %}"></span>
+
+        </div>
+
       </li>
+
       {% empty %}
-      <li class="eki-mb__empty">Sin micros en esta sección. Añada contenido abajo.</li>
+
+      <li class="eki-mb__empty">Sin pasos en esta sección. Añada contenido abajo.</li>
+
       {% endfor %}
+
     </ul>
 
+
+
     <form method="post" enctype="multipart/form-data" class="eki-mb__add-micro">
+
       {% csrf_token %}
+
       {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
+
       <input type="hidden" name="action" value="add_micro">
+
       <input type="hidden" name="seccion_id" value="{{ bloque.seccion.id }}">
+
       <p class="eki-mb__form-label">+ Añadir contenido a esta sección</p>
+
       <input type="text" name="titulo" placeholder="Título interno (opcional)" class="eki-mb__input">
-      <textarea name="contenido" rows="2" placeholder="Texto al estudiante (opcional si sube video/imagen)" class="eki-mb__input"></textarea>
-      <input type="file" name="media_file" accept="video/mp4,video/*,image/*" class="eki-mb__input">
+
+      <textarea name="contenido" rows="2" placeholder="Texto al estudiante (opcional si sube PDF, imagen o video)" class="eki-mb__input"></textarea>
+
+      <label class="eki-mb__upload-label">Archivo (opcional)
+
+        <input type="file" name="media_file" accept="video/mp4,video/*,image/*,application/pdf,.pdf,audio/*" class="eki-mb__input">
+
+      </label>
+
       <button type="submit" class="eki-mb__btn eki-mb__btn--primary">+ Añadir contenido</button>
+
     </form>
+
   </section>
+
   {% empty %}
+
   <p class="eki-mb__empty">Aún no hay secciones. Cree la primera abajo.</p>
+
   {% endfor %}
+
   </div>
+
+
 
   {% if huerfanos %}
+
   <div class="eki-mb__alert eki-mb__alert--bad">
-    Hay {{ huerfanos|length }} micro(s) sin sección activa. Revise admin legacy.
+
+    Hay {{ huerfanos|length }} micro(s) sin sección activa.
+    <a href="{{ avanzado_url }}">Reasignar en configuración avanzada</a>.
+
   </div>
+
   {% endif %}
+
+
 
   <div class="eki-mb__footer-actions">
+
     <form method="post" class="eki-mb__add-sec">
+
       {% csrf_token %}
+
       {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
+
       <input type="hidden" name="action" value="add_seccion">
+
       <input type="text" name="titulo" placeholder="Nombre de la nueva sección" class="eki-mb__input" required>
+
       <button type="submit" class="eki-mb__btn eki-mb__btn--outline">+ Añadir sección</button>
+
     </form>
+
   </div>
+
+  </div>
+
+
+
+  <aside class="eki-mb-panel" id="eki-mb-panel" aria-label="Editor del paso">
+
+    <p class="eki-mb-panel__placeholder" id="eki-mb-panel-placeholder">Seleccioná un paso de la lista para editarlo y ver la vista previa WhatsApp.</p>
+
+    <div id="eki-mb-panel-edits">
+
+      {% for bloque in arbol %}
+
+        {% for m in bloque.micros %}
+
+        <div class="eki-mb__row-edit" data-paso-edit="{{ m.id }}" data-step-type="{{ m.builder_ui.step_type }}">
+
+          <p class="eki-mb-panel__label">Editar paso #{{ m.orden }}</p>
+
+          <span class="eki-mb__paso-label">id {{ m.id }}{% if m.seccion %} · {{ bloque.seccion.titulo }}{% endif %}</span>
+
+
+
+          {% if m.preview_kind == "image" %}
+
+          <div class="eki-mb__thumb eki-mb__thumb--panel" title="Imagen">
+
+            <img src="{{ m.media_url }}" alt="" loading="lazy" referrerpolicy="no-referrer">
+
+          </div>
+
+          {% elif m.preview_kind == "video" %}
+
+          <div class="eki-mb__thumb eki-mb__thumb--panel eki-mb__thumb--video" title="Video">
+
+            <video muted preload="metadata" playsinline src="{{ m.media_url }}#t=0.1"></video>
+
+          </div>
+
+          {% elif m.preview_kind == "file" %}
+
+          <div class="eki-mb__thumb eki-mb__thumb--panel eki-mb__thumb--file" title="Documento">
+
+            <span class="eki-mb__thumb-glyph">PDF</span>
+
+            {% if m.media_url %}
+
+            <a href="{{ m.media_url }}" target="_blank" rel="noopener noreferrer" class="eki-mb__file-open">Abrir documento</a>
+
+            {% endif %}
+
+          </div>
+
+          {% endif %}
+
+
+
+          <label class="eki-mb__field-label">Título interno</label>
+
+          <input type="text" name="paso_{{ m.id }}_titulo" value="{{ m.titulo }}" placeholder="Título interno" class="eki-mb__input eki-mb__input--compact eki-mb-track-dirty eki-mb-preview-src" data-preview="titulo">
+
+
+
+          <label class="eki-mb__field-label">Contenido al estudiante</label>
+
+          <textarea name="paso_{{ m.id }}_contenido" rows="4" placeholder="Texto que verá en WhatsApp o en el aula" class="eki-mb__input eki-mb-track-dirty eki-mb-preview-src" data-preview="contenido">{{ m.contenido }}</textarea>
+
+
+
+          <div class="eki-mb__meta-readonly">
+
+            <span class="eki-mb__type-chip eki-mb__type-chip--{{ m.builder_ui.step_type }}">{{ m.builder_ui.type_label }}</span>
+
+            <span class="eki-mb__entrega-chip eki-mb__entrega-chip--{{ m.builder_ui.entrega }}">{{ m.builder_ui.entrega_label }}</span>
+
+            {% if m.builder_ui.step_type == "quiz" %}
+
+            <a href="{{ avanzado_url }}" class="eki-mb__meta-link">Editar quiz en avanzado</a>
+
+            {% else %}
+
+            <span class="eki-mb__meta-hint">Tipo avanzado: <a href="{{ avanzado_url }}">configuración avanzada</a></span>
+
+            {% endif %}
+
+          </div>
+
+
+
+          {% if m.media_url %}
+
+          <p class="eki-mb__media-url" title="{{ m.media_url }}">URL: {{ m.media_url|truncatechars:72 }}</p>
+
+          <label class="eki-mb__check eki-mb__check--danger">
+
+            <input type="checkbox" name="paso_{{ m.id }}_clear_media" value="1" class="eki-mb-track-dirty">
+
+            Borrar media (URL) al guardar
+
+          </label>
+
+          {% endif %}
+
+
+
+          <form method="post" enctype="multipart/form-data" class="eki-mb__upload-replace">
+
+            {% csrf_token %}
+
+            {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
+
+            <input type="hidden" name="action" value="replace_media">
+
+            <input type="hidden" name="paso_id" value="{{ m.id }}">
+
+            <label class="eki-mb__upload-label">Reemplazar archivo (PDF, imagen, video, audio)
+
+              <input type="file" name="media_file" accept="video/mp4,video/*,image/*,application/pdf,.pdf,audio/*" class="eki-mb__input">
+
+            </label>
+
+            <button type="submit" class="eki-mb__btn eki-mb__btn--outline eki-mb__btn--sm">Subir archivo</button>
+
+          </form>
+
+
+
+          <div class="eki-mb__edit-actions">
+
+            <label class="eki-mb__check">
+
+              <input type="checkbox" name="paso_{{ m.id }}_activo" value="1" {% if m.activo %}checked{% endif %} class="eki-mb-track-dirty eki-mb__activo-check">
+
+              Activo (WhatsApp)
+
+            </label>
+            <p class="eki-mb__activo-hint" {% if m.activo or m.contenido or m.media_url %}hidden{% endif %}>Escribí texto o subí media antes de activar.</p>
+
+            <button type="button" class="eki-mb__btn eki-mb__btn--outline eki-mb__btn--sm eki-mb-save-one" data-paso-id="{{ m.id }}">
+
+              Guardar este micro
+
+            </button>
+
+            {% if m.media_upload_ui.code == 'processing' %}
+
+            <button type="button" class="eki-mb__btn eki-mb__btn--outline eki-mb__btn--sm eki-mb-refresh-state">Refrescar estado</button>
+
+            {% endif %}
+
+          </div>
+
+
+
+          <div class="eki-mb-wa-preview" data-wa-preview="{{ m.id }}">
+
+            <p class="eki-mb-wa-preview__eyebrow">Vista previa WhatsApp</p>
+
+            <div class="eki-mb-wa-preview__bubble">
+
+              <p class="eki-mb-wa-preview__titulo"></p>
+
+              <p class="eki-mb-wa-preview__body"></p>
+
+            </div>
+
+          </div>
+
+        </div>
+
+        {% endfor %}
+
+      {% endfor %}
+
+    </div>
+
+  </aside>
+
+  </div>
+
 </div>
 
+
+
 <div class="eki-mb-sticky" id="eki-mb-sticky" role="toolbar" aria-label="Acciones del módulo">
+
   <span class="eki-mb-sticky__state" id="eki-mb-save-state">Sin cambios</span>
+
   {% if n_media_problemas %}
+
   <a href="#eki-mb-problemas" class="eki-mb-sticky__warn">{{ n_media_problemas }} media roja{{ n_media_problemas|pluralize:"s" }}</a>
+
   {% endif %}
+
   <button type="button" class="eki-mb__btn eki-mb__btn--primary eki-mb-save-trigger" id="eki-mb-save-all">Guardar módulo</button>
+
   {% if not modulo_publicado_wa %}
+
   <a href="{{ publicar_url }}" class="eki-mb__btn eki-mb__btn--outline eki-mb-sticky__pub" id="eki-mb-publicar">Publicar ▶</a>
+
   {% else %}
+
   <span class="eki-mb-sticky__ok">🟢 Publicado WA</span>
+
   {% endif %}
+
 </div>
+
 </div>
+
 {% endblock %}
+
+

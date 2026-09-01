@@ -81,6 +81,20 @@ if ($eb) {
     Fail "EB CLI not available in PATH"
 }
 
+# 6) Module Builder JS syntax (P0 drip gate)
+$mbJs = "static\admin\js\module_builder.js"
+if (Test-Path $mbJs) {
+    $node = Get-Command node -ErrorAction SilentlyContinue
+    if ($node) {
+        & node --check $mbJs
+        if ($LASTEXITCODE -eq 0) { Ok "module_builder.js syntax valid (node --check)" } else { Fail "module_builder.js syntax error - drip save JS will not run" }
+    } else {
+        Warn "Node.js not in PATH - skipping module_builder.js syntax check"
+    }
+} else {
+    Fail "Missing $mbJs"
+}
+
 Write-Host ""
 Write-Host "Result: $errors error(s), $warnings warning(s)" -ForegroundColor Cyan
 if ($errors -gt 0) { exit 1 }

@@ -61,6 +61,43 @@ Actúa como QA de eki. Habla en español, directo y breve.
 4. Sin OpenAI (fallback) → puntaje 0, mensaje reintento, **sin** otorgar puntos.
 5. Admin: módulos checkpoint con `reto_guia_ia` + `tipo_reto_ia` en cursos piloto.
 
+## Checklist Module Builder (obligatorio en cada deploy que toque Builder)
+
+**Gate P0 — sin esto → QA_FAIL y no deploy.**
+
+| # | Caso | Automatizado | Manual post-deploy |
+|---|------|--------------|-------------------|
+| 1 | Guardar fecha drip (calendario global) → recarga muestra misma fecha | `test_save_modulo_persiste_habilitado_desde` | Elegir fecha+hora → Guardar → Ctrl+F5 → fecha visible |
+| 2 | Limpiar calendario → Guardar → queda vacío | mismo test (clear) | Botón Limpiar → Guardar → sin fecha |
+| 3 | Subir archivo **sin** dirty → no pisa drip ni publicado WA | `test_add_micro_no_pisa_general_sin_persist_flag` | Subir PDF sin tocar General → drip intacto |
+| 4 | Subir archivo **sin** pisar nombre módulo/sección | tests regresión nombres | Renombrar → subir → nombres OK |
+| 5 | Guardar módulo responde JSON `ok:true` (no error silencioso) | `test_save_modulo_ajax_json_ok` | Sin alerta «No se pudo guardar» |
+
+Canon: `docs/MODULE_BUILDER_QA_S4_CHECKLIST.md` · tests `core/tests_module_builder_ui.py`
+
+**Por qué falló el gate anterior:** pytest cubría POST directo al backend, pero **no** el flujo JS (fecha en inputs separados → hidden → fetch). El `fetch` ajax podía fallar en silencio (HTML en vez de JSON) → alerta genérica y drip no persistía. **Fix v23:** JS syntax reparado; drip solo en `save_modulo`/`persist_general`; General abierto; assets `?v=23`.
+
+### Anti-racionalización (no saltar pasos)
+
+| Excusa | Respuesta |
+|--------|-----------|
+| «Los tests de Django están verdes» | No basta si el diff toca JS/HTML del Builder — correr manual P0 + `node --check`. |
+| «Es solo un cambio pequeño en General» | Drip/calendario es P0 histórico — siempre verificar guardar + recarga. |
+| «Lo probé una vez en local» | Post-deploy: Ctrl+F5 en prod/staging, misma fecha visible. |
+| «El backend ya persiste bien» | El bug fue JS roto → hidden vacío; validar consola + Network. |
+| «Precheck pasó sin node» | WARN node ausente ≠ PASS; instalar node o correr test JS en pytest. |
+
+**Regla:** Si el deploy toca `module_builder.js`, `module_builder.html`, `views_module_builder.py` o `module_builder_config.py` → gate P0 completo (auto + manual + JS parse) antes de QA_PASS.
+
+Post-deploy browser: `.cursor/skills/eki-browser-qa/SKILL.md` · Debug: `.cursor/skills/eki-debug/SKILL.md` · Duda P0: `.cursor/skills/eki-doubt/SKILL.md`
+
+### Verificación QA (no negociable)
+
+- Veredicto con formato obligatorio (abajo).
+- P0 manual sin evidencia → **QA_FAIL**, aunque pytest esté verde.
+- Evidencia mínima Builder: módulo ID, fecha probada, resultado tras Ctrl+F5.
+- **«Parece bien» / «debería funcionar»** → nunca QA_PASS.
+
 ## Checklist plantillas / campañas
 
 - ContentSid `HX…` aprobado; variables con samples.
