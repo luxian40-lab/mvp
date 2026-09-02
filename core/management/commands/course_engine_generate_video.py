@@ -16,6 +16,12 @@ class Command(BaseCommand):
         parser.add_argument('--cliente-id', type=int, required=True)
         parser.add_argument('--curso-id', type=int, required=True)
         parser.add_argument('--brief', type=str, default='')
+        parser.add_argument(
+            '--brief-file',
+            type=str,
+            default='',
+            help='Ruta a archivo UTF-8 con el contenido de la lección (capítulo largo)',
+        )
         parser.add_argument('--modulo-id', type=int, default=None, help='Herencia tier + ElevenLabs Voice ID')
         parser.add_argument('--voice-id', type=str, default='', help='Override Voice ID ElevenLabs')
         parser.add_argument(
@@ -45,6 +51,12 @@ class Command(BaseCommand):
             help='Segundos Runway por clip (2-10, default 5)',
         )
         parser.add_argument(
+            '--target-seconds',
+            type=int,
+            default=0,
+            help='Duración objetivo del MP4 final (ej. 15). En micro-realista extiende narración/clip.',
+        )
+        parser.add_argument(
             '--micro-realista',
             action='store_true',
             help='Solo 1 clip corto: keyframe documental + Runway + ElevenLabs (muy real)',
@@ -52,6 +64,11 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         brief = options['brief']
+        brief_file = (options.get('brief_file') or '').strip()
+        if brief_file:
+            from pathlib import Path
+
+            brief = Path(brief_file).read_text(encoding='utf-8')
         if not brief.strip() and not options['modulo_id']:
             self.stderr.write(self.style.ERROR('Pasa --brief o --modulo-id'))
             raise SystemExit(1)
@@ -75,6 +92,7 @@ class Command(BaseCommand):
             visual_style=visual_style,
             runway_duration_sec=options['runway_duration'],
             micro_realista=options['micro_realista'],
+            target_duration_sec=options['target_seconds'] or None,
         )
 
         for paso in out.pasos:

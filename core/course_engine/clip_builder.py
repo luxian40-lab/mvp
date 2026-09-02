@@ -153,12 +153,18 @@ def construir_clip_desde_video_ia(
     cmd = ['ffmpeg', '-y', '-stream_loop', '-1', '-i', str(video_path)]
     if audio_path and audio_path.is_file():
         cmd.extend(['-i', str(audio_path)])
+        if audio_dur < target_dur - 0.05:
+            cmd.extend([
+                '-filter_complex', f'[1:a]apad=whole_dur={target_dur}[aout]',
+                '-map', '0:v:0', '-map', '[aout]',
+            ])
+        else:
+            cmd.extend(['-map', '0:v:0', '-map', '1:a:0'])
         cmd.extend([
             '-t', str(target_dur),
-            '-map', '0:v:0', '-map', '1:a:0',
             '-c:v', 'libx264', '-preset', 'fast', '-pix_fmt', 'yuv420p',
             '-c:a', 'aac', '-b:a', '128k', '-ar', '44100',
-            '-movflags', '+faststart', '-shortest', str(salida),
+            '-movflags', '+faststart', str(salida),
         ])
     else:
         cmd.extend([

@@ -18,10 +18,16 @@ def generar_keyframe_documental(
     run_dir: Path,
     *,
     tema: str = '',
+    escena_visual: str = '',
+    categoria_visual: str = '',
     openai_client=None,
 ) -> Optional[Path]:
     """PNG local listo para image-to-video Runway."""
-    prompt = prompt_keyframe_documental(tema=tema)
+    prompt = prompt_keyframe_documental(
+        tema=tema,
+        escena_visual=escena_visual,
+        categoria_visual=categoria_visual,
+    )
     ph = hashlib.sha256(prompt.encode('utf-8')).hexdigest()[:12]
     out_dir = run_dir / 'images'
     out_dir.mkdir(parents=True, exist_ok=True)

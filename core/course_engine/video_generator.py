@@ -69,6 +69,7 @@ class CourseVideoGenerator:
         visual_style: str = '',
         runway_duration_sec: Optional[int] = None,
         micro_realista: bool = False,
+        target_duration_sec: Optional[int] = None,
         _lesson=None,
         _analysis=None,
     ) -> VideoGenerateResult:
@@ -112,6 +113,7 @@ class CourseVideoGenerator:
                 voice_id=voice_id,
                 estilo=estilo or 'documental',
                 runway_dur=runway_dur,
+                target_dur=target_duration_sec,
                 dry_run=dry_run,
             )
 
@@ -357,19 +359,31 @@ class CourseVideoGenerator:
         voice_id: Optional[str],
         estilo: str,
         runway_dur: int,
+        target_dur: Optional[int] = None,
         dry_run: bool,
     ) -> VideoGenerateResult:
         """Un clip corto: keyframe foto documental + Runway + ElevenLabs."""
+        from core.course_engine.brief_visual import planificar_clip_micro
         from core.course_engine.keyframe_documental import generar_keyframe_documental
         from core.course_engine.visual_style import prompt_runway_documental
 
+        target = max(float(runway_dur), float(target_dur or runway_dur))
+        target = min(60.0, target)
         if not brief.strip():
             run.errors.append('Modo micro-realista requiere --brief o --modulo-id')
             guardar_run(run)
             return result
 
+        result.pasos.append('Planificando guion y escena visual (IA)...')
+        plan = planificar_clip_micro(brief, target_sec=target)
+        result.pasos.append(f'Tema: {plan.titulo_corto}')
+        ev = plan.escena_visual[:90]
+        if len(plan.escena_visual) > 90:
+            ev += '…'
+        result.pasos.append(f'Visual: {plan.categoria_visual} — {ev}')
+
         result.pasos.append(
-            f'Micro clip realista {runway_dur}s · estilo {estilo} · Runway + ElevenLabs'
+            f'Micro clip realista {runway_dur}s Runway · objetivo {target:.0f}s · {estilo}'
         )
         result.costo_estimado_usd = 0.35 + (runway_dur * 0.05)
 
@@ -392,7 +406,12 @@ class CourseVideoGenerator:
         costo = 0.0
 
         result.pasos.append('Keyframe documental (OpenAI)...')
-        img_path = generar_keyframe_documental(run_dir, tema=brief)
+        img_path = generar_keyframe_documental(
+            run_dir,
+            tema=plan.titulo_corto,
+            escena_visual=plan.escena_visual,
+            categoria_visual=plan.categoria_visual,
+        )
         if not img_path:
             run.errors.append('Keyframe documental falló — revisa OPENAI_API_KEY')
             guardar_run(run)
@@ -400,7 +419,11 @@ class CourseVideoGenerator:
         costo += 0.04
 
         result.pasos.append(f'Runway image-to-video {runway_dur}s (gen4_turbo)...')
-        rw_prompt = prompt_runway_documental(tema=brief)
+        rw_prompt = prompt_runway_documental(
+            tema=plan.titulo_corto,
+            escena_visual=plan.escena_visual,
+            categoria_visual=plan.categoria_visual,
+        )
         rv = generar_video_desde_imagen(
             prompt=rw_prompt,
             run_dir=run_dir,
@@ -415,10 +438,7 @@ class CourseVideoGenerator:
             return result
         costo += rv.cost_usd
 
-        guion = brief.strip()
-        words = guion.split()
-        if len(words) > 16:
-            guion = ' '.join(words[:16]).rstrip(',;:') + '.'
+        guion = plan.guion_narracion.strip()
 
         audio_path: Optional[Path] = None
         if guion:
@@ -439,7 +459,7 @@ class CourseVideoGenerator:
             video_path=rv.local_path,
             audio_path=audio_path,
             salida=clip_out,
-            duracion_objetivo=float(runway_dur),
+            duracion_objetivo=target,
         ):
             run.errors.append('ffmpeg no pudo armar el clip')
             guardar_run(run)
