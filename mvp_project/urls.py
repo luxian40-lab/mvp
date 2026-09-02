@@ -19,6 +19,9 @@ def root_redirect(request):
         return redirect('/studio/')
     if host == 'certificados.eki.technology':
         return redirect('/verificar/')
+    if host == 'margen.eki.technology':
+        from calculadora_margen.views import landing
+        return landing(request)
     return redirect('/admin/')
 
 
@@ -41,6 +44,7 @@ urlpatterns = [
     path('portal/', include('portal.urls')),
     path('aprende/', include('aprende.urls')),
     path('studio/', include('studio.urls')),
+    path('calculadora-margen/', include('calculadora_margen.urls')),
 
     # Admin de Django
     path('admin/', admin.site.urls),

@@ -34,6 +34,7 @@ urlpatterns = [
     path('ops/api/secciones/<int:seccion_id>/pasos/', curso_editor_api.api_pasos_crear, name='portal_ops_api_pasos_crear'),
     path('ops/api/pasos/<int:paso_id>/', curso_editor_api.api_paso_detalle, name='portal_ops_api_paso'),
     path('metricas/', views.metricas_empresa, name='portal_metricas'),
+    path('margen/', views.portal_margen, name='portal_margen'),
     path('retencion/', views.portal_retencion, name='portal_retencion'),
     path('retencion/agente/', views.portal_retencion_agente, name='portal_retencion_agente'),
     path('gamificacion/', views.portal_gamificacion, name='portal_gamificacion'),

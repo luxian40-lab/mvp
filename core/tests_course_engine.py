@@ -271,3 +271,26 @@ class InteractiveSequenceTests(SimpleTestCase):
         mock_runway.assert_not_called()
         self.assertEqual(out.costo_real_usd, 0.0)
         self.assertEqual(len(out.pasos_wa), 1)
+
+
+class PlatziFormatTests(SimpleTestCase):
+    def test_formatea_resumen_y_definicion(self):
+        from core.course_engine.interactive_sequence import BloqueInteractivo
+        from core.course_engine.platzi_format import formatear_paso_whatsapp
+
+        resumen = BloqueInteractivo(1, 'resumen', '', 'Aprenderás los 6 errores de rentabilidad.')
+        txt = formatear_paso_whatsapp(resumen, titulo_leccion='Rentabilidad rural')
+        self.assertIn('Resumen', txt)
+        self.assertIn('Rentabilidad rural', txt)
+
+        defn = BloqueInteractivo(2, 'definicion', 'Rentabilidad', 'Relación ganancia / inversión.')
+        txt2 = formatear_paso_whatsapp(defn)
+        self.assertIn('Rentabilidad', txt2)
+        self.assertIn('Relación ganancia', txt2)
+
+    def test_formatea_seccion_pregunta(self):
+        from core.course_engine.interactive_sequence import BloqueInteractivo
+        from core.course_engine.platzi_format import formatear_paso_whatsapp
+
+        b = BloqueInteractivo(1, 'seccion', '¿Qué es la rentabilidad?', 'Veamos el concepto clave.')
+        self.assertIn('¿Qué es la rentabilidad?', formatear_paso_whatsapp(b))

@@ -27,7 +27,7 @@ class Command(BaseCommand):
         )
         parser.add_argument('--voice-id', type=str, default='')
         parser.add_argument('--dry-run', action='store_true', help='Solo plan + manifest (sin Runway)')
-        parser.add_argument('--max-bloques', type=int, default=12)
+        parser.add_argument('--max-bloques', type=int, default=18)
         parser.add_argument('--max-micro-videos', type=int, default=6)
         parser.add_argument(
             '--generate-videos',

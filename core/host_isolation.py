@@ -14,6 +14,7 @@ ADMIN_HOSTS = frozenset({'admin.eki.technology'})
 APP_HOSTS = frozenset({'app.eki.technology'})
 STUDIO_HOSTS = frozenset({'studio.eki.technology'})
 APRENDE_HOSTS = frozenset({'aprende.eki.technology', 'aula.eki.technology'})
+MARGEN_HOSTS = frozenset({'margen.eki.technology'})
 
 # Prefijos siempre permitidos en cualquier host (health, webhooks, estáticos).
 _ALWAYS_OK_PREFIXES = (
@@ -26,6 +27,7 @@ _ALWAYS_OK_PREFIXES = (
     '/verificar/',
     '/descargar-certificado/',
     '/api/certificados/',
+    '/calculadora-margen/',
 )
 
 
@@ -50,6 +52,7 @@ def public_base(product: str, request=None) -> str:
         'app': getattr(settings, 'APP_PUBLIC_URL', '') or 'https://app.eki.technology',
         'studio': getattr(settings, 'STUDIO_PUBLIC_URL', '') or 'https://studio.eki.technology',
         'aprende': getattr(settings, 'APRENDE_PUBLIC_URL', '') or 'https://aprende.eki.technology',
+        'margen': getattr(settings, 'MARGEN_PUBLIC_URL', '') or 'https://margen.eki.technology',
     }
     base = (overrides.get(product) or '').rstrip('/')
     if request is not None and host_isolation_disabled(request):
@@ -89,6 +92,13 @@ class HostIsolationMiddleware:
             return self.get_response(request)
 
         host = hostname(request)
+        if host in MARGEN_HOSTS:
+            if path == '/' or path == '':
+                return self.get_response(request)
+            if path.startswith('/calculadora-margen/'):
+                return self.get_response(request)
+            return HttpResponseForbidden('Host no autorizado para esta ruta.')
+
         target = self._required_product(path)
         if target is None:
             return self.get_response(request)

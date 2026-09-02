@@ -23,6 +23,7 @@ from core.course_engine.local_store import local_runs_root
 from core.course_engine.rag_source import obtener_contexto_rag_empresa, resumen_documentos_curso
 from core.course_engine.runway_service import generar_video_desde_imagen, runway_disponible
 from core.course_engine.tts import generar_narracion_archivo, ultimo_error_tts
+from core.course_engine.platzi_format import formatear_paso_whatsapp
 from core.course_engine.visual_style import inferir_categoria_visual, prompt_runway_documental
 
 logger = logging.getLogger(__name__)
@@ -277,40 +278,39 @@ class InteractiveSequenceGenerator:
         *,
         generated_urls: dict[int, str],
     ) -> None:
-        paso_idx = 0
+        leccion = secuencia.titulo_leccion
         for bloque in secuencia.bloques:
-            paso_idx += 1
+            contenido = formatear_paso_whatsapp(bloque, titulo_leccion=leccion)
             if bloque.tipo == 'micro_video':
                 url = generated_urls.get(bloque.orden, '')
                 if url:
                     result.pasos_wa.append(
                         PasoWA(
-                            orden=paso_idx,
+                            orden=len(result.pasos_wa) + 1,
                             tipo='video',
                             titulo=bloque.titulo,
-                            contenido=bloque.guion,
+                            contenido=contenido,
                             media_url=url,
                             formato_wa='video/mp4',
                         )
                     )
                 else:
-                    # Plan sin asset aún: enviar narración como texto hasta generar clip.
                     result.pasos_wa.append(
                         PasoWA(
-                            orden=paso_idx,
+                            orden=len(result.pasos_wa) + 1,
                             tipo='texto',
                             titulo=f'[video pendiente] {bloque.titulo}',
-                            contenido=bloque.guion,
+                            contenido=contenido,
                             formato_wa='text/plain',
                         )
                     )
             else:
                 result.pasos_wa.append(
                     PasoWA(
-                        orden=paso_idx,
+                        orden=len(result.pasos_wa) + 1,
                         tipo='texto',
                         titulo=bloque.titulo,
-                        contenido=bloque.guion,
+                        contenido=contenido,
                         formato_wa='text/plain',
                     )
                 )
@@ -324,6 +324,7 @@ class InteractiveSequenceGenerator:
         manifest = {
             'run_id': result.run_id,
             'tipo': 'secuencia_interactiva',
+            'formato': result.secuencia.formato if result.secuencia else 'platzi',
             'brief_chars': len(brief),
             'secuencia': result.secuencia.to_dict() if result.secuencia else None,
             'costo_estimado_usd': result.costo_estimado_usd,

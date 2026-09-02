@@ -2,7 +2,8 @@
 param(
     [string]$Environment = "eki-prod-final",
     [string]$TelQa = "573026480629",
-    [int]$GenerateVideos = 2,
+    [int]$GenerateVideos = 6,
+    [int]$MaxPasosWa = 0,
     [switch]$DryRunOnly
 )
 
@@ -14,6 +15,7 @@ $briefB64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((Get-Conten
 
 $dryRunPy = if ($DryRunOnly) { "True" } else { "False" }
 $genVideosPy = if ($DryRunOnly) { 0 } else { $GenerateVideos }
+$maxPasosPy = $MaxPasosWa
 
 $bash = @"
 $(Get-EbEnvProdBash)
@@ -59,7 +61,7 @@ out = gen.generar(
     brief=brief,
     modulo_id=mod.id if mod else None,
     dry_run=$dryRunPy,
-    max_bloques=14,
+    max_bloques=20,
     max_micro_videos=6,
     generar_micro_videos=$genVideosPy,
     runway_duration_sec=8,
@@ -90,17 +92,17 @@ if ${dryRunPy}:
     sys.exit(0)
 
 tel = os.environ.get("TEL_QA", "573026480629")
-pref = "[eki QA secuencia] "
-# Enviar primeros 4 pasos (texto + video + texto + error)
-orden_envio = [1, 2, 3, 4]
-for paso in out.pasos_wa:
-    if paso.orden not in orden_envio:
-        continue
+pref = "[eki clase] "
+max_pasos = int("$maxPasosPy")
+pasos_enviar = out.pasos_wa if max_pasos <= 0 else out.pasos_wa[:max_pasos]
+print(f"Enviando {len(pasos_enviar)} pasos WA (formato Platzi)...")
+for paso in pasos_enviar:
+    body = pref + paso.contenido
     if paso.tipo == "video" and paso.media_url:
-        r = enviar_whatsapp_twilio(tel, pref + paso.titulo, media_url=paso.media_url.strip())
+        r = enviar_whatsapp_twilio(tel, body, media_url=paso.media_url.strip())
     else:
-        r = enviar_whatsapp_twilio(tel, pref + paso.contenido)
-    print(f"WA paso {paso.orden}:", json.dumps(r, ensure_ascii=False))
+        r = enviar_whatsapp_twilio(tel, body)
+    print(f"WA paso {paso.orden} [{paso.tipo}]:", json.dumps(r, ensure_ascii=False))
     if not r.get("success"):
         sys.exit(1)
     time.sleep(2)

@@ -1,0 +1,176 @@
+{% extends "calculadora_margen/base.html" %}
+{% load static %}
+
+{% block body %}
+<div id="cm-app" class="cm-app" data-csrf="{{ csrf_token }}">
+    <!-- Pantalla 0 — Landing -->
+    <section id="cm-screen-0" class="cm-screen cm-screen--dark cm-screen--active" aria-label="Inicio">
+        <div class="cm-wrap">
+            <p class="cm-eyebrow">eki · calculadora de costos y margen</p>
+            <h1 class="cm-title">¿Realmente estás ganando plata con lo que vendes?</h1>
+            <p class="cm-subtitle">
+                En 5 minutos descubre si tu negocio deja margen, cuánto cuesta producir cada unidad
+                y qué puedes hacer para ganar más — con tus números reales.
+            </p>
+            <button type="button" class="cm-btn cm-btn--primary" id="cm-btn-empezar">Empezar</button>
+        </div>
+    </section>
+
+    <!-- Wizard (pantallas 1–3) -->
+    <section id="cm-wizard" class="cm-screen cm-screen--light" hidden aria-label="Formulario">
+        <div class="cm-wrap cm-wrap--narrow">
+            <nav class="cm-progress" aria-label="Progreso">
+                <span class="cm-progress__step cm-progress__step--active" data-step="1">Produces</span>
+                <span class="cm-progress__line"></span>
+                <span class="cm-progress__step" data-step="2">Gastas</span>
+                <span class="cm-progress__line"></span>
+                <span class="cm-progress__step" data-step="3">Vendes</span>
+            </nav>
+
+            <!-- Pantalla 1 -->
+            <div class="cm-step cm-step--active" data-step-panel="1">
+                <h2 class="cm-h2">Cuéntame qué produces</h2>
+                <label class="cm-field">
+                    <span class="cm-label">¿Qué producto vendes?</span>
+                    <input type="text" name="producto" class="cm-input" placeholder="Ej. queso artesanal, tomate cherry…" autocomplete="off" required>
+                </label>
+                <div class="cm-row">
+                    <label class="cm-field cm-field--grow">
+                        <span class="cm-label">Cantidad producida en el período</span>
+                        <input type="number" name="cantidad_producida" class="cm-input" min="0.0001" step="any" inputmode="decimal" required>
+                    </label>
+                    <label class="cm-field cm-field--unit">
+                        <span class="cm-label">Unidad</span>
+                        <input type="text" name="unidad" class="cm-input" value="kg" placeholder="kg, litros…">
+                    </label>
+                </div>
+                <div class="cm-actions">
+                    <button type="button" class="cm-btn cm-btn--primary" data-next="2">Siguiente</button>
+                </div>
+            </div>
+
+            <!-- Pantalla 2 -->
+            <div class="cm-step" data-step-panel="2" hidden>
+                <h2 class="cm-h2">Dime cuánto gastas</h2>
+                <p class="cm-hint">Montos totales del período (no por unidad).</p>
+                <label class="cm-field">
+                    <span class="cm-label">Materias primas e insumos</span>
+                    <div class="cm-input-prefix"><span>$</span><input type="number" name="materias_primas" class="cm-input cm-input--money" min="0" step="any" inputmode="decimal" value="0"></div>
+                </label>
+                <label class="cm-field">
+                    <span class="cm-label">Mano de obra</span>
+                    <div class="cm-input-prefix"><span>$</span><input type="number" name="mano_obra" class="cm-input cm-input--money" min="0" step="any" inputmode="decimal" value="0"></div>
+                </label>
+                <label class="cm-field">
+                    <span class="cm-label">Transporte</span>
+                    <div class="cm-input-prefix"><span>$</span><input type="number" name="transporte" class="cm-input cm-input--money" min="0" step="any" inputmode="decimal" value="0"></div>
+                </label>
+                <label class="cm-field">
+                    <span class="cm-label">Empaque</span>
+                    <div class="cm-input-prefix"><span>$</span><input type="number" name="empaque" class="cm-input cm-input--money" min="0" step="any" inputmode="decimal" value="0"></div>
+                </label>
+                <label class="cm-field">
+                    <span class="cm-label">Otros costos</span>
+                    <div class="cm-input-prefix"><span>$</span><input type="number" name="otros_costos" class="cm-input cm-input--money" min="0" step="any" inputmode="decimal" value="0"></div>
+                </label>
+                <label class="cm-field">
+                    <span class="cm-label">Costos fijos aproximados del período</span>
+                    <div class="cm-input-prefix"><span>$</span><input type="number" name="costos_fijos" class="cm-input cm-input--money" min="0" step="any" inputmode="decimal" value="0"></div>
+                    <span class="cm-note">Arriendo, servicios, maquinaria — total del mes o período que estás calculando.</span>
+                </label>
+                <div class="cm-actions cm-actions--split">
+                    <button type="button" class="cm-btn cm-btn--ghost" data-prev="1">Atrás</button>
+                    <button type="button" class="cm-btn cm-btn--primary" data-next="3">Siguiente</button>
+                </div>
+            </div>
+
+            <!-- Pantalla 3 -->
+            <div class="cm-step" data-step-panel="3" hidden>
+                <h2 class="cm-h2">Dime a cuánto vendes</h2>
+                <label class="cm-field">
+                    <span class="cm-label">Precio de venta actual por unidad</span>
+                    <div class="cm-input-prefix"><span>$</span><input type="number" name="precio_actual" class="cm-input cm-input--money" min="0" step="any" inputmode="decimal" required></div>
+                </label>
+                <div class="cm-actions cm-actions--split">
+                    <button type="button" class="cm-btn cm-btn--ghost" data-prev="2">Atrás</button>
+                    <button type="button" class="cm-btn cm-btn--primary" id="cm-btn-calcular">Ver cuánto gano</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pantalla 4 — Resultado -->
+    <section id="cm-screen-4" class="cm-screen cm-screen--dark" hidden aria-label="Resultado">
+        <div class="cm-wrap">
+            <p class="cm-eyebrow">Resultado · <span id="cm-res-producto"></span></p>
+            <div class="cm-cards" id="cm-cards">
+                <article class="cm-card">
+                    <p class="cm-card__label">Costo por unidad</p>
+                    <p class="cm-card__value" id="cm-val-costo">—</p>
+                </article>
+                <article class="cm-card">
+                    <p class="cm-card__label">Precio actual</p>
+                    <p class="cm-card__value" id="cm-val-precio">—</p>
+                </article>
+                <article class="cm-card cm-card--highlight" id="cm-card-margen">
+                    <p class="cm-card__label">Margen estimado</p>
+                    <p class="cm-card__value" id="cm-val-margen">—</p>
+                </article>
+                <article class="cm-card">
+                    <p class="cm-card__label">Precio sugerido (25% margen)</p>
+                    <p class="cm-card__value" id="cm-val-sugerido">—</p>
+                </article>
+            </div>
+
+            <div class="cm-alert" id="cm-alert" role="status"></div>
+
+            <section class="cm-recs" aria-live="polite">
+                <h2 class="cm-h2 cm-h2--light">¿Qué puedes hacer?</h2>
+                <div id="cm-recs-loading" class="cm-recs-loading">
+                    <span class="cm-spinner"></span>
+                    <span>eki está analizando tus números…</span>
+                </div>
+                <p id="cm-recs-resumen" class="cm-recs-resumen" hidden></p>
+                <ol id="cm-recs-list" class="cm-recs-list" hidden></ol>
+                <p id="cm-recs-error" class="cm-recs-error" hidden></p>
+            </section>
+
+            <div class="cm-tools">
+                <button type="button" class="cm-btn cm-btn--tool" id="cm-btn-simular">Simular otro precio</button>
+                <button type="button" class="cm-btn cm-btn--tool" id="cm-btn-costos">¿Qué costo debería bajar?</button>
+                <button type="button" class="cm-btn cm-btn--tool cm-btn--disabled" disabled title="Próximamente">Crear presupuesto <span class="cm-badge">próximamente</span></button>
+                <button type="button" class="cm-btn cm-btn--tool cm-btn--disabled" disabled title="Próximamente">Preguntarle a la IA <span class="cm-badge">próximamente</span></button>
+            </div>
+
+            <button type="button" class="cm-btn cm-btn--ghost-light" id="cm-btn-reiniciar">Calcular otro producto</button>
+        </div>
+    </section>
+
+    <!-- Modal simular precio -->
+    <dialog id="cm-modal-simular" class="cm-modal">
+        <form method="dialog" class="cm-modal__inner">
+            <h3 class="cm-h3">Simular otro precio</h3>
+            <label class="cm-field">
+                <span class="cm-label">Precio de venta</span>
+                <div class="cm-input-prefix"><span>$</span><input type="range" id="cm-sim-slider" min="0" max="100000" step="100"><input type="number" id="cm-sim-input" class="cm-input cm-input--money" min="0" step="any"></div>
+            </label>
+            <p class="cm-sim-result">Margen simulado: <strong id="cm-sim-margen">—</strong></p>
+            <button type="button" class="cm-btn cm-btn--primary" id="cm-modal-simular-cerrar">Listo</button>
+        </form>
+    </dialog>
+
+    <!-- Modal costos -->
+    <dialog id="cm-modal-costos" class="cm-modal">
+        <div class="cm-modal__inner">
+            <h3 class="cm-h3">¿Qué costo debería bajar?</h3>
+            <p class="cm-hint cm-hint--dark">Porcentaje sobre el costo variable total.</p>
+            <div id="cm-bars" class="cm-bars"></div>
+            <button type="button" class="cm-btn cm-btn--primary" id="cm-modal-costos-cerrar">Entendido</button>
+        </div>
+    </dialog>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'calculadora_margen/calculadora.js' %}?v=4" defer></script>
+{% endblock %}

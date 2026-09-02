@@ -78,6 +78,7 @@ INSTALLED_APPS = [
     'portal',                   # Portal web para clientes B2B
     'aprende',                  # Aula web estudiantes / profesores
     'studio',                   # Catálogo / creadores (separado del aula)
+    'calculadora_margen',       # MVP público: ¿estoy ganando plata?
 ]
 
 MIDDLEWARE = [

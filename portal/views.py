@@ -2203,3 +2203,30 @@ def portal_catalogo_importar(request):
         'resultado': resultado,
     })
 
+
+@portal_login_required
+def portal_margen(request):
+    """Uso agregado de la calculadora margen + enlaces para compartir en WA."""
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+
+    from calculadora_margen.analytics import resumen_uso_cliente
+    from calculadora_margen.links import urls_margen_cliente
+
+    dias = 30
+    try:
+        dias = max(7, min(90, int(request.GET.get('dias', 30))))
+    except (TypeError, ValueError):
+        dias = 30
+
+    links = urls_margen_cliente(org)
+    stats = resumen_uso_cliente(org.pk, dias=dias)
+
+    return render(request, 'portal/margen.html', {
+        'org': org,
+        'links': links,
+        'stats': stats,
+        'dias': dias,
+    })
+

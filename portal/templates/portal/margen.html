@@ -1,0 +1,85 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Calculadora de margen | Portal eki{% endblock %}
+
+{% block extra_head %}
+<style>
+.margen-link-box {
+    background: var(--tabla-head, #f8f6fa);
+    border: 1px solid var(--borde, #e8e4ec);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+}
+.margen-link-box code {
+    display: block;
+    word-break: break-all;
+    font-size: 0.85rem;
+    margin-top: 8px;
+    padding: 10px;
+    background: #fff;
+    border-radius: 8px;
+    border: 1px solid var(--borde, #e8e4ec);
+}
+.margen-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    margin: 20px 0;
+}
+.margen-kpi {
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid var(--borde);
+    background: var(--card);
+}
+.margen-kpi__n { font-size: 1.6rem; font-weight: 800; color: var(--purple-deep, #5F3A6E); }
+.margen-kpi__l { font-size: 0.78rem; color: var(--muted, #666); margin-top: 4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Calculadora de margen</h1>
+    <p class="muted">Comparte el enlace con tus estudiantes y revisa el uso agregado (sin montos ni datos personales).</p>
+</div>
+
+<section class="card" style="margin-bottom: 20px;">
+    <h2 style="margin-top:0;">Enlaces para tu curso WhatsApp</h2>
+    <p class="muted" style="margin-bottom:16px;">Usa el enlace legible en mensajes del curso. El token opaco sirve si prefieres no mostrar el nombre de la organización.</p>
+
+    <div class="margen-link-box">
+        <strong>Enlace legible (?org=)</strong>
+        <small class="muted">Recomendado para WA — fácil de recordar</small>
+        <code id="link-org">{{ links.url_org }}</code>
+    </div>
+    <div class="margen-link-box">
+        <strong>Enlace con token (?t=)</strong>
+        <small class="muted">Opaco — no revela el slug de la organización</small>
+        <code id="link-token">{{ links.url_token }}</code>
+    </div>
+    <p class="muted" style="font-size:0.85rem;">Añade <code>&amp;curso=ID</code> al enlace para atribuir uso a un curso específico (ej. finanzas).</p>
+</section>
+
+<section class="card">
+    <h2 style="margin-top:0;">Uso últimos {{ dias }} días</h2>
+    <div class="margen-kpi-grid">
+        <div class="margen-kpi"><div class="margen-kpi__n">{{ stats.aperturas }}</div><div class="margen-kpi__l">Aperturas</div></div>
+        <div class="margen-kpi"><div class="margen-kpi__n">{{ stats.inicios_wizard }}</div><div class="margen-kpi__l">Iniciaron cálculo</div></div>
+        <div class="margen-kpi"><div class="margen-kpi__n">{{ stats.calculos }}</div><div class="margen-kpi__l">Completaron</div></div>
+        <div class="margen-kpi"><div class="margen-kpi__n">{% if stats.tasa_completa_pct is not None %}{{ stats.tasa_completa_pct }}%{% else %}—{% endif %}</div><div class="margen-kpi__l">Tasa completación</div></div>
+        <div class="margen-kpi"><div class="margen-kpi__n">{{ stats.recomendaciones }}</div><div class="margen-kpi__l">Pidieron IA</div></div>
+        <div class="margen-kpi"><div class="margen-kpi__n">{{ stats.simulaciones }}</div><div class="margen-kpi__l">Simularon precio</div></div>
+    </div>
+    {% if stats.margen_rangos %}
+    <h3>Distribución de margen (rangos)</h3>
+    <ul>
+        {% for rango, n in stats.margen_rangos.items %}
+        <li><strong>{{ rango }}</strong>: {{ n }} cálculo(s)</li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">Aún no hay cálculos atribuidos a tu organización. Comparte el enlace arriba en el curso.</p>
+    {% endif %}
+</section>
+{% endblock %}
