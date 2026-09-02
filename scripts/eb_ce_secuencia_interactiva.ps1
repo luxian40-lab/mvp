@@ -12,8 +12,8 @@ $briefPath = Join-Path $PSScriptRoot "fixtures\ce_brief_gestion_financiera.txt"
 if (-not (Test-Path $briefPath)) { throw "Falta $briefPath" }
 $briefB64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((Get-Content -Raw $briefPath)))
 
-$dryFlag = if ($DryRunOnly) { "dry_run=True" } else { "dry_run=False" }
-$genVideos = if ($DryRunOnly) { 0 } else { $GenerateVideos }
+$dryRunPy = if ($DryRunOnly) { "True" } else { "False" }
+$genVideosPy = if ($DryRunOnly) { 0 } else { $GenerateVideos }
 
 $bash = @"
 $(Get-EbEnvProdBash)
@@ -50,7 +50,7 @@ if not curso:
     print("[FAIL] Curso 22 no encontrado")
     sys.exit(1)
 print(f"Curso: {curso.nombre} | Modulo M{mod.numero if mod else '?'}: {mod.titulo if mod else 'n/a'}")
-print(f"Brief chars: {len(brief)} | generate_videos: $genVideos | dry_run: $dryFlag")
+print(f"Brief chars: {len(brief)} | generate_videos: $genVideosPy | dry_run: $dryRunPy")
 
 gen = InteractiveSequenceGenerator()
 out = gen.generar(
@@ -58,10 +58,10 @@ out = gen.generar(
     curso_id=curso.id,
     brief=brief,
     modulo_id=mod.id if mod else None,
-    $dryFlag,
+    dry_run=$dryRunPy,
     max_bloques=14,
     max_micro_videos=6,
-    generar_micro_videos=$genVideos,
+    generar_micro_videos=$genVideosPy,
     runway_duration_sec=8,
 )
 for p in out.pasos:
@@ -85,7 +85,7 @@ for paso in out.pasos_wa:
         if not gate.get("apto"):
             sys.exit(1)
 
-if $dryFlag:
+if ${dryRunPy}:
     print("[OK] Dry-run secuencia — sin envio WA")
     sys.exit(0)
 
