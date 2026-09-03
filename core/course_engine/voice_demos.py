@@ -49,7 +49,7 @@ def _static_demo_exists(slug: str) -> bool:
     return path.is_file()
 
 
-def url_demo_voz(voice_id: str, *, generar_si_falta: bool = False) -> dict:
+def url_demo_voz(voice_id: str, *, generar_si_falta: bool = False, request=None) -> dict:
     """
     Resuelve URL de muestra (~5 s) para una Voice ID del catálogo eki.
 
@@ -65,11 +65,21 @@ def url_demo_voz(voice_id: str, *, generar_si_falta: bool = False) -> dict:
             label = v['label']
             break
 
+    def _abs(url: str) -> str:
+        if not url:
+            return ''
+        if request is not None and url.startswith('/'):
+            try:
+                return request.build_absolute_uri(url)
+            except Exception:
+                return url
+        return url
+
     slug = demo_slug_for_voice_id(vid)
     if _static_demo_exists(slug):
         return {
             'ok': True,
-            'url': static(_static_demo_rel(slug)),
+            'url': _abs(static(_static_demo_rel(slug))),
             'cached': True,
             'label': label,
             'source': 'static',
@@ -82,7 +92,7 @@ def url_demo_voz(voice_id: str, *, generar_si_falta: bool = False) -> dict:
             media_url += '/'
         return {
             'ok': True,
-            'url': f'{media_url}{_DEMO_DIR_MEDIA}/{vid}.mp3',
+            'url': _abs(f'{media_url}{_DEMO_DIR_MEDIA}/{vid}.mp3'),
             'cached': True,
             'label': label,
             'source': 'media',
@@ -127,7 +137,7 @@ def url_demo_voz(voice_id: str, *, generar_si_falta: bool = False) -> dict:
 
     return {
         'ok': bool(url),
-        'url': url or '',
+        'url': _abs(url or ''),
         'cached': False,
         'label': label,
         'source': 'generated',
@@ -135,7 +145,7 @@ def url_demo_voz(voice_id: str, *, generar_si_falta: bool = False) -> dict:
     }
 
 
-def catalogo_voces_demo(*, curso=None, generar_si_falta: bool = False) -> list[dict]:
+def catalogo_voces_demo(*, curso=None, generar_si_falta: bool = False, request=None) -> list[dict]:
     """Lista las 4 voces eki con URL de demo para el Studio."""
     selected = ''
     if curso is not None:
@@ -145,7 +155,7 @@ def catalogo_voces_demo(*, curso=None, generar_si_falta: bool = False) -> list[d
 
     rows: list[dict] = []
     for v in catalogo_voces():
-        demo = url_demo_voz(v['id'], generar_si_falta=generar_si_falta)
+        demo = url_demo_voz(v['id'], generar_si_falta=generar_si_falta, request=request)
         genero = (v.get('genero') or '').upper()
         tag = {'F': 'mujer', 'M': 'hombre'}.get(genero, '')
         rows.append(

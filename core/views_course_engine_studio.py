@@ -30,7 +30,7 @@ def course_engine_studio_view(request, curso_id: int):
         return JsonResponse(out, status=status)
 
     rag_list_url = reverse('admin:agents_edu_documentorag_changelist') + f'?curso__id__exact={curso.pk}'
-    ctx = contexto_studio(curso)
+    ctx = contexto_studio(curso, request=request)
     ctx.update(
         {
             'title': f'Course Engine · {curso.nombre}',

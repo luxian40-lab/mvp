@@ -1756,25 +1756,38 @@ class DocumentoRAG(models.Model):
         return self.curso.cliente_id if self.curso.cliente_id else 0
 
     def indexar(self):
-        """Indexa este documento en ChromaDB para el cliente+curso."""
+        """Indexa este documento en ChromaDB para el cliente+curso.
+
+        En producción el FileField vive en S3: `.path` lanza
+        NotImplementedError ("This backend doesn't support absolute paths").
+        Hay que bajar a un temporal, igual que DocumentoRAGComercial.
+        """
         from core.rag_manager import rag_manager
         from django.utils import timezone
-        import os
 
         if not self.archivo:
             self.estado = 'error'
             self.save(update_fields=['estado'])
             return 0
 
+        ruta_temp = None
         try:
-            ruta = self.archivo.path
-            if not os.path.exists(ruta):
-                # Intentar descargar desde S3 a temp
-                ruta = self._descargar_temp()
-                if not ruta:
-                    self.estado = 'error'
-                    self.save(update_fields=['estado'])
-                    return 0
+            ruta = None
+            try:
+                # Solo válido en storage local; en S3 esto lanza.
+                if hasattr(self.archivo, 'path') and os.path.exists(self.archivo.path):
+                    ruta = self.archivo.path
+            except Exception:
+                ruta = None
+
+            if not ruta:
+                ruta_temp = self._descargar_temp()
+                ruta = ruta_temp
+
+            if not ruta:
+                self.estado = 'error'
+                self.save(update_fields=['estado'])
+                return 0
 
             n_chunks = rag_manager.procesar_documento(
                 cliente_id=self.cliente_id,
@@ -1794,6 +1807,12 @@ class DocumentoRAG(models.Model):
             self.estado = 'error'
             self.save(update_fields=['estado'])
             return 0
+        finally:
+            if ruta_temp:
+                try:
+                    os.unlink(ruta_temp)
+                except Exception:
+                    pass
 
     def _descargar_temp(self):
         """Descarga archivo desde storage (S3) a /tmp para procesamiento."""

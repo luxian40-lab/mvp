@@ -197,6 +197,37 @@
         });
     }
 
+    function playUrl(url) {
+      if (!audioEl) return Promise.reject(new Error('Sin reproductor'));
+      return new Promise(function (resolve, reject) {
+        var settled = false;
+        function onReady() {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          var p = audioEl.play();
+          if (p && p.then) p.then(resolve).catch(reject);
+          else resolve();
+        }
+        function onErr() {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(new Error('No se pudo cargar el audio'));
+        }
+        function cleanup() {
+          audioEl.removeEventListener('canplay', onReady);
+          audioEl.removeEventListener('error', onErr);
+        }
+        audioEl.addEventListener('canplay', onReady);
+        audioEl.addEventListener('error', onErr);
+        audioEl.src = url;
+        audioEl.load();
+        // Algunos browsers ya tienen el recurso en caché
+        if (audioEl.readyState >= 2) onReady();
+      });
+    }
+
     document.querySelectorAll('.ce-wa-audio__play').forEach(function (btn) {
       btn.addEventListener('click', function (e) {
         e.stopPropagation();
@@ -207,13 +238,14 @@
         stopAudio();
         resolveDemoUrl(btn)
           .then(function (url) {
-            if (!audioEl) return;
             activePlayBtn = btn;
             btn.classList.add('ce-wa-audio__play--playing');
-            audioEl.src = url;
-            return audioEl.play();
+            return playUrl(url);
           })
-          .catch(function () { showStatus('No hay demo de voz — ejecute seed voice demos', false); });
+          .catch(function (err) {
+            stopAudio();
+            showStatus((err && err.message) || 'No se pudo reproducir la demo de voz', false);
+          });
       });
     });
 

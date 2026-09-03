@@ -1,0 +1,42 @@
+#!/bin/bash
+set -eu
+export ELASTIC_BEANSTALK=true
+GC=/opt/elasticbeanstalk/bin/get-config
+for key in DB_NAME DB_USER DB_PASSWORD DB_HOST DB_PORT AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_STORAGE_BUCKET_NAME AWS_S3_REGION_NAME USE_S3 ELEVENLABS_API_KEY ELEVENLABS_VOICE_ID; do
+  export "$key=$($GC environment -k $key 2>/dev/null || true)"
+done
+export USE_S3=True
+export DJANGO_SETTINGS_MODULE=mvp_project.settings_production
+export PYTHONPATH=/var/app/current
+cd /var/app/current
+source /var/app/venv/*/bin/activate
+
+python3 <<'PY'
+import django
+django.setup()
+
+from django.contrib.staticfiles import finders
+from django.templatetags.static import static
+from core.course_engine.voice_config import catalogo_voces
+from core.course_engine.voice_demos import url_demo_voz, demo_slug_for_voice_id
+from core.models import DocumentoRAG, Curso
+
+print('=== VOICE DEMOS ===')
+for v in catalogo_voces():
+    slug = demo_slug_for_voice_id(v['id'])
+    found = finders.find(f'course_engine/voices/{slug}.mp3')
+    try:
+        url = static(f'course_engine/voices/{slug}.mp3')
+    except Exception as e:
+        url = f'ERR:{e}'
+    demo = url_demo_voz(v['id'])
+    print(f"{v['label']:14} slug={slug:16} find={bool(found)} static={url} demo={demo}")
+
+print('=== RECENT RAG DOCS curso 22 ===')
+for d in DocumentoRAG.objects.filter(curso_id=22).order_by('-id')[:8]:
+    print(f"id={d.id} nombre={d.nombre!r} estado={d.estado} chunks={d.chunks_indexados} archivo={d.archivo}")
+
+print('=== ALL RAG ERRORS last 10 ===')
+for d in DocumentoRAG.objects.filter(estado='error').order_by('-id')[:10]:
+    print(f"id={d.id} curso={d.curso_id} nombre={d.nombre!r} archivo={d.archivo}")
+PY

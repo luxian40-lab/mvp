@@ -107,10 +107,10 @@ def reindexar_documento(curso, doc_id) -> dict[str, Any]:
     return {'ok': True, 'documentos': documentos_curso_json(curso), 'status': 200}
 
 
-def voces_demo_curso(curso) -> list[dict]:
+def voces_demo_curso(curso, *, request=None) -> list[dict]:
     from core.course_engine.voice_demos import catalogo_voces_demo
 
-    return catalogo_voces_demo(curso=curso)
+    return catalogo_voces_demo(curso=curso, request=request)
 
 
 def set_voz_curso(curso, voice_id: str) -> dict[str, Any]:
@@ -132,7 +132,7 @@ def set_voz_curso(curso, voice_id: str) -> dict[str, Any]:
     }
 
 
-def contexto_studio(curso) -> dict[str, Any]:
+def contexto_studio(curso, *, request=None) -> dict[str, Any]:
     """Contexto de render compartido por el Studio admin y el portal."""
     from core.course_engine.voice_config import resolver_voice_id_curso, resolver_voice_label_curso
 
@@ -140,7 +140,7 @@ def contexto_studio(curso) -> dict[str, Any]:
         'curso': curso,
         'modulos': modulos_curso_json(curso),
         'documentos': documentos_curso_json(curso),
-        'voces_demo': voces_demo_curso(curso),
+        'voces_demo': voces_demo_curso(curso, request=request),
         'voice_id_activa': resolver_voice_id_curso(curso) or '',
         'voice_label_activa': resolver_voice_label_curso(curso),
         'max_upload_mb': MAX_UPLOAD_MB,
@@ -168,7 +168,11 @@ def studio_ajax(request, curso, *, usuario=None) -> Optional[dict[str, Any]]:
 
         demo_voice = (request.GET.get('demo_voice') or '').strip()
         if demo_voice:
-            out = url_demo_voz(demo_voice, generar_si_falta=request.GET.get('generate') == '1')
+            out = url_demo_voz(
+                demo_voice,
+                generar_si_falta=request.GET.get('generate') == '1',
+                request=request,
+            )
             out['status'] = 200 if out.get('ok') else 404
             return out
         return None

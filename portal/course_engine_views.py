@@ -52,7 +52,7 @@ def portal_curso_course_engine(request, curso_id: int):
         status = out.pop('status', 200)
         return JsonResponse(out, status=status)
 
-    ctx = contexto_studio(curso)
+    ctx = contexto_studio(curso, request=request)
     ctx['studio_url'] = f'/portal/cursos/{curso.pk}/course-engine/'
     return render(request, 'portal/curso_course_engine.html', ctx)
 
