@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 from . import views_eki_ops
 from . import curso_editor_api
+from . import course_engine_views
 from . import password_reset
 
 
@@ -83,6 +84,8 @@ urlpatterns = [
     path('estudiantes/<int:estudiante_id>/', views.estudiante_detalle, name='portal_estudiante_detalle'),
     path('cursos/', views.cursos_lista, name='portal_cursos'),
     path('cursos/<int:curso_id>/flujo/', views.portal_curso_flujo, name='portal_curso_flujo'),
+    path('cursos/<int:curso_id>/course-engine/', course_engine_views.portal_curso_course_engine, name='portal_curso_course_engine'),
+    path('course-engine/status/<str:run_id>/', course_engine_views.api_course_engine_status, name='portal_ce_status'),
     path('certificados/', views.portal_certificados, name='portal_certificados'),
     path('pqrs/', views.pqrs_lista, name='portal_pqrs'),
     path('pqrs/<int:pqrs_id>/', views.pqrs_detalle, name='portal_pqrs_detalle'),

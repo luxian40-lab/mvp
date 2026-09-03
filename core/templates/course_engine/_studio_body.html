@@ -1,0 +1,165 @@
+<div class="ce-shell">
+<div class="ce-studio" id="ce-studio"
+     data-curso-id="{{ curso.id }}"
+     data-studio-url="{{ studio_url }}"
+     data-csrf="{{ csrf_token }}"
+     data-voice-id="{{ voice_id_activa }}">
+
+  <header class="ce-hero">
+    <div class="ce-hero__text">
+      <p class="ce-hero__kicker"><span class="ce-wordmark">eki</span> Course Engine</p>
+      <h1 class="ce-hero__title">{{ curso.nombre }}</h1>
+      <p class="ce-hero__sub">
+        Material del curso → RAG → micro-video 16:9 con voz y lámina animada.
+        {% if curso.cliente %}<span class="ce-hero__org">{{ curso.cliente.nombre }}</span>{% endif %}
+      </p>
+    </div>
+    <dl class="ce-hero__stats">
+      <div><dt>Módulos</dt><dd>{{ modulos|length }}</dd></div>
+      <div><dt>Documentos</dt><dd>{{ documentos|length }}</dd></div>
+      <div><dt>Demo</dt><dd>{{ demo_max_seg }} s</dd></div>
+    </dl>
+  </header>
+
+  <section class="ce-step" aria-labelledby="ce-step-1">
+    <div class="ce-step__head">
+      <span class="ce-step__num">1</span>
+      <div>
+        <h2 class="ce-step__title" id="ce-step-1">Sube tus documentos</h2>
+        <p class="ce-step__hint">Se indexan solos en el RAG del curso; el guion sale de aquí.</p>
+      </div>
+    </div>
+
+    <div class="ce-drop" id="ce-drop" tabindex="0" role="button" aria-label="Soltar archivos">
+      <span class="ce-drop__icon" aria-hidden="true">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <path d="M14 2v6h6"/>
+          <path d="M12 18v-6"/>
+          <path d="M9 15l3-3 3 3"/>
+        </svg>
+      </span>
+      <strong class="ce-drop__title">Suelta tus archivos aquí</strong>
+      <span class="ce-drop__hint">PDF, deck, doc o videos — hasta {{ max_upload_mb }} MB</span>
+      <span class="ce-drop__cta">o haz clic para elegir</span>
+      <input type="file" id="ce-rag-files" multiple
+             accept=".pdf,.docx,.txt,.xlsx,.xlsm,.pptx,.ppt,.mp4,.mov,.webm,application/pdf" hidden>
+    </div>
+
+    <ul class="ce-rag-list" id="ce-rag-list" aria-live="polite">
+      {% for d in documentos %}
+      <li class="ce-rag-list__item" data-doc-id="{{ d.id }}" data-estado="{{ d.estado }}">
+        <span class="ce-rag-list__name">{{ d.nombre }}</span>
+        <span class="ce-rag-list__meta">
+          <em class="ce-rag-badge ce-rag-badge--{{ d.estado }}">{{ d.estado_label }}</em>
+          {% if d.chunks %}<span class="ce-rag-chunks">{{ d.chunks }} chunks</span>{% endif %}
+        </span>
+      </li>
+      {% empty %}
+      <li class="ce-rag-list__empty">Aún no hay documentos en este curso.</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <div class="ce-cols">
+    <section class="ce-step ce-step--voices" aria-labelledby="ce-step-2">
+      <div class="ce-step__head">
+        <span class="ce-step__num">2</span>
+        <div>
+          <h2 class="ce-step__title" id="ce-step-2">Elige la voz</h2>
+          <p class="ce-step__hint">Cuatro voces colombianas. Escúchalas como llegan al estudiante.</p>
+        </div>
+      </div>
+
+      <ul class="ce-voices" id="ce-voices">
+        {% for v in voces_demo %}
+        <li class="ce-voice{% if v.selected %} ce-voice--active{% endif %}" data-voice-id="{{ v.id }}">
+          <div class="ce-voice__row">
+            <div class="ce-wa-audio">
+              <button type="button" class="ce-wa-audio__play" aria-label="Reproducir muestra de {{ v.label }}"
+                      data-audio-url="{{ v.audio_url }}" data-voice-id="{{ v.id }}"
+                      {% if not v.audio_url %}disabled title="Demo pendiente"{% endif %}>
+                <span class="ce-wa-audio__icon ce-wa-audio__icon--play" aria-hidden="true">▶</span>
+                <span class="ce-wa-audio__icon ce-wa-audio__icon--pause" aria-hidden="true">❚❚</span>
+              </button>
+              <div class="ce-wa-audio__wave" aria-hidden="true">
+                <span></span><span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span>
+              </div>
+              <span class="ce-wa-audio__dur">0:05</span>
+            </div>
+          </div>
+          <div class="ce-voice__info">
+            <span class="ce-voice__name">{{ v.label }}</span>
+            {% if v.tag %}<span class="ce-voice__tag">{{ v.tag }}</span>{% endif %}
+            <button type="button" class="ce-voice__pick{% if v.selected %} ce-voice__pick--on{% endif %}"
+                    data-voice-id="{{ v.id }}">
+              {% if v.selected %}✓ Activa{% else %}Usar{% endif %}
+            </button>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+
+      {% if voice_label_activa %}
+      <p class="ce-voice-active">Voz del curso: <strong>{{ voice_label_activa }}</strong></p>
+      {% endif %}
+    </section>
+
+    <section class="ce-step ce-step--demo" aria-labelledby="ce-step-3">
+      <div class="ce-step__head">
+        <span class="ce-step__num">3</span>
+        <div>
+          <h2 class="ce-step__title" id="ce-step-3">Genera el demo</h2>
+          <p class="ce-step__hint">16:9 · escena + lámina + voz · máx {{ demo_max_seg }} s · no envía WhatsApp.</p>
+        </div>
+      </div>
+
+      <div class="ce-field">
+        <label for="ce-modulo">Módulo</label>
+        <select id="ce-modulo">
+          <option value="">— Elegir módulo —</option>
+          {% for m in modulos %}
+          <option value="{{ m.id }}">M{{ m.numero }} · {{ m.titulo }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="ce-field">
+        <label for="ce-foco">Reto o tema del video <span class="ce-field__opt">opcional</span></label>
+        <input type="text" id="ce-foco" maxlength="300"
+               placeholder="Ej. Error 1: no rendir cuentas entre socios">
+      </div>
+      <div class="ce-field">
+        <label for="ce-brief">Brief / guion</label>
+        <textarea id="ce-brief" rows="7"
+                  placeholder="Contenido del módulo para planificar el video…"></textarea>
+      </div>
+
+      <div class="ce-actions">
+        <button type="button" class="ce-btn ce-btn--ghost" id="ce-plan">Vista previa guion</button>
+        <button type="button" class="ce-btn ce-btn--primary" id="ce-generar">
+          Generar demo ({{ demo_max_seg }} s)
+        </button>
+      </div>
+
+      <div class="ce-video-preview" id="ce-video-preview" hidden>
+        <p class="ce-eyebrow">Vista previa</p>
+        <video id="ce-video-el" controls playsinline preload="metadata"></video>
+        <p class="ce-video-preview__link" id="ce-video-link"></p>
+      </div>
+      <div class="ce-preview" id="ce-preview" hidden></div>
+      <div class="ce-status" id="ce-status" hidden></div>
+    </section>
+  </div>
+
+  {% if curso_change_url %}
+  <p class="ce-foot">
+    Tier avanzado y clon de voz del cliente en
+    <a href="{{ curso_change_url }}#course-engine">Curso → Course Engine (video IA)</a>.
+    Module Builder queda solo para pasos de WhatsApp.
+  </p>
+  {% endif %}
+</div>
+</div>
+<audio id="ce-audio-el" preload="none" hidden></audio>

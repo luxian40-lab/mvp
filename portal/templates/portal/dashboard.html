@@ -169,6 +169,52 @@ html[data-theme="dark"] .ops-card { background: var(--blanco); }
 .timeline-compact__main a:hover { color: var(--purple-deep); }
 .timeline-compact__meta { display: block; color: var(--texto-muted); font-size: 12px; margin-top: 2px; }
 .timeline-compact__time { flex-shrink: 0; color: var(--texto-muted); font-size: 12px; white-space: nowrap; }
+
+/* Hub agentes / herramientas IA (Lumina dark) */
+.dash-agents-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+}
+.dash-agent-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 18px 18px 16px;
+    border-radius: 14px;
+    border: 1px solid var(--borde);
+    background: var(--surface);
+    text-decoration: none;
+    color: inherit;
+    transition: border-color .15s, transform .15s;
+    min-height: 168px;
+}
+.dash-agent-card:hover {
+    border-color: rgba(168, 85, 247, 0.45);
+    transform: translateY(-2px);
+}
+.dash-agent-card__tag {
+    align-self: flex-start;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--purple-deep);
+}
+.dash-agent-card--green .dash-agent-card__tag { background: var(--success-soft); color: var(--success); }
+.dash-agent-card--blue .dash-agent-card__tag { background: var(--info-soft); color: var(--info); }
+.dash-agent-card__cat { font-size: 0.72rem; color: var(--texto-muted); font-weight: 600; }
+.dash-agent-card__title { margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--ink); }
+.dash-agent-card__desc { margin: 0; font-size: 0.82rem; color: var(--texto-muted); line-height: 1.45; flex: 1; }
+.dash-agent-card__cta {
+    margin-top: auto;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--accent);
+}
 </style>
 {% endblock %}
 
@@ -196,6 +242,23 @@ html[data-theme="dark"] .ops-card { background: var(--blanco); }
         </p>
     </div>
     <a class="btn" href="/portal/perfil/">Configurar perfil</a>
+</section>
+{% endif %}
+
+{% if agentes_hub %}
+<section class="dash-section" id="agentes">
+    <p class="dash-q">¿Qué herramienta IA quieres usar hoy?</p>
+    <div class="dash-agents-grid">
+        {% for a in agentes_hub %}
+        <a href="{{ a.url }}" class="dash-agent-card dash-agent-card--{{ a.tono|default:'purple' }}">
+            <span class="dash-agent-card__tag">{{ a.tag }}</span>
+            <span class="dash-agent-card__cat">{{ a.categoria }}</span>
+            <h3 class="dash-agent-card__title">{{ a.titulo }}</h3>
+            <p class="dash-agent-card__desc">{{ a.desc }}</p>
+            <span class="dash-agent-card__cta">Abrir →</span>
+        </a>
+        {% endfor %}
+    </div>
 </section>
 {% endif %}
 
@@ -244,6 +307,41 @@ html[data-theme="dark"] .ops-card { background: var(--blanco); }
 {% endif %}
 
 {% if portal_mod_cursos %}
+{% if margen_resumen %}
+<section class="dash-section">
+    <p class="dash-q">¿Usan la calculadora de margen?</p>
+    <div class="estado-card">
+        <div>
+            <p class="estado-card__title">Calculadora de costos y margen</p>
+            <p class="estado-card__body">
+                En los últimos 30 días: {{ margen_resumen.aperturas }} apertura(s),
+                {{ margen_resumen.calculos }} cálculo(s) completado(s).
+                {% if margen_resumen.tasa_completa_pct is not None %}
+                Tasa de completación: {{ margen_resumen.tasa_completa_pct }}%.
+                {% endif %}
+            </p>
+            {% if margen_resumen.habilidades %}
+            <div style="margin-top:14px; display:grid; gap:8px; max-width:420px;">
+                {% for h in margen_resumen.habilidades %}
+                <div style="font-size:0.82rem;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span>{{ h.nombre }}</span>
+                        <strong>{% if h.pct is not None %}{{ h.pct }}%{% else %}—{% endif %}</strong>
+                    </div>
+                    <div class="progress-track" style="height:8px;">
+                        <span class="progress-fill" style="width:{% if h.pct %}{{ h.pct }}{% else %}0{% endif %}%;"></span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        <div class="estado-card__cta">
+            <a class="btn" href="/portal/margen/">Ver enlaces y métricas</a>
+        </div>
+    </div>
+</section>
+{% endif %}
 {% if estado_programa %}
 <section class="dash-section">
     <p class="dash-q">¿Cómo va mi programa?</p>

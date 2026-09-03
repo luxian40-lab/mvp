@@ -43,7 +43,9 @@ Cada CA debe ser **observable**: comando, URL, smoke WA, o screenshot. Evitar �
 
 - Recomendar deploy solo tras **QA_PASS** (o riesgo explícito del usuario).
 - Si tocó auth/webhooks/S3: preferir **SEC_PASS** (sin Critical/High).
-- Prod: `eb deploy eki-prod-final`. Smoke PowerShell no-interactivo a veces falla con exit 1 aunque EB quede Green — verificar `/health/` + `eb status`.
+- Prod: `eb deploy eki-prod-final` — checklist completo en `.cursor/skills/eki-ship/SKILL.md`.
+- **Constraints P0** antes de autorizar: `.cursor/skills/eki-constraints/SKILL.md`.
+- Smoke PowerShell no-interactivo a veces falla con exit 1 aunque EB quede Green — verificar `/health/` + `eb status`.
 - Separar fixes seguros (MIME audio) de bloqueantes (63021 codec, video >16MB).
 
 ## Salida estándar

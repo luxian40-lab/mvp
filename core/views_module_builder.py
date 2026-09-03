@@ -388,6 +388,7 @@ def module_builder_view(request, modulo_id: int):
     drip_estudiantes_url = reverse('admin_drip_estudiantes')
     if cliente:
         drip_estudiantes_url += f'?cliente={cliente.pk}'
+    ce_studio_url = reverse('admin_course_engine_studio', args=[curso.pk]) if curso else ''
     ctx = {
         'title': f'Builder · Módulo {modulo.numero}',
         'modulo': modulo,
@@ -422,5 +423,6 @@ def module_builder_view(request, modulo_id: int):
             request.GET.get('builder') == '1' or request.POST.get('builder') == '1'
         ) else '',
         'change_url': f'/admin/core/modulo/{modulo.id}/change/',
+        'ce_studio_url': ce_studio_url,
     }
     return render(request, 'admin/module_builder.html', ctx)

@@ -179,6 +179,57 @@ def portal_logout(request):
     return redirect('/portal/login/')
 
 
+def _agentes_hub(org, mods: dict) -> list[dict]:
+    """Tarjetas estilo AI Skills Toolbox — todos los agentes/herramientas del portal."""
+    items: list[dict] = []
+    if mods.get('nat'):
+        items.append({
+            'titulo': 'Agente Nat',
+            'categoria': 'Comercial',
+            'desc': 'Agrónoma IA en WhatsApp: catálogo, precios y conversaciones.',
+            'url': '/portal/nat/',
+            'tag': 'IA comercial',
+            'tono': 'purple',
+        })
+    if mods.get('cursos'):
+        items.extend([
+            {
+                'titulo': 'Calculadora margen',
+                'categoria': 'Finanzas',
+                'desc': 'Costos, margen y simulación de precio para estudiantes.',
+                'url': '/portal/margen/',
+                'tag': 'Herramienta',
+                'tono': 'green',
+            },
+            {
+                'titulo': 'Centro de Éxito',
+                'categoria': 'Retención',
+                'desc': 'Riesgo, reenganche y agente de retención para coordinadores.',
+                'url': '/portal/retencion/',
+                'tag': 'IA predictiva',
+                'tono': 'blue',
+            },
+            {
+                'titulo': 'Conocimiento curso',
+                'categoria': 'RAG',
+                'desc': 'Documentos e IA por curso — base para Course Engine y PQRS.',
+                'url': '/portal/conocimiento/',
+                'tag': 'RAG',
+                'tono': 'neutral',
+            },
+        ])
+    if mods.get('gei'):
+        items.append({
+            'titulo': 'Inventario GEI',
+            'categoria': 'Sostenibilidad',
+            'desc': 'Fichas, formularios y emisiones de huella.',
+            'url': '/portal/gei/',
+            'tag': 'GEI',
+            'tono': 'green',
+        })
+    return items
+
+
 @portal_login_required
 def dashboard(request):
     org = _portal_org(request)
@@ -248,6 +299,23 @@ def dashboard(request):
             ],
         }
 
+    margen_resumen = None
+    if mods['cursos']:
+        from calculadora_margen.analytics import resumen_uso_cliente
+        margen_resumen = resumen_uso_cliente(org.pk, dias=30)
+
+    agentes_hub = _agentes_hub(org, mods)
+    ce_curso = cursos.first() if mods['cursos'] else None
+    if ce_curso and mods['cursos']:
+        agentes_hub.append({
+            'titulo': 'Course Engine',
+            'categoria': 'Video IA',
+            'desc': 'Genera micro-videos 16:9 con voz y lámina animada desde el brief.',
+            'url': f'/portal/cursos/{ce_curso.id}/course-engine/',
+            'tag': 'Generativo',
+            'tono': 'purple',
+        })
+
     return render(request, 'portal/dashboard.html', {
         'org': org,
         'portal_modulos': mods,
@@ -266,6 +334,8 @@ def dashboard(request):
         'estado_programa': estado_programa,
         'timeline_preview': timeline_preview,
         'dashboard_charts': dashboard_charts,
+        'margen_resumen': margen_resumen,
+        'agentes_hub': agentes_hub,
     })
 
 

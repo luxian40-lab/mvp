@@ -12,11 +12,11 @@
 
 {{ block.super }}
 
-<link rel="stylesheet" href="{% static 'admin/css/module_builder.css' %}?v=23">
+<link rel="stylesheet" href="{% static 'admin/css/module_builder.css' %}?v=26">
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" defer></script>
 
-<script src="{% static 'admin/js/module_builder.js' %}?v=23" defer></script>
+<script src="{% static 'admin/js/module_builder.js' %}?v=26" defer></script>
 
 {% endblock %}
 
@@ -54,11 +54,13 @@
 
   <header class="eki-mb__hero">
 
-    <div class="eki-mb__hero-mark" aria-hidden="true"></div>
+    <div class="eki-mb__hero-mark" aria-hidden="true">
+      <img class="eki-mb__hero-logo" src="{% static 'favicons/admin-48.png' %}" width="40" height="40" alt="">
+    </div>
 
     <div class="eki-mb__hero-text">
 
-      <p class="eki-mb__eyebrow">Module Builder · camino principal</p>
+      <p class="eki-mb__eyebrow">eki · Module Builder</p>
 
       <h1 class="eki-mb__title">Módulo {{ modulo.numero }}</h1>
 
@@ -293,7 +295,9 @@
 
       <p class="eki-mb__general-links">
 
-        <a href="{{ avanzado_url }}#course-engine">Course Engine</a> ·
+        <a href="{{ avanzado_url }}#course-engine">Voz / tier CE</a> ·
+
+        {% if ce_studio_url %}<a href="{{ ce_studio_url }}">Course Engine Studio</a> ·{% endif %}
 
         <a href="{{ avanzado_url }}">Pasos quiz / evaluación</a> ·
 

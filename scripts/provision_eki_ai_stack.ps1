@@ -197,7 +197,7 @@ function SetRedisEnvVars([string]$Endpoint, [string]$EnvName, [string]$ExtraVars
         "USE_LOCAL_REDIS=0"
     )
     if ($ExtraVars) { $pairs += $ExtraVars }
-    RunEb @("setenv") + $pairs + @("--environment", $EnvName) "setenv Redis en $EnvName"
+    RunEb (@("setenv") + $pairs + @("--environment", $EnvName)) "setenv Redis en $EnvName"
     Ok "Variables Redis en $EnvName."
 }
 

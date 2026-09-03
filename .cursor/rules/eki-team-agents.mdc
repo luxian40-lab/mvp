@@ -25,8 +25,19 @@ Cuando el usuario pida un rol o diga cosas como “haz de QA”, “como PM”, 
    - Content / Pedagógico → `.cursor/skills/eki-content/SKILL.md`
    - Legal / Compliance → `.cursor/skills/eki-legal/SKILL.md`
    - SRE / Infra → `.cursor/skills/eki-sre/SKILL.md`
-2. Un rol a la vez salvo que pida el flujo completo (CTO/PM → UX/Diseñador/Data → Dev → QA → Sec/SRE).
-3. Deploy solo con pedido explícito del usuario; si hay rol QA, preferir QA_PASS; si hay Sec, preferir sin Critical/High abiertos.
+2. **Ingeniería (gates, cross-cutting)** — leer cuando aplique al task:
+   - TDD → `.cursor/skills/eki-tdd/SKILL.md`
+   - Constraints / quality bar → `.cursor/skills/eki-constraints/SKILL.md`
+   - Browser QA post-deploy → `.cursor/skills/eki-browser-qa/SKILL.md`
+   - Debug → `.cursor/skills/eki-debug/SKILL.md`
+   - Ship / deploy EB → `.cursor/skills/eki-ship/SKILL.md`
+   - API/ajax contracts → `.cursor/skills/eki-api-contracts/SKILL.md`
+   - Incremental slices → `.cursor/skills/eki-incremental/SKILL.md`
+   - Code review → `.cursor/skills/eki-code-review/SKILL.md`
+   - Doubt (P0 alto riesgo) → `.cursor/skills/eki-doubt/SKILL.md`
+   - Observability → `.cursor/skills/eki-observability/SKILL.md`
+3. Un rol a la vez salvo que pida el flujo completo (CTO/PM → UX/Diseñador/Data → Dev → QA → Sec/SRE).
+4. Deploy solo con pedido explícito del usuario; si hay rol QA, preferir QA_PASS; si hay Sec, preferir sin Critical/High abiertos.
 
 ## Docs de producto (canon)
 

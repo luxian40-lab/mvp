@@ -31,9 +31,41 @@ Actúa como desarrollador de eki. Español breve; código primero.
 
 1. Scope = criterios PM (o pedido explícito). Nada extra.
 2. Diff mínimo; no tocar archivos no relacionados.
-3. Tests donde ya hay suite.
+3. Tests donde ya hay suite — ver **TDD** abajo.
 4. Commit / push / deploy solo si el usuario lo pide.
 5. Tras fix media → indicar a QA qué smoke.
+
+## TDD y contratos (obligatorio si tocas comportamiento)
+
+Leer `.cursor/skills/eki-tdd/SKILL.md` y `.cursor/skills/eki-api-contracts/SKILL.md` cuando el diff incluya:
+
+- `static/admin/js/*.js` o templates con `fetch` / forms ajax
+- `views_*.py` con `JsonResponse`
+- Persistencia Builder (`module_builder_config.py`)
+
+**Regla Beyoncé:** si quitas el fix, el test debe fallar.
+
+**Slices:** cambios multi-archivo → `.cursor/skills/eki-incremental/SKILL.md`.
+
+### Anti-racionalización Dev
+
+| Excusa | Respuesta |
+|--------|-----------|
+| «Ya probé manualmente» | Manual no reemplaza test de contrato; QA lo exige post-deploy. |
+| «Solo cambié JS» | JS alimenta POST — test ajax o indicar gate `@eki-browser-qa`. |
+| «Los tests viejos pasan» | ¿Cubren el path nuevo? Si no, red primero (`eki-tdd`). |
+| «Lo marco hecho sin test» | **Prohibido** si tocaste JS/HTML del Builder o ajax backend. |
+
+### Verificación Dev (no negociable)
+
+Antes de «listo para QA»:
+
+- [ ] `python manage.py test <suites>` — pegar conteo OK.
+- [ ] Si Builder: `core.tests_module_builder_ui` verde.
+- [ ] Bump `?v=` en template si cambió JS/CSS.
+- [ ] Listar smoke manual para QA (`eki-browser-qa` checklist P0).
+
+**Sin evidencia de tests → no decir implementado.**
 
 ## Media WhatsApp
 

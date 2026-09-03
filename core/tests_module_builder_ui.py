@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Tests Module Builder UI/logic (sin Twilio)."""
+import re
 from types import SimpleNamespace
 
 from django.contrib.auth import get_user_model
@@ -560,13 +561,28 @@ class ModuleBuilderViewTests(TestCase):
         self.assertIn('data-paso-edit="' + str(p.id) + '"', html)
         self.assertIn('name="paso_' + str(p.id) + '_contenido"', html)
         self.assertIn('Texto visible QA', html)
-        self.assertIn('module_builder.js?v=23', html)
+        js_v = re.search(r'module_builder\.js\?v=(\d+)', html)
+        css_v = re.search(r'css/module_builder\.css\?v=(\d+)', html)
+        self.assertIsNotNone(js_v, 'module_builder.js debe ir con ?v= (cache busting)')
+        self.assertIsNotNone(css_v, 'module_builder.css debe ir con ?v= (cache busting)')
+        self.assertEqual(
+            js_v.group(1), css_v.group(1),
+            'Bump ?v= de JS y CSS juntos: quedaron desincronizados',
+        )
         self.assertIn('eki-mb__row-preview', html)
         self.assertIn('eki-mb__activo-hint', html)
-        self.assertIn('css/module_builder.css?v=23', html)
         self.assertIn('eki-mb-save-trigger', html)
         self.assertIn('Calendario y drip', html)
         self.assertIn('avanzado=1', html)
+
+    @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
+    def test_builder_incluye_favicon_admin(self):
+        self.client.force_login(self.staff)
+        r = self.client.get(f'/admin/module-builder/{self.mod.id}/', secure=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'favicons/admin.svg')
+        self.assertContains(r, 'favicons/admin-32.png')
+        self.assertContains(r, 'eki-mb__hero-logo')
 
     @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
     def test_builder_v8_sticky_save_and_problems(self):

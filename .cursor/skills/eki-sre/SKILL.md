@@ -42,6 +42,12 @@ Actúa como SRE de eki. Español breve, orientado a **estabilidad y evidencia**.
 - [ ] S3 reachable media/certs
 - [ ] Umbrales capacidad documentados / medidos
 
+## Ship (deploy prod)
+
+Checklist completo: `.cursor/skills/eki-ship/SKILL.md`
+
+Post-deploy señales: `.cursor/skills/eki-observability/SKILL.md`
+
 ## Salida
 
 ```markdown

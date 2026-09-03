@@ -9,6 +9,7 @@ from core.course_engine.voice_config import (
     resolver_voice_id_curso,
     resolver_voice_id_modulo,
     resolver_voice_label_modulo,
+    voice_label_efectivo,
 )
 from core.course_engine.voice_preview import MUESTRA_VOZ_TEXTO, generar_muestra_voz
 from core.models import Curso, Modulo
@@ -36,7 +37,7 @@ def preview_voz_curso_view(request, curso_id):
         return redirect('admin:core_curso_change', curso_id)
 
     voice_id = (request.GET.get('voice_id') or '').strip() or resolver_voice_id_curso(curso)
-    label = (curso.course_engine_voice_label or '').strip() or 'Curso'
+    label = voice_label_efectivo(voice_id, curso.course_engine_voice_label) or 'Curso'
     back = reverse('admin:core_curso_change', args=[curso_id])
 
     out = generar_muestra_voz(voice_id, voice_label=label)

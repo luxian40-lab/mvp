@@ -47,6 +47,25 @@ Si pide `/review-security` o “revisión de seguridad del diff”, además se p
 6. ¿Auth/sesión regresa acceso?
 7. ¿Comparación de firmas timing-safe?
 
+## Hardening (OWASP / uploads)
+
+Patrones extendidos: validar en boundary (vista), no confiar en front; límites tamaño MIME en uploads Builder; no exponer stack traces en JSON ajax prod.
+
+Para review sistemática pre-merge: `.cursor/skills/eki-code-review/SKILL.md` (eje Security).
+
+### Anti-racionalización Sec
+
+| Excusa | Respuesta |
+|--------|-----------|
+| «Es solo admin interno» | Staff comprometido o XSS en Builder sigue siendo riesgo. |
+| «Upload ya valida en browser» | Boundary check en Django obligatorio. |
+| «Deploy urgente, Sec después» | Critical/High bloquean deploy (regla equipo). |
+
+### Verificación Sec (no negociable)
+
+- Tabla findings con severidad o `SEC_PASS` explícito.
+- Critical/High sin mitigar → `SEC_FAIL`.
+
 ## Severidad
 
 - **Critical** — PII sin auth / RCE / secretos en claro en prod

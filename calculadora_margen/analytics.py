@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import uuid
 from typing import Any, Optional
 
@@ -134,6 +135,87 @@ def resumen_uso_cliente(cliente_id: int, *, dias: int = 30) -> dict[str, Any]:
 
     tasa_completa = round(100.0 * calculos / aperturas, 1) if aperturas else None
     tasa_ia = round(100.0 * recomendaciones / calculos, 1) if calculos else None
+    inicios = por_evento.get(EVENTO_INICIO_WIZARD, 0)
+    resultados = por_evento.get(EVENTO_RESULTADO_VISTO, 0)
+
+    def _pct(num: int, den: int) -> Optional[float]:
+        return round(100.0 * num / den, 1) if den else None
+
+    base_embudo = aperturas or sesiones or 1
+    embudo = [
+        {
+            'etapa': 'Abrieron enlace',
+            'n': aperturas,
+            'pct': 100.0 if aperturas else None,
+            'pct_base': 100.0 if aperturas else None,
+        },
+        {
+            'etapa': 'Iniciaron cálculo',
+            'n': inicios,
+            'pct': _pct(inicios, base_embudo),
+            'pct_base': _pct(inicios, aperturas) if aperturas else None,
+        },
+        {
+            'etapa': 'Completaron margen',
+            'n': calculos,
+            'pct': _pct(calculos, base_embudo),
+            'pct_base': _pct(calculos, aperturas) if aperturas else None,
+        },
+        {
+            'etapa': 'Vieron resultado',
+            'n': resultados,
+            'pct': _pct(resultados, base_embudo),
+            'pct_base': _pct(resultados, calculos) if calculos else None,
+        },
+    ]
+
+    habilidades = [
+        {
+            'nombre': 'Calcular margen',
+            'descripcion': 'Completan el wizard de costos',
+            'pct': _pct(calculos, aperturas) if aperturas else None,
+            'n': calculos,
+            'nivel': 'fortaleza' if (calculos and aperturas and calculos / aperturas >= 0.5) else 'desarrollo',
+        },
+        {
+            'nombre': 'Tips con IA',
+            'descripcion': 'Piden recomendaciones tras calcular',
+            'pct': tasa_ia,
+            'n': recomendaciones,
+            'nivel': 'fortaleza' if tasa_ia and tasa_ia >= 40 else 'desarrollo',
+        },
+        {
+            'nombre': 'Simular precio',
+            'descripcion': 'Prueban escenarios de precio',
+            'pct': _pct(simulaciones, calculos) if calculos else None,
+            'n': simulaciones,
+            'nivel': 'fortaleza' if simulaciones and calculos and simulaciones / calculos >= 0.3 else 'brecha',
+        },
+    ]
+
+    max_rango = max(rangos.values()) if rangos else 0
+    margen_barras = [
+        {
+            'rango': rango,
+            'n': n,
+            'pct_ancho': round(100.0 * n / max_rango, 1) if max_rango else 0,
+        }
+        for rango, n in sorted(rangos.items(), key=lambda x: (-x[1], x[0]))
+    ]
+
+    radar_labels: list[str] = []
+    radar_polygon = ''
+    if len(habilidades) >= 3:
+        cx, cy, radius = 100.0, 100.0, 72.0
+        angles = (-90, 30, 150)
+        pts: list[tuple[float, float]] = []
+        for i, h in enumerate(habilidades[:3]):
+            pct = float(h.get('pct') or 0)
+            r = radius * max(0.0, min(100.0, pct)) / 100.0
+            ang = math.radians(angles[i])
+            pts.append((cx + r * math.cos(ang), cy + r * math.sin(ang)))
+            radar_labels.append(str(h.get('nombre') or '')[:18])
+        radar_polygon = ' '.join(f'{x:.1f},{y:.1f}' for x, y in pts)
 
     links = {}
     cliente = Cliente.objects.filter(pk=cliente_id).first()
@@ -144,14 +226,19 @@ def resumen_uso_cliente(cliente_id: int, *, dias: int = 30) -> dict[str, Any]:
         'dias': dias,
         'sesiones': sesiones,
         'aperturas': aperturas,
-        'inicios_wizard': por_evento.get(EVENTO_INICIO_WIZARD, 0),
+        'inicios_wizard': inicios,
         'calculos': calculos,
-        'resultados_vistos': por_evento.get(EVENTO_RESULTADO_VISTO, 0),
+        'resultados_vistos': resultados,
         'simulaciones': simulaciones,
         'recomendaciones': recomendaciones,
         'tasa_completa_pct': tasa_completa,
         'tasa_ia_pct': tasa_ia,
         'margen_rangos': rangos,
+        'margen_barras': margen_barras,
+        'embudo': embudo,
+        'habilidades': habilidades,
+        'radar_polygon': radar_polygon,
+        'radar_labels': radar_labels,
         'links': links,
         'link_compartir': links.get('url_org', ''),
         'link_token': links.get('url_token', ''),

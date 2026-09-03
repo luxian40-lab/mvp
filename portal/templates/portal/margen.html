@@ -4,6 +4,21 @@
 
 {% block extra_head %}
 <style>
+.margen-hero {
+    background: linear-gradient(135deg, rgba(154,108,172,0.08) 0%, rgba(240,237,245,0.95) 100%);
+    border: 1px solid var(--borde, #e8e4ec);
+    border-radius: var(--radius, 16px);
+    padding: 20px 22px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow-soft);
+}
+.margen-steps {
+    display: grid;
+    gap: 10px;
+    margin: 0 0 8px;
+    padding-left: 1.1rem;
+}
+.margen-steps li { margin: 0; }
 .margen-link-box {
     background: var(--tabla-head, #f8f6fa);
     border: 1px solid var(--borde, #e8e4ec);
@@ -31,55 +46,223 @@
     padding: 16px;
     border-radius: 12px;
     border: 1px solid var(--borde);
-    background: var(--card);
+    background: var(--card, #fff);
+    box-shadow: var(--shadow-soft);
 }
 .margen-kpi__n { font-size: 1.6rem; font-weight: 800; color: var(--purple-deep, #5F3A6E); }
 .margen-kpi__l { font-size: 0.78rem; color: var(--muted, #666); margin-top: 4px; }
+.margen-copy { margin-top: 10px; }
+.margen-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+.margen-skill {
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--borde);
+    background: var(--blanco);
+    margin-bottom: 12px;
+}
+.margen-skill__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.margen-skill__name { font-weight: 700; font-size: 0.92rem; color: var(--texto); }
+.margen-skill__pct { font-weight: 800; color: var(--purple-deep); font-size: 0.9rem; }
+.margen-skill__desc { font-size: 0.78rem; color: var(--texto-muted); margin: 0 0 8px; }
+.margen-skill--fortaleza .progress-fill { background: var(--success, #35A647); }
+.margen-skill--brecha .progress-fill { background: var(--danger, #C23B3B); }
+.margen-embudo-row {
+    display: grid;
+    grid-template-columns: minmax(120px, 1fr) 48px 1fr;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+    font-size: 0.85rem;
+}
+.margen-embudo-row .progress-track { height: 10px; }
+.margen-rango-row {
+    display: grid;
+    grid-template-columns: 100px 1fr 36px;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+}
+.margen-tag {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--purple-deep);
+}
+.margen-radar-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: flex-start;
+    margin-top: 8px;
+}
+.margen-radar {
+    flex: 0 0 220px;
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid var(--borde);
+    background: var(--blanco);
+}
+.margen-radar svg { width: 100%; height: auto; display: block; }
+.margen-radar__title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--texto-muted);
+    margin: 0 0 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+html[data-theme="dark"] .margen-hero {
+    background: linear-gradient(135deg, rgba(168,85,247,0.12) 0%, rgba(28,34,46,0.95) 100%);
+}
+html[data-theme="dark"] .margen-link-box code {
+    background: var(--tabla-head);
+    border-color: var(--borde);
+}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h1>Calculadora de margen</h1>
-    <p class="muted">Comparte el enlace con tus estudiantes y revisa el uso agregado (sin montos ni datos personales).</p>
+<div class="margen-hero">
+    <span class="margen-tag">Herramienta · Finanzas</span>
+    <h1 style="margin:10px 0 8px;">Calculadora de margen</h1>
+    <p class="muted" style="margin:0 0 12px;">
+        Herramienta web para que tus estudiantes calculen costos y margen desde el celular.
+        <strong>Menú lateral → Calculadora margen</strong> (esta página).
+    </p>
+    <ol class="margen-steps muted">
+        <li>Copia el enlace de abajo y compártelo en WhatsApp (módulo de finanzas).</li>
+        <li>Los estudiantes abren la calculadora en <a href="https://margen.eki.technology/" target="_blank" rel="noopener">margen.eki.technology</a>.</li>
+        <li>Vuelve aquí para ver embudo, habilidades y rangos de margen (sin montos ni nombres).</li>
+    </ol>
 </div>
 
 <section class="card" style="margin-bottom: 20px;">
-    <h2 style="margin-top:0;">Enlaces para tu curso WhatsApp</h2>
-    <p class="muted" style="margin-bottom:16px;">Usa el enlace legible en mensajes del curso. El token opaco sirve si prefieres no mostrar el nombre de la organización.</p>
+    <h2 style="margin-top:0;">1. Enlaces para compartir</h2>
+    <p class="muted" style="margin-bottom:16px;">Recomendado: enlace legible con <code>?org=</code> en mensajes del curso.</p>
 
     <div class="margen-link-box">
         <strong>Enlace legible (?org=)</strong>
-        <small class="muted">Recomendado para WA — fácil de recordar</small>
         <code id="link-org">{{ links.url_org }}</code>
+        <button type="button" class="btn btn-secondary margen-copy" data-copy="link-org">Copiar enlace</button>
     </div>
     <div class="margen-link-box">
         <strong>Enlace con token (?t=)</strong>
-        <small class="muted">Opaco — no revela el slug de la organización</small>
+        <small class="muted">Opaco — no muestra el nombre de la organización</small>
         <code id="link-token">{{ links.url_token }}</code>
+        <button type="button" class="btn btn-secondary margen-copy" data-copy="link-token">Copiar enlace</button>
     </div>
-    <p class="muted" style="font-size:0.85rem;">Añade <code>&amp;curso=ID</code> al enlace para atribuir uso a un curso específico (ej. finanzas).</p>
+    <p class="muted" style="font-size:0.85rem;">Añade <code>&amp;curso=ID</code> para atribuir uso a un curso (ej. finanzas = curso 22).</p>
+    <p style="margin:12px 0 0;"><a class="btn btn-secondary" href="https://margen.eki.technology/?org={{ links.slug }}" target="_blank" rel="noopener">Abrir calculadora (vista estudiante)</a></p>
 </section>
 
 <section class="card">
-    <h2 style="margin-top:0;">Uso últimos {{ dias }} días</h2>
+    <h2 style="margin-top:0;">2. Uso de estudiantes — últimos {{ dias }} días</h2>
+    <p class="muted">Solo conteos agregados. No guardamos cifras de dinero ni datos personales.</p>
     <div class="margen-kpi-grid">
-        <div class="margen-kpi"><div class="margen-kpi__n">{{ stats.aperturas }}</div><div class="margen-kpi__l">Aperturas</div></div>
+        <div class="margen-kpi"><div class="margen-kpi__n">{{ stats.aperturas }}</div><div class="margen-kpi__l">Abrieron el enlace</div></div>
         <div class="margen-kpi"><div class="margen-kpi__n">{{ stats.inicios_wizard }}</div><div class="margen-kpi__l">Iniciaron cálculo</div></div>
         <div class="margen-kpi"><div class="margen-kpi__n">{{ stats.calculos }}</div><div class="margen-kpi__l">Completaron</div></div>
         <div class="margen-kpi"><div class="margen-kpi__n">{% if stats.tasa_completa_pct is not None %}{{ stats.tasa_completa_pct }}%{% else %}—{% endif %}</div><div class="margen-kpi__l">Tasa completación</div></div>
-        <div class="margen-kpi"><div class="margen-kpi__n">{{ stats.recomendaciones }}</div><div class="margen-kpi__l">Pidieron IA</div></div>
+        <div class="margen-kpi"><div class="margen-kpi__n">{{ stats.recomendaciones }}</div><div class="margen-kpi__l">Pidieron tips IA</div></div>
         <div class="margen-kpi"><div class="margen-kpi__n">{{ stats.simulaciones }}</div><div class="margen-kpi__l">Simularon precio</div></div>
     </div>
-    {% if stats.margen_rangos %}
-    <h3>Distribución de margen (rangos)</h3>
-    <ul>
-        {% for rango, n in stats.margen_rangos.items %}
-        <li><strong>{{ rango }}</strong>: {{ n }} cálculo(s)</li>
-        {% endfor %}
-    </ul>
-    {% else %}
-    <p class="muted">Aún no hay cálculos atribuidos a tu organización. Comparte el enlace arriba en el curso.</p>
+
+    {% if stats.aperturas or stats.calculos %}
+    <div class="margen-grid-2">
+        <div>
+            <h3 style="margin-top:0;">Embudo de adopción</h3>
+            <p class="muted" style="font-size:0.82rem;">Desde que abren el enlace hasta ver su margen.</p>
+            {% for paso in stats.embudo %}
+            <div class="margen-embudo-row">
+                <span>{{ paso.etapa }} <strong>({{ paso.n }})</strong></span>
+                <span>{% if paso.pct_base is not None %}{{ paso.pct_base }}%{% else %}—{% endif %}</span>
+                <div class="progress-track" aria-hidden="true">
+                    <span class="progress-fill" style="width:{% if paso.pct_base %}{{ paso.pct_base }}{% else %}0{% endif %}%;"></span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div>
+            <h3 style="margin-top:0;">Habilidades medibles</h3>
+            <p class="muted" style="font-size:0.82rem;">Mapa de capacidades — qué practican en la calculadora.</p>
+            <div class="margen-radar-wrap">
+                {% if stats.radar_polygon %}
+                <div class="margen-radar" aria-hidden="true">
+                    <p class="margen-radar__title">Radar de adopción</p>
+                    <svg viewBox="0 0 200 200" role="img" aria-label="Radar de habilidades margen">
+                        <polygon points="100,28 172,152 28,152" fill="none" stroke="rgba(139,149,168,0.35)" stroke-width="1"/>
+                        <polygon points="100,52 148,136 52,136" fill="none" stroke="rgba(139,149,168,0.25)" stroke-width="1"/>
+                        <polygon points="100,76 124,120 76,120" fill="none" stroke="rgba(139,149,168,0.2)" stroke-width="1"/>
+                        <polygon points="{{ stats.radar_polygon }}" fill="rgba(168, 85, 247, 0.28)" stroke="#A855F7" stroke-width="2"/>
+                        {% if stats.radar_labels.0 %}<text x="100" y="16" text-anchor="middle" fill="#8B95A8" font-size="9">{{ stats.radar_labels.0 }}</text>{% endif %}
+                        {% if stats.radar_labels.1 %}<text x="176" y="162" text-anchor="start" fill="#8B95A8" font-size="9">{{ stats.radar_labels.1 }}</text>{% endif %}
+                        {% if stats.radar_labels.2 %}<text x="24" y="162" text-anchor="end" fill="#8B95A8" font-size="9">{{ stats.radar_labels.2 }}</text>{% endif %}
+                    </svg>
+                </div>
+                {% endif %}
+                <div style="flex:1; min-width:200px;">
+            {% for h in stats.habilidades %}
+            <div class="margen-skill margen-skill--{{ h.nivel }}">
+                <div class="margen-skill__head">
+                    <span class="margen-skill__name">{{ h.nombre }}</span>
+                    <span class="margen-skill__pct">{% if h.pct is not None %}{{ h.pct }}%{% else %}—{% endif %}</span>
+                </div>
+                <p class="margen-skill__desc">{{ h.descripcion }} · {{ h.n }} evento(s)</p>
+                <div class="progress-track">
+                    <span class="progress-fill" style="width:{% if h.pct %}{{ h.pct }}{% else %}0{% endif %}%;"></span>
+                </div>
+            </div>
+            {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if stats.margen_barras %}
+    <h3 style="margin-top:24px;">Distribución de margen (rangos)</h3>
+    <p class="muted" style="font-size:0.82rem;">Cuántos cálculos cayeron en cada rango — sin montos reales.</p>
+    {% for bar in stats.margen_barras %}
+    <div class="margen-rango-row">
+        <strong>{{ bar.rango }}</strong>
+        <div class="progress-track">
+            <span class="progress-fill progress-fill-alt" style="width:{{ bar.pct_ancho }}%;"></span>
+        </div>
+        <span>{{ bar.n }}</span>
+    </div>
+    {% endfor %}
+    {% elif not stats.aperturas and not stats.calculos %}
+    <p class="muted">Aún no hay actividad. Comparte el enlace en el curso y haz una prueba tú mismo; en unos minutos deberían aparecer los conteos.</p>
     {% endif %}
 </section>
+<script>
+document.querySelectorAll('[data-copy]').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var id = btn.getAttribute('data-copy');
+    var el = document.getElementById(id);
+    if (!el) return;
+    navigator.clipboard.writeText(el.textContent.trim()).then(function() {
+      btn.textContent = 'Copiado ✓';
+      setTimeout(function() { btn.textContent = 'Copiar enlace'; }, 2000);
+    });
+  });
+});
+</script>
 {% endblock %}

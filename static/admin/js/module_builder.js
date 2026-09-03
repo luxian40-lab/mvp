@@ -346,6 +346,8 @@
 
     function runSave(options) {
       ensureCalendarioSynced();
+      shell.classList.add('is-saving');
+      shell.setAttribute('aria-busy', 'true');
       setState('Guardando…', true);
       submitSaveForm(shell, options);
     }

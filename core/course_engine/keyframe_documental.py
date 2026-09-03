@@ -13,6 +13,8 @@ from core.course_engine.visual_style import prompt_keyframe_documental
 
 logger = logging.getLogger(__name__)
 
+_CE_IMAGE_SIZE = '1536x1024'  # gpt-image-1 horizontal (16:9)
+
 
 def generar_keyframe_documental(
     run_dir: Path,
@@ -49,7 +51,7 @@ def generar_keyframe_documental(
         kwargs = {
             'model': model,
             'prompt': prompt[:4000],
-            'size': '1024x1024',
+            'size': _CE_IMAGE_SIZE,
             'n': 1,
         }
         if quality:

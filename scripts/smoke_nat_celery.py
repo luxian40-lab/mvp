@@ -7,6 +7,9 @@ Local (sin Redis):
 
 Prod vía EB SSH (worker vivo + tarea registrada):
   python scripts/smoke_nat_celery.py --remote eki-prod-final
+
+Inst. IA (Procfile.ai — colas media/RAG/course):
+  python scripts/smoke_nat_celery.py --remote eki-ai-workers --role ai_workers
 """
 from __future__ import annotations
 
@@ -86,8 +89,17 @@ def check_enqueue_helper() -> None:
     _ok('encolar fallback si Redis no responde')
 
 
-def check_remote(environment: str) -> None:
+def check_remote(environment: str, *, role: str = 'web') -> None:
     import subprocess
+
+    if role == 'ai_workers' or environment == 'eki-ai-workers':
+        services = 'web worker_media worker_rag worker_course'
+        task_grep = 'encode_paso_modulo_media'
+        label = 'workers IA (media_encode/rag/course)'
+    else:
+        services = 'web worker worker_rag beat'
+        task_grep = 'procesar_bot_comercial_webhook_async'
+        label = 'worker Nat + beat'
 
     # ec2-user no puede leer deployment/env; get-config exporta las vars EB.
     cmd = (
@@ -97,33 +109,42 @@ def check_remote(environment: str) -> None:
         'eval "$(/opt/elasticbeanstalk/bin/get-config environment | '
         'python3 -c \'import json,shlex,sys; '
         '[print(f"export {k}={shlex.quote(str(v))}") for k,v in json.load(sys.stdin).items()]\')" && '
-        'for svc in worker worker_rag beat; do '
+        f'for svc in {services}; do '
         'systemctl is-active --quiet "$svc.service" || { echo "INACTIVE $svc"; exit 3; }; '
         'done && '
         'VENV=$(ls -d /var/app/venv/*/bin/celery 2>/dev/null | head -1) && '
         'if [ -z "$VENV" ]; then echo NO_CELERY; exit 2; fi && '
         '"$VENV" -A mvp_project inspect ping --timeout 8 && '
-        '"$VENV" -A mvp_project inspect registered --timeout 10 | grep -q procesar_bot_comercial_webhook_async'
+        f'"$VENV" -A mvp_project inspect registered --timeout 10 | grep -q {task_grep}'
     )
     proc = subprocess.run(
         ['eb', 'ssh', environment, '--command', cmd],
         capture_output=True,
         text=True,
-        timeout=120,
+        timeout=180,
     )
     out = (proc.stdout or '') + (proc.stderr or '')
     if proc.returncode != 0:
         _fail(f'remoto {environment}: ping/register falló (rc={proc.returncode})\n{out[-800:]}')
-    _ok(f'remoto {environment}: worker ping + tarea Nat registrada')
+    _ok(f'remoto {environment}: {label} ping + tarea {task_grep}')
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('--remote', metavar='EB_ENV', help='Verificar worker en EB (eb ssh)')
+    parser.add_argument(
+        '--role',
+        choices=('web', 'ai_workers'),
+        default='web',
+        help='Procfile esperado: web=prod (worker+beat), ai_workers=inst. 2',
+    )
     args = parser.parse_args()
 
     if args.remote:
-        check_remote(args.remote)
+        role = args.role
+        if args.remote == 'eki-ai-workers':
+            role = 'ai_workers'
+        check_remote(args.remote, role=role)
         print('QA_PASS smoke_nat_celery (remote)')
         return
 

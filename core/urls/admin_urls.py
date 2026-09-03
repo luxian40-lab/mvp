@@ -55,6 +55,7 @@ from core.views_admin_panel import admin_panel_view
 from core.views_copiloto_admin import copiloto_ask_view, copiloto_ops_view
 from core.views_module_builder import module_builder_view
 from core.views_curso_nuevo import curso_nuevo_wizard
+from core.views_course_engine_studio import course_engine_studio_view
 
 urlpatterns = [
     path('admin/copiloto/', copiloto_ops_view, name='copiloto_ops'),
@@ -123,6 +124,11 @@ urlpatterns = [
         'admin/module-builder/<int:modulo_id>/',
         module_builder_view,
         name='admin_module_builder',
+    ),
+    path(
+        'admin/curso/<int:curso_id>/course-engine/',
+        course_engine_studio_view,
+        name='admin_course_engine_studio',
     ),
     path(
         'admin/curso-nuevo/',

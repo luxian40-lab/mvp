@@ -2,6 +2,11 @@
 {% load i18n static %}
 
 {# Base para pantallas ops custom bajo Unfold: siempre hay forma de volver. #}
+{% block extrahead %}
+{{ block.super }}
+{% include "admin/partials/favicon_admin.html" %}
+{% endblock %}
+
 {% block extrastyle %}
 {{ block.super }}
 <link rel="stylesheet" href="{% static 'admin/css/eki_admin_tones.css' %}">

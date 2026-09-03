@@ -696,3 +696,67 @@ def encode_paso_modulo_media(
         except Exception:
             pass
         raise self.retry(exc=exc)
+
+
+@shared_task(
+    bind=True,
+    queue='course_engine',
+    soft_time_limit=900,
+    time_limit=1200,
+    max_retries=0,
+)
+def generar_video_course_engine_async(
+    self,
+    run_id: str,
+    cliente_id: int,
+    curso_id: int,
+    modulo_id: int | None,
+    brief: str,
+    foco: str = '',
+    modo_demo: bool = False,
+):
+    """Genera MP4 Course Engine (Platzi 16:9) — portal admin."""
+    from django.core.cache import cache
+
+    from core.course_engine.portal_api import STUDIO_DEMO_MAX_SEC
+    from core.course_engine.video_pilot_generator import FOCO_PILOTO_ERROR1, VideoPilotGenerator
+
+    key = f'ce_video_job:{run_id}'
+    cache.set(key, {'status': 'running', 'run_id': run_id, 'modo_demo': modo_demo}, 7200)
+    try:
+        gen = VideoPilotGenerator()
+        target_sec = STUDIO_DEMO_MAX_SEC if modo_demo else 14.0
+        runway_dur = 4 if modo_demo else 5
+        out = gen.generar(
+            cliente_id=cliente_id,
+            curso_id=curso_id,
+            modulo_id=modulo_id,
+            brief=brief,
+            foco=foco or FOCO_PILOTO_ERROR1,
+            dry_run=False,
+            generar_video=True,
+            target_sec=target_sec,
+            runway_duration_sec=runway_dur,
+            modo_demo=modo_demo,
+            max_duracion_seg=STUDIO_DEMO_MAX_SEC if modo_demo else None,
+        )
+        payload = {
+            'status': 'ok' if out.paso_wa and out.paso_wa.media_url else 'error',
+            'run_id': out.run_id,
+            'media_url': (out.paso_wa.media_url if out.paso_wa else '') or '',
+            'video_url': (out.paso_wa.media_url if out.paso_wa else '') or '',
+            'caption': (out.paso_wa.caption if out.paso_wa else '') or '',
+            'errors': out.errors,
+            'pasos': out.pasos[-8:],
+            'costo_usd': out.costo_real_usd,
+            'modo_demo': modo_demo,
+            'max_seg': target_sec,
+        }
+        if payload['status'] != 'ok':
+            payload['error'] = '; '.join(out.errors) or 'Generación incompleta'
+        cache.set(key, payload, 7200)
+        return payload
+    except Exception as exc:
+        logger.exception('[CE] generar_video_course_engine_async run=%s', run_id)
+        cache.set(key, {'status': 'error', 'run_id': run_id, 'error': str(exc)}, 7200)
+        raise

@@ -294,3 +294,250 @@ class PlatziFormatTests(SimpleTestCase):
 
         b = BloqueInteractivo(1, 'seccion', '¿Qué es la rentabilidad?', 'Veamos el concepto clave.')
         self.assertIn('¿Qué es la rentabilidad?', formatear_paso_whatsapp(b))
+
+
+@override_settings(OPENAI_API_KEY='test-key')
+class VideoStoryboardTests(SimpleTestCase):
+    def test_fallback_error1_tiene_tarjeta(self):
+        from core.course_engine.video_storyboard import _fallback_error1
+
+        plan = _fallback_error1()
+        self.assertTrue(any(s.tipo == 'tarjeta' for s in plan.segmentos))
+        self.assertIn('socios', plan.guion_completo.lower())
+
+    def test_reparte_duracion_audio(self):
+        from core.course_engine.video_storyboard import (
+            SegmentoStoryboard,
+            VideoLeccionPlan,
+            repartir_duracion_por_audio,
+        )
+
+        plan = VideoLeccionPlan(
+            titulo='Test',
+            objetivo='O',
+            segmentos=[
+                SegmentoStoryboard(1, 'escena', 4, 'a', 'sub1'),
+                SegmentoStoryboard(2, 'tarjeta', 6, 'b', 'sub2'),
+                SegmentoStoryboard(3, 'escena_cierre', 4, 'c', 'sub3'),
+            ],
+            guion_completo='a b c',
+        )
+        timeline = repartir_duracion_por_audio(plan, 12.0)
+        self.assertEqual(len(timeline), 3)
+        total = sum(d for _, _, d in timeline)
+        self.assertAlmostEqual(total, 12.0, places=1)
+
+    def test_plan_openai_mock(self):
+        from core.course_engine.video_storyboard import planificar_video_leccion
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[
+                MagicMock(
+                    message=MagicMock(
+                        content=(
+                            '{"titulo":"Error 1","objetivo":"Transparencia","categoria_visual":"finanzas",'
+                            '"duracion_objetivo_seg":14,"guion_completo":"Guion completo de prueba.",'
+                            '"segmentos":['
+                            '{"orden":1,"tipo":"escena","duracion_seg":4,"guion":"A","subtitulo":"Sub A",'
+                            '"escena_visual":"Mesa con cuaderno"},'
+                            '{"orden":2,"tipo":"tarjeta","duracion_seg":6,"guion":"B","subtitulo":"Sub B",'
+                            '"tarjeta_titulo":"Título","tarjeta_puntos":["P1","P2"]},'
+                            '{"orden":3,"tipo":"escena_cierre","duracion_seg":4,"guion":"C","subtitulo":"Sub C",'
+                            '"escena_visual":"Cierre"}'
+                            ']}'
+                        )
+                    )
+                )
+            ]
+        )
+        plan = planificar_video_leccion('brief finanzas', openai_client=mock_client)
+        self.assertEqual(plan.titulo, 'Error 1')
+        self.assertEqual(len(plan.segmentos), 3)
+
+
+class InfographicCardTests(SimpleTestCase):
+    def test_genera_png_con_panel(self):
+        import tempfile
+        from pathlib import Path
+
+        from PIL import Image
+
+        from core.course_engine.infographic_card import generar_tarjeta_infografica
+
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / 'tarjeta.png'
+            ok = generar_tarjeta_infografica(
+                titulo='Error #1: Sin cuentas claras',
+                puntos=['Reporte mensual', 'Mismos números', 'Decidir con datos'],
+                salida=out,
+                usar_fondo_ia=False,
+            )
+            self.assertTrue(ok)
+            self.assertGreater(out.stat().st_size, 8000)
+            with Image.open(out) as img:
+                self.assertEqual(img.size, (1280, 720))
+
+    def test_beats_alineados_al_guion(self):
+        from core.course_engine.tarjeta_beats import beats_desde_tarjeta
+
+        beats = beats_desde_tarjeta(
+            titulo='Error #1: Sin cuentas claras',
+            puntos=[
+                'Reporte mensual de ingresos y gastos',
+                'Todos los socios ven los mismos números',
+            ],
+            guion=(
+                'Compartan ingresos y gastos cada mes. '
+                'Un reporte común evita sorpresas y permite decidir a tiempo.'
+            ),
+        )
+        self.assertEqual(len(beats), 2)
+        self.assertIn('Compartan ingresos', beats[0].narracion)
+        self.assertIn('reporte común', beats[1].narracion.lower())
+        self.assertNotEqual(beats[0].narracion, beats[1].narracion)
+
+    def test_beats_un_beat_por_punto(self):
+        from core.course_engine.tarjeta_beats import beats_desde_tarjeta
+
+        beats = beats_desde_tarjeta(
+            titulo='Margen',
+            puntos=['Costos fijos', 'Precio de venta', 'Simular escenarios'],
+            guion='Primero identifique costos. Luego fije precio. Finalmente simule.',
+        )
+        self.assertEqual(len(beats), 3)
+        self.assertEqual(len(beats[-1].filas), 3)
+
+    def test_typing_mas_lento_en_beat_largo(self):
+        from core.course_engine.infographic_card import (
+            _frames_para_beat,
+            _typing_progress_en_beat,
+            _typing_text,
+        )
+        from core.course_engine.tarjeta_beats import TarjetaBeat
+
+        corto = TarjetaBeat('T', 'Hola.', '', [])
+        largo = TarjetaBeat(
+            'T',
+            'Compartan ingresos y gastos cada mes con un reporte común.',
+            'Evita sorpresas entre socios.',
+            [('Reporte', 'Todos ven los mismos números')],
+        )
+        self.assertGreater(_frames_para_beat(largo, 15), _frames_para_beat(corto, 15))
+        self.assertLess(len(_typing_text('uno dos tres cuatro', 0.3)), len('uno dos tres cuatro'))
+        self.assertEqual(_typing_progress_en_beat(999, 40), 1.0)
+
+    def test_frames_progresivos_uno_por_bullet(self):
+        import tempfile
+        from pathlib import Path
+
+        from core.course_engine.infographic_card import generar_frames_tarjeta_animada
+
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp) / 'anim'
+            frames = generar_frames_tarjeta_animada(
+                titulo='Error #1: Sin cuentas claras',
+                puntos=['Reporte mensual de ingresos y gastos', 'Todos los socios ven los mismos números'],
+                guion='Compartan ingresos y gastos cada mes. Un reporte común evita sorpresas.',
+                salida_dir=d,
+                estilo='platzi',
+                duracion_seg=3.0,
+                fps=10,
+            )
+            self.assertGreaterEqual(len(frames), 20)
+
+    def test_split_vertical_resolucion_9_16(self):
+        import tempfile
+        from pathlib import Path
+
+        from PIL import Image
+
+        from core.course_engine.split_screen_ui import generar_frames_split_vertical
+
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            frames = generar_frames_split_vertical(
+                titulo='Error #1: mezclar gastos',
+                puntos=['Separa costos fijos'],
+                salida_dir=d,
+                duracion_seg=2.0,
+                fps=10,
+            )
+            self.assertGreaterEqual(len(frames), 18)
+            with Image.open(frames[0]) as img:
+                self.assertEqual(img.size, (1080, 1920))
+
+    def test_platzi_frame_tiene_contenido_visible(self):
+        import tempfile
+        from pathlib import Path
+
+        from PIL import Image
+
+        from core.course_engine.infographic_card import generar_frames_tarjeta_animada
+
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp) / 'anim'
+            frames = generar_frames_tarjeta_animada(
+                titulo='Error #1: mezclar gastos',
+                puntos=['Gastos fijos — anótalos aparte'],
+                salida_dir=d,
+                estilo='platzi',
+            )
+            self.assertGreaterEqual(len(frames), 2)
+            with Image.open(frames[-1]) as img:
+                self.assertEqual(img.size, (1280, 720))
+                px = img.getpixel((400, 300))
+                self.assertGreater(sum(px), 200)
+
+
+class ClipBuilderSubtitleTests(SimpleTestCase):
+    def test_franja_legible_incluye_fondo_oscuro(self):
+        from pathlib import Path
+
+        from core.course_engine.clip_builder import _vf_subtitulos_inferior
+
+        vf = _vf_subtitulos_inferior('scale=1280:720', Path('/tmp/test.srt'), franja_legible=True)
+        self.assertIn('BackColour', vf)
+        self.assertIn('FontSize=18', vf)
+
+    def test_subtitulo_escena_mas_pequeno(self):
+        from pathlib import Path
+
+        from core.course_engine.clip_builder import _vf_subtitulos_inferior
+
+        vf = _vf_subtitulos_inferior('scale=1280:720', Path('/tmp/test.srt'))
+        self.assertIn('FontSize=20', vf)
+
+
+class VideoPilotGeneratorTests(SimpleTestCase):
+    @patch('core.course_engine.video_pilot_generator.obtener_contexto_rag_empresa')
+    @patch('core.course_engine.video_pilot_generator.planificar_video_leccion')
+    def test_dry_run_un_solo_paso_wa(self, mock_plan, mock_rag):
+        from core.course_engine.video_pilot_generator import VideoPilotGenerator
+        from core.course_engine.video_storyboard import SegmentoStoryboard, VideoLeccionPlan
+
+        mock_rag.return_value = ('ctx', True)
+        mock_plan.return_value = VideoLeccionPlan(
+            titulo='Error 1',
+            objetivo='O',
+            segmentos=[
+                SegmentoStoryboard(1, 'escena', 4, 'g1', 'sub1'),
+                SegmentoStoryboard(2, 'tarjeta', 6, 'g2', 'sub2', tarjeta_titulo='T', tarjeta_puntos=['P']),
+                SegmentoStoryboard(3, 'escena_cierre', 4, 'g3', 'sub3'),
+            ],
+            guion_completo='g1 g2 g3',
+        )
+
+        gen = VideoPilotGenerator()
+        out = gen.generar(
+            cliente_id=1,
+            curso_id=22,
+            brief='Manual rentabilidad',
+            dry_run=True,
+        )
+
+        self.assertIsNotNone(out.paso_wa)
+        self.assertEqual(out.paso_wa.orden, 1)
+        self.assertFalse(out.paso_wa.media_url)
+        self.assertIn('eki video', out.paso_wa.caption.lower())
+        self.assertTrue(out.manifest_path and out.manifest_path.is_file())

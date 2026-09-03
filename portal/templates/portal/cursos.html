@@ -16,6 +16,9 @@
             <p class="muted">{{ curso.estudiantes_count }} estudiantes inscritos</p>
             <p style="margin:12px 0 0;">
                 <a href="/portal/cursos/{{ curso.id }}/flujo/">Ver flujo del curso</a>
+                {% if portal_es_admin or portal_es_eki_ops %}
+                · <a href="/portal/cursos/{{ curso.id }}/course-engine/">Generar video (Course Engine)</a>
+                {% endif %}
             </p>
             {% if curso.activo %}
                 <span class="status status-resuelta">Activo</span>

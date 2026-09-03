@@ -1,0 +1,21 @@
+{% extends 'portal/base.html' %}
+{% load static %}
+
+{% block title %}Course Engine · {{ curso.nombre }} | Portal eki{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'admin/css/course_engine_studio.css' %}?v=5">
+<script src="{% static 'admin/js/course_engine_studio.js' %}?v=5" defer></script>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">
+  <div>
+    <h1>Course Engine</h1>
+    <p class="muted">Sube el material del curso y genera un micro-video con voz y lámina animada.</p>
+  </div>
+  <a class="btn btn-outline" href="/portal/cursos/">← Cursos</a>
+</div>
+
+{% include "course_engine/_studio_body.html" %}
+{% endblock %}

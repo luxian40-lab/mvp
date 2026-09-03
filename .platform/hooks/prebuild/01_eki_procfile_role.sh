@@ -3,6 +3,6 @@
 set -e
 ROLE="${EKI_EB_ROLE:-web}"
 if [ "$ROLE" = "ai_workers" ] && [ -f Procfile.ai ]; then
-  cp Procfile.ai Procfile
+  grep -v '^[[:space:]]*#' Procfile.ai | sed '/^[[:space:]]*$/d' > Procfile
   echo "eki: Procfile.ai activo (EKI_EB_ROLE=ai_workers)"
 fi

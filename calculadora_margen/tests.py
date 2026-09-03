@@ -165,3 +165,51 @@ class MargenEnlacesTests(TestCase):
         r = c.get(f'/calculadora-margen/?org={enlace.slug}&curso=22', follow=True)
         self.assertEqual(r.status_code, 200)
         self.assertGreaterEqual(MargenUsoEvento.objects.filter(cliente=self.cliente).count(), 1)
+
+
+class MargenAnalyticsResumenTests(TestCase):
+    def setUp(self):
+        from core.models import Cliente
+
+        self.cliente = Cliente.objects.create(
+            nombre='Coop Test',
+            contacto_principal='Ana',
+            email='ana@test.co',
+            telefono='573000000002',
+        )
+
+    def test_resumen_incluye_embudo_y_habilidades(self):
+        from calculadora_margen.analytics import (
+            EVENTO_APERTURA,
+            EVENTO_CALCULO_OK,
+            EVENTO_RECOMENDACIONES_OK,
+            registrar_evento,
+            resumen_uso_cliente,
+        )
+        from calculadora_margen.models import MargenUsoEvento
+        from django.test import RequestFactory
+
+        rf = RequestFactory()
+        for _ in range(4):
+            req = rf.get('/calculadora-margen/')
+            req.session = {'cm_cliente_id': self.cliente.pk}
+            self.assertTrue(registrar_evento(req, EVENTO_APERTURA))
+        for _ in range(2):
+            req = rf.get('/calculadora-margen/')
+            req.session = {'cm_cliente_id': self.cliente.pk}
+            self.assertTrue(registrar_evento(req, EVENTO_CALCULO_OK, margen_rango='15-30'))
+        req = rf.get('/calculadora-margen/')
+        req.session = {'cm_cliente_id': self.cliente.pk}
+        self.assertTrue(registrar_evento(req, EVENTO_RECOMENDACIONES_OK))
+
+        self.assertGreaterEqual(MargenUsoEvento.objects.filter(cliente=self.cliente).count(), 3)
+        s = resumen_uso_cliente(self.cliente.pk, dias=30)
+        self.assertEqual(s['aperturas'], 4)
+        self.assertEqual(s['calculos'], 2)
+        self.assertIn('embudo', s)
+        self.assertEqual(len(s['embudo']), 4)
+        self.assertIn('habilidades', s)
+        self.assertEqual(len(s['habilidades']), 3)
+        self.assertEqual(s['habilidades'][0]['nombre'], 'Calcular margen')
+        self.assertEqual(s['tasa_completa_pct'], 50.0)
+        self.assertIn('margen_barras', s)

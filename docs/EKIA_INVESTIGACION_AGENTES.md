@@ -5,6 +5,8 @@
 **Fecha:** 16 agosto 2026 · **v2 (profunda)**  
 **Pregunta central:** ¿cómo evolucionar Nat → **EkiA** sin romper la tesis de eki (evolución sin reescritura, WhatsApp/3G primero, soberanía progresiva)?  
 
+**Ejecución por sprints (corto plazo, sin visión 3 años):** [`docs/EKIA_SPRINTS_IA_CORTO_PLAZO.md`](EKIA_SPRINTS_IA_CORTO_PLAZO.md) · índice PM: [`docs/PM_RUTA_EKIA_FASE0_FASE1_CRONOGRAMA.md`](PM_RUTA_EKIA_FASE0_FASE1_CRONOGRAMA.md)
+
 **Canon de referencia (obligatorio):**
 
 | Documento | Uso en esta investigación |

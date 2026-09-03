@@ -404,6 +404,7 @@ class CursoAdmin(admin.ModelAdmin):
                 '<ul style="margin:0.4rem 0 0;padding-left:1.2rem;">'
                 '<li>CLI bundle: <code>course_engine_generate_bundle --modulo-id N</code></li>'
                 '<li><strong>Voice ID</strong> = ElevenLabs (biblioteca o clon cliente).</li>'
+                '<li>Studio (subir RAG + generar video): botón <strong>Course Engine</strong> arriba en la ficha del curso.</li>'
                 '</ul>'
             ),
         }),
@@ -452,13 +453,13 @@ class CursoAdmin(admin.ModelAdmin):
         from django.urls import reverse
 
         from core.admin.course_engine_voice import html_boton_preview_voz
-        from core.course_engine.voice_config import resolver_voice_id_curso
+        from core.course_engine.voice_config import resolver_voice_id_curso, resolver_voice_label_curso
 
         if not obj or not obj.pk:
             return mark_safe('<p style="color:#666;margin:0;">Guarde el curso para probar la voz.</p>')
         url = reverse('admin:core_curso_preview_voz', args=[obj.pk])
         vid = resolver_voice_id_curso(obj)
-        label = (obj.course_engine_voice_label or '').strip() or 'Voz del curso'
+        label = resolver_voice_label_curso(obj) or 'Voz del curso'
         return html_boton_preview_voz(
             preview_url=url, voice_id=vid, label=label,
             curso_or_modulo_id=obj.pk, es_modulo=False,
@@ -557,6 +558,10 @@ class CursoAdmin(admin.ModelAdmin):
                     'admin_module_builder',
                     args=[first_mod.pk],
                 )
+            extra_context['eki_curso_ce_studio_url'] = reverse(
+                'admin_course_engine_studio',
+                args=[obj.pk],
+            )
             extra_context['eki_curso_publicar_modulos_url'] = reverse(
                 'admin:core_curso_publicar_modulos',
                 args=[obj.pk],

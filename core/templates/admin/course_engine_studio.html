@@ -1,0 +1,23 @@
+{% extends "admin/eki_ops_base.html" %}
+{% load static %}
+
+{% block title %}Course Engine · {{ curso.nombre }}{% endblock %}
+
+{% block eki_ops_crumb %}Course Engine{% endblock %}
+
+{% block eki_ops_extra_nav %}
+<span class="eki-mb-nav">
+  <a class="eki-ops-back" href="{{ curso_change_url }}">← Curso</a>
+  <a class="eki-ops-back" href="{{ rag_list_url }}">Documentos RAG</a>
+</span>
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/css/course_engine_studio.css' %}?v=5">
+<script src="{% static 'admin/js/course_engine_studio.js' %}?v=5" defer></script>
+{% endblock %}
+
+{% block eki_ops_content %}
+{% include "course_engine/_studio_body.html" %}
+{% endblock %}

@@ -22,12 +22,15 @@ TIER_DURACION_APROX_SEG = {
     TIER_PREMIUM: (35, 50),
 }
 
-# Catalogo eki — 2 mujer + 2 hombre (override via COURSE_ENGINE_VOICES_JSON en EB)
+# Catalogo eki — 2 mujer + 2 hombre, todas acento colombiano (override via
+# COURSE_ENGINE_VOICES_JSON en EB).
+# label/genero deben coincidir con la voz real de ElevenLabs: verificar con
+# `python manage.py course_engine_verificar_voces` antes de cambiar un id.
 DEFAULT_VOICES: list[dict[str, str]] = [
-    {'id': 'Wb1wmVQjMx9g2QSIOTPI', 'label': 'Maria', 'genero': 'F'},
-    {'id': 'Mf0RJxPVoxXD0xzgV88r', 'label': 'Sofia', 'genero': 'F'},
-    {'id': 'b2htR0pMe28pYwCY9gnP', 'label': 'Carlos', 'genero': 'M'},
-    {'id': 'Ux2YbCNfurnKHnzlBHGX', 'label': 'Andres', 'genero': 'M'},
+    {'id': 'b2htR0pMe28pYwCY9gnP', 'label': 'Sofia', 'genero': 'F'},
+    {'id': 'Mf0RJxPVoxXD0xzgV88r', 'label': 'Gisela', 'genero': 'F'},
+    {'id': 'Wb1wmVQjMx9g2QSIOTPI', 'label': 'Juan Esteban', 'genero': 'M'},
+    {'id': 'Ux2YbCNfurnKHnzlBHGX', 'label': 'Leo', 'genero': 'M'},
 ]
 
 
@@ -99,16 +102,36 @@ def resolver_voice_id_modulo(modulo) -> Optional[str]:
     return resolver_voice_id_curso(modulo.curso)
 
 
+def voice_label_efectivo(voice_id: Optional[str], *labels_guardados: Optional[str]) -> str:
+    """Etiqueta a mostrar para una voz.
+
+    Si el id está en el catálogo eki, el catálogo manda: así una etiqueta
+    guardada con un nombre viejo no sigue mostrando una voz que no es.
+    Para clones de cliente (fuera del catálogo) vale la etiqueta guardada.
+    """
+    vid = (voice_id or '').strip()
+    if vid and any(v['id'] == vid for v in catalogo_voces()):
+        return label_voz(vid)
+    for label in labels_guardados:
+        texto = (label or '').strip()
+        if texto:
+            return texto
+    return label_voz(vid) or 'Voz default eki'
+
+
+def resolver_voice_label_curso(curso) -> str:
+    return voice_label_efectivo(
+        resolver_voice_id_curso(curso),
+        getattr(curso, 'course_engine_voice_label', None),
+    )
+
+
 def resolver_voice_label_modulo(modulo) -> str:
-    vid = resolver_voice_id_modulo(modulo)
-    label = (getattr(modulo, 'course_engine_voice_label', None) or '').strip()
-    if label:
-        return label
-    label = (getattr(modulo.curso, 'course_engine_voice_label', None) or '').strip()
-    if label:
-        return label
-    catalog = label_voz(vid)
-    return catalog or 'Voz default eki'
+    return voice_label_efectivo(
+        resolver_voice_id_modulo(modulo),
+        getattr(modulo, 'course_engine_voice_label', None),
+        getattr(modulo.curso, 'course_engine_voice_label', None),
+    )
 
 
 def config_modulo(modulo) -> dict:
