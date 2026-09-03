@@ -178,22 +178,22 @@
       }
     }
 
-    function resolveDemoUrl(btn) {
-      var url = btn.getAttribute('data-audio-url');
-      if (url) return Promise.resolve(url);
+    function resolveDemoUrl(btn, forceGenerate) {
+      var url = (btn.getAttribute('data-audio-url') || '').trim();
       var vid = btn.getAttribute('data-voice-id');
+      if (url && !forceGenerate) return Promise.resolve(url);
+      if (!vid) return Promise.reject(new Error('Sin voz'));
       return fetch(studioUrl + '?demo_voice=' + encodeURIComponent(vid) + '&generate=1', {
         credentials: 'same-origin',
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
       })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          if (data.ok && data.url) {
-            btn.setAttribute('data-audio-url', data.url);
-            btn.disabled = false;
-            return data.url;
+        .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+        .then(function (res) {
+          if (res.ok && res.data && res.data.ok && res.data.url) {
+            btn.setAttribute('data-audio-url', res.data.url);
+            return res.data.url;
           }
-          throw new Error(data.error || 'Sin demo');
+          throw new Error((res.data && res.data.error) || 'Sin demo de audio');
         });
     }
 
@@ -223,7 +223,6 @@
         audioEl.addEventListener('error', onErr);
         audioEl.src = url;
         audioEl.load();
-        // Algunos browsers ya tienen el recurso en caché
         if (audioEl.readyState >= 2) onReady();
       });
     }
@@ -239,11 +238,17 @@
           return;
         }
         stopAudio();
-        resolveDemoUrl(btn)
+        resolveDemoUrl(btn, false)
           .then(function (url) {
             activePlayBtn = btn;
             btn.classList.add('ce-wa-audio__play--playing');
-            return playUrl(url);
+            return playUrl(url).catch(function () {
+              // Si el estático 404 en CDN, regenerar
+              btn.removeAttribute('data-audio-url');
+              return resolveDemoUrl(btn, true).then(function (url2) {
+                return playUrl(url2);
+              });
+            });
           })
           .catch(function (err) {
             stopAudio();

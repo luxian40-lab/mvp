@@ -1,0 +1,90 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>eki · herramientas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --eki: #9A6CAC;
+      --eki-deep: #5F3A6E;
+      --ink: #3a2f42;
+      --muted: #6b5f75;
+      --bg: #f7f3f9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(ellipse at 10% 0%, rgba(154,108,172,0.18), transparent 50%),
+        radial-gradient(ellipse at 90% 20%, rgba(60,123,191,0.12), transparent 45%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    .ht-wrap { max-width: 720px; margin: 0 auto; padding: 28px 16px 48px; }
+    .ht-brand { font-size: 1.5rem; font-weight: 800; color: var(--eki); letter-spacing: -0.04em; margin: 0 0 6px; }
+    .ht-title { margin: 0 0 8px; font-size: 1.55rem; color: var(--eki-deep); letter-spacing: -0.03em; }
+    .ht-sub { margin: 0 0 24px; color: var(--muted); line-height: 1.45; }
+    .ht-grid { display: grid; gap: 14px; }
+    @media (min-width: 560px) { .ht-grid { grid-template-columns: 1fr 1fr; } }
+    .ht-card {
+      display: flex; flex-direction: column;
+      background: #fff; border-radius: 16px; overflow: hidden;
+      border: 1px solid rgba(95,58,110,0.16);
+      text-decoration: none; color: inherit;
+      box-shadow: 0 8px 24px rgba(95,58,110,0.08);
+      min-height: 260px;
+      transition: transform .15s;
+    }
+    .ht-card:hover { transform: translateY(-2px); }
+    .ht-card__foto {
+      height: 120px; background-size: cover; background-position: center;
+    }
+    .ht-card__body { padding: 14px 16px 18px; display: flex; flex-direction: column; flex: 1; gap: 8px; }
+    .ht-card__tag {
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em;
+      text-transform: uppercase; color: var(--eki-deep);
+    }
+    .ht-card h2 { margin: 0; font-size: 1.05rem; }
+    .ht-card p { margin: 0; flex: 1; font-size: 0.88rem; color: var(--muted); line-height: 1.4; }
+    .ht-card__cta {
+      align-self: flex-start;
+      margin-top: 8px;
+      background: var(--eki); color: #fff; font-weight: 700; font-size: 0.85rem;
+      padding: 10px 16px; border-radius: 999px;
+    }
+  </style>
+</head>
+<body>
+  <div class="ht-wrap">
+    <p class="ht-brand">eki</p>
+    <h1 class="ht-title">Herramientas</h1>
+    <p class="ht-sub">Calculadoras para el celular del productor. Elige una para empezar.</p>
+    <div class="ht-grid">
+      <a class="ht-card" href="{{ url_margen_tool }}">
+        <div class="ht-card__foto" style="background-image:url('{{ img_margen }}');" role="img" aria-label="Margen"></div>
+        <div class="ht-card__body">
+          <span class="ht-card__tag">Finanzas</span>
+          <h2>Calculadora de margen</h2>
+          <p>Costos, precio y margen — ¿realmente estás ganando plata?</p>
+          <span class="ht-card__cta">Abrir →</span>
+        </div>
+      </a>
+      <a class="ht-card" href="{{ url_mercado_tool }}">
+        <div class="ht-card__foto" style="background-image:url('{{ img_mercado }}');" role="img" aria-label="Mercado"></div>
+        <div class="ht-card__body">
+          <span class="ht-card__tag">Mercado</span>
+          <h2>Calculadora de mercado</h2>
+          <p>Encuentra tu mercado — TAM, SAM, SOM y plan de 30 días.</p>
+          <span class="ht-card__cta">Abrir →</span>
+        </div>
+      </a>
+    </div>
+  </div>
+</body>
+</html>

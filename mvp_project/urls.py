@@ -20,8 +20,8 @@ def root_redirect(request):
     if host == 'certificados.eki.technology':
         return redirect('/verificar/')
     if host == 'margen.eki.technology':
-        from calculadora_margen.views import landing
-        return landing(request)
+        from calculadora_margen.views import herramientas_hub
+        return herramientas_hub(request)
     return redirect('/admin/')
 
 

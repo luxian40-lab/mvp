@@ -94,9 +94,12 @@ class HostIsolationMiddleware:
 
         host = hostname(request)
         if host in MARGEN_HOSTS:
+            # Host de herramientas eki: hub + margen + mercado
             if path == '/' or path == '':
                 return self.get_response(request)
             if path.startswith('/calculadora-margen/'):
+                return self.get_response(request)
+            if path.startswith('/mercado-gtm/'):
                 return self.get_response(request)
             return HttpResponseForbidden('Host no autorizado para esta ruta.')
 

@@ -1046,8 +1046,9 @@ def cursos_lista(request):
     pu = getattr(request, 'portal_usuario', None)
     puede_crear = bool(pu and pu.rol in ('admin', 'eki_ops'))
 
-    url_margen = getattr(settings, 'MARGEN_PUBLIC_URL', '') or 'https://margen.eki.technology'
-    url_mercado = getattr(settings, 'MERCADO_GTM_PUBLIC_URL', '') or 'https://app.eki.technology/mercado-gtm/'
+    url_margen = (getattr(settings, 'MARGEN_PUBLIC_URL', '') or 'https://margen.eki.technology').rstrip('/') + '/calculadora-margen/'
+    url_mercado = (getattr(settings, 'MARGEN_PUBLIC_URL', '') or 'https://margen.eki.technology').rstrip('/') + '/mercado-gtm/'
+    url_herramientas = (getattr(settings, 'MARGEN_PUBLIC_URL', '') or 'https://margen.eki.technology').rstrip('/') + '/'
 
     return render(request, 'portal/cursos.html', {
         'org': org,
@@ -1055,8 +1056,11 @@ def cursos_lista(request):
         'es_confama_demo': es_confama,
         'cursos_mock': cursos_mock,
         'puede_crear_curso': puede_crear,
-        'url_margen': url_margen.rstrip('/') + '/',
-        'url_mercado': url_mercado if str(url_mercado).endswith('/') else str(url_mercado) + '/',
+        'url_margen': url_margen,
+        'url_mercado': url_mercado,
+        'url_herramientas': url_herramientas,
+        'img_tool_margen': 'https://www.eki.com.co/assets/programas/prog-riendas.jpg',
+        'img_tool_mercado': 'https://www.eki.com.co/assets/programas/prog-ventas.jpg',
     })
 
 

@@ -47,6 +47,17 @@ def landing(request):
     return response
 
 
+@require_GET
+def herramientas_hub(request):
+    """Hub público en margen.eki.technology: margen + mercado (dos herramientas, una URL)."""
+    return render(request, 'calculadora_margen/herramientas_hub.html', {
+        'url_margen_tool': '/calculadora-margen/',
+        'url_mercado_tool': '/mercado-gtm/',
+        'img_margen': 'https://www.eki.com.co/assets/programas/prog-riendas.jpg',
+        'img_mercado': 'https://www.eki.com.co/assets/programas/prog-ventas.jpg',
+    })
+
+
 @csrf_protect
 @require_POST
 def api_evento(request):
