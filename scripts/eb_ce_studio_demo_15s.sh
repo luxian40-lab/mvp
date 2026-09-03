@@ -39,8 +39,21 @@ if not curso or not curso.cliente_id:
     print(f"[FAIL] Curso {curso_id} inexistente o sin cliente")
     sys.exit(1)
 
-voz_esperada = resolver_voice_id_curso(curso)
 print(f"Curso: {curso.nombre} (cliente={curso.cliente_id})")
+
+# La prueba solo vale si el curso tiene una voz elegida en el Studio: si no la
+# tiene, elegimos una del catalogo para ejercitar el camino real.
+forzada = os.environ.get("CE_VOICE_ID", "").strip()
+if forzada or not (curso.course_engine_voice_id or "").strip():
+    from core.course_engine.voice_config import catalogo_voces
+
+    vid = forzada or catalogo_voces()[0]["id"]
+    curso.course_engine_voice_id = vid
+    curso.course_engine_voice_label = label_voz(vid)
+    curso.save(update_fields=["course_engine_voice_id", "course_engine_voice_label"])
+    print(f"Voz asignada al curso: {curso.course_engine_voice_label}")
+
+voz_esperada = resolver_voice_id_curso(curso)
 print(f"Voz del curso: {label_voz(voz_esperada) or voz_esperada or 'default entorno'}")
 
 brief = os.environ.get("CE_BRIEF", "").strip() or (
