@@ -131,13 +131,15 @@ class Command(BaseCommand):
                 telefono='573001000200',
                 activo=True,
                 portal_productos='cursos',
-                portal_subtitulo='Smart Skills Factory',
+                portal_subtitulo='DESARROLLO DE COMPETENCIAS',
                 cupos_portal=10,
             )
             self.stdout.write(self.style.SUCCESS(f'Cliente Confama id={cliente.pk}'))
         else:
             cliente.portal_productos = 'cursos'
-            cliente.portal_subtitulo = cliente.portal_subtitulo or 'Smart Skills Factory'
+            sub = (cliente.portal_subtitulo or '').strip()
+            if (not sub) or ('smart skills' in sub.lower()):
+                cliente.portal_subtitulo = 'DESARROLLO DE COMPETENCIAS'
             cliente.cupos_portal = max(int(cliente.cupos_portal or 0), 10)
             cliente.activo = True
             cliente.save()

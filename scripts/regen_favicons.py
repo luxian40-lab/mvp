@@ -168,12 +168,51 @@ def draw_cert(draw: ImageDraw.ImageDraw, s: int):
     )
 
 
+HERRAMIENTAS_BG = (154, 108, 172)  # #9A6CAC
+HERRAMIENTAS_FG = (250, 247, 252)
+HERRAMIENTAS_ACCENT = (60, 123, 191)  # #3C7BBF
+HERRAMIENTAS_DEEP = (95, 58, 110)
+
+
+def draw_herramientas(draw: ImageDraw.ImageDraw, s: int):
+    """Llave + barra (herramientas productor) — distinta de portal/admin."""
+    r = max(3, s // 6)
+    _round_rect(draw, (0, 0, s - 1, s - 1), r, HERRAMIENTAS_BG)
+    # mango llave
+    cx, cy = int(s * 0.38), int(s * 0.42)
+    cr = int(s * 0.16)
+    draw.ellipse((cx - cr, cy - cr, cx + cr, cy + cr), outline=HERRAMIENTAS_FG, width=max(3, s // 14))
+    draw.ellipse(
+        (cx - int(cr * 0.45), cy - int(cr * 0.45), cx + int(cr * 0.45), cy + int(cr * 0.45)),
+        fill=HERRAMIENTAS_BG,
+    )
+    # tallo
+    draw.rounded_rectangle(
+        (cx + int(cr * 0.55), cy - max(2, s // 28), int(s * 0.82), cy + max(2, s // 28)),
+        radius=max(1, s // 30),
+        fill=HERRAMIENTAS_FG,
+    )
+    # dientes
+    for i, yoff in enumerate((-0.10, 0.02)):
+        y = int(s * (0.42 + yoff))
+        draw.rectangle(
+            (int(s * 0.68), y, int(s * 0.78), y + max(3, s // 18)),
+            fill=HERRAMIENTAS_ACCENT if i == 0 else HERRAMIENTAS_FG,
+        )
+    # punto acento
+    draw.ellipse(
+        (int(s * 0.70), int(s * 0.68), int(s * 0.86), int(s * 0.84)),
+        fill=HERRAMIENTAS_DEEP,
+    )
+
+
 DRAWERS = {
     "admin": draw_admin,
     "portal": draw_portal,
     "aprende": draw_aprende,
     "studio": draw_studio,
     "certificados": draw_cert,
+    "herramientas": draw_herramientas,
 }
 
 SVGS = {
@@ -221,6 +260,16 @@ SVGS = {
   <path d="M20 26 l-2 5 3-1.5 3 1.5 -2-5" fill="#9A6CAC"/>
 </svg>
 """,
+    "herramientas": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="eki herramientas">
+  <rect width="32" height="32" rx="7" fill="#9A6CAC"/>
+  <circle cx="12" cy="13" r="5" fill="none" stroke="#faf7fc" stroke-width="2.4"/>
+  <circle cx="12" cy="13" r="2" fill="#9A6CAC"/>
+  <rect x="15.5" y="11.6" width="11" height="2.8" rx="1.2" fill="#faf7fc"/>
+  <rect x="22" y="9.2" width="3.2" height="3.2" fill="#3C7BBF"/>
+  <rect x="22" y="13.8" width="3.2" height="3.2" fill="#faf7fc"/>
+  <circle cx="24" cy="23" r="3.2" fill="#5F3A6E"/>
+</svg>
+""",
 }
 
 MASTER_SIZE = {
@@ -229,6 +278,7 @@ MASTER_SIZE = {
     "portal": 512,
     "aprende": 512,
     "certificados": 192,
+    "herramientas": 192,
 }
 
 

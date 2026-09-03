@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="eki herramientas">
+  <rect width="32" height="32" rx="7" fill="#9A6CAC"/>
+  <circle cx="12" cy="13" r="5" fill="none" stroke="#faf7fc" stroke-width="2.4"/>
+  <circle cx="12" cy="13" r="2" fill="#9A6CAC"/>
+  <rect x="15.5" y="11.6" width="11" height="2.8" rx="1.2" fill="#faf7fc"/>
+  <rect x="22" y="9.2" width="3.2" height="3.2" fill="#3C7BBF"/>
+  <rect x="22" y="13.8" width="3.2" height="3.2" fill="#faf7fc"/>
+  <circle cx="24" cy="23" r="3.2" fill="#5F3A6E"/>
+</svg>

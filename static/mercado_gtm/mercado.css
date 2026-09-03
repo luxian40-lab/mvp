@@ -8,7 +8,7 @@
   --eki-card: #ffffff;
   --eki-border: rgba(95, 58, 110, 0.18);
   --eki-radius: 16px;
-  --eki-font: "Segoe UI", "Nunito Sans", system-ui, sans-serif;
+  --eki-font: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
 }
 * { box-sizing: border-box; }
 body {
@@ -21,7 +21,13 @@ body {
     var(--eki-bg);
   min-height: 100vh;
 }
-.mg-app { min-height: 100vh; }
+.mg-app {
+  min-height: 100vh;
+  padding-top: 0.25rem;
+}
+.mg-title {
+  margin-top: 0.35rem;
+}
 .mg-screen { display: none; padding: 28px 16px 48px; }
 .mg-screen--active, .mg-screen:not([hidden]) { display: block; }
 .mg-wrap { max-width: 520px; margin: 0 auto; }

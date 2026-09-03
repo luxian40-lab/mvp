@@ -1,179 +1,169 @@
+{% extends "mercado_gtm/base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>eki | Encuentra tu mercado</title>
-  <link rel="stylesheet" href="{% static 'mercado_gtm/mercado.css' %}?v=1">
-</head>
-<body>
-  <div id="mg-app" class="mg-app" data-csrf="{{ csrf_token }}">
-    <header style="padding:14px 16px 0;max-width:520px;margin:0 auto;">
-      <a href="/" style="font-weight:800;color:#9A6CAC;text-decoration:none;font-size:1.2rem;letter-spacing:-0.04em;">eki</a>
-      <span style="color:#6b5f75;font-size:0.8rem;margin-left:8px;">herramientas</span>
-    </header>
-    <!-- Entrada libre -->
-    <section class="mg-screen mg-screen--active" data-screen="entrada">
-      <div class="mg-wrap">
-        <p class="mg-brand">eki</p>
-        <h1 class="mg-title">Encuentra tu mercado</h1>
-        <p class="mg-sub">Descubre cuánto puedes vender, a quién y cómo empezar.</p>
+
+{% block body %}
+<div id="mg-app" class="mg-app" data-csrf="{{ csrf_token }}">
+  <!-- Entrada libre -->
+  <section class="mg-screen mg-screen--active" data-screen="entrada">
+    <div class="mg-wrap">
+      <h1 class="mg-title">Encuentra tu mercado</h1>
+      <p class="mg-sub">Descubre cuánto puedes vender, a quién y cómo empezar.</p>
+      <label class="mg-field">
+        <span class="mg-label">¿Qué vendes y dónde quieres venderlo?</span>
+        <textarea id="mg-texto" class="mg-textarea" rows="5"
+          placeholder="Ej. Produzco panela pulverizada en Villeta, Cundinamarca, y quiero vender en tiendas saludables de Bogotá…"></textarea>
+      </label>
+      <button type="button" class="mg-btn mg-btn--primary" id="mg-empezar">Empezar</button>
+      <p class="mg-hint" id="mg-entrada-err" hidden></p>
+    </div>
+  </section>
+
+  <!-- Wizard -->
+  <section class="mg-screen" data-screen="wizard" hidden>
+    <div class="mg-wrap mg-wrap--narrow">
+      <nav class="mg-progress" aria-label="Progreso">
+        <span data-p="1" class="is-on">Producto</span>
+        <span data-p="2">Mercado</span>
+        <span data-p="3">Cliente</span>
+      </nav>
+
+      <div class="mg-step is-on" data-step="1">
+        <h2>Tu producto</h2>
+        <label class="mg-field"><span class="mg-label">Producto</span>
+          <input class="mg-input" name="producto" autocomplete="off"></label>
+        <label class="mg-field"><span class="mg-label">Categoría</span>
+          <input class="mg-input" name="categoria" placeholder="opcional"></label>
+        <label class="mg-field"><span class="mg-label">Presentación</span>
+          <input class="mg-input" name="presentacion" placeholder="ej. bolsa 500 g"></label>
+        <div class="mg-row">
+          <label class="mg-field mg-grow"><span class="mg-label">Precio por unidad</span>
+            <input class="mg-input" name="precio" type="number" min="0" step="any" inputmode="decimal"></label>
+          <label class="mg-field"><span class="mg-label">Unidad</span>
+            <input class="mg-input" name="unidad_venta" value="unidad"></label>
+        </div>
+        <div class="mg-actions">
+          <button type="button" class="mg-btn mg-btn--primary" data-next="2">Siguiente</button>
+        </div>
+      </div>
+
+      <div class="mg-step" data-step="2" hidden>
+        <h2>Mercado geográfico</h2>
+        <label class="mg-field"><span class="mg-label">Dónde produces / estás hoy</span>
+          <input class="mg-input" name="ubicacion_actual"></label>
+        <label class="mg-field"><span class="mg-label">Dónde quieres vender</span>
+          <input class="mg-input" name="mercado_objetivo"></label>
+        <fieldset class="mg-chips">
+          <legend class="mg-label">Alcance</legend>
+          <label><input type="radio" name="alcance" value="local" checked> Local</label>
+          <label><input type="radio" name="alcance" value="departamental"> Departamental</label>
+          <label><input type="radio" name="alcance" value="nacional"> Nacional</label>
+          <label><input type="radio" name="alcance" value="exportacion"> Exportación</label>
+        </fieldset>
+        <div class="mg-actions mg-split">
+          <button type="button" class="mg-btn mg-btn--ghost" data-prev="1">Atrás</button>
+          <button type="button" class="mg-btn mg-btn--primary" data-next="3">Siguiente</button>
+        </div>
+      </div>
+
+      <div class="mg-step" data-step="3" hidden>
+        <h2>Tu cliente</h2>
+        <p class="mg-hint">Elige uno o varios (chips grandes).</p>
+        <div class="mg-chip-grid" id="mg-segmentos">
+          <button type="button" class="mg-chip" data-seg="Vecinos / plaza local">Vecinos / plaza</button>
+          <button type="button" class="mg-chip" data-seg="Tiendas de barrio">Tiendas de barrio</button>
+          <button type="button" class="mg-chip" data-seg="Tiendas saludables">Tiendas saludables</button>
+          <button type="button" class="mg-chip" data-seg="Restaurantes / cafés">Restaurantes / cafés</button>
+          <button type="button" class="mg-chip" data-seg="Hoteles">Hoteles</button>
+          <button type="button" class="mg-chip" data-seg="Asociación / cooperativa">Asociación</button>
+          <button type="button" class="mg-chip" data-seg="Intermediario / mayorista">Mayorista</button>
+          <button type="button" class="mg-chip" data-seg="Institucional">Institucional</button>
+        </div>
         <label class="mg-field">
-          <span class="mg-label">¿Qué vendes y dónde quieres venderlo?</span>
-          <textarea id="mg-texto" class="mg-textarea" rows="5"
-            placeholder="Ej. Produzco panela pulverizada en Villeta, Cundinamarca, y quiero vender en tiendas saludables de Bogotá…"></textarea>
+          <span class="mg-label">Ticket mensual estimado por cliente</span>
+          <input class="mg-input" name="ticket_mensual" type="number" min="0" step="any" inputmode="decimal" placeholder="COP / mes">
         </label>
-        <button type="button" class="mg-btn mg-btn--primary" id="mg-empezar">Empezar</button>
-        <p class="mg-hint" id="mg-entrada-err" hidden></p>
-      </div>
-    </section>
-
-    <!-- Wizard -->
-    <section class="mg-screen" data-screen="wizard" hidden>
-      <div class="mg-wrap mg-wrap--narrow">
-        <nav class="mg-progress" aria-label="Progreso">
-          <span data-p="1" class="is-on">Producto</span>
-          <span data-p="2">Mercado</span>
-          <span data-p="3">Cliente</span>
-        </nav>
-
-        <div class="mg-step is-on" data-step="1">
-          <h2>Tu producto</h2>
-          <label class="mg-field"><span class="mg-label">Producto</span>
-            <input class="mg-input" name="producto" autocomplete="off"></label>
-          <label class="mg-field"><span class="mg-label">Categoría</span>
-            <input class="mg-input" name="categoria" placeholder="opcional"></label>
-          <label class="mg-field"><span class="mg-label">Presentación</span>
-            <input class="mg-input" name="presentacion" placeholder="ej. bolsa 500 g"></label>
-          <div class="mg-row">
-            <label class="mg-field mg-grow"><span class="mg-label">Precio por unidad</span>
-              <input class="mg-input" name="precio" type="number" min="0" step="any" inputmode="decimal"></label>
-            <label class="mg-field"><span class="mg-label">Unidad</span>
-              <input class="mg-input" name="unidad_venta" value="unidad"></label>
-          </div>
-          <div class="mg-actions">
-            <button type="button" class="mg-btn mg-btn--primary" data-next="2">Siguiente</button>
-          </div>
+        <label class="mg-check"><input type="checkbox" name="ticket_no_se" id="mg-ticket-nose"> No sé</label>
+        <label class="mg-field">
+          <span class="mg-label">Capacidad máxima mensual (unidades) — opcional</span>
+          <input class="mg-input" name="capacidad" type="number" min="0" step="any" inputmode="decimal">
+        </label>
+        <div class="mg-actions mg-split">
+          <button type="button" class="mg-btn mg-btn--ghost" data-prev="2">Atrás</button>
+          <button type="button" class="mg-btn mg-btn--primary" id="mg-calcular">Ver mi mercado</button>
         </div>
-
-        <div class="mg-step" data-step="2" hidden>
-          <h2>Mercado geográfico</h2>
-          <label class="mg-field"><span class="mg-label">Dónde produces / estás hoy</span>
-            <input class="mg-input" name="ubicacion_actual"></label>
-          <label class="mg-field"><span class="mg-label">Dónde quieres vender</span>
-            <input class="mg-input" name="mercado_objetivo"></label>
-          <fieldset class="mg-chips">
-            <legend class="mg-label">Alcance</legend>
-            <label><input type="radio" name="alcance" value="local" checked> Local</label>
-            <label><input type="radio" name="alcance" value="departamental"> Departamental</label>
-            <label><input type="radio" name="alcance" value="nacional"> Nacional</label>
-            <label><input type="radio" name="alcance" value="exportacion"> Exportación</label>
-          </fieldset>
-          <div class="mg-actions mg-split">
-            <button type="button" class="mg-btn mg-btn--ghost" data-prev="1">Atrás</button>
-            <button type="button" class="mg-btn mg-btn--primary" data-next="3">Siguiente</button>
-          </div>
-        </div>
-
-        <div class="mg-step" data-step="3" hidden>
-          <h2>Tu cliente</h2>
-          <p class="mg-hint">Elige uno o varios (chips grandes).</p>
-          <div class="mg-chip-grid" id="mg-segmentos">
-            <button type="button" class="mg-chip" data-seg="Vecinos / plaza local">Vecinos / plaza</button>
-            <button type="button" class="mg-chip" data-seg="Tiendas de barrio">Tiendas de barrio</button>
-            <button type="button" class="mg-chip" data-seg="Tiendas saludables">Tiendas saludables</button>
-            <button type="button" class="mg-chip" data-seg="Restaurantes / cafés">Restaurantes / cafés</button>
-            <button type="button" class="mg-chip" data-seg="Hoteles">Hoteles</button>
-            <button type="button" class="mg-chip" data-seg="Asociación / cooperativa">Asociación</button>
-            <button type="button" class="mg-chip" data-seg="Intermediario / mayorista">Mayorista</button>
-            <button type="button" class="mg-chip" data-seg="Institucional">Institucional</button>
-          </div>
-          <label class="mg-field">
-            <span class="mg-label">Ticket mensual estimado por cliente</span>
-            <input class="mg-input" name="ticket_mensual" type="number" min="0" step="any" inputmode="decimal" placeholder="COP / mes">
-          </label>
-          <label class="mg-check"><input type="checkbox" name="ticket_no_se" id="mg-ticket-nose"> No sé</label>
-          <label class="mg-field">
-            <span class="mg-label">Capacidad máxima mensual (unidades) — opcional</span>
-            <input class="mg-input" name="capacidad" type="number" min="0" step="any" inputmode="decimal">
-          </label>
-          <div class="mg-actions mg-split">
-            <button type="button" class="mg-btn mg-btn--ghost" data-prev="2">Atrás</button>
-            <button type="button" class="mg-btn mg-btn--primary" id="mg-calcular">Ver mi mercado</button>
-          </div>
-          <p class="mg-hint" id="mg-wizard-err" hidden></p>
-        </div>
+        <p class="mg-hint" id="mg-wizard-err" hidden></p>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- Resultado -->
-    <section class="mg-screen" data-screen="resultado" hidden>
-      <div class="mg-wrap">
-        <p class="mg-brand">eki</p>
-        <h2 id="mg-res-titulo">Tu mercado estimado</h2>
-        <p class="mg-conf" id="mg-confianza"></p>
-        <div class="mg-cards" id="mg-cards-tss"></div>
-        <div class="mg-funnel" id="mg-funnel" aria-hidden="true"></div>
-        <details class="mg-traza" id="mg-traza"><summary>¿De dónde salen estos números?</summary><div id="mg-traza-body"></div></details>
-        <div class="mg-actions mg-stack">
-          <button type="button" class="mg-btn mg-btn--primary" id="mg-btn-gtm">¿Cómo entro a este mercado?</button>
-          <button type="button" class="mg-btn mg-btn--ghost" id="mg-btn-sim">¿Qué pasaría si…?</button>
-          <button type="button" class="mg-btn mg-btn--ghost" id="mg-btn-chat">Preguntar</button>
-          <button type="button" class="mg-btn mg-btn--ghost" id="mg-btn-otro">Otro escenario</button>
-        </div>
-        <p class="mg-hint" id="mg-res-err" hidden></p>
+  <!-- Resultado -->
+  <section class="mg-screen" data-screen="resultado" hidden>
+    <div class="mg-wrap">
+      <h2 id="mg-res-titulo">Tu mercado estimado</h2>
+      <p class="mg-conf" id="mg-confianza"></p>
+      <div class="mg-cards" id="mg-cards-tss"></div>
+      <div class="mg-funnel" id="mg-funnel" aria-hidden="true"></div>
+      <details class="mg-traza" id="mg-traza"><summary>¿De dónde salen estos números?</summary><div id="mg-traza-body"></div></details>
+      <div class="mg-actions mg-stack">
+        <button type="button" class="mg-btn mg-btn--primary" id="mg-btn-gtm">¿Cómo entro a este mercado?</button>
+        <button type="button" class="mg-btn mg-btn--ghost" id="mg-btn-sim">¿Qué pasaría si…?</button>
+        <button type="button" class="mg-btn mg-btn--ghost" id="mg-btn-chat">Preguntar</button>
+        <button type="button" class="mg-btn mg-btn--ghost" id="mg-btn-otro">Otro escenario</button>
       </div>
-    </section>
+      <p class="mg-hint" id="mg-res-err" hidden></p>
+    </div>
+  </section>
 
-    <!-- GTM -->
-    <section class="mg-screen" data-screen="gtm" hidden>
-      <div class="mg-wrap">
-        <button type="button" class="mg-linkback" data-back="resultado">← Resultado</button>
-        <h2>Go to Market · 30 días</h2>
-        <div id="mg-gtm-body" class="mg-gtm"></div>
-      </div>
-    </section>
+  <!-- GTM -->
+  <section class="mg-screen" data-screen="gtm" hidden>
+    <div class="mg-wrap">
+      <button type="button" class="mg-linkback" data-back="resultado">← Resultado</button>
+      <h2>Go to Market · 30 días</h2>
+      <div id="mg-gtm-body" class="mg-gtm"></div>
+    </div>
+  </section>
 
-    <!-- Simulador -->
-    <section class="mg-screen" data-screen="sim" hidden>
-      <div class="mg-wrap mg-wrap--narrow">
-        <button type="button" class="mg-linkback" data-back="resultado">← Resultado</button>
-        <h2>¿Qué pasaría si…?</h2>
-        <p class="mg-hint">Recalcula en vivo · sin IA · mismas fórmulas del backend.</p>
-        <label class="mg-field"><span class="mg-label">Clientes</span>
-          <input class="mg-input" id="sim-clientes" type="number" min="0" step="1" value="10"></label>
-        <label class="mg-field"><span class="mg-label">Ticket mensual</span>
-          <input class="mg-input" id="sim-ticket" type="number" min="0" step="any"></label>
-        <label class="mg-field"><span class="mg-label">Precio</span>
-          <input class="mg-input" id="sim-precio" type="number" min="0" step="any"></label>
-        <label class="mg-field"><span class="mg-label">% participación del SAM</span>
-          <input class="mg-input" id="sim-part" type="number" min="0" max="100" step="0.1" value="3"></label>
-        <label class="mg-field"><span class="mg-label">Capacidad (unidades/mes)</span>
-          <input class="mg-input" id="sim-cap" type="number" min="0" step="any"></label>
-        <div class="mg-sim-out" id="mg-sim-out"></div>
-      </div>
-    </section>
+  <!-- Simulador -->
+  <section class="mg-screen" data-screen="sim" hidden>
+    <div class="mg-wrap mg-wrap--narrow">
+      <button type="button" class="mg-linkback" data-back="resultado">← Resultado</button>
+      <h2>¿Qué pasaría si…?</h2>
+      <p class="mg-hint">Recalcula en vivo · sin IA · mismas fórmulas del backend.</p>
+      <label class="mg-field"><span class="mg-label">Clientes</span>
+        <input class="mg-input" id="sim-clientes" type="number" min="0" step="1" value="10"></label>
+      <label class="mg-field"><span class="mg-label">Ticket mensual</span>
+        <input class="mg-input" id="sim-ticket" type="number" min="0" step="any"></label>
+      <label class="mg-field"><span class="mg-label">Precio</span>
+        <input class="mg-input" id="sim-precio" type="number" min="0" step="any"></label>
+      <label class="mg-field"><span class="mg-label">% participación del SAM</span>
+        <input class="mg-input" id="sim-part" type="number" min="0" max="100" step="0.1" value="3"></label>
+      <label class="mg-field"><span class="mg-label">Capacidad (unidades/mes)</span>
+        <input class="mg-input" id="sim-cap" type="number" min="0" step="any"></label>
+      <div class="mg-sim-out" id="mg-sim-out"></div>
+    </div>
+  </section>
 
-    <!-- Chat -->
-    <section class="mg-screen" data-screen="chat" hidden>
-      <div class="mg-wrap">
-        <button type="button" class="mg-linkback" data-back="resultado">← Resultado</button>
-        <h2>Preguntas</h2>
-        <div class="mg-quick" id="mg-quick">
-          <button type="button" data-q="¿Por qué este segmento y no otro?">¿Por qué este segmento?</button>
-          <button type="button" data-q="¿Cómo bajo el riesgo de este plan?">Bajar el riesgo</button>
-          <button type="button" data-q="¿Qué hago la primera semana?">Primera semana</button>
-          <button type="button" data-q="¿Necesito mirar mi margen antes de fijar precio?">¿Mirar margen?</button>
-        </div>
-        <div class="mg-chat" id="mg-chat-log"></div>
-        <div class="mg-chat-form">
-          <input class="mg-input" id="mg-chat-input" placeholder="Escribe tu pregunta…">
-          <button type="button" class="mg-btn mg-btn--primary" id="mg-chat-send">Enviar</button>
-        </div>
+  <!-- Chat -->
+  <section class="mg-screen" data-screen="chat" hidden>
+    <div class="mg-wrap">
+      <button type="button" class="mg-linkback" data-back="resultado">← Resultado</button>
+      <h2>Preguntas</h2>
+      <div class="mg-quick" id="mg-quick">
+        <button type="button" data-q="¿Por qué este segmento y no otro?">¿Por qué este segmento?</button>
+        <button type="button" data-q="¿Cómo bajo el riesgo de este plan?">Bajar el riesgo</button>
+        <button type="button" data-q="¿Qué hago la primera semana?">Primera semana</button>
+        <button type="button" data-q="¿Necesito mirar mi margen antes de fijar precio?">¿Mirar margen?</button>
       </div>
-    </section>
-  </div>
-  <script src="{% static 'mercado_gtm/mercado.js' %}?v=1"></script>
-</body>
-</html>
+      <div class="mg-chat" id="mg-chat-log"></div>
+      <div class="mg-chat-form">
+        <input class="mg-input" id="mg-chat-input" placeholder="Escribe tu pregunta…">
+        <button type="button" class="mg-btn mg-btn--primary" id="mg-chat-send">Enviar</button>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'mercado_gtm/mercado.js' %}?v=2"></script>
+{% endblock %}

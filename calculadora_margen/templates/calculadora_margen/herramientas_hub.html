@@ -5,6 +5,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>eki · herramientas</title>
+  <link rel="icon" href="{% static 'favicons/herramientas.svg' %}" type="image/svg+xml">
+  <link rel="icon" href="{% static 'favicons/herramientas-32.png' %}" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="{% static 'favicons/herramientas-180.png' %}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
@@ -27,7 +30,12 @@
       min-height: 100vh;
     }
     .ht-wrap { max-width: 720px; margin: 0 auto; padding: 28px 16px 48px; }
-    .ht-brand { font-size: 1.5rem; font-weight: 800; color: var(--eki); letter-spacing: -0.04em; margin: 0 0 6px; }
+    .ht-logo {
+      display: block;
+      width: 120px;
+      height: auto;
+      margin: 0 0 18px;
+    }
     .ht-title { margin: 0 0 8px; font-size: 1.55rem; color: var(--eki-deep); letter-spacing: -0.03em; }
     .ht-sub { margin: 0 0 24px; color: var(--muted); line-height: 1.45; }
     .ht-grid { display: grid; gap: 14px; }
@@ -62,7 +70,7 @@
 </head>
 <body>
   <div class="ht-wrap">
-    <p class="ht-brand">eki</p>
+    <img class="ht-logo" src="{% static 'calculadora_margen/eki-logo.png' %}" alt="eki" width="120" height="44">
     <h1 class="ht-title">Herramientas</h1>
     <p class="ht-sub">Calculadoras para el celular del productor. Elige una para empezar.</p>
     <div class="ht-grid">

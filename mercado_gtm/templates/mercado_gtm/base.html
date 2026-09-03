@@ -1,0 +1,28 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1F2933">
+  <title>{% block title %}eki | Encuentra tu mercado{% endblock %}</title>
+  <link rel="icon" href="{% static 'favicons/herramientas.svg' %}" type="image/svg+xml">
+  <link rel="icon" href="{% static 'favicons/herramientas-32.png' %}" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="{% static 'favicons/herramientas-180.png' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'calculadora_margen/calculadora.css' %}?v=4">
+  <link rel="stylesheet" href="{% static 'mercado_gtm/mercado.css' %}?v=2">
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="cm-body">
+  <header class="cm-header">
+    <a href="{% if request.get_host == 'margen.eki.technology' %}/{% else %}/mercado-gtm/{% endif %}" class="cm-header__brand" aria-label="eki — herramientas">
+      <img src="{% static 'calculadora_margen/eki-logo.png' %}" alt="eki" class="cm-header__logo" width="120" height="44">
+    </a>
+  </header>
+  {% block body %}{% endblock %}
+  {% block scripts %}{% endblock %}
+</body>
+</html>
