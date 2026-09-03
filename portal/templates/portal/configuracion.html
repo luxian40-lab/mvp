@@ -1,0 +1,32 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Configuración | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+  <div>
+    <h1>Configuración</h1>
+    <p class="muted">Identidad, cupos y equipo de tu organización.</p>
+  </div>
+</div>
+
+<section class="cards-grid">
+  <a class="card card-link" href="/portal/perfil/">
+    <p class="metric-label">Marca</p>
+    <h2 style="margin:0 0 6px;font-size:1.05rem;">Perfil de empresa</h2>
+    <p class="muted" style="margin:0;">Logo, subtítulo y datos de contacto.</p>
+  </a>
+  {% if portal_es_admin %}
+  <a class="card card-link" href="/portal/usuarios/">
+    <p class="metric-label">Equipo</p>
+    <h2 style="margin:0 0 6px;font-size:1.05rem;">Usuarios</h2>
+    <p class="muted" style="margin:0;">Quién entra al portal y con qué rol.</p>
+  </a>
+  <a class="card card-link" href="/portal/suscripcion/">
+    <p class="metric-label">Plan</p>
+    <h2 style="margin:0 0 6px;font-size:1.05rem;">Suscripción</h2>
+    <p class="muted" style="margin:0;">Cupos y vigencia del servicio.</p>
+  </a>
+  {% endif %}
+</section>
+{% endblock %}

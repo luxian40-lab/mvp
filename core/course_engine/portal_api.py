@@ -219,6 +219,66 @@ def _leer_brief(brief: str, brief_file) -> str:
     return text
 
 
+def _brief_desde_curso(*, curso_id: int, cliente_id: int, modulo_id: Optional[int], foco: str) -> str:
+    """Arma un brief usable sin textarea: RAG + módulo + foco."""
+    partes: list[str] = []
+    foco_txt = (foco or '').strip()
+    if foco_txt:
+        partes.append(f'Foco del video: {foco_txt}')
+
+    if modulo_id:
+        from core.models import Modulo
+
+        mod = Modulo.objects.filter(pk=modulo_id, curso_id=curso_id).first()
+        if mod:
+            partes.append(f'Módulo {mod.numero}: {mod.titulo}')
+            desc = (mod.descripcion or '').strip()
+            if desc:
+                partes.append(desc[:2000])
+            cont = (mod.contenido or '').strip()
+            if cont:
+                partes.append(cont[:4000])
+
+    try:
+        from core.course_engine.rag_source import obtener_contexto_rag_empresa, resumen_documentos_curso
+
+        rag_txt, _ok = obtener_contexto_rag_empresa(
+            cliente_id,
+            curso_id,
+            foco_txt or 'contenido principal del curso para video microlearning',
+            max_chars=3500,
+        )
+        if rag_txt:
+            partes.append(rag_txt)
+        else:
+            resumen = resumen_documentos_curso(curso_id)
+            if resumen:
+                partes.append(resumen[:4000])
+    except Exception:
+        logger.exception('CE brief desde RAG curso=%s', curso_id)
+
+    texto = '\n\n'.join(p for p in partes if p).strip()
+    if len(texto) >= 40:
+        return texto
+    # Fallback mínimo para demo cuando aún no hay docs
+    return (
+        'Video demo eki: finanzas rurales prácticas. Separar gastos del hogar y del cultivo, '
+        'guardar fondo de emergencia y registrar cada peso que entra y sale del emprendimiento.'
+    )
+
+
+def _resolver_brief(brief: str, brief_file, *, curso_id: int, cliente_id: int, modulo_id: Optional[int], foco: str) -> str:
+    text = _leer_brief(brief, brief_file)
+    if len(text) >= 40:
+        return text
+    return _brief_desde_curso(
+        curso_id=curso_id,
+        cliente_id=cliente_id,
+        modulo_id=modulo_id,
+        foco=foco,
+    )
+
+
 def plan_video_desde_brief(
     *,
     cliente_id: int,
@@ -233,9 +293,14 @@ def plan_video_desde_brief(
     from core.course_engine.tarjeta_beats import beats_desde_tarjeta
     from core.course_engine.video_pilot_generator import VideoPilotGenerator
 
-    brief_text = _leer_brief(brief, brief_file)
-    if len(brief_text) < 40:
-        return {'ok': False, 'error': 'Brief muy corto (mín. 40 caracteres)'}
+    brief_text = _resolver_brief(
+        brief,
+        brief_file,
+        curso_id=curso_id,
+        cliente_id=cliente_id,
+        modulo_id=modulo_id,
+        foco=foco,
+    )
 
     gen = VideoPilotGenerator()
     target_sec = STUDIO_DEMO_MAX_SEC if modo_demo else 14.0
@@ -287,9 +352,14 @@ def encolar_generacion_video(
     brief_file=None,
     modo_demo: bool = False,
 ) -> dict[str, Any]:
-    brief_text = _leer_brief(brief, brief_file)
-    if len(brief_text) < 40:
-        return {'ok': False, 'error': 'Brief muy corto'}
+    brief_text = _resolver_brief(
+        brief,
+        brief_file,
+        curso_id=curso_id,
+        cliente_id=cliente_id,
+        modulo_id=modulo_id,
+        foco=foco,
+    )
 
     run_id = uuid.uuid4().hex[:12]
     cache.set(f'{_CACHE_PREFIX}{run_id}', {'status': 'queued'}, 7200)

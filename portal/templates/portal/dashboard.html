@@ -3,518 +3,297 @@
 {% block title %}Inicio | Portal eki{% endblock %}
 
 {% block extra_head %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin="" defer></script>
 <style>
-.card-link { text-decoration: none; color: inherit; display: block; transition: border-color .15s, box-shadow .15s, transform .15s; }
-.card-link:hover .card,
-.card-link:hover {
-    border-color: rgba(154, 108, 172, 0.4);
-    box-shadow: 0 14px 34px rgba(31, 31, 40, 0.08);
+.home-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  gap: 22px;
+  align-items: start;
 }
-.card-link:hover { transform: translateY(-2px); }
-
-/* Cabecera Inicio */
-.dash-hero {
-    margin: 2px 0 30px;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    box-shadow: none;
+@media (max-width: 980px) {
+  .home-layout { grid-template-columns: 1fr; }
 }
-.dash-hero--org {
-    display: flex;
-    align-items: center;
-    gap: 16px;
+.home-greet h1 {
+  margin: 0;
+  font-size: clamp(1.55rem, 2.4vw, 2rem);
+  letter-spacing: -0.03em;
+  font-weight: 800;
+  color: var(--ink);
 }
-.dash-hero__logo,
-.dash-hero__ph {
-    width: 56px;
-    height: 56px;
-    border-radius: 12px;
-    flex: 0 0 auto;
-    border: 1px solid var(--borde);
-    background: #fff;
+.home-greet p { margin: 6px 0 0; color: var(--texto-muted); max-width: 36rem; }
+.home-top {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 14px;
+  margin: 22px 0 18px;
 }
-.dash-hero__logo { object-fit: contain; padding: 4px; }
-.dash-hero__ph {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 800;
-    color: var(--purple-deep, #5F3A6E);
-    background: rgba(154, 108, 172, 0.12);
+@media (max-width: 720px) { .home-top { grid-template-columns: 1fr; } }
+.home-map-card { padding: 12px; }
+.home-map-card__head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-bottom: 8px;
 }
-.dash-hero__kicker {
-    margin: 0 0 4px;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--purple);
+.home-map-card__head h3 { margin: 0; font-size: 0.92rem; }
+#home-mapa {
+  height: 180px; width: 100%; border-radius: 12px;
+  border: 1px solid var(--borde); background: #e8e4ec;
 }
-.dash-hero h1 { margin: 0; font-size: clamp(1.7rem, 2.6vw, 2.1rem); letter-spacing: -0.04em; font-weight: 800; color: var(--ink); }
-.dash-hero .muted { max-width: 40rem; margin-top: 0.55rem; font-size: 0.98rem; }
-html[data-theme="dark"] .card-link:hover .card,
-html[data-theme="dark"] .card-link:hover {
-    box-shadow: none;
-    border-color: rgba(180, 139, 196, 0.45);
+.home-card {
+  background: var(--blanco);
+  border: 1px solid var(--borde);
+  border-radius: 16px;
+  padding: 18px 18px 16px;
+  box-shadow: var(--shadow-soft);
 }
-
-/* Pregunta guía de cada bloque */
-.dash-q {
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--purple);
-    margin: 0 0 14px;
+.home-profile {
+  display: flex; gap: 14px; align-items: flex-start;
 }
-.dash-section { margin-bottom: 40px; }
-
-/* Estado del programa (narrativa de coordinador) */
-.estado-card {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    gap: 24px;
-    padding: 30px 32px;
-    border-radius: 20px;
-    border: 1px solid var(--borde);
-    background:
-        radial-gradient(ellipse 50% 100% at 100% 0%, rgba(154,108,172,0.10), transparent 55%),
-        radial-gradient(ellipse 40% 80% at 0% 100%, rgba(60,123,191,0.06), transparent 50%),
-        linear-gradient(180deg, var(--surface, rgba(255,255,255,0.9)), var(--lilac, #FAFAFC));
-    box-shadow: var(--shadow-soft);
+.home-avatar, .home-avatar-ph {
+  width: 64px; height: 64px; border-radius: 14px; flex: 0 0 auto;
+  border: 1px solid var(--borde); background: #fff;
 }
-html[data-theme="dark"] .estado-card {
-    background:
-        radial-gradient(ellipse 50% 100% at 100% 0%, rgba(154,108,172,0.16), transparent 55%),
-        radial-gradient(ellipse 40% 80% at 0% 100%, rgba(60,123,191,0.10), transparent 50%),
-        var(--blanco);
+.home-avatar { object-fit: contain; padding: 4px; }
+.home-avatar-ph {
+  display: grid; place-items: center; font-weight: 800;
+  color: var(--purple-deep); background: rgba(154,108,172,0.12);
 }
-.estado-card__title {
-    font-family: var(--font-display);
-    font-size: clamp(1.25rem, 2vw, 1.6rem);
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    color: var(--purple-deep);
-    margin: 0 0 8px;
-    line-height: 1.15;
+.home-profile h2 { margin: 0; font-size: 1.05rem; }
+.home-profile .muted { margin: 4px 0 0; font-size: 0.85rem; }
+.home-meta { margin-top: 12px; display: grid; gap: 6px; font-size: 0.86rem; }
+.home-meta strong { color: var(--purple-deep); font-weight: 600; }
+.home-section-title {
+  margin: 8px 0 12px; font-size: 1rem; font-weight: 800; color: var(--ink);
 }
-.estado-card__body { margin: 0; font-size: 1rem; line-height: 1.6; color: var(--texto); max-width: 46rem; }
-.estado-card__cta { flex-shrink: 0; }
-@media (max-width: 720px) {
-    .estado-card { grid-template-columns: 1fr; padding: 24px; }
+.home-section-sub { margin: -6px 0 14px; font-size: 0.88rem; color: var(--texto-muted); }
+.planes-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 22px;
 }
-
-/* Requiere atención */
-.ops-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
-.ops-card {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 22px 22px 20px;
-    background: var(--surface, rgba(255,255,255,0.9));
-    border: 1px solid var(--borde);
-    border-radius: 16px;
-    box-shadow: var(--shadow-soft);
-    border-left: 3px solid var(--purple);
+.plan-card {
+  display: block; text-decoration: none; color: inherit;
+  background: var(--blanco); border: 1px solid var(--borde);
+  border-radius: 14px; padding: 14px; box-shadow: var(--shadow-soft);
+  transition: transform .15s, border-color .15s;
 }
-html[data-theme="dark"] .ops-card { background: var(--blanco); }
-.ops-card--warn { border-left-color: var(--warn); }
-.ops-card--info { border-left-color: var(--info); }
-.ops-card--ok { border-left-color: var(--success); }
-.ops-card__num { font-family: var(--font-display); font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; color: var(--purple-deep); line-height: 1; font-variant-numeric: tabular-nums; }
-.ops-card--info .ops-card__num { color: var(--info); }
-.ops-card--ok .ops-card__num { color: var(--success); }
-.ops-card__label { font-weight: 650; font-size: 13.5px; color: var(--texto); }
-.ops-card__hint { font-size: 12px; color: var(--texto-muted); margin-top: 2px; }
-
-.compare-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
-.compare-card {
-    background: var(--lilac-2, #F4F3F8);
-    border-radius: 14px;
-    padding: 18px;
-    border: 1px solid var(--borde);
+.plan-card:hover { transform: translateY(-2px); border-color: rgba(154,108,172,0.4); }
+.plan-card h3 { margin: 0 0 6px; font-size: 0.92rem; }
+.plan-card .muted { font-size: 0.78rem; margin: 0 0 10px; }
+.plan-bar { height: 8px; border-radius: 999px; background: rgba(154,108,172,0.12); overflow: hidden; }
+.plan-bar > span { display: block; height: 100%; background: #9A6CAC; border-radius: inherit; }
+.plan-pct { margin-top: 8px; font-size: 0.78rem; font-weight: 700; color: var(--purple-deep); }
+.learn-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;
 }
-.compare-label { font-size: 11px; letter-spacing: .04em; color: var(--texto-muted); font-weight: 600; margin-bottom: 6px; }
-.compare-values span { font-family: var(--font-display); font-size: 1.4rem; font-weight: 800; letter-spacing: -0.03em; color: var(--purple-deep, #5F3A6E); }
-.compare-delta { font-size: 12px; font-weight: 600; margin-top: 4px; }
-.compare-delta.up { color: var(--ok); }
-.compare-delta.down { color: var(--danger); }
-
-/* Actividad reciente */
-.timeline-compact { list-style: none; padding: 0; margin: 0; }
-.timeline-compact__item {
-    display: flex;
-    align-items: flex-start;
-    gap: 14px;
-    padding: 13px 0;
-    border-bottom: 1px solid var(--borde);
-    font-size: 13.5px;
+.learn-card {
+  display: flex; flex-direction: column; justify-content: flex-end;
+  min-height: 140px; padding: 16px; border-radius: 16px; text-decoration: none;
+  color: #fff; background:
+    linear-gradient(160deg, rgba(95,58,110,0.92), rgba(154,108,172,0.85)),
+    radial-gradient(circle at 20% 20%, rgba(255,255,255,0.18), transparent 50%);
+  box-shadow: var(--shadow-soft);
+  transition: transform .15s;
 }
-.timeline-compact__item:last-child { border-bottom: 0; }
-.timeline-compact__dot {
-    flex-shrink: 0;
-    width: 24px; height: 24px;
-    border-radius: 50%;
-    background: var(--success-soft, rgba(53, 166, 71, 0.12));
-    color: var(--success);
-    display: flex; align-items: center; justify-content: center;
-    margin-top: 1px;
+.learn-card:hover { transform: translateY(-2px); color: #fff; }
+.learn-card--alt {
+  background:
+    linear-gradient(160deg, rgba(60,123,191,0.92), rgba(95,58,110,0.8));
 }
-.timeline-compact__dot svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.timeline-compact__main { flex: 1; min-width: 0; }
-.timeline-compact__main a { color: var(--texto); text-decoration: none; font-weight: 600; }
-.timeline-compact__main a:hover { color: var(--purple-deep); }
-.timeline-compact__meta { display: block; color: var(--texto-muted); font-size: 12px; margin-top: 2px; }
-.timeline-compact__time { flex-shrink: 0; color: var(--texto-muted); font-size: 12px; white-space: nowrap; }
-
-/* Hub agentes / herramientas IA (Lumina dark) */
-.dash-agents-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 14px;
+.learn-card--ok {
+  background:
+    linear-gradient(160deg, rgba(53,166,71,0.9), rgba(95,58,110,0.75));
 }
-.dash-agent-card {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 18px 18px 16px;
-    border-radius: 14px;
-    border: 1px solid var(--borde);
-    background: var(--surface);
-    text-decoration: none;
-    color: inherit;
-    transition: border-color .15s, transform .15s;
-    min-height: 168px;
+.learn-card span {
+  display: inline-block; font-size: 0.68rem; font-weight: 700;
+  letter-spacing: .04em; text-transform: uppercase;
+  background: rgba(255,255,255,0.2); padding: 3px 8px; border-radius: 999px; margin-bottom: 8px;
 }
-.dash-agent-card:hover {
-    border-color: rgba(168, 85, 247, 0.45);
-    transform: translateY(-2px);
+.learn-card strong { font-size: 1rem; line-height: 1.25; }
+.anuncios {
+  background: var(--blanco); border: 1px solid var(--borde);
+  border-radius: 16px; padding: 16px; box-shadow: var(--shadow-soft);
+  position: sticky; top: 16px;
 }
-.dash-agent-card__tag {
-    align-self: flex-start;
-    font-size: 0.65rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    padding: 3px 8px;
-    border-radius: 999px;
-    background: var(--accent-soft);
-    color: var(--purple-deep);
+.anuncios h2 { margin: 0 0 12px; font-size: 0.98rem; }
+.anuncio {
+  display: block; text-decoration: none; color: inherit;
+  padding: 12px 0; border-top: 1px solid var(--borde);
 }
-.dash-agent-card--green .dash-agent-card__tag { background: var(--success-soft); color: var(--success); }
-.dash-agent-card--blue .dash-agent-card__tag { background: var(--info-soft); color: var(--info); }
-.dash-agent-card__cat { font-size: 0.72rem; color: var(--texto-muted); font-weight: 600; }
-.dash-agent-card__title { margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--ink); }
-.dash-agent-card__desc { margin: 0; font-size: 0.82rem; color: var(--texto-muted); line-height: 1.45; flex: 1; }
-.dash-agent-card__cta {
-    margin-top: auto;
-    font-size: 0.78rem;
-    font-weight: 700;
-    color: var(--accent);
+.anuncio:first-of-type { border-top: 0; padding-top: 4px; }
+.anuncio .tag {
+  font-size: 0.68rem; font-weight: 700; color: var(--purple-deep);
+  text-transform: uppercase; letter-spacing: .04em;
 }
+.anuncio strong { display: block; margin: 4px 0 2px; font-size: 0.9rem; }
+.anuncio p { margin: 0; font-size: 0.8rem; color: var(--texto-muted); line-height: 1.4; }
+.anuncios-foot { margin: 12px 0 0; font-size: 0.78rem; color: var(--texto-muted); text-align: center; }
+.ops-mini {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px; margin-bottom: 22px;
+}
+.ops-mini a {
+  text-decoration: none; color: inherit; background: var(--blanco);
+  border: 1px solid var(--borde); border-radius: 12px; padding: 12px;
+}
+.ops-mini strong { display: block; font-size: 1.25rem; color: var(--purple-deep); }
+.ops-mini span { font-size: 0.78rem; color: var(--texto-muted); }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="dash-hero dash-hero--org">
-    {% if org.logo_url %}
-    <img class="dash-hero__logo" src="{{ org.logo_url }}" alt="" loading="lazy" referrerpolicy="no-referrer">
-    {% else %}
-    <span class="dash-hero__ph" aria-hidden="true">{{ org_iniciales }}</span>
-    {% endif %}
-    <div>
-        <p class="dash-hero__kicker">{{ org.nombre }}</p>
-        <h1>{% if org.portal_subtitulo %}{{ org.portal_subtitulo }}{% else %}Inicio{% endif %}</h1>
-        <p class="muted">Bienvenido nuevamente. Aquí encontrará el estado general de su programa y lo que requiere su atención hoy.</p>
-    </div>
-</div>
+<div class="home-layout">
+  <div>
+    <header class="home-greet">
+      <h1>¡Hola, {{ saludo_nombre }}!</h1>
+      <p>Hoy es una nueva oportunidad para sacar adelante tu programa con eki.</p>
+    </header>
 
-{% if portal_es_admin and not portal_branding_completo %}
-<section class="alert alert-onboarding" style="margin-bottom:24px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;">
-    <div>
+    {% if portal_es_admin and not portal_branding_completo %}
+    <section class="alert alert-onboarding" style="margin:18px 0;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;">
+      <div>
         <strong>Complete la identidad de su organización</strong>
-        <p class="muted" style="margin:6px 0 0;font-size:14px;">
-            Suba el logo y un subtítulo para que su equipo reconozca el portal clientes.
-            {% if portal_branding_pendientes %}Faltan {{ portal_branding_pendientes }} paso{{ portal_branding_pendientes|pluralize }}.{% endif %}
-        </p>
-    </div>
-    <a class="btn" href="/portal/perfil/">Configurar perfil</a>
-</section>
-{% endif %}
+        <p class="muted" style="margin:6px 0 0;font-size:14px;">Logo y subtítulo para que el equipo reconozca el portal.</p>
+      </div>
+      <a class="btn" href="/portal/perfil/">Configurar perfil</a>
+    </section>
+    {% endif %}
 
-{% if agentes_hub %}
-<section class="dash-section" id="agentes">
-    <p class="dash-q">¿Qué herramienta IA quieres usar hoy?</p>
-    <div class="dash-agents-grid">
-        {% for a in agentes_hub %}
-        <a href="{{ a.url }}" class="dash-agent-card dash-agent-card--{{ a.tono|default:'purple' }}">
-            <span class="dash-agent-card__tag">{{ a.tag }}</span>
-            <span class="dash-agent-card__cat">{{ a.categoria }}</span>
-            <h3 class="dash-agent-card__title">{{ a.titulo }}</h3>
-            <p class="dash-agent-card__desc">{{ a.desc }}</p>
-            <span class="dash-agent-card__cta">Abrir →</span>
-        </a>
-        {% endfor %}
-    </div>
-</section>
-{% endif %}
-
-{% if portal_mod_gei and gei_resumen %}
-<section class="cards-grid" style="margin-bottom:24px;">
-    <article class="card">
-        <div class="metric-number">{{ gei_resumen.total }}</div>
-        <div class="metric-label">Fichas GEI</div>
-    </article>
-    <article class="card">
-        <div class="metric-number">{{ gei_resumen.completas }}</div>
-        <div class="metric-label">Fichas completas</div>
-    </article>
-    <article class="card">
-        <div class="metric-number">{{ gei_resumen.promedio_pct }}%</div>
-        <div class="metric-label">Completitud promedio</div>
-        <p class="muted"><a href="/portal/gei/">Ver inventario GEI</a></p>
-    </article>
-</section>
-{% endif %}
-
-{% if portal_mod_gei %}
-<section class="panel panel-quiet dash-section">
-    <h2 style="margin-top:0;">Configuración GEI</h2>
-    <p class="muted" style="margin-bottom:14px;">Formularios WhatsApp y factores de cálculo de emisiones para sus productores.</p>
-    <div style="display:flex;flex-wrap:wrap;gap:10px;">
-        <a class="btn btn-outline" href="/portal/gei/formularios/">Preguntas del formulario</a>
-        <a class="btn btn-outline" href="/portal/gei/parametros/">Parámetros de cálculo</a>
-        <a class="btn btn-ghost" href="/portal/gei/">Inventario de fichas</a>
-    </div>
-</section>
-{% endif %}
-
-{% if portal_mod_nat and nat_resumen %}
-<section class="cards-grid" style="margin-bottom:24px;">
-    <article class="card">
-        <div class="metric-number">{{ nat_resumen.pqrs_total }}</div>
-        <div class="metric-label">PQRS comercial</div>
-    </article>
-    <article class="card">
-        <div class="metric-number">{{ nat_resumen.pqrs_pendientes }}</div>
-        <div class="metric-label">Pendientes</div>
-        <p class="muted"><a href="/portal/nat/">Ver agente Nat</a></p>
-    </article>
-</section>
-{% endif %}
-
-{% if portal_mod_cursos %}
-{% if margen_resumen %}
-<section class="dash-section">
-    <p class="dash-q">¿Usan la calculadora de margen?</p>
-    <div class="estado-card">
+    <div class="home-top">
+      <article class="home-card home-profile">
+        {% if org.logo_url %}
+        <img class="home-avatar" src="{{ org.logo_url }}" alt="" loading="lazy">
+        {% else %}
+        <span class="home-avatar-ph" aria-hidden="true">{{ org_iniciales }}</span>
+        {% endif %}
         <div>
-            <p class="estado-card__title">Calculadora de costos y margen</p>
-            <p class="estado-card__body">
-                En los últimos 30 días: {{ margen_resumen.aperturas }} apertura(s),
-                {{ margen_resumen.calculos }} cálculo(s) completado(s).
-                {% if margen_resumen.tasa_completa_pct is not None %}
-                Tasa de completación: {{ margen_resumen.tasa_completa_pct }}%.
-                {% endif %}
-            </p>
-            {% if margen_resumen.habilidades %}
-            <div style="margin-top:14px; display:grid; gap:8px; max-width:420px;">
-                {% for h in margen_resumen.habilidades %}
-                <div style="font-size:0.82rem;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                        <span>{{ h.nombre }}</span>
-                        <strong>{% if h.pct is not None %}{{ h.pct }}%{% else %}—{% endif %}</strong>
-                    </div>
-                    <div class="progress-track" style="height:8px;">
-                        <span class="progress-fill" style="width:{% if h.pct %}{{ h.pct }}{% else %}0{% endif %}%;"></span>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
+          <h2>{{ org.nombre }}</h2>
+          <p class="muted">{% if org.portal_subtitulo %}{{ org.portal_subtitulo }}{% else %}Portal clientes eki{% endif %}</p>
+          <div class="home-meta">
+            <div><strong>Cursos activos:</strong> {{ total_cursos }}</div>
+            <div><strong>Participantes:</strong> {{ total_estudiantes }}</div>
+            {% if resumen_general %}
+            <div><strong>En curso:</strong> {{ resumen_general.en_curso|default:0 }} · <strong>Finalizados:</strong> {{ resumen_general.finalizados|default:0 }}</div>
             {% endif %}
+          </div>
         </div>
-        <div class="estado-card__cta">
-            <a class="btn" href="/portal/margen/">Ver enlaces y métricas</a>
+      </article>
+      <article class="home-card home-map-card">
+        <div class="home-map-card__head">
+          <h3>Mapa territorial</h3>
+          {% if portal_mod_cursos %}
+          <a class="btn btn-outline" href="/portal/cobertura/" style="padding:4px 10px;font-size:0.78rem;">Ver más</a>
+          {% endif %}
         </div>
+        {% if portal_mod_cursos %}
+        <div id="home-mapa" aria-label="Mapa de cobertura"></div>
+        {% else %}
+        <p class="muted" style="margin:0;">Activa cursos para ver cobertura.</p>
+        {% endif %}
+      </article>
     </div>
-</section>
-{% endif %}
-{% if estado_programa %}
-<section class="dash-section">
-    <p class="dash-q">¿Cómo va mi programa?</p>
-    <div class="estado-card">
-        <div>
-            <p class="estado-card__title">{{ estado_programa.titulo }}</p>
-            <p class="estado-card__body">{{ estado_programa.cuerpo }}</p>
+
+    {% if portal_mod_cursos and ops %}
+    <p class="home-section-title">¿Qué requiere atención hoy?</p>
+    <div class="ops-mini">
+      <a href="/portal/analitica/"><strong>{{ ops.sin_avance }}</strong><span>Sin avance</span></a>
+      <a href="/portal/retencion/"><strong>{{ ops.inactivos_30_dias }}</strong><span>Inactivos 30+ días</span></a>
+      <a href="/portal/pqrs/"><strong>{% if ops.pqrs_urgentes %}{{ ops.pqrs_urgentes }}{% else %}{{ ops.pqrs_pendientes }}{% endif %}</strong><span>PQRS</span></a>
+      <a href="/portal/certificados/"><strong>{{ ops.certificados_semana }}</strong><span>Certificados semana</span></a>
+    </div>
+    {% endif %}
+
+    {% if portal_mod_cursos and cursos %}
+    <p class="home-section-title">Planes vigentes</p>
+    <p class="home-section-sub">Tus cursos activos — entra a ver la estructura de módulos.</p>
+    <div class="planes-row">
+      {% for curso in cursos|slice:":4" %}
+      {% widthratio curso.estudiantes_count total_estudiantes 100 as pct_raw %}
+      <a class="plan-card" href="/portal/cursos/{{ curso.id }}/flujo/">
+        <h3>{{ curso.nombre|truncatechars:42 }}</h3>
+        <p class="muted">{{ curso.modulos_count }} módulo{{ curso.modulos_count|pluralize }}</p>
+        <div class="plan-bar" aria-hidden="true">
+          <span style="width:{% if total_estudiantes %}{% widthratio curso.estudiantes_count total_estudiantes 100 %}{% else %}0{% endif %}%;"></span>
         </div>
-        <div class="estado-card__cta">
-            <a class="btn" href="{{ estado_programa.cta.url }}">{{ estado_programa.cta.label }}</a>
-        </div>
+        <div class="plan-pct">{{ curso.estudiantes_count }} inscrito{{ curso.estudiantes_count|pluralize }}</div>
+      </a>
+      {% endfor %}
     </div>
-</section>
-{% endif %}
+    {% endif %}
 
-{% if ops %}
-<section class="dash-section">
-    <p class="dash-q">¿Qué requiere atención hoy?</p>
-    <div class="ops-grid">
-        <a href="/portal/estudiantes/" class="card-link">
-            <div class="ops-card">
-                <span class="ops-card__num">{{ ops.sin_avance }}</span>
-                <span class="ops-card__label">Participantes sin avance</span>
-                <span class="ops-card__hint">Aún no inician su primer módulo.</span>
-            </div>
-        </a>
-        <a href="/portal/estudiantes/" class="card-link">
-            <div class="ops-card ops-card--warn">
-                <span class="ops-card__num">{{ ops.inactivos_30_dias }}</span>
-                <span class="ops-card__label">Inactivos 30+ días</span>
-                <span class="ops-card__hint">Empezaron pero se detuvieron. Candidatos a reenganche.</span>
-            </div>
-        </a>
-        <a href="/portal/pqrs/?estado={% if ops.pqrs_urgentes %}urgente{% else %}pendiente{% endif %}" class="card-link">
-            <div class="ops-card {% if ops.pqrs_urgentes %}ops-card--warn{% else %}ops-card--info{% endif %}">
-                <span class="ops-card__num">{% if ops.pqrs_urgentes %}{{ ops.pqrs_urgentes }}{% else %}{{ ops.pqrs_pendientes }}{% endif %}</span>
-                <span class="ops-card__label">{% if ops.pqrs_urgentes %}PQRS urgentes (+24h){% else %}PQRS pendientes{% endif %}</span>
-                <span class="ops-card__hint">{% if ops.pqrs_urgentes %}Escalados por el agente sin respuesta humana. Atienda primero.{% else %}Solicitudes de sus participantes por responder.{% endif %}</span>
-            </div>
-        </a>
-        <a href="/portal/certificados/" class="card-link">
-            <div class="ops-card ops-card--ok">
-                <span class="ops-card__num">{{ ops.certificados_semana }}</span>
-                <span class="ops-card__label">Certificados esta semana</span>
-                <span class="ops-card__hint">Emitidos en los últimos 7 días.</span>
-            </div>
-        </a>
+    <p class="home-section-title">¿Qué quieres hacer hoy?</p>
+    <p class="home-section-sub">Atajos a las tres puertas principales del portal.</p>
+    <div class="learn-grid">
+      {% if portal_mod_cursos %}
+      <a class="learn-card" href="/portal/cursos/">
+        <span>Fábrica</span>
+        <strong>Diseña o revisa la estructura de tus cursos</strong>
+      </a>
+      <a class="learn-card learn-card--alt" href="/portal/analitica/">
+        <span>Analítica</span>
+        <strong>Centro de Éxito, cobertura y reportes</strong>
+      </a>
+      {% endif %}
+      <a class="learn-card learn-card--ok" href="/portal/soporte/">
+        <span>Soporte</span>
+        <strong>Feedback y PQRS de participantes</strong>
+      </a>
     </div>
-</section>
-{% endif %}
+  </div>
 
-{% if dashboard_charts %}
-<section class="dash-section">
-    <p class="dash-q">¿Cómo evoluciona?</p>
-    <div class="charts-grid">
-        <article class="panel chart-panel">
-            <h2>Embudo de avance</h2>
-            <p class="muted" style="margin:0 0 12px;font-size:13px;">Distribución de inscripciones por estado.</p>
-            <canvas id="chart-funnel" aria-label="Gráfico embudo de avance"></canvas>
-        </article>
-        <article class="panel chart-panel">
-            <h2>Este mes vs mes anterior</h2>
-            <p class="muted" style="margin:0 0 12px;font-size:13px;">Certificados, PQRS y cursos completados.</p>
-            <canvas id="chart-compare" aria-label="Gráfico comparativa mensual"></canvas>
-        </article>
-    </div>
-</section>
-{{ dashboard_charts|json_script:"dashboard-charts-data" }}
-{% endif %}
-
-{% if timeline_preview %}
-<section class="dash-section">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px;">
-        <p class="dash-q" style="margin:0;">¿Qué ha ocurrido recientemente?</p>
-        <a class="btn btn-outline" href="/portal/timeline/">Ver todo</a>
-    </div>
-    <div class="panel">
-        <ul class="timeline-compact">
-            {% for ev in timeline_preview %}
-            <li class="timeline-compact__item">
-                <span class="timeline-compact__dot">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
-                </span>
-                <span class="timeline-compact__main">
-                    <a href="{{ ev.url }}">{{ ev.titulo }}</a>
-                    {% if ev.detalle %}<span class="timeline-compact__meta">{{ ev.detalle|truncatechars:70 }}</span>{% endif %}
-                </span>
-                <span class="timeline-compact__time">{{ ev.fecha|date:"d/m H:i" }}</span>
-            </li>
-            {% endfor %}
-        </ul>
-    </div>
-</section>
-{% endif %}
-{% endif %}
-{% endblock %}
-
-{% block extra_js %}
+  <aside class="anuncios" aria-label="Anuncios y avisos">
+    <h2>Anuncios y avisos</h2>
+    {% for a in anuncios %}
+    <a class="anuncio" href="{{ a.url }}">
+      <span class="tag">{{ a.tag }}</span>
+      <strong>{{ a.titulo }}</strong>
+      <p>{{ a.detalle }}</p>
+    </a>
+    {% empty %}
+    <p class="muted">No hay anuncios por ahora.</p>
+    {% endfor %}
+    <p class="anuncios-foot">Novedades de producto eki</p>
+  </aside>
+</div>
+{% if portal_mod_cursos %}
 <script>
 (function () {
-    if (typeof Chart === 'undefined') return;
-    var node = document.getElementById('dashboard-charts-data');
-    if (!node) return;
-    var data = JSON.parse(node.textContent);
-    var ink = getComputedStyle(document.documentElement).getPropertyValue('--texto-muted').trim() || '#7a6d88';
-    var grid = getComputedStyle(document.documentElement).getPropertyValue('--borde').trim() || '#e0d8e8';
-    var c1 = getComputedStyle(document.documentElement).getPropertyValue('--chart-1').trim() || '#9A6CAC';
-    var c2 = getComputedStyle(document.documentElement).getPropertyValue('--chart-2').trim() || '#3C7BBF';
-    var c3 = getComputedStyle(document.documentElement).getPropertyValue('--chart-3').trim() || '#35A647';
-    var c4 = getComputedStyle(document.documentElement).getPropertyValue('--chart-4').trim() || '#C4ACCE';
-
-    var funnelEl = document.getElementById('chart-funnel');
-    if (funnelEl) {
-        new Chart(funnelEl, {
-            type: 'doughnut',
-            data: {
-                labels: data.funnel_labels || [],
-                datasets: [{
-                    data: data.funnel_values || [],
-                    backgroundColor: [c1, c2, c3],
-                    borderWidth: 0,
-                    hoverOffset: 6
-                }]
-            },
-            options: {
-                cutout: '62%',
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: { color: ink, boxWidth: 12, font: { family: 'Plus Jakarta Sans', size: 12 } }
-                    }
-                }
-            }
-        });
-    }
-
-    var compareEl = document.getElementById('chart-compare');
-    if (compareEl) {
-        new Chart(compareEl, {
-            type: 'bar',
-            data: {
-                labels: data.compare_labels || [],
-                datasets: [
-                    {
-                        label: 'Mes actual',
-                        data: data.compare_actual || [],
-                        backgroundColor: c1,
-                        borderRadius: 4,
-                        maxBarThickness: 36
-                    },
-                    {
-                        label: 'Mes anterior',
-                        data: data.compare_anterior || [],
-                        backgroundColor: c2,
-                        borderRadius: 4,
-                        maxBarThickness: 36
-                    }
-                ]
-            },
-            options: {
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: { color: ink, boxWidth: 12, font: { family: 'Plus Jakarta Sans', size: 12 } }
-                    }
-                },
-                scales: {
-                    x: { ticks: { color: ink }, grid: { display: false } },
-                    y: { beginAtZero: true, ticks: { color: ink }, grid: { color: grid } }
-                }
-            }
-        });
-    }
+  function bootMap() {
+    if (typeof L === 'undefined') { setTimeout(bootMap, 80); return; }
+    var el = document.getElementById('home-mapa');
+    if (!el) return;
+    var map = L.map(el, { scrollWheelZoom: false, zoomControl: false }).setView([4.57, -74.29], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 12, attribution: '&copy; OSM'
+    }).addTo(map);
+    Promise.all([
+      fetch('/portal/cobertura/datos.json', { credentials: 'same-origin' }).then(function (r) { return r.json(); }),
+      fetch('/portal/cobertura/municipios.geojson', { credentials: 'same-origin' }).then(function (r) { return r.json(); })
+    ]).then(function (results) {
+      var datos = results[0], geo = results[1];
+      var porMuni = datos.por_municipio_clave || {}, maxM = datos.max_municipio || 0;
+      function colorMuni(n) {
+        if (!maxM || !n) return '#f1f5f9';
+        var t = Math.min(1, n / maxM);
+        return 'rgb(' + Math.round(243 + (155 - 243) * t) + ',' + Math.round(234 + (103 - 234) * t) + ',' + Math.round(247 + (177 - 247) * t) + ')';
+      }
+      var capa = L.geoJSON(geo, {
+        style: function (feat) {
+          var n = porMuni[feat.properties.CLAVE] || 0;
+          return { fillColor: colorMuni(n), weight: 0.4, color: '#cbd5e1', fillOpacity: n ? 0.9 : 0.2 };
+        }
+      }).addTo(map);
+      try { map.fitBounds(capa.getBounds(), { padding: [8, 8] }); } catch (e) {}
+      setTimeout(function () { map.invalidateSize(); }, 200);
+    }).catch(function () {
+      el.innerHTML = '<p class="muted" style="padding:12px;margin:0;">Mapa no disponible</p>';
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootMap);
+  else bootMap();
 })();
 </script>
+{% endif %}
 {% endblock %}

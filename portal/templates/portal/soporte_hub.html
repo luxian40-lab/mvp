@@ -1,0 +1,30 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Soporte | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+  <div>
+    <h1>Soporte</h1>
+    <p class="muted">Ayuda a tu equipo y a tus participantes.</p>
+  </div>
+</div>
+
+<section class="cards-grid">
+  <a class="card card-link" href="/portal/feedback/">
+    <p class="metric-label">Para eki</p>
+    <h2 style="margin:0 0 6px;font-size:1.05rem;">Feedback</h2>
+    <p class="muted" style="margin:0;">Cuéntanos qué mejorar en el portal.</p>
+  </a>
+  <a class="card card-link" href="/portal/pqrs/">
+    <p class="metric-label">Participantes</p>
+    <h2 style="margin:0 0 6px;font-size:1.05rem;">PQRS</h2>
+    <p class="muted" style="margin:0;">
+      Solicitudes y casos
+      {% if pendientes_count %}· <strong>{{ pendientes_count }} pendientes</strong>{% endif %}
+    </p>
+  </a>
+</section>
+
+{# FAQ organización y Conocimiento IA: ocultos del menú por decisión de producto (sep 2026). #}
+{% endblock %}

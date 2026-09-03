@@ -130,11 +130,9 @@
         <input type="text" id="ce-foco" maxlength="300"
                placeholder="Ej. Error 1: no rendir cuentas entre socios">
       </div>
-      <div class="ce-field">
-        <label for="ce-brief">Brief / guion</label>
-        <textarea id="ce-brief" rows="7"
-                  placeholder="Contenido del módulo para planificar el video…"></textarea>
-      </div>
+      <p class="ce-step__hint" style="margin:0 0 12px;">
+        El guion sale solo del material indexado (paso 1) y del módulo. No hay que pegar brief.
+      </p>
 
       <div class="ce-actions">
         <button type="button" class="ce-btn ce-btn--ghost" id="ce-plan">Vista previa guion</button>
@@ -144,7 +142,10 @@
       </div>
 
       <div class="ce-video-preview" id="ce-video-preview" hidden>
-        <p class="ce-eyebrow">Vista previa</p>
+        <p class="ce-eyebrow">Aquí queda tu demo</p>
+        <p class="ce-step__hint" style="margin:0 0 8px;">
+          Se reproduce abajo. También puedes abrir el MP4 o copiar el enlace S3.
+        </p>
         <video id="ce-video-el" controls playsinline preload="metadata"></video>
         <p class="ce-video-preview__link" id="ce-video-link"></p>
       </div>

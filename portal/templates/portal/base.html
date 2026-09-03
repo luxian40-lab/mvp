@@ -1431,10 +1431,7 @@
                 <span class="link-icon"><svg><use href="#i-edit"/></svg></span>
                 <span class="link-text">Feedback</span>
             </a>
-            <a href="/portal/faq-organizacion/" class="sidebar-link {% if '/portal/faq-organizacion' in request.path %}active{% endif %}" title="FAQ de la organización">
-                <span class="link-icon"><svg><use href="#i-help"/></svg></span>
-                <span class="link-text">FAQ organización</span>
-            </a>
+            {# FAQ organización — oculto del menú (sep 2026) #}
             <a href="/portal/pqrs/" class="sidebar-link {% if '/portal/pqrs' in request.path %}active{% endif %}" title="PQRS">
                 <span class="link-icon"><svg><use href="#i-inbox"/></svg></span>
                 <span class="link-text">PQRS</span>
@@ -1456,161 +1453,37 @@
             </a>
             {% endif %}
             {% else %}
-            <div class="nav-label">Analítica</div>
+            {# Menú cliente: 5 ítems máx. Todo lo demás se alcanza en ≤2 clics desde un hub. #}
             <a href="/portal/dashboard/" class="sidebar-link {% if request.path == '/portal/dashboard/' %}active{% endif %}" title="Inicio">
                 <span class="link-icon"><svg><use href="#i-home"/></svg></span>
                 <span class="link-text">Inicio</span>
             </a>
-            <a href="/portal/dashboard/#agentes" class="sidebar-link" title="Herramientas IA y agentes">
-                <span class="link-icon"><svg><use href="#i-sparkle"/></svg></span>
-                <span class="link-text">Herramientas IA</span>
-            </a>
             {% if portal_mod_cursos %}
-                <a href="/portal/retencion/" class="sidebar-link {% if '/portal/retencion' in request.path %}active{% endif %}" title="Centro de Éxito — riesgo y retención">
-                    <span class="link-icon"><svg><use href="#i-funnel"/></svg></span>
-                    <span class="link-text">Centro de Éxito</span>
-                </a>
-                <a href="/portal/cobertura/" class="sidebar-link {% if '/portal/cobertura' in request.path %}active{% endif %}" title="Cobertura territorial">
-                    <span class="link-icon"><svg><use href="#i-map"/></svg></span><span class="link-text">Cobertura</span>
-                </a>
-                <a href="/portal/metricas/" class="sidebar-link {% if request.path == '/portal/metricas/' %}active{% endif %}" title="Métricas detalladas">
-                    <span class="link-icon"><svg><use href="#i-bars"/></svg></span>
-                    <span class="link-text">Métricas detalladas</span>
-                </a>
-                <a href="/portal/reportes/" class="sidebar-link {% if '/portal/reportes' in request.path %}active{% endif %}" title="Reportes y descargas Excel">
-                    <span class="link-icon"><svg><use href="#i-download"/></svg></span>
-                    <span class="link-text">Reportes</span>
-                </a>
-                <a href="/portal/timeline/" class="sidebar-link {% if '/portal/timeline' in request.path %}active{% endif %}" title="Línea de tiempo">
-                    <span class="link-icon"><svg><use href="#i-clock"/></svg></span>
-                    <span class="link-text">Actividad</span>
-                </a>
-                <a href="/portal/gamificacion/" class="sidebar-link {% if '/portal/gamificacion' in request.path %}active{% endif %}" title="Gamificación y medallas">
-                    <span class="link-icon"><svg><use href="#i-award"/></svg></span>
-                    <span class="link-text">Gamificación</span>
-                </a>
-                <a href="/portal/certificados/" class="sidebar-link {% if '/portal/certificados' in request.path %}active{% endif %}" title="Certificados emitidos">
-                    <span class="link-icon"><svg><use href="#i-cap"/></svg></span><span class="link-text">Certificados</span>
-                </a>
-            {% endif %}
-
-            {% if portal_mod_cursos %}
-                <div class="nav-label">Cursos</div>
-                <a href="/portal/estudiantes/" class="sidebar-link {% if '/portal/estudiantes' in request.path %}active{% endif %}" title="Estudiantes">
-                    <span class="link-icon"><svg><use href="#i-users"/></svg></span>
-                    <span class="link-text">Estudiantes</span>
-                </a>
-                <a href="/portal/conversaciones/" class="sidebar-link {% if '/portal/conversaciones' in request.path %}active{% endif %}" title="Conversaciones WhatsApp">
-                    <span class="link-icon"><svg><use href="#i-chat"/></svg></span>
-                    <span class="link-text">Conversaciones</span>
-                </a>
-                <a href="/portal/cursos/" class="sidebar-link {% if request.path == '/portal/cursos/' %}active{% endif %}" title="Cursos">
-                    <span class="link-icon"><svg><use href="#i-monitor"/></svg></span>
-                    <span class="link-text">Cursos</span>
-                </a>
-                <a href="/portal/campanas/" class="sidebar-link {% if '/portal/campanas' in request.path %}active{% endif %}" title="Campañas">
-                    <span class="link-icon"><svg><use href="#i-megaphone"/></svg></span>
-                    <span class="link-text">Campañas</span>
-                </a>
-                <a href="/portal/margen/" class="sidebar-link {% if '/portal/margen' in request.path %}active{% endif %}" title="Calculadora de margen — enlaces y uso de estudiantes">
-                    <span class="link-icon"><svg><use href="#i-bars"/></svg></span>
-                    <span class="link-text">Calculadora margen</span>
-                </a>
-                {% if portal_es_docente %}
-                <a href="/aprende/profesor/" class="sidebar-link" title="Aprende docente — lecciones y tareas" target="_blank" rel="noopener">
-                    <span class="link-icon"><svg><use href="#i-sparkle"/></svg></span>
-                    <span class="link-text">Aprende docente</span>
-                </a>
-                {% endif %}
-            {% endif %}
-
-            {% if portal_mod_gei %}
-                <div class="nav-label">GEI</div>
-                <a href="/portal/gei/" class="sidebar-link {% if request.path == '/portal/gei/' %}active{% endif %}" title="Inventario GEI">
-                    <span class="link-icon"><svg><use href="#i-leaf"/></svg></span>
-                    <span class="link-text">Inventario GEI</span>
-                </a>
-                <a href="/portal/gei/sandbox/" class="sidebar-link {% if '/portal/gei/sandbox' in request.path %}active{% endif %}" title="Sandbox GEI — ensayos y margen de error">
-                    <span class="link-icon"><svg><use href="#i-sparkle"/></svg></span>
-                    <span class="link-text">Sandbox GEI</span>
-                </a>
-                <a href="/portal/gei/formularios/" class="sidebar-link {% if '/portal/gei/formularios' in request.path %}active{% endif %}" title="Preguntas del formulario GEI">
-                    <span class="link-icon"><svg><use href="#i-help"/></svg></span>
-                    <span class="link-text">Preguntas GEI</span>
-                </a>
-                <a href="/portal/gei/parametros/" class="sidebar-link {% if '/portal/gei/parametros' in request.path %}active{% endif %}" title="Parámetros de cálculo">
-                    <span class="link-icon"><svg><use href="#i-sliders"/></svg></span>
-                    <span class="link-text">Parámetros GEI</span>
-                </a>
-            {% endif %}
-
-            {% if portal_mod_empleabilidad %}
-                <div class="nav-label">Empleabilidad</div>
-                <a href="/portal/empleabilidad/" class="sidebar-link {% if '/portal/empleabilidad' in request.path %}active{% endif %}" title="Empleabilidad territorial">
-                    <span class="link-icon"><svg><use href="#i-pin"/></svg></span><span class="link-text">Empleabilidad</span>
-                </a>
-            {% endif %}
-
-            {% if portal_mod_nat %}
-                <div class="nav-label">Nat — Agrónomo IA</div>
-                <a href="{% url 'portal_biblioteca' %}" class="sidebar-link {% if '/portal/biblioteca' in request.path %}active{% endif %}" title="Biblioteca de conocimiento">
-                    <span class="link-icon"><svg><use href="#i-book"/></svg></span>
-                    <span class="link-text">Biblioteca</span>
-                </a>
-                <a href="{% url 'portal_catalogo' %}" class="sidebar-link {% if '/portal/catalogo' in request.path %}active{% endif %}" title="Catálogo de recomendaciones">
-                    <span class="link-icon"><svg><use href="#i-bulb"/></svg></span>
-                    <span class="link-text">Productos</span>
-                </a>
-                <a href="{% url 'portal_precios' %}" class="sidebar-link {% if '/portal/precios' in request.path %}active{% endif %}" title="Lista de precios SKU">
-                    <span class="link-icon"><svg><use href="#i-bars"/></svg></span>
-                    <span class="link-text">Precios</span>
-                </a>
-                <a href="{% url 'portal_nat_ops' %}" class="sidebar-link {% if '/portal/nat/ops' in request.path %}active{% endif %}" title="Operación Nat">
-                    <span class="link-icon"><svg><use href="#i-funnel"/></svg></span>
-                    <span class="link-text">Operación</span>
-                </a>
-                <a href="/portal/nat/" class="sidebar-link {% if request.path == '/portal/nat/' %}active{% endif %}" title="Métricas Agente Nat">
-                    <span class="link-icon"><svg><use href="#i-bulb"/></svg></span>
-                    <span class="link-text">Agente Nat</span>
-                </a>
-            {% endif %}
-
-            <div class="nav-label">Soporte</div>
-            <a href="/portal/feedback/" class="sidebar-link {% if '/portal/feedback' in request.path %}active{% endif %}" title="Enviar feedback">
-                <span class="link-icon"><svg><use href="#i-edit"/></svg></span>
-                <span class="link-text">Feedback</span>
+            <a href="/portal/cursos/" class="sidebar-link {% if '/portal/cursos' in request.path %}active{% endif %}" title="Cursos y módulos">
+                <span class="link-icon"><svg><use href="#i-monitor"/></svg></span>
+                <span class="link-text">Fábrica de competencias</span>
             </a>
-            {% if portal_mod_facilitador %}
-            <a href="/portal/conocimiento/" class="sidebar-link {% if '/portal/conocimiento' in request.path %}active{% endif %}" title="Conocimiento IA facilitadora">
-                <span class="link-icon"><svg><use href="#i-bulb"/></svg></span>
-                <span class="link-text">Conocimiento IA</span>
+            <a href="{% url 'portal_analitica' %}" class="sidebar-link {% if request.path == '/portal/analitica/' or '/portal/retencion' in request.path or '/portal/cobertura' in request.path or '/portal/metricas' in request.path or '/portal/reportes' in request.path or '/portal/timeline' in request.path or '/portal/gamificacion' in request.path or '/portal/certificados' in request.path %}active{% endif %}" title="Métricas y reportes">
+                <span class="link-icon"><svg><use href="#i-bars"/></svg></span>
+                <span class="link-text">Analítica</span>
             </a>
             {% endif %}
-            <a href="/portal/faq-organizacion/" class="sidebar-link {% if '/portal/faq-organizacion' in request.path %}active{% endif %}" title="FAQ de la organización">
-                <span class="link-icon"><svg><use href="#i-help"/></svg></span>
-                <span class="link-text">FAQ organización</span>
-            </a>
-            <a href="/portal/pqrs/" class="sidebar-link {% if '/portal/pqrs' in request.path %}active{% endif %}" title="PQRS">
+            <a href="{% url 'portal_soporte' %}" class="sidebar-link {% if request.path == '/portal/soporte/' or '/portal/feedback' in request.path or '/portal/pqrs' in request.path %}active{% endif %}" title="Ayuda y PQRS">
                 <span class="link-icon"><svg><use href="#i-inbox"/></svg></span>
-                <span class="link-text">PQRS</span>
+                <span class="link-text">Soporte</span>
                 {% if pendientes_count > 0 %}<span class="badge">{{ pendientes_count }}</span>{% endif %}
             </a>
-
-            {% if portal_es_admin %}
-                <div class="nav-label">Cuenta</div>
-                <a href="/portal/perfil/" class="sidebar-link {% if request.path == '/portal/perfil/' %}active{% endif %}" title="Perfil de empresa">
-                    <span class="link-icon"><svg><use href="#i-building"/></svg></span>
-                    <span class="link-text">Perfil de empresa</span>
-                </a>
-                <a href="/portal/suscripcion/" class="sidebar-link {% if request.path == '/portal/suscripcion/' %}active{% endif %}" title="Suscripción y cupos">
-                    <span class="link-icon"><svg><use href="#i-bars"/></svg></span>
-                    <span class="link-text">Suscripción{% if portal_dias_restantes is not None and portal_dias_restantes <= 14 and portal_dias_restantes >= 0 %} · {{ portal_dias_restantes }}d{% endif %}</span>
-                </a>
-                <a href="/portal/usuarios/" class="sidebar-link {% if '/portal/usuarios' in request.path %}active{% endif %}" title="Usuarios del equipo">
-                    <span class="link-icon"><svg><use href="#i-user-cog"/></svg></span>
-                    <span class="link-text">Usuarios</span>
-                </a>
-            {% endif %}
+            <a href="{% url 'portal_configuracion' %}" class="sidebar-link {% if request.path == '/portal/configuracion/' or request.path == '/portal/perfil/' or '/portal/usuarios' in request.path or request.path == '/portal/suscripcion/' %}active{% endif %}" title="Perfil y equipo">
+                <span class="link-icon"><svg><use href="#i-sliders"/></svg></span>
+                <span class="link-text">Configuración</span>
+            </a>
+            {#
+              Ocultos del menú (sep 2026) — rutas siguen vivas:
+              - Conocimiento IA → /portal/conocimiento/
+              - FAQ organización → /portal/faq-organizacion/
+              Entrada directa: Estudiantes, Conversaciones, Campañas, Margen, GEI, Nat
+              vía Inicio / Fábrica / Analítica según corresponda.
+            #}
             {% endif %}
         </nav>
     </aside>

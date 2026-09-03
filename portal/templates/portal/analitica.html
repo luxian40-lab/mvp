@@ -1,0 +1,56 @@
+{% extends 'portal/base.html' %}
+
+{% block title %}Analítica | Portal eki{% endblock %}
+
+{% block content %}
+<div class="page-title">
+  <div>
+    <h1>Analítica</h1>
+    <p class="muted">Todo lo que mide el programa — máximo 2 clics desde aquí.</p>
+  </div>
+</div>
+
+<section class="cards-grid">
+  {% if mods.cursos %}
+  <a class="card card-link" href="/portal/retencion/">
+    <p class="metric-label">Retención</p>
+    <h2 style="margin:0 0 6px;font-size:1.05rem;">Centro de Éxito</h2>
+    <p class="muted" style="margin:0;">Quién está en riesgo y a quién contactar hoy.</p>
+  </a>
+  <a class="card card-link" href="/portal/cobertura/">
+    <p class="metric-label">Territorio</p>
+    <h2 style="margin:0 0 6px;font-size:1.05rem;">Cobertura</h2>
+    <p class="muted" style="margin:0;">Dónde están tus participantes.</p>
+  </a>
+  <a class="card card-link" href="/portal/metricas/">
+    <p class="metric-label">KPIs</p>
+    <h2 style="margin:0 0 6px;font-size:1.05rem;">Métricas detalladas</h2>
+    <p class="muted" style="margin:0;">Embudo, avance y comparativas.</p>
+  </a>
+  <a class="card card-link" href="/portal/reportes/">
+    <p class="metric-label">Exportar</p>
+    <h2 style="margin:0 0 6px;font-size:1.05rem;">Reportes</h2>
+    <p class="muted" style="margin:0;">Descargas Excel para tu equipo.</p>
+  </a>
+  <a class="card card-link" href="/portal/timeline/">
+    <p class="metric-label">Dentro de métricas</p>
+    <h2 style="margin:0 0 6px;font-size:1.05rem;">Actividad</h2>
+    <p class="muted" style="margin:0;">Línea de tiempo de lo que pasó.</p>
+  </a>
+  <a class="card card-link" href="/portal/gamificacion/">
+    <p class="metric-label">Engagement</p>
+    <h2 style="margin:0 0 6px;font-size:1.05rem;">Gamificación</h2>
+    <p class="muted" style="margin:0;">Medallas y logros del programa.</p>
+  </a>
+  <a class="card card-link" href="/portal/certificados/">
+    <p class="metric-label">Cierre</p>
+    <h2 style="margin:0 0 6px;font-size:1.05rem;">Certificados</h2>
+    <p class="muted" style="margin:0;">Emitidos y verificación.</p>
+  </a>
+  {% else %}
+  <article class="panel">
+    <p class="muted">Tu organización no tiene el módulo de cursos activo.</p>
+  </article>
+  {% endif %}
+</section>
+{% endblock %}

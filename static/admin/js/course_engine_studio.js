@@ -294,8 +294,11 @@
       videoPreview.hidden = false;
       videoEl.src = url;
       if (videoLink) {
-        videoLink.innerHTML = '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener">Abrir MP4</a>';
+        videoLink.innerHTML =
+          'Demo listo aquí · <a href="' + escapeHtml(url) +
+          '" target="_blank" rel="noopener">Abrir MP4</a>';
       }
+      try { videoPreview.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {}
     }
 
     function pollStatus(runId) {

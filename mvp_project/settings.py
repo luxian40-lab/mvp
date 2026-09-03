@@ -79,6 +79,7 @@ INSTALLED_APPS = [
     'aprende',                  # Aula web estudiantes / profesores
     'studio',                   # Catálogo / creadores (separado del aula)
     'calculadora_margen',       # MVP público: ¿estoy ganando plata?
+    'mercado_gtm',              # MVP público: Encuentra tu mercado (TAM/SAM/SOM + GTM)
 ]
 
 MIDDLEWARE = [

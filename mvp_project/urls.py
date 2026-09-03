@@ -45,6 +45,7 @@ urlpatterns = [
     path('aprende/', include('aprende.urls')),
     path('studio/', include('studio.urls')),
     path('calculadora-margen/', include('calculadora_margen.urls')),
+    path('mercado-gtm/', include('mercado_gtm.urls')),
 
     # Admin de Django
     path('admin/', admin.site.urls),

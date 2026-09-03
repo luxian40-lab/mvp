@@ -13,6 +13,7 @@ from core.models import (
     Curso,
     Estudiante,
     MetaMetricaEmpresa,
+    Modulo,
     ProgresoEstudiante,
     RespuestaCampanaUnica,
     SolicitudSoporte,
@@ -194,7 +195,7 @@ def _agentes_hub(org, mods: dict) -> list[dict]:
     if mods.get('cursos'):
         items.extend([
             {
-                'titulo': 'Calculadora margen',
+                'titulo': 'Calculadora de margen',
                 'categoria': 'Finanzas',
                 'desc': 'Costos, margen y simulación de precio para estudiantes.',
                 'url': '/portal/margen/',
@@ -316,6 +317,40 @@ def dashboard(request):
             'tono': 'purple',
         })
 
+    anuncios = [
+        {
+            'titulo': 'Course Engine en el portal',
+            'detalle': 'Sube material, elige voz y genera un micro-video de 15 s.',
+            'url': f'/portal/cursos/{ce_curso.id}/course-engine/' if ce_curso else '/portal/cursos/',
+            'tag': 'Nuevo',
+        },
+        {
+            'titulo': 'Menú simplificado',
+            'detalle': 'Inicio · Fábrica · Analítica · Soporte · Configuración — máx. 3 clics.',
+            'url': '/portal/analitica/',
+            'tag': 'Producto',
+        },
+        {
+            'titulo': 'Analítica unificada',
+            'detalle': 'Centro de Éxito, Cobertura, Métricas, Reportes y Gamificación en un solo hub.',
+            'url': '/portal/analitica/',
+            'tag': 'Guía',
+        },
+        {
+            'titulo': 'Estructura de curso limpia',
+            'detalle': 'Ver curso muestra solo módulos. Agrega uno más cuando lo necesites.',
+            'url': '/portal/cursos/',
+            'tag': 'Fábrica',
+        },
+    ]
+
+    pu = getattr(request, 'portal_usuario', None)
+    saludo_nombre = ''
+    if pu and getattr(pu, 'user', None):
+        saludo_nombre = (pu.user.first_name or pu.user.username or '').strip()
+    if not saludo_nombre and getattr(request, 'user', None) and request.user.is_authenticated:
+        saludo_nombre = (request.user.first_name or request.user.username or '').strip()
+
     return render(request, 'portal/dashboard.html', {
         'org': org,
         'portal_modulos': mods,
@@ -336,6 +371,8 @@ def dashboard(request):
         'dashboard_charts': dashboard_charts,
         'margen_resumen': margen_resumen,
         'agentes_hub': agentes_hub,
+        'anuncios': anuncios,
+        'saludo_nombre': saludo_nombre or 'equipo',
     })
 
 
@@ -950,31 +987,178 @@ def cursos_lista(request):
         modulos_count=Count('modulos', distinct=True),
         estudiantes_count=Count('progresoestudiante__estudiante', distinct=True),
     ).order_by('orden')
+
+    es_confama = (org.nombre or '').strip().lower() == 'confama'
+    cursos_mock = []
+    if es_confama:
+        base = 'https://www.eki.com.co/programas'
+        cursos_mock = [
+            {
+                'titulo': 'Emprendimiento agro rural',
+                'desc': 'Ordenar un negocio alrededor de lo que ya se produce.',
+                'tag': 'Vitrina',
+                'url': base,
+            },
+            {
+                'titulo': 'Maquinaria y herramientas',
+                'desc': 'Criterio de uso, seguridad y cuándo no conviene comprar.',
+                'tag': 'Vitrina',
+                'url': base,
+            },
+            {
+                'titulo': 'Comercialización y ventas',
+                'desc': 'A quién vender, precio versus costo, no regalar margen.',
+                'tag': 'Vitrina',
+                'url': base,
+            },
+            {
+                'titulo': 'Agricultura digital e IA',
+                'desc': 'Qué del celular sí sirve en finca y qué es humo.',
+                'tag': 'Vitrina',
+                'url': base,
+            },
+            {
+                'titulo': 'Tome las riendas de su dinero',
+                'desc': 'Demo eki: la plata de la semana, con los pies en la tierra.',
+                'tag': 'Demo',
+                'url': base,
+            },
+        ]
+
+    pu = getattr(request, 'portal_usuario', None)
+    puede_crear = bool(pu and pu.rol in ('admin', 'eki_ops'))
+
     return render(request, 'portal/cursos.html', {
         'org': org,
         'cursos': lista,
+        'es_confama_demo': es_confama,
+        'cursos_mock': cursos_mock,
+        'puede_crear_curso': puede_crear,
+    })
+
+
+@portal_login_required
+@requiere_modulo('cursos')
+def portal_curso_crear_stub(request):
+    """Crea un curso vacío (demo / fábrica) y abre su estructura."""
+    org = _portal_org(request)
+    pu = getattr(request, 'portal_usuario', None)
+    if not org or not pu or pu.rol not in ('admin', 'eki_ops'):
+        messages.error(request, 'Sin permiso para crear cursos.')
+        return redirect('/portal/cursos/')
+
+    n = Curso.objects.filter(cliente=org).count() + 1
+    curso = Curso.objects.create(
+        cliente=org,
+        nombre=f'Nuevo curso {n}',
+        descripcion='Curso creado desde Fábrica de competencias. Completa módulos y contenido.',
+        activo=True,
+        orden=n,
+    )
+    Modulo.objects.create(
+        curso=curso,
+        numero=1,
+        titulo='Módulo 1',
+        descripcion='Primer módulo — edítalo cuando quieras.',
+        contenido='',
+    )
+    messages.success(request, f'Curso «{curso.nombre}» creado.')
+    return redirect(f'/portal/cursos/{curso.id}/flujo/')
+
+
+@portal_login_required
+def portal_analitica(request):
+    """Hub Analítica — ≤2 clics a cada métrica (Centro de Éxito, Cobertura, etc.)."""
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+    mods = modulos_portal(org)
+    return render(request, 'portal/analitica.html', {'org': org, 'mods': mods})
+
+
+@portal_login_required
+def portal_soporte_hub(request):
+    """Hub Soporte — Feedback + PQRS (FAQ / Conocimiento IA ocultos del menú)."""
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+    return render(request, 'portal/soporte_hub.html', {
+        'org': org,
+        'pendientes_count': getattr(request, 'pendientes_count', 0),
+    })
+
+
+@portal_login_required
+def portal_configuracion(request):
+    """Hub Configuración — perfil, usuarios, suscripción."""
+    org = _portal_org(request)
+    if not org:
+        return redirect('/portal/login/')
+    return render(request, 'portal/configuracion.html', {
+        'org': org,
+        'portal_es_admin': getattr(request, 'portal_es_admin', False)
+            or getattr(getattr(request, 'portal_usuario', None), 'rol', '') == 'admin',
     })
 
 
 @portal_login_required
 @requiere_modulo('cursos')
 def portal_curso_flujo(request, curso_id: int):
-    """Embudo de avance por módulo (solo lectura)."""
+    """Estructura del curso: solo módulos (sin quién llegó a cada uno)."""
     org = _portal_org(request)
     if not org:
         return redirect('/portal/login/')
 
-    datos = embudo_curso_portal(org, curso_id)
-    if datos is None:
+    curso = scoped_to_org(Curso.objects.all(), org).filter(pk=curso_id, activo=True).first()
+    if not curso:
         return redirect('/portal/cursos/')
 
+    modulos = list(
+        Modulo.objects.filter(curso=curso)
+        .annotate(pasos_count=Count('pasos', distinct=True))
+        .order_by('numero', 'id')
+    )
     cursos = Curso.objects.filter(cliente=org, activo=True).order_by('orden', 'nombre')
+    puede_editar = getattr(getattr(request, 'portal_usuario', None), 'rol', '') in (
+        'admin', 'eki_ops',
+    )
     return render(request, 'portal/curso_flujo.html', {
         'org': org,
         'cursos': cursos,
-        'datos': datos,
-        'curso': datos['curso'],
+        'curso': curso,
+        'modulos': modulos,
+        'puede_editar': puede_editar,
     })
+
+
+@portal_login_required
+@requiere_modulo('cursos')
+def portal_curso_agregar_modulo(request, curso_id: int):
+    """Crea un módulo vacío al final del curso (admin / eki_ops)."""
+    if request.method != 'POST':
+        return redirect(f'/portal/cursos/{curso_id}/flujo/')
+
+    org = _portal_org(request)
+    pu = getattr(request, 'portal_usuario', None)
+    if not org or not pu or pu.rol not in ('admin', 'eki_ops'):
+        messages.error(request, 'Sin permiso para agregar módulos.')
+        return redirect('/portal/cursos/')
+
+    curso = scoped_to_org(Curso.objects.all(), org).filter(pk=curso_id).first()
+    if not curso:
+        return redirect('/portal/cursos/')
+
+    ultimo = Modulo.objects.filter(curso=curso).order_by('-numero').first()
+    siguiente = int(ultimo.numero) + 1 if ultimo else 1
+    Modulo.objects.create(
+        curso=curso,
+        numero=siguiente,
+        titulo=f'Nuevo módulo {siguiente}',
+        descripcion='',
+        contenido='',
+    )
+    messages.success(request, f'Módulo {siguiente} creado. Edita el contenido cuando quieras.')
+    return redirect(f'/portal/cursos/{curso.id}/flujo/')
 
 
 @portal_login_required
