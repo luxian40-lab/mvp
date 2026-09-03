@@ -991,42 +991,71 @@ def cursos_lista(request):
     es_confama = (org.nombre or '').strip().lower() == 'confama'
     cursos_mock = []
     if es_confama:
-        base = 'https://www.eki.com.co/programas'
+        from pathlib import Path
+
+        fab = Path(settings.BASE_DIR) / 'static' / 'portal' / 'fabrica'
+        fallback = '/static/portal/fabrica/smart_skills_factory.png'
+
+        def _img(name: str) -> str:
+            return f'/static/portal/fabrica/{name}' if (fab / name).exists() else fallback
+
+        por_nombre = {c.nombre.lower(): c for c in lista}
+
+        def _ce_for(*nombres):
+            for n in nombres:
+                c = por_nombre.get(n.lower())
+                if c:
+                    return f'/portal/cursos/{c.id}/course-engine/'
+            return ''
+
         cursos_mock = [
             {
                 'titulo': 'Emprendimiento agro rural',
                 'desc': 'Ordenar un negocio alrededor de lo que ya se produce.',
-                'tag': 'Vitrina',
-                'url': base,
+                'tag': 'Programa',
+                'url': 'https://www.eki.com.co/programas',
+                'imagen': _img('card_emprendimiento.jpg'),
+                'ce_url': _ce_for('Negocios rurales — Confama'),
             },
             {
                 'titulo': 'Maquinaria y herramientas',
                 'desc': 'Criterio de uso, seguridad y cuándo no conviene comprar.',
-                'tag': 'Vitrina',
-                'url': base,
+                'tag': 'Programa',
+                'url': 'https://www.eki.com.co/programas',
+                'imagen': _img('card_maquinaria.jpg'),
+                'ce_url': _ce_for('Power Skills — liderazgo en campo'),
             },
             {
                 'titulo': 'Comercialización y ventas',
                 'desc': 'A quién vender, precio versus costo, no regalar margen.',
-                'tag': 'Vitrina',
-                'url': base,
+                'tag': 'Programa',
+                'url': 'https://www.eki.com.co/programas',
+                'imagen': _img('card_comercial.jpg'),
+                'ce_url': _ce_for('Sostenibilidad y buen vivir'),
             },
             {
                 'titulo': 'Agricultura digital e IA',
                 'desc': 'Qué del celular sí sirve en finca y qué es humo.',
-                'tag': 'Vitrina',
-                'url': base,
+                'tag': 'Programa',
+                'url': 'https://www.eki.com.co/programas',
+                'imagen': _img('card_digital.jpg'),
+                'ce_url': _ce_for('Innovación & IA para el agro'),
             },
             {
                 'titulo': 'Tome las riendas de su dinero',
-                'desc': 'Demo eki: la plata de la semana, con los pies en la tierra.',
+                'desc': 'La plata de la semana, con los pies en la tierra.',
                 'tag': 'Demo',
-                'url': base,
+                'url': 'https://www.eki.com.co/programas',
+                'imagen': _img('card_dinero.jpg'),
+                'ce_url': _ce_for('Negocios rurales — Confama'),
             },
         ]
 
     pu = getattr(request, 'portal_usuario', None)
     puede_crear = bool(pu and pu.rol in ('admin', 'eki_ops'))
+
+    url_margen = getattr(settings, 'MARGEN_PUBLIC_URL', '') or 'https://margen.eki.technology'
+    url_mercado = getattr(settings, 'MERCADO_GTM_PUBLIC_URL', '') or 'https://app.eki.technology/mercado-gtm/'
 
     return render(request, 'portal/cursos.html', {
         'org': org,
@@ -1034,13 +1063,15 @@ def cursos_lista(request):
         'es_confama_demo': es_confama,
         'cursos_mock': cursos_mock,
         'puede_crear_curso': puede_crear,
+        'url_margen': url_margen.rstrip('/') + '/',
+        'url_mercado': url_mercado if str(url_mercado).endswith('/') else str(url_mercado) + '/',
     })
 
 
 @portal_login_required
 @requiere_modulo('cursos')
 def portal_curso_crear_stub(request):
-    """Crea un curso vacío (demo / fábrica) y abre su estructura."""
+    """Crea un curso vacío y abre Course Engine."""
     org = _portal_org(request)
     pu = getattr(request, 'portal_usuario', None)
     if not org or not pu or pu.rol not in ('admin', 'eki_ops'):
@@ -1051,7 +1082,7 @@ def portal_curso_crear_stub(request):
     curso = Curso.objects.create(
         cliente=org,
         nombre=f'Nuevo curso {n}',
-        descripcion='Curso creado desde Fábrica de competencias. Completa módulos y contenido.',
+        descripcion='Curso creado desde Fábrica de competencias. Completa con Course Engine.',
         activo=True,
         orden=n,
     )
@@ -1059,11 +1090,11 @@ def portal_curso_crear_stub(request):
         curso=curso,
         numero=1,
         titulo='Módulo 1',
-        descripcion='Primer módulo — edítalo cuando quieras.',
+        descripcion='Primer módulo — edítalo en Course Engine.',
         contenido='',
     )
-    messages.success(request, f'Curso «{curso.nombre}» creado.')
-    return redirect(f'/portal/cursos/{curso.id}/flujo/')
+    messages.success(request, f'Curso «{curso.nombre}» creado. Ábrelo en Course Engine.')
+    return redirect(f'/portal/cursos/{curso.id}/course-engine/')
 
 
 @portal_login_required

@@ -1431,7 +1431,6 @@
                 <span class="link-icon"><svg><use href="#i-edit"/></svg></span>
                 <span class="link-text">Feedback</span>
             </a>
-            {# FAQ organización — oculto del menú (sep 2026) #}
             <a href="/portal/pqrs/" class="sidebar-link {% if '/portal/pqrs' in request.path %}active{% endif %}" title="PQRS">
                 <span class="link-icon"><svg><use href="#i-inbox"/></svg></span>
                 <span class="link-text">PQRS</span>
@@ -1477,13 +1476,6 @@
                 <span class="link-icon"><svg><use href="#i-sliders"/></svg></span>
                 <span class="link-text">Configuración</span>
             </a>
-            {#
-              Ocultos del menú (sep 2026) — rutas siguen vivas:
-              - Conocimiento IA → /portal/conocimiento/
-              - FAQ organización → /portal/faq-organizacion/
-              Entrada directa: Estudiantes, Conversaciones, Campañas, Margen, GEI, Nat
-              vía Inicio / Fábrica / Analítica según corresponda.
-            #}
             {% endif %}
         </nav>
     </aside>

@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
-"""Crea el cliente demo Confama + usuario portal + cursos/estudiantes de muestra.
+"""Crea el cliente demo Confama + usuario portal + estructura de cursos.
+
+Por defecto NO inventa estudiantes ni progreso (no ensucia métricas).
+Para poblar cobertura después: --estudiantes 48
 
 Uso:
   python manage.py seed_confama_demo
   python manage.py seed_confama_demo --password 'Confama2026!'
+  python manage.py seed_confama_demo --estudiantes 48
 """
 from __future__ import annotations
 
@@ -20,7 +24,6 @@ from portal.models import PortalUsuario
 from portal.provision import provisionar_usuario_portal
 
 
-# Municipios realistas (nombre, departamento, clave DIVIPOLA aproximada)
 _MUNICIPIOS = [
     ('Medellín', 'Antioquia', '05001'),
     ('Bello', 'Antioquia', '05088'),
@@ -93,17 +96,22 @@ _NOMBRES = [
 
 
 class Command(BaseCommand):
-    help = 'Cliente Confama demo: usuario portal + cursos + estudiantes con cobertura'
+    help = 'Cliente Confama demo: usuario portal + cursos (estudiantes opcionales)'
 
     def add_arguments(self, parser):
         parser.add_argument('--password', default='Confama2026!', help='Password del usuario portal')
-        parser.add_argument('--estudiantes', type=int, default=48, help='Cantidad de estudiantes demo')
+        parser.add_argument(
+            '--estudiantes',
+            type=int,
+            default=0,
+            help='Cantidad de estudiantes demo (0 = no inventar métricas; default)',
+        )
         parser.add_argument('--reset', action='store_true', help='Borra data Confama previa y recrea')
 
     @transaction.atomic
     def handle(self, *args, **options):
         password = options['password']
-        n_est = max(12, int(options['estudiantes']))
+        n_est = max(0, int(options['estudiantes']))
 
         cliente = Cliente.objects.filter(nombre__iexact='Confama').first()
         if cliente and options['reset']:
@@ -123,13 +131,13 @@ class Command(BaseCommand):
                 telefono='573001000200',
                 activo=True,
                 portal_productos='cursos',
-                portal_subtitulo='Smart Skills Factory · demo',
+                portal_subtitulo='Smart Skills Factory',
                 cupos_portal=10,
             )
             self.stdout.write(self.style.SUCCESS(f'Cliente Confama id={cliente.pk}'))
         else:
             cliente.portal_productos = 'cursos'
-            cliente.portal_subtitulo = cliente.portal_subtitulo or 'Smart Skills Factory · demo'
+            cliente.portal_subtitulo = cliente.portal_subtitulo or 'Smart Skills Factory'
             cliente.cupos_portal = max(int(cliente.cupos_portal or 0), 10)
             cliente.activo = True
             cliente.save()
@@ -189,59 +197,64 @@ class Command(BaseCommand):
                     numero=n,
                     defaults={
                         'titulo': titulo,
-                        'descripcion': f'Contenido demo: {titulo}',
-                        'contenido': f'Módulo demo Confama — {titulo}.',
+                        'descripcion': f'Módulo: {titulo}',
+                        'contenido': '',
                     },
                 )
             cursos.append(curso)
             self.stdout.write(f'  Curso: {curso.nombre} ({"nuevo" if created else "ok"})')
 
-        existentes = Estudiante.objects.filter(cliente=cliente).count()
-        faltan = max(0, n_est - existentes)
-        rng = random.Random(42)
-        creados = 0
-        for i in range(faltan):
-            muni, depto, clave = _MUNICIPIOS[i % len(_MUNICIPIOS)]
-            nombre = _NOMBRES[i % len(_NOMBRES)]
-            if i >= len(_NOMBRES):
-                nombre = f'{nombre} {i}'
-            tel = f'57300{1000000 + i:07d}'
-            ced = f'100{1000000 + i}'
-            est = Estudiante.objects.create(
-                cliente=cliente,
-                nombre=nombre,
-                telefono=tel,
-                cedula=ced,
-                tipo_documento='CC',
-                municipio=muni,
-                departamento=depto,
-                territory_id=clave,
-                activo=True,
-                estado_chat='ACTIVO',
-                acepto_terminos=True,
-            )
-            curso = cursos[i % len(cursos)]
-            mods = list(Modulo.objects.filter(curso=curso).order_by('numero'))
-            completado = (i % 7 == 0)
-            mod_act = mods[min(len(mods) - 1, (i % max(1, len(mods))))] if mods else None
-            prog = ProgresoEstudiante.objects.create(
-                estudiante=est,
-                curso=curso,
-                modulo_actual=mod_act,
-                completado=completado,
-                fecha_completado=timezone.now() - timedelta(days=2) if completado else None,
-            )
-            # fecha_inicio es auto_now_add; ajustamos para que el timeline se vea vivo
-            ProgresoEstudiante.objects.filter(pk=prog.pk).update(
-                fecha_inicio=timezone.now() - timedelta(days=rng.randint(5, 60)),
-                fecha_ultimo_avance=timezone.now() - timedelta(days=rng.randint(0, 14)),
-            )
-            creados += 1
+        if n_est <= 0:
+            self.stdout.write(self.style.WARNING(
+                'Sin estudiantes demo (métricas intactas). Usa --estudiantes N cuando quieras poblar.'
+            ))
+        else:
+            existentes = Estudiante.objects.filter(cliente=cliente).count()
+            faltan = max(0, n_est - existentes)
+            rng = random.Random(42)
+            creados = 0
+            for i in range(faltan):
+                muni, depto, clave = _MUNICIPIOS[i % len(_MUNICIPIOS)]
+                nombre = _NOMBRES[i % len(_NOMBRES)]
+                if i >= len(_NOMBRES):
+                    nombre = f'{nombre} {i}'
+                tel = f'57300{1000000 + i:07d}'
+                ced = f'100{1000000 + i}'
+                est = Estudiante.objects.create(
+                    cliente=cliente,
+                    nombre=nombre,
+                    telefono=tel,
+                    cedula=ced,
+                    tipo_documento='CC',
+                    municipio=muni,
+                    departamento=depto,
+                    territory_id=clave,
+                    activo=True,
+                    estado_chat='ACTIVO',
+                    acepto_terminos=True,
+                )
+                curso = cursos[i % len(cursos)]
+                mods = list(Modulo.objects.filter(curso=curso).order_by('numero'))
+                completado = (i % 7 == 0)
+                mod_act = mods[min(len(mods) - 1, (i % max(1, len(mods))))] if mods else None
+                prog = ProgresoEstudiante.objects.create(
+                    estudiante=est,
+                    curso=curso,
+                    modulo_actual=mod_act,
+                    completado=completado,
+                    fecha_completado=timezone.now() - timedelta(days=2) if completado else None,
+                )
+                ProgresoEstudiante.objects.filter(pk=prog.pk).update(
+                    fecha_inicio=timezone.now() - timedelta(days=rng.randint(5, 60)),
+                    fecha_ultimo_avance=timezone.now() - timedelta(days=rng.randint(0, 14)),
+                )
+                creados += 1
 
-        self.stdout.write(self.style.SUCCESS(
-            f'Estudiantes: {Estudiante.objects.filter(cliente=cliente).count()} '
-            f'(+{creados} nuevos)'
-        ))
+            self.stdout.write(self.style.SUCCESS(
+                f'Estudiantes: {Estudiante.objects.filter(cliente=cliente).count()} '
+                f'(+{creados} nuevos)'
+            ))
+
         self.stdout.write('')
         self.stdout.write(self.style.SUCCESS('QA_PASS seed Confama'))
         self.stdout.write('Login portal: usuario=confama')
