@@ -78,8 +78,7 @@
           <div class="ce-voice__row">
             <div class="ce-wa-audio">
               <button type="button" class="ce-wa-audio__play" aria-label="Reproducir muestra de {{ v.label }}"
-                      data-audio-url="{{ v.audio_url }}" data-voice-id="{{ v.id }}"
-                      {% if not v.audio_url %}disabled title="Demo pendiente"{% endif %}>
+                      data-audio-url="{{ v.audio_url }}" data-voice-id="{{ v.id }}">
                 <span class="ce-wa-audio__icon ce-wa-audio__icon--play" aria-hidden="true">▶</span>
                 <span class="ce-wa-audio__icon ce-wa-audio__icon--pause" aria-hidden="true">❚❚</span>
               </button>

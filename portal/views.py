@@ -991,14 +991,6 @@ def cursos_lista(request):
     es_confama = (org.nombre or '').strip().lower() == 'confama'
     cursos_mock = []
     if es_confama:
-        from pathlib import Path
-
-        fab = Path(settings.BASE_DIR) / 'static' / 'portal' / 'fabrica'
-        fallback = '/static/portal/fabrica/smart_skills_factory.png'
-
-        def _img(name: str) -> str:
-            return f'/static/portal/fabrica/{name}' if (fab / name).exists() else fallback
-
         por_nombre = {c.nombre.lower(): c for c in lista}
 
         def _ce_for(*nombres):
@@ -1014,7 +1006,7 @@ def cursos_lista(request):
                 'desc': 'Ordenar un negocio alrededor de lo que ya se produce.',
                 'tag': 'Programa',
                 'url': 'https://www.eki.com.co/programas',
-                'imagen': _img('card_emprendimiento.jpg'),
+                'imagen': 'https://www.eki.com.co/assets/programas/prog-emprendimiento.jpg',
                 'ce_url': _ce_for('Negocios rurales — Confama'),
             },
             {
@@ -1022,7 +1014,7 @@ def cursos_lista(request):
                 'desc': 'Criterio de uso, seguridad y cuándo no conviene comprar.',
                 'tag': 'Programa',
                 'url': 'https://www.eki.com.co/programas',
-                'imagen': _img('card_maquinaria.jpg'),
+                'imagen': 'https://www.eki.com.co/assets/programas/prog-maquinaria.jpg',
                 'ce_url': _ce_for('Power Skills — liderazgo en campo'),
             },
             {
@@ -1030,7 +1022,7 @@ def cursos_lista(request):
                 'desc': 'A quién vender, precio versus costo, no regalar margen.',
                 'tag': 'Programa',
                 'url': 'https://www.eki.com.co/programas',
-                'imagen': _img('card_comercial.jpg'),
+                'imagen': 'https://www.eki.com.co/assets/programas/prog-ventas.jpg',
                 'ce_url': _ce_for('Sostenibilidad y buen vivir'),
             },
             {
@@ -1038,7 +1030,7 @@ def cursos_lista(request):
                 'desc': 'Qué del celular sí sirve en finca y qué es humo.',
                 'tag': 'Programa',
                 'url': 'https://www.eki.com.co/programas',
-                'imagen': _img('card_digital.jpg'),
+                'imagen': 'https://www.eki.com.co/assets/programas/prog-digital.jpg',
                 'ce_url': _ce_for('Innovación & IA para el agro'),
             },
             {
@@ -1046,7 +1038,7 @@ def cursos_lista(request):
                 'desc': 'La plata de la semana, con los pies en la tierra.',
                 'tag': 'Demo',
                 'url': 'https://www.eki.com.co/programas',
-                'imagen': _img('card_dinero.jpg'),
+                'imagen': 'https://www.eki.com.co/assets/programas/prog-riendas.jpg',
                 'ce_url': _ce_for('Negocios rurales — Confama'),
             },
         ]

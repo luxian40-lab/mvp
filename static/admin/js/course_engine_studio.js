@@ -229,7 +229,10 @@
     }
 
     document.querySelectorAll('.ce-wa-audio__play').forEach(function (btn) {
+      btn.disabled = false;
+      btn.removeAttribute('title');
       btn.addEventListener('click', function (e) {
+        e.preventDefault();
         e.stopPropagation();
         if (btn.classList.contains('ce-wa-audio__play--playing')) {
           stopAudio();
@@ -256,25 +259,62 @@
       });
     }
 
+    function applyVoiceUI(vid, label) {
+      document.querySelectorAll('.ce-voice').forEach(function (li) {
+        li.classList.toggle('ce-voice--active', li.getAttribute('data-voice-id') === vid);
+      });
+      document.querySelectorAll('.ce-voice__pick').forEach(function (b) {
+        var on = b.getAttribute('data-voice-id') === vid;
+        b.classList.toggle('ce-voice__pick--on', on);
+        b.disabled = false;
+        b.textContent = on ? '✓ Activa' : 'Usar';
+      });
+      var activeLabel = document.querySelector('.ce-voice-active strong');
+      if (activeLabel && label) activeLabel.textContent = label;
+    }
+
+    function selectVoice(vid, btn) {
+      if (!vid) return;
+      if (btn) btn.disabled = true;
+      postForm('set_voice', { voice_id: vid })
+        .then(function (res) {
+          if (!res.ok || !res.data.ok) {
+            showStatus((res.data && res.data.error) || 'No se pudo guardar la voz', false);
+            if (btn) btn.disabled = false;
+            return;
+          }
+          applyVoiceUI(vid, res.data.voice_label || vid);
+          showStatus('Voz del curso: ' + (res.data.voice_label || vid), true);
+        })
+        .catch(function () {
+          showStatus('No se pudo guardar la voz', false);
+          if (btn) btn.disabled = false;
+        });
+    }
+
     document.querySelectorAll('.ce-voice__pick').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var vid = btn.getAttribute('data-voice-id');
-        postForm('set_voice', { voice_id: vid })
-          .then(function (res) {
-            if (!res.ok || !res.data.ok) {
-              showStatus(res.data.error || 'No se pudo guardar la voz', false);
-              return;
-            }
-            document.querySelectorAll('.ce-voice').forEach(function (li) {
-              li.classList.toggle('ce-voice--active', li.getAttribute('data-voice-id') === vid);
-            });
-            document.querySelectorAll('.ce-voice__pick').forEach(function (b) {
-              var on = b.getAttribute('data-voice-id') === vid;
-              b.classList.toggle('ce-voice__pick--on', on);
-              b.textContent = on ? '✓ Activa' : 'Usar';
-            });
-            showStatus('Voz del curso: ' + (res.data.voice_label || vid), true);
-          });
+      btn.disabled = false;
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        selectVoice(btn.getAttribute('data-voice-id'), btn);
+      });
+    });
+
+    // Toda la tarjeta es seleccionable (no solo el botón Usar)
+    document.querySelectorAll('.ce-voice').forEach(function (li) {
+      li.style.cursor = 'pointer';
+      li.setAttribute('tabindex', '0');
+      li.setAttribute('role', 'button');
+      li.addEventListener('click', function (e) {
+        if (e.target.closest('.ce-wa-audio__play') || e.target.closest('.ce-voice__pick')) return;
+        selectVoice(li.getAttribute('data-voice-id'), li.querySelector('.ce-voice__pick'));
+      });
+      li.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          selectVoice(li.getAttribute('data-voice-id'), li.querySelector('.ce-voice__pick'));
+        }
       });
     });
 

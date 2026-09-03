@@ -8,7 +8,7 @@
 <style>
 .home-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);
   gap: 22px;
   align-items: start;
 }
@@ -63,83 +63,117 @@
 .home-profile .muted { margin: 4px 0 0; font-size: 0.85rem; }
 .home-meta { margin-top: 12px; display: grid; gap: 6px; font-size: 0.86rem; }
 .home-meta strong { color: var(--purple-deep); font-weight: 600; }
-.home-section-title {
-  margin: 8px 0 12px; font-size: 1rem; font-weight: 800; color: var(--ink);
-}
-.home-section-sub { margin: -6px 0 14px; font-size: 0.88rem; color: var(--texto-muted); }
-.planes-row {
+
+/* Dos cajas: Cursos | Herramientas */
+.home-doors {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
-  margin-bottom: 22px;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 16px;
 }
-.plan-card {
-  display: block; text-decoration: none; color: inherit;
-  background: var(--blanco); border: 1px solid var(--borde);
-  border-radius: 14px; padding: 14px; box-shadow: var(--shadow-soft);
+@media (max-width: 560px) { .home-doors { grid-template-columns: 1fr; } }
+.home-door {
+  position: relative;
+  display: flex; flex-direction: column; justify-content: space-between;
+  min-height: 140px;
+  padding: 18px;
+  border-radius: 16px;
+  text-decoration: none;
+  color: inherit;
+  background: var(--blanco);
+  border: 1px solid var(--borde);
+  box-shadow: var(--shadow-soft);
   transition: transform .15s, border-color .15s;
 }
-.plan-card:hover { transform: translateY(-2px); border-color: rgba(154,108,172,0.4); }
-.plan-card h3 { margin: 0 0 6px; font-size: 0.92rem; }
-.plan-card .muted { font-size: 0.78rem; margin: 0 0 10px; }
-.plan-bar { height: 8px; border-radius: 999px; background: rgba(154,108,172,0.12); overflow: hidden; }
-.plan-bar > span { display: block; height: 100%; background: #9A6CAC; border-radius: inherit; }
-.plan-pct { margin-top: 8px; font-size: 0.78rem; font-weight: 700; color: var(--purple-deep); }
-.learn-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;
+.home-door:hover { transform: translateY(-2px); border-color: rgba(154,108,172,0.45); color: inherit; }
+.home-door h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--purple-deep, #5F3A6E);
 }
-.learn-card {
-  display: flex; flex-direction: column; justify-content: flex-end;
-  min-height: 140px; padding: 16px; border-radius: 16px; text-decoration: none;
-  color: #fff; background:
-    linear-gradient(160deg, rgba(95,58,110,0.92), rgba(154,108,172,0.85)),
-    radial-gradient(circle at 20% 20%, rgba(255,255,255,0.18), transparent 50%);
+.home-door p { margin: 8px 0 0; font-size: 0.85rem; color: var(--texto-muted); max-width: 16rem; }
+.home-door__more {
+  align-self: flex-end;
+  margin-top: 16px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fff;
+  background: #9A6CAC;
+  padding: 8px 14px;
+  border-radius: 999px;
+}
+
+/* Cajón métricas */
+.home-metrics {
+  display: flex; align-items: center; gap: 16px;
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: var(--blanco);
+  border: 1px solid var(--borde);
   box-shadow: var(--shadow-soft);
-  transition: transform .15s;
+  text-decoration: none;
+  color: inherit;
+  transition: transform .15s, border-color .15s;
+  margin-bottom: 8px;
 }
-.learn-card:hover { transform: translateY(-2px); color: #fff; }
-.learn-card--alt {
-  background:
-    linear-gradient(160deg, rgba(60,123,191,0.92), rgba(95,58,110,0.8));
+.home-metrics:hover { transform: translateY(-2px); border-color: rgba(154,108,172,0.45); color: inherit; }
+.home-metrics__icon {
+  flex: 0 0 auto;
+  width: 64px; height: 64px;
+  border-radius: 16px;
+  display: grid; place-items: center;
+  background: linear-gradient(145deg, rgba(154,108,172,0.2), rgba(60,123,191,0.18));
+  color: #5F3A6E;
 }
-.learn-card--ok {
-  background:
-    linear-gradient(160deg, rgba(53,166,71,0.9), rgba(95,58,110,0.75));
+.home-metrics__icon svg { width: 32px; height: 32px; }
+.home-metrics__body { flex: 1; min-width: 0; }
+.home-metrics__body h3 { margin: 0; font-size: 1.05rem; color: var(--purple-deep); }
+.home-metrics__body p { margin: 4px 0 0; font-size: 0.85rem; color: var(--texto-muted); }
+.home-metrics__more {
+  flex: 0 0 auto;
+  font-size: 0.8rem; font-weight: 700;
+  color: #fff; background: #9A6CAC;
+  padding: 8px 14px; border-radius: 999px;
 }
-.learn-card span {
-  display: inline-block; font-size: 0.68rem; font-weight: 700;
-  letter-spacing: .04em; text-transform: uppercase;
-  background: rgba(255,255,255,0.2); padding: 3px 8px; border-radius: 999px; margin-bottom: 8px;
-}
-.learn-card strong { font-size: 1rem; line-height: 1.25; }
+
+/* Anuncios — panel morado (estilo Preserva / mano derecha) */
 .anuncios {
-  background: var(--blanco); border: 1px solid var(--borde);
-  border-radius: 16px; padding: 16px; box-shadow: var(--shadow-soft);
+  background: linear-gradient(180deg, #5F3A6E 0%, #7A4E8E 55%, #9A6CAC 100%);
+  border: none;
+  border-radius: 18px;
+  padding: 18px 16px;
+  box-shadow: 0 12px 28px rgba(95, 58, 110, 0.28);
   position: sticky; top: 16px;
+  color: #f7f0fa;
+  min-height: 320px;
 }
-.anuncios h2 { margin: 0 0 12px; font-size: 0.98rem; }
+.anuncios h2 {
+  margin: 0 0 14px;
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
 .anuncio {
   display: block; text-decoration: none; color: inherit;
-  padding: 12px 0; border-top: 1px solid var(--borde);
+  padding: 12px 0; border-top: 1px solid rgba(255,255,255,0.18);
 }
 .anuncio:first-of-type { border-top: 0; padding-top: 4px; }
 .anuncio .tag {
-  font-size: 0.68rem; font-weight: 700; color: var(--purple-deep);
+  font-size: 0.68rem; font-weight: 700;
+  color: rgba(255,255,255,0.75);
   text-transform: uppercase; letter-spacing: .04em;
 }
-.anuncio strong { display: block; margin: 4px 0 2px; font-size: 0.9rem; }
-.anuncio p { margin: 0; font-size: 0.8rem; color: var(--texto-muted); line-height: 1.4; }
-.anuncios-foot { margin: 12px 0 0; font-size: 0.78rem; color: var(--texto-muted); text-align: center; }
-.ops-mini {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 10px; margin-bottom: 22px;
+.anuncio strong { display: block; margin: 4px 0 2px; font-size: 0.9rem; color: #fff; }
+.anuncio p { margin: 0; font-size: 0.8rem; color: rgba(247,240,250,0.82); line-height: 1.4; }
+.anuncios-foot {
+  margin: 14px 0 0;
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.55);
+  text-align: center;
 }
-.ops-mini a {
-  text-decoration: none; color: inherit; background: var(--blanco);
-  border: 1px solid var(--borde); border-radius: 12px; padding: 12px;
-}
-.ops-mini strong { display: block; font-size: 1.25rem; color: var(--purple-deep); }
-.ops-mini span { font-size: 0.78rem; color: var(--texto-muted); }
+.anuncios .muted { color: rgba(255,255,255,0.7); }
 </style>
 {% endblock %}
 
@@ -182,7 +216,7 @@
       </article>
       <article class="home-card home-map-card">
         <div class="home-map-card__head">
-          <h3>Mapa territorial</h3>
+          <h3>Mapa</h3>
           {% if portal_mod_cursos %}
           <a class="btn btn-outline" href="/portal/cobertura/" style="padding:4px 10px;font-size:0.78rem;">Ver más</a>
           {% endif %}
@@ -195,56 +229,41 @@
       </article>
     </div>
 
-    {% if portal_mod_cursos and ops %}
-    <p class="home-section-title">¿Qué requiere atención hoy?</p>
-    <div class="ops-mini">
-      <a href="/portal/analitica/"><strong>{{ ops.sin_avance }}</strong><span>Sin avance</span></a>
-      <a href="/portal/retencion/"><strong>{{ ops.inactivos_30_dias }}</strong><span>Inactivos 30+ días</span></a>
-      <a href="/portal/pqrs/"><strong>{% if ops.pqrs_urgentes %}{{ ops.pqrs_urgentes }}{% else %}{{ ops.pqrs_pendientes }}{% endif %}</strong><span>PQRS</span></a>
-      <a href="/portal/certificados/"><strong>{{ ops.certificados_semana }}</strong><span>Certificados semana</span></a>
-    </div>
-    {% endif %}
-
-    {% if portal_mod_cursos and cursos %}
-    <p class="home-section-title">Planes vigentes</p>
-    <p class="home-section-sub">Tus cursos activos — entra a ver la estructura de módulos.</p>
-    <div class="planes-row">
-      {% for curso in cursos|slice:":4" %}
-      {% widthratio curso.estudiantes_count total_estudiantes 100 as pct_raw %}
-      <a class="plan-card" href="/portal/cursos/{{ curso.id }}/flujo/">
-        <h3>{{ curso.nombre|truncatechars:42 }}</h3>
-        <p class="muted">{{ curso.modulos_count }} módulo{{ curso.modulos_count|pluralize }}</p>
-        <div class="plan-bar" aria-hidden="true">
-          <span style="width:{% if total_estudiantes %}{% widthratio curso.estudiantes_count total_estudiantes 100 %}{% else %}0{% endif %}%;"></span>
+    {% if portal_mod_cursos %}
+    <div class="home-doors" aria-label="Cursos y herramientas">
+      <a class="home-door" href="/portal/cursos/">
+        <div>
+          <h3>Cursos</h3>
+          <p>Fábrica de competencias — estructura, módulos y Course Engine.</p>
         </div>
-        <div class="plan-pct">{{ curso.estudiantes_count }} inscrito{{ curso.estudiantes_count|pluralize }}</div>
+        <span class="home-door__more">Ver más</span>
       </a>
-      {% endfor %}
+      <a class="home-door" href="/portal/cursos/#fab-tools">
+        <div>
+          <h3>Herramientas</h3>
+          <p>Calculadora de margen y calculadora de mercado (prototipos).</p>
+        </div>
+        <span class="home-door__more">Ver más</span>
+      </a>
     </div>
-    {% endif %}
 
-    <p class="home-section-title">¿Qué quieres hacer hoy?</p>
-    <p class="home-section-sub">Atajos a las tres puertas principales del portal.</p>
-    <div class="learn-grid">
-      {% if portal_mod_cursos %}
-      <a class="learn-card" href="/portal/cursos/">
-        <span>Fábrica</span>
-        <strong>Diseña o revisa la estructura de tus cursos</strong>
-      </a>
-      <a class="learn-card learn-card--alt" href="/portal/analitica/">
-        <span>Analítica</span>
-        <strong>Centro de Éxito, cobertura y reportes</strong>
-      </a>
-      {% endif %}
-      <a class="learn-card learn-card--ok" href="/portal/soporte/">
-        <span>Soporte</span>
-        <strong>Feedback y PQRS de participantes</strong>
-      </a>
-    </div>
+    <a class="home-metrics" href="/portal/analitica/" aria-label="Métricas">
+      <div class="home-metrics__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19V9"/><path d="M10 19V5"/><path d="M16 19v-7"/><path d="M22 19V8"/>
+        </svg>
+      </div>
+      <div class="home-metrics__body">
+        <h3>Métricas</h3>
+        <p>Centro de Éxito, cobertura, retención y reportes de tu programa.</p>
+      </div>
+      <span class="home-metrics__more">Ver más</span>
+    </a>
+    {% endif %}
   </div>
 
   <aside class="anuncios" aria-label="Anuncios y avisos">
-    <h2>Anuncios y avisos</h2>
+    <h2>Anuncios</h2>
     {% for a in anuncios %}
     <a class="anuncio" href="{{ a.url }}">
       <span class="tag">{{ a.tag }}</span>
