@@ -6,6 +6,7 @@ import uuid
 from typing import Any, Optional
 
 from django.core.cache import cache
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -168,9 +169,11 @@ def studio_ajax(request, curso, *, usuario=None) -> Optional[dict[str, Any]]:
 
         demo_voice = (request.GET.get('demo_voice') or '').strip()
         if demo_voice:
+            force = request.GET.get('force') == '1'
             out = url_demo_voz(
                 demo_voice,
-                generar_si_falta=request.GET.get('generate') == '1',
+                generar_si_falta=request.GET.get('generate') == '1' or force,
+                force_regenerate=force,
                 request=request,
             )
             out['status'] = 200 if out.get('ok') else 404
@@ -362,25 +365,51 @@ def encolar_generacion_video(
     )
 
     run_id = uuid.uuid4().hex[:12]
-    cache.set(f'{_CACHE_PREFIX}{run_id}', {'status': 'queued'}, 7200)
+    cache.set(
+        f'{_CACHE_PREFIX}{run_id}',
+        {
+            'status': 'queued',
+            'run_id': run_id,
+            'queued_at': timezone.now().isoformat(),
+            'hint': 'Esperando worker_course (cola course_engine)',
+        },
+        7200,
+    )
 
     from core.tasks import generar_video_course_engine_async
 
-    generar_video_course_engine_async.delay(
-        run_id,
-        cliente_id,
-        curso_id,
-        modulo_id,
-        brief_text,
-        (foco or '').strip(),
-        modo_demo,
-    )
+    try:
+        async_result = generar_video_course_engine_async.delay(
+            run_id,
+            cliente_id,
+            curso_id,
+            modulo_id,
+            brief_text,
+            (foco or '').strip(),
+            modo_demo,
+        )
+    except Exception as exc:
+        logger.exception('[CE] no se pudo encolar video run=%s', run_id)
+        payload = {
+            'ok': False,
+            'run_id': run_id,
+            'status': 'error',
+            'error': (
+                f'No se pudo encolar en Celery (Redis/worker_course): {exc}. '
+                'SRE: verificar broker y proceso worker_course -Q course_engine.'
+            ),
+        }
+        cache.set(f'{_CACHE_PREFIX}{run_id}', payload, 7200)
+        return payload
+
     return {
         'ok': True,
         'run_id': run_id,
+        'task_id': getattr(async_result, 'id', '') or '',
         'status': 'queued',
         'modo_demo': modo_demo,
         'max_seg': STUDIO_DEMO_MAX_SEC if modo_demo else 14.0,
+        'hint': 'Si queda en cola >2 min, el worker_course no está consumiendo course_engine.',
     }
 
 
@@ -388,4 +417,26 @@ def estado_generacion(run_id: str) -> dict[str, Any]:
     data = cache.get(f'{_CACHE_PREFIX}{run_id}')
     if not data:
         return {'ok': False, 'error': 'Run desconocido o expirado'}
-    return {'ok': True, **data}
+
+    out = {'ok': True, **data}
+    st = (data.get('status') or '').strip()
+    if st == 'queued':
+        queued_at = data.get('queued_at') or ''
+        stuck = False
+        if queued_at:
+            try:
+                from datetime import datetime
+
+                ts = datetime.fromisoformat(queued_at.replace('Z', '+00:00'))
+                if timezone.is_naive(ts):
+                    ts = timezone.make_aware(ts, timezone.get_current_timezone())
+                stuck = (timezone.now() - ts).total_seconds() > 120
+            except Exception:
+                stuck = False
+        if stuck:
+            out['hint'] = (
+                'Sigue en cola >2 min: worker_course probablemente caído o '
+                'sin consumir la cola course_engine (Procfile.ai).'
+            )
+            out['stuck_queued'] = True
+    return out

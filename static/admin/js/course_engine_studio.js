@@ -196,7 +196,9 @@
       var vid = btn.getAttribute('data-voice-id');
       if (url && !forceGenerate) return Promise.resolve(url);
       if (!vid) return Promise.reject(new Error('Sin voz'));
-      return fetch(studioUrl + '?demo_voice=' + encodeURIComponent(vid) + '&generate=1', {
+      var qs = '?demo_voice=' + encodeURIComponent(vid) + '&generate=1';
+      if (forceGenerate) qs += '&force=1';
+      return fetch(studioUrl + qs, {
         credentials: 'same-origin',
         headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
       })
@@ -372,12 +374,21 @@
             if (!data.ok) return;
             var st = data.status || '';
             var vurl = data.video_url || data.media_url || '';
-            showStatus('Demo ' + runId + ': ' + st + (vurl ? ' · listo' : ''), st === 'ok' || st === 'done');
+            var hint = data.hint || data.error || '';
+            var msg = 'Demo ' + runId + ': ' + st;
+            if (vurl) msg += ' · listo';
+            else if (hint) msg += ' · ' + hint;
+            showStatus(msg, st === 'ok' || st === 'done');
             if (vurl && (st === 'ok' || st === 'done')) {
               showVideo(vurl);
               clearInterval(pollTimer);
             }
-            if (st === 'error' || st === 'failed') clearInterval(pollTimer);
+            if (st === 'error' || st === 'failed' || data.stuck_queued) {
+              if (data.stuck_queued) {
+                showStatus(msg, false);
+              }
+              if (st === 'error' || st === 'failed') clearInterval(pollTimer);
+            }
           })
           .catch(function () {});
       }, 4000);
@@ -408,13 +419,16 @@
         postForm('generar')
           .then(function (res) {
             if (res.ok && res.data.ok) {
-              showStatus('Demo en cola: ' + res.data.run_id, true);
+              var hint = res.data.hint ? (' · ' + res.data.hint) : '';
+              showStatus('Demo en cola: ' + res.data.run_id + hint, true);
               pollStatus(res.data.run_id);
             } else {
-              showStatus(res.data.error || 'No se pudo encolar', false);
+              showStatus((res.data && (res.data.error || res.data.hint)) || 'No se pudo encolar', false);
             }
           })
-          .catch(function () { showStatus('Error de red', false); })
+          .catch(function (err) {
+            showStatus((err && err.message) || 'Error de red', false);
+          })
           .finally(function () { btnGen.disabled = false; });
       });
     }

@@ -8,10 +8,10 @@ from typing import Optional
 
 from django.conf import settings
 from django.contrib.staticfiles import finders
-from django.templatetags.static import static
 
 from core.course_engine.voice_config import catalogo_voces
 from core.course_engine.voice_preview import MUESTRA_VOZ_TEXTO, generar_muestra_voz
+from mvp_project.static_safe import static_safe
 
 logger = logging.getLogger(__name__)
 
@@ -49,11 +49,19 @@ def _static_demo_exists(slug: str) -> bool:
     return path.is_file()
 
 
-def url_demo_voz(voice_id: str, *, generar_si_falta: bool = False, request=None) -> dict:
+def url_demo_voz(
+    voice_id: str,
+    *,
+    generar_si_falta: bool = False,
+    force_regenerate: bool = False,
+    request=None,
+) -> dict:
     """
     Resuelve URL de muestra (~5 s) para una Voice ID del catálogo eki.
 
-    Orden: static/course_engine/voices/{slug}.mp3 → MEDIA → generar TTS (opcional).
+    Orden (si force_regenerate=False):
+      static → MEDIA → generar TTS (si generar_si_falta).
+    Con force_regenerate=True salta static/MEDIA y regenera TTS.
     """
     vid = (voice_id or '').strip()
     if not vid:
@@ -76,35 +84,46 @@ def url_demo_voz(voice_id: str, *, generar_si_falta: bool = False, request=None)
         return url
 
     slug = demo_slug_for_voice_id(vid)
-    if _static_demo_exists(slug):
-        return {
-            'ok': True,
-            'url': _abs(static(_static_demo_rel(slug))),
-            'cached': True,
-            'label': label,
-            'source': 'static',
-        }
 
-    media_path = _media_demo_path(vid)
-    if media_path.is_file():
-        media_url = getattr(settings, 'MEDIA_URL', '/media/') or '/media/'
-        if not media_url.endswith('/'):
-            media_url += '/'
-        return {
-            'ok': True,
-            'url': _abs(f'{media_url}{_DEMO_DIR_MEDIA}/{vid}.mp3'),
-            'cached': True,
-            'label': label,
-            'source': 'media',
-        }
+    if not force_regenerate:
+        if _static_demo_exists(slug):
+            return {
+                'ok': True,
+                'url': _abs(static_safe(_static_demo_rel(slug))),
+                'cached': True,
+                'label': label,
+                'source': 'static',
+            }
 
-    if not generar_si_falta:
+        media_path = _media_demo_path(vid)
+        if media_path.is_file():
+            media_url = getattr(settings, 'MEDIA_URL', '/media/') or '/media/'
+            if not media_url.endswith('/'):
+                media_url += '/'
+            return {
+                'ok': True,
+                'url': _abs(f'{media_url}{_DEMO_DIR_MEDIA}/{vid}.mp3'),
+                'cached': True,
+                'label': label,
+                'source': 'media',
+            }
+
+        if not generar_si_falta:
+            return {
+                'ok': False,
+                'url': '',
+                'cached': False,
+                'label': label,
+                'error': 'Demo no generada — ejecute course_engine_seed_voice_demos',
+            }
+    elif not generar_si_falta:
+        # force sin generate no tiene sentido: pedir generate
         return {
             'ok': False,
             'url': '',
             'cached': False,
             'label': label,
-            'error': 'Demo no generada — ejecute course_engine_seed_voice_demos',
+            'error': 'force requiere generate=1',
         }
 
     out = generar_muestra_voz(vid, voice_label=label)
@@ -114,24 +133,38 @@ def url_demo_voz(voice_id: str, *, generar_si_falta: bool = False, request=None)
             'url': '',
             'cached': False,
             'label': label,
-            'error': out.error or 'TTS falló',
+            'error': out.error or 'TTS falló (revisa ELEVENLABS_API_KEY)',
         }
 
-    url = out.tts.url
-    if out.tts.local_path:
-        url = out.tts.url
-    elif out.tts.url:
-        try:
-            import httpx
+    url = (out.tts.url or '').strip()
+    media_path = _media_demo_path(vid)
 
-            media_path.parent.mkdir(parents=True, exist_ok=True)
-            resp = httpx.get(out.tts.url, timeout=60.0)
-            if resp.status_code == 200 and resp.content:
-                media_path.write_bytes(resp.content)
+    # Preferir URL S3/pública; si solo hay path local, publicar vía MEDIA
+    if not url and out.tts.local_path:
+        try:
+            src = Path(out.tts.local_path)
+            if src.is_file():
+                media_path.parent.mkdir(parents=True, exist_ok=True)
+                media_path.write_bytes(src.read_bytes())
                 media_url = getattr(settings, 'MEDIA_URL', '/media/') or '/media/'
                 if not media_url.endswith('/'):
                     media_url += '/'
                 url = f'{media_url}{_DEMO_DIR_MEDIA}/{vid}.mp3'
+        except Exception:
+            logger.exception('No se pudo materializar demo voz local %s', vid)
+
+    elif url and not url.startswith('http'):
+        # relative ok
+        pass
+    elif url.startswith('http'):
+        # Cachear en MEDIA para reuso local (best-effort)
+        try:
+            import httpx
+
+            media_path.parent.mkdir(parents=True, exist_ok=True)
+            resp = httpx.get(url, timeout=60.0)
+            if resp.status_code == 200 and resp.content:
+                media_path.write_bytes(resp.content)
         except Exception:
             logger.exception('No se pudo cachear demo voz %s', vid)
 
@@ -141,7 +174,7 @@ def url_demo_voz(voice_id: str, *, generar_si_falta: bool = False, request=None)
         'cached': False,
         'label': label,
         'source': 'generated',
-        'error': '' if url else 'Sin URL de audio',
+        'error': '' if url else 'Sin URL de audio (TTS OK pero S3/MEDIA falló)',
     }
 
 

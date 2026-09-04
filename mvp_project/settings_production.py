@@ -296,7 +296,7 @@ STATICFILES_STORAGE = 'mvp_project.staticfiles_storage.EkiManifestStaticFilesSto
 # Configuración de WhiteNoise optimizada
 WHITENOISE_MAX_AGE = 31536000  # 1 año de cache
 WHITENOISE_ALLOW_ALL_ORIGINS = False
-WHITENOISE_SKIP_COMPRESS_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'zip', 'gz', 'tgz', 'bz2', 'tbz', 'xz', 'br', 'swf', 'flv', 'woff', 'woff2']
+WHITENOISE_SKIP_COMPRESS_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'zip', 'gz', 'tgz', 'bz2', 'tbz', 'xz', 'br', 'swf', 'flv', 'woff', 'woff2', 'mp3', 'mp4', 'm4a', 'wav']
 
 # ============================================
 # LOGGING - Producción

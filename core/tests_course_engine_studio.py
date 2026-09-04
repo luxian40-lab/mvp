@@ -79,6 +79,31 @@ class CourseEngineStudioViewTests(TestCase):
         self.assertIn('Sesión', data.get('error', ''))
 
     @override_settings(SECURE_SSL_REDIRECT=False)
+    @patch('core.course_engine.voice_demos.generar_muestra_voz')
+    def test_demo_voice_force_query_bypasses_static(self, mock_gen):
+        from types import SimpleNamespace
+
+        mock_gen.return_value = SimpleNamespace(
+            ok=True,
+            error='',
+            tts=SimpleNamespace(url='https://cdn.example/forced.mp3', local_path=''),
+        )
+        self.client.force_login(self.staff)
+        url = reverse('admin_course_engine_studio', kwargs={'curso_id': self.curso.pk})
+        vid = DEFAULT_VOICES[0]['id']
+        r = self.client.get(
+            url + f'?demo_voice={vid}&generate=1&force=1',
+            secure=True,
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertTrue(data['ok'])
+        self.assertEqual(data.get('source'), 'generated')
+        self.assertIn('forced.mp3', data['url'])
+        mock_gen.assert_called_once()
+
+    @override_settings(SECURE_SSL_REDIRECT=False)
     def test_set_voice(self):
         self.client.force_login(self.staff)
         url = reverse('admin_course_engine_studio', kwargs={'curso_id': self.curso.pk})
@@ -111,14 +136,37 @@ class CourseEngineStudioViewTests(TestCase):
 @override_settings(SECURE_SSL_REDIRECT=False)
 class CourseEngineVoiceDemosTests(TestCase):
     @patch('core.course_engine.voice_demos.finders.find', return_value='/static/course_engine/voices/sofia.mp3')
-    @patch('core.course_engine.voice_demos.static', return_value='/static/course_engine/voices/sofia.mp3')
+    @patch('core.course_engine.voice_demos.static_safe', return_value='/static/course_engine/voices/sofia.mp3')
     def test_url_demo_static(self, mock_static, mock_find):
         from core.course_engine.voice_demos import url_demo_voz
 
         out = url_demo_voz(DEFAULT_VOICES[0]['id'])
         self.assertTrue(out['ok'])
         self.assertTrue(out['cached'])
+        self.assertEqual(out.get('source'), 'static')
         self.assertIn('sofia.mp3', out['url'])
+
+    @patch('core.course_engine.voice_demos.finders.find', return_value='/static/course_engine/voices/sofia.mp3')
+    @patch('core.course_engine.voice_demos.generar_muestra_voz')
+    def test_force_regenerate_bypasses_static(self, mock_gen, mock_find):
+        from types import SimpleNamespace
+
+        from core.course_engine.voice_demos import url_demo_voz
+
+        mock_gen.return_value = SimpleNamespace(
+            ok=True,
+            error='',
+            tts=SimpleNamespace(url='https://cdn.example/demo.mp3', local_path=''),
+        )
+        out = url_demo_voz(
+            DEFAULT_VOICES[0]['id'],
+            generar_si_falta=True,
+            force_regenerate=True,
+        )
+        self.assertTrue(out['ok'])
+        self.assertEqual(out.get('source'), 'generated')
+        self.assertIn('cdn.example', out['url'])
+        mock_gen.assert_called_once()
 
     def test_catalogo_voces_demo_count(self):
         from core.course_engine.voice_demos import catalogo_voces_demo
