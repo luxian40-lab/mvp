@@ -92,7 +92,7 @@
   <header class="fab-hero">
     <p class="fab-hero__kicker">Fábrica</p>
     <div class="fab-hero__art">
-      <img src="{% static 'portal/fabrica/smart_skills_wheel.png' %}?v=2"
+      <img src="{% if fab_wheel_url %}{{ fab_wheel_url }}{% else %}{% static 'portal/fabrica/smart_skills_wheel.png' %}{% endif %}?v=3"
            alt="Fábrica de Competencias: Negocios, Power Skills, Sostenibilidad, Innovación y IA"
            width="838" height="594" loading="eager">
     </div>

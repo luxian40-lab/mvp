@@ -40,7 +40,10 @@ En eki hay **dos sentidos** de microcontenido:
 
 ### Voces (catálogo eki)
 
-Maria, Sofia, Carlos, Andrés — dropdown en admin. Default global: `ELEVENLABS_VOICE_ID` en EB. Clon cliente: pegar Voice ID de ElevenLabs en curso/módulo.
+Sofia, Gisela, Juan Esteban, Leo — dropdown en Studio/admin. Default global: `ELEVENLABS_VOICE_ID` en EB.
+**No** fijar `COURSE_ENGINE_VOICES_JSON` en EB salvo override verificado con `python manage.py course_engine_verificar_voces`
+(un JSON viejo con Maria/Carlos cruzó géneros en prod).
+Clon cliente: pegar Voice ID de ElevenLabs en curso/módulo.
 
 ---
 

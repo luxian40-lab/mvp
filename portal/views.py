@@ -1050,6 +1050,8 @@ def cursos_lista(request):
     url_mercado = (getattr(settings, 'MARGEN_PUBLIC_URL', '') or 'https://margen.eki.technology').rstrip('/') + '/mercado-gtm/'
     url_herramientas = (getattr(settings, 'MARGEN_PUBLIC_URL', '') or 'https://margen.eki.technology').rstrip('/') + '/'
 
+    from mvp_project.static_safe import static_safe
+
     return render(request, 'portal/cursos.html', {
         'org': org,
         'cursos': lista,
@@ -1061,6 +1063,7 @@ def cursos_lista(request):
         'url_herramientas': url_herramientas,
         'img_tool_margen': 'https://www.eki.com.co/assets/programas/prog-riendas.jpg',
         'img_tool_mercado': 'https://www.eki.com.co/assets/programas/prog-ventas.jpg',
+        'fab_wheel_url': static_safe('portal/fabrica/smart_skills_wheel.png'),
     })
 
 

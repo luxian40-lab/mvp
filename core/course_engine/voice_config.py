@@ -33,10 +33,19 @@ DEFAULT_VOICES: list[dict[str, str]] = [
     {'id': 'Ux2YbCNfurnKHnzlBHGX', 'label': 'Leo', 'genero': 'M'},
 ]
 
+# Género real ElevenLabs (evita overrides EB tipo Maria/Carlos cruzados).
+_GENERO_REAL_POR_ID = {v['id']: v['genero'] for v in DEFAULT_VOICES}
+
 
 def catalogo_voces() -> list[dict[str, str]]:
     raw = getattr(settings, 'COURSE_ENGINE_VOICES', None)
     if isinstance(raw, list) and raw:
+        # Si el JSON de EB contradice el género real de un id conocido, ignorar override.
+        for v in raw:
+            vid = (v.get('id') or '').strip()
+            esperado = _GENERO_REAL_POR_ID.get(vid)
+            if esperado and (v.get('genero') or '').upper() != esperado:
+                return DEFAULT_VOICES
         return raw
     return DEFAULT_VOICES
 

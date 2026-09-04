@@ -203,10 +203,23 @@ class VoiceCatalogIdentityTests(TestCase):
                 f"{label} es {genero}, catalogo dice {v['genero']}",
             )
 
-    def test_catalogo_dos_mujeres_dos_hombres(self):
-        generos = [v['genero'] for v in DEFAULT_VOICES]
-        self.assertEqual(generos.count('F'), 2)
-        self.assertEqual(generos.count('M'), 2)
+    def test_override_eb_con_genero_cruzado_se_ignora(self):
+        """COURSE_ENGINE_VOICES_JSON histórico (Maria=hombre, Carlos=mujer) no debe ganar."""
+        from django.test import override_settings
+
+        malo = [
+            {'id': 'Wb1wmVQjMx9g2QSIOTPI', 'label': 'Maria', 'genero': 'F'},
+            {'id': 'b2htR0pMe28pYwCY9gnP', 'label': 'Carlos', 'genero': 'M'},
+        ]
+        with override_settings(COURSE_ENGINE_VOICES=malo):
+            from core.course_engine import voice_config
+
+            cat = voice_config.catalogo_voces()
+            self.assertEqual(cat[0]['label'], 'Sofia')
+            self.assertEqual(
+                next(v for v in cat if v['id'] == 'Wb1wmVQjMx9g2QSIOTPI')['label'],
+                'Juan Esteban',
+            )
 
     def test_slugs_demo_unicos(self):
         from core.course_engine.voice_demos import demo_slug_for_voice_id
