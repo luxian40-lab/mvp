@@ -30,6 +30,21 @@
       status.textContent = msg;
     }
 
+    function parseJsonResponse(r) {
+      var ct = (r.headers.get('content-type') || '').toLowerCase();
+      return r.text().then(function (text) {
+        if (!text) return { ok: r.ok, data: {} };
+        if (ct.indexOf('application/json') === -1 && text.charAt(0) === '<') {
+          throw new Error('La sesión expiró o el servidor devolvió HTML. Recarga la página.');
+        }
+        try {
+          return { ok: r.ok, data: JSON.parse(text) };
+        } catch (e) {
+          throw new Error('Respuesta inválida del servidor (no JSON).');
+        }
+      });
+    }
+
     function postForm(action, extra) {
       var body = new FormData();
       body.set('action', action);
@@ -40,18 +55,16 @@
       if (extra) {
         Object.keys(extra).forEach(function (k) {
           var v = extra[k];
-          if (v && v.forEach) v.forEach(function (f) { body.append(k, f); });
-          else body.set(k, v);
+          if (v != null && v !== '' && v.forEach) v.forEach(function (f) { body.append(k, f); });
+          else if (v != null) body.set(k, v);
         });
       }
       return fetch(studioUrl, {
         method: 'POST',
         body: body,
         credentials: 'same-origin',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-      }).then(function (r) {
-        return r.json().then(function (data) { return { ok: r.ok, data: data }; });
-      });
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+      }).then(parseJsonResponse);
     }
 
     function escapeHtml(s) {
@@ -106,8 +119,8 @@
     function fetchDocs() {
       return fetch(studioUrl + '?docs=1', {
         credentials: 'same-origin',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-      }).then(function (r) { return r.json(); });
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+      }).then(parseJsonResponse).then(function (res) { return res.data; });
     }
 
     function startDocsPoll() {
@@ -185,9 +198,9 @@
       if (!vid) return Promise.reject(new Error('Sin voz'));
       return fetch(studioUrl + '?demo_voice=' + encodeURIComponent(vid) + '&generate=1', {
         credentials: 'same-origin',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
       })
-        .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+        .then(parseJsonResponse)
         .then(function (res) {
           if (res.ok && res.data && res.data.ok && res.data.url) {
             btn.setAttribute('data-audio-url', res.data.url);
@@ -351,10 +364,11 @@
       pollTimer = setInterval(function () {
         fetch(studioUrl + '?status=' + encodeURIComponent(runId), {
           credentials: 'same-origin',
-          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
         })
-          .then(function (r) { return r.json(); })
-          .then(function (data) {
+          .then(parseJsonResponse)
+          .then(function (res) {
+            var data = res.data || {};
             if (!data.ok) return;
             var st = data.status || '';
             var vurl = data.video_url || data.media_url || '';

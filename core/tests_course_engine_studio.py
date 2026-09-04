@@ -62,6 +62,23 @@ class CourseEngineStudioViewTests(TestCase):
         self.assertEqual(data['documentos'], [])
 
     @override_settings(SECURE_SSL_REDIRECT=False)
+    def test_demo_voice_unauth_returns_json_not_html(self):
+        """Sin sesión, demo_voice no debe devolver HTML login (rompe r.json() en el studio)."""
+        url = reverse('admin_course_engine_studio', kwargs={'curso_id': self.curso.pk})
+        vid = DEFAULT_VOICES[0]['id']
+        r = self.client.get(
+            url + f'?demo_voice={vid}&generate=1',
+            secure=True,
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+            HTTP_ACCEPT='application/json',
+        )
+        self.assertEqual(r.status_code, 401)
+        self.assertEqual(r['Content-Type'].split(';')[0], 'application/json')
+        data = r.json()
+        self.assertFalse(data.get('ok', True))
+        self.assertIn('Sesión', data.get('error', ''))
+
+    @override_settings(SECURE_SSL_REDIRECT=False)
     def test_set_voice(self):
         self.client.force_login(self.staff)
         url = reverse('admin_course_engine_studio', kwargs={'curso_id': self.curso.pk})

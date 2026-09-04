@@ -20,6 +20,16 @@ def _requiere_ce_portal(view_func):
     def wrapper(request, *args, **kwargs):
         pu = getattr(request, 'portal_usuario', None)
         if not pu or pu.rol not in ('admin', 'eki_ops'):
+            wants_json = (
+                request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+                or 'application/json' in (request.headers.get('Accept') or '')
+                or request.GET.get('demo_voice')
+                or request.GET.get('docs') == '1'
+                or request.GET.get('status')
+                or request.method == 'POST'
+            )
+            if wants_json:
+                return JsonResponse({'ok': False, 'error': 'Sesión expirada. Vuelve a entrar.'}, status=401)
             return redirect('/portal/login/')
         return view_func(request, *args, **kwargs)
 
@@ -43,7 +53,14 @@ def portal_curso_course_engine(request, curso_id: int):
     """Página del Course Engine y su endpoint ajax (mismo contrato que el admin)."""
     curso = get_object_or_404(Curso, pk=curso_id, activo=True)
     if not _puede_course_engine(request, curso):
-        if request.method == 'POST':
+        wants_json = (
+            request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or request.GET.get('demo_voice')
+            or request.GET.get('docs') == '1'
+            or request.GET.get('status')
+            or request.method == 'POST'
+        )
+        if wants_json:
             return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
         return redirect('/portal/dashboard/')
 

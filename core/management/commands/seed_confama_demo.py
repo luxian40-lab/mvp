@@ -19,7 +19,10 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
+from core.gamificacion import PerfilGamificacion
+from core.models import Cliente, Curso, Estudiante, Modulo, ModuloCompletado, ProgresoEstudiante, WhatsappLog
+from core.models_certificados import Certificado
+from core.models_extras import GrupoEstudiantes
 from portal.models import PortalUsuario
 from portal.provision import provisionar_usuario_portal
 
@@ -211,6 +214,20 @@ class Command(BaseCommand):
                 'Sin estudiantes demo (métricas intactas). Usa --estudiantes N cuando quieras poblar.'
             ))
         else:
+            grupos_spec = [
+                ('Cohorte Medellín 2026', '🏙️'),
+                ('Campo Antioquia', '🌿'),
+                ('Líderes rurales', '⭐'),
+            ]
+            grupos = []
+            for nombre_g, emoji in grupos_spec:
+                g, _ = GrupoEstudiantes.objects.get_or_create(
+                    cliente=cliente,
+                    nombre=nombre_g,
+                    defaults={'emoji': emoji, 'descripcion': f'Grupo demo Confama · {nombre_g}'},
+                )
+                grupos.append(g)
+
             existentes = Estudiante.objects.filter(cliente=cliente).count()
             faltan = max(0, n_est - existentes)
             rng = random.Random(42)
@@ -235,10 +252,26 @@ class Command(BaseCommand):
                     estado_chat='ACTIVO',
                     acepto_terminos=True,
                 )
+                grupos[i % len(grupos)].estudiantes.add(est)
+
                 curso = cursos[i % len(cursos)]
                 mods = list(Modulo.objects.filter(curso=curso).order_by('numero'))
-                completado = (i % 7 == 0)
-                mod_act = mods[min(len(mods) - 1, (i % max(1, len(mods))))] if mods else None
+                # Mix: completados / en curso / dormidos / recién inscritos
+                bucket = i % 10
+                completado = bucket == 0
+                dormido = bucket in (1, 2)
+                sin_avance = bucket == 3
+                n_mods_done = len(mods) if completado else (
+                    0 if sin_avance else min(len(mods), 1 + (i % max(1, len(mods))))
+                )
+                if completado:
+                    mod_act = mods[-1] if mods else None
+                elif sin_avance:
+                    mod_act = mods[0] if mods else None
+                else:
+                    mod_act = mods[min(len(mods) - 1, n_mods_done)] if mods else None
+
+                dias_inactivo = rng.randint(10, 25) if dormido else rng.randint(0, 5)
                 prog = ProgresoEstudiante.objects.create(
                     estudiante=est,
                     curso=curso,
@@ -247,18 +280,102 @@ class Command(BaseCommand):
                     fecha_completado=timezone.now() - timedelta(days=2) if completado else None,
                 )
                 ProgresoEstudiante.objects.filter(pk=prog.pk).update(
-                    fecha_inicio=timezone.now() - timedelta(days=rng.randint(5, 60)),
-                    fecha_ultimo_avance=timezone.now() - timedelta(days=rng.randint(0, 14)),
+                    fecha_inicio=timezone.now() - timedelta(days=rng.randint(10, 75)),
+                    fecha_ultimo_avance=(
+                        None if sin_avance
+                        else timezone.now() - timedelta(days=dias_inactivo)
+                    ),
                 )
+                for m in mods[:n_mods_done]:
+                    ModuloCompletado.objects.get_or_create(progreso=prog, modulo=m)
+
+                perfil, _ = PerfilGamificacion.objects.get_or_create(estudiante=est)
+                perfil.puntos_totales = 15 + (i * 17) % 280
+                perfil.save(update_fields=['puntos_totales'])
+
+                if completado:
+                    Certificado.objects.get_or_create(
+                        estudiante=est,
+                        curso=curso,
+                        defaults={
+                            'calificacion_final': 85 + (i % 15),
+                            'fecha_inicio': (timezone.now() - timedelta(days=40)).date(),
+                            'fecha_completado': (timezone.now() - timedelta(days=2)).date(),
+                            'emitido': True,
+                            'fecha_emision': timezone.now() - timedelta(days=1),
+                            'organizacion_emisora': 'Confama',
+                        },
+                    )
+
+                # WhatsApp logs (gráficos + salud WA)
+                for d in range(7):
+                    n_msg = 1 + ((i + d) % 4)
+                    for k in range(n_msg):
+                        tipo = 'SENT' if (i + d + k) % 3 else 'INCOMING'
+                        estado = rng.choice(['DELIVERED', 'READ', 'DELIVERED', 'READ', 'SENT'])
+                        if tipo == 'INCOMING':
+                            estado = 'RECEIVED'
+                        wl = WhatsappLog(
+                            telefono=tel,
+                            mensaje=f'Demo Confama · día {d} · {nombre.split()[0]}',
+                            mensaje_id=f'confama-demo-{est.pk}-{d}-{k}',
+                            estado=estado,
+                            tipo=tipo,
+                            estudiante=est,
+                            es_audio=(k == 0 and d % 3 == 0),
+                            agente_usado='nat' if tipo == 'SENT' and k == 0 else '',
+                        )
+                        wl.save()
+                        WhatsappLog.objects.filter(pk=wl.pk).update(
+                            fecha=timezone.now() - timedelta(days=d, hours=k)
+                        )
                 creados += 1
+
+            # Top-up métricas en existentes (idempotente: salta si ya tienen WA)
+            self._enriquecer_existentes(cliente, cursos, rng)
 
             self.stdout.write(self.style.SUCCESS(
                 f'Estudiantes: {Estudiante.objects.filter(cliente=cliente).count()} '
                 f'(+{creados} nuevos)'
             ))
+            self.stdout.write(
+                f'WhatsApp logs: {WhatsappLog.objects.filter(estudiante__cliente=cliente).count()} · '
+                f'Certificados: {Certificado.objects.filter(estudiante__cliente=cliente).count()}'
+            )
 
         self.stdout.write('')
         self.stdout.write(self.style.SUCCESS('QA_PASS seed Confama'))
         self.stdout.write('Login portal: usuario=confama')
         self.stdout.write(f'Password: {password}')
         self.stdout.write('URL: /portal/login/')
+
+    def _enriquecer_existentes(self, cliente, cursos, rng):
+        """Si ya hay N estudiantes, rellena métricas sin duplicar personas."""
+        for i, est in enumerate(Estudiante.objects.filter(cliente=cliente).order_by('id')[:80]):
+            if WhatsappLog.objects.filter(estudiante=est).exists():
+                continue
+            tel = (est.telefono or f'57300{1000000 + i:07d}').strip()
+            for d in range(7):
+                for k in range(1 + (i + d) % 3):
+                    tipo = 'SENT' if (i + d + k) % 2 else 'INCOMING'
+                    wl = WhatsappLog(
+                        telefono=tel,
+                        mensaje=f'Demo Confama top-up {d}',
+                        mensaje_id=f'confama-topup-{est.pk}-{d}-{k}',
+                        estado='READ' if tipo == 'SENT' else 'RECEIVED',
+                        tipo=tipo,
+                        estudiante=est,
+                    )
+                    wl.save()
+                    WhatsappLog.objects.filter(pk=wl.pk).update(
+                        fecha=timezone.now() - timedelta(days=d, hours=k)
+                    )
+            PerfilGamificacion.objects.get_or_create(
+                estudiante=est,
+                defaults={'puntos_totales': 40 + (i * 11) % 200},
+            )
+            prog = ProgresoEstudiante.objects.filter(estudiante=est).first()
+            if prog and not prog.modulos_completados.exists():
+                mods = list(Modulo.objects.filter(curso=prog.curso).order_by('numero'))
+                for m in mods[: max(1, len(mods) // 2)]:
+                    ModuloCompletado.objects.get_or_create(progreso=prog, modulo=m)

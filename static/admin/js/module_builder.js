@@ -116,13 +116,11 @@
         'Content-Type': 'application/x-www-form-urlencoded',
         'X-CSRFToken': csrfToken(),
         Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
       },
       credentials: 'same-origin',
       body: body.toString(),
-    }).then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    });
+    }).then(parseJsonResponse);
   }
 
   function applyOrdenFromResponse(data) {
@@ -205,6 +203,15 @@
 
   function parseJsonResponse(r) {
     return r.text().then(function (text) {
+      if (!text) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return {};
+      }
+      if (text.charAt(0) === '<') {
+        throw new Error(
+          'Sesión expirada o respuesta HTML. Recargue (Ctrl+F5) e inicie sesión de nuevo.'
+        );
+      }
       var data;
       try {
         data = JSON.parse(text);
@@ -239,10 +246,11 @@
         'Content-Type': 'application/x-www-form-urlencoded',
         'X-CSRFToken': csrfToken(),
         Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
       },
       credentials: 'same-origin',
       body: body.toString(),
-    });
+    }).then(parseJsonResponse);
   }
 
   function initUploadDraftPreserve(shell) {

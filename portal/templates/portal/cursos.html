@@ -18,21 +18,20 @@
   text-transform: uppercase;
   color: var(--purple-deep, #5F3A6E);
 }
-/* La PNG ya trae título + rueda + labels: no recortar en círculo ni duplicar copy */
+/* Rueda con labels externos (Negocios / Power Skills / Sostenibilidad / Innovación & IA) */
 .fab-hero__art {
-  max-width: min(640px, 96vw);
+  max-width: min(720px, 100%);
   margin: 0 auto;
-  border-radius: 20px;
-  overflow: hidden;
-  background: #fff;
-  border: 1px solid var(--borde);
-  box-shadow: var(--shadow-soft);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  overflow: visible;
 }
 .fab-hero__art img {
   display: block;
   width: 100%;
   height: auto;
-  vertical-align: middle;
+  margin: 0 auto;
 }
 .fab-section { margin: 28px 0; }
 .fab-section__head {
@@ -93,9 +92,9 @@
   <header class="fab-hero">
     <p class="fab-hero__kicker">Fábrica</p>
     <div class="fab-hero__art">
-      <img src="{% static 'portal/fabrica/smart_skills_factory.png' %}"
-           alt="Modelo Smart Skills Factory: Negocios, Power Skills, Sostenibilidad, Innovación y IA"
-           width="640" height="720" loading="eager">
+      <img src="{% static 'portal/fabrica/smart_skills_wheel.png' %}?v=2"
+           alt="Fábrica de Competencias: Negocios, Power Skills, Sostenibilidad, Innovación y IA"
+           width="838" height="594" loading="eager">
     </div>
   </header>
 

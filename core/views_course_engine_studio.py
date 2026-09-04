@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from functools import wraps
 
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.exceptions import PermissionDenied
@@ -17,11 +18,41 @@ from core.models import Curso
 logger = logging.getLogger(__name__)
 
 
-@staff_member_required
+def _wants_json(request) -> bool:
+    return (
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        or 'application/json' in (request.headers.get('Accept') or '')
+        or bool(request.GET.get('demo_voice'))
+        or request.GET.get('docs') == '1'
+        or bool(request.GET.get('status'))
+        or request.method == 'POST'
+    )
+
+
+def staff_member_required_json(view_func):
+    """Como staff_member_required, pero ajax/demo_voice → JSON 401 en vez de HTML login."""
+
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if request.user.is_active and request.user.is_staff:
+            return view_func(request, *args, **kwargs)
+        if _wants_json(request):
+            return JsonResponse(
+                {'ok': False, 'error': 'Sesión expirada. Vuelve a entrar al admin.'},
+                status=401,
+            )
+        return staff_member_required(view_func)(request, *args, **kwargs)
+
+    return wrapper
+
+
+@staff_member_required_json
 @require_http_methods(['GET', 'POST'])
 def course_engine_studio_view(request, curso_id: int):
     curso = get_object_or_404(Curso.objects.select_related('cliente'), pk=curso_id)
     if not request.user.is_staff:
+        if _wants_json(request):
+            return JsonResponse({'ok': False, 'error': 'Sin permiso'}, status=403)
         raise PermissionDenied
 
     out = studio_ajax(request, curso, usuario=request.user)
