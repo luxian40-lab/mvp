@@ -113,6 +113,41 @@ def _extract_from_body(payload: Any) -> tuple[str, str, str]:
     )
 
 
+def _body_o_audio_transcrito(payload: Any, body: str) -> str:
+    """Si Body vacío y hay audio Twilio, transcribe (Coach/Profe/comandos)."""
+    if (body or '').strip():
+        return body
+    if payload is None or isinstance(payload, str):
+        return body
+    try:
+        num_media = int(payload.get('NumMedia', 0) or 0)  # type: ignore[union-attr]
+    except (TypeError, ValueError):
+        num_media = 0
+    if num_media < 1:
+        return body
+    try:
+        media_url = (payload.get('MediaUrl0') or '').strip()  # type: ignore[union-attr]
+        media_type = (payload.get('MediaContentType0') or '').strip()  # type: ignore[union-attr]
+    except Exception:
+        return body
+    if not media_url:
+        return body
+    mt = media_type.lower()
+    if mt and not any(x in mt for x in ('audio', 'ogg', 'opus', 'mpeg', 'mp4', 'amr', 'wav')):
+        # Imagen/video: avisar en agentes
+        return body
+    try:
+        from core.views import _transcribir_audio_twilio
+
+        texto = (_transcribir_audio_twilio(media_url, media_type=media_type or 'audio/ogg') or '').strip()
+        if texto:
+            logger.info('sandbox_audio_transcrito chars=%s', len(texto))
+            return texto
+    except Exception:
+        logger.exception('sandbox_audio_transcribe_fail')
+    return body
+
+
 def _get_or_create_sesion(telefono: str):
     from core.models import SandboxCanalSesion
 
@@ -197,6 +232,7 @@ def memoria_corte_nat(telefono: str):
 
 def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
     from_tel, to_tel, body = _extract_from_body(payload)
+    body = _body_o_audio_transcrito(payload, body)
     decision = SandboxRouteDecision(
         action='show_menu',
         from_number=to_tel or sandbox_number(),
@@ -206,6 +242,13 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
         return decision
 
     sesion = _get_or_create_sesion(from_tel)
+
+    # *hola* / *menu* siempre vuelven al menú (evita atascarse en cursos/agentes)
+    t_low = (body or '').strip().lower()
+    if t_low in ('menu', 'menú', 'inicio', 'start', 'hola', 'hi', 'hey', 'buenas', 'buen día', 'buenos días'):
+        _set_modo(sesion, MODO_MENU)
+        decision.action = 'show_menu'
+        return decision
 
     # Dentro del submenú agentes: priorizar 1/2/3 de agentes
     if sesion.modo == MODO_AGENTES:
@@ -363,6 +406,11 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str) -> str:
         texto = saludo_agente(agente, reinicio=True)  # type: ignore[arg-type]
     elif decision.saludo_entrada:
         texto = saludo_agente(agente)  # type: ignore[arg-type]
+    elif not (body or '').strip():
+        texto = (
+            f"{saludo_agente(agente)}\n\n"  # type: ignore[arg-type]
+            "_Si envió un *audio* y no lo entendí, pruebe otra vez o escriba el mensaje._"
+        )
     else:
         texto = responder_agente_sandbox(agente, body, telefono=decision.telefono_usuario)  # type: ignore[arg-type]
     try:
@@ -392,6 +440,7 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
     decision = resolver_ruta_sandbox(payload)
     from_n = decision.from_number or sandbox_number()
     _, _, body = _extract_from_body(payload)
+    body = _body_o_audio_transcrito(payload, body)
 
     if decision.action == 'show_menu':
         try:

@@ -237,10 +237,11 @@ def curso_demo_riendas():
 
 def sincronizar_demo_riendas_desde_prod(*, origen_id: int | None = None) -> dict:
     """
-    Copia contenido de módulos del Riendas prod → curso demo (EKI_DEMO_RIENDAS_CURSO_ID).
-    No borra el curso; actualiza por número de módulo.
+    Copia contenido + ArchivoModulo (videos/audio) del Riendas prod → curso demo.
+    No borra el curso; actualiza por número de módulo. Reutiliza las mismas URLs S3.
     """
     from core.models import Curso, Modulo
+    from core.models_extras import ArchivoModulo
 
     destino = curso_demo_riendas()
     if destino is None:
@@ -257,6 +258,7 @@ def sincronizar_demo_riendas_desde_prod(*, origen_id: int | None = None) -> dict
         return {'ok': False, 'error': 'sin_origen', 'origen_id': oid}
 
     actualizados = 0
+    archivos_copiados = 0
     for mod_o in Modulo.objects.filter(curso=origen).order_by('numero'):
         mod_d = Modulo.objects.filter(curso=destino, numero=mod_o.numero).first()
         if mod_d is None:
@@ -270,35 +272,72 @@ def sincronizar_demo_riendas_desde_prod(*, origen_id: int | None = None) -> dict
                 publicado_wa=True,
             )
             actualizados += 1
-            continue
-        dirty = False
-        for field in (
-            'titulo',
-            'descripcion',
-            'contenido',
-            'modo_entrega',
-            'video_url',
-            'archivo_pdf_url',
-            'imagen_portada_url',
-        ):
-            if not hasattr(mod_o, field) or not hasattr(mod_d, field):
-                continue
-            val = getattr(mod_o, field)
-            if getattr(mod_d, field) != val:
-                setattr(mod_d, field, val)
+        else:
+            dirty = False
+            for field in (
+                'titulo',
+                'descripcion',
+                'contenido',
+                'modo_entrega',
+                'video_url',
+                'archivo_pdf_url',
+                'imagen_portada_url',
+            ):
+                if not hasattr(mod_o, field) or not hasattr(mod_d, field):
+                    continue
+                val = getattr(mod_o, field)
+                if getattr(mod_d, field) != val:
+                    setattr(mod_d, field, val)
+                    dirty = True
+            if hasattr(mod_d, 'publicado_wa') and not mod_d.publicado_wa:
+                mod_d.publicado_wa = True
                 dirty = True
-        if hasattr(mod_d, 'publicado_wa') and not mod_d.publicado_wa:
-            mod_d.publicado_wa = True
-            dirty = True
-        if dirty:
-            mod_d.save()
-            actualizados += 1
+            if dirty:
+                mod_d.save()
+                actualizados += 1
+
+        # Multimedia: clonar ArchivoModulo por orden/titulo (mismas URLs S3)
+        for a_o in ArchivoModulo.objects.filter(modulo=mod_o, activo=True).order_by('orden', 'id'):
+            existe = ArchivoModulo.objects.filter(
+                modulo=mod_d,
+                titulo=a_o.titulo,
+                tipo=a_o.tipo,
+                orden=a_o.orden,
+            ).exists()
+            if existe:
+                continue
+            nuevo = ArchivoModulo(
+                modulo=mod_d,
+                tipo=a_o.tipo,
+                titulo=a_o.titulo,
+                descripcion=a_o.descripcion or '',
+                url_externa=a_o.url_externa or '',
+                disponible_offline=a_o.disponible_offline,
+                orden=a_o.orden,
+                activo=True,
+                tamano_bytes=a_o.tamano_bytes,
+                duracion_segundos=a_o.duracion_segundos,
+            )
+            if a_o.archivo:
+                nuevo.archivo = a_o.archivo
+            try:
+                # bulk_create evita HEAD de validación en url_externa (URLs ya OK en origen)
+                ArchivoModulo.objects.bulk_create([nuevo])
+                archivos_copiados += 1
+            except Exception:
+                logger.exception(
+                    'sync_demo_archivo_fail origen=%s destino_mod=%s titulo=%s',
+                    a_o.id,
+                    mod_d.id,
+                    a_o.titulo,
+                )
 
     return {
         'ok': True,
         'origen_id': origen.id,
         'destino_id': destino.id,
         'modulos_actualizados': actualizados,
+        'archivos_copiados': archivos_copiados,
     }
 
 
@@ -327,10 +366,12 @@ def _reset_progreso_demo(progreso, curso) -> None:
 
 
 def _enviar_modulo1_demo(dest: str, curso) -> None:
-    """Manda el texto del módulo 1 para que el usuario vea el curso al instante."""
+    """Manda texto + multimedia del módulo 1 para que el usuario vea el curso al instante."""
+    from core.inscripcion_curso import primer_modulo_curso
+    from core.models_extras import ArchivoModulo
     from core.response_templates import dividir_contenido_seguro
     from core.utils import enviar_whatsapp_twilio
-    from core.inscripcion_curso import primer_modulo_curso
+    from core.whatsapp_service import enviar_archivo_modulo_whatsapp
 
     m1 = primer_modulo_curso(curso)
     if m1 is None:
@@ -346,14 +387,23 @@ def _enviar_modulo1_demo(dest: str, curso) -> None:
     )
     enviar_whatsapp_twilio(dest, intro)
     body = (m1.contenido or '').strip()
-    if not body:
+    if body:
+        for chunk in dividir_contenido_seguro(body, max_chars=1200):
+            enviar_whatsapp_twilio(dest, chunk)
+    archivos = list(
+        ArchivoModulo.objects.filter(modulo=m1, activo=True).order_by('orden', 'id')
+    )
+    if not archivos and not body:
         enviar_whatsapp_twilio(
             dest,
-            'Este módulo aún no tiene contenido de texto. Escribe *listo* por si hay media.',
+            'Este módulo aún no tiene contenido. Escribe *listo* por si hay media.',
         )
         return
-    for chunk in dividir_contenido_seguro(body, max_chars=1200):
-        enviar_whatsapp_twilio(dest, chunk)
+    for arch in archivos:
+        try:
+            enviar_archivo_modulo_whatsapp(dest, arch)
+        except Exception:
+            logger.exception('demo_riendas_envio_archivo_fail archivo=%s', arch.id)
 
 
 def arrancar_demo_riendas(*, telefono: str, dest_wa: str, sandbox: bool = False) -> bool:

@@ -120,6 +120,40 @@ class SandboxMenuTests(TestCase):
         self.assertEqual(resolver_ruta_sandbox({**base, 'Body': 'listo'}).action, 'cursos')
         self.assertEqual(resolver_ruta_sandbox({**base, 'Body': 'menu'}).action, 'show_menu')
 
+    def test_hola_desde_cursos_vuelve_al_menu(self):
+        base = {
+            'From': 'whatsapp:+573001234581',
+            'To': 'whatsapp:+14155238886',
+        }
+        resolver_ruta_sandbox({**base, 'Body': '2'})
+        d = resolver_ruta_sandbox({**base, 'Body': 'hola'})
+        self.assertEqual(d.action, 'show_menu')
+        self.assertEqual(
+            SandboxCanalSesion.objects.get(telefono='573001234581').modo,
+            MODO_MENU,
+        )
+
+    def test_audio_en_coach_usa_transcripcion(self):
+        tel_from = 'whatsapp:+573001234582'
+        to = 'whatsapp:+14155238886'
+        resolver_ruta_sandbox({'From': tel_from, 'To': to, 'Body': '1'})
+        resolver_ruta_sandbox({'From': tel_from, 'To': to, 'Body': '2'})
+        audio_payload = {
+            'From': tel_from,
+            'To': to,
+            'Body': '',
+            'NumMedia': '1',
+            'MediaUrl0': 'https://api.twilio.com/audio.ogg',
+            'MediaContentType0': 'audio/ogg',
+        }
+        with patch(
+            'core.views._transcribir_audio_twilio',
+            return_value='me cuesta organizar el tiempo',
+        ):
+            d = resolver_ruta_sandbox(audio_payload)
+        self.assertEqual(d.action, 'coach')
+        self.assertFalse(d.saludo_entrada)
+
     def test_dispatch_agentes_handled(self):
         with patch('core.sandbox_menu.enviar_menu_agentes', return_value={'success': True}):
             self.assertEqual(
