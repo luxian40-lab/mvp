@@ -235,15 +235,145 @@ def curso_demo_riendas():
     )
 
 
-def arrancar_demo_riendas(*, telefono: str, dest_wa: str) -> bool:
+def sincronizar_demo_riendas_desde_prod(*, origen_id: int | None = None) -> dict:
+    """
+    Copia contenido de módulos del Riendas prod → curso demo (EKI_DEMO_RIENDAS_CURSO_ID).
+    No borra el curso; actualiza por número de módulo.
+    """
+    from core.models import Curso, Modulo
+
+    destino = curso_demo_riendas()
+    if destino is None:
+        return {'ok': False, 'error': 'sin_demo'}
+
+    oid = origen_id
+    if oid is None:
+        try:
+            oid = int(getattr(settings, 'EKI_DEMO_RIENDAS_ORIGEN_ID', 3) or 3)
+        except (TypeError, ValueError):
+            oid = 3
+    origen = Curso.objects.filter(pk=oid, activo=True).first()
+    if origen is None:
+        return {'ok': False, 'error': 'sin_origen', 'origen_id': oid}
+
+    actualizados = 0
+    for mod_o in Modulo.objects.filter(curso=origen).order_by('numero'):
+        mod_d = Modulo.objects.filter(curso=destino, numero=mod_o.numero).first()
+        if mod_d is None:
+            mod_d = Modulo.objects.create(
+                curso=destino,
+                numero=mod_o.numero,
+                titulo=mod_o.titulo,
+                descripcion=mod_o.descripcion or '',
+                contenido=mod_o.contenido or '',
+                modo_entrega=mod_o.modo_entrega,
+                publicado_wa=True,
+            )
+            actualizados += 1
+            continue
+        dirty = False
+        for field in (
+            'titulo',
+            'descripcion',
+            'contenido',
+            'modo_entrega',
+            'video_url',
+            'archivo_pdf_url',
+            'imagen_portada_url',
+        ):
+            if not hasattr(mod_o, field) or not hasattr(mod_d, field):
+                continue
+            val = getattr(mod_o, field)
+            if getattr(mod_d, field) != val:
+                setattr(mod_d, field, val)
+                dirty = True
+        if hasattr(mod_d, 'publicado_wa') and not mod_d.publicado_wa:
+            mod_d.publicado_wa = True
+            dirty = True
+        if dirty:
+            mod_d.save()
+            actualizados += 1
+
+    return {
+        'ok': True,
+        'origen_id': origen.id,
+        'destino_id': destino.id,
+        'modulos_actualizados': actualizados,
+    }
+
+
+def _reset_progreso_demo(progreso, curso) -> None:
+    from core.inscripcion_curso import primer_modulo_curso
+    from core.models import ModuloCompletado
+
+    m1 = primer_modulo_curso(curso)
+    progreso.completado = False
+    progreso.fecha_completado = None
+    progreso.modulo_actual = m1
+    progreso.paso_actual_modulo = 1
+    progreso.esperando_respuesta_evaluacion_paso = False
+    progreso.paso_evaluacion_paso = None
+    progreso.save(
+        update_fields=[
+            'completado',
+            'fecha_completado',
+            'modulo_actual',
+            'paso_actual_modulo',
+            'esperando_respuesta_evaluacion_paso',
+            'paso_evaluacion_paso',
+        ]
+    )
+    ModuloCompletado.objects.filter(progreso=progreso).delete()
+
+
+def _enviar_modulo1_demo(dest: str, curso) -> None:
+    """Manda el texto del módulo 1 para que el usuario vea el curso al instante."""
+    from core.response_templates import dividir_contenido_seguro
+    from core.utils import enviar_whatsapp_twilio
+    from core.inscripcion_curso import primer_modulo_curso
+
+    m1 = primer_modulo_curso(curso)
+    if m1 is None:
+        enviar_whatsapp_twilio(
+            dest,
+            'Demo *Tome las riendas* lista, pero aún no hay módulos. Avisa a eki tech.',
+        )
+        return
+    intro = (
+        f'📚 *Demo sandbox · {curso.nombre}*\n'
+        f'Módulo {m1.numero}: {m1.titulo}\n\n'
+        '_Escribe *listo* para avanzar. *menu* vuelve al menú._\n'
+    )
+    enviar_whatsapp_twilio(dest, intro)
+    body = (m1.contenido or '').strip()
+    if not body:
+        enviar_whatsapp_twilio(
+            dest,
+            'Este módulo aún no tiene contenido de texto. Escribe *listo* por si hay media.',
+        )
+        return
+    for chunk in dividir_contenido_seguro(body, max_chars=1200):
+        enviar_whatsapp_twilio(dest, chunk)
+
+
+def arrancar_demo_riendas(*, telefono: str, dest_wa: str, sandbox: bool = False) -> bool:
     """
     Inscribe en la copia demo de Riendas y manda Habeas.
     Si no hay curso configurado, manda el CTA de *1* + correo.
+
+    sandbox=True: permite números ya inscritos en otro cliente, resetea progreso
+    y envía el módulo 1 (uso menú sandbox Twilio).
     """
     from core.utils import enviar_whatsapp_twilio
     from core.whatsapp_service import enviar_habeas_data
 
     dest = dest_wa or telefono
+    if sandbox:
+        try:
+            sincronizar_demo_riendas_desde_prod()
+        except Exception:
+            logger.exception('Demo Riendas: sync desde prod falló (sigo con demo actual)')
+
     curso = curso_demo_riendas()
     if curso is None:
         enviar_whatsapp_twilio(dest, TEXTO_CTA_RIENDAS)
@@ -264,14 +394,29 @@ def arrancar_demo_riendas(*, telefono: str, dest_wa: str) -> bool:
             and curso.cliente_id
             and est.cliente_id == curso.cliente_id
         )
-        if not mismo_cliente:
+        if not mismo_cliente and not sandbox:
             enviar_whatsapp_twilio(
                 dest,
                 'Usted ya está en un curso eki. Esta demo pública es para números nuevos.\n\n'
                 'Si quiere ver la página: https://eki.com.co/programas/tome-las-riendas',
             )
             return True
-        inscribir_estudiante_en_curso(est, curso)
+        progreso, _ = inscribir_estudiante_en_curso(est, curso)
+        if sandbox:
+            _reset_progreso_demo(progreso, curso)
+            ctx = dict(est.contexto_temporal or {})
+            ctx['curso_activo_id'] = curso.id
+            est.contexto_temporal = ctx
+            if est.estado_chat != 'ACTIVO' and est.acepto_terminos:
+                est.estado_chat = 'ACTIVO'
+            est.save(update_fields=['contexto_temporal', 'estado_chat'])
+            if not est.acepto_terminos:
+                est.estado_chat = 'ESPERANDO_HABEAS_DATA'
+                est.save(update_fields=['estado_chat'])
+                enviar_habeas_data(tel, cliente=curso.cliente)
+                return True
+            _enviar_modulo1_demo(dest, curso)
+            return True
         if not est.acepto_terminos:
             est.estado_chat = 'ESPERANDO_HABEAS_DATA'
             est.save(update_fields=['estado_chat'])
@@ -305,7 +450,13 @@ def arrancar_demo_riendas(*, telefono: str, dest_wa: str) -> bool:
         estado_chat='ESPERANDO_HABEAS_DATA',
         estado_onboarding='nuevo',
     )
-    inscribir_estudiante_en_curso(est, curso)
+    progreso, _ = inscribir_estudiante_en_curso(est, curso)
+    if sandbox:
+        _reset_progreso_demo(progreso, curso)
+        ctx = dict(est.contexto_temporal or {})
+        ctx['curso_activo_id'] = curso.id
+        est.contexto_temporal = ctx
+        est.save(update_fields=['contexto_temporal'])
     enviar_whatsapp_twilio(
         dest,
         'Vamos con la demo *Tome las riendas de su dinero*. '

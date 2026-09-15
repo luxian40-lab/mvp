@@ -199,3 +199,69 @@ class CatalogoDemoCarouselV2Tests(TestCase):
         self.assertEqual(
             Estudiante.objects.get(telefono='573009990012').cliente_id, otro.id
         )
+
+    @override_settings(EKI_DEMO_CAROUSEL_ENABLED=True)
+    def test_sandbox_permite_estudiante_otro_cliente_y_envia_m1(self):
+        from core.catalogo_demo_carousel import arrancar_demo_riendas
+        from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
+
+        otro = Cliente.objects.create(
+            nombre='Org paga SB',
+            nit='800111222-4',
+            activo=True,
+            contacto_principal='x',
+            email='x@eki.co',
+            telefono='57300',
+        )
+        demo = Cliente.objects.create(
+            nombre='eki Demo SB',
+            nit='900888777-3',
+            activo=True,
+            contacto_principal='eki',
+            email='demo@eki.co',
+            telefono='57300',
+        )
+        curso = Curso.objects.create(
+            nombre='Demo · Riendas SB',
+            cliente=demo,
+            activo=True,
+        )
+        Modulo.objects.create(
+            curso=curso,
+            numero=1,
+            titulo='Bienvenidos',
+            contenido='Hola módulo uno sandbox demo contenido.',
+            publicado_wa=True,
+        )
+        est = Estudiante.objects.create(
+            nombre='Tester',
+            cedula='1088002',
+            telefono='573009990099',
+            cliente=otro,
+            activo=True,
+            acepto_terminos=True,
+            estado_chat='ACTIVO',
+        )
+        with override_settings(
+            EKI_DEMO_RIENDAS_CURSO_ID=str(curso.id),
+            EKI_DEMO_RIENDAS_ORIGEN_ID='999999',  # sync no-op
+        ):
+            with patch('core.utils.enviar_whatsapp_twilio') as mock_txt, patch(
+                'core.catalogo_demo_carousel.sincronizar_demo_riendas_desde_prod',
+                return_value={'ok': False},
+            ):
+                mock_txt.return_value = {'success': True}
+                ok = arrancar_demo_riendas(
+                    telefono='573009990099',
+                    dest_wa='573009990099',
+                    sandbox=True,
+                )
+        self.assertTrue(ok)
+        self.assertEqual(est.cliente_id, otro.id)  # no roba cliente
+        prog = ProgresoEstudiante.objects.get(estudiante=est, curso=curso)
+        self.assertFalse(prog.completado)
+        self.assertEqual(prog.modulo_actual.numero, 1)
+        est.refresh_from_db()
+        self.assertEqual((est.contexto_temporal or {}).get('curso_activo_id'), curso.id)
+        textos = ' '.join(str(c.args[1]) for c in mock_txt.call_args_list)
+        self.assertIn('módulo uno', textos.lower())

@@ -682,7 +682,7 @@ def _bot_comercial_respuesta_catalogo(
 
 
 def _bot_comercial_historial_reciente(telefono: str, max_turnos: int = 6, max_chars: int = 1200) -> str:
-    """Construye memoria corta de conversación comercial desde WhatsappLog."""
+    """Construye memoria de conversación comercial desde WhatsappLog."""
     if not telefono:
         return ''
 
@@ -690,23 +690,31 @@ def _bot_comercial_historial_reciente(telefono: str, max_turnos: int = 6, max_ch
         max_turnos = int(max_turnos or 6)
     except (TypeError, ValueError):
         max_turnos = 6
-    max_turnos = max(2, min(max_turnos, 12))
+    # Sandbox / memoria larga: hasta 28 pares; prod típico sigue en 12 vía settings.
+    max_turnos = max(2, min(max_turnos, 28))
 
     try:
         max_chars = int(max_chars or 1200)
     except (TypeError, ValueError):
         max_chars = 1200
-    max_chars = max(300, min(max_chars, 2500))
+    max_chars = max(300, min(max_chars, 8000))
 
-    logs = list(
-        WhatsappLog.objects.filter(
+    logs_qs = WhatsappLog.objects.filter(
             telefono=telefono,
             agente_usado='BOT_COMERCIAL',
-        )
-        .exclude(mensaje__isnull=True)
-        .exclude(mensaje='')
-        .order_by('-fecha')[: (max_turnos * 3)]
-    )
+        ).exclude(mensaje__isnull=True).exclude(mensaje='')
+
+    # Sandbox: corte de memoria solo con *reiniciar* (no al entrar a Agrónomo)
+    try:
+        from core.sandbox_menu import memoria_corte_nat
+
+        corte = memoria_corte_nat(telefono)
+        if corte is not None:
+            logs_qs = logs_qs.filter(fecha__gte=corte)
+    except Exception:
+        pass
+
+    logs = list(logs_qs.order_by('-fecha')[: (max_turnos * 3)])
 
     if not logs:
         return ''
@@ -875,6 +883,15 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
     msg_normalizado = re.sub(r'\s+', ' ', (msg_body or '').strip().lower())
     memoria_turnos = int(getattr(settings, 'BOT_COMERCIAL_MEMORY_TURNOS', 12) or 12)
     memoria_chars = int(getattr(settings, 'BOT_COMERCIAL_MEMORY_MAX_CHARS', 3600) or 3600)
+    # Sandbox Nat: memoria extendida (sigue donde quedaron)
+    try:
+        from core.models import SandboxCanalSesion
+
+        if SandboxCanalSesion.objects.filter(telefono=telefono_limpio, modo='nat').exists():
+            memoria_turnos = max(memoria_turnos, 28)
+            memoria_chars = max(memoria_chars, 6000)
+    except Exception:
+        pass
     historial_chat = _bot_comercial_historial_reciente(
         telefono=telefono_limpio,
         max_turnos=memoria_turnos,
@@ -945,225 +962,237 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
             pass
         texto_respuesta = armar_saludo_menu(cliente_nati)
     else:
-        diagnostico_vision = ''
-        if num_media > 0 and media_type.startswith('image') and media_url:
-            diagnostico_vision = _bot_comercial_diagnosticar_imagen(
-                media_url, media_type, cliente=cliente_nati,
-            )
+        from core.nat_cuota import evaluar_cuota_nat, mensaje_cuota_agotada
 
-        from core.bot_comercial.vision import es_analisis_vision_util
-
-        vision_util = es_analisis_vision_util(diagnostico_vision)
-
-        consulta = msg_body or 'Necesito asesoría agrícola'
-        # Solo inyectar análisis real (no mensajes de error/capability) al LLM
-        if vision_util:
-            consulta = f"{consulta}\n\nDiagnóstico preliminar imagen: {diagnostico_vision}"
-
-        texto_respuesta = None
-        try:
-            from core.nat_diagnostico import siguiente_pregunta_diagnostico
-
-            pregunta_diag = siguiente_pregunta_diagnostico(
-                ctx_agro,
-                msg_body,
-                tiene_imagen=bool(diagnostico_vision),
-            )
-            if pregunta_diag and vision_util:
-                # Foto útil + dato pendiente: análisis + pregunta, sin rótulo extra
-                texto_respuesta = (
-                    f"{diagnostico_vision.strip()}\n\n{pregunta_diag.strip()}"
-                )
-            elif pregunta_diag:
-                texto_respuesta = pregunta_diag
-            elif vision_util and not (msg_body or '').strip():
-                pass
-        except Exception:
-            pass
-
-        rag_chunks: list = []
-        routing = None
-        if texto_respuesta is None:
-            cliente_ids_consulta = armar_cliente_ids_rag(cliente_nati)
-
-            contexto_rag = ''
-            contexto_web = ''
-
-            from core.catalogo_precios import (
-                buscar_precios,
-                es_consulta_catalogo,
-                formatear_contexto_precios,
-            )
-            contexto_precios_db = ''
-            if es_consulta_catalogo(consulta) and cliente_ids_consulta:
-                productos_precio = buscar_precios(
-                    [i for i in cliente_ids_consulta if i != 0] or cliente_ids_consulta,
-                    consulta,
-                )
-                if productos_precio:
-                    contexto_precios_db = formatear_contexto_precios(productos_precio)
-                    logger.info(
-                        "💰 Precios Postgres | hits=%s | clientes=%s",
-                        len(productos_precio),
-                        cliente_ids_consulta,
-                    )
-
-            if rag_comercial_manager.disponible and getattr(
-                settings, 'BOT_COMERCIAL_RAG_VECTORIAL', True
-            ):
-                canales_consulta = []
-                for c in [canal_rag, 'bot_comercial']:
-                    if c and c not in canales_consulta:
-                        canales_consulta.append(c)
-
-                rag_max = int(getattr(settings, 'BOT_COMERCIAL_RAG_MAX_CHARS', 1200) or 1200)
-                rag_max = max(400, min(rag_max, 2500))
-                try:
-                    top_k = int(getattr(settings, 'BOT_COMERCIAL_RAG_TOP_K', 4) or 4)
-                except (TypeError, ValueError):
-                    top_k = 4
-                top_k = max(2, min(top_k, 12))
-
-                rag_timeout = int(
-                    getattr(settings, 'BOT_COMERCIAL_RAG_QUERY_TIMEOUT', 55) or 55
-                )
-                rag_timeout = max(20, min(rag_timeout, 120))
-
-                def _buscar_rag_vectorial():
-                    ctx, chunks = '', []
-                    for canal in canales_consulta:
-                        rag_result = rag_comercial_manager.obtener_contexto_varios_clientes(
-                            cliente_ids_consulta,
-                            canal,
-                            consulta,
-                            max_chars=rag_max,
-                            top_k_por_scope=top_k,
-                            retornar_chunks=True,
-                        )
-                        ctx, chunks = rag_result
-                        if ctx:
-                            logger.info(
-                                "🧠 RAG comercial unificado | canal=%s | contexto_chars=%s | clientes=%s",
-                                canal,
-                                len(ctx),
-                                cliente_ids_consulta,
-                            )
-                            try:
-                                from core.eventos_ia import emit_rag_query_executed
-
-                                emit_rag_query_executed(
-                                    pregunta=consulta,
-                                    cliente=cliente_nati,
-                                    canal='whatsapp_comercial',
-                                    chunks_count=len(chunks),
-                                    contexto_chars=len(ctx),
-                                    chunks=chunks,
-                                    metadata={'origen': 'rag_comercial', 'canal_rag': canal},
-                                )
-                            except Exception:
-                                pass
-                            break
-                    return ctx, chunks
-
-                try:
-                    rag_result = _call_with_timeout(
-                        _buscar_rag_vectorial, rag_timeout, 'RAG vectorial',
-                    )
-                    if rag_result is None:
-                        contexto_rag, rag_chunks = '', []
-                    else:
-                        contexto_rag, rag_chunks = rag_result
-                except Exception:
-                    logger.exception(
-                        "Nat RAG vectorial falló; se continúa con fallback liviano (evitar SIGKILL)"
-                    )
-                    contexto_rag = ''
-                    rag_chunks = []
-
-            if not contexto_rag and getattr(settings, 'BOT_COMERCIAL_RAG_FILE_FALLBACK', True):
-                rag_fb = int(getattr(settings, 'BOT_COMERCIAL_RAG_MAX_CHARS', 1200) or 1200)
-                rag_fb = max(400, min(rag_fb, 2000))
-                fb_docs = int(getattr(settings, 'BOT_COMERCIAL_RAG_FALLBACK_MAX_DOCS', 1) or 1)
-                fb_rows = int(getattr(settings, 'BOT_COMERCIAL_RAG_FALLBACK_XLSX_ROWS', 400) or 400)
-                try:
-                    contexto_rag = _contexto_fallback_desde_documentos(
-                        cliente_ids=cliente_ids_consulta,
-                        pregunta=consulta,
-                        max_chars=rag_fb,
-                        max_docs=max(1, min(fb_docs, 2)),
-                        xlsx_max_rows=max(100, min(fb_rows, 500)),
-                    )
-                    if contexto_rag:
-                        logger.info("🧠 RAG fallback documental usado | contexto_chars=%s", len(contexto_rag))
-                except Exception:
-                    logger.exception("Nat RAG fallback documental falló")
-
-            agrosavia_meta = {}
-            try:
-                from core.agrosavia_connector import enriquecer_contexto_con_agrosavia
-
-                contexto_rag, agrosavia_meta = enriquecer_contexto_con_agrosavia(
-                    consulta,
-                    contexto_rag or '',
-                )
-            except Exception:
-                logger.exception('Nat Agrosavia live falló; se continúa sin esa fuente')
-                agrosavia_meta = {}
-
-            if contexto_precios_db:
-                contexto_rag = (
-                    f"{contexto_precios_db}\n\n{contexto_rag}".strip()
-                    if contexto_rag
-                    else contexto_precios_db
-                )
-
-            from core.nat_router import decidir_routing_nat
-            from core.nati import org_tiene_catalogo_productos
-
-            routing = decidir_routing_nat(
-                consulta,
-                rag_chunks=rag_chunks,
-                tiene_rag_texto=bool(contexto_rag),
-                contexto_rag_chars=len(contexto_rag or ''),
-                ctx_agro=ctx_agro,
-                diagnostico_vision=diagnostico_vision,
-                sin_catalogo_productos=not org_tiene_catalogo_productos(cliente_nati),
-            )
+        cuota_excedida, cuota_usados, cuota_max = evaluar_cuota_nat(telefono_limpio)
+        if cuota_excedida:
             logger.info(
-                "🧭 Nat routing | modelo=%s modo=%s razon=%s web=%s sim=%s",
-                routing.modelo,
-                routing.modo,
-                routing.razon,
-                routing.usar_web,
-                routing.rag_max_similitud,
+                'Nat cuota agotada | tel=%s | usados=%s | max=%s',
+                telefono_limpio,
+                cuota_usados,
+                cuota_max,
             )
-
-            if routing.usar_web and not contexto_web:
-                from core.nati import buscar_en_web_colombia
-
-                contexto_web = buscar_en_web_colombia(
-                    consulta, cliente=cliente_nati,
-                ) or _contexto_fallback_web_agro(
-                    pregunta=consulta,
-                    max_chars=1800,
+            texto_respuesta = mensaje_cuota_agotada(usados=cuota_usados, max_q=cuota_max)
+        else:
+            diagnostico_vision = ''
+            if num_media > 0 and media_type.startswith('image') and media_url:
+                diagnostico_vision = _bot_comercial_diagnosticar_imagen(
+                    media_url, media_type, cliente=cliente_nati,
                 )
-                if contexto_web:
-                    logger.info("🌐 Web complementaria (RAG débil/ausente) | chars=%s", len(contexto_web))
 
-            texto_respuesta = _bot_comercial_respuesta_catalogo(
-                pregunta=consulta,
-                contexto_rag=contexto_rag,
-                diagnostico_vision=diagnostico_vision,
-                contexto_web=contexto_web,
-                historial_chat=historial_chat,
-                cliente=cliente_nati,
-                sesion_comercial=sesion_comercial,
-                bloque_contexto_agro=bloque_contexto_agro,
-                routing=routing,
-                rag_chunks=rag_chunks,
-                ctx_agro=ctx_agro,
-                agrosavia_meta=agrosavia_meta,
-            )
+            from core.bot_comercial.vision import es_analisis_vision_util
+
+            vision_util = es_analisis_vision_util(diagnostico_vision)
+
+            consulta = msg_body or 'Necesito asesoría agrícola'
+            # Solo inyectar análisis real (no mensajes de error/capability) al LLM
+            if vision_util:
+                consulta = f"{consulta}\n\nDiagnóstico preliminar imagen: {diagnostico_vision}"
+
+            texto_respuesta = None
+            try:
+                from core.nat_diagnostico import siguiente_pregunta_diagnostico
+
+                pregunta_diag = siguiente_pregunta_diagnostico(
+                    ctx_agro,
+                    msg_body,
+                    tiene_imagen=bool(diagnostico_vision),
+                )
+                if pregunta_diag and vision_util:
+                    # Foto útil + dato pendiente: análisis + pregunta, sin rótulo extra
+                    texto_respuesta = (
+                        f"{diagnostico_vision.strip()}\n\n{pregunta_diag.strip()}"
+                    )
+                elif pregunta_diag:
+                    texto_respuesta = pregunta_diag
+                elif vision_util and not (msg_body or '').strip():
+                    pass
+            except Exception:
+                pass
+
+            rag_chunks: list = []
+            routing = None
+            if texto_respuesta is None:
+                cliente_ids_consulta = armar_cliente_ids_rag(cliente_nati)
+
+                contexto_rag = ''
+                contexto_web = ''
+
+                from core.catalogo_precios import (
+                    buscar_precios,
+                    es_consulta_catalogo,
+                    formatear_contexto_precios,
+                )
+                contexto_precios_db = ''
+                if es_consulta_catalogo(consulta) and cliente_ids_consulta:
+                    productos_precio = buscar_precios(
+                        [i for i in cliente_ids_consulta if i != 0] or cliente_ids_consulta,
+                        consulta,
+                    )
+                    if productos_precio:
+                        contexto_precios_db = formatear_contexto_precios(productos_precio)
+                        logger.info(
+                            "💰 Precios Postgres | hits=%s | clientes=%s",
+                            len(productos_precio),
+                            cliente_ids_consulta,
+                        )
+
+                if rag_comercial_manager.disponible and getattr(
+                    settings, 'BOT_COMERCIAL_RAG_VECTORIAL', True
+                ):
+                    canales_consulta = []
+                    for c in [canal_rag, 'bot_comercial']:
+                        if c and c not in canales_consulta:
+                            canales_consulta.append(c)
+
+                    rag_max = int(getattr(settings, 'BOT_COMERCIAL_RAG_MAX_CHARS', 1200) or 1200)
+                    rag_max = max(400, min(rag_max, 2500))
+                    try:
+                        top_k = int(getattr(settings, 'BOT_COMERCIAL_RAG_TOP_K', 4) or 4)
+                    except (TypeError, ValueError):
+                        top_k = 4
+                    top_k = max(2, min(top_k, 12))
+
+                    rag_timeout = int(
+                        getattr(settings, 'BOT_COMERCIAL_RAG_QUERY_TIMEOUT', 55) or 55
+                    )
+                    rag_timeout = max(20, min(rag_timeout, 120))
+
+                    def _buscar_rag_vectorial():
+                        ctx, chunks = '', []
+                        for canal in canales_consulta:
+                            rag_result = rag_comercial_manager.obtener_contexto_varios_clientes(
+                                cliente_ids_consulta,
+                                canal,
+                                consulta,
+                                max_chars=rag_max,
+                                top_k_por_scope=top_k,
+                                retornar_chunks=True,
+                            )
+                            ctx, chunks = rag_result
+                            if ctx:
+                                logger.info(
+                                    "🧠 RAG comercial unificado | canal=%s | contexto_chars=%s | clientes=%s",
+                                    canal,
+                                    len(ctx),
+                                    cliente_ids_consulta,
+                                )
+                                try:
+                                    from core.eventos_ia import emit_rag_query_executed
+
+                                    emit_rag_query_executed(
+                                        pregunta=consulta,
+                                        cliente=cliente_nati,
+                                        canal='whatsapp_comercial',
+                                        chunks_count=len(chunks),
+                                        contexto_chars=len(ctx),
+                                        chunks=chunks,
+                                        metadata={'origen': 'rag_comercial', 'canal_rag': canal},
+                                    )
+                                except Exception:
+                                    pass
+                                break
+                        return ctx, chunks
+
+                    try:
+                        rag_result = _call_with_timeout(
+                            _buscar_rag_vectorial, rag_timeout, 'RAG vectorial',
+                        )
+                        if rag_result is None:
+                            contexto_rag, rag_chunks = '', []
+                        else:
+                            contexto_rag, rag_chunks = rag_result
+                    except Exception:
+                        logger.exception(
+                            "Nat RAG vectorial falló; se continúa con fallback liviano (evitar SIGKILL)"
+                        )
+                        contexto_rag = ''
+                        rag_chunks = []
+
+                if not contexto_rag and getattr(settings, 'BOT_COMERCIAL_RAG_FILE_FALLBACK', True):
+                    rag_fb = int(getattr(settings, 'BOT_COMERCIAL_RAG_MAX_CHARS', 1200) or 1200)
+                    rag_fb = max(400, min(rag_fb, 2000))
+                    fb_docs = int(getattr(settings, 'BOT_COMERCIAL_RAG_FALLBACK_MAX_DOCS', 1) or 1)
+                    fb_rows = int(getattr(settings, 'BOT_COMERCIAL_RAG_FALLBACK_XLSX_ROWS', 400) or 400)
+                    try:
+                        contexto_rag = _contexto_fallback_desde_documentos(
+                            cliente_ids=cliente_ids_consulta,
+                            pregunta=consulta,
+                            max_chars=rag_fb,
+                            max_docs=max(1, min(fb_docs, 2)),
+                            xlsx_max_rows=max(100, min(fb_rows, 500)),
+                        )
+                        if contexto_rag:
+                            logger.info("🧠 RAG fallback documental usado | contexto_chars=%s", len(contexto_rag))
+                    except Exception:
+                        logger.exception("Nat RAG fallback documental falló")
+
+                agrosavia_meta = {}
+                try:
+                    from core.agrosavia_connector import enriquecer_contexto_con_agrosavia
+
+                    contexto_rag, agrosavia_meta = enriquecer_contexto_con_agrosavia(
+                        consulta,
+                        contexto_rag or '',
+                    )
+                except Exception:
+                    logger.exception('Nat Agrosavia live falló; se continúa sin esa fuente')
+                    agrosavia_meta = {}
+
+                if contexto_precios_db:
+                    contexto_rag = (
+                        f"{contexto_precios_db}\n\n{contexto_rag}".strip()
+                        if contexto_rag
+                        else contexto_precios_db
+                    )
+
+                from core.nat_router import decidir_routing_nat
+                from core.nati import org_tiene_catalogo_productos
+
+                routing = decidir_routing_nat(
+                    consulta,
+                    rag_chunks=rag_chunks,
+                    tiene_rag_texto=bool(contexto_rag),
+                    contexto_rag_chars=len(contexto_rag or ''),
+                    ctx_agro=ctx_agro,
+                    diagnostico_vision=diagnostico_vision,
+                    sin_catalogo_productos=not org_tiene_catalogo_productos(cliente_nati),
+                )
+                logger.info(
+                    "🧭 Nat routing | modelo=%s modo=%s razon=%s web=%s sim=%s",
+                    routing.modelo,
+                    routing.modo,
+                    routing.razon,
+                    routing.usar_web,
+                    routing.rag_max_similitud,
+                )
+
+                if routing.usar_web and not contexto_web:
+                    from core.nati import buscar_en_web_colombia
+
+                    contexto_web = buscar_en_web_colombia(
+                        consulta, cliente=cliente_nati,
+                    ) or _contexto_fallback_web_agro(
+                        pregunta=consulta,
+                        max_chars=1800,
+                    )
+                    if contexto_web:
+                        logger.info("🌐 Web complementaria (RAG débil/ausente) | chars=%s", len(contexto_web))
+
+                texto_respuesta = _bot_comercial_respuesta_catalogo(
+                    pregunta=consulta,
+                    contexto_rag=contexto_rag,
+                    diagnostico_vision=diagnostico_vision,
+                    contexto_web=contexto_web,
+                    historial_chat=historial_chat,
+                    cliente=cliente_nati,
+                    sesion_comercial=sesion_comercial,
+                    bloque_contexto_agro=bloque_contexto_agro,
+                    routing=routing,
+                    rag_chunks=rag_chunks,
+                    ctx_agro=ctx_agro,
+                    agrosavia_meta=agrosavia_meta,
+                )
 
     if (
         not es_saludo
@@ -1191,6 +1220,23 @@ def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
             )
         except Exception:
             pass
+
+    # Fase B — señal territorial en sombra (plagas/empleo). No altera la respuesta.
+    if not es_saludo and msg_normalizado not in ['asesoria', 'asesoría', 'reiniciar', 'ayuda nat']:
+        try:
+            from core.senal_shadow import procesar_senal_shadow_nat
+            from core.utils_telefono import resolver_estudiante_por_telefono
+
+            est_shadow = resolver_estudiante_por_telefono(telefono_limpio)
+            procesar_senal_shadow_nat(
+                texto=msg_body or '',
+                telefono=telefono_limpio,
+                cliente=cliente_nati,
+                estudiante=est_shadow,
+                ctx_agro=ctx_agro,
+            )
+        except Exception:
+            logger.debug('senal_shadow hook omitido', exc_info=True)
 
     try:
         resultado_envio = enviar_whatsapp_twilio(
