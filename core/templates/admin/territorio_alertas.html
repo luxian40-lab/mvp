@@ -1,0 +1,215 @@
+{% extends "admin/eki_ops_base.html" %}
+{% load i18n %}
+
+{% block eki_ops_crumb %}Alertas territoriales{% endblock %}
+{% block title %}Alertas territoriales · eki{% endblock %}
+
+{% block eki_ops_extra_nav %}
+<span class="eki-ops-sep">·</span>
+<a class="eki-ops-back" href="{% url 'admin:core_alertaterritorial_changelist' %}">CRUD alertas</a>
+<span class="eki-ops-sep">·</span>
+<a class="eki-ops-back" href="{% url 'admin:core_senalterritorial_changelist' %}">Señales</a>
+{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+  .ta {
+    --ta-ink: #1e1b24;
+    --ta-muted: #6b6575;
+    --ta-line: rgba(30, 27, 36, 0.12);
+    --ta-accent: #9A6CAC;
+    --ta-ok: #166534;
+    --ta-warn: #b45309;
+    max-width: 1100px;
+  }
+  .ta h1 {
+    margin: 0 0 0.35rem;
+    font-size: 1.45rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--ta-ink);
+  }
+  .ta__sub { margin: 0 0 1.1rem; color: var(--ta-muted); font-size: 0.9rem; max-width: 40rem; line-height: 1.45; }
+  .ta__kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.65rem;
+    margin: 0 0 1.25rem;
+  }
+  .ta__kpi {
+    border: 1px solid var(--ta-line);
+    border-radius: 10px;
+    padding: 0.75rem 0.9rem;
+    background: #fff;
+  }
+  .ta__kpi strong { display: block; font-size: 1.35rem; color: var(--ta-ink); }
+  .ta__kpi span { font-size: 0.78rem; color: var(--ta-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .ta__filters {
+    display: flex; flex-wrap: wrap; gap: 0.55rem 0.85rem; align-items: end;
+    margin: 0 0 1.25rem;
+  }
+  .ta__filters label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.8rem; color: var(--ta-muted); }
+  .ta__filters input, .ta__filters select {
+    border: 1px solid var(--ta-line); border-radius: 8px; padding: 0.4rem 0.55rem; min-width: 8rem;
+  }
+  .ta__filters button, .ta__btn {
+    border: none; border-radius: 8px; padding: 0.45rem 0.85rem;
+    background: var(--ta-accent); color: #fff; font-weight: 600; cursor: pointer; font-size: 0.85rem;
+  }
+  .ta__btn--ghost { background: transparent; color: var(--ta-accent); border: 1px solid var(--ta-accent); }
+  .ta__btn--danger { background: #b91c1c; }
+  .ta__section { margin: 0 0 1.75rem; }
+  .ta__section h2 { font-size: 1.05rem; margin: 0 0 0.65rem; color: var(--ta-ink); }
+  .ta table { width: 100%; border-collapse: collapse; font-size: 0.88rem; background: #fff; }
+  .ta th, .ta td { text-align: left; padding: 0.55rem 0.6rem; border-bottom: 1px solid var(--ta-line); vertical-align: top; }
+  .ta th { color: var(--ta-muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  .ta__badge {
+    display: inline-block; padding: 0.15rem 0.45rem; border-radius: 6px; font-size: 0.72rem; font-weight: 650;
+  }
+  .ta__badge--ok { background: #ecfdf5; color: var(--ta-ok); }
+  .ta__badge--warn { background: #fffbeb; color: var(--ta-warn); }
+  .ta__badge--muted { background: #f4f2f6; color: var(--ta-muted); }
+  .ta__runbook {
+    display: grid; gap: 0.55rem;
+  }
+  .ta__paso {
+    border: 1px solid var(--ta-line); border-radius: 10px; padding: 0.75rem 0.9rem; background: #fff;
+  }
+  .ta__paso strong { color: var(--ta-ink); }
+  .ta__paso small { display: block; color: var(--ta-muted); margin: 0.2rem 0 0.35rem; }
+  .ta__acciones { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.4rem; }
+  .ta__nota { width: 100%; max-width: 220px; font-size: 0.8rem; margin-top: 0.35rem; }
+  .ta__empty { color: var(--ta-muted); font-size: 0.9rem; padding: 0.75rem 0; }
+</style>
+{% endblock %}
+
+{% block eki_ops_content %}
+<section class="ta">
+  <header>
+    <h1>Alertas territoriales</h1>
+    <p class="ta__sub">
+      Panel interno eki (Fase C): municipio × ventana × conteo.
+      No publica a clientes ni WhatsApp. Solo plagas / empleo tipificados.
+    </p>
+  </header>
+
+  <div class="ta__kpis">
+    <div class="ta__kpi"><strong>{{ data.kpis.senales_ventana }}</strong><span>Señales en ventana</span></div>
+    <div class="ta__kpi"><strong>{{ data.kpis.sobre_umbral }}</strong><span>Grupos ≥ k={{ min_k }}</span></div>
+    <div class="ta__kpi"><strong>{{ data.kpis.alertas_abiertas }}</strong><span>Alertas abiertas</span></div>
+    <div class="ta__kpi"><strong>{{ data.kpis.alertas_detectadas }}</strong><span>Detectadas</span></div>
+  </div>
+
+  <form class="ta__filters" method="get">
+    <label>Ventana (h)
+      <input type="number" name="ventana" min="1" max="720" value="{{ ventana }}">
+    </label>
+    <label>Familia / prefijo
+      <input type="text" name="familia" value="{{ familia }}" placeholder="agro.plaga o empleo">
+    </label>
+    <button type="submit">Filtrar</button>
+  </form>
+
+  <div class="ta__section">
+    <h2>Municipio × tipo × conteo (últimas {{ data.ventana_horas }} h)</h2>
+    {% if data.filas %}
+    <table>
+      <thead>
+        <tr>
+          <th>Municipio</th>
+          <th>DIVIPOLA</th>
+          <th>Tipo</th>
+          <th>n</th>
+          <th>Conf.</th>
+          <th>Umbral</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in data.filas %}
+        <tr>
+          <td>{{ f.municipio }}</td>
+          <td><code>{{ f.territory_id }}</code></td>
+          <td>{{ f.tipo }}</td>
+          <td><strong>{{ f.n }}</strong></td>
+          <td>{{ f.confianza_media }}</td>
+          <td>
+            {% if f.sobre_umbral %}
+            <span class="ta__badge ta__badge--ok">≥ k</span>
+            {% else %}
+            <span class="ta__badge ta__badge--muted">&lt; k</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="ta__empty">Sin señales en esta ventana/filtro. El probe Fase B o Nat tipificado las alimenta.</p>
+    {% endif %}
+  </div>
+
+  <div class="ta__section">
+    <h2>Alertas abiertas — validar / comunicar / cerrar</h2>
+    {% if data.alertas_abiertas %}
+    <table>
+      <thead>
+        <tr>
+          <th>Alerta</th>
+          <th>Municipio</th>
+          <th>n / score</th>
+          <th>Estado</th>
+          <th>Acción</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in data.alertas_abiertas %}
+        <tr>
+          <td>
+            <strong>{{ a.familia }}.{{ a.subtipo }}</strong><br>
+            <small>{{ a.explicacion|truncatechars:120 }}</small>
+          </td>
+          <td>{{ a.municipio }}<br><code>{{ a.territory_id }}</code></td>
+          <td>{{ a.conteo }} · {{ a.score }}</td>
+          <td><span class="ta__badge ta__badge--warn">{{ a.estado }}</span></td>
+          <td>
+            <form method="post" class="ta__acciones">
+              {% csrf_token %}
+              <input type="hidden" name="alerta_id" value="{{ a.id }}">
+              {% if a.estado == 'detectada' %}
+              <button class="ta__btn" type="submit" name="accion" value="validar">Validar</button>
+              {% endif %}
+              {% if a.estado == 'validada' %}
+              <button class="ta__btn" type="submit" name="accion" value="comunicar">Comunicar (interno)</button>
+              <button class="ta__btn ta__btn--ghost" type="submit" name="accion" value="accionar">Accionar</button>
+              {% endif %}
+              {% if a.estado == 'comunicada' or a.estado == 'accionada' %}
+              <button class="ta__btn ta__btn--ghost" type="submit" name="accion" value="accionar">Accionar</button>
+              {% endif %}
+              <button class="ta__btn ta__btn--danger" type="submit" name="accion" value="cerrar">Cerrar</button>
+              <input class="ta__nota" type="text" name="nota" placeholder="Nota opcional (runbook)">
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="ta__empty">No hay alertas abiertas. Corré clusters o esperá a ≥ k señales tipificadas.</p>
+    {% endif %}
+  </div>
+
+  <div class="ta__section">
+    <h2>Runbook (quién valida / a quién se dice / cierre)</h2>
+    <div class="ta__runbook">
+      {% for p in data.runbook %}
+      <div class="ta__paso">
+        <strong>{{ p.paso }}</strong>
+        <small>Quién: {{ p.quien }}</small>
+        <div>{{ p.hacer }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

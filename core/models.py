@@ -1211,7 +1211,20 @@ class WhatsappLog(models.Model):
 
     def __str__(self):
         return f"{self.telefono} - {self.tipo} - {self.estado} ({self.mensaje_id})"
-    
+
+    def save(self, *args, **kwargs):
+        # Auto-asignar estudiante por teléfono si el log nace “ciego”.
+        if not self.estudiante_id and self.telefono:
+            try:
+                from core.utils_telefono import resolver_estudiante_por_telefono
+
+                est = resolver_estudiante_por_telefono(self.telefono)
+                if est:
+                    self.estudiante = est
+            except Exception:
+                pass
+        super().save(*args, **kwargs)
+
     class Meta:
         verbose_name = 'Registro de WhatsApp'
         verbose_name_plural = 'Historial WhatsApp'
@@ -4269,6 +4282,144 @@ class ConversacionRAGCandidata(models.Model):
         return f'{self.get_estado_display()} · {self.pregunta[:60]}'
 
 
+class SandboxCanalSesion(models.Model):
+    """Modo sticky del menú sandbox (Nat|agentes|cursos) — solo número Twilio sandbox."""
+
+    MODO_MENU = 'menu'
+    MODO_AGENTES = 'agentes'
+    MODO_NAT = 'nat'
+    MODO_COACH = 'coach'
+    MODO_IA_CAMPO = 'ia_campo'
+    MODO_CURSOS = 'cursos'
+    MODO_CHOICES = [
+        (MODO_MENU, 'Menú'),
+        (MODO_AGENTES, 'Submenú agentes'),
+        (MODO_NAT, 'Agrónomo (Nat)'),
+        (MODO_COACH, 'Coach'),
+        (MODO_IA_CAMPO, 'IA para el campo'),
+        (MODO_CURSOS, 'Cursos'),
+    ]
+
+    telefono = models.CharField(max_length=30, unique=True, db_index=True)
+    modo = models.CharField(max_length=16, choices=MODO_CHOICES, default=MODO_MENU)
+    # Historial Nat/BOT_COMERCIAL solo cuenta mensajes posteriores a este corte.
+    memoria_corte_en = models.DateTimeField(null=True, blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Sesión menú sandbox'
+        verbose_name_plural = 'Sesiones menú sandbox'
+
+    def __str__(self):
+        return f'{self.telefono} → {self.modo}'
+
+
+class EventOutbox(models.Model):
+    """Outbox transaccional hacia Data Lake raw (Event Engine v0)."""
+
+    event_id = models.UUIDField(unique=True, db_index=True)
+    event_type = models.CharField(max_length=120, db_index=True)
+    schema_version = models.PositiveSmallIntegerField(default=1)
+    occurred_at = models.DateTimeField(db_index=True)
+    ingested_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    org_id = models.IntegerField(null=True, blank=True, db_index=True)
+    territory_id = models.CharField(max_length=32, blank=True, default='', db_index=True)
+    actor_pseudo = models.CharField(max_length=64, blank=True, default='')
+    session_or_trace_id = models.CharField(max_length=64, blank=True, default='')
+    payload = models.JSONField(default=dict, blank=True)
+    correlation_ids = models.JSONField(default=list, blank=True)
+    pii_class = models.CharField(max_length=32, default='internal')
+    published_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    lake_uri = models.CharField(max_length=500, blank=True, default='')
+
+    class Meta:
+        verbose_name = 'Evento outbox'
+        verbose_name_plural = 'Eventos outbox'
+        ordering = ['-ingested_at']
+        indexes = [
+            models.Index(fields=['published_at', 'id']),
+            models.Index(fields=['event_type', '-occurred_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.event_type} ({self.event_id})'
+
+
+class SenalTerritorial(models.Model):
+    """Señal tipada para correlación territorial (ej. salud.sintoma.diarrea)."""
+
+    tipo = models.CharField(
+        max_length=80,
+        db_index=True,
+        help_text='Ej: salud.sintoma.diarrea',
+    )
+    territory_id = models.CharField(max_length=32, db_index=True)
+    org_id = models.IntegerField(null=True, blank=True, db_index=True)
+    confianza = models.FloatField(default=0.7)
+    fuente = models.CharField(max_length=40, default='manual')
+    occurred_at = models.DateTimeField(db_index=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Señal territorial'
+        verbose_name_plural = 'Señales territoriales'
+        ordering = ['-occurred_at']
+        indexes = [
+            models.Index(fields=['territory_id', 'tipo', '-occurred_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.tipo} @ {self.territory_id}'
+
+
+class AlertaTerritorial(models.Model):
+    """Cluster detectado (density_v0) sobre SenalTerritorial."""
+
+    ESTADO_DETECTADA = 'detectada'
+    ESTADO_VALIDADA = 'validada'
+    ESTADO_COMUNICADA = 'comunicada'
+    ESTADO_ACCIONADA = 'accionada'
+    ESTADO_CERRADA = 'cerrada'
+    ESTADO_CHOICES = [
+        (ESTADO_DETECTADA, 'Detectada'),
+        (ESTADO_VALIDADA, 'Validada'),
+        (ESTADO_COMUNICADA, 'Comunicada'),
+        (ESTADO_ACCIONADA, 'Accionada'),
+        (ESTADO_CERRADA, 'Cerrada'),
+    ]
+
+    familia = models.CharField(max_length=80, db_index=True)
+    subtipo = models.CharField(max_length=80, default='cluster')
+    territory_id = models.CharField(max_length=32, db_index=True)
+    ventana_horas = models.PositiveIntegerField(default=72)
+    conteo = models.PositiveIntegerField(default=0)
+    score = models.FloatField(default=0.0)
+    min_k = models.PositiveIntegerField(default=3)
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADO_CHOICES,
+        default=ESTADO_DETECTADA,
+        db_index=True,
+    )
+    explicacion = models.TextField(blank=True, default='')
+    metadata = models.JSONField(default=dict, blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Alerta territorial'
+        verbose_name_plural = 'Alertas territoriales'
+        ordering = ['-actualizado_en']
+        indexes = [
+            models.Index(fields=['territory_id', 'estado', '-score']),
+        ]
+
+    def __str__(self):
+        return f'{self.familia}.{self.subtipo} @ {self.territory_id} n={self.conteo}'
+
+
 __all__ = [
     'TemaCampana', 'Cliente', 'Estudiante', 'Plantilla', 'Linea',
     'Campana', 'EnvioLog', 'WhatsappLog',
@@ -4294,4 +4445,8 @@ __all__ = [
     'ConversacionRAGCandidata',
     'ProductoComercial',
     'ProductoCatalogo',
+    'SandboxCanalSesion',
+    'EventOutbox',
+    'SenalTerritorial',
+    'AlertaTerritorial',
 ]

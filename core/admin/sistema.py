@@ -85,3 +85,81 @@ class ConversacionRAGCandidataAdmin(admin.ModelAdmin):
         for c in queryset.filter(estado=ConversacionRAGCandidata.ESTADO_PENDIENTE):
             revisar_candidata(c, usuario=request.user, accion='aprobar')
 
+
+@admin.register(AlertaTerritorial)
+class AlertaTerritorialAdmin(admin.ModelAdmin):
+    list_display = (
+        'actualizado_en', 'familia', 'subtipo', 'territory_id',
+        'conteo', 'score', 'estado', 'ventana_horas',
+    )
+    list_filter = ('estado', 'familia')
+    search_fields = ('territory_id', 'familia', 'explicacion')
+    readonly_fields = ('creado_en', 'actualizado_en')
+    actions = ('accion_validar', 'accion_cerrar')
+
+    @admin.action(description='Validar (detectada → validada)')
+    def accion_validar(self, request, queryset):
+        from core.alerta_territorial_ops import transicionar_alerta
+
+        ok = 0
+        for a in queryset.filter(estado=AlertaTerritorial.ESTADO_DETECTADA):
+            try:
+                transicionar_alerta(
+                    a,
+                    nuevo_estado=AlertaTerritorial.ESTADO_VALIDADA,
+                    usuario=request.user,
+                    nota='admin_action',
+                )
+                ok += 1
+            except ValueError:
+                continue
+        self.message_user(request, f'Validadas: {ok}')
+
+    @admin.action(description='Cerrar alertas seleccionadas')
+    def accion_cerrar(self, request, queryset):
+        from core.alerta_territorial_ops import transicionar_alerta
+
+        ok = 0
+        for a in queryset.exclude(estado=AlertaTerritorial.ESTADO_CERRADA):
+            try:
+                transicionar_alerta(
+                    a,
+                    nuevo_estado=AlertaTerritorial.ESTADO_CERRADA,
+                    usuario=request.user,
+                    nota='admin_action',
+                )
+                ok += 1
+            except ValueError:
+                continue
+        self.message_user(request, f'Cerradas: {ok}')
+
+
+@admin.register(EventOutbox)
+class EventOutboxAdmin(admin.ModelAdmin):
+    list_display = (
+        'ingested_at', 'event_type', 'territory_id', 'org_id',
+        'published_at', 'pii_class',
+    )
+    list_filter = ('event_type', 'pii_class')
+    search_fields = ('event_id', 'event_type', 'territory_id', 'lake_uri')
+    readonly_fields = [f.name for f in EventOutbox._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+
+@admin.register(SenalTerritorial)
+class SenalTerritorialAdmin(admin.ModelAdmin):
+    list_display = ('occurred_at', 'tipo', 'territory_id', 'confianza', 'fuente', 'org_id')
+    list_filter = ('fuente', 'tipo')
+    search_fields = ('tipo', 'territory_id')
+    readonly_fields = ('creado_en',)
+
+
+@admin.register(SandboxCanalSesion)
+class SandboxCanalSesionAdmin(admin.ModelAdmin):
+    list_display = ('actualizado_en', 'telefono', 'modo', 'memoria_corte_en', 'creado_en')
+    list_filter = ('modo',)
+    search_fields = ('telefono',)
+    readonly_fields = ('creado_en', 'actualizado_en')
+

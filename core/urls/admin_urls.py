@@ -50,6 +50,7 @@ from core.views_push_estudiantes import push_estudiantes_view
 from core.views_retencion_admin import retencion_admin_agente, retencion_admin_view
 from aprende.views_admin import aula_web_admin_view
 from core.views_infra_admin import infra_monitor_api, infra_monitor_view
+from core.views_territorio_alertas import territorio_alertas_view
 from core.views_copiar_curso import copiar_curso_cliente_view
 from core.views_admin_panel import admin_panel_view
 from core.views_copiloto_admin import copiloto_ask_view, copiloto_ops_view
@@ -120,6 +121,11 @@ urlpatterns = [
     ),
     path('admin/infra/', infra_monitor_view, name='admin_infra_monitor'),
     path('admin/infra/api/', infra_monitor_api, name='admin_infra_monitor_api'),
+    path(
+        'admin/territorio-alertas/',
+        territorio_alertas_view,
+        name='admin_territorio_alertas',
+    ),
     path(
         'admin/module-builder/<int:modulo_id>/',
         module_builder_view,

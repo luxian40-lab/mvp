@@ -445,6 +445,14 @@ try:
     BOT_COMERCIAL_OPENAI_MAX_TOKENS = int(os.environ.get('BOT_COMERCIAL_OPENAI_MAX_TOKENS', '420'))
 except (TypeError, ValueError):
     BOT_COMERCIAL_OPENAI_MAX_TOKENS = 420
+# Tope de consultas Nat por teléfono / 24h (INCOMING BOT_COMERCIAL). 0 = sin límite.
+try:
+    BOT_COMERCIAL_MAX_PREGUNTAS_DIA = int(
+        os.environ.get('BOT_COMERCIAL_MAX_PREGUNTAS_DIA', '40')
+    )
+except (TypeError, ValueError):
+    BOT_COMERCIAL_MAX_PREGUNTAS_DIA = 40
+BOT_COMERCIAL_CUOTA_MSG = os.environ.get('BOT_COMERCIAL_CUOTA_MSG', '').strip()
 # Agrosavia live (repo público) — P0: enriquecer cuando RAG es corto o consulta agro.
 BOT_COMERCIAL_AGROSAVIA_ENABLED = os.environ.get(
     'BOT_COMERCIAL_AGROSAVIA_ENABLED', 'true'
@@ -512,6 +520,37 @@ BOT_COMERCIAL_RAG_FALLBACK_XLSX_ROWS = max(120, min(BOT_COMERCIAL_RAG_FALLBACK_X
 # Modelo para búsqueda web (Responses API).
 BOT_COMERCIAL_WEB_SEARCH_MODEL = os.environ.get('BOT_COMERCIAL_WEB_SEARCH_MODEL', 'gpt-5-mini').strip()
 BOT_COMERCIAL_FORCE_ROUTING = os.environ.get('BOT_COMERCIAL_FORCE_ROUTING', 'false').strip().lower() in ['1', 'true', 'yes', 'on']
+# Sandbox Twilio (+14155238886). Con menú dual solo afecta ese número, no WABA prod.
+BOT_COMERCIAL_SANDBOX_NUMBER = os.environ.get('BOT_COMERCIAL_SANDBOX_NUMBER', '14155238886')
+SANDBOX_MENU_ENABLED = os.environ.get('SANDBOX_MENU_ENABLED', 'true').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
+# Event Engine / Data Lake v0 (outbox → S3 lake/raw/…). Off por defecto en prod.
+DATA_LAKE_ENABLED = os.environ.get('DATA_LAKE_ENABLED', 'false').strip().lower() in (
+    '1', 'true', 'yes', 'on',
+)
+DATA_LAKE_PSEUDO_SALT = os.environ.get('DATA_LAKE_PSEUDO_SALT', 'eki-lake-v0')
+DATA_LAKE_S3_PREFIX = os.environ.get('DATA_LAKE_S3_PREFIX', '').strip()
+EVENT_ENGINE_EMIT_TELEMETRIA = os.environ.get(
+    'EVENT_ENGINE_EMIT_TELEMETRIA', 'true'
+).strip().lower() in ('1', 'true', 'yes', 'on')
+try:
+    ALERTA_TERRITORIAL_VENTANA_HORAS = int(
+        os.environ.get('ALERTA_TERRITORIAL_VENTANA_HORAS', '72')
+    )
+except (TypeError, ValueError):
+    ALERTA_TERRITORIAL_VENTANA_HORAS = 72
+try:
+    ALERTA_TERRITORIAL_MIN_K = int(os.environ.get('ALERTA_TERRITORIAL_MIN_K', '3'))
+except (TypeError, ValueError):
+    ALERTA_TERRITORIAL_MIN_K = 3
+# Fase B: clasificador territorial sombra (plagas + empleo). No cambia copy WA.
+SENAL_CLASIFICADOR_ENABLED = os.environ.get(
+    'SENAL_CLASIFICADOR_ENABLED', 'true'
+).strip().lower() in ('1', 'true', 'yes', 'on')
+SENAL_PERSISTIR_SENALES = os.environ.get(
+    'SENAL_PERSISTIR_SENALES', 'true'
+).strip().lower() in ('1', 'true', 'yes', 'on')
 # Kill switch eki.ia (Nat): no llama LLM; responde con reglas + catálogo/RAG.
 # Alias EKI_NAT_LLM_DISABLED por compat. Por org: Cliente.desactivar_llm_comercial.
 _EKI_IA_LLM_DISABLED_RAW = (

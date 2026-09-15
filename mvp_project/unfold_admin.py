@@ -335,6 +335,11 @@ UNFOLD = {
                         "icon": "monitor_heart",
                         "link": "/admin/infra/",
                     },
+                    {
+                        "title": _("Alertas territoriales"),
+                        "icon": "crisis_alert",
+                        "link": "/admin/territorio-alertas/",
+                    },
                 ],
             },
             # custom_links → agents_edu + formulario + aprende

@@ -1198,7 +1198,7 @@ def _es_status_callback_twilio(post_data) -> bool:
     return bool(message_status and message_status in _TWILIO_STATUS_CALLBACKS)
 
 
-def _encolar_twilio_edu_si_async(post_data) -> bool:
+def _encolar_twilio_edu_si_async(post_data, *, reply_from_number: str | None = None) -> bool:
     """Encola webhook educativo en Celery si WEBHOOK_CELERY_ASYNC=true."""
     if not getattr(settings, 'WEBHOOK_CELERY_ASYNC', False):
         return False
@@ -1206,7 +1206,20 @@ def _encolar_twilio_edu_si_async(post_data) -> bool:
         return False
     from core.tasks import procesar_twilio_webhook_async
 
-    procesar_twilio_webhook_async.delay(_twilio_post_plano(post_data))
+    plano = _twilio_post_plano(post_data)
+    # Menú sandbox dual: el worker debe responder desde el mismo From.
+    from_override = (reply_from_number or '').strip()
+    if not from_override:
+        try:
+            from core.wa_reply_context import get_reply_from_override
+
+            from_override = (get_reply_from_override() or '').strip()
+        except Exception:
+            from_override = ''
+    if from_override:
+        plano['_eki_reply_from'] = from_override
+
+    procesar_twilio_webhook_async.delay(plano)
     logger.info("📤 Webhook educativo encolado en Celery | sid=%s", post_data.get('MessageSid', ''))
     return True
 
@@ -1275,6 +1288,31 @@ def whatsapp_webhook(request):
         def _es_destino_bot_comercial(data):
             from core.bot_comercial_routing import es_destino_bot_comercial
             return es_destino_bot_comercial(data)
+
+        def _aplicar_sandbox_menu(data):
+            """Menú Nat|Cursos solo en sandbox Twilio. No toca WABA prod."""
+            from core.sandbox_menu import dispatch_sandbox_menu, sandbox_number
+            from core.wa_reply_context import reply_from
+
+            ruta = dispatch_sandbox_menu(data)
+            if ruta is None:
+                return None
+            if ruta == 'handled':
+                return HttpResponse('OK')
+            if ruta == 'nat':
+                if not _encolar_bot_comercial_si_async(data):
+                    _procesar_bot_comercial_twilio_webhook(data)
+                return HttpResponse('OK')
+            if ruta == 'cursos':
+                sb = sandbox_number()
+                with reply_from(sb):
+                    if _encolar_twilio_edu_si_async(data, reply_from_number=sb):
+                        return HttpResponse('OK')
+                    tw = _procesar_twilio_webhook(data)
+                    if isinstance(tw, HttpResponse):
+                        return tw
+                return HttpResponse('OK')
+            return None
         
         try:
             # Intentar parsear como JSON (Meta)
@@ -1301,6 +1339,9 @@ def whatsapp_webhook(request):
                         payload.get('To', ''),
                         payload.get('MessageSid', ''),
                     )
+                    sb = _aplicar_sandbox_menu(payload)
+                    if sb is not None:
+                        return sb
                     if _es_destino_bot_comercial(payload):
                         logger.info("🧭 Router webhook: Twilio destino comercial/agro detectado (JSON)")
                         if not _encolar_bot_comercial_si_async(payload):
@@ -1325,6 +1366,9 @@ def whatsapp_webhook(request):
                 request.POST.get('To', ''),
                 request.POST.get('MessageSid', ''),
             )
+            sb = _aplicar_sandbox_menu(request.POST)
+            if sb is not None:
+                return sb
             if _es_destino_bot_comercial(request.POST):
                 logger.info("🧭 Router webhook: Twilio destino comercial/agro detectado (Form-Data)")
                 if not _encolar_bot_comercial_si_async(request.POST):
@@ -1413,12 +1457,42 @@ def bot_comercial_webhook(request):
     if denied is not None:
         return denied
 
+    def _sandbox_en_comercial(data):
+        from core.sandbox_menu import dispatch_sandbox_menu, sandbox_number
+        from core.wa_reply_context import reply_from
+
+        ruta = dispatch_sandbox_menu(data)
+        if ruta is None:
+            return None
+        if ruta == 'handled':
+            return HttpResponse('OK')
+        if ruta == 'nat':
+            if not _encolar_bot_comercial_si_async(data, forzar_canal=True):
+                _procesar_bot_comercial_twilio_webhook(data, forzar_canal=True)
+            return HttpResponse('OK')
+        if ruta == 'cursos':
+            sb = sandbox_number()
+            with reply_from(sb):
+                if _encolar_twilio_edu_si_async(data, reply_from_number=sb):
+                    return HttpResponse('OK')
+                tw = _procesar_twilio_webhook(data)
+                if isinstance(tw, HttpResponse):
+                    return tw
+            return HttpResponse('OK')
+        return None
+
     try:
         try:
             payload = json.loads(request.body.decode('utf-8'))
+            sb = _sandbox_en_comercial(payload)
+            if sb is not None:
+                return sb
             if not _encolar_bot_comercial_si_async(payload, forzar_canal=True):
                 _procesar_bot_comercial_twilio_webhook(payload, forzar_canal=True)
         except json.JSONDecodeError:
+            sb = _sandbox_en_comercial(request.POST)
+            if sb is not None:
+                return sb
             if not _encolar_bot_comercial_si_async(request.POST, forzar_canal=True):
                 _procesar_bot_comercial_twilio_webhook(request.POST, forzar_canal=True)
         return HttpResponse('OK')
