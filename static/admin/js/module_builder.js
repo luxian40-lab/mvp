@@ -661,6 +661,47 @@
     syncHidden();
   }
 
+  function initDeleteMedia(shell) {
+    shell.querySelectorAll('.eki-mb-delete-media').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var pasoId = btn.getAttribute('data-paso-id');
+        if (!pasoId) return;
+        if (!window.confirm('¿Quitar este archivo del paso? El texto se conserva.')) {
+          return;
+        }
+        var body = new URLSearchParams();
+        body.set('action', 'delete_media');
+        body.set('ajax', '1');
+        body.set('paso_id', pasoId);
+        body.set('csrfmiddlewaretoken', csrfToken());
+        if (document.getElementById('eki-mb-builder-flag')) {
+          body.set('builder', '1');
+        }
+        fetch(window.location.pathname + window.location.search, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': csrfToken(),
+            Accept: 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+          credentials: 'same-origin',
+          body: body.toString(),
+        })
+          .then(parseJsonResponse)
+          .then(function (data) {
+            if (!data || !data.ok) {
+              throw new Error((data && data.error) || 'No se pudo quitar el archivo.');
+            }
+            window.location.reload();
+          })
+          .catch(function (err) {
+            window.alert(err.message || 'No se pudo quitar el archivo.');
+          });
+      });
+    });
+  }
+
   function boot() {
     var shell = document.getElementById('eki-mb-shell') || document.querySelector('.eki-mb-shell');
     if (!shell) return;
@@ -671,6 +712,7 @@
     initEncodePoll(shell);
     initStepPanel(shell);
     initUploadDraftPreserve(shell);
+    initDeleteMedia(shell);
   }
 
   if (document.readyState === 'loading') {

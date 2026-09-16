@@ -511,10 +511,31 @@ class ModuleBuilderViewTests(TestCase):
         from django.urls import reverse
 
         self.client.force_login(self.staff)
-        url = reverse('admin:core_modulo_change', args=[self.mod.pk])
+        url = reverse('admin:core_modulo_change', args=[self.mod.pk]) + '?modo=builder'
         r = self.client.get(url, secure=True)
         self.assertEqual(r.status_code, 302)
         self.assertIn('/admin/module-builder/', r.url)
+
+    @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
+    def test_modulo_change_modo_clase_stays_admin(self):
+        from django.urls import reverse
+
+        self.client.force_login(self.staff)
+        url = reverse('admin:core_modulo_change', args=[self.mod.pk]) + '?modo=clase'
+        r = self.client.get(url, secure=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Modo: clase rápida')
+
+    @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
+    def test_modulo_change_default_stays_crud(self):
+        """CRUD Unfold es el default; Builder solo con ?modo=builder."""
+        from django.urls import reverse
+
+        self.client.force_login(self.staff)
+        url = reverse('admin:core_modulo_change', args=[self.mod.pk])
+        r = self.client.get(url, secure=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(getattr(r, 'url', None))
 
     @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
     def test_modulo_change_legacy_stays_admin(self):
@@ -1171,6 +1192,97 @@ class ModuleBuilderSeccionTituloTests(TestCase):
         self.assertTrue((p1.media_url or '').strip())
         self.assertEqual(p2.titulo, 'Paso dos')
         self.assertEqual(p2.contenido, 'c2')
+
+    @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
+    def test_delete_media_ajax_limpia_url(self):
+        from core.module_builder import agregar_micro, agregar_seccion
+
+        curso = Curso.objects.create(nombre='C')
+        mod = Modulo.objects.create(
+            curso=curso, numero=1, titulo='M', descripcion='d', contenido='c',
+        )
+        sec = agregar_seccion(mod, 'S')
+        paso = agregar_micro(mod, sec, titulo='Video', contenido='mira')
+        paso.media_url = 'https://eki-produccion.s3.us-east-2.amazonaws.com/media/demo.mp4'
+        paso.save(update_fields=['media_url'])
+        staff = User.objects.create_user(
+            username='mb_delvid', password='x', is_staff=True, is_superuser=True,
+        )
+        client = Client()
+        client.force_login(staff)
+        r = client.post(
+            f'/admin/module-builder/{mod.id}/',
+            {
+                'action': 'delete_media',
+                'ajax': '1',
+                'paso_id': str(paso.id),
+            },
+            secure=True,
+            HTTP_ACCEPT='application/json',
+        )
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertTrue(data.get('ok'))
+        self.assertEqual(data.get('media_url'), '')
+        paso.refresh_from_db()
+        self.assertFalse((paso.media_url or '').strip())
+        self.assertEqual(paso.contenido, 'mira')
+
+    @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
+    def test_delete_media_rechaza_paso_ajeno(self):
+        from core.module_builder import agregar_micro, agregar_seccion
+
+        curso = Curso.objects.create(nombre='C')
+        mod_a = Modulo.objects.create(
+            curso=curso, numero=1, titulo='A', descripcion='d', contenido='c',
+        )
+        mod_b = Modulo.objects.create(
+            curso=curso, numero=2, titulo='B', descripcion='d', contenido='c',
+        )
+        sec_b = agregar_seccion(mod_b, 'Sb')
+        paso_b = agregar_micro(mod_b, sec_b, titulo='Ajeno', contenido='x')
+        paso_b.media_url = 'https://example.com/a.mp4'
+        paso_b.save(update_fields=['media_url'])
+        staff = User.objects.create_user(
+            username='mb_delx', password='x', is_staff=True, is_superuser=True,
+        )
+        client = Client()
+        client.force_login(staff)
+        r = client.post(
+            f'/admin/module-builder/{mod_a.id}/',
+            {
+                'action': 'delete_media',
+                'ajax': '1',
+                'paso_id': str(paso_b.id),
+            },
+            secure=True,
+            HTTP_ACCEPT='application/json',
+        )
+        self.assertEqual(r.status_code, 404)
+        paso_b.refresh_from_db()
+        self.assertTrue(paso_b.media_url)
+
+    @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
+    def test_builder_html_muestra_quitar_archivo(self):
+        from core.module_builder import agregar_micro, agregar_seccion
+
+        curso = Curso.objects.create(nombre='C')
+        mod = Modulo.objects.create(
+            curso=curso, numero=1, titulo='M', descripcion='d', contenido='c',
+        )
+        sec = agregar_seccion(mod, 'S')
+        paso = agregar_micro(mod, sec, titulo='Vid', contenido='c')
+        paso.media_url = 'https://example.com/v.mp4'
+        paso.save(update_fields=['media_url'])
+        staff = User.objects.create_user(
+            username='mb_delhtml', password='x', is_staff=True, is_superuser=True,
+        )
+        client = Client()
+        client.force_login(staff)
+        r = client.get(f'/admin/module-builder/{mod.id}/', secure=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Quitar archivo')
+        self.assertContains(r, 'eki-mb-delete-media')
 
 
 class ModuleBuilderJsHealthTests(TestCase):

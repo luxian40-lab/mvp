@@ -12,11 +12,11 @@
 
 {{ block.super }}
 
-<link rel="stylesheet" href="{% static 'admin/css/module_builder.css' %}?v=26">
+<link rel="stylesheet" href="{% static 'admin/css/module_builder.css' %}?v=28">
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" defer></script>
 
-<script src="{% static 'admin/js/module_builder.js' %}?v=27" defer></script>
+<script src="{% static 'admin/js/module_builder.js' %}?v=28" defer></script>
 
 {% endblock %}
 
@@ -623,6 +623,10 @@
             <button type="submit" class="eki-mb__btn eki-mb__btn--outline eki-mb__btn--sm">Subir archivo</button>
 
           </form>
+
+          {% if m.media_url %}
+          <button type="button" class="eki-mb__btn eki-mb__btn--outline eki-mb__btn--sm eki-mb-delete-media" data-paso-id="{{ m.id }}">Quitar archivo</button>
+          {% endif %}
 
 
 

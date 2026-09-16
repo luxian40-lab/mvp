@@ -279,6 +279,25 @@ def module_builder_view(request, modulo_id: int):
                             request,
                             f'Micro #{paso.orden}: archivo subido y listo para WhatsApp.',
                         )
+            elif action == 'delete_media':
+                paso_id = int(request.POST.get('paso_id') or 0)
+                paso = get_object_or_404(PasoModulo, pk=paso_id, modulo=modulo)
+                from core.media_encode_async import limpiar_estado_encode_paso
+
+                paso.media_url = ''
+                paso.media_wa_apto = None
+                paso.save(update_fields=['media_url', 'media_wa_apto'])
+                limpiar_estado_encode_paso(paso.pk)
+                if request.POST.get('ajax') == '1':
+                    return JsonResponse({
+                        'ok': True,
+                        'paso_id': paso.pk,
+                        'media_url': '',
+                    })
+                messages.success(
+                    request,
+                    f'Micro #{paso.orden}: archivo quitado. El texto del paso se conserva.',
+                )
             elif action == 'update_micro':
                 paso_id = int(request.POST.get('paso_id') or 0)
                 paso = get_object_or_404(PasoModulo, pk=paso_id, modulo=modulo)

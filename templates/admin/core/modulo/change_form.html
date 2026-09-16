@@ -1,12 +1,40 @@
 {% extends "admin/eki_collapsible_change_form.html" %}
 {% load static %}
 
+{# En alta el select Jazzmin no aplica (Unfold); evita "Ir a sección" vacío. #}
+{% block form_top %}
+{% if original %}
+{{ block.super }}
+{% else %}
+<span id="eki-modulo-add-flag" data-eki-modulo-add="1" hidden></span>
+{% endif %}
+{% endblock %}
+
 {% block eki_inlines_intro %}
-<p class="eki-inlines-intro">
-    Camino recomendado: <strong>Module Builder</strong> (botón de la banda).
-    Abajo, clásico: solo <strong>Estructura</strong> y <strong>Materiales</strong>.
-    Media legacy y mini examen van en el Builder o en sus listados propios.
+{% if eki_modo_clase %}
+<p class="eki-inlines-intro" id="eki-modo-clase-flag" data-modo-clase="1">
+    <strong>Modo: clase rápida.</strong>
+    Subí material, activá y Guardá. El checklist de WhatsApp está abajo.
+    {% if eki_mod_switch_builder_url %}
+    · <a href="{{ eki_mod_switch_builder_url }}">Cambiar a armar por partes (Builder)</a>
+    {% endif %}
 </p>
+{% elif original %}
+<p class="eki-inlines-intro">
+    <strong>Modo avanzado.</strong>
+    {% if eki_mod_switch_clase_url %}
+    <a href="{{ eki_mod_switch_clase_url }}">Volver a clase rápida</a>
+    {% endif %}
+    {% if eki_mod_builder_ok %}
+    · <a href="{{ eki_mod_builder_url }}">Abrir Module Builder</a>
+    {% endif %}
+</p>
+{% else %}
+<p class="eki-inlines-intro" id="eki-modulo-add-intro" data-eki-modulo-add="1">
+    Elegí cómo querés crear el módulo (rápido o por partes) y Guardá.
+    Debajo aparecen el camino, el curso y el material.
+</p>
+{% endif %}
 {% endblock %}
 
 {% block field_sets %}
@@ -30,7 +58,14 @@
             {% if eki_mod_pasos is not None %} · {{ eki_mod_pasos }} micro(s) activo(s){% endif %}
         </div>
     </div>
-    {% if eki_mod_builder_ok %}
+    {% if eki_modo_clase and eki_mod_switch_builder_url %}
+    <div class="eki-id-band__actions">
+        <a class="eki-puente-btn" href="{{ eki_mod_switch_builder_url }}">
+            <span class="material-symbols-outlined" aria-hidden="true">view_timeline</span>
+            Armar por partes
+        </a>
+    </div>
+    {% elif eki_mod_builder_ok and not eki_modo_clase %}
     <div class="eki-id-band__actions">
         <a class="eki-puente-btn" href="{{ eki_mod_builder_url }}">
             <span class="material-symbols-outlined" aria-hidden="true">view_timeline</span>
@@ -60,8 +95,12 @@
         <div class="eki-pub-panel__head">
             <h3 class="eki-pub-panel__title">⚠ Media con problemas ({{ eki_mod_media_problemas|length }})</h3>
             <p class="eki-pub-panel__sub">
-                Cada fila indica <strong>qué micro</strong> falla y por qué. Ir a pestaña
-                <strong>Materiales</strong> y buscar por <strong>#orden</strong> y título.
+                Cada fila indica <strong>qué micro</strong> falla y por qué.
+                {% if eki_modo_clase %}
+                Revisá el archivo en <strong>Clase</strong> o pasá a <strong>Armar por partes</strong>.
+                {% else %}
+                Ir a <strong>Materiales</strong> y buscar por <strong>#orden</strong> y título.
+                {% endif %}
             </p>
         </div>
         <ul class="eki-media-prob-list">

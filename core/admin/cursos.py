@@ -1224,6 +1224,17 @@ class ModuloAdminForm(forms.ModelForm):
         disabled=True,
         help_text='Se completa solo tras Guardar con archivo o URL.',
     )
+    modo_creacion = forms.ChoiceField(
+        label='¿Qué vas a hacer?',
+        required=False,
+        initial='clase',
+        choices=(
+            ('clase', 'Subir una clase rápido'),
+            ('builder', 'Armar por partes (WhatsApp)'),
+        ),
+        widget=forms.RadioSelect,
+        help_text='Rápido = ficha Unfold. Por partes = Module Builder. Se puede cambiar después.',
+    )
 
     class Meta:
         model = Modulo
@@ -1237,13 +1248,22 @@ class ModuloAdminForm(forms.ModelForm):
         self.instance._eki_skip_contenido_model_clean = True
 
         self.fields['contenido'].required = False
+        if 'descripcion' in self.fields:
+            self.fields['descripcion'].required = False
+            self.fields['descripcion'].help_text = (
+                'Opcional en el alta: si lo deja vacío se usa el título.'
+            )
         if 'modo_entrega' in self.fields:
+            self.fields['modo_entrega'].required = False
             self.fields['modo_entrega'].help_text = (
                 'Recomendado: «Por pasos con listo». Legacy envía todo el módulo de una vez '
                 'e ignora microcontenidos. Automático hereda según haya pasos o no.'
             )
         n_micro = cuenta_microcontenidos_modulo(self.instance)
         if not self.instance.pk:
+            for fname, field in self.fields.items():
+                if fname not in ('curso', 'numero', 'titulo'):
+                    field.required = False
             self.fields['contenido'].help_text = (
                 'Opcional. Prefiera la pestaña Clase (texto + archivo). '
                 'Este campo es solo para modo Legacy.'
@@ -1337,6 +1357,18 @@ class ModuloAdminForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
         autofill_voice_label(cleaned)
+        if not (cleaned.get('descripcion') or '').strip():
+            cleaned['descripcion'] = (cleaned.get('titulo') or 'Módulo').strip() or 'Módulo'
+        if not cleaned.get('modo_entrega'):
+            cleaned['modo_entrega'] = Modulo.MODO_ENTREGA_PASOS
+        if not cleaned.get('facilitador_checkpoint'):
+            cleaned['facilitador_checkpoint'] = Modulo.FACILITADOR_CP_AUTO
+        if cleaned.get('duracion_dias') in (None, ''):
+            cleaned['duracion_dias'] = 7
+        if cleaned.get('puntaje_minimo_aprobacion') in (None, ''):
+            cleaned['puntaje_minimo_aprobacion'] = 70
+        if cleaned.get('secciones_por_listo') in (None, ''):
+            cleaned['secciones_por_listo'] = 1
         self._clase_pending_media_url = None
         self._clase_pending_media_async = None
         self._clase_reset_media_wa = False
@@ -1873,13 +1905,26 @@ class ModuloAdmin(admin.ModelAdmin):
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
         avanzado = request.GET.get('avanzado') == '1' or request.GET.get('legacy') == '1'
-        if request.method == 'GET' and not avanzado:
-            obj = self.get_object(request, object_id)
-            if obj:
-                from core.module_builder import module_builder_habilitado_para_curso
+        from core.modulo_authoring_mode import (
+            MODO_BUILDER,
+            MODO_CLASE,
+            resolver_modo_desde_request,
+            set_modulo_modo,
+        )
+        from core.module_builder import module_builder_habilitado_para_curso
 
-                if module_builder_habilitado_para_curso(getattr(obj, 'curso', None), request):
-                    return redirect('admin_module_builder', modulo_id=obj.pk)
+        obj_preview = self.get_object(request, object_id)
+        modo = resolver_modo_desde_request(request, object_id, default=MODO_CLASE)
+        if obj_preview:
+            set_modulo_modo(request, object_id, modo)
+        if (
+            request.method == 'GET'
+            and not avanzado
+            and modo == MODO_BUILDER
+            and obj_preview
+            and module_builder_habilitado_para_curso(getattr(obj_preview, 'curso', None), request)
+        ):
+            return redirect('admin_module_builder', modulo_id=obj_preview.pk)
         extra_context = extra_context or {}
         obj = self.get_object(request, object_id)
         if obj:
@@ -1919,6 +1964,15 @@ class ModuloAdmin(admin.ModelAdmin):
                 'validar_qa_url': reverse('admin:core_modulo_validar_qa', args=[obj.pk]),
             }
             extra_context['eki_mod_media_problemas'] = media_problemas
+            extra_context['eki_modo_clase'] = (modo == MODO_CLASE and not avanzado)
+            extra_context['eki_mod_switch_clase_url'] = reverse(
+                'admin:core_modulo_change', args=[obj.pk]
+            ) + '?modo=clase'
+            extra_context['eki_mod_switch_builder_url'] = extra_context['eki_mod_builder_url']
+            if not extra_context['eki_mod_builder_ok']:
+                extra_context['eki_mod_switch_builder_url'] = reverse(
+                    'admin:core_modulo_change', args=[obj.pk]
+                ) + '?modo=builder'
             from core.models import ModuloPublicacionEvent
 
             extra_context['eki_mod_pub_eventos'] = list(
@@ -2008,13 +2062,53 @@ class ModuloAdmin(admin.ModelAdmin):
         return redirect('admin:core_modulo_change', modulo_id)
 
     def get_inline_instances(self, request, obj=None):
-        """Módulo nuevo: Microcontenidos aparecen tras el 1.er guardado (necesitan PK + sección)."""
+        """Alta y modo clase: sin Estructura/Materiales. ?avanzado=1 las muestra."""
+        from core.modulo_authoring_mode import MODO_CLASE, resolver_modo_desde_request
+
+        avanzado = request.GET.get('avanzado') == '1' or request.GET.get('legacy') == '1'
+        modo = resolver_modo_desde_request(
+            request, getattr(obj, 'pk', None), default=MODO_CLASE
+        )
+        if obj is None or (modo == MODO_CLASE and not avanzado):
+            return []
         instances = []
         for inline_class in self.inlines:
-            if inline_class is PasoModuloInline and obj is None:
-                continue
             instances.append(inline_class(self.model, self.admin_site))
         return instances
+
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = super().get_fieldsets(request, obj)
+        if obj is not None:
+            return fieldsets
+        # Alta: un solo bloque visible. El resto usa defaults del modelo (no POST vacío).
+        return (
+            (
+                'Clase',
+                {
+                    'fields': (
+                        'guia_microcontenidos_whatsapp',
+                        'modo_creacion',
+                        'curso',
+                        'numero',
+                        'titulo',
+                        'clase_texto',
+                        'clase_archivo',
+                        'clase_url',
+                        'clase_media_actual',
+                        'clase_activo',
+                    ),
+                },
+            ),
+        )
+
+    def save_model(self, request, obj, form, change):
+        if not (obj.descripcion or '').strip():
+            obj.descripcion = (obj.titulo or 'Módulo').strip() or 'Módulo'
+        super().save_model(request, obj, form, change)
+        from core.modulo_authoring_mode import resolver_modo_desde_request, set_modulo_modo
+
+        modo = resolver_modo_desde_request(request, obj.pk, default='clase')
+        set_modulo_modo(request, obj.pk, modo)
 
     def get_changeform_initial_data(self, request):
         data = super().get_changeform_initial_data(request)
@@ -2067,41 +2161,53 @@ class ModuloAdmin(admin.ModelAdmin):
             )
 
     def response_add(self, request, obj, post_url_continue=None):
-        """Tras crear: Module Builder si está habilitado; si no, ficha Clase."""
+        """Tras crear: CRUD Unfold (clase) por defecto; Builder solo si lo eligió y está ON."""
         if '_addanother' in request.POST:
             return super().response_add(request, obj, post_url_continue)
+        return self._redirigir_tras_guardar_modulo(request, obj, creado=True)
+
+    def response_change(self, request, obj):
+        """Tras guardar: no forzar Builder. _continue / _addanother = super()."""
+        if '_addanother' in request.POST or '_continue' in request.POST:
+            return super().response_change(request, obj)
+        return self._redirigir_tras_guardar_modulo(request, obj, creado=False)
+
+    def _redirigir_tras_guardar_modulo(self, request, obj, *, creado: bool):
+        from core.modulo_authoring_mode import (
+            MODO_BUILDER,
+            MODO_CLASE,
+            resolver_modo_desde_request,
+            set_modulo_modo,
+        )
         from core.module_builder import module_builder_habilitado_para_curso
 
-        if module_builder_habilitado_para_curso(getattr(obj, 'curso', None), request):
+        modo = resolver_modo_desde_request(request, obj.pk, default=MODO_CLASE)
+        builder_ok = module_builder_habilitado_para_curso(getattr(obj, 'curso', None), request)
+        if modo == MODO_BUILDER and not builder_ok:
             self.message_user(
                 request,
-                'Módulo creado. Arme secciones y micros en el Module Builder.',
+                'Module Builder no está habilitado para este curso. Queda en clase rápida.',
+                level=messages.WARNING,
+            )
+            modo = MODO_CLASE
+        set_modulo_modo(request, obj.pk, modo)
+        if modo == MODO_BUILDER and builder_ok:
+            self.message_user(
+                request,
+                'Módulo creado. Arme secciones y micros en el Module Builder.'
+                if creado
+                else 'Guardado. Puede seguir en el Module Builder.',
                 level=messages.SUCCESS,
             )
             return redirect('admin_module_builder', modulo_id=obj.pk)
         self.message_user(
             request,
-            'Módulo creado. En pestaña Clase: texto + subir archivo → Activar → Guardar.',
+            'Módulo creado. En Clase: texto + archivo → Activar → Guardar.'
+            if creado
+            else 'Guardado.',
             level=messages.SUCCESS,
         )
-        return redirect('admin:core_modulo_change', obj.pk)
-
-    def response_change(self, request, obj):
-        """Tras guardar: ir al Module Builder (camino fácil A+B)."""
-        if '_addanother' in request.POST:
-            return super().response_change(request, obj)
-        if '_continue' in request.POST:
-            return super().response_change(request, obj)
-        from core.module_builder import module_builder_habilitado_para_curso
-
-        if module_builder_habilitado_para_curso(getattr(obj, 'curso', None), request):
-            self.message_user(
-                request,
-                'Guardado. Puede seguir en el Module Builder.',
-                level=messages.SUCCESS,
-            )
-            return redirect('admin_module_builder', modulo_id=obj.pk)
-        return super().response_change(request, obj)
+        return redirect(f"{reverse('admin:core_modulo_change', args=[obj.pk])}?modo=clase")
 
     def ver_curso_link(self, obj):
         """Link directo al curso padre"""

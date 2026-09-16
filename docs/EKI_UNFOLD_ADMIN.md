@@ -31,6 +31,15 @@ Regla Cursor (auto al tocar archivos admin): `.cursor/rules/eki-unfold-admin.mdc
 | Config `UNFOLD` | `mvp_project/unfold_admin.py` |
 | CSS marca / cajas | `static/admin/css/eki_admin_unfold.css` |
 | Jump sticky módulos | `static/admin/js/eki_modulo_jump.js` |
+
+### Invariante P0 — tabs Unfold vs jump JS
+
+Unfold muestra los **fieldsets** solo con Alpine `activeTab == 'general'`. Los tabs de fieldset (`classes: ['tab']`, p. ej. «Clase») usan `activeFieldsetTab`, **no** el `activeTab` del body.
+
+Si `eki_modulo_jump.js` pone `activeTab = 'clase'`, el alta/edición queda **en blanco** (intro + Grabar, sin campos). Regla: primary = `general` | slug de inline (`pasos`, …). Failsafe CSS: `eki_admin_unfold.css` (`:has([data-eki-modulo-add])`). Test: `test_jump_js_no_pone_active_tab_clase_como_primary`.
+
+| Pieza | Ruta |
+|-------|------|
 | CSS módulo WhatsApp bloques | `static/admin/css/modulo_whatsapp_bloques.css` |
 | Alta módulo (plantilla) | `sembrar_plantilla_modulo` en `core/admin/cursos.py` — 1 bloque + N microcontenidos inactivos; default modo Pasos; inlines con `tab=True` (Estructura / Microcontenidos / Multimedia legacy / Examen) |
 | **Module Builder WA** | `/admin/module-builder/<id>/` · flag `EKI_MODULE_BUILDER_BETA` (local ON; prod OFF salvo `=1`) · allowlist `EKI_MODULE_BUILDER_CURSOS` default `*` · vista `core/views_module_builder.py`, lógica `core/module_builder.py`, template `core/templates/admin/module_builder.html`, CSS/JS `static/admin/{css,js}/module_builder.*` · `docs/MODULE_BUILDER_WA.md` |

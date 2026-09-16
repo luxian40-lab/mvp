@@ -1694,3 +1694,30 @@ html[data-eki-tone="noche"] img[src*="favicons/admin"] {
   border-radius: 6px;
 }
 
+/*
+ * P0 failsafe — Unfold fieldsets usan x-show="activeTab == 'general'".
+ * Si JS pone activeTab en un slug de fieldset (p.ej. "clase"), el alta queda en blanco.
+ * En alta forzamos visibilidad aunque Alpine falle.
+ */
+body.model-modulo:has([data-eki-modulo-add="1"]) #modulo_form fieldset.module {
+  display: block !important;
+}
+
+/* CRUD Unfold: botones de Guardar / Eliminar separados y visibles */
+body.model-modulo .submit-row,
+#modulo_form .submit-row {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 0.9rem;
+}
+body.model-modulo .submit-row > * {
+  margin: 0 !important;
+}
+body.model-modulo .object-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.65rem;
+}
+
+

@@ -47,6 +47,10 @@ from ..models import (
     EventoIA,
     ContextoAgroSession,
     ConversacionRAGCandidata,
+    AlertaTerritorial,
+    EventOutbox,
+    SenalTerritorial,
+    SandboxCanalSesion,
 )
 from ..admin_campana_actualizado import CampanaUnicaAdmin, RespuestaCampanaUnicaAdmin
 from ..models_extras import (
