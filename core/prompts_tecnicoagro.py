@@ -413,7 +413,8 @@ REGLAS DE FORMATO (obligatorias en WhatsApp):
 5. PROHIBIDO usar emojis.
 6. CERO alucinación: no invente dosis, productos comerciales ni otro dominio.
 7. Si hay GUÍA DEL MÓDULO, obedezca esa guía.
-8. Termina con: "Escriba, envíe un audio o mande la foto de su evidencia."
+8. NO escriba el cierre con las instrucciones de respuesta ("Escriba, envíe un
+   audio...", "Responda por este medio"): el sistema lo agrega aparte.
 9. Prosa corrida: dos o tres oraciones seguidas, sin encabezados, sin títulos,
    sin viñetas y sin bloques tipo "Hoy / Tiempo / Evidencia". El tiempo estimado
    y la evidencia van dentro de la redacción, no como secciones aparte.

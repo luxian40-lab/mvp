@@ -11,9 +11,11 @@ from core.prompts_tecnicoagro import (
     PROMPT_TECNICOAGRO,
 )
 from core.tutor_ia_modulo import (
+    PIE_RESPUESTA_RETO,
     PROMPT_FACILITADOR_EVALUACION,
     PROMPT_FACILITADOR_EVALUACION_NOTAS,
     PROMPT_FACILITADOR_RETO,
+    bloque_reto_whatsapp,
     generar_presentacion_agentes,
     generar_reto_facilitador,
     limpiar_emojis,
@@ -42,6 +44,43 @@ class LimpiarEmojisTests(TestCase):
     def test_vacio_no_rompe(self):
         self.assertEqual(limpiar_emojis(''), '')
         self.assertEqual(limpiar_emojis(None), '')
+
+
+class BloqueRetoWhatsappTests(TestCase):
+    def test_no_duplica_el_cierre_que_escribe_el_modelo(self):
+        reto = (
+            'Revise entre 5 y 10 colmenas y registre cuántas tienen cría salteada. '
+            'Escriba, envíe un audio o mande la foto de su evidencia.'
+        )
+
+        bloque = bloque_reto_whatsapp('Asesor', reto)
+
+        self.assertEqual(bloque.count('mande la foto de su evidencia'), 1)
+        self.assertTrue(bloque.endswith(PIE_RESPUESTA_RETO))
+        self.assertIn('Revise entre 5 y 10 colmenas', bloque)
+
+    def test_quita_cierre_en_linea_propia(self):
+        reto = (
+            'Revise 10 colmenas y cuente cuántas tienen varroa visible.\n\n'
+            'Escriba o envíe un audio con su respuesta.'
+        )
+
+        bloque = bloque_reto_whatsapp('Asesor', reto)
+
+        self.assertNotIn('Escriba o envíe un audio con su respuesta.', bloque)
+        self.assertTrue(bloque.endswith(PIE_RESPUESTA_RETO))
+
+    def test_cabecera_sin_emojis_y_reto_limpio(self):
+        bloque = bloque_reto_whatsapp('Asesor', '🌱 Revise 10 colmenas 🐝.')
+
+        self.assertTrue(bloque.startswith('*Asesor*'))
+        for emoji in ('🌱', '🐝', '📋', '✍️'):
+            self.assertNotIn(emoji, bloque)
+
+    def test_sin_nombre_no_deja_encabezado_vacio(self):
+        bloque = bloque_reto_whatsapp('', 'Revise 10 colmenas.')
+
+        self.assertTrue(bloque.startswith('Revise 10 colmenas.'))
 
 
 class PromptsSinEmojisTests(TestCase):

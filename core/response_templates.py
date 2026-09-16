@@ -1403,11 +1403,9 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                         "continuar_leccion: Darío→Claudia por *listo* | estudiante_id=%s",
                         estudiante.id,
                     )
-                    return (
-                        f"*{nombre_tutor}*\n\n"
-                        f"{reto}\n\n"
-                        "_Escriba, envíe un audio o mande la foto de su evidencia._"
-                    )
+                    from core.tutor_ia_modulo import bloque_reto_whatsapp
+
+                    return bloque_reto_whatsapp(nombre_tutor, reto)
                 estudiante.estado_onboarding = 'completado'
                 estudiante.contexto_temporal = None
                 estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])

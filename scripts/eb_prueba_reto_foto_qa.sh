@@ -20,17 +20,21 @@ import os
 
 from core.models import Curso, Estudiante, ProgresoEstudiante
 from core.facilitador_perfil import nombre_display_facilitador
-from core.tutor_ia_modulo import generar_reto_facilitador
+from core.tutor_ia_modulo import bloque_reto_whatsapp, generar_reto_facilitador
 from core.utils import enviar_whatsapp_twilio
 
 tel = os.environ['TEL_QA']
 curso = Curso.objects.get(id=35)
 est = Estudiante.objects.filter(telefono__endswith=tel[-10:]).first()
 print('estudiante:', est.id if est else None)
-prog = ProgresoEstudiante.objects.filter(estudiante=est, curso=curso).first()
-print('progreso:', prog.id if prog else None)
-
 m1 = curso.modulos.order_by('numero').first()
+prog = ProgresoEstudiante.objects.filter(estudiante=est, curso=curso).first()
+if prog is None:
+    prog = ProgresoEstudiante.objects.create(
+        estudiante=est, curso=curso, modulo_actual=m1,
+    )
+    print('progreso creado')
+print('progreso:', prog.id)
 reto = generar_reto_facilitador(
     [m1],
     curso.nombre,
@@ -52,10 +56,7 @@ est.estado_onboarding = 'esperando_respuesta_reto'
 est.save(update_fields=['contexto_temporal', 'estado_onboarding'])
 
 nombre = nombre_display_facilitador(curso)
-cuerpo = (
-    f'📋 *{nombre}*\n\n{reto}\n\n'
-    '✍️ _Escriba, envíe un audio o mande la foto de su evidencia._'
-)
+cuerpo = bloque_reto_whatsapp(nombre, reto)
 r = enviar_whatsapp_twilio(tel, cuerpo)
 print('envio ok:', r.get('success'), r.get('mensaje_id'))
 PY

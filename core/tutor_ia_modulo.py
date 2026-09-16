@@ -35,7 +35,7 @@ REGLAS OBLIGATORIAS:
 5. PROHIBIDO usar emojis.
 6. CERO alucinación: solo temas que aparezcan en MÓDULOS / RAG / nombre del curso / GUÍA DEL MÓDULO. PROHIBIDO mezclar plagas, cultivos o finanzas si los módulos no hablan de eso.
 7. Si hay GUÍA DEL MÓDULO, obedezca esa guía antes que ejemplos genéricos o de otros programas.
-8. Termina con: "Escriba o envíe un audio con su respuesta."
+8. NO escriba el cierre con las instrucciones de respuesta ("Escriba o envíe un audio..."): el sistema lo agrega aparte.
 9. Sin tecnicismos innecesarios ni tono de examen.
 10. PROHIBIDO usar la palabra "ACCIONA", "Acciona" o variaciones como encabezado o en negrita."""
 
@@ -152,6 +152,27 @@ def limpiar_emojis(texto: str) -> str:
     t = re.sub(r'[ \t]+$', '', t, flags=re.MULTILINE)
     t = re.sub(r'\n{3,}', '\n\n', t)
     return t.strip()
+
+
+PIE_RESPUESTA_RETO = '_Escriba, envíe un audio o mande la foto de su evidencia._'
+
+_RE_CIERRE_RESPUESTA = re.compile(
+    r'\s*_?\s*escrib[ae]\b[^\n]{0,100}?(audio|evidencia|respuesta)[^\n]{0,40}\s*$',
+    re.IGNORECASE,
+)
+
+
+def bloque_reto_whatsapp(nombre_tutor: str, reto: str) -> str:
+    """Mensaje del reto para WhatsApp: cabecera + reto + un solo cierre."""
+    cuerpo = limpiar_emojis(reto or '').strip()
+    anterior = None
+    while anterior != cuerpo:
+        anterior = cuerpo
+        recortado = _RE_CIERRE_RESPUESTA.sub('', cuerpo).strip()
+        if recortado:
+            cuerpo = recortado
+    encabezado = f'*{(nombre_tutor or "").strip()}*\n\n' if (nombre_tutor or '').strip() else ''
+    return f'{encabezado}{cuerpo}\n\n{PIE_RESPUESTA_RETO}'
 
 
 def _quitar_encabezado_acciona(texto: str) -> str:

@@ -4172,11 +4172,9 @@ def _procesar_twilio_webhook(post_data):
                             )
                         except Exception:
                             logger.debug('[reto] telemetría reto_planteado omitida', exc_info=True)
-                        texto_respuesta = (
-                            f"*{nombre_tutor}*\n\n"
-                            f"{reto}\n\n"
-                            "_Escriba, envíe un audio o mande la foto de su evidencia._"
-                        )
+                        from core.tutor_ia_modulo import bloque_reto_whatsapp
+
+                        texto_respuesta = bloque_reto_whatsapp(nombre_tutor, reto)
                     else:
                         logger.warning(
                             "reto asistente vacío | progreso_id=%s modulo_ctx=%s ids_ctx=%s",
@@ -4720,11 +4718,9 @@ def _procesar_twilio_webhook(post_data):
                     }
                     estudiante.estado_onboarding = 'esperando_respuesta_reto'
                     estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
-                    bloque_reto = (
-                        f"*{nombre_tutor}*\n\n"
-                        f"{reto}\n\n"
-                        "_Escriba, envíe un audio o mande la foto de su evidencia._"
-                    )
+                    from core.tutor_ia_modulo import bloque_reto_whatsapp
+
+                    bloque_reto = bloque_reto_whatsapp(nombre_tutor, reto)
                     return f"{prefijo}\n\n{bloque_reto}".strip()
                 
                 # Detectar si el usuario quiere omitir
