@@ -17,6 +17,28 @@ except Exception:
     _CHROMADB_OK = False
 
 
+def _pista_permisos(exc: Exception) -> str:
+    """Un fallo de escritura en CHROMA_DB_DIR se reporta como 'readonly database'."""
+    if 'readonly database' not in str(exc).lower():
+        return ''
+
+    import getpass
+    import os
+
+    from django.conf import settings
+
+    ruta = getattr(settings, 'CHROMA_DB_DIR', '(sin CHROMA_DB_DIR)')
+    try:
+        usuario = getpass.getuser()
+    except Exception:
+        usuario = '?'
+    return (
+        f" | CHROMA_DB_DIR={ruta} no es escribible por el usuario {usuario}"
+        f" (escribible={os.access(ruta, os.W_OK) if ruta else False});"
+        ' los procesos de eki corren como webapp, ejecute con sudo -u webapp'
+    )
+
+
 class RAGManager:
     """
     Gestiona instancias RAG aisladas por Cliente + Curso.
@@ -44,7 +66,7 @@ class RAGManager:
             try:
                 self._instancias[key] = RAGClienteCurso(cliente_id, curso_id)
             except Exception as e:
-                logger.error(f"[RAGManager] Error creando instancia {key}: {e}")
+                logger.error(f"[RAGManager] Error creando instancia {key}: {e}{_pista_permisos(e)}")
                 return None
         return self._instancias[key]
 

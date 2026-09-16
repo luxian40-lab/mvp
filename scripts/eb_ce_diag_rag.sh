@@ -11,7 +11,13 @@ export PYTHONPATH=/var/app/current
 cd /var/app/current
 source /var/app/venv/*/bin/activate
 
-python3 <<'PY'
+# Correr como webapp: es el dueño de CHROMA_DB_DIR y de los procesos web/celery.
+# Como ec2-user, Chroma falla con "attempt to write a readonly database".
+sudo -u webapp -E env HOME=/tmp PYTHONPATH=/var/app/current DJANGO_SETTINGS_MODULE=mvp_project.settings_production \
+  DB_NAME="$DB_NAME" DB_USER="$DB_USER" DB_PASSWORD="$DB_PASSWORD" DB_HOST="$DB_HOST" DB_PORT="$DB_PORT" \
+  AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+  AWS_STORAGE_BUCKET_NAME="$AWS_STORAGE_BUCKET_NAME" AWS_S3_REGION_NAME="$AWS_S3_REGION_NAME" USE_S3=True \
+  /var/app/venv/*/bin/python3 <<'PY'
 import django
 django.setup()
 from core.models import DocumentoRAG, Curso
@@ -40,5 +46,6 @@ import os
 from django.conf import settings
 p = getattr(settings, 'CHROMA_DB_DIR', '')
 print('CHROMA_DB_DIR', p, 'exists', os.path.isdir(p), 'writable', os.access(p, os.W_OK) if p else False)
-print('as user', os.getuid() if hasattr(os,'getuid') else '?')
+import getpass
+print('as user', getpass.getuser(), os.getuid() if hasattr(os, 'getuid') else '?')
 PY

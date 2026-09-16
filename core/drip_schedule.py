@@ -135,7 +135,7 @@ def format_mensaje_bloqueo_drip(fecha_desbloqueo, cliente=None) -> str:
     else:
         f_txt = fecha_desbloqueo.strftime('%d/%m/%Y')
     return (
-        '🌱 *¡Excelente energía!*\n\n'
+        '*¡Excelente energía!*\n\n'
         'Estamos preparando tu siguiente sesión; aún no enviamos el siguiente módulo para que puedas asimilar lo aprendido.\n\n'
         f'Tu próxima lección se desbloquea el *{f_txt}*.\n'
         'Mientras tanto, repasa el material del módulo que acabas de completar.\n\n'
@@ -149,7 +149,7 @@ def format_mensaje_bloqueo_calendario_modulo(habilitado_desde, cliente=None) -> 
 
     f_txt = timezone.localtime(habilitado_desde).strftime('%d/%m/%Y a las %H:%M')
     return (
-        '🌱 *¡Excelente energía!*\n\n'
+        '*¡Excelente energía!*\n\n'
         'Estamos preparando tu siguiente sesión; aún no enviamos el siguiente módulo para que puedas asimilar lo aprendido.\n\n'
         f'Tu próxima lección se desbloquea el *{f_txt}*.\n'
         'Mientras tanto, repasa el material del módulo que acabas de completar.\n\n'

@@ -194,7 +194,7 @@ def format_mensaje_bloqueo_contenido_pendiente(cliente=None) -> str:
     from .avance_whatsapp import texto_bloqueo_drip_cierre
 
     return (
-        '🌱 *¡Excelente energía!*\n\n'
+        '*¡Excelente energía!*\n\n'
         'Estamos preparando tu siguiente sesión; aún no enviamos el siguiente módulo '
         'para que puedas asimilar lo aprendido.\n\n'
         'Tu próxima lección estará disponible pronto.\n'
