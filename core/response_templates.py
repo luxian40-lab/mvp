@@ -423,6 +423,66 @@ def obtener_video_url(leccion_o_modulo):
     return None
 
 
+def activar_checkpoint_facilitador(estudiante, progreso, modulo_cerrado) -> str:
+    """
+    Abre el checkpoint IA al cerrar `modulo_cerrado`: el compañero saluda y la
+    facilitadora entrega el reto cuando el estudiante responde *listo*.
+
+    El puntero de módulo no avanza; eso ocurre después de evaluar el reto.
+    """
+    from .tutor_ia_modulo import (
+        descripcion_rango_modulos_reto_esp,
+        listar_modulos_cobertura_reto,
+    )
+
+    cliente = getattr(estudiante, 'cliente', None)
+    nombre_tutor = (
+        (getattr(cliente, 'nombre_agente_tutor', '') or '')
+        or progreso.curso.nombre_agente_tutor
+        or 'Claudia'
+    )
+    nombre_asistente = (
+        (getattr(cliente, 'nombre_agente_asistente', '') or '')
+        or progreso.curso.nombre_agente_asistente
+        or 'Darío'
+    )
+
+    logger.info(
+        '🎯 [checkpoint-reto] activo | est=%s curso_id=%s modulo_cerrado_id=%s num=%s',
+        estudiante.id,
+        progreso.curso_id,
+        modulo_cerrado.id,
+        modulo_cerrado.numero,
+    )
+
+    modulos_reto = listar_modulos_cobertura_reto(modulo_cerrado, progreso.curso)
+    modulos_reto_range = descripcion_rango_modulos_reto_esp(modulos_reto)
+
+    dario_msg = (
+        f"*{nombre_asistente}*\n\n"
+        f"¡Hola! Es hora de una pausa para repasar conceptos. "
+        f"{nombre_tutor} te va a recibir con un reto sobre {modulos_reto_range}.\n\n"
+        f"Te puedo ayudar a resolver un par de preguntas antes. "
+        f"¿Tienes alguna pregunta sobre lo que hemos visto? Envíame un audio o "
+        f"escríbeme; si no tienes preguntas, escribe *listo*."
+    )
+
+    _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
+    estudiante.contexto_temporal = {
+        'tipo': 'asistente_dario',
+        'curso_activo_id': progreso.curso_id,
+        'modulo_id': modulo_cerrado.id,
+        'progreso_id': progreso.id,
+        'modulos_reto_ids': [m.id for m in modulos_reto],
+        'preguntas_hechas': 0,
+        '_ts_leccion': _prev_ts,
+    }
+    estudiante.estado_onboarding = 'esperando_respuesta_asistente'
+    estudiante.save()
+
+    return dario_msg
+
+
 def get_response_for_intent(intent: str, nombre_usuario: str = "Estudiante", **kwargs) -> str:
     """
     LÓGICA SIMPLIFICADA PARA SANDBOX:
@@ -1610,10 +1670,38 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 total_modulos_publicados_wa,
             )
 
+            total_modulos = total_modulos_publicados_wa(progreso.curso)
+            usar_ia_curso = bool(getattr(progreso.curso, 'usar_agentes_ia', True))
+            decision_cp = evaluar_checkpoint_reto_ia(
+                modulo_actual,
+                total_modulos,
+                usar_ia_curso,
+                modulo_ya_completado=modulo_ya_completado,
+            )
+            es_modulo_reto = decision_cp.es_reto
+            try:
+                from core.eventos_ia import emit_checkpoint_evaluado
+
+                emit_checkpoint_evaluado(
+                    decision_cp,
+                    estudiante=estudiante,
+                    curso=progreso.curso,
+                    modulo=modulo_actual,
+                    origen='continuar_leccion',
+                )
+            except Exception:
+                pass
+
             _blk_pub = mensaje_bloqueo_sin_siguiente_publicado(
                 estudiante, progreso, modulo_actual
             )
             if _blk_pub:
+                # El checkpoint no lo tapa el siguiente módulo en borrador: primero el
+                # reto, y el bloqueo llega al cerrarlo (ver flujo reto en views).
+                if es_modulo_reto:
+                    return activar_checkpoint_facilitador(
+                        estudiante, progreso, modulo_actual
+                    )
                 from .avance_whatsapp import adaptar_mensaje_drip_bloqueo
                 return adaptar_mensaje_drip_bloqueo(_blk_pub, estudiante)
 
@@ -1621,28 +1709,6 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             
             if siguiente_modulo:
                 from .drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
-
-                total_modulos = total_modulos_publicados_wa(progreso.curso)
-                usar_ia_curso = bool(getattr(progreso.curso, 'usar_agentes_ia', True))
-                decision_cp = evaluar_checkpoint_reto_ia(
-                    modulo_actual,
-                    total_modulos,
-                    usar_ia_curso,
-                    modulo_ya_completado=modulo_ya_completado,
-                )
-                es_modulo_reto = decision_cp.es_reto
-                try:
-                    from core.eventos_ia import emit_checkpoint_evaluado
-
-                    emit_checkpoint_evaluado(
-                        decision_cp,
-                        estudiante=estudiante,
-                        curso=progreso.curso,
-                        modulo=modulo_actual,
-                        origen='continuar_leccion',
-                    )
-                except Exception:
-                    pass
 
                 _blk_fin = mensaje_bloqueo_avance_siguiente_modulo(
                     estudiante, progreso, modulo_actual
@@ -1757,58 +1823,11 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 # NO embeber media en msg_modulo — enviar video como mensaje separado después del texto
                 # primera_media_url y extra_media_urls se agregan como partes separadas más abajo
                 
-                # v1.9.8h: Agentes — Darío (checkpoints: ej. módulos 1, 3, último si curso largo, …) + Facilitadora después
-                _cliente = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
-                nombre_tutor = (
-                    (_cliente.nombre_agente_tutor if _cliente and hasattr(_cliente, 'nombre_agente_tutor') and _cliente.nombre_agente_tutor else '') or
-                    progreso.curso.nombre_agente_tutor or 'Claudia'
-                )
-                nombre_asistente = (
-                    (_cliente.nombre_agente_asistente if _cliente and hasattr(_cliente, 'nombre_agente_asistente') and _cliente.nombre_agente_asistente else '') or
-                    progreso.curso.nombre_agente_asistente or 'Darío'
-                )
-                
-                dario_msg = None
-                
                 if es_modulo_reto:
-                    logger.info(
-                        '🎯 [checkpoint-reto] activo | est=%s curso_id=%s modulo_cerrado_id=%s num=%s',
-                        estudiante.id,
-                        progreso.curso_id,
-                        modulo_actual.id,
-                        modulo_actual.numero,
+                    # Reto: solo el compañero; el siguiente módulo se entrega tras evaluarlo.
+                    return activar_checkpoint_facilitador(
+                        estudiante, progreso, modulo_actual
                     )
-                    from .tutor_ia_modulo import (
-                        descripcion_rango_modulos_reto_esp,
-                        listar_modulos_cobertura_reto,
-                    )
-
-                    modulos_reto = listar_modulos_cobertura_reto(modulo_actual, progreso.curso)
-                    modulos_reto_range = descripcion_rango_modulos_reto_esp(modulos_reto)
-
-                    dario_msg = (
-                        f"*{nombre_asistente}*\n\n"
-                        f"¡Hola! Es hora de una pausa para repasar conceptos. "
-                        f"{nombre_tutor} te va a recibir con un reto sobre {modulos_reto_range}.\n\n"
-                        f"Te puedo ayudar a resolver un par de preguntas antes. "
-                        f"¿Tienes alguna pregunta sobre lo que hemos visto? Envíame un audio o escríbeme; si no tienes preguntas, escribe *listo*."
-                    )
-
-                    _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
-                    estudiante.contexto_temporal = {
-                        'tipo': 'asistente_dario',
-                        'curso_activo_id': progreso.curso_id,
-                        'modulo_id': modulo_actual.id,
-                        'progreso_id': progreso.id,
-                        'modulos_reto_ids': [m.id for m in modulos_reto],
-                        'preguntas_hechas': 0,
-                        '_ts_leccion': _prev_ts,
-                    }
-                    estudiante.estado_onboarding = 'esperando_respuesta_asistente'
-                    estudiante.save()
-                    
-                    # v1.9.8i: Reto modules — only Darío (NO completado msg, NO next module)
-                    return dario_msg
                 
                 # v1.9.8i: Normal module — just show next module (no completado msg)
                 partes = [msg_modulo]
