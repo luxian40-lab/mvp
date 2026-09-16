@@ -5,6 +5,7 @@ facilitador debe dispararse igual; el bloqueo de contenido pendiente llega
 después de responderlo.
 """
 from django.test import TestCase
+from django.test.utils import override_settings
 
 from core.models import (
     Cliente,
@@ -13,6 +14,7 @@ from core.models import (
     Modulo,
     ModuloCompletado,
     PasoModulo,
+    PreguntaModulo,
     ProgresoEstudiante,
     SeccionModulo,
 )
@@ -124,5 +126,101 @@ class CheckpointConSiguientePausadoTests(TestCase):
         resp = self._listo()
 
         self.assertIn('preparando', resp.lower())
+        self.est.refresh_from_db()
+        self.assertNotEqual(self.est.estado_onboarding, 'esperando_respuesta_asistente')
+
+
+@override_settings(TWILIO_ACCOUNT_SID='', TWILIO_AUTH_TOKEN='')
+class CheckpointMiniExamenConSiguientePausadoTests(TestCase):
+    """Mismo gate, pero cerrando el módulo con mini examen (PreguntaModulo)."""
+
+    def setUp(self):
+        self.cliente = Cliente.objects.create(nombre='QA Checkpoint Examen', activo=True)
+        self.curso = Curso.objects.create(
+            nombre='QA Checkpoint Examen',
+            cliente=self.cliente,
+            activo=True,
+            usar_agentes_ia=True,
+            dias_espera_entre_modulos=0,
+            nombre_agente_asistente='Compañero',
+            nombre_agente_tutor='Asesor',
+        )
+        self.est = Estudiante.objects.create(
+            cedula='QA-CP-002',
+            nombre='Tester Examen',
+            telefono='573026480002',
+            cliente=self.cliente,
+            activo=True,
+            acepto_terminos=True,
+            estado_chat='ACTIVO',
+        )
+        self.m1 = Modulo.objects.create(
+            curso=self.curso,
+            numero=1,
+            titulo='M1 con examen',
+            descripcion='d',
+            contenido='Contenido M1',
+            publicado_wa=True,
+            facilitador_checkpoint=Modulo.FACILITADOR_CP_SI,
+        )
+        self.m2 = Modulo.objects.create(
+            curso=self.curso,
+            numero=2,
+            titulo='M2 pausado',
+            descripcion='d',
+            contenido='Contenido M2',
+            publicado_wa=False,
+        )
+        self.pregunta = PreguntaModulo.objects.create(
+            modulo=self.m1,
+            pregunta='¿Qué revisa primero?',
+            opcion_a='La piquera',
+            opcion_b='Nada',
+            respuesta_correcta='A',
+        )
+        self.prog = ProgresoEstudiante.objects.create(
+            estudiante=self.est,
+            curso=self.curso,
+            modulo_actual=self.m1,
+        )
+        self.est.contexto_temporal = {
+            'modulo_id': self.m1.id,
+            'pregunta_id': self.pregunta.id,
+            'progreso_id': self.prog.id,
+            'tipo': 'pregunta_modulo',
+        }
+        self.est.estado_onboarding = 'esperando_respuesta_modulo'
+        self.est.save(update_fields=['contexto_temporal', 'estado_onboarding'])
+
+    def _responder(self, body='A'):
+        from core.views import _procesar_twilio_webhook
+
+        _procesar_twilio_webhook(
+            {
+                'Body': body,
+                'From': f'whatsapp:+{self.est.telefono}',
+                'To': 'whatsapp:+14155238886',
+                'MessageSid': 'SM_test_checkpoint_examen',
+                'NumMedia': '0',
+            }
+        )
+
+    def test_checkpoint_si_dispara_reto_aunque_siguiente_este_pausado(self):
+        self._responder()
+
+        self.est.refresh_from_db()
+        self.assertEqual(self.est.estado_onboarding, 'esperando_respuesta_asistente')
+        ctx = self.est.contexto_temporal or {}
+        self.assertEqual(ctx.get('tipo'), 'asistente_dario')
+        self.assertEqual(ctx.get('modulo_id'), self.m1.id)
+        self.prog.refresh_from_db()
+        self.assertEqual(self.prog.modulo_actual_id, self.m1.id)
+
+    def test_modulo_sin_checkpoint_sigue_bloqueado(self):
+        self.m1.facilitador_checkpoint = Modulo.FACILITADOR_CP_NO
+        self.m1.save(update_fields=['facilitador_checkpoint'])
+
+        self._responder()
+
         self.est.refresh_from_db()
         self.assertNotEqual(self.est.estado_onboarding, 'esperando_respuesta_asistente')

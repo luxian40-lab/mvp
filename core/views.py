@@ -4896,12 +4896,50 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                     total_modulos_publicados_wa,
                                 )
 
+                                from .helpers_examenes import evaluar_checkpoint_reto_ia
+                                from .response_templates import (
+                                    activar_checkpoint_facilitador,
+                                )
+
+                                total_modulos = total_modulos_publicados_wa(progreso.curso)
+                                usar_agentes_ia_curso = bool(
+                                    getattr(progreso.curso, 'usar_agentes_ia', True)
+                                )
+                                decision_cp = evaluar_checkpoint_reto_ia(
+                                    modulo_actual,
+                                    total_modulos,
+                                    usar_agentes_ia_curso,
+                                )
+                                es_modulo_reto = decision_cp.es_reto
+                                try:
+                                    from core.eventos_ia import emit_checkpoint_evaluado
+
+                                    emit_checkpoint_evaluado(
+                                        decision_cp,
+                                        estudiante=estudiante,
+                                        curso=progreso.curso,
+                                        modulo=modulo_actual,
+                                        origen='pregunta_modulo',
+                                    )
+                                except Exception:
+                                    pass
+
                                 drip_bloqueado = False
                                 _blk_pub_v = mensaje_bloqueo_sin_siguiente_publicado(
                                     estudiante, progreso, modulo_actual
                                 )
                                 if _blk_pub_v:
-                                    texto_respuesta = f"{mensaje_respuesta}\n\n{_blk_pub_v}"
+                                    # El siguiente módulo en borrador no tapa el checkpoint:
+                                    # primero el reto, el bloqueo llega al cerrarlo.
+                                    if es_modulo_reto:
+                                        _dario_blk = activar_checkpoint_facilitador(
+                                            estudiante, progreso, modulo_actual
+                                        )
+                                        texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(
+                                            [mensaje_respuesta, _dario_blk]
+                                        )
+                                    else:
+                                        texto_respuesta = f"{mensaje_respuesta}\n\n{_blk_pub_v}"
                                     drip_bloqueado = True
                                     siguiente_modulo = None
                                 else:
@@ -4911,30 +4949,6 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
 
                                 if siguiente_modulo:
                                     from .drip_schedule import mensaje_bloqueo_avance_siguiente_modulo
-                                    from .helpers_examenes import evaluar_checkpoint_reto_ia
-
-                                    total_modulos = total_modulos_publicados_wa(progreso.curso)
-                                    usar_agentes_ia_curso = bool(
-                                        getattr(progreso.curso, 'usar_agentes_ia', True)
-                                    )
-                                    decision_cp = evaluar_checkpoint_reto_ia(
-                                        modulo_actual,
-                                        total_modulos,
-                                        usar_agentes_ia_curso,
-                                    )
-                                    es_modulo_reto = decision_cp.es_reto
-                                    try:
-                                        from core.eventos_ia import emit_checkpoint_evaluado
-
-                                        emit_checkpoint_evaluado(
-                                            decision_cp,
-                                            estudiante=estudiante,
-                                            curso=progreso.curso,
-                                            modulo=modulo_actual,
-                                            origen='pregunta_modulo',
-                                        )
-                                    except Exception:
-                                        pass
 
                                     _blk_v = mensaje_bloqueo_avance_siguiente_modulo(
                                         estudiante, progreso, modulo_actual
@@ -5006,48 +5020,11 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                         primera_media_url = video_url
                                 
                                     msg_completado = mensaje_respuesta
-                                
-                                    # v1.9.8h: Agentes — check reto
-                                    nombre_tutor = progreso.curso.nombre_agente_tutor or 'Claudia'
-                                    nombre_asistente = progreso.curso.nombre_agente_asistente or 'Darío'
-                                    
+
                                     if es_modulo_reto:
-                                        from .tutor_ia_modulo import (
-                                            descripcion_rango_modulos_reto_esp,
-                                            listar_modulos_cobertura_reto,
+                                        dario_msg = activar_checkpoint_facilitador(
+                                            estudiante, progreso, modulo_actual
                                         )
-
-                                        modulos_reto = listar_modulos_cobertura_reto(
-                                            modulo_actual, progreso.curso
-                                        )
-                                        modulos_reto_range = descripcion_rango_modulos_reto_esp(
-                                            modulos_reto
-                                        )
-
-                                        dario_msg = (
-                                            f"*{nombre_asistente}*\n\n"
-                                            f"¡Hola! Es hora de una pausa para repasar conceptos. "
-                                            f"{nombre_tutor} te va a recibir con un reto sobre {modulos_reto_range}.\n\n"
-                                            f"Te puedo ayudar a resolver un par de preguntas antes. "
-                                            f"¿Tienes alguna pregunta sobre lo que hemos visto?\n\n"
-                                            f"Pregunta lo que te haya quedado del módulo "
-                                            f"(conceptos, dudas o cómo aplicarlo). "
-                                            f"Envíame un audio o escríbeme; si no tienes preguntas, escribe *listo*."
-                                        )
-
-                                        _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
-                                        estudiante.contexto_temporal = {
-                                            'tipo': 'asistente_dario',
-                                            'curso_activo_id': progreso.curso_id,
-                                            'modulo_id': modulo_actual.id,
-                                            'progreso_id': progreso.id,
-                                            'modulos_reto_ids': [m.id for m in modulos_reto],
-                                            'preguntas_hechas': 0,
-                                            '_ts_leccion': _prev_ts,
-                                        }
-                                        estudiante.estado_onboarding = 'esperando_respuesta_asistente'
-                                        estudiante.save()
-                                        
                                         texto_respuesta = "[MULTI_MSG]" + "[SEP]".join([msg_completado, dario_msg])
                                     else:
                                         # v1.9.8i: Normal module — exam result + next module (no completado msg)
