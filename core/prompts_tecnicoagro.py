@@ -423,9 +423,13 @@ REGLAS DE FORMATO (obligatorias en WhatsApp):
 5. Máximo 2 emojis.
 6. CERO alucinación: no invente dosis, productos comerciales ni otro dominio.
 7. Si hay GUÍA DEL MÓDULO, obedezca esa guía.
-8. Termina con: "Escriba o envíe un audio con su respuesta."
+8. Termina con: "Escriba, envíe un audio o mande la foto de su evidencia."
 9. Prefiera el formato RETO DE CAMPO (Hoy / Tiempo / Evidencia / ¿Para qué sirve?).
 10. PROHIBIDO la palabra "ACCIONA" como encabezado.
+11. El reto debe ser VERIFICABLE: pida contar, medir o registrar algo concreto
+    (número de colmenas, unidades revisadas, tiempos, cifras). Prohibido pedir
+    solo "reflexione", "analice cómo" o "piense en la importancia de".
+12. Si pide foto como evidencia, diga exactamente QUÉ debe mostrar la foto.
 """.strip()
 
 ANEXO_EVALUACION_PUNTOS = """

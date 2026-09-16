@@ -4175,7 +4175,7 @@ def _procesar_twilio_webhook(post_data):
                         texto_respuesta = (
                             f"📋 *{nombre_tutor}*\n\n"
                             f"{reto}\n\n"
-                            "✍️ _Escriba o envíe un audio con su respuesta._"
+                            "✍️ _Escriba, envíe un audio o mande la foto de su evidencia._"
                         )
                     else:
                         logger.warning(
