@@ -1,6 +1,6 @@
 #!/bin/bash
 # Curso 35 (Agrosavia — Identificación y Toma de Muestras en Apiarios):
-# carga guía de reto + tipo de reto por módulo. Idempotente, no toca contenido ni pasos.
+# migra pendientes + carga guía de reto y tipo por módulo. Idempotente; no toca contenido ni pasos.
 set -eu
 export ELASTIC_BEANSTALK=true
 GC=/opt/elasticbeanstalk/bin/get-config
@@ -12,6 +12,11 @@ export DJANGO_SETTINGS_MODULE=mvp_project.settings_production
 export PYTHONPATH=/var/app/current
 cd /var/app/current
 source /var/app/venv/*/bin/activate
+
+echo "--- showmigrations core (últimas)"
+python manage.py showmigrations core | tail -n 5
+echo "--- migrate"
+python manage.py migrate --noinput | tail -n 8
 
 python manage.py shell <<'PY'
 from core.models import Curso, Modulo

@@ -4329,10 +4329,11 @@ def _procesar_twilio_webhook(post_data):
                 else:
                     from .models import ProgresoEstudiante
                     from .tutor_ia_modulo import cargar_modulos_reto, evaluar_reto_facilitador
-                    try:
-                        progreso = ProgresoEstudiante.objects.get(id=progreso_id)
-                    except ProgresoEstudiante.DoesNotExist:
-                        progreso = None
+                    progreso = (
+                        ProgresoEstudiante.objects.filter(id=progreso_id).first()
+                        if progreso_id
+                        else None
+                    )
                     modulos_reto = cargar_modulos_reto(
                         modulos_reto_ids, progreso.curso_id if progreso else None
                     )
@@ -4377,14 +4378,11 @@ def _procesar_twilio_webhook(post_data):
                         (_cliente.nombre_agente_tutor if _cliente and hasattr(_cliente, 'nombre_agente_tutor') and _cliente.nombre_agente_tutor else '') or
                         nombre_display_facilitador(_curso_reto)
                     )
-                    try:
-                        progreso = ProgresoEstudiante.objects.get(id=progreso_id)
+                    if progreso is not None:
                         nombre_tutor = (
                             progreso.curso.nombre_agente_tutor
                             or nombre_display_facilitador(progreso.curso)
                         )
-                    except ProgresoEstudiante.DoesNotExist:
-                        progreso = None
 
                     msg_eval = construir_mensaje_evaluacion_reto(
                         estudiante, progreso, puntaje, feedback, nombre_tutor,
