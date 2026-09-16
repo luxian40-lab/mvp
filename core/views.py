@@ -2064,6 +2064,11 @@ def _procesar_twilio_webhook(post_data):
         print(f"🎤 DEBUG AUDIO: NumMedia={num_media}, MediaType='{media_type}', MediaUrl={bool(media_url)}, Body='{msg_body[:30] if msg_body else ''}'", flush=True)
 
         es_audio = num_media > 0 and ('audio' in media_type or 'ogg' in media_type)
+        # Imagen: puede ser evidencia de un reto de campo (se resuelve en esa rama).
+        from core.reto_evidencia import es_imagen_soportada
+
+        evidencia_imagen_url = media_url if (num_media > 0 and es_imagen_soportada(media_type)) else ''
+        evidencia_imagen_type = media_type if evidencia_imagen_url else ''
         if num_media > 0:
             if es_audio:
                 print(f"🎤 Audio detectado: {media_url} (type={media_type})")
@@ -4127,9 +4132,12 @@ def _procesar_twilio_webhook(post_data):
 
                     if modulos_reto and progreso:
                         _cliente = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
+                        from core.facilitador_perfil import nombre_display_facilitador
+
                         nombre_tutor = (
                             (_cliente.nombre_agente_tutor if _cliente and hasattr(_cliente, 'nombre_agente_tutor') and _cliente.nombre_agente_tutor else '') or
-                            progreso.curso.nombre_agente_tutor or 'Claudia'
+                            progreso.curso.nombre_agente_tutor or
+                            nombre_display_facilitador(progreso.curso)
                         )
                         reto = generar_reto_facilitador(
                             modulos_reto,
@@ -4149,6 +4157,21 @@ def _procesar_twilio_webhook(post_data):
                         }
                         estudiante.estado_onboarding = 'esperando_respuesta_reto'
                         estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
+                        try:
+                            from core.facilitador_perfil import resolver_perfil_facilitador
+                            from core.telemetria import registrar_reto_planteado
+
+                            _curso_plan = progreso.curso if progreso else None
+                            registrar_reto_planteado(
+                                estudiante,
+                                curso=_curso_plan,
+                                modulo=(modulos_reto[-1] if modulos_reto else None),
+                                reto_texto=reto,
+                                modulos_cubiertos=modulos_reto_ids,
+                                perfil_facilitador=resolver_perfil_facilitador(_curso_plan),
+                            )
+                        except Exception:
+                            logger.debug('[reto] telemetría reto_planteado omitida', exc_info=True)
                         texto_respuesta = (
                             f"📋 *{nombre_tutor}*\n\n"
                             f"{reto}\n\n"
@@ -4228,6 +4251,57 @@ def _procesar_twilio_webhook(post_data):
                 reto_texto = ctx.get('reto_texto', '')
                 progreso_id = ctx.get('progreso_id')
                 
+                # 📸 Foto como evidencia del reto: guardar y calificar con visión.
+                evidencia_bytes = None
+                evidencia_type = ''
+                evidencia_url_guardada = ''
+                resultado_foto = None
+                if evidencia_imagen_url:
+                    from core.gamificacion_modo import get_modo_gamificacion
+                    from core.models import ProgresoEstudiante
+                    from core.reto_evidencia import (
+                        descargar_media_twilio,
+                        evaluar_evidencia_foto,
+                        guardar_evidencia,
+                    )
+                    from core.tutor_ia_modulo import cargar_modulos_reto
+
+                    progreso_foto = ProgresoEstudiante.objects.filter(id=progreso_id).first()
+                    evidencia_bytes, evidencia_type = descargar_media_twilio(evidencia_imagen_url)
+                    evidencia_type = evidencia_type or evidencia_imagen_type
+                    if evidencia_bytes:
+                        evidencia_url_guardada = guardar_evidencia(
+                            evidencia_bytes,
+                            evidencia_type,
+                            estudiante_id=estudiante.id,
+                            curso_id=(progreso_foto.curso_id if progreso_foto else None),
+                        )
+                        if _mensaje_indica_listo(msg_body):
+                            # El webhook convierte media sin texto en "listo"; aquí es una foto.
+                            msg_body = ''
+                        resultado_foto = evaluar_evidencia_foto(
+                            evidencia_bytes,
+                            evidencia_type,
+                            reto_original=reto_texto,
+                            modulos_cubiertos=cargar_modulos_reto(
+                                modulos_reto_ids,
+                                progreso_foto.curso_id if progreso_foto else None,
+                            ),
+                            curso=(progreso_foto.curso if progreso_foto else None),
+                            estudiante_nombre=estudiante.nombre or 'Estudiante',
+                            texto_acompanante=msg_body,
+                            modo_gamificacion=get_modo_gamificacion(
+                                getattr(estudiante, 'cliente', None)
+                            ),
+                        )
+                    logger.info(
+                        "[reto] evidencia foto estudiante=%s bytes=%s guardada=%s evaluada=%s",
+                        estudiante.id,
+                        len(evidencia_bytes or b''),
+                        bool(evidencia_url_guardada),
+                        resultado_foto is not None,
+                    )
+
                 msg_lower = msg_body.strip().lower()
                 if msg_lower in ['ayuda', 'soporte', 'ticket']:
                     from .security_handler import procesar_solicitud_soporte
@@ -4240,6 +4314,11 @@ def _procesar_twilio_webhook(post_data):
                         "o escríbeme tu respuesta al reto.\n\n"
                         "✍️ _Escriba o envíe un audio con su respuesta._"
                     )
+                elif evidencia_bytes and resultado_foto is None:
+                    # Foto recibida pero sin visión disponible: no castigar con 1/10.
+                    from core.reto_evidencia import mensaje_evidencia_no_evaluable
+
+                    texto_respuesta = mensaje_evidencia_no_evaluable()
                 elif _mensaje_indica_listo(msg_body):
                     # *listo* no es respuesta al reto (antes se "evaluaba" o se saltaba el avance).
                     texto_respuesta = (
@@ -4262,20 +4341,48 @@ def _procesar_twilio_webhook(post_data):
 
                     _cliente = estudiante.cliente if hasattr(estudiante, 'cliente') and estudiante.cliente else None
                     modo_gami = get_modo_gamificacion(_cliente)
-                    puntaje, feedback = evaluar_reto_facilitador(
-                        modulos_reto, msg_body, reto_texto,
-                        estudiante_nombre=estudiante.nombre or "Estudiante",
-                        curso_nombre=(progreso.curso.nombre if progreso else None),
-                        modo_gamificacion=modo_gami,
-                    )
+                    if resultado_foto is not None:
+                        puntaje, feedback = resultado_foto
+                    else:
+                        puntaje, feedback = evaluar_reto_facilitador(
+                            modulos_reto, msg_body, reto_texto,
+                            estudiante_nombre=estudiante.nombre or "Estudiante",
+                            curso_nombre=(progreso.curso.nombre if progreso else None),
+                            modo_gamificacion=modo_gami,
+                        )
+
+                    _curso_reto = progreso.curso if progreso else None
+                    try:
+                        from core.facilitador_perfil import resolver_perfil_facilitador
+                        from core.telemetria import registrar_reto_respondido
+
+                        registrar_reto_respondido(
+                            estudiante,
+                            curso=_curso_reto,
+                            modulo=(modulos_reto[-1] if modulos_reto else None),
+                            puntaje=puntaje,
+                            feedback=feedback,
+                            tipo_respuesta=('foto' if resultado_foto is not None else 'texto'),
+                            evidencia_url=evidencia_url_guardada,
+                            reto_texto=reto_texto,
+                            respuesta_texto=msg_body,
+                            perfil_facilitador=resolver_perfil_facilitador(_curso_reto),
+                        )
+                    except Exception:
+                        logger.debug('[reto] telemetría reto_respondido omitida', exc_info=True)
+
+                    from core.facilitador_perfil import nombre_display_facilitador
 
                     nombre_tutor = (
                         (_cliente.nombre_agente_tutor if _cliente and hasattr(_cliente, 'nombre_agente_tutor') and _cliente.nombre_agente_tutor else '') or
-                        'Claudia'
+                        nombre_display_facilitador(_curso_reto)
                     )
                     try:
                         progreso = ProgresoEstudiante.objects.get(id=progreso_id)
-                        nombre_tutor = progreso.curso.nombre_agente_tutor or nombre_tutor
+                        nombre_tutor = (
+                            progreso.curso.nombre_agente_tutor
+                            or nombre_display_facilitador(progreso.curso)
+                        )
                     except ProgresoEstudiante.DoesNotExist:
                         progreso = None
 

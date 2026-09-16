@@ -2977,6 +2977,8 @@ class EstudianteEventoAprendizaje(models.Model):
     TIPO_MEDIA_FALLIDA = 'media_fallida'
     TIPO_MODULO_INICIADO = 'modulo_iniciado'
     TIPO_MODULO_COMPLETADO = 'modulo_completado'
+    TIPO_RETO_PLANTEADO = 'reto_planteado'
+    TIPO_RETO_RESPONDIDO = 'reto_respondido'
 
     TIPO_CHOICES = [
         (TIPO_CONTENIDO_ENVIADO, 'Contenido enviado'),
@@ -2988,6 +2990,8 @@ class EstudianteEventoAprendizaje(models.Model):
         (TIPO_MEDIA_FALLIDA, 'Media fallida'),
         (TIPO_MODULO_INICIADO, 'Módulo iniciado'),
         (TIPO_MODULO_COMPLETADO, 'Módulo completado'),
+        (TIPO_RETO_PLANTEADO, 'Reto planteado'),
+        (TIPO_RETO_RESPONDIDO, 'Reto respondido'),
     ]
 
     estudiante = models.ForeignKey(

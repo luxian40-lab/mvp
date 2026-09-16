@@ -58,10 +58,97 @@ def registrar_evento(
             canal=canal or 'whatsapp',
             metadata=meta,
         )
+        try:
+            from django.conf import settings as _settings
+
+            if getattr(_settings, 'EVENT_ENGINE_EMIT_TELEMETRIA', True):
+                from core.event_engine import publicar_evento
+                from core.territorio import obtener_territory_id_estudiante
+
+                tid = obtener_territory_id_estudiante(estudiante, persistir=True)
+                org_pk = getattr(cli, 'pk', None) if cli is not None else None
+                publicar_evento(
+                    event_type=f'aprendizaje.{tipo}',
+                    payload={
+                        'telemetria_id': ev.pk,
+                        'curso_id': getattr(curso, 'pk', None),
+                        'modulo_id': getattr(modulo, 'pk', None),
+                        'canal': canal,
+                    },
+                    org_id=org_pk,
+                    territory_id=tid,
+                    actor_tipo='estudiante',
+                    actor_id=getattr(estudiante, 'pk', None),
+                    pii_class='internal',
+                )
+        except Exception:
+            logger.debug('telemetria: emit event_engine omitido', exc_info=True)
         return ev
     except Exception as exc:
         logger.warning('telemetria: no se pudo registrar %s: %s', tipo, exc)
         return None
+
+
+def registrar_reto_planteado(
+    estudiante,
+    *,
+    curso=None,
+    modulo=None,
+    reto_texto: str = '',
+    modulos_cubiertos=None,
+    perfil_facilitador: str = '',
+) -> Any:
+    """Evento de reto planteado (escucha territorial: qué se le pidió al productor)."""
+    from core.models import EstudianteEventoAprendizaje
+
+    return registrar_evento(
+        tipo=EstudianteEventoAprendizaje.TIPO_RETO_PLANTEADO,
+        estudiante=estudiante,
+        curso=curso,
+        modulo=modulo,
+        metadata={
+            'perfil_facilitador': perfil_facilitador or '',
+            'reto_texto': (reto_texto or '')[:1500],
+            'modulos_cubiertos': list(modulos_cubiertos or []),
+        },
+    )
+
+
+def registrar_reto_respondido(
+    estudiante,
+    *,
+    curso=None,
+    modulo=None,
+    puntaje=None,
+    feedback: str = '',
+    tipo_respuesta: str = 'texto',
+    evidencia_url: str = '',
+    reto_texto: str = '',
+    respuesta_texto: str = '',
+    perfil_facilitador: str = '',
+) -> Any:
+    """
+    Evento de reto respondido con su calificación.
+
+    `tipo_respuesta`: texto | audio | foto.
+    """
+    from core.models import EstudianteEventoAprendizaje
+
+    return registrar_evento(
+        tipo=EstudianteEventoAprendizaje.TIPO_RETO_RESPONDIDO,
+        estudiante=estudiante,
+        curso=curso,
+        modulo=modulo,
+        metadata={
+            'perfil_facilitador': perfil_facilitador or '',
+            'tipo_respuesta': tipo_respuesta or 'texto',
+            'puntaje': puntaje,
+            'evidencia_url': evidencia_url or '',
+            'reto_texto': (reto_texto or '')[:1500],
+            'respuesta_texto': (respuesta_texto or '')[:1500],
+            'feedback': (feedback or '')[:1500],
+        },
+    )
 
 
 def marcar_recordatorio_respondido(estudiante, *, ventana_horas: int = 72) -> None:

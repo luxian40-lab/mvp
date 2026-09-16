@@ -115,3 +115,25 @@ class TelemetriaTests(TestCase):
         self.assertTrue(mapa)
         self.assertEqual(mapa[0]['paso_id'], self.paso.pk)
         self.assertEqual(mapa[0]['caidas'], 1)
+
+    def test_event_outbox_lleva_territory_id_desde_municipio(self):
+        from core.models import EventOutbox
+
+        self.est.municipio = 'Medellín'
+        self.est.departamento = 'Antioquia'
+        self.est.territory_id = ''
+        self.est.save(update_fields=['municipio', 'departamento', 'territory_id'])
+
+        registrar_evento(
+            tipo=EstudianteEventoAprendizaje.TIPO_LISTO_RECIBIDO,
+            estudiante=self.est,
+            curso=self.curso,
+            modulo=self.mod,
+        )
+        self.est.refresh_from_db()
+        self.assertEqual(self.est.territory_id, '05001')
+        row = EventOutbox.objects.filter(
+            event_type='aprendizaje.listo_recibido',
+        ).order_by('-id').first()
+        self.assertIsNotNone(row)
+        self.assertEqual(row.territory_id, '05001')
