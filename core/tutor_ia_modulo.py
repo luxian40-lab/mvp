@@ -7,6 +7,11 @@ import logging
 import re
 from django.conf import settings
 
+from core.facilitador_perfil import (
+    system_prompt_evaluacion_para_curso,
+    system_prompt_reto_para_curso,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -420,7 +425,7 @@ PROHIBIDO: Incluir la palabra ACCIONA (o Acciona) en el mensaje."""
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": PROMPT_FACILITADOR_RETO},
+                {"role": "system", "content": system_prompt_reto_para_curso(curso)},
                 {"role": "user", "content": prompt_usuario}
             ],
             temperature=0.7,
@@ -473,9 +478,11 @@ def evaluar_reto_facilitador(modulos_cubiertos, respuesta_estudiante, reto_origi
         return 0, _fallback_evaluacion_reto(estudiante_nombre)
 
     nombre_curso = (curso_nombre or "").strip()
-    if not nombre_curso and modulos_cubiertos:
-        c0 = getattr(modulos_cubiertos[0], "curso", None)
-        nombre_curso = (getattr(c0, "nombre", "") or "").strip()
+    curso_obj = None
+    if modulos_cubiertos:
+        curso_obj = getattr(modulos_cubiertos[0], "curso", None)
+    if not nombre_curso and curso_obj is not None:
+        nombre_curso = (getattr(curso_obj, "nombre", "") or "").strip()
 
     modulos_info = ""
     for m in modulos_cubiertos:
@@ -509,9 +516,7 @@ RESPUESTA DEL PARTICIPANTE ({estudiante_nombre}): {respuesta_limpia}
 
 Evalúe según la rúbrica y el dominio de este curso. Dé retroalimentación y {'nota 1-5' if usar_notas else 'puntaje 1-10'}."""
 
-    system_prompt = (
-        PROMPT_FACILITADOR_EVALUACION_NOTAS if usar_notas else PROMPT_FACILITADOR_EVALUACION
-    )
+    system_prompt = system_prompt_evaluacion_para_curso(curso_obj, usar_notas=usar_notas)
 
     try:
         response = client.chat.completions.create(
@@ -901,7 +906,14 @@ def _fallback_resumen_curso(modulos_info, curso_nombre, estudiante_nombre):
 # =====================================================
 # PRESENTACIÓN DE AGENTES — Inicio de curso
 # =====================================================
-def generar_presentacion_agentes(curso_nombre, estudiante_nombre="Estudiante", nombre_tutor="Claudia", nombre_asistente="Darío") -> tuple:
+def generar_presentacion_agentes(
+    curso_nombre,
+    estudiante_nombre="Estudiante",
+    nombre_tutor="Claudia",
+    nombre_asistente="Darío",
+    *,
+    curso=None,
+) -> tuple:
     """
     Genera las presentaciones de los agentes al inicio de un curso.
     v1.9.8g: Facilitador(a) + Asistente Darío.
@@ -909,13 +921,30 @@ def generar_presentacion_agentes(curso_nombre, estudiante_nombre="Estudiante", n
     Returns:
         tuple: (msg_facilitador: str, msg_asistente: str)
     """
-    msg_facilitador = (
-        f"🤓 *¡Hola {estudiante_nombre}! Soy la Facilitadora {nombre_tutor}*\n\n"
-        f"Seré su facilitadora a cargo en el curso *{curso_nombre}*. "
-        f"Le plantearé retos prácticos para que aplique lo aprendido. "
-        f"¡Vamos a aprender juntos! 💪"
+    from core.facilitador_perfil import (
+        es_perfil_tecnicoagro,
+        etiqueta_rol_facilitador,
+        nombre_display_facilitador,
     )
-    
+
+    nombre_tutor = nombre_display_facilitador(curso, fallback=nombre_tutor or 'Claudia')
+    if es_perfil_tecnicoagro(curso):
+        rol = etiqueta_rol_facilitador(curso)
+        msg_facilitador = (
+            f"🤓 *¡Hola {estudiante_nombre}! Soy el {rol}*\n\n"
+            f"({nombre_tutor})\n\n"
+            f"Seré su apoyo técnico en el curso *{curso_nombre}*. "
+            f"Le plantearé micro-retos de campo para aplicar lo aprendido. "
+            f"¡Vamos a aprender juntos! 💪"
+        )
+    else:
+        msg_facilitador = (
+            f"🤓 *¡Hola {estudiante_nombre}! Soy la Facilitadora {nombre_tutor}*\n\n"
+            f"Seré su facilitadora a cargo en el curso *{curso_nombre}*. "
+            f"Le plantearé retos prácticos para que aplique lo aprendido. "
+            f"¡Vamos a aprender juntos! 💪"
+        )
+
     msg_asistente = (
         f"📚 *¡Y yo soy {nombre_asistente}, tu compañero de estudio!*\n\n"
         f"Estaré pendiente de ti en este proceso. "

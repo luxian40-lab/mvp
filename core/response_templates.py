@@ -50,6 +50,7 @@ def partes_presentacion_agentes_curso(estudiante, curso) -> list:
         estudiante_nombre=getattr(estudiante, 'nombre', None) or 'Estudiante',
         nombre_tutor=nombre_tutor,
         nombre_asistente=nombre_asistente,
+        curso=curso,
     )
     partes = [msg_facilitador, msg_asistente]
     cliente_obj = getattr(estudiante, 'cliente', None)
@@ -987,6 +988,7 @@ Te inscribiste en: *{curso.nombre}*
             estudiante_nombre=estudiante.nombre or "Estudiante",
             nombre_tutor=nombre_tutor,
             nombre_asistente=nombre_asistente,
+            curso=curso,
         )
 
         # Obtener video del primer módulo si existe

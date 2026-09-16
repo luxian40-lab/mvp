@@ -293,6 +293,23 @@ class Cliente(models.Model):
             'También existe el interruptor global EKI_IA_LLM_DISABLED en el servidor.'
         ),
     )
+    PERFIL_FACILITADOR_CLAUDIA = 'claudia'
+    PERFIL_FACILITADOR_TECNICOAGRO = 'tecnicoagro'
+    PERFIL_FACILITADOR_CHOICES = [
+        (PERFIL_FACILITADOR_CLAUDIA, 'Claudia (facilitadora ABR eki)'),
+        (PERFIL_FACILITADOR_TECNICOAGRO, 'tecnicoagro (copiloto extensión AGROSAVIA)'),
+    ]
+    perfil_facilitador = models.CharField(
+        max_length=20,
+        choices=PERFIL_FACILITADOR_CHOICES,
+        default=PERFIL_FACILITADOR_CLAUDIA,
+        verbose_name='Facilitador de retos (WhatsApp)',
+        help_text=(
+            'Quién plantea y evalúa los retos tras checkpoints. '
+            'Claudia = default eki. tecnicoagro = copiloto técnico AGROSAVIA (mismo flujo, otro prompt). '
+            'Los cursos pueden sobreescribir este valor.'
+        ),
+    )
     numero_whatsapp_nat = models.CharField(
         max_length=20,
         blank=True,
@@ -1368,13 +1385,33 @@ class Curso(models.Model):
         help_text='Nombre personalizado para la agente asistente (por defecto: María). Ej: Laura, Andrea'
     )
     
-    # PREGUNTAS EJEMPLO PARA IA — alimentadas por admin (reto Claudia + recuperación)
+    PERFIL_FACILITADOR_HEREDAR = ''
+    PERFIL_FACILITADOR_CLAUDIA = 'claudia'
+    PERFIL_FACILITADOR_TECNICOAGRO = 'tecnicoagro'
+    PERFIL_FACILITADOR_CHOICES = [
+        (PERFIL_FACILITADOR_HEREDAR, 'Heredar del cliente'),
+        (PERFIL_FACILITADOR_CLAUDIA, 'Claudia (facilitadora ABR eki)'),
+        (PERFIL_FACILITADOR_TECNICOAGRO, 'tecnicoagro (copiloto extensión AGROSAVIA)'),
+    ]
+    perfil_facilitador = models.CharField(
+        max_length=20,
+        choices=PERFIL_FACILITADOR_CHOICES,
+        blank=True,
+        default=PERFIL_FACILITADOR_HEREDAR,
+        verbose_name='Facilitador de retos (este curso)',
+        help_text=(
+            'Vacío = usa el facilitador del Cliente. '
+            'Elija tecnicoagro solo en programas AGROSAVIA/agro; el resto suele quedar en Claudia.'
+        ),
+    )
+
+    # PREGUNTAS EJEMPLO PARA IA — alimentadas por admin (reto facilitador + recuperación)
     preguntas_ejemplo_ia = models.TextField(
         blank=True,
         default='',
         verbose_name='Guía de retos / preguntas para IA (curso)',
         help_text=(
-            'Guía a Claudia (facilitadora) y a la pregunta de recuperación: tono, tipo de '
+            'Guía al facilitador (Claudia o tecnicoagro) y a la pregunta de recuperación: tono, tipo de '
             'situación y 1–3 ejemplos. Una idea por línea. '
             'Si un módulo checkpoint tiene su propia guía/tipo de reto, esa manda y esta '
             'queda como complemento del curso.'
@@ -2594,10 +2631,12 @@ class Modulo(models.Model):
 
     publicado_wa = models.BooleanField(
         default=True,
-        verbose_name='Publicado para WhatsApp',
+        verbose_name='Activo en WhatsApp',
         help_text=(
-            'Si está activo, el bot puede enviar este módulo al avanzar. '
-            'Los módulos nuevos en admin empiezan en borrador hasta publicar.'
+            'Activo = el bot puede enviar este módulo al avanzar. '
+            'Pausado (desmarcado) = no se envía por WA; el estudiante se detiene en el último '
+            'módulo activo anterior (no se borra el módulo). '
+            'Los módulos nuevos en admin suelen empezar pausados hasta publicar.'
         ),
     )
 

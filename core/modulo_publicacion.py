@@ -104,6 +104,91 @@ def numeros_cierre_curso_publicados(curso: Curso | None) -> tuple[int | None, in
     return penultimo, ultimo
 
 
+def resumen_tope_avance_wa(curso: Curso | None) -> dict:
+    """
+    Hasta dónde puede avanzar un estudiante por WhatsApp con el gate de publicación.
+
+    Returns dict: activo_hasta_numero, activo_hasta_titulo, pausados_despues,
+    total_curso, total_activos, texto_admin.
+    """
+    if curso is None:
+        return {
+            'activo_hasta_numero': None,
+            'activo_hasta_titulo': '',
+            'pausados_despues': 0,
+            'total_curso': 0,
+            'total_activos': 0,
+            'texto_admin': 'Sin curso.',
+        }
+    todos = list(curso.modulos.order_by('numero', 'id'))
+    total = len(todos)
+    if not curso_usa_gate_publicacion_wa(curso):
+        ultimo = todos[-1] if todos else None
+        return {
+            'activo_hasta_numero': getattr(ultimo, 'numero', None),
+            'activo_hasta_titulo': getattr(ultimo, 'titulo', '') or '',
+            'pausados_despues': 0,
+            'total_curso': total,
+            'total_activos': total,
+            'texto_admin': (
+                f'Modo clases: los {total} módulos están disponibles (sin gate WA).'
+                if total
+                else 'Sin módulos.'
+            ),
+        }
+    activos = [m for m in todos if m.publicado_wa]
+    tope = activos[-1] if activos else None
+    if tope is None:
+        texto = f'Ningún módulo activo en WhatsApp (0/{total}). Pausá/activá con «Activo en WhatsApp».'
+        return {
+            'activo_hasta_numero': None,
+            'activo_hasta_titulo': '',
+            'pausados_despues': total,
+            'total_curso': total,
+            'total_activos': 0,
+            'texto_admin': texto,
+        }
+    pausados_despues = sum(1 for m in todos if (m.numero or 0) > (tope.numero or 0) and not m.publicado_wa)
+    # También contar huecos: si M3 pausado pero M4 activo, el avance se corta en M2
+    # (siguiente_modulo_publicado_wa no salta). El tope operativo es el último activo
+    # alcanzable en secuencia desde M1.
+    alcanzable = None
+    for m in todos:
+        if not m.publicado_wa:
+            break
+        alcanzable = m
+    tope_real = alcanzable
+    if tope_real is None:
+        texto = f'El Módulo 1 está pausado: el estudiante no avanza por WA (0/{total} en secuencia).'
+        return {
+            'activo_hasta_numero': None,
+            'activo_hasta_titulo': '',
+            'pausados_despues': total,
+            'total_curso': total,
+            'total_activos': len(activos),
+            'texto_admin': texto,
+        }
+    n = tope_real.numero
+    titulo = (tope_real.titulo or '').strip()
+    restantes = sum(1 for m in todos if (m.numero or 0) > n)
+    if restantes == 0:
+        texto = f'WhatsApp activo hasta el final: M{n} «{titulo}» ({len(activos)}/{total} activos).'
+    else:
+        texto = (
+            f'WhatsApp: el estudiante llega hasta M{n} «{titulo}». '
+            f'Después hay {restantes} módulo(s) aún no alcanzables (pausados o tras un pausado). '
+            f'Activos en total: {len(activos)}/{total}.'
+        )
+    return {
+        'activo_hasta_numero': n,
+        'activo_hasta_titulo': titulo,
+        'pausados_despues': restantes,
+        'total_curso': total,
+        'total_activos': len(activos),
+        'texto_admin': texto,
+    }
+
+
 def format_mensaje_bloqueo_contenido_pendiente(cliente=None) -> str:
     """Mismo tono que drip; el estudiante no distingue causa."""
     from .avance_whatsapp import texto_bloqueo_drip_cierre

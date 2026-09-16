@@ -60,6 +60,7 @@ CURSO_FIELDS = [
     'descripcion', 'emoji', 'duracion_semanas', 'activo', 'orden',
     'usar_gamificacion', 'habilitar_pregunta_abierta_final',
     'enlace_grupo_whatsapp', 'nombre_agente_tutor', 'nombre_agente_asistente',
+    'perfil_facilitador',
     'preguntas_ejemplo_ia', 'dias_espera_entre_modulos', 'tiene_formulario_gei',
     'usar_agentes_ia',
 ]

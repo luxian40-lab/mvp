@@ -322,7 +322,7 @@ class CursoAdmin(admin.ModelAdmin):
     search_fields = ('nombre', 'descripcion', 'cliente__nombre')
     list_editable = ()
     inlines = [ModuloInline, DocumentoRAGInline, PreguntaAbiertaFinalInline]
-    readonly_fields = ('course_engine_voz_preview',)
+    readonly_fields = ('course_engine_voz_preview', 'tope_whatsapp_resumen')
     actions = [
         'ver_todos_modulos', 'añadir_clase_rapida',
         'indexar_documentos_rag', 'indexar_contenido_modulos',
@@ -336,6 +336,7 @@ class CursoAdmin(admin.ModelAdmin):
             'fields': (
                 'nombre', 'descripcion', 'cliente', 'duracion_semanas',
                 'activo', 'visible_en_studio', 'visible_en_aula', 'modo_aula', 'orden',
+                'tope_whatsapp_resumen',
             ),
             'description': mark_safe(
                 '<p><strong>Cómo elegir el proceso del curso</strong> '
@@ -367,15 +368,18 @@ class CursoAdmin(admin.ModelAdmin):
             'classes': ('collapse',),
             'fields': (
                 'usar_agentes_ia',
+                'perfil_facilitador',
                 'nombre_agente_tutor',
                 'nombre_agente_asistente',
                 'preguntas_ejemplo_ia',
             ),
             'description': mark_safe(
-                '<p><strong>Retos Darío → Claudia:</strong> la guía del curso orienta tono y '
-                'tipo de pregunta. En cada <em>módulo checkpoint</em> puede fijar '
-                '<em>Tipo de reto</em> + <em>Guía del reto</em> (manda sobre este campo).</p>'
-                '<p>Si los nombres van vacíos, se usan los del Cliente o los por defecto.</p>'
+                '<p><strong>Facilitador:</strong> hereda del Cliente o fuerce Claudia / tecnicoagro '
+                '(copiloto AGROSAVIA). Claudia no se elimina.</p>'
+                '<p><strong>Retos:</strong> la guía del curso orienta tono. En cada '
+                '<em>módulo checkpoint</em> puede fijar <em>Tipo de reto</em> + <em>Guía del reto</em>.</p>'
+                '<p><strong>Tope WhatsApp:</strong> ver resumen arriba; en cada módulo '
+                'use «Activo en WhatsApp» para pausar sin borrar.</p>'
             ),
         }),
         ('GEI y WhatsApp', {
@@ -416,6 +420,19 @@ class CursoAdmin(admin.ModelAdmin):
             return obj.cliente.nombre
         return format_html('<span style="color:#999;font-style:italic;">General (eki)</span>')
     cliente_nombre.short_description = "Organización"
+
+    def tope_whatsapp_resumen(self, obj):
+        from core.modulo_publicacion import resumen_tope_avance_wa
+
+        if not obj or not obj.pk:
+            return 'Guarde el curso y cree módulos para ver el tope WA.'
+        info = resumen_tope_avance_wa(obj)
+        return format_html(
+            '<div style="padding:10px 12px;background:#f5f5f5;border-radius:8px;'
+            'border-left:4px solid #9A6CAC;max-width:40rem;">{}</div>',
+            info.get('texto_admin') or '',
+        )
+    tope_whatsapp_resumen.short_description = 'Hasta dónde llega WhatsApp'
 
     def logo_org(self, obj):
         from core.admin.clientes import ClienteAdmin
@@ -1234,8 +1251,9 @@ class ModuloAdminForm(forms.ModelForm):
             if 'publicado_wa' in self.fields:
                 self.fields['publicado_wa'].initial = False
                 self.fields['publicado_wa'].help_text = (
-                    'Dejelo desmarcado (borrador) hasta que el checklist esté verde; '
-                    'luego use «Publicar módulo» en la ficha del curso.'
+                    'Dejelo desmarcado (pausado en WhatsApp) hasta que el checklist esté verde; '
+                    'luego active «Activo en WhatsApp» o use «Publicar módulo». '
+                    'Pausar no borra el módulo: el estudiante se detiene en el último activo.'
                 )
         elif n_micro > 0:
             self.fields['contenido'].help_text = (
@@ -1845,13 +1863,13 @@ class ModuloAdmin(admin.ModelAdmin):
         if obj.publicado_wa:
             return format_html(
                 '<span style="background:#e8f5e9;color:#2e7d32;padding:3px 10px;'
-                'border-radius:12px;font-size:11px;font-weight:700;">🟢 Publicado</span>'
+                'border-radius:12px;font-size:11px;font-weight:700;">🟢 Activo WA</span>'
             )
         return format_html(
             '<span style="background:#fff3e0;color:#e65100;padding:3px 10px;'
-            'border-radius:12px;font-size:11px;font-weight:700;">🔴 Borrador</span>'
+            'border-radius:12px;font-size:11px;font-weight:700;">⏸ Pausado WA</span>'
         )
-    publicado_wa_badge.short_description = 'Campo WA'
+    publicado_wa_badge.short_description = 'WhatsApp'
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
         avanzado = request.GET.get('avanzado') == '1' or request.GET.get('legacy') == '1'

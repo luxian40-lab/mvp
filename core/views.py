@@ -2673,7 +2673,8 @@ def _procesar_twilio_webhook(post_data):
                                 curso_nombre=curso.nombre,
                                 estudiante_nombre=estudiante.nombre or 'Estudiante',
                                 nombre_tutor=nombre_tutor,
-                                nombre_asistente=nombre_asistente
+                                nombre_asistente=nombre_asistente,
+                                curso=curso,
                             )
                             
                             # Gamification explanation message

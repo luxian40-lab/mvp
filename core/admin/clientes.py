@@ -249,12 +249,14 @@ class ClienteAdmin(admin.ModelAdmin):
                 'empleabilidad_puntos_validacion',
                 'nombre_agente_tutor',
                 'nombre_agente_asistente',
+                'perfil_facilitador',
                 'nombre_bot',
                 'system_prompt_extra',
                 'desactivar_llm_comercial',
             ),
             'description': (
-                'Nat / eki.ia y exploración. Catálogo de productos: pestaña de inlines.'
+                'Nat / eki.ia y exploración. Facilitador de retos: Claudia (default) o tecnicoagro (AGROSAVIA). '
+                'Catálogo de productos: pestaña de inlines.'
             ),
         }),
     )
