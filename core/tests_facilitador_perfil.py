@@ -81,6 +81,54 @@ class FacilitadorPerfilTests(TestCase):
         self.assertIn('COPILOTO TÉCNICO', system)
         self.assertIn('CHECKPOINT DEL CURSO', system)
 
+    @patch(
+        'core.agrosavia_connector.enriquecer_contexto_con_agrosavia',
+        return_value=('FUENTE AGROSAVIA: manejo de varroa en apiarios', {'agrosavia_usada': True}),
+    )
+    @patch('core.tutor_ia_modulo._get_client')
+    def test_tecnicoagro_usa_agrosavia_live_cuando_no_hay_rag(self, mock_client, mock_agro):
+        self.curso.perfil_facilitador = Curso.PERFIL_FACILITADOR_TECNICOAGRO
+        self.curso.save(update_fields=['perfil_facilitador'])
+        m = Modulo.objects.create(
+            curso=self.curso,
+            numero=5,
+            titulo='Toma de muestras en apiarios',
+            contenido='Muestreo de abejas adultas.',
+            publicado_wa=True,
+        )
+        fake = MagicMock()
+        fake.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content='🌱 RETO DE CAMPO\nHoy: revise 10 colmenas.'))]
+        )
+        mock_client.return_value = fake
+
+        generar_reto_facilitador([m], self.curso.nombre, curso=self.curso, modulo_checkpoint=m)
+
+        mock_agro.assert_called_once()
+        _args, kwargs = fake.chat.completions.create.call_args
+        user_msg = kwargs['messages'][1]['content']
+        self.assertIn('FUENTE AGROSAVIA', user_msg)
+
+    @patch('core.agrosavia_connector.enriquecer_contexto_con_agrosavia')
+    @patch('core.tutor_ia_modulo._get_client')
+    def test_claudia_no_consulta_agrosavia(self, mock_client, mock_agro):
+        m = Modulo.objects.create(
+            curso=self.curso,
+            numero=6,
+            titulo='Finanzas del hogar',
+            contenido='Presupuesto.',
+            publicado_wa=True,
+        )
+        fake = MagicMock()
+        fake.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content='Reto breve.'))]
+        )
+        mock_client.return_value = fake
+
+        generar_reto_facilitador([m], self.curso.nombre, curso=self.curso, modulo_checkpoint=m)
+
+        mock_agro.assert_not_called()
+
 
 class TopeWhatsappResumenTests(TestCase):
     def setUp(self):

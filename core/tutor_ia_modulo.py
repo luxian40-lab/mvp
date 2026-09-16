@@ -8,6 +8,7 @@ import re
 from django.conf import settings
 
 from core.facilitador_perfil import (
+    es_perfil_tecnicoagro,
     system_prompt_evaluacion_para_curso,
     system_prompt_reto_para_curso,
 )
@@ -383,6 +384,24 @@ def generar_reto_facilitador(
             )
     except Exception as e:
         logger.warning(f"[RAG] Error en reto facilitador: {e}")
+
+    # Perfil tecnicoagro: repositorio AGROSAVIA en vivo cuando el curso no tiene RAG propio.
+    if es_perfil_tecnicoagro(curso or (modulos_cubiertos[0].curso if modulos_cubiertos else None)):
+        try:
+            from core.agrosavia_connector import enriquecer_contexto_con_agrosavia
+
+            consulta_agro = f"{curso_nombre} {titulos_linea}".strip()
+            contexto_rag, meta_agro = enriquecer_contexto_con_agrosavia(
+                consulta_agro, contexto_rag or ''
+            )
+            logger.info(
+                "[reto] Agrosavia live usada=%s items=%s chars=%s",
+                meta_agro.get('agrosavia_usada'),
+                meta_agro.get('agrosavia_items'),
+                meta_agro.get('agrosavia_chars'),
+            )
+        except Exception as e:
+            logger.warning(f"[reto] Agrosavia live falló: {e}")
 
     ejemplo_txt = ""
     if preguntas_ejemplo:
