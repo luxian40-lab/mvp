@@ -216,7 +216,7 @@ def _generar_completado_final(estudiante, curso_id):
                     "[MULTI_MSG]"
                     "🎉 *¡Completaste todos los módulos del curso!*"
                     "[SEP]"
-                    f"💬 *{nombre_asist_final}*\n\n"
+                    f"*{nombre_asist_final}*\n\n"
                     f"Antes de tu certificado, {nombre_tutor_final} te planteará un reto final sobre {modulos_final_range}.\n\n"
                     "¿Tienes dudas antes del reto? Envíame tu pregunta (texto o audio).\n"
                     "Si no tienes dudas, escribe *listo* para pasar con la facilitadora."
@@ -1404,9 +1404,9 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                         estudiante.id,
                     )
                     return (
-                        f"📋 *{nombre_tutor}*\n\n"
+                        f"*{nombre_tutor}*\n\n"
                         f"{reto}\n\n"
-                        "✍️ _Escriba o envíe un audio con su respuesta._"
+                        "_Escriba, envíe un audio o mande la foto de su evidencia._"
                     )
                 estudiante.estado_onboarding = 'completado'
                 estudiante.contexto_temporal = None
@@ -1789,7 +1789,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                     modulos_reto_range = descripcion_rango_modulos_reto_esp(modulos_reto)
 
                     dario_msg = (
-                        f"💬 *{nombre_asistente}*\n\n"
+                        f"*{nombre_asistente}*\n\n"
                         f"¡Hola! Es hora de una pausa para repasar conceptos. "
                         f"{nombre_tutor} te va a recibir con un reto sobre {modulos_reto_range}.\n\n"
                         f"Te puedo ayudar a resolver un par de preguntas antes. "
@@ -1942,7 +1942,7 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                             modulos_final_range = "los módulos finales"
                         
                         dario_final = (
-                            f"💬 *{nombre_asistente}*\n\n"
+                            f"*{nombre_asistente}*\n\n"
                             f"¡Felicitaciones! Terminaste todos los módulos. "
                             f"Antes de recibir tu certificado, {nombre_tutor} tiene un reto final para ti sobre {modulos_final_range}.\n\n"
                             f"¿Tienes alguna pregunta sobre lo que vimos en esta parte del curso? Envíame un audio o escríbeme; si no tienes preguntas, escribe *listo*."

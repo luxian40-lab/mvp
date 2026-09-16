@@ -3941,7 +3941,7 @@ def _procesar_twilio_webhook(post_data):
                                     if prom is not None else ''
                                 )
                                 puntos_msg = (
-                                    f"\n\n📋 *Nota:* {formatear_nota(nota_f)}/5{extra_prom}"
+                                    f"\n\n*Nota:* {formatear_nota(nota_f)}/5{extra_prom}"
                                 )
                             elif gamificacion_otorga_puntos(
                                 getattr(estudiante, 'cliente', None), curso_obj,
@@ -3990,7 +3990,7 @@ def _procesar_twilio_webhook(post_data):
 
                             texto_respuesta = (
                                 "[MULTI_MSG]"
-                                f"📋 *Facilitadora*\n\n{feedback_final}{puntos_msg}"
+                                f"*Facilitadora*\n\n{feedback_final}{puntos_msg}"
                                 "[SEP]"
                                 "📝 *Siguiente pregunta abierta final*\n\n"
                                 f"{siguiente_pregunta.pregunta}\n\n"
@@ -4032,7 +4032,7 @@ def _procesar_twilio_webhook(post_data):
                             estudiante.contexto_temporal = None
                             estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])
 
-                            partes_finales = [f"📋 *Facilitadora*\n\n{feedback_final}{puntos_msg}"]
+                            partes_finales = [f"*Facilitadora*\n\n{feedback_final}{puntos_msg}"]
                             if radar_msg:
                                 partes_finales.append(radar_msg)
                             if msg_cert_img:
@@ -4099,7 +4099,7 @@ def _procesar_twilio_webhook(post_data):
                     print(f"🎤 Audio no transcrito en asistente — pidiendo reintento")
                     preguntas_restantes = 2 - preguntas_hechas
                     texto_respuesta = (
-                        f"💬 *{nombre_asistente}*\n\n"
+                        f"*{nombre_asistente}*\n\n"
                         f"⚠️ No pude escuchar tu audio. Por favor intenta de nuevo "
                         f"o escríbeme tu pregunta.\n\n"
                         f"Te quedan {preguntas_restantes} pregunta(s). "
@@ -4173,9 +4173,9 @@ def _procesar_twilio_webhook(post_data):
                         except Exception:
                             logger.debug('[reto] telemetría reto_planteado omitida', exc_info=True)
                         texto_respuesta = (
-                            f"📋 *{nombre_tutor}*\n\n"
+                            f"*{nombre_tutor}*\n\n"
                             f"{reto}\n\n"
-                            "✍️ _Escriba, envíe un audio o mande la foto de su evidencia._"
+                            "_Escriba, envíe un audio o mande la foto de su evidencia._"
                         )
                     else:
                         logger.warning(
@@ -4232,13 +4232,13 @@ def _procesar_twilio_webhook(post_data):
                     
                     if preguntas_hechas >= 2:
                         texto_respuesta = (
-                            f"💬 *{nombre_asistente}*\n\n{respuesta_dario}\n\n"
+                            f"*{nombre_asistente}*\n\n{respuesta_dario}\n\n"
                             f"Ya respondí tus 2 preguntas. Ahora la facilitadora te tiene un reto. "
                             f"Escribe *listo* cuando estés preparado."
                         )
                     else:
                         texto_respuesta = (
-                            f"💬 *{nombre_asistente}*\n\n{respuesta_dario}\n\n"
+                            f"*{nombre_asistente}*\n\n{respuesta_dario}\n\n"
                             f"¿Tienes otra pregunta? Te queda {2 - preguntas_hechas} pregunta más. "
                             f"Puedes preguntar sobre el tema del módulo. Si no, escribe *listo*."
                         )
@@ -4310,9 +4310,9 @@ def _procesar_twilio_webhook(post_data):
                     # Audio no pudo ser transcrito — pedir reintento sin evaluar
                     print(f"🎤 Audio no transcrito en reto — pidiendo reintento")
                     texto_respuesta = (
-                        "⚠️ No pude escuchar tu audio. Por favor intenta de nuevo "
+                        "No pude escuchar tu audio. Por favor intenta de nuevo "
                         "o escríbeme tu respuesta al reto.\n\n"
-                        "✍️ _Escriba o envíe un audio con su respuesta._"
+                        "_Escriba, envíe un audio o mande la foto de su evidencia._"
                     )
                 elif evidencia_bytes and resultado_foto is None:
                     # Foto recibida pero sin visión disponible: no castigar con 1/10.
@@ -4322,9 +4322,9 @@ def _procesar_twilio_webhook(post_data):
                 elif _mensaje_indica_listo(msg_body):
                     # *listo* no es respuesta al reto (antes se "evaluaba" o se saltaba el avance).
                     texto_respuesta = (
-                        "📋 Para el reto necesito su respuesta en texto o audio "
-                        "(una idea concreta). Cuando envíe esa respuesta, la facilitadora la revisa.\n\n"
-                        "✍️ _Escriba o envíe un audio con su respuesta._"
+                        "Para el reto necesito su respuesta en texto, audio o la foto "
+                        "de su evidencia. Cuando la envíe, la facilitadora la revisa.\n\n"
+                        "_Escriba, envíe un audio o mande la foto de su evidencia._"
                     )
                 else:
                     from .models import ProgresoEstudiante
@@ -4721,9 +4721,9 @@ def _procesar_twilio_webhook(post_data):
                     estudiante.estado_onboarding = 'esperando_respuesta_reto'
                     estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
                     bloque_reto = (
-                        f"📋 *{nombre_tutor}*\n\n"
+                        f"*{nombre_tutor}*\n\n"
                         f"{reto}\n\n"
-                        "✍️ _Escriba o envíe un audio con su respuesta._"
+                        "_Escriba, envíe un audio o mande la foto de su evidencia._"
                     )
                     return f"{prefijo}\n\n{bloque_reto}".strip()
                 
@@ -5029,7 +5029,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                         )
 
                                         dario_msg = (
-                                            f"💬 *{nombre_asistente}*\n\n"
+                                            f"*{nombre_asistente}*\n\n"
                                             f"¡Hola! Es hora de una pausa para repasar conceptos. "
                                             f"{nombre_tutor} te va a recibir con un reto sobre {modulos_reto_range}.\n\n"
                                             f"Te puedo ayudar a resolver un par de preguntas antes. "
@@ -5130,7 +5130,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                             texto_respuesta = (
                                                 f"{mensaje_respuesta}\n\n"
                                                 f"🎉 *¡Completaste todos los módulos del curso!*\n\n"
-                                                f"💬 *{nombre_asist_final}*\n\n"
+                                                f"*{nombre_asist_final}*\n\n"
                                                 f"Antes de tu certificado, {nombre_tutor_final} te planteará un reto final sobre {modulos_final_range}.\n\n"
                                                 "¿Tienes dudas antes del reto?\n"
                                                 "Ejemplos:\n"

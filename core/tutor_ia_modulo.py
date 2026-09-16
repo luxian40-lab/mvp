@@ -32,7 +32,7 @@ REGLAS OBLIGATORIAS:
 2. MÁXIMO 80 PALABRAS en total.
 3. Lenguaje sencillo, cercano al contexto rural/urbano que corresponda al curso.
 4. El reto debe plantearse de forma clara y fácil de comprender (situación concreta, sin ambigüedades).
-5. Máximo 2 emojis al final.
+5. PROHIBIDO usar emojis.
 6. CERO alucinación: solo temas que aparezcan en MÓDULOS / RAG / nombre del curso / GUÍA DEL MÓDULO. PROHIBIDO mezclar plagas, cultivos o finanzas si los módulos no hablan de eso.
 7. Si hay GUÍA DEL MÓDULO, obedezca esa guía antes que ejemplos genéricos o de otros programas.
 8. Termina con: "Escriba o envíe un audio con su respuesta."
@@ -60,7 +60,7 @@ FORMATO DE RESPUESTA OBLIGATORIO:
 REGLAS:
 - TRATO DE USTED siempre.
 - Máximo 120 palabras de retroalimentación.
-- Máximo 2 emojis.
+- PROHIBIDO usar emojis.
 - Sé empático pero honesto.
 - Ayude al participante a resolver el reto de una manera clara y fácil de comprender: use pasos simples, ejemplos concretos y lenguaje directo.
 - PROHIBIDO hacer preguntas de seguimiento. Cierre motivador breve.
@@ -96,7 +96,7 @@ FORMATO DE RESPUESTA OBLIGATORIO:
 REGLAS:
 - TRATO DE USTED siempre.
 - Máximo 120 palabras.
-- Máximo 2 emojis.
+- PROHIBIDO usar emojis.
 - Sea empático y honesto; cite evidencia de la respuesta del participante.
 - Ayude al participante a resolver el reto de una manera clara y fácil de comprender: use pasos simples, ejemplos concretos y lenguaje directo.
 - PROHIBIDO hacer preguntas de seguimiento.
@@ -128,6 +128,30 @@ REGLAS:
 7. NO hagas preguntas de seguimiento. Responde directamente.
 8. PROHIBIDO invitar a seguir conversando o preguntar si tiene más dudas.
 9. Tu nombre es {na}; no uses otro nombre propio ni te presentes con otro alias."""
+
+
+_RE_EMOJI = re.compile(
+    '['
+    '\U0001F000-\U0001FAFF'   # pictogramas, emoticones, símbolos suplementarios
+    '\u2190-\u21FF'           # flechas
+    '\u2300-\u27BF'           # técnicos, dingbats
+    '\u2B00-\u2BFF'           # símbolos varios
+    '\uFE0F\u20E3\u2122\u2139'
+    ']+'
+)
+
+
+def limpiar_emojis(texto: str) -> str:
+    """Quita emojis de los mensajes del facilitador (retos, evaluación, presentaciones)."""
+    if not (texto or '').strip():
+        return texto or ''
+    t = _RE_EMOJI.sub('', texto)
+    t = re.sub(r'[ \t]{2,}', ' ', t)
+    t = re.sub(r' +([,.;:!?])', r'\1', t)
+    t = re.sub(r'^[ \t]+', '', t, flags=re.MULTILINE)
+    t = re.sub(r'[ \t]+$', '', t, flags=re.MULTILINE)
+    t = re.sub(r'\n{3,}', '\n\n', t)
+    return t.strip()
 
 
 def _quitar_encabezado_acciona(texto: str) -> str:
@@ -451,7 +475,9 @@ PROHIBIDO: Incluir la palabra ACCIONA (o Acciona) en el mensaje."""
             max_tokens=250,
             timeout=12
         )
-        respuesta = _quitar_encabezado_acciona(response.choices[0].message.content.strip())
+        respuesta = limpiar_emojis(
+            _quitar_encabezado_acciona(response.choices[0].message.content.strip())
+        )
         logger.info(f"✅ Facilitadora reto: {respuesta[:50]}...")
         return respuesta
     except Exception as e:
@@ -548,7 +574,7 @@ Evalúe según la rúbrica y el dominio de este curso. Dé retroalimentación y 
             max_tokens=250,
             timeout=12
         )
-        feedback = response.choices[0].message.content.strip()
+        feedback = limpiar_emojis(response.choices[0].message.content.strip())
 
         import re
         if usar_notas:
@@ -652,7 +678,7 @@ def _fallback_reto(modulos_cubiertos, curso_nombre):
     return (
         f"En el marco del curso *{curso_nombre}*, después de repasar: {temas}, "
         f"piense en una situación de su día a día donde deba aplicar lo aprendido.\n\n"
-        f"¿Qué haría usted de forma concreta (primer paso y criterio para saber si va bien)? ✍️\n\n"
+        f"¿Qué haría usted de forma concreta (primer paso y criterio para saber si va bien)?\n\n"
         f"Escriba o envíe un audio con su respuesta."
     )
 
@@ -663,7 +689,7 @@ def _fallback_evaluacion_reto(estudiante_nombre: str = "Estudiante"):
         f"{estudiante_nombre}, en este momento no pude evaluar su respuesta por un problema técnico.\n\n"
         "Por favor envíe de nuevo su respuesta al reto (puede ser más breve). "
         "En este intento *no se registró puntaje*.\n\n"
-        "Disculpe la molestia. 🌱"
+        "Disculpe la molestia."
     )
 
 
@@ -950,25 +976,25 @@ def generar_presentacion_agentes(
     if es_perfil_tecnicoagro(curso):
         rol = etiqueta_rol_facilitador(curso)
         msg_facilitador = (
-            f"🤓 *¡Hola {estudiante_nombre}! Soy el {rol}*\n\n"
+            f"*¡Hola {estudiante_nombre}! Soy el {rol}*\n\n"
             f"({nombre_tutor})\n\n"
             f"Seré su apoyo técnico en el curso *{curso_nombre}*. "
             f"Le plantearé micro-retos de campo para aplicar lo aprendido. "
-            f"¡Vamos a aprender juntos! 💪"
+            f"¡Vamos a aprender juntos!"
         )
     else:
         msg_facilitador = (
-            f"🤓 *¡Hola {estudiante_nombre}! Soy la Facilitadora {nombre_tutor}*\n\n"
+            f"*¡Hola {estudiante_nombre}! Soy la Facilitadora {nombre_tutor}*\n\n"
             f"Seré su facilitadora a cargo en el curso *{curso_nombre}*. "
             f"Le plantearé retos prácticos para que aplique lo aprendido. "
-            f"¡Vamos a aprender juntos! 💪"
+            f"¡Vamos a aprender juntos!"
         )
 
     msg_asistente = (
-        f"📚 *¡Y yo soy {nombre_asistente}, tu compañero de estudio!*\n\n"
+        f"*¡Y yo soy {nombre_asistente}, tu compañero de estudio!*\n\n"
         f"Estaré pendiente de ti en este proceso. "
         f"Si tienes dudas antes de los retos, yo te ayudo a repasar. "
-        f"¡Cuenta conmigo! 🤝"
+        f"¡Cuenta conmigo!"
     )
     
     return msg_facilitador, msg_asistente

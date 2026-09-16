@@ -201,18 +201,18 @@ def linea_resultado_reto_whatsapp(
     if modo == MODO_CALIFICACION and nota_5 is not None:
         extra = ''
         if promedio_notas is not None:
-            extra = f"\n📊 *Promedio acumulado:* {formatear_nota(promedio_notas)}/5"
+            extra = f"\n*Promedio acumulado:* {formatear_nota(promedio_notas)}/5"
         return (
-            f"📋 *Nota:* {formatear_nota(nota_5)}/5{extra}\n"
+            f"*Nota:* {formatear_nota(nota_5)}/5{extra}\n"
             f"{barra_progreso} {porcentaje}%"
         )
     if puntos_ganados is not None and puntos_totales is not None:
         return (
-            f"💰 *+{puntos_ganados} puntos* → Total: *{puntos_totales} pts*\n"
+            f"*+{puntos_ganados} puntos* - Total: *{puntos_totales} pts*\n"
             f"{barra_progreso} {porcentaje}%"
         )
     if puntaje_10 is not None:
-        return f"📋 *Puntaje reto:* {puntaje_10}/10\n{barra_progreso} {porcentaje}%"
+        return f"*Puntaje reto:* {puntaje_10}/10\n{barra_progreso} {porcentaje}%"
     return f"{barra_progreso} {porcentaje}%"
 
 
@@ -232,7 +232,7 @@ def construir_mensaje_evaluacion_reto(
     porcentaje = int(progreso.porcentaje_avance()) if progreso else 0
     barra = _barra_progreso(porcentaje)
 
-    msg = f"📋 *{nombre_tutor}*\n\n{feedback}\n\n"
+    msg = f"*{nombre_tutor}*\n\n{feedback}\n\n"
 
     puntaje_cero = (
         (modo == MODO_CALIFICACION and float(puntaje_o_nota or 0) <= 0)

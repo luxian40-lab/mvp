@@ -1045,7 +1045,7 @@ def _evaluar_abierta_microcontenido_facilitadora(
                 f"\n📊 *Promedio acumulado:* {formatear_nota(prom)}/5"
                 if prom is not None else ''
             )
-            puntos_msg = f"\n\n📋 *Nota:* {formatear_nota(nota_f)}/5{extra_prom}"
+            puntos_msg = f"\n\n*Nota:* {formatear_nota(nota_f)}/5{extra_prom}"
         elif gamificacion_otorga_puntos(getattr(estudiante, 'cliente', None), curso):
             from .gamificacion import PerfilGamificacion
 
@@ -1151,7 +1151,7 @@ def procesar_respuesta_evaluacion_paso(
             _puntaje, feedback_ia, puntos_msg = _evaluar_abierta_microcontenido_facilitadora(
                 estudiante, progreso, paso, texto,
             )
-            head_facilitadora = f"📋 *Facilitadora*\n\n{feedback_ia}{puntos_msg}"
+            head_facilitadora = f"*Facilitadora*\n\n{feedback_ia}{puntos_msg}"
         else:
             ok = False
     elif paso.tipo in (PasoModulo.TIPO_RETO, PasoModulo.TIPO_ENTREGA):

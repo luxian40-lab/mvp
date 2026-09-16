@@ -323,7 +323,7 @@ class FacilitadoraNoSaltaConListoTests(TestCase):
         self.assertEqual(self.est.estado_onboarding, 'esperando_respuesta_reto')
         bodies = [c.kwargs.get('body', '') for c in mock_instance.messages.create.call_args_list]
         texto = ' '.join(bodies)
-        self.assertIn('texto o audio', texto.lower())
+        self.assertIn('texto, audio o la foto', texto.lower())
         self.assertNotIn('módulo se está cargando', texto.lower())
         self.assertNotIn('Combinar redes', texto)
 

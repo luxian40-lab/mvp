@@ -138,7 +138,9 @@ def evaluar_evidencia_foto(
             max_tokens=320,
             timeout=25,
         )
-        feedback = (response.choices[0].message.content or '').strip()
+        from core.tutor_ia_modulo import limpiar_emojis
+
+        feedback = limpiar_emojis((response.choices[0].message.content or '').strip())
         if not feedback:
             return None
         if usar_notas:
@@ -155,8 +157,8 @@ def evaluar_evidencia_foto(
 
 def mensaje_evidencia_no_evaluable(nombre_facilitador: str = 'Facilitadora') -> str:
     return (
-        '📸 Recibí su foto, pero no pude revisarla en este momento.\n\n'
+        'Recibí su foto, pero no pude revisarla en este momento.\n\n'
         'Por favor cuénteme en texto o audio qué observó '
         '(qué revisó, cuántas unidades y qué encontró).\n\n'
-        '✍️ _Escriba o envíe un audio con su respuesta._'
+        '_Escriba o envíe un audio con su respuesta._'
     )
