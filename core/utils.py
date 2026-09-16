@@ -202,8 +202,16 @@ def enviar_whatsapp_twilio(
         account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', None)
         auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', None)
         # getattr(..., default) NO aplica si la setting existe y es None/''.
+        # reply_from: menú sandbox dual (cursos salen del mismo número sandbox).
+        try:
+            from core.wa_reply_context import get_reply_from_override
+
+            _reply_override = get_reply_from_override()
+        except Exception:
+            _reply_override = None
         default_from = (
             from_number
+            or _reply_override
             or getattr(settings, 'TWILIO_PHONE_NUMBER', None)
             or getattr(settings, 'TWILIO_WHATSAPP_NUMBER', None)
             or 'whatsapp:+573202948806'

@@ -212,3 +212,32 @@ def variantes_telefono(raw: str) -> list[str]:
     if base.startswith('52') and not base.startswith('521') and len(base) >= 12:
         out.add('521' + base[2:])
     return sorted(out)
+
+
+def resolver_estudiante_por_telefono(raw: str):
+    """
+    Relaciona un teléfono de WhatsappLog con un Estudiante.
+    Usa variantes de formato (57… / +57… / local) para no perder el match.
+    """
+    variants = variantes_telefono(raw)
+    if not variants:
+        return None
+    from core.models import Estudiante
+
+    est = (
+        Estudiante.objects.filter(telefono__in=variants)
+        .order_by('-id')
+        .first()
+    )
+    if est:
+        return est
+    # Últimos 10 dígitos: logs a veces guardan sin país y el estudiante con 57…
+    digits = normalizar_telefono(raw)
+    if len(digits) >= 10:
+        suffix = digits[-10:]
+        return (
+            Estudiante.objects.filter(telefono__endswith=suffix)
+            .order_by('-id')
+            .first()
+        )
+    return None

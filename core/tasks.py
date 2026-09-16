@@ -175,12 +175,40 @@ def procesar_twilio_webhook_async(self, post_data: dict):
     """
     try:
         from core.views import _procesar_twilio_webhook
+        from core.wa_reply_context import reply_from
 
-        logger.info("[Celery] Webhook Twilio educativo | sid=%s", post_data.get('MessageSid', ''))
-        return _procesar_twilio_webhook(post_data)
+        data = dict(post_data or {})
+        reply = (data.pop('_eki_reply_from', None) or '').strip() or None
+        logger.info(
+            "[Celery] Webhook Twilio educativo | sid=%s | reply_from=%s",
+            data.get('MessageSid', ''),
+            reply or '-',
+        )
+        with reply_from(reply):
+            return _procesar_twilio_webhook(data)
     except Exception as exc:
         logger.error("[Celery] Error webhook Twilio async: %s", exc)
         raise self.retry(exc=exc)
+
+
+@shared_task(name='core.tasks.flush_data_lake_outbox')
+def flush_data_lake_outbox(limit: int = 200):
+    """Publica EventOutbox pendientes a S3 lake/raw (si DATA_LAKE_ENABLED)."""
+    from core.event_engine import flush_outbox_pendientes
+
+    n = flush_outbox_pendientes(limit=limit)
+    logger.info('[Celery] flush_data_lake_outbox n=%s', n)
+    return n
+
+
+@shared_task(name='core.tasks.calcular_clusters_territoriales')
+def calcular_clusters_territoriales_task():
+    """Correlación density_v0 → AlertaTerritorial."""
+    from core.event_engine import correlacionar_clusters
+
+    alertas = correlacionar_clusters()
+    logger.info('[Celery] clusters territoriales n=%s', len(alertas))
+    return len(alertas)
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=30)

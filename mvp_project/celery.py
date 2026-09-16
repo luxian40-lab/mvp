@@ -50,6 +50,16 @@ app.conf.beat_schedule = {
         'task': 'core.tasks_infra.revisar_infra_advisor',
         'schedule': crontab(minute=15),  # cada hora a :15
     },
+    # Data Lake v0: flush outbox → S3 lake/raw (no-op si DATA_LAKE_ENABLED=false)
+    'flush-data-lake-outbox': {
+        'task': 'core.tasks.flush_data_lake_outbox',
+        'schedule': 300.0,  # cada 5 min
+    },
+    # Clusters territoriales density_v0 (k-anonimato)
+    'calcular-clusters-territoriales': {
+        'task': 'core.tasks.calcular_clusters_territoriales',
+        'schedule': crontab(minute=20),  # cada hora a :20
+    },
 }
 
 

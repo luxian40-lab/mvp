@@ -1694,3 +1694,13 @@ html[data-eki-tone="noche"] img[src*="favicons/admin"] {
   border-radius: 6px;
 }
 
+/*
+ * P0 failsafe — Unfold fieldsets usan x-show="activeTab == 'general'".
+ * Si JS pone activeTab en un slug de fieldset (p.ej. "clase"), el alta queda en blanco.
+ * En alta forzamos visibilidad aunque Alpine falle.
+ */
+body.model-modulo:has([data-eki-modulo-add="1"]) #modulo_form fieldset.module {
+  display: block !important;
+}
+
+

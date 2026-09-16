@@ -110,6 +110,8 @@ def test_bot_comercial_webhook_sin_firma_403(mock_proc):
     TWILIO_VALIDATE_SIGNATURE=True,
     TWILIO_AUTH_TOKEN=AUTH_TOKEN,
     SECURE_SSL_REDIRECT=False,
+    # Aislar firma/enqueue: el menú sandbox interceptaría To=sandbox y haría send real.
+    SANDBOX_MENU_ENABLED=False,
 )
 @patch('core.views._procesar_bot_comercial_twilio_webhook')
 def test_bot_comercial_webhook_firma_valida_ok(mock_proc):
@@ -139,6 +141,7 @@ def test_bot_comercial_webhook_firma_valida_ok(mock_proc):
     TWILIO_AUTH_TOKEN=AUTH_TOKEN,
     SECURE_SSL_REDIRECT=False,
     NAT_WEBHOOK_CELERY_ASYNC=True,
+    SANDBOX_MENU_ENABLED=False,
 )
 @patch('core.views._procesar_bot_comercial_twilio_webhook')
 @patch('core.tasks.procesar_bot_comercial_webhook_async.delay')

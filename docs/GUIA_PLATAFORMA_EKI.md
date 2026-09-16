@@ -2,11 +2,13 @@
 
 Documento de referencia para el equipo de producto, operaciones, contenido y desarrollo. Explica **qué hace eki**, **cómo se conectan las piezas**, **cómo operar cada superficie** y **cómo configurar cursos** para WhatsApp y aula virtual.
 
-**Última actualización:** 7 agosto 2026  
-**Entorno producción:** AWS Elastic Beanstalk `eki-prod-final`  
-**Repositorio:** monolito Django (`mvp_project/`)  
-**Último deploy relevante:** `main-20260807-185849` — UX admin de campañas/certificados + **Module Builder WA** (código en prod, **flag OFF**) + tonos admin. Detalle en [§11.5](#115-novedades-admin-agosto-2026).  
-**Lectura CTO:** el producto en prod es un monolito operativo: WhatsApp pedagógico + portal B2B (**Centro de Éxito** con reenganche WA automático), certificados funder-grade (PNG+PDF+hash), media con reintento/recuperación, aula/Studio, gamificación, GEI y Nat comercial. La sección **25** cubre seguridad; el documento hermano `docs/EKI_PRODUCTO_PROFUNDO.md` explica cada módulo en profundidad (por qué existe, fallos, pruebas, refactor, pitch).
+**Última actualización:** 7 septiembre 2026  
+**Entorno producción web:** AWS Elastic Beanstalk `eki-prod-final`  
+**Entorno workers IA:** Elastic Beanstalk `eki-ai-workers` (colas `media_encode`, `rag_index`, `course_engine`)  
+**Broker / cache:** ElastiCache Redis `eki-celery-prod`  
+**Repositorio:** monolito Django (`mvp_project/`), rama de trabajo frecuente `feat/course-engine`  
+**Último deploy web relevante:** `main-20260903-225001` — portal Inicio/Analítica/Config (menú 5 ítems), iconos hub, texto justificado Cursos, topbar oscuro, Fábrica sin 500 static.  
+**Lectura CTO:** monolito operativo + **Course Engine** (microcápsulas video WA) + workers IA separados. WhatsApp pedagógico, portal B2B (Centro de Éxito + Fábrica + métricas), certificados funder-grade, media con reintento, aula/Studio, GEI, Nat, gamificación. Seguridad en §25; visión 2026–2035 en `docs/VISION_TECNOLOGICA_EKI_2026_2035.md`; detalle por módulo en `docs/EKI_PRODUCTO_PROFUNDO.md`.
 
 **Documentos relacionados:**
 
@@ -18,9 +20,14 @@ Documento de referencia para el equipo de producto, operaciones, contenido y des
 | `docs/EKI_STUDIO.md` | Catálogo, inscripción y DNS de eki Studio |
 | `docs/EKI_APRENDE_REFERENCES.md` | Aprende como producto LMS: Moodle/Canvas + diseño M3/Carbon/Primer/Mobbin/Tabler |
 | `docs/EKI_UNFOLD_ADMIN.md` | Admin Unfold: docs oficiales y guía de cambios solo admin |
+| `docs/COURSE_ENGINE_LOCAL.md` | Course Engine ops, voces, costos, Runway/ElevenLabs |
+| `docs/COURSE_ENGINE_CURSO_MIXTO.md` | Curso mixto video + infografía + podcast + RAG |
+| `docs/EKI_AI_WORKERS_SETUP.md` | Env `eki-ai-workers` + ElastiCache |
 | `docs/INSTRUCTIVO_EKI_RECOLECCION_GEI.md` | Recolección de datos GEI por WhatsApp, fichas y export |
 | `docs/INFRAESTRUCTURA_EKI_PARA_CLOUDFLARE.md` | DNS, EB, variables `EKI_ALLOWED_HOSTS` |
 | `docs/NAT_GUIA_COMPLETA.md` | Nat comercial en profundidad |
+| `docs/VISION_TECNOLOGICA_EKI_2026_2035.md` | Norte CTO 2026–2035 |
+| `.cursor/skills/eki-video-design/` | Skill diseño/orquestación de microcápsulas video |
 
 ---
 
@@ -37,6 +44,7 @@ Documento de referencia para el equipo de producto, operaciones, contenido y des
 9. [Aula virtual (aprende)](#9-aula-virtual-aprende)
 10. [Portal B2B (app)](#10-portal-b2b-app)
     - [10.5 ¿Qué es GEI? ¿Qué es Nat?](#105-qué-es-gei-qué-es-nat)
+    - [10.6 Navegación portal (sep 2026)](#106-navegación-portal-sep-2026)
 11. [Admin operaciones](#11-admin-operaciones)
 12. [Gamificación](#12-gamificación)
 13. [Certificados y verificación](#13-certificados-y-verificación)
@@ -49,31 +57,36 @@ Documento de referencia para el equipo de producto, operaciones, contenido y des
 20. [Guía operativa: probar antes de producción](#20-guía-operativa-probar-antes-de-producción)
 21. [Resolución de problemas frecuentes](#21-resolución-de-problemas-frecuentes)
 22. [Glosario](#22-glosario)
-23. [Historial de capacidades (julio 2026)](#23-historial-de-capacidades-julio-2026)
+23. [Historial de capacidades](#23-historial-de-capacidades)
 24. [CTO — Clima Open-Meteo para Nat](#24-cto--clima-open-meteo-para-nat)
 25. [CTO — Seguridad frente a inyección de datos](#25-cto--seguridad-frente-a-inyección-de-datos)
+26. [Course Engine (microcápsulas video)](#26-course-engine-microcápsulas-video)
+27. [Workers IA y ElastiCache](#27-workers-ia-y-elasticache)
+28. [Equipo agente (skills Cursor)](#28-equipo-agente-skills-cursor)
+29. [Demo Confama y QA telefónico](#29-demo-confama-y-qa-telefónico)
 
 > **Entender el producto a fondo** (por qué / fallos / pruebas / refactor / pitch): [`docs/EKI_PRODUCTO_PROFUNDO.md`](EKI_PRODUCTO_PROFUNDO.md).
 
 ---
 
-## Estado del producto al 22 julio 2026 (resumen ejecutivo)
+## Estado del producto al 7 septiembre 2026 (resumen ejecutivo)
 
 Lo que un coordinador o un inversor debe entender **hoy**, sin leer todo el documento:
 
 | Superficie | Qué está vivo en producción |
 |------------|-----------------------------|
 | **WhatsApp** | Canal pedagógico principal: onboarding, *listo*, drip, evaluaciones **A–D no saltables con listo**, certificados, PQRS con contexto (sin avanzar el curso), campañas B2B. **Multi-curso:** 2+ cursos activos → menú; 1 → avance directo. **Media:** reintento auto ante 63019 + *reenvía video* sin perder avance. |
-| **Portal** (`app.eki.technology`) | Coordinación B2B: Inicio, métricas, gamificación, branding, **Guía EKI**, **Centro de Éxito**, **Suscripción** (vence/cupos), **Recuperar contraseña**, certificados (verify + PDF + CSV). Productos opcionales: GEI, Nat, empleabilidad. |
-| **Aula** (`aprende.eki.technology`) | Estudio, tareas, biblioteca, perfil, ranking. Login: escribir ***aula*** por WhatsApp → enlace/código (no OTP saliente en frío). |
+| **Portal** (`app.eki.technology`) | Menú cliente **5 ítems:** Inicio · Fábrica de competencias · Analítica · Soporte · Configuración. Inicio: saludo, perfil org + mapa cobertura, puertas Cursos/Herramientas, métricas, anuncios. Analítica abre **métricas detalladas** con hub de accesos (Éxito, Cobertura, Reportes…). Configuración abre **perfil** (usuarios/suscripción ocultos a futuro). Tema claro/oscuro. |
+| **Course Engine** | Generación de microcápsulas MP4 (~15–20 s) con voz ElevenLabs + keyframe + Runway + lámina; gate WA `eki_wa_v1`; Studio en portal/admin; cola Celery `course_engine` en `eki-ai-workers`. |
+| **Aula** (`aprende.eki.technology`) | Estudio, tareas, biblioteca, perfil, ranking. Login: escribir ***aula*** por WhatsApp → enlace/código. |
 | **Studio** (`studio.eki.technology`) | Catálogo, inscripción, checkout **Wompi** → handoff firmado a Aprende. |
 | **Certificados públicos** | `certificados.eki.technology/verificar-certificado/<codigo>/` — org, documento enmascarado, horas, SHA-256, **Descargar PDF**. WhatsApp sigue enviando PNG. |
-| **Admin** (`admin.eki.technology`) | Consola maestra de contenido, clientes, campañas, drip, certificados; avisos 3G al subir media. |
-| **Infra** | EB `eki-prod-final`, RDS, S3, Celery+Redis (reenganche drip 08:00 + inactivos 09:00), Cloudflare. |
+| **Admin** (`admin.eki.technology`) | Consola Unfold: contenido, clientes, campañas, drip, certificados, Module Builder (flag), Course Engine por curso. |
+| **Infra** | `eki-prod-final` (web+beat+cola default) · `eki-ai-workers` (media/RAG/CE) · RDS · S3 `eki-produccion` · ElastiCache Redis · Cloudflare. |
 
-**Identidad visual vigente:** portal/Studio/Aprende = morado eki `#9A6CAC` / `#7a4e8e` / profundo `#5F3A6E`. Favicons distintos: portal (personas), aula (cuaderno), certificados.
+**Identidad visual vigente:** portal/Studio/Aprende = morado eki `#9A6CAC` / `#7A4E8E` / profundo `#5F3A6E`. Favicons distintos por producto.
 
-**Qué no es eki todavía:** app móvil nativa, LMS SCORM completo, drip/whitelist self-serve completo en portal (sigue admin eki), emitir/anular masivo de certificados desde portal, predicción ML de retención. El Centro de Éxito **sí** muestra riesgo y **sí** dispara reenganche WA automático por inactividad (Celery); las “automatizaciones” del panel siguen siendo en parte sugeridas + la tarea diaria de inactivos.
+**Qué no es eki todavía:** app móvil nativa, LMS SCORM completo, drip/whitelist self-serve completo en portal, emitir/anular masivo de certificados desde portal, predicción ML de retención, suscripción/usuarios self-serve expuestos en menú Config (rutas existen, UI comentada).
 
 ---
 
@@ -118,7 +131,7 @@ Admin configura
                     ↓ misma fuente de verdad ↓
 
     WhatsApp          Aula virtual        eki Studio         Portal
- (entrega activa)   (consulta pasiva)  (catálogo/inscrip.) (métricas + Centro de Éxito)
+ (entrega activa)   (consulta pasiva)  (catálogo/inscrip.) (Fábrica + Analítica + Éxito + CE)
 ```
 
 ---
@@ -130,13 +143,15 @@ Admin configura
 | Capa | Tecnología |
 |------|------------|
 | Backend | Python 3.11, Django 4.x |
-| Base de datos | PostgreSQL (RDS en prod; SQLite en local sin VPN) |
-| Archivos | AWS S3 bucket `eki-produccion` |
-| Cola async | Celery + Redis (en la misma instancia EB) |
-| Hosting | AWS Elastic Beanstalk |
+| Base de datos | PostgreSQL (RDS `eki-database` en prod; SQLite en local sin VPN) |
+| Archivos | AWS S3 bucket `eki-produccion` (us-east-2) |
+| Cola async | Celery + ElastiCache Redis `eki-celery-prod` |
+| Hosting web | EB `eki-prod-final` (Gunicorn + worker default + beat) |
+| Hosting IA | EB `eki-ai-workers` (workers `media_encode`, `rag_index`, `course_engine`) |
 | CDN / TLS | Cloudflare |
 | Mensajería | Twilio WhatsApp API (+ Meta Cloud API opcional) |
-| IA | OpenAI / Google Gemini (tutor educativo, PQRS, Nat comercial, formulario GEI) |
+| IA texto | OpenAI / Google Gemini (tutor, PQRS, Nat, GEI, storyboard CE) |
+| IA voz / video | ElevenLabs (TTS) · Runway gen4_turbo (clips) · OpenAI imágenes (keyframes) |
 | Admin UI | Django Admin + **Unfold** (tema eki) — ver `docs/EKI_UNFOLD_ADMIN.md` |
 
 ### 2.2 Aplicaciones Django
@@ -242,19 +257,29 @@ Es la **consola maestra**. Casi todo lo que el estudiante experimenta se configu
 
 **Quién:** usuarios con `PortalUsuario` vinculado a un `Cliente` (no son staff Django).
 
-**Roles típicos:** `admin`, `profesor`, `viewer`.
+**Roles típicos:** `admin`, `profesor`, `viewer` / solo lectura.
+
+**Menú lateral (cliente, sep 2026) — máximo 5 ítems:**
+
+1. **Inicio** → `/portal/dashboard/`
+2. **Fábrica de competencias** → `/portal/cursos/` (rueda Smart Skills + tools)
+3. **Analítica** → abre `/portal/metricas/` (métricas detalladas + hub de accesos)
+4. **Soporte** → `/portal/soporte/` (Feedback + PQRS; FAQ/Conocimiento IA fuera del menú)
+5. **Configuración** → abre `/portal/perfil/` (usuarios y suscripción ocultos en UI a futuro)
 
 **Para qué:**
 
-- Ver el estado del programa en **Inicio** (`/portal/dashboard/`): narrativa de coordinador, tarjetas de atención (sin avance, inactivos, PQRS, certificados), comparativa mes vs mes anterior, actividad reciente.
-- Analítica: métricas detalladas, reportes Excel, gamificación.
-- **Centro de Éxito** (`/portal/retencion/`): riesgo, predicción, mapa de abandono, embudo, curva, cohortes, WhatsApp Health y consultor de retención — ver [§15](#15-retención-y-centro-de-éxito-del-programa).
-- Exportar datos, revisar campañas, empleabilidad.
-- Configurar branding (logo, subtítulo del programa).
-- Guía EKI: ayuda contextual por pantalla (no chatbot).
-- Algunos clientes gestionan PQRS, GEI o Nat según `portal_productos`.
+- Ver el estado del programa en **Inicio**: saludo, tarjeta org + mapa cobertura, puertas Cursos/Herramientas, caja Métricas, panel Anuncios.
+- **Fábrica:** listado de cursos, Course Engine por curso, calculadoras (margen/mercado) ancla `#fab-tools`.
+- **Analítica / métricas:** filtros, KPIs, semáforos, exports; accesos rápidos a Centro de Éxito, Cobertura, Reportes, Actividad, Gamificación, Certificados.
+- Configurar branding (logo, subtítulo) en perfil.
+- Guía EKI: FAB de ayuda contextual.
+- Tema claro/oscuro (Lumina; topbar adaptado en oscuro).
+- Módulos opcionales GEI / Nat / empleabilidad según `portal_productos` (rutas siguen existiendo; no todos van en el menú de 5).
 
 El portal **no reemplaza** al admin eki: es la cara visible del cliente sobre sus propios datos.
+
+Detalle operativo: [§10](#10-portal-b2b-app) y [§10.6](#106-navegación-portal-sep-2026).
 
 ### 3.3 Aula virtual (`aprende.eki.technology`)
 
@@ -890,34 +915,34 @@ Tras inscripción en Studio, redirección o enlace a **Mis cursos** en el aula. 
 
 ### 10.3 Pantallas principales
 
-- **Inicio** (`/portal/dashboard/`): estado del programa, “requiere atención hoy”, comparativa mensual, actividad reciente. Nombre de menú: **Inicio** (no “Dashboard”).
-- **Estudiantes:** búsqueda, timeline, export Excel.
-- **Cursos:** progreso por módulo, vista flujo (`curso_flujo_service.py`) — lectura; abrir semana/whitelist sigue en admin eki.
-- **Campañas:** historial y detalle.
-- **Conversaciones:** inbox WhatsApp simplificado.
-- **GEI** (`/portal/gei/`): inventario de emisiones, completitud de fichas, gráficos, export — si el cliente tiene producto `gei`.
-- **Nat** (`/portal/nat/`): sesiones comerciales, catálogo de productos, escalamientos HITL — si el cliente tiene producto `nat`.
-- **Empleabilidad:** mapas y métricas (`portal/empleabilidad_metricas.py`).
-- **Certificados:** listado + verificar + descargar + **Exportar CSV**.
-- **Suscripción** (`/portal/suscripcion/`): vence, días restantes, cupos, renovar WA, % media fallida.
-- **Centro de Éxito** (`/portal/retencion/` — menú lateral **Centro de Éxito**): responde ¿quién está en riesgo?, ¿por qué abandona?, ¿qué hacer hoy?
-  - Semáforo de riesgo 🟢🟡🔴 + conteos (no listas de miles).
-  - Explicación por estudiante + probabilidad estimada de terminar.
-  - Mapa de abandono por módulo y, con telemetría, por paso/media.
-  - Embudo vivo + embudo clásico, curva día 1–30, cohortes mensuales.
-  - WhatsApp Health, vs promedio eki, recomendaciones.
-  - **Reenganche WA automático** (Celery 09:00 inactivos) — ver §17.
-  - **Consultor de retención** (`POST /portal/retencion/agente/`): agente del portal, **aparte de Nat**.
-  - Ver detalle en [§15](#15-retención-y-centro-de-éxito-del-programa).
-- **Gamificación:** ranking y métricas de puntos/notas.
-- **Perfil organización:** branding (`portal/branding.py`).
-- **Usuarios:** cupos (consulta); seats nuevos vía eki/admin.
-- **Guía EKI:** FAB + panel de ayuda por ruta (partials `help_assistant_script.html`).
-- **Tema:** toggle claro/oscuro con tokens de marca (fills morados estables; acentos verde/azul en stats y estados).
+Rutas vigentes (muchas se alcanzan en ≤2 clics desde el menú de 5):
+
+| Pantalla | Ruta | Notas |
+|----------|------|-------|
+| Inicio | `/portal/dashboard/` | Saludo, org+mapa, Cursos/Herramientas, Métricas, Anuncios |
+| Fábrica / cursos | `/portal/cursos/` | Lista + rueda Smart Skills; CE por curso |
+| Flujo curso | `/portal/cursos/<id>/flujo/` | Solo estructura de módulos (+ agregar módulo) |
+| Course Engine | `/portal/cursos/<id>/course-engine/` | Studio video / demos |
+| Analítica (hub) | `/portal/analitica/` | **Redirect** → `/portal/metricas/` |
+| Métricas detalladas | `/portal/metricas/` | Filtros + KPIs; hub iconos arriba |
+| Centro de Éxito | `/portal/retencion/` | Riesgo, mapa abandono, consultor — [§15](#15-retención-y-centro-de-éxito-del-programa) |
+| Cobertura | `/portal/cobertura/` | Mapa territorio + GeoJSON |
+| Reportes | `/portal/reportes/` | Exports Excel |
+| Timeline | `/portal/timeline/` | Actividad |
+| Gamificación | `/portal/gamificacion/` | Ranking / puntos |
+| Certificados | `/portal/certificados/` | Listado + verify + CSV |
+| Soporte | `/portal/soporte/` | Feedback + PQRS |
+| Configuración | `/portal/configuracion/` | **Redirect** → `/portal/perfil/` |
+| Perfil empresa | `/portal/perfil/` | Logo, subtítulo, contacto |
+| Usuarios / Suscripción | `/portal/usuarios/`, `/portal/suscripcion/` | Existen; **ocultos del menú** (futuro) |
+| Margen | `/portal/margen/` | Calculadora (desde Fábrica tools) |
+| GEI / Nat / Empleabilidad | `/portal/gei/`, `/portal/nat/`, `/portal/empleabilidad/` | Según `portal_productos` |
+| Guía EKI | FAB global | Partials `help_assistant_script.html` |
+| Tema | Toggle topbar | Claro / oscuro (`eki-portal-theme`) |
 
 ### 10.4 Branding
 
-El coordinador sube logo y subtítulo; el portal muestra identidad del cliente. Validación: `portal/branding.py` → `branding_portal_completo()`.
+El coordinador sube logo y subtítulo; el portal muestra identidad del cliente. Validación: `portal/branding.py` → `branding_portal_completo()`. Logo en Inicio: contenedor cuadrado con `object-fit: contain` (llenar el cuadro sin deformar).
 
 ### 10.5 ¿Qué es GEI? ¿Qué es Nat?
 
@@ -960,6 +985,34 @@ Son **módulos opcionales** del portal B2B. Se activan por organización en Admi
 | Usuario típico | Estudiante en curso (productor en formación) | Productor o cliente de la cooperativa/distribuidor |
 | Salida principal | Ficha + Excel + métricas de completitud | Sesiones + catálogo + escalamientos |
 | App Django | `formulario` | `core` (comercial) + `agents_commercial` |
+
+### 10.6 Navegación portal (sep 2026)
+
+**Principio UX:** máximo **5 ítems** en sidebar cliente; todo lo demás ≤2 clics desde un hub.
+
+| Ítem menú | Destino efectivo | Activo también en… |
+|-----------|------------------|--------------------|
+| Inicio | `/portal/dashboard/` | — |
+| Fábrica de competencias | `/portal/cursos/` | `/portal/cursos/*/…`, CE |
+| Analítica | `/portal/metricas/` | retención, cobertura, reportes, timeline, gamificación, certificados |
+| Soporte | `/portal/soporte/` | feedback, pqrs |
+| Configuración | `/portal/perfil/` | (usuarios/suscripción ocultos) |
+
+**Inicio — composición:**
+
+1. Saludo (`¡Hola, {nombre}!`).
+2. Fila **perfil org | mapa** (misma rejilla que Cursos|Herramientas).
+3. Puertas **Cursos** / **Herramientas** (texto de descripción **justificado** a ancho de caja).
+4. Caja **Métricas** → `/portal/metricas/`.
+5. Columna **Anuncios** (sticky, alineada con mapa/stack).
+
+**Analítica:** al clic → métricas detalladas; arriba de filtros, hub de 6 cards con icono SVG que **llena** el cuadro lavanda (`width/height: 100%` del padding).
+
+**Fuera del menú (existen rutas):** FAQ organización, Conocimiento IA, Usuarios, Suscripción (comentados en UI), listados densos de estudiantes/campañas (accesibles vía ops o rutas legacy).
+
+**Static Fábrica:** rueda `static/portal/fabrica/smart_skills_wheel.png` vía `static_safe` / storage tolerant — evita 500 si el hashed name falta en ManifestStaticFilesStorage.
+
+**Tests:** `portal/tests_nav_simplificada.py`.
 
 ---
 
@@ -1257,6 +1310,7 @@ Archivos: `core/telemetria.py`, `core/signals_telemetria.py`, migración `0122_e
 - **Consultor de retención** (portal Centro de Éxito): `portal/agente_retencion.py` — OpenAI o reglas; **no** es Nat.
 - **PQRS:** `core/pqrs_agent.py`.
 - **Formulario GEI:** agente secuencial sin RAG (`formulario/agent.py`).
+- **Course Engine:** storyboard OpenAI + TTS ElevenLabs + keyframe OpenAI + Runway + lámina (`core/course_engine/`). Ver [§26](#26-course-engine-microcápsulas-video).
 - Base conocimientos educativa: señales en `signals_conocimientos` actualizan índice al guardar cursos.
 
 ### 16.4 API LXP
@@ -1269,29 +1323,43 @@ Archivos: `core/telemetria.py`, `core/signals_telemetria.py`, migración `0122_e
 
 ### 17.1 Procesos en EB
 
-`Procfile`:
+**`eki-prod-final`** (`Procfile`):
 
 ```
 web: gunicorn ...
-worker: celery -A mvp_project worker
+worker: celery -A mvp_project worker   # colas default + campañas/certificados/WA
 beat: celery -A mvp_project beat
 ```
 
-### 17.2 Tareas programadas
+**`eki-ai-workers`** (`Procfile.ai`):
 
-| Tarea | Frecuencia | Función |
-|-------|------------|---------|
-| `enviar_campanas_programadas` | 5 min | Campañas con fecha |
-| `reenganche_drip_content_diario` | Diario **08:00** | Recordatorios cuando el drip ya liberó el siguiente módulo |
-| `reenganche_inactivos_diario` | Diario **09:00** | Centro de Éxito: sin WA entrante X días → WhatsApp *listo* (`[REENGANCHE_INACTIVIDAD]`) |
-| `procesar_twilio_webhook_async` | Bajo demanda | Webhook no bloqueante |
-| `generar_certificado_async` | Bajo demanda | Generación de diploma en background |
+```
+worker_media:  celery … -Q media_encode
+worker_rag:    celery … -Q rag_index
+worker_course: celery … -Q course_engine -n ce@…
+```
 
-Horario en `mvp_project/celery.py`.
+Broker compartido: Redis ElastiCache. **SG críticos (sep 2026):** el SG de Redis y el de RDS deben autorizar el SG de `eki-ai-workers` (6379 y 5432); si no, `worker_course` timeout y los demos de video quedan en “Esperando worker”.
+
+### 17.2 Tareas programadas / bajo demanda
+
+| Tarea | Dónde | Función |
+|-------|-------|---------|
+| `enviar_campanas_programadas` | beat / default | Campañas con fecha |
+| `reenganche_drip_content_diario` | beat 08:00 | Recordatorios drip |
+| `reenganche_inactivos_diario` | beat 09:00 | Centro de Éxito → WA *listo* |
+| `procesar_twilio_webhook_async` | default | Webhook no bloqueante |
+| `generar_certificado_async` | default | Diploma background |
+| `encode_paso_modulo_media` | `media_encode` | Transcode WA-safe |
+| `indexar_*` / ZIP RAG | `rag_index` | Índice comercial/edu |
+| `generar_video_course_engine_async` | `course_engine` | Microcápsula CE |
+
+Horario beat en `mvp_project/celery.py`.
 
 ### 17.3 Cuándo importa
 
-Si el estudiante “no recibió campaña a la hora exacta”, revisar worker + beat en EB (no solo Gunicorn web).
+Si el estudiante “no recibió campaña a la hora”, revisar beat en `eki-prod-final`.  
+Si el Studio CE no genera video, revisar `worker_course` en `eki-ai-workers` + Redis/RDS SG + logs Runway/ElevenLabs.
 
 ---
 
@@ -1299,11 +1367,14 @@ Si el estudiante “no recibió campaña a la hora exacta”, revisar worker + b
 
 ### 18.1 Entornos
 
-| Entorno | BD | Media |
-|---------|-----|-------|
-| Producción EB | RDS PostgreSQL | S3 |
-| Local con VPN | RDS | S3 |
-| Local sin VPN | SQLite desactualizado | S3 o local |
+| Entorno | Rol | BD / Media |
+|---------|-----|------------|
+| `eki-prod-final` | Web + beat + worker default | RDS + S3 |
+| `eki-ai-workers` | Workers IA (media/RAG/CE) | Mismo RDS + S3 + Redis |
+| Local con VPN | Dev | RDS opcional / SQLite |
+| Local sin VPN | Dev rápido | SQLite (puede ir desactualizado) |
+
+VPC tipica: `vpc-0ceabc228a1ed992a`. SG web prod: `sg-09fbce3fd0cb2a913`. Doc detallado: `docs/EKI_AI_WORKERS_SETUP.md`.
 
 ### 18.2 Deploy estándar
 
@@ -1311,9 +1382,11 @@ Si el estudiante “no recibió campaña a la hora exacta”, revisar worker + b
 cd ruta\eki_mvp
 .\scripts\eb_precheck_main.ps1
 .\scripts\eb_deploy_main.ps1
+# Workers IA (cuando hay cambios CE / Procfile.ai):
+# eb deploy eki-ai-workers --label ai-workers-YYYYMMDD-HHMMSS
 ```
 
-El script etiqueta versión `main-YYYYMMDD-HHMMSS`, sube zip a S3 EB, ejecuta hook de migraciones.
+El script web etiqueta `main-YYYYMMDD-HHMMSS`, sube zip a S3 EB, ejecuta hooks de migraciones. Deploy **solo con pedido explícito**. Rollback: `eb deploy eki-prod-final --version <label-anterior>`.
 
 ### 18.3 Migraciones recientes relevantes
 
@@ -1467,7 +1540,8 @@ python manage.py test aprende.tests studio.tests core.tests_flujo_whatsapp_b2b c
 - [ ] *reenvía video* reenvía media sin avanzar módulo
 - [ ] B2B un curso: no menú; multi-curso: menú numerado
 - [ ] Certificado: PNG en WA + verify con Descargar PDF
-- [ ] Portal: `/portal/recuperar/` carga; `/portal/suscripcion/` muestra cupos
+- [ ] Portal: Analítica abre métricas; Config abre perfil; Inicio muestra mapa + Fábrica
+- [ ] Portal: `/portal/recuperar/` carga; suscripción existe por URL si hace falta ops
 
 ### 20.6 Scripts smoke útiles
 
@@ -1476,6 +1550,9 @@ python manage.py test aprende.tests studio.tests core.tests_flujo_whatsapp_b2b c
 | `scripts/smoke_gei_curso_sesion.py` | Sesión GEI en curso |
 | `scripts/smoke_nat_producto_flujo.py` | Nat + media producto |
 | `manage.py smoke_certificado_envio --telefono 57…` | Emisión + envío WA diploma |
+| `scripts/eb_ce_studio_demo_15s.ps1` | CE Studio 15 s + WA QA |
+| `scripts/eb_ce_microcapsula_incendio.ps1` | CE plan fijo emergencia (solo 3026480629) |
+| `scripts/smoke_nat_celery.py --remote eki-prod-final` | Worker Nat post-deploy |
 
 ---
 
@@ -1531,6 +1608,14 @@ No debería: *reenvía video* **no** avanza progreso. Si avanzó con *listo* sin
 2. `fecha_programada` en pasado y estado pendiente.
 3. Revisar `EnvioLog` por errores Twilio.
 
+### “Studio CE: Esperando worker_course”
+
+1. `eki-ai-workers` healthy + `systemctl is-active worker_course`.
+2. Redis SG permite SG de ai-workers (6379).
+3. RDS SG permite SG de ai-workers (5432).
+4. Inspect Celery: cola `course_engine` con worker `ce@…`.
+5. Logs Runway/ElevenLabs/OpenAI (moderation o keys).
+
 ### “El coordinador no ve empleabilidad en portal”
 
 1. Producto `empleabilidad` en `portal_productos`.
@@ -1560,45 +1645,54 @@ No debería: *reenvía video* **no** avanza progreso. Si avanzó con *listo* sin
 | **Grupo** | `GrupoEstudiantes` — cohorte para campañas y ranking |
 | **GEI** | Gases de Efecto Invernadero — fichas de finca por WhatsApp. Ver [§10.5](#105-qué-es-gei-qué-es-nat). |
 | **Nat** | Agente comercial WhatsApp (catálogo + asesoría + clima). Ver [§10.5](#105-qué-es-gei-qué-es-nat). |
+| **Course Engine / CE** | Generador de microcápsulas video WA (storyboard → TTS → Runway → MP4). Ver [§26](#26-course-engine-microcápsulas-video). |
+| **Fábrica de competencias** | Pantalla portal de cursos + rueda Smart Skills + herramientas |
+| **eki-ai-workers** | Entorno EB solo Celery para media/RAG/Course Engine |
 
 ---
 
-## 23. Historial de capacidades (julio 2026)
+## 23. Historial de capacidades
+
+### Julio–agosto 2026 (base)
 
 | Capacidad | Descripción | Estado prod |
 |-----------|-------------|-------------|
 | **Separación Aula / Studio** | Catálogo en `studio.*`; aula solo estudio | Desplegado |
 | **eki Studio + Wompi** | Catálogo, inscripción, checkout pago → Aprende | Desplegado |
-| Portal **Inicio** operativo | Narrativa coordinador, atención del día, sin ruido de ranking/WA en home | Desplegado |
-| Portal dark mode + acentos eki | Contrastes legibles; verde/azul ~10 % en stats/estados/charts | Desplegado |
-| Guía EKI | Ayuda contextual; icono cuaderno Aprende | Desplegado |
-| Centro de Éxito (retención) | Score 🟢🟡🔴, predicción, mapa módulo/paso, embudo vivo, curva, cohortes, WA Health, vs eki, recomendaciones, consultor (`agente_retencion`) | Desplegado (heurística v1; `main-20260720-172516`) |
-| Telemetría aprendizaje | `EstudianteEventoAprendizaje` + hooks WA/Celery/Twilio; mapa por paso en Centro de Éxito | Desplegado (migr. 0122 en predeploy) |
-| Ranking SVG (aula + docente) | Podio con bloques + trofeo/medalla vectorial | Desplegado |
-| Favicons de marca | Portal personas / Aprende cuaderno | Desplegado |
-| Asistencia Excel docente | Descarga openpyxl desde aula profesor | Desplegado |
-| Aula estudio + tareas + biblioteca | Misma fuente de contenido que WhatsApp | Desplegado |
-| Drip en listado aula | Mismas reglas que WhatsApp | Desplegado |
+| Portal **Inicio** operativo | Narrativa coordinador / atención del día | Desplegado (evolucionado sep 2026) |
+| Portal dark mode + acentos eki | Contrastes; verde/azul ~10 % | Desplegado |
+| Guía EKI | Ayuda contextual | Desplegado |
+| Centro de Éxito (retención) | Score, mapa, embudo, consultor | Desplegado |
+| Telemetría aprendizaje | `EstudianteEventoAprendizaje` | Desplegado |
+| Ranking SVG (aula + docente) | Podio vectorial | Desplegado |
+| Favicons de marca | Distintos por producto | Desplegado |
+| Aula estudio + tareas + biblioteca | Misma fuente que WhatsApp | Desplegado |
 | WhatsApp B2B sin menú 1-2-3 | Campaña + listo | Desplegado |
-| Admin package split | `core/admin/` modular | Desplegado |
-| Hub `/admin/aula-web/` | Operaciones aula | Desplegado |
-| GEI + Nat | Módulos portal opcionales por `portal_productos` | Desplegado |
-| Nat + Open-Meteo | Probabilidad climática por municipio; persistencia vereda/lat/lon en sesión agro | Desplegado |
-| **Verificación certificados eki** | Host `certificados.eki.technology`; QR deja Netlify; página HTML morado eki | Desplegado (`main-20260721-181245`+) |
-| **Learning Analytics** | Reportes B2B, métricas empresa, **embudo por módulo** (snapshot hoy: dónde está cada estudiante) en admin dashboard | Desplegado |
-| **Multi-curso B2B** | Menú si 2+ cursos activos del mismo cliente | Desplegado |
-| **PQRS aislado del curso** | Reenvío sin avanzar; `listo` libera ticket; prioridad pedagógica | Desplegado |
-| **Eval A–D no saltables** | *listo* no cierra evaluación abierta; CTA pide letra | Desplegado (22 jul 2026) |
-| **Media: reintento + reenvía video** | Callback 63019 → retry; frase de campo sin avanzar; `MediaPaqueteEntrega` | Desplegado (`ops-20260722-media-portal`) |
-| **Reenganche inactivos WA** | Celery 09:00: X días sin entrante → WhatsApp *listo* | Desplegado |
-| **Certificados PDF + hash + CSV portal** | PNG+PDF+SHA-256; verify con descarga; portal export | Desplegado |
-| **Portal recuperar contraseña** | `/portal/recuperar/` por email | Desplegado |
-| **Portal suscripción visible** | Vence, cupos, % media fallida | Desplegado |
-| **Nat foto + packshot** | Visión de cultivo + envío de imagen de producto | Desplegado |
-| **UX admin campañas** | Copy de producto (Mensaje inicial / Plantilla / Resultados) + ficha resumen del lanzamiento | Desplegado (`main-20260807-185849`) |
-| **Biblioteca certificados** | Miniatura + “Usada en X cursos” + Duplicar + Generar prueba (descarga) | Desplegado (`main-20260807-185849`) |
-| **Tonos admin** | Mañana / Tarde / Noche en el nav (`palette`), aplican a todo Unfold | Desplegado (`main-20260807-185849`) |
-| **Module Builder WA** | Secciones + micros con drag por rieles + miniaturas; página custom en admin | En prod **OFF** (`EKI_MODULE_BUILDER_BETA`); piloto por flag |
+| Admin package split + Unfold | `core/admin/` modular | Desplegado |
+| GEI + Nat + Open-Meteo | Módulos portal + clima | Desplegado |
+| Certificados PDF + hash + verify host | funder-grade | Desplegado |
+| Multi-curso / PQRS / Eval A–D / media retry | Campo WA robusto | Desplegado |
+| Reenganche inactivos WA | Celery 09:00 | Desplegado |
+| Portal recuperar + suscripción | Auth / cupos | Desplegado (suscripción UI menú oculto sep) |
+| UX admin campañas + biblioteca certs + tonos | `main-20260807-185849` | Desplegado |
+| **Module Builder WA** | Flag `EKI_MODULE_BUILDER_BETA` | En prod; piloto por flag |
+
+### Agosto–septiembre 2026 (Course Engine + portal)
+
+| Capacidad | Descripción | Estado prod |
+|-----------|-------------|-------------|
+| **Course Engine** | Video piloto WA: plan → TTS → keyframe → Runway → lámina → gate `eki_wa_v1` → S3 | Desplegado |
+| Voces CE | Sofia, Gisela, Juan Esteban, Leo; guard de género vs JSON EB corrupto | Desplegado |
+| Studio CE portal | `/portal/cursos/<id>/course-engine/` + demos voz/video | Desplegado |
+| **eki-ai-workers** + Redis | Colas media/RAG/CE; SG Redis+RDS abiertos a workers | Desplegado / operativo |
+| Portal menú 5 ítems | Inicio / Fábrica / Analítica / Soporte / Config | Desplegado (`main-20260903-225001`) |
+| Analítica → métricas | Redirect + hub iconos grandes | Desplegado |
+| Config → perfil | Usuarios/suscripción comentados UI | Desplegado |
+| Inicio Fábrica + mapa + anuncios | Layout perfil\|mapa; texto Cursos justificado | Desplegado |
+| Static Fábrica seguro | `static_safe` / Manifest tolerant (no 500) | Desplegado |
+| Seed Confama demo | Estudiantes + WA logs + certs para analítica | Ejecutado en prod (cliente demo) |
+| Microcápsula emergencia incendio | Script QA plan fijo + visuals seguros; WA solo 3026480629 | Script en repo; corrida QA |
+| Skill `eki-video-design` | Orquestación visual CE; variedad; prompts seguros | En repo `.cursor/skills/` |
 
 > Para el **por qué** de cada pieza y cómo defenderla ante un inversor o entrevista técnica, ver `docs/EKI_PRODUCTO_PROFUNDO.md`.
 
@@ -1680,6 +1774,93 @@ Eso cierra el gap entre “arquitectura sana” y “podemos firmar un anexo de 
 
 ---
 
+## 26. Course Engine (microcápsulas video)
+
+**Docs ops:** `docs/COURSE_ENGINE_LOCAL.md`, `docs/COURSE_ENGINE_CURSO_MIXTO.md`.  
+**Skill diseño:** `.cursor/skills/eki-video-design/SKILL.md`.
+
+### 26.1 Qué es
+
+Genera **un MP4 por pieza** (~15–20 s demo / hasta ~50 s premium) listo para WhatsApp: voz continua, subtítulos quemados, escena documental + lámina tipo Platzi + cierre. No sustituye `PasoModulo` a mano: el MP4 se publica como media del paso cuando Ops lo aprueba.
+
+### 26.2 Pipeline
+
+1. Brief (+ foco) → `planificar_video_leccion` **o plan fijo** (recomendado en emergencias/QA).
+2. TTS por segmento (`voice_config`: Sofia / Gisela / Juan Esteban / Leo).
+3. Keyframe documental + Runway (apertura/cierre).
+4. Lámina infográfica animada.
+5. Compose ffmpeg → gate `eki_wa_v1` → S3 `media/course_engine/videos/wa_safe/`.
+6. Opcional: Twilio solo a teléfono QA autorizado.
+
+Orquestador: `VideoPilotGenerator` / `VideoPilotGenerator` · tarea Celery `generar_video_course_engine_async` en cola `course_engine`.
+
+### 26.3 Reglas de producto (sep 2026)
+
+- **Cada video debe verse distinto** (categoría, ángulo, hora del día, tipología de lámina).
+- **No** fijar `COURSE_ENGINE_VOICES_JSON` en EB salvo override verificado (JSON viejo cruzó géneros María/Carlos).
+- Fallback del planner **no** debe ser siempre “Error 1 socios” si el brief es otro tema (`_fallback_desde_brief`).
+- Prompts de imagen **seguros:** evitar `fire`/`flames`/`smoke plume` (OpenAI/Runway moderation). Mensaje fuerte en voz + subtítulo + caption.
+- Pruebas QA: no mutar módulos productivos; anclar a `curso_id` solo para cliente/voz.
+
+### 26.4 Scripts útiles
+
+| Script | Uso |
+|--------|-----|
+| `scripts/eb_ce_studio_demo_15s.ps1` | Demo Studio 15 s + WA QA |
+| `scripts/eb_ce_microcapsula_incendio.ps1` | Plan fijo emergencia + WA solo 3026480629 |
+| `scripts/eb_ce_diag_studio.sh` | Voces + inspect Celery `course_engine` |
+
+---
+
+## 27. Workers IA y ElastiCache
+
+Ver `docs/EKI_AI_WORKERS_SETUP.md`.
+
+| Pieza | Nombre / nota |
+|-------|----------------|
+| Web | `eki-prod-final` |
+| Workers | `eki-ai-workers` · `worker_media` / `worker_rag` / `worker_course` |
+| Redis | `eki-celery-prod.*.cache.amazonaws.com:6379` |
+| RDS | `eki-database.*.rds.amazonaws.com:5432` |
+
+**Incidente resuelto sep 2026:** workers no alcanzaban Redis/RDS (SG solo permitía SG de prod-final). Tras autorizar SG de ai-workers en Redis (6379) y RDS (5432) + restart, `ce@… ready` en cola `course_engine`.
+
+Diagnóstico preferido: SSM `AWS-RunShellScript` o `eb logs` (SSH a ai-workers suele colgarse desde Windows).
+
+---
+
+## 28. Equipo agente (skills Cursor)
+
+Regla: `.cursor/rules/eki-team-agents.mdc`. Un rol a la vez salvo flujo completo. Deploy solo con pedido explícito. Modelo: Auto/Composer (no subagentes de pago).
+
+| Skill | Cuándo |
+|-------|--------|
+| `eki-cto` | Arquitectura, go/no-go |
+| `eki-pm` | Scope P0/P1 |
+| `eki-ux` / `eki-designer` | Flujos admin / look portal |
+| `eki-video-design` | Microcápsulas CE, variedad visual, prompts |
+| `eki-dev` / `eki-dev-2` | Implementación / CE paralelo |
+| `eki-qa` / `eki-sec` / `eki-sre` | Gates / seguridad / infra |
+| `eki-content` / `eki-nat` / `eki-aprende` | Pedagógico / Nat / LMS |
+| `eki-ship` | Deploy EB con checklist |
+
+Ingeniería transversal: `eki-tdd`, `eki-constraints`, `eki-browser-qa`, `eki-debug`, `eki-api-contracts`, `eki-incremental`, `eki-code-review`, `eki-doubt`, `eki-observability`.
+
+---
+
+## 29. Demo Confama y QA telefónico
+
+| Dato | Valor |
+|------|--------|
+| Cliente demo portal | Confama / Comfama (seed `seed_confama_demo`) |
+| Login demo (ops) | Credenciales de demo internas — no publicar en docs externos |
+| Teléfono QA WA autorizado | `3026480629` / `573026480629` |
+| Regla | Scripts de smoke CE/WA **solo** a ese número salvo pedido explícito de otro |
+
+Seed típico: estudiantes inventados + WA logs + certificados para que Analítica/Centro de Éxito se vean “llenos” en demos B2B.
+
+---
+
 ## Apéndice A — Mapa de archivos por funcionalidad
 
 | Funcionalidad | Archivos principales |
@@ -1694,12 +1875,17 @@ Eso cierra el gap entre “arquitectura sana” y “podemos firmar un anexo de 
 | Aula ranking | `aprende/ranking_service.py` |
 | Aula contenido | `aprende/contenido_modulo_service.py`, `media_viewer.html` |
 | eki Studio | `studio/views.py`, `studio/catalogo_service.py`, `studio/urls.py` |
-| Portal | `portal/views.py`, `portal/capabilities.py`, `portal/dashboard_ops.py`, `portal/retencion_service.py`, `portal/centro_exito.py`, `portal/agente_retencion.py` |
-| Telemetría aprendizaje | `core/telemetria.py`, `core/signals_telemetria.py`, modelo `EstudianteEventoAprendizaje` |
+| Portal shell | `portal/templates/portal/base.html`, `portal/views.py`, `portal/capabilities.py` |
+| Portal Inicio / nav | `portal/templates/portal/dashboard.html`, `portal/tests_nav_simplificada.py` |
+| Portal métricas / hub | `portal/templates/portal/metricas_empresa.html` |
+| Retención | `portal/retencion_service.py`, `portal/centro_exito.py`, `portal/agente_retencion.py` |
+| Course Engine | `core/course_engine/*`, `portal/course_engine_views.py` |
+| Static seguro | `mvp_project/static_safe.py`, `mvp_project/staticfiles_storage.py` |
+| Telemetría aprendizaje | `core/telemetria.py`, `core/signals_telemetria.py` |
 | Certificados | `core/certificado_service.py` |
-| Deploy | `scripts/eb_deploy_main.ps1`, `Procfile` |
-| Ranking aula SVG | `aprende/partials/ranking_podium.html`, `ranking_icons.svg.html` |
-| Studio pagos | `studio/pago_service.py`, templates `pagar_*.html` |
+| Deploy | `scripts/eb_deploy_main.ps1`, `Procfile`, `Procfile.ai` |
+| Ranking aula SVG | `aprende/partials/ranking_podium.html` |
+| Studio pagos | `studio/pago_service.py` |
 
 ---
 
@@ -1710,8 +1896,10 @@ Eso cierra el gap entre “arquitectura sana” y “podemos firmar un anexo de 
 | L1 contenido | Revisar admin + esta guía sección 19 |
 | L2 operaciones | Logs EB, Twilio, `EnvioLog`, drip admin |
 | L3 desarrollo | `AUDITORIA_ARQUITECTURA_EKI.md`, tests, PR |
-| L3 seguridad / clima Nat | Secciones **24** y **25** de esta guía |
+| L3 CE / video | §26 + `COURSE_ENGINE_LOCAL.md` + skill `eki-video-design` |
+| L3 workers | §27 + `EKI_AI_WORKERS_SETUP.md` + SRE |
+| L3 seguridad / clima Nat | Secciones **24** y **25** |
 
 ---
 
-*Documento mantenido por el equipo eki. Versión CTO julio 2026. Para cambios técnicos de bajo nivel y deuda, consultar `docs/AUDITORIA_ARQUITECTURA_EKI.md`.*
+*Documento mantenido por el equipo eki. Versión CTO **7 septiembre 2026**. Para deuda de bajo nivel: `docs/AUDITORIA_ARQUITECTURA_EKI.md`. Para visión década: `docs/VISION_TECNOLOGICA_EKI_2026_2035.md`.*

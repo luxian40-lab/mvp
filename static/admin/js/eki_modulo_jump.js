@@ -71,9 +71,19 @@
     return null;
   }
 
-  function setUnfoldActiveTab(slug) {
-    if (!slug) {
-      return;
+  /**
+   * Unfold primary tabs (body Alpine `activeTab`):
+   *   - `general` → fieldsets del formulario
+   *   - slug del inline (`pasos`, `secciones`, …) → ese inline
+   * Fieldset tabs internos usan `activeFieldsetTab` (p. ej. "clase"), NO activeTab.
+   * Bug histórico: poner primary tab en slug de fieldset (p.ej. clase) oculta TODO el form (x-show general).
+   */
+  var PRIMARY_GENERAL = 'general';
+  var FIELDSET_ONLY_SLUGS = { clase: 1, 'avanzado-datos': 1, datos: 1 };
+
+  function setPrimaryTab(slug) {
+    if (!slug || FIELDSET_ONLY_SLUGS[slug]) {
+      slug = PRIMARY_GENERAL;
     }
     try {
       var stack = document.body && document.body._x_dataStack;
@@ -85,6 +95,26 @@
     if (link) {
       link.click();
     }
+  }
+
+  /** @deprecated use setPrimaryTab — kept name for call sites below */
+  function setUnfoldActiveTab(slug) {
+    setPrimaryTab(slug);
+  }
+
+  function activateFieldsetTabIfPresent(labelNeedle) {
+    var links = document.querySelectorAll(
+      '[x-data*="activeFieldsetTab"] a, .tab-wrapper a, nav a'
+    );
+    var lower = (labelNeedle || '').toLowerCase();
+    for (var i = 0; i < links.length; i++) {
+      var t = (links[i].textContent || '').toLowerCase().replace(/\s+/g, ' ').trim();
+      if (t.indexOf(lower) !== -1) {
+        links[i].click();
+        return true;
+      }
+    }
+    return false;
   }
 
   function resolveTarget(key) {
@@ -127,21 +157,27 @@
   }
 
   function jumpTo(key) {
-    var slug = TAB_SLUG[key] || 'clase';
-    if (key === 'clase') {
-      slug = resolveClaseSlug();
-    } else if (key === 'datos') {
-      slug = findTabSlugByLabel('avanzado · datos') || findTabSlugByLabel('datos') || slug;
-    } else if (key === 'secciones') {
-      slug = findTabSlugByLabel('estructura') || slug;
-    } else if (key === 'micro') {
-      slug = findTabSlugByLabel('microcontenidos') || slug;
-    } else if (key === 'media') {
-      slug = findTabSlugByLabel('multimedia') || slug;
-    } else if (key === 'examen') {
-      slug = findTabSlugByLabel('mini examen') || findTabSlugByLabel('examen') || slug;
+    // Clase / datos viven dentro de primary=general (fieldset tabs Unfold).
+    if (key === 'clase' || key === 'datos') {
+      setPrimaryTab(PRIMARY_GENERAL);
+      if (key === 'clase') {
+        activateFieldsetTabIfPresent('clase');
+      } else {
+        activateFieldsetTabIfPresent('avanzado') || activateFieldsetTabIfPresent('datos');
+      }
+    } else {
+      var slug = TAB_SLUG[key] || PRIMARY_GENERAL;
+      if (key === 'secciones') {
+        slug = findTabSlugByLabel('estructura') || slug;
+      } else if (key === 'micro') {
+        slug = findTabSlugByLabel('microcontenidos') || findTabSlugByLabel('materiales') || slug;
+      } else if (key === 'media') {
+        slug = findTabSlugByLabel('multimedia') || findTabSlugByLabel('media') || slug;
+      } else if (key === 'examen') {
+        slug = findTabSlugByLabel('mini examen') || findTabSlugByLabel('examen') || slug;
+      }
+      setPrimaryTab(slug);
     }
-    setUnfoldActiveTab(slug);
     window.setTimeout(function () {
       var el = resolveTarget(key);
       if (!el) {
@@ -236,7 +272,11 @@
       return true;
     }
 
-    setUnfoldActiveTab(slug || resolveClaseSlug());
+    setUnfoldActiveTab(slug || PRIMARY_GENERAL);
+    if ((slug || '') === 'clase' || jumpKey === 'clase') {
+      setPrimaryTab(PRIMARY_GENERAL);
+      activateFieldsetTabIfPresent('clase');
+    }
     window.setTimeout(function () {
       var target = firstError || resolveTarget(jumpKey);
       if (!target) {
@@ -254,13 +294,29 @@
     return false;
   }
 
+  function isModuloAddForm() {
+    var path = (window.location && window.location.pathname) || '';
+    if (/\/modulo\/add\/?$/i.test(path) || /\/add\/?$/i.test(path)) {
+      if (document.body && document.body.className.indexOf('model-modulo') !== -1) {
+        return true;
+      }
+    }
+    return !!(
+      document.querySelector('[data-eki-modulo-add="1"]') ||
+      (document.body && document.body.classList && document.body.classList.contains('add-form') &&
+        document.body.className.indexOf('model-modulo') !== -1)
+    );
+  }
+
   function openDefaultTab() {
     var prefs = document.getElementById('eki-modulo-prefs');
     var prefer = !prefs || prefs.getAttribute('data-prefer-simple') !== '0';
-    if (!prefer) {
+    // Siempre primary=general primero: sin esto Unfold oculta los fieldsets.
+    setPrimaryTab(PRIMARY_GENERAL);
+    if (!prefer || isModuloAddForm()) {
       return;
     }
-    setUnfoldActiveTab(resolveClaseSlug());
+    activateFieldsetTabIfPresent('clase');
   }
 
   function buildErrorBanner() {
@@ -279,7 +335,14 @@
       if (!t || seen[t]) {
         return;
       }
+      // Unfold/Django errornote genérico — no aporta el campo real
+      if (/corrija los siguientes errores/i.test(t)) {
+        return;
+      }
       if (/^corrija\b/i.test(t) && t.length < 40) {
+        return;
+      }
+      if (/^por favor,?\s*corrija\b/i.test(t)) {
         return;
       }
       seen[t] = true;
@@ -292,8 +355,32 @@
       }
     );
 
+    // Unfold: errores junto al label del campo (aunque el fieldset esté oculto)
+    document.querySelectorAll('[class*="field-"]').forEach(function (row) {
+      var err = row.querySelector('.errorlist li, ul.errorlist li, .text-red-600, .text-red-700');
+      if (!err) {
+        return;
+      }
+      var label = row.querySelector('label');
+      var name = label ? (label.textContent || '').replace(/\*/g, '').trim() : '';
+      var msg = (err.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!msg) {
+        return;
+      }
+      addText(name ? name + ': ' + msg : msg);
+    });
+
     if (!texts.length) {
-      return;
+      // Último recurso: avisar que hay error pero no texto útil en DOM
+      var any = document.querySelector('.errornote, ul.errorlist, .errorlist');
+      if (any) {
+        texts.push(
+          'Hay campos inválidos (a veces ocultos). Revisá curso, título y número; ' +
+            'si el problema sigue, avisá a tech con captura.'
+        );
+      } else {
+        return;
+      }
     }
 
     var banner = document.createElement('div');
@@ -328,6 +415,20 @@
     }
     var body = document.body;
     if (!body || body.className.indexOf('model-modulo') === -1) {
+      return;
+    }
+    // Alta: sin IR A (no hay Estructura/Media aún); no ocultar el form.
+    if (isModuloAddForm()) {
+      return;
+    }
+    // Modo A (clase rápida): no mostrar banda IR A (Estructura/Media/Examen).
+    var modoFlag = document.getElementById('eki-modo-clase-flag');
+    var prefs = document.getElementById('eki-modulo-prefs');
+    if (
+      (modoFlag && modoFlag.getAttribute('data-modo-clase') === '1') ||
+      (prefs && prefs.getAttribute('data-modo-authoring') === 'clase')
+    ) {
+      openDefaultTab();
       return;
     }
     if (body.className.indexOf('change-form') === -1 && body.className.indexOf('changeform') === -1) {

@@ -6,7 +6,7 @@
 <div class="page-title">
   <div>
     <h1>Configuración</h1>
-    <p class="muted">Identidad, cupos y equipo de tu organización.</p>
+    <p class="muted">Identidad de tu organización.</p>
   </div>
 </div>
 
@@ -16,6 +16,7 @@
     <h2 style="margin:0 0 6px;font-size:1.05rem;">Perfil de empresa</h2>
     <p class="muted" style="margin:0;">Logo, subtítulo y datos de contacto.</p>
   </a>
+  {% comment %}Futuro — suscripción y usuarios del portal
   {% if portal_es_admin %}
   <a class="card card-link" href="/portal/usuarios/">
     <p class="metric-label">Equipo</p>
@@ -28,5 +29,6 @@
     <p class="muted" style="margin:0;">Cupos y vigencia del servicio.</p>
   </a>
   {% endif %}
+  {% endcomment %}
 </section>
 {% endblock %}

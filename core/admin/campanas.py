@@ -723,17 +723,36 @@ class WhatsappLogAdmin(admin.ModelAdmin):
     )
     
     def estudiante_nombre(self, obj):
-        """Muestra nombre del estudiante si está asignado"""
-        if obj.estudiante:
-            return obj.estudiante.nombre
-        return format_html('<span style="color:#999;font-style:italic;">Sin asignar</span>')
-    estudiante_nombre.short_description = "👤 Estudiante"
+        """Nombre del estudiante (FK o resolución por teléfono)."""
+        est = obj.estudiante
+        if not est and obj.telefono:
+            from core.utils_telefono import resolver_estudiante_por_telefono
+
+            est = resolver_estudiante_por_telefono(obj.telefono)
+            # Rellenar FK en logs viejos la primera vez que se miran.
+            if est and not obj.estudiante_id:
+                try:
+                    WhatsappLog.objects.filter(pk=obj.pk, estudiante__isnull=True).update(
+                        estudiante_id=est.pk
+                    )
+                    obj.estudiante = est
+                except Exception:
+                    pass
+        if est:
+            return est.nombre
+        return format_html('<span style="color:#999;font-style:italic;">Sin estudiante</span>')
+    estudiante_nombre.short_description = "Estudiante"
     estudiante_nombre.admin_order_field = 'estudiante__nombre'
     
     def telefono_corto(self, obj):
-        """Muestra solo los últimos 4 dígitos"""
-        return f"...{obj.telefono[-4:]}"
-    telefono_corto.short_description = "📱"
+        """Teléfono legible para ops (no solo últimos 4)."""
+        tel = (obj.telefono or '').strip()
+        if not tel:
+            return '—'
+        if len(tel) <= 12:
+            return tel
+        return f"…{tel[-10:]}"
+    telefono_corto.short_description = "Teléfono"
 
     def conversacion_link(self, obj):
         from django.urls import reverse
@@ -847,7 +866,7 @@ class WhatsappLogAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         """Ordena por fecha descendente por defecto"""
         qs = super().get_queryset(request)
-        return qs.order_by('-fecha')
+        return qs.select_related('estudiante').order_by('-fecha')
     
     @admin.action(description='📊 Exportar conversaciones a Excel')
     def exportar_conversaciones_excel(self, request, queryset):
@@ -855,13 +874,17 @@ class WhatsappLogAdmin(admin.ModelAdmin):
         import openpyxl
         from openpyxl.styles import Font, PatternFill, Alignment
         from datetime import datetime
+        from core.utils_telefono import resolver_estudiante_por_telefono
         
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "Conversaciones"
         
         # Encabezados
-        headers = ['Fecha', 'Teléfono', 'Tipo', 'Mensaje', 'Estado', 'ID Mensaje', 'Error detalle']
+        headers = [
+            'Fecha', 'Estudiante', 'Teléfono', 'Tipo', 'Mensaje',
+            'Estado', 'ID Mensaje', 'Error detalle',
+        ]
         ws.append(headers)
         
         # Estilo
@@ -873,12 +896,14 @@ class WhatsappLogAdmin(admin.ModelAdmin):
             cell.alignment = Alignment(horizontal='center')
         
         # Datos
-        for log in queryset.order_by('fecha'):
+        for log in queryset.select_related('estudiante').order_by('fecha'):
+            est = log.estudiante or resolver_estudiante_por_telefono(log.telefono or '')
             ws.append([
                 log.fecha.strftime('%Y-%m-%d %H:%M:%S'),
+                (est.nombre if est else ''),
                 log.telefono,
                 log.tipo,
-                log.mensaje[:500],  # Limitar tamaño
+                (log.mensaje or '')[:500],
                 log.estado,
                 log.mensaje_id or 'N/A',
                 (log.error_detalle or '')[:500],
@@ -886,12 +911,13 @@ class WhatsappLogAdmin(admin.ModelAdmin):
         
         # Ajustar anchos
         ws.column_dimensions['A'].width = 20
-        ws.column_dimensions['B'].width = 20
-        ws.column_dimensions['C'].width = 12
-        ws.column_dimensions['D'].width = 60
-        ws.column_dimensions['E'].width = 12
-        ws.column_dimensions['F'].width = 35
-        ws.column_dimensions['G'].width = 40
+        ws.column_dimensions['B'].width = 28
+        ws.column_dimensions['C'].width = 16
+        ws.column_dimensions['D'].width = 12
+        ws.column_dimensions['E'].width = 60
+        ws.column_dimensions['F'].width = 12
+        ws.column_dimensions['G'].width = 35
+        ws.column_dimensions['H'].width = 40
         
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -907,20 +933,26 @@ class WhatsappLogAdmin(admin.ModelAdmin):
         """Exporta conversaciones seleccionadas a archivo CSV"""
         import csv
         from datetime import datetime
+        from core.utils_telefono import resolver_estudiante_por_telefono
         
         response = HttpResponse(content_type='text/csv; charset=utf-8')
         filename = f'conversaciones_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         
         writer = csv.writer(response)
-        writer.writerow(['Fecha', 'Teléfono', 'Tipo', 'Mensaje', 'Estado', 'ID Mensaje', 'Error detalle'])
+        writer.writerow([
+            'Fecha', 'Estudiante', 'Teléfono', 'Tipo', 'Mensaje',
+            'Estado', 'ID Mensaje', 'Error detalle',
+        ])
         
-        for log in queryset.order_by('fecha'):
+        for log in queryset.select_related('estudiante').order_by('fecha'):
+            est = log.estudiante or resolver_estudiante_por_telefono(log.telefono or '')
             writer.writerow([
                 log.fecha.strftime('%Y-%m-%d %H:%M:%S'),
+                (est.nombre if est else ''),
                 log.telefono,
                 log.tipo,
-                log.mensaje[:500],
+                (log.mensaje or '')[:500],
                 log.estado,
                 log.mensaje_id or 'N/A',
                 (log.error_detalle or '')[:500],

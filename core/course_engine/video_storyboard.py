@@ -150,6 +150,51 @@ def _fallback_error1() -> VideoLeccionPlan:
     )
 
 
+def _fallback_desde_brief(brief: str, target_sec: float = 14.0) -> VideoLeccionPlan:
+    """Fallback genérico desde el brief — no reutilizar el piloto Error 1."""
+    texto = re.sub(r'\s+', ' ', (brief or '').strip())[:280] or (
+        'Aplica una acción concreta hoy con lo que ya sabes.'
+    )
+    mitad = max(40, len(texto) // 2)
+    g1 = texto[:mitad].rsplit(' ', 1)[0] or texto[:mitad]
+    g2 = texto[len(g1):].strip() or texto
+    segs = [
+        SegmentoStoryboard(
+            1,
+            'escena',
+            max(3.0, target_sec * 0.28),
+            g1,
+            g1[:72],
+            escena_visual='Escena documental rural relacionada con el tema del brief, luz natural',
+        ),
+        SegmentoStoryboard(
+            2,
+            'tarjeta',
+            max(5.0, target_sec * 0.4),
+            g2,
+            g2[:72],
+            tarjeta_titulo=(texto[:48] + '…') if len(texto) > 48 else texto,
+            tarjeta_puntos=[p.strip() for p in re.split(r'[.;]', texto) if p.strip()][:3] or [texto[:80]],
+        ),
+        SegmentoStoryboard(
+            3,
+            'escena_cierre',
+            max(3.0, target_sec * 0.28),
+            'Aplica esto hoy y protege lo que más importa.',
+            'Aplica esto hoy',
+            escena_visual='Cierre documental: persona en contexto rural tomando una decisión segura',
+        ),
+    ]
+    return VideoLeccionPlan(
+        titulo=(texto[:60] + '…') if len(texto) > 60 else texto,
+        objetivo='Aplicar la idea central del brief en una acción concreta',
+        segmentos=segs,
+        guion_completo=' '.join(s.guion for s in segs),
+        categoria_visual='otro',
+        duracion_objetivo_seg=float(target_sec),
+    )
+
+
 def _system_prompt(target_sec: float) -> str:
     return f"""Eres experto en diseño instruccional para entornos virtuales de aprendizaje,
 especialista en OVAs (objetos virtuales de aprendizaje), Microlearning, ABR (aprendizaje
@@ -235,12 +280,14 @@ def planificar_video_leccion(
         logger.warning('planificar_video_leccion fallback: %s', exc)
         if 'error 1' in foco_txt.lower() or 'no rendir cuentas' in brief.lower():
             return _fallback_error1()
-        return _fallback_error1()
+        return _fallback_desde_brief(brief, target_sec)
 
     segs = [SegmentoStoryboard.from_dict(s) for s in data.get('segmentos') or []]
     segs.sort(key=lambda x: x.orden)
     if len(segs) < 2:
-        return _fallback_error1()
+        if 'error 1' in foco_txt.lower() or 'no rendir cuentas' in brief.lower():
+            return _fallback_error1()
+        return _fallback_desde_brief(brief, target_sec)
 
     # Asegurar al menos una tarjeta
     if not any(s.tipo == 'tarjeta' for s in segs):

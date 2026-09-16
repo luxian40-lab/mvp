@@ -327,13 +327,13 @@ def dashboard(request):
         {
             'titulo': 'Menú simplificado',
             'detalle': 'Inicio · Fábrica · Analítica · Soporte · Configuración — máx. 3 clics.',
-            'url': '/portal/analitica/',
+            'url': '/portal/metricas/',
             'tag': 'Producto',
         },
         {
             'titulo': 'Analítica unificada',
             'detalle': 'Centro de Éxito, Cobertura, Métricas, Reportes y Gamificación en un solo hub.',
-            'url': '/portal/analitica/',
+            'url': '/portal/metricas/',
             'tag': 'Guía',
         },
         {
@@ -1098,12 +1098,11 @@ def portal_curso_crear_stub(request):
 
 @portal_login_required
 def portal_analitica(request):
-    """Hub Analítica — ≤2 clics a cada métrica (Centro de Éxito, Cobertura, etc.)."""
+    """Analítica abre directo métricas detalladas (hub de accesos va arriba de filtros)."""
     org = _portal_org(request)
     if not org:
         return redirect('/portal/login/')
-    mods = modulos_portal(org)
-    return render(request, 'portal/analitica.html', {'org': org, 'mods': mods})
+    return redirect('/portal/metricas/')
 
 
 @portal_login_required
@@ -1120,15 +1119,11 @@ def portal_soporte_hub(request):
 
 @portal_login_required
 def portal_configuracion(request):
-    """Hub Configuración — perfil, usuarios, suscripción."""
+    """Configuración abre directo perfil (usuarios/suscripción a futuro)."""
     org = _portal_org(request)
     if not org:
         return redirect('/portal/login/')
-    return render(request, 'portal/configuracion.html', {
-        'org': org,
-        'portal_es_admin': getattr(request, 'portal_es_admin', False)
-            or getattr(getattr(request, 'portal_usuario', None), 'rol', '') == 'admin',
-    })
+    return redirect('/portal/perfil/')
 
 
 @portal_login_required

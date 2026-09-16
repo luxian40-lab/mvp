@@ -44,13 +44,27 @@ class PortalNavSimplificadaTests(TestCase):
         self.assertNotIn('>Centro de Éxito</span>', html)
         self.assertNotIn('>Métricas detalladas</span>', html)
 
-    def test_hub_analitica_contiene_destinos(self):
+    def test_hub_analitica_abre_metricas_con_accesos(self):
         self._login()
         r = self.http.get('/portal/analitica/')
-        self.assertEqual(r.status_code, 200)
-        html = r.content.decode()
-        for label in ('Centro de Éxito', 'Cobertura', 'Métricas detalladas', 'Reportes', 'Actividad', 'Gamificación'):
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/portal/metricas/', r['Location'])
+        r2 = self.http.get('/portal/metricas/')
+        self.assertEqual(r2.status_code, 200)
+        html = r2.content.decode()
+        for label in ('Centro de Éxito', 'Cobertura', 'Reportes', 'Actividad', 'Gamificación', 'Filtros'):
             self.assertIn(label, html)
+
+    def test_configuracion_abre_perfil(self):
+        self._login()
+        r = self.http.get('/portal/configuracion/')
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/portal/perfil/', r['Location'])
+        dash = self.http.get('/portal/dashboard/')
+        html = dash.content.decode()
+        self.assertIn('href="/portal/perfil/"', html)
+        self.assertNotIn('>Usuarios</span>', html)
+        self.assertNotIn('Suscripción y cupos', html)
 
     def test_ver_curso_solo_estructura(self):
         self._login()

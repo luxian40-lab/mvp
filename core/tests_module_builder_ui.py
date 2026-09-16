@@ -511,10 +511,20 @@ class ModuleBuilderViewTests(TestCase):
         from django.urls import reverse
 
         self.client.force_login(self.staff)
-        url = reverse('admin:core_modulo_change', args=[self.mod.pk])
+        url = reverse('admin:core_modulo_change', args=[self.mod.pk]) + '?modo=builder'
         r = self.client.get(url, secure=True)
         self.assertEqual(r.status_code, 302)
         self.assertIn('/admin/module-builder/', r.url)
+
+    @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
+    def test_modulo_change_modo_clase_stays_admin(self):
+        from django.urls import reverse
+
+        self.client.force_login(self.staff)
+        url = reverse('admin:core_modulo_change', args=[self.mod.pk]) + '?modo=clase'
+        r = self.client.get(url, secure=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'Modo: clase rápida')
 
     @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
     def test_modulo_change_legacy_stays_admin(self):

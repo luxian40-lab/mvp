@@ -137,6 +137,70 @@
     @media (max-width: 980px) {
         .report-hero { grid-template-columns: 1fr; }
     }
+
+    .analitica-hub {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+        gap: 10px;
+        margin-bottom: 18px;
+    }
+    .analitica-hub__card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 12px 11px;
+        border-radius: 12px;
+        border: 1px solid var(--borde);
+        background: var(--blanco);
+        box-shadow: var(--shadow-soft);
+        text-decoration: none;
+        color: inherit;
+        transition: transform .14s, border-color .14s;
+    }
+    .analitica-hub__card:hover {
+        transform: translateY(-1px);
+        border-color: rgba(154, 108, 172, 0.45);
+        color: inherit;
+    }
+    .analitica-hub__icon {
+        flex: 0 0 auto;
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 7px;
+        box-sizing: border-box;
+        background: rgba(154, 108, 172, 0.14);
+        color: var(--purple-deep, #5F3A6E);
+    }
+    .analitica-hub__icon svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+        flex-shrink: 0;
+    }
+    .analitica-hub__card > div {
+        flex: 1;
+        min-width: 0;
+    }
+    .analitica-hub__card strong {
+        display: block;
+        font-size: 0.86rem;
+        font-weight: 700;
+        color: var(--ink);
+        line-height: 1.25;
+        text-align: left;
+    }
+    .analitica-hub__card span {
+        display: block;
+        margin-top: 2px;
+        font-size: 0.7rem;
+        color: var(--texto-muted);
+        line-height: 1.35;
+        text-align: left;
+    }
 </style>
 {% endblock %}
 
@@ -155,6 +219,63 @@
     </div>
     <a class="btn btn-outline" href="/portal/dashboard/">Volver al dashboard</a>
 </div>
+
+<nav class="analitica-hub" aria-label="Accesos de analítica">
+    <a class="analitica-hub__card" href="/portal/retencion/">
+        <span class="analitica-hub__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.5-7-10a4 4 0 018 0c0 5.5-7 10-7 10z"/><circle cx="12" cy="11" r="1.5"/></svg>
+        </span>
+        <div>
+            <strong>Centro de Éxito</strong>
+            <span>Retención · a quién contactar</span>
+        </div>
+    </a>
+    <a class="analitica-hub__card" href="/portal/cobertura/">
+        <span class="analitica-hub__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11a7 7 0 10-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+        </span>
+        <div>
+            <strong>Cobertura</strong>
+            <span>Territorio · mapa</span>
+        </div>
+    </a>
+    <a class="analitica-hub__card" href="/portal/reportes/">
+        <span class="analitica-hub__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>
+        </span>
+        <div>
+            <strong>Reportes</strong>
+            <span>Exportar Excel</span>
+        </div>
+    </a>
+    <a class="analitica-hub__card" href="/portal/timeline/">
+        <span class="analitica-hub__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        </span>
+        <div>
+            <strong>Actividad</strong>
+            <span>Línea de tiempo</span>
+        </div>
+    </a>
+    <a class="analitica-hub__card" href="/portal/gamificacion/">
+        <span class="analitica-hub__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 01-10 0V4z"/><path d="M7 6H4a2 2 0 00-2 2v1a4 4 0 004 4h1M17 6h3a2 2 0 012 2v1a4 4 0 01-4 4h-1"/></svg>
+        </span>
+        <div>
+            <strong>Gamificación</strong>
+            <span>Medallas y logros</span>
+        </div>
+    </a>
+    <a class="analitica-hub__card" href="/portal/certificados/">
+        <span class="analitica-hub__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M8.5 12.5L7 21l5-2 5 2-1.5-8.5"/></svg>
+        </span>
+        <div>
+            <strong>Certificados</strong>
+            <span>Emitidos y verificación</span>
+        </div>
+    </a>
+</nav>
 
 {% if portal_solo_lectura %}
 <section class="panel" style="margin-bottom:18px;border-left:4px solid var(--accent);">

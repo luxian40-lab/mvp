@@ -73,7 +73,7 @@ class Command(BaseCommand):
 
             actualizados += 1
             self.stdout.write(
-                f'  [{est.id}] {(raw_m or "?")}, {(raw_d or "?")} → '
+                f'  [{est.id}] {(raw_m or "?")}, {(raw_d or "?")} -> '
                 f'{nuevo_m or "?"}, {nuevo_d} tid={nuevo_tid or "-"} ({ubic.metodo})'
             )
             if apply:

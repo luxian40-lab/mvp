@@ -223,6 +223,48 @@
             background: var(--blanco);
         }
 
+        /* Topbar en oscuro: deja de verse “blanco esmerilado” sobre navy */
+        html[data-theme="dark"] .topbar {
+            background: rgba(12, 16, 24, 0.88);
+            border-bottom-color: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+        }
+        html[data-theme="dark"] .topbar-title {
+            color: #F1F5F9;
+        }
+        html[data-theme="dark"] .topbar-meta {
+            color: #94A3B8;
+        }
+        html[data-theme="dark"] .topbar-meta strong,
+        html[data-theme="dark"] .topbar-meta .prog {
+            color: #D8C4E4;
+        }
+        html[data-theme="dark"] .topbar-meta .sep {
+            background: rgba(180, 139, 196, 0.55);
+        }
+        html[data-theme="dark"] .topbar-actions a {
+            color: #94A3B8;
+        }
+        html[data-theme="dark"] .topbar-actions a:hover {
+            color: #E9D5FF;
+        }
+        html[data-theme="dark"] .user-menu__btn {
+            color: #E8ECF4;
+            border-color: transparent;
+        }
+        html[data-theme="dark"] .user-menu__btn:hover {
+            background: rgba(168, 85, 247, 0.16);
+            border-color: rgba(168, 85, 247, 0.28);
+        }
+        html[data-theme="dark"] .user-menu__name {
+            color: #E8ECF4;
+        }
+        html[data-theme="dark"] .sidebar-menu-toggle {
+            color: #E8ECF4;
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
         * { box-sizing: border-box; }
 
         body {
@@ -1484,7 +1526,7 @@
                 <span class="link-icon"><svg><use href="#i-monitor"/></svg></span>
                 <span class="link-text">Fábrica de competencias</span>
             </a>
-            <a href="{% url 'portal_analitica' %}" class="sidebar-link {% if request.path == '/portal/analitica/' or '/portal/retencion' in request.path or '/portal/cobertura' in request.path or '/portal/metricas' in request.path or '/portal/reportes' in request.path or '/portal/timeline' in request.path or '/portal/gamificacion' in request.path or '/portal/certificados' in request.path %}active{% endif %}" title="Métricas y reportes">
+            <a href="/portal/metricas/" class="sidebar-link {% if request.path == '/portal/analitica/' or '/portal/retencion' in request.path or '/portal/cobertura' in request.path or '/portal/metricas' in request.path or '/portal/reportes' in request.path or '/portal/timeline' in request.path or '/portal/gamificacion' in request.path or '/portal/certificados' in request.path %}active{% endif %}" title="Métricas y reportes">
                 <span class="link-icon"><svg><use href="#i-bars"/></svg></span>
                 <span class="link-text">Analítica</span>
             </a>
@@ -1494,7 +1536,7 @@
                 <span class="link-text">Soporte</span>
                 {% if pendientes_count > 0 %}<span class="badge">{{ pendientes_count }}</span>{% endif %}
             </a>
-            <a href="{% url 'portal_configuracion' %}" class="sidebar-link {% if request.path == '/portal/configuracion/' or request.path == '/portal/perfil/' or '/portal/usuarios' in request.path or request.path == '/portal/suscripcion/' %}active{% endif %}" title="Perfil y equipo">
+            <a href="/portal/perfil/" class="sidebar-link {% if request.path == '/portal/configuracion/' or request.path == '/portal/perfil/' or '/portal/usuarios' in request.path or request.path == '/portal/suscripcion/' %}active{% endif %}" title="Perfil de empresa">
                 <span class="link-icon"><svg><use href="#i-sliders"/></svg></span>
                 <span class="link-text">Configuración</span>
             </a>
@@ -1562,6 +1604,7 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="3" width="15" height="18" rx="1.2"/><path d="M9 8h1M14 8h1M9 12h1M14 12h1M9 16h1M14 16h1"/></svg>
                         Perfil de empresa
                     </a>
+                    {% comment %}Futuro: suscripción y usuarios del portal
                     <a href="/portal/suscripcion/" class="user-menu__item" role="menuitem">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
                         Suscripción y cupos
@@ -1570,6 +1613,7 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.3 20c0-3.4 3-5.8 6.7-5.8s6.7 2.4 6.7 5.8"/></svg>
                         Usuarios
                     </a>
+                    {% endcomment %}
                     {% endif %}
                     <a href="/portal/logout/" class="user-menu__item user-menu__item--danger" role="menuitem">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h3a1 1 0 011 1v14a1 1 0 01-1 1h-3"/><path d="M10 16l-4-4 4-4M6 12h9"/></svg>
