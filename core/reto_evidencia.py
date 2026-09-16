@@ -138,9 +138,11 @@ def evaluar_evidencia_foto(
             max_tokens=320,
             timeout=25,
         )
-        from core.tutor_ia_modulo import limpiar_emojis
+        from core.tutor_ia_modulo import limpiar_emojis, limpiar_plantilla_evaluacion
 
-        feedback = limpiar_emojis((response.choices[0].message.content or '').strip())
+        feedback = limpiar_plantilla_evaluacion(
+            limpiar_emojis((response.choices[0].message.content or '').strip())
+        )
         if not feedback:
             return None
         if usar_notas:

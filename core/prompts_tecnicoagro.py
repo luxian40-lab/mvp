@@ -435,11 +435,11 @@ Evalúe la respuesta del participante con esta RÚBRICA (1-10):
 - Estructura y Claridad (máx 3 pts)
 
 FORMATO DE RESPUESTA OBLIGATORIO:
-1. Retroalimentación positiva primero (qué hizo bien).
-2. Qué le faltó o puede mejorar, de forma objetiva y concreta.
+1. Qué hizo bien, citando TEXTUALMENTE una parte de su respuesta (entre comillas).
+2. Qué dato concreto le faltó y cuál es el siguiente paso verificable.
 3. Puntaje total: X/10
 4. Desglose: Enfoque X/3 | Fundamentación X/4 | Claridad X/3
-5. Veredicto por componente (Diagnóstico / Acción) logrado/parcial/no logrado.
+5. Diagnóstico: logrado/parcial/no logrado. Acción: logrado/parcial/no logrado.
 
 REGLAS:
 - TRATO DE USTED.
@@ -448,6 +448,21 @@ REGLAS:
 - PROHIBIDO preguntas de seguimiento.
 - No invente dosis ni productos.
 - Evalúe solo el dominio de los módulos del curso.
+- PROHIBIDO copiar el enunciado de este formato. En el punto 5 escriba el
+  veredicto concreto, nunca la frase "logrado/parcial/no logrado" completa.
+- PROHIBIDO elogios sin evidencia ("buen trabajo", "excelente aporte",
+  "ha realizado un buen trabajo"). Diga QUÉ dijo el participante que estuvo bien.
+- En el punto 2 nombre el dato faltante con unidad: cuántas unidades revisó,
+  cuántas resultaron afectadas, en qué proporción, en qué plazo o con qué umbral.
+
+ESCALA OBLIGATORIA (no regale puntos):
+- Respuesta vacía, "no sé", "ok", "listo" o sin contenido técnico: máximo 2/10.
+- Respuesta general sin ninguna cifra ni conteo (solo menciona síntomas o
+  intenciones): máximo 5/10, por alta que sea la redacción.
+- Con cifras del muestreo pero sin criterio de decisión ni siguiente paso: 6–7/10.
+- Con cifras, criterio de decisión y siguiente paso medible: 8–10/10.
+- La evidencia fotográfica suma cuando llega, pero su ausencia NO baja el puntaje:
+  evalúe lo que el participante reportó.
 """.strip()
 
 ANEXO_EVALUACION_NOTAS = """
@@ -456,8 +471,8 @@ ANEXO_EVALUACION_NOTAS = """
 Asigne una NOTA de 1 a 5 (puede usar decimal, ej. 3.5).
 
 FORMATO OBLIGATORIO:
-1. Retroalimentación positiva primero.
-2. Qué puede mejorar, concreto.
+1. Qué hizo bien, citando TEXTUALMENTE una parte de su respuesta (entre comillas).
+2. Qué dato concreto le faltó y cuál es el siguiente paso verificable.
 3. Nota final: X/5
 4. Cierre motivador breve.
 
@@ -468,6 +483,17 @@ REGLAS:
 - PROHIBIDO preguntas de seguimiento.
 - NO mencione puntos ni ranking.
 - No invente dosis ni productos.
+- PROHIBIDO copiar el enunciado de este formato.
+- PROHIBIDO elogios sin evidencia ("buen trabajo", "excelente aporte").
+- En el punto 2 nombre el dato faltante con unidad: cuántas unidades revisó,
+  cuántas resultaron afectadas, en qué proporción, plazo o umbral.
+
+ESCALA OBLIGATORIA (no regale nota):
+- Vacío, "no sé", "ok" o sin contenido técnico: máximo 1.5/5.
+- General, sin ninguna cifra ni conteo: máximo 2.5/5.
+- Con cifras pero sin criterio de decisión ni siguiente paso: 3–3.5/5.
+- Con cifras, criterio y siguiente paso medible: 4–5/5.
+- La foto suma cuando llega, pero su ausencia NO baja la nota.
 """.strip()
 
 

@@ -162,6 +162,35 @@ _RE_CIERRE_RESPUESTA = re.compile(
 )
 
 
+_RE_PLANTILLA_EVALUACION = (
+    # Enunciado de la rúbrica copiado literal por el modelo.
+    re.compile(
+        r'\(?\s*Diagn[óo]stico\s*/\s*Acci[óo]n\s*\)?\s*'
+        r'logrado\s*/\s*parcial\s*/\s*no\s+logrado\s*[.:]?',
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r'^\s*\d\.\s*(Retroalimentaci[óo]n positiva primero|'
+        r'Qu[ée] le falt[óo] o puede mejorar|Cierre motivador breve)\s*'
+        r'\([^)]*\)\s*[.:]?\s*$',
+        re.IGNORECASE | re.MULTILINE,
+    ),
+    re.compile(r'^\s*Veredicto por componente\s*:?\s*$', re.IGNORECASE | re.MULTILINE),
+)
+
+
+def limpiar_plantilla_evaluacion(feedback: str) -> str:
+    """Quita los enunciados de la rúbrica que el modelo copia tal cual."""
+    t = feedback or ''
+    for patron in _RE_PLANTILLA_EVALUACION:
+        t = patron.sub('', t)
+    t = re.sub(r'[ \t]{2,}', ' ', t)
+    t = re.sub(r'^[ \t]+', '', t, flags=re.MULTILINE)
+    t = re.sub(r'[ \t]+$', '', t, flags=re.MULTILINE)
+    t = re.sub(r'\n{3,}', '\n\n', t)
+    return t.strip()
+
+
 def bloque_reto_whatsapp(nombre_tutor: str, reto: str) -> str:
     """Mensaje del reto para WhatsApp: cabecera + reto + un solo cierre."""
     cuerpo = limpiar_emojis(reto or '').strip()
@@ -595,7 +624,9 @@ Evalúe según la rúbrica y el dominio de este curso. Dé retroalimentación y 
             max_tokens=250,
             timeout=12
         )
-        feedback = limpiar_emojis(response.choices[0].message.content.strip())
+        feedback = limpiar_plantilla_evaluacion(
+            limpiar_emojis(response.choices[0].message.content.strip())
+        )
 
         import re
         if usar_notas:
