@@ -145,6 +145,26 @@ class GuardarRetoDesdeAdminTests(TestCase):
         self.assertIn('URL', detalle)
         self.assertIn('https', detalle)
 
+    def test_guardar_reto_aunque_el_navegador_no_mande_video_resolucion(self):
+        """Unfold no pinta Video resolución; el POST real llega sin ese campo."""
+        get = self.client.get(self.url)
+        self.assertEqual(get.status_code, 200)
+        data = payload_desde_changeform(get)
+        data.pop('video_resolucion', None)
+        data['tipo_reto_ia'] = Modulo.TIPO_RETO_PLAN
+        data['reto_guia_ia'] = 'Pida un plan de manejo para la próxima semana.'
+        data['_continue'] = 'Guardar y continuar editando'
+
+        post = self.client.post(self.url, data, follow=False)
+
+        if post.status_code == 200:
+            form = post.context['adminform'].form
+            self.fail(f'El admin rechazó el guardado: {form.errors.as_json()}')
+        self.assertEqual(post.status_code, 302)
+        self.modulo.refresh_from_db()
+        self.assertEqual(self.modulo.tipo_reto_ia, Modulo.TIPO_RETO_PLAN)
+        self.assertIn('plan de manejo', self.modulo.reto_guia_ia)
+
     def test_guardar_tipo_reto_y_guia(self):
         get = self.client.get(self.url)
         self.assertEqual(get.status_code, 200)

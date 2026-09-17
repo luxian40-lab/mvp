@@ -1259,6 +1259,10 @@ class ModuloAdminForm(forms.ModelForm):
                 'Recomendado: «Por pasos con listo». Legacy envía todo el módulo de una vez '
                 'e ignora microcontenidos. Automático hereda según haya pasos o no.'
             )
+        # Unfold no lo pintaba en fieldsets; el POST del navegador llega sin él
+        # y tumba Guardar al editar tipo/guía del reto.
+        if 'video_resolucion' in self.fields:
+            self.fields['video_resolucion'].required = False
         n_micro = cuenta_microcontenidos_modulo(self.instance)
         if not self.instance.pk:
             for fname, field in self.fields.items():
@@ -1369,6 +1373,8 @@ class ModuloAdminForm(forms.ModelForm):
             cleaned['puntaje_minimo_aprobacion'] = 70
         if cleaned.get('secciones_por_listo') in (None, ''):
             cleaned['secciones_por_listo'] = 1
+        if not cleaned.get('video_resolucion'):
+            cleaned['video_resolucion'] = '360p'
         self._clase_pending_media_url = None
         self._clase_pending_media_async = None
         self._clase_reset_media_wa = False
@@ -2349,6 +2355,7 @@ class ModuloAdmin(admin.ModelAdmin):
                     'course_engine_voz_preview',
                     'video_url',
                     'video_archivo',
+                    'video_resolucion',
                 ),
                 'description': (
                     'Tier/voz para generar micro-video del modulo. Vacio = hereda del curso. '
