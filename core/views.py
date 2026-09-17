@@ -1709,8 +1709,7 @@ def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, 
                 media_limpia = preparada or media_limpia
         except Exception as prep_err:
             logger.warning('📎 preparar_url_media_whatsapp falló (se envía original): %s', prep_err)
-    if not body_limpio and media_limpia:
-        body_limpio = TWILIO_CAPTION_ADJUNTO
+    # Adjunto sin texto: va solo, sin relleno genérico.
     # Sin media y sin texto útil: no spamear al estudiante.
     if not body_limpio and not media_limpia:
         return []
@@ -1724,13 +1723,13 @@ def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, 
 
     for idx, segmento in enumerate(segmentos):
         seg_txt = (segmento or '').strip()
-        if not seg_txt and media_limpia and idx == 0:
-            seg_txt = TWILIO_CAPTION_ADJUNTO
         params = {
-            'body': seg_txt if seg_txt else (' ' if media_limpia else ''),
             'from_': from_limpio,
             'to': to_limpio,
         }
+        # Solo llega vacío cuando el adjunto va sin texto: Twilio lo manda solo.
+        if seg_txt:
+            params['body'] = seg_txt
         if status_cb:
             params['status_callback'] = status_cb
 
@@ -2786,12 +2785,8 @@ def _procesar_twilio_webhook(post_data):
                                 if primera_media_url:
                                     texto_respuesta += f"[SEP]{parte_mensaje_con_media(primera_media_url)}"
                                     hay_media_conf = True
-                                for extra_url, extra_titulo, extra_icono in extra_media_urls:
-                                    cap_extra = (
-                                        f'{extra_icono} {extra_titulo}'.strip()
-                                        if extra_titulo
-                                        else None
-                                    )
+                                for extra_url, _extra_titulo, _extra_icono in extra_media_urls:
+                                    cap_extra = None  # el adjunto va solo, sin título
                                     texto_respuesta += f"[SEP]{parte_mensaje_con_media(extra_url, cap_extra)}"
                                     hay_media_conf = True
                                 # "Escribe listo" AL FINAL — solo si hay más módulos
@@ -2889,8 +2884,6 @@ def _procesar_twilio_webhook(post_data):
                         if media_m_c:
                             parte_media_c = (media_m_c.group(1) or '').strip()
                             parte_texto_c = parte_texto_c.replace(media_m_c.group(0), '').strip()
-                        if parte_media_c and not (parte_texto_c or '').strip():
-                            parte_texto_c = TWILIO_CAPTION_ADJUNTO
                         enviados_c = _enviar_mensaje_twilio_segmentado(
                             client=client_tw,
                             from_number=str(twilio_number).strip(),
@@ -3105,8 +3098,6 @@ def _procesar_twilio_webhook(post_data):
                             if media_m:
                                 parte_media = media_m.group(1).strip()
                                 parte_texto = parte_texto.replace(media_m.group(0), '').strip()
-                            if parte_media and not parte_texto:
-                                parte_texto = TWILIO_CAPTION_ADJUNTO
                             _enviar_mensaje_twilio_segmentado(
                                 client=client_tw,
                                 from_number=str(twilio_number).strip(),
@@ -3122,8 +3113,6 @@ def _procesar_twilio_webhook(post_data):
                         if media_m:
                             media_url_sel = media_m.group(1).strip()
                             texto_respuesta = texto_respuesta.replace(media_m.group(0), '').strip()
-                        if media_url_sel and not texto_respuesta:
-                            texto_respuesta = TWILIO_CAPTION_ADJUNTO
                         _enviar_mensaje_twilio_segmentado(
                             client=client_tw,
                             from_number=str(twilio_number).strip(),
@@ -3373,8 +3362,6 @@ def _procesar_twilio_webhook(post_data):
                                                         '📎 [pasos] URL parece YouTube (no MP4 directo) | est=%s',
                                                         estudiante.id,
                                                     )
-                                                if not parte_texto.strip() and parte_media:
-                                                    parte_texto = TWILIO_CAPTION_ADJUNTO
                                         enviados_p = _enviar_mensaje_twilio_segmentado(
                                             client=client_tw,
                                             from_number=twilio_from,
@@ -3396,8 +3383,6 @@ def _procesar_twilio_webhook(post_data):
                                             parte_texto = parte_texto.replace(
                                                 mm.group(0), ''
                                             ).strip()
-                                            if not parte_texto.strip() and parte_media:
-                                                parte_texto = TWILIO_CAPTION_ADJUNTO
                                     enviados_p = _enviar_mensaje_twilio_segmentado(
                                         client=client_tw,
                                         from_number=twilio_from,
@@ -3584,9 +3569,8 @@ def _procesar_twilio_webhook(post_data):
                                 partes_menu = [msg_texto_menu]
                                 if primera_media_url:
                                     partes_menu.append(parte_mensaje_con_media(primera_media_url))
-                                for extra_url, extra_titulo, extra_icono in extra_media_urls:
-                                    cap_m = f'{extra_icono} {extra_titulo}'.strip() if extra_titulo else None
-                                    partes_menu.append(parte_mensaje_con_media(extra_url, cap_m))
+                                for extra_url, _extra_titulo, _extra_icono in extra_media_urls:
+                                    partes_menu.append(parte_mensaje_con_media(extra_url))
                                 if len(partes_menu) > 1:
                                     texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes_menu)
                                 else:
@@ -3626,8 +3610,6 @@ def _procesar_twilio_webhook(post_data):
                                     parte_media_mm = media_mm.group(1).strip()
                                     parte_txt = parte_txt.replace(media_mm.group(0), '').strip()
                                 cuerpo_mm = parte_txt.strip() if parte_txt else ''
-                                if parte_media_mm and not cuerpo_mm:
-                                    cuerpo_mm = TWILIO_CAPTION_ADJUNTO
                                 enviados_mm = _enviar_mensaje_twilio_segmentado(
                                     client=client_tw,
                                     from_number=twilio_from,
@@ -5041,9 +5023,8 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                         if primera_media_url:
                                             partes.append(parte_mensaje_con_media(primera_media_url))
                                             hay_media_exam = True
-                                        for extra_url, extra_titulo, extra_icono in extra_media_urls:
-                                            cap_e = f'{extra_icono} {extra_titulo}'.strip() if extra_titulo else None
-                                            partes.append(parte_mensaje_con_media(extra_url, cap_e))
+                                        for extra_url, _extra_titulo, _extra_icono in extra_media_urls:
+                                            partes.append(parte_mensaje_con_media(extra_url))
                                             hay_media_exam = True
                                         if hay_media_exam:
                                             partes.append("[DELAY:5]")
@@ -5444,9 +5425,7 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                     'Twilio suele necesitar enlace al archivo. parte=%s',
                                     idx + 1,
                                 )
-                            if not parte_texto.strip() and parte_media:
-                                parte_texto = TWILIO_CAPTION_ADJUNTO
-                    
+
                     mensajes_enviados = _enviar_mensaje_twilio_segmentado(
                         client=client,
                         from_number=twilio_number,

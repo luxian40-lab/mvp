@@ -510,9 +510,9 @@ def partes_mensaje_paso(paso: PasoModulo, curso) -> list[str]:
         bloque_media = parte_mensaje_con_media(url, body)
         after = tail.strip()
     else:
-        # Media sin texto: solo el caption genérico. Los títulos de paso/sección
-        # son referencia interna (suelen ser «001.mp4») y no deben salir a WhatsApp.
-        bloque_media = parte_mensaje_con_media(url, MENSAJE_CAPTION_SOLO_MEDIA)
+        # Media sin texto: el adjunto va solo. Los títulos de paso/sección son
+        # referencia interna (suelen ser «001.mp4») y no deben salir a WhatsApp.
+        bloque_media = parte_mensaje_con_media(url)
         after = tail.strip()
     partes: list[str] = [bloque_media, '[DELAY:5]']
     if after:
@@ -636,13 +636,6 @@ def _urls_y_captions_multimedia_modulo(modulo: Modulo) -> list[tuple[str, str | 
         archivos = list(modulo.archivos_multimedia.filter(activo=True))
     except Exception:
         archivos = []
-    iconos = {
-        'video': '🎥',
-        'imagen': '🖼️',
-        'infografia': '📊',
-        'pdf': '📄',
-        'audio': '🎵',
-    }
     urls_vistas: set[str] = set()
     for archivo in archivos:
         try:
@@ -652,10 +645,9 @@ def _urls_y_captions_multimedia_modulo(modulo: Modulo) -> list[tuple[str, str | 
         if not url or url in urls_vistas:
             continue
         urls_vistas.add(url)
-        icono = iconos.get(getattr(archivo, 'tipo', ''), '📁')
-        titulo = (getattr(archivo, 'titulo', None) or '').strip()
-        cap = f'{icono} {titulo}'.strip() if titulo else None
-        items.append((url, cap))
+        # Sin caption: el título del archivo es nombre de archivo tan a menudo
+        # («001.mp4») que no vale la pena arriesgarlo encima del adjunto.
+        items.append((url, None))
     if not items:
         try:
             video_url = (obtener_video_url(modulo) or '').strip()

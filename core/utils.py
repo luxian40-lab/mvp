@@ -288,13 +288,13 @@ def enviar_whatsapp_twilio(
 
         for idx, chunk in enumerate(chunks):
             chunk_eff = (chunk or '').strip()
-            if not chunk_eff and clean_url and idx == 0:
-                chunk_eff = _caption_solo_media
             message_params = {
                 'from_': twilio_number,
-                'body': chunk_eff if chunk_eff else (' ' if clean_url else ''),
                 'to': telefono,
             }
+            # Adjunto sin texto: va solo, sin relleno genérico.
+            if chunk_eff:
+                message_params['body'] = chunk_eff
             if status_cb:
                 message_params['status_callback'] = status_cb
 

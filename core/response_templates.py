@@ -20,12 +20,16 @@ MENSAJE_CAPTION_SOLO_MEDIA = (
 
 
 def parte_mensaje_con_media(url: str, caption: str | None = None) -> str:
-    """Bloque para [MULTI_MSG]: texto legible + marcador [MEDIA:…]."""
-    cap = (caption or '').strip() or MENSAJE_CAPTION_SOLO_MEDIA
+    """Bloque para [MULTI_MSG]: marcador [MEDIA:…] con el texto del autor si lo hay.
+
+    Sin caption el adjunto viaja solo: el relleno genérico y los títulos
+    internos no le dicen nada al estudiante.
+    """
+    cap = (caption or '').strip()
     u = (url or '').strip()
     if not u:
-        return cap
-    return f'{cap}\n\n[MEDIA:{u}]'
+        return cap or MENSAJE_CAPTION_SOLO_MEDIA
+    return f'{cap}\n\n[MEDIA:{u}]' if cap else f'[MEDIA:{u}]'
 
 
 def _es_mensaje_listo_avance_curso(texto: str) -> bool:
@@ -1165,9 +1169,8 @@ Te inscribiste en: *{curso.nombre}*
         if primera_media_url_1:
             partes_insc.append(parte_mensaje_con_media(primera_media_url_1))
             hay_media_insc = True
-        for extra_url_1, extra_titulo_1, extra_icono_1 in extra_media_urls_1:
-            cap_1 = f'{extra_icono_1} {extra_titulo_1}'.strip() if extra_titulo_1 else None
-            partes_insc.append(parte_mensaje_con_media(extra_url_1, cap_1))
+        for extra_url_1, _extra_titulo_1, _extra_icono_1 in extra_media_urls_1:
+            partes_insc.append(parte_mensaje_con_media(extra_url_1))
             hay_media_insc = True
         if hay_media_insc:
             partes_insc.append("[DELAY:5]")
@@ -1835,9 +1838,8 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 if primera_media_url:
                     partes.append(parte_mensaje_con_media(primera_media_url))
                     hay_media = True
-                for extra_url, extra_titulo, extra_icono in extra_media_urls:
-                    cap_x = f'{extra_icono} {extra_titulo}'.strip() if extra_titulo else None
-                    partes.append(parte_mensaje_con_media(extra_url, cap_x))
+                for extra_url, _extra_titulo, _extra_icono in extra_media_urls:
+                    partes.append(parte_mensaje_con_media(extra_url))
                     hay_media = True
                 if hay_media:
                     partes.append("[DELAY:5]")
@@ -2110,9 +2112,8 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             if primera_media_url_c:
                 partes_c.append(parte_mensaje_con_media(primera_media_url_c))
                 hay_media_c = True
-            for extra_url_c, extra_titulo_c, extra_icono_c in extra_media_urls_c:
-                cap_c = f'{extra_icono_c} {extra_titulo_c}'.strip() if extra_titulo_c else None
-                partes_c.append(parte_mensaje_con_media(extra_url_c, cap_c))
+            for extra_url_c, _extra_titulo_c, _extra_icono_c in extra_media_urls_c:
+                partes_c.append(parte_mensaje_con_media(extra_url_c))
                 hay_media_c = True
             if hay_media_c:
                 partes_c.append("[DELAY:5]")
