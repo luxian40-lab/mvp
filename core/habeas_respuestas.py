@@ -22,10 +22,10 @@ MSG_RECHAZO_FINAL = (
 )
 
 MSG_ACEPTO_CEDULA = (
-    "✅ *¡Gracias por aceptar!*\n\n"
-    "Para verificar tu identidad, por favor escribe "
-    "tu *número de cédula* (solo los números, sin puntos ni espacios).\n\n"
-    "👉 Ejemplo: 1234567890"
+    "*¡Gracias por aceptar!*\n\n"
+    "Para verificar su identidad, por favor escriba "
+    "su *número de cédula* (solo los números, sin puntos ni espacios).\n\n"
+    "Ejemplo: 1234567890"
 )
 
 
