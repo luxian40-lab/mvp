@@ -31,6 +31,14 @@ def test_debe_consultar_pista_agro_con_rag_medio():
 
 
 @override_settings(BOT_COMERCIAL_AGROSAVIA_ENABLED=True, BOT_COMERCIAL_AGROSAVIA_MIN_RAG_CHARS=1400)
+def test_debe_consultar_pista_apiario_con_rag_medio():
+    assert debe_consultar_agrosavia(
+        'cuidado de abejas y varroa en el apiario',
+        contexto_rag_chars=1600,
+    ) is True
+
+
+@override_settings(BOT_COMERCIAL_AGROSAVIA_ENABLED=True, BOT_COMERCIAL_AGROSAVIA_MIN_RAG_CHARS=1400)
 def test_no_consulta_rag_muy_largo_sin_pista():
     assert debe_consultar_agrosavia('hola', contexto_rag_chars=3500) is False
 

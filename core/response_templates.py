@@ -465,10 +465,10 @@ def activar_checkpoint_facilitador(estudiante, progreso, modulo_cerrado) -> str:
     dario_msg = (
         f"*{nombre_asistente}*\n\n"
         f"¡Hola! Es hora de una pausa para repasar conceptos. "
-        f"{nombre_tutor} te va a recibir con un reto sobre {modulos_reto_range}.\n\n"
-        f"Te puedo ayudar a resolver un par de preguntas antes. "
-        f"¿Tienes alguna pregunta sobre lo que hemos visto? Envíame un audio o "
-        f"escríbeme; si no tienes preguntas, escribe *listo*."
+        f"{nombre_tutor} lo va a recibir con un reto sobre {modulos_reto_range}.\n\n"
+        f"Le puedo ayudar a resolver un par de preguntas antes. "
+        f"¿Tiene alguna pregunta sobre lo que hemos visto? Envíeme un audio o "
+        f"escríbame; si no tiene preguntas, escriba *listo*."
     )
 
     _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)

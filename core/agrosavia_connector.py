@@ -22,7 +22,8 @@ _AGRO_HINTS = re.compile(
     r'mancha|clorosis|marchitez|pudrici[oó]n|Roya|antracnosis|'
     r'caf[eé]|cacao|arroz|ma[ií]z|papa|aguacate|c[ií]trico|banano|'
     r'ca[nñ]a|palma|tomate|cebolla|frijol|fr[ií]jol|yuca|pasto|'
-    r'herbicida|fungicida|insecticida|MIP|BPA|ICA|Agrosavia'
+    r'herbicida|fungicida|insecticida|MIP|BPA|ICA|Agrosavia|'
+    r'abeja|colmena|apiario|apicult|varroa|miel|piquera'
     r')\b',
     re.IGNORECASE,
 )

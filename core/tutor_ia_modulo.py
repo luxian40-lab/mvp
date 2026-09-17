@@ -115,19 +115,20 @@ ESCALA OBLIGATORIA (nota 1–5; no regalar):
 def _prompt_sistema_asistente(nombre_asistente: str) -> str:
     na = (nombre_asistente or "Darío").strip() or "Darío"
     return f"""Eres {na}, el asistente y compañero de estudio de eki.
-Eres el ÚNICO que tutea al estudiante (trato informal, "tú").
-Tu rol: ayudar a repasar conceptos antes de que la Facilitadora Claudia plantee un reto.
+TRATO DE USTED siempre ("usted", "su", "le").
+Su rol: ayudar a repasar el dominio del curso antes del reto de la facilitadora.
 
 REGLAS:
-1. TUTEA siempre ("tú", "te", "tu").
-2. MÁXIMO 60 PALABRAS por mensaje.
-3. Responde basándote SOLO en el contenido RAG/módulos. No inventes nada.
-4. Si no tienes información suficiente, dilo honestamente.
-5. Sé cercano, amigable, como un compañero de estudio.
-6. Máximo 2 emojis.
-7. NO hagas preguntas de seguimiento. Responde directamente.
-8. PROHIBIDO invitar a seguir conversando o preguntar si tiene más dudas.
-9. Tu nombre es {na}; no uses otro nombre propio ni te presentes con otro alias."""
+1. TRATO DE USTED siempre.
+2. Máximo 180 palabras. Responda con sustancia: qué, cómo y un ejemplo de campo.
+3. Ancle la respuesta al DOMINIO DEL CURSO (nombre, descripción y módulos), no solo al título del módulo actual.
+   Si el módulo se llama «Bienvenida» pero el curso es de apiarios, muestreo o sanidad, responda sobre ese dominio.
+4. Use RAG, microlecciones y fuentes AGROSAVIA/web del contexto. No invente números ni protocolos ajenos.
+5. PROHIBIDO religión, política, fútbol u otros temas externos al curso. Si preguntan eso, dígale que se queda en el tema del curso.
+6. PROHIBIDO usar emojis.
+7. NO se niegue a responder una pregunta del dominio del curso con «este módulo no cubre eso».
+8. NO haga preguntas de seguimiento ni invite a seguir conversando.
+9. Su nombre es {na}; no use otro alias."""
 
 
 _RE_EMOJI = re.compile(
@@ -646,15 +647,32 @@ Evalúe según la rúbrica y el dominio de este curso. Dé retroalimentación y 
         return 0, _fallback_evaluacion_reto(estudiante_nombre)
 
 
+def _contexto_dominio_curso(curso, modulos_cubiertos) -> str:
+    """Nombre/descripcion del curso + listado de módulos: el título de uno no recorta el tema."""
+    if curso is None and modulos_cubiertos:
+        curso = getattr(modulos_cubiertos[0], 'curso', None)
+    if curso is None:
+        return ''
+    lineas = [f"CURSO: {curso.nombre}"]
+    desc = (getattr(curso, 'descripcion', None) or '').strip()
+    if desc:
+        lineas.append(f"DESCRIPCIÓN: {desc[:600]}")
+    try:
+        mods = list(curso.modulos.order_by('numero', 'id'))
+    except Exception:
+        mods = list(modulos_cubiertos or [])
+    if mods:
+        lineas.append("MÓDULOS DEL CURSO (el título de uno no recorta el dominio):")
+        for m in mods:
+            lineas.append(f"- Módulo {m.numero}: {m.titulo}")
+    return '\n'.join(lineas)
 def generar_respuesta_asistente(modulos_cubiertos, pregunta_estudiante,
                                  estudiante_nombre="Estudiante",
                                  nombre_asistente=None) -> str:
     """
-    El asistente (compañero) responde una pregunta del estudiante basada en RAG/módulos.
-    Máximo 2 preguntas antes de pasar a la Facilitadora.
-
-    Returns:
-        str: respuesta del asistente
+    El asistente (compañero) responde una pregunta del estudiante.
+    Ancla al dominio del curso (no solo al título del módulo) y, en
+    perfil tecnicoagro, enriquece con el repositorio AGROSAVIA en vivo.
     """
     client = _get_client()
     na = (nombre_asistente or "").strip()
@@ -671,36 +689,64 @@ def generar_respuesta_asistente(modulos_cubiertos, pregunta_estudiante,
     if not client:
         return _fallback_respuesta_asistente()
 
+    curso = None
+    if modulos_cubiertos:
+        curso = getattr(modulos_cubiertos[0], 'curso', None)
+
+    dominio = _contexto_dominio_curso(curso, modulos_cubiertos)
+
     modulos_info = ""
     for m in modulos_cubiertos:
         contenido = (m.contenido[:400] if m.contenido else m.descripcion or '')
         modulos_info += f"- Módulo {m.numero}: {m.titulo}\n  {contenido}\n"
+        micros = _resumen_micros_modulo(m)
+        if micros:
+            modulos_info += micros + "\n"
 
-    # RAG context
     contexto_rag = ""
     try:
         from .rag_manager import rag_manager
-        curso = modulos_cubiertos[0].curso if modulos_cubiertos else None
         if curso:
             cliente_id = curso.cliente_id if curso.cliente_id else 0
             contexto_rag = rag_manager.obtener_contexto_para_ia(
                 cliente_id=cliente_id,
                 curso_id=curso.id,
                 pregunta=pregunta_estudiante,
-                max_chars=1000
+                max_chars=1200
             )
     except Exception as e:
-        logger.warning(f"[RAG] Error en asistente Darío: {e}")
+        logger.warning(f"[RAG] Error en asistente: {e}")
+
+    if es_perfil_tecnicoagro(curso):
+        try:
+            from core.agrosavia_connector import enriquecer_contexto_con_agrosavia
+
+            consulta = f"{getattr(curso, 'nombre', '')} {pregunta_estudiante}".strip()
+            contexto_rag, meta_agro = enriquecer_contexto_con_agrosavia(
+                consulta, contexto_rag or ''
+            )
+            logger.info(
+                "[asistente] Agrosavia usada=%s items=%s",
+                meta_agro.get('agrosavia_usada'),
+                meta_agro.get('agrosavia_items'),
+            )
+        except Exception as e:
+            logger.warning(f"[asistente] Agrosavia falló: {e}")
 
     prompt_usuario = f"""CONTEXTO:
 Estudiante: {estudiante_nombre}
-Módulos cubiertos:
+{dominio}
+
+Módulos que acaba de ver:
 {modulos_info}
 {contexto_rag}
 
 PREGUNTA DEL ESTUDIANTE: {pregunta_estudiante}
 
-Responde basándote SOLO en el contenido de los módulos y documentos RAG."""
+Responda sobre el dominio del curso. El título de un módulo (p. ej. Bienvenida)
+no recorta el tema. Si la pregunta es de apiarios, abejas, muestreo o sanidad
+y el curso habla de eso, ayude con lo concreto. Rechace solo religión, política
+u otros temas ajenos al curso."""
 
     try:
         response = client.chat.completions.create(
@@ -709,11 +755,12 @@ Responde basándote SOLO en el contenido de los módulos y documentos RAG."""
                 {"role": "system", "content": _prompt_sistema_asistente(na)},
                 {"role": "user", "content": prompt_usuario}
             ],
-            temperature=0.7,
-            max_tokens=120,
-            timeout=10
+            temperature=0.5,
+            max_tokens=420,
+            timeout=15
         )
         respuesta = _quitar_encabezado_acciona(response.choices[0].message.content.strip())
+        respuesta = limpiar_emojis(respuesta)
         logger.info(f"✅ Asistente ({na}) respuesta: {respuesta[:50]}...")
         return respuesta
     except Exception as e:
@@ -808,10 +855,11 @@ def _feedback_respuesta_sin_contenido(estudiante_nombre: str) -> str:
 
 
 def _fallback_respuesta_asistente():
-    """Respuesta de Darío sin IA."""
+    """Respuesta del compañero sin IA."""
     return (
-        "¡Buena pregunta! Lamentablemente no tengo suficiente información para responderte con certeza. "
-        "Pero no te preocupes, la Facilitadora Claudia te va a ayudar con el reto 💪"
+        "En este momento no pude consultar las fuentes. "
+        "Escriba *listo* para pasar al reto de la facilitadora, "
+        "o formule de nuevo su pregunta sobre el tema del curso."
     )
 
 

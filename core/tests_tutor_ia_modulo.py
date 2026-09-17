@@ -126,3 +126,68 @@ class GuiaRetoIaTests(TestCase):
         self.assertIn('plan concreto', user_msg.lower())
         self.assertIn('plan de 7 días', user_msg)
         self.assertIn('Finanzas del hogar', user_msg)
+
+
+class AsistenteDominioCursoTests(TestCase):
+    """Carlos no debe recortar el tema al título del módulo (ej. Bienvenida)."""
+
+    def test_prompt_sistema_ustea_sin_emojis(self):
+        from core.tutor_ia_modulo import _prompt_sistema_asistente
+
+        p = _prompt_sistema_asistente('Carlos')
+        self.assertIn('Carlos', p)
+        self.assertIn('TRATO DE USTED', p)
+        self.assertNotIn('TUTEA', p)
+        self.assertIn('PROHIBIDO usar emojis', p)
+        self.assertIn('dominio del curso', p.lower())
+
+    @patch('core.tutor_ia_modulo._get_client')
+    def test_pregunta_de_abejas_usa_el_curso_aunque_el_modulo_sea_bienvenida(self, mock_client):
+        from core.prompts_tecnicoagro import PERFIL_TECNICOAGRO
+        from core.tutor_ia_modulo import generar_respuesta_asistente
+
+        cli = Cliente.objects.create(
+            nombre='AGROSAVIA',
+            contacto_principal='A',
+            email='agro@test.co',
+            telefono='573001110088',
+            perfil_facilitador=PERFIL_TECNICOAGRO,
+        )
+        curso = Curso.objects.create(
+            nombre='Identificación y Toma de Muestras en Apiarios',
+            cliente=cli,
+            descripcion='Manejo sanitario y muestreo en colmenas.',
+            perfil_facilitador=PERFIL_TECNICOAGRO,
+        )
+        m1 = Modulo.objects.create(
+            curso=curso,
+            numero=1,
+            titulo='Bienvenida',
+            contenido='Presentación del programa.',
+        )
+        choice = MagicMock()
+        choice.message.content = 'En un apiario revise la piquera y el estado de la cría. 🐝'
+        client = MagicMock()
+        client.chat.completions.create.return_value = MagicMock(choices=[choice])
+        mock_client.return_value = client
+
+        with patch(
+            'core.rag_manager.rag_manager.obtener_contexto_para_ia', return_value=''
+        ), patch(
+            'core.agrosavia_connector.enriquecer_contexto_con_agrosavia',
+            return_value=('FUENTE AGROSAVIA: varroa en colmenas', {'agrosavia_usada': True}),
+        ) as mock_agro:
+            out = generar_respuesta_asistente(
+                [m1],
+                'que puedo saber de cuidado de abejas en ese caso',
+                estudiante_nombre='Julian',
+                nombre_asistente='Carlos',
+            )
+
+        mock_agro.assert_called()
+        kwargs = client.chat.completions.create.call_args.kwargs
+        user_msg = kwargs['messages'][1]['content']
+        self.assertIn('Identificación y Toma de Muestras en Apiarios', user_msg)
+        self.assertIn('cuidado de abejas', user_msg.lower())
+        self.assertNotIn('SOLO en el contenido de los módulos', user_msg)
+        self.assertNotIn('🐝', out)

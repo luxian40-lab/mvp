@@ -4082,10 +4082,10 @@ def _procesar_twilio_webhook(post_data):
                     preguntas_restantes = 2 - preguntas_hechas
                     texto_respuesta = (
                         f"*{nombre_asistente}*\n\n"
-                        f"⚠️ No pude escuchar tu audio. Por favor intenta de nuevo "
-                        f"o escríbeme tu pregunta.\n\n"
-                        f"Te quedan {preguntas_restantes} pregunta(s). "
-                        f"Si no tienes preguntas, escribe *listo*."
+                        f"No pude escuchar su audio. Por favor intente de nuevo "
+                        f"o escríbame su pregunta.\n\n"
+                        f"Le quedan {preguntas_restantes} pregunta(s). "
+                        f"Si no tiene preguntas, escriba *listo*."
                     )
                 elif _mensaje_indica_listo(msg_body) or preguntas_hechas >= 2:
                     # Flujo exigido: Darío -> Facilitadora (reto) al escribir listo
@@ -4213,14 +4213,14 @@ def _procesar_twilio_webhook(post_data):
                     if preguntas_hechas >= 2:
                         texto_respuesta = (
                             f"*{nombre_asistente}*\n\n{respuesta_dario}\n\n"
-                            f"Ya respondí tus 2 preguntas. Ahora la facilitadora te tiene un reto. "
-                            f"Escribe *listo* cuando estés preparado."
+                            f"Ya respondí sus 2 preguntas. Ahora la facilitadora le tiene un reto. "
+                            f"Escriba *listo* cuando esté preparado."
                         )
                     else:
                         texto_respuesta = (
                             f"*{nombre_asistente}*\n\n{respuesta_dario}\n\n"
-                            f"¿Tienes otra pregunta? Te queda {2 - preguntas_hechas} pregunta más. "
-                            f"Puedes preguntar sobre el tema del módulo. Si no, escribe *listo*."
+                            f"¿Tiene otra pregunta? Le queda {2 - preguntas_hechas} pregunta más. "
+                            f"Puede preguntar sobre el tema del curso. Si no, escriba *listo*."
                         )
             
             # v1.9.8g: Facilitadora — evaluando respuesta al reto
