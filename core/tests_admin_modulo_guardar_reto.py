@@ -128,6 +128,23 @@ class GuardarRetoDesdeAdminTests(TestCase):
         self.modulo.refresh_from_db()
         self.assertEqual(self.modulo.tipo_reto_ia, Modulo.TIPO_RETO_PLAN)
 
+    def test_error_oculto_se_explica_arriba(self):
+        """El campo culpable puede estar en otra pestaña: hay que nombrarlo."""
+        get = self.client.get(self.url)
+        data = payload_desde_changeform(get)
+        data['reto_guia_ia'] = 'Pida un plan de manejo.'
+        data['clase_url'] = 'video.mp4'  # sin https:// → inválido
+        data['_continue'] = 'Guardar y continuar editando'
+
+        post = self.client.post(self.url, data, follow=False)
+
+        self.assertEqual(post.status_code, 200)
+        avisos = [str(m) for m in post.context['messages']]
+        self.assertTrue(avisos, 'el admin no explicó por qué no guardó')
+        detalle = ' '.join(avisos)
+        self.assertIn('URL', detalle)
+        self.assertIn('https', detalle)
+
     def test_guardar_tipo_reto_y_guia(self):
         get = self.client.get(self.url)
         self.assertEqual(get.status_code, 200)

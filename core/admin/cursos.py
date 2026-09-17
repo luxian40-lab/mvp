@@ -2101,6 +2101,46 @@ class ModuloAdmin(admin.ModelAdmin):
             ),
         )
 
+    def render_change_form(self, request, context, add=False, change=False, form_url='', obj=None):
+        """El campo que falla puede estar en una pestaña cerrada o en un inline:
+        sin esto el operador solo ve «corrija los errores» y no sabe dónde."""
+        if request.method == 'POST':
+            detalles = self._detalle_errores_formulario(context)
+            if detalles:
+                logger.warning(
+                    '[modulo-admin] guardado rechazado modulo=%s errores=%s',
+                    getattr(obj, 'pk', None),
+                    ' | '.join(detalles),
+                )
+                messages.error(
+                    request,
+                    'No se guardó. ' + ' | '.join(detalles[:6]),
+                )
+        return super().render_change_form(
+            request, context, add=add, change=change, form_url=form_url, obj=obj
+        )
+
+    @staticmethod
+    def _detalle_errores_formulario(context) -> list:
+        detalles = []
+        form = getattr(context.get('adminform'), 'form', None)
+        if form is not None:
+            for campo, errores in form.errors.items():
+                field = form.fields.get(campo)
+                etiqueta = getattr(field, 'label', None) or campo
+                if campo == '__all__':
+                    etiqueta = 'Módulo'
+                detalles.append(f'{etiqueta}: {" ".join(str(e) for e in errores)}')
+        for inline in context.get('inline_admin_formsets') or []:
+            formset = inline.formset
+            nombre = formset.model._meta.verbose_name
+            for err in formset.non_form_errors():
+                detalles.append(f'{nombre}: {err}')
+            for i, errores in enumerate(formset.errors or []):
+                for campo, msgs in (errores or {}).items():
+                    detalles.append(f'{nombre} #{i + 1} · {campo}: {" ".join(msgs)}')
+        return detalles
+
     def save_model(self, request, obj, form, change):
         if not (obj.descripcion or '').strip():
             obj.descripcion = (obj.titulo or 'Módulo').strip() or 'Módulo'
