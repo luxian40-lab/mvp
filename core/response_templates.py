@@ -61,9 +61,9 @@ def partes_presentacion_agentes_curso(estudiante, curso) -> list:
     )
     if usar_gamificacion:
         partes.append(
-            '🎮 *Nuestra experiencia de formación funciona a través de puntos*\n\n'
-            'A medida que avances en el curso, tendrás retos que evaluar.\n\n'
-            '¡Vamos a aprender y avanzar juntos! 💪'
+            '*Nuestra experiencia de formación funciona a través de puntos*\n\n'
+            'A medida que avance en el curso, tendrá retos que evaluar.\n\n'
+            '¡Vamos a aprender y avanzar juntos!'
         )
     return partes
 
@@ -1104,16 +1104,16 @@ Te inscribiste en: *{curso.nombre}*
         msg_gamificacion = ""
         if usar_gamificacion:
             msg_gamificacion = (
-                "🎮 *Nuestra experiencia de formación funciona a través de puntos*\n\n"
-                "A medida que avances en el curso, tendrás retos que evaluar.\n\n"
-                "¡Vamos a aprender y avanzar juntos! 💪"
+                "*Nuestra experiencia de formación funciona a través de puntos*\n\n"
+                "A medida que avance en el curso, tendrá retos que evaluar.\n\n"
+                "¡Vamos a aprender y avanzar juntos!"
             )
         partes_intro = [mensaje_1]
         partes_intro.append(msg_geronimo)
         partes_intro.append(msg_maria)
         if msg_gamificacion:
             partes_intro.append(msg_gamificacion)
-        partes_intro.append("📚 *Comenzamos con el primer módulo de tu curso...* 👇")
+        partes_intro.append("*Comenzamos con el primer módulo de su curso...*")
         msg_intro = "\n\n".join(partes_intro)
 
         if modulo_usa_pasos(primer_modulo):

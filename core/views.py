@@ -2687,20 +2687,20 @@ def _procesar_twilio_webhook(post_data):
                             usar_gamificacion = (cliente_obj.usar_gamificacion if cliente_obj else True)
                             if usar_gamificacion:
                                 msg_gamificacion = (
-                                    "🎮 *Nuestra experiencia de formación funciona a través de puntos*\n\n"
-                                    "A medida que avances en el curso, tendrás retos que evaluar.\n\n"
-                                    "¡Vamos a aprender y avanzar juntos! 💪"
+                                    "*Nuestra experiencia de formación funciona a través de puntos*\n\n"
+                                    "A medida que avance en el curso, tendrá retos que evaluar.\n\n"
+                                    "¡Vamos a aprender y avanzar juntos!"
                                 )
 
                             # --- Mensaje 1: Bienvenida + Gamificación + Agentes (TODO EN UNO) ---
                             partes_intro = [
-                                f"✅ *¡Datos confirmados, {estudiante.nombre}!*\n\nBienvenido al programa de *{org_nombre}*"
+                                f"*¡Datos confirmados, {estudiante.nombre}!*\n\nBienvenido al programa de *{org_nombre}*"
                             ]
                             partes_intro.append(msg_tutor)
                             partes_intro.append(msg_asistente)
                             if msg_gamificacion:
                                 partes_intro.append(msg_gamificacion)
-                            partes_intro.append("📚 *Comenzamos con el primer módulo de tu curso...* 👇")
+                            partes_intro.append("*Comenzamos con el primer módulo de su curso...*")
                             msg_intro = "\n\n".join(partes_intro)
 
                             from .module_steps import (
@@ -2804,13 +2804,13 @@ def _procesar_twilio_webhook(post_data):
                                         estudiante, curso, CTX_FIN_ENTREGA_MODULO
                                     )
                         else:
-                            texto_respuesta = f"✅ *¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nEl curso aún no tiene módulos configurados. Te notificaremos cuando estén listos."
+                            texto_respuesta = f"*¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nEl curso aún no tiene módulos configurados. Le notificaremos cuando estén listos."
                     else:
-                        texto_respuesta = f"✅ *¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nAún no hay cursos disponibles. Te notificaremos cuando estén listos."
+                        texto_respuesta = f"*¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nAún no hay cursos disponibles. Le notificaremos cuando estén listos."
                 except Exception as e:
                     logger.error(f"❌ Error enviando curso directo: {e}")
                     import traceback; traceback.print_exc()
-                    texto_respuesta = f"✅ *¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nTu organización te notificará cuando estén listos los cursos. Escribe *ayuda* si necesitas asistencia."
+                    texto_respuesta = f"*¡Datos confirmados!* Bienvenido al programa de *{org_nombre}*.\n\nSu organización le notificará cuando estén listos los cursos. Escriba *ayuda* si necesita asistencia."
                 
                 # MENÚ OCULTO (no eliminado del código):
                 # from .whatsapp_service import enviar_menu_principal

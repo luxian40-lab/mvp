@@ -1043,10 +1043,10 @@ def generar_presentacion_agentes(
         )
 
     msg_asistente = (
-        f"*¡Y yo soy {nombre_asistente}, tu compañero de estudio!*\n\n"
-        f"Estaré pendiente de ti en este proceso. "
-        f"Si tienes dudas antes de los retos, yo te ayudo a repasar. "
-        f"¡Cuenta conmigo!"
+        f"*¡Y yo soy {nombre_asistente}, su compañero de estudio!*\n\n"
+        f"Estaré pendiente de usted en este proceso. "
+        f"Si tiene dudas antes de los retos, yo le ayudo a repasar. "
+        f"¡Cuente conmigo!"
     )
     
     return msg_facilitador, msg_asistente
