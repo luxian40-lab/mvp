@@ -510,18 +510,9 @@ def partes_mensaje_paso(paso: PasoModulo, curso) -> list[str]:
         bloque_media = parte_mensaje_con_media(url, body)
         after = tail.strip()
     else:
-        # Media sin texto: caption con título de sección/módulo (no solo genérico).
-        contexto = (
-            (getattr(paso, 'titulo', None) or '').strip()
-            or (getattr(getattr(paso, 'seccion', None), 'titulo', None) or '').strip()
-            or (getattr(getattr(paso, 'modulo', None), 'titulo', None) or '').strip()
-        )
-        cap = (
-            f'📖 {contexto}\n\n{MENSAJE_CAPTION_SOLO_MEDIA}'
-            if contexto
-            else MENSAJE_CAPTION_SOLO_MEDIA
-        )
-        bloque_media = parte_mensaje_con_media(url, cap)
+        # Media sin texto: solo el caption genérico. Los títulos de paso/sección
+        # son referencia interna (suelen ser «001.mp4») y no deben salir a WhatsApp.
+        bloque_media = parte_mensaje_con_media(url, MENSAJE_CAPTION_SOLO_MEDIA)
         after = tail.strip()
     partes: list[str] = [bloque_media, '[DELAY:5]']
     if after:
