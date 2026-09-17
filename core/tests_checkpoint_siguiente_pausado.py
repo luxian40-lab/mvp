@@ -1,8 +1,8 @@
-"""Checkpoint IA al cerrar módulo cuando el siguiente está pausado (borrador WA).
+﻿"""Checkpoint IA al cerrar mÃ³dulo cuando el siguiente estÃ¡ pausado (borrador WA).
 
-Caso real: curso Agrosavia con M1 activo y M2–M4 pausados. El reto del
+Caso real: curso Agrosavia con M1 activo y M2â€“M4 pausados. El reto del
 facilitador debe dispararse igual; el bloqueo de contenido pendiente llega
-después de responderlo.
+despuÃ©s de responderlo.
 """
 from django.test import TestCase
 from django.test.utils import override_settings
@@ -30,7 +30,7 @@ class CheckpointConSiguientePausadoTests(TestCase):
             activo=True,
             usar_agentes_ia=True,
             dias_espera_entre_modulos=0,
-            nombre_agente_asistente='Compañero',
+            nombre_agente_asistente='CompaÃ±ero',
             nombre_agente_tutor='Asesor',
         )
         self.est = Estudiante.objects.create(
@@ -98,8 +98,8 @@ class CheckpointConSiguientePausadoTests(TestCase):
     def test_checkpoint_si_dispara_reto_aunque_siguiente_este_pausado(self):
         resp = self._listo()
 
-        self.assertNotIn('preparando', resp.lower())
-        self.assertIn('Compañero', resp)
+        self.assertNotIn('le avisamos', resp.lower())
+        self.assertIn('CompaÃ±ero', resp)
         self.est.refresh_from_db()
         self.assertEqual(self.est.estado_onboarding, 'esperando_respuesta_asistente')
         ctx = self.est.contexto_temporal or {}
@@ -109,13 +109,13 @@ class CheckpointConSiguientePausadoTests(TestCase):
         self.assertEqual(self.prog.modulo_actual_id, self.m1.id)
 
     def test_modulo_sin_checkpoint_sigue_bloqueado(self):
-        """Beyoncé: sin checkpoint, el bloqueo por módulo en borrador se mantiene."""
+        """BeyoncÃ©: sin checkpoint, el bloqueo por mÃ³dulo en borrador se mantiene."""
         self.m1.facilitador_checkpoint = Modulo.FACILITADOR_CP_NO
         self.m1.save(update_fields=['facilitador_checkpoint'])
 
         resp = self._listo()
 
-        self.assertIn('preparando', resp.lower())
+        self.assertIn('le avisamos', resp.lower())
         self.est.refresh_from_db()
         self.assertNotEqual(self.est.estado_onboarding, 'esperando_respuesta_asistente')
 
@@ -125,14 +125,14 @@ class CheckpointConSiguientePausadoTests(TestCase):
 
         resp = self._listo()
 
-        self.assertIn('preparando', resp.lower())
+        self.assertIn('le avisamos', resp.lower())
         self.est.refresh_from_db()
         self.assertNotEqual(self.est.estado_onboarding, 'esperando_respuesta_asistente')
 
 
 @override_settings(TWILIO_ACCOUNT_SID='', TWILIO_AUTH_TOKEN='')
 class CheckpointMiniExamenConSiguientePausadoTests(TestCase):
-    """Mismo gate, pero cerrando el módulo con mini examen (PreguntaModulo)."""
+    """Mismo gate, pero cerrando el mÃ³dulo con mini examen (PreguntaModulo)."""
 
     def setUp(self):
         self.cliente = Cliente.objects.create(nombre='QA Checkpoint Examen', activo=True)
@@ -142,7 +142,7 @@ class CheckpointMiniExamenConSiguientePausadoTests(TestCase):
             activo=True,
             usar_agentes_ia=True,
             dias_espera_entre_modulos=0,
-            nombre_agente_asistente='Compañero',
+            nombre_agente_asistente='CompaÃ±ero',
             nombre_agente_tutor='Asesor',
         )
         self.est = Estudiante.objects.create(
@@ -173,7 +173,7 @@ class CheckpointMiniExamenConSiguientePausadoTests(TestCase):
         )
         self.pregunta = PreguntaModulo.objects.create(
             modulo=self.m1,
-            pregunta='¿Qué revisa primero?',
+            pregunta='Â¿QuÃ© revisa primero?',
             opcion_a='La piquera',
             opcion_b='Nada',
             respuesta_correcta='A',

@@ -157,7 +157,7 @@ class ModuloPublicacionGateRuntimeTests(TestCase):
         ModuloCompletado.objects.create(progreso=self.prog, modulo=self.m1)
         msg = mensaje_bloqueo_sin_siguiente_publicado(self.est, self.prog, self.m1)
         self.assertIsNotNone(msg)
-        self.assertIn('preparando', msg.lower())
+        self.assertIn('siguiente módulo', msg.lower())
 
     def test_porcentaje_solo_cuenta_publicados(self):
         ModuloCompletado.objects.create(progreso=self.prog, modulo=self.m1)
@@ -177,7 +177,7 @@ class ModuloPublicacionGateRuntimeTests(TestCase):
             estudiante_id=self.est.id,
             mensaje_original='listo',
         )
-        self.assertIn('preparando', resp.lower())
+        self.assertIn('le avisamos', resp.lower())
         self.prog.refresh_from_db()
         self.assertEqual(self.prog.modulo_actual_id, self.m1.id)
 

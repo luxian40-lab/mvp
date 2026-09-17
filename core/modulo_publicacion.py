@@ -190,16 +190,14 @@ def resumen_tope_avance_wa(curso: Curso | None) -> dict:
 
 
 def format_mensaje_bloqueo_contenido_pendiente(cliente=None) -> str:
-    """Mismo tono que drip; el estudiante no distingue causa."""
-    from .avance_whatsapp import texto_bloqueo_drip_cierre
+    """Siguiente módulo aún en borrador: cerrar sin prometer fecha ni pedir *listo*.
 
+    A diferencia del drip por días, aquí no hay fecha que anunciar: el módulo
+    se abre cuando el equipo lo publique.
+    """
     return (
-        '*¡Excelente energía!*\n\n'
-        'Estamos preparando tu siguiente sesión; aún no enviamos el siguiente módulo '
-        'para que puedas asimilar lo aprendido.\n\n'
-        'Tu próxima lección estará disponible pronto.\n'
-        'Mientras tanto, repasa el material del módulo que acabas de completar.\n\n'
-        f'{texto_bloqueo_drip_cierre(cliente)}'
+        'Hemos terminado por ahora.\n\n'
+        'Le avisamos cuando abramos el siguiente módulo.'
     )
 
 

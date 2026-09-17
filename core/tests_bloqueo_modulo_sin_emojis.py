@@ -30,7 +30,18 @@ class BloqueoModuloSinEmojisTests(TestCase):
                 self.assertNotIn('🌱', mensaje)
 
     def test_se_conserva_el_tono_y_la_informacion(self):
-        for nombre, mensaje in self._mensajes().items():
+        """Los bloqueos con fecha sí anuncian cuándo sigue el curso."""
+        for nombre in ('drip', 'calendario'):
             with self.subTest(mensaje=nombre):
+                mensaje = self._mensajes()[nombre]
                 self.assertTrue(mensaje.startswith('*¡Excelente energía!*'))
                 self.assertIn('repasa el material del módulo', mensaje)
+
+    def test_modulo_pausado_cierra_sin_prometer_fecha(self):
+        """Sin módulo publicado no hay fecha que dar: cerrar corto y sin pedir *listo*."""
+        mensaje = format_mensaje_bloqueo_contenido_pendiente()
+
+        self.assertIn('Le avisamos cuando abramos el siguiente módulo', mensaje)
+        self.assertNotIn('listo', mensaje.lower())
+        self.assertNotIn('pronto', mensaje.lower())
+        self.assertNotIn('desbloquea', mensaje.lower())

@@ -121,7 +121,7 @@ class QAPublicacionWAPhoneSmokeTests(TestCase):
             mensaje_original='listo',
         )
         low = resp.lower()
-        self.assertIn('preparando', low)
+        self.assertIn('le avisamos', low)
         self.assertNotIn('63019', resp)
         self.assertNotIn('63021', resp)
         self.prog.refresh_from_db()
