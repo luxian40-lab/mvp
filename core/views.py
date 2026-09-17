@@ -4775,14 +4775,41 @@ def _procesar_twilio_webhook(post_data):
 
             # 3.5b PRIORIDAD: Si está respondiendo pregunta de módulo (examen clásico)
             elif estudiante.estado_onboarding == 'esperando_respuesta_modulo':
-                # Si el usuario dice "menu", salir del examen y mostrar menú
-                msg_lower_exam = msg_body.strip().lower()
-                if msg_body.strip() == '[AUDIO_NO_TRANSCRITO]':
+                from .pregunta_handler import (
+                    examen_modulo_sin_pregunta_pendiente,
+                    recuperar_examen_modulo_vacio,
+                )
+
+                # Mini-examen fantasma (rollback/recuperación sin pregunta):
+                # *listo* debe entregar la lección, no el default «No entendí».
+                if examen_modulo_sin_pregunta_pendiente(estudiante):
+                    logger.warning(
+                        'examen modulo vacio | estudiante_id=%s ctx_keys=%s',
+                        estudiante.id,
+                        sorted((estudiante.contexto_temporal or {}).keys()),
+                    )
+                    recuperar_examen_modulo_vacio(estudiante)
+                    estudiante.refresh_from_db()
+                    if _mensaje_indica_listo(msg_body):
+                        from .response_templates import get_response_for_intent
+
+                        texto_respuesta = get_response_for_intent(
+                            'continuar_leccion',
+                            estudiante.nombre,
+                            estudiante_id=estudiante.id,
+                            mensaje_original=msg_body,
+                        )
+                    else:
+                        texto_respuesta = (
+                            "No hay una pregunta pendiente. "
+                            "Si quiere avanzar, escriba *listo*."
+                        )
+                elif msg_body.strip() == '[AUDIO_NO_TRANSCRITO]':
                     texto_respuesta = (
                         "⚠️ No pude escuchar tu audio. Por favor intenta de nuevo "
                         "o escríbeme tu respuesta."
                     )
-                elif msg_lower_exam in ['menu', 'menú']:
+                elif msg_body.strip().lower() in ['menu', 'menú']:
                     estudiante.estado_onboarding = 'completado'
                     estudiante.save()
                     from .flujo_whatsapp_b2b import respuesta_tras_keyword_menu
@@ -5188,7 +5215,12 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                             partes.append(msg_cert_img)
                                             texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
                     
-                    if not texto_respuesta:
+                    # El default «No entendí» se asigna antes de esta rama.
+                    # Opción inválida / error de contexto deben ganar.
+                    if (
+                        not texto_respuesta
+                        or texto_respuesta.startswith('No entendí. Si quieres avanzar')
+                    ):
                         texto_respuesta = mensaje_respuesta
                     print(f"✅ Respuesta validada: {'Correcta' if es_correcta else 'Incorrecta'}")
             

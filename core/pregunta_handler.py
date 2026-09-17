@@ -396,3 +396,34 @@ def guardar_contexto_pregunta(estudiante, modulo, pregunta, progreso):
     }
     estudiante.estado_onboarding = 'esperando_respuesta_modulo'
     estudiante.save()
+
+
+def examen_modulo_sin_pregunta_pendiente(estudiante) -> bool:
+    """True si el estado es mini-examen pero no hay pregunta/contexto usable."""
+    if getattr(estudiante, 'estado_onboarding', None) != 'esperando_respuesta_modulo':
+        return False
+    ctx = estudiante.contexto_temporal or {}
+    tipo = ctx.get('tipo')
+    if tipo in ('pregunta_tutor_ia', 'pregunta_rag_ia'):
+        return not (
+            ctx.get('modulo_id')
+            and ctx.get('progreso_id')
+            and (ctx.get('pregunta_tutor') or ctx.get('pregunta_id'))
+        )
+    return not all([
+        ctx.get('modulo_id'),
+        ctx.get('pregunta_id'),
+        ctx.get('progreso_id'),
+    ])
+
+
+def recuperar_examen_modulo_vacio(estudiante) -> None:
+    """Saca al estudiante del mini-examen fantasma para que *listo* avance lección."""
+    ctx = estudiante.contexto_temporal or {}
+    keep = {}
+    curso_activo = ctx.get('curso_activo_id')
+    if curso_activo:
+        keep['curso_activo_id'] = curso_activo
+    estudiante.contexto_temporal = keep or None
+    estudiante.estado_onboarding = 'completado'
+    estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])

@@ -499,9 +499,15 @@ def partes_mensaje_paso(paso: PasoModulo, curso) -> list[str]:
     url = (paso.media_url or '').strip()
     body = (paso.contenido or '').strip()
     tail = _suffix_evaluacion_paso(paso)
+    if url and getattr(paso, 'media_wa_apto', None) is False:
+        logger.warning(
+            '📚 [pasos] omitiendo media no apta WA | paso_id=%s',
+            getattr(paso, 'id', None),
+        )
+        url = ''
     if not url:
         msg = (body + tail).strip()
-        return [msg if msg else '']
+        return [msg] if msg else []
     caption, rest = _split_media_caption_y_rest(body)
     if caption:
         bloque_media = parte_mensaje_con_media(url, caption)

@@ -303,9 +303,10 @@ def cmd_rollback_tres(args) -> int:
             'modulo_actual', 'paso_actual_modulo',
             'esperando_respuesta_evaluacion_paso', 'paso_evaluacion_paso', 'completado',
         ])
-        if est.estado_onboarding in ('curso_finalizado', 'completado'):
-            est.estado_onboarding = 'esperando_respuesta_modulo'
-            est.save(update_fields=['estado_onboarding'])
+        # *Listo* debe abrir lección, no un mini-examen sin pregunta_id.
+        from core.pregunta_handler import recuperar_examen_modulo_vacio
+
+        recuperar_examen_modulo_vacio(est)
 
     if dry:
         print('\n[DRY-RUN] Sin cambios. Para aplicar: rollback-tres --apply')
