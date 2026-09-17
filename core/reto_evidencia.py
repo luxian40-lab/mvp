@@ -9,8 +9,6 @@ from __future__ import annotations
 import logging
 import uuid
 
-import requests
-from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
@@ -35,19 +33,19 @@ def descargar_media_twilio(media_url: str) -> tuple[bytes | None, str]:
     """Descarga el media con credenciales Twilio. Devuelve (bytes, content_type)."""
     if not media_url:
         return None, ''
-    sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-    token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
     try:
-        resp = requests.get(media_url, auth=(sid, token), timeout=20)
-        resp.raise_for_status()
+        from core.twilio_inbound_media import descargar_bytes_twilio
+
+        contenido, ctype = descargar_bytes_twilio(media_url, timeout=20)
     except Exception as exc:
         logger.warning('[reto-evidencia] descarga falló: %s', exc)
         return None, ''
-    contenido = resp.content or b''
+    if not contenido:
+        return None, ''
     if len(contenido) > MAX_BYTES_EVIDENCIA:
         logger.warning('[reto-evidencia] imagen muy grande (%s bytes)', len(contenido))
-        return None, resp.headers.get('Content-Type', '')
-    return contenido, resp.headers.get('Content-Type', '')
+        return None, ctype
+    return contenido, ctype
 
 
 def guardar_evidencia(contenido: bytes, media_type: str, *, estudiante_id, curso_id) -> str:

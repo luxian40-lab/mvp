@@ -29,6 +29,7 @@ def test_mensaje_indica_listo_solo_explicito_corto():
     assert mensaje_indica_listo("listo") is True
     assert mensaje_indica_listo("*listo*") is True
     assert mensaje_indica_listo("ya listo") is True
+    assert mensaje_indica_listo("Listi") is True
     assert (
         mensaje_indica_listo("ya terminé el material y estoy listo para continuar") is False
     )

@@ -748,6 +748,27 @@ def serve_media_proxy(request, filename):
         return HttpResponseBadRequest("Archivo no encontrado o error en S3")
 
 
+def _audio_path_para_whisper(audio_path: str, mime_base: str) -> str:
+    """Ogg/opus de WhatsApp a wav si pydub/ffmpeg están; si no, el original."""
+    low = (mime_base or '').lower()
+    if not any(x in low for x in ('ogg', 'opus', 'amr', 'aac')):
+        return audio_path
+    try:
+        from pydub import AudioSegment
+
+        audio = AudioSegment.from_file(audio_path)
+        wav_path = audio_path.rsplit('.', 1)[0] + '_w.wav'
+        audio.export(wav_path, format='wav')
+        try:
+            os.remove(audio_path)
+        except OSError:
+            pass
+        return wav_path
+    except Exception as exc:
+        print(f"⚠️ Conversión audio→wav omitida: {exc}")
+        return audio_path
+
+
 def _transcribir_audio_twilio(media_url, media_type='audio/ogg'):
     """
     Transcribe un audio de Twilio.
@@ -762,15 +783,16 @@ def _transcribir_audio_twilio(media_url, media_type='audio/ogg'):
         str: Texto transcrito o None si falla
     """
     try:
-        # Obtener credenciales de Twilio para descargar el audio
-        account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-        auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-        
-        # Descargar el audio
-        response = requests.get(media_url, auth=(account_sid, auth_token))
-        response.raise_for_status()
-        
-        audio_size = len(response.content)
+        from core.twilio_inbound_media import descargar_bytes_twilio
+
+        audio_bytes, ctype_dl = descargar_bytes_twilio(media_url, timeout=25)
+        if not audio_bytes:
+            print("⚠️ Audio Twilio vacío tras descarga")
+            return None
+        if ctype_dl and (not media_type or media_type in ('', 'application/octet-stream')):
+            media_type = ctype_dl
+
+        audio_size = len(audio_bytes)
         print(f"🎤 Transcribiendo audio ({audio_size} bytes)...")
         
         # Guardar temporalmente con extensión acorde al MIME enviado por Twilio
@@ -790,8 +812,9 @@ def _transcribir_audio_twilio(media_url, media_type='audio/ogg'):
         suffix = suffix_map.get(mime_base, '.ogg')
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
-            tmp_file.write(response.content)
+            tmp_file.write(audio_bytes)
             audio_path = tmp_file.name
+        audio_path = _audio_path_para_whisper(audio_path, mime_base)
         
         try:
             # OPCIÓN 1: WHISPER (OpenAI — confiable en producción)
@@ -2062,7 +2085,9 @@ def _procesar_twilio_webhook(post_data):
         longitud_raw = post_data.get('Longitude')
         print(f"🎤 DEBUG AUDIO: NumMedia={num_media}, MediaType='{media_type}', MediaUrl={bool(media_url)}, Body='{msg_body[:30] if msg_body else ''}'", flush=True)
 
-        es_audio = num_media > 0 and ('audio' in media_type or 'ogg' in media_type)
+        from core.twilio_inbound_media import es_audio_inbound_twilio
+
+        es_audio = es_audio_inbound_twilio(num_media, media_type, media_url)
         # Imagen: puede ser evidencia de un reto de campo (se resuelve en esa rama).
         from core.reto_evidencia import es_imagen_soportada
 

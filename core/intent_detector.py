@@ -153,6 +153,8 @@ def detect_intent(mensaje: str) -> str:
 
 
 _AVANCE_CURSO_TRIGGERS = frozenset({'listo', 'continuar'})
+# Typos cortos vistos en campo (Yuli: «Listi»). Solo token único.
+_AVANCE_CURSO_TYPOS = frozenset({'listi', 'listoo', 'lsito'})
 
 
 def mensaje_indica_listo(mensaje: str) -> bool:
@@ -168,7 +170,7 @@ def mensaje_indica_listo(mensaje: str) -> bool:
     tokens = re.findall(r'\w+', t, flags=re.UNICODE)
     if not tokens:
         return False
-    if len(tokens) == 1 and tokens[0] in _AVANCE_CURSO_TRIGGERS:
+    if len(tokens) == 1 and tokens[0] in (_AVANCE_CURSO_TRIGGERS | _AVANCE_CURSO_TYPOS):
         return True
     if len(tokens) <= 4 and any(tok in _AVANCE_CURSO_TRIGGERS for tok in tokens):
         return True
