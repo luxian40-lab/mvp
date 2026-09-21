@@ -46,6 +46,7 @@ def _bodies_from_twilio_mock(create_mock):
     return bodies
 
 
+@patch('core.empleabilidad_pausa.EKI_EMPLEABILIDAD_PAUSADA', False)
 class EmpleabilidadPruebaSetupTests(TestCase):
     def setUp(self):
         self.cliente = Cliente.objects.create(
@@ -90,6 +91,7 @@ class EmpleabilidadPruebaSetupTests(TestCase):
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
+@patch('core.empleabilidad_pausa.EKI_EMPLEABILIDAD_PAUSADA', False)
 class EmpleabilidadListoBypassWebhookTests(TestCase):
     """Regresión: en radar el código no cae al gate *listo*; en curso normal *listo* sigue."""
 

@@ -81,9 +81,14 @@ class AdminPuentesFichaTests(TestCase):
         self.assertEqual(r.status_code, 200)
         body = r.content.decode('utf-8')
         self.assertIn('eki-id-band', body)
-        self.assertIn('Abrir Module Builder', body)
+        self.assertIn('Armar por partes', body)
         self.assertIn('Intro', body)
         self.assertIn(f'/admin/module-builder/{self.modulo.pk}/', body)
+        r_adv = self.client.get(
+            reverse('admin:core_modulo_change', args=[self.modulo.pk]) + '?avanzado=1'
+        )
+        self.assertEqual(r_adv.status_code, 200)
+        self.assertIn('Abrir Module Builder', r_adv.content.decode('utf-8'))
 
     def test_ficha_estudiante_puente_progreso_y_conv(self):
         self.client.force_login(self.user)

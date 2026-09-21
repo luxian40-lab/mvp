@@ -79,19 +79,21 @@ class RAGManager:
         cliente_id: int,
         curso_id: int,
         pregunta: str,
-        max_chars: int = 2000
+        max_chars: int = 2000,
+        uso: str | None = None,
     ) -> str:
         """
         Obtiene contexto RAG para inyectar en prompts de agentes.
         Retorna string vacío si RAG no disponible o sin documentos.
 
-        Se usa en ai_assistant.py y tutor_ia_modulo.py
+        uso=None/`todos` (default) no filtra — Course Engine, portal, chat.
+        uso=companero|claudia añade el pack del agente sin ocultar docs viejos.
         """
         rag = self.obtener_rag(cliente_id, curso_id)
         if not rag:
             return ""
         try:
-            return rag.obtener_contexto_rag(pregunta, max_chars=max_chars)
+            return rag.obtener_contexto_rag(pregunta, max_chars=max_chars, uso=uso)
         except Exception as e:
             logger.warning(f"[RAGManager] Error obteniendo contexto: {e}")
             return ""
@@ -125,14 +127,15 @@ class RAGManager:
         curso_id: int,
         ruta_archivo: str,
         nombre_documento: str,
-        tipo: str = "contenido"
+        tipo: str = "contenido",
+        uso: str = "todos",
     ) -> int:
         """Procesa un documento SOLO para este cliente+curso."""
         rag = self.obtener_rag(cliente_id, curso_id)
         if not rag:
             logger.warning("[RAGManager] ChromaDB no disponible, documento no indexado")
             return 0
-        return rag.procesar_documento(ruta_archivo, nombre_documento, tipo)
+        return rag.procesar_documento(ruta_archivo, nombre_documento, tipo, uso=uso)
 
     def procesar_texto(
         self,
@@ -140,13 +143,14 @@ class RAGManager:
         curso_id: int,
         texto: str,
         nombre_documento: str,
-        tipo: str = "contenido"
+        tipo: str = "contenido",
+        uso: str = "todos",
     ) -> int:
         """Indexa texto directo (contenido de módulo) para este cliente+curso."""
         rag = self.obtener_rag(cliente_id, curso_id)
         if not rag:
             return 0
-        return rag.procesar_texto_directo(texto, nombre_documento, tipo)
+        return rag.procesar_texto_directo(texto, nombre_documento, tipo, uso=uso)
 
     def indexar_modulos_curso(self, curso_id: int) -> int:
         """
@@ -166,7 +170,7 @@ class RAGManager:
             for modulo in curso.modulos.all():
                 if modulo.contenido:
                     nombre = f"modulo_{modulo.numero}_{modulo.titulo[:40]}"
-                    n = rag.procesar_texto_directo(modulo.contenido, nombre, tipo="modulo")
+                    n = rag.procesar_texto_directo(modulo.contenido, nombre, tipo="modulo", uso="todos")
                     total += n
 
             logger.info(f"[RAGManager] Indexados {total} chunks de {curso.modulos.count()} módulos para Curso {curso.nombre}")

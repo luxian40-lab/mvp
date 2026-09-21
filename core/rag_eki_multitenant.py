@@ -66,7 +66,8 @@ class RAGClienteCurso:
         self,
         ruta_archivo: str,
         nombre_documento: str,
-        tipo: str = "contenido"
+        tipo: str = "contenido",
+        uso: str = "todos",
     ) -> int:
         """
         Procesa un documento y lo indexa SOLO para este cliente+curso.
@@ -103,6 +104,7 @@ class RAGClienteCurso:
             metadatas.append({
                 "source": nombre_documento,
                 "tipo": tipo,
+                "uso": uso or "todos",
                 "chunk_num": i,
                 "cliente_id": self.cliente_id,
                 "curso_id": self.curso_id,
@@ -117,7 +119,8 @@ class RAGClienteCurso:
         self,
         texto: str,
         nombre_documento: str,
-        tipo: str = "contenido"
+        tipo: str = "contenido",
+        uso: str = "todos",
     ) -> int:
         """
         Indexa texto directo (ej: contenido de un módulo) sin archivo.
@@ -141,6 +144,7 @@ class RAGClienteCurso:
             metadatas.append({
                 "source": nombre_documento,
                 "tipo": tipo,
+                "uso": uso or "todos",
                 "chunk_num": i,
                 "cliente_id": self.cliente_id,
                 "curso_id": self.curso_id,
@@ -281,21 +285,28 @@ class RAGClienteCurso:
     # BÚSQUEDA (SOLO en este cliente+curso)
     # ==========================================
 
-    def buscar(self, pregunta: str, top_k: int = 3) -> List[Dict]:
+    def buscar(self, pregunta: str, top_k: int = 3, uso: str | None = None) -> List[Dict]:
         """
         Busca documentos relevantes SOLO en este cliente+curso.
 
-        Returns:
-            Lista de dicts: {contenido, fuente, tipo, similitud}
+        uso=None/`todos` no filtra (Course Engine). compañero/claudia filtra
+        en Python para no perder chunks viejos sin metadata `uso`.
         """
         try:
+            from core.rag_uso import filtrar_chunks_por_uso, normalizar_uso
+
             count = self.collection.count()
             if count == 0:
                 return []
 
+            uso_norm = normalizar_uso(uso) if uso else None
+            fetch_k = min(count, top_k)
+            if uso_norm and uso_norm != 'todos':
+                fetch_k = min(count, max(top_k * 3, 8))
+
             results = self.collection.query(
                 query_texts=[pregunta],
-                n_results=min(top_k, count)
+                n_results=fetch_k,
             )
 
             docs = []
@@ -304,13 +315,15 @@ class RAGClienteCurso:
                 results['metadatas'][0],
                 results['distances'][0]
             ):
+                meta = meta or {}
                 docs.append({
                     'contenido': doc,
                     'fuente': meta.get('source', ''),
                     'tipo': meta.get('tipo', ''),
+                    'uso': meta.get('uso', ''),
                     'similitud': round(1 - dist, 3) if dist <= 2 else 0
                 })
-            return docs
+            return filtrar_chunks_por_uso(docs, uso, limite=top_k)
 
         except Exception as e:
             logger.error(f"[RAG] Error buscando: {e}")
@@ -348,12 +361,14 @@ class RAGClienteCurso:
             logger.error("[RAG] Error muestreo_documentos: %s", e)
             return []
 
-    def obtener_contexto_rag(self, pregunta: str, max_chars: int = 2000) -> str:
+    def obtener_contexto_rag(
+        self, pregunta: str, max_chars: int = 2000, uso: str | None = None
+    ) -> str:
         """
         Obtiene contexto RAG formateado para inyectar en prompts de IA.
         Retorna string vacío si no hay documentos relevantes.
         """
-        docs = self.buscar(pregunta, top_k=3)
+        docs = self.buscar(pregunta, top_k=3, uso=uso)
         if not docs:
             return ""
 

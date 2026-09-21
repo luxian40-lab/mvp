@@ -73,7 +73,8 @@ class BloqueRetoWhatsappTests(TestCase):
     def test_cabecera_sin_emojis_y_reto_limpio(self):
         bloque = bloque_reto_whatsapp('Asesor', '🌱 Revise 10 colmenas 🐝.')
 
-        self.assertTrue(bloque.startswith('*Asesor*'))
+        self.assertTrue(bloque.startswith('Revise 10 colmenas'))
+        self.assertNotIn('*Asesor*', bloque)
         for emoji in ('🌱', '🐝', '📋', '✍️'):
             self.assertNotIn(emoji, bloque)
 
@@ -147,3 +148,6 @@ class RetoGeneradoSinEmojisTests(TestCase):
             for emoji in EMOJIS_FRECUENTES:
                 self.assertNotIn(emoji, texto)
         self.assertIn('Ana', msg_facilitador)
+        self.assertFalse(msg_facilitador.startswith('*Claudia*'), msg_facilitador[:40])
+        self.assertFalse(msg_asistente.startswith('*Darío*'), msg_asistente[:40])
+        self.assertIn('compañero de estudio', msg_asistente)

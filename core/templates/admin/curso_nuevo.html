@@ -5,11 +5,12 @@
 {% block eki_ops_content %}
 <div class="eki-cn" style="max-width:560px;margin:0 auto;">
   <header style="margin-bottom:1.25rem;">
-    <p style="margin:0 0 .35rem;font-size:.75rem;letter-spacing:.04em;text-transform:uppercase;color:#7A4E8E;font-weight:700;">Asistente</p>
+    <p style="margin:0 0 .35rem;font-size:.75rem;letter-spacing:.04em;text-transform:uppercase;color:#7A4E8E;font-weight:700;">Camino único</p>
     <h1 style="margin:0 0 .4rem;font-size:1.55rem;">Curso nuevo</h1>
     <p style="margin:0;color:#5c5668;font-size:.95rem;">
-      Nombre + organización + cuántos módulos. Luego abre el <strong>Module Builder</strong>
-      del primero para armar secciones y micros.
+      Nombre + organización + cuántos módulos. Luego abre el <strong>primer módulo</strong>
+      para subir la clase (texto + archivo). Si necesita micros y *listo*, ahí mismo
+      elige <strong>Armar por partes</strong>.
     </p>
   </header>
 
@@ -55,15 +56,15 @@
 
     <div style="display:flex;flex-wrap:wrap;gap:.6rem;margin-top:.4rem;">
       <button type="submit" style="background:#7A4E8E;color:#fff;border:0;border-radius:8px;padding:.6rem 1.1rem;font-weight:700;cursor:pointer;">
-        Crear y abrir Builder
+        Crear y abrir el primer módulo
       </button>
       <a href="{% url 'admin:core_curso_changelist' %}" style="align-self:center;color:#5c5668;font-size:.9rem;">Cancelar</a>
     </div>
   </form>
 
   <p style="margin:1rem 0 0;font-size:.82rem;color:#5c5668;">
-    Alternativa con IA: <a href="/admin/crear-curso-ia/">Crear curso IA</a>.
-    Admin denso: <a href="{% url 'admin:core_curso_add' %}">Añadir curso clásico</a>.
+    Avanzado (no es el día a día):
+    <a href="/admin/crear-curso-ia/">generar estructura con IA</a>.
   </p>
 </div>
 {% endblock %}

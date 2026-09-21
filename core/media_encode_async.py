@@ -167,11 +167,32 @@ def estado_encode_paso(paso_id: int, *, paso=None) -> dict | None:
     return None
 
 
+def estado_encode_modulo(modulo) -> dict | None:
+    """Primer encode pendiente/error del módulo (banner Clase). Error gana."""
+    from core.models import PasoModulo
+
+    if not modulo or not getattr(modulo, 'pk', None):
+        return None
+    worst = None
+    pasos = PasoModulo.objects.filter(modulo=modulo).order_by('orden', 'id')
+    for paso in pasos:
+        enc = estado_encode_paso(paso.pk, paso=paso)
+        if not enc:
+            continue
+        st = enc.get('status')
+        if st == 'error':
+            return enc
+        if st in ('pending', 'running') and worst is None:
+            worst = enc
+    return worst
+
+
 def mensaje_upload_media(resultado: dict) -> str:
     if resultado.get('async_encode'):
         return (
-            'Video recibido. Procesando en segundo plano (1–3 min): ffmpeg + optimización WhatsApp. '
-            'Refrescá la página (F5) para ver el semáforo en verde o el error concreto.'
+            'Video recibido. Los workers (2 instancias) lo comprimen para WhatsApp; '
+            'puede tardar varios minutos. El módulo sigue en borrador: no publiques '
+            'hasta el semáforo verde. F5 para ver el estado.'
         )
     url = (resultado.get('url') or '')[:120]
     suffix = '…' if len(resultado.get('url') or '') > 120 else ''

@@ -249,8 +249,10 @@ class ChecklistPublicacion:
 
 
 def _modulo_tiene_material_minimo(modulo: Modulo) -> bool:
-    from .module_steps import pasos_activos_qs
+    from .module_steps import modulo_usa_pasos, pasos_activos_qs
 
+    if modulo_usa_pasos(modulo):
+        return pasos_activos_qs(modulo).exists()
     if pasos_activos_qs(modulo).exists():
         return True
     if (modulo.contenido or '').strip():
@@ -275,9 +277,17 @@ def evaluar_checklist_publicacion_detalle(modulo: Modulo | None) -> ChecklistPub
     avisos: list[str] = []
 
     if not _modulo_tiene_material_minimo(modulo):
-        errores.append(
-            'Falta contenido: agregá pasos activos, texto legacy, video o archivos multimedia.'
-        )
+        from .module_steps import modulo_usa_pasos
+
+        if modulo_usa_pasos(modulo):
+            errores.append(
+                'Falta un microactivo: en Clase activá el material, o en Armar por partes '
+                'dejá al menos un paso activo. El texto legacy no cuenta en modo pasos.'
+            )
+        else:
+            errores.append(
+                'Falta contenido: agregá pasos activos, texto legacy, video o archivos multimedia.'
+            )
 
     from .module_structure import modulo_tiene_secciones_intercaladas, mensaje_error_intercalado
 
@@ -285,37 +295,67 @@ def evaluar_checklist_publicacion_detalle(modulo: Modulo | None) -> ChecklistPub
     if hall:
         errores.append(mensaje_error_intercalado(hall))
 
+    from django.conf import settings as dj_settings
+
     from .module_steps import pasos_activos_qs
+
+    require_media_qa = bool(getattr(dj_settings, 'PUBLICAR_MODULO_REQUIRE_MEDIA_QA', False))
 
     for paso in pasos_activos_qs(modulo):
         url = (paso.media_url or '').strip()
         if not url:
             continue
+        if paso.pk:
+            from core.media_encode_async import estado_encode_paso
+
+            enc = estado_encode_paso(paso.pk, paso=paso)
+            if enc:
+                st = enc.get('status')
+                tit_enc = (paso.titulo or '').strip() or 'sin título'
+                if st in ('pending', 'running'):
+                    errores.append(
+                        f'#{paso.orden or paso.pk} «{tit_enc}»: video aún procesándose en workers. '
+                        'Esperá el semáforo verde; no publiques todavía.'
+                    )
+                    continue
+                if st == 'error':
+                    err = (enc.get('error') or 'encode falló')[:180]
+                    errores.append(f'#{paso.orden or paso.pk} «{tit_enc}»: {err}')
+                    continue
         low = url.lower().split('?')[0]
         if not low.endswith(('.mp4', '.m4v', '.mov', '.mp3', '.m4a', '.ogg', '.wav')):
             continue
+        es_video_sin_qa = (
+            paso.media_wa_apto is None and low.endswith(('.mp4', '.m4v', '.mov'))
+        )
+        tit = (paso.titulo or '').strip() or 'sin título'
+        msg_sin_qa = (
+            f'#{paso.orden or paso.pk} «{tit}» (Materiales): '
+            f'aptitud WA sin verificar (recomendado auditar).'
+        )
         prob = detalle_problema_media_paso(paso)
         if prob:
             line = f"{prob['accion']}: {prob['detalle']}"
             if prob['codigo'] == 'fail':
                 errores.append(line)
+            elif require_media_qa and es_video_sin_qa:
+                errores.append(msg_sin_qa)
             else:
                 avisos.append(line)
             continue
         if paso.media_wa_apto is False:
             errores.append(_mensaje_checklist_media_paso(paso))
-        elif paso.media_wa_apto is None and low.endswith(('.mp4', '.m4v', '.mov')):
-            from django.conf import settings as dj_settings
-
-            tit = (paso.titulo or '').strip() or 'sin título'
-            msg = (
-                f'#{paso.orden or paso.pk} «{tit}» (Materiales): '
-                f'aptitud WA sin verificar (recomendado auditar).'
-            )
-            if getattr(dj_settings, 'PUBLICAR_MODULO_REQUIRE_MEDIA_QA', False):
-                errores.append(msg)
+        elif es_video_sin_qa:
+            if require_media_qa:
+                errores.append(msg_sin_qa)
             else:
-                avisos.append(msg)
+                avisos.append(msg_sin_qa)
+
+    from core.media_pasos_listos import mensaje_videos_wa_listos_inactivos
+
+    msg_inact = mensaje_videos_wa_listos_inactivos(modulo)
+    if msg_inact:
+        errores.append(msg_inact)
 
     return ChecklistPublicacion(ok=not errores, errores=errores, avisos=avisos)
 
@@ -329,6 +369,9 @@ def publicar_modulo_wa(
     snapshot_antes = snapshot_modulo_publicacion(modulo) if registrar_evento else {}
     from django.conf import settings as dj_settings
 
+    from core.media_pasos_listos import activar_pasos_video_wa_listos
+
+    activar_pasos_video_wa_listos(modulo)
     head = bool(getattr(dj_settings, 'PUBLICAR_MODULO_HEAD_QA', False))
     qa = validar_modulo_qa(modulo, head_urls=head)
     if not qa.ok:
@@ -377,6 +420,8 @@ def estado_media_paso(paso) -> tuple[str, str]:
     if apto is False:
         return 'fail', '🔴 No apto WA'
     if apto is True:
+        if not getattr(paso, 'activo', True):
+            return 'warn', '🟡 Listo WA pero inactivo — no se envía'
         return 'ok', '🟢 Apto WA'
     if low.endswith(('.mp4', '.m4v', '.mov')):
         return 'warn', '🟡 Sin verificar'
@@ -436,13 +481,19 @@ def detalle_problema_media_paso(paso) -> dict | None:
 
 
 def listar_problemas_media_modulo(modulo) -> list[dict]:
-    """Pasos activos con media WA en amarillo/rojo, ordenados por orden."""
-    from .module_steps import pasos_activos_qs
+    """Pasos con media WA en amarillo/rojo (incluye inactivos listos que no se envían)."""
+    from .models import PasoModulo
 
     if modulo is None:
         return []
     out: list[dict] = []
-    for paso in pasos_activos_qs(modulo).select_related('seccion').order_by('orden', 'id'):
+    qs = (
+        PasoModulo.objects.filter(modulo=modulo)
+        .exclude(media_url='')
+        .select_related('seccion')
+        .order_by('orden', 'id')
+    )
+    for paso in qs:
         prob = detalle_problema_media_paso(paso)
         if prob:
             out.append(prob)

@@ -12,6 +12,7 @@ from core.facilitador_perfil import (
     system_prompt_evaluacion_para_curso,
     system_prompt_reto_para_curso,
 )
+from core.rag_uso import USO_CLAUDIA, USO_COMPANERO
 
 logger = logging.getLogger(__name__)
 
@@ -194,6 +195,8 @@ def limpiar_plantilla_evaluacion(feedback: str) -> str:
 
 def bloque_reto_whatsapp(nombre_tutor: str, reto: str) -> str:
     """Mensaje del reto para WhatsApp: cabecera + reto + un solo cierre."""
+    from core.agentes_whatsapp import mensaje_con_titular_agente
+
     cuerpo = limpiar_emojis(reto or '').strip()
     anterior = None
     while anterior != cuerpo:
@@ -201,8 +204,8 @@ def bloque_reto_whatsapp(nombre_tutor: str, reto: str) -> str:
         recortado = _RE_CIERRE_RESPUESTA.sub('', cuerpo).strip()
         if recortado:
             cuerpo = recortado
-    encabezado = f'*{(nombre_tutor or "").strip()}*\n\n' if (nombre_tutor or '').strip() else ''
-    return f'{encabezado}{cuerpo}\n\n{PIE_RESPUESTA_RETO}'
+    cuerpo_con_pie = f'{cuerpo}\n\n{PIE_RESPUESTA_RETO}' if cuerpo else PIE_RESPUESTA_RETO
+    return mensaje_con_titular_agente(nombre_tutor, cuerpo_con_pie)
 
 
 def _quitar_encabezado_acciona(texto: str) -> str:
@@ -322,6 +325,14 @@ _INSTRUCCION_TIPO_RETO = {
     ),
 }
 
+# Si el instructor no cargó tipo/guía (Impulso 22 y similares): no dejar el reto a ciegas.
+RETO_TIPO_DEFAULT = 'aplicacion_practica'
+RETO_GUIA_DEFAULT = (
+    "Pida al estudiante aplicar lo visto en estos módulos a su vida, trabajo o comunidad. "
+    "UNA sola pregunta concreta: qué haría, cuándo y cómo sabría que funciona. "
+    "Anclar al contenido listado; no inventar otro tema ni tono de examen."
+)
+
 
 def _resumen_micros_modulo(modulo, limite: int = 4) -> str:
     """Títulos de pasos activos para anclar el reto al módulo, no a otro dominio."""
@@ -349,14 +360,14 @@ def _resumen_micros_modulo(modulo, limite: int = 4) -> str:
 def armar_guia_reto_para_prompt(curso=None, modulo_checkpoint=None) -> tuple[str, str]:
     """
     Une guía del módulo checkpoint (prioridad) + guía del curso.
+    Si no hay tipo ni guía del instructor, usa aplicación práctica + RETO_GUIA_DEFAULT.
     Devuelve (texto_para_prompt, tipo_reto_key).
     """
     partes: list[str] = []
     tipo = ''
+    guia_m = ''
     if modulo_checkpoint is not None:
         tipo = (getattr(modulo_checkpoint, 'tipo_reto_ia', None) or '').strip()
-        if not tipo:
-            tipo = modulo_checkpoint.TIPO_RETO_APLICACION
         guia_m = (getattr(modulo_checkpoint, 'reto_guia_ia', None) or '').strip()
         if guia_m:
             num = getattr(modulo_checkpoint, 'numero', '?')
@@ -377,6 +388,13 @@ def armar_guia_reto_para_prompt(curso=None, modulo_checkpoint=None) -> tuple[str
             else 'PREGUNTAS/RETOS EJEMPLO DEL INSTRUCTOR (prioridad absoluta; adaptar al curso)'
         )
         partes.append(f"{label}:\n{_quitar_encabezado_acciona(curso_ej)}")
+    if not tipo:
+        tipo = RETO_TIPO_DEFAULT
+    if not guia_m and not curso_ej:
+        partes.insert(
+            0,
+            'GUÍA POR DEFECTO (no hay guía del instructor):\n' + RETO_GUIA_DEFAULT,
+        )
     return '\n\n'.join(partes), tipo
 
 
@@ -447,7 +465,8 @@ def generar_reto_facilitador(
                 cliente_id=cliente_id,
                 curso_id=curso_rag.id,
                 pregunta=pregunta_rag,
-                max_chars=1200
+                max_chars=1200,
+                uso=USO_CLAUDIA,
             )
             logger.info(
                 "[reto] RAG curso_id=%s curso=%s modulos=%s chars=%s tipo=%s",
@@ -596,7 +615,8 @@ def evaluar_reto_facilitador(modulos_cubiertos, respuesta_estudiante, reto_origi
                 cliente_id=cliente_id,
                 curso_id=curso.id,
                 pregunta=respuesta_estudiante,
-                max_chars=1200
+                max_chars=1200,
+                uso=USO_CLAUDIA,
             )
     except Exception as e:
         logger.warning(f"[RAG] Error en evaluación reto: {e}")
@@ -712,7 +732,8 @@ def generar_respuesta_asistente(modulos_cubiertos, pregunta_estudiante,
                 cliente_id=cliente_id,
                 curso_id=curso.id,
                 pregunta=pregunta_estudiante,
-                max_chars=1200
+                max_chars=1200,
+                uso=USO_COMPANERO,
             )
     except Exception as e:
         logger.warning(f"[RAG] Error en asistente: {e}")
@@ -1073,30 +1094,33 @@ def generar_presentacion_agentes(
     )
 
     nombre_tutor = nombre_display_facilitador(curso, fallback=nombre_tutor or 'Claudia')
+    from core.agentes_whatsapp import mensaje_con_titular_agente
+
     if es_perfil_tecnicoagro(curso):
         rol = etiqueta_rol_facilitador(curso)
-        msg_facilitador = (
-            f"*¡Hola {estudiante_nombre}! Soy el {rol}*\n\n"
-            f"({nombre_tutor})\n\n"
+        cuerpo_fac = (
+            f"¡Hola {estudiante_nombre}! Soy el {rol} ({nombre_tutor}).\n\n"
             f"Seré su apoyo técnico en el curso *{curso_nombre}*. "
             f"Le plantearé micro-retos de campo para aplicar lo aprendido. "
             f"¡Vamos a aprender juntos!"
         )
     else:
-        msg_facilitador = (
-            f"*¡Hola {estudiante_nombre}! Soy la Facilitadora {nombre_tutor}*\n\n"
+        cuerpo_fac = (
+            f"¡Hola {estudiante_nombre}! Soy la Facilitadora {nombre_tutor}.\n\n"
             f"Seré su facilitadora a cargo en el curso *{curso_nombre}*. "
             f"Le plantearé retos prácticos para que aplique lo aprendido. "
             f"¡Vamos a aprender juntos!"
         )
+    msg_facilitador = mensaje_con_titular_agente(nombre_tutor, cuerpo_fac)
 
-    msg_asistente = (
-        f"*¡Y yo soy {nombre_asistente}, su compañero de estudio!*\n\n"
+    cuerpo_asist = (
+        f"¡Y yo soy {nombre_asistente}, su compañero de estudio!\n\n"
         f"Estaré pendiente de usted en este proceso. "
         f"Si tiene dudas antes de los retos, yo le ayudo a repasar. "
         f"¡Cuente conmigo!"
     )
-    
+    msg_asistente = mensaje_con_titular_agente(nombre_asistente, cuerpo_asist)
+
     return msg_facilitador, msg_asistente
 
 
@@ -1162,7 +1186,8 @@ def generar_pregunta_recuperacion(curso, modulos_completados, estudiante_nombre=
             cliente_id=cliente_id,
             curso_id=curso.id,
             pregunta="resumen general del curso para pregunta de recuperación",
-            max_chars=1000
+            max_chars=1000,
+            uso=USO_CLAUDIA,
         )
     except Exception as e:
         logger.warning(f"[RAG] Error en pregunta recuperación: {e}")

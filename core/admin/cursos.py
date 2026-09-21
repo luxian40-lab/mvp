@@ -196,8 +196,19 @@ def aplicar_clase_simple_desde_form(form, formsets=None) -> PasoModulo | None:
         (strict and 'clase_activo' in changed)
         or (not strict and 'clase_activo' in cd)
     )
-    if tocar_activo:
+    subio_media = bool(tocar_url and new_url)
+    quito_media = bool(tocar_url and not new_url)
+    if subio_media and not paso.activo:
+        paso.activo = True
+        update_fields.append('activo')
+    elif tocar_activo:
         activo = bool(cd.get('clase_activo'))
+        if (
+            not activo
+            and (paso.media_url or '').strip()
+            and not quito_media
+        ):
+            activo = True
         if activo != bool(paso.activo):
             paso.activo = activo
             update_fields.append('activo')
@@ -275,7 +286,7 @@ class DocumentoRAGInline(admin.StackedInline):
     verbose_name = '📄 Documento RAG'
     verbose_name_plural = 'DOCUMENTOS RAG — Base de Conocimiento para Agentes IA'
     readonly_fields = ('estado_badge', 'chunks_indexados', 'fecha_subida', 'fecha_indexado')
-    fields = ('nombre', 'archivo', 'tipo', 'descripcion', 'estado_badge', 'chunks_indexados', 'fecha_subida', 'fecha_indexado')
+    fields = ('nombre', 'archivo', 'tipo', 'uso_agente', 'descripcion', 'estado_badge', 'chunks_indexados', 'fecha_subida', 'fecha_indexado')
 
     def estado_badge(self, obj):
         if not obj.pk:
@@ -1153,8 +1164,16 @@ class PasoModuloForm(forms.ModelForm):
         return cleaned
 
     def save(self, commit=True):
+        prev_activo = False
+        if self.instance.pk:
+            prev_activo = bool(
+                PasoModulo.objects.filter(pk=self.instance.pk)
+                .values_list('activo', flat=True)
+                .first()
+            )
         instance = super().save(commit=False)
         pending = getattr(self, '_pending_media_url', None)
+        quito_media = bool(getattr(self, '_reset_media_wa', False))
         if pending:
             instance.media_url = pending
             apto = getattr(self, '_pending_media_wa_apto', None)
@@ -1162,8 +1181,14 @@ class PasoModuloForm(forms.ModelForm):
                 instance.media_wa_apto = bool(apto)
             elif pending:
                 instance.media_wa_apto = None
-        elif getattr(self, '_reset_media_wa', False):
+            from core.media_pasos_listos import activar_paso_por_subida_staff
+
+            activar_paso_por_subida_staff(instance)
+        elif quito_media:
             instance.media_wa_apto = None
+        elif prev_activo:
+            # Guardar sin tildar «activo» no apaga un video que ya estaba en ruta.
+            instance.activo = True
         if not instance.orden:
             instance.orden = 1
         if commit:
@@ -1786,7 +1811,12 @@ class ModuloAdmin(admin.ModelAdmin):
     autocomplete_fields = ('curso',)
     readonly_fields = ('guia_microcontenidos_whatsapp', 'course_engine_voz_preview')
     inlines = [SeccionModuloInline, PasoModuloInline]
-    actions = ['enviar_archivos_multimedia', 'ver_archivos_multimedia', 'renumerar_modulos']
+    actions = [
+        'enviar_archivos_multimedia',
+        'ver_archivos_multimedia',
+        'renumerar_modulos',
+        'activar_videos_wa_listos',
+    ]
     actions_detail = ['abrir_module_builder']
 
     def get_urls(self):
@@ -1806,6 +1836,11 @@ class ModuloAdmin(admin.ModelAdmin):
                 '<int:modulo_id>/validar-qa/',
                 self.admin_site.admin_view(self.validar_qa_modulo_view),
                 name='core_modulo_validar_qa',
+            ),
+            path(
+                '<int:modulo_id>/activar-videos-listos/',
+                self.admin_site.admin_view(self.activar_videos_listos_view),
+                name='core_modulo_activar_videos_listos',
             ),
             path(
                 '<int:modulo_id>/mover/<str:kind>/<int:obj_id>/<str:direction>/',
@@ -1862,6 +1897,41 @@ class ModuloAdmin(admin.ModelAdmin):
                 'No se pudo publicar: ' + '; '.join(errores[:3]),
             )
         return redirect('admin:core_modulo_change', modulo_id)
+
+    def activar_videos_listos_view(self, request, modulo_id):
+        from core.media_pasos_listos import activar_pasos_video_wa_listos, contar_videos_wa_listos_inactivos
+
+        modulo = Modulo.objects.select_related('curso').filter(pk=modulo_id).first()
+        if not modulo:
+            messages.error(request, 'Módulo no encontrado.')
+            return redirect('admin:core_modulo_changelist')
+        if not request.user.has_perm('core.change_modulo'):
+            messages.error(request, 'Sin permiso para activar videos.')
+            return redirect('admin:core_modulo_change', modulo_id)
+        n = activar_pasos_video_wa_listos(modulo)
+        queda = contar_videos_wa_listos_inactivos(modulo)
+        if n:
+            messages.success(
+                request,
+                f'Se activaron {n} video(s) listos para WhatsApp. El bot ya puede enviarlos.',
+            )
+        else:
+            messages.info(request, 'No había videos listos inactivos en este módulo.')
+        if queda:
+            messages.warning(request, f'Aún quedan {queda} video(s) inactivos.')
+        return redirect('admin:core_modulo_change', modulo_id)
+
+    @admin.action(description='Activar videos WA ya listos (inactivos)')
+    def activar_videos_wa_listos(self, request, queryset):
+        from core.media_pasos_listos import activar_pasos_video_wa_listos
+
+        total = 0
+        for modulo in queryset:
+            total += activar_pasos_video_wa_listos(modulo)
+        self.message_user(
+            request,
+            f'Se activaron {total} video(s) listos para WhatsApp.',
+        )
 
     def validar_qa_modulo_view(self, request, modulo_id):
         from core.modulo_publicacion import (
@@ -1971,6 +2041,12 @@ class ModuloAdmin(admin.ModelAdmin):
             }
             extra_context['eki_mod_media_problemas'] = media_problemas
             extra_context['eki_modo_clase'] = (modo == MODO_CLASE and not avanzado)
+            extra_context['eki_mod_avanzado_url'] = reverse(
+                'admin:core_modulo_change', args=[obj.pk]
+            ) + '?avanzado=1'
+            from core.media_encode_async import estado_encode_modulo
+
+            extra_context['eki_mod_encode'] = estado_encode_modulo(obj)
             extra_context['eki_mod_switch_clase_url'] = reverse(
                 'admin:core_modulo_change', args=[obj.pk]
             ) + '?modo=clase'
@@ -1979,6 +2055,12 @@ class ModuloAdmin(admin.ModelAdmin):
                 extra_context['eki_mod_switch_builder_url'] = reverse(
                     'admin:core_modulo_change', args=[obj.pk]
                 ) + '?modo=builder'
+            extra_context['eki_mod_activar_videos_url'] = reverse(
+                'admin:core_modulo_activar_videos_listos', args=[obj.pk]
+            )
+            from core.media_pasos_listos import contar_videos_wa_listos_inactivos
+
+            extra_context['eki_mod_n_videos_inactivos'] = contar_videos_wa_listos_inactivos(obj)
             from core.models import ModuloPublicacionEvent
 
             extra_context['eki_mod_pub_eventos'] = list(
@@ -2083,29 +2165,46 @@ class ModuloAdmin(admin.ModelAdmin):
         return instances
 
     def get_fieldsets(self, request, obj=None):
-        fieldsets = super().get_fieldsets(request, obj)
-        if obj is not None:
-            return fieldsets
-        # Alta: un solo bloque visible. El resto usa defaults del modelo (no POST vacío).
-        return (
-            (
-                'Clase',
-                {
-                    'fields': (
-                        'guia_microcontenidos_whatsapp',
-                        'modo_creacion',
-                        'curso',
-                        'numero',
-                        'titulo',
-                        'clase_texto',
-                        'clase_archivo',
-                        'clase_url',
-                        'clase_media_actual',
-                        'clase_activo',
-                    ),
-                },
-            ),
-        )
+        from core.modulo_authoring_mode import MODO_CLASE, resolver_modo_desde_request
+
+        if obj is None:
+            # Alta: un solo bloque visible. El resto usa defaults del modelo (no POST vacío).
+            return (
+                (
+                    'Clase',
+                    {
+                        'fields': (
+                            'guia_microcontenidos_whatsapp',
+                            'modo_creacion',
+                            'curso',
+                            'numero',
+                            'titulo',
+                            'clase_texto',
+                            'clase_archivo',
+                            'clase_url',
+                            'clase_media_actual',
+                            'clase_activo',
+                        ),
+                    },
+                ),
+            )
+        avanzado = request.GET.get('avanzado') == '1' or request.GET.get('legacy') == '1'
+        modo = resolver_modo_desde_request(request, obj.pk, default=MODO_CLASE)
+        if modo == MODO_CLASE and not avanzado:
+            return self._fieldsets_modo_clase()
+        return super().get_fieldsets(request, obj)
+
+    def _fieldsets_modo_clase(self):
+        """Clase abierta; Course Engine / más opciones colapsados (siguen en el POST)."""
+        out = []
+        for name, opts in self.fieldsets:
+            opts = dict(opts)
+            classes = [c for c in (opts.get('classes') or []) if c != 'tab']
+            if name != 'Clase' and 'collapse' not in classes:
+                classes.append('collapse')
+            opts['classes'] = tuple(classes)
+            out.append((name, opts))
+        return tuple(out)
 
     def render_change_form(self, request, context, add=False, change=False, form_url='', obj=None):
         """El campo que falla puede estar en una pestaña cerrada o en un inline:
@@ -2148,6 +2247,8 @@ class ModuloAdmin(admin.ModelAdmin):
         return detalles
 
     def save_model(self, request, obj, form, change):
+        if not change:
+            obj.publicado_wa = False
         if not (obj.descripcion or '').strip():
             obj.descripcion = (obj.titulo or 'Módulo').strip() or 'Módulo'
         super().save_model(request, obj, form, change)
@@ -2173,7 +2274,7 @@ class ModuloAdmin(admin.ModelAdmin):
                     bits.append(f'{created["pasos"]} micro(s)')
                 self.message_user(
                     request,
-                    'Plantilla: ' + ' + '.join(bits) + '. Complete la pestaña Clase (archivo + activar).',
+                    'Plantilla: ' + ' + '.join(bits) + '. En Clase: archivo → Activar → Guardar.',
                     level=messages.INFO,
                 )
         paso = aplicar_clase_simple_desde_form(form, formsets=formsets)
@@ -2263,37 +2364,23 @@ class ModuloAdmin(admin.ModelAdmin):
 
     @admin.display(description='')
     def guia_microcontenidos_whatsapp(self, obj):
-        """Guía Clase simple + prefs para JS (tab por defecto) + link Module Builder."""
-        from core.module_builder import module_builder_habilitado_para_curso
-
+        """Guía Clase simple + prefs para JS (tab por defecto)."""
         prefer = '1'
         modo_clases = '0'
-        builder_html = ''
         if obj and obj.pk and obj.curso_id:
             modo_clases = '1' if obj.curso.es_modo_clases() else '0'
             prefer = '1' if (obj.curso.es_modo_clases() or obj.pasos.count() <= 1) else '0'
-            if module_builder_habilitado_para_curso(obj.curso, None):
-                builder_html = (
-                    f'<p class="eki-modulo-guia__line">'
-                    f'<a href="/admin/module-builder/{obj.pk}/" style="font-weight:700;color:#7A4E8E;">'
-                    f'→ Abrir Module Builder (secciones + micros)</a>'
-                    f' · camino recomendado. Mini examen y media extra: Module Builder. '
-                    f'Media legacy: '
-                    f'<a href="/admin/core/archivomodulo/?modulo__id__exact={obj.pk}">listado de archivos</a>. '
-                    f'El clásico abajo es solo bloques y materiales.</p>'
-                )
         return format_html(
             '<div class="eki-modulo-guia" id="eki-modulo-prefs" '
             'data-default-tab="clase" data-prefer-simple="{}" data-modo-clases="{}">'
-            '{}'
             '<p class="eki-modulo-guia__line">'
-            '<b>Subir:</b> elija archivo → Active → <b>Guardar</b>. '
-            'Varios materiales: pestañas Estructura + Materiales (el drag se mantiene).'
+            '<b>Subir:</b> archivo → Active → <b>Guardar</b>. '
+            'El video lo comprimen 2 workers; puede tardar varios minutos. '
+            'No publiques hasta el semáforo verde. Varios micros: «Armar por partes».'
             '</p>'
             '</div>',
             prefer,
             modo_clases,
-            mark_safe(builder_html),
         )
 
     def save_formset(self, request, form, formset, change):

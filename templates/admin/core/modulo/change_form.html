@@ -16,9 +16,24 @@
     <strong>Modo: clase rápida.</strong>
     Subí material, activá y Guardá. El checklist de WhatsApp está abajo.
     {% if eki_mod_switch_builder_url %}
-    · <a href="{{ eki_mod_switch_builder_url }}">Cambiar a armar por partes (Builder)</a>
+    · <a href="{{ eki_mod_switch_builder_url }}">Armar por partes</a>
+    {% endif %}
+    {% if eki_mod_avanzado_url %}
+    · <a href="{{ eki_mod_avanzado_url }}">Avanzado (drip, examen, video IA)</a>
     {% endif %}
 </p>
+{% if eki_mod_encode and eki_mod_encode.status %}
+<p class="eki-inlines-intro" data-eki-encode="{{ eki_mod_encode.status }}">
+    {% if eki_mod_encode.status == 'pending' or eki_mod_encode.status == 'running' %}
+    <strong>Video en proceso.</strong>
+    Los workers lo comprimen para WhatsApp; puede tardar varios minutos.
+    No recargues en loop ni publiques todavía. F5 cuando quieras ver el semáforo.
+    {% elif eki_mod_encode.status == 'error' %}
+    <strong>El video no quedó listo.</strong>
+    {{ eki_mod_encode.error|default:"Volvé a exportar MP4 H.264+AAC ≤16 MB." }}
+    {% endif %}
+</p>
+{% endif %}
 {% elif original %}
 <p class="eki-inlines-intro">
     <strong>Modo avanzado.</strong>
@@ -129,6 +144,9 @@
         <li class="eki-pub-check eki-pub-check--warn">⚠ {{ av }}</li>
         {% endfor %}
     </ul>
+    {% if eki_mod_n_videos_inactivos %}
+    <a class="eki-pub-row__btn eki-pub-row__btn--lg" href="{{ eki_mod_activar_videos_url }}">Activar {{ eki_mod_n_videos_inactivos }} video(s) listos ▶</a>
+    {% endif %}
     {% if not eki_mod_publicacion.publicado %}
     <a class="eki-pub-row__btn eki-pub-row__btn--ghost" href="{{ eki_mod_publicacion.validar_qa_url }}">Validar QA (HEAD S3) ✓</a>
     <a class="eki-pub-row__btn eki-pub-row__btn--lg" href="{{ eki_mod_publicacion.publicar_url }}">Publicar módulo ▶</a>

@@ -354,16 +354,6 @@ UNFOLD = {
                         "link": "/admin/gei/panel/",
                     },
                     {
-                        "title": _("Curso nuevo"),
-                        "icon": "add_circle",
-                        "link": "/admin/curso-nuevo/",
-                    },
-                    {
-                        "title": _("Crear curso IA"),
-                        "icon": "auto_awesome",
-                        "link": "/admin/crear-curso-ia/",
-                    },
-                    {
                         "title": _("Aula web"),
                         "icon": "laptop",
                         "link": "/admin/aula-web/",

@@ -1,8 +1,11 @@
 """Tests for Twilio media helpers (sin links S3 en WhatsApp)."""
+from unittest.mock import patch
+
 from django.test import SimpleTestCase, TestCase
 
 from core.models import WhatsappLog
 from core.twilio_media import (
+    _es_url_audio_o_imagen,
     cuerpo_con_enlace_archivo,
     codigo_error_twilio_desde_detalle,
     es_error_media_twilio,
@@ -12,6 +15,7 @@ from core.twilio_media import (
     mensaje_log_con_media,
     normalizar_media_url_s3,
     optimizar_mp4_bytes_whatsapp,
+    persistir_media_paso_whatsapp,
     url_no_es_media_directo,
 )
 
@@ -169,3 +173,46 @@ class TwilioMediaCallbackFallbackTests(TestCase):
         self.assertEqual(log.estado, 'UNDELIVERED')
         self.assertIn('63021', log.error_detalle or '')
         self.assertIn('RETRY:1', log.error_detalle or '')
+
+
+class PersistirMediaPasoWhatsappTests(TestCase):
+    def setUp(self):
+        from core.models import Cliente, Curso, Modulo, PasoModulo, SeccionModulo
+
+        cli = Cliente.objects.create(nombre='QA Media Impulso', activo=True)
+        curso = Curso.objects.create(nombre='Impulso QA media', cliente=cli, activo=True)
+        mod = Modulo.objects.create(curso=curso, numero=10, titulo='HV', contenido='x')
+        sec = SeccionModulo.objects.create(modulo=mod, orden=1, titulo='S')
+        self.paso = PasoModulo.objects.create(
+            modulo=mod,
+            seccion=sec,
+            orden=1,
+            titulo='cv',
+            contenido='',
+            media_url='https://eki-produccion.s3.us-east-2.amazonaws.com/media/cv.pdf',
+            media_wa_apto=None,
+            activo=True,
+        )
+
+    def test_pdf_y_mp3_entran_en_correccion_mime(self):
+        self.assertTrue(_es_url_audio_o_imagen('https://x/file.mp3'))
+        self.assertTrue(_es_url_audio_o_imagen('https://x/cv.pdf'))
+
+    @patch('core.twilio_media.preparar_url_media_whatsapp')
+    def test_persistir_marca_apto_y_actualiza_url(self, mock_prep):
+        ready = 'https://eki-produccion.s3.us-east-2.amazonaws.com/media/whatsapp_ready/cv.pdf'
+        mock_prep.return_value = ready
+        ok, msg = persistir_media_paso_whatsapp(self.paso)
+        self.paso.refresh_from_db()
+        self.assertTrue(ok, msg)
+        self.assertTrue(self.paso.media_wa_apto)
+        self.assertEqual(self.paso.media_url, ready)
+
+    @patch('core.twilio_media.preparar_url_media_whatsapp')
+    def test_persistir_no_marca_apto_si_no_preparable(self, mock_prep):
+        mock_prep.return_value = None
+        ok, msg = persistir_media_paso_whatsapp(self.paso)
+        self.paso.refresh_from_db()
+        self.assertFalse(ok)
+        self.assertIsNone(self.paso.media_wa_apto)
+        self.assertIn('no preparable', msg)

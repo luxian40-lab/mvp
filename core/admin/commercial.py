@@ -427,8 +427,8 @@ class DocumentoRAGAdmin(admin.ModelAdmin):
     Multi-Tenant: cada documento está aislado por Cliente + Curso.
     """
     form = DocumentoRAGAdminForm
-    list_display = ('nombre', 'curso_link', 'cliente_display', 'tipo_badge', 'estado_rag_badge', 'chunks_indexados', 'fecha_subida')
-    list_filter = ('estado', 'tipo', 'curso__cliente', 'curso')
+    list_display = ('nombre', 'curso_link', 'cliente_display', 'tipo_badge', 'uso_agente', 'estado_rag_badge', 'chunks_indexados', 'fecha_subida')
+    list_filter = ('estado', 'tipo', 'uso_agente', 'curso__cliente', 'curso')
     search_fields = ('nombre', 'descripcion', 'curso__nombre', 'curso__cliente__nombre')
     list_per_page = 50
     ordering = ('-fecha_subida',)
@@ -437,8 +437,8 @@ class DocumentoRAGAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('📄 Documento', {
-            'fields': ('curso', 'nombre', 'archivo', 'archivo_segundo', 'tipo', 'descripcion'),
-            'description': 'Si dejás "Nombre" vacío al subir archivo, se usa el nombre del archivo (sin extensión). Podés adjuntar un segundo archivo en la misma carga.',
+            'fields': ('curso', 'nombre', 'archivo', 'archivo_segundo', 'tipo', 'uso_agente', 'descripcion'),
+            'description': 'Si dejás "Nombre" vacío al subir archivo, se usa el nombre del archivo (sin extensión). Podés adjuntar un segundo archivo en la misma carga. Uso: todos = Course Engine y agentes; compañero/Claudia = extra, no reemplaza.',
         }),
         ('🤖 Estado RAG', {
             'fields': ('estado', 'chunks_indexados', 'fecha_subida', 'fecha_indexado', 'subido_por'),
@@ -495,6 +495,7 @@ class DocumentoRAGAdmin(admin.ModelAdmin):
                 nombre=n2,
                 archivo=arch2,
                 tipo=obj.tipo,
+                uso_agente=getattr(obj, 'uso_agente', None) or 'todos',
                 descripcion=obj.descripcion or '',
                 subido_por=request.user,
                 estado='pendiente',

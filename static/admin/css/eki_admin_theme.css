@@ -699,14 +699,16 @@ body.sidebar-collapse .change-form .col-lg-9 {
     flex: 1 1 180px;
 }
 
-.eki-inlines-intro {
-    margin: 0 0 1rem;
-    padding: 0.65rem 0.9rem;
-    font-size: 0.8125rem;
-    color: var(--eki-muted);
-    background: var(--eki-surface-2);
-    border-left: 3px solid var(--eki-accent);
-    border-radius: 0 var(--eki-radius-sm) var(--eki-radius-sm) 0;
+.eki-inlines-intro[data-eki-encode="pending"],
+.eki-inlines-intro[data-eki-encode="running"] {
+  border-left-color: #f57f17;
+  background: #fff8e1;
+  color: #5d4037;
+}
+.eki-inlines-intro[data-eki-encode="error"] {
+  border-left-color: #c62828;
+  background: #ffebee;
+  color: #4a1515;
 }
 
 /* —— Marca morada en botones y acentos Bootstrap —— */

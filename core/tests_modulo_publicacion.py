@@ -81,8 +81,8 @@ class ModuloPublicacionHelpersTests(TestCase):
             media_wa_apto=None,
         )
         ok, errs = publicar_modulo_wa(self.m2)
-        self.assertFalse(ok)
-        self.assertTrue(any('QA media' in e for e in errs))
+        self.assertFalse(ok, errs)
+        self.assertTrue(any('sin verificar' in e.lower() for e in errs), errs)
 
     def test_campana_bloqueada_si_m1_no_publicado(self):
         self.m1.publicado_wa = False
@@ -245,3 +245,66 @@ class ModoClasesExentoTests(TestCase):
         )
         ok, _ = curso_listo_para_campana_wa(curso)
         self.assertTrue(ok)
+
+
+class ChecklistPasosYEncodeTests(TestCase):
+    def setUp(self):
+        self.cliente = Cliente.objects.create(nombre='QA checklist', activo=True)
+        self.curso = Curso.objects.create(
+            nombre='Curso checklist',
+            cliente=self.cliente,
+            activo=True,
+        )
+        self.mod = Modulo.objects.create(
+            curso=self.curso,
+            numero=1,
+            titulo='M1',
+            descripcion='d',
+            contenido='TEXTO_LEGACY_NO_CUENTA',
+            modo_entrega=Modulo.MODO_ENTREGA_PASOS,
+            publicado_wa=False,
+        )
+        self.sec = SeccionModulo.objects.create(modulo=self.mod, orden=1, titulo='S1')
+
+    def test_pasos_inactivos_no_alcanzan_aunque_haya_contenido(self):
+        from core.modulo_publicacion import evaluar_checklist_publicacion_detalle
+
+        PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=self.sec,
+            orden=1,
+            titulo='Borrador',
+            contenido='x',
+            activo=False,
+        )
+        chk = evaluar_checklist_publicacion_detalle(self.mod)
+        self.assertFalse(chk.ok)
+        self.assertTrue(any('microactivo' in e.lower() or 'paso' in e.lower() for e in chk.errores), chk.errores)
+
+    def test_encode_pending_bloquea_publicar(self):
+        from django.core.cache import cache
+
+        from core.media_encode_async import media_encode_paso_key
+        from core.modulo_publicacion import publicar_modulo_wa
+
+        paso = PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=self.sec,
+            orden=1,
+            titulo='Video',
+            contenido='clip',
+            media_url='https://s3.example/incoming/x.mp4',
+            media_wa_apto=None,
+            activo=True,
+        )
+        cache.set(
+            media_encode_paso_key(paso.pk),
+            {'status': 'pending', 'paso_id': paso.pk},
+            60,
+        )
+        try:
+            ok, errs = publicar_modulo_wa(self.mod)
+            self.assertFalse(ok)
+            self.assertTrue(any('proces' in e.lower() or 'workers' in e.lower() for e in errs), errs)
+        finally:
+            cache.delete(media_encode_paso_key(paso.pk))

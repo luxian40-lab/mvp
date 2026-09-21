@@ -1720,4 +1720,17 @@ body.model-modulo .object-tools {
   gap: 0.45rem 0.65rem;
 }
 
+/* Espera honesta de encode (2 workers); no parece un error de UI */
+body.model-modulo .eki-inlines-intro[data-eki-encode="pending"],
+body.model-modulo .eki-inlines-intro[data-eki-encode="running"] {
+  border-left: 3px solid #f57f17;
+  background: #fff8e1;
+  color: #5d4037;
+}
+body.model-modulo .eki-inlines-intro[data-eki-encode="error"] {
+  border-left: 3px solid #c62828;
+  background: #ffebee;
+  color: #4a1515;
+}
+
 

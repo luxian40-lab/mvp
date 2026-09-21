@@ -1763,6 +1763,20 @@ class DocumentoRAG(models.Model):
         default='contenido',
         verbose_name='Tipo de documento'
     )
+    uso_agente = models.CharField(
+        max_length=20,
+        choices=[
+            ('todos', 'Todos los agentes (compartido)'),
+            ('companero', 'Extra compañero (Darío / Carlos)'),
+            ('claudia', 'Extra Claudia (facilitadora)'),
+        ],
+        default='todos',
+        verbose_name='Uso del documento',
+        help_text=(
+            'todos = Course Engine y todos los agentes edu. '
+            'companero/claudia = extra encima de todos, no oculta el material compartido.'
+        ),
+    )
     estado = models.CharField(
         max_length=20,
         choices=ESTADO_CHOICES,
@@ -1844,7 +1858,8 @@ class DocumentoRAG(models.Model):
                 curso_id=self.curso_id,
                 ruta_archivo=ruta,
                 nombre_documento=self.nombre,
-                tipo=self.tipo
+                tipo=self.tipo,
+                uso=getattr(self, 'uso_agente', None) or 'todos',
             )
             self.chunks_indexados = n_chunks
             self.estado = 'indexado' if n_chunks > 0 else 'error'

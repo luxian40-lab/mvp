@@ -199,6 +199,35 @@ class ModuloAltaMicrocontenidosTests(TestCase):
         fields = fs[0][1]['fields']
         self.assertIn('modo_creacion', fields)
         self.assertIn('titulo', fields)
+        self.assertEqual(len(fs), 1)
+
+    def test_fieldsets_clase_colapsa_avanzado_sin_quitar_drip(self):
+        """Anti-wipe: Clase abierta; CE/más opciones collapse (siguen en el POST)."""
+        from core.modulo_authoring_mode import MODO_CLASE, set_modulo_modo
+
+        mod = Modulo.objects.create(
+            curso=self.curso,
+            numero=7,
+            titulo='Clase fieldsets',
+            descripcion='d',
+            contenido='x',
+        )
+        req = self.rf.get(f'/admin/core/modulo/{mod.pk}/change/', {'modo': 'clase'})
+        req.user = self.user
+        setattr(req, 'session', {})
+        set_modulo_modo(req, mod.pk, MODO_CLASE)
+        fs = self.admin.get_fieldsets(req, mod)
+        names = [n for n, _ in fs]
+        self.assertIn('Clase', names)
+        self.assertIn('Course Engine', names)
+        self.assertIn('Más opciones', names)
+        by_name = {n: opts for n, opts in fs}
+        self.assertNotIn('tab', by_name['Clase'].get('classes') or [])
+        self.assertIn('collapse', by_name['Course Engine'].get('classes') or [])
+        self.assertIn('collapse', by_name['Más opciones'].get('classes') or [])
+        mas = by_name['Más opciones']['fields']
+        self.assertIn('publicado_wa', mas)
+        self.assertIn('habilitado_desde', mas)
 
     @override_settings(SECURE_SSL_REDIRECT=False)
     def test_alta_html_muestra_campos_no_solo_intro(self):
@@ -433,11 +462,17 @@ class ModuloAltaMicrocontenidosTests(TestCase):
         mod = Modulo.objects.get(titulo='Alta happy path')
         self.assertEqual(mod.curso_id, self.curso.pk)
         self.assertTrue((mod.descripcion or '').strip())
+        self.assertFalse(mod.publicado_wa)
         self.assertIn('modo=clase', r.url)
         # Tras crear, la ficha change no debe 500 (Unfold actions_detail + @action).
         follow = self.client.get(r.url)
         self.assertEqual(follow.status_code, 200, msg=follow.content[:400])
         self.assertContains(follow, 'Alta happy path')
+        self.assertContains(follow, 'Armar por partes')
+        self.assertContains(follow, 'Avanzado (drip, examen, video IA)')
+        self.assertContains(follow, 'name="habilitado_desde"')
+        self.assertContains(follow, 'name="publicado_wa"')
+        self.assertNotContains(follow, 'camino recomendado')
 
     @override_settings(SECURE_SSL_REDIRECT=False)
     def test_alta_minima_curso_numero_titulo_sin_texto_dummy(self):
@@ -456,6 +491,7 @@ class ModuloAltaMicrocontenidosTests(TestCase):
             body = r.content.decode('utf-8')
             self.fail('Alta mínima rechazada: ' + body[body.find('error'):body.find('error') + 400])
         self.assertTrue(Modulo.objects.filter(titulo='Alta minima', numero=88).exists())
+        self.assertFalse(Modulo.objects.get(titulo='Alta minima', numero=88).publicado_wa)
         self.assertNotIn('module-builder', r.url)
 
     def test_jump_js_filtra_errornote_generico(self):

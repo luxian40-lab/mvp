@@ -276,6 +276,15 @@ class CourseBundleGenerator:
         result.costo_real_usd = round(costo_real, 2)
         result.manifest_path = self._write_manifest(run_dir, result, lesson.titulo, brief)
         result.pasos.append(f'Bundle OK — ${result.costo_real_usd:.2f} real (parcial video+extras)')
+        if modulo and not dry_run and result.assets:
+            from core.course_engine.adjuntar_pasos import adjuntar_assets_ce_a_modulo
+
+            n_adj = adjuntar_assets_ce_a_modulo(modulo, result.assets, activo=False)
+            if n_adj:
+                result.pasos.append(
+                    f'{n_adj} micro(s) en borrador (inactivos). Revisá y publicá en admin; '
+                    'el video puede seguir procesándose en workers.'
+                )
         return result
 
     def _write_manifest(

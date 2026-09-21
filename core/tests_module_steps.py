@@ -65,6 +65,30 @@ class ModuleStepsModelTests(TestCase):
         self.assertFalse(modulo_tiene_pasos_activos(self.mod))
         self.assertFalse(modulo_usa_pasos(self.mod))
 
+    def test_texto_legacy_vacio_si_usa_pasos(self):
+        from core.module_steps import texto_legacy_whatsapp
+
+        s1 = _seccion(self.mod, 1)
+        PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=s1,
+            orden=1,
+            titulo='micro',
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido='SOLO_EL_MICRO',
+            activo=True,
+        )
+        self.mod.modo_entrega = Modulo.MODO_ENTREGA_PASOS
+        self.mod.save(update_fields=['modo_entrega'])
+        self.assertEqual(texto_legacy_whatsapp(self.mod), '')
+
+    def test_texto_legacy_devuelve_contenido_si_legacy(self):
+        from core.module_steps import texto_legacy_whatsapp
+
+        self.mod.modo_entrega = Modulo.MODO_ENTREGA_LEGACY
+        self.mod.save(update_fields=['modo_entrega'])
+        self.assertIn('Contenido legacy', texto_legacy_whatsapp(self.mod))
+
     def test_modulo_usa_pasos_legacy_falso_aunque_haya_filas(self):
         s1 = _seccion(self.mod, 1)
         PasoModulo.objects.create(
@@ -1020,7 +1044,7 @@ class SectionBatchTests(TestCase):
 
 
 class InscripcionModuloCeroConPasosTests(TestCase):
-    """Módulo 0 con pasos: el contenido del módulo debe enviarse junto a la inscripción."""
+    """Módulo 0 con pasos: el runtime envía micros, no el dump legacy de contenido."""
 
     def setUp(self):
         self.curso = Curso.objects.create(
@@ -1068,9 +1092,8 @@ class InscripcionModuloCeroConPasosTests(TestCase):
             estudiante_id=self.est.id,
             mensaje_original='1',
         )
-        self.assertIn('CONTENIDO_EDUCATIVO_MODULO_CERO', r)
+        self.assertNotIn('CONTENIDO_EDUCATIVO_MODULO_CERO', r)
         self.assertIn('TEXTO_MICRO_PASO', r)
-        self.assertIn('📖 *0.', r)
 
 
 class InscripcionConPasosSinContenidoModuloMuestraAgentesTests(TestCase):
@@ -1273,7 +1296,8 @@ class CheckpointIgnoraDripFinModulo1Tests(TestCase):
         )
         self.assertNotIn('Tu próxima lección se desbloquea el', r)
         self.assertIn('pausa para repasar', r.lower())
-        self.assertIn('Darío', r)
+        self.assertFalse(r.lstrip().startswith('*Darío*'), r[:80])
+        self.assertTrue('¡hola!' in r.lower() or 'hola!' in r.lower(), r[:120])
 
         self.est.refresh_from_db()
         self.assertEqual(self.est.estado_onboarding, 'esperando_respuesta_asistente')

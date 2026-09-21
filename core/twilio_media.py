@@ -695,6 +695,7 @@ def _es_url_audio_o_imagen(url: str) -> bool:
     return ext in {
         'mp3', 'mpeg', 'ogg', 'opus', 'm4a', 'aac', 'wav',
         'jpg', 'jpeg', 'png', 'gif', 'webp',
+        'pdf',
     }
 
 
@@ -885,3 +886,26 @@ def preparar_url_media_whatsapp(url: Optional[str]) -> Optional[str]:
 
     logger.info('🎬 MP4 ya apto WA; sin re-encode | bytes=%s', len(raw))
     return clean
+
+
+def persistir_media_paso_whatsapp(paso) -> tuple[bool, str]:
+    """
+    Prepara la URL del paso para WhatsApp y marca media_wa_apto=True si sale URL usable.
+    No marca apto si preparar falla (video irrecuperable / sin URL).
+    """
+    url = (getattr(paso, 'media_url', None) or '').strip()
+    if not url:
+        return False, 'sin url'
+    prepared = preparar_url_media_whatsapp(url)
+    if not prepared:
+        return False, 'no preparable'
+    fields = ['media_wa_apto']
+    if prepared != url:
+        paso.media_url = prepared
+        fields.append('media_url')
+    paso.media_wa_apto = True
+    from core.media_pasos_listos import activar_paso_por_subida_staff
+
+    fields.extend(activar_paso_por_subida_staff(paso))
+    paso.save(update_fields=list(dict.fromkeys(fields)))
+    return True, prepared

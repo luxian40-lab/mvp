@@ -7,7 +7,6 @@ from typing import Any
 from django.db.models import Q
 
 from core.modulo_publicacion import _head_url_ok
-from core.module_steps import pasos_activos_qs
 from core.models import Curso, Modulo, PasoModulo
 
 _MEDIA_EXT = ('.mp4', '.m4v', '.mov', '.mp3', '.m4a', '.jpg', '.jpeg', '.png', '.pdf', '.webp')
@@ -95,12 +94,20 @@ def auditar_media_cursos(
         cur_key = f'{curso.id}:{curso.nombre}'
         resumen.por_curso[cur_key] = {'fail': 0, 'warn': 0, 'ok': 0}
         for mod in Modulo.objects.filter(curso=curso).order_by('numero', 'id'):
-            for paso in pasos_activos_qs(mod):
+            pasos_mod = PasoModulo.objects.filter(modulo=mod).order_by('orden', 'id')
+            for paso in pasos_mod:
                 url = (paso.media_url or '').strip()
                 if not url or not _es_media_url(url):
                     continue
                 resumen.pasos_media += 1
                 nivel, motivo = _riesgo_paso(paso, head=head_urls)
+                low_url = url.lower().split('?')[0]
+                if (
+                    not paso.activo
+                    and paso.media_wa_apto is True
+                    and low_url.endswith(('.mp4', '.m4v', '.mov'))
+                ):
+                    nivel, motivo = 'warn', 'video listo pero inactivo (no se envía)'
                 head_ok = _head_url_ok(url) if head_urls else None
                 resumen.por_curso[cur_key][nivel] += 1
                 setattr(resumen, nivel, getattr(resumen, nivel) + 1)
@@ -129,16 +136,25 @@ def auditar_media_cursos(
 
 def contar_media_en_riesgo(*, solo_activos: bool = True) -> dict[str, Any]:
     """Resumen ligero para panel Inicio (sin HEAD)."""
-    q = Q(media_wa_apto=False) | (
-        Q(media_wa_apto__isnull=True)
+    q_activo_malo = Q(activo=True) & (
+        Q(media_wa_apto=False)
+        | (
+            Q(media_wa_apto__isnull=True)
+            & Q(media_url__iregex=r'\.(mp4|m4v|mov)(\?|$)')
+        )
+    )
+    q_inactivo_listo = (
+        Q(activo=False, media_wa_apto=True)
         & Q(media_url__iregex=r'\.(mp4|m4v|mov)(\?|$)')
     )
-    pasos_qs = PasoModulo.objects.filter(activo=True).filter(q).exclude(media_url='')
+    pasos_qs = PasoModulo.objects.filter(q_activo_malo | q_inactivo_listo).exclude(media_url='')
     if solo_activos:
         pasos_qs = pasos_qs.filter(modulo__curso__activo=True)
 
     n_fail = pasos_qs.filter(media_wa_apto=False).count()
-    n_warn = pasos_qs.filter(media_wa_apto__isnull=True).count()
+    n_warn = pasos_qs.filter(
+        Q(media_wa_apto__isnull=True) | Q(activo=False, media_wa_apto=True)
+    ).count()
     top: list[dict[str, Any]] = []
     vistos: set[int] = set()
     for p in (

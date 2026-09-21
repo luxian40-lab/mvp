@@ -1,23 +1,25 @@
 # -*- coding: utf-8 -*-
-"""Asistente «Curso nuevo» → N módulos vacíos → Module Builder."""
+"""Asistente «Curso nuevo» — única puerta de alta. Aterriza en módulo modo Clase."""
 from __future__ import annotations
 
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db import transaction
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
 from core.admin.cursos import sembrar_plantilla_modulo
 from core.models import Cliente, Curso, Modulo
-from core.module_builder import module_builder_habilitado_para_curso
+from core.modulo_authoring_mode import MODO_CLASE, set_modulo_modo
 
 
 @staff_member_required
 @require_http_methods(['GET', 'POST'])
 def curso_nuevo_wizard(request):
     """
-    Alta corta: nombre + org + experiencia + N módulos → primer Module Builder.
+    Alta corta: nombre + org + experiencia + N módulos → primer módulo en modo Clase (A).
+    El Builder (B) se abre después, solo si el staff elige «Armar por partes».
     """
     clientes = Cliente.objects.filter(activo=True).order_by('nombre')
     errores = []
@@ -92,12 +94,15 @@ def curso_nuevo_wizard(request):
             messages.success(
                 request,
                 f'Curso «{curso.nombre}» creado con {n_modulos} módulo(s). '
-                'Arme el primero en el Module Builder.',
+                'Complete el primero (texto + archivo). '
+                'Para WhatsApp por partes use «Armar por partes».',
             )
-            if primer_mod and module_builder_habilitado_para_curso(curso, request):
-                return redirect('admin_module_builder', modulo_id=primer_mod.pk)
             if primer_mod:
-                return redirect('admin:core_modulo_change', primer_mod.pk)
+                set_modulo_modo(request, primer_mod.pk, MODO_CLASE)
+                return redirect(
+                    reverse('admin:core_modulo_change', args=[primer_mod.pk])
+                    + '?modo=clase'
+                )
             return redirect('admin:core_curso_change', curso.pk)
 
         for e in errores:

@@ -223,6 +223,7 @@ def construir_mensaje_evaluacion_reto(
     feedback: str,
     nombre_tutor: str,
 ) -> str:
+    from core.agentes_whatsapp import mensaje_con_titular_agente
     from core.response_templates import _barra_progreso
 
     cliente = getattr(estudiante, 'cliente', None)
@@ -232,7 +233,9 @@ def construir_mensaje_evaluacion_reto(
     porcentaje = int(progreso.porcentaje_avance()) if progreso else 0
     barra = _barra_progreso(porcentaje)
 
-    msg = f"*{nombre_tutor}*\n\n{feedback}\n\n"
+    msg = mensaje_con_titular_agente(nombre_tutor, feedback)
+    if msg:
+        msg += '\n\n'
 
     puntaje_cero = (
         (modo == MODO_CALIFICACION and float(puntaje_o_nota or 0) <= 0)

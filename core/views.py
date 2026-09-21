@@ -1445,6 +1445,11 @@ def _cliente_habilita_pregunta_abierta_final(cliente):
 
 
 def _cliente_habilita_proximidad(cliente):
+    from core.empleabilidad_pausa import empleabilidad_en_pausa
+
+    # PAUSA: radar/empleabilidad territorial fuera de circulación.
+    if empleabilidad_en_pausa():
+        return False
     habilitado_legacy = _cliente_en_ventana(
         cliente,
         'habilitar_gamificacion_proximidad',
@@ -1801,7 +1806,12 @@ def _mensaje_bloqueo_drip_view(fecha_desbloqueo):
 
 def _activar_radar_empleabilidad_si_aplica(estudiante):
     from django.db.models import Q
+    from core.empleabilidad_pausa import empleabilidad_en_pausa
     from .models import AliadoEmpleabilidad
+
+    # PAUSA PRODUCTO: no desbloquear radar Subachoque.
+    if empleabilidad_en_pausa():
+        return False
 
     if not _cliente_habilita_proximidad(estudiante.cliente):
         return False
@@ -1859,13 +1869,27 @@ def _pregunta_abierta_final_pendiente(estudiante, progreso):
     return None
 
 
+def _radar_msg_si_aplica(estudiante):
+    """Copy de radar solo si la pausa está off y hay aliados. No envía Subachoque en pausa."""
+    from core.empleabilidad_pausa import mensaje_radar_desbloqueado
+
+    if not _activar_radar_empleabilidad_si_aplica(estudiante):
+        return ''
+    return mensaje_radar_desbloqueado()
+
+
 def _procesar_ubicacion_empleabilidad(estudiante, latitud, longitud):
     """
     Evalúa proximidad del estudiante a aliados activos y construye respuesta.
     Guarda aliado objetivo en contexto para validación de código secreto.
     """
     from django.db.models import Q
+    from core.empleabilidad_pausa import empleabilidad_en_pausa
     from .models import AliadoEmpleabilidad, MisionEmpleabilidad
+
+    # PAUSA PRODUCTO: no crear misiones ni pedir código de aliado.
+    if empleabilidad_en_pausa():
+        return ''
 
     if not _cliente_habilita_proximidad(estudiante.cliente):
         return (
@@ -2157,6 +2181,13 @@ def _procesar_twilio_webhook(post_data):
             estudiante = Estudiante.objects.select_related('cliente').get(telefono=telefono_limpio)
             logger.info(f"Estudiante encontrado: {estudiante.nombre} (ID: {estudiante.id})")
 
+            try:
+                from core.empleabilidad_pausa import liberar_estado_empleabilidad_si_pausada
+
+                liberar_estado_empleabilidad_si_pausada(estudiante)
+            except Exception:
+                logger.warning("empleabilidad pausa: no se pudo liberar estado radar", exc_info=True)
+
             # Carrusel demo: taps Content (desc_*/info_*/in_*) también si ya es Estudiante
             # (p. ej. smoke en 3026480629). No intercepta listo ni menú LMS.
             try:
@@ -2221,25 +2252,36 @@ def _procesar_twilio_webhook(post_data):
                 logger.warning('📣 [campana] error registrando respuesta: %s', _e_camp, exc_info=True)
 
             # Ubicación de WhatsApp (Twilio): Latitude/Longitude
+            # PAUSA: radar/empleabilidad no consume el pin (no Subachoque).
             if latitud_raw is not None and longitud_raw is not None:
-                try:
-                    latitud = float(latitud_raw)
-                    longitud = float(longitud_raw)
-                    texto_geo = _procesar_ubicacion_empleabilidad(estudiante, latitud, longitud)
+                from core.empleabilidad_pausa import empleabilidad_en_pausa
+
+                if empleabilidad_en_pausa():
+                    logger.info(
+                        "empleabilidad pausada: ubicación ignorada | estudiante_id=%s",
+                        estudiante.id,
+                    )
+                    if not (msg_body or '').strip():
+                        return
+                else:
                     try:
-                        from twilio.rest import Client as TwilioClient
-                        account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
-                        auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-                        twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
-                        client_tw = TwilioClient(account_sid, auth_token)
-                        destino = f'whatsapp:{msg_from}' if not str(msg_from).startswith('whatsapp:') else msg_from
-                        client_tw.messages.create(body=texto_geo, from_=str(twilio_number).strip(), to=str(destino).strip())
-                        WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_geo, tipo='SENT')
-                    except Exception as e:
-                        logger.error(f"❌ Error enviando respuesta de ubicación: {e}")
-                    return
-                except ValueError:
-                    logger.warning(f"⚠️ Coordenadas inválidas recibidas: lat={latitud_raw}, lon={longitud_raw}")
+                        latitud = float(latitud_raw)
+                        longitud = float(longitud_raw)
+                        texto_geo = _procesar_ubicacion_empleabilidad(estudiante, latitud, longitud)
+                        try:
+                            from twilio.rest import Client as TwilioClient
+                            account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
+                            auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
+                            twilio_number = getattr(settings, 'TWILIO_PHONE_NUMBER', 'whatsapp:+573202948806')
+                            client_tw = TwilioClient(account_sid, auth_token)
+                            destino = f'whatsapp:{msg_from}' if not str(msg_from).startswith('whatsapp:') else msg_from
+                            client_tw.messages.create(body=texto_geo, from_=str(twilio_number).strip(), to=str(destino).strip())
+                            WhatsappLog.objects.create(telefono=telefono_limpio, mensaje=texto_geo, tipo='SENT')
+                        except Exception as e:
+                            logger.error(f"❌ Error enviando respuesta de ubicación: {e}")
+                        return
+                    except ValueError:
+                        logger.warning(f"⚠️ Coordenadas inválidas recibidas: lat={latitud_raw}, lon={longitud_raw}")
 
             # Certificado presencial pendiente: ANTES de Habeas/onboarding.
             # Si el estudiante respondió OK a la plantilla inicial, "ok" no debe
@@ -2451,8 +2493,12 @@ def _procesar_twilio_webhook(post_data):
             'esperando_respuesta_pregunta_abierta_final',
             'esperando_seleccion_curso',
             'curso_finalizado',
-            'esperando_codigo_empleabilidad',
         })
+        from core.empleabilidad_pausa import empleabilidad_en_pausa as _emp_pausa_estados
+        if not _emp_pausa_estados():
+            _ESTADOS_AGENTE_NO_FORZAR = _ESTADOS_AGENTE_NO_FORZAR | {
+                'esperando_codigo_empleabilidad',
+            }
         if texto_norm in {"listo", "continuar"}:
             from .models import ProgresoEstudiante
             if ProgresoEstudiante.objects.filter(
@@ -2743,24 +2789,11 @@ def _procesar_twilio_webhook(post_data):
                                     texto_respuesta = '[MULTI_MSG]' + msg_intro + '[SEP]' + _fb_conf
                                 else:
                                     reset_progreso_pasos_modulo(progreso, save=True)
-                                    partes_mod0_conf: list[str] = []
-                                    if modulo.numero == 0 and (modulo.contenido or '').strip():
-                                        from .response_templates import dividir_contenido_seguro as _div0
-                                        _mh = f"📖 *{modulo.numero}. {modulo.titulo}*\n\n"
-                                        _ch0 = _div0(modulo.contenido, max_chars=1500)
-                                        if _ch0:
-                                            _mm0 = _mh + _ch0[0]
-                                            for _ck in _ch0[1:]:
-                                                if len(_mm0) + len(_ck) + 4 < 1500:
-                                                    _mm0 += "\n\n" + _ck
-                                                else:
-                                                    break
-                                            partes_mod0_conf.append(_mm0)
                                     msg_pasos_conf = entregar_bloque_secciones_desde_paso(
                                         progreso, modulo, 1
                                     )
                                     _inner_conf = msg_pasos_conf[len('[MULTI_MSG]') :]
-                                    _pieces = partes_mod0_conf + [
+                                    _pieces = [
                                         p for p in _inner_conf.split('[SEP]') if p
                                     ]
                                     texto_respuesta = '[MULTI_MSG]' + msg_intro + '[SEP]' + '[SEP]'.join(_pieces)
@@ -2789,7 +2822,8 @@ def _procesar_twilio_webhook(post_data):
 
                                 # --- Mensaje 2: Contenido del módulo (con multimedia) ---
                                 from .response_templates import dividir_contenido_seguro
-                                contenido_modulo = modulo.contenido or ''
+                                from .module_steps import texto_legacy_whatsapp
+                                contenido_modulo = texto_legacy_whatsapp(modulo)
                                 chunks = dividir_contenido_seguro(contenido_modulo, max_chars=1300)
                                 modulo_header = f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
                                 if chunks:
@@ -3163,8 +3197,11 @@ def _procesar_twilio_webhook(post_data):
                 'esperando_respuesta_progreso',      # María
                 'esperando_respuesta_modulo',         # Evaluación módulo
                 'esperando_respuesta_pregunta_abierta_final',  # Respuesta final calificada por facilitadora
-                'esperando_codigo_empleabilidad',     # Radar: código de aliado (no gate *listo*)
             ]
+            from core.empleabilidad_pausa import empleabilidad_en_pausa as _emp_pausa_gate
+            # Radar: código de aliado (no gate *listo*) — pausado no intercepta.
+            if not _emp_pausa_gate():
+                estados_agente.append('esperando_codigo_empleabilidad')
             if estudiante.estado_onboarding in estados_agente:
                 logger.info(f"🤖 Agente activo ({estudiante.estado_onboarding}) — bypassing gate listo")
                 # No interceptar — caerá al flujo EXISTENTE más abajo (handlers de agente)
@@ -3587,9 +3624,10 @@ def _procesar_twilio_webhook(post_data):
                                             archivos_msg += f"\n{icono} {archivo.titulo}"
                                 if not archivos_multimedia.exists() and video_url:
                                     primera_media_url = video_url
+                                from .module_steps import texto_legacy_whatsapp
                                 msg_texto_menu = (
                                     f"📖 *Módulo {modulo.numero}: {modulo.titulo}*\n\n"
-                                    f"{modulo.contenido}"
+                                    f"{texto_legacy_whatsapp(modulo)}"
                                 )
                                 partes_menu = [msg_texto_menu]
                                 if primera_media_url:
@@ -3761,7 +3799,12 @@ def _procesar_twilio_webhook(post_data):
             except Exception as e:
                 logger.warning("⚠️ Sync agente pedagógico omitido: %s", e)
 
-            if estudiante.estado_onboarding == 'esperando_codigo_empleabilidad':
+            from core.empleabilidad_pausa import empleabilidad_en_pausa as _emp_pausa_codigo
+
+            if (
+                estudiante.estado_onboarding == 'esperando_codigo_empleabilidad'
+                and not _emp_pausa_codigo()
+            ):
                 from .models import AliadoEmpleabilidad, MisionEmpleabilidad
                 from .gamificacion import PerfilGamificacion, Badge, BadgeEstudiante
                 ctx_emp = estudiante.contexto_temporal or {}
@@ -4027,13 +4070,8 @@ def _procesar_twilio_webhook(post_data):
                                     logger.error(f"❌ Error certificado tras pregunta abierta final: {e}", exc_info=True)
                                     msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
 
-                            radar_msg = ""
-                            if _activar_radar_empleabilidad_si_aplica(estudiante):
-                                radar_msg = (
-                                    "📍 *¡Radar de Empleos desbloqueado!*\n\n"
-                                    "Ve al parque principal de Subachoque y envíame tu *Ubicación* "
-                                    "usando el clip de WhatsApp (📎)."
-                                )
+                            # Radar/empleabilidad pausado: no envía Subachoque.
+                            radar_msg = _radar_msg_si_aplica(estudiante)
 
                             estudiante.estado_onboarding = 'curso_finalizado'
                             estudiante.contexto_temporal = None
@@ -4104,13 +4142,17 @@ def _procesar_twilio_webhook(post_data):
                 elif msg_body.strip() == '[AUDIO_NO_TRANSCRITO]':
                     # Audio no pudo ser transcrito — NO contar como pregunta
                     print(f"🎤 Audio no transcrito en asistente — pidiendo reintento")
+                    from core.agentes_whatsapp import mensaje_con_titular_agente
+
                     preguntas_restantes = 2 - preguntas_hechas
-                    texto_respuesta = (
-                        f"*{nombre_asistente}*\n\n"
-                        f"No pude escuchar su audio. Por favor intente de nuevo "
-                        f"o escríbame su pregunta.\n\n"
-                        f"Le quedan {preguntas_restantes} pregunta(s). "
-                        f"Si no tiene preguntas, escriba *listo*."
+                    texto_respuesta = mensaje_con_titular_agente(
+                        nombre_asistente,
+                        (
+                            f"No pude escuchar su audio. Por favor intente de nuevo "
+                            f"o escríbame su pregunta.\n\n"
+                            f"Le quedan {preguntas_restantes} pregunta(s). "
+                            f"Si no tiene preguntas, escriba *listo*."
+                        ),
                     )
                 elif _mensaje_indica_listo(msg_body) or preguntas_hechas >= 2:
                     # Flujo exigido: Darío -> Facilitadora (reto) al escribir listo
@@ -4235,17 +4277,25 @@ def _procesar_twilio_webhook(post_data):
                     estudiante.contexto_temporal = ctx
                     estudiante.save()
                     
+                    from core.agentes_whatsapp import mensaje_con_titular_agente
+
                     if preguntas_hechas >= 2:
-                        texto_respuesta = (
-                            f"*{nombre_asistente}*\n\n{respuesta_dario}\n\n"
-                            f"Ya respondí sus 2 preguntas. Ahora la facilitadora le tiene un reto. "
-                            f"Escriba *listo* cuando esté preparado."
+                        texto_respuesta = mensaje_con_titular_agente(
+                            nombre_asistente,
+                            (
+                                f"{respuesta_dario}\n\n"
+                                f"Ya respondí sus 2 preguntas. Ahora la facilitadora le tiene un reto. "
+                                f"Escriba *listo* cuando esté preparado."
+                            ),
                         )
                     else:
-                        texto_respuesta = (
-                            f"*{nombre_asistente}*\n\n{respuesta_dario}\n\n"
-                            f"¿Tiene otra pregunta? Le queda {2 - preguntas_hechas} pregunta más. "
-                            f"Puede preguntar sobre el tema del curso. Si no, escriba *listo*."
+                        texto_respuesta = mensaje_con_titular_agente(
+                            nombre_asistente,
+                            (
+                                f"{respuesta_dario}\n\n"
+                                f"¿Tiene otra pregunta? Le queda {2 - preguntas_hechas} pregunta más. "
+                                f"Puede preguntar sobre el tema del curso. Si no, escriba *listo*."
+                            ),
                         )
             
             # v1.9.8g: Facilitadora — evaluando respuesta al reto
@@ -4471,13 +4521,8 @@ def _procesar_twilio_webhook(post_data):
                                 logger.error(f"❌ Error certificado post-reto final: {e}", exc_info=True)
                                 msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
 
-                            radar_msg = ""
-                            if _activar_radar_empleabilidad_si_aplica(estudiante):
-                                radar_msg = (
-                                    "📍 *¡Radar de Empleos desbloqueado!*\n\n"
-                                    "Ve al parque principal de Subachoque y envíame tu *Ubicación* "
-                                    "usando el clip de WhatsApp (📎)."
-                                )
+                            # Radar/empleabilidad pausado: no envía Subachoque.
+                            radar_msg = _radar_msg_si_aplica(estudiante)
                             
                             msg_final = (
                                 f"{msg_eval}\n\n"
@@ -5064,29 +5109,53 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                         # v1.9.8i: Normal module — exam result + next module (no completado msg)
                                         estudiante.estado_onboarding = 'completado'
                                         estudiante.save()
-                                        
-                                        msg_modulo = f"📖 *Módulo {siguiente_modulo.numero}: {siguiente_modulo.titulo}*\n\n{siguiente_modulo.descripcion}\n\n{siguiente_modulo.contenido}"
-                                    
-                                        if siguiente_modulo.examen_obligatorio:
-                                            msg_modulo += f"\n\n⚠️ *Este módulo tiene examen obligatorio ({siguiente_modulo.puntaje_minimo_aprobacion}% para aprobar)*"
-                                    
-                                        partes = [msg_completado, msg_modulo]
-                                        hay_media_exam = False
-                                        if primera_media_url:
-                                            partes.append(parte_mensaje_con_media(primera_media_url))
-                                            hay_media_exam = True
-                                        for extra_url, _extra_titulo, _extra_icono in extra_media_urls:
-                                            partes.append(parte_mensaje_con_media(extra_url))
-                                            hay_media_exam = True
-                                        if hay_media_exam:
-                                            partes.append("[DELAY:5]")
-                                        from .avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
-                                        partes.append(
-                                            resolver_cta_listo(
-                                                estudiante, progreso.curso, CTX_FIN_ENTREGA_MODULO
-                                            )
+
+                                        from .module_steps import (
+                                            entregar_bloque_secciones_desde_paso,
+                                            modulo_usa_pasos,
+                                            pasos_activos_qs,
+                                            texto_legacy_whatsapp,
                                         )
-                                        texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
+                                        from .avance_whatsapp import CTX_FIN_ENTREGA_MODULO, resolver_cta_listo
+
+                                        if modulo_usa_pasos(siguiente_modulo) and pasos_activos_qs(siguiente_modulo).exists():
+                                            msg_pasos_n = entregar_bloque_secciones_desde_paso(
+                                                progreso, siguiente_modulo, 1
+                                            )
+                                            inner_n = (
+                                                msg_pasos_n[len('[MULTI_MSG]'):]
+                                                if (msg_pasos_n or '').startswith('[MULTI_MSG]')
+                                                else (msg_pasos_n or '')
+                                            )
+                                            partes = [msg_completado] + [p for p in inner_n.split('[SEP]') if p]
+                                            texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
+                                        else:
+                                            _leg = texto_legacy_whatsapp(siguiente_modulo)
+                                            msg_modulo = (
+                                                f"📖 *Módulo {siguiente_modulo.numero}: {siguiente_modulo.titulo}*\n\n"
+                                                f"{siguiente_modulo.descripcion}\n\n{_leg}"
+                                            )
+                                            if siguiente_modulo.examen_obligatorio:
+                                                msg_modulo += (
+                                                    f"\n\n⚠️ *Este módulo tiene examen obligatorio "
+                                                    f"({siguiente_modulo.puntaje_minimo_aprobacion}% para aprobar)*"
+                                                )
+                                            partes = [msg_completado, msg_modulo]
+                                            hay_media_exam = False
+                                            if primera_media_url:
+                                                partes.append(parte_mensaje_con_media(primera_media_url))
+                                                hay_media_exam = True
+                                            for extra_url, _extra_titulo, _extra_icono in extra_media_urls:
+                                                partes.append(parte_mensaje_con_media(extra_url))
+                                                hay_media_exam = True
+                                            if hay_media_exam:
+                                                partes.append("[DELAY:5]")
+                                            partes.append(
+                                                resolver_cta_listo(
+                                                    estudiante, progreso.curso, CTX_FIN_ENTREGA_MODULO
+                                                )
+                                            )
+                                            texto_respuesta = "[MULTI_MSG]" + "[SEP]".join(partes)
 
                                 elif not drip_bloqueado:
                                     # Completó todos los módulos
@@ -5133,18 +5202,24 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                             estudiante.estado_onboarding = 'esperando_respuesta_asistente'
                                             estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
 
+                                            from core.agentes_whatsapp import mensaje_con_titular_agente
+
                                             texto_respuesta = (
                                                 f"{mensaje_respuesta}\n\n"
                                                 f"🎉 *¡Completaste todos los módulos del curso!*\n\n"
-                                                f"*{nombre_asist_final}*\n\n"
-                                                f"Antes de tu certificado, {nombre_tutor_final} te planteará un reto final sobre {modulos_final_range}.\n\n"
-                                                "¿Tienes dudas antes del reto?\n"
-                                                "Ejemplos:\n"
-                                                "• ¿Cómo diferencio un daño leve de uno económico?\n"
-                                                "• ¿Qué paso práctico recomienda para validar en campo?\n"
-                                                "• ¿Qué indicador debo monitorear cada semana?\n\n"
-                                                "Envíame tu pregunta (texto o audio).\n"
-                                                "Si no tienes dudas, escribe *listo* para pasar con la facilitadora."
+                                                + mensaje_con_titular_agente(
+                                                    nombre_asist_final,
+                                                    (
+                                                        f"Antes de tu certificado, {nombre_tutor_final} te planteará un reto final sobre {modulos_final_range}.\n\n"
+                                                        "¿Tienes dudas antes del reto?\n"
+                                                        "Ejemplos:\n"
+                                                        "• ¿Cómo diferencio un daño leve de uno económico?\n"
+                                                        "• ¿Qué paso práctico recomienda para validar en campo?\n"
+                                                        "• ¿Qué indicador debo monitorear cada semana?\n\n"
+                                                        "Envíame tu pregunta (texto o audio).\n"
+                                                        "Si no tienes dudas, escribe *listo* para pasar con la facilitadora."
+                                                    ),
+                                                )
                                             )
                                             logger.info(
                                                 f"🎯 Reto final activado | estudiante_id={estudiante.id} | curso_id={progreso.curso.id} | "
@@ -5226,13 +5301,8 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                                                 import traceback; traceback.print_exc()
                                                 msg_cert_img = "🎓 Tu certificado se está generando. Te lo enviaremos pronto."
 
-                                            radar_msg = ""
-                                            if _activar_radar_empleabilidad_si_aplica(estudiante):
-                                                radar_msg = (
-                                                    "📍 *¡Radar de Empleos desbloqueado!*\n\n"
-                                                    "Ve al parque principal de Subachoque y envíame tu *Ubicación* "
-                                                    "usando el clip de WhatsApp (📎)."
-                                                )
+                                            # Radar/empleabilidad pausado: no envía Subachoque.
+                                            radar_msg = _radar_msg_si_aplica(estudiante)
 
                                             partes = [msg_final]
                                             if radar_msg:

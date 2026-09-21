@@ -1180,14 +1180,23 @@ def portal_curso_agregar_modulo(request, curso_id: int):
 
     ultimo = Modulo.objects.filter(curso=curso).order_by('-numero').first()
     siguiente = int(ultimo.numero) + 1 if ultimo else 1
-    Modulo.objects.create(
+    nuevo = Modulo.objects.create(
         curso=curso,
         numero=siguiente,
         titulo=f'Nuevo módulo {siguiente}',
         descripcion='',
         contenido='',
+        modo_entrega=Modulo.MODO_ENTREGA_PASOS,
+        publicado_wa=False,
     )
-    messages.success(request, f'Módulo {siguiente} creado. Edita el contenido cuando quieras.')
+    from core.admin.cursos import sembrar_plantilla_modulo
+
+    sembrar_plantilla_modulo(nuevo)
+    messages.success(
+        request,
+        f'Módulo {siguiente} creado como borrador. eki lo arma y publica en el admin; '
+        'no llega a WhatsApp hasta revisión.',
+    )
     return redirect(f'/portal/cursos/{curso.id}/flujo/')
 
 

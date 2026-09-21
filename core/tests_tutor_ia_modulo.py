@@ -4,6 +4,7 @@ from django.test import TestCase
 
 from core.models import Cliente, Curso, Modulo
 from core.tutor_ia_modulo import (
+    RETO_GUIA_DEFAULT,
     _es_respuesta_sin_contenido_reto,
     armar_guia_reto_para_prompt,
     evaluar_reto_facilitador,
@@ -76,6 +77,29 @@ class GuiaRetoIaTests(TestCase):
         self.assertIn('GUÍA DEL CURSO', texto)
         self.assertIn('gasto revisaría', texto)
 
+    def test_armar_guia_sin_tipo_ni_guia_usa_default(self):
+        """Impulso 22: módulo y curso sin guía → tipo aplicación + guía genérica."""
+        self.curso.preguntas_ejemplo_ia = ''
+        self.curso.save(update_fields=['preguntas_ejemplo_ia'])
+        m = Modulo.objects.create(
+            curso=self.curso,
+            numero=5,
+            titulo='ideas a negocios',
+            contenido='De idea a oferta.',
+            tipo_reto_ia='',
+            reto_guia_ia='',
+        )
+        texto, tipo = armar_guia_reto_para_prompt(self.curso, m)
+        self.assertEqual(tipo, Modulo.TIPO_RETO_APLICACION)
+        self.assertIn('GUÍA POR DEFECTO', texto)
+        self.assertIn(RETO_GUIA_DEFAULT[:40], texto)
+
+    def test_armar_guia_no_pisa_guia_del_instructor_con_default(self):
+        texto, tipo = armar_guia_reto_para_prompt(self.curso, self.m3)
+        self.assertEqual(tipo, Modulo.TIPO_RETO_PLAN)
+        self.assertNotIn('GUÍA POR DEFECTO', texto)
+        self.assertIn('plan de 7 días', texto)
+
     def test_armar_guia_tipo_vacio_usa_aplicacion_y_micros(self):
         from core.models import PasoModulo, SeccionModulo
 
@@ -98,7 +122,8 @@ class GuiaRetoIaTests(TestCase):
 
     def test_armar_guia_solo_curso(self):
         texto, tipo = armar_guia_reto_para_prompt(self.curso, None)
-        self.assertEqual(tipo, '')
+        self.assertEqual(tipo, Modulo.TIPO_RETO_APLICACION)
+        self.assertNotIn('GUÍA POR DEFECTO', texto)
         self.assertIn('PREGUNTAS/RETOS EJEMPLO', texto)
         self.assertIn('gasto revisaría', texto)
 

@@ -1,7 +1,8 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -21,6 +22,7 @@ from portal.models import PortalUsuario
 
 
 class PortalEmpleabilidadModuloTests(TestCase):
+    @patch('core.empleabilidad_pausa.EKI_EMPLEABILIDAD_PAUSADA', False)
     def test_modulo_empleabilidad_desde_portal_productos(self):
         c = Cliente.objects.create(
             nombre='Org Emp',
@@ -48,6 +50,8 @@ class PortalEmpleabilidadModuloTests(TestCase):
         self.assertFalse(m['empleabilidad'])
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
+@patch('core.empleabilidad_pausa.EKI_EMPLEABILIDAD_PAUSADA', False)
 class PortalEmpleabilidadVistaTests(TestCase):
     def setUp(self):
         self.cliente = Cliente.objects.create(

@@ -119,6 +119,10 @@ def _cliente_habilita_pregunta_abierta_final(cliente):
 
 
 def _cliente_habilita_proximidad(cliente):
+    from core.empleabilidad_pausa import empleabilidad_en_pausa
+
+    if empleabilidad_en_pausa():
+        return False
     return _cliente_en_ventana(
         cliente,
         'habilitar_gamificacion_proximidad',
@@ -216,14 +220,20 @@ def _generar_completado_final(estudiante, curso_id):
                 estudiante.estado_onboarding = 'esperando_respuesta_asistente'
                 estudiante.save(update_fields=['contexto_temporal', 'estado_onboarding'])
 
+                from core.agentes_whatsapp import mensaje_con_titular_agente
+
                 return (
                     "[MULTI_MSG]"
                     "🎉 *¡Completaste todos los módulos del curso!*"
                     "[SEP]"
-                    f"*{nombre_asist_final}*\n\n"
-                    f"Antes de tu certificado, {nombre_tutor_final} te planteará un reto final sobre {modulos_final_range}.\n\n"
-                    "¿Tienes dudas antes del reto? Envíame tu pregunta (texto o audio).\n"
-                    "Si no tienes dudas, escribe *listo* para pasar con la facilitadora."
+                    + mensaje_con_titular_agente(
+                        nombre_asist_final,
+                        (
+                            f"Antes de tu certificado, {nombre_tutor_final} te planteará un reto final sobre {modulos_final_range}.\n\n"
+                            "¿Tienes dudas antes del reto? Envíame tu pregunta (texto o audio).\n"
+                            "Si no tienes dudas, escribe *listo* para pasar con la facilitadora."
+                        ),
+                    )
                 )
 
             progreso.completado = True
@@ -270,10 +280,16 @@ def _generar_completado_final(estudiante, curso_id):
     except Exception:
         msg_cert_img = "🎓 Su certificado se está generando. Se lo enviaremos pronto."
     
-    # Post-certificate cutoff
+    # Post-certificate cutoff — radar pausado: no Subachoque.
+    from core.empleabilidad_pausa import empleabilidad_en_pausa, mensaje_radar_desbloqueado
+
     estudiante.estado_onboarding = 'curso_finalizado'
     ctx = estudiante.contexto_temporal or {}
-    if not ctx.get('radar_empleabilidad_activo') and _cliente_habilita_proximidad(estudiante.cliente):
+    if empleabilidad_en_pausa():
+        ctx.pop('radar_empleabilidad_activo', None)
+        ctx.pop('aliado_empleabilidad_objetivo_id', None)
+        ctx.pop('mision_empleabilidad_id', None)
+    elif not ctx.get('radar_empleabilidad_activo') and _cliente_habilita_proximidad(estudiante.cliente):
         hay_aliados = AliadoEmpleabilidad.objects.filter(vacantes_activas=True).filter(
             Q(cliente__isnull=True) | Q(cliente=estudiante.cliente)
         ).exists() if estudiante.cliente_id else AliadoEmpleabilidad.objects.filter(vacantes_activas=True).exists()
@@ -284,12 +300,9 @@ def _generar_completado_final(estudiante, curso_id):
     estudiante.save(update_fields=['estado_onboarding', 'contexto_temporal'])
     
     partes = [mensaje]
-    if (estudiante.contexto_temporal or {}).get('radar_empleabilidad_activo'):
-        partes.append(
-            "📍 *¡Radar de Empleos desbloqueado!*\n\n"
-            "Ve al parque principal de Subachoque y envíame tu *Ubicación* "
-            "usando el clip de WhatsApp (📎)."
-        )
+    radar_copy = mensaje_radar_desbloqueado()
+    if radar_copy and (estudiante.contexto_temporal or {}).get('radar_empleabilidad_activo'):
+        partes.append(radar_copy)
     if msg_cert_img:
         partes.append(msg_cert_img)
     return "[MULTI_MSG]" + "[SEP]".join(partes)
@@ -462,13 +475,17 @@ def activar_checkpoint_facilitador(estudiante, progreso, modulo_cerrado) -> str:
     modulos_reto = listar_modulos_cobertura_reto(modulo_cerrado, progreso.curso)
     modulos_reto_range = descripcion_rango_modulos_reto_esp(modulos_reto)
 
-    dario_msg = (
-        f"*{nombre_asistente}*\n\n"
-        f"¡Hola! Es hora de una pausa para repasar conceptos. "
-        f"{nombre_tutor} lo va a recibir con un reto sobre {modulos_reto_range}.\n\n"
-        f"Le puedo ayudar a resolver un par de preguntas antes. "
-        f"¿Tiene alguna pregunta sobre lo que hemos visto? Envíeme un audio o "
-        f"escríbame; si no tiene preguntas, escriba *listo*."
+    from core.agentes_whatsapp import mensaje_con_titular_agente
+
+    dario_msg = mensaje_con_titular_agente(
+        nombre_asistente,
+        (
+            f"¡Hola! Es hora de una pausa para repasar conceptos. "
+            f"{nombre_tutor} lo va a recibir con un reto sobre {modulos_reto_range}.\n\n"
+            f"Le puedo ayudar a resolver un par de preguntas antes. "
+            f"¿Tiene alguna pregunta sobre lo que hemos visto? Envíeme un audio o "
+            f"escríbame; si no tiene preguntas, escriba *listo*."
+        ),
     )
 
     _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)
@@ -1083,8 +1100,9 @@ Te inscribiste en: *{curso.nombre}*
         if not archivos_multimedia_1.exists() and video_url_modulo:
             primera_media_url_1 = video_url_modulo
 
-        # Texto legacy del módulo (puede estar vacío si todo va en PasoModulo)
-        contenido = primer_modulo.contenido or ''
+        # Texto legacy del módulo (vacío si el módulo usa pasos internos)
+        from .module_steps import texto_legacy_whatsapp
+        contenido = texto_legacy_whatsapp(primer_modulo)
         chunks = dividir_contenido_seguro(contenido, max_chars=1500)
 
         modulo_header = f"📖 *{primer_modulo.numero}. {primer_modulo.titulo}*\n\n"
@@ -1127,16 +1145,6 @@ Te inscribiste en: *{curso.nombre}*
                 )
                 return '[MULTI_MSG]' + msg_intro + '[SEP]' + _fb_ins
             partes_bloque_mod0: list[str] = []
-            if primer_modulo.numero == 0 and (primer_modulo.contenido or '').strip():
-                chunks0 = dividir_contenido_seguro(primer_modulo.contenido, max_chars=1500)
-                if chunks0:
-                    mensaje_mod0 = modulo_header + chunks0[0]
-                    for chunk in chunks0[1:]:
-                        if len(mensaje_mod0) + len(chunk) + 4 < 1500:
-                            mensaje_mod0 += "\n\n" + chunk
-                        else:
-                            break
-                    partes_bloque_mod0.append(mensaje_mod0)
             reset_progreso_pasos_modulo(progreso, save=True)
             msg_pasos = entregar_bloque_secciones_desde_paso(progreso, primer_modulo, 1)
             cuerpo_p = msg_pasos[len('[MULTI_MSG]') :]
@@ -1809,7 +1817,8 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 # v1.9.8i: No "completado" message — just flow to next content
                 
                 # Mensaje: Siguiente módulo CON multimedia embebida
-                contenido_mod = siguiente_modulo.contenido or ''
+                from .module_steps import texto_legacy_whatsapp
+                contenido_mod = texto_legacy_whatsapp(siguiente_modulo)
                 chunks_mod = dividir_contenido_seguro(contenido_mod, max_chars=1300)
                 modulo_header = f"📖 *Módulo {siguiente_modulo.numero}: {siguiente_modulo.titulo}*\n\n"
                 if chunks_mod:
@@ -1960,11 +1969,15 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                         else:
                             modulos_final_range = "los módulos finales"
                         
-                        dario_final = (
-                            f"*{nombre_asistente}*\n\n"
-                            f"¡Felicitaciones! Terminaste todos los módulos. "
-                            f"Antes de recibir tu certificado, {nombre_tutor} tiene un reto final para ti sobre {modulos_final_range}.\n\n"
-                            f"¿Tienes alguna pregunta sobre lo que vimos en esta parte del curso? Envíame un audio o escríbeme; si no tienes preguntas, escribe *listo*."
+                        from core.agentes_whatsapp import mensaje_con_titular_agente
+
+                        dario_final = mensaje_con_titular_agente(
+                            nombre_asistente,
+                            (
+                                f"¡Felicitaciones! Terminaste todos los módulos. "
+                                f"Antes de recibir tu certificado, {nombre_tutor} tiene un reto final para ti sobre {modulos_final_range}.\n\n"
+                                f"¿Tienes alguna pregunta sobre lo que vimos en esta parte del curso? Envíame un audio o escríbeme; si no tienes preguntas, escribe *listo*."
+                            ),
                         )
                         
                         _prev_ts = (estudiante.contexto_temporal or {}).get('_ts_leccion', 0)

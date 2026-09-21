@@ -8,6 +8,16 @@ from django.shortcuts import redirect
 
 MODULOS_VALIDOS = frozenset({'cursos', 'gei', 'nat', 'empleabilidad'})
 
+
+def _empleabilidad_portal_pausada() -> bool:
+    """Radar/empleabilidad territorial pausado a nivel producto."""
+    try:
+        from core.empleabilidad_pausa import empleabilidad_en_pausa
+
+        return empleabilidad_en_pausa()
+    except Exception:
+        return True
+
 CATEGORIAS_POR_TIPO_PROYECTO = {
     'cursos': [
         'duda_modulo',
@@ -94,6 +104,8 @@ def modulos_portal(org) -> dict[str, bool]:
         result = {m: m in explicit for m in MODULOS_VALIDOS}
         if ('cursos' in explicit or 'gei' in explicit) and org_tiene_gei_operativo(org):
             result['gei'] = True
+        if _empleabilidad_portal_pausada():
+            result['empleabilidad'] = False
         return result
 
     principal = (getattr(org, 'tipo_proyecto', None) or 'cursos').lower()

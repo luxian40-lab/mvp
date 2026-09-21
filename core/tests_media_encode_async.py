@@ -133,3 +133,50 @@ class EstadoMediaProcesandoTests(TestCase):
             carpeta='modulos/pasos',
             prefix='m1',
         )
+
+
+class MensajeUploadYEncodeModuloTests(TestCase):
+    def setUp(self):
+        curso = Curso.objects.create(nombre='Encode banner', descripcion='d', dias_espera_entre_modulos=0)
+        self.mod = Modulo.objects.create(
+            curso=curso, numero=1, titulo='M1', descripcion='d', contenido='x', duracion_dias=7
+        )
+        sec = SeccionModulo.objects.create(modulo=self.mod, orden=1, titulo='S1', activa=True)
+        self.p1 = PasoModulo.objects.create(
+            modulo=self.mod, seccion=sec, orden=1, titulo='A', contenido='a', activo=True,
+        )
+        self.p2 = PasoModulo.objects.create(
+            modulo=self.mod,
+            seccion=sec,
+            orden=2,
+            titulo='B',
+            contenido='b',
+            media_url='https://s3/incoming/y.mp4',
+            media_wa_apto=None,
+            activo=True,
+        )
+
+    def tearDown(self):
+        from core.media_encode_async import media_encode_paso_key
+
+        cache.delete(media_encode_paso_key(self.p2.pk))
+
+    def test_mensaje_async_es_honesto(self):
+        from core.media_encode_async import mensaje_upload_media
+
+        msg = mensaje_upload_media({'async_encode': True})
+        self.assertIn('2 instancias', msg)
+        self.assertIn('borrador', msg.lower())
+        self.assertIn('semáforo', msg)
+
+    def test_estado_encode_modulo_ve_paso_que_no_es_el_primero(self):
+        from core.media_encode_async import estado_encode_modulo, media_encode_paso_key
+
+        cache.set(
+            media_encode_paso_key(self.p2.pk),
+            {'status': 'running', 'paso_id': self.p2.pk},
+            60,
+        )
+        enc = estado_encode_modulo(self.mod)
+        self.assertIsNotNone(enc)
+        self.assertEqual(enc.get('status'), 'running')

@@ -160,6 +160,15 @@ def modulo_tiene_pasos_activos(modulo: Optional[Modulo]) -> bool:
     return pasos_activos_qs(modulo).exists()
 
 
+def texto_legacy_whatsapp(modulo: Optional[Modulo]) -> str:
+    """Dump de Modulo.contenido solo si el módulo NO usa pasos internos."""
+    if not modulo:
+        return ''
+    if modulo_usa_pasos(modulo):
+        return ''
+    return (getattr(modulo, 'contenido', None) or '').strip()
+
+
 def cuenta_microcontenidos_modulo(modulo: Optional[Modulo]) -> int:
     """Microcontenidos guardados en BD (cualquier estado activo/inactivo)."""
     if not modulo or not getattr(modulo, 'pk', None):
@@ -499,6 +508,16 @@ def partes_mensaje_paso(paso: PasoModulo, curso) -> list[str]:
     url = (paso.media_url or '').strip()
     body = (paso.contenido or '').strip()
     tail = _suffix_evaluacion_paso(paso)
+    if url and getattr(paso, 'pk', None):
+        from core.media_encode_async import estado_encode_paso
+
+        enc = estado_encode_paso(paso.pk, paso=paso)
+        if enc and enc.get('status') in ('pending', 'running'):
+            logger.warning(
+                '📚 [pasos] omitiendo media en encode | paso_id=%s',
+                getattr(paso, 'id', None),
+            )
+            url = ''
     if url and getattr(paso, 'media_wa_apto', None) is False:
         logger.warning(
             '📚 [pasos] omitiendo media no apta WA | paso_id=%s',

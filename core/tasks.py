@@ -650,19 +650,19 @@ def encode_paso_modulo_media(
             prefix=prefix,
             validar_video=True,
         )
-        paso.media_url = resultado['url']
-        apto = resultado.get('media_wa_apto')
-        paso.media_wa_apto = bool(apto) if apto is not None else None
-        paso.save(update_fields=['media_url', 'media_wa_apto'])
+        from core.media_pasos_listos import aplicar_resultado_encode_a_paso
+
+        aplicar_resultado_encode_a_paso(paso, resultado)
         try:
             default_storage.delete(temp_s3_path)
         except Exception:
             logger.debug('[Celery][MediaEncode] no se pudo borrar incoming %s', temp_s3_path)
         _clear_encode_state(job_id=job_id, paso_id=paso_id)
         logger.info(
-            '[Celery][MediaEncode] paso_id=%s apto=%s bytes=%s',
+            '[Celery][MediaEncode] paso_id=%s apto=%s activo=%s bytes=%s',
             paso_id,
             paso.media_wa_apto,
+            paso.activo,
             resultado.get('bytes'),
         )
         return {'status': 'ok', 'paso_id': paso_id, 'apto': paso.media_wa_apto}

@@ -261,7 +261,11 @@ def module_builder_view(request, modulo_id: int):
                     )
                     paso.media_url = resultado['url']
                     paso.media_wa_apto = resultado.get('media_wa_apto')
-                    paso.save(update_fields=['media_url', 'media_wa_apto'])
+                    from core.media_pasos_listos import activar_paso_por_subida_staff
+
+                    fields = ['media_url', 'media_wa_apto']
+                    fields.extend(activar_paso_por_subida_staff(paso))
+                    paso.save(update_fields=list(dict.fromkeys(fields)))
                     if resultado.get('async_encode'):
                         aplicar_resultado_upload_async(
                             resultado,

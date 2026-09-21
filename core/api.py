@@ -158,6 +158,20 @@ def api_estudiante_siguiente_tarea(request, telefono):
         }, status=500)
 
 
+def _empleabilidad_pausada_json():
+    """Respuesta común cuando el radar/empleabilidad está pausado."""
+    from core.empleabilidad_pausa import empleabilidad_en_pausa
+
+    if not empleabilidad_en_pausa():
+        return None
+    return JsonResponse({
+        'success': False,
+        'activa': False,
+        'pausada': True,
+        'error': 'empleabilidad_pausada',
+    }, status=503)
+
+
 @csrf_exempt
 @require_http_methods(["GET"])
 def api_empleabilidad_oportunidades(request):
@@ -165,6 +179,9 @@ def api_empleabilidad_oportunidades(request):
     auth_error = _integracion_guard(request)
     if auth_error is not None:
         return auth_error
+    pausada = _empleabilidad_pausada_json()
+    if pausada is not None:
+        return pausada
     telefono = (request.GET.get('telefono', '') or '').strip()
     latitud_raw = request.GET.get('latitud')
     longitud_raw = request.GET.get('longitud')
@@ -227,6 +244,9 @@ def api_empleabilidad_claim(request):
     auth_error = _integracion_guard(request)
     if auth_error is not None:
         return auth_error
+    pausada = _empleabilidad_pausada_json()
+    if pausada is not None:
+        return pausada
     try:
         body = json.loads(request.body.decode('utf-8') or '{}')
     except Exception:
@@ -289,6 +309,9 @@ def api_empleabilidad_completar(request):
     auth_error = _integracion_guard(request)
     if auth_error is not None:
         return auth_error
+    pausada = _empleabilidad_pausada_json()
+    if pausada is not None:
+        return pausada
     try:
         body = json.loads(request.body.decode('utf-8') or '{}')
     except Exception:
@@ -338,6 +361,9 @@ def api_empleabilidad_flujo(request):
     auth_error = _integracion_guard(request)
     if auth_error is not None:
         return auth_error
+    pausada = _empleabilidad_pausada_json()
+    if pausada is not None:
+        return pausada
     try:
         body = json.loads(request.body.decode('utf-8') or '{}')
     except Exception:
@@ -382,6 +408,9 @@ def api_empleabilidad_resumen(request):
     auth_error = _integracion_guard(request)
     if auth_error is not None:
         return auth_error
+    pausada = _empleabilidad_pausada_json()
+    if pausada is not None:
+        return pausada
     cliente_id = request.GET.get('cliente_id')
     qs = MisionEmpleabilidad.objects.all()
     if cliente_id:
@@ -1135,6 +1164,9 @@ def api_integracion_empleabilidad_metricas(request):
     auth_error = _integracion_auth_error(request)
     if auth_error:
         return _integracion_apply_cors(request, auth_error)
+    pausada = _empleabilidad_pausada_json()
+    if pausada is not None:
+        return _integracion_apply_cors(request, pausada)
 
     filtros, parse_error = _integracion_parse_filtros(request, permitir_curso=False)
     if parse_error:

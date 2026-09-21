@@ -69,3 +69,7 @@ class PortalNavSimplificadaTests(TestCase):
         self.assertEqual(Modulo.objects.filter(curso=self.curso).count(), 2)
         nuevo = Modulo.objects.filter(curso=self.curso).order_by('-numero').first()
         self.assertEqual(nuevo.numero, 2)
+        self.assertFalse(nuevo.publicado_wa)
+        self.assertTrue(nuevo.secciones.exists())
+        self.assertTrue(nuevo.pasos.exists())
+        self.assertFalse(nuevo.pasos.filter(activo=True).exists())
