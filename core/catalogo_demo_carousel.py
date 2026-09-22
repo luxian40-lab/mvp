@@ -411,8 +411,9 @@ def arrancar_demo_riendas(*, telefono: str, dest_wa: str, sandbox: bool = False)
     Inscribe en la copia demo de Riendas y manda Habeas.
     Si no hay curso configurado, manda el CTA de *1* + correo.
 
-    sandbox=True: permite números ya inscritos en otro cliente, resetea progreso
-    y envía el módulo 1 (uso menú sandbox Twilio).
+    sandbox=True: menú de la línea Meta. Números nuevos o del cliente demo
+    pueden entrar a Riendas. Un estudiante de otro cliente B2B no se reinscribe
+    ni se le resetea el avance.
     """
     from core.utils import enviar_whatsapp_twilio
     from core.whatsapp_service import enviar_habeas_data
@@ -444,12 +445,21 @@ def arrancar_demo_riendas(*, telefono: str, dest_wa: str, sandbox: bool = False)
             and curso.cliente_id
             and est.cliente_id == curso.cliente_id
         )
-        if not mismo_cliente and not sandbox:
-            enviar_whatsapp_twilio(
-                dest,
-                'Usted ya está en un curso eki. Esta demo pública es para números nuevos.\n\n'
-                'Si quiere ver la página: https://eki.com.co/programas/tome-las-riendas',
-            )
+        if not mismo_cliente:
+            if sandbox:
+                enviar_whatsapp_twilio(
+                    dest,
+                    'Usted ya está en un curso eki. Esta línea no cambia su avance '
+                    'ni lo inscribe en otra demo.\n\n'
+                    'Escriba *menu* para los agentes, o siga su curso en el WhatsApp '
+                    'que ya le escribe eki.',
+                )
+            else:
+                enviar_whatsapp_twilio(
+                    dest,
+                    'Usted ya está en un curso eki. Esta demo pública es para números nuevos.\n\n'
+                    'Si quiere ver la página: https://eki.com.co/programas/tome-las-riendas',
+                )
             return True
         progreso, _ = inscribir_estudiante_en_curso(est, curso)
         if sandbox:

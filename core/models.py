@@ -4348,6 +4348,7 @@ class SandboxCanalSesion(models.Model):
     MODO_NAT = 'nat'
     MODO_COACH = 'coach'
     MODO_IA_CAMPO = 'ia_campo'
+    MODO_VENTAS = 'ventas'
     MODO_CURSOS = 'cursos'
     MODO_CHOICES = [
         (MODO_MENU, 'Menú'),
@@ -4355,6 +4356,7 @@ class SandboxCanalSesion(models.Model):
         (MODO_NAT, 'Agrónomo (Nat)'),
         (MODO_COACH, 'Coach'),
         (MODO_IA_CAMPO, 'IA para el campo'),
+        (MODO_VENTAS, 'Ventas y comercialización'),
         (MODO_CURSOS, 'Cursos'),
     ]
 

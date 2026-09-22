@@ -201,7 +201,7 @@ class CatalogoDemoCarouselV2Tests(TestCase):
         )
 
     @override_settings(EKI_DEMO_CAROUSEL_ENABLED=True)
-    def test_sandbox_permite_estudiante_otro_cliente_y_envia_m1(self):
+    def test_sandbox_no_pisa_estudiante_otro_cliente(self):
         from core.catalogo_demo_carousel import arrancar_demo_riendas
         from core.models import Cliente, Curso, Estudiante, Modulo, ProgresoEstudiante
 
@@ -257,11 +257,12 @@ class CatalogoDemoCarouselV2Tests(TestCase):
                     sandbox=True,
                 )
         self.assertTrue(ok)
-        self.assertEqual(est.cliente_id, otro.id)  # no roba cliente
-        prog = ProgresoEstudiante.objects.get(estudiante=est, curso=curso)
-        self.assertFalse(prog.completado)
-        self.assertEqual(prog.modulo_actual.numero, 1)
         est.refresh_from_db()
-        self.assertEqual((est.contexto_temporal or {}).get('curso_activo_id'), curso.id)
+        self.assertEqual(est.cliente_id, otro.id)
+        self.assertFalse(
+            ProgresoEstudiante.objects.filter(estudiante=est, curso=curso).exists()
+        )
+        self.assertIsNone((est.contexto_temporal or {}).get('curso_activo_id'))
         textos = ' '.join(str(c.args[1]) for c in mock_txt.call_args_list)
-        self.assertIn('módulo uno', textos.lower())
+        self.assertIn('ya está en un curso', textos.lower())
+        self.assertNotIn('módulo uno', textos.lower())

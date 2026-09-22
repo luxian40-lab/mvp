@@ -22,12 +22,14 @@ MODO_AGENTES = 'agentes'
 MODO_NAT = 'nat'
 MODO_COACH = 'coach'
 MODO_IA_CAMPO = 'ia_campo'
+MODO_VENTAS = 'ventas'
 MODO_CURSOS = 'cursos'
 
-MODOS_AGENTE = (MODO_NAT, MODO_COACH, MODO_IA_CAMPO)
+MODOS_AGENTE = (MODO_NAT, MODO_COACH, MODO_IA_CAMPO, MODO_VENTAS)
 
 TEXTO_MENU = (
-    "👋 *eki sandbox*\n\n"
+    "👋 *eki*\n"
+    "_sandbox_\n\n"
     "Elige una opción:\n"
     "1️⃣ Agentes IA\n"
     "2️⃣ Cursos (*Tome las riendas*)\n\n"
@@ -36,12 +38,13 @@ TEXTO_MENU = (
 )
 
 TEXTO_AGENTES = (
-    "🤖 *Agentes IA* (sandbox)\n\n"
+    "🤖 *Agentes IA*\n\n"
     "1️⃣ Agrónomo (Nat) — cultivo y campo\n"
     "2️⃣ Coach — hábitos y motivación\n"
-    "3️⃣ Profe IA — IA fácil para el campo\n\n"
+    "3️⃣ Profe IA — IA fácil para el campo\n"
+    "4️⃣ Ventas — clientes, precio y cierre\n\n"
     "Cada agente *recuerda* la conversación.\n"
-    "Escribe *1*, *2* o *3*.\n"
+    "Escribe *1*, *2*, *3* o *4*.\n"
     "*reiniciar* = memoria nueva · *menu* = menú principal."
 )
 
@@ -63,7 +66,7 @@ _COMANDOS_REINICIAR = frozenset({
 @dataclass
 class SandboxRouteDecision:
     action: str
-    # show_menu | show_agentes | nat | coach | ia_campo | cursos | cursos_bootstrap
+    # show_menu | show_agentes | nat | coach | ia_campo | ventas | cursos | cursos_bootstrap
     from_number: str = ''
     telefono_usuario: str = ''
     texto_menu: str = TEXTO_MENU
@@ -191,6 +194,8 @@ def _normalizar_eleccion_raiz(body: str) -> str | None:
         return MODO_COACH
     if t in ('profe', 'profe ia', 'ia campo', 'ia_campo'):
         return MODO_IA_CAMPO
+    if t in ('ventas', 'venta', 'comercial', 'comercializacion', 'comercialización'):
+        return MODO_VENTAS
     return None
 
 
@@ -204,6 +209,8 @@ def _normalizar_eleccion_agentes(body: str) -> str | None:
         return MODO_COACH
     if t in ('3', '3️⃣', 'tres', 'profe', 'profe ia', 'ia', 'ia campo'):
         return MODO_IA_CAMPO
+    if t in ('4', '4️⃣', 'cuatro', 'ventas', 'venta', 'comercial', 'comercializacion', 'comercialización'):
+        return MODO_VENTAS
     return None
 
 
@@ -280,6 +287,11 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
             decision.action = 'ia_campo'
             decision.saludo_entrada = True
             return decision
+        if eleccion_ag == MODO_VENTAS:
+            _set_modo(sesion, MODO_VENTAS)
+            decision.action = 'ventas'
+            decision.saludo_entrada = True
+            return decision
         # Texto libre en submenú → re-mostrar opciones
         decision.action = 'show_agentes'
         return decision
@@ -320,6 +332,12 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
         decision.saludo_entrada = True
         return decision
 
+    if eleccion == MODO_VENTAS:
+        _set_modo(sesion, MODO_VENTAS)
+        decision.action = 'ventas'
+        decision.saludo_entrada = True
+        return decision
+
     if eleccion == MODO_CURSOS:
         _set_modo(sesion, MODO_CURSOS)
         # Primera entrada (eligió 2): bootstrap Riendas; luego sticky cursos
@@ -340,6 +358,10 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
 
     if sesion.modo == MODO_IA_CAMPO:
         decision.action = 'ia_campo'
+        return decision
+
+    if sesion.modo == MODO_VENTAS:
+        decision.action = 'ventas'
         return decision
 
     if sesion.modo == MODO_CURSOS:
@@ -370,6 +392,22 @@ def enviar_menu_agentes(telefono_usuario: str, from_number: str) -> dict:
     return enviar_texto_sandbox(telefono_usuario, from_number, TEXTO_AGENTES, agente='sandbox_agentes')
 
 
+def _sticky_cursos_solo_si_inscrito_demo(telefono: str, curso) -> None:
+    """No dejar modo cursos si el número no quedó inscrito en la demo (protege B2B)."""
+    from core.models import Estudiante, ProgresoEstudiante
+
+    tel = normalizar_telefono_whatsapp(telefono)
+    sesion = _get_or_create_sesion(tel)
+    if curso is None:
+        _set_modo(sesion, MODO_MENU)
+        return
+    est = Estudiante.objects.filter(telefono=tel).only('id').first()
+    if est is None or not ProgresoEstudiante.objects.filter(
+        estudiante=est, curso=curso
+    ).exists():
+        _set_modo(sesion, MODO_MENU)
+
+
 def bootstrap_cursos_sandbox(telefono_usuario: str, from_number: str) -> bool:
     """Inscribe / reengancha demo Tome las riendas. True si envió algo útil."""
     from core.catalogo_demo_carousel import arrancar_demo_riendas, curso_demo_riendas
@@ -387,23 +425,31 @@ def bootstrap_cursos_sandbox(telefono_usuario: str, from_number: str) -> bool:
                 canal_evento='whatsapp_sandbox',
                 agente_evento='sandbox_cursos',
             )
+        _sticky_cursos_solo_si_inscrito_demo(telefono_usuario, None)
         return True
 
     with canal_sandbox_si_meta(), reply_from(from_number):
-        return bool(
+        ok = bool(
             arrancar_demo_riendas(
                 telefono=telefono_usuario,
                 dest_wa=telefono_usuario,
                 sandbox=True,
             )
         )
+    _sticky_cursos_solo_si_inscrito_demo(telefono_usuario, curso)
+    return ok
 
 
 def _manejar_agente_extra(decision: SandboxRouteDecision, body: str) -> str:
     """Coach / Profe IA: reinicio, saludo de entrada o turno LLM. Returns 'handled'."""
     from core.sandbox_agentes import responder_agente_sandbox, saludo_agente
 
-    agente = 'coach' if decision.action == 'coach' else 'ia_campo'
+    if decision.action == 'coach':
+        agente = 'coach'
+    elif decision.action == 'ventas':
+        agente = 'ventas'
+    else:
+        agente = 'ia_campo'
     from_n = decision.from_number or sandbox_number()
 
     if decision.reset_nat:
@@ -468,7 +514,7 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
                 enviar_texto_sandbox(
                     decision.telefono_usuario,
                     from_n,
-                    "🌿 *Agrónomo Nat* (sandbox)\n\n"
+                    "🌿 *Agrónomo Nat*\n\n"
                     "Memoria reiniciada. Empezamos de cero.\n"
                     "¿En qué cultivo o duda te ayudo?\n\n"
                     "_*reiniciar* otra vez · *menu* para volver._",
@@ -482,7 +528,7 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
                 enviar_texto_sandbox(
                     decision.telefono_usuario,
                     from_n,
-                    "🌿 *Agrónomo Nat* (sandbox)\n\n"
+                    "🌿 *Agrónomo Nat*\n\n"
                     "Seguimos donde íbamos (memoria larga).\n"
                     "Cuéntame la duda, o escribe *reiniciar* para empezar de cero.\n\n"
                     "_*menu* para volver._",
@@ -493,7 +539,7 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
             return 'handled'
         return 'nat'
 
-    if decision.action in ('coach', 'ia_campo'):
+    if decision.action in ('coach', 'ia_campo', 'ventas'):
         return _manejar_agente_extra(decision, body)
 
     if decision.action == 'cursos_bootstrap':

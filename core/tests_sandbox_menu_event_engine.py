@@ -13,7 +13,9 @@ from core.sandbox_menu import (
     MODO_IA_CAMPO,
     MODO_MENU,
     MODO_NAT,
+    MODO_VENTAS,
     TEXTO_AGENTES,
+    TEXTO_MENU,
     dispatch_sandbox_menu,
     es_destino_sandbox,
     memoria_corte_nat,
@@ -103,6 +105,28 @@ class SandboxMenuTests(TestCase):
             SandboxCanalSesion.objects.get(telefono='573001234572').modo,
             MODO_IA_CAMPO,
         )
+        resolver_ruta_sandbox({**base, 'Body': 'menu'})
+        resolver_ruta_sandbox({**base, 'Body': '1'})
+        d4 = resolver_ruta_sandbox({**base, 'Body': '4'})
+        self.assertEqual(d4.action, 'ventas')
+        self.assertTrue(d4.saludo_entrada)
+        self.assertEqual(
+            SandboxCanalSesion.objects.get(telefono='573001234572').modo,
+            MODO_VENTAS,
+        )
+
+    def test_atajo_ventas_desde_raiz(self):
+        d = resolver_ruta_sandbox({
+            'From': 'whatsapp:+573001234583',
+            'To': 'whatsapp:+14155238886',
+            'Body': 'ventas',
+        })
+        self.assertEqual(d.action, 'ventas')
+        self.assertTrue(d.saludo_entrada)
+        self.assertEqual(
+            SandboxCanalSesion.objects.get(telefono='573001234583').modo,
+            MODO_VENTAS,
+        )
 
     def test_elige_cursos_bootstrap(self):
         base = {
@@ -119,6 +143,66 @@ class SandboxMenuTests(TestCase):
         )
         self.assertEqual(resolver_ruta_sandbox({**base, 'Body': 'listo'}).action, 'cursos')
         self.assertEqual(resolver_ruta_sandbox({**base, 'Body': 'menu'}).action, 'show_menu')
+
+    def test_b2b_elige_cursos_no_queda_sticky_ni_inscrito(self):
+        from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante
+
+        otro = Cliente.objects.create(
+            nombre='Org B2B menú',
+            nit='800111223-1',
+            activo=True,
+            contacto_principal='x',
+            email='b2b@eki.co',
+            telefono='57300',
+        )
+        demo = Cliente.objects.create(
+            nombre='eki Demo menú',
+            nit='900888778-1',
+            activo=True,
+            contacto_principal='eki',
+            email='demo2@eki.co',
+            telefono='57300',
+        )
+        curso = Curso.objects.create(
+            nombre='Demo · Riendas menú',
+            cliente=demo,
+            activo=True,
+        )
+        Estudiante.objects.create(
+            nombre='Cohorte',
+            cedula='1088003',
+            telefono='573001234584',
+            cliente=otro,
+            activo=True,
+            acepto_terminos=True,
+            estado_chat='ACTIVO',
+        )
+        with override_settings(
+            EKI_DEMO_RIENDAS_CURSO_ID=str(curso.id),
+            EKI_DEMO_RIENDAS_ORIGEN_ID='999999',
+        ):
+            with patch('core.utils.enviar_whatsapp_twilio', return_value={'success': True}), patch(
+                'core.catalogo_demo_carousel.sincronizar_demo_riendas_desde_prod',
+                return_value={'ok': False},
+            ), patch(
+                'core.sandbox_canal.enviar_sandbox', return_value={'success': True}
+            ):
+                out = dispatch_sandbox_menu({
+                    'From': 'whatsapp:+573001234584',
+                    'To': 'whatsapp:+14155238886',
+                    'Body': '2',
+                })
+        self.assertEqual(out, 'handled')
+        self.assertEqual(
+            SandboxCanalSesion.objects.get(telefono='573001234584').modo,
+            MODO_MENU,
+        )
+        self.assertFalse(
+            ProgresoEstudiante.objects.filter(
+                estudiante__telefono='573001234584',
+                curso=curso,
+            ).exists()
+        )
 
     def test_hola_desde_cursos_vuelve_al_menu(self):
         base = {
@@ -212,11 +296,35 @@ class SandboxMenuTests(TestCase):
         with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}):
             self.assertEqual(dispatch_sandbox_menu({**base, 'Body': '2'}), 'handled')
 
-    def test_texto_agentes_menciona_tres(self):
+    def test_dispatch_ventas_handled(self):
+        base = {
+            'From': 'whatsapp:+573001234577',
+            'To': 'whatsapp:+14155238886',
+        }
+        with patch('core.sandbox_menu.enviar_menu_agentes', return_value={'success': True}):
+            dispatch_sandbox_menu({**base, 'Body': '1'})
+        with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}):
+            self.assertEqual(dispatch_sandbox_menu({**base, 'Body': '4'}), 'handled')
+
+    def test_copy_menu_sandbox_una_vez_y_cuatro_agentes(self):
+        self.assertIn('_sandbox_', TEXTO_MENU)
+        self.assertIn('Tome las riendas', TEXTO_MENU)
+        self.assertNotIn('(sandbox)', TEXTO_AGENTES)
+        self.assertNotIn('sandbox', TEXTO_AGENTES.lower())
         self.assertIn('Agrónomo', TEXTO_AGENTES)
         self.assertIn('Coach', TEXTO_AGENTES)
         self.assertIn('Profe IA', TEXTO_AGENTES)
+        self.assertIn('Ventas', TEXTO_AGENTES)
         self.assertIn('reiniciar', TEXTO_AGENTES)
+
+    def test_prompt_ventas_aplicable_manana(self):
+        from core.sandbox_agentes import PROMPT_VENTAS, prompt_para, saludo_agente
+
+        self.assertEqual(prompt_para('ventas'), PROMPT_VENTAS)
+        self.assertIn('¿cómo lo aplica mañana', PROMPT_VENTAS.lower())
+        self.assertIn('propuesta de valor', PROMPT_VENTAS.lower())
+        self.assertIn('WhatsApp', PROMPT_VENTAS)
+        self.assertIn('mentor de ventas', saludo_agente('ventas').lower())
 
 
 @override_settings(DATA_LAKE_ENABLED=False)
