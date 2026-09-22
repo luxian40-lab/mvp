@@ -97,18 +97,30 @@ def dashboard_analytics(request):
             total=Count('id')
         ).order_by('-total') if hasattr(progresos, 'values') else []
 
-        # --- MÉTRICAS DE ERROR/ENVÍO DE MEDIA ---
-        total_envios_media = WhatsappLog.objects.filter(tipo='SENT').count() if WhatsappLog else 0
-        total_fallos_media = WhatsappLog.objects.filter(tipo='SENT', estado='ERROR').count() if WhatsappLog else 0
-        total_exitos_media = WhatsappLog.objects.filter(tipo='SENT', estado='SENT').count() if WhatsappLog else 0
+        # --- MÉTRICAS DE ERROR/ENVÍO DE MEDIA (estados Twilio + ERROR interno) ---
+        from core.domains.analytics.metricas import q_whatsapp_fallo, q_whatsapp_ok
+
+        sent_q = WhatsappLog.objects.filter(tipo='SENT') if WhatsappLog else None
+        if sent_q is not None and cliente_id:
+            sent_q = sent_q.filter(
+                Q(estudiante__cliente_id=cliente_id)
+                | Q(telefono__in=list(
+                    estudiantes.exclude(telefono='').values_list('telefono', flat=True)
+                ) if hasattr(estudiantes, 'exclude') else [])
+            ).distinct()
+        total_envios_media = sent_q.count() if sent_q is not None else 0
+        total_fallos_media = sent_q.filter(q_whatsapp_fallo()).count() if sent_q is not None else 0
+        total_exitos_media = sent_q.filter(q_whatsapp_ok()).count() if sent_q is not None else 0
         tasa_fallo_media = round((total_fallos_media / total_envios_media * 100), 1) if total_envios_media > 0 else 0
-        ultimos_errores_media = WhatsappLog.objects.filter(tipo='SENT', estado='ERROR').order_by('-fecha')[:5] if WhatsappLog else []
+        ultimos_errores_media = (
+            sent_q.filter(q_whatsapp_fallo()).order_by('-fecha')[:5] if sent_q is not None else []
+        )
         top_usuarios_fallos = (
-            WhatsappLog.objects.filter(tipo='SENT', estado='ERROR')
+            sent_q.filter(q_whatsapp_fallo())
             .values('telefono')
             .annotate(total=Count('id'))
             .order_by('-total')[:5]
-        ) if WhatsappLog else []
+        ) if sent_q is not None else []
 
         # --- MÉTRICAS EDUCATIVAS ---
         clientes = Cliente.objects.filter(activo=True).order_by('nombre') if Cliente else []
@@ -291,7 +303,8 @@ def api_metricas_json(request):
     
     elif tipo_metrica == 'temporal':
         # Últimos 30 días
-        hace_30 = datetime.now() - timedelta(days=30)
+        from django.utils import timezone as tz_util
+        hace_30 = tz_util.now() - timedelta(days=30)
         data = InteraccionLog.objects.filter(
             fecha__gte=hace_30
         ).annotate(

@@ -10,7 +10,8 @@ class PanelSnapshotHelpersTests(SimpleTestCase):
     def test_pct_delta_basico(self):
         self.assertEqual(_pct_delta(120, 100), 20)
         self.assertEqual(_pct_delta(0, 0), None)
-        self.assertEqual(_pct_delta(5, 0), 100)
+        self.assertIsNone(_pct_delta(5, 0))
+        self.assertEqual(_pct_delta(80, 100), -20)
 
     def test_ecosistema_studio_no_conecta_aprende(self):
         eco = _build_ecosistema(
@@ -145,3 +146,54 @@ class PanelViewTests(TestCase):
         self.assertIn("por_municipio_clave", data)
         self.assertEqual(data.get("filtro"), "global_todos_estudiantes")
         self.assertIn("generated_at", data)
+
+    def test_espacios_no_duplican_empresas_ni_inventan_insights(self):
+        snap = build_panel_snapshot(force=True)
+        portal = next(e for e in snap["espacios"] if e["key"] == "portal")
+        labels = [m["label"] for m in portal["metrics"]]
+        self.assertEqual(labels, ["Orgs", "Estudiantes", "Activos 7d"])
+        exito = next(e for e in snap["espacios"] if e["key"] == "exito")
+        self.assertEqual(exito["metrics"][0]["label"], "Sin progreso")
+
+    def test_campanas_7d_cuenta_enviolog_no_fecha_creacion(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from core.models import Campana, Cliente, EnvioLog, Estudiante
+
+        cli = Cliente.objects.create(nombre="Org panel camp", activo=True)
+        est = Estudiante.objects.create(
+            nombre="E camp",
+            cedula="9100191001",
+            telefono="573009100191",
+            cliente=cli,
+            activo=True,
+        )
+        camp = Campana.objects.create(nombre="Vieja ejecutada", cliente=cli, ejecutada=True)
+        Campana.objects.filter(pk=camp.pk).update(
+            fecha_creacion=timezone.now() - timedelta(days=40)
+        )
+        EnvioLog.objects.create(campana=camp, estudiante=est, estado="ENVIADO")
+        snap = build_panel_snapshot(force=True)
+        camp_kpi = next(k for k in snap["kpis"] if k["label"] == "Campañas")
+        self.assertEqual(camp_kpi["note"], "1 en 7d")
+
+
+class AdminTonesCssTests(SimpleTestCase):
+    def test_cielo_no_recolorea_todos_los_anchors(self):
+        from pathlib import Path
+
+        css = Path("static/admin/css/eki_admin_tones.css").read_text(encoding="utf-8")
+        self.assertNotIn("a:not(.button)", css)
+        self.assertIn("text-white", css)
+        self.assertIn('data-eki-tone="manana"', css)
+        self.assertIn("--eki-ink", css)
+
+    def test_ecosistema_grados_suaves(self):
+        from pathlib import Path
+
+        css = Path("static/admin/css/eki_admin_unfold.css").read_text(encoding="utf-8")
+        self.assertIn("rotateX(5deg)", css)
+        self.assertNotIn("rotateX(14deg)", css)
+        self.assertNotIn("rotateX(-14deg)", css)

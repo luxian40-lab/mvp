@@ -16,8 +16,9 @@ from core.views_cobertura_admin import get_cobertura_global
 
 
 def _pct_delta(hoy: int, ayer: int) -> int | None:
+    """% vs base. Sin base no fingimos 100%."""
     if ayer <= 0:
-        return None if hoy == 0 else 100
+        return None
     return int(round(((hoy - ayer) / ayer) * 100))
 
 
@@ -32,30 +33,45 @@ def _relativo(dt) -> str:
 
 def _avg_avance_pct() -> float:
     """% promedio de avance (denominador = módulos publicados WA)."""
+    from collections import defaultdict
+
+    from core.models import Curso, ModuloCompletado
     from core.modulo_publicacion import modulos_publicados_wa_qs
 
-    qs = (
-        ProgresoEstudiante.objects.annotate(
-            done=Count('modulos_completados', distinct=True),
-        )
-        .select_related('curso')
-        .filter(curso__isnull=False)[:400]
+    qs = list(
+        ProgresoEstudiante.objects.filter(curso_id__isnull=False)
+        .only('id', 'curso_id')
+        .order_by('id')[:800]
     )
-    rows: list[tuple[int, int]] = []
+    if not qs:
+        return 0.0
+    curso_ids = {p.curso_id for p in qs if p.curso_id}
+    cursos = {c.id: c for c in Curso.objects.filter(id__in=curso_ids)}
+    pub_by_curso: dict[int, set[int]] = {}
+    for cid, curso in cursos.items():
+        pub_by_curso[cid] = set(
+            modulos_publicados_wa_qs(curso).values_list('id', flat=True)
+        )
+    done_by_prog: dict[int, set[int]] = defaultdict(set)
+    for progreso_id, modulo_id in ModuloCompletado.objects.filter(
+        progreso_id__in=[p.id for p in qs]
+    ).values_list('progreso_id', 'modulo_id'):
+        done_by_prog[progreso_id].add(modulo_id)
+    rows: list[float] = []
     for prog in qs:
-        total = modulos_publicados_wa_qs(prog.curso).count()
+        pub_ids = pub_by_curso.get(prog.curso_id) or set()
+        total = len(pub_ids)
         if total <= 0:
             continue
-        pub_ids = set(modulos_publicados_wa_qs(prog.curso).values_list('id', flat=True))
-        done = prog.modulos_completados.filter(modulo_id__in=pub_ids).count()
-        rows.append((done, total))
+        done = len(done_by_prog[prog.id] & pub_ids)
+        rows.append(done / total)
     if not rows:
         total_p = ProgresoEstudiante.objects.count()
         if not total_p:
             return 0.0
         done = ProgresoEstudiante.objects.filter(completado=True).count()
         return (done / total_p) * 100.0
-    return sum((d / t) * 100.0 for d, t in rows) / len(rows)
+    return (sum(rows) / len(rows)) * 100.0
 
 
 def _nodo_status(ok: bool, warn: bool = False) -> str:
@@ -301,7 +317,7 @@ def _build_ecosistema(
                 bool(wa_24h or est_activos),
                 warn=wa_fallos_24h > 0 or n_63021 > 0,
             ),
-            'url': '/admin/copiloto/',
+            'url': '/admin/dashboard/?tab=ai_ops',
             'external': False,
             'icon': 'cell_tower',
             'x': 72,
@@ -479,7 +495,7 @@ def build_panel_snapshot(*, force: bool = False) -> dict[str, Any]:
     """KPIs y bloques del Panel (Inicio). Cache corto para no pesar /admin/."""
     from django.core.cache import cache
 
-    cache_key = 'admin_panel_snapshot_v8'
+    cache_key = 'admin_panel_snapshot_v9'
     if not force:
         cached = cache.get(cache_key)
         if cached:
@@ -527,7 +543,25 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
         certs_7d = 0
 
     campanas_enviadas = Campana.objects.filter(ejecutada=True).count()
-    campanas_7d = Campana.objects.filter(ejecutada=True, fecha_creacion__gte=hace_7).count()
+    campanas_7d = 0
+    try:
+        from core.domains.analytics.metricas import q_enviolog_ok
+        from core.models import EnvioLog
+
+        campanas_7d = (
+            EnvioLog.objects.filter(fecha_envio__gte=hace_7)
+            .filter(q_enviolog_ok())
+            .values('campana_id')
+            .distinct()
+            .count()
+        )
+    except Exception:
+        campanas_7d = Campana.objects.filter(
+            ejecutada=True
+        ).filter(
+            Q(fecha_programada__gte=hace_7)
+            | Q(fecha_programada__isnull=True, fecha_creacion__gte=hace_7)
+        ).count()
     avance = _avg_avance_pct()
     empresas = Cliente.objects.filter(activo=True).count()
     empresas_ayer = Cliente.objects.filter(
@@ -676,9 +710,9 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
             'nombre': 'Portal',
             'desc': 'Coordinadores B2B y programas',
             'metrics': [
-                {'label': 'Empresas', 'value': empresas},
+                {'label': 'Orgs', 'value': empresas},
                 {'label': 'Estudiantes', 'value': est_activos},
-                {'label': 'Activas', 'value': empresas},
+                {'label': 'Activos 7d', 'value': activos_7d},
             ],
             'url': 'https://app.eki.technology/portal/',
             'tone': 'blue',
@@ -689,7 +723,7 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
             'nombre': 'Centro de Éxito',
             'desc': 'Riesgo, retención e intervenciones',
             'metrics': [
-                {'label': 'Insights', 'value': len(insights) or '—'},
+                {'label': 'Sin progreso', 'value': sin_progreso},
                 {'label': 'Depts', 'value': depts_con_estudiantes},
                 {'label': 'Certs', 'value': certs},
             ],
@@ -703,8 +737,10 @@ def _build_panel_snapshot_uncached() -> dict[str, Any]:
     try:
         from core.models import EnvioLog
 
+        from core.domains.analytics.metricas import q_enviolog_fail
+
         n_fallos = EnvioLog.objects.filter(
-            estado__in=('FALLIDO', 'ERROR', 'FAILED'),
+            q_enviolog_fail(),
             fecha_envio__gte=hace_7,
         ).count()
         if n_fallos >= 1:

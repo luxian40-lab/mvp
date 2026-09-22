@@ -32,6 +32,9 @@ class CopilotoOpsTests(TestCase):
         self.assertIn('63021', snap['codigos_twilio'])
         self.assertIn('admin_hsm', snap)
         self.assertIn('cuerpo_mensaje', snap['admin_hsm']['no_usar'])
+        self.assertIn('admin_hoy', snap)
+        self.assertIn('inicio', snap['admin_hoy'])
+        self.assertIn('module_builder_beta', snap['admin_hoy'])
 
     @override_settings(TWILIO_ACCOUNT_SID='', TWILIO_AUTH_TOKEN='', OPENAI_API_KEY='')
     def test_reglas_sin_openai(self):
@@ -51,6 +54,14 @@ class CopilotoOpsTests(TestCase):
         out = responder_copiloto('¿La preview de plantilla es el HSM?')
         self.assertIn('content api', out['respuesta'].lower())
         self.assertIn('cuerpo_mensaje', out['respuesta'].lower())
+
+    @override_settings(TWILIO_ACCOUNT_SID='', TWILIO_AUTH_TOKEN='', OPENAI_API_KEY='')
+    def test_reglas_inicio_vs_analitica_y_builder(self):
+        out = responder_copiloto('¿Inicio o analítica? Module Builder')
+        txt = out['respuesta'].lower()
+        self.assertIn('pulso', txt)
+        self.assertIn('dashboard', txt)
+        self.assertIn('builder', txt)
 
     @override_settings(SECURE_SSL_REDIRECT=False)
     def test_view_staff_redirige_a_inicio(self):

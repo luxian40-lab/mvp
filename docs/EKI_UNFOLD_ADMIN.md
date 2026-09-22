@@ -46,7 +46,7 @@ Si `eki_modulo_jump.js` pone `activeTab = 'clase'`, el alta/edición queda **en 
 | Entradas al Builder | Columna **Builder** + botón detalle + enlace guía Clase + **redirect tras crear/guardar módulo** |
 | Drag Builder (rieles) | SortableJS: micros solo dentro de su sección + reordenar secciones enteras; POST `reorder_micros` / `reorder_secciones`; valida anti-intercalado (`core/module_structure.py`). ↑↓ como respaldo |
 | Drag orden inlines (clásico) | `ordering_field = "orden"` en Secciones/Pasos/Multimedia; `save_formset` + `core/orden_bloques.py` (temp + renúmero 1..n). ↑↓ siguen como respaldo |
-| **Tonos admin** (Mañana/Tarde/Noche) | Dropdown `palette` en el nav: `templates/unfold/helpers/eki_tone_switch_dropdown.html`; estilos `static/admin/css/eki_admin_tones.css`; lógica `static/admin/js/eki_admin_tones.js` (`html[data-eki-tone]`, persiste `localStorage`). Noche = carbón cálido (ojos) |
+| **Tonos admin** (Cielo / Marca / Oscuro) | Dropdown `palette` en el nav: `templates/unfold/helpers/eki_tone_switch_dropdown.html`; estilos `static/admin/css/eki_admin_tones.css`; lógica `static/admin/js/eki_admin_tones.js` (`html[data-eki-tone]`, persiste `localStorage`). Keys: manana / tarde / noche. Cielo **no** recolorea todos los `<a>`. |
 | **Campañas** (lanzar curso) | `CampanaAdmin` en `core/admin/campanas.py`; tabs con lenguaje de producto (**Mensaje inicial** / **Plantilla** / **Resultados**, no “Twilio”); ficha resumen arriba `templates/admin/core/campana/change_form.html` |
 | **Certificados** (biblioteca) | `PlantillaCertificadoAdmin` en `core/admin/certificados.py`; listado con **miniatura** + **Usada en**; **Duplicar** (acción lista + `actions_detail`); **Generar certificado de prueba** (descarga PNG, ruta `prueba-descarga/`); preview lateral en `templates/admin/learning/plantillacertificado/change_form.html` |
 | Base ops (Volver + shell) | `templates/admin/eki_ops_base.html` |
@@ -84,8 +84,8 @@ Desplegado a `eki-prod-final` (Health Green, `/health/` 200). Sin migración de 
 - **Campañas** — lenguaje de producto (Mensaje inicial / Plantilla / Participantes / Resultados) + ficha resumen del lanzamiento arriba del change form. Mismo motor de envío (Content SID / Twilio interno).
 - **Certificados** — biblioteca: miniatura en lista, “Usada en X cursos”, Duplicar y Generar certificado de prueba (descarga). Preview lateral intacto; se distingue **plantilla** (diseño) de **certificado emitido**.
 - **Module Builder WA** — allowlist prod default `*` (todos los cursos) aunque `EKI_MODULE_BUILDER_BETA` siga OFF. Tras crear/guardar módulo se abre el Builder. El admin clásico sigue disponible. Drag con rieles + miniaturas de media.
-- **Tonos admin** — Mañana / Tarde / Noche en el nav (icono `palette`), aplican a todo Unfold; Noche pensado para descanso visual.
+- **Tonos admin** — Cielo / Marca / Oscuro en el nav (icono `palette`), aplican a todo Unfold; Oscuro = carbón + Unfold `dark`. Cielo pisa primary a azul **sin** recolorear todos los links (contraste sidebar/CTAs).
 
 **Restringir Builder en prod:** `EKI_MODULE_BUILDER_CURSOS=impulso joven rural` (coma-sep) o allowlist vacía + beta OFF. Superusuario: `?builder=1`.
 
-Última actualización: 2026-08-12.
+Última actualización: 2026-09-22.

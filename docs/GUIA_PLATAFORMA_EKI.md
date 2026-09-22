@@ -2,11 +2,11 @@
 
 Documento de referencia para el equipo de producto, operaciones, contenido y desarrollo. Explica **qué hace eki**, **cómo se conectan las piezas**, **cómo operar cada superficie** y **cómo configurar cursos** para WhatsApp y aula virtual.
 
-**Última actualización:** 7 agosto 2026  
+**Última actualización:** 22 septiembre 2026  
 **Entorno producción:** AWS Elastic Beanstalk `eki-prod-final`  
 **Repositorio:** monolito Django (`mvp_project/`)  
-**Último deploy relevante:** `main-20260807-185849` — UX admin de campañas/certificados + **Module Builder WA** (código en prod, **flag OFF**) + tonos admin. Detalle en [§11.5](#115-novedades-admin-agosto-2026).  
-**Lectura CTO:** el producto en prod es un monolito operativo: WhatsApp pedagógico + portal B2B (**Centro de Éxito** con reenganche WA automático), certificados funder-grade (PNG+PDF+hash), media con reintento/recuperación, aula/Studio, gamificación, GEI y Nat comercial. La sección **25** cubre seguridad; el documento hermano `docs/EKI_PRODUCTO_PROFUNDO.md` explica cada módulo en profundidad (por qué existe, fallos, pruebas, refactor, pitch).
+**Último deploy relevante:** ver historial EB `main-*` / `eki-prod-final`. Esta guía describe el **código y las superficies vigentes a septiembre 2026**, no un zip de un solo deploy.  
+**Lectura CTO:** el producto en prod es un monolito operativo: WhatsApp pedagógico + portal B2B (**Centro de Éxito** con reenganche WA automático), certificados funder-grade (PNG+PDF+hash), media con reintento/recuperación, aula/Studio, gamificación, GEI y Nat comercial. El **admin Unfold** es la consola del equipo eki (Inicio ejecutivo, analítica por tabs, Copiloto ops, Module Builder, Course Engine, Knowledge Studio). La sección **25** cubre seguridad; el documento hermano `docs/EKI_PRODUCTO_PROFUNDO.md` explica cada módulo en profundidad (por qué existe, fallos, pruebas, refactor, pitch).
 
 **Documentos relacionados:**
 
@@ -38,6 +38,12 @@ Documento de referencia para el equipo de producto, operaciones, contenido y des
 10. [Portal B2B (app)](#10-portal-b2b-app)
     - [10.5 ¿Qué es GEI? ¿Qué es Nat?](#105-qué-es-gei-qué-es-nat)
 11. [Admin operaciones](#11-admin-operaciones)
+    - [11.5 Inicio ejecutivo](#115-inicio-ejecutivo-admin)
+    - [11.6 Tonos Cielo / Marca / Oscuro](#116-tonos-cielo--marca--oscuro)
+    - [11.7 Copiloto ops](#117-copiloto-ops)
+    - [11.8 Module Builder y Course Engine](#118-module-builder-y-course-engine)
+    - [11.9 Analítica y métricas honestas](#119-analítica-y-métricas-honestas)
+    - [11.10 Knowledge Studio, AI Ops y territorio](#1110-knowledge-studio-ai-ops-y-territorio)
 12. [Gamificación](#12-gamificación)
 13. [Certificados y verificación](#13-certificados-y-verificación)
 14. [Empleabilidad y formularios externos](#14-empleabilidad-y-formularios-externos)
@@ -57,23 +63,24 @@ Documento de referencia para el equipo de producto, operaciones, contenido y des
 
 ---
 
-## Estado del producto al 22 julio 2026 (resumen ejecutivo)
+## Estado del producto al 22 septiembre 2026 (resumen ejecutivo)
 
 Lo que un coordinador o un inversor debe entender **hoy**, sin leer todo el documento:
 
-| Superficie | Qué está vivo en producción |
-|------------|-----------------------------|
-| **WhatsApp** | Canal pedagógico principal: onboarding, *listo*, drip, evaluaciones **A–D no saltables con listo**, certificados, PQRS con contexto (sin avanzar el curso), campañas B2B. **Multi-curso:** 2+ cursos activos → menú; 1 → avance directo. **Media:** reintento auto ante 63019 + *reenvía video* sin perder avance. |
+| Superficie | Qué está vivo |
+|------------|----------------|
+| **WhatsApp** | Canal pedagógico principal: onboarding, *listo*, drip, evaluaciones **A–D no saltables con listo**, certificados, PQRS con contexto (sin avanzar el curso), campañas B2B. **Multi-curso:** 2+ cursos activos → menú; 1 → avance directo. **Media:** reintento auto ante 63019 + *reenvía video* sin perder avance; gate `media_wa_apto` (63021 = H.264+AAC). |
 | **Portal** (`app.eki.technology`) | Coordinación B2B: Inicio, métricas, gamificación, branding, **Guía EKI**, **Centro de Éxito**, **Suscripción** (vence/cupos), **Recuperar contraseña**, certificados (verify + PDF + CSV). Productos opcionales: GEI, Nat, empleabilidad. |
 | **Aula** (`aprende.eki.technology`) | Estudio, tareas, biblioteca, perfil, ranking. Login: escribir ***aula*** por WhatsApp → enlace/código (no OTP saliente en frío). |
-| **Studio** (`studio.eki.technology`) | Catálogo, inscripción, checkout **Wompi** → handoff firmado a Aprende. |
+| **Studio** (`studio.eki.technology`) | Catálogo, inscripción, checkout **Wompi** → handoff firmado a Aprende. Producto **aparte** de Aprende (sin cable en el mapa del admin). |
 | **Certificados públicos** | `certificados.eki.technology/verificar-certificado/<codigo>/` — org, documento enmascarado, horas, SHA-256, **Descargar PDF**. WhatsApp sigue enviando PNG. |
-| **Admin** (`admin.eki.technology`) | Consola maestra de contenido, clientes, campañas, drip, certificados; avisos 3G al subir media. |
-| **Infra** | EB `eki-prod-final`, RDS, S3, Celery+Redis (reenganche drip 08:00 + inactivos 09:00), Cloudflare. |
+| **Admin** (`admin.eki.technology`) | Consola maestra Unfold: **Inicio** (KPIs, mapa Colombia, ecosistema, alertas), **Analítica** por tabs, **Copiloto ops**, campañas HSM, Module Builder, Course Engine, Knowledge Studio, AI Ops, cobertura, infra. Tonos **Cielo / Marca / Oscuro**. |
+| **Nat** | Bot comercial WhatsApp (RAG + catálogo + clima Open-Meteo + visión de foto). Inbound a **Celery**. HITL en Knowledge Studio. No es el Copiloto del admin. |
+| **Infra** | EB `eki-prod-final` (Python 3.11), RDS, S3 `eki-produccion`, Celery+Redis (reenganche drip 08:00 + inactivos 09:00), Cloudflare. |
 
-**Identidad visual vigente:** portal/Studio/Aprende = morado eki `#9A6CAC` / `#7a4e8e` / profundo `#5F3A6E`. Favicons distintos: portal (personas), aula (cuaderno), certificados.
+**Identidad visual vigente:** portal/Studio/Aprende = morado eki `#9A6CAC` / `#7A4E8E` / profundo `#5F3A6E`. Admin Unfold + skins Cielo (azul ops) / Marca (lavanda) / Oscuro (carbón). Favicons distintos por producto.
 
-**Qué no es eki todavía:** app móvil nativa, LMS SCORM completo, drip/whitelist self-serve completo en portal (sigue admin eki), emitir/anular masivo de certificados desde portal, predicción ML de retención. El Centro de Éxito **sí** muestra riesgo y **sí** dispara reenganche WA automático por inactividad (Celery); las “automatizaciones” del panel siguen siendo en parte sugeridas + la tarea diaria de inactivos.
+**Qué no es eki todavía:** app móvil nativa, LMS SCORM completo, drip/whitelist self-serve completo en portal (sigue admin eki), emitir/anular masivo de certificados desde portal, predicción ML de retención. El Centro de Éxito **sí** muestra riesgo y **sí** dispara reenganche WA automático por inactividad (Celery).
 
 ---
 
@@ -206,7 +213,13 @@ Archivo: `mvp_project/urls.py`
 | `/aprende/` | Aula virtual (estudio) |
 | `/studio/` | eki Studio (catálogo e inscripción) |
 | `/webhook/whatsapp/` | Webhook Twilio educativo |
-| `/api/` | API LXP (integrations) |
+| `/webhook/ia-bot-comercial/` | Bot comercial Nat (encola Celery) |
+| `/admin/copiloto/ask/` | JSON del Copiloto ops (staff) |
+| `/admin/module-builder/<id>/` | Module Builder WA |
+| `/admin/curso/<id>/course-engine/` | Course Engine (media IA) |
+| `/admin/knowledge-studio/` | HITL RAG Nat |
+| `/admin/ai-ops/eventos/` | Eventos IA / replay |
+| `/api/` | API LXP (integrations)
 | `/verificar-certificado/<codigo>/` | Verificación pública (HTML) |
 | `/verificar/?code=` | Compat. formato antiguo → redirect |
 | `certificados.eki.technology` | Host público de QR (CNAME → EB) |
@@ -226,17 +239,20 @@ Archivo: `mvp_project/urls.py`
 
 ### 3.1 Admin operaciones (`admin.eki.technology`)
 
-**Quién:** equipo eki con usuario Django `is_staff=True`.
+**Quién:** equipo eki con usuario Django `is_staff=True`. Los clientes **no** entran aquí.
 
 **Para qué:**
 
-- Crear organizaciones (`Cliente`) y sus cursos.
-- Configurar módulos, microcontenidos, multimedia, drip.
-- Gestionar estudiantes, grupos, campañas masivas.
+- **Inicio** (`/admin/`): pulso del día — KPIs, mapa de cobertura, ecosistema, alertas WA/media/infra, Copiloto.
+- **Analítica** (`/admin/dashboard/`): Cursos y avance, Centro de Éxito, Nat, IA/Twilio, Pulso con filtros/Excel.
+- Crear organizaciones (`Cliente`) y sus cursos; módulos, microcontenidos, multimedia, drip.
+- **Module Builder** y **Course Engine** para armar y generar contenido WA.
+- Gestionar estudiantes, grupos, campañas HSM (Twilio Content SID).
 - Enviar certificados, auditar conversaciones, ajustar gamificación.
-- Hub del aula: `/admin/aula-web/`.
+- Knowledge Studio (HITL Nat), AI Ops, territorio, cobertura, infra.
+- Hub del aula: `/admin/aula-web/`. Manual interno: `/admin/instrucciones/`.
 
-Es la **consola maestra**. Casi todo lo que el estudiante experimenta se configura aquí.
+Es la **consola maestra**. Casi todo lo que el estudiante experimenta se configura aquí. Detalle en [§11](#11-admin-operaciones).
 
 ### 3.2 Portal B2B (`app.eki.technology`)
 
@@ -985,39 +1001,118 @@ Tras refactor junio 2026, el monolito `core/admin.py` se dividió en:
 
 | URL | Función |
 |-----|---------|
-| `/admin/dashboard/` | Panel operativo |
+| `/admin/` | Inicio ejecutivo (Unfold `DASHBOARD_CALLBACK`) |
+| `/admin/dashboard/` | Analítica unificada (tabs) |
+| `/admin/dashboard/?tab=retencion` | Centro de Éxito (admin) |
+| `/admin/dashboard/?tab=commercial` | Nat / comercial |
+| `/admin/dashboard/?tab=ai_ops` | IA y Twilio |
+| `/admin/copiloto/` | Redirect al chat del header (`?copiloto=1`) |
 | `/admin/drip-estudiantes/` | Drip por persona |
 | `/admin/aula-web/` | Publicación aula |
 | `/admin/envio-certificados/` | Cola certificados |
 | `/admin/conversaciones/` | Inbox staff |
+| `/admin/cobertura/` | Mapa Colombia |
+| `/admin/infra/` | Salud Celery / Redis / S3 / EB |
+| `/admin/knowledge-studio/` | HITL RAG Nat |
+| `/admin/ai-ops/eventos/` | EventoIA + replay |
+| `/admin/territorio-alertas/` | Señales territoriales |
+| `/admin/module-builder/<id>/` | Builder de módulo WA |
+| `/admin/curso/<id>/course-engine/` | Generación media IA |
+| `/admin/curso-nuevo/` | Alta de curso (wizard) |
+| `/admin/calendario/` | Campañas programadas |
+| `/admin/push-estudiantes/` | Push WA puntual |
+| `/admin/instrucciones/` | Manual interno del admin |
 
 ### 11.3 Unfold (tema admin)
 
 Tema visual del admin con **Unfold** (`mvp_project/unfold_admin.py` → dict `UNFOLD`): navegación, tabs de fieldsets, `actions_detail`, estilos/scripts eki inyectados (`STYLES` / `SCRIPTS`). Doc oficial y guía de cambios solo-admin: `docs/EKI_UNFOLD_ADMIN.md`.
 
+Pin: **django-unfold 0.91.x** (Python 3.11 de EB). Primary = morado eki; los skins Cielo/Oscuro pisan `--color-primary-*` en CSS.
+
 ### 11.4 Flujo recomendado para equipo de contenido
 
 1. Crear/editar **Cliente** y verificar productos portal.
-2. Crear **Curso** activo; marcar **Publicado en eki Studio** si quieres catálogo web.
-3. Por cada **Módulo**: secciones → pasos → multimedia.
-4. Probar con estudiante de prueba en WhatsApp.
-5. Verificar en `aprende.eki.technology` con mismo estudiante.
-6. Ajustar drip antes de abrir cohorte real.
+2. Crear **Curso** activo (`/admin/curso-nuevo/` o alta clásica); marcar **Publicado en eki Studio** si quieres catálogo web.
+3. Por cada **Módulo**: Module Builder (secciones → micros → media) **o** admin clásico. Publicar WA (`publicado_wa`) cuando el campo pueda recibirlo.
+4. Course Engine opcional para generar video/infografía/podcast; ops publica el artefacto en el paso.
+5. Probar con estudiante de prueba en WhatsApp (gate media: HEAD + `media_wa_apto`).
+6. Verificar en `aprende.eki.technology` con mismo estudiante.
+7. Ajustar drip antes de abrir cohorte real. Campaña HSM con Content SID `HX…` y variables `{{1}}` secuenciales.
 
-### 11.5 Novedades admin (agosto 2026)
+### 11.5 Inicio ejecutivo (`/admin/`)
 
-Deploy `main-20260807-185849`. Cambios **solo de admin/UX**; el motor pedagógico, drip, campañas y certificados emitidos no cambian.
+El Inicio **no** es la analítica profunda. Es el pulso del día:
 
-**Module Builder WA** — página custom `/admin/module-builder/<id>/` para armar **secciones + microcontenidos** de un módulo de forma visual (miniaturas de media, drag con “rieles”: los micros se reordenan solo dentro de su sección y las secciones enteras entre sí; anti-intercalado validado en servidor). Comparte login, modelos y auth del admin; Unfold deja de dictar el look de esa pantalla.
+- Saludo formal por hora local (`Buenos días/tardes/noches, {nombre}`).
+- 5 KPIs: estudiantes activos, certificados, campañas, avance medio (solo módulos **publicados WA**), empresas. El `% vs ayer` **no se inventa** si no hay base (ayer = 0 → sin delta).
+- **Campañas en 7d** = campañas con `EnvioLog` en estado `ENVIADO` (no `fecha_creacion` de la ficha).
+- Mapa Leaflet de cobertura (todos los estudiantes, `global=1`).
+- Actividad reciente (`EventoIA` o telemetría de aprendizaje).
+- Señales eki + alertas 24h (63019/63021, media en riesgo, infra).
+- Grafo **Ecosistema eki**: Studio y Aprende son productos aparte (Studio **sin cable** a Aprende). Perspectiva suave (`rotateX(5deg)`) para que las burbujas se lean.
+- Copiloto (cajón del header) y atajos.
 
-- Flag `EKI_MODULE_BUILDER_BETA`: **local ON**, **prod OFF** salvo env `=1` (o `?builder=1` como superusuario). Por eso los cursos vivos siguen en el admin clásico y el Builder no reescribe módulos existentes.
-- Entradas: columna **Builder** en el listado de Módulos, botón **Module Builder** en la ficha del módulo, y enlace en la guía de la pestaña Clase.
-- Drip / fechas / agentes **siguen en el admin clásico** — el Builder solo ordena contenido.
-- Código: `core/views_module_builder.py`, `core/module_builder.py`, `core/templates/admin/module_builder.html`, `static/admin/{css,js}/module_builder.*`. Doc: `docs/MODULE_BUILDER_WA.md`.
+Código: `core/views_admin_panel.py`, `templates/admin/partials/eki_panel_exec.html`, `static/admin/css/eki_admin_unfold.css`.
 
-**Tonos del admin** (Mañana / Tarde / Noche) — dropdown `palette` en la barra superior (junto a Light/Dark). Aplica a todo Unfold vía `html[data-eki-tone]`, persiste en `localStorage`. Noche = carbón cálido pensado para descanso visual. Código: `templates/unfold/helpers/eki_tone_switch_dropdown.html`, `static/admin/css/eki_admin_tones.css`, `static/admin/js/eki_admin_tones.js`.
+### 11.6 Tonos Cielo / Marca / Oscuro
 
-**Campañas** y **Certificados** — ver [§8.5](#85-ux-admin-de-campaña-agosto-2026) y [§13.4b](#134b-biblioteca-de-plantillas-en-admin-agosto-2026).
+Dropdown `palette` en la barra superior. Persiste en `localStorage` (`eki-admin-tone`). Keys internas: `manana` / `tarde` / `noche`.
+
+| Label UI | Key | Skin |
+|----------|-----|------|
+| **Cielo** | `manana` | Azul operativo. Tokens `--color-primary-*` azules. **No** recolorea todos los `<a>` (eso tapaba texto blanco del sidebar). |
+| **Marca** | `tarde` (default) | Lavanda eki `#9A6CAC`. |
+| **Oscuro** | `noche` | Carbón + clase Unfold `dark`. |
+
+Código: `templates/unfold/helpers/eki_tone_switch_dropdown.html`, `static/admin/css/eki_admin_tones.css`, `static/admin/js/eki_admin_tones.js`.
+
+No volver a labels Mañana/Tarde/Noche. No inventar una 4ª paleta.
+
+### 11.7 Copiloto ops
+
+Chat flotante en el header (no es una pestaña, no es Nat, no es eki.ia del aula).
+
+- Pregunta JSON: `POST /admin/copiloto/ask/`.
+- Si hay `OPENAI_API_KEY` usa el modelo copiloto; si no, reglas + snapshot.
+- El snapshot incluye pulso WA 24h, códigos Twilio, programas vitrina, HSM, flag Module Builder, rutas de Inicio vs Analítica, Knowledge Studio pendiente.
+- Canon: `core/copiloto_ops.py` (`CANON_OPS`). Tests: `core/tests_copiloto_ops.py`.
+
+### 11.8 Module Builder y Course Engine
+
+**Module Builder WA** — `/admin/module-builder/<id>/` para armar **secciones + microcontenidos** (miniaturas, drag por rieles, anti-intercalado en servidor).
+
+- Flag `EKI_MODULE_BUILDER_BETA`: **local ON**, **prod OFF** salvo env `=1` (o `?builder=1` como superusuario). Allowlist `EKI_MODULE_BUILDER_CURSOS` default `*` (puede abrir Builder por curso aunque el flag global esté OFF).
+- Drip / fechas / agentes **siguen en el admin clásico**.
+- Código: `core/views_module_builder.py`, `core/module_builder.py`, `static/admin/{css,js}/module_builder.*`. Doc: `docs/MODULE_BUILDER_WA.md`.
+
+**Course Engine** — `/admin/curso/<id>/course-engine/`. Genera video / infografía / podcast con IA; ops lo publica en `PasoModulo`. No es eki Studio. Doc: `docs/COURSE_ENGINE_LOCAL.md`, `docs/COURSE_ENGINE_CURSO_MIXTO.md`. Chip de costos en el nav.
+
+### 11.9 Analítica y métricas honestas
+
+`/admin/dashboard/` (default tab **Cursos y avance**). No duplicar el pulso de Inicio.
+
+Definiciones (skill Data; no negociar a la ligera):
+
+| Concepto | Definición |
+|----------|------------|
+| **Inscrito** | `ProgresoEstudiante` en el filtro (org/curso/grupo/fechas) |
+| **Activo N días** | Última actividad WA o `fecha_ultimo_avance` dentro de N días |
+| **Listo** | INCOMING cuyo cuerpo normalizado es `listo` / `continuar` (o telemetría de avance). **No** proxy `n_mods > 0` |
+| **Embudo curso** | Acumulado: inscritos → onboarding → empezaron → alcanzó Mn → certificado |
+| **Posición hoy** | Un bucket por persona. **No** es embudo de conversión |
+| **Envío campaña OK** | `EnvioLog.estado` `ENVIADO` (el código **no** escribe `exitoso`) |
+| **Fallo WA** | `failed` / `undelivered` / `ERROR` (Twilio + error interno) |
+
+Si un % puede ser **>100%**, el copy **no** dice “continúan / de los anteriores”. KPI del Inicio sin base → sin delta, no un 100% inventado.
+
+### 11.10 Knowledge Studio, AI Ops y territorio
+
+- **Knowledge Studio** `/admin/knowledge-studio/`: candidatas de conversación Nat → humano aprueba → RAG.
+- **AI Ops** `/admin/ai-ops/eventos/`: `EventoIA` + replay por `trace_id`.
+- **Territorio** `/admin/territorio-alertas/`: señales agregadas (sin PII en el agregado).
+- **Nat** no vive en este admin como “chat”: vive en WhatsApp. Ficha Cliente → instrucciones extra; clima Open-Meteo; foto de cultivo.
+
+**Campañas** y **Certificados** (UX agosto 2026) — ver [§8.5](#85-ux-admin-de-campaña-agosto-2026) y [§13.4b](#134b-biblioteca-de-plantillas-en-admin-agosto-2026).
 
 ---
 
@@ -1559,11 +1654,16 @@ No debería: *reenvía video* **no** avanza progreso. Si avanzó con *listo* sin
 | **eki Studio** | `studio.eki.technology` — catálogo e inscripción |
 | **Grupo** | `GrupoEstudiantes` — cohorte para campañas y ranking |
 | **GEI** | Gases de Efecto Invernadero — fichas de finca por WhatsApp. Ver [§10.5](#105-qué-es-gei-qué-es-nat). |
-| **Nat** | Agente comercial WhatsApp (catálogo + asesoría + clima). Ver [§10.5](#105-qué-es-gei-qué-es-nat). |
+| **Nat** | Agente comercial WhatsApp (catálogo + asesoría + clima + visión). Ver [§10.5](#105-qué-es-gei-qué-es-nat). |
+| **Copiloto ops** | Chat del admin Unfold. No es Nat. Ver [§11.7](#117-copiloto-ops). |
+| **Module Builder** | Editor visual de secciones/micros WA. Ver [§11.8](#118-module-builder-y-course-engine). |
+| **Course Engine** | Generación de media IA por curso. No es eki Studio. |
+| **Knowledge Studio** | Cola HITL de fichas RAG de Nat. |
+| **Listo** | Palabra de avance WA (`listo` / `continuar`). No es un proxy de módulos completados. |
 
 ---
 
-## 23. Historial de capacidades (julio 2026)
+## 23. Historial de capacidades (julio–septiembre 2026)
 
 | Capacidad | Descripción | Estado prod |
 |-----------|-------------|-------------|
@@ -1597,8 +1697,16 @@ No debería: *reenvía video* **no** avanza progreso. Si avanzó con *listo* sin
 | **Nat foto + packshot** | Visión de cultivo + envío de imagen de producto | Desplegado |
 | **UX admin campañas** | Copy de producto (Mensaje inicial / Plantilla / Resultados) + ficha resumen del lanzamiento | Desplegado (`main-20260807-185849`) |
 | **Biblioteca certificados** | Miniatura + “Usada en X cursos” + Duplicar + Generar prueba (descarga) | Desplegado (`main-20260807-185849`) |
-| **Tonos admin** | Mañana / Tarde / Noche en el nav (`palette`), aplican a todo Unfold | Desplegado (`main-20260807-185849`) |
-| **Module Builder WA** | Secciones + micros con drag por rieles + miniaturas; página custom en admin | En prod **OFF** (`EKI_MODULE_BUILDER_BETA`); piloto por flag |
+| **Tonos admin** | Cielo / Marca / Oscuro (`palette`), aplican a todo Unfold | Desplegado (labels actualizados sep 2026) |
+| **Module Builder WA** | Secciones + micros con drag por rieles + miniaturas; página custom en admin | Código en prod; flag `EKI_MODULE_BUILDER_BETA` **OFF** en prod salvo `=1`; allowlist `EKI_MODULE_BUILDER_CURSOS` |
+| **Inicio ejecutivo** | KPIs, mapa, ecosistema, alertas, avance = módulos publicados WA | Desplegado |
+| **Copiloto ops** | Chat header: WA, HSM, Builder, Inicio vs Analítica. No es Nat | Desplegado |
+| **Dashboard unificado** | Tabs learning / retencion / commercial / ai_ops / executive | Desplegado |
+| **Course Engine** | Generación video/infografía/podcast; studio por curso | En código; costos en nav |
+| **Knowledge Studio** | HITL candidatas RAG Nat | Desplegado |
+| **AI Ops / EventoIA** | Feed + replay por trace | Desplegado |
+| **Gate media WA** | `PasoModulo.media_wa_apto`; 63021 = H.264 Main+AAC | Desplegado |
+| **Nat Celery + Open-Meteo + visión** | Inbound async; clima por municipio; foto de cultivo | Desplegado |
 
 > Para el **por qué** de cada pieza y cómo defenderla ante un inversor o entrevista técnica, ver `docs/EKI_PRODUCTO_PROFUNDO.md`.
 
@@ -1684,6 +1792,12 @@ Eso cierra el gap entre “arquitectura sana” y “podemos firmar un anexo de 
 
 | Funcionalidad | Archivos principales |
 |---------------|---------------------|
+| Unfold / Inicio | `mvp_project/unfold_admin.py`, `core/views_admin_panel.py`, `static/admin/css/eki_admin_unfold.css`, `eki_admin_tones.css` |
+| Copiloto ops | `core/copiloto_ops.py`, `core/views_copiloto_admin.py` |
+| Module Builder | `core/views_module_builder.py`, `core/module_builder.py` |
+| Course Engine | `core/course_engine/`, `core/views_course_engine_studio.py` |
+| Knowledge Studio | `core/knowledge_studio.py`, `core/views_knowledge_studio.py` |
+| Métricas empresa | `core/metricas_empresa.py`, `core/domains/analytics/metricas.py` |
 | Webhook WA | `core/views.py`, `core/whatsapp_service.py` |
 | Intents / respuestas | `core/intent_detector.py`, `core/response_templates.py` |
 | Microcontenidos | `core/module_steps.py`, `core/admin/cursos.py` |
@@ -1714,4 +1828,4 @@ Eso cierra el gap entre “arquitectura sana” y “podemos firmar un anexo de 
 
 ---
 
-*Documento mantenido por el equipo eki. Versión CTO julio 2026. Para cambios técnicos de bajo nivel y deuda, consultar `docs/AUDITORIA_ARQUITECTURA_EKI.md`.*
+*Documento mantenido por el equipo eki. Versión septiembre 2026. Para cambios técnicos de bajo nivel y deuda, consultar `docs/AUDITORIA_ARQUITECTURA_EKI.md`.*

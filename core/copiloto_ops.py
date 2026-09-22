@@ -16,27 +16,36 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 CANON_OPS = """Hechos fijos (no los contradigas):
-- Este chat es el copiloto OPS del admin Unfold. No es Nat (bot comercial agro) ni eki.ia del aula.
+- Este chat es el copiloto OPS del admin Unfold. No es Nat (bot comercial agro) ni eki.ia del aula ni el consultor del Centro de Éxito.
+- Superficies: admin.eki.technology (ops) · app.eki.technology (portal B2B) · aprende.eki.technology (LMS) · studio.eki.technology (vitrina) · certificados.eki.technology (verify).
+- Inicio /admin/ = pulso del día (KPIs, mapa, ecosistema, alertas). Analítica profunda = /admin/dashboard/ (tabs: Cursos y avance, Centro de Éxito, Nat/comercial, IA y Twilio, Pulso con filtros).
+- Tonos del admin: Cielo / Marca / Oscuro (keys CSS manana/tarde/noche). No se llaman Mañana/Tarde/Noche en la UI.
 - Producción EB = eki-prod-final, región us-east-2, S3 eki-produccion. Un número WhatsApp sirve vitrina comercial + LMS.
 - Diccionario de códigos Twilio/WhatsApp está en el JSON (codigos_twilio). Úsalo: 63021 video, 63019 descarga media, 63016 ventana 24h, 63049 plantilla/variables, 21610 opt-out.
 - Programas vitrina (eki.com.co) están en el JSON programas_vitrina. Solo Tome las riendas es demo hoy; el resto es informativo (Ver más / Solo info).
-- Campañas HSM: variables {{1}}… secuenciales; no mandar plantilla a medias.
+- Campañas HSM: variables {{1}}… secuenciales; no mandar plantilla a medias. Content SID HX… vía Twilio Content API.
 - Preview de campaña/plantilla: la burbuja del admin lee Twilio Content API (HX…). NO es el mock «Hola, bienvenida al curso». NO fiarse de cuerpo_mensaje (eso es borrador interno / fallback 24h).
 - Ficha Plantilla: pestaña «HSM Twilio» = SID + body/botones reales. Pestaña «Borrador interno» = texto Django, no es WhatsApp si hay HX.
-- Cliente: mapa y drip están en la ficha (pestañas), no en el listado. Módulos: examen/media extra en Module Builder, no en el clásico.
+- Module Builder: /admin/module-builder/<id>/ (secciones + micros, drag por rieles). Flag EKI_MODULE_BUILDER_BETA (local ON; prod OFF salvo =1). Allowlist EKI_MODULE_BUILDER_CURSOS (* = todos). Drip/fechas/agentes siguen en el admin clásico.
+- Course Engine: /admin/curso/<id>/course-engine/ genera video/infografía/podcast; ops publica en PasoModulo / Builder. No es Studio.
+- Knowledge Studio: /admin/knowledge-studio/ HITL de candidatas RAG de Nat. Eventos IA: /admin/ai-ops/eventos/.
+- Cliente: mapa y drip en la ficha (pestañas). Módulos: examen/media extra en Module Builder.
+- Métricas honestas: Inscrito = ProgresoEstudiante en el filtro. Listo = INCOMING listo/continuar (no proxy n_mods>0). Avance medio del Inicio = solo módulos publicados WA. Campañas 7d = EnvioLog ENVIADO (no fecha_creacion). Embudo acumulado ≠ posición hoy.
 - Demo Riendas: env EKI_DEMO_RIENDAS_CURSO_ID. Carrusel: EKI_DEMO_CAROUSEL_CONTENT_SID.
-- media_wa_apto=False en un paso = video que el gate marcó no apto. Publicar en prod exige QA media (HEAD + apto).
-- Nat (bot comercial): inbound a Celery (NAT_WEBHOOK_CELERY_ASYNC); el webhook HTTP solo encola.
+- media_wa_apto=False en un paso = video que el gate marcó no apto. Publicar en prod exige QA media (HEAD + apto). 63021 = recodificar H.264 Main+AAC + faststart.
+- Nat: inbound a Celery (NAT_WEBHOOK_CELERY_ASYNC); webhook HTTP solo encola. Clima Open-Meteo por municipio. Visión de foto de cultivo. No es este copiloto.
+- Centro de Éxito: /admin/dashboard/?tab=retencion y portal /portal/retencion/. Reenganche WA inactivos es Celery (09:00), no el chat de este copiloto.
 - No inventes SIDs, teléfonos ni deploys. Si no está en el JSON, dilo.
 """
 
 SYSTEM_PROMPT = """Eres el copiloto de operaciones de eki. Hablas con el fundador/ops en español de Colombia, breve.
 """ + CANON_OPS + """
-Usa el JSON de pulso, códigos Twilio y programas. Si preguntan por un código (63021, etc.) explícalo y di qué hacer.
+Usa el JSON de pulso (admin_hoy, códigos, programas, HSM). Si preguntan por un código (63021, etc.) explícalo y di qué hacer.
 Si preguntan programas / vitrina / carrusel / Riendas, usa programas_vitrina (no inventes más cursos).
 Si preguntan preview, HSM, plantilla de campaña o cuerpo_mensaje, usa admin_hsm del JSON.
-Prioriza: producción, fallos WA con código, Twilio, demo, campañas.
-Máximo 14 líneas. Accionable.
+Si preguntan Inicio vs Analítica, Builder, Course Engine, Knowledge Studio o tonos, usa admin_hoy.
+Prioriza: producción, fallos WA con código, Twilio, demo, campañas, media no apta.
+Máximo 16 líneas. Accionable.
 """
 
 CODIGOS_TWILIO = {
@@ -66,6 +75,15 @@ ADMIN_HSM = {
     ),
     'ops_cliente_modulo': (
         'Mapa y drip: ficha Cliente. Examen de módulo: Module Builder.'
+    ),
+    'inicio_vs_dashboard': (
+        '/admin/ = pulso del día. /admin/dashboard/ = analítica por tab '
+        '(learning, retencion, commercial, ai_ops, executive).'
+    ),
+    'tonos': 'Cielo / Marca / Oscuro en el icono palette. Keys internas manana/tarde/noche.',
+    'builder': (
+        'Module Builder: /admin/module-builder/<id>/. Flag EKI_MODULE_BUILDER_BETA; '
+        'prod OFF salvo =1. Allowlist EKI_MODULE_BUILDER_CURSOS.'
     ),
 }
 
@@ -213,6 +231,42 @@ def snapshot_ops(*, horas: int = 24) -> dict[str, Any]:
     ).strip()
     es_prod = _es_produccion() or (eb == 'eki-prod-final')
 
+    ks_pend = 0
+    try:
+        from core.models import ConversacionRAGCandidata
+
+        ks_pend = ConversacionRAGCandidata.objects.filter(
+            estado=ConversacionRAGCandidata.ESTADO_PENDIENTE
+        ).count()
+    except Exception:
+        ks_pend = 0
+
+    admin_hoy = {
+        'inicio': '/admin/ pulso del día (KPIs, mapa, ecosistema, alertas).',
+        'analitica': '/admin/dashboard/ tabs learning · retencion · commercial · ai_ops · executive.',
+        'tonos': 'Cielo / Marca / Oscuro (manana / tarde / noche).',
+        'module_builder_beta': bool(getattr(settings, 'EKI_MODULE_BUILDER_BETA', False)),
+        'module_builder_cursos': str(getattr(settings, 'EKI_MODULE_BUILDER_CURSOS', '') or '')[:80],
+        'knowledge_studio_pendientes': ks_pend,
+        'metricas': {
+            'inscrito': 'ProgresoEstudiante en el filtro',
+            'listo': 'INCOMING listo/continuar — no n_mods>0',
+            'avance_inicio': 'solo módulos publicados WA',
+            'campanas_7d': 'EnvioLog ENVIADO en 7d (no fecha_creacion)',
+        },
+        'rutas': [
+            {'nombre': 'Inicio', 'url': '/admin/'},
+            {'nombre': 'Analítica', 'url': '/admin/dashboard/'},
+            {'nombre': 'Centro de Éxito', 'url': '/admin/dashboard/?tab=retencion'},
+            {'nombre': 'Knowledge Studio', 'url': '/admin/knowledge-studio/'},
+            {'nombre': 'AI Ops', 'url': '/admin/ai-ops/eventos/'},
+            {'nombre': 'Infra', 'url': '/admin/infra/'},
+            {'nombre': 'Cobertura', 'url': '/admin/cobertura/'},
+            {'nombre': 'Builder', 'url': '/admin/module-builder/<id>/'},
+            {'nombre': 'Course Engine', 'url': '/admin/curso/<id>/course-engine/'},
+        ],
+    }
+
     return {
         'entorno': {
             'es_produccion': es_prod,
@@ -241,6 +295,7 @@ def snapshot_ops(*, horas: int = 24) -> dict[str, Any]:
         'codigos_twilio': CODIGOS_TWILIO,
         'programas_vitrina': PROGRAMAS_VITRINA,
         'admin_hsm': ADMIN_HSM,
+        'admin_hoy': admin_hoy,
     }
 
 
@@ -292,6 +347,29 @@ def _respuesta_reglas(pregunta: str, ctx: dict[str, Any]) -> str:
         hsm = ctx.get('admin_hsm') or ADMIN_HSM
         lineas.append(hsm.get('preview_campana', ''))
         lineas.append('No fiarse de cuerpo_mensaje: es borrador interno, no el HSM.')
+    if any(w in q for w in ('inicio', 'analítica', 'analitica', 'dashboard', 'pulso')):
+        hoy = ctx.get('admin_hoy') or {}
+        lineas.append(hoy.get('inicio', ''))
+        lineas.append(hoy.get('analitica', ''))
+    if any(w in q for w in ('builder', 'módulo', 'modulo', 'course engine', 'motor')):
+        hoy = ctx.get('admin_hoy') or {}
+        lineas.append(
+            f"Module Builder beta={hoy.get('module_builder_beta')}. "
+            f"Allowlist={hoy.get('module_builder_cursos') or '*'}."
+        )
+        lineas.append('Course Engine: /admin/curso/<id>/course-engine/ (no es Studio).')
+    if any(w in q for w in ('cielo', 'tono', 'paleta', 'oscuro', 'marca')):
+        lineas.append('Tonos UI: Cielo / Marca / Oscuro (icono palette).')
+    if any(w in q for w in ('listo', 'inscrito', 'métrica', 'metrica', 'kpi', 'avance')):
+        lineas.append(
+            'Inscrito=ProgresoEstudiante. Listo=mensaje listo/continuar. '
+            'Avance Inicio=módulos publicados WA. Campañas 7d=EnvioLog ENVIADO.'
+        )
+    if 'knowledge' in q or 'studio rag' in q or 'hitl' in q:
+        hoy = ctx.get('admin_hoy') or {}
+        lineas.append(
+            f"Knowledge Studio: {hoy.get('knowledge_studio_pendientes', 0)} candidata(s) pendiente(s)."
+        )
     infra = ctx.get('infra_chips') or []
     malos = [c.get('label') for c in infra if c.get('ok') is False]
     if malos:

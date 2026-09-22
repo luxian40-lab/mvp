@@ -97,12 +97,11 @@ def dashboard_metricas(request):
     cliente_filtro = int(cliente_filtro_raw) if cliente_filtro_raw.isdigit() else None
     grupo_filtro_raw = (request.GET.get('grupo') or '').strip()
     grupo_filtro = int(grupo_filtro_raw) if grupo_filtro_raw.isdigit() else None
-    ahora = datetime.now()
     ahora_tz = dj_tz.now()
-    hace_1_dia = ahora - timedelta(days=1)
-    hace_7_dias = ahora - timedelta(days=7)
-    hace_30_dias = ahora - timedelta(days=30)
-    hace_90_dias = ahora - timedelta(days=90)
+    hace_1_dia = ahora_tz - timedelta(days=1)
+    hace_7_dias = ahora_tz - timedelta(days=7)
+    hace_30_dias = ahora_tz - timedelta(days=30)
+    hace_90_dias = ahora_tz - timedelta(days=90)
 
     # ========== SCOPES (filtro por empresa) ==========
     clientes_q = Cliente.objects.all()
@@ -329,12 +328,17 @@ def dashboard_metricas(request):
     campanas_q = Campana.objects.filter(cliente_id=cliente_filtro) if cliente_filtro else Campana.objects.all()
     total_campanas = campanas_q.count()
     campanas_ejecutadas = campanas_q.filter(ejecutada=True).count()
-    campanas_programadas = campanas_q.filter(fecha_programada__gte=ahora).count()
+    campanas_programadas = campanas_q.filter(fecha_programada__gte=ahora_tz).count()
 
-    # Envíos de campañas
-    total_envios_campanas = EnvioLog.objects.count()
-    envios_exitosos = EnvioLog.objects.filter(estado='exitoso').count()
-    envios_fallidos = EnvioLog.objects.filter(estado='fallido').count()
+    # Envíos de campañas (estados reales: ENVIADO / FALLIDO / ERROR)
+    from core.domains.analytics.metricas import q_enviolog_fail, q_enviolog_ok
+
+    envios_q = EnvioLog.objects.all()
+    if cliente_filtro:
+        envios_q = envios_q.filter(campana__cliente_id=cliente_filtro)
+    total_envios_campanas = envios_q.count()
+    envios_exitosos = envios_q.filter(q_enviolog_ok()).count()
+    envios_fallidos = envios_q.filter(q_enviolog_fail()).count()
 
     tasa_exito_campanas = (envios_exitosos / total_envios_campanas * 100) if total_envios_campanas > 0 else 0
 
@@ -596,7 +600,7 @@ def dashboard_metricas(request):
         'envios_diarios_json': json.dumps(envios_diarios),
 
         # Información temporal
-        'fecha_actualizacion': ahora.strftime('%d/%m/%Y %H:%M'),
+        'fecha_actualizacion': dj_tz.localtime(ahora_tz).strftime('%d/%m/%Y %H:%M'),
     }
 
     return TemplateResponse(request, 'admin/dashboard_metricas.html', context)

@@ -33,14 +33,14 @@ N puede ser 1 o 20. Lo crítico es **orden contiguo por sección** (una sección
 - Allowlist: `EKI_MODULE_BUILDER_CURSOS` — default `*` (todos). Tokens: id, subcadena de nombre, o `*`/`all`/`todos`
 - Tras crear/guardar módulo (sin “continuar” / “añadir otro”) → redirect al Builder si está habilitado
 - Entrada visible: columna **Builder** + botón detalle + enlace en guía Clase
-- Tonos Mañana / Tarde / Noche: barra fija abajo-derecha en **todo** el admin
+- Tonos **Cielo / Marca / Oscuro** (todo el admin, icono `palette`; keys `manana`/`tarde`/`noche`)
 - Superusuario puede forzar con `?builder=1` si el flag está OFF
 - Admin clásico del módulo sigue disponible (enlace “Admin clásico”)
 - Desde ficha del módulo (guía): enlace “Abrir Module Builder” si allowlist/flag ON
 
 Acciones: + sección, + micro (texto y/o archivo con gate WA), ↑↓, **drag con rieles**
 (micros solo dentro de su sección; secciones enteras), desactivar.
-Tonos UI: mañana / tarde / noche (ojos). Persistidos en `localStorage`.
+Tonos UI: Cielo / Marca / Oscuro. Persistidos en `localStorage`.
 **No envía WhatsApp.**
 
 ### Cómo entrar

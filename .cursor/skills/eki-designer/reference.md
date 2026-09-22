@@ -41,6 +41,8 @@ Estado actual (canon UI):
 
 Cielo ≠ Marca: si Cielo no pisa `--color-primary-*`, Unfold queda morado y los dos skins se ven iguales.
 
+Cielo **no** debe pintar `color` en todos los `<a>` (`a:not(.button)`): eso esconde texto blanco del sidebar y CTAs. Tinte = tokens + `.text-primary-*` + superficies eki. Texto `text-white` se queda blanco. Ink de KPIs/cards = `--eki-ink` oscuro sobre card blanca.
+
 Saludo Inicio: formal por **hora local** (`Buenos días/tardes/noches, {nombre}`); subtítulo operativo (no frases motivacionales casuales). Ver `core/templatetags/eki_admin.py`.
 
 No inventar 4ª paleta. No volver a labels Mañana/Tarde/Noche.

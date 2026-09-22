@@ -1,8 +1,10 @@
 /**
  * Tonos admin — Cielo (azul), Marca (lavanda eki), Oscuro (carbón).
  * Keys: manana / tarde / noche.
- * Cielo DEBE diferenciarse de Marca: reescribe --color-primary-* de Unfold
- * (si no, todo el chrome queda morado y los skins se ven iguales).
+ *
+ * Cielo se diferencia de Marca reescribiendo --color-primary-* de Unfold.
+ * NUNCA recolorear todos los <a>: eso pinta azul el texto blanco del sidebar
+ * y oculta CTAs. Tinte solo tokens + superficies eki.
  */
 
 .eki-tone-btn[aria-pressed="true"] {
@@ -13,12 +15,13 @@
 html[data-eki-tone="manana"] {
   color-scheme: light;
   --eki-accent: #2b7bb8;
-  --eki-accent-deep: #1a5a8a;
-  --eki-accent-soft: rgba(43, 123, 184, 0.16);
-  --eki-box-border: rgba(20, 70, 110, 0.18);
+  --eki-accent-deep: #164e78;
+  --eki-accent-soft: rgba(43, 123, 184, 0.14);
+  --eki-box-border: rgba(18, 62, 96, 0.22);
   --eki-box-bg: #ffffff;
+  --eki-ink: #132536;
+  --eki-ink-muted: #3d5668;
 
-  /* Unfold Tailwind primary → azul (antes quedaba morado UNFOLD) */
   --color-primary-50: #eef6fb;
   --color-primary-100: #d6ebf6;
   --color-primary-200: #aed7ed;
@@ -26,56 +29,85 @@ html[data-eki-tone="manana"] {
   --color-primary-400: #4a96c4;
   --color-primary-500: #2b7bb8;
   --color-primary-600: #1f6499;
-  --color-primary-700: #1a5a8a;
+  --color-primary-700: #164e78;
   --color-primary-800: #154a70;
   --color-primary-900: #103a58;
   --color-primary-950: #0a2438;
 
-  /* Fondo página: cielo frío, no lavanda */
-  --color-base-50: #dceef8;
-  --color-base-100: #c8e3f2;
-  --color-base-200: #a8d0e6;
+  /* Lavado suave: las cards blancas deben contrastar, no fundirse */
+  --color-base-50: #e8f2f8;
+  --color-base-100: #d7e8f2;
+  --color-base-200: #bdd7e6;
 }
 
 html[data-eki-tone="manana"] body,
-html[data-eki-tone="manana"] #main,
-html[data-eki-tone="manana"] .bg-base-50 {
-  background-color: #dceef8 !important;
+html[data-eki-tone="manana"] #main {
+  background-color: #e8f2f8 !important;
+  color: var(--eki-ink);
 }
 
-html[data-eki-tone="manana"] a:not(.button):not([class*="bg-"]),
 html[data-eki-tone="manana"] .text-primary-500,
 html[data-eki-tone="manana"] .text-primary-600,
 html[data-eki-tone="manana"] .text-primary-700,
 html[data-eki-tone="manana"] .eki-ops-back {
-  color: #1a5a8a !important;
+  color: #164e78;
+}
+
+/* Texto blanco sobre primary: no tocar */
+html[data-eki-tone="manana"] .text-white,
+html[data-eki-tone="manana"] [class*="text-white"] {
+  color: #fff !important;
 }
 
 html[data-eki-tone="manana"] .border-primary-600,
 html[data-eki-tone="manana"] .border-primary-500 {
-  border-color: #2b7bb8 !important;
+  border-color: #2b7bb8;
 }
 
 html[data-eki-tone="manana"] .bg-primary-600,
 html[data-eki-tone="manana"] .bg-primary-500,
 html[data-eki-tone="manana"] .bg-primary-700 {
-  background-color: #2b7bb8 !important;
+  background-color: #2b7bb8;
+  color: #fff;
 }
 
 html[data-eki-tone="manana"] .hover\:bg-primary-700:hover,
 html[data-eki-tone="manana"] .hover\:bg-primary-600:hover {
-  background-color: #1a5a8a !important;
+  background-color: #164e78;
+  color: #fff;
 }
 
 html[data-eki-tone="manana"] .eki-hub-hello__title,
-html[data-eki-tone="manana"] .eki-panel-exec__title {
-  color: #0f2f45 !important;
+html[data-eki-tone="manana"] .eki-panel-exec__title,
+html[data-eki-tone="manana"] .eki-panel-kpi__value,
+html[data-eki-tone="manana"] .eki-panel-card__head h2,
+html[data-eki-tone="manana"] .eki-panel-espacio h3,
+html[data-eki-tone="manana"] .eki-panel-espacio dd,
+html[data-eki-tone="manana"] .eki-panel-timeline p,
+html[data-eki-tone="manana"] .eki-panel-map__stat strong {
+  color: var(--eki-ink) !important;
+}
+
+html[data-eki-tone="manana"] .eki-panel-exec__motto,
+html[data-eki-tone="manana"] .eki-panel-card__head a,
+html[data-eki-tone="manana"] .eki-panel-insights__footer,
+html[data-eki-tone="manana"] .eki-ops-back {
+  color: #164e78 !important;
+}
+
+html[data-eki-tone="manana"] .eki-panel-exec__sub,
+html[data-eki-tone="manana"] .eki-panel-kpi__label,
+html[data-eki-tone="manana"] .eki-panel-kpi__note,
+html[data-eki-tone="manana"] .eki-panel-map__stat,
+html[data-eki-tone="manana"] .eki-panel-insights__intro,
+html[data-eki-tone="manana"] .eki-panel-eco__intro {
+  color: var(--eki-ink-muted) !important;
 }
 
 html[data-eki-tone="manana"] .eki-hub-cal {
   background: #fff;
-  border-color: rgba(26, 90, 138, 0.28);
-  color: #1a5a8a;
+  border-color: rgba(22, 78, 120, 0.28);
+  color: #164e78;
 }
 
 html[data-eki-tone="manana"] .eki-hub-cal .material-symbols-outlined {
@@ -84,7 +116,17 @@ html[data-eki-tone="manana"] .eki-hub-cal .material-symbols-outlined {
 
 html[data-eki-tone="manana"] .eki-header-bell:hover {
   background: rgba(43, 123, 184, 0.12);
-  color: #1a5a8a;
+  color: #164e78;
+}
+
+html[data-eki-tone="manana"] .eki-panel-kpi,
+html[data-eki-tone="manana"] .eki-panel-card,
+html[data-eki-tone="manana"] .eki-panel-espacio,
+html[data-eki-tone="manana"] .eki-panel-atajos,
+html[data-eki-tone="manana"] .eki-copiloto-drawer {
+  background: #fff;
+  border-color: var(--eki-box-border);
+  color: var(--eki-ink);
 }
 
 html[data-eki-tone="manana"] .eki-panel-kpi {
@@ -95,14 +137,55 @@ html[data-eki-tone="manana"] .eki-panel-kpi--purple {
   border-top-color: #2b7bb8;
 }
 
-html[data-eki-tone="manana"] .eki-panel-accion,
-html[data-eki-tone="manana"] .eki-hub-col a:hover {
+html[data-eki-tone="manana"] .eki-panel-accion {
   border-color: rgba(43, 123, 184, 0.35);
+  background: var(--eki-accent-soft);
+  color: #164e78;
 }
 
-/* Barra activa / chips: azul */
-html[data-eki-tone="manana"] [class*="bg-primary"] {
-  --tw-bg-opacity: 1;
+html[data-eki-tone="manana"] .eki-panel-accion:hover {
+  background: rgba(43, 123, 184, 0.22);
+  color: #0f2f45;
+}
+
+html[data-eki-tone="manana"] .eki-panel-alertas {
+  background: linear-gradient(135deg, rgba(43, 123, 184, 0.08), rgba(255, 255, 255, 0.94));
+  border-color: rgba(43, 123, 184, 0.2);
+}
+
+html[data-eki-tone="manana"] .eki-panel-map {
+  border-color: rgba(43, 123, 184, 0.28);
+  box-shadow: 0 8px 28px rgba(22, 78, 120, 0.1);
+}
+
+html[data-eki-tone="manana"] .eki-panel-map__canvas {
+  background:
+    linear-gradient(180deg, rgba(43, 123, 184, 0.1), transparent 40%),
+    #d5e8f4;
+  border-color: rgba(22, 78, 120, 0.22);
+}
+
+html[data-eki-tone="manana"] .eki-copiloto-fab {
+  background: #2b7bb8;
+  border-color: rgba(22, 78, 120, 0.4);
+  color: #fff;
+}
+
+html[data-eki-tone="manana"] .eki-copiloto-chip {
+  border-color: rgba(43, 123, 184, 0.35);
+  background: #eef6fb;
+  color: #164e78;
+}
+
+html[data-eki-tone="manana"] .eki-panel-eco__stage {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(43, 123, 184, 0.32), transparent 55%),
+    linear-gradient(180deg, #1c3144 0%, #121820 55%, #0d1218 100%);
+  border-color: rgba(43, 123, 184, 0.4);
+}
+
+html[data-eki-tone="manana"] .eki-panel-eco__reset {
+  color: #164e78;
 }
 
 /* ========== MARCA: lavanda eki (key: tarde) — default ========== */
@@ -113,6 +196,8 @@ html[data-eki-tone="tarde"] {
   --eki-accent-soft: rgba(154, 108, 172, 0.12);
   --eki-box-border: rgba(30, 27, 36, 0.16);
   --eki-box-bg: #ffffff;
+  --eki-ink: #1e1b24;
+  --eki-ink-muted: #6b6575;
 
   --color-primary-50: #f8f4fa;
   --color-primary-100: #f0e8f4;
@@ -132,8 +217,7 @@ html[data-eki-tone="tarde"] {
 }
 
 html[data-eki-tone="tarde"] body,
-html[data-eki-tone="tarde"] #main,
-html[data-eki-tone="tarde"] .bg-base-50 {
+html[data-eki-tone="tarde"] #main {
   background-color: #f0eef3 !important;
 }
 
@@ -150,10 +234,12 @@ html[data-eki-tone="tarde"] .eki-panel-kpi--purple {
 html[data-eki-tone="noche"] {
   color-scheme: dark;
   --eki-accent: #b89bc4;
-  --eki-accent-deep: #c9b3d4;
+  --eki-accent-deep: #d4c4de;
   --eki-accent-soft: rgba(184, 155, 196, 0.16);
-  --eki-box-border: rgba(230, 226, 234, 0.12);
+  --eki-box-border: rgba(230, 226, 234, 0.16);
   --eki-box-bg: #26232b;
+  --eki-ink: #efeaf4;
+  --eki-ink-muted: #b7afc4;
 
   --color-primary-50: #2a2433;
   --color-primary-100: #3a3344;
@@ -175,14 +261,24 @@ html[data-eki-tone="noche"] #main {
 }
 
 html[data-eki-tone="noche"] .eki-hub-hello__title,
-html[data-eki-tone="noche"] .eki-panel-exec__title {
-  color: #e6e2ea;
+html[data-eki-tone="noche"] .eki-panel-exec__title,
+html[data-eki-tone="noche"] .eki-panel-kpi__value,
+html[data-eki-tone="noche"] .eki-panel-card__head h2,
+html[data-eki-tone="noche"] .eki-panel-espacio h3,
+html[data-eki-tone="noche"] .eki-panel-espacio dd,
+html[data-eki-tone="noche"] .eki-panel-timeline p {
+  color: #efeaf4;
 }
 
 html[data-eki-tone="noche"] .eki-hub-hello__sub,
 html[data-eki-tone="noche"] .eki-panel-exec__motto,
-html[data-eki-tone="noche"] .eki-panel-exec__sub {
-  color: #a59eb0;
+html[data-eki-tone="noche"] .eki-panel-exec__sub,
+html[data-eki-tone="noche"] .eki-panel-kpi__note,
+html[data-eki-tone="noche"] .eki-panel-insights__intro,
+html[data-eki-tone="noche"] .eki-panel-eco__intro,
+html[data-eki-tone="noche"] .eki-panel-map__stat,
+html[data-eki-tone="noche"] .eki-copiloto-drawer__head p {
+  color: #b7afc4;
 }
 
 html[data-eki-tone="noche"] .eki-hub-cal {
@@ -193,4 +289,29 @@ html[data-eki-tone="noche"] .eki-hub-cal {
 
 html[data-eki-tone="noche"] .eki-header-bell {
   color: #cbb8d8;
+}
+
+html[data-eki-tone="noche"] .eki-panel-kpi,
+html[data-eki-tone="noche"] .eki-panel-card,
+html[data-eki-tone="noche"] .eki-panel-espacio,
+html[data-eki-tone="noche"] .eki-panel-atajos {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+html[data-eki-tone="noche"] .eki-panel-accion {
+  background: rgba(184, 155, 196, 0.16);
+  color: #e8dff0;
+  border-color: rgba(184, 155, 196, 0.3);
+}
+
+html[data-eki-tone="noche"] .eki-copiloto-fab {
+  background: #b89bc4;
+  color: #1e1b24;
+}
+
+html[data-eki-tone="noche"] .eki-copiloto-chip {
+  background: #2c2833;
+  color: #e8dff0;
+  border-color: rgba(184, 155, 196, 0.3);
 }
