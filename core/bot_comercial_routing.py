@@ -1,7 +1,8 @@
 """Enrutado WhatsApp: Nat comercial vs bot educativo.
 
-El webhook compartido (`/webhook/whatsapp/`) decide el canal por el número destino (To).
-Debe incluir la línea global, sandbox y cada `Cliente.numero_whatsapp_nat`.
+    El webhook compartido (`/webhook/whatsapp/`) decide el canal por el número destino (To).
+Debe incluir la línea global y cada `Cliente.numero_whatsapp_nat`.
+El sandbox de agentes/cursos-menú corre por Meta (`SANDBOX_PROVEEDOR=meta`) y no entra aquí.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ def _global_comercial_number() -> str:
 
 def numeros_destino_comercial(*, incluir_orgs: bool = True) -> set[str]:
     """
-    Conjunto de números Twilio (solo dígitos) que deben ir a Nat.
+    Conjunto de números (solo dígitos) que deben ir a Nat comercial (Twilio).
     """
     out: set[str] = set()
     global_n = _global_comercial_number()
@@ -33,7 +34,10 @@ def numeros_destino_comercial(*, incluir_orgs: bool = True) -> set[str]:
         out.add(global_n)
     sandbox = _sandbox_number()
     if sandbox:
-        out.add(sandbox)
+        from core.sandbox_canal import sandbox_via_meta
+
+        if not sandbox_via_meta():
+            out.add(sandbox)
 
     if incluir_orgs:
         from core.models import Cliente

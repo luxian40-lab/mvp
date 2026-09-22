@@ -800,6 +800,14 @@ def _bot_comercial_diagnosticar_imagen(media_url: str, media_type: str, cliente=
 
 
 def _procesar_bot_comercial_twilio_webhook(post_data, forzar_canal=False):
+    """Webhook dedicado para bot comercial (texto libre, voz e imagen)."""
+    from core.sandbox_canal import activar_sandbox_meta_si_inbound
+
+    with activar_sandbox_meta_si_inbound(post_data):
+        return _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=forzar_canal)
+
+
+def _procesar_bot_comercial_twilio_webhook_cuerpo(post_data, forzar_canal=False):
     """Webhook Twilio dedicado para bot comercial (texto libre, voz e imagen)."""
     from core.rag_comercial_manager import rag_comercial_manager
 

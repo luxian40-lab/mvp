@@ -45,6 +45,14 @@ def enviar_template_twilio(telefono, content_sid, variables=None):
         dict: {'success': bool, 'mensaje_id': str|None, 'response': str}
     """
     try:
+        from core.sandbox_canal import sandbox_meta_activo, enviar_sandbox_template_fallback
+
+        if sandbox_meta_activo():
+            return enviar_sandbox_template_fallback(telefono, content_sid, variables)
+    except Exception:
+        logger.exception('sandbox_meta_intercept_template')
+
+    try:
         account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', None)
         auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', None)
         twilio_number = 'whatsapp:+573202948806'
@@ -334,6 +342,14 @@ def enviar_archivo_modulo_whatsapp(telefono, archivo_modulo, texto_extra=None):
     descripcion = f"{tipo}: {titulo}"
     if texto_extra:
         descripcion = f"{descripcion}\n{texto_extra}"
+
+    try:
+        from core.sandbox_canal import sandbox_meta_activo, enviar_meta
+
+        if sandbox_meta_activo():
+            return enviar_meta(telefono, descripcion, media_url=url_envio, canal_evento='whatsapp_sandbox', agente_evento='sandbox_cursos')
+    except Exception:
+        logger.exception('sandbox_meta_intercept_archivo')
 
     # Preparar log preliminar
     log = WhatsappLog.objects.create(

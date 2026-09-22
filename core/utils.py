@@ -91,7 +91,15 @@ def enviar_whatsapp_twilio_content_template(telefono: str, content_sid: str, var
     Retorna dict con keys: success(bool), mensaje_id (str|None), response (str).
     """
     log = None
-    
+
+    try:
+        from core.sandbox_canal import sandbox_meta_activo, enviar_sandbox_template_fallback
+
+        if sandbox_meta_activo():
+            return enviar_sandbox_template_fallback(telefono, content_sid, variables)
+    except Exception:
+        logger.exception('sandbox_meta_intercept_content_template')
+
     try:
         from twilio.rest import Client
         
@@ -194,7 +202,21 @@ def enviar_whatsapp_twilio(
     Retorna dict con keys: success(bool), mensaje_id (str|None), response (str).
     """
     log = None  # Inicializar log como None
-    
+
+    try:
+        from core.sandbox_canal import sandbox_meta_activo, enviar_meta
+
+        if sandbox_meta_activo():
+            return enviar_meta(
+                telefono,
+                texto,
+                media_url=media_url,
+                canal_evento=canal_evento,
+                agente_evento=agente_evento,
+            )
+    except Exception:
+        logger.exception('sandbox_meta_intercept_twilio_send')
+
     try:
         from twilio.rest import Client
         from .response_templates import dividir_contenido_seguro

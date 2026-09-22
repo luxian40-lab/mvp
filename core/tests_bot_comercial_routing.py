@@ -40,7 +40,12 @@ class BotComercialRoutingTests(TestCase):
         self.assertTrue(es_destino_bot_comercial('whatsapp:+573001111111'))
         self.assertTrue(es_destino_bot_comercial({'To': 'whatsapp:+573001111111'}))
 
-    def test_sandbox_es_comercial(self):
+    def test_sandbox_no_es_comercial_cuando_canal_es_meta(self):
+        self.assertFalse(es_destino_bot_comercial('whatsapp:+14155238886'))
+        self.assertFalse(es_numero_comercial_conocido('14155238886'))
+
+    @override_settings(SANDBOX_PROVEEDOR='twilio')
+    def test_sandbox_es_comercial_si_proveedor_twilio(self):
         self.assertTrue(es_destino_bot_comercial('whatsapp:+14155238886'))
         self.assertTrue(es_numero_comercial_conocido('14155238886'))
 
@@ -59,7 +64,7 @@ class BotComercialRoutingTests(TestCase):
     def test_numeros_destino_incluye_orgs(self):
         nums = numeros_destino_comercial()
         self.assertIn('573001111111', nums)
-        self.assertIn('14155238886', nums)
+        self.assertNotIn('14155238886', nums)
         self.assertIn('573009990001', nums)
         self.assertIn('573009990002', nums)
 

@@ -520,8 +520,11 @@ BOT_COMERCIAL_RAG_FALLBACK_XLSX_ROWS = max(120, min(BOT_COMERCIAL_RAG_FALLBACK_X
 # Modelo para búsqueda web (Responses API).
 BOT_COMERCIAL_WEB_SEARCH_MODEL = os.environ.get('BOT_COMERCIAL_WEB_SEARCH_MODEL', 'gpt-5-mini').strip()
 BOT_COMERCIAL_FORCE_ROUTING = os.environ.get('BOT_COMERCIAL_FORCE_ROUTING', 'false').strip().lower() in ['1', 'true', 'yes', 'on']
-# Sandbox Twilio (+14155238886). Con menú dual solo afecta ese número, no WABA prod.
+# Sandbox agentes + cursos del menú: transporte Meta Cloud API (no Twilio).
+# Cursos de producción siguen en Twilio. Número E164 de la línea Meta:
 BOT_COMERCIAL_SANDBOX_NUMBER = os.environ.get('BOT_COMERCIAL_SANDBOX_NUMBER', '14155238886')
+SANDBOX_PROVEEDOR = (os.environ.get('SANDBOX_PROVEEDOR', 'meta') or 'meta').strip().lower()
+SANDBOX_WHATSAPP_PHONE_ID = (os.environ.get('SANDBOX_WHATSAPP_PHONE_ID', '') or '').strip()
 SANDBOX_MENU_ENABLED = os.environ.get('SANDBOX_MENU_ENABLED', 'true').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )

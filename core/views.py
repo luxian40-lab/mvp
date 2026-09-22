@@ -782,6 +782,10 @@ def _transcribir_audio_twilio(media_url, media_type='audio/ogg'):
     Returns:
         str: Texto transcrito o None si falla
     """
+    if media_url and not str(media_url).startswith(('http://', 'https://')):
+        from core.sandbox_canal import transcribir_audio_meta
+
+        return transcribir_audio_meta(media_url, media_type)
     try:
         from core.twilio_inbound_media import descargar_bytes_twilio
 
@@ -1274,6 +1278,50 @@ def _encolar_bot_comercial_si_async(post_data, *, forzar_canal: bool = False) ->
     return True
 
 
+def _aplicar_sandbox_menu(data):
+    """Menú agentes | cursos del sandbox Meta. No toca WABA Twilio de producción."""
+    from core.sandbox_canal import (
+        canal_sandbox_si_meta,
+        es_inbound_twilio_http,
+        sandbox_via_meta,
+        to_es_sandbox,
+    )
+    from core.sandbox_menu import dispatch_sandbox_menu, sandbox_menu_enabled, sandbox_number
+    from core.wa_reply_context import reply_from
+
+    if (
+        sandbox_menu_enabled()
+        and sandbox_via_meta()
+        and es_inbound_twilio_http(data)
+        and to_es_sandbox(data)
+    ):
+        logger.info('sandbox_twilio_inbound_ignorado To=%s (canal=meta)', data.get('To', ''))
+        return HttpResponse('OK')
+
+    with canal_sandbox_si_meta():
+        ruta = dispatch_sandbox_menu(data)
+        if ruta is None:
+            return None
+        if ruta == 'handled':
+            return HttpResponse('OK')
+        if ruta == 'nat':
+            from core.bot_comercial.webhook import _procesar_bot_comercial_twilio_webhook
+
+            if not _encolar_bot_comercial_si_async(data, forzar_canal=True):
+                _procesar_bot_comercial_twilio_webhook(data, forzar_canal=True)
+            return HttpResponse('OK')
+        if ruta == 'cursos':
+            sb = sandbox_number()
+            with reply_from(sb):
+                if _encolar_twilio_edu_si_async(data, reply_from_number=sb):
+                    return HttpResponse('OK')
+                tw = _procesar_twilio_webhook(data)
+                if isinstance(tw, HttpResponse):
+                    return tw
+            return HttpResponse('OK')
+        return None
+
+
 # ---------- Webhook para WhatsApp Cloud API ----------
 @csrf_exempt
 def whatsapp_webhook(request):
@@ -1286,7 +1334,7 @@ def whatsapp_webhook(request):
         # Verificación para Meta WhatsApp
         verify_token = request.GET.get('hub.verify_token')
         challenge = request.GET.get('hub.challenge')
-        expected = getattr(settings, 'WHATSAPP_VERIFY_TOKEN', 'eki_whatsapp_verify_token_2025')
+        expected = getattr(settings, 'WHATSAPP_VERIFY_TOKEN', 'eki_webhook_verify_token')
         if verify_token and expected and verify_token == expected:
             return HttpResponse(challenge)
         return HttpResponse('Forbidden', status=403)
@@ -1312,31 +1360,6 @@ def whatsapp_webhook(request):
             from core.bot_comercial_routing import es_destino_bot_comercial
             return es_destino_bot_comercial(data)
 
-        def _aplicar_sandbox_menu(data):
-            """Menú Nat|Cursos solo en sandbox Twilio. No toca WABA prod."""
-            from core.sandbox_menu import dispatch_sandbox_menu, sandbox_number
-            from core.wa_reply_context import reply_from
-
-            ruta = dispatch_sandbox_menu(data)
-            if ruta is None:
-                return None
-            if ruta == 'handled':
-                return HttpResponse('OK')
-            if ruta == 'nat':
-                if not _encolar_bot_comercial_si_async(data):
-                    _procesar_bot_comercial_twilio_webhook(data)
-                return HttpResponse('OK')
-            if ruta == 'cursos':
-                sb = sandbox_number()
-                with reply_from(sb):
-                    if _encolar_twilio_edu_si_async(data, reply_from_number=sb):
-                        return HttpResponse('OK')
-                    tw = _procesar_twilio_webhook(data)
-                    if isinstance(tw, HttpResponse):
-                        return tw
-                return HttpResponse('OK')
-            return None
-        
         try:
             # Intentar parsear como JSON (Meta)
             payload = json.loads(request.body.decode('utf-8'))
@@ -1345,8 +1368,21 @@ def whatsapp_webhook(request):
             
             # Detectar si es Meta o Twilio
             if 'entry' in payload:
-                # ===== META WHATSAPP =====
                 logger.info("📍 Detectado: META WhatsApp")
+                from core.sandbox_canal import iter_mensajes_inbound_meta, sandbox_via_meta
+                from core.sandbox_menu import es_destino_sandbox
+
+                if sandbox_via_meta():
+                    last_sb = None
+                    sandbox_hit = False
+                    for inbound in iter_mensajes_inbound_meta(payload):
+                        if es_destino_sandbox(inbound):
+                            sandbox_hit = True
+                            last_sb = _aplicar_sandbox_menu(inbound)
+                    if sandbox_hit:
+                        if isinstance(last_sb, HttpResponse):
+                            return last_sb
+                        return HttpResponse('OK')
                 _procesar_meta_webhook(payload)
             else:
                 # Podría ser Twilio con JSON — intentar procesarlo como Twilio también
@@ -1485,40 +1521,16 @@ def bot_comercial_webhook(request):
     if denied is not None:
         return denied
 
-    def _sandbox_en_comercial(data):
-        from core.sandbox_menu import dispatch_sandbox_menu, sandbox_number
-        from core.wa_reply_context import reply_from
-
-        ruta = dispatch_sandbox_menu(data)
-        if ruta is None:
-            return None
-        if ruta == 'handled':
-            return HttpResponse('OK')
-        if ruta == 'nat':
-            if not _encolar_bot_comercial_si_async(data, forzar_canal=True):
-                _procesar_bot_comercial_twilio_webhook(data, forzar_canal=True)
-            return HttpResponse('OK')
-        if ruta == 'cursos':
-            sb = sandbox_number()
-            with reply_from(sb):
-                if _encolar_twilio_edu_si_async(data, reply_from_number=sb):
-                    return HttpResponse('OK')
-                tw = _procesar_twilio_webhook(data)
-                if isinstance(tw, HttpResponse):
-                    return tw
-            return HttpResponse('OK')
-        return None
-
     try:
         try:
             payload = json.loads(request.body.decode('utf-8'))
-            sb = _sandbox_en_comercial(payload)
+            sb = _aplicar_sandbox_menu(payload)
             if sb is not None:
                 return sb
             if not _encolar_bot_comercial_si_async(payload, forzar_canal=True):
                 _procesar_bot_comercial_twilio_webhook(payload, forzar_canal=True)
         except json.JSONDecodeError:
-            sb = _sandbox_en_comercial(request.POST)
+            sb = _aplicar_sandbox_menu(request.POST)
             if sb is not None:
                 return sb
             if not _encolar_bot_comercial_si_async(request.POST, forzar_canal=True):
@@ -1705,6 +1717,16 @@ def youtube_hace_solo_enlace_en_texto(url: str) -> bool:
 
 def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, body: str, media_url: str = None) -> list:
     """Envía mensaje Twilio en segmentos seguros y devuelve [(sid, texto_enviado), ...]."""
+    try:
+        from core.sandbox_canal import sandbox_meta_activo, enviar_meta
+
+        if sandbox_meta_activo():
+            result = enviar_meta(to_number, body or '', media_url=media_url)
+            sid = result.get('mensaje_id') or ''
+            return [(sid, body or '')] if result.get('success') else []
+    except Exception:
+        logger.exception('sandbox_meta_intercept_segmentado')
+
     from .twilio_media import (
         cuerpo_con_enlace_archivo,
         es_error_media_twilio,
@@ -2053,6 +2075,14 @@ def _intentar_responder_envio_certificado(estudiante, msg_body, telefono_limpio,
 
 
 def _procesar_twilio_webhook(post_data):
+    """Procesa webhooks de Twilio WhatsApp (también inbound canónico sandbox Meta)."""
+    from core.sandbox_canal import activar_sandbox_meta_si_inbound
+
+    with activar_sandbox_meta_si_inbound(post_data):
+        return _procesar_twilio_webhook_cuerpo(post_data)
+
+
+def _procesar_twilio_webhook_cuerpo(post_data):
     """Procesa webhooks de Twilio WhatsApp"""
     # ============================================================
     # FILTRO 1: Ignorar status callbacks de Twilio (queued/sent/delivered)

@@ -1,7 +1,8 @@
-"""Menú sandbox: Agentes (submenú) | Cursos — SOLO número sandbox Twilio.
+"""Menú sandbox: Agentes (submenú) | Cursos — línea Meta Cloud API.
 
-No afecta WABA de producción ni `numero_whatsapp_nat` de orgs.
+No afecta WABA de cursos en Twilio ni `numero_whatsapp_nat` de orgs.
 Activar/desactivar: SANDBOX_MENU_ENABLED (default True).
+Transporte: SANDBOX_PROVEEDOR=meta (default).
 """
 from __future__ import annotations
 
@@ -81,20 +82,22 @@ def sandbox_number() -> str:
 
 
 def es_destino_sandbox(to_or_payload: Any) -> bool:
+    from core.sandbox_canal import (
+        es_inbound_twilio_http,
+        phone_id_es_sandbox,
+        sandbox_via_meta,
+        to_es_sandbox,
+    )
+
     if not sandbox_menu_enabled():
         return False
-    if isinstance(to_or_payload, str):
-        to_raw = to_or_payload
-    elif to_or_payload is None:
-        to_raw = ''
-    else:
-        try:
-            to_raw = to_or_payload.get('To', '')  # type: ignore[union-attr]
-        except Exception:
-            to_raw = ''
-    to_limpio = normalizar_telefono_whatsapp(to_raw)
-    sb = sandbox_number()
-    return bool(to_limpio and sb and to_limpio == sb)
+    if phone_id_es_sandbox(to_or_payload):
+        return True
+    if not to_es_sandbox(to_or_payload):
+        return False
+    if sandbox_via_meta() and es_inbound_twilio_http(to_or_payload):
+        return False
+    return True
 
 
 def _extract_from_body(payload: Any) -> tuple[str, str, str]:
@@ -114,7 +117,7 @@ def _extract_from_body(payload: Any) -> tuple[str, str, str]:
 
 
 def _body_o_audio_transcrito(payload: Any, body: str) -> str:
-    """Si Body vacío y hay audio Twilio, transcribe (Coach/Profe/comandos)."""
+    """Si Body vacío y hay audio, transcribe (Coach/Profe/comandos)."""
     if (body or '').strip():
         return body
     if payload is None or isinstance(payload, str):
@@ -134,12 +137,16 @@ def _body_o_audio_transcrito(payload: Any, body: str) -> str:
         return body
     mt = media_type.lower()
     if mt and not any(x in mt for x in ('audio', 'ogg', 'opus', 'mpeg', 'mp4', 'amr', 'wav')):
-        # Imagen/video: avisar en agentes
         return body
     try:
-        from core.views import _transcribir_audio_twilio
+        from core.sandbox_canal import inbound_es_meta, transcribir_audio_meta
 
-        texto = (_transcribir_audio_twilio(media_url, media_type=media_type or 'audio/ogg') or '').strip()
+        if inbound_es_meta(payload) or not media_url.startswith(('http://', 'https://')):
+            texto = (transcribir_audio_meta(media_url, media_type or 'audio/ogg') or '').strip()
+        else:
+            from core.views import _transcribir_audio_twilio
+
+            texto = (_transcribir_audio_twilio(media_url, media_type=media_type or 'audio/ogg') or '').strip()
         if texto:
             logger.info('sandbox_audio_transcrito chars=%s', len(texto))
             return texto
@@ -344,17 +351,15 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
 
 
 def enviar_texto_sandbox(telefono_usuario: str, from_number: str, texto: str, *, agente: str = 'sandbox_menu') -> dict:
-    from core.utils import enviar_whatsapp_twilio
-    from core.wa_reply_context import reply_from
+    from core.sandbox_canal import enviar_sandbox
 
-    with reply_from(from_number):
-        return enviar_whatsapp_twilio(
-            telefono_usuario,
-            texto,
-            from_number=from_number,
-            canal_evento='whatsapp_sandbox',
-            agente_evento=agente,
-        )
+    return enviar_sandbox(
+        telefono_usuario,
+        texto,
+        from_number=from_number,
+        canal_evento='whatsapp_sandbox',
+        agente_evento=agente,
+    )
 
 
 def enviar_menu_sandbox(telefono_usuario: str, from_number: str) -> dict:
@@ -368,13 +373,13 @@ def enviar_menu_agentes(telefono_usuario: str, from_number: str) -> dict:
 def bootstrap_cursos_sandbox(telefono_usuario: str, from_number: str) -> bool:
     """Inscribe / reengancha demo Tome las riendas. True si envió algo útil."""
     from core.catalogo_demo_carousel import arrancar_demo_riendas, curso_demo_riendas
-    from core.utils import enviar_whatsapp_twilio
+    from core.sandbox_canal import canal_sandbox_si_meta, enviar_sandbox
     from core.wa_reply_context import reply_from
 
     curso = curso_demo_riendas()
     if curso is None:
-        with reply_from(from_number):
-            enviar_whatsapp_twilio(
+        with canal_sandbox_si_meta():
+            enviar_sandbox(
                 telefono_usuario,
                 "Aún no hay curso demo configurado (EKI_DEMO_RIENDAS_CURSO_ID). "
                 "Avisa a eki tech.\n\n_Escribe *menu* para volver._",
@@ -384,7 +389,7 @@ def bootstrap_cursos_sandbox(telefono_usuario: str, from_number: str) -> bool:
             )
         return True
 
-    with reply_from(from_number):
+    with canal_sandbox_si_meta(), reply_from(from_number):
         return bool(
             arrancar_demo_riendas(
                 telefono=telefono_usuario,
@@ -427,7 +432,7 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str) -> str:
 
 def dispatch_sandbox_menu(payload: Any) -> str | None:
     """
-    Intercepta el sandbox Twilio cuando SANDBOX_MENU_ENABLED.
+    Intercepta el sandbox (Meta) cuando SANDBOX_MENU_ENABLED.
 
     Returns:
       None — no aplica

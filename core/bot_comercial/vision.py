@@ -51,6 +51,10 @@ def url_vision_desde_twilio(media_url: str, media_type: str) -> str:
     """
     if not media_url:
         return ''
+    if not str(media_url).startswith(('http://', 'https://')):
+        from core.sandbox_canal import media_meta_a_data_url
+
+        return media_meta_a_data_url(media_url, media_type)
     account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '') or ''
     auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', '') or ''
     try:
