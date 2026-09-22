@@ -28,8 +28,7 @@ MODO_CURSOS = 'cursos'
 MODOS_AGENTE = (MODO_NAT, MODO_COACH, MODO_IA_CAMPO, MODO_VENTAS)
 
 TEXTO_MENU = (
-    "👋 *eki*\n"
-    "_sandbox_\n\n"
+    "👋 *eki*\n\n"
     "Elige una opción:\n"
     "1️⃣ Agentes IA\n"
     "2️⃣ Cursos (*Tome las riendas*)\n\n"

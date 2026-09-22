@@ -306,10 +306,9 @@ class SandboxMenuTests(TestCase):
         with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}):
             self.assertEqual(dispatch_sandbox_menu({**base, 'Body': '4'}), 'handled')
 
-    def test_copy_menu_sandbox_una_vez_y_cuatro_agentes(self):
-        self.assertIn('_sandbox_', TEXTO_MENU)
+    def test_copy_menu_sin_sandbox_y_cuatro_agentes(self):
+        self.assertNotIn('sandbox', TEXTO_MENU.lower())
         self.assertIn('Tome las riendas', TEXTO_MENU)
-        self.assertNotIn('(sandbox)', TEXTO_AGENTES)
         self.assertNotIn('sandbox', TEXTO_AGENTES.lower())
         self.assertIn('Agrónomo', TEXTO_AGENTES)
         self.assertIn('Coach', TEXTO_AGENTES)
