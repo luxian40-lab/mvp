@@ -31,9 +31,23 @@ TEXTO_MENU = (
     "👋 *eki*\n\n"
     "Elige una opción:\n"
     "1️⃣ Agentes IA\n"
-    "2️⃣ Cursos (*Tome las riendas*)\n\n"
+    "2️⃣ Cursos (continuar el suyo)\n\n"
     "Escribe *1* o *2*.\n"
     "En cualquier momento: *menu* para volver."
+)
+
+TEXTO_CURSO_NO_INSCRITO = (
+    "Esta línea no abre cursos nuevos.\n\n"
+    "Si su organización ya lo inscribió en eki, escriba *2* desde el WhatsApp "
+    "registrado. Si aún no está en un curso, pida a su coordinador que lo inscriba "
+    "en el admin.\n\n"
+    "_*menu* para volver._"
+)
+
+TEXTO_CUPO_IA = (
+    "Hoy ya usó el cupo de IA de esta línea (límite para cuidar costos).\n\n"
+    "Puede escribir *2* para continuar su curso, o *menu*. "
+    "El cupo se reinicia mañana."
 )
 
 TEXTO_AGENTES = (
@@ -338,8 +352,7 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
         return decision
 
     if eleccion == MODO_CURSOS:
-        _set_modo(sesion, MODO_CURSOS)
-        # Primera entrada (eligió 2): bootstrap Riendas; luego sticky cursos
+        # Modo cursos solo si entrar_cursos_inscrito confirma progreso.
         decision.action = 'cursos_bootstrap'
         return decision
 
@@ -391,52 +404,98 @@ def enviar_menu_agentes(telefono_usuario: str, from_number: str) -> dict:
     return enviar_texto_sandbox(telefono_usuario, from_number, TEXTO_AGENTES, agente='sandbox_agentes')
 
 
-def _sticky_cursos_solo_si_inscrito_demo(telefono: str, curso) -> None:
-    """No dejar modo cursos si el número no quedó inscrito en la demo (protege B2B)."""
+def _progresos_del_telefono(telefono: str):
     from core.models import Estudiante, ProgresoEstudiante
 
     tel = normalizar_telefono_whatsapp(telefono)
-    sesion = _get_or_create_sesion(tel)
-    if curso is None:
+    est = Estudiante.objects.filter(telefono=tel).first()
+    if est is None:
+        return None, []
+    progresos = list(
+        ProgresoEstudiante.objects.filter(estudiante=est, curso__activo=True)
+        .select_related('curso')
+        .order_by('curso__orden', 'curso__nombre', 'id')
+    )
+    return est, progresos
+
+
+def entrar_cursos_inscrito(telefono_usuario: str, from_number: str) -> bool:
+    """Continúa cursos ya inscritos. No abre demo Riendas ni crea estudiantes."""
+    from core.sandbox_canal import canal_sandbox_si_meta
+
+    est, progresos = _progresos_del_telefono(telefono_usuario)
+    abiertos = [p for p in progresos if not p.completado]
+    sesion = _get_or_create_sesion(telefono_usuario)
+
+    if not progresos:
         _set_modo(sesion, MODO_MENU)
-        return
-    est = Estudiante.objects.filter(telefono=tel).only('id').first()
-    if est is None or not ProgresoEstudiante.objects.filter(
-        estudiante=est, curso=curso
-    ).exists():
+        with canal_sandbox_si_meta():
+            enviar_texto_sandbox(
+                telefono_usuario,
+                from_number,
+                TEXTO_CURSO_NO_INSCRITO,
+                agente='sandbox_cursos',
+            )
+        return True
+
+    if not abiertos:
         _set_modo(sesion, MODO_MENU)
+        nombres = ', '.join((p.curso.nombre or 'Curso')[:60] for p in progresos[:4])
+        with canal_sandbox_si_meta():
+            enviar_texto_sandbox(
+                telefono_usuario,
+                from_number,
+                f"Ya completó su curso en eki ({nombres}).\n\n"
+                "Si necesita reactivar avance, pida a su coordinador.\n\n"
+                "_*menu* para volver._",
+                agente='sandbox_cursos',
+            )
+        return True
+
+    _set_modo(sesion, MODO_CURSOS)
+    if len(abiertos) == 1:
+        p = abiertos[0]
+        ctx = dict(est.contexto_temporal or {})
+        ctx['curso_activo_id'] = p.curso_id
+        est.contexto_temporal = ctx
+        est.save(update_fields=['contexto_temporal'])
+        texto = (
+            f"Seguimos *{p.curso.nombre}*.\n\n"
+            "Escriba *listo* para continuar donde iba. "
+            "No se reinicia su avance.\n\n"
+            "_*menu* para volver._"
+        )
+    else:
+        lineas = []
+        for i, p in enumerate(abiertos[:6], start=1):
+            lineas.append(f"{i}. {p.curso.nombre}")
+        texto = (
+            "Tiene más de un curso activo:\n"
+            + "\n".join(lineas)
+            + "\n\nEscriba *listo* y elija cuál seguir. "
+            "No se reinicia su avance.\n\n_*menu* para volver._"
+        )
+    with canal_sandbox_si_meta():
+        enviar_texto_sandbox(
+            telefono_usuario,
+            from_number,
+            texto,
+            agente='sandbox_cursos',
+        )
+    return True
 
 
 def bootstrap_cursos_sandbox(telefono_usuario: str, from_number: str) -> bool:
-    """Inscribe / reengancha demo Tome las riendas. True si envió algo útil."""
-    from core.catalogo_demo_carousel import arrancar_demo_riendas, curso_demo_riendas
-    from core.sandbox_canal import canal_sandbox_si_meta, enviar_sandbox
-    from core.wa_reply_context import reply_from
+    """Alias: continuar inscritos (ya no arranca demo Riendas)."""
+    return entrar_cursos_inscrito(telefono_usuario, from_number)
 
-    curso = curso_demo_riendas()
-    if curso is None:
-        with canal_sandbox_si_meta():
-            enviar_sandbox(
-                telefono_usuario,
-                "Aún no hay curso demo configurado (EKI_DEMO_RIENDAS_CURSO_ID). "
-                "Avisa a eki tech.\n\n_Escribe *menu* para volver._",
-                from_number=from_number,
-                canal_evento='whatsapp_sandbox',
-                agente_evento='sandbox_cursos',
-            )
-        _sticky_cursos_solo_si_inscrito_demo(telefono_usuario, None)
-        return True
 
-    with canal_sandbox_si_meta(), reply_from(from_number):
-        ok = bool(
-            arrancar_demo_riendas(
-                telefono=telefono_usuario,
-                dest_wa=telefono_usuario,
-                sandbox=True,
-            )
-        )
-    _sticky_cursos_solo_si_inscrito_demo(telefono_usuario, curso)
-    return ok
+def _sticky_cursos_solo_si_inscrito_demo(telefono: str, curso) -> None:
+    """Compat tests antiguos: no dejar modo cursos sin progreso real."""
+    _est, progresos = _progresos_del_telefono(telefono)
+    sesion = _get_or_create_sesion(telefono)
+    if not any(not p.completado for p in progresos):
+        _set_modo(sesion, MODO_MENU)
 
 
 def _manejar_agente_extra(decision: SandboxRouteDecision, body: str) -> str:
@@ -462,7 +521,12 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str) -> str:
             "_Si envió un *audio* y no lo entendí, pruebe otra vez o escriba el mensaje._"
         )
     else:
-        texto = responder_agente_sandbox(agente, body, telefono=decision.telefono_usuario)  # type: ignore[arg-type]
+        from core.sandbox_agentes import excedio_cupo_ia_linea, responder_agente_sandbox
+
+        if excedio_cupo_ia_linea(decision.telefono_usuario):
+            texto = TEXTO_CUPO_IA
+        else:
+            texto = responder_agente_sandbox(agente, body, telefono=decision.telefono_usuario)  # type: ignore[arg-type]
     try:
         enviar_texto_sandbox(
             decision.telefono_usuario,
@@ -535,6 +599,19 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
                 )
             except Exception:
                 logger.exception('sandbox_nat_saludo_entrada_fail')
+            return 'handled'
+        from core.sandbox_agentes import excedio_cupo_ia_linea
+
+        if excedio_cupo_ia_linea(decision.telefono_usuario):
+            try:
+                enviar_texto_sandbox(
+                    decision.telefono_usuario,
+                    from_n,
+                    TEXTO_CUPO_IA,
+                    agente='sandbox_nat',
+                )
+            except Exception:
+                logger.exception('sandbox_nat_cupo_fail')
             return 'handled'
         return 'nat'
 

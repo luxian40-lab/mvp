@@ -528,6 +528,21 @@ SANDBOX_WHATSAPP_PHONE_ID = (os.environ.get('SANDBOX_WHATSAPP_PHONE_ID', '') or 
 SANDBOX_MENU_ENABLED = os.environ.get('SANDBOX_MENU_ENABLED', 'true').strip().lower() in (
     '1', 'true', 'yes', 'on',
 )
+# Tope de IA en la línea Meta 301 (agentes + Nat de ese menú).
+try:
+    SANDBOX_IA_MAX_TOKENS = int(os.environ.get('SANDBOX_IA_MAX_TOKENS', '280') or 280)
+except (TypeError, ValueError):
+    SANDBOX_IA_MAX_TOKENS = 280
+SANDBOX_IA_MAX_TOKENS = max(120, min(SANDBOX_IA_MAX_TOKENS, 400))
+try:
+    SANDBOX_AGENTE_MAX_TURNOS = int(os.environ.get('SANDBOX_AGENTE_MAX_TURNOS', '8') or 8)
+except (TypeError, ValueError):
+    SANDBOX_AGENTE_MAX_TURNOS = 8
+try:
+    SANDBOX_IA_MAX_RESPUESTAS_DIA = int(os.environ.get('SANDBOX_IA_MAX_RESPUESTAS_DIA', '30') or 30)
+except (TypeError, ValueError):
+    SANDBOX_IA_MAX_RESPUESTAS_DIA = 30
+SANDBOX_IA_MAX_RESPUESTAS_DIA = max(5, min(SANDBOX_IA_MAX_RESPUESTAS_DIA, 80))
 # Event Engine / Data Lake v0 (outbox → S3 lake/raw/…). Off por defecto en prod.
 DATA_LAKE_ENABLED = os.environ.get('DATA_LAKE_ENABLED', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',

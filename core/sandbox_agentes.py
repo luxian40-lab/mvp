@@ -25,11 +25,17 @@ def _modelo() -> str:
     )
 
 
-def _max_tokens() -> int:
+def max_tokens_linea_meta() -> int:
+    """Tope de completion en la línea 301 (agentes y Nat de ese menú)."""
     try:
-        return max(320, int(getattr(settings, 'BOT_COMERCIAL_OPENAI_MAX_TOKENS', 420) or 420))
+        n = int(getattr(settings, 'SANDBOX_IA_MAX_TOKENS', 280) or 280)
     except (TypeError, ValueError):
-        return 420
+        n = 280
+    return max(120, min(n, 400))
+
+
+def _max_tokens() -> int:
+    return max_tokens_linea_meta()
 
 
 PROMPT_COACH = """
@@ -253,12 +259,41 @@ def saludo_agente(agente: AgenteSandbox, *, reinicio: bool = False) -> str:
 
 
 def _max_turnos_memoria() -> int:
-    """Ventana larga (pares user+assistant). Tope duro por costo/contexto."""
+    """Ventana corta: menos tokens de contexto por turno."""
     try:
-        n = int(getattr(settings, 'SANDBOX_AGENTE_MAX_TURNOS', 28) or 28)
+        n = int(getattr(settings, 'SANDBOX_AGENTE_MAX_TURNOS', 8) or 8)
     except (TypeError, ValueError):
-        n = 28
-    return max(8, min(n, 40))
+        n = 8
+    return max(4, min(n, 12))
+
+
+def excedio_cupo_ia_linea(telefono: str) -> bool:
+    """True si el teléfono ya gastó el cupo diario de respuestas IA en esta línea."""
+    tel = (telefono or '').strip()
+    if not tel:
+        return False
+    try:
+        tope = int(getattr(settings, 'SANDBOX_IA_MAX_RESPUESTAS_DIA', 30) or 30)
+    except (TypeError, ValueError):
+        tope = 30
+    tope = max(5, min(tope, 80))
+    try:
+        from django.utils import timezone
+        from core.models import WhatsappLog
+
+        inicio = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        n = WhatsappLog.objects.filter(
+            telefono=tel,
+            tipo='SENT',
+            fecha__gte=inicio,
+            agente_usado__startswith='sandbox_',
+        ).exclude(agente_usado='sandbox_menu').exclude(agente_usado='sandbox_cursos').exclude(
+            agente_usado='sandbox_agentes'
+        ).count()
+        return n >= tope
+    except Exception:
+        logger.exception('sandbox_cupo_ia_fail tel=%s', tel)
+        return False
 
 
 def _historial_sandbox(telefono: str, agente: AgenteSandbox, max_turnos: int | None = None) -> list[dict]:
@@ -317,7 +352,7 @@ def responder_agente_sandbox(
 
     messages = [{'role': 'system', 'content': prompt_para(agente)}]
     messages.extend(_historial_sandbox(telefono, agente))
-    messages.append({'role': 'user', 'content': q[:4000]})
+    messages.append({'role': 'user', 'content': q[:1500]})
 
     try:
         from openai import OpenAI

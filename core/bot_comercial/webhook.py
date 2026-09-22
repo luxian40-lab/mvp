@@ -607,6 +607,14 @@ def _bot_comercial_respuesta_catalogo(
         except (TypeError, ValueError):
             max_out = 420
         max_out = max(280, min(max_out, 700))
+        try:
+            from core.sandbox_canal import sandbox_meta_activo
+            from core.sandbox_agentes import max_tokens_linea_meta
+
+            if sandbox_meta_activo():
+                max_out = min(max_out, max_tokens_linea_meta())
+        except Exception:
+            pass
         from core.openai_compat import chat_completion_token_kwargs
         completion = client.chat.completions.create(
             model=modelo,

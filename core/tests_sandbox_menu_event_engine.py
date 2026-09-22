@@ -128,7 +128,7 @@ class SandboxMenuTests(TestCase):
             MODO_VENTAS,
         )
 
-    def test_elige_cursos_bootstrap(self):
+    def test_elige_cursos_sin_inscripcion_no_sticky(self):
         base = {
             'From': 'whatsapp:+573001234569',
             'To': 'whatsapp:+14155238886',
@@ -137,12 +137,64 @@ class SandboxMenuTests(TestCase):
             resolver_ruta_sandbox({**base, 'Body': '2'}).action,
             'cursos_bootstrap',
         )
+        with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}):
+            dispatch_sandbox_menu({**base, 'Body': '2'})
         self.assertEqual(
             SandboxCanalSesion.objects.get(telefono='573001234569').modo,
+            MODO_MENU,
+        )
+
+    def test_inscrito_continuar_su_curso(self):
+        from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante
+
+        org = Cliente.objects.create(
+            nombre='Org inscrita',
+            nit='800111224-1',
+            activo=True,
+            contacto_principal='x',
+            email='org@eki.co',
+            telefono='57300',
+        )
+        curso = Curso.objects.create(
+            nombre='Impulso rural',
+            cliente=org,
+            activo=True,
+        )
+        est = Estudiante.objects.create(
+            nombre='Ana',
+            cedula='1088004',
+            telefono='573001234585',
+            cliente=org,
+            activo=True,
+            acepto_terminos=True,
+            estado_chat='ACTIVO',
+        )
+        ProgresoEstudiante.objects.create(estudiante=est, curso=curso, completado=False)
+        with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}) as send:
+            out = dispatch_sandbox_menu({
+                'From': 'whatsapp:+573001234585',
+                'To': 'whatsapp:+14155238886',
+                'Body': '2',
+            })
+        self.assertEqual(out, 'handled')
+        self.assertEqual(
+            SandboxCanalSesion.objects.get(telefono='573001234585').modo,
             MODO_CURSOS,
         )
-        self.assertEqual(resolver_ruta_sandbox({**base, 'Body': 'listo'}).action, 'cursos')
-        self.assertEqual(resolver_ruta_sandbox({**base, 'Body': 'menu'}).action, 'show_menu')
+        est.refresh_from_db()
+        self.assertEqual((est.contexto_temporal or {}).get('curso_activo_id'), curso.id)
+        texto = send.call_args[0][2]
+        self.assertIn('Impulso rural', texto)
+        self.assertIn('listo', texto.lower())
+        self.assertNotIn('riendas', texto.lower())
+        self.assertEqual(
+            resolver_ruta_sandbox({
+                'From': 'whatsapp:+573001234585',
+                'To': 'whatsapp:+14155238886',
+                'Body': 'listo',
+            }).action,
+            'cursos',
+        )
 
     def test_b2b_elige_cursos_no_queda_sticky_ni_inscrito(self):
         from core.models import Cliente, Curso, Estudiante, ProgresoEstudiante
@@ -308,13 +360,21 @@ class SandboxMenuTests(TestCase):
 
     def test_copy_menu_sin_sandbox_y_cuatro_agentes(self):
         self.assertNotIn('sandbox', TEXTO_MENU.lower())
-        self.assertIn('Tome las riendas', TEXTO_MENU)
+        self.assertNotIn('riendas', TEXTO_MENU.lower())
+        self.assertIn('Cursos', TEXTO_MENU)
         self.assertNotIn('sandbox', TEXTO_AGENTES.lower())
         self.assertIn('Agrónomo', TEXTO_AGENTES)
         self.assertIn('Coach', TEXTO_AGENTES)
         self.assertIn('Profe IA', TEXTO_AGENTES)
         self.assertIn('Ventas', TEXTO_AGENTES)
         self.assertIn('reiniciar', TEXTO_AGENTES)
+
+    def test_limites_ia_linea_meta(self):
+        from core.sandbox_agentes import excedio_cupo_ia_linea, max_tokens_linea_meta
+
+        self.assertLessEqual(max_tokens_linea_meta(), 400)
+        self.assertGreaterEqual(max_tokens_linea_meta(), 120)
+        self.assertFalse(excedio_cupo_ia_linea('573001239999'))
 
     def test_prompt_ventas_aplicable_manana(self):
         from core.sandbox_agentes import PROMPT_VENTAS, prompt_para, saludo_agente
