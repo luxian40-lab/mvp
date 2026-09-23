@@ -70,6 +70,7 @@
           if (!m || m[1] !== pasoId) return;
         }
       }
+      if (el.type === 'radio' && !el.checked) return;
       if (el.type === 'checkbox') {
         body.set(el.name, el.checked ? el.value || '1' : '0');
       } else {
@@ -154,6 +155,10 @@
   function collectPasoFields(shell, body, pasoId) {
     var prefix = pasoId ? 'paso_' + pasoId + '_' : 'paso_';
     shell.querySelectorAll('[name^="' + prefix + '"]').forEach(function (el) {
+      if (el.type === 'radio') {
+        if (el.checked) body.set(el.name, el.value);
+        return;
+      }
       if (el.type === 'checkbox') {
         body.set(el.name, el.checked ? el.value || '1' : '0');
       } else if (el.type !== 'file') {

@@ -17,7 +17,7 @@
         <div>
             <h1>Manual operativo eki</h1>
             <p>Consola staff (Unfold) · WhatsApp · portal B2B · certificados · Nat.</p>
-            <p class="eki-manual-hero__meta">Actualizado agosto 2026 · Prod: <a href="https://admin.eki.technology/admin/">admin.eki.technology</a></p>
+            <p class="eki-manual-hero__meta">Actualizado septiembre 2026 · Prod: <a href="https://admin.eki.technology/admin/">admin.eki.technology</a></p>
         </div>
         <div class="eki-manual-search">
             <label for="eki-manual-filter" class="sr-only">Buscar en el manual</label>
@@ -78,6 +78,8 @@
                 <li><a href="#clientes">Clientes B2B</a></li>
                 <li><a href="#estudiantes">Estudiantes</a></li>
                 <li><a href="#cursos">Cursos y Module Builder</a></li>
+                <li><a href="#linea-301">Línea 301 (Meta)</a></li>
+                <li><a href="#senales">Señales y alertas</a></li>
                 <li><a href="#course-engine">Course Engine (costos IA)</a></li>
                 <li><a href="#publicacion-wa">Publicar módulos WA</a></li>
                 <li><a href="#campanas">Campañas post-envío</a></li>
@@ -102,7 +104,10 @@
                     <li><strong>Estudiantes:</strong> filtro «sin progreso», inscripción masiva a curso, export CSV ligero.</li>
                     <li><strong>Login staff</strong> = consola ops (tarjeta simple v3).</li>
                     <li><strong>Publicación WA:</strong> semáforo en ficha curso, borrador/publicado, gate en campo.</li>
-                    <li><strong>Inicio:</strong> chip «Módulos borrador» si hay contenido sin publicar.</li>
+                    <li><strong>Module Builder:</strong> arrastrar no recarga ni borra el texto. Guardar, quitar archivo y el estado del video se actualizan en la misma pantalla. <span class="eki-manual-kbd">Ctrl</span>+<span class="eki-manual-kbd">F5</span> si ve la versión vieja.</li>
+                    <li><strong>Atajos de paso:</strong> + Mensaje, + Lectura y + Quiz crean un borrador. No sale a WhatsApp hasta activarlo.</li>
+                    <li><strong>Línea 301:</strong> menú Agentes (Nat, Coach, Profe IA, Ventas) y «Cursos» solo continúa un curso en el que la persona ya está inscrita.</li>
+                    <li><strong>Curso con IA:</strong> el curso nace inactivo y sin publicar en WhatsApp, con un paso por lección.</li>
                 </ul>
             </section>
 
@@ -179,6 +184,32 @@
                 <div class="eki-callout eki-callout--warn">
                     Video WA: H.264+AAC. Error <strong>63021</strong> = codec; <strong>63019</strong> = URL/MIME.
                 </div>
+                <p>En cada sección: <strong>+ Mensaje</strong>, <strong>+ Lectura</strong> o <strong>+ Quiz</strong> crea el paso en <strong>borrador</strong>. Edítelo en el panel derecho (título, texto, vista previa de WhatsApp) y márquelo activo cuando esté listo. Duplicar y desactivar están en la fila del paso. El video se sube con el formulario de archivo; mientras dice «Procesando», la página consulta el estado sola.</p>
+                <p>Arrastrar guarda solo el orden. Si había texto sin guardar, primero lo guarda y después mueve. La barra inferior dice «Guardando…» u «Orden guardado».</p>
+            </section>
+
+            <section id="linea-301">
+                <h2>Línea 301 (WhatsApp Meta)</h2>
+                <p>El número <strong>301 185 9158</strong> es el canal Meta. Los cursos de las organizaciones siguen saliendo por Twilio. No se mezclan.</p>
+                <ul>
+                    <li><strong>Agentes IA:</strong> Nat (cultivo), Coach, Profe IA y Ventas. Hay un tope diario de respuestas de IA en esa línea.</li>
+                    <li><strong>Cursos:</strong> si la persona ya está inscrita, sigue su avance (el mismo <em>listo</em>). Si no está inscrita, el menú se lo dice y no abre un curso demo.</li>
+                    <li>Un estudiante de otra organización no se reinscribe ni se le borra el progreso por escribir al 301.</li>
+                </ul>
+            </section>
+
+            <section id="senales">
+                <h2>Señales, cluster y data lake</h2>
+                <p>Cuando Nat (también desde el 301) clasifica una consulta de plaga o de empleo y hay municipio, se guarda una <strong>señal</strong> sin cambiar la respuesta de WhatsApp. El teléfono no va al lago: el actor queda seudonimizado.</p>
+                <ul>
+                    <li>Cada señal y cada <em>listo</em> de curso escriben una fila en el <strong>outbox</strong> (PostgreSQL). Eso es lo que sí estamos tomando siempre.</li>
+                    <li>La copia en S3 (<code>lake/raw/…</code>) solo sale si <code>DATA_LAKE_ENABLED</code> está en verdadero. Con el flag apagado, la fila se queda en PostgreSQL y no se sube.</li>
+                    <li>El <strong>cluster</strong> abre una alerta territorial cuando el mismo tipo de señal se repite al menos 3 veces en el mismo municipio en 72 horas. Se recalcula al guardar la señal y otra vez cada hora.</li>
+                    <li>Panel: <a href="/admin/territorio-alertas/">Alertas de territorio</a>. Estados: detectada → validada → comunicada → accionada → cerrada.</li>
+                </ul>
+                <div class="eki-callout">
+                    Coach, Ventas y Profe IA no abren alertas. Nat sí, cuando la consulta trae municipio. El <em>listo</em> de un curso entra al outbox de aprendizaje; no abre alerta territorial.
+                </div>
             </section>
 
             <section id="course-engine">
@@ -229,9 +260,16 @@
 
             <section id="certificados">
                 <h2>Certificados</h2>
-                <p>Herramienta: <a href="/admin/envio-certificados/">/admin/envio-certificados/</a> por org y curso.</p>
-                <p><strong>Inicio</strong> avisa si hay certificados emitidos sin envío WA (<em>Certs pend. WA</em>).</p>
-                <p>Modo recomendado: plantilla <code>diseno_eki</code> (Pillow). Comando: <code>asegurar_plantilla_certificado_default</code>.</p>
+                <p>Al marcar el curso como completado se <strong>genera</strong> el certificado una vez por estudiante y curso. No se reenvía solo: el envío por WhatsApp es aparte, en <a href="/admin/envio-certificados/">Envío de certificados</a>.</p>
+                <ul>
+                    <li>Si ya existe, el sistema no crea otro. El código de verificación es único.</li>
+                    <li><strong>Inicio</strong> avisa los emitidos que aún no se enviaron (<em>Certs pend. WA</em>).</li>
+                    <li>Plantilla recomendada: <code>diseno_eki</code>. Comando: <code>asegurar_plantilla_certificado_default</code>.</li>
+                    <li>Auditoría de quién generó, envió o verificó: Sistema → Auditoría.</li>
+                </ul>
+                <div class="eki-callout eki-callout--warn">
+                    Completar el curso no dispara el WhatsApp del diploma. Hay que enviarlo desde la herramienta, o el flujo de felicitación del curso si ese curso lo tiene armado.
+                </div>
             </section>
 
             <section id="conversaciones">

@@ -11,6 +11,21 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task
+def correlacionar_alertas_territoriales():
+    """Agrupa señales de la ventana en alertas y reintenta el lake si quedó outbox."""
+    from core.event_engine import correlacionar_clusters, data_lake_enabled, flush_outbox_pendientes
+
+    n_lake = flush_outbox_pendientes(limit=200) if data_lake_enabled() else 0
+    alertas = correlacionar_clusters()
+    logger.info(
+        'alertas_territoriales lake_flush=%s alertas=%s',
+        n_lake,
+        len(alertas or []),
+    )
+    return {'lake_flush': n_lake, 'alertas': len(alertas or [])}
+
+
+@shared_task
 def reenganche_drip_content_diario():
     """
     Reenganche diario: notifica a estudiantes cuyo próximo módulo ya se desbloqueó.

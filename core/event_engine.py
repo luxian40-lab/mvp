@@ -175,6 +175,12 @@ def registrar_senal_territorial(
         occurred_at=senal.occurred_at,
         pii_class='aggregate_ok',
     )
+    try:
+        partes = tipo_n.split('.')
+        prefijo = '.'.join(partes[:2]) if len(partes) >= 2 else tipo_n
+        correlacionar_clusters(tipo_prefijo=prefijo)
+    except Exception:
+        logger.exception('correlacionar_clusters_tras_senal tipo=%s', tipo_n)
     return senal
 
 

@@ -188,6 +188,8 @@ def actualizar_micro(
     titulo: str | None = None,
     contenido: str | None = None,
     activo: bool | None = None,
+    tipo: str | None = None,
+    requiere_listo_para_avanzar: bool | None = None,
 ) -> PasoModulo:
     """Actualiza texto/título/activo de un micro (guardado inicial en Builder)."""
     fields = []
@@ -200,6 +202,12 @@ def actualizar_micro(
     if activo is not None:
         paso.activo = bool(activo)
         fields.append('activo')
+    if tipo is not None and tipo in dict(PasoModulo.TIPOS):
+        paso.tipo = tipo
+        fields.append('tipo')
+    if requiere_listo_para_avanzar is not None:
+        paso.requiere_listo_para_avanzar = bool(requiere_listo_para_avanzar)
+        fields.append('requiere_listo_para_avanzar')
     if not fields:
         return paso
     if paso.activo and not (paso.contenido or '').strip() and not (paso.media_url or '').strip():
@@ -219,6 +227,8 @@ def agregar_micro(
     media_url: str = '',
     media_wa_apto=None,
     activo: bool = True,
+    tipo: str = '',
+    requiere_listo_para_avanzar: bool = True,
 ) -> PasoModulo:
     """Inserta un micro al final de la sección (mantiene bloques contiguos)."""
     if seccion.modulo_id != modulo.id:
@@ -238,8 +248,8 @@ def agregar_micro(
             media_url=(media_url or '').strip(),
             media_wa_apto=media_wa_apto,
             activo=activo,
-            tipo=PasoModulo.TIPO_CONTENIDO,
-            requiere_listo_para_avanzar=True,
+            tipo=tipo if tipo in dict(PasoModulo.TIPOS) else PasoModulo.TIPO_CONTENIDO,
+            requiere_listo_para_avanzar=requiere_listo_para_avanzar,
         )
         insert_at = len(pasos)
         last_of_sec = None

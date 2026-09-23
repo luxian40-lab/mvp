@@ -310,6 +310,50 @@ class ModuleBuilderViewTests(TestCase):
         )
 
     @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
+    def test_plantilla_mensaje_queda_en_borrador(self):
+        self.client.force_login(self.staff)
+        sa = agregar_seccion(self.mod, 'A')
+        r = self.client.post(
+            f'/admin/module-builder/{self.mod.id}/',
+            {
+                'action': 'add_micro',
+                'seccion_id': str(sa.id),
+                'plantilla': 'mensaje',
+            },
+            secure=True,
+            follow=True,
+        )
+        self.assertEqual(r.status_code, 200)
+        paso = PasoModulo.objects.get(modulo=self.mod, titulo='Mensaje WhatsApp')
+        self.assertFalse(paso.activo)
+        self.assertIn('estudiante', paso.contenido)
+        self.assertTrue(paso.requiere_listo_para_avanzar)
+
+    @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
+    def test_save_entrega_automatica_y_quiz(self):
+        self.client.force_login(self.staff)
+        sa = agregar_seccion(self.mod, 'A')
+        p = agregar_micro(self.mod, sa, titulo='Hola', contenido='Texto')
+        r = self.client.post(
+            f'/admin/module-builder/{self.mod.id}/',
+            {
+                'action': 'save_modulo',
+                'ajax': '1',
+                'modulo_titulo': self.mod.titulo,
+                f'paso_{p.id}_titulo': 'Hola',
+                f'paso_{p.id}_contenido': 'Texto',
+                f'paso_{p.id}_activo': '1',
+                f'paso_{p.id}_tipo_ui': 'quiz',
+                f'paso_{p.id}_entrega': 'automatico',
+            },
+            secure=True,
+        )
+        self.assertEqual(r.status_code, 200)
+        p.refresh_from_db()
+        self.assertEqual(p.tipo, 'evaluacion_abierta')
+        self.assertFalse(p.requiere_listo_para_avanzar)
+
+    @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
     def test_post_update_micro_guarda_texto_inicial(self):
         self.client.force_login(self.staff)
         from core.admin.cursos import sembrar_plantilla_modulo

@@ -408,6 +408,10 @@ class EventEngineClusterTests(TestCase):
                 occurred_at=now,
                 metadata={'i': i},
             )
+        self.assertEqual(
+            AlertaTerritorial.objects.filter(territory_id='05001', estado='detectada').count(),
+            1,
+        )
         registrar_senal_territorial(
             tipo='salud.sintoma.diarrea',
             territory_id='11001',

@@ -363,6 +363,42 @@ html[data-eki-tone="noche"] .eki-mb-shell {
   flex-shrink: 0;
 }
 
+.eki-mb__quick-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.35rem 0 0.75rem;
+}
+
+.eki-mb__seg {
+  display: flex;
+  border: 1px solid var(--eki-mb-line);
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 0 0 0.85rem;
+}
+
+.eki-mb__seg-opt {
+  flex: 1;
+  display: block;
+  padding: 0.45rem 0.35rem;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--eki-mb-accent-deep);
+  cursor: pointer;
+}
+
+.eki-mb__seg-opt input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.eki-mb__seg-opt:has(input:checked) {
+  background: var(--eki-mb-accent, #9a6cac);
+  color: #fff;
+}
+
 .eki-mb__meta-readonly {
   display: flex;
   flex-wrap: wrap;

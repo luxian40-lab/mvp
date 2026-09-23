@@ -12,11 +12,11 @@
 
 {{ block.super }}
 
-<link rel="stylesheet" href="{% static 'admin/css/module_builder.css' %}?v=29">
+<link rel="stylesheet" href="{% static 'admin/css/module_builder.css' %}?v=31">
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" defer></script>
 
-<script src="{% static 'admin/js/module_builder.js' %}?v=29" defer></script>
+<script src="{% static 'admin/js/module_builder.js' %}?v=31" defer></script>
 
 {% endblock %}
 
@@ -441,7 +441,34 @@
 
       <input type="hidden" name="seccion_id" value="{{ bloque.seccion.id }}">
 
-      <p class="eki-mb__form-label">+ Añadir contenido a esta sección</p>
+      <p class="eki-mb__form-label">Añadir paso</p>
+      <div class="eki-mb__quick-add">
+        <form method="post" class="eki-mb__inline-form">
+          {% csrf_token %}
+          {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
+          <input type="hidden" name="action" value="add_micro">
+          <input type="hidden" name="seccion_id" value="{{ bloque.seccion.id }}">
+          <input type="hidden" name="plantilla" value="mensaje">
+          <button type="submit" class="eki-mb__btn eki-mb__btn--outline eki-mb__btn--sm">+ Mensaje</button>
+        </form>
+        <form method="post" class="eki-mb__inline-form">
+          {% csrf_token %}
+          {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
+          <input type="hidden" name="action" value="add_micro">
+          <input type="hidden" name="seccion_id" value="{{ bloque.seccion.id }}">
+          <input type="hidden" name="plantilla" value="lectura">
+          <button type="submit" class="eki-mb__btn eki-mb__btn--outline eki-mb__btn--sm">+ Lectura</button>
+        </form>
+        <form method="post" class="eki-mb__inline-form">
+          {% csrf_token %}
+          {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
+          <input type="hidden" name="action" value="add_micro">
+          <input type="hidden" name="seccion_id" value="{{ bloque.seccion.id }}">
+          <input type="hidden" name="plantilla" value="quiz">
+          <button type="submit" class="eki-mb__btn eki-mb__btn--outline eki-mb__btn--sm">+ Quiz</button>
+        </form>
+      </div>
+      <p class="eki-mb__form-label">O escriba el texto y suba el archivo (video, PDF, imagen)</p>
 
       <input type="text" name="titulo" placeholder="Título interno (opcional)" class="eki-mb__input">
 
@@ -567,6 +594,31 @@
           <textarea name="paso_{{ m.id }}_contenido" rows="4" placeholder="Texto que verá en WhatsApp o en el aula" class="eki-mb__input eki-mb-track-dirty eki-mb-preview-src" data-preview="contenido">{{ m.contenido }}</textarea>
 
 
+
+          <label class="eki-mb__field-label">Tipo</label>
+          <div class="eki-mb__seg">
+            <label class="eki-mb__seg-opt">
+              <input type="radio" name="paso_{{ m.id }}_tipo_ui" value="mensaje" class="eki-mb-track-dirty" {% if m.builder_ui.step_type != "quiz" %}checked{% endif %}>
+              Mensaje
+            </label>
+            <label class="eki-mb__seg-opt">
+              <input type="radio" name="paso_{{ m.id }}_tipo_ui" value="quiz" class="eki-mb-track-dirty" {% if m.builder_ui.step_type == "quiz" %}checked{% endif %}>
+              Quiz
+            </label>
+          </div>
+          <p class="eki-mb__meta-hint">El video o el PDF se definen con el archivo. Quiz de opciones se edita en <a href="{{ avanzado_url }}">avanzado</a>.</p>
+
+          <label class="eki-mb__field-label">Entrega</label>
+          <div class="eki-mb__seg">
+            <label class="eki-mb__seg-opt">
+              <input type="radio" name="paso_{{ m.id }}_entrega" value="automatico" class="eki-mb-track-dirty" {% if m.builder_ui.entrega == "automatico" %}checked{% endif %}>
+              Automático
+            </label>
+            <label class="eki-mb__seg-opt">
+              <input type="radio" name="paso_{{ m.id }}_entrega" value="manual" class="eki-mb-track-dirty" {% if m.builder_ui.entrega != "automatico" %}checked{% endif %}>
+              Espera respuesta
+            </label>
+          </div>
 
           <div class="eki-mb__meta-readonly">
 

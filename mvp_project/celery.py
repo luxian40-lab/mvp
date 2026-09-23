@@ -50,6 +50,11 @@ app.conf.beat_schedule = {
         'task': 'core.tasks_infra.revisar_infra_advisor',
         'schedule': crontab(minute=15),  # cada hora a :15
     },
+    # Cluster territorial v0 + reintento del data lake (outbox sin published_at).
+    'correlacionar-alertas-territoriales': {
+        'task': 'core.tasks.correlacionar_alertas_territoriales',
+        'schedule': crontab(minute=20),
+    },
 }
 
 

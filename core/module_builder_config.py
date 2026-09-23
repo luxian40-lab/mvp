@@ -201,6 +201,21 @@ def aplicar_pasos_desde_post(
         if activo_key in post:
             activo_raw = post.get(activo_key)
             update_kwargs['activo'] = activo_raw in ('1', 'on', 'true', 'True')
+        tipo_ui = (post.get(f'paso_{pid}_tipo_ui') or '').strip()
+        if tipo_ui == 'quiz':
+            if paso.tipo not in (
+                PasoModulo.TIPO_EVAL_OPC,
+                PasoModulo.TIPO_RETO,
+            ):
+                update_kwargs['tipo'] = PasoModulo.TIPO_EVAL_ABIERTA
+        elif tipo_ui == 'mensaje':
+            if paso.tipo == PasoModulo.TIPO_EVAL_ABIERTA:
+                update_kwargs['tipo'] = PasoModulo.TIPO_CONTENIDO
+        entrega = (post.get(f'paso_{pid}_entrega') or '').strip()
+        if entrega == 'manual':
+            update_kwargs['requiere_listo_para_avanzar'] = True
+        elif entrega == 'automatico':
+            update_kwargs['requiere_listo_para_avanzar'] = False
         if update_kwargs:
             actualizar_micro(paso, **update_kwargs)
         if media_url_clear and (paso.media_url or '').strip():

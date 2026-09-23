@@ -143,6 +143,37 @@ def module_builder_view(request, modulo_id: int):
                 seccion = get_object_or_404(SeccionModulo, pk=sec_id, modulo=modulo)
                 titulo = (request.POST.get('titulo') or '').strip()
                 contenido = (request.POST.get('contenido') or '').strip()
+                plantilla = (request.POST.get('plantilla') or '').strip()
+                tipo_paso = (request.POST.get('tipo') or '').strip()
+                requiere_listo = True
+                activo_paso = True
+                presets = {
+                    'mensaje': (
+                        'Mensaje WhatsApp',
+                        'Escriba aquí el mensaje que verá el estudiante.',
+                        'contenido',
+                        True,
+                    ),
+                    'lectura': (
+                        'Lectura',
+                        'Escriba el texto de la lectura.',
+                        'contenido',
+                        False,
+                    ),
+                    'quiz': (
+                        'Quiz',
+                        'Escriba la pregunta. El estudiante responde antes de seguir.',
+                        'evaluacion_abierta',
+                        True,
+                    ),
+                }
+                if plantilla in presets and not contenido and not request.FILES.get('media_file'):
+                    titulo_p, contenido_p, tipo_p, requiere_p = presets[plantilla]
+                    titulo = titulo or titulo_p
+                    contenido = contenido_p
+                    tipo_paso = tipo_p
+                    requiere_listo = requiere_p
+                    activo_paso = False
                 media_url = ''
                 media_wa_apto = None
                 resultado = None
@@ -171,6 +202,9 @@ def module_builder_view(request, modulo_id: int):
                         contenido=contenido,
                         media_url=media_url,
                         media_wa_apto=media_wa_apto,
+                        activo=activo_paso,
+                        tipo=tipo_paso,
+                        requiere_listo_para_avanzar=requiere_listo,
                     )
                     if uploaded and resultado and resultado.get('async_encode'):
                         aplicar_resultado_upload_async(
