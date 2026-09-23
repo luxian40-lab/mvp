@@ -4,7 +4,7 @@
  */
 (function () {
   var KEY = 'eki-admin-tone';
-  var TONES = ['manana', 'tarde', 'noche'];
+  var TONES = ['manana', 'tarde', 'noche', 'campo'];
   var LEGACY = {
     cielo: 'manana',
     marca: 'tarde',

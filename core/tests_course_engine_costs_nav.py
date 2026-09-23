@@ -17,7 +17,12 @@ class RunIdParseTests(TestCase):
         url = 'https://eki-produccion.s3.us-east-2.amazonaws.com/media/course_engine/videos/365cc54d20ee.mp4'
         self.assertEqual(_run_id_from_url(url), '365cc54d20ee')
 
-    def test_no_match(self):
+    def test_wa_safe_url(self):
+        url = (
+            'https://eki-produccion.s3.us-east-2.amazonaws.com/'
+            'media/course_engine/videos/wa_safe/365cc54d20ee_h264_main_faststart.mp4'
+        )
+        self.assertEqual(_run_id_from_url(url), '365cc54d20ee')
         self.assertIsNone(_run_id_from_url('https://example.com/foo.png'))
 
 
@@ -47,6 +52,29 @@ class CourseEngineCostsBadgeTests(TestCase):
         self.assertIn('$0.52', texto)
         self.assertIn('2 mód.', texto)
         self.assertEqual(tono, 'info')
+
+    def test_media_wa_safe_entra_al_costo(self):
+        from core.course_engine.costs_nav import _compute
+        from core.models import Curso, Modulo
+        from core.module_builder import agregar_micro, agregar_seccion
+
+        curso = Curso.objects.create(nombre='CE')
+        mod = Modulo.objects.create(
+            curso=curso, numero=1, titulo='M', descripcion='d', contenido='c',
+            publicado_wa=False,
+        )
+        sec = agregar_seccion(mod, 'S')
+        paso = agregar_micro(mod, sec, titulo='Titulo interno', contenido='Hola campo')
+        paso.media_url = (
+            'https://eki-produccion.s3.amazonaws.com/media/course_engine/'
+            'videos/wa_safe/abc123def456_h264_main_faststart.mp4'
+        )
+        paso.activo = True
+        paso.save(update_fields=['media_url', 'activo'])
+        cache.clear()
+        snap = _compute()
+        self.assertEqual(snap.n_con_media, 1)
+        self.assertGreater(snap.total_usd, 0)
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)

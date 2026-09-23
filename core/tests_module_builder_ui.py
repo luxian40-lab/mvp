@@ -635,6 +635,8 @@ class ModuleBuilderViewTests(TestCase):
             'Bump ?v= de JS y CSS juntos: quedaron desincronizados',
         )
         self.assertIn('eki-mb__row-preview', html)
+        self.assertIn('Así llega por WhatsApp', html)
+        self.assertNotIn('eki-mb-wa-preview__titulo', html)
         self.assertIn('eki-mb__activo-hint', html)
         self.assertIn('eki-mb-save-trigger', html)
         self.assertIn('Calendario y drip', html)
@@ -1420,3 +1422,4 @@ class ModuleBuilderJsHealthTests(TestCase):
         self.assertNotIn('window.alert', text)
         self.assertIn('encode_status', text)
         self.assertIn('Orden guardado', text)
+        self.assertNotIn('tEl.textContent', text)

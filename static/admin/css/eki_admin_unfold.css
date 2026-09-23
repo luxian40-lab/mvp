@@ -1748,4 +1748,23 @@ body.model-modulo .eki-inlines-intro[data-eki-encode="error"] {
   color: #4a1515;
 }
 
+/* El control nativo «Elegir archivo» se ve como botón en todo el admin. */
+input[type="file"]::file-selector-button,
+input[type="file"]::-webkit-file-upload-button {
+  margin-right: 0.75rem;
+  padding: 0.45rem 0.9rem;
+  border: 0;
+  border-radius: 8px;
+  background: #7A4E8E;
+  color: #fff;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+input[type="file"]::file-selector-button:hover,
+input[type="file"]::-webkit-file-upload-button:hover {
+  background: #5F3A6E;
+}
+
 

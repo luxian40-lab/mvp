@@ -12,11 +12,11 @@
 
 {{ block.super }}
 
-<link rel="stylesheet" href="{% static 'admin/css/module_builder.css' %}?v=31">
+<link rel="stylesheet" href="{% static 'admin/css/module_builder.css' %}?v=32">
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" defer></script>
 
-<script src="{% static 'admin/js/module_builder.js' %}?v=31" defer></script>
+<script src="{% static 'admin/js/module_builder.js' %}?v=32" defer></script>
 
 {% endblock %}
 
@@ -711,15 +711,15 @@
 
           <div class="eki-mb-wa-preview" data-wa-preview="{{ m.id }}">
 
-            <p class="eki-mb-wa-preview__eyebrow">Vista previa WhatsApp</p>
+            <p class="eki-mb-wa-preview__eyebrow">Así llega por WhatsApp</p>
 
             <div class="eki-mb-wa-preview__bubble">
-
-              <p class="eki-mb-wa-preview__titulo"></p>
 
               <p class="eki-mb-wa-preview__body"></p>
 
             </div>
+
+            <p class="eki-mb-wa-preview__media" hidden>También se envía el archivo adjunto.</p>
 
           </div>
 

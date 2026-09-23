@@ -96,7 +96,7 @@
             <section id="novedades">
                 <h2>Novedades admin (2026)</h2>
                 <ul>
-                    <li><strong>Unfold</strong> reemplaza Jazzmin: tonos <strong>Cielo / Marca / Oscuro</strong>, Inicio con KPIs, mapa, ecosistema y Copiloto ops.</li>
+                    <li><strong>Apariencia:</strong> Cielo, Marca, Oscuro (contraste alto) y Campo (papel y verde).</li>
                     <li><strong>Puentes en fichas:</strong> Curso, Cliente, Estudiante, Módulo y Campaña muestran resumen + botones (módulos, Builder, chat, fallidos).</li>
                     <li><strong>Menú por flujo:</strong> Captar · Enseñar · Retener (sidebar) además del catálogo Django.</li>
                     <li><strong>Command palette</strong> enriquecida: teléfono → conversación, códigos Twilio, certificados pendientes.</li>
@@ -214,7 +214,7 @@
 
             <section id="course-engine">
                 <h2>Course Engine — costos API (nav superior)</h2>
-                <p>El chip <strong>IA cursos</strong> junto a Twilio suma el costo de microcontenidos generados por Course Engine en <strong>módulos ya publicados</strong> (media en S3 con prefijo <code>course_engine/</code>).</p>
+                <p>El chip <strong>IA cursos</strong> suma el costo de pasos activos cuya media está en <code>course_engine/</code> (incluye <code>wa_safe</code>), aunque el módulo siga en borrador. Si hay manifiesto del run, usa el costo real; si no, estima por el tier del curso.</p>
                 <ul>
                     <li>Si existe <code>bundle_manifest.json</code> del run, usa costo <strong>real</strong> medido.</li>
                     <li>Si no, estima según formato y tier del curso (video / infografía / podcast).</li>

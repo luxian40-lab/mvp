@@ -550,35 +550,23 @@
     if (!editEl) return;
     var preview = editEl.querySelector('[data-wa-preview]');
     if (!preview) return;
-    var titulo = editEl.querySelector('[name$="_titulo"]');
     var contenido = editEl.querySelector('[name$="_contenido"]');
-    var stepType = editEl.getAttribute('data-step-type') || '';
-    if (!stepType) {
-      var pasoId = editEl.getAttribute('data-paso-edit');
-      var row = pasoId
-        ? document.querySelector('.eki-mb__row[data-paso="' + pasoId + '"]')
-        : null;
-      stepType = row ? row.getAttribute('data-step-type') || '' : '';
-    }
-    var tEl = preview.querySelector('.eki-mb-wa-preview__titulo');
     var bEl = preview.querySelector('.eki-mb-wa-preview__body');
-    var tVal = titulo ? titulo.value.trim() : '';
+    var note = preview.querySelector('.eki-mb-wa-preview__media');
     var cVal = contenido ? contenido.value.trim() : '';
-    if (tEl) tEl.textContent = tVal || '(sin título)';
-    if (bEl) bEl.textContent = cVal || '';
-    if (stepType === 'mensaje' || cVal) {
-      preview.hidden = false;
-    } else if (stepType === 'video' || stepType === 'lectura') {
-      preview.hidden = false;
-      if (bEl && !cVal) {
-        bEl.textContent =
-          stepType === 'video'
-            ? 'El estudiante recibirá el video en WhatsApp.'
-            : 'Contenido de lectura / archivo en el curso.';
-      }
-    } else {
-      preview.hidden = true;
+    var pasoId = editEl.getAttribute('data-paso-edit');
+    var row = pasoId ? document.querySelector('.eki-mb__row[data-paso="' + pasoId + '"]') : null;
+    var hasMedia = !!(
+      editEl.querySelector('.eki-mb__media-url:not([hidden])')
+      || (row && row.querySelector('.eki-mb__row-preview--muted'))
+    );
+    if (bEl) {
+      bEl.textContent = cVal || (hasMedia
+        ? 'Sin texto. En WhatsApp solo llega el archivo.'
+        : 'Sin texto para WhatsApp.');
     }
+    if (note) note.hidden = !hasMedia;
+    preview.hidden = false;
   }
 
   function syncRowPreview(shell, pasoId) {

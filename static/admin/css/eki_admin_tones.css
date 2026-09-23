@@ -233,31 +233,53 @@ html[data-eki-tone="tarde"] .eki-panel-kpi--purple {
 /* ========== OSCURO: carbón (key: noche) ========== */
 html[data-eki-tone="noche"] {
   color-scheme: dark;
-  --eki-accent: #b89bc4;
-  --eki-accent-deep: #d4c4de;
-  --eki-accent-soft: rgba(184, 155, 196, 0.16);
-  --eki-box-border: rgba(230, 226, 234, 0.16);
-  --eki-box-bg: #26232b;
-  --eki-ink: #efeaf4;
-  --eki-ink-muted: #b7afc4;
+  --eki-accent: #c4a6d4;
+  --eki-accent-deep: #f3e9f8;
+  --eki-accent-soft: rgba(154, 108, 172, 0.28);
+  --eki-box-border: rgba(255, 255, 255, 0.22);
+  --eki-box-bg: #2c2833;
+  --eki-ink: #f7f4fa;
+  --eki-ink-muted: #ddd4e6;
 
-  --color-primary-50: #2a2433;
-  --color-primary-100: #3a3344;
-  --color-primary-200: #52485c;
-  --color-primary-300: #7a6b8a;
-  --color-primary-400: #9a85aa;
-  --color-primary-500: #b89bc4;
-  --color-primary-600: #c9b3d4;
-  --color-primary-700: #d8c8e0;
-  --color-primary-800: #e6dcec;
-  --color-primary-900: #f0eaf4;
-  --color-primary-950: #f8f4fa;
+  --color-primary-50: #3a3144;
+  --color-primary-100: #4a3d56;
+  --color-primary-200: #6b5480;
+  --color-primary-300: #8d6ea3;
+  --color-primary-400: #b08cbe;
+  --color-primary-500: #9A6CAC;
+  --color-primary-600: #9A6CAC;
+  --color-primary-700: #7A4E8E;
+  --color-primary-800: #f3e9f8;
+  --color-primary-900: #f7f4fa;
+  --color-primary-950: #fff;
+
+  --color-base-50: #241f2a;
+  --color-base-100: #2c2833;
+  --color-base-200: #3a3442;
+  --color-base-700: #3a3442;
+  --color-base-800: #1a171e;
+  --color-base-900: #f7f4fa;
 }
 
 html[data-eki-tone="noche"] body,
 html[data-eki-tone="noche"] #main {
-  background: #1c1a1f !important;
-  color: #e6e2ea;
+  background: #141218 !important;
+  color: #f7f4fa;
+}
+
+html[data-eki-tone="noche"] .bg-primary-600,
+html[data-eki-tone="noche"] .bg-primary-500,
+html[data-eki-tone="noche"] .bg-primary-700 {
+  background-color: #9A6CAC !important;
+  color: #fff !important;
+}
+
+html[data-eki-tone="noche"] input,
+html[data-eki-tone="noche"] textarea,
+html[data-eki-tone="noche"] select {
+  background: #2c2833;
+  color: #f7f4fa;
+  border-color: rgba(255, 255, 255, 0.22);
 }
 
 html[data-eki-tone="noche"] .eki-hub-hello__title,
@@ -278,40 +300,102 @@ html[data-eki-tone="noche"] .eki-panel-insights__intro,
 html[data-eki-tone="noche"] .eki-panel-eco__intro,
 html[data-eki-tone="noche"] .eki-panel-map__stat,
 html[data-eki-tone="noche"] .eki-copiloto-drawer__head p {
-  color: #b7afc4;
+  color: #ddd4e6;
 }
 
 html[data-eki-tone="noche"] .eki-hub-cal {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.12);
-  color: #e8e2ef;
+  background: #2c2833;
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #f7f4fa;
 }
 
 html[data-eki-tone="noche"] .eki-header-bell {
-  color: #cbb8d8;
+  color: #f3e9f8;
 }
 
 html[data-eki-tone="noche"] .eki-panel-kpi,
 html[data-eki-tone="noche"] .eki-panel-card,
 html[data-eki-tone="noche"] .eki-panel-espacio,
 html[data-eki-tone="noche"] .eki-panel-atajos {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.14);
+  background: #2c2833;
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 html[data-eki-tone="noche"] .eki-panel-accion {
-  background: rgba(184, 155, 196, 0.16);
-  color: #e8dff0;
-  border-color: rgba(184, 155, 196, 0.3);
+  background: rgba(154, 108, 172, 0.28);
+  color: #f7f4fa;
+  border-color: rgba(243, 233, 248, 0.35);
 }
 
 html[data-eki-tone="noche"] .eki-copiloto-fab {
-  background: #b89bc4;
-  color: #1e1b24;
+  background: #9A6CAC;
+  color: #fff;
 }
 
 html[data-eki-tone="noche"] .eki-copiloto-chip {
   background: #2c2833;
-  color: #e8dff0;
-  border-color: rgba(184, 155, 196, 0.3);
+  color: #f7f4fa;
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+/* ========== CAMPO: papel cálido y verde de finca (key: campo) ========== */
+html[data-eki-tone="campo"] {
+  color-scheme: light;
+  --eki-accent: #3e6b4a;
+  --eki-accent-deep: #23402c;
+  --eki-accent-soft: rgba(62, 107, 74, 0.14);
+  --eki-box-border: rgba(42, 36, 24, 0.16);
+  --eki-box-bg: #fffdf8;
+  --eki-ink: #2a2418;
+  --eki-ink-muted: #5c5346;
+
+  --color-primary-50: #f3f7f2;
+  --color-primary-100: #e3eee4;
+  --color-primary-200: #c5ddc8;
+  --color-primary-300: #97c09e;
+  --color-primary-400: #6a9b72;
+  --color-primary-500: #3e6b4a;
+  --color-primary-600: #31573c;
+  --color-primary-700: #23402c;
+  --color-primary-800: #1c3324;
+  --color-primary-900: #14241a;
+  --color-primary-950: #0c1610;
+
+  --color-base-50: #f6f1e6;
+  --color-base-100: #efe6d4;
+  --color-base-200: #e2d4b8;
+}
+
+html[data-eki-tone="campo"] body,
+html[data-eki-tone="campo"] #main {
+  background-color: #f6f1e6 !important;
+  color: #2a2418;
+}
+
+html[data-eki-tone="campo"] .text-primary-500,
+html[data-eki-tone="campo"] .text-primary-600,
+html[data-eki-tone="campo"] .text-primary-700,
+html[data-eki-tone="campo"] .eki-ops-back {
+  color: #23402c;
+}
+
+html[data-eki-tone="campo"] .text-white,
+html[data-eki-tone="campo"] [class*="text-white"] {
+  color: #fff !important;
+}
+
+html[data-eki-tone="campo"] .bg-primary-600,
+html[data-eki-tone="campo"] .bg-primary-500,
+html[data-eki-tone="campo"] .bg-primary-700 {
+  background-color: #3e6b4a;
+  color: #fff;
+}
+
+html[data-eki-tone="campo"] .eki-hub-hello__title,
+html[data-eki-tone="campo"] .eki-panel-exec__title {
+  color: #2a2418;
+}
+
+html[data-eki-tone="campo"] .eki-panel-kpi--purple {
+  border-top-color: #3e6b4a;
 }

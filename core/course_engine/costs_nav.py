@@ -10,9 +10,13 @@ from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
-_CACHE_KEY = 'eki_course_engine_published_costs_v1'
+_CACHE_KEY = 'eki_course_engine_published_costs_v2'
 _CACHE_TTL = 900
-_RUN_ID_RE = re.compile(r'course_engine/videos/([a-f0-9]{8,16})\.mp4', re.I)
+_RUN_ID_RES = (
+    re.compile(r'course_engine/videos/([a-f0-9]{8,16})\.mp4', re.I),
+    re.compile(r'course_engine/videos/wa_safe/([A-Za-z0-9_-]{6,40})_h264', re.I),
+    re.compile(r'course_engine/(?:images|tts)/([A-Za-z0-9_-]{6,40})\.', re.I),
+)
 
 
 @dataclass(frozen=True)
@@ -64,12 +68,9 @@ def _compute() -> PublishedCourseEngineCosts:
 
     publicados = Modulo.objects.filter(publicado_wa=True).select_related('curso')
     n_modulos = publicados.count()
-    if n_modulos == 0:
-        return PublishedCourseEngineCosts(0, 0, 0.0, 0.0, 0.0, 0, 0)
 
     pasos = PasoModulo.objects.filter(
         activo=True,
-        modulo__publicado_wa=True,
         media_url__icontains='course_engine',
     ).select_related('modulo', 'modulo__curso')
 
@@ -113,8 +114,11 @@ def _compute() -> PublishedCourseEngineCosts:
 
 
 def _run_id_from_url(url: str) -> str | None:
-    m = _RUN_ID_RE.search(url or '')
-    return m.group(1) if m else None
+    for pattern in _RUN_ID_RES:
+        m = pattern.search(url or '')
+        if m:
+            return m.group(1)
+    return None
 
 
 def _manifest_cost(run_id: str | None) -> float | None:
