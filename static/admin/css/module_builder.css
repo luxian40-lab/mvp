@@ -940,6 +940,19 @@ html[data-eki-tone="noche"] .eki-mb-shell {
   color: var(--eki-mb-bad);
 }
 
+.eki-mb__drag-handle {
+  color: var(--eki-mb-accent-deep) !important;
+  font-weight: 700;
+  border-color: color-mix(in srgb, var(--eki-mb-accent) 40%, var(--eki-mb-line));
+  background: color-mix(in srgb, var(--eki-mb-accent) 10%, var(--eki-mb-card));
+}
+.eki-mb__drag-handle:active { cursor: grabbing; }
+.eki-mb__sec--ghost,
+.sortable-ghost {
+  opacity: 0.55;
+  outline: 2px dashed var(--eki-mb-accent, #9a6cac);
+}
+
 .eki-mb__status {
   width: 1.05rem;
   height: 1.05rem;

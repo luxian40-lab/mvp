@@ -103,10 +103,6 @@
     if (document.getElementById('eki-mb-builder-flag')) {
       body.set('builder', '1');
     }
-    appendBuilderFieldsToParams(shell, body, {
-      includeModuloTitulo: false,
-      includeConfigGeneral: false,
-    });
     Object.keys(fields).forEach(function (k) {
       body.set(k, fields[k]);
     });
@@ -121,6 +117,20 @@
       credentials: 'same-origin',
       body: body.toString(),
     }).then(parseJsonResponse);
+  }
+
+  function markStatus(label, isDirty) {
+    if (typeof setDirtyState === 'function') setDirtyState(label, !!isDirty);
+  }
+
+  function revertSortable(evt) {
+    if (!evt || !evt.from || !evt.item || evt.oldIndex == null) return;
+    var parent = evt.from;
+    var item = evt.item;
+    parent.removeChild(item);
+    var ref = parent.children[evt.oldIndex];
+    if (ref) parent.insertBefore(item, ref);
+    else parent.appendChild(item);
   }
 
   function applyOrdenFromResponse(data) {
@@ -165,40 +175,6 @@
     });
     body.set('modulo_habilitado_desde', calendario);
     collectPasoFields(shell, body, options.pasoId || null);
-  }
-
-  function submitSaveForm(shell, options) {
-    options = options || {};
-    ensureCalendarioSynced();
-    var form = document.createElement('form');
-    form.method = 'POST';
-    form.action = window.location.pathname + window.location.search;
-    form.style.display = 'none';
-    document.body.appendChild(form);
-
-    function addField(name, value) {
-      var inp = document.createElement('input');
-      inp.type = 'hidden';
-      inp.name = name;
-      inp.value = value == null ? '' : String(value);
-      form.appendChild(inp);
-    }
-
-    addField('csrfmiddlewaretoken', csrfToken());
-    addField('action', options.action || 'save_modulo');
-    if (document.getElementById('eki-mb-builder-flag')) {
-      addField('builder', '1');
-    }
-    if (options.pasoId) {
-      addField('paso_id', String(options.pasoId));
-    }
-
-    var body = new URLSearchParams();
-    collectSaveFields(shell, body, options);
-    body.forEach(function (value, name) {
-      addField(name, value);
-    });
-    form.submit();
   }
 
   function parseJsonResponse(r) {
@@ -352,12 +328,28 @@
       e.returnValue = '';
     });
 
+    function finishSave(err) {
+      shell.classList.remove('is-saving');
+      shell.removeAttribute('aria-busy');
+      shell.querySelectorAll('.eki-mb-save-one').forEach(function (btn) {
+        btn.disabled = false;
+      });
+      if (err) setState(err.message || 'No se pudo guardar', true);
+      else setState('Guardado', false);
+    }
+
     function runSave(options) {
-      ensureCalendarioSynced();
       shell.classList.add('is-saving');
       shell.setAttribute('aria-busy', 'true');
       setState('Guardando…', true);
-      submitSaveForm(shell, options);
+      postSave(shell, options)
+        .then(function (data) {
+          if (data && data.ok === false) {
+            throw new Error(data.error || 'No se pudo guardar');
+          }
+          finishSave(null);
+        })
+        .catch(finishSave);
     }
 
     saveBtns.forEach(function (btn) {
@@ -371,7 +363,7 @@
         var pid = btn.getAttribute('data-paso-id');
         if (!pid) return;
         btn.disabled = true;
-        submitSaveForm(shell, { action: 'save_modulo', pasoId: pid });
+        runSave({ action: 'save_modulo', pasoId: pid });
       });
     });
 
@@ -404,31 +396,34 @@
         draggable: '.eki-mb__sec',
         ghostClass: 'eki-mb__sec--ghost',
         onEnd: function (evt) {
+          if (evt.oldIndex === evt.newIndex) return;
           var orden = idsFromList(sectionsWrap, 'data-seccion').join(',');
-          var doReorder = function () {
+          var run = function () {
+            markStatus('Guardando orden…', true);
             postReorder(shell, 'reorder_secciones', { orden: orden })
               .then(function (data) {
                 applyOrdenFromResponse(data);
-                if (setDirtyState) setDirtyState('Orden guardado', false);
+                markStatus('Orden guardado', false);
               })
               .catch(function () {
-                window.alert('No se pudo guardar el orden. Recargue la página.');
-                window.location.reload();
+                revertSortable(evt);
+                markStatus('No se guardó el orden. Volvió al lugar anterior.', true);
               });
           };
           if (!dirty) {
-            doReorder();
+            run();
             return;
           }
-          if (
-            !window.confirm(
-              'Hay cambios sin guardar. Se guardarán al reordenar. ¿Continuar?'
-            )
-          ) {
-            window.location.reload();
-            return;
-          }
-          doReorder();
+          markStatus('Guardando cambios y luego el orden…', true);
+          postSave(shell, { action: 'save_modulo' })
+            .then(function () {
+              markStatus('Guardado', false);
+              run();
+            })
+            .catch(function () {
+              revertSortable(evt);
+              markStatus('No se pudieron guardar los cambios. El bloque volvió a su sitio.', true);
+            });
         },
       });
     }
@@ -440,56 +435,110 @@
         draggable: '.eki-mb__row[data-paso]',
         ghostClass: 'sortable-ghost',
         group: { name: 'mb-sec-' + list.getAttribute('data-seccion'), pull: false, put: false },
-        onEnd: function () {
+        onEnd: function (evt) {
+          if (evt.oldIndex === evt.newIndex) return;
           var sid = list.getAttribute('data-seccion');
           var orden = idsFromList(list, 'data-paso').join(',');
-          var doReorder = function () {
+          var run = function () {
+            markStatus('Guardando orden…', true);
             postReorder(shell, 'reorder_micros', { seccion_id: sid, orden: orden })
               .then(function (data) {
                 applyOrdenFromResponse(data);
-                if (setDirtyState) setDirtyState('Orden guardado', false);
+                markStatus('Orden guardado', false);
               })
               .catch(function () {
-                window.alert('No se pudo guardar el orden. Recargue la página.');
-                window.location.reload();
+                revertSortable(evt);
+                markStatus('No se guardó el orden. El paso volvió a su sitio.', true);
               });
           };
           if (!dirty) {
-            doReorder();
+            run();
             return;
           }
-          if (
-            !window.confirm(
-              'Hay cambios sin guardar. Se guardarán al reordenar. ¿Continuar?'
-            )
-          ) {
-            window.location.reload();
-            return;
-          }
-          doReorder();
+          markStatus('Guardando cambios y luego el orden…', true);
+          postSave(shell, { action: 'save_modulo' })
+            .then(function () {
+              markStatus('Guardado', false);
+              run();
+            })
+            .catch(function () {
+              revertSortable(evt);
+              markStatus('No se pudieron guardar los cambios. El paso volvió a su sitio.', true);
+            });
         },
       });
     });
   }
 
+  function applyEncodeRows(shell, pasos) {
+    (pasos || []).forEach(function (p) {
+      var row = shell.querySelector('.eki-mb__row[data-paso="' + p.id + '"]');
+      if (!row) return;
+      var badge = row.querySelector('.eki-mb__badge--warn, .eki-mb__badge--bad, .eki-mb__badge--ok');
+      if (!badge) return;
+      if (p.status === 'pending' || p.status === 'running') {
+        badge.className = 'eki-mb__badge eki-mb__badge--warn';
+        badge.textContent = 'Procesando video…';
+        return;
+      }
+      if (p.status === 'error') {
+        badge.className = 'eki-mb__badge eki-mb__badge--bad';
+        badge.textContent = 'Video no apto para WhatsApp';
+        return;
+      }
+      if (p.media_wa_apto === true || (p.media_url && !p.status)) {
+        badge.className = 'eki-mb__badge eki-mb__badge--ok';
+        badge.textContent = 'Listo para WhatsApp';
+      }
+    });
+  }
+
+  function fetchEncodeStatus(shell) {
+    var body = new URLSearchParams();
+    body.set('action', 'encode_status');
+    body.set('ajax', '1');
+    body.set('csrfmiddlewaretoken', csrfToken());
+    return fetch(window.location.pathname + window.location.search, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-CSRFToken': csrfToken(),
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      credentials: 'same-origin',
+      body: body.toString(),
+    })
+      .then(parseJsonResponse)
+      .then(function (data) {
+        applyEncodeRows(shell, data && data.pasos);
+        return data;
+      });
+  }
+
   function initEncodePoll(shell) {
     shell.querySelectorAll('.eki-mb-refresh-state').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        window.location.reload();
+        markStatus('Actualizando video…', false);
+        fetchEncodeStatus(shell)
+          .then(function () {
+            markStatus('Estado del video actualizado', false);
+          })
+          .catch(function () {
+            markStatus('No se pudo leer el estado del video', true);
+          });
       });
     });
-    var processing = shell.querySelector('.eki-mb__badge--warn');
-    if (!processing || processing.textContent.indexOf('Procesando') === -1) return;
+    if (!shell.querySelector('.eki-mb__badge--warn')) return;
     var polls = 0;
-    var maxPolls = 8;
     var timer = window.setInterval(function () {
       polls += 1;
-      if (polls >= maxPolls) {
+      if (polls > 12 || !shell.querySelector('.eki-mb__badge--warn')) {
         window.clearInterval(timer);
         return;
       }
-      window.location.reload();
-    }, 45000);
+      fetchEncodeStatus(shell).catch(function () {});
+    }, 20000);
   }
 
   function updateWaPreview(editEl) {
@@ -693,10 +742,31 @@
             if (!data || !data.ok) {
               throw new Error((data && data.error) || 'No se pudo quitar el archivo.');
             }
-            window.location.reload();
+            var row = document.getElementById('paso-' + data.paso_id);
+            if (row) {
+              var preview = row.querySelector('.eki-mb__row-preview--muted');
+              if (preview) preview.hidden = true;
+            }
+            var edit = document.querySelector(
+              '.eki-mb__row-edit[data-paso-edit="' + data.paso_id + '"]'
+            );
+            if (edit) {
+              edit.querySelectorAll(
+                '.eki-mb__thumb, .eki-mb__media-url, .eki-mb-delete-media'
+              ).forEach(function (el) {
+                el.hidden = true;
+              });
+              var clear = edit.querySelector('[name$="_clear_media"]');
+              if (clear) {
+                clear.checked = false;
+                var lab = clear.closest('label');
+                if (lab) lab.hidden = true;
+              }
+            }
+            markStatus('Archivo quitado. El texto se conserva.', false);
           })
           .catch(function (err) {
-            window.alert(err.message || 'No se pudo quitar el archivo.');
+            markStatus(err.message || 'No se pudo quitar el archivo.', true);
           });
       });
     });

@@ -128,8 +128,6 @@ def module_builder_view(request, modulo_id: int):
                 'add_seccion',
                 'duplicate_micro',
                 'deactivate_micro',
-                'reorder_micros',
-                'reorder_secciones',
             ):
                 _persist_builder_from_post(
                     request,
@@ -342,6 +340,22 @@ def module_builder_view(request, modulo_id: int):
                     request,
                     f'Micro duplicado como borrador (#{copia.orden} «{(copia.titulo or "").strip()}»).',
                 )
+            elif action == 'encode_status':
+                from core.media_encode_async import estado_encode_paso
+
+                filas = []
+                for paso in PasoModulo.objects.filter(modulo=modulo).only(
+                    'id', 'media_url', 'media_wa_apto'
+                ):
+                    enc = estado_encode_paso(paso.pk, paso=paso) or {}
+                    filas.append({
+                        'id': paso.pk,
+                        'status': enc.get('status') or '',
+                        'error': enc.get('error') or '',
+                        'media_url': paso.media_url or '',
+                        'media_wa_apto': paso.media_wa_apto,
+                    })
+                return JsonResponse({'ok': True, 'pasos': filas})
             elif action == 'reorder_micros':
                 sec_id = int(request.POST.get('seccion_id') or 0)
                 seccion = get_object_or_404(SeccionModulo, pk=sec_id, modulo=modulo)
@@ -365,7 +379,10 @@ def module_builder_view(request, modulo_id: int):
         except Http404:
             raise
         except ValidationError as exc:
-            messages.error(request, '; '.join(getattr(exc, 'messages', [str(exc)])))
+            msg = '; '.join(getattr(exc, 'messages', [str(exc)]))
+            if request.POST.get('ajax') == '1':
+                return JsonResponse({'ok': False, 'error': msg}, status=400)
+            messages.error(request, msg)
         except ValueError as exc:
             if request.POST.get('ajax') == '1':
                 return JsonResponse({'ok': False, 'error': str(exc)}, status=400)

@@ -162,6 +162,27 @@ def extraer_texto_documento(archivo) -> str:
         raise ValueError("Formato no soportado. Use PDF, Word (.docx) o TXT")
 
 
+def _extraer_json_objeto(texto: str) -> Dict:
+    """JSON del modelo aunque venga con markdown o una frase antes del objeto."""
+    import re
+
+    raw = (texto or '').strip()
+    if raw.startswith('```'):
+        raw = re.sub(r'^```(?:json)?\s*', '', raw, flags=re.IGNORECASE)
+        raw = re.sub(r'\s*```$', '', raw).strip()
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        start = raw.find('{')
+        end = raw.rfind('}')
+        if start < 0 or end <= start:
+            raise
+        data = json.loads(raw[start:end + 1])
+    if not isinstance(data, dict):
+        raise json.JSONDecodeError('objeto esperado', raw, 0)
+    return data
+
+
 def generar_estructura_curso_con_ia(texto: str, modelo: str = "gpt-4o-mini") -> Dict:
     """
     Genera estructura de curso usando IA (OpenAI, Claude o Gemini).
@@ -181,77 +202,54 @@ def generar_estructura_curso_con_ia(texto: str, modelo: str = "gpt-4o-mini") -> 
     proveedor = info_modelo['proveedor']
     
     prompt = f"""
-Eres un experto en diseño instruccional. Analiza el siguiente contenido de curso y genera una estructura de aprendizaje completa.
+Eres diseñador instruccional de eki. El curso se entrega por WhatsApp a productores
+y pymes de América Latina, en español claro, de usted, sin jerga corporativa.
 
-CONTENIDO DEL CURSO:
+FUENTE:
 {texto_resumido}
 
-Genera un JSON con esta estructura EXACTA (muy importante que sea JSON válido):
+Devuelve SOLO un JSON válido (sin markdown) con esta forma:
 
 {{
-  "titulo": "Título del curso (corto y descriptivo)",
-  "descripcion": "Descripción de 2-3 líneas explicando qué aprenderán los estudiantes",
-  "duracion_estimada": "Ejemplo: 4 semanas, 8 horas, etc.",
-  "nivel": "Básico, Intermedio o Avanzado",
-  "puntos_por_leccion": 50,
-  "puntos_por_quiz": 100,
+  "titulo": "Nombre corto del curso",
+  "descripcion": "2 frases: qué podrá hacer la persona al terminar",
+  "duracion_estimada": "4 semanas",
+  "nivel": "Básico",
   "modulos": [
     {{
-      "nombre": "Módulo 1: Introducción",
-      "descripcion": "Breve descripción del módulo",
+      "nombre": "Nombre del módulo (sin número)",
+      "descripcion": "Una frase de para qué sirve",
       "orden": 1,
       "lecciones": [
         {{
-          "titulo": "Lección 1.1: Conceptos básicos",
-          "contenido": "Resumen del contenido de la lección (3-5 párrafos)",
-          "orden": 1,
-          "duracion_minutos": 15,
-          "preguntas": [
-            {{
-              "texto": "¿Pregunta de opción múltiple relacionada?",
-              "opciones": [
-                {{"texto": "Opción A (incorrecta)", "es_correcta": false}},
-                {{"texto": "Opción B (correcta)", "es_correcta": true}},
-                {{"texto": "Opción C (incorrecta)", "es_correcta": false}},
-                {{"texto": "Opción D (incorrecta)", "es_correcta": false}}
-              ],
-              "explicacion": "Por qué la opción B es correcta"
-            }}
-          ]
+          "titulo": "Idea concreta",
+          "contenido": "Texto WhatsApp: máximo 900 caracteres, párrafos cortos, un ejemplo real (finca, tienda o asociación) y una acción para hoy.",
+          "orden": 1
         }}
       ],
       "mini_examen": [
         {{
-          "texto": "Pregunta evaluativa del módulo",
+          "texto": "Una sola pregunta práctica del módulo",
           "opciones": [
-            {{"texto": "Opción 1", "es_correcta": false}},
-            {{"texto": "Opción 2", "es_correcta": true}},
-            {{"texto": "Opción 3", "es_correcta": false}},
-            {{"texto": "Opción 4", "es_correcta": false}}
+            {{"texto": "Opción A", "es_correcta": false}},
+            {{"texto": "Opción B", "es_correcta": true}},
+            {{"texto": "Opción C", "es_correcta": false}},
+            {{"texto": "Opción D", "es_correcta": false}}
           ],
-          "explicacion": "Explicación de la respuesta correcta"
+          "explicacion": "Por qué esa opción es la correcta, en una frase"
         }}
       ]
     }}
-  ],
-  "sugerencias_gamificacion": [
-    "Ejemplo: Otorgar insignia 'Novato' al completar primer módulo",
-    "Ejemplo: Desbloquear contenido bonus con 500 puntos"
-  ],
-  "temas_campanas": [
-    "Recordatorio: Módulo 1 disponible",
-    "Motivación: ¡Ya completaste el 50%!"
   ]
 }}
 
-INSTRUCCIONES IMPORTANTES:
-1. Genera 3-5 módulos con 3-4 lecciones cada uno
-2. Cada lección debe tener 2-3 preguntas
-3. Cada módulo debe tener 5 preguntas en mini_examen
-4. Las preguntas deben ser claras y relacionadas con el contenido
-5. Solo UNA opción debe ser correcta (es_correcta: true)
-6. El contenido de las lecciones debe ser educativo y bien estructurado
-7. Responde SOLO con el JSON, sin texto adicional
+REGLAS:
+1. 4 módulos. Cada uno con 2 o 3 lecciones. No más.
+2. Cada lección cabe en un mensaje de WhatsApp (≤900 caracteres). Una idea. Un ejemplo. Una acción.
+3. mini_examen: exactamente 1 pregunta y exactamente 1 opción correcta.
+4. No inventes cifras, leyes ni nombres de instituciones que no estén en la fuente.
+5. Sin gamificación, sin emojis, sin “¡felicidades!”.
+6. Solo el JSON.
 """
 
     try:
@@ -268,12 +266,7 @@ INSTRUCCIONES IMPORTANTES:
             raise ValueError(f"Proveedor de IA no soportado: {proveedor}")
         
         # Limpiar respuesta si viene con markdown
-        if contenido_respuesta.startswith('```json'):
-            contenido_respuesta = contenido_respuesta.replace('```json', '').replace('```', '').strip()
-        elif contenido_respuesta.startswith('```'):
-            contenido_respuesta = contenido_respuesta.replace('```', '').strip()
-        
-        estructura = json.loads(contenido_respuesta)
+        estructura = _extraer_json_objeto(contenido_respuesta)
         
         logger.info(f"Estructura generada: {len(estructura.get('modulos', []))} módulos")
         
@@ -316,6 +309,34 @@ def _contenido_modulo_desde_ia(modulo_data: dict) -> str:
     return modulo_data.get('descripcion') or ''
 
 
+def _crear_pasos_desde_lecciones(modulo, lecciones: list) -> None:
+    """Cada lección de la IA queda como paso visible en Module Builder."""
+    from core.models import PasoModulo, SeccionModulo
+
+    if not lecciones:
+        return
+    seccion = SeccionModulo.objects.create(
+        modulo=modulo,
+        orden=1,
+        titulo='Contenido',
+        activa=True,
+    )
+    for i, lec in enumerate(lecciones, start=1):
+        titulo = (lec.get('titulo') or f'Paso {i}')[:200]
+        cuerpo = (lec.get('contenido') or '').strip()
+        if not cuerpo:
+            continue
+        PasoModulo.objects.create(
+            modulo=modulo,
+            seccion=seccion,
+            orden=i,
+            titulo=titulo,
+            tipo=PasoModulo.TIPO_CONTENIDO,
+            contenido=cuerpo[:4000],
+            activo=True,
+        )
+
+
 def guardar_curso_desde_estructura(estructura: Dict, cliente: Cliente, archivo_nombre: str) -> Curso:
     """
     Guarda un curso en la base de datos desde la estructura generada por IA.
@@ -349,12 +370,17 @@ def guardar_curso_desde_estructura(estructura: Dict, cliente: Cliente, archivo_n
                 descripcion=modulo_data.get('descripcion', ''),
                 contenido=_contenido_modulo_desde_ia(modulo_data),
                 duracion_dias=7,
+                publicado_wa=False,
             )
+            _crear_pasos_desde_lecciones(modulo, modulo_data.get('lecciones') or [])
             
             logger.info(f"  Módulo creado: {modulo.titulo}")
             
-            # Crear preguntas del mini-examen del módulo
-            for pregunta_data in modulo_data.get('mini_examen', [])[:1]:  # Solo 1 pregunta por módulo
+            # WhatsApp usa una pregunta de cierre por módulo.
+            for pregunta_data in modulo_data.get('mini_examen', [])[:1]:
+                opciones = pregunta_data.get('opciones') or []
+                if len(opciones) < 2 or not (pregunta_data.get('texto') or '').strip():
+                    continue
                 # Encontrar la opción correcta
                 opciones = pregunta_data.get('opciones', [])
                 respuesta_correcta = 'A'
@@ -363,7 +389,7 @@ def guardar_curso_desde_estructura(estructura: Dict, cliente: Cliente, archivo_n
                 opcion_c = opciones[2]['texto'] if len(opciones) > 2 else ''
                 opcion_d = opciones[3]['texto'] if len(opciones) > 3 else ''
                 
-                for idx_opt, opcion in enumerate(opciones):
+                for idx_opt, opcion in enumerate(opciones[:4]):
                     if opcion.get('es_correcta'):
                         respuesta_correcta = ['A', 'B', 'C', 'D'][idx_opt]
                         break
@@ -393,7 +419,7 @@ def guardar_curso_desde_estructura(estructura: Dict, cliente: Cliente, archivo_n
         except Exception as e:
             logger.warning(f"No se pudo crear examen final: {e}")
         
-        logger.info(f"✅ Curso completo guardado: {curso.nombre}")
+        logger.info("Curso completo guardado: %s", curso.nombre)
         return curso
     
     except Exception as e:

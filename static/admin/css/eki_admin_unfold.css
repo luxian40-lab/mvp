@@ -520,6 +520,21 @@ html body textarea {
   color: #6b6575;
   font-size: 0.95rem;
 }
+.eki-panel-eco > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.eki-panel-eco > summary::-webkit-details-marker { display: none; }
+.eki-panel-eco > summary h2 { margin: 0; }
+.eki-panel-eco__summary-hint {
+  font-size: 0.8rem;
+  color: #6b6575;
+  font-weight: 500;
+}
 html.dark .eki-panel-exec__title { color: #f4f2f7; }
 html.dark .eki-panel-exec__motto { color: #c4a5d4; }
 html.dark .eki-panel-exec__sub { color: #a89eb0; }

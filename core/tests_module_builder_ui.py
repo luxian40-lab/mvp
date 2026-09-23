@@ -1095,6 +1095,62 @@ class ModuleBuilderSeccionTituloTests(TestCase):
         self.assertEqual(data['orden'][str(a2.id)], 1)
         self.assertEqual(data['orden'][str(a1.id)], 2)
 
+    @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
+    def test_reorder_no_pisa_contenido_aunque_venga_vacio(self):
+        staff = User.objects.create_user(
+            username='mb_reord_keep', password='x', is_staff=True, is_superuser=True,
+        )
+        curso = Curso.objects.create(nombre='C')
+        mod = Modulo.objects.create(
+            curso=curso, numero=1, titulo='Nombre fijo', descripcion='d', contenido='c',
+            publicado_wa=True,
+        )
+        client = Client()
+        client.force_login(staff)
+        sa = agregar_seccion(mod, 'A')
+        a1 = agregar_micro(mod, sa, contenido='texto que no se puede borrar')
+        a2 = agregar_micro(mod, sa, contenido='segundo')
+        r = client.post(
+            f'/admin/module-builder/{mod.id}/',
+            {
+                'action': 'reorder_micros',
+                'ajax': '1',
+                'seccion_id': str(sa.id),
+                'orden': f'{a2.id},{a1.id}',
+                'modulo_titulo': '',
+                f'paso_{a1.id}_contenido': '',
+                'modulo_publicado_wa': '0',
+            },
+            secure=True,
+        )
+        self.assertEqual(r.status_code, 200)
+        a1.refresh_from_db()
+        mod.refresh_from_db()
+        self.assertEqual(a1.contenido, 'texto que no se puede borrar')
+        self.assertEqual(mod.titulo, 'Nombre fijo')
+        self.assertTrue(mod.publicado_wa)
+        self.assertEqual(a1.orden, 2)
+
+    @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
+    def test_encode_status_ajax(self):
+        staff = User.objects.create_user(
+            username='mb_enc', password='x', is_staff=True, is_superuser=True,
+        )
+        curso = Curso.objects.create(nombre='C')
+        mod = Modulo.objects.create(
+            curso=curso, numero=1, titulo='M', descripcion='d', contenido='c',
+        )
+        client = Client()
+        client.force_login(staff)
+        r = client.post(
+            f'/admin/module-builder/{mod.id}/',
+            {'action': 'encode_status', 'ajax': '1'},
+            secure=True,
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.json().get('ok'))
+        self.assertIn('pasos', r.json())
+
     @override_settings(
         EKI_MODULE_BUILDER_BETA=True,
         SECURE_SSL_REDIRECT=False,
@@ -1310,3 +1366,13 @@ class ModuleBuilderJsHealthTests(TestCase):
             0,
             f'module_builder.js syntax error:\n{proc.stderr or proc.stdout}',
         )
+
+    def test_js_drag_no_recarga_ni_alert(self):
+        from pathlib import Path
+
+        js_path = Path(__file__).resolve().parents[1] / 'static' / 'admin' / 'js' / 'module_builder.js'
+        text = js_path.read_text(encoding='utf-8')
+        self.assertNotIn('location.reload', text)
+        self.assertNotIn('window.alert', text)
+        self.assertIn('encode_status', text)
+        self.assertIn('Orden guardado', text)
