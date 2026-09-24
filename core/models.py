@@ -4358,12 +4358,18 @@ class SandboxCanalSesion(models.Model):
         (MODO_IA_CAMPO, 'IA para el campo'),
         (MODO_VENTAS, 'Ventas y comercialización'),
         (MODO_CURSOS, 'Cursos'),
+        ('formacion', 'Formación'),
+        ('asesoria', 'Asesoría'),
     ]
 
     telefono = models.CharField(max_length=30, unique=True, db_index=True)
     modo = models.CharField(max_length=16, choices=MODO_CHOICES, default=MODO_MENU)
     # Historial Nat/BOT_COMERCIAL solo cuenta mensajes posteriores a este corte.
     memoria_corte_en = models.DateTimeField(null=True, blank=True)
+    habeas_aceptado = models.BooleanField(
+        default=False,
+        help_text='Aceptó tratamiento de datos en la línea Meta antes del menú.',
+    )
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 

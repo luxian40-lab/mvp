@@ -542,7 +542,11 @@ try:
     SANDBOX_IA_MAX_RESPUESTAS_DIA = int(os.environ.get('SANDBOX_IA_MAX_RESPUESTAS_DIA', '30') or 30)
 except (TypeError, ValueError):
     SANDBOX_IA_MAX_RESPUESTAS_DIA = 30
-SANDBOX_IA_MAX_RESPUESTAS_DIA = max(5, min(SANDBOX_IA_MAX_RESPUESTAS_DIA, 80))
+try:
+    SANDBOX_IA_MAX_RESPUESTAS_MES = int(os.environ.get('SANDBOX_IA_MAX_RESPUESTAS_MES', '30') or 30)
+except (TypeError, ValueError):
+    SANDBOX_IA_MAX_RESPUESTAS_MES = 30
+SANDBOX_IA_MAX_RESPUESTAS_MES = max(5, min(SANDBOX_IA_MAX_RESPUESTAS_MES, 60))
 # Event Engine / Data Lake v0 (outbox → S3 lake/raw/…). Off por defecto en prod.
 DATA_LAKE_ENABLED = os.environ.get('DATA_LAKE_ENABLED', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',

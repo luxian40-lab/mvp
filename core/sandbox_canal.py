@@ -24,8 +24,9 @@ PROVEEDOR_TWILIO = 'twilio'
 _sandbox_meta_ctx: ContextVar[bool] = ContextVar('sandbox_meta_ctx', default=False)
 
 _TEXTO_HABEAS_SANDBOX = (
-    "Antes de empezar la demo necesitamos tu autorización de tratamiento de datos.\n\n"
-    "Responde *Acepto* o *No acepto*."
+    "Antes de continuar, autorice el tratamiento de sus datos "
+    "para la formación y la asesoría en esta línea.\n\n"
+    "Pulse *Acepto* o *No acepto*."
 )
 
 
@@ -346,6 +347,46 @@ def enviar_meta(
             return last
     _emit_enviado(to, texto, last.get('mensaje_id'), canal_evento, agente_evento)
     return last
+
+
+def enviar_meta_botones(
+    telefono: str,
+    texto: str,
+    botones: list[tuple[str, str]],
+    *,
+    canal_evento: str = 'whatsapp_sandbox',
+    agente_evento: str = 'sandbox_menu',
+) -> dict:
+    """Botones de respuesta Meta (máximo 3, título de 20 caracteres)."""
+    to = _telefono_graph(telefono)
+    if not to:
+        return {'success': False, 'mensaje_id': None, 'response': 'Invalid destination phone'}
+    cuerpo = (texto or '').strip()[:1024]
+    acciones = []
+    for bid, title in botones[:3]:
+        acciones.append({
+            'type': 'reply',
+            'reply': {
+                'id': str(bid)[:200],
+                'title': str(title)[:20],
+            },
+        })
+    if not acciones or not cuerpo:
+        return enviar_meta(telefono, texto, canal_evento=canal_evento, agente_evento=agente_evento)
+    result = _post_graph({
+        'messaging_product': 'whatsapp',
+        'to': to,
+        'type': 'interactive',
+        'interactive': {
+            'type': 'button',
+            'body': {'text': cuerpo},
+            'action': {'buttons': acciones},
+        },
+    })
+    if result.get('success'):
+        _emit_enviado(to, cuerpo, result.get('mensaje_id'), canal_evento, agente_evento)
+        return result
+    return enviar_meta(telefono, texto, canal_evento=canal_evento, agente_evento=agente_evento)
 
 
 def enviar_sandbox_habeas(telefono: str) -> dict:

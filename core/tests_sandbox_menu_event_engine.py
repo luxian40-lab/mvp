@@ -23,6 +23,13 @@ from core.sandbox_menu import (
 )
 
 
+def _habeas(telefono: str) -> None:
+    SandboxCanalSesion.objects.update_or_create(
+        telefono=telefono,
+        defaults={'habeas_aceptado': True},
+    )
+
+
 @override_settings(
     SANDBOX_MENU_ENABLED=True,
     BOT_COMERCIAL_SANDBOX_NUMBER='14155238886',
@@ -51,7 +58,7 @@ class SandboxMenuTests(TestCase):
             'From': 'whatsapp:+573001234568',
             'To': 'whatsapp:+14155238886',
         }
-        d1 = resolver_ruta_sandbox({**base, 'Body': '1'})
+        d1 = resolver_ruta_sandbox({**base, 'Body': 'agentes'})
         self.assertEqual(d1.action, 'show_agentes')
         self.assertEqual(
             SandboxCanalSesion.objects.get(telefono='573001234568').modo,
@@ -63,7 +70,7 @@ class SandboxMenuTests(TestCase):
             'From': 'whatsapp:+573001234571',
             'To': 'whatsapp:+14155238886',
         }
-        resolver_ruta_sandbox({**base, 'Body': '1'})
+        resolver_ruta_sandbox({**base, 'Body': 'agentes'})
         d = resolver_ruta_sandbox({**base, 'Body': '1'})
         self.assertEqual(d.action, 'nat')
         self.assertFalse(d.reset_nat)
@@ -77,7 +84,7 @@ class SandboxMenuTests(TestCase):
             'From': 'whatsapp:+573001234580',
             'To': 'whatsapp:+14155238886',
         }
-        resolver_ruta_sandbox({**base, 'Body': '1'})
+        resolver_ruta_sandbox({**base, 'Body': 'agentes'})
         resolver_ruta_sandbox({**base, 'Body': '2'})  # coach
         d = resolver_ruta_sandbox({**base, 'Body': 'reiniciar'})
         self.assertEqual(d.action, MODO_COACH)
@@ -88,7 +95,7 @@ class SandboxMenuTests(TestCase):
             'From': 'whatsapp:+573001234572',
             'To': 'whatsapp:+14155238886',
         }
-        resolver_ruta_sandbox({**base, 'Body': '1'})
+        resolver_ruta_sandbox({**base, 'Body': 'agentes'})
         d2 = resolver_ruta_sandbox({**base, 'Body': '2'})
         self.assertEqual(d2.action, 'coach')
         self.assertTrue(d2.saludo_entrada)
@@ -97,7 +104,7 @@ class SandboxMenuTests(TestCase):
             MODO_COACH,
         )
         resolver_ruta_sandbox({**base, 'Body': 'menu'})
-        resolver_ruta_sandbox({**base, 'Body': '1'})
+        resolver_ruta_sandbox({**base, 'Body': 'agentes'})
         d3 = resolver_ruta_sandbox({**base, 'Body': '3'})
         self.assertEqual(d3.action, 'ia_campo')
         self.assertTrue(d3.saludo_entrada)
@@ -106,7 +113,7 @@ class SandboxMenuTests(TestCase):
             MODO_IA_CAMPO,
         )
         resolver_ruta_sandbox({**base, 'Body': 'menu'})
-        resolver_ruta_sandbox({**base, 'Body': '1'})
+        resolver_ruta_sandbox({**base, 'Body': 'agentes'})
         d4 = resolver_ruta_sandbox({**base, 'Body': '4'})
         self.assertEqual(d4.action, 'ventas')
         self.assertTrue(d4.saludo_entrada)
@@ -134,11 +141,12 @@ class SandboxMenuTests(TestCase):
             'To': 'whatsapp:+14155238886',
         }
         self.assertEqual(
-            resolver_ruta_sandbox({**base, 'Body': '2'}).action,
+            resolver_ruta_sandbox({**base, 'Body': 'curso'}).action,
             'cursos_bootstrap',
         )
+        _habeas('573001234569')
         with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}):
-            dispatch_sandbox_menu({**base, 'Body': '2'})
+            dispatch_sandbox_menu({**base, 'Body': 'curso'})
         self.assertEqual(
             SandboxCanalSesion.objects.get(telefono='573001234569').modo,
             MODO_MENU,
@@ -174,7 +182,7 @@ class SandboxMenuTests(TestCase):
             out = dispatch_sandbox_menu({
                 'From': 'whatsapp:+573001234585',
                 'To': 'whatsapp:+14155238886',
-                'Body': '2',
+                'Body': 'curso',
             })
         self.assertEqual(out, 'handled')
         self.assertEqual(
@@ -242,7 +250,7 @@ class SandboxMenuTests(TestCase):
                 out = dispatch_sandbox_menu({
                     'From': 'whatsapp:+573001234584',
                     'To': 'whatsapp:+14155238886',
-                    'Body': '2',
+                    'Body': 'curso',
                 })
         self.assertEqual(out, 'handled')
         self.assertEqual(
@@ -272,7 +280,7 @@ class SandboxMenuTests(TestCase):
     def test_audio_en_coach_usa_transcripcion(self):
         tel_from = 'whatsapp:+573001234582'
         to = 'whatsapp:+14155238886'
-        resolver_ruta_sandbox({'From': tel_from, 'To': to, 'Body': '1'})
+        resolver_ruta_sandbox({'From': tel_from, 'To': to, 'Body': 'agentes'})
         resolver_ruta_sandbox({'From': tel_from, 'To': to, 'Body': '2'})
         audio_payload = {
             'From': tel_from,
@@ -291,12 +299,13 @@ class SandboxMenuTests(TestCase):
         self.assertFalse(d.saludo_entrada)
 
     def test_dispatch_agentes_handled(self):
+        _habeas('573001234570')
         with patch('core.sandbox_menu.enviar_menu_agentes', return_value={'success': True}):
             self.assertEqual(
                 dispatch_sandbox_menu({
                     'From': 'whatsapp:+573001234570',
                     'To': 'whatsapp:+14155238886',
-                    'Body': '1',
+                    'Body': 'agentes',
                 }),
                 'handled',
             )
@@ -306,8 +315,9 @@ class SandboxMenuTests(TestCase):
             'From': 'whatsapp:+573001234573',
             'To': 'whatsapp:+14155238886',
         }
+        _habeas('573001234573')
         with patch('core.sandbox_menu.enviar_menu_agentes', return_value={'success': True}):
-            dispatch_sandbox_menu({**base, 'Body': '1'})
+            dispatch_sandbox_menu({**base, 'Body': 'agentes'})
         with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}) as send:
             out = dispatch_sandbox_menu({**base, 'Body': '1'})
         self.assertEqual(out, 'handled')
@@ -319,8 +329,9 @@ class SandboxMenuTests(TestCase):
             'From': 'whatsapp:+573001234576',
             'To': 'whatsapp:+14155238886',
         }
+        _habeas('573001234576')
         with patch('core.sandbox_menu.enviar_menu_agentes', return_value={'success': True}):
-            dispatch_sandbox_menu({**base, 'Body': '1'})
+            dispatch_sandbox_menu({**base, 'Body': 'agentes'})
         with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}):
             dispatch_sandbox_menu({**base, 'Body': '1'})  # entra Nat sin corte
         with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}):
@@ -329,11 +340,12 @@ class SandboxMenuTests(TestCase):
         self.assertIsNotNone(memoria_corte_nat('573001234576'))
 
     def test_dispatch_cursos_bootstrap_riendas(self):
+        _habeas('573001234574')
         with patch('core.sandbox_menu.bootstrap_cursos_sandbox', return_value=True) as boot:
             out = dispatch_sandbox_menu({
                 'From': 'whatsapp:+573001234574',
                 'To': 'whatsapp:+14155238886',
-                'Body': '2',
+                'Body': 'curso',
             })
         self.assertEqual(out, 'handled')
         self.assertTrue(boot.called)
@@ -343,8 +355,9 @@ class SandboxMenuTests(TestCase):
             'From': 'whatsapp:+573001234575',
             'To': 'whatsapp:+14155238886',
         }
+        _habeas('573001234575')
         with patch('core.sandbox_menu.enviar_menu_agentes', return_value={'success': True}):
-            dispatch_sandbox_menu({**base, 'Body': '1'})
+            dispatch_sandbox_menu({**base, 'Body': 'agentes'})
         with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}):
             self.assertEqual(dispatch_sandbox_menu({**base, 'Body': '2'}), 'handled')
 
@@ -353,15 +366,17 @@ class SandboxMenuTests(TestCase):
             'From': 'whatsapp:+573001234577',
             'To': 'whatsapp:+14155238886',
         }
+        _habeas('573001234577')
         with patch('core.sandbox_menu.enviar_menu_agentes', return_value={'success': True}):
-            dispatch_sandbox_menu({**base, 'Body': '1'})
+            dispatch_sandbox_menu({**base, 'Body': 'agentes'})
         with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}):
             self.assertEqual(dispatch_sandbox_menu({**base, 'Body': '4'}), 'handled')
 
     def test_copy_menu_sin_sandbox_y_cuatro_agentes(self):
         self.assertNotIn('sandbox', TEXTO_MENU.lower())
         self.assertNotIn('riendas', TEXTO_MENU.lower())
-        self.assertIn('Cursos', TEXTO_MENU)
+        self.assertIn('formación', TEXTO_MENU.lower())
+        self.assertIn('30', TEXTO_MENU)
         self.assertNotIn('sandbox', TEXTO_AGENTES.lower())
         self.assertIn('Agrónomo', TEXTO_AGENTES)
         self.assertIn('Coach', TEXTO_AGENTES)
@@ -375,6 +390,70 @@ class SandboxMenuTests(TestCase):
         self.assertLessEqual(max_tokens_linea_meta(), 400)
         self.assertGreaterEqual(max_tokens_linea_meta(), 120)
         self.assertFalse(excedio_cupo_ia_linea('573001239999'))
+
+    def test_menu_formacion_y_asesoria_enrutan(self):
+        base = {
+            'From': 'whatsapp:+573001234590',
+            'To': 'whatsapp:+14155238886',
+        }
+        d = resolver_ruta_sandbox({**base, 'Body': 'formacion'})
+        self.assertEqual(d.action, 'show_formacion')
+        d2 = resolver_ruta_sandbox({**base, 'Body': 'quiero vender mejor mi café'})
+        self.assertEqual(d2.action, 'cursos_bootstrap')
+
+        base_a = {
+            'From': 'whatsapp:+573001234591',
+            'To': 'whatsapp:+14155238886',
+        }
+        d3 = resolver_ruta_sandbox({**base_a, 'Body': 'asesoria'})
+        self.assertEqual(d3.action, 'show_asesoria')
+        d4 = resolver_ruta_sandbox({**base_a, 'Body': 'cómo subo el precio a mis clientes'})
+        self.assertEqual(d4.action, 'ventas')
+        self.assertTrue(d4.saludo_entrada)
+
+    def test_habeas_antes_del_menu(self):
+        with patch('core.sandbox_canal.enviar_sandbox_habeas', return_value={'success': True}) as habeas:
+            out = dispatch_sandbox_menu({
+                'From': 'whatsapp:+573001234592',
+                'To': 'whatsapp:+14155238886',
+                'Body': 'hola',
+            })
+        self.assertEqual(out, 'handled')
+        self.assertTrue(habeas.called)
+        self.assertFalse(
+            SandboxCanalSesion.objects.get(telefono='573001234592').habeas_aceptado
+        )
+        with patch('core.sandbox_menu.enviar_menu_sandbox', return_value={'success': True}) as menu:
+            out2 = dispatch_sandbox_menu({
+                'From': 'whatsapp:+573001234592',
+                'To': 'whatsapp:+14155238886',
+                'Body': 'acepto',
+            })
+        self.assertEqual(out2, 'handled')
+        self.assertTrue(menu.called)
+        self.assertTrue(
+            SandboxCanalSesion.objects.get(telefono='573001234592').habeas_aceptado
+        )
+
+    def test_cupo_asesor_cuenta_el_mes(self):
+        from datetime import timedelta
+
+        from core.models import WhatsappLog
+        from core.sandbox_agentes import excedio_cupo_ia_linea
+
+        tel = '573009991111'
+        for _ in range(30):
+            WhatsappLog.objects.create(
+                telefono=tel,
+                tipo='SENT',
+                agente_usado='sandbox_nat',
+                mensaje='x',
+            )
+        self.assertTrue(excedio_cupo_ia_linea(tel))
+        WhatsappLog.objects.filter(telefono=tel).update(
+            fecha=timezone.now().replace(day=1) - timedelta(days=2)
+        )
+        self.assertFalse(excedio_cupo_ia_linea(tel))
 
     def test_prompt_ventas_aplicable_manana(self):
         from core.sandbox_agentes import PROMPT_VENTAS, prompt_para, saludo_agente

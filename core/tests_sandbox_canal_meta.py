@@ -138,16 +138,26 @@ class SandboxCanalMetaSendTests(TestCase):
         self.assertEqual(body.get('type'), 'text')
 
     def test_dispatch_menu_no_llama_twilio(self):
-        with patch('core.sandbox_canal.enviar_meta', return_value={'success': True, 'mensaje_id': 'x'}) as send:
-            out = dispatch_sandbox_menu({
-                'From': 'whatsapp:+573001234590',
-                'To': 'whatsapp:+573009998888',
-                'Body': 'hola',
-                '_eki_proveedor': 'meta',
-                '_eki_phone_number_id': '111222333',
-            })
+        from core.models import SandboxCanalSesion
+
+        SandboxCanalSesion.objects.create(telefono='573001234590', habeas_aceptado=True)
+        with patch('core.sandbox_canal._post_graph', return_value={'success': True, 'mensaje_id': 'x'}) as send:
+            with patch('core.utils.enviar_whatsapp_twilio') as mock_tw:
+                out = dispatch_sandbox_menu({
+                    'From': 'whatsapp:+573001234590',
+                    'To': 'whatsapp:+573009998888',
+                    'Body': 'hola',
+                    '_eki_proveedor': 'meta',
+                    '_eki_phone_number_id': '111222333',
+                })
         self.assertEqual(out, 'handled')
         self.assertTrue(send.called)
+        mock_tw.assert_not_called()
+        body = send.call_args[0][0]
+        self.assertEqual(body.get('type'), 'interactive')
+        botones = body['interactive']['action']['buttons']
+        self.assertEqual(botones[0]['reply']['id'], 'formacion')
+        self.assertEqual(botones[1]['reply']['id'], 'asesoria')
 
 
 @override_settings(
@@ -175,6 +185,9 @@ class SandboxCanalMetaWebhookTests(TestCase):
         self.assertEqual(resp.content.decode(), 'reto99')
 
     def test_post_meta_hola_dispara_menu_no_legacy(self):
+        from core.models import SandboxCanalSesion
+
+        SandboxCanalSesion.objects.create(telefono='573001234591', habeas_aceptado=True)
         payload = _meta_envelope(
             {'from': '573001234591', 'id': 'wamid.in1', 'type': 'text', 'text': {'body': 'hola'}},
         )
@@ -194,7 +207,9 @@ class SandboxCanalMetaWebhookTests(TestCase):
         from core.models import SandboxCanalSesion
         from core.sandbox_menu import MODO_CURSOS
 
-        SandboxCanalSesion.objects.create(telefono='573001234592', modo=MODO_CURSOS)
+        SandboxCanalSesion.objects.create(
+            telefono='573001234592', modo=MODO_CURSOS, habeas_aceptado=True,
+        )
         payload = _meta_envelope(
             {'from': '573001234592', 'id': 'wamid.in2', 'type': 'text', 'text': {'body': 'listo'}},
         )
@@ -217,7 +232,9 @@ class SandboxCanalMetaWebhookTests(TestCase):
         from core.models import SandboxCanalSesion
         from core.sandbox_menu import MODO_NAT
 
-        SandboxCanalSesion.objects.create(telefono='573001234594', modo=MODO_NAT)
+        SandboxCanalSesion.objects.create(
+            telefono='573001234594', modo=MODO_NAT, habeas_aceptado=True,
+        )
         payload = _meta_envelope(
             {'from': '573001234594', 'id': 'wamid.in3', 'type': 'text', 'text': {'body': 'mancha en tomate'}},
         )

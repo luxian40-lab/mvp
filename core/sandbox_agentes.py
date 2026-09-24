@@ -268,32 +268,39 @@ def _max_turnos_memoria() -> int:
 
 
 def excedio_cupo_ia_linea(telefono: str) -> bool:
-    """True si el teléfono ya gastó el cupo diario de respuestas IA en esta línea."""
+    """True si el teléfono ya gastó las 30 respuestas de asesoría de este mes."""
+    return respuestas_asesor_en_el_mes(telefono) >= _tope_asesor_mes()
+
+
+def respuestas_asesor_en_el_mes(telefono: str) -> int:
     tel = (telefono or '').strip()
     if not tel:
-        return False
-    try:
-        tope = int(getattr(settings, 'SANDBOX_IA_MAX_RESPUESTAS_DIA', 30) or 30)
-    except (TypeError, ValueError):
-        tope = 30
-    tope = max(5, min(tope, 80))
+        return 0
     try:
         from django.utils import timezone
         from core.models import WhatsappLog
 
-        inicio = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        n = WhatsappLog.objects.filter(
+        ahora = timezone.now()
+        inicio = ahora.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        return WhatsappLog.objects.filter(
             telefono=tel,
             tipo='SENT',
             fecha__gte=inicio,
             agente_usado__startswith='sandbox_',
         ).exclude(agente_usado='sandbox_menu').exclude(agente_usado='sandbox_cursos').exclude(
             agente_usado='sandbox_agentes'
-        ).count()
-        return n >= tope
+        ).exclude(agente_usado='sandbox_formacion').count()
     except Exception:
         logger.exception('sandbox_cupo_ia_fail tel=%s', tel)
-        return False
+        return 0
+
+
+def _tope_asesor_mes() -> int:
+    try:
+        tope = int(getattr(settings, 'SANDBOX_IA_MAX_RESPUESTAS_MES', 30) or 30)
+    except (TypeError, ValueError):
+        tope = 30
+    return max(5, min(tope, 60))
 
 
 def _historial_sandbox(telefono: str, agente: AgenteSandbox, max_turnos: int | None = None) -> list[dict]:

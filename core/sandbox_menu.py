@@ -24,16 +24,35 @@ MODO_COACH = 'coach'
 MODO_IA_CAMPO = 'ia_campo'
 MODO_VENTAS = 'ventas'
 MODO_CURSOS = 'cursos'
+MODO_FORMACION = 'formacion'
+MODO_ASESORIA = 'asesoria'
 
 MODOS_AGENTE = (MODO_NAT, MODO_COACH, MODO_IA_CAMPO, MODO_VENTAS)
 
 TEXTO_MENU = (
-    "👋 *eki*\n\n"
-    "Elige una opción:\n"
-    "1️⃣ Agentes IA\n"
-    "2️⃣ Cursos (continuar el suyo)\n\n"
-    "Escribe *1* o *2*.\n"
-    "En cualquier momento: *menu* para volver."
+    "A través de este menú podrá acceder a un curso de formación durante "
+    "el próximo mes de su escogencia y al asesor, con un máximo de 30 preguntas "
+    "durante el mes.\n\n"
+    "Queremos que fortalezca sus competencias y actualice sus conocimientos "
+    "para mejorar su entorno y el de los demás. Dé su mejor esfuerzo y nunca "
+    "deje de aprender.\n\n"
+    "Elija una opción:"
+)
+
+TEXTO_FORMACION = (
+    "¿Qué le gustaría aprender para tomar mejores decisiones?\n\n"
+    "Escríbalo en un mensaje. Si ya está inscrito en un curso eki, "
+    "seguimos ese curso en esta misma línea, sin reiniciar el avance.\n\n"
+    "_*menu* para volver._"
+)
+
+TEXTO_ASESORIA = (
+    "Si usted tuviera la oportunidad de preguntarle a un experto sobre cómo "
+    "mejorar su productividad, la de su negocio, o quiere tomar mejores "
+    "decisiones, ¿qué preguntaría?\n\n"
+    "Escríbala y lo llevamos al agente que corresponde. "
+    "Tiene hasta 30 preguntas este mes.\n\n"
+    "_*menu* para volver._"
 )
 
 TEXTO_CURSO_NO_INSCRITO = (
@@ -45,9 +64,9 @@ TEXTO_CURSO_NO_INSCRITO = (
 )
 
 TEXTO_CUPO_IA = (
-    "Hoy ya usó el cupo de IA de esta línea (límite para cuidar costos).\n\n"
-    "Puede escribir *2* para continuar su curso, o *menu*. "
-    "El cupo se reinicia mañana."
+    "Este mes ya usó las 30 preguntas del asesor.\n\n"
+    "Puede seguir su curso de formación, o escribir *menu*. "
+    "El cupo se reinicia el próximo mes."
 )
 
 TEXTO_AGENTES = (
@@ -190,15 +209,39 @@ def _set_modo(sesion, modo: str, *, reset_nat: bool = False) -> None:
     sesion.save(update_fields=fields)
 
 
+def clasificar_asesoria(texto: str) -> str | None:
+    """Lleva la pregunta libre al agente. None si no alcanza para decidir."""
+    t = (texto or '').strip().lower()
+    if not t or t in ('1', '2', '3', '4'):
+        return None
+    if any(w in t for w in ('venta', 'precio', 'cliente', 'cerrar', 'comercial', 'negocio')):
+        return MODO_VENTAS
+    if any(w in t for w in (
+        'plaga', 'cultivo', 'suelo', 'cosecha', 'fertil', 'finca', 'café', 'cafe', 'agron',
+    )):
+        return MODO_NAT
+    if any(w in t for w in ('hábit', 'habit', 'motiv', 'constancia', 'ánimo', 'animo')):
+        return MODO_COACH
+    if any(w in t for w in (
+        'inteligencia artificial', 'chatgpt', 'tecnolog', 'whatsapp', 'profe',
+    )):
+        return MODO_IA_CAMPO
+    return None
+
+
 def _normalizar_eleccion_raiz(body: str) -> str | None:
     t = (body or '').strip().lower()
     if t in ('menu', 'menú', 'inicio', 'start'):
         return 'menu'
     if t in ('hola', 'hi', 'hey', 'buenas', 'buen día', 'buenos días'):
         return 'saludo'
-    if t in ('1', '1️⃣', 'uno', 'agente', 'agentes', 'ia', 'ais'):
+    if t in ('1', '1️⃣', 'uno', 'formacion', 'formación', 'aprender'):
+        return MODO_FORMACION
+    if t in ('2', '2️⃣', 'dos', 'asesoria', 'asesoría', 'asesor'):
+        return MODO_ASESORIA
+    if t in ('agentes', 'agente ia', 'agentes ia'):
         return MODO_AGENTES
-    if t in ('2', '2️⃣', 'dos', 'curso', 'cursos', 'aprender', 'edu', 'riendas'):
+    if t in ('curso', 'cursos', 'edu', 'riendas'):
         return MODO_CURSOS
     # Compat: atajos directos
     if t in ('nat', 'nati', 'agronomo', 'agrónomo'):
@@ -309,6 +352,21 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
         decision.action = 'show_agentes'
         return decision
 
+    if sesion.modo == MODO_ASESORIA:
+        agente = clasificar_asesoria(body)
+        if agente:
+            _set_modo(sesion, agente)
+            decision.action = agente
+            decision.saludo_entrada = True
+            return decision
+        _set_modo(sesion, MODO_AGENTES)
+        decision.action = 'show_agentes'
+        return decision
+
+    if sesion.modo == MODO_FORMACION and (body or '').strip():
+        decision.action = 'cursos_bootstrap'
+        return decision
+
     # Dentro de un agente: *reiniciar* corta memoria sin salir del modo
     if sesion.modo in MODOS_AGENTE and es_comando_reiniciar(body):
         decision.action = sesion.modo
@@ -349,6 +407,16 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
         _set_modo(sesion, MODO_VENTAS)
         decision.action = 'ventas'
         decision.saludo_entrada = True
+        return decision
+
+    if eleccion == MODO_FORMACION:
+        _set_modo(sesion, MODO_FORMACION)
+        decision.action = 'show_formacion'
+        return decision
+
+    if eleccion == MODO_ASESORIA:
+        _set_modo(sesion, MODO_ASESORIA)
+        decision.action = 'show_asesoria'
         return decision
 
     if eleccion == MODO_CURSOS:
@@ -397,7 +465,20 @@ def enviar_texto_sandbox(telefono_usuario: str, from_number: str, texto: str, *,
 
 
 def enviar_menu_sandbox(telefono_usuario: str, from_number: str) -> dict:
-    return enviar_texto_sandbox(telefono_usuario, from_number, TEXTO_MENU)
+    from core.sandbox_canal import enviar_meta_botones, sandbox_via_meta
+
+    if sandbox_via_meta():
+        return enviar_meta_botones(
+            telefono_usuario,
+            TEXTO_MENU,
+            [('formacion', 'Formación'), ('asesoria', 'Asesoría')],
+            agente_evento='sandbox_menu',
+        )
+    return enviar_texto_sandbox(
+        telefono_usuario,
+        from_number,
+        TEXTO_MENU + "\n\nEscriba *formación* o *asesoría*.",
+    )
 
 
 def enviar_menu_agentes(telefono_usuario: str, from_number: str) -> dict:
@@ -527,6 +608,11 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str) -> str:
             texto = TEXTO_CUPO_IA
         else:
             texto = responder_agente_sandbox(agente, body, telefono=decision.telefono_usuario)  # type: ignore[arg-type]
+            from core.sandbox_agentes import _tope_asesor_mes, respuestas_asesor_en_el_mes
+
+            quedan = _tope_asesor_mes() - respuestas_asesor_en_el_mes(decision.telefono_usuario)
+            if quedan == 2:
+                texto = f"{texto}\n\nAviso: le quedan 2 preguntas este mes."
     try:
         enviar_texto_sandbox(
             decision.telefono_usuario,
@@ -536,6 +622,47 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str) -> str:
         )
     except Exception:
         logger.exception('sandbox_agente_send_failed agente=%s', agente)
+    return 'handled'
+
+
+def _habeas_listo(telefono: str) -> bool:
+    sesion = _get_or_create_sesion(telefono)
+    if getattr(sesion, 'habeas_aceptado', False):
+        return True
+    from core.models import Estudiante
+
+    est = Estudiante.objects.filter(telefono=telefono, acepto_terminos=True).first()
+    if est is not None:
+        sesion.habeas_aceptado = True
+        sesion.save(update_fields=['habeas_aceptado', 'actualizado_en'])
+        return True
+    return False
+
+
+def _responder_habeas(telefono: str, from_number: str, body: str) -> str | None:
+    """None si ya puede ver el menú. 'handled' si esta vuelta fue solo habeas."""
+    t = (body or '').strip().lower()
+    if t in ('acepto', 'aceptó', 'si', 'sí', 'de acuerdo'):
+        sesion = _get_or_create_sesion(telefono)
+        sesion.habeas_aceptado = True
+        sesion.modo = MODO_MENU
+        sesion.save(update_fields=['habeas_aceptado', 'modo', 'actualizado_en'])
+        enviar_menu_sandbox(telefono, from_number)
+        return 'handled'
+    if t in ('no_acepto', 'no acepto', 'no'):
+        enviar_texto_sandbox(
+            telefono,
+            from_number,
+            "Sin la autorización no podemos abrir la formación ni la asesoría.\n\n"
+            "Cuando quiera, escriba *acepto*.",
+            agente='sandbox_menu',
+        )
+        return 'handled'
+    if _habeas_listo(telefono):
+        return None
+    from core.sandbox_canal import enviar_sandbox_habeas
+
+    enviar_sandbox_habeas(telefono)
     return 'handled'
 
 
@@ -551,6 +678,12 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
     """
     if not es_destino_sandbox(payload):
         return None
+    from_tel, _, body_habeas = _extract_from_body(payload)
+    body_habeas = _body_o_audio_transcrito(payload, body_habeas)
+    if from_tel:
+        corte = _responder_habeas(from_tel, sandbox_number(), body_habeas)
+        if corte == 'handled':
+            return 'handled'
     decision = resolver_ruta_sandbox(payload)
     from_n = decision.from_number or sandbox_number()
     _, _, body = _extract_from_body(payload)
@@ -568,6 +701,30 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
             enviar_menu_agentes(decision.telefono_usuario, from_n)
         except Exception:
             logger.exception('sandbox_agentes_send_failed tel=%s', decision.telefono_usuario)
+        return 'handled'
+
+    if decision.action == 'show_formacion':
+        try:
+            enviar_texto_sandbox(
+                decision.telefono_usuario,
+                from_n,
+                TEXTO_FORMACION,
+                agente='sandbox_formacion',
+            )
+        except Exception:
+            logger.exception('sandbox_formacion_send_failed')
+        return 'handled'
+
+    if decision.action == 'show_asesoria':
+        try:
+            enviar_texto_sandbox(
+                decision.telefono_usuario,
+                from_n,
+                TEXTO_ASESORIA,
+                agente='sandbox_asesoria',
+            )
+        except Exception:
+            logger.exception('sandbox_asesoria_send_failed')
         return 'handled'
 
     if decision.action == 'nat':
