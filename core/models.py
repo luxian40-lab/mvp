@@ -3639,6 +3639,7 @@ from .models_extras import (
     MensajePush, EnvioMensajePush,
 )
 from .models_media_entrega import MediaPaqueteEntrega
+from .models_campana_meta import PlantillaMeta, CampanaMeta, EnvioCampanaMeta
 
 # ========== CAMPAÑAS ÚNICAS (SÍ/NO) ==========
 class CampanaUnica(models.Model):
@@ -4515,4 +4516,7 @@ __all__ = [
     'EventOutbox',
     'SenalTerritorial',
     'AlertaTerritorial',
+    'PlantillaMeta',
+    'CampanaMeta',
+    'EnvioCampanaMeta',
 ]
