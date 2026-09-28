@@ -258,6 +258,16 @@ UNFOLD = {
                         "link": reverse_lazy("admin:core_campana_changelist"),
                     },
                     {
+                        "title": _("Plantillas Meta"),
+                        "icon": "article",
+                        "link": reverse_lazy("admin:core_plantillameta_changelist"),
+                    },
+                    {
+                        "title": _("Campañas Meta"),
+                        "icon": "campaign",
+                        "link": reverse_lazy("admin:core_campanameta_changelist"),
+                    },
+                    {
                         "title": _("Calendario campañas"),
                         "icon": "event",
                         "link": "/admin/calendario/",

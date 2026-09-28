@@ -775,3 +775,26 @@ def generar_video_course_engine_async(
         logger.exception('[CE] generar_video_course_engine_async run=%s', run_id)
         cache.set(key, {'status': 'error', 'run_id': run_id, 'error': str(exc)}, 7200)
         raise
+
+
+@shared_task
+def sincronizar_plantillas_meta():
+    """Poll de plantillas Meta en PENDING / IN_APPEAL. No toca Twilio."""
+    from core.meta_waba import sincronizar_pendientes
+
+    n = sincronizar_pendientes()
+    logger.info('plantillas_meta_sync n=%s', n)
+    return n
+
+
+@shared_task(bind=True, max_retries=1, default_retry_delay=60, time_limit=3600, soft_time_limit=3300)
+def ejecutar_campana_meta_async(self, campana_id):
+    from core.meta_waba import ejecutar_campana_meta
+    from core.models_campana_meta import CampanaMeta
+
+    try:
+        campana = CampanaMeta.objects.select_related('plantilla', 'grupo').get(pk=campana_id)
+        return ejecutar_campana_meta(campana)
+    except Exception as exc:
+        logger.error('campana_meta_async_fail id=%s err=%s', campana_id, exc)
+        raise self.retry(exc=exc)

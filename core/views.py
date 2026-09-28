@@ -1369,6 +1369,16 @@ def whatsapp_webhook(request):
             # Detectar si es Meta o Twilio
             if 'entry' in payload:
                 logger.info("📍 Detectado: META WhatsApp")
+                try:
+                    from core.meta_waba import aplicar_eventos_plantilla
+
+                    aplicar_eventos_plantilla(
+                        payload,
+                        raw_body,
+                        request.META.get('HTTP_X_HUB_SIGNATURE_256', ''),
+                    )
+                except Exception:
+                    logger.exception('meta_template_status_update_fail')
                 from core.sandbox_canal import iter_mensajes_inbound_meta, sandbox_via_meta
                 from core.sandbox_menu import es_destino_sandbox
 

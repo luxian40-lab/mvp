@@ -17,6 +17,7 @@ from .estudiantes import *  # noqa: F401,F403  # EnvioProgramadoInline, EnvioPro
 
 # 2 — dependen de estudiantes
 from .campanas import *  # noqa: F401,F403
+from .campana_meta import *  # noqa: F401,F403
 from .cursos import *  # noqa: F401,F403
 from .gamificacion import *  # noqa: F401,F403
 from .soporte import *  # noqa: F401,F403
