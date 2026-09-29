@@ -42,7 +42,7 @@
     color: var(--ce-brand-deep);
 }
 .centro-exito .metric-label { font-size: 13px; color: var(--ce-muted); font-weight: 600; }
-.centro-exito .btn {
+.centro-exito .btn:not(.btn-outline):not(.btn-secondary):not(.btn-ghost) {
     background: var(--ce-brand);
     color: #fff;
     border: none;
@@ -221,7 +221,7 @@
 .centro-exito .ret-agent__form { display: flex; gap: 8px; flex-wrap: wrap; }
 .centro-exito .ret-agent__form input {
     flex: 1; min-width: 180px; padding: 11px 14px; border-radius: 10px;
-    border: 1px solid var(--ce-borde); font: inherit; background: #fff; color: var(--ce-text);
+    border: 1px solid var(--ce-borde); font: inherit; background: var(--tabla-head, #fff); color: var(--ce-text);
 }
 .centro-exito .ret-agent__chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 .centro-exito .ret-agent__chip {
