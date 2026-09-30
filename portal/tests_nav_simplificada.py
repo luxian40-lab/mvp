@@ -50,7 +50,7 @@ class PortalNavSimplificadaTests(TestCase):
         self.assertEqual(r.status_code, 200)
         html = r.content.decode()
         for label in (
-            'Uso de plataforma', 'Desarrollo de habilidades', 'Centro de Éxito',
+            'Uso de plataforma', 'Desarrollo de habilidades', 'Retención', 'Impacto',
             'Cobertura', 'Métricas detalladas', 'Reportes', 'Actividad', 'Gamificación',
         ):
             self.assertIn(label, html)

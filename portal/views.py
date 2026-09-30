@@ -1099,13 +1099,15 @@ def portal_curso_crear_stub(request):
 
 @portal_login_required
 def portal_analitica(request):
-    """Analítica: uso de plataforma, habilidades y Centro de Éxito."""
+    """Analítica: uso, habilidades, retención e impacto."""
     org = _portal_org(request)
     if not org:
         return redirect('/portal/login/')
     mods = modulos_portal(org)
     seccion = (request.GET.get('s') or 'uso').strip().lower()
-    if seccion not in ('uso', 'habilidades', 'exito'):
+    if seccion == 'exito':
+        seccion = 'retencion'
+    if seccion not in ('uso', 'habilidades', 'retencion', 'impacto'):
         seccion = 'uso'
     ce_data = None
     if mods.get('cursos'):

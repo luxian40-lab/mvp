@@ -1602,7 +1602,8 @@
             <div class="sidebar-sub" id="analitica-sub" {% if request.path != '/portal/analitica/' %}hidden{% endif %}>
                 <a class="sidebar-sublink {% if request.GET.s == 'uso' or not request.GET.s and request.path == '/portal/analitica/' %}active{% endif %}" href="/portal/analitica/?s=uso">Uso de plataforma</a>
                 <a class="sidebar-sublink {% if request.GET.s == 'habilidades' %}active{% endif %}" href="/portal/analitica/?s=habilidades">Desarrollo de habilidades</a>
-                <a class="sidebar-sublink {% if request.GET.s == 'exito' %}active{% endif %}" href="/portal/analitica/?s=exito">Centro de éxito</a>
+                <a class="sidebar-sublink {% if request.GET.s == 'retencion' or request.GET.s == 'exito' %}active{% endif %}" href="/portal/analitica/?s=retencion">Retención</a>
+                <a class="sidebar-sublink {% if request.GET.s == 'impacto' %}active{% endif %}" href="/portal/analitica/?s=impacto">Impacto</a>
             </div>
             {% endif %}
             <a href="{% url 'portal_soporte' %}" class="sidebar-link {% if request.path == '/portal/soporte/' or '/portal/feedback' in request.path or '/portal/pqrs' in request.path %}active{% endif %}" title="Ayuda y PQRS">

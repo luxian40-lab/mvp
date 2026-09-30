@@ -132,7 +132,9 @@ class UsoPlataformaTests(TestCase):
         self.assertNotIn('ana-burger', html)
         self.assertIn('Uso de plataforma', html)
         self.assertIn('Desarrollo de habilidades', html)
-        self.assertIn('Centro de éxito', html)
+        self.assertIn('>Retención</a>', html)
+        self.assertIn('>Impacto</a>', html)
+        self.assertNotIn('>Centro de éxito</a>', html)
         for etiqueta in (
             'Registrados', 'En curso', 'Certificados', 'Tasa de abandono',
             'Tasa de finalización', 'Activos este mes', 'Tiempo de respuesta',
@@ -150,3 +152,13 @@ class UsoPlataformaTests(TestCase):
         self.assertIn('id="ana-habilidades"', cuerpo)
         self.assertIn('id="ana-uso" aria-labelledby="ana-uso-title" hidden', cuerpo)
         self.assertIn('Desarrollo de habilidades', cuerpo)
+        impacto = http.get('/portal/analitica/?s=impacto')
+        self.assertEqual(impacto.status_code, 200)
+        limpio = impacto.content.decode()
+        self.assertIn('id="ana-impacto"', limpio)
+        self.assertIn('id="ana-uso" aria-labelledby="ana-uso-title" hidden', limpio)
+        self.assertIn('Impacto.', limpio)
+        for nombre in ('Negocios', 'Power skills', 'Sostenibilidad', 'Innovación IA', 'Cultivo'):
+            self.assertIn(nombre, limpio)
+        self.assertIn('<section id="ana-impacto"', limpio)
+        self.assertNotIn('id="ana-impacto" hidden', limpio)
