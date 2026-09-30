@@ -2,55 +2,379 @@
 
 {% block title %}Analítica | Portal eki{% endblock %}
 
-{% block content %}
-<div class="page-title">
-  <div>
-    <h1>Analítica</h1>
-    <p class="muted">Todo lo que mide el programa — máximo 2 clics desde aquí.</p>
-  </div>
-</div>
+{% block extra_head %}
+<style>
+    .ana-shell { position: relative; }
+    .ana-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 18px;
+    }
+    .ana-burger {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        flex: 0 0 auto;
+        border: 1px solid var(--borde);
+        background: var(--blanco);
+        color: var(--texto);
+        border-radius: 12px;
+        padding: 10px 14px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+    }
+    .ana-burger:focus-visible,
+    .ana-drawer button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .ana-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(16, 12, 20, 0.45);
+        z-index: 30;
+    }
+    .ana-drawer {
+        position: absolute;
+        z-index: 31;
+        top: 0;
+        left: 0;
+        width: min(300px, 100%);
+        background: var(--blanco);
+        color: var(--texto);
+        border: 1px solid var(--borde);
+        border-radius: 16px;
+        box-shadow: var(--shadow-soft);
+        padding: 16px;
+    }
+    .ana-drawer h2 { margin: 0 0 12px; font-size: 1rem; }
+    .ana-drawer button {
+        display: block;
+        width: 100%;
+        text-align: left;
+        margin: 0 0 8px;
+        padding: 12px 12px;
+        border-radius: 12px;
+        border: 1px solid var(--borde);
+        background: transparent;
+        color: var(--texto);
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+    }
+    .ana-drawer button[aria-current="true"] {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+    }
+    .ana-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 22px;
+    }
+    @media (max-width: 860px) {
+        .ana-grid { grid-template-columns: 1fr; }
+    }
+    .ana-box {
+        background: var(--surface);
+        border: 1px solid var(--borde);
+        border-radius: 16px;
+        padding: 16px 16px 14px;
+        min-height: 118px;
+    }
+    html[data-theme="dark"] .ana-box { background: var(--blanco); }
+    .ana-box .metric-number { font-size: 1.7rem; }
+    .ana-box h3 {
+        margin: 0 0 8px;
+        font-size: 0.95rem;
+        color: var(--texto);
+    }
+    .ana-box p { margin: 8px 0 0; color: var(--texto-muted); font-size: 12.5px; line-height: 1.35; }
+    .ana-charts {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+    }
+    @media (max-width: 860px) {
+        .ana-charts { grid-template-columns: 1fr; }
+    }
+    .ana-chart {
+        background: var(--surface);
+        border: 1px solid var(--borde);
+        border-radius: 16px;
+        padding: 14px;
+    }
+    html[data-theme="dark"] .ana-chart { background: var(--blanco); }
+    .ana-chart h3 { margin: 0; font-size: 1rem; color: var(--texto); }
+    .ana-chart .muted { margin: 4px 0 12px; font-size: 12.5px; }
+    .ana-bars {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        height: 140px;
+    }
+    .ana-bar {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-end;
+        height: 100%;
+        min-width: 0;
+    }
+    .ana-bar__fill {
+        width: 100%;
+        max-width: 28px;
+        border-radius: 8px 8px 4px 4px;
+        background: var(--accent);
+        min-height: 0;
+    }
+    .ana-chart--drop .ana-bar__fill { background: #c45b5b; }
+    .ana-chart--use .ana-bar__fill { background: #3c7bbf; }
+    .ana-bar span {
+        margin-top: 4px;
+        font-size: 11px;
+        color: var(--texto-muted);
+    }
+    .ana-links { margin-top: 22px; color: var(--texto-muted); font-size: 14px; }
+    .ana-links a { margin-right: 12px; }
+    .ana-rank { width: 100%; border-collapse: collapse; }
+    .ana-rank th, .ana-rank td {
+        text-align: left;
+        padding: 10px 8px;
+        border-bottom: 1px solid var(--borde);
+        color: var(--texto);
+    }
+    .ana-rank th { color: var(--texto-muted); font-size: 12px; }
+    [hidden] { display: none !important; }
+</style>
+{% if ce_data %}
+{% include 'portal/partials/centro_exito_styles.html' %}
+{% endif %}
+{% endblock %}
 
-<section class="cards-grid">
-  {% if mods.cursos %}
-  <a class="card card-link" href="/portal/retencion/">
-    <p class="metric-label">Retención</p>
-    <h2 style="margin:0 0 6px;font-size:1.05rem;">Centro de Éxito</h2>
-    <p class="muted" style="margin:0;">Quién está en riesgo y a quién contactar hoy.</p>
-  </a>
-  <a class="card card-link" href="/portal/cobertura/">
-    <p class="metric-label">Territorio</p>
-    <h2 style="margin:0 0 6px;font-size:1.05rem;">Cobertura</h2>
-    <p class="muted" style="margin:0;">Dónde están tus participantes.</p>
-  </a>
-  <a class="card card-link" href="/portal/metricas/">
-    <p class="metric-label">KPIs</p>
-    <h2 style="margin:0 0 6px;font-size:1.05rem;">Métricas detalladas</h2>
-    <p class="muted" style="margin:0;">Embudo, avance y comparativas.</p>
-  </a>
-  <a class="card card-link" href="/portal/reportes/">
-    <p class="metric-label">Exportar</p>
-    <h2 style="margin:0 0 6px;font-size:1.05rem;">Reportes</h2>
-    <p class="muted" style="margin:0;">Descargas Excel para tu equipo.</p>
-  </a>
-  <a class="card card-link" href="/portal/timeline/">
-    <p class="metric-label">Dentro de métricas</p>
-    <h2 style="margin:0 0 6px;font-size:1.05rem;">Actividad</h2>
-    <p class="muted" style="margin:0;">Línea de tiempo de lo que pasó.</p>
-  </a>
-  <a class="card card-link" href="/portal/gamificacion/">
-    <p class="metric-label">Engagement</p>
-    <h2 style="margin:0 0 6px;font-size:1.05rem;">Gamificación</h2>
-    <p class="muted" style="margin:0;">Medallas y logros del programa.</p>
-  </a>
-  <a class="card card-link" href="/portal/certificados/">
-    <p class="metric-label">Cierre</p>
-    <h2 style="margin:0 0 6px;font-size:1.05rem;">Certificados</h2>
-    <p class="muted" style="margin:0;">Emitidos y verificación.</p>
-  </a>
-  {% else %}
-  <article class="panel">
-    <p class="muted">Tu organización no tiene el módulo de cursos activo.</p>
-  </article>
-  {% endif %}
-</section>
+{% block content %}
+<div class="ana-shell">
+    <div class="ana-top">
+        <div class="page-title" style="margin:0;">
+            <div>
+                <h1>Analítica</h1>
+                <p class="muted" id="ana-lead">Uso de plataforma de {{ org.nombre }}.</p>
+            </div>
+        </div>
+        <button type="button" class="ana-burger" id="ana-burger" aria-expanded="false" aria-controls="ana-menu">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M3 12h18M3 6h18M3 18h18"/>
+            </svg>
+            Secciones
+        </button>
+    </div>
+
+    <div class="ana-backdrop" id="ana-backdrop" hidden></div>
+    <nav class="ana-drawer" id="ana-menu" hidden aria-label="Secciones de analítica">
+        <h2>Secciones</h2>
+        <button type="button" data-ana="uso" aria-current="true">Uso de plataforma</button>
+        <button type="button" data-ana="habilidades">Desarrollo de habilidades</button>
+        <button type="button" data-ana="exito">Centro de éxito</button>
+    </nav>
+
+    <section id="ana-uso" aria-labelledby="ana-uso-title">
+        <h2 id="ana-uso-title" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;">Uso de plataforma</h2>
+        <div class="ana-grid">
+            <article class="ana-box">
+                <h3>Registrados</h3>
+                <p class="metric-number">{{ uso.registrados }}</p>
+                <p>Personas activas de la organización.</p>
+            </article>
+            <article class="ana-box">
+                <h3>En curso</h3>
+                <p class="metric-number">{{ uso.en_curso }}</p>
+                <p>Con un curso sin terminar: de la organización o general de eki.</p>
+            </article>
+            <article class="ana-box">
+                <h3>Certificados</h3>
+                <p class="metric-number">{{ uso.certificados }}</p>
+                <p>Diplomas emitidos que no están anulados.</p>
+            </article>
+            <article class="ana-box">
+                <h3>Tasa de abandono</h3>
+                <p class="metric-number">{% if uso.abandono_pct is None %}Sin dato{% else %}{{ uso.abandono_pct|stringformat:".1f" }}%{% endif %}</p>
+                <p>Registrados que no avanzaron ningún curso{% if uso.abandono_pct is not None %}: {{ uso.abandono_n }} de {{ uso.registrados }}{% endif %}.</p>
+            </article>
+            <article class="ana-box">
+                <h3>Tasa de finalización</h3>
+                <p class="metric-number">{% if uso.finalizacion_pct is None %}Sin dato{% else %}{{ uso.finalizacion_pct|stringformat:".1f" }}%{% endif %}</p>
+                <p>Registrados que completaron al menos un curso{% if uso.finalizacion_pct is not None %}: {{ uso.finalizacion_n }} de {{ uso.registrados }}{% endif %}.</p>
+            </article>
+            <article class="ana-box">
+                <h3>Activos este mes</h3>
+                <p class="metric-number">{{ uso.activos_mes }}</p>
+                <p>Avanzaron un curso o escribieron en {{ uso.mes_label }}.</p>
+            </article>
+            <article class="ana-box">
+                <h3>Tiempo de respuesta</h3>
+                <p class="metric-number">{% if uso.respuesta %}{{ uso.respuesta }}{% else %}Sin dato{% endif %}</p>
+                <p>Promedio entre un mensaje de la persona y la respuesta, últimos 30 días.</p>
+            </article>
+            <article class="ana-box">
+                <h3>Tasa de retorno</h3>
+                <p class="metric-number">{% if uso.retorno_pct is None %}Sin dato{% else %}{{ uso.retorno_pct|stringformat:".1f" }}%{% endif %}</p>
+                <p>De quienes ya tenían actividad hace más de un mes, cuántos siguieron en los últimos 30 días{% if uso.retorno_pct is not None %}: {{ uso.retorno_n }} de {{ uso.retorno_base }}{% endif %}.</p>
+            </article>
+            <article class="ana-box">
+                <h3>Uso del producto</h3>
+                <p class="metric-number">{% if uso.uso_pct is None %}Sin dato{% else %}{{ uso.uso_pct|stringformat:".1f" }}%{% endif %}</p>
+                <p>Registrados que este mes avanzaron o escribieron{% if uso.uso_pct is not None %}: {{ uso.uso_n }} de {{ uso.registrados }}{% endif %}.</p>
+            </article>
+        </div>
+
+        <div class="ana-charts">
+            <section class="ana-chart" aria-labelledby="ana-chart-activos">
+                <h3 id="ana-chart-activos">Activos</h3>
+                <p class="muted">Personas con avance o mensaje, por mes.</p>
+                <div class="ana-bars">
+                    {% for bar in uso.serie_activos %}
+                    <div class="ana-bar">
+                        <div class="ana-bar__fill" style="height: {{ bar.altura }}%" title="{{ bar.valor }}"></div>
+                        <span>{{ bar.valor }}</span>
+                        <span>{{ bar.etiqueta }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            <section class="ana-chart ana-chart--drop" aria-labelledby="ana-chart-drop">
+                <h3 id="ana-chart-drop">Abandonos</h3>
+                <p class="muted">Se registraron ese mes y todavía no avanzan.</p>
+                <div class="ana-bars">
+                    {% for bar in uso.serie_abandonos %}
+                    <div class="ana-bar">
+                        <div class="ana-bar__fill" style="height: {{ bar.altura }}%" title="{{ bar.valor }}"></div>
+                        <span>{{ bar.valor }}</span>
+                        <span>{{ bar.etiqueta }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            <section class="ana-chart ana-chart--use" aria-labelledby="ana-chart-uso">
+                <h3 id="ana-chart-uso">Uso</h3>
+                <p class="muted">Personas que escribieron por WhatsApp, por mes.</p>
+                <div class="ana-bars">
+                    {% for bar in uso.serie_uso %}
+                    <div class="ana-bar">
+                        <div class="ana-bar__fill" style="height: {{ bar.altura }}%" title="{{ bar.valor }}"></div>
+                        <span>{{ bar.valor }}</span>
+                        <span>{{ bar.etiqueta }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+        </div>
+
+        <p class="ana-links">También:
+            <a href="/portal/cobertura/">Cobertura</a>
+            <a href="/portal/metricas/">Métricas detalladas</a>
+            <a href="/portal/reportes/">Reportes</a>
+            <a href="/portal/timeline/">Actividad</a>
+            <a href="/portal/gamificacion/">Gamificación</a>
+            <a href="/portal/certificados/">Certificados</a>
+        </p>
+    </section>
+
+    <section id="ana-habilidades" hidden aria-labelledby="ana-hab-title">
+        <h2 id="ana-hab-title">Desarrollo de habilidades</h2>
+        <p class="muted">Ranking de la organización. No mezcla riesgo de abandono: eso está en Centro de éxito.</p>
+        {% if ranking.activa and ranking.ranking %}
+        <div class="panel" style="padding: 8px 12px;">
+            <table class="ana-rank">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Persona</th>
+                        <th>{{ ranking.columna_valor }}</th>
+                        <th>Detalle</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fila in ranking.ranking %}
+                    <tr>
+                        <td>{{ fila.posicion }}</td>
+                        <td>{{ fila.nombre }}</td>
+                        <td>{{ fila.valor }}</td>
+                        <td>{{ fila.detalle }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% elif ranking.activa %}
+        <article class="panel" style="padding: 18px;">
+            <p class="muted" style="margin:0;">La gamificación está activa ({{ ranking.modo_label }}) y todavía no hay puntajes.</p>
+        </article>
+        {% else %}
+        <article class="panel" style="padding: 18px;">
+            <p class="muted" style="margin:0;">El ranking aparece cuando la organización tiene puntos o calificación activos.</p>
+        </article>
+        {% endif %}
+    </section>
+
+    <section id="ana-exito" hidden>
+        {% if ce_data %}
+        {% include 'portal/partials/centro_exito_body.html' with data=ce_data ce_surface='portal' ce_agente_url='/portal/retencion/agente/' %}
+        {% else %}
+        <h2 id="ana-exito-title">Centro de éxito</h2>
+        <article class="panel" style="padding: 18px;">
+            <p class="muted">No se pudo armar el centro de éxito en esta vista.</p>
+            <p><a href="/portal/retencion/">Abrir Centro de Éxito</a></p>
+        </article>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if ce_data %}
+{% include 'portal/partials/centro_exito_agent_js.html' %}
+{% endif %}
+<script>
+(function () {
+    var burger = document.getElementById('ana-burger');
+    var menu = document.getElementById('ana-menu');
+    var backdrop = document.getElementById('ana-backdrop');
+    var lead = document.getElementById('ana-lead');
+    var org = "{{ org.nombre|escapejs }}";
+    var titulos = {
+        uso: 'Uso de plataforma de ' + org + '.',
+        habilidades: 'Desarrollo de habilidades.',
+        exito: 'Centro de éxito.'
+    };
+    function cerrar() {
+        menu.hidden = true;
+        backdrop.hidden = true;
+        burger.setAttribute('aria-expanded', 'false');
+    }
+    function abrir() {
+        menu.hidden = false;
+        backdrop.hidden = false;
+        burger.setAttribute('aria-expanded', 'true');
+    }
+    burger.addEventListener('click', function () {
+        if (menu.hidden) abrir();
+        else cerrar();
+    });
+    backdrop.addEventListener('click', cerrar);
+    menu.addEventListener('click', function (ev) {
+        var btn = ev.target.closest('button[data-ana]');
+        if (!btn) return;
+        var id = btn.getAttribute('data-ana');
+        ['uso', 'habilidades', 'exito'].forEach(function (clave) {
+            document.getElementById('ana-' + clave).hidden = clave !== id;
+        });
+        menu.querySelectorAll('button[data-ana]').forEach(function (b) {
+            b.setAttribute('aria-current', b === btn ? 'true' : 'false');
+        });
+        lead.textContent = titulos[id] || '';
+        cerrar();
+    });
+})();
+</script>
 {% endblock %}

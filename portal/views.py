@@ -43,6 +43,7 @@ from .metricas_ejecutivas import detalle_estudiantes_learning, resumen_ejecutivo
 from .retencion_service import analitica_retencion_portal
 from .agente_retencion import responder_agente_retencion
 from .ranking_portal import ranking_portal
+from .uso_plataforma import uso_plataforma
 from .exports import (
     filas_reenganche_sin_modulo,
     respuesta_excel_avance_estudiantes,
@@ -1098,12 +1099,29 @@ def portal_curso_crear_stub(request):
 
 @portal_login_required
 def portal_analitica(request):
-    """Hub Analítica — ≤2 clics a cada métrica (Centro de Éxito, Cobertura, etc.)."""
+    """Analítica: uso de plataforma, habilidades y Centro de Éxito."""
     org = _portal_org(request)
     if not org:
         return redirect('/portal/login/')
     mods = modulos_portal(org)
-    return render(request, 'portal/analitica.html', {'org': org, 'mods': mods})
+    ce_data = None
+    if mods.get('cursos'):
+        try:
+            cursos, _grupos = _filtros_portal_cursos_grupos(org)
+            primero = cursos.first()
+            ce_data = analitica_retencion_portal(
+                org,
+                curso_id=primero.pk if primero else None,
+            )
+        except Exception:
+            ce_data = None
+    return render(request, 'portal/analitica.html', {
+        'org': org,
+        'mods': mods,
+        'uso': uso_plataforma(org),
+        'ranking': ranking_portal(org),
+        'ce_data': ce_data,
+    })
 
 
 @portal_login_required

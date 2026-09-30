@@ -49,8 +49,12 @@ class PortalNavSimplificadaTests(TestCase):
         r = self.http.get('/portal/analitica/')
         self.assertEqual(r.status_code, 200)
         html = r.content.decode()
-        for label in ('Centro de Éxito', 'Cobertura', 'Métricas detalladas', 'Reportes', 'Actividad', 'Gamificación'):
+        for label in (
+            'Uso de plataforma', 'Desarrollo de habilidades', 'Centro de Éxito',
+            'Cobertura', 'Métricas detalladas', 'Reportes', 'Actividad', 'Gamificación',
+        ):
             self.assertIn(label, html)
+        self.assertIn('ana-burger', html)
 
     def test_ver_curso_solo_estructura(self):
         self._login()
