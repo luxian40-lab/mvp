@@ -54,7 +54,8 @@ class PortalNavSimplificadaTests(TestCase):
             'Cobertura', 'Métricas detalladas', 'Reportes', 'Actividad', 'Gamificación',
         ):
             self.assertIn(label, html)
-        self.assertIn('ana-burger', html)
+        self.assertIn('id="analitica-sub"', html)
+        self.assertIn('analitica-toggle', html)
 
     def test_ver_curso_solo_estructura(self):
         self._login()

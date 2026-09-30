@@ -575,6 +575,36 @@
         }
         body.sidebar-collapsed .sidebar-link.active::before { display: none; }
 
+        button.sidebar-link {
+            width: 100%;
+            border: 0;
+            background: transparent;
+            font: inherit;
+            text-align: left;
+            cursor: pointer;
+        }
+        .sidebar-analitica-toggle .link-chev {
+            margin-left: auto;
+            color: var(--sidebar-text);
+            transition: transform 0.18s ease;
+        }
+        .sidebar-analitica-toggle[aria-expanded="true"] .link-chev { transform: rotate(180deg); }
+        .sidebar-sub { margin: 0 0 8px 18px; }
+        .sidebar-sub[hidden] { display: none !important; }
+        .sidebar-sublink {
+            display: block;
+            color: var(--sidebar-text);
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 10px;
+            margin-bottom: 2px;
+            font-size: 12.5px;
+            font-weight: 600;
+        }
+        .sidebar-sublink:hover { background: rgba(154, 108, 172, 0.08); color: var(--purple-deep); }
+        .sidebar-sublink.active { background: var(--sidebar-active); color: var(--purple-deep); }
+        body.sidebar-collapsed .sidebar-sub { display: none; }
+
         .badge {
             min-width: 20px;
             height: 20px;
@@ -1564,10 +1594,16 @@
                 <span class="link-icon"><svg><use href="#i-monitor"/></svg></span>
                 <span class="link-text">Fábrica de competencias</span>
             </a>
-            <a href="{% url 'portal_analitica' %}" class="sidebar-link {% if request.path == '/portal/analitica/' or '/portal/retencion' in request.path or '/portal/cobertura' in request.path or '/portal/metricas' in request.path or '/portal/reportes' in request.path or '/portal/timeline' in request.path or '/portal/gamificacion' in request.path or '/portal/certificados' in request.path %}active{% endif %}" title="Métricas y reportes">
+            <button type="button" class="sidebar-link sidebar-analitica-toggle {% if request.path == '/portal/analitica/' or '/portal/retencion' in request.path or '/portal/cobertura' in request.path or '/portal/metricas' in request.path or '/portal/reportes' in request.path or '/portal/timeline' in request.path or '/portal/gamificacion' in request.path or '/portal/certificados' in request.path %}active{% endif %}" id="analitica-toggle" aria-expanded="{% if request.path == '/portal/analitica/' %}true{% else %}false{% endif %}" aria-controls="analitica-sub" title="Métricas y reportes">
                 <span class="link-icon"><svg><use href="#i-bars"/></svg></span>
                 <span class="link-text">Analítica</span>
-            </a>
+                <svg class="link-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div class="sidebar-sub" id="analitica-sub" {% if request.path != '/portal/analitica/' %}hidden{% endif %}>
+                <a class="sidebar-sublink {% if request.GET.s == 'uso' or not request.GET.s and request.path == '/portal/analitica/' %}active{% endif %}" href="/portal/analitica/?s=uso">Uso de plataforma</a>
+                <a class="sidebar-sublink {% if request.GET.s == 'habilidades' %}active{% endif %}" href="/portal/analitica/?s=habilidades">Desarrollo de habilidades</a>
+                <a class="sidebar-sublink {% if request.GET.s == 'exito' %}active{% endif %}" href="/portal/analitica/?s=exito">Centro de éxito</a>
+            </div>
             {% endif %}
             <a href="{% url 'portal_soporte' %}" class="sidebar-link {% if request.path == '/portal/soporte/' or '/portal/feedback' in request.path or '/portal/pqrs' in request.path %}active{% endif %}" title="Ayuda y PQRS">
                 <span class="link-icon"><svg><use href="#i-inbox"/></svg></span>
@@ -1798,9 +1834,19 @@
                     else openDrawer();
                 });
                 if (backdrop) backdrop.addEventListener('click', closeDrawer);
-                sidebar.querySelectorAll('.sidebar-link').forEach(function (link) {
+                sidebar.querySelectorAll('a.sidebar-link, a.sidebar-sublink').forEach(function (link) {
                     link.addEventListener('click', closeDrawer);
                 });
+                var anaToggle = document.getElementById('analitica-toggle');
+                var anaSub = document.getElementById('analitica-sub');
+                if (anaToggle && anaSub) {
+                    anaToggle.addEventListener('click', function () {
+                        var abrir = anaSub.hasAttribute('hidden');
+                        if (abrir) anaSub.removeAttribute('hidden');
+                        else anaSub.setAttribute('hidden', '');
+                        anaToggle.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+                    });
+                }
                 document.addEventListener('keydown', function (e) {
                     if (e.key === 'Escape') closeDrawer();
                 });

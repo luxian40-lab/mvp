@@ -1104,6 +1104,9 @@ def portal_analitica(request):
     if not org:
         return redirect('/portal/login/')
     mods = modulos_portal(org)
+    seccion = (request.GET.get('s') or 'uso').strip().lower()
+    if seccion not in ('uso', 'habilidades', 'exito'):
+        seccion = 'uso'
     ce_data = None
     if mods.get('cursos'):
         try:
@@ -1121,6 +1124,7 @@ def portal_analitica(request):
         'uso': uso_plataforma(org),
         'ranking': ranking_portal(org),
         'ce_data': ce_data,
+        'seccion': seccion,
     })
 
 

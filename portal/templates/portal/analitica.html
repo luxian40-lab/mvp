@@ -5,67 +5,6 @@
 {% block extra_head %}
 <style>
     .ana-shell { position: relative; }
-    .ana-top {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 16px;
-        margin-bottom: 18px;
-    }
-    .ana-burger {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        flex: 0 0 auto;
-        border: 1px solid var(--borde);
-        background: var(--blanco);
-        color: var(--texto);
-        border-radius: 12px;
-        padding: 10px 14px;
-        font: inherit;
-        font-weight: 700;
-        cursor: pointer;
-    }
-    .ana-burger:focus-visible,
-    .ana-drawer button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-    .ana-backdrop {
-        position: fixed;
-        inset: 0;
-        background: rgba(16, 12, 20, 0.45);
-        z-index: 30;
-    }
-    .ana-drawer {
-        position: absolute;
-        z-index: 31;
-        top: 0;
-        left: 0;
-        width: min(300px, 100%);
-        background: var(--blanco);
-        color: var(--texto);
-        border: 1px solid var(--borde);
-        border-radius: 16px;
-        box-shadow: var(--shadow-soft);
-        padding: 16px;
-    }
-    .ana-drawer h2 { margin: 0 0 12px; font-size: 1rem; }
-    .ana-drawer button {
-        display: block;
-        width: 100%;
-        text-align: left;
-        margin: 0 0 8px;
-        padding: 12px 12px;
-        border-radius: 12px;
-        border: 1px solid var(--borde);
-        background: transparent;
-        color: var(--texto);
-        font: inherit;
-        font-weight: 700;
-        cursor: pointer;
-    }
-    .ana-drawer button[aria-current="true"] {
-        border-color: var(--accent);
-        background: var(--accent-soft);
-    }
     .ana-grid {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -155,30 +94,18 @@
 
 {% block content %}
 <div class="ana-shell">
-    <div class="ana-top">
-        <div class="page-title" style="margin:0;">
-            <div>
-                <h1>Analítica</h1>
-                <p class="muted" id="ana-lead">Uso de plataforma de {{ org.nombre }}.</p>
-            </div>
+    <div class="page-title">
+        <div>
+            <h1>Analítica</h1>
+            <p class="muted">
+                {% if seccion == 'habilidades' %}Desarrollo de habilidades.
+                {% elif seccion == 'exito' %}Centro de éxito.
+                {% else %}Uso de plataforma de {{ org.nombre }}.{% endif %}
+            </p>
         </div>
-        <button type="button" class="ana-burger" id="ana-burger" aria-expanded="false" aria-controls="ana-menu">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <path d="M3 12h18M3 6h18M3 18h18"/>
-            </svg>
-            Secciones
-        </button>
     </div>
 
-    <div class="ana-backdrop" id="ana-backdrop" hidden></div>
-    <nav class="ana-drawer" id="ana-menu" hidden aria-label="Secciones de analítica">
-        <h2>Secciones</h2>
-        <button type="button" data-ana="uso" aria-current="true">Uso de plataforma</button>
-        <button type="button" data-ana="habilidades">Desarrollo de habilidades</button>
-        <button type="button" data-ana="exito">Centro de éxito</button>
-    </nav>
-
-    <section id="ana-uso" aria-labelledby="ana-uso-title">
+    <section id="ana-uso" aria-labelledby="ana-uso-title" {% if seccion != 'uso' %}hidden{% endif %}>
         <h2 id="ana-uso-title" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;">Uso de plataforma</h2>
         <div class="ana-grid">
             <article class="ana-box">
@@ -280,7 +207,7 @@
         </p>
     </section>
 
-    <section id="ana-habilidades" hidden aria-labelledby="ana-hab-title">
+    <section id="ana-habilidades" aria-labelledby="ana-hab-title" {% if seccion != 'habilidades' %}hidden{% endif %}>
         <h2 id="ana-hab-title">Desarrollo de habilidades</h2>
         <p class="muted">Ranking de la organización. No mezcla riesgo de abandono: eso está en Centro de éxito.</p>
         {% if ranking.activa and ranking.ranking %}
@@ -317,7 +244,7 @@
         {% endif %}
     </section>
 
-    <section id="ana-exito" hidden>
+    <section id="ana-exito" {% if seccion != 'exito' %}hidden{% endif %}>
         {% if ce_data %}
         {% include 'portal/partials/centro_exito_body.html' with data=ce_data ce_surface='portal' ce_agente_url='/portal/retencion/agente/' %}
         {% else %}
@@ -332,49 +259,7 @@
 {% endblock %}
 
 {% block extra_js %}
-{% if ce_data %}
+{% if ce_data and seccion == 'exito' %}
 {% include 'portal/partials/centro_exito_agent_js.html' %}
 {% endif %}
-<script>
-(function () {
-    var burger = document.getElementById('ana-burger');
-    var menu = document.getElementById('ana-menu');
-    var backdrop = document.getElementById('ana-backdrop');
-    var lead = document.getElementById('ana-lead');
-    var org = "{{ org.nombre|escapejs }}";
-    var titulos = {
-        uso: 'Uso de plataforma de ' + org + '.',
-        habilidades: 'Desarrollo de habilidades.',
-        exito: 'Centro de éxito.'
-    };
-    function cerrar() {
-        menu.hidden = true;
-        backdrop.hidden = true;
-        burger.setAttribute('aria-expanded', 'false');
-    }
-    function abrir() {
-        menu.hidden = false;
-        backdrop.hidden = false;
-        burger.setAttribute('aria-expanded', 'true');
-    }
-    burger.addEventListener('click', function () {
-        if (menu.hidden) abrir();
-        else cerrar();
-    });
-    backdrop.addEventListener('click', cerrar);
-    menu.addEventListener('click', function (ev) {
-        var btn = ev.target.closest('button[data-ana]');
-        if (!btn) return;
-        var id = btn.getAttribute('data-ana');
-        ['uso', 'habilidades', 'exito'].forEach(function (clave) {
-            document.getElementById('ana-' + clave).hidden = clave !== id;
-        });
-        menu.querySelectorAll('button[data-ana]').forEach(function (b) {
-            b.setAttribute('aria-current', b === btn ? 'true' : 'false');
-        });
-        lead.textContent = titulos[id] || '';
-        cerrar();
-    });
-})();
-</script>
 {% endblock %}
