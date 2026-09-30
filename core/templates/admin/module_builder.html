@@ -480,6 +480,18 @@
 
       </label>
 
+      <fieldset class="eki-mb__entrega">
+        <legend class="eki-mb__form-label">Si el archivo es video</legend>
+        <label class="eki-mb__check">
+          <input type="radio" name="video_entrega" value="whatsapp" checked>
+          WhatsApp directo (se adjunta en el chat)
+        </label>
+        <label class="eki-mb__check">
+          <input type="radio" name="video_entrega" value="enlace">
+          videos.eki.technology (enlace con conteo de apertura)
+        </label>
+      </fieldset>
+
       <button type="submit" class="eki-mb__btn eki-mb__btn--primary">+ Añadir contenido</button>
 
     </form>
@@ -672,12 +684,43 @@
 
             </label>
 
+            <fieldset class="eki-mb__entrega">
+              <legend class="eki-mb__form-label">Si el archivo es video</legend>
+              <label class="eki-mb__check">
+                <input type="radio" name="video_entrega" value="whatsapp" checked>
+                WhatsApp directo
+              </label>
+              <label class="eki-mb__check">
+                <input type="radio" name="video_entrega" value="enlace">
+                videos.eki.technology
+              </label>
+            </fieldset>
+
             <button type="submit" class="eki-mb__btn eki-mb__btn--outline eki-mb__btn--sm">Subir archivo</button>
 
           </form>
 
           {% if m.media_url %}
           <button type="button" class="eki-mb__btn eki-mb__btn--outline eki-mb__btn--sm eki-mb-delete-media" data-paso-id="{{ m.id }}">Quitar archivo</button>
+          {% endif %}
+
+          {% if m.media_es_video %}
+          <form method="post" class="eki-mb__entrega">
+            {% csrf_token %}
+            {% if builder_qs %}<input type="hidden" name="builder" value="1">{% endif %}
+            <input type="hidden" name="action" value="set_video_entrega">
+            <input type="hidden" name="paso_id" value="{{ m.id }}">
+            <p class="eki-mb__form-label">Cómo llega este video</p>
+            <label class="eki-mb__check">
+              <input type="radio" name="video_entrega" value="whatsapp" {% if m.video_entrega != 'enlace' %}checked{% endif %}>
+              WhatsApp directo
+            </label>
+            <label class="eki-mb__check">
+              <input type="radio" name="video_entrega" value="enlace" {% if m.video_entrega == 'enlace' %}checked{% endif %}>
+              videos.eki.technology
+            </label>
+            <button type="submit" class="eki-mb__btn eki-mb__btn--outline eki-mb__btn--sm">Guardar entrega</button>
+          </form>
           {% endif %}
 
 

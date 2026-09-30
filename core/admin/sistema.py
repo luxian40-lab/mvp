@@ -158,8 +158,17 @@ class SenalTerritorialAdmin(admin.ModelAdmin):
 
 @admin.register(SandboxCanalSesion)
 class SandboxCanalSesionAdmin(admin.ModelAdmin):
-    list_display = ('actualizado_en', 'telefono', 'modo', 'memoria_corte_en', 'creado_en')
-    list_filter = ('modo',)
+    list_display = ('actualizado_en', 'telefono', 'modo', 'plan', 'preguntas_mes', 'racha_actual', 'creado_en')
+    list_filter = ('modo', 'plan')
     search_fields = ('telefono',)
-    readonly_fields = ('creado_en', 'actualizado_en')
+    readonly_fields = (
+        'creado_en',
+        'actualizado_en',
+        'preguntas_mes',
+        'preguntas_mes_desde',
+        'racha_actual',
+        'racha_maxima',
+        'racha_ultimo_dia',
+        'aviso_pendiente',
+    )
 

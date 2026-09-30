@@ -380,40 +380,33 @@ def _crear_modulos_tiempo(curso) -> None:
             )
 
 
-def cupo_catalogo_del_mes(estudiante, curso):
-    """Otro curso general ya empezado en el mes calendario (America/Bogota)."""
-    from django.utils import timezone
-
-    from core.models import ProgresoEstudiante
-
-    ahora = timezone.localtime()
-    inicio_mes = ahora.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    return (
-        ProgresoEstudiante.objects.filter(
-            estudiante=estudiante,
-            curso__catalogo_menu=True,
-            fecha_inicio__gte=inicio_mes,
-        )
-        .exclude(curso_id=curso.id)
-        .select_related('curso')
-        .order_by('-fecha_inicio')
-        .first()
-    )
-
-
 def inscribir_en_catalogo(telefono: str, clave: str) -> dict:
-    """Inscribe sin borrar otros progresos. Un curso general nuevo por mes."""
+    """Inscribe sin borrar otros progresos. Cupo mensual según el plan de la persona."""
     from django.utils import timezone
 
     from core.inscripcion_curso import inscribir_estudiante_en_curso
     from core.models import Estudiante, ProgresoEstudiante
     from core.nati import normalizar_telefono_whatsapp
+    from core.planes_linea import cursos_iniciados_en_el_mes, resolver_plan
 
     item = item_catalogo(clave)
     curso = curso_catalogo(clave)
     if item is None or curso is None:
         return {'ok': False, 'error': 'sin_curso', 'nombre': (item or {}).get('nombre', '')}
     tel = normalizar_telefono_whatsapp(telefono)
+    plan = resolver_plan(tel)
+    if not plan.incluye_cursos:
+        return {'ok': False, 'error': 'sin_plan_cursos', 'nombre': curso.nombre}
+    iniciados = list(cursos_iniciados_en_el_mes(tel, excluir_curso_id=curso.id)[: plan.cursos_mes])
+    if len(iniciados) >= plan.cursos_mes:
+        return {
+            'ok': False,
+            'error': 'cupo_mes',
+            'nombre': curso.nombre,
+            'nombre_activo': iniciados[0].curso.nombre,
+            'curso_activo_id': iniciados[0].curso_id,
+            'cursos_mes': plan.cursos_mes,
+        }
     est = Estudiante.objects.filter(telefono=tel).first()
     if est is None:
         digitos = ''.join(ch for ch in tel if ch.isdigit())[-12:] or '0'
@@ -430,15 +423,6 @@ def inscribir_en_catalogo(telefono: str, clave: str) -> dict:
             fecha_aceptacion_terminos=timezone.now(),
             estado_chat='ACTIVO',
         )
-    ocupado = cupo_catalogo_del_mes(est, curso)
-    if ocupado is not None:
-        return {
-            'ok': False,
-            'error': 'cupo_mes',
-            'nombre': curso.nombre,
-            'nombre_activo': ocupado.curso.nombre,
-            'curso_activo_id': ocupado.curso_id,
-        }
     antes = ProgresoEstudiante.objects.filter(estudiante=est).count()
     progreso, creado = inscribir_estudiante_en_curso(est, curso)
     ctx = dict(est.contexto_temporal or {})

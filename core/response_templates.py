@@ -1189,7 +1189,14 @@ Te inscribiste en: *{curso.nombre}*
                 "los recursos del siguiente nivel. En cuanto termine, solo responda *listo* para continuar."
             )
 
-        return "[MULTI_MSG]" + "[SEP]".join(partes_insc)
+        from core.video_links import reescribir_videos_en_mensaje
+
+        return reescribir_videos_en_mensaje(
+            "[MULTI_MSG]" + "[SEP]".join(partes_insc),
+            estudiante=estudiante,
+            curso=curso,
+            modulo=primer_modulo,
+        )
     
     # Continuar con lección
     if intent == 'continuar_leccion':
@@ -1857,7 +1864,14 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
                 partes.append(
                     resolver_cta_listo(estudiante, progreso.curso, CTX_FIN_ENTREGA_MODULO)
                 )
-                return "[MULTI_MSG]" + "[SEP]".join(partes)
+                from core.video_links import reescribir_videos_en_mensaje
+
+                return reescribir_videos_en_mensaje(
+                    "[MULTI_MSG]" + "[SEP]".join(partes),
+                    estudiante=estudiante,
+                    curso=progreso.curso,
+                    modulo=siguiente_modulo,
+                )
             
             else:
                 # Completó el último módulo del curso (p. ej. balance GEI en M5)
@@ -2131,11 +2145,23 @@ Tu organización te asignará un curso pronto. Si crees que es un error, escribe
             if hay_media_c:
                 partes_c.append("[DELAY:5]")
             partes_c.append("Tómese su tiempo para ver el material. Mientras usted aprende, aquí iremos organizando los recursos del siguiente nivel. En cuanto termine, solo responda *listo* para continuar.")
-            
+
+            from core.video_links import reescribir_videos_en_mensaje
+
             if len(partes_c) > 1:
-                return "[MULTI_MSG]" + "[SEP]".join(partes_c)
-            
-            return respuesta
+                return reescribir_videos_en_mensaje(
+                    "[MULTI_MSG]" + "[SEP]".join(partes_c),
+                    estudiante=estudiante,
+                    curso=progreso.curso,
+                    modulo=modulo_actual,
+                )
+
+            return reescribir_videos_en_mensaje(
+                respuesta,
+                estudiante=estudiante,
+                curso=progreso.curso,
+                modulo=modulo_actual,
+            )
     
     # Ver mi progreso en cursos
     if intent == 'mi_progreso_cursos':

@@ -46,6 +46,7 @@ class DashboardTabResolverTests(SimpleTestCase):
     def test_learning_section_desde_tab_legacy(self):
         self.assertEqual(resolve_learning_section('reportes', None), 'reportes')
         self.assertEqual(resolve_learning_section('metricas_empresa', None), 'metricas_empresa')
+        self.assertEqual(resolve_learning_section('learning', 'videos'), 'videos')
 
     def test_api_tipo_aliases(self):
         self.assertEqual(API_TIPO_ALIASES['learning'], 'metricas_empresa')

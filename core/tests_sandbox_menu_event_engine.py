@@ -35,6 +35,7 @@ def _habeas(telefono: str) -> None:
     BOT_COMERCIAL_SANDBOX_NUMBER='14155238886',
     BOT_COMERCIAL_WHATSAPP_NUMBER='573001111111',
     EKI_DEMO_RIENDAS_CURSO_ID='36',
+    LINEA_META_PLAN_DEFAULT='curso_asesor',
 )
 class SandboxMenuTests(TestCase):
     def test_solo_sandbox_es_destino(self):
@@ -439,21 +440,25 @@ class SandboxMenuTests(TestCase):
         from datetime import timedelta
 
         from core.models import WhatsappLog
+        from core.planes_linea import registrar_pregunta_asesor
         from core.sandbox_agentes import excedio_cupo_ia_linea
 
         tel = '573009991111'
-        for _ in range(30):
+        _habeas(tel)
+        for _ in range(40):
             WhatsappLog.objects.create(
-                telefono=tel,
-                tipo='SENT',
-                agente_usado='sandbox_nat',
-                mensaje='x',
+                telefono=tel, tipo='SENT', agente_usado='sandbox_cursos', mensaje='clase'
             )
+        self.assertFalse(excedio_cupo_ia_linea(tel))
+        for _ in range(30):
+            registrar_pregunta_asesor(tel)
         self.assertTrue(excedio_cupo_ia_linea(tel))
-        WhatsappLog.objects.filter(telefono=tel).update(
-            fecha=timezone.now().replace(day=1) - timedelta(days=2)
+        SandboxCanalSesion.objects.filter(telefono=tel).update(
+            preguntas_mes_desde=(timezone.localdate().replace(day=1) - timedelta(days=2)).replace(day=1)
         )
         self.assertFalse(excedio_cupo_ia_linea(tel))
+        registrar_pregunta_asesor(tel)
+        self.assertEqual(SandboxCanalSesion.objects.get(telefono=tel).preguntas_mes, 1)
 
     def test_prompt_ventas_aplicable_manana(self):
         from core.sandbox_agentes import PROMPT_VENTAS, prompt_para, saludo_agente

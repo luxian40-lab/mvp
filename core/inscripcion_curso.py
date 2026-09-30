@@ -112,4 +112,8 @@ def inscribir_estudiante_en_curso(
         if m1 is not None:
             progreso.modulo_actual = m1
             progreso.save(update_fields=['modulo_actual'])
+    if not progreso.completado and estudiante.estado_onboarding == 'curso_finalizado':
+        # Sin esto el primer «listo» solo anuncia «nuevo curso asignado» y pide otro.
+        estudiante.estado_onboarding = 'completado'
+        estudiante.save(update_fields=['estado_onboarding'])
     return progreso, creado

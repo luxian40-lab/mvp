@@ -22,6 +22,18 @@ def root_redirect(request):
     if host == 'margen.eki.technology':
         from calculadora_margen.views import herramientas_hub
         return herramientas_hub(request)
+    if host == 'videos.eki.technology':
+        return HttpResponse(
+            '<!doctype html><html lang="es"><head><meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            '<title>Videos eki</title></head>'
+            '<body style="font-family:sans-serif;max-width:36rem;margin:3rem auto;padding:0 1rem">'
+            '<h1>Videos eki</h1>'
+            '<p>Este sitio abre los videos de los cursos. '
+            'El enlace llega por WhatsApp y tiene la forma /v/…</p>'
+            '</body></html>',
+            content_type='text/html; charset=utf-8',
+        )
     return redirect('/admin/')
 
 
@@ -41,6 +53,7 @@ urlpatterns = [
     path('', include('integrations.urls')),
     path('', include('core.urls.certificados_urls')),
     path('', include('core.urls.media_urls')),
+    path('', include('core.urls.video_urls')),
     path('portal/', include('portal.urls')),
     path('aprende/', include('aprende.urls')),
     path('studio/', include('studio.urls')),

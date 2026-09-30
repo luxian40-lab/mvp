@@ -135,7 +135,7 @@ class ClienteAdmin(admin.ModelAdmin):
         'cursos_asignados',
         'contacto_principal',
     )
-    list_filter = ('activo',)
+    list_filter = ('activo', 'plan_linea_meta')
     search_fields = ('nombre', 'nit', 'contacto_principal', 'email')
     list_per_page = 50
     ordering = ('nombre',)
@@ -173,6 +173,7 @@ class ClienteAdmin(admin.ModelAdmin):
         ('Portal y acceso', {
             'classes': ['tab'],
             'fields': (
+                'plan_linea_meta',
                 'tipo_proyecto',
                 'portal_modulos',
                 'cupos_portal',

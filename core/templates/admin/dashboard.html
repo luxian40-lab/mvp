@@ -273,6 +273,7 @@
         <button type="button" class="sub-tab-btn {% if learning_section == 'reportes' %}active{% endif %}" data-section="reportes" onclick="switchLearningSection('reportes', this)">Reportes B2B</button>
         <button type="button" class="sub-tab-btn {% if learning_section == 'metricas_empresa' %}active{% endif %}" data-section="metricas_empresa" onclick="switchLearningSection('metricas_empresa', this)">Métricas por Empresa</button>
         <button type="button" class="sub-tab-btn {% if learning_section == 'embudo' %}active{% endif %}" data-section="embudo" onclick="switchLearningSection('embudo', this)">Embudo por módulo</button>
+        <button type="button" class="sub-tab-btn {% if learning_section == 'videos' %}active{% endif %}" data-section="videos" onclick="switchLearningSection('videos', this)">Videos</button>
         <a href="{% url 'gei_panel' %}" class="sub-tab-link">Panel GEI →</a>
     </div>
 
@@ -692,6 +693,75 @@
         </div>
     </div>
 
+    <!-- ===== LEARNING: VIDEOS (aperturas del enlace corto) ===== -->
+    <div id="tab-videos" class="tab-content {% if tab_actual == 'learning' and learning_section == 'videos' %}active{% endif %}">
+        <form method="get" class="filters-bar">
+            <input type="hidden" name="tab" value="learning">
+            <input type="hidden" name="section" value="videos">
+            <div><label>Organización</label><select name="cliente"><option value="">Todas</option>{% for c in clientes %}<option value="{{ c.id }}" {% if c.id == cliente_filtro %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
+            <div><label>Curso</label><select name="curso"><option value="">Todos</option>{% for c in cursos %}<option value="{{ c.id }}" {% if c.id == curso_filtro %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}</select></div>
+            <div><label>Desde</label><input type="date" name="fecha_inicio" value="{{ fecha_inicio }}"></div>
+            <div><label>Hasta</label><input type="date" name="fecha_fin" value="{{ fecha_fin }}"></div>
+            <button type="submit">Ver videos</button>
+        </form>
+        <p class="la-funnel-help">
+            <strong>Apertura</strong> es un clic en el enlace corto del video
+            (<code>videos.eki.technology/v/…</code>), no la lectura del mensaje de WhatsApp
+            y no una reproducción confirmada. Meta no entrega el play del video nativo.
+            Si alguien reenvía el enlace, la apertura sigue contando para el estudiante al que se lo enviamos.
+            <strong>25 / 50 / 75 / 100&nbsp;%</strong> solo existe en videos auto-hospedados (reproductor eki):
+            es el primer cruce de ese umbral. YouTube y Vimeo solo tienen apertura (redirect).
+        </p>
+        {% if video_reporte %}
+        <div class="metrics-grid" style="margin-bottom:20px;">
+            <div class="m-card blue"><span class="m-label">Aperturas</span><span class="m-value">{{ video_reporte.totales.aperturas }}</span><span class="m-sub">clics en el enlace</span></div>
+            <div class="m-card orange"><span class="m-label">Estudiantes</span><span class="m-value">{{ video_reporte.totales.estudiantes }}</span><span class="m-sub">con al menos una apertura</span></div>
+            <div class="m-card green"><span class="m-label">Llegaron al 100%</span><span class="m-value">{{ video_reporte.totales.llegaron_100 }}</span><span class="m-sub">reproductor propio</span></div>
+        </div>
+        <div class="section">
+            <div class="section-title">Por curso</div>
+            <table class="eki-table">
+                <thead><tr><th>Curso</th><th>Módulo</th><th>Video</th><th>Aperturas</th><th>Estudiantes</th><th>Llegaron al 100%</th></tr></thead>
+                <tbody>
+                    {% for row in video_reporte.por_curso %}
+                    <tr>
+                        <td>{{ row.curso__nombre }}</td>
+                        <td>{% if row.modulo__numero %}M{{ row.modulo__numero }} {{ row.modulo__titulo }}{% else %}—{% endif %}</td>
+                        <td>{{ row.enlace__etiqueta|default:row.video_id }}</td>
+                        <td>{{ row.aperturas }}</td>
+                        <td>{{ row.estudiantes }}</td>
+                        <td>{{ row.llegaron_100 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" style="text-align:center;color:#aaa;">Sin aperturas en este filtro. Aparecen cuando alguien abre el enlace, no cuando WhatsApp marca el mensaje como leído.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="section">
+            <div class="section-title">Por estudiante (máx. 200)</div>
+            <table class="eki-table">
+                <thead><tr><th>Estudiante</th><th>Curso</th><th>Módulo</th><th>Video</th><th>Aperturas</th><th>Progreso máximo</th></tr></thead>
+                <tbody>
+                    {% for est in video_reporte.por_estudiante %}
+                    <tr>
+                        <td>{{ est.estudiante__nombre }}</td>
+                        <td>{{ est.curso__nombre }}</td>
+                        <td>{% if est.modulo__numero %}M{{ est.modulo__numero }} {{ est.modulo__titulo }}{% else %}—{% endif %}</td>
+                        <td>{{ est.enlace__etiqueta|default:est.video_id }}</td>
+                        <td>{{ est.aperturas }}</td>
+                        <td>{% if est.max_hito %}{{ est.max_hito }}%{% else %}—{% endif %}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" style="text-align:center;color:#aaa;">Sin estudiantes en este filtro</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p class="la-funnel-help">Progreso máximo en «—» = solo apertura, o el reproductor no cruzó el 25&nbsp;% (típico de YouTube/Vimeo).</p>
+        </div>
+        {% endif %}
+    </div>
+
     <!-- ===== TAB 4: MÉTRICAS POR EMPRESA (solo educación B2B) ===== -->
     <!-- ===== LEARNING: MÉTRICAS POR EMPRESA ===== -->
     <div id="tab-metricas_empresa" class="tab-content {% if tab_actual == 'learning' and learning_section == 'metricas_empresa' %}active{% endif %}">
@@ -861,6 +931,7 @@ const LEARNING_PANELS = {
     reportes: 'tab-reportes',
     metricas_empresa: 'tab-metricas_empresa',
     embudo: 'tab-embudo-learning',
+    videos: 'tab-videos',
 };
 const TAB_ALIASES = {
     resumen: 'executive',
@@ -888,7 +959,7 @@ function switchLearningSection(section, btn) {
     params.set('tab', 'learning');
     params.set('section', section);
     // Embudo se renderiza en servidor (necesita curso + datos)
-    if (section === 'embudo') {
+    if (section === 'embudo' || section === 'videos') {
         window.location.search = params.toString();
         return;
     }

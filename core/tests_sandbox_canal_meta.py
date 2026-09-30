@@ -119,6 +119,7 @@ class SandboxCanalMetaAdapterTests(TestCase):
     WHATSAPP_PHONE_ID='111222333',
     SANDBOX_WHATSAPP_PHONE_ID='111222333',
     WHATSAPP_TOKEN='test-token',
+    LINEA_META_PLAN_DEFAULT='curso_asesor',
 )
 class SandboxCanalMetaSendTests(TestCase):
     @patch('core.sandbox_canal.requests.post')
@@ -170,6 +171,7 @@ class SandboxCanalMetaSendTests(TestCase):
     WHATSAPP_VERIFY_TOKEN='eki_test_verify',
     TWILIO_VALIDATE_SIGNATURE=False,
     SECURE_SSL_REDIRECT=False,
+    LINEA_META_PLAN_DEFAULT='curso_asesor',
 )
 class SandboxCanalMetaWebhookTests(TestCase):
     def setUp(self):
@@ -253,6 +255,58 @@ class SandboxCanalMetaWebhookTests(TestCase):
         self.assertEqual(inbound.get('_eki_proveedor'), 'meta')
         self.assertIn('tomate', (inbound.get('Body') or '').lower())
         legacy.assert_not_called()
+
+    def _post(self, payload):
+        return self.client.post(
+            '/webhook/whatsapp/',
+            data=json.dumps(payload),
+            content_type='application/json',
+            secure=True,
+        )
+
+    def test_reintento_de_meta_no_responde_dos_veces(self):
+        from core.models import SandboxCanalSesion
+
+        SandboxCanalSesion.objects.create(telefono='573001234595', habeas_aceptado=True)
+        payload = _meta_envelope(
+            {'from': '573001234595', 'id': 'wamid.dup1', 'type': 'text', 'text': {'body': 'hola'}},
+        )
+        with patch('core.sandbox_menu.enviar_menu_sandbox', return_value={'success': True}) as menu:
+            self.assertEqual(self._post(payload).status_code, 200)
+            self.assertEqual(self._post(payload).status_code, 200)
+        self.assertEqual(menu.call_count, 1)
+
+    def _tasks_falso(self, **delay_kwargs):
+        import sys
+        import types
+        from unittest.mock import MagicMock
+
+        falso = types.ModuleType('core.tasks')
+        falso.procesar_sandbox_meta_async = MagicMock()
+        falso.procesar_sandbox_meta_async.delay = MagicMock(**delay_kwargs)
+        return patch.dict(sys.modules, {'core.tasks': falso}), falso.procesar_sandbox_meta_async.delay
+
+    @override_settings(SANDBOX_CELERY_ASYNC=True)
+    def test_con_flag_encola_y_no_procesa_en_el_request(self):
+        payload = _meta_envelope(
+            {'from': '573001234596', 'id': 'wamid.async1', 'type': 'text', 'text': {'body': 'hola'}},
+        )
+        modulo, delay = self._tasks_falso()
+        with modulo, patch('core.views._aplicar_sandbox_menu') as sync:
+            self.assertEqual(self._post(payload).status_code, 200)
+        self.assertEqual(delay.call_count, 1)
+        self.assertEqual(delay.call_args.args[0]['MessageSid'], 'wamid.async1')
+        sync.assert_not_called()
+
+    @override_settings(SANDBOX_CELERY_ASYNC=True)
+    def test_sin_redis_cae_a_sincrono(self):
+        payload = _meta_envelope(
+            {'from': '573001234597', 'id': 'wamid.async2', 'type': 'text', 'text': {'body': 'hola'}},
+        )
+        modulo, _ = self._tasks_falso(side_effect=ConnectionError('redis'))
+        with modulo, patch('core.views._aplicar_sandbox_menu', return_value=None) as sync:
+            self.assertEqual(self._post(payload).status_code, 200)
+        self.assertEqual(sync.call_count, 1)
 
     def test_post_twilio_sandbox_se_ignora_cuando_canal_es_meta(self):
         with patch('core.views._procesar_twilio_webhook') as edu, \

@@ -31,7 +31,7 @@ DASHBOARD_TABS: dict[str, dict] = {
         'label': 'Cursos y avance',
         'panel_id': None,
         'legacy_aliases': ['reportes', 'metricas_empresa', 'embudo'],
-        'sections': ['reportes', 'metricas_empresa', 'embudo', 'gei'],
+        'sections': ['reportes', 'metricas_empresa', 'embudo', 'videos', 'gei'],
         'default_section': 'reportes',
         'blurb': 'Reportes B2B, semáforos por empresa, embudo por módulo.',
     },
@@ -59,6 +59,7 @@ LEARNING_SECTION_PANELS = {
     'reportes': 'tab-reportes',
     'metricas_empresa': 'tab-metricas_empresa',
     'embudo': 'tab-embudo-learning',
+    'videos': 'tab-videos',
 }
 
 LEGACY_DASHBOARD_REDIRECTS: dict[str, dict[str, str]] = {

@@ -268,8 +268,8 @@ def _max_turnos_memoria() -> int:
 
 
 def excedio_cupo_ia_linea(telefono: str) -> bool:
-    """True si el teléfono ya gastó las 30 respuestas de asesoría de este mes."""
-    return respuestas_asesor_en_el_mes(telefono) >= _tope_asesor_mes()
+    """True si el teléfono ya gastó las preguntas de asesor que su plan trae este mes."""
+    return respuestas_asesor_en_el_mes(telefono) >= _tope_asesor_mes(telefono)
 
 
 def respuestas_asesor_en_el_mes(telefono: str) -> int:
@@ -277,30 +277,18 @@ def respuestas_asesor_en_el_mes(telefono: str) -> int:
     if not tel:
         return 0
     try:
-        from django.utils import timezone
-        from core.models import WhatsappLog
+        from core.planes_linea import preguntas_usadas_mes
 
-        ahora = timezone.now()
-        inicio = ahora.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        return WhatsappLog.objects.filter(
-            telefono=tel,
-            tipo='SENT',
-            fecha__gte=inicio,
-            agente_usado__startswith='sandbox_',
-        ).exclude(agente_usado='sandbox_menu').exclude(agente_usado='sandbox_cursos').exclude(
-            agente_usado='sandbox_agentes'
-        ).exclude(agente_usado='sandbox_formacion').count()
+        return preguntas_usadas_mes(tel)
     except Exception:
         logger.exception('sandbox_cupo_ia_fail tel=%s', tel)
         return 0
 
 
-def _tope_asesor_mes() -> int:
-    try:
-        tope = int(getattr(settings, 'SANDBOX_IA_MAX_RESPUESTAS_MES', 30) or 30)
-    except (TypeError, ValueError):
-        tope = 30
-    return max(5, min(tope, 60))
+def _tope_asesor_mes(telefono: str = '') -> int:
+    from core.planes_linea import resolver_plan
+
+    return resolver_plan(telefono).preguntas_mes
 
 
 def _historial_sandbox(telefono: str, agente: AgenteSandbox, max_turnos: int | None = None) -> list[dict]:
@@ -357,7 +345,17 @@ def responder_agente_sandbox(
             "Escriba *menu* y pruebe Agrónomo (Nat) o Cursos."
         )
 
-    messages = [{'role': 'system', 'content': prompt_para(agente)}]
+    sistema = prompt_para(agente)
+    try:
+        from core.conocimiento_agentes import bloque_conocimiento
+
+        extra = bloque_conocimiento(agente)
+    except Exception:
+        logger.exception('sandbox_conocimiento_fail agente=%s', agente)
+        extra = ''
+    if extra:
+        sistema = f"{sistema}\n\n{extra}"
+    messages = [{'role': 'system', 'content': sistema}]
     messages.extend(_historial_sandbox(telefono, agente))
     messages.append({'role': 'user', 'content': q[:1500]})
 

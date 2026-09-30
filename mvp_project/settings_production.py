@@ -94,6 +94,7 @@ _EKI_CSRF_CANONICAL = [
     'https://studio.eki.technology',
     'https://certificados.eki.technology',
     'https://margen.eki.technology',
+    'https://videos.eki.technology',
     'https://eki.technology',
     f'https://{_EB_CNAME}',
     f'http://{_EB_CNAME}',
@@ -113,6 +114,8 @@ if _explicit_hosts:
         ALLOWED_HOSTS.append('certificados.eki.technology')
     if 'margen.eki.technology' not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append('margen.eki.technology')
+    if 'videos.eki.technology' not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append('videos.eki.technology')
 else:
     ALLOWED_HOSTS = ['*']
     if 'ALLOWED_HOSTS_EXTRA' in os.environ:
@@ -127,6 +130,8 @@ else:
             ALLOWED_HOSTS.append('certificados.eki.technology')
         if 'margen.eki.technology' not in ALLOWED_HOSTS:
             ALLOWED_HOSTS.append('margen.eki.technology')
+        if 'videos.eki.technology' not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append('videos.eki.technology')
 
 # ============================================
 # SSL/HTTPS - Resolución de Warnings

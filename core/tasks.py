@@ -181,6 +181,22 @@ def procesar_bot_comercial_webhook_async(self, post_data: dict, forzar_canal: bo
         raise self.retry(exc=exc)
 
 
+@shared_task(soft_time_limit=120, time_limit=150)
+def procesar_sandbox_meta_async(inbound: dict):
+    """
+    Línea Meta (menú, Coach/Profe/Ventas, cursos) fuera del request HTTP.
+    Sin reintento: un reintento duplicaría la respuesta y el cupo de preguntas.
+    Activar con SANDBOX_CELERY_ASYNC=true.
+    """
+    from core.views import _aplicar_sandbox_menu
+
+    logger.info("[Celery] Línea Meta | sid=%s", inbound.get('MessageSid', ''))
+    try:
+        _aplicar_sandbox_menu(inbound)
+    except Exception:
+        logger.exception("[Celery] Error línea Meta | sid=%s", inbound.get('MessageSid', ''))
+
+
 @shared_task(bind=True, max_retries=2, default_retry_delay=5)
 def procesar_twilio_webhook_async(self, post_data: dict):
     """

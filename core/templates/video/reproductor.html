@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ etiqueta }}</title>
+    <style>
+        body { margin: 0; font-family: system-ui, sans-serif; background: #141218; color: #f4f0f6; }
+        main { max-width: 960px; margin: 0 auto; padding: 16px; }
+        h1 { font-size: 1.05rem; font-weight: 650; margin: 0 0 12px; }
+        video { width: 100%; background: #000; border-radius: 8px; }
+        p { color: #b7aec0; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+<main>
+    <h1>{{ etiqueta }}</h1>
+    <video id="eki-video" controls playsinline preload="metadata" src="{{ src }}" data-progreso="{% url 'video_progreso' token %}"></video>
+    <p>El avance (25, 50, 75 y 100&nbsp;%) se guarda en eki. No es la lectura del mensaje de WhatsApp.</p>
+</main>
+{% csrf_token %}
+<script>
+(function () {
+    var video = document.getElementById('eki-video');
+    var tokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
+    var csrf = tokenInput ? tokenInput.value : '';
+    var progresoUrl = video.getAttribute('data-progreso');
+    var enviados = {};
+    function enviar(hito) {
+        if (enviados[hito]) return;
+        enviados[hito] = true;
+        fetch(progresoUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrf
+            },
+            body: JSON.stringify({ hito: hito })
+        }).catch(function () {
+            enviados[hito] = false;
+        });
+    }
+    function revisar() {
+        if (!video.duration || !isFinite(video.duration)) return;
+        var pct = (video.currentTime / video.duration) * 100;
+        if (pct >= 25) enviar(25);
+        if (pct >= 50) enviar(50);
+        if (pct >= 75) enviar(75);
+        if (pct >= 95) enviar(100);
+    }
+    video.addEventListener('timeupdate', revisar);
+    video.addEventListener('ended', function () { enviar(100); });
+})();
+</script>
+</body>
+</html>

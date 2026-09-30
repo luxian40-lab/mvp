@@ -360,7 +360,14 @@ Cuando termines, escribe: *"listo"*"""
             respuesta = '[MULTI_MSG]' + '[SEP]'.join(_pfx + [respuesta])
 
         _persist_curso_foco()
-        return respuesta
+        from core.video_links import reescribir_videos_en_mensaje
+
+        return reescribir_videos_en_mensaje(
+            respuesta,
+            estudiante=estudiante,
+            curso=curso_seleccionado,
+            modulo=modulo_actual,
+        )
 
     # Si escribieron "listo" o "siguiente", avanzar al siguiente módulo (misma regla de espera que el flujo principal)
     palabras_completar = ['listo', 'siguiente', 'ok', 'dale', 'avanzar', 'sigue', 'continuar']

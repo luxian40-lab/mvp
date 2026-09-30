@@ -219,7 +219,7 @@ def _graph_messages_url(api_version: str | None = None) -> str | None:
     return f'https://graph.facebook.com/{version}/{phone_id}/messages'
 
 
-def _post_graph(payload: dict, api_version: str | None = None) -> dict:
+def _post_graph(payload: dict, api_version: str | None = None, agente: str = '') -> dict:
     from django.utils import timezone
 
     from core.models import WhatsappLog
@@ -246,7 +246,7 @@ def _post_graph(payload: dict, api_version: str | None = None) -> dict:
         estado='PENDING',
         tipo='SENT',
         fecha=timezone.now(),
-        agente_usado='sandbox_meta',
+        agente_usado=(agente or 'sandbox_meta')[:50],
     )
     try:
         resp = requests.post(url, json=payload, headers=headers, timeout=15)
@@ -259,6 +259,7 @@ def _post_graph(payload: dict, api_version: str | None = None) -> dict:
             log.mensaje_id = mensaje_id
             log.estado = 'SENT'
             log.save(update_fields=['mensaje_id', 'estado'])
+            quitar_reaccion_espera(to)
             return {'success': True, 'mensaje_id': mensaje_id, 'response': data}
         err = data.get('error', data)
         log.estado = 'ERROR'
@@ -270,6 +271,81 @@ def _post_graph(payload: dict, api_version: str | None = None) -> dict:
         log.save(update_fields=['estado'])
         logger.exception('sandbox_meta_graph_fail')
         return {'success': False, 'mensaje_id': None, 'response': str(exc)}
+
+
+def _clave_reaccion(to: str) -> str:
+    return f'sandbox_reaccion:{to}'
+
+
+def _enviar_reaccion(to: str, message_id: str, emoji: str) -> bool:
+    """Reacción sobre el mensaje de la persona. Sin WhatsappLog: no es un mensaje ni cuenta en memoria."""
+    headers = _graph_headers()
+    url = _graph_messages_url()
+    if not headers or not url:
+        return False
+    payload = {
+        'messaging_product': 'whatsapp',
+        'recipient_type': 'individual',
+        'to': to,
+        'type': 'reaction',
+        'reaction': {'message_id': message_id, 'emoji': emoji},
+    }
+    try:
+        resp = requests.post(url, json=payload, headers=headers, timeout=5)
+        if resp.status_code in (200, 201):
+            return True
+        logger.warning('sandbox_reaccion_error status=%s body=%s', resp.status_code, resp.text[:300])
+    except Exception:
+        logger.exception('sandbox_reaccion_fail')
+    return False
+
+
+def poner_reaccion_espera(telefono: str, message_id: str) -> None:
+    """⏳ sobre la pregunta mientras el asesor piensa; la quita el siguiente envío exitoso."""
+    emoji = (getattr(settings, 'SANDBOX_REACCION_ESPERA', '⏳') or '').strip()
+    message_id = (message_id or '').strip()
+    if not emoji or not message_id.startswith('wamid.') or not sandbox_via_meta():
+        return
+    to = _telefono_graph(telefono)
+    if not to:
+        return
+    from django.core.cache import cache
+
+    if _enviar_reaccion(to, message_id, emoji):
+        try:
+            cache.set(_clave_reaccion(to), message_id, timeout=600)
+        except Exception:
+            logger.exception('sandbox_reaccion_cache_fail')
+
+
+def quitar_reaccion_espera(to: str) -> None:
+    if not to:
+        return
+    try:
+        from django.core.cache import cache
+
+        message_id = cache.get(_clave_reaccion(to))
+        if not message_id:
+            return
+        cache.delete(_clave_reaccion(to))
+    except Exception:
+        logger.exception('sandbox_reaccion_cache_fail')
+        return
+    _enviar_reaccion(to, message_id, '')
+
+
+def _con_aviso_del_dia(to: str, texto: str) -> str:
+    """Antepone la racha/insignia pendiente una sola vez; nunca como mensaje aparte."""
+    if not texto:
+        return texto
+    try:
+        from core.rachas_linea import tomar_aviso_pendiente
+
+        aviso = tomar_aviso_pendiente(to)
+    except Exception:
+        logger.exception('sandbox_aviso_racha_fail')
+        return texto
+    return f"{aviso}\n\n{texto}" if aviso else texto
 
 
 def enviar_sandbox(
@@ -313,6 +389,8 @@ def enviar_meta(
     texto = str(texto or '').strip()
     clean_url = str(media_url or '').strip() or None
     last: dict = {'success': False, 'mensaje_id': None, 'response': 'Empty body and no media'}
+    if texto:
+        texto = _con_aviso_del_dia(to, texto)
 
     if clean_url:
         kind = _tipo_media_desde_url(clean_url)
@@ -325,7 +403,7 @@ def enviar_meta(
         }
         if caption:
             payload[kind]['caption'] = caption
-        last = _post_graph(payload)
+        last = _post_graph(payload, agente=agente_evento)
         resto = texto[len(caption):].strip() if caption else ''
         if resto and last.get('success'):
             last = enviar_meta(to, resto, canal_evento=canal_evento, agente_evento=agente_evento)
@@ -342,7 +420,7 @@ def enviar_meta(
             'to': to,
             'type': 'text',
             'text': {'body': chunk},
-        })
+        }, agente=agente_evento)
         if not last.get('success'):
             return last
     _emit_enviado(to, texto, last.get('mensaje_id'), canal_evento, agente_evento)
@@ -361,7 +439,8 @@ def enviar_meta_botones(
     to = _telefono_graph(telefono)
     if not to:
         return {'success': False, 'mensaje_id': None, 'response': 'Invalid destination phone'}
-    cuerpo = (texto or '').strip()[:1024]
+    completo = _con_aviso_del_dia(to, (texto or '').strip())
+    cuerpo = completo[:1024]
     acciones = []
     for bid, title in botones[:3]:
         acciones.append({
@@ -372,7 +451,7 @@ def enviar_meta_botones(
             },
         })
     if not acciones or not cuerpo:
-        return enviar_meta(telefono, texto, canal_evento=canal_evento, agente_evento=agente_evento)
+        return enviar_meta(telefono, completo, canal_evento=canal_evento, agente_evento=agente_evento)
     result = _post_graph({
         'messaging_product': 'whatsapp',
         'to': to,
@@ -382,11 +461,11 @@ def enviar_meta_botones(
             'body': {'text': cuerpo},
             'action': {'buttons': acciones},
         },
-    })
+    }, agente=agente_evento)
     if result.get('success'):
         _emit_enviado(to, cuerpo, result.get('mensaje_id'), canal_evento, agente_evento)
         return result
-    return enviar_meta(telefono, texto, canal_evento=canal_evento, agente_evento=agente_evento)
+    return enviar_meta(telefono, completo, canal_evento=canal_evento, agente_evento=agente_evento)
 
 
 def enviar_meta_carrusel(

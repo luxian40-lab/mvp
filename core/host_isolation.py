@@ -29,6 +29,7 @@ _ALWAYS_OK_PREFIXES = (
     '/api/certificados/',
     '/calculadora-margen/',
     '/mercado-gtm/',
+    '/v/',
 )
 
 

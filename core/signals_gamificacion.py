@@ -5,7 +5,7 @@ Otorga puntos automáticamente cuando el estudiante completa módulos/cursos
 + Integración con Celery para envíos asíncronos
 """
 
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.utils import timezone
 from .models import ModuloCompletado, ProgresoEstudiante
@@ -54,6 +54,20 @@ def _notificar_org_admin(estudiante, asunto, mensaje_html):
         logger.warning(f"📧 No se pudo enviar email al admin: {e}")
 
 
+def _avisar_insignia_linea(estudiante, badge):
+    """La insignia viaja dentro del próximo mensaje de la línea Meta, no en uno aparte."""
+    try:
+        from core.nati import normalizar_telefono_whatsapp
+        from core.rachas_linea import agregar_aviso
+
+        agregar_aviso(
+            normalizar_telefono_whatsapp(estudiante.telefono or ''),
+            f"🏅 Nueva insignia: {badge.icono} {badge.nombre}",
+        )
+    except Exception as e:
+        logger.warning(f"No se pudo dejar aviso de insignia: {e}")
+
+
 @receiver(post_save, sender=ModuloCompletado)
 def otorgar_puntos_por_modulo(sender, instance, created, **kwargs):
     """v1.9.8g: Points NO longer awarded per module — only after reto evaluation.
@@ -88,10 +102,21 @@ def otorgar_puntos_por_modulo(sender, instance, created, **kwargs):
         logger.error(f"❌ Error al otorgar puntos por módulo: {e}")
 
 
+@receiver(pre_save, sender=ProgresoEstudiante)
+def _recordar_completado_previo(sender, instance, **kwargs):
+    if not instance.pk:
+        instance._completado_previo = False
+        return
+    instance._completado_previo = (
+        ProgresoEstudiante.objects.filter(pk=instance.pk).values_list('completado', flat=True).first()
+        or False
+    )
+
+
 @receiver(post_save, sender=ProgresoEstudiante)
 def otorgar_badge_por_curso_completado(sender, instance, **kwargs):
-    """Otorga badge cuando un estudiante completa un curso"""
-    if not instance.completado:
+    """Otorga puntos, badge y aviso solo cuando el curso pasa a completado."""
+    if not instance.completado or getattr(instance, '_completado_previo', False):
         return
     
     try:
@@ -99,12 +124,12 @@ def otorgar_badge_por_curso_completado(sender, instance, **kwargs):
         perfil, _ = PerfilGamificacion.objects.get_or_create(
             estudiante=instance.estudiante
         )
+        razon = f"Completó curso {instance.curso.nombre}"
+        if perfil.transacciones.filter(razon=razon).exists():
+            return
         
         # v1.9.8: Puntos reducidos (15 por curso) para balance real
-        perfil.agregar_puntos(
-            puntos=15,
-            razon=f"Completó curso {instance.curso.nombre}"
-        )
+        perfil.agregar_puntos(puntos=15, razon=razon)
         
         # Buscar badge específico del curso
         try:
@@ -114,10 +139,12 @@ def otorgar_badge_por_curso_completado(sender, instance, **kwargs):
                 activo=True
             ).first()
             if badge_curso:
-                BadgeEstudiante.objects.get_or_create(
+                _, nuevo = BadgeEstudiante.objects.get_or_create(
                     estudiante=instance.estudiante,
                     badge=badge_curso
                 )
+                if nuevo:
+                    _avisar_insignia_linea(instance.estudiante, badge_curso)
                 logger.info(f"🏆 {instance.estudiante.nombre} obtuvo badge: {badge_curso.nombre}")
         except Exception:
             pass
@@ -131,10 +158,12 @@ def otorgar_badge_por_curso_completado(sender, instance, **kwargs):
         # Buscar badges por cantidad de cursos
         for badge in Badge.objects.filter(tipo='CURSO', valor_requerido__isnull=False, activo=True):
             if cursos_completados >= badge.valor_requerido:
-                BadgeEstudiante.objects.get_or_create(
+                _, nuevo = BadgeEstudiante.objects.get_or_create(
                     estudiante=instance.estudiante,
                     badge=badge
                 )
+                if nuevo:
+                    _avisar_insignia_linea(instance.estudiante, badge)
         
         logger.info(f"🎉 {instance.estudiante.nombre} completó {instance.curso.nombre} - {cursos_completados} cursos totales")
 

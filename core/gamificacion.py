@@ -174,16 +174,21 @@ class PerfilGamificacion(models.Model):
     def actualizar_racha(self):
         """Actualiza la racha de días consecutivos"""
         ahora = timezone.now()
+        self.badges_racha_nuevos = []
         
         if not self.ultima_actividad:
             # Primera actividad
             self.racha_dias_actual = 1
+            self.racha_dias_maxima = max(self.racha_dias_maxima, 1)
             self.ultima_actividad = ahora
             self.save()
+            self._otorgar_badge_racha(1)
             return True
         
-        # Calcular diferencia en días
-        dias_desde_ultima = (ahora.date() - self.ultima_actividad.date()).days
+        # Días calendario en hora local (Bogotá), no UTC.
+        dias_desde_ultima = (
+            timezone.localtime(ahora).date() - timezone.localtime(self.ultima_actividad).date()
+        ).days
         
         if dias_desde_ultima == 0:
             # Misma fecha, no hacer nada
@@ -198,29 +203,26 @@ class PerfilGamificacion(models.Model):
             
             # v1.9.8: Rachas rebalanceadas
             if self.racha_dias_actual == 3:
-                self._otorgar_badge_racha(3)
                 self.agregar_puntos(5, "🔥 Racha de 3 días")
             elif self.racha_dias_actual == 7:
-                self._otorgar_badge_racha(7)
                 self.agregar_puntos(10, "🔥 Racha de 7 días")
             elif self.racha_dias_actual == 14:
-                self._otorgar_badge_racha(14)
                 self.agregar_puntos(15, "🔥 Racha de 14 días")
             elif self.racha_dias_actual == 21:
-                self._otorgar_badge_racha(21)
                 self.agregar_puntos(20, "🔥 Racha de 21 días")
             elif self.racha_dias_actual == 30:
-                self._otorgar_badge_racha(30)
                 self.agregar_puntos(25, "🔥 ¡UN MES COMPLETO!")
             
             self.ultima_actividad = ahora
             self.save()
+            self._otorgar_badge_racha(self.racha_dias_actual)
             return True
         else:
             # Se rompió la racha
             self.racha_dias_actual = 1
             self.ultima_actividad = ahora
             self.save()
+            self._otorgar_badge_racha(1)
             return False
     
     def _otorgar_badge_nivel(self, nivel):
@@ -236,14 +238,18 @@ class PerfilGamificacion(models.Model):
             pass
     
     def _otorgar_badge_racha(self, dias):
-        """Otorga badge por racha"""
+        """Otorga el badge RACHA configurado en admin para ese número de días."""
         try:
-            badge = Badge.objects.filter(tipo='RACHA', valor_requerido=dias).first()
+            badge = Badge.objects.filter(tipo='RACHA', valor_requerido=dias, activo=True).first()
             if badge:
-                BadgeEstudiante.objects.get_or_create(
+                _, nuevo = BadgeEstudiante.objects.get_or_create(
                     estudiante=self.estudiante,
                     badge=badge
                 )
+                if nuevo:
+                    if not hasattr(self, 'badges_racha_nuevos'):
+                        self.badges_racha_nuevos = []
+                    self.badges_racha_nuevos.append(badge)
         except Exception:
             pass
     

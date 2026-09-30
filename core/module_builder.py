@@ -226,6 +226,7 @@ def agregar_micro(
     contenido: str = '',
     media_url: str = '',
     media_wa_apto=None,
+    video_entrega: str = '',
     activo: bool = True,
     tipo: str = '',
     requiere_listo_para_avanzar: bool = True,
@@ -247,6 +248,11 @@ def agregar_micro(
             contenido=(contenido or '').strip(),
             media_url=(media_url or '').strip(),
             media_wa_apto=media_wa_apto,
+            video_entrega=(
+                video_entrega
+                if video_entrega in (PasoModulo.VIDEO_ENLACE, PasoModulo.VIDEO_WHATSAPP)
+                else PasoModulo.VIDEO_WHATSAPP
+            ),
             activo=activo,
             tipo=tipo if tipo in dict(PasoModulo.TIPOS) else PasoModulo.TIPO_CONTENIDO,
             requiere_listo_para_avanzar=requiere_listo_para_avanzar,

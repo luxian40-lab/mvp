@@ -103,6 +103,16 @@ def _json_reorder_ok(modulo: Modulo, request):
     return JsonResponse({'ok': True, 'orden': orden})
 
 
+def _video_entrega_de_upload(uploaded, raw) -> str | None:
+    """None si el archivo no es video. El radio del builder decide la entrega."""
+    name = (getattr(uploaded, 'name', '') or '').lower()
+    ctype = (getattr(uploaded, 'content_type', '') or '').lower()
+    es_video = ctype.startswith('video/') or name.endswith(('.mp4', '.m4v', '.mov', '.webm', '.3gp'))
+    if not es_video:
+        return None
+    return PasoModulo.VIDEO_ENLACE if (raw or '').strip() == PasoModulo.VIDEO_ENLACE else PasoModulo.VIDEO_WHATSAPP
+
+
 @staff_member_required
 @require_http_methods(['GET', 'POST'])
 def module_builder_view(request, modulo_id: int):
@@ -178,6 +188,7 @@ def module_builder_view(request, modulo_id: int):
                 media_wa_apto = None
                 resultado = None
                 uploaded = request.FILES.get('media_file')
+                video_entrega = PasoModulo.VIDEO_WHATSAPP
                 if uploaded:
                     from core.admin._common import guardar_upload_admin_media_resultado
                     from core.media_encode_async import (
@@ -192,6 +203,9 @@ def module_builder_view(request, modulo_id: int):
                     )
                     media_url = resultado['url']
                     media_wa_apto = resultado.get('media_wa_apto')
+                    elegido = _video_entrega_de_upload(uploaded, request.POST.get('video_entrega'))
+                    if elegido:
+                        video_entrega = elegido
                 if not contenido and not media_url:
                     messages.error(request, 'Escriba texto o suba un archivo.')
                 else:
@@ -202,6 +216,7 @@ def module_builder_view(request, modulo_id: int):
                         contenido=contenido,
                         media_url=media_url,
                         media_wa_apto=media_wa_apto,
+                        video_entrega=video_entrega,
                         activo=activo_paso,
                         tipo=tipo_paso,
                         requiere_listo_para_avanzar=requiere_listo,
@@ -296,6 +311,10 @@ def module_builder_view(request, modulo_id: int):
                     from core.media_pasos_listos import activar_paso_por_subida_staff
 
                     fields = ['media_url', 'media_wa_apto']
+                    elegido = _video_entrega_de_upload(uploaded, request.POST.get('video_entrega'))
+                    if elegido:
+                        paso.video_entrega = elegido
+                        fields.append('video_entrega')
                     fields.extend(activar_paso_por_subida_staff(paso))
                     paso.save(update_fields=list(dict.fromkeys(fields)))
                     if resultado.get('async_encode'):
@@ -315,6 +334,18 @@ def module_builder_view(request, modulo_id: int):
                             request,
                             f'Micro #{paso.orden}: archivo subido y listo para WhatsApp.',
                         )
+            elif action == 'set_video_entrega':
+                paso_id = int(request.POST.get('paso_id') or 0)
+                paso = get_object_or_404(PasoModulo, pk=paso_id, modulo=modulo)
+                raw = (request.POST.get('video_entrega') or '').strip()
+                paso.video_entrega = (
+                    PasoModulo.VIDEO_ENLACE if raw == PasoModulo.VIDEO_ENLACE else PasoModulo.VIDEO_WHATSAPP
+                )
+                paso.save(update_fields=['video_entrega'])
+                messages.success(
+                    request,
+                    'Video por enlace eki.' if paso.video_entrega == PasoModulo.VIDEO_ENLACE else 'Video adjunto en WhatsApp.',
+                )
             elif action == 'delete_media':
                 paso_id = int(request.POST.get('paso_id') or 0)
                 paso = get_object_or_404(PasoModulo, pk=paso_id, modulo=modulo)

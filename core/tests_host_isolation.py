@@ -36,6 +36,18 @@ class HostIsolationTests(TestCase):
         r = c.get('/studio/')
         self.assertIn(r.status_code, (200, 301, 302))
 
+    def test_videos_raiz_no_abre_el_admin(self):
+        c = Client(HTTP_HOST='videos.eki.technology')
+        r = c.get('/')
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn('admin.eki.technology', r.get('Location', ''))
+        cuerpo = r.content.decode('utf-8')
+        self.assertIn('Videos eki', cuerpo)
+        self.assertNotIn('eki staff', cuerpo.lower())
+        admin = c.get('/admin/login/')
+        self.assertIn(admin.status_code, (301, 302))
+        self.assertIn('admin.eki.technology', admin['Location'])
+
 
 @override_settings(
     DEBUG=False,

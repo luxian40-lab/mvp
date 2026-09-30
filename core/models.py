@@ -12,6 +12,7 @@ import os
 from django.db import IntegrityError
 
 from core.documento_identidad import TIPO_DOCUMENTO_CHOICES
+from core.planes_linea import PLAN_CHOICES as PLAN_LINEA_CHOICES
 
 # 0. TEMA DE CAMPAÑA (para organizar plantillas y campañas)
 class TemaCampana(models.Model):
@@ -337,6 +338,18 @@ class Cliente(models.Model):
         help_text=(
             'Opcional. Lista separada por coma: cursos, gei, nat, empleabilidad. '
             'Ej: cursos,empleabilidad o cursos,gei,nat. Vacío = solo el tipo principal.'
+        ),
+    )
+    plan_linea_meta = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        choices=PLAN_LINEA_CHOICES,
+        verbose_name='Plan línea Meta',
+        help_text=(
+            'Lo que reciben sus estudiantes en la línea Meta. Vacío = sin plan '
+            '(no abren cursos nuevos ni usan el asesor). Se puede cambiar por persona '
+            'en «Sesiones menú sandbox».'
         ),
     )
     fecha_inicio_suscripcion = models.DateField(
@@ -2760,6 +2773,18 @@ class PasoModulo(models.Model):
             'Debe verse un enlace https://… aquí; si queda vacío, el video no se enviará por WhatsApp.'
         ),
     )
+    VIDEO_WHATSAPP = 'whatsapp'
+    VIDEO_ENLACE = 'enlace'
+    video_entrega = models.CharField(
+        max_length=16,
+        choices=[
+            (VIDEO_WHATSAPP, 'WhatsApp directo'),
+            (VIDEO_ENLACE, 'videos.eki.technology'),
+        ],
+        default=VIDEO_WHATSAPP,
+        verbose_name='Entrega del video',
+        help_text='Solo aplica si el archivo es video. WhatsApp directo lo adjunta. El enlace abre el reproductor de eki y cuenta la apertura.',
+    )
     media_wa_apto = models.BooleanField(
         null=True,
         blank=True,
@@ -2803,6 +2828,12 @@ class PasoModulo(models.Model):
                 name='uniq_pasomodulo_modulo_orden',
             ),
         ]
+
+    @property
+    def media_es_video(self) -> bool:
+        from core.video_links import es_video_rastreable
+
+        return es_video_rastreable(self.media_url or '')
 
     def __str__(self):
         return f'{self.modulo_id} · {self.orden} · {self.titulo}'
@@ -3649,6 +3680,8 @@ from .models_extras import (
 )
 from .models_media_entrega import MediaPaqueteEntrega
 from .models_campana_meta import PlantillaMeta, TarjetaPlantillaMeta, CampanaMeta, EnvioCampanaMeta
+from .models_video import VideoEnlace, VideoView
+from .models_agentes import ConocimientoAgente
 
 # ========== CAMPAÑAS ÚNICAS (SÍ/NO) ==========
 class CampanaUnica(models.Model):
@@ -4380,6 +4413,29 @@ class SandboxCanalSesion(models.Model):
         default=False,
         help_text='Aceptó tratamiento de datos en la línea Meta antes del menú.',
     )
+    plan = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        choices=PLAN_LINEA_CHOICES,
+        verbose_name='Plan (solo esta persona)',
+        help_text='Vacío = usa el plan de su organización.',
+    )
+    preguntas_mes = models.PositiveIntegerField(default=0, verbose_name='Preguntas al asesor (mes)')
+    preguntas_mes_desde = models.DateField(
+        null=True,
+        blank=True,
+        help_text='Primer día del mes al que corresponde el contador de preguntas.',
+    )
+    racha_actual = models.PositiveIntegerField(default=0, verbose_name='Racha (días seguidos)')
+    racha_maxima = models.PositiveIntegerField(default=0, verbose_name='Récord de racha')
+    racha_ultimo_dia = models.DateField(null=True, blank=True, verbose_name='Último día activo')
+    aviso_pendiente = models.CharField(
+        max_length=300,
+        blank=True,
+        default='',
+        help_text='Línea de racha/insignia que va al inicio del próximo mensaje del día.',
+    )
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 
@@ -4525,6 +4581,7 @@ __all__ = [
     'EventOutbox',
     'SenalTerritorial',
     'AlertaTerritorial',
+    'VideoEnlace', 'VideoView',
     'PlantillaMeta',
     'TarjetaPlantillaMeta',
     'CampanaMeta',

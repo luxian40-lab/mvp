@@ -554,6 +554,17 @@ try:
 except (TypeError, ValueError):
     SANDBOX_IA_MAX_RESPUESTAS_MES = 30
 SANDBOX_IA_MAX_RESPUESTAS_MES = max(5, min(SANDBOX_IA_MAX_RESPUESTAS_MES, 60))
+# Plan para números sin plan propio ni de su organización: '' (nada), curso_asesor, dos_cursos, asesor_60.
+LINEA_META_PLAN_DEFAULT = os.environ.get('LINEA_META_PLAN_DEFAULT', '').strip()
+# Reacción sobre la pregunta mientras el asesor responde (vacío = desactivada).
+SANDBOX_REACCION_ESPERA = os.environ.get('SANDBOX_REACCION_ESPERA', '⏳').strip()
+# Con SANDBOX_PROVEEDOR=twilio la línea es solo de demos: plan para quien no tenga uno propio.
+LINEA_DEMO_TWILIO_PLAN = os.environ.get('LINEA_DEMO_TWILIO_PLAN', 'curso_asesor').strip()
+# % de preguntas a Coach/Profe/Ventas que quedan como sugerencia para revisar en el admin.
+try:
+    AGENTES_CAPTURA_PORCENTAJE = int(os.environ.get('AGENTES_CAPTURA_PORCENTAJE', '15') or 15)
+except (TypeError, ValueError):
+    AGENTES_CAPTURA_PORCENTAJE = 15
 # Event Engine / Data Lake v0 (outbox → S3 lake/raw/…). Off por defecto en prod.
 DATA_LAKE_ENABLED = os.environ.get('DATA_LAKE_ENABLED', 'false').strip().lower() in (
     '1', 'true', 'yes', 'on',
@@ -622,6 +633,17 @@ except (TypeError, ValueError):
 BOT_COMERCIAL_SYSTEM_PROMPT_EXTRA = os.environ.get('BOT_COMERCIAL_SYSTEM_PROMPT_EXTRA', '').strip()
 # gpt-5*: minimal|low|medium|high — low evita gastar todo el cupo en reasoning vacío
 BOT_COMERCIAL_REASONING_EFFORT = os.environ.get('BOT_COMERCIAL_REASONING_EFFORT', 'low').strip().lower() or 'low'
+
+# ==========================================
+# Videos por enlace corto (aperturas). OFF: WhatsApp sigue adjuntando el archivo.
+# ON (EKI_VIDEO_SHORTLINKS=1): el video sale como https://videos.eki.technology/v/<token>
+# ==========================================
+_EKI_VSL = os.environ.get('EKI_VIDEO_SHORTLINKS', '').strip().lower()
+EKI_VIDEO_SHORTLINKS = _EKI_VSL in ('1', 'true', 'yes', 'on')
+VIDEO_PUBLIC_BASE_URL = os.environ.get(
+    'VIDEO_PUBLIC_BASE_URL',
+    'https://videos.eki.technology',
+).strip().rstrip('/')
 
 # ==========================================
 # Certificados — URL pública del QR (página eki)
@@ -946,6 +968,8 @@ CELERY_TASK_EAGER_PROPAGATES = True
 WEBHOOK_CELERY_ASYNC = os.environ.get('WEBHOOK_CELERY_ASYNC', 'False') == 'True'
 # Nat / bot comercial: RAG+LLM fuera del request. Off en tests/dev; on en settings_production.
 NAT_WEBHOOK_CELERY_ASYNC = os.environ.get('NAT_WEBHOOK_CELERY_ASYNC', 'False') == 'True'
+# Línea Meta (menú + Coach/Profe/Ventas con LLM) fuera del request. Off hasta validar workers.
+SANDBOX_CELERY_ASYNC = os.environ.get('SANDBOX_CELERY_ASYNC', 'False').lower() in ('1', 'true', 'yes', 'on')
 # Publicar módulo: HEAD a URLs de media + exigir media_wa_apto en videos.
 PUBLICAR_MODULO_HEAD_QA = os.environ.get('PUBLICAR_MODULO_HEAD_QA', 'False') == 'True'
 PUBLICAR_MODULO_REQUIRE_MEDIA_QA = os.environ.get('PUBLICAR_MODULO_REQUIRE_MEDIA_QA', 'False') == 'True'

@@ -61,6 +61,23 @@ class InscripcionCursoTests(TestCase):
         prog2.refresh_from_db()
         self.assertEqual(prog2.modulo_actual_id, self.m1.id)
 
+    def test_curso_nuevo_tras_certificado_arranca_con_un_listo(self):
+        self.est.estado_onboarding = 'curso_finalizado'
+        self.est.save(update_fields=['estado_onboarding'])
+        inscribir_estudiante_en_curso(self.est, self.curso)
+        self.est.refresh_from_db()
+        self.assertEqual(self.est.estado_onboarding, 'completado')
+
+    def test_progreso_completado_no_reabre_estado(self):
+        ProgresoEstudiante.objects.create(
+            estudiante=self.est, curso=self.curso, completado=True, modulo_actual=self.m1,
+        )
+        self.est.estado_onboarding = 'curso_finalizado'
+        self.est.save(update_fields=['estado_onboarding'])
+        inscribir_estudiante_en_curso(self.est, self.curso)
+        self.est.refresh_from_db()
+        self.assertEqual(self.est.estado_onboarding, 'curso_finalizado')
+
 
 class PrimerModuloTests(SimpleTestCase):
     def test_nombre_helper(self):

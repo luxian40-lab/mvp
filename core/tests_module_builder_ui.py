@@ -254,6 +254,49 @@ class ModuleBuilderViewTests(TestCase):
         self.assertIn('.pdf', (paso.media_url or '').lower())
 
     @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
+    def test_post_add_micro_video_elige_enlace(self):
+        from unittest.mock import patch
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        self.client.force_login(self.staff)
+        sa = agregar_seccion(self.mod, 'Video')
+        video = SimpleUploadedFile('clase.mp4', b'fake-mp4', content_type='video/mp4')
+        with patch(
+            'core.admin._common.guardar_upload_admin_media_resultado',
+            return_value={'url': 'https://cdn.example.com/clase.mp4', 'media_wa_apto': True},
+        ):
+            r = self.client.post(
+                f'/admin/module-builder/{self.mod.id}/',
+                {
+                    'action': 'add_micro',
+                    'seccion_id': str(sa.id),
+                    'titulo': 'Clase',
+                    'contenido': 'Mira el video',
+                    'media_file': video,
+                    'video_entrega': 'enlace',
+                },
+                secure=True,
+                follow=True,
+            )
+        self.assertEqual(r.status_code, 200)
+        paso = PasoModulo.objects.get(modulo=self.mod, titulo='Clase')
+        self.assertEqual(paso.video_entrega, PasoModulo.VIDEO_ENLACE)
+        self.assertContains(r, 'videos.eki.technology')
+        r2 = self.client.post(
+            f'/admin/module-builder/{self.mod.id}/',
+            {
+                'action': 'set_video_entrega',
+                'paso_id': str(paso.id),
+                'video_entrega': 'whatsapp',
+            },
+            secure=True,
+        )
+        self.assertEqual(r2.status_code, 302)
+        paso.refresh_from_db()
+        self.assertEqual(paso.video_entrega, PasoModulo.VIDEO_WHATSAPP)
+
+    @override_settings(EKI_MODULE_BUILDER_BETA=True, SECURE_SSL_REDIRECT=False)
     def test_add_micro_form_accepts_pdf(self):
         self.client.force_login(self.staff)
         agregar_seccion(self.mod, 'A')

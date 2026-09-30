@@ -126,6 +126,7 @@ class CursosGeneralesTests(TestCase):
     BOT_COMERCIAL_SANDBOX_NUMBER='14155238886',
     BOT_COMERCIAL_WHATSAPP_NUMBER='573001111111',
     SECURE_SSL_REDIRECT=False,
+    LINEA_META_PLAN_DEFAULT='curso_asesor',
 )
 class CatalogoFormacionTests(TestCase):
     def setUp(self):
@@ -219,6 +220,11 @@ class CatalogoFormacionTests(TestCase):
             estado_chat='ACTIVO',
         )
         otro = ProgresoEstudiante.objects.create(estudiante=est, curso=propio, completado=False)
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        ProgresoEstudiante.objects.filter(pk=otro.pk).update(fecha_inicio=timezone.now() - timedelta(days=40))
         resolver_ruta_sandbox({**self.base, 'Body': 'formacion'})
         with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}) as texto:
             out = dispatch_sandbox_menu({**self.base, 'Body': 'ver_tiempo'})

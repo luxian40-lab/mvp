@@ -14,6 +14,15 @@ from django.conf import settings
 from django.utils import timezone
 
 from core.nati import normalizar_telefono_whatsapp
+from core.planes_linea import (
+    PLAN_CURSO_ASESOR,
+    TEXTO_PLAN_SIN_ASESOR,
+    TEXTO_PLAN_SIN_CURSOS,
+    TEXTO_SIN_PLAN,
+    plan_por_clave,
+    resolver_plan,
+    texto_menu_plan,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -28,16 +37,9 @@ MODO_FORMACION = 'formacion'
 MODO_ASESORIA = 'asesoria'
 
 MODOS_AGENTE = (MODO_NAT, MODO_COACH, MODO_IA_CAMPO, MODO_VENTAS)
+_ACCIONES_ASESOR = frozenset({'show_agentes', 'show_asesoria', 'nat', 'coach', 'ia_campo', 'ventas'})
 
-TEXTO_MENU = (
-    "A través de este menú podrá acceder a un curso de formación durante "
-    "el próximo mes de su escogencia y al asesor, con un máximo de 30 preguntas "
-    "durante el mes.\n\n"
-    "Queremos que fortalezca sus competencias y actualice sus conocimientos "
-    "para mejorar su entorno y el de los demás. Dé su mejor esfuerzo y nunca "
-    "deje de aprender.\n\n"
-    "Elija una opción:"
-)
+TEXTO_MENU = texto_menu_plan(plan_por_clave(PLAN_CURSO_ASESOR))
 
 TEXTO_FORMACION = (
     "¿Qué le gustaría aprender para tomar mejores decisiones?\n\n"
@@ -46,14 +48,18 @@ TEXTO_FORMACION = (
     "_*menu* para volver._"
 )
 
-TEXTO_ASESORIA = (
-    "Si usted tuviera la oportunidad de preguntarle a un experto sobre cómo "
-    "mejorar su productividad, la de su negocio, o quiere tomar mejores "
-    "decisiones, ¿qué preguntaría?\n\n"
-    "Escríbala y lo llevamos al agente que corresponde. "
-    "Tiene hasta 30 preguntas este mes.\n\n"
-    "_*menu* para volver._"
-)
+def texto_asesoria(tope: int) -> str:
+    return (
+        "Si usted tuviera la oportunidad de preguntarle a un experto sobre cómo "
+        "mejorar su productividad, la de su negocio, o quiere tomar mejores "
+        "decisiones, ¿qué preguntaría?\n\n"
+        "Escríbala y lo llevamos al agente que corresponde. "
+        f"Tiene hasta {tope} preguntas este mes.\n\n"
+        "_*menu* para volver._"
+    )
+
+
+TEXTO_ASESORIA = texto_asesoria(30)
 
 TEXTO_CURSO_NO_INSCRITO = (
     "Esta línea no abre cursos nuevos.\n\n"
@@ -63,11 +69,17 @@ TEXTO_CURSO_NO_INSCRITO = (
     "_*menu* para volver._"
 )
 
-TEXTO_CUPO_IA = (
-    "Este mes ya usó las 30 preguntas del asesor.\n\n"
-    "Puede seguir su curso de formación, o escribir *menu*. "
-    "El cupo se reinicia el próximo mes."
-)
+def texto_cupo_ia(tope: int) -> str:
+    if tope <= 0:
+        return TEXTO_PLAN_SIN_ASESOR
+    return (
+        f"Este mes ya usó las {tope} preguntas del asesor.\n\n"
+        "Puede seguir su curso de formación, o escribir *menu*. "
+        "El cupo se reinicia el próximo mes."
+    )
+
+
+TEXTO_CUPO_IA = texto_cupo_ia(30)
 
 TEXTO_AGENTES = (
     "🤖 *Agentes IA*\n\n"
@@ -474,17 +486,27 @@ def enviar_texto_sandbox(telefono_usuario: str, from_number: str, texto: str, *,
 def enviar_menu_sandbox(telefono_usuario: str, from_number: str) -> dict:
     from core.sandbox_canal import enviar_meta_botones, sandbox_via_meta
 
+    plan = resolver_plan(telefono_usuario)
+    if not plan.activo:
+        return enviar_texto_sandbox(telefono_usuario, from_number, TEXTO_SIN_PLAN, agente='sandbox_plan')
+    botones = []
+    if plan.incluye_cursos:
+        botones.append(('formacion', 'Formación'))
+    if plan.incluye_asesor:
+        botones.append(('asesoria', 'Asesoría'))
+    texto = texto_menu_plan(plan)
     if sandbox_via_meta():
         return enviar_meta_botones(
             telefono_usuario,
-            TEXTO_MENU,
-            [('formacion', 'Formación'), ('asesoria', 'Asesoría')],
+            texto,
+            botones,
             agente_evento='sandbox_menu',
         )
+    palabras = ' o '.join(f"*{titulo.lower()}*" for _, titulo in botones)
     return enviar_texto_sandbox(
         telefono_usuario,
         from_number,
-        TEXTO_MENU + "\n\nEscriba *formación* o *asesoría*.",
+        f"{texto}\n\nEscriba {palabras}.",
     )
 
 
@@ -537,12 +559,23 @@ def responder_catalogo_general(telefono_usuario: str, from_number: str, body: st
         )
         return
     resultado = inscribir_en_catalogo(telefono_usuario, item['clave'])
+    if resultado.get('error') == 'sin_plan_cursos':
+        enviar_texto_sandbox(
+            telefono_usuario,
+            from_number,
+            TEXTO_PLAN_SIN_CURSOS if resolver_plan(telefono_usuario).activo else TEXTO_SIN_PLAN,
+            agente='sandbox_plan',
+        )
+        return
     if resultado.get('error') == 'cupo_mes':
+        cupo = resultado.get('cursos_mes') or 1
+        cuantos = 'uno por mes' if cupo == 1 else f'{cupo} por mes'
         enviar_texto_sandbox(
             telefono_usuario,
             from_number,
             f"Este mes ya eligió *{resultado.get('nombre_activo') or 'un curso'}*.\n\n"
-            "Los cursos generales son uno por mes. El próximo mes puede escoger otro.\n\n"
+            f"Su plan incluye cursos {cuantos} (de eki o de su organización). "
+            "El próximo mes puede escoger otro.\n\n"
             "Escriba *listo* para seguir el que ya tiene.\n\n"
             "_*menu* para volver._",
             agente='sandbox_formacion',
@@ -667,7 +700,31 @@ def _sticky_cursos_solo_si_inscrito_demo(telefono: str, curso) -> None:
         _set_modo(sesion, MODO_MENU)
 
 
-def _manejar_agente_extra(decision: SandboxRouteDecision, body: str) -> str:
+def _guardar_pregunta_en_memoria(telefono: str, agente: str, body: str) -> None:
+    """INCOMING con la etiqueta del agente; se guarda tras responder para no duplicar la pregunta en el prompt."""
+    try:
+        from core.models import WhatsappLog
+
+        WhatsappLog.objects.create(
+            telefono=telefono,
+            mensaje=(body or '').strip()[:4000],
+            tipo='INCOMING',
+            agente_usado=f'sandbox_{agente}',
+        )
+    except Exception:
+        logger.exception('sandbox_memoria_incoming_fail agente=%s', agente)
+
+
+def _reaccion_espera(telefono: str, message_id: str) -> None:
+    try:
+        from core.sandbox_canal import poner_reaccion_espera
+
+        poner_reaccion_espera(telefono, message_id)
+    except Exception:
+        logger.exception('sandbox_reaccion_espera_fail')
+
+
+def _manejar_agente_extra(decision: SandboxRouteDecision, body: str, message_id: str = '') -> str:
     """Coach / Profe IA: reinicio, saludo de entrada o turno LLM. Returns 'handled'."""
     from core.sandbox_agentes import responder_agente_sandbox, saludo_agente
 
@@ -690,15 +747,29 @@ def _manejar_agente_extra(decision: SandboxRouteDecision, body: str) -> str:
             "_Si envió un *audio* y no lo entendí, pruebe otra vez o escriba el mensaje._"
         )
     else:
-        from core.sandbox_agentes import excedio_cupo_ia_linea, responder_agente_sandbox
+        from core.planes_linea import registrar_pregunta_asesor
+        from core.sandbox_agentes import (
+            _tope_asesor_mes,
+            excedio_cupo_ia_linea,
+            respuestas_asesor_en_el_mes,
+            responder_agente_sandbox,
+        )
 
+        tope = _tope_asesor_mes(decision.telefono_usuario)
         if excedio_cupo_ia_linea(decision.telefono_usuario):
-            texto = TEXTO_CUPO_IA
+            texto = texto_cupo_ia(tope)
         else:
+            _reaccion_espera(decision.telefono_usuario, message_id)
             texto = responder_agente_sandbox(agente, body, telefono=decision.telefono_usuario)  # type: ignore[arg-type]
-            from core.sandbox_agentes import _tope_asesor_mes, respuestas_asesor_en_el_mes
+            registrar_pregunta_asesor(decision.telefono_usuario)
+            _guardar_pregunta_en_memoria(decision.telefono_usuario, agente, body)
+            try:
+                from core.conocimiento_agentes import capturar_sugerencia
 
-            quedan = _tope_asesor_mes() - respuestas_asesor_en_el_mes(decision.telefono_usuario)
+                capturar_sugerencia(agente, body, texto)
+            except Exception:
+                logger.exception('sandbox_captura_sugerencia_fail agente=%s', agente)
+            quedan = tope - respuestas_asesor_en_el_mes(decision.telefono_usuario)
             if quedan == 2:
                 texto = f"{texto}\n\nAviso: le quedan 2 preguntas este mes."
     try:
@@ -754,6 +825,13 @@ def _responder_habeas(telefono: str, from_number: str, body: str) -> str | None:
     return 'handled'
 
 
+def _message_id(payload: Any) -> str:
+    try:
+        return str(payload.get('MessageSid') or '')
+    except Exception:
+        return ''
+
+
 def dispatch_sandbox_menu(payload: Any) -> str | None:
     """
     Intercepta el sandbox (Meta) cuando SANDBOX_MENU_ENABLED.
@@ -772,10 +850,33 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
         corte = _responder_habeas(from_tel, sandbox_number(), body_habeas)
         if corte == 'handled':
             return 'handled'
+        try:
+            from core.rachas_linea import registrar_actividad_linea
+
+            registrar_actividad_linea(from_tel)
+        except Exception:
+            logger.exception('sandbox_racha_fail tel=%s', from_tel)
     decision = resolver_ruta_sandbox(payload)
     from_n = decision.from_number or sandbox_number()
     _, _, body = _extract_from_body(payload)
     body = _body_o_audio_transcrito(payload, body)
+
+    if decision.action in _ACCIONES_ASESOR or decision.action == 'show_formacion':
+        plan = resolver_plan(decision.telefono_usuario)
+        bloqueo = ''
+        if not plan.activo:
+            bloqueo = TEXTO_SIN_PLAN
+        elif decision.action == 'show_formacion' and not plan.incluye_cursos:
+            bloqueo = TEXTO_PLAN_SIN_CURSOS
+        elif decision.action in _ACCIONES_ASESOR and not plan.incluye_asesor:
+            bloqueo = TEXTO_PLAN_SIN_ASESOR
+        if bloqueo:
+            _set_modo(_get_or_create_sesion(decision.telefono_usuario), MODO_MENU)
+            try:
+                enviar_texto_sandbox(decision.telefono_usuario, from_n, bloqueo, agente='sandbox_plan')
+            except Exception:
+                logger.exception('sandbox_plan_send_failed tel=%s', decision.telefono_usuario)
+            return 'handled'
 
     if decision.action == 'show_menu':
         try:
@@ -807,10 +908,12 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
 
     if decision.action == 'show_asesoria':
         try:
+            from core.sandbox_agentes import _tope_asesor_mes
+
             enviar_texto_sandbox(
                 decision.telefono_usuario,
                 from_n,
-                TEXTO_ASESORIA,
+                texto_asesoria(_tope_asesor_mes(decision.telefono_usuario)),
                 agente='sandbox_asesoria',
             )
         except Exception:
@@ -847,23 +950,26 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
             except Exception:
                 logger.exception('sandbox_nat_saludo_entrada_fail')
             return 'handled'
-        from core.sandbox_agentes import excedio_cupo_ia_linea
+        from core.planes_linea import registrar_pregunta_asesor
+        from core.sandbox_agentes import _tope_asesor_mes, excedio_cupo_ia_linea
 
         if excedio_cupo_ia_linea(decision.telefono_usuario):
             try:
                 enviar_texto_sandbox(
                     decision.telefono_usuario,
                     from_n,
-                    TEXTO_CUPO_IA,
-                    agente='sandbox_nat',
+                    texto_cupo_ia(_tope_asesor_mes(decision.telefono_usuario)),
+                    agente='sandbox_plan',
                 )
             except Exception:
                 logger.exception('sandbox_nat_cupo_fail')
             return 'handled'
+        registrar_pregunta_asesor(decision.telefono_usuario)
+        _reaccion_espera(decision.telefono_usuario, _message_id(payload))
         return 'nat'
 
     if decision.action in ('coach', 'ia_campo', 'ventas'):
-        return _manejar_agente_extra(decision, body)
+        return _manejar_agente_extra(decision, body, _message_id(payload))
 
     if decision.action == 'cursos_bootstrap':
         try:

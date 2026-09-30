@@ -235,6 +235,11 @@ UNFOLD = {
                         "icon": "lightbulb",
                         "link": "/admin/knowledge-studio/",
                     },
+                    {
+                        "title": _("Entrenar agentes"),
+                        "icon": "model_training",
+                        "link": reverse_lazy("admin:core_conocimientoagente_changelist"),
+                    },
                 ],
             },
             {

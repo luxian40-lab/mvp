@@ -582,6 +582,17 @@ def _construir_dashboard_unificado_contexto(request, incluir_detalle=True):
             grupo_id=grupo_id,
         )
 
+    context['video_reporte'] = None
+    if learning_section == 'videos':
+        from core.video_links import reporte_aperturas_video
+
+        context['video_reporte'] = reporte_aperturas_video(
+            curso_id=curso_id,
+            cliente_id=cliente_id,
+            fecha_inicio=fecha_inicio_dt,
+            fecha_fin=fecha_fin_dt,
+        )
+
     return context, resumen_payload
 
 
@@ -1278,6 +1289,37 @@ def _encolar_bot_comercial_si_async(post_data, *, forzar_canal: bool = False) ->
     return True
 
 
+def _sandbox_inbound_repetido(inbound) -> bool:
+    """Meta reintenta si tardamos: el mismo wamid no debe responder ni gastar cupo dos veces."""
+    sid = str(inbound.get('MessageSid') or '').strip()
+    if not sid:
+        return False
+    try:
+        from django.core.cache import cache
+
+        if cache.add(f'sandbox_in:{sid}', 1, timeout=6 * 3600):
+            return False
+    except Exception:
+        logger.exception('sandbox_dedupe_cache_fail')
+        return False
+    logger.info('sandbox_inbound_duplicado sid=%s', sid)
+    return True
+
+
+def _encolar_sandbox_si_async(inbound) -> bool:
+    """Menú, agentes y cursos de la línea Meta en Celery si SANDBOX_CELERY_ASYNC=true."""
+    if not getattr(settings, 'SANDBOX_CELERY_ASYNC', False):
+        return False
+    try:
+        from core.tasks import procesar_sandbox_meta_async
+
+        procesar_sandbox_meta_async.delay(dict(inbound))
+    except Exception:
+        logger.exception('sandbox_encolar_fail sid=%s — fallback síncrono', inbound.get('MessageSid', ''))
+        return False
+    return True
+
+
 def _aplicar_sandbox_menu(data):
     """Menú agentes | cursos del sandbox Meta. No toca WABA Twilio de producción."""
     from core.sandbox_canal import (
@@ -1388,6 +1430,10 @@ def whatsapp_webhook(request):
                     for inbound in iter_mensajes_inbound_meta(payload):
                         if es_destino_sandbox(inbound):
                             sandbox_hit = True
+                            if _sandbox_inbound_repetido(inbound):
+                                continue
+                            if _encolar_sandbox_si_async(inbound):
+                                continue
                             last_sb = _aplicar_sandbox_menu(inbound)
                     if sandbox_hit:
                         if isinstance(last_sb, HttpResponse):
