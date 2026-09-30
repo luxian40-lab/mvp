@@ -30,28 +30,27 @@
     }
     .ana-box p { margin: 8px 0 0; color: var(--texto-muted); font-size: 12.5px; line-height: 1.35; }
     .ana-charts {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 40px;
         margin-top: 8px;
-    }
-    @media (max-width: 860px) {
-        .ana-charts { grid-template-columns: 1fr; }
     }
     .ana-chart {
         background: var(--surface);
         border: 1px solid var(--borde);
         border-radius: 16px;
-        padding: 22px 20px 18px;
+        padding: 28px 32px 24px;
     }
     html[data-theme="dark"] .ana-chart { background: var(--blanco); }
-    .ana-chart h3 { margin: 0; font-size: 1rem; color: var(--texto); }
-    .ana-chart .muted { margin: 4px 0 12px; font-size: 12.5px; }
+    .ana-chart h3 { margin: 0; font-size: 1.15rem; color: var(--texto); }
+    .ana-chart .muted { margin: 6px 0 20px; font-size: 14px; }
     .ana-bars {
         display: flex;
         align-items: flex-end;
-        gap: 8px;
-        height: 140px;
+        justify-content: space-between;
+        gap: 18px;
+        height: 220px;
+        padding-top: 8px;
     }
     .ana-bar {
         flex: 1;
@@ -64,16 +63,16 @@
     }
     .ana-bar__fill {
         width: 100%;
-        max-width: 28px;
-        border-radius: 8px 8px 4px 4px;
+        max-width: 64px;
+        border-radius: 10px 10px 4px 4px;
         background: var(--accent);
         min-height: 0;
     }
     .ana-chart--drop .ana-bar__fill { background: #c45b5b; }
     .ana-chart--use .ana-bar__fill { background: #3c7bbf; }
     .ana-bar span {
-        margin-top: 4px;
-        font-size: 11px;
+        margin-top: 8px;
+        font-size: 13px;
         color: var(--texto-muted);
     }
     .ana-links { margin-top: 56px; color: var(--texto-muted); font-size: 14px; }
