@@ -365,7 +365,12 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
         return decision
 
     if sesion.modo == MODO_ASESORIA:
-        agente = clasificar_asesoria(body)
+        eleccion_ag = _normalizar_eleccion_agentes(body)
+        if eleccion_ag == 'menu':
+            _set_modo(sesion, MODO_MENU)
+            decision.action = 'show_menu'
+            return decision
+        agente = eleccion_ag or clasificar_asesoria(body)
         if agente:
             _set_modo(sesion, agente)
             decision.action = agente
@@ -602,8 +607,39 @@ def responder_catalogo_general(telefono_usuario: str, from_number: str, body: st
     )
 
 
+FILAS_AGENTES = [
+    ('nat', 'Agrónomo Nat', 'Cultivo, plagas y campo'),
+    ('coach', 'Coach', 'Hábitos y motivación'),
+    ('profe', 'Profe IA', 'IA fácil para el campo'),
+    ('ventas', 'Ventas', 'Clientes, precio y cierre'),
+]
+
+
+def texto_lista_agentes(tope: int) -> str:
+    cupo = f"Tiene hasta {tope} preguntas este mes.\n\n" if tope > 0 else ''
+    return (
+        "¿Con qué experto quiere hablar? Elija un agente en la lista; "
+        "cada uno recuerda la conversación.\n\n"
+        "También puede escribir su pregunta y lo llevamos al agente que corresponde.\n\n"
+        f"{cupo}"
+        "_*reiniciar* = memoria nueva · *menu* = menú principal._"
+    )
+
+
 def enviar_menu_agentes(telefono_usuario: str, from_number: str) -> dict:
-    return enviar_texto_sandbox(telefono_usuario, from_number, TEXTO_AGENTES, agente='sandbox_agentes')
+    from core.sandbox_agentes import _tope_asesor_mes
+    from core.sandbox_canal import enviar_meta_lista, sandbox_via_meta
+
+    if not sandbox_via_meta():
+        return enviar_texto_sandbox(telefono_usuario, from_number, TEXTO_AGENTES, agente='sandbox_agentes')
+    return enviar_meta_lista(
+        telefono_usuario,
+        texto_lista_agentes(_tope_asesor_mes(telefono_usuario)),
+        'Ver agentes',
+        FILAS_AGENTES,
+        texto_respaldo=TEXTO_AGENTES,
+        agente_evento='sandbox_agentes',
+    )
 
 
 def _progresos_del_telefono(telefono: str):
@@ -908,14 +944,7 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
 
     if decision.action == 'show_asesoria':
         try:
-            from core.sandbox_agentes import _tope_asesor_mes
-
-            enviar_texto_sandbox(
-                decision.telefono_usuario,
-                from_n,
-                texto_asesoria(_tope_asesor_mes(decision.telefono_usuario)),
-                agente='sandbox_asesoria',
-            )
+            enviar_menu_agentes(decision.telefono_usuario, from_n)
         except Exception:
             logger.exception('sandbox_asesoria_send_failed')
         return 'handled'
@@ -979,6 +1008,7 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
         return 'handled'
 
     if decision.action == 'cursos':
+        _reaccion_espera(decision.telefono_usuario, _message_id(payload))
         return 'cursos'
 
     try:

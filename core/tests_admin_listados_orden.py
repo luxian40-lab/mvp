@@ -15,6 +15,7 @@ class AdminListadosOrdenTests(SimpleTestCase):
         self.assertEqual(adm.ordering, ('nombre',))
         self.assertIn('nombre', adm.list_display)
         self.assertIn('activo', adm.list_display)
+        self.assertIn('plan_linea_meta', adm.list_display)
         self.assertEqual(len(adm.list_display), 6)
         self.assertNotIn('mapa_cobertura_rapido', adm.list_display)
         self.assertTrue(adm.compressed_fields)
@@ -26,6 +27,7 @@ class AdminListadosOrdenTests(SimpleTestCase):
         by_title = {fs[0]: fs[1] for fs in adm.fieldsets}
         self.assertNotIn('classes', by_title['Datos y logo'])
         self.assertIn('logo_url', by_title['Datos y logo']['fields'])
+        self.assertIn('plan_linea_meta', by_title['Datos y logo']['fields'])
         self.assertIn('mapa_cobertura_rapido', by_title['Datos y logo']['fields'])
         for title in (
             'Portal y acceso',

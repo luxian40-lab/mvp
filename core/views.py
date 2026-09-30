@@ -1774,11 +1774,12 @@ def youtube_hace_solo_enlace_en_texto(url: str) -> bool:
 def _enviar_mensaje_twilio_segmentado(client, from_number: str, to_number: str, body: str, media_url: str = None) -> list:
     """Envía mensaje Twilio en segmentos seguros y devuelve [(sid, texto_enviado), ...]."""
     try:
-        from core.sandbox_canal import sandbox_meta_activo, enviar_meta
+        from core.sandbox_canal import _MetaSid, enviar_meta, sandbox_meta_activo
 
         if sandbox_meta_activo():
             result = enviar_meta(to_number, body or '', media_url=media_url)
-            sid = result.get('mensaje_id') or ''
+            # Los llamadores leen mensaje.sid como en Twilio.
+            sid = _MetaSid(result.get('mensaje_id') or '')
             return [(sid, body or '')] if result.get('success') else []
     except Exception:
         logger.exception('sandbox_meta_intercept_segmentado')

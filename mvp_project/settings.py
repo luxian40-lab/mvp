@@ -558,6 +558,8 @@ SANDBOX_IA_MAX_RESPUESTAS_MES = max(5, min(SANDBOX_IA_MAX_RESPUESTAS_MES, 60))
 LINEA_META_PLAN_DEFAULT = os.environ.get('LINEA_META_PLAN_DEFAULT', '').strip()
 # Reacción sobre la pregunta mientras el asesor responde (vacío = desactivada).
 SANDBOX_REACCION_ESPERA = os.environ.get('SANDBOX_REACCION_ESPERA', '⏳').strip()
+# Reacción cuando llega la respuesta (vacío = quitar la reacción).
+SANDBOX_REACCION_FIN = os.environ.get('SANDBOX_REACCION_FIN', '✅').strip()
 # Con SANDBOX_PROVEEDOR=twilio la línea es solo de demos: plan para quien no tenga uno propio.
 LINEA_DEMO_TWILIO_PLAN = os.environ.get('LINEA_DEMO_TWILIO_PLAN', 'curso_asesor').strip()
 # % de preguntas a Coach/Profe/Ventas que quedan como sugerencia para revisar en el admin.

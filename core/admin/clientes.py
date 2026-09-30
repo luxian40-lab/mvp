@@ -131,9 +131,9 @@ class ClienteAdmin(admin.ModelAdmin):
         'logo_thumb',
         'nombre',
         'activo',
+        'plan_linea_meta',
         'estudiantes_activos',
         'cursos_asignados',
-        'contacto_principal',
     )
     list_filter = ('activo', 'plan_linea_meta')
     search_fields = ('nombre', 'nit', 'contacto_principal', 'email')
@@ -158,6 +158,7 @@ class ClienteAdmin(admin.ModelAdmin):
                 'email',
                 'telefono',
                 'activo',
+                'plan_linea_meta',
                 'logo_archivo',
                 'logo_url',
                 'quitar_logo',
@@ -173,7 +174,6 @@ class ClienteAdmin(admin.ModelAdmin):
         ('Portal y acceso', {
             'classes': ['tab'],
             'fields': (
-                'plan_linea_meta',
                 'tipo_proyecto',
                 'portal_modulos',
                 'cupos_portal',

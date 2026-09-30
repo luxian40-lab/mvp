@@ -300,8 +300,23 @@ def _enviar_reaccion(to: str, message_id: str, emoji: str) -> bool:
     return False
 
 
+def _pendientes_reaccion(to: str) -> list[str]:
+    from django.core.cache import cache
+
+    valor = cache.get(_clave_reaccion(to)) or []
+    return [valor] if isinstance(valor, str) else list(valor)
+
+
+def hay_reaccion_espera(telefono: str) -> bool:
+    to = _telefono_graph(telefono)
+    try:
+        return bool(to and _pendientes_reaccion(to))
+    except Exception:
+        return False
+
+
 def poner_reaccion_espera(telefono: str, message_id: str) -> None:
-    """⏳ sobre la pregunta mientras el asesor piensa; la quita el siguiente envío exitoso."""
+    """⏳ sobre el mensaje de la persona; el siguiente envío exitoso lo cambia a SANDBOX_REACCION_FIN."""
     emoji = (getattr(settings, 'SANDBOX_REACCION_ESPERA', '⏳') or '').strip()
     message_id = (message_id or '').strip()
     if not emoji or not message_id.startswith('wamid.') or not sandbox_via_meta():
@@ -313,7 +328,8 @@ def poner_reaccion_espera(telefono: str, message_id: str) -> None:
 
     if _enviar_reaccion(to, message_id, emoji):
         try:
-            cache.set(_clave_reaccion(to), message_id, timeout=600)
+            pendientes = [m for m in _pendientes_reaccion(to) if m != message_id][-4:]
+            cache.set(_clave_reaccion(to), pendientes + [message_id], timeout=600)
         except Exception:
             logger.exception('sandbox_reaccion_cache_fail')
 
@@ -324,14 +340,16 @@ def quitar_reaccion_espera(to: str) -> None:
     try:
         from django.core.cache import cache
 
-        message_id = cache.get(_clave_reaccion(to))
-        if not message_id:
+        pendientes = _pendientes_reaccion(to)
+        if not pendientes:
             return
         cache.delete(_clave_reaccion(to))
     except Exception:
         logger.exception('sandbox_reaccion_cache_fail')
         return
-    _enviar_reaccion(to, message_id, '')
+    fin = (getattr(settings, 'SANDBOX_REACCION_FIN', '✅') or '').strip()
+    for message_id in pendientes:
+        _enviar_reaccion(to, message_id, fin)
 
 
 def _con_aviso_del_dia(to: str, texto: str) -> str:
@@ -389,6 +407,11 @@ def enviar_meta(
     texto = str(texto or '').strip()
     clean_url = str(media_url or '').strip() or None
     last: dict = {'success': False, 'mensaje_id': None, 'response': 'Empty body and no media'}
+    from core.response_templates import TEXTO_MODULO_CARGANDO
+
+    if texto == TEXTO_MODULO_CARGANDO and not clean_url and hay_reaccion_espera(to):
+        # El ⏳ sobre su *listo* ya dice que el módulo viene; no gastar un mensaje.
+        return {'success': True, 'mensaje_id': None, 'response': 'reaccion_espera'}
     if texto:
         texto = _con_aviso_del_dia(to, texto)
 
@@ -466,6 +489,45 @@ def enviar_meta_botones(
         _emit_enviado(to, cuerpo, result.get('mensaje_id'), canal_evento, agente_evento)
         return result
     return enviar_meta(telefono, completo, canal_evento=canal_evento, agente_evento=agente_evento)
+
+
+def enviar_meta_lista(
+    telefono: str,
+    texto: str,
+    boton: str,
+    filas: list[tuple[str, str, str]],
+    *,
+    texto_respaldo: str = '',
+    canal_evento: str = 'whatsapp_sandbox',
+    agente_evento: str = 'sandbox_menu',
+) -> dict:
+    """Lista interactiva Meta (hasta 10 filas: id, título ≤24, descripción ≤72). Si falla, manda texto."""
+    to = _telefono_graph(telefono)
+    if not to:
+        return {'success': False, 'mensaje_id': None, 'response': 'Invalid destination phone'}
+    cuerpo = _con_aviso_del_dia(to, (texto or '').strip())
+    rows = [
+        {'id': str(fid)[:200], 'title': str(titulo)[:24], 'description': str(desc)[:72]}
+        for fid, titulo, desc in filas[:10]
+    ]
+    if rows and cuerpo:
+        result = _post_graph({
+            'messaging_product': 'whatsapp',
+            'recipient_type': 'individual',
+            'to': to,
+            'type': 'interactive',
+            'interactive': {
+                'type': 'list',
+                'body': {'text': cuerpo[:1024]},
+                'action': {'button': str(boton)[:20], 'sections': [{'title': str(boton)[:24], 'rows': rows}]},
+            },
+        }, agente=agente_evento)
+        if result.get('success'):
+            _emit_enviado(to, cuerpo, result.get('mensaje_id'), canal_evento, agente_evento)
+            return result
+    aviso = cuerpo[: len(cuerpo) - len((texto or '').strip())]
+    respaldo = f"{aviso}{texto_respaldo}" if texto_respaldo else cuerpo
+    return enviar_meta(telefono, respaldo, canal_evento=canal_evento, agente_evento=agente_evento)
 
 
 def enviar_meta_carrusel(

@@ -294,7 +294,7 @@ class ContadorAsesorTests(TestCase):
                 pregunta = dict(_payload(self.tel, 'no tengo tiempo'), MessageSid='wamid.PREG1')
                 dispatch_sandbox_menu(pregunta)
         tipos = [(p['type'], (p.get('reaction') or {}).get('emoji')) for p in self._posts(post)]
-        self.assertEqual(tipos, [('reaction', '⏳'), ('text', None), ('reaction', '')])
+        self.assertEqual(tipos, [('reaction', '⏳'), ('text', None), ('reaction', '✅')])
         self.assertEqual(self._posts(post)[0]['reaction']['message_id'], 'wamid.PREG1')
 
     def test_menu_no_lleva_reaccion(self):
@@ -328,7 +328,99 @@ class ContadorAsesorTests(TestCase):
             self.assertEqual(ruta, 'nat')
             self.assertEqual(self._posts(post)[-1]['reaction'], {'message_id': 'wamid.NAT1', 'emoji': '⏳'})
             enviar_meta(self.tel, 'Respuesta de Nat', agente_evento='sandbox_nat')
-        self.assertEqual(self._posts(post)[-1]['reaction'], {'message_id': 'wamid.NAT1', 'emoji': ''})
+        self.assertEqual(self._posts(post)[-1]['reaction'], {'message_id': 'wamid.NAT1', 'emoji': '✅'})
+
+    def _meta_ok(self, post):
+        post.return_value.status_code = 200
+        post.return_value.json.return_value = {'messages': [{'id': 'w1'}]}
+
+    def test_listo_de_curso_pasa_de_reloj_a_chulo_cuando_llega_el_modulo(self):
+        from django.core.cache import cache
+
+        from core.sandbox_canal import enviar_meta
+
+        cache.clear()
+        SandboxCanalSesion.objects.filter(telefono=self.tel).update(modo='cursos')
+        with patch('core.sandbox_canal.requests.post') as post:
+            self._meta_ok(post)
+            ruta = dispatch_sandbox_menu(dict(_payload(self.tel, 'listo'), MessageSid='wamid.L1'))
+            self.assertEqual(ruta, 'cursos')
+            enviar_meta(self.tel, 'Módulo 2: ...', agente_evento='sandbox_cursos')
+        reacciones = [p['reaction'] for p in self._posts(post) if p['type'] == 'reaction']
+        self.assertEqual(
+            reacciones,
+            [{'message_id': 'wamid.L1', 'emoji': '⏳'}, {'message_id': 'wamid.L1', 'emoji': '✅'}],
+        )
+
+    def test_listo_repetido_no_manda_modulo_cargando(self):
+        from django.core.cache import cache
+
+        from core.response_templates import TEXTO_MODULO_CARGANDO
+        from core.sandbox_canal import enviar_meta
+
+        cache.clear()
+        SandboxCanalSesion.objects.filter(telefono=self.tel).update(modo='cursos')
+        with patch('core.sandbox_canal.requests.post') as post:
+            self._meta_ok(post)
+            dispatch_sandbox_menu(dict(_payload(self.tel, 'listo'), MessageSid='wamid.L1'))
+            dispatch_sandbox_menu(dict(_payload(self.tel, 'listo'), MessageSid='wamid.L2'))
+            self.assertTrue(enviar_meta(self.tel, TEXTO_MODULO_CARGANDO)['success'])
+            enviar_meta(self.tel, 'Módulo 2: ...')
+        posts = self._posts(post)
+        self.assertEqual([p['text']['body'] for p in posts if p['type'] == 'text'], ['Módulo 2: ...'])
+        fin = [p['reaction']['message_id'] for p in posts if p['type'] == 'reaction' and p['reaction']['emoji'] == '✅']
+        self.assertEqual(fin, ['wamid.L1', 'wamid.L2'])
+
+    def test_modulo_cargando_se_manda_si_no_hay_reaccion(self):
+        from django.core.cache import cache
+
+        from core.response_templates import TEXTO_MODULO_CARGANDO
+        from core.sandbox_canal import enviar_meta
+
+        cache.clear()
+        with patch('core.sandbox_canal.requests.post') as post:
+            self._meta_ok(post)
+            enviar_meta(self.tel, TEXTO_MODULO_CARGANDO)
+        self.assertEqual(self._posts(post)[0]['text']['body'], TEXTO_MODULO_CARGANDO)
+
+    def test_asesoria_muestra_la_lista_de_agentes(self):
+        with patch('core.sandbox_canal.requests.post') as post:
+            self._meta_ok(post)
+            dispatch_sandbox_menu(_payload(self.tel, 'asesoria'))
+            lista = self._posts(post)[-1]
+            self.assertEqual(lista['interactive']['type'], 'list')
+            filas = [r['title'] for r in lista['interactive']['action']['sections'][0]['rows']]
+            self.assertEqual(filas, ['Agrónomo Nat', 'Coach', 'Profe IA', 'Ventas'])
+            self.assertIn('hasta 30 preguntas', lista['interactive']['body']['text'])
+            dispatch_sandbox_menu(_payload(self.tel, 'coach'))
+        self.assertEqual(SandboxCanalSesion.objects.get(telefono=self.tel).modo, 'coach')
+
+    def test_asesoria_pregunta_libre_va_al_agente(self):
+        with patch('core.sandbox_canal.requests.post') as post:
+            self._meta_ok(post)
+            dispatch_sandbox_menu(_payload(self.tel, 'asesoria'))
+            dispatch_sandbox_menu(_payload(self.tel, 'cómo subo el precio a mis clientes'))
+        self.assertEqual(SandboxCanalSesion.objects.get(telefono=self.tel).modo, 'ventas')
+
+    def test_envio_segmentado_por_meta_devuelve_sid_como_twilio(self):
+        from core.sandbox_canal import canal_sandbox_meta
+        from core.views import _enviar_mensaje_twilio_segmentado
+
+        with patch('core.sandbox_canal.requests.post') as post:
+            post.return_value.status_code = 200
+            post.return_value.json.return_value = {'messages': [{'id': 'wamid.OUT1'}]}
+            with canal_sandbox_meta():
+                enviados = []
+                for parte in ('Intro del módulo', 'Paso 2 del módulo'):
+                    for mensaje, _ in _enviar_mensaje_twilio_segmentado(
+                        client=None, from_number='x', to_number=f'whatsapp:+{self.tel}', body=parte
+                    ):
+                        enviados.append(mensaje.sid)
+        self.assertEqual(enviados, ['wamid.OUT1', 'wamid.OUT1'])
+        self.assertEqual(
+            [p['text']['body'] for p in self._posts(post) if p['type'] == 'text'],
+            ['Intro del módulo', 'Paso 2 del módulo'],
+        )
 
     def test_mensajes_de_curso_no_gastan_preguntas(self):
         from core.sandbox_canal import enviar_meta

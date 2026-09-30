@@ -13,6 +13,8 @@ from .helpers_examenes import evaluar_checkpoint_reto_ia
 
 logger = logging.getLogger(__name__)
 
+TEXTO_MODULO_CARGANDO = "⏳ Tu módulo se está cargando, espera unos segundos y vuelve a escribir *listo*."
+
 # Twilio exige body no vacío junto a media_url; nunca usar solo emoji (p. ej. 📹).
 MENSAJE_CAPTION_SOLO_MEDIA = (
     'Aquí tiene el material del módulo. Revíselo con calma.'
@@ -1242,7 +1244,7 @@ Te inscribiste en: *{curso.nombre}*
                 _dedup_ok = True  # En caso de error, permitir (fail-open)
 
         if not _dedup_ok:
-            return "⏳ Tu módulo se está cargando, espera unos segundos y vuelve a escribir *listo*."
+            return TEXTO_MODULO_CARGANDO
         # ═══════════════════════════════════════════════════════════════
 
         estudiante = Estudiante.objects.get(id=estudiante_id)
