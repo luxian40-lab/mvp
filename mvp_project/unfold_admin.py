@@ -318,6 +318,11 @@ UNFOLD = {
                         "link": "/admin/ajustar-avance/",
                     },
                     {
+                        "title": _("Campaña Meta del día"),
+                        "icon": "view_carousel",
+                        "link": "/admin/campana-meta/",
+                    },
+                    {
                         "title": _("Cobertura"),
                         "icon": "map",
                         "link": "/admin/cobertura/",

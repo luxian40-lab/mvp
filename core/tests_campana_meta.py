@@ -15,7 +15,13 @@ from core.meta_waba import (
     ejecutar_campana_meta,
     firma_meta_ok,
 )
-from core.models_campana_meta import CampanaMeta, EnvioCampanaMeta, PlantillaMeta
+from core.models_campana_meta import (
+    CampanaMeta,
+    EnvioCampanaMeta,
+    PlantillaMeta,
+    TarjetaPlantillaMeta,
+    guardar_borrador_carrusel,
+)
 from core.models import Estudiante
 
 
@@ -200,3 +206,74 @@ class CampanaMetaTests(TestCase):
         for name in ('admin:core_plantillameta_changelist', 'admin:core_campanameta_changelist'):
             resp = client.get(reverse(name))
             self.assertEqual(resp.status_code, 200)
+
+    def test_atajo_guarda_borrador_sin_llamar_a_meta(self):
+        User.objects.create_superuser('meta_dia', 'd@t.com', 'pass12345')
+        client = Client()
+        client.login(username='meta_dia', password='pass12345')
+        pagina = client.get(reverse('admin_campana_meta_dia'))
+        self.assertEqual(pagina.status_code, 200)
+        self.assertContains(pagina, 'Tome las riendas de su dinero')
+        self.assertContains(pagina, 'Innovación e IA para nuevos emprendedores')
+        self.assertContains(pagina, 'Gestión de tiempo y productividad personal en el campo')
+        with patch('core.meta_waba._post') as post:
+            resp = client.post(reverse('admin_campana_meta_dia'), {
+                'nombre': 'Formación del día',
+                'cursos': ['riendas', 'innovacion', 'tiempo'],
+            })
+        post.assert_not_called()
+        self.assertEqual(resp.status_code, 302)
+        ficha = client.get(resp['Location'])
+        self.assertEqual(ficha.status_code, 200)
+        self.assertContains(ficha, 'Ver curso')
+        plantilla = PlantillaMeta.objects.get(nombre_interno='Formación del día')
+        self.assertEqual(plantilla.tipo, 'CARRUSEL')
+        self.assertEqual(plantilla.estado, 'BORRADOR')
+        ids = list(
+            TarjetaPlantillaMeta.objects.filter(plantilla=plantilla)
+            .order_by('orden')
+            .values_list('boton_ver_id', 'boton_info_id', 'boton_ver_texto', 'boton_info_texto')
+        )
+        self.assertEqual(ids, [
+            ('ver_riendas', 'info_riendas', 'Ver curso', 'Más información'),
+            ('ver_innovacion', 'info_innovacion', 'Ver curso', 'Más información'),
+            ('ver_tiempo', 'info_tiempo', 'Ver curso', 'Más información'),
+        ])
+
+    @override_settings(WHATSAPP_APP_ID='999000')
+    @patch('core.meta_waba.subir_ejemplo_imagen', side_effect=['h-riendas', 'h-tiempo'])
+    @patch('core.meta_waba._post')
+    def test_carrusel_se_crea_en_meta(self, post, _subir):
+        post.return_value = (200, {'id': 'car-1', 'status': 'PENDING'})
+        plantilla = guardar_borrador_carrusel('Borrador', ['riendas', 'tiempo'])
+        resultado = crear_plantilla_en_meta(plantilla)
+        self.assertTrue(resultado['success'])
+        plantilla.refresh_from_db()
+        self.assertEqual(plantilla.estado, 'PENDING')
+        self.assertEqual(plantilla.meta_template_id, 'car-1')
+        payload = post.call_args.args[1]
+        tipos = [c['type'] for c in payload['components']]
+        self.assertEqual(tipos, ['BODY', 'CAROUSEL'])
+        cards = payload['components'][1]['cards']
+        self.assertEqual(len(cards), 2)
+        primera = cards[0]['components']
+        self.assertEqual(primera[0]['format'], 'IMAGE')
+        self.assertEqual(primera[0]['example']['header_handle'], ['h-riendas'])
+        self.assertEqual(
+            [b['type'] for b in primera[2]['buttons']],
+            ['QUICK_REPLY', 'QUICK_REPLY'],
+        )
+        self.assertEqual(primera[2]['buttons'][0]['text'], 'Ver curso')
+        self.assertEqual(primera[2]['buttons'][1]['text'], 'Más información')
+        self.assertEqual(cards[1]['components'][0]['example']['header_handle'], ['h-tiempo'])
+
+    @patch('core.meta_waba.subir_ejemplo_imagen', side_effect=RuntimeError('Faltan WHATSAPP_APP_ID'))
+    @patch('core.meta_waba._post')
+    def test_carrusel_sin_foto_no_crea_la_plantilla(self, post, _subir):
+        plantilla = guardar_borrador_carrusel('Sin foto', ['riendas', 'tiempo'])
+        resultado = crear_plantilla_en_meta(plantilla)
+        post.assert_not_called()
+        self.assertFalse(resultado['success'])
+        plantilla.refresh_from_db()
+        self.assertEqual(plantilla.estado, 'ERROR')
+        self.assertIn('WHATSAPP_APP_ID', plantilla.ultimo_error_mensaje)

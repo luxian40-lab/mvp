@@ -107,6 +107,13 @@ class PlantillaMeta(models.Model):
         help_text='Un valor por variable, separados por |. Ej: Ana|Café',
     )
     footer = models.CharField(max_length=60, blank=True, verbose_name='Footer')
+    tipo = models.CharField(
+        max_length=16,
+        choices=[('TEXTO', 'Texto'), ('CARRUSEL', 'Carrusel')],
+        default='TEXTO',
+        verbose_name='Tipo',
+        help_text='El carrusel se crea en Meta con la acción «Enviar plantilla a Meta para aprobación».',
+    )
     boton_1_tipo = models.CharField(
         max_length=20,
         blank=True,
@@ -206,6 +213,77 @@ class PlantillaMeta(models.Model):
                 raise ValidationError({f'boton_{n}_url': 'El botón de enlace necesita URL.'})
             if variables_en(url) and not ejemplo:
                 raise ValidationError({f'boton_{n}_ejemplo': 'La URL con {{1}} necesita ejemplo.'})
+
+
+class TarjetaPlantillaMeta(models.Model):
+    """Tarjeta de un carrusel guardado en el admin. Mismos dos botones en cada una."""
+
+    plantilla = models.ForeignKey(
+        PlantillaMeta,
+        on_delete=models.CASCADE,
+        related_name='tarjetas',
+    )
+    orden = models.PositiveIntegerField(default=0)
+    titulo = models.CharField(max_length=200)
+    cuerpo = models.CharField(max_length=160)
+    imagen_url = models.URLField(max_length=1000)
+    boton_ver_id = models.CharField(max_length=64)
+    boton_ver_texto = models.CharField(max_length=20, default='Ver curso')
+    boton_info_id = models.CharField(max_length=64)
+    boton_info_texto = models.CharField(max_length=20, default='Más información')
+    info_url = models.URLField(max_length=2000, blank=True, default='')
+
+    class Meta:
+        verbose_name = 'Tarjeta de carrusel'
+        verbose_name_plural = 'Tarjetas de carrusel'
+        ordering = ['plantilla', 'orden', 'id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['plantilla', 'orden'],
+                name='uniq_tarjeta_plantilla_orden',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.orden}. {self.titulo}'
+
+
+def guardar_borrador_carrusel(nombre: str, claves: list[str]) -> PlantillaMeta:
+    """Guarda el carrusel del día. No llama a Meta."""
+    from core.cursos_generales import item_catalogo, texto_tarjeta, url_imagen_catalogo
+
+    nombre = (nombre or '').strip()
+    if not nombre:
+        raise ValidationError('Escriba el nombre de la campaña.')
+    items = []
+    for clave in claves:
+        item = item_catalogo(clave)
+        if item is not None:
+            items.append(item)
+    if len(items) < 2:
+        raise ValidationError('Elija al menos dos cursos.')
+    plantilla = PlantillaMeta.objects.create(
+        nombre_interno=nombre[:120],
+        categoria='MARKETING',
+        idioma='es',
+        tipo='CARRUSEL',
+        cuerpo='Deslice los cursos de eki. Ver curso inscribe. Más información manda la ficha.',
+        estado='BORRADOR',
+    )
+    for orden, item in enumerate(items):
+        TarjetaPlantillaMeta.objects.create(
+            plantilla=plantilla,
+            orden=orden,
+            titulo=(item['nombre'] or '')[:200],
+            cuerpo=texto_tarjeta(item)[:160],
+            imagen_url=url_imagen_catalogo(item['imagen'])[:1000],
+            boton_ver_id=f"ver_{item['clave']}"[:64],
+            boton_ver_texto='Ver curso',
+            boton_info_id=f"info_{item['clave']}"[:64],
+            boton_info_texto='Más información',
+            info_url=(item.get('url') or '')[:2000],
+        )
+    return plantilla
 
 
 class CampanaMeta(models.Model):

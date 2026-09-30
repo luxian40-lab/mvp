@@ -33,6 +33,10 @@ os.environ['AWS_S3_REGION_NAME'] = os.environ.get('AWS_S3_REGION_NAME', 'us-east
 # AHORA sí importar settings base (que leerá las env vars)
 from .settings import *
 
+# Data lake raw: en prod publica el outbox a S3 salvo que EB lo apague.
+if os.environ.get('DATA_LAKE_ENABLED', '').strip() == '':
+    DATA_LAKE_ENABLED = True
+
 # Siempre definir BASE_DIR aquí: si settings.py llegó vacío en un deploy, import * no lo trae.
 BASE_DIR = Path(__file__).resolve().parent.parent
 

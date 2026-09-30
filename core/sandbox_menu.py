@@ -363,6 +363,13 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
         decision.action = 'show_agentes'
         return decision
 
+    from core.cursos_generales import payload_catalogo
+
+    if sesion.modo in (MODO_MENU, MODO_FORMACION, MODO_CURSOS) and payload_catalogo(body):
+        decision.action = 'catalogo_general'
+        decision.texto_menu = (body or '').strip()
+        return decision
+
     if sesion.modo == MODO_FORMACION and (body or '').strip():
         decision.action = 'cursos_bootstrap'
         return decision
@@ -478,6 +485,87 @@ def enviar_menu_sandbox(telefono_usuario: str, from_number: str) -> dict:
         telefono_usuario,
         from_number,
         TEXTO_MENU + "\n\nEscriba *formación* o *asesoría*.",
+    )
+
+
+def enviar_catalogo_formacion(telefono_usuario: str, from_number: str) -> None:
+    """Un carrusel con foto. Ver curso inscribe. Más información manda la ficha."""
+    from core.cursos_generales import CATALOGO, tarjetas_catalogo
+    from core.sandbox_canal import enviar_meta_carrusel, sandbox_via_meta
+
+    cuerpo = (
+        "Deslice los tres cursos de eki. "
+        "*Ver curso* lo inscribe en ese programa. "
+        "*Más información* le manda la ficha. "
+        "Si ya va en un curso, escriba *listo*."
+    )
+    if sandbox_via_meta():
+        resultado = enviar_meta_carrusel(
+            telefono_usuario,
+            cuerpo,
+            tarjetas_catalogo(),
+            agente_evento='sandbox_formacion',
+        )
+        if resultado.get('success'):
+            return
+        logger.warning('sandbox_carrusel_fallback %s', resultado.get('response'))
+    lineas = [cuerpo, '']
+    for item in CATALOGO:
+        lineas.append(f"*{item['nombre']}*\n{item['url']}\nEscriba ver {item['clave']} para empezar.")
+    enviar_texto_sandbox(
+        telefono_usuario,
+        from_number,
+        '\n\n'.join(lineas),
+        agente='sandbox_formacion',
+    )
+
+
+def responder_catalogo_general(telefono_usuario: str, from_number: str, body: str) -> None:
+    from core.cursos_generales import inscribir_en_catalogo, item_catalogo, payload_catalogo
+
+    dato = payload_catalogo(body) or {}
+    item = item_catalogo(dato.get('clave') or '')
+    if item is None:
+        enviar_catalogo_formacion(telefono_usuario, from_number)
+        return
+    if dato.get('accion') == 'info':
+        enviar_texto_sandbox(
+            telefono_usuario,
+            from_number,
+            f"*{item['nombre']}*\n{item['resumen']}\n\n{item['url']}\n\n_*menu* para volver._",
+            agente='sandbox_formacion',
+        )
+        return
+    resultado = inscribir_en_catalogo(telefono_usuario, item['clave'])
+    if resultado.get('error') == 'cupo_mes':
+        enviar_texto_sandbox(
+            telefono_usuario,
+            from_number,
+            f"Este mes ya eligió *{resultado.get('nombre_activo') or 'un curso'}*.\n\n"
+            "Los cursos generales son uno por mes. El próximo mes puede escoger otro.\n\n"
+            "Escriba *listo* para seguir el que ya tiene.\n\n"
+            "_*menu* para volver._",
+            agente='sandbox_formacion',
+        )
+        return
+    if not resultado.get('ok'):
+        enviar_texto_sandbox(
+            telefono_usuario,
+            from_number,
+            f"*{item['nombre']}* todavía no está publicado en esta línea.\n\n"
+            f"Puede ver la ficha:\n{item['url']}\n\n_*menu* para volver._",
+            agente='sandbox_formacion',
+        )
+        return
+    sesion = _get_or_create_sesion(telefono_usuario)
+    _set_modo(sesion, MODO_CURSOS)
+    enviar_texto_sandbox(
+        telefono_usuario,
+        from_number,
+        f"Quedó en *{resultado['nombre']}*.\n\n"
+        "Escriba *listo* para empezar. No se borra el avance de sus otros cursos.\n\n"
+        "_*menu* para volver._",
+        agente='sandbox_formacion',
     )
 
 
@@ -705,14 +793,16 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
 
     if decision.action == 'show_formacion':
         try:
-            enviar_texto_sandbox(
-                decision.telefono_usuario,
-                from_n,
-                TEXTO_FORMACION,
-                agente='sandbox_formacion',
-            )
+            enviar_catalogo_formacion(decision.telefono_usuario, from_n)
         except Exception:
             logger.exception('sandbox_formacion_send_failed')
+        return 'handled'
+
+    if decision.action == 'catalogo_general':
+        try:
+            responder_catalogo_general(decision.telefono_usuario, from_n, decision.texto_menu)
+        except Exception:
+            logger.exception('sandbox_catalogo_fail tel=%s', decision.telefono_usuario)
         return 'handled'
 
     if decision.action == 'show_asesoria':

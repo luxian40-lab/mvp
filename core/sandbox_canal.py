@@ -211,21 +211,21 @@ def _graph_headers() -> dict[str, str] | None:
     }
 
 
-def _graph_messages_url() -> str | None:
+def _graph_messages_url(api_version: str | None = None) -> str | None:
     phone_id = sandbox_phone_id()
     if not phone_id:
         return None
-    api_version = getattr(settings, 'WHATSAPP_API_VERSION', 'v19.0') or 'v19.0'
-    return f'https://graph.facebook.com/{api_version}/{phone_id}/messages'
+    version = api_version or getattr(settings, 'WHATSAPP_API_VERSION', 'v19.0') or 'v19.0'
+    return f'https://graph.facebook.com/{version}/{phone_id}/messages'
 
 
-def _post_graph(payload: dict) -> dict:
+def _post_graph(payload: dict, api_version: str | None = None) -> dict:
     from django.utils import timezone
 
     from core.models import WhatsappLog
 
     headers = _graph_headers()
-    url = _graph_messages_url()
+    url = _graph_messages_url(api_version)
     to = payload.get('to') or ''
     texto_log = ''
     if payload.get('type') == 'text':
@@ -387,6 +387,60 @@ def enviar_meta_botones(
         _emit_enviado(to, cuerpo, result.get('mensaje_id'), canal_evento, agente_evento)
         return result
     return enviar_meta(telefono, texto, canal_evento=canal_evento, agente_evento=agente_evento)
+
+
+def enviar_meta_carrusel(
+    telefono: str,
+    texto: str,
+    tarjetas: list[dict],
+    *,
+    canal_evento: str = 'whatsapp_sandbox',
+    agente_evento: str = 'sandbox_formacion',
+) -> dict:
+    """Carrusel con foto. Las dos acciones son respuesta: Ver curso e información. Mismo tipo en cada card."""
+    to = _telefono_graph(telefono)
+    cuerpo = (texto or '').strip()[:1024]
+    cards = []
+    for i, tarjeta in enumerate(list(tarjetas)[:10]):
+        imagen = (tarjeta.get('imagen') or '').strip()
+        body = (tarjeta.get('body') or '').strip()[:160]
+        botones = []
+        for bid, title in list(tarjeta.get('botones') or [])[:2]:
+            bid = str(bid or '').strip()
+            title = str(title or '').strip()[:20]
+            if bid and title:
+                botones.append({
+                    'type': 'quick_reply',
+                    'quick_reply': {'id': bid[:256], 'title': title},
+                })
+        if not imagen or not body or len(botones) != 2:
+            continue
+        cards.append({
+            'card_index': i,
+            'type': 'cta_url',
+            'header': {'type': 'image', 'image': {'link': imagen}},
+            'body': {'text': body},
+            'action': {'buttons': botones},
+        })
+    if len(cards) < 2 or not to or not cuerpo:
+        return {'success': False, 'mensaje_id': None, 'response': 'Carrusel incompleto'}
+    result = _post_graph(
+        {
+            'messaging_product': 'whatsapp',
+            'recipient_type': 'individual',
+            'to': to,
+            'type': 'interactive',
+            'interactive': {
+                'type': 'carousel',
+                'body': {'text': cuerpo},
+                'action': {'cards': cards},
+            },
+        },
+        api_version='v23.0',
+    )
+    if result.get('success'):
+        _emit_enviado(to, cuerpo, result.get('mensaje_id'), canal_evento, agente_evento)
+    return result
 
 
 def enviar_sandbox_habeas(telefono: str) -> dict:

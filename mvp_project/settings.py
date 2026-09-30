@@ -300,6 +300,7 @@ WHATSAPP_API_VERSION = os.environ.get('WHATSAPP_API_VERSION', 'v19.0')
 WHATSAPP_TOKEN = os.environ.get('WHATSAPP_TOKEN', '')  # Access Token de Meta
 WHATSAPP_PHONE_ID = os.environ.get('WHATSAPP_PHONE_ID', '')  # Phone Number ID
 WHATSAPP_BUSINESS_ACCOUNT_ID = os.environ.get('WHATSAPP_BUSINESS_ACCOUNT_ID', '')  # WABA ID para crear templates
+WHATSAPP_APP_ID = os.environ.get('WHATSAPP_APP_ID', '')  # App ID: sube las fotos del carrusel
 # App Secret de Meta: firma X-Hub-Signature-256 de message_template_status_update.
 WHATSAPP_APP_SECRET = os.environ.get('WHATSAPP_APP_SECRET', '')
 # Campaña Meta (Graph). Apagar con EKI_CAMPANA_META_ENABLED=false. No afecta Campana Twilio.

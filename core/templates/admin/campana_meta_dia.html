@@ -1,0 +1,45 @@
+{% extends "admin/base_site.html" %}
+{% block title %}{{ titulo }} | {{ site_title }}{% endblock %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Inicio</a>
+    &rsaquo; Campaña Meta del día
+</div>
+{% endblock %}
+{% block content %}
+<p><a href="{% url 'admin:index' %}">← Volver al admin</a></p>
+<div style="max-width:42rem;padding:0.5rem 0 2rem;">
+    <h1>{{ titulo }}</h1>
+    <ol>
+        <li>Elija los cursos y guarde el borrador. Eso no llama a Meta.</li>
+        <li>Cuando el siguiente corte esté listo, en <a href="{% url 'admin:core_plantillameta_changelist' %}">Plantillas Meta</a> se envía a aprobar.</li>
+        <li>Solo con estado Aprobada se ejecuta en <a href="{% url 'admin:core_campanameta_changelist' %}">Campañas Meta</a>.</li>
+    </ol>
+    <form method="post">
+        {% csrf_token %}
+        <p>
+            <label for="nombre">Nombre de la campaña</label><br>
+            <input id="nombre" name="nombre" required maxlength="120" style="min-width:20rem;padding:0.4rem;">
+        </p>
+        <fieldset>
+            <legend>Cursos</legend>
+            {% for curso in cursos %}
+            <label style="display:block;margin:0.35rem 0;">
+                <input type="checkbox" name="cursos" value="{{ curso.clave }}" checked>
+                {{ curso.nombre }}
+            </label>
+            {% endfor %}
+        </fieldset>
+        <p>Cada tarjeta queda con <strong>Ver curso</strong> y <strong>Más información</strong>.</p>
+        <button type="submit">Guardar borrador</button>
+    </form>
+    {% if borradores %}
+    <h2>Borradores recientes</h2>
+    <ul>
+        {% for fila in borradores %}
+        <li><a href="{% url 'admin:core_plantillameta_change' fila.pk %}">{{ fila.nombre_interno }}</a> — {{ fila.estado }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</div>
+{% endblock %}

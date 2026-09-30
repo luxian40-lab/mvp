@@ -1505,6 +1505,15 @@ class Curso(models.Model):
         ),
     )
 
+    catalogo_menu = models.BooleanField(
+        default=False,
+        verbose_name='Catálogo general del menú',
+        help_text=(
+            'Curso sin cliente, visible para cualquier estudiante. '
+            'Aparece en el carrusel de Formación del menú.'
+        ),
+    )
+
     visible_en_studio = models.BooleanField(
         default=False,
         verbose_name='Publicado en eki Studio',
@@ -3639,7 +3648,7 @@ from .models_extras import (
     MensajePush, EnvioMensajePush,
 )
 from .models_media_entrega import MediaPaqueteEntrega
-from .models_campana_meta import PlantillaMeta, CampanaMeta, EnvioCampanaMeta
+from .models_campana_meta import PlantillaMeta, TarjetaPlantillaMeta, CampanaMeta, EnvioCampanaMeta
 
 # ========== CAMPAÑAS ÚNICAS (SÍ/NO) ==========
 class CampanaUnica(models.Model):
@@ -4517,6 +4526,7 @@ __all__ = [
     'SenalTerritorial',
     'AlertaTerritorial',
     'PlantillaMeta',
+    'TarjetaPlantillaMeta',
     'CampanaMeta',
     'EnvioCampanaMeta',
 ]

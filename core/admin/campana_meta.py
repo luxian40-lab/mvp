@@ -2,12 +2,26 @@
 from django.contrib import admin, messages
 
 from core.admin._common import *  # noqa: F401,F403
-from core.models_campana_meta import CampanaMeta, PlantillaMeta
+from core.models_campana_meta import CampanaMeta, PlantillaMeta, TarjetaPlantillaMeta
+
+
+class TarjetaPlantillaMetaInline(admin.TabularInline):
+    model = TarjetaPlantillaMeta
+    extra = 0
+    fields = (
+        'orden',
+        'titulo',
+        'cuerpo',
+        'boton_ver_texto',
+        'boton_info_texto',
+        'info_url',
+    )
 
 
 @admin.register(PlantillaMeta)
 class PlantillaMetaAdmin(admin.ModelAdmin):
-    list_display = ('nombre_interno', 'idioma', 'categoria', 'estado', 'activa', 'sincronizada_en')
+    list_display = ('nombre_interno', 'tipo', 'idioma', 'categoria', 'estado', 'activa', 'sincronizada_en')
+    inlines = [TarjetaPlantillaMetaInline]
     list_filter = ('estado', 'categoria', 'activa', 'idioma')
     search_fields = ('nombre_interno', 'meta_name', 'meta_template_id', 'cuerpo')
     list_per_page = 50
@@ -26,7 +40,7 @@ class PlantillaMetaAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Datos', {
             'classes': ['tab'],
-            'fields': ('nombre_interno', 'meta_name', 'idioma', 'categoria', 'activa'),
+            'fields': ('nombre_interno', 'tipo', 'meta_name', 'idioma', 'categoria', 'activa'),
             'description': (
                 'Se crea en el WABA de Cloud API (WHATSAPP_BUSINESS_ACCOUNT_ID). '
                 'No genera Content SID de Twilio.'

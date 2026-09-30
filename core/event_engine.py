@@ -289,3 +289,10 @@ def correlacionar_clusters(
         )
         creadas.append(alerta)
     return creadas
+
+
+def correr_correlacion_territorial() -> dict:
+    """Reintenta el lake y agrupa señales. La usa el beat de Celery."""
+    n_lake = flush_outbox_pendientes(limit=200) if data_lake_enabled() else 0
+    alertas = correlacionar_clusters()
+    return {'lake_flush': n_lake, 'alertas': len(alertas or [])}

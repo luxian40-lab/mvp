@@ -184,6 +184,119 @@ def _get(url: str, params: dict | None = None) -> tuple[int, dict]:
     return resp.status_code, data
 
 
+def _app_id() -> str:
+    return (getattr(settings, 'WHATSAPP_APP_ID', None) or '').strip()
+
+
+def subir_ejemplo_imagen(url: str) -> str:
+    """Resumable Upload de Meta. Devuelve el header_handle de la foto."""
+    app_id = _app_id()
+    token = _token()
+    imagen = (url or '').strip()
+    if not app_id or not token:
+        raise RuntimeError('Faltan WHATSAPP_APP_ID o WHATSAPP_TOKEN para subir la foto del carrusel.')
+    if not imagen.startswith('https://'):
+        raise RuntimeError('La foto del carrusel tiene que ser una URL https.')
+    try:
+        descarga = requests.get(imagen, timeout=20)
+        descarga.raise_for_status()
+    except requests.RequestException as exc:
+        raise RuntimeError(f'No se pudo bajar la foto del carrusel: {exc}') from exc
+    data = descarga.content or b''
+    if not data:
+        raise RuntimeError('La foto del carrusel llegó vacía.')
+    ctype = (descarga.headers.get('Content-Type') or 'image/jpeg').split(';')[0].strip() or 'image/jpeg'
+    nombre = imagen.rsplit('/', 1)[-1].split('?')[0] or 'tarjeta.jpg'
+    sesion_url = f'https://graph.facebook.com/{_version()}/{app_id}/uploads'
+    try:
+        sesion = requests.post(
+            sesion_url,
+            params={
+                'file_name': nombre[:80],
+                'file_length': len(data),
+                'file_type': ctype,
+                'access_token': token,
+            },
+            timeout=30,
+        )
+        sesion_data = sesion.json()
+    except (requests.RequestException, ValueError) as exc:
+        raise RuntimeError(f'No se abrió la subida de la foto: {exc}') from exc
+    upload_id = str((sesion_data or {}).get('id') or '').strip()
+    if sesion.status_code != 200 or not upload_id:
+        raise RuntimeError(_error_meta(sesion_data if isinstance(sesion_data, dict) else {})['message'])
+    try:
+        subida = requests.post(
+            f'https://graph.facebook.com/{_version()}/{upload_id}',
+            headers={
+                'Authorization': f'OAuth {token}',
+                'file_offset': '0',
+                'Content-Type': ctype,
+            },
+            data=data,
+            timeout=60,
+        )
+        subida_data = subida.json()
+    except (requests.RequestException, ValueError) as exc:
+        raise RuntimeError(f'No se subió la foto del carrusel: {exc}') from exc
+    handle = str((subida_data or {}).get('h') or '').strip()
+    if subida.status_code != 200 or not handle:
+        raise RuntimeError(_error_meta(subida_data if isinstance(subida_data, dict) else {})['message'])
+    return handle
+
+
+def handles_carrusel(plantilla: PlantillaMeta) -> list[str]:
+    tarjetas = list(plantilla.tarjetas.order_by('orden', 'id'))
+    if len(tarjetas) < 2:
+        raise RuntimeError('El carrusel necesita al menos dos tarjetas.')
+    if len(tarjetas) > 10:
+        raise RuntimeError('El carrusel admite como máximo diez tarjetas.')
+    return [subir_ejemplo_imagen(tarjeta.imagen_url) for tarjeta in tarjetas]
+
+
+def armar_componentes_carrusel(plantilla: PlantillaMeta, handles: list[str]) -> list[dict]:
+    """Alta Graph de un media card carousel. Mismos dos quick reply en cada tarjeta."""
+    tarjetas = list(plantilla.tarjetas.order_by('orden', 'id'))
+    if len(tarjetas) < 2 or len(handles) < len(tarjetas):
+        raise RuntimeError('El carrusel está incompleto.')
+    cards = []
+    for tarjeta, handle in zip(tarjetas, handles):
+        ver = (tarjeta.boton_ver_texto or 'Ver curso').strip()[:25]
+        info = (tarjeta.boton_info_texto or 'Más información').strip()[:25]
+        cuerpo = (tarjeta.cuerpo or '').strip()[:160]
+        if not ver or not info or not cuerpo or not handle:
+            raise RuntimeError('Cada tarjeta necesita foto, texto y los dos botones.')
+        cards.append({
+            'components': [
+                {
+                    'type': 'HEADER',
+                    'format': 'IMAGE',
+                    'example': {'header_handle': [handle]},
+                },
+                {'type': 'BODY', 'text': cuerpo},
+                {
+                    'type': 'BUTTONS',
+                    'buttons': [
+                        {'type': 'QUICK_REPLY', 'text': ver},
+                        {'type': 'QUICK_REPLY', 'text': info},
+                    ],
+                },
+            ],
+        })
+    return [
+        {'type': 'BODY', 'text': (plantilla.cuerpo or '').strip()},
+        {'type': 'CAROUSEL', 'cards': cards},
+    ]
+
+
+def _marcar_error_plantilla(plantilla: PlantillaMeta, mensaje: str) -> dict:
+    plantilla.estado = 'ERROR'
+    plantilla.ultimo_error_mensaje = (mensaje or 'Error de Meta')[:2000]
+    plantilla.sincronizada_en = timezone.now()
+    plantilla.save()
+    return {'success': False, 'message': plantilla.ultimo_error_mensaje}
+
+
 def crear_plantilla_en_meta(plantilla: PlantillaMeta) -> dict:
     if not campana_meta_habilitada():
         return {'success': False, 'message': 'Campaña Meta está apagada (EKI_CAMPANA_META_ENABLED).'}
@@ -200,11 +313,20 @@ def crear_plantilla_en_meta(plantilla: PlantillaMeta) -> dict:
         }
     plantilla.meta_name = sanitizar_nombre_meta(plantilla.meta_name or plantilla.nombre_interno)
     plantilla.full_clean()
+    if getattr(plantilla, 'tipo', 'TEXTO') == 'CARRUSEL':
+        try:
+            componentes = armar_componentes_carrusel(plantilla, handles_carrusel(plantilla))
+        except Exception as exc:
+            plantilla.waba_id = waba
+            logger.warning('plantilla_carrusel_error %s', exc)
+            return _marcar_error_plantilla(plantilla, str(exc))
+    else:
+        componentes = armar_componentes_alta(plantilla)
     payload = {
         'name': plantilla.meta_name,
         'language': plantilla.idioma or 'es',
         'category': plantilla.categoria,
-        'components': armar_componentes_alta(plantilla),
+        'components': componentes,
     }
     url = f'https://graph.facebook.com/{_version()}/{waba}/message_templates'
     status, data = _post(url, payload)
