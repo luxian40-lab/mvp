@@ -518,7 +518,21 @@ def enviar_menu_sandbox(telefono_usuario: str, from_number: str) -> dict:
 def enviar_catalogo_formacion(telefono_usuario: str, from_number: str) -> None:
     """Un carrusel con foto. Ver curso inscribe. Más información manda la ficha."""
     from core.cursos_generales import CATALOGO, tarjetas_catalogo
+    from core.planes_linea import cursos_iniciados_en_el_mes
     from core.sandbox_canal import enviar_meta_carrusel, sandbox_via_meta
+
+    ya = cursos_iniciados_en_el_mes(telefono_usuario).first()
+    if ya is not None:
+        enviar_texto_sandbox(
+            telefono_usuario,
+            from_number,
+            f"Este mes ya va en *{ya.curso.nombre}*.\n\n"
+            "Escriba *listo* para seguir donde iba. "
+            "El carrusel de cursos vuelve el próximo mes.\n\n"
+            "_*menu* para volver._",
+            agente='sandbox_formacion',
+        )
+        return
 
     cuerpo = (
         "Deslice los tres cursos de eki. "

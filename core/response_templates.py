@@ -2,6 +2,7 @@
 Plantillas de respuesta para cada intent - Agro Colombiano.
 Permite personalizar respuestas sin cambiar la lógica del webhook.
 """
+import contextvars
 import logging
 from django.conf import settings
 from django.utils import timezone
@@ -14,6 +15,41 @@ from .helpers_examenes import evaluar_checkpoint_reto_ia
 logger = logging.getLogger(__name__)
 
 TEXTO_MODULO_CARGANDO = "⏳ Tu módulo se está cargando, espera unos segundos y vuelve a escribir *listo*."
+# Un *listo* mientras el anterior todavía se está enviando. No se manda al chat.
+LECCION_EN_CURSO = '[LECCION_EN_CURSO]'
+_VENTANA_ENTREGA_SEG = 90
+_retener_turno = contextvars.ContextVar('eki_retener_turno', default=False)
+_turno_estudiante = contextvars.ContextVar('eki_turno_est', default=None)
+
+
+def activar_retencion_turno():
+    """El webhook retiene el turno hasta terminar de enviar; un test lo suelta al volver a entrar."""
+    return _retener_turno.set(True)
+
+
+def cerrar_retencion_turno(token):
+    _retener_turno.reset(token)
+
+
+def soltar_turno_entrega_actual():
+    estudiante_id = _turno_estudiante.get()
+    if not estudiante_id:
+        return
+    _turno_estudiante.set(None)
+    from django.db import transaction
+
+    from .models import Estudiante
+
+    try:
+        with transaction.atomic():
+            est = Estudiante.objects.select_for_update().get(id=estudiante_id)
+            ctx = dict(est.contexto_temporal or {})
+            if ctx.pop('_leccion_enviando', None) is None:
+                return
+            est.contexto_temporal = ctx
+            est.save(update_fields=['contexto_temporal'])
+    except Estudiante.DoesNotExist:
+        return
 
 # Twilio exige body no vacío junto a media_url; nunca usar solo emoji (p. ej. 📹).
 MENSAJE_CAPTION_SOLO_MEDIA = (
@@ -1221,30 +1257,39 @@ Te inscribiste en: *{curso.nombre}*
 
         _dedup_ok = bool(kwargs.get('_bypass_anti_duplicado'))
         if not _dedup_ok:
+            # Un segundo *listo* en el mismo hilo de un test suelta el turno anterior.
+            # En el webhook la retención sigue activa y el segundo *listo* no avanza.
+            previo = _turno_estudiante.get()
+            if previo and previo != estudiante_id and not _retener_turno.get():
+                soltar_turno_entrega_actual()
             try:
                 with transaction.atomic():
                     est_lock = Estudiante.objects.select_for_update().get(id=estudiante_id)
-                    ctx_lock = est_lock.contexto_temporal or {}
-                    last_leccion = ctx_lock.get('_ts_leccion', 0)
+                    ctx_lock = dict(est_lock.contexto_temporal or {})
                     now_ts = _time.time()
-
-                    if now_ts - last_leccion < 45:
+                    en_curso = (
+                        ctx_lock.get('_leccion_enviando')
+                        and now_ts - float(ctx_lock.get('_ts_leccion') or 0) < _VENTANA_ENTREGA_SEG
+                    )
+                    if en_curso:
                         print(
-                            f"⏳ [ANTI-DUPLICADO] continuar_leccion bloqueado: "
-                            f"última entrega hace {now_ts - last_leccion:.1f}s",
+                            "⏳ [ANTI-DUPLICADO] continuar_leccion en curso: "
+                            "el *listo* anterior todavía se está enviando",
                             flush=True,
                         )
                     else:
+                        ctx_lock['_leccion_enviando'] = True
                         ctx_lock['_ts_leccion'] = now_ts
                         est_lock.contexto_temporal = ctx_lock
                         est_lock.save(update_fields=['contexto_temporal'])
+                        _turno_estudiante.set(estudiante_id)
                         _dedup_ok = True
             except Exception as e:
                 print(f"⚠️ [ANTI-DUPLICADO] Error en lock: {e}", flush=True)
                 _dedup_ok = True  # En caso de error, permitir (fail-open)
 
         if not _dedup_ok:
-            return TEXTO_MODULO_CARGANDO
+            return LECCION_EN_CURSO
         # ═══════════════════════════════════════════════════════════════
 
         estudiante = Estudiante.objects.get(id=estudiante_id)

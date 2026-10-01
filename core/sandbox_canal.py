@@ -334,6 +334,28 @@ def poner_reaccion_espera(telefono: str, message_id: str) -> None:
             logger.exception('sandbox_reaccion_cache_fail')
 
 
+def descartar_reaccion_espera(telefono: str) -> None:
+    """Quita el ⏳ de un *listo* repetido, sin poner ✅: ese turno no envía nada."""
+    to = _telefono_graph(telefono)
+    if not to:
+        return
+    try:
+        from django.core.cache import cache
+
+        message_id = (_pendientes_reaccion(to) or [None])[-1]
+        if not message_id:
+            return
+        pendientes = [m for m in _pendientes_reaccion(to) if m != message_id]
+        if pendientes:
+            cache.set(_clave_reaccion(to), pendientes, timeout=600)
+        else:
+            cache.delete(_clave_reaccion(to))
+    except Exception:
+        logger.exception('sandbox_reaccion_cache_fail')
+        return
+    _enviar_reaccion(to, message_id, '')
+
+
 def quitar_reaccion_espera(to: str) -> None:
     if not to:
         return

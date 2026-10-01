@@ -1,4 +1,5 @@
 """Racha en hora local, badges RACHA del admin y puntos de curso sin duplicar."""
+import time
 from datetime import datetime, timedelta
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
@@ -39,6 +40,45 @@ class RachaHoraLocalTests(TestCase):
         perfil.actualizar_racha()
         self.assertEqual(perfil.badges_racha_nuevos, [badge])
         self.assertTrue(BadgeEstudiante.objects.filter(estudiante=self.est, badge=badge).exists())
+
+
+class TurnoDeListoTests(TestCase):
+    def setUp(self):
+        self.est = Estudiante.objects.create(nombre='L', cedula='TL1', telefono='573005551009')
+
+    def _listo(self):
+        from core.response_templates import get_response_for_intent
+
+        return get_response_for_intent(
+            'continuar_leccion', self.est.nombre, estudiante_id=self.est.id, mensaje_original='listo'
+        )
+
+    def test_un_listo_mientras_se_envia_no_avanza(self):
+        from core.response_templates import LECCION_EN_CURSO
+
+        self.est.contexto_temporal = {'_leccion_enviando': True, '_ts_leccion': time.time()}
+        self.est.save(update_fields=['contexto_temporal'])
+        self.assertEqual(self._listo(), LECCION_EN_CURSO)
+        self.est.refresh_from_db()
+        self.assertTrue(self.est.contexto_temporal.get('_leccion_enviando'))
+
+    def test_al_soltar_el_turno_el_siguiente_listo_sigue(self):
+        from core.response_templates import LECCION_EN_CURSO, _turno_estudiante, soltar_turno_entrega_actual
+
+        self.est.contexto_temporal = {'_leccion_enviando': True, '_ts_leccion': time.time()}
+        self.est.save(update_fields=['contexto_temporal'])
+        _turno_estudiante.set(self.est.id)
+        soltar_turno_entrega_actual()
+        self.est.refresh_from_db()
+        self.assertNotIn('_leccion_enviando', self.est.contexto_temporal or {})
+        self.assertNotEqual(self._listo(), LECCION_EN_CURSO)
+
+    def test_un_turno_atascado_no_bloquea_para_siempre(self):
+        from core.response_templates import LECCION_EN_CURSO
+
+        self.est.contexto_temporal = {'_leccion_enviando': True, '_ts_leccion': time.time() - 120}
+        self.est.save(update_fields=['contexto_temporal'])
+        self.assertNotEqual(self._listo(), LECCION_EN_CURSO)
 
 
 class PuntosCursoCompletadoTests(TestCase):

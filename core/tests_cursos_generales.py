@@ -165,6 +165,20 @@ class CatalogoFormacionTests(TestCase):
         self.assertTrue(tarjetas[0]['imagen'].startswith('https://'))
         self.assertIn('carrusel_riendas', tarjetas[0]['imagen'])
 
+    def test_formacion_no_repite_carrusel_si_ya_eligio_este_mes(self):
+        from core.models import Estudiante, ProgresoEstudiante
+
+        curso = Curso.objects.filter(catalogo_menu=True).first()
+        est = Estudiante.objects.create(nombre='Ya', cedula='CF1', telefono=self.tel)
+        ProgresoEstudiante.objects.create(estudiante=est, curso=curso)
+        with patch('core.sandbox_canal.enviar_meta_carrusel') as carrusel, patch(
+            'core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}
+        ) as texto:
+            dispatch_sandbox_menu({**self.base, 'Body': 'formacion'})
+        carrusel.assert_not_called()
+        self.assertIn(curso.nombre, texto.call_args.args[2])
+        self.assertIn('listo', texto.call_args.args[2])
+
     def test_carrusel_dos_botones_de_respuesta(self):
         from core.sandbox_canal import enviar_meta_carrusel
 

@@ -126,6 +126,7 @@ class PostRetoListoContinuarParidadTests(TestCase):
                 estudiante.refresh_from_db()
                 ctx = dict(estudiante.contexto_temporal or {})
                 ctx['_ts_leccion'] = time.time() - 60
+                ctx.pop('_leccion_enviando', None)
                 estudiante.contexto_temporal = ctx
                 estudiante.save(update_fields=['contexto_temporal'])
                 self._continuar_leccion(estudiante, trigger)

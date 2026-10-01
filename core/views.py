@@ -2165,6 +2165,14 @@ def _procesar_twilio_webhook_cuerpo(post_data):
         logger.debug("Webhook vacio ignorado (sin Body ni Media)")
         return
     
+    from .response_templates import (
+        LECCION_EN_CURSO,
+        activar_retencion_turno,
+        cerrar_retencion_turno,
+        soltar_turno_entrega_actual,
+    )
+
+    _turno_token = activar_retencion_turno()
     try:
         logger.info("🔵 TWILIO: Procesando...")
         
@@ -4034,6 +4042,9 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                             modo_gami = get_modo_gamificacion(
                                 getattr(estudiante, 'cliente', None),
                             )
+                            from core.sandbox_canal import poner_reaccion_espera
+
+                            poner_reaccion_espera(telefono_limpio, msg_sid)
                             puntaje_final, feedback_final = evaluar_reto_facilitador(
                                 modulos_eval,
                                 msg_body,
@@ -4487,6 +4498,9 @@ def _procesar_twilio_webhook_cuerpo(post_data):
                     if resultado_foto is not None:
                         puntaje, feedback = resultado_foto
                     else:
+                        from core.sandbox_canal import poner_reaccion_espera
+
+                        poner_reaccion_espera(telefono_limpio, msg_sid)
                         puntaje, feedback = evaluar_reto_facilitador(
                             modulos_reto, msg_body, reto_texto,
                             estudiante_nombre=estudiante.nombre or "Estudiante",
@@ -5496,6 +5510,11 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                         mensaje_original=msg_body
                     )
                     print(f"✅ Respuesta desde template: {texto_respuesta[:50]}...")
+                    if texto_respuesta == LECCION_EN_CURSO:
+                        from core.sandbox_canal import descartar_reaccion_espera
+
+                        descartar_reaccion_espera(telefono_limpio)
+                        return
                 else:
                     # Solo si no hay intent, usar IA para preguntas sobre agricultura
                     # 🛑 ANTI-ABUSO IA: Verificar preguntas restantes
@@ -5514,7 +5533,10 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                         )
                     else:
                         try:
+                            from core.sandbox_canal import poner_reaccion_espera
                             from .ai_assistant import responder_con_ia
+
+                            poner_reaccion_espera(telefono_limpio, msg_sid)
                             texto_respuesta = responder_con_ia(msg_body, telefono_limpio)
                             # Restar pregunta usada (anti-abuso silencioso)
                             estudiante.preguntas_ia_restantes = max(0, estudiante.preguntas_ia_restantes - 1)
@@ -5731,6 +5753,9 @@ Escribe *"examen"* cuando estés listo para intentarlo."""
                     print(f"✅ Safety net: mensaje de error enviado a {destino}")
         except Exception as fallback_err:
             print(f"❌ Safety net también falló: {fallback_err}")
+    finally:
+        soltar_turno_entrega_actual()
+        cerrar_retencion_turno(_turno_token)
 
 
 def _procesar_meta_webhook(payload):

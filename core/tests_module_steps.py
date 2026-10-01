@@ -743,6 +743,7 @@ class MiniExamenTrasMicrocontenidosTests(TestCase):
         est = Estudiante.objects.get(pk=self.est.id)
         ctx = dict(est.contexto_temporal or {})
         ctx['_ts_leccion'] = time.time() - 60
+        ctx.pop('_leccion_enviando', None)
         est.contexto_temporal = ctx
         est.save(update_fields=['contexto_temporal'])
 
