@@ -53,6 +53,9 @@ MÉTODO (como Nat diagnostica el lote)
 4) Cierre con 1 pregunta clara.
 
 REGLAS
+- La primera frase nombra lo que acaba de decir (miedo, desánimo, liderazgo, tiempo). No cambie de tema.
+- Una sola acción que salga de ESE obstáculo. No ofrezca un menú genérico (curso, llamadas, números) si no lo pidió.
+- Si dice que no le contestó, retome su mensaje anterior y respóndalo de frente.
 - Máx. ~150 palabras. WhatsApp: párrafos cortos. Negritas *así* con mesura.
 - No des diagnóstico médico, legal ni agronómico. Si piden plagas/cultivo → «En el menú elija Agrónomo (Nat)».
 - No inventes cifras, becas ni plazos de eki.
@@ -79,6 +82,7 @@ MÉTODO
 4) Un mini-ejercicio o pregunta para practicar.
 
 REGLAS
+- Conteste la pregunta concreta. No hable de fotos de cultivo ni de precios si preguntó otra cosa.
 - Máx. ~140 palabras. Claridad > brillantez.
 - Nunca inventes precios, dosis, plagas ni políticas de Meta/WhatsApp.
 - Agronomía / plagas / productos → «Eso lo atiende el Agrónomo (Nat) en el menú».
@@ -102,6 +106,8 @@ IDENTIDAD
   y convierta el trabajo en más ingresos — con herramientas aplicables mañana.
 
 PRINCIPIO
+Conteste el caso que la persona acaba de contar. No abra con un diagnóstico
+genérico (clientes, precio, seguimiento) si ya dijo el problema.
 Toda explicación responde: ¿cómo lo aplica mañana en su finca, asociación,
 emprendimiento o empresa?
 Secuencia: concepto → ejemplo → herramienta → aplicación → acción.
@@ -340,10 +346,7 @@ def responder_agente_sandbox(
 
     api_key = (getattr(settings, 'OPENAI_API_KEY', None) or '').strip()
     if not api_key:
-        return (
-            f"{nombre_agente(agente)}: aún no hay API de IA configurada. "
-            "Escriba *menu* y pruebe Agrónomo (Nat) o Cursos."
-        )
+        return _respuesta_si_falla(agente, q)
 
     sistema = prompt_para(agente)
     try:
@@ -362,43 +365,71 @@ def responder_agente_sandbox(
     try:
         from openai import OpenAI
 
-        client = OpenAI(api_key=api_key)
-        kwargs = {
-            'model': _modelo(),
-            'messages': messages,
-            'max_completion_tokens': _max_tokens(),
-        }
-        effort = (getattr(settings, 'BOT_COMERCIAL_REASONING_EFFORT', 'low') or 'low').strip()
-        # gpt-5* acepta reasoning en algunos clientes; si falla, reintento sin él
-        try:
-            resp = client.chat.completions.create(
-                **kwargs,
-                reasoning_effort=effort if effort in ('minimal', 'low', 'medium', 'high') else 'low',
-            )
-        except TypeError:
-            resp = client.chat.completions.create(**kwargs)
-        texto = (resp.choices[0].message.content or '').strip()
+        from core.openai_compat import completar_chat
+
+        texto = completar_chat(OpenAI(api_key=api_key), _modelo(), messages, _max_tokens())
         if texto:
             return texto
     except Exception:
         logger.exception('sandbox_agente_llm_fail agente=%s', agente)
 
+    return _respuesta_si_falla(agente, q)
+
+
+def _cita(pregunta: str) -> str:
+    tema = re.sub(r'\s+', ' ', (pregunta or '').strip())
+    if len(tema) > 160:
+        tema = tema[:157] + '...'
+    return tema
+
+
+def _respuesta_si_falla(agente: AgenteSandbox, pregunta: str) -> str:
+    """Si el modelo no devolvió texto, igual se contesta lo que la persona dijo."""
+    tema = _cita(pregunta)
+    low = tema.lower()
     if agente == 'coach':
+        if any(p in low for p in ('miedo', 'fallar', 'falla', 'vergüenza', 'verguenza')):
+            return (
+                "El miedo a fallar es lo que le frena, no que liderar no sirva.\n\n"
+                "Hoy haga la versión más pequeña de eso que está evitando: "
+                "10 minutos, sin mostrarle a nadie, y anote qué pasó.\n\n"
+                "Mañana lo repite solo si esa nota dice que valió la pena."
+            )
+        if any(p in low for p in ('desmotiv', 'estanc', 'resultado', 'líder', 'lider')):
+            return (
+                "Se siente estancado porque no ve un resultado, "
+                "y por eso parece que ser buen líder no alcanza.\n\n"
+                "Hoy cierre una sola cosa visible: una decisión escrita, "
+                "una llamada hecha o un pendiente tachado.\n\n"
+                "Eso es el resultado de hoy. Elija una y hágalo antes de dormir."
+            )
         return (
-            "Entiendo. Propongo *una* meta de 20 minutos hoy "
-            "(curso, llamadas o ordenar números). "
-            "¿Cuál elige y a qué hora la hace?"
+            f"Trabajemos esto: «{tema}».\n\n"
+            "Hoy, 15 minutos solo en eso. Al terminar, escriba una línea: qué avanzó.\n\n"
+            "Hágalo hoy. No lo deje para cuando se sienta listo."
         )
     if agente == 'ventas':
+        if any(p in low for p in ('precio', 'cobr', 'barat', 'caro')):
+            return (
+                f"Sobre lo que plantea («{tema}»): no baje el precio "
+                "antes de saber cuánto le cuesta entregar.\n\n"
+                "Hoy sume producto + tiempo + transporte. Mañana dígale a un cliente "
+                "ese precio y pregúntele qué tendría que incluir para que le sirva."
+            )
+        if any(p in low for p in ('cliente', 'vend')):
+            return (
+                f"Su caso: «{tema}».\n\n"
+                "El paso no es un discurso nuevo. Hoy escríbale a alguien que ya le compró "
+                "y pregúntele por qué le compró y qué le faltó."
+            )
         return (
-            "Para diagnosticar: ¿está llegando a suficientes clientes "
-            "o el cuello es precio, seguimiento u oferta?\n\n"
-            "*Idea clave:* primero el problema del cliente, después el producto.\n"
-            "*Póngalo en práctica:* hoy pregúntele a un cliente "
-            "qué es lo más importante cuando le compra."
+            f"Su caso: «{tema}».\n\n"
+            "Mañana, con un solo cliente: primero pregunte qué le importa al comprar "
+            "y después hable de lo que usted vende."
         )
     return (
-        "La IA es como un ayudante que lee lo que usted escribe y responde. "
-        "En eki la usamos para dudas del campo y del curso por WhatsApp. "
-        "¿Quiere un ejemplo con una *foto de cultivo* o con una *pregunta de precios*?"
+        f"Su duda: «{tema}».\n\n"
+        "Piénselo así: la IA es un ayudante al que usted le escribe y le devuelve un borrador.\n\n"
+        "Prueba de hoy: pídale, en una frase, que le ayude con eso mismo. "
+        "Si la respuesta no sirve, dígale qué le faltó."
     )

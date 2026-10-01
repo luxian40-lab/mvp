@@ -2,7 +2,7 @@
 
 from django.test import TestCase, override_settings
 from django.utils import timezone
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from core.event_engine import correlacionar_clusters, publicar_evento, registrar_senal_territorial
 from core.models import AlertaTerritorial, EventOutbox, SandboxCanalSesion, SenalTerritorial
@@ -468,6 +468,75 @@ class SandboxMenuTests(TestCase):
         self.assertIn('propuesta de valor', PROMPT_VENTAS.lower())
         self.assertIn('WhatsApp', PROMPT_VENTAS)
         self.assertIn('mentor de ventas', saludo_agente('ventas').lower())
+        self.assertIn('No cambie de tema', prompt_para('coach'))
+
+    def test_coach_reintenta_si_el_modelo_viene_vacio(self):
+        vacio = MagicMock(choices=[MagicMock(message=MagicMock(content=''))])
+        bueno = MagicMock(choices=[MagicMock(message=MagicMock(
+            content='El miedo a fallar se trabaja con un paso chico y reversible.',
+        ))])
+        falso = MagicMock()
+        falso.chat.completions.create.side_effect = [vacio, bueno]
+        with override_settings(OPENAI_API_KEY='sk-test', BOT_COMERCIAL_OPENAI_MODEL='gpt-5-mini'), patch(
+            'openai.OpenAI', return_value=falso,
+        ):
+            from core.sandbox_agentes import responder_agente_sandbox
+
+            texto = responder_agente_sandbox('coach', 'Miedo a fallar', telefono='573162395085')
+        self.assertIn('miedo', texto.lower())
+        self.assertNotIn('ordenar números', texto)
+        self.assertEqual(falso.chat.completions.create.call_count, 2)
+        primero = falso.chat.completions.create.call_args_list[0].kwargs
+        segundo = falso.chat.completions.create.call_args_list[1].kwargs
+        self.assertGreaterEqual(primero.get('max_completion_tokens') or 0, 900)
+        self.assertEqual(segundo.get('reasoning_effort'), 'minimal')
+
+    def test_coach_sin_texto_no_cambia_de_tema(self):
+        vacio = MagicMock(choices=[MagicMock(message=MagicMock(content=''))])
+        falso = MagicMock()
+        falso.chat.completions.create.return_value = vacio
+        with override_settings(OPENAI_API_KEY='sk-test', BOT_COMERCIAL_OPENAI_MODEL='gpt-5-mini'), patch(
+            'openai.OpenAI', return_value=falso,
+        ):
+            from core.sandbox_agentes import responder_agente_sandbox
+
+            texto = responder_agente_sandbox('coach', 'Miedo a fallar', telefono='573162395085')
+        self.assertIn('miedo a fallar', texto.lower())
+        self.assertIn('10 minutos', texto)
+        self.assertNotIn('ordenar números', texto)
+        self.assertNotIn('repítame', texto.lower())
+
+    def test_coach_reintenta_si_el_primer_intento_falla(self):
+        bueno = MagicMock(choices=[MagicMock(message=MagicMock(
+            content='El miedo a fallar se trabaja con un paso chico.',
+        ))])
+        falso = MagicMock()
+        falso.chat.completions.create.side_effect = [RuntimeError('timeout'), bueno]
+        with override_settings(OPENAI_API_KEY='sk-test', BOT_COMERCIAL_OPENAI_MODEL='gpt-5-mini'), patch(
+            'openai.OpenAI', return_value=falso,
+        ):
+            from core.sandbox_agentes import responder_agente_sandbox
+
+            texto = responder_agente_sandbox('coach', 'Miedo a fallar', telefono='573162395085')
+        self.assertIn('miedo', texto.lower())
+        self.assertEqual(falso.chat.completions.create.call_count, 2)
+
+    def test_ventas_y_profe_contestan_aunque_el_modelo_falle(self):
+        vacio = MagicMock(choices=[MagicMock(message=MagicMock(content=''))])
+        falso = MagicMock()
+        falso.chat.completions.create.return_value = vacio
+        with override_settings(OPENAI_API_KEY='sk-test', BOT_COMERCIAL_OPENAI_MODEL='gpt-5-mini'), patch(
+            'openai.OpenAI', return_value=falso,
+        ):
+            from core.sandbox_agentes import responder_agente_sandbox
+
+            ventas = responder_agente_sandbox('ventas', 'no me compran el café', telefono='573162395085')
+            profe = responder_agente_sandbox('ia_campo', 'cómo uso la ia para un aviso', telefono='573162395085')
+        self.assertIn('café', ventas.lower())
+        self.assertIn('cliente', ventas.lower())
+        self.assertNotIn('repítame', ventas.lower())
+        self.assertIn('aviso', profe.lower())
+        self.assertIn('ayudante', profe.lower())
 
 
 @override_settings(DATA_LAKE_ENABLED=False)

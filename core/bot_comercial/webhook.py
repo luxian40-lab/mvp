@@ -615,25 +615,14 @@ def _bot_comercial_respuesta_catalogo(
                 max_out = min(max_out, max_tokens_linea_meta())
         except Exception:
             pass
-        from core.openai_compat import chat_completion_token_kwargs
-        completion = client.chat.completions.create(
-            model=modelo,
-            messages=messages,
-            **chat_completion_token_kwargs(modelo, max_out, temperatura),
-        )
-        texto = (completion.choices[0].message.content or '').strip()
+        from core.openai_compat import completar_chat
+        texto = completar_chat(client, modelo, messages, max_out, temperatura)
         if not texto:
-            # Segundo intento: effort mínimo si el modelo gastó el cupo en reasoning
-            completion = client.chat.completions.create(
-                model=modelo,
-                messages=messages,
-                **chat_completion_token_kwargs(
-                    modelo, max(max_out, 500), temperatura, reasoning_effort='minimal',
-                ),
+            texto = _bot_comercial_respuesta_sin_llm(
+                pregunta, contexto_rag, contexto_web=contexto_web, cliente=cliente,
             )
-            texto = (completion.choices[0].message.content or '').strip()
         latencia_ms = int((time.time() - inicio) * 1000)
-        usage = getattr(completion, 'usage', None)
+        usage = None
         try:
             from core.eventos_ia import emit_ia_agent_triggered
 
@@ -670,7 +659,7 @@ def _bot_comercial_respuesta_catalogo(
             )
         except Exception:
             pass
-        return texto or "No logré construir una respuesta válida. Intenta con otra consulta."
+        return texto
     except Exception as e:
         logger.warning(f"⚠️ Bot Comercial LLM fallback: {e}")
         if contexto_rag:

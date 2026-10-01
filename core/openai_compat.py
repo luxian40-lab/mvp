@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import logging
+
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 def _modelo_nuevo_api(modelo: str) -> bool:
@@ -48,3 +52,32 @@ def chat_completion_token_kwargs(
         if temperature is not None:
             kwargs['temperature'] = temperature
     return kwargs
+
+
+def completar_chat(client, modelo: str, messages: list, max_out: int, temperature: float | None = None) -> str:
+    """Dos intentos. Si el primero viene vacío o falla, el segundo baja el razonamiento.
+
+    gpt-5 puede gastar el cupo pensando y devolver content vacío. Un fallo de red
+    en el primer intento no debe saltarse el segundo.
+    """
+    intentos = (
+        chat_completion_token_kwargs(modelo, max_out, temperature),
+        chat_completion_token_kwargs(
+            modelo, max(max_out, 500), temperature, reasoning_effort='minimal',
+        ),
+    )
+    for i, kwargs in enumerate(intentos):
+        try:
+            resp = client.chat.completions.create(
+                model=modelo,
+                messages=messages,
+                timeout=22,
+                **kwargs,
+            )
+            msg = resp.choices[0].message
+            texto = (getattr(msg, 'content', None) or '').strip()
+            if texto:
+                return texto
+        except Exception:
+            logger.exception('llm_completado_intento_%s modelo=%s', i, modelo)
+    return ''
