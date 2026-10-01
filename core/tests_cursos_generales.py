@@ -176,8 +176,75 @@ class CatalogoFormacionTests(TestCase):
         ) as texto:
             dispatch_sandbox_menu({**self.base, 'Body': 'formacion'})
         carrusel.assert_not_called()
-        self.assertIn(curso.nombre, texto.call_args.args[2])
-        self.assertIn('listo', texto.call_args.args[2])
+        self.assertIn(f'Seguimos *{curso.nombre}*', texto.call_args.args[2])
+        self.assertEqual(SandboxCanalSesion.objects.get(telefono=self.tel).modo, 'cursos')
+        est.refresh_from_db()
+        self.assertEqual(est.contexto_temporal.get('curso_activo_id'), curso.id)
+
+    def test_menu_con_un_curso_lo_lleva_a_ese_curso(self):
+        from core.models import Estudiante, ProgresoEstudiante
+
+        curso = Curso.objects.filter(catalogo_menu=True).first()
+        Estudiante.objects.create(nombre='Ya', cedula='CF2', telefono=self.tel)
+        ProgresoEstudiante.objects.create(
+            estudiante=Estudiante.objects.get(telefono=self.tel), curso=curso
+        )
+        with patch('core.sandbox_canal.enviar_meta_carrusel') as carrusel, patch(
+            'core.sandbox_canal.enviar_meta_botones'
+        ) as botones, patch(
+            'core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}
+        ) as texto:
+            dispatch_sandbox_menu({**self.base, 'Body': 'menu'})
+        carrusel.assert_not_called()
+        botones.assert_not_called()
+        self.assertIn(f'Seguimos *{curso.nombre}*', texto.call_args.args[2])
+
+    def test_dos_cursos_pregunta_cual_y_el_numero_entra(self):
+        from core.models import Estudiante, ProgresoEstudiante
+
+        cursos = list(Curso.objects.filter(catalogo_menu=True).order_by('id')[:2])
+        est = Estudiante.objects.create(nombre='Dos', cedula='CF3', telefono=self.tel)
+        for curso in cursos:
+            ProgresoEstudiante.objects.create(estudiante=est, curso=curso)
+        with patch('core.sandbox_canal.enviar_meta_lista', return_value={'success': True}) as lista:
+            dispatch_sandbox_menu({**self.base, 'Body': 'formacion'})
+        filas = lista.call_args.args[3]
+        self.assertCountEqual([fila[0] for fila in filas], [f'seguir_{c.id}' for c in cursos])
+        self.assertEqual(SandboxCanalSesion.objects.get(telefono=self.tel).modo, 'formacion')
+        elegido = int(filas[1][0].split('_')[1])
+        with patch('core.sandbox_menu.enviar_texto_sandbox', return_value={'success': True}) as texto:
+            dispatch_sandbox_menu({**self.base, 'Body': '2'})
+        self.assertIn(Curso.objects.get(pk=elegido).nombre, texto.call_args.args[2])
+        est.refresh_from_db()
+        self.assertEqual(est.contexto_temporal.get('curso_activo_id'), elegido)
+        self.assertEqual(SandboxCanalSesion.objects.get(telefono=self.tel).modo, 'cursos')
+
+    def test_curso_nuevo_marcado_en_el_menu_entra_al_carrusel_y_se_inscribe(self):
+        from core.cursos_generales import inscribir_en_catalogo, tarjetas_catalogo
+
+        nuevo = Curso.objects.create(
+            nombre='Café de altura',
+            descripcion='Cosecha y precio en la finca.',
+            cliente=None,
+            activo=True,
+            catalogo_menu=True,
+        )
+        Modulo.objects.create(
+            curso=nuevo,
+            numero=1,
+            titulo='Cosecha',
+            descripcion='d',
+            contenido='c',
+            imagen_portada_url='https://cdn.example.com/cafe.jpg',
+        )
+        tarjeta = next(t for t in tarjetas_catalogo() if t['clave'] == f'curso_{nuevo.id}')
+        self.assertEqual(tarjeta['imagen'], 'https://cdn.example.com/cafe.jpg')
+        self.assertEqual(tarjeta['botones'][0][0], f'ver_curso_{nuevo.id}')
+        resultado = inscribir_en_catalogo('573009991111', f'curso_{nuevo.id}')
+        self.assertTrue(resultado['ok'])
+        self.assertTrue(
+            ProgresoEstudiante.objects.filter(estudiante__telefono='573009991111', curso=nuevo).exists()
+        )
 
     def test_carrusel_dos_botones_de_respuesta(self):
         from core.sandbox_canal import enviar_meta_carrusel

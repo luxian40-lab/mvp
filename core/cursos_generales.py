@@ -57,10 +57,15 @@ for _item in CATALOGO:
 
 
 def payload_catalogo(body: str) -> dict | None:
-    par = _PAYLOADS.get((body or '').strip().lower())
-    if not par:
-        return None
-    return {'accion': par[0], 'clave': par[1]}
+    texto = (body or '').strip().lower()
+    par = _PAYLOADS.get(texto)
+    if par:
+        return {'accion': par[0], 'clave': par[1]}
+    if texto.startswith('ver_curso_') and texto[10:].isdigit():
+        return {'accion': 'ver', 'clave': f'curso_{texto[10:]}'}
+    if texto.startswith('info_curso_') and texto[11:].isdigit():
+        return {'accion': 'info', 'clave': f'curso_{texto[11:]}'}
+    return None
 
 
 def texto_tarjeta(item: dict) -> str:
@@ -84,40 +89,88 @@ def url_imagen_catalogo(archivo: str) -> str:
     return f'{base}{path}'
 
 
+def _tarjeta(clave: str, nombre: str, resumen: str, imagen: str, url: str) -> dict:
+    return {
+        'clave': clave,
+        'body': texto_tarjeta({'nombre': nombre, 'resumen': resumen}),
+        'imagen': imagen,
+        'url': url,
+        'botones': [
+            (f"ver_{clave}", 'Ver curso'),
+            (f"info_{clave}", 'Más información'),
+        ],
+    }
+
+
+def _imagen_de_curso(curso) -> str:
+    from core.models import Modulo
+
+    portada = (
+        Modulo.objects.filter(curso=curso, imagen_portada_url__startswith='https')
+        .order_by('numero', 'id')
+        .values_list('imagen_portada_url', flat=True)
+        .first()
+    )
+    return portada or url_imagen_catalogo('carrusel_tiempo.jpg')
+
+
 def tarjetas_catalogo() -> list[dict]:
-    tarjetas = []
-    for item in CATALOGO:
-        tarjetas.append({
-            'clave': item['clave'],
-            'body': texto_tarjeta(item),
-            'imagen': url_imagen_catalogo(item['imagen']),
-            'url': item['url'],
-            'botones': [
-                (f"ver_{item['clave']}", 'Ver curso'),
-                (f"info_{item['clave']}", 'Más información'),
-            ],
-        })
-    return tarjetas
+    """Los tres de siempre, más cualquier curso general marcado Catálogo del menú."""
+    from core.models import Curso
+
+    tarjetas = [
+        _tarjeta(item['clave'], item['nombre'], item['resumen'], url_imagen_catalogo(item['imagen']), item['url'])
+        for item in CATALOGO
+    ]
+    nombres = {item['nombre'] for item in CATALOGO}
+    extras = (
+        Curso.objects.filter(catalogo_menu=True, activo=True, cliente__isnull=True)
+        .exclude(nombre__in=nombres)
+        .order_by('orden', 'nombre', 'id')
+    )
+    for curso in extras:
+        resumen = ' '.join((curso.descripcion or '').split())
+        tarjetas.append(_tarjeta(
+            f'curso_{curso.id}', curso.nombre, resumen[:120], _imagen_de_curso(curso), ''
+        ))
+    return tarjetas[:10]
 
 
 def item_catalogo(clave: str) -> dict | None:
     for item in CATALOGO:
         if item['clave'] == clave:
             return item
-    return None
+    curso = curso_catalogo(clave)
+    if curso is None or not str(clave).startswith('curso_'):
+        return None
+    return {
+        'clave': clave,
+        'nombre': curso.nombre,
+        'resumen': ' '.join((curso.descripcion or '').split())[:200],
+        'url': '',
+    }
 
 
 def curso_catalogo(clave: str):
     from core.models import Curso
 
-    item = item_catalogo(clave)
-    if item is None:
-        return None
-    return (
-        Curso.objects.filter(nombre=item['nombre'], cliente__isnull=True, catalogo_menu=True, activo=True)
-        .order_by('id')
-        .first()
-    )
+    if str(clave).startswith('curso_') and str(clave)[6:].isdigit():
+        return (
+            Curso.objects.filter(
+                pk=int(str(clave)[6:]), catalogo_menu=True, activo=True, cliente__isnull=True
+            )
+            .first()
+        )
+    for item in CATALOGO:
+        if item['clave'] == clave:
+            return (
+                Curso.objects.filter(
+                    nombre=item['nombre'], cliente__isnull=True, catalogo_menu=True, activo=True
+                )
+                .order_by('id')
+                .first()
+            )
+    return None
 
 
 def asegurar_cursos_generales() -> dict:

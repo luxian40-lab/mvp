@@ -380,7 +380,17 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
         decision.action = 'show_agentes'
         return decision
 
+    import re
+
     from core.cursos_generales import payload_catalogo
+
+    seguido = re.fullmatch(r'seguir_(\d+)', (body or '').strip())
+    if seguido:
+        curso_id = int(seguido.group(1))
+        if any(p.curso_id == curso_id for p in _abiertos_del_mes(from_tel)):
+            decision.action = 'continuar_curso'
+            decision.texto_menu = str(curso_id)
+            return decision
 
     if sesion.modo in (MODO_MENU, MODO_FORMACION, MODO_CURSOS) and payload_catalogo(body):
         decision.action = 'catalogo_general'
@@ -388,6 +398,12 @@ def resolver_ruta_sandbox(payload: Any) -> SandboxRouteDecision:
         return decision
 
     if sesion.modo == MODO_FORMACION and (body or '').strip():
+        abiertos = _abiertos_del_mes(from_tel)
+        numero = (body or '').strip()
+        if len(abiertos) >= 2 and numero.isdigit() and 1 <= int(numero) <= len(abiertos):
+            decision.action = 'continuar_curso'
+            decision.texto_menu = str(abiertos[int(numero) - 1].curso_id)
+            return decision
         decision.action = 'cursos_bootstrap'
         return decision
 
@@ -488,9 +504,74 @@ def enviar_texto_sandbox(telefono_usuario: str, from_number: str, texto: str, *,
     )
 
 
+def _abiertos_del_mes(telefono: str):
+    from core.planes_linea import cursos_iniciados_en_el_mes
+
+    return list(
+        cursos_iniciados_en_el_mes(telefono).filter(completado=False).select_related('estudiante', 'curso')[:6]
+    )
+
+
+def _entrar_en_progreso(telefono: str, from_number: str, progreso) -> None:
+    est = progreso.estudiante
+    ctx = dict(est.contexto_temporal or {})
+    ctx['curso_activo_id'] = progreso.curso_id
+    est.contexto_temporal = ctx
+    est.save(update_fields=['contexto_temporal'])
+    _set_modo(_get_or_create_sesion(telefono), MODO_CURSOS)
+    extra = ''
+    if resolver_plan(telefono).incluye_asesor:
+        extra = "\nEscriba *asesoria* si quiere hablar con el asesor.\n"
+    enviar_texto_sandbox(
+        telefono,
+        from_number,
+        f"Seguimos *{progreso.curso.nombre}*.\n\n"
+        "Escriba *listo* para continuar donde iba. No se reinicia su avance.\n"
+        f"{extra}\n_*menu* para volver._",
+        agente='sandbox_cursos',
+    )
+
+
+def _preguntar_cual_curso(telefono: str, from_number: str, abiertos) -> None:
+    from core.sandbox_canal import enviar_meta_lista, sandbox_via_meta
+
+    _set_modo(_get_or_create_sesion(telefono), MODO_FORMACION)
+    lineas = [f"{i}. {p.curso.nombre}" for i, p in enumerate(abiertos, start=1)]
+    texto = (
+        "¿Cuál curso sigue?\n\n"
+        + "\n".join(lineas)
+        + "\n\nElija en la lista o escriba el número. No se reinicia su avance.\n\n"
+        "_*menu* para volver._"
+    )
+    filas = [
+        (f"seguir_{p.curso_id}", (p.curso.nombre or 'Curso')[:24], 'Continuar donde iba')
+        for p in abiertos[:10]
+    ]
+    if sandbox_via_meta():
+        enviar_meta_lista(
+            telefono, texto, 'Sus cursos', filas, texto_respaldo=texto, agente_evento='sandbox_cursos'
+        )
+        return
+    enviar_texto_sandbox(telefono, from_number, texto, agente='sandbox_cursos')
+
+
+def ofrecer_cursos_en_curso(telefono: str, from_number: str) -> bool:
+    """Si este mes ya va en uno o dos cursos, no abre el carrusel de cero."""
+    abiertos = _abiertos_del_mes(telefono)
+    if not abiertos:
+        return False
+    if len(abiertos) == 1:
+        _entrar_en_progreso(telefono, from_number, abiertos[0])
+    else:
+        _preguntar_cual_curso(telefono, from_number, abiertos)
+    return True
+
+
 def enviar_menu_sandbox(telefono_usuario: str, from_number: str) -> dict:
     from core.sandbox_canal import enviar_meta_botones, sandbox_via_meta
 
+    if ofrecer_cursos_en_curso(telefono_usuario, from_number):
+        return {'success': True, 'mensaje_id': None, 'response': 'cursos_en_curso'}
     plan = resolver_plan(telefono_usuario)
     if not plan.activo:
         return enviar_texto_sandbox(telefono_usuario, from_number, TEXTO_SIN_PLAN, agente='sandbox_plan')
@@ -518,20 +599,9 @@ def enviar_menu_sandbox(telefono_usuario: str, from_number: str) -> dict:
 def enviar_catalogo_formacion(telefono_usuario: str, from_number: str) -> None:
     """Un carrusel con foto. Ver curso inscribe. Más información manda la ficha."""
     from core.cursos_generales import CATALOGO, tarjetas_catalogo
-    from core.planes_linea import cursos_iniciados_en_el_mes
     from core.sandbox_canal import enviar_meta_carrusel, sandbox_via_meta
 
-    ya = cursos_iniciados_en_el_mes(telefono_usuario).first()
-    if ya is not None:
-        enviar_texto_sandbox(
-            telefono_usuario,
-            from_number,
-            f"Este mes ya va en *{ya.curso.nombre}*.\n\n"
-            "Escriba *listo* para seguir donde iba. "
-            "El carrusel de cursos vuelve el próximo mes.\n\n"
-            "_*menu* para volver._",
-            agente='sandbox_formacion',
-        )
+    if ofrecer_cursos_en_curso(telefono_usuario, from_number):
         return
 
     cuerpo = (
@@ -940,6 +1010,17 @@ def dispatch_sandbox_menu(payload: Any) -> str | None:
             enviar_menu_agentes(decision.telefono_usuario, from_n)
         except Exception:
             logger.exception('sandbox_agentes_send_failed tel=%s', decision.telefono_usuario)
+        return 'handled'
+
+    if decision.action == 'continuar_curso':
+        try:
+            curso_id = int(decision.texto_menu)
+            progreso = next(p for p in _abiertos_del_mes(decision.telefono_usuario) if p.curso_id == curso_id)
+            _entrar_en_progreso(decision.telefono_usuario, from_n, progreso)
+        except StopIteration:
+            enviar_menu_sandbox(decision.telefono_usuario, from_n)
+        except Exception:
+            logger.exception('sandbox_continuar_curso_fail')
         return 'handled'
 
     if decision.action == 'show_formacion':
